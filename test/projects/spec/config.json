@@ -1,0 +1,23 @@
+{
+  "steppers": ["conformance"],
+  "refs": {
+    "docs": {
+      "cats": {
+        "src": "https://canada-ca.github.io/CATS-STAE/oidc1-en.html"
+      },
+      "oauth2": {
+        "src": "https://openid.net/specs/openid-igov-oauth2-1_0-ID1.html"
+      },
+      "oidc": {
+        "src": "https://openid.net/specs/openid-igov-openid-connect-1_0-ID1.html"
+      },
+      "oidcbc": {
+        "src": "https://openid.net/specs/openid-connect-backchannel-1_0.html"
+      },
+      "oidcfc": {
+        "src": "https://openid.net/specs/openid-connect-frontchannel-1_0.html"
+      }
+    }
+  }
+}
+

@@ -1,11 +1,11 @@
-import { IStepper, IStepperConstructor, ok, TVars } from '../lib/defs';
+import { IStepper, IStepperConstructor, notOk, TShared } from '../lib/defs';
 import { UserAgent } from '../Browser';
 import { Browser } from 'playwright';
 
 const Web: IStepperConstructor = class Web implements IStepper {
-  vars: TVars;
-  constructor(vars: TVars) {
-    this.vars = vars;
+  shared: TShared;
+  constructor(shared: TShared) {
+    this.shared = shared;
   }
   context: { browser?: Browser; ua?: UserAgent } = {};
   close() {
@@ -19,25 +19,25 @@ const Web: IStepperConstructor = class Web implements IStepper {
         const ua = new UserAgent();
         this.context.ua = ua;
         this.context.browser = ua.browser;
-        return ok;
+        return notOk;
       },
     },
     openPage: {
       match: /^When I open the (?<name>.+) page$/g,
       action: async ({ name }: { name: string }) => {
-        const uri = this.vars[name];
+        const uri = this.shared[name];
         const page = await this.context.ua?.getPage();
         await page?.goto(uri);
-        return ok;
+        return notOk;
       },
     },
     clickOn: {
       match: /^When I click on (?<name>.+)$/g,
       action: async ({ name }: { name: string }) => {
-        const what = this.vars[name] || `text=${name}`;
+        const what = this.shared[name] || `text=${name}`;
         const page = await this.context.ua?.getPage();
         await page?.click(what);
-        return ok;
+        return notOk;
       },
     },
 
