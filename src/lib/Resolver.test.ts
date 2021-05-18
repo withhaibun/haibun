@@ -1,4 +1,4 @@
-import { IStepper, ok, TVStep } from './defs';
+import { IStepper, ok, TResolvedFeature } from './defs';
 import { Resolver } from './Resolver';
 
 class TestStepper implements IStepper {
@@ -23,9 +23,9 @@ describe('validate map steps', () => {
       },
     };
     const res = await val.resolveSteps(features);
-    const vsteps = res.l1.vsteps as TVStep[];
-    console.log(JSON.stringify(vsteps, null, 2));
+    const {vsteps} = res.l1 as TResolvedFeature;
     expect(vsteps).toBeDefined();
-    expect(vsteps[0])
+    expect(vsteps[0].actions[0].named).toBeUndefined();
+    expect(vsteps[1].actions[0].named).toEqual({num: "2"});
   });
 });
