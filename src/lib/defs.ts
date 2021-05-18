@@ -20,7 +20,9 @@ export const ok = { ok: true };
 export const notOk = { ok: false };
 
 export type TResult = {
-  ok: typeof ok | typeof notOk;
+  ok: boolean;
+  results?: any;
+  error?: any
 };
 
 export interface IStepper {
@@ -43,7 +45,6 @@ export type TFeature = {
 }
 
 export type TResolvedFeature = {
-  feature: string;
   vsteps: TVStep[]
 }
 

@@ -5,7 +5,7 @@ import { run } from './lib/run';
 export const base = process.argv[2].replace(/\/$/, '');
 try {
   const specl: TSpecl = JSON.parse(readFileSync(`${base}/config.json`, 'utf-8'));
-  const res = run(specl, base);
+  const res = run({specl, base});
   console.info('result', res);
   process.exit(0);
 } catch (e) {

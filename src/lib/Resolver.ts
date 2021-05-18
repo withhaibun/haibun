@@ -16,7 +16,7 @@ export class Resolver {
 
     const addSteps = async (feature: TFeature): Promise<TResolvedFeature> => {
       const vsteps = feature.feature.split('\n').map((featureLine, seq) => {
-        const actions = findSteps(featureLine, this.steppers);
+        const actions = this.findSteps(featureLine);
         if (actions.length > 1) {
           throw Error(`more than one step found for ${featureLine}`);
         } else if (actions.length < 1 && this.options.mode !== 'some') {
@@ -44,6 +44,30 @@ export class Resolver {
     }
     return expanded;
   }
+
+  findSteps(featureLine: string): TFound[] {
+    const actual = getActionable(featureLine);
+    if (!actual.length) {
+      return [comment];
+    }
+    let found: TFound[] = [];
+    this.steppers.forEach(({ steps }) => {
+      Object.keys(steps).map((name) => {
+        const step = steps[name];
+
+        if (step.match === featureLine) {
+          found.push({ name, step });
+        } else if (step.match instanceof RegExp) {
+          const r = new RegExp(step.match);
+          if (r.test(featureLine)) {
+            const named = getNamedMatches(featureLine, step);
+            found.push({ name, step, named });
+          }
+        }
+      });
+    }, []);
+    return found;
+  }
 }
 
 const comment = {
@@ -51,33 +75,10 @@ const comment = {
   step: {
     match: /.*/,
     action: async () => {
-      console.log('comment');
       return ok;
     },
   },
 };
-
-export function findSteps(featureLine: string, steppers: IStepper[]): TFound[] {
-  const actual = getActionable(featureLine);
-  if (!actual.length) {
-    return [comment];
-  }
-  let found: TFound[] = [];
-  steppers.forEach(({ steps }) => {
-    Object.keys(steps).map((name) => {
-      const step = steps[name];
-      if (step.match === featureLine) {
-        found.push({ name, step });
-      } else if (step.match instanceof RegExp) {
-        const named = getNamedMatches(featureLine, step);
-        if (named && Object.keys(named).length > 0) {
-          found.push({ name, step, named });
-        }
-      }
-    });
-  }, []);
-  return found;
-}
 
 function getActionable(value: string) {
   return value.replace(/#.*/, '').trim();
