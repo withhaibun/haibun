@@ -1,4 +1,4 @@
-import { TFeature,  TPaths } from './defs';
+import { TFeature, TPaths } from './defs';
 
 export function getSteps(value: string) {
   return value
@@ -36,36 +36,42 @@ export async function expandFeatures(paths: TPaths, backgrounds: TPaths) {
   const features = [];
   const nodes = [];
 
-  const expandFeature = async (feature: TFeature) => {
-    const lines = feature.feature
-      .split('\n')
-      .map((l) => {
-        if (l.match(' includes ')) {
-          const toFind = l.replace(/.* includes /, '');
-          const bg = findFeature(toFind, backgrounds);
-          return bg?.feature || l;
-        }
-        return l;
-      })
-      .join('\n');
+  if (typeof paths === 'string') {
+  }
 
-    return { feature: lines };
-  };
   for (const [path, featureOrNode] of Object.entries(paths)) {
     if (featureOrNode.feature) {
       features.push({ path, feature: featureOrNode });
-    } else {
+    } else if (typeof featureOrNode === 'object') {
       nodes.push({ path, node: featureOrNode });
+    } else {
+      throw Error(`wrong structure ${paths}`);
     }
 
     for (const { path, feature } of features) {
-      expanded[path] = await expandFeature(feature as TFeature);
+      expanded[path] = await expandFeature(feature as TFeature, backgrounds);
     }
     for (const { path, node } of nodes) {
       expanded[path] = await expandFeatures(node as TPaths, backgrounds);
     }
   }
   return expanded;
+}
+
+async function expandFeature(feature: TFeature, backgrounds: TPaths) {
+  const lines = feature.feature
+    .split('\n')
+    .map((l) => {
+      if (l.match(' includes ')) {
+        const toFind = l.replace(/.* includes /, '');
+        const bg = findFeature(toFind, backgrounds);
+        return bg?.feature || l;
+      }
+      return l;
+    })
+    .join('\n');
+
+  return { feature: lines };
 }
 
 export function findFeature(name: string, features: TPaths): TFeature | undefined {

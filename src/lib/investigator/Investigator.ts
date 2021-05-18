@@ -1,4 +1,4 @@
-import { TPaths, IStepper, ok, notOk, TFeature, TVStep, TNamed, TResolvedFeature, TResolvedPaths } from '../defs';
+import { TPaths, IStepper, ok, notOk, TVStep, TResolvedFeature, TResolvedPaths } from '../defs';
 import { expandBackgrounds, expandFeatures } from '../features';
 import { Resolver } from '../Resolver';
 
@@ -11,36 +11,39 @@ export class Investigator {
     this.options = options;
   }
 
-  async investigate(features: TPaths, backgrounds: TResolvedPaths) {
+  async investigate(features: TPaths, backgrounds: TPaths) {
     const expandedBackgrounds = await expandBackgrounds(backgrounds);
     const expandedFeatures = await expandFeatures(features, expandedBackgrounds);
     const validator = new Resolver(this.steppers, this.options);
     const mappedValidatedSteps = await validator.resolveSteps(expandedFeatures);
 
     try {
-      return { ok, result: await this.investigateRecursively(mappedValidatedSteps) };
+      const results = await this.investigateRecursively(mappedValidatedSteps, {});
+      return { ...ok, results };
     } catch (error) {
-      return { notOk, error };
+      console.error('failed', error);
+      return { ...notOk, error };
     }
   }
 
-  async investigateRecursively(features: TPaths) {
+  async investigateRecursively(features: TResolvedPaths, results: any) {
     for (const [path, featureOrNode] of Object.entries(features)) {
-      if (typeof featureOrNode === 'string') {
-        await this.onFeature(path, featureOrNode);
+      if (featureOrNode.vsteps) {
+        for (const step of (featureOrNode as TResolvedFeature).vsteps) {
+          results[path] = await this.doStep(step).catch((e) => console.error(e));
+        }
       } else {
-        await this.onNode(path, featureOrNode as TPaths);
+        results[path] = await this.investigateRecursively(featureOrNode as TResolvedPaths, results);
       }
     }
+    return results;
   }
 
-  async onFeature(path: string, feature: TResolvedFeature) {
-    for (const step of feature.vsteps!) {
-      await this.doStep(step).catch((e) => console.error(e));
+  async doStep(vstep: TVStep) {
+    for (const action of vstep.actions) {
+      const res = await action.step.action(action.named);
+      return res;
     }
-  }
-  async onNode(path: string, node: TPaths) {
-    await this.investigateRecursively(node);
   }
 
   async close() {
@@ -49,14 +52,6 @@ export class Investigator {
         console.info('closing', s.constructor.name);
         await s.close();
       }
-    }
-  }
-
-  async doStep(vstep: TVStep) {
-    for (const action of vstep.actions) {
-      console.log(action.name);
-      const res = await action.step.action(action.named);
-      console.info(res);
     }
   }
 }
