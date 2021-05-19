@@ -1,6 +1,6 @@
 Feature: Wikipedia
     Background:
-        Given I use wp
+        Given I include wp
 
     Scenarios: Language
-        Then I run language
+        Given I include en

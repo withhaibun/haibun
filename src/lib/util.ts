@@ -1,5 +1,5 @@
-import { readdirSync, readFileSync, statSync } from 'fs';
-import { IStepper, IStepperConstructor, TPaths, TStep } from './defs';
+import { existsSync, fstat, readdirSync, readFileSync, statSync } from 'fs';
+import { IStepper, IStepperConstructor, TPaths, TSpecl, TStep } from './defs';
 
 // FIXME tired of wrestling with ts/import issues
 export async function use(module: string) {
@@ -43,4 +43,24 @@ export async function recurse(dir: string, type: string, where: any) {
 export function getNamedMatches(what: string, step: TStep) {
   const named = (step.match as RegExp).exec(what)?.groups;
   return named;
+}
+
+const DEFAULT_CONFIG: TSpecl = {
+  mode: 'all',
+  features: {},
+  steppers: ['vars'],
+};
+
+export function getConfigOrDefault(base: string): TSpecl {
+  const f = `${base}/config.json`;
+  if (existsSync(f)) {
+    try {
+      const specl = JSON.parse(readFileSync(f, 'utf-8'));
+      return specl;
+    } catch (e) {
+      console.error('missing or not valid project config file.');
+      process.exit(1);
+    }
+  }
+  return DEFAULT_CONFIG;
 }
