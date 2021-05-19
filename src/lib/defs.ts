@@ -12,26 +12,39 @@ export type TSpecl = {
 export type TFound = { name: string; step: TStep; named?: TNamed };
 export type TNamed = { [name: string]: string };
 export type TStep = {
-  match: RegExp | string;
-  action: (arg: any) => Promise<{ ok: true | false; named?: TNamed;  }>;
+  match?: RegExp;
+  exact?: string;
+  action: (arg: any) => Promise<{ ok: true | false; named?: TNamed }>;
 };
 
 export const ok = { ok: true };
 export const notOk = { ok: false };
 
+export type TResultError = {
+  context: any;
+  details?: any;
+};
+
 export type TResult = {
   ok: boolean;
-  results?: any;
+  results?: TStepResult[];
   failure?: {
-    stage: 'Resolver' | 'Investigator';
-    error: Error;
+    stage: 'Expand' | 'Resolver' | 'Investigator';
+    error: TResultError;
   };
+};
+
+export type TActionResult = {
+  ok: boolean;
+  name: string;
 };
 
 export type TStepResult = {
   ok: boolean;
-  stepResults: TResult[]
-}
+  actionResults: TActionResult[];
+  in: string;
+  seq: number;
+};
 
 export interface IStepper {
   steps: { [name: string]: TStep };
@@ -54,10 +67,6 @@ export type TFeature = {
 
 export type TResolvedFeature = {
   vsteps: TVStep[];
-};
-
-export type TResolvedPaths = {
-  [name: string]: TResolvedFeature | TResolvedPaths;
 };
 
 export type TPaths = {

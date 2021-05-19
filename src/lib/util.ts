@@ -1,5 +1,5 @@
 import { existsSync, fstat, readdirSync, readFileSync, statSync } from 'fs';
-import { IStepper, IStepperConstructor, TPaths, TSpecl, TStep } from './defs';
+import { IStepper, IStepperConstructor, notOk, TPaths, TResult, TSpecl, TStep } from './defs';
 
 // FIXME tired of wrestling with ts/import issues
 export async function use(module: string) {
@@ -63,4 +63,8 @@ export function getConfigOrDefault(base: string): TSpecl {
     }
   }
   return DEFAULT_CONFIG;
+}
+
+export function getActionable(value: string) {
+  return value.replace(/#.*/, '').trim();
 }

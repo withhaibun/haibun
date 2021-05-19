@@ -1,4 +1,5 @@
 import { TFeature, TPaths } from './defs';
+import { getActionable } from './util';
 
 export function getSteps(value: string) {
   return value
@@ -62,9 +63,13 @@ async function expandFeature(feature: TFeature, backgrounds: TPaths) {
   const lines = feature.feature
     .split('\n')
     .map((l) => {
-      if (l.match(' includes? ')) {
-        const toFind = l.replace(/.* includes? /, '');
+      // FIXME should probably be somewhere else
+      if (getActionable(l).match(/^Given I include .*$/)) {
+        const toFind = l.replace(/.* include /, '');
         const bg = findFeature(toFind, backgrounds);
+        if (!bg || !bg.feature) {
+          throw Error(`no feature to include ${toFind}`);
+        }
         return bg?.feature || l;
       }
       return l;

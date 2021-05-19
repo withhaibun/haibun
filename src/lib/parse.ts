@@ -24,7 +24,7 @@ export async function parse(specl: TSpecl, base: string, steppers: IStepper[]) {
       }
 
       for (const [name, step] of Object.entries(stepper.steps)) {
-        const matches = content.matchAll(RegExp(step.match));
+        const matches = content.matchAll(step.match!);
         for (const match of matches) {
           const [m] = match;
           conditions.push({
