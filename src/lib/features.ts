@@ -62,8 +62,8 @@ async function expandFeature(feature: TFeature, backgrounds: TPaths) {
   const lines = feature.feature
     .split('\n')
     .map((l) => {
-      if (l.match(' includes ')) {
-        const toFind = l.replace(/.* includes /, '');
+      if (l.match(' includes? ')) {
+        const toFind = l.replace(/.* includes? /, '');
         const bg = findFeature(toFind, backgrounds);
         return bg?.feature || l;
       }

@@ -1,7 +1,9 @@
 import { existsSync } from 'fs';
 import { TSpecl, IStepper, notOk, IStepperConstructor, TResult } from './defs';
+import { expandBackgrounds, expandFeatures } from './features';
 import { Investigator } from './investigator/Investigator';
 import { parse } from './parse';
+import { Resolver } from './Resolver';
 import { getSteppers, recurse } from './util';
 
 export async function run({ specl, base, addSteppers = [] }: { specl: TSpecl; base: string; addSteppers?: IStepperConstructor[] }): Promise<TResult> {
@@ -13,11 +15,18 @@ export async function run({ specl, base, addSteppers = [] }: { specl: TSpecl; ba
   if (specl.refs) {
     await parse(specl, base, steppers);
   }
-  const investigator = new Investigator(steppers, specl);
+  const expandedBackgrounds = await expandBackgrounds(backgrounds);
+  const expandedFeatures = await expandFeatures(features, expandedBackgrounds);
+
+  const resolver = new Resolver(steppers, specl);
+  let mappedValidatedSteps;
   try {
-    const res = await investigator.investigate(features, backgrounds);
-    return res;
+    mappedValidatedSteps = await resolver.resolveSteps(expandedFeatures);
   } catch (error) {
-    return { ...notOk, error };
+    return { ...notOk, failure: { stage: 'Resolver', error } };
   }
+
+  const investigator = new Investigator(steppers, specl);
+  const res = await investigator.investigate(mappedValidatedSteps);
+  return res;
 }

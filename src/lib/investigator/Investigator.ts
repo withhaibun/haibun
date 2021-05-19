@@ -1,6 +1,4 @@
-import { TPaths, IStepper, ok, notOk, TVStep, TResolvedFeature, TResolvedPaths } from '../defs';
-import { expandBackgrounds, expandFeatures } from '../features';
-import { Resolver } from '../Resolver';
+import { IStepper, ok, TVStep, TResolvedFeature, TResolvedPaths, TResult, TStepResult } from '../defs';
 
 export class Investigator {
   steppers: IStepper[];
@@ -11,39 +9,44 @@ export class Investigator {
     this.options = options;
   }
 
-  async investigate(features: TPaths, backgrounds: TPaths) {
-    const expandedBackgrounds = await expandBackgrounds(backgrounds);
-    const expandedFeatures = await expandFeatures(features, expandedBackgrounds);
-    const validator = new Resolver(this.steppers, this.options);
-    const mappedValidatedSteps = await validator.resolveSteps(expandedFeatures);
-
-    try {
-      const results = await this.investigateRecursively(mappedValidatedSteps, {});
-      return { ...ok, results };
-    } catch (error) {
-      console.error('failed', error);
-      return { ...notOk, error };
-    }
+  async investigate(mappedValidatedSteps: TResolvedPaths): Promise<TResult> {
+    const results = await this.investigateRecursively(mappedValidatedSteps, {}, true);
+    console.log('RESULTS', results);
+    
+    return { ...ok, results };
   }
 
-  async investigateRecursively(features: TResolvedPaths, results: any) {
+  async investigateRecursively(features: TResolvedPaths, results: any, allOk: boolean) {
     for (const [path, featureOrNode] of Object.entries(features)) {
       if (featureOrNode.vsteps) {
         for (const step of (featureOrNode as TResolvedFeature).vsteps) {
-          results[path] = await this.doStep(step).catch((e) => console.error(e));
+          const res = await this.doStep(step);
+          allOk = allOk && res.ok;
+          if (!res.ok) {
+            allOk = false;
+          }
+          results[path] = res;
         }
       } else {
-        results[path] = await this.investigateRecursively(featureOrNode as TResolvedPaths, results);
+        results[path] = await this.investigateRecursively(featureOrNode as TResolvedPaths, featureOrNode, allOk);
       }
     }
     return results;
   }
 
-  async doStep(vstep: TVStep) {
-    for (const action of vstep.actions) {
-      const res = await action.step.action(action.named);
-      return res;
+  async doStep(vstep: TVStep): Promise<TStepResult> {
+    let ok = true;
+    let stepResults = [];
+    for (const a of vstep.actions) {
+      const res = await a.step.action(a.named || {});
+      console.log(a.name, a.step.match, a.named, 'res:', res);
+      stepResults.push(res);
+      ok = ok && res.ok;
+      if (!res.ok) {
+        break;
+      }
     }
+    return { ok, stepResults};
   }
 
   async close() {

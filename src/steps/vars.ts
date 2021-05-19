@@ -1,4 +1,4 @@
-import { IStepper, IStepperConstructor, notOk, TShared } from '../lib/defs';
+import { IStepper, IStepperConstructor, notOk, ok, TShared } from '../lib/defs';
 
 const Context: IStepperConstructor = class Vars implements IStepper {
   shared: TShared;
@@ -25,7 +25,7 @@ const Context: IStepperConstructor = class Vars implements IStepper {
       match: /^Background: ?(?<background>.+)?$/g,
       action: async ({ background }: { background: string }) => {
         this.shared.background = background;
-        return notOk;
+        return ok;
       },
     },
     scenarios: {
@@ -36,7 +36,7 @@ const Context: IStepperConstructor = class Vars implements IStepper {
       },
     },
     scenario: {
-      match: /^Scenario :(?<scenario>.+)$/g,
+      match: /^Scenario: (?<scenario>.+)$/g,
       action: async ({ scenario }: { scenario: string }) => {
         this.shared.scenario = scenario;
         return notOk;
