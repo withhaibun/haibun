@@ -99,18 +99,18 @@ describe('find feature', () => {
 describe('expand features', () => {
   test('applies backgrounds', async () => {
     const features = {
-      f1: { feature: ' includes b1' },
+      f1: { feature: 'Given I include b1\nThen something' },
     };
     const backgrounds = {
       b1: { feature: 'result' },
     };
     const res = await steps.expandFeatures(features, backgrounds);
-    expect(res).toEqual({ f1: { feature: 'result' } });
+    expect(res).toEqual({ f1: { feature: 'result\nThen something' } });
   });
   test('applies backgrounds hierarchical', async () => {
     const features = {
       l1: {
-        f1: { feature: ' includes b1' },
+        f1: { feature: 'Given I include b1' },
       },
     };
     const backgrounds = {

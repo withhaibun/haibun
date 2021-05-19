@@ -1,5 +1,5 @@
-import { IStepper, TPaths, TFeature, TFound, ok, TResolvedPaths, TResolvedFeature } from './defs';
-import { getNamedMatches } from './util';
+import { IStepper, TPaths, TFeature, TFound, ok, TResolvedFeature } from './defs';
+import { getActionable, getNamedMatches } from './util';
 
 export class Resolver {
   steppers: IStepper[];
@@ -8,8 +8,8 @@ export class Resolver {
     this.steppers = steppers;
     this.options = options;
   }
-  async resolveSteps(paths: TPaths): Promise<TResolvedPaths> {
-    const expanded: TResolvedPaths = {};
+  async resolveSteps(paths: TPaths): Promise<TResolvedFeature[]> {
+    const expanded: TResolvedFeature[] = [];
 
     const features = [];
     const nodes = [];
@@ -36,26 +36,28 @@ export class Resolver {
       }
 
       for (const { path, feature } of features) {
-        expanded[path] = await addSteps(feature as TFeature);
+        const steps = await addSteps(feature as TFeature);
+        expanded.push(steps);
       }
       for (const { path, node } of nodes) {
-        expanded[path] = await this.resolveSteps(node as TPaths);
+        await this.resolveSteps(node as TPaths);
       }
     }
     return expanded;
   }
 
-  private findSteps(featureLine: string): TFound[] {
+  public findSteps(featureLine: string): TFound[] {
     const actionable = getActionable(featureLine);
     if (!actionable.length) {
       return [comment];
     }
     let found: TFound[] = [];
     this.steppers.forEach(({ steps }) => {
+      
       Object.keys(steps).map((name) => {
         const step = steps[name];
 
-        if (step.match === actionable) {
+        if (step.exact === actionable) {
           found.push({ name, step });
         } else if (step.match instanceof RegExp) {
           const r = new RegExp(step.match);
@@ -79,7 +81,3 @@ const comment = {
     },
   },
 };
-
-function getActionable(value: string) {
-  return value.replace(/#.*/, '').trim();
-}

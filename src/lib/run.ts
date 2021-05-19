@@ -1,5 +1,5 @@
 import { existsSync } from 'fs';
-import { TSpecl, IStepper, notOk, IStepperConstructor, TResult } from './defs';
+import { TSpecl, IStepper, notOk, IStepperConstructor, TResult, TPaths } from './defs';
 import { expandBackgrounds, expandFeatures } from './features';
 import { Investigator } from './investigator/Investigator';
 import { parse } from './parse';
@@ -15,18 +15,30 @@ export async function run({ specl, base, addSteppers = [] }: { specl: TSpecl; ba
   if (specl.refs) {
     await parse(specl, base, steppers);
   }
-  const expandedBackgrounds = await expandBackgrounds(backgrounds);
-  const expandedFeatures = await expandFeatures(features, expandedBackgrounds);
 
-  const resolver = new Resolver(steppers, specl);
+  let expandedFeatures;
+  try {
+    expandedFeatures = await expand(backgrounds, features);
+  } catch (error) {
+    return { ...notOk, failure: { stage: 'Expand', error: error.message } };
+  }
+
   let mappedValidatedSteps;
   try {
+    const resolver = new Resolver(steppers, specl);
     mappedValidatedSteps = await resolver.resolveSteps(expandedFeatures);
   } catch (error) {
-    return { ...notOk, failure: { stage: 'Resolver', error } };
+    return { ...notOk, failure: { stage: 'Resolver', error: error.message } };
   }
 
   const investigator = new Investigator(steppers, specl);
   const res = await investigator.investigate(mappedValidatedSteps);
   return res;
+}
+
+async function expand(backgrounds: TPaths, features: TPaths) {
+  const expandedBackgrounds = await expandBackgrounds(backgrounds);
+  
+  const expandedFeatures = await expandFeatures(features, expandedBackgrounds);
+  return expandedFeatures;
 }

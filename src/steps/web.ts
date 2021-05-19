@@ -15,15 +15,18 @@ const Web: IStepperConstructor = class Web implements IStepper {
 
   steps = {
     usingChrome: {
-      match: `Given I'm using Chrome browser`,
+      exact: `Given I'm using Chrome browser`,
       action: async () => {
         return ok;
       },
     },
     openPage: {
       match: /^When I open the (?<name>.+) page$/g,
-      action: async ({ name }: { name: string }) => {
+      action: async (inx: any) => {
+        const {name} = inx;
+        
         const uri = this.shared[name];
+        console.log('\n\nSHARED', inx, typeof inx, uri, name, this.shared);
         const page = await this.bf.getPage();
         await page.goto(uri);
         return ok;
