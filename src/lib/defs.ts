@@ -13,7 +13,7 @@ export type TFound = { name: string; step: TStep; named?: TNamed };
 export type TNamed = { [name: string]: string };
 export type TStep = {
   match: RegExp | string;
-  action: (arg: any) => Promise<{ ok: true | false; named?: TNamed; resolved?: string }>;
+  action: (arg: any) => Promise<{ ok: true | false; named?: TNamed;  }>;
 };
 
 export const ok = { ok: true };
@@ -22,8 +22,16 @@ export const notOk = { ok: false };
 export type TResult = {
   ok: boolean;
   results?: any;
-  error?: any
+  failure?: {
+    stage: 'Resolver' | 'Investigator';
+    error: Error;
+  };
 };
+
+export type TStepResult = {
+  ok: boolean;
+  stepResults: TResult[]
+}
 
 export interface IStepper {
   steps: { [name: string]: TStep };
@@ -35,18 +43,18 @@ export interface IStepperConstructor {
 }
 
 export type TVStep = {
-  in: string,
-  seq: number,
-  actions: TFound[]
-}
+  in: string;
+  seq: number;
+  actions: TFound[];
+};
 
 export type TFeature = {
   feature: string;
-}
+};
 
 export type TResolvedFeature = {
-  vsteps: TVStep[]
-}
+  vsteps: TVStep[];
+};
 
 export type TResolvedPaths = {
   [name: string]: TResolvedFeature | TResolvedPaths;
@@ -59,9 +67,7 @@ export type TPaths = {
 export type TShared = {
   [name: string]: string;
 };
-export type TOnFeature = (path: string, feature: string) => any
-export type TOnNode =  (path: string, paths: TPaths) => any
+export type TOnFeature = (path: string, feature: string) => any;
+export type TOnNode = (path: string, paths: TPaths) => any;
 
-export type TMappedStep = {
-
-}
+export type TMappedStep = {};

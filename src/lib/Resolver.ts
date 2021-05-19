@@ -45,9 +45,9 @@ export class Resolver {
     return expanded;
   }
 
-  findSteps(featureLine: string): TFound[] {
-    const actual = getActionable(featureLine);
-    if (!actual.length) {
+  private findSteps(featureLine: string): TFound[] {
+    const actionable = getActionable(featureLine);
+    if (!actionable.length) {
       return [comment];
     }
     let found: TFound[] = [];
@@ -55,12 +55,12 @@ export class Resolver {
       Object.keys(steps).map((name) => {
         const step = steps[name];
 
-        if (step.match === featureLine) {
+        if (step.match === actionable) {
           found.push({ name, step });
         } else if (step.match instanceof RegExp) {
           const r = new RegExp(step.match);
-          if (r.test(featureLine)) {
-            const named = getNamedMatches(featureLine, step);
+          if (r.test(actionable)) {
+            const named = getNamedMatches(actionable, step);
             found.push({ name, step, named });
           }
         }

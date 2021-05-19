@@ -1,46 +1,52 @@
-import { IStepper, IStepperConstructor, notOk, TShared } from '../lib/defs';
-import { UserAgent } from '../Browser';
-import { Browser } from 'playwright';
+import { IStepper, IStepperConstructor, notOk, ok, TShared } from '../lib/defs';
+import { BrowserFactory } from '../BrowserFactory';
 
 const Web: IStepperConstructor = class Web implements IStepper {
   shared: TShared;
+  bf = new BrowserFactory();
+
   constructor(shared: TShared) {
     this.shared = shared;
   }
-  context: { browser?: Browser; ua?: UserAgent } = {};
+
   close() {
-    this.context.browser?.close();
+    this.bf.browser?.close();
   }
 
   steps = {
     usingChrome: {
       match: `Given I'm using Chrome browser`,
       action: async () => {
-        const ua = new UserAgent();
-        this.context.ua = ua;
-        this.context.browser = ua.browser;
-        return notOk;
+        return ok;
       },
     },
     openPage: {
       match: /^When I open the (?<name>.+) page$/g,
       action: async ({ name }: { name: string }) => {
         const uri = this.shared[name];
-        const page = await this.context.ua?.getPage();
-        await page?.goto(uri);
-        return notOk;
+        const page = await this.bf.getPage();
+        await page.goto(uri);
+        return ok;
       },
     },
     clickOn: {
       match: /^When I click on (?<name>.+)$/g,
       action: async ({ name }: { name: string }) => {
         const what = this.shared[name] || `text=${name}`;
-        const page = await this.context.ua?.getPage();
-        await page?.click(what);
-        return notOk;
+        const page = await this.bf.getPage();
+
+        const res = await page.click(what);
+        return ok;
       },
     },
-
+    URIStartsWith: {
+      match: /^Then the URI should start with (?<start>.+)$/g,
+      action: async ({ start }: { start: string }) => {
+        const page = await this.bf.getPage();
+        const res = await page.url().startsWith(start);
+        return res ? ok : notOk;
+      },
+    },
   };
 };
 export default Web;
