@@ -1,4 +1,4 @@
-import { IStepper, ok, TVStep, TResolvedFeature, TResolvedPaths, TResult, TStepResult } from '../defs';
+import { IStepper, TVStep, TResolvedFeature, TResult, TStepResult, TResultError, notOk } from '../defs';
 
 export class Investigator {
   steppers: IStepper[];
@@ -9,44 +9,43 @@ export class Investigator {
     this.options = options;
   }
 
-  async investigate(mappedValidatedSteps: TResolvedPaths): Promise<TResult> {
-    const results = await this.investigateRecursively(mappedValidatedSteps, {}, true);
-    console.log('RESULTS', results);
-    
-    return { ...ok, results };
-  }
-
-  async investigateRecursively(features: TResolvedPaths, results: any, allOk: boolean) {
-    for (const [path, featureOrNode] of Object.entries(features)) {
-      if (featureOrNode.vsteps) {
-        for (const step of (featureOrNode as TResolvedFeature).vsteps) {
-          const res = await this.doStep(step);
-          allOk = allOk && res.ok;
-          if (!res.ok) {
-            allOk = false;
-          }
-          results[path] = res;
+  async investigate(features: TResolvedFeature[]): Promise<TResult> {
+    let ok = true;
+    let results: TStepResult[] = [];
+    for (const feature of features) {
+      for (const step of feature.vsteps) {
+        const { result, error } = await Investigator.doStep(step);
+        ok = ok && result.ok;
+        results.push(result);
+        if (error) {
+          return { ok, failure: { stage: 'Investigator', error }, results };
         }
-      } else {
-        results[path] = await this.investigateRecursively(featureOrNode as TResolvedPaths, featureOrNode, allOk);
       }
     }
-    return results;
+    return { ok, results };
   }
 
-  async doStep(vstep: TVStep): Promise<TStepResult> {
+  static async doStep(vstep: TVStep): Promise<{ result: TStepResult; error: TResultError | undefined }> {
     let ok = true;
-    let stepResults = [];
+    let actionResults = [];
+    let error;
+    let details;
     for (const a of vstep.actions) {
-      const res = await a.step.action(a.named || {});
-      console.log(a.name, a.step.match, a.named, 'res:', res);
-      stepResults.push(res);
+      let res;
+      try {
+        res = await a.step.action(a.named);
+      } catch (error) {
+        res = notOk;
+        details = { message: error.message, vstep };
+      }
+      actionResults.push({ ...res, name: a.name });
       ok = ok && res.ok;
       if (!res.ok) {
+        error = { context: a, details };
         break;
       }
     }
-    return { ok, stepResults};
+    return { result: { ok, in: vstep.in, actionResults, seq: vstep.seq }, error };
   }
 
   async close() {

@@ -4,7 +4,7 @@ import { Resolver } from './Resolver';
 class TestStepper implements IStepper {
   steps = {
     line1: {
-      match: 'line1',
+      exact: 'line1',
       action: async () => ok,
     },
     line2: {
@@ -23,7 +23,8 @@ describe('validate map steps', () => {
       },
     };
     const res = await val.resolveSteps(features);
-    const {vsteps} = res.l1 as TResolvedFeature;
+    const {vsteps} = res[0] as TResolvedFeature;
+    
     expect(vsteps).toBeDefined();
     expect(vsteps[0].actions[0].named).toBeUndefined();
     expect(vsteps[1].actions[0].named).toEqual({num: "2"});

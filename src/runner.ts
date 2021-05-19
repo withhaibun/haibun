@@ -8,6 +8,6 @@ async function go() {
 
   const specl = getConfigOrDefault(base);
   const res = await run({ specl, base });
-  console.info('result', res);
+  console.info('result', JSON.stringify(res, null, 2));
   process.exit(0);
 }
