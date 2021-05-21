@@ -68,3 +68,11 @@ export function getConfigOrDefault(base: string): TSpecl {
 export function getActionable(value: string) {
   return value.replace(/#.*/, '').trim();
 }
+
+export function describeSteppers(steppers: IStepper[]) {
+  return steppers.map((stepper) => {
+    return Object.keys(stepper.steps).map((name) => {
+      return `${stepper.constructor.name}:${name}`;
+    });
+  }).join(' ');
+}

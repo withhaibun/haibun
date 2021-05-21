@@ -18,7 +18,7 @@ export class Investigator {
         ok = ok && result.ok;
         results.push(result);
         if (error) {
-          return { ok, failure: { stage: 'Investigator', error }, results };
+          return { ok, failure: { stage: 'Investigate', error }, results };
         }
       }
     }

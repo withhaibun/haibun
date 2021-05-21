@@ -66,8 +66,9 @@ describe('fails', () => {
 
     expect(res.ok).toBe(false);
 
-    expect(res.failure?.stage).toBe('Resolver');
-    expect(res.failure?.error).toBe('no step found for When I fail');
+    expect(res.failure?.stage).toBe('Resolve');
+    
+    expect(res.failure?.error.details.startsWith('no step found for When I fail')).toBe(true);
   });
 });
 
@@ -80,6 +81,6 @@ describe('step fails', () => {
 
     expect(res.ok).toBe(false);
 
-    expect(res.failure?.stage).toBe('Investigator');
+    expect(res.failure?.stage).toBe('Investigate');
   });
 });
