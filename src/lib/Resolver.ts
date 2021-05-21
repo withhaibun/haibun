@@ -1,5 +1,5 @@
 import { IStepper, TPaths, TFeature, TFound, ok, TResolvedFeature } from './defs';
-import { getActionable, getNamedMatches } from './util';
+import { getActionable, getNamedMatches, describeSteppers } from './util';
 
 export class Resolver {
   steppers: IStepper[];
@@ -20,7 +20,7 @@ export class Resolver {
         if (actions.length > 1) {
           throw Error(`more than one step found for ${featureLine}`);
         } else if (actions.length < 1 && this.options.mode !== 'some') {
-          throw Error(`no step found for ${featureLine}`);
+          throw Error(`no step found for ${featureLine} from ` + describeSteppers(this.steppers));
         }
 
         return { in: featureLine, seq, actions };
@@ -53,7 +53,6 @@ export class Resolver {
     }
     let found: TFound[] = [];
     this.steppers.forEach(({ steps }) => {
-      
       Object.keys(steps).map((name) => {
         const step = steps[name];
 

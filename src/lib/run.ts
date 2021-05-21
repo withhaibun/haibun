@@ -28,7 +28,7 @@ export async function run({ specl, base, addSteppers = [] }: { specl: TSpecl; ba
     const resolver = new Resolver(steppers, specl);
     mappedValidatedSteps = await resolver.resolveSteps(expandedFeatures);
   } catch (error) {
-    return { ...notOk, failure: { stage: 'Resolver', error: error.message } };
+    return { ...notOk, failure: { stage: 'Resolve', error: { details: error.message, context: { steppers, mappedValidatedSteps } } } };
   }
 
   const investigator = new Investigator(steppers, specl);
@@ -38,7 +38,7 @@ export async function run({ specl, base, addSteppers = [] }: { specl: TSpecl; ba
 
 async function expand(backgrounds: TPaths, features: TPaths) {
   const expandedBackgrounds = await expandBackgrounds(backgrounds);
-  
+
   const expandedFeatures = await expandFeatures(features, expandedBackgrounds);
   return expandedFeatures;
 }

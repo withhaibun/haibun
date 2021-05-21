@@ -29,7 +29,7 @@ export type TResult = {
   ok: boolean;
   results?: TStepResult[];
   failure?: {
-    stage: 'Expand' | 'Resolver' | 'Investigator';
+    stage: 'Expand' | 'Resolve' | 'Investigate';
     error: TResultError;
   };
 };
