@@ -8,13 +8,13 @@ export type TSpecl = {
   };
   features: TFeatures;
 };
-
+export type TAction = (arg: any) => Promise<{ ok: true | false }>;
 export type TFound = { name: string; step: TStep; named?: TNamed };
 export type TNamed = { [name: string]: string };
 export type TStep = {
   match?: RegExp;
   exact?: string;
-  action: (arg: any) => Promise<{ ok: true | false; named?: TNamed }>;
+  action: TAction;
 };
 
 export const ok = { ok: true };
@@ -47,12 +47,26 @@ export type TStepResult = {
 };
 
 export interface IStepper {
+  shared?: TShared;
   steps: { [name: string]: TStep };
   close?(): void;
 }
 
+export interface TLogger {
+  debug: (what: any) => void;
+  log: (what: any) => void;
+  info: (what: any) => void;
+  warn: (what: any) => void;
+  error: (what: any) => void;
+}
+
+export type TShared = {
+  [name: string]: string;
+};
+
+export type TRuntime = { [name: string]: any };
 export interface IStepperConstructor {
-  new (shared: TShared): IStepper;
+  new (shared: TShared, runtime: TRuntime, logger: TLogger): IStepper;
 }
 
 export type TVStep = {
@@ -72,11 +86,3 @@ export type TResolvedFeature = {
 export type TPaths = {
   [name: string]: TFeature | TPaths;
 };
-
-export type TShared = {
-  [name: string]: string;
-};
-export type TOnFeature = (path: string, feature: string) => any;
-export type TOnNode = (path: string, paths: TPaths) => any;
-
-export type TMappedStep = {};
