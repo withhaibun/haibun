@@ -1,5 +1,5 @@
-import { existsSync, fstat, readdirSync, readFileSync, statSync } from 'fs';
-import { IStepper, IStepperConstructor, notOk, TPaths, TResult, TSpecl, TStep } from './defs';
+import {existsSync, readdirSync, readFileSync, statSync } from 'fs';
+import { IStepper, IStepperConstructor,  TLogger,  TRuntime, TShared, TSpecl, TStep } from './defs';
 
 // FIXME tired of wrestling with ts/import issues
 export async function use(module: string) {
@@ -7,18 +7,18 @@ export async function use(module: string) {
   return re;
 }
 
-export async function getSteppers(them: string[] = [], context: any, addSteppers: IStepperConstructor[] = []) {
-  const steppers: IStepper[] = [];
-  for (const s of them) {
+export async function getSteppers({steppers = [], shared, logger, addSteppers = [], runtime = {}} : {steppers: string[], shared: TShared, logger: TLogger, addSteppers?: IStepperConstructor[], runtime: TRuntime}) {
+  const allSteppers: IStepper[] = [];
+  for (const s of steppers) {
     const S: IStepperConstructor = await use(`../steps/${s}`);
-    const stepper = new S(context);
-    steppers.push(stepper);
+    const stepper = new S(shared, runtime, logger);
+    allSteppers.push(stepper);
   }
   for (const S of addSteppers) {
-    const stepper = new S(context);
-    steppers.push(stepper);
+    const stepper = new S(shared, runtime, logger);
+    allSteppers.push(stepper);
   }
-  return steppers;
+  return allSteppers;
 }
 
 export async function recurse(dir: string, type: string, where: any) {
@@ -41,8 +41,8 @@ export async function recurse(dir: string, type: string, where: any) {
 }
 
 export function getNamedMatches(what: string, step: TStep) {
-  const named = (step.match as RegExp).exec(what)?.groups;
-  return named;
+const named = (step.match as RegExp).exec(what);
+  return named?.groups;
 }
 
 const DEFAULT_CONFIG: TSpecl = {

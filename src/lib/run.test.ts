@@ -1,4 +1,5 @@
 import { IStepper, IStepperConstructor, notOk, ok } from './defs';
+import Logger from './Logger';
 import { run } from './run';
 import { getConfigOrDefault } from './util';
 
@@ -30,11 +31,11 @@ describe('run self-contained', () => {
     const base = process.cwd() + '/test/projects/specl/self-contained';
     const specl = getConfigOrDefault(base);
 
-    const res = await run({ specl, base, addSteppers: [test] });
+    const {result} = await run({ specl, base, addSteppers: [test], logger: new Logger() });
     
-    expect(res.ok).toBe(true);
-    expect(res.results!.length).toBe(2);
-    const t = res.results![0];
+    expect(result.ok).toBe(true);
+    expect(result.results!.length).toBe(2);
+    const t = result.results![0];
     expect(t).toBeDefined();
     expect(t.ok).toBe(true);
     expect(t.actionResults.every((r) => r.ok === true)).toBe(true);
@@ -46,11 +47,11 @@ describe('run backgrounds', () => {
     const base = process.cwd() + '/test/projects/specl/with-background';
     const specl = getConfigOrDefault(base);
 
-    const res = await run({ specl, base, addSteppers: [test] });
+    const {result} = await run({ specl, base, addSteppers: [test], logger: new Logger() });
 
-    expect(res.ok).toBe(true);
-    expect(res.results!.length).toBe(1);
-    const t = res.results![0];
+    expect(result.ok).toBe(true);
+    expect(result.results!.length).toBe(1);
+    const t = result.results![0];
     expect(t).toBeDefined();
     expect(t.ok).toBe(true);
     expect(t.actionResults.every((r) => r.ok === true)).toBe(true);
@@ -62,13 +63,13 @@ describe('fails', () => {
     const base = process.cwd() + '/test/projects/specl/fails';
     const specl = getConfigOrDefault(base);
 
-    const res = await run({ specl, base, addSteppers: [test] });
+    const {result} = await run({ specl, base, addSteppers: [test], logger: new Logger() });
 
-    expect(res.ok).toBe(false);
+    expect(result.ok).toBe(false);
 
-    expect(res.failure?.stage).toBe('Resolve');
+    expect(result.failure?.stage).toBe('Resolve');
     
-    expect(res.failure?.error.details.startsWith('no step found for When I fail')).toBe(true);
+    expect(result.failure?.error.details.startsWith('no step found for When I fail')).toBe(true);
   });
 });
 
@@ -77,10 +78,24 @@ describe('step fails', () => {
     const base = process.cwd() + '/test/projects/specl/step-fails';
     const specl = getConfigOrDefault(base);
 
-    const res = await run({ specl, base, addSteppers: [test] });
+    const {result} = await run({ specl, base, addSteppers: [test], logger: new Logger() });
 
-    expect(res.ok).toBe(false);
+    expect(result.ok).toBe(false);
 
-    expect(res.failure?.stage).toBe('Investigate');
+    expect(result.failure?.stage).toBe('Investigate');
+  });
+});
+
+describe('step vars', () => {
+  it.only('step vars', async () => {
+    const base = process.cwd() + '/test/projects/specl/vars';
+    const specl = getConfigOrDefault(base);
+
+    const {result, shared} = await run({ specl, base, addSteppers: [test], logger: new Logger() });
+    
+    expect(result.ok).toBe(true);
+    expect(shared.var).toBe('1');
+    expect(shared['Var 2']).toBe('2');
+    expect(shared['Var 3']).toBe('3');
   });
 });

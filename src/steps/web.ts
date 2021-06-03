@@ -1,4 +1,4 @@
-import { IStepper, IStepperConstructor, notOk, ok, TResult, TShared } from '../lib/defs';
+import { IStepper, IStepperConstructor, notOk, ok, TLogger, TResult, TRuntime, TShared } from '../lib/defs';
 import { BrowserFactory } from '../BrowserFactory';
 import { Page } from 'playwright';
 
@@ -11,10 +11,14 @@ type TStepWithPage = {
 
 const Web: IStepperConstructor = class Web implements IStepper {
   shared: TShared;
+  logger: TLogger;
   bf = new BrowserFactory();
+  runtime: TRuntime;
 
-  constructor(shared: TShared) {
+  constructor(shared: TShared, runtime: TRuntime, logger: TLogger) {
     this.shared = shared;
+    this.logger = logger;
+    this.runtime = runtime;
     const preSteps: { [name: string]: TStepWithPage } = {
       usingChrome: {
         exact: `Given I'm using Chrome browser`,
@@ -23,144 +27,167 @@ const Web: IStepperConstructor = class Web implements IStepper {
         },
       },
       openPage: {
-        match: /^When I open the (?<name>.+) page$/g,
+        match: /^When I open the (?<name>.+) page$/,
         withPage: async (page: Page, { name }: { name: string }) => {
           const uri = this.shared[name];
-          return await page.goto(uri) ? ok : notOk;
+          return (await page.goto(uri)) ? ok : notOk;
         },
       },
       clickOn: {
-        match: /^When I click on (?<name>.+)$/g,
+        match: /^When I click on (?<name>.[^\s]+)$/,
         withPage: async (page: Page, { name }: { name: string }) => {
           const what = this.shared[name] || `text=${name}`;
           await page.click(what);
-          return ok; 
+          return ok;
         },
       },
       URIStartsWith: {
-        match: /^Then the URI should start with (?<start>.+)$/g,
-        withPage: async (page: Page, { start }: { start: string }) => await page.url().startsWith(start) ? ok : notOk,
+        match: /^Then the URI should start with (?<start>.+)$/,
+        withPage: async (page: Page, { start }: { start: string }) => ((await page.url().startsWith(start)) ? ok : notOk),
       },
-      /*
       URIMatches: {
-        match: /^Then the URI should match (?<what>.+)$/g,
-        action: async ({ what }: { what: string }) => await this.pageRes(async (page: Page) => (await page.url()) === what),
+        match: /^Then the URI should match (?<what>.+)$/,
+        withPage: async (page: Page, { what }: { what: string }) => ((await page.url()) === what ? ok : notOk),
       },
       openURL: {
         match: /^I open the url (?<url>.+)$/,
-        action: async ({ url }: { url: string }) => {
-          return await this.pageRes(async (page: Page) => {
-            return await page.goto(url);
-          });
-        },
+        withPage: async (page: Page, { url }: { url: string }) => ((await page.goto(url)) ? ok : notOk),
       },
 
       clickCheckbox: {
-        match: /I click on the checkbox (?<name>.+)$/,
-        action: async ({ name }: { name: string }) => {
-          return await this.pageRes(async (page: Page) => {
-            return await page.click(name);
-          });
+        match: /^When I click the checkbox (?<name>.+)$/,
+        withPage: async (page: Page, { name }: { name: string }) => {
+          const what = this.shared[name] || name;
+          this.logger.log(`click ${name} ${what}`);
+          await page.click(what);
+          return ok;
         },
       },
-
+      clickShared: {
+        match: /^When I click `(?<id>.+)`$/,
+        withPage: async (page: Page, { id }: { id: string }) => {
+          const name = this.shared[id];
+          await page.click(name);
+          return ok;
+        },
+      },
+      clickQuoted: {
+        match: /^When I click "(?<name>.+)"$/,
+        withPage: async (page: Page, { name }: { name: string }) => {
+          
+          await page.click(`text=${name}`);
+          return ok;
+        },
+      },
       clickLink: {
-        match: /^I click on the link (?<url>.+)$/,
-        action: async ({ name }: { name: string }) => {
-          return await this.pageRes(async (page: Page) => {
-            const field = this.shared[name] || name;
-            return await page.click(field);
-          });
+        match: /^When I click on the link (?<url>.+)$/,
+        withPage: async (page: Page, { name }: { name: string }) => {
+          const field = this.shared[name] || name;
+          await page.click(field);
+          return ok;
         },
       },
 
-      ClickButton: {
-        match: /^I click on the button (?<id>.+)$/,
-        action: async ({ id }: { id: string }) => {
-          return await this.pageRes(async (page: Page) => {
-            const field = this.shared[id] || id;
-            page.click(field);
-          });
+      clickButton: {
+        match: /^When I click on the button (?<id>.+)$/,
+        withPage: async (page: Page, { id }: { id: string }) => {
+          const field = this.shared[id] || id;
+          const a = await page.click(field);
+
+          return ok;
         },
       },
-      */
 
-      /*
+      textContent: {
+        match: /Then the element (?<text>.+) is displayed$/,
+        withPage: async (page: Page, { id }: { id: string }) => {
+          const what = this.shared[id] || id;
+          return (await page.textContent(what)) ? ok : notOk;
+        },
+      },
+      URIContains: {
+        match: /^Then the URI should contain  (?<start>.+)$/,
+        withPage: async (page: Page, { start }: { start: string }) => ((await page.url().includes(start)) ? ok : notOk),
+      },
 
+      pauseSeconds: {
+        match: /^And I pause for (?<text>.+)s$/,
+        action: async ({ ms }: { ms: string }) => {
+          const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-Then('the element {string} is displayed', (what) => {
-  I.see(what);
-});
-
-Then(/^the url contains "(.*?)"$/, (what) => {
-  I.seeInCurrentUrl(what);
-});
-
-Then(/^I should see "(.*?)"/, (what) => {
-  I.see(what);
-});
-
-Then(/^I pause for (.*?)s/, (seconds) => {
-  I.wait(seconds)
-});
-
-When(/^I have a valid random GCKey username <(.*?)>/, (what) => {
-  I.generateRandomUsername(what);
-});
-
-When(/^I have a valid random GCKey password <(.*?)>/, (name) => {
-  I.generateRandomPassword(name);
-});
-
-When(/^I set the inputfield "(.*?)" to <(.*?)>/, async (field, name) => {
-  const val = '' + await I.getRandom(name);
-  I.fillField(SIC.locators[field], val);
-});
-
-When('I select the option with the text {string} for the element {string}', (element, text) => {
-  I.selectOption(SIC.locators[text], element);
-});
-
-When('I set the inputfield {string} to {string}', (field, what) => {
-  I.fillField(SIC.locators[field], what);
-});
-
-Then('the element {string} contains the text <testuser>', () => {
-  pause();
-});
-
-Then('I pause', () => {
-  pause();
-});
-
-Then('the browser error log should be clear', async () => {
-  // WIP
-  let logs = await I.grabBrowserLogs();
-  return logs.length < 1;
-  // logs.forEach(l => console.log(l));
-});
-
-Then(/I should have the cookie "(.*?)"/, (name) => {
-  I.seeCookie(name);
-});
-*/
+          const seconds = parseInt(ms, 10) * 1000;
+          await sleep(seconds);
+          return ok;
+        },
+      },
+      inputVariable: {
+        match: /^And I set the inputfield "(?<field>.+)" to <(?<what>.+)>$/,
+        withPage: async (page: Page, { field, what }: { field: string; what: string }) => {
+          const where = this.shared[field] || field;
+          const val = this.shared[what] || what;
+          await page.fill(where, val);
+          return ok;
+        },
+      },
+      seeText: {
+        match: /^Then I should see "(?<text>.+)"$/,
+        withPage: async (page: Page, { text }: { text: string }) => {
+          let textContent: string | null;
+          for (let a = 0; a < 2; a++) {
+            textContent = await page.textContent('body', { timeout: 1e9 });
+            if (textContent?.toString().includes(text)) {
+              return ok;
+            }
+          }
+          return { ...notOk, details: `Did not find text in ${textContent!?.length} characters starting with ${textContent!?.trim().substr(0, 1e9)}` };
+        },
+      },
+      input: {
+        match: /^And I set the inputfield "(?<field>.+)" to "(?<what>.+)"$/,
+        withPage: async (page: Page, { field, what }: { field: string; what: string }) => {
+          field = field.replace(/"/g, '');
+          const where = this.shared[field];
+          await page.fill(where, what);
+          return ok;
+        },
+      },
+      selectionOption: {
+        match: /^When I select the option "(?<option>.+)" for `(?<id>.+)`$/,
+        withPage: async (page: Page, { option, id }: { option: string; id: string }) => {
+          const what = this.shared[id] || id;
+          
+          const res = await page.selectOption(what, {label: option});
+          // FIXME have to use id value
+          // return res === [id] ? ok : {...notOk, details: { message: `received ${res} selecting from ${what} with id ${id}`}};
+          return ok;
+        },
+      },
     };
     const steps = Object.entries(preSteps).reduce((a, [p, step]) => {
       const stepper = step as any;
       if (!stepper.withPage) {
         return { ...a, [p]: step };
       }
-      (step as any).action = async (input: any) => await this.pageRes((step as any).withPage, input);
+      (step as any).action = async (input: any) => {
+        try {
+          return await this.pageRes((step as any).withPage, input, p);
+        } catch (e) {
+          logger.log(e);
+          return { ...notOk };
+        }
+      };
       return { ...a, [p]: step };
     }, {});
 
     this.steps = steps;
   }
 
-  async pageRes(method: any, input: any) {
+  async pageRes(method: any, input: any, p: string) {
     const page = await this.bf.getPage();
+
+    this.runtime.page = page;
     const res = await method(page, input);
-    return res ? ok : notOk;
+    return res;
   }
 
   close() {
