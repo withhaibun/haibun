@@ -1,12 +1,14 @@
-import { IStepper, TPaths, TFeature, TFound, ok, TResolvedFeature } from './defs';
+import { IStepper, TPaths, TFeature, TFound, ok, TResolvedFeature, TLogger } from './defs';
 import { getActionable, getNamedMatches, describeSteppers } from './util';
 
 export class Resolver {
   steppers: IStepper[];
   options: any;
-  constructor(steppers: IStepper[], options: any) {
+  logger: any;
+  constructor(steppers: IStepper[], options: any, logger: TLogger) {
     this.steppers = steppers;
     this.options = options;
+    this.logger = logger;
   }
   async resolveSteps(paths: TPaths): Promise<TResolvedFeature[]> {
     const expanded: TResolvedFeature[] = [];
@@ -17,8 +19,9 @@ export class Resolver {
     const addSteps = async (feature: TFeature): Promise<TResolvedFeature> => {
       const vsteps = feature.feature.split('\n').map((featureLine, seq) => {
         const actions = this.findSteps(featureLine);
+        this.logger.debug(featureLine, actions);
         if (actions.length > 1) {
-          throw Error(`more than one step found for ${featureLine}`);
+          throw Error(`more than one step found for ${featureLine} ` + actions.map(a => a.name));
         } else if (actions.length < 1 && this.options.mode !== 'some') {
           throw Error(`no step found for ${featureLine} from ` + describeSteppers(this.steppers));
         }

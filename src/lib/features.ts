@@ -68,9 +68,10 @@ async function expandFeature(feature: TFeature, backgrounds: TPaths) {
         const toFind = l.replace(/.* include /, '');
         const bg = findFeature(toFind, backgrounds);
         if (!bg || !bg.feature) {
-          throw Error(`no feature to include ${toFind}`);
+          console.log(JSON.stringify(backgrounds, null, 2))
+          throw Error(`can't find "${toFind}" from ${Object.keys(backgrounds)}`);
         }
-        return bg?.feature || l;
+        return `\n${bg?.feature.trim()}\n`;
       }
       return l;
     })
@@ -86,7 +87,10 @@ export function findFeature(name: string, features: TPaths): TFeature | undefine
         return featureOrNode as TFeature;
       }
     } else {
-      return findFeature(name, featureOrNode as TPaths);
+      const found = findFeature(name, featureOrNode as TPaths);
+      if (found) {
+        return found;
+      }
     }
   }
   return undefined;

@@ -2,7 +2,7 @@ import { notOk, TStep } from './defs';
 import * as util from './util';
 
 const step: TStep = {
-    match: /^(?<one>.*?) is (?<two>.*?)$/g,
+    match: /^(?<one>.*?) is (?<two>.*?)$/,
     action: async () => notOk
 };
 

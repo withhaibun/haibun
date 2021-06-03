@@ -110,12 +110,15 @@ describe('expand features', () => {
   test('applies backgrounds hierarchical', async () => {
     const features = {
       l1: {
-        f1: { feature: 'Given I include b1' },
+        f1: { feature: 'Given I include b2' },
       },
     };
     const backgrounds = {
       l1: {
-        b1: { feature: 'result' },
+        b1: { feature: 'non-result' },
+      },
+      l2: {
+        b2: { feature: 'result' },
       },
     };
     const res = await steps.expandFeatures(features, backgrounds);
