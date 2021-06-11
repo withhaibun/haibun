@@ -22,7 +22,6 @@ export async function run({ specl, base, addSteppers = [], logger, shared = {}, 
   } catch (error) {
     return { result: { ...notOk, failure: { stage: 'Expand', error: error.message } } };
   }
-
   let mappedValidatedSteps;
   try {
     const resolver = new Resolver(steppers, specl, logger);
@@ -30,7 +29,7 @@ export async function run({ specl, base, addSteppers = [], logger, shared = {}, 
   } catch (error) {
     return { result: { ...notOk, failure: { stage: 'Resolve', error: { details: error.message, context: { steppers, mappedValidatedSteps } } } } };
   }
-
+  
   const investigator = new Investigator(steppers, specl, logger);
   const result = await investigator.investigate(mappedValidatedSteps);
   return { result, shared };

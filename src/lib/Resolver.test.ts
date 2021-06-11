@@ -1,5 +1,5 @@
 import { IStepper, ok, TResolvedFeature } from './defs';
-import Logger from './Logger';
+import Logger, { LOGGER_CI } from './Logger';
 import { Resolver } from './Resolver';
 
 class TestStepper implements IStepper {
@@ -17,7 +17,7 @@ class TestStepper implements IStepper {
 describe('validate map steps', () => {
   test('vsteps', async () => {
     const steppers: IStepper[] = [new TestStepper()];
-    const val = new Resolver(steppers, {}, new Logger());
+    const val = new Resolver(steppers, {}, new Logger(LOGGER_CI));
     const features = {
       l1: {
         feature: `line1\nline2`,
