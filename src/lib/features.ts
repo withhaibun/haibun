@@ -37,9 +37,6 @@ export async function expandFeatures(paths: TPaths, backgrounds: TPaths) {
   const features = [];
   const nodes = [];
 
-  if (typeof paths === 'string') {
-  }
-
   for (const [path, featureOrNode] of Object.entries(paths)) {
     if (featureOrNode.feature) {
       features.push({ path, feature: featureOrNode });
@@ -50,7 +47,7 @@ export async function expandFeatures(paths: TPaths, backgrounds: TPaths) {
     }
 
     for (const { path, feature } of features) {
-      expanded[path] = await expandFeature(feature as TFeature, backgrounds);
+      expanded[path] = await expandIncluded(feature as TFeature, backgrounds);
     }
     for (const { path, node } of nodes) {
       expanded[path] = await expandFeatures(node as TPaths, backgrounds);
@@ -59,25 +56,35 @@ export async function expandFeatures(paths: TPaths, backgrounds: TPaths) {
   return expanded;
 }
 
-async function expandFeature(feature: TFeature, backgrounds: TPaths) {
+async function expandIncluded(feature: TFeature, backgrounds: TPaths) {
   const lines = feature.feature
     .split('\n')
     .map((l) => {
-      // FIXME should probably be somewhere else
-      if (getActionable(l).match(/^Given I include .*$/)) {
-        const toFind = l.replace(/.* include /, '');
-        const bg = findFeature(toFind, backgrounds);
-        if (!bg || !bg.feature) {
-          console.log(JSON.stringify(backgrounds, null, 2))
-          throw Error(`can't find "${toFind}" from ${Object.keys(backgrounds)}`);
-        }
-        return `\n${bg?.feature.trim()}\n`;
+      if (getActionable(l).match(/^Backgrounds: .*$/)) {
+        return doIncludes(l, backgrounds);
+      } else if (getActionable(l).match(/^Scenarios: .*$/)) {
+        return doIncludes(l, backgrounds);
       }
       return l;
     })
     .join('\n');
 
   return { feature: lines };
+}
+
+function doIncludes(input: string, backgrounds: TPaths) {
+  const includes = input.replace(/^.*?: /, '').split(',');
+  let ret = '';
+  for (const l of includes) {
+    const toFind = l.trim();
+    const bg = findFeature(toFind, backgrounds);
+    if (!bg || !bg.feature) {
+      console.log(JSON.stringify(backgrounds, null, 2));
+      throw Error(`can't find "${toFind}" from ${Object.keys(backgrounds).map((b) => JSON.stringify(Object.keys(backgrounds[b]), null, 2))}`);
+    }
+    ret += `\n${bg?.feature.trim()}\n`;
+  }
+  return ret;
 }
 
 export function findFeature(name: string, features: TPaths): TFeature | undefined {
