@@ -8,14 +8,55 @@ export type TSpecl = {
   };
   features: TFeatures;
 };
+
+export type TPaths = {
+  [name: string]: TFeature | TPaths;
+};
+
+export type TFeature = {
+  feature: string;
+};
+
+export type TResolvedFeature = {
+  feature: string;
+  vsteps: TVStep[];
+};
+
 export type TAction = (arg: any) => Promise<{ ok: true | false }>;
-export type TFound = { name: string; step: TStep; named?: TNamed };
-export type TNamed = { [name: string]: string };
 export type TStep = {
   match?: RegExp;
   exact?: string;
   action: TAction;
 };
+
+export interface IStepper {
+  shared?: TShared;
+  steps: { [name: string]: TStep };
+  close?(): void;
+}
+
+export interface IStepperConstructor {
+  new (shared: TShared, runtime: TRuntime, logger: TLogger): IStepper;
+}
+export interface TLogger {
+  debug: (what: any) => void;
+  log: (what: any) => void;
+  info: (what: any) => void;
+  warn: (what: any) => void;
+  error: (what: any) => void;
+}
+
+export type TShared = {
+  [name: string]: string;
+};
+
+export type TVStep = {
+  in: string;
+  seq: number;
+  actions: TFound[];
+};
+export type TFound = { name: string; step: TStep; named?: TNamed };
+export type TNamed = { [name: string]: string };
 
 export const ok = { ok: true };
 export const notOk = { ok: false };
@@ -46,43 +87,4 @@ export type TStepResult = {
   seq: number;
 };
 
-export interface IStepper {
-  shared?: TShared;
-  steps: { [name: string]: TStep };
-  close?(): void;
-}
-
-export interface TLogger {
-  debug: (what: any) => void;
-  log: (what: any) => void;
-  info: (what: any) => void;
-  warn: (what: any) => void;
-  error: (what: any) => void;
-}
-
-export type TShared = {
-  [name: string]: string;
-};
-
 export type TRuntime = { [name: string]: any };
-export interface IStepperConstructor {
-  new (shared: TShared, runtime: TRuntime, logger: TLogger): IStepper;
-}
-
-export type TVStep = {
-  in: string;
-  seq: number;
-  actions: TFound[];
-};
-
-export type TFeature = {
-  feature: string;
-};
-
-export type TResolvedFeature = {
-  vsteps: TVStep[];
-};
-
-export type TPaths = {
-  [name: string]: TFeature | TPaths;
-};

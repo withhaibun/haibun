@@ -7,7 +7,7 @@ export async function use(module: string) {
   return re;
 }
 
-export async function getSteppers({steppers = [], shared, logger, addSteppers = [], runtime = {}} : {steppers: string[], shared: TShared, logger: TLogger, addSteppers?: IStepperConstructor[], runtime: TRuntime}) {
+export async function getSteppers({steppers = [], shared, logger, addSteppers = [], runtime = {}} : {steppers: string[], shared: TShared, logger: TLogger, addSteppers?: IStepperConstructor[], runtime?: TRuntime}) {
   const allSteppers: IStepper[] = [];
   for (const s of steppers) {
     const S: IStepperConstructor = await use(`../steps/${s}`);

@@ -1,2 +1,2 @@
-Given I include vars
+Backgrounds: vars
 Then the test should pass

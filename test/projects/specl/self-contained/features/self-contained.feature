@@ -1,2 +1,2 @@
-  When I have a test
+When I have a test
 Then the test should pass

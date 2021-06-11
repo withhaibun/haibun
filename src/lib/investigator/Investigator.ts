@@ -20,7 +20,7 @@ export class Investigator {
         this.logger.log(`   ${step.in}\r`);
         const { result, error } = await Investigator.doStep(step);
         ok = ok && result.ok;
-        this.logger.log(`${ok}`);
+        this.logger.log(ok);
         results.push(result);
         if (error) {
           return { ok, failure: { stage: 'Investigate', error }, results };
