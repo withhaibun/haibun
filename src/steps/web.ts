@@ -33,6 +33,20 @@ const Web: IStepperConstructor = class Web implements IStepper {
           return (await page.goto(uri)) ? ok : notOk;
         },
       },
+      beOnPage: {
+        match: /^Then I should be on the (?<name>.+) page$/,
+        withPage: async (page: Page, { name }: { name: string }) => {
+          const uri = this.shared[name];
+          return (await page.url()) === uri ? ok : notOk;
+        },
+      },
+      pressBack: {
+        match: /^When I press the back button$/,
+        withPage: async (page: Page) => {
+          await page.goBack();
+          return ok;
+        },
+      },
       clickOn: {
         match: /^When I click on (?<name>.[^\s]+)$/,
         withPage: async (page: Page, { name }: { name: string }) => {
@@ -40,6 +54,10 @@ const Web: IStepperConstructor = class Web implements IStepper {
           await page.click(what);
           return ok;
         },
+      },
+      URIContains: {
+        match: /^Then the URI should include (?<what>.+)$/,
+        withPage: async (page: Page, { what }: { what: string }) => ((await page.url().includes(what)) ? ok : notOk),
       },
       URIStartsWith: {
         match: /^Then the URI should start with (?<start>.+)$/,
@@ -50,8 +68,20 @@ const Web: IStepperConstructor = class Web implements IStepper {
         withPage: async (page: Page, { what }: { what: string }) => ((await page.url()) === what ? ok : notOk),
       },
       openURL: {
-        match: /^I open the url (?<url>.+)$/,
-        withPage: async (page: Page, { url }: { url: string }) => ((await page.goto(url)) ? ok : notOk),
+        match: /^When I open the URI (?<uri>.+)$/,
+        withPage: async (page: Page, { uri }: { uri: string }) => ((await page.goto(uri)) ? ok : notOk),
+      },
+      assertOpen: {
+        match: /^When the (?<what>.+) is expanded with the (?<using>.+)$/,
+        withPage: async (page: Page, { what, using }: { what: string; using: string }) => {
+          const v = this.shared[what];
+          const u = this.shared[using];
+          const isVisible = await page.isVisible(v);
+          if (!isVisible) {
+            await page.click(u);
+          }
+          return ok;
+        },
       },
 
       clickCheckbox: {
@@ -74,13 +104,12 @@ const Web: IStepperConstructor = class Web implements IStepper {
       clickQuoted: {
         match: /^When I click "(?<name>.+)"$/,
         withPage: async (page: Page, { name }: { name: string }) => {
-          
           await page.click(`text=${name}`);
           return ok;
         },
       },
       clickLink: {
-        match: /^When I click on the link (?<url>.+)$/,
+        match: /^When I click on the link (?<uri>.+)$/,
         withPage: async (page: Page, { name }: { name: string }) => {
           const field = this.shared[name] || name;
           await page.click(field);
@@ -104,10 +133,6 @@ const Web: IStepperConstructor = class Web implements IStepper {
           const what = this.shared[id] || id;
           return (await page.textContent(what)) ? ok : notOk;
         },
-      },
-      URIContains: {
-        match: /^Then the URI should contain  (?<start>.+)$/,
-        withPage: async (page: Page, { start }: { start: string }) => ((await page.url().includes(start)) ? ok : notOk),
       },
 
       pauseSeconds: {
@@ -155,8 +180,8 @@ const Web: IStepperConstructor = class Web implements IStepper {
         match: /^When I select the option "(?<option>.+)" for `(?<id>.+)`$/,
         withPage: async (page: Page, { option, id }: { option: string; id: string }) => {
           const what = this.shared[id] || id;
-          
-          const res = await page.selectOption(what, {label: option});
+
+          const res = await page.selectOption(what, { label: option });
           // FIXME have to use id value
           // return res === [id] ? ok : {...notOk, details: { message: `received ${res} selecting from ${what} with id ${id}`}};
           return ok;

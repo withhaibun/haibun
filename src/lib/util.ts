@@ -1,5 +1,5 @@
-import {existsSync, readdirSync, readFileSync, statSync } from 'fs';
-import { IStepper, IStepperConstructor,  TLogger,  TRuntime, TShared, TSpecl, TStep } from './defs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'fs';
+import { IStepper, IStepperConstructor, TFeature, TLogger, TRuntime, TShared, TSpecl, TStep } from './defs';
 
 // FIXME tired of wrestling with ts/import issues
 export async function use(module: string) {
@@ -7,7 +7,19 @@ export async function use(module: string) {
   return re;
 }
 
-export async function getSteppers({steppers = [], shared, logger, addSteppers = [], runtime = {}} : {steppers: string[], shared: TShared, logger: TLogger, addSteppers?: IStepperConstructor[], runtime?: TRuntime}) {
+export async function getSteppers({
+  steppers = [],
+  shared,
+  logger,
+  addSteppers = [],
+  runtime = {},
+}: {
+  steppers: string[];
+  shared: TShared;
+  logger: TLogger;
+  addSteppers?: IStepperConstructor[];
+  runtime?: TRuntime;
+}) {
   const allSteppers: IStepper[] = [];
   for (const s of steppers) {
     const S: IStepperConstructor = await use(`../steps/${s}`);
@@ -21,33 +33,27 @@ export async function getSteppers({steppers = [], shared, logger, addSteppers = 
   return allSteppers;
 }
 
-export async function recurse(dir: string, type: string, where: any) {
+export async function recurse(dir: string, type: string): Promise<TFeature[]> {
   const files = readdirSync(dir);
-  const subdirs = [];
+  let all: TFeature[] = [];
   for (const f of files) {
     const here = `${dir}/${f}`;
     if (statSync(here).isDirectory()) {
-      subdirs.push(here);
+      all = all.concat(await recurse(here, type));
     } else if (f.endsWith(`.${type}`)) {
-      where[f.replace(`.${type}`, '')] = { feature: readFileSync(here, 'utf-8') };
+      all.push({ path: here.replace(`.${type}`, ''), feature: readFileSync(here, 'utf-8') });
     }
   }
-  for (const f of subdirs) {
-    const node = {};
-    await recurse(f, type, node);
-    where[f] = node;
-  }
-  return where;
+  return all;
 }
 
 export function getNamedMatches(what: string, step: TStep) {
-const named = (step.match as RegExp).exec(what);
+  const named = (step.match as RegExp).exec(what);
   return named?.groups;
 }
 
 const DEFAULT_CONFIG: TSpecl = {
   mode: 'all',
-  features: {},
   steppers: ['vars'],
 };
 
@@ -70,9 +76,11 @@ export function getActionable(value: string) {
 }
 
 export function describeSteppers(steppers: IStepper[]) {
-  return steppers.map((stepper) => {
-    return Object.keys(stepper.steps).map((name) => {
-      return `${stepper.constructor.name}:${name}`;
-    });
-  }).join(' ');
+  return steppers
+    .map((stepper) => {
+      return Object.keys(stepper.steps).map((name) => {
+        return `${stepper.constructor.name}:${name}`;
+      });
+    })
+    .join(' ');
 }

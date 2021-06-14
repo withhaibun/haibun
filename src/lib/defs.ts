@@ -1,4 +1,4 @@
-export type TFeatures = { [name: string]: string };
+export type TLogLevel = 'none' | 'debug' | 'log' | 'info' | 'warn' | 'error';
 
 export type TSpecl = {
   steppers: string[];
@@ -6,16 +6,14 @@ export type TSpecl = {
   refs?: {
     docs: { [name: string]: { src: string } };
   };
-  features: TFeatures;
-};
-
-export type TPaths = {
-  [name: string]: TFeature | TPaths;
 };
 
 export type TFeature = {
+  path: string;
   feature: string;
 };
+
+export type TFeatures = TFeature[];
 
 export type TResolvedFeature = {
   feature: string;

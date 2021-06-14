@@ -1,4 +1,5 @@
-import { TFeature, TPaths } from './defs';
+import { join } from 'path/posix';
+import { TFeature, TFeatures } from './defs';
 import { getActionable } from './util';
 
 export function getSteps(value: string) {
@@ -9,54 +10,49 @@ export function getSteps(value: string) {
 }
 
 // Expand backgrounds by prepending 'upper' features to 'lower' features
-export async function expandBackgrounds(paths: TPaths, before = '') {
-  const expanded: TPaths = {};
-  const features = [];
-  const nodes = [];
-  for (const [path, featureOrNode] of Object.entries(paths)) {
-    if (featureOrNode.feature) {
-      features.push({ path, feature: featureOrNode });
-    } else {
-      nodes.push({ path, node: featureOrNode });
-    }
-  }
-
+export async function expandBackgrounds(features: TFeatures, before = '') {
+  const expanded: TFeatures = [];
   for (const { path, feature } of features) {
-    expanded[path] = { feature: `${before}${feature.feature}` };
-    before += feature.feature;
+    let res = feature;
+    let r = findUpper(path, features);
+    while (r.upper.length > 0 && r.rem !== '/') {
+      r = findUpper(r.rem, features);
+      
+      for (const s of r.upper) {
+        res = s.feature + '\n' + res;
+      }
+    }
+    expanded.push({ path, feature: res });
   }
-  for (const { path, node } of nodes) {
-    expanded[path] = await expandBackgrounds(node as TPaths, before ? `${before}\n` : '');
+  return expanded;
+}
+const upperPath = (path: string) => {
+  const r = path.split('/');
+  return '/' + r.slice(1, r.length - 1).join('/');
+};
+
+export function findUpper(path: string, features: TFeatures) {
+  const rem = upperPath(path);
+  const upper = features.filter((f) => {
+    const p = upperPath(f.path);
+
+    return p === rem;
+  });
+  
+  return { rem, upper };
+}
+
+export async function expandFeatures(features: TFeature[], backgrounds: TFeatures) {
+  const expanded: TFeature[] = [];
+
+  for (const feature of features) {
+    feature.feature = await expandIncluded(feature as TFeature, backgrounds);
+    expanded.push(feature);
   }
   return expanded;
 }
 
-export async function expandFeatures(paths: TPaths, backgrounds: TPaths) {
-  const expanded: TPaths = {};
-
-  const features = [];
-  const nodes = [];
-
-  for (const [path, featureOrNode] of Object.entries(paths)) {
-    if (featureOrNode.feature) {
-      features.push({ path, feature: featureOrNode });
-    } else if (typeof featureOrNode === 'object') {
-      nodes.push({ path, node: featureOrNode });
-    } else {
-      throw Error(`wrong structure ${paths}`);
-    }
-
-    for (const { path, feature } of features) {
-      expanded[path] = await expandIncluded(feature as TFeature, backgrounds);
-    }
-    for (const { path, node } of nodes) {
-      expanded[path] = await expandFeatures(node as TPaths, backgrounds);
-    }
-  }
-  return expanded;
-}
-
-async function expandIncluded(feature: TFeature, backgrounds: TPaths) {
+async function expandIncluded(feature: TFeature, backgrounds: TFeatures) {
   const lines = feature.feature
     .split('\n')
     .map((l) => {
@@ -69,36 +65,23 @@ async function expandIncluded(feature: TFeature, backgrounds: TPaths) {
     })
     .join('\n');
 
-  return { feature: lines };
+  return lines;
 }
 
-function doIncludes(input: string, backgrounds: TPaths) {
+function doIncludes(input: string, backgrounds: TFeatures) {
   const includes = input.replace(/^.*?: /, '').split(',');
   let ret = '';
   for (const l of includes) {
     const toFind = l.trim();
     const bg = findFeature(toFind, backgrounds);
-    if (!bg || !bg.feature) {
-      console.log(JSON.stringify(backgrounds, null, 2));
-      throw Error(`can't find "${toFind}" from ${Object.keys(backgrounds).map((b) => JSON.stringify(Object.keys(backgrounds[b]), null, 2))}`);
+    if (bg.length !== 1 ) {
+      throw Error(`can't find single "${toFind}" from ${Object.keys(backgrounds).map((b) => JSON.stringify(backgrounds, null, 2))}`);
     }
-    ret += `\n${bg?.feature.trim()}\n`;
+    ret += `\n${bg[0].feature.trim()}\n`;
   }
   return ret;
 }
 
-export function findFeature(name: string, features: TPaths): TFeature | undefined {
-  for (const [path, featureOrNode] of Object.entries(features)) {
-    if (featureOrNode.feature) {
-      if (path === name) {
-        return featureOrNode as TFeature;
-      }
-    } else {
-      const found = findFeature(name, featureOrNode as TPaths);
-      if (found) {
-        return found;
-      }
-    }
-  }
-  return undefined;
+export function findFeature(name: string, features: TFeatures): TFeatures {
+  return features.filter(f => f.path.endsWith(`/${name}`))
 }
