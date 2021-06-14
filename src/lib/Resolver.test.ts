@@ -1,5 +1,5 @@
 import { IStepper, ok, TResolvedFeature } from './defs';
-import Logger, { LOGGER_CI } from './Logger';
+import Logger, { LOGGER_NONE } from './Logger';
 import { Resolver } from './Resolver';
 
 class TestStepper implements IStepper {
@@ -17,17 +17,13 @@ class TestStepper implements IStepper {
 describe('validate map steps', () => {
   test('vsteps', async () => {
     const steppers: IStepper[] = [new TestStepper()];
-    const val = new Resolver(steppers, {}, new Logger(LOGGER_CI));
-    const features = {
-      l1: {
-        feature: `line1\nline2`,
-      },
-    };
+    const val = new Resolver(steppers, {}, new Logger(LOGGER_NONE));
+    const features = [{ path: 'l1', feature: `line1\nline2` }];
     const res = await val.resolveSteps(features);
-    const {vsteps} = res[0] as TResolvedFeature;
-    
+    const { vsteps } = res[0] as TResolvedFeature;
+
     expect(vsteps).toBeDefined();
     expect(vsteps[0].actions[0].named).toBeUndefined();
-    expect(vsteps[1].actions[0].named).toEqual({num: "2"});
+    expect(vsteps[1].actions[0].named).toEqual({ num: '2' });
   });
 });

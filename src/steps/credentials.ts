@@ -37,8 +37,8 @@ const Credentials: IStepperConstructor = class Credentials implements IStepper {
 
     hasRandomPassword: {
       match: /^When I have a valid random password <(?<name>.+)>/,
-      action: async ({ what }: { what: string }) => {
-        this.generateRandomPassword(what);
+      action: async ({ name }: { name: string }) => {
+        this.generateRandomPassword(name);
         return ok;
       },
     },

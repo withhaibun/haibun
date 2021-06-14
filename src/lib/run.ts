@@ -1,5 +1,5 @@
 import { existsSync } from 'fs';
-import { TSpecl, IStepper, notOk, IStepperConstructor, TResult, TPaths, TLogger, TShared, TRuntime } from './defs';
+import { TSpecl, IStepper, notOk, IStepperConstructor, TResult, TLogger, TShared, TRuntime, TFeature, TFeatures } from './defs';
 import { expandBackgrounds, expandFeatures } from './features';
 import { Investigator } from './investigator/Investigator';
 import { parse } from './parse';
@@ -8,9 +8,10 @@ import { getSteppers, recurse } from './util';
 
 export async function run({ specl, base, addSteppers = [], logger, shared = {}, runtime = {}, }
     : { specl: TSpecl; base: string; addSteppers?: IStepperConstructor[]; logger: TLogger; shared?: TShared; runtime?: TRuntime; }): Promise<{ result: TResult; shared?: any }> {
-  const features = await recurse(`${base}/features`, 'feature', {});
+  const features = await recurse(`${base}/features`, 'feature');
 
-  const backgrounds = existsSync(`${base}/backgrounds`) ? await recurse(`${base}/backgrounds`, 'feature', {}) : {};
+  const backgrounds = existsSync(`${base}/backgrounds`) ? await recurse(`${base}/backgrounds`, 'feature') : [];
+  
   const steppers: IStepper[] = await getSteppers({ steppers: specl.steppers, shared, logger, addSteppers, runtime });
   if (specl.refs) {
     await parse(specl, base, steppers);
@@ -22,6 +23,7 @@ export async function run({ specl, base, addSteppers = [], logger, shared = {}, 
   } catch (error) {
     return { result: { ...notOk, failure: { stage: 'Expand', error: error.message } } };
   }
+  
   let mappedValidatedSteps;
   try {
     const resolver = new Resolver(steppers, specl, logger);
@@ -35,7 +37,7 @@ export async function run({ specl, base, addSteppers = [], logger, shared = {}, 
   return { result, shared };
 }
 
-async function expand(backgrounds: TPaths, features: TPaths) {
+async function expand(backgrounds: TFeatures, features: TFeatures) {
   const expandedBackgrounds = await expandBackgrounds(backgrounds);
 
   const expandedFeatures = await expandFeatures(features, expandedBackgrounds);

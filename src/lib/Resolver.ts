@@ -1,4 +1,4 @@
-import { IStepper, TPaths, TFeature, TFound, ok, TResolvedFeature, TLogger } from './defs';
+import { IStepper,  TFeature, TFound, ok, TResolvedFeature, TLogger } from './defs';
 import { getActionable, getNamedMatches, describeSteppers } from './util';
 
 export class Resolver {
@@ -10,16 +10,15 @@ export class Resolver {
     this.options = options;
     this.logger = logger;
   }
-  async resolveSteps(paths: TPaths): Promise<TResolvedFeature[]> {
+  async resolveSteps(paths: TFeature[]): Promise<TResolvedFeature[]> {
     const expanded: TResolvedFeature[] = [];
 
     const features = [];
-    const nodes = [];
 
     const addSteps = async (feature: TFeature): Promise<TResolvedFeature> => {
       const vsteps = feature.feature.split('\n').map((featureLine, seq) => {
         const actions = this.findSteps(featureLine);
-        this.logger.debug(featureLine, actions);
+        this.logger.debug('ixmany', featureLine, actions);
         if (actions.length > 1) {
           throw Error(`more than one step found for ${featureLine} ` + actions.map(a => a.name));
         } else if (actions.length < 1 && this.options.mode !== 'some') {
@@ -32,18 +31,11 @@ export class Resolver {
       return { ...feature, vsteps };
     };
     for (const [path, featureOrNode] of Object.entries(paths)) {
-      if (featureOrNode.feature) {
         features.push({ path, feature: featureOrNode });
-      } else {
-        nodes.push({ path, node: featureOrNode });
-      }
 
       for (const { path, feature } of features) {
         const steps = await addSteps(feature as TFeature);
         expanded.push(steps);
-      }
-      for (const { path, node } of nodes) {
-        await this.resolveSteps(node as TPaths);
       }
     }
     return expanded;
