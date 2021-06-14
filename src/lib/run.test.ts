@@ -1,5 +1,5 @@
 import { IStepper, IStepperConstructor, notOk, ok } from './defs';
-import Logger, { LOGGER_CI } from './Logger';
+import Logger, { LOGGER_NONE } from './Logger';
 import { run } from './run';
 import { getConfigOrDefault } from './util';
 
@@ -31,7 +31,7 @@ describe('run self-contained', () => {
     const base = process.cwd() + '/test/projects/specl/self-contained';
     const specl = getConfigOrDefault(base);
 
-    const {result} = await run({ specl, base, addSteppers: [test], logger: new Logger(LOGGER_CI) });
+    const {result} = await run({ specl, base, addSteppers: [test], logger: new Logger(LOGGER_NONE) });
     
     expect(result.ok).toBe(true);
     expect(result.results!.length).toBe(2);
@@ -47,7 +47,7 @@ describe('run backgrounds', () => {
     const base = process.cwd() + '/test/projects/specl/with-background';
     const specl = getConfigOrDefault(base);
 
-    const {result} = await run({ specl, base, addSteppers: [test], logger: new Logger(LOGGER_CI) });
+    const {result} = await run({ specl, base, addSteppers: [test], logger: new Logger(LOGGER_NONE) });
 
     expect(result.ok).toBe(true);
     
@@ -64,7 +64,7 @@ describe('fails', () => {
     const base = process.cwd() + '/test/projects/specl/fails';
     const specl = getConfigOrDefault(base);
 
-    const {result} = await run({ specl, base, addSteppers: [test], logger: new Logger(LOGGER_CI) });
+    const {result} = await run({ specl, base, addSteppers: [test], logger: new Logger(LOGGER_NONE) });
 
     expect(result.ok).toBe(false);
 
@@ -79,7 +79,7 @@ describe('step fails', () => {
     const base = process.cwd() + '/test/projects/specl/step-fails';
     const specl = getConfigOrDefault(base);
 
-    const {result} = await run({ specl, base, addSteppers: [test], logger: new Logger(LOGGER_CI) });
+    const {result} = await run({ specl, base, addSteppers: [test], logger: new Logger(LOGGER_NONE) });
 
     expect(result.ok).toBe(false);
 
@@ -92,7 +92,7 @@ describe('step vars', () => {
     const base = process.cwd() + '/test/projects/specl/vars';
     const specl = getConfigOrDefault(base);
 
-    const {result, shared} = await run({ specl, base, addSteppers: [test], logger: new Logger(LOGGER_CI) });
+    const {result, shared} = await run({ specl, base, addSteppers: [test], logger: new Logger(LOGGER_NONE) });
     
     expect(result.ok).toBe(true);
     expect(shared.var).toBe('1');
