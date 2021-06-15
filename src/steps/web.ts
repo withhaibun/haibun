@@ -12,13 +12,14 @@ type TStepWithPage = {
 const Web: IStepperConstructor = class Web implements IStepper {
   shared: TShared;
   logger: TLogger;
-  bf = new BrowserFactory();
+  bf: BrowserFactory;
   runtime: TRuntime;
 
   constructor(shared: TShared, runtime: TRuntime, logger: TLogger) {
     this.shared = shared;
     this.logger = logger;
     this.runtime = runtime;
+    this.bf = new BrowserFactory(logger);
     const preSteps: { [name: string]: TStepWithPage } = {
       usingChrome: {
         exact: `Given I'm using Chrome browser`,

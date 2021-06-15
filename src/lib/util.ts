@@ -33,15 +33,17 @@ export async function getSteppers({
   return allSteppers;
 }
 
-export async function recurse(dir: string, type: string): Promise<TFeature[]> {
+type TFilters = (string | RegExp)[];
+
+export async function recurse(dir: string, filters: TFilters): Promise<TFeature[]> {
   const files = readdirSync(dir);
   let all: TFeature[] = [];
-  for (const f of files) {
-    const here = `${dir}/${f}`;
+  for (const file of files) {
+    const here = `${dir}/${file}`;
     if (statSync(here).isDirectory()) {
-      all = all.concat(await recurse(here, type));
-    } else if (f.endsWith(`.${type}`)) {
-      all.push({ path: here.replace(`.${type}`, ''), feature: readFileSync(here, 'utf-8') });
+      all = all.concat(await recurse(here, filters));
+    } else if (filters.every(filter => file.match(filter))) {
+      all.push({ path: here.replace(filters[0], ''), feature: readFileSync(here, 'utf-8') });
     }
   }
   return all;

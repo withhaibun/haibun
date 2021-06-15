@@ -6,11 +6,11 @@ import { parse } from './parse';
 import { Resolver } from './Resolver';
 import { getSteppers, recurse } from './util';
 
-export async function run({ specl, base, addSteppers = [], logger, shared = {}, runtime = {}, }
-    : { specl: TSpecl; base: string; addSteppers?: IStepperConstructor[]; logger: TLogger; shared?: TShared; runtime?: TRuntime; }): Promise<{ result: TResult; shared?: any }> {
-  const features = await recurse(`${base}/features`, 'feature');
+export async function run({ specl, base, addSteppers = [], logger, shared = {}, runtime = {}, featureFilter = '' }
+    : { specl: TSpecl; base: string; addSteppers?: IStepperConstructor[]; logger: TLogger; shared?: TShared; runtime?: TRuntime; featureFilter?: string }): Promise<{ result: TResult; shared?: any }> {
+  const features = await recurse(`${base}/features`, [/\.feature$/, featureFilter]);
 
-  const backgrounds = existsSync(`${base}/backgrounds`) ? await recurse(`${base}/backgrounds`, 'feature') : [];
+  const backgrounds = existsSync(`${base}/backgrounds`) ? await recurse(`${base}/backgrounds`, [/\.feature$/]) : [];
   
   const steppers: IStepper[] = await getSteppers({ steppers: specl.steppers, shared, logger, addSteppers, runtime });
   if (specl.refs) {

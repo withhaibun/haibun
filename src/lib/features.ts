@@ -75,7 +75,7 @@ function doIncludes(input: string, backgrounds: TFeatures) {
     const toFind = l.trim();
     const bg = findFeature(toFind, backgrounds);
     if (bg.length !== 1 ) {
-      throw Error(`can't find single "${toFind}" from ${Object.keys(backgrounds).map((b) => JSON.stringify(backgrounds, null, 2))}`);
+      throw Error(`can't find single "${toFind}" from ${backgrounds.map((b) => b.path).join(', ')}`);
     }
     ret += `\n${bg[0].feature.trim()}\n`;
   }
