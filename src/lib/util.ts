@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'fs';
-import { IStepper, IStepperConstructor, TFeature, TLogger, TRuntime, TShared, TSpecl, TStep } from './defs';
+import { IStepper, IStepperConstructor, TFeature, TLogger, TRuntime, TShared, TSpecl } from './defs';
 
 // FIXME tired of wrestling with ts/import issues
 export async function use(module: string) {
@@ -49,8 +49,8 @@ export async function recurse(dir: string, filters: TFilters): Promise<TFeature[
   return all;
 }
 
-export function getNamedMatches(what: string, step: TStep) {
-  const named = (step.match as RegExp).exec(what);
+export function getNamedMatches(regexp: RegExp, what: string) {
+  const named = regexp.exec(what);
   return named?.groups;
 }
 
@@ -85,4 +85,9 @@ export function describeSteppers(steppers: IStepper[]) {
       });
     })
     .join(' ');
+}
+
+// from https://stackoverflow.com/questions/1027224/how-can-i-test-if-a-letter-in-a-string-is-uppercase-or-lowercase-using-javascrip
+export function isLowerCase(str: string) {
+  return str.toLowerCase() && str != str.toUpperCase();
 }

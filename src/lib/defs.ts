@@ -23,6 +23,7 @@ export type TResolvedFeature = {
 export type TAction = (arg: any) => Promise<{ ok: true | false }>;
 export type TStep = {
   match?: RegExp;
+  gwta?: string;
   exact?: string;
   action: TAction;
 };

@@ -1,5 +1,5 @@
-import { IStepper,  TFeature, TFound, ok, TResolvedFeature, TLogger } from './defs';
-import { getActionable, getNamedMatches, describeSteppers } from './util';
+import { IStepper, TFeature, TFound, ok, TResolvedFeature, TLogger, TStep } from './defs';
+import { getActionable, getNamedMatches, describeSteppers, isLowerCase } from './util';
 
 export class Resolver {
   steppers: IStepper[];
@@ -20,7 +20,7 @@ export class Resolver {
         const actions = this.findSteps(featureLine);
         this.logger.debug('ixmany', featureLine, actions);
         if (actions.length > 1) {
-          throw Error(`more than one step found for ${featureLine} ` + actions.map(a => a.name));
+          throw Error(`more than one step found for ${featureLine} ` + JSON.stringify(actions));
         } else if (actions.length < 1 && this.options.mode !== 'some') {
           throw Error(`no step found for ${featureLine} from ` + describeSteppers(this.steppers));
         }
@@ -31,7 +31,7 @@ export class Resolver {
       return { ...feature, vsteps };
     };
     for (const [path, featureOrNode] of Object.entries(paths)) {
-        features.push({ path, feature: featureOrNode });
+      features.push({ path, feature: featureOrNode });
 
       for (const { path, feature } of features) {
         const steps = await addSteps(feature as TFeature);
@@ -47,21 +47,29 @@ export class Resolver {
       return [comment];
     }
     let found: TFound[] = [];
-    this.steppers.forEach(({ steps }) => {
-      Object.keys(steps).map((name) => {
+
+    const doMatch = (r: RegExp, name: string, step: TStep) => {
+      if (r.test(actionable)) {
+        const named = getNamedMatches(r, actionable);
+        found.push({ name, step, named });
+      }
+    };
+    for (const { steps } of this.steppers) {
+      for (const name in steps) {
         const step = steps[name];
 
-        if (step.exact === actionable) {
+        if (step.gwta) {
+          const f = step.gwta.charAt(0);
+          const s = isLowerCase(f) ? ['[', f, f.toUpperCase(), ']', step.gwta.substring(1)].join('') : step.gwta;
+          const r = new RegExp(`^(Given|When|Then|And)?( the )?( I('m)? (am )?)?${s}`);
+          doMatch(r, name, step);
+        } else if (step.match) {
+          doMatch(step.match, name, step);
+        } else if (actionable.length > 0 && step.exact === actionable) {
           found.push({ name, step });
-        } else if (step.match instanceof RegExp) {
-          const r = new RegExp(step.match);
-          if (r.test(actionable)) {
-            const named = getNamedMatches(actionable, step);
-            found.push({ name, step, named });
-          }
         }
-      });
-    }, []);
+      }
+    }
     return found;
   }
 }

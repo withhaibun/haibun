@@ -8,6 +8,12 @@ const step: TStep = {
 
 describe('getMatches', () => {
     it('gets named matches', () => {
-        expect(util.getNamedMatches('It is set', step)).toEqual({ one: 'It', two: 'set' });
+        expect(util.getNamedMatches(step.match!, 'It is set')).toEqual({ one: 'It', two: 'set' });
     });
 });
+
+describe('isLowerCase', () => {
+    expect(util.isLowerCase('a')).toBe(true);
+    expect(util.isLowerCase('A')).toBe(false);
+    expect(util.isLowerCase('0')).toBe(false);
+})
