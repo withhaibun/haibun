@@ -38,7 +38,8 @@ const Web: IStepperConstructor = class Web implements IStepper {
         match: /^Then I should be on the (?<name>.+) page$/,
         withPage: async (page: Page, { name }: { name: string }) => {
           const uri = this.shared[name];
-          return (await page.url()) === uri ? ok : notOk;
+          const nowon = await page.url();
+          return nowon === uri ? ok : {...notOk, error: `expected ${uri} but on ${nowon}`};
         },
       },
       pressBack: {
