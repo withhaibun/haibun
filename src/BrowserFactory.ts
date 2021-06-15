@@ -1,13 +1,19 @@
 import { Browser, BrowserContext, Page, chromium } from 'playwright';
+import { TLogger } from './lib/defs';
 
 export class BrowserFactory {
   browser!: Browser;
   context!: BrowserContext;
   pages: { [name: string]: Page } = {};
+  logger: any;
+
+  constructor(logger: TLogger) {
+    this.logger = logger;
+  }
 
   async getBrowser(): Promise<Browser> {
     if (!this.browser) {
-      console.log('\nlaunching new browser');
+      this.logger.info('launching new browser');
 
       this.browser = await chromium.launch({ headless: false });
     }
@@ -17,7 +23,7 @@ export class BrowserFactory {
   async getContext(): Promise<BrowserContext> {
     if (!this.context) {
       const browser = await this.getBrowser();
-      console.log('\ncreating new context');
+      this.logger.info('creating new context');
       this.context = await browser.newContext();
     }
     return this.context;
@@ -26,8 +32,8 @@ export class BrowserFactory {
     if (this.pages[ctx]) {
       return this.pages[ctx];
     }
-    console.log(`\ncreating new page for ${ctx}`);
-    
+    this.logger.info(`creating new page for ${ctx}`);
+
     const context = await this.getContext();
     const page = await context.newPage();
     this.pages[ctx] = page;
