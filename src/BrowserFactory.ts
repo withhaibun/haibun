@@ -1,21 +1,34 @@
-import { Browser, BrowserContext, Page, chromium } from 'playwright';
+import { Browser, BrowserContext, Page, chromium, firefox, webkit, BrowserType } from 'playwright';
 import { TLogger } from './lib/defs';
+
+type TBrowserType = 'chromium' | 'firefox' | 'webkit';
+
+const BROWSERS = {
+  firefox: firefox,
+  chromium: chromium,
+  webkit: webkit
+}
 
 export class BrowserFactory {
   browser!: Browser;
   context!: BrowserContext;
   pages: { [name: string]: Page } = {};
   logger: any;
+  browserType: BrowserType = chromium;
 
   constructor(logger: TLogger) {
     this.logger = logger;
+  }
+
+  async setBrowserType(type: TBrowserType) {
+    this.browserType = BROWSERS[type];
   }
 
   async getBrowser(): Promise<Browser> {
     if (!this.browser) {
       this.logger.info('launching new browser');
 
-      this.browser = await chromium.launch({ headless: false });
+      this.browser = await this.browserType.launch({ headless: false });
     }
     return this.browser;
   }
