@@ -19,9 +19,9 @@ const test: IStepperConstructor = class Test implements IStepper {
     },
     named: {
       match: /^Then the parameter (?<param>.+) is accepted$/,
-      action: async ({param}: {param: string}) => {
-        return param === 'x' ? ok : notOk
-      }
+      action: async ({ param }: { param: string }) => {
+        return param === 'x' ? ok : notOk;
+      },
     },
   };
 };
@@ -31,8 +31,8 @@ describe('run self-contained', () => {
     const base = process.cwd() + '/test/projects/specl/self-contained';
     const specl = getConfigOrDefault(base);
 
-    const {result} = await run({ specl, base, addSteppers: [test], logger: new Logger(LOGGER_NONE) });
-    
+    const { result } = await run({ specl, base, addSteppers: [test], logger: new Logger(LOGGER_NONE) });
+
     expect(result.ok).toBe(true);
     expect(result.results!.length).toBe(1);
     const t = result.results![0];
@@ -48,10 +48,10 @@ describe('run backgrounds', () => {
     const base = process.cwd() + '/test/projects/specl/with-background';
     const specl = getConfigOrDefault(base);
 
-    const {result} = await run({ specl, base, addSteppers: [test], logger: new Logger(LOGGER_NONE) });
+    const { result } = await run({ specl, base, addSteppers: [test], logger: new Logger(LOGGER_NONE) });
 
     expect(result.ok).toBe(true);
-    
+
     expect(result.results!.length).toBe(1);
     const t = result.results![0];
     expect(t).toBeDefined();
@@ -66,12 +66,12 @@ describe('fails', () => {
     const base = process.cwd() + '/test/projects/specl/fails';
     const specl = getConfigOrDefault(base);
 
-    const {result} = await run({ specl, base, addSteppers: [test], logger: new Logger(LOGGER_NONE) });
+    const { result } = await run({ specl, base, addSteppers: [test], logger: new Logger(LOGGER_NONE) });
 
     expect(result.ok).toBe(false);
 
     expect(result.failure?.stage).toBe('Resolve');
-    
+
     expect(result.failure?.error.details.startsWith('no step found for When I fail')).toBe(true);
   });
 });
@@ -81,7 +81,7 @@ describe('step fails', () => {
     const base = process.cwd() + '/test/projects/specl/step-fails';
     const specl = getConfigOrDefault(base);
 
-    const {result} = await run({ specl, base, addSteppers: [test], logger: new Logger(LOGGER_NONE) });
+    const { result } = await run({ specl, base, addSteppers: [test], logger: new Logger(LOGGER_NONE) });
 
     expect(result.ok).toBe(false);
 
@@ -90,12 +90,11 @@ describe('step fails', () => {
 });
 
 describe('multiple', () => {
-  it.only('fail and pass', async () => {
+  it('fail and pass', async () => {
     const base = process.cwd() + '/test/projects/specl/multiple';
     const specl = getConfigOrDefault(base);
 
-    const {result} = await run({ specl, base, addSteppers: [test], logger: new Logger({level: 'debug'}) });
-   console.log(JSON.stringify(result, null, 2)) 
+    const { result } = await run({ specl, base, addSteppers: [test], logger: new Logger(LOGGER_NONE) });
 
     expect(result.ok).toBe(false);
     expect(result.results?.length).toBe(2);
@@ -109,8 +108,8 @@ describe('step vars', () => {
     const base = process.cwd() + '/test/projects/specl/vars';
     const specl = getConfigOrDefault(base);
 
-    const {result, shared} = await run({ specl, base, addSteppers: [test], logger: new Logger(LOGGER_NONE) });
-    
+    const { result, shared } = await run({ specl, base, addSteppers: [test], logger: new Logger(LOGGER_NONE) });
+
     expect(result.ok).toBe(true);
     expect(shared.var).toBe('1');
     expect(shared['Var 2']).toBe('2');

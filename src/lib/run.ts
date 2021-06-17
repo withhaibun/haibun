@@ -32,12 +32,10 @@ export async function run({ specl, base, addSteppers = [], logger, shared = {}, 
     return { result: { ...notOk, failure: { stage: 'Resolve', error: { details: error.message, context: { steppers, mappedValidatedSteps } } } } };
   }
   
-  
-console.log('xy', mappedValidatedSteps)
   const investigator = new Investigator(steppers, specl, logger);
   const result = await investigator.investigate(mappedValidatedSteps);
   if (!result.ok) {
-    result.failure = {stage : 'Investigate', error: {context: 'FIXME'}};
+    result.failure = {stage : 'Investigate', error: {context: result.results?.filter(r => !r.ok).map(r => r.path)}};
   }
   return { result, shared };
 }

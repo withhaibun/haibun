@@ -16,6 +16,7 @@ export type TFeature = {
 export type TFeatures = TFeature[];
 
 export type TResolvedFeature = {
+  path: string;
   feature: string;
   vsteps: TVStep[];
 };
@@ -54,7 +55,7 @@ export type TVStep = {
   seq: number;
   actions: TFound[];
 };
-export type TFound = { name: string; step: TStep; named?: TNamed };
+export type TFound = { name: string; step: TStep; named?: TNamed | undefined };
 export type TNamed = { [name: string]: string };
 
 export const ok = { ok: true };
@@ -67,7 +68,7 @@ export type TResultError = {
 
 export type TResult = {
   ok: boolean;
-  results?: TStepResult[];
+  results?: TFeatureResult[];
   failure?: {
     stage: 'Expand' | 'Resolve' | 'Investigate';
     error: TResultError;
@@ -79,6 +80,14 @@ export type TActionResult = {
   name: string;
 };
 
+export type TFeatureResult = {
+  path: string;
+  ok: boolean;
+  failure?: {
+    error: any;
+  };
+  stepResults: TStepResult[];
+};
 export type TStepResult = {
   ok: boolean;
   actionResults: TActionResult[];
