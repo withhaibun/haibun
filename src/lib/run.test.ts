@@ -34,11 +34,12 @@ describe('run self-contained', () => {
     const {result} = await run({ specl, base, addSteppers: [test], logger: new Logger(LOGGER_NONE) });
     
     expect(result.ok).toBe(true);
-    expect(result.results!.length).toBe(2);
+    expect(result.results!.length).toBe(1);
     const t = result.results![0];
     expect(t).toBeDefined();
     expect(t.ok).toBe(true);
-    expect(t.actionResults.every((r) => r.ok === true)).toBe(true);
+    expect(t.stepResults.length).toBe(2);
+    expect(t.stepResults.every((r) => r.ok === true)).toBe(true);
   });
 });
 
@@ -51,11 +52,12 @@ describe('run backgrounds', () => {
 
     expect(result.ok).toBe(true);
     
-    expect(result.results!.length).toBe(3);
+    expect(result.results!.length).toBe(1);
     const t = result.results![0];
     expect(t).toBeDefined();
     expect(t.ok).toBe(true);
-    expect(t.actionResults.every((r) => r.ok === true)).toBe(true);
+    expect(t.stepResults.length).toBe(3);
+    expect(t.stepResults.every((r) => r.ok === true)).toBe(true);
   });
 });
 
@@ -82,6 +84,21 @@ describe('step fails', () => {
     const {result} = await run({ specl, base, addSteppers: [test], logger: new Logger(LOGGER_NONE) });
 
     expect(result.ok).toBe(false);
+
+    expect(result.failure?.stage).toBe('Investigate');
+  });
+});
+
+describe('multiple', () => {
+  it.only('fail and pass', async () => {
+    const base = process.cwd() + '/test/projects/specl/multiple';
+    const specl = getConfigOrDefault(base);
+
+    const {result} = await run({ specl, base, addSteppers: [test], logger: new Logger({level: 'debug'}) });
+   console.log(JSON.stringify(result, null, 2)) 
+
+    expect(result.ok).toBe(false);
+    expect(result.results?.length).toBe(2);
 
     expect(result.failure?.stage).toBe('Investigate');
   });
