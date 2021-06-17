@@ -10,35 +10,29 @@ export class Resolver {
     this.options = options;
     this.logger = logger;
   }
-  async resolveSteps(paths: TFeature[]): Promise<TResolvedFeature[]> {
+  async resolveSteps(features: TFeature[]): Promise<TResolvedFeature[]> {
     const expanded: TResolvedFeature[] = [];
-
-    const features = [];
-
-    const addSteps = async (feature: TFeature): Promise<TResolvedFeature> => {
-      const vsteps = feature.feature.split('\n').map((featureLine, seq) => {
-        const actions = this.findSteps(featureLine);
-        this.logger.debug('ixmany', featureLine, actions);
-        if (actions.length > 1) {
-          throw Error(`more than one step found for ${featureLine} ` + JSON.stringify(actions));
-        } else if (actions.length < 1 && this.options.mode !== 'some') {
-          throw Error(`no step found for ${featureLine} from ` + describeSteppers(this.steppers));
-        }
-
-        return { in: featureLine, seq, actions };
-      });
-
-      return { ...feature, vsteps };
-    };
-    for (const [path, featureOrNode] of Object.entries(paths)) {
-      features.push({ path, feature: featureOrNode });
-
-      for (const { path, feature } of features) {
-        const steps = await addSteps(feature as TFeature);
-        expanded.push(steps);
-      }
+    for (const feature of features) {
+      const steps = await this.addSteps(feature);
+      expanded.push(steps);
     }
     return expanded;
+  }
+
+  async addSteps(feature: TFeature): Promise<TResolvedFeature> {
+    const vsteps = feature.feature.split('\n').map((featureLine, seq) => {
+      const actions = this.findSteps(featureLine);
+      this.logger.debug('ixmany', featureLine, actions);
+      if (actions.length > 1) {
+        throw Error(`more than one step found for ${featureLine} ` + JSON.stringify(actions));
+      } else if (actions.length < 1 && this.options.mode !== 'some') {
+        throw Error(`no step found for ${featureLine} from ` + describeSteppers(this.steppers));
+      }
+
+      return { in: featureLine, seq, actions };
+    });
+
+    return { ...feature, vsteps };
   }
 
   public findSteps(featureLine: string): TFound[] {

@@ -1,5 +1,5 @@
 import { existsSync } from 'fs';
-import { TSpecl, IStepper, notOk, IStepperConstructor, TResult, TLogger, TShared, TRuntime, TFeature, TFeatures } from './defs';
+import { TSpecl, IStepper, notOk, IStepperConstructor, TResult, TLogger, TShared, TRuntime, TFeatures } from './defs';
 import { expandBackgrounds, expandFeatures } from './features';
 import { Investigator } from './investigator/Investigator';
 import { parse } from './parse';
@@ -20,7 +20,7 @@ export async function run({ specl, base, addSteppers = [], logger, shared = {}, 
   let expandedFeatures;
   try {
     expandedFeatures = await expand(backgrounds, features);
-  } catch (error) {
+  } catch (error: any) {
     return { result: { ...notOk, failure: { stage: 'Expand', error: error.message } } };
   }
   
@@ -28,12 +28,17 @@ export async function run({ specl, base, addSteppers = [], logger, shared = {}, 
   try {
     const resolver = new Resolver(steppers, specl, logger);
     mappedValidatedSteps = await resolver.resolveSteps(expandedFeatures);
-  } catch (error) {
+  } catch (error: any) {
     return { result: { ...notOk, failure: { stage: 'Resolve', error: { details: error.message, context: { steppers, mappedValidatedSteps } } } } };
   }
   
+  
+console.log('xy', mappedValidatedSteps)
   const investigator = new Investigator(steppers, specl, logger);
   const result = await investigator.investigate(mappedValidatedSteps);
+  if (!result.ok) {
+    result.failure = {stage : 'Investigate', error: {context: 'FIXME'}};
+  }
   return { result, shared };
 }
 
