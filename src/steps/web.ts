@@ -69,9 +69,14 @@ const Web: IStepperConstructor = class Web implements IStepper {
       beOnPage: {
         gwta: 'should be on the (?<name>.+) page',
         withPage: async (page: Page, { name }: { name: string }) => {
+          await page.waitForNavigation();
           const uri = this.shared[name];
-          const nowon = await page.url();
-          return nowon === uri ? ok : {...notOk, error: `expected ${uri} but on ${nowon}`};
+          let nowon;
+          nowon = await page.url();
+          if (nowon === uri) {
+            return ok;
+          }
+          return { ...notOk, error: `expected ${uri} but on ${nowon}` };
         },
       },
       URIContains: {
@@ -90,7 +95,7 @@ const Web: IStepperConstructor = class Web implements IStepper {
       //                  CLICK
 
       clickOn: {
-        gwta: 'click on (?<name>.[^\s]+)',
+        gwta: 'click on (?<name>.[^s]+)',
         withPage: async (page: Page, { name }: { name: string }) => {
           const what = this.shared[name] || `text=${name}`;
           await page.click(what);
@@ -140,13 +145,7 @@ const Web: IStepperConstructor = class Web implements IStepper {
         },
       },
 
-      //                          MISC
-      usingChrome: {
-        gwta: `using Chrome browser`,
-        action: async () => {
-          return ok;
-        },
-      },
+      //                          NAVIGATION
       openPage: {
         gwta: 'open the (?<name>.+) page',
         withPage: async (page: Page, { name }: { name: string }) => {
@@ -161,10 +160,23 @@ const Web: IStepperConstructor = class Web implements IStepper {
           return ok;
         },
       },
-      openURL: {
-        gwta: 'open the URI (?<uri>.+)',
-        withPage: async (page: Page, { uri }: { uri: string }) => ((await page.goto(uri)) ? ok : notOk),
+
+      //                          BROWSER
+      usingChrome: {
+        gwta: `using Chrome browser`,
+        action: async () => {
+          return ok;
+        },
       },
+
+      usingFirefox: {
+        gwta: `using Firefox browser`,
+        action: async () => {
+          return ok;
+        },
+      },
+
+      //                          MISC
       assertOpen: {
         gwta: '(?<what>.+) is expanded with the (?<using>.+)',
         withPage: async (page: Page, { what, using }: { what: string; using: string }) => {
@@ -187,8 +199,6 @@ const Web: IStepperConstructor = class Web implements IStepper {
           return ok;
         },
       },
-
-
     };
     const steps = Object.entries(preSteps).reduce((a, [p, step]) => {
       const stepper = step as any;
