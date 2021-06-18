@@ -5,6 +5,7 @@ that can be used in a variety of settings and contexts.
 
 # Feature structure
 
+```
 project/
   features/
     test.feature
@@ -12,6 +13,7 @@ project/
     setup.feature
       dependant/
       run.feature
+```
 
 On running tests, features at the project/ level are run. 
 
