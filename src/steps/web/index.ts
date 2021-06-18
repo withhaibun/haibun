@@ -1,5 +1,5 @@
-import { IStepper, IStepperConstructor, notOk, ok, TLogger, TResult, TRuntime, TShared } from '../lib/defs';
-import { BrowserFactory } from '../BrowserFactory';
+import { IStepper, IStepperConstructor, notOk, ok, TLogger, TResult, TRuntime, TShared } from '../../lib/defs';
+import { BrowserFactory } from './BrowserFactory';
 import { Page } from 'playwright';
 
 type TStepWithPage = {

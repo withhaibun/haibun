@@ -1,3 +1,3 @@
+Backgrounds: chrome
 Feature: Wikipedia
-    Scenarios: Language
-        Given I include en
+Scenarios: en, fr

@@ -1,5 +1,5 @@
 import { Browser, BrowserContext, Page, chromium, firefox, webkit, BrowserType } from 'playwright';
-import { TLogger } from './lib/defs';
+import { TLogger } from '../../lib/defs';
 
 type TBrowserType = 'chromium' | 'firefox' | 'webkit';
 
