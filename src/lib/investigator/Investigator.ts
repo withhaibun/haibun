@@ -58,9 +58,12 @@ export class Investigator {
       let res;
       try {
         res = await a.step.action(a.named);
-      } catch (error: any) {
+      } catch (caught: any) {
+	      console.error(caught);
         res = notOk;
-        details = { message: error.message, vstep };
+        details = { message: caught.message, vstep };
+	error = caught;
+	break;
       }
       actionResults.push({ ...res, name: a.name });
 

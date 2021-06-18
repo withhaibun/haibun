@@ -8,7 +8,7 @@ const vars: IStepperConstructor = class Vars implements IStepper {
 
   steps = {
     is: {
-      match: /^Given (?<what>.+) is (?<value>.+)$/,
+      gwta: '(?<what>.+) is (?<value>.+)',
       action: async ({ what, value }: { what: string; value: string }) => {
         this.shared[what] = value;
         return ok;
@@ -28,13 +28,6 @@ const vars: IStepperConstructor = class Vars implements IStepper {
         return ok;
       },
     },
-    scenarios: {
-      match: /^Scenarios: (?<scenarios>.+)$/,
-      action: async ({ scenarios }: { scenarios: string }) => {
-        this.shared.scenarios = scenarios;
-        return ok;
-      },
-    },
     scenario: {
       match: /^Scenario: (?<scenario>.+)$/,
       action: async ({ scenario }: { scenario: string }) => {
@@ -43,7 +36,7 @@ const vars: IStepperConstructor = class Vars implements IStepper {
       },
     },
     display: {
-      match: /^Then I display (?<what>.+)$/,
+      gwta: 'display (?<what>.+)',
       action: async ({ what }: { what: string }) => {
         console.log(what, 'is', this.shared[what]);
 
