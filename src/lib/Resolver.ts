@@ -55,7 +55,7 @@ export class Resolver {
         if (step.gwta) {
           const f = step.gwta.charAt(0);
           const s = isLowerCase(f) ? ['[', f, f.toUpperCase(), ']', step.gwta.substring(1)].join('') : step.gwta;
-          const r = new RegExp(`^(Given|When|Then|And)?( the )?( I('m)? (am )?)?${s}`);
+          const r = new RegExp(`^(Given|When|Then|And)?( the )?( I('m)? (am )?)? ?${s}`);
           doMatch(r, name, step);
         } else if (step.match) {
           doMatch(step.match, name, step);

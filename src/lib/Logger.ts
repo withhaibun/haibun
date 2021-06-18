@@ -26,7 +26,8 @@ export default class Logger {
     if (!Logger.shouldLog(this.level, what)) {
       return;
     }
-    const ln = new Error(what).stack?.split('\n')[4].replace(/.*\(/, '').replace(process.cwd(), '').replace(')', '');
+    const e = Error(what).stack?.split('\n');
+    const ln = e![Math.min((e?.length || 1) - 1, 4)]?.replace(/.*\(/, '')?.replace(process.cwd(), '').replace(')', '');
     (console as any)[what].call(console, `${ln}: `, what, args);
   }
   debug = (args: any) => this.out('debug', args);
