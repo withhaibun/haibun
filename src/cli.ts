@@ -3,7 +3,6 @@ import Logger from './lib/Logger';
 
 import { run } from './lib/run';
 import { getConfigOrDefault } from './lib/util';
-import { captureRejectionSymbol } from 'events';
 
 go();
 
