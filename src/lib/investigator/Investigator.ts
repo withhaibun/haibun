@@ -1,5 +1,4 @@
-import { readlink } from 'fs';
-import { IStepper, TVStep, TResolvedFeature, TResult, TStepResult, TResultError, notOk, TLogger, TFeatureResult, TFeature } from '../defs';
+import { IStepper, TVStep, TResolvedFeature, TResult, TStepResult, TResultError, notOk, TLogger, TFeatureResult } from '../defs';
 
 type TErrorWithMessage = {
   message: string;
@@ -59,11 +58,11 @@ export class Investigator {
       try {
         res = await a.step.action(a.named);
       } catch (caught: any) {
-	      console.error(caught);
+        console.error(caught);
         res = notOk;
         details = { message: caught.message, vstep };
-	error = caught;
-	break;
+        error = caught;
+        break;
       }
       actionResults.push({ ...res, name: a.name });
 

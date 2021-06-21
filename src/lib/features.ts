@@ -1,4 +1,3 @@
-import { join } from 'path/posix';
 import { TFeature, TFeatures } from './defs';
 import { getActionable } from './util';
 
