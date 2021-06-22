@@ -21,8 +21,11 @@ export type TResolvedFeature = {
   vsteps: TVStep[];
 };
 
-export type TAction = (arg: any) => Promise<{ ok: true | false }>;
+export const SECTION_BACKGROUND = 'Background';
+
+export type TAction = (arg: any) => Promise<TActionResult>;
 export type TStep = {
+  section?: string;
   match?: RegExp;
   gwta?: string;
   exact?: string;
@@ -58,8 +61,7 @@ export type TVStep = {
 export type TFound = { name: string; step: TStep; named?: TNamed | undefined };
 export type TNamed = { [name: string]: string };
 
-export const ok = { ok: true };
-export const notOk = { ok: false };
+export const OK: TOKActionResult = { ok: true };
 
 export type TResultError = {
   context: any;
@@ -75,22 +77,41 @@ export type TResult = {
   };
 };
 
-export type TActionResult = {
-  ok: boolean;
+export type TActionResult = TOKActionResult | TNotOKActionResult;
+
+export type TStepActionResult = TActionResult & {
   name: string;
+}
+
+
+export type TOKActionResult = {
+  ok: true;
+};
+
+export type TNotOKActionResult = {
+  ok: false;
+  message: string;
+  details?: any
 };
 
 export type TFeatureResult = {
+  skip?: boolean;
+  comments?: string;
   path: string;
   ok: boolean;
-  failure?: {
-    error: any;
-  };
   stepResults: TStepResult[];
+  failure?: TFeatureResultFailure;
 };
+
+export type TFeatureResultFailure = {
+  message: string;
+  error: any;
+  expected?: any;
+};
+
 export type TStepResult = {
   ok: boolean;
-  actionResults: TActionResult[];
+  actionResults: TStepActionResult[];
   in: string;
   seq: number;
 };

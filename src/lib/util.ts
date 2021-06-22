@@ -1,10 +1,22 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'fs';
-import { IStepper, IStepperConstructor, TFeature, TLogger, TRuntime, TShared, TSpecl } from './defs';
+import { IStepper, IStepperConstructor, TFeature, TLogger, TNotOKActionResult, TOKActionResult, TRuntime, TShared, TSpecl, TStepActionResult } from './defs';
 
 // FIXME tired of wrestling with ts/import issues
 export async function use(module: string) {
   const re: any = (await import(module)).default;
   return re;
+}
+
+export function actionNotOK(message: string, details?: any): TNotOKActionResult {
+  return {
+    ok: false,
+    message,
+    details,
+  };
+}
+
+export function actionOK(): TOKActionResult {
+  return { ok: true };
 }
 
 export async function getSteppers({
@@ -42,7 +54,7 @@ export async function recurse(dir: string, filters: TFilters): Promise<TFeature[
     const here = `${dir}/${file}`;
     if (statSync(here).isDirectory()) {
       all = all.concat(await recurse(here, filters));
-    } else if (filters.every(filter => file.match(filter))) {
+    } else if (filters.every((filter) => file.match(filter))) {
       all.push({ path: here.replace(filters[0], ''), feature: readFileSync(here, 'utf-8') });
     }
   }

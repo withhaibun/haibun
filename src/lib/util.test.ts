@@ -1,9 +1,9 @@
-import { notOk, TStep } from './defs';
+import { TStep } from './defs';
 import * as util from './util';
 
 const step: TStep = {
     match: /^(?<one>.*?) is (?<two>.*?)$/,
-    action: async () => notOk
+    action: async () => util.actionNotOK('test')
 };
 
 describe('getMatches', () => {
