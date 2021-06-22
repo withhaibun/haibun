@@ -1,6 +1,7 @@
-import { IStepper, IStepperConstructor, notOk, ok, TLogger, TResult, TRuntime, TShared } from '../../lib/defs';
+import { IStepper, IStepperConstructor, OK, TLogger, TResult, TRuntime, TShared } from '../../lib/defs';
 import { BrowserFactory } from './BrowserFactory';
 import { Page } from 'playwright';
+import { actionNotOK } from '../../lib/util';
 
 type TStepWithPage = {
   gwta: string;
@@ -22,32 +23,37 @@ const Web: IStepperConstructor = class Web implements IStepper {
     const preSteps: { [name: string]: TStepWithPage } = {
       //                                      INPUT
       inputVariable: {
-        gwta: 'set the inputfield "(?<field>.+)" to <(?<what>.+)>',
-        withPage: async (page: Page, { field, what }: { field: string; what: string }) => {
+        gwta: 'input <(?<what>.+)> for (?<field>.+)',
+        withPage: async (page: Page, { what, field }: { what: string; field: string }) => {
           const where = this.shared[field] || field;
-          const val = this.shared[what] || what;
+          const val = this.shared[what];
+          console.log('input', where, val);
+          
+          if (!val) {
+            throw Error(`no shared defined ${what}`);
+          }
           await page.fill(where, val);
-          return ok;
+          return OK;
         },
       },
       input: {
-        gwta: 'set the inputfield "(?<field>.+)" to "(?<what>.+)"',
-        withPage: async (page: Page, { field, what }: { field: string; what: string }) => {
+        gwta: 'input "(?<what>.+)" for "(?<field>.+)"',
+        withPage: async (page: Page, { what, field }: { what: string; field: string }) => {
           field = field.replace(/"/g, '');
           const where = this.shared[field];
           await page.fill(where, what);
-          return ok;
+          return OK;
         },
       },
       selectionOption: {
-        gwta: 'select the option "(?<option>.+)" for `(?<id>.+)`',
+        gwta: 'select "(?<option>.+)" for `(?<id>.+)`',
         withPage: async (page: Page, { option, id }: { option: string; id: string }) => {
           const what = this.shared[id] || id;
 
           const res = await page.selectOption(what, { label: option });
           // FIXME have to use id value
           // return res === [id] ? ok : {...notOk, details: { message: `received ${res} selecting from ${what} with id ${id}`}};
-          return ok;
+          return OK;
         },
       },
 
@@ -59,10 +65,10 @@ const Web: IStepperConstructor = class Web implements IStepper {
           for (let a = 0; a < 2; a++) {
             textContent = await page.textContent('body', { timeout: 1e9 });
             if (textContent?.toString().includes(text)) {
-              return ok;
+              return OK;
             }
           }
-          return { ...notOk, details: `Did not find text in ${textContent!?.length} characters starting with ${textContent!?.trim().substr(0, 1e9)}` };
+          return actionNotOK(`Did not find text in ${textContent!?.length} characters starting with ${textContent!?.trim().substr(0, 1e9)}`);
         },
       },
 
@@ -74,22 +80,31 @@ const Web: IStepperConstructor = class Web implements IStepper {
           let nowon;
           nowon = await page.url();
           if (nowon === uri) {
-            return ok;
+            return OK;
           }
-          return { ...notOk, error: `expected ${uri} but on ${nowon}` };
+          return actionNotOK(`expected ${uri} but on ${nowon}`);
         },
       },
       URIContains: {
         gwta: 'URI should include (?<what>.+)',
-        withPage: async (page: Page, { what }: { what: string }) => ((await page.url().includes(what)) ? ok : notOk),
+        withPage: async (page: Page, { what }: { what: string }) => {
+          const uri = await page.url();
+          return uri.includes(what) ? OK : actionNotOK(`current URI ${uri} does not contain ${what}`);
+        },
       },
       URIStartsWith: {
         gwta: 'URI should start with (?<start>.+)',
-        withPage: async (page: Page, { start }: { start: string }) => ((await page.url().startsWith(start)) ? ok : notOk),
+        withPage: async (page: Page, { start }: { start: string }) => {
+          const uri = await page.url();
+          return uri.startsWith(start) ? OK : actionNotOK(`current URI ${uri} does not start with ${start}`);
+        },
       },
       URIMatches: {
         gwta: 'URI should match (?<what>.+)',
-        withPage: async (page: Page, { what }: { what: string }) => ((await page.url()) === what ? ok : notOk),
+        withPage: async (page: Page, { what }: { what: string }) => {
+          const uri = await page.url();
+          return uri === what ? OK : actionNotOK(`current URI ${uri} does not match ${what}`);
+        },
       },
 
       //                  CLICK
@@ -99,7 +114,7 @@ const Web: IStepperConstructor = class Web implements IStepper {
         withPage: async (page: Page, { name }: { name: string }) => {
           const what = this.shared[name] || `text=${name}`;
           await page.click(what);
-          return ok;
+          return OK;
         },
       },
       clickCheckbox: {
@@ -108,7 +123,7 @@ const Web: IStepperConstructor = class Web implements IStepper {
           const what = this.shared[name] || name;
           this.logger.log(`click ${name} ${what}`);
           await page.click(what);
-          return ok;
+          return OK;
         },
       },
       clickShared: {
@@ -116,14 +131,14 @@ const Web: IStepperConstructor = class Web implements IStepper {
         withPage: async (page: Page, { id }: { id: string }) => {
           const name = this.shared[id];
           await page.click(name);
-          return ok;
+          return OK;
         },
       },
       clickQuoted: {
         gwta: 'click "(?<name>.+)"',
         withPage: async (page: Page, { name }: { name: string }) => {
           await page.click(`text=${name}`);
-          return ok;
+          return OK;
         },
       },
       clickLink: {
@@ -131,7 +146,7 @@ const Web: IStepperConstructor = class Web implements IStepper {
         withPage: async (page: Page, { name }: { name: string }) => {
           const field = this.shared[name] || name;
           await page.click(field);
-          return ok;
+          return OK;
         },
       },
 
@@ -141,7 +156,7 @@ const Web: IStepperConstructor = class Web implements IStepper {
           const field = this.shared[id] || id;
           const a = await page.click(field);
 
-          return ok;
+          return OK;
         },
       },
 
@@ -150,14 +165,15 @@ const Web: IStepperConstructor = class Web implements IStepper {
         gwta: 'open the (?<name>.+) page',
         withPage: async (page: Page, { name }: { name: string }) => {
           const uri = this.shared[name];
-          return (await page.goto(uri)) ? ok : notOk;
+          const response = await page.goto(uri);
+          return response?.ok ? OK : actionNotOK(`response not ok`);
         },
       },
       pressBack: {
         gwta: 'press the back button',
         withPage: async (page: Page) => {
           await page.goBack();
-          return ok;
+          return OK;
         },
       },
 
@@ -165,14 +181,14 @@ const Web: IStepperConstructor = class Web implements IStepper {
       usingChrome: {
         gwta: `using Chrome browser`,
         action: async () => {
-          return ok;
+          return OK;
         },
       },
 
       usingFirefox: {
         gwta: `using Firefox browser`,
         action: async () => {
-          return ok;
+          return OK;
         },
       },
 
@@ -186,7 +202,7 @@ const Web: IStepperConstructor = class Web implements IStepper {
           if (!isVisible) {
             await page.click(u);
           }
-          return ok;
+          return OK;
         },
       },
       pauseSeconds: {
@@ -196,7 +212,7 @@ const Web: IStepperConstructor = class Web implements IStepper {
 
           const seconds = parseInt(ms, 10) * 1000;
           await sleep(seconds);
-          return ok;
+          return OK;
         },
       },
     };
@@ -208,9 +224,9 @@ const Web: IStepperConstructor = class Web implements IStepper {
       (step as any).action = async (input: any) => {
         try {
           return await this.pageRes((step as any).withPage, input, p);
-        } catch (e) {
+        } catch (e: any) {
           logger.log(e);
-          return { ...notOk };
+          return actionNotOK(e.message, e);
         }
       };
       return { ...a, [p]: step };

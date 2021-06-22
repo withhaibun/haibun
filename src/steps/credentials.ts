@@ -1,4 +1,4 @@
-import { IStepper, IStepperConstructor, ok, TShared } from '../lib/defs';
+import { IStepper, IStepperConstructor, OK, TShared } from '../lib/defs';
 
 const Credentials: IStepperConstructor = class Credentials implements IStepper {
   shared: TShared;
@@ -31,7 +31,7 @@ const Credentials: IStepperConstructor = class Credentials implements IStepper {
       match: /^When I have a valid random username <(?<name>.+)>/,
       action: async ({ name }: { name: string }) => {
         this.generateRandomUsername(name);
-        return ok;
+        return OK;
       },
     },
 
@@ -39,7 +39,7 @@ const Credentials: IStepperConstructor = class Credentials implements IStepper {
       match: /^When I have a valid random password <(?<name>.+)>/,
       action: async ({ name }: { name: string }) => {
         this.generateRandomPassword(name);
-        return ok;
+        return OK;
       },
     },
   };
