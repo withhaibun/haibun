@@ -1,5 +1,4 @@
 import Logger, { LOGGER_NONE } from '../../lib/Logger';
-import { TShared } from '../../lib/defs';
 import { getSteppers } from '../../lib/util';
 
 describe('vars', () => {
