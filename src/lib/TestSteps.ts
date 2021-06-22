@@ -1,0 +1,31 @@
+import { IStepper, IStepperConstructor } from './defs';
+import { actionNotOK, actionOK } from './util';
+
+export const TestSteps: IStepperConstructor = class TestSteps implements IStepper {
+  steps = {
+    test: {
+      exact: 'When I have a test',
+      action: async (input: any) => actionOK(),
+    },
+    passes: {
+      exact: 'Then the test should pass',
+      action: async (input: any) => actionOK(),
+    },
+    fails: {
+      exact: 'Then the test can fail',
+      action: async (input: any) => actionNotOK('test'),
+    },
+    named: {
+      match: /^Then the parameter (?<param>.+) is accepted$/,
+      action: async ({ param }: { param: string }) => {
+        return param === 'x' ? actionOK() : actionNotOK('test');
+      },
+    },
+    throws: {
+      gwta: 'throw an exception',
+      action: async () => {
+        throw Error(`<Thrown for test case>`);
+      },
+    },
+  };
+};

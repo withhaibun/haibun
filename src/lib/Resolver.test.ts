@@ -1,4 +1,4 @@
-import { IStepper, ok, TResolvedFeature } from './defs';
+import { IStepper, OK, TResolvedFeature } from './defs';
 import Logger, { LOGGER_NONE } from './Logger';
 import { Resolver } from './Resolver';
 
@@ -6,15 +6,15 @@ class TestStepper implements IStepper {
   steps = {
     exact: {
       exact: 'exact1',
-      action: async () => ok,
+      action: async () => OK,
     },
     match: {
       match: /match(?<num>1)/,
-      action: async () => ok,
+      action: async () => OK,
     },
     gwta: {
       gwta: 'gwta(?<num>.)',
-      action: async () => ok,
+      action: async () => OK,
     },
   };
 }

@@ -1,4 +1,4 @@
-import { IStepper, TFeature, TFound, ok, TResolvedFeature, TLogger, TStep } from './defs';
+import { IStepper, TFeature, TFound, TResolvedFeature, TLogger, TStep, OK } from './defs';
 import { getActionable, getNamedMatches, describeSteppers, isLowerCase } from './util';
 
 export class Resolver {
@@ -73,7 +73,7 @@ const comment = {
   step: {
     match: /.*/,
     action: async () => {
-      return ok;
+      return OK;
     },
   },
 };

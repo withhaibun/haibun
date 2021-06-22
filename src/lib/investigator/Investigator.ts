@@ -1,8 +1,5 @@
-import { IStepper, TVStep, TResolvedFeature, TResult, TStepResult, TResultError, notOk, TLogger, TFeatureResult } from '../defs';
-
-type TErrorWithMessage = {
-  message: string;
-};
+import { IStepper, TVStep, TResolvedFeature, TResult, TStepResult, TLogger, TFeatureResult, TFeatureResultFailure, TActionResult } from '../defs';
+import { actionNotOK } from '../util';
 
 export class Investigator {
   steppers: IStepper[];
@@ -30,49 +27,38 @@ export class Investigator {
   async doFeature(feature: TResolvedFeature): Promise<TFeatureResult> {
     let ok = true;
     let stepResults: TStepResult[] = [];
-    let extra = undefined;
     for (const step of feature.vsteps) {
       this.logger.log(`   ${step.in}\r`);
-      const { result, error } = await Investigator.doStep(step);
+      const result = await Investigator.doFeatureStep(step, this.logger);
       ok = ok && result.ok;
       this.logger.log(ok);
       stepResults.push(result);
-      if (error) {
-        extra = error;
+      if (!ok) {
         break;
       }
     }
     const featureResult: TFeatureResult = { path: feature.path, ok, stepResults };
-    if (extra) {
-      featureResult.failure = { error: extra };
-    }
     return featureResult;
   }
-  static async doStep(vstep: TVStep): Promise<{ result: TStepResult; error: TResultError | undefined }> {
+  static async doFeatureStep(vstep: TVStep, logger: TLogger): Promise<TStepResult> {
     let ok = true;
     let actionResults = [];
-    let error;
-    let details;
     for (const a of vstep.actions) {
-      let res;
+      let res: TActionResult;
       try {
         res = await a.step.action(a.named);
       } catch (caught: any) {
-        console.error(caught);
-        res = notOk;
-        details = { message: caught.message, vstep };
-        error = caught;
-        break;
+        logger.error(caught.stack);
+        res = actionNotOK(caught.message, { caught: caught.stack.toString() });
       }
       actionResults.push({ ...res, name: a.name });
 
       ok = ok && res.ok;
       if (!res.ok) {
-        error = { context: a, details };
         break;
       }
     }
-    return { result: { ok, in: vstep.in, actionResults, seq: vstep.seq }, error };
+    return { ok, in: vstep.in, actionResults, seq: vstep.seq };
   }
 
   async close() {
