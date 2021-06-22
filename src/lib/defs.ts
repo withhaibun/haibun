@@ -77,13 +77,6 @@ export type TResult = {
   };
 };
 
-export type TActionResult = TOKActionResult | TNotOKActionResult;
-
-export type TStepActionResult = TActionResult & {
-  name: string;
-}
-
-
 export type TOKActionResult = {
   ok: true;
 };
@@ -93,6 +86,18 @@ export type TNotOKActionResult = {
   message: string;
   details?: any
 };
+
+export type TActionResult = TOKActionResult | TNotOKActionResult;
+
+export type TStepActionResult = TNotOkStepActionResult | TOKStepActionResult;
+
+type TNamedStepActionResult = {
+  name: string
+}
+
+export type TNotOkStepActionResult = TNotOKActionResult & TNamedStepActionResult;
+
+export type TOKStepActionResult = TOKActionResult & TNamedStepActionResult;
 
 export type TFeatureResult = {
   skip?: boolean;

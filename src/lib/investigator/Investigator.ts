@@ -1,4 +1,4 @@
-import { IStepper, TVStep, TResolvedFeature, TResult, TStepResult, TLogger, TFeatureResult, TFeatureResultFailure, TActionResult } from '../defs';
+import { IStepper, TVStep, TResolvedFeature, TResult, TStepResult, TLogger, TFeatureResult, TActionResult } from '../defs';
 import { actionNotOK } from '../util';
 
 export class Investigator {
