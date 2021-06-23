@@ -1,5 +1,3 @@
 node_modules/
-./lib/
-test/projects/spec/features
-test/projects/spec/refs
+./build/
 
