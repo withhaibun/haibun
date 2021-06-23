@@ -106,3 +106,16 @@ describe('handles exception', () => {
     expect(result.results?.length).toBe(1);
   });
 });
+
+describe('haibun', () => {
+  it('mixed prose', async () => {
+    const base = process.cwd() + '/test/projects/haibun/prose';
+    const specl = getConfigOrDefault(base);
+
+    const { result } = await run({ specl, base, addSteppers: [TestSteps], logger: new Logger(LOGGER_NONE) });
+
+    expect(result.ok).toBe(true);
+    
+    expect(result.results?.length).toBe(1);
+  });
+});

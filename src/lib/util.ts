@@ -96,6 +96,7 @@ export function getConfigOrDefault(base: string): TSpecl {
   if (existsSync(f)) {
     try {
       const specl = JSON.parse(readFileSync(f, 'utf-8'));
+    
       return specl;
     } catch (e) {
       console.error('missing or not valid project config file.');
