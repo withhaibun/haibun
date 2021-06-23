@@ -4,15 +4,16 @@ import { Investigator } from '../lib/investigator/Investigator';
 import { Resolver } from '../lib/Resolver';
 import { getSteppers } from '../lib/util';
 
-describe('vars', () => {
-  it('assigns', async () => {
+describe('haibun', () => {
+  it('finds prose', async () => {
     const shared: TShared = {};
     const logger = new Logger(LOGGER_NONE);
-    const steppers = await getSteppers({steppers: ['haibun'], shared, logger});
+    const steppers = await getSteppers({ steppers: ['haibun'], shared, logger });
     const resolver = new Resolver(steppers, {}, new Logger(LOGGER_NONE));
-    const actions = resolver.findSteps('A sentence.');
+    const test = 'A sentence.';
+    const actions = resolver.findSteps(test);
     const tvstep: TVStep = {
-      in: 'run vars',
+      in: test,
       seq: 0,
       actions,
     };

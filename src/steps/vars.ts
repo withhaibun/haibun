@@ -1,9 +1,11 @@
-import { IStepper, IStepperConstructor, OK, TKeyString, TShared, TVStep } from '../lib/defs';
+import { IStepper, IStepperConstructor, OK, TKeyString, TLogger, TRuntime, TShared, TVStep } from '../lib/defs';
 
 const vars: IStepperConstructor = class Vars implements IStepper {
   shared: TShared;
-  constructor(shared: any) {
+  logger: TLogger;
+  constructor(shared: any, runtime: TRuntime, logger: TLogger) {
     this.shared = shared;
+    this.logger = logger;
   }
 
   steps = {
@@ -44,7 +46,7 @@ const vars: IStepperConstructor = class Vars implements IStepper {
     display: {
       gwta: 'display (?<what>.+)',
       action: async ({ what }: TKeyString) => {
-        console.log(what, 'is', this.shared[what]);
+        this.logger.log(`${what} is ${this.shared[what]}`);
 
         return OK;
       },
