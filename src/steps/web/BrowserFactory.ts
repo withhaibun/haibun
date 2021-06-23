@@ -1,34 +1,38 @@
-import { Browser, BrowserContext, Page, chromium, firefox, webkit, BrowserType } from 'playwright';
+import { Browser, BrowserContext, Page, chromium, firefox, webkit, BrowserType, devices } from 'playwright';
 import { TLogger } from '../../lib/defs';
 
-export type TBrowserType = 'chromium' | 'firefox' | 'webkit';
-
-export const BROWSERS = {
+export const BROWSERS: { [name: string]: BrowserType } = {
   firefox: firefox,
   chromium: chromium,
-  webkit: webkit
-}
+  webkit: webkit,
+};
 
 export class BrowserFactory {
   browser!: Browser;
   context!: BrowserContext;
   pages: { [name: string]: Page } = {};
-  logger: any;
+  logger: TLogger;
   browserType: BrowserType = chromium;
+  device: string | undefined = undefined;
 
   constructor(logger: TLogger) {
     this.logger = logger;
   }
 
-  async setBrowserType(type: TBrowserType) {
+  setBrowserType(typeAndDevice: string) {
+    const [type, device] = typeAndDevice.split('.');
+    if (!BROWSERS[type]) {
+      throw Error(`browserType not recognized ${type}`);
+    }
     this.browserType = BROWSERS[type];
+    this.device = device;
   }
 
   async getBrowser(): Promise<Browser> {
     if (!this.browser) {
       this.logger.info('launching new browser');
 
-      this.browser = await this.browserType.launch({ headless: false,  });
+      this.browser = await this.browserType.launch({ headless: false });
     }
     return this.browser;
   }
@@ -37,11 +41,12 @@ export class BrowserFactory {
     if (!this.context) {
       const browser = await this.getBrowser();
       this.logger.info('creating new context');
-      this.context = await browser.newContext();
+      const context = this.device ? { ...devices[this.device] } : {};
+      this.context = await browser.newContext(context);
     }
     return this.context;
   }
-  async getPage(ctx: string = '_'): Promise<Page> {
+  async getPage(ctx: string = '_DEFAULT_CONTEXT'): Promise<Page> {
     if (this.pages[ctx]) {
       return this.pages[ctx];
     }
