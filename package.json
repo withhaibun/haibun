@@ -1,9 +1,12 @@
 {
   "name": "haibun",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "",
   "main": "index.js",
   "author": "",
+  "bin": {
+    "haibun": "lib/cli"
+  },
   "dependencies": {
     "node-fetch": "^2.6.1",
     "playwright": "^1.10.0",

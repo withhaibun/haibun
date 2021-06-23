@@ -1,7 +1,7 @@
 import { create } from 'xmlbuilder2';
 import { EOL } from 'os';
 
-import { TResult, TNotOkStepActionResult } from '../lib/defs';
+import { TResult, TNotOkStepActionResult, TOutput } from '../lib/defs';
 
 type TTestCase = {
   '@name': string;
@@ -18,15 +18,11 @@ type TFailResult = {
   type?: string;
 };
 
-export default class AsXUnit {
-  result: TResult;
-  constructor(results: TResult) {
-    this.result = results;
-  }
-  getResults({ name = 'Haibun-Junit', prettyPrint = true, classname = 'Haibun-Junit-Suite' }) {
-    const failures = this.result.results?.filter((t) => !t.ok)?.length;
-    const skipped = this.result.results?.filter((t) => t.skip)?.length;
-    const count = this.result.results?.length;
+export default class AsXUnit implements TOutput {
+  async getOutput(result:TResult, { name = 'Haibun-Junit', prettyPrint = true, classname = 'Haibun-Junit-Suite' }) {
+    const failures = result.results?.filter((t) => !t.ok)?.length;
+    const skipped = result.results?.filter((t) => t.skip)?.length;
+    const count = result.results?.length;
     const forXML: any = {
       testsuites: {
         '@tests': count,
@@ -42,11 +38,11 @@ export default class AsXUnit {
       },
     };
 
-    if (!this.result.results) {
+    if (!result.results) {
       return;
     }
 
-    for (const t of this.result.results) {
+    for (const t of result.results) {
       const testCase: TTestCase = {
         '@name': t.path,
         '@id': t.path,

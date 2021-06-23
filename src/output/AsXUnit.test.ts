@@ -14,8 +14,9 @@ describe('AsXML', () => {
     const { result } = await run({ specl, base, addSteppers: [TestSteps], logger: new Logger(LOGGER_NONE) });
 
     expect(result.ok).toBe(true);
-    const asXunit = new AsXUnit(result);
-    const res = asXunit.getResults({});
+    const asXunit = new AsXUnit();
+    const res = await asXunit.getOutput(result, {});
+    
     const obj = convert(res, { format: 'object' });
     expect(obj.testsuites.testsuite.testcase['@name']).toBeDefined();
     expect(obj.testsuites['@tests']).toBe("1");
@@ -27,8 +28,8 @@ describe('AsXML', () => {
 
     const { result } = await run({ specl, base, addSteppers: [TestSteps], logger: new Logger(LOGGER_NONE) });
     expect(result.ok).toBe(false);
-    const asXunit = new AsXUnit(result);
-    const res = asXunit.getResults({});
+    const asXunit = new AsXUnit();
+    const res = await asXunit.getOutput(result, {});
     const obj = convert(res, { format: 'object' });
     
     expect(obj.testsuites.testsuite.testcase.length).toBe(2);
