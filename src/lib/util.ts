@@ -1,10 +1,28 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'fs';
-import { IStepper, IStepperConstructor, TFeature, TLogger, TNotOKActionResult, TOKActionResult, TRuntime, TShared, TSpecl } from './defs';
+import { IStepper, IStepperConstructor, TFeature, TLogger, TNotOKActionResult, TOKActionResult, TOutput, TResult, TRuntime, TShared, TSpecl } from './defs';
 
 // FIXME tired of wrestling with ts/import issues
 export async function use(module: string) {
   const re: any = (await import(module)).default;
   return re;
+}
+
+export async function resultOutput(type: string | undefined, result:TResult, shared: TShared) {
+  if (type) {
+    let out: TOutput | undefined = undefined;
+    if (type === 'AsXUnit') {
+      const AsXUnit = (await import('../output/AsXUnit')).default;
+      out = new AsXUnit();
+    }
+    if (out) {
+    const res = await out.getOutput(result, {});
+    return res;
+    }
+  } 
+  if (!result.ok) {
+  return { ...result, results: result.results?.filter((r) => !r.ok).map(r => r.stepResults = r.stepResults.filter(s => !s.ok)) };
+  }
+  return result;
 }
 
 export function actionNotOK(message: string, details?: any): TNotOKActionResult {
@@ -35,7 +53,8 @@ export async function getSteppers({
   const allSteppers: IStepper[] = [];
   for (const s of steppers) {
     
-    const S: IStepperConstructor = await use(`../steps/${s}`);
+    const loc = s.startsWith('.') ? s : `../steps/${s}`
+    const S: IStepperConstructor = await use(loc);
     const stepper = new S(shared, runtime, logger);
     allSteppers.push(stepper);
   }
