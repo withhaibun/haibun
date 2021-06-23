@@ -29,7 +29,9 @@ Note that features/ (unlike backgrounds) will not include folder predecessors.
 Flags are passed via environment variables. Currently, these are supported:
 
 `HAIBUN_OUTPUT=AsXUnit`:  Display XUnit format as the result
+
 `HAIBUN_SPLIT_SHARED=var=value1,value2`: run several instances with shared values assigned
+
 `PWDEBUG=1`: (web) Enable Playwright debugging
 
 
