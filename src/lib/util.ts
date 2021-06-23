@@ -7,7 +7,7 @@ export async function use(module: string) {
   return re;
 }
 
-export async function resultOutput(type: string | undefined, result:TResult, shared: TShared) {
+export async function resultOutput(type: string | undefined, result: TResult, shared: TShared) {
   if (type) {
     let out: TOutput | undefined = undefined;
     if (type === 'AsXUnit') {
@@ -15,12 +15,12 @@ export async function resultOutput(type: string | undefined, result:TResult, sha
       out = new AsXUnit();
     }
     if (out) {
-    const res = await out.getOutput(result, {});
-    return res;
+      const res = await out.getOutput(result, {});
+      return res;
     }
-  } 
+  }
   if (!result.ok) {
-  return { ...result, results: result.results?.filter((r) => !r.ok).map(r => r.stepResults = r.stepResults.filter(s => !s.ok)) };
+    return { ...result, results: result.results?.filter((r) => !r.ok).map((r) => (r.stepResults = r.stepResults.filter((s) => !s.ok))) };
   }
   return result;
 }
@@ -52,8 +52,7 @@ export async function getSteppers({
 }) {
   const allSteppers: IStepper[] = [];
   for (const s of steppers) {
-    
-    const loc = s.startsWith('.') ? s : `../steps/${s}`
+    const loc = s.startsWith('.') ? s : `../steps/${s}`;
     const S: IStepperConstructor = await use(loc);
     const stepper = new S(shared, runtime, logger);
     allSteppers.push(stepper);
@@ -96,7 +95,7 @@ export function getConfigOrDefault(base: string): TSpecl {
   if (existsSync(f)) {
     try {
       const specl = JSON.parse(readFileSync(f, 'utf-8'));
-    
+
       return specl;
     } catch (e) {
       console.error('missing or not valid project config file.');

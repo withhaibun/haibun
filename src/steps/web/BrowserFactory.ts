@@ -1,9 +1,9 @@
 import { Browser, BrowserContext, Page, chromium, firefox, webkit, BrowserType } from 'playwright';
 import { TLogger } from '../../lib/defs';
 
-type TBrowserType = 'chromium' | 'firefox' | 'webkit';
+export type TBrowserType = 'chromium' | 'firefox' | 'webkit';
 
-const BROWSERS = {
+export const BROWSERS = {
   firefox: firefox,
   chromium: chromium,
   webkit: webkit
@@ -28,7 +28,7 @@ export class BrowserFactory {
     if (!this.browser) {
       this.logger.info('launching new browser');
 
-      this.browser = await this.browserType.launch({ headless: false });
+      this.browser = await this.browserType.launch({ headless: false,  });
     }
     return this.browser;
   }

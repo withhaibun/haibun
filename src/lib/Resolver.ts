@@ -21,8 +21,8 @@ export class Resolver {
 
   async addSteps(feature: TFeature): Promise<TResolvedFeature> {
     const vsteps = feature.feature.split('\n').map((featureLine, seq) => {
-      const actions = this.findSteps(featureLine);
-      this.logger.debug('ixmany', featureLine, actions);
+      const actionable = getActionable(featureLine);
+      const actions = this.findSteps(actionable);
       if (actions.length > 1) {
         throw Error(`more than one step found for ${featureLine} ` + JSON.stringify(actions));
       } else if (actions.length < 1 && this.options.mode !== 'some') {
@@ -35,8 +35,7 @@ export class Resolver {
     return { ...feature, vsteps };
   }
 
-  public findSteps(featureLine: string): TFound[] {
-    const actionable = getActionable(featureLine);
+  public findSteps(actionable: string): TFound[] {
     if (!actionable.length) {
       return [comment];
     }
