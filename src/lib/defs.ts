@@ -122,3 +122,7 @@ export type TStepResult = {
 };
 
 export type TRuntime = { [name: string]: any };
+
+export interface TOutput {
+  getOutput (result: TResult, args: any) : Promise<any>;
+}

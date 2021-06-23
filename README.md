@@ -24,5 +24,16 @@ So, if test.feature includes run.feature, that will includes setup.feature and r
 
 Note that features/ (unlike backgrounds) will not include folder predecessors.
 
+# Flags
+
+Flags are passed via environment variables. Currently, these are supported:
+
+```
+HAIBUN_OUTPUT=AsXUnit # Display XUnit format as the result
+PWDEBUG=1             # (web) Enable Playwright debugging
+```
+
+
+
 
 
