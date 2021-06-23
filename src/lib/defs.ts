@@ -21,11 +21,8 @@ export type TResolvedFeature = {
   vsteps: TVStep[];
 };
 
-export const SECTION_BACKGROUND = 'Background';
-
-export type TAction = (arg: any) => Promise<TActionResult>;
+export type TAction = (arg: any, vstep: TVStep) => Promise<TActionResult>;
 export type TStep = {
-  section?: string;
   match?: RegExp;
   gwta?: string;
   exact?: string;
@@ -79,6 +76,7 @@ export type TResult = {
 
 export type TOKActionResult = {
   ok: true;
+  details?: any;
 };
 
 export type TNotOKActionResult = {
@@ -126,3 +124,5 @@ export type TRuntime = { [name: string]: any };
 export interface TOutput {
   getOutput (result: TResult, args: any) : Promise<any>;
 }
+
+export type TKeyString = { [name: string]: string};

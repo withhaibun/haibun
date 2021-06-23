@@ -1,6 +1,5 @@
 import { IStepper, TVStep, TResolvedFeature, TResult, TStepResult, TLogger, TFeatureResult, TActionResult } from '../defs';
 import { actionNotOK } from '../util';
-
 export class Investigator {
   steppers: IStepper[];
   options: any;
@@ -46,7 +45,7 @@ export class Investigator {
     for (const a of vstep.actions) {
       let res: TActionResult;
       try {
-        res = await a.step.action(a.named);
+        res = await a.step.action(a.named, vstep);
       } catch (caught: any) {
         logger.error(caught.stack);
         res = actionNotOK(caught.message, { caught: caught.stack.toString() });

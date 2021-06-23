@@ -1,5 +1,5 @@
 import { IStepper, IStepperConstructor, OK, TLogger, TResult, TRuntime, TShared } from '../../lib/defs';
-import { BrowserFactory } from './BrowserFactory';
+import { BrowserFactory, BROWSERS, TBrowserType } from './BrowserFactory';
 import { Page } from 'playwright';
 import { actionNotOK } from '../../lib/util';
 
@@ -28,7 +28,7 @@ const Web: IStepperConstructor = class Web implements IStepper {
           const where = this.shared[field] || field;
           const val = this.shared[what];
           console.log('input', where, val);
-          
+
           if (!val) {
             throw Error(`no shared defined ${what}`);
           }
@@ -179,17 +179,18 @@ const Web: IStepperConstructor = class Web implements IStepper {
 
       //                          BROWSER
       usingChrome: {
-        gwta: `using Chrome browser`,
-        action: async () => {
-          return OK;
-        },
+        gwta: 'using [^`](?<browser>.+)[^`] browser',
+        action: async ({ browser }: { browser: string }) => this.setBrowser(browser)
       },
-
-      usingFirefox: {
-        gwta: `using Firefox browser`,
-        action: async () => {
-          return OK;
-        },
+      usingChromeVar: {
+        gwta: 'using `(?<id>.+)` browser',
+        action: async ({ id }: { id: string }) => {
+          const browser = this.shared[id];
+          if (!browser) {
+            return actionNotOK(`browser var not found ${id}`)
+          }
+          return this.setBrowser(browser);
+        }
       },
 
       //                          MISC
@@ -241,6 +242,13 @@ const Web: IStepperConstructor = class Web implements IStepper {
     this.runtime.page = page;
     const res = await method(page, input);
     return res;
+  }
+  setBrowser(browser: string) {
+    if (browser in BROWSERS) {
+      this.bf.setBrowserType(browser as TBrowserType);
+      return OK;
+    }
+    return actionNotOK(`browserType not known ${browser}`);
   }
 
   close() {
