@@ -35,13 +35,13 @@ async function go() {
     console.log(ranResults.every(r => r.output));
     process.exit(0);
   }
-  console.error(JSON.stringify({ranResults, failedResults: exceptionResults}, null, 2));
+  console.error(JSON.stringify({ran: ranResults.filter(r => !r.result.ok).map(r => r.result.results?.find(r => r.stepResults.find(r => !r.ok))), failedResults: exceptionResults}, null, 2));
 }
 
 async function doRun(base: string, runtime: {}, featureFilter: string, shared: TShared) {
   const specl = getConfigOrDefault(base);
   repl.start().context.runtime = runtime;
-  const { result, shared: sharedOut } = await run({ specl, base, logger: new Logger({ level: process.env.LOG_LEVEL || 'log' }), runtime, featureFilter, shared });
+  const { result, shared: sharedOut } = await run({ specl, base, logger: new Logger({ level: process.env.HAIBUN_LOG_LEVEL || 'log' }), runtime, featureFilter, shared });
   const output = await resultOutput(process.env.HAIBUN_OUTPUT, result, sharedOut);
   return {result, shared: sharedOut, output};
 }

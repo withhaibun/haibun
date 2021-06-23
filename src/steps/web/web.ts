@@ -1,7 +1,8 @@
 import { IStepper, IStepperConstructor, OK, TLogger, TResult, TRuntime, TShared } from '../../lib/defs';
-import { BrowserFactory, BROWSERS, TBrowserType } from './BrowserFactory';
+import { BrowserFactory, BROWSERS } from './BrowserFactory';
 import { Page } from 'playwright';
 import { actionNotOK } from '../../lib/util';
+import { ok } from 'assert';
 
 type TStepWithPage = {
   gwta: string;
@@ -27,7 +28,6 @@ const Web: IStepperConstructor = class Web implements IStepper {
         withPage: async (page: Page, { what, field }: { what: string; field: string }) => {
           const where = this.shared[field] || field;
           const val = this.shared[what];
-          console.log('input', where, val);
 
           if (!val) {
             throw Error(`no shared defined ${what}`);
@@ -178,19 +178,19 @@ const Web: IStepperConstructor = class Web implements IStepper {
       },
 
       //                          BROWSER
-      usingChrome: {
-        gwta: 'using [^`](?<browser>.+)[^`] browser',
-        action: async ({ browser }: { browser: string }) => this.setBrowser(browser)
+      usingBrowser: {
+        gwta: 'using (?<browser>[^`].+[^`]) browser',
+        action: async ({ browser }: { browser: string }) => this.setBrowser(browser),
       },
-      usingChromeVar: {
+      usingBrowserVar: {
         gwta: 'using `(?<id>.+)` browser',
         action: async ({ id }: { id: string }) => {
           const browser = this.shared[id];
           if (!browser) {
-            return actionNotOK(`browser var not found ${id}`)
+            return actionNotOK(`browser var not found ${id}`);
           }
           return this.setBrowser(browser);
-        }
+        },
       },
 
       //                          MISC
@@ -244,11 +244,12 @@ const Web: IStepperConstructor = class Web implements IStepper {
     return res;
   }
   setBrowser(browser: string) {
-    if (browser in BROWSERS) {
-      this.bf.setBrowserType(browser as TBrowserType);
+    try {
+      this.bf.setBrowserType(browser);
       return OK;
+    } catch (e: any) {
+      return actionNotOK(e.message);
     }
-    return actionNotOK(`browserType not known ${browser}`);
   }
 
   close() {
