@@ -24,7 +24,6 @@ export async function run({
   featureFilter?: string;
 }): Promise<{ result: TResult; shared?: any }> {
   const features = await recurse(`${base}/features`, [/\.feature$/, featureFilter]);
-
   const backgrounds = existsSync(`${base}/backgrounds`) ? await recurse(`${base}/backgrounds`, [/\.feature$/]) : [];
 
   const steppers: IStepper[] = await getSteppers({ steppers: specl.steppers, shared, logger, addSteppers, runtime });
