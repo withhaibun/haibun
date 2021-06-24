@@ -1,4 +1,4 @@
-[![Node.js-test Actions Status](https://github.com/vid/haibun/workflows/Node.js-test/badge.svg)](https://github.com/vid/haibun/actions)
+[![unit-tests Actions Status](https://github.com/vid/haibun/workflows/Node.js-test/badge.svg)](https://github.com/vid/haibun/actions)
 
 # haibun
 
