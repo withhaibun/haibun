@@ -62,7 +62,7 @@ describe('step fails', () => {
 
     expect(result.ok).toBe(false);
 
-    expect(result.failure?.stage).toBe('Investigate');
+    expect(result.failure?.stage).toBe('Execute');
   });
 });
 
@@ -76,7 +76,7 @@ describe('multiple', () => {
     expect(result.ok).toBe(false);
     expect(result.results?.length).toBe(2);
 
-    expect(result.failure?.stage).toBe('Investigate');
+    expect(result.failure?.stage).toBe('Execute');
   });
 });
 

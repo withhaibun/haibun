@@ -1,6 +1,6 @@
 import { Resolver } from '../..//lib/Resolver';
 import { TNotOkStepActionResult, TVStep } from '../../lib/defs';
-import { Investigator } from '../../lib/investigator/Investigator';
+import { Executor } from '../../lib/Executor';
 import Logger, { LOGGER_NONE } from '../../lib/Logger';
 import { getSteppers } from '../../lib/util';
 
@@ -22,7 +22,7 @@ describe('web', () => {
       actions,
     };
 
-    await Investigator.doFeatureStep(tvstep, logger);
+    await Executor.doFeatureStep(tvstep, logger);
     expect((steppers[0] as any).bf.browserType._initializer.name).toBe('firefox');
     expect((steppers[0] as any).bf.device).toBe('Pixel 5');
   });
@@ -38,7 +38,7 @@ describe('web', () => {
       actions,
     };
 
-    const result = await Investigator.doFeatureStep(tvstep, logger);
+    const result = await Executor.doFeatureStep(tvstep, logger);
     expect(result.actionResults[0].ok).toBe(false);
   });
 });
