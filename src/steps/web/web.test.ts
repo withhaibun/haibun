@@ -23,7 +23,7 @@ describe('web', () => {
     };
 
     await Executor.doFeatureStep(tvstep, logger);
-    expect((steppers[0] as any).bf.browserType._initializer.name).toBe('firefox');
+    expect((steppers[0] as any).bf.browserType.name()).toBe('firefox');
     expect((steppers[0] as any).bf.device).toBe('Pixel 5');
   });
   it('fails setting browser type and device', async () => {
