@@ -69,7 +69,7 @@ export type TResult = {
   ok: boolean;
   results?: TFeatureResult[];
   failure?: {
-    stage: 'Expand' | 'Resolve' | 'Investigate';
+    stage: 'Expand' | 'Resolve' | 'Execute';
     error: TResultError;
   };
 };
