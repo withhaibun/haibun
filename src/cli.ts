@@ -2,6 +2,7 @@
 
 import repl from 'repl';
 import { TResult, TShared } from './lib/defs';
+import { ENV_VARS } from './lib/ENV_VARS';
 import Logger from './lib/Logger';
 
 import { run } from './lib/run';
@@ -10,9 +11,14 @@ import { getConfigOrDefault, resultOutput } from './lib/util';
 go();
 
 async function go() {
-  const base = process.argv[2].replace(/\/$/, '');
   const featureFilter = process.argv[3];
 
+  if (!process.argv[2] || featureFilter === '--help') {
+    console.log(['', `usage: ${process.argv[1]} <project base>`, '', 'Set these environmental variables to control options:\n', ...Object.entries(ENV_VARS).map(([k, v]) => `${k.padEnd(25)} ${v}`), ''].join('\n'));
+    process.exit(0);
+  }
+
+  const base = process.argv[2].replace(/\/$/, '');
   let splits: TShared[] = [{}];
   Object.entries(process.env).filter(([k, v]) => k.startsWith('HAIBUN_SPLIT_')).map(([k, v]) => {
     if (k === 'HAIBUN_SPLIT_SHARED') {

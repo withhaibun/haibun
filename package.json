@@ -1,12 +1,13 @@
 {
   "name": "haibun",
-  "version": "0.0.2",
+  "version": "0.0.4",
   "description": "",
-  "main": "index.js",
   "author": "",
   "bin": {
-    "haibun": "lib/cli"
+    "haibun": "build/cli.js"
   },
+  "main": "build/run.js",
+  "files": ["/build"],
   "dependencies": {
     "node-fetch": "^2.6.1",
     "playwright": "^1.10.0",
