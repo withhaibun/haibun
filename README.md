@@ -1,6 +1,10 @@
-# specl
+[![Node.js CI Actions Status](https://github.com/vid/haibun/workflows//badge.svg)](https://github.com/vid/haibun/actions)
 
-The design goal of specl (working name) is re-usable, flexible, and easy to maintain natural language BDD style tests,
+# haibun
+
+
+
+The design goal of specl (working name) is re-usable, flexible, and easy to maintain natural language BDD inspired tests,
 that can be used in a variety of settings and contexts.
 
 # Feature structure
@@ -33,6 +37,8 @@ Flags are passed via environment variables. Currently, these are supported:
 `HAIBUN_SPLIT_SHARED=var=value1,value2`: run several instances with shared values assigned
 
 `PWDEBUG=1`: (web) Enable Playwright debugging
+
+`HAIBUN_LOG_LEVEL`: debug, log, info, warn, none
 
 
 
