@@ -1,7 +1,7 @@
 import { existsSync } from 'fs';
 import { TSpecl, IStepper, IStepperConstructor, TResult, TLogger, TShared, TRuntime, TFeatures } from './defs';
 import { expandBackgrounds, expandFeatures } from './features';
-import { Investigator } from './investigator/Investigator';
+import { Executor } from './Executor';
 import { parse } from './parse';
 import { Resolver } from './Resolver';
 import { getSteppers, recurse } from './util';
@@ -46,10 +46,10 @@ export async function run({
     return { result: { ok: false, failure: { stage: 'Resolve', error: { details: error.message, context: { steppers, mappedValidatedSteps } } } } };
   }
 
-  const investigator = new Investigator(steppers, specl, logger);
-  const result = await investigator.investigate(mappedValidatedSteps);
+  const executor = new Executor(steppers, specl, logger);
+  const result = await executor.execute(mappedValidatedSteps);
   if (!result.ok) {
-    result.failure = { stage: 'Investigate', error: { context: result.results?.filter((r) => !r.ok).map((r) => r.path) } };
+    result.failure = { stage: 'Execute', error: { context: result.results?.filter((r) => !r.ok).map((r) => r.path) } };
   }
   return { result, shared };
 }
