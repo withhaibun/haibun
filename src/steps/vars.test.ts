@@ -1,6 +1,6 @@
 import Logger, { LOGGER_NONE } from '../lib/Logger';
 import { TShared, TVStep } from '../lib/defs';
-import { Investigator } from '../lib/investigator/Investigator';
+import { Executor } from '../lib/Executor';
 import { Resolver } from '../lib/Resolver';
 import { getSteppers } from '../lib/util';
 import { didNotOverwrite } from './vars';
@@ -19,7 +19,7 @@ describe('vars', () => {
       actions,
     };
 
-    await Investigator.doFeatureStep(tvstep, logger);
+    await Executor.doFeatureStep(tvstep, logger);
     expect(shared.x).toBe('y');
   });
   it('assigns empty', async () => {
@@ -35,7 +35,7 @@ describe('vars', () => {
       actions,
     };
 
-    await Investigator.doFeatureStep(tvstep, logger);
+    await Executor.doFeatureStep(tvstep, logger);
     expect(shared.x).toBe('y');
   });
   it('empty does not overwrite', async () => {
@@ -51,7 +51,7 @@ describe('vars', () => {
       actions,
     };
 
-    const res = await Investigator.doFeatureStep(tvstep, logger);
+    const res = await Executor.doFeatureStep(tvstep, logger);
     expect(shared.x).toBe('notY');
     expect(res.actionResults[0].details).toEqual(didNotOverwrite('x', 'notY', 'y'));
   });

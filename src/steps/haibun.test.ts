@@ -1,6 +1,6 @@
 import Logger, { LOGGER_NONE } from '../lib/Logger';
 import { TShared, TVStep } from '../lib/defs';
-import { Investigator } from '../lib/investigator/Investigator';
+import { Executor } from '../lib/Executor';
 import { Resolver } from '../lib/Resolver';
 import { getSteppers } from '../lib/util';
 
@@ -18,7 +18,7 @@ describe('haibun', () => {
       actions,
     };
 
-    const res = await Investigator.doFeatureStep(tvstep, logger);
+    const res = await Executor.doFeatureStep(tvstep, logger);
     expect(res.ok).toBe(true);
     expect(res.actionResults[0].name).toBe('prose');
   });
