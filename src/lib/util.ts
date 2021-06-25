@@ -1,5 +1,6 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'fs';
-import { IStepper, IStepperConstructor, TFeature, TLogger, TNotOKActionResult, TOKActionResult, TOutput, TResult, TRuntime, TShared, TSpecl } from './defs';
+import { IStepper, IStepperConstructor, TFeature, TLogger, TNotOKActionResult, TOKActionResult, TOutput, TResult, TRuntime, TShared, TSpecl, TWorld } from './defs';
+import Logger, { LOGGER_NONE } from './Logger';
 
 // FIXME tired of wrestling with ts/import issues
 export async function use(module: string) {
@@ -37,28 +38,16 @@ export function actionOK(): TOKActionResult {
   return { ok: true };
 }
 
-export async function getSteppers({
-  steppers = [],
-  shared,
-  logger,
-  addSteppers = [],
-  runtime = {},
-}: {
-  steppers: string[];
-  shared: TShared;
-  logger: TLogger;
-  addSteppers?: IStepperConstructor[];
-  runtime?: TRuntime;
-}) {
+export async function getSteppers({ steppers = [], world, addSteppers = [] }: { steppers: string[]; world: TWorld; addSteppers?: IStepperConstructor[] }) {
   const allSteppers: IStepper[] = [];
   for (const s of steppers) {
     const loc = s.startsWith('.') ? s : `../steps/${s}`;
     const S: IStepperConstructor = await use(loc);
-    const stepper = new S(shared, runtime, logger);
+    const stepper = new S(world);
     allSteppers.push(stepper);
   }
   for (const S of addSteppers) {
-    const stepper = new S(shared, runtime, logger);
+    const stepper = new S(world);
     allSteppers.push(stepper);
   }
   return allSteppers;
@@ -88,6 +77,7 @@ export function getNamedMatches(regexp: RegExp, what: string) {
 const DEFAULT_CONFIG: TSpecl = {
   mode: 'all',
   steppers: ['vars'],
+  options: {},
 };
 
 export function getConfigOrDefault(base: string): TSpecl {
@@ -95,7 +85,9 @@ export function getConfigOrDefault(base: string): TSpecl {
   if (existsSync(f)) {
     try {
       const specl = JSON.parse(readFileSync(f, 'utf-8'));
-
+      if (!specl.options) {
+        specl.options = {};
+      }
       return specl;
     } catch (e) {
       console.error('missing or not valid project config file.');
@@ -123,3 +115,12 @@ export function describeSteppers(steppers: IStepper[]) {
 export function isLowerCase(str: string) {
   return str.toLowerCase() && str != str.toUpperCase();
 }
+
+export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+export const defaultWorld: TWorld = {
+  shared: {},
+  logger: new Logger(LOGGER_NONE),
+  runtime: {},
+  options: {},
+};

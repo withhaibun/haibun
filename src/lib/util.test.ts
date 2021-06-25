@@ -1,18 +1,17 @@
 import { TStep } from './defs';
 import * as util from './util';
-import Logger, { LOGGER_NONE } from './Logger';
 import { run } from './run';
 import { TestSteps } from './TestSteps';
-import { getConfigOrDefault } from './util';
+import { getConfigOrDefault, defaultWorld as world } from './util';
 
 describe('output', () => {
   it('TResult', async () => {
     const base = process.cwd() + '/test/projects/specl/output-asXunit';
     const specl = getConfigOrDefault(base);
 
-    const { result, shared } = await run({ specl, base, addSteppers: [TestSteps], logger: new Logger(LOGGER_NONE) });
+    const { result } = await run({ specl, base, addSteppers: [TestSteps], world });
     expect(result.ok).toBe(false);
-    const output = await util.resultOutput(undefined, result, shared);
+    const output = await util.resultOutput(undefined, result, world.shared);
     expect(typeof output).toBe('object');
     expect(result.results?.length).toBe(2);
   });
@@ -20,9 +19,9 @@ describe('output', () => {
     const base = process.cwd() + '/test/projects/specl/output-asXunit';
     const specl = getConfigOrDefault(base);
 
-    const { result, shared } = await run({ specl, base, addSteppers: [TestSteps], logger: new Logger(LOGGER_NONE) });
+    const { result } = await run({ specl, base, addSteppers: [TestSteps], world: util.defaultWorld });
     expect(result.ok).toBe(false);
-    const output = await util.resultOutput('AsXUnit', result, shared);
+    const output = await util.resultOutput('AsXUnit', result, world.shared);
     expect(typeof output).toBe('string');
     expect(output.startsWith('<?xml')).toBeTruthy();
   });
