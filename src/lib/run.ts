@@ -9,7 +9,6 @@ import { getSteppers, recurse } from './util';
 export async function run({ specl, base, world, addSteppers = [], featureFilter = '', }: { specl: TSpecl, world: TWorld; base: string; addSteppers?: IStepperConstructor[]; featureFilter?: string; }): Promise<{ result: TResult }> {
   const features = await recurse(`${base}/features`, [/\.feature$/, featureFilter]);
   const backgrounds = existsSync(`${base}/backgrounds`) ? await recurse(`${base}/backgrounds`, [/\.feature$/]) : [];
-
   const steppers: IStepper[] = await getSteppers({ steppers: specl.steppers, addSteppers, world });
   if (specl.refs) {
     await parse(specl, base, steppers);
@@ -19,6 +18,7 @@ export async function run({ specl, base, world, addSteppers = [], featureFilter 
   try {
     expandedFeatures = await expand(backgrounds, features);
   } catch (error: any) {
+    
     return { result: { ok: false, failure: { stage: 'Expand', error: error.message } } };
   }
 
