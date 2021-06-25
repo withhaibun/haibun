@@ -1,8 +1,7 @@
-import { IStepper, IStepperConstructor, OK, TLogger, TResult, TRuntime, TShared } from '../../lib/defs';
+import { IStepper, IStepperConstructor, OK, TLogger, TResult, TRuntime, TShared, TWorld } from '../../lib/defs';
 import { BrowserFactory, BROWSERS } from './BrowserFactory';
 import { Page } from 'playwright';
-import { actionNotOK } from '../../lib/util';
-import { ok } from 'assert';
+import { actionNotOK, sleep } from '../../lib/util';
 
 type TStepWithPage = {
   gwta: string;
@@ -11,23 +10,19 @@ type TStepWithPage = {
 };
 
 const Web: IStepperConstructor = class Web implements IStepper {
-  shared: TShared;
-  logger: TLogger;
   bf: BrowserFactory;
-  runtime: TRuntime;
+  world: TWorld;
 
-  constructor(shared: TShared, runtime: TRuntime, logger: TLogger) {
-    this.shared = shared;
-    this.logger = logger;
-    this.runtime = runtime;
-    this.bf = new BrowserFactory(logger);
+  constructor(world: TWorld) {
+    this.world = world;
+    this.bf = new BrowserFactory(world.logger);
     const preSteps: { [name: string]: TStepWithPage } = {
       //                                      INPUT
       inputVariable: {
         gwta: 'input <(?<what>.+)> for (?<field>.+)',
         withPage: async (page: Page, { what, field }: { what: string; field: string }) => {
-          const where = this.shared[field] || field;
-          const val = this.shared[what];
+          const where = this.world.shared[field] || field;
+          const val = this.world.shared[what];
 
           if (!val) {
             throw Error(`no shared defined ${what}`);
@@ -40,7 +35,7 @@ const Web: IStepperConstructor = class Web implements IStepper {
         gwta: 'input "(?<what>.+)" for "(?<field>.+)"',
         withPage: async (page: Page, { what, field }: { what: string; field: string }) => {
           field = field.replace(/"/g, '');
-          const where = this.shared[field];
+          const where = this.world.shared[field];
           await page.fill(where, what);
           return OK;
         },
@@ -48,7 +43,7 @@ const Web: IStepperConstructor = class Web implements IStepper {
       selectionOption: {
         gwta: 'select "(?<option>.+)" for `(?<id>.+)`',
         withPage: async (page: Page, { option, id }: { option: string; id: string }) => {
-          const what = this.shared[id] || id;
+          const what = this.world.shared[id] || id;
 
           const res = await page.selectOption(what, { label: option });
           // FIXME have to use id value
@@ -76,7 +71,7 @@ const Web: IStepperConstructor = class Web implements IStepper {
         gwta: 'should be on the (?<name>.+) page',
         withPage: async (page: Page, { name }: { name: string }) => {
           await page.waitForNavigation();
-          const uri = this.shared[name];
+          const uri = this.world.shared[name];
           let nowon;
           nowon = await page.url();
           if (nowon === uri) {
@@ -112,7 +107,7 @@ const Web: IStepperConstructor = class Web implements IStepper {
       clickOn: {
         gwta: 'click on (?<name>.[^s]+)',
         withPage: async (page: Page, { name }: { name: string }) => {
-          const what = this.shared[name] || `text=${name}`;
+          const what = this.world.shared[name] || `text=${name}`;
           await page.click(what);
           return OK;
         },
@@ -120,8 +115,8 @@ const Web: IStepperConstructor = class Web implements IStepper {
       clickCheckbox: {
         gwta: 'click the checkbox (?<name>.+)',
         withPage: async (page: Page, { name }: { name: string }) => {
-          const what = this.shared[name] || name;
-          this.logger.log(`click ${name} ${what}`);
+          const what = this.world.shared[name] || name;
+          this.world.logger.log(`click ${name} ${what}`);
           await page.click(what);
           return OK;
         },
@@ -129,7 +124,7 @@ const Web: IStepperConstructor = class Web implements IStepper {
       clickShared: {
         gwta: 'click `(?<id>.+)`',
         withPage: async (page: Page, { id }: { id: string }) => {
-          const name = this.shared[id];
+          const name = this.world.shared[id];
           await page.click(name);
           return OK;
         },
@@ -144,7 +139,7 @@ const Web: IStepperConstructor = class Web implements IStepper {
       clickLink: {
         gwta: 'click the link (?<uri>.+)',
         withPage: async (page: Page, { name }: { name: string }) => {
-          const field = this.shared[name] || name;
+          const field = this.world.shared[name] || name;
           await page.click(field);
           return OK;
         },
@@ -153,7 +148,7 @@ const Web: IStepperConstructor = class Web implements IStepper {
       clickButton: {
         gwta: 'click the button (?<id>.+)',
         withPage: async (page: Page, { id }: { id: string }) => {
-          const field = this.shared[id] || id;
+          const field = this.world.shared[id] || id;
           const a = await page.click(field);
 
           return OK;
@@ -164,15 +159,26 @@ const Web: IStepperConstructor = class Web implements IStepper {
       openPage: {
         gwta: 'open the (?<name>.+) page',
         withPage: async (page: Page, { name }: { name: string }) => {
-          const uri = this.shared[name];
+          const uri = this.world.shared[name];
           const response = await page.goto(uri);
           return response?.ok ? OK : actionNotOK(`response not ok`);
         },
       },
+      goBack: {
+        gwta: 'go back',
+        withPage: async (page: Page) => {
+          await page.goBack();
+          return OK;
+        },
+      },
+
       pressBack: {
         gwta: 'press the back button',
         withPage: async (page: Page) => {
-          await page.goBack();
+          // FIXME
+          await page.waitForNavigation();
+          await page.focus('body');
+          await page.keyboard.press('Alt+ArrowRight');
           return OK;
         },
       },
@@ -185,7 +191,7 @@ const Web: IStepperConstructor = class Web implements IStepper {
       usingBrowserVar: {
         gwta: 'using `(?<id>.+)` browser',
         action: async ({ id }: { id: string }) => {
-          const browser = this.shared[id];
+          const browser = this.world.shared[id];
           if (!browser) {
             return actionNotOK(`browser var not found ${id}`);
           }
@@ -197,8 +203,8 @@ const Web: IStepperConstructor = class Web implements IStepper {
       assertOpen: {
         gwta: '(?<what>.+) is expanded with the (?<using>.+)',
         withPage: async (page: Page, { what, using }: { what: string; using: string }) => {
-          const v = this.shared[what];
-          const u = this.shared[using];
+          const v = this.world.shared[what];
+          const u = this.world.shared[using];
           const isVisible = await page.isVisible(v);
           if (!isVisible) {
             await page.click(u);
@@ -209,7 +215,6 @@ const Web: IStepperConstructor = class Web implements IStepper {
       pauseSeconds: {
         gwta: 'pause for (?<text>.+)s',
         action: async ({ ms }: { ms: string }) => {
-          const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
           const seconds = parseInt(ms, 10) * 1000;
           await sleep(seconds);
@@ -226,7 +231,7 @@ const Web: IStepperConstructor = class Web implements IStepper {
         try {
           return await this.pageRes((step as any).withPage, input, p);
         } catch (e: any) {
-          logger.log(e);
+          world.logger.log(e);
           return actionNotOK(e.message, e);
         }
       };
@@ -239,7 +244,7 @@ const Web: IStepperConstructor = class Web implements IStepper {
   async pageRes(method: any, input: any, p: string) {
     const page = await this.bf.getPage();
 
-    this.runtime.page = page;
+    this.world.runtime.page = page;
     const res = await method(page, input);
     return res;
   }

@@ -1,21 +1,19 @@
-import { IStepper, TVStep, TResolvedFeature, TResult, TStepResult, TLogger, TFeatureResult, TActionResult } from './defs';
-import { actionNotOK } from './util';
+import { IStepper, TVStep, TResolvedFeature, TResult, TStepResult, TLogger, TFeatureResult, TActionResult,  TWorld } from './defs';
+import { actionNotOK, sleep } from './util';
 export class Executor {
   steppers: IStepper[];
-  options: any;
-  logger: TLogger;
+  world: TWorld;
 
-  constructor(steppers: IStepper[], options: any, logger: TLogger) {
+  constructor(steppers: IStepper[], world: TWorld) {
     this.steppers = steppers;
-    this.options = options;
-    this.logger = logger;
+    this.world = world;
   }
 
   async execute(features: TResolvedFeature[]): Promise<TResult> {
     let ok = true;
     let featureResults: TFeatureResult[] = [];
     for (const feature of features) {
-      this.logger.log(`feature: ${feature.path}`);
+      this.world.logger.log(`feature: ${feature.path}`);
       const featureResult = await this.doFeature(feature);
       ok = ok && featureResult.ok;
       featureResults.push(featureResult);
@@ -27,10 +25,14 @@ export class Executor {
     let ok = true;
     let stepResults: TStepResult[] = [];
     for (const step of feature.vsteps) {
-      this.logger.log(`   ${step.in}\r`);
-      const result = await Executor.doFeatureStep(step, this.logger);
+      this.world.logger.log(`   ${step.in}\r`);
+      const result = await Executor.doFeatureStep(step, this.world.logger);
+      
+      if (this.world.options.step_delay) {
+        await sleep(this.world.options.step_delay);
+      }
       ok = ok && result.ok;
-      this.logger.log(ok);
+      this.world.logger.log(ok);
       stepResults.push(result);
       if (!ok) {
         break;

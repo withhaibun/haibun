@@ -2,6 +2,7 @@ import { TLogLevel } from './defs';
 
 export const LOGGER_LOG = { level: 'log' };
 export const LOGGER_NONE = { level: 'none' };
+const WIDTH = process.cwd().length + 40;
 
 export const LOGGER_LEVELS = {
   debug: 1,
@@ -28,7 +29,7 @@ export default class Logger {
     }
     const e = Error(what).stack?.split('\n');
     const ln = e![Math.min((e?.length || 1) - 1, 4)]?.replace(/.*\(/, '')?.replace(process.cwd(), '').replace(')', '');
-    (console as any)[what].call(console, `${ln}: `, what, args);
+    (console as any)[what].call(console, `${ln}: `.padStart(WIDTH), what.padStart(6), args);
   }
   debug = (args: any) => this.out('debug', args);
   log = (args: any) => this.out('log', args);

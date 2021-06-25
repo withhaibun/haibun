@@ -4,14 +4,14 @@ import AsXUnit from './AsXUnit';
 import Logger, { LOGGER_NONE } from '../lib/Logger';
 import { run } from '../lib/run';
 import { TestSteps } from '../lib/TestSteps';
-import { getConfigOrDefault } from '../lib/util';
+import { getConfigOrDefault, defaultWorld as world } from '../lib/util';
 
 describe('AsXML', () => {
   it('transforms single pass result to xunit', async () => {
     const base = process.cwd() + '/test/projects/specl/self-contained';
     const specl = getConfigOrDefault(base);
 
-    const { result } = await run({ specl, base, addSteppers: [TestSteps], logger: new Logger(LOGGER_NONE) });
+    const { result } = await run({ specl, base, addSteppers: [TestSteps], world });
 
     expect(result.ok).toBe(true);
     const asXunit = new AsXUnit();
@@ -26,7 +26,7 @@ describe('AsXML', () => {
     const base = process.cwd() + '/test/projects/specl/multiple';
     const specl = getConfigOrDefault(base);
 
-    const { result } = await run({ specl, base, addSteppers: [TestSteps], logger: new Logger(LOGGER_NONE) });
+    const { result } = await run({ specl, base, addSteppers: [TestSteps], world });
     expect(result.ok).toBe(false);
     const asXunit = new AsXUnit();
     const res = await asXunit.getOutput(result, {});
