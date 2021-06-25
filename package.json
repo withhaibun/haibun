@@ -7,7 +7,9 @@
     "haibun": "build/cli.js"
   },
   "main": "build/run.js",
-  "files": ["/build"],
+  "files": [
+    "/build"
+  ],
   "dependencies": {
     "node-fetch": "^2.6.1",
     "playwright": "^1.10.0",
@@ -30,8 +32,8 @@
     "jest": "^27.0.4",
     "prettier": "^2.3.1",
     "ts-jest": "^27.0.3",
-    "tslint": "^6.1.3",
     "ts-node": "^10.0.0",
+    "tslint": "^6.1.3",
     "typescript": "^4.1.3"
   },
   "scripts": {
