@@ -1,1 +1,1 @@
-Given I'm using Chrome browser
+Given I'm using chromium browser
