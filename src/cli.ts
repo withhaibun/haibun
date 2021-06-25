@@ -41,15 +41,26 @@ async function go() {
     console.log(ranResults.every((r) => r.output));
     process.exit(0);
   }
+  console.log(ranResults[0]);
+
   console.error(
-    JSON.stringify({ ran: ranResults.filter((r) => !r.result.ok).map((r) => r.result.results?.find((r) => r.stepResults.find((r) => !r.ok))), failedResults: exceptionResults }, null, 2)
+    JSON.stringify(
+      {
+        ran: ranResults
+          .filter((r) => !r.result.ok)
+          .map((r) => ({ stage: r.result.failure?.stage, details: r.result.failure?.error.details, results: r.result.results?.find((r) => r.stepResults.find((r) => !r.ok)) })),
+        exceptionResults,
+      },
+      null,
+      2
+    )
   );
 }
 
 async function doRun(base: string, specl: TSpecl, runtime: {}, featureFilter: string, shared: TShared) {
   repl.start().context.runtime = runtime;
   const world: TWorld = { options: specl.options, shared, logger: new Logger({ level: process.env.HAIBUN_LOG_LEVEL || 'log' }), runtime };
-  const { result  } = await run({ specl, base, world, featureFilter });
+  const { result } = await run({ specl, base, world, featureFilter });
   // REMOVED SHARED FROM RETURn
   const output = await resultOutput(process.env.HAIBUN_OUTPUT, result, shared);
   return { result, shared, output };
