@@ -6,7 +6,20 @@ export type TSpecl = {
   refs?: {
     docs: { [name: string]: { src: string } };
   };
+  options: TOptions;
 };
+
+export type TOptions = {
+  step_delay?: number,
+  step_web_capture?: true,
+};
+
+export type TWorld = {
+  shared: TShared,
+  runtime: TRuntime,
+  logger: TLogger,
+  options: TOptions
+}
 
 export type TFeature = {
   path: string;
@@ -36,7 +49,7 @@ export interface IStepper {
 }
 
 export interface IStepperConstructor {
-  new (shared: TShared, runtime: TRuntime, logger: TLogger): IStepper;
+  new (world: TWorld): IStepper;
 }
 export interface TLogger {
   debug: (what: any) => void;
@@ -82,7 +95,7 @@ export type TOKActionResult = {
 export type TNotOKActionResult = {
   ok: false;
   message: string;
-  details?: any
+  details?: any;
 };
 
 export type TActionResult = TOKActionResult | TNotOKActionResult;
@@ -90,8 +103,8 @@ export type TActionResult = TOKActionResult | TNotOKActionResult;
 export type TStepActionResult = TNotOkStepActionResult | TOKStepActionResult;
 
 type TNamedStepActionResult = {
-  name: string
-}
+  name: string;
+};
 
 export type TNotOkStepActionResult = TNotOKActionResult & TNamedStepActionResult;
 
@@ -122,7 +135,7 @@ export type TStepResult = {
 export type TRuntime = { [name: string]: any };
 
 export interface TOutput {
-  getOutput (result: TResult, args: any) : Promise<any>;
+  getOutput(result: TResult, args: any): Promise<any>;
 }
 
-export type TKeyString = { [name: string]: string};
+export type TKeyString = { [name: string]: string };

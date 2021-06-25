@@ -1,14 +1,13 @@
-import Logger, { LOGGER_NONE } from './Logger';
 import { run } from './run';
 import { TestSteps } from './TestSteps';
-import { getConfigOrDefault } from './util';
+import { getConfigOrDefault, defaultWorld as world } from './util';
 
 describe('run self-contained', () => {
   it('Backgrounds', async () => {
     const base = process.cwd() + '/test/projects/specl/self-contained';
     const specl = getConfigOrDefault(base);
 
-    const { result } = await run({ specl, base, addSteppers: [TestSteps], logger: new Logger(LOGGER_NONE) });
+    const { result } = await run({ specl, base, addSteppers: [TestSteps], world });
 
     expect(result.ok).toBe(true);
     expect(result.results!.length).toBe(1);
@@ -25,7 +24,7 @@ describe('run backgrounds', () => {
     const base = process.cwd() + '/test/projects/specl/with-background';
     const specl = getConfigOrDefault(base);
 
-    const { result } = await run({ specl, base, addSteppers: [TestSteps], logger: new Logger(LOGGER_NONE) });
+    const { result } = await run({ specl, base, addSteppers: [TestSteps], world });
 
     expect(result.ok).toBe(true);
 
@@ -43,7 +42,7 @@ describe('fails', () => {
     const base = process.cwd() + '/test/projects/specl/fails';
     const specl = getConfigOrDefault(base);
 
-    const { result } = await run({ specl, base, addSteppers: [TestSteps], logger: new Logger(LOGGER_NONE) });
+    const { result } = await run({ specl, base, addSteppers: [TestSteps], world });
 
     expect(result.ok).toBe(false);
 
@@ -58,7 +57,7 @@ describe('step fails', () => {
     const base = process.cwd() + '/test/projects/specl/step-fails';
     const specl = getConfigOrDefault(base);
 
-    const { result } = await run({ specl, base, addSteppers: [TestSteps], logger: new Logger(LOGGER_NONE) });
+    const { result } = await run({ specl, base, addSteppers: [TestSteps], world });
 
     expect(result.ok).toBe(false);
 
@@ -71,7 +70,7 @@ describe('multiple', () => {
     const base = process.cwd() + '/test/projects/specl/multiple';
     const specl = getConfigOrDefault(base);
 
-    const { result } = await run({ specl, base, addSteppers: [TestSteps], logger: new Logger(LOGGER_NONE) });
+    const { result } = await run({ specl, base, addSteppers: [TestSteps], world });
 
     expect(result.ok).toBe(false);
     expect(result.results?.length).toBe(2);
@@ -85,12 +84,12 @@ describe('step vars', () => {
     const base = process.cwd() + '/test/projects/specl/vars';
     const specl = getConfigOrDefault(base);
 
-    const { result, shared } = await run({ specl, base, addSteppers: [TestSteps], logger: new Logger(LOGGER_NONE) });
+    const { result } = await run({ specl, base, addSteppers: [TestSteps], world });
 
     expect(result.ok).toBe(true);
-    expect(shared.var).toBe('1');
-    expect(shared['Var 2']).toBe('2');
-    expect(shared['Var 3']).toBe('3');
+    expect(world.shared.var).toBe('1');
+    expect(world.shared['Var 2']).toBe('2');
+    expect(world.shared['Var 3']).toBe('3');
   });
 });
 
@@ -99,10 +98,10 @@ describe('handles exception', () => {
     const base = process.cwd() + '/test/projects/specl/handles-exception';
     const specl = getConfigOrDefault(base);
 
-    const { result } = await run({ specl, base, addSteppers: [TestSteps], logger: new Logger(LOGGER_NONE) });
+    const { result } = await run({ specl, base, addSteppers: [TestSteps], world });
 
     expect(result.ok).toBe(false);
-    
+
     expect(result.results?.length).toBe(1);
   });
 });
@@ -112,10 +111,10 @@ describe('haibun', () => {
     const base = process.cwd() + '/test/projects/haibun/prose';
     const specl = getConfigOrDefault(base);
 
-    const { result } = await run({ specl, base, addSteppers: [TestSteps], logger: new Logger(LOGGER_NONE) });
+    const { result } = await run({ specl, base, addSteppers: [TestSteps], world });
 
     expect(result.ok).toBe(true);
-    
+
     expect(result.results?.length).toBe(1);
   });
 });

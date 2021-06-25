@@ -1,11 +1,9 @@
-import { IStepper, IStepperConstructor, OK, TKeyString, TLogger, TRuntime, TShared, TVStep } from '../lib/defs';
+import { IStepper, IStepperConstructor, OK, TKeyString, TLogger, TRuntime, TShared, TVStep, TWorld } from '../lib/defs';
 
 const vars: IStepperConstructor = class Vars implements IStepper {
-  shared: TShared;
-  logger: TLogger;
-  constructor(shared: any, runtime: TRuntime, logger: TLogger) {
-    this.shared = shared;
-    this.logger = logger;
+  world: TWorld;
+  constructor(world: TWorld) {
+    this.world = world;
   }
 
   steps = {
@@ -15,38 +13,38 @@ const vars: IStepperConstructor = class Vars implements IStepper {
       action: async ({ what, value }: TKeyString, vstep: TVStep) => {
         // FIXME hokey
         const emptyOnly = !vstep.in.match(/ set missing /);
-        if (!emptyOnly || this.shared[what] === undefined) {
-          this.shared[what] = value;
+        if (!emptyOnly || this.world.shared[what] === undefined) {
+          this.world.shared[what] = value;
           return OK;
         }
-        return { ...OK, details: didNotOverwrite(what, this.shared[what], value) };
+        return { ...OK, details: didNotOverwrite(what, this.world.shared[what], value) };
       },
     },
     background: {
       match: /^Background: ?(?<background>.+)?$/,
       action: async ({ background }: TKeyString) => {
-        this.shared.background = background;
+        this.world.shared.background = background;
         return OK;
       },
     },
     feature: {
       match: /^Feature: ?(?<feature>.+)?$/,
       action: async ({ feature }: TKeyString) => {
-        this.shared.feature = feature;
+        this.world.shared.feature = feature;
         return OK;
       },
     },
     scenario: {
       match: /^Scenario: (?<scenario>.+)$/,
       action: async ({ scenario }: TKeyString) => {
-        this.shared.scenario = scenario;
+        this.world.shared.scenario = scenario;
         return OK;
       },
     },
     display: {
       gwta: 'display (?<what>.+)',
       action: async ({ what }: TKeyString) => {
-        this.logger.log(`${what} is ${this.shared[what]}`);
+        this.world.logger.log(`${what} is ${this.world.shared[what]}`);
 
         return OK;
       },
