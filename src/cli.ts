@@ -21,7 +21,6 @@ async function go() {
   const specl = getConfigOrDefault(base);
 
   const splits = parseOptions(specl);
-  console.log('xx', specl.options);
 
   const instances = splits.map(async (split: TShared) => {
     const runtime = {};
@@ -79,7 +78,6 @@ function parseOptions(specl: TSpecl) {
   Object.entries(process.env)
     .filter(([k, v]) => k.startsWith('HAIBUN_'))
     .map(([k, v]) => {
-      console.log('k', k);
       if (!ENV_VARS[k]) {
         usageThenExit();
       }
