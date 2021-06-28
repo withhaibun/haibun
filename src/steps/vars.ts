@@ -1,4 +1,4 @@
-import { IStepper, IStepperConstructor, OK, TKeyString, TLogger, TRuntime, TShared, TVStep, TWorld } from '../lib/defs';
+import { IStepper, IStepperConstructor, OK, TKeyString, TVStep, TWorld } from '../lib/defs';
 
 const vars: IStepperConstructor = class Vars implements IStepper {
   world: TWorld;

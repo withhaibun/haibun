@@ -1,4 +1,4 @@
-import { IStepper, IStepperConstructor, OK, TShared, TWorld } from '../lib/defs';
+import { IStepper, IStepperConstructor, OK, TWorld } from '../lib/defs';
 
 const Credentials: IStepperConstructor = class Credentials implements IStepper {
   world: TWorld;
