@@ -1,12 +1,13 @@
 import { TShared, TVStep, TWorld } from '../lib/defs';
 import { Executor } from '../lib/Executor';
 import { Resolver } from '../lib/Resolver';
-import { getSteppers, defaultWorld as world } from '../lib/util';
+import { getDefaultWorld, getSteppers } from '../lib/util';
 import { didNotOverwrite } from './vars';
 
 
 describe('vars', () => {
   it('assigns', async () => {
+    const {world} = getDefaultWorld();
     const steppers = await getSteppers({ steppers: ['vars'], world });
     const resolver = new Resolver(steppers, 'all', world);
     const test = 'Given I set x to y';
@@ -21,6 +22,7 @@ describe('vars', () => {
     expect(world.shared.x).toBe('y');
   });
   it('assigns empty', async () => {
+    const {world} = getDefaultWorld();
     const steppers = await getSteppers({ steppers: ['vars'], world });
     const resolver = new Resolver(steppers, '', world);
     const test = 'Given I set x to y';
@@ -35,6 +37,7 @@ describe('vars', () => {
     expect(world.shared.x).toBe('y');
   });
   it('empty does not overwrite', async () => {
+    const {world} = getDefaultWorld();
     const shared: TShared = { x: 'notY' };
     const steppers = await getSteppers({ steppers: ['vars'], world: { ...world, shared } });
     const resolver = new Resolver(steppers, 'all', world);

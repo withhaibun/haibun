@@ -19,8 +19,7 @@ const Haibun: IStepperConstructor = class Haibun implements IStepper {
     },
     stoptStepDelay: {
       gwta: 'stop step delay',
-      action: async ({ ms }: TKeyString) => {
-        this.world.options.step_delay = undefined;
+      action: async () => {
         return OK;
       },
     },

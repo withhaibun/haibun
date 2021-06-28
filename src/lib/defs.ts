@@ -10,16 +10,31 @@ export type TSpecl = {
 };
 
 export type TOptions = {
-  step_delay?: number,
-  step_web_capture?: true,
-};
+  [name: string]: TOptionValue
+}
+
+export type TOptionValue = string | boolean | number;
+
+export interface IStepperOptions {
+  options?: {
+    [name: string]: {
+      desc: string;
+      parse: (input: string) => TOptionValue;
+    };
+  };
+}
+
+export type TProtoOptions = {
+  options: TOptions;
+  extraOptions: { [name: string]: string };
+}
 
 export type TWorld = {
-  shared: TShared,
-  runtime: TRuntime,
-  logger: TLogger,
-  options: TOptions
-}
+  shared: TShared;
+  runtime: TRuntime;
+  logger: TLogger;
+  options: TOptions;
+};
 
 export type TFeature = {
   path: string;
@@ -43,7 +58,7 @@ export type TStep = {
 };
 
 export interface IStepper {
-  shared?: TShared;
+  world?: TWorld;
   steps: { [name: string]: TStep };
   close?(): void;
 }
@@ -82,7 +97,7 @@ export type TResult = {
   ok: boolean;
   results?: TFeatureResult[];
   failure?: {
-    stage: 'Expand' | 'Resolve' | 'Execute';
+    stage: 'Parse' | 'Options' | 'Expand' | 'Resolve' | 'Execute';
     error: TResultError;
   };
 };

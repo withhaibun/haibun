@@ -1,5 +1,20 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'fs';
-import { IStepper, IStepperConstructor, TFeature, TLogger, TNotOKActionResult, TOKActionResult, TOutput, TResult, TRuntime, TShared, TSpecl, TWorld } from './defs';
+import {
+  IStepper,
+  IStepperConstructor,
+  IStepperOptions,
+  TFeature,
+  TNotOKActionResult,
+  TOKActionResult,
+  TOptionValue,
+  TOutput,
+  TResult,
+  TShared,
+  TSpecl,
+  TWorld,
+  TOptions,
+  TProtoOptions,
+} from './defs';
 import Logger, { LOGGER_NONE } from './Logger';
 
 // FIXME tired of wrestling with ts/import issues
@@ -34,8 +49,8 @@ export function actionNotOK(message: string, details?: any): TNotOKActionResult 
   };
 }
 
-export function actionOK(): TOKActionResult {
-  return { ok: true };
+export function actionOK(details?: any): TOKActionResult {
+  return { ok: true, details };
 }
 
 export async function getSteppers({ steppers = [], world, addSteppers = [] }: { steppers: string[]; world: TWorld; addSteppers?: IStepperConstructor[] }) {
@@ -74,13 +89,15 @@ export function getNamedMatches(regexp: RegExp, what: string) {
   return named?.groups;
 }
 
-const DEFAULT_CONFIG: TSpecl = {
-  mode: 'all',
-  steppers: ['vars'],
-  options: {},
-};
+export function getDefaultOptions(): TSpecl {
+  return {
+    mode: 'all',
+    steppers: ['vars'],
+    options: {},
+  };
+}
 
-export function getConfigOrDefault(base: string): TSpecl {
+export function getOptionsOrDefault(base: string): TSpecl {
   const f = `${base}/config.json`;
   if (existsSync(f)) {
     try {
@@ -94,7 +111,7 @@ export function getConfigOrDefault(base: string): TSpecl {
       process.exit(1);
     }
   }
-  return DEFAULT_CONFIG;
+  return getDefaultOptions();
 }
 
 export function getActionable(value: string) {
@@ -118,9 +135,74 @@ export function isLowerCase(str: string) {
 
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-export const defaultWorld: TWorld = {
-  shared: {},
-  logger: new Logger(LOGGER_NONE),
-  runtime: {},
-  options: {},
-};
+export function getDefaultWorld(): { world: TWorld } {
+  return {
+    world: {
+      shared: {},
+      logger: new Logger(LOGGER_NONE),
+      runtime: {},
+      options: {},
+    },
+  };
+}
+
+// has side effects
+export function processEnv(env: { [name: string]: string | undefined }, options: TOptions) {
+  const protoOptions: TProtoOptions = { options: { ...options }, extraOptions: {} };
+  let splits: TShared[] = [{}];
+  Object.entries(env)
+    .filter(([k]) => k.startsWith('HAIBUN_'))
+    .map(([k, v]) => {
+      if (k === 'HAIBUN_SPLIT_SHARED') {
+        const [what, s] = v!.split('=');
+        splits = s.split(',').map((w: string) => ({ [what]: w }));
+      } else if (k === 'HAIBUN_STEP_DELAY') {
+        protoOptions.options.step_delay = parseInt(v!, 10);
+      } else if (k === 'HAIBUN_CLI') {
+        protoOptions.options.cli = true;
+      } else {
+        protoOptions.extraOptions[k] = v!;
+      }
+      return {};
+    });
+
+  return { splits, protoOptions };
+}
+
+export function applyExtraOptions(poptions: TProtoOptions, steppers: IStepper[], world: TWorld) {
+  if (!poptions.extraOptions) {
+    return {};
+  }
+  Object.entries(poptions.extraOptions).map(([k, v]) => {
+    const conc = getStepperOptions(k, v!, steppers);
+    if (!conc) {
+      throw Error(`no options ${k}`);
+    }
+    delete poptions.extraOptions[k];
+    world.options[k] = conc;
+  });
+
+  if (Object.keys(poptions.extraOptions).length > 0) {
+    throw Error(`no options provided for ${poptions.extraOptions}`);
+  }
+}
+
+function getPre(stepper: IStepper) {
+  return ['HAIBUN', (stepper as any as IStepperConstructor).constructor.name.toUpperCase()].join('_') + '_';
+}
+
+export function getStepperOptions(key: string, value: string, steppers: (IStepper & IStepperOptions)[]): TOptionValue | void {
+  for (const stepper of steppers) {
+    // FIXME
+    const pre = getPre(stepper);
+    const int = key.replace(pre, '');
+    if (key.startsWith(pre) && stepper.options![int]) {
+      return stepper.options![int].parse(value);
+    }
+  }
+}
+
+export function getStepperOption(stepper: IStepper, name: string, options: TOptions): TOptionValue {
+  const key = getPre(stepper) + name;
+  return options[key];
+}

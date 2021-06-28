@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 
 import repl from 'repl';
-import { TResult, TShared, TSpecl, TWorld } from './lib/defs';
+import { TProtoOptions, TResult, TShared, TSpecl, TWorld } from './lib/defs';
 import { ENV_VARS } from './lib/ENV_VARS';
 import Logger from './lib/Logger';
 
 import { run } from './lib/run';
-import { getConfigOrDefault, resultOutput } from './lib/util';
+import { getOptionsOrDefault, processEnv, resultOutput } from './lib/util';
 
 go();
 
@@ -18,13 +18,13 @@ async function go() {
   }
 
   const base = process.argv[2].replace(/\/$/, '');
-  const specl = getConfigOrDefault(base);
+  const specl = getOptionsOrDefault(base);
 
-  const splits = parseOptions(specl);
+  const { splits, protoOptions } = processEnv(process.env, specl.options);
 
   const instances = splits.map(async (split: TShared) => {
     const runtime = {};
-    return doRun(base, specl, runtime, featureFilter, split);
+    return doRun(base, specl, runtime, featureFilter, split, protoOptions);
   });
 
   const values = await Promise.allSettled(instances);
@@ -41,7 +41,6 @@ async function go() {
     console.log(ranResults.every((r) => r.output));
     process.exit(0);
   }
-  console.log(ranResults[0]);
 
   console.error(
     JSON.stringify(
@@ -55,19 +54,22 @@ async function go() {
       2
     )
   );
+  process.exit(0);
 }
 
-async function doRun(base: string, specl: TSpecl, runtime: {}, featureFilter: string, shared: TShared) {
-  repl.start().context.runtime = runtime;
-  const world: TWorld = { options: specl.options, shared, logger: new Logger({ level: process.env.HAIBUN_LOG_LEVEL || 'log' }), runtime };
-  const { result } = await run({ specl, base, world, featureFilter });
-  // REMOVED SHARED FROM RETURn
+async function doRun(base: string, specl: TSpecl, runtime: {}, featureFilter: string, shared: TShared, protoOptions: TProtoOptions) {
+  if (protoOptions.options.cli) {
+    repl.start().context.runtime = runtime;
+  }
+  const world: TWorld = { ...protoOptions, shared, logger: new Logger({ level: process.env.HAIBUN_LOG_LEVEL || 'log' }), runtime };
+  
+  const { result } = await run({ specl, base, world, featureFilter, protoOptions });
   const output = await resultOutput(process.env.HAIBUN_OUTPUT, result, shared);
   return { result, shared, output };
 }
 
 function usageThenExit() {
-  console.log(
+  console.info(
     [
       '',
       `usage: ${process.argv[1]} <project base>`,
@@ -78,29 +80,4 @@ function usageThenExit() {
     ].join('\n')
   );
   process.exit(0);
-}
-
-// side effects
-function parseOptions(specl: TSpecl) {
-  if (specl.options === undefined) {
-    specl.options = {};
-  }
-  let splits: TShared[] = [{}];
-  Object.entries(process.env)
-    .filter(([k, v]) => k.startsWith('HAIBUN_'))
-    .map(([k, v]) => {
-      if (!ENV_VARS[k]) {
-        usageThenExit();
-      }
-      if (k === 'HAIBUN_SPLIT_SHARED') {
-        const [what, s] = v!.split('=');
-        splits = s.split(',').map((w: string) => ({ [what]: w }));
-      } else if (k === 'HAIBUN_STEP_DELAY') {
-        specl.options.step_delay = parseInt(v!, 10);
-      } else if (k === 'HAIBUN_STEP_WEB_CAPTURE') {
-        specl.options.step_web_capture = true;
-      }
-      return {};
-    });
-  return splits;
 }
