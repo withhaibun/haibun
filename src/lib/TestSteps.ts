@@ -1,5 +1,5 @@
-import { IStepper, IStepperConstructor } from './defs';
-import { actionNotOK, actionOK } from './util';
+import { IStepper, IStepperConstructor, IStepperOptions, TWorld } from './defs';
+import { actionNotOK, actionOK, getStepperOption } from './util';
 
 export const TestSteps: IStepperConstructor = class TestSteps implements IStepper {
   steps = {
@@ -25,6 +25,30 @@ export const TestSteps: IStepperConstructor = class TestSteps implements ISteppe
       gwta: 'throw an exception',
       action: async () => {
         throw Error(`<Thrown for test case>`);
+      },
+    },
+  };
+};
+
+export const HAIBUN_TESTSTEPSWITHOPTIONS_EXISTS = 'HAIBUN_TESTSTEPSWITHOPTIONS_EXISTS';
+
+export const TestStepsWithOptions: IStepperConstructor = class TestStepsWithOptions implements IStepper, IStepperOptions {
+  world: TWorld;
+  constructor(world: TWorld) {
+    this.world = world;
+  }
+  options = {
+    EXISTS: {
+      desc: 'option exists',
+      parse: (input: string) => 42
+    },
+  };
+  steps = {
+    test: {
+      exact: 'When I have a stepper option',
+      action: async () => {
+        const res = getStepperOption(this, 'EXISTS', this.world.options);
+        return actionOK(`${res}`);
       },
     },
   };

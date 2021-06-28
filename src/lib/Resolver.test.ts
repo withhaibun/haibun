@@ -1,5 +1,5 @@
 import { IStepper, OK, TResolvedFeature } from './defs';
-import { defaultWorld as world } from './util';
+import { getDefaultWorld  } from './util';
 import { Resolver } from './Resolver';
 
 class TestStepper implements IStepper {
@@ -20,7 +20,7 @@ class TestStepper implements IStepper {
 }
 describe('validate map steps', () => {
   const steppers: IStepper[] = [new TestStepper()];
-  const val = new Resolver(steppers, '', world);
+  const val = new Resolver(steppers, '', getDefaultWorld().world);
   test('exact', async () => {
     const features = [{ path: 'l1', feature: `exact1` }];
     const res = await val.resolveSteps(features);

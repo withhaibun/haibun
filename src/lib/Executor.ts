@@ -29,7 +29,7 @@ export class Executor {
       const result = await Executor.doFeatureStep(step, this.world.logger);
       
       if (this.world.options.step_delay) {
-        await sleep(this.world.options.step_delay);
+        await sleep(this.world.options.step_delay as number);
       }
       ok = ok && result.ok;
       this.world.logger.log(ok);

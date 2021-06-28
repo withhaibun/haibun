@@ -4,8 +4,9 @@
 
 
 
-The design goal of specl (working name) is re-usable, flexible, and easy to maintain natural language BDD inspired tests,
-that can be used in a variety of settings and contexts.
+The design goal of haibun is re-usable, flexible, and easy to maintain natural language (BDD inspired) tests,
+that can be used with a minimum of configuration and code 
+in a variety of settings and contexts.
 
 # Feature structure
 
@@ -28,6 +29,6 @@ So, if test.feature includes run.feature, that will includes setup.feature and r
 
 Note that features/ (unlike backgrounds) will not include folder predecessors.
 
-# Flags
+# Runtime Options
 
-See [source](src/lib/ENV_VARS.ts).
+See [source](src/lib/ENV_VARS.ts) and the options of individual steppers, or use `cli --help` at runtime.

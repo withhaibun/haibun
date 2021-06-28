@@ -1,13 +1,13 @@
 import { run } from './run';
-import { TestSteps } from './TestSteps';
-import { getConfigOrDefault, defaultWorld as world } from './util';
+import { HAIBUN_TESTSTEPSWITHOPTIONS_EXISTS, TestSteps, TestStepsWithOptions } from './TestSteps';
+import { getOptionsOrDefault, getDefaultWorld, processEnv } from './util';
 
 describe('run self-contained', () => {
   it('Backgrounds', async () => {
     const base = process.cwd() + '/test/projects/specl/self-contained';
-    const specl = getConfigOrDefault(base);
+    const specl = getOptionsOrDefault(base);
 
-    const { result } = await run({ specl, base, addSteppers: [TestSteps], world });
+    const { result } = await run({ specl, base, addSteppers: [TestSteps], ...getDefaultWorld() });
 
     expect(result.ok).toBe(true);
     expect(result.results!.length).toBe(1);
@@ -22,9 +22,9 @@ describe('run self-contained', () => {
 describe('run backgrounds', () => {
   it('background', async () => {
     const base = process.cwd() + '/test/projects/specl/with-background';
-    const specl = getConfigOrDefault(base);
+    const specl = getOptionsOrDefault(base);
 
-    const { result } = await run({ specl, base, addSteppers: [TestSteps], world });
+    const { result } = await run({ specl, base, addSteppers: [TestSteps], ...getDefaultWorld() });
 
     expect(result.ok).toBe(true);
 
@@ -40,9 +40,9 @@ describe('run backgrounds', () => {
 describe('fails', () => {
   it('fails', async () => {
     const base = process.cwd() + '/test/projects/specl/fails';
-    const specl = getConfigOrDefault(base);
+    const specl = getOptionsOrDefault(base);
 
-    const { result } = await run({ specl, base, addSteppers: [TestSteps], world });
+    const { result } = await run({ specl, base, addSteppers: [TestSteps], ...getDefaultWorld() });
 
     expect(result.ok).toBe(false);
 
@@ -55,9 +55,9 @@ describe('fails', () => {
 describe('step fails', () => {
   it('step fails', async () => {
     const base = process.cwd() + '/test/projects/specl/step-fails';
-    const specl = getConfigOrDefault(base);
+    const specl = getOptionsOrDefault(base);
 
-    const { result } = await run({ specl, base, addSteppers: [TestSteps], world });
+    const { result } = await run({ specl, base, addSteppers: [TestSteps], ...getDefaultWorld() });
 
     expect(result.ok).toBe(false);
 
@@ -68,9 +68,9 @@ describe('step fails', () => {
 describe('multiple', () => {
   it('fail and pass', async () => {
     const base = process.cwd() + '/test/projects/specl/multiple';
-    const specl = getConfigOrDefault(base);
+    const specl = getOptionsOrDefault(base);
 
-    const { result } = await run({ specl, base, addSteppers: [TestSteps], world });
+    const { result } = await run({ specl, base, addSteppers: [TestSteps], ...getDefaultWorld() });
 
     expect(result.ok).toBe(false);
     expect(result.results?.length).toBe(2);
@@ -82,8 +82,8 @@ describe('multiple', () => {
 describe('step vars', () => {
   it('step vars', async () => {
     const base = process.cwd() + '/test/projects/specl/vars';
-    const specl = getConfigOrDefault(base);
-
+    const specl = getOptionsOrDefault(base);
+    const { world } = getDefaultWorld();
     const { result } = await run({ specl, base, addSteppers: [TestSteps], world });
 
     expect(result.ok).toBe(true);
@@ -96,9 +96,9 @@ describe('step vars', () => {
 describe('handles exception', () => {
   it('handles exception', async () => {
     const base = process.cwd() + '/test/projects/specl/handles-exception';
-    const specl = getConfigOrDefault(base);
+    const specl = getOptionsOrDefault(base);
 
-    const { result } = await run({ specl, base, addSteppers: [TestSteps], world });
+    const { result } = await run({ specl, base, addSteppers: [TestSteps], ...getDefaultWorld() });
 
     expect(result.ok).toBe(false);
 
@@ -109,12 +109,39 @@ describe('handles exception', () => {
 describe('haibun', () => {
   it('mixed prose', async () => {
     const base = process.cwd() + '/test/projects/haibun/prose';
-    const specl = getConfigOrDefault(base);
+    const specl = getOptionsOrDefault(base);
 
-    const { result } = await run({ specl, base, addSteppers: [TestSteps], world });
+    const { result } = await run({ specl, base, addSteppers: [TestSteps], ...getDefaultWorld() });
 
     expect(result.ok).toBe(true);
 
     expect(result.results?.length).toBe(1);
+  });
+});
+
+describe('haibun', () => {
+  it('mixed prose', async () => {
+    const base = process.cwd() + '/test/projects/haibun/prose';
+    const specl = getOptionsOrDefault(base);
+
+    const { result } = await run({ specl, base, addSteppers: [TestSteps], ...getDefaultWorld() });
+
+    expect(result.ok).toBe(true);
+
+    expect(result.results?.length).toBe(1);
+  });
+});
+
+describe('options', () => {
+  it('stepper options', async () => {
+    const base = process.cwd() + '/test/projects/haibun/stepper-options';
+    const { world } = getDefaultWorld();
+    const specl = getOptionsOrDefault(base);
+    const { protoOptions: protoConfig } = processEnv({ [HAIBUN_TESTSTEPSWITHOPTIONS_EXISTS]: 'true' }, {});
+    const { result } = await run({ specl, base, addSteppers: [TestStepsWithOptions], world, protoOptions: protoConfig });
+
+    expect(result.ok).toBe(true);
+    expect(result.results?.length).toBe(1);
+    expect(result.results![0].stepResults[0].actionResults[0].details).toBe('42');
   });
 });
