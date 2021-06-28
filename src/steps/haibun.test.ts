@@ -1,10 +1,11 @@
 import { TVStep } from '../lib/defs';
 import { Executor } from '../lib/Executor';
 import { Resolver } from '../lib/Resolver';
-import { getSteppers, defaultWorld as world } from '../lib/util';
+import { getSteppers, getDefaultWorld } from '../lib/util';
 
 describe('haibun', () => {
   it('finds prose', async () => {
+    const { world } = getDefaultWorld();
     const steppers = await getSteppers({ steppers: ['haibun'], world });
     const resolver = new Resolver(steppers, '', world);
     const test = 'A sentence.';

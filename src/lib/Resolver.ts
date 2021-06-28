@@ -1,4 +1,4 @@
-import { IStepper, TFeature, TFound, TResolvedFeature, TLogger, TStep, OK, TWorld } from './defs';
+import { IStepper, TFeature, TFound, TResolvedFeature, TStep, OK, TWorld } from './defs';
 import { getActionable, getNamedMatches, describeSteppers, isLowerCase } from './util';
 
 export class Resolver {
