@@ -169,21 +169,21 @@ export function processEnv(env: { [name: string]: string | undefined }, options:
   return { splits, protoOptions };
 }
 
-export function applyExtraOptions(poptions: TProtoOptions, steppers: IStepper[], world: TWorld) {
-  if (!poptions.extraOptions) {
+export function applyExtraOptions(protoOptions: TProtoOptions, steppers: IStepper[], world: TWorld) {
+  if (!protoOptions.extraOptions) {
     return {};
   }
-  Object.entries(poptions.extraOptions).map(([k, v]) => {
+  Object.entries(protoOptions.extraOptions).map(([k, v]) => {
     const conc = getStepperOptions(k, v!, steppers);
     if (!conc) {
       throw Error(`no options ${k}`);
     }
-    delete poptions.extraOptions[k];
+    delete protoOptions.extraOptions[k];
     world.options[k] = conc;
   });
 
-  if (Object.keys(poptions.extraOptions).length > 0) {
-    throw Error(`no options provided for ${poptions.extraOptions}`);
+  if (Object.keys(protoOptions.extraOptions).length > 0) {
+    throw Error(`no options provided for ${protoOptions.extraOptions}`);
   }
 }
 
@@ -193,7 +193,6 @@ function getPre(stepper: IStepper) {
 
 export function getStepperOptions(key: string, value: string, steppers: (IStepper & IStepperOptions)[]): TOptionValue | void {
   for (const stepper of steppers) {
-    // FIXME
     const pre = getPre(stepper);
     const int = key.replace(pre, '');
     if (key.startsWith(pre) && stepper.options![int]) {
