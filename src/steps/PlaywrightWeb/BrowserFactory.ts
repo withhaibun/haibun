@@ -54,6 +54,10 @@ export class BrowserFactory {
 
     const context = await this.getContext();
     const page = await context.newPage();
+    page.route('**', (route, request) => {
+      console.log('route', request.isNavigationRequest() ? request.url() : 'nope');
+      route.continue();
+    });
     this.pages[ctx] = page;
     return page;
   }
