@@ -1,0 +1,9 @@
+{
+    "files": [],
+    "references": [
+        { "path": "core" },
+        { "path": "playwright-client" },
+        { "path": "server" },
+        { "path": "playwright-web" }
+    ]
+}
