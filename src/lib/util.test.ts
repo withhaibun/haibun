@@ -1,7 +1,7 @@
 import { TStep } from './defs';
 import * as util from './util';
 import { run } from './run';
-import { HAIBUN_TESTSTEPSWITHOPTIONS_EXISTS, TestSteps, TestStepsWithOptions } from './TestSteps';
+import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, TestSteps, TestStepsWithOptions } from './TestSteps';
 import { getOptionsOrDefault, getDefaultWorld } from './util';
 
 describe('output', () => {
@@ -57,16 +57,16 @@ describe('mergeOptiosn', () => {
 describe('getStepperOptions', () => {
   it('finds stepper options', async () => {
     const steppers = await util.getSteppers({ steppers: [], addSteppers: [TestStepsWithOptions], ...getDefaultWorld() });
-    const conc = util.getStepperOptions(HAIBUN_TESTSTEPSWITHOPTIONS_EXISTS, 'true', steppers);
+    const conc = util.getStepperOptions(HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, 'true', steppers);
     expect(conc).toBeDefined();
   });
   it('fills extra', async () => {
     const { world } = getDefaultWorld();
-    const specl = { ...util.getDefaultOptions(), extraOptions: { [HAIBUN_TESTSTEPSWITHOPTIONS_EXISTS]: 'true' } };
+    const specl = { ...util.getDefaultOptions(), extraOptions: { [HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]: 'true' } };
     const steppers = await util.getSteppers({ steppers: [], addSteppers: [TestStepsWithOptions], ...getDefaultWorld() });
     util.applyExtraOptions(specl, steppers, world);
 
-    expect(world.options[HAIBUN_TESTSTEPSWITHOPTIONS_EXISTS]).toBe(42);
+    expect(world.options[HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]).toBe(42);
   });
   it('throws for unfilled extra', async () => {
     const { world } = getDefaultWorld();

@@ -146,7 +146,6 @@ export function getDefaultWorld(): { world: TWorld } {
   };
 }
 
-// has side effects
 export function processEnv(env: { [name: string]: string | undefined }, options: TOptions) {
   const protoOptions: TProtoOptions = { options: { ...options }, extraOptions: {} };
   let splits: TShared[] = [{}];
@@ -169,9 +168,10 @@ export function processEnv(env: { [name: string]: string | undefined }, options:
   return { splits, protoOptions };
 }
 
+// has side effects
 export function applyExtraOptions(protoOptions: TProtoOptions, steppers: IStepper[], world: TWorld) {
   if (!protoOptions.extraOptions) {
-    return {};
+    return;
   }
   Object.entries(protoOptions.extraOptions).map(([k, v]) => {
     const conc = getStepperOptions(k, v!, steppers);
@@ -188,7 +188,7 @@ export function applyExtraOptions(protoOptions: TProtoOptions, steppers: ISteppe
 }
 
 function getPre(stepper: IStepper) {
-  return ['HAIBUN', (stepper as any as IStepperConstructor).constructor.name.toUpperCase()].join('_') + '_';
+  return ['HAIBUN', 'O', (stepper as any as IStepperConstructor).constructor.name.toUpperCase()].join('_') + '_';
 }
 
 export function getStepperOptions(key: string, value: string, steppers: (IStepper & IStepperOptions)[]): TOptionValue | void {
