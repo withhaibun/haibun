@@ -50,6 +50,7 @@ describe('processEnv', () => {
   it('process env', () => {
     const specl = util.getDefaultOptions();
     const { protoOptions } = util.processEnv({ HAIBUN_TEST: 'true' }, specl.options);
+    
     expect(protoOptions.extraOptions['HAIBUN_TEST']).toBeDefined();
   });
 });
