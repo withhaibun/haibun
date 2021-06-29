@@ -1,5 +1,5 @@
 import { run } from './run';
-import { HAIBUN_TESTSTEPSWITHOPTIONS_EXISTS, TestSteps, TestStepsWithOptions } from './TestSteps';
+import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, TestSteps, TestStepsWithOptions } from './TestSteps';
 import { getOptionsOrDefault, getDefaultWorld, processEnv } from './util';
 
 describe('run self-contained', () => {
@@ -137,7 +137,7 @@ describe('options', () => {
     const base = process.cwd() + '/test/projects/haibun/stepper-options';
     const { world } = getDefaultWorld();
     const specl = getOptionsOrDefault(base);
-    const { protoOptions: protoConfig } = processEnv({ [HAIBUN_TESTSTEPSWITHOPTIONS_EXISTS]: 'true' }, {});
+    const { protoOptions: protoConfig } = processEnv({ [HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]: 'true' }, {});
     const { result } = await run({ specl, base, addSteppers: [TestStepsWithOptions], world, protoOptions: protoConfig });
 
     expect(result.ok).toBe(true);

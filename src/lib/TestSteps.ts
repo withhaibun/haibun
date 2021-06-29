@@ -30,7 +30,7 @@ export const TestSteps: IStepperConstructor = class TestSteps implements ISteppe
   };
 };
 
-export const HAIBUN_TESTSTEPSWITHOPTIONS_EXISTS = 'HAIBUN_TESTSTEPSWITHOPTIONS_EXISTS';
+export const HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS = 'HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS';
 
 export const TestStepsWithOptions: IStepperConstructor = class TestStepsWithOptions implements IStepper, IStepperOptions {
   world: TWorld;
