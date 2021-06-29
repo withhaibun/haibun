@@ -1,53 +1,11 @@
 {
   "name": "haibun",
-  "version": "0.0.4",
-  "description": "",
-  "author": "",
-  "bin": {
-    "haibun": "build/cli.js"
-  },
-  "main": "build/run.js",
-  "files": [
-    "/build"
-  ],
-  "dependencies": {
-    "node-fetch": "^2.6.1",
-    "playwright": "^1.10.0",
-    "turndown": "^7.0.0",
-    "xmlbuilder2": "^2.4.1"
-  },
   "devDependencies": {
-    "@types/jest": "^26.0.19",
-    "@types/node": "^15.0.1",
-    "@types/node-fetch": "^2.5.10",
-    "@types/turndown": "^5.0.0",
-    "@typescript-eslint/eslint-plugin": "^4.13.0",
-    "@typescript-eslint/parser": "^4.13.0",
-    "eslint": "^7.2.0",
-    "eslint-config-airbnb-typescript": "^12.0.0",
-    "eslint-config-prettier": "^8.3.0",
-    "eslint-plugin-import": "^2.22.1",
-    "eslint-plugin-prefer-arrow": "^1.2.2",
-    "eslint-plugin-prettier": "^3.3.1",
-    "jest": "^27.0.4",
-    "prettier": "^2.3.1",
-    "ts-jest": "^27.0.3",
-    "ts-node": "^10.0.0",
-    "tslint": "^6.1.3",
-    "typescript": "^4.1.3"
+    "@types/node": "^15.12.5",
+    "typescript": "^4.3.4"
   },
   "scripts": {
-    "format": "prettier --write \"src/**/*.ts\" \"src/**/*.js\"",
-    "lint": "eslint -c .eslintrc.json --ext .ts,.js src",
-    "test": "jest --config jest.config.ts",
-    "test-haibun": "build/cli.js test/projects/web",
-    "coverage": "jest --config jest.config.ts --coverage",
-    "test-watch": "jest --watch",
-    "build": "tsc",
-    "tsc-watch": "tsc --watch",
-    "tsc": "tsc",
-    "prepare": "npm run build",
-    "preversion": "npm run lint",
-    "version": "npm run format && git add -A src"
+    "tsc": "tsc -b packages/",
+    "tsc-watch": "tsc -b packages/ --watch"
   }
 }

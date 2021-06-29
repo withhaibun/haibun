@@ -1,0 +1,1 @@
+{"version":3,"file":"conformance.js","sourceRoot":"","sources":["../../src/steps/conformance.ts"],"names":[],"mappings":";;AAAA,sCAA0C;AAG1C,MAAM,WAAW,GAA0B,MAAM,WAAW;IAAjB;QACzC,UAAK,GAAG;YACN,IAAI,EAAE;gBACJ,KAAK,EAAE,kCAAkC;gBACzC,MAAM,EAAE,KAAK,EAAE,KAAU,EAAE,EAAE,CAAC,kBAAW,CAAC,iBAAiB,CAAC;aAC7D;SACF,CAAC;IACJ,CAAC;CAAA,CAAC;AAEF,kBAAe,WAAW,CAAC"}
