@@ -1,6 +1,6 @@
-import { IStepper, IStepperConstructor, OK, TWorld } from '../lib/defs';
+import { IStepper, IExtensionConstructor, OK, TWorld } from '../lib/defs';
 
-const Credentials: IStepperConstructor = class Credentials implements IStepper {
+const Credentials: IExtensionConstructor = class Credentials implements IStepper {
   world: TWorld;
 
   constructor(world: TWorld) {

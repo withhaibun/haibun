@@ -1,7 +1,7 @@
-import { IStepper, IStepperConstructor, IStepperOptions, TWorld } from './defs';
+import { IStepper, IExtensionConstructor, IHasOptions, TWorld } from './defs';
 import { actionNotOK, actionOK, getStepperOption } from './util';
 
-export const TestSteps: IStepperConstructor = class TestSteps implements IStepper {
+export const TestSteps: IExtensionConstructor = class TestSteps implements IStepper {
   steps = {
     test: {
       exact: 'When I have a test',
@@ -32,7 +32,7 @@ export const TestSteps: IStepperConstructor = class TestSteps implements ISteppe
 
 export const HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS = 'HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS';
 
-export const TestStepsWithOptions: IStepperConstructor = class TestStepsWithOptions implements IStepper, IStepperOptions {
+export const TestStepsWithOptions: IExtensionConstructor = class TestStepsWithOptions implements IStepper, IHasOptions {
   world: TWorld;
   constructor(world: TWorld) {
     this.world = world;

@@ -1,6 +1,6 @@
-import { IStepper, IStepperConstructor, OK, TKeyString, TWorld } from '../lib/defs';
+import { IStepper, IExtensionConstructor, OK, TKeyString, TWorld } from '../lib/defs';
 
-const Haibun: IStepperConstructor = class Haibun implements IStepper {
+const Haibun: IExtensionConstructor = class Haibun implements IStepper {
   world: TWorld;
   constructor(world: TWorld) {
     this.world = world;

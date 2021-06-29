@@ -1,5 +1,5 @@
 import { existsSync } from 'fs';
-import { TSpecl, IStepper, IStepperConstructor, TResult, TFeatures, TWorld, TProtoOptions } from './defs';
+import { TSpecl, IStepper, IExtensionConstructor, TResult, TFeatures, TWorld, TProtoOptions } from './defs';
 import { expandBackgrounds, expandFeatures } from './features';
 import { Executor } from './Executor';
 import { parse } from './parse';
@@ -17,7 +17,7 @@ export async function run({
   specl: TSpecl;
   world: TWorld;
   base: string;
-  addSteppers?: IStepperConstructor[];
+  addSteppers?: IExtensionConstructor[];
   featureFilter?: string;
   protoOptions?: TProtoOptions;
 }): Promise<{ result: TResult }> {

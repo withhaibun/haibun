@@ -1,4 +1,4 @@
-import { IStepperOptions, IStepper, IStepperConstructor, OK, TResult, TWorld } from '../../lib/defs';
+import { IHasOptions, IStepper, IExtensionConstructor, OK, TResult, TWorld } from '../../lib/defs';
 import { BrowserFactory } from './BrowserFactory';
 import { Page } from 'playwright';
 import { actionNotOK, sleep } from '../../lib/util';
@@ -10,7 +10,7 @@ type TStepWithPage = {
   withPage?: (page: Page, vars: any) => Promise<TResult>;
 };
 
-const PlayWrightWeb: IStepperConstructor = class PlaywrightWeb implements IStepper, IStepperOptions {
+const PlayWrightWeb: IExtensionConstructor = class PlaywrightWeb implements IStepper, IHasOptions {
   options = {
     STEP_CAPTURE: {
       desc: 'capture page image for every step',
