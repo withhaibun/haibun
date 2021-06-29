@@ -1,0 +1,10 @@
+import { TLogger } from '../../../src/lib/defs';
+export declare class HaibunServer {
+    port: number;
+    logger: TLogger;
+    constructor(logger: TLogger, port: number);
+    start(): void;
+    addRoute(): void;
+    addFiles(loc: string): void;
+}
+//# sourceMappingURL=server.d.ts.map
