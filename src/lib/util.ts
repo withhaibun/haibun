@@ -14,6 +14,7 @@ import {
   TWorld,
   TOptions,
   TProtoOptions,
+  HAIBUN,
 } from './defs';
 import Logger, { LOGGER_NONE } from './Logger';
 
@@ -149,20 +150,23 @@ export function getDefaultWorld(): { world: TWorld } {
 export function processEnv(env: { [name: string]: string | undefined }, options: TOptions) {
   const protoOptions: TProtoOptions = { options: { ...options }, extraOptions: {} };
   let splits: TShared[] = [{}];
+  const pfx = `${HAIBUN}_`;
   Object.entries(env)
-    .filter(([k]) => k.startsWith('HAIBUN_'))
+    .filter(([k]) => k.startsWith(pfx))
     .map(([k, v]) => {
-      if (k === 'HAIBUN_SPLIT_SHARED') {
+      const opt = k.replace(pfx, '');
+      if (opt === 'SPLIT_SHARED') {
         const [what, s] = v!.split('=');
         splits = s.split(',').map((w: string) => ({ [what]: w }));
-      } else if (k === 'HAIBUN_STEP_DELAY') {
+      } else if (opt === 'STEP_DELAY') {
         protoOptions.options.step_delay = parseInt(v!, 10);
-      } else if (k === 'HAIBUN_CLI') {
+      } else if (opt === 'CLI') {
         protoOptions.options.cli = true;
+      } else if (opt === 'STAY') {
+        protoOptions.options.stay = v!;
       } else {
         protoOptions.extraOptions[k] = v!;
       }
-      return {};
     });
 
   return { splits, protoOptions };
@@ -176,7 +180,7 @@ export function applyExtraOptions(protoOptions: TProtoOptions, steppers: ISteppe
   Object.entries(protoOptions.extraOptions).map(([k, v]) => {
     const conc = getStepperOptions(k, v!, steppers);
     if (!conc) {
-      throw Error(`no options ${k}`);
+      throw Error(`no option ${k}`);
     }
     delete protoOptions.extraOptions[k];
     world.options[k] = conc;
