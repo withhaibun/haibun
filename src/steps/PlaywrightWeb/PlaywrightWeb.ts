@@ -214,6 +214,13 @@ const PlayWrightWeb: IStepperConstructor = class PlaywrightWeb implements IStepp
       },
 
       //                          MISC
+      takeScreenshot: {
+        gwta: 'take a screenshot',
+        withPage: async (page: Page) => {
+          await page.screenshot({ path: `screenshot-${Date.now()}.png` });
+          return OK;
+        },
+      },
       assertOpen: {
         gwta: '(?<what>.+) is expanded with the (?<using>.+)',
         withPage: async (page: Page, { what, using }: { what: string; using: string }) => {
