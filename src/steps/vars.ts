@@ -1,6 +1,6 @@
-import { IStepper, IStepperConstructor, OK, TKeyString, TVStep, TWorld } from '../lib/defs';
+import { IStepper, IExtensionConstructor, OK, TKeyString, TVStep, TWorld } from '../lib/defs';
 
-const vars: IStepperConstructor = class Vars implements IStepper {
+const vars: IExtensionConstructor = class Vars implements IStepper {
   world: TWorld;
   constructor(world: TWorld) {
     this.world = world;

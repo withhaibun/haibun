@@ -1,8 +1,8 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'fs';
 import {
   IStepper,
-  IStepperConstructor,
-  IStepperOptions,
+  IExtensionConstructor,
+  IHasOptions,
   TFeature,
   TNotOKActionResult,
   TOKActionResult,
@@ -53,11 +53,11 @@ export function actionOK(details?: any): TOKActionResult {
   return { ok: true, details };
 }
 
-export async function getSteppers({ steppers = [], world, addSteppers = [] }: { steppers: string[]; world: TWorld; addSteppers?: IStepperConstructor[] }) {
+export async function getSteppers({ steppers = [], world, addSteppers = [] }: { steppers: string[]; world: TWorld; addSteppers?: IExtensionConstructor[] }) {
   const allSteppers: IStepper[] = [];
   for (const s of steppers) {
     const loc = s.startsWith('.') ? s : `../steps/${s}`;
-    const S: IStepperConstructor = await use(loc);
+    const S: IExtensionConstructor = await use(loc);
     const stepper = new S(world);
     allSteppers.push(stepper);
   }
@@ -188,10 +188,10 @@ export function applyExtraOptions(protoOptions: TProtoOptions, steppers: ISteppe
 }
 
 function getPre(stepper: IStepper) {
-  return ['HAIBUN', 'O', (stepper as any as IStepperConstructor).constructor.name.toUpperCase()].join('_') + '_';
+  return ['HAIBUN', 'O', (stepper as any as IExtensionConstructor).constructor.name.toUpperCase()].join('_') + '_';
 }
 
-export function getStepperOptions(key: string, value: string, steppers: (IStepper & IStepperOptions)[]): TOptionValue | void {
+export function getStepperOptions(key: string, value: string, steppers: (IStepper & IHasOptions)[]): TOptionValue | void {
   for (const stepper of steppers) {
     const pre = getPre(stepper);
     const int = key.replace(pre, '');

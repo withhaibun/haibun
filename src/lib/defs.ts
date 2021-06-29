@@ -15,7 +15,7 @@ export type TOptions = {
 
 export type TOptionValue = string | boolean | number;
 
-export interface IStepperOptions {
+export interface IHasOptions {
   options?: {
     [name: string]: {
       desc: string;
@@ -57,13 +57,16 @@ export type TStep = {
   action: TAction;
 };
 
-export interface IStepper {
+export interface IExtension {
   world?: TWorld;
-  steps: { [name: string]: TStep };
   close?(): void;
 }
 
-export interface IStepperConstructor {
+export interface IStepper extends IExtension {
+  steps: { [name: string]: TStep };
+}
+
+export interface IExtensionConstructor {
   new (world: TWorld): IStepper;
 }
 export interface TLogger {
