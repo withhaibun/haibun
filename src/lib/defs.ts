@@ -10,8 +10,8 @@ export type TSpecl = {
 };
 
 export type TOptions = {
-  [name: string]: TOptionValue
-}
+  [name: string]: TOptionValue;
+};
 
 export type TOptionValue = string | boolean | number;
 
@@ -27,7 +27,7 @@ export interface IHasOptions {
 export type TProtoOptions = {
   options: TOptions;
   extraOptions: { [name: string]: string };
-}
+};
 
 export type TWorld = {
   shared: TShared;
@@ -157,3 +157,5 @@ export interface TOutput {
 }
 
 export type TKeyString = { [name: string]: string };
+
+export const HAIBUN = 'HAIBUN';

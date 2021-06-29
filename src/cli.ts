@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import repl from 'repl';
-import { TProtoOptions, TResult, TShared, TSpecl, TWorld } from './lib/defs';
+import { TLogger, TProtoOptions, TResult, TShared, TSpecl, TWorld } from './lib/defs';
 import { ENV_VARS } from './lib/ENV_VARS';
 import Logger from './lib/Logger';
 
@@ -21,10 +21,11 @@ async function go() {
   const specl = getOptionsOrDefault(base);
 
   const { splits, protoOptions } = processEnv(process.env, specl.options);
+  const logger = new Logger({ level: process.env.HAIBUN_LOG_LEVEL || 'log' });
 
   const instances = splits.map(async (split: TShared) => {
     const runtime = {};
-    return doRun(base, specl, runtime, featureFilter, split, protoOptions);
+    return doRun(base, specl, runtime, featureFilter, split, protoOptions, logger);
   });
 
   const values = await Promise.allSettled(instances);
@@ -38,8 +39,11 @@ async function go() {
     .map((i) => i.reason);
   const ok = ranResults.every((a) => a.result.ok);
   if (ok && exceptionResults.length < 1) {
-    console.log(ranResults.every((r) => r.output));
-    process.exit(0);
+    logger.log(ranResults.every((r) => r.output));
+    if (protoOptions.options.stay !== 'ok') {
+      process.exit(0);
+    }
+    return;
   }
 
   console.error(
@@ -54,15 +58,18 @@ async function go() {
       2
     )
   );
-  process.exit(0);
+
+  if (protoOptions.options.stay !== 'error') {
+    process.exit(1);
+  }
 }
 
-async function doRun(base: string, specl: TSpecl, runtime: {}, featureFilter: string, shared: TShared, protoOptions: TProtoOptions) {
+async function doRun(base: string, specl: TSpecl, runtime: {}, featureFilter: string, shared: TShared, protoOptions: TProtoOptions, logger: TLogger) {
   if (protoOptions.options.cli) {
     repl.start().context.runtime = runtime;
   }
-  const world: TWorld = { ...protoOptions, shared, logger: new Logger({ level: process.env.HAIBUN_LOG_LEVEL || 'log' }), runtime };
-  
+  const world: TWorld = { ...protoOptions, shared, logger, runtime };
+
   const { result } = await run({ specl, base, world, featureFilter, protoOptions });
   const output = await resultOutput(process.env.HAIBUN_OUTPUT, result, shared);
   return { result, shared, output };
