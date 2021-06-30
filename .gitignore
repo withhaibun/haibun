@@ -3,3 +3,5 @@ lerna-debug.log
 npm-debug.log
 packages/*/lib
 build/
+dist/
+*.tsbuildinfo

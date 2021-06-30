@@ -1,1 +1,1 @@
-export{A as AppIndex}from"./app-index-de4cb1ee.js";
+export{A as AppIndex}from"./app-index-90caeaa6.js";
