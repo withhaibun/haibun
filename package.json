@@ -5,6 +5,8 @@
     "typescript": "^4.3.4"
   },
   "scripts": {
+    "test": "lerna exec -- npm test",
+    "build": "lerna clean -y && lerna bootstrap && lerna exec -- npm i && bin/setup-links.sh",
     "tsc": "tsc -b modules/",
     "tsc-watch": "tsc -b modules/ --watch"
   }

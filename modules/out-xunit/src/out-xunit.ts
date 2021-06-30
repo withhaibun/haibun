@@ -18,7 +18,7 @@ type TFailResult = {
   type?: string;
 };
 
-export default class AsXUnit implements TOutput {
+export default class OutXUnit implements TOutput {
   async getOutput(result:TResult, { name = 'Haibun-Junit', prettyPrint = true, classname = 'Haibun-Junit-Suite' }) {
     const failures = result.results?.filter((t) => !t.ok)?.length;
     const skipped = result.results?.filter((t) => t.skip)?.length;
