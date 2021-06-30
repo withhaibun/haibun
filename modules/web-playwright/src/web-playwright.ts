@@ -10,7 +10,7 @@ type TStepWithPage = {
   withPage?: (page: Page, vars: any) => Promise<TResult>;
 };
 
-const PlayWrightWeb: IExtensionConstructor = class PlaywrightWeb implements IStepper, IHasOptions {
+const WebPlaywright: IExtensionConstructor = class WebPlaywright implements IStepper, IHasOptions {
   options = {
     STEP_CAPTURE: {
       desc: 'capture page image for every step',
@@ -283,4 +283,4 @@ const PlayWrightWeb: IExtensionConstructor = class PlaywrightWeb implements ISte
 
   steps = {};
 };
-export default PlayWrightWeb;
+export default WebPlaywright;
