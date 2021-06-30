@@ -31,11 +31,8 @@ async function use(module) {
 exports.use = use;
 async function resultOutput(type, result, shared) {
     if (type) {
-        let out = undefined;
-        if (type === 'AsXUnit') {
-            const AsXUnit = (await Promise.resolve().then(() => __importStar(require('../output/AsXUnit')))).default;
-            out = new AsXUnit();
-        }
+        const AnOut = (await Promise.resolve().then(() => __importStar(require(type)))).default;
+        const out = new AnOut();
         if (out) {
             const res = await out.getOutput(result, {});
             return res;
@@ -62,7 +59,7 @@ exports.actionOK = actionOK;
 async function getSteppers({ steppers = [], world, addSteppers = [] }) {
     const allSteppers = [];
     for (const s of steppers) {
-        const loc = s.startsWith('.') ? s : `../steps/${s}`;
+        const loc = s.startsWith('.') || s.startsWith('@') ? s : `../steps/${s}`;
         const S = await use(loc);
         const stepper = new S(world);
         allSteppers.push(stepper);

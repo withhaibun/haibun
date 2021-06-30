@@ -4,6 +4,8 @@
         { "path": "core" },
         { "path": "playwright-client" },
         { "path": "server" },
-        { "path": "playwright-web" }
+        { "path": "playwright-web" },
+        { "path": "parse-md" },
+        { "path": "out-xunit" }
     ]
 }
