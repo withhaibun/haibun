@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "",
   "bin": {
-    "haibun": "build/cli.js"
+    "haibun-cli": "build/cli.js"
   },
   "scripts": {
     "prepublishOnly": "tsc -b .",
