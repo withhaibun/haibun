@@ -1,31 +1,51 @@
-const express = require('express');
+import {
+  IHasOptions,
+  IStepper,
+  IExtensionConstructor,
+  OK,
+  TResult,
+  TWorld,
+  TKeyString,
+} from "@haibun/core/build/lib/defs";
 
-import { Request, Response } from 'express';
-import { TLogger } from '@haibun/core/build/lib/defs';
+import { ServerApp } from "./app";
 
-const app = express();
+const WebServer: IExtensionConstructor = class WebServer
+  implements IStepper, IHasOptions
+{
+  async getApp() {
+    if (!this.app) {
+      this.app = new ServerApp(this.world.logger);
+      await this.app.start();
+    }
+    return this.app;
+  }
+  options = {
+    PORT: {
+      desc: "change web server port",
+      parse: (port: string) => parseInt(port, 10),
+    },
+  };
+  app: ServerApp | undefined;
+  world: TWorld;
 
-export class HaibunServer {
-  port: number;
-  logger: TLogger;
-  constructor(logger: TLogger, port: number) {
-    this.logger = logger;
-    this.port = port;
+  constructor(world: TWorld) {
+    this.world = world;
+  }
+  close() {
+    this.app?.stop();
   }
 
-  start() {
-    app.listen(this.port, () => this.logger.log(`Server listening on port: ${this.port}`));
-
-    app.use(express.static('public'));
-  }
-
-  addRoute() {
-    app.get('/', (req: Request, res: Response) => {
-      res.send('Hello World!');
-    });
-  }
-
-  addFiles(loc: string) {
-    app.use(express.static('public'));
-  }
-}
+  steps = {
+    serveFiles: {
+      gwta: "serve files from (?<loc>.+)",
+      action: async ({ loc }: TKeyString) => {
+        const folder = [process.cwd(), 'files', loc.replace(/[^a-zA-Z-]/g, '')].join('/');
+        const app = await this.getApp();
+        app.addStaticFolder(folder);
+        return OK;
+      },
+    },
+  };
+};
+export default WebServer;
