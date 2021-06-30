@@ -5,7 +5,7 @@
     "typescript": "^4.3.4"
   },
   "scripts": {
-    "tsc": "tsc -b packages/",
-    "tsc-watch": "tsc -b packages/ --watch"
+    "tsc": "tsc -b modules/",
+    "tsc-watch": "tsc -b modules/ --watch"
   }
 }
