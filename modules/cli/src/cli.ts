@@ -1,14 +1,12 @@
 #!/usr/bin/env node
 
 import repl from 'repl';
-import { TLogger, TProtoOptions, TResult, TShared, TSpecl, TWorld } from './lib/defs';
-import { ENV_VARS } from './lib/ENV_VARS';
-import Logger from './lib/Logger';
+import { TLogger, TProtoOptions, TResult, TShared, TSpecl, TWorld } from '@haibun/core/build/lib/defs';
+import { ENV_VARS } from '@haibun/core/build/lib/ENV_VARS';
+import Logger from '@haibun/core/build/lib/Logger';
 
-import { run } from './lib/run';
-import { getOptionsOrDefault, processEnv, resultOutput } from './lib/util';
-
-console.log('moo');
+import { run } from '@haibun/core/build/lib/run';
+import { getOptionsOrDefault, processEnv, resultOutput } from '@haibun/core/build/lib/util';
 
 go();
 

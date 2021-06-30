@@ -22,19 +22,17 @@ import Logger, { LOGGER_NONE } from './Logger';
 // FIXME tired of wrestling with ts/import issues
 export async function use(module: string) {
   try {
-  const re: any = (await import(module)).default;
-  return re;
+    const re: any = (await import(module)).default;
+    return re;
   } catch (e) {
     console.error('failed including', module);
-    throw(e);
+    throw e;
   }
 }
 
 export async function resultOutput(type: string | undefined, result: TResult, shared: TShared) {
   if (type) {
-    console.log(type);
-    
-    const AnOut = (await import(type)).default;
+    const AnOut = await use(type);
     const out: TOutput = new AnOut();
     if (out) {
       const res = await out.getOutput(result, {});
@@ -62,7 +60,7 @@ export function actionOK(details?: any): TOKActionResult {
 export async function getSteppers({ steppers = [], world, addSteppers = [] }: { steppers: string[]; world: TWorld; addSteppers?: IExtensionConstructor[] }) {
   const allSteppers: IStepper[] = [];
   for (const s of steppers) {
-    const loc = s.startsWith('.') || s.startsWith('@') ? s : `../steps/${s}`;
+    const loc = getModuleLocation(s);
     const S: IExtensionConstructor = await use(loc);
     const stepper = new S(world);
     allSteppers.push(stepper);
@@ -72,6 +70,15 @@ export async function getSteppers({ steppers = [], world, addSteppers = [] }: { 
     allSteppers.push(stepper);
   }
   return allSteppers;
+}
+
+function getModuleLocation(name: string) {
+  if (name.startsWith('@')) {
+    return [process.cwd(), 'node_modules', name].join('/');
+  } else if (name.match('^[a-zA-Z].*')) {
+    return `../steps/${name}`;
+  }
+  return name;
 }
 
 type TFilters = (string | RegExp)[];

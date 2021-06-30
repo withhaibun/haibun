@@ -3,9 +3,6 @@
   "version": "0.0.4",
   "description": "",
   "author": "",
-  "bin": {
-    "haibun": "build/cli.js"
-  },
   "main": "build/index.js",
   "files": [
     "build/**"

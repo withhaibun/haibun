@@ -31,14 +31,13 @@ async function use(module) {
     }
     catch (e) {
         console.error('failed including', module);
-        throw (e);
+        throw e;
     }
 }
 exports.use = use;
 async function resultOutput(type, result, shared) {
     if (type) {
-        console.log(type);
-        const AnOut = (await Promise.resolve().then(() => __importStar(require(type)))).default;
+        const AnOut = await use(type);
         const out = new AnOut();
         if (out) {
             const res = await out.getOutput(result, {});
@@ -66,7 +65,7 @@ exports.actionOK = actionOK;
 async function getSteppers({ steppers = [], world, addSteppers = [] }) {
     const allSteppers = [];
     for (const s of steppers) {
-        const loc = s.startsWith('.') || s.startsWith('@') ? s : `../steps/${s}`;
+        const loc = getModuleLocation(s);
         const S = await use(loc);
         const stepper = new S(world);
         allSteppers.push(stepper);
@@ -78,6 +77,15 @@ async function getSteppers({ steppers = [], world, addSteppers = [] }) {
     return allSteppers;
 }
 exports.getSteppers = getSteppers;
+function getModuleLocation(name) {
+    if (name.startsWith('@')) {
+        return [process.cwd(), 'node_modules', name].join('/');
+    }
+    else if (name.match('^[a-zA-Z].*')) {
+        return `../steps/${name}`;
+    }
+    return name;
+}
 async function recurse(dir, filters) {
     const files = fs_1.readdirSync(dir);
     let all = [];
