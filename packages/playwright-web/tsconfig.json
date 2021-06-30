@@ -4,6 +4,9 @@
     "outDir": "./build",
     "rootDir": "./src"
   },
+    "references": [
+     { "path": "../core" }
+  ],
   "exclude": ["./jest.config.ts", "build"]
 }
 
