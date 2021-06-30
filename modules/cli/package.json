@@ -1,0 +1,33 @@
+{
+  "name": "@haibun/cli",
+  "version": "0.1.0",
+  "description": "",
+  "bin": {
+    "haibun-cli": "build/cli.js"
+  },
+  "scripts": {
+    "prepublishOnly": "tsc -b .",
+    "test": "echo no tests specified; exit 0"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {},
+  "devDependencies": {
+    "@types/jest": "^26.0.19",
+    "@types/node": "^15.7.0",
+    "@typescript-eslint/eslint-plugin": "^4.13.0",
+    "@typescript-eslint/parser": "^4.13.0",
+    "eslint": "^7.2.0",
+    "eslint-config-airbnb-typescript": "^12.0.0",
+    "eslint-config-prettier": "^8.3.0",
+    "eslint-plugin-import": "^2.22.1",
+    "eslint-plugin-prefer-arrow": "^1.2.2",
+    "eslint-plugin-prettier": "^3.3.1",
+    "jest": "^27.0.4",
+    "prettier": "^2.3.1",
+    "ts-jest": "^27.0.3",
+    "ts-node": "^10.0.0",
+    "tslint": "^6.1.3"
+  }
+}
