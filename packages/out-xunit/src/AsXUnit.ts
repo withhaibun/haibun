@@ -1,7 +1,7 @@
 import { create } from 'xmlbuilder2';
 import { EOL } from 'os';
 
-import { TResult, TNotOkStepActionResult, TOutput } from '../lib/defs';
+import { TResult, TNotOkStepActionResult, TOutput } from '@haibun/core/build/lib/defs';
 
 type TTestCase = {
   '@name': string;

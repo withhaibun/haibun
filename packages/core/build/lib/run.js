@@ -4,7 +4,6 @@ exports.run = void 0;
 const fs_1 = require("fs");
 const features_1 = require("./features");
 const Executor_1 = require("./Executor");
-const parse_1 = require("./parse");
 const Resolver_1 = require("./Resolver");
 const util_1 = require("./util");
 async function run({ specl, base, world, addSteppers = [], featureFilter = '', protoOptions: protoOptions = { options: {}, extraOptions: {} }, }) {
@@ -17,9 +16,6 @@ async function run({ specl, base, world, addSteppers = [], featureFilter = '', p
     catch (error) {
         console.log(error);
         return { result: { ok: false, failure: { stage: 'Options', error: { details: error.message, context: error } } } };
-    }
-    if (specl.refs) {
-        await parse_1.parse(specl, base, steppers);
     }
     let expandedFeatures;
     try {

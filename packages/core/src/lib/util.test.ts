@@ -5,8 +5,8 @@ import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, TestSteps, TestStepsWithOptions }
 import { getOptionsOrDefault, getDefaultWorld } from './util';
 
 describe('output', () => {
-  it('TResult', async () => {
-    const base = process.cwd() + '/test/projects/specl/output-asXunit';
+  it('resultOutput default', async () => {
+    const base = process.cwd() + '/test/projects/specl/out-default';
     const specl = getOptionsOrDefault(base);
 
     const { world } = getDefaultWorld();
@@ -15,17 +15,6 @@ describe('output', () => {
     const output = await util.resultOutput(undefined, result, world.shared);
     expect(typeof output).toBe('object');
     expect(result.results?.length).toBe(2);
-  });
-  it('AsXUnit', async () => {
-    const base = process.cwd() + '/test/projects/specl/output-asXunit';
-    const specl = getOptionsOrDefault(base);
-    const { world } = getDefaultWorld();
-
-    const { result } = await run({ specl, base, addSteppers: [TestSteps], world });
-    expect(result.ok).toBe(false);
-    const output = await util.resultOutput('AsXUnit', result, world.shared);
-    expect(typeof output).toBe('string');
-    expect(output.startsWith('<?xml')).toBeTruthy();
   });
 });
 

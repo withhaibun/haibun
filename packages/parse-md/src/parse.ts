@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from "fs";
 import fetch from "node-fetch";
 import TurndownService from "turndown";
-import { TSpecl, IStepper } from "./defs";
+import { TSpecl, IStepper } from "@haibun/core/build/lib/defs";
 
 export async function parse(specl: TSpecl, base: string, steppers: IStepper[]) {
   const { refs } = specl;
