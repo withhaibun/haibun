@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync, statSync } from 'fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync } from 'fs';
 
 import {
   IStepper,
@@ -62,8 +62,13 @@ export async function getSteppers({ steppers = [], world, addSteppers = [] }: { 
   for (const s of steppers) {
     const loc = getModuleLocation(s);
     const S: IExtensionConstructor = await use(loc);
-    const stepper = new S(world);
-    allSteppers.push(stepper);
+    try {
+      const stepper = new S(world);
+      allSteppers.push(stepper);
+    } catch (e) {
+      console.error(`new ${S} failed`, e);
+      throw e;
+    }
   }
   for (const S of addSteppers) {
     const stepper = new S(world);
@@ -220,4 +225,20 @@ export function getStepperOptions(key: string, value: string, steppers: (ISteppe
 export function getStepperOption(stepper: IStepper, name: string, options: TOptions): TOptionValue {
   const key = getPre(stepper) + name;
   return options[key];
+}
+
+export function ensureDirectory(base: string, folder: string) {
+  try {
+    if (!existsSync(base)) {
+      mkdirSync(base);
+      console.info(`created ${base}`);
+    }
+    if (!existsSync(`${base}/${folder}`)) {
+      mkdirSync(`${base}/${folder}`);
+      console.info(`created ${base}/${folder}`);
+    }
+  } catch (e) {
+    console.error(`coudl not create ${base}/${folder}`, e);
+    throw e;
+  }
 }
