@@ -3,7 +3,7 @@
 ## FIXME spent a day trying to get lerna set up properly. Deno, save me.
 
 cd modules &&
-(for i in core web-playwright; do
+(for i in core web-playwright server; do
   cd $i
   pwd
   npm link 
@@ -17,7 +17,7 @@ done) &&
   cd ..;
 done) &&
 cd cli && pwd ;
-npm link && npm link @haibun/core @haibun/web-playwright &&
+npm link && npm link @haibun/core @haibun/web-playwright @haibun/server &&
 
 cd ../..
 
