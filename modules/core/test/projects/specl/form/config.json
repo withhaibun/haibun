@@ -1,0 +1,5 @@
+{
+  "mode": "all",
+  "steppers": ["web", "vars"],
+  "features": {}
+}
