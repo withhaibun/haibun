@@ -1,4 +1,5 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'fs';
+
 import {
   IStepper,
   IExtensionConstructor,
@@ -26,11 +27,8 @@ export async function use(module: string) {
 
 export async function resultOutput(type: string | undefined, result: TResult, shared: TShared) {
   if (type) {
-    let out: TOutput | undefined = undefined;
-    if (type === 'AsXUnit') {
-      const AsXUnit = (await import('../output/AsXUnit')).default;
-      out = new AsXUnit();
-    }
+    const AnOut = (await import(type)).default;
+    const out: TOutput = new AnOut();
     if (out) {
       const res = await out.getOutput(result, {});
       return res;
@@ -57,7 +55,7 @@ export function actionOK(details?: any): TOKActionResult {
 export async function getSteppers({ steppers = [], world, addSteppers = [] }: { steppers: string[]; world: TWorld; addSteppers?: IExtensionConstructor[] }) {
   const allSteppers: IStepper[] = [];
   for (const s of steppers) {
-    const loc = s.startsWith('.') ? s : `../steps/${s}`;
+    const loc = s.startsWith('.') || s.startsWith('@') ? s : `../steps/${s}`;
     const S: IExtensionConstructor = await use(loc);
     const stepper = new S(world);
     allSteppers.push(stepper);

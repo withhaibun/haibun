@@ -24,8 +24,8 @@ const run_1 = require("./run");
 const TestSteps_1 = require("./TestSteps");
 const util_1 = require("./util");
 describe('output', () => {
-    it('TResult', async () => {
-        const base = process.cwd() + '/test/projects/specl/output-asXunit';
+    it('resultOutput default', async () => {
+        const base = process.cwd() + '/test/projects/specl/out-default';
         const specl = util_1.getOptionsOrDefault(base);
         const { world } = util_1.getDefaultWorld();
         const { result } = await run_1.run({ specl, base, addSteppers: [TestSteps_1.TestSteps], world });
@@ -33,16 +33,6 @@ describe('output', () => {
         const output = await util.resultOutput(undefined, result, world.shared);
         expect(typeof output).toBe('object');
         expect(result.results?.length).toBe(2);
-    });
-    it('AsXUnit', async () => {
-        const base = process.cwd() + '/test/projects/specl/output-asXunit';
-        const specl = util_1.getOptionsOrDefault(base);
-        const { world } = util_1.getDefaultWorld();
-        const { result } = await run_1.run({ specl, base, addSteppers: [TestSteps_1.TestSteps], world });
-        expect(result.ok).toBe(false);
-        const output = await util.resultOutput('AsXUnit', result, world.shared);
-        expect(typeof output).toBe('string');
-        expect(output.startsWith('<?xml')).toBeTruthy();
     });
 });
 const step = {

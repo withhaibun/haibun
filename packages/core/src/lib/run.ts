@@ -2,7 +2,6 @@ import { existsSync } from 'fs';
 import { TSpecl, IStepper, IExtensionConstructor, TResult, TFeatures, TWorld, TProtoOptions } from './defs';
 import { expandBackgrounds, expandFeatures } from './features';
 import { Executor } from './Executor';
-import { parse } from './parse';
 import { Resolver } from './Resolver';
 import { getSteppers, applyExtraOptions, recurse } from './util';
 
@@ -29,9 +28,6 @@ export async function run({
   } catch (error: any) {
     console.log(error);
     return { result: { ok: false, failure: { stage: 'Options', error: { details: error.message, context: error } } } };
-  }
-  if (specl.refs) {
-    await parse(specl, base, steppers);
   }
 
   let expandedFeatures;
