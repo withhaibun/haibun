@@ -78,8 +78,8 @@ async function getSteppers({ steppers = [], world, addSteppers = [] }) {
 }
 exports.getSteppers = getSteppers;
 function getModuleLocation(name) {
-    if (name.startsWith('@')) {
-        return [process.cwd(), 'node_modules', name].join('/');
+    if (name.startsWith('~')) {
+        return [process.cwd(), 'node_modules', name.substr(1)].join('/');
     }
     else if (name.match('^[a-zA-Z].*')) {
         return `../steps/${name}`;
