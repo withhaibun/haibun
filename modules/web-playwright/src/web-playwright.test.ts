@@ -29,7 +29,7 @@ describe("playwrightWeb", () => {
       actions,
     };
 
-    await Executor.doFeatureStep(tvstep, world.logger);
+    await Executor.doFeatureStep(tvstep, world);
     expect((steppers[0] as any).bf.browserType.name()).toBe("firefox");
     expect((steppers[0] as any).bf.device).toBe("Pixel 5");
   });
@@ -49,7 +49,7 @@ describe("playwrightWeb", () => {
       actions,
     };
 
-    const result = await Executor.doFeatureStep(tvstep, logger);
+    const result = await Executor.doFeatureStep(tvstep, world);
     expect(result.actionResults[0].ok).toBe(false);
   });
 });

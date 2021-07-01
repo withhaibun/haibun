@@ -7,9 +7,14 @@ import {
   OK,
   TResult,
   TWorld,
+  TStep,
 } from "@haibun/core/build/lib/defs";
 import { BrowserFactory } from "./BrowserFactory";
-import { actionNotOK, sleep, ensureDirectory } from "@haibun/core/build/lib/util";
+import {
+  actionNotOK,
+  sleep,
+  ensureDirectory,
+} from "@haibun/core/build/lib/util";
 declare var window: any;
 
 type TStepWithPage = {
@@ -36,42 +41,24 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright
     const preSteps: { [name: string]: TStepWithPage } = {
       //                                      INPUT
       inputVariable: {
-        gwta: "input <(?<what>.+)> for (?<field>.+)",
+        gwta: "input {what} for {field}",
         withPage: async (
           page: Page,
           { what, field }: { what: string; field: string }
         ) => {
-          const where = this.world.shared[field] || field;
-          const val = this.world.shared[what];
+          console.log("\n\nFF", field, what);
 
-          if (!val) {
-            throw Error(`no shared defined ${what}`);
-          }
-          await page.fill(where, val);
-          return OK;
-        },
-      },
-      input: {
-        gwta: 'input "(?<what>.+)" for "(?<field>.+)"',
-        withPage: async (
-          page: Page,
-          { what, field }: { what: string; field: string }
-        ) => {
-          field = field.replace(/"/g, "");
-          const where = this.world.shared[field];
-          await page.fill(where, what);
+          await page.fill(field, what);
           return OK;
         },
       },
       selectionOption: {
-        gwta: 'select "(?<option>.+)" for `(?<id>.+)`',
+        gwta: "select {option} for {field}",
         withPage: async (
           page: Page,
-          { option, id }: { option: string; id: string }
+          { option, field }: { option: string; field: string }
         ) => {
-          const what = this.world.shared[id] || id;
-
-          const res = await page.selectOption(what, { label: option });
+          const res = await page.selectOption(field, { label: option });
           // FIXME have to use id value
           // return res === [id] ? ok : {...notOk, details: { message: `received ${res} selecting from ${what} with id ${id}`}};
           return OK;
@@ -80,7 +67,7 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright
 
       //                ASSERTIONS
       seeText: {
-        gwta: 'should see "(?<text>.+)"',
+        gwta: "should see {text}",
         withPage: async (page: Page, { text }: { text: string }) => {
           let textContent: string | null;
           for (let a = 0; a < 2; a++) {
@@ -98,20 +85,18 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright
       },
 
       beOnPage: {
-        gwta: "should be on the (?<name>.+) page",
+        gwta: "should be on the {name} page",
         withPage: async (page: Page, { name }: { name: string }) => {
-          await page.waitForNavigation();
-          const uri = this.world.shared[name];
           let nowon;
           nowon = await page.url();
-          if (nowon === uri) {
+          if (nowon === name) {
             return OK;
           }
-          return actionNotOK(`expected ${uri} but on ${nowon}`);
+          return actionNotOK(`expected ${name} but on ${nowon}`);
         },
       },
       URIContains: {
-        gwta: "URI should include (?<what>.+)",
+        gwta: "URI should include {what}",
         withPage: async (page: Page, { what }: { what: string }) => {
           const uri = await page.url();
           return uri.includes(what)
@@ -120,7 +105,7 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright
         },
       },
       URIStartsWith: {
-        gwta: "URI should start with (?<start>.+)",
+        gwta: "URI should start with {start}",
         withPage: async (page: Page, { start }: { start: string }) => {
           const uri = await page.url();
           return uri.startsWith(start)
@@ -129,7 +114,7 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright
         },
       },
       URIMatches: {
-        gwta: "URI should match (?<what>.+)",
+        gwta: "URI should match {what}",
         withPage: async (page: Page, { what }: { what: string }) => {
           const uri = await page.url();
           return uri === what
@@ -193,10 +178,9 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright
 
       //                          NAVIGATION
       openPage: {
-        gwta: "open the (?<name>.+) page",
+        gwta: "open the {name} page",
         withPage: async (page: Page, { name }: { name: string }) => {
-          const uri = this.world.shared[name];
-          const response = await page.goto(uri);
+          const response = await page.goto(name);
           return response?.ok ? OK : actionNotOK(`response not ok`);
         },
       },
@@ -233,12 +217,8 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright
           this.setBrowser(browser),
       },
       usingBrowserVar: {
-        gwta: "using `(?<id>.+)` browser",
-        action: async ({ id }: { id: string }) => {
-          const browser = this.world.shared[id];
-          if (!browser) {
-            return actionNotOK(`browser var not found ${id}`);
-          }
+        gwta: "using {browser} browser",
+        action: async ({ browser }: { browser: string }) => {
           return this.setBrowser(browser);
         },
       },
@@ -256,22 +236,20 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright
         },
       },
       assertOpen: {
-        gwta: "(?<what>.+) is expanded with the (?<using>.+)",
+        gwta: "{what} is expanded with the {using}",
         withPage: async (
           page: Page,
           { what, using }: { what: string; using: string }
         ) => {
-          const v = this.world.shared[what];
-          const u = this.world.shared[using];
-          const isVisible = await page.isVisible(v);
+          const isVisible = await page.isVisible(what);
           if (!isVisible) {
-            await page.click(u);
+            await page.click(using);
           }
           return OK;
         },
       },
       pauseSeconds: {
-        gwta: "pause for (?<text>.+)s",
+        gwta: "pause for {ms}s",
         action: async ({ ms }: { ms: string }) => {
           const seconds = parseInt(ms, 10) * 1000;
           await sleep(seconds);
