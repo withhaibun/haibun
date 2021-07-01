@@ -16,7 +16,7 @@ describe('haibun', () => {
       actions,
     };
 
-    const res = await Executor.doFeatureStep(tvstep, world.logger);
+    const res = await Executor.doFeatureStep(tvstep, world);
     expect(res.ok).toBe(true);
     expect(res.actionResults[0].name).toBe('prose');
   });

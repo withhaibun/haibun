@@ -102,11 +102,6 @@ export async function recurse(dir: string, filters: TFilters): Promise<TFeature[
   return all;
 }
 
-export function getNamedMatches(regexp: RegExp, what: string) {
-  const named = regexp.exec(what);
-  return named?.groups;
-}
-
 export function getDefaultOptions(): TSpecl {
   return {
     mode: 'all',
