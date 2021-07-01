@@ -1,6 +1,7 @@
-import { TStep } from "./defs";
-import { getNamedMatches, namedInterpolation, matchGroups } from "./namedVars";
-import { actionNotOK } from "./util";
+import { IStepper, OK, TResolvedFeature, TStep } from './defs';
+import { getNamedMatches, namedInterpolation, matchGroups, getNamedWithVars } from './namedVars';
+import { Resolver } from './Resolver';
+import { actionNotOK, getDefaultWorld } from './util';
 
 describe('namedMatches', () => {
   const step: TStep = {
@@ -63,5 +64,28 @@ describe('namedInterpolation regexes', () => {
     const x = r2.exec('this is that');
     expect(x?.groups?.t_0).toBe('this');
     expect(x?.groups?.t_1).toBe('that');
+  });
+});
+
+describe('getNamedWithVars', () => {
+  class TestStepper implements IStepper {
+    steps = {
+      gwtaInterpolated: {
+        gwta: 'is {what}',
+        action: async () => OK,
+      },
+    };
+  }
+  const steppers: IStepper[] = [new TestStepper()];
+  const { world } = getDefaultWorld();
+  const resolver = new Resolver(steppers, '', world);
+  world.shared.exact = 'res';
+  test('gets var', async () => {
+    const features = [{ path: 'l1', feature: 'is `exact`' }];
+    const res = await resolver.resolveSteps(features);
+    const { vsteps } = res[0] as TResolvedFeature;
+    expect(vsteps[0].actions[0]).toBeDefined();
+    const val = getNamedWithVars(vsteps[0].actions[0], world.shared);
+    expect(val?.what).toBe('res');
   });
 });
