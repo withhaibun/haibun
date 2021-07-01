@@ -7,7 +7,6 @@ import {
   OK,
   TResult,
   TWorld,
-  TStep,
 } from "@haibun/core/build/lib/defs";
 import { BrowserFactory } from "./BrowserFactory";
 import {
