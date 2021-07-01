@@ -18,16 +18,6 @@ describe('output', () => {
   });
 });
 
-const step: TStep = {
-  match: /^(?<one>.*?) is (?<two>.*?)$/,
-  action: async () => util.actionNotOK('test'),
-};
-
-describe('getMatches', () => {
-  it('gets named matches', () => {
-    expect(util.getNamedMatches(step.match!, 'It is set')).toEqual({ one: 'It', two: 'set' });
-  });
-});
 
 describe('isLowerCase', () => {
   expect(util.isLowerCase('a')).toBe(true);

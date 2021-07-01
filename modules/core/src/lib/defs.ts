@@ -86,8 +86,9 @@ export type TVStep = {
   seq: number;
   actions: TFound[];
 };
-export type TFound = { name: string; step: TStep; named?: TNamed | undefined };
+export type TFound = { name: string; step: TStep; named?: TNamed | undefined; vars?: TNamedVar[] };
 export type TNamed = { [name: string]: string };
+export type TNamedVar = { name: string, type: string} 
 
 export const OK: TOKActionResult = { ok: true };
 
