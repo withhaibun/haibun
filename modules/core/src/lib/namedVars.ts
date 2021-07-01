@@ -1,14 +1,14 @@
 import { TStep, TNamedVar, TFound, TNamed, TShared } from './defs';
 
 export const matchGroups = (num: number = 0) => {
-  const q = `"(?<q_${num}>.+)"`;
-  const c = `<(?<c_${num}>.+)>`;
-  const b = `\`(?<b_${num}>.+)\``;
-  const t = `(?<t_${num}>.+)`;
+  const q = `"(?<q_${num}>.+)"`; // quoted string
+  const c = `<(?<c_${num}>.+)>`; // credential
+  const b = `\`(?<b_${num}>.+)\``; // var
+  const t = `(?<t_${num}>.+)`; // var or literal
   return `(${q}|${c}|${b}|${t})`;
 };
 
-export const namedInterpolation = (inp: string): { str: string; vars?: TNamedVar[]; } => {
+export const namedInterpolation = (inp: string): { str: string; vars?: TNamedVar[] } => {
   if (!inp.includes('{')) {
     return { str: inp };
   }
@@ -24,7 +24,7 @@ export const namedInterpolation = (inp: string): { str: string; vars?: TNamedVar
     be = inp.indexOf('}', bs);
 
     if (be < 0) {
-      throw Error(`no end bracket in ${inp}`);
+      throw Error(`missing end bracket in ${inp}`);
     }
     vars.push(pairToVar(inp.substring(bs + 1, be)));
     bs = inp.indexOf('{', be);
@@ -39,16 +39,17 @@ export function getNamedMatches(regexp: RegExp, what: string) {
   const named = regexp.exec(what);
   return named?.groups;
 }
+
 function pairToVar(pair: string): TNamedVar {
   let [k, v] = pair.split(':').map((i) => i.trim());
-  if (!v)
-    v = 'string';
+  if (!v) v = 'string';
   if (!['string'].includes(v)) {
     throw Error(`unknown type ${v}`);
   }
 
   return { name: k, type: v };
 }
+
 export const getMatch = (actionable: string, r: RegExp, name: string, step: TStep, vars?: TNamedVar[]) => {
   if (!r.test(actionable)) {
     return;
@@ -67,15 +68,16 @@ export function getNamedWithVars({ named, vars }: TFound, shared: TShared) {
     vars.forEach((v, i) => {
       const found = Object.keys(named).find((c) => c.endsWith(`_${i}`) && named[c] !== undefined);
       if (found) {
+          const namedValue = named[found];
         if (found.startsWith('t_')) {
           // from shared or name
-          namedFromVars[v.name] = shared[v.name] || named[found];
+          namedFromVars[v.name] = shared[namedValue] || named[found];
         } else if (found.startsWith('b_') || found.startsWith('c_')) {
           // must be from shared
-          if (!shared[v.name]) {
+          if (!shared[namedValue]) {
             throw Error(`no value for ${v.name}`);
           }
-          namedFromVars[v.name] = shared[v.name];
+          namedFromVars[v.name] = shared[namedValue];
         } else if (found.startsWith('q_')) {
           // quoted
           namedFromVars[v.name] = named[found];
