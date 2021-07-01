@@ -18,7 +18,7 @@ describe("server", () => {
       actions,
     };
 
-    await Executor.doFeatureStep(tvstep, world.logger);
+    await Executor.doFeatureStep(tvstep, world);
     const server = steppers[0] as any;
     expect(server.app).toBeDefined();
     await server.close();
