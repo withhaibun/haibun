@@ -3,28 +3,34 @@ const express = require("express");
 
 import { Request, Response } from "express";
 import { TLogger } from "@haibun/core/build/lib/defs";
-import { hasUncaughtExceptionCaptureCallback } from "process";
+import { Server } from "http";
 
-export class ServerApp {
+export const DEFAULT_PORT = 8123;
+
+export class ServerExpress {
   port: number;
   logger: TLogger;
   listener: any;
-  app: any;
-  constructor(logger: TLogger, port: number = 8123) {
-    this.app = express();
+  static app: any;
+  constructor(logger: TLogger, port: number = DEFAULT_PORT) {
     this.logger = logger;
     this.port = port;
   }
 
   async start() {
-    this.logger.info(`starting server on port ${this.port}`);
-    this.listener = await this.app.listen(this.port, () =>
-      this.logger.log(`Server listening on port: ${this.port}`)
-    );
+    if (!ServerExpress.app) {
+      ServerExpress.app = express();
+      this.logger.info(`starting server on port ${this.port}`);
+      this.listener = await ServerExpress.app.listen(this.port, () =>
+        this.logger.log(`Server listening on port: ${this.port}`)
+      );
+    } else {
+      this.logger.log("express already started");
+    }
   }
 
   addRoute() {
-    this.app.get("/", (req: Request, res: Response) => {
+    ServerExpress.app.get("/", (req: Request, res: Response) => {
       res.send("Hello World!");
     });
   }
@@ -39,9 +45,9 @@ export class ServerApp {
     }
 
     this.logger.info(`serving files from ${loc}`);
-    this.app.use(express.static(loc));
+    ServerExpress.app.use(express.static(loc));
   }
-  async stop() {
+  async close() {
     this.logger.info("closing server");
     await this.listener?.close();
   }
