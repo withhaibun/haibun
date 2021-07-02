@@ -4,9 +4,9 @@
 
 
 
-The design goal of haibun is re-usable, flexible, and easy to maintain natural language (BDD inspired) tests,
-that can be used with a minimum of configuration and code 
-in a variety of settings and contexts.
+The design goal of haibun is re-usable, flexible, and easy to maintain natural language (BDD inspired) specification proofs,
+that can be used with a minimum of configuration and low level code 
+in a variety of settings.
 
 # Feature structure
 
@@ -37,4 +37,4 @@ See the [modules](modules) directory.
 
 # Development
 
-Install lerna globally, then use `npm build`. Each module can be developed independantly using `tsc` and `npm test` options.
+Install lerna globally, then use `npm build`. Each module can be developed independantly using `npm run tsc-watch` and `npm test` options.

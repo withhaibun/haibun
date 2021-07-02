@@ -14,8 +14,12 @@ export class Resolver {
   async resolveSteps(features: TFeature[]): Promise<TResolvedFeature[]> {
     const expanded: TResolvedFeature[] = [];
     for (const feature of features) {
-      const steps = await this.addSteps(feature);
-      expanded.push(steps);
+      try {
+        const steps = await this.addSteps(feature);
+        expanded.push(steps);
+      } catch (e) {
+        throw (e);
+      }
     }
     return expanded;
   }
@@ -72,5 +76,3 @@ const comment = {
     },
   },
 };
-
-

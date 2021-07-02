@@ -1,5 +1,7 @@
-import { IStepper, IExtensionConstructor, IHasOptions, TWorld } from './defs';
-import { actionNotOK, actionOK, getStepperOption } from './util';
+import { IStepper, IExtensionConstructor, IHasOptions, TWorld, TVStep } from './defs';
+import { Resolver } from './Resolver';
+import { run } from './run';
+import { actionNotOK, actionOK, getOptionsOrDefault, getStepperOption, getSteppers } from './util';
 
 export const TestSteps: IExtensionConstructor = class TestSteps implements IStepper {
   steps = {
@@ -40,7 +42,7 @@ export const TestStepsWithOptions: IExtensionConstructor = class TestStepsWithOp
   options = {
     EXISTS: {
       desc: 'option exists',
-      parse: (input: string) => 42
+      parse: (input: string) => 42,
     },
   };
   steps = {
@@ -53,3 +55,24 @@ export const TestStepsWithOptions: IExtensionConstructor = class TestStepsWithOp
     },
   };
 };
+
+export async function getTestEnv(useSteppers: string[], test: string, world: TWorld) {
+  const steppers = await getSteppers({ steppers: useSteppers, world });
+  const resolver = new Resolver(steppers, 'all', world);
+  const actions = resolver.findSteps(test);
+
+  const vstep: TVStep = {
+    in: test,
+    seq: 0,
+    actions,
+  };
+  return { world, vstep, steppers };
+}
+
+export async function testRun(baseIn: string, addSteppers: IExtensionConstructor[], world: TWorld) {
+  const base = process.cwd() + baseIn;
+  const specl = getOptionsOrDefault(base);
+
+  const res = await run({ specl, base, addSteppers, world });
+  return res;
+}

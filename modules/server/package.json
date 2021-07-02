@@ -5,16 +5,17 @@
   "main": "index.js",
   "scripts": {
     "prepublishOnly": "tsc -b .",
-    "test": "jest --config jest.config.ts"
+    "test": "jest --config jest.config.ts",
+    "test-watch": "jest --config jest.config.ts --watch"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@types/express": "^4.17.12",
     "express": "^4.17.1"
   },
   "devDependencies": {
+    "@types/express": "^4.17.12",
     "@types/jest": "^26.0.19",
     "@types/node": "^15.0.1",
     "@typescript-eslint/eslint-plugin": "^4.13.0",
