@@ -61,6 +61,7 @@ export async function getSteppers({ steppers = [], world, addSteppers = [] }: { 
   const allSteppers: IStepper[] = [];
   for (const s of steppers) {
     const loc = getModuleLocation(s);
+
     const S: IExtensionConstructor = await use(loc);
     try {
       const stepper = new S(world);
@@ -152,7 +153,7 @@ export function getDefaultWorld(): { world: TWorld } {
   return {
     world: {
       shared: {},
-      logger: new Logger(LOGGER_NONE),
+      logger: new Logger(process.env.HAIBUN_LOG_LEVEL ? { level: process.env.HAIBUN_LOG_LEVEL } : LOGGER_NONE),
       runtime: {},
       options: {},
     },
