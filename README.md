@@ -4,9 +4,9 @@
 
 
 
-The design goal of haibun is re-usable, flexible, and easy to maintain natural language (BDD inspired) tests,
-that can be used with a minimum of configuration and code 
-in a variety of settings and contexts.
+The design goal of haibun is re-usable, flexible, and easy to maintain natural language (BDD inspired) specification proofs,
+that can be used with a minimum of configuration and low level code 
+in a variety of settings.
 
 # Feature structure
 
@@ -29,6 +29,12 @@ So, if test.feature includes run.feature, that will includes setup.feature and r
 
 Note that features/ (unlike backgrounds) will not include folder predecessors.
 
-# Runtime Options
+# Packages
 
-See [source](src/lib/ENV_VARS.ts) and the options of individual steppers, or use `cli --help` at runtime.
+haibun is composed of several packages that can be configured at runtime via the cli package. 
+See the [modules](modules) directory.
+
+
+# Development
+
+Install lerna globally, then use `npm build`. Each module can be developed independantly using `npm run tsc-watch` and `npm test` options.

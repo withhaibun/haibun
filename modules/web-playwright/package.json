@@ -8,7 +8,8 @@
   ],
   "scripts": {
     "prepublishOnly": "tsc -b .",
-    "test": "jest --config jest.config.ts"
+    "test": "jest --config jest.config.ts",
+    "test-watch": "jest --config jest.config.ts --watch"
   },
   "keywords": [],
   "author": "",

@@ -61,6 +61,7 @@ export async function getSteppers({ steppers = [], world, addSteppers = [] }: { 
   const allSteppers: IStepper[] = [];
   for (const s of steppers) {
     const loc = getModuleLocation(s);
+
     const S: IExtensionConstructor = await use(loc);
     try {
       const stepper = new S(world);
@@ -100,11 +101,6 @@ export async function recurse(dir: string, filters: TFilters): Promise<TFeature[
     }
   }
   return all;
-}
-
-export function getNamedMatches(regexp: RegExp, what: string) {
-  const named = regexp.exec(what);
-  return named?.groups;
 }
 
 export function getDefaultOptions(): TSpecl {
@@ -157,7 +153,7 @@ export function getDefaultWorld(): { world: TWorld } {
   return {
     world: {
       shared: {},
-      logger: new Logger(LOGGER_NONE),
+      logger: new Logger(process.env.HAIBUN_LOG_LEVEL ? { level: process.env.HAIBUN_LOG_LEVEL } : LOGGER_NONE),
       runtime: {},
       options: {},
     },

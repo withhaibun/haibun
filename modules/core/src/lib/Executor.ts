@@ -1,5 +1,7 @@
-import { IStepper, TVStep, TResolvedFeature, TResult, TStepResult, TLogger, TFeatureResult, TActionResult,  TWorld } from './defs';
+import { IStepper, TVStep, TResolvedFeature, TResult, TStepResult, TFeatureResult, TActionResult, TWorld } from './defs';
+import { getNamedWithVars } from './namedVars';
 import { actionNotOK, sleep } from './util';
+
 export class Executor {
   steppers: IStepper[];
   world: TWorld;
@@ -26,8 +28,8 @@ export class Executor {
     let stepResults: TStepResult[] = [];
     for (const step of feature.vsteps) {
       this.world.logger.log(`   ${step.in}\r`);
-      const result = await Executor.doFeatureStep(step, this.world.logger);
-      
+      const result = await Executor.doFeatureStep(step, this.world);
+
       if (this.world.options.step_delay) {
         await sleep(this.world.options.step_delay as number);
       }
@@ -41,16 +43,19 @@ export class Executor {
     const featureResult: TFeatureResult = { path: feature.path, ok, stepResults };
     return featureResult;
   }
-  static async doFeatureStep(vstep: TVStep, logger: TLogger): Promise<TStepResult> {
+  static async doFeatureStep(vstep: TVStep, world: TWorld): Promise<TStepResult> {
     let ok = true;
     let actionResults = [];
+    
     for (const a of vstep.actions) {
       let res: TActionResult;
       try {
-        res = await a.step.action(a.named, vstep);
+        const namedWithVars = getNamedWithVars(a, world.shared);
+
+        res = await a.step.action(namedWithVars, vstep);
       } catch (caught: any) {
-        logger.error(caught.stack);
-        res = actionNotOK(caught.message, { caught: caught.stack.toString() });
+        world.logger.error(caught.stack);
+        res = actionNotOK(`in ${vstep.in}: ${caught.message}`, { caught: caught.stack.toString() });
       }
       actionResults.push({ ...res, name: a.name });
 
@@ -65,7 +70,7 @@ export class Executor {
   async close() {
     for (const s of this.steppers) {
       if (s.close) {
-        console.info('closing', s.constructor.name);
+        this.world.logger.info(`closing ${s.constructor.name}`);
         await s.close();
       }
     }
