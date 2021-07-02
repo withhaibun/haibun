@@ -28,7 +28,7 @@ describe("AsXML transforms", () => {
   });
   it("transforms multi type result to xunit", async () => {
     const { result } = await testRun(
-      "/test/test-multiple",
+      "/test/multiple",
       [TestSteps],
       getDefaultWorld().world
     );
