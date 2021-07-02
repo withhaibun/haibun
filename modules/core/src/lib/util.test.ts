@@ -1,31 +1,16 @@
-import { TStep } from './defs';
 import * as util from './util';
-import { run } from './run';
-import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, TestSteps, TestStepsWithOptions } from './TestSteps';
-import { getOptionsOrDefault, getDefaultWorld } from './util';
+import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, testRun, TestSteps, TestStepsWithOptions } from './TestSteps';
+import {  getDefaultWorld } from './util';
 
 describe('output', () => {
   it('resultOutput default', async () => {
-    const base = process.cwd() + '/test/projects/specl/out-default';
-    const specl = getOptionsOrDefault(base);
-
     const { world } = getDefaultWorld();
-    const { result } = await run({ specl, base, addSteppers: [TestSteps], world });
+    const { result } = await testRun('/test/projects/specl/out-default', [TestSteps], world);
+
     expect(result.ok).toBe(false);
     const output = await util.resultOutput(undefined, result, world.shared);
     expect(typeof output).toBe('object');
     expect(result.results?.length).toBe(2);
-  });
-});
-
-const step: TStep = {
-  match: /^(?<one>.*?) is (?<two>.*?)$/,
-  action: async () => util.actionNotOK('test'),
-};
-
-describe('getMatches', () => {
-  it('gets named matches', () => {
-    expect(util.getNamedMatches(step.match!, 'It is set')).toEqual({ one: 'It', two: 'set' });
   });
 });
 
@@ -39,7 +24,7 @@ describe('processEnv', () => {
   it('process env', () => {
     const specl = util.getDefaultOptions();
     const { protoOptions } = util.processEnv({ HAIBUN_TEST: 'true' }, specl.options);
-    
+
     expect(protoOptions.extraOptions['HAIBUN_TEST']).toBeDefined();
   });
 });

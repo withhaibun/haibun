@@ -8,11 +8,12 @@ const vars: IExtensionConstructor = class Vars implements IStepper {
 
   steps = {
     set: {
-      gwta: 'set (empty )?(?<what>.+) to (?<value>.+)',
+      gwta: 'set( empty)? {what: string} to {value: string}',
       section: 'Background',
       action: async ({ what, value }: TKeyString, vstep: TVStep) => {
         // FIXME hokey
         const emptyOnly = !vstep.in.match(/ set missing /);
+        
         if (!emptyOnly || this.world.shared[what] === undefined) {
           this.world.shared[what] = value;
           return OK;

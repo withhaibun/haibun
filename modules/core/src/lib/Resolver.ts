@@ -1,5 +1,6 @@
-import { IStepper, TFeature, TFound, TResolvedFeature, TStep, OK, TWorld } from './defs';
-import { getActionable, getNamedMatches, describeSteppers, isLowerCase } from './util';
+import { IStepper, TFeature, TFound, TResolvedFeature, OK, TWorld, TNamed } from './defs';
+import { namedInterpolation, getMatch } from './namedVars';
+import { getActionable, describeSteppers, isLowerCase } from './util';
 
 export class Resolver {
   steppers: IStepper[];
@@ -13,8 +14,12 @@ export class Resolver {
   async resolveSteps(features: TFeature[]): Promise<TResolvedFeature[]> {
     const expanded: TResolvedFeature[] = [];
     for (const feature of features) {
-      const steps = await this.addSteps(feature);
-      expanded.push(steps);
+      try {
+        const steps = await this.addSteps(feature);
+        expanded.push(steps);
+      } catch (e) {
+        throw (e);
+      }
     }
     return expanded;
   }
@@ -41,23 +46,18 @@ export class Resolver {
     }
     let found: TFound[] = [];
 
-    const doMatch = (r: RegExp, name: string, step: TStep) => {
-      if (r.test(actionable)) {
-        const named = getNamedMatches(r, actionable);
-        found.push({ name, step, named });
-      }
-    };
     for (const { steps } of this.steppers) {
       for (const name in steps) {
         const step = steps[name];
-
+        const addIfMatch = (m: TFound | undefined) => m && found.push(m);
         if (step.gwta) {
-          const f = step.gwta.charAt(0);
-          const s = isLowerCase(f) ? ['[', f, f.toUpperCase(), ']', step.gwta.substring(1)].join('') : step.gwta;
+          let { str, vars } = namedInterpolation(step.gwta);
+          const f = str.charAt(0);
+          const s = isLowerCase(f) ? ['[', f, f.toUpperCase(), ']', str.substring(1)].join('') : str;
           const r = new RegExp(`^(Given|When|Then|And)?( the )?( I('m)? (am )?)? ?${s}`);
-          doMatch(r, name, step);
+          addIfMatch(getMatch(actionable, r, name, step, vars));
         } else if (step.match) {
-          doMatch(step.match, name, step);
+          addIfMatch(getMatch(actionable, step.match, name, step));
         } else if (actionable.length > 0 && step.exact === actionable) {
           found.push({ name, step });
         }
