@@ -25,7 +25,7 @@ describe("server", () => {
     
     await server.close();
   });
-  it("restricts characters used in static mount folder", async () => {
+  it("restricts characters used in static mount folder name", async () => {
     const { world, vstep, steppers } = await getTestEnv(
       [serverLoc],
       "serve files from l*(*$**",
