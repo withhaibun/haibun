@@ -40,13 +40,16 @@ const WebServer: IExtensionConstructor = class WebServer
     serveFiles: {
       gwta: "serve files from {loc}",
       action: async ({ loc }: TKeyString) => {
-        const folder = [
-          process.cwd(),
-          "files",
-          loc.replace(/[^a-zA-Z-]/g, ""),
-        ].join("/");
-        const ws = await this.getWebServer();
+        if (!loc) {
+          throw Error(`missing mount location`);
+        }
         
+        if (loc !== loc?.replace(/[^a-zA-Z-0-9]/g, "")) {
+          throw Error(`mount folder ${loc} has illegal characters`);
+        }
+        const folder = [process.cwd(), "files", loc].join("/");
+        const ws = await this.getWebServer();
+
         ws.addStaticFolder(folder);
         return OK;
       },
