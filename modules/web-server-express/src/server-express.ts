@@ -1,8 +1,8 @@
-import { statSync, existsSync } from "fs";
-import express, { RequestHandler } from "express";
+import { statSync, existsSync } from 'fs';
+import express, { RequestHandler } from 'express';
 
-import { TLogger } from "@haibun/core/build/lib/defs";
-import { IWebServer, TRouteType } from "./web-server-stepper";
+import { TLogger } from '@haibun/core/build/lib/defs';
+import { IWebServer, TRouteType } from './web-server-stepper';
 
 export const DEFAULT_PORT = 8123;
 
@@ -19,20 +19,15 @@ export class ServerExpress implements IWebServer {
 
   async listening(port: number) {
     if (!ServerExpress.listener) {
-      ServerExpress.listener = await ServerExpress.app.listen(port, () =>
-        this.logger.log(`Server listening on port: ${port}`)
-      );
+      ServerExpress.listener = await ServerExpress.app.listen(port, () => this.logger.log(`Server listening on port: ${port}`));
     } else {
-      this.logger.log("express already started");
+      this.logger.log('express already started');
     }
   }
 
   async addRoute(type: TRouteType, path: string, route: RequestHandler) {
     try {
-      const alreadyMounted = this.checkMountBadOrMounted(
-        path,
-        route.toString()
-      );
+      const alreadyMounted = this.checkMountBadOrMounted(path, route.toString());
       if (alreadyMounted) {
         return;
       }
@@ -45,8 +40,8 @@ export class ServerExpress implements IWebServer {
   }
 
   async addStaticFolder(subdir: string): Promise<string | undefined> {
-    const folder = [this.base, subdir].join("/");
-    const loc = "/";
+    const folder = [this.base, subdir].join('/');
+    const loc = '/';
     try {
       const alreadyMounted = this.checkMountBadOrMounted(loc, folder);
       if (alreadyMounted) {
@@ -77,7 +72,7 @@ export class ServerExpress implements IWebServer {
       throw Error(`missing mount location`);
     }
 
-    if (loc !== loc.replace(/[^a-zA-Z-0-9\/]/g, "")) {
+    if (loc !== loc.replace(/[^a-zA-Z-0-9\/]/g, '')) {
       throw Error(`mount folder ${loc} has illegal characters`);
     }
     const alreadyMounted = ServerExpress.mounted[loc];
@@ -85,15 +80,13 @@ export class ServerExpress implements IWebServer {
       this.logger.log(`${alreadyMounted} already mounted at ${loc}`);
       return true;
     } else if (alreadyMounted && alreadyMounted !== what) {
-      throw Error(
-        `cannot mount ${what} at ${loc}, ${alreadyMounted} is already mounted}`
-      );
+      throw Error(`cannot mount ${what} at ${loc}, ${alreadyMounted} is already mounted}`);
     }
     return false;
   }
 
   async close() {
-    this.logger.info("closing server");
+    this.logger.info('closing server');
     await ServerExpress.listener?.close();
   }
 }
