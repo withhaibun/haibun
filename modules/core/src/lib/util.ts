@@ -16,6 +16,7 @@ import {
   TOptions,
   TProtoOptions,
   HAIBUN,
+  TRuntime,
 } from './defs';
 import Logger, { LOGGER_NONE } from './Logger';
 
@@ -237,4 +238,13 @@ export function ensureDirectory(base: string, folder: string) {
     console.error(`coudl not create ${base}/${folder}`, e);
     throw e;
   }
+}
+
+// FIXME
+export function getStepper<Type>(steppers: IStepper[], name: string): Type {
+  return <Type>(steppers.find((s) => s.constructor.name === name) as any);
+}
+
+export function getFromRuntime<Type>(runtime: TRuntime, name: string): Type {
+  return runtime[name] as Type;
 }
