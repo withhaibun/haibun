@@ -298,3 +298,7 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright
   steps = {};
 };
 export default WebPlaywright;
+
+export type TWebPlaywright = {
+  bf: BrowserFactory;
+};
