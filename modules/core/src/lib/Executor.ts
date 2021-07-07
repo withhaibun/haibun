@@ -46,12 +46,11 @@ export class Executor {
   static async doFeatureStep(vstep: TVStep, world: TWorld): Promise<TStepResult> {
     let ok = true;
     let actionResults = [];
-    
+
     for (const a of vstep.actions) {
       let res: TActionResult;
       try {
         const namedWithVars = getNamedWithVars(a, world.shared);
-
         res = await a.step.action(namedWithVars, vstep);
       } catch (caught: any) {
         world.logger.error(caught.stack);
