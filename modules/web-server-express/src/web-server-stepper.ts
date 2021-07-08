@@ -1,5 +1,5 @@
 import { IHasOptions, IStepper, IExtensionConstructor, OK, TWorld, TKeyString, TOptions } from '@haibun/core/build/lib/defs';
-import { actionNotOK } from '@haibun/core/src/lib/util';
+import { actionNotOK } from '@haibun/core/build/lib/util';
 import { RequestHandler } from 'express';
 import { ServerExpress, DEFAULT_PORT } from './server-express';
 

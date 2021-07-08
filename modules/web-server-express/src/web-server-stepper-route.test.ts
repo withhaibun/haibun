@@ -5,7 +5,7 @@ import { actionOK, getDefaultWorld, getFromRuntime, getStepper } from '@haibun/c
 import { testRun } from '@haibun/core/build/lib/TestSteps';
 
 import server, { CHECK_LISTENER, ICheckListener, IWebServer, IWebServerStepper, WEBSERVER, WEBSERVER_STEPPER } from './web-server-stepper';
-import { IExtensionConstructor, IStepper, TKeyString, TWorld } from '@haibun/core/src/lib/defs';
+import { IExtensionConstructor, IStepper, TKeyString, TWorld } from '@haibun/core/build/lib/defs';
 
 describe('route mount', () => {
   it('mounts a route', async () => {
