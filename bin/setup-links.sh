@@ -1,9 +1,9 @@
-#!/bin/sh
+#!/bin/sh -x
 
 ## FIXME spent a day trying to get lerna set up properly. Deno, save me.
 
 cd modules &&
-(for i in core web-playwright web-server-express; do
+(for i in core web-playwright web-server-express out-xunit; do
   cd $i
   echo "\nsetup link for $i"
   npm link 

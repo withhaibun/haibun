@@ -1,8 +1,11 @@
 {
   "name": "@haibun/web-server-express",
-  "version": "0.1.0",
+  "version": "0.2.1",
   "description": "",
-  "main": "index.js",
+  "main": "build/web-server-stepper.js",
+  "files": [
+    "build/**"
+  ],
   "scripts": {
     "prepublishOnly": "tsc -b .",
     "test": "jest --config jest.config.ts",
