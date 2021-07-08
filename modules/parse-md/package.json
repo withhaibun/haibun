@@ -1,7 +1,10 @@
 {
   "name": "@haibun/parse-md",
-  "version": "1.0.0",
+  "version": "0.1.1",
   "description": "",
+  "files": [
+    "build/**"
+  ],
   "main": "index.js",
   "scripts": {
     "prepublishOnly": "tsc -b .",

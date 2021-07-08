@@ -27,6 +27,7 @@ export async function use(module: string) {
     return re;
   } catch (e) {
     console.error('failed including', module);
+    console.error(e);
     throw e;
   }
 }
