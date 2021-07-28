@@ -69,7 +69,7 @@ export async function getSteppers({ steppers = [], world, addSteppers = [] }: { 
       const stepper = new S(world);
       allSteppers.push(stepper);
     } catch (e) {
-      console.error(`new ${S} failed`, e);
+      console.error(`new ${S} from "${loc}" failed`, e, S);
       throw e;
     }
   }
@@ -162,29 +162,38 @@ export function getDefaultWorld(): { world: TWorld } {
   };
 }
 
-export function processEnv(env: { [name: string]: string | undefined }, options: TOptions) {
+type TEnv = { [name: string]: string | undefined };
+
+export function processEnv(env: TEnv, options: TOptions) {
   const protoOptions: TProtoOptions = { options: { ...options }, extraOptions: {} };
   let splits: TShared[] = [{}];
+  let errors: string[] = [];
   const pfx = `${HAIBUN}_`;
   Object.entries(env)
     .filter(([k]) => k.startsWith(pfx))
-    .map(([k, v]) => {
+    .map(([k]) => {
+      const value = env[k];
       const opt = k.replace(pfx, '');
-      if (opt === 'SPLIT_SHARED') {
-        const [what, s] = v!.split('=');
-        splits = s.split(',').map((w: string) => ({ [what]: w }));
+      if (opt === 'SPLIT_SHARED' && value !== undefined) {
+        const [what, s] = value.split('=');
+        if (!s) {
+          errors.push(`  ${pfx}SPLIT_SHARED=var=option1,option2`);
+        } else {
+          splits = s.split(',').map((w: string) => ({ [what]: w }));
+        }
       } else if (opt === 'STEP_DELAY') {
-        protoOptions.options.step_delay = parseInt(v!, 10);
+        protoOptions.options.step_delay = parseInt(value!, 10);
       } else if (opt === 'CLI') {
         protoOptions.options.cli = true;
       } else if (opt === 'STAY') {
-        protoOptions.options.stay = v!;
+        protoOptions.options.stay = value!;
+      } else if (opt === 'LOG_LEVEL') {
       } else {
-        protoOptions.extraOptions[k] = v!;
+        protoOptions.extraOptions[k] = value!;
       }
     });
 
-  return { splits, protoOptions };
+  return { splits, protoOptions, errors };
 }
 
 // has side effects

@@ -2,7 +2,7 @@ import { Page } from 'playwright';
 
 import { IHasOptions, IStepper, IExtensionConstructor, OK, TResult, TWorld } from '@haibun/core/build/lib/defs';
 import { BrowserFactory } from './BrowserFactory';
-import { actionNotOK, sleep, ensureDirectory } from '@haibun/core/build/lib/util';
+import { actionNotOK, ensureDirectory } from '@haibun/core/build/lib/util';
 declare var window: any;
 
 type TStepWithPage = {
@@ -197,13 +197,6 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
               (window as any).history.go(-1);
             })
         );
-        await this.withPage(
-          async (page: Page) =>
-            await page.evaluate(() => {
-              console.log('went back', window.history);
-            })
-        );
-
         // await page.focus('body');
         // await page.keyboard.press('Alt+ArrowRight');
         return OK;
