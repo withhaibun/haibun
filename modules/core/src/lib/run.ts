@@ -1,8 +1,8 @@
 import { existsSync } from 'fs';
 import { TSpecl, IStepper, IExtensionConstructor, TResult, TFeatures, TWorld, TProtoOptions, TFeature } from './defs';
 import { expandBackgrounds, expandFeatures } from './features';
-import { Executor } from './Executor';
-import { Resolver } from './Resolver';
+import { Executor } from '../phases/Executor';
+import { Resolver } from '../phases/Resolver';
 import { getSteppers, applyExtraOptions, recurse } from './util';
 
 export async function run({
@@ -19,14 +19,15 @@ export async function run({
   addSteppers?: IExtensionConstructor[];
   featureFilter?: string;
   protoOptions?: TProtoOptions;
-}): Promise<{ result: TResult, steppers?: IStepper[] }> {
+}): Promise<{ result: TResult; steppers?: IStepper[] }> {
   const features = await recurse(`${base}/features`, [/\.feature$/, featureFilter]);
   const backgrounds = existsSync(`${base}/backgrounds`) ? await recurse(`${base}/backgrounds`, [/\.feature$/]) : [];
+
   const steppers: IStepper[] = await getSteppers({ steppers: specl.steppers, addSteppers, world });
   try {
     applyExtraOptions(protoOptions, steppers, world);
   } catch (error: any) {
-    console.log(error);
+    console.error(error);
     return { result: { ok: false, failure: { stage: 'Options', error: { details: error.message, context: error } } } };
   }
 
@@ -44,7 +45,7 @@ export async function run({
   } catch (error: any) {
     return { result: { ok: false, failure: { stage: 'Resolve', error: { details: error.message, context: { stack: error.stack, steppers, mappedValidatedSteps } } } } };
   }
-  world.logger.log(`found ${expandedFeatures.length} features (${expandedFeatures.map(e => e.path)}), ${mappedValidatedSteps.length} steps`);
+  world.logger.log(`features: ${expandedFeatures.length} backgrounds: ${backgrounds.length} steps: (${expandedFeatures.map((e) => e.path)}), ${mappedValidatedSteps.length}`);
 
   const executor = new Executor(steppers, world);
   const result = await executor.execute(mappedValidatedSteps);
@@ -54,7 +55,7 @@ export async function run({
   return { result, steppers };
 }
 
-async function expand(backgrounds: TFeatures, features: TFeatures) : Promise<TFeature[]> {
+async function expand(backgrounds: TFeatures, features: TFeatures): Promise<TFeature[]> {
   const expandedBackgrounds = await expandBackgrounds(backgrounds);
 
   const expandedFeatures = await expandFeatures(features, expandedBackgrounds);

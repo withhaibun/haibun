@@ -1,6 +1,11 @@
 import { Executor } from "@haibun/core/build/lib/Executor";
-import { getDefaultWorld, getSteppers } from "@haibun/core/build/lib/util";
+import {
+  getDefaultWorld,
+  getStepper,
+  getSteppers,
+} from "@haibun/core/build/lib/util";
 import { getTestEnv } from "@haibun/core/build/lib/TestSteps";
+import { TWebPlaywright } from "./web-playwright";
 
 const wp = [process.cwd(), "build", "web-playwright"].join("/");
 
@@ -22,11 +27,12 @@ describe("playwrightWeb", () => {
       getDefaultWorld().world
     );
     await Executor.doFeatureStep(vstep, world);
-    expect((steppers[0] as any).bf.browserType.name()).toBe("firefox");
-    expect((steppers[0] as any).bf.device).toBe("Pixel 5");
+    const webPlaywright: TWebPlaywright = getStepper(steppers, "WebPlaywright");
+    expect(webPlaywright.bf.browserType.name()).toBe("firefox");
+    expect(webPlaywright.bf.device).toBe("Pixel 5");
   });
   it("fails setting browser type and device", async () => {
-    const { world, vstep, steppers } = await getTestEnv(
+    const { world, vstep } = await getTestEnv(
       [wp],
       "using nonexistant browser",
       getDefaultWorld().world

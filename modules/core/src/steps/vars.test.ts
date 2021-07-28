@@ -1,4 +1,4 @@
-import { Executor } from '../lib/Executor';
+import { Executor } from '../phases/Executor';
 import { getTestEnv } from '../lib/TestSteps';
 import { getDefaultWorld } from '../lib/util';
 import { didNotOverwrite } from './vars';
