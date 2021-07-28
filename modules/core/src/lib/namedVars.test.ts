@@ -1,6 +1,6 @@
 import { IStepper, OK, TResolvedFeature, TStep } from './defs';
 import { getNamedMatches, namedInterpolation, matchGroups, getNamedWithVars } from './namedVars';
-import { Resolver } from './Resolver';
+import { Resolver } from '../phases/Resolver';
 import { actionNotOK, getDefaultWorld } from './util';
 
 describe('namedMatches', () => {

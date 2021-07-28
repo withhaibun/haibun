@@ -1,6 +1,6 @@
-import { IStepper, TFeature, TFound, TResolvedFeature, OK, TWorld, TNamed } from './defs';
-import { namedInterpolation, getMatch } from './namedVars';
-import { getActionable, describeSteppers, isLowerCase } from './util';
+import { IStepper, TFeature, TFound, TResolvedFeature, OK, TWorld, TNamed } from '../lib/defs';
+import { namedInterpolation, getMatch } from '../lib/namedVars';
+import { getActionable, describeSteppers, isLowerCase } from '../lib/util';
 
 export class Resolver {
   steppers: IStepper[];
