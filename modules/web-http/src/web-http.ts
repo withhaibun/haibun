@@ -1,6 +1,6 @@
 import got from 'got';
 
-import {  IStepper, IExtensionConstructor, OK, TResult, TWorld } from '@haibun/core/build/lib/defs';
+import { IStepper, IExtensionConstructor, OK, TWorld } from '@haibun/core/build/lib/defs';
 import { actionNotOK } from '@haibun/core/build/lib/util';
 
 const WebHttp: IExtensionConstructor = class WebHttp implements IStepper {
@@ -10,19 +10,17 @@ const WebHttp: IExtensionConstructor = class WebHttp implements IStepper {
   }
   steps = {
     listening: {
-      gwta: '{what} is listening',
-      action: async ({ what }: { what: string }) => {
-        console.log('what', what)
-        const res = await got.get(what);
-        console.log(res);
-        
-        return actionNotOK('wtw');
+      gwta: '{url} is listening',
+      action: async ({ url }: { url: string }) => {
+        await got.get({ url, throwHttpErrors: false });
+        return OK;
       },
     },
     oidc_config: {
-      gwta: '{what} has a well-known configuration',
-      action: async ({ what }: { what: string }) => {
-        return actionNotOK('wtw');
+      gwta: '{url} has an oidc well-known configuration',
+      action: async ({ url }: { url: string }) => {
+        const json = await got.get({ url: `${url}/.well-known/openid-configuration` }).json();
+        return (json as any).authorization_endpoint ? OK : actionNotOK(`${json} not recognized`);
       },
     },
   };

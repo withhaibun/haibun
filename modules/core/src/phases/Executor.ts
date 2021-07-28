@@ -44,6 +44,7 @@ export class Executor {
     return featureResult;
   }
   static async doFeatureStep(vstep: TVStep, world: TWorld): Promise<TStepResult> {
+    
     let ok = true;
     let actionResults = [];
 

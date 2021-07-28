@@ -22,11 +22,12 @@ export async function run({
 }): Promise<{ result: TResult; steppers?: IStepper[] }> {
   const features = await recurse(`${base}/features`, [/\.feature$/, featureFilter]);
   const backgrounds = existsSync(`${base}/backgrounds`) ? await recurse(`${base}/backgrounds`, [/\.feature$/]) : [];
+
   const steppers: IStepper[] = await getSteppers({ steppers: specl.steppers, addSteppers, world });
   try {
     applyExtraOptions(protoOptions, steppers, world);
   } catch (error: any) {
-    console.log(error);
+    console.error(error);
     return { result: { ok: false, failure: { stage: 'Options', error: { details: error.message, context: error } } } };
   }
 
@@ -44,7 +45,7 @@ export async function run({
   } catch (error: any) {
     return { result: { ok: false, failure: { stage: 'Resolve', error: { details: error.message, context: { stack: error.stack, steppers, mappedValidatedSteps } } } } };
   }
-  world.logger.log(`found ${expandedFeatures.length} features (${expandedFeatures.map((e) => e.path)}), ${mappedValidatedSteps.length} steps`);
+  world.logger.log(`features: ${expandedFeatures.length} backgrounds: ${backgrounds.length} steps: (${expandedFeatures.map((e) => e.path)}), ${mappedValidatedSteps.length}`);
 
   const executor = new Executor(steppers, world);
   const result = await executor.execute(mappedValidatedSteps);
