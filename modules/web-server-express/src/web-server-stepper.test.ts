@@ -1,10 +1,11 @@
 import fetch from 'node-fetch';
 
-import { Executor } from '@haibun/core/build/lib/Executor';
+import { Executor } from '@haibun/core/build/phases/Executor';
 import { getDefaultWorld, getStepper } from '@haibun/core/build/lib/util';
 import { getTestEnv, testRun } from '@haibun/core/build/lib/TestSteps';
 
 import server, { IWebServerStepper, WEBSERVER_STEPPER } from './web-server-stepper';
+
 
 const serverLoc = [process.cwd(), 'build', 'web-server-stepper'].join('/');
 

@@ -5,6 +5,7 @@
         { "path": "client-playwright" },
         { "path": "web-server-express" },
         { "path": "web-playwright" },
+        { "path": "web-http" },
         { "path": "parse-md" },
         { "path": "out-xunit" }
     ]

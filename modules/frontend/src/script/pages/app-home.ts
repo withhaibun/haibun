@@ -8,7 +8,7 @@ import '@pwabuilder/pwainstall';
 export class AppHome extends LitElement {
   // For more information on using properties and state in lit
   // check out this link https://lit.dev/docs/components/properties/
-  @property() message = 'uelcome!';
+  @property() message = 'oelcome!';
 
   static get styles() {
     return css`

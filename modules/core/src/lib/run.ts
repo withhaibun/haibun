@@ -1,8 +1,8 @@
 import { existsSync } from 'fs';
 import { TSpecl, IStepper, IExtensionConstructor, TResult, TFeatures, TWorld, TProtoOptions, TFeature } from './defs';
 import { expandBackgrounds, expandFeatures } from './features';
-import { Executor } from './Executor';
-import { Resolver } from './Resolver';
+import { Executor } from '../phases/Executor';
+import { Resolver } from '../phases/Resolver';
 import { getSteppers, applyExtraOptions, recurse } from './util';
 
 export async function run({

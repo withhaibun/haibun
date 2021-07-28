@@ -1,5 +1,5 @@
 import { IStepper, IExtensionConstructor, IHasOptions, TWorld, TVStep, TProtoOptions } from './defs';
-import { Resolver } from './Resolver';
+import { Resolver } from '../phases/Resolver';
 import { run } from './run';
 import { actionNotOK, actionOK, getOptionsOrDefault, getStepperOption, getSteppers } from './util';
 

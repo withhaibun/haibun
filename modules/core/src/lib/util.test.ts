@@ -1,6 +1,6 @@
 import * as util from './util';
 import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, testRun, TestSteps, TestStepsWithOptions } from './TestSteps';
-import {  getDefaultWorld } from './util';
+import { getDefaultWorld } from './util';
 
 describe('output', () => {
   it('resultOutput default', async () => {
@@ -21,11 +21,22 @@ describe('isLowerCase', () => {
 });
 
 describe('processEnv', () => {
-  it('process env', () => {
+  it('carries extra options', () => {
     const specl = util.getDefaultOptions();
     const { protoOptions } = util.processEnv({ HAIBUN_TEST: 'true' }, specl.options);
 
     expect(protoOptions.extraOptions['HAIBUN_TEST']).toBeDefined();
+  });
+  it('split_shared incorrect message', () => {
+    const specl = util.getDefaultOptions();
+
+    const { errors } = util.processEnv({ HAIBUN_SPLIT_SHARED: '1,2' }, specl.options);
+    expect(errors.length).toBe(1);
+  });
+  it('processes split_shared', () => {
+    const specl = util.getDefaultOptions();
+    const { splits } = util.processEnv({ HAIBUN_SPLIT_SHARED: 'foo=1,2' }, specl.options);
+    expect(splits).toEqual([{ foo: '1' }, { foo: '2' }]);
   });
 });
 
