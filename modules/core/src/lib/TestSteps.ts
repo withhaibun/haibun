@@ -1,5 +1,5 @@
-import { IStepper, IExtensionConstructor, IHasOptions, TWorld, TVStep } from './defs';
-import { Resolver } from './Resolver';
+import { IStepper, IExtensionConstructor, IHasOptions, TWorld, TVStep, TProtoOptions } from './defs';
+import { Resolver } from '../phases/Resolver';
 import { run } from './run';
 import { actionNotOK, actionOK, getOptionsOrDefault, getStepperOption, getSteppers } from './util';
 
@@ -69,10 +69,10 @@ export async function getTestEnv(useSteppers: string[], test: string, world: TWo
   return { world, vstep, steppers };
 }
 
-export async function testRun(baseIn: string, addSteppers: IExtensionConstructor[], world: TWorld) {
+export async function testRun(baseIn: string, addSteppers: IExtensionConstructor[], world: TWorld, protoOptions?: TProtoOptions) {
   const base = process.cwd() + baseIn;
   const specl = getOptionsOrDefault(base);
 
-  const res = await run({ specl, base, addSteppers, world });
+  const res = await run({ specl, base, addSteppers, world, protoOptions });
   return res;
 }

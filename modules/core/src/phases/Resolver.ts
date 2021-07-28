@@ -1,6 +1,6 @@
-import { IStepper, TFeature, TFound, TResolvedFeature, OK, TWorld, TNamed } from './defs';
-import { namedInterpolation, getMatch } from './namedVars';
-import { getActionable, describeSteppers, isLowerCase } from './util';
+import { IStepper, TFeature, TFound, TResolvedFeature, OK, TWorld } from '../lib/defs';
+import { namedInterpolation, getMatch } from '../lib/namedVars';
+import { getActionable, describeSteppers, isLowerCase } from '../lib/util';
 
 export class Resolver {
   steppers: IStepper[];
@@ -18,7 +18,7 @@ export class Resolver {
         const steps = await this.addSteps(feature);
         expanded.push(steps);
       } catch (e) {
-        throw (e);
+        throw e;
       }
     }
     return expanded;

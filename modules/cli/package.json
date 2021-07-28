@@ -1,10 +1,13 @@
 {
   "name": "@haibun/cli",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "",
   "bin": {
     "haibun-cli": "build/cli.js"
   },
+  "files": [
+    "build/**"
+  ],
   "scripts": {
     "prepublishOnly": "tsc -b .",
     "test": "echo no tests specified; exit 0"
@@ -12,7 +15,9 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "dependencies": {},
+  "dependencies": {
+    "@haibun/core": "^0.1.1"
+  },
   "devDependencies": {
     "@types/jest": "^26.0.19",
     "@types/node": "^15.7.0",

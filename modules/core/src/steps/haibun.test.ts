@@ -1,8 +1,6 @@
-import { TVStep } from '../lib/defs';
-import { Executor } from '../lib/Executor';
-import { Resolver } from '../lib/Resolver';
+import { Executor } from '../phases/Executor';
 import { getTestEnv } from '../lib/TestSteps';
-import { getSteppers, getDefaultWorld } from '../lib/util';
+import { getDefaultWorld } from '../lib/util';
 
 describe('haibun', () => {
   it('finds prose', async () => {
