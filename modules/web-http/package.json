@@ -1,27 +1,25 @@
 {
-  "name": "@haibun/parse-md",
+  "name": "@haibun/web-http",
   "version": "0.1.1",
   "description": "",
+  "main": "build/web-http.js",
   "files": [
-    "build/**"
+    "build/"
   ],
-  "main": "index.js",
   "scripts": {
     "prepublishOnly": "tsc -b .",
-    "test": "echo \"Error: no test specified\" && exit 0"
+    "test": "jest --config jest.config.ts",
+    "test-watch": "jest --config jest.config.ts --watch"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@types/node-fetch": "^2.5.10",
-    "node-fetch": "^2.6.1",
-    "turndown": "^7.1.1"
+    "got": "^11.8.2"
   },
   "devDependencies": {
     "@types/jest": "^26.0.19",
     "@types/node": "^15.0.1",
-    "@types/turndown": "^5.0.0",
     "@typescript-eslint/eslint-plugin": "^4.13.0",
     "@typescript-eslint/parser": "^4.13.0",
     "eslint": "^7.2.0",

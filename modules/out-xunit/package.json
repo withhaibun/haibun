@@ -1,7 +1,10 @@
 {
   "name": "@haibun/out-xunit",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "",
+  "files": [
+    "build/**"
+  ],
   "main": "build/out-xunit.js",
   "scripts": {
     "prepublishOnly": "tsc -b .",

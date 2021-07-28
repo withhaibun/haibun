@@ -3,8 +3,9 @@
     "references": [
         { "path": "core" },
         { "path": "client-playwright" },
-        { "path": "server" },
+        { "path": "web-server-express" },
         { "path": "web-playwright" },
+        { "path": "web-http" },
         { "path": "parse-md" },
         { "path": "out-xunit" }
     ]

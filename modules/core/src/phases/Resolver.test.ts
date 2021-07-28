@@ -1,5 +1,5 @@
-import { IStepper, OK, TResolvedFeature } from './defs';
-import { getDefaultWorld } from './util';
+import { IStepper, OK, TResolvedFeature } from '../lib/defs';
+import { getDefaultWorld } from '../lib/util';
 import { Resolver } from './Resolver';
 
 

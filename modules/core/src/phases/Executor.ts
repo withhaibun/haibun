@@ -1,6 +1,6 @@
-import { IStepper, TVStep, TResolvedFeature, TResult, TStepResult, TFeatureResult, TActionResult, TWorld } from './defs';
-import { getNamedWithVars } from './namedVars';
-import { actionNotOK, sleep } from './util';
+import { IStepper, TVStep, TResolvedFeature, TResult, TStepResult, TFeatureResult, TActionResult, TWorld } from '../lib/defs';
+import { getNamedWithVars } from '../lib/namedVars';
+import { actionNotOK, sleep } from '../lib/util';
 
 export class Executor {
   steppers: IStepper[];
@@ -44,14 +44,14 @@ export class Executor {
     return featureResult;
   }
   static async doFeatureStep(vstep: TVStep, world: TWorld): Promise<TStepResult> {
+    
     let ok = true;
     let actionResults = [];
-    
+
     for (const a of vstep.actions) {
       let res: TActionResult;
       try {
         const namedWithVars = getNamedWithVars(a, world.shared);
-
         res = await a.step.action(namedWithVars, vstep);
       } catch (caught: any) {
         world.logger.error(caught.stack);

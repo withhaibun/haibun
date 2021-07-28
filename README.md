@@ -2,11 +2,18 @@
 
 # haibun
 
+Haibun is inspired by the literary form that combines descriptive and objective prose with haiku.
 
+This package is intended to enable specification driven development, with end to end tests. 
+This type of development is often tedious to develop, 
+brittle to changing underlying implementations,
+difficult to maintain, 
+and isolated from general specifications.
+While @Haibun may not make this development fun, 
+it is intended to make it easier to maintain, 
+with an emphasis on reuse for different deployment environments,
+and the ability to link to formal specfications.
 
-The design goal of haibun is re-usable, flexible, and easy to maintain natural language (BDD inspired) specification proofs,
-that can be used with a minimum of configuration and low level code 
-in a variety of settings.
 
 # Feature structure
 
@@ -31,9 +38,8 @@ Note that features/ (unlike backgrounds) will not include folder predecessors.
 
 # Packages
 
-haibun is composed of several packages that can be configured at runtime via the cli package. 
+haibun is composed of a number of packages, each with minimum dependencies, which can be configured at runtime via the cli package. 
 See the [modules](modules) directory.
-
 
 # Development
 

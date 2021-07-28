@@ -20,7 +20,11 @@ async function go() {
   const base = process.argv[2].replace(/\/$/, '');
   const specl = getOptionsOrDefault(base);
 
-  const { splits, protoOptions } = processEnv(process.env, specl.options);
+  const { splits, protoOptions, errors } = processEnv(process.env, specl.options);
+  
+  if (errors.length > 0) {
+    usageThenExit(errors.join('\n'));
+  }
   const logger = new Logger({ level: process.env.HAIBUN_LOG_LEVEL || 'log' });
 
   const instances = splits.map(async (split: TShared) => {
@@ -75,12 +79,12 @@ async function doRun(base: string, specl: TSpecl, runtime: {}, featureFilter: st
   return { result, shared, output };
 }
 
-function usageThenExit() {
+function usageThenExit(message?: string) {
   console.info(
     [
       '',
       `usage: ${process.argv[1]} <project base>`,
-      '',
+      message || '',
       'Set these environmental variables to control options:\n',
       ...Object.entries(ENV_VARS).map(([k, v]) => `${k.padEnd(25)} ${v}`),
       '',
