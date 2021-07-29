@@ -113,7 +113,7 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
       gwta: 'URI should match {what}',
       action: async ({ what }: { what: string }) => {
         const uri = await this.withPage(async (page: Page) => await page.url());
-        return uri === what ? OK : actionNotOK(`current URI ${uri} does not match ${what}`);
+        return uri.match(what) ? OK : actionNotOK(`current URI ${uri} does not match ${what}`);
       },
     },
 
