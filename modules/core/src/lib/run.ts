@@ -21,7 +21,7 @@ export async function run({
   protoOptions?: TProtoOptions;
 }): Promise<{ result: TResult; steppers?: IStepper[] }> {
   const features = await recurse(`${base}/features`, [/\.feature$/, featureFilter]);
-  const backgrounds = existsSync(`${base}/backgrounds`) ? await recurse(`${base}/backgrounds`, [/\.feature$/]) : [];
+  const backgrounds = existsSync(`${base}/backgrounds`) ? await recurse(`${base}/backgrounds`, [/\.*$/]) : [];
 
   const steppers: IStepper[] = await getSteppers({ steppers: specl.steppers, addSteppers, world });
   try {
@@ -35,7 +35,7 @@ export async function run({
   try {
     expandedFeatures = await expand(backgrounds, features);
   } catch (error: any) {
-    return { result: { ok: false, failure: { stage: 'Expand', error: error.message } } };
+    return { result: { ok: false, failure: { stage: 'Expand', error: { details: error.message, context: error } } } };
   }
 
   let mappedValidatedSteps;
