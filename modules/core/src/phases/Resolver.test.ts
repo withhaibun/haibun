@@ -32,7 +32,10 @@ describe('validate map steps', () => {
     };
   }
 
-  const backgrounds: TFeatures = [{ path: 'r1/available.mytype', feature: 'typevalue' }];
+  const backgrounds: TFeatures = [
+    { path: 'r1/available.mytype', feature: 'typevalue' },
+    { path: 'r1/something.mytype', feature: 'typevalue2' },
+  ];
   const steppers: IStepper[] = [new TestStepper()];
   const resolver = new Resolver(steppers, '', {
     ...getDefaultWorld().world,
@@ -67,34 +70,37 @@ describe('validate map steps', () => {
     });
   });
   describe('gwta interpolated', () => {
-    describe('gwta comp', () => {
-      test('gets quoted', async () => {
-        const features = [{ path: 'l1', feature: 'is "string"' }];
-        const res = await resolver.resolveSteps(features);
-        const { vsteps } = res[0] as TResolvedFeature;
-        expect(vsteps[0].actions[0].named?.q_0).toEqual('string');
-      });
-      test('gets uri', async () => {
-        const features = [{ path: 'l1', feature: 'is http://url' }];
-        const res = await resolver.resolveSteps(features);
-        const { vsteps } = res[0] as TResolvedFeature;
-        expect(vsteps[0].actions[0].named?.t_0).toEqual('http://url');
-      });
+    test('gets quoted', async () => {
+      const features = [{ path: 'l1', feature: 'is "string"' }];
+      const res = await resolver.resolveSteps(features);
+      const { vsteps } = res[0] as TResolvedFeature;
+      expect(vsteps[0].actions[0].named?.q_0).toEqual('string');
+    });
+    test('gets uri', async () => {
+      const features = [{ path: 'l1', feature: 'is http://url' }];
+      const res = await resolver.resolveSteps(features);
+      const { vsteps } = res[0] as TResolvedFeature;
+      expect(vsteps[0].actions[0].named?.t_0).toEqual('http://url');
     });
   });
   describe('gwta interpolated with domain types', () => {
-    describe('gwta comp with domain types', () => {
-      test('throws for missing', async () => {
-        const features = [{ path: 'l1', feature: 'for missing' }];
-        expect(async () => await resolver.resolveSteps(features)).rejects.toThrowError();
-      });
+    test('throws for missing', async () => {
+      const features = [{ path: 'l1', feature: 'for missing' }];
+      expect(async () => await resolver.resolveSteps(features)).rejects.toThrowError();
     });
-  });
-  describe('gwta comp with domain types', () => {
     test('includes background domain type', async () => {
+      const features = [{ path: 'l1', feature: 'for available' }];
+      const res = await resolver.resolveSteps(features);
+      expect(res.length).toBe(1);
+    });
+    test('includes multiple background domain type', async () => {
       const features = [{ path: 'l1', feature: 'has available something' }];
       const res = await resolver.resolveSteps(features);
       expect(res.length).toBe(1);
+    });
+    test('includes multiple background domain type with missing', async () => {
+      const features = [{ path: 'l1', feature: 'has available missing' }];
+      expect(async () => await resolver.resolveSteps(features)).rejects.toThrowError();
     });
   });
 });
