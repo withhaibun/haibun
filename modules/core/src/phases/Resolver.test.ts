@@ -25,10 +25,14 @@ describe('validate map steps', () => {
         gwta: 'for {what: mytype}',
         action: async () => OK,
       },
+      gwtaDomainTypeMultiple: {
+        gwta: 'has {what: mytype} {also: mytype}',
+        action: async () => OK,
+      },
     };
   }
 
-  const backgrounds: TFeatures = [{ path: 'r1.type', feature: 'typevalue' }];
+  const backgrounds: TFeatures = [{ path: 'r1/available.mytype', feature: 'typevalue' }];
   const steppers: IStepper[] = [new TestStepper()];
   const resolver = new Resolver(steppers, '', {
     ...getDefaultWorld().world,
@@ -84,6 +88,13 @@ describe('validate map steps', () => {
         const features = [{ path: 'l1', feature: 'for missing' }];
         expect(async () => await resolver.resolveSteps(features)).rejects.toThrowError();
       });
+    });
+  });
+  describe('gwta comp with domain types', () => {
+    test('includes background domain type', async () => {
+      const features = [{ path: 'l1', feature: 'has available something' }];
+      const res = await resolver.resolveSteps(features);
+      expect(res.length).toBe(1);
     });
   });
 });
