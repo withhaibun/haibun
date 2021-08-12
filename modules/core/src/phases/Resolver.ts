@@ -52,23 +52,26 @@ export class Resolver {
   checkRequiredType(actions: TFound[]) {
     for (const action of actions) {
       if (action.step.gwta && action.vars) {
-        const domainTypes = action.vars.find((v) => !BASE_TYPES.includes(v.type));
+        const domainTypes = action.vars.filter((v) => !BASE_TYPES.includes(v.type));
         if (domainTypes) {
-          const namedWithVars = getNamedWithVars(action, this.world.shared);
-          const fd = this.world.domains.find((d) => d.name == domainTypes.type);
-          if (fd) {
-            const { fileType, backgrounds } = fd as TModuleDomain & TFileTypeDomain;
-            if (fileType) {
-              const name  = namedWithVars![domainTypes.name];
-              const included = findFeatures(name, backgrounds, fileType);
-              if (included.length < 1) {
-                throw Error(`no ${fileType} inclusion for ${name}`);
-              } else if (included.length > 1) {
-                throw Error(`more than one ${fileType} inclusion for ${name}`);
+          for (const domainType of domainTypes) {
+            const namedWithVars = getNamedWithVars(action, this.world.shared);
+            const fd = this.world.domains.find((d) => d.name == domainType.type);
+            if (fd) {
+              const { fileType, backgrounds } = fd as TModuleDomain & TFileTypeDomain;
+              if (fileType) {
+                const name = namedWithVars![domainType.name];
+                const included = findFeatures(name, backgrounds, fileType);
+
+                if (included.length < 1) {
+                  throw Error(`no ${fileType} inclusion for ${name}`);
+                } else if (included.length > 1) {
+                  throw Error(`more than one ${fileType} inclusion for ${name}`);
+                }
               }
+            } else {
+              throw Error(`no domain definition for ${domainTypes}`);
             }
-          } else {
-            throw Error(`no domain definition for ${domainTypes}`);
           }
         }
       }
