@@ -59,7 +59,7 @@ export class Resolver {
           if (fd) {
             const { fileType, backgrounds } = fd as TModuleDomain & TFileTypeDomain;
             if (fileType) {
-              const { name } = namedWithVars!;
+              const name  = namedWithVars![domainTypes.name];
               const included = findFeatures(name, backgrounds, fileType);
               if (included.length < 1) {
                 throw Error(`no ${fileType} inclusion for ${name}`);
