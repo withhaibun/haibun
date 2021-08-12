@@ -1,6 +1,6 @@
 import { existsSync } from 'fs';
-import { TSpecl, IStepper, IExtensionConstructor, TResult, TFeatures, TWorld, TProtoOptions, TFeature } from './defs';
-import { expandBackgrounds, expandFeatures } from './features';
+import { TSpecl, IStepper, IExtensionConstructor, TResult, TFeatures, TWorld, TProtoOptions, TFeature, IHasDomains, TFileTypeDomain } from './defs';
+import { expandBackgrounds, expandFeatures, findFeatures, findFeaturesOfType } from './features';
 import { Executor } from '../phases/Executor';
 import { Resolver } from '../phases/Resolver';
 import { getSteppers, applyExtraOptions, recurse } from './util';
@@ -20,8 +20,8 @@ export async function run({
   featureFilter?: string;
   protoOptions?: TProtoOptions;
 }): Promise<{ result: TResult; steppers?: IStepper[] }> {
-  const features = await recurse(`${base}/features`, [/\.feature$/, featureFilter]);
-  const backgrounds = existsSync(`${base}/backgrounds`) ? await recurse(`${base}/backgrounds`, [/\.*$/]) : [];
+  const features = await recurse(`${base}/features`, 'feature', featureFilter);
+  let backgrounds: TFeature[] = [];
 
   const steppers: IStepper[] = await getSteppers({ steppers: specl.steppers, addSteppers, world });
   try {
@@ -29,6 +29,23 @@ export async function run({
   } catch (error: any) {
     console.error(error);
     return { result: { ok: false, failure: { stage: 'Options', error: { details: error.message, context: error } } } };
+  }
+
+  if (existsSync(`${base}/backgrounds`)) {
+    backgrounds = await recurse(`${base}/backgrounds`, '');
+    for (const s of steppers.filter((s) => !!(<IHasDomains>s).domains)) {
+      const module = s.constructor.name;
+      const domains = (<IHasDomains>s).domains;
+      if (domains) {
+        for (const d of domains) {
+          if (world.domains.find((w) => w.name === d.name)) {
+            return { result: { ok: false, failure: { stage: 'Options', error: { details: `duplicate domain at ${module}`, context: world.domains } } } };
+          }
+          const ftBackgrounds = (d as TFileTypeDomain).fileType ? findFeaturesOfType(backgrounds, (d as TFileTypeDomain).fileType) : [];
+          world.domains.push({ ...d, module, backgrounds: ftBackgrounds });
+        }
+      }
+    }
   }
 
   let expandedFeatures;

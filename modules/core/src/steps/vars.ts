@@ -1,4 +1,5 @@
 import { IStepper, IExtensionConstructor, OK, TKeyString, TVStep, TWorld } from '../lib/defs';
+import { actionNotOK } from '../lib/util';
 
 const vars: IExtensionConstructor = class Vars implements IStepper {
   world: TWorld;
@@ -21,6 +22,24 @@ const vars: IExtensionConstructor = class Vars implements IStepper {
         return { ...OK, details: didNotOverwrite(what, this.world.shared[what], value) };
       },
     },
+    /*
+    onType: {
+      gwta: 'on the {what} (?<type>[^ ]+)$',
+      action: async({what, type}: TKeyString) => {
+        console.log(what, type);
+        // add an _onType var, store further values in [_onType][what]
+        return actionNotOK('wow');
+      }
+    },
+    forType: {
+      gwta: 'for the {what} (?<type>[^ ]+)$',
+      action: async({what, type}: TKeyString) => {
+        console.log(what, type);
+        // add an _forFor var, use [_onType][what] || [what]
+        return actionNotOK('wow');
+      }
+    },
+    */
     background: {
       match: /^Background: ?(?<background>.+)?$/,
       action: async ({ background }: TKeyString) => {
