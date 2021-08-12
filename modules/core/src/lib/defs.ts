@@ -24,18 +24,43 @@ export interface IHasOptions {
   };
 }
 
+export interface IHasDomains {
+  domains?: TDomain[];
+}
+
 export type TProtoOptions = {
   options: TOptions;
   extraOptions: { [name: string]: string };
 };
+
+interface TFromDomain {
+  name: string;
+  from: string;
+  is: string;
+}
+
+export interface TFileTypeDomain {
+  name: string;
+  fileType: string;
+  is: string;
+}
+// FIXME use | types
+export type TDomain = TFromDomain | TFileTypeDomain;
+export type TModuleDomain = TDomain &  { 
+  backgrounds: TFeatures; 
+  module: string 
+};
+
 
 export type TWorld = {
   shared: TShared;
   runtime: TRuntime;
   logger: TLogger;
   options: TOptions;
+  domains: TModuleDomain[];
 };
 
+// FIXME make generic (content)
 export type TFeature = {
   path: string;
   feature: string;
@@ -50,6 +75,8 @@ export type TResolvedFeature = {
 };
 
 export type TAction = (arg: any, vstep: TVStep) => Promise<TActionResult>;
+export type TRequiresResult = { includes?: string[] };
+
 export type TStep = {
   match?: RegExp;
   gwta?: string;
@@ -160,3 +187,7 @@ export interface TOutput {
 export type TKeyString = { [name: string]: string };
 
 export const HAIBUN = 'HAIBUN';
+
+export const BASE_DOMAINS = [{ name: 'string', resolve: (inp: string) => inp }];
+
+export const BASE_TYPES = BASE_DOMAINS.map((b) => b.name);

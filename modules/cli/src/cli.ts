@@ -21,7 +21,7 @@ async function go() {
   const specl = getOptionsOrDefault(base);
 
   const { splits, protoOptions, errors } = processEnv(process.env, specl.options);
-  
+
   if (errors.length > 0) {
     usageThenExit(errors.join('\n'));
   }
@@ -72,7 +72,7 @@ async function doRun(base: string, specl: TSpecl, runtime: {}, featureFilter: st
   if (protoOptions.options.cli) {
     repl.start().context.runtime = runtime;
   }
-  const world: TWorld = { ...protoOptions, shared, logger, runtime };
+  const world: TWorld = { ...protoOptions, shared, logger, runtime, domains: [] };
 
   const { result } = await run({ specl, base, world, featureFilter, protoOptions });
   const output = await resultOutput(process.env.HAIBUN_OUTPUT, result, shared);

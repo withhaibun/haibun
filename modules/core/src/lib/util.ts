@@ -89,17 +89,15 @@ function getModuleLocation(name: string) {
   return name;
 }
 
-type TFilters = (string | RegExp)[];
-
-export async function recurse(dir: string, filters: TFilters): Promise<TFeature[]> {
+export async function recurse(dir: string, type: string, filter: RegExp | string | undefined = undefined): Promise<TFeature[]> {
   const files = readdirSync(dir);
   let all: TFeature[] = [];
   for (const file of files) {
     const here = `${dir}/${file}`;
     if (statSync(here).isDirectory()) {
-      all = all.concat(await recurse(here, filters));
-    } else if (filters.every((filter) => file.match(filter))) {
-      all.push({ path: here.replace(filters[0], ''), feature: readFileSync(here, 'utf-8') });
+      all = all.concat(await recurse(here, type, filter));
+    } else if ((!type || file.endsWith(`.${type}`)) && (!filter || file.match(filter))) {
+      all.push({ path: here, feature: readFileSync(here, 'utf-8') });
     }
   }
   return all;
@@ -158,6 +156,7 @@ export function getDefaultWorld(): { world: TWorld } {
       logger: new Logger(process.env.HAIBUN_LOG_LEVEL ? { level: process.env.HAIBUN_LOG_LEVEL } : LOGGER_NONE),
       runtime: {},
       options: {},
+      domains: [],
     },
   };
 }
