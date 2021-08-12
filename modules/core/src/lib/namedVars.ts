@@ -1,4 +1,4 @@
-import { TStep, TNamedVar, TFound, TNamed, TShared } from './defs';
+import { TStep, TNamedVar, TFound, TNamed, TShared, BASE_TYPES } from './defs';
 
 export const matchGroups = (num: number = 0) => {
   const q = `"(?<q_${num}>.+)"`; // quoted string
@@ -8,7 +8,7 @@ export const matchGroups = (num: number = 0) => {
   return `(${q}|${c}|${b}|${t})`;
 };
 
-export const namedInterpolation = (inp: string): { str: string; vars?: TNamedVar[] } => {
+export const namedInterpolation = (inp: string, types: string[] = BASE_TYPES): { str: string; vars?: TNamedVar[] } => {
   if (!inp.includes('{')) {
     return { str: inp };
   }
@@ -26,7 +26,7 @@ export const namedInterpolation = (inp: string): { str: string; vars?: TNamedVar
     if (be < 0) {
       throw Error(`missing end bracket in ${inp}`);
     }
-    vars.push(pairToVar(inp.substring(bs + 1, be)));
+    vars.push(pairToVar(inp.substring(bs + 1, be), types));
     bs = inp.indexOf('{', be);
     last = be + 1;
     str += matchGroups(matches++);
@@ -35,19 +35,19 @@ export const namedInterpolation = (inp: string): { str: string; vars?: TNamedVar
   return { vars, str };
 };
 
-export function getNamedMatches(regexp: RegExp, what: string) {
-  const named = regexp.exec(what);
-  return named?.groups;
-}
-
-function pairToVar(pair: string): TNamedVar {
+function pairToVar(pair: string, types: string[]): TNamedVar {
   let [k, v] = pair.split(':').map((i) => i.trim());
   if (!v) v = 'string';
-  if (!['string'].includes(v)) {
+  if (!types.includes(v)) {
     throw Error(`unknown type ${v}`);
   }
 
   return { name: k, type: v };
+}
+
+export function getNamedMatches(regexp: RegExp, what: string) {
+  const named = regexp.exec(what);
+  return named?.groups;
 }
 
 export const getMatch = (actionable: string, r: RegExp, name: string, step: TStep, vars?: TNamedVar[]) => {

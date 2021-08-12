@@ -1,17 +1,15 @@
 import { Page } from 'playwright';
 
-import { IHasOptions, IStepper, IExtensionConstructor, OK, TResult, TWorld } from '@haibun/core/build/lib/defs';
+import { IHasOptions, IStepper, IExtensionConstructor, OK, TWorld, IHasDomains } from '@haibun/core/build/lib/defs';
 import { BrowserFactory } from './BrowserFactory';
 import { actionNotOK, ensureDirectory } from '@haibun/core/build/lib/util';
 declare var window: any;
 
-type TStepWithPage = {
-  gwta: string;
-  action?: any;
-  withPage?: (page: Page, vars: any) => Promise<TResult>;
-};
-
-const WebPlaywright: IExtensionConstructor = class WebPlaywright implements IStepper, IHasOptions {
+const WebPlaywright: IExtensionConstructor = class WebPlaywright implements IStepper, IHasOptions, IHasDomains {
+  domains = [
+    { name: 'page', fileType: 'page', is: 'string' },
+    { name: 'control', from: 'page', is: 'string' },
+  ];
   options = {
     STEP_CAPTURE: {
       desc: 'capture screenshot for every step',
@@ -54,14 +52,14 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
   steps = {
     //                                      INPUT
     inputVariable: {
-      gwta: 'input {what} for {field}',
+      gwta: 'input {what} for {field: control}',
       action: async ({ what, field }: { what: string; field: string }) => {
         await this.withPage(async (page: Page) => await page.fill(field, what));
         return OK;
       },
     },
     selectionOption: {
-      gwta: 'select {option} for {field}',
+      gwta: 'select {option} for {field: control}',
       action: async ({ option, field }: { option: string; field: string }) => {
         const res = await this.withPage(async (page: Page) => await page.selectOption(field, { label: option }));
         // FIXME have to use id value
@@ -172,7 +170,7 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
 
     //                          NAVIGATION
     openPage: {
-      gwta: 'open the {name} page',
+      gwta: 'open the {name: page} page',
       action: async ({ name }: { name: string }) => {
         const response = await this.withPage(async (page: Page) => await page.goto(name));
         return response?.ok ? OK : actionNotOK(`response not ok`);

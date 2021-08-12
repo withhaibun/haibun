@@ -11,12 +11,12 @@ export function getSteps(value: string) {
 // Expand backgrounds by prepending 'upper' features to 'lower' features
 export async function expandBackgrounds(features: TFeatures, before = '') {
   const expanded: TFeatures = [];
-  for (const { path, feature } of features) {
+  for (const { path, feature: feature } of features) {
     let res = feature;
     let r = findUpper(path, features);
     while (r.upper.length > 0 && r.rem !== '/') {
       r = findUpper(r.rem, features);
-      
+
       for (const s of r.upper) {
         res = s.feature + '\n' + res;
       }
@@ -37,7 +37,7 @@ export function findUpper(path: string, features: TFeatures) {
 
     return p === rem;
   });
-  
+
   return { rem, upper };
 }
 
@@ -72,8 +72,8 @@ function doIncludes(input: string, backgrounds: TFeatures) {
   let ret = '';
   for (const l of includes) {
     const toFind = l.trim();
-    const bg = findFeature(toFind, backgrounds);
-    if (bg.length !== 1 ) {
+    const bg = findFeatures(toFind, backgrounds);
+    if (bg.length !== 1) {
       throw Error(`can't find single "${toFind}" from ${backgrounds.map((b) => b.path).join(', ')}`);
     }
     ret += `\n${bg[0].feature.trim()}\n`;
@@ -81,6 +81,11 @@ function doIncludes(input: string, backgrounds: TFeatures) {
   return ret;
 }
 
-export function findFeature(name: string, features: TFeatures): TFeatures {
-  return features.filter(f => f.path.endsWith(`/${name}`))
+export function findFeatures(name: string, backgrounds: TFeatures, type: string = 'feature'): TFeatures {
+  const ftype = findFeaturesOfType(backgrounds, type);
+  return ftype.filter((f) => f.path.endsWith(`/${name}.${type}`));
+}
+
+export function findFeaturesOfType(backgrounds: TFeatures, type: string = 'feature'): TFeatures {
+  return backgrounds.filter((f) => f.path.endsWith(`.${type}`));
 }
