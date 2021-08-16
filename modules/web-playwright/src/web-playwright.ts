@@ -1,14 +1,18 @@
 import { Page } from 'playwright';
 
-import { IHasOptions, IStepper, IExtensionConstructor, OK, TWorld, IHasDomains } from '@haibun/core/build/lib/defs';
+import { IHasOptions, IStepper, IExtensionConstructor, OK, TWorld, IHasDomains, TKeyString, TWorkspace, TNamed, TVStep } from '@haibun/core/build/lib/defs';
 import { BrowserFactory } from './BrowserFactory';
-import { actionNotOK, ensureDirectory } from '@haibun/core/build/lib/util';
+import { actionNotOK, ensureDirectory, getFromRuntime } from '@haibun/core/build/lib/util';
+import { WebPageBuilder } from './WebPageBuilder';
 declare var window: any;
+
+const webPage = 'webpage';
+const webControl = 'webcontrol';
 
 const WebPlaywright: IExtensionConstructor = class WebPlaywright implements IStepper, IHasOptions, IHasDomains {
   domains = [
-    { name: 'page', fileType: 'page', is: 'string' },
-    { name: 'control', from: 'page', is: 'string' },
+    { name: webPage, fileType: webPage, is: 'string', validate: this.validatePage },
+    { name: webControl, from: webPage, is: 'string' },
   ];
   options = {
     STEP_CAPTURE: {
@@ -22,6 +26,9 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
   constructor(world: TWorld) {
     this.world = world;
     this.bf = new BrowserFactory(world.logger);
+  }
+  validatePage(content: string) {
+    return undefined;
   }
 
   async getPage() {
@@ -52,14 +59,14 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
   steps = {
     //                                      INPUT
     inputVariable: {
-      gwta: 'input {what} for {field: control}',
+      gwta: `input {what} for {field: ${webControl}}`,
       action: async ({ what, field }: { what: string; field: string }) => {
         await this.withPage(async (page: Page) => await page.fill(field, what));
         return OK;
       },
     },
     selectionOption: {
-      gwta: 'select {option} for {field: control}',
+      gwta: `select {option} for {field: ${webControl}}`,
       action: async ({ option, field }: { option: string; field: string }) => {
         const res = await this.withPage(async (page: Page) => await page.selectOption(field, { label: option }));
         // FIXME have to use id value
@@ -84,7 +91,7 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
     },
 
     beOnPage: {
-      gwta: 'should be on the {name} page',
+      gwta: `should be on the {name: ${webPage}} page`,
       action: async ({ name }: { name: string }) => {
         const nowon = await this.withPage(async (page: Page) => await page.url());
         if (nowon === name) {
@@ -170,8 +177,9 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
 
     //                          NAVIGATION
     openPage: {
-      gwta: 'open the {name: page} page',
+      gwta: `open the {name: ${webPage}} page`,
       action: async ({ name }: { name: string }) => {
+        // TODO: assign a shared variable for the current page name, and another with loaded page values. controls are from: page, and will retrieve values from there
         const response = await this.withPage(async (page: Page) => await page.goto(name));
         return response?.ok ? OK : actionNotOK(`response not ok`);
       },
@@ -238,6 +246,46 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
         return OK;
       },
     },
+
+    /// generator
+    webpage: {
+      gwta: `A ${webPage} {name} hosted at {location}`,
+      action: async ({ name, location }: TKeyString) => {
+        const webserver = getFromRuntime(this.world.runtime, 'webserver');
+        return OK;
+      },
+      /*
+      build: async (vars: TNamed, vstep: TVStep, workspace: TWorkspace) => {
+        const {location} = vars;
+        const {path} = vstep;
+        if (location !== location.replace(/[^a-zA-Z-0-9]/g, '')) {
+          throw Error(`${webPage} location ${location} has illegal characters`);
+        }
+        workspace.builder = new WebPageBuilder(path, this.world.logger, location);
+        return { ...OK, finalize: this.finalize };
+      },
+      */
+    },
+    webcontrol: {
+      gwta: `A ${webControl} {name}`,
+      action: async ({ name }: { name: string }) => {
+        return OK;
+      },
+      /*
+      build: async (path: string, vars: TNamed, workspace: TWorkspace) => {
+        workspace.builder.addControl(vars.name);
+        return { ...OK };
+      },
+      */
+    },
+  };
+  finalize = (workspace: TWorkspace) => {
+    if (workspace.finalized) {
+      return;
+    }
+    workspace.finalized = true;
+    const shared = workspace.builder.finalize();
+    this.world.domains.find((d) => d.name === webPage)!.shared = shared;
   };
 };
 export default WebPlaywright;
