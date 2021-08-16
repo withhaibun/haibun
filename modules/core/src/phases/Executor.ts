@@ -51,10 +51,6 @@ export class Executor {
       let res: TActionResult;
       try {
         const namedWithVars = getNamedToVars(a, world);
-        // not clear why this would happen but TS asked for it
-        if (!namedWithVars) {
-          console.warn(`no namedWithVars`);
-        }
         res = await a.step.action(namedWithVars, vstep);
       } catch (caught: any) {
         world.logger.error(caught.stack);

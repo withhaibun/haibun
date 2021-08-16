@@ -1,4 +1,4 @@
-import { IStepper, IExtensionConstructor, OK, TKeyString, TVStep, TWorld, TShared } from '../lib/defs';
+import { IStepper, IExtensionConstructor, OK, TNamed, TVStep, TWorld, TShared } from '../lib/defs';
 
 const vars: IExtensionConstructor = class Vars implements IStepper {
   world: TWorld;
@@ -6,7 +6,7 @@ const vars: IExtensionConstructor = class Vars implements IStepper {
     this.world = world;
   }
 
-  async set({ what, value }: TKeyString, vstep: TVStep) {
+  async set({ what, value }: TNamed, vstep: TVStep) {
     // FIXME hokey
     const missingOnly = vstep.in.match(/ set missing /);
     
@@ -16,7 +16,7 @@ const vars: IExtensionConstructor = class Vars implements IStepper {
     }
     return { ...OK, details: didNotOverwrite(what, this.world.shared[what], value) };
   }
-  async type({ what, type }: TKeyString) {
+  async type({ what, type }: TNamed) {
     this.world.shared[`_${type}`] = what;
     console.log('ww', what, this.world.shared);
 
@@ -36,28 +36,28 @@ const vars: IExtensionConstructor = class Vars implements IStepper {
     },
     background: {
       match: /^Background: ?(?<background>.+)?$/,
-      action: async ({ background }: TKeyString) => {
+      action: async ({ background }: TNamed) => {
         this.world.shared.background = background;
         return OK;
       },
     },
     feature: {
       match: /^Feature: ?(?<feature>.+)?$/,
-      action: async ({ feature }: TKeyString) => {
+      action: async ({ feature }: TNamed) => {
         this.world.shared.feature = feature;
         return OK;
       },
     },
     scenario: {
       match: /^Scenario: (?<scenario>.+)$/,
-      action: async ({ scenario }: TKeyString) => {
+      action: async ({ scenario }: TNamed) => {
         this.world.shared.scenario = scenario;
         return OK;
       },
     },
     display: {
       gwta: 'display (?<what>.+)',
-      action: async ({ what }: TKeyString) => {
+      action: async ({ what }: TNamed) => {
         this.world.logger.log(`${what} is ${this.world.shared[what]}`);
 
         return OK;

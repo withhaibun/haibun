@@ -62,7 +62,7 @@ export class Resolver {
             const namedWithVars = getNamedToVars(action, this.world);
             name = namedWithVars![domainType.name];
             } catch (e) {
-              console.log('for ', action, e);
+              console.error('for ', action, e);
               throw(e);
               
 
@@ -71,8 +71,6 @@ export class Resolver {
             if (fd) {
               const { fileType, backgrounds, validate } = fd as TModuleDomain & TFileTypeDomain;
               if (fileType) {
-                console.log('ft', domainType);
-                
                 const included = findFeatures(name, backgrounds, fileType);
 
                 if (included.length < 1) {
