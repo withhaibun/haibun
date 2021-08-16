@@ -1,9 +1,13 @@
-import { IStepper, IExtensionConstructor, IHasOptions, TWorld, TVStep, TProtoOptions } from './defs';
+import { IStepper, IExtensionConstructor, IHasOptions, TWorld, TVStep, TProtoOptions, TWorkspace } from './defs';
 import { Resolver } from '../phases/Resolver';
 import { run } from './run';
 import { actionNotOK, actionOK, getOptionsOrDefault, getStepperOption, getSteppers } from './util';
 
 export const TestSteps: IExtensionConstructor = class TestSteps implements IStepper {
+  world: TWorld;
+  constructor(world: TWorld) {
+    this.world = world;
+  }
   steps = {
     test: {
       exact: 'When I have a test',
@@ -27,6 +31,18 @@ export const TestSteps: IExtensionConstructor = class TestSteps implements IStep
       gwta: 'throw an exception',
       action: async () => {
         throw Error(`<Thrown for test case>`);
+      },
+    },
+    buildsWithFinalizer: {
+      gwta: 'builds with finalizer',
+      action: async () => actionOK(),
+      build: async (path: string, workspace: TWorkspace) => {
+        return {
+          ...actionOK(),
+          finalize: (workspace: TWorkspace) => {
+            this.world.shared.done = 'ok';
+          },
+        };
       },
     },
   };
@@ -62,6 +78,7 @@ export async function getTestEnv(useSteppers: string[], test: string, world: TWo
   const actions = resolver.findSteps(test);
 
   const vstep: TVStep = {
+    path: 'test',
     in: test,
     seq: 0,
     actions,

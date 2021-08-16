@@ -1,8 +1,9 @@
 import { existsSync } from 'fs';
 import { TSpecl, IStepper, IExtensionConstructor, TResult, TFeatures, TWorld, TProtoOptions, TFeature, IHasDomains, TFileTypeDomain } from './defs';
-import { expandBackgrounds, expandFeatures, findFeatures, findFeaturesOfType } from './features';
+import { expandBackgrounds, expandFeatures, findFeaturesOfType } from './features';
 import { Executor } from '../phases/Executor';
 import { Resolver } from '../phases/Resolver';
+import Builder from '../phases/Builder';
 import { getSteppers, applyExtraOptions, recurse } from './util';
 
 export async function run({
@@ -27,21 +28,22 @@ export async function run({
   try {
     applyExtraOptions(protoOptions, steppers, world);
   } catch (error: any) {
-    console.error(error);
     return { result: { ok: false, failure: { stage: 'Options', error: { details: error.message, context: error } } } };
   }
 
   if (existsSync(`${base}/backgrounds`)) {
     backgrounds = await recurse(`${base}/backgrounds`, '');
+
     for (const s of steppers.filter((s) => !!(<IHasDomains>s).domains)) {
       const module = s.constructor.name;
       const domains = (<IHasDomains>s).domains;
       if (domains) {
         for (const d of domains) {
           if (world.domains.find((w) => w.name === d.name)) {
-            return { result: { ok: false, failure: { stage: 'Options', error: { details: `duplicate domain at ${module}`, context: world.domains } } } };
+            return { result: { ok: false, failure: { stage: 'Options', error: { details: `duplicate domain ${d.name} at ${module}`, context: world.domains } } } };
           }
-          const ftBackgrounds = (d as TFileTypeDomain).fileType ? findFeaturesOfType(backgrounds, (d as TFileTypeDomain).fileType) : [];
+          const { fileType } = <TFileTypeDomain>d;
+          const ftBackgrounds = fileType ? findFeaturesOfType(backgrounds, fileType) : [];
           world.domains.push({ ...d, module, backgrounds: ftBackgrounds });
         }
       }
@@ -62,6 +64,14 @@ export async function run({
   } catch (error: any) {
     return { result: { ok: false, failure: { stage: 'Resolve', error: { details: error.message, context: { stack: error.stack, steppers, mappedValidatedSteps } } } } };
   }
+
+  const builder = new Builder(world);
+  try {
+    const res = await builder.build(mappedValidatedSteps);
+  } catch (error: any) {
+    return { result: { ok: false, failure: { stage: 'Build', error: { details: error.message, context: { stack: error.stack, steppers, mappedValidatedSteps } } } } };
+  }
+
   world.logger.log(`features: ${expandedFeatures.length} backgrounds: ${backgrounds.length} steps: (${expandedFeatures.map((e) => e.path)}), ${mappedValidatedSteps.length}`);
 
   const executor = new Executor(steppers, world);

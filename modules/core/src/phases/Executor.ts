@@ -1,5 +1,5 @@
 import { IStepper, TVStep, TResolvedFeature, TResult, TStepResult, TFeatureResult, TActionResult, TWorld } from '../lib/defs';
-import { getNamedWithVars } from '../lib/namedVars';
+import { getNamedToVars } from '../lib/namedVars';
 import { actionNotOK, sleep } from '../lib/util';
 
 export class Executor {
@@ -44,14 +44,17 @@ export class Executor {
     return featureResult;
   }
   static async doFeatureStep(vstep: TVStep, world: TWorld): Promise<TStepResult> {
-    
     let ok = true;
     let actionResults = [];
 
     for (const a of vstep.actions) {
       let res: TActionResult;
       try {
-        const namedWithVars = getNamedWithVars(a, world.shared);
+        const namedWithVars = getNamedToVars(a, world);
+        // not clear why this would happen but TS asked for it
+        if (!namedWithVars) {
+          console.warn(`no namedWithVars`);
+        }
         res = await a.step.action(namedWithVars, vstep);
       } catch (caught: any) {
         world.logger.error(caught.stack);
