@@ -15,8 +15,8 @@ import {
   TWorld,
   TOptions,
   TProtoOptions,
-  HAIBUN,
   TRuntime,
+  HAIBUN,
 } from './defs';
 import Logger, { LOGGER_NONE } from './Logger';
 

@@ -10,8 +10,6 @@ describe('run self-contained', () => {
 
     const { result } = await run({ specl, base, addSteppers: [TestSteps], ...getDefaultWorld() });
 
-    console.log(JSON.stringify(result, null, 2))
-    
     expect(result.ok).toBe(true);
     expect(result.results!.length).toBe(1);
     const t = result.results![0];
