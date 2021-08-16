@@ -1,6 +1,6 @@
 import { IStepper, TFeature, TFound, TResolvedFeature, OK, TWorld, BASE_TYPES, TFileTypeDomain, TModuleDomain } from '../lib/defs';
 import { findFeatures } from '../lib/features';
-import { namedInterpolation, getMatch, getNamedWithVars } from '../lib/namedVars';
+import { namedInterpolation, getMatch, getNamedToVars } from '../lib/namedVars';
 import { getActionable, describeSteppers, isLowerCase } from '../lib/util';
 
 export class Resolver {
@@ -31,7 +31,7 @@ export class Resolver {
       const actions = this.findSteps(actionable);
 
       try {
-        this.checkRequiredType(actions);
+        this.checkRequiredType(feature, featureLine, actions);
       } catch (e) {
         throw e;
       }
@@ -42,41 +42,64 @@ export class Resolver {
         throw Error(`no step found for ${featureLine} from ${describeSteppers(this.steppers)}`);
       }
 
-      return { in: featureLine, seq, actions };
+      return { path: feature.path, in: featureLine, seq, actions };
     });
 
     return { ...feature, vsteps };
   }
 
-  // if there is a filetype for the domain type, get it from the match and make sure it exists
-  checkRequiredType(actions: TFound[]) {
+  // if there is a fileType for the domain type, get it from the match and make sure it is ok
+  checkRequiredType({ path }: { path: string }, featureLine: string, actions: TFound[]) {
     for (const action of actions) {
       if (action.step.gwta && action.vars) {
+        const line = action.step.gwta;
         const domainTypes = action.vars.filter((v) => !BASE_TYPES.includes(v.type));
         if (domainTypes) {
           for (const domainType of domainTypes) {
-            const namedWithVars = getNamedWithVars(action, this.world.shared);
+            const prelude = Resolver.getPrelude(path, line, featureLine);
+            let name;
+            try {
+            const namedWithVars = getNamedToVars(action, this.world);
+            name = namedWithVars![domainType.name];
+            } catch (e) {
+              console.log('for ', action, e);
+              throw(e);
+              
+
+            }
             const fd = this.world.domains.find((d) => d.name == domainType.type);
             if (fd) {
-              const { fileType, backgrounds } = fd as TModuleDomain & TFileTypeDomain;
+              const { fileType, backgrounds, validate } = fd as TModuleDomain & TFileTypeDomain;
               if (fileType) {
-                const name = namedWithVars![domainType.name];
+                console.log('ft', domainType);
+                
                 const included = findFeatures(name, backgrounds, fileType);
 
                 if (included.length < 1) {
-                  throw Error(`no ${fileType} inclusion for ${name}`);
+                  throw Error(Resolver.getNoFileTypeInclusionError(prelude, fileType, name));
                 } else if (included.length > 1) {
-                  throw Error(`more than one ${fileType} inclusion for ${name}`);
+                  throw Error(Resolver.getMoreThanOneInclusionError(prelude, fileType, name));
+                }
+
+                const typeValidationError = validate(included[0].feature);
+                if (typeValidationError) {
+                  throw Error(Resolver.getTypeValidationError(prelude, fileType, name, typeValidationError));
                 }
               }
             } else {
-              throw Error(`no domain definition for ${domainTypes}`);
+              throw Error(`no domain definition for ${domainType}`);
             }
           }
         }
       }
     }
   }
+
+  static getPrelude = (path: string, line: string, featureLine: string) => `In '${path}', step '${featureLine}' using '${line}':`;
+  static getTypeValidationError = (prelude: string, fileType: string, name: string, typeValidationError: string) =>
+    `${prelude} Type '${fileType}' doesn't validate for '${name}': ${typeValidationError}`;
+  static getMoreThanOneInclusionError = (prelude: string, fileType: string, name: string) => `${prelude} more than one '${fileType}' inclusion for '${name}'`;
+  static getNoFileTypeInclusionError = (prelude: string, fileType: string, name: string) => `${prelude} no '${fileType}' inclusion for '${name}'`;
 
   public findSteps(actionable: string): TFound[] {
     if (!actionable.length) {

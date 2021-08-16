@@ -41,16 +41,17 @@ interface TFromDomain {
 
 export interface TFileTypeDomain {
   name: string;
+  validate: (content: string) => undefined | string;
   fileType: string;
   is: string;
 }
 // FIXME use | types
 export type TDomain = TFromDomain | TFileTypeDomain;
-export type TModuleDomain = TDomain &  { 
-  backgrounds: TFeatures; 
-  module: string 
+export type TModuleDomain = TDomain & {
+  backgrounds: TFeatures;
+  module: string;
+  shared?: TShared;
 };
-
 
 export type TWorld = {
   shared: TShared;
@@ -74,14 +75,22 @@ export type TResolvedFeature = {
   vsteps: TVStep[];
 };
 
+// FIXME taction, tbuild shouldn't be using any
 export type TAction = (arg: any, vstep: TVStep) => Promise<TActionResult>;
+export type TBuildResult = TOKActionResult & { finalize?: TFinalize };
+export type TBuild = (arg: any, vstep: TVStep, workspace: TWorkspace) => Promise<TBuildResult>;//(named: TNamed, workspace: TWorkspace) => Promise<TBuildResult>;
+export type TWorkspace = { [name: string]: any };
+
 export type TRequiresResult = { includes?: string[] };
+
+export type TFinalize = (workspace: TWorkspace) => void;
 
 export type TStep = {
   match?: RegExp;
   gwta?: string;
   exact?: string;
   action: TAction;
+  build?: TBuild;
 };
 
 export interface IExtension {
@@ -109,6 +118,7 @@ export type TShared = {
 };
 
 export type TVStep = {
+  path: string;
   in: string;
   seq: number;
   actions: TFound[];
@@ -128,7 +138,7 @@ export type TResult = {
   ok: boolean;
   results?: TFeatureResult[];
   failure?: {
-    stage: 'Options' | 'Expand' | 'Resolve' | 'Execute';
+    stage: 'Options' | 'Expand' | 'Resolve' | 'Build' | 'Execute';
     error: TResultError;
   };
 };

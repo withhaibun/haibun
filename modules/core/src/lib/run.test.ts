@@ -1,3 +1,4 @@
+import { TShared } from './defs';
 import { run } from './run';
 import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, TestSteps, TestStepsWithOptions } from './TestSteps';
 import { getOptionsOrDefault, getDefaultWorld, processEnv } from './util';
@@ -9,6 +10,8 @@ describe('run self-contained', () => {
 
     const { result } = await run({ specl, base, addSteppers: [TestSteps], ...getDefaultWorld() });
 
+    console.log(JSON.stringify(result, null, 2))
+    
     expect(result.ok).toBe(true);
     expect(result.results!.length).toBe(1);
     const t = result.results![0];
@@ -119,19 +122,6 @@ describe('haibun', () => {
   });
 });
 
-describe('haibun', () => {
-  it('mixed prose', async () => {
-    const base = process.cwd() + '/test/projects/haibun/prose';
-    const specl = getOptionsOrDefault(base);
-
-    const { result } = await run({ specl, base, addSteppers: [TestSteps], ...getDefaultWorld() });
-
-    expect(result.ok).toBe(true);
-
-    expect(result.results?.length).toBe(1);
-  });
-});
-
 describe('options', () => {
   it('stepper options', async () => {
     const base = process.cwd() + '/test/projects/haibun/stepper-options';
@@ -143,5 +133,19 @@ describe('options', () => {
     expect(result.ok).toBe(true);
     expect(result.results?.length).toBe(1);
     expect(result.results![0].stepResults[0].actionResults[0].details).toBe('42');
+  });
+});
+
+describe('builds', () => {
+  it('builds with finalizer', async () => {
+    const base = process.cwd() + '/test/projects/haibun/build';
+    const specl = getOptionsOrDefault(base);
+
+    const shared: TShared = {};
+    const { result } = await run({ specl, base, addSteppers: [TestSteps], world: { ...getDefaultWorld().world, shared } });
+
+    expect(result.ok).toBe(true);
+
+    expect(shared.done).toEqual('ok');
   });
 });

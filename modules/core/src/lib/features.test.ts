@@ -56,8 +56,15 @@ describe('find feature', () => {
     expect(res).toEqual([{ path: '/l0/l1.feature', feature: 'l1_feature' }]);
   });
   test('finds multiple', () => {
-    const res = steps.findFeatures('l1', [...features, {path:'/l1/l1.feature', feature: 'l1_l1_feature'}]);
-    expect(res).toEqual([{ path: '/l0/l1.feature', feature: 'l1_feature' }, {path:'/l1/l1.feature', feature: 'l1_l1_feature'}]);
+    const res = steps.findFeatures('l1', [...features, { path: '/l1/l1.feature', feature: 'l1_l1_feature' }]);
+    expect(res).toEqual([
+      { path: '/l0/l1.feature', feature: 'l1_feature' },
+      { path: '/l1/l1.feature', feature: 'l1_l1_feature' },
+    ]);
+  });
+  test('finds fileType', () => {
+    const res = steps.findFeatures('l1', [...features, { path: '/l1/l1.mytype.feature', feature: 'l1_l1_mytype.feature' }], 'mytype');
+    expect(res).toEqual([{ path: '/l1/l1.mytype.feature', feature: 'l1_l1_mytype.feature' }]);
   });
 });
 
@@ -66,16 +73,16 @@ describe('expand features', () => {
     const features = [{ path: '/f1', feature: 'Backgrounds: b1\nextant' }];
     const backgrounds = [{ path: '/b1.feature', feature: 'result' }];
     const res = await steps.expandFeatures(features, backgrounds);
-    
+
     expect(res).toEqual([{ path: '/f1', feature: '\nresult\n\nextant' }]);
   });
   test('applies backgrounds hierarchical', async () => {
     const features = [{ path: '/l1/f1', feature: 'Backgrounds: b2' }];
     const backgrounds = [
-        {path: '/l1/b1.feature',  feature: 'non-result' },
-        {path: '/l2/b2.feature',  feature: 'result' },
+      { path: '/l1/b1.feature', feature: 'non-result' },
+      { path: '/l2/b2.feature', feature: 'result' },
     ];
     const res = await steps.expandFeatures(features, backgrounds);
-    expect(res).toEqual([{ path: '/l1/f1', feature: '\nresult\n' } ]);
+    expect(res).toEqual([{ path: '/l1/f1', feature: '\nresult\n' }]);
   });
 });

@@ -74,7 +74,7 @@ function doIncludes(input: string, backgrounds: TFeatures) {
     const toFind = l.trim();
     const bg = findFeatures(toFind, backgrounds);
     if (bg.length !== 1) {
-      throw Error(`can't find single "${toFind}" from ${backgrounds.map((b) => b.path).join(', ')}`);
+      throw Error(`can't find single "${toFind}.feature" from ${backgrounds.map((b) => b.path).join(', ')}`);
     }
     ret += `\n${bg[0].feature.trim()}\n`;
   }
@@ -83,9 +83,11 @@ function doIncludes(input: string, backgrounds: TFeatures) {
 
 export function findFeatures(name: string, backgrounds: TFeatures, type: string = 'feature'): TFeatures {
   const ftype = findFeaturesOfType(backgrounds, type);
-  return ftype.filter((f) => f.path.endsWith(`/${name}.${type}`));
+  return ftype.filter((f) => f.path.endsWith(`/${name}.${fileTypeToExt(type)}`));
 }
 
 export function findFeaturesOfType(backgrounds: TFeatures, type: string = 'feature'): TFeatures {
-  return backgrounds.filter((f) => f.path.endsWith(`.${type}`));
+  return backgrounds.filter((f) => f.path.endsWith(`.${fileTypeToExt(type)}`));
 }
+
+const fileTypeToExt = (type: string) => (type === 'feature' ? 'feature' : `${type}.feature`);

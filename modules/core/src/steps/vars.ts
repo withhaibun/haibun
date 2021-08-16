@@ -1,5 +1,4 @@
-import { IStepper, IExtensionConstructor, OK, TKeyString, TVStep, TWorld } from '../lib/defs';
-import { actionNotOK } from '../lib/util';
+import { IStepper, IExtensionConstructor, OK, TKeyString, TVStep, TWorld, TShared } from '../lib/defs';
 
 const vars: IExtensionConstructor = class Vars implements IStepper {
   world: TWorld;
@@ -7,39 +6,34 @@ const vars: IExtensionConstructor = class Vars implements IStepper {
     this.world = world;
   }
 
+  async set({ what, value }: TKeyString, vstep: TVStep) {
+    // FIXME hokey
+    const missingOnly = vstep.in.match(/ set missing /);
+    
+    if (missingOnly || this.world.shared[what] === undefined) {
+      this.world.shared[what] = value;
+      return OK;
+    }
+    return { ...OK, details: didNotOverwrite(what, this.world.shared[what], value) };
+  }
+  async type({ what, type }: TKeyString) {
+    this.world.shared[`_${type}`] = what;
+    console.log('ww', what, this.world.shared);
+
+    // add an _onType var, store further values in [_onType][what]
+    return OK;
+  }
   steps = {
     set: {
       gwta: 'set( empty)? {what: string} to {value: string}',
-      section: 'Background',
-      action: async ({ what, value }: TKeyString, vstep: TVStep) => {
-        // FIXME hokey
-        const emptyOnly = !vstep.in.match(/ set missing /);
-        
-        if (!emptyOnly || this.world.shared[what] === undefined) {
-          this.world.shared[what] = value;
-          return OK;
-        }
-        return { ...OK, details: didNotOverwrite(what, this.world.shared[what], value) };
-      },
+      action: this.set.bind(this),
+      build: this.set.bind(this),
     },
-    /*
     onType: {
-      gwta: 'on the {what} (?<type>[^ ]+)$',
-      action: async({what, type}: TKeyString) => {
-        console.log(what, type);
-        // add an _onType var, store further values in [_onType][what]
-        return actionNotOK('wow');
-      }
+      gwta: 'on the {what} {type}$',
+      action: this.type.bind(this),
+      build: this.type.bind(this),
     },
-    forType: {
-      gwta: 'for the {what} (?<type>[^ ]+)$',
-      action: async({what, type}: TKeyString) => {
-        console.log(what, type);
-        // add an _forFor var, use [_onType][what] || [what]
-        return actionNotOK('wow');
-      }
-    },
-    */
     background: {
       match: /^Background: ?(?<background>.+)?$/,
       action: async ({ background }: TKeyString) => {
@@ -73,6 +67,4 @@ const vars: IExtensionConstructor = class Vars implements IStepper {
 };
 export default vars;
 
-export function didNotOverwrite(what: string, present: string, value: string) {
-  `did not overwrite ${what} value of "${present}" with "${value}"`;
-}
+export const didNotOverwrite = (what: string, present: string | TShared, value: string) => `did not overwrite ${what} value of "${present}" with "${value}"`;
