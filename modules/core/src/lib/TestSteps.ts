@@ -1,4 +1,4 @@
-import { IStepper, IExtensionConstructor, IHasOptions, TWorld, TVStep, TProtoOptions, TWorkspace } from './defs';
+import { IStepper, IExtensionConstructor, IHasOptions, TWorld, TVStep, TProtoOptions, TWorkspace, TNamed } from './defs';
 import { Resolver } from '../phases/Resolver';
 import { run } from './run';
 import { actionNotOK, actionOK, getOptionsOrDefault, getStepperOption, getSteppers } from './util';
@@ -23,7 +23,7 @@ export const TestSteps: IExtensionConstructor = class TestSteps implements IStep
     },
     named: {
       match: /^Then the parameter (?<param>.+) is accepted$/,
-      action: async ({ param }: { param: string }) => {
+      action: async ({ param }: TNamed) => {
         return param === 'x' ? actionOK() : actionNotOK('test');
       },
     },
@@ -36,7 +36,7 @@ export const TestSteps: IExtensionConstructor = class TestSteps implements IStep
     buildsWithFinalizer: {
       gwta: 'builds with finalizer',
       action: async () => actionOK(),
-      build: async (path: string, workspace: TWorkspace) => {
+      build: async (a: TNamed, { path }: TVStep, workspace: TWorkspace) => {
         return {
           ...actionOK(),
           finalize: (workspace: TWorkspace) => {

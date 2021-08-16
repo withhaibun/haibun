@@ -6,6 +6,7 @@ describe('haibun', () => {
   it('finds prose', async () => {
     const { world, vstep } = await getTestEnv(['haibun'], 'A sentence.', getDefaultWorld().world);
     const res = await Executor.doFeatureStep(vstep, world);
+    
     expect(res.ok).toBe(true);
     expect(res.actionResults[0].name).toBe('prose');
   });

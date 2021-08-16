@@ -75,10 +75,9 @@ export type TResolvedFeature = {
   vsteps: TVStep[];
 };
 
-// FIXME taction, tbuild shouldn't be using any
-export type TAction = (arg: any, vstep: TVStep) => Promise<TActionResult>;
+export type TAction = (named: TNamed, vstep: TVStep) => Promise<TActionResult>;
 export type TBuildResult = TOKActionResult & { finalize?: TFinalize };
-export type TBuild = (arg: any, vstep: TVStep, workspace: TWorkspace) => Promise<TBuildResult>;//(named: TNamed, workspace: TWorkspace) => Promise<TBuildResult>;
+export type TBuild = (named: TNamed, vstep: TVStep, workspace: TWorkspace) => Promise<TBuildResult>;
 export type TWorkspace = { [name: string]: any };
 
 export type TRequiresResult = { includes?: string[] };
@@ -193,8 +192,6 @@ export type TRuntime = { [name: string]: any };
 export interface TOutput {
   getOutput(result: TResult, args: any): Promise<any>;
 }
-
-export type TKeyString = { [name: string]: string };
 
 export const HAIBUN = 'HAIBUN';
 
