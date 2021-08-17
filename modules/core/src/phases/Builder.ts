@@ -1,4 +1,4 @@
-import { OK, TFinalize, TResolvedFeature, TStep, TWorkspace, TWorld } from '../lib/defs';
+import { OK, TFinalize, TResolvedFeature, TWorkspace, TWorld } from '../lib/defs';
 import { getNamedToVars } from '../lib/namedVars';
 
 export default class Builder {
