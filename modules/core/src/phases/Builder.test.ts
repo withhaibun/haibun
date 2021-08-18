@@ -1,4 +1,5 @@
-import { OK, TFinalize, TWorkspace } from '../lib/defs';
+import { WorkspaceContext } from '../lib/contexts';
+import { OK, TFinalize } from '../lib/defs';
 import { getDefaultWorld } from '../lib/util';
 import Builder from './Builder';
 
@@ -38,9 +39,9 @@ describe('Builder', () => {
     // expect(res).toBe(OK);
   });
   test('finalizes', async () => {
-    const finalize: TFinalize = (workspace: TWorkspace) => (workspace.done = true);
+    const finalize: TFinalize = (workspace: WorkspaceContext) => (workspace.set('done', true));
     const finalizes = async () => ({ ...OK, finalize });
-    const workspace: TWorkspace = {};
+    const workspace: WorkspaceContext = new WorkspaceContext();
     const builder = new Builder(getDefaultWorld().world, workspace);
     // await builder.build([feature(finalizes)]);
     // expect(workspace['passes.feature'].done).toBe(true);

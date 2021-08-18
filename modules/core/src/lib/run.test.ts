@@ -1,4 +1,4 @@
-import { TShared } from './defs';
+import { WorldContext } from './contexts';
 import { run } from './run';
 import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, TestSteps, TestStepsWithOptions } from './TestSteps';
 import { getOptionsOrDefault, getDefaultWorld, processEnv } from './util';
@@ -88,9 +88,9 @@ describe('step vars', () => {
     const { result } = await run({ specl, base, addSteppers: [TestSteps], world });
 
     expect(result.ok).toBe(true);
-    expect(world.shared.var).toBe('1');
-    expect(world.shared['Var 2']).toBe('2');
-    expect(world.shared['Var 3']).toBe('3');
+    expect(world.shared.get('var')).toBe('1');
+    expect(world.shared.get('Var 2')).toBe('2');
+    expect(world.shared.get('Var 3')).toBe('3');
   });
 });
 
@@ -139,11 +139,11 @@ describe('builds', () => {
     const base = process.cwd() + '/test/projects/haibun/build';
     const specl = getOptionsOrDefault(base);
 
-    const shared: TShared = {};
+    const shared: WorldContext = new WorldContext();
     const { result } = await run({ specl, base, addSteppers: [TestSteps], world: { ...getDefaultWorld().world, shared } });
 
     expect(result.ok).toBe(true);
 
-    expect(shared.done).toEqual('ok');
+    expect(shared.get('done')).toEqual('ok');
   });
 });

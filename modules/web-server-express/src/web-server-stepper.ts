@@ -1,4 +1,4 @@
-import { IHasOptions, IStepper, IExtensionConstructor, OK, TWorld, TKeyString, TOptions } from '@haibun/core/build/lib/defs';
+import { IHasOptions, IStepper, IExtensionConstructor, OK, TWorld, TNamed, TOptions } from '@haibun/core/build/lib/defs';
 import { actionNotOK } from '@haibun/core/build/lib/util';
 import { RequestHandler } from 'express';
 import { ServerExpress, DEFAULT_PORT } from './server-express';
@@ -36,7 +36,7 @@ const WebServerStepper: IExtensionConstructor = class WebServerStepper implement
   steps = {
     serveFiles: {
       gwta: 'serve files from {loc}',
-      action: async ({ loc }: TKeyString) => {
+      action: async ({ loc }: TNamed) => {
         await WebServerStepper.checkListener(this.world.options, this.world.runtime[WEBSERVER]);
         const ws: IWebServer = await this.world.runtime[WEBSERVER];
         const error = await ws.addStaticFolder(loc);

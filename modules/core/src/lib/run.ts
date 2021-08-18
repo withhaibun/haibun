@@ -1,10 +1,11 @@
 import { existsSync } from 'fs';
 import { TSpecl, IStepper, IExtensionConstructor, TResult, TFeatures, TWorld, TProtoOptions, TFeature, IHasDomains, TFileTypeDomain } from './defs';
-import { expandBackgrounds, expandFeatures, findFeaturesOfType } from './features';
+import { expand, expandBackgrounds, expandFeatures, findFeaturesOfType } from './features';
 import { Executor } from '../phases/Executor';
 import { Resolver } from '../phases/Resolver';
 import Builder from '../phases/Builder';
 import { getSteppers, applyExtraOptions, recurse } from './util';
+import { DomainContext } from './contexts';
 
 export async function run({
   specl,
@@ -44,7 +45,7 @@ export async function run({
           }
           const { fileType } = <TFileTypeDomain>d;
           const ftBackgrounds = fileType ? findFeaturesOfType(backgrounds, fileType) : [];
-          world.domains.push({ ...d, module, backgrounds: ftBackgrounds });
+          world.domains.push({ ...d, module, backgrounds: ftBackgrounds, shared: new DomainContext() });
         }
       }
     }
@@ -56,6 +57,8 @@ export async function run({
   } catch (error: any) {
     return { result: { ok: false, failure: { stage: 'Expand', error: { details: error.message, context: error } } } };
   }
+
+  console.log(expandedFeatures, backgrounds);
 
   let mappedValidatedSteps;
   try {
@@ -69,6 +72,7 @@ export async function run({
   try {
     const res = await builder.build(mappedValidatedSteps);
   } catch (error: any) {
+    console.error(error);
     return { result: { ok: false, failure: { stage: 'Build', error: { details: error.message, context: { stack: error.stack, steppers, mappedValidatedSteps } } } } };
   }
 
@@ -82,9 +86,3 @@ export async function run({
   return { result, steppers };
 }
 
-async function expand(backgrounds: TFeatures, features: TFeatures): Promise<TFeature[]> {
-  const expandedBackgrounds = await expandBackgrounds(backgrounds);
-
-  const expandedFeatures = await expandFeatures(features, expandedBackgrounds);
-  return expandedFeatures;
-}

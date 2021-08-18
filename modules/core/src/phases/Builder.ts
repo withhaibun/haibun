@@ -1,10 +1,11 @@
-import { OK, TFinalize, TResolvedFeature, TWorkspace, TWorld } from '../lib/defs';
+import { WorkspaceContext } from '../lib/contexts';
+import { OK, TFinalize, TResolvedFeature, TWorld } from '../lib/defs';
 import { getNamedToVars } from '../lib/namedVars';
 
 export default class Builder {
   world: any;
-  workspace: TWorkspace;
-  constructor(world: TWorld, workspace: TWorkspace = {}) {
+  workspace: WorkspaceContext;
+  constructor(world: TWorld, workspace: WorkspaceContext = new WorkspaceContext()) {
     this.world = world;
     this.workspace = workspace;
   }
@@ -14,12 +15,13 @@ export default class Builder {
       for (const vstep of feature.vsteps) {
         for (const action of vstep.actions) {
           if (action.step.build) {
-            if (!this.workspace[feature.path]) {
-              this.workspace[feature.path] = {};
+            if (!this.workspace.get(feature.path)) {
+              
+              this.workspace.createPath(feature.path);
               finalizers[feature.path] = [];
             }
             const namedWithVars = getNamedToVars(action, this.world);
-            const res = await action.step.build(namedWithVars!, vstep, this.workspace[feature.path]);
+            const res = await action.step.build(namedWithVars!, vstep, this.workspace.get(feature.path));
             if (res.finalize) {
               finalizers[feature.path].push(res.finalize);
             }
@@ -29,9 +31,10 @@ export default class Builder {
     }
     for (const key of Object.keys(finalizers)) {
       for (const finalize of finalizers[key]) {
-        finalize(this.workspace[key]);
+        finalize(this.workspace.get(key));
       }
     }
+    
     return OK;
   }
 }
