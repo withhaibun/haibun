@@ -1,3 +1,5 @@
+import { Context, DomainContext, WorkspaceContext, WorldContext } from './contexts';
+
 export type TLogLevel = 'none' | 'debug' | 'log' | 'info' | 'warn' | 'error';
 
 export type TSpecl = {
@@ -48,13 +50,14 @@ export interface TFileTypeDomain {
 // FIXME use | types
 export type TDomain = TFromDomain | TFileTypeDomain;
 export type TModuleDomain = TDomain & {
+  // used to verify features are available for the domain
   backgrounds: TFeatures;
   module: string;
-  shared?: TShared;
+  shared: DomainContext;
 };
 
 export type TWorld = {
-  shared: TShared;
+  shared: WorldContext;
   runtime: TRuntime;
   logger: TLogger;
   options: TOptions;
@@ -64,6 +67,15 @@ export type TWorld = {
 // FIXME make generic (content)
 export type TFeature = {
   path: string;
+  type: string;
+  name: string;
+  feature: string;
+};
+
+export type TFeature1 = {
+  path: string;
+  type: string;
+  name: string;
   feature: string;
 };
 
@@ -77,12 +89,17 @@ export type TResolvedFeature = {
 
 export type TAction = (named: TNamed, vstep: TVStep) => Promise<TActionResult>;
 export type TBuildResult = TOKActionResult & { finalize?: TFinalize };
-export type TBuild = (named: TNamed, vstep: TVStep, workspace: TWorkspace) => Promise<TBuildResult>;
-export type TWorkspace = { [name: string]: any };
+export type TBuild = (named: TNamed, vstep: TVStep, workspace: WorkspaceContext) => Promise<TBuildResult>;
 
 export type TRequiresResult = { includes?: string[] };
 
-export type TFinalize = (workspace: TWorkspace) => void;
+export type TFinalize = (workspace: WorkspaceContext) => void;
+
+export abstract class WorkspaceBuilder {
+  constructor() {};
+  addControl (...args: any) {};
+  finalize () {};
+};
 
 export type TStep = {
   match?: RegExp;
@@ -112,12 +129,8 @@ export interface TLogger {
   error: (what: any) => void;
 }
 
-export type TShared = {
-  [name: string]: string;
-};
-
 export type TVStep = {
-  path: string;
+  feature: TFeature;
   in: string;
   seq: number;
   actions: TFound[];

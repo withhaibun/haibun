@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
 import repl from 'repl';
-import { TLogger, TProtoOptions, TResult, TShared, TSpecl, TWorld } from '@haibun/core/build/lib/defs';
+import { TLogger, TProtoOptions, TResult, TSpecl, TWorld } from '@haibun/core/build/lib/defs';
+import {WorldContext} from '@haibun/core/build/lib/contexts';
 import { ENV_VARS } from '@haibun/core/build/lib/ENV_VARS';
 import Logger from '@haibun/core/build/lib/Logger';
 
@@ -27,15 +28,15 @@ async function go() {
   }
   const logger = new Logger({ level: process.env.HAIBUN_LOG_LEVEL || 'log' });
 
-  const instances = splits.map(async (split: TShared) => {
+  const instances = splits.map(async (split) => {
     const runtime = {};
-    return doRun(base, specl, runtime, featureFilter, split, protoOptions, logger);
+    return doRun(base, specl, runtime, featureFilter, new WorldContext(split), protoOptions, logger);
   });
 
   const values = await Promise.allSettled(instances);
   let ranResults = values
     .filter((i) => i.status === 'fulfilled')
-    .map((i) => <PromiseFulfilledResult<{ output: any; result: TResult; shared: TShared }>>i)
+    .map((i) => <PromiseFulfilledResult<{ output: any; result: TResult; shared: WorldContext }>>i)
     .map((i) => i.value);
   let exceptionResults = values
     .filter((i) => i.status === 'rejected')
@@ -68,7 +69,9 @@ async function go() {
   }
 }
 
-async function doRun(base: string, specl: TSpecl, runtime: {}, featureFilter: string, shared: TShared, protoOptions: TProtoOptions, logger: TLogger) {
+async function doRun(base: string, specl: TSpecl, runtime: {}, featureFilter: string, shared: WorldContext, protoOptions: TProtoOptions, logger: TLogger) {
+  console.log('dr', shared.get('d'));
+  
   if (protoOptions.options.cli) {
     repl.start().context.runtime = runtime;
   }

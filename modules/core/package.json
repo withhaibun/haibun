@@ -38,5 +38,8 @@
     "prepublishOnly": "tsc -b .",
     "preversion": "npm run lint",
     "version": "npm run format && git add -A src"
+  },
+  "dependencies": {
+    "node-notifier": "^10.0.0"
   }
 }

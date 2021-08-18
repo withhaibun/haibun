@@ -5,7 +5,7 @@ import { actionOK, getDefaultWorld, getFromRuntime, getStepper } from '@haibun/c
 import { testRun } from '@haibun/core/build/lib/TestSteps';
 
 import server, { CHECK_LISTENER, ICheckListener, IWebServer, IWebServerStepper, WEBSERVER, WEBSERVER_STEPPER } from './web-server-stepper';
-import { IExtensionConstructor, IStepper, TKeyString, TWorld } from '@haibun/core/build/lib/defs';
+import { IExtensionConstructor, IStepper, TNamed, TWorld } from '@haibun/core/build/lib/defs';
 
 describe('route mount', () => {
   it('mounts a route', async () => {
@@ -17,7 +17,7 @@ describe('route mount', () => {
       steps = {
         addRoute: {
           gwta: 'serve test route to {loc}',
-          action: async ({ loc }: TKeyString) => {
+          action: async ({ loc }: TNamed) => {
             const route = (req: Request, res: Response) => res.status(200).send('ok');
             const webserver: IWebServer = getFromRuntime(this.world.runtime, WEBSERVER);
 

@@ -1,7 +1,7 @@
 import { IStepper, OK, TResolvedFeature, TStep } from './defs';
 import { getNamedMatches, namedInterpolation, matchGroups, getNamedToVars } from './namedVars';
 import { Resolver } from '../phases/Resolver';
-import { actionNotOK, getDefaultWorld } from './util';
+import { actionNotOK, getDefaultWorld, withNameType } from './util';
 
 describe('namedMatches', () => {
   const step: TStep = {
@@ -79,9 +79,9 @@ describe('getNamedWithVars', () => {
   const steppers: IStepper[] = [new TestStepper()];
   const { world } = getDefaultWorld();
   const resolver = new Resolver(steppers, '', world);
-  world.shared.exact = 'res';
+  world.shared.set('exact', 'res');
   test('gets var', async () => {
-    const features = [{ path: 'l1', feature: 'is `exact`' }];
+    const features = [withNameType('l1', 'is `exact`')];
     const res = await resolver.resolveSteps(features);
     const { vsteps } = res[0] as TResolvedFeature;
     expect(vsteps[0].actions[0]).toBeDefined();
