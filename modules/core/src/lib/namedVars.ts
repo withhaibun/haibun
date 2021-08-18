@@ -1,16 +1,17 @@
-import { TStep, TNamedVar, TFound, TNamed, TShared, BASE_TYPES, TModuleDomain } from './defs';
+import { TStep, TNamedVar, TFound, TNamed, BASE_TYPES, TWorld } from './defs';
+import { getStepShared } from './Domain';
 
 const TYPE_QUOTED = 'q_';
 const TYPE_CREDENTIAL = 'c_';
 const TYPE_VAR = 'b_';
 // from source or literal
-const TYPE_VARL = 't_';
+const TYPE_VAR_OR_LITERAL = 't_';
 
 export const matchGroups = (num: number = 0) => {
   const q = `"(?<${TYPE_QUOTED}${num}>.+)"`; // quoted string
   const c = `<(?<${TYPE_CREDENTIAL}${num}>.+)>`; // credential
   const b = `\`(?<${TYPE_VAR}${num}>.+)\``; // var
-  const t = `(?<${TYPE_VARL}${num}>.+)`; // var or literal
+  const t = `(?<${TYPE_VAR_OR_LITERAL}${num}>.+)`; // var or literal
   return `(${q}|${c}|${b}|${t})`;
 };
 
@@ -66,7 +67,7 @@ export const getMatch = (actionable: string, r: RegExp, name: string, step: TSte
 
 // returns named values, assigning variable values as appropriate
 // retrieves from world.shared if a base domain, otherwise world.domains[type].shared
-export function getNamedToVars({ named, vars }: TFound, { shared, domains }: { shared: TShared; domains: TModuleDomain[] }) {
+export function getNamedToVars({ named, vars }: TFound, world: TWorld) {
   if (!named) {
     return { _nb: 'no named' };
   }
@@ -76,24 +77,28 @@ export function getNamedToVars({ named, vars }: TFound, { shared, domains }: { s
   let namedFromVars: TNamed = {};
   vars.forEach((v, i) => {
     const { name, type } = v;
-    const source = shared; // BASE_TYPES.includes(type) ? shared : domains.find((d) => d.name === type)!.shared!;
-    const found = Object.keys(named).find((c) => c.endsWith(`_${i}`) && named[c] !== undefined);
-    if (found) {
-      const namedValue = named[found];
-      if (found.startsWith(TYPE_VARL)) {
-        namedFromVars[name] = source[namedValue] || named[found];
-      } else if (found.startsWith(TYPE_VAR) || found.startsWith('c_')) {
-        // must be from source
-        if (!source[namedValue]) {
-          throw Error(`no value for ${name}`);
-        }
-        namedFromVars[name] = source[namedValue];
-      } else if (found.startsWith(TYPE_QUOTED)) {
-        // quoted
-        namedFromVars[name] = named[found];
-      } else {
-        throw Error(`unknown assignedment ${found}`);
+
+    const source = getStepShared(type, world);
+
+    const namedKey = Object.keys(named).find((c) => c.endsWith(`_${i}`) && named[c] !== undefined);
+
+    if (!namedKey) {
+      throw Error(`no namedKey from ${named} for ${i}`);
+    }
+    const namedValue = named[namedKey];
+    if (namedKey.startsWith(TYPE_VAR_OR_LITERAL)) {
+      namedFromVars[name] = source.get(namedValue) || named[namedKey];
+    } else if (namedKey.startsWith(TYPE_VAR) || namedKey.startsWith(TYPE_CREDENTIAL)) {
+      // must be from source
+      if (!source.get(namedValue)) {
+        throw Error(`no value for ${name} from ${JSON.stringify(source)}`);
       }
+      namedFromVars[name] = source.get(namedValue);
+    } else if (namedKey.startsWith(TYPE_QUOTED)) {
+      // quoted
+      namedFromVars[name] = named[namedKey];
+    } else {
+      throw Error(`unknown assignedment ${namedKey}`);
     }
   });
   return namedFromVars;

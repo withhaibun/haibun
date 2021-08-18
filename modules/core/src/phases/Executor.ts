@@ -1,6 +1,7 @@
 import { IStepper, TVStep, TResolvedFeature, TResult, TStepResult, TFeatureResult, TActionResult, TWorld } from '../lib/defs';
+import { getStepShared } from '../lib/Domain';
 import { getNamedToVars } from '../lib/namedVars';
-import { actionNotOK, sleep } from '../lib/util';
+import { actionNotOK, sleep, withNameType } from '../lib/util';
 
 export class Executor {
   steppers: IStepper[];
@@ -47,6 +48,7 @@ export class Executor {
     let ok = true;
     let actionResults = [];
 
+    // FIXME feature should really be attached ot the vstep
     for (const a of vstep.actions) {
       let res: TActionResult;
       try {

@@ -42,7 +42,7 @@ export class Resolver {
         throw Error(`no step found for ${featureLine} from ${describeSteppers(this.steppers)}`);
       }
 
-      return { path: feature.path, in: featureLine, seq, actions };
+      return { feature, in: featureLine, seq, actions };
     });
 
     return { ...feature, vsteps };
@@ -59,13 +59,11 @@ export class Resolver {
             const prelude = Resolver.getPrelude(path, line, featureLine);
             let name;
             try {
-            const namedWithVars = getNamedToVars(action, this.world);
-            name = namedWithVars![domainType.name];
+              const namedWithVars = getNamedToVars(action, this.world);
+              name = namedWithVars![domainType.name];
             } catch (e) {
               console.error('for ', action, e);
-              throw(e);
-              
-
+              throw Error(`${prelude} ${e}`);
             }
             const fd = this.world.domains.find((d) => d.name == domainType.type);
             if (fd) {
@@ -85,7 +83,7 @@ export class Resolver {
                 }
               }
             } else {
-              throw Error(`no domain definition for ${domainType}`);
+              throw Error(`${prelude} no domain definition for ${domainType}`);
             }
           }
         }

@@ -1,4 +1,5 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync } from 'fs';
+import { WorldContext } from './contexts';
 
 import {
   IStepper,
@@ -10,7 +11,6 @@ import {
   TOptionValue,
   TOutput,
   TResult,
-  TShared,
   TSpecl,
   TWorld,
   TOptions,
@@ -32,7 +32,7 @@ export async function use(module: string) {
   }
 }
 
-export async function resultOutput(type: string | undefined, result: TResult, shared: TShared) {
+export async function resultOutput(type: string | undefined, result: TResult, shared: WorldContext) {
   if (type) {
     const AnOut = await use(type);
     const out: TOutput = new AnOut();
@@ -97,10 +97,17 @@ export async function recurse(dir: string, type: string, filter: RegExp | string
     if (statSync(here).isDirectory()) {
       all = all.concat(await recurse(here, type, filter));
     } else if ((!type || file.endsWith(`.${type}`)) && (!filter || file.match(filter))) {
-      all.push({ path: here, feature: readFileSync(here, 'utf-8') });
+      all.push(withNameType(here, readFileSync(here, 'utf-8')));
     }
   }
   return all;
+}
+
+export function withNameType(path: string, feature: string) {
+  const s = path.split('.');
+  const name = s[0];
+  const type = s.length === 3 ? s[1] : 'feature';
+  return { path, name, type, feature };
 }
 
 export function getDefaultOptions(): TSpecl {
@@ -152,7 +159,7 @@ export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve
 export function getDefaultWorld(): { world: TWorld } {
   return {
     world: {
-      shared: {},
+      shared: new WorldContext(),
       logger: new Logger(process.env.HAIBUN_LOG_LEVEL ? { level: process.env.HAIBUN_LOG_LEVEL } : LOGGER_NONE),
       runtime: {},
       options: {},
@@ -165,7 +172,7 @@ type TEnv = { [name: string]: string | undefined };
 
 export function processEnv(env: TEnv, options: TOptions) {
   const protoOptions: TProtoOptions = { options: { ...options }, extraOptions: {} };
-  let splits: TShared[] = [{}];
+  let splits: { [name: string]: string }[] = [{}];
   let errors: string[] = [];
   const pfx = `${HAIBUN}_`;
   Object.entries(env)

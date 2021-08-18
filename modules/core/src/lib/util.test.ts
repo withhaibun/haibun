@@ -60,3 +60,12 @@ describe('getStepperOptions', () => {
     expect(() => util.applyExtraOptions(specl, [], world)).toThrow();
   });
 });
+
+describe('getType', () => {
+  it('finds a type', () => {
+    expect(util.withNameType('file.type.feature', '').type).toBe('type');
+  });
+  it('finds no type', () => {
+    expect(util.withNameType('file.feature', '').type).toBe('feature');
+  })
+})

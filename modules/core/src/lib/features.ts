@@ -1,15 +1,15 @@
 import { TFeature, TFeatures } from './defs';
-import { getActionable } from './util';
+import { getActionable, withNameType } from './util';
 
-export function getSteps(value: string) {
-  return value
-    .split('\n')
-    .map((s) => s.trim())
-    .filter((s) => !s.startsWith('#') && s.length);
+export async function expand(backgrounds: TFeatures, features: TFeatures): Promise<TFeature[]> {
+  const expandedBackgrounds = await expandBackgrounds(backgrounds);
+
+  const expandedFeatures = await expandFeatures(features, expandedBackgrounds);
+  return expandedFeatures;
 }
 
 // Expand backgrounds by prepending 'upper' features to 'lower' features
-export async function expandBackgrounds(features: TFeatures, before = '') {
+export async function expandBackgrounds(features: TFeatures) {
   const expanded: TFeatures = [];
   for (const { path, feature: feature } of features) {
     let res = feature;
@@ -21,7 +21,7 @@ export async function expandBackgrounds(features: TFeatures, before = '') {
         res = s.feature + '\n' + res;
       }
     }
-    expanded.push({ path, feature: res });
+    expanded.push(withNameType(path, res));
   }
   return expanded;
 }

@@ -1,7 +1,8 @@
-import { IStepper, IExtensionConstructor, IHasOptions, TWorld, TVStep, TProtoOptions, TWorkspace, TNamed } from './defs';
+import { IStepper, IExtensionConstructor, IHasOptions, TWorld, TVStep, TProtoOptions, TNamed, IHasDomains } from './defs';
 import { Resolver } from '../phases/Resolver';
 import { run } from './run';
-import { actionNotOK, actionOK, getOptionsOrDefault, getStepperOption, getSteppers } from './util';
+import { actionNotOK, actionOK, getOptionsOrDefault, getStepperOption, getSteppers, withNameType } from './util';
+import { WorkspaceContext } from './contexts';
 
 export const TestSteps: IExtensionConstructor = class TestSteps implements IStepper {
   world: TWorld;
@@ -36,14 +37,28 @@ export const TestSteps: IExtensionConstructor = class TestSteps implements IStep
     buildsWithFinalizer: {
       gwta: 'builds with finalizer',
       action: async () => actionOK(),
-      build: async (a: TNamed, { path }: TVStep, workspace: TWorkspace) => {
+      build: async () => {
         return {
           ...actionOK(),
-          finalize: (workspace: TWorkspace) => {
-            this.world.shared.done = 'ok';
+          finalize: (workspace: WorkspaceContext) => {
+            this.world.shared.set('done', 'ok');
           },
         };
       },
+    },
+  };
+};
+
+export const TestStepsWithDomain: IExtensionConstructor = class TestStepsWithDomain implements IStepper, IHasDomains {
+  world: TWorld;
+  domains = [{ name: 'door', fileType: 'door', is: 'string', validate: () => undefined }];
+  constructor(world: TWorld) {
+    this.world = world;
+  }
+  steps = {
+    test: {
+      exact: 'The door is open',
+      action: async (input: any) => actionOK(),
     },
   };
 };
@@ -78,7 +93,7 @@ export async function getTestEnv(useSteppers: string[], test: string, world: TWo
   const actions = resolver.findSteps(test);
 
   const vstep: TVStep = {
-    path: 'test',
+    feature: withNameType('test', ''),
     in: test,
     seq: 0,
     actions,
@@ -93,3 +108,6 @@ export async function testRun(baseIn: string, addSteppers: IExtensionConstructor
   const res = await run({ specl, base, addSteppers, world, protoOptions });
   return res;
 }
+
+export const asFeatures = (w: { path: string; feature: string }[]) => w.map((i) => withNameType(i.path, i.feature));
+
