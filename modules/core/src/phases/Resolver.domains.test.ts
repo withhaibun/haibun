@@ -1,7 +1,8 @@
-import { WorldContext } from '../lib/contexts';
+import { DomainContext, WorldContext } from '../lib/contexts';
 import { IStepper, OK, TFeatures, TFileTypeDomain } from '../lib/defs';
+import { withNameType } from '../lib/features';
 import { asExpandedFeatures } from '../lib/TestSteps';
-import { getDefaultWorld, withNameType } from '../lib/util';
+import { getDefaultWorld } from '../lib/util';
 import { Resolver } from './Resolver';
 
 describe('validate map steps', () => {
@@ -25,7 +26,7 @@ describe('validate map steps', () => {
   const getResolver = () =>
     new Resolver(steppers, '', {
       ...getDefaultWorld().world,
-      domains: [{ name: 'mytype', fileType: 'mytype', is: 'string', module: 'test', backgrounds, shared: new WorldContext(), validate: (content: string) => undefined }],
+      domains: [{ name: 'mytype', fileType: 'mytype', is: 'string', module: 'test', backgrounds, shared: new DomainContext(), validate: (content: string) => undefined }],
     });
   describe('gwta interpolated with domain types', () => {
     test('throws for missing', async () => {
@@ -34,6 +35,9 @@ describe('validate map steps', () => {
       expect(async () => await getResolver().resolveSteps(features)).rejects.toThrow(
         Resolver.getNoFileTypeInclusionError(Resolver.getPrelude('l1', gwtaDomainType, feature), 'mytype', 'missing')
       );
+// const res = await getResolver().resolveSteps(features);
+// console.log(JSON.stringify(res, null, 2))
+
     });
     test('includes background domain type', async () => {
       const features = asExpandedFeatures([withNameType('l1', 'for available')]);

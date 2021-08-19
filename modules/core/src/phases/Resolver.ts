@@ -1,4 +1,5 @@
 import { IStepper, TFeature, TFound, TResolvedFeature, OK, TWorld, BASE_TYPES, TFileTypeDomain, TModuleDomain, TExpandedFeature } from '../lib/defs';
+import { checkRequiredType } from '../lib/Domain';
 import { findFeatures } from '../lib/features';
 import { namedInterpolation, getMatch, getNamedToVars } from '../lib/namedVars';
 import { getActionable, describeSteppers, isLowerCase } from '../lib/util';
@@ -27,11 +28,12 @@ export class Resolver {
 
   async addSteps(feature: TExpandedFeature): Promise<TResolvedFeature> {
     const vsteps = feature.expanded.map((featureLine, seq) => {
-      const actionable = getActionable(featureLine);
+      const actionable = getActionable(featureLine.line);
       const actions = this.findSteps(actionable);
 
       try {
-        this.checkRequiredType(feature, featureLine, actions);
+        // FIXME
+        checkRequiredType(feature, featureLine.line, actions, this.world);
       } catch (e) {
         throw e;
       }
@@ -39,58 +41,14 @@ export class Resolver {
       if (actions.length > 1) {
         throw Error(`more than one step found for ${featureLine} ${JSON.stringify(actions)}`);
       } else if (actions.length < 1 && this.mode !== 'some') {
-        throw Error(`no step found for ${featureLine} from ${describeSteppers(this.steppers)}`);
+        throw Error(`no step found for ${featureLine.line} from ${describeSteppers(this.steppers)}`);
       }
 
-      return { feature, in: featureLine, seq, actions };
+      return { source: featureLine.feature, in: featureLine.line, seq, actions };
     });
 
     return { ...feature, vsteps };
   }
-
-  // if there is a fileType for the domain type, get it from the match and make sure it is ok
-  checkRequiredType({ path }: { path: string }, featureLine: string, actions: TFound[]) {
-    for (const action of actions) {
-      if (action.step.gwta && action.vars) {
-        const line = action.step.gwta;
-        const domainTypes = action.vars.filter((v) => !BASE_TYPES.includes(v.type));
-        if (domainTypes) {
-          for (const domainType of domainTypes) {
-            const prelude = Resolver.getPrelude(path, line, featureLine);
-            let name;
-            try {
-              const namedWithVars = getNamedToVars(action, this.world);
-              name = namedWithVars![domainType.name];
-            } catch (e) {
-              console.error('for ', action, e);
-              throw Error(`${prelude} ${e}`);
-            }
-            const fd = this.world.domains.find((d) => d.name == domainType.type);
-            if (fd) {
-              const { fileType, backgrounds, validate } = fd as TModuleDomain & TFileTypeDomain;
-              if (fileType) {
-                const included = findFeatures(name, backgrounds, fileType);
-
-                if (included.length < 1) {
-                  throw Error(Resolver.getNoFileTypeInclusionError(prelude, fileType, name));
-                } else if (included.length > 1) {
-                  throw Error(Resolver.getMoreThanOneInclusionError(prelude, fileType, name));
-                }
-
-                const typeValidationError = validate(included[0].content);
-                if (typeValidationError) {
-                  throw Error(Resolver.getTypeValidationError(prelude, fileType, name, typeValidationError));
-                }
-              }
-            } else {
-              throw Error(`${prelude} no domain definition for ${domainType}`);
-            }
-          }
-        }
-      }
-    }
-  }
-
   static getPrelude = (path: string, line: string, featureLine: string) => `In '${path}', step '${featureLine}' using '${line}':`;
   static getTypeValidationError = (prelude: string, fileType: string, name: string, typeValidationError: string) =>
     `${prelude} Type '${fileType}' doesn't validate for '${name}': ${typeValidationError}`;

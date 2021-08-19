@@ -1,9 +1,9 @@
-import { IStepper, IExtensionConstructor, IHasOptions, TWorld, TVStep, TProtoOptions, TNamed, IHasDomains } from './defs';
+import { IStepper, IExtensionConstructor, IHasOptions, TWorld, TVStep, TProtoOptions, TNamed, IHasDomains, TExpandedLine, TFeature } from './defs';
 import { Resolver } from '../phases/Resolver';
 import { run } from './run';
-import { actionNotOK, actionOK, getOptionsOrDefault, getStepperOption, getSteppers, withNameType } from './util';
+import { actionNotOK, actionOK, getOptionsOrDefault, getStepperOption, getSteppers } from './util';
 import { WorkspaceContext } from './contexts';
-import { featureSplit } from './features';
+import { featureSplit, withNameType } from './features';
 
 export const TestSteps: IExtensionConstructor = class TestSteps implements IStepper {
   world: TWorld;
@@ -94,7 +94,7 @@ export async function getTestEnv(useSteppers: string[], test: string, world: TWo
   const actions = resolver.findSteps(test);
 
   const vstep: TVStep = {
-    feature: {...withNameType('test', ''), expanded: []},
+    source: {...withNameType('test', '')},
     in: test,
     seq: 0,
     actions,
@@ -111,8 +111,12 @@ export async function testRun(baseIn: string, addSteppers: IExtensionConstructor
 }
 
 export const asFeatures = (w: { path: string; content: string }[]) => w.map((i) => withNameType(i.path, i.content));
-export const asExpandedFeatures = (w: { path: string; content: string }[]) => w.map((i) => withNameType(i.path, i.content)).map((i) => {
-  let a : any= { ...i, expanded: featureSplit(i.content) };
+
+// FIXME can't really do this without reproducing resolve
+export const asExpandedFeatures = (w: { path: string; content: string }[]) => asFeatures(w).map((i) => {
+  const expanded : TExpandedLine[] = featureSplit(i.content).map(a => ({line: a, feature: i}));
+  let a : any ={ ...i, expanded };
   delete a.content;
+  // a.featureLine = asFeatureLine()
   return a;
 });

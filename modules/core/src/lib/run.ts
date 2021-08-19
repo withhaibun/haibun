@@ -4,7 +4,7 @@ import { expand, findFeaturesOfType } from './features';
 import { Executor } from '../phases/Executor';
 import { Resolver } from '../phases/Resolver';
 import Builder from '../phases/Builder';
-import { getSteppers, applyExtraOptions, recurse } from './util';
+import { getSteppers, applyExtraOptions, recurse, debase } from './util';
 import { DomainContext } from './contexts';
 
 export async function run({
@@ -22,7 +22,7 @@ export async function run({
   featureFilter?: string;
   protoOptions?: TProtoOptions;
 }): Promise<{ result: TResult; steppers?: IStepper[] }> {
-  const features = await recurse(`${base}/features`, 'feature', featureFilter);
+  const features = debase(base, recurse(`${base}/features`, 'feature', featureFilter));
   let backgrounds: TFeature[] = [];
 
   const steppers: IStepper[] = await getSteppers({ steppers: specl.steppers, addSteppers, world });
@@ -33,7 +33,7 @@ export async function run({
   }
 
   if (existsSync(`${base}/backgrounds`)) {
-    backgrounds = await recurse(`${base}/backgrounds`, '');
+    backgrounds = debase(base, recurse(`${base}/backgrounds`, ''));
 
     for (const s of steppers.filter((s) => !!(<IHasDomains>s).domains)) {
       const module = s.constructor.name;
