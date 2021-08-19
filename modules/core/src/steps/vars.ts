@@ -11,7 +11,6 @@ const vars: IExtensionConstructor = class Vars implements IStepper {
   async set({ what, value }: TNamed, vstep: TVStep) {
     // if on a domain page, set it in that domain's shared
     const { type } = vstep.feature;
-    console.log('s', vstep.feature.name, type, this.world);
     const shared = getStepShared(type, this.world);
 
     // FIXME hokey

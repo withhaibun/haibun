@@ -1,6 +1,6 @@
 import { existsSync } from 'fs';
-import { TSpecl, IStepper, IExtensionConstructor, TResult, TFeatures, TWorld, TProtoOptions, TFeature, IHasDomains, TFileTypeDomain } from './defs';
-import { expand, expandBackgrounds, expandFeatures, findFeaturesOfType } from './features';
+import { TSpecl, IStepper, IExtensionConstructor, TResult, TWorld, TProtoOptions, TFeature, IHasDomains, TFileTypeDomain } from './defs';
+import { expand, findFeaturesOfType } from './features';
 import { Executor } from '../phases/Executor';
 import { Resolver } from '../phases/Resolver';
 import Builder from '../phases/Builder';
@@ -58,8 +58,6 @@ export async function run({
     return { result: { ok: false, failure: { stage: 'Expand', error: { details: error.message, context: error } } } };
   }
 
-  console.log(expandedFeatures, backgrounds);
-
   let mappedValidatedSteps;
   try {
     const resolver = new Resolver(steppers, specl.mode, world);
@@ -85,4 +83,3 @@ export async function run({
   }
   return { result, steppers };
 }
-
