@@ -69,21 +69,21 @@ export type TFeature = {
   path: string;
   type: string;
   name: string;
-  feature: string;
+  content: string;
 };
 
-export type TFeature1 = {
+export type TExpandedFeature = {
   path: string;
   type: string;
   name: string;
-  feature: string;
+  expanded: string[];
 };
 
 export type TFeatures = TFeature[];
 
 export type TResolvedFeature = {
   path: string;
-  feature: string;
+  expanded: string[];
   vsteps: TVStep[];
 };
 
@@ -96,10 +96,10 @@ export type TRequiresResult = { includes?: string[] };
 export type TFinalize = (workspace: WorkspaceContext) => void;
 
 export abstract class WorkspaceBuilder {
-  constructor() {};
-  addControl (...args: any) {};
-  finalize () {};
-};
+  constructor() {}
+  addControl(...args: any) {}
+  finalize() {}
+}
 
 export type TStep = {
   match?: RegExp;
@@ -130,7 +130,7 @@ export interface TLogger {
 }
 
 export type TVStep = {
-  feature: TFeature;
+  feature: TExpandedFeature;
   in: string;
   seq: number;
   actions: TFound[];

@@ -103,11 +103,11 @@ export async function recurse(dir: string, type: string, filter: RegExp | string
   return all;
 }
 
-export function withNameType(path: string, feature: string) {
+export function withNameType(path: string, content: string) {
   const s = path.split('.');
   const name = s[0];
   const type = s.length === 3 ? s[1] : 'feature';
-  return { path, name, type, feature };
+  return { path, name, type, content };
 }
 
 export function getDefaultOptions(): TSpecl {

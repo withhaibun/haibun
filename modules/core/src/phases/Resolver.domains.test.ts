@@ -1,5 +1,6 @@
 import { WorldContext } from '../lib/contexts';
 import { IStepper, OK, TFeatures, TFileTypeDomain } from '../lib/defs';
+import { asExpandedFeatures } from '../lib/TestSteps';
 import { getDefaultWorld, withNameType } from '../lib/util';
 import { Resolver } from './Resolver';
 
@@ -29,38 +30,38 @@ describe('validate map steps', () => {
   describe('gwta interpolated with domain types', () => {
     test('throws for missing', async () => {
       const feature = 'for missing';
-      const features = [withNameType('l1', feature)];
+      const features = asExpandedFeatures([withNameType('l1', feature)]);
       expect(async () => await getResolver().resolveSteps(features)).rejects.toThrow(
         Resolver.getNoFileTypeInclusionError(Resolver.getPrelude('l1', gwtaDomainType, feature), 'mytype', 'missing')
       );
     });
     test('includes background domain type', async () => {
-      const features = [withNameType('l1', 'for available')];
+      const features = asExpandedFeatures([withNameType('l1', 'for available')]);
       const res = await getResolver().resolveSteps(features);
       expect(res.length).toBe(1);
     });
     test('includes multiple background domain type', async () => {
-      const features = [withNameType('l1', 'has available something')];
+      const features = asExpandedFeatures([withNameType('l1', 'has available something')]);
       const res = await getResolver().resolveSteps(features);
       expect(res.length).toBe(1);
     });
     test('includes multiple background domain type with missing', async () => {
       const feature = 'has available missing';
-      const features = [withNameType('l1', feature)];
+      const features = asExpandedFeatures([withNameType('l1', feature)]);
       expect(async () => await getResolver().resolveSteps(features)).rejects.toThrow(
         Resolver.getNoFileTypeInclusionError(Resolver.getPrelude('l1', gwtaDomainTypeMultiple, feature), 'mytype', 'missing')
       );
     });
     test('includes background domain fails type validation', async () => {
       const feature = 'for available';
-      const features = [withNameType('l1', feature)];
+      const features = asExpandedFeatures([withNameType('l1', feature)]);
       const resolver = getResolver();
       (<TFileTypeDomain>resolver.world.domains[0]).validate = (content: string) => 'failed';
       expect(async () => resolver.resolveSteps(features)).rejects.toThrow(Resolver.getTypeValidationError(Resolver.getPrelude('l1', gwtaDomainType, feature), 'mytype', 'available', 'failed'));
     });
     test('includes background domain fails multiple backgrounds', async () => {
       const feature = 'for available';
-      const features = [withNameType('l1', feature)];
+      const features = asExpandedFeatures([withNameType('l1', feature)]);
       const resolver = getResolver();
       resolver.world.domains[0].backgrounds = [...backgrounds, withNameType('r1/available.mytype.feature', 'typevalue3')];
       expect(async () => resolver.resolveSteps(features)).rejects.toThrow(Resolver.getMoreThanOneInclusionError(Resolver.getPrelude('l1', gwtaDomainType, feature), 'mytype', 'available'));
