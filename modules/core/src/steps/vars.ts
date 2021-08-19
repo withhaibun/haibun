@@ -10,7 +10,6 @@ const vars: IExtensionConstructor = class Vars implements IStepper {
 
   async onType({ what, type }: TNamed, where: Context) {
     this.world.shared.setDomain(type, what);
-
     return OK;
   }
   steps = {
@@ -59,23 +58,23 @@ export default vars;
 
 export const didNotOverwrite = (what: string, present: string | Context, value: string) => `did not overwrite ${what} value of "${present}" with "${value}"`;
 
-  export const setShared = ({ what, value }: TNamed, vstep: TVStep, world: TWorld) => {
-    // FIXME hokey
-    const missingOnly = vstep.in.match(/set missing /);
+export const setShared = ({ what, value }: TNamed, vstep: TVStep, world: TWorld) => {
+  // FIXME hokey
+  const missingOnly = vstep.in.match(/set missing /);
 
-    // if on a domain page, set it in that domain's shared
-    const { type, name } = vstep.source;
+  // if on a domain page, set it in that domain's shared
+  const { type, name } = vstep.source;
 
-    let shared = getStepShared(type, world);
-    if (shared instanceof DomainContext) {
-      const dc = <DomainContext>shared;
-      shared = dc.get(name) || dc.createPath(name);
-    }
-
-    if (missingOnly || shared.get(what) === undefined) {
-      shared.set(what, value);
-      return OK;
-    }
-    
-    return { ...OK, details: didNotOverwrite(what, shared.get(what), value) };
+  let shared = getStepShared(type, world);
+  if (shared instanceof DomainContext) {
+    const dc = <DomainContext>shared;
+    shared = dc.get(name) || dc.createPath(name);
   }
+
+  if (missingOnly || shared.get(what) === undefined) {
+    shared.set(what, value);
+    return OK;
+  }
+
+  return { ...OK, details: didNotOverwrite(what, shared.get(what), value) };
+};
