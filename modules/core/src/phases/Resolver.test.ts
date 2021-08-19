@@ -33,6 +33,7 @@ describe('validate map steps', () => {
   describe('exact', () => {
     test('exact', async () => {
       const features = asExpandedFeatures([{ path: 'l1', content: `exact1` }]);
+      
       const res = await getResolver().resolveSteps(features);
       const { vsteps } = res[0] as TResolvedFeature;
       expect(vsteps[0].actions[0].named).toBeUndefined();

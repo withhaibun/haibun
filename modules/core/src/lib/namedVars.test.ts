@@ -1,8 +1,9 @@
 import { IStepper, OK, TResolvedFeature, TStep } from './defs';
 import { getNamedMatches, namedInterpolation, matchGroups, getNamedToVars } from './namedVars';
 import { Resolver } from '../phases/Resolver';
-import { actionNotOK, getDefaultWorld, withNameType } from './util';
+import { actionNotOK, getDefaultWorld } from './util';
 import { asExpandedFeatures } from './TestSteps';
+import { withNameType } from './features';
 
 describe('namedMatches', () => {
   const step: TStep = {

@@ -35,13 +35,13 @@ export type TProtoOptions = {
   extraOptions: { [name: string]: string };
 };
 
-interface TFromDomain {
+export type TFromDomain = {
   name: string;
   from: string;
   is: string;
 }
 
-export interface TFileTypeDomain {
+export type TFileTypeDomain = {
   name: string;
   validate: (content: string) => undefined | string;
   fileType: string;
@@ -50,7 +50,7 @@ export interface TFileTypeDomain {
 // FIXME use | types
 export type TDomain = TFromDomain | TFileTypeDomain;
 export type TModuleDomain = TDomain & {
-  // used to verify features are available for the domain
+  // used to verify features are available for the domain FIXME required?
   backgrounds: TFeatures;
   module: string;
   shared: DomainContext;
@@ -64,27 +64,40 @@ export type TWorld = {
   domains: TModuleDomain[];
 };
 
-// FIXME make generic (content)
-export type TFeature = {
-  path: string;
+
+export type TFeatureMeta = {
   type: string;
+  name: string;
+  path: string;
+}
+// FIXME make generic (content)
+export type TFeature = TFeatureMeta & {
   name: string;
   content: string;
 };
 
-export type TExpandedFeature = {
-  path: string;
-  type: string;
+export type TExpandedFeature = TFeatureMeta & {
   name: string;
-  expanded: string[];
+  expanded: TExpandedLine[];
 };
+
+export type TExpandedLine = {
+  line: string;
+  feature: TFeature;
+}
 
 export type TFeatures = TFeature[];
 
-export type TResolvedFeature = {
-  path: string;
-  expanded: string[];
+export type TResolvedFeature = TExpandedFeature & {
   vsteps: TVStep[];
+};
+
+export type TVStep = {
+  // FIXME is this required?
+  source: TFeature;
+  in: string;
+  seq: number;
+  actions: TFound[];
 };
 
 export type TAction = (named: TNamed, vstep: TVStep) => Promise<TActionResult>;
@@ -98,7 +111,7 @@ export type TFinalize = (workspace: WorkspaceContext) => void;
 export abstract class WorkspaceBuilder {
   constructor() {}
   addControl(...args: any) {}
-  finalize() {}
+  finalize(): any {}
 }
 
 export type TStep = {
@@ -129,12 +142,6 @@ export interface TLogger {
   error: (what: any) => void;
 }
 
-export type TVStep = {
-  feature: TExpandedFeature;
-  in: string;
-  seq: number;
-  actions: TFound[];
-};
 export type TFound = { name: string; step: TStep; named?: TNamed | undefined; vars?: TNamedVar[] };
 export type TNamed = { [name: string]: string };
 export type TNamedVar = { name: string; type: string };

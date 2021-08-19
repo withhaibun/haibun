@@ -1,3 +1,4 @@
-Backgrounds: door.house
+Backgrounds: p1.page
 
-On the pod bay door
+On the /backgrounds/p1 page
+Pull the `lever`
