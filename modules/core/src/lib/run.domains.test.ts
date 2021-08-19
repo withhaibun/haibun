@@ -28,7 +28,6 @@ describe('domain object from background', () => {
 
     const world = { ...getDefaultWorld().world };
     const { result } = await run({ specl, base, addSteppers: [TestStepsWithDomain], world });
-    console.log('###result', result.failure ? result.failure?.error : result, '\nworld', world.shared, '\nD', world.domains[0]);
 
     expect(result.ok).toBe(true);
     expect(world.domains[0].shared.get(TTYPE)).toBeDefined();

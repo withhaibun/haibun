@@ -1,4 +1,4 @@
-import { IStepper, TFeature, TFound, TResolvedFeature, OK, TWorld, BASE_TYPES, TFileTypeDomain, TModuleDomain } from '../lib/defs';
+import { IStepper, TFeature, TFound, TResolvedFeature, OK, TWorld, BASE_TYPES, TFileTypeDomain, TModuleDomain, TExpandedFeature } from '../lib/defs';
 import { findFeatures } from '../lib/features';
 import { namedInterpolation, getMatch, getNamedToVars } from '../lib/namedVars';
 import { getActionable, describeSteppers, isLowerCase } from '../lib/util';
@@ -12,7 +12,7 @@ export class Resolver {
     this.mode = mode;
     this.world = world;
   }
-  async resolveSteps(features: TFeature[]): Promise<TResolvedFeature[]> {
+  async resolveSteps(features: TExpandedFeature[]): Promise<TResolvedFeature[]> {
     const expanded: TResolvedFeature[] = [];
     for (const feature of features) {
       try {
@@ -25,8 +25,8 @@ export class Resolver {
     return expanded;
   }
 
-  async addSteps(feature: TFeature): Promise<TResolvedFeature> {
-    const vsteps = feature.feature.split('\n').map((featureLine, seq) => {
+  async addSteps(feature: TExpandedFeature): Promise<TResolvedFeature> {
+    const vsteps = feature.expanded.map((featureLine, seq) => {
       const actionable = getActionable(featureLine);
       const actions = this.findSteps(actionable);
 
@@ -77,7 +77,7 @@ export class Resolver {
                   throw Error(Resolver.getMoreThanOneInclusionError(prelude, fileType, name));
                 }
 
-                const typeValidationError = validate(included[0].feature);
+                const typeValidationError = validate(included[0].content);
                 if (typeValidationError) {
                   throw Error(Resolver.getTypeValidationError(prelude, fileType, name, typeValidationError));
                 }

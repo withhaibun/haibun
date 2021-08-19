@@ -33,7 +33,8 @@ describe('run backgrounds', () => {
     const t = result.results![0];
     expect(t).toBeDefined();
     expect(t.ok).toBe(true);
-    expect(t.stepResults.length).toBe(3);
+    
+    expect(t.stepResults.length).toBe(1);
     expect(t.stepResults.every((r) => r.ok === true)).toBe(true);
   });
 });

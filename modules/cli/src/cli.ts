@@ -70,8 +70,6 @@ async function go() {
 }
 
 async function doRun(base: string, specl: TSpecl, runtime: {}, featureFilter: string, shared: WorldContext, protoOptions: TProtoOptions, logger: TLogger) {
-  console.log('dr', shared.get('d'));
-  
   if (protoOptions.options.cli) {
     repl.start().context.runtime = runtime;
   }

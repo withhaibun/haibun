@@ -3,6 +3,7 @@ import { Resolver } from '../phases/Resolver';
 import { run } from './run';
 import { actionNotOK, actionOK, getOptionsOrDefault, getStepperOption, getSteppers, withNameType } from './util';
 import { WorkspaceContext } from './contexts';
+import { featureSplit } from './features';
 
 export const TestSteps: IExtensionConstructor = class TestSteps implements IStepper {
   world: TWorld;
@@ -93,7 +94,7 @@ export async function getTestEnv(useSteppers: string[], test: string, world: TWo
   const actions = resolver.findSteps(test);
 
   const vstep: TVStep = {
-    feature: withNameType('test', ''),
+    feature: {...withNameType('test', ''), expanded: []},
     in: test,
     seq: 0,
     actions,
@@ -109,5 +110,9 @@ export async function testRun(baseIn: string, addSteppers: IExtensionConstructor
   return res;
 }
 
-export const asFeatures = (w: { path: string; feature: string }[]) => w.map((i) => withNameType(i.path, i.feature));
-
+export const asFeatures = (w: { path: string; content: string }[]) => w.map((i) => withNameType(i.path, i.content));
+export const asExpandedFeatures = (w: { path: string; content: string }[]) => w.map((i) => withNameType(i.path, i.content)).map((i) => {
+  let a : any= { ...i, expanded: featureSplit(i.content) };
+  delete a.content;
+  return a;
+});
