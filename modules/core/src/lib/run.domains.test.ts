@@ -42,12 +42,13 @@ describe('domain object from background', () => {
     const world = { ...getDefaultWorld().world };
     const { result } = await run({ specl, base, addSteppers: [TestStepsWithDomain], world });
 
+    !result.ok && console.log(JSON.stringify({result, world}, null, 2))
     expect(result.ok).toBe(true);
     const key = '/backgrounds/p1';
 
     const page = world.domains.find((d) => d.name === TTYPE)!.shared.get(key);
     expect(page).toBeDefined();
-    expect(world.shared.getCurrent(TTYPE)).toEqual('/backgrounds/p1');
+    expect(world.shared.getCurrent(TTYPE)).toEqual(key);
 
     expect(page.get('lever')).toEqual('xxx');
     // expect(page.get('test')).toEqual('foo');

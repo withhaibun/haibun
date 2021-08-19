@@ -27,7 +27,7 @@ export const getStepShared = (type: string, world: TWorld): Context => {
 
   const currentSource = fromSource.shared.get(current);
   if (!currentSource) {
-    throw Error(`no current shared for ${isFrom}, ${currentSource}}`);
+    throw Error(`no current ${current} shared for ${isFrom}, ${currentSource}}`);
   }
   return currentSource;
 };
@@ -37,7 +37,7 @@ export function checkRequiredType({ path }: { path: string }, featureLine: strin
   for (const action of actions) {
     if (action.step.gwta && action.vars) {
       const line = action.step.gwta;
-      const domainTypes = action.vars.filter((v) => !BASE_TYPES.includes(v.type));
+      const domainTypes = action.vars.filter((v) => !isBaseType(v.type));
       if (domainTypes) {
         for (const domainType of domainTypes) {
           const prelude = Resolver.getPrelude(path, line, featureLine);
