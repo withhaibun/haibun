@@ -1,7 +1,6 @@
 import { IStepper, TVStep, TResolvedFeature, TResult, TStepResult, TFeatureResult, TActionResult, TWorld } from '../lib/defs';
-import { getStepShared } from '../lib/Domain';
 import { getNamedToVars } from '../lib/namedVars';
-import { actionNotOK, sleep, withNameType } from '../lib/util';
+import { actionNotOK, sleep } from '../lib/util';
 
 export class Executor {
   steppers: IStepper[];

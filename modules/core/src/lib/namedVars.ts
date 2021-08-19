@@ -78,8 +78,8 @@ export function getNamedToVars({ named, vars }: TFound, world: TWorld) {
   vars.forEach((v, i) => {
     const { name, type } = v;
 
-    const source = getStepShared(type, world);
-
+    const shared = getStepShared(type, world);
+    
     const namedKey = Object.keys(named).find((c) => c.endsWith(`_${i}`) && named[c] !== undefined);
 
     if (!namedKey) {
@@ -87,18 +87,18 @@ export function getNamedToVars({ named, vars }: TFound, world: TWorld) {
     }
     const namedValue = named[namedKey];
     if (namedKey.startsWith(TYPE_VAR_OR_LITERAL)) {
-      namedFromVars[name] = source.get(namedValue) || named[namedKey];
+      namedFromVars[name] = shared.get(namedValue) || named[namedKey];
     } else if (namedKey.startsWith(TYPE_VAR) || namedKey.startsWith(TYPE_CREDENTIAL)) {
       // must be from source
-      if (!source.get(namedValue)) {
-        throw Error(`no value for ${name} from ${JSON.stringify(source)}`);
+      if (!shared.get(namedValue)) {
+        throw Error(`no value for "${namedValue}" from ${JSON.stringify({shared, type})}`);
       }
-      namedFromVars[name] = source.get(namedValue);
+      namedFromVars[name] = shared.get(namedValue);
     } else if (namedKey.startsWith(TYPE_QUOTED)) {
       // quoted
       namedFromVars[name] = named[namedKey];
     } else {
-      throw Error(`unknown assignedment ${namedKey}`);
+      throw Error(`unknown assignment ${namedKey}`);
     }
   });
   return namedFromVars;

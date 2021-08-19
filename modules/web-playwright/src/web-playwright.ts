@@ -256,11 +256,11 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
         // TODO mount the page
         return OK;
       },
-      build: async ({ location }: TNamed, { feature }: TVStep, workspace: WorkspaceContext) => {
+      build: async ({ location }: TNamed, { source }: TVStep, workspace: WorkspaceContext) => {
         if (location !== location.replace(/[^a-zA-Z-0-9]/g, '')) {
           throw Error(`${webPage} location ${location} has illegal characters`);
         }
-        workspace.addBuilder(new WebPageBuilder(feature.path, this.world.logger, location));
+        workspace.addBuilder(new WebPageBuilder(source.path, this.world.logger, location));
         return { ...OK, finalize: this.finalize };
       },
     },
@@ -270,7 +270,7 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
         return OK;
       },
       build: async ({ name }: TNamed, a: TVStep, workspace: WorkspaceContext) => {
-        workspace.get('_builder').addControl(name);
+        workspace.getBuilder().addControl(name);
         return { ...OK };
       },
     },
@@ -280,7 +280,9 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
       return;
     }
     workspace.set('_finalized', true);
-    const shared = workspace.get('_builder').finalize();
+    const builder = workspace.getBuilder();
+    
+    const shared = builder.finalize();
     this.world.domains.find((d) => d.name === webPage)!.shared = shared;
   };
 };

@@ -18,6 +18,7 @@ import {
   TRuntime,
   HAIBUN,
 } from './defs';
+import { withNameType } from './features';
 import Logger, { LOGGER_NONE } from './Logger';
 
 // FIXME tired of wrestling with ts/import issues
@@ -89,25 +90,22 @@ function getModuleLocation(name: string) {
   return name;
 }
 
-export async function recurse(dir: string, type: string, filter: RegExp | string | undefined = undefined): Promise<TFeature[]> {
+export function debase(base: string, features: TFeature[]) {
+  return features.map((f) => ({ ...f, path: f.path.replace(base, '') }));
+}
+
+export function recurse(dir: string, type: string, filter: RegExp | string | undefined = undefined): TFeature[] {
   const files = readdirSync(dir);
   let all: TFeature[] = [];
   for (const file of files) {
     const here = `${dir}/${file}`;
     if (statSync(here).isDirectory()) {
-      all = all.concat(await recurse(here, type, filter));
+      all = all.concat(recurse(here, type, filter));
     } else if ((!type || file.endsWith(`.${type}`)) && (!filter || file.match(filter))) {
       all.push(withNameType(here, readFileSync(here, 'utf-8')));
     }
   }
   return all;
-}
-
-export function withNameType(path: string, content: string) {
-  const s = path.split('.');
-  const name = s[0];
-  const type = s.length === 3 ? s[1] : 'feature';
-  return { path, name, type, content };
 }
 
 export function getDefaultOptions(): TSpecl {

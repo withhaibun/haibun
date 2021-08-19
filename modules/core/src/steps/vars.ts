@@ -8,20 +8,6 @@ const vars: IExtensionConstructor = class Vars implements IStepper {
     this.world = world;
   }
 
-  async set({ what, value }: TNamed, vstep: TVStep) {
-    // if on a domain page, set it in that domain's shared
-    const { type } = vstep.feature;
-    const shared = getStepShared(type, this.world);
-
-    // FIXME hokey
-    const missingOnly = vstep.in.match(/ set missing /);
-
-    if (missingOnly || shared.get(what) === undefined) {
-      shared.set(what, value);
-      return OK;
-    }
-    return { ...OK, details: didNotOverwrite(what, shared.get(what), value) };
-  }
   async onType({ what, type }: TNamed, where: Context) {
     this.world.shared.setDomain(type, what);
 
@@ -30,8 +16,8 @@ const vars: IExtensionConstructor = class Vars implements IStepper {
   steps = {
     set: {
       gwta: 'set( empty)? {what: string} to {value: string}',
-      action: async (named: TNamed, vstep: TVStep) => this.set(named, vstep),
-      build: async (named: TNamed, vstep: TVStep, workspace: DomainContext) => this.set(named, vstep),
+      action: async (named: TNamed, vstep: TVStep) => setShared(named, vstep, this.world),
+      build: async (named: TNamed, vstep: TVStep, workspace: DomainContext) => setShared(named, vstep, this.world),
     },
     onType: {
       gwta: 'on the {what} {type}$',
@@ -72,3 +58,24 @@ const vars: IExtensionConstructor = class Vars implements IStepper {
 export default vars;
 
 export const didNotOverwrite = (what: string, present: string | Context, value: string) => `did not overwrite ${what} value of "${present}" with "${value}"`;
+
+  export const setShared = ({ what, value }: TNamed, vstep: TVStep, world: TWorld) => {
+    // FIXME hokey
+    const missingOnly = vstep.in.match(/set missing /);
+
+    // if on a domain page, set it in that domain's shared
+    const { type, name } = vstep.source;
+
+    let shared = getStepShared(type, world);
+    if (shared instanceof DomainContext) {
+      const dc = <DomainContext>shared;
+      shared = dc.get(name) || dc.createPath(name);
+    }
+
+    if (missingOnly || shared.get(what) === undefined) {
+      shared.set(what, value);
+      return OK;
+    }
+    
+    return { ...OK, details: didNotOverwrite(what, shared.get(what), value) };
+  }
