@@ -60,7 +60,7 @@ export const didNotOverwrite = (what: string, present: string | Context, value: 
 
 export const setShared = ({ what, value }: TNamed, vstep: TVStep, world: TWorld) => {
   // FIXME hokey
-  const missingOnly = vstep.in.match(/set missing /);
+  const emptyOnly = vstep.in.match(/set empty /);
 
   // if on a domain page, set it in that domain's shared
   const { type, name } = vstep.source;
@@ -71,7 +71,7 @@ export const setShared = ({ what, value }: TNamed, vstep: TVStep, world: TWorld)
     shared = dc.get(name) || dc.createPath(name);
   }
 
-  if (missingOnly || shared.get(what) === undefined) {
+  if (!emptyOnly || shared.get(what) === undefined) {
     shared.set(what, value);
     return OK;
   }
