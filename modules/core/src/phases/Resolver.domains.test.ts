@@ -26,7 +26,7 @@ describe('validate map steps', () => {
   const getResolver = () =>
     new Resolver(steppers, '', {
       ...getDefaultWorld().world,
-      domains: [{ name: 'mytype', fileType: 'mytype', is: 'string', module: 'test', backgrounds, shared: new DomainContext('test resolver.domains'), validate: (content: string) => undefined }],
+      domains: [{ name: 'mytype', fileType: 'mytype', is: 'string', module: 'test', shared: new DomainContext('test resolver.domains'), validate: (content: string) => undefined }],
     });
 
   // FIXME these tests depend on checkRequiredType
@@ -66,7 +66,6 @@ describe('validate map steps', () => {
       const feature = 'for available';
       const features = asExpandedFeatures([withNameType('l1', feature)]);
       const resolver = getResolver();
-      resolver.world.domains[0].backgrounds = [...backgrounds, withNameType('r1/available.mytype.feature', 'typevalue3')];
       expect(async () => resolver.resolveSteps(features)).rejects.toThrow(Resolver.getMoreThanOneInclusionError(Resolver.getPrelude('l1', gwtaDomainType, feature), 'mytype', 'available'));
     });
   });

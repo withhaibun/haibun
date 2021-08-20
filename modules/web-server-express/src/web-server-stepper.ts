@@ -40,9 +40,14 @@ const WebServerStepper: IExtensionConstructor = class WebServerStepper implement
         await WebServerStepper.checkListener(this.world.options, this.world.runtime[WEBSERVER]);
         const ws: IWebServer = await this.world.runtime[WEBSERVER];
         const error = await ws.addStaticFolder(loc);
+        this.world.shared.set('file_location', loc);
 
         return error === undefined ? OK : actionNotOK(error);
       },
+      build: async ({ loc }: TNamed) => {
+        this.world.shared.set('file_location', loc);
+        return OK;
+      }
     },
   };
 };

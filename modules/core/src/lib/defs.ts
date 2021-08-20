@@ -47,11 +47,8 @@ export type TFileTypeDomain = {
   fileType: string;
   is: string;
 }
-// FIXME use | types
 export type TDomain = TFromDomain | TFileTypeDomain;
 export type TModuleDomain = TDomain & {
-  // used to verify features are available for the domain FIXME required?
-  backgrounds: TFeatures;
   module: string;
   shared: DomainContext;
 };
@@ -70,7 +67,6 @@ export type TFeatureMeta = {
   name: string;
   path: string;
 }
-// FIXME make generic (content)
 export type TFeature = TFeatureMeta & {
   name: string;
   content: string;
@@ -109,7 +105,10 @@ export type TRequiresResult = { includes?: string[] };
 export type TFinalize = (workspace: WorkspaceContext) => void;
 
 export abstract class WorkspaceBuilder {
-  constructor() {}
+  name: string;
+  constructor(name: string) {
+    this.name = name;
+  }
   addControl(...args: any) {}
   finalize(): any {}
 }

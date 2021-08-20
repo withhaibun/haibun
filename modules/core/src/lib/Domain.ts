@@ -1,6 +1,6 @@
 import { Resolver } from '../phases/Resolver';
-import { Context } from './contexts';
-import { BASE_TYPES, TFileTypeDomain, TFound, TFromDomain, TModuleDomain, TWorld } from './defs';
+import { Context, DomainContext } from './contexts';
+import { BASE_TYPES, IHasDomains, IStepper, TFileTypeDomain, TFound, TFromDomain, TModuleDomain, TWorld } from './defs';
 import { findFeatures } from './features';
 import { getNamedToVars } from './namedVars';
 
@@ -10,7 +10,7 @@ export const getStepShared = (type: string, world: TWorld): Context => {
   if (type === 'feature' || isBaseType(type)) {
     return world.shared;
   }
-  let source = world.domains.find((d) => d.name === type);
+  let source = getDomain(type, world);
   if (!source || !source.shared) {
     throw Error(`no shared for ${type}, ${source}}`);
   }
@@ -19,7 +19,7 @@ export const getStepShared = (type: string, world: TWorld): Context => {
   if (!isFrom) {
     return source.shared;
   }
-  const fromSource = world.domains.find((d) => d.name === isFrom);
+  const fromSource = getDomain(isFrom, world);
   if (!fromSource || !fromSource.shared) {
     throw Error(`no isFrom shared for ${isFrom}, ${fromSource}}`);
   }
@@ -32,8 +32,34 @@ export const getStepShared = (type: string, world: TWorld): Context => {
   return currentSource;
 };
 
+export const getDomain = (domain: string, world: TWorld) => world.domains.find((d) => d.name === domain);
+
+export const getDomainObject = (name: string, object: string, world: TWorld): DomainContext | undefined => {
+  const domain = getDomain(name, world);
+
+  if (domain) {
+    const o = domain.shared.get(object);
+    return o;
+  }
+};
+export const applyStepperDomains = (steppers: IStepper[], world: TWorld) => {
+    for (const s of steppers.filter((s) => !!(<IHasDomains>s).domains)) {
+      const module = s.constructor.name;
+      const domains = (<IHasDomains>s).domains;
+      if (domains) {
+        for (const d of domains) {
+          if (world.domains.find((w) => w.name === d.name)) {
+            return { result: { ok: false, failure: { stage: 'Options', error: { details: `duplicate domain ${d.name} at ${module}`, context: world.domains } } } };
+          }
+          world.domains.push({ ...d, module, shared: new DomainContext(d.name) });
+        }
+      }
+    }
+  }
+
 // if there is a fileType for the domain type, get it from the match and make sure it is ok
 export function checkRequiredType({ path }: { path: string }, featureLine: string, actions: TFound[], world: TWorld) {
+  /*
   for (const action of actions) {
     if (action.step.gwta && action.vars) {
       const line = action.step.gwta;
@@ -73,4 +99,5 @@ export function checkRequiredType({ path }: { path: string }, featureLine: strin
       }
     }
   }
+  */
 }

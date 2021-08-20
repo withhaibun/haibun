@@ -1,4 +1,4 @@
-import { Executor } from '@haibun/core/build/lib/Executor';
+import { Executor } from '@haibun/core/build/phases/Executor';
 import { getDefaultWorld, getStepper, getSteppers } from '@haibun/core/build/lib/util';
 import { getTestEnv } from '@haibun/core/build/lib/TestSteps';
 
