@@ -34,28 +34,20 @@ export const getStepShared = (type: string, world: TWorld): Context => {
 
 export const getDomain = (domain: string, world: TWorld) => world.domains.find((d) => d.name === domain);
 
-export const getDomainObject = (name: string, object: string, world: TWorld): DomainContext | undefined => {
-  const domain = getDomain(name, world);
-
-  if (domain) {
-    const o = domain.shared.get(object);
-    return o;
-  }
-};
 export const applyStepperDomains = (steppers: IStepper[], world: TWorld) => {
-    for (const s of steppers.filter((s) => !!(<IHasDomains>s).domains)) {
-      const module = s.constructor.name;
-      const domains = (<IHasDomains>s).domains;
-      if (domains) {
-        for (const d of domains) {
-          if (world.domains.find((w) => w.name === d.name)) {
-            return { result: { ok: false, failure: { stage: 'Options', error: { details: `duplicate domain ${d.name} at ${module}`, context: world.domains } } } };
-          }
-          world.domains.push({ ...d, module, shared: new DomainContext(d.name) });
+  for (const s of steppers.filter((s) => !!(<IHasDomains>s).domains)) {
+    const module = s.constructor.name;
+    const domains = (<IHasDomains>s).domains;
+    if (domains) {
+      for (const d of domains) {
+        if (world.domains.find((w) => w.name === d.name)) {
+          return { result: { ok: false, failure: { stage: 'Options', error: { details: `duplicate domain ${d.name} at ${module}`, context: world.domains } } } };
         }
+        world.domains.push({ ...d, module, shared: new DomainContext(d.name) });
       }
     }
   }
+};
 
 // if there is a fileType for the domain type, get it from the match and make sure it is ok
 export function checkRequiredType({ path }: { path: string }, featureLine: string, actions: TFound[], world: TWorld) {
