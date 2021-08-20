@@ -28,6 +28,7 @@ const TestStepsWithDomain: IExtensionConstructor = class TestStepsWithDomain imp
     test: {
       gwta: 'Pull the {what: control}',
       action: async (named: TNamed) => {
+        
         return actionOK();
       },
     },
@@ -50,7 +51,7 @@ describe('domain object from background', () => {
     expect(page).toBeDefined();
     expect(world.shared.getCurrent(TTYPE)).toEqual(key);
 
-    expect(page.get('lever')).toEqual('xxx');
+    expect(page.get(ACONTROL)).toEqual('xxx');
     // expect(page.get('test')).toEqual('foo');
   });
 });

@@ -157,7 +157,7 @@ export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve
 export function getDefaultWorld(): { world: TWorld } {
   return {
     world: {
-      shared: new WorldContext(),
+      shared: new WorldContext('default'),
       logger: new Logger(process.env.HAIBUN_LOG_LEVEL ? { level: process.env.HAIBUN_LOG_LEVEL } : LOGGER_NONE),
       runtime: {},
       options: {},
