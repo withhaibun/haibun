@@ -140,7 +140,7 @@ describe('builds', () => {
     const base = process.cwd() + '/test/projects/haibun/build';
     const specl = getOptionsOrDefault(base);
 
-    const shared: WorldContext = new WorldContext();
+    const shared: WorldContext = new WorldContext(`build test`);
     const { result } = await run({ specl, base, addSteppers: [TestSteps], world: { ...getDefaultWorld().world, shared } });
 
     expect(result.ok).toBe(true);

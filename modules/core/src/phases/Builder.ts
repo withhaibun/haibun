@@ -5,7 +5,7 @@ import { getNamedToVars } from '../lib/namedVars';
 export default class Builder {
   world: any;
   workspace: WorkspaceContext;
-  constructor(world: TWorld, workspace: WorkspaceContext = new WorkspaceContext()) {
+  constructor(world: TWorld, workspace: WorkspaceContext = new WorkspaceContext(`builder`)) {
     this.world = world;
     this.workspace = workspace;
   }

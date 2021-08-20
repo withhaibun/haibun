@@ -45,7 +45,7 @@ export async function run({
           }
           const { fileType } = <TFileTypeDomain>d;
           const ftBackgrounds = fileType ? findFeaturesOfType(backgrounds, fileType) : [];
-          world.domains.push({ ...d, module, backgrounds: ftBackgrounds, shared: new DomainContext() });
+          world.domains.push({ ...d, module, backgrounds: ftBackgrounds, shared: new DomainContext(d.name) });
         }
       }
     }

@@ -26,7 +26,7 @@ describe('validate map steps', () => {
   const getResolver = () =>
     new Resolver(steppers, '', {
       ...getDefaultWorld().world,
-      domains: [{ name: 'mytype', fileType: 'mytype', is: 'string', module: 'test', backgrounds, shared: new DomainContext(), validate: (content: string) => undefined }],
+      domains: [{ name: 'mytype', fileType: 'mytype', is: 'string', module: 'test', backgrounds, shared: new DomainContext('test resolver.domains'), validate: (content: string) => undefined }],
     });
 
   // FIXME these tests depend on checkRequiredType
