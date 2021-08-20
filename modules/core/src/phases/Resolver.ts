@@ -2,7 +2,6 @@ import { IStepper,  TFound, TResolvedFeature, OK, TWorld, BASE_TYPES, TExpandedF
 import { checkRequiredType } from '../lib/Domain';
 import { namedInterpolation, getMatch } from '../lib/namedVars';
 import { getActionable, describeSteppers, isLowerCase } from '../lib/util';
-import Builder from './Builder';
 
 export class Resolver {
   steppers: IStepper[];
@@ -14,12 +13,10 @@ export class Resolver {
     this.world = world;
   }
   async resolveSteps(features: TExpandedFeature[]): Promise<TResolvedFeature[]> {
-    const builder = new Builder(this.world);
     const expanded: TResolvedFeature[] = [];
     for (const feature of features) {
       try {
         const steps = await this.addSteps(feature);
-        builder.build([steps]);
         expanded.push(steps);
       } catch (e) {
         throw e;
