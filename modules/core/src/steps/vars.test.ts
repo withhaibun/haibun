@@ -12,7 +12,7 @@ describe('vars', () => {
     expect(world.shared.get('x')).toBe('y');
   });
   it('assigns empty', async () => {
-    const { world, vstep } = await getTestEnv(['vars'], 'set empty x to y', getDefaultWorld().world);
+    const { world, vstep } = await getTestEnv(['vars'], 'set empty "x" to y', getDefaultWorld().world);
     await Executor.doFeatureStep(vstep, world);
     expect(world.shared.get('x')).toBe('y');
   });
