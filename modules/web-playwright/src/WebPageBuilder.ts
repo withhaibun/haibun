@@ -2,26 +2,27 @@ import { DomainContext } from '@haibun/core/build/lib/contexts';
 import { TLogger, WorkspaceBuilder } from '@haibun/core/build/lib/defs';
 import { writeFileSync } from 'fs';
 
-export class WebPageBuilder implements WorkspaceBuilder {
+export class WebPageBuilder extends WorkspaceBuilder {
   controls: string[];
   location: string;
   logger: TLogger;
   building: DomainContext;
-  path: string;
+  folder: string;
 
-  constructor(path: string, logger: TLogger, location: string) {
-    this.path = path;
+  constructor(name: string, logger: TLogger, location: string, folder: string) {
+    super(name);
     this.logger = logger;
     this.location = location;
     this.controls = [];
-    this.building = new DomainContext({ [path]: `http://localhost:8080/${location}` });
+    this.folder = folder;
+    this.building = new DomainContext(`builder ${location}`, { _id: `http://localhost:8123/${location}` });
   }
   addControl(type: string) {
     this.controls.push(type);
     this.building.set(type,  'boo');
   }
   finalize() {
-    const dest = `files/${this.location}.html`;
+    const dest = `${this.folder}/${this.location}`;
     this.logger.log(`writing to ${dest}`);
     writeFileSync(dest, this.controls.join('<br />\n'));
     return this.building;

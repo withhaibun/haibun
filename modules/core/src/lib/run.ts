@@ -1,11 +1,12 @@
 import { existsSync } from 'fs';
 import { TSpecl, IStepper, IExtensionConstructor, TResult, TWorld, TProtoOptions, TFeature, IHasDomains, TFileTypeDomain } from './defs';
-import { expand, findFeaturesOfType } from './features';
+import { expand } from './features';
 import { Executor } from '../phases/Executor';
 import { Resolver } from '../phases/Resolver';
 import Builder from '../phases/Builder';
 import { getSteppers, applyExtraOptions, recurse, debase } from './util';
 import { DomainContext } from './contexts';
+import { applyStepperDomains } from './Domain';
 
 export async function run({
   specl,
@@ -25,6 +26,27 @@ export async function run({
   const features = debase(base, recurse(`${base}/features`, 'feature', featureFilter));
   let backgrounds: TFeature[] = [];
 
+  if (existsSync(`${base}/backgrounds`)) {
+    backgrounds = debase(base, recurse(`${base}/backgrounds`, ''));
+  }
+  return runWith({ specl, world, features, backgrounds, addSteppers, protoOptions });
+}
+
+export async function runWith({
+  specl,
+  world,
+  features,
+  backgrounds,
+  addSteppers,
+  protoOptions,
+}: {
+  specl: TSpecl;
+  world: TWorld;
+  features: TFeature[];
+  backgrounds: TFeature[];
+  addSteppers: IExtensionConstructor[];
+  protoOptions: TProtoOptions;
+}): Promise<{ result: TResult; steppers?: IStepper[] }> {
   const steppers: IStepper[] = await getSteppers({ steppers: specl.steppers, addSteppers, world });
   try {
     applyExtraOptions(protoOptions, steppers, world);
@@ -32,23 +54,8 @@ export async function run({
     return { result: { ok: false, failure: { stage: 'Options', error: { details: error.message, context: error } } } };
   }
 
-  if (existsSync(`${base}/backgrounds`)) {
-    backgrounds = debase(base, recurse(`${base}/backgrounds`, ''));
-
-    for (const s of steppers.filter((s) => !!(<IHasDomains>s).domains)) {
-      const module = s.constructor.name;
-      const domains = (<IHasDomains>s).domains;
-      if (domains) {
-        for (const d of domains) {
-          if (world.domains.find((w) => w.name === d.name)) {
-            return { result: { ok: false, failure: { stage: 'Options', error: { details: `duplicate domain ${d.name} at ${module}`, context: world.domains } } } };
-          }
-          const { fileType } = <TFileTypeDomain>d;
-          const ftBackgrounds = fileType ? findFeaturesOfType(backgrounds, fileType) : [];
-          world.domains.push({ ...d, module, backgrounds: ftBackgrounds, shared: new DomainContext(d.name) });
-        }
-      }
-    }
+  if (backgrounds && backgrounds.length > 0) {
+    applyStepperDomains(steppers, world);
   }
 
   let expandedFeatures;

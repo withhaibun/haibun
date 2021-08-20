@@ -1,5 +1,6 @@
-import { setShared } from '../steps/vars';
+import { onType, setShared } from '../steps/vars';
 import { IExtensionConstructor, IStepper, IHasDomains, TWorld, TNamed, TVStep } from './defs';
+import { getDomain } from './Domain';
 import { run } from './run';
 import { getOptionsOrDefault, getDefaultWorld, actionOK } from './util';
 
@@ -17,6 +18,10 @@ const TestStepsWithDomain: IExtensionConstructor = class TestStepsWithDomain imp
     this.world = world;
   }
   steps = {
+    onType: {
+      gwta: 'on the {what} {type}$',
+      action: async ({ what, type }: TNamed) => onType({ what, type }, this.world),
+    },
     has: {
       gwta: 'Has a {what} control',
       action: async ({ what }: TNamed, vstep: TVStep) => {
@@ -28,7 +33,6 @@ const TestStepsWithDomain: IExtensionConstructor = class TestStepsWithDomain imp
     test: {
       gwta: 'Pull the {what: control}',
       action: async (named: TNamed) => {
-        
         return actionOK();
       },
     },
@@ -43,15 +47,13 @@ describe('domain object from background', () => {
     const world = { ...getDefaultWorld().world };
     const { result } = await run({ specl, base, addSteppers: [TestStepsWithDomain], world });
 
-    !result.ok && console.log(JSON.stringify({result, world}, null, 2))
+    !result.ok && console.log(JSON.stringify({ result, world }, null, 2));
     expect(result.ok).toBe(true);
     const key = '/backgrounds/p1';
 
-    const page = world.domains.find((d) => d.name === TTYPE)!.shared.get(key);
-    expect(page).toBeDefined();
     expect(world.shared.getCurrent(TTYPE)).toEqual(key);
-
+    const page = getDomain(TTYPE, world)!.shared.get(key);
+    expect(page).toBeDefined();
     expect(page.get(ACONTROL)).toEqual('xxx');
-    // expect(page.get('test')).toEqual('foo');
   });
 });

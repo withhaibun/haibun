@@ -1,7 +1,9 @@
 import { Page } from 'playwright';
 
 import { IHasOptions, IStepper, IExtensionConstructor, OK, TWorld, IHasDomains, TNamed, TVStep } from '@haibun/core/build/lib/defs';
-import { WorkspaceContext} from '@haibun/core/build/lib/contexts';
+import { getDomain } from '@haibun/core/build/lib/Domain';
+import { Context, WorkspaceContext } from '@haibun/core/build/lib/contexts';
+import { onType } from '@haibun/core/build/steps/vars';
 import { BrowserFactory } from './BrowserFactory';
 import { actionNotOK, ensureDirectory, getFromRuntime } from '@haibun/core/build/lib/util';
 import { WebPageBuilder } from './WebPageBuilder';
@@ -177,11 +179,11 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
     },
 
     //                          NAVIGATION
-    openPage: {
-      gwta: `open the {name: ${webPage}} page`,
-      action: async ({ name }: TNamed) => {
-        // TODO: assign a shared variable for the current page name, and another with loaded page values. controls are from: page, and will retrieve values from there
-        const response = await this.withPage(async (page: Page) => await page.goto(name));
+    onPage: {
+      gwta: `On the {name: ${webPage}} ${webPage}`,
+      action: async ({ name }: TNamed, vstep: TVStep) => {
+        onType({ name, type: webPage }, this.world);
+        const response = await this.withPage(async (page: Page) => await page.goto((name as any as Context).get('_id')));
         return response?.ok ? OK : actionNotOK(`response not ok`);
       },
     },
@@ -251,16 +253,23 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
     /// generator
     webpage: {
       gwta: `A ${webPage} {name} hosted at {location}`,
-      action: async ({ name, location }: TNamed) => {
+      action: async ({ name, location }: TNamed, vsteps: TVStep) => {
+        const page = vsteps.source.name;
+
         const webserver = getFromRuntime(this.world.runtime, 'webserver');
         // TODO mount the page
         return OK;
       },
       build: async ({ location }: TNamed, { source }: TVStep, workspace: WorkspaceContext) => {
-        if (location !== location.replace(/[^a-zA-Z-0-9]/g, '')) {
-          throw Error(`${webPage} location ${location} has illegal characters`);
+        if (location !== location.replace(/[^a-zA-Z-0-9\.]/g, '')) {
+          throw Error(`${webPage} location ${location} has millegal characters`);
         }
-        workspace.addBuilder(new WebPageBuilder(source.path, this.world.logger, location));
+        const subdir = this.world.shared.get('file_location');
+        if (!subdir) {
+          throw Error(`must declare a file_location`);
+        }
+        const folder = `files/${subdir}`;
+        workspace.addBuilder(new WebPageBuilder(source.name, this.world.logger, location, folder));
         return { ...OK, finalize: this.finalize };
       },
     },
@@ -281,9 +290,11 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
     }
     workspace.set('_finalized', true);
     const builder = workspace.getBuilder();
-    
+
     const shared = builder.finalize();
-    this.world.domains.find((d) => d.name === webPage)!.shared = shared;
+    const domainShared = getDomain(webPage, this.world)!;
+
+    domainShared.shared.set(builder.name, shared);
   };
 };
 export default WebPlaywright;

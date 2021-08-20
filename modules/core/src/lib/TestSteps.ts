@@ -4,6 +4,7 @@ import { run } from './run';
 import { actionNotOK, actionOK, getOptionsOrDefault, getStepperOption, getSteppers } from './util';
 import { WorkspaceContext } from './contexts';
 import { featureSplit, withNameType } from './features';
+import { applyStepperDomains } from './Domain';
 
 export const TestSteps: IExtensionConstructor = class TestSteps implements IStepper {
   world: TWorld;
@@ -90,6 +91,8 @@ export const TestStepsWithOptions: IExtensionConstructor = class TestStepsWithOp
 
 export async function getTestEnv(useSteppers: string[], test: string, world: TWorld) {
   const steppers = await getSteppers({ steppers: useSteppers, world });
+  applyStepperDomains(steppers, world);
+  
   const resolver = new Resolver(steppers, 'all', world);
   const actions = resolver.findSteps(test);
 

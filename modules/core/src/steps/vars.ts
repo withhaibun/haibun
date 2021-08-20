@@ -8,20 +8,17 @@ const vars: IExtensionConstructor = class Vars implements IStepper {
     this.world = world;
   }
 
-  async onType({ what, type }: TNamed, where: Context) {
-    this.world.shared.setDomain(type, what);
-    return OK;
-  }
+  set = async (named: TNamed, vstep: TVStep) => {
+    // FIXME hokey
+    const emptyOnly = !!vstep.in.match(/set empty /);
+    return setShared(named, vstep, this.world, emptyOnly);
+  };
+
   steps = {
     set: {
       gwta: 'set( empty)? {what: string} to {value: string}',
-      action: async (named: TNamed, vstep: TVStep) => setShared(named, vstep, this.world),
-      build: async (named: TNamed, vstep: TVStep, workspace: DomainContext) => setShared(named, vstep, this.world),
-    },
-    onType: {
-      gwta: 'on the {what} {type}$',
-      action: async (named: TNamed, vstep: TVStep) => this.onType(named, this.world.shared),
-      build: async (named: TNamed, vstep: TVStep, workspace: DomainContext) => this.onType(named, this.world.shared),
+      action: this.set.bind(this),
+      build: this.set.bind(this),
     },
     background: {
       match: /^Background: ?(?<background>.+)?$/,
@@ -58,10 +55,7 @@ export default vars;
 
 export const didNotOverwrite = (what: string, present: string | Context, value: string) => `did not overwrite ${what} value of "${present}" with "${value}"`;
 
-export const setShared = ({ what, value }: TNamed, vstep: TVStep, world: TWorld) => {
-  // FIXME hokey
-  const emptyOnly = vstep.in.match(/set empty /);
-
+export const setShared = ({ what, value }: TNamed, vstep: TVStep, world: TWorld, emptyOnly: boolean = false) => {
   // if on a domain page, set it in that domain's shared
   const { type, name } = vstep.source;
 
@@ -78,3 +72,9 @@ export const setShared = ({ what, value }: TNamed, vstep: TVStep, world: TWorld)
 
   return { ...OK, details: didNotOverwrite(what, shared.get(what), value) };
 };
+
+  export const onType = ({ what, type }: TNamed, world: TWorld) => {
+    // verifyDomainObjectExists(what, type);
+    world.shared.setDomain(type, what);
+    return OK;
+  }
