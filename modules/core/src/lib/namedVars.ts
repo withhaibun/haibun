@@ -79,7 +79,7 @@ export function getNamedToVars({ named, vars }: TFound, world: TWorld) {
     const { name, type } = v;
 
     const shared = getStepShared(type, world);
-    
+
     const namedKey = Object.keys(named).find((c) => c.endsWith(`_${i}`) && named[c] !== undefined);
 
     if (!namedKey) {
@@ -91,7 +91,7 @@ export function getNamedToVars({ named, vars }: TFound, world: TWorld) {
     } else if (namedKey.startsWith(TYPE_VAR) || namedKey.startsWith(TYPE_CREDENTIAL)) {
       // must be from source
       if (!shared.get(namedValue)) {
-        throw Error(`no value for "${namedValue}" from ${JSON.stringify({shared, type})}`);
+        throw Error(`no value for "${namedValue}" from ${JSON.stringify({ shared, type })}`);
       }
       namedFromVars[name] = shared.get(namedValue);
     } else if (namedKey.startsWith(TYPE_QUOTED)) {

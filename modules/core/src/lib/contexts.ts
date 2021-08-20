@@ -25,8 +25,8 @@ export class DomainContext extends Context {
   constructor(context: string, initial?: { [name: string]: string }) {
     super(`domain ${context}`, initial);
   }
-  createPath(path: string) {
-    this.values[path] = new DomainContext(`path ${path}`);
+  createPath(path: string, values?: { [name: string]: any }) {
+    this.values[path] = new DomainContext(`path ${path}`, values);
     return this.values[path];
   }
 }
@@ -53,8 +53,6 @@ export class WorkspaceContext extends Context {
   }
   addBuilder(what: WorkspaceBuilder) {
     this.builder = what;
-    console.log('xx', this.builder);
-    
   }
   getBuilder(): WorkspaceBuilder {
     if (!this.builder) {
