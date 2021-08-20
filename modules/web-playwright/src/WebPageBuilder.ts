@@ -1,3 +1,4 @@
+import { DomainContext } from '@haibun/core/build/lib/contexts';
 import { TLogger, WorkspaceBuilder } from '@haibun/core/build/lib/defs';
 import { writeFileSync } from 'fs';
 
@@ -5,7 +6,7 @@ export class WebPageBuilder implements WorkspaceBuilder {
   controls: string[];
   location: string;
   logger: TLogger;
-  building: { [name: string]: string };
+  building: DomainContext;
   path: string;
 
   constructor(path: string, logger: TLogger, location: string) {
@@ -13,11 +14,11 @@ export class WebPageBuilder implements WorkspaceBuilder {
     this.logger = logger;
     this.location = location;
     this.controls = [];
-    this.building = { [path]: `http://localhost:8080/${location}` };
+    this.building = new DomainContext({ [path]: `http://localhost:8080/${location}` });
   }
   addControl(type: string) {
     this.controls.push(type);
-    this.building[type] = 'boo';
+    this.building.set(type,  'boo');
   }
   finalize() {
     const dest = `files/${this.location}.html`;

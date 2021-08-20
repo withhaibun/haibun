@@ -2,9 +2,15 @@ import { WorkspaceBuilder } from './defs';
 
 export class Context {
   values: { [name: string]: any };
+  context: string;
 
-  constructor(initial?: { [name: string]: string }) {
+  constructor(context: string, initial?: { [name: string]: string }) {
+    this.context = context;
     this.values = initial || {};
+  }
+
+  toString() {
+    return `context ${this.context} values ${this.values}`;
   }
 
   set(name: string, value: string | boolean) {
@@ -16,13 +22,19 @@ export class Context {
 }
 
 export class DomainContext extends Context {
+  constructor(context: string, initial?: { [name: string]: string }) {
+    super(`domain ${context}`, initial);
+  }
   createPath(path: string) {
-    this.values[path] = new DomainContext();
+    this.values[path] = new DomainContext(`path ${path}`);
     return this.values[path];
   }
 }
 
 export class WorldContext extends Context {
+  constructor(context: string, initial?: { [name: string]: string }) {
+    super(`world ${context}`, initial);
+  }
   static currentKey = (domain: string) => `_current_${domain}`;
   getCurrent = (type: string) => this.values[WorldContext.currentKey(type)];
   setDomain(which: string, value: string) {
@@ -31,9 +43,12 @@ export class WorldContext extends Context {
 }
 
 export class WorkspaceContext extends Context {
+  constructor(context: string, initial?: { [name: string]: string }) {
+    super(`workspace ${context}`, initial);
+  }
   builder: WorkspaceBuilder | undefined = undefined;
   createPath(path: string) {
-    this.values[path] = new WorkspaceContext();
+    this.values[path] = new WorkspaceContext(`path ${path}`);
     return this.values[path];
   }
   addBuilder(what: WorkspaceBuilder) {

@@ -41,7 +41,7 @@ describe('Builder', () => {
   test('finalizes', async () => {
     const finalize: TFinalize = (workspace: WorkspaceContext) => (workspace.set('done', true));
     const finalizes = async () => ({ ...OK, finalize });
-    const workspace: WorkspaceContext = new WorkspaceContext();
+    const workspace: WorkspaceContext = new WorkspaceContext(`test builder finalizes`);
     const builder = new Builder(getDefaultWorld().world, workspace);
     // await builder.build([feature(finalizes)]);
     // expect(workspace['passes.feature'].done).toBe(true);
