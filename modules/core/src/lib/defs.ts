@@ -97,7 +97,7 @@ export type TVStep = {
 };
 
 export type TAction = (named: TNamed, vstep: TVStep) => Promise<TActionResult>;
-export type TBuildResult = TOKActionResult & { finalize?: TFinalize };
+export type TBuildResult = TOKActionResult & { finalize?: TFinalize } | TNotOKActionResult;
 export type TBuild = (named: TNamed, vstep: TVStep, workspace: WorkspaceContext) => Promise<TBuildResult>;
 
 export type TRequiresResult = { includes?: string[] };
