@@ -22,6 +22,9 @@ export default class Builder {
             }
             const namedWithVars = getNamedToVars(action, this.world);
             const res = await action.step.build(namedWithVars!, vstep, this.workspace.get(feature.path));
+            if (!res.ok) {
+              throw Error(`${action.name}: ${res.message}`);
+            }
             if (res.finalize) {
               finalizers[feature.path].push(res.finalize);
             }

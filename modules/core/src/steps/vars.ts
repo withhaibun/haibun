@@ -1,6 +1,7 @@
-import { Context, DomainContext } from '../lib/contexts';
+import { Context, DomainContext, WorldContext } from '../lib/contexts';
 import { IStepper, IExtensionConstructor, OK, TNamed, TVStep, TWorld } from '../lib/defs';
 import { getStepShared } from '../lib/Domain';
+import { actionNotOK } from '../lib/util';
 
 const vars: IExtensionConstructor = class Vars implements IStepper {
   world: TWorld;
@@ -13,12 +14,24 @@ const vars: IExtensionConstructor = class Vars implements IStepper {
     const emptyOnly = !!vstep.in.match(/set empty /);
     return setShared(named, vstep, this.world, emptyOnly);
   };
+  isSet (what: string, orCond: string) {
+    if (this.world.shared.get(what) !== undefined) {
+      return OK;
+    }
+    return actionNotOK(`${what} not set ${orCond}`);
+  };
 
   steps = {
     set: {
       gwta: 'set( empty)? {what: string} to {value: string}',
       action: this.set.bind(this),
       build: this.set.bind(this),
+    },
+    isSet: {
+      gwta: '{what: string} is set( or .*)?',
+    // FIXME hokey
+      action: async({what}: TNamed, vstep: TVStep) => this.isSet(what, vstep.in.replace(/.* set .* or /, '')),
+      build: async({what}: TNamed, vstep: TVStep) => this.isSet(what, vstep.in.replace(/.* set .* or /, ''))
     },
     background: {
       match: /^Background: ?(?<background>.+)?$/,
