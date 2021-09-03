@@ -4,9 +4,11 @@ import { BASE_TYPES, IHasDomains, IStepper, TFileTypeDomain, TFound, TFromDomain
 import { findFeatures } from './features';
 import { getNamedToVars } from './namedVars';
 
+
 export const isBaseType = (type: string) => BASE_TYPES.includes(type);
 export const getStepShared = (type: string, world: TWorld): Context => {
-  // FIXME  shouldn't need to check 'feature'
+  // FIXME shouldn't need to check 'feature'
+  
   if (type === 'feature' || isBaseType(type)) {
     return world.shared;
   }

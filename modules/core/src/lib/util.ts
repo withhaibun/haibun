@@ -1,4 +1,5 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync } from 'fs';
+import path from 'path';
 import { WorldContext } from './contexts';
 
 import {
@@ -84,10 +85,10 @@ export async function getSteppers({ steppers = [], world, addSteppers = [] }: { 
 function getModuleLocation(name: string) {
   if (name.startsWith('~')) {
     return [process.cwd(), 'node_modules', name.substr(1)].join('/');
-  } else if (name.match('^[a-zA-Z].*')) {
+  } else if (name.match(/^[a-zA-Z].*/)) {
     return `../steps/${name}`;
   }
-  return name;
+  return path.resolve(process.cwd(), name);
 }
 
 export function debase(base: string, features: TFeature[]) {

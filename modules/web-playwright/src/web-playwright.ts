@@ -2,7 +2,7 @@ import { Page } from 'playwright';
 
 import { IHasOptions, IStepper, IExtensionConstructor, OK, TWorld, IHasDomains, TNamed, TVStep } from '@haibun/core/build/lib/defs';
 import { getDomain } from '@haibun/core/build/lib/Domain';
-import { Context, WorkspaceContext } from '@haibun/core/build/lib/contexts';
+import { DomainContext, WorkspaceContext } from '@haibun/core/build/lib/contexts';
 import { onType } from '@haibun/core/build/steps/vars';
 import { BrowserFactory } from './BrowserFactory';
 import { actionNotOK, ensureDirectory, getFromRuntime } from '@haibun/core/build/lib/util';
@@ -183,7 +183,10 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
       gwta: `On the {name: ${webPage}} ${webPage}`,
       action: async ({ name }: TNamed, vstep: TVStep) => {
         onType({ name, type: webPage }, this.world);
-        const response = await this.withPage(async (page: Page) => await page.goto((name as any as Context).get('_id')));
+
+        const uri = (name as any as DomainContext).getID();
+        console.log('xx', name, uri);
+        const response = await this.withPage(async (page: Page) => await page.goto(uri));
         return response?.ok ? OK : actionNotOK(`response not ok`);
       },
     },
@@ -250,6 +253,19 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
       },
     },
 
+    thisURI: {
+      gwta: `a ${webPage} at {where}`,
+      action: async ({ where }: TNamed, vstep: TVStep) => {
+        console.log('tvs', vstep);
+        if (vstep.source.type === webPage) {
+          console.log('xxxxsadfds', where);
+          
+
+        }
+
+        return OK;
+      },
+    },
     /// generator
     webpage: {
       gwta: `A ${webPage} {name} hosted at {location}`,

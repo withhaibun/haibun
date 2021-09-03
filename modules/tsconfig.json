@@ -3,6 +3,7 @@
     "references": [
         { "path": "core" },
         { "path": "client-playwright" },
+        { "path": "web-component-builder" },
         { "path": "web-server-express" },
         { "path": "web-playwright" },
         { "path": "web-http" },
