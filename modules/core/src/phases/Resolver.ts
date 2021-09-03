@@ -1,5 +1,5 @@
 import { IStepper,  TFound, TResolvedFeature, OK, TWorld, BASE_TYPES, TExpandedFeature } from '../lib/defs';
-import { checkRequiredType } from '../lib/Domain';
+import { checkRequiredType } from '../lib/domain';
 import { namedInterpolation, getMatch } from '../lib/namedVars';
 import { getActionable, describeSteppers, isLowerCase } from '../lib/util';
 

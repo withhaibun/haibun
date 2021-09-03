@@ -1,8 +1,6 @@
 import { DomainContext, WorkspaceContext, WorldContext } from './contexts';
 import { TLogger } from './interfaces/logger';
 
-export type TLogLevel = 'none' | 'debug' | 'log' | 'info' | 'warn' | 'error';
-
 export type TSpecl = {
   steppers: string[];
   mode: 'all' | 'some';
@@ -29,6 +27,9 @@ export interface IHasOptions {
 
 export interface IHasDomains {
   domains?: TDomain[];
+}
+export interface IRequireDomains {
+  requireDomains?: string[];
 }
 
 export type TProtoOptions = {
@@ -148,7 +149,7 @@ export type TResult = {
   ok: boolean;
   results?: TFeatureResult[];
   failure?: {
-    stage: 'Options' | 'Expand' | 'Resolve' | 'Build' | 'Execute';
+    stage: 'Options' | 'Domains' |'Expand' | 'Resolve' | 'Build' | 'Execute';
     error: TResultError;
   };
 };

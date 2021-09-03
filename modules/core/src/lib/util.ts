@@ -117,18 +117,20 @@ export function getDefaultOptions(): TSpecl {
   };
 }
 
-export function getOptionsOrDefault(base: string): TSpecl {
-  const f = `${base}/config.json`;
-  if (existsSync(f)) {
-    try {
-      const specl = JSON.parse(readFileSync(f, 'utf-8'));
-      if (!specl.options) {
-        specl.options = {};
+export function getOptionsOrDefault(base?: string): TSpecl {
+  if (base) {
+    const f = `${base}/config.json`;
+    if (existsSync(f)) {
+      try {
+        const specl = JSON.parse(readFileSync(f, 'utf-8'));
+        if (!specl.options) {
+          specl.options = {};
+        }
+        return specl;
+      } catch (e) {
+        console.error('missing or not valid project config file.');
+        process.exit(1);
       }
-      return specl;
-    } catch (e) {
-      console.error('missing or not valid project config file.');
-      process.exit(1);
     }
   }
   return getDefaultOptions();
