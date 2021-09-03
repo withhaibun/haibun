@@ -1,8 +1,8 @@
 import { statSync, existsSync } from 'fs';
 import express, { RequestHandler } from 'express';
 
-import { TLogger } from '@haibun/core/build/lib/defs';
-import { IWebServer, TRouteType } from './web-server-stepper';
+import { IWebServer, TRouteType } from '@haibun/core/build/lib/interfaces/webserver';
+import { TLogger } from '@haibun/core/src/lib/interfaces/logger';
 
 export const DEFAULT_PORT = 8123;
 

@@ -18,7 +18,7 @@ const vars: IExtensionConstructor = class Vars implements IStepper {
     if (this.world.shared.get(what) !== undefined) {
       return OK;
     }
-    return actionNotOK(`${what} not set ${orCond}`);
+    return actionNotOK(`${what} not set${orCond && ': ' + orCond}`);
   };
 
   steps = {
@@ -30,8 +30,8 @@ const vars: IExtensionConstructor = class Vars implements IStepper {
     isSet: {
       gwta: '{what: string} is set( or .*)?',
     // FIXME hokey
-      action: async({what}: TNamed, vstep: TVStep) => this.isSet(what, vstep.in.replace(/.* set .* or /, '')),
-      build: async({what}: TNamed, vstep: TVStep) => this.isSet(what, vstep.in.replace(/.* set .* or /, ''))
+      action: async({what}: TNamed, vstep: TVStep) => this.isSet(what, vstep.in.replace(/.* is set or /, '')),
+      build: async({what}: TNamed, vstep: TVStep) => this.isSet(what, vstep.in.replace(/.* is set or /, ''))
     },
     background: {
       match: /^Background: ?(?<background>.+)?$/,

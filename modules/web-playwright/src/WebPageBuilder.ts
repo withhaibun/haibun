@@ -1,5 +1,6 @@
 import { DomainContext } from '@haibun/core/build/lib/contexts';
-import { TLogger, WorkspaceBuilder } from '@haibun/core/build/lib/defs';
+import { WorkspaceBuilder } from '@haibun/core/build/lib/defs';
+import { TLogger } from '@haibun/core/build/lib/interfaces/logger';
 import { writeFileSync } from 'fs';
 
 export class WebPageBuilder extends WorkspaceBuilder {
@@ -15,11 +16,12 @@ export class WebPageBuilder extends WorkspaceBuilder {
     this.location = location;
     this.controls = [];
     this.folder = folder;
-    this.building = new DomainContext(`builder ${location}`, { _id: `http://localhost:8123/${location}` });
+    this.building = new DomainContext(`builder ${location}`);
+    this.building.setId(`http://localhost:8123/${location}`);
   }
   addControl(type: string) {
     this.controls.push(type);
-    this.building.set(type,  'boo');
+    this.building.set(type, 'boo');
   }
   finalize() {
     const dest = `${this.folder}/${this.location}`;

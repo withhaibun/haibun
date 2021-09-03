@@ -1,11 +1,10 @@
 import { existsSync } from 'fs';
-import { TSpecl, IStepper, IExtensionConstructor, TResult, TWorld, TProtoOptions, TFeature, IHasDomains, TFileTypeDomain } from './defs';
+import { TSpecl, IStepper, IExtensionConstructor, TResult, TWorld, TProtoOptions, TFeature } from './defs';
 import { expand } from './features';
 import { Executor } from '../phases/Executor';
 import { Resolver } from '../phases/Resolver';
 import Builder from '../phases/Builder';
 import { getSteppers, applyExtraOptions, recurse, debase } from './util';
-import { DomainContext } from './contexts';
 import { applyStepperDomains } from './Domain';
 
 export async function run({
