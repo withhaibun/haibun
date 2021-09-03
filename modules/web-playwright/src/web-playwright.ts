@@ -1,22 +1,16 @@
 import { Page } from 'playwright';
 
-import { IHasOptions, IStepper, IExtensionConstructor, OK, TWorld, IHasDomains, TNamed, TVStep } from '@haibun/core/build/lib/defs';
-import { getDomain } from '@haibun/core/build/lib/Domain';
-import { DomainContext, WorkspaceContext } from '@haibun/core/build/lib/contexts';
+import { IHasOptions, IStepper, IExtensionConstructor, OK, TWorld, TNamed, TVStep, IRequireDomains } from '@haibun/core/build/lib/defs';
+import { DomainContext } from '@haibun/core/build/lib/contexts';
 import { onType } from '@haibun/core/build/steps/vars';
 import { BrowserFactory } from './BrowserFactory';
-import { actionNotOK, ensureDirectory, getFromRuntime } from '@haibun/core/build/lib/util';
-import { WebPageBuilder } from './WebPageBuilder';
+import { actionNotOK, ensureDirectory } from '@haibun/core/build/lib/util';
+import { webPage, webControl } from '@haibun/domain-webpage/build/domain-webpage';
+
 declare var window: any;
 
-const webPage = 'webpage';
-const webControl = 'webcontrol';
-
-const WebPlaywright: IExtensionConstructor = class WebPlaywright implements IStepper, IHasOptions, IHasDomains {
-  domains = [
-    { name: webPage, fileType: webPage, is: 'string', validate: this.validatePage },
-    { name: webControl, from: webPage, is: 'string' },
-  ];
+const WebPlaywright: IExtensionConstructor = class WebPlaywright implements IStepper, IHasOptions, IRequireDomains {
+  requireDomains = [webPage, webControl];
   options = {
     STEP_CAPTURE: {
       desc: 'capture screenshot for every step',
@@ -29,9 +23,6 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
   constructor(world: TWorld) {
     this.world = world;
     this.bf = new BrowserFactory(world.logger);
-  }
-  validatePage(content: string) {
-    return undefined;
   }
 
   async getPage() {
@@ -252,65 +243,6 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
         return OK;
       },
     },
-
-    thisURI: {
-      gwta: `a ${webPage} at {where}`,
-      action: async ({ where }: TNamed, vstep: TVStep) => {
-        console.log('tvs', vstep);
-        if (vstep.source.type === webPage) {
-          console.log('xxxxsadfds', where);
-          
-
-        }
-
-        return OK;
-      },
-    },
-    /// generator
-    webpage: {
-      gwta: `A ${webPage} {name} hosted at {location}`,
-      action: async ({ name, location }: TNamed, vsteps: TVStep) => {
-        const page = vsteps.source.name;
-
-        const webserver = getFromRuntime(this.world.runtime, 'webserver');
-        // TODO mount the page
-        return OK;
-      },
-      build: async ({ location }: TNamed, { source }: TVStep, workspace: WorkspaceContext) => {
-        if (location !== location.replace(/[^a-zA-Z-0-9\.]/g, '')) {
-          throw Error(`${webPage} location ${location} has millegal characters`);
-        }
-        const subdir = this.world.shared.get('file_location');
-        if (!subdir) {
-          throw Error(`must declare a file_location`);
-        }
-        const folder = `files/${subdir}`;
-        workspace.addBuilder(new WebPageBuilder(source.name, this.world.logger, location, folder));
-        return { ...OK, finalize: this.finalize };
-      },
-    },
-    webcontrol: {
-      gwta: `A ${webControl} {name}`,
-      action: async ({ name }: TNamed) => {
-        return OK;
-      },
-      build: async ({ name }: TNamed, a: TVStep, workspace: WorkspaceContext) => {
-        workspace.getBuilder().addControl(name);
-        return { ...OK };
-      },
-    },
-  };
-  finalize = (workspace: WorkspaceContext) => {
-    if (workspace.get('_finalized')) {
-      return;
-    }
-    workspace.set('_finalized', true);
-    const builder = workspace.getBuilder();
-
-    const shared = builder.finalize();
-    const domainShared = getDomain(webPage, this.world)!;
-
-    domainShared.shared.set(builder.name, shared);
   };
 };
 export default WebPlaywright;

@@ -5,7 +5,7 @@ import { Executor } from '../phases/Executor';
 import { Resolver } from '../phases/Resolver';
 import Builder from '../phases/Builder';
 import { getSteppers, applyExtraOptions, recurse, debase } from './util';
-import { applyStepperDomains } from './Domain';
+import { applyDomainsOrError } from './domain';
 
 export async function run({
   specl,
@@ -28,6 +28,7 @@ export async function run({
   if (existsSync(`${base}/backgrounds`)) {
     backgrounds = debase(base, recurse(`${base}/backgrounds`, ''));
   }
+
   return runWith({ specl, world, features, backgrounds, addSteppers, protoOptions });
 }
 
@@ -37,14 +38,14 @@ export async function runWith({
   features,
   backgrounds,
   addSteppers,
-  protoOptions,
+  protoOptions: protoOptions = { options: {}, extraOptions: {} },
 }: {
   specl: TSpecl;
   world: TWorld;
   features: TFeature[];
   backgrounds: TFeature[];
   addSteppers: IExtensionConstructor[];
-  protoOptions: TProtoOptions;
+  protoOptions?: TProtoOptions;
 }): Promise<{ result: TResult; steppers?: IStepper[] }> {
   const steppers: IStepper[] = await getSteppers({ steppers: specl.steppers, addSteppers, world });
   try {
@@ -53,8 +54,10 @@ export async function runWith({
     return { result: { ok: false, failure: { stage: 'Options', error: { details: error.message, context: error } } } };
   }
 
-  if (backgrounds && backgrounds.length > 0) {
-    applyStepperDomains(steppers, world);
+  try {
+    applyDomainsOrError(steppers, world);
+  } catch (error: any) {
+    return { result: { ok: false, failure: { stage: 'Domains', error: { details: error.message, context: error } } } };
   }
 
   let expandedFeatures;

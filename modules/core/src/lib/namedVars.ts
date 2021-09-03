@@ -1,5 +1,5 @@
 import { TStep, TNamedVar, TFound, TNamed, BASE_TYPES, TWorld } from './defs';
-import { getStepShared } from './Domain';
+import { getStepShared } from './domain';
 
 const TYPE_QUOTED = 'q_';
 const TYPE_CREDENTIAL = 'c_';

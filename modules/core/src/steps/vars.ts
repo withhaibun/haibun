@@ -1,6 +1,6 @@
 import { Context, DomainContext, WorldContext } from '../lib/contexts';
 import { IStepper, IExtensionConstructor, OK, TNamed, TVStep, TWorld } from '../lib/defs';
-import { getStepShared } from '../lib/Domain';
+import { getStepShared } from '../lib/domain';
 import { actionNotOK } from '../lib/util';
 
 const vars: IExtensionConstructor = class Vars implements IStepper {
