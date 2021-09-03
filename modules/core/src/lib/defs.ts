@@ -1,4 +1,5 @@
-import { Context, DomainContext, WorkspaceContext, WorldContext } from './contexts';
+import { DomainContext, WorkspaceContext, WorldContext } from './contexts';
+import { TLogger } from './interfaces/logger';
 
 export type TLogLevel = 'none' | 'debug' | 'log' | 'info' | 'warn' | 'error';
 
@@ -39,14 +40,14 @@ export type TFromDomain = {
   name: string;
   from: string;
   is: string;
-}
+};
 
 export type TFileTypeDomain = {
   name: string;
   validate: (content: string) => undefined | string;
   fileType: string;
   is: string;
-}
+};
 export type TDomain = TFromDomain | TFileTypeDomain;
 export type TModuleDomain = TDomain & {
   module: string;
@@ -61,12 +62,11 @@ export type TWorld = {
   domains: TModuleDomain[];
 };
 
-
 export type TFeatureMeta = {
   type: string;
   name: string;
   path: string;
-}
+};
 export type TFeature = TFeatureMeta & {
   name: string;
   content: string;
@@ -80,7 +80,7 @@ export type TExpandedFeature = TFeatureMeta & {
 export type TExpandedLine = {
   line: string;
   feature: TFeature;
-}
+};
 
 export type TFeatures = TFeature[];
 
@@ -97,7 +97,7 @@ export type TVStep = {
 };
 
 export type TAction = (named: TNamed, vstep: TVStep) => Promise<TActionResult>;
-export type TBuildResult = TOKActionResult & { finalize?: TFinalize } | TNotOKActionResult;
+export type TBuildResult = (TOKActionResult & { finalize?: TFinalize }) | TNotOKActionResult;
 export type TBuild = (named: TNamed, vstep: TVStep, workspace: WorkspaceContext) => Promise<TBuildResult>;
 
 export type TRequiresResult = { includes?: string[] };
@@ -133,14 +133,6 @@ export interface IStepper extends IExtension {
 export interface IExtensionConstructor {
   new (world: TWorld): IStepper;
 }
-export interface TLogger {
-  debug: (what: any) => void;
-  log: (what: any) => void;
-  info: (what: any) => void;
-  warn: (what: any) => void;
-  error: (what: any) => void;
-}
-
 export type TFound = { name: string; step: TStep; named?: TNamed | undefined; vars?: TNamedVar[] };
 export type TNamed = { [name: string]: string };
 export type TNamedVar = { name: string; type: string };

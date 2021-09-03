@@ -29,6 +29,12 @@ export class DomainContext extends Context {
     this.values[path] = new DomainContext(`path ${path}`, values);
     return this.values[path];
   }
+  setId(id: string) {
+    this.values.set('_id', id);
+  }
+  getID() {
+    return this.values.get('_id');
+  }
 }
 
 export class WorldContext extends Context {

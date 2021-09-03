@@ -3,8 +3,9 @@ import { Request, Response } from 'express';
 
 import { actionOK, getDefaultWorld, getFromRuntime, getStepper } from '@haibun/core/build/lib/util';
 import { testRun } from '@haibun/core/build/lib/TestSteps';
+import { IWebServer } from '@haibun/core/build/lib/runtime/webserver';
 
-import server, { CHECK_LISTENER, ICheckListener, IWebServer, IWebServerStepper, WEBSERVER, WEBSERVER_STEPPER } from './web-server-stepper';
+import server, { CHECK_LISTENER, ICheckListener, IWebServerStepper, WEBSERVER, WEBSERVER_STEPPER } from './web-server-stepper';
 import { IExtensionConstructor, IStepper, TNamed, TWorld } from '@haibun/core/build/lib/defs';
 
 describe('route mount', () => {
