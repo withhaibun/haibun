@@ -4,7 +4,7 @@ import { run } from './run';
 import { actionNotOK, actionOK, getOptionsOrDefault, getStepperOption, getSteppers } from './util';
 import { WorkspaceContext } from './contexts';
 import { featureSplit, withNameType } from './features';
-import { applyStepperDomains } from './Domain';
+import { applyDomainsOrError } from './domain';
 
 export const TestSteps: IExtensionConstructor = class TestSteps implements IStepper {
   world: TWorld;
@@ -91,13 +91,13 @@ export const TestStepsWithOptions: IExtensionConstructor = class TestStepsWithOp
 
 export async function getTestEnv(useSteppers: string[], test: string, world: TWorld) {
   const steppers = await getSteppers({ steppers: useSteppers, world });
-  applyStepperDomains(steppers, world);
-  
+  applyDomainsOrError(steppers, world);
+
   const resolver = new Resolver(steppers, 'all', world);
   const actions = resolver.findSteps(test);
 
   const vstep: TVStep = {
-    source: {...withNameType('test', '')},
+    source: { ...withNameType('test', '') },
     in: test,
     seq: 0,
     actions,
@@ -116,10 +116,11 @@ export async function testRun(baseIn: string, addSteppers: IExtensionConstructor
 export const asFeatures = (w: { path: string; content: string }[]) => w.map((i) => withNameType(i.path, i.content));
 
 // FIXME can't really do this without reproducing resolve
-export const asExpandedFeatures = (w: { path: string; content: string }[]) => asFeatures(w).map((i) => {
-  const expanded : TExpandedLine[] = featureSplit(i.content).map(a => ({line: a, feature: i}));
-  let a : any ={ ...i, expanded };
-  delete a.content;
-  // a.featureLine = asFeatureLine()
-  return a;
-});
+export const asExpandedFeatures = (w: { path: string; content: string }[]) =>
+  asFeatures(w).map((i) => {
+    const expanded: TExpandedLine[] = featureSplit(i.content).map((a) => ({ line: a, feature: i }));
+    let a: any = { ...i, expanded };
+    delete a.content;
+    // a.featureLine = asFeatureLine()
+    return a;
+  });

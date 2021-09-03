@@ -1,14 +1,13 @@
 import { Resolver } from '../phases/Resolver';
 import { Context, DomainContext } from './contexts';
-import { BASE_TYPES, IHasDomains, IStepper, TFileTypeDomain, TFound, TFromDomain, TModuleDomain, TWorld } from './defs';
+import { BASE_TYPES, IHasDomains, IRequireDomains, IStepper, TFileTypeDomain, TFound, TFromDomain, TModuleDomain, TWorld } from './defs';
 import { findFeatures } from './features';
 import { getNamedToVars } from './namedVars';
-
 
 export const isBaseType = (type: string) => BASE_TYPES.includes(type);
 export const getStepShared = (type: string, world: TWorld): Context => {
   // FIXME shouldn't need to check 'feature'
-  
+
   if (type === 'feature' || isBaseType(type)) {
     return world.shared;
   }
@@ -36,16 +35,30 @@ export const getStepShared = (type: string, world: TWorld): Context => {
 
 export const getDomain = (domain: string, world: TWorld) => world.domains.find((d) => d.name === domain);
 
-export const applyStepperDomains = (steppers: IStepper[], world: TWorld) => {
-  for (const s of steppers.filter((s) => !!(<IHasDomains>s).domains)) {
-    const module = s.constructor.name;
-    const domains = (<IHasDomains>s).domains;
+export const applyDomainsOrError = (steppers: IStepper[], world: TWorld) => {
+  // verify no duplicates
+  for (const s of steppers.filter((s) => !!(<IHasDomains>s).domains).map((s) => <IHasDomains>s)) {
+    const { name: module } = s.constructor;
+    const { domains } = s;
     if (domains) {
       for (const d of domains) {
-        if (world.domains.find((w) => w.name === d.name)) {
-          return { result: { ok: false, failure: { stage: 'Options', error: { details: `duplicate domain ${d.name} at ${module}`, context: world.domains } } } };
+        if (getDomain(d.name, world)) {
+          throw Error(`duplicate domain "${d.name}" in "${name}"`);
         }
         world.domains.push({ ...d, module, shared: new DomainContext(d.name) });
+      }
+    }
+  }
+  // verify all required are present
+  for (const s of steppers.filter((s) => !!(<IRequireDomains>s).requireDomains).map((s) => <IRequireDomains>s)) {
+    const { requireDomains } = s;
+    const { name: module } = s.constructor;
+    if (requireDomains) {
+      for (const name of requireDomains) {
+        if (!getDomain(name, world)) {
+          throw Error(`missing required domain "${name}" for ${module} from ${Object.keys(world.domains)}`);
+          // return { result: { ok: false, failure: { stage: 'Options', error: { details: `missing required domain ${name} in ${name}`, context: world.domains } } } };
+        }
       }
     }
   }

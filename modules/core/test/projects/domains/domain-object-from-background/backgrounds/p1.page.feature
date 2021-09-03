@@ -1,1 +1,0 @@
-Has a lever control
