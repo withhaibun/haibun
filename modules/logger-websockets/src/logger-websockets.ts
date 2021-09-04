@@ -1,35 +1,42 @@
-import { IStepper, IExtensionConstructor, OK, TWorld } from '@haibun/core/build/lib/defs';
+import { IStepper, IExtensionConstructor, OK, TWorld, TNamed, TVStep } from '@haibun/core/build/lib/defs';
 import { TLogLevel } from '@haibun/core/build/lib/interfaces/logger';
 import { getFromRuntime } from '@haibun/core/build/lib/util';
 import { IWebServer } from '@haibun/core/build/lib/interfaces/webserver';
 
 import WebSocket from 'ws';
 import { ISubscriber } from '@haibun/core/build/lib/interfaces/logger';
-
+import path from 'path';
+// Fixme
+type TWS = { on: (arg0: string, arg1: (message: any) => void) => void; send: (arg0: string) => void };
 class WebSocketServer implements ISubscriber {
-  wss: typeof WebSocket;
-  clients: any[] = [];
-  connection(ws) {
-    this.clients.push(ws);
-    console.log('client', ws);
-
-    ws.on('message', function incoming(message) {
+  buffered: any[] = [];
+  wss: WebSocket.Server;
+  clients: TWS[] = [];
+  async connection(ws: TWS) {
+    ws.on('message', (message) => {
       console.log('received: %s', message);
+      if (message === 'catchup') {
+        ws.send(JSON.stringify(this.buffered));
+        this.clients.push(ws);
+      }
     });
-    ws.send('something');
   }
   constructor() {
     this.wss = new WebSocket.Server({ port: 7071 });
     this.wss.on('connection', this.connection.bind(this));
   }
   out(level: TLogLevel, message: any) {
-    console.log('hihii', level, message);
+    const content = JSON.stringify({ message: `level ${message}` });
+    this.buffered.push(content);
+    for (const client of this.clients) {
+      client.send(content);
+    }
   }
 }
 
 const LoggerWebsockets: IExtensionConstructor = class LoggerWebsockets implements IStepper {
   world: TWorld;
-  ws: typeof WebSocket.Server;
+  ws: WebSocketServer | undefined;
 
   getWebSocketServer() {
     if (this.ws) {
@@ -53,10 +60,12 @@ const LoggerWebsockets: IExtensionConstructor = class LoggerWebsockets implement
       },
     },
     subscribe: {
-      gwta: 'serve websocket log',
-      action: async () => {
+      gwta: 'serve websocket log at {page}',
+      action: async ({ page }: TNamed, vstep: TVStep) => {
         const webserver = <IWebServer>getFromRuntime(this.world.runtime, 'webserver');
-        webserver.addStaticFolder('ws');
+
+        const name = vstep.actions[0].name;
+        webserver.addKnownStaticFolder(path.join(__dirname, '../res/ws'), `/${page}`);
 
         return OK;
       },

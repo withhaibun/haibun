@@ -33,7 +33,7 @@ export class DomainContext extends Context {
     this.values.set('_id', id);
   }
   getID() {
-    return this.values.get('_id');
+    return this.values._id;
   }
 }
 
@@ -43,8 +43,9 @@ export class WorldContext extends Context {
   }
   static currentKey = (domain: string) => `_current_${domain}`;
   getCurrent = (type: string) => this.values[WorldContext.currentKey(type)];
-  setDomain(which: string, value: string) {
-    this.values[WorldContext.currentKey(which)] = value;
+  setDomainValues(domain: string, value: string) {
+    if (typeof value !== 'string') throw Error(`not a string ${value}`);
+    this.values[WorldContext.currentKey(domain)] = value;
   }
 }
 

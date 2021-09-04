@@ -26,7 +26,8 @@ export interface IHasOptions {
 }
 
 export interface IHasDomains {
-  domains?: TDomain[];
+  domains: TDomain[];
+  locator: (name: string) => string
 }
 export interface IRequireDomains {
   requireDomains?: string[];
@@ -51,7 +52,7 @@ export type TFileTypeDomain = {
 };
 export type TDomain = TFromDomain | TFileTypeDomain;
 export type TModuleDomain = TDomain & {
-  module: string;
+  module: IHasDomains;
   shared: DomainContext;
 };
 
@@ -129,6 +130,7 @@ export interface IExtension {
 
 export interface IStepper extends IExtension {
   steps: { [name: string]: TStep };
+
 }
 
 export interface IExtensionConstructor {

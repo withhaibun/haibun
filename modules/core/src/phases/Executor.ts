@@ -54,6 +54,7 @@ export class Executor {
         const namedWithVars = getNamedToVars(a, world);
         res = await a.step.action(namedWithVars, vstep);
       } catch (caught: any) {
+        console.error(caught)
         world.logger.error(caught.stack);
         res = actionNotOK(`in ${vstep.in}: ${caught.message}`, { caught: caught.stack.toString() });
       }

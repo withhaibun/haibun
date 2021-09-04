@@ -3,6 +3,7 @@ import { IExtensionConstructor, IStepper, IHasDomains, TWorld, TNamed, TVStep, O
 import { getFromRuntime } from '@haibun/core/build/lib/util';
 import { getDomain } from '@haibun/core/build/lib/domain';
 import { WebPageBuilder } from './WebPageBuilder';
+import { IWebServer } from '@haibun/core/build/lib/interfaces/webserver';
 
 export const webPage = 'webpage';
 export const webControl = 'webcontrol';
@@ -12,6 +13,7 @@ const DomainWebPage: IExtensionConstructor = class DomainWebPage implements ISte
     { name: webPage, fileType: webPage, is: 'string', validate: this.validatePage },
     { name: webControl, from: webPage, is: 'string' },
   ];
+  locator = (location: string) => `http://localhost:8123/${location}`;
   world: TWorld;
 
   constructor(world: TWorld) {
@@ -24,11 +26,12 @@ const DomainWebPage: IExtensionConstructor = class DomainWebPage implements ISte
     thisURI: {
       gwta: `a ${webPage} at {where}`,
       action: async ({ where }: TNamed, vstep: TVStep) => {
-        console.log('tvs', vstep);
-        if (vstep.source.type === webPage) {
-          console.log('xxxxsadfds', where);
-        }
+        const page = vstep.source.name;
 
+        const webserver = <IWebServer>getFromRuntime(this.world.runtime, 'webserver');
+        webserver.addStaticFolder(page);
+        console.log('added paeg', page);
+        
         return OK;
       },
     },
@@ -74,9 +77,11 @@ const DomainWebPage: IExtensionConstructor = class DomainWebPage implements ISte
     const builder = workspace.getBuilder();
 
     const shared = builder.finalize();
-    const domainShared = getDomain(webPage, this.world)!;
+    const domain = getDomain(webPage, this.world)!.shared.get(builder.name);
 
-    domainShared.shared.set(builder.name, shared);
+    for (const [name, val] of shared) {
+      domain.set(name, val);
+    }
   };
 };
 export default DomainWebPage;

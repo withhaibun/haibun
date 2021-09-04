@@ -2,7 +2,7 @@ import { Page } from 'playwright';
 
 import { IHasOptions, IStepper, IExtensionConstructor, OK, TWorld, TNamed, TVStep, IRequireDomains } from '@haibun/core/build/lib/defs';
 import { DomainContext } from '@haibun/core/build/lib/contexts';
-import { onType } from '@haibun/core/build/steps/vars';
+import { onCurrentTypeForDomain } from '@haibun/core/build/steps/vars';
 import { BrowserFactory } from './BrowserFactory';
 import { actionNotOK, ensureDirectory } from '@haibun/core/build/lib/util';
 import { webPage, webControl } from '@haibun/domain-webpage/build/domain-webpage';
@@ -171,13 +171,11 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
 
     //                          NAVIGATION
     onPage: {
-      gwta: `On the {name: ${webPage}} ${webPage}`,
+      gwta: `On the {name} ${webPage}`,
       action: async ({ name }: TNamed, vstep: TVStep) => {
-        onType({ name, type: webPage }, this.world);
+        const location = onCurrentTypeForDomain({ name, type: webPage }, this.world);
 
-        const uri = (name as any as DomainContext).getID();
-        console.log('xx', name, uri);
-        const response = await this.withPage(async (page: Page) => await page.goto(uri));
+        const response = await this.withPage(async (page: Page) => await page.goto(location));
         return response?.ok ? OK : actionNotOK(`response not ok`);
       },
     },

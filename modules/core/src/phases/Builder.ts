@@ -15,6 +15,7 @@ export default class Builder {
       for (const vstep of feature.vsteps) {
         for (const action of vstep.actions) {
           if (action.step.build) {
+            
             if (!this.workspace.get(feature.path)) {
               
               this.workspace.createPath(feature.path);
