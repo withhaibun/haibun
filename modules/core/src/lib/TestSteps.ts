@@ -54,6 +54,7 @@ export const TestSteps: IExtensionConstructor = class TestSteps implements IStep
 export const TestStepsWithDomain: IExtensionConstructor = class TestStepsWithDomain implements IStepper, IHasDomains {
   world: TWorld;
   domains = [{ name: 'door', fileType: 'door', is: 'string', validate: () => undefined }];
+  locator = (name: string) => name;
   constructor(world: TWorld) {
     this.world = world;
   }

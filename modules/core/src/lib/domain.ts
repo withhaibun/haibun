@@ -26,9 +26,15 @@ export const getStepShared = (type: string, world: TWorld): Context => {
   }
   const current = world.shared.getCurrent(isFrom);
 
-  const currentSource = fromSource.shared.get(current);
+  /// We are missing the {world: { domain: { page: sharedContext }}}
+  /// it has to be created at some point since it's no longer done in the builder
+
+  let currentSource = fromSource.shared.get(current);
   if (!currentSource) {
-    throw Error(`no current ${current} shared for ${isFrom}, ${currentSource}}`);
+    console.log('\ncreating', type, isFrom, current, 'ws', world.shared);
+    currentSource = fromSource.shared.createPath(current);
+    
+    // throw Error(`no current ${current} shared for "${isFrom}", ${currentSource}}`);
   }
   return currentSource;
 };
@@ -37,13 +43,12 @@ export const getDomain = (domain: string, world: TWorld) => world.domains.find((
 
 export const applyDomainsOrError = (steppers: IStepper[], world: TWorld) => {
   // verify no duplicates
-  for (const s of steppers.filter((s) => !!(<IHasDomains>s).domains).map((s) => <IHasDomains>s)) {
-    const { name: module } = s.constructor;
-    const { domains } = s;
+  for (const module of steppers.filter((s) => !!(<IHasDomains>(s as unknown)).domains).map((s) => <IHasDomains>(s as unknown))) {
+    const { domains } = module;
     if (domains) {
       for (const d of domains) {
         if (getDomain(d.name, world)) {
-          throw Error(`duplicate domain "${d.name}" in "${name}"`);
+          throw Error(`duplicate domain "${d.name}" in "${module.constructor.name}"`);
         }
         world.domains.push({ ...d, module, shared: new DomainContext(d.name) });
       }

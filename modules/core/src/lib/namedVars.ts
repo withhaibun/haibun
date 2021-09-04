@@ -77,7 +77,7 @@ export function getNamedToVars({ named, vars }: TFound, world: TWorld) {
   let namedFromVars: TNamed = {};
   vars.forEach((v, i) => {
     const { name, type } = v;
-
+    
     const shared = getStepShared(type, world);
 
     const namedKey = Object.keys(named).find((c) => c.endsWith(`_${i}`) && named[c] !== undefined);
