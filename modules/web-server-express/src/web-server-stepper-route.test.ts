@@ -21,9 +21,6 @@ describe('route mount', () => {
           action: async ({ loc }: TNamed) => {
             const route = (req: Request, res: Response) => res.status(200).send('ok');
             const webserver: IWebServer = getFromRuntime(this.world.runtime, WEBSERVER);
-
-            const checkListener = getFromRuntime<ICheckListener>(this.world.runtime, CHECK_LISTENER);
-            await checkListener(this.world.options, webserver);
             await webserver.addRoute('get', loc, route);
             return actionOK();
           },

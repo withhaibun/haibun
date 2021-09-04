@@ -8,6 +8,8 @@
         { "path": "web-playwright" },
         { "path": "web-http" },
         { "path": "parse-md" },
-        { "path": "out-xunit" }
+        { "path": "out-xunit" },
+        { "path": "logger-websockets" },
+        { "path": "domain-webpage" }
     ]
 }

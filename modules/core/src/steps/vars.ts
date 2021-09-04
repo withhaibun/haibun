@@ -1,6 +1,6 @@
-import { Context, DomainContext, WorldContext } from '../lib/contexts';
+import { Context, DomainContext } from '../lib/contexts';
 import { IStepper, IExtensionConstructor, OK, TNamed, TVStep, TWorld } from '../lib/defs';
-import { getStepShared } from '../lib/domain';
+import { getDomain, getStepShared } from '../lib/domain';
 import { actionNotOK } from '../lib/util';
 
 const vars: IExtensionConstructor = class Vars implements IStepper {
@@ -14,12 +14,12 @@ const vars: IExtensionConstructor = class Vars implements IStepper {
     const emptyOnly = !!vstep.in.match(/set empty /);
     return setShared(named, vstep, this.world, emptyOnly);
   };
-  isSet (what: string, orCond: string) {
+  isSet(what: string, orCond: string) {
     if (this.world.shared.get(what) !== undefined) {
       return OK;
     }
     return actionNotOK(`${what} not set${orCond && ': ' + orCond}`);
-  };
+  }
 
   steps = {
     set: {
@@ -29,9 +29,9 @@ const vars: IExtensionConstructor = class Vars implements IStepper {
     },
     isSet: {
       gwta: '{what: string} is set( or .*)?',
-    // FIXME hokey
-      action: async({what}: TNamed, vstep: TVStep) => this.isSet(what, vstep.in.replace(/.* is set or /, '')),
-      build: async({what}: TNamed, vstep: TVStep) => this.isSet(what, vstep.in.replace(/.* is set or /, ''))
+      // FIXME hokey
+      action: async ({ what }: TNamed, vstep: TVStep) => this.isSet(what, vstep.in.replace(/.* is set or /, '')),
+      build: async ({ what }: TNamed, vstep: TVStep) => this.isSet(what, vstep.in.replace(/.* is set or /, '')),
     },
     background: {
       match: /^Background: ?(?<background>.+)?$/,
@@ -86,8 +86,18 @@ export const setShared = ({ what, value }: TNamed, vstep: TVStep, world: TWorld,
   return { ...OK, details: didNotOverwrite(what, shared.get(what), value) };
 };
 
-  export const onType = ({ what, type }: TNamed, world: TWorld) => {
-    // verifyDomainObjectExists(what, type);
-    world.shared.setDomain(type, what);
-    return OK;
+// sets the current page for the domain in the world context, gets thh location for the name
+export const onCurrentTypeForDomain = ({ name, type }: { name: string; type: string }, world: TWorld) => {
+  // verifyDomainObjectExists(what, type);
+  world.shared.setDomainValues(type, name);
+  const domain = getDomain(type, world);
+  const page = domain?.shared.get(name);
+  if (!page) {
+    console.log('using locator', domain?.module.domains.map(k => k.name));
+
+    return domain?.module.locator!(name);
   }
+  console.log('using page');
+  const uri = page.getID();
+  return uri;
+};
