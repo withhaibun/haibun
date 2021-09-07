@@ -1,7 +1,6 @@
 import { Page } from 'playwright';
 
 import { IHasOptions, IStepper, IExtensionConstructor, OK, TWorld, TNamed, TVStep, IRequireDomains } from '@haibun/core/build/lib/defs';
-import { DomainContext } from '@haibun/core/build/lib/contexts';
 import { onCurrentTypeForDomain } from '@haibun/core/build/steps/vars';
 import { BrowserFactory } from './BrowserFactory';
 import { actionNotOK, ensureDirectory } from '@haibun/core/build/lib/util';
