@@ -41,6 +41,8 @@
   },
   "dependencies": {
     "@types/ws": "^7.4.7",
+    "lit": "^2.0.0-rc.4",
+    "lit-element": "^2.5.1",
     "node-notifier": "^10.0.0",
     "ws": "^7.5.1"
   }
