@@ -6,7 +6,7 @@ import { IWebServer } from '@haibun/core/build/lib/interfaces/webserver';
 import WebSocket from 'ws';
 import { ISubscriber } from '@haibun/core/build/lib/interfaces/logger';
 import path from 'path';
-// Fixme
+// FIXME
 type TWS = { on: (arg0: string, arg1: (message: any) => void) => void; send: (arg0: string) => void };
 class WebSocketServer implements ISubscriber {
   buffered: any[] = [];
@@ -16,7 +16,7 @@ class WebSocketServer implements ISubscriber {
     ws.on('message', (message) => {
       console.log('received: %s', message);
       if (message === 'catchup') {
-        ws.send(JSON.stringify(this.buffered));
+        ws.send(JSON.stringify({ catchup: this.buffered }));
         this.clients.push(ws);
       }
     });
@@ -26,10 +26,10 @@ class WebSocketServer implements ISubscriber {
     this.wss.on('connection', this.connection.bind(this));
   }
   out(level: TLogLevel, message: any) {
-    const content = JSON.stringify({ message: `level ${message}` });
+    const content = { message, level };
     this.buffered.push(content);
     for (const client of this.clients) {
-      client.send(content);
+      client.send(JSON.stringify(content));
     }
   }
 }
@@ -65,7 +65,7 @@ const LoggerWebsockets: IExtensionConstructor = class LoggerWebsockets implement
         const webserver = <IWebServer>getFromRuntime(this.world.runtime, 'webserver');
 
         const name = vstep.actions[0].name;
-        webserver.addKnownStaticFolder(path.join(__dirname, '../res/ws'), `/${page}`);
+        webserver.addKnownStaticFolder(path.join(__dirname, '../client/build/'), `/${page}`);
 
         return OK;
       },
