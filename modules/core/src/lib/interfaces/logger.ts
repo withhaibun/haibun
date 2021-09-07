@@ -11,3 +11,5 @@ export interface TLogger {
 export interface ISubscriber {
   out: (level: TLogLevel, args: any[]) => void;
 }
+
+export type TMessage = { level: string; message: string };
