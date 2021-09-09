@@ -28,7 +28,7 @@ export default class TopicResult extends LitElement {
       render(
         html`<details>
           <summary>Details</summary>
-          ${JSON.stringify(evidence)}
+          <pre>${JSON.stringify(evidence, null, 2)}</pre>
         </details>`,
         root
       );
@@ -59,8 +59,9 @@ export default class TopicResult extends LitElement {
     return html`
       <vaadin-grid
         .items=${data}
-        theme="column-borders"
+        theme="row-stripes wrap-cell-content"
         aria-label="Content Renderer Function"
+
       >
         <vaadin-grid-column
           width="8em"

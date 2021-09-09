@@ -30,12 +30,15 @@
     <app-shell></app-shell>
 
     <script type="module" src="./out-tsc/src/index.js"></script>
-    <h1>PoAMATIC</h1>
-
+    <div style="padding: 5px">
+      <h1 style="float: left">PoAMATIC</h1>
+      <p style="float: right">Guides you through creating an SCTM, runs a collection of automated tests
+      and processes, and generates a PoAM.</p>
+    </div>
+    <br style="clear: both" />
     <vaadin-app-layout>
       <vaadin-upload>
-        <iron-icon slot="drop-label-icon" icon="description"></iron-icon>
-        <span slot="drop-label">Select SCTM files or drop them here</span>
+        <span slot="drop-label">Or drop them here</span>
       </vaadin-upload>
       <message-processor />
     </vaadin-app-layout>

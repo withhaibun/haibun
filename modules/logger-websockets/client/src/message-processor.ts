@@ -30,7 +30,7 @@ export default class LogMessages extends LitElement {
 
     async function connectToServer() {
       const ws = new WebSocket('ws://localhost:7071/ws');
-      return new Promise((resolve) => {
+      return new Promise(resolve => {
         const timer = setInterval(() => {
           if (ws.readyState === 1) {
             clearInterval(timer);
@@ -53,10 +53,8 @@ export default class LogMessages extends LitElement {
       m => m.messageTopic?.stage !== 'Executor'
     );
     return html`
-      <vaadin-split-layout>
-        <div style="width: 65%"><topic-results .topics="${topics}"></topic-results></topic-results> </div>
-        <div style="width: 35%"><log-messages .messages="${messages}"></log-messages></div>
-      </vaadin-split-layout>
+        <div><topic-results .topics="${topics}"></topic-results></topic-results> </div>
+        <div><log-messages .messages="${messages}"></log-messages></div>
     `;
   }
 }
