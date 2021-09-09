@@ -4,12 +4,6 @@
   "modules": [
     {
       "kind": "javascript-module",
-      "path": "src/app-shell.ts",
-      "declarations": [],
-      "exports": []
-    },
-    {
-      "kind": "javascript-module",
       "path": "src/index.ts",
       "declarations": [],
       "exports": []
@@ -810,7 +804,7 @@
         {
           "kind": "variable",
           "name": "LogMessages",
-          "default": "class LogMessages extends LitElement {\n    constructor() {\n        super();\n        this.messages = [];\n        this.connect();\n    }\n    async connect() {\n        const ws = await connectToServer();\n        ws.send('catchup');\n        this.messages = [{ level: 'info', message: 'connecting' }];\n        this.requestUpdate();\n        ws.onmessage = (webSocketMessage) => {\n            const msg = JSON.parse(webSocketMessage.data);\n            if (msg.catchup) {\n                this.messages = this.messages.concat(msg.catchup);\n            }\n            else {\n                this.messages.push(msg);\n            }\n            this.requestUpdate();\n        };\n        async function connectToServer() {\n            const ws = new WebSocket('ws://localhost:7071/ws');\n            return new Promise((resolve) => {\n                const timer = setInterval(() => {\n                    if (ws.readyState === 1) {\n                        clearInterval(timer);\n                        resolve(ws);\n                    }\n                }, 10);\n            });\n        }\n    }\n    render() {\n        const topics = this.messages\n            .filter(m => m.messageTopic !== undefined && m.messageTopic.stage === 'Executor')\n            .map(m => m);\n        const messages = this.messages.filter(m => { var _a; return ((_a = m.messageTopic) === null || _a === void 0 ? void 0 : _a.stage) !== 'Executor'; });\n        return html `\n      <vaadin-split-layout>\n        <div style=\"width: 65%\"><topic-results .topics=\"${topics}\"></topic-results></topic-results> </div>\n        <div style=\"width: 35%\"><log-messages .messages=\"${messages}\"></log-messages></div>\n      </vaadin-split-layout>\n    `;\n    }\n}"
+          "default": "class LogMessages extends LitElement {\n    constructor() {\n        super();\n        this.messages = [];\n        this.connect();\n    }\n    async connect() {\n        const ws = await connectToServer();\n        ws.send('catchup');\n        this.messages = [{ level: 'info', message: 'connecting' }];\n        this.requestUpdate();\n        ws.onmessage = (webSocketMessage) => {\n            const msg = JSON.parse(webSocketMessage.data);\n            if (msg.catchup) {\n                this.messages = this.messages.concat(msg.catchup);\n            }\n            else {\n                this.messages.push(msg);\n            }\n            this.requestUpdate();\n        };\n        async function connectToServer() {\n            const ws = new WebSocket('ws://localhost:7071/ws');\n            return new Promise(resolve => {\n                const timer = setInterval(() => {\n                    if (ws.readyState === 1) {\n                        clearInterval(timer);\n                        resolve(ws);\n                    }\n                }, 10);\n            });\n        }\n    }\n    render() {\n        const topics = this.messages\n            .filter(m => m.messageTopic !== undefined && m.messageTopic.stage === 'Executor')\n            .map(m => m);\n        const messages = this.messages.filter(m => { var _a; return ((_a = m.messageTopic) === null || _a === void 0 ? void 0 : _a.stage) !== 'Executor'; });\n        return html `\n        <div><topic-results .topics=\"${topics}\"></topic-results></topic-results> </div>\n        <div><log-messages .messages=\"${messages}\"></log-messages></div>\n    `;\n    }\n}"
         }
       ],
       "exports": [
