@@ -27,7 +27,7 @@ export interface IHasOptions {
 
 export interface IHasDomains {
   domains: TDomain[];
-  locator: (name: string) => string
+  locator: (name: string) => string;
 }
 export interface IRequireDomains {
   requireDomains?: string[];
@@ -130,7 +130,6 @@ export interface IExtension {
 
 export interface IStepper extends IExtension {
   steps: { [name: string]: TStep };
-
 }
 
 export interface IExtensionConstructor {
@@ -143,28 +142,30 @@ export type TNamedVar = { name: string; type: string };
 export const OK: TOKActionResult = { ok: true };
 
 export type TResultError = {
-  context: any;
-  details?: any;
+  topics: TActionResultTopics;
+  message: string;
 };
 
 export type TResult = {
   ok: boolean;
   results?: TFeatureResult[];
   failure?: {
-    stage: 'Options' | 'Domains' |'Expand' | 'Resolve' | 'Build' | 'Execute';
+    stage: 'Options' | 'Domains' | 'Expand' | 'Resolve' | 'Build' | 'Execute';
     error: TResultError;
   };
 };
 
 export type TOKActionResult = {
   ok: true;
-  details?: any;
+  topics?: TActionResultTopics;
 };
+
+export type TActionResultTopics = { [topic: string]: any };
 
 export type TNotOKActionResult = {
   ok: false;
   message: string;
-  details?: any;
+  topics?: TActionResultTopics;
 };
 
 export type TActionResult = TOKActionResult | TNotOKActionResult;

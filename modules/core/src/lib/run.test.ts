@@ -33,7 +33,7 @@ describe('run backgrounds', () => {
     const t = result.results![0];
     expect(t).toBeDefined();
     expect(t.ok).toBe(true);
-    
+
     expect(t.stepResults.length).toBe(1);
     expect(t.stepResults.every((r) => r.ok === true)).toBe(true);
   });
@@ -50,7 +50,7 @@ describe('fails', () => {
 
     expect(result.failure?.stage).toBe('Resolve');
 
-    expect(result.failure?.error.details.startsWith('no step found for When I fail')).toBe(true);
+    expect(result.failure?.error.message.startsWith('no step found for When I fail')).toBe(true);
   });
 });
 
@@ -131,7 +131,7 @@ describe('options', () => {
 
     expect(result.ok).toBe(true);
     expect(result.results?.length).toBe(1);
-    expect(result.results![0].stepResults[0].actionResults[0].details).toBe('42');
+    expect(result.results![0].stepResults[0].actionResults[0].topics).toEqual({ res: 42 });
   });
 });
 
