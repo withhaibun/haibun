@@ -1,5 +1,5 @@
 import { IStepper, IExtensionConstructor, OK, TWorld, TNamed, TVStep } from '@haibun/core/build/lib/defs';
-import { TLogLevel } from '@haibun/core/build/lib/interfaces/logger';
+import { TLogLevel, TMessageTopic } from '@haibun/core/build/lib/interfaces/logger';
 import { getFromRuntime } from '@haibun/core/build/lib/util';
 import { IWebServer } from '@haibun/core/build/lib/interfaces/webserver';
 
@@ -25,8 +25,9 @@ class WebSocketServer implements ISubscriber {
     this.wss = new WebSocket.Server({ port: 7071 });
     this.wss.on('connection', this.connection.bind(this));
   }
-  out(level: TLogLevel, message: any) {
-    const content = { message, level };
+  out(level: TLogLevel, message: any, messageTopic?: TMessageTopic) {
+    const content = { message, level, messageTopic };
+
     this.buffered.push(content);
     for (const client of this.clients) {
       client.send(JSON.stringify(content));
@@ -64,8 +65,14 @@ const LoggerWebsockets: IExtensionConstructor = class LoggerWebsockets implement
       action: async ({ page }: TNamed, vstep: TVStep) => {
         const webserver = <IWebServer>getFromRuntime(this.world.runtime, 'webserver');
 
-        const name = vstep.actions[0].name;
-        webserver.addKnownStaticFolder(path.join(__dirname, '../client/build/'), `/${page}`);
+        webserver.addKnownStaticFolder(path.join(__dirname, '../client/dist/'), `/${page}`);
+
+        return OK;
+      },
+    },
+    waitForUpload: {
+      gwta: 'wait for {name} upload',
+      action: async ({ page }: TNamed, vstep: TVStep) => {
 
         return OK;
       },

@@ -1,4 +1,4 @@
-import { TLogger, ISubscriber, TLogLevel } from "./interfaces/logger";
+import { TLogger, ISubscriber, TLogLevel, TMessageTopic } from './interfaces/logger';
 
 export const LOGGER_LOG = { level: 'log' };
 export const LOGGER_NONE = { level: 'none' };
@@ -29,7 +29,7 @@ export default class Logger implements TLogger {
   static shouldLog(level: number, name: TLogLevel) {
     return LOGGER_LEVELS[name] >= level;
   }
-  out(level: TLogLevel, args: any) {
+  out(level: TLogLevel, args: any, messageTopic?: TMessageTopic) {
     if (!Logger.shouldLog(this.level, level)) {
       return;
     }
@@ -37,13 +37,14 @@ export default class Logger implements TLogger {
     const ln = e![Math.min((e?.length || 1) - 1, 4)]?.replace(/.*\(/, '')?.replace(process.cwd(), '').replace(')', '');
 
     for (const subscriber of this.subscribers) {
-      subscriber.out(level, args);
+      subscriber.out(level, args, messageTopic);
     }
-    (console as any)[level].call(console, `${ln}: `.padStart(WIDTH), level.padStart(6), args);
+    
+    (console as any)[level].call(console, `${ln}: `.padStart(WIDTH), args, level.padStart(6));
   }
-  debug = (args: any) => this.out('debug', args);
-  log = (args: any) => this.out('log', args);
-  info = (args: any) => this.out('info', args);
-  warn = (args: any) => this.out('warn', args);
-  error = (args: any) => this.out('error', args);
+  debug = (args: any, topic?: TMessageTopic) => this.out('debug', args, topic);
+  log = (args: any, topic?: TMessageTopic) => this.out('log', args, topic);
+  info = (args: any, topic?: TMessageTopic) => this.out('info', args, topic);
+  warn = (args: any, topic?: TMessageTopic) => this.out('warn', args, topic);
+  error = (args: any, topic?: TMessageTopic) => this.out('error', args, topic);
 }

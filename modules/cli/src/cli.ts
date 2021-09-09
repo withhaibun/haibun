@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 
 import repl from 'repl';
-import { TLogger, TProtoOptions, TResult, TSpecl, TWorld } from '@haibun/core/build/lib/defs';
-import {WorldContext} from '@haibun/core/build/lib/contexts';
+import { TProtoOptions, TResult, TSpecl, TWorld } from '@haibun/core/build/lib/defs';
+import { WorldContext } from '@haibun/core/build/lib/contexts';
 import { ENV_VARS } from '@haibun/core/build/lib/ENV_VARS';
 import Logger from '@haibun/core/build/lib/Logger';
 
 import { run } from '@haibun/core/build/lib/run';
 import { getOptionsOrDefault, processEnv, resultOutput } from '@haibun/core/build/lib/util';
+import { TLogger } from '@haibun/core/build/lib/interfaces/logger';
 
 go();
 
@@ -30,7 +31,7 @@ async function go() {
 
   const instances = splits.map(async (split) => {
     const runtime = {};
-    return doRun(base, specl, runtime, featureFilter, new WorldContext(split), protoOptions, logger);
+    return doRun(base, specl, runtime, featureFilter, new WorldContext('base', split), protoOptions, logger);
   });
 
   const values = await Promise.allSettled(instances);
@@ -45,7 +46,7 @@ async function go() {
   const ok = ranResults.every((a) => a.result.ok);
   if (ok && exceptionResults.length < 1) {
     logger.log(ranResults.every((r) => r.output));
-    if (protoOptions.options.stay !== 'ok') {
+    if (protoOptions.options.stay !== 'always') {
       process.exit(0);
     }
     return;
@@ -64,7 +65,7 @@ async function go() {
     )
   );
 
-  if (protoOptions.options.stay !== 'error') {
+  if (protoOptions.options.stay !== 'always') {
     process.exit(1);
   }
 }

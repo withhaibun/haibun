@@ -66,7 +66,7 @@ const vars: IExtensionConstructor = class Vars implements IStepper {
 };
 export default vars;
 
-export const didNotOverwrite = (what: string, present: string | Context, value: string) => `did not overwrite ${what} value of "${present}" with "${value}"`;
+export const didNotOverwrite = (what: string, present: string | Context, value: string) => ({ overwrite: `did not overwrite ${what} value of "${present}" with "${value}"` });
 
 export const setShared = ({ what, value }: TNamed, vstep: TVStep, world: TWorld, emptyOnly: boolean = false) => {
   // if on a domain page, set it in that domain's shared
@@ -83,17 +83,20 @@ export const setShared = ({ what, value }: TNamed, vstep: TVStep, world: TWorld,
     return OK;
   }
 
-  return { ...OK, details: didNotOverwrite(what, shared.get(what), value) };
+  return { ...OK, topics: { ...didNotOverwrite(what, shared.get(what), value) } };
 };
 
-// sets the current page for the domain in the world context, gets thh location for the name
+// sets the current page for the domain in the world context, gets the location for the name
 export const onCurrentTypeForDomain = ({ name, type }: { name: string; type: string }, world: TWorld) => {
   // verifyDomainObjectExists(what, type);
   world.shared.setDomainValues(type, name);
   const domain = getDomain(type, world);
   const page = domain?.shared.get(name);
   if (!page) {
-    console.log('using locator', domain?.module.domains.map(k => k.name));
+    console.log(
+      'using locator',
+      domain?.module.domains.map((k) => k.name)
+    );
 
     return domain?.module.locator!(name);
   }

@@ -54,7 +54,7 @@ const TestStepsWithDomain: IExtensionConstructor = class TestStepsWithDomain imp
   };
 };
 
-describe('domain object', () => {
+describe.only('domain object', () => {
   it('missing domain object', async () => {
     const specl = getOptionsOrDefault();
     const key = '/backgrounds/p1';
@@ -62,9 +62,9 @@ describe('domain object', () => {
     const { world } = getDefaultWorld();
     const features = asFeatures([{ path: '/features/test.feature', content: `\nPull the lever\n` }]);
     const { result } = await runWith({ specl, features, backgrounds: [], addSteppers: [TestStepsRequiresDomain], world });
-
     expect(result.ok).toBe(false);
-    expect(result.failure!.error.details.startsWith(`missing required domain "${TTYPE}"`)).toBe(true);
+    expect(result.failure!.error.message.startsWith(`missing required domain "${TTYPE}"`)).toBe(true);
+    expect(result.failure!.error.topics.stack).toBeDefined();
   });
   it('domain object from background', async () => {
     const specl = getOptionsOrDefault();
@@ -74,10 +74,10 @@ describe('domain object', () => {
     const features = asFeatures([{ path: '/features/test.feature', content: `Backgrounds: p1.${TTYPE}\n\nOn the /backgrounds/p1 ${TTYPE}\nPull the lever\n` }]);
     const backgrounds = asFeatures([{ path: `/backgrounds/p1.${TTYPE}.feature`, content: 'Has a lever control' }]);
     const { result } = await runWith({ specl, features, backgrounds, addSteppers: [TestStepsRequiresDomain, TestStepsWithDomain], world });
-    console.log(JSON.stringify(result, null, 2));
 
     expect(result.ok).toBe(true);
-    expect(result.results![0].stepResults[0].actionResults[0].details).toEqual("http://localhost:8123/p1");
+    
+    // expect(result.results![0].stepResults[0].actionResults[0].topics).toEqual('http://localhost:8123/p1');
 
     expect(world.shared.getCurrent(TTYPE)).toEqual(key);
     const page = getDomain(TTYPE, world)!.shared.get(key);

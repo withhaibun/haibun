@@ -51,20 +51,20 @@ export async function runWith({
   try {
     applyExtraOptions(protoOptions, steppers, world);
   } catch (error: any) {
-    return { result: { ok: false, failure: { stage: 'Options', error: { details: error.message, context: error } } } };
+    return { result: { ok: false, failure: { stage: 'Options', error: { message: error.message, topics: error } } } };
   }
 
   try {
     applyDomainsOrError(steppers, world);
   } catch (error: any) {
-    return { result: { ok: false, failure: { stage: 'Domains', error: { details: error.message, context: error } } } };
+    return { result: { ok: false, failure: { stage: 'Domains', error: { message: error.message, topics: { stack: error.stack } } } } };
   }
 
   let expandedFeatures;
   try {
     expandedFeatures = await expand(backgrounds, features);
   } catch (error: any) {
-    return { result: { ok: false, failure: { stage: 'Expand', error: { details: error.message, context: error } } } };
+    return { result: { ok: false, failure: { stage: 'Expand', error: { message: error.message, topics: error } } } };
   }
 
   let mappedValidatedSteps;
@@ -72,23 +72,23 @@ export async function runWith({
     const resolver = new Resolver(steppers, specl.mode, world);
     mappedValidatedSteps = await resolver.resolveSteps(expandedFeatures);
   } catch (error: any) {
-    return { result: { ok: false, failure: { stage: 'Resolve', error: { details: error.message, context: { stack: error.stack, steppers, mappedValidatedSteps } } } } };
+        console.log(error);
+    return { result: { ok: false, failure: { stage: 'Resolve', error: { message: error.message, topics: { stack: error.stack, steppers, mappedValidatedSteps } } } } };
   }
 
   const builder = new Builder(world);
   try {
     const res = await builder.build(mappedValidatedSteps);
+    world.logger.log(`features: ${expandedFeatures.length} backgrounds: ${backgrounds.length} steps: (${expandedFeatures.map((e) => e.path)}), ${mappedValidatedSteps.length}`);
   } catch (error: any) {
     console.error(error);
-    return { result: { ok: false, failure: { stage: 'Build', error: { details: error.message, context: { stack: error.stack, steppers, mappedValidatedSteps } } } } };
+    return { result: { ok: false, failure: { stage: 'Build', error: { message: error.message, topics: { stack: error.stack, steppers, mappedValidatedSteps } } } } };
   }
-
-  world.logger.log(`features: ${expandedFeatures.length} backgrounds: ${backgrounds.length} steps: (${expandedFeatures.map((e) => e.path)}), ${mappedValidatedSteps.length}`);
 
   const executor = new Executor(steppers, world);
   const result = await executor.execute(mappedValidatedSteps);
   if (!result.ok) {
-    result.failure = { stage: 'Execute', error: { context: result.results?.filter((r) => !r.ok).map((r) => r.path) } };
+    result.failure = { stage: 'Execute', error: { message: '!!FIXME', topics: { errors: result.results?.filter((r) => !r.ok).map((r) => r.path) } } };
   }
   return { result, steppers };
 }

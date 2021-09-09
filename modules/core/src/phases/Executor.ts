@@ -14,6 +14,8 @@ export class Executor {
   async execute(features: TResolvedFeature[]): Promise<TResult> {
     let ok = true;
     let featureResults: TFeatureResult[] = [];
+    // FIXME
+    this.world.shared.values._features = features;
     for (const feature of features) {
       this.world.logger.log(`feature: ${feature.path}`);
       const featureResult = await this.doFeature(feature);
@@ -26,6 +28,7 @@ export class Executor {
   async doFeature(feature: TResolvedFeature): Promise<TFeatureResult> {
     let ok = true;
     let stepResults: TStepResult[] = [];
+    let seq = 0;
     for (const step of feature.vsteps) {
       this.world.logger.log(`   ${step.in}\r`);
       const result = await Executor.doFeatureStep(step, this.world);
@@ -34,11 +37,13 @@ export class Executor {
         await sleep(this.world.options.step_delay as number);
       }
       ok = ok && result.ok;
-      this.world.logger.log(ok);
+
+      this.world.logger.log(ok, { stage: 'Executor', seq, topics: { result } });
       stepResults.push(result);
       if (!ok) {
         break;
       }
+      seq++;
     }
     const featureResult: TFeatureResult = { path: feature.path, ok, stepResults };
     return featureResult;
@@ -54,7 +59,7 @@ export class Executor {
         const namedWithVars = getNamedToVars(a, world);
         res = await a.step.action(namedWithVars, vstep);
       } catch (caught: any) {
-        console.error(caught)
+        
         world.logger.error(caught.stack);
         res = actionNotOK(`in ${vstep.in}: ${caught.message}`, { caught: caught.stack.toString() });
       }

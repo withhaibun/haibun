@@ -18,6 +18,7 @@ import {
   TProtoOptions,
   TRuntime,
   HAIBUN,
+  TActionResultTopics,
 } from './defs';
 import { withNameType } from './features';
 import Logger, { LOGGER_NONE } from './Logger';
@@ -49,16 +50,16 @@ export async function resultOutput(type: string | undefined, result: TResult, sh
   return result;
 }
 
-export function actionNotOK(message: string, details?: any): TNotOKActionResult {
+export function actionNotOK(message: string, topics?: TActionResultTopics): TNotOKActionResult {
   return {
     ok: false,
     message,
-    details,
+    topics,
   };
 }
 
-export function actionOK(details?: any): TOKActionResult {
-  return { ok: true, details };
+export function actionOK(topics?: TActionResultTopics): TOKActionResult {
+  return { ok: true, topics };
 }
 
 export async function getSteppers({ steppers = [], world, addSteppers = [] }: { steppers: string[]; world: TWorld; addSteppers?: IExtensionConstructor[] }) {
