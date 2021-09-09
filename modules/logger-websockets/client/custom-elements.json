@@ -1,0 +1,1031 @@
+{
+  "schemaVersion": "1.0.0",
+  "readme": "",
+  "modules": [
+    {
+      "kind": "javascript-module",
+      "path": "src/app-shell.ts",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/index.ts",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/log-message.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "LogMessage",
+          "members": [
+            {
+              "kind": "field",
+              "name": "level",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "level"
+            },
+            {
+              "kind": "field",
+              "name": "message",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "message"
+            },
+            {
+              "kind": "field",
+              "name": "topic",
+              "type": {
+                "text": "object"
+              },
+              "default": "{}",
+              "attribute": "topic"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "level",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "level"
+            },
+            {
+              "name": "message",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "message"
+            },
+            {
+              "name": "topic",
+              "type": {
+                "text": "object"
+              },
+              "default": "{}",
+              "fieldName": "topic"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit-element"
+          },
+          "tagName": "log-message",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "LogMessage",
+            "module": "src/log-message.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "log-message",
+          "declaration": {
+            "name": "LogMessage",
+            "module": "src/log-message.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/log-messages.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "LogMessages",
+          "members": [
+            {
+              "kind": "field",
+              "name": "messages",
+              "type": {
+                "text": "TMessage[]"
+              },
+              "default": "[]",
+              "attribute": "messages"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "messages",
+              "type": {
+                "text": "TMessage[]"
+              },
+              "default": "[]",
+              "fieldName": "messages"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit-element"
+          },
+          "tagName": "log-messages",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "LogMessages",
+            "module": "src/log-messages.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "log-messages",
+          "declaration": {
+            "name": "LogMessages",
+            "module": "src/log-messages.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/message-processor.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "LogMessages",
+          "members": [
+            {
+              "kind": "method",
+              "name": "connect"
+            },
+            {
+              "kind": "field",
+              "name": "messages",
+              "type": {
+                "text": "TMessage[]"
+              },
+              "default": "[]",
+              "attribute": "messages"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "messages",
+              "type": {
+                "text": "TMessage[]"
+              },
+              "default": "[]",
+              "fieldName": "messages"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit-element"
+          },
+          "tagName": "log-messages",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "LogMessages",
+            "module": "src/message-processor.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "message-processor",
+          "declaration": {
+            "name": "LogMessages",
+            "module": "src/message-processor.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/topic-results.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "TopicResult",
+          "members": [
+            {
+              "kind": "field",
+              "name": "topics",
+              "type": {
+                "text": "TMessageWithTopic[]"
+              },
+              "default": "[]",
+              "attribute": "topics"
+            },
+            {
+              "kind": "field",
+              "name": "evidenceColumnRenderer",
+              "type": {
+                "text": "GridBodyRenderer<any>"
+              },
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "renderEvidenceColumn",
+              "parameters": [
+                {
+                  "name": "root",
+                  "type": {
+                    "text": "HTMLElement"
+                  }
+                },
+                {
+                  "name": "_column",
+                  "type": {
+                    "text": "GridColumnElement | undefined"
+                  }
+                },
+                {
+                  "name": "data",
+                  "type": {
+                    "text": "GridItemModel<any> | undefined"
+                  }
+                }
+              ]
+            }
+          ],
+          "attributes": [
+            {
+              "name": "topics",
+              "type": {
+                "text": "TMessageWithTopic[]"
+              },
+              "default": "[]",
+              "fieldName": "topics"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit-element"
+          },
+          "tagName": "topic-results",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "TopicResult",
+            "module": "src/topic-results.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "topic-results",
+          "declaration": {
+            "name": "TopicResult",
+            "module": "src/topic-results.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "stories/app-shell.stories.ts",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "App"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "module": "stories/app-shell.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "App",
+          "declaration": {
+            "name": "App",
+            "module": "stories/app-shell.stories.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "types/static.d.ts",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "classes",
+          "type": {
+            "text": "{ [key: string]: string }"
+          }
+        },
+        {
+          "kind": "variable",
+          "name": "ref",
+          "type": {
+            "text": "string"
+          }
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "classes",
+            "module": "types/static.d.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "classes",
+            "module": "types/static.d.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "classes",
+            "module": "types/static.d.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "classes",
+            "module": "types/static.d.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "classes",
+            "module": "types/static.d.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "ref",
+            "module": "types/static.d.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "ref",
+            "module": "types/static.d.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "ref",
+            "module": "types/static.d.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "ref",
+            "module": "types/static.d.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "ref",
+            "module": "types/static.d.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "ref",
+            "module": "types/static.d.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "build/dist/app-root.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "AppRoot"
+        },
+        {
+          "kind": "class",
+          "description": "",
+          "name": "AppRoot",
+          "superclass": {
+            "name": "_LitElement",
+            "module": "build/dist/app-root.js"
+          }
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "AppRoot",
+          "declaration": {
+            "name": "AppRoot",
+            "module": "build/dist/app-root.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "build/dist/index.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "build/dist/log-message.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "LogMessage"
+        },
+        {
+          "kind": "class",
+          "description": "",
+          "name": "LogMessage",
+          "superclass": {
+            "name": "_LitElement",
+            "module": "build/dist/log-message.js"
+          },
+          "tagName": "log-message",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "LogMessage",
+            "module": "build/dist/log-message.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "build/dist/log-messages.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "LogMessages"
+        },
+        {
+          "kind": "class",
+          "description": "",
+          "name": "LogMessages",
+          "superclass": {
+            "name": "_LitElement",
+            "module": "build/dist/log-messages.js"
+          },
+          "tagName": "log-messages",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "LogMessages",
+            "module": "build/dist/log-messages.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "build/dist/message-processor.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "LogMessages"
+        },
+        {
+          "kind": "class",
+          "description": "",
+          "name": "LogMessages",
+          "superclass": {
+            "name": "_LitElement",
+            "module": "build/dist/message-processor.js"
+          },
+          "tagName": "log-messages",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "LogMessages",
+            "module": "build/dist/message-processor.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "build/dist/topic-result.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "LogMessage"
+        },
+        {
+          "kind": "class",
+          "description": "",
+          "name": "LogMessage",
+          "superclass": {
+            "name": "_LitElement",
+            "module": "build/dist/topic-result.js"
+          },
+          "tagName": "log-message",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "LogMessage",
+            "module": "build/dist/topic-result.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "build/dist/topic-results.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "TopicResult"
+        },
+        {
+          "kind": "class",
+          "description": "",
+          "name": "TopicResult",
+          "superclass": {
+            "name": "_LitElement",
+            "module": "build/dist/topic-results.js"
+          },
+          "tagName": "topic-results",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "TopicResult",
+            "module": "build/dist/topic-results.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "out-tsc/stories/app-shell.stories.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "App"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "module": "out-tsc/stories/app-shell.stories.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "App",
+          "declaration": {
+            "name": "App",
+            "module": "out-tsc/stories/app-shell.stories.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "out-tsc/src/AppShell.js",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "AppShell",
+          "members": [
+            {
+              "kind": "field",
+              "name": "title",
+              "type": {
+                "text": "string"
+              },
+              "default": "'My app'"
+            },
+            {
+              "kind": "method",
+              "name": "getStyles",
+              "static": true,
+              "description": "Return the array of styles to apply to the element.\nOverride this method to integrate into a style management system.",
+              "inheritedFrom": {
+                "name": "LitElement",
+                "module": "build/_snowpack/pkg/lit-element.js"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "_getUniqueStyles",
+              "static": true,
+              "inheritedFrom": {
+                "name": "LitElement",
+                "module": "build/_snowpack/pkg/lit-element.js"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "initialize",
+              "description": "Performs element initialization. By default this calls\n[[`createRenderRoot`]] to create the element [[`renderRoot`]] node and\ncaptures any pre-set values for registered properties.",
+              "inheritedFrom": {
+                "name": "LitElement",
+                "module": "build/_snowpack/pkg/lit-element.js"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "createRenderRoot",
+              "description": "Returns the node into which the element should render and by default\ncreates and returns an open shadowRoot. Implement to customize where the\nelement's DOM is rendered. For example, to render into the element's\nchildNodes, return `this`.",
+              "return": {
+                "type": {
+                  "text": "Element|DocumentFragment"
+                }
+              },
+              "inheritedFrom": {
+                "name": "LitElement",
+                "module": "build/_snowpack/pkg/lit-element.js"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "adoptStyles",
+              "description": "Applies styling to the element shadowRoot using the [[`styles`]]\nproperty. Styling will apply using `shadowRoot.adoptedStyleSheets` where\navailable and will fallback otherwise. When Shadow DOM is polyfilled,\nShadyCSS scopes styles and adds them to the document. When Shadow DOM\nis available but `adoptedStyleSheets` is not, styles are appended to the\nend of the `shadowRoot` to [mimic spec\nbehavior](https://wicg.github.io/construct-stylesheets/#using-constructed-stylesheets).",
+              "inheritedFrom": {
+                "name": "LitElement",
+                "module": "build/_snowpack/pkg/lit-element.js"
+              }
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "AppShell",
+          "declaration": {
+            "name": "AppShell",
+            "module": "out-tsc/src/AppShell.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "out-tsc/src/app-shell.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "out-tsc/src/index.js",
+      "declarations": [],
+      "exports": []
+    },
+    {
+      "kind": "javascript-module",
+      "path": "out-tsc/src/log-message.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "LogMessage",
+          "default": "class LogMessage extends LitElement {\n    constructor() {\n        super(...arguments);\n        this.level = '';\n        this.message = '';\n        this.topic = {};\n    }\n    static get styles() {\n        return css `\n      p {\n        color: blue;\n      }\n    `;\n    }\n    render() {\n        return html `<div>${this.level}: ${this.message}</div>`;\n    }\n}"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "LogMessage",
+            "module": "out-tsc/src/log-message.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "out-tsc/src/log-messages.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "LogMessages",
+          "default": "class LogMessages extends LitElement {\n    constructor() {\n        super(...arguments);\n        this.messages = [];\n    }\n    render() {\n        return this.messages.map((m) => {\n            const { level, message } = m;\n            return html `<log-message\n        level=\"${level}\"\n        message=\"${message}\"\n      ></log-message>`;\n        });\n    }\n}"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "LogMessages",
+            "module": "out-tsc/src/log-messages.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "out-tsc/src/message-processor.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "LogMessages",
+          "default": "class LogMessages extends LitElement {\n    constructor() {\n        super();\n        this.messages = [];\n        this.connect();\n    }\n    async connect() {\n        const ws = await connectToServer();\n        ws.send('catchup');\n        this.messages = [{ level: 'info', message: 'connecting' }];\n        this.requestUpdate();\n        ws.onmessage = (webSocketMessage) => {\n            const msg = JSON.parse(webSocketMessage.data);\n            if (msg.catchup) {\n                this.messages = this.messages.concat(msg.catchup);\n            }\n            else {\n                this.messages.push(msg);\n            }\n            this.requestUpdate();\n        };\n        async function connectToServer() {\n            const ws = new WebSocket('ws://localhost:7071/ws');\n            return new Promise((resolve) => {\n                const timer = setInterval(() => {\n                    if (ws.readyState === 1) {\n                        clearInterval(timer);\n                        resolve(ws);\n                    }\n                }, 10);\n            });\n        }\n    }\n    render() {\n        const topics = this.messages\n            .filter(m => m.messageTopic !== undefined && m.messageTopic.stage === 'Executor')\n            .map(m => m);\n        const messages = this.messages.filter(m => { var _a; return ((_a = m.messageTopic) === null || _a === void 0 ? void 0 : _a.stage) !== 'Executor'; });\n        return html `\n      <vaadin-split-layout>\n        <div style=\"width: 65%\"><topic-results .topics=\"${topics}\"></topic-results></topic-results> </div>\n        <div style=\"width: 35%\"><log-messages .messages=\"${messages}\"></log-messages></div>\n      </vaadin-split-layout>\n    `;\n    }\n}"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "LogMessages",
+            "module": "out-tsc/src/message-processor.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "out-tsc/src/topic-result.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "LogMessage",
+          "default": "class LogMessage extends LitElement {\n    constructor() {\n        super();\n        this.seq = '';\n        this.messages = [];\n    }\n    render() {\n        const { result } = this.messages[0].messageTopic.topics;\n        const { in: line, actionResults } = result;\n        console.log('ii', line, actionResults);\n        const { name, ok, topics } = actionResults[0];\n        const evidence = topics ? topics.evidence : '';\n        return html `\n      <vaadin-grid-column\n        path=\"name.first\"\n        header=\"First name\"\n      ></vaadin-grid-column>\n      <vaadin-grid-column\n        path=\"name.last\"\n        header=\"Last name\"\n      ></vaadin-grid-column>\n      <vaadin-grid-column path=\"location.city\"></vaadin-grid-column>\n      <vaadin-grid-column\n        path=\"visitCount\"\n        text-align=\"end\"\n        width=\"120px\"\n        flex-grow=\"0\"\n      ></vaadin-grid-column>\n    `;\n    }\n}"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "LogMessage",
+            "module": "out-tsc/src/topic-result.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "out-tsc/src/topic-results.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "TopicResult",
+          "default": "class TopicResult extends LitElement {\n    constructor() {\n        super(...arguments);\n        this.topics = [];\n        this.evidenceColumnRenderer = this.renderEvidenceColumn.bind(this);\n    }\n    // eslint-disable-next-line class-methods-use-this\n    renderEvidenceColumn(root, _column, data) {\n        const { evidence } = data === null || data === void 0 ? void 0 : data.item;\n        if (evidence && Object.keys(evidence).length > 0) {\n            render(html `<details>\n          <summary>Details</summary>\n          ${JSON.stringify(evidence)}\n        </details>`, root);\n        }\n    }\n    render() {\n        const lines = {};\n        for (const m of this.topics) {\n            const { seq } = m.messageTopic;\n            lines[seq] = [...(lines[seq] || []), m];\n        }\n        const data = [];\n        Object.entries(lines).forEach(([, entries]) => {\n            const { result } = entries[0].messageTopic.topics;\n            const { seq, in: line, actionResults } = result;\n            const { name, ok, topics } = actionResults[0];\n            console.log(name, !['set', 'onPage', 'isSet'].includes(name));\n            if (!['set', 'onPage', 'isSet'].includes(name)) {\n                const evidence = topics ? topics.evidence : '';\n                data.push({ seq, line, name, ok, evidence });\n            }\n        });\n        return html `\n      <vaadin-grid\n        .items=${data}\n        theme=\"column-borders\"\n        aria-label=\"Content Renderer Function\"\n      >\n        <vaadin-grid-column\n          width=\"8em\"\n          flex-grow=\"0\"\n          path=\"seq\"\n          header=\"Sequence\"\n        ></vaadin-grid-column>\n        <vaadin-grid-column\n          width=\"12em\"\n          flex-grow=\"0\"\n          path=\"name\"\n          header=\"Name\"\n        ></vaadin-grid-column>\n        <vaadin-grid-column\n          width=\"30em\"\n          flex-grow=\"0\"\n          path=\"line\"\n          header=\"Line\"\n        ></vaadin-grid-column>\n        <vaadin-grid-column\n          width=\"8em\"\n          flex-grow=\"0\"\n          path=\"ok\"\n          header=\"ok\"\n        ></vaadin-grid-column>\n        <vaadin-grid-column\n          .renderer=\"${this.evidenceColumnRenderer}\"\n          width=\"30em\"\n          flex-grow=\"0\"\n          header=\"Evidence\"\n        ></vaadin-grid-column>\n        <vaadin-grid-column></vaadin-grid-column>\n      </vaadin-grid>\n    `;\n    }\n}"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "name": "TopicResult",
+            "module": "out-tsc/src/topic-results.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "build/_snowpack/pkg/lit-element.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "html",
+          "type": {
+            "text": "string"
+          },
+          "default": "''"
+        },
+        {
+          "kind": "function",
+          "name": "html",
+          "parameters": [
+            {
+              "name": "strings"
+            },
+            {
+              "name": "values"
+            }
+          ],
+          "description": "Interprets a template literal as an HTML template that can efficiently\nrender to and update a container."
+        },
+        {
+          "kind": "function",
+          "name": "customElement",
+          "parameters": [
+            {
+              "name": "tagName",
+              "description": "The name of the custom element to define."
+            }
+          ],
+          "description": "Class decorator factory that defines the decorated class as a custom element.\n\n```"
+        },
+        {
+          "kind": "function",
+          "name": "property",
+          "parameters": [
+            {
+              "name": "options"
+            }
+          ],
+          "description": "A property decorator which creates a LitElement property which reflects a\ncorresponding attribute value. A [[`PropertyDeclaration`]] may optionally be\nsupplied to configure property features.\n\nThis decorator should only be used for public fields. Private or protected\nfields should use the [[`internalProperty`]] decorator."
+        },
+        {
+          "kind": "function",
+          "name": "css",
+          "parameters": [
+            {
+              "name": "strings"
+            },
+            {
+              "name": "values"
+            }
+          ],
+          "description": "Template tag which which can be used with LitElement's [[LitElement.styles |\n`styles`]] property to set element styles. For security reasons, only literal\nstring values may be used. To incorporate non-literal values [[`unsafeCSS`]]\nmay be used inside a template string part."
+        },
+        {
+          "kind": "class",
+          "description": "Base element class that manages element properties and attributes, and\nrenders a lit-html template.\n\nTo define a component, subclass `LitElement` and implement a\n`render` method to provide the component's template. Define properties\nusing the [[`properties`]] property or the [[`property`]] decorator.",
+          "name": "LitElement",
+          "members": [
+            {
+              "kind": "method",
+              "name": "getStyles",
+              "static": true,
+              "description": "Return the array of styles to apply to the element.\nOverride this method to integrate into a style management system."
+            },
+            {
+              "kind": "method",
+              "name": "_getUniqueStyles",
+              "static": true
+            },
+            {
+              "kind": "method",
+              "name": "initialize",
+              "description": "Performs element initialization. By default this calls\n[[`createRenderRoot`]] to create the element [[`renderRoot`]] node and\ncaptures any pre-set values for registered properties."
+            },
+            {
+              "kind": "method",
+              "name": "createRenderRoot",
+              "description": "Returns the node into which the element should render and by default\ncreates and returns an open shadowRoot. Implement to customize where the\nelement's DOM is rendered. For example, to render into the element's\nchildNodes, return `this`.",
+              "return": {
+                "type": {
+                  "text": "Element|DocumentFragment"
+                }
+              }
+            },
+            {
+              "kind": "method",
+              "name": "adoptStyles",
+              "description": "Applies styling to the element shadowRoot using the [[`styles`]]\nproperty. Styling will apply using `shadowRoot.adoptedStyleSheets` where\navailable and will fallback otherwise. When Shadow DOM is polyfilled,\nShadyCSS scopes styles and adds them to the document. When Shadow DOM\nis available but `adoptedStyleSheets` is not, styles are appended to the\nend of the `shadowRoot` to [mimic spec\nbehavior](https://wicg.github.io/construct-stylesheets/#using-constructed-stylesheets)."
+            }
+          ],
+          "superclass": {
+            "name": "UpdatingElement",
+            "module": "build/_snowpack/pkg/lit-element.js"
+          }
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "tagName",
+          "declaration": {
+            "name": "clazz",
+            "module": "build/_snowpack/pkg/lit-element.js"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "tagName",
+          "declaration": {
+            "name": "clazz",
+            "module": "build/_snowpack/pkg/lit-element.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "LitElement",
+          "declaration": {
+            "name": "LitElement",
+            "module": "build/_snowpack/pkg/lit-element.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "css",
+          "declaration": {
+            "name": "css",
+            "module": "build/_snowpack/pkg/lit-element.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "customElement",
+          "declaration": {
+            "name": "customElement",
+            "module": "build/_snowpack/pkg/lit-element.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "html",
+          "declaration": {
+            "name": "html",
+            "module": "build/_snowpack/pkg/lit-element.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "property",
+          "declaration": {
+            "name": "property",
+            "module": "build/_snowpack/pkg/lit-element.js"
+          }
+        }
+      ]
+    }
+  ]
+}

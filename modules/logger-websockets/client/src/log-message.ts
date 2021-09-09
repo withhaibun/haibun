@@ -9,9 +9,9 @@ import {
 
 @customElement('log-message')
 export default class LogMessage extends LitElement {
-  @property({ type: String })
-  level = '';
+  @property({ type: String }) level = '';
   @property({ type: String }) message = '';
+  @property({ type: String }) topic = {};
 
   static get styles() {
     return css`
@@ -19,17 +19,6 @@ export default class LogMessage extends LitElement {
         color: blue;
       }
     `;
-  }
-
-  static get properties() {
-    return {
-      level: { type: String },
-      message: { type: String },
-    };
-  }
-
-  constructor() {
-    super();
   }
 
   render(): TemplateResult {

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <meta name="Description" content="Put your description here." />
+
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: sans-serif;
+        background-color: #ededed;
+      }
+      .block {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40%;
+      }
+    </style>
+    <title>PoAMATIC</title>
+  </head>
+
+  <body>
+    <app-shell></app-shell>
+
+    <script type="module" src="./out-tsc/src/index.js"></script>
+    <h1>PoAMATIC</h1>
+
+    <vaadin-app-layout>
+      <vaadin-upload>
+        <iron-icon slot="drop-label-icon" icon="description"></iron-icon>
+        <span slot="drop-label">Select SCTM files or drop them here</span>
+      </vaadin-upload>
+      <message-processor />
+    </vaadin-app-layout>
+  </body>
+</html>

@@ -1,26 +1,30 @@
-# New Project
+<p align="center">
+  <img width="200" src="https://open-wc.org/hero.png"></img>
+</p>
 
-> ✨ Bootstrapped with Create Snowpack App (CSA).
+## Open-wc Starter App
 
-## Available Scripts
+[![Built with open-wc recommendations](https://img.shields.io/badge/built%20with-open--wc-blue.svg)](https://github.com/open-wc)
 
-### npm start
+## Quickstart
 
-Runs the app in the development mode.
-Open http://localhost:8080 to view it in the browser.
+To get started:
 
-The page will reload if you make edits.
-You will also see any lint errors in the console.
-
-### npm run build
-
-Builds the app for production to the `dist/` folder.
-It correctly bundles the app in production mode and optimizes the build for the best performance.
-
-## Directives
-
-In case you need to add a directive like `classMap` you should add the extension to the import:
-
+```sh
+npm init @open-wc
+# requires node 10 & npm 6 or higher
 ```
-import { classMap } from "lit-html/directives/class-map.js";
-```
+
+## Scripts
+
+- `start` runs your app for development, reloading on file changes
+- `start:build` runs your app after it has been built using the build command
+- `build` builds your app and outputs it in your `dist` directory
+- `test` runs your test suite with Web Test Runner
+- `lint` runs the linter for your project
+
+## Tooling configs
+
+For most of the tools, the configuration is in the `package.json` to reduce the amount of files in your project.
+
+If you customize the configuration a lot, you can consider moving them to individual files.
