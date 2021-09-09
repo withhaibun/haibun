@@ -39,6 +39,6 @@ describe('domain webpage', () => {
     const { result } = await runWith({ specl, features, backgrounds, addSteppers: [TestStepsRequiresDomain, DomainWebPage], world });
 
     expect(result.ok).toBe(true);
-    expect(result.results![0].stepResults[0].actionResults[0].details).toEqual("http://localhost:8123/p1");
+    expect(result.results![0].stepResults[0].actionResults[0].topics).toEqual("http://localhost:8123/p1");
   });
 });

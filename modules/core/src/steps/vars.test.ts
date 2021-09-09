@@ -25,7 +25,7 @@ describe('vars', () => {
     const res = await Executor.doFeatureStep(vstep, world);
 
     expect(world.shared.get('x')).toBe('notY');
-    expect(res.actionResults[0].details).toEqual(didNotOverwrite('x', 'notY', 'newValue'));
+    expect(res.actionResults[0].topics).toEqual({ ...didNotOverwrite('x', 'notY', 'newValue') });
   });
   it('is not set', async () => {
     const { world, vstep } = await getTestEnv(['vars'], '"x 1" is set', { ...getDefaultWorld().world });
