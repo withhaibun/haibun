@@ -34,15 +34,6 @@
               },
               "default": "''",
               "attribute": "message"
-            },
-            {
-              "kind": "field",
-              "name": "topic",
-              "type": {
-                "text": "object"
-              },
-              "default": "{}",
-              "attribute": "topic"
             }
           ],
           "attributes": [
@@ -61,14 +52,6 @@
               },
               "default": "''",
               "fieldName": "message"
-            },
-            {
-              "name": "topic",
-              "type": {
-                "text": "object"
-              },
-              "default": "{}",
-              "fieldName": "topic"
             }
           ],
           "superclass": {
@@ -234,7 +217,7 @@
             },
             {
               "kind": "field",
-              "name": "evidenceColumnRenderer",
+              "name": "assessmentResultColumnRenderer",
               "type": {
                 "text": "GridBodyRenderer<any>"
               },
@@ -242,7 +225,39 @@
             },
             {
               "kind": "method",
-              "name": "renderEvidenceColumn",
+              "name": "renderAssessmentResultColumn",
+              "parameters": [
+                {
+                  "name": "root",
+                  "type": {
+                    "text": "HTMLElement"
+                  }
+                },
+                {
+                  "name": "_column",
+                  "type": {
+                    "text": "GridColumnElement | undefined"
+                  }
+                },
+                {
+                  "name": "data",
+                  "type": {
+                    "text": "GridItemModel<any> | undefined"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "field",
+              "name": "mitigationActivityColumnRenderer",
+              "type": {
+                "text": "GridBodyRenderer<any>"
+              },
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "renderMitigationActivityColumn",
               "parameters": [
                 {
                   "name": "root",
@@ -298,33 +313,6 @@
           "declaration": {
             "name": "TopicResult",
             "module": "src/topic-results.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "stories/app-shell.stories.ts",
-      "declarations": [
-        {
-          "kind": "variable",
-          "name": "App"
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "default",
-          "declaration": {
-            "module": "stories/app-shell.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "App",
-          "declaration": {
-            "name": "App",
-            "module": "stories/app-shell.stories.ts"
           }
         }
       ]
@@ -435,6 +423,33 @@
           "declaration": {
             "name": "ref",
             "module": "types/static.d.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "stories/app-shell.stories.ts",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "App"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "module": "stories/app-shell.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "App",
+          "declaration": {
+            "name": "App",
+            "module": "stories/app-shell.stories.ts"
           }
         }
       ]
@@ -762,7 +777,7 @@
         {
           "kind": "variable",
           "name": "LogMessage",
-          "default": "class LogMessage extends LitElement {\n    constructor() {\n        super(...arguments);\n        this.level = '';\n        this.message = '';\n        this.topic = {};\n    }\n    static get styles() {\n        return css `\n      p {\n        color: blue;\n      }\n    `;\n    }\n    render() {\n        return html `<div>${this.level}: ${this.message}</div>`;\n    }\n}"
+          "default": "class LogMessage extends LitElement {\n    constructor() {\n        super(...arguments);\n        this.level = '';\n        this.message = '';\n    }\n    render() {\n        return html `<div>${this.level}: ${this.message}</div>`;\n    }\n}"
         }
       ],
       "exports": [
@@ -804,7 +819,7 @@
         {
           "kind": "variable",
           "name": "LogMessages",
-          "default": "class LogMessages extends LitElement {\n    constructor() {\n        super();\n        this.messages = [];\n        this.connect();\n    }\n    async connect() {\n        const ws = await connectToServer();\n        ws.send('catchup');\n        this.messages = [{ level: 'info', message: 'connecting' }];\n        this.requestUpdate();\n        ws.onmessage = (webSocketMessage) => {\n            const msg = JSON.parse(webSocketMessage.data);\n            if (msg.catchup) {\n                this.messages = this.messages.concat(msg.catchup);\n            }\n            else {\n                this.messages.push(msg);\n            }\n            this.requestUpdate();\n        };\n        async function connectToServer() {\n            const ws = new WebSocket('ws://localhost:7071/ws');\n            return new Promise(resolve => {\n                const timer = setInterval(() => {\n                    if (ws.readyState === 1) {\n                        clearInterval(timer);\n                        resolve(ws);\n                    }\n                }, 10);\n            });\n        }\n    }\n    render() {\n        const topics = this.messages\n            .filter(m => m.messageTopic !== undefined && m.messageTopic.stage === 'Executor')\n            .map(m => m);\n        const messages = this.messages.filter(m => { var _a; return ((_a = m.messageTopic) === null || _a === void 0 ? void 0 : _a.stage) !== 'Executor'; });\n        return html `\n        <div><topic-results .topics=\"${topics}\"></topic-results></topic-results> </div>\n        <div><log-messages .messages=\"${messages}\"></log-messages></div>\n    `;\n    }\n}"
+          "default": "class LogMessages extends LitElement {\n    constructor() {\n        super();\n        this.messages = [];\n        this.connect();\n    }\n    async connect() {\n        const ws = await connectToServer();\n        ws.send('catchup');\n        this.messages = [{ level: 'info', message: 'connecting' }];\n        this.requestUpdate();\n        ws.onmessage = (webSocketMessage) => {\n            var _a;\n            const msg = JSON.parse(webSocketMessage.data);\n            if (msg.catchup) {\n                this.messages = this.messages.concat(msg.catchup);\n            }\n            else {\n                const mt = msg;\n                this.messages.push(mt);\n                const tm = (_a = msg.messageTopic.result.actionResults[0]\n                    .topics) === null || _a === void 0 ? void 0 : _a.features;\n                console.log('tt', tm);\n                if (tm) {\n                    console.log('tm', tm);\n                }\n            }\n            this.requestUpdate();\n        };\n    }\n    render() {\n        const topics = this.messages\n            .filter(m => m.messageTopic !== undefined && m.messageTopic.stage === 'Executor')\n            .map(m => m);\n        const messages = this.messages.filter(m => { var _a; return ((_a = m.messageTopic) === null || _a === void 0 ? void 0 : _a.stage) !== 'Executor'; });\n        return html `\n        <div><topic-results .topics=\"${topics}\"></topic-results></topic-results> </div>\n        <div><log-messages .messages=\"${messages}\"></log-messages></div>\n    `;\n    }\n}"
         }
       ],
       "exports": [
@@ -846,7 +861,7 @@
         {
           "kind": "variable",
           "name": "TopicResult",
-          "default": "class TopicResult extends LitElement {\n    constructor() {\n        super(...arguments);\n        this.topics = [];\n        this.evidenceColumnRenderer = this.renderEvidenceColumn.bind(this);\n    }\n    // eslint-disable-next-line class-methods-use-this\n    renderEvidenceColumn(root, _column, data) {\n        const { evidence } = data === null || data === void 0 ? void 0 : data.item;\n        if (evidence && Object.keys(evidence).length > 0) {\n            render(html `<details>\n          <summary>Details</summary>\n          ${JSON.stringify(evidence)}\n        </details>`, root);\n        }\n    }\n    render() {\n        const lines = {};\n        for (const m of this.topics) {\n            const { seq } = m.messageTopic;\n            lines[seq] = [...(lines[seq] || []), m];\n        }\n        const data = [];\n        Object.entries(lines).forEach(([, entries]) => {\n            const { result } = entries[0].messageTopic.topics;\n            const { seq, in: line, actionResults } = result;\n            const { name, ok, topics } = actionResults[0];\n            console.log(name, !['set', 'onPage', 'isSet'].includes(name));\n            if (!['set', 'onPage', 'isSet'].includes(name)) {\n                const evidence = topics ? topics.evidence : '';\n                data.push({ seq, line, name, ok, evidence });\n            }\n        });\n        return html `\n      <vaadin-grid\n        .items=${data}\n        theme=\"column-borders\"\n        aria-label=\"Content Renderer Function\"\n      >\n        <vaadin-grid-column\n          width=\"8em\"\n          flex-grow=\"0\"\n          path=\"seq\"\n          header=\"Sequence\"\n        ></vaadin-grid-column>\n        <vaadin-grid-column\n          width=\"12em\"\n          flex-grow=\"0\"\n          path=\"name\"\n          header=\"Name\"\n        ></vaadin-grid-column>\n        <vaadin-grid-column\n          width=\"30em\"\n          flex-grow=\"0\"\n          path=\"line\"\n          header=\"Line\"\n        ></vaadin-grid-column>\n        <vaadin-grid-column\n          width=\"8em\"\n          flex-grow=\"0\"\n          path=\"ok\"\n          header=\"ok\"\n        ></vaadin-grid-column>\n        <vaadin-grid-column\n          .renderer=\"${this.evidenceColumnRenderer}\"\n          width=\"30em\"\n          flex-grow=\"0\"\n          header=\"Evidence\"\n        ></vaadin-grid-column>\n        <vaadin-grid-column></vaadin-grid-column>\n      </vaadin-grid>\n    `;\n    }\n}"
+          "default": "class TopicResult extends LitElement {\n    constructor() {\n        super(...arguments);\n        this.topics = [];\n        this.assessmentResultColumnRenderer = this.renderAssessmentResultColumn.bind(this);\n        this.mitigationActivityColumnRenderer = this.renderMitigationActivityColumn.bind(this);\n    }\n    // eslint-disable-next-line class-methods-use-this\n    renderAssessmentResultColumn(root, _column, data) {\n        const { assessmentResult } = data === null || data === void 0 ? void 0 : data.item;\n        if (assessmentResult && Object.keys(assessmentResult).length > 0) {\n            render(html `<details>\n          <summary>${assessmentResult.summary}</summary>\n          <pre>${JSON.stringify(assessmentResult.details, null, 2)}</pre>\n        </details>`, root);\n        }\n    }\n    // eslint-disable-next-line class-methods-use-this\n    renderMitigationActivityColumn(root, _column, data) {\n        const { mitigationActivity } = data === null || data === void 0 ? void 0 : data.item;\n        if (mitigationActivity && Object.keys(mitigationActivity).length > 0) {\n            render(html `<details>\n          <summary>${mitigationActivity.summary}</summary>\n          <pre>${JSON.stringify(mitigationActivity.details, null, 2)}</pre>\n        </details>`, root);\n        }\n    }\n    render() {\n        const lines = {};\n        for (const m of this.topics) {\n            if (m.messageTopic.result) {\n                const { seq } = m.messageTopic.result;\n                lines[seq] = [...(lines[seq] || []), m];\n            }\n        }\n        const data = [];\n        Object.entries(lines).forEach(([, entries]) => {\n            const { result } = entries[0].messageTopic;\n            const { seq, in: line, actionResults } = result;\n            const { name, ok, topics } = actionResults[0];\n            if (ok) {\n                const evidence = topics === null || topics === void 0 ? void 0 : topics.evidence;\n                if (evidence) {\n                    data.push({\n                        seq,\n                        line,\n                        name,\n                        ok: '✅️',\n                        assessmentResult: { ...evidence },\n                    });\n                }\n            }\n            else {\n                const { message } = actionResults[0];\n                const warning = topics === null || topics === void 0 ? void 0 : topics.warning;\n                const response = topics === null || topics === void 0 ? void 0 : topics.response;\n                data.push({\n                    seq,\n                    line,\n                    name,\n                    ok: '❌',\n                    assessmentResult: warning || { summary: message },\n                    mitigationActivity: response || undefined,\n                });\n            }\n        });\n        return html `\n      <vaadin-grid\n        .items=${data}\n        theme=\"row-stripes wrap-cell-content\"\n        aria-label=\"Content Renderer Function\"\n      >\n        <vaadin-grid-column\n          width=\"8em\"\n          flex-grow=\"0\"\n          path=\"seq\"\n          header=\"Sequence\"\n        ></vaadin-grid-column>\n        <vaadin-grid-column\n          width=\"12em\"\n          flex-grow=\"0\"\n          path=\"name\"\n          header=\"Name\"\n        ></vaadin-grid-column>\n        <vaadin-grid-column\n          width=\"30em\"\n          flex-grow=\"0\"\n          path=\"line\"\n          header=\"Line\"\n        ></vaadin-grid-column>\n        <vaadin-grid-column\n          width=\"8em\"\n          flex-grow=\"0\"\n          path=\"ok\"\n          header=\"Status\"\n        ></vaadin-grid-column>\n        <vaadin-grid-column\n          .renderer=\"${this.assessmentResultColumnRenderer}\"\n          width=\"15em\"\n          flex-grow=\"0\"\n          header=\"Assessment Result\"\n        ></vaadin-grid-column>\n        <vaadin-grid-column\n          .renderer=\"${this.mitigationActivityColumnRenderer}\"\n          width=\"15em\"\n          flex-grow=\"0\"\n          header=\"Mitigation Activity\"\n        ></vaadin-grid-column>\n        <vaadin-grid-column></vaadin-grid-column>\n      </vaadin-grid>\n    `;\n    }\n}"
         }
       ],
       "exports": [

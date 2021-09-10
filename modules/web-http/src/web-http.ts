@@ -20,7 +20,7 @@ const WebHttp: IExtensionConstructor = class WebHttp implements IStepper {
       gwta: 'http {url} has an oidc well-known configuration',
       action: async ({ url }: TNamed) => {
         const json = await got.get({ url: `${url}/.well-known/openid-configuration` }).json();
-        return (json as any).authorization_endpoint ? OK : actionNotOK(`${json} not recognized`);
+        return (json as any).authorization_endpoint ? OK : actionNotOK(`${json} not recognized`, { topics: { result: { summary: 'json', details: json } } });
       },
     },
   };

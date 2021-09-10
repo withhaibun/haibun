@@ -22,7 +22,7 @@ class WebSocketServer implements ISubscriber {
     });
   }
   constructor() {
-    this.wss = new WebSocket.Server({ port: 7071 });
+    this.wss = new WebSocket.Server({ host: '0.0.0.0', port: 7071 });
     this.wss.on('connection', this.connection.bind(this));
   }
   out(level: TLogLevel, message: any, messageTopic?: TMessageTopic) {
@@ -73,7 +73,6 @@ const LoggerWebsockets: IExtensionConstructor = class LoggerWebsockets implement
     waitForUpload: {
       gwta: 'wait for {name} upload',
       action: async ({ page }: TNamed, vstep: TVStep) => {
-
         return OK;
       },
     },

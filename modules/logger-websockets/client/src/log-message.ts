@@ -1,5 +1,4 @@
 import {
-  css,
   customElement,
   html,
   LitElement,
@@ -10,6 +9,7 @@ import {
 @customElement('log-message')
 export default class LogMessage extends LitElement {
   @property({ type: String }) level = '';
+
   @property({ type: String }) message = '';
 
   render(): TemplateResult {

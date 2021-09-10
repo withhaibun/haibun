@@ -1,7 +1,10 @@
 import { Context, DomainContext } from '../lib/contexts';
-import { IStepper, IExtensionConstructor, OK, TNamed, TVStep, TWorld } from '../lib/defs';
+import { IStepper, IExtensionConstructor, OK, TNamed, TVStep, TWorld, TActionResultTopics } from '../lib/defs';
 import { getDomain, getStepShared } from '../lib/domain';
 import { actionNotOK } from '../lib/util';
+
+// FIXME hokey
+const getOrCond = (fr: string) => fr.replace(/.* is set or /, '');
 
 const vars: IExtensionConstructor = class Vars implements IStepper {
   world: TWorld;
@@ -18,7 +21,17 @@ const vars: IExtensionConstructor = class Vars implements IStepper {
     if (this.world.shared.get(what) !== undefined) {
       return OK;
     }
-    return actionNotOK(`${what} not set${orCond && ': ' + orCond}`);
+    console.log('sadfidufofusd', getOrCond(orCond));
+    const [warning, response] = orCond.split(':').map((t) => t.trim());
+    const topics: TActionResultTopics = {
+      warning: { summary: warning },
+    };
+
+    if (response) {
+      topics.response = { summary: response };
+    }
+
+    return actionNotOK(`${what} not set${orCond && ': ' + orCond}`, { score: 10, topics });
   }
 
   steps = {
@@ -29,9 +42,9 @@ const vars: IExtensionConstructor = class Vars implements IStepper {
     },
     isSet: {
       gwta: '{what: string} is set( or .*)?',
-      // FIXME hokey
-      action: async ({ what }: TNamed, vstep: TVStep) => this.isSet(what, vstep.in.replace(/.* is set or /, '')),
-      build: async ({ what }: TNamed, vstep: TVStep) => this.isSet(what, vstep.in.replace(/.* is set or /, '')),
+
+      action: async ({ what }: TNamed, vstep: TVStep) => this.isSet(what, getOrCond(vstep.in)),
+      build: async ({ what }: TNamed, vstep: TVStep) => this.isSet(what, getOrCond(vstep.in)),
     },
     background: {
       match: /^Background: ?(?<background>.+)?$/,
@@ -66,7 +79,7 @@ const vars: IExtensionConstructor = class Vars implements IStepper {
 };
 export default vars;
 
-export const didNotOverwrite = (what: string, present: string | Context, value: string) => ({ overwrite: `did not overwrite ${what} value of "${present}" with "${value}"` });
+export const didNotOverwrite = (what: string, present: string | Context, value: string) => ({ overwrite: { summary: `did not overwrite ${what} value of "${present}" with "${value}"` } });
 
 export const setShared = ({ what, value }: TNamed, vstep: TVStep, world: TWorld, emptyOnly: boolean = false) => {
   // if on a domain page, set it in that domain's shared

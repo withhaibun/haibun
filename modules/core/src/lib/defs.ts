@@ -142,7 +142,7 @@ export type TNamedVar = { name: string; type: string };
 export const OK: TOKActionResult = { ok: true };
 
 export type TResultError = {
-  topics: TActionResultTopics;
+  details: { [name: string]: any };
   message: string;
 };
 
@@ -160,10 +160,11 @@ export type TOKActionResult = {
   topics?: TActionResultTopics;
 };
 
-export type TActionResultTopics = { [topic: string]: any };
+export type TActionResultTopics = { [topic: string]: { summary: string; details?: any } };
 
 export type TNotOKActionResult = {
   ok: false;
+  score?: number;
   message: string;
   topics?: TActionResultTopics;
 };
@@ -213,3 +214,5 @@ export const HAIBUN = 'HAIBUN';
 export const BASE_DOMAINS = [{ name: 'string', resolve: (inp: string) => inp }];
 
 export const BASE_TYPES = BASE_DOMAINS.map((b) => b.name);
+
+export type TScored = { name: string; score: number };

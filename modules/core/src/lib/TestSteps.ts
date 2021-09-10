@@ -84,7 +84,7 @@ export const TestStepsWithOptions: IExtensionConstructor = class TestStepsWithOp
       exact: 'When I have a stepper option',
       action: async () => {
         const res = getStepperOption(this, 'EXISTS', this.world.options);
-        return actionOK({res});
+        return actionOK({ options: { summary: 'options', details: res } });
       },
     },
   };
