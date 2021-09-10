@@ -1,9 +1,10 @@
-import { TActionResultTopics } from '../defs';
+import { TStepResult } from '../defs';
 
 export type TLogLevel = 'none' | 'debug' | 'log' | 'info' | 'warn' | 'error';
+export const TEST_RESULT = { _test: true}
 
 export type TExecutorTopic = {
-  topics: TActionResultTopics;
+  result: TStepResult | typeof TEST_RESULT;
   seq: number;
   stage: 'Executor';
 };
@@ -23,4 +24,5 @@ export interface ISubscriber {
 }
 
 export type TMessage = { level: string; message: string; messageTopic?: TMessageTopic };
-export type TMessageWithTopic = { level: string; message: string; messageTopic: TMessageTopic };
+// FIXME get rid of result
+export type TMessageWithTopic = { level: string; message: string; messageTopic: { result: TStepResult } };

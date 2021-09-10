@@ -72,14 +72,16 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
     seeText: {
       gwta: 'should see {text}',
       action: async ({ text }: TNamed) => {
-        let textContent: string | null;
+        let textContent: string | null = null;
+        // FIXME retry sometimes required?
         for (let a = 0; a < 2; a++) {
           textContent = await this.withPage(async (page: Page) => await page.textContent('body', { timeout: 1e9 }));
           if (textContent?.toString().includes(text)) {
             return OK;
           }
         }
-        return actionNotOK(`Did not find text in ${textContent!?.length} characters starting with ${textContent!?.trim().substr(0, 1e9)}`);
+        const topics = { textContent: { summary: `in ${textContent?.length} characters`, details: textContent } };
+        return actionNotOK('Did not find text', { topics });
       },
     },
 

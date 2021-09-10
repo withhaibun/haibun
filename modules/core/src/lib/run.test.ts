@@ -131,7 +131,7 @@ describe('options', () => {
 
     expect(result.ok).toBe(true);
     expect(result.results?.length).toBe(1);
-    expect(result.results![0].stepResults[0].actionResults[0].topics).toEqual({ res: 42 });
+    expect(result.results![0].stepResults[0].actionResults[0].topics?.options.summary).toEqual('options');
   });
 });
 

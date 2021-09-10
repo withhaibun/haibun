@@ -19,6 +19,8 @@ import {
   TRuntime,
   HAIBUN,
   TActionResultTopics,
+  TActionResult,
+  TFound,
 } from './defs';
 import { withNameType } from './features';
 import Logger, { LOGGER_NONE } from './Logger';
@@ -50,11 +52,11 @@ export async function resultOutput(type: string | undefined, result: TResult, sh
   return result;
 }
 
-export function actionNotOK(message: string, topics?: TActionResultTopics): TNotOKActionResult {
+export function actionNotOK(message: string, also?: { topics?: TActionResultTopics; score?: number }): TNotOKActionResult {
   return {
     ok: false,
     message,
-    topics,
+    ...also,
   };
 }
 
@@ -182,7 +184,9 @@ export function processEnv(env: TEnv, options: TOptions) {
     .map(([k]) => {
       const value = env[k];
       const opt = k.replace(pfx, '');
-      if (opt === 'SPLIT_SHARED' && value !== undefined) {
+      if (opt === 'CONTINUE_ON_ERROR_IF_SCORED' && value !== undefined) {
+        protoOptions.options.continueOnErrorIfScored = true;
+      } else if (opt === 'SPLIT_SHARED' && value !== undefined) {
         const [what, s] = value.split('=');
         if (!s) {
           errors.push(`  ${pfx}SPLIT_SHARED=var=option1,option2`);
@@ -265,4 +269,18 @@ export function getStepper<Type>(steppers: IStepper[], name: string): Type {
 
 export function getFromRuntime<Type>(runtime: TRuntime, name: string): Type {
   return runtime[name] as Type;
+}
+
+export function applyResShouldContinue(world: any, res: Partial<TActionResult>, vstep: TFound): boolean {
+  const { score, message } = res as TNotOKActionResult;
+  if (res.ok) {
+    return true;
+  }
+  if (world.options.continueOnErrorIfScored && score !== undefined) {
+    const calc = { score, message, action: vstep };
+
+    world.shared.values._scored.push(calc);
+    return true;
+  }
+  return false;
 }
