@@ -52,6 +52,7 @@ async function go() {
     return;
   }
 
+  try {
   console.error(
     JSON.stringify(
       {
@@ -64,6 +65,9 @@ async function go() {
       2
     )
   );
+    } catch (e) {
+      console.error(ranResults[0].result.failure);
+    }
 
   if (protoOptions.options.stay !== 'always') {
     process.exit(1);

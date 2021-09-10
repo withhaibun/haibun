@@ -1,6 +1,7 @@
 import { WorkspaceContext } from '../lib/contexts';
-import { OK, TFinalize, TResolvedFeature, TWorld } from '../lib/defs';
+import { OK, TBuildResult, TFinalize, TNotOkStepActionResult, TOKStepActionResult, TResolvedFeature, TWorld } from '../lib/defs';
 import { getNamedToVars } from '../lib/namedVars';
+import { applyResShouldContinue } from '../lib/util';
 
 export default class Builder {
   world: any;
@@ -11,23 +12,24 @@ export default class Builder {
   }
   async build(features: TResolvedFeature[]) {
     const finalizers: { [path: string]: TFinalize[] } = {};
+    this.world.shared.values._scored = [];
     for (const feature of features) {
       for (const vstep of feature.vsteps) {
         for (const action of vstep.actions) {
           if (action.step.build) {
-            
             if (!this.workspace.get(feature.path)) {
-              
               this.workspace.createPath(feature.path);
               finalizers[feature.path] = [];
             }
             const namedWithVars = getNamedToVars(action, this.world);
             const res = await action.step.build(namedWithVars!, vstep, this.workspace.get(feature.path));
-            if (!res.ok) {
-              throw Error(`${action.name}: ${res.message}`);
+
+            const shouldContinue = applyResShouldContinue(this.world, res, action);
+            if (!shouldContinue) {
+              throw Error(`${action.name}: ${(<TNotOkStepActionResult>res).message}`);
             }
-            if (res.finalize) {
-              finalizers[feature.path].push(res.finalize);
+            if ((<TOKStepActionResult & TBuildResult>res).finalize) {
+              finalizers[feature.path].push((<TOKStepActionResult & TBuildResult>res).finalize!);
             }
           }
         }
@@ -38,7 +40,7 @@ export default class Builder {
         finalize(this.workspace.get(key));
       }
     }
-    
+
     return OK;
   }
 }

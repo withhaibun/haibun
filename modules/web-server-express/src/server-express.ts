@@ -21,7 +21,7 @@ export class ServerExpress implements IWebServer {
 
   async listening() {
     if (!ServerExpress.listener) {
-      ServerExpress.listener = await ServerExpress.app.listen(this.port, () => this.logger.log(`Server listening on port: ${this.port}`));
+      ServerExpress.listener = await ServerExpress.app.listen(this.port, '0.0.0.0', () => this.logger.log(`Server listening on port: ${this.port}`));
     } else {
       this.logger.log('express already started');
     }

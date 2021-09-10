@@ -14,8 +14,6 @@ const Haibun: IExtensionConstructor = class Haibun implements IStepper {
     sendFeatures: {
       gwta: 'send features',
       action: async () => {
-        console.log('*** sending features');
-        
         return actionOK({features: this.world.shared.values._features});
       },
     },

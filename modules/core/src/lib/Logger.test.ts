@@ -1,4 +1,4 @@
-import { ISubscriber, TMessageTopic } from './interfaces/logger';
+import { ISubscriber, TEST_RESULT, TMessageTopic } from './interfaces/logger';
 import Logger, { LOGGER_LEVELS } from './Logger';
 
 describe('log levels', () => {
@@ -20,11 +20,11 @@ describe('subscriber', () => {
     const subscriber: ISubscriber = {
       out(level: string, args: any[], topic?: TMessageTopic) {
         expect(topic).toBeDefined();
-        expect(topic!.topics.test).toEqual(1);
+        expect(topic!.result).toEqual(TEST_RESULT);
         done();
       },
     };
     logger.addSubscriber(subscriber);
-    logger.log('test', { stage: 'Executor', topics: { test: 1 }, seq: 1 });
+    logger.log('test', { stage: 'Executor', result: TEST_RESULT, seq: 1 });
   });
 });

@@ -64,7 +64,7 @@ describe.only('domain object', () => {
     const { result } = await runWith({ specl, features, backgrounds: [], addSteppers: [TestStepsRequiresDomain], world });
     expect(result.ok).toBe(false);
     expect(result.failure!.error.message.startsWith(`missing required domain "${TTYPE}"`)).toBe(true);
-    expect(result.failure!.error.topics.stack).toBeDefined();
+    expect(result.failure!.error.details.stack).toBeDefined();
   });
   it('domain object from background', async () => {
     const specl = getOptionsOrDefault();

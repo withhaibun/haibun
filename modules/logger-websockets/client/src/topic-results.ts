@@ -1,34 +1,59 @@
 // eslint-disable-next-line max-classes-per-file
 import { customElement, html, LitElement, property, state } from 'lit-element';
-import type { TMessageWithTopic } from '@haibun/core/build/lib/interfaces/logger';
+import { render } from 'lit';
 import {
   GridBodyRenderer,
   GridColumnElement,
   GridItemModel,
 } from '@vaadin/vaadin-grid';
-import { render } from 'lit';
+
+import type { TMessageWithTopic } from '@haibun/core/build/lib/interfaces/logger';
+import { TSeqFeature } from './message-processor';
 
 @customElement('topic-results')
 export default class TopicResult extends LitElement {
+  @property({ type: Object }) features: TSeqFeature = {};
+
   @property({ type: Array }) topics: TMessageWithTopic[] = [];
 
   @state()
-  private evidenceColumnRenderer: GridBodyRenderer<any> =
-    this.renderEvidenceColumn.bind(this);
+  private assessmentResultColumnRenderer: GridBodyRenderer<any> =
+    this.renderAssessmentResultColumn.bind(this);
 
   // eslint-disable-next-line class-methods-use-this
-  renderEvidenceColumn(
+  renderAssessmentResultColumn(
     root: HTMLElement,
     _column: GridColumnElement | undefined,
     data: GridItemModel<any> | undefined
   ) {
-    const { evidence } = data?.item;
-
-    if (evidence && Object.keys(evidence).length > 0) {
+    const { assessmentResult } = data?.item;
+    if (assessmentResult && Object.keys(assessmentResult).length > 0) {
       render(
         html`<details>
-          <summary>Details</summary>
-          <pre>${JSON.stringify(evidence, null, 2)}</pre>
+          <summary>${assessmentResult.summary}</summary>
+          <pre>${JSON.stringify(assessmentResult.details, null, 2)}</pre>
+        </details>`,
+        root
+      );
+    }
+  }
+
+  @state()
+  private mitigationActivityColumnRenderer: GridBodyRenderer<any> =
+    this.renderMitigationActivityColumn.bind(this);
+
+  // eslint-disable-next-line class-methods-use-this
+  renderMitigationActivityColumn(
+    root: HTMLElement,
+    _column: GridColumnElement | undefined,
+    data: GridItemModel<any> | undefined
+  ) {
+    const { mitigationActivity } = data?.item;
+    if (mitigationActivity && Object.keys(mitigationActivity).length > 0) {
+      render(
+        html`<details>
+          <summary>${mitigationActivity.summary}</summary>
+          <pre>${JSON.stringify(mitigationActivity.details, null, 2)}</pre>
         </details>`,
         root
       );
@@ -38,21 +63,44 @@ export default class TopicResult extends LitElement {
   render() {
     const lines: { [line: string]: TMessageWithTopic[] } = {};
     for (const m of this.topics) {
-      const { seq } = m.messageTopic!;
-      lines[seq] = [...(lines[seq] || []), m];
+      if (m.messageTopic.result) {
+        const { seq } = m.messageTopic.result;
+        lines[seq] = [...(lines[seq] || []), m];
+      }
     }
+    console.log('TODO use these', this.features);
 
     const data: any[] = [];
     Object.entries(lines).forEach(([, entries]) => {
-      const { result } = entries[0].messageTopic.topics;
+      const { result } = entries[0].messageTopic;
       const { seq, in: line, actionResults } = result;
 
       const { name, ok, topics } = actionResults[0];
-      console.log(name, !['set', 'onPage', 'isSet'].includes(name));
 
-      if (!['set', 'onPage', 'isSet'].includes(name)) {
-        const evidence = topics ? topics.evidence : '';
-        data.push({ seq, line, name, ok, evidence });
+      if (ok) {
+        const evidence = topics?.evidence;
+        if (evidence) {
+          data.push({
+            seq,
+            line,
+            name,
+            ok: '✅️',
+            assessmentResult: { ...evidence },
+          });
+        }
+      } else {
+        const { message } = actionResults[0];
+        const warning = topics?.warning;
+        const response = topics?.response;
+
+        data.push({
+          seq,
+          line,
+          name,
+          ok: '❌',
+          assessmentResult: warning || { summary: message },
+          mitigationActivity: response || undefined,
+        });
       }
     });
 
@@ -61,7 +109,6 @@ export default class TopicResult extends LitElement {
         .items=${data}
         theme="row-stripes wrap-cell-content"
         aria-label="Content Renderer Function"
-
       >
         <vaadin-grid-column
           width="8em"
@@ -85,13 +132,19 @@ export default class TopicResult extends LitElement {
           width="8em"
           flex-grow="0"
           path="ok"
-          header="ok"
+          header="Status"
         ></vaadin-grid-column>
         <vaadin-grid-column
-          .renderer="${this.evidenceColumnRenderer}"
-          width="30em"
+          .renderer="${this.assessmentResultColumnRenderer}"
+          width="15em"
           flex-grow="0"
-          header="Evidence"
+          header="Assessment Result"
+        ></vaadin-grid-column>
+        <vaadin-grid-column
+          .renderer="${this.mitigationActivityColumnRenderer}"
+          width="15em"
+          flex-grow="0"
+          header="Mitigation Activity"
         ></vaadin-grid-column>
         <vaadin-grid-column></vaadin-grid-column>
       </vaadin-grid>

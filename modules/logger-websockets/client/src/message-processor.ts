@@ -1,15 +1,48 @@
 import { customElement, html, LitElement, property } from 'lit-element';
+
+import { TExpandedFeature } from '@haibun/core/build/lib/defs';
+
 import type {
   TMessage,
   TMessageWithTopic,
 } from '@haibun/core/build/lib/interfaces/logger';
 
+async function connectToServer() {
+  const host = document.location.hostname;
+
+  const ws = new WebSocket(`ws://${host}:7071/ws`);
+  return new Promise(resolve => {
+    const timer = setInterval(() => {
+      if (ws.readyState === 1) {
+        clearInterval(timer);
+        resolve(ws);
+      }
+    }, 10);
+  });
+}
+export type TSeqFeature = { seq: number; f: TExpandedFeature } | {};
 @customElement('message-processor')
 export default class LogMessages extends LitElement {
+  features: TSeqFeature = {};
+
   constructor() {
     super();
     this.connect();
   }
+
+  checkForFeatures(m: TMessage) {
+    const tm = (<TMessageWithTopic>m).messageTopic?.result.actionResults[0]
+      .topics?.features;
+
+    if (tm && (tm as any)[0]) {
+      this.features = (tm as any)[0].expanded.map(
+        (e: TExpandedFeature, seq: number) => ({ seq, ...e })
+      );
+      this.requestUpdate();
+    }
+  }
+
+  @property({ type: Array }) messages: TMessage[] = [];
 
   async connect() {
     const ws: any = await connectToServer();
@@ -22,38 +55,27 @@ export default class LogMessages extends LitElement {
       const msg = JSON.parse(webSocketMessage.data);
       if (msg.catchup) {
         this.messages = this.messages.concat(msg.catchup);
+        this.messages.forEach(m => this.checkForFeatures(m));
       } else {
-        this.messages.push(msg);
+        const mt = <TMessage>msg;
+        this.messages.push(mt);
+        this.checkForFeatures(mt);
       }
       this.requestUpdate();
     };
-
-    async function connectToServer() {
-      const ws = new WebSocket('ws://localhost:7071/ws');
-      return new Promise(resolve => {
-        const timer = setInterval(() => {
-          if (ws.readyState === 1) {
-            clearInterval(timer);
-            resolve(ws);
-          }
-        }, 10);
-      });
-    }
   }
-
-  @property({ type: Array }) messages: TMessage[] = [];
 
   render() {
     const topics: TMessageWithTopic[] = this.messages
       .filter(
         m => m.messageTopic !== undefined && m.messageTopic.stage === 'Executor'
       )
-      .map(m => m as TMessageWithTopic);
+      .map(m => m as unknown as TMessageWithTopic);
     const messages: TMessage[] = this.messages.filter(
       m => m.messageTopic?.stage !== 'Executor'
     );
     return html`
-        <div><topic-results .topics="${topics}"></topic-results></topic-results> </div>
+        <div><topic-results .features="${this.features}" .topics="${topics}"></topic-results></topic-results> </div>
         <div><log-messages .messages="${messages}"></log-messages></div>
     `;
   }
