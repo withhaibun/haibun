@@ -1,4 +1,5 @@
-import { customElement, html, LitElement, property } from 'lit-element';
+import { html, LitElement } from 'lit';
+import { customElement, property } from 'lit/decorators';
 
 import { TExpandedFeature } from '@haibun/core/build/lib/defs';
 
@@ -20,10 +21,12 @@ async function connectToServer() {
     }, 10);
   });
 }
-export type TSeqFeature = { seq: number; f: TExpandedFeature } | {};
+export type TSeqFeature =
+  | { seq: number; line: string; feature: TExpandedFeature }
+  | {};
 @customElement('message-processor')
 export default class LogMessages extends LitElement {
-  features: TSeqFeature = {};
+  features: TSeqFeature[] = [];
 
   constructor() {
     super();
@@ -74,6 +77,7 @@ export default class LogMessages extends LitElement {
     const messages: TMessage[] = this.messages.filter(
       m => m.messageTopic?.stage !== 'Executor'
     );
+
     return html`
         <div><topic-results .features="${this.features}" .topics="${topics}"></topic-results></topic-results> </div>
         <div><log-messages .messages="${messages}"></log-messages></div>
