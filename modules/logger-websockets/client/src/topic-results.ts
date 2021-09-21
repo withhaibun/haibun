@@ -1,6 +1,6 @@
 // eslint-disable-next-line max-classes-per-file
-import { customElement, html, LitElement, property, state } from 'lit-element';
-import { render } from 'lit';
+import { html, LitElement, render } from 'lit';
+import { customElement, property, state } from 'lit/decorators';
 import {
   GridBodyRenderer,
   GridColumnElement,
@@ -12,7 +12,7 @@ import { TSeqFeature } from './message-processor';
 
 @customElement('topic-results')
 export default class TopicResult extends LitElement {
-  @property({ type: Object }) features: TSeqFeature = {};
+  @property({ type: Array }) features: TSeqFeature[] = [];
 
   @property({ type: Array }) topics: TMessageWithTopic[] = [];
 
@@ -68,7 +68,16 @@ export default class TopicResult extends LitElement {
         lines[seq] = [...(lines[seq] || []), m];
       }
     }
-    console.log('TODO use these', this.features);
+    console.log(
+      'TODO use these',
+      this.features
+        .map(f => {
+          let a = (f as any).line;
+          a = a.endsWith('.') ? `\n${a}\n` : a;
+          return a;
+        })
+        .join('\n')
+    );
 
     const data: any[] = [];
     Object.entries(lines).forEach(([, entries]) => {
@@ -82,7 +91,7 @@ export default class TopicResult extends LitElement {
         if (evidence) {
           data.push({
             seq,
-            line,
+            line: line.replace(/ or .*$/, ''),
             name,
             ok: '✅️',
             assessmentResult: { ...evidence },
@@ -123,7 +132,7 @@ export default class TopicResult extends LitElement {
           header="Name"
         ></vaadin-grid-column>
         <vaadin-grid-column
-          width="30em"
+          width="20em"
           flex-grow="0"
           path="line"
           header="Line"
