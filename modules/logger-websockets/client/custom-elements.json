@@ -147,8 +147,24 @@
           "name": "LogMessages",
           "members": [
             {
+              "kind": "field",
+              "name": "features",
+              "type": {
+                "text": "TSeqFeature[]"
+              },
+              "default": "[]"
+            },
+            {
               "kind": "method",
-              "name": "connect"
+              "name": "checkForFeatures",
+              "parameters": [
+                {
+                  "name": "m",
+                  "type": {
+                    "text": "TMessage"
+                  }
+                }
+              ]
             },
             {
               "kind": "field",
@@ -158,6 +174,10 @@
               },
               "default": "[]",
               "attribute": "messages"
+            },
+            {
+              "kind": "method",
+              "name": "connect"
             }
           ],
           "attributes": [
@@ -206,6 +226,15 @@
           "description": "",
           "name": "TopicResult",
           "members": [
+            {
+              "kind": "field",
+              "name": "features",
+              "type": {
+                "text": "TSeqFeature[]"
+              },
+              "default": "[]",
+              "attribute": "features"
+            },
             {
               "kind": "field",
               "name": "topics",
@@ -282,6 +311,14 @@
           ],
           "attributes": [
             {
+              "name": "features",
+              "type": {
+                "text": "TSeqFeature[]"
+              },
+              "default": "[]",
+              "fieldName": "features"
+            },
+            {
               "name": "topics",
               "type": {
                 "text": "TMessageWithTopic[]"
@@ -313,6 +350,33 @@
           "declaration": {
             "name": "TopicResult",
             "module": "src/topic-results.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "stories/app-shell.stories.ts",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "App"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "module": "stories/app-shell.stories.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "App",
+          "declaration": {
+            "name": "App",
+            "module": "stories/app-shell.stories.ts"
           }
         }
       ]
@@ -423,33 +487,6 @@
           "declaration": {
             "name": "ref",
             "module": "types/static.d.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "stories/app-shell.stories.ts",
-      "declarations": [
-        {
-          "kind": "variable",
-          "name": "App"
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "default",
-          "declaration": {
-            "module": "stories/app-shell.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "App",
-          "declaration": {
-            "name": "App",
-            "module": "stories/app-shell.stories.ts"
           }
         }
       ]
@@ -646,33 +683,6 @@
     },
     {
       "kind": "javascript-module",
-      "path": "out-tsc/stories/app-shell.stories.js",
-      "declarations": [
-        {
-          "kind": "variable",
-          "name": "App"
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "default",
-          "declaration": {
-            "module": "out-tsc/stories/app-shell.stories.js"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "App",
-          "declaration": {
-            "name": "App",
-            "module": "out-tsc/stories/app-shell.stories.js"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
       "path": "out-tsc/src/AppShell.js",
       "declarations": [
         {
@@ -819,7 +829,7 @@
         {
           "kind": "variable",
           "name": "LogMessages",
-          "default": "class LogMessages extends LitElement {\n    constructor() {\n        super();\n        this.messages = [];\n        this.connect();\n    }\n    async connect() {\n        const ws = await connectToServer();\n        ws.send('catchup');\n        this.messages = [{ level: 'info', message: 'connecting' }];\n        this.requestUpdate();\n        ws.onmessage = (webSocketMessage) => {\n            var _a;\n            const msg = JSON.parse(webSocketMessage.data);\n            if (msg.catchup) {\n                this.messages = this.messages.concat(msg.catchup);\n            }\n            else {\n                const mt = msg;\n                this.messages.push(mt);\n                const tm = (_a = msg.messageTopic.result.actionResults[0]\n                    .topics) === null || _a === void 0 ? void 0 : _a.features;\n                console.log('tt', tm);\n                if (tm) {\n                    console.log('tm', tm);\n                }\n            }\n            this.requestUpdate();\n        };\n    }\n    render() {\n        const topics = this.messages\n            .filter(m => m.messageTopic !== undefined && m.messageTopic.stage === 'Executor')\n            .map(m => m);\n        const messages = this.messages.filter(m => { var _a; return ((_a = m.messageTopic) === null || _a === void 0 ? void 0 : _a.stage) !== 'Executor'; });\n        return html `\n        <div><topic-results .topics=\"${topics}\"></topic-results></topic-results> </div>\n        <div><log-messages .messages=\"${messages}\"></log-messages></div>\n    `;\n    }\n}"
+          "default": "class LogMessages extends LitElement {\n    constructor() {\n        super();\n        this.features = [];\n        this.messages = [];\n        this.connect();\n    }\n    checkForFeatures(m) {\n        var _a, _b;\n        const tm = (_b = (_a = m.messageTopic) === null || _a === void 0 ? void 0 : _a.result.actionResults[0].topics) === null || _b === void 0 ? void 0 : _b.features;\n        if (tm && tm[0]) {\n            this.features = tm[0].expanded.map((e, seq) => ({ seq, ...e }));\n            this.requestUpdate();\n        }\n    }\n    async connect() {\n        const ws = await connectToServer();\n        ws.send('catchup');\n        this.messages = [{ level: 'info', message: 'connecting' }];\n        this.requestUpdate();\n        ws.onmessage = (webSocketMessage) => {\n            const msg = JSON.parse(webSocketMessage.data);\n            if (msg.catchup) {\n                this.messages = this.messages.concat(msg.catchup);\n                this.messages.forEach(m => this.checkForFeatures(m));\n            }\n            else {\n                const mt = msg;\n                this.messages.push(mt);\n                this.checkForFeatures(mt);\n            }\n            this.requestUpdate();\n        };\n    }\n    render() {\n        const topics = this.messages\n            .filter(m => m.messageTopic !== undefined && m.messageTopic.stage === 'Executor')\n            .map(m => m);\n        const messages = this.messages.filter(m => { var _a; return ((_a = m.messageTopic) === null || _a === void 0 ? void 0 : _a.stage) !== 'Executor'; });\n        return html `\n        <div><topic-results .features=\"${this.features}\" .topics=\"${topics}\"></topic-results></topic-results> </div>\n        <div><log-messages .messages=\"${messages}\"></log-messages></div>\n    `;\n    }\n}"
         }
       ],
       "exports": [
@@ -861,7 +871,7 @@
         {
           "kind": "variable",
           "name": "TopicResult",
-          "default": "class TopicResult extends LitElement {\n    constructor() {\n        super(...arguments);\n        this.topics = [];\n        this.assessmentResultColumnRenderer = this.renderAssessmentResultColumn.bind(this);\n        this.mitigationActivityColumnRenderer = this.renderMitigationActivityColumn.bind(this);\n    }\n    // eslint-disable-next-line class-methods-use-this\n    renderAssessmentResultColumn(root, _column, data) {\n        const { assessmentResult } = data === null || data === void 0 ? void 0 : data.item;\n        if (assessmentResult && Object.keys(assessmentResult).length > 0) {\n            render(html `<details>\n          <summary>${assessmentResult.summary}</summary>\n          <pre>${JSON.stringify(assessmentResult.details, null, 2)}</pre>\n        </details>`, root);\n        }\n    }\n    // eslint-disable-next-line class-methods-use-this\n    renderMitigationActivityColumn(root, _column, data) {\n        const { mitigationActivity } = data === null || data === void 0 ? void 0 : data.item;\n        if (mitigationActivity && Object.keys(mitigationActivity).length > 0) {\n            render(html `<details>\n          <summary>${mitigationActivity.summary}</summary>\n          <pre>${JSON.stringify(mitigationActivity.details, null, 2)}</pre>\n        </details>`, root);\n        }\n    }\n    render() {\n        const lines = {};\n        for (const m of this.topics) {\n            if (m.messageTopic.result) {\n                const { seq } = m.messageTopic.result;\n                lines[seq] = [...(lines[seq] || []), m];\n            }\n        }\n        const data = [];\n        Object.entries(lines).forEach(([, entries]) => {\n            const { result } = entries[0].messageTopic;\n            const { seq, in: line, actionResults } = result;\n            const { name, ok, topics } = actionResults[0];\n            if (ok) {\n                const evidence = topics === null || topics === void 0 ? void 0 : topics.evidence;\n                if (evidence) {\n                    data.push({\n                        seq,\n                        line,\n                        name,\n                        ok: '✅️',\n                        assessmentResult: { ...evidence },\n                    });\n                }\n            }\n            else {\n                const { message } = actionResults[0];\n                const warning = topics === null || topics === void 0 ? void 0 : topics.warning;\n                const response = topics === null || topics === void 0 ? void 0 : topics.response;\n                data.push({\n                    seq,\n                    line,\n                    name,\n                    ok: '❌',\n                    assessmentResult: warning || { summary: message },\n                    mitigationActivity: response || undefined,\n                });\n            }\n        });\n        return html `\n      <vaadin-grid\n        .items=${data}\n        theme=\"row-stripes wrap-cell-content\"\n        aria-label=\"Content Renderer Function\"\n      >\n        <vaadin-grid-column\n          width=\"8em\"\n          flex-grow=\"0\"\n          path=\"seq\"\n          header=\"Sequence\"\n        ></vaadin-grid-column>\n        <vaadin-grid-column\n          width=\"12em\"\n          flex-grow=\"0\"\n          path=\"name\"\n          header=\"Name\"\n        ></vaadin-grid-column>\n        <vaadin-grid-column\n          width=\"30em\"\n          flex-grow=\"0\"\n          path=\"line\"\n          header=\"Line\"\n        ></vaadin-grid-column>\n        <vaadin-grid-column\n          width=\"8em\"\n          flex-grow=\"0\"\n          path=\"ok\"\n          header=\"Status\"\n        ></vaadin-grid-column>\n        <vaadin-grid-column\n          .renderer=\"${this.assessmentResultColumnRenderer}\"\n          width=\"15em\"\n          flex-grow=\"0\"\n          header=\"Assessment Result\"\n        ></vaadin-grid-column>\n        <vaadin-grid-column\n          .renderer=\"${this.mitigationActivityColumnRenderer}\"\n          width=\"15em\"\n          flex-grow=\"0\"\n          header=\"Mitigation Activity\"\n        ></vaadin-grid-column>\n        <vaadin-grid-column></vaadin-grid-column>\n      </vaadin-grid>\n    `;\n    }\n}"
+          "default": "class TopicResult extends LitElement {\n    constructor() {\n        super(...arguments);\n        this.features = [];\n        this.topics = [];\n        this.assessmentResultColumnRenderer = this.renderAssessmentResultColumn.bind(this);\n        this.mitigationActivityColumnRenderer = this.renderMitigationActivityColumn.bind(this);\n    }\n    // eslint-disable-next-line class-methods-use-this\n    renderAssessmentResultColumn(root, _column, data) {\n        const { assessmentResult } = data === null || data === void 0 ? void 0 : data.item;\n        if (assessmentResult && Object.keys(assessmentResult).length > 0) {\n            render(html `<details>\n          <summary>${assessmentResult.summary}</summary>\n          <pre>${JSON.stringify(assessmentResult.details, null, 2)}</pre>\n        </details>`, root);\n        }\n    }\n    // eslint-disable-next-line class-methods-use-this\n    renderMitigationActivityColumn(root, _column, data) {\n        const { mitigationActivity } = data === null || data === void 0 ? void 0 : data.item;\n        if (mitigationActivity && Object.keys(mitigationActivity).length > 0) {\n            render(html `<details>\n          <summary>${mitigationActivity.summary}</summary>\n          <pre>${JSON.stringify(mitigationActivity.details, null, 2)}</pre>\n        </details>`, root);\n        }\n    }\n    render() {\n        const lines = {};\n        for (const m of this.topics) {\n            if (m.messageTopic.result) {\n                const { seq } = m.messageTopic.result;\n                lines[seq] = [...(lines[seq] || []), m];\n            }\n        }\n        console.log('TODO use these', this.features\n            .map(f => {\n            let a = f.line;\n            a = a.endsWith('.') ? `\\n${a}\\n` : a;\n            return a;\n        })\n            .join('\\n'));\n        const data = [];\n        Object.entries(lines).forEach(([, entries]) => {\n            const { result } = entries[0].messageTopic;\n            const { seq, in: line, actionResults } = result;\n            const { name, ok, topics } = actionResults[0];\n            if (ok) {\n                const evidence = topics === null || topics === void 0 ? void 0 : topics.evidence;\n                if (evidence) {\n                    data.push({\n                        seq,\n                        line: line.replace(/ or .*$/, ''),\n                        name,\n                        ok: '✅️',\n                        assessmentResult: { ...evidence },\n                    });\n                }\n            }\n            else {\n                const { message } = actionResults[0];\n                const warning = topics === null || topics === void 0 ? void 0 : topics.warning;\n                const response = topics === null || topics === void 0 ? void 0 : topics.response;\n                data.push({\n                    seq,\n                    line,\n                    name,\n                    ok: '❌',\n                    assessmentResult: warning || { summary: message },\n                    mitigationActivity: response || undefined,\n                });\n            }\n        });\n        return html `\n      <vaadin-grid\n        .items=${data}\n        theme=\"row-stripes wrap-cell-content\"\n        aria-label=\"Content Renderer Function\"\n      >\n        <vaadin-grid-column\n          width=\"8em\"\n          flex-grow=\"0\"\n          path=\"seq\"\n          header=\"Sequence\"\n        ></vaadin-grid-column>\n        <vaadin-grid-column\n          width=\"12em\"\n          flex-grow=\"0\"\n          path=\"name\"\n          header=\"Name\"\n        ></vaadin-grid-column>\n        <vaadin-grid-column\n          width=\"20em\"\n          flex-grow=\"0\"\n          path=\"line\"\n          header=\"Line\"\n        ></vaadin-grid-column>\n        <vaadin-grid-column\n          width=\"8em\"\n          flex-grow=\"0\"\n          path=\"ok\"\n          header=\"Status\"\n        ></vaadin-grid-column>\n        <vaadin-grid-column\n          .renderer=\"${this.assessmentResultColumnRenderer}\"\n          width=\"15em\"\n          flex-grow=\"0\"\n          header=\"Assessment Result\"\n        ></vaadin-grid-column>\n        <vaadin-grid-column\n          .renderer=\"${this.mitigationActivityColumnRenderer}\"\n          width=\"15em\"\n          flex-grow=\"0\"\n          header=\"Mitigation Activity\"\n        ></vaadin-grid-column>\n        <vaadin-grid-column></vaadin-grid-column>\n      </vaadin-grid>\n    `;\n    }\n}"
         }
       ],
       "exports": [
@@ -871,6 +881,33 @@
           "declaration": {
             "name": "TopicResult",
             "module": "out-tsc/src/topic-results.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "out-tsc/stories/app-shell.stories.js",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "App"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "default",
+          "declaration": {
+            "module": "out-tsc/stories/app-shell.stories.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "App",
+          "declaration": {
+            "name": "App",
+            "module": "out-tsc/stories/app-shell.stories.js"
           }
         }
       ]
