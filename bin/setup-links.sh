@@ -3,25 +3,58 @@
 ## FIXME spent a day trying to get lerna set up properly. Deno, save me.
 
 cd modules &&
-(for i in core web-playwright web-http web-server-express out-xunit web-component-builder logger-websockets domain-webpage; do
-  cd $i && 
-  echo "\nsetup link for $i"
-  npm link  && 
+
+## self contained
+(for i in core; do
+  cd $i
+  npm i &&  \
+  tsc -b . && \ 
+  echo "\nsetup link for $i" && \
+  npm link &&  \
   cd ../
-done) && 
+done) &&  \
 
-(for i in client-playwright web-http frontend out-xunit parse-md web-server-express logger-websockets domain-webpage; do
-  cd $i && 
-  echo "\nlink $i"
-  npm link @haibun/core && 
-  cd ..;
-done) &&
-cd cli ; echo "\nlinking cli" ;
-npm link && npm link @haibun/core @haibun/web-playwright @haibun/web-http @haibun/web-server-express &&
-cd ../web-playwright ; echo "\nlinking web-playwright" ;
-npm link @haibun/core @haibun/web-component-builder @haibun/domain-webpage
+## depend on @haibun/core
 
-cd ../..
+(for i in domain-webpage web-http web-server-express out-xunit web-component-builder logger-websockets parse-md; do
+  cd $i
+  npm i &&  \
+  npm link @haibun/core && \
+  tsc -b . &&  \
+  echo "\nsetup link for $i" && \
+  npm link &&  \
+  cd ../
+done) &&  \
+
+
+## depend on @haibun/core and @haibun/domain-webpage
+(for i in web-playwright; do
+  cd $i
+  npm i &&  \
+  npm link @haibun/core @haibun/domain-webpage && \
+  tsc -b . &&  \
+  echo "\nsetup link for $i" && \
+  npm link &&  \
+  cd ../
+done) &&  \
+
+# (for i in client-playwright frontend parse-md; do
+#   cd $i;
+#   echo "\nlink $i"
+#   npm link @haibun/core && \
+#   tsc -b . && \
+#   cd ..;
+# done) && \
+
+(for i in  cli web-playwright; do 
+cd $i ; echo "\nlinking $i" ;
+npm link @haibun/core @haibun/web-playwright @haibun/web-http @haibun/web-server-express && \
+tsc -b . && \
+npm link && \
+
+cd ../
+done) 
+cd ..
 
 
 
