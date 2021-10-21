@@ -26,13 +26,13 @@ done) &&  \
   cd ../
 done) &&  \
 
-
 ## depend on @haibun/core and @haibun/domain-webpage
 (for i in web-playwright; do
   cd $i
   npm i &&  \
   npm link @haibun/core @haibun/domain-webpage && \
   tsc -b . &&  \
+
   echo "\nsetup link for $i" && \
   npm link &&  \
   cd ../
@@ -48,6 +48,7 @@ done) &&  \
 
 (for i in  cli web-playwright; do 
 cd $i ; echo "\nlinking $i" ;
+
 npm link @haibun/core @haibun/web-playwright @haibun/web-http @haibun/web-server-express && \
 tsc -b . && \
 npm link && \
@@ -55,6 +56,4 @@ npm link && \
 cd ../
 done) 
 cd ..
-
-
 
