@@ -9,7 +9,7 @@ cd modules &&
   cd $i
   npm i &&  \
   tsc -b . && \ 
-  echo "\nsetup link for $i" && \
+  echo "setup link for $i" && \
   npm link &&  \
   cd ../
 done) &&  \
