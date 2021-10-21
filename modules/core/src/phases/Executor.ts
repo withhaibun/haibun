@@ -1,6 +1,7 @@
-import { IStepper, TVStep, TResolvedFeature, TResult, TStepResult, TFeatureResult, TActionResult, TWorld } from '../lib/defs';
-import { getNamedWithVars } from '../lib/namedVars';
-import { actionNotOK, sleep } from '../lib/util';
+import { threadId } from 'worker_threads';
+import { IStepper, TVStep, TResolvedFeature, TResult, TStepResult, TFeatureResult, TActionResult, TWorld, TActionResultTopics } from '../lib/defs';
+import { getNamedToVars } from '../lib/namedVars';
+import { actionNotOK, applyResShouldContinue, sleep } from '../lib/util';
 
 export class Executor {
   steppers: IStepper[];
@@ -14,6 +15,9 @@ export class Executor {
   async execute(features: TResolvedFeature[]): Promise<TResult> {
     let ok = true;
     let featureResults: TFeatureResult[] = [];
+    // FIXME
+    this.world.shared.values._features = features;
+    this.world.shared.values._scored = [];
     for (const feature of features) {
       this.world.logger.log(`feature: ${feature.path}`);
       const featureResult = await this.doFeature(feature);
@@ -26,6 +30,7 @@ export class Executor {
   async doFeature(feature: TResolvedFeature): Promise<TFeatureResult> {
     let ok = true;
     let stepResults: TStepResult[] = [];
+    let seq = 0;
     for (const step of feature.vsteps) {
       this.world.logger.log(`   ${step.in}\r`);
       const result = await Executor.doFeatureStep(step, this.world);
@@ -34,33 +39,36 @@ export class Executor {
         await sleep(this.world.options.step_delay as number);
       }
       ok = ok && result.ok;
-      this.world.logger.log(ok);
+      const topics: TActionResultTopics = result.actionResults.reduce<TActionResultTopics>((all, a) => ({ ...all, ...a.topics }), {});
+
+      this.world.logger.log(ok, { stage: 'Executor', seq, result });
       stepResults.push(result);
       if (!ok) {
         break;
       }
+      seq++;
     }
     const featureResult: TFeatureResult = { path: feature.path, ok, stepResults };
     return featureResult;
   }
   static async doFeatureStep(vstep: TVStep, world: TWorld): Promise<TStepResult> {
-    
     let ok = true;
     let actionResults = [];
 
+    // FIXME feature should really be attached ot the vstep
     for (const a of vstep.actions) {
       let res: TActionResult;
       try {
-        const namedWithVars = getNamedWithVars(a, world.shared);
+        const namedWithVars = getNamedToVars(a, world);
         res = await a.step.action(namedWithVars, vstep);
       } catch (caught: any) {
         world.logger.error(caught.stack);
-        res = actionNotOK(`in ${vstep.in}: ${caught.message}`, { caught: caught.stack.toString() });
+        res = actionNotOK(`in ${vstep.in}: ${caught.message}`, { topics: { caught: caught.stack.toString() } });
       }
       actionResults.push({ ...res, name: a.name });
-
-      ok = ok && res.ok;
-      if (!res.ok) {
+      const shouldContinue = applyResShouldContinue(world, res, a);
+      ok = ok && shouldContinue;
+      if (!shouldContinue) {
         break;
       }
     }

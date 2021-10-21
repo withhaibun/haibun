@@ -3,9 +3,10 @@ import { Request, Response } from 'express';
 
 import { actionOK, getDefaultWorld, getFromRuntime, getStepper } from '@haibun/core/build/lib/util';
 import { testRun } from '@haibun/core/build/lib/TestSteps';
+import { IWebServer } from '@haibun/core/build/lib/interfaces/webserver';
 
-import server, { CHECK_LISTENER, ICheckListener, IWebServer, IWebServerStepper, WEBSERVER, WEBSERVER_STEPPER } from './web-server-stepper';
-import { IExtensionConstructor, IStepper, TKeyString, TWorld } from '@haibun/core/build/lib/defs';
+import server, { IWebServerStepper, WEBSERVER, WEBSERVER_STEPPER } from './web-server-stepper';
+import { IExtensionConstructor, IStepper, TNamed, TWorld } from '@haibun/core/build/lib/defs';
 
 describe('route mount', () => {
   it('mounts a route', async () => {
@@ -17,12 +18,9 @@ describe('route mount', () => {
       steps = {
         addRoute: {
           gwta: 'serve test route to {loc}',
-          action: async ({ loc }: TKeyString) => {
+          action: async ({ loc }: TNamed) => {
             const route = (req: Request, res: Response) => res.status(200).send('ok');
             const webserver: IWebServer = getFromRuntime(this.world.runtime, WEBSERVER);
-
-            const checkListener = getFromRuntime<ICheckListener>(this.world.runtime, CHECK_LISTENER);
-            await checkListener(this.world.options, webserver);
             await webserver.addRoute('get', loc, route);
             return actionOK();
           },

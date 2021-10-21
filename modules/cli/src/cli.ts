@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 
 import repl from 'repl';
-import { TLogger, TProtoOptions, TResult, TShared, TSpecl, TWorld } from '@haibun/core/build/lib/defs';
+import { TProtoOptions, TResult, TSpecl, TWorld } from '@haibun/core/build/lib/defs';
+import { WorldContext } from '@haibun/core/build/lib/contexts';
 import { ENV_VARS } from '@haibun/core/build/lib/ENV_VARS';
 import Logger from '@haibun/core/build/lib/Logger';
 
 import { run } from '@haibun/core/build/lib/run';
 import { getOptionsOrDefault, processEnv, resultOutput } from '@haibun/core/build/lib/util';
+import { TLogger } from '@haibun/core/build/lib/interfaces/logger';
 
 go();
 
@@ -21,21 +23,21 @@ async function go() {
   const specl = getOptionsOrDefault(base);
 
   const { splits, protoOptions, errors } = processEnv(process.env, specl.options);
-  
+
   if (errors.length > 0) {
     usageThenExit(errors.join('\n'));
   }
   const logger = new Logger({ level: process.env.HAIBUN_LOG_LEVEL || 'log' });
 
-  const instances = splits.map(async (split: TShared) => {
+  const instances = splits.map(async (split) => {
     const runtime = {};
-    return doRun(base, specl, runtime, featureFilter, split, protoOptions, logger);
+    return doRun(base, specl, runtime, featureFilter, new WorldContext('base', split), protoOptions, logger);
   });
 
   const values = await Promise.allSettled(instances);
   let ranResults = values
     .filter((i) => i.status === 'fulfilled')
-    .map((i) => <PromiseFulfilledResult<{ output: any; result: TResult; shared: TShared }>>i)
+    .map((i) => <PromiseFulfilledResult<{ output: any; result: TResult; shared: WorldContext }>>i)
     .map((i) => i.value);
   let exceptionResults = values
     .filter((i) => i.status === 'rejected')
@@ -44,12 +46,13 @@ async function go() {
   const ok = ranResults.every((a) => a.result.ok);
   if (ok && exceptionResults.length < 1) {
     logger.log(ranResults.every((r) => r.output));
-    if (protoOptions.options.stay !== 'ok') {
+    if (protoOptions.options.stay !== 'always') {
       process.exit(0);
     }
     return;
   }
 
+  try {
   console.error(
     JSON.stringify(
       {
@@ -62,17 +65,20 @@ async function go() {
       2
     )
   );
+    } catch (e) {
+      console.error(ranResults[0].result.failure);
+    }
 
-  if (protoOptions.options.stay !== 'error') {
+  if (protoOptions.options.stay !== 'always') {
     process.exit(1);
   }
 }
 
-async function doRun(base: string, specl: TSpecl, runtime: {}, featureFilter: string, shared: TShared, protoOptions: TProtoOptions, logger: TLogger) {
+async function doRun(base: string, specl: TSpecl, runtime: {}, featureFilter: string, shared: WorldContext, protoOptions: TProtoOptions, logger: TLogger) {
   if (protoOptions.options.cli) {
     repl.start().context.runtime = runtime;
   }
-  const world: TWorld = { ...protoOptions, shared, logger, runtime };
+  const world: TWorld = { ...protoOptions, shared, logger, runtime, domains: [] };
 
   const { result } = await run({ specl, base, world, featureFilter, protoOptions });
   const output = await resultOutput(process.env.HAIBUN_OUTPUT, result, shared);

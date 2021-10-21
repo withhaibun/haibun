@@ -1,27 +1,27 @@
-import { TFeature, TFeatures } from './defs';
+import { TExpandedFeature, TExpandedLine, TFeature, TFeatures } from './defs';
 import { getActionable } from './util';
 
-export function getSteps(value: string) {
-  return value
-    .split('\n')
-    .map((s) => s.trim())
-    .filter((s) => !s.startsWith('#') && s.length);
+export async function expand(backgrounds: TFeatures, features: TFeatures): Promise<TExpandedFeature[]> {
+  const expandedBackgrounds = await expandBackgrounds(backgrounds);
+
+  const expandedFeatures = await expandFeatures(features, expandedBackgrounds);
+  return expandedFeatures;
 }
 
 // Expand backgrounds by prepending 'upper' features to 'lower' features
-export async function expandBackgrounds(features: TFeatures, before = '') {
+export async function expandBackgrounds(features: TFeatures) {
   const expanded: TFeatures = [];
-  for (const { path, feature } of features) {
+  for (const { path, content: feature } of features) {
     let res = feature;
     let r = findUpper(path, features);
     while (r.upper.length > 0 && r.rem !== '/') {
       r = findUpper(r.rem, features);
-      
+
       for (const s of r.upper) {
-        res = s.feature + '\n' + res;
+        res = s.content + '\n' + res;
       }
     }
-    expanded.push({ path, feature: res });
+    expanded.push(withNameType(path, res));
   }
   return expanded;
 }
@@ -37,50 +37,81 @@ export function findUpper(path: string, features: TFeatures) {
 
     return p === rem;
   });
-  
+
   return { rem, upper };
 }
 
-export async function expandFeatures(features: TFeature[], backgrounds: TFeatures) {
-  const expanded: TFeature[] = [];
+export async function expandFeatures(features: TFeature[], backgrounds: TFeature[]): Promise<TExpandedFeature[]> {
+  const expandeds: TExpandedFeature[] = [];
 
   for (const feature of features) {
-    feature.feature = await expandIncluded(feature as TFeature, backgrounds);
-    expanded.push(feature);
+    const expanded = await expandIncluded(feature as TFeature, backgrounds);
+    const ex: TExpandedFeature = { path: feature.path, type: feature.type, name: feature.name, expanded };
+    expandeds.push(ex);
   }
-  return expanded;
+
+  return expandeds;
 }
 
 async function expandIncluded(feature: TFeature, backgrounds: TFeatures) {
-  const lines = feature.feature
-    .split('\n')
-    .map((l) => {
-      if (getActionable(l).match(/^Backgrounds: .*$/)) {
-        return doIncludes(l, backgrounds);
-      } else if (getActionable(l).match(/^Scenarios: .*$/)) {
-        return doIncludes(l, backgrounds);
-      }
-      return l;
-    })
-    .join('\n');
+  let lines: TExpandedLine[] = [];
+  featureSplit(feature.content).forEach((l) => {
+    const actionable = getActionable(l);
+
+    if (actionable.match(/^Backgrounds: .*$/)) {
+      lines = lines.concat(doIncludes(l, backgrounds));
+    } else if (actionable.match(/^Scenarios: .*$/)) {
+      lines = lines.concat(doIncludes(l, backgrounds));
+    } else {
+      lines.push(asFeatureLine(l, feature));
+    }
+  });
 
   return lines;
 }
 
+export function withNameType(path: string, content: string) {
+  const s = path.split('.');
+  const name = s[0];
+  const type = s.length === 3 ? s[1] : 'feature';
+  return { path, name, type, content };
+}
+
+export const asFeatureLine = (line: string, feature: TFeature) => ({ line, feature });
+
 function doIncludes(input: string, backgrounds: TFeatures) {
-  const includes = input.replace(/^.*?: /, '').split(',');
-  let ret = '';
+  const includes = input
+    .replace(/^.*?: /, '')
+    .split(',')
+    .map((a) => a.trim());
+  let ret: TExpandedLine[] = [];
   for (const l of includes) {
-    const toFind = l.trim();
-    const bg = findFeature(toFind, backgrounds);
-    if (bg.length !== 1 ) {
-      throw Error(`can't find single "${toFind}" from ${backgrounds.map((b) => b.path).join(', ')}`);
+    const bg = findFeatures(l, backgrounds);
+    if (bg.length !== 1) {
+      throw Error(`can't find single "${l}.feature" from ${backgrounds.map((b) => b.path).join(', ')}`);
     }
-    ret += `\n${bg[0].feature.trim()}\n`;
+    const origin = bg[0];
+    for (const l of featureSplit(origin.content)) {
+      ret.push(asFeatureLine(l, origin));
+    }
   }
   return ret;
 }
 
-export function findFeature(name: string, features: TFeatures): TFeatures {
-  return features.filter(f => f.path.endsWith(`/${name}`))
+export function findFeatures(name: string, backgrounds: TFeatures, type: string = 'feature'): TFeatures {
+  const ftype = findFeaturesOfType(backgrounds, type);
+  return ftype.filter((f) => f.path.endsWith(`/${name}.${fileTypeToExt(type)}`));
 }
+
+export function findFeaturesOfType(backgrounds: TFeatures, type: string = 'feature'): TFeatures {
+  return backgrounds.filter((f) => f.path.endsWith(`.${fileTypeToExt(type)}`));
+}
+
+const fileTypeToExt = (type: string) => (type === 'feature' ? 'feature' : `${type}.feature`);
+
+export const featureSplit = (content: string) =>
+  content
+    .trim()
+    .split('\n')
+    .map((a) => a.trim())
+    .filter((a) => a.length > 0);
