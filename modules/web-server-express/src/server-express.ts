@@ -1,8 +1,8 @@
 import { statSync, existsSync } from 'fs';
 import express, { RequestHandler } from 'express';
 
-import { TLogger } from '@haibun/core/build/lib/defs';
-import { IWebServer, TRouteType } from './web-server-stepper';
+import { IWebServer, TRouteType } from '@haibun/core/build/lib/interfaces/webserver';
+import { TLogger } from '@haibun/core/src/lib/interfaces/logger';
 
 export const DEFAULT_PORT = 8123;
 
@@ -12,14 +12,16 @@ export class ServerExpress implements IWebServer {
   static app = express();
   static mounted: { [named: string]: string } = {};
   base: string;
+  port: number;
   constructor(logger: TLogger, base: string, port: number = DEFAULT_PORT) {
     this.logger = logger;
     this.base = base;
+    this.port = port;
   }
 
-  async listening(port: number) {
+  async listening() {
     if (!ServerExpress.listener) {
-      ServerExpress.listener = await ServerExpress.app.listen(port, () => this.logger.log(`Server listening on port: ${port}`));
+      ServerExpress.listener = await ServerExpress.app.listen(this.port, '0.0.0.0', () => this.logger.log(`Server listening on port: ${this.port}`));
     } else {
       this.logger.log('express already started');
     }
@@ -37,13 +39,26 @@ export class ServerExpress implements IWebServer {
     this.logger.log(`serving route from ${path}`);
 
     await ServerExpress.app[type](path, route);
+    await this.listening();
   }
 
-  async addStaticFolder(subdir: string): Promise<string | undefined> {
-    const folder = [this.base, subdir].join('/');
-    const loc = '/';
+  // add a static folder restricted to relative paths from files
+  async addStaticFolder(relativeFolder: string, mountAt: string = '/'): Promise<string | undefined> {
+    if (relativeFolder !== relativeFolder.replace(/[^a-zA-Z-0-9\/-_]/g, '').replace(/^\//g, '')) {
+      throw Error(`mount folder ${relativeFolder} has illegal characters`);
+    }
+    const folder = [this.base, relativeFolder].join('/');
+    return this.doAddStaticFolder(folder, mountAt);
+  }
+
+  // add a static folder at any path
+  async addKnownStaticFolder(folder: string, mountAt: string = '/'): Promise<string | undefined> {
+    return this.doAddStaticFolder(folder, mountAt);
+  }
+
+  async doAddStaticFolder(folder: string, mountAt: string = '/'): Promise<string | undefined> {
     try {
-      const alreadyMounted = this.checkMountBadOrMounted(loc, folder);
+      const alreadyMounted = this.checkMountBadOrMounted(mountAt, folder);
       if (alreadyMounted) {
         return;
       }
@@ -58,9 +73,10 @@ export class ServerExpress implements IWebServer {
       throw Error(`"${folder}" is not a directory`);
     }
 
-    ServerExpress.mounted[loc] = folder;
-    this.logger.info(`serving files from ${folder} at ${loc}`);
-    await ServerExpress.app.use(express.static(folder));
+    ServerExpress.mounted[mountAt] = folder;
+    this.logger.info(`serving files from ${folder} at ${mountAt}`);
+    await ServerExpress.app.use(mountAt, express.static(folder));
+    await this.listening();
     return;
   }
 
@@ -72,9 +88,6 @@ export class ServerExpress implements IWebServer {
       throw Error(`missing mount location`);
     }
 
-    if (loc !== loc.replace(/[^a-zA-Z-0-9\/]/g, '')) {
-      throw Error(`mount folder ${loc} has illegal characters`);
-    }
     const alreadyMounted = ServerExpress.mounted[loc];
     if (alreadyMounted === what) {
       this.logger.log(`${alreadyMounted} already mounted at ${loc}`);

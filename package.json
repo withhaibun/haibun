@@ -6,7 +6,7 @@
   },
   "scripts": {
     "test": "lerna exec -- npm test",
-    "build": "lerna clean -y && lerna bootstrap && lerna exec -- npm i && bin/setup-links.sh",
+    "build": "lerna clean -y && lerna bootstrap && bin/setup-links.sh",
     "tsc": "tsc -b modules/",
     "tsc-watch": "tsc -b modules/ --watch"
   }

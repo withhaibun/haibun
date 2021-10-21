@@ -1,6 +1,6 @@
-import { IHasOptions, IStepper, IExtensionConstructor, OK, TWorld, TKeyString, TOptions } from '@haibun/core/build/lib/defs';
+import { IHasOptions, IStepper, IExtensionConstructor, OK, TWorld, TNamed, TOptions } from '@haibun/core/build/lib/defs';
 import { actionNotOK } from '@haibun/core/build/lib/util';
-import { RequestHandler } from 'express';
+import { IWebServer } from '@haibun/core/src/lib/interfaces/webserver';
 import { ServerExpress, DEFAULT_PORT } from './server-express';
 
 export const WEBSERVER = 'webserver';
@@ -34,15 +34,27 @@ const WebServerStepper: IExtensionConstructor = class WebServerStepper implement
   }
 
   steps = {
+    isListening: {
+      gwta: 'webserver is listening',
+      action: async ({ loc }: TNamed) => {
+        await WebServerStepper.checkListener(this.world.options, this.world.runtime[WEBSERVER]);
+        return OK;
+      },
+    },
     serveFiles: {
       gwta: 'serve files from {loc}',
-      action: async ({ loc }: TKeyString) => {
+      action: async ({ loc }: TNamed) => {
         await WebServerStepper.checkListener(this.world.options, this.world.runtime[WEBSERVER]);
         const ws: IWebServer = await this.world.runtime[WEBSERVER];
         const error = await ws.addStaticFolder(loc);
+        this.world.shared.set('file_location', loc);
 
         return error === undefined ? OK : actionNotOK(error);
       },
+      build: async ({ loc }: TNamed) => {
+        this.world.shared.set('file_location', loc);
+        return OK;
+      }
     },
   };
 };
@@ -55,10 +67,3 @@ export interface IWebServerStepper {
   checkListener: ICheckListener;
 }
 
-export interface IWebServer {
-  addStaticFolder(subdir: string): Promise<string | undefined>;
-  listening(port: number): void;
-  addRoute(type: TRouteType, path: string, route: RequestHandler): void;
-}
-
-export type TRouteType = 'get';

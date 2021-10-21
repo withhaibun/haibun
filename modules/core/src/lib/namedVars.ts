@@ -1,14 +1,21 @@
-import { TStep, TNamedVar, TFound, TNamed, TShared } from './defs';
+import { TStep, TNamedVar, TFound, TNamed, BASE_TYPES, TWorld } from './defs';
+import { getStepShared } from './domain';
+
+const TYPE_QUOTED = 'q_';
+const TYPE_CREDENTIAL = 'c_';
+const TYPE_VAR = 'b_';
+// from source or literal
+const TYPE_VAR_OR_LITERAL = 't_';
 
 export const matchGroups = (num: number = 0) => {
-  const q = `"(?<q_${num}>.+)"`; // quoted string
-  const c = `<(?<c_${num}>.+)>`; // credential
-  const b = `\`(?<b_${num}>.+)\``; // var
-  const t = `(?<t_${num}>.+)`; // var or literal
+  const q = `"(?<${TYPE_QUOTED}${num}>.+)"`; // quoted string
+  const c = `<(?<${TYPE_CREDENTIAL}${num}>.+)>`; // credential
+  const b = `\`(?<${TYPE_VAR}${num}>.+)\``; // var
+  const t = `(?<${TYPE_VAR_OR_LITERAL}${num}>.+)`; // var or literal
   return `(${q}|${c}|${b}|${t})`;
 };
 
-export const namedInterpolation = (inp: string): { str: string; vars?: TNamedVar[] } => {
+export const namedInterpolation = (inp: string, types: string[] = BASE_TYPES): { str: string; vars?: TNamedVar[] } => {
   if (!inp.includes('{')) {
     return { str: inp };
   }
@@ -26,7 +33,7 @@ export const namedInterpolation = (inp: string): { str: string; vars?: TNamedVar
     if (be < 0) {
       throw Error(`missing end bracket in ${inp}`);
     }
-    vars.push(pairToVar(inp.substring(bs + 1, be)));
+    vars.push(pairToVar(inp.substring(bs + 1, be), types));
     bs = inp.indexOf('{', be);
     last = be + 1;
     str += matchGroups(matches++);
@@ -35,19 +42,19 @@ export const namedInterpolation = (inp: string): { str: string; vars?: TNamedVar
   return { vars, str };
 };
 
-export function getNamedMatches(regexp: RegExp, what: string) {
-  const named = regexp.exec(what);
-  return named?.groups;
-}
-
-function pairToVar(pair: string): TNamedVar {
+function pairToVar(pair: string, types: string[]): TNamedVar {
   let [k, v] = pair.split(':').map((i) => i.trim());
   if (!v) v = 'string';
-  if (!['string'].includes(v)) {
+  if (!types.includes(v)) {
     throw Error(`unknown type ${v}`);
   }
 
   return { name: k, type: v };
+}
+
+export function getNamedMatches(regexp: RegExp, what: string) {
+  const named = regexp.exec(what);
+  return named?.groups;
 }
 
 export const getMatch = (actionable: string, r: RegExp, name: string, step: TStep, vars?: TNamedVar[]) => {
@@ -59,33 +66,40 @@ export const getMatch = (actionable: string, r: RegExp, name: string, step: TSte
 };
 
 // returns named values, assigning variable values as appropriate
-export function getNamedWithVars({ named, vars }: TFound, shared: TShared) {
-  if (named) {
-    if (!vars || vars.length < 1) {
-      return named;
-    }
-    let namedFromVars: TNamed = {};
-    vars.forEach((v, i) => {
-      const found = Object.keys(named).find((c) => c.endsWith(`_${i}`) && named[c] !== undefined);
-      if (found) {
-          const namedValue = named[found];
-        if (found.startsWith('t_')) {
-          // from shared or name
-          namedFromVars[v.name] = shared[namedValue] || named[found];
-        } else if (found.startsWith('b_') || found.startsWith('c_')) {
-          // must be from shared
-          if (!shared[namedValue]) {
-            throw Error(`no value for ${v.name}`);
-          }
-          namedFromVars[v.name] = shared[namedValue];
-        } else if (found.startsWith('q_')) {
-          // quoted
-          namedFromVars[v.name] = named[found];
-        } else {
-          throw Error(`unknown assignedment ${found}`);
-        }
-      }
-    });
-    return namedFromVars;
+// retrieves from world.shared if a base domain, otherwise world.domains[type].shared
+export function getNamedToVars({ named, vars }: TFound, world: TWorld) {
+  if (!named) {
+    return { _nb: 'no named' };
   }
+  if (!vars || vars.length < 1) {
+    return named;
+  }
+  let namedFromVars: TNamed = {};
+  vars.forEach((v, i) => {
+    const { name, type } = v;
+    
+    const shared = getStepShared(type, world);
+
+    const namedKey = Object.keys(named).find((c) => c.endsWith(`_${i}`) && named[c] !== undefined);
+
+    if (!namedKey) {
+      throw Error(`no namedKey from ${named} for ${i}`);
+    }
+    const namedValue = named[namedKey];
+    if (namedKey.startsWith(TYPE_VAR_OR_LITERAL)) {
+      namedFromVars[name] = shared.get(namedValue) || named[namedKey];
+    } else if (namedKey.startsWith(TYPE_VAR) || namedKey.startsWith(TYPE_CREDENTIAL)) {
+      // must be from source
+      if (!shared.get(namedValue)) {
+        throw Error(`no value for "${namedValue}" from ${JSON.stringify({ shared, type })}`);
+      }
+      namedFromVars[name] = shared.get(namedValue);
+    } else if (namedKey.startsWith(TYPE_QUOTED)) {
+      // quoted
+      namedFromVars[name] = named[namedKey];
+    } else {
+      throw Error(`unknown assignment ${namedKey}`);
+    }
+  });
+  return namedFromVars;
 }

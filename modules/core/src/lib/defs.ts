@@ -1,4 +1,5 @@
-export type TLogLevel = 'none' | 'debug' | 'log' | 'info' | 'warn' | 'error';
+import { DomainContext, WorkspaceContext, WorldContext } from './contexts';
+import { TLogger } from './interfaces/logger';
 
 export type TSpecl = {
   steppers: string[];
@@ -24,37 +25,102 @@ export interface IHasOptions {
   };
 }
 
+export interface IHasDomains {
+  domains: TDomain[];
+  locator: (name: string) => string;
+}
+export interface IRequireDomains {
+  requireDomains?: string[];
+}
+
 export type TProtoOptions = {
   options: TOptions;
   extraOptions: { [name: string]: string };
 };
 
+export type TFromDomain = {
+  name: string;
+  from: string;
+  is: string;
+};
+
+export type TFileTypeDomain = {
+  name: string;
+  validate: (content: string) => undefined | string;
+  fileType: string;
+  is: string;
+};
+export type TDomain = TFromDomain | TFileTypeDomain;
+export type TModuleDomain = TDomain & {
+  module: IHasDomains;
+  shared: DomainContext;
+};
+
 export type TWorld = {
-  shared: TShared;
+  shared: WorldContext;
   runtime: TRuntime;
   logger: TLogger;
   options: TOptions;
+  domains: TModuleDomain[];
 };
 
-export type TFeature = {
+export type TFeatureMeta = {
+  type: string;
+  name: string;
   path: string;
-  feature: string;
+};
+export type TFeature = TFeatureMeta & {
+  name: string;
+  content: string;
+};
+
+export type TExpandedFeature = TFeatureMeta & {
+  name: string;
+  expanded: TExpandedLine[];
+};
+
+export type TExpandedLine = {
+  line: string;
+  feature: TFeature;
 };
 
 export type TFeatures = TFeature[];
 
-export type TResolvedFeature = {
-  path: string;
-  feature: string;
+export type TResolvedFeature = TExpandedFeature & {
   vsteps: TVStep[];
 };
 
-export type TAction = (arg: any, vstep: TVStep) => Promise<TActionResult>;
+export type TVStep = {
+  // FIXME is this required?
+  source: TFeature;
+  in: string;
+  seq: number;
+  actions: TFound[];
+};
+
+export type TAction = (named: TNamed, vstep: TVStep) => Promise<TActionResult>;
+export type TBuildResult = (TOKActionResult & { finalize?: TFinalize }) | TNotOKActionResult;
+export type TBuild = (named: TNamed, vstep: TVStep, workspace: WorkspaceContext) => Promise<TBuildResult>;
+
+export type TRequiresResult = { includes?: string[] };
+
+export type TFinalize = (workspace: WorkspaceContext) => void;
+
+export abstract class WorkspaceBuilder {
+  name: string;
+  constructor(name: string) {
+    this.name = name;
+  }
+  addControl(...args: any) {}
+  finalize(): any {}
+}
+
 export type TStep = {
   match?: RegExp;
   gwta?: string;
   exact?: string;
   action: TAction;
+  build?: TBuild;
 };
 
 export interface IExtension {
@@ -69,23 +135,6 @@ export interface IStepper extends IExtension {
 export interface IExtensionConstructor {
   new (world: TWorld): IStepper;
 }
-export interface TLogger {
-  debug: (what: any) => void;
-  log: (what: any) => void;
-  info: (what: any) => void;
-  warn: (what: any) => void;
-  error: (what: any) => void;
-}
-
-export type TShared = {
-  [name: string]: string;
-};
-
-export type TVStep = {
-  in: string;
-  seq: number;
-  actions: TFound[];
-};
 export type TFound = { name: string; step: TStep; named?: TNamed | undefined; vars?: TNamedVar[] };
 export type TNamed = { [name: string]: string };
 export type TNamedVar = { name: string; type: string };
@@ -93,28 +142,31 @@ export type TNamedVar = { name: string; type: string };
 export const OK: TOKActionResult = { ok: true };
 
 export type TResultError = {
-  context: any;
-  details?: any;
+  details: { [name: string]: any };
+  message: string;
 };
 
 export type TResult = {
   ok: boolean;
   results?: TFeatureResult[];
   failure?: {
-    stage: 'Options' | 'Expand' | 'Resolve' | 'Execute';
+    stage: 'Options' | 'Domains' | 'Expand' | 'Resolve' | 'Build' | 'Execute';
     error: TResultError;
   };
 };
 
 export type TOKActionResult = {
   ok: true;
-  details?: any;
+  topics?: TActionResultTopics;
 };
+
+export type TActionResultTopics = { [topic: string]: { summary: string; details?: any } };
 
 export type TNotOKActionResult = {
   ok: false;
+  score?: number;
   message: string;
-  details?: any;
+  topics?: TActionResultTopics;
 };
 
 export type TActionResult = TOKActionResult | TNotOKActionResult;
@@ -157,6 +209,10 @@ export interface TOutput {
   getOutput(result: TResult, args: any): Promise<any>;
 }
 
-export type TKeyString = { [name: string]: string };
-
 export const HAIBUN = 'HAIBUN';
+
+export const BASE_DOMAINS = [{ name: 'string', resolve: (inp: string) => inp }];
+
+export const BASE_TYPES = BASE_DOMAINS.map((b) => b.name);
+
+export type TScored = { name: string; score: number };

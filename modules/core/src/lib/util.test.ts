@@ -1,6 +1,7 @@
 import * as util from './util';
 import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, testRun, TestSteps, TestStepsWithOptions } from './TestSteps';
 import { getDefaultWorld } from './util';
+import { withNameType } from './features';
 
 describe('output', () => {
   it('resultOutput default', async () => {
@@ -60,3 +61,12 @@ describe('getStepperOptions', () => {
     expect(() => util.applyExtraOptions(specl, [], world)).toThrow();
   });
 });
+
+describe('getType', () => {
+  it('finds a type', () => {
+    expect(withNameType('file.type.feature', '').type).toBe('type');
+  });
+  it('finds no type', () => {
+    expect(withNameType('file.feature', '').type).toBe('feature');
+  })
+})

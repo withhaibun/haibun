@@ -8,7 +8,8 @@
   "main": "index.js",
   "scripts": {
     "prepublishOnly": "tsc -b .",
-    "test": "echo \"Error: no test specified\" && exit 0"
+    "test": "jest --config jest.config.ts",
+    "test-watch": "jest --config jest.config.ts --watch"
   },
   "keywords": [],
   "author": "",

@@ -1,17 +1,15 @@
 import { Page } from 'playwright';
 
-import { IHasOptions, IStepper, IExtensionConstructor, OK, TResult, TWorld } from '@haibun/core/build/lib/defs';
+import { IHasOptions, IStepper, IExtensionConstructor, OK, TWorld, TNamed, TVStep, IRequireDomains } from '@haibun/core/build/lib/defs';
+import { onCurrentTypeForDomain } from '@haibun/core/build/steps/vars';
 import { BrowserFactory } from './BrowserFactory';
 import { actionNotOK, ensureDirectory } from '@haibun/core/build/lib/util';
+import { webPage, webControl } from '@haibun/domain-webpage/build/domain-webpage';
+
 declare var window: any;
 
-type TStepWithPage = {
-  gwta: string;
-  action?: any;
-  withPage?: (page: Page, vars: any) => Promise<TResult>;
-};
-
-const WebPlaywright: IExtensionConstructor = class WebPlaywright implements IStepper, IHasOptions {
+const WebPlaywright: IExtensionConstructor = class WebPlaywright implements IStepper, IHasOptions, IRequireDomains {
+  requireDomains = [webPage, webControl];
   options = {
     STEP_CAPTURE: {
       desc: 'capture screenshot for every step',
@@ -54,15 +52,15 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
   steps = {
     //                                      INPUT
     inputVariable: {
-      gwta: 'input {what} for {field}',
-      action: async ({ what, field }: { what: string; field: string }) => {
+      gwta: `input {what} for {field: ${webControl}}`,
+      action: async ({ what, field }: TNamed) => {
         await this.withPage(async (page: Page) => await page.fill(field, what));
         return OK;
       },
     },
     selectionOption: {
-      gwta: 'select {option} for {field}',
-      action: async ({ option, field }: { option: string; field: string }) => {
+      gwta: `select {option} for {field: ${webControl}}`,
+      action: async ({ option, field }: TNamed) => {
         const res = await this.withPage(async (page: Page) => await page.selectOption(field, { label: option }));
         // FIXME have to use id value
         // return res === [id] ? ok : {...notOk, details: { message: `received ${res} selecting from ${what} with id ${id}`}};
@@ -73,21 +71,23 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
     //                ASSERTIONS
     seeText: {
       gwta: 'should see {text}',
-      action: async ({ text }: { text: string }) => {
-        let textContent: string | null;
+      action: async ({ text }: TNamed) => {
+        let textContent: string | null = null;
+        // FIXME retry sometimes required?
         for (let a = 0; a < 2; a++) {
           textContent = await this.withPage(async (page: Page) => await page.textContent('body', { timeout: 1e9 }));
           if (textContent?.toString().includes(text)) {
             return OK;
           }
         }
-        return actionNotOK(`Did not find text in ${textContent!?.length} characters starting with ${textContent!?.trim().substr(0, 1e9)}`);
+        const topics = { textContent: { summary: `in ${textContent?.length} characters`, details: textContent } };
+        return actionNotOK('Did not find text', { topics });
       },
     },
 
     beOnPage: {
-      gwta: 'should be on the {name} page',
-      action: async ({ name }: { name: string }) => {
+      gwta: `should be on the {name: ${webPage}} page`,
+      action: async ({ name }: TNamed) => {
         const nowon = await this.withPage(async (page: Page) => await page.url());
         if (nowon === name) {
           return OK;
@@ -97,21 +97,21 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
     },
     URIContains: {
       gwta: 'URI should include {what}',
-      action: async ({ what }: { what: string }) => {
+      action: async ({ what }: TNamed) => {
         const uri = await this.withPage(async (page: Page) => await page.url());
         return uri.includes(what) ? OK : actionNotOK(`current URI ${uri} does not contain ${what}`);
       },
     },
     URIStartsWith: {
       gwta: 'URI should start with {start}',
-      action: async ({ start }: { start: string }) => {
+      action: async ({ start }: TNamed) => {
         const uri = await this.withPage(async (page: Page) => await page.url());
         return uri.startsWith(start) ? OK : actionNotOK(`current URI ${uri} does not start with ${start}`);
       },
     },
     URIMatches: {
       gwta: 'URI should match {what}',
-      action: async ({ what }: { what: string }) => {
+      action: async ({ what }: TNamed) => {
         const uri = await this.withPage(async (page: Page) => await page.url());
         return uri.match(what) ? OK : actionNotOK(`current URI ${uri} does not match ${what}`);
       },
@@ -121,16 +121,16 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
 
     clickOn: {
       gwta: 'click on (?<name>.[^s]+)',
-      action: async ({ name }: { name: string }) => {
-        const what = this.world.shared[name] || `text=${name}`;
+      action: async ({ name }: TNamed) => {
+        const what = this.world.shared.get(name) || `text=${name}`;
         await this.withPage(async (page: Page) => await page.click(what));
         return OK;
       },
     },
     clickCheckbox: {
       gwta: 'click the checkbox (?<name>.+)',
-      action: async ({ name }: { name: string }) => {
-        const what = this.world.shared[name] || name;
+      action: async ({ name }: TNamed) => {
+        const what = this.world.shared.get(name) || name;
         this.world.logger.log(`click ${name} ${what}`);
         await this.withPage(async (page: Page) => await page.click(what));
         return OK;
@@ -138,23 +138,23 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
     },
     clickShared: {
       gwta: 'click `(?<id>.+)`',
-      action: async ({ id }: { id: string }) => {
-        const name = this.world.shared[id];
+      action: async ({ id }: TNamed) => {
+        const name = this.world.shared.get(id);
         await this.withPage(async (page: Page) => await page.click(name));
         return OK;
       },
     },
     clickQuoted: {
       gwta: 'click "(?<name>.+)"',
-      action: async ({ name }: { name: string }) => {
+      action: async ({ name }: TNamed) => {
         await this.withPage(async (page: Page) => await page.click(`text=${name}`));
         return OK;
       },
     },
     clickLink: {
       gwta: 'click the link (?<uri>.+)',
-      action: async ({ name }: { name: string }) => {
-        const field = this.world.shared[name] || name;
+      action: async ({ name }: TNamed) => {
+        const field = this.world.shared.get(name) || name;
         await this.withPage(async (page: Page) => await page.click(field));
         return OK;
       },
@@ -162,8 +162,8 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
 
     clickButton: {
       gwta: 'click the button (?<id>.+)',
-      action: async ({ id }: { id: string }) => {
-        const field = this.world.shared[id] || id;
+      action: async ({ id }: TNamed) => {
+        const field = this.world.shared.get(id) || id;
         const a = await this.withPage(async (page: Page) => await page.click(field));
 
         return OK;
@@ -171,10 +171,12 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
     },
 
     //                          NAVIGATION
-    openPage: {
-      gwta: 'open the {name} page',
-      action: async ({ name }: { name: string }) => {
-        const response = await this.withPage(async (page: Page) => await page.goto(name));
+    onPage: {
+      gwta: `On the {name} ${webPage}`,
+      action: async ({ name }: TNamed, vstep: TVStep) => {
+        const location = onCurrentTypeForDomain({ name, type: webPage }, this.world);
+
+        const response = await this.withPage(async (page: Page) => await page.goto(location));
         return response?.ok ? OK : actionNotOK(`response not ok`);
       },
     },
@@ -206,11 +208,11 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
     //                          BROWSER
     usingBrowser: {
       gwta: 'using (?<browser>[^`].+[^`]) browser',
-      action: async ({ browser }: { browser: string }) => this.setBrowser(browser),
+      action: async ({ browser }: TNamed) => this.setBrowser(browser),
     },
     usingBrowserVar: {
       gwta: 'using {browser} browser',
-      action: async ({ browser }: { browser: string }) => {
+      action: async ({ browser }: TNamed) => {
         return this.setBrowser(browser);
       },
     },
@@ -232,7 +234,7 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
     },
     assertOpen: {
       gwta: '{what} is expanded with the {using}',
-      action: async ({ what, using }: { what: string; using: string }) => {
+      action: async ({ what, using }: TNamed) => {
         const isVisible = await this.withPage(async (page: Page) => await page.isVisible(what));
         if (!isVisible) {
           await this.withPage(async (page: Page) => await page.click(using));
