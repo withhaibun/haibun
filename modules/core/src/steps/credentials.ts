@@ -1,4 +1,4 @@
-import { IStepper, IExtensionConstructor, OK, TWorld } from '../lib/defs';
+import { IStepper, IExtensionConstructor, OK, TWorld, TNamed } from '../lib/defs';
 
 const Credentials: IExtensionConstructor = class Credentials implements IStepper {
   world: TWorld;
@@ -8,28 +8,27 @@ const Credentials: IExtensionConstructor = class Credentials implements IStepper
   }
 
   generateRandomUsername(ref: string) {
-    this.world.shared[ref] = ['rnd', Math.floor(Date.now() / 1000).toString(36), Math.floor(Math.random() * 1e8).toString(36)].join('_');
-    return this.world.shared[ref];
+    this.world.shared.set(ref, ['rnd', Math.floor(Date.now() / 1000).toString(36), Math.floor(Math.random() * 1e8).toString(36)].join('_'));
+    return this.world.shared.get(ref);
   }
 
   generateRandomPassword(ref: string) {
-    this.world.shared[ref] = [
+    this.world.shared.set(ref, [
       'testpass',
       Math.floor(Math.random() * 1e8)
         .toString(36)
         .toUpperCase(),
-    ].join('_');
-    return this.world.shared[ref];
+    ].join('_'));
+    return this.world.shared.get(ref);
   }
   getRandom(name: string) {
-    const val = this.world.shared[name];
-    return val;
+    return this.world.shared.get(name);
   }
 
   steps = {
     hasRandomUsername: {
       match: /^When I have a valid random username <(?<name>.+)>/,
-      action: async ({ name }: { name: string }) => {
+      action: async ({ name }: TNamed) => {
         this.generateRandomUsername(name);
         return OK;
       },
@@ -37,7 +36,7 @@ const Credentials: IExtensionConstructor = class Credentials implements IStepper
 
     hasRandomPassword: {
       match: /^When I have a valid random password <(?<name>.+)>/,
-      action: async ({ name }: { name: string }) => {
+      action: async ({ name }: TNamed) => {
         this.generateRandomPassword(name);
         return OK;
       },

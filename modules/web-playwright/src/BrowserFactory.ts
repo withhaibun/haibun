@@ -1,14 +1,5 @@
-import {
-  Browser,
-  BrowserContext,
-  Page,
-  chromium,
-  firefox,
-  webkit,
-  BrowserType,
-  devices,
-} from "playwright";
-import {TLogger} from "@haibun/core/build/lib/defs";
+import { TLogger } from '@haibun/core/build/lib/interfaces/logger';
+import { Browser, BrowserContext, Page, chromium, firefox, webkit, BrowserType, devices } from 'playwright';
 
 export const BROWSERS: { [name: string]: BrowserType } = {
   firefox: firefox,
@@ -29,7 +20,7 @@ export class BrowserFactory {
   }
 
   setBrowserType(typeAndDevice: string) {
-    const [type, device] = typeAndDevice.split(".");
+    const [type, device] = typeAndDevice.split('.');
     if (!BROWSERS[type]) {
       throw Error(`browserType not recognized ${type}`);
     }
@@ -39,7 +30,7 @@ export class BrowserFactory {
 
   async getBrowser(): Promise<Browser> {
     if (!this.browser) {
-      this.logger.info("launching new browser");
+      this.logger.info('launching new browser');
 
       this.browser = await this.browserType.launch({ headless: false });
     }
@@ -49,13 +40,13 @@ export class BrowserFactory {
   async getContext(): Promise<BrowserContext> {
     if (!this.context) {
       const browser = await this.getBrowser();
-      this.logger.info("creating new context");
+      this.logger.info('creating new context');
       const context = this.device ? { ...devices[this.device] } : {};
       this.context = await browser.newContext(context);
     }
     return this.context;
   }
-  async getPage(ctx: string = "_DEFAULT_CONTEXT"): Promise<Page> {
+  async getPage(ctx: string = '_DEFAULT_CONTEXT'): Promise<Page> {
     if (this.pages[ctx]) {
       return this.pages[ctx];
     }

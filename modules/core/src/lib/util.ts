@@ -1,4 +1,6 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync } from 'fs';
+import path from 'path';
+import { WorldContext } from './contexts';
 
 import {
   IStepper,
@@ -10,14 +12,17 @@ import {
   TOptionValue,
   TOutput,
   TResult,
-  TShared,
   TSpecl,
   TWorld,
   TOptions,
   TProtoOptions,
-  HAIBUN,
   TRuntime,
+  HAIBUN,
+  TActionResultTopics,
+  TActionResult,
+  TFound,
 } from './defs';
+import { withNameType } from './features';
 import Logger, { LOGGER_NONE } from './Logger';
 
 // FIXME tired of wrestling with ts/import issues
@@ -32,7 +37,7 @@ export async function use(module: string) {
   }
 }
 
-export async function resultOutput(type: string | undefined, result: TResult, shared: TShared) {
+export async function resultOutput(type: string | undefined, result: TResult, shared: WorldContext) {
   if (type) {
     const AnOut = await use(type);
     const out: TOutput = new AnOut();
@@ -47,16 +52,16 @@ export async function resultOutput(type: string | undefined, result: TResult, sh
   return result;
 }
 
-export function actionNotOK(message: string, details?: any): TNotOKActionResult {
+export function actionNotOK(message: string, also?: { topics?: TActionResultTopics; score?: number }): TNotOKActionResult {
   return {
     ok: false,
     message,
-    details,
+    ...also,
   };
 }
 
-export function actionOK(details?: any): TOKActionResult {
-  return { ok: true, details };
+export function actionOK(topics?: TActionResultTopics): TOKActionResult {
+  return { ok: true, topics };
 }
 
 export async function getSteppers({ steppers = [], world, addSteppers = [] }: { steppers: string[]; world: TWorld; addSteppers?: IExtensionConstructor[] }) {
@@ -83,23 +88,25 @@ export async function getSteppers({ steppers = [], world, addSteppers = [] }: { 
 function getModuleLocation(name: string) {
   if (name.startsWith('~')) {
     return [process.cwd(), 'node_modules', name.substr(1)].join('/');
-  } else if (name.match('^[a-zA-Z].*')) {
+  } else if (name.match(/^[a-zA-Z].*/)) {
     return `../steps/${name}`;
   }
-  return name;
+  return path.resolve(process.cwd(), name);
 }
 
-type TFilters = (string | RegExp)[];
+export function debase(base: string, features: TFeature[]) {
+  return features.map((f) => ({ ...f, path: f.path.replace(base, '') }));
+}
 
-export async function recurse(dir: string, filters: TFilters): Promise<TFeature[]> {
+export function recurse(dir: string, type: string, filter: RegExp | string | undefined = undefined): TFeature[] {
   const files = readdirSync(dir);
   let all: TFeature[] = [];
   for (const file of files) {
     const here = `${dir}/${file}`;
     if (statSync(here).isDirectory()) {
-      all = all.concat(await recurse(here, filters));
-    } else if (filters.every((filter) => file.match(filter))) {
-      all.push({ path: here.replace(filters[0], ''), feature: readFileSync(here, 'utf-8') });
+      all = all.concat(recurse(here, type, filter));
+    } else if ((!type || file.endsWith(`.${type}`)) && (!filter || file.match(filter))) {
+      all.push(withNameType(here, readFileSync(here, 'utf-8')));
     }
   }
   return all;
@@ -113,18 +120,20 @@ export function getDefaultOptions(): TSpecl {
   };
 }
 
-export function getOptionsOrDefault(base: string): TSpecl {
-  const f = `${base}/config.json`;
-  if (existsSync(f)) {
-    try {
-      const specl = JSON.parse(readFileSync(f, 'utf-8'));
-      if (!specl.options) {
-        specl.options = {};
+export function getOptionsOrDefault(base?: string): TSpecl {
+  if (base) {
+    const f = `${base}/config.json`;
+    if (existsSync(f)) {
+      try {
+        const specl = JSON.parse(readFileSync(f, 'utf-8'));
+        if (!specl.options) {
+          specl.options = {};
+        }
+        return specl;
+      } catch (e) {
+        console.error('missing or not valid project config file.');
+        process.exit(1);
       }
-      return specl;
-    } catch (e) {
-      console.error('missing or not valid project config file.');
-      process.exit(1);
     }
   }
   return getDefaultOptions();
@@ -154,10 +163,11 @@ export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve
 export function getDefaultWorld(): { world: TWorld } {
   return {
     world: {
-      shared: {},
+      shared: new WorldContext('default'),
       logger: new Logger(process.env.HAIBUN_LOG_LEVEL ? { level: process.env.HAIBUN_LOG_LEVEL } : LOGGER_NONE),
       runtime: {},
       options: {},
+      domains: [],
     },
   };
 }
@@ -166,7 +176,7 @@ type TEnv = { [name: string]: string | undefined };
 
 export function processEnv(env: TEnv, options: TOptions) {
   const protoOptions: TProtoOptions = { options: { ...options }, extraOptions: {} };
-  let splits: TShared[] = [{}];
+  let splits: { [name: string]: string }[] = [{}];
   let errors: string[] = [];
   const pfx = `${HAIBUN}_`;
   Object.entries(env)
@@ -174,7 +184,9 @@ export function processEnv(env: TEnv, options: TOptions) {
     .map(([k]) => {
       const value = env[k];
       const opt = k.replace(pfx, '');
-      if (opt === 'SPLIT_SHARED' && value !== undefined) {
+      if (opt === 'CONTINUE_ON_ERROR_IF_SCORED' && value !== undefined) {
+        protoOptions.options.continueOnErrorIfScored = true;
+      } else if (opt === 'SPLIT_SHARED' && value !== undefined) {
         const [what, s] = value.split('=');
         if (!s) {
           errors.push(`  ${pfx}SPLIT_SHARED=var=option1,option2`);
@@ -257,4 +269,18 @@ export function getStepper<Type>(steppers: IStepper[], name: string): Type {
 
 export function getFromRuntime<Type>(runtime: TRuntime, name: string): Type {
   return runtime[name] as Type;
+}
+
+export function applyResShouldContinue(world: any, res: Partial<TActionResult>, vstep: TFound): boolean {
+  const { score, message } = res as TNotOKActionResult;
+  if (res.ok) {
+    return true;
+  }
+  if (world.options.continueOnErrorIfScored && score !== undefined) {
+    const calc = { score, message, action: vstep };
+
+    world.shared.values._scored.push(calc);
+    return true;
+  }
+  return false;
 }

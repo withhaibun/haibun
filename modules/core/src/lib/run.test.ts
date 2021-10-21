@@ -1,3 +1,4 @@
+import { WorldContext } from './contexts';
 import { run } from './run';
 import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, TestSteps, TestStepsWithOptions } from './TestSteps';
 import { getOptionsOrDefault, getDefaultWorld, processEnv } from './util';
@@ -32,7 +33,8 @@ describe('run backgrounds', () => {
     const t = result.results![0];
     expect(t).toBeDefined();
     expect(t.ok).toBe(true);
-    expect(t.stepResults.length).toBe(3);
+
+    expect(t.stepResults.length).toBe(1);
     expect(t.stepResults.every((r) => r.ok === true)).toBe(true);
   });
 });
@@ -48,7 +50,7 @@ describe('fails', () => {
 
     expect(result.failure?.stage).toBe('Resolve');
 
-    expect(result.failure?.error.details.startsWith('no step found for When I fail')).toBe(true);
+    expect(result.failure?.error.message.startsWith('no step found for When I fail')).toBe(true);
   });
 });
 
@@ -87,9 +89,9 @@ describe('step vars', () => {
     const { result } = await run({ specl, base, addSteppers: [TestSteps], world });
 
     expect(result.ok).toBe(true);
-    expect(world.shared.var).toBe('1');
-    expect(world.shared['Var 2']).toBe('2');
-    expect(world.shared['Var 3']).toBe('3');
+    expect(world.shared.get('var')).toBe('1');
+    expect(world.shared.get('Var 2')).toBe('2');
+    expect(world.shared.get('Var 3')).toBe('3');
   });
 });
 
@@ -119,19 +121,6 @@ describe('haibun', () => {
   });
 });
 
-describe('haibun', () => {
-  it('mixed prose', async () => {
-    const base = process.cwd() + '/test/projects/haibun/prose';
-    const specl = getOptionsOrDefault(base);
-
-    const { result } = await run({ specl, base, addSteppers: [TestSteps], ...getDefaultWorld() });
-
-    expect(result.ok).toBe(true);
-
-    expect(result.results?.length).toBe(1);
-  });
-});
-
 describe('options', () => {
   it('stepper options', async () => {
     const base = process.cwd() + '/test/projects/haibun/stepper-options';
@@ -142,6 +131,20 @@ describe('options', () => {
 
     expect(result.ok).toBe(true);
     expect(result.results?.length).toBe(1);
-    expect(result.results![0].stepResults[0].actionResults[0].details).toBe('42');
+    expect(result.results![0].stepResults[0].actionResults[0].topics?.options.summary).toEqual('options');
+  });
+});
+
+describe('builds', () => {
+  it('builds with finalizer', async () => {
+    const base = process.cwd() + '/test/projects/haibun/build';
+    const specl = getOptionsOrDefault(base);
+
+    const shared: WorldContext = new WorldContext(`build test`);
+    const { result } = await run({ specl, base, addSteppers: [TestSteps], world: { ...getDefaultWorld().world, shared } });
+
+    expect(result.ok).toBe(true);
+
+    expect(shared.get('done')).toEqual('ok');
   });
 });
