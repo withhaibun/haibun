@@ -24,6 +24,7 @@ export class Executor {
       ok = ok && featureResult.ok;
       featureResults.push(featureResult);
     }
+    this.close();
     return { ok, results: featureResults };
   }
 
