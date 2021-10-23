@@ -2,18 +2,18 @@ import { statSync, existsSync } from 'fs';
 import express, { RequestHandler } from 'express';
 
 import { IWebServer, TRouteType } from '@haibun/core/build/lib/interfaces/webserver';
-import { TLogger } from '@haibun/core/src/lib/interfaces/logger';
+import { ILogger } from '@haibun/core/src/lib/interfaces/logger';
 
 export const DEFAULT_PORT = 8123;
 
 export class ServerExpress implements IWebServer {
-  logger: TLogger;
+  logger: ILogger;
   static listener: any;
   static app = express();
   static mounted: { [named: string]: string } = {};
   base: string;
   port: number;
-  constructor(logger: TLogger, base: string, port: number = DEFAULT_PORT) {
+  constructor(logger: ILogger, base: string, port: number = DEFAULT_PORT) {
     this.logger = logger;
     this.base = base;
     this.port = port;

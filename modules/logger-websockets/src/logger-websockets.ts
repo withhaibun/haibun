@@ -1,14 +1,15 @@
 import { IStepper, IExtensionConstructor, OK, TWorld, TNamed, TVStep } from '@haibun/core/build/lib/defs';
-import { TLogLevel, TMessageTopic } from '@haibun/core/build/lib/interfaces/logger';
+import { TLogLevel, TMessageContext } from '@haibun/core/build/lib/interfaces/logger';
 import { getFromRuntime } from '@haibun/core/build/lib/util';
 import { IWebServer } from '@haibun/core/build/lib/interfaces/webserver';
 
 import WebSocket from 'ws';
-import { ISubscriber } from '@haibun/core/build/lib/interfaces/logger';
+import { ILogOutput } from '@haibun/core/build/lib/interfaces/logger';
+
 import path from 'path';
 // FIXME
 type TWS = { on: (arg0: string, arg1: (message: any) => void) => void; send: (arg0: string) => void };
-class WebSocketServer implements ISubscriber {
+class WebSocketServer implements ILogOutput {
   buffered: any[] = [];
   wss: WebSocket.Server;
   clients: TWS[] = [];
@@ -25,8 +26,9 @@ class WebSocketServer implements ISubscriber {
     this.wss = new WebSocket.Server({ host: '0.0.0.0', port: 7071 });
     this.wss.on('connection', this.connection.bind(this));
   }
-  out(level: TLogLevel, message: any, messageTopic?: TMessageTopic) {
-    const content = { message, level, messageTopic };
+  out(level: TLogLevel, message: any, mctx?: TMessageContext) {
+    const content = { message, level, mctx };
+    console.error('fixme; topic changed to context');
 
     this.buffered.push(content);
     for (const client of this.clients) {

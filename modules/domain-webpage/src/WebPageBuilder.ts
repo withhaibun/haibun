@@ -1,16 +1,16 @@
 import { DomainContext } from '@haibun/core/build/lib/contexts';
 import { WorkspaceBuilder } from '@haibun/core/build/lib/defs';
-import { TLogger } from '@haibun/core/build/lib/interfaces/logger';
+import { ILogger } from '@haibun/core/build/lib/interfaces/logger';
 import { writeFileSync } from 'fs';
 
 export class WebPageBuilder extends WorkspaceBuilder {
   controls: string[];
   location: string;
-  logger: TLogger;
+  logger: ILogger;
   building: DomainContext;
   folder: string;
 
-  constructor(name: string, logger: TLogger, location: string, folder: string) {
+  constructor(name: string, logger: ILogger, location: string, folder: string) {
     super(name);
     this.logger = logger;
     this.location = location;
