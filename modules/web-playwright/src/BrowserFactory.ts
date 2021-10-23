@@ -1,4 +1,4 @@
-import { TLogger } from '@haibun/core/build/lib/interfaces/logger';
+import { ILogger } from '@haibun/core/build/lib/interfaces/logger';
 import { Browser, BrowserContext, Page, chromium, firefox, webkit, BrowserType, devices } from 'playwright';
 
 export const BROWSERS: { [name: string]: BrowserType } = {
@@ -11,12 +11,14 @@ export class BrowserFactory {
   browser!: Browser;
   context!: BrowserContext;
   pages: { [name: string]: Page } = {};
-  logger: TLogger;
+  logger: ILogger;
   browserType: BrowserType = chromium;
   device: string | undefined = undefined;
+  headless: boolean = false;
 
-  constructor(logger: TLogger) {
+  constructor(logger: ILogger, headless: boolean) {
     this.logger = logger;
+    this.headless = headless;
   }
 
   setBrowserType(typeAndDevice: string) {
@@ -32,7 +34,7 @@ export class BrowserFactory {
     if (!this.browser) {
       this.logger.info('launching new browser');
 
-      this.browser = await this.browserType.launch({ headless: false });
+      this.browser = await this.browserType.launch({ headless: this.headless });
     }
     return this.browser;
   }
