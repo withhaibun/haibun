@@ -21,7 +21,6 @@ const vars: IExtensionConstructor = class Vars implements IStepper {
     if (this.world.shared.get(what) !== undefined) {
       return OK;
     }
-    console.log('sadfidufofusd', getOrCond(orCond));
     const [warning, response] = orCond.split(':').map((t) => t.trim());
     const topics: TActionResultTopics = {
       warning: { summary: warning },

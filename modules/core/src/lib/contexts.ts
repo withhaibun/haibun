@@ -38,8 +38,8 @@ export class DomainContext extends Context {
 }
 
 export class WorldContext extends Context {
-  constructor(context: string, initial?: { [name: string]: string }) {
-    super(`world ${context}`, initial);
+  constructor(tag: string, initial?: { [name: string]: string }) {
+    super(`world ${tag}`, initial);
   }
   static currentKey = (domain: string) => `_current_${domain}`;
   getCurrent = (type: string) => this.values[WorldContext.currentKey(type)];
