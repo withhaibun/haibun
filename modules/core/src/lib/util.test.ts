@@ -36,8 +36,18 @@ describe('processEnv', () => {
   });
   it('processes split_shared', () => {
     const specl = util.getDefaultOptions();
-    const { splits } = util.processEnv({ HAIBUN_SPLIT_SHARED: 'foo=1,2' }, specl.options);
+    const { splits } = util.processEnv({ HAIBUN_SPLIT_SHARED: 'foo=1,2' }, specl.options).protoOptions.options;
     expect(splits).toEqual([{ foo: '1' }, { foo: '2' }]);
+  });
+  it('assigns int', () => {
+    const specl = util.getDefaultOptions();
+    const { options } = util.processEnv({ HAIBUN_LOOPS: '1' }, specl.options).protoOptions;
+    expect(options.loops).toBe(1);
+  })
+  it('errors for string passed as int', () => {
+    const specl = util.getDefaultOptions();
+    const { errors } = util.processEnv({ HAIBUN_LOOPS: '1.2' }, specl.options);
+    expect(errors.length).toBe(1);
   });
 });
 

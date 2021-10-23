@@ -1,5 +1,5 @@
 import { DomainContext, WorkspaceContext, WorldContext } from './contexts';
-import { TLogger } from './interfaces/logger';
+import { ILogger } from './interfaces/logger';
 
 export type TSpecl = {
   steppers: string[];
@@ -14,7 +14,7 @@ export type TOptions = {
   [name: string]: TOptionValue;
 };
 
-export type TOptionValue = string | boolean | number;
+export type TOptionValue = any;
 
 export interface IHasOptions {
   options?: {
@@ -59,7 +59,7 @@ export type TModuleDomain = TDomain & {
 export type TWorld = {
   shared: WorldContext;
   runtime: TRuntime;
-  logger: TLogger;
+  logger: ILogger;
   options: TOptions;
   domains: TModuleDomain[];
 };

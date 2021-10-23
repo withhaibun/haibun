@@ -43,6 +43,7 @@ export const getDomain = (domain: string, world: TWorld) => world.domains.find((
 
 export const applyDomainsOrError = (steppers: IStepper[], world: TWorld) => {
   // verify no duplicates
+  
   for (const module of steppers.filter((s) => !!(<IHasDomains>(s as unknown)).domains).map((s) => <IHasDomains>(s as unknown))) {
     const { domains } = module;
     if (domains) {

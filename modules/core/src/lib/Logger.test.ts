@@ -1,4 +1,4 @@
-import { ISubscriber, TEST_RESULT, TMessageTopic } from './interfaces/logger';
+import {  ILogger, ILogOutput, TEST_RESULT, TMessageContext } from './interfaces/logger';
 import Logger, { LOGGER_LEVELS } from './Logger';
 
 describe('log levels', () => {
@@ -14,17 +14,31 @@ describe('log levels', () => {
   });
 });
 
-describe('subscriber', () => {
+describe('logger with subscriber', () => {
   test('subscriber receives topic', (done) => {
     const logger = new Logger({ level: 'debug' });
-    const subscriber: ISubscriber = {
-      out(level: string, args: any[], topic?: TMessageTopic) {
-        expect(topic).toBeDefined();
-        expect(topic!.result).toEqual(TEST_RESULT);
+    const subscriber: ILogOutput = {
+      out(level: string, args: any[], ctx?: TMessageContext) {
+        expect(ctx!.topic).toBeDefined();
+        expect(ctx!.topic!.result).toEqual(TEST_RESULT);
         done();
       },
     };
     logger.addSubscriber(subscriber);
-    logger.log('test', { stage: 'Executor', result: TEST_RESULT, seq: 1 });
+    logger.log('test', { topic: { stage: 'Executor', result: TEST_RESULT, seq: 1 } });
+  });
+});
+
+describe('logger with output', () => {
+  test('output gets current tag', (done) => {
+    const output: ILogOutput = {
+      out(level: string, args: any[], ctx?: TMessageContext) {
+        expect(ctx!.tag).toBe('current');
+        done();
+      },
+    };
+    const dlogger = new Logger({ output, tag: 'current' });
+
+    dlogger.log('test');
   });
 });

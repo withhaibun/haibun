@@ -51,6 +51,8 @@ export async function runWith({
   try {
     applyExtraOptions(protoOptions, steppers, world);
   } catch (error: any) {
+    console.log('e', error);
+    
     return { result: { ok: false, failure: { stage: 'Options', error: { message: error.message, details: error } } } };
   }
 
