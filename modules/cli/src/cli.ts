@@ -3,14 +3,14 @@
 import repl from 'repl';
 import { TProtoOptions, TResult, TSpecl, TWorld } from '@haibun/core/build/lib/defs';
 import { WorldContext } from '@haibun/core/build/lib/contexts';
-import Logger from '@haibun/core/build/lib/Logger';
+import Logger, { loggerTag } from '@haibun/core/build/lib/Logger';
 
 import { run } from '@haibun/core/build/lib/run';
 import { getOptionsOrDefault, processEnv, resultOutput } from '@haibun/core/build/lib/util';
 import { ILogOutput } from '@haibun/core/build/lib/interfaces/logger';
 import { ranResultError, usageThenExit } from './lib';
 
-export type TRunResult = { output: any, result: TResult, shared: WorldContext };
+export type TRunResult = { output: any, result: TResult, shared: WorldContext, tag: string };
 
 go();
 
@@ -30,33 +30,36 @@ async function go() {
   if (errors.length > 0) {
     usageThenExit(errors.join('\n'));
   }
-  const logger = new Logger({ level: process.env.HAIBUN_LOG_LEVEL || 'log' });
+  const logger = new Logger({ level: protoOptions.options.logLevel || 'log', follow: protoOptions.options.logFollow });
   let allRunResults: PromiseSettledResult<TRunResult>[] = [];
   const loops = protoOptions.options.loops || 1;
   const members = protoOptions.options.members || 1;
 
   let totalRan = 0;
+  let startTime = process.hrtime();
+  let allResults: { [name: string]: string } = {};
 
-  for (let loop = 0; loop < loops; loop++) {
+  for (let loop = 1; loop < loops + 1; loop++) {
     if (loops > 1) {
-      logger.log(`starting loop ${loop+1}/${loops}`)
+      logger.log(`starting loop ${loop}/${loops}`)
     }
-    let groupResults: Promise<TRunResult>[] = [];
-    for (let member = 0; member < members; member++) {
+    let groupRuns: Promise<TRunResult>[] = [];
+    for (let member = 1; member < members + 1; member++) {
       if (members > 1) {
-        logger.log(`starting member ${member+1}/${members}`)
+        logger.log(`starting member ${member + 1}/${members}`)
       }
       const instances = splits.map(async (split) => {
         const runtime = {};
-        const tag = `l${loop}-m${member}-s${split.toString()}`
+        const tag = loggerTag(loop, member, Object.assign({}, split));
         totalRan++;
 
         return doRun(base, specl, runtime, featureFilter, new WorldContext(tag, split), protoOptions, logger, tag);
+
       });
-      groupResults = groupResults.concat(instances);
+      groupRuns = groupRuns.concat(instances);
     }
 
-    const theseValues = await Promise.allSettled(groupResults);
+    const theseValues = await Promise.allSettled(groupRuns);
     allRunResults = allRunResults.concat(theseValues);
   }
 
@@ -64,27 +67,40 @@ async function go() {
     .filter((i) => i.status === 'fulfilled')
     .map((i) => <PromiseFulfilledResult<TRunResult>>i)
     .map((i) => i.value);
+
+  let passed = 0;
+  let failed = 0;
+  for (let r of ranResults) {
+
+    if (r.result.ok) {
+      passed++;
+    } else {
+      allResults[r.tag] = r.result.failure?.error.message || 'hmm';
+      failed++;
+    }
+  }
   let exceptionResults = allRunResults
     .filter((i) => i.status === 'rejected')
     .map((i) => <PromiseRejectedResult>i)
     .map((i) => i.reason);
+
   const ok = ranResults.every((a) => a.result.ok);
 
   if (ok && exceptionResults.length < 1) {
     logger.log(ranResults.every((r) => r.output));
-    if (protoOptions.options.stay !== 'always') {
-      process.exit(0);
+  } else {
+    try {
+      console.error(ranResultError(ranResults, exceptionResults));
+    } catch (e) {
+      console.error(ranResults[0].result.failure);
     }
-    return;
   }
+  const runTime = process.hrtime(startTime)[0];
+  console.log('\nRESULT>>>', { ok, passed, failed, totalRan, runTime, 'features/s:': totalRan / runTime }, allResults);
 
-  try {
-    console.error(ranResultError(ranResults, exceptionResults));
-  } catch (e) {
-    console.error(ranResults[0].result.failure);
-  }
-
-  if (protoOptions.options.stay !== 'always') {
+  if (ok && exceptionResults.length < 1 && protoOptions.options.stay !== 'always') {
+    process.exit(0);
+  } else if (protoOptions.options.stay !== 'always') {
     process.exit(1);
   }
 }
@@ -95,9 +111,9 @@ async function doRun(base: string, specl: TSpecl, runtime: {}, featureFilter: st
   }
   const logger = new Logger({ output: containerLogger, tag });
 
-  const world: TWorld = { ...protoOptions, shared, logger, runtime, domains: [] };
+  const world: TWorld = { ...protoOptions, shared, logger, runtime, domains: [], tag };
 
   const { result } = await run({ specl, base, world, featureFilter, protoOptions });
   const output = await resultOutput(process.env.HAIBUN_OUTPUT, result, shared);
-  return { result, shared, output };
+  return { result, shared, output, tag };
 }

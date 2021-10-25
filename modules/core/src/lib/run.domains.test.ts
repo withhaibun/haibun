@@ -2,7 +2,7 @@ import { onCurrentTypeForDomain, setShared } from '../steps/vars';
 import { IExtensionConstructor, IStepper, IHasDomains, TWorld, TNamed, TVStep, IRequireDomains } from './defs';
 import { getDomain } from './domain';
 import { runWith } from './run';
-import { asFeatures } from './TestSteps';
+import { asFeatures, testWithDefaults } from './TestSteps';
 import { getOptionsOrDefault, getDefaultWorld, actionOK } from './util';
 
 const TTYPE = 'page';
@@ -56,12 +56,7 @@ const TestStepsWithDomain: IExtensionConstructor = class TestStepsWithDomain imp
 
 describe.only('domain object', () => {
   it('missing domain object', async () => {
-    const specl = getOptionsOrDefault();
-    const key = '/backgrounds/p1';
-
-    const { world } = getDefaultWorld();
-    const features = asFeatures([{ path: '/features/test.feature', content: `\nPull the lever\n` }]);
-    const { result } = await runWith({ specl, features, backgrounds: [], addSteppers: [TestStepsRequiresDomain], world });
+    const { result } = await testWithDefaults([{ path: '/features/test.feature', content: `\nPull the lever\n` }], [TestStepsWithDomain]);
     expect(result.ok).toBe(false);
     expect(result.failure!.error.message.startsWith(`missing required domain "${TTYPE}"`)).toBe(true);
     expect(result.failure!.error.details.stack).toBeDefined();
@@ -76,7 +71,7 @@ describe.only('domain object', () => {
     const { result } = await runWith({ specl, features, backgrounds, addSteppers: [TestStepsRequiresDomain, TestStepsWithDomain], world });
 
     expect(result.ok).toBe(true);
-    
+
     // expect(result.results![0].stepResults[0].actionResults[0].topics).toEqual('http://localhost:8123/p1');
 
     expect(world.shared.getCurrent(TTYPE)).toEqual(key);

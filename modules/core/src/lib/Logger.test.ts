@@ -1,16 +1,24 @@
-import {  ILogger, ILogOutput, TEST_RESULT, TMessageContext } from './interfaces/logger';
-import Logger, { LOGGER_LEVELS } from './Logger';
+import { ILogOutput, TEST_RESULT, TMessageContext } from './interfaces/logger';
+import Logger, { loggerTag, LOGGER_LEVELS } from './Logger';
 
 describe('log levels', () => {
   test('logs none with none', () => {
-    expect(Logger.shouldLog(LOGGER_LEVELS['none'], 'debug')).toBe(false);
-    expect(Logger.shouldLog(LOGGER_LEVELS['none'], 'info')).toBe(false);
+    expect(Logger.shouldLogLevel(LOGGER_LEVELS['none'], 'debug')).toBe(false);
+    expect(Logger.shouldLogLevel(LOGGER_LEVELS['none'], 'info')).toBe(false);
   });
   test('logs log with log', () => {
-    expect(Logger.shouldLog(LOGGER_LEVELS['log'], 'log')).toBe(true);
+    expect(Logger.shouldLogLevel(LOGGER_LEVELS['log'], 'log')).toBe(true);
   });
   test('does not log debug with log', () => {
-    expect(Logger.shouldLog(LOGGER_LEVELS['log'], 'debug')).toBe(false);
+    expect(Logger.shouldLogLevel(LOGGER_LEVELS['log'], 'debug')).toBe(false);
+  });
+});
+describe('log follow', () => {
+  test('logs follow', () => {
+    expect(Logger.shouldLogFollow('-m[1-3]', loggerTag(1, 2, {}))).toBe(true);
+  });
+  test('log does not follow', () => {
+    expect(Logger.shouldLogFollow('-m[1-3]', loggerTag(1, 5, {}))).toBe(false);
   });
 });
 
