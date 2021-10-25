@@ -163,6 +163,7 @@ export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve
 export function getDefaultWorld(): { world: TWorld } {
   return {
     world: {
+      tag: '_default',
       shared: new WorldContext('default'),
       logger: new Logger(process.env.HAIBUN_LOG_LEVEL ? { level: process.env.HAIBUN_LOG_LEVEL } : LOGGER_NONE),
       runtime: {},
@@ -198,11 +199,12 @@ export function processEnv(env: TEnv, options: TOptions) {
         setIntOrError(value, opt);
       } else if (opt === 'CLI') {
         protoOptions.options.cli = true;
-      } else if (opt === 'CLI') {
-        protoOptions.options.cli = true;
       } else if (opt === 'STAY') {
-        protoOptions.options.stay = value!;
+        protoOptions.options.stay = value;
+      } else if (opt === 'LOG_FOLLOW') {
+        protoOptions.options.logFollow = value;
       } else if (opt === 'LOG_LEVEL') {
+        protoOptions.options.logLevel = value;
       } else {
         protoOptions.extraOptions[k] = value!;
       }
@@ -217,8 +219,6 @@ export function applyExtraOptions(protoOptions: TProtoOptions, steppers: ISteppe
   }
   Object.entries(protoOptions.extraOptions).map(([k, v]) => {
     const conc = getStepperOptions(k, v!, steppers);
-    console.log('kk', k, conc);
-    
     
     if (conc === undefined) {
       throw Error(`no option ${k}`);

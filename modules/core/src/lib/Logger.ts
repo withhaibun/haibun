@@ -13,7 +13,7 @@ export const LOGGER_LEVELS = {
   none: 9,
 };
 
-type TLevel = { level: string };
+type TLevel = { level: string, follow?: string };
 type TOutputEnv = { output: ILogOutput, tag: string };
 type TConf = TLevel | TOutputEnv;
 
@@ -21,10 +21,13 @@ export default class Logger implements ILogger, ILogOutput {
   level: number | undefined;
   env: TOutputEnv | undefined;
   subscribers: ILogOutput[] = [];
+  follow: string | undefined;
 
   constructor(conf: TConf) {
+    // passed a log level and possibly a follow
     if ((conf as TLevel).level) {
       this.level = LOGGER_LEVELS[(conf as TLevel).level as TLogLevel];
+      this.follow = (conf as TLevel).follow;
     } else {
       this.env = conf as TOutputEnv;
     }
@@ -33,15 +36,22 @@ export default class Logger implements ILogger, ILogOutput {
   addSubscriber(subscriber: ILogOutput) {
     this.subscribers.push(subscriber);
   }
-  static shouldLog(level: number, name: TLogLevel) {
+  static shouldLogLevel(level: number, name: TLogLevel) {
     return LOGGER_LEVELS[name] >= level;
+  }
+  static shouldLogFollow(match: string, tag: string) {
+    if (!match || !tag) {
+      return true;
+    }
+    const res = new RegExp(match).test(tag)
+    return res;
   }
   out(level: TLogLevel, args: any, messageContext?: TMessageContext) {
     if (this.env?.output) {
       this.env.output.out(level, args, { ...messageContext, tag: this.env.tag });
       return;
     }
-    if (!Logger.shouldLog(this.level as number, level)) {
+    if (!Logger.shouldLogLevel(this.level as number, level) && Logger.shouldLogFollow(this.follow!, this.env?.tag!)) {
       return;
     }
     const e = Error(level).stack?.split('\n');
@@ -50,7 +60,7 @@ export default class Logger implements ILogger, ILogOutput {
     for (const subscriber of this.subscribers) {
       subscriber.out(level, args, messageContext);
     }
-    const tag = messageContext?.tag ? ` @${messageContext.tag}` : '';
+    const tag = messageContext?.tag ? ` ${messageContext.tag}` : '';
     (console as any)[level].call(console, `${ln}${tag}: `.padStart(WIDTH), args, level.padStart(6));
   }
   debug = (args: any, mctx?: TMessageContext) => this.out('debug', args, mctx);
@@ -59,3 +69,5 @@ export default class Logger implements ILogger, ILogOutput {
   warn = (args: any, mctx?: TMessageContext) => this.out('warn', args, mctx);
   error = (args: any, mctx?: TMessageContext) => this.out('error', args, mctx);
 }
+
+export const loggerTag = (loop: number, member: number, env: any) => `@-l${loop}-m${member}-s${env}`;
