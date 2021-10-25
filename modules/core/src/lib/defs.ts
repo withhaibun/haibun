@@ -57,6 +57,7 @@ export type TModuleDomain = TDomain & {
 };
 
 export type TWorld = {
+  tag: string;
   shared: WorldContext;
   runtime: TRuntime;
   logger: ILogger;

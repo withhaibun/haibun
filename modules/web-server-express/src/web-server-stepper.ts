@@ -1,11 +1,7 @@
 import { IHasOptions, IStepper, IExtensionConstructor, OK, TWorld, TNamed, TOptions } from '@haibun/core/build/lib/defs';
 import { actionNotOK } from '@haibun/core/build/lib/util';
-import { IWebServer } from '@haibun/core/src/lib/interfaces/webserver';
+import { IWebServer, WEBSERVER, WEBSERVER_STEPPER } from './defs';
 import { ServerExpress, DEFAULT_PORT } from './server-express';
-
-export const WEBSERVER = 'webserver';
-export const WEBSERVER_STEPPER = 'WebServerStepper';
-export const CHECK_LISTENER = 'CHECK_LISTENER';
 
 const WebServerStepper: IExtensionConstructor = class WebServerStepper implements IStepper, IHasOptions {
   webserver: ServerExpress | undefined;
@@ -21,30 +17,31 @@ const WebServerStepper: IExtensionConstructor = class WebServerStepper implement
     this.world = world;
     this.webserver = new ServerExpress(this.world.logger, [process.cwd(), 'files'].join('/'));
     this.world.runtime[WEBSERVER] = this.webserver;
-    this.world.runtime[CHECK_LISTENER] = WebServerStepper.checkListener;
+    // this.world.runtime[CHECK_LISTENER] = WebServerStepper.checkListener;
   }
 
-  async close() {
+  async finish() {
     await this.webserver?.close();
   }
 
-  static async checkListener(options: TOptions, webserver: IWebServer) {
+  async checkListener(options: TOptions) {
     const port = options[`HAIBUN_O_${WEBSERVER_STEPPER.toUpperCase()}_PORT`] as number;
-    await webserver.listening(port || DEFAULT_PORT);
+    await this.webserver!.listen();
   }
 
   steps = {
     isListening: {
       gwta: 'webserver is listening',
-      action: async ({ loc }: TNamed) => {
-        await WebServerStepper.checkListener(this.world.options, this.world.runtime[WEBSERVER]);
+      action: async () => {
+        await this.checkListener(this.world.options);
         return OK;
       },
     },
     serveFiles: {
       gwta: 'serve files from {loc}',
       action: async ({ loc }: TNamed) => {
-        await WebServerStepper.checkListener(this.world.options, this.world.runtime[WEBSERVER]);
+        // await WebServerStepper.checkListener(this.world.options, this.world.runtime[WEBSERVER]);
+        
         const ws: IWebServer = await this.world.runtime[WEBSERVER];
         const error = await ws.addStaticFolder(loc);
         this.world.shared.set('file_location', loc);

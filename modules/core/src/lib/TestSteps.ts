@@ -1,7 +1,7 @@
-import { IStepper, IExtensionConstructor, IHasOptions, TWorld, TVStep, TProtoOptions, TNamed, IHasDomains, TExpandedLine } from './defs';
+import { IStepper, IExtensionConstructor, IHasOptions, TWorld, TVStep, TProtoOptions, TNamed, IHasDomains, TExpandedLine, TFeature, TOptions } from './defs';
 import { Resolver } from '../phases/Resolver';
-import { run } from './run';
-import { actionNotOK, actionOK, getOptionsOrDefault, getStepperOption, getSteppers } from './util';
+import { run, runWith } from './run';
+import { actionNotOK, actionOK, getDefaultWorld, getOptionsOrDefault, getStepperOption, getSteppers } from './util';
 import { WorkspaceContext } from './contexts';
 import { featureSplit, withNameType } from './features';
 import { applyDomainsOrError } from './domain';
@@ -104,6 +104,17 @@ export async function getTestEnv(useSteppers: string[], test: string, world: TWo
     actions,
   };
   return { world, vstep, steppers };
+}
+
+export async function testWithDefaults(these: { path: string, content: string }[], addSteppers: IExtensionConstructor[], options?: TOptions) {
+  const specl = getOptionsOrDefault();
+
+  const { world } = getDefaultWorld();
+  if (options) {
+    world.options = options;
+  }
+  const features = asFeatures(these);
+  return await runWith({ specl, features, backgrounds: [], addSteppers, world });
 }
 
 export async function testRun(baseIn: string, addSteppers: IExtensionConstructor[], world: TWorld, protoOptions?: TProtoOptions) {

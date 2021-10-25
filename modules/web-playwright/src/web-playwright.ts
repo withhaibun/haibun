@@ -20,7 +20,8 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
       parse: (input: string) => true,
     },
   };
-  bf: BrowserFactory | undefined = undefined;
+  static hasFactory: boolean = false;
+  static bf: BrowserFactory | undefined = undefined;
   world: TWorld;
   headless: boolean = false;
 
@@ -28,17 +29,20 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
     this.world = world;
   }
 
-  async getBrowserFactory() {
-    if (!this.bf) {
+  async getBrowserFactory(): Promise<BrowserFactory> {
+    if (!WebPlaywright.hasFactory) {
       const headless = getStepperOption(this, 'HEADLESS', this.world.options);
-      this.bf = new BrowserFactory(this.world.logger, headless);
+      console.log('CREATING NEW BF');
+
+      WebPlaywright.bf = new BrowserFactory(this.world.logger, headless);
+      WebPlaywright.hasFactory = true;
     }
-    return this.bf;
+    return WebPlaywright.bf!;
   }
 
   async getPage() {
     if (!this.world.runtime.page) {
-      this.world.runtime.page = await (await this.getBrowserFactory()).getPage();
+      this.world.runtime.page = await (await this.getBrowserFactory()).getPage(this.world.tag);
     }
     return this.world.runtime.page;
   }
@@ -51,14 +55,29 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
   async setBrowser(browser: string) {
     try {
       (await this.getBrowserFactory()).setBrowserType(browser);
+
       return OK;
     } catch (e: any) {
-      return actionNotOK(e.message);
+      return actionNotOK(e.message, { topics: { error: e } });
     }
   }
 
   async close() {
-    (await this.getBrowserFactory()).browser?.close();
+    // close the context, which closes any pages
+    console.log('WB CLOSE');
+    if (WebPlaywright.hasFactory) {
+      await WebPlaywright.bf!.closeContext(this.world.tag);
+      return;
+    }
+    console.log('WB ALREADY CLOSED');
+  }
+
+  async finish() {
+    if (WebPlaywright.hasFactory) {
+      (await this.getBrowserFactory()).browser?.close();
+      WebPlaywright.bf = undefined;
+      WebPlaywright.hasFactory = false;
+    }
   }
 
   steps = {
