@@ -47,6 +47,7 @@ export class BrowserFactory {
       this.logger.info('creating new context');
       const context = this.device ? { ...devices[this.device] } : {};
       BrowserFactory.contexts[ctx] = await browser.newContext(context);
+      // BrowserFactory.contexts[ctx].setDefaultTimeout(900)
     }
     return BrowserFactory.contexts[ctx];
   }
