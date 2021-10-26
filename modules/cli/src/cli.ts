@@ -41,7 +41,7 @@ async function go() {
   let totalRan = 0;
   let startTime = process.hrtime();
   let startDate = new Date();
-  let allFailures: { [name: string]: { message: string, startTime: number, runDuration: number, fromStart: number } } = {};
+  let allFailures: { [name: string]: { message: string, runDuration: number, fromStart: number } } = {};
 
   for (let loop = 1; loop < loops + 1; loop++) {
     if (loops > 1) {
@@ -80,7 +80,6 @@ async function go() {
     } else {
       allFailures[r.tag] = {
         message: r.result.failure?.error.message || 'hmm',
-        startTime: r.fromStart,
         runDuration: r.runDuration,
         fromStart: r.fromStart
       }
