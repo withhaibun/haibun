@@ -32,8 +32,6 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
   async getBrowserFactory(): Promise<BrowserFactory> {
     if (!WebPlaywright.hasFactory) {
       const headless = getStepperOption(this, 'HEADLESS', this.world.options);
-      console.log('CREATING NEW BF');
-
       WebPlaywright.bf = new BrowserFactory(this.world.logger, headless);
       WebPlaywright.hasFactory = true;
     }
@@ -64,14 +62,13 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
 
   async close() {
     // close the context, which closes any pages
-    console.log('WB CLOSE');
     if (WebPlaywright.hasFactory) {
       await WebPlaywright.bf!.closeContext(this.world.tag);
       return;
     }
-    console.log('WB ALREADY CLOSED');
   }
 
+  // FIXME
   async finish() {
     if (WebPlaywright.hasFactory) {
       (await this.getBrowserFactory()).browser?.close();

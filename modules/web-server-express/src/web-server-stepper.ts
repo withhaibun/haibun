@@ -40,9 +40,8 @@ const WebServerStepper: IExtensionConstructor = class WebServerStepper implement
     serveFiles: {
       gwta: 'serve files from {loc}',
       action: async ({ loc }: TNamed) => {
-        // await WebServerStepper.checkListener(this.world.options, this.world.runtime[WEBSERVER]);
-        
         const ws: IWebServer = await this.world.runtime[WEBSERVER];
+        await ws.listen(8123);
         const error = await ws.addStaticFolder(loc);
         this.world.shared.set('file_location', loc);
 

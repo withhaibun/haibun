@@ -70,7 +70,8 @@ export class ServerExpress implements IWebServer {
     try {
       const alreadyMounted = this.checkMountBadOrMounted(mountAt, folder);
       if (alreadyMounted) {
-        return;
+        // FIXME
+        // return;
       }
     } catch (e: any) {
       return e.message;
