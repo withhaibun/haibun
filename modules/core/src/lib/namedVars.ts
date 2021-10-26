@@ -3,6 +3,7 @@ import { getStepShared } from './domain';
 
 const TYPE_QUOTED = 'q_';
 const TYPE_CREDENTIAL = 'c_';
+const TYPE_ENV = 'e_';
 const TYPE_VAR = 'b_';
 // from source or literal
 const TYPE_VAR_OR_LITERAL = 't_';
@@ -11,8 +12,9 @@ export const matchGroups = (num: number = 0) => {
   const q = `"(?<${TYPE_QUOTED}${num}>.+)"`; // quoted string
   const c = `<(?<${TYPE_CREDENTIAL}${num}>.+)>`; // credential
   const b = `\`(?<${TYPE_VAR}${num}>.+)\``; // var
+  const e = `\{(?<${TYPE_ENV}${num}>.+)\}`; // var
   const t = `(?<${TYPE_VAR_OR_LITERAL}${num}>.+)`; // var or literal
-  return `(${q}|${c}|${b}|${t})`;
+  return `(${q}|${c}|${e}|${b}|${t})`;
 };
 
 export const namedInterpolation = (inp: string, types: string[] = BASE_TYPES): { str: string; vars?: TNamedVar[] } => {
@@ -77,7 +79,7 @@ export function getNamedToVars({ named, vars }: TFound, world: TWorld) {
   let namedFromVars: TNamed = {};
   vars.forEach((v, i) => {
     const { name, type } = v;
-    
+
     const shared = getStepShared(type, world);
 
     const namedKey = Object.keys(named).find((c) => c.endsWith(`_${i}`) && named[c] !== undefined);
@@ -94,6 +96,13 @@ export function getNamedToVars({ named, vars }: TFound, world: TWorld) {
         throw Error(`no value for "${namedValue}" from ${JSON.stringify({ shared, type })}`);
       }
       namedFromVars[name] = shared.get(namedValue);
+    } else if (namedKey.startsWith(TYPE_ENV)) {
+      // FIXME add test
+      const val = process.env[namedValue];
+      if (!val) {
+        throw Error(`no env value for "${namedValue}" from ${JSON.stringify({ shared, type })}`);
+      }
+      namedFromVars[name] = val;
     } else if (namedKey.startsWith(TYPE_QUOTED)) {
       // quoted
       namedFromVars[name] = named[namedKey];
