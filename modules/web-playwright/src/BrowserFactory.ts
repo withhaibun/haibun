@@ -1,4 +1,4 @@
-import { TLogger } from '@haibun/core/build/lib/interfaces/logger';
+import { ILogger } from '@haibun/core/build/lib/interfaces/logger';
 import { Browser, BrowserContext, Page, chromium, firefox, webkit, BrowserType, devices } from 'playwright';
 
 export const BROWSERS: { [name: string]: BrowserType } = {
@@ -8,15 +8,19 @@ export const BROWSERS: { [name: string]: BrowserType } = {
 };
 
 export class BrowserFactory {
+  static browsers: { [name: string]: Browser } = {};
   browser!: Browser;
-  context!: BrowserContext;
+  static contexts: { [name: string]: BrowserContext } = {};
   pages: { [name: string]: Page } = {};
-  logger: TLogger;
+  logger: ILogger;
   browserType: BrowserType = chromium;
   device: string | undefined = undefined;
+  type: string = 'chromium';
+  headless: boolean = false;
 
-  constructor(logger: TLogger) {
+  constructor(logger: ILogger, headless: boolean) {
     this.logger = logger;
+    this.headless = headless;
   }
 
   setBrowserType(typeAndDevice: string) {
@@ -25,34 +29,43 @@ export class BrowserFactory {
       throw Error(`browserType not recognized ${type}`);
     }
     this.browserType = BROWSERS[type];
+    this.type = type;
     this.device = device;
   }
 
-  async getBrowser(): Promise<Browser> {
-    if (!this.browser) {
-      this.logger.info('launching new browser');
-
-      this.browser = await this.browserType.launch({ headless: false });
+  async getBrowser(type: string): Promise<Browser> {
+    if (!BrowserFactory.browsers[type]) {
+      BrowserFactory.browsers[type] = await this.browserType.launch({ headless: this.headless });
+      this.logger.info(`launched new ${type} browser`);
     }
-    return this.browser;
+    return BrowserFactory.browsers[type];
   }
 
-  async getContext(): Promise<BrowserContext> {
-    if (!this.context) {
-      const browser = await this.getBrowser();
+  async getContext(ctx: string): Promise<BrowserContext> {
+    if (!BrowserFactory.contexts[ctx]) {
+      const browser = await this.getBrowser(this.type);
       this.logger.info('creating new context');
       const context = this.device ? { ...devices[this.device] } : {};
-      this.context = await browser.newContext(context);
+      BrowserFactory.contexts[ctx] = await browser.newContext(context);
+      // BrowserFactory.contexts[ctx].setDefaultTimeout(900)
     }
-    return this.context;
+    return BrowserFactory.contexts[ctx];
   }
-  async getPage(ctx: string = '_DEFAULT_CONTEXT'): Promise<Page> {
+
+
+  async closeContext(ctx: string) {
+    if (BrowserFactory.contexts[ctx]) {
+      BrowserFactory.contexts[ctx].close();
+    }
+  }
+
+  async getPage(ctx: string): Promise<Page> {
     if (this.pages[ctx]) {
       return this.pages[ctx];
     }
     this.logger.info(`creating new page for ${ctx}`);
 
-    const context = await this.getContext();
+    const context = await this.getContext(ctx);
     const page = await context.newPage();
     this.pages[ctx] = page;
     return page;

@@ -163,6 +163,7 @@ export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve
 export function getDefaultWorld(): { world: TWorld } {
   return {
     world: {
+      tag: '_default',
       shared: new WorldContext('default'),
       logger: new Logger(process.env.HAIBUN_LOG_LEVEL ? { level: process.env.HAIBUN_LOG_LEVEL } : LOGGER_NONE),
       runtime: {},
@@ -176,9 +177,10 @@ type TEnv = { [name: string]: string | undefined };
 
 export function processEnv(env: TEnv, options: TOptions) {
   const protoOptions: TProtoOptions = { options: { ...options }, extraOptions: {} };
-  let splits: { [name: string]: string }[] = [{}];
   let errors: string[] = [];
   const pfx = `${HAIBUN}_`;
+  const setIntOrError = (val: any, what: string) => val.match(/[^\d+]/) ? errors.push(`${what}: integer`) : protoOptions.options[what.toLowerCase()] = parseInt(val, 10);
+  
   Object.entries(env)
     .filter(([k]) => k.startsWith(pfx))
     .map(([k]) => {
@@ -191,21 +193,23 @@ export function processEnv(env: TEnv, options: TOptions) {
         if (!s) {
           errors.push(`  ${pfx}SPLIT_SHARED=var=option1,option2`);
         } else {
-          splits = s.split(',').map((w: string) => ({ [what]: w }));
+          protoOptions.options.splits = s.split(',').map((w: string) => ({ [what]: w }));
         }
-      } else if (opt === 'STEP_DELAY') {
-        protoOptions.options.step_delay = parseInt(value!, 10);
+      } else if (['STEP_DELAY', 'LOOPS', 'MEMBERS'].includes(opt)) {
+        setIntOrError(value, opt);
       } else if (opt === 'CLI') {
         protoOptions.options.cli = true;
       } else if (opt === 'STAY') {
-        protoOptions.options.stay = value!;
+        protoOptions.options.stay = value;
+      } else if (opt === 'LOG_FOLLOW') {
+        protoOptions.options.logFollow = value;
       } else if (opt === 'LOG_LEVEL') {
+        protoOptions.options.logLevel = value;
       } else {
         protoOptions.extraOptions[k] = value!;
       }
     });
-
-  return { splits, protoOptions, errors };
+  return { protoOptions, errors };
 }
 
 // has side effects
@@ -215,7 +219,8 @@ export function applyExtraOptions(protoOptions: TProtoOptions, steppers: ISteppe
   }
   Object.entries(protoOptions.extraOptions).map(([k, v]) => {
     const conc = getStepperOptions(k, v!, steppers);
-    if (!conc) {
+    
+    if (conc === undefined) {
       throw Error(`no option ${k}`);
     }
     delete protoOptions.extraOptions[k];
@@ -230,11 +235,11 @@ export function applyExtraOptions(protoOptions: TProtoOptions, steppers: ISteppe
 function getPre(stepper: IStepper) {
   return ['HAIBUN', 'O', (stepper as any as IExtensionConstructor).constructor.name.toUpperCase()].join('_') + '_';
 }
-
 export function getStepperOptions(key: string, value: string, steppers: (IStepper & IHasOptions)[]): TOptionValue | void {
   for (const stepper of steppers) {
     const pre = getPre(stepper);
     const int = key.replace(pre, '');
+    
     if (key.startsWith(pre) && stepper.options![int]) {
       return stepper.options![int].parse(value);
     }
