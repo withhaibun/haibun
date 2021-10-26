@@ -3,7 +3,7 @@ import { Page } from 'playwright';
 import { IHasOptions, IStepper, IExtensionConstructor, OK, TWorld, TNamed, TVStep, IRequireDomains } from '@haibun/core/build/lib/defs';
 import { onCurrentTypeForDomain } from '@haibun/core/build/steps/vars';
 import { BrowserFactory } from './BrowserFactory';
-import { actionNotOK, ensureDirectory } from '@haibun/core/build/lib/util';
+import { actionNotOK, ensureDirectory, getStepperOption } from '@haibun/core/build/lib/util';
 import { webPage, webControl } from '@haibun/domain-webpage/build/domain-webpage';
 
 declare var window: any;
@@ -11,22 +11,36 @@ declare var window: any;
 const WebPlaywright: IExtensionConstructor = class WebPlaywright implements IStepper, IHasOptions, IRequireDomains {
   requireDomains = [webPage, webControl];
   options = {
+    HEADLESS: {
+      desc: 'run browsers without a window (true or false)',
+      parse: (input: string) => input === 'true',
+    },
     STEP_CAPTURE: {
       desc: 'capture screenshot for every step',
       parse: (input: string) => true,
     },
   };
-  bf: BrowserFactory;
+  static hasFactory: boolean = false;
+  static bf: BrowserFactory | undefined = undefined;
   world: TWorld;
+  headless: boolean = false;
 
   constructor(world: TWorld) {
     this.world = world;
-    this.bf = new BrowserFactory(world.logger);
+  }
+
+  async getBrowserFactory(): Promise<BrowserFactory> {
+    if (!WebPlaywright.hasFactory) {
+      const headless = getStepperOption(this, 'HEADLESS', this.world.options);
+      WebPlaywright.bf = new BrowserFactory(this.world.logger, headless);
+      WebPlaywright.hasFactory = true;
+    }
+    return WebPlaywright.bf!;
   }
 
   async getPage() {
     if (!this.world.runtime.page) {
-      this.world.runtime.page = await this.bf.getPage();
+      this.world.runtime.page = await (await this.getBrowserFactory()).getPage(this.world.tag);
     }
     return this.world.runtime.page;
   }
@@ -36,17 +50,31 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
     return await f(page);
   }
 
-  setBrowser(browser: string) {
+  async setBrowser(browser: string) {
     try {
-      this.bf.setBrowserType(browser);
+      (await this.getBrowserFactory()).setBrowserType(browser);
+
       return OK;
     } catch (e: any) {
-      return actionNotOK(e.message);
+      return actionNotOK(e.message, { topics: { error: e } });
     }
   }
 
-  close() {
-    this.bf.browser?.close();
+  async close() {
+    // close the context, which closes any pages
+    if (WebPlaywright.hasFactory) {
+      await WebPlaywright.bf!.closeContext(this.world.tag);
+      return;
+    }
+  }
+
+  // FIXME
+  async finish() {
+    if (WebPlaywright.hasFactory) {
+      (await this.getBrowserFactory()).browser?.close();
+      WebPlaywright.bf = undefined;
+      WebPlaywright.hasFactory = false;
+    }
   }
 
   steps = {
@@ -174,7 +202,7 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
     onPage: {
       gwta: `On the {name} ${webPage}`,
       action: async ({ name }: TNamed, vstep: TVStep) => {
-        const location = onCurrentTypeForDomain({ name, type: webPage }, this.world);
+        const location = name.includes('://') ? name : onCurrentTypeForDomain({ name, type: webPage }, this.world);
 
         const response = await this.withPage(async (page: Page) => await page.goto(location));
         return response?.ok ? OK : actionNotOK(`response not ok`);
@@ -208,7 +236,7 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
     //                          BROWSER
     usingBrowser: {
       gwta: 'using (?<browser>[^`].+[^`]) browser',
-      action: async ({ browser }: TNamed) => this.setBrowser(browser),
+      action: async ({ browser }: TNamed) => await this.setBrowser(browser),
     },
     usingBrowserVar: {
       gwta: 'using {browser} browser',

@@ -24,6 +24,7 @@ export class Executor {
       ok = ok && featureResult.ok;
       featureResults.push(featureResult);
     }
+    this.close();
     return { ok, results: featureResults };
   }
 
@@ -41,7 +42,7 @@ export class Executor {
       ok = ok && result.ok;
       const topics: TActionResultTopics = result.actionResults.reduce<TActionResultTopics>((all, a) => ({ ...all, ...a.topics }), {});
 
-      this.world.logger.log(ok, { stage: 'Executor', seq, result });
+      this.world.logger.log(ok, { topic: { stage: 'Executor', seq, result } });
       stepResults.push(result);
       if (!ok) {
         break;
