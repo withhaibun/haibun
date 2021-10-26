@@ -31,7 +31,7 @@ export const getStepShared = (type: string, world: TWorld): Context => {
 
   let currentSource = fromSource.shared.get(current);
   if (!currentSource) {
-    console.log('\ncreating', type, isFrom, current, 'ws', world.shared);
+    // console.log('\ncreating', type, isFrom, current, 'ws', world.shared);
     currentSource = fromSource.shared.createPath(current);
     
     // throw Error(`no current ${current} shared for "${isFrom}", ${currentSource}}`);
@@ -43,6 +43,7 @@ export const getDomain = (domain: string, world: TWorld) => world.domains.find((
 
 export const applyDomainsOrError = (steppers: IStepper[], world: TWorld) => {
   // verify no duplicates
+  
   for (const module of steppers.filter((s) => !!(<IHasDomains>(s as unknown)).domains).map((s) => <IHasDomains>(s as unknown))) {
     const { domains } = module;
     if (domains) {

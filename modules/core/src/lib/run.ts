@@ -1,5 +1,5 @@
 import { existsSync } from 'fs';
-import { TSpecl, IStepper, IExtensionConstructor, TResult, TWorld, TProtoOptions, TFeature } from './defs';
+import { TSpecl, IStepper, IExtensionConstructor, TResult, TWorld, TProtoOptions, TFeature, TNotOKActionResult } from './defs';
 import { expand } from './features';
 import { Executor } from '../phases/Executor';
 import { Resolver } from '../phases/Resolver';
@@ -87,7 +87,9 @@ export async function runWith({
   const executor = new Executor(steppers, world);
   const result = await executor.execute(mappedValidatedSteps);
   if (!result.ok) {
-    result.failure = { stage: 'Execute', error: { message: '!!FIXME', details: { errors: result.results?.filter((r) => !r.ok).map((r) => r.path) } } };
+    const message = (result.results![0].stepResults.find(s => !s.ok)?.actionResults[0] as TNotOKActionResult).message;
+
+    result.failure = { stage: 'Execute', error: { message, details: { errors: result.results?.filter((r) => !r.ok).map((r) => r.path) } } };
   }
   return { result, steppers };
 }

@@ -1,30 +1,40 @@
 import { statSync, existsSync } from 'fs';
 import express, { RequestHandler } from 'express';
 
-import { IWebServer, TRouteType } from '@haibun/core/build/lib/interfaces/webserver';
-import { TLogger } from '@haibun/core/src/lib/interfaces/logger';
+import { IWebServer, TRouteType } from './defs';
+import { ILogger } from '@haibun/core/src/lib/interfaces/logger';
 
 export const DEFAULT_PORT = 8123;
 
 export class ServerExpress implements IWebServer {
-  logger: TLogger;
-  static listener: any;
-  static app = express();
+  logger: ILogger;
+  static listening: boolean = false;
+  listener: any;
+  app = express();
   static mounted: { [named: string]: string } = {};
   base: string;
   port: number;
-  constructor(logger: TLogger, base: string, port: number = DEFAULT_PORT) {
+  constructor(logger: ILogger, base: string, port: number = DEFAULT_PORT) {
     this.logger = logger;
     this.base = base;
     this.port = port;
   }
 
-  async listening() {
-    if (!ServerExpress.listener) {
-      ServerExpress.listener = await ServerExpress.app.listen(this.port, '0.0.0.0', () => this.logger.log(`Server listening on port: ${this.port}`));
+  async listen(): Promise<IWebServer> {
+    if (!ServerExpress.listening) {
+      try {
+        ServerExpress.listening = true
+
+        this.listener = await this.app.listen(this.port, () => this.logger.log(`Server listening on port: ${this.port}`));
+
+        this.logger.log('express listening');
+      } catch (e) {
+        console.error(e);
+      }
     } else {
-      this.logger.log('express already started');
+      this.logger.log('express already listening');
     }
+    return this as IWebServer;
   }
 
   async addRoute(type: TRouteType, path: string, route: RequestHandler) {
@@ -38,8 +48,8 @@ export class ServerExpress implements IWebServer {
     }
     this.logger.log(`serving route from ${path}`);
 
-    await ServerExpress.app[type](path, route);
-    await this.listening();
+    await this.app[type](path, route);
+    await this.listen();
   }
 
   // add a static folder restricted to relative paths from files
@@ -60,7 +70,8 @@ export class ServerExpress implements IWebServer {
     try {
       const alreadyMounted = this.checkMountBadOrMounted(mountAt, folder);
       if (alreadyMounted) {
-        return;
+        // FIXME
+        // return;
       }
     } catch (e: any) {
       return e.message;
@@ -75,14 +86,14 @@ export class ServerExpress implements IWebServer {
 
     ServerExpress.mounted[mountAt] = folder;
     this.logger.info(`serving files from ${folder} at ${mountAt}`);
-    await ServerExpress.app.use(mountAt, express.static(folder));
-    await this.listening();
+    await this.app.use(mountAt, express.static(folder));
+    await this.listen();
     return;
   }
 
   checkMountBadOrMounted(loc: string, what: string): boolean {
-    if (!ServerExpress.listener) {
-      throw Error(`listening must be called before mount`);
+    if (!ServerExpress.listening) {
+      throw Error(`listen must be called before mount`);
     }
     if (!loc) {
       throw Error(`missing mount location`);
@@ -100,6 +111,6 @@ export class ServerExpress implements IWebServer {
 
   async close() {
     this.logger.info('closing server');
-    await ServerExpress.listener?.close();
+    await this.listener?.close();
   }
 }
