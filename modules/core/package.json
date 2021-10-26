@@ -1,6 +1,6 @@
 {
   "name": "@haibun/core",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "",
   "author": "",
   "main": "build/index.js",
