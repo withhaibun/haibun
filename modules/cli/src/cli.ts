@@ -9,7 +9,6 @@ import { run } from '@haibun/core/build/lib/run';
 import { getOptionsOrDefault, processEnv, resultOutput } from '@haibun/core/build/lib/util';
 import { ILogOutput } from '@haibun/core/build/lib/interfaces/logger';
 import { ranResultError, usageThenExit } from './lib';
-import { stringify } from 'querystring';
 
 export type TRunResult = { output: any, result: TResult, shared: WorldContext, tag: string, runStart: number, runDuration: number, fromStart: number };
 
