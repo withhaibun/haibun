@@ -51,8 +51,6 @@ export async function runWith({
   try {
     applyExtraOptions(protoOptions, steppers, world);
   } catch (error: any) {
-    console.log('e', error);
-    
     return { result: { ok: false, failure: { stage: 'Options', error: { message: error.message, details: error } } } };
   }
 
@@ -90,7 +88,7 @@ export async function runWith({
   const result = await executor.execute(mappedValidatedSteps);
   if (!result.ok) {
     const message = (result.results![0].stepResults.find(s => !s.ok)?.actionResults[0] as TNotOKActionResult).message;
-    
+
     result.failure = { stage: 'Execute', error: { message, details: { errors: result.results?.filter((r) => !r.ok).map((r) => r.path) } } };
   }
   return { result, steppers };

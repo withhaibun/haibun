@@ -31,7 +31,7 @@ export const getStepShared = (type: string, world: TWorld): Context => {
 
   let currentSource = fromSource.shared.get(current);
   if (!currentSource) {
-    console.log('\ncreating', type, isFrom, current, 'ws', world.shared);
+    // console.log('\ncreating', type, isFrom, current, 'ws', world.shared);
     currentSource = fromSource.shared.createPath(current);
     
     // throw Error(`no current ${current} shared for "${isFrom}", ${currentSource}}`);
