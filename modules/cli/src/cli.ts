@@ -102,7 +102,8 @@ async function go() {
     }
   }
   const runTime = process.hrtime(startTime)[0];
-  console.log('\nRESULT>>>', { ok, startDate, startTime: startDate.getTime(), passed, failed, totalRan, runTime, 'features/s:': totalRan / runTime }, allFailures);
+  console.log({allFailures});
+  console.log('\nRESULT>>>', { ok, startDate, startTime: startDate.getTime(), passed, failed, totalRan, runTime, 'features/s:': totalRan / runTime });
 
   if (ok && exceptionResults.length < 1 && protoOptions.options.stay !== 'always') {
     process.exit(0);
