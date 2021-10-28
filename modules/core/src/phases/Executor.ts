@@ -1,4 +1,3 @@
-import { threadId } from 'worker_threads';
 import { IStepper, TVStep, TResolvedFeature, TResult, TStepResult, TFeatureResult, TActionResult, TWorld, TActionResultTopics } from '../lib/defs';
 import { getNamedToVars } from '../lib/namedVars';
 import { actionNotOK, applyResShouldContinue, sleep } from '../lib/util';
@@ -19,12 +18,13 @@ export class Executor {
     this.world.shared.values._features = features;
     this.world.shared.values._scored = [];
     for (const feature of features) {
-      this.world.logger.log(`feature: ${feature.path}`);
+      this.world.logger.log(`*** feature: ${feature.path}`);
       const featureResult = await this.doFeature(feature);
       ok = ok && featureResult.ok;
       featureResults.push(featureResult);
+      await this.nextFeature();
     }
-    this.close();
+    await this.close();
     return { ok, results: featureResults };
   }
 
@@ -76,6 +76,14 @@ export class Executor {
     return { ok, in: vstep.in, actionResults, seq: vstep.seq };
   }
 
+  async nextFeature() {
+    for (const s of this.steppers) {
+      if (s.nextFeature) {
+        this.world.logger.info(`closing ${s.constructor.name}`);
+        await s.nextFeature();
+      }
+    }
+  }
   async close() {
     for (const s of this.steppers) {
       if (s.close) {
