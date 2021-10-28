@@ -99,7 +99,6 @@ export function getNamedToVars({ named, vars }: TFound, world: TWorld) {
     } else if (namedKey.startsWith(TYPE_ENV)) {
       // FIXME add test
       const val = world.options.env[namedValue];
-      console.log('v', val);
       
       if (val === undefined) {
         throw Error(`no env value for "${namedValue}" from ${JSON.stringify({ shared, type })}`);
@@ -110,8 +109,6 @@ export function getNamedToVars({ named, vars }: TFound, world: TWorld) {
         if (index > val.length - 1) {
           index = 0;
         }
-        console.log('ww', val[index], index);
-        
         world.options[`_index_${namedValue}`] = index;
 
         namedFromVars[name] = val[index];
