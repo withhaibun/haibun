@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync } from 'fs';
 import path from 'path';
+import { hasUncaughtExceptionCaptureCallback } from 'process';
 import { WorldContext } from './contexts';
 
 import {
@@ -176,11 +177,12 @@ export function getDefaultWorld(): { world: TWorld } {
 type TEnv = { [name: string]: string | undefined };
 
 export function processEnv(env: TEnv, options: TOptions) {
-  const protoOptions: TProtoOptions = { options: { ...options }, extraOptions: {} };
+  const protoOptions: TProtoOptions = { options: { ...options, env: {} }, extraOptions: {} };
   let errors: string[] = [];
   const pfx = `${HAIBUN}_`;
   const setIntOrError = (val: any, what: string) => val.match(/[^\d+]/) ? errors.push(`${what}: integer`) : protoOptions.options[what.toLowerCase()] = parseInt(val, 10);
-  
+
+
   Object.entries(env)
     .filter(([k]) => k.startsWith(pfx))
     .map(([k]) => {
@@ -205,11 +207,38 @@ export function processEnv(env: TEnv, options: TOptions) {
         protoOptions.options.logFollow = value;
       } else if (opt === 'LOG_LEVEL') {
         protoOptions.options.logLevel = value;
+      } else if (opt === 'ENV') {
+        const pairs = value?.split(',');
+        for (const pair in pairs) {
+          const [k, v] = pair.split(',').map(i => i.trim());
+          if (protoOptions.options.env[k]) {
+            throw Error(`ENV ${k} already exists`);
+          }
+          protoOptions.options.env[k] = v;
+        }
+      } else if (opt === 'ENVC') {
+        applyEnvCollections(value!, protoOptions);
       } else {
         protoOptions.extraOptions[k] = value!;
       }
     });
   return { protoOptions, errors };
+}
+
+export function applyEnvCollections(value: string, protoOptions: TProtoOptions) {
+  const pairs = new Set(value?.split(',').map(a => a.split('=')[0]));
+
+  for (const pair of pairs) {
+    const [k] = Array.from(new Set(pair.split('=')));
+    if (protoOptions.options.env[k]) {
+      throw Error(`ENVC ${k} already exists`);
+    }
+    protoOptions.options.env[k] = [];
+  }
+  for (const pair of value?.split(',')) {
+    const [k, v] = pair.split('=');
+    protoOptions.options.env[k].push(v);
+  }
 }
 
 // has side effects
@@ -219,7 +248,7 @@ export function applyExtraOptions(protoOptions: TProtoOptions, steppers: ISteppe
   }
   Object.entries(protoOptions.extraOptions).map(([k, v]) => {
     const conc = getStepperOptions(k, v!, steppers);
-    
+
     if (conc === undefined) {
       throw Error(`no option ${k}`);
     }
@@ -239,7 +268,7 @@ export function getStepperOptions(key: string, value: string, steppers: (ISteppe
   for (const stepper of steppers) {
     const pre = getPre(stepper);
     const int = key.replace(pre, '');
-    
+
     if (key.startsWith(pre) && stepper.options![int]) {
       return stepper.options![int].parse(value);
     }

@@ -80,3 +80,19 @@ describe('getType', () => {
     expect(withNameType('file.feature', '').type).toBe('feature');
   })
 })
+
+describe('applyEnvCollections', () => {
+  it('creates pairs', () => {
+    const p = { options: { env: {} }, extraOptions: {} };
+    util.applyEnvCollections('a=1,b=2,a=3,b=4', p);
+
+    expect(p.options.env).toEqual({
+      a: ["1", "3"],
+      b: ["2", "4"]
+    });
+  });
+  it('prevents collision', () => {
+    const p = { options: { env: { a: 1 } }, extraOptions: {} };
+    expect(() => util.applyEnvCollections('a=1', p)).toThrow();
+  })
+})

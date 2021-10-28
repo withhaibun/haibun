@@ -114,7 +114,7 @@ export async function testWithDefaults(these: { path: string, content: string }[
     world.options = options;
   }
   const features = asFeatures(these);
-  return await runWith({ specl, features, backgrounds: [], addSteppers, world });
+  return { world, ...await runWith({ specl, features, backgrounds: [], addSteppers, world }) };
 }
 
 export async function testRun(baseIn: string, addSteppers: IExtensionConstructor[], world: TWorld, protoOptions?: TProtoOptions) {
