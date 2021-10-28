@@ -91,3 +91,6 @@ describe('getNamedWithVars', () => {
     expect(val?.what).toBe('res');
   });
 });
+
+describe('getEnv', () => {
+});
