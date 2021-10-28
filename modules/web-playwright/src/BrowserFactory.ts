@@ -64,6 +64,7 @@ export class BrowserFactory {
 
   async closeContexts() {
     for (const c in BrowserFactory.contexts) {
+      await BrowserFactory.contexts[c].clearCookies();
       await this.closeContext(c);
     }
   }
