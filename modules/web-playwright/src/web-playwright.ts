@@ -39,10 +39,8 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
   }
 
   async getPage() {
-    if (!this.world.runtime.page) {
-      this.world.runtime.page = await (await this.getBrowserFactory()).getPage(this.world.tag);
-    }
-    return this.world.runtime.page;
+    const page = await (await this.getBrowserFactory()).getPage(this.world.tag);
+    return page;
   }
 
   async withPage(f: any) {
@@ -60,7 +58,18 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
     }
   }
 
+  async nextFeature() {
+    console.log('\n\nnextFeature context');
+
+    // close the context, which closes any pages
+    if (WebPlaywright.hasFactory) {
+      await WebPlaywright.bf!.closeContexts();
+      return;
+    }
+  }
   async close() {
+    console.log('\n\nclose context');
+
     // close the context, which closes any pages
     if (WebPlaywright.hasFactory) {
       await WebPlaywright.bf!.closeContext(this.world.tag);
