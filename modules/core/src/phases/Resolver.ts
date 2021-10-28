@@ -40,7 +40,7 @@ export class Resolver {
       if (actions.length > 1) {
         throw Error(`more than one step found for "${featureLine.line}" ${JSON.stringify(actions.map(a => a.name))}`);
       } else if (actions.length < 1 && this.mode !== 'some') {
-        throw Error(`no step found for ${featureLine.line} from ${describeSteppers(this.steppers)}`);
+        throw Error(`no step found for ${featureLine.line} in ${feature.path} from ${describeSteppers(this.steppers)}`);
       }
 
       return { source: featureLine.feature, in: featureLine.line, seq, actions };
