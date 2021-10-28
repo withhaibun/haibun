@@ -67,9 +67,9 @@ const vars: IExtensionConstructor = class Vars implements IStepper {
       },
     },
     display: {
-      gwta: 'display (?<what>.+)',
+      gwta: 'display {what}',
       action: async ({ what }: TNamed) => {
-        this.world.logger.log(`${what} is ${this.world.shared.get(what)}`);
+        this.world.logger.log(`is ${what}`);
 
         return OK;
       },

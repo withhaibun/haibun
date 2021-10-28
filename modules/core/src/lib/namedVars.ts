@@ -98,11 +98,26 @@ export function getNamedToVars({ named, vars }: TFound, world: TWorld) {
       namedFromVars[name] = shared.get(namedValue);
     } else if (namedKey.startsWith(TYPE_ENV)) {
       // FIXME add test
-      const val = process.env[namedValue];
-      if (!val) {
+      const val = world.options.env[namedValue];
+      console.log('v', val);
+      
+      if (val === undefined) {
         throw Error(`no env value for "${namedValue}" from ${JSON.stringify({ shared, type })}`);
       }
-      namedFromVars[name] = val;
+      if (Array.isArray(val)) {
+        let index = world.options[`_index_${namedValue}`] === undefined ? val.length - 1 : world.options[`_index_${namedValue}`];
+        index++;
+        if (index > val.length - 1) {
+          index = 0;
+        }
+        console.log('ww', val[index], index);
+        
+        world.options[`_index_${namedValue}`] = index;
+
+        namedFromVars[name] = val[index];
+      } else {
+        namedFromVars[name] = val;
+      }
     } else if (namedKey.startsWith(TYPE_QUOTED)) {
       // quoted
       namedFromVars[name] = named[namedKey];
