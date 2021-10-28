@@ -52,15 +52,24 @@ export class BrowserFactory {
     return BrowserFactory.contexts[ctx];
   }
 
-
   async closeContext(ctx: string) {
     if (BrowserFactory.contexts[ctx]) {
-      BrowserFactory.contexts[ctx].close();
+      await BrowserFactory.contexts[ctx].close();
+      delete BrowserFactory.contexts[ctx];
+      delete this.pages[ctx]; 
+      console.log('xx', ctx);
+      
+    }
+  }
+
+  async closeContexts() {
+    for (const c in BrowserFactory.contexts) {
+      await this.closeContext(c);
     }
   }
 
   async getPage(ctx: string): Promise<Page> {
-    if (this.pages[ctx]) {
+    if ((await this.getContext(ctx)) && this.pages[ctx]) {
       return this.pages[ctx];
     }
     this.logger.info(`creating new page for ${ctx}`);
