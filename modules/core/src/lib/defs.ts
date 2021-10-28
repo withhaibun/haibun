@@ -127,6 +127,7 @@ export type TStep = {
 export interface IExtension {
   world?: TWorld;
   close?(): void;
+  nextFeature?(): void;
 }
 
 export interface IStepper extends IExtension {
