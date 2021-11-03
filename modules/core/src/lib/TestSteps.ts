@@ -1,10 +1,11 @@
-import { IStepper, IExtensionConstructor, IHasOptions, TWorld, TVStep, TProtoOptions, TNamed, IHasDomains, TExpandedLine, TFeature, TOptions } from './defs';
+import { IStepper, IExtensionConstructor, IHasOptions, TWorld, TVStep, TProtoOptions, TNamed, IHasDomains, TExpandedLine, TOptions } from './defs';
 import { Resolver } from '../phases/Resolver';
 import { run, runWith } from './run';
-import { actionNotOK, actionOK, getDefaultWorld, getOptionsOrDefault, getStepperOption, getSteppers } from './util';
-import { WorkspaceContext } from './contexts';
+import { actionNotOK, actionOK, getOptionsOrDefault, getStepperOption, getSteppers } from './util';
+import { WorkspaceContext, WorldContext } from './contexts';
 import { featureSplit, withNameType } from './features';
 import { applyDomainsOrError } from './domain';
+import Logger, { loggerTag, LOGGER_NONE } from './Logger';
 
 export const TestSteps: IExtensionConstructor = class TestSteps implements IStepper {
   world: TWorld;
@@ -109,7 +110,7 @@ export async function getTestEnv(useSteppers: string[], test: string, world: TWo
 export async function testWithDefaults(these: { path: string, content: string }[], addSteppers: IExtensionConstructor[], options?: TOptions) {
   const specl = getOptionsOrDefault();
 
-  const { world } = getDefaultWorld();
+  const { world } = getDefaultWorld(0);
   if (options) {
     world.options = options;
   }
@@ -136,3 +137,20 @@ export const asExpandedFeatures = (w: { path: string; content: string }[]) =>
     // a.featureLine = asFeatureLine()
     return a;
   });
+
+export function getDefaultWorld(sequence: number): { world: TWorld; } {
+  return {
+    world: {
+      tag: { sequence: 0, loop: 0, member: 0 },
+      shared: new WorldContext(getDefaultTag(sequence)),
+      logger: new Logger(process.env.HAIBUN_LOG_LEVEL ? { level: process.env.HAIBUN_LOG_LEVEL } : LOGGER_NONE),
+      runtime: {},
+      options: {},
+      domains: [],
+    },
+  };
+}
+
+export function getDefaultTag(sequence: number, desc: string | undefined = undefined) {
+  return loggerTag(sequence, 0, 0, desc ? { desc } : undefined);
+}

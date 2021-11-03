@@ -1,6 +1,6 @@
 import { IStepper, OK, TResolvedFeature } from '../lib/defs';
 import { asExpandedFeatures } from '../lib/TestSteps';
-import { getDefaultWorld } from '../lib/util';
+import { getDefaultWorld } from '../lib/TestSteps';
 import { Resolver } from './Resolver';
 
 describe('validate map steps', () => {
@@ -28,7 +28,7 @@ describe('validate map steps', () => {
   const steppers: IStepper[] = [new TestStepper()];
   const getResolver = () =>
     new Resolver(steppers, '', {
-      ...getDefaultWorld().world,
+      ...getDefaultWorld(0).world,
     });
   describe('exact', () => {
     test('exact', async () => {

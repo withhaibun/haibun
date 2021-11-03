@@ -1,5 +1,6 @@
 import { ILogOutput, TEST_RESULT, TMessageContext } from './interfaces/logger';
-import Logger, { loggerTag, LOGGER_LEVELS } from './Logger';
+import Logger, { LOGGER_LEVELS } from './Logger';
+import { getDefaultTag } from './TestSteps';
 
 describe('log levels', () => {
   test('logs none with none', () => {
@@ -11,14 +12,6 @@ describe('log levels', () => {
   });
   test('does not log debug with log', () => {
     expect(Logger.shouldLogLevel(LOGGER_LEVELS['log'], 'debug')).toBe(false);
-  });
-});
-describe('log follow', () => {
-  test('logs follow', () => {
-    expect(Logger.shouldLogFollow('-m[1-3]', loggerTag(1, 2, {}))).toBe(true);
-  });
-  test('log does not follow', () => {
-    expect(Logger.shouldLogFollow('-m[1-3]', loggerTag(1, 5, {}))).toBe(false);
   });
 });
 
@@ -45,7 +38,7 @@ describe('logger with output', () => {
         done();
       },
     };
-    const dlogger = new Logger({ output, tag: 'current' });
+    const dlogger = new Logger({ output, tag: getDefaultTag(0) });
 
     dlogger.log('test');
   });

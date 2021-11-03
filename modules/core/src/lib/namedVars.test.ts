@@ -1,7 +1,8 @@
 import { IStepper, OK, TResolvedFeature, TStep } from './defs';
 import { getNamedMatches, namedInterpolation, matchGroups, getNamedToVars } from './namedVars';
 import { Resolver } from '../phases/Resolver';
-import { actionNotOK, getDefaultWorld } from './util';
+import { actionNotOK } from './util';
+import { getDefaultWorld } from './TestSteps';
 import { asExpandedFeatures } from './TestSteps';
 import { withNameType } from './features';
 
@@ -79,7 +80,7 @@ describe('getNamedWithVars', () => {
     };
   }
   const steppers: IStepper[] = [new TestStepper()];
-  const { world } = getDefaultWorld();
+  const { world } = getDefaultWorld(0);
   const resolver = new Resolver(steppers, '', world);
   world.shared.set('exact', 'res');
   test('gets var', async () => {

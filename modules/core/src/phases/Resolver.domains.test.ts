@@ -2,7 +2,7 @@ import { DomainContext, WorldContext } from '../lib/contexts';
 import { IHasDomains, IStepper, OK, TFeatures, TFileTypeDomain } from '../lib/defs';
 import { withNameType } from '../lib/features';
 import { asExpandedFeatures } from '../lib/TestSteps';
-import { getDefaultWorld } from '../lib/util';
+import { getDefaultWorld } from '../lib/TestSteps';
 import { Resolver } from './Resolver';
 
 describe('validate map steps', () => {

@@ -1,3 +1,4 @@
+import { TTag } from './defs';
 import { ILogger, ILogOutput, TLogLevel, TMessageContext } from './interfaces/logger';
 
 export const LOGGER_LOG = { level: 'log' };
@@ -14,7 +15,7 @@ export const LOGGER_LEVELS = {
 };
 
 type TLevel = { level: string, follow?: string };
-type TOutputEnv = { output: ILogOutput, tag: string };
+type TOutputEnv = { output: ILogOutput, tag: TTag };
 type TConf = TLevel | TOutputEnv;
 
 export default class Logger implements ILogger, ILogOutput {
@@ -39,11 +40,11 @@ export default class Logger implements ILogger, ILogOutput {
   static shouldLogLevel(level: number, name: TLogLevel) {
     return LOGGER_LEVELS[name] >= level;
   }
-  static shouldLogFollow(match: string, tag: string) {
+  static shouldLogFollow(match: string, tag: TTag) {
     if (!match || !tag) {
       return true;
     }
-    const res = new RegExp(match).test(tag)
+    const res = new RegExp(match).test(`${tag.sequence}`)
     return res;
   }
   out(level: TLogLevel, args: any, messageContext?: TMessageContext) {
@@ -70,4 +71,4 @@ export default class Logger implements ILogger, ILogOutput {
   error = (args: any, mctx?: TMessageContext) => this.out('error', args, mctx);
 }
 
-export const loggerTag = (loop: number, member: number, env: any) => `@-l${loop}-m${member}-s${env}`;
+export const loggerTag = (sequence: number, loop: number, member: number, params: any, trace: boolean = false) => ({ sequence, loop, member, params, traceFile: trace ? `trace/${loop}x${member}/` : undefined });

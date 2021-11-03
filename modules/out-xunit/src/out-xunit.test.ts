@@ -1,11 +1,8 @@
 const { convert } = require("xmlbuilder2");
 
 import OutXUnit from "./out-xunit";
-import { testRun, TestSteps } from "@haibun/core/build/lib/TestSteps";
-import {
-  getDefaultWorld,
-  resultOutput,
-} from "@haibun/core/build/lib/util";
+import { testRun, TestSteps, getDefaultWorld } from "@haibun/core/build/lib/TestSteps";
+import { resultOutput, } from "@haibun/core/build/lib/util";
 
 const ox = [process.cwd(), "build", "out-xunit"].join("/");
 
@@ -14,7 +11,7 @@ describe("AsXML transforms", () => {
     const { result } = await testRun(
       "/test/self-contained",
       [TestSteps],
-      getDefaultWorld().world
+      getDefaultWorld(0).world
     );
 
     expect(result.ok).toBe(true);
@@ -30,7 +27,7 @@ describe("AsXML transforms", () => {
     const { result } = await testRun(
       "/test/multiple",
       [TestSteps],
-      getDefaultWorld().world
+      getDefaultWorld(0).world
     );
 
     expect(result.ok).toBe(false);
@@ -47,7 +44,7 @@ describe("AsXML transforms", () => {
 });
 
 it("run AsXUnit", async () => {
-  const { world } = getDefaultWorld();
+  const { world } = getDefaultWorld(0);
   const { result } = await testRun("/test/output-asXunit", [TestSteps], world);
 
   expect(result.ok).toBe(false);

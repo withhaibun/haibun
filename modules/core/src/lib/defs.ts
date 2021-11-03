@@ -57,7 +57,7 @@ export type TModuleDomain = TDomain & {
 };
 
 export type TWorld = {
-  tag: string;
+  tag: TTag;
   shared: WorldContext;
   runtime: TRuntime;
   logger: ILogger;
@@ -90,6 +90,15 @@ export type TFeatures = TFeature[];
 export type TResolvedFeature = TExpandedFeature & {
   vsteps: TVStep[];
 };
+
+
+export type TTag = {
+  sequence: number,
+  loop: number,
+  member: number,
+  params?: any,
+  traceDir?: string
+}
 
 export type TVStep = {
   // FIXME is this required?
@@ -127,7 +136,7 @@ export type TStep = {
 export interface IExtension {
   world?: TWorld;
   close?(): void;
-  nextFeature?(ctx: string): void;
+  nextFeature?(): void;
 }
 
 export interface IStepper extends IExtension {
