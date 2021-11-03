@@ -137,6 +137,7 @@ export interface IExtension {
   world?: TWorld;
   close?(): void;
   nextFeature?(): void;
+  onFailure?(seq: number): void;
 }
 
 export interface IStepper extends IExtension {

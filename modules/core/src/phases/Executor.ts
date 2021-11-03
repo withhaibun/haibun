@@ -40,6 +40,9 @@ export class Executor {
         await sleep(this.world.options.step_delay as number);
       }
       ok = ok && result.ok;
+      if (!result.ok) {
+        await this.onFailure(result.seq);
+      }
       const topics: TActionResultTopics = result.actionResults.reduce<TActionResultTopics>((all, a) => ({ ...all, ...a.topics }), {});
 
       this.world.logger.log(ok, { topic: { stage: 'Executor', seq, result } });
@@ -76,10 +79,19 @@ export class Executor {
     return { ok, in: vstep.in, actionResults, seq: vstep.seq };
   }
 
+  async onFailure(seq: number) {
+    for (const s of this.steppers) {
+      if (s.onFailure) {
+        this.world.logger.debug(`onFailure ${s.constructor.name}`);
+        await s.onFailure(seq);
+      }
+    }
+  }
+
   async nextFeature() {
     for (const s of this.steppers) {
       if (s.nextFeature) {
-        this.world.logger.info(`closing ${s.constructor.name}`);
+        this.world.logger.debug(`nextFeature ${s.constructor.name}`);
         await s.nextFeature();
       }
     }
@@ -87,7 +99,7 @@ export class Executor {
   async close() {
     for (const s of this.steppers) {
       if (s.close) {
-        this.world.logger.info(`closing ${s.constructor.name}`);
+        this.world.logger.debug(`closing ${s.constructor.name}`);
         await s.close();
       }
     }
