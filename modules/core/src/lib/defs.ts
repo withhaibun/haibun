@@ -97,7 +97,7 @@ export type TTag = {
   loop: number,
   member: number,
   params?: any,
-  traceDir?: string
+  trace?: boolean
 }
 
 export type TVStep = {

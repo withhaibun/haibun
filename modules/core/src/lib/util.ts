@@ -1,6 +1,5 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync } from 'fs';
 import path from 'path';
-import { hasUncaughtExceptionCaptureCallback } from 'process';
 import { WorldContext } from './contexts';
 
 import {
@@ -22,6 +21,7 @@ import {
   TActionResultTopics,
   TActionResult,
   TFound,
+  TTag,
 } from './defs';
 import { withNameType } from './features';
 
@@ -308,3 +308,17 @@ export function applyResShouldContinue(world: any, res: Partial<TActionResult>, 
   }
   return false;
 }
+
+export function getCaptureDir(tag: TTag, app: string) {
+  const dir = [process.cwd(), 'capture', tag.sequence, app].join('/');
+  if (!existsSync(dir)) {
+    try {
+      mkdirSync(dir, { recursive: true });
+    } catch (e) {
+      throw Error(`creating ${dir}: ${e}`)
+    }
+  }
+  return dir;
+}
+
+export const getRunTag = (sequence: number, loop: number, member: number, params: any, trace: boolean = false) => ({ sequence, loop, member, params, trace });
