@@ -167,8 +167,8 @@ export function processEnv(env: TEnv, options: TOptions) {
   const protoOptions: TProtoOptions = { options: { ...options, env: {} }, extraOptions: {} };
   let errors: string[] = [];
   const pfx = `${HAIBUN}_`;
-  const setIntOrError = (val: any, what: string) => val.match(/[^\d+]/) ? errors.push(`${what}: integer`) : protoOptions.options[what.toLowerCase()] = parseInt(val, 10);
 
+  const setIntOrError = (val: any, what: string) => val.match(/[^\d+]/) ? errors.push(`${what}: integer`) : protoOptions.options[what.toLowerCase()] = parseInt(val, 10);
 
   Object.entries(env)
     .filter(([k]) => k.startsWith(pfx))
@@ -309,7 +309,7 @@ export function applyResShouldContinue(world: any, res: Partial<TActionResult>, 
   return false;
 }
 
-export function getCaptureDir(tag: TTag, app: string) {
+export function getCaptureDir(tag: TTag, app: string, fn?: string) {
   const dir = [process.cwd(), 'capture', tag.sequence, app].join('/');
   if (!existsSync(dir)) {
     try {
@@ -318,7 +318,20 @@ export function getCaptureDir(tag: TTag, app: string) {
       throw Error(`creating ${dir}: ${e}`)
     }
   }
+  if (fn) {
+    return `${dir}/${fn}`;
+  }
   return dir;
 }
 
-export const getRunTag = (sequence: number, loop: number, member: number, params: any, trace: boolean = false) => ({ sequence, loop, member, params, trace });
+export const getRunTag = (sequence: number, loop: number, member: number, params: any, trace: boolean) => ({ sequence, loop, member, params, trace });
+
+export const getIntOrError = (val: any) => {
+  if (val.match(/[^\d+]/)) {
+    throw Error(`${val} is not an integer`);
+  }
+  return parseInt(val, 10);
+};
+
+
+export const descTag = (tag: TTag) => ` @${tag.sequence} (${tag.loop}x${tag.member})`;

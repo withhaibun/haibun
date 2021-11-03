@@ -3,7 +3,7 @@ import { Page } from 'playwright';
 import { IHasOptions, IStepper, IExtensionConstructor, OK, TWorld, TNamed, TVStep, IRequireDomains } from '@haibun/core/build/lib/defs';
 import { onCurrentTypeForDomain } from '@haibun/core/build/steps/vars';
 import { BrowserFactory, TBrowserFactoryContextOptions } from './BrowserFactory';
-import { actionNotOK, ensureDirectory, getCaptureDir, getStepperOption } from '@haibun/core/build/lib/util';
+import { actionNotOK, ensureDirectory, getCaptureDir, getStepperOption, getIntOrError } from '@haibun/core/build/lib/util';
 import { webPage, webControl } from '@haibun/domain-webpage/build/domain-webpage';
 
 declare var window: any;
@@ -25,7 +25,7 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
     },
     TIMEOUT: {
       desc: 'timeout for each step',
-      parse: (input: string) => true,
+      parse: (input: string) => getIntOrError(input),
     },
   };
   static hasFactory: boolean = false;
@@ -49,13 +49,14 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
   }
 
   async getPage() {
-    const captureVideo = getStepperOption(this, 'CAPTURE_VIDEO', this.world.options) || this.world.tag.trace;
-    const context: TBrowserFactoryContextOptions = {};
+    const trace = this.world.tag.trace;
+    const captureVideo = getStepperOption(this, 'CAPTURE_VIDEO', this.world.options);
+    const browser: TBrowserFactoryContextOptions = {};
     if (captureVideo)
-      context.recordVideo = {
+      browser.recordVideo = {
         dir: getCaptureDir(this.world.tag, 'video')
       }
-    const page = await (await this.getBrowserFactory()).getPage(this.world.tag, context);
+    const page = await (await this.getBrowserFactory()).getPage(this.world.tag, { trace, browser });
     return page;
   }
 
@@ -74,7 +75,16 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
     }
   }
 
-  async nextStep(ctx: string) {
+  async onFailure(seq: number) {
+    if (WebPlaywright.bf?.hasPage(this.world.tag)) {
+      const page = await this.getPage();
+      const path = getCaptureDir(this.world.tag, 'failure', `${seq}.png`);
+      
+      await page.screenshot({ path, fullPage: true, timeout: 60000 });
+    }
+  }
+
+  async nextStep() {
     const captureScreenshot = getStepperOption(this, 'STEP_CAPTURE_SCREENSHOT', this.world.options);
     if (captureScreenshot) {
       console.log('captureScreenshot');
@@ -83,8 +93,6 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
   }
 
   async nextFeature() {
-    console.log('\n\nnextFeature context');
-
     // close the context, which closes any pages
     if (WebPlaywright.hasFactory) {
       await WebPlaywright.bf!.closeContext(this.world.tag);
@@ -92,8 +100,6 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
     }
   }
   async close() {
-    console.log('\n\nclose context');
-
     // close the context, which closes any pages
     if (WebPlaywright.hasFactory) {
       await WebPlaywright.bf!.closeContext(this.world.tag);
@@ -104,7 +110,7 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
   // FIXME
   async finish() {
     if (WebPlaywright.hasFactory) {
-      (await this.getBrowserFactory()).browser?.close();
+      WebPlaywright.bf?.close();
       WebPlaywright.bf = undefined;
       WebPlaywright.hasFactory = false;
     }
@@ -143,6 +149,16 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
         }
         const topics = { textContent: { summary: `in ${textContent?.length} characters`, details: textContent } };
         return actionNotOK('Did not find text', { topics });
+      },
+    },
+    waitFor: {
+      gwta: 'wait for {what}',
+      action: async ({ what }: TNamed) => {
+        const found = await this.withPage(async (page: Page) => await page.waitForSelector(what));
+        if (found) {
+          return OK;
+        }
+        return actionNotOK(`Did not find ${what}`);
       },
     },
 
