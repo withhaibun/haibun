@@ -15,6 +15,10 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
       desc: 'run browsers without a window (true or false)',
       parse: (input: string) => input === 'true',
     },
+    VIDEO_CAPTURE: {
+      desc: 'capture video for every tag',
+      parse: (input: string) => true,
+    },
     STEP_CAPTURE: {
       desc: 'capture screenshot for every step',
       parse: (input: string) => true,
@@ -58,12 +62,16 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
     }
   }
 
-  async nextFeature(ctx: string) {
+  async nextStep(ctx: string) {
+
+  }
+
+  async nextFeature() {
     console.log('\n\nnextFeature context');
 
     // close the context, which closes any pages
     if (WebPlaywright.hasFactory) {
-      await WebPlaywright.bf!.closeContext(ctx);
+      await WebPlaywright.bf!.closeContext(this.world.tag);
       return;
     }
   }
