@@ -58,12 +58,12 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
     }
   }
 
-  async nextFeature() {
+  async nextFeature(ctx: string) {
     console.log('\n\nnextFeature context');
 
     // close the context, which closes any pages
     if (WebPlaywright.hasFactory) {
-      await WebPlaywright.bf!.closeContexts();
+      await WebPlaywright.bf!.closeContext(ctx);
       return;
     }
   }
@@ -283,6 +283,4 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
 };
 export default WebPlaywright;
 
-export type TWebPlaywright = {
-  bf: BrowserFactory;
-};
+export type TWebPlaywright = typeof WebPlaywright;
