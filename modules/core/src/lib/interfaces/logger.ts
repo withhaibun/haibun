@@ -1,4 +1,4 @@
-import { TStepResult } from '../defs';
+import { TStepResult, TTag } from '../defs';
 
 export type TLogLevel = 'none' | 'debug' | 'log' | 'info' | 'warn' | 'error';
 export const TEST_RESULT = { _test: true}
@@ -11,7 +11,7 @@ export type TExecutorTopic = {
 // currently there is just the Executor instance
 export type TMessageContext = {
   topic?: TMessageTopic,
-  tag?: string
+  tag?: TTag
 }
 export type TMessageTopic = TExecutorTopic;
 
