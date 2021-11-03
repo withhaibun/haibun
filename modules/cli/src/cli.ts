@@ -3,10 +3,10 @@
 import repl from 'repl';
 import { TProtoOptions, TResult, TSpecl, TWorld, TTag } from '@haibun/core/build/lib/defs';
 import { WorldContext } from '@haibun/core/build/lib/contexts';
-import Logger, { loggerTag } from '@haibun/core/build/lib/Logger';
+import Logger from '@haibun/core/build/lib/Logger';
 
 import { run } from '@haibun/core/build/lib/run';
-import { getOptionsOrDefault, processEnv, resultOutput } from '@haibun/core/build/lib/util';
+import { getOptionsOrDefault, processEnv, resultOutput, getRunTag } from '@haibun/core/build/lib/util';
 import { ILogOutput } from '@haibun/core/build/lib/interfaces/logger';
 import { ranResultError, usageThenExit } from './lib';
 
@@ -53,7 +53,7 @@ async function go() {
       }
       const instances = splits.map(async (split) => {
         const runtime = {};
-        const tag: TTag = loggerTag(totalRan, loop, member, split, trace);
+        const tag: TTag = getRunTag(totalRan, loop, member, split, trace);
         totalRan++;
 
         return doRun(base, specl, runtime, featureFilter, new WorldContext(tag, split), protoOptions, logger, tag, startTime);
@@ -78,7 +78,7 @@ async function go() {
       passed++;
     } else {
       console.log('fail', JSON.stringify(r));
-      
+
       allFailures[r.tag.sequence] = {
         message: r.result.failure?.error.message || 'hmm',
         runDuration: r.runDuration,
@@ -104,7 +104,7 @@ async function go() {
     }
   }
   const runTime = process.hrtime(startTime)[0];
-  console.log({allFailures});
+  console.log({ allFailures });
   console.log('\nRESULT>>>', { ok, startDate, startTime: startDate.getTime(), passed, failed, totalRan, runTime, 'features/s:': totalRan / runTime });
 
   if (ok && exceptionResults.length < 1 && protoOptions.options.stay !== 'always') {

@@ -70,5 +70,3 @@ export default class Logger implements ILogger, ILogOutput {
   warn = (args: any, mctx?: TMessageContext) => this.out('warn', args, mctx);
   error = (args: any, mctx?: TMessageContext) => this.out('error', args, mctx);
 }
-
-export const loggerTag = (sequence: number, loop: number, member: number, params: any, trace: boolean = false) => ({ sequence, loop, member, params, traceFile: trace ? `trace/${loop}x${member}/` : undefined });

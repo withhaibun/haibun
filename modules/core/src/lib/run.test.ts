@@ -1,4 +1,3 @@
-import { WorldContext } from './contexts';
 import { run } from './run';
 import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, TestSteps, TestStepsWithOptions, testWithDefaults } from './TestSteps';
 import { getOptionsOrDefault, processEnv } from './util';

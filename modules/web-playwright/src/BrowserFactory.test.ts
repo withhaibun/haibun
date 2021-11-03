@@ -5,13 +5,13 @@ import { getDefaultTag } from "@haibun/core/build/lib/TestSteps";
 
 describe("types", () => {
   it("gets type and device", () => {
-    const bf = new BrowserFactory(new Logger(LOGGER_NONE), true);
+    const bf = new BrowserFactory(new Logger(LOGGER_NONE));
     bf.setBrowserType("webkit.Blackberry PlayBook");
     expect(bf.browserType).toBe(webkit);
     expect(bf.device).toBe("Blackberry PlayBook");
   });
   it("missing type", () => {
-    const bf = new BrowserFactory(new Logger(LOGGER_NONE), true);
+    const bf = new BrowserFactory(new Logger(LOGGER_NONE));
     expect(() => bf.setBrowserType("amazingnothing")).toThrowError();
   });
 });
@@ -19,7 +19,7 @@ describe("types", () => {
 describe('browser, context, page', () => {
   it('page, context and browser', async () => {
     const logger = new Logger(LOGGER_NONE);
-    const bfa = new BrowserFactory(logger, true);
+    const bfa = new BrowserFactory(logger);
     const test = getDefaultTag(0);
     const test2 = getDefaultTag(1);
     const test3 = getDefaultTag(2);
@@ -40,7 +40,7 @@ describe('browser, context, page', () => {
     expect(Object.keys(bfa.contexts).length).toBe(2)
     expect((pa2 as PageInstance)._guid).toEqual((pa3 as PageInstance)._guid);
 
-    const bfb = new BrowserFactory(logger, true);
+    const bfb = new BrowserFactory(logger);
     const pb1 = await bfb.getPage(test3);
     expect(Object.keys(BrowserFactory.browsers).length).toBe(1)
     expect(Object.keys(bfb.contexts).length).toBe(1)

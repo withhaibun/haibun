@@ -1,11 +1,11 @@
 import { IStepper, IExtensionConstructor, IHasOptions, TWorld, TVStep, TProtoOptions, TNamed, IHasDomains, TExpandedLine, TOptions } from './defs';
 import { Resolver } from '../phases/Resolver';
 import { run, runWith } from './run';
-import { actionNotOK, actionOK, getOptionsOrDefault, getStepperOption, getSteppers } from './util';
+import { actionNotOK, actionOK, getOptionsOrDefault, getStepperOption, getSteppers, getRunTag } from './util';
 import { WorkspaceContext, WorldContext } from './contexts';
 import { featureSplit, withNameType } from './features';
 import { applyDomainsOrError } from './domain';
-import Logger, { loggerTag, LOGGER_NONE } from './Logger';
+import Logger, { LOGGER_NONE } from './Logger';
 
 export const TestSteps: IExtensionConstructor = class TestSteps implements IStepper {
   world: TWorld;
@@ -152,5 +152,5 @@ export function getDefaultWorld(sequence: number): { world: TWorld; } {
 }
 
 export function getDefaultTag(sequence: number, desc: string | undefined = undefined) {
-  return loggerTag(sequence, 0, 0, desc ? { desc } : undefined);
+  return getRunTag(sequence, 0, 0, desc ? { desc } : undefined);
 }
