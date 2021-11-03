@@ -1,6 +1,6 @@
 import { WorldContext } from './contexts';
 import { run } from './run';
-import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, TestSteps, TestStepsWithOptions } from './TestSteps';
+import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, TestSteps, TestStepsWithOptions, testWithDefaults } from './TestSteps';
 import { getOptionsOrDefault, getDefaultWorld, processEnv } from './util';
 
 describe('run self-contained', () => {
@@ -97,10 +97,8 @@ describe('step vars', () => {
 
 describe('handles exception', () => {
   it('handles exception', async () => {
-    const base = process.cwd() + '/test/projects/specl/handles-exception';
-    const specl = getOptionsOrDefault(base);
-
-    const { result } = await run({ specl, base, addSteppers: [TestSteps], ...getDefaultWorld() });
+    const feature = { path: '/features/test.feature', content: `When I throw an exception\nThen the test should pass`};
+    const { result } = await testWithDefaults([feature], [TestSteps]);
 
     expect(result.ok).toBe(false);
 
@@ -137,14 +135,11 @@ describe('options', () => {
 
 describe('builds', () => {
   it('builds with finalizer', async () => {
-    const base = process.cwd() + '/test/projects/haibun/build';
-    const specl = getOptionsOrDefault(base);
-
-    const shared: WorldContext = new WorldContext(`build test`);
-    const { result } = await run({ specl, base, addSteppers: [TestSteps], world: { ...getDefaultWorld().world, shared } });
+    const feature = { path: '/features/test.feature', content: `builds with finalizer`};
+    const { result, world } = await testWithDefaults([feature], [TestSteps]);
 
     expect(result.ok).toBe(true);
 
-    expect(shared.get('done')).toEqual('ok');
+    expect(world.shared.get('done')).toEqual('ok');
   });
 });

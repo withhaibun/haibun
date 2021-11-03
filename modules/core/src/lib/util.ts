@@ -217,6 +217,7 @@ export function processEnv(env: TEnv, options: TOptions) {
           protoOptions.options.env[k] = v;
         }
       } else if (opt === 'ENVC') {
+        
         applyEnvCollections(value!, protoOptions);
       } else {
         protoOptions.extraOptions[k] = value!;

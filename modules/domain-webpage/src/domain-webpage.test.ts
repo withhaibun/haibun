@@ -29,7 +29,7 @@ const TestStepsRequiresDomain: IExtensionConstructor = class TestStepsRequiresDo
 };
 
 describe('domain webpage', () => {
-  it.only('domain object from background', async () => {
+  it('domain object from background', async () => {
     const specl = getOptionsOrDefault();
     const key = '/backgrounds/p1';
 

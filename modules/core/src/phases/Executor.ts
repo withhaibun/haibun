@@ -22,7 +22,7 @@ export class Executor {
       const featureResult = await this.doFeature(feature);
       ok = ok && featureResult.ok;
       featureResults.push(featureResult);
-      await this.nextFeature();
+      await this.nextFeature(this.world.tag);
     }
     await this.close();
     return { ok, results: featureResults };
@@ -76,11 +76,11 @@ export class Executor {
     return { ok, in: vstep.in, actionResults, seq: vstep.seq };
   }
 
-  async nextFeature() {
+  async nextFeature(tag: string) {
     for (const s of this.steppers) {
       if (s.nextFeature) {
         this.world.logger.info(`closing ${s.constructor.name}`);
-        await s.nextFeature();
+        await s.nextFeature(tag);
       }
     }
   }
