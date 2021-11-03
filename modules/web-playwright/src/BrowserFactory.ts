@@ -1,5 +1,5 @@
 import { ILogger } from '@haibun/core/build/lib/interfaces/logger';
-import { Browser, BrowserContext, Page, chromium, firefox, webkit, BrowserType, devices } from 'playwright';
+import { Browser, BrowserContext, Page, chromium, firefox, webkit, BrowserType, devices, } from 'playwright';
 
 export const BROWSERS: { [name: string]: BrowserType } = {
   firefox: firefox,
@@ -7,11 +7,13 @@ export const BROWSERS: { [name: string]: BrowserType } = {
   webkit: webkit,
 };
 
+export type PageInstance = Page & { _guid: string };
+
 export class BrowserFactory {
   static browsers: { [name: string]: Browser } = {};
   browser!: Browser;
-  static contexts: { [name: string]: BrowserContext } = {};
-  pages: { [name: string]: Page } = {};
+  contexts: { [name: string]: BrowserContext } = {};
+  pages: { [name: string]: Page | undefined } = {};
   logger: ILogger;
   browserType: BrowserType = chromium;
   device: string | undefined = undefined;
@@ -42,38 +44,32 @@ export class BrowserFactory {
   }
 
   async getContext(ctx: string): Promise<BrowserContext> {
-    if (!BrowserFactory.contexts[ctx]) {
+    if (!this.contexts[ctx]) {
       const browser = await this.getBrowser(this.type);
-      this.logger.info('creating new context');
+      this.logger.info(`creating new context ${ctx} ${this.type}`);
       const context = this.device ? { ...devices[this.device] } : {};
-      BrowserFactory.contexts[ctx] = await browser.newContext(context);
-      // BrowserFactory.contexts[ctx].setDefaultTimeout(900)
+      this.contexts[ctx] = await browser.newContext({ ...context, recordVideo: { dir: 'video/' } });
+      this.contexts[ctx].setDefaultTimeout(60000)
     }
-    return BrowserFactory.contexts[ctx];
+    return this.contexts[ctx];
   }
+
 
   async closeContext(ctx: string) {
-    if (BrowserFactory.contexts[ctx]) {
-      await BrowserFactory.contexts[ctx].close();
-      delete BrowserFactory.contexts[ctx];
-      delete this.pages[ctx]; 
-      console.log('xx', ctx);
-      
+    if (this.contexts[ctx] !== undefined) {
+      let p = this.pages[ctx];
+      await p!.close();
     }
-  }
-
-  async closeContexts() {
-    for (const c in BrowserFactory.contexts) {
-      await BrowserFactory.contexts[c].clearCookies();
-      await this.closeContext(c);
-    }
+    await this.contexts[ctx].close();
+    delete this.pages[ctx];
+    delete this.contexts[ctx];
   }
 
   async getPage(ctx: string): Promise<Page> {
-    if ((await this.getContext(ctx)) && this.pages[ctx]) {
-      return this.pages[ctx];
+    if (this.pages[ctx] !== undefined) {
+      return this.pages[ctx]!;
     }
-    this.logger.info(`creating new page for ${ctx}`);
+    this.logger.info(`\n\ncreating new page for ${ctx}`);
 
     const context = await this.getContext(ctx);
     const page = await context.newPage();

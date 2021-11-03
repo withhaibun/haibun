@@ -22,7 +22,6 @@ async function go() {
   }
   console.log('\n_________________________________ start');
 
-
   const base = process.argv[2].replace(/\/$/, '');
   const specl = getOptionsOrDefault(base);
 
@@ -36,6 +35,7 @@ async function go() {
   let allRunResults: PromiseSettledResult<TRunResult>[] = [];
   const loops = protoOptions.options.loops || 1;
   const members = protoOptions.options.members || 1;
+  const usedTags: {[name: string]: number} = {};
 
   let totalRan = 0;
   let startTime = process.hrtime();
@@ -54,6 +54,10 @@ async function go() {
       const instances = splits.map(async (split) => {
         const runtime = {};
         const tag = loggerTag(loop, member, Object.assign({}, split));
+        if (usedTags[tag]) {
+          throw Error(`tag ${tag} already used`);
+        }
+        usedTags[tag] = totalRan;
         totalRan++;
 
         return doRun(base, specl, runtime, featureFilter, new WorldContext(tag, split), protoOptions, logger, tag, startTime);
@@ -77,6 +81,8 @@ async function go() {
     if (r.result.ok) {
       passed++;
     } else {
+      console.log('fail', JSON.stringify(r));
+      
       allFailures[r.tag] = {
         message: r.result.failure?.error.message || 'hmm',
         runDuration: r.runDuration,
