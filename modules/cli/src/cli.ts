@@ -73,7 +73,10 @@ async function go() {
 
   let passed = 0;
   let failed = 0;
+
   for (let r of ranResults) {
+    console.log('r', r.result);
+
     if (r.result.ok) {
       passed++;
     } else {

@@ -73,9 +73,9 @@ export class BrowserFactory {
   async closeContext({ sequence }: { sequence: number }) {
     if (this.contexts[sequence] !== undefined) {
       let p = this.pages[sequence];
-      await p!.close();
+      await p && p?.close();
     }
-    await this.contexts[sequence].close();
+    await this.contexts[sequence]?.close();
     delete this.pages[sequence];
     delete this.contexts[sequence];
   }
