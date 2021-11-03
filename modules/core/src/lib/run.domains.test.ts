@@ -3,7 +3,8 @@ import { IExtensionConstructor, IStepper, IHasDomains, TWorld, TNamed, TVStep, I
 import { getDomain } from './domain';
 import { runWith } from './run';
 import { asFeatures, testWithDefaults } from './TestSteps';
-import { getOptionsOrDefault, getDefaultWorld, actionOK } from './util';
+import { getOptionsOrDefault, actionOK } from './util';
+import { getDefaultWorld } from './TestSteps';
 
 const TTYPE = 'page';
 const CCONTROL = 'control';
@@ -66,7 +67,7 @@ describe('domain object', () => {
     const specl = getOptionsOrDefault();
     const key = '/backgrounds/p1';
 
-    const { world } = getDefaultWorld();
+    const { world } = getDefaultWorld(0);
     const features = asFeatures([{ path: '/features/test.feature', content: `Backgrounds: p1.${TTYPE}\n\nOn the /backgrounds/p1 ${TTYPE}\nSee the page control\n` }]);
     const backgrounds = asFeatures([{ path: `/backgrounds/p1.${TTYPE}.feature`, content: 'Has a lever control' }]);
     const { result } = await runWith({ specl, features, backgrounds, addSteppers: [TestStepsRequiresDomain, TestStepsWithDomain], world });

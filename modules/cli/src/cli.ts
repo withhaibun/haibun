@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import repl from 'repl';
-import { TProtoOptions, TResult, TSpecl, TWorld } from '@haibun/core/build/lib/defs';
+import { TProtoOptions, TResult, TSpecl, TWorld, TTag } from '@haibun/core/build/lib/defs';
 import { WorldContext } from '@haibun/core/build/lib/contexts';
 import Logger, { loggerTag } from '@haibun/core/build/lib/Logger';
 
@@ -10,7 +10,7 @@ import { getOptionsOrDefault, processEnv, resultOutput } from '@haibun/core/buil
 import { ILogOutput } from '@haibun/core/build/lib/interfaces/logger';
 import { ranResultError, usageThenExit } from './lib';
 
-export type TRunResult = { output: any, result: TResult, shared: WorldContext, tag: string, runStart: number, runDuration: number, fromStart: number };
+export type TRunResult = { output: any, result: TResult, shared: WorldContext, tag: TTag, runStart: number, runDuration: number, fromStart: number };
 
 go();
 
@@ -35,7 +35,7 @@ async function go() {
   let allRunResults: PromiseSettledResult<TRunResult>[] = [];
   const loops = protoOptions.options.loops || 1;
   const members = protoOptions.options.members || 1;
-  const usedTags: {[name: string]: number} = {};
+  const trace = protoOptions.options.trace === 'true';
 
   let totalRan = 0;
   let startTime = process.hrtime();
@@ -53,11 +53,7 @@ async function go() {
       }
       const instances = splits.map(async (split) => {
         const runtime = {};
-        const tag = loggerTag(loop, member, Object.assign({}, split));
-        if (usedTags[tag]) {
-          throw Error(`tag ${tag} already used`);
-        }
-        usedTags[tag] = totalRan;
+        const tag: TTag = loggerTag(totalRan, loop, member, split, trace);
         totalRan++;
 
         return doRun(base, specl, runtime, featureFilter, new WorldContext(tag, split), protoOptions, logger, tag, startTime);
@@ -83,7 +79,7 @@ async function go() {
     } else {
       console.log('fail', JSON.stringify(r));
       
-      allFailures[r.tag] = {
+      allFailures[r.tag.sequence] = {
         message: r.result.failure?.error.message || 'hmm',
         runDuration: r.runDuration,
         fromStart: r.fromStart
@@ -118,7 +114,7 @@ async function go() {
   }
 }
 
-async function doRun(base: string, specl: TSpecl, runtime: {}, featureFilter: string, shared: WorldContext, protoOptions: TProtoOptions, containerLogger: ILogOutput, tag: string, startTime: [number, number]) {
+async function doRun(base: string, specl: TSpecl, runtime: {}, featureFilter: string, shared: WorldContext, protoOptions: TProtoOptions, containerLogger: ILogOutput, tag: TTag, startTime: [number, number]) {
   if (protoOptions.options.cli) {
     repl.start().context.runtime = runtime;
   }

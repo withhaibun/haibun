@@ -1,11 +1,11 @@
 import * as util from './util';
 import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, testRun, TestSteps, TestStepsWithOptions } from './TestSteps';
-import { getDefaultWorld } from './util';
+import { getDefaultWorld } from './TestSteps';
 import { withNameType } from './features';
 
 describe('output', () => {
   it('resultOutput default', async () => {
-    const { world } = getDefaultWorld();
+    const { world } = getDefaultWorld(0);
     const { result } = await testRun('/test/projects/specl/out-default', [TestSteps], world);
 
     expect(result.ok).toBe(false);
@@ -53,20 +53,20 @@ describe('processEnv', () => {
 
 describe('getStepperOptions', () => {
   it('finds stepper options', async () => {
-    const steppers = await util.getSteppers({ steppers: [], addSteppers: [TestStepsWithOptions], ...getDefaultWorld() });
+    const steppers = await util.getSteppers({ steppers: [], addSteppers: [TestStepsWithOptions], ...getDefaultWorld(0) });
     const conc = util.getStepperOptions(HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, 'true', steppers);
     expect(conc).toBeDefined();
   });
   it('fills extra', async () => {
-    const { world } = getDefaultWorld();
+    const { world } = getDefaultWorld(0);
     const specl = { ...util.getDefaultOptions(), extraOptions: { [HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]: 'true' } };
-    const steppers = await util.getSteppers({ steppers: [], addSteppers: [TestStepsWithOptions], ...getDefaultWorld() });
+    const steppers = await util.getSteppers({ steppers: [], addSteppers: [TestStepsWithOptions], ...getDefaultWorld(0) });
     util.applyExtraOptions(specl, steppers, world);
 
     expect(world.options[HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]).toBe(42);
   });
   it('throws for unfilled extra', async () => {
-    const { world } = getDefaultWorld();
+    const { world } = getDefaultWorld(0);
     const specl = { ...util.getDefaultOptions(), extraOptions: { HAIBUN_NE: 'true' } };
     expect(() => util.applyExtraOptions(specl, [], world)).toThrow();
   });

@@ -1,3 +1,4 @@
+import { TTag } from '@haibun/core/build/lib/defs';
 import { ILogger } from '@haibun/core/build/lib/interfaces/logger';
 import { Browser, BrowserContext, Page, chromium, firefox, webkit, BrowserType, devices, } from 'playwright';
 
@@ -43,37 +44,37 @@ export class BrowserFactory {
     return BrowserFactory.browsers[type];
   }
 
-  async getContext(ctx: string): Promise<BrowserContext> {
-    if (!this.contexts[ctx]) {
+  async getContext(sequence: number): Promise<BrowserContext> {
+    if (!this.contexts[sequence]) {
       const browser = await this.getBrowser(this.type);
-      this.logger.info(`creating new context ${ctx} ${this.type}`);
+      this.logger.info(`creating new context ${sequence} ${this.type}`);
       const context = this.device ? { ...devices[this.device] } : {};
-      this.contexts[ctx] = await browser.newContext({ ...context, recordVideo: { dir: 'video/' } });
-      this.contexts[ctx].setDefaultTimeout(60000)
+      this.contexts[sequence] = await browser.newContext({ ...context, recordVideo: { dir: 'video/' } });
+      this.contexts[sequence].setDefaultTimeout(60000)
     }
-    return this.contexts[ctx];
+    return this.contexts[sequence];
   }
 
 
-  async closeContext(ctx: string) {
-    if (this.contexts[ctx] !== undefined) {
-      let p = this.pages[ctx];
+  async closeContext({ sequence }: { sequence: number }) {
+    if (this.contexts[sequence] !== undefined) {
+      let p = this.pages[sequence];
       await p!.close();
     }
-    await this.contexts[ctx].close();
-    delete this.pages[ctx];
-    delete this.contexts[ctx];
+    await this.contexts[sequence].close();
+    delete this.pages[sequence];
+    delete this.contexts[sequence];
   }
 
-  async getPage(ctx: string): Promise<Page> {
-    if (this.pages[ctx] !== undefined) {
-      return this.pages[ctx]!;
+  async getPage({ sequence }: { sequence: number }): Promise<Page> {
+    if (this.pages[sequence] !== undefined) {
+      return this.pages[sequence]!;
     }
-    this.logger.info(`\n\ncreating new page for ${ctx}`);
+    this.logger.info(`\n\ncreating new page for ${sequence}`);
 
-    const context = await this.getContext(ctx);
+    const context = await this.getContext(sequence);
     const page = await context.newPage();
-    this.pages[ctx] = page;
+    this.pages[sequence] = page;
     return page;
   }
 }

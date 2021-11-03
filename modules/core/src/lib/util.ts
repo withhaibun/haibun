@@ -24,7 +24,6 @@ import {
   TFound,
 } from './defs';
 import { withNameType } from './features';
-import Logger, { LOGGER_NONE } from './Logger';
 
 // FIXME tired of wrestling with ts/import issues
 export async function use(module: string) {
@@ -104,9 +103,10 @@ export function recurse(dir: string, type: string, filter: RegExp | string | und
   let all: TFeature[] = [];
   for (const file of files) {
     const here = `${dir}/${file}`;
+
     if (statSync(here).isDirectory()) {
       all = all.concat(recurse(here, type, filter));
-    } else if ((!type || file.endsWith(`.${type}`)) && (!filter || file.match(filter))) {
+    } else if ((!type || file.endsWith(`.${type}`)) && !!(!filter || here.match(filter))) {
       all.push(withNameType(here, readFileSync(here, 'utf-8')));
     }
   }
@@ -161,19 +161,6 @@ export function isLowerCase(str: string) {
 
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-export function getDefaultWorld(): { world: TWorld } {
-  return {
-    world: {
-      tag: '_default',
-      shared: new WorldContext('default'),
-      logger: new Logger(process.env.HAIBUN_LOG_LEVEL ? { level: process.env.HAIBUN_LOG_LEVEL } : LOGGER_NONE),
-      runtime: {},
-      options: {},
-      domains: [],
-    },
-  };
-}
-
 type TEnv = { [name: string]: string | undefined };
 
 export function processEnv(env: TEnv, options: TOptions) {
@@ -199,6 +186,8 @@ export function processEnv(env: TEnv, options: TOptions) {
         }
       } else if (['STEP_DELAY', 'LOOPS', 'MEMBERS'].includes(opt)) {
         setIntOrError(value, opt);
+      } else if (opt === 'TRACE') {
+        protoOptions.options.trace = true;
       } else if (opt === 'CLI') {
         protoOptions.options.cli = true;
       } else if (opt === 'STAY') {
@@ -217,7 +206,7 @@ export function processEnv(env: TEnv, options: TOptions) {
           protoOptions.options.env[k] = v;
         }
       } else if (opt === 'ENVC') {
-        
+
         applyEnvCollections(value!, protoOptions);
       } else {
         protoOptions.extraOptions[k] = value!;
