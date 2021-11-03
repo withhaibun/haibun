@@ -40,7 +40,6 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
   async getBrowserFactory(): Promise<BrowserFactory> {
     if (!WebPlaywright.hasFactory) {
       const headless = getStepperOption(this, 'HEADLESS', this.world.options);
-      console.log('xx', this.world.options);
 
       const defaultTimeout = getStepperOption(this, 'TIMEOUT', this.world.options);
       WebPlaywright.bf = new BrowserFactory(this.world.logger, { defaultTimeout, browser: { headless } });
