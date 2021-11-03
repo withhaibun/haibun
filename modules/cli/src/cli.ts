@@ -35,12 +35,13 @@ async function go() {
   let allRunResults: PromiseSettledResult<TRunResult>[] = [];
   const loops = protoOptions.options.loops || 1;
   const members = protoOptions.options.members || 1;
-  const trace = protoOptions.options.trace === 'true';
+  const trace = !!protoOptions.options.trace;
 
   let totalRan = 0;
   let startTime = process.hrtime();
   let startDate = new Date();
-  let allFailures: { [name: string]: { message: string, runDuration: number, fromStart: number } } = {};
+  type TFailure = { sequence: number, runDuration: number, fromStart: number };
+  let allFailures: { [message: string]: TFailure[] } = {};
 
   for (let loop = 1; loop < loops + 1; loop++) {
     if (loops > 1) {
@@ -75,18 +76,26 @@ async function go() {
   let failed = 0;
 
   for (let r of ranResults) {
-    console.log('r', r.result);
-
     if (r.result.ok) {
       passed++;
     } else {
       console.log('fail', JSON.stringify(r));
+      let message = r.result?.failure?.error?.message;
+      if (!message) {
+        try {
+          message = JSON.stringify(r.result.failure);
+        } catch (e) {
+          console.error('fail message', e);
 
-      allFailures[r.tag.sequence] = {
-        message: r.result.failure?.error.message || 'hmm',
+          message = "cannot extract"
+        }
+      }
+
+      allFailures[message] = (allFailures[message] || []).concat({
+        sequence: r.tag.sequence,
         runDuration: r.runDuration,
         fromStart: r.fromStart
-      }
+      });
       failed++;
     }
   }
@@ -107,7 +116,7 @@ async function go() {
     }
   }
   const runTime = process.hrtime(startTime)[0];
-  console.log({ allFailures });
+  console.log(JSON.stringify(allFailures, null, 2));
   console.log('\nRESULT>>>', { ok, startDate, startTime: startDate.getTime(), passed, failed, totalRan, runTime, 'features/s:': totalRan / runTime });
 
   if (ok && exceptionResults.length < 1 && protoOptions.options.stay !== 'always') {

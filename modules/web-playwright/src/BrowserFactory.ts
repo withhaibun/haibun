@@ -1,5 +1,5 @@
 import { ILogger } from '@haibun/core/build/lib/interfaces/logger';
-import { Browser, BrowserContext, Page, chromium, firefox, webkit, BrowserType, devices, } from 'playwright';
+import { Browser, BrowserContext, Page, chromium, firefox, webkit, BrowserType, devices, Request, Response } from 'playwright';
 
 export const BROWSERS: { [name: string]: BrowserType } = {
   firefox: firefox,
@@ -24,7 +24,6 @@ export type PageInstance = Page & { _guid: string };
 
 export class BrowserFactory {
   static browsers: { [name: string]: Browser } = {};
-  browser!: Browser;
   contexts: { [name: string]: BrowserContext } = {};
   pages: { [name: string]: Page | undefined } = {};
   logger: ILogger;
@@ -80,14 +79,32 @@ export class BrowserFactory {
     delete this.contexts[sequence];
   }
 
-  async getPage({ sequence }: { sequence: number }, options: TBrowserFactoryContextOptions = {}): Promise<Page> {
+  async close() {
+    Object.values(BrowserFactory.browsers).forEach(async (v) => {
+      await v.close();
+    });
+  }
+
+  hasPage({ sequence }: { sequence: number }) {
+    return !!this.pages[sequence]
+  }
+
+  async getPage({ sequence }: { sequence: number }, options: { trace?: boolean, browser: TBrowserFactoryContextOptions } = { browser: {} }): Promise<Page> {
+    const { trace, browser } = options;
     if (this.pages[sequence] !== undefined) {
       return this.pages[sequence]!;
     }
-    this.logger.info(`\n\ncreating new page for ${sequence}`);
+    this.logger.info(`creating new page for ${sequence}`);
 
-    const context = await this.getContext(sequence, options);
+    const context = await this.getContext(sequence, browser);
     const page = await context.newPage();
+
+    if (trace) {
+      page.on('response', async (res: Response) => {
+        const headers = await res.headersArray();
+        this.logger.log(`response: ${headers}`);
+      });
+    }
     this.pages[sequence] = page;
     return page;
   }

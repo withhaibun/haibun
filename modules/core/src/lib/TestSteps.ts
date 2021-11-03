@@ -152,5 +152,5 @@ export function getDefaultWorld(sequence: number): { world: TWorld; } {
 }
 
 export function getDefaultTag(sequence: number, desc: string | undefined = undefined) {
-  return getRunTag(sequence, 0, 0, desc ? { desc } : undefined);
+  return getRunTag(sequence, 0, 0, desc ? { desc } : undefined, false);
 }

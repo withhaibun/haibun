@@ -1,5 +1,6 @@
 import { TTag } from './defs';
 import { ILogger, ILogOutput, TLogLevel, TMessageContext } from './interfaces/logger';
+import { descTag } from './util';
 
 export const LOGGER_LOG = { level: 'log' };
 export const LOGGER_NONE = { level: 'none' };
@@ -61,7 +62,7 @@ export default class Logger implements ILogger, ILogOutput {
     for (const subscriber of this.subscribers) {
       subscriber.out(level, args, messageContext);
     }
-    const tag = messageContext?.tag ? ` ${messageContext.tag}` : '';
+    const tag = messageContext?.tag ? descTag(messageContext.tag) : '';
     (console as any)[level].call(console, `${ln}${tag}: `.padStart(WIDTH), args, level.padStart(6));
   }
   debug = (args: any, mctx?: TMessageContext) => this.out('debug', args, mctx);

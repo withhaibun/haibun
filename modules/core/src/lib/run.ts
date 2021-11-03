@@ -85,11 +85,16 @@ export async function runWith({
   }
 
   const executor = new Executor(steppers, world);
-  const result = await executor.execute(mappedValidatedSteps);
-  if (!result.ok) {
-    const message = (result.results![0].stepResults.find(s => !s.ok)?.actionResults[0] as TNotOKActionResult).message;
+  let result;
+  try {
+    result = await executor.execute(mappedValidatedSteps);
+    if (!result.ok) {
+      const message = (result.results![0].stepResults.find(s => !s.ok)?.actionResults[0] as TNotOKActionResult).message;
 
-    result.failure = { stage: 'Execute', error: { message, details: { errors: result.results?.filter((r) => !r.ok).map((r) => r.path) } } };
+      result.failure = { stage: 'Execute', error: { message, details: { errors: result.results?.filter((r) => !r.ok).map((r) => r.path) } } };
+    }
+  } catch (e: any) {
+    result = { ok: false,  failure: e };
   }
   return { result, steppers };
 }
