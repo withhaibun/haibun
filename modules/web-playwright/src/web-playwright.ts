@@ -2,8 +2,8 @@ import { Page } from 'playwright';
 
 import { IHasOptions, IStepper, IExtensionConstructor, OK, TWorld, TNamed, TVStep, IRequireDomains } from '@haibun/core/build/lib/defs';
 import { onCurrentTypeForDomain } from '@haibun/core/build/steps/vars';
-import { BrowserFactory } from './BrowserFactory';
-import { actionNotOK, ensureDirectory, getStepperOption } from '@haibun/core/build/lib/util';
+import { BrowserFactory, TBrowserFactoryContextOptions } from './BrowserFactory';
+import { actionNotOK, ensureDirectory, getCaptureDir, getStepperOption } from '@haibun/core/build/lib/util';
 import { webPage, webControl } from '@haibun/domain-webpage/build/domain-webpage';
 
 declare var window: any;
@@ -15,12 +15,16 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
       desc: 'run browsers without a window (true or false)',
       parse: (input: string) => input === 'true',
     },
-    VIDEO_CAPTURE: {
+    CAPTURE_VIDEO: {
       desc: 'capture video for every tag',
       parse: (input: string) => true,
     },
-    STEP_CAPTURE: {
+    STEP_CAPTURE_SCREENSHOT: {
       desc: 'capture screenshot for every step',
+      parse: (input: string) => true,
+    },
+    TIMEOUT: {
+      desc: 'timeout for each step',
       parse: (input: string) => true,
     },
   };
@@ -36,14 +40,23 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
   async getBrowserFactory(): Promise<BrowserFactory> {
     if (!WebPlaywright.hasFactory) {
       const headless = getStepperOption(this, 'HEADLESS', this.world.options);
-      WebPlaywright.bf = new BrowserFactory(this.world.logger, headless);
+      console.log('xx', this.world.options);
+
+      const defaultTimeout = getStepperOption(this, 'TIMEOUT', this.world.options);
+      WebPlaywright.bf = new BrowserFactory(this.world.logger, { defaultTimeout, browser: { headless } });
       WebPlaywright.hasFactory = true;
     }
     return WebPlaywright.bf!;
   }
 
   async getPage() {
-    const page = await (await this.getBrowserFactory()).getPage(this.world.tag);
+    const captureVideo = getStepperOption(this, 'CAPTURE_VIDEO', this.world.options) || this.world.tag.trace;
+    const context: TBrowserFactoryContextOptions = {};
+    if (captureVideo)
+      context.recordVideo = {
+        dir: getCaptureDir(this.world.tag, 'video')
+      }
+    const page = await (await this.getBrowserFactory()).getPage(this.world.tag, context);
     return page;
   }
 
@@ -63,6 +76,10 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
   }
 
   async nextStep(ctx: string) {
+    const captureScreenshot = getStepperOption(this, 'STEP_CAPTURE_SCREENSHOT', this.world.options);
+    if (captureScreenshot) {
+      console.log('captureScreenshot');
+    }
 
   }
 
