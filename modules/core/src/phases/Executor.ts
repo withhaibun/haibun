@@ -41,7 +41,7 @@ export class Executor {
       }
       ok = ok && result.ok;
       if (!result.ok) {
-        await this.onFailure(result.seq);
+        await this.onFailure(result);
       }
       const topics: TActionResultTopics = result.actionResults.reduce<TActionResultTopics>((all, a) => ({ ...all, ...a.topics }), {});
 
@@ -79,11 +79,11 @@ export class Executor {
     return { ok, in: vstep.in, actionResults, seq: vstep.seq };
   }
 
-  async onFailure(seq: number) {
+  async onFailure(result: TStepResult) {
     for (const s of this.steppers) {
       if (s.onFailure) {
         this.world.logger.debug(`onFailure ${s.constructor.name}`);
-        await s.onFailure(seq);
+        await s.onFailure(result);
       }
     }
   }
