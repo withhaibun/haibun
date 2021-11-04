@@ -16,7 +16,7 @@ done) &&  \
 
 ## depend on @haibun/core
 
-(for i in domain-webpage web-http web-server-express out-xunit web-component-builder logger-websockets parse-md; do
+(for i in domain-webpage web-http web-server-express out-xunit logger-websockets parse-md; do
   cd $i
   npm i &&  \
   npm link @haibun/core && \
@@ -38,7 +38,7 @@ done) &&  \
   cd ../
 done) &&  \
 
-# (for i in client-playwright frontend parse-md; do
+# (for i in client-playwright parse-md; do
 #   cd $i;
 #   echo "\nlink $i"
 #   npm link @haibun/core && \
