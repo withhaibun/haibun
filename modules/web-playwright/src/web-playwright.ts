@@ -47,6 +47,11 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
     return this.bf!;
   }
 
+  async getContext() {
+    const context = (await this.getBrowserFactory()).getExistingContext(this.world.tag);
+    return context;
+  }
+
   async getPage() {
     const trace = this.world.tag.trace;
     const captureVideo = getStepperOption(this, 'CAPTURE_VIDEO', this.world.options);
@@ -76,7 +81,7 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
 
   async onFailure(result: TStepResult) {
     this.world.logger.error(result);
-    
+
     if (this.bf?.hasPage(this.world.tag)) {
       const page = await this.getPage();
       const path = getCaptureDir(this.world.tag, 'failure', `${result.seq}.png`);
@@ -171,6 +176,16 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
           return OK;
         }
         return actionNotOK(`expected ${name} but on ${nowon}`);
+      },
+    },
+    cookieShouldBe: {
+      gwta: 'cookie {name} should be {value}',
+      action: async ({ name, value }: TNamed) => {
+        const context = await this.getContext();
+        const cookies = await context?.cookies();
+
+        const found = cookies?.find(c => c.name === name && c.value === value);
+        return found ? OK : actionNotOK(`did not find cookie ${name} with value ${value}`);
       },
     },
     URIContains: {

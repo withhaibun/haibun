@@ -23,7 +23,7 @@ export type TBrowserFactoryOptions = {
 export type PageInstance = Page & { _guid: string };
 
 export class BrowserFactory {
-  static browser = chromium.launch();
+  static browser = chromium.launch({ headless: process.env['HAIBUN_O_WEBPLAYWRIGHT_HEADLESS'] !== 'false' });
   static browsers: { [name: string]: Browser } = {};
   contexts: { [name: string]: BrowserContext } = {};
   pages: { [name: string]: Page | undefined } = {};
@@ -34,7 +34,7 @@ export class BrowserFactory {
   options: TBrowserFactoryOptions;
   myBrowsers: { [name: string]: Browser; };
 
-  private constructor(browsers: {[name: string]: Browser}, logger: ILogger, options: TBrowserFactoryOptions = {}) {
+  private constructor(browsers: { [name: string]: Browser }, logger: ILogger, options: TBrowserFactoryOptions = {}) {
     this.myBrowsers = browsers;
     this.logger = logger;
     this.options = options;
@@ -68,6 +68,12 @@ export class BrowserFactory {
     }
     return BrowserFactory.browsers[type];
     */
+  }
+
+  getExistingContext({ sequence }: { sequence: number }) {
+    if (this.contexts[sequence]) {
+      return this.contexts[sequence];
+    }
   }
 
   async getContext(sequence: number, options: TBrowserFactoryContextOptions): Promise<BrowserContext> {
