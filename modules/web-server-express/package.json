@@ -1,6 +1,6 @@
 {
   "name": "@haibun/web-server-express",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "",
   "main": "build/web-server-stepper.js",
   "files": [
@@ -15,7 +15,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@types/cookie-parser": "^1.4.2",
     "@types/node-fetch": "^2.5.10",
+    "cookie-parser": "^1.4.5",
     "express": "^4.17.1",
     "node-fetch": "^2.6.1"
   },
