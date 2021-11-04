@@ -1,6 +1,6 @@
 import { Page } from 'playwright';
 
-import { IHasOptions, IStepper, IExtensionConstructor, OK, TWorld, TNamed, TVStep, IRequireDomains } from '@haibun/core/build/lib/defs';
+import { IHasOptions, IStepper, IExtensionConstructor, OK, TWorld, TNamed, TVStep, IRequireDomains, TStepResult } from '@haibun/core/build/lib/defs';
 import { onCurrentTypeForDomain } from '@haibun/core/build/steps/vars';
 import { BrowserFactory, TBrowserFactoryContextOptions } from './BrowserFactory';
 import { actionNotOK, ensureDirectory, getCaptureDir, getStepperOption, getIntOrError } from '@haibun/core/build/lib/util';
@@ -28,8 +28,8 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
       parse: (input: string) => getIntOrError(input),
     },
   };
-  static hasFactory: boolean = false;
-  static bf: BrowserFactory | undefined = undefined;
+  hasFactory: boolean = false;
+  bf: BrowserFactory | undefined = undefined;
   world: TWorld;
   headless: boolean = false;
 
@@ -38,14 +38,13 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
   }
 
   async getBrowserFactory(): Promise<BrowserFactory> {
-    if (!WebPlaywright.hasFactory) {
+    if (!this.hasFactory) {
       const headless = getStepperOption(this, 'HEADLESS', this.world.options);
-
       const defaultTimeout = getStepperOption(this, 'TIMEOUT', this.world.options);
-      WebPlaywright.bf = new BrowserFactory(this.world.logger, { defaultTimeout, browser: { headless } });
-      WebPlaywright.hasFactory = true;
+      this.bf = BrowserFactory.get(this.world.logger, { defaultTimeout, browser: { headless } });
+      this.hasFactory = true;
     }
-    return WebPlaywright.bf!;
+    return this.bf!;
   }
 
   async getPage() {
@@ -75,11 +74,13 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
     }
   }
 
-  async onFailure(seq: number) {
-    if (WebPlaywright.bf?.hasPage(this.world.tag)) {
+  async onFailure(result: TStepResult) {
+    this.world.logger.error(result);
+    
+    if (this.bf?.hasPage(this.world.tag)) {
       const page = await this.getPage();
-      const path = getCaptureDir(this.world.tag, 'failure', `${seq}.png`);
-      
+      const path = getCaptureDir(this.world.tag, 'failure', `${result.seq}.png`);
+
       await page.screenshot({ path, fullPage: true, timeout: 60000 });
     }
   }
@@ -94,25 +95,25 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
 
   async nextFeature() {
     // close the context, which closes any pages
-    if (WebPlaywright.hasFactory) {
-      await WebPlaywright.bf!.closeContext(this.world.tag);
+    if (this.hasFactory) {
+      await this.bf!.closeContext(this.world.tag);
       return;
     }
   }
   async close() {
     // close the context, which closes any pages
-    if (WebPlaywright.hasFactory) {
-      await WebPlaywright.bf!.closeContext(this.world.tag);
+    if (this.hasFactory) {
+      await this.bf!.closeContext(this.world.tag);
       return;
     }
   }
 
   // FIXME
   async finish() {
-    if (WebPlaywright.hasFactory) {
-      WebPlaywright.bf?.close();
-      WebPlaywright.bf = undefined;
-      WebPlaywright.hasFactory = false;
+    if (this.hasFactory) {
+      this.bf?.close();
+      this.bf = undefined;
+      this.hasFactory = false;
     }
   }
 

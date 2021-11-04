@@ -31,7 +31,7 @@ async function go() {
   if (errors.length > 0) {
     usageThenExit(errors.join('\n'));
   }
-  const logger = new Logger({ level: protoOptions.options.logLevel || 'log', follow: protoOptions.options.logFollow });
+  const logger = new Logger({ level: protoOptions.options.logLevel || 'debug', follow: protoOptions.options.logFollow });
   let allRunResults: PromiseSettledResult<TRunResult>[] = [];
   const loops = protoOptions.options.loops || 1;
   const members = protoOptions.options.members || 1;
@@ -79,7 +79,6 @@ async function go() {
     if (r.result.ok) {
       passed++;
     } else {
-      console.log('fail', JSON.stringify(r));
       let message = r.result?.failure?.error?.message;
       if (!message) {
         try {

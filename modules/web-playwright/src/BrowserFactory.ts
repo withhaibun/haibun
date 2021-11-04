@@ -23,6 +23,7 @@ export type TBrowserFactoryOptions = {
 export type PageInstance = Page & { _guid: string };
 
 export class BrowserFactory {
+  static browser = chromium.launch();
   static browsers: { [name: string]: Browser } = {};
   contexts: { [name: string]: BrowserContext } = {};
   pages: { [name: string]: Page | undefined } = {};
@@ -31,10 +32,21 @@ export class BrowserFactory {
   device: string | undefined = undefined;
   type: string = 'chromium';
   options: TBrowserFactoryOptions;
+  myBrowsers: { [name: string]: Browser; };
 
-  constructor(logger: ILogger, options: TBrowserFactoryOptions = {}) {
+  private constructor(browsers: {[name: string]: Browser}, logger: ILogger, options: TBrowserFactoryOptions = {}) {
+    this.myBrowsers = browsers;
     this.logger = logger;
     this.options = options;
+  }
+
+  static get(logger: ILogger, options: TBrowserFactoryOptions = {}) {
+    if (!BrowserFactory.browsers) {
+      BrowserFactory.browsers = {};
+
+    }
+    return new BrowserFactory(BrowserFactory.browsers, logger, options);
+
   }
 
   setBrowserType(typeAndDevice: string) {
@@ -48,11 +60,14 @@ export class BrowserFactory {
   }
 
   async getBrowser(type: string): Promise<Browser> {
+    return BrowserFactory.browser;
+    /*
     if (!BrowserFactory.browsers[type]) {
       BrowserFactory.browsers[type] = await this.browserType.launch(this.options.browser);
       this.logger.info(`launched new ${type} browser`);
     }
     return BrowserFactory.browsers[type];
+    */
   }
 
   async getContext(sequence: number, options: TBrowserFactoryContextOptions): Promise<BrowserContext> {
