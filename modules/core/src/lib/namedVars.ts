@@ -1,3 +1,4 @@
+import { cred } from '../steps/credentials';
 import { TStep, TNamedVar, TFound, TNamed, BASE_TYPES, TWorld } from './defs';
 import { getStepShared } from './domain';
 
@@ -90,16 +91,22 @@ export function getNamedToVars({ named, vars }: TFound, world: TWorld) {
     const namedValue = named[namedKey];
     if (namedKey.startsWith(TYPE_VAR_OR_LITERAL)) {
       namedFromVars[name] = shared.get(namedValue) || named[namedKey];
-    } else if (namedKey.startsWith(TYPE_VAR) || namedKey.startsWith(TYPE_CREDENTIAL)) {
+    } else if (namedKey.startsWith(TYPE_VAR)) {
       // must be from source
       if (!shared.get(namedValue)) {
         throw Error(`no value for "${namedValue}" from ${JSON.stringify({ shared, type })}`);
       }
       namedFromVars[name] = shared.get(namedValue);
+    } else if (namedKey.startsWith(TYPE_CREDENTIAL)) {
+      // must be from source
+      if (!shared.get(cred(namedValue))) {
+        throw Error(`no value for credential "${namedValue}" from ${JSON.stringify({ shared, type })}`);
+      }
+      namedFromVars[name] = shared.get(cred(namedValue));
     } else if (namedKey.startsWith(TYPE_ENV)) {
       // FIXME add test
       const val = world.options.env[namedValue];
-      
+
       if (val === undefined) {
         throw Error(`no env value for "${namedValue}" from ${JSON.stringify({ shared, type })}`);
       }
