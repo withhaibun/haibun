@@ -1,5 +1,6 @@
 import { DomainContext, WorkspaceContext, WorldContext } from './contexts';
 import { ILogger } from './interfaces/logger';
+import { Timer } from './Timer';
 
 export type TSpecl = {
   steppers: string[];
@@ -63,6 +64,7 @@ export type TWorld = {
   logger: ILogger;
   options: TOptions;
   domains: TModuleDomain[];
+  timer: Timer
 };
 
 export type TFeatureMeta = {
@@ -121,8 +123,8 @@ export abstract class WorkspaceBuilder {
   constructor(name: string) {
     this.name = name;
   }
-  addControl(...args: any) {}
-  finalize(): any {}
+  addControl(...args: any) { }
+  finalize(): any { }
 }
 
 export type TStep = {
@@ -145,7 +147,7 @@ export interface IStepper extends IExtension {
 }
 
 export interface IExtensionConstructor {
-  new (world: TWorld): IStepper;
+  new(world: TWorld): IStepper;
 }
 export type TFound = { name: string; step: TStep; named?: TNamed | undefined; vars?: TNamedVar[] };
 export type TNamed = { [name: string]: string };
@@ -181,9 +183,30 @@ export type TNotOKActionResult = {
   topics?: TActionResultTopics;
 };
 
-export type TActionResult = TOKActionResult | TNotOKActionResult;
 
-export type TStepActionResult = TNotOkStepActionResult | TOKStepActionResult;
+export type TTrace = {
+  [name: string]: {
+    since: number,
+    trace: any
+  }
+}
+
+export type TTraces = {
+  start?: number,
+  // FIXME following should not be optional
+  end?: number,
+  traces?: TTrace
+}
+
+export type TTraceOptions = {
+  [event: string]: {
+    listener: any
+  }
+}
+
+export type TActionResult = (TOKActionResult | TNotOKActionResult);
+
+export type TStepActionResult = TNotOkStepActionResult | TOKStepActionResult & TTraces;;
 
 type TNamedStepActionResult = {
   name: string;
