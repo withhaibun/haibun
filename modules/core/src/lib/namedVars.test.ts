@@ -2,8 +2,7 @@ import { IStepper, OK, TResolvedFeature, TStep } from './defs';
 import { getNamedMatches, namedInterpolation, matchGroups, getNamedToVars } from './namedVars';
 import { Resolver } from '../phases/Resolver';
 import { actionNotOK } from './util';
-import { getDefaultWorld } from './TestSteps';
-import { asExpandedFeatures } from './TestSteps';
+import { asExpandedFeatures, getDefaultWorld } from './test/lib';
 import { withNameType } from './features';
 
 describe('namedMatches', () => {

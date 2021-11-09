@@ -32,6 +32,15 @@ export async function run({
   return runWith({ specl, world, features, backgrounds, addSteppers, protoOptions });
 }
 
+type TRunWithOptions = {
+  specl: TSpecl;
+  world: TWorld;
+  features: TFeature[];
+  backgrounds: TFeature[];
+  addSteppers: IExtensionConstructor[];
+  protoOptions?: TProtoOptions;
+}
+
 export async function runWith({
   specl,
   world,
@@ -39,14 +48,7 @@ export async function runWith({
   backgrounds,
   addSteppers,
   protoOptions: protoOptions = { options: {}, extraOptions: {} },
-}: {
-  specl: TSpecl;
-  world: TWorld;
-  features: TFeature[];
-  backgrounds: TFeature[];
-  addSteppers: IExtensionConstructor[];
-  protoOptions?: TProtoOptions;
-}): Promise<{ result: TResult; steppers?: IStepper[] }> {
+}: TRunWithOptions): Promise<{ result: TResult; steppers?: IStepper[] }> {
   const steppers: IStepper[] = await getSteppers({ steppers: specl.steppers, addSteppers, world });
   try {
     applyExtraOptions(protoOptions, steppers, world);

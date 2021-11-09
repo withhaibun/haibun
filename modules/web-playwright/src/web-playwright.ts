@@ -16,7 +16,7 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
       parse: (input: string) => input === 'true',
     },
     CAPTURE_VIDEO: {
-      desc: 'capture video for every tag',
+      desc: 'capture video for every agent',
       parse: (input: string) => true,
     },
     STEP_CAPTURE_SCREENSHOT: {

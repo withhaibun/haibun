@@ -1,6 +1,6 @@
-import { ILogOutput, TEST_RESULT, TMessageContext } from './interfaces/logger';
+import { ILogOutput, TEST_RESULT, TExecutorTopic, TMessageContext } from './interfaces/logger';
 import Logger, { LOGGER_LEVELS } from './Logger';
-import { getDefaultTag } from './TestSteps';
+import { getDefaultTag } from './test/lib';
 
 describe('log levels', () => {
   test('logs none with none', () => {
@@ -21,7 +21,7 @@ describe('logger with subscriber', () => {
     const subscriber: ILogOutput = {
       out(level: string, args: any[], ctx?: TMessageContext) {
         expect(ctx!.topic).toBeDefined();
-        expect(ctx!.topic!.result).toEqual(TEST_RESULT);
+        expect((ctx!.topic! as TExecutorTopic).result).toEqual(TEST_RESULT);
         done();
       },
     };
@@ -34,7 +34,7 @@ describe('logger with output', () => {
   test('output gets current tag', (done) => {
     const output: ILogOutput = {
       out(level: string, args: any[], ctx?: TMessageContext) {
-        expect(ctx!.tag).toBe('current');
+        expect(ctx?.tag?.loop).toBe(0);
         done();
       },
     };

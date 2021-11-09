@@ -64,17 +64,28 @@ export function actionOK(topics?: TActionResultTopics): TOKActionResult {
   return { ok: true, topics };
 }
 
-export async function getSteppers({ steppers = [], world, addSteppers = [] }: { steppers: string[]; world: TWorld; addSteppers?: IExtensionConstructor[] }) {
-  const allSteppers: IStepper[] = [];
-  for (const s of steppers) {
+export async function getStepper(s: string) {
+  try {
     const loc = getModuleLocation(s);
 
     const S: IExtensionConstructor = await use(loc);
+    
+    return S;
+  } catch (e) {
+    console.error(`could not use ${s}`);
+    throw (e);
+  }
+}
+
+export async function getSteppers({ steppers = [], world, addSteppers = [] }: { steppers: string[]; world: TWorld; addSteppers?: IExtensionConstructor[] }) {
+  const allSteppers: IStepper[] = [];
+  for (const s of steppers) {
+    const S = await getStepper(s);
     try {
       const stepper = new S(world);
       allSteppers.push(stepper);
     } catch (e) {
-      console.error(`new ${S} from "${loc}" failed`, e, S);
+      console.error(`new ${S} from "${getModuleLocation(s)}" failed`, e, S);
       throw e;
     }
   }
@@ -184,7 +195,7 @@ export function processEnv(env: TEnv, options: TOptions) {
         } else {
           protoOptions.options.splits = s.split(',').map((w: string) => ({ [what]: w }));
         }
-      } else if (['STEP_DELAY', 'LOOPS', 'MEMBERS'].includes(opt)) {
+      } else if (['STEP_DELAY', 'LOOPS', 'LOOP_START', 'LOOP_INC', 'MEMBERS'].includes(opt)) {
         setIntOrError(value, opt);
       } else if (opt === 'TRACE') {
         protoOptions.options.trace = true;
@@ -251,7 +262,7 @@ export function applyExtraOptions(protoOptions: TProtoOptions, steppers: ISteppe
   }
 }
 
-function getPre(stepper: IStepper) {
+export function getPre(stepper: IStepper) {
   return ['HAIBUN', 'O', (stepper as any as IExtensionConstructor).constructor.name.toUpperCase()].join('_') + '_';
 }
 export function getStepperOptions(key: string, value: string, steppers: (IStepper & IHasOptions)[]): TOptionValue | void {
@@ -287,7 +298,7 @@ export function ensureDirectory(base: string, folder: string) {
 }
 
 // FIXME
-export function getStepper<Type>(steppers: IStepper[], name: string): Type {
+export function findStepper<Type>(steppers: IStepper[], name: string): Type {
   return <Type>(steppers.find((s) => s.constructor.name === name) as any);
 }
 

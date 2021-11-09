@@ -1,7 +1,7 @@
 import { TStepResult, TTag } from '../defs';
 
 export type TLogLevel = 'none' | 'debug' | 'log' | 'info' | 'warn' | 'error';
-export const TEST_RESULT = { _test: true}
+export const TEST_RESULT = { _test: true }
 
 export type TExecutorTopic = {
   result: TStepResult | typeof TEST_RESULT;
@@ -13,7 +13,12 @@ export type TMessageContext = {
   topic?: TMessageTopic,
   tag?: TTag
 }
-export type TMessageTopic = TExecutorTopic;
+
+export type TTraceTopic = {
+  type?: string,
+  trace?: any;
+}
+export type TMessageTopic = TExecutorTopic | TTraceTopic;
 
 export interface ILogger {
   debug: (what: any, ctx?: TMessageContext) => void;
