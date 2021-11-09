@@ -94,13 +94,13 @@ export function getNamedToVars({ named, vars }: TFound, world: TWorld) {
     } else if (namedKey.startsWith(TYPE_VAR)) {
       // must be from source
       if (!shared.get(namedValue)) {
-        throw Error(`no value for "${namedValue}" from ${JSON.stringify({ shared, type })}`);
+        throw Error(`no value for "${namedValue}" from ${JSON.stringify({ keys: Object.keys(shared), type })}`);
       }
       namedFromVars[name] = shared.get(namedValue);
     } else if (namedKey.startsWith(TYPE_CREDENTIAL)) {
       // must be from source
       if (!shared.get(cred(namedValue))) {
-        throw Error(`no value for credential "${namedValue}" from ${JSON.stringify({ shared, type })}`);
+        throw Error(`no value for credential "${namedValue}" from ${JSON.stringify({ keys: Object.keys(shared), type })}`);
       }
       namedFromVars[name] = shared.get(cred(namedValue));
     } else if (namedKey.startsWith(TYPE_ENV)) {
@@ -108,7 +108,7 @@ export function getNamedToVars({ named, vars }: TFound, world: TWorld) {
       const val = world.options.env[namedValue];
 
       if (val === undefined) {
-        throw Error(`no env value for "${namedValue}" from ${JSON.stringify({ shared, type })}`);
+        throw Error(`no env value for "${namedValue}" from ${JSON.stringify({ env: Object.keys(process.env), type })}`);
       }
       if (Array.isArray(val)) {
         let index = world.options[`_index_${namedValue}`] === undefined ? val.length - 1 : world.options[`_index_${namedValue}`];

@@ -1,6 +1,6 @@
 import fetch from 'node-fetch';
 
-import {  testWithDefaults } from '@haibun/core/build/lib/TestSteps';
+import {  testWithDefaults } from '@haibun/core/build/lib/test/lib';
 
 import server  from './web-server-stepper';
 

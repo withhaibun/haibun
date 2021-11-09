@@ -16,20 +16,19 @@ go();
 
 async function go() {
   const featureFilter = process.argv[3];
-
-  if (!process.argv[2] || featureFilter === '--help') {
-    usageThenExit();
-  }
-  console.log('\n_________________________________ start');
-
   const base = process.argv[2].replace(/\/$/, '');
   const specl = getOptionsOrDefault(base);
+
+  if (!process.argv[2] || featureFilter === '--help') {
+    await usageThenExit(specl);
+  }
+  console.log('\n_________________________________ start');
 
   const { protoOptions, errors } = processEnv(process.env, specl.options);
   const splits: { [name: string]: string }[] = protoOptions.options.splits || [{}];
 
   if (errors.length > 0) {
-    usageThenExit(errors.join('\n'));
+    await usageThenExit(specl, errors.join('\n'));
   }
   const logger = new Logger({ level: protoOptions.options.logLevel || 'debug', follow: protoOptions.options.logFollow });
   let allRunResults: PromiseSettledResult<TRunResult>[] = [];

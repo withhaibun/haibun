@@ -1,4 +1,4 @@
-import { ILogger } from '@haibun/core/build/lib/interfaces/logger';
+import { ILogger, TTraceTopic } from '@haibun/core/build/lib/interfaces/logger';
 import { Browser, BrowserContext, Page, chromium, firefox, webkit, BrowserType, devices, Request, Response } from 'playwright';
 
 export const BROWSERS: { [name: string]: BrowserType } = {
@@ -123,7 +123,7 @@ export class BrowserFactory {
     if (trace) {
       page.on('response', async (res: Response) => {
         const headers = await res.headersArray();
-        this.logger.log(`response: ${headers}`);
+        this.logger.log(`response trace ${Object.keys(headers)}`, { topic: ({ trace: { response: { headers } } } as TTraceTopic) });
       });
     }
     this.pages[sequence] = page;

@@ -2,9 +2,8 @@ import { onCurrentTypeForDomain, setShared } from '../steps/vars';
 import { IExtensionConstructor, IStepper, IHasDomains, TWorld, TNamed, TVStep, IRequireDomains } from './defs';
 import { getDomain } from './domain';
 import { runWith } from './run';
-import { asFeatures, testWithDefaults } from './TestSteps';
+import { asFeatures, getDefaultWorld, testWithDefaults } from './test/lib';
 import { getOptionsOrDefault, actionOK } from './util';
-import { getDefaultWorld } from './TestSteps';
 
 const TTYPE = 'page';
 const CCONTROL = 'control';
