@@ -1,5 +1,5 @@
 import { cred } from '../steps/credentials';
-import { TStep, TNamedVar, TFound, TNamed, BASE_TYPES, TWorld } from './defs';
+import { TStep, TNamedVar, TFound, TNamed, BASE_TYPES, TWorld, HAIBUN } from './defs';
 import { getStepShared } from './domain';
 
 const TYPE_QUOTED = 'q_';
@@ -108,7 +108,7 @@ export function getNamedToVars({ named, vars }: TFound, world: TWorld) {
       const val = world.options.env[namedValue];
 
       if (val === undefined) {
-        throw Error(`no env value for "${namedValue}" from ${JSON.stringify({ env: Object.keys(process.env), type })}`);
+        throw Error(`no env value for "${namedValue}" from ${JSON.stringify({ env: Object.keys(process.env).map(k => k.startsWith(HAIBUN)), type })}`);
       }
       if (Array.isArray(val)) {
         let index = world.options[`_index_${namedValue}`] === undefined ? val.length - 1 : world.options[`_index_${namedValue}`];
