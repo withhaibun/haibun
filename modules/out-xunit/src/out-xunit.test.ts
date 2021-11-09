@@ -1,8 +1,9 @@
 const { convert } = require("xmlbuilder2");
 
 import OutXUnit from "./out-xunit";
-import { testRun, TestSteps, getDefaultWorld } from "@haibun/core/build/lib/TestSteps";
-import { resultOutput, } from "@haibun/core/build/lib/util";
+import { testRun, getDefaultWorld } from "@haibun/core/build/lib/test/lib";
+import TestSteps from "@haibun/core/build/lib/test/TestSteps";
+import { resultOutput } from "@haibun/core/build/lib/util";
 
 const ox = [process.cwd(), "build", "out-xunit"].join("/");
 

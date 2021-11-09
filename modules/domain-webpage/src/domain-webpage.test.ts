@@ -1,7 +1,7 @@
 import { onCurrentTypeForDomain } from '@haibun/core/build/steps/vars';
 import { IExtensionConstructor, IStepper, TWorld, TNamed, IRequireDomains } from '@haibun/core/build/lib/defs';
 import { runWith } from '@haibun/core/build/lib/run';
-import { asFeatures, getDefaultWorld } from '@haibun/core/build/lib/TestSteps';
+import { asFeatures, getDefaultWorld } from '@haibun/core/build/lib/test/lib';
 import { getOptionsOrDefault, actionOK } from '@haibun/core/build/lib/util';
 import DomainWebPage, { webControl, webPage } from './domain-webpage';
 
