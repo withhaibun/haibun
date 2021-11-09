@@ -1,6 +1,5 @@
 import { Executor } from '../phases/Executor';
-import { getDefaultTag, getTestEnv } from '../lib/TestSteps';
-import { getDefaultWorld } from '../lib/TestSteps';
+import { getDefaultTag, getDefaultWorld, getTestEnv } from '../lib/test/lib';
 import { didNotOverwrite } from './vars';
 import { WorldContext } from '../lib/contexts';
 import { TNotOKActionResult } from '../lib/defs';

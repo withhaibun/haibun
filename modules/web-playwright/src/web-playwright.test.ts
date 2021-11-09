@@ -1,6 +1,6 @@
 import { Executor } from '@haibun/core/build/phases/Executor';
-import { getStepper, getSteppers } from '@haibun/core/build/lib/util';
-import { getTestEnv, getDefaultWorld } from '@haibun/core/build/lib/TestSteps';
+import { findStepper, getSteppers } from '@haibun/core/build/lib/util';
+import { getTestEnv, getDefaultWorld } from '@haibun/core/build/lib/test/lib';
 
 const stxt = ['~@haibun/domain-webpage/build/domain-webpage', [process.cwd(), 'build', 'web-playwright'].join('/')];
 
@@ -16,7 +16,7 @@ describe('playwrightWeb', () => {
   it('sets browser type and device', async () => {
     const { world, vstep, steppers } = await getTestEnv(stxt, 'using firefox.Pixel 5 browser', getDefaultWorld(0).world);
     await Executor.doFeatureStep(vstep, world);
-    const webPlaywright = getStepper<any>(steppers, 'WebPlaywright');
+    const webPlaywright = findStepper<any>(steppers, 'WebPlaywright');
     const bf = await webPlaywright.getBrowserFactory();
 
     expect(bf.browserType.name()).toBe('firefox');

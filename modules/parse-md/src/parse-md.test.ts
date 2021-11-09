@@ -1,5 +1,5 @@
 import { TVStep } from '@haibun/core/build/lib/defs';
-import { getDefaultWorld } from '@haibun/core/build/lib/TestSteps';
+import { getDefaultWorld } from '@haibun/core/build/lib/test/lib';
 import ParseMD from './parse-md';
 
 describe('parseMD', () => {

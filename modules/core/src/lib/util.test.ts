@@ -1,6 +1,7 @@
 import * as util from './util';
-import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, testRun, TestSteps, TestStepsWithOptions } from './TestSteps';
-import { getDefaultWorld } from './TestSteps';
+import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, testRun, getDefaultWorld } from './test/lib';
+import TestSteps from "./test/TestSteps";
+import TestStepsWithOptions from "./test/TestStepsWithOptions";
 import { withNameType } from './features';
 
 describe('output', () => {

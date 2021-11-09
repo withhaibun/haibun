@@ -1,6 +1,6 @@
 import { IExtensionConstructor, IStepper, TWorld, TNamed } from './defs';
 import * as steps from './features';
-import { asExpandedFeatures, asFeatures, testWithDefaults } from './TestSteps';
+import { asExpandedFeatures, asFeatures, testWithDefaults } from './test/lib';
 import { actionOK } from './util';
 
 describe('expandBackgrounds', () => {

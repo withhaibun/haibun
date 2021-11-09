@@ -1,6 +1,5 @@
 import { Executor } from '../phases/Executor';
-import { getTestEnv } from '../lib/TestSteps';
-import { getDefaultWorld } from '../lib/TestSteps';
+import { getDefaultWorld, getTestEnv } from '../lib/test/lib';
 
 describe('haibun', () => {
   it('finds prose', async () => {

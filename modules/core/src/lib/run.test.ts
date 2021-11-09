@@ -1,7 +1,7 @@
 import { run } from './run';
-import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, TestSteps, TestStepsWithOptions, testWithDefaults } from './TestSteps';
-import { getOptionsOrDefault, processEnv } from './util';
-import { getDefaultWorld } from './TestSteps';
+import { getDefaultWorld, testWithDefaults } from './test/lib';
+import TestSteps from "./test/TestSteps";
+import { getOptionsOrDefault } from './util';
 
 describe('run self-contained', () => {
   it('Backgrounds', async () => {
@@ -97,7 +97,7 @@ describe('step vars', () => {
 
 describe('handles exception', () => {
   it('handles exception', async () => {
-    const feature = { path: '/features/test.feature', content: `When I throw an exception\nThen the test should pass`};
+    const feature = { path: '/features/test.feature', content: `When I throw an exception\nThen the test should pass` };
     const { result } = await testWithDefaults([feature], [TestSteps]);
 
     expect(result.ok).toBe(false);

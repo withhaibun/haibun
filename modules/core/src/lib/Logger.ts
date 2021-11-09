@@ -63,7 +63,7 @@ export default class Logger implements ILogger, ILogOutput {
       subscriber.out(level, args, messageContext);
     }
     const tag = messageContext?.tag ? descTag(messageContext.tag) : '';
-    (console as any)[level].call(console, `${ln}${tag}: `.padStart(WIDTH), args, level.padStart(6));
+    (console as any)[level](`${ln}${Object.keys(tag)}: `.padStart(WIDTH), args, level.padStart(6));
   }
   debug = (args: any, mctx?: TMessageContext) => this.out('debug', args, mctx);
   log = (args: any, mctx?: TMessageContext) => this.out('log', args, mctx);

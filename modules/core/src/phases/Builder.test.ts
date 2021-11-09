@@ -1,6 +1,6 @@
 import { WorkspaceContext } from '../lib/contexts';
 import { OK, TFinalize } from '../lib/defs';
-import { getDefaultWorld } from '../lib/TestSteps';
+import { getDefaultWorld } from '../lib/test/lib';
 import Builder from './Builder';
 
 const feature = (result: any) => ({
