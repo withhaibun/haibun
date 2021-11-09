@@ -123,7 +123,8 @@ export class BrowserFactory {
     if (trace) {
       page.on('response', async (res: Response) => {
         const headers = await res.headersArray();
-        this.logger.log(`response trace ${Object.keys(headers)}`, { topic: ({ trace: { response: { headers } } } as TTraceTopic) });
+        const headersContent = (await Promise.allSettled(headers)).map(h => (h as any).value);
+        this.logger.log(`response trace ${headersContent.map(h => h.name)}`, { topic: ({ trace: { response: { headersContent } } } as TTraceTopic) });
       });
     }
     this.pages[sequence] = page;
