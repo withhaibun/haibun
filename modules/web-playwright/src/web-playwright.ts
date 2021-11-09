@@ -1,10 +1,10 @@
-import { Page } from 'playwright';
-
-import { IHasOptions, IStepper, IExtensionConstructor, OK, TWorld, TNamed, TVStep, IRequireDomains, TStepResult } from '@haibun/core/build/lib/defs';
+import { Page, Response } from 'playwright';
+import { IHasOptions, IStepper, IExtensionConstructor, OK, TWorld, TNamed, TVStep, IRequireDomains, TStepResult, TTraceOptions, TTrace } from '@haibun/core/build/lib/defs';
 import { onCurrentTypeForDomain } from '@haibun/core/build/steps/vars';
 import { BrowserFactory, TBrowserFactoryContextOptions } from './BrowserFactory';
 import { actionNotOK, ensureDirectory, getCaptureDir, getStepperOption, getIntOrError } from '@haibun/core/build/lib/util';
 import { webPage, webControl } from '@haibun/domain-webpage/build/domain-webpage';
+import { TTraceTopic } from '@haibun/core/build/lib/interfaces/logger';
 
 declare var window: any;
 
@@ -53,13 +53,25 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
   }
 
   async getPage() {
-    const trace = this.world.tag.trace;
+    const { trace: doTrace } = this.world.tag;
     const captureVideo = getStepperOption(this, 'CAPTURE_VIDEO', this.world.options);
     const browser: TBrowserFactoryContextOptions = {};
     if (captureVideo)
       browser.recordVideo = {
         dir: getCaptureDir(this.world.tag, 'video')
       }
+    const trace: TTraceOptions | undefined = doTrace ? {
+      response: {
+        listener: async (res: Response) => {
+          const url = res.url();
+          const headers = await res.headersArray();
+          const headersContent = (await Promise.allSettled(headers)).map(h => (h as any).value);
+          this.world.logger.log(`response trace ${headersContent.map(h => h.name)}`, { topic: ({ trace: { response: { headersContent } } } as TTraceTopic) });
+          const trace: TTrace = { 'response': { since: this.world.timer.since(), trace: { headersContent, url } } }
+          this.world.shared.concat('_trace', trace);
+        }
+      }
+    } : undefined;
     const page = await (await this.getBrowserFactory()).getPage(this.world.tag, { trace, browser });
     return page;
   }

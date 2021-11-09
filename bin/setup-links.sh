@@ -16,7 +16,7 @@ done) &&  \
 
 ## depend on @haibun/core
 
-(for i in domain-webpage web-http web-server-express out-xunit logger-websockets parse-md; do
+(for i in domain-webpage web-http web-server-express out-xunit out-review logger-websockets parse-md; do
   cd $i
   npm i &&  \
   npm link @haibun/core && \

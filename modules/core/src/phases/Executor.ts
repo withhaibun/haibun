@@ -1,4 +1,4 @@
-import { IStepper, TVStep, TResolvedFeature, TResult, TStepResult, TFeatureResult, TActionResult, TWorld, TActionResultTopics } from '../lib/defs';
+import { IStepper, TVStep, TResolvedFeature, TResult, TStepResult, TFeatureResult, TActionResult, TWorld, TActionResultTopics, TStepActionResult } from '../lib/defs';
 import { getNamedToVars } from '../lib/namedVars';
 import { actionNotOK, applyResShouldContinue, sleep } from '../lib/util';
 
@@ -44,7 +44,6 @@ export class Executor {
         await this.onFailure(result);
       }
       const topics: TActionResultTopics = result.actionResults.reduce<TActionResultTopics>((all, a) => ({ ...all, ...a.topics }), {});
-
       this.world.logger.log(ok, { topic: { stage: 'Executor', seq, result } });
       stepResults.push(result);
       if (!ok) {
@@ -61,7 +60,8 @@ export class Executor {
 
     // FIXME feature should really be attached ot the vstep
     for (const a of vstep.actions) {
-      let res: TActionResult;
+      const start = world.timer.since();
+      let res: Partial<TActionResult>;
       try {
         const namedWithVars = getNamedToVars(a, world);
         res = await a.step.action(namedWithVars, vstep);
@@ -69,7 +69,15 @@ export class Executor {
         world.logger.error(caught.stack);
         res = actionNotOK(`in ${vstep.in}: ${caught.message}`, { topics: { caught: caught.stack.toString() } });
       }
-      actionResults.push({ ...res, name: a.name });
+      let traces;
+      if (world.shared.get('_trace')) {
+        traces = world.shared.get('_trace');
+        world.shared.unset('_trace');
+      }
+      const end = world.timer.since();
+      // FIXME
+      const stepResult: TStepActionResult = { ...res, name: a.name, start, end, traces } as TStepActionResult;
+      actionResults.push(stepResult);
       const shouldContinue = applyResShouldContinue(world, res, a);
       ok = ok && shouldContinue;
       if (!shouldContinue) {
