@@ -38,14 +38,6 @@ done) &&  \
   cd ../
 done) &&  \
 
-# (for i in client-playwright parse-md; do
-#   cd $i;
-#   echo "\nlink $i"
-#   npm link @haibun/core && \
-#   tsc -b . && \
-#   cd ..;
-# done) && \
-
 (for i in  cli web-playwright; do 
 cd $i ; echo "\nlinking $i" ;
 
