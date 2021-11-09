@@ -7,6 +7,7 @@
         { "path": "web-http" },
         { "path": "parse-md" },
         { "path": "out-xunit" },
+        { "path": "out-review" },
         { "path": "logger-websockets" },
         { "path": "domain-webpage" }
     ]

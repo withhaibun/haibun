@@ -6,6 +6,7 @@ import { WorldContext } from '../contexts';
 import { featureSplit, withNameType } from './../features';
 import { applyDomainsOrError } from './../domain';
 import Logger, { LOGGER_NONE } from './../Logger';
+import { Timer } from '../Timer';
 
 export const HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS = 'HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS';
 
@@ -59,6 +60,7 @@ export const asExpandedFeatures = (w: { path: string; content: string }[]) =>
 export function getDefaultWorld(sequence: number): { world: TWorld; } {
   return {
     world: {
+      timer: new Timer(),
       tag: { sequence: 0, loop: 0, member: 0 },
       shared: new WorldContext(getDefaultTag(sequence)),
       logger: new Logger(process.env.HAIBUN_LOG_LEVEL ? { level: process.env.HAIBUN_LOG_LEVEL } : LOGGER_NONE),

@@ -1,5 +1,6 @@
-import { ILogger, TTraceTopic } from '@haibun/core/build/lib/interfaces/logger';
-import { Browser, BrowserContext, Page, chromium, firefox, webkit, BrowserType, devices, Request, Response } from 'playwright';
+import { ILogger, } from '@haibun/core/build/lib/interfaces/logger';
+import { TTraceOptions } from '@haibun/core/build/lib/defs';
+import { Browser, BrowserContext, Page, chromium, firefox, webkit, BrowserType, devices, } from 'playwright';
 
 export const BROWSERS: { [name: string]: BrowserType } = {
   firefox: firefox,
@@ -110,7 +111,7 @@ export class BrowserFactory {
     return !!this.pages[sequence]
   }
 
-  async getPage({ sequence }: { sequence: number }, options: { trace?: boolean, browser: TBrowserFactoryContextOptions } = { browser: {} }): Promise<Page> {
+  async getPage({ sequence }: { sequence: number }, options: { trace?: TTraceOptions, browser: TBrowserFactoryContextOptions } = { browser: {} }): Promise<Page> {
     const { trace, browser } = options;
     if (this.pages[sequence] !== undefined) {
       return this.pages[sequence]!;
@@ -121,11 +122,10 @@ export class BrowserFactory {
     const page = await context.newPage();
 
     if (trace) {
-      page.on('response', async (res: Response) => {
-        const headers = await res.headersArray();
-        const headersContent = (await Promise.allSettled(headers)).map(h => (h as any).value);
-        this.logger.log(`response trace ${headersContent.map(h => h.name)}`, { topic: ({ trace: { response: { headersContent } } } as TTraceTopic) });
-      });
+      Object.keys(trace).forEach(t => {
+        // FIXME
+        (page as any).on(t, trace[t].listener);
+      })
     }
     this.pages[sequence] = page;
     return page;

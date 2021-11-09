@@ -19,6 +19,13 @@ export class Context {
   get(name: string) {
     return this.values[name];
   }
+  concat(name: string, value: any) {
+    const t = this.values[name] || [];
+    this.values[name] = [...t, value];
+  }
+  unset(name: string) {
+    delete this.values[name];
+  }
 }
 
 export class DomainContext extends Context {

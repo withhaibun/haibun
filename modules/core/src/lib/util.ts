@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync } from 'fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'fs';
 import path from 'path';
 import { WorldContext } from './contexts';
 
@@ -69,7 +69,7 @@ export async function getStepper(s: string) {
     const loc = getModuleLocation(s);
 
     const S: IExtensionConstructor = await use(loc);
-    
+
     return S;
   } catch (e) {
     console.error(`could not use ${s}`);
@@ -292,7 +292,7 @@ export function ensureDirectory(base: string, folder: string) {
       console.info(`created ${base}/${folder}`);
     }
   } catch (e) {
-    console.error(`coudl not create ${base}/${folder}`, e);
+    console.error(`could not create ${base}/${folder}`, e);
     throw e;
   }
 }
@@ -318,6 +318,10 @@ export function applyResShouldContinue(world: any, res: Partial<TActionResult>, 
     return true;
   }
   return false;
+}
+
+export function writeTraceFile(tag: TTag, result: TResult) {
+  writeFileSync(getCaptureDir(tag, 'trace', 'trace.json'), JSON.stringify(result, null, 2));
 }
 
 export function getCaptureDir(tag: TTag, app: string, fn?: string) {
