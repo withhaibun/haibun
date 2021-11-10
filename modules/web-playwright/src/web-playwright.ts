@@ -1,10 +1,10 @@
-import { Page } from 'playwright';
-
-import { IHasOptions, IStepper, IExtensionConstructor, OK, TWorld, TNamed, TVStep, IRequireDomains } from '@haibun/core/build/lib/defs';
+import { Page, Response } from 'playwright';
+import { IHasOptions, IStepper, IExtensionConstructor, OK, TWorld, TNamed, TVStep, IRequireDomains, TStepResult, TTraceOptions, TTrace } from '@haibun/core/build/lib/defs';
 import { onCurrentTypeForDomain } from '@haibun/core/build/steps/vars';
-import { BrowserFactory } from './BrowserFactory';
-import { actionNotOK, ensureDirectory, getStepperOption } from '@haibun/core/build/lib/util';
+import { BrowserFactory, TBrowserFactoryContextOptions } from './BrowserFactory';
+import { actionNotOK, ensureDirectory, getCaptureDir, getStepperOption, getIntOrError } from '@haibun/core/build/lib/util';
 import { webPage, webControl } from '@haibun/domain-webpage/build/domain-webpage';
+import { TTraceTopic } from '@haibun/core/build/lib/interfaces/logger';
 
 declare var window: any;
 
@@ -15,13 +15,21 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
       desc: 'run browsers without a window (true or false)',
       parse: (input: string) => input === 'true',
     },
-    STEP_CAPTURE: {
+    CAPTURE_VIDEO: {
+      desc: 'capture video for every agent',
+      parse: (input: string) => true,
+    },
+    STEP_CAPTURE_SCREENSHOT: {
       desc: 'capture screenshot for every step',
       parse: (input: string) => true,
     },
+    TIMEOUT: {
+      desc: 'timeout for each step',
+      parse: (input: string) => getIntOrError(input),
+    },
   };
-  static hasFactory: boolean = false;
-  static bf: BrowserFactory | undefined = undefined;
+  hasFactory: boolean = false;
+  bf: BrowserFactory | undefined = undefined;
   world: TWorld;
   headless: boolean = false;
 
@@ -30,16 +38,42 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
   }
 
   async getBrowserFactory(): Promise<BrowserFactory> {
-    if (!WebPlaywright.hasFactory) {
+    if (!this.hasFactory) {
       const headless = getStepperOption(this, 'HEADLESS', this.world.options);
-      WebPlaywright.bf = new BrowserFactory(this.world.logger, headless);
-      WebPlaywright.hasFactory = true;
+      const defaultTimeout = getStepperOption(this, 'TIMEOUT', this.world.options);
+      this.bf = BrowserFactory.get(this.world.logger, { defaultTimeout, browser: { headless } });
+      this.hasFactory = true;
     }
-    return WebPlaywright.bf!;
+    return this.bf!;
+  }
+
+  async getContext() {
+    const context = (await this.getBrowserFactory()).getExistingContext(this.world.tag);
+    return context;
   }
 
   async getPage() {
-    const page = await (await this.getBrowserFactory()).getPage(this.world.tag);
+    const { trace: doTrace } = this.world.tag;
+    const captureVideo = getStepperOption(this, 'CAPTURE_VIDEO', this.world.options);
+    const browser: TBrowserFactoryContextOptions = {};
+    if (captureVideo)
+      browser.recordVideo = {
+        dir: getCaptureDir(this.world.tag, 'video'),
+
+      }
+    const trace: TTraceOptions | undefined = doTrace ? {
+      response: {
+        listener: async (res: Response) => {
+          const url = res.url();
+          const headers = await res.headersArray();
+          const headersContent = (await Promise.allSettled(headers)).map(h => (h as any).value);
+          this.world.logger.log(`response trace ${headersContent.map(h => h.name)}`, { topic: ({ trace: { response: { headersContent } } } as TTraceTopic) });
+          const trace: TTrace = { 'response': { since: this.world.timer.since(), trace: { headersContent } } }
+          this.world.shared.concat('_trace', trace);
+        }
+      }
+    } : undefined;
+    const page = await (await this.getBrowserFactory()).getPage(this.world.tag, { trace, browser });
     return page;
   }
 
@@ -58,31 +92,46 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
     }
   }
 
-  async nextFeature() {
-    console.log('\n\nnextFeature context');
+  async onFailure(result: TStepResult) {
+    this.world.logger.error(result);
 
+    if (this.bf?.hasPage(this.world.tag)) {
+      const page = await this.getPage();
+      const path = getCaptureDir(this.world.tag, 'failure', `${result.seq}.png`);
+
+      await page.screenshot({ path, fullPage: true, timeout: 60000 });
+    }
+  }
+
+  async nextStep() {
+    const captureScreenshot = getStepperOption(this, 'STEP_CAPTURE_SCREENSHOT', this.world.options);
+    if (captureScreenshot) {
+      console.log('captureScreenshot');
+    }
+
+  }
+
+  async nextFeature() {
     // close the context, which closes any pages
-    if (WebPlaywright.hasFactory) {
-      await WebPlaywright.bf!.closeContexts();
+    if (this.hasFactory) {
+      await this.bf!.closeContext(this.world.tag);
       return;
     }
   }
   async close() {
-    console.log('\n\nclose context');
-
     // close the context, which closes any pages
-    if (WebPlaywright.hasFactory) {
-      await WebPlaywright.bf!.closeContext(this.world.tag);
+    if (this.hasFactory) {
+      await this.bf!.closeContext(this.world.tag);
       return;
     }
   }
 
   // FIXME
   async finish() {
-    if (WebPlaywright.hasFactory) {
-      (await this.getBrowserFactory()).browser?.close();
-      WebPlaywright.bf = undefined;
-      WebPlaywright.hasFactory = false;
+    if (this.hasFactory) {
+      this.bf?.close();
+      this.bf = undefined;
+      this.hasFactory = false;
     }
   }
 
@@ -121,6 +170,16 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
         return actionNotOK('Did not find text', { topics });
       },
     },
+    waitFor: {
+      gwta: 'wait for {what}',
+      action: async ({ what }: TNamed) => {
+        const found = await this.withPage(async (page: Page) => await page.waitForSelector(what));
+        if (found) {
+          return OK;
+        }
+        return actionNotOK(`Did not find ${what}`);
+      },
+    },
 
     beOnPage: {
       gwta: `should be on the {name: ${webPage}} page`,
@@ -130,6 +189,16 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
           return OK;
         }
         return actionNotOK(`expected ${name} but on ${nowon}`);
+      },
+    },
+    cookieShouldBe: {
+      gwta: 'cookie {name} should be {value}',
+      action: async ({ name, value }: TNamed) => {
+        const context = await this.getContext();
+        const cookies = await context?.cookies();
+
+        const found = cookies?.find(c => c.name === name && c.value === value);
+        return found ? OK : actionNotOK(`did not find cookie ${name} with value ${value}`);
       },
     },
     URIContains: {
@@ -283,6 +352,4 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
 };
 export default WebPlaywright;
 
-export type TWebPlaywright = {
-  bf: BrowserFactory;
-};
+export type TWebPlaywright = typeof WebPlaywright;

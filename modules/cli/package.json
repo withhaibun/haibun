@@ -1,6 +1,6 @@
 {
   "name": "@haibun/cli",
-  "version": "1.0.2",
+  "version": "1.1.1",
   "description": "command line execution for @haibun",
   "bin": {
     "haibun-cli": "build/cli.js"
@@ -10,7 +10,9 @@
   ],
   "scripts": {
     "prepublishOnly": "tsc -b .",
-    "test": "echo no tests specified; exit 0"
+    "build": "tsc -b .",
+    "test": "jest --config jest.config.ts",
+    "test-watch": "jest --watch"
   },
   "keywords": [],
   "author": "",

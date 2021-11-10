@@ -1,7 +1,7 @@
 import { IStepper, IExtensionConstructor, OK, TWorld, TNamed, TVStep } from '@haibun/core/build/lib/defs';
 import { TLogLevel, TMessageContext } from '@haibun/core/build/lib/interfaces/logger';
 import { getFromRuntime } from '@haibun/core/build/lib/util';
-import { IWebServer } from '@haibun/core/build/lib/interfaces/webserver';
+import { IWebServer } from '@haibun/web-server-express/build/defs';
 
 import WebSocket from 'ws';
 import { ILogOutput } from '@haibun/core/build/lib/interfaces/logger';

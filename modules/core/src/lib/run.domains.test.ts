@@ -2,8 +2,8 @@ import { onCurrentTypeForDomain, setShared } from '../steps/vars';
 import { IExtensionConstructor, IStepper, IHasDomains, TWorld, TNamed, TVStep, IRequireDomains } from './defs';
 import { getDomain } from './domain';
 import { runWith } from './run';
-import { asFeatures, testWithDefaults } from './TestSteps';
-import { getOptionsOrDefault, getDefaultWorld, actionOK } from './util';
+import { asFeatures, getDefaultWorld, testWithDefaults } from './test/lib';
+import { getOptionsOrDefault, actionOK } from './util';
 
 const TTYPE = 'page';
 const CCONTROL = 'control';
@@ -24,7 +24,7 @@ const TestStepsRequiresDomain: IExtensionConstructor = class TestStepsRequiresDo
       },
     },
     test: {
-      gwta: 'Pull the {what: control}',
+      gwta: `See the {what: ${CCONTROL}} ${CCONTROL}`,
       action: async (named: TNamed) => {
         return actionOK();
       },
@@ -44,7 +44,7 @@ const TestStepsWithDomain: IExtensionConstructor = class TestStepsWithDomain imp
   }
   steps = {
     has: {
-      gwta: 'Has a {what} control',
+      gwta: `Has a {what: ${CCONTROL}} control`,
       action: async ({ what }: TNamed, vstep: TVStep) => {
         const value = 'xxx';
         setShared({ what, value }, vstep, this.world);
@@ -54,10 +54,11 @@ const TestStepsWithDomain: IExtensionConstructor = class TestStepsWithDomain imp
   };
 };
 
-describe.only('domain object', () => {
+describe('domain object', () => {
   it('missing domain object', async () => {
-    const { result } = await testWithDefaults([{ path: '/features/test.feature', content: `\nPull the lever\n` }], [TestStepsWithDomain]);
+    const { result } = await testWithDefaults([{ path: '/features/test.feature', content: `\nHas a foobar control\n` }], [TestStepsRequiresDomain]);
     expect(result.ok).toBe(false);
+    
     expect(result.failure!.error.message.startsWith(`missing required domain "${TTYPE}"`)).toBe(true);
     expect(result.failure!.error.details.stack).toBeDefined();
   });
@@ -65,14 +66,12 @@ describe.only('domain object', () => {
     const specl = getOptionsOrDefault();
     const key = '/backgrounds/p1';
 
-    const { world } = getDefaultWorld();
-    const features = asFeatures([{ path: '/features/test.feature', content: `Backgrounds: p1.${TTYPE}\n\nOn the /backgrounds/p1 ${TTYPE}\nPull the lever\n` }]);
+    const { world } = getDefaultWorld(0);
+    const features = asFeatures([{ path: '/features/test.feature', content: `Backgrounds: p1.${TTYPE}\n\nOn the /backgrounds/p1 ${TTYPE}\nSee the page control\n` }]);
     const backgrounds = asFeatures([{ path: `/backgrounds/p1.${TTYPE}.feature`, content: 'Has a lever control' }]);
     const { result } = await runWith({ specl, features, backgrounds, addSteppers: [TestStepsRequiresDomain, TestStepsWithDomain], world });
 
     expect(result.ok).toBe(true);
-
-    // expect(result.results![0].stepResults[0].actionResults[0].topics).toEqual('http://localhost:8123/p1');
 
     expect(world.shared.getCurrent(TTYPE)).toEqual(key);
     const page = getDomain(TTYPE, world)!.shared.get(key);
