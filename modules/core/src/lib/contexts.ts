@@ -1,4 +1,4 @@
-import { WorkspaceBuilder } from './defs';
+import { TTag, WorkspaceBuilder } from './defs';
 
 export class Context {
   values: { [name: string]: any };
@@ -19,6 +19,13 @@ export class Context {
   get(name: string) {
     return this.values[name];
   }
+  concat(name: string, value: any) {
+    const t = this.values[name] || [];
+    this.values[name] = [...t, value];
+  }
+  unset(name: string) {
+    delete this.values[name];
+  }
 }
 
 export class DomainContext extends Context {
@@ -38,7 +45,7 @@ export class DomainContext extends Context {
 }
 
 export class WorldContext extends Context {
-  constructor(tag: string, initial?: { [name: string]: string }) {
+  constructor(tag: TTag, initial?: { [name: string]: string }) {
     super(`world ${tag}`, initial);
   }
   static currentKey = (domain: string) => `_current_${domain}`;

@@ -2,6 +2,7 @@
 export const WEBSERVER = 'webserver';
 export const WEBSERVER_STEPPER = 'WebServerStepper';
 export const CHECK_LISTENER = 'CHECK_LISTENER';
+import * as express from 'express';
 
 export interface IWebServer {
   addStaticFolder(subdir: string): Promise<string | undefined>;
@@ -12,13 +13,8 @@ export interface IWebServer {
 
 export type TRouteType = 'get';
 
-export type IRequest = {
+export type IRequest = typeof express.request;
 
-}
+export type IResponse = typeof express.response;
 
-export type IResponse = {
-  status : (n: number) => IResponse;
-  send: (what: string) => void;
-
-}
 export type TRequestHandler = (req: IRequest, res: IResponse) => void;

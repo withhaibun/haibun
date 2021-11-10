@@ -1,5 +1,7 @@
+import { IExtensionConstructor, IStepper, TWorld, TNamed } from './defs';
 import * as steps from './features';
-import { asExpandedFeatures, asFeatures } from './TestSteps';
+import { asExpandedFeatures, asFeatures, testWithDefaults } from './test/lib';
+import { actionOK } from './util';
 
 describe('expandBackgrounds', () => {
   test('simple', async () => {
@@ -72,7 +74,7 @@ describe('feature finding', () => {
 });
 
 xdescribe('expand features', () => {
-  test.only('applies backgrounds', async () => {
+  test('applies backgrounds', async () => {
     const features = asFeatures([{ path: '/f1', content: 'Backgrounds: b1\nextant' }]);
     const backgrounds = asFeatures([{ path: '/b1.feature', content: 'result' }]);
     const res = await steps.expandFeatures(features, backgrounds);
@@ -90,3 +92,29 @@ xdescribe('expand features', () => {
     expect(res).toEqual(asExpandedFeatures([{ path: '/l1/f1', content: '\nresult\n' }]));
   });
 });
+
+describe('env vars', () => {
+  it('rotates ENVC vars', async () => {
+    let index = 0;
+    const TestEnvcStepper: IExtensionConstructor = class TestRoute implements IStepper {
+      world: TWorld;
+      constructor(world: TWorld) {
+        this.world = world;
+      }
+      steps = {
+        addRoute: {
+          gwta: 'finds a {what}',
+          action: async ({ what }: TNamed) => {
+            expect(what).toBe(index);
+            index++;
+            return actionOK();
+          },
+        },
+      };
+    };
+    const feature = { path: '/features/test.feature', content: `\nfinds a {what}\nfinds a {what}` }
+    const env = { what: [0, 1] }
+    const { world } = await testWithDefaults([feature], [TestEnvcStepper], { env });
+    expect(world.options._index_what).toBe(1);
+  });
+})

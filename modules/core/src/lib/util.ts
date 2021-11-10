@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync } from 'fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'fs';
 import path from 'path';
 import { WorldContext } from './contexts';
 
@@ -21,9 +21,9 @@ import {
   TActionResultTopics,
   TActionResult,
   TFound,
+  TTag,
 } from './defs';
 import { withNameType } from './features';
-import Logger, { LOGGER_NONE } from './Logger';
 
 // FIXME tired of wrestling with ts/import issues
 export async function use(module: string) {
@@ -64,17 +64,28 @@ export function actionOK(topics?: TActionResultTopics): TOKActionResult {
   return { ok: true, topics };
 }
 
-export async function getSteppers({ steppers = [], world, addSteppers = [] }: { steppers: string[]; world: TWorld; addSteppers?: IExtensionConstructor[] }) {
-  const allSteppers: IStepper[] = [];
-  for (const s of steppers) {
+export async function getStepper(s: string) {
+  try {
     const loc = getModuleLocation(s);
 
     const S: IExtensionConstructor = await use(loc);
+
+    return S;
+  } catch (e) {
+    console.error(`could not use ${s}`);
+    throw (e);
+  }
+}
+
+export async function getSteppers({ steppers = [], world, addSteppers = [] }: { steppers: string[]; world: TWorld; addSteppers?: IExtensionConstructor[] }) {
+  const allSteppers: IStepper[] = [];
+  for (const s of steppers) {
+    const S = await getStepper(s);
     try {
       const stepper = new S(world);
       allSteppers.push(stepper);
     } catch (e) {
-      console.error(`new ${S} from "${loc}" failed`, e, S);
+      console.error(`new ${S} from "${getModuleLocation(s)}" failed`, e, S);
       throw e;
     }
   }
@@ -103,9 +114,10 @@ export function recurse(dir: string, type: string, filter: RegExp | string | und
   let all: TFeature[] = [];
   for (const file of files) {
     const here = `${dir}/${file}`;
+
     if (statSync(here).isDirectory()) {
       all = all.concat(recurse(here, type, filter));
-    } else if ((!type || file.endsWith(`.${type}`)) && (!filter || file.match(filter))) {
+    } else if ((!type || file.endsWith(`.${type}`)) && !!(!filter || here.match(filter))) {
       all.push(withNameType(here, readFileSync(here, 'utf-8')));
     }
   }
@@ -160,27 +172,15 @@ export function isLowerCase(str: string) {
 
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-export function getDefaultWorld(): { world: TWorld } {
-  return {
-    world: {
-      tag: '_default',
-      shared: new WorldContext('default'),
-      logger: new Logger(process.env.HAIBUN_LOG_LEVEL ? { level: process.env.HAIBUN_LOG_LEVEL } : LOGGER_NONE),
-      runtime: {},
-      options: {},
-      domains: [],
-    },
-  };
-}
-
 type TEnv = { [name: string]: string | undefined };
 
 export function processEnv(env: TEnv, options: TOptions) {
-  const protoOptions: TProtoOptions = { options: { ...options }, extraOptions: {} };
+  const protoOptions: TProtoOptions = { options: { ...options, env: {} }, extraOptions: {} };
   let errors: string[] = [];
   const pfx = `${HAIBUN}_`;
+
   const setIntOrError = (val: any, what: string) => val.match(/[^\d+]/) ? errors.push(`${what}: integer`) : protoOptions.options[what.toLowerCase()] = parseInt(val, 10);
-  
+
   Object.entries(env)
     .filter(([k]) => k.startsWith(pfx))
     .map(([k]) => {
@@ -195,8 +195,10 @@ export function processEnv(env: TEnv, options: TOptions) {
         } else {
           protoOptions.options.splits = s.split(',').map((w: string) => ({ [what]: w }));
         }
-      } else if (['STEP_DELAY', 'LOOPS', 'MEMBERS'].includes(opt)) {
+      } else if (['STEP_DELAY', 'LOOPS', 'LOOP_START', 'LOOP_INC', 'MEMBERS'].includes(opt)) {
         setIntOrError(value, opt);
+      } else if (opt === 'TRACE') {
+        protoOptions.options.trace = true;
       } else if (opt === 'CLI') {
         protoOptions.options.cli = true;
       } else if (opt === 'STAY') {
@@ -205,11 +207,39 @@ export function processEnv(env: TEnv, options: TOptions) {
         protoOptions.options.logFollow = value;
       } else if (opt === 'LOG_LEVEL') {
         protoOptions.options.logLevel = value;
+      } else if (opt === 'ENV') {
+        const pairs = value?.split(',');
+        for (const pair in pairs) {
+          const [k, v] = pair.split(',').map(i => i.trim());
+          if (protoOptions.options.env[k]) {
+            throw Error(`ENV ${k} already exists`);
+          }
+          protoOptions.options.env[k] = v;
+        }
+      } else if (opt === 'ENVC') {
+
+        applyEnvCollections(value!, protoOptions);
       } else {
         protoOptions.extraOptions[k] = value!;
       }
     });
   return { protoOptions, errors };
+}
+
+export function applyEnvCollections(value: string, protoOptions: TProtoOptions) {
+  const pairs = new Set(value?.split(',').map(a => a.split('=')[0]));
+
+  for (const pair of pairs) {
+    const [k] = Array.from(new Set(pair.split('=')));
+    if (protoOptions.options.env[k]) {
+      throw Error(`ENVC ${k} already exists`);
+    }
+    protoOptions.options.env[k] = [];
+  }
+  for (const pair of value?.split(',')) {
+    const [k, v] = pair.split('=');
+    protoOptions.options.env[k].push(v);
+  }
 }
 
 // has side effects
@@ -219,7 +249,7 @@ export function applyExtraOptions(protoOptions: TProtoOptions, steppers: ISteppe
   }
   Object.entries(protoOptions.extraOptions).map(([k, v]) => {
     const conc = getStepperOptions(k, v!, steppers);
-    
+
     if (conc === undefined) {
       throw Error(`no option ${k}`);
     }
@@ -232,14 +262,14 @@ export function applyExtraOptions(protoOptions: TProtoOptions, steppers: ISteppe
   }
 }
 
-function getPre(stepper: IStepper) {
+export function getPre(stepper: IStepper) {
   return ['HAIBUN', 'O', (stepper as any as IExtensionConstructor).constructor.name.toUpperCase()].join('_') + '_';
 }
 export function getStepperOptions(key: string, value: string, steppers: (IStepper & IHasOptions)[]): TOptionValue | void {
   for (const stepper of steppers) {
     const pre = getPre(stepper);
     const int = key.replace(pre, '');
-    
+
     if (key.startsWith(pre) && stepper.options![int]) {
       return stepper.options![int].parse(value);
     }
@@ -262,13 +292,13 @@ export function ensureDirectory(base: string, folder: string) {
       console.info(`created ${base}/${folder}`);
     }
   } catch (e) {
-    console.error(`coudl not create ${base}/${folder}`, e);
+    console.error(`could not create ${base}/${folder}`, e);
     throw e;
   }
 }
 
 // FIXME
-export function getStepper<Type>(steppers: IStepper[], name: string): Type {
+export function findStepper<Type>(steppers: IStepper[], name: string): Type {
   return <Type>(steppers.find((s) => s.constructor.name === name) as any);
 }
 
@@ -289,3 +319,34 @@ export function applyResShouldContinue(world: any, res: Partial<TActionResult>, 
   }
   return false;
 }
+
+export function writeTraceFile(tag: TTag, result: TResult) {
+  writeFileSync(getCaptureDir(tag, 'trace', 'trace.json'), JSON.stringify(result, null, 2));
+}
+
+export function getCaptureDir(tag: TTag, app: string, fn?: string) {
+  const dir = [process.cwd(), 'capture', tag.sequence, app].join('/');
+  if (!existsSync(dir)) {
+    try {
+      mkdirSync(dir, { recursive: true });
+    } catch (e) {
+      throw Error(`creating ${dir}: ${e}`)
+    }
+  }
+  if (fn) {
+    return `${dir}/${fn}`;
+  }
+  return dir;
+}
+
+export const getRunTag = (sequence: number, loop: number, member: number, params: any, trace: boolean) => ({ sequence, loop, member, params, trace });
+
+export const getIntOrError = (val: any) => {
+  if (val.match(/[^\d+]/)) {
+    throw Error(`${val} is not an integer`);
+  }
+  return parseInt(val, 10);
+};
+
+
+export const descTag = (tag: TTag) => ` @${tag.sequence} (${tag.loop}x${tag.member})`;

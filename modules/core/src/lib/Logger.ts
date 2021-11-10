@@ -1,4 +1,6 @@
+import { TTag } from './defs';
 import { ILogger, ILogOutput, TLogLevel, TMessageContext } from './interfaces/logger';
+import { descTag } from './util';
 
 export const LOGGER_LOG = { level: 'log' };
 export const LOGGER_NONE = { level: 'none' };
@@ -14,7 +16,7 @@ export const LOGGER_LEVELS = {
 };
 
 type TLevel = { level: string, follow?: string };
-type TOutputEnv = { output: ILogOutput, tag: string };
+type TOutputEnv = { output: ILogOutput, tag: TTag };
 type TConf = TLevel | TOutputEnv;
 
 export default class Logger implements ILogger, ILogOutput {
@@ -39,11 +41,11 @@ export default class Logger implements ILogger, ILogOutput {
   static shouldLogLevel(level: number, name: TLogLevel) {
     return LOGGER_LEVELS[name] >= level;
   }
-  static shouldLogFollow(match: string, tag: string) {
+  static shouldLogFollow(match: string, tag: TTag) {
     if (!match || !tag) {
       return true;
     }
-    const res = new RegExp(match).test(tag)
+    const res = new RegExp(match).test(`${tag.sequence}`)
     return res;
   }
   out(level: TLogLevel, args: any, messageContext?: TMessageContext) {
@@ -60,8 +62,8 @@ export default class Logger implements ILogger, ILogOutput {
     for (const subscriber of this.subscribers) {
       subscriber.out(level, args, messageContext);
     }
-    const tag = messageContext?.tag ? ` ${messageContext.tag}` : '';
-    (console as any)[level].call(console, `${ln}${tag}: `.padStart(WIDTH), args, level.padStart(6));
+    const tag = messageContext?.tag ? descTag(messageContext.tag) : '';
+    (console as any)[level](`${ln}${tag}: `.padStart(WIDTH), args, level.padStart(6));
   }
   debug = (args: any, mctx?: TMessageContext) => this.out('debug', args, mctx);
   log = (args: any, mctx?: TMessageContext) => this.out('log', args, mctx);
@@ -69,5 +71,3 @@ export default class Logger implements ILogger, ILogOutput {
   warn = (args: any, mctx?: TMessageContext) => this.out('warn', args, mctx);
   error = (args: any, mctx?: TMessageContext) => this.out('error', args, mctx);
 }
-
-export const loggerTag = (loop: number, member: number, env: any) => `@-l${loop}-m${member}-s${env}`;
