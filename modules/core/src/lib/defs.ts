@@ -162,6 +162,7 @@ export type TResultError = {
 
 export type TResult = {
   ok: boolean;
+  tag: TTag,
   results?: TFeatureResult[];
   failure?: {
     stage: 'Options' | 'Domains' | 'Expand' | 'Resolve' | 'Build' | 'Execute';

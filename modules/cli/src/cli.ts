@@ -135,10 +135,10 @@ async function doRun(base: string, specl: TSpecl, runtime: {}, featureFilter: st
   const world: TWorld = { ...protoOptions, shared, logger, runtime, domains: [], tag, timer };
 
   const { result } = await run({ specl, base, world, featureFilter, protoOptions });
-  const output = await resultOutput(process.env.HAIBUN_OUTPUT, result, shared);
-
   if (world.options.trace) {
     writeTraceFile(world.tag, result);
   }
+  const output = await resultOutput(process.env.HAIBUN_OUTPUT, result, shared);
+
   return { result, shared, output, tag, runStart: runStart[0], runDuration: process.hrtime(runStart)[0], fromStart: timer.since() };
 }
