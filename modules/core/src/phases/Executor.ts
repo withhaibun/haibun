@@ -22,10 +22,11 @@ export class Executor {
       const featureResult = await this.doFeature(feature);
       ok = ok && featureResult.ok;
       featureResults.push(featureResult);
+      
       await this.nextFeature();
     }
     await this.close();
-    return { ok, results: featureResults };
+    return { ok, results: featureResults, tag: this.world.tag };
   }
 
   async doFeature(feature: TResolvedFeature): Promise<TFeatureResult> {

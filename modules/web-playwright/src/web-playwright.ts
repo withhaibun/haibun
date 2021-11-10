@@ -58,7 +58,8 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
     const browser: TBrowserFactoryContextOptions = {};
     if (captureVideo)
       browser.recordVideo = {
-        dir: getCaptureDir(this.world.tag, 'video')
+        dir: getCaptureDir(this.world.tag, 'video'),
+
       }
     const trace: TTraceOptions | undefined = doTrace ? {
       response: {
@@ -67,7 +68,7 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
           const headers = await res.headersArray();
           const headersContent = (await Promise.allSettled(headers)).map(h => (h as any).value);
           this.world.logger.log(`response trace ${headersContent.map(h => h.name)}`, { topic: ({ trace: { response: { headersContent } } } as TTraceTopic) });
-          const trace: TTrace = { 'response': { since: this.world.timer.since(), trace: { headersContent, url } } }
+          const trace: TTrace = { 'response': { since: this.world.timer.since(), trace: { headersContent } } }
           this.world.shared.concat('_trace', trace);
         }
       }
