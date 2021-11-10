@@ -3,7 +3,7 @@ import { IExtensionConstructor, IStepper, IHasDomains, TWorld, TNamed, TVStep, O
 import { getFromRuntime } from '@haibun/core/build/lib/util';
 import { getDomain } from '@haibun/core/build/lib/domain';
 import { WebPageBuilder } from './WebPageBuilder';
-import { IWebServer } from '@haibun/core/build/lib/interfaces/webserver';
+import { IWebServer } from '@haibun/web-server-express/build/defs';
 
 export const webPage = 'webpage';
 export const webControl = 'webcontrol';
@@ -31,7 +31,7 @@ const DomainWebPage: IExtensionConstructor = class DomainWebPage implements ISte
         const webserver = <IWebServer>getFromRuntime(this.world.runtime, 'webserver');
         webserver.addStaticFolder(page);
         console.log('added paeg', page);
-        
+
         return OK;
       },
     },

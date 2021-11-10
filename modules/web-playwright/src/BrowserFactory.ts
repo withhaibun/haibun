@@ -1,5 +1,6 @@
-import { ILogger } from '@haibun/core/build/lib/interfaces/logger';
-import { Browser, BrowserContext, Page, chromium, firefox, webkit, BrowserType, devices } from 'playwright';
+import { ILogger, } from '@haibun/core/build/lib/interfaces/logger';
+import { TTraceOptions } from '@haibun/core/build/lib/defs';
+import { Browser, BrowserContext, Page, chromium, firefox, webkit, BrowserType, devices, } from 'playwright';
 
 export const BROWSERS: { [name: string]: BrowserType } = {
   firefox: firefox,
@@ -7,20 +8,46 @@ export const BROWSERS: { [name: string]: BrowserType } = {
   webkit: webkit,
 };
 
+export type TBrowserFactoryContextOptions = {
+  recordVideo?: {
+    dir: string
+  }
+}
+
+export type TBrowserFactoryOptions = {
+  browser?: {
+    headless?: boolean,
+  },
+  defaultTimeout?: number
+}
+
+export type PageInstance = Page & { _guid: string };
+
 export class BrowserFactory {
+  static browser = chromium.launch({ headless: process.env['HAIBUN_O_WEBPLAYWRIGHT_HEADLESS'] !== 'false' });
   static browsers: { [name: string]: Browser } = {};
-  browser!: Browser;
-  static contexts: { [name: string]: BrowserContext } = {};
-  pages: { [name: string]: Page } = {};
+  contexts: { [name: string]: BrowserContext } = {};
+  pages: { [name: string]: Page | undefined } = {};
   logger: ILogger;
   browserType: BrowserType = chromium;
   device: string | undefined = undefined;
   type: string = 'chromium';
-  headless: boolean = false;
+  options: TBrowserFactoryOptions;
+  myBrowsers: { [name: string]: Browser; };
 
-  constructor(logger: ILogger, headless: boolean) {
+  private constructor(browsers: { [name: string]: Browser }, logger: ILogger, options: TBrowserFactoryOptions = {}) {
+    this.myBrowsers = browsers;
     this.logger = logger;
-    this.headless = headless;
+    this.options = options;
+  }
+
+  static get(logger: ILogger, options: TBrowserFactoryOptions = {}) {
+    if (!BrowserFactory.browsers) {
+      BrowserFactory.browsers = {};
+
+    }
+    return new BrowserFactory(BrowserFactory.browsers, logger, options);
+
   }
 
   setBrowserType(typeAndDevice: string) {
@@ -34,50 +61,73 @@ export class BrowserFactory {
   }
 
   async getBrowser(type: string): Promise<Browser> {
+    return BrowserFactory.browser;
+    /*
     if (!BrowserFactory.browsers[type]) {
-      BrowserFactory.browsers[type] = await this.browserType.launch({ headless: this.headless });
+      BrowserFactory.browsers[type] = await this.browserType.launch(this.options.browser);
       this.logger.info(`launched new ${type} browser`);
     }
     return BrowserFactory.browsers[type];
+    */
   }
 
-  async getContext(ctx: string): Promise<BrowserContext> {
-    if (!BrowserFactory.contexts[ctx]) {
+  getExistingContext({ sequence }: { sequence: number }) {
+    if (this.contexts[sequence]) {
+      return this.contexts[sequence];
+    }
+  }
+
+  async getContext(sequence: number, options: TBrowserFactoryContextOptions): Promise<BrowserContext> {
+    if (!this.contexts[sequence]) {
       const browser = await this.getBrowser(this.type);
-      this.logger.info('creating new context');
+      this.logger.info(`creating new context ${sequence} ${this.type}`);
       const context = this.device ? { ...devices[this.device] } : {};
-      BrowserFactory.contexts[ctx] = await browser.newContext(context);
-      // BrowserFactory.contexts[ctx].setDefaultTimeout(900)
+      this.contexts[sequence] = await browser.newContext({ ...context, ...options });
+      if (this.options.defaultTimeout) {
+        this.contexts[sequence].setDefaultTimeout(this.options.defaultTimeout)
+      }
     }
-    return BrowserFactory.contexts[ctx];
+    return this.contexts[sequence];
   }
 
-  async closeContext(ctx: string) {
-    if (BrowserFactory.contexts[ctx]) {
-      await BrowserFactory.contexts[ctx].close();
-      delete BrowserFactory.contexts[ctx];
-      delete this.pages[ctx]; 
-      console.log('xx', ctx);
-      
+
+  async closeContext({ sequence }: { sequence: number }) {
+    if (this.contexts[sequence] !== undefined) {
+      let p = this.pages[sequence];
+      await p && p?.close();
     }
+    await this.contexts[sequence]?.close();
+    delete this.pages[sequence];
+    delete this.contexts[sequence];
   }
 
-  async closeContexts() {
-    for (const c in BrowserFactory.contexts) {
-      await BrowserFactory.contexts[c].clearCookies();
-      await this.closeContext(c);
-    }
+  async close() {
+    Object.values(BrowserFactory.browsers).forEach(async (v) => {
+      await v.close();
+    });
   }
 
-  async getPage(ctx: string): Promise<Page> {
-    if ((await this.getContext(ctx)) && this.pages[ctx]) {
-      return this.pages[ctx];
-    }
-    this.logger.info(`creating new page for ${ctx}`);
+  hasPage({ sequence }: { sequence: number }) {
+    return !!this.pages[sequence]
+  }
 
-    const context = await this.getContext(ctx);
+  async getPage({ sequence }: { sequence: number }, options: { trace?: TTraceOptions, browser: TBrowserFactoryContextOptions } = { browser: {} }): Promise<Page> {
+    const { trace, browser } = options;
+    if (this.pages[sequence] !== undefined) {
+      return this.pages[sequence]!;
+    }
+    this.logger.info(`creating new page for ${sequence}`);
+
+    const context = await this.getContext(sequence, browser);
     const page = await context.newPage();
-    this.pages[ctx] = page;
+
+    if (trace) {
+      Object.keys(trace).forEach(t => {
+        // FIXME
+        (page as any).on(t, trace[t].listener);
+      })
+    }
+    this.pages[sequence] = page;
     return page;
   }
 }

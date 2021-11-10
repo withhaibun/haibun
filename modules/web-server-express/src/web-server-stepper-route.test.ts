@@ -1,11 +1,11 @@
 import fetch from 'node-fetch';
 
-import { actionOK, getFromRuntime, getStepper } from '@haibun/core/build/lib/util';
-import { IWebServer, IRequest, IResponse, WEBSERVER, WEBSERVER_STEPPER, CHECK_LISTENER } from './defs';
+import { actionOK, getFromRuntime, findStepper } from '@haibun/core/build/lib/util';
+import { IWebServer, IRequest, IResponse, WEBSERVER, WEBSERVER_STEPPER, } from './defs';
 
 import server, { IWebServerStepper, } from './web-server-stepper';
 import { IExtensionConstructor, IStepper, TNamed, TWorld } from '@haibun/core/build/lib/defs';
-import { testWithDefaults } from '@haibun/core/src/lib/TestSteps';
+import { testWithDefaults } from '@haibun/core/src/lib/test/lib';
 
 
 describe('route mount', () => {
@@ -42,6 +42,6 @@ describe('route mount', () => {
 
     expect(await content.text()).toEqual('ok');
 
-    getStepper<IWebServerStepper>(steppers!, WEBSERVER_STEPPER).close();
+    findStepper<IWebServerStepper>(steppers!, WEBSERVER_STEPPER).close();
   });
 });

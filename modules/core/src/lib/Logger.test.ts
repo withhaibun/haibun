@@ -1,5 +1,6 @@
-import { ILogOutput, TEST_RESULT, TMessageContext } from './interfaces/logger';
-import Logger, { loggerTag, LOGGER_LEVELS } from './Logger';
+import { ILogOutput, TEST_RESULT, TExecutorTopic, TMessageContext } from './interfaces/logger';
+import Logger, { LOGGER_LEVELS } from './Logger';
+import { getDefaultTag } from './test/lib';
 
 describe('log levels', () => {
   test('logs none with none', () => {
@@ -13,14 +14,6 @@ describe('log levels', () => {
     expect(Logger.shouldLogLevel(LOGGER_LEVELS['log'], 'debug')).toBe(false);
   });
 });
-describe('log follow', () => {
-  test('logs follow', () => {
-    expect(Logger.shouldLogFollow('-m[1-3]', loggerTag(1, 2, {}))).toBe(true);
-  });
-  test('log does not follow', () => {
-    expect(Logger.shouldLogFollow('-m[1-3]', loggerTag(1, 5, {}))).toBe(false);
-  });
-});
 
 describe('logger with subscriber', () => {
   test('subscriber receives topic', (done) => {
@@ -28,7 +21,7 @@ describe('logger with subscriber', () => {
     const subscriber: ILogOutput = {
       out(level: string, args: any[], ctx?: TMessageContext) {
         expect(ctx!.topic).toBeDefined();
-        expect(ctx!.topic!.result).toEqual(TEST_RESULT);
+        expect((ctx!.topic! as TExecutorTopic).result).toEqual(TEST_RESULT);
         done();
       },
     };
@@ -41,11 +34,11 @@ describe('logger with output', () => {
   test('output gets current tag', (done) => {
     const output: ILogOutput = {
       out(level: string, args: any[], ctx?: TMessageContext) {
-        expect(ctx!.tag).toBe('current');
+        expect(ctx?.tag?.loop).toBe(0);
         done();
       },
     };
-    const dlogger = new Logger({ output, tag: 'current' });
+    const dlogger = new Logger({ output, tag: getDefaultTag(0) });
 
     dlogger.log('test');
   });

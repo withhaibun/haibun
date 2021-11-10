@@ -1,5 +1,6 @@
 import { statSync, existsSync } from 'fs';
 import express, { RequestHandler } from 'express';
+import  cookieParser from 'cookie-parser';
 
 import { IWebServer, TRouteType } from './defs';
 import { ILogger } from '@haibun/core/src/lib/interfaces/logger';
@@ -18,6 +19,7 @@ export class ServerExpress implements IWebServer {
     this.logger = logger;
     this.base = base;
     this.port = port;
+    this.app.use(cookieParser());
   }
 
   async listen(): Promise<IWebServer> {

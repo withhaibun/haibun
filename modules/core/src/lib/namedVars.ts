@@ -1,4 +1,5 @@
-import { TStep, TNamedVar, TFound, TNamed, BASE_TYPES, TWorld } from './defs';
+import { cred } from '../steps/credentials';
+import { TStep, TNamedVar, TFound, TNamed, BASE_TYPES, TWorld, HAIBUN } from './defs';
 import { getStepShared } from './domain';
 
 const TYPE_QUOTED = 'q_';
@@ -90,19 +91,37 @@ export function getNamedToVars({ named, vars }: TFound, world: TWorld) {
     const namedValue = named[namedKey];
     if (namedKey.startsWith(TYPE_VAR_OR_LITERAL)) {
       namedFromVars[name] = shared.get(namedValue) || named[namedKey];
-    } else if (namedKey.startsWith(TYPE_VAR) || namedKey.startsWith(TYPE_CREDENTIAL)) {
+    } else if (namedKey.startsWith(TYPE_VAR)) {
       // must be from source
       if (!shared.get(namedValue)) {
-        throw Error(`no value for "${namedValue}" from ${JSON.stringify({ shared, type })}`);
+        throw Error(`no value for "${namedValue}" from ${JSON.stringify({ keys: Object.keys(shared), type })}`);
       }
       namedFromVars[name] = shared.get(namedValue);
+    } else if (namedKey.startsWith(TYPE_CREDENTIAL)) {
+      // must be from source
+      if (!shared.get(cred(namedValue))) {
+        throw Error(`no value for credential "${namedValue}" from ${JSON.stringify({ keys: Object.keys(shared), type })}`);
+      }
+      namedFromVars[name] = shared.get(cred(namedValue));
     } else if (namedKey.startsWith(TYPE_ENV)) {
       // FIXME add test
-      const val = process.env[namedValue];
-      if (!val) {
-        throw Error(`no env value for "${namedValue}" from ${JSON.stringify({ shared, type })}`);
+      const val = world.options.env[namedValue];
+
+      if (val === undefined) {
+        throw Error(`no env value for "${namedValue}" from ${JSON.stringify({ env: Object.keys(process.env).map(k => k.startsWith(HAIBUN)), type })}`);
       }
-      namedFromVars[name] = val;
+      if (Array.isArray(val)) {
+        let index = world.options[`_index_${namedValue}`] === undefined ? val.length - 1 : world.options[`_index_${namedValue}`];
+        index++;
+        if (index > val.length - 1) {
+          index = 0;
+        }
+        world.options[`_index_${namedValue}`] = index;
+
+        namedFromVars[name] = val[index];
+      } else {
+        namedFromVars[name] = val;
+      }
     } else if (namedKey.startsWith(TYPE_QUOTED)) {
       // quoted
       namedFromVars[name] = named[namedKey];

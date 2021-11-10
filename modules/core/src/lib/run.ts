@@ -32,6 +32,15 @@ export async function run({
   return runWith({ specl, world, features, backgrounds, addSteppers, protoOptions });
 }
 
+type TRunWithOptions = {
+  specl: TSpecl;
+  world: TWorld;
+  features: TFeature[];
+  backgrounds: TFeature[];
+  addSteppers: IExtensionConstructor[];
+  protoOptions?: TProtoOptions;
+}
+
 export async function runWith({
   specl,
   world,
@@ -39,32 +48,26 @@ export async function runWith({
   backgrounds,
   addSteppers,
   protoOptions: protoOptions = { options: {}, extraOptions: {} },
-}: {
-  specl: TSpecl;
-  world: TWorld;
-  features: TFeature[];
-  backgrounds: TFeature[];
-  addSteppers: IExtensionConstructor[];
-  protoOptions?: TProtoOptions;
-}): Promise<{ result: TResult; steppers?: IStepper[] }> {
+}: TRunWithOptions): Promise<{ result: TResult; steppers?: IStepper[] }> {
+  const { tag } = world;
   const steppers: IStepper[] = await getSteppers({ steppers: specl.steppers, addSteppers, world });
   try {
     applyExtraOptions(protoOptions, steppers, world);
   } catch (error: any) {
-    return { result: { ok: false, failure: { stage: 'Options', error: { message: error.message, details: error } } } };
+    return { result: { ok: false, tag, failure: { stage: 'Options', error: { message: error.message, details: error } } } };
   }
 
   try {
     applyDomainsOrError(steppers, world);
   } catch (error: any) {
-    return { result: { ok: false, failure: { stage: 'Domains', error: { message: error.message, details: { stack: error.stack } } } } };
+    return { result: { ok: false, tag, failure: { stage: 'Domains', error: { message: error.message, details: { stack: error.stack } } } } };
   }
 
   let expandedFeatures;
   try {
     expandedFeatures = await expand(backgrounds, features);
   } catch (error: any) {
-    return { result: { ok: false, failure: { stage: 'Expand', error: { message: error.message, details: error } } } };
+    return { result: { ok: false, tag, failure: { stage: 'Expand', error: { message: error.message, details: error } } } };
   }
 
   let mappedValidatedSteps;
@@ -72,7 +75,7 @@ export async function runWith({
     const resolver = new Resolver(steppers, specl.mode, world);
     mappedValidatedSteps = await resolver.resolveSteps(expandedFeatures);
   } catch (error: any) {
-    return { result: { ok: false, failure: { stage: 'Resolve', error: { message: error.message, details: { stack: error.stack, steppers, mappedValidatedSteps } } } } };
+    return { result: { ok: false, tag, failure: { stage: 'Resolve', error: { message: error.message, details: { stack: error.stack, steppers, mappedValidatedSteps } } } } };
   }
 
   const builder = new Builder(world);
@@ -81,15 +84,23 @@ export async function runWith({
     world.logger.log(`features: ${expandedFeatures.length} backgrounds: ${backgrounds.length} steps: (${expandedFeatures.map((e) => e.path)}), ${mappedValidatedSteps.length}`);
   } catch (error: any) {
     console.error(error);
-    return { result: { ok: false, failure: { stage: 'Build', error: { message: error.message, details: { stack: error.stack, steppers, mappedValidatedSteps } } } } };
+    return { result: { ok: false, tag, failure: { stage: 'Build', error: { message: error.message, details: { stack: error.stack, steppers, mappedValidatedSteps } } } } };
   }
 
   const executor = new Executor(steppers, world);
-  const result = await executor.execute(mappedValidatedSteps);
-  if (!result.ok) {
-    const message = (result.results![0].stepResults.find(s => !s.ok)?.actionResults[0] as TNotOKActionResult).message;
+  let result;
+  try {
+    result = { ...await executor.execute(mappedValidatedSteps), tag };
+    
+    if (!result.ok) {
+      const message = (result.results![0].stepResults.find(s => !s.ok)?.actionResults[0] as TNotOKActionResult).message;
 
-    result.failure = { stage: 'Execute', error: { message, details: { errors: result.results?.filter((r) => !r.ok).map((r) => r.path) } } };
+      result.failure = { stage: 'Execute', error: { message, details: { errors: result.results?.filter((r) => !r.ok).map((r) => r.path) } } };
+    }
+  } catch (e: any) {
+    console.log('XXXXXXX', e);
+    
+    result = { ok: false, tag, failure: e };
   }
   return { result, steppers };
 }
