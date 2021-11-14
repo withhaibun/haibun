@@ -208,6 +208,17 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
         return uri.includes(what) ? OK : actionNotOK(`current URI ${uri} does not contain ${what}`);
       },
     },
+    URIQueryParameterIs: {
+      gwta: 'URI query parameter {what} is {value}',
+      action: async ({ what, value }: TNamed) => {
+        const uri = await this.withPage(async (page: Page) => await page.url());
+        const found = new URL(uri).searchParams.get(what);
+        if (found === value) {
+          return OK;
+        }
+        return actionNotOK(`URI query ${what} contains "${found}"", not "${value}""`);
+      },
+    },
     URIStartsWith: {
       gwta: 'URI should start with {start}',
       action: async ({ start }: TNamed) => {
@@ -345,6 +356,15 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
         if (!isVisible) {
           await this.withPage(async (page: Page) => await page.click(using));
         }
+        return OK;
+      },
+    },
+    setToURIQueryParameter: {
+      gwta: 'Save URI query parameter {what} to {where}',
+      action: async ({ what, where }: TNamed) => {
+        const uri = await this.withPage(async (page: Page) => await page.url());
+        const found = new URL(uri).searchParams.get(what);
+        this.world.shared.set(where, found!);
         return OK;
       },
     },
