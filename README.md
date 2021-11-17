@@ -32,15 +32,38 @@ On running tests, features at the project/ level are run.
 Features can use the directive `Backgrounds: <features>` or `Scenarios: <features>` which will prepend comma-separated named features from backgrounds/.
 Background features from further 'down' their tree will include previous features.
 
-So, if test.feature includes run.feature, that will includes setup.feature and run.feature before test.feature's steps.
+So, if test.feature includes run.feature, 
+that will includes setup.feature and run.feature before test.feature's steps.
 
 Note that features/ (unlike backgrounds) will not include folder predecessors.
 
 # Packages
 
-haibun is composed of a number of packages, each with minimum dependencies, which can be configured at runtime via the cli package. 
+haibun is composed of a number of packages, 
+each with minimum dependencies, 
+which can be configured at runtime via the cli package. 
+
 See the [modules](modules) directory.
 
+# Installation
+
+Clone this repo, and install lerna and typescript globally;
+
+  `npm i -g lerna typescript`
+
+  
 # Development
 
-Install lerna globally, then use `npm run build`. Each module can be developed independently using `npm run tsc-watch` and `npm test` options.
+To build:
+
+  `npm run build`
+  `npm run tsc-watch`
+
+Use this at the top level to build and watch all modules.
+
+Each module can be developed independently using: 
+
+  `npm run tsc-watch` 
+
+  `npm test`
+
