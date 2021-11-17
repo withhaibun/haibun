@@ -12,7 +12,7 @@ and isolated from general specifications.
 While @Haibun may not make this development fun, 
 it is intended to make it easier to maintain, 
 with an emphasis on reuse for different deployment environments,
-and the ability to link to formal specfications.
+and the ability to link to formal specifications.
 
 
 # Feature structure
@@ -43,4 +43,4 @@ See the [modules](modules) directory.
 
 # Development
 
-Install lerna globally, then use `npm run build`. Each module can be developed independantly using `npm run tsc-watch` and `npm test` options.
+Install lerna globally, then use `npm run build`. Each module can be developed independently using `npm run tsc-watch` and `npm test` options.
