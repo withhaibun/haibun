@@ -43,4 +43,4 @@ See the [modules](modules) directory.
 
 # Development
 
-Install lerna globally, then use `npm build`. Each module can be developed independently using `npm run tsc-watch` and `npm test` options.
+Install lerna globally, then use `npm run build`. Each module can be developed independently using `npm run tsc-watch` and `npm test` options.
