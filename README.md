@@ -56,7 +56,7 @@ Clone this repo, and install lerna and typescript globally;
 
 To build:
 
-  `npm build`
+  `npm run build`
   `npm run tsc-watch`
 
 Use this at the top level to build and watch all modules.
