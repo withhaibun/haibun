@@ -24,7 +24,7 @@ describe('playwrightWeb', () => {
     webPlaywright.finish();
   });
   it('fails setting browser type and device', async () => {
-    const { world, vstep } = await getTestEnv(stxt, 'using nonexistant browser', getDefaultWorld(0).world);
+    const { world, vstep } = await getTestEnv(stxt, 'using nonexistent browser', getDefaultWorld(0).world);
     const result = await Executor.doFeatureStep(vstep, world);
     expect(result.actionResults[0].ok).toBe(false);
   });
