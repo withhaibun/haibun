@@ -12,7 +12,7 @@ and isolated from general specifications.
 While @Haibun may not make this development fun, 
 it is intended to make it easier to maintain, 
 with an emphasis on reuse for different deployment environments,
-and the ability to link to formal specfications.
+and the ability to link to formal specifications.
 
 
 # Feature structure
