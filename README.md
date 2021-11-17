@@ -61,7 +61,7 @@ To build:
 
 Use this at the top level to build and watch all modules.
 
-Each module can be developed independantly using: 
+Each module can be developed independently using: 
 
   `npm run tsc-watch` 
 
