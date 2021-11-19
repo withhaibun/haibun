@@ -47,7 +47,7 @@ See the [modules](modules) directory.
 
 # Installation
 
-The installation uses a sh script, it is tested in Linux & Mac OS X, should also work on Windows using WSL.
+The installation uses a shell script, it is tested in Linux & macOS, and should also work on Windows using WSL.
 
 Clone this repo, and install lerna and typescript globally;
 
