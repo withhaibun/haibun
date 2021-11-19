@@ -47,6 +47,8 @@ See the [modules](modules) directory.
 
 # Installation
 
+The installation uses a shell script, it is tested in Linux & macOS, and should also work on Windows using WSL.
+
 Clone this repo, and install lerna and typescript globally;
 
   `npm i -g lerna typescript`
@@ -67,3 +69,8 @@ Each module can be developed independently using:
 
   `npm test`
 
+To develop your own separate module while developing these Haibun modules, use:
+
+`npm link @haibun/core`
+
+and any other modules you may need.
