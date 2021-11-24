@@ -102,9 +102,9 @@ async function go() {
     .map((i) => <PromiseRejectedResult>i)
     .map((i) => i.reason);
 
-  const ok = ranResults.every((a) => a.result.ok);
+  const ok = ranResults.every((a) => a.result.ok) && exceptionResults.length < 1;
 
-  if (ok && exceptionResults.length < 1) {
+  if (ok) {
     logger.log(ranResults.every((r) => r.output));
   } else {
     try {
@@ -117,7 +117,7 @@ async function go() {
   console.log(JSON.stringify(allFailures, null, 2));
   console.log('\nRESULT>>>', { ok, startDate: Timer.startTime, startTime: Timer.startTime.getTime(), passed, failed, totalRan, runTime, 'features/s:': totalRan / runTime });
 
-  if (ok && exceptionResults.length < 1 && protoOptions.options.stay !== 'always') {
+  if (ok && protoOptions.options.stay !== 'always') {
     process.exit(0);
   } else if (protoOptions.options.stay !== 'always') {
     process.exit(1);
