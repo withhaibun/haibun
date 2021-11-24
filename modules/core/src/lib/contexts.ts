@@ -13,7 +13,7 @@ export class Context {
     return `context ${this.context} values ${this.values}`;
   }
 
-  set(name: string, value: string | boolean) {
+  set(name: string, value: string | boolean | object) {
     this.values[name] = value;
   }
   get(name: string) {
