@@ -34,6 +34,10 @@ const vars: IExtensionConstructor = class Vars implements IStepper {
   }
 
   steps = {
+    concat: {
+      gwta: 'concat {p1} and {p2} as {what}',
+      action: ({ p1, p2, what }: TNamed, vstep: TVStep) => this.set({ what, value: `${p1}${p2}` }, vstep)
+    },
     set: {
       gwta: 'set( empty)? {what: string} to {value: string}',
       action: this.set.bind(this),
@@ -69,7 +73,7 @@ const vars: IExtensionConstructor = class Vars implements IStepper {
     display: {
       gwta: 'display {what}',
       action: async ({ what }: TNamed) => {
-        this.world.logger.log(`is ${what}`);
+        this.world.logger.log(`is ${JSON.stringify(what)}`);
 
         return OK;
       },

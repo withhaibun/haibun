@@ -155,6 +155,21 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
     },
 
     //                ASSERTIONS
+    dialogIs: {
+      gwta: 'dialog {what} {type} is {value}',
+      action: async ({ what, type, value }: TNamed) => {
+        const cur = this.world.shared.get(what)?.[type];
+
+        return cur === value ? OK : actionNotOK(`${what} is ${cur}`)
+      },
+    },
+    dialogIsUnset: {
+      gwta: 'dialog {what} {type} not set',
+      action: async ({ what, type, value }: TNamed) => {
+        const cur = this.world.shared.get(what)?.[type];
+        return !cur ? OK : actionNotOK(`${what} is ${cur}`)
+      },
+    },
     seeText: {
       gwta: 'should see {text}',
       action: async ({ text }: TNamed) => {
@@ -335,6 +350,21 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
     },
 
     //                          MISC
+    captureDialog: {
+      gwta: 'Accept next dialog to {where}',
+      action: async ({ where }: TNamed) => {
+        const a = await this.withPage(async (page: Page) => page.on('dialog', dialog => {
+          const res = {
+            defaultValue: dialog.defaultValue(),
+            message: dialog.message(),
+            type: dialog.type()
+          }
+          dialog.accept();
+          this.world.shared.set(where, res);
+        }));
+        return OK;
+      },
+    },
     takeScreenshot: {
       gwta: 'take a screenshot',
       action: async () => {
