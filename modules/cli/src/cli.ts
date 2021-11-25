@@ -16,25 +16,24 @@ export type TRunResult = { output: any, result: TResult, shared: WorldContext, t
 go();
 
 async function go() {
-  const featureFilter = process.argv[3].split(',');
+  const featureFilter = (process.argv[3] || '').split(',');
   const base = process.argv[2].replace(/\/$/, '');
   const specl = getOptionsOrDefault(base);
 
   if (!process.argv[2] || featureFilter.find(f => f === '--help')) {
     await usageThenExit(specl);
   }
-  console.log('\n_________________________________ start');
+  console.info('\n_________________________________ start');
 
   const { protoOptions, errors } = processBaseEnv(process.env, specl.options);
-  const splits: { [name: string]: string }[] = protoOptions.options.splits || [{}];
+  const splits: { [name: string]: string }[] = protoOptions.options.SPLITS || [{}];
 
   if (errors.length > 0) {
     await usageThenExit(specl, errors.join('\n'));
   }
-  const logger = new Logger({ level: protoOptions.options.LOGlEVEL || 'debug', follow: protoOptions.options.logFollow });
+  const logger = new Logger({ level: protoOptions.options.LOG_LEVEL || 'debug', follow: protoOptions.options.LOG_FOLLOW });
   let allRunResults: PromiseSettledResult<TRunResult>[] = [];
-  console.log('xoiaosdfsa', protoOptions);
-  
+
   const loops = protoOptions.options.LOOPS || 1;
   const members = protoOptions.options.MEMBERS || 1;
   const trace = protoOptions.options.TRACE;
@@ -116,8 +115,8 @@ async function go() {
     }
   }
   const runTime = timer.since();
-  console.log(JSON.stringify(allFailures, null, 2));
-  console.log('\nRESULT>>>', { ok, startDate: Timer.startTime, startTime: Timer.startTime.getTime(), passed, failed, totalRan, runTime, 'features/s:': totalRan / runTime });
+  console.info('failures:', JSON.stringify(allFailures, null, 2));
+  console.info('\nRESULT>>>', { ok, startDate: Timer.startTime, startTime: Timer.startTime.getTime(), passed, failed, totalRan, runTime, 'features/s:': totalRan / runTime });
 
   if (ok && exceptionResults.length < 1 && protoOptions.options.STAY !== 'always') {
     process.exit(0);

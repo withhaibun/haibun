@@ -68,7 +68,7 @@ export default class TopicResult extends LitElement {
         lines[seq] = [...(lines[seq] || []), m];
       }
     }
-    console.log(
+    console.debug(
       'TODO use these',
       this.features
         .map(f => {

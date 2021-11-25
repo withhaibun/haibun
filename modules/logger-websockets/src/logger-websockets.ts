@@ -15,7 +15,7 @@ class WebSocketServer implements ILogOutput {
   clients: TWS[] = [];
   async connection(ws: TWS) {
     ws.on('message', (message) => {
-      console.log('received: %s', message);
+      console.debug('received: %s', message);
       if (message === 'catchup') {
         ws.send(JSON.stringify({ catchup: this.buffered }));
         this.clients.push(ws);

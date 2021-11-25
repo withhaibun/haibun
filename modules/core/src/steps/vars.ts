@@ -109,14 +109,14 @@ export const onCurrentTypeForDomain = ({ name, type }: { name: string; type: str
   const domain = getDomain(type, world);
   const page = domain?.shared.get(name);
   if (!page) {
-    console.log(
+    console.debug(
       'using locator',
       domain?.module.domains.map((k) => k.name)
     );
 
     return domain?.module.locator!(name);
   }
-  console.log('using page');
+  console.debug('using page');
   const uri = page.getID();
   return uri;
 };

@@ -30,7 +30,7 @@ const DomainWebPage: IExtensionConstructor = class DomainWebPage implements ISte
 
         const webserver = <IWebServer>getFromRuntime(this.world.runtime, 'webserver');
         webserver.addStaticFolder(page);
-        console.log('added paeg', page);
+        console.debug('added paeg', page);
 
         return OK;
       },
