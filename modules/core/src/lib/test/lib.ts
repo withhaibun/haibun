@@ -25,16 +25,18 @@ export async function getTestEnv(useSteppers: string[], test: string, world: TWo
   };
   return { world, vstep, steppers };
 }
-
-export async function testWithDefaults(these: { path: string, content: string }[], addSteppers: IExtensionConstructor[], options?: TOptions) {
+type TTestFeatures = { path: string, content: string }[];
+export async function testWithDefaults(inFeatures: TTestFeatures, addSteppers: IExtensionConstructor[], options?: TOptions, inBackgrounds: TTestFeatures = []) {
   const specl = getOptionsOrDefault();
 
   const { world } = getDefaultWorld(0);
   if (options) {
     world.options = options;
   }
-  const features = asFeatures(these);
-  return { world, ...await runWith({ specl, features, backgrounds: [], addSteppers, world }) };
+  const features = asFeatures(inFeatures);
+  const backgrounds = asFeatures(inBackgrounds);
+
+  return { world, ...await runWith({ specl, features, backgrounds, addSteppers, world }) };
 }
 
 export async function testRun(baseIn: string, addSteppers: IExtensionConstructor[], world: TWorld, protoOptions?: TProtoOptions) {

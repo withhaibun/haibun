@@ -1,5 +1,5 @@
 import { IHasOptions, IStepper, IExtensionConstructor, OK, TWorld, TNamed, TOptions } from '@haibun/core/build/lib/defs';
-import { actionNotOK } from '@haibun/core/build/lib/util';
+import { actionNotOK, intOrError } from '@haibun/core/build/lib/util';
 import { IWebServer, WEBSERVER, WEBSERVER_STEPPER } from './defs';
 import { ServerExpress, DEFAULT_PORT } from './server-express';
 
@@ -10,7 +10,7 @@ const WebServerStepper: IExtensionConstructor = class WebServerStepper implement
   options = {
     PORT: {
       desc: `change web server port from ${DEFAULT_PORT}`,
-      parse: (port: string) => parseInt(port, 10),
+      parse: (port: string) => intOrError(port)
     },
   };
   constructor(world: TWorld) {
