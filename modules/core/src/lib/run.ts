@@ -67,7 +67,6 @@ export async function runWith({
   try {
     expandedFeatures = await expand(backgrounds, features);
   } catch (error: any) {
-    console.log('moomoo');
     
     return { result: { ok: false, tag, failure: { stage: 'Expand', error: { message: error.message, details: error } } } };
   }
