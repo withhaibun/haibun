@@ -50,6 +50,8 @@ export async function runWith({
   protoOptions: protoOptions = { options: {}, extraOptions: {} },
 }: TRunWithOptions): Promise<{ result: TResult; steppers?: IStepper[] }> {
   const { tag } = world;
+  
+  
   const steppers: IStepper[] = await getSteppers({ steppers: specl.steppers, addSteppers, world });
   try {
     applyExtraOptions(protoOptions, steppers, world);
@@ -99,7 +101,7 @@ export async function runWith({
       result.failure = { stage: 'Execute', error: { message, details: { errors: result.results?.filter((r) => !r.ok).map((r) => r.path) } } };
     }
   } catch (e: any) {
-    console.log('XXXXXXX', e);
+    console.error('XXXXXXX', e);
     
     result = { ok: false, tag, failure: e };
   }
