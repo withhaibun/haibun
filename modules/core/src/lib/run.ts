@@ -12,14 +12,14 @@ export async function run({
   base,
   world,
   addSteppers = [],
-  featureFilter = '',
+  featureFilter = [''],
   protoOptions: protoOptions = { options: {}, extraOptions: {} },
 }: {
   specl: TSpecl;
   world: TWorld;
   base: string;
   addSteppers?: IExtensionConstructor[];
-  featureFilter?: string;
+  featureFilter?: string[];
   protoOptions?: TProtoOptions;
 }): Promise<{ result: TResult; steppers?: IStepper[] }> {
   const features = debase(base, recurse(`${base}/features`, 'feature', featureFilter));

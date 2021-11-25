@@ -2,7 +2,7 @@ import { Page, Response } from 'playwright';
 import { IHasOptions, IStepper, IExtensionConstructor, OK, TWorld, TNamed, TVStep, IRequireDomains, TStepResult, TTraceOptions, TTrace } from '@haibun/core/build/lib/defs';
 import { onCurrentTypeForDomain } from '@haibun/core/build/steps/vars';
 import { BrowserFactory, TBrowserFactoryContextOptions } from './BrowserFactory';
-import { actionNotOK, ensureDirectory, getCaptureDir, getStepperOption, getIntOrError } from '@haibun/core/build/lib/util';
+import { actionNotOK, ensureDirectory, getCaptureDir, getStepperOption, boolOrError, intOrError } from '@haibun/core/build/lib/util';
 import { webPage, webControl } from '@haibun/domain-webpage/build/domain-webpage';
 import { TTraceTopic } from '@haibun/core/build/lib/interfaces/logger';
 
@@ -13,19 +13,19 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
   options = {
     HEADLESS: {
       desc: 'run browsers without a window (true or false)',
-      parse: (input: string) => input === 'true',
+      parse: (input: string) => boolOrError(input)
     },
     CAPTURE_VIDEO: {
       desc: 'capture video for every agent',
-      parse: (input: string) => true,
+      parse: (input: string) => boolOrError(input),
     },
     STEP_CAPTURE_SCREENSHOT: {
       desc: 'capture screenshot for every step',
-      parse: (input: string) => true,
+      parse: (input: string) => boolOrError(input),
     },
     TIMEOUT: {
       desc: 'timeout for each step',
-      parse: (input: string) => getIntOrError(input),
+      parse: (input: string) => intOrError(input),
     },
   };
   hasFactory: boolean = false;
@@ -58,7 +58,7 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
     const browser: TBrowserFactoryContextOptions = {};
     if (captureVideo)
       browser.recordVideo = {
-        dir: getCaptureDir(this.world.tag, 'video'),
+        dir: getCaptureDir(this.world, 'video'),
 
       }
     const trace: TTraceOptions | undefined = doTrace ? {
@@ -97,7 +97,7 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
 
     if (this.bf?.hasPage(this.world.tag)) {
       const page = await this.getPage();
-      const path = getCaptureDir(this.world.tag, 'failure', `${result.seq}.png`);
+      const path = getCaptureDir(this.world, 'failure', `${result.seq}.png`);
 
       await page.screenshot({ path, fullPage: true, timeout: 60000 });
     }

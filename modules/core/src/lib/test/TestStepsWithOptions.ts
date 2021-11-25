@@ -10,7 +10,7 @@ const TestStepsWithOptions: IExtensionConstructor = class TestStepsWithOptions i
   options = {
     EXISTS: {
       desc: 'option exists',
-      parse: (input: string) => 42,
+      parse: (input: string) => ({ result: 42 }),
     },
   };
   steps = {
