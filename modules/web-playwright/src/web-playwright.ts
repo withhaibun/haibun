@@ -106,9 +106,8 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
   async nextStep() {
     const captureScreenshot = getStepperOption(this, 'STEP_CAPTURE_SCREENSHOT', this.world.options);
     if (captureScreenshot) {
-      console.log('captureScreenshot');
+      console.debug('captureScreenshot');
     }
-
   }
 
   async nextFeature() {
@@ -327,7 +326,7 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
         await this.withPage(
           async (page: Page) =>
             await page.evaluate(() => {
-              console.log('going back', window.history);
+              console.debug('going back', window.history);
               (window as any).history.go(-1);
             })
         );

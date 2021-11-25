@@ -14,7 +14,7 @@ const ParseMD: IExtensionConstructor = class ParseMD implements IStepper {
     conformance: {
       gwta: `has annotated conformance doc from {where: string}`,
       action: async ({ where }: TNamed) => {
-        console.log('w', where);
+        console.debug('w', where);
         
         try {
           parseMatches([where], this.world.options.base as string, [conformance]);

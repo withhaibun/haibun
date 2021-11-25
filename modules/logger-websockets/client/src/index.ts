@@ -18,6 +18,6 @@ const upload = document.querySelector('vaadin-upload');
 customElements.whenDefined('vaadin-radio-button').then(() => {
   const checkbox: any = document.querySelector('#show-all');
   checkbox!.addEventListener('change', (event: any) => {
-    console.log(checkbox!.value);
+    console.debug(checkbox!.value);
   });
 });
