@@ -42,7 +42,7 @@ export async function resultOutput(type: string | undefined, result: TResult, sh
     const AnOut = await use(type);
     const out: TOutput = new AnOut();
     if (out) {
-      const res = await out.getOutput(result, {});
+      const res = await out.writeOutput(result, {});
       return res;
     }
   }
@@ -109,15 +109,15 @@ export function debase(base: string, features: TFeature[]) {
   return features.map((f) => ({ ...f, path: f.path.replace(base, '') }));
 }
 
-export function recurse(dir: string, type: string, filter: RegExp | string | undefined = undefined): TFeature[] {
+export function recurse(dir: string, type: string, featureFilter: RegExp[] | string[] | undefined = undefined): TFeature[] {
   const files = readdirSync(dir);
   let all: TFeature[] = [];
   for (const file of files) {
     const here = `${dir}/${file}`;
 
     if (statSync(here).isDirectory()) {
-      all = all.concat(recurse(here, type, filter));
-    } else if ((!type || file.endsWith(`.${type}`)) && !!(!filter || here.match(filter))) {
+      all = all.concat(recurse(here, type, featureFilter));
+    } else if ((!type || file.endsWith(`.${type}`)) && !featureFilter || ((featureFilter as string[]).find(f => here.match(f)))) {
       all.push(withNameType(here, readFileSync(here, 'utf-8')));
     }
   }
@@ -172,75 +172,6 @@ export function isLowerCase(str: string) {
 
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-type TEnv = { [name: string]: string | undefined };
-
-export function processEnv(env: TEnv, options: TOptions) {
-  const protoOptions: TProtoOptions = { options: { ...options, env: {} }, extraOptions: {} };
-  let errors: string[] = [];
-  const pfx = `${HAIBUN}_`;
-
-  const setIntOrError = (val: any, what: string) => val.match(/[^\d+]/) ? errors.push(`${what}: integer`) : protoOptions.options[what.toLowerCase()] = parseInt(val, 10);
-
-  Object.entries(env)
-    .filter(([k]) => k.startsWith(pfx))
-    .map(([k]) => {
-      const value = env[k];
-      const opt = k.replace(pfx, '');
-      if (opt === 'CONTINUE_ON_ERROR_IF_SCORED' && value !== undefined) {
-        protoOptions.options.continueOnErrorIfScored = true;
-      } else if (opt === 'SPLIT_SHARED' && value !== undefined) {
-        const [what, s] = value.split('=');
-        if (!s) {
-          errors.push(`  ${pfx}SPLIT_SHARED=var=option1,option2`);
-        } else {
-          protoOptions.options.splits = s.split(',').map((w: string) => ({ [what]: w }));
-        }
-      } else if (['STEP_DELAY', 'LOOPS', 'LOOP_START', 'LOOP_INC', 'MEMBERS'].includes(opt)) {
-        setIntOrError(value, opt);
-      } else if (opt === 'TRACE') {
-        protoOptions.options.trace = true;
-      } else if (opt === 'CLI') {
-        protoOptions.options.cli = true;
-      } else if (opt === 'STAY') {
-        protoOptions.options.stay = value;
-      } else if (opt === 'LOG_FOLLOW') {
-        protoOptions.options.logFollow = value;
-      } else if (opt === 'LOG_LEVEL') {
-        protoOptions.options.logLevel = value;
-      } else if (opt === 'ENV') {
-        const pairs = value?.split(',');
-        for (const pair in pairs) {
-          const [k, v] = pair.split(',').map(i => i.trim());
-          if (protoOptions.options.env[k]) {
-            throw Error(`ENV ${k} already exists`);
-          }
-          protoOptions.options.env[k] = v;
-        }
-      } else if (opt === 'ENVC') {
-
-        applyEnvCollections(value!, protoOptions);
-      } else {
-        protoOptions.extraOptions[k] = value!;
-      }
-    });
-  return { protoOptions, errors };
-}
-
-export function applyEnvCollections(value: string, protoOptions: TProtoOptions) {
-  const pairs = new Set(value?.split(',').map(a => a.split('=')[0]));
-
-  for (const pair of pairs) {
-    const [k] = Array.from(new Set(pair.split('=')));
-    if (protoOptions.options.env[k]) {
-      throw Error(`ENVC ${k} already exists`);
-    }
-    protoOptions.options.env[k] = [];
-  }
-  for (const pair of value?.split(',')) {
-    const [k, v] = pair.split('=');
-    protoOptions.options.env[k].push(v);
-  }
-}
 
 // has side effects
 export function applyExtraOptions(protoOptions: TProtoOptions, steppers: IStepper[], world: TWorld) {
@@ -320,12 +251,13 @@ export function applyResShouldContinue(world: any, res: Partial<TActionResult>, 
   return false;
 }
 
-export function writeTraceFile(tag: TTag, result: TResult) {
-  writeFileSync(getCaptureDir(tag, 'trace', 'trace.json'), JSON.stringify(result, null, 2));
+export function writeTraceFile(world: TWorld, result: TResult) {
+  writeFileSync(getCaptureDir(world, 'trace', 'trace.json'), JSON.stringify(result, null, 2));
 }
 
-export function getCaptureDir(tag: TTag, app: string, fn?: string) {
-  const dir = [process.cwd(), 'capture', tag.sequence, app].join('/');
+export function getCaptureDir(world: TWorld, app: string, fn?: string) {
+  const capture = world.options.CAPTURE_DIR || 'capture';
+  const dir = [process.cwd(), capture, world.tag.sequence, app].join('/');
   if (!existsSync(dir)) {
     try {
       mkdirSync(dir, { recursive: true });
@@ -341,12 +273,18 @@ export function getCaptureDir(tag: TTag, app: string, fn?: string) {
 
 export const getRunTag = (sequence: number, loop: number, member: number, params: any, trace: boolean) => ({ sequence, loop, member, params, trace });
 
-export const getIntOrError = (val: any) => {
-  if (val.match(/[^\d+]/)) {
-    throw Error(`${val} is not an integer`);
-  }
-  return parseInt(val, 10);
-};
-
-
 export const descTag = (tag: TTag) => ` @${tag.sequence} (${tag.loop}x${tag.member})`;
+
+export const intOrError = (val: string) => {
+    if (val.match(/[^\d+]/)) {
+        return { error: `${val} is not an integer` };
+    }
+    return {result: parseInt(val, 10)};
+}
+
+export const boolOrError = (val: string) => {
+    if (val !== 'false' && val !== 'true') {
+        return { error: `${val} is not true or false` }
+    };
+    return { result: val === 'true' }
+};

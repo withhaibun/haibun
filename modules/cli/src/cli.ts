@@ -6,9 +6,9 @@ import { WorldContext } from '@haibun/core/build/lib/contexts';
 import Logger from '@haibun/core/build/lib/Logger';
 
 import { run } from '@haibun/core/build/lib/run';
-import { getOptionsOrDefault, processEnv, resultOutput, getRunTag, writeTraceFile } from '@haibun/core/build/lib/util';
+import { getOptionsOrDefault, resultOutput, getRunTag, writeTraceFile } from '@haibun/core/build/lib/util';
 import { ILogOutput } from '@haibun/core/build/lib/interfaces/logger';
-import { ranResultError, usageThenExit } from './lib';
+import { processBaseEnv, ranResultError, usageThenExit } from './lib';
 import { Timer } from '@haibun/core/build/lib/Timer';
 
 export type TRunResult = { output: any, result: TResult, shared: WorldContext, tag: TTag, runStart: number, runDuration: number, fromStart: number };
@@ -16,26 +16,28 @@ export type TRunResult = { output: any, result: TResult, shared: WorldContext, t
 go();
 
 async function go() {
-  const featureFilter = process.argv[3];
+  const featureFilter = process.argv[3].split(',');
   const base = process.argv[2].replace(/\/$/, '');
   const specl = getOptionsOrDefault(base);
 
-  if (!process.argv[2] || featureFilter === '--help') {
+  if (!process.argv[2] || featureFilter.find(f => f === '--help')) {
     await usageThenExit(specl);
   }
   console.log('\n_________________________________ start');
 
-  const { protoOptions, errors } = processEnv(process.env, specl.options);
+  const { protoOptions, errors } = processBaseEnv(process.env, specl.options);
   const splits: { [name: string]: string }[] = protoOptions.options.splits || [{}];
 
   if (errors.length > 0) {
     await usageThenExit(specl, errors.join('\n'));
   }
-  const logger = new Logger({ level: protoOptions.options.logLevel || 'debug', follow: protoOptions.options.logFollow });
+  const logger = new Logger({ level: protoOptions.options.LOGlEVEL || 'debug', follow: protoOptions.options.logFollow });
   let allRunResults: PromiseSettledResult<TRunResult>[] = [];
-  const loops = protoOptions.options.loops || 1;
-  const members = protoOptions.options.members || 1;
-  const trace = protoOptions.options.trace;
+  console.log('xoiaosdfsa', protoOptions);
+  
+  const loops = protoOptions.options.LOOPS || 1;
+  const members = protoOptions.options.MEMBERS || 1;
+  const trace = protoOptions.options.TRACE;
 
   const timer = new Timer();
   let totalRan = 0;
@@ -102,9 +104,9 @@ async function go() {
     .map((i) => <PromiseRejectedResult>i)
     .map((i) => i.reason);
 
-  const ok = ranResults.every((a) => a.result.ok) && exceptionResults.length < 1;
+  const ok = ranResults.every((a) => a.result.ok);
 
-  if (ok) {
+  if (ok && exceptionResults.length < 1) {
     logger.log(ranResults.every((r) => r.output));
   } else {
     try {
@@ -117,15 +119,15 @@ async function go() {
   console.log(JSON.stringify(allFailures, null, 2));
   console.log('\nRESULT>>>', { ok, startDate: Timer.startTime, startTime: Timer.startTime.getTime(), passed, failed, totalRan, runTime, 'features/s:': totalRan / runTime });
 
-  if (ok && protoOptions.options.stay !== 'always') {
+  if (ok && exceptionResults.length < 1 && protoOptions.options.STAY !== 'always') {
     process.exit(0);
-  } else if (protoOptions.options.stay !== 'always') {
+  } else if (protoOptions.options.STAY !== 'always') {
     process.exit(1);
   }
 }
 
-async function doRun(base: string, specl: TSpecl, runtime: {}, featureFilter: string, shared: WorldContext, protoOptions: TProtoOptions, containerLogger: ILogOutput, tag: TTag, timer: Timer) {
-  if (protoOptions.options.cli) {
+async function doRun(base: string, specl: TSpecl, runtime: {}, featureFilter: string[], shared: WorldContext, protoOptions: TProtoOptions, containerLogger: ILogOutput, tag: TTag, timer: Timer) {
+  if (protoOptions.options.CLI) {
     repl.start().context.runtime = runtime;
   }
 
@@ -135,8 +137,8 @@ async function doRun(base: string, specl: TSpecl, runtime: {}, featureFilter: st
   const world: TWorld = { ...protoOptions, shared, logger, runtime, domains: [], tag, timer };
 
   const { result } = await run({ specl, base, world, featureFilter, protoOptions });
-  if (world.options.trace) {
-    writeTraceFile(world.tag, result);
+  if (world.options.TRACE) {
+    writeTraceFile(world, result);
   }
   const output = await resultOutput(process.env.HAIBUN_OUTPUT, result, shared);
 

@@ -21,7 +21,7 @@ export interface IHasOptions {
   options?: {
     [name: string]: {
       desc: string;
-      parse: (input: string) => TOptionValue;
+      parse: (input: string, existing?: TOptionValue) => { error?: string, env?: TOptions, result?: any }
     };
   };
 }
@@ -242,7 +242,7 @@ export type TStepResult = {
 export type TRuntime = { [name: string]: any };
 
 export interface TOutput {
-  getOutput(result: TResult, args: any): Promise<any>;
+  writeOutput(result: TResult, args: any): Promise<any>;
 }
 
 export const HAIBUN = 'HAIBUN';

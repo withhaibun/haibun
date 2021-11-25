@@ -1,5 +1,0 @@
-{
-  "mode": "all",
-  "steppers": ["PlaywrightWeb", "vars"],
-  "features": {}
-}
