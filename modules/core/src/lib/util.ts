@@ -17,7 +17,6 @@ import {
   TOptions,
   TProtoOptions,
   TRuntime,
-  HAIBUN,
   TActionResultTopics,
   TActionResult,
   TFound,
