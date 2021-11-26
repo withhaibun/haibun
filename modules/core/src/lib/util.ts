@@ -156,9 +156,10 @@ export function getActionable(value: string) {
 }
 
 export function describeSteppers(steppers: IStepper[]) {
+  
   return steppers
     .map((stepper) => {
-      return Object.keys(stepper.steps).map((name) => {
+      return stepper.steps && Object.keys(stepper?.steps).map((name) => {
         return `${stepper.constructor.name}:${name}`;
       });
     })
