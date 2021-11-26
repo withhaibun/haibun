@@ -116,7 +116,7 @@ export function recurse(dir: string, type: string, featureFilter: RegExp[] | str
 
     if (statSync(here).isDirectory()) {
       all = all.concat(recurse(here, type, featureFilter));
-    } else if ((!type || file.endsWith(`.${type}`)) && !featureFilter || ((featureFilter as string[]).find(f => here.match(f)))) {
+    } else if ((!type || file.endsWith(`.${type}`)) && (!featureFilter || ((featureFilter as string[]).find(f => here.match(f))))) {
       all.push(withNameType(here, readFileSync(here, 'utf-8')));
     }
   }
@@ -155,7 +155,7 @@ export function getActionable(value: string) {
 }
 
 export function describeSteppers(steppers: IStepper[]) {
-  
+
   return steppers
     .map((stepper) => {
       return stepper.steps && Object.keys(stepper?.steps).map((name) => {
@@ -276,15 +276,15 @@ export const getRunTag = (sequence: number, loop: number, member: number, params
 export const descTag = (tag: TTag) => ` @${tag.sequence} (${tag.loop}x${tag.member})`;
 
 export const intOrError = (val: string) => {
-    if (val.match(/[^\d+]/)) {
-        return { error: `${val} is not an integer` };
-    }
-    return {result: parseInt(val, 10)};
+  if (val.match(/[^\d+]/)) {
+    return { error: `${val} is not an integer` };
+  }
+  return { result: parseInt(val, 10) };
 }
 
 export const boolOrError = (val: string) => {
-    if (val !== 'false' && val !== 'true') {
-        return { error: `${val} is not true or false` }
-    };
-    return { result: val === 'true' }
+  if (val !== 'false' && val !== 'true') {
+    return { error: `${val} is not true or false` }
+  };
+  return { result: val === 'true' }
 };
