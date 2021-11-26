@@ -26,7 +26,7 @@ export async function run({
   let backgrounds: TFeature[] = [];
 
   if (existsSync(`${base}/backgrounds`)) {
-    backgrounds = debase(base, recurse(`${base}/backgrounds`, ''));
+    backgrounds = debase(base, recurse(`${base}/backgrounds`, 'feature'));
   }
 
   return runWith({ specl, world, features, backgrounds, addSteppers, protoOptions });
@@ -50,8 +50,8 @@ export async function runWith({
   protoOptions: protoOptions = { options: {}, extraOptions: {} },
 }: TRunWithOptions): Promise<{ result: TResult; steppers?: IStepper[] }> {
   const { tag } = world;
-  
-  
+
+
   const steppers: IStepper[] = await getSteppers({ steppers: specl.steppers, addSteppers, world });
   try {
     applyExtraOptions(protoOptions, steppers, world);
@@ -69,7 +69,7 @@ export async function runWith({
   try {
     expandedFeatures = await expand(backgrounds, features);
   } catch (error: any) {
-    
+
     return { result: { ok: false, tag, failure: { stage: 'Expand', error: { message: error.message, details: error } } } };
   }
 
@@ -94,7 +94,7 @@ export async function runWith({
   let result;
   try {
     result = { ...await executor.execute(mappedValidatedSteps), tag };
-    
+
     if (!result.ok) {
       const message = (result.results![0].stepResults.find(s => !s.ok)?.actionResults[0] as TNotOKActionResult).message;
 
@@ -102,7 +102,7 @@ export async function runWith({
     }
   } catch (e: any) {
     console.error('XXXXXXX', e);
-    
+
     result = { ok: false, tag, failure: e };
   }
   return { result, steppers };
