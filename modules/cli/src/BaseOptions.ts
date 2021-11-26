@@ -4,7 +4,7 @@ import { boolOrError, intOrError } from "@haibun/core/build/lib/util";
 export class BaseOptions implements IHasOptions {
     static options = {
         SPLIT_SHARED: {
-            desc: 'hi',
+            desc: 'create instances based on variable options, for example, var=option1,option2',
             parse: (input: string) => {
                 const [what, s] = input.split('=');
 
@@ -16,27 +16,27 @@ export class BaseOptions implements IHasOptions {
             }
         },
         TRACE: {
-            desc: 'trace',
+            desc: 'save trace data',
             parse: (input: string) => boolOrError(input)
         },
         CLI: {
-            desc: 'hi',
+            desc: 'create a command interface for each member',
             parse: (input: string) => boolOrError(input)
         },
         STAY: {
-            desc: 'hi',
+            desc: 'stay running after exection: always or empty',
             parse: (result: string) => ({ result })
         },
         LOG_FOLLOW: {
-            desc: 'hi',
+            desc: 'filter for output',
             parse: (result: string) => ({ result })
         },
         LOG_LEVEL: {
-            desc: 'hi',
+            desc: 'debug, warn, info, log, error, none',
             parse: (result: string) => ({ result })
         },
         ENV: {
-            desc: 'hi',
+            desc: 'pass an environment variable: var=value',
             parse: (input: string, cur: TOptions) => {
                 const pairs = input?.split(',');
                 for (const pair in pairs) {
@@ -49,7 +49,7 @@ export class BaseOptions implements IHasOptions {
             },
         },
         ENVC: {
-            desc: 'hi',
+            desc: 'pass multiple environment variables: var1=a,var2=b',
             parse: (input: string, cur: TOptions) => {
                 const pairs = new Set(input?.split(',').map(a => a.split('=')[0]));
                 let env: TOptions = {};
@@ -69,28 +69,28 @@ export class BaseOptions implements IHasOptions {
             }
         },
         STEP_DELAY: {
-            desc: 'hi',
+            desc: 'delay between steps',
             parse: (input: string) => intOrError(input)
         },
 
         LOOPS: {
-            desc: 'hi',
+            desc: 'how many loops',
             parse: (input: string) => intOrError(input)
         },
         LOOP_START: {
-            desc: 'hi',
+            desc: 'wip',
             parse: (input: string) => intOrError(input)
         },
         LOOP_INC: {
-            desc: 'hi',
+            desc: 'wip',
             parse: (input: string) => intOrError(input)
         },
         MEMBERS: {
-            desc: 'hi',
+            desc: 'number of members in each loop',
             parse: (input: string) => intOrError(input)
         },
         CONTINUE_ON_ERROR_IF_SCORED: {
-            desc: 'scoring for continuation',
+            desc: 'wip',
             parse: (result: string) => ({ result })
         },
         OUTPUT: {
