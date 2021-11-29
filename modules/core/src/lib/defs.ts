@@ -241,7 +241,7 @@ export type TStepResult = {
 
 export type TRuntime = { [name: string]: any };
 
-export interface TOutput {
+export interface TResultOutput {
   writeOutput(result: TResult, args: any): Promise<any>;
 }
 

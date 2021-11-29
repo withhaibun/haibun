@@ -1,7 +1,7 @@
 import { create } from 'xmlbuilder2';
 import { EOL } from 'os';
 
-import { TResult, TOutput, TTrace, TTag } from '@haibun/core/build/lib/defs';
+import { TResult, TResultOutput, TTrace, TTag } from '@haibun/core/build/lib/defs';
 import { readdirSync, writeFileSync } from 'fs';
 
 const SCRIPT = `
@@ -48,7 +48,8 @@ document.onkeydown = function(e){
 `
 
 
-export default class OutReview implements TOutput {
+export default class OutReview implements TResultOutput {
+  file: string = '<not initialized"';
   async getOutput(result: TResult, { name = 'Haibun-Review', prettyPrint = true, }) {
     const { sequence } = result.tag;
     const videoBase = `./capture/${sequence}/video`
@@ -143,8 +144,12 @@ export default class OutReview implements TOutput {
   }
   cleanupAndWrite(sequence: number, html: string) {
     html = html.replace('{{SCRIPT}}', SCRIPT);
-    writeFileSync(`./capture/${sequence}/review.html`, html);
+    this.file = `./capture/${sequence}/review.html`;
+    writeFileSync(this.file, html);
     return html;
+  }
+  async writeOutput(result: TResult, args: any) {
+    return `wrote to ${this.file}`;
   }
 }
 
