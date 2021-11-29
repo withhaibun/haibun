@@ -1,6 +1,7 @@
 {
     "files": [],
     "references": [
+        { "path": "cli" },
         { "path": "core" },
         { "path": "web-server-express" },
         { "path": "web-playwright" },
