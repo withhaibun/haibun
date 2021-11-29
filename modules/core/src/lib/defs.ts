@@ -138,7 +138,7 @@ export type TStep = {
 export interface IExtension {
   world?: TWorld;
   close?(): void;
-  nextFeature?(): void;
+  endFeature?(): void;
   onFailure?(result: TStepResult): void;
 }
 

@@ -110,7 +110,7 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
     }
   }
 
-  async nextFeature() {
+  async endFeature() {
     // close the context, which closes any pages
     if (this.hasFactory) {
       await this.bf!.closeContext(this.world.tag);
