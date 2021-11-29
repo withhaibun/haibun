@@ -10,7 +10,7 @@ import {
   TNotOKActionResult,
   TOKActionResult,
   TOptionValue,
-  TOutput,
+  TResultOutput,
   TResult,
   TSpecl,
   TWorld,
@@ -39,7 +39,7 @@ export async function use(module: string) {
 export async function resultOutput(type: string | undefined, result: TResult, shared: WorldContext) {
   if (type) {
     const AnOut = await use(type);
-    const out: TOutput = new AnOut();
+    const out: TResultOutput = new AnOut();
     if (out) {
       const res = await out.writeOutput(result, {});
       return res;
