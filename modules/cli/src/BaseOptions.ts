@@ -24,7 +24,7 @@ export class BaseOptions implements IHasOptions {
             parse: (input: string) => boolOrError(input)
         },
         STAY: {
-            desc: 'stay running after exection: always or empty',
+            desc: 'stay running after exection: always',
             parse: (result: string) => ({ result })
         },
         LOG_FOLLOW: {
