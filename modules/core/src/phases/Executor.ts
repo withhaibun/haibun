@@ -13,6 +13,7 @@ export class Executor {
 
   async execute(features: TResolvedFeature[]): Promise<TResult> {
     let ok = true;
+    const stay = (this.world.options.STAY === 'always');
     let featureResults: TFeatureResult[] = [];
     // FIXME
     this.world.shared.values._features = features;
@@ -22,10 +23,15 @@ export class Executor {
       const featureResult = await this.doFeature(feature);
       ok = ok && featureResult.ok;
       featureResults.push(featureResult);
-      
-      await this.nextFeature();
+      console.log(!(this.world.options.STAY === 'always'));
+
+      if (!stay) {
+        await this.endFeature();
+      }
     }
-    await this.close();
+    if (!stay) {
+      await this.close();
+    }
     return { ok, results: featureResults, tag: this.world.tag };
   }
 
@@ -97,11 +103,11 @@ export class Executor {
     }
   }
 
-  async nextFeature() {
+  async endFeature() {
     for (const s of this.steppers) {
-      if (s.nextFeature) {
-        this.world.logger.debug(`nextFeature ${s.constructor.name}`);
-        await s.nextFeature();
+      if (s.endFeature) {
+        this.world.logger.debug(`endFeature ${s.constructor.name}`);
+        await s.endFeature();
       }
     }
   }
