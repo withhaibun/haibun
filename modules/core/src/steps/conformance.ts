@@ -1,7 +1,7 @@
 import { actionNotOK } from '../lib/util';
-import { IStepper, IExtensionConstructor } from '../lib/defs';
+import { AStepper } from '../lib/defs';
 
-const Conformance: IExtensionConstructor = class Conformance implements IStepper {
+const Conformance = class Conformance extends AStepper {
   steps = {
     must: {
       match: /(?!\n|. )\b([A-Z].*? must .*?\.)/,

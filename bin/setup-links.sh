@@ -27,7 +27,7 @@ done) &&  \
 
 ## depends on @haibun/core and needs to be linked
 
-(for i in web-http web-server-express; do
+(for i in web-http; do
   cd $i
   npm i &&  \
   npm link @haibun/core && \
@@ -36,6 +36,19 @@ done) &&  \
   npm link &&  \
   cd ../
 done) &&  \
+
+## depends on @haibun/core and web-http and needs to be linked
+
+(for i in web-server-express; do
+  cd $i
+  npm i &&  \
+  npm link @haibun/core @haibun/web-http && \
+  tsc -b . &&  \
+  echo "\nsetup link for $i" && \
+  npm link &&  \
+  cd ../
+done) &&  \
+
 
 ## depends on @haibun/core and web-server-express
 

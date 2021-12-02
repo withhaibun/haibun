@@ -1,4 +1,4 @@
-import { IStepper, OK, TResolvedFeature, TStep } from './defs';
+import { AStepper, OK, TResolvedFeature, TStep } from './defs';
 import { getNamedMatches, namedInterpolation, matchGroups, getNamedToVars } from './namedVars';
 import { Resolver } from '../phases/Resolver';
 import { actionNotOK } from './util';
@@ -70,7 +70,7 @@ describe('namedInterpolation regexes', () => {
 });
 
 describe('getNamedWithVars', () => {
-  class TestStepper implements IStepper {
+  class TestStepper extends AStepper {
     steps = {
       gwtaInterpolated: {
         gwta: 'is {what}',
@@ -78,7 +78,7 @@ describe('getNamedWithVars', () => {
       },
     };
   }
-  const steppers: IStepper[] = [new TestStepper()];
+  const steppers: AStepper[] = [new TestStepper()];
   const { world } = getDefaultWorld(0);
   const resolver = new Resolver(steppers, '', world);
   world.shared.set('exact', 'res');

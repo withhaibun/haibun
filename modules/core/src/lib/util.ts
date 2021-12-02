@@ -1,10 +1,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'fs';
 import path from 'path';
-import { WorldContext } from './contexts';
 
 import {
-  IStepper,
-  IExtensionConstructor,
   IHasOptions,
   TFeature,
   TNotOKActionResult,
@@ -15,12 +12,13 @@ import {
   TSpecl,
   TWorld,
   TOptions,
-  TProtoOptions,
   TRuntime,
   TActionResultTopics,
   TActionResult,
   TFound,
   TTag,
+  AStepper,
+  TExtraOptions,
 } from './defs';
 import { withNameType } from './features';
 
@@ -36,7 +34,7 @@ export async function use(module: string) {
   }
 }
 
-export async function resultOutput(type: string | undefined, result: TResult, shared: WorldContext) {
+export async function resultOutput(type: string | undefined, result: TResult) {
   if (type) {
     const AnOut = await use(type);
     const out: TResultOutput = new AnOut();
@@ -67,7 +65,7 @@ export async function getStepper(s: string) {
   try {
     const loc = getModuleLocation(s);
 
-    const S: IExtensionConstructor = await use(loc);
+    const S: AStepper = await use(loc);
 
     return S;
   } catch (e) {
@@ -76,12 +74,12 @@ export async function getStepper(s: string) {
   }
 }
 
-export async function getSteppers({ steppers = [], world, addSteppers = [] }: { steppers: string[]; world: TWorld; addSteppers?: IExtensionConstructor[] }) {
-  const allSteppers: IStepper[] = [];
+export async function getSteppers({ steppers = [], addSteppers = [] }: { steppers: string[]; addSteppers?: typeof AStepper[] }) {
+  const allSteppers: AStepper[] = [];
   for (const s of steppers) {
     const S = await getStepper(s);
     try {
-      const stepper = new S(world);
+      const stepper = new (S as any)();
       allSteppers.push(stepper);
     } catch (e) {
       console.error(`new ${S} from "${getModuleLocation(s)}" failed`, e, S);
@@ -89,7 +87,7 @@ export async function getSteppers({ steppers = [], world, addSteppers = [] }: { 
     }
   }
   for (const S of addSteppers) {
-    const stepper = new S(world);
+    const stepper = new (S as any)();
     allSteppers.push(stepper);
   }
   return allSteppers;
@@ -108,7 +106,7 @@ export function debase(base: string, features: TFeature[]) {
   return features.map((f) => ({ ...f, path: f.path.replace(base, '') }));
 }
 
-export function recurse(dir: string, type: string, featureFilter: RegExp[] | string[] | undefined = undefined): TFeature[] {
+export function recurse(dir: string, type: string, featureFilter: string[] | undefined = undefined): TFeature[] {
   const files = readdirSync(dir);
   let all: TFeature[] = [];
   for (const file of files) {
@@ -116,11 +114,17 @@ export function recurse(dir: string, type: string, featureFilter: RegExp[] | str
 
     if (statSync(here).isDirectory()) {
       all = all.concat(recurse(here, type, featureFilter));
-    } else if ((!type || file.endsWith(`.${type}`)) && (!featureFilter || ((featureFilter as string[]).find(f => here.match(f))))) {
+    } else if (shouldProcess(file, type, featureFilter)) {
       all.push(withNameType(here, readFileSync(here, 'utf-8')));
     }
   }
   return all;
+}
+
+export function shouldProcess(file: string, type: undefined | string, featureFilter: string[] | undefined) {
+  const isType = (!type || file.endsWith(`.${type}`));
+  const matchesFilter = featureFilter ? !!(featureFilter.find(f => file.match(f))) : true;
+  return (isType && matchesFilter);
 }
 
 export function getDefaultOptions(): TSpecl {
@@ -154,8 +158,7 @@ export function getActionable(value: string) {
   return value.replace(/#.*/, '').trim();
 }
 
-export function describeSteppers(steppers: IStepper[]) {
-
+export function describeSteppers(steppers: AStepper[]) {
   return steppers
     .map((stepper) => {
       return stepper.steps && Object.keys(stepper?.steps).map((name) => {
@@ -174,29 +177,33 @@ export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve
 
 
 // has side effects
-export function applyExtraOptions(protoOptions: TProtoOptions, steppers: IStepper[], world: TWorld) {
-  if (!protoOptions.extraOptions) {
+export function applyExtraOptions(extraOptions: TExtraOptions, steppers: AStepper[], world: TWorld) {
+  if (!extraOptions) {
     return;
   }
-  Object.entries(protoOptions.extraOptions).map(([k, v]) => {
+
+  Object.entries(extraOptions).map(([k, v]) => {
     const conc = getStepperOptions(k, v!, steppers);
 
     if (conc === undefined) {
       throw Error(`no option ${k}`);
     }
-    delete protoOptions.extraOptions[k];
-    world.options[k] = conc;
+    delete extraOptions[k];
+    world.options[k] = conc.result;
   });
 
-  if (Object.keys(protoOptions.extraOptions).length > 0) {
-    throw Error(`no options provided for ${protoOptions.extraOptions}`);
+  if (Object.keys(extraOptions).length > 0) {
+    throw Error(`no options provided for ${extraOptions}`);
+  }
+  for (const stepper of steppers) {
+    stepper.setWorld && stepper.setWorld(world);
   }
 }
 
-export function getPre(stepper: IStepper) {
-  return ['HAIBUN', 'O', (stepper as any as IExtensionConstructor).constructor.name.toUpperCase()].join('_') + '_';
+export function getPre(stepper: AStepper) {
+  return ['HAIBUN', 'O', stepper.constructor.name.toUpperCase()].join('_') + '_';
 }
-export function getStepperOptions(key: string, value: string, steppers: (IStepper & IHasOptions)[]): TOptionValue | void {
+export function getStepperOptions(key: string, value: string, steppers: (AStepper & IHasOptions)[]): TOptionValue | void {
   for (const stepper of steppers) {
     const pre = getPre(stepper);
     const int = key.replace(pre, '');
@@ -207,8 +214,12 @@ export function getStepperOptions(key: string, value: string, steppers: (ISteppe
   }
 }
 
-export function getStepperOption(stepper: IStepper, name: string, options: TOptions): TOptionValue {
-  const key = getPre(stepper) + name;
+export function getStepperOptionName(stepper: AStepper, name: string) {
+  return getPre(stepper) + name;
+
+}
+export function getStepperOption(stepper: AStepper, name: string, options: TOptions): TOptionValue {
+  const key = getStepperOptionName(stepper, name);
   return options[key];
 }
 
@@ -229,7 +240,7 @@ export function ensureDirectory(base: string, folder: string) {
 }
 
 // FIXME
-export function findStepper<Type>(steppers: IStepper[], name: string): Type {
+export function findStepper<Type>(steppers: AStepper[], name: string): Type {
   return <Type>(steppers.find((s) => s.constructor.name === name) as any);
 }
 

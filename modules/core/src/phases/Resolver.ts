@@ -1,13 +1,12 @@
-import { IStepper,  TFound, TResolvedFeature, OK, TWorld, BASE_TYPES, TExpandedFeature } from '../lib/defs';
-import { checkRequiredType } from '../lib/domain';
+import {  TFound, TResolvedFeature, OK, TWorld, BASE_TYPES, TExpandedFeature, AStepper } from '../lib/defs';
 import { namedInterpolation, getMatch } from '../lib/namedVars';
 import { getActionable, describeSteppers, isLowerCase } from '../lib/util';
 
 export class Resolver {
-  steppers: IStepper[];
+  steppers: AStepper[];
   world: TWorld;
   mode: string;
-  constructor(steppers: IStepper[], mode: string, world: TWorld) {
+  constructor(steppers: AStepper[], mode: string, world: TWorld) {
     this.steppers = steppers;
     this.mode = mode;
     this.world = world;

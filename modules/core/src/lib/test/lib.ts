@@ -1,7 +1,7 @@
-import { IExtensionConstructor, TWorld, TVStep, TProtoOptions, TExpandedLine, TOptions } from '../defs';
+import { TWorld, TVStep, TExpandedLine, TOptions, AStepper, TProtoOptions } from '../defs';
 import { Resolver } from '../../phases/Resolver';
-import { run, runWith } from './../run';
-import { getOptionsOrDefault, getSteppers, getRunTag } from './../util';
+import { DEF_PROTO_OPTIONS, runWith } from './../run';
+import { getOptionsOrDefault, getSteppers, getRunTag, applyExtraOptions } from './../util';
 import { WorldContext } from '../contexts';
 import { featureSplit, withNameType } from './../features';
 import { applyDomainsOrError } from './../domain';
@@ -11,7 +11,8 @@ import { Timer } from '../Timer';
 export const HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS = 'HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS';
 
 export async function getTestEnv(useSteppers: string[], test: string, world: TWorld) {
-  const steppers = await getSteppers({ steppers: useSteppers, world });
+  const steppers = await getSteppers({ steppers: useSteppers });
+  applyExtraOptions({}, steppers, world);
   applyDomainsOrError(steppers, world);
 
   const resolver = new Resolver(steppers, 'all', world);
@@ -26,25 +27,19 @@ export async function getTestEnv(useSteppers: string[], test: string, world: TWo
   return { world, vstep, steppers };
 }
 type TTestFeatures = { path: string, content: string }[];
-export async function testWithDefaults(inFeatures: TTestFeatures, addSteppers: IExtensionConstructor[], options?: TOptions, inBackgrounds: TTestFeatures = []) {
+export async function testWithDefaults(inFeatures: TTestFeatures, addSteppers: typeof AStepper[], protoOptions: TProtoOptions = DEF_PROTO_OPTIONS, inBackgrounds: TTestFeatures = []) {
   const specl = getOptionsOrDefault();
+  const { options, extraOptions } = protoOptions;
 
   const { world } = getDefaultWorld(0);
-  if (options) {
+  if (protoOptions) {
     world.options = options;
   }
+
   const features = asFeatures(inFeatures);
   const backgrounds = asFeatures(inBackgrounds);
 
-  return { world, ...await runWith({ specl, features, backgrounds, addSteppers, world }) };
-}
-
-export async function testRun(baseIn: string, addSteppers: IExtensionConstructor[], world: TWorld, protoOptions?: TProtoOptions) {
-  const base = process.cwd() + baseIn;
-  const specl = getOptionsOrDefault(base);
-
-  const res = await run({ specl, base, addSteppers, world, protoOptions });
-  return res;
+  return { world, ...await runWith({ specl, features, backgrounds, addSteppers, world, extraOptions }) };
 }
 
 export const asFeatures = (w: { path: string; content: string }[]) => w.map((i) => withNameType(i.path, i.content));

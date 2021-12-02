@@ -1,7 +1,7 @@
 const { convert } = require("xmlbuilder2");
 
 import OutXUnit from "./out-xunit";
-import { testRun, getDefaultWorld } from "@haibun/core/build/lib/test/lib";
+import { testWithDefaults } from "@haibun/core/build/lib/test/lib";
 import TestSteps from "@haibun/core/build/lib/test/TestSteps";
 import { resultOutput } from "@haibun/core/build/lib/util";
 
@@ -9,11 +9,8 @@ const ox = [process.cwd(), "build", "out-xunit"].join("/");
 
 describe("AsXML transforms", () => {
   it("transforms single pass result to xunit", async () => {
-    const { result } = await testRun(
-      "/test/self-contained",
-      [TestSteps],
-      getDefaultWorld(0).world
-    );
+    const features = [{ path: '/features/fails.feature', content: `When I have a test\nThen the test should pass` }];
+    const { result } = await testWithDefaults(features, [TestSteps]);
 
     expect(result.ok).toBe(true);
     const asXunit = new OutXUnit();
@@ -25,11 +22,8 @@ describe("AsXML transforms", () => {
     expect(obj.testsuites.testsuite.testcase.failure).toBeUndefined();
   });
   it("transforms multi type result to xunit", async () => {
-    const { result } = await testRun(
-      "/test/multiple",
-      [TestSteps],
-      getDefaultWorld(0).world
-    );
+    const features = [{ path: '/features/fails.feature', content: `When I have a test\nThen the test can fail` }, { path: '/features/passes.feature', content: `When I have a test\nThen the test should pass` }];
+    const { result } = await testWithDefaults(features, [TestSteps]);
 
     expect(result.ok).toBe(false);
     const asXunit = new OutXUnit();
@@ -45,11 +39,11 @@ describe("AsXML transforms", () => {
 });
 
 it("run AsXUnit", async () => {
-  const { world } = getDefaultWorld(0);
-  const { result } = await testRun("/test/output-asXunit", [TestSteps], world);
+  const features = [{ path: '/features/fails.feature', content: `When I have a test\nThen the test can fail` }, { path: '/features/passes.feature', content: `When I have a test\nThen the test should pass` }];
+  const { world, result } = await testWithDefaults(features, [TestSteps]);
 
   expect(result.ok).toBe(false);
-  const output = await resultOutput(ox, result, world.shared);
+  const output = await resultOutput(ox, result);
   expect(typeof output).toBe("string");
   expect(output.startsWith("<?xml")).toBeTruthy();
 });

@@ -16,11 +16,11 @@ export type TRunResult = { output: any, result: TResult, shared: WorldContext, t
 go();
 
 async function go() {
-  const featureFilter = (process.argv[3] || '').split(',');
+  const featureFilter = !!process.argv[3] ? process.argv[3].split(',') : undefined;
   const base = process.argv[2].replace(/\/$/, '');
   const specl = getOptionsOrDefault(base);
 
-  if (!process.argv[2] || featureFilter.find(f => f === '--help')) {
+  if (!process.argv[2] || featureFilter?.find(f => f === '--help')) {
     await usageThenExit(specl);
   }
   console.info('\n_________________________________ start');
@@ -125,7 +125,7 @@ async function go() {
   }
 }
 
-async function doRun(base: string, specl: TSpecl, runtime: {}, featureFilter: string[], shared: WorldContext, protoOptions: TProtoOptions, containerLogger: ILogOutput, tag: TTag, timer: Timer) {
+async function doRun(base: string, specl: TSpecl, runtime: {}, featureFilter: string[] | undefined, shared: WorldContext, protoOptions: TProtoOptions, containerLogger: ILogOutput, tag: TTag, timer: Timer) {
   if (protoOptions.options.CLI) {
     repl.start().context.runtime = runtime;
   }
@@ -139,7 +139,7 @@ async function doRun(base: string, specl: TSpecl, runtime: {}, featureFilter: st
   if (world.options.TRACE) {
     writeTraceFile(world, result);
   }
-  const output = await resultOutput(process.env.HAIBUN_OUTPUT, result, shared);
+  const output = await resultOutput(process.env.HAIBUN_OUTPUT, result);
 
   return { result, shared, output, tag, runStart: runStart[0], runDuration: process.hrtime(runStart)[0], fromStart: timer.since() };
 }
