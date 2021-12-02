@@ -1,5 +1,5 @@
 import { DomainContext, WorldContext } from '../lib/contexts';
-import { IHasDomains, IStepper, OK, TFeatures, TFileTypeDomain } from '../lib/defs';
+import { IHasDomains, OK, TFeatures, TFileTypeDomain } from '../lib/defs';
 import { withNameType } from '../lib/features';
 import { asExpandedFeatures } from '../lib/test/lib';
 import { Resolver } from './Resolver';

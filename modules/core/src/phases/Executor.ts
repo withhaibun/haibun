@@ -1,12 +1,12 @@
-import { IStepper, TVStep, TResolvedFeature, TResult, TStepResult, TFeatureResult, TActionResult, TWorld, TActionResultTopics, TStepActionResult } from '../lib/defs';
+import { TVStep, TResolvedFeature, TResult, TStepResult, TFeatureResult, TActionResult, TWorld, TActionResultTopics, TStepActionResult, AStepper } from '../lib/defs';
 import { getNamedToVars } from '../lib/namedVars';
 import { actionNotOK, applyResShouldContinue, sleep } from '../lib/util';
 
 export class Executor {
-  steppers: IStepper[];
+  steppers: AStepper[];
   world: TWorld;
 
-  constructor(steppers: IStepper[], world: TWorld) {
+  constructor(steppers: AStepper[], world: TWorld) {
     this.steppers = steppers;
     this.world = world;
   }
@@ -23,7 +23,7 @@ export class Executor {
       const featureResult = await this.doFeature(feature);
       ok = ok && featureResult.ok;
       featureResults.push(featureResult);
-      console.log(!(this.world.options.STAY === 'always'));
+      
 
       if (!stay) {
         await this.endFeature();

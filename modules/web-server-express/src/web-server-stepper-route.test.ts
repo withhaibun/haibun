@@ -1,47 +1,36 @@
-import fetch from 'node-fetch';
 
-import { actionOK, getFromRuntime, findStepper } from '@haibun/core/build/lib/util';
-import { IWebServer, IRequest, IResponse, WEBSERVER, WEBSERVER_STEPPER, } from './defs';
+import WebHttp from '@haibun/web-http/build/web-http';
+import { actionOK, getFromRuntime, getStepperOptionName } from '@haibun/core/build/lib/util';
+import { IWebServer, IRequest, IResponse, WEBSERVER } from './defs';
 
-import server, { IWebServerStepper, } from './web-server-stepper';
-import { IExtensionConstructor, IStepper, TNamed, TWorld } from '@haibun/core/build/lib/defs';
+import server from './web-server-stepper';
+import { AStepper, TNamed } from '@haibun/core/build/lib/defs';
 import { testWithDefaults } from '@haibun/core/src/lib/test/lib';
-
+import WebServerStepper from './web-server-stepper';
 
 describe('route mount', () => {
   it('mounts a route', async () => {
-    const TestRoute: IExtensionConstructor = class TestRoute implements IStepper {
-      world: TWorld;
-      constructor(world: TWorld) {
-        this.world = world;
-      }
+    const TestRoute = class TestRoute extends AStepper {
       steps = {
         addRoute: {
           gwta: 'serve test route to {loc}',
           action: async ({ loc }: TNamed) => {
             const route = (req: IRequest, res: IResponse) => res.status(200).send('ok');
-            const webserver: IWebServer = await getFromRuntime(this.world.runtime, WEBSERVER);
+            const webserver: IWebServer = await getFromRuntime(this.getWorld().runtime, WEBSERVER);
             await webserver.addRoute('get', loc, route);
-            webserver.listen(8123);
-            
             return actionOK();
           },
         },
       };
     };
-    const feature = { path: '/features/test.feature', content: `serve test route to /test\n` }
-    const { result, steppers } = await testWithDefaults([feature], [ server, TestRoute], {
+    const wss = new WebServerStepper();
+    const feature = { path: '/features/test.feature', content: `serve test route to /test\nwebserver is listening\nfetch from http://localhost:8124/test is "ok"` };
+    const { result } = await testWithDefaults([feature], [server, TestRoute, WebHttp], {
       options: {},
       extraOptions: {
-        [`HAIBUN_O_${WEBSERVER_STEPPER.toUpperCase()}_PORT`]: '8124',
+        [getStepperOptionName(wss, 'PORT')]: '8124',
       },
     });
-
     expect(result.ok).toBe(true);
-    const content = await fetch('http://localhost:8123/test');
-
-    expect(await content.text()).toEqual('ok');
-
-    findStepper<IWebServerStepper>(steppers!, WEBSERVER_STEPPER).close();
   });
 });

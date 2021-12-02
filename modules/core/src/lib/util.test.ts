@@ -1,5 +1,5 @@
 import * as util from './util';
-import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, testRun, getDefaultWorld, testWithDefaults } from './test/lib';
+import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, getDefaultWorld, testWithDefaults } from './test/lib';
 import TestSteps from "./test/TestSteps";
 import TestStepsWithOptions from "./test/TestStepsWithOptions";
 import { withNameType } from './features';
@@ -10,7 +10,7 @@ describe('output', () => {
     const { result, world } = await testWithDefaults(features, [TestSteps]);
 
     expect(result.ok).toBe(false);
-    const output = await util.resultOutput(undefined, result, world.shared);
+    const output = await util.resultOutput(undefined, result);
     expect(typeof output).toBe('object');
     expect(result.results?.length).toBe(2);
   });
@@ -24,22 +24,20 @@ describe('isLowerCase', () => {
 
 describe('getStepperOptions', () => {
   it('finds stepper options', async () => {
-    const steppers = await util.getSteppers({ steppers: [], addSteppers: [TestStepsWithOptions], ...getDefaultWorld(0) });
+    const steppers = await util.getSteppers({ steppers: [], addSteppers: [TestStepsWithOptions], });
     const conc = util.getStepperOptions(HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, 'true', steppers);
     expect(conc).toBeDefined();
   });
   it('fills extra', async () => {
     const { world } = getDefaultWorld(0);
-    const specl = { ...util.getDefaultOptions(), extraOptions: { [HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]: 'true' } };
-    const steppers = await util.getSteppers({ steppers: [], addSteppers: [TestStepsWithOptions], ...getDefaultWorld(0) });
-    util.applyExtraOptions(specl, steppers, world);
+    const steppers = await util.getSteppers({ steppers: [], addSteppers: [TestStepsWithOptions], });
+    util.applyExtraOptions({ [HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]: 'true' }, steppers, world);
 
-    expect(world.options[HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]).toEqual({ result: 42 });
+    expect(world.options[HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]).toEqual(42);
   });
   it('throws for unfilled extra', async () => {
     const { world } = getDefaultWorld(0);
-    const specl = { ...util.getDefaultOptions(), extraOptions: { HAIBUN_NE: 'true' } };
-    expect(() => util.applyExtraOptions(specl, [], world)).toThrow();
+    expect(() => util.applyExtraOptions({ HAIBUN_NE: 'true' }, [], world)).toThrow();
   });
 });
 
@@ -51,3 +49,18 @@ describe('getType', () => {
     expect(withNameType('file.feature', '').type).toBe('feature');
   })
 })
+
+describe('shouldProcess', () => {
+  it('should process no type & filter', () => {
+    expect(util.shouldProcess('hi.feature', undefined, undefined)).toBe(true);
+  });
+  it('should process matching filter', () => {
+    expect(util.shouldProcess('hi.feature', undefined, ['hi'])).toBe(true);
+  });
+  it('should not process wrong type', () => {
+    expect(util.shouldProcess('hi.feature', 'wrong', undefined)).toBe(false);
+  });
+  it('should not process wrong filter', () => {
+    expect(util.shouldProcess('hi.feature', undefined, ['wrong'])).toBe(false);
+  });
+});
