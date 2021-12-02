@@ -1,9 +1,9 @@
-import { IStepper, OK, TResolvedFeature } from '../lib/defs';
+import { AStepper, OK, TResolvedFeature } from '../lib/defs';
 import { asExpandedFeatures, getDefaultWorld } from '../lib/test/lib';
 import { Resolver } from './Resolver';
 
 describe('validate map steps', () => {
-  class TestStepper implements IStepper {
+  class TestStepper extends AStepper {
     steps = {
       exact: {
         exact: 'exact1',
@@ -24,7 +24,7 @@ describe('validate map steps', () => {
     };
   }
 
-  const steppers: IStepper[] = [new TestStepper()];
+  const steppers: AStepper[] = [new TestStepper()];
   const getResolver = () =>
     new Resolver(steppers, '', {
       ...getDefaultWorld(0).world,
@@ -32,7 +32,7 @@ describe('validate map steps', () => {
   describe('exact', () => {
     test('exact', async () => {
       const features = asExpandedFeatures([{ path: 'l1', content: `exact1` }]);
-      
+
       const res = await getResolver().resolveSteps(features);
       const { vsteps } = res[0] as TResolvedFeature;
       expect(vsteps[0].actions[0].named).toBeUndefined();

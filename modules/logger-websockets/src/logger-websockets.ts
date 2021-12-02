@@ -1,4 +1,4 @@
-import { IStepper, IExtensionConstructor, OK, TWorld, TNamed, TVStep } from '@haibun/core/build/lib/defs';
+import { OK, TNamed, TVStep, AStepper } from '@haibun/core/build/lib/defs';
 import { TLogLevel, TMessageContext } from '@haibun/core/build/lib/interfaces/logger';
 import { getFromRuntime } from '@haibun/core/build/lib/util';
 import { IWebServer } from '@haibun/web-server-express/build/defs';
@@ -37,8 +37,7 @@ class WebSocketServer implements ILogOutput {
   }
 }
 
-const LoggerWebsockets: IExtensionConstructor = class LoggerWebsockets implements IStepper {
-  world: TWorld;
+const LoggerWebsockets = class LoggerWebsockets extends AStepper {
   ws: WebSocketServer | undefined;
 
   getWebSocketServer() {
@@ -49,23 +48,19 @@ const LoggerWebsockets: IExtensionConstructor = class LoggerWebsockets implement
     return this.ws;
   }
 
-  constructor(world: TWorld) {
-    this.world = world;
-  }
-
   steps = {
     log: {
       gwta: 'log to websockets',
       action: async () => {
         const wss = this.getWebSocketServer();
-        this.world.logger.addSubscriber(wss);
+        this.getWorld().logger.addSubscriber(wss);
         return OK;
       },
     },
     subscribe: {
       gwta: 'serve websocket log at {page}',
       action: async ({ page }: TNamed, vstep: TVStep) => {
-        const webserver = <IWebServer>getFromRuntime(this.world.runtime, 'webserver');
+        const webserver = <IWebServer>getFromRuntime(this.getWorld().runtime, 'webserver');
 
         webserver.addKnownStaticFolder(path.join(__dirname, '../client/dist/'), `/${page}`);
 

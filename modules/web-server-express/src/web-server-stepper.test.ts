@@ -1,19 +1,14 @@
-import fetch from 'node-fetch';
+import { testWithDefaults } from '@haibun/core/build/lib/test/lib';
+import WebHttp from '@haibun/web-http/build/web-http';
 
-import {  testWithDefaults } from '@haibun/core/build/lib/test/lib';
-
-import server  from './web-server-stepper';
-
-const serverLoc = [process.cwd(), 'build', 'web-server-stepper'].join('/');
+import server from './web-server-stepper';
 
 describe('static mount', () => {
   it('serves files', async () => {
-    const feature = { path: '/features/test.feature', content: `serve files from test\n` }
-    const { result } = await testWithDefaults([feature], [server]);
+    const feature = { path: '/features/test.feature', content: `serve files from test\nfetch from http://localhost:8123/testfile is "content"` };
+    const { result } = await testWithDefaults([feature], [server, WebHttp]);
 
     expect(result.ok).toBe(true);
-    const content = await fetch('http://localhost:8123/testfile');
-    expect(await content.text()).toEqual('content');
   });
 
   it('restricts characters used in static mount folder name', async () => {

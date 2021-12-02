@@ -33,10 +33,10 @@ export interface IHasDomains {
 export interface IRequireDomains {
   requireDomains?: string[];
 }
-
+export type TExtraOptions = { [name: string]: string }
 export type TProtoOptions = {
   options: TOptions;
-  extraOptions: { [name: string]: string };
+  extraOptions: TExtraOptions;
 };
 
 export type TFromDomain = {
@@ -135,20 +135,23 @@ export type TStep = {
   build?: TBuild;
 };
 
-export interface IExtension {
+export abstract class AStepper {
   world?: TWorld;
   close?(): void;
   endFeature?(): void;
   onFailure?(result: TStepResult): void;
+  setWorld(world: TWorld) {
+    this.world = world;
+  }
+  abstract steps: { [name: string]: TStep };
+  getWorld() {
+    if (!this.world) {
+      throw Error(`stepper without world ${this.constructor.name}`);
+    }
+    return this.world;
+  }
 }
 
-export interface IStepper extends IExtension {
-  steps: { [name: string]: TStep };
-}
-
-export interface IExtensionConstructor {
-  new(world: TWorld): IStepper;
-}
 export type TFound = { name: string; step: TStep; named?: TNamed | undefined; vars?: TNamedVar[] };
 export type TNamed = { [name: string]: string };
 export type TNamedVar = { name: string; type: string };
@@ -165,7 +168,7 @@ export type TResult = {
   tag: TTag,
   results?: TFeatureResult[];
   failure?: {
-    stage: 'Options' | 'Domains' | 'Expand' | 'Resolve' | 'Build' | 'Execute';
+    stage: 'Collect' | 'Options' | 'Domains' | 'Expand' | 'Resolve' | 'Build' | 'Execute';
     error: TResultError;
   };
 };

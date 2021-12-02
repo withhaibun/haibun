@@ -1,14 +1,10 @@
-import { IStepper, IExtensionConstructor, TWorld, IHasDomains } from '../defs';
+import { IHasDomains, AStepper } from '../defs';
 import { actionOK } from '../util';
 
 
-const TestStepsWithDomain: IExtensionConstructor = class TestStepsWithDomain implements IStepper, IHasDomains {
-  world: TWorld;
+const TestStepsWithDomain = class TestStepsWithDomain extends AStepper implements IHasDomains {
   domains = [{ name: 'door', fileType: 'door', is: 'string', validate: () => undefined }];
   locator = (name: string) => name;
-  constructor(world: TWorld) {
-    this.world = world;
-  }
   steps = {
     test: {
       exact: 'The door is open',
