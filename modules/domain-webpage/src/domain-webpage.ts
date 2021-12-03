@@ -1,5 +1,5 @@
 import { WorkspaceContext } from '@haibun/core/build/lib/contexts';
-import { IExtensionConstructor, IStepper, IHasDomains, TWorld, TNamed, TVStep, OK } from '@haibun/core/build/lib/defs';
+import { IHasDomains, TNamed, TVStep, OK, AStepper } from '@haibun/core/build/lib/defs';
 import { getFromRuntime } from '@haibun/core/build/lib/util';
 import { getDomain } from '@haibun/core/build/lib/domain';
 import { WebPageBuilder } from './WebPageBuilder';
@@ -8,17 +8,12 @@ import { IWebServer } from '@haibun/web-server-express/build/defs';
 export const webPage = 'webpage';
 export const webControl = 'webcontrol';
 
-const DomainWebPage: IExtensionConstructor = class DomainWebPage implements IStepper, IHasDomains {
+const DomainWebPage = class DomainWebPage extends AStepper implements IHasDomains {
   domains = [
     { name: webPage, fileType: webPage, is: 'string', validate: this.validatePage },
     { name: webControl, from: webPage, is: 'string' },
   ];
   locator = (location: string) => `http://localhost:8123/${location}`;
-  world: TWorld;
-
-  constructor(world: TWorld) {
-    this.world = world;
-  }
   validatePage(content: string) {
     return undefined;
   }
@@ -28,9 +23,9 @@ const DomainWebPage: IExtensionConstructor = class DomainWebPage implements ISte
       action: async ({ where }: TNamed, vstep: TVStep) => {
         const page = vstep.source.name;
 
-        const webserver = <IWebServer>getFromRuntime(this.world.runtime, 'webserver');
+        const webserver = <IWebServer>getFromRuntime(this.getWorld().runtime, 'webserver');
         webserver.addStaticFolder(page);
-        console.log('added paeg', page);
+        console.debug('added page', page);
 
         return OK;
       },
@@ -41,7 +36,7 @@ const DomainWebPage: IExtensionConstructor = class DomainWebPage implements ISte
       action: async ({ name, location }: TNamed, vsteps: TVStep) => {
         const page = vsteps.source.name;
 
-        const webserver = getFromRuntime(this.world.runtime, 'webserver');
+        const webserver = getFromRuntime(this.getWorld().runtime, 'webserver');
         // TODO mount the page
         return OK;
       },
@@ -49,12 +44,12 @@ const DomainWebPage: IExtensionConstructor = class DomainWebPage implements ISte
         if (location !== location.replace(/[^a-zA-Z-0-9\.]/g, '')) {
           throw Error(`${webPage} location ${location} has millegal characters`);
         }
-        const subdir = this.world.shared.get('file_location');
+        const subdir = this.getWorld().shared.get('file_location');
         if (!subdir) {
           throw Error(`must declare a file_location`);
         }
         const folder = `files/${subdir}`;
-        workspace.addBuilder(new WebPageBuilder(source.name, this.world.logger, location, folder));
+        workspace.addBuilder(new WebPageBuilder(source.name, this.getWorld().logger, location, folder));
         return { ...OK, finalize: this.finalize };
       },
     },
@@ -77,7 +72,7 @@ const DomainWebPage: IExtensionConstructor = class DomainWebPage implements ISte
     const builder = workspace.getBuilder();
 
     const shared = builder.finalize();
-    const domain = getDomain(webPage, this.world)!.shared.get(builder.name);
+    const domain = getDomain(webPage, this.getWorld())!.shared.get(builder.name);
 
     for (const [name, val] of shared) {
       domain.set(name, val);
