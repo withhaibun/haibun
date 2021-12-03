@@ -3,12 +3,12 @@ import { OK, TNamed, TVStep, TWorld, TActionResultTopics, AStepper } from '../li
 import { getDomain, getStepShared } from '../lib/domain';
 import { actionNotOK } from '../lib/util';
 
-// FIXME hokey
+// FIXME see https://github.com/withhaibun/haibun/issues/18
 const getOrCond = (fr: string) => fr.replace(/.* is set or /, '');
 
 const vars = class Vars extends AStepper {
   set = async (named: TNamed, vstep: TVStep) => {
-    // FIXME hokey
+    // FIXME see https://github.com/withhaibun/haibun/issues/18
     const emptyOnly = !!vstep.in.match(/set empty /);
     return setShared(named, vstep, this.getWorld(), emptyOnly);
   };
