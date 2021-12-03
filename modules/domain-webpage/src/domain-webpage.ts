@@ -25,7 +25,7 @@ const DomainWebPage = class DomainWebPage extends AStepper implements IHasDomain
 
         const webserver = <IWebServer>getFromRuntime(this.getWorld().runtime, 'webserver');
         webserver.addStaticFolder(page);
-        console.debug('added paeg', page);
+        console.debug('added page', page);
 
         return OK;
       },
