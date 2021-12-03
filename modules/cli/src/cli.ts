@@ -135,7 +135,7 @@ async function doRun(base: string, specl: TSpecl, runtime: {}, featureFilter: st
 
   const world: TWorld = { ...protoOptions, shared, logger, runtime, domains: [], tag, timer };
 
-  const { result } = await run({ specl, base, world, featureFilter, protoOptions });
+  const { result } = await run({ specl, base, world, featureFilter, extraOptions: protoOptions.extraOptions });
   if (world.options.TRACE) {
     writeTraceFile(world, result);
   }
