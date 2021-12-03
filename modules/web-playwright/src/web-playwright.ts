@@ -1,64 +1,59 @@
 import { Page, Response } from 'playwright';
-import { IHasOptions, IStepper, IExtensionConstructor, OK, TWorld, TNamed, TVStep, IRequireDomains, TStepResult, TTraceOptions, TTrace } from '@haibun/core/build/lib/defs';
+import { IHasOptions, OK, TNamed, TVStep, IRequireDomains, TStepResult, TTraceOptions, TTrace, AStepper } from '@haibun/core/build/lib/defs';
 import { onCurrentTypeForDomain } from '@haibun/core/build/steps/vars';
 import { BrowserFactory, TBrowserFactoryContextOptions } from './BrowserFactory';
-import { actionNotOK, ensureDirectory, getCaptureDir, getStepperOption, getIntOrError } from '@haibun/core/build/lib/util';
+import { actionNotOK, ensureDirectory, getCaptureDir, getStepperOption, boolOrError, intOrError } from '@haibun/core/build/lib/util';
 import { webPage, webControl } from '@haibun/domain-webpage/build/domain-webpage';
 import { TTraceTopic } from '@haibun/core/build/lib/interfaces/logger';
 
 declare var window: any;
 
-const WebPlaywright: IExtensionConstructor = class WebPlaywright implements IStepper, IHasOptions, IRequireDomains {
+const WebPlaywright = class WebPlaywright extends AStepper implements IHasOptions, IRequireDomains {
   requireDomains = [webPage, webControl];
   options = {
     HEADLESS: {
       desc: 'run browsers without a window (true or false)',
-      parse: (input: string) => input === 'true',
+      parse: (input: string) => boolOrError(input)
     },
     CAPTURE_VIDEO: {
       desc: 'capture video for every agent',
-      parse: (input: string) => true,
+      parse: (input: string) => boolOrError(input),
     },
     STEP_CAPTURE_SCREENSHOT: {
       desc: 'capture screenshot for every step',
-      parse: (input: string) => true,
+      parse: (input: string) => boolOrError(input),
     },
     TIMEOUT: {
       desc: 'timeout for each step',
-      parse: (input: string) => getIntOrError(input),
+      parse: (input: string) => intOrError(input),
     },
   };
   hasFactory: boolean = false;
   bf: BrowserFactory | undefined = undefined;
-  world: TWorld;
   headless: boolean = false;
-
-  constructor(world: TWorld) {
-    this.world = world;
-  }
 
   async getBrowserFactory(): Promise<BrowserFactory> {
     if (!this.hasFactory) {
-      const headless = getStepperOption(this, 'HEADLESS', this.world.options);
-      const defaultTimeout = getStepperOption(this, 'TIMEOUT', this.world.options);
-      this.bf = BrowserFactory.get(this.world.logger, { defaultTimeout, browser: { headless } });
+      const headless = getStepperOption(this, 'HEADLESS', this.getWorld().options);
+      const defaultTimeout = getStepperOption(this, 'TIMEOUT', this.getWorld().options);
+      this.bf = BrowserFactory.get(this.getWorld().logger, { defaultTimeout, browser: { headless } });
       this.hasFactory = true;
     }
     return this.bf!;
   }
 
   async getContext() {
-    const context = (await this.getBrowserFactory()).getExistingContext(this.world.tag);
+    const context = (await this.getBrowserFactory()).getExistingContext(this.getWorld().tag);
     return context;
   }
 
   async getPage() {
-    const { trace: doTrace } = this.world.tag;
-    const captureVideo = getStepperOption(this, 'CAPTURE_VIDEO', this.world.options);
+    const { trace: doTrace } = this.getWorld().tag;
+    const captureVideo = getStepperOption(this, 'CAPTURE_VIDEO', this.getWorld().options);
     const browser: TBrowserFactoryContextOptions = {};
     if (captureVideo)
       browser.recordVideo = {
-        dir: getCaptureDir(this.world.tag, 'video'),
+        dir: getCaptureDir(this.getWorld(), 'video'),
 
       }
     const trace: TTraceOptions | undefined = doTrace ? {
@@ -67,13 +62,13 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
           const url = res.url();
           const headers = await res.headersArray();
           const headersContent = (await Promise.allSettled(headers)).map(h => (h as any).value);
-          this.world.logger.log(`response trace ${headersContent.map(h => h.name)}`, { topic: ({ trace: { response: { headersContent } } } as TTraceTopic) });
-          const trace: TTrace = { 'response': { since: this.world.timer.since(), trace: { headersContent } } }
-          this.world.shared.concat('_trace', trace);
+          this.getWorld().logger.log(`response trace ${headersContent.map(h => h.name)}`, { topic: ({ trace: { response: { headersContent } } } as TTraceTopic) });
+          const trace: TTrace = { 'response': { since: this.getWorld().timer.since(), trace: { headersContent } } }
+          this.getWorld().shared.concat('_trace', trace);
         }
       }
     } : undefined;
-    const page = await (await this.getBrowserFactory()).getPage(this.world.tag, { trace, browser });
+    const page = await (await this.getBrowserFactory()).getPage(this.getWorld().tag, { trace, browser });
     return page;
   }
 
@@ -93,35 +88,34 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
   }
 
   async onFailure(result: TStepResult) {
-    this.world.logger.error(result);
+    this.getWorld().logger.error(result);
 
-    if (this.bf?.hasPage(this.world.tag)) {
+    if (this.bf?.hasPage(this.getWorld().tag)) {
       const page = await this.getPage();
-      const path = getCaptureDir(this.world.tag, 'failure', `${result.seq}.png`);
+      const path = getCaptureDir(this.getWorld(), 'failure', `${result.seq}.png`);
 
       await page.screenshot({ path, fullPage: true, timeout: 60000 });
     }
   }
 
   async nextStep() {
-    const captureScreenshot = getStepperOption(this, 'STEP_CAPTURE_SCREENSHOT', this.world.options);
+    const captureScreenshot = getStepperOption(this, 'STEP_CAPTURE_SCREENSHOT', this.getWorld().options);
     if (captureScreenshot) {
-      console.log('captureScreenshot');
+      console.debug('captureScreenshot');
     }
-
   }
 
-  async nextFeature() {
+  async endFeature() {
     // close the context, which closes any pages
     if (this.hasFactory) {
-      await this.bf!.closeContext(this.world.tag);
+      await this.bf!.closeContext(this.getWorld().tag);
       return;
     }
   }
   async close() {
     // close the context, which closes any pages
     if (this.hasFactory) {
-      await this.bf!.closeContext(this.world.tag);
+      await this.bf!.closeContext(this.getWorld().tag);
       return;
     }
   }
@@ -158,7 +152,7 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
     dialogIs: {
       gwta: 'dialog {what} {type} is {value}',
       action: async ({ what, type, value }: TNamed) => {
-        const cur = this.world.shared.get(what)?.[type];
+        const cur = this.getWorld().shared.get(what)?.[type];
 
         return cur === value ? OK : actionNotOK(`${what} is ${cur}`)
       },
@@ -166,7 +160,7 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
     dialogIsUnset: {
       gwta: 'dialog {what} {type} not set',
       action: async ({ what, type, value }: TNamed) => {
-        const cur = this.world.shared.get(what)?.[type];
+        const cur = this.getWorld().shared.get(what)?.[type];
         return !cur ? OK : actionNotOK(`${what} is ${cur}`)
       },
     },
@@ -254,7 +248,7 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
     clickOn: {
       gwta: 'click on (?<name>.[^s]+)',
       action: async ({ name }: TNamed) => {
-        const what = this.world.shared.get(name) || `text=${name}`;
+        const what = this.getWorld().shared.get(name) || `text=${name}`;
         await this.withPage(async (page: Page) => await page.click(what));
         return OK;
       },
@@ -262,8 +256,8 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
     clickCheckbox: {
       gwta: 'click the checkbox (?<name>.+)',
       action: async ({ name }: TNamed) => {
-        const what = this.world.shared.get(name) || name;
-        this.world.logger.log(`click ${name} ${what}`);
+        const what = this.getWorld().shared.get(name) || name;
+        this.getWorld().logger.log(`click ${name} ${what}`);
         await this.withPage(async (page: Page) => await page.click(what));
         return OK;
       },
@@ -271,7 +265,7 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
     clickShared: {
       gwta: 'click `(?<id>.+)`',
       action: async ({ id }: TNamed) => {
-        const name = this.world.shared.get(id);
+        const name = this.getWorld().shared.get(id);
         await this.withPage(async (page: Page) => await page.click(name));
         return OK;
       },
@@ -286,7 +280,7 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
     clickLink: {
       gwta: 'click the link (?<uri>.+)',
       action: async ({ name }: TNamed) => {
-        const field = this.world.shared.get(name) || name;
+        const field = this.getWorld().shared.get(name) || name;
         await this.withPage(async (page: Page) => await page.click(field));
         return OK;
       },
@@ -295,7 +289,7 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
     clickButton: {
       gwta: 'click the button (?<id>.+)',
       action: async ({ id }: TNamed) => {
-        const field = this.world.shared.get(id) || id;
+        const field = this.getWorld().shared.get(id) || id;
         const a = await this.withPage(async (page: Page) => await page.click(field));
 
         return OK;
@@ -306,7 +300,7 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
     onPage: {
       gwta: `On the {name} ${webPage}`,
       action: async ({ name }: TNamed, vstep: TVStep) => {
-        const location = name.includes('://') ? name : onCurrentTypeForDomain({ name, type: webPage }, this.world);
+        const location = name.includes('://') ? name : onCurrentTypeForDomain({ name, type: webPage }, this.getWorld());
 
         const response = await this.withPage(async (page: Page) => await page.goto(location));
         return response?.ok ? OK : actionNotOK(`response not ok`);
@@ -327,7 +321,7 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
         await this.withPage(
           async (page: Page) =>
             await page.evaluate(() => {
-              console.log('going back', window.history);
+              console.debug('going back', window.history);
               (window as any).history.go(-1);
             })
         );
@@ -360,7 +354,7 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
             type: dialog.type()
           }
           dialog.accept();
-          this.world.shared.set(where, res);
+          this.getWorld().shared.set(where, res);
         }));
         return OK;
       },
@@ -394,7 +388,7 @@ const WebPlaywright: IExtensionConstructor = class WebPlaywright implements ISte
       action: async ({ what, where }: TNamed) => {
         const uri = await this.withPage(async (page: Page) => await page.url());
         const found = new URL(uri).searchParams.get(what);
-        this.world.shared.set(where, found!);
+        this.getWorld().shared.set(where, found!);
         return OK;
       },
     },

@@ -1,8 +1,6 @@
 import { Resolver } from '../phases/Resolver';
 import { Context, DomainContext } from './contexts';
-import { BASE_TYPES, IHasDomains, IRequireDomains, IStepper, TFileTypeDomain, TFound, TFromDomain, TModuleDomain, TWorld } from './defs';
-import { findFeatures } from './features';
-import { getNamedToVars } from './namedVars';
+import { BASE_TYPES, AStepper, IHasDomains, IRequireDomains, TFound, TFromDomain, TWorld } from './defs';
 
 export const isBaseType = (type: string) => BASE_TYPES.includes(type);
 export const getStepShared = (type: string, world: TWorld): Context => {
@@ -41,7 +39,7 @@ export const getStepShared = (type: string, world: TWorld): Context => {
 
 export const getDomain = (domain: string, world: TWorld) => world.domains.find((d) => d.name === domain);
 
-export const applyDomainsOrError = (steppers: IStepper[], world: TWorld) => {
+export const applyDomainsOrError = (steppers: AStepper[], world: TWorld) => {
   // verify no duplicates
   
   for (const module of steppers.filter((s) => !!(<IHasDomains>(s as unknown)).domains).map((s) => <IHasDomains>(s as unknown))) {

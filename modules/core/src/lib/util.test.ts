@@ -1,16 +1,16 @@
 import * as util from './util';
-import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, testRun, getDefaultWorld } from './test/lib';
+import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, getDefaultWorld, testWithDefaults } from './test/lib';
 import TestSteps from "./test/TestSteps";
 import TestStepsWithOptions from "./test/TestStepsWithOptions";
 import { withNameType } from './features';
 
 describe('output', () => {
   it('resultOutput default', async () => {
-    const { world } = getDefaultWorld(0);
-    const { result } = await testRun('/test/projects/specl/out-default', [TestSteps], world);
+    const features = [{ path: '/features/test.feature', content: `When I have a test\nThen the test can fail` }, { path: '/features/test.feature', content: `When I have a test\nThen the test should pass` }];
+    const { result, world } = await testWithDefaults(features, [TestSteps]);
 
     expect(result.ok).toBe(false);
-    const output = await util.resultOutput(undefined, result, world.shared);
+    const output = await util.resultOutput(undefined, result);
     expect(typeof output).toBe('object');
     expect(result.results?.length).toBe(2);
   });
@@ -22,54 +22,22 @@ describe('isLowerCase', () => {
   expect(util.isLowerCase('0')).toBe(false);
 });
 
-describe('processEnv', () => {
-  it('carries extra options', () => {
-    const specl = util.getDefaultOptions();
-    const { protoOptions } = util.processEnv({ HAIBUN_TEST: 'true' }, specl.options);
-
-    expect(protoOptions.extraOptions['HAIBUN_TEST']).toBeDefined();
-  });
-  it('split_shared incorrect message', () => {
-    const specl = util.getDefaultOptions();
-
-    const { errors } = util.processEnv({ HAIBUN_SPLIT_SHARED: '1,2' }, specl.options);
-    expect(errors.length).toBe(1);
-  });
-  it('processes split_shared', () => {
-    const specl = util.getDefaultOptions();
-    const { splits } = util.processEnv({ HAIBUN_SPLIT_SHARED: 'foo=1,2' }, specl.options).protoOptions.options;
-    expect(splits).toEqual([{ foo: '1' }, { foo: '2' }]);
-  });
-  it('assigns int', () => {
-    const specl = util.getDefaultOptions();
-    const { options } = util.processEnv({ HAIBUN_LOOPS: '1' }, specl.options).protoOptions;
-    expect(options.loops).toBe(1);
-  })
-  it('errors for string passed as int', () => {
-    const specl = util.getDefaultOptions();
-    const { errors } = util.processEnv({ HAIBUN_LOOPS: '1.2' }, specl.options);
-    expect(errors.length).toBe(1);
-  });
-});
-
 describe('getStepperOptions', () => {
   it('finds stepper options', async () => {
-    const steppers = await util.getSteppers({ steppers: [], addSteppers: [TestStepsWithOptions], ...getDefaultWorld(0) });
+    const steppers = await util.getSteppers({ steppers: [], addSteppers: [TestStepsWithOptions], });
     const conc = util.getStepperOptions(HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, 'true', steppers);
     expect(conc).toBeDefined();
   });
   it('fills extra', async () => {
     const { world } = getDefaultWorld(0);
-    const specl = { ...util.getDefaultOptions(), extraOptions: { [HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]: 'true' } };
-    const steppers = await util.getSteppers({ steppers: [], addSteppers: [TestStepsWithOptions], ...getDefaultWorld(0) });
-    util.applyExtraOptions(specl, steppers, world);
+    const steppers = await util.getSteppers({ steppers: [], addSteppers: [TestStepsWithOptions], });
+    util.applyExtraOptions({ [HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]: 'true' }, steppers, world);
 
-    expect(world.options[HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]).toBe(42);
+    expect(world.options[HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]).toEqual(42);
   });
   it('throws for unfilled extra', async () => {
     const { world } = getDefaultWorld(0);
-    const specl = { ...util.getDefaultOptions(), extraOptions: { HAIBUN_NE: 'true' } };
-    expect(() => util.applyExtraOptions(specl, [], world)).toThrow();
+    expect(() => util.applyExtraOptions({ HAIBUN_NE: 'true' }, [], world)).toThrow();
   });
 });
 
@@ -82,18 +50,17 @@ describe('getType', () => {
   })
 })
 
-describe('applyEnvCollections', () => {
-  it('creates pairs', () => {
-    const p = { options: { env: {} }, extraOptions: {} };
-    util.applyEnvCollections('a=1,b=2,a=3,b=4', p);
-
-    expect(p.options.env).toEqual({
-      a: ["1", "3"],
-      b: ["2", "4"]
-    });
+describe('shouldProcess', () => {
+  it('should process no type & filter', () => {
+    expect(util.shouldProcess('hi.feature', undefined, undefined)).toBe(true);
   });
-  it('prevents collision', () => {
-    const p = { options: { env: { a: 1 } }, extraOptions: {} };
-    expect(() => util.applyEnvCollections('a=1', p)).toThrow();
-  })
-})
+  it('should process matching filter', () => {
+    expect(util.shouldProcess('hi.feature', undefined, ['hi'])).toBe(true);
+  });
+  it('should not process wrong type', () => {
+    expect(util.shouldProcess('hi.feature', 'wrong', undefined)).toBe(false);
+  });
+  it('should not process wrong filter', () => {
+    expect(util.shouldProcess('hi.feature', undefined, ['wrong'])).toBe(false);
+  });
+});

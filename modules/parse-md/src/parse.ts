@@ -2,19 +2,22 @@ import { readFileSync, writeFileSync } from 'fs';
 import fetch from 'node-fetch';
 import TurndownService from 'turndown';
 
-export async function parseMatches(docs: string[], base: string, matches: RegExp[]) {
+export async function parseMatches(docs: { [name: string]: string | undefined }, base: string, matches: RegExp[]) {
+
   let conditions = [];
 
-  for (const doc of docs) {
-    let markdown: string;
+  for (const doc of Object.keys(docs)) {
+    let markdown = docs[doc];
     const loc = `${base}/refs/${doc}.md`;
-    try {
-      markdown = readFileSync(loc, 'utf-8');
-    } catch (e) {
-      const content = await fetchFileOrUri(doc);
-      const turndownService = new TurndownService();
-      markdown = turndownService.turndown(content);
-      writeFileSync(loc, markdown);
+    if (!markdown) {
+      try {
+        markdown = readFileSync(loc, 'utf-8');
+      } catch (e) {
+        const content = await fetchFileOrUri(doc);
+        const turndownService = new TurndownService();
+        markdown = turndownService.turndown(content);
+        writeFileSync(loc, markdown);
+      }
     }
 
     for (const match of matches) {

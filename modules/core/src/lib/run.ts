@@ -1,35 +1,28 @@
 import { existsSync } from 'fs';
-import { TSpecl, IStepper, IExtensionConstructor, TResult, TWorld, TProtoOptions, TFeature, TNotOKActionResult } from './defs';
+import { TSpecl, AStepper, TResult, TWorld, TProtoOptions, TFeature, TNotOKActionResult, TExtraOptions } from './defs';
 import { expand } from './features';
 import { Executor } from '../phases/Executor';
 import { Resolver } from '../phases/Resolver';
 import Builder from '../phases/Builder';
-import { getSteppers, applyExtraOptions, recurse, debase } from './util';
+import { getSteppers, applyExtraOptions, recurse, debase, getRunTag } from './util';
 import { applyDomainsOrError } from './domain';
 
-export async function run({
-  specl,
-  base,
-  world,
-  addSteppers = [],
-  featureFilter = '',
-  protoOptions: protoOptions = { options: {}, extraOptions: {} },
-}: {
-  specl: TSpecl;
-  world: TWorld;
-  base: string;
-  addSteppers?: IExtensionConstructor[];
-  featureFilter?: string;
-  protoOptions?: TProtoOptions;
-}): Promise<{ result: TResult; steppers?: IStepper[] }> {
-  const features = debase(base, recurse(`${base}/features`, 'feature', featureFilter));
-  let backgrounds: TFeature[] = [];
+type TrunOptions = { specl: TSpecl; world: TWorld; base: string; addSteppers?: typeof AStepper[]; featureFilter?: string[]; extraOptions?: TExtraOptions; }
 
-  if (existsSync(`${base}/backgrounds`)) {
-    backgrounds = debase(base, recurse(`${base}/backgrounds`, ''));
+export async function run({ specl, base, world, addSteppers = [], featureFilter, extraOptions = {} }: TrunOptions): Promise<{ result: TResult; steppers?: AStepper[] }> {
+  let features;
+  let backgrounds: TFeature[] = [];
+  try {
+    features = debase(base, recurse(`${base}/features`, 'feature', featureFilter));
+
+    if (existsSync(`${base}/backgrounds`)) {
+      backgrounds = debase(base, recurse(`${base}/backgrounds`, 'feature'));
+    }
+  } catch (error: any) {
+    return { result: { ok: false, tag: getRunTag(-1, -1, -1, {}, false), failure: { stage: 'Collect', error: { message: error.message, details: { stack: error.stack } } } } };
   }
 
-  return runWith({ specl, world, features, backgrounds, addSteppers, protoOptions });
+  return runWith({ specl, world, features, backgrounds, addSteppers, extraOptions });
 }
 
 type TRunWithOptions = {
@@ -37,23 +30,21 @@ type TRunWithOptions = {
   world: TWorld;
   features: TFeature[];
   backgrounds: TFeature[];
-  addSteppers: IExtensionConstructor[];
-  protoOptions?: TProtoOptions;
+  addSteppers: typeof AStepper[];
+  extraOptions?: TExtraOptions;
 }
 
-export async function runWith({
-  specl,
-  world,
-  features,
-  backgrounds,
-  addSteppers,
-  protoOptions: protoOptions = { options: {}, extraOptions: {} },
-}: TRunWithOptions): Promise<{ result: TResult; steppers?: IStepper[] }> {
+export const DEF_PROTO_OPTIONS = { options: {}, extraOptions: {} };
+
+export async function runWith({ specl, world, features, backgrounds, addSteppers, extraOptions ={} }: TRunWithOptions): Promise<{ result: TResult; steppers?: AStepper[] }> {
   const { tag } = world;
-  const steppers: IStepper[] = await getSteppers({ steppers: specl.steppers, addSteppers, world });
+
+  const steppers: AStepper[] = await getSteppers({ steppers: specl.steppers, addSteppers });
+
   try {
-    applyExtraOptions(protoOptions, steppers, world);
+    applyExtraOptions(extraOptions, steppers, world);
   } catch (error: any) {
+    console.error(error);
     return { result: { ok: false, tag, failure: { stage: 'Options', error: { message: error.message, details: error } } } };
   }
 
@@ -67,7 +58,7 @@ export async function runWith({
   try {
     expandedFeatures = await expand(backgrounds, features);
   } catch (error: any) {
-    
+
     return { result: { ok: false, tag, failure: { stage: 'Expand', error: { message: error.message, details: error } } } };
   }
 
@@ -92,15 +83,15 @@ export async function runWith({
   let result;
   try {
     result = { ...await executor.execute(mappedValidatedSteps), tag };
-    
+
     if (!result.ok) {
       const message = (result.results![0].stepResults.find(s => !s.ok)?.actionResults[0] as TNotOKActionResult).message;
 
       result.failure = { stage: 'Execute', error: { message, details: { errors: result.results?.filter((r) => !r.ok).map((r) => r.path) } } };
     }
   } catch (e: any) {
-    console.log('XXXXXXX', e);
-    
+    console.error('XXXXXXX', e);
+
     result = { ok: false, tag, failure: e };
   }
   return { result, steppers };

@@ -1,13 +1,9 @@
 import got from 'got';
 
-import { IStepper, IExtensionConstructor, OK, TWorld, TNamed } from '@haibun/core/build/lib/defs';
+import { OK, TNamed, AStepper } from '@haibun/core/build/lib/defs';
 import { actionNotOK } from '@haibun/core/build/lib/util';
 
-const WebHttp: IExtensionConstructor = class WebHttp implements IStepper {
-  world: TWorld;
-  constructor(world: TWorld) {
-    this.world = world;
-  }
+const WebHttp = class WebHttp extends AStepper {
   steps = {
     listening: {
       gwta: 'http {url} is listening',
@@ -21,6 +17,13 @@ const WebHttp: IExtensionConstructor = class WebHttp implements IStepper {
       action: async ({ url }: TNamed) => {
         const json = await got.get({ url: `${url}/.well-known/openid-configuration` }).json();
         return (json as any).authorization_endpoint ? OK : actionNotOK(`${json} not recognized`, { topics: { result: { summary: 'json', details: json } } });
+      },
+    },
+    hasContent: {
+      gwta: 'fetch from {url} is {what}',
+      action: async ({ url, what }: TNamed) => {
+        const text = await got(url).text();
+        return text === what ? OK : actionNotOK(`${url} does not contain ${what}, it contains ${text}`)
       },
     },
   };

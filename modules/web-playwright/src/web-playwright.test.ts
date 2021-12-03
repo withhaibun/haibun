@@ -6,10 +6,7 @@ const stxt = ['~@haibun/domain-webpage/build/domain-webpage', [process.cwd(), 'b
 
 describe('playwrightWeb', () => {
   it('sets up steps', async () => {
-    const steppers = await getSteppers({
-      steppers: stxt,
-      ...getDefaultWorld(0),
-    });
+    const steppers = await getSteppers({ steppers: stxt });
     expect(Object.keys(steppers[0].steps).length > 0).toBe(true);
     expect(Object.values(steppers[0].steps).every((s) => !!s.action)).toBe(true);
   });
@@ -21,7 +18,6 @@ describe('playwrightWeb', () => {
 
     expect(bf.browserType.name()).toBe('firefox');
     expect(bf.device).toBe('Pixel 5');
-    webPlaywright.finish();
   });
   it('fails setting browser type and device', async () => {
     const { world, vstep } = await getTestEnv(stxt, 'using nonexistent browser', getDefaultWorld(0).world);

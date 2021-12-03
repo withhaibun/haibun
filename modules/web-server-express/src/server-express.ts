@@ -1,6 +1,6 @@
 import { statSync, existsSync } from 'fs';
 import express, { RequestHandler } from 'express';
-import  cookieParser from 'cookie-parser';
+import cookieParser from 'cookie-parser';
 
 import { IWebServer, TRouteType } from './defs';
 import { ILogger } from '@haibun/core/src/lib/interfaces/logger';
@@ -19,6 +19,7 @@ export class ServerExpress implements IWebServer {
     this.logger = logger;
     this.base = base;
     this.port = port;
+
     this.app.use(cookieParser());
   }
 
@@ -42,16 +43,25 @@ export class ServerExpress implements IWebServer {
   async addRoute(type: TRouteType, path: string, route: RequestHandler) {
     try {
       const alreadyMounted = this.checkMountBadOrMounted(path, route.toString());
+
+
       if (alreadyMounted) {
+        this.logger.debug(`already mount ${path}`);
         return;
       }
     } catch (e: any) {
-      return e.message;
+      throw (e);
     }
     this.logger.log(`serving route from ${path}`);
-
     await this.app[type](path, route);
-    await this.listen();
+    await this.addMounted(path, route.toString());
+  }
+
+  async addMounted(path: string, what: string) {
+    ServerExpress.mounted[path] = what;
+    if (!this.listener) {
+      await this.listen();
+    }
   }
 
   // add a static folder restricted to relative paths from files
@@ -73,7 +83,7 @@ export class ServerExpress implements IWebServer {
       const alreadyMounted = this.checkMountBadOrMounted(mountAt, folder);
       if (alreadyMounted) {
         // FIXME
-        // return;
+        return;
       }
     } catch (e: any) {
       return e.message;
@@ -86,21 +96,13 @@ export class ServerExpress implements IWebServer {
       throw Error(`"${folder}" is not a directory`);
     }
 
-    ServerExpress.mounted[mountAt] = folder;
     this.logger.info(`serving files from ${folder} at ${mountAt}`);
     await this.app.use(mountAt, express.static(folder));
-    await this.listen();
+    await this.addMounted(mountAt, folder);
     return;
   }
 
   checkMountBadOrMounted(loc: string, what: string): boolean {
-    if (!ServerExpress.listening) {
-      throw Error(`listen must be called before mount`);
-    }
-    if (!loc) {
-      throw Error(`missing mount location`);
-    }
-
     const alreadyMounted = ServerExpress.mounted[loc];
     if (alreadyMounted === what) {
       this.logger.log(`${alreadyMounted} already mounted at ${loc}`);

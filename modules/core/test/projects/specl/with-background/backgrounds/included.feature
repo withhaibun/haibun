@@ -1,1 +1,0 @@
-Then the test should pass

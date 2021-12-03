@@ -1,4 +1,4 @@
-import { IExtensionConstructor, IStepper, TWorld, TNamed } from './defs';
+import { TNamed, AStepper } from './defs';
 import * as steps from './features';
 import { asExpandedFeatures, asFeatures, testWithDefaults } from './test/lib';
 import { actionOK } from './util';
@@ -96,11 +96,7 @@ xdescribe('expand features', () => {
 describe('env vars', () => {
   it('rotates ENVC vars', async () => {
     let index = 0;
-    const TestEnvcStepper: IExtensionConstructor = class TestRoute implements IStepper {
-      world: TWorld;
-      constructor(world: TWorld) {
-        this.world = world;
-      }
+    const TestEnvcStepper = class TestRoute extends AStepper {
       steps = {
         addRoute: {
           gwta: 'finds a {what}',
@@ -114,7 +110,8 @@ describe('env vars', () => {
     };
     const feature = { path: '/features/test.feature', content: `\nfinds a {what}\nfinds a {what}` }
     const env = { what: [0, 1] }
-    const { world } = await testWithDefaults([feature], [TestEnvcStepper], { env });
+    const { world } = await testWithDefaults([feature], [TestEnvcStepper], { options: { env }, extraOptions: {} })
+      ;
     expect(world.options._index_what).toBe(1);
   });
 })

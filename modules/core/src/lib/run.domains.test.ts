@@ -1,5 +1,5 @@
 import { onCurrentTypeForDomain, setShared } from '../steps/vars';
-import { IExtensionConstructor, IStepper, IHasDomains, TWorld, TNamed, TVStep, IRequireDomains } from './defs';
+import { IHasDomains, TNamed, TVStep, IRequireDomains, AStepper } from './defs';
 import { getDomain } from './domain';
 import { runWith } from './run';
 import { asFeatures, getDefaultWorld, testWithDefaults } from './test/lib';
@@ -9,17 +9,13 @@ const TTYPE = 'page';
 const CCONTROL = 'control';
 const ACONTROL = 'lever';
 
-const TestStepsRequiresDomain: IExtensionConstructor = class TestStepsRequiresDomain implements IStepper, IRequireDomains {
-  world: TWorld;
+const TestStepsRequiresDomain = class TestStepsRequiresDomain extends AStepper implements IRequireDomains {
   requireDomains = [TTYPE, CCONTROL];
-  constructor(world: TWorld) {
-    this.world = world;
-  }
   steps = {
     onType: {
       gwta: `on the {what} {type}$`,
       action: async ({ what, type }: TNamed) => {
-        const location = onCurrentTypeForDomain({ name: what, type }, this.world);
+        const location = onCurrentTypeForDomain({ name: what, type }, this.getWorld());
         return actionOK(location);
       },
     },
@@ -32,22 +28,18 @@ const TestStepsRequiresDomain: IExtensionConstructor = class TestStepsRequiresDo
   };
 };
 
-const TestStepsWithDomain: IExtensionConstructor = class TestStepsWithDomain implements IStepper, IHasDomains {
-  world: TWorld;
+const TestStepsWithDomain = class TestStepsWithDomain extends AStepper implements IHasDomains {
   domains = [
     { name: TTYPE, fileType: TTYPE, is: 'string', validate: () => undefined },
     { name: CCONTROL, from: TTYPE, is: 'string' },
   ];
   locator = (name: string) => `test/${name}`;
-  constructor(world: TWorld) {
-    this.world = world;
-  }
   steps = {
     has: {
       gwta: `Has a {what: ${CCONTROL}} control`,
       action: async ({ what }: TNamed, vstep: TVStep) => {
         const value = 'xxx';
-        setShared({ what, value }, vstep, this.world);
+        setShared({ what, value }, vstep, this.getWorld());
         return actionOK();
       },
     },

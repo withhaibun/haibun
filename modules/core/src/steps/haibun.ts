@@ -1,11 +1,7 @@
-import { IStepper, IExtensionConstructor, OK, TWorld, TNamed } from '../lib/defs';
+import { OK, TNamed, AStepper } from '../lib/defs';
 import { actionOK, sleep } from '../lib/util';
 
-const Haibun: IExtensionConstructor = class Haibun implements IStepper {
-  world: TWorld;
-  constructor(world: TWorld) {
-    this.world = world;
-  }
+const Haibun = class Haibun extends AStepper {
   steps = {
     prose: {
       gwta: '.*[.?!]$',
@@ -14,13 +10,13 @@ const Haibun: IExtensionConstructor = class Haibun implements IStepper {
     sendFeatures: {
       gwta: 'send features',
       action: async () => {
-        return actionOK({features: this.world.shared.values._features});
+        return actionOK({ features: this.getWorld().shared.values._features });
       },
     },
     startStepDelay: {
       gwta: 'start step delay of (?<ms>.+)',
       action: async ({ ms }: TNamed) => {
-        this.world.options.step_delay = parseInt(ms, 10);
+        this.getWorld().options.step_delay = parseInt(ms, 10);
         return OK;
       },
     },
