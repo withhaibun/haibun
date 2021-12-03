@@ -1,4 +1,4 @@
-#!/bin/sh  -x
+#!/bin/sh
 
 ## FIXME spent a day trying to get lerna set up properly. Deno, save me.
 
