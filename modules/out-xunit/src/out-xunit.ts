@@ -1,7 +1,8 @@
 import { create } from 'xmlbuilder2';
 import { EOL } from 'os';
 
-import { TResult, TNotOkStepActionResult, TOutput } from '@haibun/core/build/lib/defs';
+import { TResult, TNotOkStepActionResult, TResultOutput } from '@haibun/core/build/lib/defs';
+import { TEST_RESULT } from '@haibun/core/build/lib/interfaces/logger';
 
 type TTestCase = {
   '@name': string;
@@ -18,8 +19,8 @@ type TFailResult = {
   type?: string;
 };
 
-export default class OutXUnit implements TOutput {
-  async getOutput(result:TResult, { name = 'Haibun-Junit', prettyPrint = true, classname = 'Haibun-Junit-Suite' }) {
+export default class OutXUnit implements TResultOutput {
+  async getOutput(result: TResult, { name = 'Haibun-Junit', prettyPrint = true, classname = 'Haibun-Junit-Suite' }) {
     const failures = result.results?.filter((t) => !t.ok)?.length;
     const skipped = result.results?.filter((t) => t.skip)?.length;
     const count = result.results?.length;
@@ -59,6 +60,10 @@ export default class OutXUnit implements TOutput {
       forXML.testsuites.testsuite.testcase.push(testCase);
     }
     return create(forXML).end({ prettyPrint, newline: EOL });
+  }
+  async writeOutput(result: TResult, args: any) {
+    return this.getOutput(result, args);
+
   }
   getFailResult(failure: TNotOkStepActionResult) {
     const failResult: TFailResult = {

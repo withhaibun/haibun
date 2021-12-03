@@ -1,13 +1,8 @@
-import { IStepper, IExtensionConstructor, TWorld, TNamed } from '../defs';
+import { TNamed, AStepper } from '../defs';
 import { actionNotOK, actionOK } from '../util';
 import { WorkspaceContext } from '../contexts';
 
-
-const TestSteps: IExtensionConstructor = class TestSteps implements IStepper {
-  world: TWorld;
-  constructor(world: TWorld) {
-    this.world = world;
-  }
+const TestSteps = class TestSteps extends AStepper {
   steps = {
     test: {
       exact: 'When I have a test',
@@ -40,7 +35,7 @@ const TestSteps: IExtensionConstructor = class TestSteps implements IStepper {
         return {
           ...actionOK(),
           finalize: (workspace: WorkspaceContext) => {
-            this.world.shared.set('done', 'ok');
+            this.getWorld().shared.set('done', 'ok');
           },
         };
       },

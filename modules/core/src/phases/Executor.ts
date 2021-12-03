@@ -1,18 +1,19 @@
-import { IStepper, TVStep, TResolvedFeature, TResult, TStepResult, TFeatureResult, TActionResult, TWorld, TActionResultTopics, TStepActionResult } from '../lib/defs';
+import { TVStep, TResolvedFeature, TResult, TStepResult, TFeatureResult, TActionResult, TWorld, TActionResultTopics, TStepActionResult, AStepper } from '../lib/defs';
 import { getNamedToVars } from '../lib/namedVars';
 import { actionNotOK, applyResShouldContinue, sleep } from '../lib/util';
 
 export class Executor {
-  steppers: IStepper[];
+  steppers: AStepper[];
   world: TWorld;
 
-  constructor(steppers: IStepper[], world: TWorld) {
+  constructor(steppers: AStepper[], world: TWorld) {
     this.steppers = steppers;
     this.world = world;
   }
 
   async execute(features: TResolvedFeature[]): Promise<TResult> {
     let ok = true;
+    const stay = (this.world.options.STAY === 'always');
     let featureResults: TFeatureResult[] = [];
     // FIXME
     this.world.shared.values._features = features;
@@ -23,9 +24,14 @@ export class Executor {
       ok = ok && featureResult.ok;
       featureResults.push(featureResult);
       
-      await this.nextFeature();
+
+      if (!stay) {
+        await this.endFeature();
+      }
     }
-    await this.close();
+    if (!stay) {
+      await this.close();
+    }
     return { ok, results: featureResults, tag: this.world.tag };
   }
 
@@ -97,11 +103,11 @@ export class Executor {
     }
   }
 
-  async nextFeature() {
+  async endFeature() {
     for (const s of this.steppers) {
-      if (s.nextFeature) {
-        this.world.logger.debug(`nextFeature ${s.constructor.name}`);
-        await s.nextFeature();
+      if (s.endFeature) {
+        this.world.logger.debug(`endFeature ${s.constructor.name}`);
+        await s.endFeature();
       }
     }
   }

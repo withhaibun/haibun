@@ -1,24 +1,19 @@
 import { Context, DomainContext } from '../lib/contexts';
-import { IStepper, IExtensionConstructor, OK, TNamed, TVStep, TWorld, TActionResultTopics } from '../lib/defs';
+import { OK, TNamed, TVStep, TWorld, TActionResultTopics, AStepper } from '../lib/defs';
 import { getDomain, getStepShared } from '../lib/domain';
 import { actionNotOK } from '../lib/util';
 
-// FIXME hokey
+// FIXME see https://github.com/withhaibun/haibun/issues/18
 const getOrCond = (fr: string) => fr.replace(/.* is set or /, '');
 
-const vars: IExtensionConstructor = class Vars implements IStepper {
-  world: TWorld;
-  constructor(world: TWorld) {
-    this.world = world;
-  }
-
+const vars = class Vars extends AStepper {
   set = async (named: TNamed, vstep: TVStep) => {
-    // FIXME hokey
+    // FIXME see https://github.com/withhaibun/haibun/issues/18
     const emptyOnly = !!vstep.in.match(/set empty /);
-    return setShared(named, vstep, this.world, emptyOnly);
+    return setShared(named, vstep, this.getWorld(), emptyOnly);
   };
   isSet(what: string, orCond: string) {
-    if (this.world.shared.get(what) !== undefined) {
+    if (this.getWorld().shared.get(what) !== undefined) {
       return OK;
     }
     const [warning, response] = orCond.split(':').map((t) => t.trim());
@@ -52,28 +47,28 @@ const vars: IExtensionConstructor = class Vars implements IStepper {
     background: {
       match: /^Background: ?(?<background>.+)?$/,
       action: async ({ background }: TNamed) => {
-        this.world.shared.set('background', background);
+        this.getWorld().shared.set('background', background);
         return OK;
       },
     },
     feature: {
       match: /^Feature: ?(?<feature>.+)?$/,
       action: async ({ feature }: TNamed) => {
-        this.world.shared.set('feature', feature);
+        this.getWorld().shared.set('feature', feature);
         return OK;
       },
     },
     scenario: {
       match: /^Scenario: (?<scenario>.+)$/,
       action: async ({ scenario }: TNamed) => {
-        this.world.shared.set('scenario', scenario);
+        this.getWorld().shared.set('scenario', scenario);
         return OK;
       },
     },
     display: {
       gwta: 'display {what}',
       action: async ({ what }: TNamed) => {
-        this.world.logger.log(`is ${JSON.stringify(what)}`);
+        this.getWorld().logger.log(`is ${JSON.stringify(what)}`);
 
         return OK;
       },
@@ -109,14 +104,13 @@ export const onCurrentTypeForDomain = ({ name, type }: { name: string; type: str
   const domain = getDomain(type, world);
   const page = domain?.shared.get(name);
   if (!page) {
-    console.log(
+    console.debug(
       'using locator',
       domain?.module.domains.map((k) => k.name)
     );
 
     return domain?.module.locator!(name);
   }
-  console.log('using page');
   const uri = page.getID();
   return uri;
 };

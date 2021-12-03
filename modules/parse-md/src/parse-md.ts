@@ -1,23 +1,16 @@
-import { IStepper, IExtensionConstructor, OK, TWorld, TNamed } from '@haibun/core/build/lib/defs';
+import { OK, TNamed, AStepper } from '@haibun/core/build/lib/defs';
 import { actionNotOK } from '@haibun/core/build/lib/util';
 import { parseMatches } from './parse';
 
 const conformance = /(?!\n|. )\b([A-Z].*? must .*?\.)/;
 
-const ParseMD: IExtensionConstructor = class ParseMD implements IStepper {
-  world: TWorld;
-
-  constructor(world: TWorld) {
-    this.world = world;
-  }
+const ParseMD = class ParseMD extends AStepper {
   steps = {
     conformance: {
       gwta: `has annotated conformance doc from {where: string}`,
       action: async ({ where }: TNamed) => {
-        console.log('w', where);
-        
         try {
-          parseMatches([where], this.world.options.base as string, [conformance]);
+          parseMatches({ where: undefined }, this.getWorld().options.base as string, [conformance]);
         } catch (e: any) {
           return actionNotOK(e.message);
         }
