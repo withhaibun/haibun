@@ -1,0 +1,104 @@
+import { TProtoOptions, TSpecl, TWorld, TTag, TRunOptions, TRunResult } from './defs';
+import { WorldContext } from './contexts';
+import Logger from './Logger';
+
+import { run } from './run';
+import { resultOutput, getRunTag } from './util';
+import { ILogOutput } from './interfaces/logger';
+import { Timer } from './Timer';
+import { TStartRunCallback } from './defs';
+
+export default async function runWithOptions(runOptions: TRunOptions) {
+    const { loops, members, logLevel, logFollow, trace, startRunCallback, endRunCallback,
+        featureFilter, specl, base, splits, protoOptions } = runOptions;
+    const logger = new Logger({ level: logLevel, follow: logFollow });
+    const timer = new Timer();
+    let totalRan = 0;
+    type TFailure = { sequence: number, runDuration: number, fromStart: number };
+    let allFailures: { [message: string]: TFailure[] } = {};
+    let allRunResults: PromiseSettledResult<TRunResult>[] = [];
+
+    for (let loop = 1; loop < loops + 1; loop++) {
+        if (loops > 1) {
+            logger.log(`starting loop ${loop}/${loops}`)
+        }
+        let groupRuns: Promise<TRunResult>[] = [];
+        for (let member = 1; member < members + 1; member++) {
+            if (members > 1) {
+                logger.log(`starting member ${member + 1}/${members}`)
+            }
+            const instances = splits.map(async (split) => {
+                const runtime = {};
+                const tag: TTag = getRunTag(totalRan, loop, member, split, trace);
+                totalRan++;
+
+                const res = await doRun(base, specl, runtime, featureFilter, new WorldContext(tag, split), protoOptions, logger, tag, timer, startRunCallback);
+                if (endRunCallback) {
+                    endRunCallback(res.world, res.result);
+                }
+                return res;
+
+            });
+            groupRuns = groupRuns.concat(instances);
+        }
+
+        const theseValues = await Promise.allSettled(groupRuns);
+        allRunResults = allRunResults.concat(theseValues);
+    }
+
+    let ranResults = allRunResults
+        .filter((i) => i.status === 'fulfilled')
+        .map((i) => <PromiseFulfilledResult<TRunResult>>i)
+        .map((i) => i.value);
+
+    let passed = 0;
+    let failed = 0;
+
+    for (let r of ranResults) {
+        if (r.result.ok) {
+            passed++;
+        } else {
+            let message = r.result?.failure?.error?.message;
+            if (!message) {
+                try {
+                    message = JSON.stringify(r.result.failure);
+                } catch (e) {
+                    console.error('fail message', e);
+
+                    message = "cannot extract"
+                }
+            }
+
+            allFailures[message] = (allFailures[message] || []).concat({
+                sequence: r.tag.sequence,
+                runDuration: r.runDuration,
+                fromStart: r.fromStart
+            });
+            failed++;
+        }
+    }
+    let exceptionResults = allRunResults
+        .filter((i) => i.status === 'rejected')
+        .map((i) => <PromiseRejectedResult>i)
+        .map((i) => i.reason);
+
+    const ok = ranResults.every((a) => a.result.ok);
+    const runTime = timer.since();
+    return { ok, exceptionResults, ranResults, allFailures, logger, passed, failed, totalRan, runTime };
+}
+
+async function doRun(base: string, specl: TSpecl, runtime: {}, featureFilter: string[] | undefined, shared: WorldContext, protoOptions: TProtoOptions, containerLogger: ILogOutput, tag: TTag, timer: Timer, startRunCallback?: TStartRunCallback) {
+
+    const runStart = process.hrtime();
+    const logger = new Logger({ output: containerLogger, tag });
+
+    const world: TWorld = { ...protoOptions, shared, logger, runtime, domains: [], tag, timer };
+    if (startRunCallback) {
+        startRunCallback(world);
+    }
+
+    const { result } = await run({ specl, base, world, featureFilter, extraOptions: protoOptions.extraOptions });
+    const output = await resultOutput(process.env.HAIBUN_OUTPUT, result);
+
+    return { world, result, shared, output, tag, runStart: runStart[0], runDuration: process.hrtime(runStart)[0], fromStart: timer.since() };
+}
