@@ -1,7 +1,6 @@
-import { HAIBUN, IHasOptions, TOptions, TProtoOptions, TSpecl, } from "@haibun/core/build/lib/defs";
+import { HAIBUN, IHasOptions, TOptions, TProtoOptions, TRunResult, TSpecl, } from "@haibun/core/build/lib/defs";
 import { getSteppers, getPre } from "@haibun/core/build/lib/util";
 import { BaseOptions } from "./BaseOptions";
-import { TRunResult } from "./cli";
 
 type TEnv = { [name: string]: string | undefined };
 
