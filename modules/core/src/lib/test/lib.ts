@@ -1,4 +1,4 @@
-import { TWorld, TVStep, TExpandedLine, TOptions, AStepper, TProtoOptions } from '../defs';
+import { TWorld, TVStep, TExpandedLine, AStepper, TProtoOptions } from '../defs';
 import { Resolver } from '../../phases/Resolver';
 import { DEF_PROTO_OPTIONS, runWith } from './../run';
 import { getOptionsOrDefault, getSteppers, getRunTag, applyExtraOptions } from './../util';

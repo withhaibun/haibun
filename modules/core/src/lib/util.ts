@@ -159,12 +159,11 @@ export function getActionable(value: string) {
 }
 
 export function describeSteppers(steppers: AStepper[]) {
-  return steppers
-    .map((stepper) => {
-      return stepper.steps && Object.keys(stepper?.steps).map((name) => {
-        return `${stepper.constructor.name}:${name}`;
-      });
-    })
+  return steppers?.map((stepper) => {
+    return stepper.steps && Object.keys(stepper?.steps).map((name) => {
+      return `${stepper.constructor.name}:${name}`;
+    });
+  })
     .join(' ');
 }
 
@@ -216,8 +215,8 @@ export function getStepperOptions(key: string, value: string, steppers: (ASteppe
 
 export function getStepperOptionName(stepper: AStepper, name: string) {
   return getPre(stepper) + name;
-
 }
+
 export function getStepperOption(stepper: AStepper, name: string, options: TOptions): TOptionValue {
   const key = getStepperOptionName(stepper, name);
   return options[key];
