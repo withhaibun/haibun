@@ -92,7 +92,7 @@ async function doRun(base: string, specl: TSpecl, runtime: {}, featureFilter: st
     const runStart = process.hrtime();
     const logger = new Logger({ output: containerLogger, tag });
 
-    const world: TWorld = { ...protoOptions, shared, logger, runtime, domains: [], tag, timer };
+    const world: TWorld = { options: protoOptions.options, shared, logger, runtime, domains: [], tag, timer };
     if (startRunCallback) {
         startRunCallback(world);
     }
