@@ -255,3 +255,14 @@ export const BASE_DOMAINS = [{ name: 'string', resolve: (inp: string) => inp }];
 export const BASE_TYPES = BASE_DOMAINS.map((b) => b.name);
 
 export type TScored = { name: string; score: number };
+
+export type TStartRunCallback = (world: TWorld) => void;
+export type TEndRunCallback = (world: TWorld, result: TResult) => void;
+
+export type TRunEnv = { [name: string]: string };
+// FIXME remove protoOptions, splits, etc.
+export type TRunOptions = {
+    loops: number, members: number, logLevel: string, logFollow: string, trace: boolean, startRunCallback?: TStartRunCallback, endRunCallback?: TEndRunCallback
+    featureFilter?: string[], specl: TSpecl, base: string, splits: TRunEnv[], protoOptions: TProtoOptions,
+};
+export type TRunResult = { output: any, result: TResult, shared: WorldContext, tag: TTag, runStart: number, runDuration: number, fromStart: number };
