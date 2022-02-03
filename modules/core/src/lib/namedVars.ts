@@ -13,7 +13,7 @@ export const matchGroups = (num: number = 0) => {
   const q = `"(?<${TYPE_QUOTED}${num}>.+)"`; // quoted string
   const c = `<(?<${TYPE_CREDENTIAL}${num}>.+)>`; // credential
   const b = `\`(?<${TYPE_VAR}${num}>.+)\``; // var
-  const e = `\{(?<${TYPE_ENV}${num}>.+)\}`; // var
+  const e = `\{(?<${TYPE_ENV}${num}>.+)\}`; // env var
   const t = `(?<${TYPE_VAR_OR_LITERAL}${num}>.+)`; // var or literal
   return `(${q}|${c}|${e}|${b}|${t})`;
 };
@@ -108,7 +108,7 @@ export function getNamedToVars({ named, vars }: TFound, world: TWorld) {
       const val = world.options.env[namedValue];
 
       if (val === undefined) {
-        throw Error(`no env value for "${namedValue}" from ${JSON.stringify({ env: Object.keys(process.env).map(k => k.startsWith(HAIBUN)), type })}`);
+        throw Error(`no env value for "${namedValue}" from ${JSON.stringify(world.options.env)}`);
       }
       if (Array.isArray(val)) {
         let index = world.options[`_index_${namedValue}`] === undefined ? val.length - 1 : world.options[`_index_${namedValue}`];
