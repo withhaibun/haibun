@@ -10,8 +10,6 @@ import { applyDomainsOrError } from './domain';
 type TrunOptions = { specl: TSpecl; world: TWorld; base: string; addSteppers?: typeof AStepper[]; featureFilter?: string[]; extraOptions?: TExtraOptions; }
 
 export async function run({ specl, base, world, addSteppers = [], featureFilter, extraOptions = {} }: TrunOptions): Promise<{ result: TResult; steppers?: AStepper[] }> {
-  console.log('xxxx', process.env, world.options, extraOptions);
-
   let features;
   let backgrounds: TFeature[] = [];
   try {
