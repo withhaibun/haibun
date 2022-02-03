@@ -1,6 +1,6 @@
 import { TProtoOptions, TSpecl, TWorld, TTag, TRunOptions, TRunResult } from './defs';
 import { WorldContext } from './contexts';
-import Logger from './Logger';
+import Logger, { LOGGER_LEVELS } from './Logger';
 
 import { run } from './run';
 import { resultOutput, getRunTag } from './util';
@@ -9,9 +9,12 @@ import { Timer } from './Timer';
 import { TStartRunCallback } from './defs';
 
 export default async function runWithOptions(runOptions: TRunOptions) {
-    const { loops, members, logLevel, logFollow, trace, startRunCallback, endRunCallback,
-        featureFilter, specl, base, splits, protoOptions } = runOptions;
-    const logger = new Logger({ level: logLevel, follow: logFollow });
+
+    const { loops, members, trace, startRunCallback, endRunCallback, featureFilter, specl, base, splits, protoOptions } = runOptions;
+    const { LOG_LEVEL: logLevel, LOG_FOLLOW: logFollow } = protoOptions.options;
+
+    const logger = new Logger({ level: logLevel || 'debug', follow: logFollow });
+
     const timer = new Timer();
     let totalRan = 0;
     type TFailure = { sequence: number, runDuration: number, fromStart: number };
@@ -19,15 +22,12 @@ export default async function runWithOptions(runOptions: TRunOptions) {
     let allRunResults: PromiseSettledResult<TRunResult>[] = [];
 
     for (let loop = 1; loop < loops + 1; loop++) {
-        if (loops > 1) {
-            logger.log(`starting loop ${loop}/${loops}`)
-        }
+        loops > 1 && logger.log(`starting loop ${loop}/${loops}`)
         let groupRuns: Promise<TRunResult>[] = [];
         for (let member = 1; member < members + 1; member++) {
-            if (members > 1) {
-                logger.log(`starting member ${member + 1}/${members}`)
-            }
+            members > 1 && logger.log(`starting member ${member + 1}/${members}`)
             const instances = splits.map(async (split) => {
+                splits.length > 1 && logger.log(`starting instance ${split}`);
                 const runtime = {};
                 const tag: TTag = getRunTag(totalRan, loop, member, split, trace);
                 totalRan++;
@@ -88,7 +88,6 @@ export default async function runWithOptions(runOptions: TRunOptions) {
 }
 
 async function doRun(base: string, specl: TSpecl, runtime: {}, featureFilter: string[] | undefined, shared: WorldContext, protoOptions: TProtoOptions, containerLogger: ILogOutput, tag: TTag, timer: Timer, startRunCallback?: TStartRunCallback) {
-
     const runStart = process.hrtime();
     const logger = new Logger({ output: containerLogger, tag });
 
@@ -96,6 +95,8 @@ async function doRun(base: string, specl: TSpecl, runtime: {}, featureFilter: st
     if (startRunCallback) {
         startRunCallback(world);
     }
+
+    logger.log(`running with these options: ${JSON.stringify(world.options)})}`);
 
     const { result } = await run({ specl, base, world, featureFilter, extraOptions: protoOptions.extraOptions });
     const output = await resultOutput(process.env.HAIBUN_OUTPUT, result);

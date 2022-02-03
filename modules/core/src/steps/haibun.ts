@@ -1,3 +1,4 @@
+import { Logger } from '..';
 import { OK, TNamed, AStepper } from '../lib/defs';
 import { actionOK, sleep } from '../lib/util';
 
@@ -25,6 +26,13 @@ const Haibun = class Haibun extends AStepper {
       action: async () => {
         return OK;
       },
+    },
+    displayEnv: {
+      gwta: 'show the environment',
+      action: async (a: TNamed) => {
+        this.world?.logger.log(`env: ${JSON.stringify(this.world.options.env)}`)
+        return OK;
+      }
     },
     pauseSeconds: {
       gwta: 'pause for {ms}s',
