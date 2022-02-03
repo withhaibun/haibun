@@ -39,7 +39,7 @@ async function go() {
     }
   }
 
-  const runOptions = { loops, members, logLevel: protoOptions.options.LOG_LEVEL || 'debug', logFollow: protoOptions.options.LOG_FOLLOW, splits, trace, specl, base, protoOptions, startRunCallback, endRunCallback };
+  const runOptions = { featureFilter, loops, members, logLevel: protoOptions.options.LOG_LEVEL || 'debug', logFollow: protoOptions.options.LOG_FOLLOW, splits, trace, specl, base, protoOptions, startRunCallback, endRunCallback };
   const { ok, exceptionResults, ranResults, allFailures, logger, passed, failed, totalRan, runTime } = await runWithOptions(runOptions);
 
   if (ok && exceptionResults.length < 1) {
