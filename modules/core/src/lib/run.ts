@@ -1,5 +1,5 @@
 import { existsSync } from 'fs';
-import { TSpecl, AStepper, TResult, TWorld, TProtoOptions, TFeature, TNotOKActionResult, TExtraOptions } from './defs';
+import { TSpecl, AStepper, TResult, TWorld, TFeature, TNotOKActionResult, TExtraOptions } from './defs';
 import { expand } from './features';
 import { Executor } from '../phases/Executor';
 import { Resolver } from '../phases/Resolver';
@@ -10,6 +10,8 @@ import { applyDomainsOrError } from './domain';
 type TrunOptions = { specl: TSpecl; world: TWorld; base: string; addSteppers?: typeof AStepper[]; featureFilter?: string[]; extraOptions?: TExtraOptions; }
 
 export async function run({ specl, base, world, addSteppers = [], featureFilter, extraOptions = {} }: TrunOptions): Promise<{ result: TResult; steppers?: AStepper[] }> {
+  console.log('xxxx', process.env, world.options, extraOptions);
+
   let features;
   let backgrounds: TFeature[] = [];
   try {
@@ -36,7 +38,7 @@ type TRunWithOptions = {
 
 export const DEF_PROTO_OPTIONS = { options: {}, extraOptions: {} };
 
-export async function runWith({ specl, world, features, backgrounds, addSteppers, extraOptions ={} }: TRunWithOptions): Promise<{ result: TResult; steppers?: AStepper[] }> {
+export async function runWith({ specl, world, features, backgrounds, addSteppers, extraOptions = {} }: TRunWithOptions): Promise<{ result: TResult; steppers?: AStepper[] }> {
   const { tag } = world;
 
   const steppers: AStepper[] = await getSteppers({ steppers: specl.steppers, addSteppers });
@@ -47,7 +49,6 @@ export async function runWith({ specl, world, features, backgrounds, addSteppers
     console.error(error);
     return { result: { ok: false, tag, failure: { stage: 'Options', error: { message: error.message, details: error } } } };
   }
-
   try {
     applyDomainsOrError(steppers, world);
   } catch (error: any) {
