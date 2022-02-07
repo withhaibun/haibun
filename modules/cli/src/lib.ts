@@ -23,7 +23,7 @@ export async function usage(specl: TSpecl, message?: string) {
 
   const ret = [
     '',
-    `usage: ${process.argv[1]} <project base>`,
+    `usage: ${process.argv[1]} <project base> <filter>`,
     message || '',
     'Set these environmental variables to control options:\n',
     ...Object.entries(BaseOptions.options).map(([k, v]) => `${HAIBUN}_${k.padEnd(55)} ${v.desc}`),
