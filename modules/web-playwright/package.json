@@ -15,7 +15,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "playwright": "1.16",
+    "playwright": "1.18",
     "ts-jest": "^27.0.7"
   },
   "devDependencies": {
