@@ -1,7 +1,7 @@
 import { create } from 'xmlbuilder2';
 import { EOL } from 'os';
 
-import { TResult, TResultOutput, TTrace, TTag } from '@haibun/core/build/lib/defs';
+import { TResult, TResultOutput, TTrace } from '@haibun/core/build/lib/defs';
 import { readdirSync, writeFileSync } from 'fs';
 
 const SCRIPT = `
