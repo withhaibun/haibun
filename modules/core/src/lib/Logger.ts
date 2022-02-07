@@ -1,3 +1,4 @@
+import { hasUncaughtExceptionCaptureCallback } from 'process';
 import { TTag } from './defs';
 import { ILogger, ILogOutput, TLogLevel, TMessageContext } from './interfaces/logger';
 import { descTag } from './util';
@@ -20,7 +21,7 @@ type TOutputEnv = { output: ILogOutput, tag: TTag };
 type TConf = TLevel | TOutputEnv;
 
 export default class Logger implements ILogger, ILogOutput {
-  level: number | undefined;
+  level: number | undefined = 1;
   env: TOutputEnv | undefined;
   subscribers: ILogOutput[] = [];
   follow: string | undefined;
@@ -39,6 +40,9 @@ export default class Logger implements ILogger, ILogOutput {
     this.subscribers.push(subscriber);
   }
   static shouldLogLevel(level: number, name: TLogLevel) {
+    if (!level) {
+      throw Error(`undefined logger level ${level}`)
+    }
     return LOGGER_LEVELS[name] >= level;
   }
   static shouldLogFollow(match: string, tag: TTag) {

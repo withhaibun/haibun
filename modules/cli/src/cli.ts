@@ -12,7 +12,7 @@ go();
 
 async function go() {
   const featureFilter = !!process.argv[3] ? process.argv[3].split(',') : undefined;
-  const base = process.argv[2].replace(/\/$/, '');
+  const base = process.argv[2]?.replace(/\/$/, '');
   const specl = getOptionsOrDefault(base);
 
   if (!process.argv[2] || featureFilter?.find(f => f === '--help')) {
@@ -39,7 +39,7 @@ async function go() {
     }
   }
 
-  const runOptions = { loops, members, logLevel: protoOptions.options.LOG_LEVEL || 'debug', logFollow: protoOptions.options.LOG_FOLLOW, splits, trace, specl, base, protoOptions, startRunCallback, endRunCallback };
+  const runOptions = { featureFilter, loops, members, splits, trace, specl, base, protoOptions, startRunCallback, endRunCallback };
   const { ok, exceptionResults, ranResults, allFailures, logger, passed, failed, totalRan, runTime } = await runWithOptions(runOptions);
 
   if (ok && exceptionResults.length < 1) {
