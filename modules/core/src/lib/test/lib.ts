@@ -1,7 +1,7 @@
 import { TWorld, TVStep, TExpandedLine, AStepper, TProtoOptions } from '../defs';
 import { Resolver } from '../../phases/Resolver';
 import { DEF_PROTO_OPTIONS, runWith } from './../run';
-import { getOptionsOrDefault, getSteppers, getRunTag, applyExtraOptions } from './../util';
+import { getSteppers, getRunTag, applyExtraOptions, getDefaultOptions } from './../util';
 import { WorldContext } from '../contexts';
 import { featureSplit, withNameType } from './../features';
 import { applyDomainsOrError } from './../domain';
@@ -28,7 +28,7 @@ export async function getTestEnv(useSteppers: string[], test: string, world: TWo
 }
 type TTestFeatures = { path: string, content: string }[];
 export async function testWithDefaults(inFeatures: TTestFeatures, addSteppers: typeof AStepper[], protoOptions: TProtoOptions = DEF_PROTO_OPTIONS, inBackgrounds: TTestFeatures = []) {
-  const specl = getOptionsOrDefault();
+  const specl = getDefaultOptions();
   const { options, extraOptions } = protoOptions;
 
   const { world } = getDefaultWorld(0);
@@ -58,7 +58,7 @@ export function getDefaultWorld(sequence: number): { world: TWorld; } {
   return {
     world: {
       timer: new Timer(),
-      tag: { sequence: 0, loop: 0, member: 0 },
+      tag: { sequence, loop: 0, member: 0, featureNum: -1 },
       shared: new WorldContext(getDefaultTag(sequence)),
       logger: new Logger(process.env.HAIBUN_LOG_LEVEL ? { level: process.env.HAIBUN_LOG_LEVEL } : LOGGER_NONE),
       runtime: {},
@@ -69,5 +69,5 @@ export function getDefaultWorld(sequence: number): { world: TWorld; } {
 }
 
 export function getDefaultTag(sequence: number, desc: string | undefined = undefined) {
-  return getRunTag(sequence, 0, 0, desc ? { desc } : undefined, false);
+  return getRunTag(sequence, 0, 0, -1, desc ? { desc } : undefined, false);
 }

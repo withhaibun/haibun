@@ -26,6 +26,9 @@ export interface IHasOptions {
   };
 }
 
+export interface IHasBuilder {
+  finalize: (workspace: WorkspaceContext) => void
+}
 export interface IHasDomains {
   domains: TDomain[];
   locator: (name: string) => string;
@@ -96,6 +99,7 @@ export type TResolvedFeature = TExpandedFeature & {
 
 export type TTag = {
   sequence: number,
+  featureNum: number,
   loop: number,
   member: number,
   params?: any,

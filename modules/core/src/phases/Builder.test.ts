@@ -3,27 +3,6 @@ import { OK, TFinalize } from '../lib/defs';
 import { getDefaultWorld } from '../lib/test/lib';
 import Builder from './Builder';
 
-const feature = (result: any) => ({
-  path: 'passes.feature',
-  feature: 'test',
-  vsteps: [
-    {
-      in: 'test',
-      seq: 0,
-      actions: [
-        {
-          name: 'test',
-          step: {
-            exact: 'test',
-            action: async () => OK,
-            build: result,
-          },
-        },
-      ],
-    },
-  ],
-});
-
 describe('Builder', () => {
   test('throws', () => {
     const throws = async () => {
