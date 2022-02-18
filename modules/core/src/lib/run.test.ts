@@ -13,7 +13,7 @@ describe('run self-contained', () => {
     expect(t).toBeDefined();
     expect(t.ok).toBe(true);
     expect(t.stepResults.length).toBe(2);
-    expect(t.stepResults.every((r) => r.ok === true)).toBe(true);
+    expect(t.stepResults.every((r) => r.ok === true)).toBe(true)
   });
 });
 

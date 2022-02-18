@@ -1,9 +1,9 @@
 {
-  "name": "@haibun/core",
-  "version": "1.2.4",
+  "name": "@haibun/domain-storage",
+  "version": "1.1.1",
   "description": "",
   "author": "",
-  "main": "build/index.js",
+  "main": "build/domain-storage.js",
   "files": [
     "build/**"
   ],
@@ -19,9 +19,7 @@
     "eslint-plugin-prefer-arrow": "^1.2.2",
     "eslint-plugin-prettier": "^3.3.1",
     "jest": "^27.0.4",
-    "node-notifier": "^10.0.1",
     "prettier": "^2.3.1",
-    "ts-jest": "^27.0.3",
     "ts-node": "^10.0.0",
     "tslint": "^6.1.3"
   },
@@ -35,9 +33,12 @@
     "build": "tsc -b .",
     "tsc-watch": "tsc --watch",
     "tsc": "tsc",
-    "prepare": "npm run build",
+    "xprepare": "npm run build",
     "prepublishOnly": "tsc -b .",
     "preversion": "npm run lint",
     "version": "npm run format && git add -A src"
+  },
+  "dependencies": {
+    "ts-jest": "^27.1.3"
   }
 }
