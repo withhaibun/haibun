@@ -6,8 +6,6 @@ import { actionNotOK, ensureDirectory, getCaptureDir, getStepperOption, boolOrEr
 import { WEB_PAGE, WEB_CONTROL } from '@haibun/domain-webpage/build/domain-webpage';
 import { TTraceTopic } from '@haibun/core/build/lib/interfaces/logger';
 
-declare var window: any;
-
 const WebPlaywright = class WebPlaywright extends AStepper implements IHasOptions, IRequireDomains {
   requireDomains = [WEB_PAGE, WEB_CONTROL];
   options = {
@@ -320,8 +318,8 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
         await this.withPage(
           async (page: Page) =>
             await page.evaluate(() => {
-              console.debug('going back', window.history);
-              (window as any).history.go(-1);
+              console.debug('going back', globalThis.history);
+              globalThis.history.go(-1);
             })
         );
         // await page.focus('body');
