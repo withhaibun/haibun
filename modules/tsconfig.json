@@ -10,6 +10,7 @@
         { "path": "out-xunit" },
         { "path": "out-review" },
         { "path": "logger-websockets" },
-        { "path": "domain-webpage" }
+        { "path": "domain-webpage" },
+        { "path": "domain-storage" }
     ]
 }
