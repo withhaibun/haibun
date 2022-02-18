@@ -19,7 +19,7 @@ export async function run({ specl, base, world, addSteppers = [], featureFilter,
       backgrounds = debase(base, recurse(`${base}/backgrounds`, 'feature'));
     }
   } catch (error: any) {
-    return { result: { ok: false, tag: getRunTag(-1, -1, -1, {}, false), failure: { stage: 'Collect', error: { message: error.message, details: { stack: error.stack } } } } };
+    return { result: { ok: false, tag: getRunTag(-1, -1, -1, -1, {}, false), failure: { stage: 'Collect', error: { message: error.message, details: { stack: error.stack } } } } };
   }
 
   return runWith({ specl, world, features, backgrounds, addSteppers, extraOptions });

@@ -3,7 +3,7 @@
 import repl from 'repl';
 import { TResult, TWorld } from '@haibun/core/build/lib/defs';
 
-import { getOptionsOrDefault, writeTraceFile } from '@haibun/core/build/lib/util';
+import { getConfigFromBase, writeTraceFile } from '@haibun/core/build/lib/util';
 import runWithOptions from '@haibun/core/build/lib/run-with-options';
 import { processBaseEnv, ranResultError, usageThenExit } from './lib';
 import { Timer } from '@haibun/core/build/lib/Timer';
@@ -13,7 +13,7 @@ go();
 async function go() {
   const featureFilter = !!process.argv[3] ? process.argv[3].split(',') : undefined;
   const base = process.argv[2]?.replace(/\/$/, '');
-  const specl = getOptionsOrDefault(base);
+  const specl = getConfigFromBase(base);
 
   if (!process.argv[2] || featureFilter?.find(f => f === '--help')) {
     await usageThenExit(specl);

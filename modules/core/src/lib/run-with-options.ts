@@ -1,6 +1,6 @@
 import { TProtoOptions, TSpecl, TWorld, TTag, TRunOptions, TRunResult } from './defs';
 import { WorldContext } from './contexts';
-import Logger, { LOGGER_LEVELS } from './Logger';
+import Logger from './Logger';
 
 import { run } from './run';
 import { resultOutput, getRunTag } from './util';
@@ -9,7 +9,6 @@ import { Timer } from './Timer';
 import { TStartRunCallback } from './defs';
 
 export default async function runWithOptions(runOptions: TRunOptions) {
-
     const { loops, members, trace, startRunCallback, endRunCallback, featureFilter, specl, base, splits, protoOptions } = runOptions;
     const { LOG_LEVEL: logLevel, LOG_FOLLOW: logFollow } = protoOptions.options;
 
@@ -29,7 +28,7 @@ export default async function runWithOptions(runOptions: TRunOptions) {
             const instances = splits.map(async (split) => {
                 splits.length > 1 && logger.log(`starting instance ${split}`);
                 const runtime = {};
-                const tag: TTag = getRunTag(totalRan, loop, member, split, trace);
+                const tag: TTag = getRunTag(totalRan, loop, member, -1, split, trace);
                 totalRan++;
 
                 const res = await doRun(base, specl, runtime, featureFilter, new WorldContext(tag, split), protoOptions, logger, tag, timer, startRunCallback);
@@ -99,7 +98,7 @@ async function doRun(base: string, specl: TSpecl, runtime: {}, featureFilter: st
     logger.log(`running with these options: ${JSON.stringify(world.options)})}`);
 
     const { result } = await run({ specl, base, world, featureFilter, extraOptions: protoOptions.extraOptions });
-    const output = await resultOutput(process.env.HAIBUN_OUTPUT, result);
+    const output = await resultOutput(world.options.OUTPUT, result);
 
     return { world, result, shared, output, tag, runStart: runStart[0], runDuration: process.hrtime(runStart)[0], fromStart: timer.since() };
 }
