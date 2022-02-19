@@ -1,24 +1,22 @@
 #!/usr/bin/env node
 
 import repl from 'repl';
-import { TResult, TWorld } from '@haibun/core/build/lib/defs';
+import { TResult, TSpecl, TWorld } from '@haibun/core/build/lib/defs';
 
-import { getConfigFromBase, writeTraceFile } from '@haibun/core/build/lib/util';
+import { getConfigFromBase, getDefaultOptions, writeFeatureTraceFile, writeTraceFile } from '@haibun/core/build/lib/util';
 import runWithOptions from '@haibun/core/build/lib/run-with-options';
 import { processBaseEnv, ranResultError, usageThenExit } from './lib';
 import { Timer } from '@haibun/core/build/lib/Timer';
+
+type TFeatureFilter = string[] | undefined;
 
 go();
 
 async function go() {
   const featureFilter = !!process.argv[3] ? process.argv[3].split(',') : undefined;
   const base = process.argv[2]?.replace(/\/$/, '');
-  const specl = getConfigFromBase(base);
 
-  if (!process.argv[2] || featureFilter?.find(f => f === '--help')) {
-    await usageThenExit(specl);
-  }
-  console.info('\n_________________________________ start');
+  const specl = getSpeclOrExit(base, featureFilter);
 
   const { protoOptions, errors } = processBaseEnv(process.env, specl.options);
   const splits: { [name: string]: string }[] = protoOptions.options.SPLITS || [{}];
@@ -26,6 +24,8 @@ async function go() {
   if (errors.length > 0) {
     await usageThenExit(specl, errors.join('\n'));
   }
+
+  console.info('\n_________________________________ start');
 
   const loops = protoOptions.options.LOOPS || 1;
   const members = protoOptions.options.MEMBERS || 1;
@@ -60,3 +60,13 @@ async function go() {
     process.exit(1);
   }
 }
+
+function getSpeclOrExit(base: string, featureFilter: TFeatureFilter): TSpecl {
+  const specl = getConfigFromBase(base);
+
+  if (specl === null || !process.argv[2] || featureFilter?.find(f => f === '--help' || f === '-h')) {
+    usageThenExit(specl ? specl : getDefaultOptions());
+  }
+  return specl!;
+}
+

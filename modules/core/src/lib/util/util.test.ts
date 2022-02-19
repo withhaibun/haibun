@@ -37,7 +37,7 @@ describe('getStepperOptions', () => {
   });
   it('throws for unfilled extra', async () => {
     const { world } = getDefaultWorld(0);
-    expect(() => util.applyExtraOptions({ HAIBUN_NE: 'true' }, [], world)).toThrow();
+    await expect(async () => util.applyExtraOptions({ HAIBUN_NE: 'true' }, [], world)).rejects.toThrow();
   });
 });
 
@@ -49,6 +49,12 @@ describe('getType', () => {
     expect(withNameType('file.feature', '').type).toBe('feature');
   })
 })
+
+describe('getCaptureDir', () => {
+  const { world } = getDefaultWorld(0);
+  const dir = util.getCaptureDir(world, 'test');
+  expect(dir).toEqual('./capture/loop-0/seq-0/featn-0/mem-0/test');
+});
 
 describe('shouldProcess', () => {
   it('should process no type & filter', () => {
