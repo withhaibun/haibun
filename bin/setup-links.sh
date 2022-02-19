@@ -75,10 +75,22 @@ done) &&  \
 done) &&  \
 
 ## depends on @haibun/core and @haibun/domain-storage
-(for i in out-review; do
+(for i in storage-fs; do
   cd $i
   npm i &&  \
   npm link @haibun/core @haibun/domain-storage && \
+  tsc -b . &&  \
+
+  echo "\nsetup link for $i" && \
+  npm link &&  \
+  cd ../
+done) &&  \
+
+## depends on @haibun/core and @haibun/domain-storage
+(for i in out-review; do
+  cd $i
+  npm i &&  \
+  npm link @haibun/core @haibun/domain-storage @haibun/storage-fs && \
   tsc -b . &&  \
 
   echo "\nsetup link for $i" && \

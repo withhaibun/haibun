@@ -1,4 +1,4 @@
-import { TProtoOptions, TSpecl, TWorld, TTag, TRunOptions, TRunResult } from './defs';
+import { TProtoOptions, TSpecl, TWorld, TTag, TRunOptions, TRunResult, StringOrNumber } from './defs';
 import { WorldContext } from './contexts';
 import Logger from './Logger';
 
@@ -16,7 +16,7 @@ export default async function runWithOptions(runOptions: TRunOptions) {
 
     const timer = new Timer();
     let totalRan = 0;
-    type TFailure = { sequence: number, runDuration: number, fromStart: number };
+    type TFailure = { sequence: StringOrNumber, runDuration: number, fromStart: number };
     let allFailures: { [message: string]: TFailure[] } = {};
     let allRunResults: PromiseSettledResult<TRunResult>[] = [];
 
@@ -28,7 +28,7 @@ export default async function runWithOptions(runOptions: TRunOptions) {
             const instances = splits.map(async (split) => {
                 splits.length > 1 && logger.log(`starting instance ${split}`);
                 const runtime = {};
-                const tag: TTag = getRunTag(totalRan, loop, member, -1, split, trace);
+                const tag: TTag = getRunTag(totalRan, loop, member, 0, split, trace);
                 totalRan++;
 
                 const res = await doRun(base, specl, runtime, featureFilter, new WorldContext(tag, split), protoOptions, logger, tag, timer, startRunCallback);
@@ -63,7 +63,6 @@ export default async function runWithOptions(runOptions: TRunOptions) {
                     message = JSON.stringify(r.result.failure);
                 } catch (e) {
                     console.error('fail message', e);
-
                     message = "cannot extract"
                 }
             }
@@ -90,7 +89,7 @@ async function doRun(base: string, specl: TSpecl, runtime: {}, featureFilter: st
     const runStart = process.hrtime();
     const logger = new Logger({ output: containerLogger, tag });
 
-    const world: TWorld = { options: protoOptions.options, shared, logger, runtime, domains: [], tag, timer };
+    const world: TWorld = { options: protoOptions.options, shared, logger, runtime, domains: [], tag, timer, base };
     if (startRunCallback) {
         startRunCallback(world);
     }

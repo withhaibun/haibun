@@ -1,6 +1,6 @@
-import { TVStep, TResolvedFeature, TResult, TStepResult, TFeatureResult, TActionResult, TWorld, TActionResultTopics, TStepActionResult, AStepper } from '../lib/defs';
+import { TVStep, TResolvedFeature, TResult, TStepResult, TFeatureResult, TActionResult, TWorld, TActionResultTopics, TStepActionResult, AStepper, TTag } from '../lib/defs';
 import { getNamedToVars } from '../lib/namedVars';
-import { actionNotOK, applyResShouldContinue, sleep } from '../lib/util';
+import { actionNotOK, applyResShouldContinue, sleep, writeFeatureTraceFile } from '../lib/util';
 
 export class Executor {
   steppers: AStepper[];
@@ -22,12 +22,12 @@ export class Executor {
       this.world.logger.log(`*** feature: ${feature.path}`);
       const featureResult = await this.doFeature(feature);
       ok = ok && featureResult.ok;
-      featureResults.push(featureResult);
-      
 
       if (!stay) {
-        await this.endFeature();
+        await this.endFeature(this.world);
       }
+      featureResults.push(featureResult);
+
     }
     if (!stay) {
       await this.close();
@@ -39,6 +39,7 @@ export class Executor {
     let ok = true;
     let stepResults: TStepResult[] = [];
     let seq = 0;
+
     for (const step of feature.vsteps) {
       this.world.logger.log(`   ${step.in}\r`);
       const result = await Executor.doFeatureStep(step, this.world);
@@ -59,8 +60,10 @@ export class Executor {
       seq++;
     }
     const featureResult: TFeatureResult = { path: feature.path, ok, stepResults };
+
     return featureResult;
   }
+
   static async doFeatureStep(vstep: TVStep, world: TWorld): Promise<TStepResult> {
     let ok = true;
     let actionResults = [];
@@ -103,7 +106,7 @@ export class Executor {
     }
   }
 
-  async endFeature() {
+  async endFeature(world: TWorld) {
     for (const s of this.steppers) {
       if (s.endFeature) {
         this.world.logger.debug(`endFeature ${s.constructor.name}`);

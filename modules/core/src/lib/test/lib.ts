@@ -58,12 +58,13 @@ export function getDefaultWorld(sequence: number): { world: TWorld; } {
   return {
     world: {
       timer: new Timer(),
-      tag: { sequence, loop: 0, member: 0, featureNum: -1 },
+      tag: getRunTag(sequence, 0, 0, 0),
       shared: new WorldContext(getDefaultTag(sequence)),
       logger: new Logger(process.env.HAIBUN_LOG_LEVEL ? { level: process.env.HAIBUN_LOG_LEVEL } : LOGGER_NONE),
       runtime: {},
       options: {},
       domains: [],
+      base: process.cwd()
     },
   };
 }

@@ -1,8 +1,9 @@
 import { create } from 'xmlbuilder2';
 import { EOL } from 'os';
 
-import { TResult, TResultOutput, TTrace } from '@haibun/core/build/lib/defs';
-import { readdirSync, writeFileSync } from 'fs';
+import { TResult, TResultOutput, TTrace, TWorld } from '@haibun/core/build/lib/defs';
+import { AStorage } from '@haibun/domain-storage/build/defs';
+import { getCaptureDir } from '@haibun/core/build/lib/util';
 
 const SCRIPT = `
 const video = document.getElementById('video');
@@ -47,13 +48,12 @@ document.onkeydown = function(e){
 }
 `
 
-
-export default class OutReview implements TResultOutput {
+export default class GenerateReview implements TResultOutput {
   file: string = '<not initialized"';
-  async getOutput(result: TResult, { name = 'Haibun-Review', prettyPrint = true, }) {
+  async getOutput(storage: AStorage, world: TWorld, result: TResult, { title = 'Haibun-Review', prettyPrint = true, uriArgs = '' }) {
     const { sequence } = result.tag;
-    const videoBase = `./capture/${sequence}/video`
-    const video = readdirSync(videoBase)[0];
+    const videoBase = getCaptureDir(world, 'video');
+    const video = await storage.readdir(videoBase)[0];
     const forHTML: any = {
       html: {
         "@xmlns": "http://www.w3.org/1999/xhtml",
@@ -62,6 +62,7 @@ export default class OutReview implements TResultOutput {
           '@href': "https://fonts.googleapis.com/css2?family=Open+Sans&display=swap",
           '@rel': "stylesheet"
         },
+        title,
         div: {
           '@style': 'position: fixed; top: 0, background-color: rgba(255,255,255,0.5), width: 100%',
           video: {
@@ -71,7 +72,7 @@ export default class OutReview implements TResultOutput {
             '@width': '100%',
             source: {
               '@type': 'video/webm',
-              '@src': `video/${video}`
+              '@src': `video/${video}${uriArgs}`
             }
           },
         },
@@ -140,12 +141,11 @@ export default class OutReview implements TResultOutput {
 
     forHTML.html.section.div.push(feature);
     const created = create(forHTML).end({ prettyPrint, newline: EOL });
-    return this.cleanupAndWrite(sequence, created);
+    const html = this.finish(created);
+    return { html, sequence, video };
   }
-  cleanupAndWrite(sequence: number, html: string) {
+  finish(html: string) {
     html = html.replace('{{SCRIPT}}', SCRIPT);
-    this.file = `./capture/${sequence}/review.html`;
-    writeFileSync(this.file, html);
     return html;
   }
   async writeOutput(result: TResult, args: any) {
