@@ -19,6 +19,8 @@ import {
   TTag,
   AStepper,
   TExtraOptions,
+  StringOrNumber,
+  TFeatureResult,
 } from '../defs';
 import { withNameType } from '../features';
 
@@ -136,7 +138,7 @@ export function getDefaultOptions(): TSpecl {
   };
 }
 
-export function getConfigFromBase(base: string): TSpecl {
+export function getConfigFromBase(base: string): TSpecl | null {
   const f = `${base}/config.json`;
   try {
     const specl = JSON.parse(readFileSync(f, 'utf-8'));
@@ -145,8 +147,7 @@ export function getConfigFromBase(base: string): TSpecl {
     }
     return specl;
   } catch (e) {
-    console.error('missing or not valid project config file.');
-    process.exit(1);
+    return null;
   }
 }
 
@@ -172,7 +173,7 @@ export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve
 
 
 // has side effects
-export function applyExtraOptions(extraOptions: TExtraOptions, steppers: AStepper[], world: TWorld) {
+export async function applyExtraOptions(extraOptions: TExtraOptions, steppers: AStepper[], world: TWorld) {
   if (!extraOptions) {
     return;
   }
@@ -191,7 +192,7 @@ export function applyExtraOptions(extraOptions: TExtraOptions, steppers: ASteppe
     throw Error(`no options provided for ${extraOptions}`);
   }
   for (const stepper of steppers) {
-    stepper.setWorld && stepper.setWorld(world);
+    stepper.setWorld(world, steppers);
   }
 }
 
@@ -206,6 +207,21 @@ export function getStepperOptions(key: string, value: string, steppers: (ASteppe
     if (key.startsWith(pre) && stepper.options![int]) {
       return stepper.options![int].parse(value);
     }
+  }
+}
+
+export async function verifyRequiredOptions(steppers: (AStepper & IHasOptions)[], options: TExtraOptions) {
+  let requiredMissing = [];
+  for (const stepper of steppers) {
+    for (const option in stepper.options) {
+      const n = getStepperOptionName(stepper, option);
+      if (stepper.options[option].required && !options[n]) {
+        requiredMissing.push(n);
+      }
+    }
+  }
+  if (requiredMissing.length) {
+    throw Error(`missing required options ${requiredMissing}`)
   }
 }
 
@@ -257,16 +273,24 @@ export function applyResShouldContinue(world: any, res: Partial<TActionResult>, 
   return false;
 }
 
-export function writeTraceFile(world: TWorld, result: TResult) {
-  writeFileSync(getCaptureDir(world, 'trace', `${world.tag.loop}-${world.tag.member}-trace.json`), JSON.stringify(result, null, 2));
+export function getCaptureDir({ options, tag }: { options: TOptions, tag: TTag }, app?: string) {
+  const p = [options.base, options.CAPTURE_DIR || 'capture', `loop-${tag.loop}`, `seq-${tag.sequence}`, `featn-${tag.featureNum}`, `mem-${tag.member}`];
+  app && p.push(app);
+  return '.' + p.join('/');
 }
 
-export function getCaptureDir(world: TWorld, app: string, fn?: string) {
-  const capture = world.options.CAPTURE_DIR || 'capture';
-  if (world.tag.featureNum < 0) {
-    throw Error(`can't capture with no featureNum`)
-  }
-  const dir = [process.cwd(), capture, world.tag.sequence, world.tag.featureNum, app].join('/');
+export function writeFeatureTraceFile(world: TWorld, result: TFeatureResult) {
+  const dir = ensureCaptureDir(world, 'trace', `trace.json`);
+  writeFileSync(dir, JSON.stringify(result, null, 2));
+}
+
+export function writeTraceFile(world: TWorld, result: TResult) {
+  const dir = ensureCaptureDir(world, 'trace', `trace.json`);
+  writeFileSync(dir, JSON.stringify(result, null, 2));
+}
+
+export function ensureCaptureDir(world: TWorld, app: string, fn = '') {
+  const dir = getCaptureDir(world, app);
   if (!existsSync(dir)) {
     try {
       mkdirSync(dir, { recursive: true });
@@ -274,13 +298,10 @@ export function getCaptureDir(world: TWorld, app: string, fn?: string) {
       throw Error(`creating ${dir}: ${e}`)
     }
   }
-  if (fn) {
-    return `${dir}/${fn}`;
-  }
-  return dir;
+  return `${dir}/${fn}`;
 }
 
-export const getRunTag = (sequence: number, loop: number, member: number, featureNum: number, params: any, trace: boolean) => ({ sequence, loop, member, featureNum, params, trace });
+export const getRunTag = (sequence: StringOrNumber, loop: StringOrNumber, member: StringOrNumber, featureNum: StringOrNumber, params = {}, trace = false) => ({ sequence, loop, member, featureNum, params, trace });
 
 export const descTag = (tag: TTag) => ` @${tag.sequence} (${tag.loop}x${tag.member})`;
 

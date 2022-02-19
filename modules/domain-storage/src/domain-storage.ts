@@ -1,6 +1,6 @@
 import { WorkspaceContext } from '@haibun/core/build/lib/contexts';
 import { IHasDomains, TNamed, TVStep, OK, AStepper, TFromDomain, TFileTypeDomain, IHasOptions } from '@haibun/core/build/lib/defs';
-import { getFromRuntime, stringOrError } from '@haibun/core/build/lib/util';
+import { stringOrError } from '@haibun/core/build/lib/util';
 
 export const STORAGE_LOCATION = 'STORAGE_LOCATION';
 export const STORAGE_ITEM = 'STORAGE_ITEM';
@@ -11,13 +11,9 @@ export const storageLocation: TFileTypeDomain = {
   }
 };
 
-export interface IStorage {
-  setLocation(location: string): string;
-}
-
 export const storageItem: TFromDomain = { name: STORAGE_ITEM, from: STORAGE_LOCATION, is: 'string' };
 
-const DomainWebPage = class DomainWebPage extends AStepper implements IHasDomains, IHasOptions {
+const DomainStorage = class DomainStorage extends AStepper implements IHasDomains, IHasOptions {
   domains = [
     storageLocation,
     storageItem,
@@ -34,9 +30,6 @@ const DomainWebPage = class DomainWebPage extends AStepper implements IHasDomain
       gwta: `a ${STORAGE_LOCATION} at {where}`,
       action: async ({ where }: TNamed, vstep: TVStep) => {
         const location = vstep.source.name;
-
-        const webserver = <IStorage>getFromRuntime(this.getWorld().runtime, 'storage');
-        webserver.setLocation(location);
         return OK;
       },
     },
@@ -52,4 +45,5 @@ const DomainWebPage = class DomainWebPage extends AStepper implements IHasDomain
     },
   };
 };
-export default DomainWebPage;
+
+export default DomainStorage;

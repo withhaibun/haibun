@@ -39,7 +39,7 @@ export const getStepShared = (type: string, world: TWorld): Context => {
 
 export const getDomain = (domain: string, world: TWorld) => world.domains.find((d) => d.name === domain);
 
-export const applyDomainsOrError = (steppers: AStepper[], world: TWorld) => {
+export const applyDomainsOrError = async (steppers: AStepper[], world: TWorld) => {
   // verify no duplicates
   
   for (const module of steppers.filter((s) => !!(<IHasDomains>(s as unknown)).domains).map((s) => <IHasDomains>(s as unknown))) {

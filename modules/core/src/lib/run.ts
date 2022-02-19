@@ -1,10 +1,10 @@
 import { existsSync } from 'fs';
-import { TSpecl, AStepper, TResult, TWorld, TFeature, TNotOKActionResult, TExtraOptions } from './defs';
+import { TSpecl, AStepper, TResult, TWorld, TFeature, TNotOKActionResult, TExtraOptions, TTag, TResolvedFeature } from './defs';
 import { expand } from './features';
 import { Executor } from '../phases/Executor';
 import { Resolver } from '../phases/Resolver';
 import Builder from '../phases/Builder';
-import { getSteppers, applyExtraOptions, recurse, debase, getRunTag } from './util';
+import { getSteppers, applyExtraOptions, recurse, debase, getRunTag, verifyRequiredOptions } from './util';
 import { applyDomainsOrError } from './domain';
 
 type TrunOptions = { specl: TSpecl; world: TWorld; base: string; addSteppers?: typeof AStepper[]; featureFilter?: string[]; extraOptions?: TExtraOptions; }
@@ -36,62 +36,45 @@ type TRunWithOptions = {
 
 export const DEF_PROTO_OPTIONS = { options: {}, extraOptions: {} };
 
+
 export async function runWith({ specl, world, features, backgrounds, addSteppers, extraOptions = {} }: TRunWithOptions): Promise<{ result: TResult; steppers?: AStepper[] }> {
   const { tag } = world;
 
   const steppers: AStepper[] = await getSteppers({ steppers: specl.steppers, addSteppers });
 
-  try {
-    applyExtraOptions(extraOptions, steppers, world);
-  } catch (error: any) {
-    console.error(error);
-    return { result: { ok: false, tag, failure: { stage: 'Options', error: { message: error.message, details: error } } } };
-  }
-  try {
-    applyDomainsOrError(steppers, world);
-  } catch (error: any) {
-    return { result: { ok: false, tag, failure: { stage: 'Domains', error: { message: error.message, details: { stack: error.stack } } } } };
-  }
-
-  let expandedFeatures;
-  try {
-    expandedFeatures = await expand(backgrounds, features);
-  } catch (error: any) {
-
-    return { result: { ok: false, tag, failure: { stage: 'Expand', error: { message: error.message, details: error } } } };
-  }
-
-  let mappedValidatedSteps;
-  try {
-    const resolver = new Resolver(steppers, specl.mode, world);
-    mappedValidatedSteps = await resolver.resolveSteps(expandedFeatures);
-  } catch (error: any) {
-    return { result: { ok: false, tag, failure: { stage: 'Resolve', error: { message: error.message, details: { stack: error.stack, steppers, mappedValidatedSteps } } } } };
-  }
-
-  const builder = new Builder(world);
-  try {
-    const res = await builder.build(mappedValidatedSteps);
-    world.logger.log(`features: ${expandedFeatures.length} backgrounds: ${backgrounds.length} steps: (${expandedFeatures.map((e) => e.path)}), ${mappedValidatedSteps.length}`);
-  } catch (error: any) {
-    console.error(error);
-    return { result: { ok: false, tag, failure: { stage: 'Build', error: { message: error.message, details: { stack: error.stack, steppers, mappedValidatedSteps } } } } };
-  }
-
-  const executor = new Executor(steppers, world);
   let result;
+  const errorBail = (phase: string, error: any, details?: any) => {
+    result = { ok: false, tag, failure: { stage: phase, error: { message: error.message, details: { stack: error.stack, details } } } };
+    throw Error(error)
+  };
   try {
-    result = { ...await executor.execute(mappedValidatedSteps), tag };
+    await applyExtraOptions(extraOptions, steppers, world).catch(error => errorBail('Options', error));
+    await verifyRequiredOptions(steppers, world.options).catch(error => errorBail('Required', error));
+    await applyDomainsOrError(steppers, world).catch(error => (errorBail('Domains', error, { stack: error.stack })));
+
+    const expandedFeatures = await expand(backgrounds, features).catch(error => errorBail('Expand', tag, error));
+
+    const resolver = new Resolver(steppers, specl.mode, world);
+    const mappedValidatedSteps: TResolvedFeature[] = await resolver.resolveSteps(expandedFeatures).catch(error => errorBail('Resolve', error));
+
+    const builder = new Builder(world);
+    await builder.build(mappedValidatedSteps).catch(error => errorBail('Build', error, { stack: error.stack, steppers, mappedValidatedSteps }))
+
+    world.logger.log(`features: ${expandedFeatures.length} backgrounds: ${backgrounds.length} steps: (${expandedFeatures.map((e) => e.path)}), ${mappedValidatedSteps.length}`);
+
+    const executor = new Executor(steppers, world);
+    const executed = await executor.execute(mappedValidatedSteps);
+    result = { ...executed, tag };
 
     if (!result.ok) {
       const message = (result.results![0].stepResults.find(s => !s.ok)?.actionResults[0] as TNotOKActionResult).message;
-
       result.failure = { stage: 'Execute', error: { message, details: { errors: result.results?.filter((r) => !r.ok).map((r) => r.path) } } };
     }
-  } catch (e: any) {
-    console.error('XXXXXXX', e);
-
-    result = { ok: false, tag, failure: e };
+  } catch (error: any) {
+    if (!result) {
+      result = { ok: false, tag, failure: { ...error } };
+    }
+    return { result, steppers };
   }
   return { result, steppers };
 }

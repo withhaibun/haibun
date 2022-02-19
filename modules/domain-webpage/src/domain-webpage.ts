@@ -3,7 +3,7 @@ import { IHasDomains, TNamed, TVStep, OK, AStepper, TFromDomain, TFileTypeDomain
 import { getFromRuntime } from '@haibun/core/build/lib/util';
 import { getDomain } from '@haibun/core/build/lib/domain';
 import { WebPageBuilder } from './WebPageBuilder';
-import { IWebServer } from '@haibun/web-server-express/build/defs';
+import { IWebServer, WEBSERVER } from '@haibun/web-server-express/build/defs';
 
 export const WEB_PAGE = 'webpage';
 export const WEB_CONTROL = 'webcontrol';
@@ -29,7 +29,7 @@ const DomainWebPage = class DomainWebPage extends AStepper implements IHasDomain
       action: async ({ where }: TNamed, vstep: TVStep) => {
         const page = vstep.source.name;
 
-        const webserver = <IWebServer>getFromRuntime(this.getWorld().runtime, 'webserver');
+        const webserver = <IWebServer>getFromRuntime(this.getWorld().runtime, WEBSERVER);
         webserver.addStaticFolder(page);
         console.debug('added page', page);
 
@@ -42,7 +42,7 @@ const DomainWebPage = class DomainWebPage extends AStepper implements IHasDomain
       action: async ({ name, location }: TNamed, vsteps: TVStep) => {
         const page = vsteps.source.name;
 
-        const webserver = getFromRuntime(this.getWorld().runtime, 'webserver');
+        const webserver = getFromRuntime(this.getWorld().runtime, WEBSERVER);
         // TODO mount the page
         return OK;
       },
