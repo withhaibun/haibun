@@ -24,7 +24,7 @@ export class Executor {
       ok = ok && featureResult.ok;
 
       if (!stay) {
-        await this.endFeature(this.world);
+        await this.endFeature();
       }
       featureResults.push(featureResult);
 
@@ -106,7 +106,7 @@ export class Executor {
     }
   }
 
-  async endFeature(world: TWorld) {
+  async endFeature() {
     for (const s of this.steppers) {
       if (s.endFeature) {
         this.world.logger.debug(`endFeature ${s.constructor.name}`);
