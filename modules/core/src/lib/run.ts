@@ -1,7 +1,7 @@
 import { existsSync } from 'fs';
 import { TSpecl, AStepper, TResult, TWorld, TFeature, TNotOKActionResult, TExtraOptions, TResolvedFeature, TEndRunCallback } from './defs';
 import { expand } from './features';
-import { Executor } from '../phases/Executor';
+import { FeaturesExecutor } from '../phases/Executor';
 import { Resolver } from '../phases/Resolver';
 import Builder from '../phases/Builder';
 import { getSteppers, applyExtraOptions, recurse, debase, getRunTag, verifyRequiredOptions, setWorldOptions } from './util';
@@ -63,7 +63,7 @@ export async function runWith({ specl, world, features, backgrounds, addSteppers
 
     world.logger.log(`features: ${expandedFeatures.length} backgrounds: ${backgrounds.length} steps: (${expandedFeatures.map((e) => e.path)}), ${mappedValidatedSteps.length}`);
 
-    const executor = new Executor(steppers, world);
+    const executor = new FeaturesExecutor(steppers, world);
     const executed = await executor.execute(mappedValidatedSteps);
     result = { ...executed, tag };
 

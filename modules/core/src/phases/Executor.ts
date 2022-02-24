@@ -1,8 +1,8 @@
 import { TVStep, TResolvedFeature, TResult, TStepResult, TFeatureResult, TActionResult, TWorld, TActionResultTopics, TStepActionResult, AStepper, TTag } from '../lib/defs';
 import { getNamedToVars } from '../lib/namedVars';
-import { actionNotOK, applyResShouldContinue, sleep } from '../lib/util';
+import { actionNotOK, applyResShouldContinue, getRunTag, sleep } from '../lib/util';
 
-export class Executor {
+export class FeaturesExecutor {
   steppers: AStepper[];
   world: TWorld;
 
@@ -18,31 +18,43 @@ export class Executor {
     // FIXME
     this.world.shared.values._features = features;
     this.world.shared.values._scored = [];
+    let featureNum = 1;
     for (const feature of features) {
-      this.world.logger.log(`*** feature: ${feature.path}`);
-      const featureResult = await this.doFeature(feature);
+      const newWorld = { ...this.world, tag: { ...this.world.tag, ...{ featureNum } } }
+      const featureExecutor = new FeatureExecutor(this.steppers, newWorld);
+      const featureResult = await featureExecutor.doFeature(feature);
       ok = ok && featureResult.ok;
 
       if (!stay) {
-        await this.endFeature();
+        await featureExecutor.endFeature();
       }
       featureResults.push(featureResult);
-
-    }
-    if (!stay) {
-      await this.close();
+      featureNum++;
+      if (!stay) {
+        await featureExecutor.close();
+      }
     }
     return { ok, results: featureResults, tag: this.world.tag };
   }
+}
 
+export class FeatureExecutor {
+  steppers: AStepper[];
+  world: TWorld;
+
+  constructor(steppers: AStepper[], world: TWorld) {
+    this.steppers = steppers;
+    this.world = world;
+  }
   async doFeature(feature: TResolvedFeature): Promise<TFeatureResult> {
+      this.world.logger.log(`*** feature ${this.world.tag.featureNum}: ${feature.path}`);
     let ok = true;
     let stepResults: TStepResult[] = [];
     let seq = 0;
 
     for (const step of feature.vsteps) {
       this.world.logger.log(`   ${step.in}\r`);
-      const result = await Executor.doFeatureStep(step, this.world);
+      const result = await FeatureExecutor.doFeatureStep(step, this.world);
 
       if (this.world.options.step_delay) {
         await sleep(this.world.options.step_delay as number);
