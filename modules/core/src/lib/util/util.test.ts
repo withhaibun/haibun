@@ -3,6 +3,8 @@ import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, getDefaultWorld, testWithDefaults
 import TestSteps from "../test/TestSteps";
 import TestStepsWithOptions from "../test/TestStepsWithOptions";
 import { withNameType } from '../features';
+import { AStepper, IHasOptions, OK } from '../defs';
+import { stringOrError } from '.';
 
 describe('output', () => {
   it('resultOutput default', async () => {
@@ -20,6 +22,56 @@ describe('isLowerCase', () => {
   expect(util.isLowerCase('a')).toBe(true);
   expect(util.isLowerCase('A')).toBe(false);
   expect(util.isLowerCase('0')).toBe(false);
+});
+
+describe('findStepperFromOptions', () => {
+  const TS = class TS extends AStepper implements IHasOptions {
+    options = {
+      A: {
+        desc: 'exists',
+        parse: (input: string) => stringOrError(input)
+      },
+      B: {
+        desc: 'exists',
+        parse: (input: string) => stringOrError(input)
+      },
+    };
+    steps = {
+      test: {
+        exact: 'When I have a stepper option',
+        action: async () => OK
+      },
+    };
+  };
+
+  it('finds from single option', async () => {
+    const ts = new TS();
+    const steppers = await util.getSteppers({ steppers: [], addSteppers: [TS], });
+    const options = { [util.getStepperOptionName(ts, 'A')]: 'TS' };
+    const s = util.findStepperFromOption(steppers, ts, options, 'A');
+    expect(s).toBeDefined();
+  });
+  it('finds from last multiple options', async () => {
+    const ts = new TS();
+    const steppers = await util.getSteppers({ steppers: [], addSteppers: [TS], });
+    const options = { [util.getStepperOptionName(ts, 'B')]: 'TS' };
+    const s = util.findStepperFromOption(steppers, ts, options, 'A', 'B');
+    expect(s).toBeDefined();
+  });
+  it('finds from first multiple options', async () => {
+    const ts = new TS();
+    const steppers = await util.getSteppers({ steppers: [], addSteppers: [TS, TestSteps], });
+    const options = { [util.getStepperOptionName(ts, 'A')]: 'TestSteps', [util.getStepperOptionName(ts, 'B')]: 'TS' };
+    const s = util.findStepperFromOption<typeof TestSteps>(steppers, ts, options, 'A', 'B');
+    expect(s).toBeDefined();
+    expect(s.constructor.name).toBe('TestSteps');
+  });
+  it('throws for not found stepper', async () => {
+    const ts = new TS();
+    const steppers = await util.getSteppers({ steppers: [], addSteppers: [TS], });
+    const options = {};
+    expect(() => util.findStepperFromOption(steppers, ts, options, 'S')).toThrow;;
+  });
 });
 
 describe('getStepperOptions', () => {
@@ -49,12 +101,6 @@ describe('getType', () => {
     expect(withNameType('file.feature', '').type).toBe('feature');
   })
 })
-
-describe('getCaptureDir', () => {
-  const { world } = getDefaultWorld(0);
-  const dir = util.getCaptureDir(world, 'test');
-  expect(dir).toEqual('./capture/loop-0/seq-0/featn-0/mem-0/test');
-});
 
 describe('shouldProcess', () => {
   it('should process no type & filter', () => {

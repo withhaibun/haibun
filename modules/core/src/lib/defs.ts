@@ -175,7 +175,7 @@ export type TResult = {
   tag: TTag,
   results?: TFeatureResult[];
   failure?: {
-    stage: 'Collect' | 'Options' | 'Domains' | 'Expand' | 'Resolve' | 'Build' | 'Execute';
+    stage: string;
     error: TResultError;
   };
 };
@@ -251,11 +251,29 @@ export type TStepResult = {
 
 export type TRuntime = { [name: string]: any };
 
-export interface TResultOutput {
+export interface IResultOutput {
   writeOutput(result: TResult, args: any): Promise<any>;
 }
 
+export type TLocationOptions = {
+  tag: TTag,
+  options: TOptions
+}
+
+export interface ITraceResult {
+  writeTraceFile(loc: TLocationOptions, result: TResult): any;
+}
+
+export interface IReviewResult {
+  writeReview(loc: TLocationOptions, result: TResult): any;
+}
+
+export interface IPublishResults {
+  publishResults(world: TWorld): any;
+}
+
 export const HAIBUN = 'HAIBUN';
+export const BASE_PREFIX = `${HAIBUN}_`;
 
 export const BASE_DOMAINS = [{ name: 'string', resolve: (inp: string) => inp }];
 
@@ -264,7 +282,7 @@ export const BASE_TYPES = BASE_DOMAINS.map((b) => b.name);
 export type TScored = { name: string; score: number };
 
 export type TStartRunCallback = (world: TWorld) => void;
-export type TEndRunCallback = (world: TWorld, result: TResult) => void;
+export type TEndRunCallback = (world: TWorld, result: TResult, steppers: AStepper[]) => void;
 
 export type TRunEnv = { [name: string]: string };
 // FIXME remove protoOptions, splits, etc.

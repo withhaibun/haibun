@@ -1,23 +1,27 @@
-import { readFileSync, existsSync, writeFileSync, statSync, readdirSync } from 'fs';
+import * as fs from 'fs';
 
-import { AStorage } from '@haibun/domain-storage/build/defs';
+import { AStorage } from '@haibun/domain-storage/build/AStorage';
 
 export default class StorageFS extends AStorage {
-    readFile = (file: string, coding?: any) => readFileSync(file, coding)
-    exists = existsSync;
-    writeFile = (fn: string, contents: Buffer) => {
+    readFile = (file: string, coding?: any) => fs.readFileSync(file, coding)
+    exists = fs.existsSync;
+    writeFileBuffer = (fn: string, contents: Buffer) => {
         console.log(fn);
         
-        writeFileSync(fn, contents);;
+        fs.writeFileSync(fn, contents);;
     }
-    stat = statSync;
+    stat = fs.statSync;
     readdir = (dir: string) => {
         try {
-            return readdirSync(dir);
+            return fs.readdirSync(dir);
         } catch (e) {
             console.log(`can't read ${dir}`);
             throw (e);
         }
+    }
+    mkdir = fs.mkdirSync;
+    mkdirp = (dir: string) => {
+        fs.mkdirSync(dir, {recursive: true});
     }
 }
 
