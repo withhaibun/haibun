@@ -1,16 +1,18 @@
 import { BASE_PREFIX, AStepper, OK, TLocationOptions, TNamed, TOptions, TResult, TTag, TWorld } from "@haibun/core/build/lib/defs";
 
 export abstract class AStorage extends AStepper {
-    abstract readFile(path: string, coding: string): any;
+    abstract readFile(path: string, coding?: string): any;
     abstract readdir(dir: string): any;
     abstract writeFileBuffer(file: string, contents: Buffer): void;
-    writeFile(file: string, contents: string | Buffer): void {
+
+    async writeFile(file: string, contents: string | Buffer) {
         if (typeof contents === 'string') {
-            this.writeFileBuffer(file, Buffer.from(contents));
+            await this.writeFileBuffer(file, Buffer.from(contents));
         }
-        this.writeFileBuffer(file, contents as Buffer);
+        await this.writeFileBuffer(file, contents as Buffer);
     }
 
+    abstract stat(dir: string);
     abstract mkdir(dir: string);
     abstract mkdirp(dir: string);
     abstract exists(ntt: string);

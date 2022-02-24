@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
 import repl from 'repl';
-import { TResult, TSpecl, TWorld } from '@haibun/core/build/lib/defs';
+import { AStepper, TResult, ITraceResult, IReviewResult, TSpecl, TWorld, IPublishResults } from '@haibun/core/build/lib/defs';
 
-import { getConfigFromBase, getDefaultOptions, writeFeatureTraceFile, writeTraceFile } from '@haibun/core/build/lib/util';
+import { findStepper, getConfigFromBase, getDefaultOptions } from '@haibun/core/build/lib/util';
 import runWithOptions from '@haibun/core/build/lib/run-with-options';
 import { processBaseEnv, ranResultError, usageThenExit } from './lib';
 import { Timer } from '@haibun/core/build/lib/Timer';
@@ -29,13 +29,23 @@ async function go() {
 
   const loops = protoOptions.options.LOOPS || 1;
   const members = protoOptions.options.MEMBERS || 1;
-  const trace = protoOptions.options.TRACE;
+  const trace = protoOptions.options.PUBLISH || protoOptions.options.REVIEWS || protoOptions.options.TRACE;
+  const reviews = protoOptions.options.PUBLISH || protoOptions.options.REVIEWS;
+  const publish = protoOptions.options.PUBLISH;
+
   const startRunCallback = (world: TWorld) => {
     if (protoOptions.options.CLI) repl.start().context.runtime = world.runtime;
   }
-  const endRunCallback = (world: TWorld, result: TResult) => {
+  const endRunCallback = async (world: TWorld, result: TResult, steppers: AStepper[]) => {
     if (trace) {
-      writeTraceFile(world, result);
+      const tracer = findStepper<ITraceResult & IReviewResult & IPublishResults>(steppers, 'OutReviews');
+      await tracer.writeTraceFile(world, result);
+      if (reviews) {
+        await tracer.writeReview(world, result);
+      }
+      if (publish) {
+        await tracer.publishResults(world);
+      }
     }
   }
 

@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'fs';
+import { readdirSync, readFileSync, statSync } from 'fs';
 import path from 'path';
 
 import {
@@ -7,7 +7,7 @@ import {
   TNotOKActionResult,
   TOKActionResult,
   TOptionValue,
-  TResultOutput,
+  IResultOutput,
   TResult,
   TSpecl,
   TWorld,
@@ -20,7 +20,6 @@ import {
   AStepper,
   TExtraOptions,
   StringOrNumber,
-  TFeatureResult,
 } from '../defs';
 import { withNameType } from '../features';
 
@@ -39,7 +38,7 @@ export async function use(module: string) {
 export async function resultOutput(type: string | undefined, result: TResult) {
   if (type) {
     const AnOut = await use(type);
-    const out: TResultOutput = new AnOut();
+    const out: IResultOutput = new AnOut();
     if (out) {
       const res = await out.writeOutput(result, {});
       return res;
@@ -191,11 +190,13 @@ export async function applyExtraOptions(extraOptions: TExtraOptions, steppers: A
   if (Object.keys(extraOptions).length > 0) {
     throw Error(`no options provided for ${extraOptions}`);
   }
+}
+
+export async function setWorldOptions(steppers: AStepper[], world: TWorld) {
   for (const stepper of steppers) {
     stepper.setWorld(world, steppers);
   }
 }
-
 export function getPre(stepper: AStepper) {
   return ['HAIBUN', 'O', stepper.constructor.name.toUpperCase()].join('_') + '_';
 }
@@ -234,25 +235,21 @@ export function getStepperOption(stepper: AStepper, name: string, options: TOpti
   return options[key];
 }
 
-export function ensureDirectory(base: string, folder: string) {
-  try {
-    if (!existsSync(base)) {
-      mkdirSync(base);
-      console.info(`created ${base}`);
-    }
-    if (!existsSync(`${base}/${folder}`)) {
-      mkdirSync(`${base}/${folder}`);
-      console.info(`created ${base}/${folder}`);
-    }
-  } catch (e) {
-    console.error(`could not create ${base}/${folder}`, e);
-    throw e;
+export function findStepperFromOption<Type>(steppers: AStepper[], stepper: AStepper, options: TOptions, ...name: string[]): Type {
+  const val = name.reduce((v, n) => v || getStepperOption(stepper, n, options), undefined);
+
+  if (!val) {
+    throw Error(`Cannot find ${name} from ${stepper.constructor.name} options`);
   }
+  return findStepper(steppers, val);
 }
 
-// FIXME
 export function findStepper<Type>(steppers: AStepper[], name: string): Type {
-  return <Type>(steppers.find((s) => s.constructor.name === name) as any);
+  const stepper = <Type>(steppers.find((s) => s.constructor.name === name) as any);
+  if (!stepper) {
+    throw Error(`Cannot find ${name} from ${JSON.stringify(steppers.map(s => s.constructor.name), null, 2)}`);
+  }
+  return stepper;
 }
 
 export function getFromRuntime<Type>(runtime: TRuntime, name: string): Type {
@@ -273,35 +270,7 @@ export function applyResShouldContinue(world: any, res: Partial<TActionResult>, 
   return false;
 }
 
-export function getCaptureDir({ options, tag }: { options: TOptions, tag: TTag }, app?: string) {
-  const p = [options.base, options.CAPTURE_DIR || 'capture', `loop-${tag.loop}`, `seq-${tag.sequence}`, `featn-${tag.featureNum}`, `mem-${tag.member}`];
-  app && p.push(app);
-  return '.' + p.join('/');
-}
-
-export function writeFeatureTraceFile(world: TWorld, result: TFeatureResult) {
-  const dir = ensureCaptureDir(world, 'trace', `trace.json`);
-  writeFileSync(dir, JSON.stringify(result, null, 2));
-}
-
-export function writeTraceFile(world: TWorld, result: TResult) {
-  const dir = ensureCaptureDir(world, 'trace', `trace.json`);
-  writeFileSync(dir, JSON.stringify(result, null, 2));
-}
-
-export function ensureCaptureDir(world: TWorld, app: string, fn = '') {
-  const dir = getCaptureDir(world, app);
-  if (!existsSync(dir)) {
-    try {
-      mkdirSync(dir, { recursive: true });
-    } catch (e) {
-      throw Error(`creating ${dir}: ${e}`)
-    }
-  }
-  return `${dir}/${fn}`;
-}
-
-export const getRunTag = (sequence: StringOrNumber, loop: StringOrNumber, member: StringOrNumber, featureNum: StringOrNumber, params = {}, trace = false) => ({ sequence, loop, member, featureNum, params, trace });
+export const getRunTag = (sequence: StringOrNumber, loop: StringOrNumber, featureNum: StringOrNumber, member: StringOrNumber, params = {}, trace = false) => ({ sequence, loop, member, featureNum, params, trace });
 
 export const descTag = (tag: TTag) => ` @${tag.sequence} (${tag.loop}x${tag.member})`;
 
