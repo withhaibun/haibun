@@ -1,4 +1,4 @@
-import { Executor } from '@haibun/core/build/phases/Executor';
+import { FeatureExecutor } from '@haibun/core/build/phases/Executor';
 import { findStepper, getSteppers } from '@haibun/core/build/lib/util';
 import { getTestEnv, getDefaultWorld } from '@haibun/core/build/lib/test/lib';
 
@@ -12,7 +12,7 @@ describe('playwrightWeb', () => {
   });
   it('sets browser type and device', async () => {
     const { world, vstep, steppers } = await getTestEnv(stxt, 'using firefox.Pixel 5 browser', getDefaultWorld(0).world);
-    await Executor.doFeatureStep(vstep, world);
+    await FeatureExecutor.doFeatureStep(vstep, world);
     const webPlaywright = findStepper<any>(steppers, 'WebPlaywright');
     const bf = await webPlaywright.getBrowserFactory();
 
@@ -21,7 +21,7 @@ describe('playwrightWeb', () => {
   });
   it('fails setting browser type and device', async () => {
     const { world, vstep } = await getTestEnv(stxt, 'using nonexistent browser', getDefaultWorld(0).world);
-    const result = await Executor.doFeatureStep(vstep, world);
+    const result = await FeatureExecutor.doFeatureStep(vstep, world);
     expect(result.actionResults[0].ok).toBe(false);
   });
 });

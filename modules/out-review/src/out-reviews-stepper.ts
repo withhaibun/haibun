@@ -10,6 +10,7 @@ import ReviewScript from "./review-script";
 const TRACE_STORAGE = 'TRACE_STORAGE';
 const REVIEWS_STORAGE = 'REVIEWS_STORAGE';
 const PUBLISH_STORAGE = 'PUBLISH_STORAGE';
+const INDEX_STORAGE = 'INDEX_STORAGE';
 const URI_ARGS = 'URI_ARGS';
 
 const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRequireDomains, ITraceResult, IReviewResult, IPublishResults {
@@ -17,6 +18,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
   traceStorage?: AStorage;
   reviewsStorage?: AStorage;
   publishStorage?: AStorage;
+  indexStorage?: AStorage;
 
   requireDomains = [STORAGE_LOCATION, STORAGE_ITEM];
   options = {
@@ -44,6 +46,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     this.traceStorage = findStepperFromOption(steppers, this, this.getWorld().options, TRACE_STORAGE);
     this.reviewsStorage = findStepperFromOption(steppers, this, this.getWorld().options, REVIEWS_STORAGE);
     this.publishStorage = findStepperFromOption(steppers, this, this.getWorld().options, PUBLISH_STORAGE, REVIEWS_STORAGE);
+    this.indexStorage = findStepperFromOption(steppers, this, this.getWorld().options, INDEX_STORAGE, PUBLISH_STORAGE, REVIEWS_STORAGE);
   }
 
   steps = {
@@ -57,7 +60,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
       }
     },
     publishReviews: {
-      gwta: `create reviews`,
+      gwta: `publish index`,
       action: async ({ where }: TNamed) => {
         const dir = `${process.cwd()}/${where}`
         const reviewsIn = this.traceStorage!;
@@ -183,7 +186,6 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
         },
       }
     }
-
 
     const feature: any = {
       div: {
