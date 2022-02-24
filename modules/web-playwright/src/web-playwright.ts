@@ -1,10 +1,13 @@
 import { Page, Response } from 'playwright';
-import { IHasOptions, OK, TNamed, TVStep, IRequireDomains, TStepResult, TTraceOptions, TTrace, AStepper } from '@haibun/core/build/lib/defs';
+import { IHasOptions, OK, TNamed, TVStep, IRequireDomains, TStepResult, TTraceOptions, TTrace, AStepper, TWorld } from '@haibun/core/build/lib/defs';
 import { onCurrentTypeForDomain } from '@haibun/core/build/steps/vars';
 import { BrowserFactory, TBrowserFactoryContextOptions } from './BrowserFactory';
-import { actionNotOK, ensureDirectory, getCaptureDir, getStepperOption, boolOrError, intOrError } from '@haibun/core/build/lib/util';
+import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOption } from '@haibun/core/build/lib/util';
 import { WEB_PAGE, WEB_CONTROL } from '@haibun/domain-webpage/build/domain-webpage';
 import { TTraceTopic } from '@haibun/core/build/lib/interfaces/logger';
+import { AStorage } from '@haibun/domain-storage/build/AStorage';
+
+const STORAGE = 'STORAGE';
 
 const WebPlaywright = class WebPlaywright extends AStepper implements IHasOptions, IRequireDomains {
   requireDomains = [WEB_PAGE, WEB_CONTROL];
@@ -25,10 +28,21 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       desc: 'timeout for each step',
       parse: (input: string) => intOrError(input),
     },
+    [STORAGE]: {
+      required: true,
+      desc: 'Storage for output',
+      parse: (input: string) => stringOrError(input),
+    },
   };
   hasFactory: boolean = false;
   bf: BrowserFactory | undefined = undefined;
   headless: boolean = false;
+  storage?: AStorage;
+
+  async setWorld(world: TWorld, steppers: AStepper[]) {
+    super.setWorld(world, steppers);
+    this.storage = findStepperFromOption(steppers, this, this.getWorld().options, STORAGE);
+  }
 
   async getBrowserFactory(): Promise<BrowserFactory> {
     if (!this.hasFactory) {
@@ -51,7 +65,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     const browser: TBrowserFactoryContextOptions = {};
     if (captureVideo)
       browser.recordVideo = {
-        dir: getCaptureDir(this.getWorld(), 'video'),
+        dir: await this.storage!.getCaptureDir(this.getWorld(), 'video'),
       }
     const trace: TTraceOptions | undefined = doTrace ? {
       response: {
@@ -89,7 +103,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
 
     if (this.bf?.hasPage(this.getWorld().tag)) {
       const page = await this.getPage();
-      const path = getCaptureDir(this.getWorld(), 'failure', `${result.seq}.png`);
+      const path = this.storage!.getCaptureDir(this.getWorld(), 'failure') + `/${result.seq}.png`;
 
       await page.screenshot({ path, fullPage: true, timeout: 60000 });
     }
@@ -360,7 +374,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       gwta: 'take a screenshot',
       action: async () => {
         const folder = [process.cwd(), 'files'].join('/');
-        await ensureDirectory(folder, 'screenshots');
+        await this.storage!.ensureCaptureDir(this.getWorld(), folder, 'screenshots');
         await this.withPage(
           async (page: Page) =>
             await page.screenshot({

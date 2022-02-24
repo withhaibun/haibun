@@ -1,67 +1,67 @@
-import GenerateReview from "./generate-review";
-import { AStepper, IHasOptions, IRequireDomains, OK, TNamed, TResult, TWorld } from "@haibun/core/build/lib/defs";
+import { EOL } from "os";
+import { create } from "xmlbuilder2";
+
+import { AStepper, IHasOptions, IPublishResults, IRequireDomains, IReviewResult, ITraceResult, OK, TLocationOptions, TNamed, TResult, TTrace, TWorld } from "@haibun/core/build/lib/defs";
 import { STORAGE_ITEM, STORAGE_LOCATION } from '@haibun/domain-storage';
-import { ensureCaptureDir, findStepper, getCaptureDir, getRunTag, getStepperOption, stringOrError } from '@haibun/core/build/lib/util';
-import { AStorage } from '@haibun/domain-storage/build/defs';
+import { findStepperFromOption, getRunTag, getStepperOption, stringOrError } from '@haibun/core/build/lib/util';
+import { AStorage } from '@haibun/domain-storage/build/AStorage';
+import ReviewScript from "./review-script";
 
-const IN_STORAGE = 'IN_STORAGE';
-const OUT_STORAGE = 'OUT_STORAGE';
+const TRACE_STORAGE = 'TRACE_STORAGE';
+const REVIEWS_STORAGE = 'REVIEWS_STORAGE';
+const PUBLISH_STORAGE = 'PUBLISH_STORAGE';
+const URI_ARGS = 'URI_ARGS';
 
-const OutReviewsStepper = class OutReviews extends AStepper implements IHasOptions, IRequireDomains {
-  reviewsIn?: AStorage;
-  reviewsOut?: AStorage;
+const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRequireDomains, ITraceResult, IReviewResult, IPublishResults {
+  content: string = '<not initialized"';
+  traceStorage?: AStorage;
+  reviewsStorage?: AStorage;
+  publishStorage?: AStorage;
+
   requireDomains = [STORAGE_LOCATION, STORAGE_ITEM];
   options = {
-    [IN_STORAGE]: {
+    [TRACE_STORAGE]: {
       required: true,
       desc: 'Storage type used for input',
       parse: (input: string) => stringOrError(input)
     },
-    [OUT_STORAGE]: {
+    [REVIEWS_STORAGE]: {
       required: true,
-      desc: 'Storage type used for output',
+      desc: 'Storage type used for reviews',
+      parse: (input: string) => stringOrError(input)
+    },
+    [PUBLISH_STORAGE]: {
+      desc: 'Storage type used for publishing',
+      parse: (input: string) => stringOrError(input)
+    },
+    [URI_ARGS]: {
+      desc: 'Extra arguments for html assets',
       parse: (input: string) => stringOrError(input)
     },
   };
-  async setWorld(world: TWorld, steppers: AStepper[]) {
-    this.world = world;
-    const reviewsIn = getStepperOption(this, IN_STORAGE, this.world.options);
-    this.reviewsIn = findStepper(steppers, reviewsIn);
-    if (!this.reviewsIn) {
-      throw Error(`can't find ${IN_STORAGE} ${reviewsIn} ${JSON.stringify(steppers.map(s => s.constructor.name), null, 2)}`);
-    }
-
-    const reviewsOut = getStepperOption(this, OUT_STORAGE, this.world.options);
-    this.reviewsOut = findStepper(steppers, reviewsOut);
-    if (!this.reviewsOut) {
-      throw Error(`can't find ${OUT_STORAGE} ${reviewsOut} ${JSON.stringify(steppers.map(s => s.constructor.name), null, 2)}`);
-    }
+  setWorld(world: TWorld, steppers: AStepper[]) {
+    super.setWorld(world, steppers);
+    this.traceStorage = findStepperFromOption(steppers, this, this.getWorld().options, TRACE_STORAGE);
+    this.reviewsStorage = findStepperFromOption(steppers, this, this.getWorld().options, REVIEWS_STORAGE);
+    this.publishStorage = findStepperFromOption(steppers, this, this.getWorld().options, PUBLISH_STORAGE, REVIEWS_STORAGE);
   }
 
   steps = {
     publishReview: {
       gwta: `create review`,
       action: async () => {
-        const world = this.world!;
-        const uriArgs = getStepperOption(this, 'URI_ARGS', this.world!.options);
-        const reviewsIn = this.reviewsIn!;
-        const reviewsOut = this.reviewsOut!;
-        const output = reviewsIn.readFile(getCaptureDir(world, 'trace') + '/trace.json', 'utf-8');
-        const result: TResult = JSON.parse(output);
-        const generateReview = new GenerateReview();
-        const { html, sequence, video } = await generateReview.getOutput(reviewsIn, this.world!, result, { uriArgs });
-        const file = ensureCaptureDir(world, 'review', '/review.html');
-        reviewsOut.writeFile(file, Buffer.from(html, 'utf8'));
+        const reviewsIn = this.traceStorage!;
+        const output = await reviewsIn.readFile(await this.reviewsStorage!.getCaptureDir(this.getWorld(), 'trace') + '/trace.json', 'utf-8');
+        this.writeReview(this.getWorld(), output);
         return OK;
       }
     },
     publishReviews: {
-      gwta: `publish reviews to {where: STORAGE_LOCATION}`,
+      gwta: `create reviews`,
       action: async ({ where }: TNamed) => {
         const dir = `${process.cwd()}/${where}`
-        const uriArgs = getStepperOption(this, 'URI_ARGS', this.world!.options);
-        const reviewsIn = this.reviewsIn!;
-        const reviewsOut = this.reviewsOut!;
+        const reviewsIn = this.traceStorage!;
+        const n = (i: string) => i.replace(/.*-/, '');
 
         const loops = await reviewsIn.readdir(dir);
         for (const loop of loops) {
@@ -69,20 +69,15 @@ const OutReviewsStepper = class OutReviews extends AStepper implements IHasOptio
           const sequences = await reviewsIn.readdir(loopDir);
           for (const seq of sequences) {
             const seqDir = `${loopDir}/${seq}`;
-            const featureNums = reviewsIn.readdir(seqDir)
+            const featureNums = await reviewsIn.readdir(seqDir)
             for (const featureNum of featureNums) {
               const featDir = `${seqDir}/${featureNum}`;
-              const members = reviewsIn.readdir(featDir);
+              const members = await reviewsIn.readdir(featDir);
               for (const member of members) {
                 const memDir = `${featDir}/${member}`;
-                const output = reviewsIn.readFile(`${memDir}/trace/trace.json`, 'utf-8');
-                const result: TResult = JSON.parse(output);
-                const generateReview = new GenerateReview();
-                const { html, sequence, video } = await generateReview.getOutput(reviewsIn, this.world!, result, { uriArgs });
-                const tag = getRunTag(seq, loop, member, featureNum, {});
-                const w = { options: {}, tag };
-                const file = getCaptureDir(w, 'review') + '/review.html';
-                reviewsOut.writeFile(file, Buffer.from(html, 'utf8'));
+                const output = await reviewsIn.readFile(`${memDir}/trace/trace.json`, 'utf-8');
+                const tag = getRunTag(n(seqDir), n(loopDir), n(featDir), n(memDir))
+                this.writeReview({ tag, options: this.getWorld().options }, output);
               }
             }
           }
@@ -91,6 +86,169 @@ const OutReviewsStepper = class OutReviews extends AStepper implements IHasOptio
       }
     }
   }
+  async writeTraceFile(loc: TLocationOptions, result: TResult) {
+    const dir = await this.reviewsStorage!.ensureCaptureDir(loc, 'trace', `trace.json`);
+
+    await this.reviewsStorage!.writeFile(dir, JSON.stringify(result, null, 2));
+  }
+  async writeReview(loc: TLocationOptions, result: TResult) {
+    const uriArgs = getStepperOption(this, URI_ARGS, loc.options);
+    const { html, sequence, video } = await this.getOutput(this.traceStorage!, result, { uriArgs });
+    const file = await this.reviewsStorage!.ensureCaptureDir(loc, undefined, '/review.html');
+
+    await this.reviewsStorage!.writeFile(file, Buffer.from(html, 'utf8'));
+  }
+  async publishResults(world: TWorld) {
+    const rin = this.traceStorage!;
+    const rout = this.publishStorage!;
+    const dir = await rin.getCaptureDir(world);
+    await this.recurseCopy(dir, rin, rout);
+  }
+  async recurseCopy(dir: string, rin: AStorage, rout: AStorage) {
+    const entries = await rin.readdir(dir);
+    for (const entry of entries) {
+      const here = `${dir}/${entry}`;
+      const stat = rin.stat(here);
+      if (stat.isDirectory()) {
+        await this.recurseCopy(here, rin, rout);
+        await rout.mkdirp(here);
+      } else {
+        const content = await rin.readFile(here);
+        await rout.writeFile(`${dir}/${entry}`, content);
+      }
+    }
+  }
+  traces(a: any) {
+    const { traces } = a;
+    const byUrl = (traces as TTrace[]).map((i) => ({ url: i.response.trace.url, since: i.response.since, headersContent: i.response.trace.headersContent }));
+
+    const ret = byUrl.map(({ url, since, headersContent }) => {
+      const summary = {
+        a: {
+          '@data-time': since,
+          '@onclick': `setTime(${since})`,
+          '#': `${since} ${url}`,
+        }
+      }
+      const ul = (headersContent as any).map((i: any) => ({
+        li:
+        {
+          '#': `${i.name}: ${i.value}`
+        }
+      }));
+
+      return {
+        details: {
+          ul,
+          summary
+        }
+      }
+    });
+    return ret;
+  }
+
+  async getOutput(storage: AStorage, result: TResult, { title = 'Haibun-Review', prettyPrint = true, uriArgs = '' }) {
+    const { sequence } = result.tag;
+    const videoBase = await this.traceStorage!.getCaptureDir(this.getWorld(), 'video');
+    const video = await storage.readdir(videoBase)[0];
+    const forHTML: any = {
+      html: {
+        "@xmlns": "http://www.w3.org/1999/xhtml",
+        "@style": "font-family: 'Open Sans', sans-serif",
+        link: {
+          '@href': "https://fonts.googleapis.com/css2?family=Open+Sans&display=swap",
+          '@rel': "stylesheet"
+        },
+        title,
+        div: {
+          '@style': 'position: fixed; top: 0, background-color: rgba(255,255,255,0.5), width: 100%',
+          video: {
+            '@id': 'video',
+            '@controls': true,
+            '@height': '480',
+            '@width': '100%',
+            source: {
+              '@type': 'video/webm',
+              '@src': `video/${video}${uriArgs}`
+            }
+          },
+        },
+        section: {
+          '@style': 'padding-top: 480',
+          div: []
+        },
+        script: {
+          '@type': 'text/javascript',
+          '#': '{{SCRIPT}}'
+        },
+      }
+    }
+
+
+    const feature: any = {
+      div: {
+        '@style': 'border-top: 1px dotted grey; padding-top: 4em',
+        a: {
+          '#': `Result: ${result.ok}`,
+        },
+        div: []
+      }
+    }
+    for (const f of result.results!) {
+      for (const s of f.stepResults) {
+        for (const a of s.actionResults) {
+          const start = (a as any).start;
+          const o = {
+            '@style': 'padding-top: 1em',
+            a: {
+              '@data-time': start,
+              '@onclick': `setTime(${start})`,
+              b: {
+                b: {
+                  '#': `<<  `,
+                  span: [{
+                    '@style': 'background: black; color: white; padding: 5, width: 3em; text-align: right',
+                    '#': `${s.seq}`,
+                  },
+                  {
+                    '#': `${a.ok} ${a.name} ${s.in}  `
+                  }]
+
+                }
+              }
+            },
+            details: [(a.topics && {
+              '#': JSON.stringify(a.topics),
+              summary: {
+                '#': 'topics'
+              },
+            }),
+            ((a as any).traces && {
+              '#': this.traces(a),
+              summary: {
+                '#': 'trace'
+              },
+            }),
+            ]
+          }
+          feature.div.div.push(o);
+        }
+      }
+    }
+
+    forHTML.html.section.div.push(feature);
+    const created = create(forHTML).end({ prettyPrint, newline: EOL });
+    const html = this.finish(created);
+    this.content = html;
+    return { html, sequence, video };
+  }
+  finish(html: string) {
+    html = html.replace('{{SCRIPT}}', ReviewScript);
+    return html;
+  }
+  async writeOutput(result: TResult, args: any) {
+    return `wrote to ${this.content}`;
+  }
 }
 
-export default OutReviewsStepper;
+export default OutReviews;

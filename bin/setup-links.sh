@@ -62,11 +62,11 @@ done) &&  \
   cd ../
 done) &&  \
 
-## depends on @haibun/core and @haibun/domain-webpage
+## depends on @haibun/core and @haibun/domain-webpage @haibun/domain-storage
 (for i in web-playwright; do
   cd $i
   npm i &&  \
-  npm link @haibun/core @haibun/domain-webpage && \
+  npm link @haibun/core @haibun/domain-webpage @haibun/domain-storage && \
   tsc -b . &&  \
 
   echo "\nsetup link for $i" && \
