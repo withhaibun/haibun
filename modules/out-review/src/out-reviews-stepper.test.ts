@@ -9,7 +9,7 @@ describe('out-review', () => {
         it('Generates reviews', async () => {
             const outReviewsStepper = new OutReviews();
             const feature = { path: '/features/test.feature', content: `publish reviews` };
-            const { result } = await testWithDefaults([feature], [OutReviews, DomainStorage, StorageFS], {
+            const result = await testWithDefaults([feature], [OutReviews, DomainStorage, StorageFS], {
                 options: {},
                 extraOptions: {
                     [getStepperOptionName(outReviewsStepper, 'IN_STORAGE')]: 'StorageFS',

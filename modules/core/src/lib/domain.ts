@@ -1,6 +1,5 @@
-import { Resolver } from '../phases/Resolver';
 import { Context, DomainContext } from './contexts';
-import { BASE_TYPES, AStepper, IHasDomains, IRequireDomains, TFound, TFromDomain, TWorld } from './defs';
+import { TDomain, BASE_TYPES, AStepper, IHasDomains, IRequireDomains, TFound, TFromDomain, TWorld, TModuleDomain } from './defs';
 
 export const isBaseType = (type: string) => BASE_TYPES.includes(type);
 export const getStepShared = (type: string, world: TWorld): Context => {
@@ -31,28 +30,32 @@ export const getStepShared = (type: string, world: TWorld): Context => {
   if (!currentSource) {
     // console.log('\ncreating', type, isFrom, current, 'ws', world.shared);
     currentSource = fromSource.shared.createPath(current);
-    
+
     // throw Error(`no current ${current} shared for "${isFrom}", ${currentSource}}`);
   }
   return currentSource;
 };
 
-export const getDomain = (domain: string, world: TWorld) => world.domains.find((d) => d.name === domain);
+export const getDomain = (domain: string, world: Partial<TWorld>) => world.domains!.find((d) => d.name === domain);
 
-export const applyDomainsOrError = async (steppers: AStepper[], world: TWorld) => {
-  // verify no duplicates
-  
+export const getDomains = async (steppers: AStepper[], world: TWorld) => {
+  const domainWorld : { domains: TModuleDomain[]} = { domains : [] };
+
   for (const module of steppers.filter((s) => !!(<IHasDomains>(s as unknown)).domains).map((s) => <IHasDomains>(s as unknown))) {
     const { domains } = module;
     if (domains) {
       for (const d of domains) {
-        if (getDomain(d.name, world)) {
+        if (getDomain(d.name, domainWorld)) {
           throw Error(`duplicate domain "${d.name}" in "${module.constructor.name}"`);
         }
-        world.domains.push({ ...d, module, shared: new DomainContext(d.name) });
+        domainWorld.domains.push({ ...d, module, shared: new DomainContext(d.name) });
       }
     }
   }
+  return domainWorld.domains;
+};
+
+export const verifyDomainsOrError = async (steppers: AStepper[], world: TWorld) => {
   // verify all required are present
   for (const s of steppers.filter((s) => !!(<IRequireDomains>s).requireDomains).map((s) => <IRequireDomains>s)) {
     const { requireDomains } = s;
