@@ -1,5 +1,5 @@
 import { OK, TNamed, AStepper } from '../lib/defs';
-import { actionOK, sleep } from '../lib/util';
+import { actionNotOK, actionOK, sleep } from '../lib/util';
 
 const Haibun = class Haibun extends AStepper {
   steps = {
@@ -18,6 +18,12 @@ const Haibun = class Haibun extends AStepper {
       action: async ({ ms }: TNamed) => {
         this.getWorld().options.step_delay = parseInt(ms, 10);
         return OK;
+      },
+    },
+    fails: {
+      gwta: `fails with {message}`,
+      action: async ({message}: TNamed) => {
+        return actionNotOK(`fails: ${message}`);
       },
     },
     stopStepDelay: {
@@ -49,6 +55,13 @@ const Haibun = class Haibun extends AStepper {
         return OK;
       },
     },
+    comment: {
+      gwta: '#{what}',
+      action: async({comment}: TNamed) => {
+        this.getWorld().logger.log(`comment: ${comment}`);
+        return OK;
+      }
+    }
   };
 };
 

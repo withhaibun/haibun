@@ -1,11 +1,9 @@
-import { EOL } from "os";
-import { create } from "xmlbuilder2";
-
-import { AStepper, IHasOptions, IPublishResults, IRequireDomains, IReviewResult, ITraceResult, OK, TFeatureResult, TLocationOptions, TNamed, TResult, TTrace, TWorld } from "@haibun/core/build/lib/defs";
+import { AStepper, CAPTURE, IHasOptions, IPublishResults, IRequireDomains, IReviewResult, ITraceResult, OK, TFeatureResult, TLocationOptions, TWorld } from "@haibun/core/build/lib/defs";
 import { STORAGE_ITEM, STORAGE_LOCATION } from '@haibun/domain-storage';
 import { findStepperFromOption, getRunTag, getStepperOption, stringOrError } from '@haibun/core/build/lib/util';
 import { AStorage } from '@haibun/domain-storage/build/AStorage';
-import ReviewScript from "./review-script";
+import GenerateHtml from "./generate-html";
+import { runInContext } from "vm";
 
 const TRACE_STORAGE = 'TRACE_STORAGE';
 const REVIEWS_STORAGE = 'REVIEWS_STORAGE';
@@ -13,8 +11,9 @@ const PUBLISH_STORAGE = 'PUBLISH_STORAGE';
 const INDEX_STORAGE = 'INDEX_STORAGE';
 const URI_ARGS = 'URI_ARGS';
 
+export const MISSING_TRACE = { ok: 'Missing trace file', path: 'missing' };
+
 const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRequireDomains, ITraceResult, IReviewResult, IPublishResults {
-  content: string = '<not initialized"';
   traceStorage?: AStorage;
   reviewsStorage?: AStorage;
   publishStorage?: AStorage;
@@ -44,83 +43,119 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
   setWorld(world: TWorld, steppers: AStepper[]) {
     super.setWorld(world, steppers);
     this.traceStorage = findStepperFromOption(steppers, this, world.extraOptions, TRACE_STORAGE);
-    this.reviewsStorage = findStepperFromOption(steppers, this, world.extraOptions, REVIEWS_STORAGE);
-    this.publishStorage = findStepperFromOption(steppers, this, world.extraOptions, PUBLISH_STORAGE, REVIEWS_STORAGE);
-    this.indexStorage = findStepperFromOption(steppers, this, world.extraOptions, INDEX_STORAGE, PUBLISH_STORAGE, REVIEWS_STORAGE);
+    this.reviewsStorage = findStepperFromOption(steppers, this, world.extraOptions, REVIEWS_STORAGE, TRACE_STORAGE);
+    this.indexStorage = findStepperFromOption(steppers, this, world.extraOptions, INDEX_STORAGE, REVIEWS_STORAGE, TRACE_STORAGE);
+    this.publishStorage = findStepperFromOption(steppers, this, world.extraOptions, PUBLISH_STORAGE, REVIEWS_STORAGE, TRACE_STORAGE);
   }
 
   steps = {
     createReview: {
-      gwta: `create review`,
+      exact: `create review`,
       action: async () => {
-        const reviewsIn = this.traceStorage!;
-        const output = await reviewsIn.readFile(await this.reviewsStorage!.getCaptureDir(this.getWorld(), 'trace') + '/trace.json', 'utf-8');
-        this.writeReview(this.getWorld(), output);
+        const trace = await this.readTraceFile(this.getWorld());
+        this.writeReview(this.getWorld(), trace);
         return OK;
       }
     },
     publishResults: {
-      gwta: `publish results`,
+      exact: `publish results`,
       action: async () => {
-        const rin = this.traceStorage!;
-        const rout = this.publishStorage!;
-        const dir = await rin.getCaptureDir(this.getWorld());
-        await this.recurseCopy(dir, rin, rout);
+        await this.publishResults();
         return OK;
       }
     },
-    publishReviews: {
-      gwta: `create index`,
-      action: async ({ where }: TNamed) => {
-        const dir = `${process.cwd()}/${where}`
-        const reviewsIn = this.traceStorage!;
-        const n = (i: string) => i.replace(/.*-/, '');
-
-        const loops = await reviewsIn.readdir(dir);
-        for (const loop of loops) {
-          const loopDir = `${dir}/${loop}`;
-          const sequences = await reviewsIn.readdir(loopDir);
-          for (const seq of sequences) {
-            const seqDir = `${loopDir}/${seq}`;
-            const featureNums = await reviewsIn.readdir(seqDir)
-            for (const featureNum of featureNums) {
-              const featDir = `${seqDir}/${featureNum}`;
-              const members = await reviewsIn.readdir(featDir);
-              for (const member of members) {
-                const memDir = `${featDir}/${member}`;
-                const output = await reviewsIn.readFile(`${memDir}/trace/trace.json`, 'utf-8');
-                const tag = getRunTag(n(seqDir), n(loopDir), n(featDir), n(memDir))
-                this.writeReview({ tag, options: this.getWorld().options, extraOptions: this.getWorld().extraOptions }, output);
-              }
-            }
-          }
+    createReviews: {
+      exact: `create reviews`,
+      action: async () => {
+        const func = async (loc: TLocationOptions) => {
+          const trace = await this.readTraceFile(loc);
+          await this.writeReview(loc, trace);
+        };
+        await this.withLocs(func);
+        return OK;
+      }
+    },
+    createIndex: {
+      exact: `create index`,
+      action: async () => {
+        const uriArgs = getStepperOption(this, URI_ARGS, this.getWorld().extraOptions);
+        let traces: { loc: TLocationOptions, trace: TFeatureResult | typeof MISSING_TRACE }[] = [];
+        const func = async (loc: TLocationOptions) => {
+          const trace = await this.readTraceFile(loc);
+          traces.push({ loc, trace });
         }
+        await this.withLocs(func);
+        const generateHTML = new GenerateHtml(this.traceStorage!, this.publishStorage!, uriArgs);
+        const content = await generateHTML.getIndex(traces);
+        const { html } = await generateHTML.getOutput(content, { title: 'Feature Result Index' });
+        const file = `./${CAPTURE}/index.html`;
+        await this.indexStorage?.writeFile(file, html);
+        this.getWorld().logger.info(`wrote index file ${file}`)
         return OK;
       }
     }
+  }
+  async withLocs(func: any) {
+    const dir = `${process.cwd()}/${CAPTURE}`
+    const reviewsIn = this.traceStorage!;
+    const n = (i: string) => i.replace(/.*-/, '');
+    const loops = await reviewsIn.readdir(dir);
+    for (const loop of loops) {
+      
+      const loopDir = `${dir}/${loop}`;
+      const sequences = await reviewsIn.readdir(loopDir);
+      for (const seq of sequences) {
+        const seqDir = `${loopDir}/${seq}`;
+        const featureNums = await reviewsIn.readdir(seqDir)
+        for (const featureNum of featureNums) {
+          const featDir = `${seqDir}/${featureNum}`;
+          const members = await reviewsIn.readdir(featDir);
+          for (const member of members) {
+            const memDir = `${featDir}/${member}`;
+            const tag = getRunTag(n(seqDir), n(loopDir), n(featDir), n(memDir))
+            const loc = { tag, options: this.getWorld().options, extraOptions: this.getWorld().extraOptions };
+            await func(loc);
+          }
+        }
+      }
+    }
+  }
+  async readTraceFile(loc: TLocationOptions): Promise<TFeatureResult | typeof MISSING_TRACE> {
+    const traceIn = this.traceStorage!;
+    try {
+      const output = await traceIn.readFile(await traceIn.getCaptureDir(loc, 'trace') + '/trace.json', 'utf-8');
+      const result = JSON.parse(output);
+      return result;
+    } catch (e) {
+      return MISSING_TRACE;
+    }
+
   }
   async writeTraceFile(loc: TLocationOptions, result: TFeatureResult) {
     const dir = await this.reviewsStorage!.ensureCaptureDir(loc, 'trace', `trace.json`);
 
     await this.reviewsStorage!.writeFile(dir, JSON.stringify(result, null, 2));
   }
-  async writeReview(loc: TLocationOptions, result: TFeatureResult) {
+  async writeReview(loc: TLocationOptions, trace: TFeatureResult | typeof MISSING_TRACE) {
     const uriArgs = getStepperOption(this, URI_ARGS, loc.extraOptions);
-    const { html, } = await this.getOutput(this.traceStorage!, result, { uriArgs });
+    const generateHTML = new GenerateHtml(this.traceStorage!, this.publishStorage!, uriArgs);
+    const result = await generateHTML.getFeatureResult(loc, this.traceStorage!, trace);
+    const { html, } = await generateHTML.getOutput(result, { title: `Feature Result ${loc.tag.sequence}` });
     const file = await this.reviewsStorage!.ensureCaptureDir(loc, undefined, 'review.html');
 
     await this.reviewsStorage!.writeFile(file, html);
     this.getWorld().logger.log(`wrote review ${file}`);
   }
-  async publishResults(world: TWorld) {
+  async publishResults() {
     const rin = this.traceStorage!;
     const rout = this.publishStorage!;
-    const dir = await rin.getCaptureDir(world);
+    const dir = `./${CAPTURE}/`;
+    await rout.rmrf(dir)
     await this.recurseCopy(dir, rin, rout);
   }
   async recurseCopy(dir: string, rin: AStorage, rout: AStorage) {
     const entries = await rin.readdir(dir);
-    
+
     for (const entry of entries) {
       const here = `${dir}/${entry}`;
       const stat = rin.stat(here);
@@ -132,135 +167,6 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
         await rout.writeFile(`${dir}/${entry}`, content);
       }
     }
-  }
-  traces(a: any) {
-    const { traces } = a;
-    const byUrl = (traces as TTrace[]).map((i) => ({ url: i.response.trace.url, since: i.response.since, headersContent: i.response.trace.headersContent }));
-
-    const ret = byUrl.map(({ url, since, headersContent }) => {
-      const summary = {
-        a: {
-          '@data-time': since,
-          '@onclick': `setTime(${since})`,
-          '#': `${since} ${url}`,
-        }
-      }
-      const ul = (headersContent as any).map((i: any) => ({
-        li:
-        {
-          '#': `${i.name}: ${i.value}`
-        }
-      }));
-
-      return {
-        details: {
-          ul,
-          summary
-        }
-      }
-    });
-    return ret;
-  }
-
-  async getOutput(storage: AStorage, result: TFeatureResult, { title = 'Haibun-Review', prettyPrint = true, uriArgs = '' }) {
-    const videoBase = await this.traceStorage!.getCaptureDir(this.getWorld(), 'video');
-    const video = await storage.readdir(videoBase)[0];
-    const forHTML: any = {
-      html: {
-        "@xmlns": "http://www.w3.org/1999/xhtml",
-        "@style": "font-family: 'Open Sans', sans-serif",
-        link: {
-          '@href': "https://fonts.googleapis.com/css2?family=Open+Sans&display=swap",
-          '@rel': "stylesheet"
-        },
-        title,
-        div: {
-          '@style': 'position: fixed; top: 0, background-color: rgba(255,255,255,0.5), width: 100%',
-          video: {
-            '@id': 'video',
-            '@controls': true,
-            '@height': '480',
-            '@width': '100%',
-            source: {
-              '@type': 'video/webm',
-              '@src': `video/${video}${uriArgs}`
-            }
-          },
-        },
-        section: {
-          '@style': 'padding-top: 480',
-          div: []
-        },
-        script: {
-          '@type': 'text/javascript',
-          '#': '{{SCRIPT}}'
-        },
-      }
-    }
-
-    const feature: any = {
-      div: {
-        '@style': 'border-top: 1px dotted grey; padding-top: 4em',
-        a: {
-          '#': `Result: ${result.ok}`,
-        },
-        div: []
-      }
-    }
-    // for (const f of result.results!) {
-    for (const s of result.stepResults) {
-      for (const a of s.actionResults) {
-        const start = (a as any).start;
-        const o = {
-          '@style': 'padding-top: 1em',
-          a: {
-            '@data-time': start,
-            '@onclick': `setTime(${start})`,
-            b: {
-              b: {
-                '#': `<<  `,
-                span: [{
-                  '@style': 'background: black; color: white; padding: 5, width: 3em; text-align: right',
-                  '#': `${s.seq}`,
-                },
-                {
-                  '#': `${a.ok} ${a.name} ${s.in}  `
-                }]
-
-              }
-            }
-          },
-          details: [(a.topics && {
-            '#': JSON.stringify(a.topics),
-            summary: {
-              '#': 'topics'
-            },
-          }),
-          ((a as any).traces && {
-            '#': this.traces(a),
-            summary: {
-              '#': 'trace'
-            },
-          }),
-          ]
-        }
-        feature.div.div.push(o);
-      }
-      // }
-    }
-
-    forHTML.html.section.div.push(feature);
-    const created = create(forHTML).end({ prettyPrint, newline: EOL });
-    const html = this.finish(created);
-    this.content = html;
-    return { html };
-  }
-  finish(html: string) {
-    html = html.replace('{{SCRIPT}}', ReviewScript);
-    return html;
-  }
-  async writeOutput(result: TResult, args: any) {
-    return `wrote to ${this.content}`;
   }
 }
 

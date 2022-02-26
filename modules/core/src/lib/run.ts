@@ -1,5 +1,5 @@
 import { existsSync } from 'fs';
-import { TSpecl, TResult, TWorld, TFeature, TExtraOptions, TResolvedFeature, TEndRunCallback, CStepper } from './defs';
+import { TSpecl, TResult, TWorld, TFeature, TExtraOptions, TResolvedFeature, TendFeatureCallback, CStepper } from './defs';
 import { expand } from './features';
 import { Executor } from '../phases/Executor';
 import { Resolver } from '../phases/Resolver';
@@ -7,9 +7,9 @@ import Builder from '../phases/Builder';
 import { getSteppers, verifyExtraOptions, recurse, debase, getRunTag, verifyRequiredOptions, createSteppers, setWorldStepperOptions } from './util';
 import { getDomains, verifyDomainsOrError } from './domain';
 
-type TRunOptions = { specl: TSpecl; world: TWorld; base: string; addSteppers?: CStepper[]; featureFilter?: string[]; extraOptions?: TExtraOptions; endRunCallback?: TEndRunCallback }
+type TRunOptions = { specl: TSpecl; world: TWorld; base: string; addSteppers?: CStepper[]; featureFilter?: string[]; extraOptions?: TExtraOptions; endFeatureCallback?: TendFeatureCallback }
 
-export async function run({ specl, base, world, addSteppers = [], featureFilter, endRunCallback }: TRunOptions): Promise<TResult> {
+export async function run({ specl, base, world, addSteppers = [], featureFilter, endFeatureCallback }: TRunOptions): Promise<TResult> {
   let features;
   let backgrounds: TFeature[] = [];
   try {
@@ -22,7 +22,7 @@ export async function run({ specl, base, world, addSteppers = [], featureFilter,
     return { ok: false, tag: getRunTag(-1, -1, -1, -1, {}, false), failure: { stage: 'Collect', error: { message: error.message, details: { stack: error.stack } } }, shared: world.shared };
   }
 
-  return runWith({ specl, world, features, backgrounds, addSteppers, endRunCallback });
+  return runWith({ specl, world, features, backgrounds, addSteppers, endFeatureCallback });
 }
 
 type TRunWithOptions = {
@@ -31,12 +31,12 @@ type TRunWithOptions = {
   features: TFeature[];
   backgrounds: TFeature[];
   addSteppers: CStepper[];
-  endRunCallback?: TEndRunCallback
+  endFeatureCallback?: TendFeatureCallback
 }
 
 export const DEF_PROTO_OPTIONS = { options: {}, extraOptions: {} };
 
-export async function runWith({ specl, world, features, backgrounds, addSteppers, endRunCallback }: TRunWithOptions): Promise<TResult> {
+export async function runWith({ specl, world, features, backgrounds, addSteppers, endFeatureCallback }: TRunWithOptions): Promise<TResult> {
   const { tag } = world;
 
   let result = undefined;
@@ -68,7 +68,7 @@ export async function runWith({ specl, world, features, backgrounds, addSteppers
 
     world.logger.log(`features: ${expandedFeatures.length} backgrounds: ${backgrounds.length} steps: (${expandedFeatures.map((e) => e.path)}), ${mappedValidatedSteps.length}`);
 
-    result = await Executor.execute(csteppers, world, mappedValidatedSteps, endRunCallback).catch(error => errorBail('Execute', error));
+    result = await Executor.execute(csteppers, world, mappedValidatedSteps, endFeatureCallback).catch(error => errorBail('Execute', error));
 
     // if (!result || !result.ok) {
     //   const message = (result.results![0].stepResults.find(s => !s.ok)?.actionResults[0] as TNotOKActionResult).message;

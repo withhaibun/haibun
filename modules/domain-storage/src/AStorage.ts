@@ -1,4 +1,4 @@
-import { BASE_PREFIX, AStepper, OK, TLocationOptions, TNamed, TOptions, TResult, TTag, TWorld } from "@haibun/core/build/lib/defs";
+import { BASE_PREFIX, CAPTURE, AStepper, OK, TLocationOptions, TNamed, TOptions, TResult, TTag, TWorld } from "@haibun/core/build/lib/defs";
 
 export abstract class AStorage extends AStepper {
     abstract readFile(path: string, coding?: string): any;
@@ -16,11 +16,19 @@ export abstract class AStorage extends AStepper {
     abstract mkdir(dir: string);
     abstract mkdirp(dir: string);
     abstract exists(ntt: string);
+    async rmrf(dir: string) {
+        throw Error('not implemented');
+    }
 
     async getCaptureDir({ options, tag }: { options: TOptions, tag: TTag }, app?: string) {
-        const p = [options.base, options.CAPTURE_DIR || 'capture', `loop-${tag.loop}`, `seq-${tag.sequence}`, `featn-${tag.featureNum}`, `mem-${tag.member}`];
+        const p = [options.base, options.CAPTURE_DIR || CAPTURE, `loop-${tag.loop}`, `seq-${tag.sequence}`, `featn-${tag.featureNum}`, `mem-${tag.member}`];
         app && p.push(app);
-        return '.' + p.join('/');
+        return this.pathed('.' + p.join('/'));
+    }
+
+    // overload this where / conventions aren't used
+    pathed(f: string) {
+        return f;
     }
 
     async writeTraceFile(world: TWorld, result: TResult) {

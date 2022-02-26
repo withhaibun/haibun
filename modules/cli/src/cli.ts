@@ -31,14 +31,13 @@ async function go() {
 
   const loops = protoOptions.options.LOOPS || 1;
   const members = protoOptions.options.MEMBERS || 1;
-  const trace = protoOptions.options.PUBLISH || protoOptions.options.REVIEWS || protoOptions.options.TRACE;
-  const reviews = protoOptions.options.PUBLISH || protoOptions.options.REVIEWS;
+  const trace = protoOptions.options.REVIEWS || protoOptions.options.TRACE;
+  const reviews = protoOptions.options.REVIEWS;
 
   const startRunCallback = (world: TWorld) => {
     if (protoOptions.options.CLI) repl.start().context.runtime = world.runtime;
   }
-  const endRunCallback = async (world: TWorld, result: TFeatureResult, steppers: AStepper[]) => {
-    
+  const endFeatureCallback = async (world: TWorld, result: TFeatureResult, steppers: AStepper[]) => {
     if (trace) {
       const tracer = findStepper<ITraceResult & IReviewResult & IPublishResults>(steppers, 'OutReviews');
       await tracer.writeTraceFile(world, result);
@@ -48,7 +47,7 @@ async function go() {
     }
   }
 
-  const runOptions = { featureFilter, loops, members, splits, trace, specl, base, protoOptions, startRunCallback, endRunCallback };
+  const runOptions = { featureFilter, loops, members, splits, trace, specl, base, protoOptions, startRunCallback, endFeatureCallback };
   const { ok, exceptionResults, ranResults, allFailures, logger, passed, failed, totalRan, runTime } = await runWithOptions(runOptions);
 
   if (ok && exceptionResults.length < 1) {
