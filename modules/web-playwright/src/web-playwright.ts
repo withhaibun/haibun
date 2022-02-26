@@ -41,13 +41,13 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
 
   async setWorld(world: TWorld, steppers: AStepper[]) {
     super.setWorld(world, steppers);
-    this.storage = findStepperFromOption(steppers, this, this.getWorld().options, STORAGE);
+    this.storage = findStepperFromOption(steppers, this, this.getWorld().extraOptions, STORAGE);
   }
 
   async getBrowserFactory(): Promise<BrowserFactory> {
     if (!this.hasFactory) {
-      const headless = getStepperOption(this, 'HEADLESS', this.getWorld().options);
-      const defaultTimeout = getStepperOption(this, 'TIMEOUT', this.getWorld().options);
+      const headless = getStepperOption(this, 'HEADLESS', this.getWorld().extraOptions)  === 'true';
+      const defaultTimeout = parseInt(getStepperOption(this, 'TIMEOUT', this.getWorld().extraOptions)) || 30000;
       this.bf = BrowserFactory.get(this.getWorld().logger, { defaultTimeout, browser: { headless } });
       this.hasFactory = true;
     }
@@ -61,19 +61,21 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
 
   async getPage() {
     const { trace: doTrace } = this.getWorld().tag;
-    const captureVideo = getStepperOption(this, 'CAPTURE_VIDEO', this.getWorld().options);
+    const captureVideo = getStepperOption(this, 'CAPTURE_VIDEO', this.getWorld().extraOptions);
     const browser: TBrowserFactoryContextOptions = {};
-    if (captureVideo)
+    if (captureVideo) {
       browser.recordVideo = {
-        dir: await this.storage!.getCaptureDir(this.getWorld(), 'video'),
+        dir: await this.storage!.ensureCaptureDir(this.getWorld(), 'video'),
       }
+    }
+      
     const trace: TTraceOptions | undefined = doTrace ? {
       response: {
         listener: async (res: Response) => {
           const url = res.url();
           const headers = await res.headersArray();
           const headersContent = (await Promise.allSettled(headers)).map(h => (h as any).value);
-          this.getWorld().logger.log(`response trace ${headersContent.map(h => h.name)}`, { topic: ({ trace: { response: { headersContent } } } as TTraceTopic) });
+          this.getWorld().logger.debug(`response trace ${headersContent.map(h => h.name)}`, { topic: ({ trace: { response: { headersContent } } } as TTraceTopic) });
           const trace: TTrace = { 'response': { since: this.getWorld().timer.since(), trace: { headersContent } } }
           this.getWorld().shared.concat('_trace', trace);
         }
@@ -110,7 +112,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
   }
 
   async nextStep() {
-    const captureScreenshot = getStepperOption(this, 'STEP_CAPTURE_SCREENSHOT', this.getWorld().options);
+    const captureScreenshot = getStepperOption(this, 'STEP_CAPTURE_SCREENSHOT', this.getWorld().extraOptions);
     if (captureScreenshot) {
       console.debug('captureScreenshot');
     }
@@ -373,12 +375,11 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     takeScreenshot: {
       gwta: 'take a screenshot',
       action: async () => {
-        const folder = [process.cwd(), 'files'].join('/');
-        await this.storage!.ensureCaptureDir(this.getWorld(), folder, 'screenshots');
+        const dir = await this.storage!.ensureCaptureDir(this.getWorld(), 'screenshots');
         await this.withPage(
           async (page: Page) =>
             await page.screenshot({
-              path: `${folder}/screenshots/screenshot-${Date.now()}.png`,
+              path: `${dir}/screenshot-${Date.now()}.png`,
             })
         );
         return OK;

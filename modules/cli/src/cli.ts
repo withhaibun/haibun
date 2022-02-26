@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 
+require('source-map-support').install()
+
 import repl from 'repl';
-import { AStepper, TResult, ITraceResult, IReviewResult, TSpecl, TWorld, IPublishResults } from '@haibun/core/build/lib/defs';
+import { AStepper, ITraceResult, IReviewResult, TSpecl, TWorld, IPublishResults, TFeatureResult } from '@haibun/core/build/lib/defs';
 
 import { findStepper, getConfigFromBase, getDefaultOptions } from '@haibun/core/build/lib/util';
 import runWithOptions from '@haibun/core/build/lib/run-with-options';
@@ -36,7 +38,7 @@ async function go() {
   const startRunCallback = (world: TWorld) => {
     if (protoOptions.options.CLI) repl.start().context.runtime = world.runtime;
   }
-  const endRunCallback = async (world: TWorld, result: TResult, steppers: AStepper[]) => {
+  const endRunCallback = async (world: TWorld, result: TFeatureResult, steppers: AStepper[]) => {
     if (trace) {
       const tracer = findStepper<ITraceResult & IReviewResult & IPublishResults>(steppers, 'OutReviews');
       await tracer.writeTraceFile(world, result);

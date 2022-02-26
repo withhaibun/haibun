@@ -1,11 +1,12 @@
 import { FeatureExecutor } from '../phases/Executor';
 import { getDefaultWorld, getTestEnv } from '../lib/test/lib';
+import { createSteppers } from '../lib/util';
 
 describe('haibun', () => {
   it('finds prose', async () => {
-    const { world, vstep } = await getTestEnv(['haibun'], 'A sentence.', getDefaultWorld(0).world);
-    const res = await FeatureExecutor.doFeatureStep(vstep, world);
-    
+    const { world, vstep, steppers } = await getTestEnv(['haibun'], 'A sentence.', getDefaultWorld(0).world);
+    const res = await FeatureExecutor.doFeatureStep(steppers, vstep, world);
+
     expect(res.ok).toBe(true);
     expect(res.actionResults[0].name).toBe('prose');
   });

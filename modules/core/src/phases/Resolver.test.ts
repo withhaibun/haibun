@@ -1,5 +1,6 @@
-import { AStepper, OK, TResolvedFeature } from '../lib/defs';
+import { AStepper, OK, TExpandedFeature, TResolvedFeature } from '../lib/defs';
 import { asExpandedFeatures, getDefaultWorld } from '../lib/test/lib';
+import { createSteppers } from '../lib/util';
 import { Resolver } from './Resolver';
 
 describe('validate map steps', () => {
@@ -24,16 +25,18 @@ describe('validate map steps', () => {
     };
   }
 
-  const steppers: AStepper[] = [new TestStepper()];
-  const getResolver = () =>
-    new Resolver(steppers, '', {
+  const getResolvedSteps = async (features: TExpandedFeature[]) => {
+    const steppers = await createSteppers([TestStepper]);
+    const resolver = new Resolver(steppers, '', {
       ...getDefaultWorld(0).world,
     });
+    return await resolver.resolveSteps(features);
+  }
   describe('exact', () => {
     test('exact', async () => {
       const features = asExpandedFeatures([{ path: 'l1', content: `exact1` }]);
 
-      const res = await getResolver().resolveSteps(features);
+      const res = await getResolvedSteps(features);
       const { vsteps } = res[0] as TResolvedFeature;
       expect(vsteps[0].actions[0].named).toBeUndefined();
     });
@@ -41,7 +44,7 @@ describe('validate map steps', () => {
   describe('match', () => {
     test('match', async () => {
       const features = asExpandedFeatures([{ path: 'l1', content: `match1` }]);
-      const res = await getResolver().resolveSteps(features);
+      const res = await getResolvedSteps(features);
       const { vsteps } = res[0] as TResolvedFeature;
       expect(vsteps[0].actions[0].named).toEqual({ num: '1' });
     });
@@ -49,7 +52,7 @@ describe('validate map steps', () => {
   describe('gwta regex', () => {
     test('gwta', async () => {
       const features = asExpandedFeatures([{ path: 'l1', content: `gwta2\nGiven I'm gwta3\nWhen I am gwta4\nGwta5\nThen the gwta6` }]);
-      const res = await getResolver().resolveSteps(features);
+      const res = await getResolvedSteps(features);
       const { vsteps } = res[0] as TResolvedFeature;
       expect(vsteps[0].actions[0].named).toEqual({ num: '2' });
       expect(vsteps[1].actions[0].named).toEqual({ num: '3' });
@@ -61,13 +64,13 @@ describe('validate map steps', () => {
   describe('gwta interpolated', () => {
     test('gets quoted', async () => {
       const features = asExpandedFeatures([{ path: 'l1', content: 'is "string"' }]);
-      const res = await getResolver().resolveSteps(features);
+      const res = await getResolvedSteps(features);
       const { vsteps } = res[0] as TResolvedFeature;
       expect(vsteps[0].actions[0].named?.q_0).toEqual('string');
     });
     test('gets uri', async () => {
       const features = asExpandedFeatures([{ path: 'l1', content: 'is http://url' }]);
-      const res = await getResolver().resolveSteps(features);
+      const res = await getResolvedSteps(features);
       const { vsteps } = res[0] as TResolvedFeature;
       expect(vsteps[0].actions[0].named?.t_0).toEqual('http://url');
     });
