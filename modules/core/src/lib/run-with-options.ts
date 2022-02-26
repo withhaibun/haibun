@@ -86,15 +86,15 @@ async function doRun(base: string, specl: TSpecl, runtime: {}, featureFilter: st
     const runStart = process.hrtime();
     const logger = new Logger({ output: containerLogger, tag });
 
-    const world: TWorld = { options: protoOptions.options, shared, logger, runtime, domains: [], tag, timer, base };
+    const world: TWorld = { options: protoOptions.options, extraOptions: protoOptions.extraOptions, shared, logger, runtime, domains: [], tag, timer, base };
     if (startRunCallback) {
         startRunCallback(world);
     }
 
     logger.log(`running with these options: ${JSON.stringify(world.options)})}`);
 
-    const { result, steppers } = await run({ specl, base, world, featureFilter, extraOptions: protoOptions.extraOptions, endRunCallback });
+    const result = await run({ specl, base, world, featureFilter, extraOptions: protoOptions.extraOptions, endRunCallback });
     const output = await resultOutput(world.options.OUTPUT, result);
 
-    return { world, result, shared, output, tag, runStart: runStart[0], runDuration: process.hrtime(runStart)[0], fromStart: timer.since(), steppers };
+    return { world, result, shared, output, tag, runStart: runStart[0], runDuration: process.hrtime(runStart)[0], fromStart: timer.since() };
 }

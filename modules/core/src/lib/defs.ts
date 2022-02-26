@@ -67,6 +67,7 @@ export type TWorld = {
   runtime: TRuntime;
   logger: ILogger;
   options: TOptions;
+  extraOptions: TExtraOptions;
   domains: TModuleDomain[];
   timer: Timer;
   base: string;
@@ -142,6 +143,17 @@ export type TStep = {
   build?: TBuild;
 };
 
+export interface CStepper {
+  new(): AStepper;
+  prototype: {
+    steps: {
+      [name: string]: TStep;
+    }
+    setWorld(world: TWorld, steppers: AStepper[]): void;
+    getWorld(): TWorld;
+  }
+}
+
 export abstract class AStepper {
   world?: TWorld;
   close?(): void;
@@ -155,11 +167,12 @@ export abstract class AStepper {
     if (!this.world) {
       throw Error(`stepper without world ${this.constructor.name}`);
     }
+
     return this.world;
   }
 }
 
-export type TFound = { name: string; step: TStep; named?: TNamed | undefined; vars?: TNamedVar[] };
+export type TFound = { actionName: string; stepperName: string, step: TStep; named?: TNamed | undefined; vars?: TNamedVar[] };
 export type TNamed = { [name: string]: string };
 export type TNamedVar = { name: string; type: string };
 
@@ -173,6 +186,7 @@ export type TResultError = {
 export type TResult = {
   ok: boolean;
   tag: TTag,
+  shared: WorldContext;
   results?: TFeatureResult[];
   failure?: {
     stage: string;
@@ -257,15 +271,16 @@ export interface IResultOutput {
 
 export type TLocationOptions = {
   tag: TTag,
-  options: TOptions
+  options: TOptions,
+  extraOptions: TExtraOptions
 }
 
 export interface ITraceResult {
-  writeTraceFile(loc: TLocationOptions, result: TResult): any;
+  writeTraceFile(loc: TLocationOptions, result: TFeatureResult): any;
 }
 
 export interface IReviewResult {
-  writeReview(loc: TLocationOptions, result: TResult): any;
+  writeReview(loc: TLocationOptions, result: TFeatureResult): any;
 }
 
 export interface IPublishResults {
@@ -282,7 +297,7 @@ export const BASE_TYPES = BASE_DOMAINS.map((b) => b.name);
 export type TScored = { name: string; score: number };
 
 export type TStartRunCallback = (world: TWorld) => void;
-export type TEndRunCallback = (world: TWorld, result: TResult, steppers: AStepper[]) => void;
+export type TEndRunCallback = (world: TWorld, result: TFeatureResult, steppers: AStepper[]) => void;
 
 export type TRunEnv = { [name: string]: string };
 // FIXME remove protoOptions, splits, etc.

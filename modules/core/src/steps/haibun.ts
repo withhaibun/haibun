@@ -33,6 +33,14 @@ const Haibun = class Haibun extends AStepper {
         return OK;
       }
     },
+    showTag: {
+      gwta: 'show stepper tag {which}',
+      action: async ({ which }: TNamed) => {
+        const what = which ? (this.getWorld().tag as any)[which] : this.getWorld().tag;
+        this.world?.logger.log(`tag ${which}: ${JSON.stringify(what)}`)
+        return OK;
+      },
+    },
     pauseSeconds: {
       gwta: 'pause for {ms}s',
       action: async ({ ms }: TNamed) => {

@@ -1,7 +1,7 @@
 import { EOL } from "os";
 import { create } from "xmlbuilder2";
 
-import { AStepper, IHasOptions, IPublishResults, IRequireDomains, IReviewResult, ITraceResult, OK, TLocationOptions, TNamed, TResult, TTrace, TWorld } from "@haibun/core/build/lib/defs";
+import { AStepper, IHasOptions, IPublishResults, IRequireDomains, IReviewResult, ITraceResult, OK, TFeatureResult, TLocationOptions, TNamed, TResult, TTrace, TWorld } from "@haibun/core/build/lib/defs";
 import { STORAGE_ITEM, STORAGE_LOCATION } from '@haibun/domain-storage';
 import { findStepperFromOption, getRunTag, getStepperOption, stringOrError } from '@haibun/core/build/lib/util';
 import { AStorage } from '@haibun/domain-storage/build/AStorage';
@@ -43,10 +43,10 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
   };
   setWorld(world: TWorld, steppers: AStepper[]) {
     super.setWorld(world, steppers);
-    this.traceStorage = findStepperFromOption(steppers, this, this.getWorld().options, TRACE_STORAGE);
-    this.reviewsStorage = findStepperFromOption(steppers, this, this.getWorld().options, REVIEWS_STORAGE);
-    this.publishStorage = findStepperFromOption(steppers, this, this.getWorld().options, PUBLISH_STORAGE, REVIEWS_STORAGE);
-    this.indexStorage = findStepperFromOption(steppers, this, this.getWorld().options, INDEX_STORAGE, PUBLISH_STORAGE, REVIEWS_STORAGE);
+    this.traceStorage = findStepperFromOption(steppers, this, world.extraOptions, TRACE_STORAGE);
+    this.reviewsStorage = findStepperFromOption(steppers, this, world.extraOptions, REVIEWS_STORAGE);
+    this.publishStorage = findStepperFromOption(steppers, this, world.extraOptions, PUBLISH_STORAGE, REVIEWS_STORAGE);
+    this.indexStorage = findStepperFromOption(steppers, this, world.extraOptions, INDEX_STORAGE, PUBLISH_STORAGE, REVIEWS_STORAGE);
   }
 
   steps = {
@@ -80,7 +80,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
                 const memDir = `${featDir}/${member}`;
                 const output = await reviewsIn.readFile(`${memDir}/trace/trace.json`, 'utf-8');
                 const tag = getRunTag(n(seqDir), n(loopDir), n(featDir), n(memDir))
-                this.writeReview({ tag, options: this.getWorld().options }, output);
+                this.writeReview({ tag, options: this.getWorld().options, extraOptions: this.getWorld().extraOptions }, output);
               }
             }
           }
@@ -89,14 +89,14 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
       }
     }
   }
-  async writeTraceFile(loc: TLocationOptions, result: TResult) {
+  async writeTraceFile(loc: TLocationOptions, result: TFeatureResult) {
     const dir = await this.reviewsStorage!.ensureCaptureDir(loc, 'trace', `trace.json`);
 
     await this.reviewsStorage!.writeFile(dir, JSON.stringify(result, null, 2));
   }
-  async writeReview(loc: TLocationOptions, result: TResult) {
-    const uriArgs = getStepperOption(this, URI_ARGS, loc.options);
-    const { html, sequence, video } = await this.getOutput(this.traceStorage!, result, { uriArgs });
+  async writeReview(loc: TLocationOptions, result: TFeatureResult) {
+    const uriArgs = getStepperOption(this, URI_ARGS, loc.extraOptions);
+    const { html, } = await this.getOutput(this.traceStorage!, result, { uriArgs });
     const file = await this.reviewsStorage!.ensureCaptureDir(loc, undefined, '/review.html');
 
     await this.reviewsStorage!.writeFile(file, Buffer.from(html, 'utf8'));
@@ -150,8 +150,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     return ret;
   }
 
-  async getOutput(storage: AStorage, result: TResult, { title = 'Haibun-Review', prettyPrint = true, uriArgs = '' }) {
-    const { sequence } = result.tag;
+  async getOutput(storage: AStorage, result: TFeatureResult, { title = 'Haibun-Review', prettyPrint = true, uriArgs = '' }) {
     const videoBase = await this.traceStorage!.getCaptureDir(this.getWorld(), 'video');
     const video = await storage.readdir(videoBase)[0];
     const forHTML: any = {
@@ -196,53 +195,53 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
         div: []
       }
     }
-    for (const f of result.results!) {
-      for (const s of f.stepResults) {
-        for (const a of s.actionResults) {
-          const start = (a as any).start;
-          const o = {
-            '@style': 'padding-top: 1em',
-            a: {
-              '@data-time': start,
-              '@onclick': `setTime(${start})`,
+    // for (const f of result.results!) {
+    for (const s of result.stepResults) {
+      for (const a of s.actionResults) {
+        const start = (a as any).start;
+        const o = {
+          '@style': 'padding-top: 1em',
+          a: {
+            '@data-time': start,
+            '@onclick': `setTime(${start})`,
+            b: {
               b: {
-                b: {
-                  '#': `<<  `,
-                  span: [{
-                    '@style': 'background: black; color: white; padding: 5, width: 3em; text-align: right',
-                    '#': `${s.seq}`,
-                  },
-                  {
-                    '#': `${a.ok} ${a.name} ${s.in}  `
-                  }]
+                '#': `<<  `,
+                span: [{
+                  '@style': 'background: black; color: white; padding: 5, width: 3em; text-align: right',
+                  '#': `${s.seq}`,
+                },
+                {
+                  '#': `${a.ok} ${a.name} ${s.in}  `
+                }]
 
-                }
               }
+            }
+          },
+          details: [(a.topics && {
+            '#': JSON.stringify(a.topics),
+            summary: {
+              '#': 'topics'
             },
-            details: [(a.topics && {
-              '#': JSON.stringify(a.topics),
-              summary: {
-                '#': 'topics'
-              },
-            }),
-            ((a as any).traces && {
-              '#': this.traces(a),
-              summary: {
-                '#': 'trace'
-              },
-            }),
-            ]
-          }
-          feature.div.div.push(o);
+          }),
+          ((a as any).traces && {
+            '#': this.traces(a),
+            summary: {
+              '#': 'trace'
+            },
+          }),
+          ]
         }
+        feature.div.div.push(o);
       }
+      // }
     }
 
     forHTML.html.section.div.push(feature);
     const created = create(forHTML).end({ prettyPrint, newline: EOL });
     const html = this.finish(created);
     this.content = html;
-    return { html, sequence, video };
+    return { html };
   }
   finish(html: string) {
     html = html.replace('{{SCRIPT}}', ReviewScript);

@@ -1,5 +1,6 @@
 import { BASE_PREFIX, IHasOptions, TOptions, TProtoOptions, TRunResult, TSpecl, } from "@haibun/core/build/lib/defs";
-import { getSteppers, getPre } from "@haibun/core/build/lib/util";
+import { getCreateSteppers } from "@haibun/core/build/lib/test/lib";
+import { getPre } from "@haibun/core/build/lib/util";
 import { BaseOptions } from "./BaseOptions";
 
 type TEnv = { [name: string]: string | undefined };
@@ -11,7 +12,7 @@ export async function usageThenExit(specl: TSpecl, message?: string) {
 };
 
 export async function usage(specl: TSpecl, message?: string) {
-  let steppers = await getSteppers({ steppers: specl.steppers });
+  let steppers = await getCreateSteppers(specl.steppers);
   let a: { [name: string]: { desc: string } } = {};
   steppers.forEach(s => {
     const o = (s as IHasOptions);

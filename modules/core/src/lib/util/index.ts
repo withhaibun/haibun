@@ -6,12 +6,10 @@ import {
   TFeature,
   TNotOKActionResult,
   TOKActionResult,
-  TOptionValue,
   IResultOutput,
   TResult,
   TSpecl,
   TWorld,
-  TOptions,
   TRuntime,
   TActionResultTopics,
   TActionResult,
@@ -20,6 +18,7 @@ import {
   AStepper,
   TExtraOptions,
   StringOrNumber,
+  CStepper,
 } from '../defs';
 import { withNameType } from '../features';
 
@@ -66,8 +65,7 @@ export async function getStepper(s: string) {
   try {
     const loc = getModuleLocation(s);
 
-    const S: AStepper = await use(loc);
-
+    const S: CStepper = await use(loc);
     return S;
   } catch (e) {
     console.error(`could not use ${s}`);
@@ -75,23 +73,33 @@ export async function getStepper(s: string) {
   }
 }
 
-export async function getSteppers({ steppers = [], addSteppers = [] }: { steppers: string[]; addSteppers?: typeof AStepper[] }) {
+export async function createSteppers(steppers: CStepper[]): Promise<AStepper[]> {
   const allSteppers: AStepper[] = [];
-  for (const s of steppers) {
-    const S = await getStepper(s);
+  for (const S of steppers) {
     try {
       const stepper = new (S as any)();
       allSteppers.push(stepper);
     } catch (e) {
-      console.error(`new ${S} from "${getModuleLocation(s)}" failed`, e, S);
+      console.error(`create ${S} failed`, e, S);
       throw e;
     }
   }
-  for (const S of addSteppers) {
-    const stepper = new (S as any)();
-    allSteppers.push(stepper);
-  }
   return allSteppers;
+}
+
+export async function getSteppers(stepperNames: string[]) {
+  const steppers: CStepper[] = [];
+  for (const s of stepperNames) {
+    
+    try {
+      const S = await getStepper(s);
+      steppers.push(S);
+    } catch (e) {
+      console.error(`get ${s} from "${getModuleLocation(s)}" failed`, e);
+      throw e;
+    }
+  }
+  return steppers;
 }
 
 function getModuleLocation(name: string) {
@@ -172,19 +180,15 @@ export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve
 
 
 // has side effects
-export async function applyExtraOptions(extraOptions: TExtraOptions, steppers: AStepper[], world: TWorld) {
-  if (!extraOptions) {
-    return;
-  }
-
-  Object.entries(extraOptions).map(([k, v]) => {
-    const conc = getStepperOptions(k, v!, steppers);
+export async function verifyExtraOptions(inExtraOptions: TExtraOptions, csteppers: CStepper[]) {
+  const extraOptions = { ...inExtraOptions };
+  Object.entries(extraOptions)?.map(([k, v]) => {
+    const conc = getStepperOptionValue(k, v!, csteppers);
 
     if (conc === undefined) {
       throw Error(`no option ${k}`);
     }
     delete extraOptions[k];
-    world.options[k] = conc.result;
   });
 
   if (Object.keys(extraOptions).length > 0) {
@@ -192,7 +196,7 @@ export async function applyExtraOptions(extraOptions: TExtraOptions, steppers: A
   }
 }
 
-export async function setWorldOptions(steppers: AStepper[], world: TWorld) {
+export async function setWorldStepperOptions(steppers: AStepper[], world: TWorld) {
   for (const stepper of steppers) {
     stepper.setWorld(world, steppers);
   }
@@ -200,23 +204,24 @@ export async function setWorldOptions(steppers: AStepper[], world: TWorld) {
 export function getPre(stepper: AStepper) {
   return ['HAIBUN', 'O', stepper.constructor.name.toUpperCase()].join('_') + '_';
 }
-export function getStepperOptions(key: string, value: string, steppers: (AStepper & IHasOptions)[]): TOptionValue | void {
-  for (const stepper of steppers) {
-    const pre = getPre(stepper);
-    const int = key.replace(pre, '');
-
-    if (key.startsWith(pre) && stepper.options![int]) {
-      return stepper.options![int].parse(value);
+export function getStepperOptionValue(key: string, value: string, csteppers: CStepper[]) {
+  for (const cstepper of csteppers) {
+    const pre = getPre(cstepper.prototype);
+    const name = key.replace(pre, '');
+    const ao = new cstepper() as IHasOptions;
+    if (key.startsWith(pre) && ao.options![name]) {
+      return ao.options![name].parse(value);
     }
   }
 }
 
-export async function verifyRequiredOptions(steppers: (AStepper & IHasOptions)[], options: TExtraOptions) {
+export async function verifyRequiredOptions(steppers: CStepper[], options: TExtraOptions) {
   let requiredMissing = [];
   for (const stepper of steppers) {
-    for (const option in stepper.options) {
+    const ao = (stepper.prototype) as IHasOptions;
+    for (const option in ao.options) {
       const n = getStepperOptionName(stepper, option);
-      if (stepper.options[option].required && !options[n]) {
+      if (ao.options[option].required && !options[n]) {
         requiredMissing.push(n);
       }
     }
@@ -226,17 +231,20 @@ export async function verifyRequiredOptions(steppers: (AStepper & IHasOptions)[]
   }
 }
 
-export function getStepperOptionName(stepper: AStepper, name: string) {
-  return getPre(stepper) + name;
+export function getStepperOptionName(stepper: AStepper | CStepper, name: string) {
+  if ((stepper as CStepper).prototype) {
+    return getPre((stepper as CStepper).prototype) + name;
+  }
+  return getPre(stepper as AStepper) + name;
 }
 
-export function getStepperOption(stepper: AStepper, name: string, options: TOptions): TOptionValue {
+export function getStepperOption(stepper: AStepper, name: string, extraOptions: TExtraOptions) {
   const key = getStepperOptionName(stepper, name);
-  return options[key];
+  return extraOptions[key];
 }
 
-export function findStepperFromOption<Type>(steppers: AStepper[], stepper: AStepper, options: TOptions, ...name: string[]): Type {
-  const val = name.reduce((v, n) => v || getStepperOption(stepper, n, options), undefined);
+export function findStepperFromOption<Type>(steppers: AStepper[], stepper: AStepper, extraOptions: TExtraOptions, ...name: string[]): Type {
+  const val = name.reduce<string | undefined>((v, n) => v || getStepperOption(stepper, n, extraOptions), undefined);
 
   if (!val) {
     throw Error(`Cannot find ${name} from ${stepper.constructor.name} options`);

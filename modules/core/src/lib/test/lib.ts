@@ -1,19 +1,26 @@
-import { TWorld, TVStep, TExpandedLine, AStepper, TProtoOptions } from '../defs';
+import { TWorld, TVStep, TExpandedLine, TProtoOptions, CStepper, TExpandedFeature } from '../defs';
 import { Resolver } from '../../phases/Resolver';
 import { DEF_PROTO_OPTIONS, runWith } from './../run';
-import { getSteppers, getRunTag, applyExtraOptions, getDefaultOptions } from './../util';
+import { getSteppers, getRunTag, verifyExtraOptions, getDefaultOptions, createSteppers } from './../util';
 import { WorldContext } from '../contexts';
 import { featureSplit, withNameType } from './../features';
-import { applyDomainsOrError } from './../domain';
+import { getDomains, verifyDomainsOrError } from './../domain';
 import Logger, { LOGGER_NONE } from './../Logger';
 import { Timer } from '../Timer';
 
 export const HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS = 'HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS';
 
+export async function getCreateSteppers(steppers: string[], addSteppers?: CStepper[]) {
+  const csteppers = await getSteppers(steppers);
+  return await createSteppers(csteppers.concat(addSteppers || []));
+}
+
 export async function getTestEnv(useSteppers: string[], test: string, world: TWorld) {
-  const steppers = await getSteppers({ steppers: useSteppers });
-  applyExtraOptions({}, steppers, world);
-  applyDomainsOrError(steppers, world);
+  const csteppers = await getSteppers(useSteppers);
+  const steppers = await createSteppers(csteppers);
+  verifyExtraOptions({}, csteppers);
+  world.domains = await getDomains(steppers, world);
+  verifyDomainsOrError(steppers, world);
 
   const resolver = new Resolver(steppers, 'all', world);
   const actions = resolver.findSteps(test);
@@ -24,28 +31,29 @@ export async function getTestEnv(useSteppers: string[], test: string, world: TWo
     seq: 0,
     actions,
   };
-  return { world, vstep, steppers };
+  return { world, vstep, csteppers, steppers };
 }
 type TTestFeatures = { path: string, content: string }[];
-export async function testWithDefaults(inFeatures: TTestFeatures, addSteppers: typeof AStepper[], protoOptions: TProtoOptions = DEF_PROTO_OPTIONS, inBackgrounds: TTestFeatures = []) {
+export async function testWithDefaults(inFeatures: TTestFeatures, addSteppers: CStepper[], protoOptions: TProtoOptions = DEF_PROTO_OPTIONS, inBackgrounds: TTestFeatures = []) {
   const specl = getDefaultOptions();
   const { options, extraOptions } = protoOptions;
 
   const { world } = getDefaultWorld(0);
   if (protoOptions) {
     world.options = options;
+    world.extraOptions = protoOptions.extraOptions;
   }
 
   const features = asFeatures(inFeatures);
   const backgrounds = asFeatures(inBackgrounds);
 
-  return { world, ...await runWith({ specl, features, backgrounds, addSteppers, world, extraOptions }) };
+  return { world, ...await runWith({ specl, features, backgrounds, addSteppers, world }) };
 }
 
 export const asFeatures = (w: { path: string; content: string }[]) => w.map((i) => withNameType(i.path, i.content));
 
 // FIXME can't really do this without reproducing resolve
-export const asExpandedFeatures = (w: { path: string; content: string }[]) =>
+export const asExpandedFeatures = (w: { path: string; content: string }[]) : TExpandedFeature[] =>
   asFeatures(w).map((i) => {
     const expanded: TExpandedLine[] = featureSplit(i.content).map((a) => ({ line: a, feature: i }));
     let a: any = { ...i, expanded };
@@ -63,6 +71,7 @@ export function getDefaultWorld(sequence: number): { world: TWorld; } {
       logger: new Logger(process.env.HAIBUN_LOG_LEVEL ? { level: process.env.HAIBUN_LOG_LEVEL } : LOGGER_NONE),
       runtime: {},
       options: {},
+      extraOptions: {},
       domains: [],
       base: process.cwd()
     },

@@ -1,5 +1,5 @@
 import * as util from '.';
-import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, getDefaultWorld, testWithDefaults } from '../test/lib';
+import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, getDefaultWorld, testWithDefaults, getCreateSteppers } from '../test/lib';
 import TestSteps from "../test/TestSteps";
 import TestStepsWithOptions from "../test/TestStepsWithOptions";
 import { withNameType } from '../features';
@@ -9,7 +9,7 @@ import { stringOrError } from '.';
 describe('output', () => {
   it('resultOutput default', async () => {
     const features = [{ path: '/features/test.feature', content: `When I have a test\nThen the test can fail` }, { path: '/features/test.feature', content: `When I have a test\nThen the test should pass` }];
-    const { result, world } = await testWithDefaults(features, [TestSteps]);
+    const result = await testWithDefaults(features, [TestSteps]);
 
     expect(result.ok).toBe(false);
     const output = await util.resultOutput(undefined, result);
@@ -46,21 +46,21 @@ describe('findStepperFromOptions', () => {
 
   it('finds from single option', async () => {
     const ts = new TS();
-    const steppers = await util.getSteppers({ steppers: [], addSteppers: [TS], });
+    const steppers = await getCreateSteppers([], [TS]);
     const options = { [util.getStepperOptionName(ts, 'A')]: 'TS' };
     const s = util.findStepperFromOption(steppers, ts, options, 'A');
     expect(s).toBeDefined();
   });
   it('finds from last multiple options', async () => {
     const ts = new TS();
-    const steppers = await util.getSteppers({ steppers: [], addSteppers: [TS], });
+    const steppers = await getCreateSteppers([], [TS]);
     const options = { [util.getStepperOptionName(ts, 'B')]: 'TS' };
     const s = util.findStepperFromOption(steppers, ts, options, 'A', 'B');
     expect(s).toBeDefined();
   });
   it('finds from first multiple options', async () => {
     const ts = new TS();
-    const steppers = await util.getSteppers({ steppers: [], addSteppers: [TS, TestSteps], });
+    const steppers = await getCreateSteppers([], [TS, TestSteps]);
     const options = { [util.getStepperOptionName(ts, 'A')]: 'TestSteps', [util.getStepperOptionName(ts, 'B')]: 'TS' };
     const s = util.findStepperFromOption<typeof TestSteps>(steppers, ts, options, 'A', 'B');
     expect(s).toBeDefined();
@@ -68,28 +68,26 @@ describe('findStepperFromOptions', () => {
   });
   it('throws for not found stepper', async () => {
     const ts = new TS();
-    const steppers = await util.getSteppers({ steppers: [], addSteppers: [TS], });
+    const steppers = await getCreateSteppers([], [TS]);
     const options = {};
     expect(() => util.findStepperFromOption(steppers, ts, options, 'S')).toThrow;;
   });
 });
 
-describe('getStepperOptions', () => {
-  it('finds stepper options', async () => {
-    const steppers = await util.getSteppers({ steppers: [], addSteppers: [TestStepsWithOptions], });
-    const conc = util.getStepperOptions(HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, 'true', steppers);
+describe.only('getStepperOptions', () => {
+  it.only('finds stepper options', async () => {
+    const conc = util.getStepperOptionValue(HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, 'true', [TestStepsWithOptions]);
     expect(conc).toBeDefined();
   });
   it('fills extra', async () => {
     const { world } = getDefaultWorld(0);
-    const steppers = await util.getSteppers({ steppers: [], addSteppers: [TestStepsWithOptions], });
-    util.applyExtraOptions({ [HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]: 'true' }, steppers, world);
+    util.verifyExtraOptions({ [HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]: 'true' }, [TestStepsWithOptions]);
 
     expect(world.options[HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]).toEqual(42);
   });
   it('throws for unfilled extra', async () => {
     const { world } = getDefaultWorld(0);
-    await expect(async () => util.applyExtraOptions({ HAIBUN_NE: 'true' }, [], world)).rejects.toThrow();
+    await expect(async () => util.verifyExtraOptions({ HAIBUN_NE: 'true' }, [])).rejects.toThrow();
   });
 });
 
