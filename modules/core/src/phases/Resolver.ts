@@ -1,4 +1,4 @@
-import { TFound, TResolvedFeature, OK, TWorld, BASE_TYPES, TExpandedFeature, CStepper, AStepper } from '../lib/defs';
+import { TFound, TResolvedFeature, OK, TWorld, BASE_TYPES, TExpandedFeature, AStepper } from '../lib/defs';
 import { namedInterpolation, getMatch } from '../lib/namedVars';
 import { getActionable, describeSteppers, isLowerCase } from '../lib/util';
 

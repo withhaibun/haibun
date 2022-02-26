@@ -1,4 +1,4 @@
-import { TProtoOptions, TSpecl, TWorld, TTag, TRunOptions, TRunResult, StringOrNumber, TEndRunCallback } from './defs';
+import { TStartRunCallback, TProtoOptions, TSpecl, TWorld, TTag, TRunOptions, TRunResult, StringOrNumber, TEndRunCallback } from './defs';
 import { WorldContext } from './contexts';
 import Logger from './Logger';
 
@@ -6,7 +6,6 @@ import { run } from './run';
 import { resultOutput, getRunTag } from './util';
 import { ILogOutput } from './interfaces/logger';
 import { Timer } from './Timer';
-import { TStartRunCallback } from './defs';
 
 export default async function runWithOptions(runOptions: TRunOptions) {
     const { loops, members, trace, startRunCallback, endRunCallback, featureFilter, specl, base, splits, protoOptions } = runOptions;

@@ -19,7 +19,7 @@ export default class StorageFS extends AStorage {
     }
     mkdir = fs.mkdirSync;
     mkdirp = (dir: string) => {
-        fs.mkdirSync(dir, {recursive: true});
+        fs.mkdirSync(dir, { recursive: true });
     }
 }
 
