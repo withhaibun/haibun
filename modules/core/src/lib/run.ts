@@ -1,7 +1,7 @@
 import { existsSync } from 'fs';
 import { TSpecl, TResult, TWorld, TFeature, TExtraOptions, TResolvedFeature, TEndRunCallback, CStepper } from './defs';
 import { expand } from './features';
-import { FeatureExecutor } from '../phases/Executor';
+import { Executor } from '../phases/Executor';
 import { Resolver } from '../phases/Resolver';
 import Builder from '../phases/Builder';
 import { getSteppers, verifyExtraOptions, recurse, debase, getRunTag, verifyRequiredOptions, createSteppers, setWorldStepperOptions } from './util';
@@ -68,7 +68,7 @@ export async function runWith({ specl, world, features, backgrounds, addSteppers
 
     world.logger.log(`features: ${expandedFeatures.length} backgrounds: ${backgrounds.length} steps: (${expandedFeatures.map((e) => e.path)}), ${mappedValidatedSteps.length}`);
 
-    result = await FeatureExecutor.execute(csteppers, world, mappedValidatedSteps, endRunCallback).catch(error => errorBail('Execute', error));
+    result = await Executor.execute(csteppers, world, mappedValidatedSteps, endRunCallback).catch(error => errorBail('Execute', error));
 
     // if (!result || !result.ok) {
     //   const message = (result.results![0].stepResults.find(s => !s.ok)?.actionResults[0] as TNotOKActionResult).message;

@@ -1,8 +1,7 @@
 import haibun from '../steps/haibun';
-import { AStepper, IHasOptions, OK } from './defs';
+import { AStepper, OK } from './defs';
 import { testWithDefaults } from './test/lib';
 import TestSteps from "./test/TestSteps";
-import { stringOrError } from './util';
 
 describe('run self-contained', () => {
   it('no backgrounds', async () => {

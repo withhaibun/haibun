@@ -1,8 +1,7 @@
 import { WorkspaceContext } from '../lib/contexts';
 import { AStepper, OK, TBuildResult, TFinalize, TNotOkStepActionResult, TOKStepActionResult, TResolvedFeature, TWorld } from '../lib/defs';
-import { getNamedToVars } from '../lib/namedVars';
 import { applyResShouldContinue } from '../lib/util';
-import { FeatureExecutor } from './Executor';
+import { Executor, } from './Executor';
 
 export default class Builder {
   world: any;
@@ -24,7 +23,7 @@ export default class Builder {
               this.workspace.createPath(feature.path);
               finalizers[feature.path] = [];
             }
-            const res = await FeatureExecutor.action(this.steppers, vstep, vstep.actions[0], this.world);
+            const res = await Executor.action(this.steppers, vstep, vstep.actions[0], this.world);
 
             const shouldContinue = applyResShouldContinue(this.world, res, action);
             if (!shouldContinue) {

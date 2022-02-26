@@ -23,10 +23,6 @@ export class BaseOptions implements IHasOptions {
             desc: 'Generates traces and reviews',
             parse: (input: string) => boolOrError(input)
         },
-        PUBLISH: {
-            desc: 'Generates and publishes traces and reviews',
-            parse: (input: string) => boolOrError(input)
-        },
         CLI: {
             desc: 'create a command interface for each member',
             parse: (input: string) => boolOrError(input)
