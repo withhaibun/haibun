@@ -1,8 +1,9 @@
-import { TVStep, TResolvedFeature, TResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, AStepper, TEndRunCallback, CStepper, TFound } from '../lib/defs';
+import { TVStep, TResolvedFeature, TResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, AStepper, TendFeatureCallback, CStepper, TFound } from '../lib/defs';
 import { getNamedToVars } from '../lib/namedVars';
 import { actionNotOK, applyResShouldContinue, setWorldStepperOptions, sleep, createSteppers, findStepper } from '../lib/util';
 
 export class Executor {
+  // find the stepper and action, call it and return its result
   static async action(steppers: AStepper[], vstep: TVStep, a: TFound, world: TWorld): Promise<Partial<TActionResult>> {
     try {
       const namedWithVars = getNamedToVars(a, world);
@@ -13,7 +14,7 @@ export class Executor {
       return actionNotOK(`in ${vstep.in}: ${caught.message}`, { topics: { caught: caught.stack.toString() } });
     }
   }
-  static async execute(csteppers: CStepper[], world: TWorld, features: TResolvedFeature[], endRunCallback?: TEndRunCallback): Promise<TResult> {
+  static async execute(csteppers: CStepper[], world: TWorld, features: TResolvedFeature[], endFeatureCallback?: TendFeatureCallback): Promise<TResult> {
     let ok = true;
     const stay = (world.options.stay === 'always');
     let featureResults: TFeatureResult[] = [];
@@ -26,7 +27,7 @@ export class Executor {
       featureNum++;
 
       const newWorld = { ...world, tag: { ...world.tag, ...{ featureNum: 0 + featureNum } } }
-      const featureExecutor = new FeatureExecutor(csteppers, endRunCallback);
+      const featureExecutor = new FeatureExecutor(csteppers, endFeatureCallback);
       await featureExecutor.setup(newWorld);
 
       const featureResult = await featureExecutor.doFeature(feature);
@@ -46,13 +47,13 @@ export class Executor {
 
 export class FeatureExecutor {
   csteppers: CStepper[];
-  endRunCallback?: TEndRunCallback;
+  endFeatureCallback?: TendFeatureCallback;
   world?: TWorld;
   steppers?: AStepper[];
 
-  constructor(csteppers: CStepper[], endRunCallback?: TEndRunCallback) {
+  constructor(csteppers: CStepper[], endFeatureCallback?: TendFeatureCallback) {
     this.csteppers = csteppers;
-    this.endRunCallback = endRunCallback;
+    this.endFeatureCallback = endFeatureCallback;
   }
   async setup(world: TWorld) {
     this.world = world;
@@ -137,9 +138,9 @@ export class FeatureExecutor {
       }
     }
 
-    if (this.endRunCallback) {
+    if (this.endFeatureCallback) {
       try {
-        await this.endRunCallback(this.world!, featureResult, this.steppers!)
+        await this.endFeatureCallback(this.world!, featureResult, this.steppers!)
       } catch (error: any) {
         console.log('e', error);
         throw Error(error);
