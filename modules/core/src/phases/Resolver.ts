@@ -88,7 +88,7 @@ export class Resolver {
 }
 
 const comment = {
-  stepperName: 'Comment',
+  stepperName: 'Haibun',
   actionName: 'comment',
   step: {
     match: /.*/,
