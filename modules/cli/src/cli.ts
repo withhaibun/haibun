@@ -33,20 +33,17 @@ async function go() {
   const members = protoOptions.options.MEMBERS || 1;
   const trace = protoOptions.options.PUBLISH || protoOptions.options.REVIEWS || protoOptions.options.TRACE;
   const reviews = protoOptions.options.PUBLISH || protoOptions.options.REVIEWS;
-  const publish = protoOptions.options.PUBLISH;
 
   const startRunCallback = (world: TWorld) => {
     if (protoOptions.options.CLI) repl.start().context.runtime = world.runtime;
   }
   const endRunCallback = async (world: TWorld, result: TFeatureResult, steppers: AStepper[]) => {
+    
     if (trace) {
       const tracer = findStepper<ITraceResult & IReviewResult & IPublishResults>(steppers, 'OutReviews');
       await tracer.writeTraceFile(world, result);
       if (reviews) {
         await tracer.writeReview(world, result);
-      }
-      if (publish) {
-        await tracer.publishResults(world);
       }
     }
   }

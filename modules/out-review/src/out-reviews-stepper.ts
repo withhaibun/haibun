@@ -50,7 +50,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
   }
 
   steps = {
-    publishReview: {
+    createReview: {
       gwta: `create review`,
       action: async () => {
         const reviewsIn = this.traceStorage!;
@@ -59,8 +59,18 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
         return OK;
       }
     },
+    publishResults: {
+      gwta: `publish results`,
+      action: async () => {
+        const rin = this.traceStorage!;
+        const rout = this.publishStorage!;
+        const dir = await rin.getCaptureDir(this.getWorld());
+        await this.recurseCopy(dir, rin, rout);
+        return OK;
+      }
+    },
     publishReviews: {
-      gwta: `publish index`,
+      gwta: `create index`,
       action: async ({ where }: TNamed) => {
         const dir = `${process.cwd()}/${where}`
         const reviewsIn = this.traceStorage!;
@@ -97,9 +107,10 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
   async writeReview(loc: TLocationOptions, result: TFeatureResult) {
     const uriArgs = getStepperOption(this, URI_ARGS, loc.extraOptions);
     const { html, } = await this.getOutput(this.traceStorage!, result, { uriArgs });
-    const file = await this.reviewsStorage!.ensureCaptureDir(loc, undefined, '/review.html');
+    const file = await this.reviewsStorage!.ensureCaptureDir(loc, undefined, 'review.html');
 
-    await this.reviewsStorage!.writeFile(file, Buffer.from(html, 'utf8'));
+    await this.reviewsStorage!.writeFile(file, html);
+    this.getWorld().logger.log(`wrote review ${file}`);
   }
   async publishResults(world: TWorld) {
     const rin = this.traceStorage!;
@@ -109,6 +120,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
   }
   async recurseCopy(dir: string, rin: AStorage, rout: AStorage) {
     const entries = await rin.readdir(dir);
+    
     for (const entry of entries) {
       const here = `${dir}/${entry}`;
       const stat = rin.stat(here);

@@ -1,16 +1,17 @@
-import { TVStep, TResolvedFeature, TResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, AStepper,   TEndRunCallback,  CStepper, TFound } from '../lib/defs';
+import { TVStep, TResolvedFeature, TResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, AStepper, TEndRunCallback, CStepper, TFound } from '../lib/defs';
 import { getNamedToVars } from '../lib/namedVars';
 import { actionNotOK, applyResShouldContinue, setWorldStepperOptions, sleep, createSteppers, findStepper } from '../lib/util';
 
-export class FeatureExecutor {
-  csteppers: CStepper[];
-  endRunCallback?: TEndRunCallback;
-  world?: TWorld;
-  steppers?: AStepper[];
-
-  constructor(csteppers: CStepper[], endRunCallback?: TEndRunCallback) {
-    this.csteppers = csteppers;
-    this.endRunCallback = endRunCallback;
+export class Executor {
+  static async action(steppers: AStepper[], vstep: TVStep, a: TFound, world: TWorld): Promise<Partial<TActionResult>> {
+    try {
+      const namedWithVars = getNamedToVars(a, world);
+      const stepper = findStepper<AStepper>(steppers, a.stepperName);
+      return await stepper.steps[a.actionName].action(namedWithVars, vstep);
+    } catch (caught: any) {
+      world.logger.error(caught.stack);
+      return actionNotOK(`in ${vstep.in}: ${caught.message}`, { topics: { caught: caught.stack.toString() } });
+    }
   }
   static async execute(csteppers: CStepper[], world: TWorld, features: TResolvedFeature[], endRunCallback?: TEndRunCallback): Promise<TResult> {
     let ok = true;
@@ -40,6 +41,18 @@ export class FeatureExecutor {
       }
     }
     return { ok, results: featureResults, tag: world.tag, shared: world.shared };
+  }
+}
+
+export class FeatureExecutor {
+  csteppers: CStepper[];
+  endRunCallback?: TEndRunCallback;
+  world?: TWorld;
+  steppers?: AStepper[];
+
+  constructor(csteppers: CStepper[], endRunCallback?: TEndRunCallback) {
+    this.csteppers = csteppers;
+    this.endRunCallback = endRunCallback;
   }
   async setup(world: TWorld) {
     this.world = world;
@@ -88,8 +101,8 @@ export class FeatureExecutor {
     // FIXME feature should really be attached ot the vstep
     for (const a of vstep.actions) {
       const start = world.timer.since();
-      const res: Partial<TActionResult> = await FeatureExecutor.action(steppers, vstep, a, world);;
-      
+      const res: Partial<TActionResult> = await Executor.action(steppers, vstep, a, world);;
+
       let traces;
       if (world.shared.get('_trace')) {
         traces = world.shared.get('_trace');
@@ -107,17 +120,6 @@ export class FeatureExecutor {
     }
     return { ok, in: vstep.in, actionResults, seq: vstep.seq };
   }
-  static async action(steppers: AStepper[], vstep: TVStep, a: TFound, world: TWorld): Promise<Partial<TActionResult>> {
-      try {
-        const namedWithVars = getNamedToVars(a, world);
-        const stepper = findStepper<AStepper>(steppers, a.stepperName);
-        return await stepper.steps[a.actionName].action(namedWithVars, vstep);
-      } catch (caught: any) {
-        world.logger.error(caught.stack);
-        return actionNotOK(`in ${vstep.in}: ${caught.message}`, { topics: { caught: caught.stack.toString() } });
-      }
-  }
-
   async onFailure(result: TStepResult) {
     for (const s of this.steppers!) {
       if (s.onFailure) {
@@ -140,7 +142,6 @@ export class FeatureExecutor {
         await this.endRunCallback(this.world!, featureResult, this.steppers!)
       } catch (error: any) {
         console.log('e', error);
-
         throw Error(error);
       }
     }

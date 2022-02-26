@@ -1,6 +1,5 @@
 import { FeatureExecutor } from '../phases/Executor';
 import { getDefaultWorld, getTestEnv } from '../lib/test/lib';
-import { createSteppers } from '../lib/util';
 
 describe('haibun', () => {
   it('finds prose', async () => {
