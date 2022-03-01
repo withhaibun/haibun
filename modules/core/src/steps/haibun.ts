@@ -1,6 +1,5 @@
-import { Logger } from '..';
 import { OK, TNamed, AStepper } from '../lib/defs';
-import { actionOK, sleep } from '../lib/util';
+import { actionNotOK, actionOK, sleep } from '../lib/util';
 
 const Haibun = class Haibun extends AStepper {
   steps = {
@@ -21,6 +20,12 @@ const Haibun = class Haibun extends AStepper {
         return OK;
       },
     },
+    fails: {
+      gwta: `fails with {message}`,
+      action: async ({message}: TNamed) => {
+        return actionNotOK(`fails: ${message}`);
+      },
+    },
     stopStepDelay: {
       gwta: 'stop step delay',
       action: async () => {
@@ -34,6 +39,14 @@ const Haibun = class Haibun extends AStepper {
         return OK;
       }
     },
+    showTag: {
+      gwta: 'show stepper tag {which}',
+      action: async ({ which }: TNamed) => {
+        const what = which ? (this.getWorld().tag as any)[which] : this.getWorld().tag;
+        this.world?.logger.log(`tag ${which}: ${JSON.stringify(what)}`)
+        return OK;
+      },
+    },
     pauseSeconds: {
       gwta: 'pause for {ms}s',
       action: async ({ ms }: TNamed) => {
@@ -42,6 +55,13 @@ const Haibun = class Haibun extends AStepper {
         return OK;
       },
     },
+    comment: {
+      gwta: '#{what}',
+      action: async({comment}: TNamed) => {
+        this.getWorld().logger.log(`comment: ${comment}`);
+        return OK;
+      }
+    }
   };
 };
 

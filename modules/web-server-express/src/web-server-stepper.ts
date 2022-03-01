@@ -13,12 +13,12 @@ const WebServerStepper = class WebServerStepper extends AStepper implements IHas
     },
   };
 
-  setWorld(world: TWorld) {
-    this.world = world;
+  setWorld(world: TWorld, steppers: AStepper[]) {
+    super.setWorld(world, steppers);
     // this.world.runtime[CHECK_LISTENER] = WebServerStepper.checkListener;
-    const port = getStepperOption(this, 'PORT', this.world.options);
-    this.webserver = new ServerExpress(this.world.logger, [process.cwd(), 'files'].join('/'), port);
-    this.world.runtime[WEBSERVER] = this.webserver;
+    const port = parseInt(getStepperOption(this, 'PORT', world.extraOptions)) || DEFAULT_PORT;
+    this.webserver = new ServerExpress(world.logger, [process.cwd(), 'files'].join('/'), port);
+    world.runtime[WEBSERVER] = this.webserver;
   }
 
   async close() {
@@ -64,4 +64,3 @@ export interface IWebServerStepper {
   webserver: IWebServer;
   close: () => void;
 }
-

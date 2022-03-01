@@ -25,7 +25,7 @@ describe('route mount', () => {
     };
     const wss = new WebServerStepper();
     const feature = { path: '/features/test.feature', content: `serve test route to /test\nwebserver is listening\nfetch from http://localhost:8124/test is "ok"` };
-    const { result } = await testWithDefaults([feature], [server, TestRoute, WebHttp], {
+    const result = await testWithDefaults([feature], [server, TestRoute, WebHttp], {
       options: {},
       extraOptions: {
         [getStepperOptionName(wss, 'PORT')]: '8124',

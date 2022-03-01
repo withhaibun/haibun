@@ -1,7 +1,7 @@
 import { OK, TNamed, TVStep, AStepper } from '@haibun/core/build/lib/defs';
 import { TLogLevel, TMessageContext } from '@haibun/core/build/lib/interfaces/logger';
 import { getFromRuntime } from '@haibun/core/build/lib/util';
-import { IWebServer } from '@haibun/web-server-express/build/defs';
+import { IWebServer, WEBSERVER } from '@haibun/web-server-express/build/defs';
 
 import WebSocket from 'ws';
 import { ILogOutput } from '@haibun/core/build/lib/interfaces/logger';
@@ -60,7 +60,7 @@ const LoggerWebsockets = class LoggerWebsockets extends AStepper {
     subscribe: {
       gwta: 'serve websocket log at {page}',
       action: async ({ page }: TNamed, vstep: TVStep) => {
-        const webserver = <IWebServer>getFromRuntime(this.getWorld().runtime, 'webserver');
+        const webserver = <IWebServer>getFromRuntime(this.getWorld().runtime, WEBSERVER);
 
         webserver.addKnownStaticFolder(path.join(__dirname, '../client/dist/'), `/${page}`);
 

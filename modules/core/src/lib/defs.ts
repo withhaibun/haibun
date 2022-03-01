@@ -20,12 +20,16 @@ export type TOptionValue = any;
 export interface IHasOptions {
   options?: {
     [name: string]: {
+      required?: boolean;
       desc: string;
       parse: (input: string, existing?: TOptionValue) => { error?: string, env?: TOptions, result?: any }
     };
   };
 }
 
+export interface IHasBuilder {
+  finalize: (workspace: WorkspaceContext) => void
+}
 export interface IHasDomains {
   domains: TDomain[];
   locator: (name: string) => string;
@@ -63,8 +67,10 @@ export type TWorld = {
   runtime: TRuntime;
   logger: ILogger;
   options: TOptions;
+  extraOptions: TExtraOptions;
   domains: TModuleDomain[];
-  timer: Timer
+  timer: Timer;
+  base: string;
 };
 
 export type TFeatureMeta = {
@@ -94,12 +100,14 @@ export type TResolvedFeature = TExpandedFeature & {
 };
 
 
+export type StringOrNumber = string | number;
 export type TTag = {
-  sequence: number,
-  loop: number,
-  member: number,
-  params?: any,
-  trace?: boolean
+  sequence: StringOrNumber,
+  featureNum: StringOrNumber,
+  loop: StringOrNumber,
+  member: StringOrNumber,
+  params: any,
+  trace: boolean
 }
 
 export type TVStep = {
@@ -135,12 +143,23 @@ export type TStep = {
   build?: TBuild;
 };
 
+export interface CStepper {
+  new(): AStepper;
+  prototype: {
+    steps: {
+      [name: string]: TStep;
+    }
+    setWorld(world: TWorld, steppers: AStepper[]): void;
+    getWorld(): TWorld;
+  }
+}
+
 export abstract class AStepper {
   world?: TWorld;
   close?(): void;
   endFeature?(): void;
   onFailure?(result: TStepResult): void;
-  setWorld(world: TWorld) {
+  setWorld(world: TWorld, steppers: AStepper[]) {
     this.world = world;
   }
   abstract steps: { [name: string]: TStep };
@@ -148,11 +167,12 @@ export abstract class AStepper {
     if (!this.world) {
       throw Error(`stepper without world ${this.constructor.name}`);
     }
+
     return this.world;
   }
 }
 
-export type TFound = { name: string; step: TStep; named?: TNamed | undefined; vars?: TNamedVar[] };
+export type TFound = { actionName: string; stepperName: string, step: TStep; named?: TNamed | undefined; vars?: TNamedVar[] };
 export type TNamed = { [name: string]: string };
 export type TNamedVar = { name: string; type: string };
 
@@ -166,9 +186,10 @@ export type TResultError = {
 export type TResult = {
   ok: boolean;
   tag: TTag,
+  shared: WorldContext;
   results?: TFeatureResult[];
   failure?: {
-    stage: 'Collect' | 'Options' | 'Domains' | 'Expand' | 'Resolve' | 'Build' | 'Execute';
+    stage: string;
     error: TResultError;
   };
 };
@@ -244,11 +265,31 @@ export type TStepResult = {
 
 export type TRuntime = { [name: string]: any };
 
-export interface TResultOutput {
+export interface IResultOutput {
   writeOutput(result: TResult, args: any): Promise<any>;
 }
 
+export type TLocationOptions = {
+  tag: TTag,
+  options: TOptions,
+  extraOptions: TExtraOptions
+}
+
+export interface ITraceResult {
+  writeTraceFile(loc: TLocationOptions, result: TFeatureResult): any;
+}
+
+export interface IReviewResult {
+  writeReview(loc: TLocationOptions, result: TFeatureResult): any;
+}
+
+export interface IPublishResults {
+  publishResults(world: TWorld): any;
+}
+
 export const HAIBUN = 'HAIBUN';
+export const BASE_PREFIX = `${HAIBUN}_`;
+export const CAPTURE = 'capture';
 
 export const BASE_DOMAINS = [{ name: 'string', resolve: (inp: string) => inp }];
 
@@ -257,12 +298,12 @@ export const BASE_TYPES = BASE_DOMAINS.map((b) => b.name);
 export type TScored = { name: string; score: number };
 
 export type TStartRunCallback = (world: TWorld) => void;
-export type TEndRunCallback = (world: TWorld, result: TResult) => void;
+export type TendFeatureCallback = (world: TWorld, result: TFeatureResult, steppers: AStepper[]) => void;
 
 export type TRunEnv = { [name: string]: string };
 // FIXME remove protoOptions, splits, etc.
 export type TRunOptions = {
-  loops: number, members: number, trace: boolean, startRunCallback?: TStartRunCallback, endRunCallback?: TEndRunCallback
+  loops: number, members: number, trace: boolean, startRunCallback?: TStartRunCallback, endFeatureCallback?: TendFeatureCallback
   featureFilter?: string[], specl: TSpecl, base: string, splits: TRunEnv[], protoOptions: TProtoOptions,
 };
 export type TRunResult = { output: any, result: TResult, shared: WorldContext, tag: TTag, runStart: number, runDuration: number, fromStart: number };
