@@ -1,23 +1,21 @@
-import { TProtoOptions, TSpecl, TWorld, TTag, TRunOptions, TRunResult } from './defs';
+import { TStartRunCallback, TProtoOptions, TSpecl, TWorld, TTag, TRunOptions, TRunResult, StringOrNumber, TendFeatureCallback } from './defs';
 import { WorldContext } from './contexts';
-import Logger, { LOGGER_LEVELS } from './Logger';
+import Logger from './Logger';
 
 import { run } from './run';
 import { resultOutput, getRunTag } from './util';
 import { ILogOutput } from './interfaces/logger';
 import { Timer } from './Timer';
-import { TStartRunCallback } from './defs';
 
 export default async function runWithOptions(runOptions: TRunOptions) {
-
-    const { loops, members, trace, startRunCallback, endRunCallback, featureFilter, specl, base, splits, protoOptions } = runOptions;
+    const { loops, members, trace, startRunCallback, endFeatureCallback, featureFilter, specl, base, splits, protoOptions } = runOptions;
     const { LOG_LEVEL: logLevel, LOG_FOLLOW: logFollow } = protoOptions.options;
 
     const logger = new Logger({ level: logLevel || 'debug', follow: logFollow });
 
     const timer = new Timer();
     let totalRan = 0;
-    type TFailure = { sequence: number, runDuration: number, fromStart: number };
+    type TFailure = { sequence: StringOrNumber, runDuration: number, fromStart: number };
     let allFailures: { [message: string]: TFailure[] } = {};
     let allRunResults: PromiseSettledResult<TRunResult>[] = [];
 
@@ -29,13 +27,10 @@ export default async function runWithOptions(runOptions: TRunOptions) {
             const instances = splits.map(async (split) => {
                 splits.length > 1 && logger.log(`starting instance ${split}`);
                 const runtime = {};
-                const tag: TTag = getRunTag(totalRan, loop, member, split, trace);
+                const tag: TTag = getRunTag(totalRan, loop, member, 0, split, trace);
                 totalRan++;
 
-                const res = await doRun(base, specl, runtime, featureFilter, new WorldContext(tag, split), protoOptions, logger, tag, timer, startRunCallback);
-                if (endRunCallback) {
-                    endRunCallback(res.world, res.result);
-                }
+                const res = await doRun(base, specl, runtime, featureFilter, new WorldContext(tag, split), protoOptions, logger, tag, timer, startRunCallback, endFeatureCallback);
                 return res;
 
             });
@@ -64,7 +59,6 @@ export default async function runWithOptions(runOptions: TRunOptions) {
                     message = JSON.stringify(r.result.failure);
                 } catch (e) {
                     console.error('fail message', e);
-
                     message = "cannot extract"
                 }
             }
@@ -87,19 +81,19 @@ export default async function runWithOptions(runOptions: TRunOptions) {
     return { ok, exceptionResults, ranResults, allFailures, logger, passed, failed, totalRan, runTime };
 }
 
-async function doRun(base: string, specl: TSpecl, runtime: {}, featureFilter: string[] | undefined, shared: WorldContext, protoOptions: TProtoOptions, containerLogger: ILogOutput, tag: TTag, timer: Timer, startRunCallback?: TStartRunCallback) {
+async function doRun(base: string, specl: TSpecl, runtime: {}, featureFilter: string[] | undefined, shared: WorldContext, protoOptions: TProtoOptions, containerLogger: ILogOutput, tag: TTag, timer: Timer, startRunCallback?: TStartRunCallback, endFeatureCallback?: TendFeatureCallback) {
     const runStart = process.hrtime();
     const logger = new Logger({ output: containerLogger, tag });
 
-    const world: TWorld = { options: protoOptions.options, shared, logger, runtime, domains: [], tag, timer };
+    const world: TWorld = { options: protoOptions.options, extraOptions: protoOptions.extraOptions, shared, logger, runtime, domains: [], tag, timer, base };
     if (startRunCallback) {
         startRunCallback(world);
     }
 
     logger.log(`running with these options: ${JSON.stringify(world.options)})}`);
 
-    const { result } = await run({ specl, base, world, featureFilter, extraOptions: protoOptions.extraOptions });
-    const output = await resultOutput(process.env.HAIBUN_OUTPUT, result);
+    const result = await run({ specl, base, world, featureFilter, extraOptions: protoOptions.extraOptions, endFeatureCallback });
+    const output = await resultOutput(world.options.OUTPUT, result);
 
     return { world, result, shared, output, tag, runStart: runStart[0], runDuration: process.hrtime(runStart)[0], fromStart: timer.since() };
 }

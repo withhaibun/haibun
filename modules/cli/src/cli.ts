@@ -1,24 +1,24 @@
 #!/usr/bin/env node
 
-import repl from 'repl';
-import { TResult, TWorld } from '@haibun/core/build/lib/defs';
+require('source-map-support').install()
 
-import { getOptionsOrDefault, writeTraceFile } from '@haibun/core/build/lib/util';
+import repl from 'repl';
+import { AStepper, ITraceResult, IReviewResult, TSpecl, TWorld, IPublishResults, TFeatureResult } from '@haibun/core/build/lib/defs';
+
+import { findStepper, getConfigFromBase, getDefaultOptions } from '@haibun/core/build/lib/util';
 import runWithOptions from '@haibun/core/build/lib/run-with-options';
 import { processBaseEnv, ranResultError, usageThenExit } from './lib';
 import { Timer } from '@haibun/core/build/lib/Timer';
+
+type TFeatureFilter = string[] | undefined;
 
 go();
 
 async function go() {
   const featureFilter = !!process.argv[3] ? process.argv[3].split(',') : undefined;
   const base = process.argv[2]?.replace(/\/$/, '');
-  const specl = getOptionsOrDefault(base);
 
-  if (!process.argv[2] || featureFilter?.find(f => f === '--help')) {
-    await usageThenExit(specl);
-  }
-  console.info('\n_________________________________ start');
+  const specl = getSpeclOrExit(base, featureFilter);
 
   const { protoOptions, errors } = processBaseEnv(process.env, specl.options);
   const splits: { [name: string]: string }[] = protoOptions.options.SPLITS || [{}];
@@ -27,19 +27,27 @@ async function go() {
     await usageThenExit(specl, errors.join('\n'));
   }
 
+  console.info('\n_________________________________ start');
+
   const loops = protoOptions.options.LOOPS || 1;
   const members = protoOptions.options.MEMBERS || 1;
-  const trace = protoOptions.options.TRACE;
+  const trace = protoOptions.options.REVIEWS || protoOptions.options.TRACE;
+  const reviews = protoOptions.options.REVIEWS;
+
   const startRunCallback = (world: TWorld) => {
     if (protoOptions.options.CLI) repl.start().context.runtime = world.runtime;
   }
-  const endRunCallback = (world: TWorld, result: TResult) => {
+  const endFeatureCallback = async (world: TWorld, result: TFeatureResult, steppers: AStepper[]) => {
     if (trace) {
-      writeTraceFile(world, result);
+      const tracer = findStepper<ITraceResult & IReviewResult & IPublishResults>(steppers, 'OutReviews');
+      await tracer.writeTraceFile(world, result);
+      if (reviews) {
+        await tracer.writeReview(world, result);
+      }
     }
   }
 
-  const runOptions = { featureFilter, loops, members, splits, trace, specl, base, protoOptions, startRunCallback, endRunCallback };
+  const runOptions = { featureFilter, loops, members, splits, trace, specl, base, protoOptions, startRunCallback, endFeatureCallback };
   const { ok, exceptionResults, ranResults, allFailures, logger, passed, failed, totalRan, runTime } = await runWithOptions(runOptions);
 
   if (ok && exceptionResults.length < 1) {
@@ -60,3 +68,13 @@ async function go() {
     process.exit(1);
   }
 }
+
+function getSpeclOrExit(base: string, featureFilter: TFeatureFilter): TSpecl {
+  const specl = getConfigFromBase(base);
+
+  if (specl === null || !process.argv[2] || featureFilter?.find(f => f === '--help' || f === '-h')) {
+    usageThenExit(specl ? specl : getDefaultOptions());
+  }
+  return specl!;
+}
+

@@ -1,15 +1,16 @@
 import { Page, Response } from 'playwright';
-import { IHasOptions, OK, TNamed, TVStep, IRequireDomains, TStepResult, TTraceOptions, TTrace, AStepper } from '@haibun/core/build/lib/defs';
+import { IHasOptions, OK, TNamed, TVStep, IRequireDomains, TStepResult, TTraceOptions, TTrace, AStepper, TWorld } from '@haibun/core/build/lib/defs';
 import { onCurrentTypeForDomain } from '@haibun/core/build/steps/vars';
 import { BrowserFactory, TBrowserFactoryContextOptions } from './BrowserFactory';
-import { actionNotOK, ensureDirectory, getCaptureDir, getStepperOption, boolOrError, intOrError } from '@haibun/core/build/lib/util';
-import { webPage, webControl } from '@haibun/domain-webpage/build/domain-webpage';
+import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOption } from '@haibun/core/build/lib/util';
+import { WEB_PAGE, WEB_CONTROL } from '@haibun/domain-webpage/build/domain-webpage';
 import { TTraceTopic } from '@haibun/core/build/lib/interfaces/logger';
+import { AStorage } from '@haibun/domain-storage/build/AStorage';
 
-declare var window: any;
+const STORAGE = 'STORAGE';
 
 const WebPlaywright = class WebPlaywright extends AStepper implements IHasOptions, IRequireDomains {
-  requireDomains = [webPage, webControl];
+  requireDomains = [WEB_PAGE, WEB_CONTROL];
   options = {
     HEADLESS: {
       desc: 'run browsers without a window (true or false)',
@@ -27,15 +28,26 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       desc: 'timeout for each step',
       parse: (input: string) => intOrError(input),
     },
+    [STORAGE]: {
+      required: true,
+      desc: 'Storage for output',
+      parse: (input: string) => stringOrError(input),
+    },
   };
   hasFactory: boolean = false;
   bf: BrowserFactory | undefined = undefined;
   headless: boolean = false;
+  storage?: AStorage;
+
+  async setWorld(world: TWorld, steppers: AStepper[]) {
+    super.setWorld(world, steppers);
+    this.storage = findStepperFromOption(steppers, this, this.getWorld().extraOptions, STORAGE);
+  }
 
   async getBrowserFactory(): Promise<BrowserFactory> {
     if (!this.hasFactory) {
-      const headless = getStepperOption(this, 'HEADLESS', this.getWorld().options);
-      const defaultTimeout = getStepperOption(this, 'TIMEOUT', this.getWorld().options);
+      const headless = getStepperOption(this, 'HEADLESS', this.getWorld().extraOptions)  === 'true';
+      const defaultTimeout = parseInt(getStepperOption(this, 'TIMEOUT', this.getWorld().extraOptions)) || 30000;
       this.bf = BrowserFactory.get(this.getWorld().logger, { defaultTimeout, browser: { headless } });
       this.hasFactory = true;
     }
@@ -49,20 +61,21 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
 
   async getPage() {
     const { trace: doTrace } = this.getWorld().tag;
-    const captureVideo = getStepperOption(this, 'CAPTURE_VIDEO', this.getWorld().options);
+    const captureVideo = getStepperOption(this, 'CAPTURE_VIDEO', this.getWorld().extraOptions);
     const browser: TBrowserFactoryContextOptions = {};
-    if (captureVideo)
+    if (captureVideo) {
       browser.recordVideo = {
-        dir: getCaptureDir(this.getWorld(), 'video'),
-
+        dir: await this.storage!.ensureCaptureDir(this.getWorld(), 'video'),
       }
+    }
+      
     const trace: TTraceOptions | undefined = doTrace ? {
       response: {
         listener: async (res: Response) => {
           const url = res.url();
           const headers = await res.headersArray();
           const headersContent = (await Promise.allSettled(headers)).map(h => (h as any).value);
-          this.getWorld().logger.log(`response trace ${headersContent.map(h => h.name)}`, { topic: ({ trace: { response: { headersContent } } } as TTraceTopic) });
+          this.getWorld().logger.debug(`response trace ${headersContent.map(h => h.name)}`, { topic: ({ trace: { response: { headersContent } } } as TTraceTopic) });
           const trace: TTrace = { 'response': { since: this.getWorld().timer.since(), trace: { headersContent } } }
           this.getWorld().shared.concat('_trace', trace);
         }
@@ -92,14 +105,14 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
 
     if (this.bf?.hasPage(this.getWorld().tag)) {
       const page = await this.getPage();
-      const path = getCaptureDir(this.getWorld(), 'failure', `${result.seq}.png`);
+      const path = this.storage!.getCaptureDir(this.getWorld(), 'failure') + `/${result.seq}.png`;
 
       await page.screenshot({ path, fullPage: true, timeout: 60000 });
     }
   }
 
   async nextStep() {
-    const captureScreenshot = getStepperOption(this, 'STEP_CAPTURE_SCREENSHOT', this.getWorld().options);
+    const captureScreenshot = getStepperOption(this, 'STEP_CAPTURE_SCREENSHOT', this.getWorld().extraOptions);
     if (captureScreenshot) {
       console.debug('captureScreenshot');
     }
@@ -132,14 +145,14 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
   steps = {
     //                                      INPUT
     inputVariable: {
-      gwta: `input {what} for {field: ${webControl}}`,
+      gwta: `input {what} for {field: ${WEB_CONTROL}}`,
       action: async ({ what, field }: TNamed) => {
         await this.withPage(async (page: Page) => await page.fill(field, what));
         return OK;
       },
     },
     selectionOption: {
-      gwta: `select {option} for {field: ${webControl}}`,
+      gwta: `select {option} for {field: ${WEB_CONTROL}}`,
       action: async ({ option, field }: TNamed) => {
         const res = await this.withPage(async (page: Page) => await page.selectOption(field, { label: option }));
         // FIXME have to use id value
@@ -191,7 +204,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     },
 
     beOnPage: {
-      gwta: `should be on the {name: ${webPage}} page`,
+      gwta: `should be on the {name: ${WEB_PAGE}} page`,
       action: async ({ name }: TNamed) => {
         const nowon = await this.withPage(async (page: Page) => await page.url());
         if (nowon === name) {
@@ -298,9 +311,9 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
 
     //                          NAVIGATION
     onPage: {
-      gwta: `On the {name} ${webPage}`,
+      gwta: `On the {name} ${WEB_PAGE}`,
       action: async ({ name }: TNamed, vstep: TVStep) => {
-        const location = name.includes('://') ? name : onCurrentTypeForDomain({ name, type: webPage }, this.getWorld());
+        const location = name.includes('://') ? name : onCurrentTypeForDomain({ name, type: WEB_PAGE }, this.getWorld());
 
         const response = await this.withPage(async (page: Page) => await page.goto(location));
         return response?.ok ? OK : actionNotOK(`response not ok`);
@@ -321,8 +334,8 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
         await this.withPage(
           async (page: Page) =>
             await page.evaluate(() => {
-              console.debug('going back', window.history);
-              (window as any).history.go(-1);
+              console.debug('going back', globalThis.history);
+              globalThis.history.go(-1);
             })
         );
         // await page.focus('body');
@@ -362,12 +375,11 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     takeScreenshot: {
       gwta: 'take a screenshot',
       action: async () => {
-        const folder = [process.cwd(), 'files'].join('/');
-        await ensureDirectory(folder, 'screenshots');
+        const dir = await this.storage!.ensureCaptureDir(this.getWorld(), 'screenshots');
         await this.withPage(
           async (page: Page) =>
             await page.screenshot({
-              path: `${folder}/screenshots/screenshot-${Date.now()}.png`,
+              path: `${dir}/screenshot-${Date.now()}.png`,
             })
         );
         return OK;

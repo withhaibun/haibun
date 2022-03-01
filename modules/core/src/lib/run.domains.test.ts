@@ -3,7 +3,7 @@ import { IHasDomains, TNamed, TVStep, IRequireDomains, AStepper } from './defs';
 import { getDomain } from './domain';
 import { runWith } from './run';
 import { asFeatures, getDefaultWorld, testWithDefaults } from './test/lib';
-import { getOptionsOrDefault, actionOK } from './util';
+import { actionOK, getDefaultOptions } from './util';
 
 const TTYPE = 'page';
 const CCONTROL = 'control';
@@ -48,20 +48,20 @@ const TestStepsWithDomain = class TestStepsWithDomain extends AStepper implement
 
 describe('domain object', () => {
   it('missing domain object', async () => {
-    const { result } = await testWithDefaults([{ path: '/features/test.feature', content: `\nHas a foobar control\n` }], [TestStepsRequiresDomain]);
+    const result = await testWithDefaults([{ path: '/features/test.feature', content: `\nHas a foobar control\n` }], [TestStepsRequiresDomain]);
     expect(result.ok).toBe(false);
-    
+
     expect(result.failure!.error.message.startsWith(`missing required domain "${TTYPE}"`)).toBe(true);
     expect(result.failure!.error.details.stack).toBeDefined();
   });
   it('domain object from background', async () => {
-    const specl = getOptionsOrDefault();
+    const specl = getDefaultOptions();
     const key = '/backgrounds/p1';
 
     const { world } = getDefaultWorld(0);
     const features = asFeatures([{ path: '/features/test.feature', content: `Backgrounds: p1.${TTYPE}\n\nOn the /backgrounds/p1 ${TTYPE}\nSee the page control\n` }]);
     const backgrounds = asFeatures([{ path: `/backgrounds/p1.${TTYPE}.feature`, content: 'Has a lever control' }]);
-    const { result } = await runWith({ specl, features, backgrounds, addSteppers: [TestStepsRequiresDomain, TestStepsWithDomain], world });
+    const result = await runWith({ specl, features, backgrounds, addSteppers: [TestStepsRequiresDomain, TestStepsWithDomain], world });
 
     expect(result.ok).toBe(true);
 

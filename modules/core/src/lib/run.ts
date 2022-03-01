@@ -1,15 +1,15 @@
 import { existsSync } from 'fs';
-import { TSpecl, AStepper, TResult, TWorld, TFeature, TNotOKActionResult, TExtraOptions } from './defs';
+import { TSpecl, TResult, TWorld, TFeature, TExtraOptions, TResolvedFeature, TendFeatureCallback, CStepper } from './defs';
 import { expand } from './features';
 import { Executor } from '../phases/Executor';
 import { Resolver } from '../phases/Resolver';
 import Builder from '../phases/Builder';
-import { getSteppers, applyExtraOptions, recurse, debase, getRunTag } from './util';
-import { applyDomainsOrError } from './domain';
+import { getSteppers, verifyExtraOptions, recurse, debase, getRunTag, verifyRequiredOptions, createSteppers, setWorldStepperOptions } from './util';
+import { getDomains, verifyDomainsOrError } from './domain';
 
-type TrunOptions = { specl: TSpecl; world: TWorld; base: string; addSteppers?: typeof AStepper[]; featureFilter?: string[]; extraOptions?: TExtraOptions; }
+type TRunOptions = { specl: TSpecl; world: TWorld; base: string; addSteppers?: CStepper[]; featureFilter?: string[]; extraOptions?: TExtraOptions; endFeatureCallback?: TendFeatureCallback }
 
-export async function run({ specl, base, world, addSteppers = [], featureFilter, extraOptions = {} }: TrunOptions): Promise<{ result: TResult; steppers?: AStepper[] }> {
+export async function run({ specl, base, world, addSteppers = [], featureFilter, endFeatureCallback }: TRunOptions): Promise<TResult> {
   let features;
   let backgrounds: TFeature[] = [];
   try {
@@ -19,10 +19,10 @@ export async function run({ specl, base, world, addSteppers = [], featureFilter,
       backgrounds = debase(base, recurse(`${base}/backgrounds`, 'feature'));
     }
   } catch (error: any) {
-    return { result: { ok: false, tag: getRunTag(-1, -1, -1, {}, false), failure: { stage: 'Collect', error: { message: error.message, details: { stack: error.stack } } } } };
+    return { ok: false, tag: getRunTag(-1, -1, -1, -1, {}, false), failure: { stage: 'Collect', error: { message: error.message, details: { stack: error.stack } } }, shared: world.shared };
   }
 
-  return runWith({ specl, world, features, backgrounds, addSteppers, extraOptions });
+  return runWith({ specl, world, features, backgrounds, addSteppers, endFeatureCallback });
 }
 
 type TRunWithOptions = {
@@ -30,68 +30,53 @@ type TRunWithOptions = {
   world: TWorld;
   features: TFeature[];
   backgrounds: TFeature[];
-  addSteppers: typeof AStepper[];
-  extraOptions?: TExtraOptions;
+  addSteppers: CStepper[];
+  endFeatureCallback?: TendFeatureCallback
 }
 
 export const DEF_PROTO_OPTIONS = { options: {}, extraOptions: {} };
 
-export async function runWith({ specl, world, features, backgrounds, addSteppers, extraOptions = {} }: TRunWithOptions): Promise<{ result: TResult; steppers?: AStepper[] }> {
+export async function runWith({ specl, world, features, backgrounds, addSteppers, endFeatureCallback }: TRunWithOptions): Promise<TResult> {
   const { tag } = world;
 
-  const steppers: AStepper[] = await getSteppers({ steppers: specl.steppers, addSteppers });
-
+  let result = undefined;
   try {
-    applyExtraOptions(extraOptions, steppers, world);
-  } catch (error: any) {
-    console.error(error);
-    return { result: { ok: false, tag, failure: { stage: 'Options', error: { message: error.message, details: error } } } };
-  }
-  try {
-    applyDomainsOrError(steppers, world);
-  } catch (error: any) {
-    return { result: { ok: false, tag, failure: { stage: 'Domains', error: { message: error.message, details: { stack: error.stack } } } } };
-  }
+    const errorBail = (phase: string, error: any, details?: any) => {
+      result = { ok: false, tag, failure: { stage: phase, error: { message: error.message, details: { stack: error.stack, details } } } };
+      throw Error(error)
+    };
+    const baseSteppers = await getSteppers(specl.steppers).catch(error => errorBail('Steppers', error));
+    const csteppers = baseSteppers.concat(addSteppers);
 
-  let expandedFeatures;
-  try {
-    expandedFeatures = await expand(backgrounds, features);
-  } catch (error: any) {
 
-    return { result: { ok: false, tag, failure: { stage: 'Expand', error: { message: error.message, details: error } } } };
-  }
+    await verifyRequiredOptions(csteppers, world.options).catch(error => errorBail('Required Options', error));
+    await verifyExtraOptions(world.extraOptions, csteppers).catch((error: any) => errorBail('Options', error));
 
-  let mappedValidatedSteps;
-  try {
+    const expandedFeatures = await expand(backgrounds, features).catch(error => errorBail('Expand', tag, error));
+
+    const steppers = await createSteppers(csteppers);
+    await setWorldStepperOptions(steppers, world);
+
+    world.domains = await getDomains(steppers, world).catch(error => errorBail('Get Domains', error));
+    await verifyDomainsOrError(steppers, world).catch(error => errorBail('Required Domains', error));
+
     const resolver = new Resolver(steppers, specl.mode, world);
-    mappedValidatedSteps = await resolver.resolveSteps(expandedFeatures);
-  } catch (error: any) {
-    return { result: { ok: false, tag, failure: { stage: 'Resolve', error: { message: error.message, details: { stack: error.stack, steppers, mappedValidatedSteps } } } } };
-  }
+    const mappedValidatedSteps: TResolvedFeature[] = await resolver.resolveSteps(expandedFeatures).catch(error => errorBail('Resolve', error));
 
-  const builder = new Builder(world);
-  try {
-    const res = await builder.build(mappedValidatedSteps);
+    const builder = new Builder(steppers, world);
+    await builder.build(mappedValidatedSteps).catch(error => errorBail('Build', error, { stack: error.stack, mappedValidatedSteps }))
+
     world.logger.log(`features: ${expandedFeatures.length} backgrounds: ${backgrounds.length} steps: (${expandedFeatures.map((e) => e.path)}), ${mappedValidatedSteps.length}`);
-  } catch (error: any) {
-    console.error(error);
-    return { result: { ok: false, tag, failure: { stage: 'Build', error: { message: error.message, details: { stack: error.stack, steppers, mappedValidatedSteps } } } } };
+
+    result = await Executor.execute(csteppers, world, mappedValidatedSteps, endFeatureCallback).catch(error => errorBail('Execute', error));
+
+    // if (!result || !result.ok) {
+    //   const message = (result.results![0].stepResults.find(s => !s.ok)?.actionResults[0] as TNotOKActionResult).message;
+    //   result.failure = { stage: 'Execute', error: { message, details: { errors: result.results?.filter((r) => !r.ok).map((r) => r.path) } } };
+    // }
+  } catch (e) {
+    console.log('fell', e);
+  } finally {
+    return result!;
   }
-
-  const executor = new Executor(steppers, world);
-  let result;
-  try {
-    result = { ...await executor.execute(mappedValidatedSteps), tag };
-
-    if (!result.ok) {
-      const message = (result.results![0].stepResults.find(s => !s.ok)?.actionResults[0] as TNotOKActionResult).message;
-
-      result.failure = { stage: 'Execute', error: { message, details: { errors: result.results?.filter((r) => !r.ok).map((r) => r.path) } } };
-    }
-  } catch (e: any) {
-    console.error('XXXXXXX', e);
-
-    result = { ok: false, tag, failure: e };
-  }
-  return { result, steppers };
 }

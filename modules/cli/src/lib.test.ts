@@ -25,7 +25,7 @@ describe('options', () => {
   it('stepper options', async () => {
     const feature = { path: '/features/test.feature', content: `When I have a stepper option` };
     const { protoOptions: protoConfig } = processBaseEnv({ [HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]: 'true' }, {});
-    const { result } = await testWithDefaults([feature], [TestStepsWithOptions], protoConfig);
+    const result = await testWithDefaults([feature], [TestStepsWithOptions], protoConfig);
     expect(result.ok).toBe(true);
     expect(result.results?.length).toBe(1);
     expect(result.results![0].stepResults[0].actionResults[0].topics?.options.summary).toEqual('options');
@@ -35,11 +35,11 @@ describe('options', () => {
 describe('builds', () => {
   it('builds with finalizer', async () => {
     const feature = { path: '/features/test.feature', content: `builds with finalizer` };
-    const { result, world } = await testWithDefaults([feature], [TestSteps]);
+    const result = await testWithDefaults([feature], [TestSteps]);
 
     expect(result.ok).toBe(true);
 
-    expect(world.shared.get('done')).toEqual('ok');
+    expect(result.shared.get('done')).toEqual('ok');
   });
 });
 
@@ -54,7 +54,7 @@ describe('processEnv', () => {
     const specl = getDefaultOptions();
 
     const { errors } = lib.processBaseEnv({ HAIBUN_SPLIT_SHARED: '1,2' }, specl.options);
-    
+
     expect(errors.length).toBe(1);
   });
   it('processes split_shared', () => {
@@ -65,7 +65,7 @@ describe('processEnv', () => {
   it('assigns int', () => {
     const specl = getDefaultOptions();
     const { options } = lib.processBaseEnv({ HAIBUN_LOOPS: '1' }, specl.options).protoOptions;
-    
+
     expect(options.LOOPS).toBe(1);
   })
   it('errors for string passed as int', () => {

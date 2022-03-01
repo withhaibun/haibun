@@ -1,12 +1,14 @@
 import { WorkspaceContext } from '../lib/contexts';
-import { OK, TBuildResult, TFinalize, TNotOkStepActionResult, TOKStepActionResult, TResolvedFeature, TWorld } from '../lib/defs';
-import { getNamedToVars } from '../lib/namedVars';
+import { AStepper, OK, TBuildResult, TFinalize, TNotOkStepActionResult, TOKStepActionResult, TResolvedFeature, TWorld } from '../lib/defs';
 import { applyResShouldContinue } from '../lib/util';
+import { Executor, } from './Executor';
 
 export default class Builder {
   world: any;
   workspace: WorkspaceContext;
-  constructor(world: TWorld, workspace: WorkspaceContext = new WorkspaceContext(`builder`)) {
+  steppers: AStepper[];
+  constructor(steppers: AStepper[], world: TWorld, workspace: WorkspaceContext = new WorkspaceContext(`builder`)) {
+    this.steppers = steppers;
     this.world = world;
     this.workspace = workspace;
   }
@@ -21,12 +23,11 @@ export default class Builder {
               this.workspace.createPath(feature.path);
               finalizers[feature.path] = [];
             }
-            const namedWithVars = getNamedToVars(action, this.world);
-            const res = await action.step.build(namedWithVars!, vstep, this.workspace.get(feature.path));
+            const res = await Executor.action(this.steppers, vstep, vstep.actions[0], this.world);
 
             const shouldContinue = applyResShouldContinue(this.world, res, action);
             if (!shouldContinue) {
-              throw Error(`${action.name}: ${(<TNotOkStepActionResult>res).message}`);
+              throw Error(`${action.actionName}: ${(<TNotOkStepActionResult>res).message}`);
             }
             if ((<TOKStepActionResult & TBuildResult>res).finalize) {
               finalizers[feature.path].push((<TOKStepActionResult & TBuildResult>res).finalize!);
