@@ -1,5 +1,6 @@
-import { HAIBUN, IHasOptions, TOptions, TProtoOptions, TRunResult, TSpecl, } from "@haibun/core/build/lib/defs";
-import { getSteppers, getPre } from "@haibun/core/build/lib/util";
+import { BASE_PREFIX, IHasOptions, TOptions, TProtoOptions, TRunResult, TSpecl, } from "@haibun/core/build/lib/defs";
+import { getCreateSteppers } from "@haibun/core/build/lib/test/lib";
+import { getPre } from "@haibun/core/build/lib/util";
 import { BaseOptions } from "./BaseOptions";
 
 type TEnv = { [name: string]: string | undefined };
@@ -11,7 +12,7 @@ export async function usageThenExit(specl: TSpecl, message?: string) {
 };
 
 export async function usage(specl: TSpecl, message?: string) {
-  let steppers = await getSteppers({ steppers: specl.steppers });
+  let steppers = await getCreateSteppers(specl.steppers);
   let a: { [name: string]: { desc: string } } = {};
   steppers.forEach(s => {
     const o = (s as IHasOptions);
@@ -26,10 +27,10 @@ export async function usage(specl: TSpecl, message?: string) {
     `usage: ${process.argv[1]} <project base> <filter>`,
     message || '',
     'Set these environmental variables to control options:\n',
-    ...Object.entries(BaseOptions.options).map(([k, v]) => `${HAIBUN}_${k.padEnd(55)} ${v.desc}`),
+    ...Object.entries(BaseOptions.options).map(([k, v]) => `${BASE_PREFIX}${k.padEnd(55)} ${v.desc}`),
   ];
   if (Object.keys(a).length) {
-    ret.push('\nThese variables are available for selected extensions (via config.js)\n',
+    ret.push('\nThese variables are available for extensions selected in config.js\n',
       ...Object.entries(a).map(([k, v]) => `${k.padEnd(55)} ${v.desc}`));
   }
   return [...ret, ''].join('\n');
@@ -52,15 +53,14 @@ export function processBaseEnv(env: TEnv, options: TOptions) {
   const protoOptions: TProtoOptions = { options: { ...options }, extraOptions: {} };
   let errors: string[] = [];
   let nenv = {};
-  const pfx = `${HAIBUN}_`;
 
   const baseOptions = (BaseOptions as IHasOptions);
 
   Object.entries(env)
-    .filter(([k]) => k.startsWith(pfx))
+    .filter(([k]) => k.startsWith(BASE_PREFIX))
     .map(([k]) => {
       const value = env[k];
-      const opt = k.replace(pfx, '');
+      const opt = k.replace(BASE_PREFIX, '');
       const baseOption = baseOptions.options![opt];
 
       if (baseOption) {

@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'fs';
+import { readdirSync, readFileSync, statSync } from 'fs';
 import path from 'path';
 
 import {
@@ -6,12 +6,10 @@ import {
   TFeature,
   TNotOKActionResult,
   TOKActionResult,
-  TOptionValue,
-  TResultOutput,
+  IResultOutput,
   TResult,
   TSpecl,
   TWorld,
-  TOptions,
   TRuntime,
   TActionResultTopics,
   TActionResult,
@@ -19,8 +17,10 @@ import {
   TTag,
   AStepper,
   TExtraOptions,
-} from './defs';
-import { withNameType } from './features';
+  StringOrNumber,
+  CStepper,
+} from '../defs';
+import { withNameType } from '../features';
 
 // FIXME tired of wrestling with ts/import issues
 export async function use(module: string) {
@@ -37,7 +37,7 @@ export async function use(module: string) {
 export async function resultOutput(type: string | undefined, result: TResult) {
   if (type) {
     const AnOut = await use(type);
-    const out: TResultOutput = new AnOut();
+    const out: IResultOutput = new AnOut();
     if (out) {
       const res = await out.writeOutput(result, {});
       return res;
@@ -65,8 +65,7 @@ export async function getStepper(s: string) {
   try {
     const loc = getModuleLocation(s);
 
-    const S: AStepper = await use(loc);
-
+    const S: CStepper = await use(loc);
     return S;
   } catch (e) {
     console.error(`could not use ${s}`);
@@ -74,30 +73,40 @@ export async function getStepper(s: string) {
   }
 }
 
-export async function getSteppers({ steppers = [], addSteppers = [] }: { steppers: string[]; addSteppers?: typeof AStepper[] }) {
+export async function createSteppers(steppers: CStepper[]): Promise<AStepper[]> {
   const allSteppers: AStepper[] = [];
-  for (const s of steppers) {
-    const S = await getStepper(s);
+  for (const S of steppers) {
     try {
       const stepper = new (S as any)();
       allSteppers.push(stepper);
     } catch (e) {
-      console.error(`new ${S} from "${getModuleLocation(s)}" failed`, e, S);
+      console.error(`create ${S} failed`, e, S);
       throw e;
     }
   }
-  for (const S of addSteppers) {
-    const stepper = new (S as any)();
-    allSteppers.push(stepper);
-  }
   return allSteppers;
+}
+
+export async function getSteppers(stepperNames: string[]) {
+  const steppers: CStepper[] = [];
+  for (const s of stepperNames) {
+    
+    try {
+      const S = await getStepper(s);
+      steppers.push(S);
+    } catch (e) {
+      console.error(`get ${s} from "${getModuleLocation(s)}" failed`, e);
+      throw e;
+    }
+  }
+  return steppers;
 }
 
 function getModuleLocation(name: string) {
   if (name.startsWith('~')) {
     return [process.cwd(), 'node_modules', name.substr(1)].join('/');
   } else if (name.match(/^[a-zA-Z].*/)) {
-    return `../steps/${name}`;
+    return `../../steps/${name}`;
   }
   return path.resolve(process.cwd(), name);
 }
@@ -124,7 +133,7 @@ export function recurse(dir: string, type: string, featureFilter: string[] | und
 export function shouldProcess(file: string, type: undefined | string, featureFilter: string[] | undefined) {
   const isType = (!type || file.endsWith(`.${type}`));
   const matchesFilter = featureFilter ? !!(featureFilter.find(f => file.match(f))) : true;
-  
+
   return (isType && matchesFilter);
 }
 
@@ -136,23 +145,17 @@ export function getDefaultOptions(): TSpecl {
   };
 }
 
-export function getOptionsOrDefault(base?: string): TSpecl {
-  if (base) {
-    const f = `${base}/config.json`;
-    if (existsSync(f)) {
-      try {
-        const specl = JSON.parse(readFileSync(f, 'utf-8'));
-        if (!specl.options) {
-          specl.options = {};
-        }
-        return specl;
-      } catch (e) {
-        console.error('missing or not valid project config file.');
-        process.exit(1);
-      }
+export function getConfigFromBase(base: string): TSpecl | null {
+  const f = `${base}/config.json`;
+  try {
+    const specl = JSON.parse(readFileSync(f, 'utf-8'));
+    if (!specl.options) {
+      specl.options = {};
     }
+    return specl;
+  } catch (e) {
+    return null;
   }
-  return getDefaultOptions();
 }
 
 export function getActionable(value: string) {
@@ -177,71 +180,84 @@ export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve
 
 
 // has side effects
-export function applyExtraOptions(extraOptions: TExtraOptions, steppers: AStepper[], world: TWorld) {
-  if (!extraOptions) {
-    return;
-  }
-
-  Object.entries(extraOptions).map(([k, v]) => {
-    const conc = getStepperOptions(k, v!, steppers);
+export async function verifyExtraOptions(inExtraOptions: TExtraOptions, csteppers: CStepper[]) {
+  const extraOptions = { ...inExtraOptions };
+  Object.entries(extraOptions)?.map(([k, v]) => {
+    const conc = getStepperOptionValue(k, v!, csteppers);
 
     if (conc === undefined) {
       throw Error(`no option ${k}`);
     }
     delete extraOptions[k];
-    world.options[k] = conc.result;
   });
 
   if (Object.keys(extraOptions).length > 0) {
     throw Error(`no options provided for ${extraOptions}`);
   }
-  for (const stepper of steppers) {
-    stepper.setWorld && stepper.setWorld(world);
-  }
 }
 
+export async function setWorldStepperOptions(steppers: AStepper[], world: TWorld) {
+  for (const stepper of steppers) {
+    stepper.setWorld(world, steppers);
+  }
+}
 export function getPre(stepper: AStepper) {
   return ['HAIBUN', 'O', stepper.constructor.name.toUpperCase()].join('_') + '_';
 }
-export function getStepperOptions(key: string, value: string, steppers: (AStepper & IHasOptions)[]): TOptionValue | void {
+export function getStepperOptionValue(key: string, value: string, csteppers: CStepper[]) {
+  for (const cstepper of csteppers) {
+    const pre = getPre(cstepper.prototype);
+    const name = key.replace(pre, '');
+    const ao = new cstepper() as IHasOptions;
+    if (key.startsWith(pre) && ao.options![name]) {
+      return ao.options![name].parse(value);
+    }
+  }
+}
+
+export async function verifyRequiredOptions(steppers: CStepper[], options: TExtraOptions) {
+  let requiredMissing = [];
   for (const stepper of steppers) {
-    const pre = getPre(stepper);
-    const int = key.replace(pre, '');
-
-    if (key.startsWith(pre) && stepper.options![int]) {
-      return stepper.options![int].parse(value);
+    const ao = (stepper.prototype) as IHasOptions;
+    for (const option in ao.options) {
+      const n = getStepperOptionName(stepper, option);
+      if (ao.options[option].required && !options[n]) {
+        requiredMissing.push(n);
+      }
     }
+  }
+  if (requiredMissing.length) {
+    throw Error(`missing required options ${requiredMissing}`)
   }
 }
 
-export function getStepperOptionName(stepper: AStepper, name: string) {
-  return getPre(stepper) + name;
+export function getStepperOptionName(stepper: AStepper | CStepper, name: string) {
+  if ((stepper as CStepper).prototype) {
+    return getPre((stepper as CStepper).prototype) + name;
+  }
+  return getPre(stepper as AStepper) + name;
 }
 
-export function getStepperOption(stepper: AStepper, name: string, options: TOptions): TOptionValue {
+export function getStepperOption(stepper: AStepper, name: string, extraOptions: TExtraOptions) {
   const key = getStepperOptionName(stepper, name);
-  return options[key];
+  return extraOptions[key];
 }
 
-export function ensureDirectory(base: string, folder: string) {
-  try {
-    if (!existsSync(base)) {
-      mkdirSync(base);
-      console.info(`created ${base}`);
-    }
-    if (!existsSync(`${base}/${folder}`)) {
-      mkdirSync(`${base}/${folder}`);
-      console.info(`created ${base}/${folder}`);
-    }
-  } catch (e) {
-    console.error(`could not create ${base}/${folder}`, e);
-    throw e;
+export function findStepperFromOption<Type>(steppers: AStepper[], stepper: AStepper, extraOptions: TExtraOptions, ...name: string[]): Type {
+  const val = name.reduce<string | undefined>((v, n) => v || getStepperOption(stepper, n, extraOptions), undefined);
+
+  if (!val) {
+    throw Error(`Cannot find ${name} from ${stepper.constructor.name} options`);
   }
+  return findStepper(steppers, val);
 }
 
-// FIXME
 export function findStepper<Type>(steppers: AStepper[], name: string): Type {
-  return <Type>(steppers.find((s) => s.constructor.name === name) as any);
+  const stepper = <Type>(steppers.find((s) => s.constructor.name === name) as any);
+  if (!stepper) {
+    throw Error(`Cannot find ${name} from ${JSON.stringify(steppers.map(s => s.constructor.name), null, 2)}`);
+  }
+  return stepper;
 }
 
 export function getFromRuntime<Type>(runtime: TRuntime, name: string): Type {
@@ -262,27 +278,7 @@ export function applyResShouldContinue(world: any, res: Partial<TActionResult>, 
   return false;
 }
 
-export function writeTraceFile(world: TWorld, result: TResult) {
-  writeFileSync(getCaptureDir(world, 'trace', 'trace.json'), JSON.stringify(result, null, 2));
-}
-
-export function getCaptureDir(world: TWorld, app: string, fn?: string) {
-  const capture = world.options.CAPTURE_DIR || 'capture';
-  const dir = [process.cwd(), capture, world.tag.sequence, app].join('/');
-  if (!existsSync(dir)) {
-    try {
-      mkdirSync(dir, { recursive: true });
-    } catch (e) {
-      throw Error(`creating ${dir}: ${e}`)
-    }
-  }
-  if (fn) {
-    return `${dir}/${fn}`;
-  }
-  return dir;
-}
-
-export const getRunTag = (sequence: number, loop: number, member: number, params: any, trace: boolean) => ({ sequence, loop, member, params, trace });
+export const getRunTag = (sequence: StringOrNumber, loop: StringOrNumber, featureNum: StringOrNumber, member: StringOrNumber, params = {}, trace = false) => ({ sequence, loop, member, featureNum, params, trace });
 
 export const descTag = (tag: TTag) => ` @${tag.sequence} (${tag.loop}x${tag.member})`;
 
@@ -298,4 +294,11 @@ export const boolOrError = (val: string) => {
     return { error: `${val} is not true or false` }
   };
   return { result: val === 'true' }
+};
+
+export const stringOrError = (val: string) => {
+  if (val === undefined || val === null) {
+    return { error: `${val} is not defined` }
+  };
+  return { result: val }
 };

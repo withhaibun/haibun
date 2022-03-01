@@ -1,5 +1,5 @@
 import { ILogger, } from '@haibun/core/build/lib/interfaces/logger';
-import { TTraceOptions } from '@haibun/core/build/lib/defs';
+import { StringOrNumber, TTraceOptions } from '@haibun/core/build/lib/defs';
 import { Browser, BrowserContext, Page, chromium, firefox, webkit, BrowserType, devices, } from 'playwright';
 
 export const BROWSERS: { [name: string]: BrowserType } = {
@@ -71,13 +71,13 @@ export class BrowserFactory {
     */
   }
 
-  getExistingContext({ sequence }: { sequence: number }) {
+  getExistingContext({ sequence }: { sequence: StringOrNumber }) {
     if (this.contexts[sequence]) {
       return this.contexts[sequence];
     }
   }
 
-  async getContext(sequence: number, options: TBrowserFactoryContextOptions): Promise<BrowserContext> {
+  async getContext(sequence: StringOrNumber, options: TBrowserFactoryContextOptions): Promise<BrowserContext> {
     if (!this.contexts[sequence]) {
       const browser = await this.getBrowser(this.type);
       this.logger.info(`creating new context ${sequence} ${this.type}`);
@@ -91,7 +91,7 @@ export class BrowserFactory {
   }
 
 
-  async closeContext({ sequence }: { sequence: number }) {
+  async closeContext({ sequence }: { sequence: StringOrNumber }) {
     if (this.contexts[sequence] !== undefined) {
       let p = this.pages[sequence];
       await p && p?.close();
@@ -107,11 +107,11 @@ export class BrowserFactory {
     });
   }
 
-  hasPage({ sequence }: { sequence: number }) {
+  hasPage({ sequence }: { sequence: StringOrNumber }) {
     return !!this.pages[sequence]
   }
 
-  async getPage({ sequence }: { sequence: number }, options: { trace?: TTraceOptions, browser: TBrowserFactoryContextOptions } = { browser: {} }): Promise<Page> {
+  async getPage({ sequence }: { sequence: StringOrNumber }, options: { trace?: TTraceOptions, browser: TBrowserFactoryContextOptions } = { browser: {} }): Promise<Page> {
     const { trace, browser } = options;
     if (this.pages[sequence] !== undefined) {
       return this.pages[sequence]!;

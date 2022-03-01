@@ -1,5 +1,5 @@
-import { HAIBUN, IHasOptions, TOptions } from "@haibun/core/build/lib/defs";
-import { boolOrError, intOrError } from "@haibun/core/build/lib/util";
+import { IHasOptions, TOptions } from "@haibun/core/build/lib/defs";
+import { boolOrError, intOrError, stringOrError } from "@haibun/core/build/lib/util";
 
 export class BaseOptions implements IHasOptions {
     static options = {
@@ -17,6 +17,10 @@ export class BaseOptions implements IHasOptions {
         },
         TRACE: {
             desc: 'save trace data',
+            parse: (input: string) => boolOrError(input)
+        },
+        REVIEWS: {
+            desc: 'Generates traces and reviews',
             parse: (input: string) => boolOrError(input)
         },
         CLI: {
@@ -77,22 +81,22 @@ export class BaseOptions implements IHasOptions {
             desc: 'how many loops',
             parse: (input: string) => intOrError(input)
         },
-        LOOP_START: {
-            desc: 'wip',
-            parse: (input: string) => intOrError(input)
-        },
-        LOOP_INC: {
-            desc: 'wip',
-            parse: (input: string) => intOrError(input)
-        },
+        // LOOP_START: {
+        //     desc: 'wip',
+        //     parse: (input: string) => intOrError(input)
+        // },
+        // LOOP_INC: {
+        //     desc: 'wip',
+        //     parse: (input: string) => intOrError(input)
+        // },
         MEMBERS: {
             desc: 'number of members in each loop',
             parse: (input: string) => intOrError(input)
         },
-        CONTINUE_ON_ERROR_IF_SCORED: {
-            desc: 'wip',
-            parse: (result: string) => ({ result })
-        },
+        // CONTINUE_ON_ERROR_IF_SCORED: {
+        //     desc: 'wip',
+        //     parse: (result: string) => ({ result })
+        // },
         OUTPUT: {
             desc: 'Output format (AsXUnit)',
             parse: (result: string) => ({ result })

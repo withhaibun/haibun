@@ -60,12 +60,12 @@ export function getNamedMatches(regexp: RegExp, what: string) {
   return named?.groups;
 }
 
-export const getMatch = (actionable: string, r: RegExp, name: string, step: TStep, vars?: TNamedVar[]) => {
+export const getMatch = (actionable: string, r: RegExp, actionName: string, stepperName: string, step: TStep, vars?: TNamedVar[]) => {
   if (!r.test(actionable)) {
     return;
   }
   const named = getNamedMatches(r, actionable);
-  return { name, step, named, vars };
+  return { actionName, stepperName, step, named, vars };
 };
 
 // returns named values, assigning variable values as appropriate
