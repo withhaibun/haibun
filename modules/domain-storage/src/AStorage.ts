@@ -17,7 +17,7 @@ export abstract class AStorage extends AStepper {
     abstract mkdirp(dir: string);
     abstract exists(ntt: string);
     async rmrf(dir: string) {
-        throw Error('not implemented');
+        throw Error(`rmrf not implemented at ${dir}`);
     }
 
     async getCaptureDir({ options, tag }: { options: TOptions, tag: TTag }, app?: string) {
