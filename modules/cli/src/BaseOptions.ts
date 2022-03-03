@@ -27,6 +27,10 @@ export class BaseOptions implements IHasOptions {
             desc: 'create a command interface for each member',
             parse: (input: string) => boolOrError(input)
         },
+        SETTING: {
+            desc: 'execution setting (eg dev, prod)',
+            parse: (result: string) => ({ result })
+        },
         STAY: {
             desc: 'stay running after execution: always',
             parse: (result: string) => ({ result })
