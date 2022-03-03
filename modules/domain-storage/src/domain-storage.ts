@@ -12,7 +12,7 @@ export const storageLocation: TFileTypeDomain = {
 };
 
 export interface ICreateStorageDestination {
-  createDestination(dest: string, params: any)
+  createStorageDestination(dest: string, params: any)
 }
 
 export const storageItem: TFromDomain = { name: STORAGE_ITEM, from: STORAGE_LOCATION, is: 'string' };
