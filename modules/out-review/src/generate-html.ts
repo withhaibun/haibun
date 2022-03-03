@@ -9,11 +9,9 @@ const GREEN_CHECK = '✔️';
 const RED_CHECK = '❌';
 
 export default class GenerateHtml {
-    traceStorage: AStorage;
     publishStorage: AStorage;
     uriArgs: string | undefined;
-    constructor(traceStorage: AStorage, publishStorage: AStorage, uriArgs = '') {
-        this.traceStorage = traceStorage;
+    constructor(publishStorage: AStorage, uriArgs = '') {
         this.publishStorage = publishStorage;
         this.uriArgs = uriArgs;
     }
@@ -24,7 +22,7 @@ export default class GenerateHtml {
         }
         for (const t of traces) {
             const { loc, trace } = t;
-            const where = this.publishStorage.pathed(await (await this.publishStorage!.getCaptureDir(loc)) + '/review.html');
+            const where = this.publishStorage!.pathed(await AStorage.prototype.getCaptureDir(loc) + '/review.html');
             const mark = trace.ok ? GREEN_CHECK : RED_CHECK;
             index.div.push({
                 li: {
@@ -37,12 +35,12 @@ export default class GenerateHtml {
         }
         return index;
     }
-    async getFeatureResult(loc: TLocationOptions, storage: AStorage, result: TFeatureResult | typeof MISSING_TRACE) {
-        const videoBase = await this.traceStorage!.getCaptureDir(loc, 'video');
+    async getFeatureResult(loc: TLocationOptions, sourceStorage: AStorage, result: TFeatureResult | typeof MISSING_TRACE) {
+        const videoBase = await sourceStorage.getCaptureDir(loc, 'video');
         let video: object;
         try {
-            const file = await storage.readdir(videoBase)[0];
-            const src = this.publishStorage!.pathed(await this.publishStorage!.getCaptureDir(loc, 'video') + `/${file}`);
+            const file = await sourceStorage.readdir(videoBase)[0];
+            const src = this.publishStorage!.pathed(await AStorage.prototype.getCaptureDir(loc, 'video') + `/${file}`);
             video = {
                 video: {
                     '@id': 'video',
