@@ -32,7 +32,7 @@ describe('domain webpage', () => {
     const { world } = getDefaultWorld(0);
     const features = asFeatures([{ path: '/features/test.feature', content: `Backgrounds: p1.${WEB_PAGE}\n\nOn the ${key} ${WEB_PAGE}\nPress the submit button` }]);
     const backgrounds = asFeatures([{ path: `/backgrounds/p1.${WEB_PAGE}.feature`, content: '' }]);
-    const { result } = await runWith({ specl, features, backgrounds, addSteppers: [TestStepsRequiresDomain, DomainWebPage], world });
+    const result = await runWith({ specl, features, backgrounds, addSteppers: [TestStepsRequiresDomain, DomainWebPage], world });
 
     expect(result.ok).toBe(true);
 
