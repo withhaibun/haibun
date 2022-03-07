@@ -11,6 +11,10 @@ export const storageLocation: TFileTypeDomain = {
   }
 };
 
+export interface ICreateStorageDestination {
+  createStorageDestination(dest: string, params: any)
+}
+
 export const storageItem: TFromDomain = { name: STORAGE_ITEM, from: STORAGE_LOCATION, is: 'string' };
 
 const DomainStorage = class DomainStorage extends AStepper implements IHasDomains, IHasOptions {
