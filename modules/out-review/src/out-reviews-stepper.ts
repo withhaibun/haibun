@@ -3,7 +3,6 @@ import { STORAGE_ITEM, STORAGE_LOCATION } from '@haibun/domain-storage';
 import { findStepperFromOption, getRunTag, getStepperOption, stringOrError } from '@haibun/core/build/lib/util';
 import { AStorage } from '@haibun/domain-storage/build/AStorage';
 import GenerateHtml from "./generate-html";
-import { runInContext } from "vm";
 
 const TRACE_STORAGE = 'TRACE_STORAGE';
 const REVIEWS_STORAGE = 'REVIEWS_STORAGE';
@@ -85,7 +84,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
           traces.push({ loc, trace });
         }
         await this.withLocs(func);
-        const generateHTML = new GenerateHtml(this.traceStorage!, this.publishStorage!, uriArgs);
+        const generateHTML = new GenerateHtml(this.publishStorage!, uriArgs);
         const content = await generateHTML.getIndex(traces);
         const { html } = await generateHTML.getOutput(content, { title: 'Feature Result Index' });
         const file = `./${CAPTURE}/index.html`;
@@ -138,7 +137,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
   }
   async writeReview(loc: TLocationOptions, trace: TFeatureResult | typeof MISSING_TRACE) {
     const uriArgs = getStepperOption(this, URI_ARGS, loc.extraOptions);
-    const generateHTML = new GenerateHtml(this.traceStorage!, this.publishStorage!, uriArgs);
+    const generateHTML = new GenerateHtml(this.publishStorage!, uriArgs);
     const result = await generateHTML.getFeatureResult(loc, this.traceStorage!, trace);
     const { html, } = await generateHTML.getOutput(result, { title: `Feature Result ${loc.tag.sequence}` });
     const file = await this.reviewsStorage!.ensureCaptureDir(loc, undefined, 'review.html');
