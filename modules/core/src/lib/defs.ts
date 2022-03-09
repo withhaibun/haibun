@@ -11,7 +11,11 @@ export type TSpecl = {
   options: TOptions;
 };
 
-export type TOptions = {
+type TBaseOptions = {
+  DEST: string
+};
+
+export type TOptions = TBaseOptions & {
   [name: string]: TOptionValue;
 };
 
@@ -290,6 +294,7 @@ export interface IPublishResults {
 export const HAIBUN = 'HAIBUN';
 export const BASE_PREFIX = `${HAIBUN}_`;
 export const CAPTURE = 'capture';
+export const DEFAULT_DEST = 'default';
 
 export const BASE_DOMAINS = [{ name: 'string', resolve: (inp: string) => inp }];
 
@@ -298,12 +303,12 @@ export const BASE_TYPES = BASE_DOMAINS.map((b) => b.name);
 export type TScored = { name: string; score: number };
 
 export type TStartRunCallback = (world: TWorld) => void;
-export type TendFeatureCallback = (world: TWorld, result: TFeatureResult, steppers: AStepper[]) => void;
+export type TEndFeatureCallback = (world: TWorld, result: TFeatureResult, steppers: AStepper[]) => void;
 
 export type TRunEnv = { [name: string]: string };
 // FIXME remove protoOptions, splits, etc.
 export type TRunOptions = {
-  loops: number, members: number, trace: boolean, startRunCallback?: TStartRunCallback, endFeatureCallback?: TendFeatureCallback
+  loops: number, members: number, trace: boolean, startRunCallback?: TStartRunCallback, endFeatureCallback?: TEndFeatureCallback
   featureFilter?: string[], specl: TSpecl, base: string, splits: TRunEnv[], protoOptions: TProtoOptions,
 };
 export type TRunResult = { output: any, result: TResult, shared: WorldContext, tag: TTag, runStart: number, runDuration: number, fromStart: number };

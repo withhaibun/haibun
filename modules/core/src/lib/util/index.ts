@@ -19,6 +19,7 @@ import {
   TExtraOptions,
   StringOrNumber,
   CStepper,
+  DEFAULT_DEST
 } from '../defs';
 import { withNameType } from '../features';
 
@@ -90,7 +91,7 @@ export async function createSteppers(steppers: CStepper[]): Promise<AStepper[]> 
 export async function getSteppers(stepperNames: string[]) {
   const steppers: CStepper[] = [];
   for (const s of stepperNames) {
-    
+
     try {
       const S = await getStepper(s);
       steppers.push(S);
@@ -141,7 +142,7 @@ export function getDefaultOptions(): TSpecl {
   return {
     mode: 'all',
     steppers: ['vars'],
-    options: {},
+    options: { DEST: DEFAULT_DEST }
   };
 }
 

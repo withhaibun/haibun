@@ -1,4 +1,4 @@
-import { TVStep, TResolvedFeature, TResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, AStepper, TendFeatureCallback, CStepper, TFound } from '../lib/defs';
+import { TVStep, TResolvedFeature, TResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, AStepper, TEndFeatureCallback, CStepper, TFound } from '../lib/defs';
 import { getNamedToVars } from '../lib/namedVars';
 import { actionNotOK, applyResShouldContinue, setWorldStepperOptions, sleep, createSteppers, findStepper } from '../lib/util';
 
@@ -14,7 +14,7 @@ export class Executor {
       return actionNotOK(`in ${vstep.in}: ${caught.message}`, { topics: { caught: caught.stack.toString() } });
     }
   }
-  static async execute(csteppers: CStepper[], world: TWorld, features: TResolvedFeature[], endFeatureCallback?: TendFeatureCallback): Promise<TResult> {
+  static async execute(csteppers: CStepper[], world: TWorld, features: TResolvedFeature[], endFeatureCallback?: TEndFeatureCallback): Promise<TResult> {
     let ok = true;
     const stay = (world.options.stay === 'always');
     let featureResults: TFeatureResult[] = [];
@@ -47,11 +47,11 @@ export class Executor {
 
 export class FeatureExecutor {
   csteppers: CStepper[];
-  endFeatureCallback?: TendFeatureCallback;
+  endFeatureCallback?: TEndFeatureCallback;
   world?: TWorld;
   steppers?: AStepper[];
 
-  constructor(csteppers: CStepper[], endFeatureCallback?: TendFeatureCallback) {
+  constructor(csteppers: CStepper[], endFeatureCallback?: TEndFeatureCallback) {
     this.csteppers = csteppers;
     this.endFeatureCallback = endFeatureCallback;
   }
@@ -102,7 +102,7 @@ export class FeatureExecutor {
     // FIXME feature should really be attached ot the vstep
     for (const a of vstep.actions) {
       const start = world.timer.since();
-      const res: Partial<TActionResult> = await Executor.action(steppers, vstep, a, world);;
+      const res: Partial<TActionResult> = await Executor.action(steppers, vstep, a, world);
 
       let traces;
       if (world.shared.get('_trace')) {
