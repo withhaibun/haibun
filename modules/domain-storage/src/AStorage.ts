@@ -21,7 +21,7 @@ export abstract class AStorage extends AStepper {
     }
 
     async getCaptureDir({ options, tag }: { options: TOptions, tag: TTag }, app?: string) {
-        const p = [options.base, options.CAPTURE_DIR || CAPTURE, `loop-${tag.loop}`, `seq-${tag.sequence}`, `featn-${tag.featureNum}`, `mem-${tag.member}`];
+        const p = [options.base, CAPTURE, options.DEST, `loop-${tag.loop}`, `seq-${tag.sequence}`, `featn-${tag.featureNum}`, `mem-${tag.member}`];
         app && p.push(app);
         return this.pathed('.' + p.join('/'));
     }
