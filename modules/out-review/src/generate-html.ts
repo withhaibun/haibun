@@ -3,44 +3,74 @@ import { AStorage } from "@haibun/domain-storage/build/AStorage";
 import { EOL } from "os";
 import { create } from "xmlbuilder2";
 import { MISSING_TRACE } from "./out-reviews-stepper";
-import ReviewScript from "./review-script";
+import { ReviewScript, StepCircleCSS } from "./assets";
 
+export type TINDEX_SUMMARY = {
+    ok: boolean,
+    path: string,
+    title: string
+}
 const GREEN_CHECK = '✔️';
 const RED_CHECK = '❌';
 
 export default class GenerateHtml {
+    traceStorage: AStorage;
     publishStorage: AStorage;
     uriArgs: string | undefined;
-    constructor(publishStorage: AStorage, uriArgs = '') {
+    constructor(traceStorage: AStorage, publishStorage: AStorage, uriArgs = '') {
+        this.traceStorage = traceStorage;
         this.publishStorage = publishStorage;
         this.uriArgs = uriArgs;
     }
 
-    async getIndex(traces: { loc: TLocationOptions, trace: TFeatureResult | typeof MISSING_TRACE }[]) {
-        const index: any = {
-            div: []
+    summarize(results: { ok: boolean, dir: string, index: TINDEX_SUMMARY[] }[]) {
+        const summary: any = {
+            style: {
+                '#': StepCircleCSS
+            },
+            div: {
+                class: 'steplist',
+                ol: [],
+            },
+            section: []
         }
-        for (const t of traces) {
-            const { loc, trace } = t;
-            const where = this.publishStorage!.pathed(await AStorage.prototype.getCaptureDir(loc) + '/review.html');
-            const mark = trace.ok ? GREEN_CHECK : RED_CHECK;
-            index.div.push({
+        results.forEach(r => summary.div.ol.push({
+            li: {
+                a: {
+                    '@href': `${r.dir}`,
+                    '#': r.dir
+                }
+            }
+        }));
+        return summary;
+    }
+    getIndex(results: TINDEX_SUMMARY[], heading: string) {
+        const index: any = {
+            h1: {
+                '#': heading,
+            },
+            ul: []
+        }
+        for (const r of results) {
+            const { ok, path, title } = r;
+            const mark = ok ? GREEN_CHECK : RED_CHECK;
+            index.ul.push({
                 li: {
                     a: {
-                        '@href': `${where}${this.uriArgs}`,
-                        '#': `${mark} ${loc.tag.featureNum} ${trace.path}`
+                        '@href': `${path}${this.uriArgs}`,
+                        '#': `${mark} ${title}`
                     }
                 }
             });
         }
         return index;
     }
-    async getFeatureResult(loc: TLocationOptions, sourceStorage: AStorage, result: TFeatureResult | typeof MISSING_TRACE) {
-        const videoBase = await sourceStorage.getCaptureDir(loc, 'video');
+    async getFeatureResult(loc: TLocationOptions, storage: AStorage, result: TFeatureResult | typeof MISSING_TRACE) {
+        const videoBase = await this.traceStorage!.getCaptureDir(loc, 'video');
         let video: object;
         try {
-            const file = await sourceStorage.readdir(videoBase)[0];
-            const src = this.publishStorage!.pathed(await AStorage.prototype.getCaptureDir(loc, 'video') + `/${file}`);
+            const file = await storage.readdir(videoBase)[0];
+            const src = this.publishStorage!.pathed(await this.publishStorage!.getCaptureDir(loc, 'video') + `/${file}`);
             video = {
                 video: {
                     '@id': 'video',

@@ -31,6 +31,10 @@ export class BaseOptions implements IHasOptions {
             desc: 'execution setting (eg dev, prod)',
             parse: (result: string) => ({ result })
         },
+        DEST: {
+            desc: 'destination for captures',
+            parse: (result: string) => ({ result })
+        },
         STAY: {
             desc: 'stay running after execution: always',
             parse: (result: string) => ({ result })

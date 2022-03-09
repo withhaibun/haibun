@@ -1,5 +1,5 @@
 import { existsSync } from 'fs';
-import { TSpecl, TResult, TWorld, TFeature, TExtraOptions, TResolvedFeature, TendFeatureCallback, CStepper } from './defs';
+import { TSpecl, TResult, TWorld, TFeature, TExtraOptions, TResolvedFeature, TEndFeatureCallback, CStepper, DEFAULT_DEST } from './defs';
 import { expand } from './features';
 import { Executor } from '../phases/Executor';
 import { Resolver } from '../phases/Resolver';
@@ -7,7 +7,7 @@ import Builder from '../phases/Builder';
 import { getSteppers, verifyExtraOptions, recurse, debase, getRunTag, verifyRequiredOptions, createSteppers, setWorldStepperOptions } from './util';
 import { getDomains, verifyDomainsOrError } from './domain';
 
-type TRunOptions = { specl: TSpecl; world: TWorld; base: string; addSteppers?: CStepper[]; featureFilter?: string[]; extraOptions?: TExtraOptions; endFeatureCallback?: TendFeatureCallback }
+type TRunOptions = { specl: TSpecl; world: TWorld; base: string; addSteppers?: CStepper[]; featureFilter?: string[]; extraOptions?: TExtraOptions; endFeatureCallback?: TEndFeatureCallback }
 
 export async function run({ specl, base, world, addSteppers = [], featureFilter, endFeatureCallback }: TRunOptions): Promise<TResult> {
   let features;
@@ -31,10 +31,10 @@ type TRunWithOptions = {
   features: TFeature[];
   backgrounds: TFeature[];
   addSteppers: CStepper[];
-  endFeatureCallback?: TendFeatureCallback
+  endFeatureCallback?: TEndFeatureCallback
 }
 
-export const DEF_PROTO_OPTIONS = { options: {}, extraOptions: {} };
+export const DEF_PROTO_OPTIONS = { options: { DEST: DEFAULT_DEST }, extraOptions: {} };
 
 export async function runWith({ specl, world, features, backgrounds, addSteppers, endFeatureCallback }: TRunWithOptions): Promise<TResult> {
   const { tag } = world;
