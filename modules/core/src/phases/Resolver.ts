@@ -19,6 +19,7 @@ export class Resolver {
         const steps = await this.addSteps(feature);
         expanded.push(steps);
       } catch (e) {
+        
         this.world.logger.error(e);
         throw e;
       }

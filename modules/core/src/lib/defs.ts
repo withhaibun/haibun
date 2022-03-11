@@ -25,6 +25,7 @@ export interface IHasOptions {
   options?: {
     [name: string]: {
       required?: boolean;
+      default?: string;
       desc: string;
       parse: (input: string, existing?: TOptionValue) => { error?: string, env?: TOptions, result?: any }
     };

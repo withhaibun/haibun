@@ -3,9 +3,9 @@ import { OK, TFinalize } from '../lib/defs';
 import { getCreateSteppers, getDefaultWorld } from '../lib/test/lib';
 import Builder from './Builder';
 
-describe('Builder', async () => {
-  const steppers = await getCreateSteppers([])
-  test('throws', () => {
+describe('Builder', () => {
+  test('throws', async () => {
+    const steppers = await getCreateSteppers([])
     const throws = async () => {
       throw Error('fails');
     };
@@ -13,12 +13,14 @@ describe('Builder', async () => {
     // expect(async () => await builder.build([feature(throws)])).rejects.toThrow('fails');
   });
   test('passes', async () => {
+    const steppers = await getCreateSteppers([])
     const throws = async () => OK;
     const builder = new Builder(steppers, getDefaultWorld(0).world);
     // const res = await builder.build([feature(throws)]);
     // expect(res).toBe(OK);
   });
   test('finalizes', async () => {
+    const steppers = await getCreateSteppers([])
     const finalize: TFinalize = (workspace: WorkspaceContext) => (workspace.set('done', true));
     const finalizes = async () => ({ ...OK, finalize });
     const workspace: WorkspaceContext = new WorkspaceContext(`test builder finalizes`);
