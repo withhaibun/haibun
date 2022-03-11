@@ -49,6 +49,7 @@ const TestStepsWithDomain = class TestStepsWithDomain extends AStepper implement
 describe('domain object', () => {
   it('missing domain object', async () => {
     const result = await testWithDefaults([{ path: '/features/test.feature', content: `\nHas a foobar control\n` }], [TestStepsRequiresDomain]);
+    
     expect(result.ok).toBe(false);
 
     expect(result.failure!.error.message.startsWith(`missing required domain "${TTYPE}"`)).toBe(true);

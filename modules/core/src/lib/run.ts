@@ -1,5 +1,5 @@
 import { existsSync } from 'fs';
-import { TSpecl, TResult, TWorld, TFeature, TExtraOptions, TResolvedFeature, TEndFeatureCallback, CStepper, DEFAULT_DEST } from './defs';
+import { TSpecl, TResult, TWorld, TFeature, TExtraOptions, TResolvedFeature, TEndFeatureCallback, CStepper, DEFAULT_DEST, TNotOKActionResult } from './defs';
 import { expand } from './features';
 import { Executor } from '../phases/Executor';
 import { Resolver } from '../phases/Resolver';
@@ -40,14 +40,13 @@ export async function runWith({ specl, world, features, backgrounds, addSteppers
   const { tag } = world;
 
   let result = undefined;
+  const errorBail = (phase: string, error: any, details?: any) => {
+    result = { ok: false, tag, failure: { stage: phase, error: { message: error.message, details: { stack: error.stack, details } } } };
+    throw Error(error)
+  };
   try {
-    const errorBail = (phase: string, error: any, details?: any) => {
-      result = { ok: false, tag, failure: { stage: phase, error: { message: error.message, details: { stack: error.stack, details } } } };
-      throw Error(error)
-    };
     const baseSteppers = await getSteppers(specl.steppers).catch(error => errorBail('Steppers', error));
     const csteppers = baseSteppers.concat(addSteppers);
-
 
     await verifyRequiredOptions(csteppers, world.options).catch(error => errorBail('Required Options', error));
     await verifyExtraOptions(world.extraOptions, csteppers).catch((error: any) => errorBail('Options', error));
@@ -69,13 +68,14 @@ export async function runWith({ specl, world, features, backgrounds, addSteppers
     world.logger.log(`features: ${expandedFeatures.length} backgrounds: ${backgrounds.length} steps: (${expandedFeatures.map((e) => e.path)}), ${mappedValidatedSteps.length}`);
 
     result = await Executor.execute(csteppers, world, mappedValidatedSteps, endFeatureCallback).catch(error => errorBail('Execute', error));
-
-    // if (!result || !result.ok) {
-    //   const message = (result.results![0].stepResults.find(s => !s.ok)?.actionResults[0] as TNotOKActionResult).message;
-    //   result.failure = { stage: 'Execute', error: { message, details: { errors: result.results?.filter((r) => !r.ok).map((r) => r.path) } } };
-    // }
-  } catch (e) {
-    console.log('fell', e);
+    if (!result || !result.ok) {
+      const message = (result.results![0].stepResults.find(s => !s.ok)?.actionResults[0] as TNotOKActionResult).message;
+      result.failure = { stage: 'Execute', error: { message, details: { errors: result.results?.filter((r) => !r.ok).map((r) => r.path) } } };
+    }
+  } catch (error) {
+    if (!result) {
+      errorBail('catch', error);
+    }
   } finally {
     return result!;
   }

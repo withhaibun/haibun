@@ -34,13 +34,14 @@ export async function getTestEnv(useSteppers: string[], test: string, world: TWo
   return { world, vstep, csteppers, steppers };
 }
 type TTestFeatures = { path: string, content: string }[];
+
 export async function testWithDefaults(inFeatures: TTestFeatures, addSteppers: CStepper[], protoOptions: TProtoOptions = DEF_PROTO_OPTIONS, inBackgrounds: TTestFeatures = []) {
   const specl = getDefaultOptions();
   const world = getTestWorldWithOptions(protoOptions);
   const features = asFeatures(inFeatures);
   const backgrounds = asFeatures(inBackgrounds);
 
-  return { world, ...await runWith({ specl, features, backgrounds, addSteppers, world }) };
+  return await runWith({ specl, features, backgrounds, addSteppers, world });
 }
 export function getTestWorldWithOptions(protoOptions: TProtoOptions) {
   const { world } = getDefaultWorld(0);

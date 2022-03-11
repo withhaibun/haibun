@@ -105,7 +105,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
 
     if (this.bf?.hasPage(this.getWorld().tag)) {
       const page = await this.getPage();
-      const path = this.storage!.getCaptureDir(this.getWorld(), 'failure') + `/${result.seq}.png`;
+      const path = await this.storage!.getCaptureDir(this.getWorld(), 'failure') + `/${result.seq}.png`;
 
       await page.screenshot({ path, fullPage: true, timeout: 60000 });
     }
