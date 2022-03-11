@@ -55,6 +55,7 @@ export function processBaseEnv(env: TEnv, options: TOptions) {
   let nenv = {};
 
   const baseOptions = (BaseOptions as IHasOptions);
+  Object.entries(baseOptions).forEach(([k, v]) => protoOptions.options[k] = v.default);
 
   Object.entries(env)
     .filter(([k]) => k.startsWith(BASE_PREFIX))

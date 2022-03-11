@@ -27,6 +27,7 @@ export class Executor {
       featureNum++;
 
       const newWorld = { ...world, tag: { ...world.tag, ...{ featureNum: 0 + featureNum } } }
+
       const featureExecutor = new FeatureExecutor(csteppers, endFeatureCallback);
       await featureExecutor.setup(newWorld);
 

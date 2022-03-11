@@ -17,7 +17,6 @@ describe('out-review', () => {
                     [getStepperOptionName(outReviewsStepper, 'OUT_STORAGE')]: 'StorageFS',
                 },
             });
-            console.log('🤑', JSON.stringify(result, null, 2));
             expect(result.ok).toBe(true);
         });
     });
