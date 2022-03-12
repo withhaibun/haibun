@@ -2,7 +2,7 @@ import { AStepper, CAPTURE, IHasOptions, IPublishResults, IRequireDomains, IRevi
 import { STORAGE_ITEM, STORAGE_LOCATION } from '@haibun/domain-storage';
 import { findStepperFromOption, getRunTag, getStepperOption, stringOrError } from '@haibun/core/build/lib/util';
 import { AStorage } from '@haibun/domain-storage/build/AStorage';
-import GenerateHtml, { TINDEX_SUMMARY } from "./generate-html";
+import HtmlGenerator, { TINDEX_SUMMARY } from "./html-generator";
 
 const TRACE_STORAGE = 'TRACE_STORAGE';
 const REVIEWS_STORAGE = 'REVIEWS_STORAGE';
@@ -49,6 +49,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
 
   steps = {
     createReview: {
+      // create a review from current world only
       exact: `create review`,
       action: async () => {
         const trace = await this.readTraceFile(this.getWorld());
@@ -64,20 +65,22 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
       }
     },
     createReviews: {
-      exact: `create reviews`,
-      action: async () => {
+      gwta: `create reviews from {where}`,
+      action: async ({ where }: TNamed) => {
         const func = async (loc: TLocationOptions) => {
           const trace = await this.readTraceFile(loc);
           await this.writeReview(loc, trace);
         };
-        await this.withDestLocs(this.getWorld().options.DEST, func);
+        for (const dir of where.split(',').map(s => s.trim())) {
+          await this.withDestLocs(dir, func);
+        }
         return OK;
       }
     },
     createIndexesFrom: {
-      exact: `create indexes from {where}`,
+      gwta: `create indexes from {where}`,
       action: async ({ where }: TNamed) => {
-        const dirs = where.split(',').map(d => [process.cwd(), d.trim()].join('/'));
+        const dirs = where.split(',').map(d => d.trim());
         return await this.createIndexes(dirs);
       }
     },
@@ -90,9 +93,8 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
   }
 
   async getIndexedResults(dir: string) {
-    let reviewIndexes: TINDEX_SUMMARY[] = [];
-    const contents = this.reviewsStorage!.readFile('sarif-index.json');
-    reviewIndexes = JSON.parse(contents);
+    const contents = this.reviewsStorage!.readFile(this.reviewsStorage!.fromCaptureDir(dir, 'indexed.json'));
+    const reviewIndexes: TINDEX_SUMMARY[] = JSON.parse(contents);
     return reviewIndexes;
   }
 
@@ -107,24 +109,28 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
       }
       reviewIndexes.push(res);
     }
+
     await this.withDestLocs(dir, func);
     return reviewIndexes;
   }
   async createIndexes(indexDirs: string[]) {
     const uriArgs = getStepperOption(this, URI_ARGS, this.getWorld().extraOptions);
-    const generateHTML = new GenerateHtml(this.traceStorage!, this.publishStorage!, uriArgs);
-    const results: { ok: boolean, index: TINDEX_SUMMARY[], dir: string }[] = [];
+    const htmlGenerator = new HtmlGenerator(this.traceStorage!, this.publishStorage!, uriArgs);
+    const results: { ok: boolean, link: string, index: TINDEX_SUMMARY[], dir: string }[] = [];
+
     for (const spec of indexDirs) {
-      const [type, dir] = spec.split(':');
-      const indexer = type === 'indexed' ? this.getIndexedResults : this.getReviewIndex;
+      const [type, dirIn] = spec.split(':');
+      const dir = dirIn || type;
+      const indexer = type === 'indexed' ? this.getIndexedResults.bind(this) : this.getReviewIndex.bind(this);
       const summaries = await indexer(dir);
       const ok = !!summaries.every(s => s.ok);
-      const index = await generateHTML.getIndex(summaries, dir);
-      results.push({ ok, dir, index });
+      const index = await htmlGenerator.getIndex(summaries, dir);
+      results.push({ ok, dir, link: htmlGenerator.linkFor(dir), index });
     }
-    const indexSummary = generateHTML.summarize(results);
-    const { html } = await generateHTML.getOutput(indexSummary, { title: 'Feature Result Index' });
-    const file = `./${CAPTURE}/index.html`;
+
+    const indexSummary = htmlGenerator.summarize(results);
+    const { html } = await htmlGenerator.getOutput(indexSummary, { title: 'Feature Result Index', base: '..' });
+    const file = this.indexStorage!.fromCaptureDir('index.html');
     await this.indexStorage?.writeFile(file, html);
     this.getWorld().logger.info(`wrote index file ${file}`)
     return OK;
@@ -132,9 +138,11 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
   async withDestLocs(dest: string, func: any) {
     const reviewsIn = this.traceStorage!;
     const n = (i: string) => i.replace(/.*-/, '');
-    const loops = await reviewsIn.readdir(dest);
+
+    const start = this.traceStorage!.fromCaptureDir(dest);
+    const loops = await reviewsIn.readdir(start);
     for (const loop of loops) {
-      const loopDir = `${dest}/${loop}`;
+      const loopDir = `${start}/${loop}`;
       const sequences = await reviewsIn.readdir(loopDir);
       for (const seq of sequences) {
         const seqDir = `${loopDir}/${seq}`;
@@ -145,8 +153,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
           for (const member of members) {
             const memDir = `${featDir}/${member}`;
             const tag = getRunTag(n(seqDir), n(loopDir), n(featDir), n(memDir))
-            const options = { options: { ...this.getWorld().options, DEST: dest }, extraOptions: this.getWorld().extraOptions };
-            const loc = { tag, options };
+            const loc = { tag, options: { ...this.getWorld().options, DEST: dest }, extraOptions: this.getWorld().extraOptions };
             await func(loc);
           }
         }
@@ -171,19 +178,21 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
   }
   async writeReview(loc: TLocationOptions, trace: TFeatureResult | typeof MISSING_TRACE) {
     const uriArgs = getStepperOption(this, URI_ARGS, loc.extraOptions);
-    const generateHTML = new GenerateHtml(this.traceStorage!, this.publishStorage!, uriArgs);
-    const result = await generateHTML.getFeatureResult(loc, this.traceStorage!, trace);
-    const { html, } = await generateHTML.getOutput(result, { title: `Feature Result ${loc.tag.sequence}` });
-    const file = await this.reviewsStorage!.ensureCaptureDir(loc, undefined, 'review.html');
+    const generateHTML = new HtmlGenerator(this.traceStorage!, this.publishStorage!, uriArgs);
+    const dir = await this.reviewsStorage!.getCaptureDir(loc);
+    const file = 'review.html';
+    const dest = `${dir}/${file}`;
+    await this.reviewsStorage!.ensureDirExists(dir);
+    const result = await generateHTML.getFeatureResult(loc, this.traceStorage!, trace, dir);
+    const { html } = await generateHTML.getOutput(result, { title: `Feature Result ${loc.tag.sequence}` });
 
-    await this.reviewsStorage!.writeFile(file, html);
-    this.getWorld().logger.log(`wrote review ${file}`);
+    await this.reviewsStorage!.writeFile(this.reviewsStorage!.pathed(dest), html);
+    this.getWorld().logger.log(`wrote review ${dest}`);
   }
   async publishResults() {
     const rin = this.traceStorage!;
     const rout = this.publishStorage!;
     const dir = `./${CAPTURE}/${this.getWorld().options.DEST}`;
-    await rout.rmrf(dir)
     await this.recurseCopy(dir, rin, rout);
   }
   async recurseCopy(dir: string, rin: AStorage, rout: AStorage) {
