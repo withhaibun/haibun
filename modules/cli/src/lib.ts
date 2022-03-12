@@ -1,4 +1,4 @@
-import { BASE_PREFIX, IHasOptions, TOptions, TProtoOptions, TRunResult, TSpecl, } from "@haibun/core/build/lib/defs";
+import { BASE_PREFIX, DEFAULT_DEST, IHasOptions, TOptions, TProtoOptions, TRunResult, TSpecl, } from "@haibun/core/build/lib/defs";
 import { getCreateSteppers } from "@haibun/core/build/lib/test/lib";
 import { getPre } from "@haibun/core/build/lib/util";
 import { BaseOptions } from "./BaseOptions";

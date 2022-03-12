@@ -1,5 +1,5 @@
-import { IHasOptions, TOptions } from "@haibun/core/build/lib/defs";
-import { boolOrError, intOrError, stringOrError } from "@haibun/core/build/lib/util";
+import { DEFAULT_DEST, IHasOptions, TOptions } from "@haibun/core/build/lib/defs";
+import { boolOrError, intOrError } from "@haibun/core/build/lib/util";
 
 export class BaseOptions implements IHasOptions {
     static options = {
@@ -64,7 +64,7 @@ export class BaseOptions implements IHasOptions {
             desc: 'pass multiple environment variables: var1=a,var2=b',
             parse: (input: string, cur: TOptions) => {
                 const pairs = new Set(input?.split(',').map(a => a.split('=')[0]));
-                let env: TOptions = {};
+                let env: TOptions = { DEST: DEFAULT_DEST };
 
                 for (const pair of pairs) {
                     const [k] = Array.from(new Set(pair.split('=')));
