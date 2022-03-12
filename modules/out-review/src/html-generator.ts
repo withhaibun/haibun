@@ -3,7 +3,7 @@ import { AStorage } from "@haibun/domain-storage/build/AStorage";
 import { EOL } from "os";
 import { create } from "xmlbuilder2";
 import { MISSING_TRACE } from "./out-reviews-stepper";
-import { ReviewScript, StepCircleCSS } from "./assets";
+import { AllCSS, ReviewScript, StepCircleCSS } from "./assets";
 
 export type TINDEX_SUMMARY = {
     ok: boolean,
@@ -13,7 +13,7 @@ export type TINDEX_SUMMARY = {
 const GREEN_CHECK = '✔️';
 const RED_CHECK = '❌';
 
-export default class GenerateHtml {
+export default class HtmlGenerator {
     traceStorage: AStorage;
     publishStorage: AStorage;
     uriArgs: string | undefined;
@@ -23,54 +23,72 @@ export default class GenerateHtml {
         this.uriArgs = uriArgs;
     }
 
-    summarize(results: { ok: boolean, dir: string, index: TINDEX_SUMMARY[] }[]) {
+    linkFor(what: string) {
+        return `index_${what}`;
+    }
+
+    summarize(results: { ok: boolean, dir: string, link: string, index: TINDEX_SUMMARY[] }[]) {
         const summary: any = {
             style: {
                 '#': StepCircleCSS
             },
             div: {
-                class: 'steplist',
-                ol: [],
+                '@class': 'index-header',
+                ol: {
+                    '@class': 'steplist',
+                    li: [],
+                },
             },
             section: []
         }
-        results.forEach(r => summary.div.ol.push({
+
+        const li = results.map(r => ({
             li: {
+                '@class': r.ok ? 'passed' : 'failed',
                 a: {
-                    '@href': `${r.dir}`,
+                    '@href': `capture/index.html#${r.link}`,
                     '#': r.dir
                 }
             }
         }));
+
+        summary.div.ol.li = li;
+
+        results.forEach(r => summary.section.push({
+            ...r.index
+        }));
         return summary;
     }
-    getIndex(results: TINDEX_SUMMARY[], heading: string) {
+    getIndex(results: TINDEX_SUMMARY[], dir: string) {
         const index: any = {
             h1: {
-                '#': heading,
+                '@id': this.linkFor(dir),
+                '#': dir,
             },
-            ul: []
+            ul: {
+                '@class': 'no-bullets',
+                li: []
+
+            }
         }
         for (const r of results) {
             const { ok, path, title } = r;
             const mark = ok ? GREEN_CHECK : RED_CHECK;
-            index.ul.push({
-                li: {
-                    a: {
-                        '@href': `${path}${this.uriArgs}`,
-                        '#': `${mark} ${title}`
-                    }
+            index.ul.li.push({
+                a: {
+                    '@href': `${path}${this.uriArgs}`,
+                    '#': `${mark} ${title}`
                 }
             });
         }
         return index;
     }
-    async getFeatureResult(loc: TLocationOptions, storage: AStorage, result: TFeatureResult | typeof MISSING_TRACE) {
+    async getFeatureResult(loc: TLocationOptions, storage: AStorage, result: TFeatureResult | typeof MISSING_TRACE, dir: string) {
         const videoBase = await this.traceStorage!.getCaptureDir(loc, 'video');
         let video: object;
         try {
             const file = await storage.readdir(videoBase)[0];
-            const src = this.publishStorage!.pathed(await this.publishStorage!.getCaptureDir(loc, 'video') + `/${file}`);
+            const src = this.publishStorage!.pathed(await this.publishStorage!.getCaptureDir(loc, 'video') + `/${file}`, dir);
             video = {
                 video: {
                     '@id': 'video',
@@ -173,15 +191,15 @@ export default class GenerateHtml {
         forHTML.section.div.push(feature);
         return forHTML;
     }
-    async getOutput(content: object, { title = 'Haibun-Review', prettyPrint = true }) {
+    async getOutput(content: object, { title = 'Haibun-Review', prettyPrint = true, base = '' }) {
         const forHTML: any = {
             html: {
                 "@xmlns": "http://www.w3.org/1999/xhtml",
-                "@style": "list-style-type: none; padding: 10px",
                 head: {
                     meta: {
                         '@charset': 'utf-8'
-                    }
+                    },
+                    style: AllCSS
                 },
                 link: [{
                     '@href': "https://fonts.googleapis.com/css2?family=Open+Sans&display=swap",
@@ -197,6 +215,11 @@ export default class GenerateHtml {
                 }],
                 title,
                 ...content,
+            }
+        }
+        if (base) {
+            forHTML.html.head.base = {
+                '@href': base
             }
         }
 
@@ -217,16 +240,11 @@ export default class GenerateHtml {
                     '#': `${since} ${url}`,
                 }
             }
-            const ul = (headersContent as any).map((i: any) => ({
-                li:
-                {
-                    '#': `${i.name}: ${i.value}`
-                }
-            }));
-
             return {
                 details: {
-                    ul,
+                    ul: {
+                        li: (headersContent as any).map((i: any) => ({ '#': `${i.name}: ${i.value}` })),
+                    },
                     summary
                 }
             }
@@ -235,6 +253,7 @@ export default class GenerateHtml {
     }
     finish(html: string) {
         html = html.replace('{{SCRIPT}}', ReviewScript);
-        return html;
+        return `<!DOCTYPE html>
+\n${html}`;
     }
 }

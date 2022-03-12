@@ -151,7 +151,7 @@ export function getConfigFromBase(base: string): TSpecl | null {
   try {
     const specl = JSON.parse(readFileSync(f, 'utf-8'));
     if (!specl.options) {
-      specl.options = {};
+      specl.options = { DEST: DEFAULT_DEST };
     }
     return specl;
   } catch (e) {

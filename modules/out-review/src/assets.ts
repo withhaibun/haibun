@@ -1,7 +1,25 @@
+export const AllCSS = `
+body: {
+  padding: 2em;
+}
+
+a, a:visited, a:link, a {
+    text-decoration: none;
+ }
+`;
 
 
 // from https://stackoverflow.com/questions/70630336/create-css-circles-connected-by-line
-export const StepCircleCSS  = `
+export const StepCircleCSS = `
+
+.index-header {
+  padding: 2em;
+}
+
+.no-bullets {
+  list-style: none
+}
+
 *, ::after, ::before { box-sizing: border-box; }
 
 .steplist {
@@ -37,11 +55,20 @@ export const StepCircleCSS  = `
   transition: all 0.3s ease;
 }
 
-.steplist .active {
+.steplist .failed {
   color: black;
 }
 
-.steplist .active::before {
+.steplist .failed::before {
+  background-color: red;
+  box-shadow: 0 0 0 3px rgba(255,0,0,.25);
+}
+
+.steplist .passed {
+  color: black;
+}
+
+.steplist .passed::before {
   background-color: green;
   box-shadow: 0 0 0 3px rgba(0,255,0,.25);
 }
