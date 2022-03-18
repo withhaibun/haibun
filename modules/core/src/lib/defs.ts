@@ -105,12 +105,12 @@ export type TResolvedFeature = TExpandedFeature & {
 };
 
 
-export type StringOrNumber = string | number;
+export type TTagValue = number;
 export type TTag = {
-  sequence: StringOrNumber,
-  featureNum: StringOrNumber,
-  loop: StringOrNumber,
-  member: StringOrNumber,
+  sequence: number,
+  featureNum: number,
+  loop: number,
+  member: number,
   params: any,
   trace: boolean
 }
@@ -272,24 +272,6 @@ export type TRuntime = { [name: string]: any };
 
 export interface IResultOutput {
   writeOutput(result: TResult, args: any): Promise<any>;
-}
-
-export type TLocationOptions = {
-  tag: TTag,
-  options: TOptions,
-  extraOptions: TExtraOptions
-}
-
-export interface ITraceResult {
-  writeTraceFile(loc: TLocationOptions, result: TFeatureResult): any;
-}
-
-export interface IReviewResult {
-  writeReview(loc: TLocationOptions, result: TFeatureResult): any;
-}
-
-export interface IPublishResults {
-  publishResults(world: TWorld): any;
 }
 
 export const HAIBUN = 'HAIBUN';

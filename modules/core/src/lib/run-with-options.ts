@@ -1,4 +1,4 @@
-import { TStartRunCallback, TProtoOptions, TSpecl, TWorld, TTag, TRunOptions, TRunResult, StringOrNumber, TEndFeatureCallback } from './defs';
+import { TStartRunCallback, TProtoOptions, TSpecl, TWorld, TTag, TRunOptions, TRunResult, TTagValue, TEndFeatureCallback } from './defs';
 import { WorldContext } from './contexts';
 import Logger from './Logger';
 
@@ -15,7 +15,7 @@ export default async function runWithOptions(runOptions: TRunOptions) {
 
     const timer = new Timer();
     let totalRan = 0;
-    type TFailure = { sequence: StringOrNumber, runDuration: number, fromStart: number };
+    type TFailure = { sequence: TTagValue, runDuration: number, fromStart: number };
     let allFailures: { [message: string]: TFailure[] } = {};
     let allRunResults: PromiseSettledResult<TRunResult>[] = [];
 
