@@ -92,12 +92,12 @@ export interface IPublishResults {
 }
 
 export function guessMediaExt(file: string) {
-  const ext = file.replace(/.*\./, '');
+  const ext = file.replace(/.*\./, '').toLowerCase();
   return MAPPED_MEDIA_TYPES[ext] || ext;
 }
 
 export function guessMediaType(file: string) {
   const ext = guessMediaExt(file);
-  const mediaType = MEDIA_TYPES[ext.toLowerCase()] || ext.toUpperCase().replace(/[^A-Z]/g, '');
+  const mediaType = MEDIA_TYPES[ext] || ext.toUpperCase().replace(/[^A-Z]/g, '');
   return <TMediaType>mediaType;
 }
