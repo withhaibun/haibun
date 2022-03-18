@@ -18,7 +18,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@haibun/core": "^1.0.0"
+    "@haibun/core": "^1.0.0",
+    "@haibun/domain-storage": "^1.6.0"
   },
   "devDependencies": {
     "@types/jest": "^27.4.0",

@@ -1,9 +1,10 @@
-import { TFeatureResult, TLocationOptions, TTrace, } from "@haibun/core/build/lib/defs";
+import { TFeatureResult, TTrace, } from "@haibun/core/build/lib/defs";
 import { AStorage } from "@haibun/domain-storage/build/AStorage";
 import { EOL } from "os";
 import { create } from "xmlbuilder2";
 import { MISSING_TRACE } from "./out-reviews-stepper";
 import { AllCSS, ReviewScript, StepCircleCSS } from "./assets";
+import { EMediaTypes, TLocationOptions } from "@haibun/domain-storage";
 
 export type TINDEX_SUMMARY = {
     ok: boolean,
@@ -27,7 +28,7 @@ export default class HtmlGenerator {
         return `index_${what}`;
     }
 
-    summarize(results: { ok: boolean, dir: string, link: string, index: TINDEX_SUMMARY[] }[]) {
+    getIndexSummary(results: { ok: boolean, dir: string, link: string, index: TINDEX_SUMMARY[] }[]) {
         const summary: any = {
             style: {
                 '#': StepCircleCSS
@@ -46,7 +47,7 @@ export default class HtmlGenerator {
             li: {
                 '@class': r.ok ? 'passed' : 'failed',
                 a: {
-                    '@href': `capture/index.html#${r.link}`,
+                    '@href': `#${r.link}`,
                     '#': r.dir
                 }
             }
@@ -74,9 +75,11 @@ export default class HtmlGenerator {
         for (const r of results) {
             const { ok, path, title } = r;
             const mark = ok ? GREEN_CHECK : RED_CHECK;
+            const destPath = this.publishStorage!.pathed(EMediaTypes.html, path);
+            
             index.ul.li.push({
                 a: {
-                    '@href': `${path}${this.uriArgs}`,
+                    '@href': `${destPath}${this.uriArgs}`,
                     '#': `${mark} ${title}`
                 }
             });
@@ -88,7 +91,7 @@ export default class HtmlGenerator {
         let video: object;
         try {
             const file = await storage.readdir(videoBase)[0];
-            const src = this.publishStorage!.pathed(await this.publishStorage!.getCaptureDir(loc, 'video') + `/${file}`, dir);
+            const videoSrc = this.publishStorage!.pathed(EMediaTypes.video, await this.publishStorage!.getCaptureDir(loc, 'video') + `/${file}`, dir);
             video = {
                 video: {
                     '@id': 'video',
@@ -99,7 +102,7 @@ export default class HtmlGenerator {
 
                     source: {
                         '@type': 'video/webm',
-                        '@src': `${src}${this.uriArgs}`,
+                        '@src': `${videoSrc}${this.uriArgs}`,
                     }
                 }
             };
