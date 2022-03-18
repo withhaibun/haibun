@@ -46,7 +46,6 @@ const vars = class Vars extends AStepper {
 
       action: async ({ what, value }: TNamed) => {
         const val = this.getWorld().shared.get(what);
-        console.log('xx', val, value);
         
         return val === value ? OK : actionNotOK(`${what} is ${val}, not ${value}`)
       }

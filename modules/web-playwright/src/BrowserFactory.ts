@@ -2,7 +2,7 @@
 import { Browser, BrowserContext, Page, chromium, firefox, webkit, BrowserType, devices, } from 'playwright';
 
 import { ILogger, } from '@haibun/core/build/lib/interfaces/logger';
-import { StringOrNumber, TTraceOptions } from '@haibun/core/build/lib/defs';
+import { TTagValue, TTraceOptions } from '@haibun/core/build/lib/defs';
 
 export const BROWSERS: { [name: string]: BrowserType } = {
   firefox: firefox,
@@ -73,13 +73,13 @@ export class BrowserFactory {
     */
   }
 
-  getExistingContext({ sequence }: { sequence: StringOrNumber }) {
+  getExistingContext({ sequence }: { sequence: TTagValue }) {
     if (this.contexts[sequence]) {
       return this.contexts[sequence];
     }
   }
 
-  async getContext(sequence: StringOrNumber, options: TBrowserFactoryContextOptions): Promise<BrowserContext> {
+  async getContext(sequence: TTagValue, options: TBrowserFactoryContextOptions): Promise<BrowserContext> {
     if (!this.contexts[sequence]) {
       const browser = await this.getBrowser(this.type);
       this.logger.info(`creating new context ${sequence} ${this.type}`);
@@ -93,7 +93,7 @@ export class BrowserFactory {
   }
 
 
-  async closeContext({ sequence }: { sequence: StringOrNumber }) {
+  async closeContext({ sequence }: { sequence: TTagValue }) {
     if (this.contexts[sequence] !== undefined) {
       let p = this.pages[sequence];
       await p && p?.close();
@@ -109,11 +109,11 @@ export class BrowserFactory {
     });
   }
 
-  hasPage({ sequence }: { sequence: StringOrNumber }) {
+  hasPage({ sequence }: { sequence: TTagValue }) {
     return !!this.pages[sequence]
   }
 
-  async getPage({ sequence }: { sequence: StringOrNumber }, options: { trace?: TTraceOptions, browser: TBrowserFactoryContextOptions } = { browser: {} }): Promise<Page> {
+  async getPage({ sequence }: { sequence: TTagValue }, options: { trace?: TTraceOptions, browser: TBrowserFactoryContextOptions } = { browser: {} }): Promise<Page> {
     const { trace, browser } = options;
     if (this.pages[sequence] !== undefined) {
       return this.pages[sequence]!;

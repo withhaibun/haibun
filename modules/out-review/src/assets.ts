@@ -131,7 +131,6 @@ export const ReviewScript = `
     });
     
     const fixVideo = (e) => {
-        console.log('pos', videoDiv)
         videoDiv.style.top = 0;
         videoDiv.style.right = 0;
         videoDiv.style.position = 'fixed';

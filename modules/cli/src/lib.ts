@@ -51,11 +51,12 @@ export function ranResultError(ranResults: TRunResult[], exceptionResults: any[]
 
 export function processBaseEnv(env: TEnv, options: TOptions) {
   const protoOptions: TProtoOptions = { options: { ...options }, extraOptions: {} };
+  
   let errors: string[] = [];
   let nenv = {};
 
   const baseOptions = (BaseOptions as IHasOptions);
-  Object.entries(baseOptions).forEach(([k, v]) => protoOptions.options[k] = v.default);
+  baseOptions.options && Object.entries(baseOptions.options).forEach(([k, v]) => protoOptions.options[k] = v.default);
 
   Object.entries(env)
     .filter(([k]) => k.startsWith(BASE_PREFIX))
@@ -71,7 +72,7 @@ export function processBaseEnv(env: TEnv, options: TOptions) {
         } else if (res.env) {
           nenv = { ...nenv, ...res.env };
         } else if (!res.result) {
-          throw Error(`no result from ${res}`);
+          throw Error(`no option for ${opt} from ${res.result}`);
         } else {
           protoOptions.options[opt] = res.result;
         }
