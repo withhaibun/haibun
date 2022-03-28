@@ -154,8 +154,9 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
 
     const indexSummary = htmlGenerator.getIndexSummary(results);
     const { html } = await htmlGenerator.getOutput(indexSummary, { title: 'Feature Result Index' });
-    const indexHtml = 'index.html';
-    await this.publishStorage?.writeFile(indexHtml, html, EMediaTypes.html);
+    const indexHtml = this.publishStorage?.fromCaptureDir(EMediaTypes.html, 'index.html');
+    
+    await this.publishStorage?.writeFile(indexHtml!, html, EMediaTypes.html);
     this.getWorld().logger.info(`wrote index file ${indexHtml}`)
     return OK;
   }
