@@ -1,6 +1,6 @@
 {
   "name": "@haibun/web-server-express",
-  "version": "1.8.1",
+  "version": "1.8.2",
   "description": "",
   "main": "build/web-server-stepper.js",
   "files": [
@@ -33,7 +33,6 @@
     "eslint-plugin-prettier": "^3.3.1",
     "jest": "^27.0.4",
     "prettier": "^2.3.1",
-    "ts-jest": "^27.0.3",
     "ts-node": "^10.0.0",
     "tslint": "^6.1.3"
   }
