@@ -5,8 +5,8 @@ import { AStorage } from '@haibun/domain-storage/build/AStorage';
 import HtmlGenerator, { TINDEX_SUMMARY } from "./html-generator";
 import { ITraceResult } from '@haibun/domain-storage/build/domain-storage';
 
-const TRACE_STORAGE = 'TRACE_STORAGE';
-const REVIEWS_STORAGE = 'REVIEWS_STORAGE';
+export const TRACE_STORAGE = 'TRACE_STORAGE';
+export const REVIEWS_STORAGE = 'REVIEWS_STORAGE';
 const PUBLISH_STORAGE = 'PUBLISH_STORAGE';
 const INDEX_STORAGE = 'INDEX_STORAGE';
 const URI_ARGS = 'URI_ARGS';
