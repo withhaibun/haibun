@@ -1,6 +1,6 @@
 {
   "name": "@haibun/domain-storage",
-  "version": "1.8.1",
+  "version": "1.8.2",
   "description": "",
   "author": "",
   "main": "build/domain-storage.js",
@@ -37,8 +37,5 @@
     "prepublishOnly": "tsc -b .",
     "preversion": "npm run lint",
     "version": "npm run format && git add -A src"
-  },
-  "dependencies": {
-    "ts-jest": "^27.1.3"
   }
 }
