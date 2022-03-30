@@ -1,4 +1,4 @@
-import { TStartRunCallback, TProtoOptions, TSpecl, TWorld, TTag, TRunOptions, TRunResult, StringOrNumber, TendFeatureCallback } from './defs';
+import { TStartRunCallback, TProtoOptions, TSpecl, TWorld, TTag, TRunOptions, TRunResult, TTagValue, TEndFeatureCallback } from './defs';
 import { WorldContext } from './contexts';
 import Logger from './Logger';
 
@@ -15,7 +15,7 @@ export default async function runWithOptions(runOptions: TRunOptions) {
 
     const timer = new Timer();
     let totalRan = 0;
-    type TFailure = { sequence: StringOrNumber, runDuration: number, fromStart: number };
+    type TFailure = { sequence: TTagValue, runDuration: number, fromStart: number };
     let allFailures: { [message: string]: TFailure[] } = {};
     let allRunResults: PromiseSettledResult<TRunResult>[] = [];
 
@@ -81,7 +81,7 @@ export default async function runWithOptions(runOptions: TRunOptions) {
     return { ok, exceptionResults, ranResults, allFailures, logger, passed, failed, totalRan, runTime };
 }
 
-async function doRun(base: string, specl: TSpecl, runtime: {}, featureFilter: string[] | undefined, shared: WorldContext, protoOptions: TProtoOptions, containerLogger: ILogOutput, tag: TTag, timer: Timer, startRunCallback?: TStartRunCallback, endFeatureCallback?: TendFeatureCallback) {
+async function doRun(base: string, specl: TSpecl, runtime: {}, featureFilter: string[] | undefined, shared: WorldContext, protoOptions: TProtoOptions, containerLogger: ILogOutput, tag: TTag, timer: Timer, startRunCallback?: TStartRunCallback, endFeatureCallback?: TEndFeatureCallback) {
     const runStart = process.hrtime();
     const logger = new Logger({ output: containerLogger, tag });
 

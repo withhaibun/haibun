@@ -1,5 +1,5 @@
 import { WorkspaceContext } from '@haibun/core/build/lib/contexts';
-import { IHasDomains, TNamed, TVStep, OK, AStepper, TFromDomain, TFileTypeDomain, IHasOptions } from '@haibun/core/build/lib/defs';
+import { IHasDomains, TNamed, TVStep, OK, AStepper, TFromDomain, TFileTypeDomain, IHasOptions, TExtraOptions, TFeatureResult, TOptions, TTag, TWorld } from '@haibun/core/build/lib/defs';
 import { stringOrError } from '@haibun/core/build/lib/util';
 
 export const STORAGE_LOCATION = 'STORAGE_LOCATION';
@@ -51,3 +51,53 @@ const DomainStorage = class DomainStorage extends AStepper implements IHasDomain
 };
 
 export default DomainStorage;
+
+const MAPPED_MEDIA_TYPES = {
+  webm: 'video'
+}
+
+const MEDIA_TYPES: { [type: string]: string } = {
+  html: 'text/html',
+  json: 'json',
+  'video': 'video/mp4'
+}
+
+
+export const enum EMediaTypes {
+  html = 'html',
+  video = 'video',
+  json = 'json',
+  image = 'image'
+}
+
+export type TMediaType = EMediaTypes;
+
+export type TLocationOptions = {
+  tag: TTag,
+  options: TOptions,
+  extraOptions: TExtraOptions,
+  mediaType: TMediaType
+}
+
+export interface ITraceResult {
+  writeTraceFile(loc: TLocationOptions, result: TFeatureResult): any;
+}
+
+export interface IReviewResult {
+  writeReview(loc: TLocationOptions, result: TFeatureResult): any;
+}
+
+export interface IPublishResults {
+  publishResults(world: TWorld): any;
+}
+
+export function guessMediaExt(file: string) {
+  const ext = file.replace(/.*\./, '').toLowerCase();
+  return MAPPED_MEDIA_TYPES[ext] || ext;
+}
+
+export function guessMediaType(file: string) {
+  const ext = guessMediaExt(file);
+  const mediaType = MEDIA_TYPES[ext] || ext.toUpperCase().replace(/[^A-Z]/g, '');
+  return <TMediaType>mediaType;
+}

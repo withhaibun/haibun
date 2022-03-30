@@ -1,46 +1,97 @@
-import { TFeatureResult, TLocationOptions, TTrace, } from "@haibun/core/build/lib/defs";
+import { TFeatureResult, TTrace, } from "@haibun/core/build/lib/defs";
 import { AStorage } from "@haibun/domain-storage/build/AStorage";
 import { EOL } from "os";
 import { create } from "xmlbuilder2";
 import { MISSING_TRACE } from "./out-reviews-stepper";
-import ReviewScript from "./review-script";
+import { AllCSS, ReviewScript, StepCircleCSS } from "./assets";
+import { EMediaTypes, TLocationOptions } from "@haibun/domain-storage";
 
+export type TINDEX_SUMMARY = {
+    ok: boolean,
+    path: string,
+    title: string
+}
 const GREEN_CHECK = '✔️';
 const RED_CHECK = '❌';
 
-export default class GenerateHtml {
+export default class HtmlGenerator {
+    traceStorage: AStorage;
     publishStorage: AStorage;
     uriArgs: string | undefined;
-    constructor(publishStorage: AStorage, uriArgs = '') {
+    constructor(traceStorage: AStorage, publishStorage: AStorage, uriArgs = '') {
+        this.traceStorage = traceStorage;
         this.publishStorage = publishStorage;
         this.uriArgs = uriArgs;
     }
 
-    async getIndex(traces: { loc: TLocationOptions, trace: TFeatureResult | typeof MISSING_TRACE }[]) {
-        const index: any = {
-            div: []
+    linkFor(what: string) {
+        return `index_${what}`;
+    }
+
+    getIndexSummary(results: { ok: boolean, dir: string, link: string, index: TINDEX_SUMMARY[] }[]) {
+        const summary: any = {
+            style: {
+                '#': StepCircleCSS
+            },
+            div: {
+                '@class': 'index-header',
+                ol: {
+                    '@class': 'steplist',
+                    li: [],
+                },
+            },
+            section: []
         }
-        for (const t of traces) {
-            const { loc, trace } = t;
-            const where = this.publishStorage!.pathed(await AStorage.prototype.getCaptureDir(loc) + '/review.html');
-            const mark = trace.ok ? GREEN_CHECK : RED_CHECK;
-            index.div.push({
-                li: {
-                    a: {
-                        '@href': `${where}${this.uriArgs}`,
-                        '#': `${mark} ${loc.tag.featureNum} ${trace.path}`
-                    }
+
+        const li = results.map(r => ({
+            li: {
+                '@class': r.ok ? 'passed' : 'failed',
+                a: {
+                    '@href': `#${r.link}`,
+                    '#': r.dir
+                }
+            }
+        }));
+
+        summary.div.ol.li = li;
+
+        results.forEach(r => summary.section.push({
+            ...r.index
+        }));
+        return summary;
+    }
+    getIndex(results: TINDEX_SUMMARY[], dir: string) {
+        const index: any = {
+            h1: {
+                '@id': this.linkFor(dir),
+                '#': dir,
+            },
+            ul: {
+                '@class': 'no-bullets',
+                li: []
+
+            }
+        }
+        for (const r of results) {
+            const { ok, path, title } = r;
+            const mark = ok ? GREEN_CHECK : RED_CHECK;
+            const destPath = this.publishStorage!.pathed(EMediaTypes.html, path);
+            
+            index.ul.li.push({
+                a: {
+                    '@href': `${destPath}${this.uriArgs}`,
+                    '#': `${mark} ${title}`
                 }
             });
         }
         return index;
     }
-    async getFeatureResult(loc: TLocationOptions, sourceStorage: AStorage, result: TFeatureResult | typeof MISSING_TRACE) {
-        const videoBase = await sourceStorage.getCaptureDir(loc, 'video');
+    async getFeatureResult(loc: TLocationOptions, storage: AStorage, result: TFeatureResult | typeof MISSING_TRACE, dir: string) {
+        const videoBase = await this.traceStorage!.getCaptureDir(loc, 'video');
         let video: object;
         try {
-            const file = await sourceStorage.readdir(videoBase)[0];
-            const src = this.publishStorage!.pathed(await AStorage.prototype.getCaptureDir(loc, 'video') + `/${file}`);
+            const file = await storage.readdir(videoBase)[0];
+            const videoSrc = this.publishStorage!.pathed(EMediaTypes.video, await this.publishStorage!.getCaptureDir(loc, 'video') + `/${file}`, dir);
             video = {
                 video: {
                     '@id': 'video',
@@ -51,7 +102,7 @@ export default class GenerateHtml {
 
                     source: {
                         '@type': 'video/webm',
-                        '@src': `${src}${this.uriArgs}`,
+                        '@src': `${videoSrc}${this.uriArgs}`,
                     }
                 }
             };
@@ -143,15 +194,15 @@ export default class GenerateHtml {
         forHTML.section.div.push(feature);
         return forHTML;
     }
-    async getOutput(content: object, { title = 'Haibun-Review', prettyPrint = true }) {
+    async getOutput(content: object, { title = 'Haibun-Review', prettyPrint = true, base = '' }) {
         const forHTML: any = {
             html: {
                 "@xmlns": "http://www.w3.org/1999/xhtml",
-                "@style": "list-style-type: none; padding: 10px",
                 head: {
                     meta: {
                         '@charset': 'utf-8'
-                    }
+                    },
+                    style: AllCSS
                 },
                 link: [{
                     '@href': "https://fonts.googleapis.com/css2?family=Open+Sans&display=swap",
@@ -167,6 +218,11 @@ export default class GenerateHtml {
                 }],
                 title,
                 ...content,
+            }
+        }
+        if (base) {
+            forHTML.html.head.base = {
+                '@href': base
             }
         }
 
@@ -187,16 +243,11 @@ export default class GenerateHtml {
                     '#': `${since} ${url}`,
                 }
             }
-            const ul = (headersContent as any).map((i: any) => ({
-                li:
-                {
-                    '#': `${i.name}: ${i.value}`
-                }
-            }));
-
             return {
                 details: {
-                    ul,
+                    ul: {
+                        li: (headersContent as any).map((i: any) => ({ '#': `${i.name}: ${i.value}` })),
+                    },
                     summary
                 }
             }
@@ -205,6 +256,7 @@ export default class GenerateHtml {
     }
     finish(html: string) {
         html = html.replace('{{SCRIPT}}', ReviewScript);
-        return html;
+        return `<!DOCTYPE html>
+\n${html}`;
     }
 }
