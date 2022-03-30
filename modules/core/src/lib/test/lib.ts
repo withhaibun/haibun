@@ -1,4 +1,4 @@
-import { TWorld, TVStep, TExpandedLine, TProtoOptions, CStepper, TExpandedFeature } from '../defs';
+import { TWorld, TVStep, TExpandedLine, TProtoOptions, CStepper, TExpandedFeature, DEFAULT_DEST } from '../defs';
 import { Resolver } from '../../phases/Resolver';
 import { DEF_PROTO_OPTIONS, runWith } from './../run';
 import { getSteppers, getRunTag, verifyExtraOptions, getDefaultOptions, createSteppers } from './../util';
@@ -34,26 +34,29 @@ export async function getTestEnv(useSteppers: string[], test: string, world: TWo
   return { world, vstep, csteppers, steppers };
 }
 type TTestFeatures = { path: string, content: string }[];
+
 export async function testWithDefaults(inFeatures: TTestFeatures, addSteppers: CStepper[], protoOptions: TProtoOptions = DEF_PROTO_OPTIONS, inBackgrounds: TTestFeatures = []) {
   const specl = getDefaultOptions();
-  const { options, extraOptions } = protoOptions;
-
-  const { world } = getDefaultWorld(0);
-  if (protoOptions) {
-    world.options = options;
-    world.extraOptions = protoOptions.extraOptions;
-  }
-
+  const world = getTestWorldWithOptions(protoOptions);
   const features = asFeatures(inFeatures);
   const backgrounds = asFeatures(inBackgrounds);
 
-  return { world, ...await runWith({ specl, features, backgrounds, addSteppers, world }) };
+  return await runWith({ specl, features, backgrounds, addSteppers, world });
 }
+export function getTestWorldWithOptions(protoOptions: TProtoOptions) {
+  const { world } = getDefaultWorld(0);
+  if (protoOptions) {
+    world.options = protoOptions.options;
+    world.extraOptions = protoOptions.extraOptions;
+  }
+  return world;
+}
+
 
 export const asFeatures = (w: { path: string; content: string }[]) => w.map((i) => withNameType(i.path, i.content));
 
 // FIXME can't really do this without reproducing resolve
-export const asExpandedFeatures = (w: { path: string; content: string }[]) : TExpandedFeature[] =>
+export const asExpandedFeatures = (w: { path: string; content: string }[]): TExpandedFeature[] =>
   asFeatures(w).map((i) => {
     const expanded: TExpandedLine[] = featureSplit(i.content).map((a) => ({ line: a, feature: i }));
     let a: any = { ...i, expanded };
@@ -70,7 +73,7 @@ export function getDefaultWorld(sequence: number): { world: TWorld; } {
       shared: new WorldContext(getDefaultTag(sequence)),
       logger: new Logger(process.env.HAIBUN_LOG_LEVEL ? { level: process.env.HAIBUN_LOG_LEVEL } : LOGGER_NONE),
       runtime: {},
-      options: {},
+      options: { DEST: DEFAULT_DEST },
       extraOptions: {},
       domains: [],
       base: process.cwd()

@@ -3,7 +3,8 @@
 require('source-map-support').install()
 
 import repl from 'repl';
-import { AStepper, ITraceResult, IReviewResult, TSpecl, TWorld, IPublishResults, TFeatureResult } from '@haibun/core/build/lib/defs';
+import { AStepper, TSpecl, TWorld, TFeatureResult, } from '@haibun/core/build/lib/defs';
+import { EMediaTypes, IPublishResults, IReviewResult, ITraceResult } from '@haibun/domain-storage/';
 
 import { findStepper, getConfigFromBase, getDefaultOptions } from '@haibun/core/build/lib/util';
 import runWithOptions from '@haibun/core/build/lib/run-with-options';
@@ -19,6 +20,7 @@ async function go() {
   const base = process.argv[2]?.replace(/\/$/, '');
 
   const specl = getSpeclOrExit(base, featureFilter);
+
 
   const { protoOptions, errors } = processBaseEnv(process.env, specl.options);
   const splits: { [name: string]: string }[] = protoOptions.options.SPLITS || [{}];
@@ -40,9 +42,10 @@ async function go() {
   const endFeatureCallback = async (world: TWorld, result: TFeatureResult, steppers: AStepper[]) => {
     if (trace) {
       const tracer = findStepper<ITraceResult & IReviewResult & IPublishResults>(steppers, 'OutReviews');
-      await tracer.writeTraceFile(world, result);
+      const loc = { ...world };
+      await tracer.writeTraceFile({ ...loc, mediaType: EMediaTypes.json }, result);
       if (reviews) {
-        await tracer.writeReview(world, result);
+        await tracer.writeReview({ ...loc, mediaType: EMediaTypes.html }, result);
       }
     }
   }

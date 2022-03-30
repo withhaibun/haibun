@@ -69,7 +69,7 @@ describe('namedInterpolation regexes', () => {
   });
 });
 
-describe('getNamedWithVars', async () => {
+describe('getNamedWithVars', () => {
   class TestStepper extends AStepper {
     steps = {
       gwtaInterpolated: {
@@ -79,10 +79,10 @@ describe('getNamedWithVars', async () => {
     };
   }
   const { world } = getDefaultWorld(0);
-  const steppers = await createSteppers([TestStepper]);
-  const resolver = new Resolver(steppers, '', world);
-  world.shared.set('exact', 'res');
   test('gets var', async () => {
+    const steppers = await createSteppers([TestStepper]);
+    const resolver = new Resolver(steppers, '', world);
+    world.shared.set('exact', 'res');
     const features = asExpandedFeatures([withNameType('l1', 'is `exact`')]);
     const res = await resolver.resolveSteps(features);
     const { vsteps } = res[0] as TResolvedFeature;

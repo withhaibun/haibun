@@ -6,6 +6,7 @@ import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, 
 import { WEB_PAGE, WEB_CONTROL } from '@haibun/domain-webpage/build/domain-webpage';
 import { TTraceTopic } from '@haibun/core/build/lib/interfaces/logger';
 import { AStorage } from '@haibun/domain-storage/build/AStorage';
+import { EMediaTypes } from '@haibun/domain-storage';
 
 const STORAGE = 'STORAGE';
 
@@ -46,7 +47,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
 
   async getBrowserFactory(): Promise<BrowserFactory> {
     if (!this.hasFactory) {
-      const headless = getStepperOption(this, 'HEADLESS', this.getWorld().extraOptions)  === 'true';
+      const headless = getStepperOption(this, 'HEADLESS', this.getWorld().extraOptions) === 'true';
       const defaultTimeout = parseInt(getStepperOption(this, 'TIMEOUT', this.getWorld().extraOptions)) || 30000;
       this.bf = BrowserFactory.get(this.getWorld().logger, { defaultTimeout, browser: { headless } });
       this.hasFactory = true;
@@ -64,11 +65,12 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     const captureVideo = getStepperOption(this, 'CAPTURE_VIDEO', this.getWorld().extraOptions);
     const browser: TBrowserFactoryContextOptions = {};
     if (captureVideo) {
+      const loc = { ...this.getWorld(), mediaType: EMediaTypes.video };
       browser.recordVideo = {
-        dir: await this.storage!.ensureCaptureDir(this.getWorld(), 'video'),
+        dir: await this.storage!.ensureCaptureDir(loc, 'video'),
       }
     }
-      
+
     const trace: TTraceOptions | undefined = doTrace ? {
       response: {
         listener: async (res: Response) => {
@@ -105,7 +107,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
 
     if (this.bf?.hasPage(this.getWorld().tag)) {
       const page = await this.getPage();
-      const path = this.storage!.getCaptureDir(this.getWorld(), 'failure') + `/${result.seq}.png`;
+      const path = await this.storage!.getCaptureDir({...this.getWorld(), mediaType: EMediaTypes.image}, 'failure') + `/${result.seq}.png`;
 
       await page.screenshot({ path, fullPage: true, timeout: 60000 });
     }
@@ -375,7 +377,8 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     takeScreenshot: {
       gwta: 'take a screenshot',
       action: async () => {
-        const dir = await this.storage!.ensureCaptureDir(this.getWorld(), 'screenshots');
+        const loc = { ...this.getWorld(), mediaType: EMediaTypes.image };
+        const dir = await this.storage!.ensureCaptureDir(loc, 'screenshots');
         await this.withPage(
           async (page: Page) =>
             await page.screenshot({

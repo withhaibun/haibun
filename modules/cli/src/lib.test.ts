@@ -1,4 +1,5 @@
 
+import { DEFAULT_DEST } from '@haibun/core/build/lib/defs';
 import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, testWithDefaults } from '@haibun/core/build/lib/test/lib';
 import TestSteps from '@haibun/core/build/lib/test/TestSteps';
 import TestStepsWithOptions from '@haibun/core/build/lib/test/TestStepsWithOptions';
@@ -24,7 +25,7 @@ describe('usageThenExit', () => {
 describe('options', () => {
   it('stepper options', async () => {
     const feature = { path: '/features/test.feature', content: `When I have a stepper option` };
-    const { protoOptions: protoConfig } = processBaseEnv({ [HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]: 'true' }, {});
+    const { protoOptions: protoConfig } = processBaseEnv({ [HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]: 'true' }, {DEST: DEFAULT_DEST});
     const result = await testWithDefaults([feature], [TestStepsWithOptions], protoConfig);
     expect(result.ok).toBe(true);
     expect(result.results?.length).toBe(1);

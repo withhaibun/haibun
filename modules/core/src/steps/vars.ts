@@ -10,6 +10,7 @@ const vars = class Vars extends AStepper {
   set = async (named: TNamed, vstep: TVStep) => {
     // FIXME see https://github.com/withhaibun/haibun/issues/18
     const emptyOnly = !!vstep.in.match(/set empty /);
+
     return setShared(named, vstep, this.getWorld(), emptyOnly);
   };
   isSet(what: string, orCond: string) {
@@ -35,8 +36,19 @@ const vars = class Vars extends AStepper {
     },
     set: {
       gwta: 'set( empty)? {what: string} to {value: string}',
-      action: this.set.bind(this),
-      build: this.set.bind(this),
+      action: (n: TNamed, vstep: TVStep) => {
+        return this.set(n, vstep);
+      },
+      build: (n: TNamed, vstep: TVStep) => this.set(n, vstep),
+    },
+    is: {
+      gwta: '{what: string} is "{value}"',
+
+      action: async ({ what, value }: TNamed) => {
+        const val = this.getWorld().shared.get(what);
+        
+        return val === value ? OK : actionNotOK(`${what} is ${val}, not ${value}`)
+      }
     },
     isSet: {
       gwta: '{what: string} is set( or .*)?',
