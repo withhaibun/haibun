@@ -78,7 +78,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
           const headers = await res.headersArray();
           const headersContent = (await Promise.allSettled(headers)).map(h => (h as any).value);
           this.getWorld().logger.debug(`response trace ${headersContent.map(h => h.name)}`, { topic: ({ trace: { response: { headersContent } } } as TTraceTopic) });
-          const trace: TTrace = { 'response': { since: this.getWorld().timer.since(), trace: { headersContent } } }
+          const trace: TTrace = { 'response': { url, since: this.getWorld().timer.since(), trace: { headersContent } } }
           this.getWorld().shared.concat('_trace', trace);
         }
       }
