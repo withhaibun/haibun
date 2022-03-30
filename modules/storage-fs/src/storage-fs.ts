@@ -13,7 +13,7 @@ export default class StorageFS extends AStorage {
         try {
             return fs.readdirSync(dir);
         } catch (e) {
-            console.log(`can't read ${dir}`);
+            console.error(`can't read ${dir}`);
             throw (e);
         }
     }

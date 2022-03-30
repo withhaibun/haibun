@@ -102,7 +102,7 @@ done) &&  \
 (for i in cli; do 
   cd $i ; echo "\nlinking $i" ;
 
-  npm link @haibun/core @haibun/web-playwright @haibun/web-http @haibun/web-server-express && \
+  npm link @haibun/core @haibun/web-playwright @haibun/web-http @haibun/web-server-express @haibun/domain-storage && \
   tsc -b . && \
   npm link && \
 

@@ -17,7 +17,7 @@ describe('run self-contained', () => {
     expect(t.stepResults.every((r) => r.ok === true)).toBe(true)
   });
 });
-it.only('increments feature', async () => {
+it.skip('increments feature', async () => {
 
   const TS = class TS extends AStepper {
     steps = {
@@ -33,8 +33,9 @@ it.only('increments feature', async () => {
   };
   const feature = { path: '/features/test.feature', content: `When I have a test` };
   const feature2 = { path: '/features/test.feature', content: `The feature should be incremented` };
-  const { world } = await testWithDefaults([feature, feature2], [TestSteps, TS]);
-  expect(world.shared.get('result')).toBe(2);
+  const verify = { path: '/features/test.feature', content: `result is "2"` };
+  const { ok } = await testWithDefaults([feature, feature2, verify], [TestSteps, TS]);
+  expect(ok).toBe(true);
 });
 
 

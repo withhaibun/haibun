@@ -17,8 +17,10 @@ import {
   TTag,
   AStepper,
   TExtraOptions,
-  StringOrNumber,
+  TTagValue as number,
   CStepper,
+  DEFAULT_DEST,
+  TTagValue
 } from '../defs';
 import { withNameType } from '../features';
 
@@ -90,7 +92,7 @@ export async function createSteppers(steppers: CStepper[]): Promise<AStepper[]> 
 export async function getSteppers(stepperNames: string[]) {
   const steppers: CStepper[] = [];
   for (const s of stepperNames) {
-    
+
     try {
       const S = await getStepper(s);
       steppers.push(S);
@@ -141,7 +143,7 @@ export function getDefaultOptions(): TSpecl {
   return {
     mode: 'all',
     steppers: ['vars'],
-    options: {},
+    options: { DEST: DEFAULT_DEST }
   };
 }
 
@@ -150,7 +152,7 @@ export function getConfigFromBase(base: string): TSpecl | null {
   try {
     const specl = JSON.parse(readFileSync(f, 'utf-8'));
     if (!specl.options) {
-      specl.options = {};
+      specl.options = { DEST: DEFAULT_DEST };
     }
     return specl;
   } catch (e) {
@@ -278,7 +280,16 @@ export function applyResShouldContinue(world: any, res: Partial<TActionResult>, 
   return false;
 }
 
-export const getRunTag = (sequence: StringOrNumber, loop: StringOrNumber, featureNum: StringOrNumber, member: StringOrNumber, params = {}, trace = false) => ({ sequence, loop, member, featureNum, params, trace });
+export const getRunTag = (sequence: TTagValue, loop: TTagValue, featureNum: TTagValue, member: TTagValue, params = {}, trace = false) => {
+  const res: TTag = { sequence, loop, member, featureNum, params, trace };
+  ['sequence', 'loop', 'member', 'featureNum'].forEach(w => {
+    const val = (res as any)[w];
+    if (parseInt(val) !== val) {
+      throw Error(`missing ${w} from ${JSON.stringify(res)}`);
+    }
+  });
+  return res;
+}
 
 export const descTag = (tag: TTag) => ` @${tag.sequence} (${tag.loop}x${tag.member})`;
 
