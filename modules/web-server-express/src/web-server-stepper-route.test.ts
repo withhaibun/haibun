@@ -10,7 +10,7 @@ import { testWithDefaults } from '@haibun/core/src/lib/test/lib';
 import WebServerStepper from './web-server-stepper';
 
 describe('route mount', () => {
-  it('mounts a route', async () => {
+  it.skip('mounts a route', async () => {
     const TestRoute = class TestRoute extends AStepper {
       steps = {
         addRoute: {

@@ -1,10 +1,16 @@
-import { TFeatureResult, TTrace, } from "@haibun/core/build/lib/defs";
-import { AStorage } from "@haibun/domain-storage/build/AStorage";
 import { EOL } from "os";
 import { create } from "xmlbuilder2";
-import { MISSING_TRACE } from "./out-reviews-stepper";
+
+import { CAPTURE, TActionResultTopics, TTrace, } from "@haibun/core/build/lib/defs";
+import { AStorage } from "@haibun/domain-storage/build/AStorage";
 import { AllCSS, ReviewScript, StepCircleCSS } from "./assets";
-import { EMediaTypes, TLocationOptions } from "@haibun/domain-storage";
+import { EMediaTypes } from "@haibun/domain-storage";
+
+export type TWtw = {
+    missing?: string, videoSrc?: string, path: string, ok: boolean,
+    seq: number, in: string, name: string, topics?: TActionResultTopics, traces: TTrace[], start: number,
+    subResults: TWtw[]
+}
 
 export type TINDEX_SUMMARY = {
     ok: boolean,
@@ -14,12 +20,12 @@ export type TINDEX_SUMMARY = {
 const GREEN_CHECK = '✔️';
 const RED_CHECK = '❌';
 
+const led = (ok: boolean) => ok ? GREEN_CHECK : RED_CHECK;
+
 export default class HtmlGenerator {
-    traceStorage: AStorage;
     publishStorage: AStorage;
     uriArgs: string | undefined;
-    constructor(traceStorage: AStorage, publishStorage: AStorage, uriArgs = '') {
-        this.traceStorage = traceStorage;
+    constructor(publishStorage: AStorage, uriArgs = '') {
         this.publishStorage = publishStorage;
         this.uriArgs = uriArgs;
     }
@@ -29,7 +35,7 @@ export default class HtmlGenerator {
     }
 
     getIndexSummary(results: { ok: boolean, dir: string, link: string, index: TINDEX_SUMMARY[] }[]) {
-        const summary: any = {
+        const summary = {
             style: {
                 '#': StepCircleCSS
             },
@@ -37,10 +43,10 @@ export default class HtmlGenerator {
                 '@class': 'index-header',
                 ol: {
                     '@class': 'steplist',
-                    li: [],
+                    li: <any>[],
                 },
             },
-            section: []
+            section: <any>[]
         }
 
         const li = results.map(r => ({
@@ -74,135 +80,144 @@ export default class HtmlGenerator {
         }
         for (const r of results) {
             const { ok, path, title } = r;
-            const mark = ok ? GREEN_CHECK : RED_CHECK;
-            const destPath = this.publishStorage!.pathed(EMediaTypes.html, path);
-            
+            const destPath = this.publishStorage!.pathed(EMediaTypes.html, path, `./${CAPTURE}`);
+
             index.ul.li.push({
                 a: {
                     '@href': `${destPath}${this.uriArgs}`,
-                    '#': `${mark} ${title}`
+                    '#': `${led(ok)} ${title}`
                 }
             });
         }
         return index;
     }
-    async getFeatureResult(loc: TLocationOptions, storage: AStorage, result: TFeatureResult | typeof MISSING_TRACE, dir: string) {
-        const videoBase = await this.traceStorage!.getCaptureDir(loc, 'video');
-        let video: object;
-        try {
-            const file = await storage.readdir(videoBase)[0];
-            const videoSrc = this.publishStorage!.pathed(EMediaTypes.video, await this.publishStorage!.getCaptureDir(loc, 'video') + `/${file}`, dir);
-            video = {
+    getVideo(videoSrc: string) {
+        return {
+            div: {
+                '@id': 'videoDiv',
+                '@style': 'width: 640; height: 480; position: fixed; top: 0; right: 0; background-color: black; border: 4px dotted black',
                 video: {
-                    '@id': 'video',
                     '@controls': true,
                     '@height': 480,
                     '@width': 640,
                     '@autoplay': true,
-
+                    '@id': 'video',
                     source: {
                         '@type': 'video/webm',
                         '@src': `${videoSrc}${this.uriArgs}`,
                     }
                 }
-            };
-        } catch (e) {
-            video = {
-                h1: {
-                    '#': 'Video not available'
-                }
-
             }
         }
-        const forHTML: any = {
-            h1: {
-                '#': result.path
-            },
-            div: {
-                '@id': 'videoDiv',
-                '@style': 'width: 640, height: 480, position: fixed; top: 0, right: 0',
-                ...video,
-            },
-            section: {
-                '@style': 'padding-top: 480',
-                div: []
-            },
+    }
+
+    getFeatureResult(i: TWtw) {
+        const html = this.getAFeatureResult(i);
+        return {
+            ...html,
             script: {
                 '@type': 'text/javascript',
                 '#': '{{SCRIPT}}'
             },
+
+        }
+    }
+
+    getAFeatureResult(i: TWtw) {
+        const { videoSrc, path, ok,
+            seq, in: inStruction, name, topics, traces, start,
+            missing, subResults } = i;
+        const video = videoSrc ? this.getVideo(videoSrc) : {}; //{ h1: { '#': 'Video not available' } };
+        const heading = path ? {
+            h1: {
+                '#': path
+            }
+        } : {};
+        const forHTML = {
+            ...heading,
+            ...video,
+            section: {
+                '@style': 'padding-top: 480',
+                div: <any>[],
+                section: {}
+            },
         }
 
-        const feature: any = {
+        const feature = {
             div: {
-                '@style': 'border-top: 1px dotted grey; padding-top: 4em',
-                a: {
-                    '#': `Result: ${result.ok}`,
-                },
-                div: []
+                // '@style': 'border-top: 1px dotted grey',
+                // a: {
+                //     '#': `Result: ${led(ok)}`,
+                // },
+                div: <any>[],
+                section: {
+                    div: <any>[]
+                }
+
             }
         }
 
-        if (result === MISSING_TRACE) {
+        if (missing) {
             feature.div.div.push({
                 h1: {
-                    '#': 'Missing trace file'
+                    '#': missing
                 }
             })
         } else {
-            for (const s of (result as TFeatureResult).stepResults) {
-                for (const a of s.actionResults) {
-                    const start = (a as any).start;
-                    const o = {
-                        '@style': 'padding-top: 1em',
-                        a: {
-                            '@data-time': start,
-                            '@onclick': `setTime(${start})`,
-                            b: {
-                                b: {
-                                    '#': `<<  `,
-                                    span: [{
-                                        '@style': 'background: black; color: white; padding: 5, width: 3em; text-align: right',
-                                        '#': `${s.seq}`,
-                                    },
-                                    {
-                                        '#': `${a.ok} ${a.name} ${s.in}  `
-                                    }]
-
-                                }
-                            }
-                        },
-                        details: [(a.topics && {
-                            '#': JSON.stringify(a.topics),
-                            summary: {
-                                '#': 'topics'
+            const o = {
+                // '@style': 'padding-top: 1em',
+                a: {
+                    '@data-time': start,
+                    '@onclick': `setVideoTime(${start})`,
+                    span: {
+                        span: {
+                            span: {
+                                '@style': 'display: inline-block; width: 11em; color: #888',
+                                span: [{
+                                    '@style': 'display: inline-block; background: black; color: white; padding: 2px; width: 2em; text-align: right',
+                                    '#': `${seq}`,
+                                },
+                                {
+                                    '#': ` ${name} `
+                                }],
                             },
-                        }),
-                        ((a as any).traces && {
-                            '#': this.traces(a),
-                            summary: {
-                                '#': 'trace'
-                            },
-                        }),
-                        ]
+                            '#': `${led(ok)} ${inStruction}  `
+                        }
                     }
-                    feature.div.div.push(o);
-                }
+                },
+                details: [(topics && {
+                    '#': JSON.stringify(topics),
+                    summary: {
+                        '#': 'topics'
+                    },
+                }),
+                traces && {
+                    '#': this.traces(traces),
+                    summary: {
+                        '#': `${traces.length} traces`
+                    },
+                },
+                ]
+            }
+            feature.div.div.push(o);
+
+            for (const s of subResults || []) {
+                feature.div.section.div.push({ div: { '@style': 'margin: 0px; margin-left: 80px; /*background-color: pink*/', ...this.getAFeatureResult(s) } });
             }
         }
 
         forHTML.section.div.push(feature);
         return forHTML;
     }
-    async getOutput(content: object, { title = 'Haibun-Review', prettyPrint = true, base = '' }) {
-        const forHTML: any = {
+
+    async getHtmlDocument(content: object, { title = 'Haibun-Review', prettyPrint = true, base = '' }) {
+        const forHTML = {
             html: {
                 "@xmlns": "http://www.w3.org/1999/xhtml",
-                head: {
+                head: <any>{
                     meta: {
                         '@charset': 'utf-8'
                     },
-                    style: AllCSS
                 },
                 link: [{
                     '@href': "https://fonts.googleapis.com/css2?family=Open+Sans&display=swap",
@@ -216,6 +231,7 @@ export default class HtmlGenerator {
                     '@href': "https://www.canada.ca/etc/designs/canada/wet-boew/css/theme.min.css",
                     '@rel': "stylesheet"
                 }],
+                style: AllCSS,
                 title,
                 ...content,
             }
@@ -230,16 +246,15 @@ export default class HtmlGenerator {
         const html = this.finish(created);
         return { html };
     }
-    traces(a: any) {
-        const { traces } = a;
-        const byUrl = (traces as TTrace[]).map((i) => ({ url: i.response.trace.url, since: i.response.since, headersContent: i.response.trace.headersContent }));
+    traces(traces: TTrace[]) {
+        const byUrl = traces.map((i) => ({ url: i.response.url, since: i.response.since, headersContent: i.response.trace.headersContent }));
 
         const ret = byUrl.map(({ url, since, headersContent }) => {
             const summary = {
                 a: {
                     '@id': since,
                     '@data-time': since,
-                    '@onclick': `setTime(${since})`,
+                    '@onclick': `setVideoTime(${since})`,
                     '#': `${since} ${url}`,
                 }
             }

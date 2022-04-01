@@ -1,6 +1,6 @@
 import { webkit } from "playwright";
 import Logger, { LOGGER_NONE } from "@haibun/core/build/lib/Logger";
-import { BrowserFactory, PageInstance } from "./BrowserFactory";
+import { BrowserFactory } from "./BrowserFactory";
 import { getDefaultTag } from "@haibun/core/build/lib/test/lib";
 
 describe("types", () => {

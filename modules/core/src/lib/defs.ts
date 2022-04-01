@@ -216,6 +216,7 @@ export type TNotOKActionResult = {
 
 export type TTrace = {
   [name: string]: {
+    url: string,
     since: number,
     trace: any
   }
