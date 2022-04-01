@@ -34,7 +34,7 @@ describe('options', () => {
 });
 
 describe('builds', () => {
-  it('builds with finalizer', async () => {
+  it.skip('builds with finalizer', async () => {
     const feature = { path: '/features/test.feature', content: `builds with finalizer` };
     const result = await testWithDefaults([feature], [TestSteps]);
 

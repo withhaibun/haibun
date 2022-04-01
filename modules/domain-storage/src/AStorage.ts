@@ -1,6 +1,5 @@
-import { CAPTURE, AStepper, OK, TNamed, TOptions, TResult, TTag, TWorld, DEFAULT_DEST, } from "@haibun/core/build/lib/defs";
-import { dirname } from "path";
-import { EMediaTypes, TLocationOptions, TMediaType } from "./domain-storage";
+import { CAPTURE, AStepper, OK, TNamed, DEFAULT_DEST, } from "@haibun/core/build/lib/defs";
+import { TLocationOptions, TMediaType } from "./domain-storage";
 
 export abstract class AStorage extends AStepper {
     abstract readFile(path: string, coding?: string): any;

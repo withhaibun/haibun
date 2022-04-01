@@ -2,11 +2,11 @@ import { AStepper, IHasOptions, IRequireDomains, OK, TFeatureResult, TNamed, TWo
 import { EMediaTypes, guessMediaExt, IPublishResults, IReviewResult, STORAGE_ITEM, STORAGE_LOCATION, TLocationOptions, TMediaType } from '@haibun/domain-storage';
 import { findStepperFromOption, getRunTag, getStepperOption, stringOrError } from '@haibun/core/build/lib/util';
 import { AStorage } from '@haibun/domain-storage/build/AStorage';
-import HtmlGenerator, { TINDEX_SUMMARY } from "./html-generator";
+import HtmlGenerator, { TINDEX_SUMMARY, TWtw } from "./html-generator";
 import { ITraceResult } from '@haibun/domain-storage/build/domain-storage';
 
-const TRACE_STORAGE = 'TRACE_STORAGE';
-const REVIEWS_STORAGE = 'REVIEWS_STORAGE';
+export const TRACE_STORAGE = 'TRACE_STORAGE';
+export const REVIEWS_STORAGE = 'REVIEWS_STORAGE';
 const PUBLISH_STORAGE = 'PUBLISH_STORAGE';
 const INDEX_STORAGE = 'INDEX_STORAGE';
 const URI_ARGS = 'URI_ARGS';
@@ -139,7 +139,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
   }
   async createIndexes(indexDirs: string[]) {
     const uriArgs = getStepperOption(this, URI_ARGS, this.getWorld().extraOptions);
-    const htmlGenerator = new HtmlGenerator(this.traceStorage!, this.publishStorage!, uriArgs);
+    const htmlGenerator = new HtmlGenerator(this.publishStorage!, uriArgs);
     const results: { ok: boolean, link: string, index: TINDEX_SUMMARY[], dir: string }[] = [];
 
     for (const spec of indexDirs) {
@@ -153,9 +153,10 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     }
 
     const indexSummary = htmlGenerator.getIndexSummary(results);
-    const { html } = await htmlGenerator.getOutput(indexSummary, { title: 'Feature Result Index' });
-    const indexHtml = 'index.html';
-    await this.publishStorage?.writeFile(indexHtml, html, EMediaTypes.html);
+    const { html } = await htmlGenerator.getHtmlDocument(indexSummary, { title: 'Feature Result Index' });
+    const indexHtml = this.publishStorage?.fromCaptureDir(EMediaTypes.html, 'index.html');
+
+    await this.publishStorage?.writeFile(indexHtml!, html, EMediaTypes.html);
     this.getWorld().logger.info(`wrote index file ${indexHtml}`)
     return OK;
   }
@@ -207,15 +208,17 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
   }
   async writeReview(loc: TLocationOptions, trace: TFeatureResult | typeof MISSING_TRACE) {
     const uriArgs = getStepperOption(this, URI_ARGS, loc.extraOptions);
-    const generateHTML = new HtmlGenerator(this.traceStorage!, this.publishStorage!, uriArgs);
+    const generateHTML = new HtmlGenerator(this.publishStorage!, uriArgs);
 
     const dir = await this.reviewsStorage!.getCaptureDir(loc);
 
     const reviewHtml = await this.reviewsStorage!.getCaptureDir(loc, `review.html`);
-    
+
     await this.reviewsStorage!.ensureDirExists(dir);
-    const result = await generateHTML.getFeatureResult(loc, this.traceStorage!, trace, dir);
-    const { html } = await generateHTML.getOutput(result, { title: `Feature Result ${loc.tag.sequence}` });
+    const result = await this.traceToResult(loc, this.traceStorage!, trace, dir);
+    const i = generateHTML.getFeatureResult(result as TWtw);
+    
+    const { html } = await generateHTML.getHtmlDocument(i, { title: `Feature Result ${loc.tag.sequence}` });
 
     await this.reviewsStorage!.writeFile(reviewHtml, html, loc.mediaType);
     this.getWorld().logger.log(`wrote review ${reviewHtml}`);
@@ -223,7 +226,6 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
   async publishResults(world: TWorld) {
     const rin = this.traceStorage!;
     const rout = this.publishStorage!;
-    // FIXME media type is 
     // FIXME media type is ...
     const dir = await rin.getCaptureDir({ ...world, mediaType: EMediaTypes.html });
     await this.recurseCopy(dir, rin, rout);
@@ -243,6 +245,30 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
         await rout.writeFile(`${dir}/${entry}`, content, ext);
       }
     }
+  }
+  async traceToResult(loc: TLocationOptions, storage: AStorage, result: TFeatureResult | typeof MISSING_TRACE, dir: string) {
+    const videoBase = await this.traceStorage!.getCaptureDir(loc, 'video');
+    let videoSrc: string | undefined = undefined;
+    try {
+      const file = await storage.readdir(videoBase)[0];
+      videoSrc = this.publishStorage!.pathed(EMediaTypes.video, await this.publishStorage!.getCaptureDir(loc, 'video') + `/${file}`, dir);
+    } catch (e) { }
+    const i: Partial<TWtw> = { videoSrc, path: result.path, ok: result.ok, subResults: [] }
+
+    if (result === MISSING_TRACE) {
+      return i;
+    } else {
+      for (const stepResult of (result as TFeatureResult).stepResults) {
+        for (const actionResult of stepResult.actionResults) {
+          const sr: Partial<TWtw> = {
+            start: (actionResult as any).start, seq: stepResult.seq, in: stepResult.in,
+            ok: actionResult.ok, name: actionResult.name, topics: actionResult.topics, traces: (actionResult as any).traces
+          };
+          i.subResults?.push(sr as TWtw);
+        }
+      }
+    }
+    return i;
   }
 }
 

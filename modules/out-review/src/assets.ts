@@ -3,9 +3,13 @@ body: {
   padding: 2em;
 }
 
+details summary, details[open] {
+  border: none !important;
+}
+
 a, a:visited, a:link, a {
     text-decoration: none;
- }
+}
 `;
 
 
@@ -99,54 +103,45 @@ export const StepCircleCSS = `
 `;
 
 export const ReviewScript = `
-    const video = document.getElementById('video');
-    const setVideoTime = n => video.currentTime = n;
+const video = document.getElementById('video');
+const videoDiv = document.getElementById('videoDiv');
+const setVideoTime = n => video.currentTime = n;
 
-    video.addEventListener('timeupdate', (event) => {
-        let closest = [];
-        const ct = video.currentTime;
-        document.querySelectorAll("[data-time]").forEach(d => {
-            let colour = 'none';
+video.addEventListener('timeupdate', (event) => {
+    let closest = [];
+    const ct = video.currentTime;
+    document.querySelectorAll("[data-time]").forEach(d => {
+        let colour = 'none';
 
-            if (d.dataset.time >= ct) {
-                closest.push(d);
-                colour = 'orange';
-            }
-            d.style.background = colour;
-        });
-        let smallest = 9999999;
-        closest.forEach(c => {
-            if (c.dataset.time < smallest) {
-                smallest = c.dataset.time;
-            }
-        });
-
-        closest.forEach(c => {
-            const diff = ct - c.dataset.time;
-            if (c.dataset.time === smallest) {
-                c.style.background = 'yellow';
-            }
-        })
-        document.location.replace('#' + smallest);
-    });
-    
-    const fixVideo = (e) => {
-        videoDiv.style.top = 0;
-        videoDiv.style.right = 0;
-        videoDiv.style.position = 'fixed';
-    }
-
-    document.onkeydown = function (e) {
-        if (e.keyCode === 32) {
-            if (video.paused) {
-                video.play();
-            } else {
-                video.pause();
-            }
-            return false;
+        if (d.dataset.time >= ct) {
+            closest.push(d);
+            colour = '#ffe5b4';
         }
-    }
+        d.style.background = colour;
+    });
+    let smallest = 9999999;
+    closest.forEach(c => {
+        if (c.dataset.time < smallest) {
+            smallest = c.dataset.time;
+        }
+    });
 
-    fixVideo();
-    document.onscroll = fixVideo;
-`
+    closest.forEach(c => {
+        const diff = ct - c.dataset.time;
+        if (c.dataset.time === smallest) {
+            c.style.background = 'yellow';
+        }
+    })
+    document.location.replace('#' + smallest);
+});
+document.onkeydown = function (e) {
+    if (e.keyCode === 32) {
+        if (video.paused) {
+            video.play();
+        } else {
+            video.pause();
+        }
+        return false;
+    }
+}
+`;
