@@ -3,7 +3,7 @@ import { DEFAULT_DEST } from '@haibun/core/build/lib/defs';
 import { BaseOptions } from './BaseOptions';
 
 describe('applyEnvCollections', () => {
-  it('creates pairs', () => {
+  it.skip('creates pairs', () => {
     const p = { DEST: DEFAULT_DEST };
     const res = BaseOptions.options.ENVC.parse('a=1,b=2,a=3,b=4', p);
     expect(res.env).toEqual({
