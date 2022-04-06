@@ -21,7 +21,7 @@ export abstract class AStorage extends AStepper {
         throw Error(`rmrf not implemented at ${dir}`);
     }
 
-    fromCaptureDir(mediaType: TMediaType, ...where: string[]) {
+    fromCaptureLocation(mediaType: TMediaType, ...where: string[]) {
         return [`./${CAPTURE}`, ...where].join('/');
     }
 
@@ -31,7 +31,7 @@ export abstract class AStorage extends AStepper {
         return '.' + path.join('/');
     }
 
-    async getCaptureDir(loc: TLocationOptions, app?: string) {
+    async getCaptureLocation(loc: TLocationOptions, app?: string) {
         const { tag } = loc;
         return this.locator(loc, `loop-${tag.loop}`, `seq-${tag.sequence}`, `featn-${tag.featureNum}`, `mem-${tag.member}`, app);
     }
@@ -49,8 +49,8 @@ export abstract class AStorage extends AStepper {
         return f;
     }
 
-    async ensureCaptureDir(loc: TLocationOptions, app?: string | undefined, fn = '') {
-        const dir = await this.getCaptureDir(loc, app);
+    async ensureCaptureLocation(loc: TLocationOptions, app?: string | undefined, fn = '') {
+        const dir = await this.getCaptureLocation(loc, app);
         await this.ensureDirExists(dir);
         return `${dir}/${fn}`;
     }

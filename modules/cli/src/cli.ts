@@ -21,7 +21,6 @@ async function go() {
 
   const specl = getSpeclOrExit(base, featureFilter);
 
-
   const { protoOptions, errors } = processBaseEnv(process.env, specl.options);
   const splits: { [name: string]: string }[] = protoOptions.options.SPLITS || [{}];
 
@@ -33,8 +32,8 @@ async function go() {
 
   const loops = protoOptions.options.LOOPS || 1;
   const members = protoOptions.options.MEMBERS || 1;
-  const trace = protoOptions.options.REVIEWS || protoOptions.options.TRACE;
-  const reviews = protoOptions.options.REVIEWS;
+  const trace = protoOptions.options.TRACE;
+  const title = protoOptions.options.TITLE || base + ' ' + [...featureFilter || []].join(',');
 
   const startRunCallback = (world: TWorld) => {
     if (protoOptions.options.CLI) repl.start().context.runtime = world.runtime;
@@ -43,10 +42,7 @@ async function go() {
     if (trace) {
       const tracer = findStepper<ITraceResult & IReviewResult & IPublishResults>(steppers, 'OutReviews');
       const loc = { ...world };
-      await tracer.writeTraceFile({ ...loc, mediaType: EMediaTypes.json }, result);
-      if (reviews) {
-        await tracer.writeReview({ ...loc, mediaType: EMediaTypes.html }, result);
-      }
+      await tracer.writeTraceFile({ ...loc, mediaType: EMediaTypes.json }, Timer.startTime, title, result);
     }
   }
 
