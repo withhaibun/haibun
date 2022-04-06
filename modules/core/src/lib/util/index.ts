@@ -313,3 +313,8 @@ export const stringOrError = (val: string) => {
   };
   return { result: val }
 };
+
+
+export function friendlyTime(d: Date) {
+  return new Date(d).toLocaleString()
+}
