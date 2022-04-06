@@ -1,26 +1,25 @@
 import { EOL } from "os";
 import { create } from "xmlbuilder2";
 
-import { CAPTURE, TActionResultTopics, TTrace, } from "@haibun/core/build/lib/defs";
+import { TActionResultTopics, TTrace } from "@haibun/core/build/lib/defs";
 import { AStorage } from "@haibun/domain-storage/build/AStorage";
-import { AllCSS, ReviewScript, StepCircleCSS } from "./assets";
-import { EMediaTypes } from "@haibun/domain-storage";
+import { AllCSS, ReviewScript } from "./assets";
+import { stepResult } from "./components/stepResult";
+import { featureSummary } from "./components/featureSummary";
 
-export type TWtw = {
-    missing?: string, videoSrc?: string, path: string, ok: boolean,
-    seq: number, in: string, name: string, topics?: TActionResultTopics, traces: TTrace[], start: number,
-    subResults: TWtw[]
-}
+export type TSummaryItem = TFeatureSummary | TStepSummary;
 
-export type TINDEX_SUMMARY = {
+type THTMLFragment = any;
+export type TFeatureSummary = { missing: string, videoSrc?: string, path: string, title: string, startTime: Date, ok: boolean } & TSubResults;
+export type TStepSummary = { seq: number, in: string, name: string, topics?: TActionResultTopics, traces: TTrace[], start: number, ok: boolean } & TSubResults;
+type TSubResults = { subResults: TSummaryItem[] }
+
+export type TIndexSummary = {
     ok: boolean,
     path: string,
-    title: string
+    title: string,
+    startTime: Date
 }
-const GREEN_CHECK = '✔️';
-const RED_CHECK = '❌';
-
-const led = (ok: boolean) => ok ? GREEN_CHECK : RED_CHECK;
 
 export default class HtmlGenerator {
     publishStorage: AStorage;
@@ -34,85 +33,8 @@ export default class HtmlGenerator {
         return `index_${what}`;
     }
 
-    getIndexSummary(results: { ok: boolean, dir: string, link: string, index: TINDEX_SUMMARY[] }[]) {
-        const summary = {
-            style: {
-                '#': StepCircleCSS
-            },
-            div: {
-                '@class': 'index-header',
-                ol: {
-                    '@class': 'steplist',
-                    li: <any>[],
-                },
-            },
-            section: <any>[]
-        }
-
-        const li = results.map(r => ({
-            li: {
-                '@class': r.ok ? 'passed' : 'failed',
-                a: {
-                    '@href': `#${r.link}`,
-                    '#': r.dir
-                }
-            }
-        }));
-
-        summary.div.ol.li = li;
-
-        results.forEach(r => summary.section.push({
-            ...r.index
-        }));
-        return summary;
-    }
-    getIndex(results: TINDEX_SUMMARY[], dir: string) {
-        const index: any = {
-            h1: {
-                '@id': this.linkFor(dir),
-                '#': dir,
-            },
-            ul: {
-                '@class': 'no-bullets',
-                li: []
-
-            }
-        }
-        for (const r of results) {
-            const { ok, path, title } = r;
-            const destPath = this.publishStorage!.pathed(EMediaTypes.html, path, `./${CAPTURE}`);
-
-            index.ul.li.push({
-                a: {
-                    '@href': `${destPath}${this.uriArgs}`,
-                    '#': `${led(ok)} ${title}`
-                }
-            });
-        }
-        return index;
-    }
-    getVideo(videoSrc: string) {
-        return {
-            div: {
-                '@id': 'videoDiv',
-                '@style': 'width: 640; height: 480; position: fixed; top: 0; right: 0; background-color: black; border: 4px dotted black',
-                video: {
-                    '@controls': true,
-                    '@height': 480,
-                    '@width': 640,
-                    '@autoplay': true,
-                    '@id': 'video',
-                    source: {
-                        '@type': 'video/webm',
-                        '@src': `${videoSrc}${this.uriArgs}`,
-                    }
-                }
-            }
-        }
-    }
-
-    getFeatureResult(i: TWtw) {
-        const html = this.getAFeatureResult(i);
+    getFeatureResult(i: TSummaryItem) {
+        const html = this.getASummary(i);
         return {
             ...html,
             script: {
@@ -123,91 +45,22 @@ export default class HtmlGenerator {
         }
     }
 
-    getAFeatureResult(i: TWtw) {
-        const { videoSrc, path, ok,
-            seq, in: inStruction, name, topics, traces, start,
-            missing, subResults } = i;
-        const video = videoSrc ? this.getVideo(videoSrc) : {}; //{ h1: { '#': 'Video not available' } };
-        const heading = path ? {
-            h1: {
-                '#': path
-            }
-        } : {};
-        const forHTML = {
-            ...heading,
-            ...video,
-            section: {
-                '@style': 'padding-top: 480',
-                div: <any>[],
-                section: {}
-            },
-        }
+    isFeature(i: TSummaryItem): i is TFeatureSummary {
+        return !!(i as TFeatureSummary).path;
+    }
 
-        const feature = {
-            div: {
-                // '@style': 'border-top: 1px dotted grey',
-                // a: {
-                //     '#': `Result: ${led(ok)}`,
-                // },
-                div: <any>[],
-                section: {
-                    div: <any>[]
+    // returns a feature or step depending on type
+    getASummary(i: TSummaryItem): THTMLFragment {
+        const comp = this.isFeature(i) ? featureSummary(i, this.uriArgs) : stepResult(i);
+        for (const s of i.subResults || []) {
+            comp.section.div[0].div.section.div.push({
+                div: {
+                    '@style': 'margin: 0px; margin-left: 80px; /*background-color: pink*/',
+                    ...this.getASummary(s)
                 }
-
-            }
+            });
         }
-
-        if (missing) {
-            feature.div.div.push({
-                h1: {
-                    '#': missing
-                }
-            })
-        } else {
-            const o = {
-                // '@style': 'padding-top: 1em',
-                a: {
-                    '@data-time': start,
-                    '@onclick': `setVideoTime(${start})`,
-                    span: {
-                        span: {
-                            span: {
-                                '@style': 'display: inline-block; width: 11em; color: #888',
-                                span: [{
-                                    '@style': 'display: inline-block; background: black; color: white; padding: 2px; width: 2em; text-align: right',
-                                    '#': `${seq}`,
-                                },
-                                {
-                                    '#': ` ${name} `
-                                }],
-                            },
-                            '#': `${led(ok)} ${inStruction}  `
-                        }
-                    }
-                },
-                details: [(topics && {
-                    '#': JSON.stringify(topics),
-                    summary: {
-                        '#': 'topics'
-                    },
-                }),
-                traces && {
-                    '#': this.traces(traces),
-                    summary: {
-                        '#': `${traces.length} traces`
-                    },
-                },
-                ]
-            }
-            feature.div.div.push(o);
-
-            for (const s of subResults || []) {
-                feature.div.section.div.push({ div: { '@style': 'margin: 0px; margin-left: 80px; /*background-color: pink*/', ...this.getAFeatureResult(s) } });
-            }
-        }
-
-        forHTML.section.div.push(feature);
-        return forHTML;
+        return comp;
     }
 
     async getHtmlDocument(content: object, { title = 'Haibun-Review', prettyPrint = true, base = '' }) {
@@ -245,29 +98,6 @@ export default class HtmlGenerator {
         const created = create(forHTML).end({ prettyPrint, newline: EOL });
         const html = this.finish(created);
         return { html };
-    }
-    traces(traces: TTrace[]) {
-        const byUrl = traces.map((i) => ({ url: i.response.url, since: i.response.since, headersContent: i.response.trace.headersContent }));
-
-        const ret = byUrl.map(({ url, since, headersContent }) => {
-            const summary = {
-                a: {
-                    '@id': since,
-                    '@data-time': since,
-                    '@onclick': `setVideoTime(${since})`,
-                    '#': `${since} ${url}`,
-                }
-            }
-            return {
-                details: {
-                    ul: {
-                        li: (headersContent as any).map((i: any) => ({ '#': `${i.name}: ${i.value}` })),
-                    },
-                    summary
-                }
-            }
-        });
-        return ret;
     }
     finish(html: string) {
         html = html.replace('{{SCRIPT}}', ReviewScript);

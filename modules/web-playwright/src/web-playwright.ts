@@ -67,7 +67,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     if (captureVideo) {
       const loc = { ...this.getWorld(), mediaType: EMediaTypes.video };
       browser.recordVideo = {
-        dir: await this.storage!.ensureCaptureDir(loc, 'video'),
+        dir: await this.storage!.ensureCaptureLocation(loc, 'video'),
       }
     }
 
@@ -107,7 +107,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
 
     if (this.bf?.hasPage(this.getWorld().tag)) {
       const page = await this.getPage();
-      const path = await this.storage!.getCaptureDir({...this.getWorld(), mediaType: EMediaTypes.image}, 'failure') + `/${result.seq}.png`;
+      const path = await this.storage!.getCaptureLocation({...this.getWorld(), mediaType: EMediaTypes.image}, 'failure') + `/${result.seq}.png`;
 
       await page.screenshot({ path, fullPage: true, timeout: 60000 });
     }
@@ -378,7 +378,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       gwta: 'take a screenshot',
       action: async () => {
         const loc = { ...this.getWorld(), mediaType: EMediaTypes.image };
-        const dir = await this.storage!.ensureCaptureDir(loc, 'screenshots');
+        const dir = await this.storage!.ensureCaptureLocation(loc, 'screenshots');
         await this.withPage(
           async (page: Page) =>
             await page.screenshot({
