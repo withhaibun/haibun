@@ -218,7 +218,7 @@ export function getStepperOptionValue(key: string, value: string, csteppers: CSt
 }
 
 export async function verifyRequiredOptions(steppers: CStepper[], options: TExtraOptions) {
-  let requiredMissing = [];
+  let requiredMissing: string[] = [];
   for (const stepper of steppers) {
     const ao = (stepper.prototype) as IHasOptions;
     for (const option in ao.options) {
