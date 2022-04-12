@@ -1,5 +1,5 @@
 import { CAPTURE, AStepper, OK, TNamed, DEFAULT_DEST, } from "@haibun/core/build/lib/defs";
-import { setShared } from "@haibun/core/src/steps/vars";
+import { setShared } from "@haibun/core/build/steps/vars";
 import { TLocationOptions, TMediaType } from "./domain-storage";
 
 export interface IFile {
