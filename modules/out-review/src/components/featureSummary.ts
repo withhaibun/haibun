@@ -8,7 +8,7 @@ export const featureSummary = (i: TFeatureSummary, uriArgs: string | undefined) 
     const video = videoSrc ? fixedVideo(videoSrc, uriArgs) : {};
     const forHTML = {
         h1: {
-            '@style': 'position: fixed; top: 0; left: 0; background: white; padding: 18px; margin: 0px',
+            '@style': 'position: fixed; top: 0; left: 0; padding: 18px; margin: 0px; background-color: rgba(255,255,255,0.85); ',
             '#': `${led(ok)} ${title}`
         },
         p: {

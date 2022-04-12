@@ -13,10 +13,6 @@ export const stepResult = (i: TStepSummary) => {
 
     const feature = {
         div: {
-            // '@style': 'border-top: 1px dotted grey',
-            // a: {
-            //     '#': `Result: ${led(ok)}`,
-            // },
             div: <any>[],
             section: {
                 div: <any>[]
@@ -25,7 +21,6 @@ export const stepResult = (i: TStepSummary) => {
         }
     }
     const o = {
-        // '@style': 'padding-top: 1em',
         a: {
             '@data-time': start,
             '@onclick': `setVideoTime(${start})`,

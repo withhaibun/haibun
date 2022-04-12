@@ -1,9 +1,18 @@
 import { CAPTURE, AStepper, OK, TNamed, DEFAULT_DEST, } from "@haibun/core/build/lib/defs";
+import { setShared } from "@haibun/core/src/steps/vars";
 import { TLocationOptions, TMediaType } from "./domain-storage";
+
+export interface IFile {
+    name: string;
+    isDirectory: boolean;
+    isFile: boolean;
+    created: number;
+}
 
 export abstract class AStorage extends AStepper {
     abstract readFile(path: string, coding?: string): any;
-    abstract readdir(dir: string): any;
+    abstract readdir(dir: string): Promise<string[]>;
+    abstract readdirStat(dir: string): Promise<IFile[]>;
     abstract writeFileBuffer(file: string, contents: Buffer, mediaType: TMediaType): void;
 
     async writeFile(file: string, contents: string | Buffer, mediaType: TMediaType) {
@@ -12,11 +21,18 @@ export abstract class AStorage extends AStepper {
         }
         await this.writeFileBuffer(file, contents as Buffer, mediaType);
     }
+    async latestFrom(dir: string) {
+        const orderReccentFiles = async (dir: string) =>
+            (await this.readdirStat(dir))
+                .filter(f => f.isFile)
+                .sort((a, b) => b.created - a.created);
+        return orderReccentFiles(dir)[0];
+    }
 
-    abstract stat(dir: string);
     abstract mkdir(dir: string);
     abstract mkdirp(dir: string);
     abstract exists(ntt: string);
+
     async rmrf(dir: string) {
         throw Error(`rmrf not implemented at ${dir}`);
     }
@@ -65,6 +81,15 @@ export abstract class AStorage extends AStepper {
     }
 
     steps = {
+        setLatest: {
+            gwta: `set {what} to the latest file from {where}`,
+            action: async ({ where, what }: TNamed, vstep) => {
+                const latest = await this.latestFrom(where);
+                setShared({ what, value: latest.file }, vstep, this.getWorld());
+
+                return OK;
+            }
+        },
         readFile: {
             gwta: `read text from {where: STORAGE_ITEM}`,
             action: async ({ where }: TNamed) => {
