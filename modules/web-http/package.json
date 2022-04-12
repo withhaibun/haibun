@@ -1,6 +1,6 @@
 {
   "name": "@haibun/web-http",
-  "version": "1.8.3",
+  "version": "1.8.4",
   "description": "",
   "main": "build/web-http.js",
   "files": [
