@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 
-import { AStorage } from '@haibun/domain-storage/build/AStorage';
+import { AStorage, IFile } from '@haibun/domain-storage/build/AStorage';
 
 export default class StorageFS extends AStorage {
     readFile = (file: string, coding?: any) => fs.readFileSync(file, coding)
@@ -8,8 +8,17 @@ export default class StorageFS extends AStorage {
     writeFileBuffer = (fn: string, contents: Buffer) => {
         fs.writeFileSync(fn, contents);;
     }
-    stat = fs.statSync;
-    readdir = (dir: string) => {
+    lstatSync(file: string) {
+        const l = fs.lstatSync(file);
+        const ifile = {
+            name: file,
+            created: l.mtime.getDate(),
+            isDirectory: l.isDirectory(),
+            isFile: l.isFile()
+        }
+        return <IFile>ifile;
+    }
+    readdir = async (dir: string) => {
         try {
             return fs.readdirSync(dir);
         } catch (e) {
@@ -17,6 +26,11 @@ export default class StorageFS extends AStorage {
             throw (e);
         }
     }
+    async readdirStat(dir: string): Promise<IFile[]> {
+        const files = await this.readdir(dir);
+        return files.map(f => this.lstatSync(f));
+    }
+
     mkdir = fs.mkdirSync;
     mkdirp = (dir: string) => {
         fs.mkdirSync(dir, { recursive: true });

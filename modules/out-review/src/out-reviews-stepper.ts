@@ -226,7 +226,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
 
     await this.reviewsStorage!.ensureDirExists(dir);
     const result = await this.traceToResult(loc, this.traceStorage!, <TTraceResult>trace, dir);
-    
+
     const i = generateHTML.getFeatureResult(result as TSummaryItem);
 
     const { html } = await generateHTML.getHtmlDocument(i, { title: `Feature Result ${loc.tag.sequence}` });
@@ -242,18 +242,17 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     await this.recurseCopy(dir, rin, rout);
   }
   async recurseCopy(dir: string, rin: AStorage, rout: AStorage) {
-    const entries = await rin.readdir(dir);
+    const entries = await rin.readdirStat(dir);
 
     for (const entry of entries) {
       const here = `${dir}/${entry}`;
-      const stat = rin.stat(here);
-      if (stat.isDirectory()) {
+      if (entry.isDirectory) {
         await rout.mkdirp(here);
         await this.recurseCopy(here, rin, rout);
       } else {
         const content = await rin.readFile(here);
-        const ext = <EMediaTypes>guessMediaExt(entry);
-        await rout.writeFile(`${dir}/${entry}`, content, ext);
+        const ext = <EMediaTypes>guessMediaExt(entry.name);
+        await rout.writeFile(here, content, ext);
       }
     }
   }
@@ -263,7 +262,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     const videoBase = await this.traceStorage!.getCaptureLocation(loc, 'video');
     let videoSrc: string | undefined = undefined;
     try {
-      const file = await storage.readdir(videoBase)[0];
+      const file = (await storage.readdir(videoBase))[0];
       videoSrc = this.publishStorage!.pathed(EMediaTypes.video, await this.publishStorage!.getCaptureLocation(loc, 'video') + `/${file}`, dir);
     } catch (e) { }
 
