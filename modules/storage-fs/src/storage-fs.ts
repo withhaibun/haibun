@@ -8,7 +8,7 @@ export default class StorageFS extends AStorage {
     writeFileBuffer = (fn: string, contents: Buffer) => {
         fs.writeFileSync(fn, contents);;
     }
-    lstatSync(file: string) {
+    lstatToIFile(file: string) {
         const l = fs.lstatSync(file);
         const ifile = {
             name: file,
@@ -28,7 +28,7 @@ export default class StorageFS extends AStorage {
     }
     async readdirStat(dir: string): Promise<IFile[]> {
         const files = await this.readdir(dir);
-        return files.map(f => this.lstatSync(f));
+        return files.map(f => this.lstatToIFile(`${dir}/${f}`));
     }
 
     mkdir = fs.mkdirSync;
