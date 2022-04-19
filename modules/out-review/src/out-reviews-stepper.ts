@@ -14,6 +14,7 @@ const INDEX_STORAGE = 'INDEX_STORAGE';
 const URI_ARGS = 'URI_ARGS';
 
 export const MISSING_TRACE: TIndexSummary = { ok: false, path: 'missing', title: 'Missing trace file', startTime: new Date() };
+const INDEXED = 'indexed';
 
 const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRequireDomains, ITraceResult, IReviewResult, IPublishResults {
   traceStorage?: AStorage;
@@ -65,12 +66,19 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
         return OK;
       }
     },
-    publishResultsFrom: {
-      gwta: `publish results from {where}`,
+    createReviewsFrom: {
+      gwta: `create reviews from {where}`,
       action: async ({ where }: TNamed) => {
-        for (const dest of where.split(',').map(d => d.trim())) {
-          await this.publishResults({ ...this.getWorld(), options: { ...this.getWorld().options, DEST: dest } });
-        }
+
+        await this.writeReviewsFrom(where.split(',').map(s => s.trim()));
+        return OK;
+      }
+    },
+    createFoundReviews: {
+      exact: `create found reviews`,
+      action: async () => {
+        const found = await this.findArtifacts(this.traceStorage!, `${INDEXED}:`);
+        this.writeReviewsFrom(found);
         return OK;
       }
     },
@@ -81,18 +89,29 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
         return OK;
       }
     },
-    createReviews: {
-      gwta: `create reviews from {where}`,
+    publishResultsFrom: {
+      gwta: `publish results from {where}`,
       action: async ({ where }: TNamed) => {
-        const func = async (loc: TLocationOptions) => {
-          const trace = await this.readTraceFile(loc);
-
-          await this.writeReview(loc, trace);
-        };
-        for (const dir of where.split(',').map(s => s.trim())) {
-          await this.withDestLocs(dir, func, EMediaTypes.html);
+        for (const dest of where.split(',').map(d => d.trim())) {
+          await this.publishResults({ ...this.getWorld(), options: { ...this.getWorld().options, DEST: dest } });
         }
         return OK;
+      }
+    },
+    publishFoundResults: {
+      exact: `publish found results`,
+      action: async () => {
+        const found = await this.findArtifacts(this.traceStorage!, `${INDEXED}:`);
+        for (const dest of found) {
+          await this.publishResults({ ...this.getWorld(), options: { ...this.getWorld().options, DEST: dest } });
+        }
+        return OK;
+      }
+    },
+    createIndex: {
+      exact: `create index`,
+      action: async () => {
+        return await this.createIndexes([this.getWorld().options.DEST]);
       }
     },
     createIndexesFrom: {
@@ -102,11 +121,41 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
         return await this.createIndexes(dirs);
       }
     },
-    createIndex: {
-      exact: `create index`,
+    createFoundIndex: {
+      exact: `create found index`,
       action: async () => {
-        return await this.createIndexes([this.getWorld().options.DEST]);
+        const found = await this.findArtifacts(this.traceStorage!);
+        return await this.createIndexes(found);
       }
+    },
+  }
+
+  // find parseable artifacts from known traces
+  async findArtifacts(fromWhere: AStorage, filter?: string) {
+    const dir = await fromWhere.readdirStat(`./${CAPTURE}`);
+    let found: string[] = [];
+    for (const entry of dir) {
+      const entryDir = entry.name.replace(/.*\//, '');
+      if (entryDir === 'sarif') {
+        found.push(`${INDEXED}:${entryDir}`);
+      } else if (entry.isDirectory) {
+        const entries = await fromWhere.readdirStat(`${entry.name}`);
+        const loop = entries.map(e => e.name.replace(/.*\//, '')).find(e => e === 'loop-1');
+        if (loop) {
+          found.push(entryDir);
+        }
+      }
+    }
+    return filter ? found.filter(f => !f.includes(filter)) : found;
+  }
+  async writeReviewsFrom(where: string[]) {
+    const func = async (loc: TLocationOptions) => {
+      const trace = await this.readTraceFile(loc);
+
+      await this.writeReview(loc, trace);
+    };
+    for (const dir of where) {
+      await this.withDestLocs(dir, func, EMediaTypes.html);
     }
   }
 
@@ -154,7 +203,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     for (const spec of indexDirs) {
       const [type, dirIn] = spec.split(':');
       const dir = dirIn || type;
-      const indexer = type === 'indexed' ? this.getIndexedResults.bind(this) : this.getReviewIndex.bind(this);
+      const indexer = type === INDEXED ? this.getIndexedResults.bind(this) : this.getReviewIndex.bind(this);
       const summaries = await indexer(dir);
       const ok = !!summaries.every(s => s.ok);
       const index = toc(summaries, dir, uriArgs, htmlGenerator.linkFor, (path: string) => this.publishStorage!.pathed(EMediaTypes.html, path, `./${CAPTURE}`));
@@ -245,13 +294,14 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     const entries = await rin.readdirStat(dir);
 
     for (const entry of entries) {
-      const here = `${dir}/${entry}`;
+      const here = entry.name;
       if (entry.isDirectory) {
         await rout.mkdirp(here);
         await this.recurseCopy(here, rin, rout);
       } else {
         const content = await rin.readFile(here);
         const ext = <EMediaTypes>guessMediaExt(entry.name);
+
         await rout.writeFile(here, content, ext);
       }
     }
