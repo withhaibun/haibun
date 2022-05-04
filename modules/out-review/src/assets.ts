@@ -105,7 +105,16 @@ export const StepCircleCSS = `
 export const ReviewScript = `
 const video = document.getElementById('video');
 const videoDiv = document.getElementById('videoDiv');
-const setVideoTime = n => video.currentTime = n;
+const setVideoTime = n => {
+  video.currentTime = n;
+  document.location.replace('#i' + n);
+}
+let lastTrace;
+const nowlink = document.URL.split('#i')[1];
+console.log(nowlink, document.URL);
+if (nowlink) {
+  setVideoTime(nowlink);
+}
 
 video.addEventListener('timeupdate', (event) => {
     let closest = [];
@@ -119,7 +128,7 @@ video.addEventListener('timeupdate', (event) => {
         }
         d.style.background = colour;
     });
-    let smallest = 9999999;
+    let smallest = Infinity;
     closest.forEach(c => {
         if (c.dataset.time < smallest) {
             smallest = c.dataset.time;
@@ -135,10 +144,18 @@ video.addEventListener('timeupdate', (event) => {
     const id = 'i' + smallest;
     const el = document.getElementById(id);
 
+    if (lastTrace) {
+      lastTrace.innerHTML = '';
+    }
     if (el) {
       // open details 
-      document.location.replace('#' + id);
-      el.scrollIntoView({behavior: "smooth", inline: "start"});
+      const start = el.dataset.start;
+      const whereto = 'start-' + start;
+      document.getElementById(whereto).scrollIntoView({behavior: "smooth", block: "center"});
+      lastTrace = document.getElementById('current-' + start);
+      if (!lastTrace.parentNode.parentNode.open) {
+        lastTrace.innerHTML = el.innerHTML;
+      }
     }
 });
 
