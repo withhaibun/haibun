@@ -134,21 +134,14 @@ video.addEventListener('timeupdate', (event) => {
     })
     const id = 'i' + smallest;
     const el = document.getElementById(id);
+
     if (el) {
-      console.log('hi', id);
       // open details 
       document.location.replace('#' + id);
-      document.getElementById(id).scrollIntoView({behavior: "smooth", inline: "start"});
+      el.scrollIntoView({behavior: "smooth", inline: "start"});
     }
 });
-function scrollTo(id) {
-    var element = document.getElementById('i' + id);
-    var headerOffset = 60;
-    var elementPosition = element.offsetTop;
-    var offsetPosition = elementPosition - headerOffset;
-    document.documentElement.scrollTop = offsetPosition;
-    document.body.scrollTop = offsetPosition; // For Safari
-}
+
 document.onkeydown = function (e) {
     if (e.keyCode === 32) {
         if (video.paused) {
