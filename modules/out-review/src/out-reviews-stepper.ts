@@ -196,7 +196,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     return reviewIndexes;
   }
   async createIndexes(indexDirs: string[]) {
-    const uriArgs = getStepperOption(this, URI_ARGS, this.getWorld().extraOptions);
+    const uriArgs = getStepperOption(this, URI_ARGS, this.getWorld().extraOptions) || '';
     const htmlGenerator = new HtmlGenerator(this.publishStorage!, uriArgs);
     const results: { ok: boolean, link: string, index: TIndexSummary[], dir: string }[] = [];
 
