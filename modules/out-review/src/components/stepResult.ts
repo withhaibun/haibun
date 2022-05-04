@@ -23,6 +23,7 @@ export const stepResult = (i: TStepSummary) => {
     const o = {
         a: {
             '@data-time': start,
+            '@id': `start-${start}`,
             '@onclick': `setVideoTime(${start})`,
             span: {
                 span: {
@@ -47,9 +48,13 @@ export const stepResult = (i: TStepSummary) => {
             },
         }),
         allTraces && {
-            '#': traces(allTraces),
+            '#': traces(allTraces, start),
             summary: {
-                '#': `${allTraces.length} traces`
+                '#': `${allTraces.length} traces`,
+                span: {
+                    '@style': 'background: yellow',
+                    '@id': `current-${start}`
+                }
             },
         },
         ]
