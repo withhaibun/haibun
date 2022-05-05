@@ -111,7 +111,6 @@ const setVideoTime = n => {
 }
 let lastTrace;
 const nowlink = document.URL.split('#i')[1];
-console.log(nowlink, document.URL);
 if (nowlink) {
   setVideoTime(nowlink);
 }
