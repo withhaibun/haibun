@@ -18,8 +18,9 @@ export abstract class AStorage extends AStepper {
     async writeFile(file: string, contents: string | Buffer, mediaType: TMediaType) {
         if (typeof contents === 'string') {
             await this.writeFileBuffer(file, Buffer.from(contents), mediaType);
+        } else {
+            await this.writeFileBuffer(file, contents as Buffer, mediaType);
         }
-        await this.writeFileBuffer(file, contents as Buffer, mediaType);
     }
     async latestFrom(dir: string) {
         const orderReccentFiles = async (dir: string) =>

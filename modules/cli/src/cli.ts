@@ -42,6 +42,7 @@ async function go() {
     if (trace) {
       const tracer = findStepper<ITraceResult & IReviewResult & IPublishResults>(steppers, 'OutReviews');
       const loc = { ...world };
+      
       await tracer.writeTraceFile({ ...loc, mediaType: EMediaTypes.json }, Timer.startTime, title, result);
     }
   }

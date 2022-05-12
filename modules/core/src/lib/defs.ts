@@ -116,7 +116,6 @@ export type TTag = {
 }
 
 export type TVStep = {
-  // FIXME is this required?
   source: TFeature;
   in: string;
   seq: number;
@@ -237,7 +236,7 @@ export type TTraceOptions = {
 
 export type TActionResult = (TOKActionResult | TNotOKActionResult);
 
-export type TStepActionResult = TNotOkStepActionResult | TOKStepActionResult & TTraces;;
+export type TStepActionResult = TNotOkStepActionResult | TOKStepActionResult & TTraces;
 
 type TNamedStepActionResult = {
   name: string;
@@ -249,7 +248,6 @@ export type TOKStepActionResult = TOKActionResult & TNamedStepActionResult;
 
 export type TFeatureResult = {
   skip?: boolean;
-  comments?: string;
   path: string;
   ok: boolean;
   stepResults: TStepResult[];
@@ -266,6 +264,7 @@ export type TStepResult = {
   ok: boolean;
   actionResults: TStepActionResult[];
   in: string;
+  sourcePath: string;
   seq: number;
 };
 
