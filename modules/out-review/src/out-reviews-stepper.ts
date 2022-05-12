@@ -2,7 +2,7 @@ import { AStepper, CAPTURE, IHasOptions, IRequireDomains, OK, TFeatureResult, TN
 import { EMediaTypes, guessMediaExt, IPublishResults, IReviewResult, STORAGE_ITEM, STORAGE_LOCATION, TLocationOptions, TMediaType, TTraceResult } from '@haibun/domain-storage';
 import { findStepperFromOption, getRunTag, getStepperOption, stringOrError } from '@haibun/core/build/lib/util';
 import { AStorage } from '@haibun/domain-storage/build/AStorage';
-import HtmlGenerator, { TIndexSummary, TSummaryItem } from "./html-generator";
+import HtmlGenerator, { TFeatureSummary, TIndexSummary, TStepSummary, TSummaryItem } from "./html-generator";
 import { ITraceResult } from '@haibun/domain-storage/build/domain-storage';
 import { summary } from "./components/index/summary";
 import { toc } from "./components/index/toc";
@@ -13,7 +13,7 @@ const PUBLISH_STORAGE = 'PUBLISH_STORAGE';
 const INDEX_STORAGE = 'INDEX_STORAGE';
 const URI_ARGS = 'URI_ARGS';
 
-export const MISSING_TRACE: TIndexSummary = { ok: false, path: 'missing', title: 'Missing trace file', startTime: new Date() };
+export const MISSING_TRACE: TIndexSummary = { ok: false, sourcePath: 'missing', title: 'Missing trace file', startTime: new Date() };
 const INDEXED = 'indexed';
 
 const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRequireDomains, ITraceResult, IReviewResult, IPublishResults {
@@ -78,7 +78,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
       exact: `create found reviews`,
       action: async () => {
         const found = await this.findArtifacts(this.traceStorage!, `${INDEXED}:`);
-        this.writeReviewsFrom(found);
+        await this.writeReviewsFrom(found);
         return OK;
       }
     },
@@ -181,7 +181,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
       if (result) {
         const res = {
           ok: result.ok,
-          path: await this.publishStorage!.getCaptureLocation(loc) + '/review.html',
+          sourcePath: await this.publishStorage!.getCaptureLocation(loc) + '/review.html',
           title,
           startTime
         }
@@ -197,7 +197,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
   }
   async createIndexes(indexDirs: string[]) {
     const uriArgs = getStepperOption(this, URI_ARGS, this.getWorld().extraOptions) || '';
-    const htmlGenerator = new HtmlGenerator(this.publishStorage!, uriArgs);
+    const htmlGenerator = new HtmlGenerator(uriArgs);
     const results: { ok: boolean, link: string, index: TIndexSummary[], dir: string }[] = [];
 
     for (const spec of indexDirs) {
@@ -207,14 +207,17 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
       const summaries = await indexer(dir);
       const ok = !!summaries.every(s => s.ok);
       const index = toc(summaries, dir, uriArgs, htmlGenerator.linkFor, (path: string) => this.publishStorage!.pathed(EMediaTypes.html, path, `./${CAPTURE}`));
+
       results.push({ ok, dir, link: htmlGenerator.linkFor(dir), index });
     }
 
     const isum = summary(results);
-    const { html } = await htmlGenerator.getHtmlDocument(isum, { title: 'Feature Result Index' });
+
+    const html = await htmlGenerator.getHtmlDocument(isum, { title: 'Feature Result Index' });
     const indexHtml = this.publishStorage?.fromCaptureLocation(EMediaTypes.html, 'index.html');
 
     await this.publishStorage?.writeFile(indexHtml!, html, EMediaTypes.html);
+
     this.getWorld().logger.info(`wrote index file ${indexHtml}`)
     return OK;
   }
@@ -242,6 +245,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
             const tag = getRunTag(n(seqDir), n(loopDir), n(featDir), n(memDir))
 
             const loc = { mediaType, tag, options: { ...this.getWorld().options, DEST: dest }, extraOptions: { ...this.getWorld().extraOptions } };
+
             await func(loc);
           }
         }
@@ -265,24 +269,26 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     await this.reviewsStorage!.writeFile(dir, JSON.stringify({ meta: { startTime, title }, result }, null, 2), loc.mediaType);
   }
 
-  async writeReview(loc: TLocationOptions, trace: TTraceResult | typeof MISSING_TRACE) {
+  async writeReview(loc: TLocationOptions, traceResultDoc: TTraceResult | typeof MISSING_TRACE) {
     const uriArgs = getStepperOption(this, URI_ARGS, loc.extraOptions);
-    const generateHTML = new HtmlGenerator(this.publishStorage!, uriArgs);
+    const generateHTML = new HtmlGenerator(uriArgs);
 
     const dir = await this.reviewsStorage!.getCaptureLocation(loc);
 
     const reviewHtml = await this.reviewsStorage!.getCaptureLocation(loc, `review.html`);
 
     await this.reviewsStorage!.ensureDirExists(dir);
-    const result = await this.traceToResult(loc, this.traceStorage!, <TTraceResult>trace, dir);
+    const traceResult = await this.traceToResult(loc, this.traceStorage!, <TTraceResult>traceResultDoc, dir);
 
-    const i = generateHTML.getFeatureResult(result as TSummaryItem);
+    const featureJSON = generateHTML.getFeatureResult(traceResult as TFeatureSummary, (<TTraceResult>traceResultDoc).meta.title);
 
-    const { html } = await generateHTML.getHtmlDocument(i, { title: `Feature Result ${loc.tag.sequence}` });
+    const html = await generateHTML.getHtmlDocument(featureJSON, { title: `Feature Result ${loc.tag.sequence}` });
 
     await this.reviewsStorage!.writeFile(reviewHtml, html, loc.mediaType);
+
     this.getWorld().logger.log(`wrote review ${reviewHtml}`);
   }
+
   async publishResults(world: TWorld) {
     const rin = this.traceStorage!;
     const rout = this.publishStorage!;
@@ -314,19 +320,22 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     try {
       const file = (await storage.readdir(videoBase))[0];
       videoSrc = this.publishStorage!.pathed(EMediaTypes.video, await this.publishStorage!.getCaptureLocation(loc, 'video') + `/${file}`, dir);
-    } catch (e) { }
+    } catch (e) {
+      // there is no video file
+    }
 
     if (!result) {
-      return (<typeof MISSING_TRACE>result).path;
+      return (<typeof MISSING_TRACE>result).sourcePath;
     } else {
-      const i: Partial<TSummaryItem> = { videoSrc, title, startTime, path: result.path, ok: result.ok, subResults: [] }
+      const i: Partial<TSummaryItem> = { videoSrc, title, startTime, sourcePath: result.path, ok: result.ok, subResults: [] }
       for (const stepResult of (result as TFeatureResult).stepResults) {
         for (const actionResult of stepResult.actionResults) {
           const sr: Partial<TSummaryItem> = {
             start: (actionResult as any).start, seq: stepResult.seq, in: stepResult.in,
+            sourcePath: stepResult.sourcePath,
             ok: actionResult.ok, name: actionResult.name, topics: actionResult.topics, traces: (actionResult as any).traces
           };
-          i.subResults?.push(sr as TSummaryItem);
+          i.subResults?.push(sr as TStepSummary);
         }
       }
       return i;

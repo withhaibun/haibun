@@ -2,30 +2,28 @@ import { EOL } from "os";
 import { create } from "xmlbuilder2";
 
 import { TActionResultTopics, TTrace } from "@haibun/core/build/lib/defs";
-import { AStorage } from "@haibun/domain-storage/build/AStorage";
-import { AllCSS, ReviewScript } from "./assets";
+import { AllCSS, ReviewCSS, ReviewScript } from "./assets";
 import { stepResult } from "./components/stepResult";
-import { featureSummary } from "./components/featureSummary";
+import { sourceSummary } from "./components/sourceSummary";
+import { featureHeader } from "./components/featureHeader";
 
 export type TSummaryItem = TFeatureSummary | TStepSummary;
 
 type THTMLFragment = any;
-export type TFeatureSummary = { missing: string, videoSrc?: string, path: string, title: string, startTime: Date, ok: boolean } & TSubResults;
-export type TStepSummary = { seq: number, in: string, name: string, topics?: TActionResultTopics, traces: TTrace[], start: number, ok: boolean } & TSubResults;
-type TSubResults = { subResults: TSummaryItem[] }
+export type TFeatureSummary = { missing?: string, videoSrc?: string, sourcePath: string, title: string, startTime: Date, ok: boolean } & TSubResults;
+export type TStepSummary = { seq: number, in: string, name: string, topics?: TActionResultTopics, traces: TTrace[], start: number, ok: boolean, sourcePath: string } & TSubResults;
+type TSubResults = { subResults: TStepSummary[] }
 
 export type TIndexSummary = {
     ok: boolean,
-    path: string,
+    sourcePath: string,
     title: string,
-    startTime: Date
+    startTime?: Date
 }
 
 export default class HtmlGenerator {
-    publishStorage: AStorage;
     uriArgs: string | undefined;
-    constructor(publishStorage: AStorage, uriArgs = '') {
-        this.publishStorage = publishStorage;
+    constructor(uriArgs = '') {
         this.uriArgs = uriArgs;
     }
 
@@ -33,34 +31,58 @@ export default class HtmlGenerator {
         return `index_${what}`;
     }
 
-    getFeatureResult(i: TSummaryItem) {
-        const html = this.getASummary(i);
+    getFeatureResult(i: TFeatureSummary, title: string) {
+        const header = featureHeader(i, this.uriArgs);
+        const steps = this.getSteps(i.subResults, i.sourcePath);
+
         return {
-            ...html,
+            div: [header, steps],
+            style: {
+                '#': ReviewCSS
+            },
             script: {
                 '@type': 'text/javascript',
                 '#': '{{SCRIPT}}'
-            },
-
+            }
         }
     }
 
     isFeature(i: TSummaryItem): i is TFeatureSummary {
-        return !!(i as TFeatureSummary).path;
+        return !!(i as TFeatureSummary).title;
     }
 
-    // returns a feature or step depending on type
-    getASummary(i: TSummaryItem): THTMLFragment {
-        const comp = this.isFeature(i) ? featureSummary(i, this.uriArgs) : stepResult(i);
-        for (const s of i.subResults || []) {
-            comp.section.div[0].div.section.div.push({
-                div: {
-                    '@style': 'margin: 0px; margin-left: 80px; /*background-color: pink*/',
-                    ...this.getASummary(s)
+    getSteps(stepResults: TStepSummary[], origin: string): THTMLFragment {
+        const allSteps: any = [];
+        let curStart: TStepSummary | undefined = undefined;
+        let wrapper: any | undefined = undefined;
+        for (const step of stepResults) {
+            const { sourcePath } = step;
+            if (sourcePath !== curStart?.sourcePath) {
+                if (wrapper !== undefined) {
+                    allSteps.push(wrapper);
                 }
-            });
+                curStart = step;
+                wrapper = {
+                    details: {
+                        '@style': `padding-left: ${origin === sourcePath ? 40 : 60}px`,
+                        '@open': true,
+                        summary: {
+                            '#': sourceSummary(step),
+                        },
+                        span: {
+                            '@class': 'step-current',
+                            '@id': `current-${curStart.start}`
+                        }
+                        ,
+                        div: []
+                    }
+                }
+            }
+            const comp = stepResult(step, curStart.start);
+            wrapper.details.div.push(comp);
         }
-        return comp;
+        allSteps.push(wrapper);
+        return allSteps;
     }
 
     async getHtmlDocument(content: object, { title = 'Haibun-Review', prettyPrint = true, base = '' }) {
@@ -71,22 +93,24 @@ export default class HtmlGenerator {
                     meta: {
                         '@charset': 'utf-8'
                     },
+                    style: AllCSS,
+                    title,
+                    link: [{
+                        '@href': "https://fonts.googleapis.com/css2?family=Open+Sans&display=swap",
+                        '@rel': "stylesheet"
+                    },
+                    {
+                        '@href': "https://use.fontawesome.com/releases/v5.15.4/css/all.css",
+                        '@rel': "stylesheet"
+                    },
+                    {
+                        '@href': "https://www.canada.ca/etc/designs/canada/wet-boew/css/theme.min.css",
+                        '@rel': "stylesheet"
+                    }],
                 },
-                link: [{
-                    '@href': "https://fonts.googleapis.com/css2?family=Open+Sans&display=swap",
-                    '@rel': "stylesheet"
-                },
-                {
-                    '@href': "https://use.fontawesome.com/releases/v5.15.4/css/all.css",
-                    '@rel': "stylesheet"
-                },
-                {
-                    '@href': "https://www.canada.ca/etc/designs/canada/wet-boew/css/theme.min.css",
-                    '@rel': "stylesheet"
-                }],
-                style: AllCSS,
-                title,
-                ...content,
+                body: {
+                    ...content,
+                }
             }
         }
         if (base) {
@@ -97,11 +121,10 @@ export default class HtmlGenerator {
 
         const created = create(forHTML).end({ prettyPrint, newline: EOL });
         const html = this.finish(created);
-        return { html };
+        return html;
     }
     finish(html: string) {
         html = html.replace('{{SCRIPT}}', ReviewScript);
-        return `<!DOCTYPE html>
-\n${html}`;
+        return `<!DOCTYPE html>\n\n${html}`;
     }
 }

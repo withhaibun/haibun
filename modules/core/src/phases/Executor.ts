@@ -120,7 +120,7 @@ export class FeatureExecutor {
         break;
       }
     }
-    return { ok, in: vstep.in, actionResults, seq: vstep.seq };
+    return { ok, in: vstep.in, sourcePath: vstep.source.path, actionResults, seq: vstep.seq };
   }
   async onFailure(result: TStepResult) {
     for (const s of this.steppers!) {

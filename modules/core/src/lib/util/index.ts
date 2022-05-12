@@ -318,3 +318,5 @@ export const stringOrError = (val: string) => {
 export function friendlyTime(d: Date) {
   return new Date(d).toLocaleString()
 }
+
+export const shortNum = (n: number) => Math.round((n * 100)) / 100;
