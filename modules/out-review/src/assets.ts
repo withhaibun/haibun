@@ -12,8 +12,50 @@ a, a:visited, a:link, a {
 }
 `;
 
+export const ReviewCSS = `
 
-// from https://stackoverflow.com/questions/70630336/create-css-circles-connected-by-line
+.review-subresults {
+    margin: 0px; 
+}
+
+.review-header-fixed {
+    position: fixed; top: 0; left: 0; padding: 18px; margin: 0px; background-color: rgba(255,255,255,0.85);
+}
+.review-header {
+  padding-top: 5em;
+}
+
+.review-spacer {
+    display: inline-block; width: 2.3em;
+}
+
+.feature-section {
+    padding-top: 480;
+}
+
+
+.review-fixed-video {
+    width: 40%; position: fixed; top: 0; right: 0; background-color: black; border: 4px dotted black;
+}
+.step-result-section {
+    margin-left: 40px;
+    border-left: 1px dotted grey;
+}
+
+.step-result-line {
+    display: inline-block; width: 11em; color: #888;
+}
+
+.step-result-seq {
+    display: inline-block; background: black; color: white; padding: 2px; width: 2em; text-align: right;
+}
+
+.trace-current, .step-current {
+    background: yellow;
+}
+` ;
+
+// derived from https://stackoverflow.com/questions/70630336/create-css-circles-connected-by-line
 export const StepCircleCSS = `
 
 .index-header {
@@ -121,7 +163,7 @@ video.addEventListener('timeupdate', (event) => {
     document.querySelectorAll("[data-time]").forEach(d => {
         let colour = 'none';
 
-        if (d.dataset.time >= ct) {
+        if (parseFloat(d.dataset.time) >= ct) {
             closest.push(d);
             colour = '#ffe5b4';
         }
@@ -129,14 +171,13 @@ video.addEventListener('timeupdate', (event) => {
     });
     let smallest = Infinity;
     closest.forEach(c => {
-        if (c.dataset.time < smallest) {
-            smallest = c.dataset.time;
+        if (parseFloat(c.dataset.time) < smallest) {
+            smallest = parseFloat(c.dataset.time);
         }
     });
 
     closest.forEach(c => {
-        const diff = ct - c.dataset.time;
-        if (c.dataset.time === smallest) {
+        if (parseFloat(c.dataset.time) === smallest) {
             c.style.background = 'yellow';
         }
     })
@@ -152,8 +193,11 @@ video.addEventListener('timeupdate', (event) => {
       const whereto = 'start-' + start;
       document.getElementById(whereto).scrollIntoView({behavior: "smooth", block: "center"});
       lastTrace = document.getElementById('current-' + start);
-      if (!lastTrace.parentNode.parentNode.open) {
-        lastTrace.innerHTML = el.innerHTML;
+
+      if (lastTrace) {
+        if (!lastTrace.parentNode.parentNode.open) {
+          lastTrace.innerHTML = el.innerHTML;
+        }
       }
     }
 });

@@ -52,9 +52,9 @@ export default class OutXUnit implements IResultOutput {
         testCase.failure = this.getFailResult(t.stepResults.find(r => !r.ok)?.actionResults.find(a => !a.ok) as TNotOkStepActionResult);
       }
 
-      if (t.comments) {
-        testCase['system-out'] = t.comments;
-      }
+      // if (t.comments) {
+      //   testCase['system-out'] = t.comments;
+      // }
 
       forXML.testsuites.testsuite.testcase.push(testCase);
     }

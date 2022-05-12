@@ -15,13 +15,13 @@ export const toc = (results: TIndexSummary[], dir: string, uriArgs: string | und
         }
     }
     for (const r of results) {
-        const { ok, path, title, startTime } = r;
-        const destPath = pather(path)
+        const { ok, sourcePath, title, startTime } = r;
+        const destPath = pather(sourcePath)
 
         index.ul.li.push({
             a: {
                 '@href': `${destPath}${uriArgs}`,
-                '#': `${led(ok)} ${title} ${friendlyTime(startTime)}`
+                '#': `${led(ok)} ${title} ${friendlyTime(startTime!)}`
             }
         });
     }
