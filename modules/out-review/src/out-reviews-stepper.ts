@@ -2,7 +2,7 @@ import { AStepper, CAPTURE, IHasOptions, IRequireDomains, OK, TFeatureResult, TN
 import { EMediaTypes, guessMediaExt, IPublishResults, IReviewResult, STORAGE_ITEM, STORAGE_LOCATION, TLocationOptions, TMediaType, TTraceResult } from '@haibun/domain-storage';
 import { findStepperFromOption, getRunTag, getStepperOption, stringOrError } from '@haibun/core/build/lib/util';
 import { AStorage } from '@haibun/domain-storage/build/AStorage';
-import HtmlGenerator, { TFeatureSummary, TIndexSummary, TStepSummary, TSummaryItem } from "./html-generator";
+import HtmlGenerator, { TFeatureSummary, TIndexSummary, TIndexSummaryResult, TStepSummary, TSummaryItem } from "./html-generator";
 import { ITraceResult } from '@haibun/domain-storage/build/domain-storage';
 import { summary } from "./components/index/summary";
 import { toc } from "./components/index/toc";
@@ -13,7 +13,7 @@ const PUBLISH_STORAGE = 'PUBLISH_STORAGE';
 const INDEX_STORAGE = 'INDEX_STORAGE';
 const URI_ARGS = 'URI_ARGS';
 
-export const MISSING_TRACE: TIndexSummary = { ok: false, sourcePath: 'missing', title: 'Missing trace file', startTime: new Date() };
+export const MISSING_TRACE: TIndexSummaryResult = { ok: false, sourcePath: 'missing', featureTitle: 'Missing trace file', startTime: new Date() };
 const INDEXED = 'indexed';
 
 const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRequireDomains, ITraceResult, IReviewResult, IPublishResults {
@@ -164,8 +164,8 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     let contents;
     try {
       contents = await this.indexStorage!.readFile(file);
-      const reviewIndexes: TIndexSummary[] = JSON.parse(contents);
-      return reviewIndexes;
+      const indexSummary: TIndexSummary = JSON.parse(contents);
+      return indexSummary;
     } catch (e) {
       this.getWorld().logger.error(`can't parse indexedResults ${file}: ${e} from ${contents}`);
       throw (e);
@@ -173,27 +173,33 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
   }
 
   async getReviewIndex(dir: string) {
-    let reviewIndexes: TIndexSummary[] = [];
+    const res: Partial<TIndexSummary> = {
+      indexTitle: 'none',
+      results: <TIndexSummaryResult[]>[]
+    }
     const func = async (loc: TLocationOptions) => {
       const trace = await this.readTraceFile(loc);
       const { result, meta } = (<TTraceResult>trace);
-      const { title, startTime } = meta;
+      const { title: indexTitle, startTime } = meta;
+      res.indexTitle = indexTitle;
+      const featureTitle = result.stepResults.filter(s => s.actionResults.find(a => a.name === 'feature' ? true : false)).map(a => a.in.replace(/^Feature: /, ''));
+
       if (result) {
-        const res = {
+        const r = {
           ok: result.ok,
           sourcePath: await this.publishStorage!.getCaptureLocation(loc) + '/review.html',
-          title,
-          startTime
+          startTime,
+          featureTitle: featureTitle.join(',')
         }
 
-        reviewIndexes.push(res);
+        res.results!.push(r);
       } else {
-        reviewIndexes.push(<typeof MISSING_TRACE>trace);
+        res.results!.push(<typeof MISSING_TRACE>trace);
       }
     }
 
     await this.withDestLocs(dir, func, EMediaTypes.html);
-    return reviewIndexes;
+    return res as TIndexSummary;
   }
   async createIndexes(indexDirs: string[]) {
     const uriArgs = getStepperOption(this, URI_ARGS, this.getWorld().extraOptions) || '';
@@ -204,9 +210,10 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
       const [type, dirIn] = spec.split(':');
       const dir = dirIn || type;
       const indexer = type === INDEXED ? this.getIndexedResults.bind(this) : this.getReviewIndex.bind(this);
-      const summaries = await indexer(dir);
-      const ok = !!summaries.every(s => s.ok);
-      const index = toc(summaries, dir, uriArgs, htmlGenerator.linkFor, (path: string) => this.publishStorage!.pathed(EMediaTypes.html, path, `./${CAPTURE}`));
+      const summary: TIndexSummary = await indexer(dir);
+      
+      const ok = !!summary.results.every(r => r.ok);
+      const index = toc(summary, dir, uriArgs, htmlGenerator.linkFor, (path: string) => this.publishStorage!.pathed(EMediaTypes.html, path, `./${CAPTURE}`));
 
       results.push({ ok, dir, link: htmlGenerator.linkFor(dir), index });
     }
