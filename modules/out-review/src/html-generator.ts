@@ -15,9 +15,14 @@ export type TStepSummary = { seq: number, in: string, name: string, topics?: TAc
 type TSubResults = { subResults: TStepSummary[] }
 
 export type TIndexSummary = {
-    ok: boolean,
+    indexTitle: string,
+    results: TIndexSummaryResult[]
+}
+
+export type TIndexSummaryResult = {
     sourcePath: string,
-    title: string,
+    ok: boolean,
+    featureTitle?: string,
     startTime?: Date
 }
 
