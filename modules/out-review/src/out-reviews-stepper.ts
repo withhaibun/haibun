@@ -211,7 +211,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
       const dir = dirIn || type;
       const indexer = type === INDEXED ? this.getIndexedResults.bind(this) : this.getReviewIndex.bind(this);
       const summary: TIndexSummary = await indexer(dir);
-      
+
       const ok = !!summary.results.every(r => r.ok);
       const index = toc(summary, dir, uriArgs, htmlGenerator.linkFor, (path: string) => this.publishStorage!.pathed(EMediaTypes.html, path, `./${CAPTURE}`));
 
@@ -300,7 +300,8 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     const rin = this.traceStorage!;
     const rout = this.publishStorage!;
     // FIXME media type is ...
-    const dir = await rin.getCaptureLocation({ ...world, mediaType: EMediaTypes.html });
+    const dir = await rin.fromCaptureLocation(EMediaTypes.html, world.options.DEST);
+
     await this.recurseCopy(dir, rin, rout);
   }
   async recurseCopy(dir: string, rin: AStorage, rout: AStorage) {
@@ -308,6 +309,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
 
     for (const entry of entries) {
       const here = entry.name;
+
       if (entry.isDirectory) {
         await rout.mkdirp(here);
         await this.recurseCopy(here, rin, rout);
