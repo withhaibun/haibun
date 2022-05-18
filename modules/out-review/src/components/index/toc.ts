@@ -23,7 +23,7 @@ export const toc = (summary: TIndexSummary, dir: string, uriArgs: string | undef
         index.ul.li.push({
             a: {
                 '@href': `${destPath}${uriArgs}`,
-                '#': `${led(ok)} ${featureTitle} ${friendlyTime(startTime!)}`
+                '#': `${led(ok)} ${featureTitle} ${friendlyTime(new Date(Date.parse(startTime!)))}`
             }
         });
     }

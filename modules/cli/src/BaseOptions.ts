@@ -16,7 +16,7 @@ export class BaseOptions implements IHasOptions {
             }
         },
         TRACE: {
-            desc: 'save trace data',
+            desc: 'save tracks data',
             parse: (input: string) => boolOrError(input)
         },
         TITLE: {

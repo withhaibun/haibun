@@ -2,7 +2,7 @@ import { EOL } from "os";
 import { create } from "xmlbuilder2";
 
 import { TActionResultTopics, TTrace } from "@haibun/core/build/lib/defs";
-import { AllCSS, ReviewCSS, ReviewScript } from "./assets";
+import { AllCSS, ReviewCSS } from "./assets";
 import { stepResult } from "./components/stepResult";
 import { sourceSummary } from "./components/sourceSummary";
 import { featureHeader } from "./components/featureHeader";
@@ -10,7 +10,7 @@ import { featureHeader } from "./components/featureHeader";
 export type TSummaryItem = TFeatureSummary | TStepSummary;
 
 type THTMLFragment = any;
-export type TFeatureSummary = { missing?: string, videoSrc?: string, sourcePath: string, title: string, startTime: Date, ok: boolean } & TSubResults;
+export type TFeatureSummary = { missing?: string, videoSrc?: string, sourcePath: string, title: string, startTime: string, ok: boolean } & TSubResults;
 export type TStepSummary = { seq: number, in: string, name: string, topics?: TActionResultTopics, traces: TTrace[], start: number, ok: boolean, sourcePath: string } & TSubResults;
 type TSubResults = { subResults: TStepSummary[] }
 
@@ -23,7 +23,7 @@ export type TIndexSummaryResult = {
     sourcePath: string,
     ok: boolean,
     featureTitle?: string,
-    startTime?: Date
+    startTime?: string
 }
 
 export default class HtmlGenerator {
@@ -36,9 +36,10 @@ export default class HtmlGenerator {
         return `index_${what}`;
     }
 
-    getFeatureResult(i: TFeatureSummary, title: string) {
-        const header = featureHeader(i, this.uriArgs);
+    getFeatureResult(i: TFeatureSummary, featureTitle: string) {
+        const header = featureHeader(i, featureTitle, this.uriArgs);
         const steps = this.getSteps(i.subResults, i.sourcePath);
+
 
         return {
             div: [header, steps],
@@ -90,7 +91,7 @@ export default class HtmlGenerator {
         return allSteps;
     }
 
-    async getHtmlDocument(content: object, { title = 'Haibun-Review', prettyPrint = true, base = '' }) {
+    async getHtmlDocument(content: object, { title = 'Haibun-Review', prettyPrint = true, base = '', script = '' }) {
         const forHTML = {
             html: {
                 "@xmlns": "http://www.w3.org/1999/xhtml",
@@ -125,11 +126,13 @@ export default class HtmlGenerator {
         }
 
         const created = create(forHTML).end({ prettyPrint, newline: EOL });
-        const html = this.finish(created);
+        const html = this.finish(created, script);
         return html;
     }
-    finish(html: string) {
-        html = html.replace('{{SCRIPT}}', ReviewScript);
+    finish(html: string, script: string) {
+        if (script) {
+            html = html.replace('{{SCRIPT}}', script);
+        }
         return `<!DOCTYPE html>\n\n${html}`;
     }
 }

@@ -1,6 +1,6 @@
-import { DomainContext, WorkspaceContext, WorldContext } from './contexts';
-import { ILogger } from './interfaces/logger';
-import { Timer } from './Timer';
+import { DomainContext, WorkspaceContext, WorldContext } from '../contexts';
+import { ILogger } from '../interfaces/logger';
+import { Timer } from '../Timer';
 
 export type TSpecl = {
   steppers: string[];
@@ -225,7 +225,7 @@ export type TTraces = {
   start?: number,
   // FIXME following should not be optional
   end?: number,
-  traces?: TTrace
+  traces?: TTrace[]
 }
 
 export type TTraceOptions = {
@@ -236,7 +236,7 @@ export type TTraceOptions = {
 
 export type TActionResult = (TOKActionResult | TNotOKActionResult);
 
-export type TStepActionResult = TNotOkStepActionResult | TOKStepActionResult & TTraces;
+export type TStepActionResult = (TNotOkStepActionResult | TOKStepActionResult) & TTraces;
 
 type TNamedStepActionResult = {
   name: string;
@@ -286,12 +286,14 @@ export const BASE_TYPES = BASE_DOMAINS.map((b) => b.name);
 export type TScored = { name: string; score: number };
 
 export type TStartRunCallback = (world: TWorld) => void;
-export type TEndFeatureCallback = (world: TWorld, result: TFeatureResult, steppers: AStepper[]) => void;
+
+export type TEndFeatureCallbackParams = { world: TWorld, result: TFeatureResult, steppers: AStepper[], startOffset: number }
+export type TEndFeatureCallback = (params: TEndFeatureCallbackParams) => Promise<void>;
 
 export type TRunEnv = { [name: string]: string };
 // FIXME remove protoOptions, splits, etc.
 export type TRunOptions = {
   loops: number, members: number, trace: boolean, startRunCallback?: TStartRunCallback, endFeatureCallback?: TEndFeatureCallback
-  featureFilter?: string[], specl: TSpecl, base: string, splits: TRunEnv[], protoOptions: TProtoOptions,
+  featureFilter?: string[], specl: TSpecl, base: string, splits: TRunEnv[], protoOptions: TProtoOptions
 };
 export type TRunResult = { output: any, result: TResult, shared: WorldContext, tag: TTag, runStart: number, runDuration: number, fromStart: number };
