@@ -3,8 +3,8 @@
 require('source-map-support').install()
 
 import repl from 'repl';
-import { AStepper, TSpecl, TWorld, TFeatureResult, } from '@haibun/core/build/lib/defs';
-import { EMediaTypes, IPublishResults, IReviewResult, ITraceResult } from '@haibun/domain-storage/';
+import { TSpecl, TWorld, TEndFeatureCallback, TEndFeatureCallbackParams } from '@haibun/core/build/lib/defs';
+import { EMediaTypes, ITrackResults } from '@haibun/domain-storage/';
 
 import { findStepper, getConfigFromBase, getDefaultOptions } from '@haibun/core/build/lib/util';
 import runWithOptions from '@haibun/core/build/lib/run-with-options';
@@ -38,12 +38,14 @@ async function go() {
   const startRunCallback = (world: TWorld) => {
     if (protoOptions.options.CLI) repl.start().context.runtime = world.runtime;
   }
-  const endFeatureCallback = async (world: TWorld, result: TFeatureResult, steppers: AStepper[]) => {
-    if (trace) {
-      const tracer = findStepper<ITraceResult & IReviewResult & IPublishResults>(steppers, 'OutReviews');
+  let endFeatureCallback: TEndFeatureCallback | undefined = undefined;
+  if (trace) {
+    endFeatureCallback = async (params: TEndFeatureCallbackParams) => {
+      const { world, result, steppers, startOffset } = params;
+      const tracker = findStepper<ITrackResults>(steppers, 'OutReviews');
       const loc = { ...world };
-      
-      await tracer.writeTraceFile({ ...loc, mediaType: EMediaTypes.json }, Timer.startTime, title, result);
+
+      await tracker.writeTracksFile({ ...loc, mediaType: EMediaTypes.json }, title, result, Timer.startTime, startOffset);
     }
   }
 
@@ -60,7 +62,7 @@ async function go() {
     }
   }
   console.info('failures:', JSON.stringify(allFailures, null, 2));
-  console.info('\nRESULT>>>', { ok, startDate: Timer.startTime, startTime: Timer.startTime.getTime(), passed, failed, totalRan, runTime, 'features/s:': totalRan / runTime });
+  console.info('\nRESULT>>>', { ok, startDate: Timer.startTime, startTime: Timer.startTime, passed, failed, totalRan, runTime, 'features/s:': totalRan / runTime });
 
   if (ok && exceptionResults.length < 1 && protoOptions.options.STAY !== 'always') {
     process.exit(0);
