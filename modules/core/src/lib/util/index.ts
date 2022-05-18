@@ -17,10 +17,10 @@ import {
   TTag,
   AStepper,
   TExtraOptions,
-  TTagValue as number,
   CStepper,
   DEFAULT_DEST,
-  TTagValue
+  TTagValue,
+  TFeatureResult
 } from '../defs';
 import { withNameType } from '../features';
 
@@ -320,3 +320,5 @@ export function friendlyTime(d: Date) {
 }
 
 export const shortNum = (n: number) => Math.round((n * 100)) / 100;
+
+export const getFeatureTitlesFromResults = (result: TFeatureResult) => result.stepResults.filter(s => s.actionResults.find(a => a.name === 'feature' ? true : false)).map(a => a.in.replace(/^Feature: /, ''));

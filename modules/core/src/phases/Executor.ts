@@ -51,6 +51,7 @@ export class FeatureExecutor {
   endFeatureCallback?: TEndFeatureCallback;
   world?: TWorld;
   steppers?: AStepper[];
+  startOffset: number = 0;
 
   constructor(csteppers: CStepper[], endFeatureCallback?: TEndFeatureCallback) {
     this.csteppers = csteppers;
@@ -58,6 +59,7 @@ export class FeatureExecutor {
   }
   async setup(world: TWorld) {
     this.world = world;
+    this.startOffset = world.timer.since();
     const errorBail = (phase: string, error: any, extra?: any) => {
       console.error('error', phase, error, extra);
       throw Error(error);
@@ -141,7 +143,7 @@ export class FeatureExecutor {
 
     if (this.endFeatureCallback) {
       try {
-        await this.endFeatureCallback(this.world!, featureResult, this.steppers!)
+        await this.endFeatureCallback({ world: this.world!, result: featureResult, steppers: this.steppers!, startOffset: this.startOffset })
       } catch (error: any) {
         console.log('e', error);
         throw Error(error);

@@ -144,11 +144,15 @@ export const StepCircleCSS = `
 }
 `;
 
-export const ReviewScript = `
+export const ReviewScript = (startOffset: number) => {
+
+  return `
+const startOffset = ${startOffset};
 const video = document.getElementById('video');
 const videoDiv = document.getElementById('videoDiv');
 const setVideoTime = n => {
-  video.currentTime = n;
+  console.log('ww', n, video.currentTime, '->', n, startOffset - n)
+  video.currentTime = n - startOffset;
   document.location.replace('#i' + n);
 }
 let lastTrace;
@@ -159,7 +163,7 @@ if (nowlink) {
 
 video.addEventListener('timeupdate', (event) => {
     let closest = [];
-    const ct = video.currentTime;
+    const ct = video.currentTime + startOffset;
     document.querySelectorAll("[data-time]").forEach(d => {
         let colour = 'none';
 
@@ -213,4 +217,4 @@ document.onkeydown = function (e) {
     }
 }
 `;
-// 
+}
