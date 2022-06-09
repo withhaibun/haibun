@@ -27,7 +27,7 @@ done) &&  \
 
 ## depends on @haibun/core and needs to be linked
 
-(for i in web-http; do
+(for i in web-http domain-webpage; do
   cd $i
   npm i &&  \
   npm link @haibun/core && \
@@ -42,7 +42,7 @@ done) &&  \
 (for i in web-server-express; do
   cd $i
   npm i &&  \
-  npm link @haibun/core @haibun/web-http && \
+  npm link @haibun/core @haibun/web-http @haibun/domain-webpage && \
   tsc -b . &&  \
   echo "\nsetup link for $i" && \
   npm link &&  \
@@ -52,7 +52,7 @@ done) &&  \
 
 ## depends on @haibun/core and web-server-express
 
-(for i in logger-websockets domain-webpage domain-storage; do
+(for i in logger-websockets domain-storage; do
   cd $i
   npm i &&  \
   npm link @haibun/core @haibun/web-server-express && \
