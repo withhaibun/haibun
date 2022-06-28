@@ -109,7 +109,7 @@ Add the AStepper interface to it, and add the appropriate properties and methods
 
 Your file might end up looking like this:
 
-```
+```typescript
 import { OK, TNamed, IHasOptions, IRequireDomains, AStepper, TWorld } from '@haibun/core/build/lib/defs';
 import { actionNotOK, stringOrError, findStepperFromOption } from '@haibun/core/build/lib/util';
 import { STORAGE_ITEM, STORAGE_LOCATION } from '@haibun/domain-storage';
