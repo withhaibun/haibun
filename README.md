@@ -50,11 +50,6 @@ Note that features/ (unlike backgrounds) will not include folder predecessors.
 
 Haibun modules are specified in the project package.json, and a config.json file with specific features.
 
-# Modules
-
-Haibun is composed of a number of modules, 
-which can be configured at runtime via the cli package. 
-
 
 # Installation
 

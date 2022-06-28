@@ -103,8 +103,6 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
   }
 
   async onFailure(result: TStepResult) {
-    this.getWorld().logger.error(result);
-
     if (this.bf?.hasPage(this.getWorld().tag)) {
       const page = await this.getPage();
       const path = await this.storage!.getCaptureLocation({...this.getWorld(), mediaType: EMediaTypes.image}, 'failure') + `/${result.seq}.png`;
@@ -165,7 +163,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
 
     //                ASSERTIONS
     dialogIs: {
-      gwta: 'dialog {what} {type} is {value}',
+      gwta: 'dialog {what} {type} says {value}',
       action: async ({ what, type, value }: TNamed) => {
         const cur = this.getWorld().shared.get(what)?.[type];
 
@@ -399,7 +397,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       },
     },
     setToURIQueryParameter: {
-      gwta: 'Save URI query parameter {what} to {where}',
+      gwta: 'save URI query parameter {what} to {where}',
       action: async ({ what, where }: TNamed) => {
         const uri = await this.withPage(async (page: Page) => await page.url());
         const found = new URL(uri).searchParams.get(what);
