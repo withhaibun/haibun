@@ -5,7 +5,7 @@ import { IWebServer, WEBSERVER, } from './defs';
 import { ServerExpress, DEFAULT_PORT } from './server-express';
 import { WebPageBuilder } from '@haibun/domain-webpage/build/WebPageBuilder';
 import { WEB_PAGE } from '@haibun/domain-webpage/build/domain-webpage';
-import { getDomain } from '@haibun/core/src/lib/domain';
+import { getDomain } from '@haibun/core/build/lib/domain';
 
 const WebServerStepper = class WebServerStepper extends AStepper implements IHasOptions, IHasBuilder {
   webserver: ServerExpress | undefined;
