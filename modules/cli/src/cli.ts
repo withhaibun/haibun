@@ -3,8 +3,8 @@
 require('source-map-support').install()
 
 import repl from 'repl';
-import { AStepper, TSpecl, TWorld, TFeatureResult, } from '@haibun/core/build/lib/defs';
-import { EMediaTypes, IPublishResults, IReviewResult, ITraceResult } from '@haibun/domain-storage/';
+import { TSpecl, TWorld, TEndFeatureCallback, TEndFeatureCallbackParams } from '@haibun/core/build/lib/defs';
+import { EMediaTypes, ITrackResults } from '@haibun/domain-storage/';
 
 import { findStepper, getConfigFromBase, getDefaultOptions } from '@haibun/core/build/lib/util';
 import runWithOptions from '@haibun/core/build/lib/run-with-options';
@@ -21,7 +21,6 @@ async function go() {
 
   const specl = getSpeclOrExit(base, featureFilter);
 
-
   const { protoOptions, errors } = processBaseEnv(process.env, specl.options);
   const splits: { [name: string]: string }[] = protoOptions.options.SPLITS || [{}];
 
@@ -33,20 +32,20 @@ async function go() {
 
   const loops = protoOptions.options.LOOPS || 1;
   const members = protoOptions.options.MEMBERS || 1;
-  const trace = protoOptions.options.REVIEWS || protoOptions.options.TRACE;
-  const reviews = protoOptions.options.REVIEWS;
+  const trace = protoOptions.options.TRACE;
+  const title = protoOptions.options.TITLE || base + ' ' + [...featureFilter || []].join(',');
 
   const startRunCallback = (world: TWorld) => {
     if (protoOptions.options.CLI) repl.start().context.runtime = world.runtime;
   }
-  const endFeatureCallback = async (world: TWorld, result: TFeatureResult, steppers: AStepper[]) => {
-    if (trace) {
-      const tracer = findStepper<ITraceResult & IReviewResult & IPublishResults>(steppers, 'OutReviews');
+  let endFeatureCallback: TEndFeatureCallback | undefined = undefined;
+  if (trace) {
+    endFeatureCallback = async (params: TEndFeatureCallbackParams) => {
+      const { world, result, steppers, startOffset } = params;
+      const tracker = findStepper<ITrackResults>(steppers, 'OutReviews');
       const loc = { ...world };
-      await tracer.writeTraceFile({ ...loc, mediaType: EMediaTypes.json }, result);
-      if (reviews) {
-        await tracer.writeReview({ ...loc, mediaType: EMediaTypes.html }, result);
-      }
+
+      await tracker.writeTracksFile({ ...loc, mediaType: EMediaTypes.json }, title, result, Timer.startTime, startOffset);
     }
   }
 
@@ -56,14 +55,9 @@ async function go() {
   if (ok && exceptionResults.length < 1) {
     logger.log(ranResults.every((r) => r.output));
   } else {
-    try {
-      console.error(ranResultError(ranResults, exceptionResults));
-    } catch (e) {
-      console.error(ranResults[0].result.failure);
-    }
+    console.info('failures:', JSON.stringify(allFailures, null, 2));
   }
-  console.info('failures:', JSON.stringify(allFailures, null, 2));
-  console.info('\nRESULT>>>', { ok, startDate: Timer.startTime, startTime: Timer.startTime.getTime(), passed, failed, totalRan, runTime, 'features/s:': totalRan / runTime });
+  console.info('\nRESULT>>>', { ok, startDate: Timer.startTime, startTime: Timer.startTime, passed, failed, totalRan, runTime, 'features/s:': totalRan / runTime });
 
   if (ok && exceptionResults.length < 1 && protoOptions.options.STAY !== 'always') {
     process.exit(0);

@@ -51,7 +51,7 @@ export function ranResultError(ranResults: TRunResult[], exceptionResults: any[]
 
 export function processBaseEnv(env: TEnv, options: TOptions) {
   const protoOptions: TProtoOptions = { options: { ...options }, extraOptions: {} };
-  
+
   let errors: string[] = [];
   let nenv = {};
 
@@ -72,7 +72,7 @@ export function processBaseEnv(env: TEnv, options: TOptions) {
         } else if (res.env) {
           nenv = { ...nenv, ...res.env };
         } else if (!res.result) {
-          throw Error(`no option for ${opt} from ${res.result}`);
+          errors.push(`no option for ${opt} from ${JSON.stringify(res.result)}`);
         } else {
           protoOptions.options[opt] = res.result;
         }

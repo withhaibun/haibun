@@ -2,6 +2,9 @@ import { WorkspaceContext } from '@haibun/core/build/lib/contexts';
 import { IHasDomains, TNamed, TVStep, OK, AStepper, TFromDomain, TFileTypeDomain, IHasOptions, TExtraOptions, TFeatureResult, TOptions, TTag, TWorld } from '@haibun/core/build/lib/defs';
 import { stringOrError } from '@haibun/core/build/lib/util';
 
+export type TTrackResult = { meta: { title: string, startTime: string, startOffset: number }, result: TFeatureResult };
+export type TMissingTracks = { error: string };
+
 export const STORAGE_LOCATION = 'STORAGE_LOCATION';
 export const STORAGE_ITEM = 'STORAGE_ITEM';
 
@@ -79,12 +82,12 @@ export type TLocationOptions = {
   mediaType: TMediaType
 }
 
-export interface ITraceResult {
-  writeTraceFile(loc: TLocationOptions, result: TFeatureResult): any;
+export interface ITrackResults {
+  writeTracksFile(loc: TLocationOptions, title: string, result: TFeatureResult, startTime: Date, startOffset: number): any;
 }
 
 export interface IReviewResult {
-  writeReview(loc: TLocationOptions, result: TFeatureResult): any;
+  writeReview(loc: TLocationOptions, result: TTrackResult | TMissingTracks, allStartTime: number): any;
 }
 
 export interface IPublishResults {

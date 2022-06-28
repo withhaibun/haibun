@@ -67,7 +67,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     if (captureVideo) {
       const loc = { ...this.getWorld(), mediaType: EMediaTypes.video };
       browser.recordVideo = {
-        dir: await this.storage!.ensureCaptureDir(loc, 'video'),
+        dir: await this.storage!.ensureCaptureLocation(loc, 'video'),
       }
     }
 
@@ -103,11 +103,9 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
   }
 
   async onFailure(result: TStepResult) {
-    this.getWorld().logger.error(result);
-
     if (this.bf?.hasPage(this.getWorld().tag)) {
       const page = await this.getPage();
-      const path = await this.storage!.getCaptureDir({...this.getWorld(), mediaType: EMediaTypes.image}, 'failure') + `/${result.seq}.png`;
+      const path = await this.storage!.getCaptureLocation({...this.getWorld(), mediaType: EMediaTypes.image}, 'failure') + `/${result.seq}.png`;
 
       await page.screenshot({ path, fullPage: true, timeout: 60000 });
     }
@@ -165,7 +163,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
 
     //                ASSERTIONS
     dialogIs: {
-      gwta: 'dialog {what} {type} is {value}',
+      gwta: 'dialog {what} {type} says {value}',
       action: async ({ what, type, value }: TNamed) => {
         const cur = this.getWorld().shared.get(what)?.[type];
 
@@ -378,7 +376,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       gwta: 'take a screenshot',
       action: async () => {
         const loc = { ...this.getWorld(), mediaType: EMediaTypes.image };
-        const dir = await this.storage!.ensureCaptureDir(loc, 'screenshots');
+        const dir = await this.storage!.ensureCaptureLocation(loc, 'screenshots');
         await this.withPage(
           async (page: Page) =>
             await page.screenshot({
@@ -399,7 +397,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       },
     },
     setToURIQueryParameter: {
-      gwta: 'Save URI query parameter {what} to {where}',
+      gwta: 'save URI query parameter {what} to {where}',
       action: async ({ what, where }: TNamed) => {
         const uri = await this.withPage(async (page: Page) => await page.url());
         const found = new URL(uri).searchParams.get(what);

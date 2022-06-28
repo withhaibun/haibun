@@ -1,5 +1,5 @@
 import { testWithDefaults } from '@haibun/core/build/lib/test/lib';
-import OutReviews, { TRACE_STORAGE } from './out-reviews-stepper';
+import OutReviews, { TRACKS_STORAGE } from './out-reviews-stepper';
 import DomainStorage from '@haibun/domain-storage'
 import StorageFS from '@haibun/storage-fs';
 import { getStepperOptionName } from '@haibun/core/build/lib/util';
@@ -13,7 +13,7 @@ describe('out-review', () => {
             const result = await testWithDefaults([feature], [OutReviews, DomainStorage, StorageFS], {
                 options: { DEST: DEFAULT_DEST },
                 extraOptions: {
-                    [getStepperOptionName(outReviewsStepper, TRACE_STORAGE)]: 'StorageFS',
+                    [getStepperOptionName(outReviewsStepper, TRACKS_STORAGE)]: 'StorageFS',
                 },
             });
             expect(result.ok).toBe(true);
