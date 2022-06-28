@@ -1,6 +1,6 @@
 {
   "name": "@haibun/out-review",
-  "version": "1.9.1",
+  "version": "1.9.2",
   "description": "",
   "files": [
     "build/**"
