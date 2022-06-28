@@ -122,7 +122,7 @@ const FilesExist = class FilesExist extends AStepper implements IHasOptions, IRe
     options = {
         [STORAGE]: {
             required: true,
-            desc: 'Storage for output',
+            desc: 'Storage for file tests',
             parse: (input: string) => stringOrError(input),
         },
     };
