@@ -62,7 +62,7 @@ Clone this repo, and install lerna and typescript globally;
 ## Command line interface
 
 Haibun can be used as a library or via the cli. 
-To see a list of cli option for a particular set of features, use --help along with the feature name.
+To see a list of cli option for a particular set of features, use --help along with the feature folder.
 For example, in the haibun-e2e-tests repository, you could use this command to see available options:
 
 `npx @haibun/cli --help local`
