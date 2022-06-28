@@ -17,10 +17,10 @@ import {
   TTag,
   AStepper,
   TExtraOptions,
-  TTagValue as number,
   CStepper,
   DEFAULT_DEST,
-  TTagValue
+  TTagValue,
+  TFeatureResult
 } from '../defs';
 import { withNameType } from '../features';
 
@@ -218,7 +218,7 @@ export function getStepperOptionValue(key: string, value: string, csteppers: CSt
 }
 
 export async function verifyRequiredOptions(steppers: CStepper[], options: TExtraOptions) {
-  let requiredMissing = [];
+  let requiredMissing: string[] = [];
   for (const stepper of steppers) {
     const ao = (stepper.prototype) as IHasOptions;
     for (const option in ao.options) {
@@ -246,6 +246,7 @@ export function getStepperOption(stepper: AStepper, name: string, extraOptions: 
 }
 
 export function findStepperFromOption<Type>(steppers: AStepper[], stepper: AStepper, extraOptions: TExtraOptions, ...name: string[]): Type {
+
   const val = name.reduce<string | undefined>((v, n) => v || getStepperOption(stepper, n, extraOptions), undefined);
 
   if (!val) {
@@ -257,6 +258,7 @@ export function findStepperFromOption<Type>(steppers: AStepper[], stepper: AStep
 export function findStepper<Type>(steppers: AStepper[], name: string): Type {
   const stepper = <Type>(steppers.find((s) => s.constructor.name === name) as any);
   if (!stepper) {
+    // FIXME does not cascade
     throw Error(`Cannot find ${name} from ${JSON.stringify(steppers.map(s => s.constructor.name), null, 2)}`);
   }
   return stepper;
@@ -313,3 +315,12 @@ export const stringOrError = (val: string) => {
   };
   return { result: val }
 };
+
+
+export function friendlyTime(d: Date) {
+  return new Date(d).toLocaleString()
+}
+
+export const shortNum = (n: number) => Math.round((n * 100)) / 100;
+
+export const getFeatureTitlesFromResults = (result: TFeatureResult) => result.stepResults.filter(s => s.actionResults.find(a => a.name === 'feature' ? true : false)).map(a => a.in.replace(/^Feature: /, ''));
