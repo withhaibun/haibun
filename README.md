@@ -59,6 +59,13 @@ Clone this repo, and install lerna and typescript globally;
 
   `npm i -g lerna typescript`
 
+## Command line interface
+
+Haibun can be used as a library or via the cli. 
+To see a list of cli option for a particular set of features, use --help along with the feature name.
+For example, in the haibun-e2e-tests repository, you could use this command to see available options:
+
+`npx @haibun/cli --help local`
   
 # Development
 
@@ -80,14 +87,6 @@ To develop your own separate module while developing these Haibun modules, use:
 `npm link @haibun/core`
 
 and any other modules you may need.
-
-## Command line interface
-
-Haibun can be used as a library or via the cli. 
-To see a list of cli option for a particular set of features, use --help along with the feature name.
-For example, in the haibun-e2e-tests repository, you could use this command to see available options:
-
-`npx @haibun/cli --help local`
 
 ## Developing new modules
 
