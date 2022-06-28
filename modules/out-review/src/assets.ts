@@ -151,7 +151,6 @@ const startOffset = ${startOffset};
 const video = document.getElementById('video');
 const videoDiv = document.getElementById('videoDiv');
 const setVideoTime = n => {
-  console.log('ww', n, video.currentTime, '->', n, startOffset - n)
   video.currentTime = n - startOffset;
   document.location.replace('#i' + n);
 }

@@ -55,13 +55,8 @@ async function go() {
   if (ok && exceptionResults.length < 1) {
     logger.log(ranResults.every((r) => r.output));
   } else {
-    try {
-      console.error(ranResultError(ranResults, exceptionResults));
-    } catch (e) {
-      console.error(ranResults[0].result.failure);
-    }
+    console.info('failures:', JSON.stringify(allFailures, null, 2));
   }
-  console.info('failures:', JSON.stringify(allFailures, null, 2));
   console.info('\nRESULT>>>', { ok, startDate: Timer.startTime, startTime: Timer.startTime, passed, failed, totalRan, runTime, 'features/s:': totalRan / runTime });
 
   if (ok && exceptionResults.length < 1 && protoOptions.options.STAY !== 'always') {

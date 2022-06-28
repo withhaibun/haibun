@@ -145,7 +145,6 @@ export class FeatureExecutor {
       try {
         await this.endFeatureCallback({ world: this.world!, result: featureResult, steppers: this.steppers!, startOffset: this.startOffset })
       } catch (error: any) {
-        console.log('e', error);
         throw Error(error);
       }
     }

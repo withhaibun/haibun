@@ -246,6 +246,7 @@ export function getStepperOption(stepper: AStepper, name: string, extraOptions: 
 }
 
 export function findStepperFromOption<Type>(steppers: AStepper[], stepper: AStepper, extraOptions: TExtraOptions, ...name: string[]): Type {
+
   const val = name.reduce<string | undefined>((v, n) => v || getStepperOption(stepper, n, extraOptions), undefined);
 
   if (!val) {
@@ -257,6 +258,7 @@ export function findStepperFromOption<Type>(steppers: AStepper[], stepper: AStep
 export function findStepper<Type>(steppers: AStepper[], name: string): Type {
   const stepper = <Type>(steppers.find((s) => s.constructor.name === name) as any);
   if (!stepper) {
+    // FIXME does not cascade
     throw Error(`Cannot find ${name} from ${JSON.stringify(steppers.map(s => s.constructor.name), null, 2)}`);
   }
   return stepper;
