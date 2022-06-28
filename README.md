@@ -14,6 +14,17 @@ it is intended to make it easier to maintain,
 with an emphasis on reuse for different deployment environments,
 and the ability to link to formal specifications.
 
+Haibun encourages small libraries with minimal, precisely versioned dependencies, 
+and provides abstract definitions of storage and other testing features, 
+so specifications and tests can be developed in a way that's not dependant 
+on any implementation or vendor.
+
+Haibun also encouragies creating testing modules and flow, 
+so each new project requires less original code, 
+and contributes to existing modules and flows.
+
+See the [modules](modules) directory, and other repos under [the withhaibun org](https://github.com/withhaibun).
+
 
 # Feature structure
 
@@ -37,13 +48,8 @@ that will includes setup.feature and run.feature before test.feature's steps.
 
 Note that features/ (unlike backgrounds) will not include folder predecessors.
 
-# Packages
+Haibun modules are specified in the project package.json, and a config.json file with specific features.
 
-haibun is composed of a number of packages, 
-each with minimum dependencies, 
-which can be configured at runtime via the cli package. 
-
-See the [modules](modules) directory.
 
 # Installation
 
@@ -74,3 +80,76 @@ To develop your own separate module while developing these Haibun modules, use:
 `npm link @haibun/core`
 
 and any other modules you may need.
+
+## Developing new modules
+
+For an example module external to the main haibun project, please refer to [haibun e2e-tests](https://github.com/withhaibun/haibun-sarif).
+
+It may be helpful to refer to the [haibun e2e-tests](https://github.com/withhaibun/haibun-e2e-tests) repository, which contains running examples of integration tests. For example, set up that repository, and run `npm run test-xss`.
+
+...
+
+A new Haibun module is created by implementing the AStepper interface from
+@haibun/core (see example below), and adding the module to the testing target
+directory (refer to the e2e-tests files package.json and local/config.json for
+what this should look like).
+
+For example, to create a new module that verifies files exist, using Haibun's
+abstract stoarge, you might do the following;
+
+`mkdir haibun-files-exist`
+`npm init`
+`npm i @haibun/core @haibun/domain-storage`
+
+Instrument your repository for Typescript and tests as appropriate (see haibun-sarif for an example).
+
+Create an appropriate file, for example, src/files-exist.ts
+
+Add the AStepper interface to it, and add the appropriate properties and methods.
+
+Your file might end up looking like this:
+
+```
+import { OK, TNamed, IHasOptions, IRequireDomains, AStepper, TWorld } from '@haibun/core/build/lib/defs';
+import { actionNotOK, stringOrError, findStepperFromOption } from '@haibun/core/build/lib/util';
+import { STORAGE_ITEM, STORAGE_LOCATION } from '@haibun/domain-storage';
+import { AStorage } from '@haibun/domain-storage/build/AStorage';
+
+const STORAGE = 'STORAGE';
+
+const FilesExist = class FilesExist extends AStepper implements IHasOptions, IRequireDomains {
+    requireDomains = [STORAGE_LOCATION, STORAGE_ITEM];
+    options = {
+        [STORAGE]: {
+            required: true,
+            desc: 'Storage for output',
+            parse: (input: string) => stringOrError(input),
+        },
+    };
+    storage?: AStorage;
+    async setWorld(world: TWorld, steppers: AStepper[]) {
+        super.setWorld(world, steppers);
+        this.storage = findStepperFromOption(steppers, this, this.getWorld().extraOptions, STORAGE);
+    }
+    steps = {
+        fileExists: {
+            gwta: `file {what} exists`,
+            action: async ({ what }: TNamed) => {
+                const exists = this.storage?.exists(what);
+                return exists ? OK : actionNotOK(`${what} does not exist`);
+            },
+        },
+        fileDoesNotExist: {
+            gwta: `missing file {what}`,
+            action: async ({ what }: TNamed) => {
+                const exists = this.storage?.exists(what);
+                return exists ?  actionNotOK(`${what} is not missing`) : OK;
+            },
+        }
+    }
+}
+```
+
+After complication, you can now use statements like 'file "README.md" exists' and
+'missing file "missing.md"' in your features.
+

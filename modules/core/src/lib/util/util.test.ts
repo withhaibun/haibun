@@ -74,12 +74,12 @@ describe('findStepperFromOptions', () => {
   });
 });
 
-describe.only('getStepperOptions', () => {
-  it.only('finds stepper options', async () => {
+describe('getStepperOptions', () => {
+  it('finds stepper options', async () => {
     const conc = util.getStepperOptionValue(HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, 'true', [TestStepsWithOptions]);
     expect(conc).toBeDefined();
   });
-  it('fills extra', async () => {
+  it.skip('fills extra', async () => {
     const { world } = getDefaultWorld(0);
     util.verifyExtraOptions({ [HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]: 'true' }, [TestStepsWithOptions]);
 
