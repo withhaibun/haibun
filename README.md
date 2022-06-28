@@ -83,7 +83,7 @@ and any other modules you may need.
 
 ## Developing new modules
 
-For an example module external to the main haibun project, please refer to [haibun e2e-tests](https://github.com/withhaibun/haibun-sarif).
+For an example module external to the main haibun project, please refer to [haibun sarif](https://github.com/withhaibun/haibun-sarif).
 
 It may be helpful to refer to the [haibun e2e-tests](https://github.com/withhaibun/haibun-e2e-tests) repository, which contains running examples of integration tests. For example, set up that repository, and run `npm run test-xss`.
 
