@@ -40,7 +40,7 @@ project/
       run.feature
 ```
 
-The haibun command line uses a folder paramter, which would be project in the above example.
+The haibun command line uses a folder parameter, which would be project in the above example.
 
 Features can use the directive `Backgrounds: <features>` or `Scenarios: <features>` 
 which will prepend comma-separated named features from backgrounds/.
@@ -116,7 +116,7 @@ It may be helpful to refer to the [haibun e2e-tests](https://github.com/withhaib
 
 ...
 
-A new Haibun module is created by implementing the `AStepper` interface from
+A new Haibun module is created by extending the `AStepper` abstract class from
 @haibun/core (see example below), and adding the module to the testing target
 directory (refer to the e2e-tests files package.json and local/config.json for
 what this should look like).
@@ -132,7 +132,7 @@ Instrument your repository for Typescript and tests as appropriate (see haibun-s
 
 Create an appropriate source file, for example, src/files-exist.ts
 
-Add the `AStepper` interface to it, and the appropriate properties and methods.
+Extend the `AStepper` abstract class, and the appropriate properties and methods.
 
 Your file might end up looking like this:
 
