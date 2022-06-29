@@ -160,3 +160,5 @@ const FilesExist = class FilesExist extends AStepper implements IHasOptions, IRe
 After complication, you can now use statements like 'file "README.md" exists' and
 'missing file "missing.md"' in your features.
 
+haibun-e2e-tests contains an example of adding a route to a runtime web server in its src directory.
+
