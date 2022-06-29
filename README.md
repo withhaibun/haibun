@@ -19,7 +19,7 @@ and provides abstract definitions of storage and other testing features,
 so specifications and tests can be developed in a way that's not dependant 
 on any implementation or vendor.
 
-Haibun also encouragies creating testing modules and flow, 
+Haibun also encourages creating testing modules and reusable flows, 
 so each new project requires less original code, 
 and contributes to existing modules and flows.
 
@@ -30,17 +30,20 @@ See the [modules](modules) directory, and other repos under [the withhaibun org]
 
 ```
 project/
+  config.json
   features/
     test.feature
+    ...
   backgrounds/
     setup.feature
       dependant/
       run.feature
 ```
 
-On running tests, features at the project/ level are run. 
+The haibun command line uses a folder paramter, which would be project in the above example.
 
-Features can use the directive `Backgrounds: <features>` or `Scenarios: <features>` which will prepend comma-separated named features from backgrounds/.
+Features can use the directive `Backgrounds: <features>` or `Scenarios: <features>` 
+which will prepend comma-separated named features from backgrounds/.
 Background features from further 'down' their tree will include previous features.
 
 So, if test.feature includes run.feature, 
@@ -50,22 +53,27 @@ Note that features/ (unlike backgrounds) will not include folder predecessors.
 
 Haibun modules are specified in the project package.json, and a config.json file with specific features.
 
+## Command line interface
+
+haibun can be used as a library or via the cli. 
+To see a list of cli option for a particular set of features, use `--help` along with the feature folder.
+For example, in [the haibun-e2e-tests repository](https://github.com/withhaibun/haibun-e2e-tests), 
+use this command to see available options:
+
+`npx @haibun/cli --help local`
 
 # Installation
 
-The installation uses a shell script, it is tested in Linux & macOS, and should also work on Windows using WSL.
+Normally, libraries from this repository will be included in a project like any other, or used via the cli.
 
-Clone this repo, and install lerna and typescript globally;
+If required, installation uses a shell script, which is tested in Linux & macOS,
+and should also work on Windows using WSL.
 
-  `npm i -g lerna typescript`
+Clone this repo, 
+and install Lerna and Typescript globally;
 
-## Command line interface
+`npm i -g lerna typescript`
 
-Haibun can be used as a library or via the cli. 
-To see a list of cli option for a particular set of features, use --help along with the feature folder.
-For example, in the haibun-e2e-tests repository, you could use this command to see available options:
-
-`npx @haibun/cli --help local`
   
 # Development
 
@@ -76,11 +84,25 @@ To build:
 
 Use this at the top level to build and watch all modules.
 
+Top level tests for all modules are also available:
+
+`npm run test`
+
+or
+
+`npm run test-watch`
+
 Each module can be developed independently using: 
 
-  `npm run tsc-watch` 
+`npm run tsc-watch`  # not needed if using top-level `tsc-watch`
 
-  `npm test`
+`npm test`
+
+or 
+
+`npm run test-watch`
+
+## Developing new modules
 
 To develop your own separate module while developing these Haibun modules, use:
 
@@ -88,21 +110,19 @@ To develop your own separate module while developing these Haibun modules, use:
 
 and any other modules you may need.
 
-## Developing new modules
-
 For an example module external to the main haibun project, please refer to [haibun sarif](https://github.com/withhaibun/haibun-sarif).
 
 It may be helpful to refer to the [haibun e2e-tests](https://github.com/withhaibun/haibun-e2e-tests) repository, which contains running examples of integration tests. For example, set up that repository, and run `npm run test-xss`.
 
 ...
 
-A new Haibun module is created by implementing the AStepper interface from
+A new Haibun module is created by implementing the `AStepper` interface from
 @haibun/core (see example below), and adding the module to the testing target
 directory (refer to the e2e-tests files package.json and local/config.json for
 what this should look like).
 
 For example, to create a new module that verifies files exist, using Haibun's
-abstract stoarge, you might do the following;
+abstract storage, you might do the following;
 
 `mkdir haibun-files-exist`
 `npm init`
@@ -110,9 +130,9 @@ abstract stoarge, you might do the following;
 
 Instrument your repository for Typescript and tests as appropriate (see haibun-sarif for an example).
 
-Create an appropriate file, for example, src/files-exist.ts
+Create an appropriate source file, for example, src/files-exist.ts
 
-Add the AStepper interface to it, and add the appropriate properties and methods.
+Add the `AStepper` interface to it, and the appropriate properties and methods.
 
 Your file might end up looking like this:
 
@@ -157,8 +177,24 @@ const FilesExist = class FilesExist extends AStepper implements IHasOptions, IRe
 }
 ```
 
-After complication, you can now use statements like 'file "README.md" exists' and
-'missing file "missing.md"' in your features.
+After compilation, you can now use statements like _file "README.md" exists_ and
+_missing file "missing.md"_ in your features. 
+Using your module will require including a storage implementation as well, 
+for example, storage-fs, 
+or potentially multiple implementations via runtime variables,
+which would be specified via the testing repository's package.json, config.json, 
+and a HAIBUN_O_FILESEXIST_STORAGE runtime variable.
 
-haibun-e2e-tests contains an example of adding a route to a runtime web server in its src directory.
+## gwta statements
+
+`AStepper` steps specify their statements using either `exact` or `gwta`. 
+`gwta` is more useful, 
+since it supports BDD style Given, When, Then, And prefixes. 
+Additionally, it supports the haibun abstract data model for input, 
+where names in curly braces,
+for example {name}, are resolved to a type, 
+which is string if unspecified.
+
+haibun-e2e-tests contains an example of adding a route to a runtime web server (_start test route at {loc}_) 
+in its src directory.
 
