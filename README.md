@@ -64,57 +64,11 @@ use this command to see available options:
 
 # Installation
 
-Normally, libraries from this repository will be included in a project like any other, or used via the cli.
+Normally, libraries from this repository will be included in a project like any other, 
+or used via the cli, for example, using `npx @haibun/cli`.
 
-If required, installation uses a shell script, which is tested in Linux & macOS,
-and should also work on Windows using WSL.
 
-Clone this repo, 
-and install Lerna and Typescript globally;
-
-`npm i -g lerna typescript`
-
-  
-# Development
-
-To build:
-
-  `npm run build`
-  `npm run tsc-watch`
-
-Use this at the top level to build and watch all modules.
-
-Top level tests for all modules are also available:
-
-`npm run test`
-
-or
-
-`npm run test-watch`
-
-Each module can be developed independently using: 
-
-`npm run tsc-watch`  # not needed if using top-level `tsc-watch`
-
-`npm test`
-
-or 
-
-`npm run test-watch`
-
-## Developing new modules
-
-To develop your own separate module while developing these Haibun modules, use:
-
-`npm link @haibun/core`
-
-and any other modules you may need.
-
-For an example module external to the main haibun project, please refer to [haibun sarif](https://github.com/withhaibun/haibun-sarif).
-
-It may be helpful to refer to the [haibun e2e-tests](https://github.com/withhaibun/haibun-e2e-tests) repository, which contains running examples of integration tests. For example, set up that repository, and run `npm run test-xss`.
-
-...
+# Developing new modules
 
 A new Haibun module is created by extending the `AStepper` abstract class from
 @haibun/core (see example below), and adding the module to the testing target
@@ -125,7 +79,9 @@ For example, to create a new module that verifies files exist, using Haibun's
 abstract storage, you might do the following;
 
 `mkdir haibun-files-exist`
+
 `npm init`
+
 `npm i @haibun/core @haibun/domain-storage`
 
 Instrument your repository for Typescript and tests as appropriate (see haibun-sarif for an example).
@@ -195,6 +151,56 @@ where names in curly braces,
 for example {name}, are resolved to a type, 
 which is string if unspecified.
 
+...
+
+For an example module external to the main haibun project, please refer to [haibun sarif](https://github.com/withhaibun/haibun-sarif).
+
+It may be helpful to refer to the [haibun e2e-tests](https://github.com/withhaibun/haibun-e2e-tests) repository, which contains running examples of integration tests. For example, set up that repository, and run `npm run test-xss`.
+
 haibun-e2e-tests contains an example of adding a route to a runtime web server (_start test route at {loc}_) 
 in its src directory.
+
+# Developing Haibun
+
+Installation uses a shell script, which is tested in Linux & macOS,
+and should also work on Windows using WSL.
+
+Clone this repo, 
+and install Lerna and Typescript globally;
+
+`npm i -g lerna typescript`
+
+To build:
+
+  `npm run build`
+
+  `npm run tsc-watch`
+
+Use this at the top level to build and watch all modules.
+
+Top level tests for all modules are also available:
+
+`npm run test`
+
+or
+
+`npm run test-watch`
+
+Each module can be developed independently using: 
+
+`npm run tsc-watch`  # not needed if using top-level `tsc-watch`
+
+`npm test`
+
+or 
+
+`npm run test-watch`
+
+## Developing modules and Haibun core together
+
+To develop your own separate module while developing Haibun modules, use:
+
+`npm link @haibun/core`
+
+and any other modules you may need.
 
