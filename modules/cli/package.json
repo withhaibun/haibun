@@ -1,6 +1,6 @@
 {
   "name": "@haibun/cli",
-  "version": "1.9.3",
+  "version": "/home/vid/D/withhaibun/haibun-email-wildduck/",
   "description": "command line execution for @haibun",
   "bin": {
     "haibun-cli": "build/cli.js"
