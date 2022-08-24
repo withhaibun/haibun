@@ -35,14 +35,17 @@ export async function getTestEnv(useSteppers: string[], test: string, world: TWo
 }
 type TTestFeatures = { path: string, content: string }[];
 
-export async function testWithDefaults(inFeatures: TTestFeatures, addSteppers: CStepper[], protoOptions: TProtoOptions = DEF_PROTO_OPTIONS, inBackgrounds: TTestFeatures = []) {
+export async function testWithDefaults(featuresIn: TTestFeatures | string, addSteppers: CStepper[], protoOptions: TProtoOptions = DEF_PROTO_OPTIONS, inBackgrounds: TTestFeatures = []) {
+  const inFeatures = (typeof featuresIn == 'string') ? [{ path: '/features/test', content: featuresIn }] : featuresIn;
   const specl = getDefaultOptions();
   const world = getTestWorldWithOptions(protoOptions);
+  
   const features = asFeatures(inFeatures);
   const backgrounds = asFeatures(inBackgrounds);
 
   return await runWith({ specl, features, backgrounds, addSteppers, world });
 }
+
 export function getTestWorldWithOptions(protoOptions: TProtoOptions) {
   const { world } = getDefaultWorld(0);
   if (protoOptions) {
