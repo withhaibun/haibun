@@ -34,7 +34,8 @@ type TRunWithOptions = {
   endFeatureCallback?: TEndFeatureCallback
 }
 
-export const DEF_PROTO_OPTIONS = { options: { DEST: DEFAULT_DEST }, extraOptions: {} };
+export const DEF_PROTO_DEFAULT_OPTIONS = { DEST: DEFAULT_DEST };
+export const DEF_PROTO_OPTIONS = { options: DEF_PROTO_DEFAULT_OPTIONS, extraOptions: {} };
 
 export async function runWith({ specl, world, features, backgrounds, addSteppers, endFeatureCallback }: TRunWithOptions): Promise<TResult> {
   const { tag } = world;
