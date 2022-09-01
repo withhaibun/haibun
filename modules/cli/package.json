@@ -1,6 +1,6 @@
 {
   "name": "@haibun/cli",
-  "version": "1.9.4",
+  "version": "/home/vid/D/withhaibun/haibun-email-testing/",
   "description": "command line execution for @haibun",
   "bin": {
     "haibun-cli": "build/cli.js"
