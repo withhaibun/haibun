@@ -10,7 +10,11 @@ if (!version) {
 
 const modules = readdirSync(`./modules/`).map(f => `./modules/${f}`).filter(f => statSync(f).isDirectory()).concat(extra);
 for (const module of modules) {
-    const eh = (what: string) => execSync(what, { encoding: 'utf8', cwd: module });
+    const eh = (what: string) => {
+        console.log(`$ ${what}`);
+        const res = execSync(what, { encoding: 'utf8', cwd: module });
+        console.log(res);
+    }
     eh('pwd');
     const pkgFile = `${module}/package.json`;
     const pkg = JSON.parse(readFileSync(pkgFile, 'utf-8'));
