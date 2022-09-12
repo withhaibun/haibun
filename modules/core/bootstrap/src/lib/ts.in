@@ -1,0 +1,11 @@
+export default function WTW(what: string): { ok: true } | { ok: false, error: { message: string } } {
+  if (what === 'passes') {
+    return { ok: true };
+  }
+  return {
+    ok: false,
+    error: {
+      message: 'not passing'
+    }
+  };
+}

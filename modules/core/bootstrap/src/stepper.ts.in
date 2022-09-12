@@ -1,0 +1,26 @@
+import { AStepper, OK, TNamed, TWorld } from '@haibun/core/build/lib/defs';
+import { actionNotOK } from '@haibun/core/build/lib/util';
+
+import WTW from './lib/WTW';
+
+class WTWStepper extends AStepper {
+  setWorld(world: TWorld, steppers: AStepper[]) {
+    super.setWorld(world, steppers);
+  }
+
+  steps = {
+    WTW: {
+      gwta: `your test phrase {what}`,
+      action: async ({ what }: TNamed) => {
+        const value = await WTW(what);
+        if (value.ok === true) {
+          return OK;
+        }
+        const { message } = value.error;
+        return actionNotOK(message, { topics: { WTW: { summary: message, details: value } } });
+      }
+    },
+  }
+}
+
+export default WTWStepper;

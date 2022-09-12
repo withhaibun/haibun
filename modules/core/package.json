@@ -4,6 +4,7 @@
   "description": "",
   "author": "",
   "main": "build/index.js",
+  "bin":  "build/bootstrap.js",
   "files": [
     "build/**"
   ],
