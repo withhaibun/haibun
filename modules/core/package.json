@@ -1,10 +1,10 @@
 {
   "name": "@haibun/core",
-  "version": "1.9.5",
+  "version": "1.9.6",
   "description": "",
   "author": "",
   "main": "build/index.js",
-  "bin":  "build/bootstrap.js",
+  "bin": "build/bootstrap.js",
   "files": [
     "build/**"
   ],
