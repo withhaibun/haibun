@@ -84,7 +84,8 @@ abstract storage, you might do the following;
 
 `npm i @haibun/core @haibun/domain-storage`
 
-Instrument your repository for Typescript and tests as appropriate (see haibun-sarif for an example).
+Instrument your repository for Typescript and tests as appropriate (see haibun-sarif for an example, 
+or use Haibun's scaffolding).
 
 Create an appropriate source file, for example, src/files-exist.ts
 
@@ -141,9 +142,12 @@ or potentially multiple implementations via runtime variables,
 which would be specified via the testing repository's package.json, config.json, 
 and a HAIBUN_O_FILESEXIST_STORAGE runtime variable.
 
-Note: You can also bootstrap Haibun into an existing project using `npm @haibun/core`. 
-This will add the core library, and scaffold for steppers, a library, and tests. 
-It won't overwrite existing files, and presumes an src folder for source files.
+## Scaffolding
+
+You can also scaffold Haibun into an existing project using `npm @haibun/core scaffold`. 
+This will add the core library, Typescript and Jest support (if missing), 
+steppers, a library, and tests. 
+It won't overwrite existing files. It presumes an src folder for source files.
 
 ## gwta statements
 
