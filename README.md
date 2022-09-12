@@ -141,6 +141,10 @@ or potentially multiple implementations via runtime variables,
 which would be specified via the testing repository's package.json, config.json, 
 and a HAIBUN_O_FILESEXIST_STORAGE runtime variable.
 
+Note: You can also bootstrap Haibun into an existing project using `npm @haibun/core`. 
+This will add the core library, and scaffold for steppers, a library, and tests. 
+It won't overwrite existing files, and presumes an src folder for source files.
+
 ## gwta statements
 
 `AStepper` steps specify their statements using either `exact` or `gwta`. 
