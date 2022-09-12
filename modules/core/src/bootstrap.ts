@@ -16,7 +16,7 @@ let pName;
 try {
     const ppkg = readFileSync('./package.json', 'utf-8');
     pPkg = JSON.parse(ppkg);
-    pName = pPkg.name.replace(/[@\/]/, '_', 'g').replace(/-./g, (x: string) => x[1].toUpperCase());
+    pName = pPkg.name.replace(/.*\//, '').replace(/[@]/, '_', 'g').replace(/-./g, (x: string) => x[1].toUpperCase());
 } catch (e) {
     console.error(e);
     console.error('please run this command from a project folder that has a package.json file with at least a name field.')
@@ -54,9 +54,10 @@ for (const f of ['tsconfig.json', 'jest.config.ts']) {
 
 if (!existsSync('src')) {
     mkdirSync('src');
-    if (!existsSync('src/lib')) {
-        mkdirSync('src/lib');
-    }
+}
+
+if (!existsSync('src/lib')) {
+    mkdirSync('src/lib');
 }
 
 for (const f of ['stepper.ts', 'stepper.test.ts']) {

@@ -2,7 +2,7 @@
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
-//  isolatedModules: true,
+  testPathIgnorePatterns: ['node_modules', 'build'],
   globals: {
     'testMatch': [
     "<rootDir>/src/**/*.test.ts"
