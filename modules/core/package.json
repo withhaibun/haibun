@@ -4,7 +4,9 @@
   "description": "",
   "author": "",
   "main": "build/index.js",
-  "bin": "build/bootstrap.js",
+  "bin": {
+    "scaffold": "build/scaffold.js"
+  },
   "files": [
     "build/**"
   ],
