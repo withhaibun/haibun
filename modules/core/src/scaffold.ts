@@ -29,12 +29,10 @@ if (!pPkg.devDependencies) {
     pPkg.devDependencies = {};
 }
 for (const d of ['jest', 'ts-jest', 'ts-node', '@types/node', '@types/jest']) {
-    console.log(d, pkg.devDependencies[d], (mpkg as any)[d]);
-
-    if (!pPkg.devDependencies[d]) {
+    if (pPkg.devDependencies[d] === undefined) {
         pPkg.devDependencies[d] = (mpkg as any)[d] || pkg.devDependencies[d];
+        console.info(`added ${d} to devDependencies`)
     }
-    console.info(`added ${d} to devDependencies`)
 }
 
 if (!pPkg.scripts) {
@@ -75,7 +73,7 @@ function writeIfMissing(from: string, to?: string, replace?: string, instead?: s
     if (existsSync(to)) {
         console.info(`not copying ${to} because it already exists`);
     } else {
-        let contents = readFileSync(path.join(__dirname, '..', 'bootstrap', from), 'utf-8');
+        let contents = readFileSync(path.join(__dirname, '..', 'scaffold', from), 'utf-8');
         if (replace) {
             contents = contents.replaceAll(replace, instead!);
         }
