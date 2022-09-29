@@ -1,6 +1,6 @@
 {
   "name": "@haibun/domain-webpage",
-  "version": "1.9.8",
+  "version": "1.9.9",
   "description": "",
   "author": "",
   "main": "build/domain-webpage.js",
