@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { existsSync, fstat, mkdirSync, readFileSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import path from 'path';
 
 const pkg = require(path.join(__dirname, '..', 'package.json'));
