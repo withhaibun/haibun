@@ -147,8 +147,6 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     inputVariable: {
       gwta: `input {what} for {field}`,
       action: async ({ what, field }: TNamed) => {
-        console.log('wwww', what, field);
-        
         await this.withPage(async (page: Page) => await page.fill(field, what));
         return OK;
       },
