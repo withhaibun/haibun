@@ -68,8 +68,11 @@ async function go() {
 
 function getSpeclOrExit(base: string, featureFilter: TFeatureFilter): TSpecl {
   const specl = getConfigFromBase(base);
-
-  if (specl === null || !process.argv[2] || featureFilter?.find(f => f === '--help' || f === '-h')) {
+  const askForHelp = featureFilter?.find(f => f === '--help' || f === '-h')
+  if (specl === null || !process.argv[2] || askForHelp) {
+    if (specl === null) {
+      console.error(`missing or unusable ${base}/config.json`);
+    }
     usageThenExit(specl ? specl : getDefaultOptions());
   }
   return specl!;
