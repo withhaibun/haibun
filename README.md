@@ -146,7 +146,7 @@ and a HAIBUN_O_FILESEXIST_STORAGE runtime variable.
 
 You can also scaffold Haibun into an existing project using `npm @haibun/core scaffold`. 
 This will add the core library, Typescript and Jest support (if missing), 
-steppers, a library, and tests. 
+steppers, a placeholder library, and tests. 
 It won't overwrite existing files. It presumes an src folder for source files.
 
 ## gwta statements
