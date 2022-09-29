@@ -1,5 +1,6 @@
 import { execSync } from "child_process";
 import { readdirSync, readFileSync, statSync, writeFileSync } from "fs";
+import { resolve } from "path";
 
 const [, me, version, ...extra] = process.argv;
 
@@ -11,16 +12,23 @@ if (!version) {
 const modules = readdirSync(`./modules/`).map(f => `./modules/${f}`).filter(f => statSync(f).isDirectory()).concat(extra);
 for (const module of modules) {
     const eh = (what: string) => {
-        console.log(`$ ${what}`);
-        const res = execSync(what, { encoding: 'utf8', cwd: module });
-        console.log(res);
+        return new Promise((resolve, reject) => {
+            console.log(`$ ${what}`);
+            try {
+                const res = execSync(what, { encoding: 'utf8', cwd: module });
+                console.log(res);
+                resolve(res);
+            } catch (e) {
+                reject(e);
+            }
+        });
     }
     eh('pwd');
     const pkgFile = `${module}/package.json`;
     const pkg = JSON.parse(readFileSync(pkgFile, 'utf-8'));
     pkg.version = version;
     writeFileSync(pkgFile, JSON.stringify(pkg, null, 2));
-    eh(`git commit -m 'update ${module.replace(/\/$/, '').replace(/.*\//, '')} to version ${version}' package.json`);
+    eh(`git commit -m 'update ${module.replace(/\/$/, '').replace(/.*\//, '')} to version ${version}' package.json`).catch((e: any) => console.error(`${module} failed with ${e}`));
     eh(`npm publish`);
 }
 
