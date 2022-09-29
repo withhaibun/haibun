@@ -6,6 +6,7 @@ import { AllCSS, ReviewCSS } from "./assets";
 import { stepResult } from "./components/stepResult";
 import { sourceSummary } from "./components/sourceSummary";
 import { featureHeader } from "./components/featureHeader";
+import { TLocationOptions } from "@haibun/domain-storage";
 
 export type TSummaryItem = TFeatureSummary | TStepSummary;
 
@@ -36,10 +37,26 @@ export default class HtmlGenerator {
         return `index_${what}`;
     }
 
+    getFeatureError(dir: string, e: any) {
+
+        const forHTML = {
+            '@class': 'review-header',
+            h1: {
+                '@class': 'review-header-fixed',
+                '#': `${dir}`
+            },
+            div: {
+                caption: {
+                    '#': `failed: ${e}`
+                }
+            }
+        }
+        return forHTML;
+    }
+
     getFeatureResult(i: TFeatureSummary, featureTitle: string) {
         const header = featureHeader(i, featureTitle, this.uriArgs);
         const steps = this.getSteps(i.subResults, i.sourcePath);
-
 
         return {
             div: [header, steps],

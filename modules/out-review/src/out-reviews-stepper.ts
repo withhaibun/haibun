@@ -65,7 +65,9 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
       exact: `create review`,
       action: async () => {
         const loc = { ...this.getWorld(), mediaType: EMediaTypes.html };
-        const tracks = await this.readTracksFile(loc);
+
+        let tracks;
+        tracks = await this.readTracksFile(loc).catch(error => tracks = { error });
         this.writeReview(loc, tracks);
         return OK;
       }
@@ -269,7 +271,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
       return result;
     } catch (e) {
       return {
-        error: (<any>e).getMessage()
+        error: (<any>e).toString()
       };
     }
   }
@@ -287,16 +289,27 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     const dir = await this.reviewsStorage!.getCaptureLocation(loc);
     const reviewHtml = await this.reviewsStorage!.getCaptureLocation(loc, `review.html`);
     await this.reviewsStorage!.ensureDirExists(dir);
-    const { startOffset } = (<TTrackResult>tracksDoc).meta;
-    const featureTitle = getFeatureTitlesFromResults((<TTrackResult>tracksDoc).result).join(',');
-    const tracksResult = await this.tracksToSummaryItem(loc, this.tracksStorage!, <TTrackResult>tracksDoc, dir);
-    const featureJSON = htmlGenerator.getFeatureResult(tracksResult as TFeatureSummary, featureTitle);
-    const html = await htmlGenerator.getHtmlDocument(featureJSON, {
-      title: `Feature Result ${loc.tag.sequence}`, script: ReviewScript(startOffset)
-    });
 
+    const { featureJSON, script } = await this.getFeatureDisplay(tracksDoc, htmlGenerator, loc, dir);
+
+    const html = await htmlGenerator.getHtmlDocument(featureJSON, {
+      title: `Feature Result ${loc.tag.sequence}`,
+      script
+    });
     await this.reviewsStorage!.writeFile(reviewHtml, html, loc.mediaType);
     this.getWorld().logger.log(`wrote review ${reviewHtml}`);
+  }
+
+  async getFeatureDisplay(tracksDoc: TTrackResult | TMissingTracks, htmlGenerator: HtmlGenerator, loc: TLocationOptions, dir: string) {
+    if ((tracksDoc as TMissingTracks).error) {
+      const dir = await this.reviewsStorage!.getCaptureLocation(loc);
+      return { featureJSON: htmlGenerator.getFeatureError(dir, (tracksDoc as TMissingTracks).error), script: undefined };
+    } else {
+      const { startOffset } = (<TTrackResult>tracksDoc).meta;
+      const featureTitle = getFeatureTitlesFromResults((<TTrackResult>tracksDoc).result).join(',');
+      const tracksResult = await this.tracksToSummaryItem(loc, this.tracksStorage!, <TTrackResult>tracksDoc, dir);
+      return { featureJSON: htmlGenerator.getFeatureResult(tracksResult as TFeatureSummary, featureTitle), script: ReviewScript(startOffset) };
+    }
   }
 
   async publishResults(world: TWorld) {
@@ -354,5 +367,6 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     }
   }
 }
+
 
 export default OutReviews;
