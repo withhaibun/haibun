@@ -145,8 +145,10 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
   steps = {
     //                                      INPUT
     inputVariable: {
-      gwta: `input {what} for {field: ${WEB_CONTROL}}`,
+      gwta: `input {what} for {field}`,
       action: async ({ what, field }: TNamed) => {
+        console.log('wwww', what, field);
+        
         await this.withPage(async (page: Page) => await page.fill(field, what));
         return OK;
       },
@@ -204,7 +206,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     },
 
     beOnPage: {
-      gwta: `should be on the {name: ${WEB_PAGE}} page`,
+      gwta: `should be on the {name} page`,
       action: async ({ name }: TNamed) => {
         const nowon = await this.withPage(async (page: Page) => await page.url());
         if (nowon === name) {
