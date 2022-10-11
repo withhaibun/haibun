@@ -8,7 +8,7 @@
     "scaffold": "build/scaffold.js"
   },
   "files": [
-    "build/**"
+    "build/**", "scaffold/**"
   ],
   "devDependencies": {
     "@types/jest": "^26.0.19",
