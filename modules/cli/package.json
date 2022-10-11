@@ -1,6 +1,6 @@
 {
   "name": "@haibun/cli",
-  "version": "1.10.0",
+  "version": "1.10.1",
   "description": "command line execution for @haibun",
   "bin": {
     "haibun-cli": "build/cli.js"
