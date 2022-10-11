@@ -1,6 +1,6 @@
 {
   "name": "@haibun/logger-websockets",
-  "version": "1.10.1",
+  "version": "1.10.2",
   "description": "",
   "author": "",
   "main": "build/logger-websockets.js",
