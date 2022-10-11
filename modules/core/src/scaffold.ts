@@ -23,6 +23,9 @@ try {
     process.exit(1);
 }
 
+if (!pPkg.dependencies) {
+    pPkg.dependencies = {};
+}
 pPkg.dependencies['@haibun/core'] = `${pkg.version}`;
 
 if (!pPkg.devDependencies) {
