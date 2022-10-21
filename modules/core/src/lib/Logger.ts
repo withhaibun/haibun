@@ -1,6 +1,5 @@
-import { hasUncaughtExceptionCaptureCallback } from 'process';
 import { TTag } from './defs';
-import { ILogger, ILogOutput, TLogLevel, TMessageContext } from './interfaces/logger';
+import { ILogger, ILogOutput, TLogLevel, TMessageContext, TOutputEnv } from './interfaces/logger';
 import { descTag } from './util';
 
 export const LOGGER_LOG = { level: 'log' };
@@ -17,7 +16,6 @@ export const LOGGER_LEVELS = {
 };
 
 type TLevel = { level: string, follow?: string };
-type TOutputEnv = { output: ILogOutput, tag: TTag };
 type TConf = TLevel | TOutputEnv;
 
 export default class Logger implements ILogger, ILogOutput {
