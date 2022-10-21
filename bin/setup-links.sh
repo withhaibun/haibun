@@ -52,7 +52,7 @@ done) &&  \
 
 ## depends on @haibun/core and web-server-express
 
-(for i in logger-websockets domain-storage; do
+(for i in logger-websockets domain-storage context; do
   cd $i
   npm i &&  \
   npm link @haibun/core @haibun/web-server-express && \
