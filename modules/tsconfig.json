@@ -3,6 +3,7 @@
     "references": [
         { "path": "cli" },
         { "path": "core" },
+        { "path": "context" },
         { "path": "web-server-express" },
         { "path": "web-playwright" },
         { "path": "web-http" },
