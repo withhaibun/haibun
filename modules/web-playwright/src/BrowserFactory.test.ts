@@ -3,15 +3,24 @@ import Logger, { LOGGER_NONE } from "@haibun/core/build/lib/Logger";
 import { BrowserFactory } from "./BrowserFactory";
 import { getDefaultTag } from "@haibun/core/build/lib/test/lib";
 
+
+const browserContextOptions = {
+  browser: {
+    headless: true,
+    args: undefined
+  },
+}
+
+
 describe("types", () => {
-  it("gets type and device", () => {
-    const bf = BrowserFactory.get(new Logger(LOGGER_NONE));
+  it("gets type and device", async () => {
+    const bf = await BrowserFactory.getBrowserFactory(new Logger(LOGGER_NONE), browserContextOptions);
     bf.setBrowserType("webkit.Blackberry PlayBook");
     expect(bf.browserType).toBe(webkit);
     expect(bf.device).toBe("Blackberry PlayBook");
   });
-  it("missing type", () => {
-    const bf = BrowserFactory.get(new Logger(LOGGER_NONE));
+  it("missing type", async () => {
+    const bf = await BrowserFactory.getBrowserFactory(new Logger(LOGGER_NONE), browserContextOptions);
     expect(() => bf.setBrowserType("amazingnothing")).toThrowError();
   });
 });
@@ -19,11 +28,11 @@ describe("types", () => {
 describe('browser, context, page', () => {
   it('page, context and browser', async () => {
     const logger = new Logger(LOGGER_NONE);
-    const bfa = BrowserFactory.get(logger);
+    const bfa = await BrowserFactory.getBrowserFactory(logger, browserContextOptions);
     const test = getDefaultTag(0);
     const test2 = getDefaultTag(1);
     const test3 = getDefaultTag(2);
-    const pa1 = await bfa.getPage(test);
+    const pa1 = await bfa.getBrowserContextPage(test);
     expect(pa1).toBeDefined();
     // FIXME
     /*
