@@ -5,23 +5,23 @@ import { IWebServer, WEBSERVER } from '@haibun/web-server-express/build/defs';
 import WebSocket from 'ws';
 
 import path from 'path';
-// FIXME
-type TWS = { on: (arg0: string, arg1: (message: any) => void) => void; send: (arg0: string) => void };
+import { TContextProcessor, WEB_SOCKET_SERVER } from '../Context';
+
 class WebSocketServer {
-  buffered: any[] = [];
   wss: WebSocket.Server;
-  clients: TWS[] = [];
-  async connection(ws: TWS) {
-    ws.on('message', (message) => {
-      console.debug('received: %s', message);
-      if (message === 'catchup') {
-        ws.send(JSON.stringify({ catchup: this.buffered }));
-        this.clients.push(ws);
-      }
+  contextProcessors: { [name: string]: TContextProcessor } = {};
+  addContextProcessors(contextProcessors: { [name: string]: TContextProcessor }) {
+    this.contextProcessors = {
+      ...this.contextProcessors, ...contextProcessors
+    }
+  }
+  async connection(ws: WebSocket) {
+    ws.on('message', (message: string) => {
+      console.debug('received: %s', message, JSON.parse(message));
     });
   }
-  constructor() {
-    this.wss = new WebSocket.Server({ host: '0.0.0.0', port: 3294 });
+  constructor(port: number) {
+    this.wss = new WebSocket.Server({ host: '0.0.0.0', port });
     this.wss.on('connection', this.connection.bind(this));
   }
 }
@@ -32,19 +32,23 @@ const LoggerWebSockets = class LoggerWebsockets extends AStepper {
     this.world = world;
   }
 
-  getWebSocketServer() {
+  getWebSocketServer(port: number) {
+    console.log('p', port);
     if (this.ws) {
       return this.ws;
     }
-    this.ws = new WebSocketServer();
+    this.ws = new WebSocketServer(port);
+    this.getWorld().runtime[WEB_SOCKET_SERVER] = this.ws;
     return this.ws;
   }
 
   steps = {
     start: {
-      gwta: 'start a websocket server at {port}',
+      gwta: 'start a websocket server at port {port}',
       action: async ({ port }: TNamed) => {
-        const ws = this.getWebSocketServer();
+        console.log(`port "${port}"`, port, parseInt(port, 10));
+
+        const ws = this.getWebSocketServer(parseInt(port, 10));
         return OK;
       }
 

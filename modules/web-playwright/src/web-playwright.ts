@@ -22,8 +22,8 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       parse: (input: string) => boolOrError(input)
     },
     PERSISTENT_DIRECTORY: {
-      desc: 'run browsers with a persistent directory',
-      parse: (input: string) => stringOrError(input)
+      desc: 'run browsers with a persistent directory (true or false)',
+      parse: (input: string) => boolOrError(input)
     },
     ARGS: {
       desc: 'pass arguments',
@@ -59,7 +59,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     const headless = getStepperOption(this, 'HEADLESS', this.getWorld().extraOptions) === 'true';
     const devtools = getStepperOption(this, 'DEVTOOLS', this.getWorld().extraOptions) === 'true';
     const args = getStepperOption(this, 'ARGS', this.getWorld().extraOptions)?.split(';')
-    const persistentDirectory = getStepperOption(this, 'PERSISTENT_DIRECTORY', this.getWorld().extraOptions);
+    const persistentDirectory = getStepperOption(this, 'PERSISTENT_DIRECTORY', this.getWorld().extraOptions) === 'true';
     const defaultTimeout = parseInt(getStepperOption(this, 'TIMEOUT', this.getWorld().extraOptions)) || 30000;
     const captureVideo = getStepperOption(this, 'CAPTURE_VIDEO', this.getWorld().extraOptions);
     const { trace: doTrace } = this.getWorld().tag;
@@ -111,7 +111,6 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
 
   async getPage() {
     const page = await (await this.getBrowserFactory()).getBrowserContextPage(this.getWorld().tag, this.tab);
-
     return page;
   }
 
@@ -235,6 +234,13 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       gwta: `on a new tab`,
       action: async ({ name }: TNamed) => {
         this.tab = this.tab + 1;
+        return OK;
+      },
+    },
+    onTabX: {
+      gwta: `on tab {tab}`,
+      action: async ({ tab }: TNamed) => {
+        this.tab = parseInt(tab, 10);
         return OK;
       },
     },
