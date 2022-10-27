@@ -4,12 +4,19 @@ export interface TContextPublisher {
   close: () => Promise<void>;
 }
 
-export type TWithContext = {
+export type TWithContextObject = {
   '@context': {
     [field: string]: any;
   };
   '@id'?: string;
 };
+
+export type TWithContextAddress = {
+  '@context': string,
+  '@id'?: string;
+};
+
+export type TWithContext = TWithContextObject | TWithContextAddress;
 
 export class WebsocketPublisher implements TContextPublisher {
   connection?: WebSocket;
@@ -26,3 +33,14 @@ export class WebsocketPublisher implements TContextPublisher {
     this.connection?.close();
   }
 }
+
+export type TContextProcessor = (msg: TWithContext) => Promise<void>;
+export type TContextProcessors = { [name: string]: TContextProcessor };
+export interface IWebServer {
+  addStaticFolder(subdir: string): Promise<string | undefined>;
+}
+export interface IWebSocketServer {
+  addContextProcessors(cp: TContextProcessors): void;
+}
+
+export const WEB_SOCKET_SERVER = 'WebSocketServer'
