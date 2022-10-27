@@ -1,4 +1,4 @@
-import LoggerWebSockets from "./logger-websockets-server";
+import LoggerWebSockets from "../websocket-server/websockets-server";
 
 describe('logger-websockets', () => {
     it('exists', () => {

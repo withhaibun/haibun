@@ -1,5 +1,5 @@
 
-import { Browser, BrowserContext, Page, chromium, firefox, webkit, BrowserType, devices, } from 'playwright';
+import { Browser, BrowserContext, Page, chromium, firefox, webkit, BrowserType, devices } from 'playwright';
 
 import { ILogger, } from '@haibun/core/build/lib/interfaces/logger';
 import { TTagValue, TTraceOptions } from '@haibun/core/build/lib/defs';
@@ -20,7 +20,7 @@ export type TBrowserFactoryOptions = {
     dir: string
   }
   defaultTimeout?: number,
-  persistentDirectory?: string,
+  persistentDirectory?: boolean,
   trace?: TTraceOptions,
 }
 
