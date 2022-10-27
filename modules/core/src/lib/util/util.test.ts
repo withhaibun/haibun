@@ -114,3 +114,12 @@ describe('shouldProcess', () => {
     expect(util.shouldProcess('hi.feature', undefined, ['wrong'])).toBe(false);
   });
 });
+
+describe('check module is class', () => {
+  it('should pass a class', () => {
+    expect(util.checkModuleIsClass(class a { }, 'a')).toEqual(undefined);
+  });
+  it('should fail a function', () => {
+    expect(() => util.checkModuleIsClass(function a() { }, 'a')).toThrow(undefined);
+  });
+})
