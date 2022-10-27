@@ -28,11 +28,20 @@ import { withNameType } from '../features';
 export async function use(module: string) {
   try {
     const re: any = (await import(module)).default;
+    checkModuleIsClass(re, module);
     return re;
   } catch (e) {
     console.error('failed including', module);
-    console.error(e);
     throw e;
+  }
+}
+
+export function checkModuleIsClass(re: any, module: string) {
+  // this is early morning code
+  const type = re?.toString().replace(/^ /g, '').split('\n')[0].replace(/\s.*/, '');
+
+  if (type !== 'class') {
+    throw Error(`"${module}" is ${type}, not a class`);
   }
 }
 
