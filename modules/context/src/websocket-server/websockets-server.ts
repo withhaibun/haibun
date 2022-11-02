@@ -10,6 +10,8 @@ import { TContextProcessor, WEB_SOCKET_SERVER } from '../Context';
 class WebSocketServer {
   wss: WebSocket.Server;
   contextProcessors: { [name: string]: TContextProcessor } = {};
+  logger: any = console;
+
   addContextProcessors(contextProcessors: { [name: string]: TContextProcessor }) {
     this.contextProcessors = {
       ...this.contextProcessors, ...contextProcessors
@@ -17,12 +19,26 @@ class WebSocketServer {
   }
   async connection(ws: WebSocket) {
     ws.on('message', (message: string) => {
-      console.debug('received: %s', message, JSON.parse(message));
+      const parsed = JSON.parse(message)?.contexted;
+
+      const ctx = parsed['@context'];
+      const processor = this.contextProcessors[ctx];
+      if (processor !== undefined) {
+        try {
+          this.contextProcessors[parsed['@context']](parsed);
+        } catch (e: any) {
+          console.error(e);
+          this.logger.error(`failed context process ${JSON.stringify(e.message)}`, e);
+        }
+      } else {
+        this.logger.warn(`no processor for context ${ctx} from ${message}`);
+      }
     });
   }
-  constructor(port: number) {
+  constructor(port: number, logger: any) {
     this.wss = new WebSocket.Server({ host: '0.0.0.0', port });
     this.wss.on('connection', this.connection.bind(this));
+    this.logger = logger;
   }
 }
 
@@ -33,11 +49,10 @@ const LoggerWebSockets = class LoggerWebsockets extends AStepper {
   }
 
   getWebSocketServer(port: number) {
-    console.log('p', port);
     if (this.ws) {
       return this.ws;
     }
-    this.ws = new WebSocketServer(port);
+    this.ws = new WebSocketServer(port, this.getWorld().logger);
     this.getWorld().runtime[WEB_SOCKET_SERVER] = this.ws;
     return this.ws;
   }
