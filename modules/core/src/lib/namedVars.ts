@@ -1,5 +1,5 @@
 import { cred } from '../steps/credentials';
-import { TStep, TNamedVar, TFound, TNamed, BASE_TYPES, TWorld, HAIBUN } from './defs';
+import { TStep, TNamedVar, TFound, TNamed, BASE_TYPES, TWorld, HAIBUN, TVStep } from './defs';
 import { getStepShared } from './domain';
 
 const TYPE_QUOTED = 'q_';
@@ -70,7 +70,7 @@ export const getMatch = (actionable: string, r: RegExp, actionName: string, step
 
 // returns named values, assigning variable values as appropriate
 // retrieves from world.shared if a base domain, otherwise world.domains[type].shared
-export function getNamedToVars({ named, vars }: TFound, world: TWorld) {
+export function getNamedToVars({ named, vars }: TFound, world: TWorld, vstep: TVStep) {
   if (!named) {
     return { _nb: 'no named' };
   }
