@@ -32,21 +32,20 @@ const vars = class Vars extends AStepper {
   steps = {
     concat: {
       gwta: 'concat {p1} and {p2} as {what}',
-      action: ({ p1, p2, what }: TNamed, vstep: TVStep) => this.set({ what, value: `${p1}${p2}` }, vstep)
+      action: async ({ p1, p2, what }: TNamed, vstep: TVStep) => await this.set({ what, value: `${p1}${p2}` }, vstep)
     },
     set: {
       gwta: 'set( empty)? {what: string} to {value: string}',
-      action: (n: TNamed, vstep: TVStep) => {
-        return this.set(n, vstep);
+      action: async (n: TNamed, vstep: TVStep) => {
+        return await this.set(n, vstep);
       },
-      build: (n: TNamed, vstep: TVStep) => this.set(n, vstep),
+      build: async (n: TNamed, vstep: TVStep) => await this.set(n, vstep),
     },
     is: {
       gwta: '{what: string} is "{value}"',
-
       action: async ({ what, value }: TNamed) => {
         const val = this.getWorld().shared.get(what);
-        
+
         return val === value ? OK : actionNotOK(`${what} is ${val}, not ${value}`)
       }
     },
@@ -94,6 +93,10 @@ export const didNotOverwrite = (what: string, present: string | Context, value: 
 export const setShared = ({ what, value }: TNamed, vstep: TVStep, world: TWorld, emptyOnly: boolean = false) => {
   // if on a domain page, set it in that domain's shared
   const { type, name } = vstep.source;
+  // FIXME this should be in namedVars
+  if (what === '[HERE]') {
+    what = vstep.source.path.replace(world.base, '').replaceAll('/', '_').replace('.feature', '');
+  }
 
   let shared = getStepShared(type, world);
   if (shared instanceof DomainContext) {
@@ -103,6 +106,7 @@ export const setShared = ({ what, value }: TNamed, vstep: TVStep, world: TWorld,
 
   if (!emptyOnly || shared.get(what) === undefined) {
     shared.set(what, value);
+    
     return OK;
   }
 
