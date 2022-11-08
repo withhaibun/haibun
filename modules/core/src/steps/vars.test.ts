@@ -1,6 +1,5 @@
 import { FeatureExecutor } from '../phases/Executor';
 import { getDefaultWorld, getTestEnv, testWithDefaults } from '../lib/test/lib';
-import { TNotOKActionResult } from '../lib/defs';
 
 describe('vars', () => {
   it('assigns', async () => {
