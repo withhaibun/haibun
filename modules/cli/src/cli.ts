@@ -8,7 +8,7 @@ import { EMediaTypes, ITrackResults } from '@haibun/domain-storage/';
 
 import { findStepper, getConfigFromBase, getDefaultOptions } from '@haibun/core/build/lib/util';
 import runWithOptions from '@haibun/core/build/lib/run-with-options';
-import { processBaseEnv, ranResultError, usageThenExit } from './lib';
+import { processBaseEnv, usageThenExit } from './lib';
 import { Timer } from '@haibun/core/build/lib/Timer';
 
 type TFeatureFilter = string[] | undefined;

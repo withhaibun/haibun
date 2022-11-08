@@ -1,5 +1,5 @@
 import { cred } from '../steps/credentials';
-import { TStep, TNamedVar, TFound, TNamed, BASE_TYPES, TWorld, HAIBUN, TVStep } from './defs';
+import { TStep, TNamedVar, TFound, TNamed, BASE_TYPES, TWorld, TVStep } from './defs';
 import { getStepShared } from './domain';
 
 const TYPE_QUOTED = 'q_';
