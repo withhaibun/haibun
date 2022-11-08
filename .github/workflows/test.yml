@@ -29,6 +29,7 @@ jobs:
           npm i -g ts-node
           npm install -ci
       - name: Build
+        run: |
           npm run tsc
       - name: Run tests
         run: npm test
