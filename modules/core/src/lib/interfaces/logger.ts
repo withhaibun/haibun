@@ -1,4 +1,3 @@
-import { isConstructSignatureDeclaration } from 'typescript';
 import { TStepResult, TTag } from '../defs';
 
 export type TLogLevel = 'none' | 'debug' | 'log' | 'info' | 'warn' | 'error';

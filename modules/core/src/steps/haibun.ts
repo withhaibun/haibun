@@ -1,5 +1,5 @@
 import { OK, TNamed, AStepper } from '../lib/defs';
-import { actionNotOK, actionOK, sleep } from '../lib/util';
+import { actionNotOK, sleep } from '../lib/util';
 
 const Haibun = class Haibun extends AStepper {
   steps = {

@@ -7,7 +7,6 @@ import { ITrackResults } from '@haibun/domain-storage/build/domain-storage';
 import { summary } from "./components/index/summary";
 import { toc } from "./components/index/toc";
 import { ReviewScript } from "./assets";
-import { Timer } from "@haibun/core/build/lib/Timer";
 
 // FIXME use TRACK_STORAGE
 export const TRACKS_STORAGE = 'TRACE_STORAGE';
