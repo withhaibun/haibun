@@ -41,7 +41,7 @@ export const namedInterpolation = (inp: string, types: string[] = BASE_TYPES): {
     last = be + 1;
     str += matchGroups(matches++);
   }
-  str += inp.substr(be + 1);
+  str += inp.substring(be + 1);
   return { vars, str };
 };
 
