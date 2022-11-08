@@ -30,7 +30,7 @@ jobs:
           npm install -ci
       - name: Build
         run: |
-          npm run tsc
+          bin/setup-links.sh
       - name: Run tests
         run: npm test
 
