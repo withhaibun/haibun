@@ -1,39 +1,72 @@
-import { execSync } from "child_process";
 import { readdirSync, readFileSync, statSync, writeFileSync } from "fs";
-import { resolve } from "path";
+import ChildProcess from "child_process";
 
 const [, me, version, ...extra] = process.argv;
 
-if (!version) {
-    console.error(`usage: ${me}: <version> <extra modules>`);
-    process.exit(1);
-}
 
-const modules = readdirSync(`./modules/`).map(f => `./modules/${f}`).filter(f => statSync(f).isDirectory()).concat(extra);
-for (const module of modules) {
-    const eh = (what: string) => {
-        return new Promise((resolve, reject) => {
-            console.log(`$ ${what}`);
-            try {
-                const res = execSync(what, { encoding: 'utf8', cwd: module });
-                console.log(res);
-                resolve(res);
-            } catch (e) {
-                reject(e);
-            }
-        });
+doVersion();
+
+async function doVersion() {
+    if (!version) {
+        console.error(`usage: ${me}: <version> <extra modules>`);
+        process.exit(1);
     }
-    eh('pwd');
-    updateVersion(module);
-    eh(`git commit -m 'update ${module.replace(/\/$/, '').replace(/.*\//, '')} to version ${version}' package.json`).catch((e: any) => console.error(`${module} failed with ${e}`));
-    eh(`npm publish`);
-}
-updateVersion('.');
 
-function updateVersion(module: string) {
-    const pkgFile = `${module}/package.json`;
+    const modules = readdirSync(`./modules/`).map(f => `./modules/${f}`).filter(f => statSync(f).isDirectory()).concat(extra);
+    for (const module of modules) {
+        const name = module.replace(/\/$/, '').replace(/.*\//, '');
+        await spawn('pwd', [], { cwd: module });
+        await updateVersion(name, module);
+        await spawn('npm', ['publish'], { cwd: module });
+    }
+
+    updateVersion('haibun', '.');
+}
+
+async function updateVersion(name: string, location: string) {
+    const pkgFile = `${location}/package.json`;
     const pkg = JSON.parse(readFileSync(pkgFile, 'utf-8'));
     pkg.version = version;
     writeFileSync(pkgFile, JSON.stringify(pkg, null, 2));
+    await spawn('git', ['commit', '-m', `'update ${name} to version ${version}'`, 'package.json'], { encoding: 'utf8', cwd: location }).catch((e: any) => {
+        console.error(`${location} failed with ${e}`)
+        throw (e);
+    });
 }
 
+// https://stackoverflow.com/questions/63796633/spawnsync-bin-sh-enobufs
+function spawn(command: string, args: string[], spawnOpts: any = {}, silenceOutput = false) {
+    console.info(`$ ${command} ${args.join(' ')}`);
+    return new Promise((resolve, reject) => {
+        let errorData = "";
+
+        const spawnedProcess = ChildProcess.spawn(command, args, spawnOpts);
+
+        let data = "";
+
+        spawnedProcess.on("message", console.info);
+
+        spawnedProcess.stdout.on("data", chunk => {
+            if (!silenceOutput) {
+                console.info(chunk.toString());
+            }
+
+            data += chunk.toString();
+        });
+
+        spawnedProcess.stderr.on("data", chunk => {
+            errorData += chunk.toString();
+        });
+
+        spawnedProcess.on("close", function (code) {
+            if (code && code > 0 && errorData.length > 0) {
+                return reject(new Error(`${errorData} ${JSON.stringify(spawnOpts)} ${code} ${command} ${args}`));
+            }
+            return resolve(data);
+        });
+
+        spawnedProcess.on("error", function (err) {
+            reject(err);
+        });
+    });
+}
