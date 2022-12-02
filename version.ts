@@ -24,11 +24,16 @@ for (const module of modules) {
         });
     }
     eh('pwd');
+    updateVersion(module);
+    eh(`git commit -m 'update ${module.replace(/\/$/, '').replace(/.*\//, '')} to version ${version}' package.json`).catch((e: any) => console.error(`${module} failed with ${e}`));
+    eh(`npm publish`);
+}
+updateVersion('.');
+
+function updateVersion(module: string) {
     const pkgFile = `${module}/package.json`;
     const pkg = JSON.parse(readFileSync(pkgFile, 'utf-8'));
     pkg.version = version;
     writeFileSync(pkgFile, JSON.stringify(pkg, null, 2));
-    eh(`git commit -m 'update ${module.replace(/\/$/, '').replace(/.*\//, '')} to version ${version}' package.json`).catch((e: any) => console.error(`${module} failed with ${e}`));
-    eh(`npm publish`);
 }
 
