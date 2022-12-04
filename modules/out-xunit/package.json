@@ -1,6 +1,6 @@
 {
   "name": "@haibun/out-xunit",
-  "version": "1.10.12",
+  "version": "1.10.14",
   "description": "",
   "files": [
     "build/**"
