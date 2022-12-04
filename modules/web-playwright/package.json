@@ -1,6 +1,6 @@
 {
   "name": "@haibun/web-playwright",
-  "version": "1.10.14",
+  "version": "1.10.15",
   "description": "",
   "main": "build/web-playwright.js",
   "files": [
