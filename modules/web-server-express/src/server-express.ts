@@ -12,6 +12,7 @@ export class ServerExpress implements IWebServer {
   static listening: boolean = false;
   listener: any;
   app = express();
+  app.use(express.json());
   static mounted: { [named: string]: string } = {};
   base: string;
   port: number;
