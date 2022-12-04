@@ -17,7 +17,7 @@ async function doVersion() {
         const name = module.replace(/\/$/, '').replace(/.*\//, '');
         await spawn('pwd', [], { cwd: module });
         await updateVersion(name, module);
-       await spawn('npm', ['publish'], { cwd: module });
+        await spawn('npm', ['publish'], { cwd: module });
     }
 
     updateVersion('haibun', '.');
