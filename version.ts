@@ -17,7 +17,7 @@ async function doVersion() {
         const name = module.replace(/\/$/, '').replace(/.*\//, '');
         await spawn('pwd', [], { cwd: module });
         await updateVersion(name, module);
-        await spawn('npm', ['publish'], { cwd: module });
+       await spawn('npm', ['publish'], { cwd: module });
     }
 
     updateVersion('haibun', '.');
@@ -28,10 +28,8 @@ async function updateVersion(name: string, location: string) {
     const pkg = JSON.parse(readFileSync(pkgFile, 'utf-8'));
     pkg.version = version;
     writeFileSync(pkgFile, JSON.stringify(pkg, null, 2));
-    await spawn('git', ['commit', '-m', `'update ${name} to version ${version}'`, 'package.json'], { encoding: 'utf8', cwd: location }).catch((e: any) => {
-        console.error(`${location} failed with ${e}`)
-        throw (e);
-    });
+    await spawn('git', ['commit', '-m', `'update ${name} to version ${version}'`, 'package.json'], { encoding: 'utf8', cwd: location }).catch((e: any) => { throw (e) });
+    await spawn('git', ['push'], { encoding: 'utf8', cwd: location }).catch((e: any) => { throw (e) });
 }
 
 // https://stackoverflow.com/questions/63796633/spawnsync-bin-sh-enobufs
