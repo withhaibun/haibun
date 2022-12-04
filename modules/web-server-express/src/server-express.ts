@@ -2,7 +2,7 @@ import { statSync, existsSync } from 'fs';
 import express, { RequestHandler } from 'express';
 import cookieParser from 'cookie-parser';
 
-import { IWebServer, TRouteType } from './defs';
+import { IWebServer, TRouteTypes } from './defs';
 import { ILogger } from '@haibun/core/src/lib/interfaces/logger';
 
 export const DEFAULT_PORT = 8123;
@@ -40,13 +40,12 @@ export class ServerExpress implements IWebServer {
     return this as IWebServer;
   }
 
-  async addRoute(type: TRouteType, path: string, route: RequestHandler) {
+  async addRoute(type: TRouteTypes, path: string, route: RequestHandler) {
     try {
       const alreadyMounted = this.checkMountBadOrMounted(path, route.toString());
 
-
       if (alreadyMounted) {
-        this.logger.debug(`already mount ${path}`);
+        this.logger.debug(`already mounted ${path}`);
         return;
       }
     } catch (e: any) {

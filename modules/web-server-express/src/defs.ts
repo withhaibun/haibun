@@ -8,10 +8,10 @@ export interface IWebServer {
   addKnownStaticFolder(subdir: string, mountAt?: string): Promise<string | undefined>;
   listen(): Promise<IWebServer>;
   close(): Promise<void>;
-  addRoute(type: TRouteType, path: string, route: TRequestHandler): void;
+  addRoute(type: TRouteTypes, path: string, route: TRequestHandler): void;
 }
 
-export type TRouteType = 'get';
+export type TRouteTypes = 'get' | 'post';
 
 export type IRequest = typeof express.request;
 
