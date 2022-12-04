@@ -47,6 +47,14 @@ const Haibun = class Haibun extends AStepper {
         return OK;
       },
     },
+    forever: {
+      gwta: 'forever',
+      action: async () => {
+        while (true) {
+          await sleep(1000);
+        }
+      }
+    },
     pauseSeconds: {
       gwta: 'pause for {ms}s',
       action: async ({ ms }: TNamed) => {
