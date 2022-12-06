@@ -1,6 +1,6 @@
 {
   "name": "@haibun/storage-fs",
-  "version": "1.10.15",
+  "version": "1.10.17",
   "description": "",
   "main": "build/storage-fs.js",
   "files": [
