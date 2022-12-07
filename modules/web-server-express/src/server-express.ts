@@ -12,7 +12,6 @@ export class ServerExpress implements IWebServer {
   static listening: boolean = false;
   listener: any;
   app = express();
-  app.use(express.json());
   static mounted: { [named: string]: string } = {};
   base: string;
   port: number;
@@ -22,6 +21,7 @@ export class ServerExpress implements IWebServer {
     this.port = port;
 
     this.app.use(cookieParser());
+    this.app.use(express.json({limit: '50mb'}));
   }
 
   async listen(): Promise<IWebServer> {

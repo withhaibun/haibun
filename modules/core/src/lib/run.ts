@@ -38,6 +38,7 @@ export const DEF_PROTO_DEFAULT_OPTIONS = { DEST: DEFAULT_DEST };
 export const DEF_PROTO_OPTIONS = { options: DEF_PROTO_DEFAULT_OPTIONS, extraOptions: {} };
 
 export async function runWith({ specl, world, features, backgrounds, addSteppers, endFeatureCallback }: TRunWithOptions): Promise<TResult> {
+  
   const { tag } = world;
 
   let result = undefined;
@@ -65,6 +66,7 @@ export async function runWith({ specl, world, features, backgrounds, addSteppers
 
     const builder = new Builder(steppers, world);
     await builder.build(mappedValidatedSteps).catch(error => errorBail('Build', error, { stack: error.stack, mappedValidatedSteps }))
+    
 
     world.logger.log(`features: ${expandedFeatures.length} backgrounds: ${backgrounds.length} steps: (${expandedFeatures.map((e) => e.path)}), ${mappedValidatedSteps.length}`);
 
