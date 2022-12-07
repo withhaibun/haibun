@@ -61,8 +61,6 @@ const LoggerWebSockets = class LoggerWebsockets extends AStepper {
     start: {
       gwta: 'start a websocket server at port {port}',
       action: async ({ port }: TNamed) => {
-        console.log(`port "${port}"`, port, parseInt(port, 10));
-
         const ws = this.getWebSocketServer(parseInt(port, 10));
         return OK;
       }

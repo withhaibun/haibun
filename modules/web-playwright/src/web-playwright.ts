@@ -8,9 +8,10 @@ import { TTraceTopic } from '@haibun/core/build/lib/interfaces/logger';
 import { AStorage } from '@haibun/domain-storage/build/AStorage';
 import { EMediaTypes } from '@haibun/domain-storage';
 
-const STORAGE = 'STORAGE';
 
 const WebPlaywright = class WebPlaywright extends AStepper implements IHasOptions, IRequireDomains {
+  static STORAGE = 'STORAGE';
+  static PERSISTENT_DIRECTORY = 'PERSISTENT_DIRECTORY';
   requireDomains = [WEB_PAGE, WEB_CONTROL];
   options = {
     HEADLESS: {
@@ -21,7 +22,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       desc: `show browser devtools (true or false)`,
       parse: (input: string) => boolOrError(input)
     },
-    PERSISTENT_DIRECTORY: {
+    [WebPlaywright.PERSISTENT_DIRECTORY]: {
       desc: 'run browsers with a persistent directory (true or false)',
       parse: (input: string) => boolOrError(input)
     },
@@ -41,7 +42,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       desc: 'timeout for each step',
       parse: (input: string) => intOrError(input),
     },
-    [STORAGE]: {
+    [WebPlaywright.STORAGE]: {
       required: true,
       desc: 'Storage for output',
       parse: (input: string) => stringOrError(input),
@@ -55,11 +56,11 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
 
   async setWorld(world: TWorld, steppers: AStepper[]) {
     super.setWorld(world, steppers);
-    this.storage = findStepperFromOption(steppers, this, this.getWorld().extraOptions, STORAGE);
+    this.storage = findStepperFromOption(steppers, this, this.getWorld().extraOptions, WebPlaywright.STORAGE);
     const headless = getStepperOption(this, 'HEADLESS', this.getWorld().extraOptions) === 'true';
     const devtools = getStepperOption(this, 'DEVTOOLS', this.getWorld().extraOptions) === 'true';
     const args = getStepperOption(this, 'ARGS', this.getWorld().extraOptions)?.split(';')
-    const persistentDirectory = getStepperOption(this, 'PERSISTENT_DIRECTORY', this.getWorld().extraOptions) === 'true';
+    const persistentDirectory = getStepperOption(this, WebPlaywright.PERSISTENT_DIRECTORY, this.getWorld().extraOptions) === 'true';
     const defaultTimeout = parseInt(getStepperOption(this, 'TIMEOUT', this.getWorld().extraOptions)) || 30000;
     const captureVideo = getStepperOption(this, 'CAPTURE_VIDEO', this.getWorld().extraOptions);
     const { trace: doTrace } = this.getWorld().tag;
@@ -259,7 +260,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       action: async ({ tab }: TNamed) => {
 
         if (!this.factoryOptions?.persistentDirectory || this.factoryOptions?.browser.headless) {
-          throw Error(`extensions require PERSISTENT_DIRECTORY and not HEADLESS`);
+          throw Error(`extensions require ${WebPlaywright.PERSISTENT_DIRECTORY} and not HEADLESS`);
         }
         const context = await this.getContext();
         if (!context) {
