@@ -205,6 +205,21 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
         return !cur ? OK : actionNotOK(`${what} is ${cur}`)
       },
     },
+    seeTextIn: {
+      gwta: 'in {selector}, should see {text}',
+      action: async ({ text, selector }: TNamed) => {
+        let textContent: string | null = null;
+        // FIXME retry sometimes required?
+        for (let a = 0; a < 2; a++) {
+          textContent = await this.withPage(async (page: Page) => await page.textContent(selector, { timeout: 1e9 }));
+          if (textContent?.toString().includes(text)) {
+            return OK;
+          }
+        }
+        const topics = { textContent: { summary: `in ${textContent?.length} characters`, details: textContent } };
+        return actionNotOK(`Did not find text "${text}" in ${selector}`, { topics });
+      },
+    },
     seeText: {
       gwta: 'should see {text}',
       action: async ({ text }: TNamed) => {
@@ -217,7 +232,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
           }
         }
         const topics = { textContent: { summary: `in ${textContent?.length} characters`, details: textContent } };
-        return actionNotOK('Did not find text', { topics });
+        return actionNotOK(`Did not find text "${text}" in document`, { topics });
       },
     },
     waitFor: {
