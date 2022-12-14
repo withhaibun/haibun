@@ -87,8 +87,6 @@ export class BrowserFactory {
     if (!this.contexts[sequence]) {
       let context: BrowserContext;
       if (BrowserFactory.options.persistentDirectory) {
-        console.log('options', BrowserFactory.options);
-
         this.logger.info(`creating new persistent context ${sequence} ${this.type}, ${BrowserFactory.options.persistentDirectory} with ${JSON.stringify(BrowserFactory.options)}`);
         context = await chromium.launchPersistentContext("", BrowserFactory.options.browser);
       } else {
