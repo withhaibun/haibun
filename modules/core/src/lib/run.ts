@@ -44,6 +44,8 @@ export async function runWith({ specl, world, features, backgrounds, addSteppers
   let result = undefined;
   const errorBail = (phase: string, error: any, details?: any) => {
     result = { ok: false, tag, failure: { stage: phase, error: { message: error.message, details: { stack: error.stack, details } } } };
+    console.log(error);
+    
     throw Error(error)
   };
   try {
@@ -53,7 +55,7 @@ export async function runWith({ specl, world, features, backgrounds, addSteppers
     await verifyRequiredOptions(csteppers, world.options).catch(error => errorBail('Required Options', error));
     await verifyExtraOptions(world.extraOptions, csteppers).catch((error: any) => errorBail('Options', error));
 
-    const expandedFeatures = await expand(backgrounds, features).catch(error => errorBail('Expand', tag, error));
+    const expandedFeatures = await expand(backgrounds, features).catch(error => errorBail('Expand', error));
 
     const steppers = await createSteppers(csteppers);
     await setWorldStepperOptions(steppers, world);
@@ -67,7 +69,6 @@ export async function runWith({ specl, world, features, backgrounds, addSteppers
     const builder = new Builder(steppers, world);
     await builder.build(mappedValidatedSteps).catch(error => errorBail('Build', error, { stack: error.stack, mappedValidatedSteps }))
     
-
     world.logger.log(`features: ${expandedFeatures.length} backgrounds: ${backgrounds.length} steps: (${expandedFeatures.map((e) => e.path)}), ${mappedValidatedSteps.length}`);
 
     result = await Executor.execute(csteppers, world, mappedValidatedSteps, endFeatureCallback).catch(error => errorBail('Execute', error));
