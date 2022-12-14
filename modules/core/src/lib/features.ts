@@ -3,7 +3,6 @@ import { getActionable } from './util';
 
 export async function expand(backgrounds: TFeatures, features: TFeatures): Promise<TExpandedFeature[]> {
   const expandedBackgrounds = await expandBackgrounds(backgrounds);
-
   const expandedFeatures = await expandFeatures(features, expandedBackgrounds);
   return expandedFeatures;
 }
