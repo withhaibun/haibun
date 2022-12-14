@@ -23,9 +23,13 @@ class Versioner {
         }
 
         this.updateVersion('haibun', '.');
+        await this.publishAll();
     }
+
     async publishAll() {
-        for (const module in this.toPublish) {
+        for (const module of this.toPublish) {
+            console.log('publishing', module);
+
             await this.spawn('npm', ['publish'], { cwd: module });
             // await spawn('git', ['push'], { encoding: 'utf8', cwd: location }).catch((e: any) => { throw (e) });
         }
@@ -33,7 +37,7 @@ class Versioner {
 
     async updateVersion(name: string, location: string) {
         console.log('updating', name);
-        
+
         const pkgFile = `${location}/package.json`;
         const pkg = JSON.parse(readFileSync(pkgFile, 'utf-8'));
         pkg.version = this.version;
