@@ -19,7 +19,8 @@
   "license": "ISC",
   "dependencies": {
     "@haibun/core": "1.13.1",
-    "@haibun/domain-storage": "1.13.1"
+    "@haibun/domain-storage": "1.13.1",
+    "source-map-support": "^0.5.21"
   },
   "devDependencies": {
     "@types/jest": "^27.4.0",
