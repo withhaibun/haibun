@@ -1,6 +1,6 @@
 {
   "name": "@haibun/web-server-express",
-  "version": "1.12.1",
+  "version": "1.13.1",
   "description": "",
   "main": "build/web-server-stepper.js",
   "files": [
