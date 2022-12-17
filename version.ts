@@ -18,7 +18,7 @@ class Versioner {
         const modules = readdirSync(`./modules/`).map(f => `./modules/${f}`).filter(f => statSync(f).isDirectory()).concat(extra);
         for (const module of modules) {
             const name = module.replace(/\/$/, '').replace(/.*\//, '');
-            // await this.updateVersion(name, module);
+            await this.updateVersion(name, module);
             this.toPublish.push(module);
         }
 

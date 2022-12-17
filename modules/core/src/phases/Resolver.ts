@@ -14,12 +14,10 @@ export class Resolver {
   async resolveSteps(features: TExpandedFeature[]): Promise<TResolvedFeature[]> {
     const expanded: TResolvedFeature[] = [];
     for (const feature of features) {
-
       try {
         const steps = await this.addSteps(feature);
         expanded.push(steps);
       } catch (e) {
-        
         this.world.logger.error(e);
         throw e;
       }

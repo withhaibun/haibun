@@ -3,7 +3,7 @@ import express, { RequestHandler } from 'express';
 import cookieParser from 'cookie-parser';
 
 import { IWebServer, TRouteTypes } from './defs';
-import { ILogger } from '@haibun/core/src/lib/interfaces/logger';
+import { ILogger } from '@haibun/core/build/lib/interfaces/logger';
 
 export const DEFAULT_PORT = 8123;
 

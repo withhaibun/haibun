@@ -105,7 +105,7 @@ export function getNamedToVars({ named, vars }: TFound, world: TWorld, vstep: TV
       namedFromVars[name] = shared.get(cred(namedValue));
     } else if (namedKey.startsWith(TYPE_ENV)) {
       // FIXME add test
-      const val = world.options.env[namedValue];
+      const val = world.options?.env[namedValue];
 
       if (val === undefined) {
         throw Error(`no env value for "${namedValue}" from ${JSON.stringify(world.options.env)}`);

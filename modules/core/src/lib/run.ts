@@ -10,11 +10,13 @@ import { getDomains, verifyDomainsOrError } from './domain';
 type TRunOptions = { specl: TSpecl; world: TWorld; base: string; addSteppers?: CStepper[]; featureFilter?: string[]; extraOptions?: TExtraOptions; endFeatureCallback?: TEndFeatureCallback }
 
 export async function run({ specl, base, world, addSteppers = [], featureFilter, endFeatureCallback }: TRunOptions): Promise<TResult> {
+  if (!world.options || !world.extraOptions) {
+    throw Error(`missing options ${world.options} extraOptions ${world.extraOptions}`);
+  }
   let features;
   let backgrounds: TFeature[] = [];
   try {
     features = debase(base, recurse(`${base}/features`, 'feature', featureFilter));
-
     if (existsSync(`${base}/backgrounds`)) {
       backgrounds = debase(base, recurse(`${base}/backgrounds`, 'feature'));
     }
@@ -38,14 +40,14 @@ export const DEF_PROTO_DEFAULT_OPTIONS = { DEST: DEFAULT_DEST };
 export const DEF_PROTO_OPTIONS = { options: DEF_PROTO_DEFAULT_OPTIONS, extraOptions: {} };
 
 export async function runWith({ specl, world, features, backgrounds, addSteppers, endFeatureCallback }: TRunWithOptions): Promise<TResult> {
-  
+
   const { tag } = world;
 
   let result = undefined;
   const errorBail = (phase: string, error: any, details?: any) => {
     result = { ok: false, tag, failure: { stage: phase, error: { message: error.message, details: { stack: error.stack, details } } } };
     console.log(error);
-    
+
     throw Error(error)
   };
   try {
@@ -68,7 +70,7 @@ export async function runWith({ specl, world, features, backgrounds, addSteppers
 
     const builder = new Builder(steppers, world);
     await builder.build(mappedValidatedSteps).catch(error => errorBail('Build', error, { stack: error.stack, mappedValidatedSteps }))
-    
+
     world.logger.log(`features: ${expandedFeatures.length} backgrounds: ${backgrounds.length} steps: (${expandedFeatures.map((e) => e.path)}), ${mappedValidatedSteps.length}`);
 
     result = await Executor.execute(csteppers, world, mappedValidatedSteps, endFeatureCallback).catch(error => errorBail('Execute', error));

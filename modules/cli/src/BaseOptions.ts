@@ -1,6 +1,6 @@
 import { DEFAULT_DEST, IHasOptions, TOptions } from "@haibun/core/build/lib/defs";
+import { LOGGER_LEVELS } from "@haibun/core/build/lib/Logger";
 import { boolOrError, intOrError } from "@haibun/core/build/lib/util";
-
 export class BaseOptions implements IHasOptions {
     static options = {
         SPLIT_SHARED: {
@@ -44,20 +44,22 @@ export class BaseOptions implements IHasOptions {
             parse: (result: string) => ({ result })
         },
         LOG_LEVEL: {
-            desc: 'debug, warn, info, log, error, none',
-            parse: (result: string) => ({ result })
+            desc: Object.keys(LOGGER_LEVELS).join(', '),
+            parse: (result: string) => Object.keys(LOGGER_LEVELS).includes(result) ? { result } : { error: `${result} not in ${Object.keys(LOGGER_LEVELS).join(', ')}` }
         },
         ENV: {
-            desc: 'pass an environment variable: var=value',
+            desc: 'pass an environment variable: var=value[,var2=value]',
             parse: (input: string, cur: TOptions) => {
                 const pairs = input?.split(',');
-                for (const pair in pairs) {
-                    const [k, v] = pair.split(',').map(i => i.trim());
-                    if (cur[k]) {
-                        return { error: `ENV ${k} already exists` };
+                const env: { [name: string]: string } = {};
+                for (const pair of pairs) {
+                    const [k, v] = pair.split('=').map(i => i.trim());
+                    if (cur[k] || env[k]) {
+                        return { error: `ENV ${k} already defined` };
                     }
-                    return { env: { [k]: v } };
+                    env[k] = v;
                 }
+                return { env };
             },
         },
         ENVC: {
