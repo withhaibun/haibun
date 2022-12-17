@@ -23,6 +23,7 @@ class WebSocketServer {
 
       const ctx = parsed['@context'];
       const processor = this.contextProcessors[ctx];
+      ws.send('something');
       if (processor !== undefined) {
         try {
           this.contextProcessors[parsed['@context']](parsed);
