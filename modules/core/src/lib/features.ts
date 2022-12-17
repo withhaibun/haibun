@@ -54,17 +54,19 @@ export async function expandFeatures(features: TFeature[], backgrounds: TFeature
 
 async function expandIncluded(feature: TFeature, backgrounds: TFeatures) {
   let lines: TExpandedLine[] = [];
-  featureSplit(feature.content).forEach((l) => {
+  const split = featureSplit(feature.content);
+  for (const l of split) {
     const actionable = getActionable(l);
 
-    if (actionable.match(/^Backgrounds: .*$/)) {
+    if (!!actionable.match(/^Backgrounds: .*$/)) {
       lines = lines.concat(doIncludes(l, backgrounds));
     } else if (actionable.match(/^Scenarios: .*$/)) {
       lines = lines.concat(doIncludes(l, backgrounds));
     } else {
-      lines.push(asFeatureLine(l, feature));
+      const nl = asFeatureLine(l, feature);
+      lines.push(nl);
     }
-  });
+  }
 
   return lines;
 }
@@ -79,10 +81,7 @@ export function withNameType(path: string, content: string) {
 export const asFeatureLine = (line: string, feature: TFeature) => ({ line, feature });
 
 function doIncludes(input: string, backgrounds: TFeatures) {
-  const includes = input
-    .replace(/^.*?: /, '')
-    .split(',')
-    .map((a) => a.trim());
+  const includes = input.replace(/^.*?: /, '').split(',').map((a) => a.trim());
   let ret: TExpandedLine[] = [];
   for (const l of includes) {
     const bg = findFeatures(l, backgrounds);

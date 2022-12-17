@@ -16,7 +16,7 @@ export type TWithContextAddress = {
   '@id'?: string;
 };
 
-export type TWithContext = TWithContextObject | TWithContextAddress;
+export type TWithContext = (TWithContextObject | TWithContextAddress) & any;
 
 export class WebsocketPublisher implements TContextPublisher {
   connection?: WebSocket;
