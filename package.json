@@ -1,6 +1,6 @@
 {
   "name": "haibun",
-  "version": "1.13.2",
+  "version": "1.13.3",
   "devDependencies": {
     "@types/jest": "^29.2.4",
     "@types/node": "^18.11.14",
