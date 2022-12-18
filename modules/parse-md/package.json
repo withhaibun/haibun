@@ -1,6 +1,6 @@
 {
   "name": "@haibun/parse-md",
-  "version": "1.13.2",
+  "version": "1.13.3",
   "description": "",
   "files": [
     "build/**"
