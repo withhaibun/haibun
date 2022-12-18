@@ -1,6 +1,6 @@
 {
   "name": "@haibun/domain-storage",
-  "version": "1.13.3",
+  "version": "1.13.4",
   "description": "",
   "author": "",
   "main": "build/domain-storage.js",
