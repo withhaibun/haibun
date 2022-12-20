@@ -23,6 +23,7 @@ export class Executor {
     world.shared.values._scored = [];
     let featureNum = 0;
 
+
     for (const feature of features) {
       featureNum++;
 

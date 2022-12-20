@@ -26,6 +26,8 @@ const WebServerStepper = class WebServerStepper extends AStepper implements IHas
   }
 
   async close() {
+    console.log('closing webserver');
+    
     await this.webserver?.close();
   }
 
