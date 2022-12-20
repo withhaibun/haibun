@@ -1,4 +1,5 @@
 import { readdirSync, readFileSync, statSync, writeFileSync } from "fs";
+import { spawn } from './modules/core/src/lib/util/';
 import ChildProcess from "child_process";
 
 const [, me, version, ...extra] = process.argv;
@@ -6,10 +7,24 @@ const [, me, version, ...extra] = process.argv;
 class Versioner {
     toPublish: string[] = [];
     version: string;
+    haibun: { [dep: string]: string } = {};
     constructor(version: string) {
         this.version = version;
     }
     async doVersion() {
+        try {
+            const hpkg = JSON.parse(readFileSync('./package.json', 'utf-8'));
+            if (hpkg.name !== 'haibun') {
+                throw Error('not in haibun root');
+            }
+            for (const [dep, version] of Object.entries({ ...hpkg.dependencies, ...hpkg.devDependencies })) {
+                this.haibun[dep] = <string>version;
+            }
+        } catch (e) {
+            console.error(e);
+            process.exit(1);
+        }
+
         if (!this.version) {
             console.error(`usage: ${me}: <version> <extra modules>`);
             process.exit(1);
@@ -30,8 +45,8 @@ class Versioner {
         for (const module of this.toPublish) {
             console.log('publishing', module);
 
-            await this.spawn(['npm', 'publish'], module);
-            this.spawn(['git', 'push'], module);
+            await spawn(['npm', 'publish'], module);
+            spawn(['git', 'push'], module);
         }
     }
 
@@ -45,41 +60,36 @@ class Versioner {
             if (d.startsWith('@haibun/')) {
                 pkg.dependencies[d] = this.version;
             }
+            if (this.haibun[d]) {
+                pkg.dependencies[d] = this.haibun[d];
+            }
         }
         for (const d in pkg.devDependencies) {
             if (d.startsWith('@haibun/')) {
                 pkg.devDependencies[d] = this.version;
             }
+            if (this.haibun[d]) {
+                pkg.devDependencies[d] = this.haibun[d];
+            }
         }
 
         writeFileSync(pkgFile, JSON.stringify(pkg, null, 2));
         try {
-            this.spawn(['npm', 'run', 'test'], location);
+            spawn(['npm', 'run', 'test'], location);
         } catch (e: any) {
             console.error(`\nnpm test failed for ${name}: ${e}`);
             throw (e)
         }
 
         try {
-            this.spawn(['git', 'commit', '-m', `'update ${name} to version ${this.version}'`, 'package.json'], location);
+            spawn(['git', 'commit', '-m', `'update ${name} to version ${this.version}'`, 'package.json'], location);
         } catch (e: any) {
             console.error(`\/*  */ngit commit failed for ${name}: ${e}`);
             throw (e)
         }
     }
 
-    spawn(command: string[], module: string, show: boolean = false) {
-        console.info(`$ ${command.join(' ')}`);
-        const [cmd, ...args] = command;
-        const { output, stdout, stderr, status, error } = ChildProcess.spawnSync(cmd, args, { cwd: module, env: process.env });
-        if (error) {
-            console.error(`${module}: ${error}`);
-            throw (error);
-        }
-        if (show) {
-            console.log(`${module}: ${stdout}`);
-        }
-    }
+
 }
 
 new Versioner(version).doVersion();

@@ -1,3 +1,4 @@
+import { spawnSync } from 'child_process';
 import { readdirSync, readFileSync, statSync } from 'fs';
 import path from 'path';
 
@@ -217,8 +218,17 @@ export function getStepperOptionValue(key: string, value: string, csteppers: CSt
     const pre = getPre(cstepper.prototype);
     const name = key.replace(pre, '');
     const ao = new cstepper() as IHasOptions;
-    if (key.startsWith(pre) && ao.options![name]) {
-      return ao.options![name].parse(value);
+
+    if (key.startsWith(pre)) {
+      if (!ao.options) {
+        throw Error(`${cstepper.name} has no options`);
+      }
+
+      if (ao.options[name]) {
+        return ao.options![name].parse(value);
+      } else {
+        throw Error(`${cstepper.name} has no option ${name}`);
+      }
     }
   }
 }
@@ -330,3 +340,16 @@ export function friendlyTime(d: Date) {
 export const shortNum = (n: number) => Math.round((n * 100)) / 100;
 
 export const getFeatureTitlesFromResults = (result: TFeatureResult) => result.stepResults.filter(s => s.actionResults.find(a => a.name === 'feature' ? true : false)).map(a => a.in.replace(/^Feature: /, ''));
+
+export function spawn(command: string[], module: string, show: boolean = false) {
+  console.info(`$ ${command.join(' ')}`);
+  const [cmd, ...args] = command;
+  const { output, stdout, stderr, status, error } = spawnSync(cmd, args, { cwd: module, env: process.env });
+  if (error) {
+    console.error(`${module}: ${error}`);
+    throw (error);
+  }
+  if (show) {
+    console.log(`${module}: ${stdout}`);
+  }
+}
