@@ -7,7 +7,7 @@ import WebSocket from 'ws';
 import path from 'path';
 import { TContextProcessor, WEB_SOCKET_SERVER } from '../Context';
 
-class WebSocketServer {
+export class WebSocketServer {
   wss: WebSocket.Server;
   contextProcessors: { [name: string]: TContextProcessor } = {};
   logger: any = console;
