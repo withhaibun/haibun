@@ -16,4 +16,18 @@ describe('applyEnvCollections', () => {
     const res = BaseOptions.options.ENVC.parse('a=1', p);
     expect(res.error).toBeDefined();
   })
-})
+});
+
+describe('apply ENV', () => {
+  it('creates env', () => {
+    const p = { DEST: DEFAULT_DEST };
+    const res = BaseOptions.options.ENV.parse('a=1', p);
+    expect(res.error).not.toBeDefined();
+    expect(res.env).toEqual({ a: "1" });
+  })
+  it('prevents collision', () => {
+    const p = { DEST: DEFAULT_DEST , a: 1 };
+    const res = BaseOptions.options.ENV.parse('a=1', p);
+    expect(res.error).toBeDefined();
+  })
+});

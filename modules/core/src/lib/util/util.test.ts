@@ -113,4 +113,19 @@ describe('shouldProcess', () => {
   it('should not process wrong filter', () => {
     expect(util.shouldProcess('hi.feature', undefined, ['wrong'])).toBe(false);
   });
+  it('should not process root filter', () => {
+    expect(util.shouldProcess('/root/hi.feature', undefined, ['root'])).toBe(false);
+  });
+  it('should process upper root filter', () => {
+    expect(util.shouldProcess('/root/root.feature', undefined, ['root'])).toBe(true);
+  });
 });
+
+describe('check module is class', () => {
+  it('should pass a class', () => {
+    expect(util.checkModuleIsClass(class a { }, 'a')).toEqual(undefined);
+  });
+  it('should fail a function', () => {
+    expect(() => util.checkModuleIsClass(function a() { }, 'a')).toThrow(undefined);
+  });
+})
