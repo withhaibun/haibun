@@ -1,16 +1,22 @@
 import { statSync, existsSync } from 'fs';
+import http from 'http';
+
 import express, { RequestHandler } from 'express';
 import cookieParser from 'cookie-parser';
 
-import { IWebServer, TRouteType } from './defs';
-import { ILogger } from '@haibun/core/src/lib/interfaces/logger';
+import { IWebServer, TRouteTypes } from './defs';
+import { ILogger } from '@haibun/core/build/lib/interfaces/logger';
 
 export const DEFAULT_PORT = 8123;
+
+export async function shutdown() {
+  await fetch('//localhost:8123/shutdown', { method: 'POST' });
+}
 
 export class ServerExpress implements IWebServer {
   logger: ILogger;
   static listening: boolean = false;
-  listener: any;
+  listener?: http.Server;
   app = express();
   static mounted: { [named: string]: string } = {};
   base: string;
@@ -21,6 +27,7 @@ export class ServerExpress implements IWebServer {
     this.port = port;
 
     this.app.use(cookieParser());
+    this.app.use(express.json({ limit: '50mb' }));
   }
 
   async listen(): Promise<IWebServer> {
@@ -40,13 +47,12 @@ export class ServerExpress implements IWebServer {
     return this as IWebServer;
   }
 
-  async addRoute(type: TRouteType, path: string, route: RequestHandler) {
+  async addRoute(type: TRouteTypes, path: string, route: RequestHandler) {
     try {
       const alreadyMounted = this.checkMountBadOrMounted(path, route.toString());
 
-
       if (alreadyMounted) {
-        this.logger.debug(`already mount ${path}`);
+        this.logger.debug(`already mounted ${path}`);
         return;
       }
     } catch (e: any) {

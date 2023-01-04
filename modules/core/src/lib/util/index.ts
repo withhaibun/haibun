@@ -1,3 +1,4 @@
+import { spawnSync } from 'child_process';
 import { readdirSync, readFileSync, statSync } from 'fs';
 import path from 'path';
 
@@ -28,11 +29,20 @@ import { withNameType } from '../features';
 export async function use(module: string) {
   try {
     const re: any = (await import(module)).default;
+    checkModuleIsClass(re, module);
     return re;
   } catch (e) {
     console.error('failed including', module);
-    console.error(e);
     throw e;
+  }
+}
+
+export function checkModuleIsClass(re: any, module: string) {
+  // this is early morning code
+  const type = re?.toString().replace(/^ /g, '').split('\n')[0].replace(/\s.*/, '');
+
+  if (type !== 'class') {
+    throw Error(`"${module}" is ${type}, not a class`);
   }
 }
 
@@ -134,7 +144,7 @@ export function recurse(dir: string, type: string, featureFilter: string[] | und
 
 export function shouldProcess(file: string, type: undefined | string, featureFilter: string[] | undefined) {
   const isType = (!type || file.endsWith(`.${type}`));
-  const matchesFilter = featureFilter ? !!(featureFilter.find(f => file.match(f))) : true;
+  const matchesFilter = featureFilter ? !!(featureFilter.find(f => file.replace(/\/.*?\/([^.*?/])/, '$1').match(f))) : true;
 
   return (isType && matchesFilter);
 }
@@ -166,11 +176,8 @@ export function getActionable(value: string) {
 
 export function describeSteppers(steppers: AStepper[]) {
   return steppers?.map((stepper) => {
-    return stepper.steps && Object.keys(stepper?.steps).map((name) => {
-      return `${stepper.constructor.name}:${name}`;
-    });
-  })
-    .join(' ');
+    return `${stepper.constructor.name}: ${Object.keys(stepper.steps).sort().join('|')}`;
+  }).sort().join('  ');
 }
 
 // from https://stackoverflow.com/questions/1027224/how-can-i-test-if-a-letter-in-a-string-is-uppercase-or-lowercase-using-javascrip
@@ -211,8 +218,17 @@ export function getStepperOptionValue(key: string, value: string, csteppers: CSt
     const pre = getPre(cstepper.prototype);
     const name = key.replace(pre, '');
     const ao = new cstepper() as IHasOptions;
-    if (key.startsWith(pre) && ao.options![name]) {
-      return ao.options![name].parse(value);
+
+    if (key.startsWith(pre)) {
+      if (!ao.options) {
+        throw Error(`${cstepper.name} has no options`);
+      }
+
+      if (ao.options[name]) {
+        return ao.options![name].parse(value);
+      } else {
+        throw Error(`${cstepper.name} has no option ${name}`);
+      }
     }
   }
 }
@@ -324,3 +340,16 @@ export function friendlyTime(d: Date) {
 export const shortNum = (n: number) => Math.round((n * 100)) / 100;
 
 export const getFeatureTitlesFromResults = (result: TFeatureResult) => result.stepResults.filter(s => s.actionResults.find(a => a.name === 'feature' ? true : false)).map(a => a.in.replace(/^Feature: /, ''));
+
+export function spawn(command: string[], module: string, show: boolean = false) {
+  console.info(`$ ${command.join(' ')}`);
+  const [cmd, ...args] = command;
+  const { output, stdout, stderr, status, error } = spawnSync(cmd, args, { cwd: module, env: process.env });
+  if (error) {
+    console.error(`${module}: ${error}`);
+    throw (error);
+  }
+  if (show) {
+    console.log(`${module}: ${stdout}`);
+  }
+}

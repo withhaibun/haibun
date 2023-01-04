@@ -1,4 +1,4 @@
-import { TWorld, TVStep, TExpandedLine, TProtoOptions, CStepper, TExpandedFeature, DEFAULT_DEST } from '../defs';
+import { TWorld, TVStep, TExpandedLine, TProtoOptions, CStepper, TExpandedFeature, DEFAULT_DEST, TResult } from '../defs';
 import { Resolver } from '../../phases/Resolver';
 import { DEF_PROTO_OPTIONS, runWith } from './../run';
 import { getSteppers, getRunTag, verifyExtraOptions, getDefaultOptions, createSteppers } from './../util';
@@ -35,15 +35,16 @@ export async function getTestEnv(useSteppers: string[], test: string, world: TWo
 }
 type TTestFeatures = { path: string, content: string }[];
 
-export async function testWithDefaults(featuresIn: TTestFeatures | string, addSteppers: CStepper[], protoOptions: TProtoOptions = DEF_PROTO_OPTIONS, inBackgrounds: TTestFeatures = []) {
+export async function testWithDefaults(featuresIn: TTestFeatures | string, addSteppers: CStepper[], protoOptions: TProtoOptions = DEF_PROTO_OPTIONS, inBackgrounds: TTestFeatures = []): Promise<TResult & { world: TWorld }> {
   const inFeatures = (typeof featuresIn == 'string') ? [{ path: '/features/test', content: featuresIn }] : featuresIn;
   const specl = getDefaultOptions();
   const world = getTestWorldWithOptions(protoOptions);
-  
+
   const features = asFeatures(inFeatures);
   const backgrounds = asFeatures(inBackgrounds);
 
-  return await runWith({ specl, features, backgrounds, addSteppers, world });
+  const ran = await runWith({ specl, features, backgrounds, addSteppers, world });
+  return { ...ran, world };
 }
 
 export function getTestWorldWithOptions(protoOptions: TProtoOptions) {
@@ -79,7 +80,7 @@ export function getDefaultWorld(sequence: number): { world: TWorld; } {
       options: { DEST: DEFAULT_DEST },
       extraOptions: {},
       domains: [],
-      base: process.cwd()
+      base: '/features/'
     },
   };
 }

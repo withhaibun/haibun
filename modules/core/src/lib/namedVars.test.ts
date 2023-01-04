@@ -2,7 +2,7 @@ import { AStepper, OK, TResolvedFeature, TStep } from './defs';
 import { getNamedMatches, namedInterpolation, matchGroups, getNamedToVars } from './namedVars';
 import { Resolver } from '../phases/Resolver';
 import { actionNotOK, createSteppers } from './util';
-import { asExpandedFeatures, getDefaultWorld } from './test/lib';
+import { asExpandedFeatures, getDefaultWorld, testWithDefaults } from './test/lib';
 import { withNameType } from './features';
 
 describe('namedMatches', () => {
@@ -87,10 +87,23 @@ describe('getNamedWithVars', () => {
     const res = await resolver.resolveSteps(features);
     const { vsteps } = res[0] as TResolvedFeature;
     expect(vsteps[0].actions[0]).toBeDefined();
-    const val = getNamedToVars(vsteps[0].actions[0], world);
+    const val = getNamedToVars(vsteps[0].actions[0], world, vsteps[0]);
     expect(val?.what).toBe('res');
   });
 });
 
 describe('getEnv', () => {
+});
+
+describe('context', () => {
+  it.only('assigns [HERE]', async () => {
+    const feature = { path: '/features/here.feature', content: 'set [HERE] to y' };
+    const verify = { path: '/features/verify.feature', content: 'here is "y"' };
+    const res = await testWithDefaults([feature, verify], []);
+    expect(res.world.shared.get('here')).toBe('y');
+  });
+  it('rejects unknown', async () => {
+    const fails = { path: '/features/here.feature', content: 'set [NOTHING] to y' };
+    expect(async () => await testWithDefaults([fails], [])).resolves.toThrow();
+  });
 });

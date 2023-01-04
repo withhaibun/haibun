@@ -1,6 +1,6 @@
 import { IHasOptions, OK, TWorld, TNamed, TOptions, AStepper, TVStep, IHasBuilder } from '@haibun/core/build/lib/defs';
 import { actionNotOK, getFromRuntime, getStepperOption, intOrError } from '@haibun/core/build/lib/util';
-import { WorkspaceContext } from '@haibun/core/src/lib/contexts';
+import { WorkspaceContext } from '@haibun/core/build/lib/contexts';
 import { IWebServer, WEBSERVER, } from './defs';
 import { ServerExpress, DEFAULT_PORT } from './server-express';
 import { WebPageBuilder } from '@haibun/domain-webpage/build/WebPageBuilder';
@@ -26,6 +26,8 @@ const WebServerStepper = class WebServerStepper extends AStepper implements IHas
   }
 
   async close() {
+    console.log('closing webserver');
+    
     await this.webserver?.close();
   }
 
