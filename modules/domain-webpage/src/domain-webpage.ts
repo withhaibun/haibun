@@ -1,9 +1,9 @@
 import { WorkspaceContext } from '@haibun/core/build/lib/contexts';
-import { IHasDomains, TNamed, TVStep, OK, AStepper, TFromDomain, TFileTypeDomain, IHasBuilder } from '@haibun/core/build/lib/defs';
-import { getDomain } from '@haibun/core/build/lib/domain';
+import { IHasDomains, TNamed, TVStep, OK, AStepper, TFromDomain, TFileTypeDomain } from '@haibun/core/build/lib/defs';
 
 export const WEB_PAGE = 'webpage';
 export const WEB_CONTROL = 'webcontrol';
+export const SELECTOR = 'selector';
 
 export const webPage: TFileTypeDomain = {
   name: WEB_PAGE, fileType: WEB_PAGE, is: 'string', validate: (content: string) => {

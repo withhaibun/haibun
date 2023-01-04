@@ -1,5 +1,5 @@
 import { OK, TNamed, AStepper } from '../lib/defs';
-import { actionNotOK, actionOK, sleep } from '../lib/util';
+import { actionNotOK, sleep } from '../lib/util';
 
 const Haibun = class Haibun extends AStepper {
   steps = {
@@ -7,12 +7,12 @@ const Haibun = class Haibun extends AStepper {
       gwta: '.*[.?!]$',
       action: async () => OK,
     },
-    sendFeatures: {
-      gwta: 'send features',
-      action: async () => {
-        return actionOK({ features: this.getWorld().shared.values._features });
-      },
-    },
+    // sendFeatures: {
+    //   gwta: 'send features',
+    //   action: async () => {
+    //     return actionOK({ features: this.getWorld().shared.values._features });
+    //   },
+    // },
     startStepDelay: {
       gwta: 'start step delay of (?<ms>.+)',
       action: async ({ ms }: TNamed) => {
@@ -46,6 +46,14 @@ const Haibun = class Haibun extends AStepper {
         this.world?.logger.log(`tag ${which}: ${JSON.stringify(what)}`)
         return OK;
       },
+    },
+    forever: {
+      gwta: 'forever',
+      action: async () => {
+        while (true) {
+          await sleep(1000);
+        }
+      }
     },
     pauseSeconds: {
       gwta: 'pause for {ms}s',

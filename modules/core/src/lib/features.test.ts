@@ -73,14 +73,14 @@ describe('feature finding', () => {
   });
 });
 
-xdescribe('expand features', () => {
+describe('expand features', () => {
   test('applies backgrounds', async () => {
-    const features = asFeatures([{ path: '/f1', content: 'Backgrounds: b1\nextant' }]);
+    const features = asFeatures([{ path: '/f1', content: 'Backgrounds: b1\nExtant' }]);
     const backgrounds = asFeatures([{ path: '/b1.feature', content: 'result' }]);
     const res = await steps.expandFeatures(features, backgrounds);
-    const expected = asExpandedFeatures([{ path: '/f1', content: '\nresult\nextant' }]);
 
-    expect(res[0].expanded).toEqual(expected[0].expanded);
+    expect(res[0].expanded.map(e => e.line)).toEqual(['result', 'Extant']);
+    expect(res[0].expanded.map(e => e.feature.name)).toEqual(['/b1', '/f1']);
   });
   test('applies backgrounds hierarchical', async () => {
     const features = asFeatures([{ path: '/l1/f1', content: 'Backgrounds: b2' }]);
@@ -89,11 +89,13 @@ xdescribe('expand features', () => {
       { path: '/l2/b2.feature', content: 'result' },
     ]);
     const res = await steps.expandFeatures(features, backgrounds);
-    expect(res).toEqual(asExpandedFeatures([{ path: '/l1/f1', content: '\nresult\n' }]));
+    expect(res[0].expanded.length).toBe(1);
+    expect(res[0].expanded[0].line).toEqual('result');
+    expect(res[0].expanded[0].feature.name).toEqual('/l2/b2');
   });
 });
 
-describe.skip('env vars', () => {
+describe('env vars', () => {
   it('rotates ENVC vars', async () => {
     let index = 0;
     const TestEnvcStepper = class TestRoute extends AStepper {
@@ -110,7 +112,7 @@ describe.skip('env vars', () => {
     };
     const feature = { path: '/features/test.feature', content: `\nfinds a {what}\nfinds a {what}` }
     const env = { what: [0, 1] }
-    // const { world } = await testWithDefaults([feature], [TestEnvcStepper], { options: { DEST: DEFAULT_DEST, env }, extraOptions: {} })
-    // expect(world.options._index_what).toBe(1);
+    const { world } = await testWithDefaults([feature], [TestEnvcStepper], { options: { DEST: DEFAULT_DEST, env }, extraOptions: {} })
+    expect(world.options._index_what).toBe(1);
   });
 })

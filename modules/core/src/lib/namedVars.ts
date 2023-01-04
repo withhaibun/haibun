@@ -1,5 +1,5 @@
 import { cred } from '../steps/credentials';
-import { TStep, TNamedVar, TFound, TNamed, BASE_TYPES, TWorld, HAIBUN } from './defs';
+import { TStep, TNamedVar, TFound, TNamed, BASE_TYPES, TWorld, TVStep } from './defs';
 import { getStepShared } from './domain';
 
 const TYPE_QUOTED = 'q_';
@@ -41,7 +41,7 @@ export const namedInterpolation = (inp: string, types: string[] = BASE_TYPES): {
     last = be + 1;
     str += matchGroups(matches++);
   }
-  str += inp.substr(be + 1);
+  str += inp.substring(be + 1);
   return { vars, str };
 };
 
@@ -70,7 +70,7 @@ export const getMatch = (actionable: string, r: RegExp, actionName: string, step
 
 // returns named values, assigning variable values as appropriate
 // retrieves from world.shared if a base domain, otherwise world.domains[type].shared
-export function getNamedToVars({ named, vars }: TFound, world: TWorld) {
+export function getNamedToVars({ named, vars }: TFound, world: TWorld, vstep: TVStep) {
   if (!named) {
     return { _nb: 'no named' };
   }
@@ -105,7 +105,7 @@ export function getNamedToVars({ named, vars }: TFound, world: TWorld) {
       namedFromVars[name] = shared.get(cred(namedValue));
     } else if (namedKey.startsWith(TYPE_ENV)) {
       // FIXME add test
-      const val = world.options.env[namedValue];
+      const val = world.options?.env[namedValue];
 
       if (val === undefined) {
         throw Error(`no env value for "${namedValue}" from ${JSON.stringify(world.options.env)}`);
