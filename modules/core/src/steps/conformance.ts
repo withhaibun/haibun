@@ -1,4 +1,4 @@
-import { actionNotOK } from '../lib/util';
+import { actionNotOK } from '../lib/util/index.js';
 import { AStepper } from '../lib/defs';
 
 const Conformance = class Conformance extends AStepper {

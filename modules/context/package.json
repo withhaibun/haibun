@@ -35,7 +35,6 @@
     "build": "tsc -b .",
     "tsc-watch": "tsc --watch",
     "tsc": "tsc",
-    "prepare": "npm run build",
     "prepublishOnly": "tsc -b .",
     "preversion": "npm run lint",
     "version": "npm run format && git add -A src"

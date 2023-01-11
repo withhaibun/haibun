@@ -1,5 +1,5 @@
 import { OK, TNamed, TVStep, AStepper, TWorld } from '@haibun/core/build/lib/defs';
-import { getFromRuntime } from '@haibun/core/build/lib/util';
+import { getFromRuntime } from '@haibun/core/build/lib/util/index.js';
 import { IWebServer, WEBSERVER } from '@haibun/web-server-express/build/defs';
 
 import WebSocket from 'ws';

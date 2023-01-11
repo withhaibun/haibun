@@ -3,7 +3,7 @@ import { IHasDomains, TNamed, TVStep, IRequireDomains, AStepper } from './defs';
 import { getDomain } from './domain';
 import { runWith } from './run';
 import { asFeatures, getDefaultWorld, testWithDefaults } from './test/lib';
-import { actionOK, getDefaultOptions } from './util';
+import { actionOK, getDefaultOptions } from './util/index.js';
 
 const TTYPE = 'page';
 const CCONTROL = 'control';

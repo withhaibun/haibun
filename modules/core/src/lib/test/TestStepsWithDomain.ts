@@ -1,5 +1,5 @@
 import { IHasDomains, AStepper } from '../defs';
-import { actionOK } from '../util';
+import { actionOK } from '../util/index.js';
 
 
 const TestStepsWithDomain = class TestStepsWithDomain extends AStepper implements IHasDomains {

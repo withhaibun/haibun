@@ -7,6 +7,7 @@
   ],
   "main": "index.js",
   "scripts": {
+    "build": "tsc -b .",
     "prepublishOnly": "tsc -b .",
     "test": "jest --config jest.config.ts",
     "test-watch": "jest --config jest.config.ts --watch"
@@ -15,6 +16,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@haibun/core": "^1.13.6",
     "@types/node-fetch": "^2.5.10",
     "node-fetch": "^2.6.1",
     "turndown": "^7.1.1"

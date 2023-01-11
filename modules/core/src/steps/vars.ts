@@ -1,7 +1,7 @@
-import { Context, DomainContext } from '../lib/contexts';
-import { OK, TNamed, TVStep, TWorld, TActionResultTopics, AStepper } from '../lib/defs';
-import { getDomain, getStepShared } from '../lib/domain';
-import { actionNotOK } from '../lib/util';
+import { Context, DomainContext } from '../lib/contexts.js';
+import { OK, TNamed, TVStep, TWorld, TActionResultTopics, AStepper } from '../lib/defs.js';
+import { getDomain, getStepShared } from '../lib/domain.js';
+import { actionNotOK } from '../lib/util/index.js';
 
 // FIXME see https://github.com/withhaibun/haibun/issues/18
 const getOrCond = (fr: string) => fr.replace(/.* is set or /, '');

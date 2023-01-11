@@ -1,6 +1,5 @@
 import { readdirSync, readFileSync, statSync, writeFileSync } from "fs";
 import { spawn } from './modules/core/src/lib/util/';
-import ChildProcess from "child_process";
 
 const [, me, version, ...extra] = process.argv;
 
@@ -13,11 +12,11 @@ class Versioner {
     }
     async doVersion() {
         try {
-            const hpkg = JSON.parse(readFileSync('./package.json', 'utf-8'));
-            if (hpkg.name !== 'haibun') {
+            const haibunPackage = JSON.parse(readFileSync('./package.json', 'utf-8'));
+            if (haibunPackage.name !== 'haibun') {
                 throw Error('not in haibun root');
             }
-            for (const [dep, version] of Object.entries({ ...hpkg.dependencies, ...hpkg.devDependencies })) {
+            for (const [dep, version] of Object.entries({ ...haibunPackage.dependencies, ...haibunPackage.devDependencies })) {
                 this.haibun[dep] = <string>version;
             }
         } catch (e) {
@@ -78,14 +77,14 @@ class Versioner {
             spawn(['npm', 'run', 'test'], location);
         } catch (e: any) {
             console.error(`\nnpm test failed for ${name}: ${e}`);
-            throw (e)
+            throw (e);
         }
 
         try {
             spawn(['git', 'commit', '-m', `'update ${name} to version ${this.version}'`, 'package.json'], location);
         } catch (e: any) {
-            console.error(`\/*  */ngit commit failed for ${name}: ${e}`);
-            throw (e)
+            console.error(`/*  */ngit commit failed for ${name}: ${e}`);
+            throw (e);
         }
     }
 

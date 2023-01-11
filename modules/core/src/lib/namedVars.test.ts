@@ -1,7 +1,7 @@
 import { AStepper, OK, TResolvedFeature, TStep } from './defs';
 import { getNamedMatches, namedInterpolation, matchGroups, getNamedToVars } from './namedVars';
 import { Resolver } from '../phases/Resolver';
-import { actionNotOK, createSteppers } from './util';
+import { actionNotOK, createSteppers } from './util/index.js';
 import { asExpandedFeatures, getDefaultWorld, testWithDefaults } from './test/lib';
 import { withNameType } from './features';
 

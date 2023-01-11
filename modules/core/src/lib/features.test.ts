@@ -1,7 +1,7 @@
 import { TNamed, AStepper, DEFAULT_DEST } from './defs';
 import * as steps from './features';
-import { asExpandedFeatures, asFeatures, testWithDefaults } from './test/lib';
-import { actionOK } from './util';
+import { asFeatures, testWithDefaults } from './test/lib';
+import { actionOK } from './util/index.js';
 
 describe('expandBackgrounds', () => {
   test('simple', async () => {

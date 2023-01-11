@@ -7,35 +7,32 @@ type Tkv = { [name: string]: string }
 
 const here = process.cwd();
 
-export function scaffoldHaibun(dest: string, out: typeof console.info, add?: { addDeps?: Tkv, addDevDeps?: Tkv, addDirs: string[] }) {
-    const ppkg = require(path.join(here, '..', '..', 'package.json'));
+export function scaffoldHaibun(dest: string, out: typeof console.info, add?: { addDeps?: Tkv, addDevDeps?: Tkv, addDirs: string[] }): void {
+    const mainHaibunPackage = JSON.parse(readFileSync(path.join(here, '..', '..', 'package.json'), 'utf-8'));
 
     const what: { dirs: string[], [name: string]: Tkv | string[] } = {
         dependencies: {
-            '@haibun/core': `${ppkg.version}`
+            '@haibun/core': `${mainHaibunPackage.version}`
         },
-        devDependencies: {
-            'jest': ppkg.devDependencies.jest,
-            'ts-jest': ppkg.devDependencies['ts-jest'],
-            'ts-node': ppkg.devDependencies['ts-node'],
-            '@types/node': ppkg.devDependencies['@types/node'],
-            '@types/jest': ppkg.devDependencies['@types/jest'],
-        },
+        devDependencies: ["@types/jest", "@types/node", "@typescript-eslint/eslint-plugin", "@typescript-eslint/parser", "eslint", "eslint-config-airbnb-typescript"
+            , "eslint-config-prettier", "eslint-plugin-import", "eslint-plugin-prefer-arrow", "eslint-plugin-prettier", "jest"
+            , "prettier", "ts-jest", "ts-node", "tslint", "typescript"]
+            .reduce((a, i) => ({ ...a, [i]: mainHaibunPackage.devDependencies[i] }), {} as Tkv),
         scripts: {
-            test: 'jest --config jest.config.ts'
+            test: 'jest --config jest.config.ts',
+            lint: 'lint --ext .ts ./src/',
         },
         dirs: [
             'src',
             'src/lib',
         ]
     }
-
     let localDest;
     let pName;
     const localPackageJson = path.join(dest, 'package.json');
     try {
-        const ppkg = readFileSync(localPackageJson, 'utf-8');
-        localDest = JSON.parse(ppkg);
+        const localPackage = readFileSync(localPackageJson, 'utf-8');
+        localDest = JSON.parse(localPackage);
         pName = localDest.name.replace(/.*\//, '').replace(/[@]/, '_', 'g').replace(/-./g, (x: string) => x[1].toUpperCase());
     } catch (e) {
         throw Error('please run this command from a project folder that has a package.json file with at least a name field. {e}');
@@ -57,7 +54,7 @@ export function scaffoldHaibun(dest: string, out: typeof console.info, add?: { a
 
     writeFileSync(localPackageJson, JSON.stringify(localDest, null, 2));
 
-    for (const f of ['tsconfig.json', 'jest.config.ts']) {
+    for (const f of ['tsconfig.json', 'jest.config.ts', '.eslintrc', '.prettierrc']) {
         writeIfMissing(f);
     }
 
@@ -87,11 +84,12 @@ export function scaffoldHaibun(dest: string, out: typeof console.info, add?: { a
         } else {
             let contents = readFileSync(path.join(here, 'scaffold', from), 'utf-8');
             if (replace) {
-                contents = contents.replaceAll(replace, instead!);
+                contents = contents.replaceAll(replace, `${instead}`);
             }
             writeFileSync(to, contents);
             out(`copied ${to}`);
         }
     }
+    return;
 }
 
