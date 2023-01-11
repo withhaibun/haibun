@@ -1,0 +1,22 @@
+{
+    "compilerOptions": {
+        "target": "esnext",
+        "module": "esnext",
+        "moduleResolution": "nodenext",
+        "types": [
+            "node",
+            "jest"
+        ],
+        "forceConsistentCasingInFileNames": true,
+        "noFallthroughCasesInSwitch": true,
+        "noUncheckedIndexedAccess": true,
+        "strict": false,
+        "esModuleInterop": true,
+        "allowSyntheticDefaultImports": true,
+        "experimentalDecorators": true,
+        "sourceMap": true,
+        "composite": true,
+        "importHelpers": true,
+        "incremental": true
+    }
+}

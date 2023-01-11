@@ -1,0 +1,9 @@
+{
+  "@context": [
+    "https://linkedsoftwaredependencies.org/bundles/npm/componentsjs/^5.0.0/components/context.jsonld",
+    {
+      "npmd": "https://linkedsoftwaredependencies.org/bundles/npm/",
+      "hfi": "npmd:haibun-feature-importer/^0.0.0/"
+    }
+  ]
+}
