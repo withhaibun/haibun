@@ -1,7 +1,7 @@
 import got from 'got';
 
 import { OK, TNamed, AStepper } from '@haibun/core/build/lib/defs';
-import { actionNotOK } from '@haibun/core/build/lib/util';
+import { actionNotOK } from '@haibun/core/build/lib/util/index.js';
 
 const WebHttp = class WebHttp extends AStepper {
   steps = {

@@ -7,6 +7,7 @@
     "build/"
   ],
   "scripts": {
+    "build": "tsc -b .",
     "prepublishOnly": "tsc -b .",
     "test": "jest --config jest.config.ts",
     "test-watch": "jest --config jest.config.ts --watch"
@@ -30,5 +31,8 @@
     "ts-node": "^10.0.0",
     "tslint": "^6.1.3",
     "typescript": "^4.6.3"
+  },
+  "dependencies": {
+    "@haibun/domain-storage": "^1.13.6"
   }
 }

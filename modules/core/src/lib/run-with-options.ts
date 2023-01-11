@@ -3,7 +3,7 @@ import { WorldContext } from './contexts';
 import Logger from './Logger';
 
 import { run } from './run';
-import { resultOutput, getRunTag } from './util';
+import { resultOutput, getRunTag } from './util/index.js';
 import { ILogOutput } from './interfaces/logger';
 import { Timer } from './Timer';
 

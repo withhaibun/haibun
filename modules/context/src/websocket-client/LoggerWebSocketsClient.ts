@@ -12,9 +12,9 @@ export default class LoggerWebSocketsClient {
   socket?: WebSocket;
   keepAlive?: ILoggerKeepAlive;
   onmessage: (event: MessageEvent<any>) => void;
-  open: boolean = false;
+  open = false;
 
-  constructor(port: number = 3294, args?: { keepAlive?: ILoggerKeepAlive, onmessage?: (event: MessageEvent) => void }) {
+  constructor(port = 3294, args?: { keepAlive?: ILoggerKeepAlive, onmessage?: (event: MessageEvent) => void }) {
     this.port = port;
     this.keepAlive = args?.keepAlive;
     this.onmessage = args?.onmessage || defaultMessageHandler;

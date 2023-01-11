@@ -22,13 +22,15 @@ import {
   DEFAULT_DEST,
   TTagValue,
   TFeatureResult
-} from '../defs';
-import { withNameType } from '../features';
+} from '../defs.js';
+import { withNameType } from '../features.js';
 
 // FIXME tired of wrestling with ts/import issues
 export async function use(module: string) {
   try {
-    const re: any = (await import(module)).default;
+    const re: any = (await import(module)).default.default;
+    console.log('rr', re);
+    
     checkModuleIsClass(re, module);
     return re;
   } catch (e) {
@@ -342,11 +344,13 @@ export const shortNum = (n: number) => Math.round((n * 100)) / 100;
 export const getFeatureTitlesFromResults = (result: TFeatureResult) => result.stepResults.filter(s => s.actionResults.find(a => a.name === 'feature' ? true : false)).map(a => a.in.replace(/^Feature: /, ''));
 
 export function spawn(command: string[], module: string, show: boolean = false) {
+  console.log('lala', command);
+  
   console.info(`$ ${command.join(' ')}`);
   const [cmd, ...args] = command;
   const { output, stdout, stderr, status, error } = spawnSync(cmd, args, { cwd: module, env: process.env });
-  if (error) {
-    console.error(`${module}: ${error}`);
+  if (error || stderr) {
+    console.error(`${module}: ${error || stderr}`);
     throw (error);
   }
   if (show) {

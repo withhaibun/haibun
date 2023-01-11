@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 
 require('source-map-support').install()
+process.on('unhandledRejection', console.error);
 
 import repl from 'repl';
 import { TSpecl, TWorld, TEndFeatureCallback, TEndFeatureCallbackParams } from '@haibun/core/build/lib/defs';
 import { EMediaTypes, ITrackResults } from '@haibun/domain-storage/';
 
-import { findStepper, getConfigFromBase, getDefaultOptions } from '@haibun/core/build/lib/util';
+import { findStepper, getConfigFromBase, getDefaultOptions } from '@haibun/core/build/lib/util/index.js';
 import runWithOptions from '@haibun/core/build/lib/run-with-options';
 import { processBaseEnv, usageThenExit } from './lib';
 import { Timer } from '@haibun/core/build/lib/Timer';

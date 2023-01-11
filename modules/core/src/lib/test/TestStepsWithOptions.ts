@@ -1,5 +1,5 @@
 import { IHasOptions, AStepper } from '../defs';
-import { actionOK, getStepperOption } from '../util';
+import { actionOK, getStepperOption } from '../util/index.js';
 
 const TestStepsWithOptions = class TestStepsWithOptions extends AStepper implements IHasOptions {
   options = {

@@ -3,7 +3,7 @@ import { DEFAULT_DEST } from '@haibun/core/build/lib/defs';
 import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, testWithDefaults } from '@haibun/core/build/lib/test/lib';
 import TestSteps from '@haibun/core/build/lib/test/TestSteps';
 import TestStepsWithOptions from '@haibun/core/build/lib/test/TestStepsWithOptions';
-import { getDefaultOptions } from '@haibun/core/build/lib/util';
+import { getDefaultOptions } from '@haibun/core/build/lib/util/index.js';
 import * as lib from './lib';
 import { processBaseEnv } from './lib';
 

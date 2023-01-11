@@ -1,5 +1,5 @@
 import { IHasOptions, OK, TWorld, TNamed, TOptions, AStepper, TVStep, IHasBuilder } from '@haibun/core/build/lib/defs';
-import { actionNotOK, getFromRuntime, getStepperOption, intOrError } from '@haibun/core/build/lib/util';
+import { actionNotOK, getFromRuntime, getStepperOption, intOrError } from '@haibun/core/build/lib/util/index.js';
 import { WorkspaceContext } from '@haibun/core/build/lib/contexts';
 import { IWebServer, WEBSERVER, } from './defs';
 import { ServerExpress, DEFAULT_PORT } from './server-express';

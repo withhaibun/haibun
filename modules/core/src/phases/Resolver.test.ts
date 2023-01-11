@@ -1,6 +1,6 @@
 import { AStepper, OK, TExpandedFeature, TResolvedFeature } from '../lib/defs';
 import { asExpandedFeatures, getDefaultWorld } from '../lib/test/lib';
-import { createSteppers } from '../lib/util';
+import { createSteppers } from '../lib/util/index.js';
 import { Resolver } from './Resolver';
 
 describe('validate map steps', () => {
