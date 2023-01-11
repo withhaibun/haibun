@@ -1,12 +1,12 @@
 {
   "extends": "../tsconfig.settings.json",
+  "inlineSources": true,
   "compilerOptions": {
-    "declaration": true,
-    "outDir": "./build",
-    "rootDir": "./src"
+    "outDir": "build",
+    "rootDir": "src",
   },
-    "references": [
-  ],
-  "exclude": ["./jest.config.ts", "build"]
+  "exclude": [
+    "./jest.config.ts",
+    "build"
+  ]
 }
-

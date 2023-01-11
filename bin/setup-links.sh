@@ -74,6 +74,18 @@ done) &&  \
   cd ../
 done) &&  \
 
+## depends on @haibun/core and @haibun/domain-webpage @haibun/context
+(for i in feature-importer; do
+  cd $i
+  npm i &&  \
+  npm link @haibun/core @haibun/domain-webpage @haibun/context && \
+  tsc -b . &&  \
+
+  echo "\nsetup link for $i" && \
+  npm link &&  \
+  cd ../
+done) &&  \
+
 ## depends on @haibun/core and @haibun/domain-storage
 (for i in storage-fs; do
   cd $i
@@ -99,10 +111,22 @@ done) &&  \
 done) &&  \
 
 # depends on many
-(for i in cli; do 
+(for i in cli browser-extension; do 
   cd $i ; echo "\nlinking $i" ;
+  npm i && \
 
   npm link @haibun/core @haibun/web-playwright @haibun/web-http @haibun/web-server-express @haibun/domain-storage && \
+  tsc -b . && \
+  npm link && \
+
+  cd ../
+done) 
+
+(for i in feature-recorder; do 
+  cd $i ; echo "\nlinking $i" ;
+  npm i && \
+
+  npm link @haibun/core @haibun/web-playwright @haibun/web-http @haibun/web-server-express @haibun/domain-storage @haibun/browser-extension @haibun/feature-importer && \
   tsc -b . && \
   npm link && \
 

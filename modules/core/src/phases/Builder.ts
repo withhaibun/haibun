@@ -1,6 +1,6 @@
 import { WorkspaceContext } from '../lib/contexts';
 import { AStepper, OK, TBuildResult, TFinalize, TNotOkStepActionResult, TOKStepActionResult, TResolvedFeature, TWorld } from '../lib/defs';
-import { applyResShouldContinue } from '../lib/util';
+import { applyResShouldContinue } from '../lib/util/index.js';
 import { Executor, } from './Executor';
 
 export default class Builder {

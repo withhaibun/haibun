@@ -1,12 +1,12 @@
 
 import WebHttp from '@haibun/web-http/build/web-http';
-import { actionOK, getFromRuntime, getStepperOptionName } from '@haibun/core/build/lib/util';
+import { actionOK, getFromRuntime, getStepperOptionName } from '@haibun/core/build/lib/util/index.js';
 import { DEFAULT_DEST } from '@haibun/core/build/lib/defs';
 import { IWebServer, IRequest, IResponse, WEBSERVER } from './defs';
 
-import server from './web-server-stepper';
+import Server from './web-server-stepper';
 import { AStepper, TNamed } from '@haibun/core/build/lib/defs';
-import { testWithDefaults } from '@haibun/core/src/lib/test/lib';
+import { testWithDefaults } from '@haibun/core/build/lib/test/lib';
 import WebServerStepper from './web-server-stepper';
 
 describe('route mount', () => {
@@ -26,7 +26,7 @@ describe('route mount', () => {
     };
     const wss = new WebServerStepper();
     const feature = { path: '/features/test.feature', content: `serve test route to /test\nwebserver is listening\nfetch from http://localhost:8124/test is "ok"` };
-    const result = await testWithDefaults([feature], [server, TestRoute, WebHttp], {
+    const result = await testWithDefaults([feature], [Server, TestRoute, WebHttp], {
       options: { DEST: DEFAULT_DEST, },
       extraOptions: {
         [getStepperOptionName(wss, 'PORT')]: '8124',

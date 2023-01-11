@@ -1,7 +1,7 @@
 import { TWorld, TVStep, TExpandedLine, TProtoOptions, CStepper, TExpandedFeature, DEFAULT_DEST, TResult } from '../defs';
 import { Resolver } from '../../phases/Resolver';
 import { DEF_PROTO_OPTIONS, runWith } from './../run';
-import { getSteppers, getRunTag, verifyExtraOptions, getDefaultOptions, createSteppers } from './../util';
+import { getSteppers, getRunTag, verifyExtraOptions, getDefaultOptions, createSteppers } from './../util/index.js';
 import { WorldContext } from '../contexts';
 import { featureSplit, withNameType } from './../features';
 import { getDomains, verifyDomainsOrError } from './../domain';

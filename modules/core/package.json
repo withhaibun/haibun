@@ -1,5 +1,6 @@
 {
   "name": "@haibun/core",
+  "type": "module",
   "version": "1.13.6",
   "description": "",
   "author": "",
@@ -18,11 +19,10 @@
     "test": "jest --config jest.config.ts",
     "test-haibun": "build/cli.js test/projects/web",
     "coverage": "jest --config jest.config.ts --coverage",
-    "test-watch": "jest --watch",
+    "test-watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch",
     "build": "tsc -b .",
     "tsc-watch": "tsc --watch",
     "tsc": "tsc",
-    "prepare": "npm run build",
     "prepublishOnly": "tsc -b .",
     "preversion": "npm run lint",
     "version": "npm run format && git add -A src"

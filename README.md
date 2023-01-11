@@ -95,7 +95,7 @@ Your file might end up looking like this:
 
 ```typescript
 import { OK, TNamed, IHasOptions, IRequireDomains, AStepper, TWorld } from '@haibun/core/build/lib/defs';
-import { actionNotOK, stringOrError, findStepperFromOption } from '@haibun/core/build/lib/util';
+import { actionNotOK, stringOrError, findStepperFromOption } from '@haibun/core/build/lib/util/index.js';
 import { STORAGE_ITEM, STORAGE_LOCATION } from '@haibun/domain-storage';
 import { AStorage } from '@haibun/domain-storage/build/AStorage';
 
@@ -183,9 +183,9 @@ and install Lerna and Typescript globally;
 
 `npm i -g lerna typescript`
 
-To build:
+To install and build:
 
-  `npm run build`
+  `npm run install`
 
   `npm run tsc-watch`
 

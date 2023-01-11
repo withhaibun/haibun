@@ -37,5 +37,8 @@
     "prepublishOnly": "tsc -b .",
     "preversion": "npm run lint",
     "version": "npm run format && git add -A src"
+  },
+  "dependencies": {
+    "@haibun/core": "^1.13.6"
   }
 }
