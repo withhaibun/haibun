@@ -20,9 +20,9 @@ for (const module of graph.overallOrder()) {
   const dest = `./modules/${module.replace(/^@haibun\//, '')}`;
 
   spawn(['npm', 'run', 'build'], dest);
-  if (graph.dependenciesOf(module).length) {
-    // spawn(['npm', 'link', ...graph.dependenciesOf(module)], dest);
-  }
+  // if (graph.dependenciesOf(module).length) {
+    spawn(['npm', 'link', ...graph.dependenciesOf(module)], dest);
+  // }
   // spawn(['npm', 'link'], dest);
 }
 

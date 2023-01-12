@@ -27,10 +27,6 @@
     "preversion": "npm run lint",
     "version": "npm run format && git add -A src"
   },
-  "dependencies": {
-    "@haibun/core": "1.13.6",
-    "source-map-support": "^0.5.21"
-  },
   "devDependencies": {
     "@types/jest": "^29.2.4",
     "@types/node": "^18.11.14",
