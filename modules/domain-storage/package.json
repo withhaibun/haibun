@@ -1,7 +1,7 @@
 {
   "name": "@haibun/domain-storage",
   "type": "module",
-  "version": "1.15.0",
+  "version": "1.15.1",
   "description": "",
   "author": "",
   "main": "index.js",
@@ -39,7 +39,7 @@
     "version": "npm run format && git add -A src"
   },
   "dependencies": {
-    "@haibun/context": "1.15.0",
-    "@haibun/core": "1.15.0"
+    "@haibun/context": "1.15.1",
+    "@haibun/core": "1.15.1"
   }
 }
