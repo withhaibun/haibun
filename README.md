@@ -144,7 +144,7 @@ and a HAIBUN_O_FILESEXIST_STORAGE runtime variable.
 
 ## Scaffolding
 
-You can also scaffold Haibun into an existing project using `npx @haibun/core scaffold`. 
+You can also scaffold Haibun into an existing project using `npx -p @haibun/core scaffold`. 
 This will add the core library, Typescript and Jest support (if missing), 
 steppers, a placeholder library, and tests. 
 It won't overwrite existing files. It presumes an src folder for source files.
