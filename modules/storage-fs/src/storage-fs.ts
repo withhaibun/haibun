@@ -6,7 +6,7 @@ export default class StorageFS extends AStorage {
     readFile = (file: string, coding?: any) => fs.readFileSync(file, coding)
     exists = fs.existsSync;
     writeFileBuffer = (fn: string, contents: Buffer) => {
-        fs.writeFileSync(fn, contents);;
+        fs.writeFileSync(fn, contents);
     }
     lstatToIFile(file: string) {
         const l = fs.lstatSync(file);

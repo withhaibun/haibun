@@ -1,5 +1,5 @@
 import { AStepper, CAPTURE, IHasOptions, IRequireDomains, OK, TFeatureResult, TNamed, TWorld, } from "@haibun/core/build/lib/defs.js";
-import { EMediaTypes, guessMediaExt, IPublishResults, IReviewResult, STORAGE_ITEM, STORAGE_LOCATION, TLocationOptions, TMediaType, TMissingTracks, TTrackResult } from '@haibun/domain-storage';
+import { EMediaTypes, guessMediaExt, IPublishResults, IReviewResult, STORAGE_ITEM, STORAGE_LOCATION, TLocationOptions, TMediaType, TMissingTracks, TTrackResult } from '@haibun/domain-storage/build/domain-storage.js';
 import { findStepperFromOption, getFeatureTitlesFromResults, getRunTag, getStepperOption, stringOrError } from '@haibun/core/build/lib/util/index.js';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 import HtmlGenerator, { TFeatureSummary, TIndexSummary, TIndexSummaryResult, TStepSummary, TSummaryItem } from "./html-generator.js";

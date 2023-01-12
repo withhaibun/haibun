@@ -8,7 +8,7 @@ process.on('unhandledRejection', console.error);
 
 import repl from 'repl';
 import { TSpecl, TWorld, TEndFeatureCallback, TEndFeatureCallbackParams } from '@haibun/core/build/lib/defs.js';
-import { EMediaTypes, ITrackResults } from '@haibun/domain-storage';
+import { EMediaTypes, ITrackResults } from '@haibun/domain-storage/build/domain-storage.js';
 
 import { findStepper, getConfigFromBase, getDefaultOptions } from '@haibun/core/build/lib/util/index.js';
 import runWithOptions from '@haibun/core/build/lib/run-with-options.js';

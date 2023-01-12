@@ -8,7 +8,7 @@ import { actionOK } from '@haibun/core/build/lib/util/index.js';
 describe('FeatureImporter test', () => {
   it.only('passes', async () => {
     const feature = { path: '/features/test.feature', content: `add wss\nadd browser contexts to WebSocket server` };
-    
+
     let assignedProcessors = {};
     const TestWSS = class TestSteps extends AStepper {
       steps = {

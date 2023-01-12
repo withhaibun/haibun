@@ -4,7 +4,7 @@
   "version": "1.13.6",
   "description": "",
   "author": "",
-  "main": "build/domain-storage.js",
+  "main": "index.js",
   "files": [
     "build/**"
   ],
