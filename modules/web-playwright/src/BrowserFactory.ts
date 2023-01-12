@@ -5,16 +5,16 @@ import { ILogger, } from '@haibun/core/build/lib/interfaces/logger.js';
 import { TTagValue, TTraceOptions } from '@haibun/core/build/lib/defs.js';
 
 export const BROWSERS: { [name: string]: BrowserType } = {
-  firefox: firefox,
-  chromium: chromium,
-  webkit: webkit,
+  firefox,
+  chromium,
+  webkit,
 };
 
 export type TBrowserFactoryOptions = {
   browser: {
     headless: boolean,
     devtools?: boolean,
-    args: string[] | undefined
+    args?: string[]
   },
   recordVideo?: {
     dir: string
@@ -22,59 +22,49 @@ export type TBrowserFactoryOptions = {
   defaultTimeout?: number,
   persistentDirectory?: boolean,
   trace?: TTraceOptions,
+  type?: string,
+  device?: string
 }
+
+export const DEFAULT_CONFIG_TAG = '_default';
 
 export type PageInstance = Page & { _guid: string };
 
-const DEFAULT_BROWSER_OPTIONS = { browser: { headless: true, args: [] } };
-
 export class BrowserFactory {
-  static browser?: Browser = undefined;
   static browsers: { [name: string]: Browser } = {};
   contexts: { [name: string]: BrowserContext } = {};
   pages: { [name: string]: Page | undefined } = {};
   logger: ILogger;
-  browserType: BrowserType = chromium;
-  device: string | undefined = undefined;
-  type: string = 'chromium';
-  static options: TBrowserFactoryOptions;
+  static configs: {
+    [name: string]: {
+      options: TBrowserFactoryOptions,
+      browserType: BrowserType
+    }
+  } = {};
   myBrowsers: { [name: string]: Browser; };
 
-  private constructor(browsers: { [name: string]: Browser }, logger: ILogger) {
-    this.myBrowsers = browsers;
+  private constructor(logger: ILogger) {
     this.logger = logger;
   }
 
-  static async getBrowserFactory(logger: ILogger, options: TBrowserFactoryOptions) {
-    if (!BrowserFactory.browser) {
-      BrowserFactory.options = options;
-      BrowserFactory.browser = await chromium.launch(this.options.browser);
+  static async getBrowserFactory(logger: ILogger, options: TBrowserFactoryOptions, tag = DEFAULT_CONFIG_TAG) {
+    options.type = options.type || 'chromium';
+    options.device = options.device || '';
+
+    if (!BROWSERS[options.type]) {
+      throw Error(`browserType not recognized ${options.type}`);
     }
-    if (!BrowserFactory.browsers) {
-      BrowserFactory.browsers = {};
-    }
-    return new BrowserFactory(BrowserFactory.browsers, logger);
+    BrowserFactory.configs[tag] = { options, browserType: BROWSERS[options.type] };
+    return new BrowserFactory(logger);
   }
 
-  setBrowserType(typeAndDevice: string) {
-    const [type, device] = typeAndDevice.split('.');
-    if (!BROWSERS[type]) {
-      throw Error(`browserType not recognized ${type}`);
-    }
-    this.browserType = BROWSERS[type];
-    this.type = type;
-    this.device = device;
-  }
-
-  async getBrowser(type: string): Promise<Browser> {
-    return BrowserFactory.browser!;
-    /*
+  async getBrowser(type: string, tag = DEFAULT_CONFIG_TAG): Promise<Browser> {
     if (!BrowserFactory.browsers[type]) {
-      BrowserFactory.browsers[type] = await this.browserType.launch(this.options.browser);
+      BrowserFactory.browsers[type] = await BrowserFactory.configs[tag].browserType
+        .launch(BrowserFactory.configs[tag].options.browser);
       this.logger.info(`launched new ${type} browser`);
     }
     return BrowserFactory.browsers[type];
-    */
   }
 
   getExistingContext({ sequence }: { sequence: TTagValue }) {
@@ -83,26 +73,25 @@ export class BrowserFactory {
     }
   }
 
-  async getBrowserContext(sequence: TTagValue): Promise<BrowserContext> {
+  async getBrowserContext(sequence: TTagValue, tag = DEFAULT_CONFIG_TAG): Promise<BrowserContext> {
     if (!this.contexts[sequence]) {
       let context: BrowserContext;
-      if (BrowserFactory.options.persistentDirectory) {
-        this.logger.info(`creating new persistent context ${sequence} ${this.type}, ${BrowserFactory.options.persistentDirectory} with ${JSON.stringify(BrowserFactory.options)}`);
-        context = await chromium.launchPersistentContext("", BrowserFactory.options.browser);
+      if (BrowserFactory.configs.persistentDirectory) {
+        this.logger.info(`creating new persistent context ${sequence} ${BrowserFactory.configs[tag].options.type}, ${BrowserFactory.configs.persistentDirectory} with ${JSON.stringify(BrowserFactory.configs)}`);
+        context = await BrowserFactory.configs[tag].browserType.launchPersistentContext("", BrowserFactory.configs[tag].options);
       } else {
-        this.logger.info(`creating new context ${sequence} ${this.type}`);
-        const browser = await this.getBrowser(this.type);
-        const deviceContext = this.device ? { ...devices[this.device] } : {};
-        context = await browser.newContext({ ...deviceContext, ...BrowserFactory.options });
+        this.logger.info(`creating new context ${sequence} ${BrowserFactory.configs[tag].options.type}`);
+        const browser = await this.getBrowser(BrowserFactory.configs[tag].options.type);
+        const deviceContext = BrowserFactory.configs[tag].options.device ? { ...devices[BrowserFactory.configs[tag].options.device] } : {};
+        context = await browser.newContext({ ...deviceContext, ...BrowserFactory.configs[tag].options });
       }
       this.contexts[sequence] = context;
-      if (BrowserFactory.options.defaultTimeout) {
-        this.contexts[sequence].setDefaultTimeout(BrowserFactory.options.defaultTimeout)
+      if (BrowserFactory.configs.defaultTimeout) {
+        this.contexts[sequence].setDefaultTimeout(BrowserFactory.configs[tag].options.defaultTimeout)
       }
     }
     return this.contexts[sequence];
   }
-
 
   async closeContext({ sequence }: { sequence: TTagValue }) {
     if (this.contexts[sequence] !== undefined) {
@@ -114,10 +103,13 @@ export class BrowserFactory {
     delete this.contexts[sequence];
   }
 
+  static async closeBrowsers() {
+    for (const b in BrowserFactory.browsers) {
+      await BrowserFactory.browsers[b].close();
+    };
+  }
   async close() {
-    Object.values(BrowserFactory.browsers).forEach(async (v) => {
-      await v.close();
-    });
+    await BrowserFactory.closeBrowsers();
   }
 
   tt(sequence: number, tab?: number) {
@@ -129,7 +121,7 @@ export class BrowserFactory {
   }
 
   async getBrowserContextPage({ sequence }: { sequence: TTagValue }, tab?: number): Promise<Page> {
-    const { trace } = BrowserFactory.options;
+    const { trace } = BrowserFactory.configs;
     const tt = this.tt(sequence, tab);
     let page = this.pages[tt];
     if (page) {
