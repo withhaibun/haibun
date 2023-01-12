@@ -96,8 +96,8 @@ Your file might end up looking like this:
 ```typescript
 import { OK, TNamed, IHasOptions, IRequireDomains, AStepper, TWorld } from '@haibun/core/build/lib/defs.js';
 import { actionNotOK, stringOrError, findStepperFromOption } from '@haibun/core/build/lib/util/index.js';
-import { STORAGE_ITEM, STORAGE_LOCATION } from '@haibun/domain-storage';
-import { AStorage } from '@haibun/domain-storage/build/AStorage';
+import { STORAGE_ITEM, STORAGE_LOCATION } from '@haibun/domain-storage/build/domain-storage.js';
+import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 
 const STORAGE = 'STORAGE';
 

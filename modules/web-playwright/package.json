@@ -20,7 +20,8 @@
     "@haibun/core": "^1.13.6",
     "@haibun/domain-storage": "^1.13.6",
     "@haibun/domain-webpage": "^1.13.6",
-    "playwright": "1.27",
+    "leaked-handles": "^5.2.0",
+    "playwright": "^1.29.2",
     "ts-jest": "^29.0.3"
   },
   "devDependencies": {

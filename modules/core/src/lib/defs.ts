@@ -183,7 +183,10 @@ export type TNamedVar = { name: string; type: string };
 export const OK: TOKActionResult = { ok: true };
 
 export type TResultError = {
-  details: { [name: string]: any };
+  details: {
+    [name: string]: any
+    stack: string[];
+  };
   message: string;
 };
 

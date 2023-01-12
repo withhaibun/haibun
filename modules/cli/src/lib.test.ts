@@ -13,13 +13,13 @@ describe('usageThenExit', () => {
     const ranOnce = (code: number | undefined) => { expect(code).toBe(0); return <never>undefined }
     jest.spyOn(process, 'exit').mockImplementationOnce(ranOnce);
     jest.spyOn(console, 'info').mockImplementationOnce(any => undefined);
-    lib.usageThenExit({ ...getDefaultOptions(), steppers: ['../core/src/lib/test/TestStepsWithOptions'] });
+    lib.usageThenExit({ ...getDefaultOptions(), steppers: ['../core/build/lib/test/TestStepsWithOptions'] });
   })
   it('exits with error', () => {
     const ranOnce = (code: number | undefined) => { expect(code).toBe(1); return <never>undefined }
     jest.spyOn(process, 'exit').mockImplementationOnce(ranOnce);
     jest.spyOn(console, 'error').mockImplementationOnce(() => undefined);
-    lib.usageThenExit({ ...getDefaultOptions(), steppers: ['../core/src/lib/test/TestStepsWithOptions'] }, 'woops');
+    lib.usageThenExit({ ...getDefaultOptions(), steppers: ['../core/build/lib/test/TestStepsWithOptions'] }, 'woops');
   })
 });
 

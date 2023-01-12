@@ -1,6 +1,6 @@
 import { CAPTURE } from '@haibun/core/build/lib/defs.js';
 import { getDefaultWorld, getTestWorldWithOptions } from '@haibun/core/build/lib/test/lib.js';
-import { EMediaTypes } from '@haibun/domain-storage';
+import { EMediaTypes } from '@haibun/domain-storage/build/domain-storage.js';
 import StorageFS from './storage-fs.js';
 
 describe('getCaptureLocation', () => {

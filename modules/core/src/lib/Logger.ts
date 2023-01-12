@@ -3,7 +3,7 @@ import { ILogger, ILogOutput, TLogLevel, TMessageContext, TOutputEnv } from './i
 import { descTag } from './util/index.js';
 
 export const LOGGER_LOG = { level: 'log' };
-export const LOGGER_NONE = { level: 'none' };
+export const LOGGER_NOTHING = { level: 'none' };
 const WIDTH = process.cwd().length + 40;
 
 export const LOGGER_LEVELS = {
