@@ -1,5 +1,5 @@
 {
-  "version": "1.13.6",
+  "version": "1.14-node-next",
   "type": "module",
   "name": "@haibun/feature-importer-with-browser-extension",
   "files": [
@@ -21,15 +21,15 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@haibun/browser-extension": "1.13.6",
-    "@haibun/context": "1.13.6",
-    "@haibun/core": "1.13.6",
-    "@haibun/domain-storage": "1.13.6",
-    "@haibun/domain-webpage": "1.13.6",
-    "@haibun/feature-importer": "1.13.6",
-    "@haibun/storage-fs": "1.13.6",
-    "@haibun/web-playwright": "1.13.6",
-    "@haibun/web-server-express": "1.13.6"
+    "@haibun/browser-extension": "1.14-node-next",
+    "@haibun/context": "1.14-node-next",
+    "@haibun/core": "1.14-node-next",
+    "@haibun/domain-storage": "1.14-node-next",
+    "@haibun/domain-webpage": "1.14-node-next",
+    "@haibun/feature-importer": "1.14-node-next",
+    "@haibun/storage-fs": "1.14-node-next",
+    "@haibun/web-playwright": "1.14-node-next",
+    "@haibun/web-server-express": "1.14-node-next"
   },
   "devDependencies": {
     "@types/jest": "^29.2.4",
