@@ -43,20 +43,20 @@ const connect: typeof chrome.runtime.connect = (extensionId: any, ci?: chrome.ru
     return connector;
 }
 
-export type TPortContext= {
+export type TPortContext = {
     listeners: TListener[];
 }
 
 export type TListener = any;
 
-const ctx = { listeners: <TListener>[]};
+const ctx = { listeners: <TListener>[] };
 const onMessage: chrome.runtime.ExtensionMessageEvent = new PortRuntimeOnMessage(ctx);
 const onConnect: chrome.runtime.ExtensionConnectEvent = new PortRuntimeOnConnect(ctx);
 
 const sendMessage = async (message: any) => {
-   for (const listener of ctx.listeners) {
-       listener(message);
-   }
+    for (const listener of ctx.listeners) {
+        listener(message);
+    }
 };
 
 class MockChrome {

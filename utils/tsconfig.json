@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "moduleResolution": "node",
     "module": "NodeNext",
     "target": "esnext",
     "sourceMap": true,
@@ -7,8 +8,12 @@
     "outDir": "./build",
     "rootDir": "./src"
   },
+  "include": [
+    "./src/**/*"
+  ],
   "exclude": [
     "./jest.config.ts",
+    "./tsconfig.json",
     "build"
   ]
 }

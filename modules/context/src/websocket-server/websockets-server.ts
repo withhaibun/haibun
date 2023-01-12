@@ -37,8 +37,6 @@ export class WebSocketServer {
     });
   }
   constructor(port: number, logger: any) {
-    console.log('xx', WebSocket);
-
     this.wss = new WSS({ host: '0.0.0.0', port });
     this.wss.on('connection', this.connection.bind(this));
     this.logger = logger;

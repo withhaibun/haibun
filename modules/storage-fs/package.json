@@ -3,7 +3,7 @@
   "type": "module",
   "version": "1.13.6",
   "description": "",
-  "main": "build/storage-fs.js",
+  "main": "index.js",
   "files": [
     "build/"
   ],

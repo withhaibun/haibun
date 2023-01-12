@@ -1,10 +1,14 @@
-/** @type {import('ts-jest/dist/types').InitialOptionsTsJest} */
-module.exports = {
-  testEnvironment: 'node',
-  testPathIgnorePatterns: ['node_modules', 'build'],
-  globals: {
-    'testMatch': [
-    "<rootDir>/build/**/*.test.ts"
-  ]
-  }
-};
+import type {Config} from '@jest/types';
+ 
+const config: Config.InitialOptions = {
+  roots: [
+    '<rootDir>/build'
+  ],
+  testMatch: [
+    '**/__tests__/**/*.+(ts|tsx|js)',
+    '**/?(*.)+(spec|test).+(ts|tsx|js)'
+  ],
+  transform: {},
+}
+
+export default config;
