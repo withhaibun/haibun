@@ -1,5 +1,5 @@
 {
-  "version": "1.14-node-next",
+  "version": "1.15.0",
   "type": "module",
   "name": "@haibun/feature-importer",
   "lsd:module": true,
@@ -19,9 +19,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@haibun/context": "1.14-node-next",
-    "@haibun/core": "1.14-node-next",
-    "@haibun/domain-webpage": "1.14-node-next"
+    "@haibun/context": "1.15.0",
+    "@haibun/core": "1.15.0",
+    "@haibun/domain-webpage": "1.15.0"
   },
   "devDependencies": {
     "@types/jest": "^29.2.4",
