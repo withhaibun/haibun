@@ -1,7 +1,7 @@
 {
   "name": "@haibun/domain-webpage",
   "type": "module",
-  "version": "1.15.0",
+  "version": "1.15.1",
   "description": "",
   "author": "",
   "main": "build/domain-webpage.js",
@@ -39,6 +39,6 @@
     "version": "npm run format && git add -A src"
   },
   "dependencies": {
-    "@haibun/core": "1.15.0"
+    "@haibun/core": "1.15.1"
   }
 }
