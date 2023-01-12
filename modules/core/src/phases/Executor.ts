@@ -1,5 +1,5 @@
-import { TVStep, TResolvedFeature, TResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, AStepper, TEndFeatureCallback, CStepper, TFound } from '../lib/defs';
-import { getNamedToVars } from '../lib/namedVars';
+import { TVStep, TResolvedFeature, TResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, AStepper, TEndFeatureCallback, CStepper, TFound } from '../lib/defs.js';
+import { getNamedToVars } from '../lib/namedVars.js';
 import { actionNotOK, applyResShouldContinue, setWorldStepperOptions, sleep, createSteppers, findStepper } from '../lib/util/index.js';
 
 export class Executor {

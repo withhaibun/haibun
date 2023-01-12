@@ -1,5 +1,5 @@
-import { TTag } from './defs';
-import { ILogger, ILogOutput, TLogLevel, TMessageContext, TOutputEnv } from './interfaces/logger';
+import { TTag } from './defs.js';
+import { ILogger, ILogOutput, TLogLevel, TMessageContext, TOutputEnv } from './interfaces/logger.js';
 import { descTag } from './util/index.js';
 
 export const LOGGER_LOG = { level: 'log' };

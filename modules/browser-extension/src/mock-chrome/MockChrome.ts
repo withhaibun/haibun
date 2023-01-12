@@ -1,7 +1,7 @@
-import { PortOnMessage } from "./PortOnMessage";
-import { PortRuntimeOnMessage } from "./PortRuntimeOnMessage";
-import { PortRuntimeOnConnect } from "./PortRuntimeOnConnect";
-import { PortDisconnect } from "./PortDisconnect";
+import { PortOnMessage } from "./PortOnMessage.js";
+import { PortRuntimeOnMessage } from "./PortRuntimeOnMessage.js";
+import { PortRuntimeOnConnect } from "./PortRuntimeOnConnect.js";
+import { PortDisconnect } from "./PortDisconnect.js";
 
 const connected: any = {};
 let defaultConnector: MockPort;

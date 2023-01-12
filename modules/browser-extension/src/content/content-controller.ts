@@ -1,9 +1,9 @@
 // import { overlayActions } from '../modules/overlay/constants'
-import { popupActions, /*recordingControls*/ } from '../services/constants'
+import { popupActions, /*recordingControls*/ } from '../services/constants.js'
 
-import storage from '../services/storage'
-import { Store } from '../services/Store';
-import Recorder from '../modules/recorder';
+import storage from '../services/storage.js'
+import { Store } from '../services/Store.js';
+import Recorder from '../modules/recorder/index.js';
 
 // import Capture from '../modules/capture'
 export default class ContentController {

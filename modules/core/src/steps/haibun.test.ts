@@ -1,5 +1,5 @@
-import { FeatureExecutor } from '../phases/Executor';
-import { getDefaultWorld, getTestEnv } from '../lib/test/lib';
+import { FeatureExecutor } from '../phases/Executor.js';
+import { getDefaultWorld, getTestEnv } from '../lib/test/lib.js';
 
 describe('haibun', () => {
   it('finds prose', async () => {

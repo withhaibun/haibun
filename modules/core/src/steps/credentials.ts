@@ -1,4 +1,4 @@
-import { OK, TNamed, AStepper } from '../lib/defs';
+import { OK, TNamed, AStepper } from '../lib/defs.js';
 
 export const cred = (key: string) => `__cred_${key}`;
 

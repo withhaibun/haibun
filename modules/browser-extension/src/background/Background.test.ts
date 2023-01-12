@@ -1,6 +1,6 @@
-import { popupActions } from '../services/constants';
-import Background from './Background';
-import MockChrome  from '../mock-chrome/MockChrome';
+import { popupActions } from '../services/constants.js';
+import Background from './Background.js';
+import MockChrome  from '../mock-chrome/MockChrome.js';
 
 declare global {
   interface Window { chrome: typeof chrome; }

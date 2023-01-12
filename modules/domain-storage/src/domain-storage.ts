@@ -1,5 +1,5 @@
-import { WorkspaceContext } from '@haibun/core/build/lib/contexts';
-import { IHasDomains, TNamed, TVStep, OK, AStepper, TFromDomain, TFileTypeDomain, IHasOptions, TExtraOptions, TFeatureResult, TOptions, TTag, TWorld } from '@haibun/core/build/lib/defs';
+import { WorkspaceContext } from '@haibun/core/build/lib/contexts.js'
+import { IHasDomains, TNamed, TVStep, OK, AStepper, TFromDomain, TFileTypeDomain, IHasOptions, TExtraOptions, TFeatureResult, TOptions, TTag, TWorld } from '@haibun/core/build/lib/defs.js';
 import { stringOrError } from '@haibun/core/build/lib/util/index.js';
 
 export type TTrackResult = { meta: { title: string, startTime: string, startOffset: number }, result: TFeatureResult };

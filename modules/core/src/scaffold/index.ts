@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { scaffoldHaibun } from "./scaffold";
+import { scaffoldHaibun } from "./scaffold.js";
 
 
 try {

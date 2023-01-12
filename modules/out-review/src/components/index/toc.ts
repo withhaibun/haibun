@@ -1,6 +1,6 @@
-import { friendlyTime } from "@haibun/core/build/lib/util";
-import { led } from "../led";
-import { TIndexSummary } from "../../html-generator";
+import { friendlyTime } from "@haibun/core/build/lib/util/index.js";
+import { led } from "../led.js";
+import { TIndexSummary } from "../../html-generator.js";
 
 export const toc = (summary: TIndexSummary, dir: string, uriArgs: string | undefined, linker: (what: string) => string, pather: (what: string) => string) => {
     const {indexTitle, results} = summary;

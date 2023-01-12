@@ -1,5 +1,5 @@
-import { FeatureExecutor } from '@haibun/core/build/phases/Executor';
-import { getTestEnv, getDefaultWorld, getCreateSteppers } from '@haibun/core/build/lib/test/lib';
+import { FeatureExecutor } from '@haibun/core/build/phases/Executor.js';
+import { getTestEnv, getDefaultWorld, getCreateSteppers } from '@haibun/core/build/lib/test/lib.js';
 import { findStepper } from '@haibun/core/build/lib/util/index.js';
 
 const stxt = ['~@haibun/domain-webpage/build/domain-webpage', [process.cwd(), 'build', 'web-playwright'].join('/')];

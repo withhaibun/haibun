@@ -1,6 +1,4 @@
-import { Helpers } from "./ports";
-
-
+import { Helpers } from "./ports.js"
 export class PortOnMessage implements chrome.runtime.PortMessageEvent {
     public listeners: any[];
 

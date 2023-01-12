@@ -1,5 +1,5 @@
-import { TListener, TPortContext } from "./MockChrome";
-import { Helpers } from "./ports";
+import { TListener, TPortContext } from "./MockChrome.js";
+import { Helpers } from "./ports.js";
 
 export class PortRuntimeOnConnect implements chrome.runtime.ExtensionConnectEvent {
     ctx: TPortContext;

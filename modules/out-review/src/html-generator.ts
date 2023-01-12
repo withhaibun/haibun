@@ -1,12 +1,11 @@
 import { EOL } from "os";
 import { create } from "xmlbuilder2";
 
-import { TActionResultTopics, TTrace } from "@haibun/core/build/lib/defs";
-import { AllCSS, ReviewCSS } from "./assets";
-import { stepResult } from "./components/stepResult";
-import { sourceSummary } from "./components/sourceSummary";
-import { featureHeader } from "./components/featureHeader";
-import { TLocationOptions } from "@haibun/domain-storage";
+import { TActionResultTopics, TTrace } from "@haibun/core/build/lib/defs.js";
+import { AllCSS, ReviewCSS } from "./assets.js";
+import { stepResult } from "./components/stepResult.js";
+import { sourceSummary } from "./components/sourceSummary.js";
+import { featureHeader } from "./components/featureHeader.js";
 
 export type TSummaryItem = TFeatureSummary | TStepSummary;
 

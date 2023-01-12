@@ -1,4 +1,4 @@
-import { IHasDomains, AStepper } from '../defs';
+import { IHasDomains, AStepper } from '../defs.js';
 import { actionOK } from '../util/index.js';
 
 

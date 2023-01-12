@@ -1,6 +1,6 @@
 
-import { TFeatureParsed } from './defs';
-import { getFeatures } from './MochaFeatureImporter';
+import { TFeatureParsed } from './defs.js';
+import { getFeatures } from './MochaFeatureImporter.js';
 
 describe('mocha code2haibun', () => {
     it('one-liner', () => {

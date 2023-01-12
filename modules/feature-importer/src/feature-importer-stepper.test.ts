@@ -1,8 +1,8 @@
-import { testWithDefaults } from '@haibun/core/build/lib/test/lib';
-import { IWebSocketServer, TWithContext, WEB_SOCKET_SERVER } from '@haibun/context/build/Context';
+import { testWithDefaults } from '@haibun/core/build/lib/test/lib.js';
+import { IWebSocketServer, TWithContext, WEB_SOCKET_SERVER } from '@haibun/context/build/Context.js';
 
-import FeatureImporter from './feature-importer-stepper';
-import { AStepper } from '@haibun/core/build/lib/defs';
+import FeatureImporter from './feature-importer-stepper.js';
+import { AStepper } from '@haibun/core/build/lib/defs.js';
 import { actionOK } from '@haibun/core/build/lib/util/index.js';
 
 describe('FeatureImporter test', () => {

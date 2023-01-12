@@ -1,11 +1,11 @@
-import { TStartRunCallback, TProtoOptions, TSpecl, TWorld, TTag, TRunOptions, TRunResult, TTagValue, TEndFeatureCallback } from './defs';
-import { WorldContext } from './contexts';
-import Logger from './Logger';
+import { TStartRunCallback, TProtoOptions, TSpecl, TWorld, TTag, TRunOptions, TRunResult, TTagValue, TEndFeatureCallback } from './defs.js';
+import { WorldContext } from './contexts.js'
+import Logger from './Logger.js';
 
-import { run } from './run';
+import { run } from './run.js';
 import { resultOutput, getRunTag } from './util/index.js';
-import { ILogOutput } from './interfaces/logger';
-import { Timer } from './Timer';
+import { ILogOutput } from './interfaces/logger.js';
+import { Timer } from './Timer.js';
 
 export default async function runWithOptions(runOptions: TRunOptions) {
     const { loops, members, trace, startRunCallback, endFeatureCallback, featureFilter, specl, base, splits, protoOptions } = runOptions;
