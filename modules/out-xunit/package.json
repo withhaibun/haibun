@@ -1,7 +1,7 @@
 {
   "name": "@haibun/out-xunit",
   "type": "module",
-  "version": "1.14-node-next",
+  "version": "1.15.0",
   "description": "",
   "files": [
     "build/**"
@@ -17,7 +17,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@haibun/core": "1.14-node-next",
+    "@haibun/core": "1.15.0",
     "xmlbuilder2": "^3.0.2"
   },
   "devDependencies": {
