@@ -1,4 +1,4 @@
-import { TStepResult, TTag } from '../defs';
+import { TStepResult, TTag } from '../defs.js';
 
 export type TLogLevel = 'none' | 'debug' | 'log' | 'info' | 'warn' | 'error';
 export const TEST_RESULT = { _test: true }

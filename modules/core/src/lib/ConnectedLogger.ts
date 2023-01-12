@@ -1,6 +1,6 @@
-import Logger from './Logger';
-import { IConnectedLogger, ILoggerKeepAlive, ILogOutput, TLogLevel, TMessageContext, TOutputEnv } from './interfaces/logger';
-import { TTag } from './defs';
+import Logger from './Logger.js';
+import { IConnectedLogger, ILoggerKeepAlive, ILogOutput, TLogLevel, TMessageContext, TOutputEnv } from './interfaces/logger.js';
+import { TTag } from './defs.js';
 
 export class ConnectedLogger extends Logger implements IConnectedLogger {
   keepalive?: ILoggerKeepAlive;

@@ -1,4 +1,4 @@
-import { TTrace } from "@haibun/core/build/lib/defs";
+import { TTrace } from "@haibun/core/build/lib/defs.js";
 
 export const traces = (traces: TTrace[], start: number) => {
     const byUrl = traces.map((i) => ({ url: i.response.url, since: i.response.since, headersContent: i.response.trace.headersContent }));

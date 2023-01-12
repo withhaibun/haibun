@@ -1,7 +1,7 @@
-import haibun from '../steps/haibun';
-import { AStepper, OK } from './defs';
-import { testWithDefaults } from './test/lib';
-import TestSteps from "./test/TestSteps";
+import haibun from '../steps/haibun.js';
+import { AStepper, OK } from './defs.js';
+import { testWithDefaults } from './test/lib.js';
+import TestSteps from "./test/TestSteps.js";
 
 describe('run self-contained', () => {
   it('no backgrounds', async () => {

@@ -1,4 +1,4 @@
-import { ILogOutput, TLogLevel, TMessageContext } from "@haibun/core/build/lib/interfaces/logger";
+import { ILogOutput, TLogLevel, TMessageContext } from "@haibun/core/build/lib/interfaces/logger.js";
 
 export class LoggerWebSocketsClient implements ILogOutput {
   socket: WebSocket;

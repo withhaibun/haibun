@@ -1,5 +1,5 @@
-import { TPortContext } from "./MockChrome";
-import { Helpers } from "./ports";
+import { TPortContext } from "./MockChrome.js";
+import { Helpers } from "./ports.js";
 
 export type TAddListenerCallback = (message: any, sender: chrome.runtime.MessageSender, sendResponse?: any) => void
 export type THasListenerCallback = (message: any, sender: chrome.runtime.MessageSender, sendResponse?: any) => void

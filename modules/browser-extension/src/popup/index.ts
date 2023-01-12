@@ -1,4 +1,4 @@
-import { popupActions } from '../services/constants';
+import { popupActions } from '../services/constants.js';
 
 const START = '▶';
 const STOP = '■';

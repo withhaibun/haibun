@@ -1,10 +1,10 @@
-import Badge from '../services/badge'
-import browser from '../services/browser'
-import storage from '../services/storage'
+import Badge from '../services/badge.js'
+import browser from '../services/browser.js'
+import storage from '../services/storage.js'
 // import { overlayActions } from '../modules/overlay/constants'
-import { headlessActions } from '../modules/code-generator/constants'
-import LoggerWebSocketsClient from "@haibun/context/build/websocket-client/LoggerWebSocketsClient";
-import { TWithContext } from '@haibun/context/build/Context'
+import { headlessActions } from '../modules/code-generator/constants.js'
+import LoggerWebSocketsClient from "@haibun/context/build/websocket-client/LoggerWebSocketsClient.js";
+import { TWithContext } from '@haibun/context/build/Context.js'
 
 export type THandlers = {
   runtime: {

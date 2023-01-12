@@ -12,4 +12,4 @@ open extension popup for tab 1
 
 Click the button record
 
-pause for 3000s
+wait until "test-state" is "finished"

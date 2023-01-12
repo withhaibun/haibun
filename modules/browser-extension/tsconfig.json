@@ -1,11 +1,13 @@
 {
   "extends": "../tsconfig.settings.json",
   "compilerOptions": {
-    "outDir": "build",
+    "outDir": "dist/js",
     "rootDir": "src",
+    "types": ["node", "jest", "chrome"]
   },
   "exclude": [
     "./jest.config.ts",
-    "build"
+    "build",
+    "dist/js"
   ]
 }

@@ -1,4 +1,4 @@
-import MockChrome from './MockChrome';
+import MockChrome from './MockChrome.js';
 
 const mockChrome = new MockChrome();
 

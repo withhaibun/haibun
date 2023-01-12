@@ -1,5 +1,5 @@
 import { customElement, html, LitElement, property } from 'lit-element';
-import type { TMessage } from '@haibun/core/build/lib/interfaces/logger';
+import type { TMessage } from '@haibun/core/build/lib/interfaces/logger.js';
 
 @customElement('log-messages')
 export default class LogMessages extends LitElement {

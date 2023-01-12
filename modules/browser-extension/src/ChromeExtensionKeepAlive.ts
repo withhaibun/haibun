@@ -1,6 +1,6 @@
 // https://www.youtube.com/watch?v=xlJddufkgJg
 
-import { ILoggerKeepAlive } from "@haibun/core/build/lib/interfaces/logger";
+import { ILoggerKeepAlive } from "@haibun/core/build/lib/interfaces/logger.js";
 
 export class ChromeExtensionKeepAlive implements ILoggerKeepAlive {
     lifeline: chrome.runtime.Port | undefined;

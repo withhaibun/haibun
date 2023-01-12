@@ -1,4 +1,4 @@
-import HtmlGenerator, { TStepSummary, TSummaryItem } from "./html-generator";
+import HtmlGenerator, { TStepSummary } from "./html-generator.js";
 
 describe('getASummary', () => {
     const subResults: TStepSummary[] = [

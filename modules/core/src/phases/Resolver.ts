@@ -1,5 +1,5 @@
-import { TFound, TResolvedFeature, OK, TWorld, BASE_TYPES, TExpandedFeature, AStepper } from '../lib/defs';
-import { namedInterpolation, getMatch } from '../lib/namedVars';
+import { TFound, TResolvedFeature, OK, TWorld, BASE_TYPES, TExpandedFeature, AStepper } from '../lib/defs.js';
+import { namedInterpolation, getMatch } from '../lib/namedVars.js';
 import { getActionable, describeSteppers, isLowerCase } from '../lib/util/index.js';
 
 export class Resolver {

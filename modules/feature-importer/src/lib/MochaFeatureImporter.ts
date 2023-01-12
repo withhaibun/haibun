@@ -1,5 +1,5 @@
 
-import { TFeatureError, TFeatureParsed } from "./defs";
+import { TFeatureError, TFeatureParsed } from "./defs.js";
 
 const PAGE = 'Page';
 const WIDTH = 'Width';
@@ -65,6 +65,3 @@ export function getFeatures(parsed: string): TFeatureError | TFeatureParsed {
         feature: page.feature.join('\n')
     }
 }
-
-
-module.exports = { getFeatures };

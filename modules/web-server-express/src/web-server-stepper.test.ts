@@ -1,7 +1,7 @@
-import { testWithDefaults } from '@haibun/core/build/lib/test/lib';
-import WebHttp from '@haibun/web-http/build/web-http';
+import { testWithDefaults } from '@haibun/core/build/lib/test/lib.js';
+import WebHttp from '@haibun/web-http/build/web-http.js';
 
-import server from './web-server-stepper';
+import server from './web-server-stepper.js';
 
 describe.skip('static mount', () => {
   it('serves files', async () => {

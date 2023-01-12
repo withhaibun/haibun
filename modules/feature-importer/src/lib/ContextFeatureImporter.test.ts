@@ -1,7 +1,7 @@
-import ContextFeatureImporter from "./ContextFeatureImporter";
-import { TControl, TEvent } from "./defs";
-import { WEB_PAGE, SELECTOR } from '@haibun/domain-webpage/build/domain-webpage';
-import TestLogger from '@haibun/core/build/lib/TestLogger';
+import ContextFeatureImporter from "./ContextFeatureImporter.js";
+import { TControl, TEvent } from "./defs.js";
+import { WEB_PAGE, SELECTOR } from '@haibun/domain-webpage/build/domain-webpage.js';
+import TestLogger from '@haibun/core/build/lib/TestLogger.js';
 
 const START_RECORDING = {
     '@context': '#haibun/control',

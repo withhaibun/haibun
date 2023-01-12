@@ -1,4 +1,4 @@
-import * as parse from "./parse";
+import * as parse from "./parse.js";
 
 describe('out-review', () => {
   it('exists', () => {

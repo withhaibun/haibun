@@ -1,5 +1,5 @@
-import LoggerWebSocketsClient from '@haibun/context/build/websocket-client/LoggerWebSocketsClient';
-import { record } from './recorder';
+import LoggerWebSocketsClient from '@haibun/context/build/websocket-client/LoggerWebSocketsClient.js';
+import { record } from './recorder.js';
 
 jest.setTimeout(30000);
 const onmessage = (message: MessageEvent) => {

@@ -1,9 +1,8 @@
 
 import { Browser, BrowserContext, Page, chromium, firefox, webkit, BrowserType, devices } from 'playwright';
 
-import { ILogger, } from '@haibun/core/build/lib/interfaces/logger';
-import { TTagValue, TTraceOptions } from '@haibun/core/build/lib/defs';
-import WebPlaywright from './web-playwright';
+import { ILogger, } from '@haibun/core/build/lib/interfaces/logger.js';
+import { TTagValue, TTraceOptions } from '@haibun/core/build/lib/defs.js';
 
 export const BROWSERS: { [name: string]: BrowserType } = {
   firefox: firefox,

@@ -1,8 +1,8 @@
-import { DomainContext, WorldContext } from '../lib/contexts';
-import { IHasDomains, OK, TFeatures, TFileTypeDomain } from '../lib/defs';
-import { withNameType } from '../lib/features';
-import { asExpandedFeatures } from '../lib/test/lib';
-import { Resolver } from './Resolver';
+import { DomainContext, WorldContext } from '../lib/contexts.js'
+import { IHasDomains, OK, TFeatures, TFileTypeDomain } from '../lib/defs.js';
+import { withNameType } from '../lib/features.js';
+import { asExpandedFeatures } from '../lib/test/lib.js';
+import { Resolver } from './Resolver.js';
 
 describe('validate map steps', () => {
   test('placeholder', () => {

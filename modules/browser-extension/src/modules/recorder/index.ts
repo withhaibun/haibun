@@ -1,9 +1,8 @@
-import getSelector from '../../services/selector'
-import { recordingControls } from '../../services/constants'
-import { eventsToRecord } from '../code-generator/constants'
-import { Store } from '../../services/Store';
-import { TBrowserContextMessage } from '@haibun/feature-importer/build/lib/defs';
-
+import getSelector from '../../services/selector.js';
+import { recordingControls } from '../../services/constants.js';
+import { eventsToRecord } from '../code-generator/constants.js';
+import { Store } from '../../services/Store.js';
+import { TBrowserContextMessage } from '@haibun/feature-importer/build/lib/defs.js';
 
 declare global {
   interface Window { pptRecorderAddedControlListeners: any; }

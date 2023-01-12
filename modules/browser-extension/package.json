@@ -1,5 +1,6 @@
 {
   "name": "@haibun/browser-extension",
+  "type": "module",
   "version": "1.13.6",
   "description": "",
   "main": "build/context.js",
@@ -38,7 +39,6 @@
     "jest-environment-jsdom": "^29.1.2",
     "ts-jest": "^29.0.3",
     "ts-loader": "^9.2.6",
-    "ts-node": "^10.0.0",
     "typescript": "^4.6.3",
     "web-ext": "7.4.0",
     "webpack": "^5.66.0",

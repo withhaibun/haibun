@@ -1,6 +1,6 @@
 
-import { DEFAULT_DEST } from '@haibun/core/build/lib/defs';
-import { BaseOptions } from './BaseOptions';
+import { DEFAULT_DEST } from '@haibun/core/build/lib/defs.js';
+import { BaseOptions } from './BaseOptions.js';
 
 describe('applyEnvCollections', () => {
   it.skip('creates pairs', () => {

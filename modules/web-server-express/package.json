@@ -1,5 +1,6 @@
 {
   "name": "@haibun/web-server-express",
+  "type": "module",
   "version": "1.13.6",
   "description": "",
   "main": "build/web-server-stepper.js",
@@ -16,13 +17,13 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@haibun/core": "^1.13.6",
     "@haibun/domain-webpage": "^1.13.6",
     "@types/cookie-parser": "^1.4.2",
     "cookie-parser": "^1.4.5",
     "express": "^4.17.1"
   },
   "devDependencies": {
-    "@haibun/core": "^1.13.6",
     "@haibun/web-http": "^1.13.6",
     "@types/express": "^4.17.15",
     "@types/jest": "^29.2.4",
@@ -37,7 +38,6 @@
     "eslint-plugin-prettier": "^3.3.1",
     "jest": "^29.3.1",
     "prettier": "^2.3.1",
-    "ts-node": "^10.0.0",
     "tslint": "^6.1.3"
   }
 }

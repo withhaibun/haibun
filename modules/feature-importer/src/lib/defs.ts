@@ -1,4 +1,4 @@
-import { TWithContext } from "@haibun/context/build/Context";
+import { TWithContext } from "@haibun/context/build/Context.js";
 
 export type TFeatureError = {
     ok: false;

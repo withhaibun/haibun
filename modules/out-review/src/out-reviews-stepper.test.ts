@@ -1,9 +1,9 @@
-import { testWithDefaults } from '@haibun/core/build/lib/test/lib';
-import OutReviews, { TRACKS_STORAGE } from './out-reviews-stepper';
-import DomainStorage from '@haibun/domain-storage'
-import StorageFS from '@haibun/storage-fs';
+import { testWithDefaults } from '@haibun/core/build/lib/test/lib.js';
+import OutReviews, { TRACKS_STORAGE } from './out-reviews-stepper.js';
+import DomainStorage from '@haibun/domain-storage/build/domain-storage.js'
+import StorageFS from '@haibun/storage-fs/build/storage-fs.js';
 import { getStepperOptionName } from '@haibun/core/build/lib/util/index.js';
-import { DEFAULT_DEST } from '@haibun/core/build/lib/defs';
+import { DEFAULT_DEST } from '@haibun/core/build/lib/defs.js';
 
 describe('out-review', () => {
     describe.skip('Generate reviews', () => {
