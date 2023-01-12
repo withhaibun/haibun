@@ -1,7 +1,7 @@
 {
   "name": "@haibun/web-playwright",
   "type": "module",
-  "version": "1.14-node-next",
+  "version": "1.15.0",
   "description": "",
   "main": "build/web-playwright.js",
   "files": [
@@ -17,9 +17,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@haibun/core": "1.14-node-next",
-    "@haibun/domain-storage": "1.14-node-next",
-    "@haibun/domain-webpage": "1.14-node-next",
+    "@haibun/core": "1.15.0",
+    "@haibun/domain-storage": "1.15.0",
+    "@haibun/domain-webpage": "1.15.0",
     "leaked-handles": "^5.2.0",
     "playwright": "^1.29.2",
     "ts-jest": "^29.0.3"
