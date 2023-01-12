@@ -1,7 +1,7 @@
 {
   "name": "@haibun/out-review",
   "type": "module",
-  "version": "1.14-node-next",
+  "version": "1.15.0",
   "description": "",
   "files": [
     "build/**"
@@ -20,9 +20,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@haibun/core": "1.14-node-next",
-    "@haibun/domain-storage": "1.14-node-next",
-    "@haibun/storage-fs": "1.14-node-next",
+    "@haibun/core": "1.15.0",
+    "@haibun/domain-storage": "1.15.0",
+    "@haibun/storage-fs": "1.15.0",
     "xmlbuilder2": "^3.0.2"
   },
   "devDependencies": {
