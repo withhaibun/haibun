@@ -1,7 +1,7 @@
-import { TWithContext } from "@haibun/context/build/Context";
-import BaseFeatureImporter from "./BaseFeatureImporter";
-import { TControl, TEvent, TFeatureParsed } from "./defs";
-import { WEB_PAGE, SELECTOR } from '@haibun/domain-webpage/build/domain-webpage';
+import { TWithContext } from "@haibun/context/build/Context.js";
+import BaseFeatureImporter from "./BaseFeatureImporter.js";
+import { TControl, TEvent, TFeatureParsed } from "./defs.js";
+import { WEB_PAGE, SELECTOR } from '@haibun/domain-webpage/build/domain-webpage.js';
 
 const ignoreControls = ['viewportSize', 'onBeforeNavigate'];
 export default class ContextFeatureImporter extends BaseFeatureImporter {

@@ -1,6 +1,6 @@
-import { TStepSummary } from '../html-generator';
-import { led } from "./led";
-import { traces } from './traces';
+import { TStepSummary } from '../html-generator.js';
+import { led } from "./led.js";
+import { traces } from './traces.js';
 
 export const stepResult = (i: TStepSummary, sectionStart: number) => {
     const { ok, seq, in: inStruction, name, topics, traces: allTraces, start } = i;

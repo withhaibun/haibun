@@ -28,9 +28,7 @@ import { withNameType } from '../features.js';
 // FIXME tired of wrestling with ts/import issues
 export async function use(module: string) {
   try {
-    const re: any = (await import(module)).default.default;
-    console.log('rr', re);
-    
+    const re: any = (await import(module)).default;
     checkModuleIsClass(re, module);
     return re;
   } catch (e) {

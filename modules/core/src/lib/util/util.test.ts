@@ -1,10 +1,9 @@
-import * as util from '.';
-import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, getDefaultWorld, testWithDefaults, getCreateSteppers } from '../test/lib';
-import TestSteps from "../test/TestSteps";
-import TestStepsWithOptions from "../test/TestStepsWithOptions";
-import { withNameType } from '../features';
-import { AStepper, IHasOptions, OK } from '../defs';
-import { stringOrError } from '.';
+import * as util from './index.js';
+import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, getDefaultWorld, testWithDefaults, getCreateSteppers } from '../test/lib.js';
+import TestSteps from "../test/TestSteps.js";
+import TestStepsWithOptions from "../test/TestStepsWithOptions.js";
+import { withNameType } from '../features.js';
+import { AStepper, IHasOptions, OK } from '../defs.js';
 
 describe('output', () => {
   it('resultOutput default', async () => {
@@ -29,11 +28,11 @@ describe('findStepperFromOptions', () => {
     options = {
       A: {
         desc: 'exists',
-        parse: (input: string) => stringOrError(input)
+        parse: (input: string) => util.stringOrError(input)
       },
       B: {
         desc: 'exists',
-        parse: (input: string) => stringOrError(input)
+        parse: (input: string) => util.stringOrError(input)
       },
     };
     steps = {

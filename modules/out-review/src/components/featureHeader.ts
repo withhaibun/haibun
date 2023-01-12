@@ -1,6 +1,6 @@
-import { TFeatureSummary } from "../html-generator";
-import { fixedVideo } from "./fixedVideo";
-import { led } from "./led";
+import { TFeatureSummary } from "../html-generator.js";
+import { fixedVideo } from "./fixedVideo.js";
+import { led } from "./led.js";
 
 export const featureHeader = (i: TFeatureSummary, featureTitle: string, uriArgs: string | undefined) => {
     const { videoSrc, ok, missing, title } = i;

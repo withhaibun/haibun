@@ -1,6 +1,6 @@
 import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "fs";
 import path from "path";
-import { scaffoldHaibun } from "./scaffold"
+import { scaffoldHaibun } from "./scaffold.js"
 
 const TMPDIR = '/tmp/haibun-scaffold-test/';
 const out = (...a: string[]) => undefined;

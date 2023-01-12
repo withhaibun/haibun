@@ -1,5 +1,5 @@
-import Block from './block'
-import { headlessActions, eventsToRecord } from './constants'
+import Block from './block.js'
+import { headlessActions, eventsToRecord } from './constants.js'
 
 export const defaults = {
   wrapAsync: false,

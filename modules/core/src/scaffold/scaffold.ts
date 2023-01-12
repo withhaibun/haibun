@@ -16,7 +16,7 @@ export function scaffoldHaibun(dest: string, out: typeof console.info, add?: { a
         },
         devDependencies: ["@types/jest", "@types/node", "@typescript-eslint/eslint-plugin", "@typescript-eslint/parser", "eslint", "eslint-config-airbnb-typescript"
             , "eslint-config-prettier", "eslint-plugin-import", "eslint-plugin-prefer-arrow", "eslint-plugin-prettier", "jest"
-            , "prettier", "ts-jest", "ts-node", "tslint", "typescript"]
+            , "prettier", "ts-jest", "tslint", "typescript"]
             .reduce((a, i) => ({ ...a, [i]: mainHaibunPackage.devDependencies[i] }), {} as Tkv),
         scripts: {
             test: 'jest --config jest.config.ts',

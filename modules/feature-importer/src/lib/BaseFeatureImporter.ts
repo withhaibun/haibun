@@ -1,7 +1,7 @@
-import { TResultError } from "@haibun/core/build/lib/defs";
-import { ILogger } from "@haibun/core/build/lib/interfaces/logger";
+import { TResultError } from "@haibun/core/build/lib/defs.js";
+import { ILogger } from "@haibun/core/build/lib/interfaces/logger.js";
 import { WEB_PAGE } from "@haibun/domain-webpage";
-import { TFeatureParsed } from "./defs";
+import { TFeatureParsed } from "./defs.js";
 
 export default abstract class BaseFeatureImporter {
     stored: { [tag: string]: number } = {};

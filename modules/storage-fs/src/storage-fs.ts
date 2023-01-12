@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 
-import { AStorage, IFile } from '@haibun/domain-storage/build/AStorage';
+import { AStorage, IFile } from '@haibun/domain-storage/build/AStorage.js';
 
 export default class StorageFS extends AStorage {
     readFile = (file: string, coding?: any) => fs.readFileSync(file, coding)

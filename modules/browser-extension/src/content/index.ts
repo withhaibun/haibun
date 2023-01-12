@@ -1,7 +1,7 @@
-import ContentController from './content-controller'
-import { Store } from '../services/Store';
+import ContentController from './content-controller.js';
+import { Store } from '../services/Store.js';
 // // import Overlay from '@/modules/overlay'
-import Recorder from '../modules/recorder'
+import Recorder from '../modules/recorder/index.js';
 
 declare global {
   interface Window { contentController: ContentController }

@@ -1,13 +1,13 @@
 
-import WebHttp from '@haibun/web-http/build/web-http';
+import WebHttp from '@haibun/web-http/build/web-http.js';
 import { actionOK, getFromRuntime, getStepperOptionName } from '@haibun/core/build/lib/util/index.js';
-import { DEFAULT_DEST } from '@haibun/core/build/lib/defs';
-import { IWebServer, IRequest, IResponse, WEBSERVER } from './defs';
+import { DEFAULT_DEST } from '@haibun/core/build/lib/defs.js';
+import { IWebServer, IRequest, IResponse, WEBSERVER } from './defs.js';
 
-import Server from './web-server-stepper';
-import { AStepper, TNamed } from '@haibun/core/build/lib/defs';
-import { testWithDefaults } from '@haibun/core/build/lib/test/lib';
-import WebServerStepper from './web-server-stepper';
+import Server from './web-server-stepper.js';
+import { AStepper, TNamed } from '@haibun/core/build/lib/defs.js';
+import { testWithDefaults } from '@haibun/core/build/lib/test/lib.js';
+import WebServerStepper from './web-server-stepper.js';
 
 describe('route mount', () => {
   it.skip('mounts a route', async () => {

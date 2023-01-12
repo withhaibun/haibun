@@ -1,11 +1,11 @@
 import { Page, Response } from 'playwright';
-import { IHasOptions, OK, TNamed, TVStep, IRequireDomains, TStepResult, TTraceOptions, TTrace, AStepper, TWorld } from '@haibun/core/build/lib/defs';
-import { onCurrentTypeForDomain } from '@haibun/core/build/steps/vars';
-import { BrowserFactory, TBrowserFactoryOptions } from './BrowserFactory';
+import { IHasOptions, OK, TNamed, TVStep, IRequireDomains, TStepResult, TTraceOptions, TTrace, AStepper, TWorld } from '@haibun/core/build/lib/defs.js';
+import { onCurrentTypeForDomain } from '@haibun/core/build/steps/vars.js';
+import { BrowserFactory, TBrowserFactoryOptions } from './BrowserFactory.js';
 import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOption } from '@haibun/core/build/lib/util/index.js';
-import { WEB_PAGE, WEB_CONTROL } from '@haibun/domain-webpage/build/domain-webpage';
-import { TTraceTopic } from '@haibun/core/build/lib/interfaces/logger';
-import { AStorage } from '@haibun/domain-storage/build/AStorage';
+import { WEB_PAGE, WEB_CONTROL } from '@haibun/domain-webpage/build/domain-webpage.js';
+import { TTraceTopic } from '@haibun/core/build/lib/interfaces/logger.js';
+import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 import { EMediaTypes } from '@haibun/domain-storage';
 
 

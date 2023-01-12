@@ -1,7 +1,7 @@
-import { BASE_PREFIX, DEFAULT_DEST, IHasOptions, TOptions, TProtoOptions, TRunResult, TSpecl, } from "@haibun/core/build/lib/defs";
-import { getCreateSteppers } from "@haibun/core/build/lib/test/lib";
-import { getPre } from "@haibun/core/build/lib/util";
-import { BaseOptions } from "./BaseOptions";
+import { BASE_PREFIX, IHasOptions, TOptions, TProtoOptions, TRunResult, TSpecl, } from "@haibun/core/build/lib/defs.js";
+import { getCreateSteppers } from "@haibun/core/build/lib/test/lib.js";
+import { getPre } from "@haibun/core/build/lib/util/index.js";
+import { BaseOptions } from "./BaseOptions.js";
 
 type TEnv = { [name: string]: string | undefined };
 

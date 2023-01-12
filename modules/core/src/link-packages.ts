@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { readFileSync } from "fs";
-import { spawn } from "./lib/util";
+import { spawn } from "./lib/util/index.js";
 
 let pkg;
 try {

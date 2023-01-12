@@ -1,5 +1,6 @@
 {
   "name": "haibun",
+  "type": "module",
   "version": "1.13.6",
   "devDependencies": {
     "@types/jest": "^29.2.4",
@@ -17,20 +18,17 @@
     "nodemon": "^1.3.3",
     "prettier": "^2.8.1",
     "ts-jest": "^29.0.3",
-    "ts-node": "^10.0.0",
     "tslint": "^6.1.3",
     "typescript": "^4.6.3"
   },
   "scripts": {
     "test": "NODE_OPTIONS=--experimental-vm-modules lerna run test",
     "test-watch": "nodemon -x 'npm run test'",
-    "install": "lerna clean -y && lerna bootstrap",
+    "install": "rm modules/*/tsconfig.tsbuildinfo; lerna clean -y && lerna bootstrap",
+    "build": "ts-node src/link-deps",
     "tsc": "tsc -b modules/",
     "tsc-watch": "tsc -b modules/ --watch",
     "lint": "eslint --ext .ts, ./src/",
     "format": "prettier --ignore-path .gitignore --write \"./src/**/*.+(ts|json)\""
-  },
-  "dependencies": {
-    "dependency-graph": "^0.11.0"
   }
 }

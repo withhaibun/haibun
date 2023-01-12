@@ -1,6 +1,7 @@
-import { ILoggerKeepAlive } from "@haibun/core/build/lib/interfaces/logger";
-import { TWithContext } from "../Context";
 import WebSocket from 'ws';
+
+import { ILoggerKeepAlive } from "@haibun/core/build/lib/interfaces/logger.js";
+import { TWithContext } from "../Context.js";
 
 // FIXME should use ConnectedLogger, etc
 

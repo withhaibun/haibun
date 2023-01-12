@@ -1,7 +1,7 @@
-import { WorkspaceContext } from '../lib/contexts';
-import { OK, TFinalize } from '../lib/defs';
-import { getCreateSteppers, getDefaultWorld } from '../lib/test/lib';
-import Builder from './Builder';
+import { WorkspaceContext } from '../lib/contexts.js'
+import { OK, TFinalize } from '../lib/defs.js';
+import { getCreateSteppers, getDefaultWorld } from '../lib/test/lib.js';
+import Builder from './Builder.js';
 
 describe('Builder', () => {
   test('throws', async () => {

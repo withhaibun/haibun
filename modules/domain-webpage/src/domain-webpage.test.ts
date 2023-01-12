@@ -1,9 +1,9 @@
-import { onCurrentTypeForDomain } from '@haibun/core/build/steps/vars';
-import { AStepper, TNamed, IRequireDomains } from '@haibun/core/build/lib/defs';
-import { runWith } from '@haibun/core/build/lib/run';
-import { asFeatures, getDefaultWorld } from '@haibun/core/build/lib/test/lib';
+import { onCurrentTypeForDomain } from '@haibun/core/build/steps/vars.js';
+import { AStepper, TNamed, IRequireDomains } from '@haibun/core/build/lib/defs.js';
+import { runWith } from '@haibun/core/build/lib/run.js';
+import { asFeatures, getDefaultWorld } from '@haibun/core/build/lib/test/lib.js';
 import { actionOK, getDefaultOptions } from '@haibun/core/build/lib/util/index.js';
-import DomainWebPage, { WEB_CONTROL, WEB_PAGE } from './domain-webpage';
+import DomainWebPage, { WEB_CONTROL, WEB_PAGE } from './domain-webpage.js';
 
 const TestStepsRequiresDomain = class TestStepsRequiresDomain extends AStepper implements IRequireDomains {
   requireDomains = [WEB_PAGE, WEB_CONTROL];

@@ -1,7 +1,7 @@
 import { webkit } from "playwright";
-import Logger, { LOGGER_NONE } from "@haibun/core/build/lib/Logger";
-import { BrowserFactory } from "./BrowserFactory";
-import { getDefaultTag } from "@haibun/core/build/lib/test/lib";
+import Logger, { LOGGER_NONE } from "@haibun/core/build/lib/Logger.js";
+import { BrowserFactory } from "./BrowserFactory.js";
+import { getDefaultTag } from "@haibun/core/build/lib/test/lib.js";
 
 
 const browserContextOptions = {
@@ -10,7 +10,6 @@ const browserContextOptions = {
     args: undefined
   },
 }
-
 
 describe("types", () => {
   it("gets type and device", async () => {

@@ -1,16 +1,19 @@
 #!/usr/bin/env node
 
-require('source-map-support').install()
+import sourceMapSupport from 'source-map-support';
+
+sourceMapSupport.install();
+
 process.on('unhandledRejection', console.error);
 
 import repl from 'repl';
-import { TSpecl, TWorld, TEndFeatureCallback, TEndFeatureCallbackParams } from '@haibun/core/build/lib/defs';
-import { EMediaTypes, ITrackResults } from '@haibun/domain-storage/';
+import { TSpecl, TWorld, TEndFeatureCallback, TEndFeatureCallbackParams } from '@haibun/core/build/lib/defs.js';
+import { EMediaTypes, ITrackResults } from '@haibun/domain-storage';
 
 import { findStepper, getConfigFromBase, getDefaultOptions } from '@haibun/core/build/lib/util/index.js';
-import runWithOptions from '@haibun/core/build/lib/run-with-options';
-import { processBaseEnv, usageThenExit } from './lib';
-import { Timer } from '@haibun/core/build/lib/Timer';
+import runWithOptions from '@haibun/core/build/lib/run-with-options.js';
+import { processBaseEnv, usageThenExit } from './lib.js';
+import { Timer } from '@haibun/core/build/lib/Timer.js';
 
 type TFeatureFilter = string[] | undefined;
 

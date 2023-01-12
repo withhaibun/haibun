@@ -1,17 +1,16 @@
-import { run } from '@haibun/core/build/lib/run';
-import { getDefaultWorld } from '@haibun/core/build/lib/test/lib';
+import { run } from '@haibun/core/build/lib/run.js';
+import { getDefaultWorld } from '@haibun/core/build/lib/test/lib.js';
 import { getDefaultOptions, getStepperOptionName } from '@haibun/core/build/lib/util/index.js';
-import WebSocketServer from '@haibun/context/build/websocket-server/websockets-server';
-import ServerExpress from '@haibun/web-server-express/build/web-server-stepper';
-import WebPlaywright from '@haibun/web-playwright';
-import StorageFS from '@haibun/storage-fs';
+import WebSocketServer from '@haibun/context/build/websocket-server/websockets-server.js';
+import ServerExpress from '@haibun/web-server-express/build/web-server-stepper.js';
+import WebPlaywright from '@haibun/web-playwright/build/web-playwright.js';
+import StorageFS from '@haibun/storage-fs/build/storage-fs.js';
 import DomainStorage from '@haibun/domain-storage';
 import DomainWebPage from '@haibun/domain-webpage';
-import FeatureImporter from '@haibun/feature-importer/build/feature-importer-stepper';
-import Vars from '@haibun/core/build/steps/vars';
-import Haibun from '@haibun/core/build/steps/haibun';
-import { TWorld } from '@haibun/core/build/lib/defs';
-import WebServerStepper from '@haibun/web-server-express/build/web-server-stepper';
+import FeatureImporter from '@haibun/feature-importer/build/feature-importer-stepper.js';
+import Haibun from '@haibun/core/build/steps/haibun.js';
+import { TWorld } from '@haibun/core/build/lib/defs.js';
+import WebServerStepper from '@haibun/web-server-express/build/web-server-stepper.js';
 
 export async function record(url: string, featureFilter: string[], options?: { world?: TWorld }) {
     const specl = getDefaultOptions();

@@ -1,7 +1,7 @@
 import { create } from 'xmlbuilder2';
 import { EOL } from 'os';
 
-import { TResult, TNotOkStepActionResult, IResultOutput } from '@haibun/core/build/lib/defs';
+import { TResult, TNotOkStepActionResult, IResultOutput } from '@haibun/core/build/lib/defs.js';
 
 type TTestCase = {
   '@name': string;

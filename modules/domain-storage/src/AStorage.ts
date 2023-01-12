@@ -1,6 +1,6 @@
-import { CAPTURE, AStepper, OK, TNamed, DEFAULT_DEST, } from "@haibun/core/build/lib/defs";
-import { setShared } from "@haibun/core/build/steps/vars";
-import { TLocationOptions, TMediaType } from "./domain-storage";
+import { CAPTURE, AStepper, OK, TNamed, DEFAULT_DEST, } from "@haibun/core/build/lib/defs.js";
+import { setShared } from "@haibun/core/build/steps/vars.js";
+import { TLocationOptions, TMediaType } from "./domain-storage.js";
 
 export interface IFile {
     name: string;

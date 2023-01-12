@@ -1,7 +1,7 @@
-import browser from '../services/browser'
-import { popupActions, recordingControls } from '../services/constants'
-import LoggerWebSocketsClient from "@haibun/context/build/websocket-client/LoggerWebSocketsClient";
-import AbstractBackground from './AbstractBackground'
+import browser from '../services/browser.js'
+import { popupActions, recordingControls } from '../services/constants.js'
+import LoggerWebSocketsClient from "@haibun/context/build/websocket-client/LoggerWebSocketsClient.js";
+import AbstractBackground from './AbstractBackground.js'
 
 // http://www.softwareishard.com/blog/har-12-spec/#entries
 export type TRequestResult = {

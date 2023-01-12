@@ -1,9 +1,9 @@
-import { AStepper, OK, TNamed, TWorld } from '@haibun/core/build/lib/defs';
+import { AStepper, OK, TNamed, TWorld } from '@haibun/core/build/lib/defs.js';
 import { actionNotOK, getFromRuntime } from '@haibun/core/build/lib/util/index.js';
-import { getFeatures } from './lib/MochaFeatureImporter';
-import { IWebSocketServer, TWithContext, WEB_SOCKET_SERVER } from '@haibun/context/build/Context';
-import { TControl, TEvent } from './lib/defs';
-import ContextFeatureImporter from './lib/ContextFeatureImporter';
+import { getFeatures } from './lib/MochaFeatureImporter.js';
+import { IWebSocketServer, TWithContext, WEB_SOCKET_SERVER } from '@haibun/context/build/Context.js';
+import { TControl, TEvent } from './lib/defs.js';
+import ContextFeatureImporter from './lib/ContextFeatureImporter.js';
 
 const FeatureImporterStepper = class FeatureImporterStepper extends AStepper {
   contextToFeatures: ContextFeatureImporter;

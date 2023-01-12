@@ -1,7 +1,7 @@
-import { AStepper, OK, TExpandedFeature, TResolvedFeature } from '../lib/defs';
-import { asExpandedFeatures, getDefaultWorld } from '../lib/test/lib';
+import { AStepper, OK, TExpandedFeature, TResolvedFeature } from '../lib/defs.js';
+import { asExpandedFeatures, getDefaultWorld } from '../lib/test/lib.js';
 import { createSteppers } from '../lib/util/index.js';
-import { Resolver } from './Resolver';
+import { Resolver } from './Resolver.js';
 
 describe('validate map steps', () => {
   class TestStepper extends AStepper {

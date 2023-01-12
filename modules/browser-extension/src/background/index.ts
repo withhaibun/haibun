@@ -1,8 +1,8 @@
-import { DEFAULT_PORT } from "..";
-import Background from "./Background";
-import LoggerWebSocketsClient from "@haibun/context/build/websocket-client/LoggerWebSocketsClient";
-import { popupActions } from "../services/constants";
-import { ChromeExtensionKeepAlive } from "../ChromeExtensionKeepAlive";
+import { DEFAULT_PORT } from "../index.js";
+import Background from "./Background.js";
+import LoggerWebSocketsClient from "@haibun/context/build/websocket-client/LoggerWebSocketsClient.js";
+import { popupActions } from "../services/constants.js";
+import { ChromeExtensionKeepAlive } from "../ChromeExtensionKeepAlive.js";
 
 declare global {
   interface Window { background: Background; }
@@ -18,9 +18,11 @@ background.init();
 loggerConnect(webSocketLogger);
 
 async function loggerConnect(logger: LoggerWebSocketsClient) {
-  const errorHandler = (error: any) => {
-    background.onMessage({ action: 'ERROR', value: `Could not connect to websocket on port ${port} ${JSON.stringify(error)}.` });
-  }
+  const errorHandler = {
+    onError: (error: any) => {
+      background.onMessage({ action: 'ERROR', value: `Could not connect to websocket on port ${port} ${JSON.stringify(error)}.` });
+    }
+  };
   await logger.connect(errorHandler);
 }
 

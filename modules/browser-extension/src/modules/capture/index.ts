@@ -1,7 +1,7 @@
 import EventEmitter from 'events'
-import getSelector from '../../services/selector'
-import { Store } from '../../services/Store'
-import { overlayActions, overlaySelectors } from '../overlay/constants'
+import getSelector from '../../services/selector.js';
+import { Store } from '../../services/Store.js';
+import { overlayActions, overlaySelectors } from '../overlay/constants.js';
 
 const BORDER_THICKNESS = 2
 class Capture extends EventEmitter {
