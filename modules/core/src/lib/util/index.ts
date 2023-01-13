@@ -342,16 +342,17 @@ export const shortNum = (n: number) => Math.round((n * 100)) / 100;
 export const getFeatureTitlesFromResults = (result: TFeatureResult) => result.stepResults.filter(s => s.actionResults.find(a => a.name === 'feature' ? true : false)).map(a => a.in.replace(/^Feature: /, ''));
 
 export function spawn(command: string[], module: string, show: boolean = false) {
-  console.log('lala', command);
-  
-  console.info(`$ ${command.join(' ')}`);
+  console.info(`${module}$ ${command.join(' ')}`);
   const [cmd, ...args] = command;
   const { output, stdout, stderr, status, error } = spawnSync(cmd, args, { cwd: module, env: process.env });
-  if (error || stderr) {
-    console.error(`${module}: ${error || stderr}`);
-    throw (error);
-  }
-  if (show) {
-    console.log(`${module}: ${stdout}`);
+  const errString = (error || stderr).toString();
+  if (errString.length > 0) {
+    console.error(`${module}> "${errString}" status: ${status}`);
+    if (status !== 0) {
+      throw (error);
+    }
+    if (show) {
+      console.log(`${module}> ${stdout}`);
+    }
   }
 }
