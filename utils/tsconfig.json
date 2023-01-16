@@ -1,19 +1,10 @@
 {
+  "extends": "../modules/tsconfig.settings.json",
   "compilerOptions": {
-    "moduleResolution": "node",
-    "module": "NodeNext",
-    "target": "esnext",
-    "sourceMap": true,
-    "declaration": true,
     "outDir": "./build",
     "rootDir": "./src"
   },
   "include": [
     "./src/**/*"
-  ],
-  "exclude": [
-    "./jest.config.ts",
-    "./tsconfig.json",
-    "build"
   ]
 }

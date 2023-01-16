@@ -16,6 +16,7 @@
         { "path": "browser-extension" },
         { "path": "domain-webpage" },
         { "path": "storage-fs" },
+        { "path": "storage-mem" },
         { "path": "out-review" },
     ],
 }
