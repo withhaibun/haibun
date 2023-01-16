@@ -1,6 +1,8 @@
 import { readdirSync, readFileSync, statSync } from 'fs';
 import { DepGraph } from 'dependency-graph';
 
+console.log('linking packages');
+
 import { spawn } from '@haibun/core/build/lib/util/index.js';
 
 const graph = new DepGraph();
@@ -15,15 +17,23 @@ for (const module of modules) {
   hd.forEach(dep => graph.addDependency(`@haibun/${module}`, dep));
 }
 
-for (const module of graph.overallOrder()) {
-  console.log('setting up', module, graph.dependenciesOf(module).length, 'deps');
-  const dest = `./modules/${module.replace(/^@haibun\//, '')}`;
-
-  spawn(['npm', 'run', 'build'], dest);
-  // if (graph.dependenciesOf(module).length) {
-    spawn(['npm', 'link', ...graph.dependenciesOf(module)], dest);
-  // }
-  // spawn(['npm', 'link'], dest);
+try {
+  doWork();
+} catch (e) {
+  console.error('caught an exception:', e);
+  process.exit(1);
 }
 
+function doWork() {
+  for (const module of graph.overallOrder()) {
+    console.info('setting up', module, graph.dependenciesOf(module).length, 'deps');
+    const dest = `./modules/${module.replace(/^@haibun\//, '')}`;
+
+    spawn(['tsc', '-b', '.'], dest);
+    // if (graph.dependenciesOf(module).length) {
+    // spawn(['npm', 'link', ...graph.dependenciesOf(module)], dest);
+    // }
+    // spawn(['npm', 'link'], dest);
+  }
+}
 

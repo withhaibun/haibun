@@ -4,17 +4,17 @@ import { WorkspaceContext } from '../contexts.js'
 
 const TestSteps = class TestSteps extends AStepper {
   steps = {
+    fails: {
+      gwta: 'fail',
+      action: async () => actionNotOK('test fail'),
+    },
     test: {
       exact: 'When I have a test',
-      action: async (input: any) => actionOK(),
+      action: async () => actionOK(),
     },
     passes: {
       exact: 'Then the test should pass',
-      action: async (input: any) => actionOK(),
-    },
-    fails: {
-      exact: 'Then the test can fail',
-      action: async (input: any) => actionNotOK('test'),
+      action: async () => actionOK(),
     },
     named: {
       match: /^Then the parameter (?<param>.+) is accepted$/,
