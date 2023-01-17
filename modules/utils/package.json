@@ -1,7 +1,7 @@
 {
   "name": "@haibun/utils",
   "type": "module",
-  "version": "13.0.0",
+  "version": "13,0,0",
   "description": "",
   "main": "index.js",
   "files": [
@@ -20,7 +20,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@haibun/core": "13.0.0",
+    "@haibun/core": "13,0,0",
     "dependency-graph": "^0.11.0"
   },
   "devDependencies": {
