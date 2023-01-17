@@ -18,10 +18,8 @@ for (const module of [...modules]) {
 
 try {
   doWork();
-  spawn(['espeak', 'k']);
 } catch (e) {
   console.error('caught an exception:', e);
-  spawn(['espeak', 'fail']);
   process.exit(1);
 }
 
