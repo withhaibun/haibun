@@ -5,13 +5,8 @@
   "description": "",
   "author": "",
   "main": "build/index.js",
-  "bin": {
-    "scaffold": "build/scaffold.js",
-    "link-packages": "build/link-packages.js"
-  },
   "files": [
-    "build/**",
-    "scaffold/**"
+    "build/**"
   ],
   "scripts": {
     "format": "prettier --write \"src/**/*.ts\" \"src/**/*.js\"",
