@@ -17,8 +17,8 @@ describe('run self-contained', () => {
     expect(t.stepResults.every((r) => r.ok === true)).toBe(true)
   });
 });
-it.skip('increments feature', async () => {
 
+it.skip('increments feature', async () => {
   const TS = class TS extends AStepper {
     steps = {
       test: {
@@ -59,14 +59,14 @@ describe('run backgrounds', () => {
 
 describe('fails', () => {
   it('fails', async () => {
-    const feature = { path: '/features/test.feature', content: `When I fail` };
+    const feature = { path: '/features/test.feature', content: `When I fall` };
     const result = await testWithDefaults([feature], [TestSteps]);
 
     expect(result.ok).toBe(false);
 
     expect(result.failure?.stage).toBe('Resolve');
 
-    expect(result.failure?.error.message.startsWith('no step found for When I fail')).toBe(true);
+    expect(result.failure?.error.message.startsWith('no step found for When I fall')).toBe(true);
   });
 });
 
