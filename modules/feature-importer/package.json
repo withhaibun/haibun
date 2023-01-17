@@ -1,6 +1,6 @@
 {
   "name": "@haibun/feature-importer",
-  "version": "1.16.0",
+  "version": "1.16.1",
   "type": "module",
   "lsd:module": true,
   "files": [
@@ -19,9 +19,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@haibun/context": "1.16.0",
-    "@haibun/core": "1.16.0",
-    "@haibun/domain-webpage": "1.16.0"
+    "@haibun/context": "1.16.1",
+    "@haibun/core": "1.16.1",
+    "@haibun/domain-webpage": "1.16.1"
   },
   "devDependencies": {
     "@types/jest": "^29.2.4",
