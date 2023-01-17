@@ -1,9 +1,8 @@
 import { readdirSync, readFileSync, statSync } from 'fs';
 import { DepGraph } from 'dependency-graph';
+import { spawn } from './util/index.js';
 
 console.log('linking packages');
-
-import { spawn } from '@haibun/core/build/lib/util/index.js';
 
 const graph = new DepGraph();
 
@@ -11,7 +10,7 @@ const modules = readdirSync('./modules/').map(f => `./modules/${f}`)
   .filter(f => statSync(f).isDirectory()).map(m => m.replace(/\/$/, '').replace(/.*\//, ''));
 modules.forEach(m => graph.addNode(`@haibun/${m}`));
 
-for (const module of modules) {
+for (const module of [...modules]) {
   const pkg = JSON.parse(readFileSync(`./modules/${module}/package.json`, 'utf-8'));
   const hd = [...Object.keys(pkg.dependencies || {}), ...Object.keys(pkg.devDependencies || {})].filter(d => d.startsWith('@haibun/'));
   hd.forEach(dep => graph.addDependency(`@haibun/${module}`, dep));
@@ -19,8 +18,10 @@ for (const module of modules) {
 
 try {
   doWork();
+  spawn(['espeak', 'k']);
 } catch (e) {
   console.error('caught an exception:', e);
+  spawn(['espeak', 'fail']);
   process.exit(1);
 }
 
