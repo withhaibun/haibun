@@ -11,8 +11,6 @@ const refDir = path.join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 export function scaffoldHaibun(dest: string, out: typeof console.info, add?: { addDeps?: Tkv, addDevDeps?: Tkv, addDirs: string[] }): void {
     const refHaibunPackage = JSON.parse(readFileSync(path.join(refDir, 'package.json'), 'utf-8'));
-    console.log('hm', refDir, refHaibunPackage);
-
     const what: { dirs: string[], [name: string]: Tkv | string[] } = {
         dependencies: {
             '@haibun/core': `${refHaibunPackage.version}`
