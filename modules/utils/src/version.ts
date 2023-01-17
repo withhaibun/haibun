@@ -80,11 +80,13 @@ class Versioner {
     }
 
     writeFileSync(pkgFile, JSON.stringify(pkg, null, 2));
-    try {
-      spawn(['npm', 'run', 'test'], location);
-    } catch (e) {
-      console.error(`npm test failed for ${name}: ${e}`);
-      throw e;
+    if (location !== '.') {
+      try {
+        spawn(['npm', 'run', 'test'], location);
+      } catch (e) {
+        console.error(`npm test failed for ${name}: ${e}`);
+        throw e;
+      }
     }
 
     try {
