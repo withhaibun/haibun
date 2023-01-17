@@ -1,6 +1,5 @@
 {
   "name": "haibun",
-  "type": "module",
   "version": "13.0.0",
   "devDependencies": {
     "@types/jest": "^29.2.4",
@@ -23,7 +22,7 @@
   "scripts": {
     "test": "NODE_OPTIONS=--experimental-vm-modules lerna run test",
     "test-watch": "nodemon -x 'npm run test'",
-    "install": "rm modules/*/tsconfig.tsbuildinfo; lerna clean -y && lerna bootstrap",
+    "install": "rm modules/*/tsconfig.tsbuildinfo; lerna clean -y && lerna bootstrap && node modules/utils/build/postinstall.js",
     "build": "ts-node src/link-deps",
     "tsc": "tsc -b modules/",
     "tsc-watch": "tsc -b modules/ --watch",
@@ -32,4 +31,3 @@
     "version": "node modules/utils/build/version.js"
   }
 }
-
