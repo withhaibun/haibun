@@ -72,7 +72,7 @@ describe('fails', () => {
 
 describe('step fails', () => {
   it('step fails', async () => {
-    const feature = { path: '/features/test.feature', content: `When I have a test\nThen the test can fail` };
+    const feature = { path: '/features/test.feature', content: `When I have a test\nThen fail` };
     const result = await testWithDefaults([feature], [TestSteps]);
 
     expect(result.ok).toBe(false);
@@ -83,7 +83,7 @@ describe('step fails', () => {
 
 describe('multiple', () => {
   it('fail and pass', async () => {
-    const features = [{ path: '/features/fails.feature', content: `When I have a test\nThen the test can fail` }, { path: '/features/passes.feature', content: `When I have a test\nThen the test should pass` }];
+    const features = [{ path: '/features/fails.feature', content: `When I have a test\nThen fail` }, { path: '/features/passes.feature', content: `When I have a test\nThen the test should pass` }];
 
     const result = await testWithDefaults(features, [TestSteps]);
 

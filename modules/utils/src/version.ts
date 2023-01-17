@@ -1,5 +1,5 @@
-import { readdirSync, readFileSync, statSync, writeFileSync } from 'fs';
-import { spawn } from '@haibun/core/build/lib/util/index.js';
+import { readFileSync, writeFileSync } from 'fs';
+import { spawn } from './util/index.js';
 
 const [, me, version, ...extra] = process.argv;
 
@@ -10,7 +10,7 @@ class Versioner {
   constructor(version: string) {
     this.version = version;
   }
-  async doVersion() {
+  doVersion() {
     try {
       const hpkg = JSON.parse(readFileSync('./package.json', 'utf-8'));
       if (hpkg.name !== 'haibun') {
@@ -32,30 +32,31 @@ class Versioner {
       process.exit(1);
     }
 
-    const modules = readdirSync(`./modules/`)
-      .map(f => `./modules/${f}`)
-      .filter(f => statSync(f).isDirectory())
+    const modules = JSON.parse(readFileSync(`./modules/tsconfig.json`, 'utf-8'))
+      .references
+      .map(f => `./modules/${f.path}`)
       .concat(extra);
+
     for (const module of modules) {
       const name = module.replace(/\/$/, '').replace(/.*\//, '');
-      await this.updateVersion(name, module);
+      this.updateVersion(name, module);
       this.toPublish.push(module);
     }
 
     this.updateVersion('haibun', '.');
-    await this.publishAll();
+    this.publishAll();
   }
 
-  async publishAll() {
+  publishAll() {
     for (const module of this.toPublish) {
       console.log('publishing', module);
 
-      await spawn(['npm', 'publish'], module);
-      spawn(['git', 'push'], module);
+      // spawn(['npm', 'publish'], module);
+      // spawn(['git', 'push'], module);
     }
   }
 
-  async updateVersion(name: string, location: string) {
+  updateVersion(name: string, location: string) {
     console.log('updating', name);
 
     const pkgFile = `${location}/package.json`;
@@ -79,15 +80,19 @@ class Versioner {
     }
 
     writeFileSync(pkgFile, JSON.stringify(pkg, null, 2));
-    spawn(['npm', 'run', 'test'], location).catch(e => {
+    try {
+      spawn(['npm', 'run', 'test'], location);
+    } catch (e) {
       console.error(`npm test failed for ${name}: ${e}`);
       throw e;
-    });
+    }
 
-    spawn(['git', 'commit', '-m', `'update ${name} to version ${this.version}'`, 'package.json',], location).catch((e) => {
+    try {
+      spawn(['git', 'commit', '-m', `'update ${name} to version ${this.version}'`, 'package.json',], location);
+    } catch (e) {
       console.error(`git commit failed for ${name}: ${e}`);
       throw e;
-    });
+    }
   }
 }
 

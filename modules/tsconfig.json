@@ -1,6 +1,7 @@
 {
     "files": [],
     "references": [
+        { "path": "utils" },
         { "path": "core" },
         { "path": "cli" },
         { "path": "domain-storage" },
@@ -17,6 +18,6 @@
         { "path": "domain-webpage" },
         { "path": "storage-fs" },
         { "path": "storage-mem" },
-        { "path": "out-review" },
-    ],
+        { "path": "out-review" }
+    ]
 }

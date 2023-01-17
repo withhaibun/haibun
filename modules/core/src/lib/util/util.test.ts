@@ -7,7 +7,7 @@ import { AStepper, IHasOptions, OK } from '../defs.js';
 
 describe('output', () => {
   it('resultOutput default', async () => {
-    const features = [{ path: '/features/test.feature', content: `When I have a test\nThen the test can fail` }, { path: '/features/test.feature', content: `When I have a test\nThen the test should pass` }];
+    const features = [{ path: '/features/test.feature', content: `When I have a test\nThen fail` }, { path: '/features/test.feature', content: `When I have a test\nThen the test should pass` }];
     const result = await testWithDefaults(features, [TestSteps]);
 
     expect(result.ok).toBe(false);
