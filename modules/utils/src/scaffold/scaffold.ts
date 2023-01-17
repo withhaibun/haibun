@@ -2,22 +2,25 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import path from 'path';
+import { dirname } from 'path';
+import { fileURLToPath } from 'url';
 
 type Tkv = { [name: string]: string }
 
-const here = process.cwd();
+const refDir = path.join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 export function scaffoldHaibun(dest: string, out: typeof console.info, add?: { addDeps?: Tkv, addDevDeps?: Tkv, addDirs: string[] }): void {
-    const mainHaibunPackage = JSON.parse(readFileSync(path.join(here, '..', '..', 'package.json'), 'utf-8'));
+    const refHaibunPackage = JSON.parse(readFileSync(path.join(refDir, 'package.json'), 'utf-8'));
+    console.log('hm', refDir, refHaibunPackage);
 
     const what: { dirs: string[], [name: string]: Tkv | string[] } = {
         dependencies: {
-            '@haibun/core': `${mainHaibunPackage.version}`
+            '@haibun/core': `${refHaibunPackage.version}`
         },
         devDependencies: ["@types/jest", "@types/node", "@typescript-eslint/eslint-plugin", "@typescript-eslint/parser", "eslint", "eslint-config-airbnb-typescript"
             , "eslint-config-prettier", "eslint-plugin-import", "eslint-plugin-prefer-arrow", "eslint-plugin-prettier", "jest"
-            , "prettier", "ts-jest", "tslint", "typescript"]
-            .reduce((a, i) => ({ ...a, [i]: mainHaibunPackage.devDependencies[i] }), {} as Tkv),
+            , "prettier", "ts-jest", "typescript"]
+            .reduce((a, i) => ({ ...a, [i]: refHaibunPackage.devDependencies[i] }), {} as Tkv),
         scripts: {
             test: 'jest --config jest.config.ts',
             lint: 'lint --ext .ts ./src/',
@@ -82,7 +85,7 @@ export function scaffoldHaibun(dest: string, out: typeof console.info, add?: { a
         if (existsSync(to)) {
             out(`not copying ${to} because it already exists`);
         } else {
-            let contents = readFileSync(path.join(here, 'scaffold', from), 'utf-8');
+            let contents = readFileSync(path.join(refDir, 'scaffold', from), 'utf-8');
             if (replace) {
                 contents = contents.replaceAll(replace, `${instead}`);
             }
