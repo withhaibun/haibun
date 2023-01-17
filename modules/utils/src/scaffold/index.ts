@@ -2,7 +2,6 @@
 
 import { scaffoldHaibun } from "./scaffold.js";
 
-
 try {
     scaffoldHaibun('.', console.info);
 } catch (e) {

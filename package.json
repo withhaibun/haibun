@@ -28,6 +28,8 @@
     "tsc": "tsc -b modules/",
     "tsc-watch": "tsc -b modules/ --watch",
     "lint": "eslint --ext .ts, ./src/",
-    "format": "prettier --ignore-path .gitignore --write \"./src/**/*.+(ts|json)\""
+    "format": "prettier --ignore-path .gitignore --write \"./src/**/*.+(ts|json)\"",
+    "version": "node modules/utils/build/version.js"
   }
 }
+
