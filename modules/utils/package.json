@@ -10,7 +10,8 @@
   ],
   "bin": {
     "scaffold": "build/scaffold/index.js",
-    "link-packages": "build/link-packages.js"
+    "link-packages": "build/link-packages.js",
+    "postinstall": "build/postinstall.js"
   },
   "scripts": {
     "test": "jest",
