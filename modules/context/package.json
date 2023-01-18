@@ -1,7 +1,7 @@
 {
   "name": "@haibun/context",
   "type": "module",
-  "version": "1.13.16",
+  "version": "1.13.17",
   "description": "",
   "author": "",
   "main": "build/index.js",
@@ -23,8 +23,8 @@
     "version": "npm run format && git add -A src"
   },
   "dependencies": {
-    "@haibun/core": "1.13.16",
-    "@haibun/web-server-express": "1.13.16",
+    "@haibun/core": "1.13.17",
+    "@haibun/web-server-express": "1.13.17",
     "ws": "^8.9.0"
   }
 }
