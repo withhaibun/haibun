@@ -17,17 +17,20 @@
     "nodemon": "^1.3.3",
     "prettier": "^2.8.1",
     "ts-jest": "^29.0.3",
-    "typescript": "^5.0.0-dev.20230117"
+    "typescript": "^4.9.4"
   },
   "scripts": {
     "test": "NODE_OPTIONS=--experimental-vm-modules lerna run test",
     "test-watch": "nodemon -x 'npm run test'",
-    "install": "rm modules/*/tsconfig.tsbuildinfo; lerna clean -y && lerna bootstrap && npm run build",
-    "build": "node modules/utils/build/postinstall.js",
+    "install": "rm modules/*/tsconfig.tsbuildinfo; lerna clean -y && lerna bootstrap && npx -p @haibun/utils postinstall",
+    "build": "npx -p @haibun/utils postinstall",
     "tsc": "tsc -b modules/",
     "tsc-watch": "tsc -b modules/ --watch",
     "lint": "eslint --ext .ts, ./src/",
     "format": "prettier --ignore-path .gitignore --write \"./src/**/*.+(ts|json)\"",
     "version": "node modules/utils/build/version.js"
+  },
+  "dependencies": {
+    "lerna": "^6.4.1"
   }
 }
