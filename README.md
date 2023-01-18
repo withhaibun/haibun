@@ -178,14 +178,9 @@ in its src directory.
 Installation uses a shell script, which is tested in Linux & macOS,
 and should also work on Windows using WSL.
 
-Clone this repo, 
-and install Lerna and Typescript globally;
+Clone this repo, then install and build:
 
-`npm i -g lerna typescript`
-
-To install and build:
-
-  `npm run install`
+  `npm i` (this will trigger npm run clean, npm install)
 
   `npm run tsc-watch`
 

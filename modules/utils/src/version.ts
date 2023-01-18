@@ -49,15 +49,14 @@ class Versioner {
 
   publishAll() {
     for (const module of this.toPublish) {
-      console.log('publishing', module);
-
-      // spawn(['npm', 'publish'], module);
-      // spawn(['git', 'push'], module);
+      console.info('publishing', module);
+      spawn(['npm', '--dry-run', 'publish'], module);
+      spawn(['git', 'push'], module);
     }
   }
 
   updateVersion(name: string, location: string) {
-    console.log('updating', name);
+    console.info('updating', name);
 
     const pkgFile = `${location}/package.json`;
     const pkg = JSON.parse(readFileSync(pkgFile, 'utf-8'));
