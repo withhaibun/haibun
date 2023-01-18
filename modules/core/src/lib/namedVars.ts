@@ -1,6 +1,6 @@
-import { cred } from '../steps/credentials';
-import { TStep, TNamedVar, TFound, TNamed, BASE_TYPES, TWorld, TVStep } from './defs';
-import { getStepShared } from './domain';
+import { cred } from '../steps/credentials.js';
+import { TStep, TNamedVar, TFound, TNamed, BASE_TYPES, TWorld, TVStep } from './defs.js';
+import { getStepShared } from './domain.js';
 
 const TYPE_QUOTED = 'q_';
 const TYPE_CREDENTIAL = 'c_';

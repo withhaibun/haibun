@@ -1,4 +1,4 @@
-import { TTag, WorkspaceBuilder } from './defs';
+import { TTag, WorkspaceBuilder } from './defs.js';
 
 export class Context {
   values: { [name: string]: any };

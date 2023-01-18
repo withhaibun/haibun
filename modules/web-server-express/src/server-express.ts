@@ -4,8 +4,8 @@ import http from 'http';
 import express, { RequestHandler } from 'express';
 import cookieParser from 'cookie-parser';
 
-import { IWebServer, TRouteTypes } from './defs';
-import { ILogger } from '@haibun/core/build/lib/interfaces/logger';
+import { IWebServer, TRouteTypes } from './defs.js';
+import { ILogger } from '@haibun/core/build/lib/interfaces/logger.js';
 
 export const DEFAULT_PORT = 8123;
 

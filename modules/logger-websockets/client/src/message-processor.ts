@@ -1,12 +1,12 @@
 import { html, LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators';
 
-import { TExpandedFeature } from '@haibun/core/build/lib/defs';
+import { TExpandedFeature } from '@haibun/core/build/lib/defs.js';
 
 import type {
   TMessage,
   TMessageWithTopic,
-} from '@haibun/core/build/lib/interfaces/logger';
+} from '@haibun/core/build/lib/interfaces/logger.js';
 
 async function connectToServer() {
   const host = document.location.hostname;

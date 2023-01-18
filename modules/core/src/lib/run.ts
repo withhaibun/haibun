@@ -1,11 +1,11 @@
 import { existsSync } from 'fs';
-import { TSpecl, TResult, TWorld, TFeature, TExtraOptions, TResolvedFeature, TEndFeatureCallback, CStepper, DEFAULT_DEST, TNotOKActionResult } from './defs';
-import { expand } from './features';
-import { Executor } from '../phases/Executor';
-import { Resolver } from '../phases/Resolver';
-import Builder from '../phases/Builder';
-import { getSteppers, verifyExtraOptions, recurse, debase, getRunTag, verifyRequiredOptions, createSteppers, setWorldStepperOptions } from './util';
-import { getDomains, verifyDomainsOrError } from './domain';
+import { TSpecl, TResult, TWorld, TFeature, TExtraOptions, TResolvedFeature, TEndFeatureCallback, CStepper, DEFAULT_DEST, TNotOKActionResult } from './defs.js';
+import { expand } from './features.js';
+import { Executor } from '../phases/Executor.js';
+import { Resolver } from '../phases/Resolver.js';
+import Builder from '../phases/Builder.js';
+import { getSteppers, verifyExtraOptions, recurse, debase, getRunTag, verifyRequiredOptions, createSteppers, setWorldStepperOptions } from './util/index.js';
+import { getDomains, verifyDomainsOrError } from './domain.js';
 
 type TRunOptions = { specl: TSpecl; world: TWorld; base: string; addSteppers?: CStepper[]; featureFilter?: string[]; extraOptions?: TExtraOptions; endFeatureCallback?: TEndFeatureCallback }
 

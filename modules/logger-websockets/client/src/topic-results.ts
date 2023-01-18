@@ -7,7 +7,7 @@ import {
   GridItemModel,
 } from '@vaadin/vaadin-grid';
 
-import type { TMessageWithTopic } from '@haibun/core/build/lib/interfaces/logger';
+import type { TMessageWithTopic } from '@haibun/core/build/lib/interfaces/logger.js';
 import { TSeqFeature } from './message-processor';
 
 @customElement('topic-results')

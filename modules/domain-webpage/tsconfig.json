@@ -1,13 +1,11 @@
-
 {
   "extends": "../tsconfig.settings.json",
   "compilerOptions": {
-    "outDir": "./build",
-    "rootDir": "./src",
-    "jsx": "react",
-    "noImplicitAny": false
+    "outDir": "build",
+    "rootDir": "src",
   },
-    "references": [
-  ],
-  "exclude": ["./jest.config.ts", "build", "comps"]
+  "exclude": [
+    "./jest.config.ts",
+    "build"
+  ]
 }

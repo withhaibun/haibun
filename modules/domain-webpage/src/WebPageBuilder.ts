@@ -1,7 +1,8 @@
-import { DomainContext } from '@haibun/core/build/lib/contexts';
-import { WorkspaceBuilder } from '@haibun/core/build/lib/defs';
-import { ILogger } from '@haibun/core/build/lib/interfaces/logger';
 import { writeFileSync } from 'fs';
+
+import { DomainContext } from '@haibun/core/build/lib/contexts.js'
+import { WorkspaceBuilder } from '@haibun/core/build/lib/defs.js';
+import { ILogger } from '@haibun/core/build/lib/interfaces/logger.js';
 
 export class WebPageBuilder extends WorkspaceBuilder {
   controls: string[];

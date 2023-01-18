@@ -1,9 +1,9 @@
-const { convert } = require("xmlbuilder2");
+import { convert } from 'xmlbuilder2';
 
-import OutXUnit from "./out-xunit";
-import { testWithDefaults } from "@haibun/core/build/lib/test/lib";
-import TestSteps from "@haibun/core/build/lib/test/TestSteps";
-import { resultOutput } from "@haibun/core/build/lib/util";
+import OutXUnit from "./out-xunit.js";
+import { testWithDefaults } from "@haibun/core/build/lib/test/lib.js";
+import TestSteps from "@haibun/core/build/lib/test/TestSteps.js";
+import { resultOutput } from "@haibun/core/build/lib/util/index.js";
 
 const ox = [process.cwd(), "build", "out-xunit"].join("/");
 
@@ -16,19 +16,19 @@ describe("AsXML transforms", () => {
     const asXunit = new OutXUnit();
     const res = await asXunit.getOutput(result, {});
 
-    const obj = convert(res, { format: "object" });
+    const obj: any = convert(res, { format: "object" });
     expect(obj.testsuites.testsuite.testcase["@name"]).toBeDefined();
     expect(obj.testsuites["@tests"]).toBe("1");
     expect(obj.testsuites.testsuite.testcase.failure).toBeUndefined();
   });
   it("transforms multi type result to xunit", async () => {
-    const features = [{ path: '/features/fails.feature', content: `When I have a test\nThen the test can fail` }, { path: '/features/passes.feature', content: `When I have a test\nThen the test should pass` }];
+    const features = [{ path: '/features/fails.feature', content: `When I have a test\nThen fail` }, { path: '/features/passes.feature', content: `When I have a test\nThen the test should pass` }];
     const result = await testWithDefaults(features, [TestSteps]);
 
     expect(result.ok).toBe(false);
     const asXunit = new OutXUnit();
     const res = await asXunit.getOutput(result, {});
-    const obj = convert(res, { format: "object" });
+    const obj: any = convert(res, { format: "object" });
 
     expect(obj.testsuites.testsuite.testcase.length).toBe(2);
     expect(obj.testsuites["@tests"]).toBe("2");
@@ -39,7 +39,7 @@ describe("AsXML transforms", () => {
 });
 
 it("run AsXUnit", async () => {
-  const features = [{ path: '/features/fails.feature', content: `When I have a test\nThen the test can fail` }, { path: '/features/passes.feature', content: `When I have a test\nThen the test should pass` }];
+  const features = [{ path: '/features/fails.feature', content: `When I have a test\nThen fail` }, { path: '/features/passes.feature', content: `When I have a test\nThen the test should pass` }];
   const result = await testWithDefaults(features, [TestSteps]);
 
   expect(result.ok).toBe(false);

@@ -1,5 +1,5 @@
-import { StepCircleCSS } from "../../assets";
-import { TIndexSummary } from "../../html-generator";
+import { StepCircleCSS } from "../../assets.js";
+import { TIndexSummary } from "../../html-generator.js";
 
 export const summary = (results: { ok: boolean, dir: string, link: string, index: TIndexSummary[] }[]) => {
     const summary = {

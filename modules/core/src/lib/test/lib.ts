@@ -1,12 +1,12 @@
-import { TWorld, TVStep, TExpandedLine, TProtoOptions, CStepper, TExpandedFeature, DEFAULT_DEST, TResult } from '../defs';
-import { Resolver } from '../../phases/Resolver';
-import { DEF_PROTO_OPTIONS, runWith } from './../run';
-import { getSteppers, getRunTag, verifyExtraOptions, getDefaultOptions, createSteppers } from './../util';
-import { WorldContext } from '../contexts';
-import { featureSplit, withNameType } from './../features';
-import { getDomains, verifyDomainsOrError } from './../domain';
-import Logger, { LOGGER_NONE } from './../Logger';
-import { Timer } from '../Timer';
+import { TWorld, TVStep, TExpandedLine, TProtoOptions, CStepper, TExpandedFeature, DEFAULT_DEST, TResult } from '../defs.js';
+import { Resolver } from '../../phases/Resolver.js';
+import { DEF_PROTO_OPTIONS, runWith } from './../run.js';
+import { getSteppers, getRunTag, verifyExtraOptions, getDefaultOptions, createSteppers } from './../util/index.js';
+import { WorldContext } from '../contexts.js'
+import { featureSplit, withNameType } from './../features.js';
+import { getDomains, verifyDomainsOrError } from './../domain.js';
+import Logger, { LOGGER_NOTHING } from '../Logger.js';
+import { Timer } from '../Timer.js';
 
 export const HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS = 'HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS';
 
@@ -75,7 +75,7 @@ export function getDefaultWorld(sequence: number): { world: TWorld; } {
       timer: new Timer(),
       tag: getRunTag(sequence, 0, 0, 0),
       shared: new WorldContext(getDefaultTag(sequence)),
-      logger: new Logger(process.env.HAIBUN_LOG_LEVEL ? { level: process.env.HAIBUN_LOG_LEVEL } : LOGGER_NONE),
+      logger: new Logger(process.env.HAIBUN_LOG_LEVEL ? { level: process.env.HAIBUN_LOG_LEVEL } : LOGGER_NOTHING),
       runtime: {},
       options: { DEST: DEFAULT_DEST },
       extraOptions: {},

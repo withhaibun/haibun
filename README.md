@@ -14,6 +14,12 @@ it is intended to make it easier to maintain,
 with an emphasis on reuse for different deployment environments,
 and the ability to link to formal specifications.
 
+Conceptually, there are three "layers" to Haibun: 
+
+* A BDD type layer, with testable descriptions of project features in plain language
+* A domain layer, with abstract representations of domains like the Web
+* An implementation layer, where specific testers are written, for example, tests in a Web browser.
+
 Haibun encourages small libraries with minimal, precisely versioned dependencies, 
 and provides abstract definitions of storage and other testing features, 
 so specifications and tests can be developed in a way that's not dependant 
@@ -40,7 +46,7 @@ project/
       run.feature
 ```
 
-The haibun command line uses a folder parameter, which would be project in the above example.
+The haibun cli requires a folder parameter, which would be `project` in the above example.
 
 Features can use the directive `Backgrounds: <features>` or `Scenarios: <features>` 
 which will prepend comma-separated named features from backgrounds/.
@@ -94,10 +100,10 @@ Extend the `AStepper` abstract class, and the appropriate properties and methods
 Your file might end up looking like this:
 
 ```typescript
-import { OK, TNamed, IHasOptions, IRequireDomains, AStepper, TWorld } from '@haibun/core/build/lib/defs';
-import { actionNotOK, stringOrError, findStepperFromOption } from '@haibun/core/build/lib/util';
-import { STORAGE_ITEM, STORAGE_LOCATION } from '@haibun/domain-storage';
-import { AStorage } from '@haibun/domain-storage/build/AStorage';
+import { OK, TNamed, IHasOptions, IRequireDomains, AStepper, TWorld } from '@haibun/core/build/lib/defs.js';
+import { actionNotOK, stringOrError, findStepperFromOption } from '@haibun/core/build/lib/util/index.js';
+import { STORAGE_ITEM, STORAGE_LOCATION } from '@haibun/domain-storage/build/domain-storage.js';
+import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 
 const STORAGE = 'STORAGE';
 
@@ -144,15 +150,15 @@ and a HAIBUN_O_FILESEXIST_STORAGE runtime variable.
 
 ## Scaffolding
 
-You can also scaffold Haibun into an existing project using `npx @haibun/core scaffold`. 
+You can also scaffold Haibun into an existing or new project using `npx -p @haibun/utils scaffold`. 
 This will add the core library, Typescript and Jest support (if missing), 
 steppers, a placeholder library, and tests. 
-It won't overwrite existing files. It presumes an src folder for source files.
+It won't overwrite existing files. It presumes a `src` folder for source files.
 
 ## Linking
 
-For development, you can link a project to local Haibun libraries using `npx -p @haibun/core link-packages`. 
-The packages have to be linked first using `npm link`.
+For development, you can link a project to local Haibun libraries using `npx -p @haibun/utils link-packages`. 
+The local packages have to be linked first using `npm link`.
 
 ## gwta statements
 
@@ -178,14 +184,9 @@ in its src directory.
 Installation uses a shell script, which is tested in Linux & macOS,
 and should also work on Windows using WSL.
 
-Clone this repo, 
-and install Lerna and Typescript globally;
+Clone this repo, then install and build:
 
-`npm i -g lerna typescript`
-
-To build:
-
-  `npm run build`
+  `npm i` (this will trigger npm run clean, npm install)
 
   `npm run tsc-watch`
 

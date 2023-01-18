@@ -1,11 +1,11 @@
-import { IHasOptions, OK, TWorld, TNamed, TOptions, AStepper, TVStep, IHasBuilder } from '@haibun/core/build/lib/defs';
-import { actionNotOK, getFromRuntime, getStepperOption, intOrError } from '@haibun/core/build/lib/util';
-import { WorkspaceContext } from '@haibun/core/build/lib/contexts';
-import { IWebServer, WEBSERVER, } from './defs';
-import { ServerExpress, DEFAULT_PORT } from './server-express';
-import { WebPageBuilder } from '@haibun/domain-webpage/build/WebPageBuilder';
-import { WEB_PAGE } from '@haibun/domain-webpage/build/domain-webpage';
-import { getDomain } from '@haibun/core/build/lib/domain';
+import { IHasOptions, OK, TWorld, TNamed, TOptions, AStepper, TVStep, IHasBuilder } from '@haibun/core/build/lib/defs.js';
+import { actionNotOK, getFromRuntime, getStepperOption, intOrError } from '@haibun/core/build/lib/util/index.js';
+import { WorkspaceContext } from '@haibun/core/build/lib/contexts.js'
+import { IWebServer, WEBSERVER, } from './defs.js';
+import { ServerExpress, DEFAULT_PORT } from './server-express.js';
+import { WebPageBuilder } from '@haibun/domain-webpage/build/WebPageBuilder.js';
+import { WEB_PAGE } from '@haibun/domain-webpage/build/domain-webpage.js';
+import { getDomain } from '@haibun/core/build/lib/domain.js';
 
 const WebServerStepper = class WebServerStepper extends AStepper implements IHasOptions, IHasBuilder {
   webserver: ServerExpress | undefined;

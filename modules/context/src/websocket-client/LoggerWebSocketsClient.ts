@@ -1,6 +1,7 @@
-import { ILoggerKeepAlive } from "@haibun/core/build/lib/interfaces/logger";
-import { TWithContext } from "../Context";
 import WebSocket from 'ws';
+
+import { ILoggerKeepAlive } from "@haibun/core/build/lib/interfaces/logger.js";
+import { TWithContext } from "../Context.js";
 
 // FIXME should use ConnectedLogger, etc
 
@@ -12,9 +13,9 @@ export default class LoggerWebSocketsClient {
   socket?: WebSocket;
   keepAlive?: ILoggerKeepAlive;
   onmessage: (event: MessageEvent<any>) => void;
-  open: boolean = false;
+  open = false;
 
-  constructor(port: number = 3294, args?: { keepAlive?: ILoggerKeepAlive, onmessage?: (event: MessageEvent) => void }) {
+  constructor(port = 3294, args?: { keepAlive?: ILoggerKeepAlive, onmessage?: (event: MessageEvent) => void }) {
     this.port = port;
     this.keepAlive = args?.keepAlive;
     this.onmessage = args?.onmessage || defaultMessageHandler;

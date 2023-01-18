@@ -1,5 +1,5 @@
-import { TExpandedFeature, TExpandedLine, TFeature, TFeatures } from './defs';
-import { getActionable } from './util';
+import { TExpandedFeature, TExpandedLine, TFeature, TFeatures } from './defs.js';
+import { getActionable } from './util/index.js';
 
 export async function expand(backgrounds: TFeatures, features: TFeatures): Promise<TExpandedFeature[]> {
   const expandedBackgrounds = await expandBackgrounds(backgrounds);
