@@ -1,13 +1,14 @@
 import { Page, Response } from 'playwright';
-import { IHasOptions, OK, TNamed, TVStep, IRequireDomains, TStepResult, TTraceOptions, TTrace, AStepper, TWorld } from '@haibun/core/build/lib/defs';
-import { onCurrentTypeForDomain } from '@haibun/core/build/steps/vars';
-import { BrowserFactory, TBrowserFactoryOptions } from './BrowserFactory';
-import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOption } from '@haibun/core/build/lib/util';
-import { WEB_PAGE, WEB_CONTROL } from '@haibun/domain-webpage/build/domain-webpage';
-import { TTraceTopic } from '@haibun/core/build/lib/interfaces/logger';
-import { AStorage } from '@haibun/domain-storage/build/AStorage';
-import { EMediaTypes } from '@haibun/domain-storage';
+import { IHasOptions, OK, TNamed, TVStep, IRequireDomains, TStepResult, TTraceOptions, TTrace, AStepper, TWorld } from '@haibun/core/build/lib/defs.js';
+import { onCurrentTypeForDomain } from '@haibun/core/build/steps/vars.js';
+import { BrowserFactory, TBrowserFactoryOptions } from './BrowserFactory.js';
+import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOption } from '@haibun/core/build/lib/util/index.js';
+import { WEB_PAGE, WEB_CONTROL } from '@haibun/domain-webpage/build/domain-webpage.js';
+import { TTraceTopic } from '@haibun/core/build/lib/interfaces/logger.js';
+import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
+import { EMediaTypes } from '@haibun/domain-storage/build/domain-storage.js';
 
+// TODO: base on these - https://testing-library.com/docs/queries/byrole/, https://playwright.dev/docs/release-notes#locators
 
 const WebPlaywright = class WebPlaywright extends AStepper implements IHasOptions, IRequireDomains {
   static STORAGE = 'STORAGE';
@@ -118,16 +119,6 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
   async withPage(f: any) {
     const page = await this.getPage();
     return await f(page);
-  }
-
-  async setBrowser(browser: string) {
-    try {
-      (await this.getBrowserFactory()).setBrowserType(browser);
-
-      return OK;
-    } catch (e: any) {
-      return actionNotOK(e.message, { topics: { error: e } });
-    }
   }
 
   async onFailure(result: TStepResult) {
@@ -284,10 +275,11 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
 
         let background = context?.serviceWorkers()[0];
 
-        // if (!background) {
-        //   console.log('waiting');
+        if (!background) {
+          console.log('no background', context.serviceWorkers())
+          
         //   background = await context!.waitForEvent("serviceworker");
-        // }
+        }
 
         const extensionId = background.url().split("/")[2];
         this.getWorld().shared.set('extensionContext', extensionId);
@@ -433,16 +425,16 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     },
 
     //                          BROWSER
-    usingBrowser: {
-      gwta: 'using (?<browser>[^`].+[^`]) browser',
-      action: async ({ browser }: TNamed) => await this.setBrowser(browser),
-    },
-    usingBrowserVar: {
-      gwta: 'using {browser} browser',
-      action: async ({ browser }: TNamed) => {
-        return this.setBrowser(browser);
-      },
-    },
+    // usingBrowser: {
+    //   gwta: 'using (?<browser>[^`].+[^`]) browser',
+    //   action: async ({ browser }: TNamed) => await this.setBrowser(browser),
+    // },
+    // usingBrowserVar: {
+    //   gwta: 'using {browser} browser',
+    //   action: async ({ browser }: TNamed) => {
+    //     return this.setBrowser(browser);
+    //   },
+    // },
 
     //                          MISC
     captureDialog: {

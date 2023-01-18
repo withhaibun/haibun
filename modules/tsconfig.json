@@ -1,18 +1,23 @@
 {
     "files": [],
     "references": [
-        { "path": "cli" },
+        { "path": "utils" },
         { "path": "core" },
-        { "path": "context" },
-        { "path": "web-server-express" },
-        { "path": "web-playwright" },
-        { "path": "web-http" },
-        { "path": "parse-md" },
-        { "path": "out-xunit" },
-        { "path": "out-review" },
-        { "path": "logger-websockets" },
-        { "path": "domain-webpage" },
+        { "path": "cli" },
         { "path": "domain-storage" },
-        { "path": "storage-fs" }
+        { "path": "context" },
+        { "path": "web-http" },
+        { "path": "web-server-express" },
+        { "path": "out-xunit" },
+        { "path": "parse-md" },
+        { "path": "logger-websockets" },
+        { "path": "web-playwright" },
+        { "path": "feature-importer" },
+        { "path": "feature-recorder" },
+        { "path": "browser-extension" },
+        { "path": "domain-webpage" },
+        { "path": "storage-fs" },
+        { "path": "storage-mem" },
+        { "path": "out-review" }
     ]
 }

@@ -1,4 +1,4 @@
-import { ILogger } from "./interfaces/logger";
+import { ILogger } from "./interfaces/logger.js";
 
 export default class TestLogger implements ILogger {
     debug(...args: any) { }

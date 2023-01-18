@@ -1,7 +1,7 @@
-import { WorkspaceContext } from '../lib/contexts';
-import { AStepper, OK, TBuildResult, TFinalize, TNotOkStepActionResult, TOKStepActionResult, TResolvedFeature, TWorld } from '../lib/defs';
-import { applyResShouldContinue } from '../lib/util';
-import { Executor, } from './Executor';
+import { WorkspaceContext } from '../lib/contexts.js'
+import { AStepper, OK, TBuildResult, TFinalize, TNotOkStepActionResult, TOKStepActionResult, TResolvedFeature, TWorld } from '../lib/defs.js';
+import { applyResShouldContinue } from '../lib/util/index.js';
+import { Executor, } from './Executor.js';
 
 export default class Builder {
   world: any;

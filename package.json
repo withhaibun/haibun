@@ -1,31 +1,33 @@
 {
   "name": "haibun",
-  "version": "1.13.6",
+  "version": "1.13.16",
   "devDependencies": {
     "@types/jest": "^29.2.4",
     "@types/node": "^18.11.14",
-    "@typescript-eslint/eslint-plugin": "^4.13.0",
-    "@typescript-eslint/parser": "^4.13.0",
-    "eslint": "^7.2.0",
-    "eslint-config-airbnb-typescript": "^12.0.0",
-    "eslint-config-prettier": "^8.3.0",
+    "@typescript-eslint/eslint-plugin": "^5.48.0",
+    "@typescript-eslint/parser": "^5.48.0",
+    "eslint": "^8.31.0",
+    "eslint-config-airbnb-typescript": "^17.0.0",
+    "eslint-config-prettier": "^8.6.0",
     "eslint-plugin-import": "^2.22.1",
     "eslint-plugin-prefer-arrow": "^1.2.2",
-    "eslint-plugin-prettier": "^3.3.1",
+    "eslint-plugin-prettier": "^4.2.1",
     "jest": "^29.3.1",
     "node-notifier": "^10.0.1",
     "nodemon": "^1.3.3",
-    "prettier": "^2.3.1",
+    "prettier": "^2.8.1",
     "ts-jest": "^29.0.3",
-    "ts-node": "^10.0.0",
-    "tslint": "^6.1.3",
-    "typescript": "^4.6.3"
+    "typescript": "^5.0.0-dev.20230117"
   },
   "scripts": {
-    "test": "lerna run test",
+    "test": "NODE_OPTIONS=--experimental-vm-modules lerna run test",
     "test-watch": "nodemon -x 'npm run test'",
-    "build": "lerna clean -y && lerna bootstrap && bin/setup-links.sh",
+    "install": "rm modules/*/tsconfig.tsbuildinfo; lerna clean -y && lerna bootstrap && npm run build",
+    "build": "node modules/utils/build/postinstall.js",
     "tsc": "tsc -b modules/",
-    "tsc-watch": "tsc -b modules/ --watch"
+    "tsc-watch": "tsc -b modules/ --watch",
+    "lint": "eslint --ext .ts, ./src/",
+    "format": "prettier --ignore-path .gitignore --write \"./src/**/*.+(ts|json)\"",
+    "version": "node modules/utils/build/version.js"
   }
 }

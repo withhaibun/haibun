@@ -1,0 +1,28 @@
+{
+  "name": "@haibun/feature-importer",
+  "type": "module",
+  "version": "1.13.16",
+  "description": "command line execution for @haibun",
+  "bin": {
+    "haibun-cli": "build/cli.js"
+  },
+  "files": [
+    "build/**"
+  ],
+  "scripts": {
+    "prepublishOnly": "tsc -b .",
+    "build": "tsc -b .",
+    "test": "jest",
+    "test-watch": "jest --watch"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@haibun/context": "1.13.16",
+    "@haibun/core": "1.13.16"
+  },
+  "devDependencies": {
+    "@haibun/domain-webpage": "1.13.16"
+  }
+}

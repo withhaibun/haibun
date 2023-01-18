@@ -1,6 +1,6 @@
-import { DEFAULT_DEST, IHasOptions, TOptions } from "@haibun/core/build/lib/defs";
-import { LOGGER_LEVELS } from "@haibun/core/build/lib/Logger";
-import { boolOrError, intOrError } from "@haibun/core/build/lib/util";
+import { DEFAULT_DEST, IHasOptions, TOptions } from "@haibun/core/build/lib/defs.js";
+import { LOGGER_LEVELS } from "@haibun/core/build/lib/Logger.js";
+import { boolOrError, intOrError } from "@haibun/core/build/lib/util/index.js";
 export class BaseOptions implements IHasOptions {
     static options = {
         SPLIT_SHARED: {

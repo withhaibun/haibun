@@ -1,6 +1,6 @@
-import { ILogOutput, TEST_RESULT, TExecutorTopic, TMessageContext } from './interfaces/logger';
-import Logger, { LOGGER_LEVELS } from './Logger';
-import { getDefaultTag } from './test/lib';
+import { ILogOutput, TEST_RESULT, TExecutorTopic, TMessageContext } from './interfaces/logger.js';
+import Logger, { LOGGER_LEVELS } from './Logger.js';
+import { getDefaultTag } from './test/lib.js';
 
 describe('log levels', () => {
   test('logs none with none', () => {

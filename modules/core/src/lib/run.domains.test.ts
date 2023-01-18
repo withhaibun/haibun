@@ -1,9 +1,9 @@
-import { onCurrentTypeForDomain, setShared } from '../steps/vars';
-import { IHasDomains, TNamed, TVStep, IRequireDomains, AStepper } from './defs';
-import { getDomain } from './domain';
-import { runWith } from './run';
-import { asFeatures, getDefaultWorld, testWithDefaults } from './test/lib';
-import { actionOK, getDefaultOptions } from './util';
+import { onCurrentTypeForDomain, setShared } from '../steps/vars.js';
+import { IHasDomains, TNamed, TVStep, IRequireDomains, AStepper } from './defs.js';
+import { getDomain } from './domain.js';
+import { runWith } from './run.js';
+import { asFeatures, getDefaultWorld, testWithDefaults } from './test/lib.js';
+import { actionOK, getDefaultOptions } from './util/index.js';
 
 const TTYPE = 'page';
 const CCONTROL = 'control';

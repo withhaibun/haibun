@@ -1,6 +1,6 @@
-import { shortNum } from "@haibun/core/build/lib/util";
-import { TStepSummary } from "../html-generator";
-import { led } from "./led";
+import { shortNum } from "@haibun/core/build/lib/util/index.js";
+import { TStepSummary } from "../html-generator.js";
+import { led } from "./led.js";
 
 
 export const sourceSummary = (i: TStepSummary) => {

@@ -1,5 +1,5 @@
-import { Context, DomainContext } from './contexts';
-import { BASE_TYPES, AStepper, IHasDomains, IRequireDomains, TFound, TFromDomain, TWorld, TModuleDomain } from './defs';
+import { Context, DomainContext } from './contexts.js'
+import { BASE_TYPES, AStepper, IHasDomains, IRequireDomains, TFound, TFromDomain, TWorld, TModuleDomain } from './defs.js';
 
 export const isBaseType = (type: string) => BASE_TYPES.includes(type);
 export const getStepShared = (type: string, world: TWorld): Context => {

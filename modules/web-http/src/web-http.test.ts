@@ -1,4 +1,4 @@
-import WebHttp from "./web-http"
+import WebHttp from "./web-http.js"
 
 describe('web-http', () => {
     it('exists', () => {

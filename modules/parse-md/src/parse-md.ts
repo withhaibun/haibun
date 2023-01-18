@@ -1,6 +1,6 @@
-import { OK, TNamed, AStepper } from '@haibun/core/build/lib/defs';
-import { actionNotOK } from '@haibun/core/build/lib/util';
-import { parseMatches } from './parse';
+import { OK, TNamed, AStepper } from '@haibun/core/build/lib/defs.js';
+import { actionNotOK } from '@haibun/core/build/lib/util/index.js';
+import { parseMatches } from './parse.js';
 
 const conformance = /(?!\n|. )\b([A-Z].*? must .*?\.)/;
 

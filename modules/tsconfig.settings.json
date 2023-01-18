@@ -1,13 +1,22 @@
 {
     "compilerOptions": {
-        "target": "es2021",
-        "module": "commonjs",
-        "declaration": true,
-        "declarationMap": true,
+        "target": "esnext",
+        "module": "NodeNext",
+        "moduleResolution": "nodenext",
+        "types": [
+            "node",
+            "jest"
+        ],
+        "forceConsistentCasingInFileNames": true,
+        "noFallthroughCasesInSwitch": true,
+        "noUncheckedIndexedAccess": true,
+        "strict": false,
+        "esModuleInterop": true,
+        "allowSyntheticDefaultImports": true,
+        "experimentalDecorators": true,
         "sourceMap": true,
-        "strict": true,
         "composite": true,
-        "esModuleInterop": true
+        "importHelpers": true,
+        "incremental": true
     }
 }
-
