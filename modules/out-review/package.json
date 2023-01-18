@@ -1,7 +1,7 @@
 {
   "name": "@haibun/out-review",
   "type": "module",
-  "version": "1.16.3",
+  "version": "1.13.0",
   "description": "",
   "files": [
     "build/**"
@@ -13,16 +13,16 @@
   "scripts": {
     "build": "tsc -b .",
     "prepublishOnly": "tsc -b .",
-    "test": "jest --config jest.config.ts",
-    "test-watch": "jest --config jest.config.ts --watch"
+    "test": "jest",
+    "test-watch": "jest --watch"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@haibun/core": "1.16.3",
-    "@haibun/domain-storage": "1.16.3",
-    "@haibun/storage-fs": "1.16.3",
+    "@haibun/core": "1.13.0",
+    "@haibun/domain-storage": "1.13.0",
+    "@haibun/storage-fs": "1.13.0",
     "xmlbuilder2": "^3.0.2"
   },
   "devDependencies": {
