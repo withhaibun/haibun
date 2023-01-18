@@ -1,7 +1,7 @@
 {
   "name": "@haibun/feature-importer",
   "type": "module",
-  "version": "1.13.14",
+  "version": "1.13.15",
   "description": "command line execution for @haibun",
   "bin": {
     "haibun-cli": "build/cli.js"
@@ -19,10 +19,10 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@haibun/context": "1.13.14",
-    "@haibun/core": "1.13.14"
+    "@haibun/context": "1.13.15",
+    "@haibun/core": "1.13.15"
   },
   "devDependencies": {
-    "@haibun/domain-webpage": "1.13.14"
+    "@haibun/domain-webpage": "1.13.15"
   }
 }
