@@ -1,7 +1,7 @@
 {
   "name": "@haibun/utils",
   "type": "module",
-  "version": "1.13.14",
+  "version": "1.13.15",
   "description": "",
   "main": "index.js",
   "files": [
@@ -20,7 +20,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "dependency-graph": "^0.11.0"
+    "dependency-graph": "^0.11.0",
+    "validate-npm-package-name": "^5.0.0"
   },
   "devDependencies": {
     "@types/jest": "^29.2.4",
