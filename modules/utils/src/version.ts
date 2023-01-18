@@ -57,29 +57,28 @@ class Versioner {
 
   updateVersion(name: string, location: string) {
     console.info('updating', name);
-
-    const pkgFile = `${location}/package.json`;
-    const pkg = JSON.parse(readFileSync(pkgFile, 'utf-8'));
-    pkg.version = this.version;
-    for (const d in pkg.dependencies) {
-      if (d.startsWith('@haibun/')) {
-        pkg.dependencies[d] = this.version;
-      }
-      if (this.haibun[d]) {
-        pkg.dependencies[d] = this.haibun[d];
-      }
-    }
-    for (const d in pkg.devDependencies) {
-      if (d.startsWith('@haibun/')) {
-        pkg.devDependencies[d] = this.version;
-      }
-      if (this.haibun[d]) {
-        pkg.devDependencies[d] = this.haibun[d];
-      }
-    }
-
-    writeFileSync(pkgFile, JSON.stringify(pkg, null, 2));
     if (location !== '.') {
+      const pkgFile = `${location}/package.json`;
+      const pkg = JSON.parse(readFileSync(pkgFile, 'utf-8'));
+      pkg.version = this.version;
+      for (const d in pkg.dependencies) {
+        if (d.startsWith('@haibun/')) {
+          pkg.dependencies[d] = this.version;
+        }
+        if (this.haibun[d]) {
+          pkg.dependencies[d] = this.haibun[d];
+        }
+      }
+      for (const d in pkg.devDependencies) {
+        if (d.startsWith('@haibun/')) {
+          pkg.devDependencies[d] = this.version;
+        }
+        if (this.haibun[d]) {
+          pkg.devDependencies[d] = this.haibun[d];
+        }
+      }
+
+      writeFileSync(pkgFile, JSON.stringify(pkg, null, 2));
       try {
         spawn(['npm', 'run', 'test'], location);
       } catch (e) {
