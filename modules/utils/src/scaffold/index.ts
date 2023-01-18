@@ -3,7 +3,7 @@
 import { scaffoldHaibun } from "./scaffold.js";
 
 try {
-    scaffoldHaibun('.', console.info);
+    await scaffoldHaibun('.', { out: console.info });
 } catch (e) {
     console.error(e);
 }

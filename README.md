@@ -14,6 +14,12 @@ it is intended to make it easier to maintain,
 with an emphasis on reuse for different deployment environments,
 and the ability to link to formal specifications.
 
+Conceptually, there are three "layers" to Haibun: 
+
+* A BDD type layer, with testable descriptions of project features in plain language
+* A domain layer, with abstract representations of domains like the Web
+* An implementation layer, where specific testers are written, for example, tests in a Web browser.
+
 Haibun encourages small libraries with minimal, precisely versioned dependencies, 
 and provides abstract definitions of storage and other testing features, 
 so specifications and tests can be developed in a way that's not dependant 
@@ -40,7 +46,7 @@ project/
       run.feature
 ```
 
-The haibun command line uses a folder parameter, which would be project in the above example.
+The haibun cli requires a folder parameter, which would be `project` in the above example.
 
 Features can use the directive `Backgrounds: <features>` or `Scenarios: <features>` 
 which will prepend comma-separated named features from backgrounds/.
@@ -144,15 +150,15 @@ and a HAIBUN_O_FILESEXIST_STORAGE runtime variable.
 
 ## Scaffolding
 
-You can also scaffold Haibun into an existing project using `npx -p @haibun/utils scaffold`. 
+You can also scaffold Haibun into an existing or new project using `npx -p @haibun/utils scaffold`. 
 This will add the core library, Typescript and Jest support (if missing), 
 steppers, a placeholder library, and tests. 
-It won't overwrite existing files. It presumes an src folder for source files.
+It won't overwrite existing files. It presumes a `src` folder for source files.
 
 ## Linking
 
 For development, you can link a project to local Haibun libraries using `npx -p @haibun/utils link-packages`. 
-The packages have to be linked first using `npm link`.
+The local packages have to be linked first using `npm link`.
 
 ## gwta statements
 

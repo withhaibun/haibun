@@ -1,7 +1,4 @@
-import type {Config} from '@jest/types';
-
-
-const config: Config.InitialOptions = {
+const config = {
   roots: [
     '<rootDir>/build'
   ],

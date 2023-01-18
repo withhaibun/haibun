@@ -1,6 +1,4 @@
-import type {Config} from '@jest/types';
- 
-const config: Config.InitialOptions = {
+const config = {
   testEnvironment: 'jsdom',
   roots: [
     '<rootDir>/dist/js'
