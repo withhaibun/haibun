@@ -1,6 +1,6 @@
 {
   "name": "@haibun/feature-importer-with-browser-extension",
-  "version": "1.16.3",
+  "version": "1.13.0",
   "type": "module",
   "files": [
     "build/**"
@@ -13,23 +13,23 @@
   "types": "build/src/index.d.ts",
   "scripts": {
     "build": "tsc -b .",
-    "test": "jest --config jest.config.ts",
-    "test-watch": "jest --config jest.config.ts --watch",
+    "test": "jest",
+    "test-watch": "jest --watch",
     "tsc": "tsc",
     "tsc-watch": "tsc --watch"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@haibun/browser-extension": "1.16.3",
-    "@haibun/context": "1.16.3",
-    "@haibun/core": "1.16.3",
-    "@haibun/domain-storage": "1.16.3",
-    "@haibun/domain-webpage": "1.16.3",
-    "@haibun/feature-importer": "1.16.3",
-    "@haibun/storage-fs": "1.16.3",
-    "@haibun/web-playwright": "1.16.3",
-    "@haibun/web-server-express": "1.16.3"
+    "@haibun/browser-extension": "1.13.0",
+    "@haibun/context": "1.13.0",
+    "@haibun/core": "1.13.0",
+    "@haibun/domain-storage": "1.13.0",
+    "@haibun/domain-webpage": "1.13.0",
+    "@haibun/feature-importer": "1.13.0",
+    "@haibun/storage-fs": "1.13.0",
+    "@haibun/web-playwright": "1.13.0",
+    "@haibun/web-server-express": "1.13.0"
   },
   "devDependencies": {
     "@types/jest": "^29.2.4",
