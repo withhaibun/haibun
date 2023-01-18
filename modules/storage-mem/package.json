@@ -1,7 +1,7 @@
 {
   "name": "@haibun/storage-mem",
   "type": "module",
-  "version": "1.13.15",
+  "version": "1.13.16",
   "description": "",
   "main": "index.js",
   "files": [
@@ -32,8 +32,8 @@
     "typescript": "^5.0.0-dev.20230117"
   },
   "dependencies": {
-    "@haibun/core": "1.13.15",
-    "@haibun/domain-storage": "1.13.15",
+    "@haibun/core": "1.13.16",
+    "@haibun/domain-storage": "1.13.16",
     "memfs": "^3.4.13"
   }
 }
