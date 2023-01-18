@@ -1,7 +1,7 @@
 {
   "name": "@haibun/out-review",
   "type": "module",
-  "version": "1.16.2",
+  "version": "1.16.3",
   "description": "",
   "files": [
     "build/**"
@@ -20,9 +20,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@haibun/core": "1.16.2",
-    "@haibun/domain-storage": "1.16.2",
-    "@haibun/storage-fs": "1.16.2",
+    "@haibun/core": "1.16.3",
+    "@haibun/domain-storage": "1.16.3",
+    "@haibun/storage-fs": "1.16.3",
     "xmlbuilder2": "^3.0.2"
   },
   "devDependencies": {
@@ -38,6 +38,6 @@
     "eslint-plugin-prettier": "^4.2.1",
     "jest": "^29.3.1",
     "prettier": "^2.8.1",
-    "typescript": "^4.6.3"
+    "typescript": "^5.0.0-dev.20230117"
   }
 }
