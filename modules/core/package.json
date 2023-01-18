@@ -1,7 +1,7 @@
 {
   "name": "@haibun/core",
   "type": "module",
-  "version": "1.13.13",
+  "version": "1.13.14",
   "description": "",
   "author": "",
   "main": "build/index.js",
