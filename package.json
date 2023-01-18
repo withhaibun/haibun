@@ -22,8 +22,8 @@
   "scripts": {
     "test": "NODE_OPTIONS=--experimental-vm-modules lerna run test",
     "test-watch": "nodemon -x 'npm run test'",
-    "install": "rm modules/*/tsconfig.tsbuildinfo; lerna clean -y && lerna bootstrap && npx -p @haibun/utils postinstall",
-    "build": "npx -p @haibun/utils postinstall",
+    "install": "rm modules/*/tsconfig.tsbuildinfo; lerna clean -y && lerna bootstrap && ts-node modules/utils/src/postinstall.ts",
+    "build": "ts-node modules/utils/src/postinstall.ts",
     "tsc": "tsc -b modules/",
     "tsc-watch": "tsc -b modules/ --watch",
     "lint": "eslint --ext .ts, ./src/",
@@ -31,6 +31,7 @@
     "version": "node modules/utils/build/version.js"
   },
   "dependencies": {
-    "lerna": "^6.4.1"
+    "lerna": "^6.4.1",
+    "ts-node": "^10.9.1"
   }
 }
