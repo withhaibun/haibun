@@ -15,15 +15,15 @@ afterAll(() => {
 
 describe('scaffold', () => {
     it('throws for empty directory', async () => {
-        expect(() => scaffoldHaibun(TMPDIR, out)).toThrow();
+        expect(async () => await scaffoldHaibun(TMPDIR, { out, noPrompt: true })).rejects.toThrow();
     });
     it('creates from basic', async () => {
         const haibunPackage = JSON.parse(readFileSync((path.join(process.cwd(), '..', '..', 'package.json')), 'utf-8'));
 
         writeFileSync(`${TMPDIR}/package.json`, JSON.stringify({ name: 'test' }));
-        expect(() => scaffoldHaibun(TMPDIR, out)).not.toThrow();
+        await scaffoldHaibun(TMPDIR, { out, noPrompt: true });
         const pkg = JSON.parse(readFileSync(`${TMPDIR}/package.json`, 'utf-8'));
-        expect(readdirSync(TMPDIR).sort()).toEqual(['package.json', 'src', 'tsconfig.json', 'jest.config.ts', '.eslintrc', '.prettierrc'].sort());
+        expect(readdirSync(TMPDIR).sort()).toEqual(['package.json', 'src', 'tsconfig.json', 'jest.config.js', '.eslintrc', '.prettierrc'].sort());
         expect(pkg.dependencies['@haibun/core']).toBeDefined();
         expect(pkg.devDependencies.jest).toEqual(haibunPackage.devDependencies.jest);
         expect(readdirSync(path.join(TMPDIR, 'src'))).toEqual(['lib', 'test-stepper.test.ts', 'test-stepper.ts']);
