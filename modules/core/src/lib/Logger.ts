@@ -1,9 +1,9 @@
-import { TTag } from './defs';
-import { ILogger, ILogOutput, TLogLevel, TMessageContext, TOutputEnv } from './interfaces/logger';
-import { descTag } from './util';
+import { TTag } from './defs.js';
+import { ILogger, ILogOutput, TLogLevel, TMessageContext, TOutputEnv } from './interfaces/logger.js';
+import { descTag } from './util/index.js';
 
 export const LOGGER_LOG = { level: 'log' };
-export const LOGGER_NONE = { level: 'none' };
+export const LOGGER_NOTHING = { level: 'none' };
 const WIDTH = process.cwd().length + 40;
 
 export const LOGGER_LEVELS = {

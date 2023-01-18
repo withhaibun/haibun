@@ -1,0 +1,29 @@
+{
+	"name": "Ambe browser extension",
+	"description": "Supports Ambe functions in the browser",
+	"version": "0.0.1",
+	"manifest_version": 3,
+	"permissions": [
+		"storage",
+		"cookies",
+		"tabs",
+		"activeTab",
+		"webRequest",
+		"webNavigation",
+		"scripting"
+	],
+	"action": {
+		"default_icon": {
+			"16": "icons/16.png",
+			"48": "icons/48.png",
+			"128": "icons/128.png"
+		},
+		"default_popup": "popup.html"
+	},
+	"host_permissions": [
+		"<all_urls>"
+	],
+	"background": {
+		"service_worker": "js/background.js"
+	}
+}

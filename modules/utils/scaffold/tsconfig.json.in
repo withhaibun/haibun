@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "module": "NodeNext",
+    "target": "esnext",
+    "sourceMap": true,
+    "declaration": true,
+    "outDir": "./build",
+    "rootDir": "./src"
+  },
+  "exclude": [
+    "./jest.config.ts",
+    "build"
+  ]
+}

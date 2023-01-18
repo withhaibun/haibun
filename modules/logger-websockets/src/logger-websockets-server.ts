@@ -1,10 +1,10 @@
-import { OK, TNamed, TVStep, AStepper } from '@haibun/core/build/lib/defs';
-import { TLogLevel, TMessageContext } from '@haibun/core/build/lib/interfaces/logger';
-import { getFromRuntime } from '@haibun/core/build/lib/util';
-import { IWebServer, WEBSERVER } from '@haibun/web-server-express/build/defs';
+import { OK, TNamed, TVStep, AStepper } from '@haibun/core/build/lib/defs.js';
+import { TLogLevel, TMessageContext } from '@haibun/core/build/lib/interfaces/logger.js';
+import { getFromRuntime } from '@haibun/core/build/lib/util/index.js';
+import { IWebServer, WEBSERVER } from '@haibun/web-server-express/build/defs.js';
 
 import WebSocket from 'ws';
-import { ILogOutput } from '@haibun/core/build/lib/interfaces/logger';
+import { ILogOutput } from '@haibun/core/build/lib/interfaces/logger.js';
 
 import path from 'path';
 // FIXME

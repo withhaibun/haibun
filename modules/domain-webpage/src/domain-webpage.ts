@@ -1,5 +1,5 @@
-import { WorkspaceContext } from '@haibun/core/build/lib/contexts';
-import { IHasDomains, TNamed, TVStep, OK, AStepper, TFromDomain, TFileTypeDomain } from '@haibun/core/build/lib/defs';
+import { WorkspaceContext } from '@haibun/core/build/lib/contexts.js'
+import { IHasDomains, TNamed, TVStep, OK, AStepper, TFromDomain, TFileTypeDomain } from '@haibun/core/build/lib/defs.js';
 
 export const WEB_PAGE = 'webpage';
 export const WEB_CONTROL = 'webcontrol';

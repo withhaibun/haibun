@@ -1,14 +1,14 @@
-import { OK, TNamed, TVStep, AStepper, TWorld } from '@haibun/core/build/lib/defs';
-import { getFromRuntime } from '@haibun/core/build/lib/util';
-import { IWebServer, WEBSERVER } from '@haibun/web-server-express/build/defs';
+import { OK, TNamed, TVStep, AStepper, TWorld } from '@haibun/core/build/lib/defs.js';
+import { getFromRuntime } from '@haibun/core/build/lib/util/index.js';
+import { IWebServer, WEBSERVER } from '@haibun/web-server-express/build/defs.js';
 
-import WebSocket from 'ws';
+import { WebSocketServer as WSS, WebSocket } from 'ws';
 
 import path from 'path';
-import { TContextProcessor, WEB_SOCKET_SERVER } from '../Context';
+import { TContextProcessor, WEB_SOCKET_SERVER } from '../Context.js';
 
 export class WebSocketServer {
-  wss: WebSocket.Server;
+  wss: WSS;
   contextProcessors: { [name: string]: TContextProcessor } = {};
   logger: any = console;
 
@@ -37,7 +37,7 @@ export class WebSocketServer {
     });
   }
   constructor(port: number, logger: any) {
-    this.wss = new WebSocket.Server({ host: '0.0.0.0', port });
+    this.wss = new WSS({ host: '0.0.0.0', port });
     this.wss.on('connection', this.connection.bind(this));
     this.logger = logger;
   }

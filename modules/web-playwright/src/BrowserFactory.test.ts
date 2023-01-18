@@ -1,58 +1,59 @@
-import { webkit } from "playwright";
-import Logger, { LOGGER_NONE } from "@haibun/core/build/lib/Logger";
-import { BrowserFactory } from "./BrowserFactory";
-import { getDefaultTag } from "@haibun/core/build/lib/test/lib";
-
+import Logger, { LOGGER_NOTHING } from "@haibun/core/build/lib/Logger.js";
+import { BrowserFactory, DEFAULT_CONFIG_TAG, PageInstance } from "./BrowserFactory.js";
+import { getDefaultTag } from "@haibun/core/build/lib/test/lib.js";
 
 const browserContextOptions = {
   browser: {
-    headless: true,
-    args: undefined
+    headless: true
   },
 }
 
-
 describe("types", () => {
   it("gets type and device", async () => {
-    const bf = await BrowserFactory.getBrowserFactory(new Logger(LOGGER_NONE), browserContextOptions);
-    bf.setBrowserType("webkit.Blackberry PlayBook");
-    expect(bf.browserType).toBe(webkit);
-    expect(bf.device).toBe("Blackberry PlayBook");
+    await BrowserFactory.getBrowserFactory(new Logger(LOGGER_NOTHING), {
+      ...browserContextOptions,
+      type: 'webkit',
+      device: 'Blackberry PlayBook'
+    });
+    expect(BrowserFactory.configs[DEFAULT_CONFIG_TAG].options.type).toBe('webkit');
+    expect(BrowserFactory.configs[DEFAULT_CONFIG_TAG].options.device).toBe("Blackberry PlayBook");
+    BrowserFactory.closeBrowsers();
   });
   it("missing type", async () => {
-    const bf = await BrowserFactory.getBrowserFactory(new Logger(LOGGER_NONE), browserContextOptions);
-    expect(() => bf.setBrowserType("amazingnothing")).toThrowError();
+    expect(async () => await BrowserFactory.getBrowserFactory(new Logger(LOGGER_NOTHING), {
+      ...browserContextOptions,
+      type: 'noodles'
+    })).rejects.toThrow();
+    BrowserFactory.closeBrowsers();
   });
 });
 
 describe('browser, context, page', () => {
   it('page, context and browser', async () => {
-    const logger = new Logger(LOGGER_NONE);
+    const logger = new Logger(LOGGER_NOTHING);
     const bfa = await BrowserFactory.getBrowserFactory(logger, browserContextOptions);
     const test = getDefaultTag(0);
     const test2 = getDefaultTag(1);
     const test3 = getDefaultTag(2);
     const pa1 = await bfa.getBrowserContextPage(test);
     expect(pa1).toBeDefined();
-    // FIXME
-    /*
     expect(Object.keys(BrowserFactory.browsers).length).toBe(1)
     expect(Object.keys(bfa.contexts).length).toBe(1)
 
-    const pa2 = await bfa.getPage(test2);
+    const pa2 = await bfa.getBrowserContextPage(test2);
     expect(pa2).toBeDefined();
     expect(Object.keys(BrowserFactory.browsers).length).toBe(1)
     expect(Object.keys(bfa.contexts).length).toBe(2)
     expect((pa1 as PageInstance)._guid).not.toEqual((pa2 as PageInstance)._guid);
 
-    let pa3 = await bfa.getPage(test2);
+    let pa3 = await bfa.getBrowserContextPage(test2);
     expect(pa3).toBeDefined();
     expect(Object.keys(BrowserFactory.browsers).length).toBe(1)
     expect(Object.keys(bfa.contexts).length).toBe(2)
     expect((pa2 as PageInstance)._guid).toEqual((pa3 as PageInstance)._guid);
 
-    const bfb = BrowserFactory.get(logger);
-    const pb1 = await bfb.getPage(test3);
+    const bfb = await BrowserFactory.getBrowserFactory(logger, browserContextOptions);
+    const pb1 = await bfb.getBrowserContextPage(test3);
     expect(Object.keys(BrowserFactory.browsers).length).toBe(1)
     expect(Object.keys(bfb.contexts).length).toBe(1)
 
@@ -62,7 +63,7 @@ describe('browser, context, page', () => {
 
     expect(Object.keys(bfa.contexts).length).toBe(1)
     expect(bfa.pages['test2']).toBeUndefined();
-    */
+    BrowserFactory.closeBrowsers();
   });
 
 });

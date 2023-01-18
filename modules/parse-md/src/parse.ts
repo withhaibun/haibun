@@ -1,5 +1,4 @@
 import { readFileSync, writeFileSync } from 'fs';
-import fetch from 'node-fetch';
 import TurndownService from 'turndown';
 
 export async function parseMatches(docs: { [name: string]: string | undefined }, base: string, matches: RegExp[]) {
