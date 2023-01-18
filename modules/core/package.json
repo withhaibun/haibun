@@ -1,7 +1,7 @@
 {
   "name": "@haibun/core",
   "type": "module",
-  "version": "1.16.3",
+  "version": "1.13.0",
   "description": "",
   "author": "",
   "main": "build/index.js",
@@ -11,8 +11,7 @@
   "scripts": {
     "format": "prettier --write \"src/**/*.ts\" \"src/**/*.js\"",
     "lint": "eslint -c .eslintrc.json --ext .ts,.js src",
-    "test": "jest --config jest.config.js",
-    "test-haibun": "build/cli.js test/projects/web",
+    "test": "jest",
     "coverage": "jest --coverage",
     "test-watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch",
     "build": "tsc -b .",
