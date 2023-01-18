@@ -1,7 +1,7 @@
 import { AStepper, OK, TNamed, TWorld } from '@haibun/core/build/lib/defs.js';
 import { actionNotOK } from '@haibun/core/build/lib/util/index.js';
 
-import WTW from './lib/WTW';
+import WTW from './lib/WTW.js';
 
 class WTWStepper extends AStepper {
   setWorld(world: TWorld, steppers: AStepper[]) {

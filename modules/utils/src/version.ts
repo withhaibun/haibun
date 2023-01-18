@@ -50,7 +50,7 @@ class Versioner {
   publishAll() {
     for (const module of this.toPublish) {
       console.info('publishing', module);
-      spawn(['npm', '--dry-run', 'publish'], module);
+      spawn(['npm', 'publish'], module);
       spawn(['git', 'push'], module);
     }
   }

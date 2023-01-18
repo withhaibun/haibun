@@ -22,9 +22,8 @@
   "scripts": {
     "test": "NODE_OPTIONS=--experimental-vm-modules lerna run test",
     "test-watch": "nodemon -x 'npm run test'",
-    "install": "rm modules/*/tsconfig.tsbuildinfo; lerna clean -y && lerna bootstrap",
-    "postinstall": "node modules/utils/build/postinstall.js",
-    "build": "ts-node src/link-deps",
+    "install": "rm modules/*/tsconfig.tsbuildinfo; lerna clean -y && lerna bootstrap && npm run build",
+    "build": "node modules/utils/build/postinstall.js",
     "tsc": "tsc -b modules/",
     "tsc-watch": "tsc -b modules/ --watch",
     "lint": "eslint --ext .ts, ./src/",

@@ -1,4 +1,4 @@
-import WTW from './WTW';
+import WTW from './WTW.js';
 
 describe('test WTW lib ', () => {
     it('passes', () => {

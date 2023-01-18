@@ -1,15 +1,21 @@
 #!/usr/bin/env node
 
+import * as readline from 'node:readline/promises';  // This uses the promise-based APIs
+import { stdin as input, stdout as output } from 'node:process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import path from 'path';
 import { dirname } from 'path';
 import { fileURLToPath } from 'url';
+import validate from 'validate-npm-package-name';
 
 type Tkv = { [name: string]: string }
 
 const refDir = path.join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
-export function scaffoldHaibun(dest: string, out: typeof console.info, add?: { addDeps?: Tkv, addDevDeps?: Tkv, addDirs: string[] }): void {
+export async function scaffoldHaibun(dest: string, opts?: { out?: typeof console.info, addDeps?: Tkv, addDevDeps?: Tkv, addDirs?: string[], noPrompt?: boolean }): Promise<void> {
+    const { noPrompt, out: outIn } = opts || {};
+    const out = outIn || console.info;
+
     const refHaibunPackage = JSON.parse(readFileSync(path.join(refDir, 'package.json'), 'utf-8'));
     const what: { dirs: string[], [name: string]: Tkv | string[] } = {
         dependencies: {
@@ -17,10 +23,12 @@ export function scaffoldHaibun(dest: string, out: typeof console.info, add?: { a
         },
         devDependencies: ["@types/jest", "@types/node", "@typescript-eslint/eslint-plugin", "@typescript-eslint/parser", "eslint", "eslint-config-airbnb-typescript"
             , "eslint-config-prettier", "eslint-plugin-import", "eslint-plugin-prefer-arrow", "eslint-plugin-prettier", "jest"
-            , "prettier", "ts-jest", "typescript"]
+            , "prettier", "typescript"]
             .reduce((a, i) => ({ ...a, [i]: refHaibunPackage.devDependencies[i] }), {} as Tkv),
         scripts: {
-            test: 'jest --config jest.config.ts',
+            test: 'NODE_OPTIONS=--experimental-vm-modules jest',
+            "test-watch": 'NODE_OPTIONS=--experimental-vm-modules jest',
+            "build": "tsc",
             lint: 'lint --ext .ts ./src/',
         },
         dirs: [
@@ -36,8 +44,24 @@ export function scaffoldHaibun(dest: string, out: typeof console.info, add?: { a
         localDest = JSON.parse(localPackage);
         pName = localDest.name.replace(/.*\//, '').replace(/[@]/, '_', 'g').replace(/-./g, (x: string) => x[1].toUpperCase());
     } catch (e) {
-        throw Error('please run this command from a project folder that has a package.json file with at least a name field. {e}');
+        if (!noPrompt) {
+            const name = await readPackageName();
+            localDest = { name };
+        }
     }
+
+    let error = [];
+    if (localDest?.type && localDest.type !== 'module') {
+        error.push('package.json type must be "module"');
+    }
+    if (!validate(localDest?.name).validForNewPackages) {
+        error.push(`${localDest?.name} is not a valid npm package name`);
+    }
+    if (error.length > 0) {
+        throw Error(error.join('\n'));
+    }
+
+    localDest.type = 'module';
 
     for (const t of ['devDependencies', 'dependencies', 'scripts']) {
         if (!localDest[t]) {
@@ -55,7 +79,7 @@ export function scaffoldHaibun(dest: string, out: typeof console.info, add?: { a
 
     writeFileSync(localPackageJson, JSON.stringify(localDest, null, 2));
 
-    for (const f of ['tsconfig.json', 'jest.config.ts', '.eslintrc', '.prettierrc']) {
+    for (const f of ['tsconfig.json', 'jest.config.js', '.eslintrc', '.prettierrc']) {
         writeIfMissing(f);
     }
 
@@ -91,6 +115,18 @@ export function scaffoldHaibun(dest: string, out: typeof console.info, add?: { a
             out(`copied ${to}`);
         }
     }
+
+    out(`\n${localDest.name} scaffolded for Haibun.\nNext you should these commands:\n\nnpm i\nnpm build\nnpm test\n`);
     return;
+
+    async function readPackageName() {
+        const rl = readline.createInterface({ input, output });
+        const def = process.cwd().replace(/.*\//, '');
+        out(`\nA package.json file is not found.`);
+        out(`Please hit enter for a default package name ${def},\nenter a package name (e.g. my-great-package)\nor press control-C to exit`);
+        const answer = await rl.question('> ');
+        rl.close();
+        return answer || def;
+    }
 }
 

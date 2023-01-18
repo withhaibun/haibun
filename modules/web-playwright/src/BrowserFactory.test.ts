@@ -1,10 +1,6 @@
-import { webkit } from "playwright";
 import Logger, { LOGGER_NOTHING } from "@haibun/core/build/lib/Logger.js";
 import { BrowserFactory, DEFAULT_CONFIG_TAG, PageInstance } from "./BrowserFactory.js";
 import { getDefaultTag } from "@haibun/core/build/lib/test/lib.js";
-
-import 'leaked-handles';
-
 
 const browserContextOptions = {
   browser: {
