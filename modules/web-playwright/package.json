@@ -1,7 +1,7 @@
 {
   "name": "@haibun/web-playwright",
   "type": "module",
-  "version": "1.13.16",
+  "version": "1.13.17",
   "description": "",
   "main": "build/web-playwright.js",
   "files": [
@@ -17,9 +17,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@haibun/core": "1.13.16",
-    "@haibun/domain-storage": "1.13.16",
-    "@haibun/domain-webpage": "1.13.16",
+    "@haibun/core": "1.13.17",
+    "@haibun/domain-storage": "1.13.17",
+    "@haibun/domain-webpage": "1.13.17",
     "playwright": "^1.29.2"
   },
   "devDependencies": {}
