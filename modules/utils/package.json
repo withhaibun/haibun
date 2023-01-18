@@ -1,7 +1,7 @@
 {
   "name": "@haibun/utils",
   "type": "module",
-  "version": "13.0.0",
+  "version": "1.13.0",
   "description": "",
   "main": "index.js",
   "files": [
@@ -13,8 +13,8 @@
     "link-packages": "build/link-packages.js"
   },
   "scripts": {
-    "test": "jest --config jest.config.ts",
-    "test-watch": "jest --config jest.config.ts --watch",
+    "test": "jest",
+    "test-watch": "jest --watch",
     "build": "tsc -b tsconfig.json"
   },
   "author": "",
@@ -35,8 +35,8 @@
     "eslint-plugin-prettier": "^4.2.1",
     "jest": "^29.3.1",
     "prettier": "^2.8.1",
-    "ts-jest": "^29.0.5",
+    "ts-jest": "^29.0.3",
     "ts-node": "^10.9.1",
-    "typescript": "^4.9.4"
+    "typescript": "^5.0.0-dev.20230117"
   }
 }
