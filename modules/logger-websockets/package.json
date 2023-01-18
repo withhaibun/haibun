@@ -23,6 +23,7 @@
     "prettier": "^2.8.1"
   },
   "scripts": {
+    "@types/ws": "^7.4.7",
     "format": "prettier --write \"src/**/*.ts\" \"src/**/*.js\"",
     "lint": "eslint -c .eslintrc.json --ext .ts,.js src",
     "test": "jest --config jest.config.ts",
@@ -40,8 +41,6 @@
   "dependencies": {
     "@haibun/core": "1.16.3",
     "@haibun/web-server-express": "1.16.3",
-    "@types/ws": "^7.4.7",
-    "node-notifier": "^10.0.1",
     "ws": "^7.5.1"
   }
 }
