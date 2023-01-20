@@ -188,7 +188,7 @@ Clone this repo, then install and build:
 
   `npm i` (this will trigger npm run clean, npm install)
 
-  `npm run tsc-watch`
+  `npm run build-watch`
 
 Use this at the top level to build and watch all modules.
 
