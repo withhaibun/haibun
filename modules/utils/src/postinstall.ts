@@ -1,3 +1,5 @@
+#!/bin/sh
+
 import { readdirSync, readFileSync, statSync } from 'fs';
 import { DepGraph } from 'dependency-graph';
 import { spawn } from './util/index.js';

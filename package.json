@@ -22,7 +22,7 @@
   "scripts": {
     "test": "NODE_OPTIONS=--experimental-vm-modules lerna run test",
     "test-watch": "nodemon -x 'npm run test'",
-    "install": "rm modules/*/tsconfig.tsbuildinfo; lerna clean -y && lerna bootstrap && ts-node modules/utils/src/postinstall.ts",
+    "install": "rm modules/*/tsconfig.tsbuildinfo; lerna clean -y && lerna bootstrap && tsc -b modules/",
     "build": "ts-node modules/utils/src/postinstall.ts",
     "tsc": "tsc -b modules/",
     "tsc-watch": "tsc -b modules/ --watch",
