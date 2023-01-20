@@ -3,9 +3,9 @@
   "inlineSources": true,
   "compilerOptions": {
     "outDir": "build",
-    "rootDir": "src",
+    "rootDir": "src"
   },
-  "inlude": [
+  "include": [
     "src"
   ]
 }
