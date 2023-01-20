@@ -116,7 +116,7 @@ export async function scaffoldHaibun(dest: string, opts?: { out?: typeof console
         }
     }
 
-    out(`\n${localDest.name} scaffolded for Haibun.\nNext you should these commands:\n\nnpm i\nnpm build\nnpm test\n`);
+    out(`\n${localDest.name} scaffolded for Haibun.\nNext you should these commands:\n\nnpm i\nnpm run build\nnpm test\n`);
     return;
 
     async function readPackageName() {
