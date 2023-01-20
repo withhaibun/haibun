@@ -32,9 +32,5 @@
     "@haibun/web-server-express": "1.13.17"
   },
   "devDependencies": {
-    "@types/jest": "^29.2.4",
-    "@types/node": "^18.11.14",
-    "jest": "^29.3.1",
-    "ts-jest": "^29.0.3"
   }
 }
