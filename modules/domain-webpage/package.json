@@ -19,7 +19,6 @@
     "tsc-watch": "tsc --watch",
     "tsc": "tsc",
     "xprepare": "npm run build",
-    "prepublishOnly": "tsc -b .",
     "preversion": "npm run lint",
     "version": "npm run format && git add -A src"
   },
