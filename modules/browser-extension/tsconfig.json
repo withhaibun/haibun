@@ -5,7 +5,7 @@
     "rootDir": "src",
     "types": ["node", "jest", "chrome"]
   },
-  "files": [
-    "src"
+  "include": [
+    "./src"
   ]
 }
