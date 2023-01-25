@@ -16,7 +16,7 @@ and the ability to link to formal specifications.
 
 Conceptually, there are three "layers" to Haibun: 
 
-* A BDD type layer, with testable descriptions of project features in plain language
+* A BDD type layer, with testable descriptions of flows in a project features in plain language
 * A domain layer, with abstract representations of domains like the Web
 * An implementation layer, where specific testers are written, for example, tests in a Web browser.
 
@@ -188,7 +188,7 @@ Clone this repo, then install and build:
 
   `npm i` (this will trigger npm run clean, npm install)
 
-  `npm run tsc-watch`
+  `npm run build-watch`
 
 Use this at the top level to build and watch all modules.
 
