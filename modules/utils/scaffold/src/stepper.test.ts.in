@@ -1,0 +1,16 @@
+import { testWithDefaults } from '@haibun/core/build/lib/test/lib.js';
+
+import WTW from './WTW-stepper.js';
+
+describe('WTW test', () => {
+  it('passes', async () => {
+    const feature = { path: '/features/test.feature', content: `your test phrase passes` };
+    const result = await testWithDefaults([feature], [WTW]);
+    expect(result.ok).toBe(true);
+  });
+  it('fails', async () => {
+    const feature = { path: '/features/test.feature', content: `your test phrase fails` };
+    const result = await testWithDefaults([feature], [WTW]);
+    expect(result.ok).toBe(false);
+  });
+});

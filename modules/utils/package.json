@@ -1,0 +1,29 @@
+{
+  "name": "@haibun/utils",
+  "type": "module",
+  "version": "1.13.18",
+  "description": "",
+  "main": "index.js",
+  "files": [
+    "build/**",
+    "scaffold/**"
+  ],
+  "bin": {
+    "scaffold": "build/scaffold/index.js",
+    "link-packages": "build/link-packages.js",
+    "postinstall": "build/postinstall.js",
+    "version": "build/version.js"
+  },
+  "scripts": {
+    "test": "jest",
+    "test-watch": "jest --watch",
+    "build": "tsc -b tsconfig.json"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dependency-graph": "^0.11.0",
+    "validate-npm-package-name": "^5.0.0"
+  },
+  "devDependencies": {}
+}

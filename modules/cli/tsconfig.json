@@ -3,10 +3,9 @@
   "inlineSources": true,
   "compilerOptions": {
     "outDir": "build",
-    "rootDir": "src",
+    "rootDir": "src"
   },
-  "exclude": [
-    "./jest.config.ts",
-    "build"
+  "include": [
+    "src"
   ]
 }
