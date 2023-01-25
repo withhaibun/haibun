@@ -1,4 +1,3 @@
-import { spawnSync } from 'child_process';
 import { readdirSync, readFileSync, statSync } from 'fs';
 import path from 'path';
 
@@ -340,18 +339,3 @@ export function friendlyTime(d: Date) {
 export const shortNum = (n: number) => Math.round((n * 100)) / 100;
 
 export const getFeatureTitlesFromResults = (result: TFeatureResult) => result.stepResults.filter(s => s.actionResults.find(a => a.name === 'feature' ? true : false)).map(a => a.in.replace(/^Feature: /, ''));
-
-export function spawn(command: string[], module: string, show: boolean = false) {
-  console.log('lala', command);
-  
-  console.info(`$ ${command.join(' ')}`);
-  const [cmd, ...args] = command;
-  const { output, stdout, stderr, status, error } = spawnSync(cmd, args, { cwd: module, env: process.env });
-  if (error || stderr) {
-    console.error(`${module}: ${error || stderr}`);
-    throw (error);
-  }
-  if (show) {
-    console.log(`${module}: ${stdout}`);
-  }
-}
