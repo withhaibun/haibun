@@ -1,7 +1,7 @@
 {
   "name": "@haibun/cli",
   "type": "module",
-  "version": "1.13.6",
+  "version": "1.13.18",
   "description": "command line execution for @haibun",
   "bin": {
     "haibun-cli": "build/cli.js"
@@ -12,31 +12,16 @@
   "scripts": {
     "prepublishOnly": "tsc -b .",
     "build": "tsc -b .",
-    "test": "jest --config jest.config.ts",
+    "test": "jest",
     "test-watch": "jest --watch"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@haibun/core": "1.13.6",
-    "@haibun/domain-storage": "1.13.6",
+    "@haibun/core": "1.13.18",
+    "@haibun/domain-storage": "1.13.18",
     "source-map-support": "^0.5.21"
   },
-  "devDependencies": {
-    "@types/jest": "^29.2.4",
-    "@types/node": "^18.11.14",
-    "@typescript-eslint/eslint-plugin": "^4.13.0",
-    "@typescript-eslint/parser": "^4.13.0",
-    "eslint": "^7.2.0",
-    "eslint-config-airbnb-typescript": "^12.0.0",
-    "eslint-config-prettier": "^8.3.0",
-    "eslint-plugin-import": "^2.22.1",
-    "eslint-plugin-prefer-arrow": "^1.2.2",
-    "eslint-plugin-prettier": "^3.3.1",
-    "jest": "^29.3.1",
-    "node-notifier": "^10.0.1",
-    "prettier": "^2.3.1",
-    "tslint": "^6.1.3"
-  }
+  "devDependencies": {}
 }

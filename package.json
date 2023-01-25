@@ -1,7 +1,6 @@
 {
   "name": "haibun",
-  "type": "module",
-  "version": "1.13.6",
+  "version": "1.13.16",
   "devDependencies": {
     "@types/jest": "^29.2.4",
     "@types/node": "^18.11.14",
@@ -18,17 +17,22 @@
     "nodemon": "^1.3.3",
     "prettier": "^2.8.1",
     "ts-jest": "^29.0.3",
-    "tslint": "^6.1.3",
-    "typescript": "^4.6.3"
+    "typescript": "^4.9.4"
   },
   "scripts": {
     "test": "NODE_OPTIONS=--experimental-vm-modules lerna run test",
     "test-watch": "nodemon -x 'npm run test'",
     "install": "rm modules/*/tsconfig.tsbuildinfo; lerna clean -y && lerna bootstrap",
-    "build": "ts-node src/link-deps",
-    "tsc": "tsc -b modules/",
-    "tsc-watch": "tsc -b modules/ --watch",
+    "build": "tsc -b modules/",
+    "postinstall": "postinstall",
+    "build-watch": "tsc -b modules/ --watch",
     "lint": "eslint --ext .ts, ./src/",
-    "format": "prettier --ignore-path .gitignore --write \"./src/**/*.+(ts|json)\""
+    "format": "prettier --ignore-path .gitignore --write \"./src/**/*.+(ts|json)\"",
+    "version": "node modules/utils/build/version.js"
+  },
+  "dependencies": {
+    "@haibun/utils": "^1.14.0-dev9e9",
+    "lerna": "^6.4.1",
+    "ts-node": "^10.9.1"
   }
 }
