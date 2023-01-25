@@ -1,7 +1,7 @@
 {
   "name": "@haibun/domain-webpage",
   "type": "module",
-  "version": "1.13.16",
+  "version": "1.13.18",
   "description": "",
   "author": "",
   "main": "build/domain-webpage.js",
@@ -19,11 +19,10 @@
     "tsc-watch": "tsc --watch",
     "tsc": "tsc",
     "xprepare": "npm run build",
-    "prepublishOnly": "tsc -b .",
     "preversion": "npm run lint",
     "version": "npm run format && git add -A src"
   },
   "dependencies": {
-    "@haibun/core": "1.13.16"
+    "@haibun/core": "1.13.18"
   }
 }

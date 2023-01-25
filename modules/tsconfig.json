@@ -3,21 +3,21 @@
     "references": [
         { "path": "utils" },
         { "path": "core" },
+        { "path": "web-server-express" },
         { "path": "cli" },
-        { "path": "domain-storage" },
         { "path": "context" },
         { "path": "web-http" },
-        { "path": "web-server-express" },
-        { "path": "out-xunit" },
         { "path": "parse-md" },
-        { "path": "logger-websockets" },
         { "path": "web-playwright" },
         { "path": "feature-importer" },
-        { "path": "feature-recorder" },
-        { "path": "browser-extension" },
         { "path": "domain-webpage" },
-        { "path": "storage-fs" },
         { "path": "storage-mem" },
-        { "path": "out-review" }
+        { "path": "out-review" },
+        { "path": "domain-storage" },
+        { "path": "storage-fs" },
+        { "path": "out-xunit" },
+        { "path": "browser-extension" },
+        { "path": "logger-websockets" },
+        { "path": "feature-recorder" }
     ]
 }

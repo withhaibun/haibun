@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 import { readdirSync, readFileSync, statSync } from 'fs';
 import { DepGraph } from 'dependency-graph';
 import { spawn } from './util/index.js';
@@ -29,10 +31,10 @@ function doWork() {
     const dest = `./modules/${module.replace(/^@haibun\//, '')}`;
 
     spawn(['tsc', '-b', '.'], dest);
-    // if (graph.dependenciesOf(module).length) {
-    // spawn(['npm', 'link', ...graph.dependenciesOf(module)], dest);
-    // }
-    // spawn(['npm', 'link'], dest);
+    if (graph.dependenciesOf(module).length) {
+      spawn(['npm', 'link', ...graph.dependenciesOf(module)], dest);
+    }
+    spawn(['npm', 'link'], dest);
   }
 }
 

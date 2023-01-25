@@ -5,9 +5,7 @@
     "rootDir": "src",
     "types": ["node", "jest", "chrome"]
   },
-  "exclude": [
-    "./jest.config.ts",
-    "build",
-    "dist/js"
+  "include": [
+    "./src"
   ]
 }

@@ -1,4 +1,4 @@
-import { CAPTURE, AStepper, OK, TNamed, DEFAULT_DEST, } from "@haibun/core/build/lib/defs.js";
+import { CAPTURE, AStepper, OK, TNamed, DEFAULT_DEST } from "@haibun/core/build/lib/defs.js"
 import { setShared } from "@haibun/core/build/steps/vars.js";
 import { TLocationOptions, TMediaType } from "./domain-storage.js";
 
@@ -92,7 +92,7 @@ export abstract class AStorage extends AStepper {
             }
         },
         readFile: {
-            gwta: `read text from {where: STORAGE_ITEM}`,
+            gwta: `read text from {where}`,
             action: async ({ where }: TNamed) => {
                 const text = await this.readFile(where, 'utf-8');
                 this.getWorld().logger.log(text);
