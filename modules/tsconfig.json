@@ -1,28 +1,23 @@
 {
     "files": [],
-    "areferences": [
-    ],
     "references": [
         { "path": "utils" },
+        { "path": "core" },
+        { "path": "web-server-express" },
         { "path": "cli" },
         { "path": "context" },
         { "path": "web-http" },
-
         { "path": "parse-md" },
         { "path": "web-playwright" },
         { "path": "feature-importer" },
         { "path": "domain-webpage" },
         { "path": "storage-mem" },
         { "path": "out-review" },
-        { "path": "core" },
         { "path": "domain-storage" },
         { "path": "storage-fs" },
         { "path": "out-xunit" },
-        { "path": "web-server-express" },
-    ],
-    "xreferences": [
         { "path": "browser-extension" },
         { "path": "logger-websockets" },
-        { "path": "feature-recorder" },
+        { "path": "feature-recorder" }
     ]
 }
