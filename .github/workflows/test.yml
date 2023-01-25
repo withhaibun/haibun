@@ -24,13 +24,8 @@ jobs:
       - uses: actions/setup-node@v3.5.1
         with:
           node-version: 18
-      - name: Install dependencies
-        run: |
-          npm i -g ts-node
-          npm install -ci
-      - name: Build
-        run: |
-          bin/setup-links.sh
+      - name: Install dependencies & build
+        run: npm ci
       - name: Run tests
         run: npm test
 
