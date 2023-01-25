@@ -16,7 +16,7 @@ export async function scaffoldHaibun(dest: string, opts?: { out?: typeof console
     const { noPrompt, out: outIn } = opts || {};
     const out = outIn || console.info;
 
-    const refHaibunPackage = JSON.parse(readFileSync(path.join(refDir, 'package.json'), 'utf-8'));
+    const refHaibunPackage = JSON.parse(readFileSync(path.join(refDir, 'ref.package.json'), 'utf-8'));
     const what: { dirs: string[], [name: string]: Tkv | string[] } = {
         dependencies: {
             '@haibun/core': `${refHaibunPackage.version}`
@@ -50,7 +50,7 @@ export async function scaffoldHaibun(dest: string, opts?: { out?: typeof console
         }
     }
 
-    let error = [];
+    let error: string[] = [];
     if (localDest?.type && localDest.type !== 'module') {
         error.push('package.json type must be "module"');
     }
@@ -116,7 +116,7 @@ export async function scaffoldHaibun(dest: string, opts?: { out?: typeof console
         }
     }
 
-    out(`\n${localDest.name} scaffolded for Haibun.\nNext you should these commands:\n\nnpm i\nnpm build\nnpm test\n`);
+    out(`\n${localDest.name} scaffolded for Haibun.\nNext you should these commands:\n\nnpm i\nnpm run build\nnpm test\n`);
     return;
 
     async function readPackageName() {
