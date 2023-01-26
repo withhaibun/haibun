@@ -2,7 +2,7 @@ import { TWorld, TVStep, TExpandedLine, TProtoOptions, CStepper, TExpandedFeatur
 import { Resolver } from '../../phases/Resolver.js';
 import { DEF_PROTO_OPTIONS, runWith } from './../run.js';
 import { getSteppers, getRunTag, verifyExtraOptions, getDefaultOptions, createSteppers } from './../util/index.js';
-import { WorldContext } from '../contexts.js'
+import { WorldContext } from '../contexts.js';
 import { featureSplit, withNameType } from './../features.js';
 import { getDomains, verifyDomainsOrError } from './../domain.js';
 import Logger, { LOGGER_NOTHING } from '../Logger.js';
@@ -33,10 +33,15 @@ export async function getTestEnv(useSteppers: string[], test: string, world: TWo
   };
   return { world, vstep, csteppers, steppers };
 }
-type TTestFeatures = { path: string, content: string }[];
+type TTestFeatures = { path: string; content: string }[];
 
-export async function testWithDefaults(featuresIn: TTestFeatures | string, addSteppers: CStepper[], protoOptions: TProtoOptions = DEF_PROTO_OPTIONS, inBackgrounds: TTestFeatures = []): Promise<TResult & { world: TWorld }> {
-  const inFeatures = (typeof featuresIn == 'string') ? [{ path: '/features/test', content: featuresIn }] : featuresIn;
+export async function testWithDefaults(
+  featuresIn: TTestFeatures | string,
+  addSteppers: CStepper[],
+  protoOptions: TProtoOptions = DEF_PROTO_OPTIONS,
+  inBackgrounds: TTestFeatures = []
+): Promise<TResult & { world: TWorld }> {
+  const inFeatures = typeof featuresIn == 'string' ? [{ path: '/features/test', content: featuresIn }] : featuresIn;
   const specl = getDefaultOptions();
   const world = getTestWorldWithOptions(protoOptions);
 
@@ -56,7 +61,6 @@ export function getTestWorldWithOptions(protoOptions: TProtoOptions) {
   return world;
 }
 
-
 export const asFeatures = (w: { path: string; content: string }[]) => w.map((i) => withNameType(i.path, i.content));
 
 // FIXME can't really do this without reproducing resolve
@@ -69,7 +73,7 @@ export const asExpandedFeatures = (w: { path: string; content: string }[]): TExp
     return a;
   });
 
-export function getDefaultWorld(sequence: number): { world: TWorld; } {
+export function getDefaultWorld(sequence: number): { world: TWorld } {
   return {
     world: {
       timer: new Timer(),
@@ -80,7 +84,7 @@ export function getDefaultWorld(sequence: number): { world: TWorld; } {
       options: { DEST: DEFAULT_DEST },
       extraOptions: {},
       domains: [],
-      base: '/features/'
+      base: '/features/',
     },
   };
 }

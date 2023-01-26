@@ -21,7 +21,7 @@
     "xprepare": "npm run build",
     "prepublishOnly": "tsc -b .",
     "preversion": "npm run lint",
-    "version": "npm run format && git add -A src"
+    "xversion": "npm run format && git add -A src"
   },
   "dependencies": {
     "@haibun/context": "file:../context",

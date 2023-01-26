@@ -1,4 +1,4 @@
-import { DomainContext, WorldContext } from '../lib/contexts.js'
+import { DomainContext, WorldContext } from '../lib/contexts.js';
 import { IHasDomains, OK, TFeatures, TFileTypeDomain } from '../lib/defs.js';
 import { withNameType } from '../lib/features.js';
 import { asExpandedFeatures } from '../lib/test/lib.js';
@@ -7,8 +7,8 @@ import { Resolver } from './Resolver.js';
 describe('validate map steps', () => {
   test('placeholder', () => {
     expect(true).toBeTruthy();
-  })
-/*
+  });
+  /*
   const gwtaDomainType = 'for {what: mytype}';
   const gwtaDomainTypeMultiple = 'has {what: mytype} {also: mytype}';
   class TestStepper implements IStepper, IHasDomains {

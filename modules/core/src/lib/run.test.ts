@@ -1,7 +1,7 @@
 import haibun from '../steps/haibun.js';
 import { AStepper, OK } from './defs.js';
 import { testWithDefaults } from './test/lib.js';
-import TestSteps from "./test/TestSteps.js";
+import TestSteps from './test/TestSteps.js';
 
 describe('run self-contained', () => {
   it('no backgrounds', async () => {
@@ -14,7 +14,7 @@ describe('run self-contained', () => {
     expect(t).toBeDefined();
     expect(t.ok).toBe(true);
     expect(t.stepResults.length).toBe(2);
-    expect(t.stepResults.every((r) => r.ok === true)).toBe(true)
+    expect(t.stepResults.every((r) => r.ok === true)).toBe(true);
   });
 });
 
@@ -27,7 +27,7 @@ it.skip('increments feature', async () => {
           const { featureNum } = this.getWorld().tag;
           this.getWorld().shared.set('result', `${featureNum}`);
           return OK;
-        }
+        },
       },
     };
   };
@@ -37,7 +37,6 @@ it.skip('increments feature', async () => {
   const { ok } = await testWithDefaults([feature, feature2, verify], [TestSteps, TS]);
   expect(ok).toBe(true);
 });
-
 
 describe('run backgrounds', () => {
   it('background', async () => {
@@ -83,7 +82,10 @@ describe('step fails', () => {
 
 describe('multiple', () => {
   it('fail and pass', async () => {
-    const features = [{ path: '/features/fails.feature', content: `When I have a test\nThen fail` }, { path: '/features/passes.feature', content: `When I have a test\nThen the test should pass` }];
+    const features = [
+      { path: '/features/fails.feature', content: `When I have a test\nThen fail` },
+      { path: '/features/passes.feature', content: `When I have a test\nThen the test should pass` },
+    ];
 
     const result = await testWithDefaults(features, [TestSteps]);
 
@@ -123,7 +125,10 @@ describe('handles exception', () => {
 
 describe('haibun', () => {
   it('mixed prose', async () => {
-    const feature = { path: '/features/test.feature', content: `Haibun prose allows mixing text descriptions with a functional test.\n When I have a test\n Then the test should pass\n \nProse sections are indicated by the presence of punctuation at the end of paragraphs.` };
+    const feature = {
+      path: '/features/test.feature',
+      content: `Haibun prose allows mixing text descriptions with a functional test.\n When I have a test\n Then the test should pass\n \nProse sections are indicated by the presence of punctuation at the end of paragraphs.`,
+    };
     const result = await testWithDefaults([feature], [haibun, TestSteps]);
 
     expect(result.ok).toBe(true);

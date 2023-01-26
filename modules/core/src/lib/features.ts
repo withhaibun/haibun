@@ -81,7 +81,10 @@ export function withNameType(path: string, content: string) {
 export const asFeatureLine = (line: string, feature: TFeature) => ({ line, feature });
 
 function doIncludes(input: string, backgrounds: TFeatures) {
-  const includes = input.replace(/^.*?: /, '').split(',').map((a) => a.trim());
+  const includes = input
+    .replace(/^.*?: /, '')
+    .split(',')
+    .map((a) => a.trim());
   let ret: TExpandedLine[] = [];
   for (const l of includes) {
     const bg = findFeatures(l, backgrounds);
