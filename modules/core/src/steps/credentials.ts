@@ -9,12 +9,15 @@ const Credentials = class Credentials extends AStepper {
   }
 
   generateRandomPassword(ref: string) {
-    this.getWorld().shared.set(cred(ref), [
-      'testpass',
-      Math.floor(Math.random() * 1e8)
-        .toString(36)
-        .toUpperCase(),
-    ].join('_'));
+    this.getWorld().shared.set(
+      cred(ref),
+      [
+        'testpass',
+        Math.floor(Math.random() * 1e8)
+          .toString(36)
+          .toUpperCase(),
+      ].join('_')
+    );
     return this.getWorld().shared.get(cred(ref));
   }
   getRandom(name: string) {

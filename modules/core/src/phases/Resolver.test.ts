@@ -31,7 +31,7 @@ describe('validate map steps', () => {
       ...getDefaultWorld(0).world,
     });
     return await resolver.resolveSteps(features);
-  }
+  };
   describe('exact', () => {
     test('exact', async () => {
       const features = asExpandedFeatures([{ path: 'l1', content: `exact1` }]);

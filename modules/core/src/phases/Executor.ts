@@ -16,18 +16,17 @@ export class Executor {
   }
   static async execute(csteppers: CStepper[], world: TWorld, features: TResolvedFeature[], endFeatureCallback?: TEndFeatureCallback): Promise<TResult> {
     let ok = true;
-    const stay = (world.options.stay === 'always');
+    const stay = world.options.stay === 'always';
     let featureResults: TFeatureResult[] = [];
     // FIXME scoring hack
     // world.shared.values._features = features;
     world.shared.values._scored = [];
     let featureNum = 0;
 
-
     for (const feature of features) {
       featureNum++;
 
-      const newWorld = { ...world, tag: { ...world.tag, ...{ featureNum: 0 + featureNum } } }
+      const newWorld = { ...world, tag: { ...world.tag, ...{ featureNum: 0 + featureNum } } };
 
       const featureExecutor = new FeatureExecutor(csteppers, endFeatureCallback);
       await featureExecutor.setup(newWorld);
@@ -64,7 +63,7 @@ export class FeatureExecutor {
     const errorBail = (phase: string, error: any, extra?: any) => {
       console.error('error', phase, error, extra);
       throw Error(error);
-    }
+    };
     const steppers = await createSteppers(this.csteppers);
     await setWorldStepperOptions(steppers, world).catch((error: any) => errorBail('Apply Options', error, world.extraOptions));
     this.steppers = steppers;
@@ -144,7 +143,7 @@ export class FeatureExecutor {
 
     if (this.endFeatureCallback) {
       try {
-        await this.endFeatureCallback({ world: this.world!, result: featureResult, steppers: this.steppers!, startOffset: this.startOffset })
+        await this.endFeatureCallback({ world: this.world!, result: featureResult, steppers: this.steppers!, startOffset: this.startOffset });
       } catch (error: any) {
         throw Error(error);
       }

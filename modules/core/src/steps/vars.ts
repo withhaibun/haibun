@@ -32,7 +32,7 @@ const vars = class Vars extends AStepper {
   steps = {
     concat: {
       gwta: 'concat {p1} and {p2} as {what}',
-      action: async ({ p1, p2, what }: TNamed, vstep: TVStep) => await this.set({ what, value: `${p1}${p2}` }, vstep)
+      action: async ({ p1, p2, what }: TNamed, vstep: TVStep) => await this.set({ what, value: `${p1}${p2}` }, vstep),
     },
     set: {
       gwta: 'set( empty)? {what: string} to {value: string}',
@@ -46,8 +46,8 @@ const vars = class Vars extends AStepper {
       action: async ({ what, value }: TNamed) => {
         const val = this.getWorld().shared.get(what);
 
-        return val === value ? OK : actionNotOK(`${what} is ${val}, not ${value}`)
-      }
+        return val === value ? OK : actionNotOK(`${what} is ${val}, not ${value}`);
+      },
     },
     isSet: {
       gwta: '{what: string} is set( or .*)?',
@@ -106,7 +106,7 @@ export const setShared = ({ what, value }: TNamed, vstep: TVStep, world: TWorld,
 
   if (!emptyOnly || shared.get(what) === undefined) {
     shared.set(what, value);
-    
+
     return OK;
   }
 

@@ -1,7 +1,7 @@
 {
   "name": "@haibun/core",
   "type": "module",
-  "version": "1.13.18",
+  "version": "1.15.0",
   "description": "",
   "author": "",
   "xexports": {
@@ -30,7 +30,6 @@
     "tsc": "tsc",
     "prepublishOnly": "tsc -b .",
     "preversion": "npm run lint",
-    "version": "npm run format && git add -A src"
-  },
-  "devDependencies": {}
+    "xversion": "npm run format && git add -A src"
+  }
 }

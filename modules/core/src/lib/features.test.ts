@@ -79,8 +79,8 @@ describe('expand features', () => {
     const backgrounds = asFeatures([{ path: '/b1.feature', content: 'result' }]);
     const res = await steps.expandFeatures(features, backgrounds);
 
-    expect(res[0].expanded.map(e => e.line)).toEqual(['result', 'Extant']);
-    expect(res[0].expanded.map(e => e.feature.name)).toEqual(['/b1', '/f1']);
+    expect(res[0].expanded.map((e) => e.line)).toEqual(['result', 'Extant']);
+    expect(res[0].expanded.map((e) => e.feature.name)).toEqual(['/b1', '/f1']);
   });
   test('applies backgrounds hierarchical', async () => {
     const features = asFeatures([{ path: '/l1/f1', content: 'Backgrounds: b2' }]);
@@ -110,9 +110,9 @@ describe('env vars', () => {
         },
       };
     };
-    const feature = { path: '/features/test.feature', content: `\nfinds a {what}\nfinds a {what}` }
-    const env = { what: [0, 1] }
-    const { world } = await testWithDefaults([feature], [TestEnvcStepper], { options: { DEST: DEFAULT_DEST, env }, extraOptions: {} })
+    const feature = { path: '/features/test.feature', content: `\nfinds a {what}\nfinds a {what}` };
+    const env = { what: [0, 1] };
+    const { world } = await testWithDefaults([feature], [TestEnvcStepper], { options: { DEST: DEFAULT_DEST, env }, extraOptions: {} });
     expect(world.options._index_what).toBe(1);
   });
-})
+});

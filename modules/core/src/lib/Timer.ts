@@ -1,4 +1,3 @@
-
 export class Timer {
   static startTime = new Date();
   static key = `${Timer.startTime}`;
