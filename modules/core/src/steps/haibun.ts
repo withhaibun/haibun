@@ -35,15 +35,15 @@ const Haibun = class Haibun extends AStepper {
     displayEnv: {
       gwta: 'show the environment',
       action: async () => {
-        this.world?.logger.log(`env: ${JSON.stringify(this.world.options.env)}`)
+        this.world?.logger.log(`env: ${JSON.stringify(this.world.options.env)}`);
         return OK;
-      }
+      },
     },
     showTag: {
       gwta: 'show stepper tag {which}',
       action: async ({ which }: TNamed) => {
         const what = which ? (this.getWorld().tag as any)[which] : this.getWorld().tag;
-        this.world?.logger.log(`tag ${which}: ${JSON.stringify(what)}`)
+        this.world?.logger.log(`tag ${which}: ${JSON.stringify(what)}`);
         return OK;
       },
     },
@@ -54,7 +54,7 @@ const Haibun = class Haibun extends AStepper {
           await sleep(100);
         }
         return OK;
-      }
+      },
     },
     pauseSeconds: {
       gwta: 'pause for {ms}s',
@@ -69,8 +69,8 @@ const Haibun = class Haibun extends AStepper {
       action: async ({ comment }: TNamed) => {
         this.getWorld().logger.log(`comment: ${comment}`);
         return OK;
-      }
-    }
+      },
+    },
   };
 };
 

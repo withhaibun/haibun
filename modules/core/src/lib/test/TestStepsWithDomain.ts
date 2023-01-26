@@ -1,7 +1,6 @@
 import { IHasDomains, AStepper } from '../defs.js';
 import { actionOK } from '../util/index.js';
 
-
 const TestStepsWithDomain = class TestStepsWithDomain extends AStepper implements IHasDomains {
   domains = [{ name: 'door', fileType: 'door', is: 'string', validate: () => undefined }];
   locator = (name: string) => name;
@@ -13,5 +12,4 @@ const TestStepsWithDomain = class TestStepsWithDomain extends AStepper implement
   };
 };
 
-
-export default TestStepsWithDomain
+export default TestStepsWithDomain;

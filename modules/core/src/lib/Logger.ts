@@ -15,7 +15,7 @@ export const LOGGER_LEVELS = {
   none: 9,
 };
 
-type TLevel = { level: string, follow?: string };
+type TLevel = { level: string; follow?: string };
 type TConf = TLevel | TOutputEnv;
 
 export default class Logger implements ILogger, ILogOutput {
@@ -39,7 +39,7 @@ export default class Logger implements ILogger, ILogOutput {
   }
   static shouldLogLevel(level: number, name: TLogLevel) {
     if (!level) {
-      throw Error(`undefined logger level ${level}`)
+      throw Error(`undefined logger level ${level}`);
     }
     return LOGGER_LEVELS[name] >= level;
   }
@@ -47,7 +47,7 @@ export default class Logger implements ILogger, ILogOutput {
     if (!match || !tag) {
       return true;
     }
-    const res = new RegExp(match).test(`${tag.sequence}`)
+    const res = new RegExp(match).test(`${tag.sequence}`);
     return res;
   }
   out(level: TLogLevel, args: any, messageContext?: TMessageContext) {

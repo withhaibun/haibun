@@ -20,7 +20,7 @@ import {
   CStepper,
   DEFAULT_DEST,
   TTagValue,
-  TFeatureResult
+  TFeatureResult,
 } from '../defs.js';
 import { withNameType } from '../features.js';
 
@@ -80,7 +80,7 @@ export async function getStepper(s: string) {
     return S;
   } catch (e) {
     console.error(`could not use ${s}`);
-    throw (e);
+    throw e;
   }
 }
 
@@ -101,7 +101,6 @@ export async function createSteppers(steppers: CStepper[]): Promise<AStepper[]> 
 export async function getSteppers(stepperNames: string[]) {
   const steppers: CStepper[] = [];
   for (const s of stepperNames) {
-
     try {
       const S = await getStepper(s);
       steppers.push(S);
@@ -116,18 +115,16 @@ export async function getSteppers(stepperNames: string[]) {
 // workspaceRoot adapted from @nrwl/devkit
 const workspaceRoot = workspaceRootInner(process.cwd(), process.cwd());
 function workspaceRootInner(dir, candidateRoot) {
-    if (path.dirname(dir) === dir) {
-      return candidateRoot;
-    }
-    if (existsSync(path.join(dir, 'nx.json'))) {
-        return dir;
-    }
-    else if (existsSync(path.join(dir, 'node_modules', 'nx', 'package.json'))) {
-        return workspaceRootInner(path.dirname(dir), dir);
-    }
-    else {
-        return workspaceRootInner(path.dirname(dir), candidateRoot);
-    }
+  if (path.dirname(dir) === dir) {
+    return candidateRoot;
+  }
+  if (existsSync(path.join(dir, 'nx.json'))) {
+    return dir;
+  } else if (existsSync(path.join(dir, 'node_modules', 'nx', 'package.json'))) {
+    return workspaceRootInner(path.dirname(dir), dir);
+  } else {
+    return workspaceRootInner(path.dirname(dir), candidateRoot);
+  }
 }
 
 function getModuleLocation(name: string) {
@@ -159,17 +156,17 @@ export function recurse(dir: string, type: string, featureFilter: string[] | und
 }
 
 export function shouldProcess(file: string, type: undefined | string, featureFilter: string[] | undefined) {
-  const isType = (!type || file.endsWith(`.${type}`));
-  const matchesFilter = featureFilter ? !!(featureFilter.find(f => file.replace(/\/.*?\/([^.*?/])/, '$1').match(f))) : true;
+  const isType = !type || file.endsWith(`.${type}`);
+  const matchesFilter = featureFilter ? !!featureFilter.find((f) => file.replace(/\/.*?\/([^.*?/])/, '$1').match(f)) : true;
 
-  return (isType && matchesFilter);
+  return isType && matchesFilter;
 }
 
 export function getDefaultOptions(): TSpecl {
   return {
     mode: 'all',
     steppers: ['vars'],
-    options: { DEST: DEFAULT_DEST }
+    options: { DEST: DEFAULT_DEST },
   };
 }
 
@@ -191,9 +188,12 @@ export function getActionable(value: string) {
 }
 
 export function describeSteppers(steppers: AStepper[]) {
-  return steppers?.map((stepper) => {
-    return `${stepper.constructor.name}: ${Object.keys(stepper.steps).sort().join('|')}`;
-  }).sort().join('  ');
+  return steppers
+    ?.map((stepper) => {
+      return `${stepper.constructor.name}: ${Object.keys(stepper.steps).sort().join('|')}`;
+    })
+    .sort()
+    .join('  ');
 }
 
 // from https://stackoverflow.com/questions/1027224/how-can-i-test-if-a-letter-in-a-string-is-uppercase-or-lowercase-using-javascrip
@@ -202,7 +202,6 @@ export function isLowerCase(str: string) {
 }
 
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
 
 // has side effects
 export async function verifyExtraOptions(inExtraOptions: TExtraOptions, csteppers: CStepper[]) {
@@ -252,7 +251,7 @@ export function getStepperOptionValue(key: string, value: string, csteppers: CSt
 export async function verifyRequiredOptions(steppers: CStepper[], options: TExtraOptions) {
   let requiredMissing: string[] = [];
   for (const stepper of steppers) {
-    const ao = (stepper.prototype) as IHasOptions;
+    const ao = stepper.prototype as IHasOptions;
     for (const option in ao.options) {
       const n = getStepperOptionName(stepper, option);
       if (ao.options[option].required && !options[n]) {
@@ -261,7 +260,7 @@ export async function verifyRequiredOptions(steppers: CStepper[], options: TExtr
     }
   }
   if (requiredMissing.length) {
-    throw Error(`missing required options ${requiredMissing}`)
+    throw Error(`missing required options ${requiredMissing}`);
   }
 }
 
@@ -278,7 +277,6 @@ export function getStepperOption(stepper: AStepper, name: string, extraOptions: 
 }
 
 export function findStepperFromOption<Type>(steppers: AStepper[], stepper: AStepper, extraOptions: TExtraOptions, ...name: string[]): Type {
-
   const val = name.reduce<string | undefined>((v, n) => v || getStepperOption(stepper, n, extraOptions), undefined);
 
   if (!val) {
@@ -291,7 +289,13 @@ export function findStepper<Type>(steppers: AStepper[], name: string): Type {
   const stepper = <Type>(steppers.find((s) => s.constructor.name === name) as any);
   if (!stepper) {
     // FIXME does not cascade
-    throw Error(`Cannot find ${name} from ${JSON.stringify(steppers.map(s => s.constructor.name), null, 2)}`);
+    throw Error(
+      `Cannot find ${name} from ${JSON.stringify(
+        steppers.map((s) => s.constructor.name),
+        null,
+        2
+      )}`
+    );
   }
   return stepper;
 }
@@ -316,14 +320,14 @@ export function applyResShouldContinue(world: any, res: Partial<TActionResult>, 
 
 export const getRunTag = (sequence: TTagValue, loop: TTagValue, featureNum: TTagValue, member: TTagValue, params = {}, trace = false) => {
   const res: TTag = { sequence, loop, member, featureNum, params, trace };
-  ['sequence', 'loop', 'member', 'featureNum'].forEach(w => {
+  ['sequence', 'loop', 'member', 'featureNum'].forEach((w) => {
     const val = (res as any)[w];
     if (parseInt(val) !== val) {
       throw Error(`missing ${w} from ${JSON.stringify(res)}`);
     }
   });
   return res;
-}
+};
 
 export const descTag = (tag: TTag) => ` @${tag.sequence} (${tag.loop}x${tag.member})`;
 
@@ -332,27 +336,27 @@ export const intOrError = (val: string) => {
     return { error: `${val} is not an integer` };
   }
   return { result: parseInt(val, 10) };
-}
+};
 
 export const boolOrError = (val: string) => {
   if (val !== 'false' && val !== 'true') {
-    return { error: `${val} is not true or false` }
+    return { error: `${val} is not true or false` };
   }
-  return { result: val === 'true' }
+  return { result: val === 'true' };
 };
 
 export const stringOrError = (val: string) => {
   if (val === undefined || val === null) {
-    return { error: `${val} is not defined` }
+    return { error: `${val} is not defined` };
   }
-  return { result: val }
+  return { result: val };
 };
 
-
 export function friendlyTime(d: Date) {
-  return new Date(d).toLocaleString()
+  return new Date(d).toLocaleString();
 }
 
-export const shortNum = (n: number) => Math.round((n * 100)) / 100;
+export const shortNum = (n: number) => Math.round(n * 100) / 100;
 
-export const getFeatureTitlesFromResults = (result: TFeatureResult) => result.stepResults.filter(s => s.actionResults.find(a => a.name === 'feature' ? true : false)).map(a => a.in.replace(/^Feature: /, ''));
+export const getFeatureTitlesFromResults = (result: TFeatureResult) =>
+  result.stepResults.filter((s) => s.actionResults.find((a) => (a.name === 'feature' ? true : false))).map((a) => a.in.replace(/^Feature: /, ''));
