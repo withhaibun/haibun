@@ -1,4 +1,4 @@
-import { Helpers } from "./ports.js"
+import Helpers from "./ports.js"
 export class PortOnMessage implements chrome.runtime.PortMessageEvent {
     public listeners: any[];
 
@@ -6,7 +6,7 @@ export class PortOnMessage implements chrome.runtime.PortMessageEvent {
         this.listeners = [];
     }
 
-    public addListener(callback: (message: Object, port: chrome.runtime.Port) => void): void {
+    public addListener(callback: (message: object, port: chrome.runtime.Port) => void): void {
 
         this.listeners.push(callback);
     }
@@ -15,7 +15,7 @@ export class PortOnMessage implements chrome.runtime.PortMessageEvent {
         throw new Error('Method not implemented.');
     }
 
-    public hasListener(callback: (message: Object, port: chrome.runtime.Port) => void): boolean {
+    public hasListener(callback: (message: object, port: chrome.runtime.Port) => void): boolean {
         return Helpers.arrayHasCallback(this.listeners, callback);
     }
 
@@ -30,7 +30,7 @@ export class PortOnMessage implements chrome.runtime.PortMessageEvent {
         throw new Error('Method not implemented.');
     }
 
-    public removeListener(callback: (message: Object, port: chrome.runtime.Port) => void): void {
+    public removeListener(callback: (message: object, port: chrome.runtime.Port) => void): void {
         this.listeners = Helpers.removeCallbackFromArray(this.listeners, callback);
     }
 

@@ -15,6 +15,8 @@
   "scripts": {
     "test": "jest",
     "test-watch": "jest --watch",
+    "lint": "eslint -c .eslintrc.json --ext .ts,.js src",
+    "preversion": "npm run lint",
     "build": "tsc -b tsconfig.json"
   },
   "author": "",

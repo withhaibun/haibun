@@ -22,7 +22,7 @@ const Haibun = class Haibun extends AStepper {
     },
     fails: {
       gwta: `fails with {message}`,
-      action: async ({message}: TNamed) => {
+      action: async ({ message }: TNamed) => {
         return actionNotOK(`fails: ${message}`);
       },
     },
@@ -34,7 +34,7 @@ const Haibun = class Haibun extends AStepper {
     },
     displayEnv: {
       gwta: 'show the environment',
-      action: async (a: TNamed) => {
+      action: async () => {
         this.world?.logger.log(`env: ${JSON.stringify(this.world.options.env)}`)
         return OK;
       }
@@ -48,11 +48,12 @@ const Haibun = class Haibun extends AStepper {
       },
     },
     forever: {
-      gwta: 'forever',
-      action: async () => {
-        while (true) {
-          await sleep(1000);
+      gwta: 'until {what} is {value}',
+      action: async ({ what, value }: TNamed) => {
+        while (this.getWorld().shared.values[what] !== value) {
+          await sleep(100);
         }
+        return OK;
       }
     },
     pauseSeconds: {
@@ -65,7 +66,7 @@ const Haibun = class Haibun extends AStepper {
     },
     comment: {
       gwta: '#{what}',
-      action: async({comment}: TNamed) => {
+      action: async ({ comment }: TNamed) => {
         this.getWorld().logger.log(`comment: ${comment}`);
         return OK;
       }

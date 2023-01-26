@@ -75,7 +75,7 @@ export class BaseOptions implements IHasOptions {
                     }
                     env[k] = [];
                 }
-                for (const pair of input?.split(',')) {
+                for (const pair of (input || '').split(',')) {
                     const [k, v] = pair.split('=');
                     env[k].push(v);
                 }

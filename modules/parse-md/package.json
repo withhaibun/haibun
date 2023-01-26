@@ -11,6 +11,8 @@
     "build": "tsc -b .",
     "prepublishOnly": "tsc -b .",
     "test": "jest",
+    "lint": "eslint -c .eslintrc.json --ext .ts,.js src",
+    "preversion": "npm run lint",
     "test-watch": "jest --watch"
   },
   "keywords": [],

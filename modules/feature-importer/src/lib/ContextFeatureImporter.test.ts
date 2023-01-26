@@ -98,7 +98,7 @@ describe('context code2haibun', () => {
                     [`${SELECTOR}1`]: "#wpPassword1",
                 }
             },
-            "feature": `On the \`${WEB_PAGE}1\` webpage\ninput \"aA\" for \`${SELECTOR}1\``
+            "feature": `On the \`${WEB_PAGE}1\` webpage\ninput "aA" for \`${SELECTOR}1\``
         }
         );
     });

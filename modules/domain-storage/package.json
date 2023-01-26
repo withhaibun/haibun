@@ -20,7 +20,7 @@
     "tsc": "tsc",
     "xprepare": "npm run build",
     "prepublishOnly": "tsc -b .",
-    "xpreversion": "npm run lint",
+    "preversion": "npm run lint",
     "version": "npm run format && git add -A src"
   },
   "dependencies": {

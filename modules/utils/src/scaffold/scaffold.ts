@@ -50,7 +50,7 @@ export async function scaffoldHaibun(dest: string, opts?: { out?: typeof console
         }
     }
 
-    let error: string[] = [];
+    const error: string[] = [];
     if (localDest?.type && localDest.type !== 'module') {
         error.push('package.json type must be "module"');
     }

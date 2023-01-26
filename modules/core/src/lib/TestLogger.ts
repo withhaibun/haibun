@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-empty-function */
 import { ILogger } from "./interfaces/logger.js";
 
 export default class TestLogger implements ILogger {

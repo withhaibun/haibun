@@ -1,4 +1,4 @@
-import { Helpers } from "./ports.js";
+import Helpers from "./ports.js";
 
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.

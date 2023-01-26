@@ -55,7 +55,7 @@ export default class Logger implements ILogger, ILogOutput {
       this.env.output.out(level, args, { ...messageContext, tag: this.env.tag });
       return;
     }
-    if (!Logger.shouldLogLevel(this.level as number, level) && Logger.shouldLogFollow(this.follow!, this.env?.tag!)) {
+    if (!Logger.shouldLogLevel(this.level as number, level) && Logger.shouldLogFollow(this.follow!, this.env?.tag)) {
       return;
     }
     const e = Error(level).stack?.split('\n');
