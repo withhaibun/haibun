@@ -20,9 +20,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@haibun/core": "1.13.18",
-    "@haibun/domain-storage": "1.13.18",
-    "@haibun/storage-fs": "1.13.18",
+    "@haibun/core": "file:../core",
+    "@haibun/domain-storage": "file:../domain-storage",
+    "@haibun/storage-fs": "file:../storage-fs",
     "xmlbuilder2": "^3.0.2"
   },
   "devDependencies": {}

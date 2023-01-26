@@ -155,11 +155,6 @@ This will add the core library, Typescript and Jest support (if missing),
 steppers, a placeholder library, and tests. 
 It won't overwrite existing files. It presumes a `src` folder for source files.
 
-## Linking
-
-For development, you can link a project to local Haibun libraries using `npx -p @haibun/utils link-packages`. 
-The local packages have to be linked first using `npm link`.
-
 ## gwta statements
 
 `AStepper` steps specify their statements using either `exact` or `gwta`. 
