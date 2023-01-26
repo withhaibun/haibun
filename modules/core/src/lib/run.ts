@@ -82,7 +82,6 @@ export async function runWith({ specl, world, features, backgrounds, addSteppers
     if (!result) {
       errorBail('catch', error);
     }
-  } finally {
-    return result!;
   }
+  return result;
 }

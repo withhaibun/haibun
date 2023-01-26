@@ -49,5 +49,5 @@ export default class LoggerWebSocketsClient {
 
   out(level: any, args: any, contexted: TWithContext & { ctime: number; }) {
     this.socket?.send(JSON.stringify({ level: JSON.stringify(level), contexted }));
-  };
+  }
 }

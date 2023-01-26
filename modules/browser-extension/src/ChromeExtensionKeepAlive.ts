@@ -15,8 +15,8 @@ export class ChromeExtensionKeepAlive implements ILoggerKeepAlive {
             }
         });
     }
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
     async stop() {
-
     }
 
     async keepAliveForced() {
@@ -28,14 +28,12 @@ export class ChromeExtensionKeepAlive implements ILoggerKeepAlive {
     async keepAlive() {
         if (this.lifeline) return;
         for (const tab of await chrome.tabs.query({ url: '*://*/*' })) {
-            try {
-                await chrome.scripting.executeScript({
-                    target: { tabId: tab.id! },
-                    func: () => chrome.runtime.connect({ name: 'keepAlive' }),
-                });
-                chrome.tabs.onUpdated.removeListener(() => this.retryOnTabUpdate);
-                return;
-            } catch (e) { }
+            await chrome.scripting.executeScript({
+                target: { tabId: tab.id! },
+                func: () => chrome.runtime.connect({ name: 'keepAlive' }),
+            });
+            chrome.tabs.onUpdated.removeListener(() => this.retryOnTabUpdate);
+            return;
         }
         chrome.tabs.onUpdated.addListener(() => this.retryOnTabUpdate);
     }

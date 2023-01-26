@@ -35,7 +35,7 @@ export interface IConnect {
   addKeepalive?: (keepalive: any) => void;
 }
 
-export interface IConnectedLogger extends ILogger, IConnect { };
+export interface IConnectedLogger extends ILogger, IConnect { }
 
 export interface ILoggerKeepAlive {
   start: () => Promise<void>;
