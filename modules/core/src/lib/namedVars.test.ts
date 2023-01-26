@@ -92,9 +92,6 @@ describe('getNamedWithVars', () => {
   });
 });
 
-describe('getEnv', () => {
-});
-
 describe('context', () => {
   it.only('assigns [HERE]', async () => {
     const feature = { path: '/features/here.feature', content: 'set [HERE] to y' };

@@ -81,7 +81,7 @@ export default async function runWithOptions(runOptions: TRunOptions) {
     return { ok, exceptionResults, ranResults, allFailures, logger, passed, failed, totalRan, runTime };
 }
 
-async function doRun(base: string, specl: TSpecl, runtime: {}, featureFilter: string[] | undefined, shared: WorldContext, protoOptions: TProtoOptions, containerLogger: ILogOutput, tag: TTag, timer: Timer, startRunCallback?: TStartRunCallback, endFeatureCallback?: TEndFeatureCallback) {
+async function doRun(base: string, specl: TSpecl, runtime: object, featureFilter: string[] | undefined, shared: WorldContext, protoOptions: TProtoOptions, containerLogger: ILogOutput, tag: TTag, timer: Timer, startRunCallback?: TStartRunCallback, endFeatureCallback?: TEndFeatureCallback) {
     const runStart = process.hrtime();
     const logger = new Logger({ output: containerLogger, tag });
 

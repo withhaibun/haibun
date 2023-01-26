@@ -52,7 +52,7 @@ export class FeatureExecutor {
   endFeatureCallback?: TEndFeatureCallback;
   world?: TWorld;
   steppers?: AStepper[];
-  startOffset: number = 0;
+  startOffset = 0;
 
   constructor(csteppers: CStepper[], endFeatureCallback?: TEndFeatureCallback) {
     this.csteppers = csteppers;

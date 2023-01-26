@@ -12,7 +12,7 @@ export type TRequestResult = {
   request: any,
   response: any,
   cache: any,
-  timings: {},
+  timings: object,
   serverIPAddress: string,
   connection: number,
   comment: string
@@ -105,7 +105,7 @@ export default class Background extends AbstractBackground {
     this.sendControlMessage('onRequestFinished', {
       serverIPAddress: request.serverIPAddress, pageref: request.pageref, time: request.time
     });
-  };
+  }
 
   onActivated(activeInfo: any) {
     chrome.tabs.get(activeInfo.tabId, function (tab) {

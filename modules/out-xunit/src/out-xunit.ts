@@ -6,7 +6,7 @@ import { TResult, TNotOkStepActionResult, IResultOutput } from '@haibun/core/bui
 type TTestCase = {
   '@name': string;
   '@id': string;
-  skipped?: {};
+  skipped?: object;
   ok?: boolean;
   'system-out'?: string;
   failure?: TFailResult;
