@@ -30,6 +30,7 @@ To develop your own separate module while developing Haibun modules, use:
 
 and any other modules you may need.
 
+You can use `nx graph` to view Haibun's module graph structure.
 
 ---
 
