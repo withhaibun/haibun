@@ -18,6 +18,9 @@
         "sourceMap": true,
         "composite": true,
         "importHelpers": true,
-        "incremental": true
+        "incremental": true,
+        "paths": {
+            "@haibun/*": ["./*"]
+        }
     }
 }

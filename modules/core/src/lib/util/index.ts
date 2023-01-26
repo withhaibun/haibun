@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, statSync } from 'fs';
+import { readdirSync, readFileSync, statSync, existsSync } from 'fs';
 import path from 'path';
 
 import {
@@ -113,9 +113,26 @@ export async function getSteppers(stepperNames: string[]) {
   return steppers;
 }
 
+// workspaceRoot adapted from @nrwl/devkit
+const workspaceRoot = workspaceRootInner(process.cwd(), process.cwd());
+function workspaceRootInner(dir, candidateRoot) {
+    if (path.dirname(dir) === dir) {
+      return candidateRoot;
+    }
+    if (existsSync(path.join(dir, 'nx.json'))) {
+        return dir;
+    }
+    else if (existsSync(path.join(dir, 'node_modules', 'nx', 'package.json'))) {
+        return workspaceRootInner(path.dirname(dir), dir);
+    }
+    else {
+        return workspaceRootInner(path.dirname(dir), candidateRoot);
+    }
+}
+
 function getModuleLocation(name: string) {
   if (name.startsWith('~')) {
-    return [process.cwd(), 'node_modules', name.substr(1)].join('/');
+    return [workspaceRoot, 'node_modules', name.substr(1)].join('/');
   } else if (name.match(/^[a-zA-Z].*/)) {
     return `../../steps/${name}`;
   }

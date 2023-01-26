@@ -1,7 +1,11 @@
 {
   "name": "haibun",
-  "version": "1.13.16",
+  "private": true,
+  "workspaces": [
+    "modules/*"
+  ],
   "devDependencies": {
+    "@haibun/utils": "file:modules/utils",
     "@types/jest": "^29.2.4",
     "@types/node": "^18.11.14",
     "@typescript-eslint/eslint-plugin": "^5.48.0",
@@ -13,26 +17,21 @@
     "eslint-plugin-prefer-arrow": "^1.2.2",
     "eslint-plugin-prettier": "^4.2.1",
     "jest": "^29.3.1",
+    "lerna": "^6.4.1",
     "node-notifier": "^10.0.1",
     "nodemon": "^1.3.3",
     "prettier": "^2.8.1",
     "ts-jest": "^29.0.3",
+    "ts-node": "^10.9.1",
     "typescript": "^4.9.4"
   },
   "scripts": {
     "test": "NODE_OPTIONS=--experimental-vm-modules lerna run test",
     "test-watch": "nodemon -x 'npm run test'",
-    "install": "rm modules/*/tsconfig.tsbuildinfo; lerna clean -y && lerna bootstrap",
-    "build": "tsc -b modules/",
-    "postinstall": "postinstall",
-    "build-watch": "tsc -b modules/ --watch",
+    "build": "lerna run build",
+    "build-watch": "lerna watch --include-dependencies -- lerna run build --scope=\\$LERNA_PACKAGE_NAME",
     "lint": "eslint --ext .ts, ./src/",
     "format": "prettier --ignore-path .gitignore --write \"./src/**/*.+(ts|json)\"",
-    "version": "node modules/utils/build/version.js"
-  },
-  "dependencies": {
-    "@haibun/utils": "^1.14.0-dev9e9",
-    "lerna": "^6.4.1",
-    "ts-node": "^10.9.1"
+    "preversion": "npm run test"
   }
 }
