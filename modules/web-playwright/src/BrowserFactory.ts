@@ -9,6 +9,7 @@ export const BROWSERS: { [name: string]: BrowserType } = {
   chromium,
   webkit,
 };
+export type TBrowserTypes = 'firefox' | 'chromium' | 'webkit';
 
 export type TBrowserFactoryOptions = {
   browser: {
@@ -22,7 +23,7 @@ export type TBrowserFactoryOptions = {
   defaultTimeout?: number,
   persistentDirectory?: boolean,
   trace?: TTraceOptions,
-  type?: string,
+  type?: TBrowserTypes,
   device?: string
 }
 
