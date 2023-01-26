@@ -49,7 +49,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       parse: (input: string) => stringOrError(input),
     },
   };
-  hasFactory: boolean = false;
+  hasFactory = false;
   bf?: BrowserFactory;
   storage?: AStorage;
   factoryOptions?: TBrowserFactoryOptions;
@@ -273,7 +273,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
           throw Error(`no context`);
         }
 
-        let background = context?.serviceWorkers()[0];
+        const background = context?.serviceWorkers()[0];
 
         if (!background) {
           console.log('no background', context.serviceWorkers())

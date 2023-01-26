@@ -12,6 +12,8 @@
   "scripts": {
     "prepublishOnly": "tsc -b .",
     "build": "tsc -b .",
+    "lint": "eslint -c .eslintrc.json --ext .ts,.js src",
+    "preversion": "npm run lint",
     "test": "jest",
     "test-watch": "jest --watch"
   },

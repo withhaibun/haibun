@@ -11,7 +11,7 @@ export function getFeatures(parsed: string): TFeatureError | TFeatureParsed {
     const tags: { [tag: string]: string | number } = {};
     const backgrounds: { [pageName: string]: { [tag: string]: string | number } } = {};
     let currentPageTag: string | undefined = undefined;
-    const bq = (what: string, val: string | number, isCurrent: boolean = false) => {
+    const bq = (what: string, val: string | number, isCurrent = false) => {
         return vq(bg(what, val, isCurrent));
     }
 
@@ -48,6 +48,7 @@ export function getFeatures(parsed: string): TFeatureError | TFeatureParsed {
             this.feature.push(`click ${bq(SELECTOR, what)}`)
         },
     }
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
     const navigationPromise = (...args: any) => {
     }
     parsed = parsed.replace(/await/g, 'this.');

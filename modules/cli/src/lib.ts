@@ -9,7 +9,7 @@ export async function usageThenExit(specl: TSpecl, message?: string) {
   const output = await usage(specl, message);
   console[message ? 'error' : 'info'](output);
   process.exit(message ? 1 : 0);
-};
+}
 
 export async function usage(specl: TSpecl, message?: string) {
   let steppers = await getCreateSteppers(specl.steppers);

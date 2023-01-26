@@ -135,8 +135,8 @@ export abstract class WorkspaceBuilder {
   constructor(name: string) {
     this.name = name;
   }
-  addControl(...args: any) { }
-  finalize(): any { }
+  abstract addControl(...args: any);
+  abstract finalize(): any;
 }
 
 export type TStep = {

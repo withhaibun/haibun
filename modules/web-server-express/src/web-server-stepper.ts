@@ -55,7 +55,7 @@ const WebServerStepper = class WebServerStepper extends AStepper implements IHas
         return OK;
       },
       build: async ({ location }: TNamed, { source }: TVStep, workspace: WorkspaceContext) => {
-        if (location !== location.replace(/[^a-zA-Z-0-9\.]/g, '')) {
+        if (location !== location.replace(/[^a-zA-Z-0-9.]/g, '')) {
           throw Error(`${WEB_PAGE} location ${location} has millegal characters`);
         }
         const subdir = this.getWorld().shared.get('file_location');

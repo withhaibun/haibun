@@ -35,7 +35,7 @@ export default class ContextFeatureImporter extends BaseFeatureImporter {
         } else if (control === 'recordCurrentUrl') {
             const tag = this.setCurrentPage(contexted.href!);
             this.addStatement(`On the ${this.variableQuoted(tag)} ${WEB_PAGE}`);
-        } else if (ignoreControls.includes(control)) {
+        // } else if (ignoreControls.includes(control)) {
         } else if (control === 'stopRecording') {
             console.log(this.getResult());
         } else if (control === 'navigation') {

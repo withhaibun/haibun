@@ -15,7 +15,7 @@ export async function shutdown() {
 
 export class ServerExpress implements IWebServer {
   logger: ILogger;
-  static listening: boolean = false;
+  static listening = false;
   listener?: http.Server;
   app = express();
   static mounted: { [named: string]: string } = {};
@@ -48,15 +48,11 @@ export class ServerExpress implements IWebServer {
   }
 
   async addRoute(type: TRouteTypes, path: string, route: RequestHandler) {
-    try {
-      const alreadyMounted = this.checkMountBadOrMounted(path, route.toString());
+    const alreadyMounted = this.checkMountBadOrMounted(path, route.toString());
 
-      if (alreadyMounted) {
-        this.logger.debug(`already mounted ${path}`);
-        return;
-      }
-    } catch (e: any) {
-      throw (e);
+    if (alreadyMounted) {
+      this.logger.debug(`already mounted ${path}`);
+      return;
     }
     this.logger.log(`serving route from ${path}`);
     await this.app[type](path, route);
@@ -71,8 +67,8 @@ export class ServerExpress implements IWebServer {
   }
 
   // add a static folder restricted to relative paths from files
-  async addStaticFolder(relativeFolder: string, mountAt: string = '/'): Promise<string | undefined> {
-    if (relativeFolder !== relativeFolder.replace(/[^a-zA-Z-0-9\/-_]/g, '').replace(/^\//g, '')) {
+  async addStaticFolder(relativeFolder: string, mountAt = '/'): Promise<string | undefined> {
+    if (relativeFolder !== relativeFolder.replace(/[^a-zA-Z-0-9/-_]/g, '').replace(/^\//g, '')) {
       throw Error(`mount folder ${relativeFolder} has illegal characters`);
     }
     const folder = [this.base, relativeFolder].join('/');
@@ -80,11 +76,11 @@ export class ServerExpress implements IWebServer {
   }
 
   // add a static folder at any path
-  async addKnownStaticFolder(folder: string, mountAt: string = '/'): Promise<string | undefined> {
+  async addKnownStaticFolder(folder: string, mountAt = '/'): Promise<string | undefined> {
     return this.doAddStaticFolder(folder, mountAt);
   }
 
-  async doAddStaticFolder(folder: string, mountAt: string = '/'): Promise<string | undefined> {
+  async doAddStaticFolder(folder: string, mountAt = '/'): Promise<string | undefined> {
     try {
       const alreadyMounted = this.checkMountBadOrMounted(mountAt, folder);
       if (alreadyMounted) {
