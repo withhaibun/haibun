@@ -16,8 +16,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@haibun/context": "1.13.18",
-    "@haibun/core": "1.13.18"
+    "@haibun/context": "file:../context",
+    "@haibun/core": "file:../core"
   },
   "devDependencies": {
     "@haibun/domain-webpage": "1.13.18"
