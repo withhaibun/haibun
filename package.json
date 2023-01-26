@@ -31,7 +31,7 @@
     "test-watch": "nodemon -x 'npm run test'",
     "build": "lerna run build",
     "build-watch": "lerna watch -- lerna run build --scope=\\$LERNA_PACKAGE_NAME --include-dependents",
-    "lint": "eslint --ext .ts, ./src/",
+    "lint": "lerna run npm run lint",
     "format": "prettier --ignore-path .gitignore --write \"./src/**/*.+(ts|json)\"",
     "preversion": "npm run test"
   }
