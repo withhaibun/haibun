@@ -1,7 +1,7 @@
 {
   "name": "@haibun/parse-md",
   "type": "module",
-  "version": "1.13.18",
+  "version": "1.15.0",
   "description": "",
   "files": [
     "build/**"
@@ -22,6 +22,5 @@
     "@haibun/core": "file:../core",
     "@types/node-fetch": "^2.5.10",
     "turndown": "^7.1.1"
-  },
-  "devDependencies": {}
+  }
 }
