@@ -29,7 +29,7 @@
     "test": "NODE_OPTIONS=--experimental-vm-modules lerna run test",
     "test-watch": "nodemon -x 'npm run test'",
     "build": "lerna run build",
-    "build-watch": "lerna watch --include-dependencies -- lerna run build --scope=\\$LERNA_PACKAGE_NAME",
+    "build-watch": "lerna watch -- lerna run build --scope=\\$LERNA_PACKAGE_NAME --include-dependents",
     "lint": "eslint --ext .ts, ./src/",
     "format": "prettier --ignore-path .gitignore --write \"./src/**/*.+(ts|json)\"",
     "preversion": "npm run test"
