@@ -1,5 +1,5 @@
 import Logger, { LOGGER_NOTHING } from "@haibun/core/build/lib/Logger.js";
-import { BrowserFactory, DEFAULT_CONFIG_TAG, PageInstance } from "./BrowserFactory.js";
+import { BrowserFactory, DEFAULT_CONFIG_TAG, PageInstance, TBrowserFactoryOptions } from "./BrowserFactory.js";
 import { getDefaultTag } from "@haibun/core/build/lib/test/lib.js";
 
 const browserContextOptions = {
@@ -20,10 +20,10 @@ describe("types", () => {
     BrowserFactory.closeBrowsers();
   });
   it("missing type", async () => {
-    expect(async () => await BrowserFactory.getBrowserFactory(new Logger(LOGGER_NOTHING), {
+    expect(async () => await BrowserFactory.getBrowserFactory(new Logger(LOGGER_NOTHING), ({
       ...browserContextOptions,
       type: 'noodles'
-    })).rejects.toThrow();
+    } as any) as TBrowserFactoryOptions)).rejects.toThrow();
     BrowserFactory.closeBrowsers();
   });
 });
