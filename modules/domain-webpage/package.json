@@ -19,7 +19,7 @@
     "tsc-watch": "tsc --watch",
     "tsc": "tsc",
     "xprepare": "npm run build",
-    "preversion": "npm run lint",
+    "xpreversion": "npm run lint",
     "version": "npm run format && git add -A src"
   },
   "dependencies": {

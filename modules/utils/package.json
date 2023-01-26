@@ -1,7 +1,7 @@
 {
   "name": "@haibun/utils",
   "type": "module",
-  "version": "1.13.18",
+  "version": "1.15.0",
   "description": "",
   "main": "index.js",
   "files": [
@@ -22,6 +22,5 @@
   "dependencies": {
     "dependency-graph": "^0.11.0",
     "validate-npm-package-name": "^5.0.0"
-  },
-  "devDependencies": {}
+  }
 }
