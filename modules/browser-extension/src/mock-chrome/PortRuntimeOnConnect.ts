@@ -1,5 +1,5 @@
-import { TListener, TPortContext } from "./MockChrome.js";
-import Helpers from "./ports.js";
+import { TPortContext } from "./MockChrome.js";
+import { arrayHasCallback, removeCallbackFromArray } from "./ports.js";
 
 export class PortRuntimeOnConnect implements chrome.runtime.ExtensionConnectEvent {
     ctx: TPortContext;
@@ -17,7 +17,7 @@ export class PortRuntimeOnConnect implements chrome.runtime.ExtensionConnectEven
     }
 
     public hasListener(callback: (port: chrome.runtime.Port) => void): boolean {
-        return Helpers.arrayHasCallback(this.ctx.listeners, callback);
+        return arrayHasCallback(this.ctx.listeners, callback);
     }
 
     public removeRules(ruleIdentifiers?: any, callback?: any): void {
@@ -32,7 +32,7 @@ export class PortRuntimeOnConnect implements chrome.runtime.ExtensionConnectEven
     }
 
     public removeListener(callback: (port: chrome.runtime.Port) => void): void {
-        this.ctx.listeners = Helpers.removeCallbackFromArray(this.ctx.listeners, callback);
+        this.ctx.listeners = removeCallbackFromArray(this.ctx.listeners, callback);
     }
 
     public hasListeners(): boolean {
