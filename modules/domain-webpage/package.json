@@ -1,14 +1,13 @@
 {
   "name": "@haibun/domain-webpage",
   "type": "module",
-  "version": "1.13.18",
+  "version": "1.15.0",
   "description": "",
   "author": "",
   "main": "build/domain-webpage.js",
   "files": [
     "build/**"
   ],
-  "devDependencies": {},
   "scripts": {
     "format": "prettier --write \"src/**/*.ts\" \"src/**/*.js\"",
     "lint": "eslint -c .eslintrc.json --ext .ts,.js src",

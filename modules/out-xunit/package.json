@@ -1,7 +1,7 @@
 {
   "name": "@haibun/out-xunit",
   "type": "module",
-  "version": "1.13.18",
+  "version": "1.15.0",
   "description": "",
   "files": [
     "build/**"
@@ -21,6 +21,5 @@
   "dependencies": {
     "@haibun/core": "file:../core",
     "xmlbuilder2": "^3.0.2"
-  },
-  "devDependencies": {}
+  }
 }

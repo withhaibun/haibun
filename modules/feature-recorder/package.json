@@ -1,6 +1,6 @@
 {
   "name": "@haibun/feature-importer-with-browser-extension",
-  "version": "1.13.18",
+  "version": "1.15.0",
   "type": "module",
   "files": [
     "build/**"
@@ -32,6 +32,5 @@
     "@haibun/storage-fs": "file:../storage-fs",
     "@haibun/web-playwright": "file:../web-playwright",
     "@haibun/web-server-express": "file:../web-server-express"
-  },
-  "devDependencies": {}
+  }
 }
