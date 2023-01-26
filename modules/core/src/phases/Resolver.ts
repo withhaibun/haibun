@@ -30,12 +30,14 @@ export class Resolver {
       const actionable = getActionable(featureLine.line);
       const actions = this.findSteps(actionable);
 
+      /*
       try {
         // FIXME
-        // checkRequiredType(feature, featureLine.line, actions, this.world);
+        checkRequiredType(feature, featureLine.line, actions, this.world);
       } catch (e) {
         throw e;
       }
+      */
 
       if (actions.length > 1) {
         throw Error(`more than one step found for "${featureLine.line}": ${JSON.stringify(actions.map(a => a.actionName))}`);
@@ -58,7 +60,7 @@ export class Resolver {
     if (!actionable.length) {
       return [comment];
     }
-    let found: TFound[] = [];
+    const found: TFound[] = [];
 
     const types = [...BASE_TYPES, ...this.world.domains.map((d) => d.name)];
 
@@ -70,7 +72,7 @@ export class Resolver {
         const addIfMatch = (m: TFound | undefined) => m && found.push(m);
 
         if (step.gwta) {
-          let { str, vars } = namedInterpolation(step.gwta, types);
+          const { str, vars } = namedInterpolation(step.gwta, types);
           const f = str.charAt(0);
           const s = isLowerCase(f) ? ['[', f, f.toUpperCase(), ']', str.substring(1)].join('') : str;
           const r = new RegExp(`^(Given|When|Then|And)?( the )?( I('m)? (am )?)? ?${s}`);

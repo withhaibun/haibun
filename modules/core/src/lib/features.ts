@@ -58,7 +58,7 @@ async function expandIncluded(feature: TFeature, backgrounds: TFeatures) {
   for (const l of split) {
     const actionable = getActionable(l);
 
-    if (!!actionable.match(/^Backgrounds: .*$/)) {
+    if (actionable.match(/^Backgrounds: .*$/)) {
       lines = lines.concat(doIncludes(l, backgrounds));
     } else if (actionable.match(/^Scenarios: .*$/)) {
       lines = lines.concat(doIncludes(l, backgrounds));
@@ -96,12 +96,12 @@ function doIncludes(input: string, backgrounds: TFeatures) {
   return ret;
 }
 
-export function findFeatures(name: string, backgrounds: TFeatures, type: string = 'feature'): TFeatures {
+export function findFeatures(name: string, backgrounds: TFeatures, type = 'feature'): TFeatures {
   const ftype = findFeaturesOfType(backgrounds, type);
   return ftype.filter((f) => f.path.endsWith(`/${name}.${fileTypeToExt(type)}`));
 }
 
-export function findFeaturesOfType(backgrounds: TFeatures, type: string = 'feature'): TFeatures {
+export function findFeaturesOfType(backgrounds: TFeatures, type = 'feature'): TFeatures {
   return backgrounds.filter((f) => f.path.endsWith(`.${fileTypeToExt(type)}`));
 }
 

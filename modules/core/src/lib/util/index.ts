@@ -337,14 +337,14 @@ export const intOrError = (val: string) => {
 export const boolOrError = (val: string) => {
   if (val !== 'false' && val !== 'true') {
     return { error: `${val} is not true or false` }
-  };
+  }
   return { result: val === 'true' }
 };
 
 export const stringOrError = (val: string) => {
   if (val === undefined || val === null) {
     return { error: `${val} is not defined` }
-  };
+  }
   return { result: val }
 };
 

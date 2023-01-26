@@ -69,7 +69,7 @@ describe('findStepperFromOptions', () => {
     const ts = new TS();
     const steppers = await getCreateSteppers([], [TS]);
     const options = {};
-    expect(() => util.findStepperFromOption(steppers, ts, options, 'S')).toThrow;;
+    expect(() => util.findStepperFromOption(steppers, ts, options, 'S')).toThrow;
   });
 });
 
@@ -125,6 +125,7 @@ describe('check module is class', () => {
     expect(util.checkModuleIsClass(class a { }, 'a')).toEqual(undefined);
   });
   it('should fail a function', () => {
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
     expect(() => util.checkModuleIsClass(function a() { }, 'a')).toThrow(undefined);
   });
 })

@@ -9,11 +9,11 @@ const TYPE_VAR = 'b_';
 // from source or literal
 const TYPE_VAR_OR_LITERAL = 't_';
 
-export const matchGroups = (num: number = 0) => {
+export const matchGroups = (num = 0) => {
   const q = `"(?<${TYPE_QUOTED}${num}>.+)"`; // quoted string
   const c = `<(?<${TYPE_CREDENTIAL}${num}>.+)>`; // credential
   const b = `\`(?<${TYPE_VAR}${num}>.+)\``; // var
-  const e = `\{(?<${TYPE_ENV}${num}>.+)\}`; // env var
+  const e = `{(?<${TYPE_ENV}${num}>.+)}`; // env var
   const t = `(?<${TYPE_VAR_OR_LITERAL}${num}>.+)`; // var or literal
   return `(${q}|${c}|${e}|${b}|${t})`;
 };

@@ -10,5 +10,5 @@ export class LoggerWebSocketsClient implements ILogOutput {
   }
   out(level: TLogLevel, args: any, ctx?: TMessageContext | undefined) {
     this.socket.send({ level: JSON.stringify(level), args, ctx }.toString())
-  };
+  }
 }

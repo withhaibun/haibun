@@ -13,6 +13,8 @@
   "types": "build/src/index.d.ts",
   "scripts": {
     "build": "tsc -b .",
+    "lint": "eslint -c .eslintrc.json --ext .ts,.js src",
+    "preversion": "npm run lint",
     "test": "jest",
     "test-watch": "jest --watch",
     "tsc": "tsc",

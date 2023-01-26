@@ -90,7 +90,7 @@ export default vars;
 
 export const didNotOverwrite = (what: string, present: string | Context, value: string) => ({ overwrite: { summary: `did not overwrite ${what} value of "${present}" with "${value}"` } });
 
-export const setShared = ({ what, value }: TNamed, vstep: TVStep, world: TWorld, emptyOnly: boolean = false) => {
+export const setShared = ({ what, value }: TNamed, vstep: TVStep, world: TWorld, emptyOnly = false) => {
   // if on a domain page, set it in that domain's shared
   const { type, name } = vstep.source;
   // FIXME this should be in namedVars
