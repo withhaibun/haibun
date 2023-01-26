@@ -21,15 +21,15 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@haibun/browser-extension": "1.13.18",
-    "@haibun/context": "1.13.18",
-    "@haibun/core": "1.13.18",
-    "@haibun/domain-storage": "1.13.18",
-    "@haibun/domain-webpage": "1.13.18",
-    "@haibun/feature-importer": "1.13.18",
-    "@haibun/storage-fs": "1.13.18",
-    "@haibun/web-playwright": "1.13.18",
-    "@haibun/web-server-express": "1.13.18"
+    "@haibun/browser-extension": "file:../browser-extension",
+    "@haibun/context": "file:../context",
+    "@haibun/core": "file:../core",
+    "@haibun/domain-storage": "file:../domain-storage",
+    "@haibun/domain-webpage": "file:../domain-webpage",
+    "@haibun/feature-importer": "file:../feature-importer",
+    "@haibun/storage-fs": "file:../storage-fs",
+    "@haibun/web-playwright": "file:../web-playwright",
+    "@haibun/web-server-express": "file:../web-server-express"
   },
   "devDependencies": {}
 }
