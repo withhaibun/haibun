@@ -1,7 +1,7 @@
 import { Page, Response } from 'playwright';
 import { IHasOptions, OK, TNamed, TVStep, IRequireDomains, TStepResult, TTraceOptions, TTrace, AStepper, TWorld } from '@haibun/core/build/lib/defs.js';
 import { onCurrentTypeForDomain } from '@haibun/core/build/steps/vars.js';
-import { BrowserFactory, TBrowserFactoryOptions } from './BrowserFactory.js';
+import { BrowserFactory, TBrowserFactoryOptions, TBrowserTypes } from './BrowserFactory.js';
 import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOption } from '@haibun/core/build/lib/util/index.js';
 import { WEB_PAGE, WEB_CONTROL } from '@haibun/domain-webpage/build/domain-webpage.js';
 import { TTraceTopic } from '@haibun/core/build/lib/interfaces/logger.js';
@@ -277,8 +277,8 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
 
         if (!background) {
           console.log('no background', context.serviceWorkers())
-          
-        //   background = await context!.waitForEvent("serviceworker");
+
+          //   background = await context!.waitForEvent("serviceworker");
         }
 
         const extensionId = background.url().split("/")[2];
@@ -424,17 +424,13 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       },
     },
 
-    //                          BROWSER
-    // usingBrowser: {
-    //   gwta: 'using (?<browser>[^`].+[^`]) browser',
-    //   action: async ({ browser }: TNamed) => await this.setBrowser(browser),
-    // },
-    // usingBrowserVar: {
-    //   gwta: 'using {browser} browser',
-    //   action: async ({ browser }: TNamed) => {
-    //     return this.setBrowser(browser);
-    //   },
-    // },
+    //                         BROWSER
+    usingBrowserVar: {
+      gwta: 'using {browser} browser',
+      action: async ({ browser }: TNamed) => {
+        return this.setBrowser(browser);
+      },
+    },
 
     //                          MISC
     captureDialog: {
@@ -486,6 +482,10 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       },
     },
   };
+  setBrowser(browser: string) {
+    this.factoryOptions.type = (browser as unknown) as TBrowserTypes;
+    return OK;
+  }
 };
 export default WebPlaywright;
 
