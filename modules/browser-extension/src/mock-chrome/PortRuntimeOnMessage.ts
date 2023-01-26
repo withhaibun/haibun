@@ -1,5 +1,5 @@
 import { TPortContext } from "./MockChrome.js";
-import Helpers from "./ports.js";
+import { removeCallbackFromArray } from "./ports.js";
 
 export type TAddListenerCallback = (message: any, sender: chrome.runtime.MessageSender, sendResponse?: any) => void
 export type THasListenerCallback = (message: any, sender: chrome.runtime.MessageSender, sendResponse?: any) => void
@@ -36,7 +36,7 @@ export class PortRuntimeOnMessage implements chrome.runtime.ExtensionMessageEven
     }
 
     public removeListener(callback: (message: any, sender: chrome.runtime.MessageSender, sendResponse: any) => void): void {
-        this.ctx.listeners = Helpers.removeCallbackFromArray(this.ctx.listeners, callback);
+        this.ctx.listeners = removeCallbackFromArray(this.ctx.listeners, callback);
     }
 
     public hasListeners(): boolean {

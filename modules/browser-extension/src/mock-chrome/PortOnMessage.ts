@@ -1,4 +1,5 @@
-import Helpers from "./ports.js"
+import { arrayHasCallback, removeCallbackFromArray } from "./ports.js";
+
 export class PortOnMessage implements chrome.runtime.PortMessageEvent {
     public listeners: any[];
 
@@ -16,7 +17,7 @@ export class PortOnMessage implements chrome.runtime.PortMessageEvent {
     }
 
     public hasListener(callback: (message: object, port: chrome.runtime.Port) => void): boolean {
-        return Helpers.arrayHasCallback(this.listeners, callback);
+        return arrayHasCallback(this.listeners, callback);
     }
 
     public removeRules(ruleIdentifiers?: any, callback?: any): void {
@@ -31,7 +32,7 @@ export class PortOnMessage implements chrome.runtime.PortMessageEvent {
     }
 
     public removeListener(callback: (message: object, port: chrome.runtime.Port) => void): void {
-        this.listeners = Helpers.removeCallbackFromArray(this.listeners, callback);
+        this.listeners = removeCallbackFromArray(this.listeners, callback);
     }
 
     public hasListeners(): boolean {

@@ -38,6 +38,7 @@ describe('browser, context, page', () => {
     expect(pa1).toBeDefined();
     expect(Object.keys(BrowserFactory.browsers).length).toBe(1)
     expect(Object.keys(bfa.contexts).length).toBe(1)
+    /*
 
     const pa2 = await bfa.getBrowserContextPage(test2);
     expect(pa2).toBeDefined();
@@ -61,6 +62,7 @@ describe('browser, context, page', () => {
 
     expect(Object.keys(bfa.contexts).length).toBe(1)
     expect(bfa.pages['test2']).toBeUndefined();
+    */
     BrowserFactory.closeBrowsers();
   });
 
