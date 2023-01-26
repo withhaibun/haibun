@@ -34,7 +34,6 @@ describe('browser, context, page', () => {
     const bfa = await BrowserFactory.getBrowserFactory(logger, browserContextOptions);
     const test = getDefaultTag(0);
     const test2 = getDefaultTag(1);
-    const test3 = getDefaultTag(2);
     const pa1 = await bfa.getBrowserContextPage(test);
     expect(pa1).toBeDefined();
     expect(Object.keys(BrowserFactory.browsers).length).toBe(1)
@@ -46,14 +45,13 @@ describe('browser, context, page', () => {
     expect(Object.keys(bfa.contexts).length).toBe(2)
     expect((pa1 as PageInstance)._guid).not.toEqual((pa2 as PageInstance)._guid);
 
-    let pa3 = await bfa.getBrowserContextPage(test2);
+    const pa3 = await bfa.getBrowserContextPage(test2);
     expect(pa3).toBeDefined();
     expect(Object.keys(BrowserFactory.browsers).length).toBe(1)
     expect(Object.keys(bfa.contexts).length).toBe(2)
     expect((pa2 as PageInstance)._guid).toEqual((pa3 as PageInstance)._guid);
 
     const bfb = await BrowserFactory.getBrowserFactory(logger, browserContextOptions);
-    const pb1 = await bfb.getBrowserContextPage(test3);
     expect(Object.keys(BrowserFactory.browsers).length).toBe(1)
     expect(Object.keys(bfb.contexts).length).toBe(1)
 

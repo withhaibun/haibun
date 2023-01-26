@@ -1,3 +1,4 @@
+/* eslint-disable */ 
 export namespace Helpers {
     export function arrayHasCallback(array: Function[], callback: Function): boolean {
         for (let i = 0; i < array.length; i++) {

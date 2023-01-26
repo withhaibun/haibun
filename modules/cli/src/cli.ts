@@ -20,7 +20,7 @@ type TFeatureFilter = string[] | undefined;
 go();
 
 async function go() {
-  const featureFilter = !!process.argv[3] ? process.argv[3].split(',') : undefined;
+  const featureFilter = process.argv[3] ? process.argv[3].split(',') : undefined;
   const base = process.argv[2]?.replace(/\/$/, '');
 
   const specl = getSpeclOrExit(base, featureFilter);
