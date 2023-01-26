@@ -1,14 +1,13 @@
 {
   "name": "@haibun/logger-websockets",
   "type": "module",
-  "version": "1.13.18",
+  "version": "1.15.0",
   "description": "",
   "author": "",
   "main": "build/logger-websockets.js",
   "files": [
     "build/**"
   ],
-  "devDependencies": {},
   "scripts": {
     "@types/ws": "^7.4.7",
     "format": "prettier --write \"src/**/*.ts\" \"src/**/*.js\"",
