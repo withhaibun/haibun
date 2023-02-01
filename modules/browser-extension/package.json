@@ -1,7 +1,7 @@
 {
   "name": "@haibun/browser-extension",
   "type": "module",
-  "version": "1.15.1",
+  "version": "1.16.0",
   "description": "",
   "main": "build/context.js",
   "files": [
