@@ -16,7 +16,7 @@ export default async function runWithOptions(runOptions: TRunOptions) {
   const timer = new Timer();
   let totalRan = 0;
   type TFailure = { sequence: TTagValue; runDuration: number; fromStart: number };
-  let allFailures: { [message: string]: TFailure[] } = {};
+  const allFailures: { [message: string]: TFailure[] } = {};
   let allRunResults: PromiseSettledResult<TRunResult>[] = [];
 
   for (let loop = 1; loop < loops + 1; loop++) {
@@ -40,7 +40,7 @@ export default async function runWithOptions(runOptions: TRunOptions) {
     allRunResults = allRunResults.concat(theseValues);
   }
 
-  let ranResults = allRunResults
+  const ranResults = allRunResults
     .filter((i) => i.status === 'fulfilled')
     .map((i) => <PromiseFulfilledResult<TRunResult>>i)
     .map((i) => i.value);
@@ -48,7 +48,7 @@ export default async function runWithOptions(runOptions: TRunOptions) {
   let passed = 0;
   let failed = 0;
 
-  for (let r of ranResults) {
+  for (const r of ranResults) {
     if (r.result.ok) {
       passed++;
     } else {
@@ -70,7 +70,7 @@ export default async function runWithOptions(runOptions: TRunOptions) {
       failed++;
     }
   }
-  let exceptionResults = allRunResults
+  const exceptionResults = allRunResults
     .filter((i) => i.status === 'rejected')
     .map((i) => <PromiseRejectedResult>i)
     .map((i) => i.reason);

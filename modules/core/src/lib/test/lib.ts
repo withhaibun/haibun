@@ -61,6 +61,8 @@ export function getTestWorldWithOptions(protoOptions: TProtoOptions) {
   return world;
 }
 
+// FIXME asFeatures should use base?
+export const asBasedFeatures = (base, w: { path: string; content: string }[]) => asFeatures(w).map((i) => ({ ...i, path: `${base}${i.path}` }));
 export const asFeatures = (w: { path: string; content: string }[]) => w.map((i) => withNameType(i.path, i.content));
 
 // FIXME can't really do this without reproducing resolve

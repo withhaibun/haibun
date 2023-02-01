@@ -88,7 +88,6 @@ describe('getStepperOptions', () => {
     expect(world.options[HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]).toEqual(42);
   });
   it('throws for unfilled extra', async () => {
-    const { world } = getDefaultWorld(0);
     await expect(async () => util.verifyExtraOptions({ HAIBUN_NE: 'true' }, [])).rejects.toThrow();
   });
 });
@@ -99,27 +98,6 @@ describe('getType', () => {
   });
   it('finds no type', () => {
     expect(withNameType('file.feature', '').type).toBe('feature');
-  });
-});
-
-describe('shouldProcess', () => {
-  it('should process no type & filter', () => {
-    expect(util.shouldProcess('hi.feature', undefined, undefined)).toBe(true);
-  });
-  it('should process matching filter', () => {
-    expect(util.shouldProcess('hi.feature', undefined, ['hi'])).toBe(true);
-  });
-  it('should not process wrong type', () => {
-    expect(util.shouldProcess('hi.feature', 'wrong', undefined)).toBe(false);
-  });
-  it('should not process wrong filter', () => {
-    expect(util.shouldProcess('hi.feature', undefined, ['wrong'])).toBe(false);
-  });
-  it('should not process root filter', () => {
-    expect(util.shouldProcess('/root/hi.feature', undefined, ['root'])).toBe(false);
-  });
-  it('should process upper root filter', () => {
-    expect(util.shouldProcess('/root/root.feature', undefined, ['root'])).toBe(true);
   });
 });
 

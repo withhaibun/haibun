@@ -49,10 +49,11 @@ export function ranResultError(ranResults: TRunResult[], exceptionResults: any[]
   );
 }
 
-export function processBaseEnv(env: TEnv, options: TOptions) {
+
+export function processBaseEnvToOptionsAndErrors(env: TEnv, options: TOptions) {
   const protoOptions: TProtoOptions = { options: { ...options }, extraOptions: {} };
 
-  let errors: string[] = [];
+  const errors: string[] = [];
   let nenv = {};
 
   const baseOptions = (BaseOptions as IHasOptions);
@@ -63,10 +64,10 @@ export function processBaseEnv(env: TEnv, options: TOptions) {
     .map(([k]) => {
       const value = env[k];
       const opt = k.replace(BASE_PREFIX, '');
-      const baseOption = baseOptions.options![opt];
+      const baseOption = baseOptions.options[opt];
 
       if (baseOption) {
-        const res = baseOption.parse(value!, nenv);
+        const res = baseOption.parse(value, nenv);
         if (res.error) {
           errors.push(res.error);
         } else if (res.env) {
@@ -77,7 +78,7 @@ export function processBaseEnv(env: TEnv, options: TOptions) {
           protoOptions.options[opt] = res.result;
         }
       } else {
-        protoOptions.extraOptions[k] = value!;
+        protoOptions.extraOptions[k] = value;
       }
     });
   protoOptions.options.env = nenv;
