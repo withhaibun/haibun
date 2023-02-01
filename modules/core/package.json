@@ -26,10 +26,8 @@
     "coverage": "jest --coverage",
     "test-watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch",
     "build": "tsc -b .",
-    "tsc-watch": "tsc --watch",
-    "tsc": "tsc",
+    "build-watch": "tsc -b . --watch",
     "prepublishOnly": "tsc -b .",
-    "preversion": "npm run lint",
-    "xversion": "npm run format && git add -A src"
+    "preversion": "npm run lint"
   }
 }
