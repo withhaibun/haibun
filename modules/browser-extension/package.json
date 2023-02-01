@@ -19,9 +19,6 @@
     "cli-help": "haibun-cli test --help",
     "start:firefox": "web-ext run --source-dir ./public"
   },
-  "bin": {
-    "record": "build/record.js"
-  },
   "keywords": [],
   "author": "",
   "license": "ISC",
