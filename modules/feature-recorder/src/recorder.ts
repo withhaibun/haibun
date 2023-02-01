@@ -30,8 +30,8 @@ export async function record(url: string, featureFilter: string[], options?: { w
     world.options = { ...world.options, env: { SITE: url } };
     const addSteppers = [Haibun, FeatureImporter, WebPlaywright, WebSocketServer, StorageFS, DomainStorage
         , DomainWebPage, WebServerStepper];
-        
-    const result = await run({ specl, base: './recorder', featureFilter, addSteppers, world });
+
+    const result = await run({ specl, base: './recorder', featureFilter, addSteppers, world, extraOptions: {} });
     console.log('🤑', JSON.stringify({ ok: result.ok, failure: result.failure }, null, 2));
 
     return result;
