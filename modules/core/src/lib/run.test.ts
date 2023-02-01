@@ -9,8 +9,8 @@ describe('run self-contained', () => {
     const result = await testWithDefaults([feature], [TestSteps]);
 
     expect(result.ok).toBe(true);
-    expect(result.results!.length).toBe(1);
-    const t = result.results![0];
+    expect(result.results.length).toBe(1);
+    const t = result.results[0];
     expect(t).toBeDefined();
     expect(t.ok).toBe(true);
     expect(t.stepResults.length).toBe(2);
@@ -46,8 +46,8 @@ describe('run backgrounds', () => {
 
     expect(result.ok).toBe(true);
 
-    expect(result.results!.length).toBe(1);
-    const t = result.results![0];
+    expect(result.results.length).toBe(1);
+    const t = result.results[0];
     expect(t).toBeDefined();
     expect(t.ok).toBe(true);
 
@@ -136,3 +136,4 @@ describe('haibun', () => {
     expect(result.results?.length).toBe(1);
   });
 });
+

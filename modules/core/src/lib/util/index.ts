@@ -1,9 +1,8 @@
-import { readdirSync, readFileSync, statSync, existsSync } from 'fs';
+import nodeFS from 'fs';
 import path from 'path';
 
 import {
   IHasOptions,
-  TFeature,
   TNotOKActionResult,
   TOKActionResult,
   IResultOutput,
@@ -22,7 +21,8 @@ import {
   TTagValue,
   TFeatureResult,
 } from '../defs.js';
-import { withNameType } from '../features.js';
+
+export type TFileSystem = Partial<typeof nodeFS>;
 
 // FIXME tired of wrestling with ts/import issues
 export async function use(module: string) {
@@ -114,13 +114,13 @@ export async function getSteppers(stepperNames: string[]) {
 
 // workspaceRoot adapted from @nrwl/devkit
 const workspaceRoot = workspaceRootInner(process.cwd(), process.cwd());
-function workspaceRootInner(dir, candidateRoot) {
+function workspaceRootInner(dir, candidateRoot, fs: TFileSystem = nodeFS) {
   if (path.dirname(dir) === dir) {
     return candidateRoot;
   }
-  if (existsSync(path.join(dir, 'nx.json'))) {
+  if (fs.existsSync(path.join(dir, 'nx.json'))) {
     return dir;
-  } else if (existsSync(path.join(dir, 'node_modules', 'nx', 'package.json'))) {
+  } else if (fs.existsSync(path.join(dir, 'node_modules', 'nx', 'package.json'))) {
     return workspaceRootInner(path.dirname(dir), dir);
   } else {
     return workspaceRootInner(path.dirname(dir), candidateRoot);
@@ -136,31 +136,6 @@ function getModuleLocation(name: string) {
   return path.resolve(process.cwd(), name);
 }
 
-export function debase(base: string, features: TFeature[]) {
-  return features.map((f) => ({ ...f, path: f.path.replace(base, '') }));
-}
-
-export function recurse(dir: string, type: string, featureFilter: string[] | undefined = undefined): TFeature[] {
-  const files = readdirSync(dir);
-  let all: TFeature[] = [];
-  for (const file of files) {
-    const here = `${dir}/${file}`;
-
-    if (statSync(here).isDirectory()) {
-      all = all.concat(recurse(here, type, featureFilter));
-    } else if (shouldProcess(here, type, featureFilter)) {
-      all.push(withNameType(here, readFileSync(here, 'utf-8')));
-    }
-  }
-  return all;
-}
-
-export function shouldProcess(file: string, type: undefined | string, featureFilter: string[] | undefined) {
-  const isType = !type || file.endsWith(`.${type}`);
-  const matchesFilter = featureFilter ? !!featureFilter.find((f) => file.replace(/\/.*?\/([^.*?/])/, '$1').match(f)) : true;
-
-  return isType && matchesFilter;
-}
 
 export function getDefaultOptions(): TSpecl {
   return {
@@ -170,10 +145,10 @@ export function getDefaultOptions(): TSpecl {
   };
 }
 
-export function getConfigFromBase(base: string): TSpecl | null {
+export function getConfigFromBase(base: string, fs: TFileSystem = nodeFS): TSpecl | null {
   const f = `${base}/config.json`;
   try {
-    const specl = JSON.parse(readFileSync(f, 'utf-8'));
+    const specl = JSON.parse(fs.readFileSync(f, 'utf-8'));
     if (!specl.options) {
       specl.options = { DEST: DEFAULT_DEST };
     }

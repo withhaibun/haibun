@@ -7,12 +7,12 @@ sourceMapSupport.install();
 process.on('unhandledRejection', console.error);
 
 import repl from 'repl';
-import { TSpecl, TWorld, TEndFeatureCallback, TEndFeatureCallbackParams } from '@haibun/core/build/lib/defs.js';
+import { TSpecl, TWorld, TEndFeatureCallback, TEndFeatureCallbackParams, TRunOptions } from '@haibun/core/build/lib/defs.js';
 import { EMediaTypes, ITrackResults } from '@haibun/domain-storage/build/domain-storage.js';
 
 import { findStepper, getConfigFromBase, getDefaultOptions } from '@haibun/core/build/lib/util/index.js';
 import runWithOptions from '@haibun/core/build/lib/run-with-options.js';
-import { processBaseEnv, usageThenExit } from './lib.js';
+import { processBaseEnvToOptionsAndErrors, usageThenExit } from './lib.js';
 import { Timer } from '@haibun/core/build/lib/Timer.js';
 
 type TFeatureFilter = string[] | undefined;
@@ -25,7 +25,7 @@ async function go() {
 
   const specl = getSpeclOrExit(base, featureFilter);
 
-  const { protoOptions, errors } = processBaseEnv(process.env, specl.options);
+  const { protoOptions, errors } = processBaseEnvToOptionsAndErrors(process.env, specl.options);
   const splits: { [name: string]: string }[] = protoOptions.options.SPLITS || [{}];
 
   if (errors.length > 0) {
@@ -53,7 +53,7 @@ async function go() {
     }
   }
 
-  const runOptions = { featureFilter, loops, members, splits, trace, specl, base, protoOptions, startRunCallback, endFeatureCallback };
+  const runOptions: TRunOptions = { featureFilter, loops, members, splits, trace, specl, base, protoOptions, startRunCallback, endFeatureCallback };
   const { ok, exceptionResults, ranResults, allFailures, logger, passed, failed, totalRan, runTime } = await runWithOptions(runOptions);
 
   if (ok && exceptionResults.length < 1) {
@@ -73,12 +73,12 @@ async function go() {
 function getSpeclOrExit(base: string, featureFilter: TFeatureFilter): TSpecl {
   const specl = getConfigFromBase(base);
   const askForHelp = featureFilter?.find(f => f === '--help' || f === '-h')
-  if (specl === null || !process.argv[2] || askForHelp) {
+  if (specl === null || !base || askForHelp) {
     if (specl === null) {
       console.error(`missing or unusable ${base}/config.json`);
     }
     usageThenExit(specl ? specl : getDefaultOptions());
   }
-  return specl!;
+  return specl;
 }
 
