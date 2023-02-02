@@ -81,7 +81,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     if (captureVideo) {
       const loc = { ...this.getWorld(), mediaType: EMediaTypes.video };
       recordVideo = {
-        dir: await this.storage!.ensureCaptureLocation(loc, 'video'),
+        dir: await this.storage.ensureCaptureLocation(loc, 'video'),
       }
     }
 
@@ -116,7 +116,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     return page;
   }
 
-  async withPage(f: any) {
+  async withPage<TReturn>(f: any): Promise<TReturn> {
     const page = await this.getPage();
     return await f(page);
   }
@@ -304,14 +304,14 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     URIContains: {
       gwta: 'URI should include {what}',
       action: async ({ what }: TNamed) => {
-        const uri = await this.withPage(async (page: Page) => await page.url());
+        const uri = await this.withPage<string>(async (page: Page) => await page.url());
         return uri.includes(what) ? OK : actionNotOK(`current URI ${uri} does not contain ${what}`);
       },
     },
     URIQueryParameterIs: {
       gwta: 'URI query parameter {what} is {value}',
       action: async ({ what, value }: TNamed) => {
-        const uri = await this.withPage(async (page: Page) => await page.url());
+        const uri = await this.withPage<string>(async (page: Page) => await page.url());
         const found = new URL(uri).searchParams.get(what);
         if (found === value) {
           return OK;
@@ -322,14 +322,14 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     URIStartsWith: {
       gwta: 'URI should start with {start}',
       action: async ({ start }: TNamed) => {
-        const uri = await this.withPage(async (page: Page) => await page.url());
+        const uri = await this.withPage<string>(async (page: Page) => await page.url());
         return uri.startsWith(start) ? OK : actionNotOK(`current URI ${uri} does not start with ${start}`);
       },
     },
     URIMatches: {
       gwta: 'URI should match {what}',
       action: async ({ what }: TNamed) => {
-        const uri = await this.withPage(async (page: Page) => await page.url());
+        const uri = await this.withPage<string>(async (page: Page) => await page.url());
         return uri.match(what) ? OK : actionNotOK(`current URI ${uri} does not match ${what}`);
       },
     },
@@ -392,11 +392,11 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       gwta: `On the {name} ${WEB_PAGE}`,
       action: async ({ name }: TNamed, vstep: TVStep) => {
         const location = name.includes('://') ? name : onCurrentTypeForDomain({ name, type: WEB_PAGE }, this.getWorld());
-        const response = await this.withPage(async (page: Page) => {
+        const response = await this.withPage<Response>(async (page: Page) => {
           return await page.goto(location);
         });
 
-        return response?.ok ? OK : actionNotOK(`response not ok`, response);
+        return response?.ok ? OK : actionNotOK(`response not ok`, { topics: { response: { ...response.allHeaders, summary: response.statusText() } } });
       },
     },
     goBack: {
@@ -432,6 +432,34 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       },
     },
 
+    //FIXME                    FILE DOWNLOAD/UPLOAD
+
+    uploadFile: {
+      gwta: 'upload file {file} using {selector}',
+      action: async ({ file, selector }: TNamed) => {
+        await this.withPage(async (page: Page) => await page.setInputFiles(selector, file));
+        return OK;
+      }
+    },
+
+    waitForDownload: {
+      gwta: 'download using {selector} to {file}',
+      action: async ({ file, selector }: TNamed) => {
+        const res = await this.withPage<string>(async (page: Page) => {
+          // Start waiting for download before clicking. Note no await.
+          const downloadPromise = page.waitForEvent('download');
+          await page.click(selector);
+          const download = await downloadPromise;
+
+          download.saveAs(file);
+          return await download.path();
+        });
+
+        return res ? OK : actionNotOK(`download failed`);
+      }
+    },
+
+
     //                          MISC
     captureDialog: {
       gwta: 'Accept next dialog to {where}',
@@ -452,7 +480,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       gwta: 'take a screenshot',
       action: async () => {
         const loc = { ...this.getWorld(), mediaType: EMediaTypes.image };
-        const dir = await this.storage!.ensureCaptureLocation(loc, 'screenshots');
+        const dir = await this.storage.ensureCaptureLocation(loc, 'screenshots');
         await this.withPage(
           async (page: Page) =>
             await page.screenshot({
@@ -475,9 +503,9 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     setToURIQueryParameter: {
       gwta: 'save URI query parameter {what} to {where}',
       action: async ({ what, where }: TNamed) => {
-        const uri = await this.withPage(async (page: Page) => await page.url());
+        const uri = await this.withPage<string>(async (page: Page) => await page.url());
         const found = new URL(uri).searchParams.get(what);
-        this.getWorld().shared.set(where, found!);
+        this.getWorld().shared.set(where, found);
         return OK;
       },
     },

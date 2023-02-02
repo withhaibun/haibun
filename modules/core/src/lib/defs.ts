@@ -211,6 +211,7 @@ export type TNotOKActionResult = {
   ok: false;
   score?: number;
   message: string;
+  error?: Error,
   topics?: TActionResultTopics;
 };
 

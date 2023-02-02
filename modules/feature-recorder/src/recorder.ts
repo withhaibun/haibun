@@ -32,7 +32,6 @@ export async function record(url: string, featureFilter: string[], options?: { w
         , DomainWebPage, WebServerStepper];
 
     const result = await run({ specl, base: './recorder', featureFilter, addSteppers, world, extraOptions: {} });
-    console.log('🤑', JSON.stringify({ ok: result.ok, failure: result.failure }, null, 2));
 
     return result;
 }

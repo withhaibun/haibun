@@ -76,14 +76,3 @@ export async function runWith({ specl, world, features, backgrounds, addSteppers
   return result;
 }
 
-function trying<TResult>(fun: () => void): Promise<Error | TResult> {
-  return new Promise((resolve, reject) => {
-    try {
-      const res = <TResult>fun();
-      return resolve(res);
-    } catch (e: unknown) {
-      // https://kentcdodds.com/blog/get-a-catch-block-error-message-with-typescript
-      return reject(typeof e === 'object' && e !== null && 'message' in e && typeof (e as Record<string, unknown>).message === 'string');
-    }
-  });
-}

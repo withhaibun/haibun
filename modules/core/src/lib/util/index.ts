@@ -60,7 +60,7 @@ export async function resultOutput(type: string | undefined, result: TResult) {
   return result;
 }
 
-export function actionNotOK(message: string, also?: { topics?: TActionResultTopics; score?: number }): TNotOKActionResult {
+export function actionNotOK(message: string, also?: { error?: Error, topics?: TActionResultTopics; score?: number }): TNotOKActionResult {
   return {
     ok: false,
     message,
@@ -75,7 +75,6 @@ export function actionOK(topics?: TActionResultTopics): TOKActionResult {
 export async function getStepper(s: string) {
   try {
     const loc = getModuleLocation(s);
-
     const S: CStepper = await use(loc);
     return S;
   } catch (e) {
@@ -335,3 +334,19 @@ export const shortNum = (n: number) => Math.round(n * 100) / 100;
 
 export const getFeatureTitlesFromResults = (result: TFeatureResult) =>
   result.stepResults.filter((s) => s.actionResults.find((a) => (a.name === 'feature' ? true : false))).map((a) => a.in.replace(/^Feature: /, ''));
+
+function trying<TResult>(fun: () => void): Promise<Error | TResult> {
+  return new Promise((resolve, reject) => {
+    try {
+      const res = <TResult>fun();
+      return resolve(res);
+    } catch (e: unknown) {
+      // https://kentcdodds.com/blog/get-a-catch-block-error-message-with-typescript
+      return reject(asError(e));
+    }
+  });
+}
+
+export function asError(e: unknown): Error {
+  return typeof e === 'object' && e !== null && 'message' in e && typeof (e as Record<string, unknown>).message === 'string' ? (e as Error) : new Error(e as any);
+}
