@@ -44,5 +44,6 @@
     "@haibun/core": "file:../core",
     "@medv/finder": "^2.1.0",
     "ws": "8.9.0"
-  }
+  },
+  "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5"
 }

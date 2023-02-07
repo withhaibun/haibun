@@ -24,5 +24,6 @@
   "dependencies": {
     "dependency-graph": "^0.11.0",
     "validate-npm-package-name": "^5.0.0"
-  }
+  },
+  "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5"
 }

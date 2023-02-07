@@ -22,6 +22,7 @@
     "@haibun/core": "file:../core"
   },
   "devDependencies": {
-    "@haibun/domain-webpage": "^1.17.0"
-  }
+    "@haibun/domain-webpage": "file:../domain-webpage"
+  },
+  "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5"
 }

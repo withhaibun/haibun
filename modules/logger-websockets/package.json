@@ -27,5 +27,6 @@
     "@haibun/core": "file:../core",
     "@haibun/web-server-express": "file:../web-server-express",
     "ws": "^7.5.1"
-  }
+  },
+  "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5"
 }
