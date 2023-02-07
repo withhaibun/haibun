@@ -1,7 +1,7 @@
 {
   "name": "@haibun/feature-importer",
   "type": "module",
-  "version": "1.16.2",
+  "version": "1.17.0",
   "description": "command line execution for @haibun",
   "files": [
     "build/**"
@@ -22,6 +22,6 @@
     "@haibun/core": "file:../core"
   },
   "devDependencies": {
-    "@haibun/domain-webpage": "^1.16.2"
+    "@haibun/domain-webpage": "^1.17.0"
   }
 }
