@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 import { run } from '@haibun/core/build/lib/run.js';
 import { getDefaultWorld } from '@haibun/core/build/lib/test/lib.js';
 import { getDefaultOptions, getStepperOptionName } from '@haibun/core/build/lib/util/index.js';
