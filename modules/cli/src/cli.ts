@@ -57,9 +57,9 @@ async function go() {
   const { ok, exceptionResults, ranResults, allFailures, logger, passed, failed, totalRan, runTime } = await runWithOptions(runOptions);
 
   if (ok && exceptionResults.length < 1) {
-    logger.log(ranResults.every((r) => r.output));
+    logger.log('OK ' + ranResults.every((r) => r.output));
   } else {
-    console.info('failures:', JSON.stringify(allFailures, null, 2));
+    logger.error('failures:' + JSON.stringify(allFailures, null, 2));
   }
   console.info('\nRESULT>>>', { ok, startDate: Timer.startTime, startTime: Timer.startTime, passed, failed, totalRan, runTime, 'features/s:': totalRan / runTime });
 
