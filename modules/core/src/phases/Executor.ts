@@ -86,7 +86,7 @@ export class FeatureExecutor {
       if (!result.ok) {
         await this.onFailure(result);
       }
-      world.logger.log(ok, { topic: { stage: 'Executor', seq, result } });
+      world.logger.log(`${ok}`, { topic: { stage: 'Executor', seq, result } });
       stepResults.push(result);
       if (!ok) {
         break;

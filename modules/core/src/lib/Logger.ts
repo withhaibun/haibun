@@ -1,10 +1,10 @@
 import { TTag } from './defs.js';
-import { ILogger, ILogOutput, TLogLevel, TMessageContext, TOutputEnv } from './interfaces/logger.js';
-import { descTag } from './util/index.js';
+import { ILogger, ILogOutput, TLogArgs, TLogLevel, TMessageContext, TOutputEnv } from './interfaces/logger.js';
+import { descTag, isFirstTag } from './util/index.js';
 
 export const LOGGER_LOG = { level: 'log' };
 export const LOGGER_NOTHING = { level: 'none' };
-const WIDTH = process.cwd().length + 40;
+const WIDTH = 25;
 
 export const LOGGER_LEVELS = {
   debug: 1,
@@ -23,6 +23,7 @@ export default class Logger implements ILogger, ILogOutput {
   env: TOutputEnv | undefined;
   subscribers: ILogOutput[] = [];
   follow: string | undefined;
+  static lastLevel = undefined;
 
   constructor(conf: TConf) {
     // passed a log level and possibly a follow
@@ -38,9 +39,6 @@ export default class Logger implements ILogger, ILogOutput {
     this.subscribers.push(subscriber);
   }
   static shouldLogLevel(level: number, name: TLogLevel) {
-    if (!level) {
-      throw Error(`undefined logger level ${level}`);
-    }
     return LOGGER_LEVELS[name] >= level;
   }
   static shouldLogFollow(match: string, tag: TTag) {
@@ -50,26 +48,28 @@ export default class Logger implements ILogger, ILogOutput {
     const res = new RegExp(match).test(`${tag.sequence}`);
     return res;
   }
-  out(level: TLogLevel, args: any, messageContext?: TMessageContext) {
+  out(level: TLogLevel, args: TLogArgs, messageContext?: TMessageContext) {
+    for (const subscriber of this.subscribers) {
+      subscriber.out(level, args, messageContext);
+    }
     if (this.env?.output) {
       this.env.output.out(level, args, { ...messageContext, tag: this.env.tag });
       return;
     }
-    if (!Logger.shouldLogLevel(this.level as number, level) && Logger.shouldLogFollow(this.follow!, this.env?.tag)) {
+    if (!Logger.shouldLogLevel(this.level as number, level) && Logger.shouldLogFollow(this.follow, this.env?.tag)) {
       return;
     }
-    const e = Error(level).stack?.split('\n');
-    const ln = e![Math.min((e?.length || 1) - 1, 4)]?.replace(/.*\(/, '')?.replace(process.cwd(), '').replace(')', '');
-
-    for (const subscriber of this.subscribers) {
-      subscriber.out(level, args, messageContext);
-    }
-    const tag = messageContext?.tag ? descTag(messageContext.tag) : '';
-    (console as any)[level](`${ln}${tag}: `.padStart(WIDTH), args, level.padStart(6));
+    const showLevel = Logger.lastLevel === level ? level.substring(0, 1).padStart(1 + level.length / 2) : level;
+    Logger.lastLevel = level;
+    const e = Error().stack?.split('\n');
+    const ln = e[Math.min((e?.length || 1) - 1, 4)]?.replace(/.*\(/, '')
+      ?.replace(process.cwd(), '').replace(')', '').replace(/.*\//, '').replace(/\.ts:/, ':');
+    const tag = messageContext?.tag ? isFirstTag(messageContext.tag) ? '' : descTag(messageContext.tag) : '';
+    console[level]((showLevel.padStart(6) + `| ${ln}${tag}`).padEnd(35) + `| `, args);
   }
-  debug = (args: any, mctx?: TMessageContext) => this.out('debug', args, mctx);
-  log = (args: any, mctx?: TMessageContext) => this.out('log', args, mctx);
-  info = (args: any, mctx?: TMessageContext) => this.out('info', args, mctx);
-  warn = (args: any, mctx?: TMessageContext) => this.out('warn', args, mctx);
-  error = (args: any, mctx?: TMessageContext) => this.out('error', args, mctx);
+  debug = (args: TLogArgs, mctx?: TMessageContext) => this.out('debug', args, mctx);
+  log = (args: TLogArgs, mctx?: TMessageContext) => this.out('log', args, mctx);
+  info = (args: TLogArgs, mctx?: TMessageContext) => this.out('info', args, mctx);
+  warn = (args: TLogArgs, mctx?: TMessageContext) => this.out('warn', args, mctx);
+  error = (args: TLogArgs, mctx?: TMessageContext) => this.out('error', args, mctx);
 }

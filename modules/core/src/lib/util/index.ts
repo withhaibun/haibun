@@ -304,6 +304,7 @@ export const getRunTag = (sequence: TTagValue, loop: TTagValue, featureNum: TTag
 };
 
 export const descTag = (tag: TTag) => ` @${tag.sequence} (${tag.loop}x${tag.member})`;
+export const isFirstTag = (tag: TTag) => tag.sequence === 0 && tag.loop === 1 && tag.member === 0;
 
 export const intOrError = (val: string) => {
   if (val.match(/[^\d+]/)) {

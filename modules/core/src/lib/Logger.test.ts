@@ -1,4 +1,4 @@
-import { ILogOutput, TEST_RESULT, TExecutorTopic, TMessageContext } from './interfaces/logger.js';
+import { ILogOutput, TEST_RESULT, TExecutorTopic, TLogArgs, TMessageContext } from './interfaces/logger.js';
 import Logger, { LOGGER_LEVELS } from './Logger.js';
 import { getDefaultTag } from './test/lib.js';
 
@@ -19,7 +19,7 @@ describe('logger with subscriber', () => {
   test('subscriber receives topic', (done) => {
     const logger = new Logger({ level: 'debug' });
     const subscriber: ILogOutput = {
-      out(level: string, args: any[], ctx?: TMessageContext) {
+      out(level: string, args: TLogArgs, ctx?: TMessageContext) {
         expect(ctx!.topic).toBeDefined();
         expect((ctx!.topic! as TExecutorTopic).result).toEqual(TEST_RESULT);
         done();
@@ -33,7 +33,7 @@ describe('logger with subscriber', () => {
 describe('logger with output', () => {
   test('output gets current tag', (done) => {
     const output: ILogOutput = {
-      out(level: string, args: any[], ctx?: TMessageContext) {
+      out(level: string, args: TLogArgs, ctx?: TMessageContext) {
         expect(ctx?.tag?.loop).toBe(0);
         done();
       },
