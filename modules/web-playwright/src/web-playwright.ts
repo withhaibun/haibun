@@ -17,7 +17,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
   requireDomains = [WEB_PAGE, WEB_CONTROL];
   options = {
     HEADLESS: {
-      desc: 'run browsers without a window (true or false)',
+      desc: 'run browsers without a window (true, false)',
       parse: (input: string) => boolOrError(input)
     },
     DEVTOOLS: {
@@ -59,7 +59,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
   async setWorld(world: TWorld, steppers: AStepper[]) {
     super.setWorld(world, steppers);
     this.storage = findStepperFromOption(steppers, this, world.extraOptions, WebPlaywright.STORAGE);
-    const headless = getStepperOption(this, 'HEADLESS', world.extraOptions) === 'true';
+    const headless = (getStepperOption(this, 'HEADLESS', world.extraOptions) === 'true') || !!process.env.CI;
     const devtools = getStepperOption(this, 'DEVTOOLS', world.extraOptions) === 'true';
     const args = getStepperOption(this, 'ARGS', world.extraOptions)?.split(';')
     const persistentDirectory = getStepperOption(this, WebPlaywright.PERSISTENT_DIRECTORY, world.extraOptions) === 'true';
@@ -71,8 +71,9 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
         listener: async (res: Response) => {
           const url = res.url();
           const headers = await res.headersArray();
-          const headersContent = (await Promise.allSettled(headers)).map(h => (h as any).value);
-          world.logger.debug(`response trace ${headersContent.map(h => h.name)}`, { topic: ({ trace: { response: { headersContent } } } as TTraceTopic) });
+          const headersContent = (await Promise.allSettled(headers)).map(h => (h as PromiseFulfilledResult<{ value: string, name: string }>).value);
+          const topic = { trace: { response: { headersContent } } };
+          world.logger.debug(`response trace ${headersContent.map(h => h.name)}`, { topic });
           const trace: TTrace = { 'response': { url, since: world.timer.since(), trace: { headersContent } } }
           world.shared.concat('_trace', trace);
         }

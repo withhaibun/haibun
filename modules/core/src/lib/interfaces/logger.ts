@@ -17,7 +17,7 @@ export type TMessageContext = {
 
 export type TTraceTopic = {
   type?: string;
-  trace?: boolean;
+  trace?: object;
 };
 export type TMessageTopic = TExecutorTopic | TTraceTopic;
 
