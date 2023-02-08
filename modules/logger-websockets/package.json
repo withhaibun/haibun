@@ -24,8 +24,8 @@
     "xversion": "npm run format && git add -A src"
   },
   "dependencies": {
-    "@haibun/core": "file:../core",
-    "@haibun/web-server-express": "file:../web-server-express",
+    "@haibun/core": "^1.18.0",
+    "@haibun/web-server-express": "^1.18.0",
     "ws": "^7.5.1"
   },
   "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5"

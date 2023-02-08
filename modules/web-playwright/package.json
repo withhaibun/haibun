@@ -20,9 +20,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@haibun/core": "file:../core",
-    "@haibun/domain-storage": "file:../domain-storage",
-    "@haibun/domain-webpage": "file:../domain-webpage",
+    "@haibun/core": "^1.18.0",
+    "@haibun/domain-storage": "^1.18.0",
+    "@haibun/domain-webpage": "^1.18.0",
     "playwright": "^1.29.2"
   },
   "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5"
