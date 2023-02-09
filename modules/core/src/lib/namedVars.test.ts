@@ -2,7 +2,7 @@ import { AStepper, OK, TResolvedFeature, TStep } from './defs.js';
 import { getNamedMatches, namedInterpolation, matchGroups, getNamedToVars } from './namedVars.js';
 import { Resolver } from '../phases/Resolver.js';
 import { actionNotOK, createSteppers } from './util/index.js';
-import { asExpandedFeatures, getDefaultWorld, testWithDefaults } from './test/lib.js';
+import { asExpandedFeatures, getDefaultWorld, testWithDefaults, TEST_BASE } from './test/lib.js';
 import { withNameType } from './features.js';
 
 describe('namedMatches', () => {
@@ -12,7 +12,7 @@ describe('namedMatches', () => {
   };
 
   it('gets named matches', () => {
-    expect(getNamedMatches(step.match!, 'It is set')).toEqual({ one: 'It', two: 'set' });
+    expect(getNamedMatches(step.match, 'It is set')).toEqual({ one: 'It', two: 'set' });
   });
 });
 
@@ -83,24 +83,25 @@ describe('getNamedWithVars', () => {
     const steppers = await createSteppers([TestStepper]);
     const resolver = new Resolver(steppers, '', world);
     world.shared.set('exact', 'res');
-    const features = asExpandedFeatures([withNameType('l1', 'is `exact`')]);
+    const features = asExpandedFeatures([withNameType(TEST_BASE, 'l1', 'is `exact`')]);
     const res = await resolver.resolveSteps(features);
     const { vsteps } = res[0] as TResolvedFeature;
     expect(vsteps[0].actions[0]).toBeDefined();
-    const val = getNamedToVars(vsteps[0].actions[0], world, vsteps[0]);
+    const val = getNamedToVars(vsteps[0].actions[0], world);
     expect(val?.what).toBe('res');
   });
 });
 
 describe('context', () => {
-  it.only('assigns [HERE]', async () => {
+  it('assigns [HERE]', async () => {
     const feature = { path: '/features/here.feature', content: 'set [HERE] to y' };
     const verify = { path: '/features/verify.feature', content: 'here is "y"' };
     const res = await testWithDefaults([feature, verify], []);
-    expect(res.world.shared.get('here')).toBe('y');
+    expect(res.world.shared.get('/features/here')).toBe('y');
   });
   it('rejects unknown', async () => {
     const fails = { path: '/features/here.feature', content: 'set [NOTHING] to y' };
-    expect(async () => await testWithDefaults([fails], [])).resolves.toThrow();
+    const res = await testWithDefaults([fails], [])
+    expect(res.ok).toBe(false)
   });
 });

@@ -20,9 +20,12 @@ import {
   DEFAULT_DEST,
   TTagValue,
   TFeatureResult,
+  TBase,
 } from '../defs.js';
 
 export type TFileSystem = Partial<typeof nodeFS>;
+
+export const basesFrom = (s): string[] => s.split(',').map(b => b.trim());
 
 // FIXME tired of wrestling with ts/import issues
 export async function use(module: string) {
@@ -144,8 +147,14 @@ export function getDefaultOptions(): TSpecl {
   };
 }
 
-export function getConfigFromBase(base: string, fs: TFileSystem = nodeFS): TSpecl | null {
-  const f = `${base}/config.json`;
+export function getConfigFromBase(bases: TBase, fs: TFileSystem = nodeFS): TSpecl | null {
+  const found = bases.filter((b) => fs.existsSync(`${b}/config.json`));
+  if (found.length !== 1) {
+    console.error(`found multiple config.json files: ${found.join(', ')}`);
+    return null;
+  }
+  const f = `${found[0]}/config.json`;
+  console.info(`trying ${f}`);
   try {
     const specl = JSON.parse(fs.readFileSync(f, 'utf-8'));
     if (!specl.options) {

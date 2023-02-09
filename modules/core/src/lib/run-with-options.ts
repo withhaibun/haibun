@@ -1,4 +1,4 @@
-import { TStartRunCallback, TProtoOptions, TSpecl, TWorld, TTag, TRunOptions, TRunResult, TTagValue, TEndFeatureCallback } from './defs.js';
+import { TStartRunCallback, TProtoOptions, TSpecl, TWorld, TTag, TRunOptions, TRunResult, TTagValue, TEndFeatureCallback, TBase } from './defs.js';
 import { WorldContext } from './contexts.js';
 import Logger from './Logger.js';
 
@@ -8,7 +8,7 @@ import { ILogOutput } from './interfaces/logger.js';
 import { Timer } from './Timer.js';
 
 export default async function runWithOptions(runOptions: TRunOptions) {
-  const { loops, members, trace, startRunCallback, endFeatureCallback, featureFilter, specl, base, splits, protoOptions } = runOptions;
+  const { loops, members, trace, startRunCallback, endFeatureCallback, featureFilter, specl, bases, splits, protoOptions } = runOptions;
   const { LOG_LEVEL: logLevel, LOG_FOLLOW: logFollow } = protoOptions.options;
 
   const logger = new Logger({ level: logLevel || 'debug', follow: logFollow });
@@ -30,7 +30,7 @@ export default async function runWithOptions(runOptions: TRunOptions) {
         const tag: TTag = getRunTag(totalRan, loop, member, 0, split, trace);
         totalRan++;
 
-        const res = await doRun(base, specl, runtime, featureFilter, new WorldContext(tag, split), protoOptions, logger, tag, timer, startRunCallback, endFeatureCallback);
+        const res = await doRun(bases, specl, runtime, featureFilter, new WorldContext(tag, split), protoOptions, logger, tag, timer, startRunCallback, endFeatureCallback);
         return res;
       });
       groupRuns = groupRuns.concat(instances);
@@ -81,7 +81,7 @@ export default async function runWithOptions(runOptions: TRunOptions) {
 }
 
 async function doRun(
-  base: string,
+  bases: TBase,
   specl: TSpecl,
   runtime: object,
   featureFilter: string[] | undefined,
@@ -96,14 +96,14 @@ async function doRun(
   const runStart = process.hrtime();
   const logger = new Logger({ output: containerLogger, tag });
 
-  const world: TWorld = { options: protoOptions.options, extraOptions: protoOptions.extraOptions, shared, logger, runtime, domains: [], tag, timer, base };
+  const world: TWorld = { options: protoOptions.options, extraOptions: protoOptions.extraOptions, shared, logger, runtime, domains: [], tag, timer, bases };
   if (startRunCallback) {
     startRunCallback(world);
   }
 
   logger.log(`running with these options: ${JSON.stringify(world.options)})}`);
 
-  const result = await run({ specl, base, world, featureFilter, extraOptions: protoOptions.extraOptions, endFeatureCallback });
+  const result = await run({ specl, bases, world, featureFilter, extraOptions: protoOptions.extraOptions, endFeatureCallback });
   const output = await resultOutput(world.options.OUTPUT, result);
 
   return { world, result, shared, output, tag, runStart: runStart[0], runDuration: process.hrtime(runStart)[0], fromStart: timer.since() };

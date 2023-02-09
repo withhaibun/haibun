@@ -11,7 +11,7 @@ describe('vars', () => {
   });
   it('assigns [HERE]', async () => {
     const feature = { path: '/features/here.feature', content: 'set [HERE] to 1' };
-    const verify = { path: '/features/verify.feature', content: '"here" is "1"' };
+    const verify = { path: '/features/verify.feature', content: '"/features/here" is "1"' };
     const res = await testWithDefaults([feature, verify], []);
     expect(res.ok).toBe(true);
   });

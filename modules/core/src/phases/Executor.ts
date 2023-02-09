@@ -6,7 +6,7 @@ export class Executor {
   // find the stepper and action, call it and return its result
   static async action(steppers: AStepper[], vstep: TVStep, a: TFound, world: TWorld): Promise<Partial<TActionResult>> {
     try {
-      const namedWithVars = getNamedToVars(a, world, vstep);
+      const namedWithVars = getNamedToVars(a, world);
       const stepper = findStepper<AStepper>(steppers, a.stepperName);
       return await stepper.steps[a.actionName].action(namedWithVars, vstep);
     } catch (caught: any) {
@@ -86,7 +86,7 @@ export class FeatureExecutor {
       if (!result.ok) {
         await this.onFailure(result);
       }
-      world.logger.log(`${ok}`, { topic: { stage: 'Executor', seq, result } });
+      world.logger.log('✅', { topic: { stage: 'Executor', seq, result } });
       stepResults.push(result);
       if (!ok) {
         break;

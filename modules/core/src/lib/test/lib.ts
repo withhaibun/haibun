@@ -9,6 +9,7 @@ import Logger, { LOGGER_NOTHING } from '../Logger.js';
 import { Timer } from '../Timer.js';
 
 export const HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS = 'HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS';
+export const TEST_BASE = 'test_base';
 
 export async function getCreateSteppers(steppers: string[], addSteppers?: CStepper[]) {
   const csteppers = await getSteppers(steppers);
@@ -25,35 +26,38 @@ export async function getTestEnv(useSteppers: string[], test: string, world: TWo
   const resolver = new Resolver(steppers, 'all', world);
   const actions = resolver.findSteps(test);
 
+
   const vstep: TVStep = {
-    source: { ...withNameType('test', '') },
+    source: { ...withNameType(TEST_BASE, 'test', '') },
     in: test,
     seq: 0,
     actions,
   };
   return { world, vstep, csteppers, steppers };
 }
-type TTestFeatures = { path: string; content: string }[];
+type TTestFeatures = { path: string; content: string, base?: string }[];
 
 export async function testWithDefaults(
   featuresIn: TTestFeatures | string,
   addSteppers: CStepper[],
   protoOptions: TProtoOptions = DEF_PROTO_OPTIONS,
-  inBackgrounds: TTestFeatures = []
+  backgroundsIn: TTestFeatures = []
 ): Promise<TResult & { world: TWorld }> {
+
   const inFeatures = typeof featuresIn == 'string' ? [{ path: '/features/test', content: featuresIn }] : featuresIn;
   const specl = getDefaultOptions();
   const world = getTestWorldWithOptions(protoOptions);
 
-  const features = asFeatures(inFeatures);
-  const backgrounds = asFeatures(inBackgrounds);
+  const withBases = (i => i.base ? i : { ...i, base: TEST_BASE });
+  const features = asFeatures(inFeatures.map(withBases));
+  const backgrounds = asFeatures(backgroundsIn.map(withBases));
 
   const ran = await runWith({ specl, features, backgrounds, addSteppers, world });
   return { ...ran, world };
 }
 
-export function getTestWorldWithOptions(protoOptions: TProtoOptions) {
-  const { world } = getDefaultWorld(0);
+export function getTestWorldWithOptions(protoOptions: TProtoOptions, env = { HAIBUN_LOG_LEVEL: 'none' }) {
+  const { world } = getDefaultWorld(0, env);
   if (protoOptions) {
     world.options = protoOptions.options;
     world.extraOptions = protoOptions.extraOptions;
@@ -61,12 +65,9 @@ export function getTestWorldWithOptions(protoOptions: TProtoOptions) {
   return world;
 }
 
-// FIXME asFeatures should use base?
-export const asBasedFeatures = (base, w: { path: string; content: string }[]) => asFeatures(w).map((i) => ({ ...i, path: `${base}${i.path}` }));
-export const asFeatures = (w: { path: string; content: string }[]) => w.map((i) => withNameType(i.path, i.content));
-
+export const asFeatures = (w: { base?: string, path: string; content: string }[]) => w.map((i) => withNameType(i.base || TEST_BASE, i.path, i.content));
 // FIXME can't really do this without reproducing resolve
-export const asExpandedFeatures = (w: { path: string; content: string }[]): TExpandedFeature[] =>
+export const asExpandedFeatures = (w: { base?: string, path: string; content: string }[]): TExpandedFeature[] =>
   asFeatures(w).map((i) => {
     const expanded: TExpandedLine[] = featureSplit(i.content).map((a) => ({ line: a, feature: i }));
     let a: any = { ...i, expanded };
@@ -75,18 +76,18 @@ export const asExpandedFeatures = (w: { path: string; content: string }[]): TExp
     return a;
   });
 
-export function getDefaultWorld(sequence: number): { world: TWorld } {
+export function getDefaultWorld(sequence: number, env = process.env): { world: TWorld } {
   return {
     world: {
       timer: new Timer(),
       tag: getRunTag(sequence, 0, 0, 0),
       shared: new WorldContext(getDefaultTag(sequence)),
-      logger: new Logger(process.env.HAIBUN_LOG_LEVEL ? { level: process.env.HAIBUN_LOG_LEVEL } : LOGGER_NOTHING),
+      logger: new Logger(env.HAIBUN_LOG_LEVEL ? { level: env.HAIBUN_LOG_LEVEL } : LOGGER_NOTHING),
       runtime: {},
       options: { DEST: DEFAULT_DEST },
       extraOptions: {},
       domains: [],
-      base: '/features/',
+      bases: ['/features/'],
     },
   };
 }

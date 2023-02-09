@@ -70,14 +70,14 @@ export const getMatch = (actionable: string, r: RegExp, actionName: string, step
 
 // returns named values, assigning variable values as appropriate
 // retrieves from world.shared if a base domain, otherwise world.domains[type].shared
-export function getNamedToVars({ named, vars }: TFound, world: TWorld, vstep: TVStep) {
+export function getNamedToVars({ named, vars }: TFound, world: TWorld) {
   if (!named) {
     return { _nb: 'no named' };
   }
   if (!vars || vars.length < 1) {
     return named;
   }
-  let namedFromVars: TNamed = {};
+  const namedFromVars: TNamed = {};
   vars.forEach((v, i) => {
     const { name, type } = v;
 

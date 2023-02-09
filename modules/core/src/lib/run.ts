@@ -1,4 +1,4 @@
-import { TSpecl, TResult, TWorld, TFeature, TExtraOptions, TResolvedFeature, TEndFeatureCallback, CStepper, DEFAULT_DEST, TNotOKActionResult } from './defs.js';
+import { TSpecl, TResult, TWorld, TFeature, TExtraOptions, TResolvedFeature, TEndFeatureCallback, CStepper, DEFAULT_DEST, TNotOKActionResult, TBase } from './defs.js';
 import { expand } from './features.js';
 import { Executor } from '../phases/Executor.js';
 import { Resolver } from '../phases/Resolver.js';
@@ -9,20 +9,20 @@ import { getFeaturesAndBackgrounds } from '../phases/collector.js';
 
 type TBaseOptions = { specl: TSpecl; world: TWorld; addSteppers?: CStepper[]; endFeatureCallback?: TEndFeatureCallback; };
 
-type TRunOptions = TBaseOptions & { base: string, featureFilter: string[], extraOptions: TExtraOptions, };
+type TRunOptions = TBaseOptions & { bases: TBase, featureFilter: string[], extraOptions: TExtraOptions, };
 
 type TRunWithFeaturesBackgrounds = TBaseOptions & { features: TFeature[]; backgrounds: TFeature[]; };
 
 export const DEF_PROTO_DEFAULT_OPTIONS = { DEST: DEFAULT_DEST };
 export const DEF_PROTO_OPTIONS = { options: DEF_PROTO_DEFAULT_OPTIONS, extraOptions: {} };
 
-export async function run({ specl, base, world, addSteppers = [], featureFilter, endFeatureCallback }: TRunOptions): Promise<TResult> {
+export async function run({ specl, bases, world, addSteppers = [], featureFilter, endFeatureCallback }: TRunOptions): Promise<TResult> {
   if (!world.options || !world.extraOptions) {
     throw Error(`missing options ${world.options} extraOptions ${world.extraOptions}`);
   }
   let featuresBackgrounds;
   try {
-    featuresBackgrounds = getFeaturesAndBackgrounds(base, featureFilter);
+    featuresBackgrounds = getFeaturesAndBackgrounds(bases, featureFilter);
   } catch (error) {
     return ({ ok: false, tag: getRunTag(-1, -1, -1, -1, {}, false), failure: { stage: 'Collect', error: { message: error.message, details: { stack: error.stack } } }, shared: world.shared });
   }
@@ -36,8 +36,6 @@ export async function runWith({ specl, world, features, backgrounds, addSteppers
   let result = undefined;
   const errorBail = (phase: string, error: any, details?: any) => {
     result = { ok: false, tag, failure: { stage: phase, error: { message: error.message, details: { stack: error.stack, details } } } };
-    console.log(error);
-
     throw Error(error);
   };
   try {

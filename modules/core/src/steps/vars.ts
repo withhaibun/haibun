@@ -95,7 +95,9 @@ export const setShared = ({ what, value }: TNamed, vstep: TVStep, world: TWorld,
   const { type, name } = vstep.source;
   // FIXME this should be in namedVars
   if (what === '[HERE]') {
-    what = vstep.source.path.replace(world.base, '').replaceAll('/', '_').replace('.feature', '');
+    what = vstep.source.name;
+  } else if (what.match(/^\[.*\]$/)) {
+    throw Error(`invalid reference ${what}`);
   }
 
   let shared = getStepShared(type, world);

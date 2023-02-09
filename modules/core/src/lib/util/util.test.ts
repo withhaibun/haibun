@@ -1,5 +1,5 @@
 import * as util from './index.js';
-import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, getDefaultWorld, testWithDefaults, getCreateSteppers } from '../test/lib.js';
+import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, getDefaultWorld, testWithDefaults, getCreateSteppers, TEST_BASE } from '../test/lib.js';
 import TestSteps from '../test/TestSteps.js';
 import TestStepsWithOptions from '../test/TestStepsWithOptions.js';
 import { withNameType } from '../features.js';
@@ -94,10 +94,10 @@ describe('getStepperOptions', () => {
 
 describe('getType', () => {
   it('finds a type', () => {
-    expect(withNameType('file.type.feature', '').type).toBe('type');
+    expect(withNameType(TEST_BASE, 'file.type.feature', '').type).toBe('type');
   });
   it('finds no type', () => {
-    expect(withNameType('file.feature', '').type).toBe('feature');
+    expect(withNameType(TEST_BASE, 'file.feature', '').type).toBe('feature');
   });
 });
 

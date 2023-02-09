@@ -66,6 +66,9 @@ export type TModuleDomain = TDomain & {
   shared: DomainContext;
 };
 
+
+export type TBase = string[];
+
 export type TWorld = {
   tag: TTag;
   shared: WorldContext;
@@ -75,11 +78,12 @@ export type TWorld = {
   extraOptions: TExtraOptions;
   domains: TModuleDomain[];
   timer: Timer;
-  base: string;
+  bases: TBase;
 };
 
 export type TFeatureMeta = {
   type: string;
+  base: string;
   name: string;
   path: string;
 };
@@ -302,7 +306,7 @@ export type TRunOptions = {
   endFeatureCallback?: TEndFeatureCallback;
   featureFilter?: string[];
   specl: TSpecl;
-  base: string;
+  bases: TBase;
   splits: TRunEnv[];
   protoOptions: TProtoOptions;
 };
