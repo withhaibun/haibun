@@ -17,7 +17,7 @@ export class Executor {
   static async execute(csteppers: CStepper[], world: TWorld, features: TResolvedFeature[], endFeatureCallback?: TEndFeatureCallback): Promise<TResult> {
     let ok = true;
     const stay = world.options.stay === 'always';
-    let featureResults: TFeatureResult[] = [];
+    const featureResults: TFeatureResult[] = [];
     // FIXME scoring hack
     // world.shared.values._features = features;
     world.shared.values._scored = [];
@@ -69,15 +69,15 @@ export class FeatureExecutor {
     this.steppers = steppers;
   }
   async doFeature(feature: TResolvedFeature): Promise<TFeatureResult> {
-    const world = this.world!;
-    world.logger.log(`*** feature ${world.tag.featureNum}: ${feature.path}`);
+    const world = this.world;
+    world.logger.log(`███ feature ${world.tag.featureNum}: ${feature.path}`);
     let ok = true;
-    let stepResults: TStepResult[] = [];
+    const stepResults: TStepResult[] = [];
     let seq = 0;
 
     for (const step of feature.vsteps) {
-      world.logger.log(`   ${step.in}\r`);
-      const result = await FeatureExecutor.doFeatureStep(this.steppers!, step, world);
+      world.logger.log(`${step.in}\r`);
+      const result = await FeatureExecutor.doFeatureStep(this.steppers, step, world);
 
       if (world.options.step_delay) {
         await sleep(world.options.step_delay as number);
@@ -100,7 +100,7 @@ export class FeatureExecutor {
 
   static async doFeatureStep(steppers: AStepper[], vstep: TVStep, world: TWorld): Promise<TStepResult> {
     let ok = true;
-    let actionResults = [];
+    const actionResults = [];
 
     // FIXME feature should really be attached ot the vstep
     for (const a of vstep.actions) {
@@ -125,34 +125,34 @@ export class FeatureExecutor {
     return { ok, in: vstep.in, sourcePath: vstep.source.path, actionResults, seq: vstep.seq };
   }
   async onFailure(result: TStepResult) {
-    for (const s of this.steppers!) {
+    for (const s of this.steppers) {
       if (s.onFailure) {
-        this.world!.logger.debug(`onFailure ${s.constructor.name}`);
+        this.world.logger.debug(`onFailure ${s.constructor.name}`);
         await s.onFailure(result);
       }
     }
   }
 
   async endFeature(featureResult: TFeatureResult) {
-    for (const s of this.steppers!) {
+    for (const s of this.steppers) {
       if (s.endFeature) {
-        this.world!.logger.debug(`endFeature ${s.constructor.name}`);
+        this.world.logger.debug(`endFeature ${s.constructor.name}`);
         await s.endFeature();
       }
     }
 
     if (this.endFeatureCallback) {
       try {
-        await this.endFeatureCallback({ world: this.world!, result: featureResult, steppers: this.steppers!, startOffset: this.startOffset });
+        await this.endFeatureCallback({ world: this.world, result: featureResult, steppers: this.steppers, startOffset: this.startOffset });
       } catch (error: any) {
         throw Error(error);
       }
     }
   }
   async close() {
-    for (const s of this.steppers!) {
+    for (const s of this.steppers) {
       if (s.close) {
-        this.world!.logger.debug(`closing ${s.constructor.name}`);
+        this.world.logger.debug(`closing ${s.constructor.name}`);
         await s.close();
       }
     }

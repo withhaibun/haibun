@@ -4,7 +4,6 @@ import { descTag, isFirstTag } from './util/index.js';
 
 export const LOGGER_LOG = { level: 'log' };
 export const LOGGER_NOTHING = { level: 'none' };
-const WIDTH = 25;
 
 export const LOGGER_LEVELS = {
   debug: 1,
@@ -65,7 +64,8 @@ export default class Logger implements ILogger, ILogOutput {
     const ln = e[Math.min((e?.length || 1) - 1, 4)]?.replace(/.*\(/, '')
       ?.replace(process.cwd(), '').replace(')', '').replace(/.*\//, '').replace(/\.ts:/, ':');
     const tag = messageContext?.tag ? isFirstTag(messageContext.tag) ? '' : descTag(messageContext.tag) : '';
-    console[level]((showLevel.padStart(6) + `| ${ln}${tag}`).padEnd(35) + `| `, args);
+    const [proggy, line/*, col*/] = ln.split(':');
+    console[level]((showLevel.padStart(6) + ` █ ${proggy}:${line}${tag}`).padEnd(30) + ` ｜ `, args);
   }
   debug = (args: TLogArgs, mctx?: TMessageContext) => this.out('debug', args, mctx);
   log = (args: TLogArgs, mctx?: TMessageContext) => this.out('log', args, mctx);
