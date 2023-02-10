@@ -1,7 +1,7 @@
 {
   "name": "@haibun/browser-extension",
   "type": "module",
-  "version": "1.22.0",
+  "version": "1.23.0",
   "description": "",
   "main": "build/context.js",
   "files": [
@@ -23,13 +23,13 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "@haibun/cli": "^1.22.0",
+    "@haibun/cli": "^1.23.0",
     "@haibun/context": "^1.22.0",
     "@haibun/domain-storage": "^1.22.0",
     "@haibun/domain-webpage": "^1.22.0",
     "@haibun/feature-importer": "^1.22.0",
     "@haibun/storage-fs": "^1.22.0",
-    "@haibun/web-playwright": "^1.22.0",
+    "@haibun/web-playwright": "^1.23.0",
     "@haibun/web-server-express": "^1.22.0",
     "@types/chrome": "0.0.203",
     "@types/jest": "^29.2.4",
