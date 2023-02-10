@@ -24,6 +24,8 @@ async function go() {
 
   const specl = getSpeclOrExit(bases, featureFilter);
 
+  console.log('o', specl);
+
   const { protoOptions, errors } = processBaseEnvToOptionsAndErrors(process.env, specl.options);
   const splits: { [name: string]: string }[] = protoOptions.options.SPLITS || [{}];
 
@@ -72,9 +74,9 @@ async function go() {
 function getSpeclOrExit(bases: TBase, featureFilter: TFeatureFilter): TSpecl {
   const specl = getConfigFromBase(bases);
   const askForHelp = featureFilter?.find(f => f === '--help' || f === '-h')
-  if (specl === null || !bases || askForHelp) {
+  if (specl === null || bases?.length < 1 || askForHelp) {
     if (specl === null) {
-      console.error(`missing or unusable ${bases}/config.json`);
+      console.error(`missing or unusable config.json from ${bases}`);
     }
     usageThenExit(specl ? specl : getDefaultOptions());
   }

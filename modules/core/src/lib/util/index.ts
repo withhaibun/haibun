@@ -23,23 +23,24 @@ import {
   TBase,
 } from '../defs.js';
 
+type TClass = { new <T>(...args: unknown[]): T };
 export type TFileSystem = Partial<typeof nodeFS>;
 
 export const basesFrom = (s): string[] => s.split(',').map(b => b.trim());
 
 // FIXME tired of wrestling with ts/import issues
-export async function use(module: string) {
+export async function use(module: string): Promise<TClass> {
   try {
-    const re: any = (await import(`${module}.js`)).default;
+    const re: object = (await import(`${module}.js`)).default;
     checkModuleIsClass(re, module);
-    return re;
+    return <TClass>re;
   } catch (e) {
     console.error('failed including', module);
     throw e;
   }
 }
 
-export function checkModuleIsClass(re: any, module: string) {
+export function checkModuleIsClass(re: object, module: string) {
   // this is early morning code
   const type = re?.toString().replace(/^ /g, '').split('\n')[0].replace(/\s.*/, '');
 
@@ -90,7 +91,7 @@ export async function createSteppers(steppers: CStepper[]): Promise<AStepper[]> 
   const allSteppers: AStepper[] = [];
   for (const S of steppers) {
     try {
-      const stepper = new (S as any)();
+      const stepper = new S();
       allSteppers.push(stepper);
     } catch (e) {
       console.error(`create ${S} failed`, e, S);
@@ -345,7 +346,7 @@ export const shortNum = (n: number) => Math.round(n * 100) / 100;
 export const getFeatureTitlesFromResults = (result: TFeatureResult) =>
   result.stepResults.filter((s) => s.actionResults.find((a) => (a.name === 'feature' ? true : false))).map((a) => a.in.replace(/^Feature: /, ''));
 
-function trying<TResult>(fun: () => void): Promise<Error | TResult> {
+export function trying<TResult>(fun: () => void): Promise<Error | TResult> {
   return new Promise((resolve, reject) => {
     try {
       const res = <TResult>fun();
@@ -360,3 +361,5 @@ function trying<TResult>(fun: () => void): Promise<Error | TResult> {
 export function asError(e: unknown): Error {
   return typeof e === 'object' && e !== null && 'message' in e && typeof (e as Record<string, unknown>).message === 'string' ? (e as Error) : new Error(e as any);
 }
+
+export const getSerialTime = () => Date.now();

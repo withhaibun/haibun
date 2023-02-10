@@ -5,7 +5,6 @@ import { onCurrentTypeForDomain } from '@haibun/core/build/steps/vars.js';
 import { BrowserFactory, TBrowserFactoryOptions, TBrowserTypes } from './BrowserFactory.js';
 import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOption } from '@haibun/core/build/lib/util/index.js';
 import { WEB_PAGE, WEB_CONTROL } from '@haibun/domain-webpage/build/domain-webpage.js';
-import { TTraceTopic } from '@haibun/core/build/lib/interfaces/logger.js';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 import { EMediaTypes } from '@haibun/domain-storage/build/domain-storage.js';
 
@@ -55,6 +54,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
   storage?: AStorage;
   factoryOptions?: TBrowserFactoryOptions;
   tab = 0;
+  withFrame: string;
 
   async setWorld(world: TWorld, steppers: AStepper[]) {
     super.setWorld(world, steppers);
@@ -119,7 +119,9 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
   }
 
   async withPage<TReturn>(f: any): Promise<TReturn> {
-    const page = await this.getPage();
+    const page = this.withFrame ? (await this.getPage()).frameLocator(this.withFrame) : await this.getPage();
+    this.withFrame && console.log('using frame', this.withFrame);
+    this.withFrame = undefined;
     return await f(page);
   }
 
@@ -165,10 +167,24 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
 
   steps = {
     //                                      INPUT
+    press: {
+      gwta: `press {key}`,
+      action: async ({ key }: TNamed) => {
+        await this.withPage(async (page: Page) => await page.keyboard.press(key));
+        return OK;
+      }
+    },
+    type: {
+      gwta: `type {text}`,
+      action: async ({ text }: TNamed) => {
+        await this.withPage(async (page: Page) => await page.keyboard.type(text));
+        return OK;
+      }
+    },
     inputVariable: {
       gwta: `input {what} for {field}`,
       action: async ({ what, field }: TNamed) => {
-        await this.withPage(async (page: Page) => await page.fill(field, what));
+        await this.withPage(async (page: Page) => await page.locator(field).fill(what));
         return OK;
       },
     },
@@ -278,10 +294,10 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
         const background = context?.serviceWorkers()[0];
 
         if (!background) {
-          console.log('no background', context.serviceWorkers())
-
-          //   background = await context!.waitForEvent("serviceworker");
+          // background = await context.waitForEvent("serviceworker");
         }
+
+        console.log('background', background, context.serviceWorkers())
 
         const extensionId = background.url().split("/")[2];
         this.getWorld().shared.set('extensionContext', extensionId);
@@ -338,6 +354,57 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
 
     //                  CLICK
 
+    clickByAltText: {
+      gwta: 'click by alt text {altText}',
+      action: async ({ altText }: TNamed) => {
+        await this.withPage(async (page: Page) => await page.getByAltText(altText).click());
+        return OK;
+      }
+    },
+    clickByTestId: {
+      gwta: 'click by test id {testId}',
+      action: async ({ testId }: TNamed) => {
+        await this.withPage(async (page: Page) => await page.getByTestId(testId).click());
+        return OK;
+      }
+    },
+    clickByPlaceholder: {
+      gwta: 'click by placeholder {placeholder}',
+      action: async ({ placeholder }: TNamed) => {
+        await this.withPage(async (page: Page) => await page.getByPlaceholder(placeholder).click());
+        return OK;
+      }
+    },
+    clickByRole: {
+      gwta: 'click by role {roleStr}',
+      action: async ({ roleStr }: TNamed) => {
+        const [role, ...restStr] = roleStr.split(' ');
+        let rest;
+        try {
+          console.log('rr', restStr.join(' '));
+
+          rest = JSON.parse(restStr.join(' '));
+        } catch (e) {
+          return actionNotOK(`could not parse role ${roleStr} as JSON: ${e}`);
+        }
+        await this.withPage(async (page: Page) => await page.getByRole(<any>role, rest || {}).click());
+        return OK;
+      }
+    },
+    clickByTitle: {
+      gwta: 'click by title {title}',
+      action: async ({ title }: TNamed) => {
+        await this.withPage(async (page: Page) => await page.getByTitle(title).click());
+        return OK;
+      }
+    },
+    clickByText: {
+      gwta: 'click by text {text}',
+      action: async ({ text }: TNamed) => {
+        await this.withPage(async (page: Page) => await page.getByText(text).click());
+        return OK;
+      }
+    },
     clickOn: {
       gwta: 'click on (?<name>.[^s]+)',
       action: async ({ name }: TNamed) => {
@@ -460,6 +527,13 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
 
 
     //                          MISC
+    withFrame: {
+      gwta: 'with frame {name}',
+      action: async ({ name }: TNamed) => {
+        this.withFrame = name;
+        return OK;
+      }
+    },
     captureDialog: {
       gwta: 'Accept next dialog to {where}',
       action: async ({ where }: TNamed) => {

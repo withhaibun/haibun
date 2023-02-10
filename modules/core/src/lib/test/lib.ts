@@ -5,7 +5,7 @@ import { getSteppers, getRunTag, verifyExtraOptions, getDefaultOptions, createSt
 import { WorldContext } from '../contexts.js';
 import { featureSplit, withNameType } from './../features.js';
 import { getDomains, verifyDomainsOrError } from './../domain.js';
-import Logger, { LOGGER_NOTHING } from '../Logger.js';
+import Logger, { LOGGER_LOG } from '../Logger.js';
 import { Timer } from '../Timer.js';
 
 export const HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS = 'HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS';
@@ -15,6 +15,13 @@ export async function getCreateSteppers(steppers: string[], addSteppers?: CStepp
   const csteppers = await getSteppers(steppers);
   return await createSteppers(csteppers.concat(addSteppers || []));
 }
+
+export const testVStep = (name: string, actions, base = TEST_BASE): TVStep => ({
+  source: { ...withNameType(base, name, '') },
+  in: name,
+  seq: 0,
+  actions,
+});
 
 export async function getTestEnv(useSteppers: string[], test: string, world: TWorld) {
   const csteppers = await getSteppers(useSteppers);
@@ -26,13 +33,8 @@ export async function getTestEnv(useSteppers: string[], test: string, world: TWo
   const resolver = new Resolver(steppers, 'all', world);
   const actions = resolver.findSteps(test);
 
+  const vstep = testVStep('test', actions);
 
-  const vstep: TVStep = {
-    source: { ...withNameType(TEST_BASE, 'test', '') },
-    in: test,
-    seq: 0,
-    actions,
-  };
   return { world, vstep, csteppers, steppers };
 }
 type TTestFeatures = { path: string; content: string, base?: string }[];
@@ -82,7 +84,7 @@ export function getDefaultWorld(sequence: number, env = process.env): { world: T
       timer: new Timer(),
       tag: getRunTag(sequence, 0, 0, 0),
       shared: new WorldContext(getDefaultTag(sequence)),
-      logger: new Logger(env.HAIBUN_LOG_LEVEL ? { level: env.HAIBUN_LOG_LEVEL } : LOGGER_NOTHING),
+      logger: new Logger(env.HAIBUN_LOG_LEVEL ? { level: env.HAIBUN_LOG_LEVEL } : LOGGER_LOG),
       runtime: {},
       options: { DEST: DEFAULT_DEST },
       extraOptions: {},

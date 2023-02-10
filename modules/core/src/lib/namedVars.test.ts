@@ -1,7 +1,7 @@
 import { AStepper, OK, TResolvedFeature, TStep } from './defs.js';
 import { getNamedMatches, namedInterpolation, matchGroups, getNamedToVars } from './namedVars.js';
 import { Resolver } from '../phases/Resolver.js';
-import { actionNotOK, createSteppers } from './util/index.js';
+import { actionNotOK, createSteppers, getSerialTime } from './util/index.js';
 import { asExpandedFeatures, getDefaultWorld, testWithDefaults, TEST_BASE } from './test/lib.js';
 import { withNameType } from './features.js';
 
@@ -87,17 +87,25 @@ describe('getNamedWithVars', () => {
     const res = await resolver.resolveSteps(features);
     const { vsteps } = res[0] as TResolvedFeature;
     expect(vsteps[0].actions[0]).toBeDefined();
-    const val = getNamedToVars(vsteps[0].actions[0], world);
+    const val = getNamedToVars(vsteps[0].actions[0], world, vsteps[0]);
     expect(val?.what).toBe('res');
   });
 });
 
-describe('context', () => {
+describe('special', () => {
   it('assigns [HERE]', async () => {
-    const feature = { path: '/features/here.feature', content: 'set [HERE] to y' };
-    const verify = { path: '/features/verify.feature', content: 'here is "y"' };
+    const feature = { path: '/features/here.feature', content: 'set t to [HERE]' };
+    const verify = { path: '/features/verify.feature', content: 't is "/features/here.feature"' };
     const res = await testWithDefaults([feature, verify], []);
-    expect(res.world.shared.get('/features/here')).toBe('y');
+    expect(res.ok).toBe(true);
+  });
+  it('assigns [SERIALTIME]', async () => {
+    const feature = { path: '/features/here.feature', content: 'set t to [SERIALTIME]' };
+    const now = getSerialTime();
+    const res = await testWithDefaults([feature], []);
+    const t = res.world.shared.get('t');
+    expect(t).toBeDefined();
+    expect(parseInt(t)).toBeGreaterThanOrEqual(now);
   });
   it('rejects unknown', async () => {
     const fails = { path: '/features/here.feature', content: 'set [NOTHING] to y' };

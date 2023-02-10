@@ -103,7 +103,7 @@ async function doRun(
 
   logger.log(`running with these options: ${JSON.stringify(world.options)})}`);
 
-  const result = await run({ specl, bases, world, featureFilter, extraOptions: protoOptions.extraOptions, endFeatureCallback });
+  const result = await run({ specl, bases, world, featureFilter, endFeatureCallback });
   const output = await resultOutput(world.options.OUTPUT, result);
 
   return { world, result, shared, output, tag, runStart: runStart[0], runDuration: process.hrtime(runStart)[0], fromStart: timer.since() };

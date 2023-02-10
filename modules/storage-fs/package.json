@@ -1,7 +1,7 @@
 {
   "name": "@haibun/storage-fs",
   "type": "module",
-  "version": "1.20.0",
+  "version": "1.21.0",
   "description": "",
   "main": "index.js",
   "files": [
@@ -19,8 +19,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@haibun/core": "^1.20.0",
-    "@haibun/domain-storage": "^1.20.0"
+    "@haibun/core": "^1.21.0",
+    "@haibun/domain-storage": "^1.21.0"
   },
   "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5"
 }

@@ -1,7 +1,7 @@
 {
   "name": "@haibun/browser-extension",
   "type": "module",
-  "version": "1.20.0",
+  "version": "1.21.0",
   "description": "",
   "main": "build/context.js",
   "files": [
@@ -23,7 +23,7 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "@haibun/cli": "^1.20.0",
+    "@haibun/cli": "^1.21.0",
     "@haibun/context": "^1.20.0",
     "@haibun/domain-storage": "^1.20.0",
     "@haibun/domain-webpage": "^1.20.0",

@@ -1,4 +1,4 @@
-import { TSpecl, TResult, TWorld, TFeature, TExtraOptions, TResolvedFeature, TEndFeatureCallback, CStepper, DEFAULT_DEST, TNotOKActionResult, TBase } from './defs.js';
+import { TSpecl, TResult, TWorld, TFeature, TResolvedFeature, TEndFeatureCallback, CStepper, DEFAULT_DEST, TNotOKActionResult, TBase } from './defs.js';
 import { expand } from './features.js';
 import { Executor } from '../phases/Executor.js';
 import { Resolver } from '../phases/Resolver.js';
@@ -9,7 +9,7 @@ import { getFeaturesAndBackgrounds } from '../phases/collector.js';
 
 type TBaseOptions = { specl: TSpecl; world: TWorld; addSteppers?: CStepper[]; endFeatureCallback?: TEndFeatureCallback; };
 
-type TRunOptions = TBaseOptions & { bases: TBase, featureFilter: string[], extraOptions: TExtraOptions, };
+type TRunOptions = TBaseOptions & { bases: TBase, featureFilter: string[], };
 
 type TRunWithFeaturesBackgrounds = TBaseOptions & { features: TFeature[]; backgrounds: TFeature[]; };
 
@@ -27,6 +27,7 @@ export async function run({ specl, bases, world, addSteppers = [], featureFilter
     return ({ ok: false, tag: getRunTag(-1, -1, -1, -1, {}, false), failure: { stage: 'Collect', error: { message: error.message, details: { stack: error.stack } } }, shared: world.shared });
   }
   const { features, backgrounds } = featuresBackgrounds;
+
   return runWith({ specl, world, features, backgrounds, addSteppers, endFeatureCallback });
 }
 
