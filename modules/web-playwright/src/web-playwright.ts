@@ -1,12 +1,13 @@
 import { Page, Response, Download } from 'playwright';
 
-import { IHasOptions, OK, TNamed, IRequireDomains, TStepResult, TTraceOptions, TTrace, AStepper, TWorld } from '@haibun/core/build/lib/defs.js';
+import { IHasOptions, OK, TNamed, IRequireDomains, TStepResult, TTraceOptions, TTrace, AStepper, TWorld, TVStep } from '@haibun/core/build/lib/defs.js';
 import { onCurrentTypeForDomain } from '@haibun/core/build/steps/vars.js';
 import { BrowserFactory, TBrowserFactoryOptions, TBrowserTypes } from './BrowserFactory.js';
 import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOption } from '@haibun/core/build/lib/util/index.js';
 import { WEB_PAGE, WEB_CONTROL } from '@haibun/domain-webpage/build/domain-webpage.js';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 import { EMediaTypes } from '@haibun/domain-storage/build/domain-storage.js';
+import { rmSync } from 'fs';
 
 // TODO: base on these - https://testing-library.com/docs/queries/byrole/, https://playwright.dev/docs/release-notes#locators
 
@@ -55,6 +56,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
   factoryOptions?: TBrowserFactoryOptions;
   tab = 0;
   withFrame: string;
+  downloaded: string[] = [];
 
   async setWorld(world: TWorld, steppers: AStepper[]) {
     super.setWorld(world, steppers);
@@ -152,7 +154,10 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     // close the context, which closes any pages
     if (this.hasFactory) {
       await this.bf?.closeContext(this.getWorld().tag);
-      return;
+    }
+    for (const file of this.downloaded) {
+      this.getWorld().logger.debug(`removing ${file}`);
+      rmSync(file);
     }
   }
 
@@ -381,8 +386,6 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
         const [role, ...restStr] = roleStr.split(' ');
         let rest;
         try {
-          console.log('rr', restStr.join(' '));
-
           rest = JSON.parse(restStr.join(' '));
         } catch (e) {
           return actionNotOK(`could not parse role ${roleStr} as JSON: ${e}`);
@@ -391,10 +394,18 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
         return OK;
       }
     },
+    clickByLabel: {
+      gwta: 'click by label {label}',
+      action: async ({ title: label }: TNamed) => {
+        await this.withPage(async (page: Page) => await page.getByLabel(label).click());
+        return OK;
+      }
+    },
     clickByTitle: {
       gwta: 'click by title {title}',
       action: async ({ title }: TNamed) => {
         await this.withPage(async (page: Page) => await page.getByTitle(title).click());
+
         return OK;
       }
     },
@@ -438,10 +449,12 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       },
     },
     clickLink: {
-      gwta: 'click the link {name}',
-      action: async ({ name }: TNamed) => {
+      // TODO: generalize modifier
+      gwta: 'click( with alt)? the link {name}',
+      action: async ({ name }: TNamed, vstep: TVStep) => {
+        const modifier = vstep.in.match(/ with alt /) ? { modifiers: ['Alt'] } : {};
         const field = this.getWorld().shared.get(name) || name;
-        await this.withPage(async (page: Page) => await page.click(field));
+        await this.withPage(async (page: Page) => await page.click(field, <any>modifier));
         return OK;
       },
     },
@@ -517,7 +530,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
           const download = <Download>await (this.withPage(async (page: Page) => page.waitForEvent('download')));
 
           await download.saveAs(file);
-
+          this.downloaded.push(file);
           return OK;
         } catch (e) {
           return actionNotOK(e);
