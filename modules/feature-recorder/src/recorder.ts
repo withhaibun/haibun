@@ -2,7 +2,7 @@
 
 import { run } from '@haibun/core/build/lib/run.js';
 import { getDefaultWorld } from '@haibun/core/build/lib/test/lib.js';
-import { getDefaultOptions, getStepperOptionName } from '@haibun/core/build/lib/util/index.js';
+import { getDefaultOptions, getStepperOptionName, trying } from '@haibun/core/build/lib/util/index.js';
 import WebSocketServer from '@haibun/context/build/websocket-server/websockets-server.js';
 import WebPlaywright from '@haibun/web-playwright/build/web-playwright.js';
 import StorageFS from '@haibun/storage-fs/build/storage-fs.js';
@@ -16,11 +16,13 @@ import WebServerStepper from '@haibun/web-server-express/build/web-server-steppe
 export async function record(url: string, featureFilter: string[], options?: { world?: TWorld }) {
     const specl = getDefaultOptions();
     const world = options?.world || getDefaultWorld(0).world;
+    const loc = `node_modules/@haibun/browser-extension/`
+
     const defaultExtraOptions = {
         [getStepperOptionName(WebPlaywright, 'STORAGE')]: 'StorageFS',
         [getStepperOptionName(WebPlaywright, 'PERSISTENT_DIRECTORY')]: 'true',
         [getStepperOptionName(WebPlaywright, 'HEADLESS')]: 'false',
-        [getStepperOptionName(WebPlaywright, 'ARGS')]: '--disable-extensions-except=./node_modules/@haibun/browser-extension/public/',
+        [getStepperOptionName(WebPlaywright, 'ARGS')]: `--disable-extensions-except=${loc}public/`,
         [getStepperOptionName(WebServerStepper, 'PORT')]: '8126',
     };
     for (const [name, value] of Object.entries(defaultExtraOptions)) {
@@ -30,10 +32,12 @@ export async function record(url: string, featureFilter: string[], options?: { w
         }
     }
     world.options = { ...world.options, env: { SITE: url } };
+
+
     const addSteppers = [Haibun, FeatureImporter, WebPlaywright, WebSocketServer, StorageFS, DomainStorage
         , DomainWebPage, WebServerStepper];
 
-    const result = await run({ specl, bases: ['./recorder'], featureFilter, addSteppers, world, extraOptions: {} });
+    const result = await run({ specl, bases: ['./recorder'], featureFilter, addSteppers, world });
 
     return result;
 }
