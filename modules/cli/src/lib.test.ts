@@ -12,7 +12,7 @@ describe('usageThenExit', () => {
   it('exits with success', () => {
     const ranOnce = (code: number | undefined) => { expect(code).toBe(0); return <never>undefined }
     jest.spyOn(process, 'exit').mockImplementationOnce(ranOnce);
-    jest.spyOn(console, 'info').mockImplementationOnce(any => undefined);
+    jest.spyOn(console, 'info').mockImplementationOnce(() => undefined);
     lib.usageThenExit({ ...getDefaultOptions(), steppers: ['../core/build/lib/test/TestStepsWithOptions'] });
   })
   it('exits with error', () => {
@@ -30,7 +30,7 @@ describe('options', () => {
     const result = await testWithDefaults([feature], [TestStepsWithOptions], protoConfig);
     expect(result.ok).toBe(true);
     expect(result.results?.length).toBe(1);
-    expect(result.results![0].stepResults[0].actionResults[0].topics?.options.summary).toEqual('options');
+    expect(result.results[0].stepResults[0].actionResults[0].topics?.options.summary).toEqual('options');
   });
 });
 

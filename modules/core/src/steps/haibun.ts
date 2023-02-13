@@ -13,6 +13,13 @@ const Haibun = class Haibun extends AStepper {
     //     return actionOK({ features: this.getWorld().shared.values._features });
     //   },
     // },
+    sequenceToken: {
+      gwta: 'a sequence token {token}',
+      action: async ({ token }: TNamed) => {
+        this.getWorld().shared.set(token, '' + new Date().getTime());
+        return OK;
+      },
+    },
     startStepDelay: {
       gwta: 'start step delay of (?<ms>.+)',
       action: async ({ ms }: TNamed) => {

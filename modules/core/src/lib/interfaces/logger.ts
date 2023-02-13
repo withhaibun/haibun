@@ -1,6 +1,7 @@
 import { TStepResult, TTag } from '../defs.js';
 
 export type TLogLevel = 'none' | 'debug' | 'log' | 'info' | 'warn' | 'error';
+export type TLogArgs = string;
 export const TEST_RESULT = { _test: true };
 
 export type TExecutorTopic = {
@@ -16,16 +17,16 @@ export type TMessageContext = {
 
 export type TTraceTopic = {
   type?: string;
-  trace?: any;
+  trace?: object;
 };
 export type TMessageTopic = TExecutorTopic | TTraceTopic;
 
 export interface ILogger {
-  debug: (what: any, ctx?: TMessageContext) => void;
-  log: (what: any, ctx?: TMessageContext) => void;
-  info: (what: any, ctx?: TMessageContext) => void;
-  warn: (what: any, ctx?: TMessageContext) => void;
-  error: (what: any, ctx?: TMessageContext) => void;
+  debug: (what: TLogArgs, ctx?: TMessageContext) => void;
+  log: (what: TLogArgs, ctx?: TMessageContext) => void;
+  info: (what: TLogArgs, ctx?: TMessageContext) => void;
+  warn: (what: TLogArgs, ctx?: TMessageContext) => void;
+  error: (what: TLogArgs, ctx?: TMessageContext) => void;
   addSubscriber: (subscriber: ILogOutput) => void;
 }
 
@@ -43,7 +44,7 @@ export interface ILoggerKeepAlive {
 }
 
 export interface ILogOutput {
-  out: (level: TLogLevel, args: any, ctx?: TMessageContext) => void;
+  out: (level: TLogLevel, args: TLogArgs, ctx?: TMessageContext) => void;
 }
 
 export type TOutputEnv = { output: ILogOutput; tag: TTag };

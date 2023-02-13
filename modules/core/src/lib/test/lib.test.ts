@@ -1,12 +1,7 @@
-import { asBasedFeatures, asFeatures } from "./lib.js";
+import { asFeatures, TEST_BASE } from "./lib.js";
 
 describe('asFeatures', () => {
     it('should add base to path', () => {
-        expect(asFeatures([{ path: '/b/c.feature', content: '#' }])).toEqual([{ path: '/b/c.feature', name: '/b/c', type: 'feature', content: '#' }]);
-    });
-});
-describe('asBasedFeatures', () => {
-    it('should add base to path', () => {
-        expect(asBasedFeatures('/a', [{ path: '/b/c.feature', content: '#' }])).toEqual([{ path: '/a/b/c.feature', name: '/b/c', type: 'feature', content: '#' }]);
+        expect(asFeatures([{ path: '/b/c.feature', content: '#' }])).toEqual([{ base: TEST_BASE, path: '/b/c.feature', name: '/b/c', type: 'feature', content: '#' }]);
     });
 });

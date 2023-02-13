@@ -1,5 +1,5 @@
 import * as util from './index.js';
-import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, getDefaultWorld, testWithDefaults, getCreateSteppers } from '../test/lib.js';
+import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, getDefaultWorld, testWithDefaults, getCreateSteppers, TEST_BASE } from '../test/lib.js';
 import TestSteps from '../test/TestSteps.js';
 import TestStepsWithOptions from '../test/TestStepsWithOptions.js';
 import { withNameType } from '../features.js';
@@ -94,19 +94,47 @@ describe('getStepperOptions', () => {
 
 describe('getType', () => {
   it('finds a type', () => {
-    expect(withNameType('file.type.feature', '').type).toBe('type');
+    expect(withNameType(TEST_BASE, 'file.type.feature', '').type).toBe('type');
   });
   it('finds no type', () => {
-    expect(withNameType('file.feature', '').type).toBe('feature');
+    expect(withNameType(TEST_BASE, 'file.feature', '').type).toBe('feature');
   });
 });
 
 describe('check module is class', () => {
   it('should pass a class', () => {
-    expect(util.checkModuleIsClass(class a {}, 'a')).toEqual(undefined);
+    expect(util.checkModuleIsClass(class a { }, 'a')).toEqual(undefined);
   });
   it('should fail a function', () => {
     // eslint-disable-next-line @typescript-eslint/no-empty-function
-    expect(() => util.checkModuleIsClass(function a() {}, 'a')).toThrow(undefined);
+    expect(() => util.checkModuleIsClass(function a() { }, 'a')).toThrow(undefined);
   });
+});
+
+describe('asError', () => {
+  it('should pass an error', () => {
+    expect(util.asError(new Error('a'))).toEqual(new Error('a'));
+  });
+  it('should pass a string', () => {
+    expect(util.asError('a')).toEqual(new Error('a'));
+  });
+  it('should pass a number', () => {
+    expect(util.asError(1)).toEqual(new Error('1'));
+  });
+  it('should pass a boolean', () => {
+    expect(util.asError(true)).toEqual(new Error('true'));
+  });
+  it('should pass an object', () => {
+    expect(util.asError({ a: 1 })).toEqual(new Error({ a: 1 } as any));
+  });
+  it('should pass an array', () => {
+    expect(util.asError([1, 2])).toEqual(new Error([1, 2] as any));
+  });
+  it('should pass null', () => {
+    expect(util.asError(null)).toEqual(new Error('null'));
+  });
+  it('should pass undefined', () => {
+    expect(util.asError(undefined)).toEqual(new Error());
+  });
+
 });
