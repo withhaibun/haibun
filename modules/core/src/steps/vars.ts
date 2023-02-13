@@ -37,6 +37,7 @@ const vars = class Vars extends AStepper {
     set: {
       gwta: 'set( empty)? {what: string} to {value: string}',
       action: async (n: TNamed, vstep: TVStep) => {
+        
         return await this.set(n, vstep);
       },
       build: async (n: TNamed, vstep: TVStep) => await this.set(n, vstep),
@@ -93,10 +94,6 @@ export const didNotOverwrite = (what: string, present: string | Context, value: 
 export const setShared = ({ what, value }: TNamed, vstep: TVStep, world: TWorld, emptyOnly = false) => {
   // if on a domain page, set it in that domain's shared
   const { type, name } = vstep.source;
-  // FIXME this should be in namedVars
-  if (what === '[HERE]') {
-    what = vstep.source.path.replace(world.base, '').replaceAll('/', '_').replace('.feature', '');
-  }
 
   let shared = getStepShared(type, world);
   if (shared instanceof DomainContext) {

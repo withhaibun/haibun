@@ -1,8 +1,8 @@
 import { AStepper, OK, TResolvedFeature, TStep } from './defs.js';
 import { getNamedMatches, namedInterpolation, matchGroups, getNamedToVars } from './namedVars.js';
 import { Resolver } from '../phases/Resolver.js';
-import { actionNotOK, createSteppers } from './util/index.js';
-import { asExpandedFeatures, getDefaultWorld, testWithDefaults } from './test/lib.js';
+import { actionNotOK, createSteppers, getSerialTime } from './util/index.js';
+import { asExpandedFeatures, getDefaultWorld, testWithDefaults, TEST_BASE } from './test/lib.js';
 import { withNameType } from './features.js';
 
 describe('namedMatches', () => {
@@ -12,7 +12,7 @@ describe('namedMatches', () => {
   };
 
   it('gets named matches', () => {
-    expect(getNamedMatches(step.match!, 'It is set')).toEqual({ one: 'It', two: 'set' });
+    expect(getNamedMatches(step.match, 'It is set')).toEqual({ one: 'It', two: 'set' });
   });
 });
 
@@ -83,7 +83,7 @@ describe('getNamedWithVars', () => {
     const steppers = await createSteppers([TestStepper]);
     const resolver = new Resolver(steppers, '', world);
     world.shared.set('exact', 'res');
-    const features = asExpandedFeatures([withNameType('l1', 'is `exact`')]);
+    const features = asExpandedFeatures([withNameType(TEST_BASE, 'l1', 'is `exact`')]);
     const res = await resolver.resolveSteps(features);
     const { vsteps } = res[0] as TResolvedFeature;
     expect(vsteps[0].actions[0]).toBeDefined();
@@ -92,15 +92,24 @@ describe('getNamedWithVars', () => {
   });
 });
 
-describe('context', () => {
-  it.only('assigns [HERE]', async () => {
-    const feature = { path: '/features/here.feature', content: 'set [HERE] to y' };
-    const verify = { path: '/features/verify.feature', content: 'here is "y"' };
+describe('special', () => {
+  it('assigns [HERE]', async () => {
+    const feature = { path: '/features/here.feature', content: 'set t to [HERE]' };
+    const verify = { path: '/features/verify.feature', content: 't is "/features/here.feature"' };
     const res = await testWithDefaults([feature, verify], []);
-    expect(res.world.shared.get('here')).toBe('y');
+    expect(res.ok).toBe(true);
+  });
+  it('assigns [SERIALTIME]', async () => {
+    const feature = { path: '/features/here.feature', content: 'set t to [SERIALTIME]' };
+    const now = getSerialTime();
+    const res = await testWithDefaults([feature], []);
+    const t = res.world.shared.get('t');
+    expect(t).toBeDefined();
+    expect(parseInt(t)).toBeGreaterThanOrEqual(now);
   });
   it('rejects unknown', async () => {
     const fails = { path: '/features/here.feature', content: 'set [NOTHING] to y' };
-    expect(async () => await testWithDefaults([fails], [])).resolves.toThrow();
+    const res = await testWithDefaults([fails], [])
+    expect(res.ok).toBe(false)
   });
 });
