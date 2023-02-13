@@ -1,5 +1,5 @@
 import nodeFS from 'fs';
-import { TFeature } from '../lib/defs.js';
+import { TBase, TFeature } from '../lib/defs.js';
 import { withNameType } from '../lib/features.js';
 import { TFileSystem } from '../lib/util/index.js';
 
@@ -8,15 +8,19 @@ export type TFeaturesBackgrounds = {
   backgrounds: TFeature[];
 };
 
-export function getFeaturesAndBackgrounds(base: string, featureFilter: string[], fs: TFileSystem = nodeFS): TFeaturesBackgrounds {
+
+export function getFeaturesAndBackgrounds(bases: TBase, featureFilter: string[], fs: TFileSystem = nodeFS): TFeaturesBackgrounds {
   const ret = { features: [], backgrounds: [] };
-  for (const abase of base.split(',').map(b => b.trim())) {
+  for (const abase of bases) {
+    const ff = { feature: featureFilter };
+
     const aret = { features: [], backgrounds: [] };
-    if (fs.existsSync(`${abase}/features`)) {
-      aret.features = aret.features.concat(debase(abase, recurse(`${abase}/features`, 'feature', featureFilter, fs)));
-    }
-    if (fs.existsSync(`${abase}/backgrounds`)) {
-      aret.backgrounds = aret.backgrounds.concat(debase(abase, recurse(`${abase}/backgrounds`, 'feature', [], fs)));
+    for (const t of ['feature', 'background']) {
+      const p = `${t}s`;
+      if (fs.existsSync(`${abase}/${p}`)) {
+        const more = debase(abase, recurse(abase, `/${p}`, 'feature', ff[t], fs));
+        aret[p] = aret[p].concat(more);
+      }
     }
     if (aret.features.length < 1 && aret.backgrounds.length < 1) {
       throw Error(`no features or backgrounds found from "${abase}"`);
@@ -25,20 +29,21 @@ export function getFeaturesAndBackgrounds(base: string, featureFilter: string[],
     ret.backgrounds = ret.backgrounds.concat(aret.backgrounds);
   }
   if (ret.features.length < 1) {
-    throw Error(`no features or backgrounds found from "${base}"`);
+    throw Error(`no features found from "${bases}"`);
   }
   return ret;
 }
 
-export function recurse(dir: string, type: string, featureFilter: string[] | undefined = undefined, fs: TFileSystem = nodeFS): TFeature[] {
-  const files = fs.readdirSync(dir);
+function recurse(base: string, dir: string, type: string, featureFilter: string[] | undefined = undefined, fs: TFileSystem = nodeFS): TFeature[] {
+  const files = fs.readdirSync(`${base}${dir}`);
   let all: TFeature[] = [];
   for (const file of files) {
-    const here = `${dir}/${file}`;
+    const here = `${base}${dir}/${file}`;
     if (fs.statSync(here).isDirectory()) {
-      all = all.concat(recurse(here, type, featureFilter, fs));
+      all = all.concat(recurse(base, `${dir}/${file}`, type, featureFilter, fs));
     } else if (shouldProcess(here, type, featureFilter)) {
-      all.push(withNameType(here, fs.readFileSync(here, 'utf-8')));
+      const contents = fs.readFileSync(here, 'utf-8')
+      all.push(withNameType(base, here, contents));
     }
   }
   return all;
@@ -51,6 +56,6 @@ export function shouldProcess(file: string, type: undefined | string, featureFil
   return isType && matchesFilter;
 }
 
-export function debase(base: string, features: TFeature[]) {
-  return features.map((f) => ({ ...f, path: f.path.replace(base, '') }));
+export function debase(abase: string, features: TFeature[]) {
+  return features.map((f) => ({ ...f, path: f.path.replace(abase, '') }));
 }

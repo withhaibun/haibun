@@ -1,21 +1,25 @@
 import { cred } from '../steps/credentials.js';
 import { TStep, TNamedVar, TFound, TNamed, BASE_TYPES, TWorld, TVStep } from './defs.js';
 import { getStepShared } from './domain.js';
+import { getSerialTime } from './util/index.js';
 
 const TYPE_QUOTED = 'q_';
 const TYPE_CREDENTIAL = 'c_';
+const TYPE_SPECIAL = 's_';
 const TYPE_ENV = 'e_';
 const TYPE_VAR = 'b_';
 // from source or literal
 const TYPE_VAR_OR_LITERAL = 't_';
 
 export const matchGroups = (num = 0) => {
-  const q = `"(?<${TYPE_QUOTED}${num}>.+)"`; // quoted string
-  const c = `<(?<${TYPE_CREDENTIAL}${num}>.+)>`; // credential
   const b = `\`(?<${TYPE_VAR}${num}>.+)\``; // var
   const e = `{(?<${TYPE_ENV}${num}>.+)}`; // env var
+  // FIXME this is being assigned as t_
+  const s = `\\[(?<${TYPE_SPECIAL}${num}>.+)\\]`; // special
+  const c = `<(?<${TYPE_CREDENTIAL}${num}>.+)>`; // credential
+  const q = `"(?<${TYPE_QUOTED}${num}>.+)"`; // quoted string
   const t = `(?<${TYPE_VAR_OR_LITERAL}${num}>.+)`; // var or literal
-  return `(${q}|${c}|${e}|${b}|${t})`;
+  return `(${b}|${e}|${s}|${c}|${q}|${t})`;
 };
 
 export const namedInterpolation = (inp: string, types: string[] = BASE_TYPES): { str: string; vars?: TNamedVar[] } => {
@@ -40,19 +44,21 @@ export const namedInterpolation = (inp: string, types: string[] = BASE_TYPES): {
     bs = inp.indexOf('{', be);
     last = be + 1;
     str += matchGroups(matches++);
+
   }
   str += inp.substring(be + 1);
   return { vars, str };
 };
 
 function pairToVar(pair: string, types: string[]): TNamedVar {
-  let [k, v] = pair.split(':').map((i) => i.trim());
-  if (!v) v = 'string';
-  if (!types.includes(v)) {
-    throw Error(`unknown type ${v}`);
+  // eslint-disable-next-line prefer-const
+  let [name, type] = pair.split(':').map((i) => i.trim());
+  if (!type) type = 'string';
+  if (!types.includes(type)) {
+    throw Error(`unknown type ${type}`);
   }
 
-  return { name: k, type: v };
+  return { name, type };
 }
 
 export function getNamedMatches(regexp: RegExp, what: string) {
@@ -70,14 +76,15 @@ export const getMatch = (actionable: string, r: RegExp, actionName: string, step
 
 // returns named values, assigning variable values as appropriate
 // retrieves from world.shared if a base domain, otherwise world.domains[type].shared
-export function getNamedToVars({ named, vars }: TFound, world: TWorld, vstep: TVStep) {
+export function getNamedToVars(found: TFound, world: TWorld, vstep: TVStep) {
+  const { named, vars } = found;
   if (!named) {
     return { _nb: 'no named' };
   }
   if (!vars || vars.length < 1) {
     return named;
   }
-  let namedFromVars: TNamed = {};
+  const namedFromVars: TNamed = {};
   vars.forEach((v, i) => {
     const { name, type } = v;
 
@@ -89,6 +96,7 @@ export function getNamedToVars({ named, vars }: TFound, world: TWorld, vstep: TV
       throw Error(`no namedKey from ${named} for ${i}`);
     }
     const namedValue = named[namedKey];
+
     if (namedKey.startsWith(TYPE_VAR_OR_LITERAL)) {
       namedFromVars[name] = shared.get(namedValue) || named[namedKey];
     } else if (namedKey.startsWith(TYPE_VAR)) {
@@ -97,6 +105,17 @@ export function getNamedToVars({ named, vars }: TFound, world: TWorld, vstep: TV
         throw Error(`no value for "${namedValue}" from ${JSON.stringify({ keys: Object.keys(shared), type })}`);
       }
       namedFromVars[name] = shared.get(namedValue);
+    } else if (namedKey.startsWith(TYPE_SPECIAL)) {
+
+      let toSet: string;
+      if (namedValue === 'SERIALTIME') {
+        toSet = '' + getSerialTime();
+      } else if (namedValue === 'HERE') {
+        toSet = vstep.source.name + '.feature';
+      } else {
+        throw Error(`unknown special "${namedValue}"`);
+      }
+      namedFromVars[name] = toSet;
     } else if (namedKey.startsWith(TYPE_CREDENTIAL)) {
       // must be from source
       if (!shared.get(cred(namedValue))) {
