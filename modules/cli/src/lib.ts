@@ -12,19 +12,19 @@ export async function usageThenExit(specl: TSpecl, message?: string) {
 }
 
 export async function usage(specl: TSpecl, message?: string) {
-  let steppers = await getCreateSteppers(specl.steppers);
+  const steppers = await getCreateSteppers(specl.steppers);
   let a: { [name: string]: { desc: string } } = {};
   steppers.forEach(s => {
     const o = (s as IHasOptions);
     if (o.options) {
       const p = getPre(s);
-      a = { ...a, ...Object.keys(o.options).reduce((a, i) => ({ ...a, [`${p}${i}`]: o.options![i] }), {}) };
+      a = { ...a, ...Object.keys(o.options).reduce((a, i) => ({ ...a, [`${p}${i}`]: o.options[i] }), {}) };
     }
   });
 
   const ret = [
     '',
-    `usage: ${process.argv[1]} <project base> <filter>`,
+    `usage: ${process.argv[1]} [--config path/to/specific/config.json] [--help] <project base> <filter>`,
     message || '',
     'Set these environmental variables to control options:\n',
     ...Object.entries(BaseOptions.options).map(([k, v]) => `${BASE_PREFIX}${k.padEnd(55)} ${v.desc}`),
@@ -84,4 +84,22 @@ export function processBaseEnvToOptionsAndErrors(env: TEnv, options: TOptions) {
   protoOptions.options.env = nenv;
 
   return { protoOptions, errors };
+}
+
+export function processArgs(args: string[]) {
+  let showHelp = false;
+  const params = [];
+  let configLoc;
+  while (args.length > 0) {
+    const cur = args.shift();
+
+    if (cur === '--config' || cur === '-c') {
+      configLoc = args.shift()?.replace(/\/config.json$/, '');
+    } else if (cur === '--help' || cur === '-h') {
+      showHelp = true;
+    } else {
+      params.push(cur);
+    }
+  }
+  return { params, configLoc, showHelp };
 }

@@ -149,6 +149,7 @@ export function getDefaultOptions(): TSpecl {
 }
 
 export function getConfigFromBase(bases: TBase, fs: TFileSystem = nodeFS): TSpecl | null {
+  
   const found = bases.filter((b) => fs.existsSync(`${b}/config.json`));
   if (found.length !== 1) {
     console.error(`found multiple config.json files: ${found.join(', ')}`);

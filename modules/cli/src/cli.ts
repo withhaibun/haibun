@@ -7,32 +7,33 @@ import { EMediaTypes, ITrackResults } from '@haibun/domain-storage/build/domain-
 
 import { findStepper, getConfigFromBase, getDefaultOptions, basesFrom } from '@haibun/core/build/lib/util/index.js';
 import runWithOptions from '@haibun/core/build/lib/run-with-options.js';
-import { processBaseEnvToOptionsAndErrors, usageThenExit } from './lib.js';
+import { processArgs, processBaseEnvToOptionsAndErrors, usageThenExit } from './lib.js';
 import { Timer } from '@haibun/core/build/lib/Timer.js';
 
 sourceMapSupport.install();
 
 process.on('unhandledRejection', console.error);
 
-type TFeatureFilter = string[] | undefined;
-
 go();
 
 async function go() {
-  const featureFilter = process.argv[3] ? process.argv[3].split(',') : undefined;
-  const bases = basesFrom(process.argv[2]?.replace(/\/$/, ''));
+  const { params, configLoc, showHelp } = processArgs(process.argv.slice(2));
+  const featureFilter = params[1] ? params[1].split(',') : undefined;
+  const bases = basesFrom(params[0]?.replace(/\/$/, ''));
 
-  const specl = getSpeclOrExit(bases, featureFilter);
+  const specl = getSpeclOrExit(configLoc ? [configLoc] : bases);
 
-  console.log('o', specl);
+  if (showHelp) {
+    await usageThenExit(specl);
+  }
 
   const { protoOptions, errors } = processBaseEnvToOptionsAndErrors(process.env, specl.options);
-  const splits: { [name: string]: string }[] = protoOptions.options.SPLITS || [{}];
 
   if (errors.length > 0) {
     await usageThenExit(specl, errors.join('\n'));
   }
 
+  const splits: { [name: string]: string }[] = protoOptions.options.SPLITS || [{}];
   console.info('\n_________________________________ start');
 
   const loops = protoOptions.options.LOOPS || 1;
@@ -71,10 +72,9 @@ async function go() {
   }
 }
 
-function getSpeclOrExit(bases: TBase, featureFilter: TFeatureFilter): TSpecl {
+function getSpeclOrExit(bases: TBase): TSpecl {
   const specl = getConfigFromBase(bases);
-  const askForHelp = featureFilter?.find(f => f === '--help' || f === '-h')
-  if (specl === null || bases?.length < 1 || askForHelp) {
+  if (specl === null || bases?.length < 1) {
     if (specl === null) {
       console.error(`missing or unusable config.json from ${bases}`);
     }
