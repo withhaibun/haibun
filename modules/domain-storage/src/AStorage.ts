@@ -1,4 +1,5 @@
 import { CAPTURE, AStepper, OK, TNamed, DEFAULT_DEST } from "@haibun/core/build/lib/defs.js"
+import { actionNotOK } from '@haibun/core/build/lib/util/index.js';
 import { setShared } from "@haibun/core/build/steps/vars.js";
 import { TLocationOptions, TMediaType } from "./domain-storage.js";
 
@@ -91,7 +92,7 @@ export abstract class AStorage extends AStepper {
                 return OK;
             }
         },
-        readFile: {
+        readText: {
             gwta: `read text from {where}`,
             action: async ({ where }: TNamed) => {
                 const text = await this.readFile(where, 'utf-8');
@@ -114,6 +115,14 @@ export abstract class AStorage extends AStepper {
             action: async () => {
                 await this.rmrf('');
                 return OK;
+            }
+        },
+        isTheSame: {
+            gwta: `{what} is the same as {where}`,
+            action: async ({ what, where }: TNamed) => {
+                const c1 = this.readFile(what, 'binary');
+                const c2 = this.readFile(where, 'binary');
+                return Buffer.from(c1)?.equals(Buffer.from(c2)) ? OK : actionNotOK(`contents are not the same ${what} ${where}`);
             }
         }
     }

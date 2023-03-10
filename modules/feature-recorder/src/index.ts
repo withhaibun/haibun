@@ -1,4 +1,7 @@
+import sourceMapSupport from 'source-map-support';
 import { record } from "./recorder.js";
+
+sourceMapSupport.install();
 
 const url = process.argv[2];
 if (!url) {
@@ -6,4 +9,5 @@ if (!url) {
     process.exit(1);
 }
 
-record(url, ['record']);
+const res = await record(url, ['record']);
+console.log('🤑', JSON.stringify(res, null, 2));

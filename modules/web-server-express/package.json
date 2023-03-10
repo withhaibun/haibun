@@ -1,7 +1,7 @@
 {
   "name": "@haibun/web-server-express",
   "type": "module",
-  "version": "1.16.0",
+  "version": "1.22.0",
   "description": "",
   "main": "build/web-server-stepper.js",
   "files": [
@@ -10,6 +10,7 @@
   "scripts": {
     "prepublishOnly": "tsc -b .",
     "build": "tsc -b .",
+    "build-watch": "tsc -b . --watch",
     "lint": "eslint -c .eslintrc.json --ext .ts,.js src",
     "preversion": "npm run lint",
     "test": "jest",
@@ -19,14 +20,15 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@haibun/core": "file:../core",
-    "@haibun/domain-webpage": "file:../domain-webpage",
+    "@haibun/core": "^1.22.0",
+    "@haibun/domain-webpage": "^1.22.0",
     "cookie-parser": "^1.4.5",
     "express": "^4.17.1"
   },
   "devDependencies": {
-    "@haibun/web-http": "file:../web-http",
+    "@haibun/web-http": "^1.22.0",
     "@types/cookie-parser": "^1.4.2",
     "@types/express": "^4.17.15"
-  }
+  },
+  "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5"
 }
