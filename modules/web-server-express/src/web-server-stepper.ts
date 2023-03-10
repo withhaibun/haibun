@@ -7,7 +7,7 @@ import { WebPageBuilder } from '@haibun/domain-webpage/build/WebPageBuilder.js';
 import { WEB_PAGE } from '@haibun/domain-webpage/build/domain-webpage.js';
 import { getDomain } from '@haibun/core/build/lib/domain.js';
 
-const WebServerStepper = class WebServerStepper extends AStepper implements IHasOptions, IHasBuilder {
+const WebServerStepper = class WebServerStepper extends AStepper implements IHasOptions /*, IHasBuilder*/ {
   webserver: ServerExpress | undefined;
 
   options = {
@@ -26,8 +26,6 @@ const WebServerStepper = class WebServerStepper extends AStepper implements IHas
   }
 
   async close() {
-    console.log('closing webserver');
-    
     await this.webserver?.close();
   }
 
@@ -38,7 +36,7 @@ const WebServerStepper = class WebServerStepper extends AStepper implements IHas
         const page = vstep.source.name;
 
         const webserver = <IWebServer>getFromRuntime(this.getWorld().runtime, WEBSERVER);
-        webserver.addStaticFolder(page);
+        webserver.addStaticFolder(page, where);
         console.debug('added page', page);
 
         return OK;
@@ -54,9 +52,10 @@ const WebServerStepper = class WebServerStepper extends AStepper implements IHas
         // TODO mount the page
         return OK;
       },
+      /*
       build: async ({ location }: TNamed, { source }: TVStep, workspace: WorkspaceContext) => {
         if (location !== location.replace(/[^a-zA-Z-0-9.]/g, '')) {
-          throw Error(`${WEB_PAGE} location ${location} has millegal characters`);
+          throw Error(`${WEB_PAGE} location ${location} has illegal characters`);
         }
         const subdir = this.getWorld().shared.get('file_location');
         if (!subdir) {
@@ -66,11 +65,12 @@ const WebServerStepper = class WebServerStepper extends AStepper implements IHas
         workspace.addBuilder(new WebPageBuilder(source.name, this.getWorld().logger, location, folder));
         return { ...OK, finalize: this.finalize };
       },
+      */
     },
     isListening: {
       gwta: 'webserver is listening',
       action: async () => {
-        await this.webserver!.listen();
+        await this.webserver.listen();
         return OK;
       },
     },
@@ -82,21 +82,42 @@ const WebServerStepper = class WebServerStepper extends AStepper implements IHas
         return OK;
       },
     },
-    serveFiles: {
-      gwta: 'serve files from {loc}',
-      action: async ({ loc }: TNamed) => {
-        const ws: IWebServer = await getFromRuntime(this.getWorld().runtime, WEBSERVER);
-        const error = await ws.addStaticFolder(loc);
-        this.getWorld().shared.set('file_location', loc);
-
-        return error === undefined ? OK : actionNotOK(error);
+    serveFilesAt: {
+      gwta: 'serve files at {where} from {loc}',
+      action: async ({ where, loc }: TNamed) => {
+        return this.doServeFiles(where, loc);
       },
+      /*
       build: async ({ loc }: TNamed) => {
         this.getWorld().shared.set('file_location', loc);
         return OK;
       }
+      */
+    },
+    serveFiles: {
+      gwta: 'serve files from {loc}',
+      action: async ({ loc }: TNamed) => {
+        return this.doServeFiles('/', loc);
+      },
+      /*
+      build: async ({ loc }: TNamed) => {
+        this.getWorld().shared.set('file_location', loc);
+        return OK;
+      }
+      */
     },
   };
+  doServeFiles(where, loc) {
+    const ws: IWebServer = getFromRuntime(this.getWorld().runtime, WEBSERVER);
+    try {
+      ws.addStaticFolder(loc, where);
+      this.getWorld().shared.set('file_location', loc);
+      return OK;
+    } catch (error) {
+      return actionNotOK(error);
+    }
+  }
+  /*
   finalize = (workspace: WorkspaceContext) => {
     if (workspace.get('_finalized')) {
       return;
@@ -105,12 +126,13 @@ const WebServerStepper = class WebServerStepper extends AStepper implements IHas
     const builder = workspace.getBuilder();
 
     const shared = builder.finalize();
-    const domain = getDomain(WEB_PAGE, this.getWorld())!.shared.get(builder.name);
+    const domain = getDomain(WEB_PAGE, this.getWorld()).shared.get(builder.name);
 
     for (const [name, val] of shared) {
       domain.set(name, val);
     }
   };
+  */
 };
 export default WebServerStepper;
 

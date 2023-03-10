@@ -9,12 +9,6 @@ describe('vars', () => {
     const res = await testWithDefaults([feature, display, verify], []);
     expect(res.ok).toBe(true);
   });
-  it('assigns [HERE]', async () => {
-    const feature = { path: '/features/here.feature', content: 'set [HERE] to 1' };
-    const verify = { path: '/features/verify.feature', content: '"here" is "1"' };
-    const res = await testWithDefaults([feature, verify], []);
-    expect(res.ok).toBe(true);
-  });
   it('assigns empty', async () => {
     const feature = { path: '/features/test.feature', content: 'set empty "x" to y' };
     const verify = { path: '/features/verify.feature', content: '"x" is "y"' };

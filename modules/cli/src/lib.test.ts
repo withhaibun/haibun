@@ -8,11 +8,13 @@ import { getDefaultOptions } from '@haibun/core/build/lib/util/index.js';
 import * as lib from './lib.js';
 import { processBaseEnvToOptionsAndErrors } from './lib.js';
 
+const s = s => s.split(' ');
+
 describe('usageThenExit', () => {
   it('exits with success', () => {
     const ranOnce = (code: number | undefined) => { expect(code).toBe(0); return <never>undefined }
     jest.spyOn(process, 'exit').mockImplementationOnce(ranOnce);
-    jest.spyOn(console, 'info').mockImplementationOnce(any => undefined);
+    jest.spyOn(console, 'info').mockImplementationOnce(() => undefined);
     lib.usageThenExit({ ...getDefaultOptions(), steppers: ['../core/build/lib/test/TestStepsWithOptions'] });
   })
   it('exits with error', () => {
@@ -30,7 +32,7 @@ describe('options', () => {
     const result = await testWithDefaults([feature], [TestStepsWithOptions], protoConfig);
     expect(result.ok).toBe(true);
     expect(result.results?.length).toBe(1);
-    expect(result.results![0].stepResults[0].actionResults[0].topics?.options.summary).toEqual('options');
+    expect(result.results[0].stepResults[0].actionResults[0].topics?.options.summary).toEqual('options');
   });
 });
 
@@ -74,5 +76,35 @@ describe('processEnv', () => {
     const specl = getDefaultOptions();
     const { errors } = lib.processBaseEnvToOptionsAndErrors({ HAIBUN_LOOPS: '1.2' }, specl.options);
     expect(errors.length).toBe(1);
+  });
+});
+
+describe('processArgs', () => {
+  it('finds help', () => {
+    const { showHelp } = lib.processArgs(s('--help'));
+    expect(showHelp).toBe(true);
+  });
+  it('specifies config', () => {
+    const { configLoc } = lib.processArgs(s('--config boo'));
+    expect(configLoc).toBe('boo');
+  });
+  it('get config as path', () => {
+    const { configLoc } = lib.processArgs(s('--config boo/config.json'));
+    expect(configLoc).toBe('boo');
+  });
+  it('gets help and specifies config', () => {
+    const { showHelp, configLoc } = lib.processArgs(s('--config boo --help'));
+    expect(configLoc).toBe('boo');
+    expect(showHelp).toBe(true);
+  });
+  it('gets parameters', () => {
+    const { params } = lib.processArgs(s('foo bar'));
+    expect(params).toEqual(['foo', 'bar']);
+  });
+  it('gets args and parameters', () => {
+    const { showHelp, configLoc, params } = lib.processArgs(s('--config boo --help foo bar'));
+    expect(params).toEqual(['foo', 'bar']);
+    expect(configLoc).toBe('boo');
+    expect(showHelp).toBe(true);
   });
 });

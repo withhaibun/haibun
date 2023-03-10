@@ -9,16 +9,12 @@ import { ILogger } from '@haibun/core/build/lib/interfaces/logger.js';
 
 export const DEFAULT_PORT = 8123;
 
-export async function shutdown() {
-  await fetch('//localhost:8123/shutdown', { method: 'POST' });
-}
-
 export class ServerExpress implements IWebServer {
   logger: ILogger;
   static listening = false;
   listener?: http.Server;
   app = express();
-  static mounted: { [named: string]: string } = {};
+  static mounted = { get: {}, post: {} };
   base: string;
   port: number;
   constructor(logger: ILogger, base: string, port: number = DEFAULT_PORT) {
@@ -30,66 +26,64 @@ export class ServerExpress implements IWebServer {
     this.app.use(express.json({ limit: '50mb' }));
   }
 
-  async listen(): Promise<IWebServer> {
-    if (!ServerExpress.listening) {
-      try {
-        ServerExpress.listening = true
+  use(middleware: RequestHandler) {
+    this.app.use(middleware);
+  }
 
-        this.listener = await this.app.listen(this.port, () => this.logger.log(`Server listening on port: ${this.port}`));
-
-        this.logger.log('express listening');
-      } catch (e) {
-        console.error(e);
+  listen() {
+    return new Promise((resolve, reject) => {
+      if (!ServerExpress.listening) {
+        try {
+          this.listener = this.app.listen(this.port, () => {
+            this.logger.log(`Server listening on port: ${this.port}`)
+            ServerExpress.listening = true
+            this.logger.log('express listening');
+            resolve('started');
+          });
+        } catch (e) {
+          console.error(e);
+          reject(e);
+        }
+      } else {
+        this.logger.log('express already listening');
+        resolve('already listening');
       }
-    } else {
-      this.logger.log('express already listening');
-    }
-    return this as IWebServer;
+    });
   }
 
-  async addRoute(type: TRouteTypes, path: string, route: RequestHandler) {
-    const alreadyMounted = this.checkMountBadOrMounted(path, route.toString());
-
-    if (alreadyMounted) {
-      this.logger.debug(`already mounted ${path}`);
-      return;
+  addRoute(type: TRouteTypes, path: string, route: RequestHandler) {
+    if (type !== 'get' && type !== 'post') {
+      throw Error(`invalid route type ${type}`);
     }
-    this.logger.log(`serving route from ${path}`);
-    await this.app[type](path, route);
-    await this.addMounted(path, route.toString());
+    this.checkMountBadOrMounted(type, path, route.toString());
+
+    this.logger.log(`adding ${type} route from ${path}`);
+    this.app[type](path, route);
+
+    this.addMounted(type, path, route.toString());
   }
 
-  async addMounted(path: string, what: string) {
-    ServerExpress.mounted[path] = what;
+  private async addMounted(type: string, path: string, what: string) {
+    ServerExpress.mounted[type][path] = what;
+
     if (!this.listener) {
       await this.listen();
     }
   }
 
   // add a static folder restricted to relative paths from files
-  async addStaticFolder(relativeFolder: string, mountAt = '/'): Promise<string | undefined> {
-    if (relativeFolder !== relativeFolder.replace(/[^a-zA-Z-0-9/-_]/g, '').replace(/^\//g, '')) {
-      throw Error(`mount folder ${relativeFolder} has illegal characters`);
-    }
+  addStaticFolder(relativeFolder: string, mountAt = '/') {
     const folder = [this.base, relativeFolder].join('/');
-    return this.doAddStaticFolder(folder, mountAt);
+    this.doAddStaticFolder(folder, mountAt);
   }
 
   // add a static folder at any path
-  async addKnownStaticFolder(folder: string, mountAt = '/'): Promise<string | undefined> {
-    return this.doAddStaticFolder(folder, mountAt);
+  addKnownStaticFolder(folder: string, mountAt = '/') {
+    this.doAddStaticFolder(folder, mountAt);
   }
 
-  async doAddStaticFolder(folder: string, mountAt = '/'): Promise<string | undefined> {
-    try {
-      const alreadyMounted = this.checkMountBadOrMounted(mountAt, folder);
-      if (alreadyMounted) {
-        // FIXME
-        return;
-      }
-    } catch (e: any) {
-      return e.message;
-    }
+  private doAddStaticFolder(folder: string, mountAt = '/') {
+    this.checkMountBadOrMounted('get', mountAt, folder);
     if (!existsSync(folder)) {
       throw Error(`"${folder}" doesn't exist`);
     }
@@ -98,25 +92,26 @@ export class ServerExpress implements IWebServer {
       throw Error(`"${folder}" is not a directory`);
     }
 
+    this.app.use(mountAt, express.static(folder));
+    this.addMounted('get', mountAt, folder);
     this.logger.info(`serving files from ${folder} at ${mountAt}`);
-    await this.app.use(mountAt, express.static(folder));
-    await this.addMounted(mountAt, folder);
     return;
   }
 
-  checkMountBadOrMounted(loc: string, what: string): boolean {
-    const alreadyMounted = ServerExpress.mounted[loc];
-    if (alreadyMounted === what) {
-      this.logger.log(`${alreadyMounted} already mounted at ${loc}`);
-      return true;
-    } else if (alreadyMounted && alreadyMounted !== what) {
-      throw Error(`cannot mount ${what} at ${loc}, ${alreadyMounted} is already mounted}`);
+  checkMountBadOrMounted(type: string, loc: string, what: string) {
+    if (loc !== loc.replace(/[^a-zA-Z-0-9/-_]/g, '')) {
+      throw Error(`mount folder ${loc} has illegal characters`);
     }
-    return false;
+    const alreadyMounted = ServerExpress.mounted[type][loc] || Object.keys(ServerExpress.mounted[type]).find((m: string) => m.startsWith(`${loc}/`));
+    if (alreadyMounted) {
+      throw Error(`cannot mount ${type} ${what} at ${loc}, ${alreadyMounted} is already mounted}`);
+    }
   }
 
   async close() {
     this.logger.info('closing server');
-    await this.listener?.close();
+    this.listener?.close();
+    ServerExpress.mounted = { get: {}, post: {} };
+    ServerExpress.listening = false;
   }
 }

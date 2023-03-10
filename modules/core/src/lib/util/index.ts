@@ -20,23 +20,27 @@ import {
   DEFAULT_DEST,
   TTagValue,
   TFeatureResult,
+  TBase,
 } from '../defs.js';
 
+type TClass = { new <T>(...args: unknown[]): T };
 export type TFileSystem = Partial<typeof nodeFS>;
 
+export const basesFrom = (s): string[] => s.split(',').map(b => b.trim());
+
 // FIXME tired of wrestling with ts/import issues
-export async function use(module: string) {
+export async function use(module: string): Promise<TClass> {
   try {
-    const re: any = (await import(`${module}.js`)).default;
+    const re: object = (await import(`${module}.js`)).default;
     checkModuleIsClass(re, module);
-    return re;
+    return <TClass>re;
   } catch (e) {
     console.error('failed including', module);
     throw e;
   }
 }
 
-export function checkModuleIsClass(re: any, module: string) {
+export function checkModuleIsClass(re: object, module: string) {
   // this is early morning code
   const type = re?.toString().replace(/^ /g, '').split('\n')[0].replace(/\s.*/, '');
 
@@ -60,7 +64,7 @@ export async function resultOutput(type: string | undefined, result: TResult) {
   return result;
 }
 
-export function actionNotOK(message: string, also?: { topics?: TActionResultTopics; score?: number }): TNotOKActionResult {
+export function actionNotOK(message: string, also?: { error?: Error, topics?: TActionResultTopics; score?: number }): TNotOKActionResult {
   return {
     ok: false,
     message,
@@ -75,7 +79,6 @@ export function actionOK(topics?: TActionResultTopics): TOKActionResult {
 export async function getStepper(s: string) {
   try {
     const loc = getModuleLocation(s);
-
     const S: CStepper = await use(loc);
     return S;
   } catch (e) {
@@ -88,7 +91,7 @@ export async function createSteppers(steppers: CStepper[]): Promise<AStepper[]> 
   const allSteppers: AStepper[] = [];
   for (const S of steppers) {
     try {
-      const stepper = new (S as any)();
+      const stepper = new S();
       allSteppers.push(stepper);
     } catch (e) {
       console.error(`create ${S} failed`, e, S);
@@ -145,8 +148,15 @@ export function getDefaultOptions(): TSpecl {
   };
 }
 
-export function getConfigFromBase(base: string, fs: TFileSystem = nodeFS): TSpecl | null {
-  const f = `${base}/config.json`;
+export function getConfigFromBase(bases: TBase, fs: TFileSystem = nodeFS): TSpecl | null {
+  const found = bases.filter((b) => fs.existsSync(`${b}/config.json`));
+  if (found.length > 1) {
+    console.error(`Found multiple config.json files: ${found.join(', ')}. Use --config to specify one.`);
+    return null;
+  }
+  const configDir = found[0] || '.';
+  const f = `${configDir}/config.json`;
+  console.info(`trying ${f}`);
   try {
     const specl = JSON.parse(fs.readFileSync(f, 'utf-8'));
     if (!specl.options) {
@@ -182,10 +192,10 @@ export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve
 export async function verifyExtraOptions(inExtraOptions: TExtraOptions, csteppers: CStepper[]) {
   const extraOptions = { ...inExtraOptions };
   Object.entries(extraOptions)?.map(([k, v]) => {
-    const conc = getStepperOptionValue(k, v!, csteppers);
+    const conc = getStepperOptionValue(k, v, csteppers);
 
     if (conc === undefined) {
-      throw Error(`no option ${k}`);
+      throw Error(`no option ${k} from ${JSON.stringify(extraOptions)}`);
     }
     delete extraOptions[k];
   });
@@ -305,6 +315,7 @@ export const getRunTag = (sequence: TTagValue, loop: TTagValue, featureNum: TTag
 };
 
 export const descTag = (tag: TTag) => ` @${tag.sequence} (${tag.loop}x${tag.member})`;
+export const isFirstTag = (tag: TTag) => tag.sequence === 0 && tag.loop === 1 && tag.member === 0;
 
 export const intOrError = (val: string) => {
   if (val.match(/[^\d+]/)) {
@@ -335,3 +346,21 @@ export const shortNum = (n: number) => Math.round(n * 100) / 100;
 
 export const getFeatureTitlesFromResults = (result: TFeatureResult) =>
   result.stepResults.filter((s) => s.actionResults.find((a) => (a.name === 'feature' ? true : false))).map((a) => a.in.replace(/^Feature: /, ''));
+
+export function trying<TResult>(fun: () => void): Promise<Error | TResult> {
+  return new Promise((resolve, reject) => {
+    try {
+      const res = <TResult>fun();
+      return resolve(res);
+    } catch (e: unknown) {
+      // https://kentcdodds.com/blog/get-a-catch-block-error-message-with-typescript
+      return reject(asError(e));
+    }
+  });
+}
+
+export function asError(e: unknown): Error {
+  return typeof e === 'object' && e !== null && 'message' in e && typeof (e as Record<string, unknown>).message === 'string' ? (e as Error) : new Error(e as any);
+}
+
+export const getSerialTime = () => Date.now();

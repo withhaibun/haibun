@@ -5,7 +5,6 @@
     "modules/*"
   ],
   "devDependencies": {
-    "@haibun/utils": "file:modules/utils",
     "@types/jest": "^29.2.4",
     "@types/node": "^18.11.14",
     "@typescript-eslint/eslint-plugin": "^5.48.0",

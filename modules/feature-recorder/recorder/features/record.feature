@@ -1,4 +1,4 @@
 
 Backgrounds: extension, start-recording
 
-pause for 1s
+pause for 10000s
