@@ -150,11 +150,12 @@ export function getDefaultOptions(): TSpecl {
 
 export function getConfigFromBase(bases: TBase, fs: TFileSystem = nodeFS): TSpecl | null {
   const found = bases.filter((b) => fs.existsSync(`${b}/config.json`));
-  if (found.length !== 1) {
-    console.error(`found multiple config.json files: ${found.join(', ')}`);
+  if (found.length > 1) {
+    console.error(`Found multiple config.json files: ${found.join(', ')}. Use --config to specify one.`);
     return null;
   }
-  const f = `${found[0]}/config.json`;
+  const configDir = found[0] || '.';
+  const f = `${configDir}/config.json`;
   console.info(`trying ${f}`);
   try {
     const specl = JSON.parse(fs.readFileSync(f, 'utf-8'));
@@ -191,10 +192,10 @@ export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve
 export async function verifyExtraOptions(inExtraOptions: TExtraOptions, csteppers: CStepper[]) {
   const extraOptions = { ...inExtraOptions };
   Object.entries(extraOptions)?.map(([k, v]) => {
-    const conc = getStepperOptionValue(k, v!, csteppers);
+    const conc = getStepperOptionValue(k, v, csteppers);
 
     if (conc === undefined) {
-      throw Error(`no option ${k}`);
+      throw Error(`no option ${k} from ${JSON.stringify(extraOptions)}`);
     }
     delete extraOptions[k];
   });
