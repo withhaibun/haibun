@@ -21,7 +21,7 @@ const TestStepsRequiresDomain = class TestStepsRequiresDomain extends AStepper i
     },
     test: {
       gwta: `See the {what: ${CCONTROL}} ${CCONTROL}`,
-      action: async (named: TNamed) => {
+      action: async () => {
         return actionOK();
       },
     },
@@ -52,8 +52,8 @@ describe('domain object', () => {
 
     expect(result.ok).toBe(false);
 
-    expect(result.failure!.error.message.startsWith(`missing required domain "${TTYPE}"`)).toBe(true);
-    expect(result.failure!.error.details.stack).toBeDefined();
+    expect(result.failure.error.message.startsWith(`missing required domain "${TTYPE}"`)).toBe(true);
+    expect(result.failure.error.details.stack).toBeDefined();
   });
   it('domain object from background', async () => {
     const specl = getDefaultOptions();
@@ -67,7 +67,7 @@ describe('domain object', () => {
     expect(result.ok).toBe(true);
 
     expect(world.shared.getCurrent(TTYPE)).toEqual(key);
-    const page = getDomain(TTYPE, world)!.shared.get(key);
+    const page = getDomain(TTYPE, world).shared.get(key);
     expect(page).toBeDefined();
     expect(page.get(ACONTROL)).toEqual('xxx');
   });

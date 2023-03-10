@@ -36,9 +36,6 @@ export class WebsocketPublisher implements TContextPublisher {
 
 export type TContextProcessor = (msg: TWithContext) => Promise<void>;
 export type TContextProcessors = { [name: string]: TContextProcessor };
-export interface IWebServer {
-  addStaticFolder(subdir: string): Promise<string | undefined>;
-}
 export interface IWebSocketServer {
   addContextProcessors(cp: TContextProcessors): void;
 }

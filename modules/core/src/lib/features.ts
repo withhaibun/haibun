@@ -10,7 +10,7 @@ export async function expand(backgrounds: TFeatures, features: TFeatures): Promi
 // Expand backgrounds by prepending 'upper' features to 'lower' features
 export async function expandBackgrounds(features: TFeatures) {
   const expanded: TFeatures = [];
-  for (const { path, content: feature } of features) {
+  for (const { base, path, content: feature } of features) {
     let res = feature;
     let r = findUpper(path, features);
     while (r.upper.length > 0 && r.rem !== '/') {
@@ -20,7 +20,7 @@ export async function expandBackgrounds(features: TFeatures) {
         res = s.content + '\n' + res;
       }
     }
-    expanded.push(withNameType(path, res));
+    expanded.push(withNameType(base, path, res));
   }
   return expanded;
 }
@@ -45,7 +45,7 @@ export async function expandFeatures(features: TFeature[], backgrounds: TFeature
 
   for (const feature of features) {
     const expanded = await expandIncluded(feature as TFeature, backgrounds);
-    const ex: TExpandedFeature = { path: feature.path, type: feature.type, name: feature.name, expanded };
+    const ex: TExpandedFeature = { path: feature.path, base: feature.base, type: feature.type, name: feature.name, expanded };
     expandeds.push(ex);
   }
 
@@ -71,11 +71,11 @@ async function expandIncluded(feature: TFeature, backgrounds: TFeatures) {
   return lines;
 }
 
-export function withNameType(path: string, content: string) {
+export function withNameType(base, path: string, content: string) {
   const s = path.split('.');
   const name = s[0];
   const type = s.length === 3 ? s[1] : 'feature';
-  return { path, name, type, content };
+  return { path, base, name, type, content };
 }
 
 export const asFeatureLine = (line: string, feature: TFeature) => ({ line, feature });
@@ -85,7 +85,7 @@ function doIncludes(input: string, backgrounds: TFeatures) {
     .replace(/^.*?: /, '')
     .split(',')
     .map((a) => a.trim());
-  let ret: TExpandedLine[] = [];
+  const ret: TExpandedLine[] = [];
   for (const l of includes) {
     const bg = findFeatures(l, backgrounds);
     if (bg.length !== 1) {

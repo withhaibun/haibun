@@ -1,7 +1,7 @@
 {
   "name": "@haibun/web-playwright",
   "type": "module",
-  "version": "1.16.0",
+  "version": "1.23.0",
   "description": "",
   "main": "build/web-playwright.js",
   "files": [
@@ -9,6 +9,7 @@
   ],
   "scripts": {
     "build": "tsc -b .",
+    "build-watch": "tsc -b . --watch",
     "prepublishOnly": "tsc -b .",
     "lint": "eslint -c .eslintrc.json --ext .ts,.js src",
     "preversion": "npm run lint",
@@ -19,9 +20,10 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@haibun/core": "file:../core",
-    "@haibun/domain-storage": "file:../domain-storage",
-    "@haibun/domain-webpage": "file:../domain-webpage",
+    "@haibun/core": "^1.22.0",
+    "@haibun/domain-storage": "^1.22.0",
+    "@haibun/domain-webpage": "^1.22.0",
     "playwright": "^1.29.2"
-  }
+  },
+  "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5"
 }
