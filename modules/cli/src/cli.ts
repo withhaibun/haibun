@@ -73,7 +73,7 @@ async function go() {
 }
 
 function getSpeclOrExit(bases: TBase): TSpecl {
-  const specl = getConfigFromBase(bases);
+  const specl  = getConfigFromBase(bases);
   if (specl === null || bases?.length < 1) {
     if (specl === null) {
       console.error(`missing or unusable config.json from ${bases}`);

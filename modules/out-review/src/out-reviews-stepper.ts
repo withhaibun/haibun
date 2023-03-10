@@ -182,7 +182,6 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     }
     const func = async (loc: TLocationOptions) => {
       const tracks = await this.readTracksFile(loc);
-      console.log('t', tracks);
       
       const { result, meta } = (<TTrackResult>tracks);
       const { title: indexTitle, startTime } = meta;
@@ -279,9 +278,6 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
 
   async writeTracksFile(loc: TLocationOptions, title: string, result: TFeatureResult, startTime: Date, startOffset: number) {
     const dir = await this.reviewsStorage.ensureCaptureLocation(loc, 'tracks', `tracks.json`);
-    console.log('dir', dir);
-    
-
     await this.reviewsStorage.writeFile(dir, JSON.stringify({ meta: { startTime: startTime.toISOString(), title, startOffset }, result }, null, 2), loc.mediaType);
   }
 
@@ -304,8 +300,6 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
   }
 
   async getFeatureDisplay(tracksDoc: TTrackResult | TMissingTracks, htmlGenerator: HtmlGenerator, loc: TLocationOptions, dir: string) {
-    console.log(tracksDoc, 'i');
-    
     if ((tracksDoc as TMissingTracks).error) {
       const dir = await this.reviewsStorage.getCaptureLocation(loc);
       return { featureJSON: htmlGenerator.getFeatureError(dir, (tracksDoc as TMissingTracks).error), script: undefined };

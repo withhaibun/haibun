@@ -24,8 +24,9 @@ export async function usage(specl: TSpecl, message?: string) {
 
   const ret = [
     '',
-    `usage: ${process.argv[1]} [--config path/to/specific/config.json] [--help] <project base> <filter>`,
+    `usage: ${process.argv[1]} [--config path/to/specific/config.json] [--help] <project base[,project base]> <[filter,filter]>`,
     message || '',
+    'If config.json is not found in project bases, the root directory will be used.\n',
     'Set these environmental variables to control options:\n',
     ...Object.entries(BaseOptions.options).map(([k, v]) => `${BASE_PREFIX}${k.padEnd(55)} ${v.desc}`),
   ];
