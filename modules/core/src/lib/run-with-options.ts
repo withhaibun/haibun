@@ -101,8 +101,6 @@ async function doRun(
     startRunCallback(world);
   }
 
-  logger.log(`running with these options: ${JSON.stringify(world.options)})}`);
-
   const result = await run({ specl, bases, world, featureFilter, endFeatureCallback });
   const output = await resultOutput(world.options.OUTPUT, result);
 
