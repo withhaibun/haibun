@@ -4,11 +4,11 @@ import { actionNotOK, applyResShouldContinue, setWorldStepperOptions, sleep, cre
 
 export class Executor {
   // find the stepper and action, call it and return its result
-  static async action(steppers: AStepper[], vstep: TVStep, a: TFound, world: TWorld): Promise<Partial<TActionResult>> {
+  static async action(steppers: AStepper[], vstep: TVStep, found: TFound, world: TWorld) {
     try {
-      const namedWithVars = getNamedToVars(a, world, vstep);
-      const stepper = findStepper<AStepper>(steppers, a.stepperName);
-      return await stepper.steps[a.actionName].action(namedWithVars, vstep);
+      const namedWithVars = getNamedToVars(found, world, vstep);
+      const stepper = findStepper<AStepper>(steppers, found.stepperName);
+      return await stepper.steps[found.actionName].action(namedWithVars, vstep);
     } catch (caught: any) {
       world.logger.error(caught.stack);
       return actionNotOK(`in ${vstep.in}: ${caught.message}`, { topics: { caught: caught.stack.toString() } });
@@ -32,8 +32,8 @@ export class Executor {
       await featureExecutor.setup(newWorld);
 
       const featureResult = await featureExecutor.doFeature(feature);
-      ok = ok && featureResult.ok;
 
+      ok = ok && featureResult.ok;
       if (!stay) {
         await featureExecutor.endFeature(featureResult);
       }
@@ -102,10 +102,10 @@ export class FeatureExecutor {
     let ok = true;
     const actionResults = [];
 
-    // FIXME feature should really be attached ot the vstep
-    for (const a of vstep.actions) {
+    // FIXME feature should really be attached to the vstep
+    for (const action of vstep.actions) {
       const start = world.timer.since();
-      const res: Partial<TActionResult> = await Executor.action(steppers, vstep, a, world);
+      const res: Partial<TActionResult> = await Executor.action(steppers, vstep, action, world);
 
       let traces;
       if (world.shared.get('_trace')) {
@@ -114,9 +114,9 @@ export class FeatureExecutor {
       }
       const end = world.timer.since();
       // FIXME
-      const stepResult: TStepActionResult = { ...res, name: a.actionName, start, end, traces } as TStepActionResult;
+      const stepResult: TStepActionResult = { ...res, name: action.actionName, start, end, traces } as TStepActionResult;
       actionResults.push(stepResult);
-      const shouldContinue = applyResShouldContinue(world, res, a);
+      const shouldContinue = applyResShouldContinue(world, res, action);
       ok = ok && shouldContinue;
       if (!shouldContinue) {
         break;

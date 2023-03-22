@@ -51,14 +51,15 @@ export async function runWith({ specl, world, features, backgrounds, addSteppers
     const steppers = await createSteppers(csteppers);
     await setWorldStepperOptions(steppers, world);
 
-    world.domains = await getDomains(steppers, world).catch((error) => errorBail('Get Domains', error));
+    world.domains = await getDomains(steppers).catch((error) => errorBail('Get Domains', error));
     await verifyDomainsOrError(steppers, world).catch((error) => errorBail('Required Domains', error));
 
-    const resolver = new Resolver(steppers, specl.mode, world);
-    const mappedValidatedSteps: TResolvedFeature[] = await resolver.resolveSteps(expandedFeatures).catch((error) => errorBail('Resolve', error));
-
     const builder = new Builder(steppers, world);
-    await builder.build(mappedValidatedSteps).catch((error) => errorBail('Build', error, { stack: error.stack, mappedValidatedSteps }));
+    const resolver = new Resolver(steppers, world, builder);
+    const mappedValidatedSteps: TResolvedFeature[] = await resolver.resolveStepsFromFeatures(expandedFeatures).catch((error) => errorBail('Resolve', error));
+
+    // await builder.build(mappedValidatedSteps).catch((error) => errorBail('Build', error, { stack: error.stack, mappedValidatedSteps }));
+    await builder.finalize();
 
     world.logger.log(`features: ${expandedFeatures.length} backgrounds: ${backgrounds.length} steps: (${expandedFeatures.map((e) => e.path)}), ${mappedValidatedSteps.length}`);
 

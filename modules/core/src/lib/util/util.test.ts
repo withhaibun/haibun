@@ -8,8 +8,8 @@ import { AStepper, IHasOptions, OK } from '../defs.js';
 describe('output', () => {
   it('resultOutput default', async () => {
     const features = [
-      { path: '/features/test.feature', content: `When I have a test\nThen fail` },
-      { path: '/features/test.feature', content: `When I have a test\nThen the test should pass` },
+      { path: '/features/test1.feature', content: `When I have a test\nThen fails` },
+      { path: '/features/test2.feature', content: `When I have a test\nThen it passes` },
     ];
     const result = await testWithDefaults(features, [TestSteps]);
 
@@ -136,5 +136,51 @@ describe('asError', () => {
   it('should pass undefined', () => {
     expect(util.asError(undefined)).toEqual(new Error());
   });
+});
 
+describe('depolite', () => {
+  describe('conjunctions', () => {
+    test('Given', () => {
+      expect(util.dePolite('Given test')).toBe('test');
+    });
+    test('When', () => {
+      expect(util.dePolite('When test')).toBe('test');
+    });
+    test('Then', () => {
+      expect(util.dePolite('Then test')).toBe('test');
+    });
+    test('And', () => {
+      expect(util.dePolite('And test')).toBe('test');
+    });
+  });
+  describe('articles', () => {
+    test('The', () => {
+      expect(util.dePolite('The test')).toBe('test');
+    });
+    test('A', () => {
+      expect(util.dePolite('A test')).toBe('test');
+    });
+    test('An', () => {
+      expect(util.dePolite('An test')).toBe('test');
+    });
+  });
+  describe('pronouns', () => {
+    test('I', () => {
+      expect(util.dePolite('I test')).toBe('test');
+    });
+    test(`I'm`, () => {
+      expect(util.dePolite(`I'm test`)).toBe('test');
+    });
+  });
+  describe('combinations', () => {
+    test('Given I test', () => {
+      expect(util.dePolite('Given I test')).toBe('test');
+    });
+    test(`Given I am test`, () => {
+      expect(util.dePolite(`Given I am test`)).toBe('test');
+    });
+    test('Given am an test', () => {
+      expect(util.dePolite('Given am an test')).toBe('test');
+    });
+  })
 });

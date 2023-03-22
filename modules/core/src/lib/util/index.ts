@@ -364,3 +364,7 @@ export function asError(e: unknown): Error {
 }
 
 export const getSerialTime = () => Date.now();
+
+export function dePolite(s: string) {
+  return s.replace(/^((Given|When|Then|And|Should|[Tt]he|[Ii]t|I'm|I|am|[Aa]n|[Aa]) )*/, '');
+}
