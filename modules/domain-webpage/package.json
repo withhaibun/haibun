@@ -1,7 +1,7 @@
 {
   "name": "@haibun/domain-webpage",
   "type": "module",
-  "version": "1.22.0",
+  "version": "1.24.0",
   "description": "",
   "author": "",
   "main": "build/domain-webpage.js",
@@ -22,7 +22,7 @@
     "xversion": "npm run format && git add -A src"
   },
   "dependencies": {
-    "@haibun/core": "^1.22.0"
+    "@haibun/core": "1.24.0"
   },
   "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5"
 }
