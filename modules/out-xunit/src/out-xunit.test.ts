@@ -9,7 +9,7 @@ const ox = [process.cwd(), "build", "out-xunit"].join("/");
 
 describe("AsXML transforms", () => {
   it("transforms single pass result to xunit", async () => {
-    const features = [{ path: '/features/fails.feature', content: `When I have a test\nThen the test should pass` }];
+    const features = [{ path: '/features/fails.feature', content: `When I have a test\nThen passes` }];
     const result = await testWithDefaults(features, [TestSteps]);
 
     expect(result.ok).toBe(true);
@@ -22,7 +22,7 @@ describe("AsXML transforms", () => {
     expect(obj.testsuites.testsuite.testcase.failure).toBeUndefined();
   });
   it("transforms multi type result to xunit", async () => {
-    const features = [{ path: '/features/fails.feature', content: `When I have a test\nThen fail` }, { path: '/features/passes.feature', content: `When I have a test\nThen the test should pass` }];
+    const features = [{ path: '/features/fails.feature', content: `When I have a test\nThen fails` }, { path: '/features/passes.feature', content: `When I have a test\nThen passes` }];
     const result = await testWithDefaults(features, [TestSteps]);
 
     expect(result.ok).toBe(false);
@@ -39,7 +39,7 @@ describe("AsXML transforms", () => {
 });
 
 it("run AsXUnit", async () => {
-  const features = [{ path: '/features/fails.feature', content: `When I have a test\nThen fail` }, { path: '/features/passes.feature', content: `When I have a test\nThen the test should pass` }];
+  const features = [{ path: '/features/fails.feature', content: `When I have a test\nThen fails` }, { path: '/features/passes.feature', content: `When I have a test\nThen passes` }];
   const result = await testWithDefaults(features, [TestSteps]);
 
   expect(result.ok).toBe(false);

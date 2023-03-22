@@ -10,7 +10,7 @@ const TestStepsWithOptions = class TestStepsWithOptions extends AStepper impleme
   };
   steps = {
     test: {
-      exact: 'When I have a stepper option',
+      exact: 'have a stepper option',
       action: async () => {
         const res = getStepperOption(this, 'EXISTS', this.getWorld().extraOptions);
         return actionOK({ options: { summary: 'options', details: res } });
