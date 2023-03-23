@@ -182,5 +182,8 @@ describe('depolite', () => {
     test('Given am an test', () => {
       expect(util.dePolite('Given am an test')).toBe('test');
     });
+    test('And I should see', () => {
+      expect(util.dePolite('And I should see')).toBe('see');
+    });
   })
 });

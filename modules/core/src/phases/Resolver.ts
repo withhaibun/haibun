@@ -1,4 +1,4 @@
-import { TFound, TResolvedFeature, OK, TWorld, BASE_TYPES, TExpandedFeature, AStepper, TStep, TVStep, TFeature } from '../lib/defs.js';
+import { TFound, TResolvedFeature, OK, TWorld, BASE_TYPES, TExpandedFeature, AStepper, TStep, TVStep } from '../lib/defs.js';
 import { namedInterpolation, getMatch } from '../lib/namedVars.js';
 import { asExpandedFeatures } from '../lib/test/lib.js';
 import { getActionable, describeSteppers, isLowerCase, dePolite } from '../lib/util/index.js';
@@ -16,14 +16,39 @@ export class Resolver {
     this.builder = builder;
     this.types = [...BASE_TYPES, ...this.world.domains.map((d) => d.name)];
   }
+  private async applyActionEvents(initialVStep: TVStep, values): Promise<TVStep[]> {
+    if (!values) {
+      return [initialVStep];
+    }
+
+    const after = [];
+    for (const [k, a] of Object.entries(values)) {
+      const { action: actionable, vstep: sourceVStep } = <{ action: string, vstep: TVStep }>a;
+      const [event, domain] = k.split(':');
+      if (event !== EVENT_AFTER) {
+        continue;
+      }
+
+      // FIXME this is a test method
+      const expandedFeature = asExpandedFeatures([{ path: sourceVStep.source.path, content: actionable }]);
+      const vstep = await this.findVSteps(expandedFeature[0], `event/${event}`, false);
+      const { source } = sourceVStep;
+
+      const nv = { ...vstep[0], source, in: actionable };
+
+      if (event === EVENT_AFTER) {
+        after.push(nv);
+      }
+    }
+    return [initialVStep, ...after];
+  }
+
   async resolveStepsFromFeatures(features: TExpandedFeature[]): Promise<TResolvedFeature[]> {
     const expanded: TResolvedFeature[] = [];
     for (const feature of features) {
       try {
-        const vsteps = await this.findVSteps(feature);
+        const vsteps = await this.findVSteps(feature, feature.path);
         const e = { ...feature, ...{ vsteps } }
-        await this.builder?.buildStep(e, this);
-        this.world.shared.values[BUILT] && await this.applyActionEvents(this.world.shared.values[BUILT].values, EVENT_AFTER, e);
         expanded.push(e);
       } catch (e) {
         this.world.logger.error(e);
@@ -33,31 +58,8 @@ export class Resolver {
     return expanded;
   }
 
-  private async applyActionEvents(values, event: string, expanded: TResolvedFeature) {
-    for (const [k, a] of Object.entries(values)) {
-      const { action: actionable, vstep: sourceVStep } = <{ action: string, vstep: TVStep }>a;
-      const [e, domain] = k.split(':');
-      if (e !== event) {
-        continue;
-      }
-
-      const expandedFeature = asExpandedFeatures([{ path: sourceVStep.source.path, content: actionable }]);
-      const vstep = this.findVSteps(expandedFeature[0]);
-      const found = this.findActionableSteps(actionable)[0];
-      const { source } = sourceVStep;
-
-      const { actionName, stepperName, step } = found;
-      const { named, vars } = sourceVStep.actions[0];
-      const action: TFound = { actionName, stepperName, step, named, vars };
-      const nv = { ...vstep, source, in: actionable, seq: expanded.vsteps.length + 1, ...{ actions: [action] } };
-
-      expanded.vsteps.push(nv);
-    }
-  }
-
-  private async findVSteps(feature: TExpandedFeature): Promise<TVStep[]> {
-    // const vsteps = await feature.expanded.map(async (featureLine, seq) => {
-    const vsteps: TVStep[] = [];
+  private async findVSteps(feature: TExpandedFeature, path: string, build = true): Promise<TVStep[]> {
+    let vsteps: TVStep[] = [];
     let seq = 0;
     for (const featureLine of feature.expanded) {
       seq++;
@@ -80,8 +82,13 @@ export class Resolver {
       } else if (actions.length < 1) {
         throw Error(`no step found for ${featureLine.line} in ${feature.path} from ${describeSteppers(this.steppers)}`);
       }
-      const wtw = { source: featureLine.feature, in: featureLine.line, seq, actions }
-      vsteps.push(wtw);
+      const vstep = { source: featureLine.feature, in: featureLine.line, seq, actions }
+      if (build) {
+        await this.builder?.buildStep(vstep, path, this);
+        vsteps = vsteps.concat(await this.applyActionEvents(vstep, this.world.shared.values[BUILT]?.values));
+      } else {
+        vsteps.push(vstep);
+      }
     }
 
     return vsteps;
@@ -122,8 +129,8 @@ export class Resolver {
       return { actionName, stepperName, step };
     }
   }
-  static getPrelude = (path: string, line: string, featureLine: string) => `In '${path}', step '${featureLine}' using '${line}':`;
-  static getTypeValidationError = (prelude: string, fileType: string, name: string, typeValidationError: string) =>
+/*   static getPrelude = (path: string, line: string, featureLine: string) => `In '${path}', step '${featureLine}' using '${line}':`;
+ */  static getTypeValidationError = (prelude: string, fileType: string, name: string, typeValidationError: string) =>
     `${prelude} Type '${fileType}' doesn't validate for '${name}': ${typeValidationError}`;
   static getMoreThanOneInclusionError = (prelude: string, fileType: string, name: string) => `${prelude} more than one '${fileType}' inclusion for '${name}'`;
   static getNoFileTypeInclusionError = (prelude: string, fileType: string, name: string) => `${prelude} no '${fileType}' inclusion for '${name}'`;

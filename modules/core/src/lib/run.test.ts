@@ -2,6 +2,7 @@ import haibun from '../steps/haibun.js';
 import { AStepper, OK } from './defs.js';
 import { testWithDefaults } from './test/lib.js';
 import TestSteps from './test/TestSteps.js';
+import { TestStepsWithRequiredOptions } from './test/TestStepsWithOptions.js';
 
 describe('run self-contained', () => {
   it('no backgrounds', async () => {
@@ -79,6 +80,16 @@ describe('step fails', () => {
     expect(result.ok).toBe(false);
 
     expect(result.failure?.stage).toBe('Execute');
+  });
+});
+
+describe('options', () => {
+  it('missing required options', async () => {
+    const feature = { path: '/features/test.feature', content: `have a stepper option` };
+    const result = await testWithDefaults([feature], [TestStepsWithRequiredOptions]);
+    expect(result.ok).toBe(false);
+
+    expect(result.failure?.stage).toBe('RequiredOptions');
   });
 });
 

@@ -205,9 +205,14 @@ export async function verifyExtraOptions(inExtraOptions: TExtraOptions, cstepper
   }
 }
 
-export async function setWorldStepperOptions(steppers: AStepper[], world: TWorld) {
+export async function setStepperWorlds(steppers: AStepper[], world: TWorld) {
   for (const stepper of steppers) {
-    stepper.setWorld(world, steppers);
+    try {
+    await stepper.setWorld(world, steppers);
+    } catch (e) {
+      console.error(`setWorldStepperOptions ${stepper.constructor.name} failed`, e);
+      throw e;
+    }
   }
 }
 export function getPre(stepper: AStepper) {
@@ -225,7 +230,7 @@ export function getStepperOptionValue(key: string, value: string, csteppers: CSt
       }
 
       if (ao.options[name]) {
-        return ao.options![name].parse(value);
+        return ao.options[name].parse(value);
       } else {
         throw Error(`${cstepper.name} has no option ${name}`);
       }
@@ -234,9 +239,12 @@ export function getStepperOptionValue(key: string, value: string, csteppers: CSt
 }
 
 export async function verifyRequiredOptions(steppers: CStepper[], options: TExtraOptions) {
-  let requiredMissing: string[] = [];
-  for (const stepper of steppers) {
-    const ao = stepper.prototype as IHasOptions;
+  const requiredMissing: string[] = [];
+  for (const Stepper of steppers) {
+    const stepper = new Stepper();
+
+    const ao = stepper as IHasOptions;
+    
     for (const option in ao.options) {
       const n = getStepperOptionName(stepper, option);
       if (ao.options[option].required && !options[n]) {
@@ -366,5 +374,5 @@ export function asError(e: unknown): Error {
 export const getSerialTime = () => Date.now();
 
 export function dePolite(s: string) {
-  return s.replace(/^((Given|When|Then|And|Should|[Tt]he|[Ii]t|I'm|I|am|[Aa]n|[Aa]) )*/, '');
+  return s.replace(/^((given|when|then|and|should|the|it|I'm|I|am|an|a) )*/i, '');
 }

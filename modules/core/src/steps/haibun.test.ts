@@ -6,7 +6,6 @@ import { AStepper, IHasDomains, OK, } from '../lib/defs.js';
 import { createSteppers } from '../lib/util/index.js';
 import { Resolver } from '../phases/Resolver.js';
 import Builder from '../phases/Builder.js';
-import TestStepsWithOptions from '../lib/test/TestStepsWithOptions.js';
 
 describe('prose', () => {
   it('finds prose', async () => {
@@ -45,7 +44,7 @@ describe('forEvery', () => {
     expect(res.ok).toBe(false);
     expect(res.failure.stage).toBe('Resolve');
   })
-  it('finds afterEvery', async () => {
+  it.only('finds afterEvery', async () => {
     const { world } = getDefaultWorld(0);
     const features = asExpandedFeatures([{ path: '/features/test.feature', content: `After every widget, passes` }]);
     const steppers = await createSteppers([TestStepsWithDomains, Haibun]);

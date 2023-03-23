@@ -25,10 +25,10 @@ const DomainStorage = class DomainStorage extends AStepper implements IHasDomain
     storageLocation,
     storageItem,
   ];
-  locator = (location: string) => `http://localhost:8123/${location}`;
+  locator = (location: string) => `./${location}`;
   options = {
     BASE_DIRECTORY: {
-      desc: 'run browsers without a window (true or false)',
+      desc: 'base for file operations',
       parse: (input: string) => stringOrError(input)
     }
   }

@@ -39,16 +39,16 @@ export default class Builder {
   }
   */
 
-  public async buildStep(feature: TResolvedFeature, resolver: Resolver) {
-    const vstep = feature.vsteps[0];
+  public async buildStep(vstep: TVStep, path, resolver: Resolver) {
     for (const action of vstep.actions) {
       if (!action.step.build) {
         continue;
       }
-      if (!this.workspace.get(feature.path)) {
-        this.workspace.createPath(feature.path);
-        this.finalizers[feature.path] = [];
+      if (!this.workspace.get(path)) {
+        this.workspace.createPath(path);
+        this.finalizers[path] = [];
       }
+
       const found = vstep.actions[0];
 
       const namedWithVars = getNamedToVars(found, this.world, vstep);
@@ -62,7 +62,7 @@ export default class Builder {
       }
 
       if (res.finalize) {
-        this.finalizers[feature.path].push((<TOKStepActionResult & TBuildResult>res).finalize);
+        this.finalizers[path].push((<TOKStepActionResult & TBuildResult>res).finalize);
       }
       if (res.workspace) {
         this.world.shared.values[BUILT] = { ...this.world.shared.values[BUILT], ...this.workspace };

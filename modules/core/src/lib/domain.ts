@@ -37,7 +37,7 @@ export const getStepShared = (type: string, world: TWorld): Context => {
 };
 
 export const getDomain = (domain: string, world: Partial<TWorld>) => world.domains.find((d) => d.name === domain);
-export const getStepperAsDomain = (s: AStepper) => (<IHasDomains>(s as unknown)).domains ? <IHasDomains>(s as unknown) : undefined;
+export const getStepperAsDomain = (s: AStepper) => (<IHasDomains>(s as unknown))?.domains ? <IHasDomains>(s as unknown) : undefined;
 
 export const getDomains = async (steppers: AStepper[]) => {
   const domainWorld: { domains: TModuleDomain[] } = { domains: [] };

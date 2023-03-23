@@ -1,6 +1,6 @@
 import { TVStep, TResolvedFeature, TResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, AStepper, TEndFeatureCallback, CStepper, TFound } from '../lib/defs.js';
 import { getNamedToVars } from '../lib/namedVars.js';
-import { actionNotOK, applyResShouldContinue, setWorldStepperOptions, sleep, createSteppers, findStepper } from '../lib/util/index.js';
+import { actionNotOK, applyResShouldContinue, setStepperWorlds, sleep, createSteppers, findStepper } from '../lib/util/index.js';
 
 export class Executor {
   // find the stepper and action, call it and return its result
@@ -65,7 +65,7 @@ export class FeatureExecutor {
       throw Error(error);
     };
     const steppers = await createSteppers(this.csteppers);
-    await setWorldStepperOptions(steppers, world).catch((error: any) => errorBail('Apply Options', error, world.extraOptions));
+    await setStepperWorlds(steppers, world).catch((error: any) => errorBail('Apply Options', error, world.extraOptions));
     this.steppers = steppers;
   }
   async doFeature(feature: TResolvedFeature): Promise<TFeatureResult> {

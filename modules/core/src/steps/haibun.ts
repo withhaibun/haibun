@@ -68,7 +68,7 @@ const Haibun = class Haibun extends AStepper {
         return OK;
       },
       build: async ({ domainID, action }: TNamed, vstep: TVStep, workspace, resolver: Resolver, steppers: AStepper[]) => {
-        const found = await this.findDomainAction(domainID, action, resolver, steppers);
+        const found = await this.findAction(action, resolver, steppers);
 
         if (found) {
           workspace.set(`${EVENT_AFTER}:${domainID}`, { action, vstep });
@@ -102,18 +102,6 @@ const Haibun = class Haibun extends AStepper {
       },
     },
   };
-  findDomainAction = (domainID: string, action: string, resolver, steppers) => {
-    const stepper = this.findAction(action, resolver, steppers);
-
-    const withDomain = getStepperAsDomain(stepper);
-
-    if (withDomain) {
-      if (withDomain.domains.find(d => d.name === domainID)) {
-        return stepper;
-      }
-      return undefined;
-    }
-  }
   findAction = (action: string, resolver: Resolver, steppers) => {
 
     const found = resolver.findActionableSteps(action);
