@@ -1,8 +1,6 @@
-import { OK, TNamed, AStepper, TWorld, TVStep } from '../lib/defs.js';
+import { OK, TNamed, AStepper, TWorld, TVStep, EVENT_AFTER, TBuildResult } from '../lib/defs.js';
 import { Resolver } from '../phases/Resolver.js';
 import { actionNotOK, findStepper, sleep } from '../lib/util/index.js';
-import { getStepperAsDomain } from '../lib/domain.js';
-import { EVENT_AFTER } from '../phases/Builder.js';
 
 const Haibun = class Haibun extends AStepper {
   steppers: AStepper[];
@@ -63,18 +61,23 @@ const Haibun = class Haibun extends AStepper {
       },
     },
     afterEvery: {
-      gwta: 'after every {domainID}, {action}',
-      action: async ({ domainID, action }: TNamed) => {
+      gwta: 'after every {domain}, {action}',
+      action: async ({ domain, action }: TNamed) => {
         return OK;
       },
-      build: async ({ domainID, action }: TNamed, vstep: TVStep, workspace, resolver: Resolver, steppers: AStepper[]) => {
+      build: async ({ domain, action }: TNamed, vstep: TVStep, workspace, resolver: Resolver, steppers: AStepper[]): Promise<TBuildResult> => {
         const found = await this.findAction(action, resolver, steppers);
 
         if (found) {
-          workspace.set(`${EVENT_AFTER}:${domainID}`, { action, vstep });
+          const actionable = action.replace(/.*,\s+/, '') + ` # from ${vstep.in};`
+          const actions = resolver.findActionableSteps(actionable);
+          const eventVStep = {
+            ...vstep, in: actionable, ...actions, source: { ...vstep, source: { ...vstep.source, content: [actionable] } }
+          };
+          workspace.addEvent({ vstep: eventVStep, domain, eventType: EVENT_AFTER });
           return { ...OK, workspace };
         }
-        return actionNotOK(`forEvery: action ${action} not found for ${domainID}`)
+        return actionNotOK(`forEvery: action ${action}`);
       }
     },
     until: {

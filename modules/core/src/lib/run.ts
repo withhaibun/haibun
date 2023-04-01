@@ -61,6 +61,7 @@ export async function runWith({ specl, world, features, backgrounds, addSteppers
     const builder = new Builder(steppers, world);
     const resolver = new Resolver(steppers, world, builder);
     const mappedValidatedSteps: TResolvedFeature[] = await resolver.resolveStepsFromFeatures(expandedFeatures).catch((error) => errorBail('Resolve', error));
+    
 
     // await builder.build(mappedValidatedSteps).catch((error) => errorBail('Build', error, { stack: error.stack, mappedValidatedSteps }));
     await builder.finalize();

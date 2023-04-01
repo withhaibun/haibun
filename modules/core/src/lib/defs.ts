@@ -20,8 +20,14 @@ export type TOptions = TBaseOptions & {
   [name: string]: TOptionValue;
 };
 
+export const BUILT = '_built';
+export const EVENT_AFTER = '_after';
+export const EVENTS = '_events';
+
+
 export type TOptionValue = any;
 
+export type TEventTypes = typeof EVENT_AFTER;
 export interface IHasOptions {
   options?: {
     [name: string]: {
@@ -127,6 +133,12 @@ export type TVStep = {
 };
 
 export type TAction = (named: TNamed, vstep: TVStep) => Promise<TActionResult>;
+export type TBuildEvent = {
+  eventType: string,
+  domain: TDomain,
+  vstep: TVStep,
+};
+
 export type TBuildResult = (TOKActionResult & { finalize?: TFinalize, workspace?: WorkspaceContext }) | TNotOKActionResult;
 export type TBuild = (named: TNamed, vstep: TVStep, workspace: WorkspaceContext, resolver: Resolver, steppers: AStepper[]) => Promise<TBuildResult>;
 

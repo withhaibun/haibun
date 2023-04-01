@@ -1,11 +1,8 @@
 import { WorkspaceContext } from '../lib/contexts.js';
-import { AStepper, TBuildResult, TFinalize, TNotOkStepActionResult, TOKStepActionResult, TResolvedFeature, TVStep, TWorld } from '../lib/defs.js';
+import { AStepper, BUILT, TBuildResult, TFinalize, TNotOkStepActionResult, TOKStepActionResult, TVStep, TWorld } from '../lib/defs.js';
 import { getNamedToVars } from '../lib/namedVars.js';
 import { applyResShouldContinue, findStepper } from '../lib/util/index.js';
 import { Resolver } from './Resolver.js';
-
-export const BUILT = '_built';
-export const EVENT_AFTER = '_after';
 
 export default class Builder {
   world: TWorld;
@@ -16,6 +13,7 @@ export default class Builder {
     this.steppers = steppers;
     this.world = world;
     this.workspace = workspace;
+    this.updateWorldBuilt(this.workspace);
   }
   /*
   async build(features: TResolvedFeature[]) {
@@ -64,10 +62,11 @@ export default class Builder {
       if (res.finalize) {
         this.finalizers[path].push((<TOKStepActionResult & TBuildResult>res).finalize);
       }
-      if (res.workspace) {
-        this.world.shared.values[BUILT] = { ...this.world.shared.values[BUILT], ...this.workspace };
-      }
     }
+    this.updateWorldBuilt(this.workspace);
+  }
+  updateWorldBuilt(workspace) {
+    this.world.shared[BUILT] = workspace;
   }
   public async finalize() {
     for (const key of Object.keys(this.finalizers)) {
@@ -75,5 +74,6 @@ export default class Builder {
         await finalize(this.workspace.get(key));
       }
     }
+    this.updateWorldBuilt(this.workspace);
   }
 }

@@ -44,9 +44,23 @@ describe('forEvery', () => {
     expect(res.ok).toBe(false);
     expect(res.failure.stage).toBe('Resolve');
   })
-  it.only('finds afterEvery', async () => {
+  it('finds afterEvery', async () => {
     const { world } = getDefaultWorld(0);
-    const features = asExpandedFeatures([{ path: '/features/test.feature', content: `After every widget, passes` }]);
+    const features = asExpandedFeatures([{ path: '/features/test.feature', content: `After every widget, passes` },
+    { path: '/features/test2.feature', content: `passes` }]);
+    const steppers = await createSteppers([TestStepsWithDomains, Haibun]);
+    const builder = new Builder(steppers, world);
+    const resolver = new Resolver(steppers, world, builder);
+    const res = await resolver.resolveStepsFromFeatures(features);
+    // console.log('🤑', JSON.stringify(res, null, 2));
+    expect(res[0].vsteps.length).toBe(2);
+  });
+  it('finds multiple afterEvery', async () => {
+    const { world } = getDefaultWorld(0);
+    const features = asExpandedFeatures([{ path: '/features/test.feature', content: `After every widget, passes` },
+    { path: '/features/test2.feature', content: `After every widget, fails` },
+    { path: '/features/test2.feature', content: `After every widget, fails` }
+    ]);
     const steppers = await createSteppers([TestStepsWithDomains, Haibun]);
     const builder = new Builder(steppers, world);
     const resolver = new Resolver(steppers, world, builder);
@@ -58,9 +72,12 @@ describe('forEvery', () => {
     const res = await testWithDefaults([feature], [TestStepsWithDomains, Haibun]);
     expect(res.ok).toBe(true);
   })
-  it('finds afterEvery and fails', async () => {
-    const feature = { path: '/features/test.feature', content: `After every widget, fails` };
-    const res = await testWithDefaults([feature], [TestStepsWithDomains, Haibun]);
+  it.only('finds afterEvery and fails', async () => {
+    const features = [{ path: '/features/test.feature', content: `After every widget, fails` },
+    { path: '/features/test2.feature', content: `passes` }];
+    const res = await testWithDefaults(features, [TestStepsWithDomains, Haibun]);
+    const r = {...res, world: undefined};
+    console.log('🤑', JSON.stringify(r, null, 2));
     expect(res.ok).toBe(false);
     expect(res.failure.stage).toBe('Execute');
   })

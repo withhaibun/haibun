@@ -1,8 +1,7 @@
-import { TFound, TResolvedFeature, OK, TWorld, BASE_TYPES, TExpandedFeature, AStepper, TStep, TVStep } from '../lib/defs.js';
+import { TFound, TResolvedFeature, OK, TWorld, BASE_TYPES, TExpandedFeature, AStepper, TStep, TVStep, EVENTS, EVENT_AFTER, BUILT } from '../lib/defs.js';
 import { namedInterpolation, getMatch } from '../lib/namedVars.js';
-import { asExpandedFeatures } from '../lib/test/lib.js';
 import { getActionable, describeSteppers, isLowerCase, dePolite } from '../lib/util/index.js';
-import Builder, { BUILT, EVENT_AFTER } from './Builder.js';
+import Builder from './Builder.js';
 
 export class Resolver {
   steppers: AStepper[];
@@ -16,30 +15,25 @@ export class Resolver {
     this.builder = builder;
     this.types = [...BASE_TYPES, ...this.world.domains.map((d) => d.name)];
   }
-  private async applyActionEvents(initialVStep: TVStep, values): Promise<TVStep[]> {
-    if (!values) {
+  private async applyVStepEvents(initialVStep: TVStep): Promise<TVStep[]> {
+    const events = this.world.shared[BUILT]?.getEvents();
+
+    if (!events) {
       return [initialVStep];
     }
-
+    
     const after = [];
-    for (const [k, a] of Object.entries(values)) {
-      const { action: actionable, vstep: sourceVStep } = <{ action: string, vstep: TVStep }>a;
-      const [event, domain] = k.split(':');
-      if (event !== EVENT_AFTER) {
-        continue;
-      }
+    for (const event of events) {
+      const { eventType, domain, vstep } = event;
+      if (eventType === EVENT_AFTER) {
 
-      // FIXME this is a test method
-      const expandedFeature = asExpandedFeatures([{ path: sourceVStep.source.path, content: actionable }]);
-      const vstep = await this.findVSteps(expandedFeature[0], `event/${event}`, false);
-      const { source } = sourceVStep;
-
-      const nv = { ...vstep[0], source, in: actionable };
-
-      if (event === EVENT_AFTER) {
-        after.push(nv);
+        after.push(vstep);
+      } else {
+        throw Error(`unknown event: ${eventType} from ${JSON.stringify(events)}`);
       }
     }
+    console.log('after', 'i', initialVStep.in, 'a', after.map(i => i.in));
+    
     return [initialVStep, ...after];
   }
 
@@ -58,7 +52,7 @@ export class Resolver {
     return expanded;
   }
 
-  private async findVSteps(feature: TExpandedFeature, path: string, build = true): Promise<TVStep[]> {
+  private async findVSteps(feature: TExpandedFeature, path: string): Promise<TVStep[]> {
     let vsteps: TVStep[] = [];
     let seq = 0;
     for (const featureLine of feature.expanded) {
@@ -83,12 +77,8 @@ export class Resolver {
         throw Error(`no step found for ${featureLine.line} in ${feature.path} from ${describeSteppers(this.steppers)}`);
       }
       const vstep = { source: featureLine.feature, in: featureLine.line, seq, actions }
-      if (build) {
-        await this.builder?.buildStep(vstep, path, this);
-        vsteps = vsteps.concat(await this.applyActionEvents(vstep, this.world.shared.values[BUILT]?.values));
-      } else {
-        vsteps.push(vstep);
-      }
+      await this.builder?.buildStep(vstep, path, this);
+      vsteps = vsteps.concat(await this.applyVStepEvents(vstep));
     }
 
     return vsteps;

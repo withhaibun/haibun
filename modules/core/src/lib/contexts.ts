@@ -1,4 +1,4 @@
-import { TTag, WorkspaceBuilder } from './defs.js';
+import { TAction, TDomain, TTag, TVStep, WorkspaceBuilder, TEventTypes, TBuildEvent } from './defs.js';
 
 export class Context {
   values: { [name: string]: any };
@@ -61,10 +61,11 @@ export class WorldContext extends Context {
     this.values[WorldContext.currentKey(domain)] = value;
   }
 }
-
+//, [BUILT]: { [EVENTS]: TBuildEvents }
 export class WorkspaceContext extends Context {
   constructor(context: string, initial?: { [name: string]: string }) {
     super(`workspace ${context}`, initial);
+    this.values = { events: [], ...initial, ...this.values || {} };
   }
   builder: WorkspaceBuilder | undefined = undefined;
   createPath(path: string) {
@@ -74,10 +75,16 @@ export class WorkspaceContext extends Context {
   addBuilder(what: WorkspaceBuilder) {
     this.builder = what;
   }
+  addEvent(event: TBuildEvent) {
+    this.values.events.push(event);
+  }
+  getEvents(): TBuildEvent[] {
+    return this.values.events;
+  }
   getBuilder(): WorkspaceBuilder {
     if (!this.builder) {
       throw Error('no builder');
     }
-    return this.builder!;
+    return this.builder;
   }
 }

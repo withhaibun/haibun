@@ -8,7 +8,7 @@ export const getStepShared = (type: string, world: TWorld): Context => {
   if (type === 'feature' || isBaseType(type)) {
     return world.shared;
   }
-  let source = getDomain(type, world);
+  const source = getDomain(type, world);
   if (!source || !source.shared) {
     throw Error(`no shared for ${type}, ${source}}`);
   }
