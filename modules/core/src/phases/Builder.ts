@@ -1,47 +1,79 @@
 import { WorkspaceContext } from '../lib/contexts.js';
-import { AStepper, OK, TBuildResult, TFinalize, TNotOkStepActionResult, TOKStepActionResult, TResolvedFeature, TWorld } from '../lib/defs.js';
-import { applyResShouldContinue } from '../lib/util/index.js';
-import { Executor } from './Executor.js';
+import { AStepper, TBuildResult, TFinalize, TNotOkStepActionResult, TOKStepActionResult, TResolvedFeature, TVStep, TWorld } from '../lib/defs.js';
+import { getNamedToVars } from '../lib/namedVars.js';
+import { applyResShouldContinue, findStepper } from '../lib/util/index.js';
+import { Resolver } from './Resolver.js';
+
+export const BUILT = '_built';
+export const EVENT_AFTER = '_after';
 
 export default class Builder {
-  world: any;
+  world: TWorld;
   workspace: WorkspaceContext;
   steppers: AStepper[];
+  finalizers: { [path: string]: TFinalize[] } = {};
   constructor(steppers: AStepper[], world: TWorld, workspace: WorkspaceContext = new WorkspaceContext(`builder`)) {
     this.steppers = steppers;
     this.world = world;
     this.workspace = workspace;
   }
+  /*
   async build(features: TResolvedFeature[]) {
-    const finalizers: { [path: string]: TFinalize[] } = {};
     this.world.shared.values._scored = [];
     for (const feature of features) {
-      for (const vstep of feature.vsteps) {
-        for (const action of vstep.actions) {
-          if (action.step.build) {
-            if (!this.workspace.get(feature.path)) {
-              this.workspace.createPath(feature.path);
-              finalizers[feature.path] = [];
-            }
-            const res = await Executor.action(this.steppers, vstep, vstep.actions[0], this.world);
-
-            const shouldContinue = applyResShouldContinue(this.world, res, action);
-            if (!shouldContinue) {
-              throw Error(`${action.actionName}: ${(<TNotOkStepActionResult>res).message}`);
-            }
-            if ((<TOKStepActionResult & TBuildResult>res).finalize) {
-              finalizers[feature.path].push((<TOKStepActionResult & TBuildResult>res).finalize!);
-            }
-          }
-        }
-      }
+      await this.buildSteps(feature);
     }
-    for (const key of Object.keys(finalizers)) {
-      for (const finalize of finalizers[key]) {
+    for (const key of Object.keys(this.finalizers)) {
+      for (const finalize of this.finalizers[key]) {
         finalize(this.workspace.get(key));
       }
     }
 
     return OK;
+  }
+
+  public async buildSteps(feature: TResolvedFeature) {
+    for (const vstep of feature.vsteps) {
+      await this.buildStep(vstep, feature);
+    }
+  }
+  */
+
+  public async buildStep(vstep: TVStep, path, resolver: Resolver) {
+    for (const action of vstep.actions) {
+      if (!action.step.build) {
+        continue;
+      }
+      if (!this.workspace.get(path)) {
+        this.workspace.createPath(path);
+        this.finalizers[path] = [];
+      }
+
+      const found = vstep.actions[0];
+
+      const namedWithVars = getNamedToVars(found, this.world, vstep);
+      const stepper = findStepper<AStepper>(this.steppers, found.stepperName);
+
+      const res = await stepper.steps[found.actionName].build(namedWithVars, vstep, this.workspace, resolver, this.steppers);
+      const shouldContinue = applyResShouldContinue(this.world, res, action);
+
+      if (!shouldContinue || !res.ok) {
+        throw Error(`${action.actionName}: ${(<TNotOkStepActionResult>res).message}`);
+      }
+
+      if (res.finalize) {
+        this.finalizers[path].push((<TOKStepActionResult & TBuildResult>res).finalize);
+      }
+      if (res.workspace) {
+        this.world.shared.values[BUILT] = { ...this.world.shared.values[BUILT], ...this.workspace };
+      }
+    }
+  }
+  public async finalize() {
+    for (const key of Object.keys(this.finalizers)) {
+      for (const finalize of this.finalizers[key]) {
+        await finalize(this.workspace.get(key));
+      }
+    }
   }
 }

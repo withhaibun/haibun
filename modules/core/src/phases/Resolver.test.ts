@@ -1,7 +1,20 @@
 import { AStepper, OK, TExpandedFeature, TResolvedFeature } from '../lib/defs.js';
 import { asExpandedFeatures, getDefaultWorld } from '../lib/test/lib.js';
+import TestSteps from '../lib/test/TestSteps.js';
 import { createSteppers } from '../lib/util/index.js';
 import { Resolver } from './Resolver.js';
+
+describe('resolve steps', () => {
+  it('resolves steps', async () => {
+    const features = asExpandedFeatures([{ path: 'l1', content: 'Then it passes' }]);
+    const steppers = await createSteppers([TestSteps]);
+    const resolver = new Resolver(steppers, {
+      ...getDefaultWorld(0).world,
+    });
+    const res = await resolver.resolveStepsFromFeatures(features);
+    expect(res.length).toBe(1);
+  });
+})
 
 describe('validate map steps', () => {
   class TestStepper extends AStepper {
@@ -27,10 +40,10 @@ describe('validate map steps', () => {
 
   const getResolvedSteps = async (features: TExpandedFeature[]) => {
     const steppers = await createSteppers([TestStepper]);
-    const resolver = new Resolver(steppers, '', {
+    const resolver = new Resolver(steppers, {
       ...getDefaultWorld(0).world,
     });
-    return await resolver.resolveSteps(features);
+    return await resolver.resolveStepsFromFeatures(features);
   };
   describe('exact', () => {
     test('exact', async () => {

@@ -28,7 +28,6 @@ async function go() {
   }
 
   const { protoOptions, errors } = processBaseEnvToOptionsAndErrors(process.env, specl.options);
-
   if (errors.length > 0) {
     await usageThenExit(specl, errors.join('\n'));
   }

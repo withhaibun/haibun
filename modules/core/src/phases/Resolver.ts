@@ -1,22 +1,55 @@
-import { TFound, TResolvedFeature, OK, TWorld, BASE_TYPES, TExpandedFeature, AStepper } from '../lib/defs.js';
+import { TFound, TResolvedFeature, OK, TWorld, BASE_TYPES, TExpandedFeature, AStepper, TStep, TVStep } from '../lib/defs.js';
 import { namedInterpolation, getMatch } from '../lib/namedVars.js';
-import { getActionable, describeSteppers, isLowerCase } from '../lib/util/index.js';
+import { asExpandedFeatures } from '../lib/test/lib.js';
+import { getActionable, describeSteppers, isLowerCase, dePolite } from '../lib/util/index.js';
+import Builder, { BUILT, EVENT_AFTER } from './Builder.js';
 
 export class Resolver {
   steppers: AStepper[];
   world: TWorld;
   mode: string;
-  constructor(steppers: AStepper[], mode: string, world: TWorld) {
+  types: string[];
+  builder: Builder;
+  constructor(steppers: AStepper[], world: TWorld, builder?: Builder) {
     this.steppers = steppers;
-    this.mode = mode;
     this.world = world;
+    this.builder = builder;
+    this.types = [...BASE_TYPES, ...this.world.domains.map((d) => d.name)];
   }
-  async resolveSteps(features: TExpandedFeature[]): Promise<TResolvedFeature[]> {
+  private async applyActionEvents(initialVStep: TVStep, values): Promise<TVStep[]> {
+    if (!values) {
+      return [initialVStep];
+    }
+
+    const after = [];
+    for (const [k, a] of Object.entries(values)) {
+      const { action: actionable, vstep: sourceVStep } = <{ action: string, vstep: TVStep }>a;
+      const [event, domain] = k.split(':');
+      if (event !== EVENT_AFTER) {
+        continue;
+      }
+
+      // FIXME this is a test method
+      const expandedFeature = asExpandedFeatures([{ path: sourceVStep.source.path, content: actionable }]);
+      const vstep = await this.findVSteps(expandedFeature[0], `event/${event}`, false);
+      const { source } = sourceVStep;
+
+      const nv = { ...vstep[0], source, in: actionable };
+
+      if (event === EVENT_AFTER) {
+        after.push(nv);
+      }
+    }
+    return [initialVStep, ...after];
+  }
+
+  async resolveStepsFromFeatures(features: TExpandedFeature[]): Promise<TResolvedFeature[]> {
     const expanded: TResolvedFeature[] = [];
     for (const feature of features) {
       try {
-        const steps = await this.addSteps(feature);
-        expanded.push(steps);
+        const vsteps = await this.findVSteps(feature, feature.path);
+        const e = { ...feature, ...{ vsteps } }
+        expanded.push(e);
       } catch (e) {
         this.world.logger.error(e);
         throw e;
@@ -25,10 +58,15 @@ export class Resolver {
     return expanded;
   }
 
-  async addSteps(feature: TExpandedFeature): Promise<TResolvedFeature> {
-    const vsteps = feature.expanded.map((featureLine, seq) => {
+  private async findVSteps(feature: TExpandedFeature, path: string, build = true): Promise<TVStep[]> {
+    let vsteps: TVStep[] = [];
+    let seq = 0;
+    for (const featureLine of feature.expanded) {
+      seq++;
+
       const actionable = getActionable(featureLine.line);
-      const actions = this.findSteps(actionable);
+
+      const actions = this.findActionableSteps(actionable);
 
       /*
       try {
@@ -41,51 +79,62 @@ export class Resolver {
 
       if (actions.length > 1) {
         throw Error(`more than one step found for "${featureLine.line}": ${JSON.stringify(actions.map((a) => a.actionName))}`);
-      } else if (actions.length < 1 && this.mode !== 'some') {
+      } else if (actions.length < 1) {
         throw Error(`no step found for ${featureLine.line} in ${feature.path} from ${describeSteppers(this.steppers)}`);
       }
+      const vstep = { source: featureLine.feature, in: featureLine.line, seq, actions }
+      if (build) {
+        await this.builder?.buildStep(vstep, path, this);
+        vsteps = vsteps.concat(await this.applyActionEvents(vstep, this.world.shared.values[BUILT]?.values));
+      } else {
+        vsteps.push(vstep);
+      }
+    }
 
-      return { source: featureLine.feature, in: featureLine.line, seq, actions };
-    });
-
-    return { ...feature, vsteps };
+    return vsteps;
   }
-  static getPrelude = (path: string, line: string, featureLine: string) => `In '${path}', step '${featureLine}' using '${line}':`;
-  static getTypeValidationError = (prelude: string, fileType: string, name: string, typeValidationError: string) =>
-    `${prelude} Type '${fileType}' doesn't validate for '${name}': ${typeValidationError}`;
-  static getMoreThanOneInclusionError = (prelude: string, fileType: string, name: string) => `${prelude} more than one '${fileType}' inclusion for '${name}'`;
-  static getNoFileTypeInclusionError = (prelude: string, fileType: string, name: string) => `${prelude} no '${fileType}' inclusion for '${name}'`;
-
-  public findSteps(actionable: string): TFound[] {
+  public findActionableSteps(actionable: string): TFound[] {
     if (!actionable.length) {
       return [comment];
     }
     const found: TFound[] = [];
-
-    const types = [...BASE_TYPES, ...this.world.domains.map((d) => d.name)];
 
     for (const stepper of this.steppers) {
       const stepperName = stepper.constructor.name;
       const { steps } = stepper;
       for (const actionName in steps) {
         const step = steps[actionName];
-        const addIfMatch = (m: TFound | undefined) => m && found.push(m);
+        const stepFound = this.choose(step, actionable, actionName, stepperName);
 
-        if (step.gwta) {
-          const { str, vars } = namedInterpolation(step.gwta, types);
-          const f = str.charAt(0);
-          const s = isLowerCase(f) ? ['[', f, f.toUpperCase(), ']', str.substring(1)].join('') : str;
-          const r = new RegExp(`^(Given|When|Then|And)?( the )?( I('m)? (am )?)? ?${s}`);
-          addIfMatch(getMatch(actionable, r, actionName, stepperName, step, vars));
-        } else if (step.match) {
-          addIfMatch(getMatch(actionable, step.match, actionName, stepperName, step));
-        } else if (actionable.length > 0 && step.exact === actionable) {
-          found.push({ actionName, stepperName, step });
+        if (stepFound) {
+          found.push(stepFound);
         }
       }
     }
     return found;
   }
+
+  private choose(step: TStep, actionable: string, actionName: string, stepperName: string) {
+    const curt = dePolite(actionable);
+    if (step.gwta) {
+      const { str, vars } = namedInterpolation(step.gwta, this.types);
+      const f = str.charAt(0);
+      const s = isLowerCase(f) ? ['[', f, f.toUpperCase(), ']', str.substring(1)].join('') : str;
+      const r = new RegExp(`^${s}`);
+      //const r = new RegExp(`^(Given|When|Then|And)?( the )?( I('m)? (am )?)? ?${s}`);
+      return getMatch(curt, r, actionName, stepperName, step, vars);
+    } else if (step.match) {
+      return getMatch(actionable, step.match, actionName, stepperName, step);
+    } else if (step.exact === curt) {
+      return { actionName, stepperName, step };
+    }
+  }
+/*   static getPrelude = (path: string, line: string, featureLine: string) => `In '${path}', step '${featureLine}' using '${line}':`;
+ */  static getTypeValidationError = (prelude: string, fileType: string, name: string, typeValidationError: string) =>
+    `${prelude} Type '${fileType}' doesn't validate for '${name}': ${typeValidationError}`;
+  static getMoreThanOneInclusionError = (prelude: string, fileType: string, name: string) => `${prelude} more than one '${fileType}' inclusion for '${name}'`;
+  static getNoFileTypeInclusionError = (prelude: string, fileType: string, name: string) => `${prelude} no '${fileType}' inclusion for '${name}'`;
+
 }
 
 const comment = {

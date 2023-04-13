@@ -235,7 +235,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       },
     },
     seeText: {
-      gwta: 'should see {text}',
+      gwta: 'see {text}',
       action: async ({ text }: TNamed) => {
         let textContent: string | null = null;
         // FIXME retry sometimes required?

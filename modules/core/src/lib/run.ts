@@ -3,7 +3,7 @@ import { expand } from './features.js';
 import { Executor } from '../phases/Executor.js';
 import { Resolver } from '../phases/Resolver.js';
 import Builder from '../phases/Builder.js';
-import { getSteppers, verifyExtraOptions, getRunTag, verifyRequiredOptions, createSteppers, setWorldStepperOptions } from './util/index.js';
+import { getSteppers, verifyExtraOptions, getRunTag, verifyRequiredOptions, createSteppers, setStepperWorlds } from './util/index.js';
 import { getDomains, verifyDomainsOrError } from './domain.js';
 import { getFeaturesAndBackgrounds } from '../phases/collector.js';
 
@@ -28,7 +28,8 @@ export async function run({ specl, bases, world, addSteppers = [], featureFilter
   }
   const { features, backgrounds } = featuresBackgrounds;
 
-  return runWith({ specl, world, features, backgrounds, addSteppers, endFeatureCallback });
+  const res = await runWith({ specl, world, features, backgrounds, addSteppers, endFeatureCallback });
+  return res;
 }
 
 export async function runWith({ specl, world, features, backgrounds, addSteppers, endFeatureCallback }: TRunWithFeaturesBackgrounds): Promise<TResult> {
@@ -39,26 +40,30 @@ export async function runWith({ specl, world, features, backgrounds, addSteppers
     result = { ok: false, tag, failure: { stage: phase, error: { message: error.message, details: { stack: error.stack, details } } } };
     throw Error(error);
   };
+  
   try {
     const baseSteppers = await getSteppers(specl.steppers).catch((error) => errorBail('Steppers', error));
     const csteppers = baseSteppers.concat(addSteppers);
 
-    await verifyRequiredOptions(csteppers, world.options).catch((error) => errorBail('Required Options', error));
-    await verifyExtraOptions(world.extraOptions, csteppers).catch((error) => errorBail('Options', error));
+  
+    await verifyRequiredOptions(csteppers, world.extraOptions).catch((error) => errorBail('RequiredOptions', error));
+    await verifyExtraOptions(world.extraOptions, csteppers).catch((error) => errorBail('ExtraOptions', error));
 
     const expandedFeatures = await expand(backgrounds, features).catch((error) => errorBail('Expand', error));
 
     const steppers = await createSteppers(csteppers);
-    await setWorldStepperOptions(steppers, world);
+    
+    await setStepperWorlds(steppers, world).catch((error) => errorBail('StepperOptions', error));
 
-    world.domains = await getDomains(steppers, world).catch((error) => errorBail('Get Domains', error));
-    await verifyDomainsOrError(steppers, world).catch((error) => errorBail('Required Domains', error));
-
-    const resolver = new Resolver(steppers, specl.mode, world);
-    const mappedValidatedSteps: TResolvedFeature[] = await resolver.resolveSteps(expandedFeatures).catch((error) => errorBail('Resolve', error));
+    world.domains = await getDomains(steppers).catch((error) => errorBail('GetDomains', error));
+    await verifyDomainsOrError(steppers, world).catch((error) => errorBail('RequiredDomains', error));
 
     const builder = new Builder(steppers, world);
-    await builder.build(mappedValidatedSteps).catch((error) => errorBail('Build', error, { stack: error.stack, mappedValidatedSteps }));
+    const resolver = new Resolver(steppers, world, builder);
+    const mappedValidatedSteps: TResolvedFeature[] = await resolver.resolveStepsFromFeatures(expandedFeatures).catch((error) => errorBail('Resolve', error));
+
+    // await builder.build(mappedValidatedSteps).catch((error) => errorBail('Build', error, { stack: error.stack, mappedValidatedSteps }));
+    await builder.finalize();
 
     world.logger.log(`features: ${expandedFeatures.length} backgrounds: ${backgrounds.length} steps: (${expandedFeatures.map((e) => e.path)}), ${mappedValidatedSteps.length}`);
 
