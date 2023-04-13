@@ -16,6 +16,12 @@ export class Context {
   set(name: string, value: string | boolean | object) {
     this.values[name] = value;
   }
+  setOnly(name: string, value: string | boolean | object) {
+    if (this.get(name)) {
+      throw Error(`${name} is already set to ${this.values[name]}`);
+    }
+    this.set(name, value);
+  }
   get(name: string) {
     return this.values[name];
   }

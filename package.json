@@ -27,9 +27,9 @@
   "scripts": {
     "test": "NODE_OPTIONS=--experimental-vm-modules lerna run test",
     "nx-decache": "rm -rf ./node_modules/.cache/nx",
-    "test-watch": "nodemon --verbose -d 1 -x 'npm run test'",
+    "test-watch": "nodemon --verbose -d 2 -x 'npm run test'",
+    "build-watch": "lerna watch  --verbose  -- lerna run build --scope=\\$LERNA_PACKAGE_NAME --include-dependents",
     "build": "lerna run build",
-    "build-watch": "lerna watch -- lerna run build --scope=\\$LERNA_PACKAGE_NAME --include-dependents",
     "lint": "lerna run lint",
     "format": "prettier --ignore-path .gitignore --write \"./src/**/*.+(ts|json)\"",
     "preversion": "npm run test"

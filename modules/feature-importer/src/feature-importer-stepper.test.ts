@@ -6,7 +6,7 @@ import { AStepper } from '@haibun/core/build/lib/defs.js';
 import { actionOK } from '@haibun/core/build/lib/util/index.js';
 
 describe.skip('FeatureImporter test', () => {
-  it.only('passes', async () => {
+  it('passes', async () => {
     const feature = { path: '/features/test.feature', content: `add wss\nadd browser contexts to WebSocket server` };
 
     let assignedProcessors = {};

@@ -1,7 +1,15 @@
-import { OK, TNamed, AStepper } from '../lib/defs.js';
-import { actionNotOK, sleep } from '../lib/util/index.js';
+import { OK, TNamed, AStepper, TWorld, TVStep } from '../lib/defs.js';
+import { Resolver } from '../phases/Resolver.js';
+import { actionNotOK, findStepper, sleep } from '../lib/util/index.js';
+import { getStepperAsDomain } from '../lib/domain.js';
+import { EVENT_AFTER } from '../phases/Builder.js';
 
 const Haibun = class Haibun extends AStepper {
+  steppers: AStepper[];
+  setWorld(world: TWorld, steppers: AStepper[]): void {
+    this.steppers = steppers;
+    this.world = world;
+  }
   steps = {
     prose: {
       gwta: '.*[.?!]$',
@@ -54,7 +62,22 @@ const Haibun = class Haibun extends AStepper {
         return OK;
       },
     },
-    forever: {
+    afterEvery: {
+      gwta: 'after every {domainID}, {action}',
+      action: async ({ domainID, action }: TNamed) => {
+        return OK;
+      },
+      build: async ({ domainID, action }: TNamed, vstep: TVStep, workspace, resolver: Resolver, steppers: AStepper[]) => {
+        const found = await this.findAction(action, resolver, steppers);
+
+        if (found) {
+          workspace.set(`${EVENT_AFTER}:${domainID}`, { action, vstep });
+          return { ...OK, workspace };
+        }
+        return actionNotOK(`forEvery: action ${action} not found for ${domainID}`)
+      }
+    },
+    until: {
       gwta: 'until {what} is {value}',
       action: async ({ what, value }: TNamed) => {
         while (this.getWorld().shared.values[what] !== value) {
@@ -79,6 +102,15 @@ const Haibun = class Haibun extends AStepper {
       },
     },
   };
+  findAction = (action: string, resolver: Resolver, steppers) => {
+
+    const found = resolver.findActionableSteps(action);
+
+    if (found?.length === 1) {
+      return findStepper<AStepper>(steppers, found[0].stepperName);
+    }
+    return undefined;
+  }
 };
 
 export default Haibun;

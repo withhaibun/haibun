@@ -50,7 +50,6 @@ export function ranResultError(ranResults: TRunResult[], exceptionResults: any[]
   );
 }
 
-
 export function processBaseEnvToOptionsAndErrors(env: TEnv, options: TOptions) {
   const protoOptions: TProtoOptions = { options: { ...options }, extraOptions: {} };
 
