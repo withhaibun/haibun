@@ -27,11 +27,11 @@ export async function getTestEnv(useSteppers: string[], test: string, world: TWo
   const csteppers = await getSteppers(useSteppers);
   const steppers = await createSteppers(csteppers);
   verifyExtraOptions({}, csteppers);
-  world.domains = await getDomains(steppers, world);
+  world.domains = await getDomains(steppers);
   verifyDomainsOrError(steppers, world);
 
-  const resolver = new Resolver(steppers, 'all', world);
-  const actions = resolver.findSteps(test);
+  const resolver = new Resolver(steppers, world);
+  const actions = resolver.findActionableSteps(test);
 
   const vstep = testVStep('test', actions);
 
@@ -39,12 +39,7 @@ export async function getTestEnv(useSteppers: string[], test: string, world: TWo
 }
 type TTestFeatures = { path: string; content: string, base?: string }[];
 
-export async function testWithDefaults(
-  featuresIn: TTestFeatures | string,
-  addSteppers: CStepper[],
-  protoOptions: TProtoOptions = DEF_PROTO_OPTIONS,
-  backgroundsIn: TTestFeatures = []
-): Promise<TResult & { world: TWorld }> {
+export async function testWithDefaults(featuresIn: TTestFeatures | string, addSteppers: CStepper[], protoOptions: TProtoOptions = DEF_PROTO_OPTIONS, backgroundsIn: TTestFeatures = []): Promise<TResult & { world: TWorld }> {
 
   const inFeatures = typeof featuresIn == 'string' ? [{ path: '/features/test', content: featuresIn }] : featuresIn;
   const specl = getDefaultOptions();

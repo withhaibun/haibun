@@ -1,3 +1,4 @@
+import { Resolver } from '../phases/Resolver.js';
 import { DomainContext, WorkspaceContext, WorldContext } from './contexts.js';
 import { ILogger } from './interfaces/logger.js';
 import { Timer } from './Timer.js';
@@ -126,8 +127,8 @@ export type TVStep = {
 };
 
 export type TAction = (named: TNamed, vstep: TVStep) => Promise<TActionResult>;
-export type TBuildResult = (TOKActionResult & { finalize?: TFinalize }) | TNotOKActionResult;
-export type TBuild = (named: TNamed, vstep: TVStep, workspace: WorkspaceContext) => Promise<TBuildResult>;
+export type TBuildResult = (TOKActionResult & { finalize?: TFinalize, workspace?: WorkspaceContext }) | TNotOKActionResult;
+export type TBuild = (named: TNamed, vstep: TVStep, workspace: WorkspaceContext, resolver: Resolver, steppers: AStepper[]) => Promise<TBuildResult>;
 
 export type TRequiresResult = { includes?: string[] };
 
@@ -151,7 +152,7 @@ export type TStep = {
 };
 
 export interface CStepper {
-  new (): AStepper;
+  new(): AStepper;
   prototype: {
     steps: {
       [name: string]: TStep;
@@ -197,6 +198,7 @@ export type TResult = {
   ok: boolean;
   tag: TTag;
   shared: WorldContext;
+  topics?: TActionResultTopics;
   results?: TFeatureResult[];
   failure?: {
     stage: string;
