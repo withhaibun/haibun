@@ -48,7 +48,9 @@ export default async function runWithOptions(runOptions: TRunOptions) {
   let passed = 0;
   let failed = 0;
 
+  const output = [];
   for (const r of ranResults) {
+    output.push(r.output);
     if (r.result.ok) {
       passed++;
     } else {
@@ -77,7 +79,7 @@ export default async function runWithOptions(runOptions: TRunOptions) {
 
   const ok = ranResults.every((a) => a.result.ok);
   const runTime = timer.since();
-  return { ok, exceptionResults, ranResults, allFailures, logger, passed, failed, totalRan, runTime };
+  return { ok, output, exceptionResults, ranResults, allFailures, logger, passed, failed, totalRan, runTime };
 }
 
 async function doRun(

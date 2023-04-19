@@ -100,6 +100,14 @@ export abstract class AStorage extends AStepper {
                 return OK;
             }
         },
+        listFiles: {
+            gwta: `list files from {where}`,
+            action: async ({ where }: TNamed) => {
+                const files = await this.readdir(where);
+                this.getWorld().logger.log(`files from ${where}: ${files.join(', ')}`);
+                return OK;
+            }
+        },
         clearFiles: {
             gwta: `clear files matching {where}`,
             action: async ({ where }: TNamed) => {

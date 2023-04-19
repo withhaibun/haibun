@@ -111,6 +111,10 @@ export class BaseOptions implements IHasOptions {
             desc: 'Output format (AsXUnit)',
             parse: (result: string) => ({ result })
         },
+        OUTPUT_DEST: {
+            desc: 'Output destination (results.xml)',
+            parse: (result: string) => ({ result })
+        },
         PWDEBUG: {
             desc: '(web) Enable Playwright debugging (0 or 1)',
             parse: (input: string) => process.env['PWDEBUG'] = 'true'
