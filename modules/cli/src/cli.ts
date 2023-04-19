@@ -9,6 +9,7 @@ import { findStepper, getConfigFromBase, getDefaultOptions, basesFrom } from '@h
 import runWithOptions from '@haibun/core/build/lib/run-with-options.js';
 import { processArgs, processBaseEnvToOptionsAndErrors, usageThenExit } from './lib.js';
 import { Timer } from '@haibun/core/build/lib/Timer.js';
+import { writeFileSync } from 'fs';
 
 sourceMapSupport.install();
 
@@ -37,8 +38,13 @@ async function go() {
 
   const loops = protoOptions.options.LOOPS || 1;
   const members = protoOptions.options.MEMBERS || 1;
-  const trace = protoOptions.options.TRACE;
+  const { TRACE: trace, OUTPUT: output, OUTPUT_DEST: outputDest } = protoOptions.options;
   const title = protoOptions.options.TITLE || bases + ' ' + [...featureFilter || []].join(',');
+
+  if (outputDest && !output) {
+    await usageThenExit(specl, 'OUTPUT_DEST requires OUTPUT');
+
+  }
 
   const startRunCallback = (world: TWorld) => {
     if (protoOptions.options.CLI) repl.start().context.runtime = world.runtime;
@@ -55,7 +61,17 @@ async function go() {
   }
 
   const runOptions: TRunOptions = { featureFilter, loops, members, splits, trace, specl, bases, protoOptions, startRunCallback, endFeatureCallback };
-  const { ok, exceptionResults, ranResults, allFailures, logger, passed, failed, totalRan, runTime } = await runWithOptions(runOptions);
+  const { ok, exceptionResults, ranResults, allFailures, logger, passed, failed, totalRan, runTime, output: runOutput } = await runWithOptions(runOptions);
+  // FIXME
+  if (runOutput) {
+    if (outputDest) {
+      runOutput.map((a, i) => {
+        writeFileSync(outputDest.replace('/', `/${i}-`), a);
+      });
+    } else {
+      logger.log(runOutput.join('\n'));
+    }
+  }
 
   if (ok && exceptionResults.length < 1) {
     logger.log('OK ' + ranResults.every((r) => r.output));
@@ -72,7 +88,7 @@ async function go() {
 }
 
 function getSpeclOrExit(bases: TBase): TSpecl {
-  const specl  = getConfigFromBase(bases);
+  const specl = getConfigFromBase(bases);
   if (specl === null || bases?.length < 1) {
     if (specl === null) {
       console.error(`missing or unusable config.json from ${bases}`);

@@ -156,8 +156,8 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       await this.bf?.closeContext(this.getWorld().tag);
     }
     for (const file of this.downloaded) {
-      this.getWorld().logger.debug(`removing ${file}`);
-      rmSync(file);
+      this.getWorld().logger.debug(`removing ${JSON.stringify(file)}`);
+      // rmSync(file);
     }
   }
 
@@ -220,7 +220,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       },
     },
     seeTextIn: {
-      gwta: 'in {selector}, should see {text}',
+      gwta: 'in {selector}, see {text}',
       action: async ({ text, selector }: TNamed) => {
         let textContent: string | null = null;
         // FIXME retry sometimes required?
@@ -275,7 +275,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       },
     },
     beOnPage: {
-      gwta: `should be on the {name} page`,
+      gwta: `be on the {name} page`,
       action: async ({ name }: TNamed) => {
         const nowon = await this.withPage(async (page: Page) => await page.url());
         if (nowon === name) {
@@ -314,8 +314,8 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
         return OK;
       }
     },
-    cookieShouldBe: {
-      gwta: 'cookie {name} should be {value}',
+    cookieIs: {
+      gwta: 'cookie {name} is {value}',
       action: async ({ name, value }: TNamed) => {
         const context = await this.getContext();
         const cookies = await context?.cookies();
@@ -325,7 +325,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       },
     },
     URIContains: {
-      gwta: 'URI should include {what}',
+      gwta: 'URI includes {what}',
       action: async ({ what }: TNamed) => {
         const uri = await this.withPage<string>(async (page: Page) => await page.url());
         return uri.includes(what) ? OK : actionNotOK(`current URI ${uri} does not contain ${what}`);
@@ -343,14 +343,14 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       },
     },
     URIStartsWith: {
-      gwta: 'URI should start with {start}',
+      gwta: 'URI starts with {start}',
       action: async ({ start }: TNamed) => {
         const uri = await this.withPage<string>(async (page: Page) => await page.url());
         return uri.startsWith(start) ? OK : actionNotOK(`current URI ${uri} does not start with ${start}`);
       },
     },
     URIMatches: {
-      gwta: 'URI should match {what}',
+      gwta: 'URI matches {what}',
       action: async ({ what }: TNamed) => {
         const uri = await this.withPage<string>(async (page: Page) => await page.url());
         return uri.match(what) ? OK : actionNotOK(`current URI ${uri} does not match ${what}`);
