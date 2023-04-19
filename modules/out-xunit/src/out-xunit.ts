@@ -1,7 +1,7 @@
 import { create } from 'xmlbuilder2';
 import { EOL } from 'os';
 
-import { TResult, TNotOkStepActionResult, IResultOutput } from '@haibun/core/build/lib/defs.js';
+import { AStepper, TWorld, TResult, TNotOkStepActionResult, IResultOutput } from '@haibun/core/build/lib/defs.js';
 
 type TTestCase = {
   '@name': string;
@@ -19,6 +19,9 @@ type TFailResult = {
 };
 
 export default class OutXUnit implements IResultOutput {
+  setWorld(world: TWorld, steppers: AStepper[]) {
+    return;
+  }
   async getOutput(result: TResult, { name = 'Haibun-Junit', prettyPrint = true, classname = 'Haibun-Junit-Suite' }) {
     const failures = result.results?.filter((t) => !t.ok)?.length;
     const skipped = result.results?.filter((t) => t.skip)?.length;

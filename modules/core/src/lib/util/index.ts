@@ -51,7 +51,8 @@ export function checkModuleIsClass(re: object, module: string) {
 
 export async function resultOutput(type: string | undefined, result: TResult) {
   if (type) {
-    const AnOut = await use(type);
+    const loc = getModuleLocation(type);
+    const AnOut = await use(loc);
     const out: IResultOutput = new AnOut();
     if (out) {
       const res = await out.writeOutput(result, {});
@@ -208,7 +209,7 @@ export async function verifyExtraOptions(inExtraOptions: TExtraOptions, cstepper
 export async function setStepperWorlds(steppers: AStepper[], world: TWorld) {
   for (const stepper of steppers) {
     try {
-    await stepper.setWorld(world, steppers);
+      await stepper.setWorld(world, steppers);
     } catch (e) {
       console.error(`setWorldStepperOptions ${stepper.constructor.name} failed`, e);
       throw e;
@@ -244,7 +245,7 @@ export async function verifyRequiredOptions(steppers: CStepper[], options: TExtr
     const stepper = new Stepper();
 
     const ao = stepper as IHasOptions;
-    
+
     for (const option in ao.options) {
       const n = getStepperOptionName(stepper, option);
       if (ao.options[option].required && !options[n]) {
