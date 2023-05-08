@@ -66,7 +66,9 @@ async function go() {
   if (runOutput) {
     if (outputDest) {
       runOutput.map((a, i) => {
-        writeFileSync(outputDest.replace('/', `/${i}-`), a);
+        if (a) {
+          writeFileSync(outputDest.toString().replace('/', `/${i}-`), a);
+        }
       });
     } else {
       logger.log(runOutput.join('\n'));

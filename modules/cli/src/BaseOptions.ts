@@ -66,7 +66,7 @@ export class BaseOptions implements IHasOptions {
             desc: 'pass multiple environment variables: var1=a,var2=b',
             parse: (input: string, cur: TOptions) => {
                 const pairs = new Set(input?.split(',').map(a => a.split('=')[0]));
-                let env: TOptions = { DEST: DEFAULT_DEST };
+                const env: TOptions = { DEST: DEFAULT_DEST };
 
                 for (const pair of pairs) {
                     const [k] = Array.from(new Set(pair.split('=')));
@@ -117,7 +117,12 @@ export class BaseOptions implements IHasOptions {
         },
         PWDEBUG: {
             desc: '(web) Enable Playwright debugging (0 or 1)',
-            parse: (input: string) => process.env['PWDEBUG'] = 'true'
+            parse: (input: string) => {
+                if (['true', '1'].includes(input)) {
+                    process.env['PWDEBUG'] = 'true';
+                }
+                return { result: input };
+            }
         },
     };
 }
