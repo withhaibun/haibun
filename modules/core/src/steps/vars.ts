@@ -34,10 +34,26 @@ const vars = class Vars extends AStepper {
       gwta: 'concat {p1} and {p2} as {what}',
       action: async ({ p1, p2, what }: TNamed, vstep: TVStep) => await this.set({ what, value: `${p1}${p2}` }, vstep),
     },
+    showEnv: {
+      gwta: 'show env',
+      action: async (n: TNamed, vstep: TVStep) => {
+        console.log('env', this.world.options.env);
+        return await this.set(n, vstep);
+      },
+      build: async (n: TNamed, vstep: TVStep) => await this.set(n, vstep),
+    },
+    showVars: {
+      gwta: 'show vars',
+      action: async (n: TNamed, vstep: TVStep) => {
+        console.log('vars', this.world.shared);
+        return await this.set(n, vstep);
+      },
+      build: async (n: TNamed, vstep: TVStep) => await this.set(n, vstep),
+    },
     set: {
       gwta: 'set( empty)? {what: string} to {value: string}',
       action: async (n: TNamed, vstep: TVStep) => {
-        
+
         return await this.set(n, vstep);
       },
       build: async (n: TNamed, vstep: TVStep) => await this.set(n, vstep),
