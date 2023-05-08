@@ -7,7 +7,6 @@ import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, 
 import { WEB_PAGE, WEB_CONTROL } from '@haibun/domain-webpage/build/domain-webpage.js';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 import { EMediaTypes } from '@haibun/domain-storage/build/domain-storage.js';
-import { rmSync } from 'fs';
 
 // TODO: base on these - https://testing-library.com/docs/queries/byrole/, https://playwright.dev/docs/release-notes#locators
 
@@ -481,6 +480,14 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
         return response?.ok ? OK : actionNotOK(`response not ok`, { topics: { response: { ...response.allHeaders, summary: response.statusText() } } });
       },
     },
+    reloadPage: {
+      gwta: 'reload page',
+      action: async () => {
+        await this.withPage(async (page: Page) => await page.reload());
+        return OK;
+      },
+    },
+
     goBack: {
       gwta: 'go back',
       action: async () => {
