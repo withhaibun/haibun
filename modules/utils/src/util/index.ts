@@ -1,6 +1,6 @@
 import { spawnSync } from 'child_process';
 
-export function spawn(command: string[], module = '.', show = false): void | Error {
+export function spawn(command: string[], module = '.', opts?: { show?: boolean, env?: { [key: string]: string } }): void | Error {
   const place = module === '.' ? '<root>' : module;
   console.info(`${place}$ ${command.join(' ')}`);
   const [cmd, ...args] = command;
@@ -12,7 +12,7 @@ export function spawn(command: string[], module = '.', show = false): void | Err
     if (status !== 0) {
       throw Error(place + ': ' + (errString.substring(0, errString.indexOf('\n'))));
     }
-    if (show) {
+    if (opts.show) {
       console.log(`${place}> ${output}`);
     }
   }
