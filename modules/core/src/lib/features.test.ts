@@ -129,8 +129,7 @@ describe('env vars', () => {
   });
   it('env or var or literal finds literal', async () => {
     const feature = { path: '/features/test.feature', content: `set x to what` };
-    const env = { what: 1 };
-    const { world } = await testWithDefaults([feature], [], { options: { DEST: DEFAULT_DEST, env }, extraOptions: {} });
+    const { world } = await testWithDefaults([feature], [], { options: { DEST: DEFAULT_DEST }, extraOptions: {} });
     expect(world.shared.get('x')).toBe('what');
   });
 });
