@@ -80,7 +80,7 @@ class Versioner {
 
       writeFileSync(pkgFile, JSON.stringify(pkg, null, 2));
       try {
-        spawn(['npm', 'run', 'test'], location);
+        spawn(['npm', 'run', 'test'], location, { env: { NODE_OPTIONS: '--experimental-vm-modules' } });
       } catch (e) {
         console.error(`npm test failed for ${name}: ${e}`);
         throw e;
