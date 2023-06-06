@@ -1,7 +1,7 @@
 {
   "name": "@haibun/utils",
   "type": "module",
-  "version": "1.26.1",
+  "version": "1.27.0",
   "description": "",
   "main": "index.js",
   "files": [
@@ -17,6 +17,7 @@
     "test-watch": "jest --watch",
     "lint": "eslint -c .eslintrc.json --ext .ts,.js src",
     "preversion": "npm run lint",
+    "build-watch": "tsc -b tsconfig.json --watch",
     "build": "tsc -b tsconfig.json"
   },
   "author": "",
