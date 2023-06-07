@@ -31,8 +31,8 @@ describe('options', () => {
     const { protoOptions: protoConfig } = processBaseEnvToOptionsAndErrors({ [HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]: 'true' }, { DEST: DEFAULT_DEST });
     const result = await testWithDefaults([feature], [TestStepsWithOptions], protoConfig);
     expect(result.ok).toBe(true);
-    expect(result.results?.length).toBe(1);
-    expect(result.results[0].stepResults[0].actionResults[0].topics?.options.summary).toEqual('options');
+    expect(result.featureResults?.length).toBe(1);
+    expect(result.featureResults[0].stepResults[0].actionResults[0].topics?.options.summary).toEqual('options');
   });
 });
 

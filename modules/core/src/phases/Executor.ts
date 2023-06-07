@@ -1,4 +1,4 @@
-import { TVStep, TResolvedFeature, TResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, AStepper, TEndFeatureCallback, CStepper, TFound } from '../lib/defs.js';
+import { TVStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, AStepper, TEndFeatureCallback, CStepper, TFound } from '../lib/defs.js';
 import { getNamedToVars } from '../lib/namedVars.js';
 import { actionNotOK, applyResShouldContinue, setStepperWorlds, sleep, createSteppers, findStepper } from '../lib/util/index.js';
 
@@ -14,12 +14,10 @@ export class Executor {
       return actionNotOK(`in ${vstep.in}: ${caught.message}`, { topics: { caught: caught.stack.toString() } });
     }
   }
-  static async execute(csteppers: CStepper[], world: TWorld, features: TResolvedFeature[], endFeatureCallback?: TEndFeatureCallback): Promise<TResult> {
+  static async execute(csteppers: CStepper[], world: TWorld, features: TResolvedFeature[], endFeatureCallback?: TEndFeatureCallback): Promise<TExecutorResult> {
     let ok = true;
     const stay = world.options.stay === 'always';
     const featureResults: TFeatureResult[] = [];
-    // FIXME scoring hack
-    // world.shared.values._features = features;
     world.shared.values._scored = [];
     let featureNum = 0;
 
@@ -42,7 +40,7 @@ export class Executor {
         await featureExecutor.close();
       }
     }
-    return { ok, results: featureResults, tag: world.tag, shared: world.shared };
+    return { ok, featureResults: featureResults, tag: world.tag, shared: world.shared };
   }
 }
 

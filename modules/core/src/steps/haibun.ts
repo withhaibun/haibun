@@ -15,12 +15,6 @@ const Haibun = class Haibun extends AStepper {
       gwta: '.*[.?!]$',
       action: async () => OK,
     },
-    // sendFeatures: {
-    //   gwta: 'send features',
-    //   action: async () => {
-    //     return actionOK({ features: this.getWorld().shared.values._features });
-    //   },
-    // },
     sequenceToken: {
       gwta: 'a sequence token {token}',
       action: async ({ token }: TNamed) => {

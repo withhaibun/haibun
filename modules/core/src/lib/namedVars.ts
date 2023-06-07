@@ -1,5 +1,5 @@
 import { cred } from '../steps/credentials.js';
-import { TStep, TNamedVar, TFound, TNamed, BASE_TYPES, TWorld, TVStep } from './defs.js';
+import { TStep, TNamedVar, TFound, TNamed, BASE_TYPES, TWorld, TVStep, HAIBUN } from './defs.js';
 import { getStepShared } from './domain.js';
 import { getSerialTime } from './util/index.js';
 
@@ -98,7 +98,7 @@ export function getNamedToVars(found: TFound, world: TWorld, vstep: TVStep) {
     const namedValue = named[namedKey];
 
     if (namedKey.startsWith(TYPE_ENV_OR_VAR_OR_LITERAL)) {
-      namedFromVars[name] = (world.options.env && world.options.env[namedValue]) ||shared?.get(namedValue) ||  (named && named[namedKey]);
+      namedFromVars[name] = (world.options.env && world.options.env[namedValue]) || shared?.get(namedValue) || (named && named[namedKey]);
     } else if (namedKey.startsWith(TYPE_VAR)) {
       // must be from source
       if (!shared.get(namedValue)) {
@@ -113,7 +113,7 @@ export function getNamedToVars(found: TFound, world: TWorld, vstep: TVStep) {
       } else if (namedValue === 'HERE') {
         toSet = vstep.source.name + '.feature';
       } else {
-        throw Error(`unknown special "${namedValue}"`);
+        throw Error(`unknown special "${namedValue}" in ${JSON.stringify(found)}`);
       }
       namedFromVars[name] = toSet;
     } else if (namedKey.startsWith(TYPE_CREDENTIAL)) {
@@ -127,7 +127,7 @@ export function getNamedToVars(found: TFound, world: TWorld, vstep: TVStep) {
       const val = world.options?.env[namedValue];
 
       if (val === undefined) {
-        throw Error(`no env value for "${namedValue}" from ${JSON.stringify(world.options?.env)}`);
+        throw Error(`no env value for "${namedValue}" from ${JSON.stringify(world.options?.env)}.\nenv values are passed via ${HAIBUN}_ENV and ${HAIBUN}_ENVC.`);
       }
       if (Array.isArray(val)) {
         let index = world.options[`_index_${namedValue}`] === undefined ? val.length - 1 : world.options[`_index_${namedValue}`];

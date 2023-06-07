@@ -6,7 +6,7 @@ import { withNameType } from '../features.js';
 import { AStepper, IHasOptions, OK } from '../defs.js';
 
 describe('output', () => {
-  it('resultOutput default', async () => {
+  it('OutputResult default', async () => {
     const features = [
       { path: '/features/test1.feature', content: `When I have a test\nThen fails` },
       { path: '/features/test2.feature', content: `When I have a test\nThen it passes` },
@@ -14,9 +14,9 @@ describe('output', () => {
     const result = await testWithDefaults(features, [TestSteps]);
 
     expect(result.ok).toBe(false);
-    const output = await util.resultOutput(undefined, result);
+    const output = await util.getOutputResult(undefined, result);
     expect(typeof output).toBe('object');
-    expect(result.results?.length).toBe(2);
+    expect(result.featureResults?.length).toBe(2);
   });
 });
 

@@ -1,4 +1,6 @@
 import { jest } from '@jest/globals';
+jest.useFakeTimers()
+
 
 import LoggerWebSocketsClient from '@haibun/context/build/websocket-client/LoggerWebSocketsClient.js';
 import { record } from './recorder.js';

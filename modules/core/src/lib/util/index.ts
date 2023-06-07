@@ -6,7 +6,7 @@ import {
   TNotOKActionResult,
   TOKActionResult,
   IResultOutput,
-  TResult,
+  TExecutorResult,
   TSpecl,
   TWorld,
   TRuntime,
@@ -49,7 +49,7 @@ export function checkModuleIsClass(re: object, module: string) {
   }
 }
 
-export async function resultOutput(type: string | undefined, result: TResult) {
+export async function getOutputResult(type: string | undefined, result: TExecutorResult): Promise<object | string> {
   if (type) {
     const loc = getModuleLocation(type);
     const AnOut = await use(loc);
@@ -60,7 +60,8 @@ export async function resultOutput(type: string | undefined, result: TResult) {
     }
   }
   if (!result.ok) {
-    return { ...result, results: result.results?.filter((r) => !r.ok).map((r) => (r.stepResults = r.stepResults.filter((s) => !s.ok))) };
+    const failedResults = result.featureResults?.filter((r) => !r.ok).map((r) => (r.stepResults = r.stepResults.filter((s) => !s.ok)));
+    return { ...result, featureResults: failedResults};
   }
   return result;
 }

@@ -71,7 +71,7 @@ async function go() {
         }
       });
     } else {
-      logger.log(runOutput.join('\n'));
+      logger.log(JSON.stringify(runOutput, null, 2));
     }
   }
 

@@ -186,7 +186,7 @@ export type TNamedVar = { name: string; type: string };
 
 export const OK: TOKActionResult = { ok: true };
 
-export type TResultError = {
+export type TExecutorResultError = {
   details: {
     [name: string]: any;
     stack: string[];
@@ -194,15 +194,15 @@ export type TResultError = {
   message: string;
 };
 
-export type TResult = {
+export type TExecutorResult = {
   ok: boolean;
   tag: TTag;
   shared: WorldContext;
   topics?: TActionResultTopics;
-  results?: TFeatureResult[];
+  featureResults?: TFeatureResult[];
   failure?: {
     stage: string;
-    error: TResultError;
+    error: TExecutorResultError;
   };
 };
 
@@ -279,7 +279,7 @@ export type TStepResult = {
 export type TRuntime = { [name: string]: any };
 
 export interface IResultOutput {
-  writeOutput(result: TResult, args: any): Promise<any>;
+  writeOutput(result: TExecutorResult, args: any): Promise<any>;
 }
 
 export const HAIBUN = 'HAIBUN';
@@ -312,4 +312,4 @@ export type TRunOptions = {
   splits: TRunEnv[];
   protoOptions: TProtoOptions;
 };
-export type TRunResult = { output: any; result: TResult; shared: WorldContext; tag: TTag; runStart: number; runDuration: number; fromStart: number };
+export type TRunResult = { output: any; result: TExecutorResult; shared: WorldContext; tag: TTag; runStart: number; runDuration: number; fromStart: number };

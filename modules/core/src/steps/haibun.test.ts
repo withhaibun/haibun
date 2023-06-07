@@ -27,7 +27,7 @@ Prose sections are indicated by the presence of punctuation at the end of paragr
 
     expect(result.ok).toBe(true);
 
-    expect(result.results?.length).toBe(1);
+    expect(result.featureResults?.length).toBe(1);
   });
 });
 
