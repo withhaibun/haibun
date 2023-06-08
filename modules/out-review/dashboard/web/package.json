@@ -1,0 +1,11 @@
+{
+  "name": "prairie-json-explorer",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build-watch": "tsc --watch"
+  },
+  "dependencies": {
+    "typescript": "^4.5.4"
+  }
+}

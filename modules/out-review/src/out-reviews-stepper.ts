@@ -132,6 +132,20 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
         return await this.createReviewsIndex(found);
       }
     },
+    createDashboardPage: {
+      exact: `create dashboard page`,
+      action: async () => {
+        const found = await this.findArtifacts(this.tracksStorage);
+        return await this.createReviewsIndex(found);
+      }
+    },
+    publishDashboardLink: {
+      exact: `publish dashboard link`,
+      action: async () => {
+        const found = await this.findArtifacts(this.tracksStorage);
+        return await this.createReviewsIndex(found);
+      }
+    },
   }
 
   // find parseable artifacts from known tracks

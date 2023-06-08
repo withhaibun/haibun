@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "target": "es6",
+    "moduleResolution": "node",
+    "lib": ["es2016", "esnext", "dom"],
+    "module": "ES6",
+    "outDir": "./built",
+    "strict": true
+  },
+  "include": ["src/**/*.ts"]
+}
