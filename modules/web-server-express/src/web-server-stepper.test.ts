@@ -3,7 +3,7 @@ import WebHttp from '@haibun/web-http/build/web-http.js';
 
 import server from './web-server-stepper.js';
 
-describe.skip('static mount', () => {
+describe('static mount', () => {
   it('serves files', async () => {
     const feature = { path: '/features/test.feature', content: `serve files from test\nfetch from http://localhost:8123/testfile is "content"` };
     const result = await testWithDefaults([feature], [server, WebHttp]);

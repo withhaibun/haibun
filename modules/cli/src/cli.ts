@@ -15,14 +15,14 @@ sourceMapSupport.install();
 
 process.on('unhandledRejection', console.error);
 
-go();
+go().catch(console.error);
 
 async function go() {
   const { params, configLoc, showHelp } = processArgs(process.argv.slice(2));
   const featureFilter = params[1] ? params[1].split(',') : undefined;
   const bases = basesFrom(params[0]?.replace(/\/$/, ''));
 
-  const specl = getSpeclOrExit(configLoc ? [configLoc] : bases);
+  const specl = await getSpeclOrExit(configLoc ? [configLoc] : bases);
 
   if (showHelp) {
     await usageThenExit(specl);
@@ -89,13 +89,13 @@ async function go() {
   }
 }
 
-function getSpeclOrExit(bases: TBase): TSpecl {
+async function getSpeclOrExit(bases: TBase): Promise<TSpecl> {
   const specl = getConfigFromBase(bases);
   if (specl === null || bases?.length < 1) {
     if (specl === null) {
       console.error(`missing or unusable config.json from ${bases}`);
     }
-    usageThenExit(specl ? specl : getDefaultOptions());
+    await usageThenExit(specl ? specl : getDefaultOptions());
   }
   return specl;
 }

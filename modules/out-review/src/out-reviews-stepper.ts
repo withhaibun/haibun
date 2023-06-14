@@ -75,7 +75,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
 
         let tracks;
         tracks = await this.readTracksFile(loc).catch(error => tracks = { error });
-        this.writeReview(loc, tracks);
+        await this.writeReview(loc, tracks);
         return OK;
       }
     },

@@ -18,7 +18,7 @@ export class WebSocketServer {
     }
   }
   async connection(ws: WebSocket) {
-    ws.on('message', (message: string) => {
+    ws.on('message', async (message: string) => {
       const parsed = JSON.parse(message)?.contexted;
 
       const ctx = parsed['@context'];
@@ -26,7 +26,7 @@ export class WebSocketServer {
       ws.send('something');
       if (processor !== undefined) {
         try {
-          this.contextProcessors[parsed['@context']](parsed);
+          await this.contextProcessors[parsed['@context']](parsed);
         } catch (e: any) {
           console.error(e);
           this.logger.error(`failed context process ${JSON.stringify(e.message)}`, e);

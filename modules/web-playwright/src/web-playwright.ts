@@ -163,7 +163,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
   // FIXME
   async finish() {
     if (this.hasFactory) {
-      this.bf?.close();
+      await this.bf?.close();
       this.bf = undefined;
       this.hasFactory = false;
     }
@@ -361,7 +361,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     expectPopup: {
       gwta: 'expect a popup',
       action: async () => {
-        this.withPage(async (page) => page.on('popup', async popup => {
+        await this.withPage(async (page) => page.on('popup', async popup => {
           await popup.waitForLoadState();
           console.log(await popup.title());
         }));
@@ -567,13 +567,13 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     captureDialog: {
       gwta: 'Accept next dialog to {where}',
       action: async ({ where }: TNamed) => {
-        await this.withPage(async (page: Page) => page.on('dialog', dialog => {
+        await this.withPage(async (page: Page) => page.on('dialog', async (dialog) => {
           const res = {
             defaultValue: dialog.defaultValue(),
             message: dialog.message(),
             type: dialog.type()
           }
-          dialog.accept();
+          await dialog.accept();
           this.getWorld().shared.set(where, res);
         }));
         return OK;

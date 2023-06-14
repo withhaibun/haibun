@@ -26,9 +26,9 @@ export const testVStep = (name: string, actions, base = TEST_BASE): TVStep => ({
 export async function getTestEnv(useSteppers: string[], test: string, world: TWorld) {
   const csteppers = await getSteppers(useSteppers);
   const steppers = await createSteppers(csteppers);
-  verifyExtraOptions({}, csteppers);
+  await verifyExtraOptions({}, csteppers);
   world.domains = await getDomains(steppers);
-  verifyDomainsOrError(steppers, world);
+  await verifyDomainsOrError(steppers, world);
 
   const resolver = new Resolver(steppers, world);
   const actions = resolver.findActionableSteps(test);

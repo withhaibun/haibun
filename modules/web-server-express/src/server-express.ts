@@ -51,7 +51,7 @@ export class ServerExpress implements IWebServer {
     });
   }
 
-  addRoute(type: TRouteTypes, path: string, route: RequestHandler) {
+  async addRoute(type: TRouteTypes, path: string, route: RequestHandler) {
     if (type !== 'get' && type !== 'post') {
       throw Error(`invalid route type ${type}`);
     }
@@ -60,7 +60,7 @@ export class ServerExpress implements IWebServer {
     this.logger.log(`adding ${type} route from ${path}`);
     this.app[type](path, route);
 
-    this.addMounted(type, path, route.toString());
+    await this.addMounted(type, path, route.toString());
   }
 
   private async addMounted(type: string, path: string, what: string) {
@@ -72,17 +72,17 @@ export class ServerExpress implements IWebServer {
   }
 
   // add a static folder restricted to relative paths from files
-  addStaticFolder(relativeFolder: string, mountAt = '/') {
+  async addStaticFolder(relativeFolder: string, mountAt = '/') {
     const folder = [this.base, relativeFolder].join('/');
-    this.doAddStaticFolder(folder, mountAt);
+    await this.doAddStaticFolder(folder, mountAt);
   }
 
   // add a static folder at any path
-  addKnownStaticFolder(folder: string, mountAt = '/') {
-    this.doAddStaticFolder(folder, mountAt);
+  async addKnownStaticFolder(folder: string, mountAt = '/') {
+    await this.doAddStaticFolder(folder, mountAt);
   }
 
-  private doAddStaticFolder(folder: string, mountAt = '/') {
+  private async doAddStaticFolder(folder: string, mountAt = '/') {
     this.checkMountBadOrMounted('get', mountAt, folder);
     if (!existsSync(folder)) {
       throw Error(`"${folder}" doesn't exist`);
@@ -93,7 +93,7 @@ export class ServerExpress implements IWebServer {
     }
 
     this.app.use(mountAt, express.static(folder));
-    this.addMounted('get', mountAt, folder);
+    await this.addMounted('get', mountAt, folder);
     this.logger.info(`serving files from ${folder} at ${mountAt}`);
     return;
   }

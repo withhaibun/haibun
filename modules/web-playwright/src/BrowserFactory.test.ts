@@ -17,7 +17,7 @@ describe("types", () => {
     });
     expect(BrowserFactory.configs[DEFAULT_CONFIG_TAG].options.type).toBe('webkit');
     expect(BrowserFactory.configs[DEFAULT_CONFIG_TAG].options.device).toBe("Blackberry PlayBook");
-    BrowserFactory.closeBrowsers();
+    await BrowserFactory.closeBrowsers();
   });
   it("missing type", async () => {
     expect(async () => await BrowserFactory.getBrowserFactory(new Logger(LOGGER_NOTHING), ({
@@ -63,7 +63,7 @@ describe('browser, context, page', () => {
     expect(Object.keys(bfa.contexts).length).toBe(1)
     expect(bfa.pages['test2']).toBeUndefined();
     */
-    BrowserFactory.closeBrowsers();
+    await BrowserFactory.closeBrowsers();
   });
 
 });
