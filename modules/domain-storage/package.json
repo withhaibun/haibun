@@ -15,6 +15,7 @@
     "coverage": "jest --config jest.config.ts --coverage",
     "test-watch": "jest --watch",
     "build": "tsc -b .",
+    "build-watch": "tsc -b . --watch",
     "tsc-watch": "tsc --watch",
     "tsc": "tsc",
     "xprepare": "npm run build",

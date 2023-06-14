@@ -44,7 +44,7 @@ describe('forEvery', () => {
     expect(res.ok).toBe(false);
     expect(res.failure.stage).toBe('Resolve');
   })
-  it.only('finds afterEvery', async () => {
+  it('finds afterEvery', async () => {
     const { world } = getDefaultWorld(0);
     const features = asExpandedFeatures([{ path: '/features/test.feature', content: `After every widget, passes` }]);
     const steppers = await createSteppers([TestStepsWithDomains, Haibun]);

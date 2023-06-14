@@ -4,7 +4,8 @@
   "version": "1.27.2",
   "description": "",
   "files": [
-    "build/**"
+    "build/**",
+    "dashboard/**"
   ],
   "bin": {
     "review-from-saved": "build/review-from-saved.js"
@@ -12,11 +13,12 @@
   "main": "build/out-review.js",
   "scripts": {
     "build": "tsc -b .",
+    "build-watch": "tsc -b . --watch",
     "prepublishOnly": "tsc -b .",
     "lint": "eslint -c .eslintrc.json --ext .ts,.js src",
     "preversion": "npm run lint",
     "test": "jest",
-    "test-watch": "jest --watch"
+    "test-watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "keywords": [],
   "author": "",
@@ -25,6 +27,7 @@
     "@haibun/core": "1.27.2",
     "@haibun/domain-storage": "1.27.2",
     "@haibun/storage-fs": "1.27.2",
+    "@haibun/storage-mem": "^1.27.2",
     "xmlbuilder2": "^3.0.2"
   },
   "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5"

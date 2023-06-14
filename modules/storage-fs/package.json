@@ -9,6 +9,7 @@
   ],
   "scripts": {
     "build": "tsc -b .",
+    "build-watch": "tsc -b . --watch",
     "prepublishOnly": "tsc -b .",
     "lint": "eslint -c .eslintrc.json --ext .ts,.js src",
     "preversion": "npm run lint",

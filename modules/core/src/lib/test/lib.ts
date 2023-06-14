@@ -66,7 +66,7 @@ export const asFeatures = (w: { base?: string, path: string; content: string }[]
 export const asExpandedFeatures = (w: { base?: string, path: string; content: string }[]): TExpandedFeature[] =>
   asFeatures(w).map((i) => {
     const expanded: TExpandedLine[] = featureSplit(i.content).map((a) => ({ line: a, feature: i }));
-    let a: any = { ...i, expanded };
+    const a: any = { ...i, expanded };
     delete a.content;
     // a.featureLine = asFeatureLine()
     return a;

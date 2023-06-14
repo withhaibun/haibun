@@ -1,12 +1,15 @@
 import { AStepper, CAPTURE, IHasOptions, IRequireDomains, OK, TFeatureResult, TNamed, TWorld, } from "@haibun/core/build/lib/defs.js";
 import { EMediaTypes, guessMediaExt, IPublishResults, IReviewResult, STORAGE_ITEM, STORAGE_LOCATION, TLocationOptions, TMediaType, TMissingTracks, TTrackResult } from '@haibun/domain-storage/build/domain-storage.js';
-import { findStepperFromOption, getFeatureTitlesFromResults, getRunTag, getStepperOption, stringOrError } from '@haibun/core/build/lib/util/index.js';
+import { actionOK, findStepperFromOption, getFeatureTitlesFromResults, getRunTag, getStepperOption, stringOrError } from '@haibun/core/build/lib/util/index.js';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 import HtmlGenerator, { TFeatureSummary, TIndexSummary, TIndexSummaryResult, TStepSummary, TSummaryItem } from "./html-generator.js";
 import { ITrackResults } from '@haibun/domain-storage/build/domain-storage.js';
 import { summary } from "./components/index/summary.js";
 import { toc } from "./components/index/toc.js";
 import { ReviewScript } from "./assets.js";
+import StorageFS from "@haibun/storage-fs/build/storage-fs.js";
+import path from "path";
+import { fileURLToPath } from "url";
 
 // FIXME use TRACK_STORAGE
 export const TRACKS_STORAGE = 'TRACE_STORAGE';
@@ -20,10 +23,11 @@ export const MISSING_TRACKS_FILE = 'Missing tracks file';
 const INDEXED = 'indexed';
 
 const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRequireDomains, ITrackResults, IReviewResult, IPublishResults {
-  tracksStorage?: AStorage;
-  reviewsStorage?: AStorage;
-  publishStorage?: AStorage;
-  indexStorage?: AStorage;
+  tracksStorage: AStorage;
+  reviewsStorage: AStorage;
+  publishStorage: AStorage;
+  indexStorage: AStorage;
+  localFS: StorageFS;
 
   requireDomains = [STORAGE_LOCATION, STORAGE_ITEM];
   options = {
@@ -50,12 +54,16 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
       parse: (input: string) => stringOrError(input)
     },
   };
+
   setWorld(world: TWorld, steppers: AStepper[]) {
     super.setWorld(world, steppers);
     this.tracksStorage = findStepperFromOption(steppers, this, world.extraOptions, TRACKS_STORAGE);
     this.reviewsStorage = findStepperFromOption(steppers, this, world.extraOptions, REVIEWS_STORAGE, TRACKS_STORAGE);
     this.indexStorage = findStepperFromOption(steppers, this, world.extraOptions, INDEX_STORAGE, REVIEWS_STORAGE, TRACKS_STORAGE);
     this.publishStorage = findStepperFromOption(steppers, this, world.extraOptions, PUBLISH_STORAGE, REVIEWS_STORAGE, TRACKS_STORAGE);
+    const localFS = new StorageFS();
+    localFS.setWorld(world, steppers);
+    this.localFS = localFS;
   }
 
   steps = {
@@ -135,8 +143,12 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     createDashboardPage: {
       exact: `create dashboard page`,
       action: async () => {
-        const found = await this.findArtifacts(this.tracksStorage);
-        return await this.createReviewsIndex(found);
+        const web = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'dashboard', 'web');
+        const assetSrc = path.join(web, 'built');
+        const publicSrc = path.join(web, 'public');
+        await this.recurseCopy({ src: assetSrc, fromFS: this.localFS, toFS: this.publishStorage, toFolder: '/dashboard', trimFolder: assetSrc });
+        await this.recurseCopy({ src: publicSrc, fromFS: this.localFS, toFS: this.publishStorage, toFolder: '/dashboard', trimFolder: publicSrc });
+        return actionOK({ tree: { summary: 'wrote files', details: await this.publishStorage.readTree('/dashboard') } })
       }
     },
     publishDashboardLink: {
@@ -196,7 +208,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     }
     const func = async (loc: TLocationOptions) => {
       const tracks = await this.readTracksFile(loc);
-      
+
       const { result, meta } = (<TTrackResult>tracks);
       const { title: indexTitle, startTime } = meta;
       res.indexTitle = indexTitle;
@@ -326,27 +338,28 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
   }
 
   async publishResults(world: TWorld) {
-    const rin = this.tracksStorage;
-    const rout = this.publishStorage;
+    const fromFS = this.tracksStorage;
+    const toFS = this.publishStorage;
     // FIXME media type is ...
-    const dir = await rin.fromCaptureLocation(EMediaTypes.html, world.options.DEST);
+    const src = await fromFS.fromCaptureLocation(EMediaTypes.html, world.options.DEST);
 
-    await this.recurseCopy(dir, rin, rout);
+    await this.recurseCopy({ src, fromFS, toFS });
   }
-  async recurseCopy(dir: string, rin: AStorage, rout: AStorage) {
-    const entries = await rin.readdirStat(dir);
+  async recurseCopy({ src, fromFS, toFS, toFolder, trimFolder }: { src: string, fromFS: AStorage, toFS: AStorage, toFolder?: string, trimFolder?: string }) {
+    const entries = await fromFS.readdirStat(src);
 
     for (const entry of entries) {
       const here = entry.name;
-
       if (entry.isDirectory) {
-        await rout.mkdirp(here);
-        await this.recurseCopy(here, rin, rout);
+        await this.recurseCopy({ src: here, fromFS, toFS, toFolder, trimFolder });
       } else {
-        const content = await rin.readFile(here);
+        const content = await fromFS.readFile(here);
         const ext = <EMediaTypes>guessMediaExt(entry.name);
 
-        await rout.writeFile(here, content, ext);
+        const trimmed = trimFolder ? here.replace(trimFolder, '') : here;
+        const dest = toFolder ? `${toFolder}/${trimmed}`.replace(/\/\//, '/') : trimmed;
+        await toFS.mkdirp(path.dirname(dest));
+        await toFS.writeFile(dest, content, ext);
       }
     }
   }

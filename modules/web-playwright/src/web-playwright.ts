@@ -358,6 +358,16 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
 
     //                  CLICK
 
+    expectPopup: {
+      gwta: 'expect a popup',
+      action: async () => {
+        this.withPage(async (page) => page.on('popup', async popup => {
+          await popup.waitForLoadState();
+          console.log(await popup.title());
+        }));
+        return OK;
+      }
+    },
     clickByAltText: {
       gwta: 'click by alt text {altText}',
       action: async ({ altText }: TNamed) => {

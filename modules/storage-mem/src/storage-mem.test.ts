@@ -6,6 +6,19 @@ import { EMediaTypes } from '@haibun/domain-storage/build/domain-storage.js';
 import StorageMem from './storage-mem.js';
 
 
+describe('BASE_FS', () => {
+    it('finds BASE_FS file', async () => {
+        StorageMem.BASE_FS = { hello: 'world' };
+        const storageMem = new StorageMem();
+        expect(storageMem.readFile('hello', 'utf-8')).toEqual('world');
+    });
+    it('finds BASE_FS subdir', async () => {
+        StorageMem.BASE_FS = { '/hello/world': 'eh' };
+        const storageMem = new StorageMem();
+        expect(storageMem.readFile('/hello/world', 'utf-8')).toEqual('eh');
+    });
+});
+
 describe('getCaptureLocation', () => {
     it('gets capture location', async () => {
         const storageMem = new StorageMem();

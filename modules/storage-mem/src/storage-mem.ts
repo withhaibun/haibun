@@ -3,21 +3,22 @@ import { Volume, IFs } from 'memfs';
 import { AStorage, IFile } from '@haibun/domain-storage/build/AStorage.js';
 
 export default class StorageMem extends AStorage {
-    memFS: IFs;
+    static BASE_FS = {};
+    volume: IFs;
     exists: (file: string) => boolean;
     mkdir: (dir: string) => void;
     constructor() {
         super();
-        this.memFS = <IFs>Volume.fromJSON({});
-        this.exists = (dir) => this.memFS.existsSync(dir);
-        this.mkdir = (dir) => this.memFS.mkdirSync(dir);
+        this.volume = <IFs>Volume.fromJSON(StorageMem.BASE_FS);
+        this.exists = (dir) => this.volume.existsSync(dir);
+        this.mkdir = (dir) => this.volume.mkdirSync(dir);
     }
-    readFile = (file: string, coding?: any) => this.memFS.readFileSync(file, coding);
+    readFile = (file: string, coding?: any) => this.volume.readFileSync(file, coding);
     writeFileBuffer = (fn: string, contents: Buffer) => {
-        this.memFS.writeFileSync(fn, contents);
+        this.volume.writeFileSync(fn, contents);
     }
     lstatToIFile(file: string) {
-        const l = this.memFS.lstatSync(file);
+        const l = this.volume.lstatSync(file);
         const ifile = {
             name: file,
             created: l.mtime.getDate(),
@@ -28,19 +29,15 @@ export default class StorageMem extends AStorage {
     }
     readdir = async (dir: string) => {
         try {
-            return this.memFS.readdirSync(dir).map(i => i.toString());
+            return this.volume.readdirSync(dir).map(i => i.toString());
         } catch (e) {
             console.error(`can't read ${dir}`);
             throw (e);
         }
     }
-    async readdirStat(dir: string): Promise<IFile[]> {
-        const files = await this.readdir(dir);
-        return files.map(f => this.lstatToIFile(`${dir}/${f}`));
-    }
 
     mkdirp = (dir: string) => {
-        this.memFS.mkdirSync(dir, { recursive: true });
+        this.volume.mkdirSync(dir, { recursive: true });
     }
 }
 

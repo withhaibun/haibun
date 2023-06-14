@@ -26,10 +26,6 @@ export default class StorageFS extends AStorage {
             throw (e);
         }
     }
-    async readdirStat(dir: string): Promise<IFile[]> {
-        const files = await this.readdir(dir);
-        return files.map(f => this.lstatToIFile(`${dir}/${f}`));
-    }
 
     mkdir = fs.mkdirSync;
     mkdirp = (dir: string) => {

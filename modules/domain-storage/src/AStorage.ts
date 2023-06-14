@@ -13,9 +13,27 @@ export interface IFile {
 export abstract class AStorage extends AStepper {
     abstract readFile(path: string, coding?: string): any;
     abstract readdir(dir: string): Promise<string[]>;
-    abstract readdirStat(dir: string): Promise<IFile[]>;
+    abstract lstatToIFile(file: string): IFile;
     abstract writeFileBuffer(file: string, contents: Buffer, mediaType: TMediaType): void;
 
+    async readTree(dir: string) {
+        const entries = await this.readdirStat(dir);
+        const tree = [];
+        for (const e of entries) {
+            if (e.isDirectory) {
+                const sub = await this.readTree(e.name.replace(/^\/\//, '/'));
+                tree.push({ ...e, entries: sub });
+            } else {
+                tree.push(e);
+            }
+        }
+        return tree;
+    }
+
+    async readdirStat(dir: string): Promise<IFile[]> {
+        const files = await this.readdir(dir);
+        return files.map(f => this.lstatToIFile(`${dir}/${f}`));
+    }
     async writeFile(file: string, contents: string | Buffer, mediaType: TMediaType) {
         if (typeof contents === 'string') {
             await this.writeFileBuffer(file, Buffer.from(contents), mediaType);
@@ -83,13 +101,20 @@ export abstract class AStorage extends AStepper {
     }
 
     steps = {
-        setLatest: {
-            gwta: `set {what} to the latest file from {where}`,
+        fromFile: {
+            gwta: `from {where} set {what}`,
             action: async ({ where, what }: TNamed, vstep) => {
-                const latest = await this.latestFrom(where);
-                setShared({ what, value: latest.file }, vstep, this.getWorld());
+                const text = await this.readFile(where, 'utf-8');
+                setShared({ what, value: text }, vstep, this.getWorld());
 
                 return OK;
+            }
+        },
+        testIs: {
+            gwta: `text at {where} is {what}`,
+            action: async ({ where, what }: TNamed) => {
+                const text = await this.readFile(where, 'utf-8');
+                return text === what ? OK : actionNotOK(`text at ${where} is not ${what}; it's ${text}`);
             }
         },
         readText: {
