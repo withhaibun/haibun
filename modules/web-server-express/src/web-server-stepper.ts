@@ -109,13 +109,9 @@ const WebServerStepper = class WebServerStepper extends AStepper implements IHas
   };
   doServeFiles(where, loc) {
     const ws: IWebServer = getFromRuntime(this.getWorld().runtime, WEBSERVER);
-    try {
-      ws.addStaticFolder(loc, where);
-      this.getWorld().shared.set('file_location', loc);
-      return OK;
-    } catch (error) {
-      return actionNotOK(error);
-    }
+    ws.addStaticFolder(loc, where);
+    // this.getWorld().shared.set('file_location', loc);
+    return OK;
   }
   /*
   finalize = (workspace: WorkspaceContext) => {

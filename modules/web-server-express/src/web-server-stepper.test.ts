@@ -13,8 +13,8 @@ describe('static mount', () => {
 
   it('restricts characters used in static mount folder name', async () => {
     const feature = { path: '/features/test.feature', content: `serve files from l*(*$\n` }
-    const result = await testWithDefaults([feature], [server]);
 
+    const result = await testWithDefaults([feature], [server]);
     expect(result.ok).toBe(false);
   });
   it("doesn't re-mount same static mount", async () => {

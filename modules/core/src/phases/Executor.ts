@@ -5,14 +5,12 @@ import { actionNotOK, applyResShouldContinue, setStepperWorlds, sleep, createSte
 export class Executor {
   // find the stepper and action, call it and return its result
   static async action(steppers: AStepper[], vstep: TVStep, found: TFound, world: TWorld) {
-    try {
-      const namedWithVars = getNamedToVars(found, world, vstep);
-      const stepper = findStepper<AStepper>(steppers, found.stepperName);
-      return await stepper.steps[found.actionName].action(namedWithVars, vstep);
-    } catch (caught: any) {
+    const namedWithVars = getNamedToVars(found, world, vstep);
+    const stepper = findStepper<AStepper>(steppers, found.stepperName);
+    return await stepper.steps[found.actionName].action(namedWithVars, vstep).catch((caught: any) => {
       world.logger.error(caught.stack);
       return actionNotOK(`in ${vstep.in}: ${caught.message}`, { topics: { caught: caught.stack.toString() } });
-    }
+    });
   }
   static async execute(csteppers: CStepper[], world: TWorld, features: TResolvedFeature[], endFeatureCallback?: TEndFeatureCallback): Promise<TExecutorResult> {
     let ok = true;
