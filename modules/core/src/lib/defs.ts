@@ -313,3 +313,5 @@ export type TRunOptions = {
   protoOptions: TProtoOptions;
 };
 export type TRunResult = { output: any; result: TExecutorResult; shared: WorldContext; tag: TTag; runStart: number; runDuration: number; fromStart: number };
+
+export const STAY_ALWAYS = 'always';

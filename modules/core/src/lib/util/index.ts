@@ -61,7 +61,7 @@ export async function getOutputResult(type: string | undefined, result: TExecuto
   }
   if (!result.ok) {
     const failedResults = result.featureResults?.filter((r) => !r.ok).map((r) => (r.stepResults = r.stepResults.filter((s) => !s.ok)));
-    return { ...result, featureResults: failedResults};
+    return { ...result, featureResults: failedResults };
   }
   return result;
 }
@@ -342,6 +342,13 @@ export const boolOrError = (val: string) => {
 export const stringOrError = (val: string) => {
   if (val === undefined || val === null) {
     return { error: `${val} is not defined` };
+  }
+  return { result: val };
+};
+
+export const optionOrError = (val: string, options: string[]) => {
+  if (val === undefined || val === null || !options.includes(val)) {
+    return { error: `${val} is not defined or not in ${options}` };
   }
   return { result: val };
 };

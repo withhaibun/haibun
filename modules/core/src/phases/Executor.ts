@@ -1,4 +1,4 @@
-import { TVStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, AStepper, TEndFeatureCallback, CStepper, TFound } from '../lib/defs.js';
+import { TVStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, AStepper, TEndFeatureCallback, CStepper, TFound, STAY_ALWAYS } from '../lib/defs.js';
 import { getNamedToVars } from '../lib/namedVars.js';
 import { actionNotOK, applyResShouldContinue, setStepperWorlds, sleep, createSteppers, findStepper } from '../lib/util/index.js';
 
@@ -14,7 +14,8 @@ export class Executor {
   }
   static async execute(csteppers: CStepper[], world: TWorld, features: TResolvedFeature[], endFeatureCallback?: TEndFeatureCallback): Promise<TExecutorResult> {
     let ok = true;
-    const stay = world.options.stay === 'always';
+    const stay = world.options.stay === STAY_ALWAYS;
+    console.log('ss', stay)
     const featureResults: TFeatureResult[] = [];
     world.shared.values._scored = [];
     let featureNum = 0;

@@ -1,6 +1,7 @@
-import { DEFAULT_DEST, IHasOptions, TOptions } from "@haibun/core/build/lib/defs.js";
+import { DEFAULT_DEST, IHasOptions, STAY_ALWAYS, TOptions } from "@haibun/core/build/lib/defs.js";
 import { LOGGER_LEVELS } from "@haibun/core/build/lib/Logger.js";
-import { boolOrError, intOrError } from "@haibun/core/build/lib/util/index.js";
+import { boolOrError, intOrError, optionOrError } from "@haibun/core/build/lib/util/index.js";
+
 export class BaseOptions implements IHasOptions {
     static options = {
         SPLIT_SHARED: {
@@ -36,8 +37,8 @@ export class BaseOptions implements IHasOptions {
             parse: (result: string) => ({ result })
         },
         STAY: {
-            desc: 'stay running after execution: always',
-            parse: (result: string) => ({ result })
+            desc: 'stay running after execution: ${STAY_ALWAYS}',
+            parse: (result: string) => optionOrError(result, [STAY_ALWAYS])
         },
         LOG_FOLLOW: {
             desc: 'filter for output',

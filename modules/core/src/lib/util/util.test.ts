@@ -187,3 +187,36 @@ describe('depolite', () => {
     });
   })
 });
+
+
+// tests valOrOptions, boolOrError, valOrError, valOrErrorAsync
+describe('optionOrError', () => {
+  it('returns value', async () => {
+    expect(util.optionOrError('a', ['b']).error).toBeDefined();
+  });
+  it('returns options', async () => {
+    expect(util.optionOrError(undefined, ['b'])).toBe('b');
+  });
+}
+);
+
+describe('boolOrError', () => {
+  it('returns value', async () => {
+    expect(util.boolOrError('true')).toBe(true);
+  });
+  it('returns error', async () => {
+    expect(() => util.boolOrError('false')).toBe(false);
+  });
+}
+);
+
+describe('stringOrError', () => {
+  it('returns value', async () => {
+    expect(util.stringOrError('a')).toBe({ result: 'a' });
+  });
+  it('returns error', async () => {
+    expect(() => util.stringOrError(undefined).error).toBeDefined();
+  });
+}
+);
+
