@@ -1,7 +1,7 @@
 {
   "name": "@haibun/logger-websockets",
   "type": "module",
-  "version": "1.28.3",
+  "version": "1.28.5",
   "description": "",
   "author": "",
   "main": "build/logger-websockets.js",
@@ -24,8 +24,8 @@
     "xversion": "npm run format && git add -A src"
   },
   "dependencies": {
-    "@haibun/core": "1.28.3",
-    "@haibun/web-server-express": "1.28.3",
+    "@haibun/core": "1.28.5",
+    "@haibun/web-server-express": "1.28.5",
     "ws": "^7.5.1"
   },
   "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5"
