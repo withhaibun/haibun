@@ -46,8 +46,9 @@ async function go() {
 
   }
 
+  let running;
   const startRunCallback = (world: TWorld) => {
-    if (protoOptions.options.CLI) repl.start().context.runtime = world.runtime;
+    running = (protoOptions.options.CLI) ? repl.start({ prompt: 'repl: ', useColors: true, useGlobal: true }).context.haibun = { world } : undefined;
   }
   let endFeatureCallback: TEndFeatureCallback | undefined = undefined;
   if (trace) {
@@ -55,6 +56,7 @@ async function go() {
       const { world, result, steppers, startOffset } = params;
       const tracker = findStepper<ITrackResults>(steppers, 'OutReviews');
       const loc = { ...world };
+      running.context.haibun.step = { world, result, steppers, startOffset };
 
       await tracker.writeTracksFile({ ...loc, mediaType: EMediaTypes.json }, title, result, Timer.startTime, startOffset);
     }
