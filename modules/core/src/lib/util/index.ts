@@ -348,7 +348,7 @@ export const stringOrError = (val: string) => {
 
 export const optionOrError = (val: string, options: string[]) => {
   if (val === undefined || val === null || !options.includes(val)) {
-    return { error: `${val} is not defined or not in ${options}` };
+    return { error: `"${val}" is not defined or not one of ${JSON.stringify(options)}` };
   }
   return { result: val };
 };

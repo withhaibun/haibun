@@ -188,35 +188,36 @@ describe('depolite', () => {
   })
 });
 
-
-// tests valOrOptions, boolOrError, valOrError, valOrErrorAsync
 describe('optionOrError', () => {
-  it('returns value', async () => {
+  it('rejects no option', async () => {
     expect(util.optionOrError('a', ['b']).error).toBeDefined();
   });
-  it('returns options', async () => {
-    expect(util.optionOrError(undefined, ['b'])).toBe('b');
+  it('rejects undefined option', async () => {
+    expect(util.optionOrError(undefined, ['b']).error).toBeDefined();
   });
-}
-);
+  it('returns options', async () => {
+    expect(util.optionOrError('b', ['b'])).toEqual({ result: 'b' });
+  });
+});
 
 describe('boolOrError', () => {
-  it('returns value', async () => {
-    expect(util.boolOrError('true')).toBe(true);
+  it('returns true', async () => {
+    expect(util.boolOrError('true')).toEqual({ result: true });
+  });
+  it('returns false', async () => {
+    expect(util.boolOrError('false')).toEqual({ result: false });
   });
   it('returns error', async () => {
-    expect(() => util.boolOrError('false')).toBe(false);
+    expect(util.boolOrError('wtw').error).toBeDefined();
   });
-}
-);
+});
 
 describe('stringOrError', () => {
   it('returns value', async () => {
-    expect(util.stringOrError('a')).toBe({ result: 'a' });
+    expect(util.stringOrError('a')).toEqual({ result: 'a' });
   });
   it('returns error', async () => {
     expect(() => util.stringOrError(undefined).error).toBeDefined();
   });
-}
-);
+});
 
