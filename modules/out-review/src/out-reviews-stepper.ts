@@ -16,6 +16,7 @@ export const TRACKS_STORAGE = 'TRACE_STORAGE';
 export const REVIEWS_STORAGE = 'REVIEWS_STORAGE';
 const PUBLISH_STORAGE = 'PUBLISH_STORAGE';
 const INDEX_STORAGE = 'INDEX_STORAGE';
+const DASHBOARD_ROOT = 'DASHBOARD_ROOT';
 const URI_ARGS = 'URI_ARGS';
 
 export const MISSING_TRACKS: TIndexSummaryResult = { ok: false, sourcePath: 'missing', featureTitle: 'Missing tracks file', startTime: new Date().toString() };
@@ -51,6 +52,10 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     },
     [URI_ARGS]: {
       desc: 'Extra arguments for html assets',
+      parse: (input: string) => stringOrError(input)
+    },
+    [DASHBOARD_ROOT]: {
+      desc: 'Root path for dashboard',
       parse: (input: string) => stringOrError(input)
     },
   };
@@ -144,11 +149,9 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
       exact: `create dashboard page`,
       action: async () => {
         const web = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'dashboard', 'web');
-        const assetSrc = path.join(web, 'built');
-        const publicSrc = path.join(web, 'public');
-        await this.recurseCopy({ src: assetSrc, fromFS: this.localFS, toFS: this.publishStorage, toFolder: '/dashboard', trimFolder: assetSrc });
-        await this.recurseCopy({ src: publicSrc, fromFS: this.localFS, toFS: this.publishStorage, toFolder: '/dashboard', trimFolder: publicSrc });
-        return actionOK({ tree: { summary: 'wrote files', details: await this.publishStorage.readTree('/dashboard') } })
+        const dashboardRoot = getStepperOption(this, DASHBOARD_ROOT, this.getWorld().extraOptions) || '/dashboard';
+        await this.recurseCopy({ src: web, fromFS: this.localFS, toFS: this.publishStorage, toFolder: dashboardRoot, trimFolder: web });
+        return actionOK({ tree: { summary: 'wrote files', details: await this.publishStorage.readTree(dashboardRoot) } })
       }
     },
     publishDashboardLink: {
