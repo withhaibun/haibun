@@ -56,7 +56,7 @@ async function go() {
       const { world, result, steppers, startOffset } = params;
       const tracker = findStepper<ITrackResults>(steppers, 'OutReviews');
       const loc = { ...world };
-      running.context.haibun.step = { world, result, steppers, startOffset };
+      if (running) running.context.haibun.step = { world, result, steppers, startOffset };
 
       await tracker.writeTracksFile({ ...loc, mediaType: EMediaTypes.json }, title, result, Timer.startTime, startOffset);
     }
