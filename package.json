@@ -1,6 +1,6 @@
 {
   "name": "haibun",
-  "private": true,
+  "private": false,
   "workspaces": [
     "modules/*"
   ],
