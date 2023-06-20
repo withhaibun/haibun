@@ -73,7 +73,7 @@ async function go() {
         }
       });
     } else {
-      logger.log(JSON.stringify(runOutput, null, 2));
+      // logger.log(JSON.stringify(runOutput, null, 2));
     }
   }
 

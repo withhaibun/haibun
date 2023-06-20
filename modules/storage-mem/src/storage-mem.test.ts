@@ -78,10 +78,10 @@ describe('getCaptureLocation', () => {
         const text = storageMem.readFile(`/test.txt`);
         expect(text).toEqual(Buffer.from('test'));
     });
-    it('lstat', () => {
+    it('lstat', async () => {
         const storageMem = new StorageMem();
         storageMem.mkdirp(`/${CAPTURE}/wtw`);
-        const lstat = storageMem.lstatToIFile(`/${CAPTURE}/wtw`);
+        const lstat = await storageMem.lstatToIFile(`/${CAPTURE}/wtw`);
         expect(lstat.name).toEqual(`/${CAPTURE}/wtw`);
         expect(lstat.isDirectory).toBe(true);
     });

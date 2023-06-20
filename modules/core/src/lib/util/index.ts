@@ -22,6 +22,7 @@ import {
   TFeatureResult,
   TBase,
 } from '../defs.js';
+import { Timer } from '../Timer.js';
 
 type TClass = { new <T>(...args: unknown[]): T };
 export type TFileSystem = Partial<typeof nodeFS>;
@@ -253,6 +254,7 @@ export async function verifyRequiredOptions(steppers: CStepper[], options: TExtr
     }
   }
   if (requiredMissing.length) {
+    console.log(process.env)
     throw Error(`missing required options ${requiredMissing}`);
   }
 }
@@ -312,8 +314,9 @@ export function applyResShouldContinue(world: any, res: Partial<TActionResult>, 
 }
 
 export const getRunTag = (sequence: TTagValue, loop: TTagValue, featureNum: TTagValue, member: TTagValue, params = {}, trace = false) => {
-  const res: TTag = { sequence, loop, member, featureNum, params, trace };
-  ['sequence', 'loop', 'member', 'featureNum'].forEach((w) => {
+  const when = Timer.startTime.getTime();
+  const res: TTag = { when, sequence, loop, member, featureNum, params, trace };
+  ['when', 'sequence', 'loop', 'member', 'featureNum'].forEach((w) => {
     const val = (res as any)[w];
     if (parseInt(val) !== val) {
       throw Error(`missing ${w} from ${JSON.stringify(res)}`);

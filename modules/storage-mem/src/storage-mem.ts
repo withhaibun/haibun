@@ -1,6 +1,7 @@
 import { Volume, IFs } from 'memfs';
 
-import { AStorage, IFile } from '@haibun/domain-storage/build/AStorage.js';
+import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
+import { IFile } from '@haibun/domain-storage/build/domain-storage.js';
 
 export default class StorageMem extends AStorage {
     static BASE_FS = {};
@@ -17,7 +18,7 @@ export default class StorageMem extends AStorage {
     writeFileBuffer = (fn: string, contents: Buffer) => {
         this.volume.writeFileSync(fn, contents);
     }
-    lstatToIFile(file: string) {
+    async lstatToIFile(file: string) {
         const l = this.volume.lstatSync(file);
         const ifile = {
             name: file,

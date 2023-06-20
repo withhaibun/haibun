@@ -71,7 +71,7 @@ export async function runWith({ specl, world, features, backgrounds, addSteppers
     if (!result || !result.ok) {
       let message;
       try {
-        message = (result.featureResults[0].stepResults.find((s) => !s.ok)?.actionResults[0] as TNotOKActionResult)?.message || result.featureResults[0].stepResults[0].actionResults;
+        message = (result.featureResults[0].stepResults.find((s) => !s.ok)?.actionResults[0] as TNotOKActionResult)?.message || result.featureResults;
       } catch (e) {
         message = e;
       }

@@ -1,19 +1,13 @@
 import { CAPTURE, AStepper, OK, TNamed, DEFAULT_DEST } from "@haibun/core/build/lib/defs.js"
 import { actionNotOK } from '@haibun/core/build/lib/util/index.js';
 import { setShared } from "@haibun/core/build/steps/vars.js";
-import { TLocationOptions, TMediaType } from "./domain-storage.js";
-
-export interface IFile {
-    name: string;
-    isDirectory: boolean;
-    isFile: boolean;
-    created: number;
-}
+import { IFile, TLocationOptions, TMediaType } from "./domain-storage.js";
+import { Timer } from "@haibun/core/build/lib/Timer.js";
 
 export abstract class AStorage extends AStepper {
     abstract readFile(path: string, coding?: string): any;
     abstract readdir(dir: string): Promise<string[]>;
-    abstract lstatToIFile(file: string): IFile;
+    abstract lstatToIFile(file: string): Promise<IFile>;
     abstract writeFileBuffer(file: string, contents: Buffer, mediaType: TMediaType): void;
 
     async readTree(dir: string) {
@@ -32,7 +26,12 @@ export abstract class AStorage extends AStepper {
 
     async readdirStat(dir: string): Promise<IFile[]> {
         const files = await this.readdir(dir);
-        return files.map(f => this.lstatToIFile(`${dir}/${f}`));
+        const mapped = [];
+        for (const file of files) {
+            const f = await this.lstatToIFile(`${dir}/${file}`);
+            mapped.push(f);
+        }
+        return mapped;
     }
     async writeFile(file: string, contents: string | Buffer, mediaType: TMediaType) {
         if (typeof contents === 'string') {
@@ -69,7 +68,8 @@ export abstract class AStorage extends AStepper {
 
     async getCaptureLocation(loc: TLocationOptions, app?: string) {
         const { tag } = loc;
-        return this.locator(loc, `loop-${tag.loop}`, `seq-${tag.sequence}`, `featn-${tag.featureNum}`, `mem-${tag.member}`, app);
+        const locator = this.locator(loc, `${tag.when}`, `loop-${tag.loop}`, `seq-${tag.sequence}`, `featn-${tag.featureNum}`, `mem-${tag.member}`, app);
+        return locator;
     }
 
     /**  

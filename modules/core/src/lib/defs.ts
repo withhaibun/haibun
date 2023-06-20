@@ -111,6 +111,7 @@ export type TResolvedFeature = TExpandedFeature & {
 
 export type TTagValue = number;
 export type TTag = {
+  when: number,
   sequence: number;
   featureNum: number;
   loop: number;

@@ -1,26 +1,26 @@
 import { testWithDefaults } from '@haibun/core/build/lib/test/lib.js';
 import OutReviews, { REVIEWS_STORAGE, TRACKS_STORAGE } from './out-reviews-stepper.js';
 import DomainStorage from '@haibun/domain-storage/build/domain-storage.js'
-import StorageMem from '@haibun/storage-mem/build/storage-mem.js';
 import { getStepperOptionName } from '@haibun/core/build/lib/util/index.js';
 import { DEFAULT_DEST } from '@haibun/core/build/lib/defs.js';
 import StorageFS from '@haibun/storage-fs/build/storage-fs.js';
+import StorageMem from '@haibun/storage-mem/build/storage-mem.js';
 
 describe('out-review', () => {
     const DEST = './capture/default/loop-0/seq-0/featn-0/mem-0/test/mark.flag';
     const CONTENT = 'eh';
-    StorageMem.BASE_FS = {
-        './capture/default': ['loop-0'],
-        './capture/default/loop-0': ['seq-0'],
-        './capture/default/loop-0/seq-0': ['featn-0'],
-        './capture/default/loop-0/seq-0/featn-0': ['mem-0'],
-        './capture/default/loop-0/seq-0/featn-0/mem-0': ['test'],
-        './capture/default/loop-0/seq-0/featn-0/mem-0/test': ['test.feature'],
-        [DEST]: CONTENT,
-    };
     describe('Generate reviews', () => {
         it('Generates reviews', async () => {
-
+            StorageMem.BASE_FS = {
+                './capture/default': ['123'],
+                './capture/default/123': ['loop-0'],
+                './capture/default/123/loop-0': ['seq-0'],
+                './capture/default/123/loop-0/seq-0': ['featn-0'],
+                './capture/default/123/loop-0/seq-0/featn-0': ['mem-0'],
+                './capture/default/123/loop-0/seq-0/featn-0/mem-0': ['test'],
+                './capture/default/123/loop-0/seq-0/featn-0/mem-0/test': ['test.feature'],
+                [DEST]: CONTENT,
+            };
             const outReviewsStepper = new OutReviews();
             const feature = { path: '/features/test.feature', content: `publish results` };
             const result = await testWithDefaults([feature], [OutReviews, DomainStorage, StorageMem, StorageFS], {

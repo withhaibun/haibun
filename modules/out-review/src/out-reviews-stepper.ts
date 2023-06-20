@@ -120,7 +120,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
       action: async () => {
         const found = await this.findArtifacts(this.tracksStorage, `${INDEXED}:`);
         for (const dest of found) {
-          await this.publishResults({ ...this.getWorld(), options: { ...this.getWorld().options, DEST: dest } });
+          const loc = await this.publishResults({ ...this.getWorld(), options: { ...this.getWorld().options, DEST: dest } });
         }
         return OK;
       }
@@ -149,7 +149,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
       exact: `create dashboard page`,
       action: async () => {
         const web = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'dashboard', 'web');
-        const dashboardRoot = getStepperOption(this, DASHBOARD_ROOT, this.getWorld().extraOptions) || '/dashboard';
+        const dashboardRoot = getStepperOption(this, DASHBOARD_ROOT, this.getWorld().extraOptions) || './dashboard';
         await this.recurseCopy({ src: web, fromFS: this.localFS, toFS: this.publishStorage, toFolder: dashboardRoot, trimFolder: web });
         return actionOK({ tree: { summary: 'wrote files', details: await this.publishStorage.readTree(dashboardRoot) } })
       }
@@ -167,15 +167,20 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
   async findArtifacts(fromWhere: AStorage, filter?: string) {
     const dir = await fromWhere.readdirStat(`./${CAPTURE}`);
     const found: string[] = [];
-    for (const entry of dir) {
+    const dirs = dir.filter(e => e.isDirectory);
+    for (const entry of dirs) {
       const entryDir = entry.name.replace(/.*\//, '');
       if (entryDir === 'sarif') {
         found.push(`${INDEXED}:${entryDir}`);
       } else if (entry.isDirectory) {
-        const entries = await fromWhere.readdirStat(`${entry.name}`);
-        const loop = entries.map(e => e.name.replace(/.*\//, '')).find(e => e === 'loop-1');
-        if (loop) {
-          found.push(entryDir);
+        const executions = await fromWhere.readdirStat(`${entry.name}`);
+        for (const execution of executions) {
+          const loops = await fromWhere.readdirStat(`${execution.name}`)
+          const loop = loops.map(e => e.name.replace(/.*\//, '')).find(e => e === 'loop-1');
+
+          if (loop) {
+            found.push(entryDir);
+          }
         }
       }
     }
@@ -209,6 +214,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
       indexTitle: 'none',
       results: <TIndexSummaryResult[]>[]
     }
+    console.log('ll', dir)
     const func = async (loc: TLocationOptions) => {
       const tracks = await this.readTracksFile(loc);
 
@@ -269,24 +275,32 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
 
     const start = this.tracksStorage.fromCaptureLocation(EMediaTypes.html, dest);
 
-    const loops = await reviewsIn.readdir(start);
-    for (const loop of loops) {
-      const loopDir = `${start}/${loop}`;
+    const executions = await reviewsIn.readdir(start);
+    console.log('executions', executions)
+    for (const execution of executions) {
+      const loops = await reviewsIn.readdir(`${start}/${execution}`);
+      console.log('loops', loops)
+      for (const loop of loops) {
+        const loopDir = `${start}/${execution}/${loop}`;
+        const sequences = await reviewsIn.readdir(loopDir);
+        console.log('sequences', sequences)
+        for (const seq of sequences) {
+          const seqDir = `${loopDir}/${seq}`;
+          const featureNums = await reviewsIn.readdir(seqDir)
+          console.log('featureNums', featureNums)
+          for (const featureNum of featureNums) {
+            const featDir = `${seqDir}/${featureNum}`;
+            const members = await reviewsIn.readdir(featDir);
+            for (const member of members) {
+              console.log('member', member)
+              const memDir = `${featDir}/${member}`;
+              const tag = getRunTag(n(seqDir), n(loopDir), n(featDir), n(memDir))
 
-      const sequences = await reviewsIn.readdir(loopDir);
-      for (const seq of sequences) {
-        const seqDir = `${loopDir}/${seq}`;
-        const featureNums = await reviewsIn.readdir(seqDir)
-        for (const featureNum of featureNums) {
-          const featDir = `${seqDir}/${featureNum}`;
-          const members = await reviewsIn.readdir(featDir);
-          for (const member of members) {
-            const memDir = `${featDir}/${member}`;
-            const tag = getRunTag(n(seqDir), n(loopDir), n(featDir), n(memDir))
+              const loc = { mediaType, tag, options: { ...this.getWorld().options, DEST: dest }, extraOptions: { ...this.getWorld().extraOptions } };
+              console.log('loc', loc, func.toString())
 
-            const loc = { mediaType, tag, options: { ...this.getWorld().options, DEST: dest }, extraOptions: { ...this.getWorld().extraOptions } };
-
-            await func(loc);
+              await func(loc);
+            }
           }
         }
       }

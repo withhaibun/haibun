@@ -5,6 +5,8 @@ import { stringOrError } from '@haibun/core/build/lib/util/index.js';
 export type TTrackResult = { meta: { title: string, startTime: string, startOffset: number }, result: TFeatureResult };
 export type TMissingTracks = { error: string };
 
+export type TCoding = any;
+
 export const STORAGE_LOCATION = 'STORAGE_LOCATION';
 export const STORAGE_ITEM = 'STORAGE_ITEM';
 
@@ -13,6 +15,13 @@ export const storageLocation: TFileTypeDomain = {
     return undefined;
   }
 };
+
+export interface IFile {
+    name: string;
+    isDirectory: boolean;
+    isFile: boolean;
+    created: number;
+}
 
 export interface ICreateStorageDestination {
   createStorageDestination(dest: string, params: any)
