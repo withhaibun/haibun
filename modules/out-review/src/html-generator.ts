@@ -20,10 +20,11 @@ export type TIndexSummary = {
 }
 
 export type TIndexSummaryResult = {
-    sourcePath: string,
+    sourcePath?: string,
     ok: boolean,
     featureTitle?: string,
     startTime?: string
+    error?: string
 }
 
 export default class HtmlGenerator {

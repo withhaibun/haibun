@@ -1,5 +1,5 @@
-import { AStepper, CAPTURE, IHasOptions, IRequireDomains, OK, TFeatureResult, TNamed, TWorld, } from "@haibun/core/build/lib/defs.js";
-import { EMediaTypes, guessMediaExt, IPublishResults, IReviewResult, STORAGE_ITEM, STORAGE_LOCATION, TLocationOptions, TMediaType, TMissingTracks, TTrackResult } from '@haibun/domain-storage/build/domain-storage.js';
+import { AStepper, CAPTURE, IHasOptions, IRequireDomains, OK, TFeatureResult, TNamed, TTag, TWorld, } from "@haibun/core/build/lib/defs.js";
+import { EMediaTypes, guessMediaExt, IReviewResult, STORAGE_ITEM, STORAGE_LOCATION, TLocationOptions, TMissingTracks, TTrackResult } from '@haibun/domain-storage/build/domain-storage.js';
 import { actionOK, findStepperFromOption, getFeatureTitlesFromResults, getRunTag, getStepperOption, stringOrError } from '@haibun/core/build/lib/util/index.js';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 import HtmlGenerator, { TFeatureSummary, TIndexSummary, TIndexSummaryResult, TStepSummary, TSummaryItem } from "./html-generator.js";
@@ -23,7 +23,7 @@ export const MISSING_TRACKS: TIndexSummaryResult = { ok: false, sourcePath: 'mis
 export const MISSING_TRACKS_FILE = 'Missing tracks file';
 const INDEXED = 'indexed';
 
-const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRequireDomains, ITrackResults, IReviewResult, IPublishResults {
+const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRequireDomains, ITrackResults, IReviewResult {
   tracksStorage: AStorage;
   reviewsStorage: AStorage;
   publishStorage: AStorage;
@@ -72,6 +72,11 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
   }
 
   steps = {
+
+    /** 
+     * Create reviews
+     * Creates review.html files from any found tracks.json. files.
+     */
     createReview: {
       // create a review from current world only
       exact: `create review`,
@@ -79,7 +84,8 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
         const loc = { ...this.getWorld(), mediaType: EMediaTypes.html };
 
         let tracks;
-        tracks = await this.readTracksFile(loc).catch(error => tracks = { error });
+        const where = await tracks.getCaptureLocation(loc, 'tracks', 'tracks.json');
+        tracks = await this.readTracksFile(where).catch(error => tracks = { error });
         await this.writeReview(loc, tracks);
         return OK;
       }
@@ -99,32 +105,12 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
         return OK;
       }
     },
-    publishResults: {
-      exact: `publish results`,
-      action: async () => {
-        await this.publishResults({ ...this.getWorld() });
-        return OK;
-      }
-    },
-    publishResultsFrom: {
-      gwta: `publish results from {where}`,
-      action: async ({ where }: TNamed) => {
-        for (const dest of where.split(',').map(d => d.trim())) {
-          await this.publishResults({ ...this.getWorld(), options: { ...this.getWorld().options, DEST: dest } });
-        }
-        return OK;
-      }
-    },
-    publishFoundResults: {
-      exact: `publish found results`,
-      action: async () => {
-        const found = await this.findArtifacts(this.tracksStorage, `${INDEXED}:`);
-        for (const dest of found) {
-          const loc = await this.publishResults({ ...this.getWorld(), options: { ...this.getWorld().options, DEST: dest } });
-        }
-        return OK;
-      }
-    },
+
+    /**
+     * Create indexes
+     * Creates a main index for found reviews.
+     * This will normally be done after creating reviews.
+     */
     createIndex: {
       exact: `create index`,
       action: async () => {
@@ -145,6 +131,45 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
         return await this.createReviewsIndex(found);
       }
     },
+
+    /**
+     * Publish reviews
+     * Copies reviews, indexes and assets to a publish location.
+     * This will normally be done after creating reviews and indexes.
+     */
+    publishReviews: {
+      exact: `publish reviews`,
+      action: async () => {
+        await this.publishReviews({ ...this.getWorld() });
+        return OK;
+      }
+    },
+    publishReviewsFrom: {
+      gwta: `publish reviews from {where}`,
+      action: async ({ where }: TNamed) => {
+        for (const dest of where.split(',').map(d => d.trim())) {
+          await this.publishReviews({ ...this.getWorld(), options: { ...this.getWorld().options, DEST: dest } });
+        }
+        return OK;
+      }
+    },
+    publishFoundReviews: {
+      exact: `publish found reviews`,
+      action: async () => {
+        const found = await this.findArtifacts(this.tracksStorage, `${INDEXED}:`);
+        for (const dest of found) {
+          await this.publishReviews({ ...this.getWorld(), options: { ...this.getWorld().options, DEST: dest } });
+        }
+        return OK;
+      }
+    },
+
+    /**
+     * Create dashboard
+     * 
+     * Creates a dashboard page that links published review indexes.
+     * 
+     */
     createDashboardPage: {
       exact: `create dashboard page`,
       action: async () => {
@@ -187,12 +212,20 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     return filter ? found.filter(f => !f.includes(filter)) : found;
   }
   async writeReviewsFrom(where: string[]) {
-    const func = async (loc: TLocationOptions) => {
-      const tracks = await this.readTracksFile(loc);
-      await this.writeReview(loc, tracks);
-    };
     for (const dir of where) {
-      await this.withDestLocs(dir, func, EMediaTypes.html);
+      const locs = await this.getMemberEntries(dir);
+      // process each loc using func
+      for (const { tag, memDir } of locs) {
+        const tracksDir = `${memDir}/tracks`;
+        if (!this.publishStorage.exists(tracksDir)) {
+          this.getWorld().logger.debug(`no tracks dir ${tracksDir} for ${memDir}`);
+          return;
+        }
+        const tracks = await this.readTracksFile(tracksDir);
+        const mediaType = EMediaTypes.html;
+        const loc: TLocationOptions = { mediaType, tag, options: { ...this.getWorld().options, DEST: this.world.options.DEST }, extraOptions: { ...this.getWorld().extraOptions } };
+        await this.writeReview(loc, tracks);
+      }
     }
   }
 
@@ -214,32 +247,38 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
       indexTitle: 'none',
       results: <TIndexSummaryResult[]>[]
     }
-    console.log('ll', dir)
-    const func = async (loc: TLocationOptions) => {
-      const tracks = await this.readTracksFile(loc);
+
+    const locs = await this.getMemberEntries(dir);
+
+    for (const { memDir, tag } of locs) {
+      const tracksDir = `${memDir}/tracks`;
+      if (!this.publishStorage.exists(tracksDir)) {
+        continue;
+      }
+      const tracks = await this.readTracksFile(tracksDir);
 
       const { result, meta } = (<TTrackResult>tracks);
       const { title: indexTitle, startTime } = meta;
       res.indexTitle = indexTitle;
       const featureTitles = getFeatureTitlesFromResults(result);
 
-      if (result) {
+      if (result && result.ok) {
+        const loc: TLocationOptions = { tag, options: { DEST: dir }, extraOptions: {}, mediaType: EMediaTypes.html }
         const r = {
           ok: result.ok,
-          sourcePath: await this.publishStorage.getCaptureLocation(loc) + '/review.html',
+          sourcePath: await this.publishStorage.getCaptureLocation(loc, 'review.html'),
           startTime: new Date(startTime).toString(),
           featureTitle: featureTitles.join(',')
         }
 
         res.results.push(r);
       } else {
-        // res.results!.push({ error: `no result` });
+        res.results.push({ error: `no result`, ok: false });
       }
     }
-
-    await this.withDestLocs(dir, func, EMediaTypes.html);
     return res as TIndexSummary;
   }
+
   async createReviewsIndex(indexDirs: string[]) {
     const uriArgs = getStepperOption(this, URI_ARGS, this.getWorld().extraOptions) || '';
     const htmlGenerator = new HtmlGenerator(uriArgs);
@@ -248,8 +287,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     for (const spec of indexDirs) {
       const [type, dirIn] = spec.split(':');
       const dir = dirIn || type;
-      const indexer = type === INDEXED ? this.getIndexedResults.bind(this) : this.getReviewSummary.bind(this);
-      const summary: TIndexSummary = await indexer(dir);
+      const summary: TIndexSummary = await (type === INDEXED ? this.getIndexedResults(dir) : this.getReviewSummary(dir));
 
       const ok = !!summary.results.every(r => r.ok);
       const index = toc(summary, dir, uriArgs, htmlGenerator.linkFor, (path: string) => this.publishStorage.pathed(EMediaTypes.html, path, `./${CAPTURE}`));
@@ -267,49 +305,43 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     this.getWorld().logger.info(`wrote index file ${indexHtml}`)
     return OK;
   }
-  async withDestLocs(dest: string, func: any, mediaType: TMediaType) {
+
+  async getMemberEntries(dest: string): Promise<{ tag: TTag, memDir: string, loc: TLocationOptions }[]> {
     const reviewsIn = this.tracksStorage;
     const n = (i: string) => {
       return parseInt(i.replace(/.*-/, ''));
     }
 
+    const allTracks = [];
     const start = this.tracksStorage.fromCaptureLocation(EMediaTypes.html, dest);
 
     const executions = await reviewsIn.readdir(start);
-    console.log('executions', executions)
     for (const execution of executions) {
       const loops = await reviewsIn.readdir(`${start}/${execution}`);
-      console.log('loops', loops)
       for (const loop of loops) {
         const loopDir = `${start}/${execution}/${loop}`;
         const sequences = await reviewsIn.readdir(loopDir);
-        console.log('sequences', sequences)
         for (const seq of sequences) {
           const seqDir = `${loopDir}/${seq}`;
           const featureNums = await reviewsIn.readdir(seqDir)
-          console.log('featureNums', featureNums)
           for (const featureNum of featureNums) {
             const featDir = `${seqDir}/${featureNum}`;
             const members = await reviewsIn.readdir(featDir);
             for (const member of members) {
-              console.log('member', member)
               const memDir = `${featDir}/${member}`;
-              const tag = getRunTag(n(seqDir), n(loopDir), n(featDir), n(memDir))
-
-              const loc = { mediaType, tag, options: { ...this.getWorld().options, DEST: dest }, extraOptions: { ...this.getWorld().extraOptions } };
-              console.log('loc', loc, func.toString())
-
-              await func(loc);
+              const tag = { ...getRunTag(n(seqDir), n(loopDir), n(featDir), n(memDir)), when: execution };
+              allTracks.push({ tag, memDir });
             }
           }
         }
       }
     }
+    return allTracks;
   }
-  async readTracksFile(loc: TLocationOptions): Promise<TTrackResult | TMissingTracks> {
+  async readTracksFile(where: string): Promise<TTrackResult | TMissingTracks> {
     try {
       const tracks = this.tracksStorage;
-      const output = await tracks.readFile(await tracks.getCaptureLocation(loc, 'tracks') + '/tracks.json', 'utf-8');
+      const output = await tracks.readFile(where + '/tracks.json', 'utf-8');
       const result = JSON.parse(output);
       return result;
     } catch (e) {
@@ -354,7 +386,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     }
   }
 
-  async publishResults(world: TWorld) {
+  async publishReviews(world: TWorld) {
     const fromFS = this.tracksStorage;
     const toFS = this.publishStorage;
     // FIXME media type is ...

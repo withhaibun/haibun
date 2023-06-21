@@ -11,7 +11,7 @@
   "bin": {
     "review-from-saved": "build/review-from-saved.js"
   },
-  "main": "build/out-review.js",
+  "main": "build/out-reviews-stepper.js",
   "scripts": {
     "build": "tsc -b .",
     "build-watch": "tsc -b . --watch",

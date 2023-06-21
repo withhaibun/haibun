@@ -319,7 +319,7 @@ export const getRunTag = (sequence: TTagValue, loop: TTagValue, featureNum: TTag
   ['when', 'sequence', 'loop', 'member', 'featureNum'].forEach((w) => {
     const val = (res as any)[w];
     if (parseInt(val) !== val) {
-      throw Error(`missing ${w} from ${JSON.stringify(res)}`);
+      throw Error(`non-numeric ${w} from ${JSON.stringify(res)}`);
     }
   });
   return res;

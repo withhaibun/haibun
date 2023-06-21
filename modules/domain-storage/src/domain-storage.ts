@@ -99,10 +99,6 @@ export interface IReviewResult {
   writeReview(loc: TLocationOptions, result: TTrackResult | TMissingTracks, allStartTime: number): any;
 }
 
-export interface IPublishResults {
-  publishResults(world: TWorld): any;
-}
-
 export function guessMediaExt(file: string) {
   const ext = file.replace(/.*\./, '').toLowerCase();
   return MAPPED_MEDIA_TYPES[ext] || ext;
