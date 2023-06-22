@@ -254,7 +254,6 @@ export async function verifyRequiredOptions(steppers: CStepper[], options: TExtr
     }
   }
   if (requiredMissing.length) {
-    console.log(process.env)
     throw Error(`missing required options ${requiredMissing}`);
   }
 }

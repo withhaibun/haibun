@@ -2,7 +2,6 @@ import { CAPTURE, AStepper, OK, TNamed, DEFAULT_DEST } from "@haibun/core/build/
 import { actionNotOK } from '@haibun/core/build/lib/util/index.js';
 import { setShared } from "@haibun/core/build/steps/vars.js";
 import { IFile, TLocationOptions, TMediaType } from "./domain-storage.js";
-import { Timer } from "@haibun/core/build/lib/Timer.js";
 
 export abstract class AStorage extends AStepper {
     abstract readFile(path: string, coding?: string): any;
