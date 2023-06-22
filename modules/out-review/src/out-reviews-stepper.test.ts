@@ -1,5 +1,5 @@
 import { getDefaultWorld, getTestWorldWithOptions, testWithDefaults } from '@haibun/core/build/lib/test/lib.js';
-import OutReviews, { REVIEWS_STORAGE, TRACKS_STORAGE } from './out-reviews-stepper.js';
+import OutReviews, { DASHBOARD_ROOT, REVIEWS_STORAGE, TRACKS_STORAGE } from './out-reviews-stepper.js';
 import DomainStorage from '@haibun/domain-storage/build/domain-storage.js'
 import { getStepperOptionName } from '@haibun/core/build/lib/util/index.js';
 import { DEFAULT_DEST } from '@haibun/core/build/lib/defs.js';
@@ -115,7 +115,7 @@ describe('indexes', () => {
     });
 })
 
-describe.skip('dashboard', () => {
+describe('dashboard', () => {
     StorageMem.BASE_FS = {};
     it('Generates dashboard', async () => {
         const outReviewsStepper = new OutReviews();
@@ -125,11 +125,13 @@ describe.skip('dashboard', () => {
             extraOptions: {
                 [getStepperOptionName(outReviewsStepper, TRACKS_STORAGE)]: 'StorageMem',
                 [getStepperOptionName(outReviewsStepper, REVIEWS_STORAGE)]: 'StorageMem',
+                [getStepperOptionName(outReviewsStepper, DASHBOARD_ROOT)]: '/test',
             },
         });
         expect(result.ok).toBe(true);
         const tree = result.featureResults[0].stepResults[0].actionResults[0].topics.tree;
-        expect(tree.details.filter(d => d.name === '/dashboard/index.html')).toHaveLength(1);
-        expect(tree.details.filter(d => d.name === '/dashboard/lib')).toHaveLength(1);
+        expect(tree.details.filter(d => d.name === '/test/index.html')).toHaveLength(1);
+        expect(tree.details.filter(d => d.name === '/test/lib')).toHaveLength(1);
+        expect(tree.details.filter(d => d.name === '/test/node_modules')).toHaveLength(0);
     });
 });

@@ -16,7 +16,7 @@ export const TRACKS_STORAGE = 'TRACE_STORAGE';
 export const REVIEWS_STORAGE = 'REVIEWS_STORAGE';
 const PUBLISH_STORAGE = 'PUBLISH_STORAGE';
 const INDEX_STORAGE = 'INDEX_STORAGE';
-const DASHBOARD_ROOT = 'DASHBOARD_ROOT';
+export const DASHBOARD_ROOT = 'DASHBOARD_ROOT';
 const URI_ARGS = 'URI_ARGS';
 
 export const MISSING_TRACKS: TIndexSummaryResult = { ok: false, sourcePath: 'missing', featureTitle: 'Missing tracks file', startTime: new Date().toString() };
@@ -175,7 +175,8 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
       action: async () => {
         const web = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'dashboard', 'web');
         const dashboardRoot = getStepperOption(this, DASHBOARD_ROOT, this.getWorld().extraOptions) || './dashboard';
-        await this.recurseCopy({ src: web, fromFS: this.localFS, toFS: this.publishStorage, toFolder: dashboardRoot, trimFolder: web });
+        await this.recurseCopy({ src: `${web}/public`, fromFS: this.localFS, toFS: this.publishStorage, toFolder: dashboardRoot, trimFolder: `${web}/public` });
+        await this.recurseCopy({ src: `${web}/built`, fromFS: this.localFS, toFS: this.publishStorage, toFolder: dashboardRoot, trimFolder: `${web}/built` });
         return actionOK({ tree: { summary: 'wrote files', details: await this.publishStorage.readTree(dashboardRoot) } })
       }
     },
@@ -442,6 +443,5 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     }
   }
 }
-
 
 export default OutReviews;
