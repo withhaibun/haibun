@@ -4,7 +4,9 @@ import { CAPTURE } from '@haibun/core/build/lib/defs.js';
 import { getDefaultWorld, getTestWorldWithOptions } from '@haibun/core/build/lib/test/lib.js';
 import { EMediaTypes } from '@haibun/domain-storage/build/domain-storage.js';
 import StorageMem from './storage-mem.js';
+import { Timer } from '@haibun/core/build/lib/Timer.js';
 
+const when = Timer.startTime.getTime();
 
 describe('BASE_FS', () => {
     it('finds BASE_FS file', async () => {
@@ -24,19 +26,19 @@ describe('getCaptureLocation', () => {
         const storageMem = new StorageMem();
         const { world } = getDefaultWorld(0);
         const dir = await storageMem.getCaptureLocation({ ...world, mediaType: EMediaTypes.json }, 'test');
-        expect(dir).toEqual(`./${CAPTURE}/default/loop-0/seq-0/featn-0/mem-0/test`);
+        expect(dir).toEqual(`./${CAPTURE}/default/${when}/loop-0/seq-0/featn-0/mem-0/test`);
     });
     it('gets options capture location', async () => {
         const storageMem = new StorageMem();
         const world = getTestWorldWithOptions({ options: { DEST: 'foo' }, extraOptions: {} });
         const dir = await storageMem.getCaptureLocation({ ...world, mediaType: EMediaTypes.json }, 'test');
-        expect(dir).toEqual(`./${CAPTURE}/foo/loop-0/seq-0/featn-0/mem-0/test`);
+        expect(dir).toEqual(`./${CAPTURE}/foo/${when}/loop-0/seq-0/featn-0/mem-0/test`);
     });
     it('gets relative capture location', async () => {
         const storageMem = new StorageMem();
         const world = getTestWorldWithOptions({ options: { DEST: 'foo' }, extraOptions: {} });
         const dir = await storageMem.getCaptureLocation({ ...world, mediaType: EMediaTypes.json }, 'test');
-        expect(dir).toEqual(`./${CAPTURE}/foo/loop-0/seq-0/featn-0/mem-0/test`);
+        expect(dir).toEqual(`./${CAPTURE}/foo/${when}/loop-0/seq-0/featn-0/mem-0/test`);
     });
     it('ensures capture location', async () => {
         const storageMem = new StorageMem();

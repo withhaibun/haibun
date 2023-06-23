@@ -118,7 +118,7 @@ describe('dashboard', () => {
         expect(tree.details.filter(d => d.name === '/test/node_modules')).toHaveLength(0);
     });
 
-    it.only('Generates dashboard review links', async () => {
+    it('Generates dashboard review links', async () => {
         StorageMem.BASE_FS = {
             [`./capture/${REVIEW_FILE}`]: JSON.stringify({ published: 'miaow' })
         };
