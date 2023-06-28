@@ -1,7 +1,6 @@
 import { OK, TNamed, AStepper, TWorld, TVStep } from '../lib/defs.js';
 import { Resolver } from '../phases/Resolver.js';
 import { actionNotOK, findStepper, sleep } from '../lib/util/index.js';
-import { getStepperAsDomain } from '../lib/domain.js';
 import { EVENT_AFTER } from '../phases/Builder.js';
 
 const Haibun = class Haibun extends AStepper {
@@ -89,7 +88,7 @@ const Haibun = class Haibun extends AStepper {
       },
     },
     comment: {
-      gwta: '#{what}',
+      gwta: '#{comment}',
       action: async ({ comment }: TNamed) => {
         this.getWorld().logger.log(`comment: ${comment}`);
         return OK;
