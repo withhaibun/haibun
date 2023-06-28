@@ -55,9 +55,8 @@ export default async function runWithOptions(runOptions: TRunOptions) {
       passed++;
     } else {
       try {
-        const message = r.result?.failure?.error?.message || JSON.stringify(r.result.failure);
-        console.log('m', message)
-        allFailures[message] = (allFailures[message] || []).concat({
+        const errorMessage = r.result?.failure?.error?.message || JSON.stringify(r.result.failure);
+        allFailures[errorMessage] = (allFailures[errorMessage] || []).concat({
           sequence: r.tag.sequence,
           runDuration: r.runDuration,
           fromStart: r.fromStart,

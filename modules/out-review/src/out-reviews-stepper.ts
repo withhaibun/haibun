@@ -16,6 +16,7 @@ import { Timer } from "@haibun/core/build/lib/Timer.js";
 export const REVIEW_FILE = 'review.json';
 
 // FIXME use TRACK_STORAGE
+export const STORAGE = 'STORAGE';
 export const TRACKS_STORAGE = 'TRACKS_STORAGE';
 export const REVIEWS_STORAGE = 'REVIEWS_STORAGE';
 export const PUBLISH_STORAGE = 'PUBLISH_STORAGE';
@@ -39,11 +40,13 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
   options = {
     [TRACKS_STORAGE]: {
       required: true,
+      altSource: 'STORAGE',
       desc: 'Storage type used for input',
       parse: (input: string) => stringOrError(input)
     },
     [REVIEWS_STORAGE]: {
       required: true,
+      altSource: 'STORAGE',
       desc: 'Storage type used for reviews',
       parse: (input: string) => stringOrError(input)
     },
@@ -68,10 +71,10 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
 
   setWorld(world: TWorld, steppers: AStepper[]) {
     super.setWorld(world, steppers);
-    this.tracksStorage = findStepperFromOption(steppers, this, world.extraOptions, TRACKS_STORAGE);
-    this.reviewsStorage = findStepperFromOption(steppers, this, world.extraOptions, REVIEWS_STORAGE, TRACKS_STORAGE);
-    this.indexStorage = findStepperFromOption(steppers, this, world.extraOptions, INDEX_STORAGE, REVIEWS_STORAGE, TRACKS_STORAGE);
-    this.publishStorage = findStepperFromOption(steppers, this, world.extraOptions, PUBLISH_STORAGE, REVIEWS_STORAGE, TRACKS_STORAGE);
+    this.tracksStorage = findStepperFromOption(steppers, this, world.extraOptions, TRACKS_STORAGE, STORAGE);
+    this.reviewsStorage = findStepperFromOption(steppers, this, world.extraOptions, REVIEWS_STORAGE, STORAGE);
+    this.indexStorage = findStepperFromOption(steppers, this, world.extraOptions, INDEX_STORAGE, STORAGE);
+    this.publishStorage = findStepperFromOption(steppers, this, world.extraOptions, PUBLISH_STORAGE, STORAGE);
     this.dashboardRoot = getStepperOption(this, DASHBOARD_ROOT, this.getWorld().extraOptions) || './dashboard';
     const localFS = new StorageFS();
     localFS.setWorld(world, steppers);
@@ -197,7 +200,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
         // FIXME use AStorage
         const dest = [this.dashboardRoot, 'reviews'].join('/');
         await this.reviewsStorage.ensureDirExists(dest);
-        await this.publishStorage.writeFile(`${dest}/${setting}${Timer.startTime.getTime()}.json`, contents, EMediaTypes.json);
+        await this.publishStorage.writeFile(`${dest}/${setting}${Timer.key}.json`, contents, EMediaTypes.json);
         return actionOK({ tree: { summary: 'wrote files', details: await this.publishStorage.readTree(dest) } })
       }
     }

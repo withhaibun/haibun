@@ -134,7 +134,7 @@ describe('dashboard', () => {
         });
         expect(result.ok).toBe(true);
         const tree = result.featureResults[0].stepResults[0].actionResults[0].topics.tree;
-        expect(tree.details[0].name).toBe(`/test/reviews/${Timer.startTime.getTime()}.json`);
+        expect(tree.details[0].name).toBe(`/test/reviews/${Timer.key}.json`);
     });
 });
 

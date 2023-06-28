@@ -38,12 +38,13 @@ async function go() {
 
   const loops = protoOptions.options.LOOPS || 1;
   const members = protoOptions.options.MEMBERS || 1;
-  const { TRACE: trace, OUTPUT: output, OUTPUT_DEST: outputDest } = protoOptions.options;
+  const { KEY: keyIn, TRACE: trace, OUTPUT: output, OUTPUT_DEST: outputDest } = protoOptions.options;
+  const key = keyIn || Timer.key;
+  Timer.key = key;
   const title = protoOptions.options.TITLE || bases + ' ' + [...featureFilter || []].join(',');
 
   if (outputDest && !output) {
     await usageThenExit(specl, 'OUTPUT_DEST requires OUTPUT');
-
   }
 
   let running;
@@ -62,7 +63,7 @@ async function go() {
     }
   }
 
-  const runOptions: TRunOptions = { featureFilter, loops, members, splits, trace, specl, bases, protoOptions, startRunCallback, endFeatureCallback };
+  const runOptions: TRunOptions = { key, featureFilter, loops, members, splits, trace, specl, bases, protoOptions, startRunCallback, endFeatureCallback };
   const { ok, exceptionResults, ranResults, allFailures, logger, passed, failed, totalRan, runTime, output: runOutput } = await runWithOptions(runOptions);
   // FIXME
   if (runOutput) {
@@ -82,7 +83,7 @@ async function go() {
   } else {
     logger.error('failures:' + JSON.stringify(allFailures, null, 2));
   }
-  console.info('\nRESULT>>>', { ok, startDate: Timer.startTime, startTime: Timer.startTime, passed, failed, totalRan, runTime, 'features/s:': totalRan / runTime });
+  console.info('\nRESULT>>>', { ok, startDate: Timer.startTime, key: Timer.key, passed, failed, totalRan, runTime, 'features/s:': totalRan / runTime });
 
   if (ok && exceptionResults.length < 1 && protoOptions.options.STAY !== STAY_ALWAYS) {
     process.exit(0);

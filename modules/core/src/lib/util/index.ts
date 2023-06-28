@@ -243,13 +243,16 @@ export async function verifyRequiredOptions(steppers: CStepper[], options: TExtr
   const requiredMissing: string[] = [];
   for (const Stepper of steppers) {
     const stepper = new Stepper();
-
     const ao = stepper as IHasOptions;
 
     for (const option in ao.options) {
-      const n = getStepperOptionName(stepper, option);
-      if (ao.options[option].required && !options[n]) {
-        requiredMissing.push(n);
+      const optionName = getStepperOptionName(stepper, option);
+      if (ao.options[option].required && !options[optionName]) {
+        const { altSource } = ao.options[option];
+        const altName = getStepperOptionName(stepper, altSource);
+        if (!(altSource && options[altName])) {
+          requiredMissing.push(optionName);
+        }
       }
     }
   }
@@ -313,9 +316,9 @@ export function applyResShouldContinue(world: any, res: Partial<TActionResult>, 
 }
 
 export const getRunTag = (sequence: TTagValue, loop: TTagValue, featureNum: TTagValue, member: TTagValue, params = {}, trace = false) => {
-  const when = Timer.startTime.getTime();
+  const when = Timer.key;
   const res: TTag = { when, sequence, loop, member, featureNum, params, trace };
-  ['when', 'sequence', 'loop', 'member', 'featureNum'].forEach((w) => {
+  ['sequence', 'loop', 'member', 'featureNum'].forEach((w) => {
     const val = (res as any)[w];
     if (parseInt(val) !== val) {
       throw Error(`non-numeric ${w} from ${JSON.stringify(res)}`);

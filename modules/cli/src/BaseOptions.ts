@@ -1,9 +1,13 @@
 import { DEFAULT_DEST, IHasOptions, STAY_ALWAYS, TOptions } from "@haibun/core/build/lib/defs.js";
 import { LOGGER_LEVELS } from "@haibun/core/build/lib/Logger.js";
-import { boolOrError, intOrError, optionOrError } from "@haibun/core/build/lib/util/index.js";
+import { boolOrError, intOrError, optionOrError, stringOrError } from "@haibun/core/build/lib/util/index.js";
 
 export class BaseOptions implements IHasOptions {
     static options = {
+        KEY: {
+            desc: 'execution key (defaults to serialtime)',
+            parse: (input: string) => stringOrError(input)
+        },
         SPLIT_SHARED: {
             desc: 'create instances based on variable options, for example, var=option1,option2',
             parse: (input: string) => {

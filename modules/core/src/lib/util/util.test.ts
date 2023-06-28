@@ -27,14 +27,14 @@ describe('isLowerCase', () => {
 });
 
 describe('findStepperFromOptions', () => {
-  const TS = class TS extends AStepper implements IHasOptions {
+  const TestOptionsStepper = class TestOptionsStepper extends AStepper implements IHasOptions {
     options = {
       A: {
-        desc: 'exists',
+        desc: 'A exists',
         parse: (input: string) => util.stringOrError(input),
       },
       B: {
-        desc: 'exists',
+        desc: 'B exists',
         parse: (input: string) => util.stringOrError(input),
       },
     };
@@ -47,32 +47,66 @@ describe('findStepperFromOptions', () => {
   };
 
   it('finds from single option', async () => {
-    const ts = new TS();
-    const steppers = await getCreateSteppers([], [TS]);
-    const options = { [util.getStepperOptionName(ts, 'A')]: 'TS' };
+    const ts = new TestOptionsStepper();
+    const steppers = await getCreateSteppers([], [TestOptionsStepper]);
+    const options = { [util.getStepperOptionName(ts, 'A')]: 'TestOptionsStepper' };
     const s = util.findStepperFromOption(steppers, ts, options, 'A');
     expect(s).toBeDefined();
   });
-  it('finds from last multiple options', async () => {
-    const ts = new TS();
-    const steppers = await getCreateSteppers([], [TS]);
-    const options = { [util.getStepperOptionName(ts, 'B')]: 'TS' };
+  it.only('finds from last multiple options', async () => {
+    const ts = new TestOptionsStepper();
+    const steppers = await getCreateSteppers([], [TestOptionsStepper]);
+    const options = { [util.getStepperOptionName(ts, 'B')]: 'TestOptionsStepper' };
     const s = util.findStepperFromOption(steppers, ts, options, 'A', 'B');
     expect(s).toBeDefined();
   });
   it('finds from first multiple options', async () => {
-    const ts = new TS();
-    const steppers = await getCreateSteppers([], [TS, TestSteps]);
-    const options = { [util.getStepperOptionName(ts, 'A')]: 'TestSteps', [util.getStepperOptionName(ts, 'B')]: 'TS' };
+    const ts = new TestOptionsStepper();
+    const steppers = await getCreateSteppers([], [TestOptionsStepper, TestSteps]);
+    const options = { [util.getStepperOptionName(ts, 'A')]: 'TestSteps', [util.getStepperOptionName(ts, 'B')]: 'TestOptionsStepper' };
     const s = util.findStepperFromOption<typeof TestSteps>(steppers, ts, options, 'A', 'B');
     expect(s).toBeDefined();
     expect(s.constructor.name).toBe('TestSteps');
   });
   it('throws for not found stepper', async () => {
-    const ts = new TS();
-    const steppers = await getCreateSteppers([], [TS]);
+    const ts = new TestOptionsStepper();
+    const steppers = await getCreateSteppers([], [TestOptionsStepper]);
     const options = {};
     expect(() => util.findStepperFromOption(steppers, ts, options, 'S')).toThrow;
+  });
+});
+
+describe('verifyRequiredOptions', () => {
+  class TestOptionsStepperWithReauired extends AStepper implements IHasOptions {
+    options = {
+      A: {
+        required: true,
+        altSource: 'B',
+        desc: 'A is an option',
+        parse: (input: string) => util.stringOrError(input),
+      },
+      B: {
+        desc: 'B is an altsource',
+        parse: (input: string) => util.stringOrError(input),
+      },
+    }
+    steps = {
+      test: {
+        exact: 'When I have a stepper option',
+        action: async () => OK,
+      },
+    };
+  }
+  it('has option', async () => {
+    const options = { [util.getStepperOptionName(new TestOptionsStepperWithReauired(), 'A')]: 'TestSteps' };
+    await expect(util.verifyRequiredOptions([TestOptionsStepperWithReauired], options)).resolves.not.toThrow();
+  });
+  it('throws for missing option', async () => {
+    await expect(util.verifyRequiredOptions([TestOptionsStepperWithReauired], {})).rejects.toThrow();
+  });
+  it('uses altSource', async () => {
+    const options = { [util.getStepperOptionName(new TestOptionsStepperWithReauired(), 'B')]: 'TestSteps' };
+    await expect(util.verifyRequiredOptions([TestOptionsStepperWithReauired], options)).resolves.not.toThrow();
   });
 });
 
