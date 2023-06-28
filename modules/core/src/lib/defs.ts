@@ -26,6 +26,8 @@ export interface IHasOptions {
   options?: {
     [name: string]: {
       required?: boolean;
+      // alternate for the literal option
+      altSource?: string;
       default?: string;
       desc: string;
       parse: (input: string, existing?: TOptionValue) => { error?: string; env?: TOptions; result?: any };
@@ -111,7 +113,7 @@ export type TResolvedFeature = TExpandedFeature & {
 
 export type TTagValue = number;
 export type TTag = {
-  when: number,
+  when: string
   sequence: number;
   featureNum: number;
   loop: number;
@@ -302,6 +304,7 @@ export type TEndFeatureCallback = (params: TEndFeatureCallbackParams) => Promise
 export type TRunEnv = { [name: string]: string };
 // FIXME remove protoOptions, splits, etc.
 export type TRunOptions = {
+  key: string;
   loops: number;
   members: number;
   trace: boolean;

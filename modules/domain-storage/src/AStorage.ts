@@ -142,6 +142,13 @@ export abstract class AStorage extends AStepper {
                 return OK;
             }
         },
+        fileExists: {
+            gwta: `storage entry {what} exists`,
+            action: async ({ what }: TNamed) => {
+                const exists = this.exists(what);
+                return exists ? OK : actionNotOK(`file ${what} does not exist`);
+            }
+        },
         clearAllFiles: {
             gwta: `clear files`,
             action: async () => {

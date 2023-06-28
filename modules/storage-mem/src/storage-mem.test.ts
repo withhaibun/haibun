@@ -6,7 +6,7 @@ import { EMediaTypes } from '@haibun/domain-storage/build/domain-storage.js';
 import StorageMem from './storage-mem.js';
 import { Timer } from '@haibun/core/build/lib/Timer.js';
 
-const when = Timer.startTime.getTime();
+const when = Timer.key;
 
 describe('BASE_FS', () => {
     it('finds BASE_FS file', async () => {
