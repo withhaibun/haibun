@@ -23,7 +23,7 @@ const WebHttp = class WebHttp extends AStepper {
       },
     },
     hasContent: {
-      gwta: 'fetch from {url} is {what}',
+      gwta: 'fetch from {url} matches {what}',
       action: async ({ url, what }: TNamed) => {
         const response = await fetch(url);
         const text = await response.text();
