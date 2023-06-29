@@ -1,13 +1,10 @@
-import { IHasOptions, OK, TWorld, TNamed, TOptions, AStepper, TVStep, IHasBuilder } from '@haibun/core/build/lib/defs.js';
-import { actionNotOK, getFromRuntime, getStepperOption, intOrError } from '@haibun/core/build/lib/util/index.js';
-import { WorkspaceContext } from '@haibun/core/build/lib/contexts.js'
+import { IHasOptions, OK, TWorld, TNamed, TOptions, AStepper, TVStep, } from '@haibun/core/build/lib/defs.js';
+import { getFromRuntime, getStepperOption, intOrError } from '@haibun/core/build/lib/util/index.js';
 import { IWebServer, WEBSERVER, } from './defs.js';
 import { ServerExpress, DEFAULT_PORT } from './server-express.js';
-import { WebPageBuilder } from '@haibun/domain-webpage/build/WebPageBuilder.js';
 import { WEB_PAGE } from '@haibun/domain-webpage/build/domain-webpage.js';
-import { getDomain } from '@haibun/core/build/lib/domain.js';
 
-const WebServerStepper = class WebServerStepper extends AStepper implements IHasOptions /*, IHasBuilder*/ {
+const WebServerStepper = class WebServerStepper extends AStepper implements IHasOptions {
   webserver: ServerExpress | undefined;
 
   options = {
@@ -52,20 +49,6 @@ const WebServerStepper = class WebServerStepper extends AStepper implements IHas
         // TODO mount the page
         return OK;
       },
-      /*
-      build: async ({ location }: TNamed, { source }: TVStep, workspace: WorkspaceContext) => {
-        if (location !== location.replace(/[^a-zA-Z-0-9.]/g, '')) {
-          throw Error(`${WEB_PAGE} location ${location} has illegal characters`);
-        }
-        const subdir = this.getWorld().shared.get('file_location');
-        if (!subdir) {
-          throw Error(`must declare a file_location`);
-        }
-        const folder = `files/${subdir}`;
-        workspace.addBuilder(new WebPageBuilder(source.name, this.getWorld().logger, location, folder));
-        return { ...OK, finalize: this.finalize };
-      },
-      */
     },
     isListening: {
       gwta: 'webserver is listening',
@@ -87,24 +70,12 @@ const WebServerStepper = class WebServerStepper extends AStepper implements IHas
       action: async ({ where, loc }: TNamed) => {
         return this.doServeFiles(where, loc);
       },
-      /*
-      build: async ({ loc }: TNamed) => {
-        this.getWorld().shared.set('file_location', loc);
-        return OK;
-      }
-      */
     },
     serveFiles: {
       gwta: 'serve files from {loc}',
       action: async ({ loc }: TNamed) => {
         return this.doServeFiles('/', loc);
       },
-      /*
-      build: async ({ loc }: TNamed) => {
-        this.getWorld().shared.set('file_location', loc);
-        return OK;
-      }
-      */
     },
   };
   doServeFiles(where, loc) {
@@ -113,22 +84,6 @@ const WebServerStepper = class WebServerStepper extends AStepper implements IHas
     // this.getWorld().shared.set('file_location', loc);
     return OK;
   }
-  /*
-  finalize = (workspace: WorkspaceContext) => {
-    if (workspace.get('_finalized')) {
-      return;
-    }
-    workspace.set('_finalized', true);
-    const builder = workspace.getBuilder();
-
-    const shared = builder.finalize();
-    const domain = getDomain(WEB_PAGE, this.getWorld()).shared.get(builder.name);
-
-    for (const [name, val] of shared) {
-      domain.set(name, val);
-    }
-  };
-  */
 };
 export default WebServerStepper;
 
