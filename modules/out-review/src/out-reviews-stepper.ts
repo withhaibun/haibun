@@ -13,7 +13,9 @@ import StorageFS from "@haibun/storage-fs/build/storage-fs.js";
 import { ReviewsUtils } from "./lib/ReviewsUtils.js";
 import { Timer } from "@haibun/core/build/lib/Timer.js";
 
-export const REVIEW_FILE = 'review.json';
+export const REVIEW_FILE = 'review.html';
+export const REVIEWS_INDEX_FILE = 'reviews.html';
+export const REVIEW_LINKER = 'reviews.json';
 
 // FIXME use TRACK_STORAGE
 export const STORAGE = 'STORAGE';
@@ -21,7 +23,7 @@ export const TRACKS_STORAGE = 'TRACKS_STORAGE';
 export const REVIEWS_STORAGE = 'REVIEWS_STORAGE';
 export const PUBLISH_STORAGE = 'PUBLISH_STORAGE';
 export const INDEX_STORAGE = 'INDEX_STORAGE';
-export const DASHBOARD_ROOT = 'DASHBOARD_ROOT';
+export const PUBLISH_ROOT = 'PUBLISH_ROOT';
 const URI_ARGS = 'URI_ARGS';
 
 export const MISSING_TRACKS: TIndexSummaryResult = { ok: false, sourcePath: 'missing', featureTitle: 'Missing tracks file', startTime: new Date().toString() };
@@ -38,6 +40,11 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
 
   requireDomains = [STORAGE_LOCATION, STORAGE_ITEM];
   options = {
+    [STORAGE]: {
+      altSource: 'STORAGE',
+      desc: 'General storage type',
+      parse: (input: string) => stringOrError(input)
+    },
     [TRACKS_STORAGE]: {
       required: true,
       altSource: 'STORAGE',
@@ -62,12 +69,12 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
       desc: 'Extra arguments for html assets',
       parse: (input: string) => stringOrError(input)
     },
-    [DASHBOARD_ROOT]: {
-      desc: 'Root path for dashboard',
+    [PUBLISH_ROOT]: {
+      desc: 'Root path for publishing',
       parse: (input: string) => stringOrError(input)
     },
   };
-  dashboardRoot: string;
+  publishRoot: string;
 
   setWorld(world: TWorld, steppers: AStepper[]) {
     super.setWorld(world, steppers);
@@ -75,7 +82,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     this.reviewsStorage = findStepperFromOption(steppers, this, world.extraOptions, REVIEWS_STORAGE, STORAGE);
     this.indexStorage = findStepperFromOption(steppers, this, world.extraOptions, INDEX_STORAGE, STORAGE);
     this.publishStorage = findStepperFromOption(steppers, this, world.extraOptions, PUBLISH_STORAGE, STORAGE);
-    this.dashboardRoot = getStepperOption(this, DASHBOARD_ROOT, this.getWorld().extraOptions) || './dashboard';
+    this.publishRoot = getStepperOption(this, PUBLISH_ROOT, this.getWorld().extraOptions) || './published';
     const localFS = new StorageFS();
     localFS.setWorld(world, steppers);
     this.localFS = localFS;
@@ -185,9 +192,10 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
       exact: `create dashboard page`,
       action: async () => {
         const web = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'dashboard', 'web');
-        await this.utils.recurseCopy({ src: `${web}/public`, fromFS: this.localFS, toFS: this.publishStorage, toFolder: this.dashboardRoot, trimFolder: `${web}/public` });
-        await this.utils.recurseCopy({ src: `${web}/built`, fromFS: this.localFS, toFS: this.publishStorage, toFolder: this.dashboardRoot, trimFolder: `${web}/built` });
-        return actionOK({ tree: { summary: 'wrote files', details: await this.publishStorage.readTree(this.dashboardRoot) } })
+        await this.publishStorage.ensureDirExists(this.publishRoot);
+        await this.utils.recurseCopy({ src: `${web}/public`, fromFS: this.localFS, toFS: this.publishStorage, toFolder: this.publishRoot, trimFolder: `${web}/public` });
+        await this.utils.recurseCopy({ src: `${web}/built`, fromFS: this.localFS, toFS: this.publishStorage, toFolder: this.publishRoot, trimFolder: `${web}/built` });
+        return actionOK({ tree: { summary: 'wrote files', details: await this.publishStorage.readTree(this.publishRoot) } })
       }
     },
     publishDashboardReviewLinks: {
@@ -195,10 +203,10 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
       action: async () => {
         let setting = this.getWorld().options.SETTING;
         setting = setting ? `${setting}-` : '';
-        const index = this.indexStorage.fromCaptureLocation(EMediaTypes.json, REVIEW_FILE);
-        const contents = await this.publishStorage.readFile(index);
+        const linker = this.indexStorage.fromCaptureLocation(EMediaTypes.json, REVIEW_LINKER);
+        const contents = await this.publishStorage.readFile(linker);
         // FIXME use AStorage
-        const dest = [this.dashboardRoot, 'reviews'].join('/');
+        const dest = [this.publishRoot, 'reviews'].join('/');
         await this.reviewsStorage.ensureDirExists(dest);
         await this.publishStorage.writeFile(`${dest}/${setting}${Timer.key}.json`, contents, EMediaTypes.json);
         return actionOK({ tree: { summary: 'wrote files', details: await this.publishStorage.readTree(dest) } })
@@ -243,8 +251,8 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     const isum = summary(results);
 
     const html = await htmlGenerator.getHtmlDocument(isum, { title: 'Feature Result Index' });
-    const indexHtml = this.publishStorage?.fromCaptureLocation(EMediaTypes.html, 'index.html');
-    const published = this.publishStorage?.fromCaptureLocation(EMediaTypes.json, REVIEW_FILE);
+    const indexHtml = this.publishStorage?.fromCaptureLocation(EMediaTypes.html, REVIEWS_INDEX_FILE);
+    const published = this.publishStorage?.fromCaptureLocation(EMediaTypes.json, REVIEW_LINKER);
 
     await this.publishStorage?.writeFile(indexHtml, html, EMediaTypes.html);
     await this.publishStorage?.writeFile(published, JSON.stringify({ published }), EMediaTypes.json);
@@ -258,7 +266,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     const htmlGenerator = new HtmlGenerator(uriArgs);
 
     const dir = await this.reviewsStorage.getCaptureLocation(loc);
-    const reviewHtml = await this.reviewsStorage.getCaptureLocation(loc, `review.html`);
+    const reviewHtml = await this.reviewsStorage.getCaptureLocation(loc, REVIEW_FILE);
     await this.reviewsStorage.ensureDirExists(dir);
 
     const { featureJSON, script } = await this.utils.getFeatureDisplay(tracksDoc, htmlGenerator, loc, dir);
@@ -277,7 +285,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     // FIXME media type is ...
     const src = await fromFS.fromCaptureLocation(EMediaTypes.html, world.options.DEST);
 
-    await this.utils.recurseCopy({ src, fromFS, toFS });
+    await this.utils.recurseCopy({ src, fromFS, toFS, toFolder: this.publishRoot });
   }
   async writeTracksFile(loc: TLocationOptions, title: string, result: TFeatureResult, startTime: Date, startOffset: number) {
     const dir = await this.reviewsStorage.ensureCaptureLocation(loc, 'tracks', `tracks.json`);

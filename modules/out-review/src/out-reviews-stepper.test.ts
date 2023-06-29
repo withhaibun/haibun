@@ -1,12 +1,10 @@
 import { testWithDefaults } from '@haibun/core/build/lib/test/lib.js';
-import OutReviews, { DASHBOARD_ROOT, REVIEWS_STORAGE, REVIEW_FILE, TRACKS_STORAGE } from './out-reviews-stepper.js';
+import OutReviews, { PUBLISH_ROOT, REVIEW_LINKER, STORAGE } from './out-reviews-stepper.js';
 import DomainStorage from '@haibun/domain-storage/build/domain-storage.js'
 import { getStepperOptionName } from '@haibun/core/build/lib/util/index.js';
 import { DEFAULT_DEST } from '@haibun/core/build/lib/defs.js';
 import StorageFS from '@haibun/storage-fs/build/storage-fs.js';
 import StorageMem from '@haibun/storage-mem/build/storage-mem.js';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { Timer } from '@haibun/core/build/lib/Timer.js';
 
 const track = JSON.stringify({
@@ -74,8 +72,7 @@ describe('reviews', () => {
         const result = await testWithDefaults([feature], [OutReviews, DomainStorage, StorageMem, StorageFS], {
             options: { DEST: DEFAULT_DEST },
             extraOptions: {
-                [getStepperOptionName(outReviewsStepper, TRACKS_STORAGE)]: 'StorageMem',
-                [getStepperOptionName(outReviewsStepper, REVIEWS_STORAGE)]: 'StorageMem',
+                [getStepperOptionName(outReviewsStepper, STORAGE)]: 'StorageMem',
             },
         });
         expect(result.ok).toBe(true);
@@ -90,8 +87,7 @@ describe('indexes', () => {
         const result = await testWithDefaults([feature], [OutReviews, DomainStorage, StorageMem, StorageFS], {
             options: { DEST: DEFAULT_DEST },
             extraOptions: {
-                [getStepperOptionName(outReviewsStepper, TRACKS_STORAGE)]: 'StorageMem',
-                [getStepperOptionName(outReviewsStepper, REVIEWS_STORAGE)]: 'StorageMem',
+                [getStepperOptionName(outReviewsStepper, STORAGE)]: 'StorageMem',
             },
         });
         expect(result.ok).toBe(true);
@@ -106,9 +102,8 @@ describe('dashboard', () => {
         const result = await testWithDefaults([feature], [OutReviews, DomainStorage, StorageMem, StorageFS], {
             options: { DEST: DEFAULT_DEST },
             extraOptions: {
-                [getStepperOptionName(outReviewsStepper, TRACKS_STORAGE)]: 'StorageMem',
-                [getStepperOptionName(outReviewsStepper, REVIEWS_STORAGE)]: 'StorageMem',
-                [getStepperOptionName(outReviewsStepper, DASHBOARD_ROOT)]: '/test',
+                [getStepperOptionName(outReviewsStepper, STORAGE)]: 'StorageMem',
+                [getStepperOptionName(outReviewsStepper, PUBLISH_ROOT)]: '/test',
             },
         });
         expect(result.ok).toBe(true);
@@ -120,16 +115,15 @@ describe('dashboard', () => {
 
     it('Generates dashboard review links', async () => {
         StorageMem.BASE_FS = {
-            [`./capture/${REVIEW_FILE}`]: JSON.stringify({ published: 'miaow' })
+            [`./capture/${REVIEW_LINKER}`]: JSON.stringify({ published: 'miaow' })
         };
         const outReviewsStepper = new OutReviews();
         const feature = { path: '/features/test.feature', content: `publish dashboard review link` };
         const result = await testWithDefaults([feature], [OutReviews, DomainStorage, StorageMem, StorageFS], {
             options: { DEST: DEFAULT_DEST },
             extraOptions: {
-                [getStepperOptionName(outReviewsStepper, TRACKS_STORAGE)]: 'StorageMem',
-                [getStepperOptionName(outReviewsStepper, REVIEWS_STORAGE)]: 'StorageMem',
-                [getStepperOptionName(outReviewsStepper, DASHBOARD_ROOT)]: '/test',
+                [getStepperOptionName(outReviewsStepper, STORAGE)]: 'StorageMem',
+                [getStepperOptionName(outReviewsStepper, PUBLISH_ROOT)]: '/test',
             },
         });
         expect(result.ok).toBe(true);
