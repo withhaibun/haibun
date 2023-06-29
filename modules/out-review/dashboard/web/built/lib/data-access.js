@@ -10,7 +10,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 export class DataAccess {
     constructor() {
         this.latest = [];
-        this.apiUrl = '/links';
+        this.apiUrl = 'reviews';
     }
     getLatest() {
         return __awaiter(this, void 0, void 0, function* () {
@@ -47,7 +47,7 @@ export class DataAccess {
             if (!reviews) {
                 return [];
             }
-            let foundReviews = [];
+            const foundReviews = [];
             for (const review of reviews) {
                 foundReviews.push(yield this.getJSON(review));
             }

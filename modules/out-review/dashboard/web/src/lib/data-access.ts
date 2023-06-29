@@ -3,7 +3,7 @@ export type TReview = { link: string; title: string; date: string; results: { fa
 
 export class DataAccess {
   private latest: string[] = [];
-  private apiUrl = '/links';
+  private apiUrl = 'reviews';
 
   async getLatest() {
     if (this.latest.length > 0) {
@@ -37,7 +37,7 @@ export class DataAccess {
     if (!reviews) {
       return [];
     }
-    let foundReviews: TReview[] = [];
+    const foundReviews: TReview[] = [];
     for (const review of reviews) {
       foundReviews.push(await this.getJSON(review));
     }
