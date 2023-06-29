@@ -274,7 +274,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       },
     },
     beOnPage: {
-      gwta: `be on the {name} page`,
+      gwta: `be on the {name} ${WEB_PAGE}`,
       action: async ({ name }: TNamed) => {
         const nowon = await this.withPage(async (page: Page) => await page.url());
         if (nowon === name) {
@@ -480,7 +480,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
 
     //                          NAVIGATION
     onPage: {
-      gwta: `On the {name} ${WEB_PAGE}`,
+      gwta: `go to the {name} ${WEB_PAGE}`,
       action: async ({ name }: TNamed) => {
         const location = name.includes('://') ? name : onCurrentTypeForDomain({ name, type: WEB_PAGE }, this.getWorld());
         const response = await this.withPage<Response>(async (page: Page) => {
