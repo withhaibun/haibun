@@ -89,8 +89,7 @@ const Haibun = class Haibun extends AStepper {
     },
     comment: {
       gwta: '#{comment}',
-      action: async ({ comment }: TNamed) => {
-        this.getWorld().logger.log(`comment: ${comment}`);
+      action: async () => {
         return OK;
       },
     },
