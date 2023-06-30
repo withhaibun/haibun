@@ -20,7 +20,7 @@ export type TOptions = TBaseOptions & {
   [name: string]: TOptionValue;
 };
 
-export type TOptionValue = any;
+export type TOptionValue = TAnyFixme;
 
 export interface IHasOptions {
   options?: {
@@ -30,7 +30,7 @@ export interface IHasOptions {
       altSource?: string;
       default?: string;
       desc: string;
-      parse: (input: string, existing?: TOptionValue) => { error?: string; env?: TOptions; result?: any };
+      parse: (input: string, existing?: TOptionValue) => { error?: string; env?: TOptions; result?: TAnyFixme };
     };
   };
 }
@@ -118,7 +118,7 @@ export type TTag = {
   featureNum: number;
   loop: number;
   member: number;
-  params: any;
+  params: TAnyFixme;
   trace: boolean;
 };
 
@@ -142,8 +142,8 @@ export abstract class WorkspaceBuilder {
   constructor(name: string) {
     this.name = name;
   }
-  abstract addControl(...args: any);
-  abstract finalize(): any;
+  abstract addControl(...args: TAnyFixme);
+  abstract finalize(): TAnyFixme;
 }
 
 export type TStep = {
@@ -165,6 +165,8 @@ export interface CStepper {
   };
 }
 
+// punt any type problems
+export type TAnyFixme = any;
 export abstract class AStepper {
   world?: TWorld;
   close?(): void;
@@ -191,7 +193,7 @@ export const OK: TOKActionResult = { ok: true };
 
 export type TExecutorResultError = {
   details: {
-    [name: string]: any;
+    [name: string]: TAnyFixme;
     stack: string[];
   };
   message: string;
@@ -214,7 +216,7 @@ export type TOKActionResult = {
   topics?: TActionResultTopics;
 };
 
-export type TActionResultTopics = { [topic: string]: { summary: string; details?: any } };
+export type TActionResultTopics = { [topic: string]: { summary: string; details?: TAnyFixme } };
 
 export type TNotOKActionResult = {
   ok: false;
@@ -228,7 +230,7 @@ export type TTrace = {
   [name: string]: {
     url: string;
     since: number;
-    trace: any;
+    trace: TAnyFixme;
   };
 };
 
@@ -241,7 +243,7 @@ export type TTraces = {
 
 export type TTraceOptions = {
   [event: string]: {
-    listener: any;
+    listener: TAnyFixme;
   };
 };
 
@@ -267,8 +269,8 @@ export type TFeatureResult = {
 
 export type TFeatureResultFailure = {
   message: string;
-  error: any;
-  expected?: any;
+  error: TAnyFixme;
+  expected?: TAnyFixme;
 };
 
 export type TStepResult = {
@@ -279,10 +281,10 @@ export type TStepResult = {
   seq: number;
 };
 
-export type TRuntime = { [name: string]: any };
+export type TRuntime = { [name: string]: TAnyFixme };
 
 export interface IResultOutput {
-  writeOutput(result: TExecutorResult, args: any): Promise<any>;
+  writeOutput(result: TExecutorResult, args: TAnyFixme): Promise<TAnyFixme>;
 }
 
 export const HAIBUN = 'HAIBUN';
@@ -316,6 +318,6 @@ export type TRunOptions = {
   splits: TRunEnv[];
   protoOptions: TProtoOptions;
 };
-export type TRunResult = { output: any; result: TExecutorResult; shared: WorldContext; tag: TTag; runStart: number; runDuration: number; fromStart: number };
+export type TRunResult = { output: TAnyFixme; result: TExecutorResult; shared: WorldContext; tag: TTag; runStart: number; runDuration: number; fromStart: number };
 
 export const STAY_ALWAYS = 'always';

@@ -1,5 +1,5 @@
 import { IHasOptions, OK, TWorld, TNamed, TOptions, AStepper, TVStep, } from '@haibun/core/build/lib/defs.js';
-import { getFromRuntime, getStepperOption, intOrError } from '@haibun/core/build/lib/util/index.js';
+import { actionNotOK, getFromRuntime, getStepperOption, intOrError } from '@haibun/core/build/lib/util/index.js';
 import { IWebServer, WEBSERVER, } from './defs.js';
 import { ServerExpress, DEFAULT_PORT } from './server-express.js';
 import { WEB_PAGE } from '@haibun/domain-webpage/build/domain-webpage.js';
@@ -33,27 +33,15 @@ const WebServerStepper = class WebServerStepper extends AStepper implements IHas
         const page = vstep.source.name;
 
         const webserver = <IWebServer>getFromRuntime(this.getWorld().runtime, WEBSERVER);
-        webserver.addStaticFolder(page, where);
-        console.debug('added page', page);
-
+        await webserver.checkAddStaticFolder(page, where);
         return OK;
       },
     },
     /// generator
-    webpage: {
-      gwta: `A ${WEB_PAGE} {name} hosted at {location}`,
-      action: async ({ name, location }: TNamed, vsteps: TVStep) => {
-        const page = vsteps.source.name;
-
-        const webserver = getFromRuntime(this.getWorld().runtime, WEBSERVER);
-        // TODO mount the page
-        return OK;
-      },
-    },
     isListening: {
       gwta: 'webserver is listening',
       action: async () => {
-        await this.webserver.listen();
+        await this.listen();
         return OK;
       },
     },
@@ -68,21 +56,29 @@ const WebServerStepper = class WebServerStepper extends AStepper implements IHas
     serveFilesAt: {
       gwta: 'serve files at {where} from {loc}',
       action: async ({ where, loc }: TNamed) => {
-        return this.doServeFiles(where, loc);
+        await this.doServeFiles(where, loc).catch((e) => actionNotOK(e));
+        return OK;
       },
     },
     serveFiles: {
       gwta: 'serve files from {loc}',
       action: async ({ loc }: TNamed) => {
-        return this.doServeFiles('/', loc);
-      },
-    },
-  };
-  doServeFiles(where, loc) {
+        const r =  await this.doServeFiles('/', loc).catch((e) => actionNotOK(e));
+        return r;
+      }
+    }
+  }
+  async doServeFiles(where, loc) {
     const ws: IWebServer = getFromRuntime(this.getWorld().runtime, WEBSERVER);
-    ws.addStaticFolder(loc, where);
-    // this.getWorld().shared.set('file_location', loc);
+    const res = ws.checkAddStaticFolder(loc, where);
+    if (res) {
+      throw Error(`failed to add static folder ${loc} at ${where}`);
+    }
+    await this.listen();
     return OK;
+  }
+  async listen() {
+    await this.webserver.listen();
   }
 };
 export default WebServerStepper;

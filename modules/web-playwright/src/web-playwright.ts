@@ -1,6 +1,6 @@
 import { Page, Response, Download } from 'playwright';
 
-import { IHasOptions, OK, TNamed, IRequireDomains, TStepResult, TTraceOptions, TTrace, AStepper, TWorld, TVStep } from '@haibun/core/build/lib/defs.js';
+import { IHasOptions, OK, TNamed, IRequireDomains, TStepResult, TTraceOptions, TTrace, AStepper, TWorld, TVStep, TAnyFixme } from '@haibun/core/build/lib/defs.js';
 import { onCurrentTypeForDomain } from '@haibun/core/build/steps/vars.js';
 import { BrowserFactory, TBrowserFactoryOptions, TBrowserTypes } from './BrowserFactory.js';
 import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOption } from '@haibun/core/build/lib/util/index.js';
@@ -119,7 +119,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     return page;
   }
 
-  async withPage<TReturn>(f: any): Promise<TReturn> {
+  async withPage<TReturn>(f: TAnyFixme): Promise<TReturn> {
     const page = this.withFrame ? (await this.getPage()).frameLocator(this.withFrame) : await this.getPage();
     this.withFrame && console.log('using frame', this.withFrame);
     this.withFrame = undefined;
@@ -195,9 +195,8 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     selectionOption: {
       gwta: `select {option} for {field: ${WEB_CONTROL}}`,
       action: async ({ option, field }: TNamed) => {
-        const res = await this.withPage(async (page: Page) => await page.selectOption(field, { label: option }));
+        await this.withPage(async (page: Page) => await page.selectOption(field, { label: option }));
         // FIXME have to use id value
-        // return res === [id] ? ok : {...notOk, details: { message: `received ${res} selecting from ${what} with id ${id}`}};
         return OK;
       },
     },
@@ -399,7 +398,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
         } catch (e) {
           return actionNotOK(`could not parse role ${roleStr} as JSON: ${e}`);
         }
-        await this.withPage(async (page: Page) => await page.getByRole(<any>role, rest || {}).click());
+        await this.withPage(async (page: Page) => await page.getByRole(<TAnyFixme>role, rest || {}).click());
         return OK;
       }
     },
@@ -463,7 +462,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       action: async ({ name }: TNamed, vstep: TVStep) => {
         const modifier = vstep.in.match(/ with alt /) ? { modifiers: ['Alt'] } : {};
         const field = this.getWorld().shared.get(name) || name;
-        await this.withPage(async (page: Page) => await page.click(field, <any>modifier));
+        await this.withPage(async (page: Page) => await page.click(field, <TAnyFixme>modifier));
         return OK;
       },
     },

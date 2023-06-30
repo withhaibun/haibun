@@ -4,7 +4,7 @@ export const CHECK_LISTENER = 'CHECK_LISTENER';
 import * as express from 'express';
 
 export interface IWebServer {
-  addStaticFolder(subdir: string, loc: string): void;
+  checkAddStaticFolder(subdir: string, loc: string): undefined | string ;
   addKnownStaticFolder(subdir: string, mountAt?: string): void;
   listen(): Promise<unknown>;
   close(): Promise<void>;

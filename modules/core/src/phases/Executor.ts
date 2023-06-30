@@ -1,4 +1,4 @@
-import { TVStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, AStepper, TEndFeatureCallback, CStepper, TFound, STAY_ALWAYS } from '../lib/defs.js';
+import { TVStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, AStepper, TEndFeatureCallback, CStepper, TFound, STAY_ALWAYS, TAnyFixme } from '../lib/defs.js';
 import { getNamedToVars } from '../lib/namedVars.js';
 import { actionNotOK, applyResShouldContinue, setStepperWorlds, sleep, createSteppers, findStepper } from '../lib/util/index.js';
 
@@ -7,9 +7,10 @@ export class Executor {
   static async action(steppers: AStepper[], vstep: TVStep, found: TFound, world: TWorld) {
     const namedWithVars = getNamedToVars(found, world, vstep);
     const stepper = findStepper<AStepper>(steppers, found.stepperName);
-    return await stepper.steps[found.actionName].action(namedWithVars, vstep).catch((caught: any) => {
+    const action = stepper.steps[found.actionName].action;
+    return await action(namedWithVars, vstep).catch((caught: TAnyFixme) => {
       world.logger.error(caught.stack);
-      return actionNotOK(`in ${vstep.in}: ${caught.message}`, { topics: { caught: caught.stack.toString() } });
+      return actionNotOK(`in ${vstep.in}: ${caught.message}`, { topics: { caught: (caught?.stack || caught).toString() } });
     });
   }
   static async execute(csteppers: CStepper[], world: TWorld, features: TResolvedFeature[], endFeatureCallback?: TEndFeatureCallback): Promise<TExecutorResult> {
@@ -56,12 +57,12 @@ export class FeatureExecutor {
   async setup(world: TWorld) {
     this.world = world;
     this.startOffset = world.timer.since();
-    const errorBail = (phase: string, error: any, extra?: any) => {
+    const errorBail = (phase: string, error: TAnyFixme, extra?: TAnyFixme) => {
       console.error('error', phase, error, extra);
       throw Error(error);
     };
     const steppers = await createSteppers(this.csteppers);
-    await setStepperWorlds(steppers, world).catch((error: any) => errorBail('Apply Options', error, world.extraOptions));
+    await setStepperWorlds(steppers, world).catch((error: TAnyFixme) => errorBail('Apply Options', error, world.extraOptions));
     this.steppers = steppers;
   }
   async doFeature(feature: TResolvedFeature): Promise<TFeatureResult> {
@@ -140,7 +141,7 @@ export class FeatureExecutor {
     if (this.endFeatureCallback) {
       try {
         await this.endFeatureCallback({ world: this.world, result: featureResult, steppers: this.steppers, startOffset: this.startOffset });
-      } catch (error: any) {
+      } catch (error: TAnyFixme) {
         throw Error(error);
       }
     }

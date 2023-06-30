@@ -1,6 +1,6 @@
 import path from "path";
 
-import { CAPTURE, TFeatureResult, TTag } from "@haibun/core/build/lib/defs.js";
+import { CAPTURE, TAnyFixme, TFeatureResult, TTag } from "@haibun/core/build/lib/defs.js";
 import { getFeatureTitlesFromResults, getRunTag } from "@haibun/core/build/lib/util/index.js";
 import { AStorage } from "@haibun/domain-storage/build/AStorage.js";
 import { TLocationOptions, EMediaTypes, TMissingTracks, TTrackResult, guessMediaExt } from "@haibun/domain-storage/build/domain-storage.js";
@@ -138,7 +138,7 @@ export class ReviewsUtils {
             return result;
         } catch (e) {
             return {
-                error: (<any>e).toString()
+                error: (<TAnyFixme>e).toString()
             };
         }
     }
@@ -191,7 +191,7 @@ export class ReviewsUtils {
             for (const stepResult of (result as TFeatureResult).stepResults) {
                 for (const actionResult of stepResult.actionResults) {
                     const sr: Partial<TSummaryItem> = {
-                        start: (actionResult as any).start, seq: stepResult.seq, in: stepResult.in,
+                        start: (actionResult as TAnyFixme).start, seq: stepResult.seq, in: stepResult.in,
                         sourcePath: stepResult.sourcePath,
                         ok: actionResult.ok, name: actionResult.name, topics: actionResult.topics, traces: actionResult.traces
                     };

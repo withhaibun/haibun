@@ -21,6 +21,7 @@ import {
   TTagValue,
   TFeatureResult,
   TBase,
+  TAnyFixme,
 } from '../defs.js';
 import { Timer } from '../Timer.js';
 
@@ -283,7 +284,7 @@ export function findStepperFromOption<Type>(steppers: AStepper[], stepper: AStep
 }
 
 export function findStepper<Type>(steppers: AStepper[], name: string): Type {
-  const stepper = <Type>(steppers.find((s) => s.constructor.name === name) as any);
+  const stepper = <Type>(steppers.find((s) => s.constructor.name === name) as TAnyFixme);
   if (!stepper) {
     // FIXME does not cascade
     throw Error(
@@ -301,7 +302,7 @@ export function getFromRuntime<Type>(runtime: TRuntime, name: string): Type {
   return runtime[name] as Type;
 }
 
-export function applyResShouldContinue(world: any, res: Partial<TActionResult>, vstep: TFound): boolean {
+export function applyResShouldContinue(world: TWorld, res: Partial<TActionResult>, vstep: TFound): boolean {
   const { score, message } = res as TNotOKActionResult;
   if (res.ok) {
     return true;
@@ -319,7 +320,7 @@ export const getRunTag = (sequence: TTagValue, loop: TTagValue, featureNum: TTag
   const when = Timer.key;
   const res: TTag = { when, sequence, loop, member, featureNum, params, trace };
   ['sequence', 'loop', 'member', 'featureNum'].forEach((w) => {
-    const val = (res as any)[w];
+    const val = (res as TAnyFixme)[w];
     if (parseInt(val) !== val) {
       throw Error(`non-numeric ${w} from ${JSON.stringify(res)}`);
     }
@@ -380,7 +381,7 @@ export function trying<TResult>(fun: () => void): Promise<Error | TResult> {
 }
 
 export function asError(e: unknown): Error {
-  return typeof e === 'object' && e !== null && 'message' in e && typeof (e as Record<string, unknown>).message === 'string' ? (e as Error) : new Error(e as any);
+  return typeof e === 'object' && e !== null && 'message' in e && typeof (e as Record<string, unknown>).message === 'string' ? (e as Error) : new Error(e as TAnyFixme);
 }
 
 export const getSerialTime = () => Date.now();

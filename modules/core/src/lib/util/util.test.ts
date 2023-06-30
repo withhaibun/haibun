@@ -3,7 +3,7 @@ import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, getDefaultWorld, testWithDefaults
 import TestSteps from '../test/TestSteps.js';
 import TestStepsWithOptions from '../test/TestStepsWithOptions.js';
 import { withNameType } from '../features.js';
-import { AStepper, IHasOptions, OK } from '../defs.js';
+import { AStepper, IHasOptions, OK, TAnyFixme } from '../defs.js';
 
 describe('output', () => {
   it('OutputResult default', async () => {
@@ -159,10 +159,10 @@ describe('asError', () => {
     expect(util.asError(true)).toEqual(new Error('true'));
   });
   it('should pass an object', () => {
-    expect(util.asError({ a: 1 })).toEqual(new Error({ a: 1 } as any));
+    expect(util.asError({ a: 1 })).toEqual(new Error({ a: 1 } as TAnyFixme));
   });
   it('should pass an array', () => {
-    expect(util.asError([1, 2])).toEqual(new Error([1, 2] as any));
+    expect(util.asError([1, 2])).toEqual(new Error([1, 2] as TAnyFixme));
   });
   it('should pass null', () => {
     expect(util.asError(null)).toEqual(new Error('null'));

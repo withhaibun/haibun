@@ -41,7 +41,6 @@ export class ServerExpress implements IWebServer {
             resolve('started');
           });
         } catch (e) {
-          console.error(e);
           reject(e);
         }
       } else {
@@ -51,66 +50,69 @@ export class ServerExpress implements IWebServer {
     });
   }
 
-  async addRoute(type: TRouteTypes, path: string, route: RequestHandler) {
+  addRoute(type: TRouteTypes, path: string, route: RequestHandler) {
     if (type !== 'get' && type !== 'post') {
       throw Error(`invalid route type ${type}`);
     }
-    this.checkMountBadOrMounted(type, path, route.toString());
+    const bad = this.checkMountBadOrMounted('get', path, route.toString());
+    if (bad) {
+      throw Error(bad);
+    }
 
     this.logger.log(`adding ${type} route from ${path}`);
     this.app[type](path, route);
 
-    await this.addMounted(type, path, route.toString());
+    this.addMounted(type, path, route.toString());
   }
 
-  private async addMounted(type: string, path: string, what: string) {
+  private addMounted(type: string, path: string, what: string) {
     ServerExpress.mounted[type][path] = what;
-
-    if (!this.listener) {
-      await this.listen();
-    }
   }
 
   // add a static folder restricted to relative paths from files
-  async addStaticFolder(relativeFolder: string, mountAt = '/') {
+  checkAddStaticFolder(relativeFolder: string, mountAt = '/') {
     const folder = [this.base, relativeFolder].join('/');
-    await this.doAddStaticFolder(folder, mountAt);
+    return this.doAddStaticFolder(folder, mountAt);
   }
 
   // add a static folder at any path
-  async addKnownStaticFolder(folder: string, mountAt = '/') {
-    await this.doAddStaticFolder(folder, mountAt);
+  addKnownStaticFolder(folder: string, mountAt = '/') {
+    this.doAddStaticFolder(folder, mountAt);
   }
 
-  private async doAddStaticFolder(folder: string, mountAt = '/') {
-    this.checkMountBadOrMounted('get', mountAt, folder);
+  private doAddStaticFolder(folder: string, mountAt = '/') {
+    const bad = this.checkMountBadOrMounted('get', mountAt, folder);
+    if (bad) {
+      return bad;
+    }
     if (!existsSync(folder)) {
-      throw Error(`"${folder}" doesn't exist`);
+      return `"${folder}" doesn't exist`;
     }
     const stat = statSync(folder);
     if (!stat.isDirectory()) {
-      throw Error(`"${folder}" is not a directory`);
+      return `"${folder}" is not a directory`;
     }
 
     this.app.use(mountAt, express.static(folder));
-    await this.addMounted('get', mountAt, folder);
+    this.addMounted('get', mountAt, folder);
     this.logger.info(`serving files from ${folder} at ${mountAt}`);
     return;
   }
 
   checkMountBadOrMounted(type: string, loc: string, what: string) {
-    if (loc !== loc.replace(/[^a-zA-Z-0-9/-_]/g, '')) {
-      throw Error(`mount folder ${loc} has illegal characters`);
+    if (loc !== loc.replace(/[^a-zA-Z-0-9/\-_]/g, '')) {
+      return `mount folder ${loc} has illegal characters`;
     }
     const alreadyMounted = ServerExpress.mounted[type][loc] || Object.keys(ServerExpress.mounted[type]).find((m: string) => m.startsWith(`${loc}/`));
     if (alreadyMounted) {
-      throw Error(`cannot mount ${type} ${what} at ${loc}, ${alreadyMounted} is already mounted}`);
+      return `cannot mount ${type} ${what} at ${loc}, ${alreadyMounted} is already mounted}`;
     }
+    return undefined;
   }
 
   async close() {
-    this.logger.info('closing server');
-    this.listener?.close();
+    this.logger.info(`closing server ${this.port}`);
+    await this.listener?.close();
     ServerExpress.mounted = { get: {}, post: {} };
     ServerExpress.listening = false;
   }
