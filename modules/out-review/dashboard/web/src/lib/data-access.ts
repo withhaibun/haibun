@@ -1,9 +1,9 @@
 export type TPRData = { link: string; title: string, date: string }
-export type TReview = { link: string; title: string; date: string; results: { fail: number; success: number; } }
+import { TReviewLink } from '@haibun/out-review';
 
 export class DataAccess {
   private latest: string[] = [];
-  private apiUrl = 'reviews';
+  private apiUrl = '/reviews';
 
   async getLatest() {
     if (this.latest.length > 0) {
@@ -11,7 +11,8 @@ export class DataAccess {
     }
     const response = await fetch(`${this.apiUrl}/`);
     const data = await response.text();
-    this.latest = parseLinks(data).map(link => link.replace('./', ''));
+    this.latest = parseLinks(data).map(link => link.replace(this.apiUrl, ''))
+      .map(link => link.replace(/^\//, '')).filter(link => link.length > 0);
     return this.latest;
   }
 
@@ -31,13 +32,13 @@ export class DataAccess {
     return await this.getJSON(prLink);
   }
 
-  async getReviewData(): Promise<TReview[]> {
+  async getReviewData(): Promise<TReviewLink[]> {
     const links = await this.getLatest();
-    const reviews = links.filter(link => link.match(/.*-review-\d+\.json/));
+    const reviews = links.filter(link => link.match(/.*-review\.json/));
     if (!reviews) {
       return [];
     }
-    const foundReviews: TReview[] = [];
+    const foundReviews: TReviewLink[] = [];
     for (const review of reviews) {
       foundReviews.push(await this.getJSON(review));
     }

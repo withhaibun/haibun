@@ -10,7 +10,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 export class DataAccess {
     constructor() {
         this.latest = [];
-        this.apiUrl = 'reviews';
+        this.apiUrl = '/reviews';
     }
     getLatest() {
         return __awaiter(this, void 0, void 0, function* () {
@@ -19,7 +19,8 @@ export class DataAccess {
             }
             const response = yield fetch(`${this.apiUrl}/`);
             const data = yield response.text();
-            this.latest = parseLinks(data).map(link => link.replace('./', ''));
+            this.latest = parseLinks(data).map(link => link.replace(this.apiUrl, ''))
+                .map(link => link.replace(/^\//, '')).filter(link => link.length > 0);
             return this.latest;
         });
     }
@@ -43,7 +44,7 @@ export class DataAccess {
     getReviewData() {
         return __awaiter(this, void 0, void 0, function* () {
             const links = yield this.getLatest();
-            const reviews = links.filter(link => link.match(/.*-review-\d+\.json/));
+            const reviews = links.filter(link => link.match(/.*-review\.json/));
             if (!reviews) {
                 return [];
             }

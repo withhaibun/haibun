@@ -48,7 +48,8 @@ const WebServerStepper = class WebServerStepper extends AStepper implements IHas
     showMounts: {
       gwta: 'show mounts',
       action: async () => {
-        const mounts = ServerExpress.mounted;
+        const webserver = <IWebServer>getFromRuntime(this.getWorld().runtime, WEBSERVER);
+        const mounts = webserver.mounted;
         this.getWorld().logger.info(`mounts: ${JSON.stringify(mounts)}`);
         return OK;
       },
@@ -63,14 +64,21 @@ const WebServerStepper = class WebServerStepper extends AStepper implements IHas
     serveFiles: {
       gwta: 'serve files from {loc}',
       action: async ({ loc }: TNamed) => {
-        const r =  await this.doServeFiles('/', loc).catch((e) => actionNotOK(e));
+        const r = await this.doServeFiles('/', loc).catch((e) => actionNotOK(e));
         return r;
       }
     },
     indexFiles: {
       gwta: 'index files from {loc}',
       action: async ({ loc }: TNamed) => {
-        const r =  await this.doServeIndex('/', loc).catch((e) => actionNotOK(e));
+        const r = await this.doServeIndex('/', loc).catch((e) => actionNotOK(e));
+        return r;
+      }
+    },
+    indexFilesAt: {
+      gwta: 'index files at {where} from {loc}',
+      action: async ({ where, loc }: TNamed) => {
+        const r = await this.doServeIndex(where, loc).catch((e) => actionNotOK(e));
         return r;
       }
     }

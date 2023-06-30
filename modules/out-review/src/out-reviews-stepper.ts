@@ -17,7 +17,6 @@ export const REVIEW_FILE = 'review.html';
 export const REVIEWS_INDEX_FILE = 'reviews.html';
 export const REVIEW_LINKER = 'reviews.json';
 
-// FIXME use TRACK_STORAGE
 export const STORAGE = 'STORAGE';
 export const TRACKS_STORAGE = 'TRACKS_STORAGE';
 export const REVIEWS_STORAGE = 'REVIEWS_STORAGE';
@@ -25,6 +24,8 @@ export const PUBLISH_STORAGE = 'PUBLISH_STORAGE';
 export const INDEX_STORAGE = 'INDEX_STORAGE';
 export const PUBLISH_ROOT = 'PUBLISH_ROOT';
 const URI_ARGS = 'URI_ARGS';
+
+export type TReviewLink = { link: string; title: string; date: string; results: { fail: number; success: number; } }
 
 export const MISSING_TRACKS: TIndexSummaryResult = { ok: false, sourcePath: 'missing', featureTitle: 'Missing tracks file', startTime: new Date().toString() };
 export const MISSING_TRACKS_FILE = 'Missing tracks file';
@@ -198,20 +199,6 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
         return actionOK({ tree: { summary: 'wrote files', details: await this.publishStorage.readTree(this.publishRoot) } })
       }
     },
-    publishDashboardReviewLinks: {
-      exact: `publish dashboard review link`,
-      action: async () => {
-        let setting = this.getWorld().options.SETTING;
-        setting = setting ? `${setting}-` : '';
-        const linker = this.indexStorage.fromCaptureLocation(EMediaTypes.json, REVIEW_LINKER);
-        const contents = await this.publishStorage.readFile(linker);
-        // FIXME use AStorage
-        const dest = [this.publishRoot, 'reviews'].join('/');
-        await this.reviewsStorage.ensureDirExists(dest);
-        await this.publishStorage.writeFile(`${dest}/${setting}${Timer.key}.json`, contents, EMediaTypes.json);
-        return actionOK({ tree: { summary: 'wrote files', details: await this.publishStorage.readTree(dest) } })
-      }
-    }
   }
 
   async writeReviewsFrom(where: string[]) {
@@ -237,12 +224,17 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     const htmlGenerator = new HtmlGenerator(uriArgs);
     const results: { ok: boolean, link: string, index: TIndexSummary[], dir: string }[] = [];
 
+    let success = 0;
+    let fail = 0;
+
     for (const spec of indexDirs) {
       const [type, dirIn] = spec.split(':');
       const dir = dirIn || type;
       const summary: TIndexSummary = await (type === INDEXED ? this.utils.getIndexedResults(dir) : this.utils.getReviewSummary(dir));
 
       const ok = !!summary.results.every(r => r.ok);
+      success += summary.results.filter(r => r.ok).length;
+      fail += summary.results.filter(r => !r.ok).length;
       const index = toc(summary, dir, uriArgs, htmlGenerator.linkFor, (path: string) => this.publishStorage.pathed(EMediaTypes.html, path, `./${CAPTURE}`));
 
       results.push({ ok, dir, link: htmlGenerator.linkFor(dir), index });
@@ -250,15 +242,28 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
 
     const isum = summary(results);
 
-    const html = await htmlGenerator.getHtmlDocument(isum, { title: 'Feature Result Index' });
-    const indexHtml = this.publishStorage?.fromCaptureLocation(EMediaTypes.html, REVIEWS_INDEX_FILE);
-    const published = this.publishStorage?.fromCaptureLocation(EMediaTypes.json, REVIEW_LINKER);
+    const title = 'Feature Result Index';
+    const html = await htmlGenerator.getHtmlDocument(isum, { title, base: 'capture/' },);
+    await this.publishStorage.ensureDirExists([this.publishRoot].join('/'));
+    const indexHtml = [this.publishRoot, REVIEWS_INDEX_FILE].join('/');
+    const link: TReviewLink = { date: Timer.key, link: indexHtml.replace(/.*\//, ''), title, results: { fail, success } };
 
     await this.publishStorage?.writeFile(indexHtml, html, EMediaTypes.html);
-    await this.publishStorage?.writeFile(published, JSON.stringify({ published }), EMediaTypes.json);
+    await this.writeReviewLinker(link);
 
     this.getWorld().logger.info(`wrote index file ${indexHtml}`)
     return OK;
+  }
+  async writeReviewLinker(linked: TReviewLink) {
+    await this.publishStorage.ensureDirExists([this.publishRoot, 'reviews'].join('/'));
+    let setting = this.getWorld().options.SETTING;
+    setting = setting ? `${setting}-` : '';
+    // FIXME use AStorage
+    const dest = [this.publishRoot, 'reviews'].join('/');
+    await this.publishStorage.ensureDirExists(dest);
+    const fn = `${dest}/${setting}${Timer.key}-review.json`;
+    await this.publishStorage.writeFile(fn, JSON.stringify(linked), EMediaTypes.json);
+    this.world.logger.info(`wrote review link ${fn}`)
   }
 
   async writeReview(loc: TLocationOptions, tracksDoc: TTrackResult | TMissingTracks) {

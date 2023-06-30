@@ -15,7 +15,7 @@ export class ServerExpress implements IWebServer {
   static listening = false;
   listener?: http.Server;
   app = express();
-  static mounted = { get: {}, post: {} };
+  mounted = { get: {}, post: {} };
   base: string;
   port: number;
   constructor(logger: ILogger, base: string, port: number = DEFAULT_PORT) {
@@ -67,7 +67,7 @@ export class ServerExpress implements IWebServer {
   }
 
   private addMounted(type: string, path: string, what: string) {
-    ServerExpress.mounted[type][path] = what;
+    this.mounted[type][path] = what;
   }
 
   // add a static folder restricted to relative paths from files
@@ -83,7 +83,8 @@ export class ServerExpress implements IWebServer {
     if (bad) {
       return bad;
     }
-    this.app.use(mountAt, express.static(folder), serveIndex(folder));
+    this.logger.info(`serving index from ${folder} at ${mountAt}`);
+    this.app.use(mountAt, serveIndex(folder), express.static(folder));
     return;
   }
 
@@ -115,7 +116,7 @@ export class ServerExpress implements IWebServer {
     if (loc !== loc.replace(/[^a-zA-Z-0-9/\-_]/g, '')) {
       return `mount folder ${loc} has illegal characters`;
     }
-    const alreadyMounted = ServerExpress.mounted[type][loc] || Object.keys(ServerExpress.mounted[type]).find((m: string) => m.startsWith(`${loc}/`));
+    const alreadyMounted = this.mounted[type][loc] || Object.keys(this.mounted[type]).find((m: string) => m.startsWith(`${loc}/`));
     if (alreadyMounted) {
       return `cannot mount ${type} ${what} at ${loc}, ${alreadyMounted} is already mounted}`;
     }
@@ -125,7 +126,7 @@ export class ServerExpress implements IWebServer {
   async close() {
     this.logger.info(`closing server ${this.port}`);
     await this.listener?.close();
-    ServerExpress.mounted = { get: {}, post: {} };
+    this.mounted = { get: {}, post: {} };
     ServerExpress.listening = false;
   }
 }
