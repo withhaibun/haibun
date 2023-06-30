@@ -26,3 +26,11 @@ describe('static mount', () => {
     expect(result.ok).toBe(false);
   });
 });
+
+describe('index mount', () => {
+  it('index files', async () => {
+    const feature = { path: '/features/test.feature', content: `index files from test\nfetch from http://localhost:8123/ contains href="/testfile"\nfetch from http://localhost:8123/testfile matches "content"` };
+    const result = await testWithDefaults([feature], [server, WebHttp]);
+    expect(result.ok).toBe(true);
+  });
+});

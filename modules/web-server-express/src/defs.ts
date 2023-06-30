@@ -5,7 +5,8 @@ import * as express from 'express';
 
 export interface IWebServer {
   checkAddStaticFolder(subdir: string, loc: string): undefined | string ;
-  addKnownStaticFolder(subdir: string, mountAt?: string): void;
+  checkAddIndexFolder(subdir: string, loc: string): undefined | string ;
+  addKnownStaticFolder(subdir: string, mountAt?: string): undefined | string;
   listen(): Promise<unknown>;
   close(): Promise<void>;
   addRoute(type: TRouteTypes, path: string, route: TRequestHandler): void;

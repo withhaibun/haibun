@@ -66,7 +66,23 @@ const WebServerStepper = class WebServerStepper extends AStepper implements IHas
         const r =  await this.doServeFiles('/', loc).catch((e) => actionNotOK(e));
         return r;
       }
+    },
+    indexFiles: {
+      gwta: 'index files from {loc}',
+      action: async ({ loc }: TNamed) => {
+        const r =  await this.doServeIndex('/', loc).catch((e) => actionNotOK(e));
+        return r;
+      }
     }
+  }
+  async doServeIndex(where, loc) {
+    const ws: IWebServer = getFromRuntime(this.getWorld().runtime, WEBSERVER);
+    const res = ws.checkAddIndexFolder(loc, where);
+    if (res) {
+      throw Error(`failed to add index folder ${loc} at ${where}`);
+    }
+    await this.listen();
+    return OK;
   }
   async doServeFiles(where, loc) {
     const ws: IWebServer = getFromRuntime(this.getWorld().runtime, WEBSERVER);

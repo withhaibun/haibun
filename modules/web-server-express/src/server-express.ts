@@ -2,6 +2,7 @@ import { statSync, existsSync } from 'fs';
 import http from 'http';
 
 import express, { RequestHandler } from 'express';
+import serveIndex from 'serve-index';
 import cookieParser from 'cookie-parser';
 
 import { IWebServer, TRouteTypes } from './defs.js';
@@ -75,9 +76,20 @@ export class ServerExpress implements IWebServer {
     return this.doAddStaticFolder(folder, mountAt);
   }
 
+  // add a index folder restricted to relative paths from files
+  checkAddIndexFolder(relativeFolder: string, mountAt = '/') {
+    const folder = [this.base, relativeFolder].join('/');
+    const bad = this.checkMountBadOrMounted('get', folder, mountAt);
+    if (bad) {
+      return bad;
+    }
+    this.app.use(mountAt, express.static(folder), serveIndex(folder));
+    return;
+  }
+
   // add a static folder at any path
   addKnownStaticFolder(folder: string, mountAt = '/') {
-    this.doAddStaticFolder(folder, mountAt);
+    return this.doAddStaticFolder(folder, mountAt);
   }
 
   private doAddStaticFolder(folder: string, mountAt = '/') {
