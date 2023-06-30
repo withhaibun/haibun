@@ -22,7 +22,15 @@ const WebHttp = class WebHttp extends AStepper {
         return json.authorization_endpoint ? OK : actionNotOK(`${json} not recognized`, { topics: { result: { summary: 'json', details: json } } });
       },
     },
-    hasContent: {
+    containsContent: {
+      gwta: 'fetch from {url} contains {what}',
+      action: async ({ url, what }: TNamed) => {
+        const response = await fetch(url);
+        const text = await response.text();
+        return text.includes(what) ? OK : actionNotOK(`${url} does not contain ${what}, it contains ${text}`)
+      },
+    },
+    matchesContent: {
       gwta: 'fetch from {url} matches {what}',
       action: async ({ url, what }: TNamed) => {
         const response = await fetch(url);
