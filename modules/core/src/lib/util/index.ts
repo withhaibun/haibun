@@ -278,7 +278,7 @@ export function findStepperFromOption<Type>(steppers: AStepper[], stepper: AStep
   const val = name.reduce<string | undefined>((v, n) => v || getStepperOption(stepper, n, extraOptions), undefined);
 
   if (!val) {
-    throw Error(`Cannot find ${name} from ${stepper.constructor.name} options`);
+    throw Error(`Cannot find ${name} from ${stepper.constructor.name} options ${Object.keys((stepper as IHasOptions).options)}`);
   }
   return findStepper(steppers, val);
 }
