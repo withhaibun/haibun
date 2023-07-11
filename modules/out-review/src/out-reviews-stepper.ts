@@ -42,7 +42,6 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
   requireDomains = [STORAGE_LOCATION, STORAGE_ITEM];
   options = {
     [STORAGE]: {
-      altSource: 'STORAGE',
       desc: 'General storage type',
       parse: (input: string) => stringOrError(input)
     },
