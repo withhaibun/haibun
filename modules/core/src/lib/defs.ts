@@ -172,6 +172,7 @@ export abstract class AStepper {
   close?(): void;
   endFeature?(): void;
   onFailure?(result: TStepResult): void;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   setWorld(world: TWorld, steppers: AStepper[]) {
     this.world = world;
   }

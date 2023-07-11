@@ -1,7 +1,7 @@
 import { EOL } from "os";
 import { create } from "xmlbuilder2";
 
-import { TActionResultTopics, TTrace } from "@haibun/core/build/lib/defs.js";
+import { TActionResultTopics, TAnyFixme, TTrace } from "@haibun/core/build/lib/defs.js";
 import { AllCSS, ReviewCSS } from "./assets.js";
 import { stepResult } from "./components/stepResult.js";
 import { sourceSummary } from "./components/sourceSummary.js";
@@ -9,7 +9,7 @@ import { featureHeader } from "./components/featureHeader.js";
 
 export type TSummaryItem = TFeatureSummary | TStepSummary;
 
-type THTMLFragment = any;
+type THTMLFragment = TAnyFixme;
 export type TFeatureSummary = { missing?: string, videoSrc?: string, sourcePath: string, title: string, startTime: string, ok: boolean } & TSubResults;
 export type TStepSummary = { seq: number, in: string, name: string, topics?: TActionResultTopics, traces: TTrace[], start: number, ok: boolean, sourcePath: string } & TSubResults;
 type TSubResults = { subResults: TStepSummary[] }
@@ -37,7 +37,7 @@ export default class HtmlGenerator {
         return `index_${what}`;
     }
 
-    getFeatureError(dir: string, e: any) {
+    getFeatureError(dir: string, e: TAnyFixme) {
 
         const forHTML = {
             '@class': 'review-header',
@@ -75,9 +75,9 @@ export default class HtmlGenerator {
     }
 
     getSteps(stepResults: TStepSummary[], origin: string): THTMLFragment {
-        const allSteps: any = [];
+        const allSteps: TAnyFixme = [];
         let curStart: TStepSummary | undefined = undefined;
-        let wrapper: any | undefined = undefined;
+        let wrapper: TAnyFixme | undefined = undefined;
         for (const step of stepResults) {
             const { sourcePath } = step;
             if (sourcePath !== curStart?.sourcePath) {
@@ -112,7 +112,7 @@ export default class HtmlGenerator {
         const forHTML = {
             html: {
                 "@xmlns": "http://www.w3.org/1999/xhtml",
-                head: <any>{
+                head: <TAnyFixme>{
                     meta: {
                         '@charset': 'utf-8'
                     },
