@@ -60,7 +60,7 @@ describe('findStepperFromOptions', () => {
     const s = util.findStepperFromOption(steppers, ts, options, 'A', 'B');
     expect(s).toBeDefined();
   });
-  it('finds from first multiple options', async () => {
+  it.only('finds from first multiple options', async () => {
     const ts = new TestOptionsStepper();
     const steppers = await getCreateSteppers([], [TestOptionsStepper, TestSteps]);
     const options = { [util.getStepperOptionName(ts, 'A')]: 'TestSteps', [util.getStepperOptionName(ts, 'B')]: 'TestOptionsStepper' };

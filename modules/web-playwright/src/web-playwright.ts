@@ -478,6 +478,8 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     },
 
     //                          NAVIGATION
+
+    // formerly On the {name} ${WEB_PAGE}
     onPage: {
       gwta: `go to the {name} ${WEB_PAGE}`,
       action: async ({ name }: TNamed) => {

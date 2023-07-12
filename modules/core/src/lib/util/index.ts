@@ -274,11 +274,17 @@ export function getStepperOption(stepper: AStepper, name: string, extraOptions: 
   return extraOptions[key];
 }
 
-export function findStepperFromOption<Type>(steppers: AStepper[], stepper: AStepper, extraOptions: TExtraOptions, ...name: string[]): Type {
-  const val = name.reduce<string | undefined>((v, n) => v || getStepperOption(stepper, n, extraOptions), undefined);
+/**
+ * Find a stepper by option value from a list of steppers
+ */
+export function findStepperFromOption<Type>(steppers: AStepper[], stepper: AStepper, extraOptions: TExtraOptions, ...optionNames: string[]): Type {
+  const val = optionNames.reduce<string | undefined>((v, n) => {
+    const r = getStepperOption(stepper, n, extraOptions);
+    return v || r;
+  }, undefined);
 
   if (!val) {
-    throw Error(`Cannot find ${name} from ${stepper.constructor.name} options ${Object.keys((stepper as IHasOptions).options)}`);
+    throw Error(`Cannot find ${optionNames.map(o => getStepperOptionName(stepper, o)).join(' or ')} in your ${stepper.constructor.name} options ${JSON.stringify(Object.keys(extraOptions).filter(k => k.startsWith(getPre(stepper))))}`)
   }
   return findStepper(steppers, val);
 }
@@ -292,7 +298,8 @@ export function findStepper<Type>(steppers: AStepper[], name: string): Type {
         steppers.map((s) => s.constructor.name),
         null,
         2
-      )}`
+      )
+      } `
     );
   }
   return stepper;
@@ -322,7 +329,7 @@ export const getRunTag = (sequence: TTagValue, loop: TTagValue, featureNum: TTag
   ['sequence', 'loop', 'member', 'featureNum'].forEach((w) => {
     const val = (res as TAnyFixme)[w];
     if (parseInt(val) !== val) {
-      throw Error(`non-numeric ${w} from ${JSON.stringify(res)}`);
+      throw Error(`non - numeric ${w} from ${JSON.stringify(res)} `);
     }
   });
   return res;
@@ -354,7 +361,7 @@ export const stringOrError = (val: string) => {
 
 export const optionOrError = (val: string, options: string[]) => {
   if (val === undefined || val === null || !options.includes(val)) {
-    return { error: `"${val}" is not defined or not one of ${JSON.stringify(options)}` };
+    return { error: `"${val}" is not defined or not one of ${JSON.stringify(options)} ` };
   }
   return { result: val };
 };
