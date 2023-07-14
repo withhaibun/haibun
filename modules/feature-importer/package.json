@@ -1,7 +1,7 @@
 {
   "name": "@haibun/feature-importer",
   "type": "module",
-  "version": "1.28.15",
+  "version": "1.28.16",
   "description": "command line execution for @haibun",
   "files": [
     "build/**"
@@ -18,11 +18,11 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@haibun/context": "1.28.15",
-    "@haibun/core": "1.28.15"
+    "@haibun/context": "1.28.16",
+    "@haibun/core": "1.28.16"
   },
   "devDependencies": {
-    "@haibun/domain-webpage": "1.28.15"
+    "@haibun/domain-webpage": "1.28.16"
   },
   "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5"
 }
