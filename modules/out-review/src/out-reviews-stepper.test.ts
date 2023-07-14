@@ -1,5 +1,5 @@
 import { testWithDefaults } from '@haibun/core/build/lib/test/lib.js';
-import OutReviews, { PUBLISH_ROOT, REVIEW_LINKER, STORAGE } from './out-reviews-stepper.js';
+import OutReviews, { PUBLISH_ROOT, REVIEW_LINKER_FILE, STORAGE } from './out-reviews-stepper.js';
 import DomainStorage from '@haibun/domain-storage/build/domain-storage.js'
 import { getStepperOptionName } from '@haibun/core/build/lib/util/index.js';
 import { DEFAULT_DEST } from '@haibun/core/build/lib/defs.js';
@@ -114,11 +114,9 @@ describe('dashboard', () => {
     });
 
     it('Generates dashboard review links', async () => {
-        StorageMem.BASE_FS = {
-            [`./capture/${REVIEW_LINKER}`]: JSON.stringify({ published: 'miaow' })
-        };
+        StorageMem.BASE_FS = TEST_CAPTURES;
         const outReviewsStepper = new OutReviews();
-        const feature = { path: '/features/test.feature', content: `publish dashboard review link` };
+        const feature = { path: '/features/test.feature', content: `publish reviews dashboard link` };
         const result = await testWithDefaults([feature], [OutReviews, DomainStorage, StorageMem, StorageFS], {
             options: { DEST: DEFAULT_DEST },
             extraOptions: {
@@ -128,7 +126,7 @@ describe('dashboard', () => {
         });
         expect(result.ok).toBe(true);
         const tree = result.featureResults[0].stepResults[0].actionResults[0].topics.tree;
-        expect(tree.details[0].name).toBe(`/test/reviews/${Timer.key}.json`);
+        expect(tree.details[0].entries[0].name).toBe(`/test/reviews/${Timer.key}-${REVIEW_LINKER_FILE}`);
     });
 });
 

@@ -8,6 +8,7 @@ import HtmlGenerator, { TFeatureSummary, TIndexSummary, TIndexSummaryResult, TSt
 import { ReviewScript } from "../assets.js";
 import { INDEXED, MISSING_TRACKS, MISSING_TRACKS_FILE } from "../out-reviews-stepper.js";
 import { ILogger } from "@haibun/core/build/lib/interfaces/logger.js";
+import { toc } from "../components/index/toc.js";
 
 export class ReviewsUtils {
     tracksStorage: AStorage;
@@ -15,13 +16,15 @@ export class ReviewsUtils {
     indexStorage: AStorage;
     publishStorage: AStorage;
     logger: ILogger;
+    uriArgs: string;
 
-    constructor(logger: ILogger, trackStorage: AStorage, reviewsStorage: AStorage, publishStorage: AStorage, indexStorage: AStorage) {
+    constructor(logger: ILogger, trackStorage: AStorage, reviewsStorage: AStorage, publishStorage: AStorage, indexStorage: AStorage, uriArgs?: string) {
         this.logger = logger;
         this.tracksStorage = trackStorage;
         this.reviewsStorage = reviewsStorage;
         this.publishStorage = publishStorage;
         this.indexStorage = indexStorage;
+        this.uriArgs = uriArgs;
     }
     async getMemberEntries(dest: string): Promise<{ tag: TTag, memDir: string, loc: TLocationOptions }[]> {
         const reviewsIn = this.tracksStorage;
@@ -166,7 +169,7 @@ export class ReviewsUtils {
                 const ext = <EMediaTypes>guessMediaExt(entry.name);
 
                 const trimmed = trimFolder ? here.replace(trimFolder, '') : here;
-                const dest = toFolder ? `${toFolder}/${trimmed}`.replace(/\/\//, '/') : trimmed;
+                const dest = toFS.pathed(ext, toFolder ? `${toFolder}/${trimmed}`.replace(/\/\//, '/') : trimmed);
                 await toFS.mkdirp(path.dirname(dest));
                 await toFS.writeFile(dest, content, ext);
             }
@@ -202,4 +205,27 @@ export class ReviewsUtils {
         }
     }
 
+    async getReviewsResults(indexDirs: string[]) {
+        const htmlGenerator = new HtmlGenerator(this.uriArgs);
+        const results: { ok: boolean; link: string; index: TIndexSummary[]; dir: string; }[] = [];
+
+        let success = 0;
+        let fail = 0;
+
+        console.log('xx', indexDirs)
+        for (const spec of indexDirs) {
+            const [type, dirIn] = spec.split(':');
+            const dir = dirIn || type;
+            const summary: TIndexSummary = await (type === INDEXED ? this.getIndexedResults(dir) : this.getReviewSummary(dir));
+
+            const ok = !!summary.results.every(r => r.ok);
+            success += summary.results.filter(r => r.ok).length;
+            fail += summary.results.filter(r => !r.ok).length;
+            const index = toc(summary, dir, this.uriArgs, htmlGenerator.linkFor, (path: string) => this.publishStorage.pathed(EMediaTypes.html, path, `./${CAPTURE}`));
+
+            results.push({ ok, dir, link: htmlGenerator.linkFor(dir), index });
+        }
+
+        return { fail, success, results };
+    }
 }

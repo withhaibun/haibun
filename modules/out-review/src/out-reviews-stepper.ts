@@ -1,21 +1,21 @@
 import path from "path";
 import { fileURLToPath } from "url";
 
-import { AStepper, CAPTURE, IHasOptions, IRequireDomains, OK, TFeatureResult, TNamed, TWorld, } from "@haibun/core/build/lib/defs.js";
+import { AStepper, DEFAULT_DEST, IHasOptions, IRequireDomains, OK, TFeatureResult, TNamed, TWorld, } from "@haibun/core/build/lib/defs.js";
 import { EMediaTypes, IReviewResult, STORAGE_ITEM, STORAGE_LOCATION, TLocationOptions, TMissingTracks, TTrackResult } from '@haibun/domain-storage/build/domain-storage.js';
 import { actionOK, findStepperFromOption, getStepperOption, stringOrError } from '@haibun/core/build/lib/util/index.js';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
-import HtmlGenerator, { TIndexSummary, TIndexSummaryResult } from "./html-generator.js";
+import HtmlGenerator, { TIndexSummaryResult } from "./html-generator.js";
 import { ITrackResults } from '@haibun/domain-storage/build/domain-storage.js';
 import { summary } from "./components/index/summary.js";
-import { toc } from "./components/index/toc.js";
 import StorageFS from "@haibun/storage-fs/build/storage-fs.js";
 import { ReviewsUtils } from "./lib/ReviewsUtils.js";
 import { Timer } from "@haibun/core/build/lib/Timer.js";
 
+export const TRACKS_FILE = `tracks.json`;
 export const REVIEW_FILE = 'review.html';
 export const REVIEWS_INDEX_FILE = 'reviews.html';
-export const REVIEW_LINKER = 'reviews.json';
+export const REVIEW_LINKER_FILE = 'reviews.json';
 
 export const STORAGE = 'STORAGE';
 export const TRACKS_STORAGE = 'TRACKS_STORAGE';
@@ -38,6 +38,9 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
   indexStorage: AStorage;
   localFS: StorageFS;
   utils: ReviewsUtils;
+  title = 'Feature Result Index';
+  publishRoot: string;
+  uriArgs: string;
 
   requireDomains = [STORAGE_LOCATION, STORAGE_ITEM];
   options = {
@@ -74,10 +77,10 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
       parse: (input: string) => stringOrError(input)
     },
   };
-  publishRoot: string;
 
   setWorld(world: TWorld, steppers: AStepper[]) {
     super.setWorld(world, steppers);
+    this.uriArgs = getStepperOption(this, URI_ARGS, this.getWorld().extraOptions) || '';
     this.tracksStorage = findStepperFromOption(steppers, this, world.extraOptions, TRACKS_STORAGE, STORAGE);
     this.reviewsStorage = findStepperFromOption(steppers, this, world.extraOptions, REVIEWS_STORAGE, STORAGE);
     this.indexStorage = findStepperFromOption(steppers, this, world.extraOptions, INDEX_STORAGE, STORAGE);
@@ -86,7 +89,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     const localFS = new StorageFS();
     localFS.setWorld(world, steppers);
     this.localFS = localFS;
-    this.utils = new ReviewsUtils(this.getWorld().logger, this.tracksStorage, this.reviewsStorage, this.publishStorage, this.indexStorage);
+    this.utils = new ReviewsUtils(this.getWorld().logger, this.tracksStorage, this.reviewsStorage, this.publishStorage, this.indexStorage, this.uriArgs);
   }
 
   steps = {
@@ -183,6 +186,19 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     },
 
     /**
+     * Publish review dashboard links 
+     * Creates a link in the publish directory for the reviews index
+     * This is used by the dashboard page to link to the reviews index.
+     */
+    publishReviewDashboardLink: {
+      exact: `publish reviews dashboard link`,
+      action: async () => {
+        // FIXME: should not forget DEFAULT_DEST
+        return await this.publishReviewsDashboardLink([this.getWorld().options.DEST || DEFAULT_DEST]);
+      }
+    },
+
+    /**
      * Create dashboard
      * 
      * Creates a dashboard page that links published review indexes.
@@ -206,7 +222,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
       // process each loc using func
       for (const { tag, memDir } of locs) {
         const tracksDir = `${memDir}/tracks`;
-        if (!this.publishStorage.exists(tracksDir)) {
+        if (!this.reviewsStorage.exists(tracksDir)) {
           this.getWorld().logger.debug(`no tracks dir ${tracksDir} for ${memDir}`);
           return;
         }
@@ -219,48 +235,39 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
   }
 
   async createReviewsIndex(indexDirs: string[]) {
-    const uriArgs = getStepperOption(this, URI_ARGS, this.getWorld().extraOptions) || '';
-    const htmlGenerator = new HtmlGenerator(uriArgs);
-    const results: { ok: boolean, link: string, index: TIndexSummary[], dir: string }[] = [];
+    const htmlGenerator = new HtmlGenerator(this.uriArgs);
 
-    let success = 0;
-    let fail = 0;
-
-    for (const spec of indexDirs) {
-      const [type, dirIn] = spec.split(':');
-      const dir = dirIn || type;
-      const summary: TIndexSummary = await (type === INDEXED ? this.utils.getIndexedResults(dir) : this.utils.getReviewSummary(dir));
-
-      const ok = !!summary.results.every(r => r.ok);
-      success += summary.results.filter(r => r.ok).length;
-      fail += summary.results.filter(r => !r.ok).length;
-      const index = toc(summary, dir, uriArgs, htmlGenerator.linkFor, (path: string) => this.publishStorage.pathed(EMediaTypes.html, path, `./${CAPTURE}`));
-
-      results.push({ ok, dir, link: htmlGenerator.linkFor(dir), index });
-    }
-
+    const { results } = await this.utils.getReviewsResults(indexDirs);
     const isum = summary(results);
-
-    const title = 'Feature Result Index';
-    const html = await htmlGenerator.getHtmlDocument(isum, { title, base: 'capture/' },);
+    const html = await htmlGenerator.getHtmlDocument(isum, { title: this.title, base: 'capture/' },);
     await this.publishStorage.ensureDirExists([this.publishRoot].join('/'));
     const indexHtml = [this.publishRoot, REVIEWS_INDEX_FILE].join('/');
-    const link: TReviewLink = { date: Timer.key, link: indexHtml.replace(/.*\//, ''), title, results: { fail, success } };
 
     await this.publishStorage?.writeFile(indexHtml, html, EMediaTypes.html);
-    await this.writeReviewLinker(link);
 
     this.getWorld().logger.info(`wrote index file ${indexHtml}`)
     return OK;
   }
+
+  async publishReviewsDashboardLink(indexDirs: string[]) {
+    const { fail, success } = await this.utils.getReviewsResults(indexDirs);
+    const indexHtml = [this.publishRoot, REVIEWS_INDEX_FILE].join('/');
+    const link: TReviewLink = { date: Timer.key, link: indexHtml.replace(/.*\//, ''), title: this.title, results: { fail, success } };
+
+    await this.writeReviewLinker(link);
+
+    this.getWorld().logger.info(`wrote review dashboard link ${link}`)
+    return actionOK({ tree: { summary: 'wrote files', details: await this.publishStorage.readTree(this.publishRoot) } })
+  }
+
+
   async writeReviewLinker(linked: TReviewLink) {
     await this.publishStorage.ensureDirExists([this.publishRoot, 'reviews'].join('/'));
     let setting = this.getWorld().options.SETTING;
     setting = setting ? `${setting}-` : '';
-    // FIXME use AStorage
     const dest = [this.publishRoot, 'reviews'].join('/');
     await this.publishStorage.ensureDirExists(dest);
-    const fn = `${dest}/${setting}${Timer.key}-review.json`;
+    const fn = `${dest}/${setting}${Timer.key}-${REVIEW_LINKER_FILE}`;
     await this.publishStorage.writeFile(fn, JSON.stringify(linked), EMediaTypes.json);
     this.world.logger.info(`wrote review link ${fn}`)
   }
@@ -291,8 +298,9 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
 
     await this.utils.recurseCopy({ src, fromFS, toFS, toFolder: this.publishRoot });
   }
+
   async writeTracksFile(loc: TLocationOptions, title: string, result: TFeatureResult, startTime: Date, startOffset: number) {
-    const dir = await this.reviewsStorage.ensureCaptureLocation(loc, 'tracks', `tracks.json`);
+    const dir = await this.reviewsStorage.ensureCaptureLocation(loc, 'tracks', TRACKS_FILE);
     await this.reviewsStorage.writeFile(dir, JSON.stringify({ meta: { startTime: startTime.toISOString(), title, startOffset }, result }, null, 2), loc.mediaType);
   }
 }
