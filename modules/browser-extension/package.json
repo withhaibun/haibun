@@ -1,7 +1,7 @@
 {
   "name": "@haibun/browser-extension",
   "type": "module",
-  "version": "1.28.15",
+  "version": "1.28.16",
   "description": "",
   "main": "build/context.js",
   "files": [
@@ -23,14 +23,14 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "@haibun/cli": "1.28.15",
-    "@haibun/context": "1.28.15",
-    "@haibun/domain-storage": "1.28.15",
-    "@haibun/domain-webpage": "1.28.15",
-    "@haibun/feature-importer": "1.28.15",
-    "@haibun/storage-fs": "1.28.15",
-    "@haibun/web-playwright": "1.28.15",
-    "@haibun/web-server-express": "1.28.15",
+    "@haibun/cli": "1.28.16",
+    "@haibun/context": "1.28.16",
+    "@haibun/domain-storage": "1.28.16",
+    "@haibun/domain-webpage": "1.28.16",
+    "@haibun/feature-importer": "1.28.16",
+    "@haibun/storage-fs": "1.28.16",
+    "@haibun/web-playwright": "1.28.16",
+    "@haibun/web-server-express": "1.28.16",
     "@types/chrome": "^0.0.237",
     "@types/jest": "^29.5.2",
     "@types/urijs": "^1.19.19",
@@ -41,7 +41,7 @@
     "webpack-cli": "^4.9.1"
   },
   "dependencies": {
-    "@haibun/core": "1.28.15",
+    "@haibun/core": "1.28.16",
     "@medv/finder": "^2.1.0",
     "ws": "8.9.0"
   },
