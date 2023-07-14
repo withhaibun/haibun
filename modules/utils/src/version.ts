@@ -80,19 +80,18 @@ class Versioner {
 
       writeFileSync(pkgFile, JSON.stringify(pkg, null, 2));
       try {
-        console.log(spawn(['which', 'npm']));
         // spawn(['npm', 'run', 'test'], location, { env: { NODE_OPTIONS: '--experimental-vm-modules' } });
       } catch (e) {
         console.error(`npm test failed for ${name}: ${e}`);
         throw e;
       }
-    }
 
-    try {
-      spawn(['git', 'commit', '-m', `'update ${name} to version ${this.version}'`, 'package.json',], location);
-    } catch (e) {
-      console.error(`git commit failed for ${name}: ${e}`);
-      throw e;
+      try {
+        spawn(['git', 'commit', '-m', `'update ${name} to version ${this.version}'`, 'package.json',], location);
+      } catch (e) {
+        console.error(`git commit failed for ${name}: ${e}`);
+        throw e;
+      }
     }
   }
 }
