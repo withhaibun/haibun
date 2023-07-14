@@ -2,7 +2,7 @@
 
 import sourceMapSupport from 'source-map-support';
 import repl from 'repl';
-import { TSpecl, TWorld, TEndFeatureCallback, TEndFeatureCallbackParams, TRunOptions, TBase, STAY_ALWAYS } from '@haibun/core/build/lib/defs.js';
+import { TSpecl, TWorld, TEndFeatureCallback, TEndFeatureCallbackParams, TRunOptions, TBase, STAY_ALWAYS, STAY } from '@haibun/core/build/lib/defs.js';
 import { EMediaTypes, ITrackResults } from '@haibun/domain-storage/build/domain-storage.js';
 
 import { findStepper, getConfigFromBase, getDefaultOptions, basesFrom } from '@haibun/core/build/lib/util/index.js';
@@ -85,9 +85,9 @@ async function go() {
   }
   console.info('\nRESULT>>>', { ok, startDate: Timer.startTime, key: Timer.key, passed, failed, totalRan, runTime, 'features/s:': totalRan / runTime });
 
-  if (ok && exceptionResults.length < 1 && protoOptions.options.STAY !== STAY_ALWAYS) {
+  if (ok && exceptionResults.length < 1 && protoOptions.options[STAY] !== STAY_ALWAYS) {
     process.exit(0);
-  } else if (protoOptions.options.STAY !== STAY_ALWAYS) {
+  } else if (protoOptions.options[STAY] !== STAY_ALWAYS) {
     process.exit(1);
   }
 }
