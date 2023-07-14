@@ -34,7 +34,7 @@ describe('browser, context, page', () => {
     const bfa = await BrowserFactory.getBrowserFactory(logger, browserContextOptions);
     const test = getDefaultTag(0);
     const test2 = getDefaultTag(1);
-    const pa1 = await bfa.getBrowserContextPage(test);
+    const pa1 = await bfa.getBrowserContextPage(test, 0);
     expect(pa1).toBeDefined();
     expect(Object.keys(BrowserFactory.browsers).length).toBe(1)
     expect(Object.keys(bfa.contexts).length).toBe(1)

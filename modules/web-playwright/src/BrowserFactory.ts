@@ -74,7 +74,7 @@ export class BrowserFactory {
     }
   }
 
-  async getBrowserContext(sequence: TTagValue, tag = DEFAULT_CONFIG_TAG): Promise<BrowserContext> {
+  private async getBrowserContext(sequence: TTagValue, tag = DEFAULT_CONFIG_TAG): Promise<BrowserContext> {
     if (!this.contexts[sequence]) {
       let context: BrowserContext;
       if (BrowserFactory.configs.persistentDirectory) {
@@ -113,19 +113,25 @@ export class BrowserFactory {
     await BrowserFactory.closeBrowsers();
   }
 
-  tt(sequence: number, tab?: number) {
-    return `${sequence}${tab ? `-${tab}` : ''}`;
+  pageKey(sequence: number, tab?: number) {
+    return `${sequence}-${tab}`;
   }
 
   hasPage({ sequence }: { sequence: TTagValue }, tab?: number) {
-    return !!this.pages[this.tt(sequence, tab)]
+    return !!this.pages[this.pageKey(sequence, tab)]
   }
 
-  async getBrowserContextPage({ sequence }: { sequence: TTagValue }, tab?: number): Promise<Page> {
+  registerPopup({ sequence }: { sequence: TTagValue }, tab: number, popup: Page) {
+    const tt = this.pageKey(sequence, tab);
+    this.pages[tt] = popup;
+  }
+
+  async getBrowserContextPage({ sequence }: { sequence: TTagValue }, tab: number): Promise<Page> {
     const { trace } = BrowserFactory.configs;
-    const tt = this.tt(sequence, tab);
-    let page = this.pages[tt];
+    const pageKey = this.pageKey(sequence, tab);
+    let page = this.pages[pageKey];
     if (page) {
+      await page.bringToFront();
       return page;
     }
     this.logger.info(`creating new page for ${sequence}`);
@@ -139,7 +145,7 @@ export class BrowserFactory {
         (page as any).on(t, trace[t].listener);
       })
     }
-    this.pages[tt] = page;
+    this.pages[pageKey] = page;
     return page;
   }
 }

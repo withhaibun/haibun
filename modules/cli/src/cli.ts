@@ -81,9 +81,9 @@ async function go() {
   if (ok && exceptionResults.length < 1) {
     logger.log('OK ' + ranResults.every((r) => r.output));
   } else {
-    logger.error('failures:' + JSON.stringify(allFailures, null, 2));
+    logger.error('failures:' + JSON.stringify({ allFailures, results: ranResults[0].result.featureResults }, null, 2));
   }
-  console.info('\nRESULT>>>', { ok, startDate: Timer.startTime, key: Timer.key, passed, failed, totalRan, runTime, 'features/s:': totalRan / runTime });
+  logger.info(`\nRESULT>>> ${JSON.stringify({ ok, startDate: Timer.startTime, key: Timer.key, passed, failed, totalRan, runTime, 'features/s:': totalRan / runTime })}`);
 
   if (ok && exceptionResults.length < 1 && protoOptions.options[STAY] !== STAY_ALWAYS) {
     process.exit(0);

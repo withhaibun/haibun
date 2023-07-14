@@ -3,12 +3,10 @@ import { Page, Response, Download } from 'playwright';
 import { IHasOptions, OK, TNamed, IRequireDomains, TStepResult, TTraceOptions, TTrace, AStepper, TWorld, TVStep, TAnyFixme } from '@haibun/core/build/lib/defs.js';
 import { onCurrentTypeForDomain } from '@haibun/core/build/steps/vars.js';
 import { BrowserFactory, TBrowserFactoryOptions, TBrowserTypes } from './BrowserFactory.js';
-import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOption } from '@haibun/core/build/lib/util/index.js';
+import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOption, sleep } from '@haibun/core/build/lib/util/index.js';
 import { WEB_PAGE, WEB_CONTROL } from '@haibun/domain-webpage/build/domain-webpage.js';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 import { EMediaTypes } from '@haibun/domain-storage/build/domain-storage.js';
-
-// TODO: base on these - https://testing-library.com/docs/queries/byrole/, https://playwright.dev/docs/release-notes#locators
 
 const WebPlaywright = class WebPlaywright extends AStepper implements IHasOptions, IRequireDomains {
   static STORAGE = 'STORAGE';
@@ -115,7 +113,15 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
   }
 
   async getPage() {
-    const page = await (await this.getBrowserFactory()).getBrowserContextPage(this.getWorld().tag, this.tab);
+    const { tag } = this.getWorld();
+    const page = await (await this.getBrowserFactory()).getBrowserContextPage(tag, this.tab);
+    page.on('popup', async (popup: Page) => {
+      await popup.waitForLoadState();
+      // const title = await popup.title();
+      this.newTab();
+
+      this.bf.registerPopup(tag, this.tab, popup);
+    });
     return page;
   }
 
@@ -243,7 +249,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
             return OK;
           }
         }
-        const topics = { textContent: { summary: `in ${textContent?.length} characters`, details: textContent } };
+        const topics = { textContent: { summary: `in ${textContent?.length} characters`, textContent, details: textContent } };
         return actionNotOK(`Did not find text "${text}" in document`, { topics });
       },
     },
@@ -261,8 +267,24 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     onNewPage: {
       gwta: `on a new tab`,
       action: async () => {
-        this.tab = this.tab + 1;
+        this.newTab();
         return OK;
+      },
+    },
+    waitForTabX: {
+      gwta: `pause until current tab is {tab}`,
+      action: async ({ tab }: TNamed) => {
+        const waitForTab = parseInt(tab, 10);
+        let timedOut = false;
+        setTimeout(() => {
+          timedOut = true;
+        }, 5000);
+
+        while (this.tab !== waitForTab && !timedOut) {
+          await sleep(100);
+        }
+
+        return this.tab === waitForTab ? OK : actionNotOK(`current tab is ${this.tab}, not ${waitForTab}`);
       },
     },
     onTabX: {
@@ -357,16 +379,6 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
 
     //                  CLICK
 
-    expectPopup: {
-      gwta: 'expect a popup',
-      action: async () => {
-        await this.withPage(async (page) => page.on('popup', async popup => {
-          await popup.waitForLoadState();
-          console.log(await popup.title());
-        }));
-        return OK;
-      }
-    },
     clickByAltText: {
       gwta: 'click by alt text {altText}',
       action: async ({ altText }: TNamed) => {
@@ -617,6 +629,9 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
   setBrowser(browser: string) {
     this.factoryOptions.type = (browser as unknown) as TBrowserTypes;
     return OK;
+  }
+  newTab() {
+    this.tab = this.tab + 1;
   }
 };
 
