@@ -212,7 +212,6 @@ export class ReviewsUtils {
         let success = 0;
         let fail = 0;
 
-        console.log('xx', indexDirs)
         for (const spec of indexDirs) {
             const [type, dirIn] = spec.split(':');
             const dir = dirIn || type;
