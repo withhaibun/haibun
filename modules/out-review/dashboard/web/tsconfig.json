@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "es6",
-    "moduleResolution": "node",
+    "moduleResolution": "nodenext",
     "lib": ["es2016", "esnext", "dom"],
     "module": "ES6",
     "outDir": "./built",
