@@ -3,7 +3,7 @@
   "type": "module",
   "version": "1.28.21",
   "description": "",
-  "main": "build/context.js",
+  "main": "dist/js/index.js",
   "files": [
     "public"
   ],
