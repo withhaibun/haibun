@@ -1,7 +1,7 @@
 {
   "name": "@haibun/utils",
   "type": "module",
-  "version": "1.28.19",
+  "version": "1.28.21",
   "description": "",
   "main": "index.js",
   "files": [
