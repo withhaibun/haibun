@@ -9,7 +9,7 @@
     "recorder": "build/recorder.js"
   },
   "description": "Browser feature recorder that uses webSockets importer and playwright browser extension to convert browser context events to features",
-  "main": "index.js",
+  "main": "build/index.js",
   "types": "build/src/index.d.ts",
   "scripts": {
     "build": "tsc -b .",
