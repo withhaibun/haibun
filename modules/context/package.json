@@ -4,7 +4,7 @@
   "version": "1.28.21",
   "description": "",
   "author": "",
-  "main": "build/index.js",
+  "main": "build/Context.js",
   "files": [
     "build/**"
   ],
