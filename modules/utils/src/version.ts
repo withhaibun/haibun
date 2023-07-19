@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { spawn } from './util/index.js';
 
 const [, me, version, ...extra] = process.argv;
@@ -39,11 +39,11 @@ class Versioner {
 
     for (const module of modules) {
       const name = module.replace(/\/$/, '').replace(/.*\//, '');
-      this.updateVersion(name, module);
+      this.verifyStructureAndUpdateVersion(name, module);
       this.toPublish.push(module);
     }
 
-    this.updateVersion('haibun', '.');
+    this.verifyStructureAndUpdateVersion('haibun', '.');
     this.publishAll();
   }
 
@@ -55,11 +55,15 @@ class Versioner {
     }
   }
 
-  updateVersion(name: string, location: string) {
+  verifyStructureAndUpdateVersion(name: string, location: string) {
     console.info('updating', name);
     if (location !== '.') {
       const pkgFile = `${location}/package.json`;
       const pkg = JSON.parse(readFileSync(pkgFile, 'utf-8'));
+      const {main} = pkg;
+      if (!existsSync(`${location}/${main}`)) {
+        throw Error(`main file ${main} does not exist in ${location}`);
+      }
       pkg.version = this.version;
       for (const d in pkg.dependencies) {
         if (d.startsWith('@haibun/')) {
