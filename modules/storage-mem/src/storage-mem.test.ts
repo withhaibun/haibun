@@ -21,7 +21,7 @@ describe('BASE_FS', () => {
     });
 });
 
-describe('getCaptureLocation', () => {
+describe('mem getCaptureLocation', () => {
     it('gets capture location', async () => {
         const storageMem = new StorageMem();
         const { world } = getDefaultWorld(0);
@@ -92,7 +92,7 @@ describe('getCaptureLocation', () => {
         storageMem.mkdirp(`/${CAPTURE}/wtw`);
         storageMem.writeFileBuffer(`/${CAPTURE}/wtw/test.txt`, Buffer.from('test'));
         const files = await storageMem.readdirStat(`/${CAPTURE}`);
-        const expected = [{ name: `/${CAPTURE}/wtw`, isDirectory: true, isFile: false, isSymbolicLink: false }
+         [{ name: `/${CAPTURE}/wtw`, isDirectory: true, isFile: false, isSymbolicLink: false }
             , { name: `/${CAPTURE}/wtw/test.txt`, isDirectory: false, isFile: true, isSymbolicLink: false }]
         expect(files).toEqual(files);
     });
