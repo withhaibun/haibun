@@ -223,6 +223,13 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
         return !cur ? OK : actionNotOK(`${what} is ${cur}`)
       },
     },
+    seeTestId: {
+      gwta: 'has test id {testId}',
+      action: async ({ testId }: TNamed) => {
+        const found = await this.withPage(async (page: Page) => await page.getByTestId(testId));
+        return found ? OK : actionNotOK(`Did not find test id ${testId}`);
+      },
+    },
     seeTextIn: {
       gwta: 'in {selector}, see {text}',
       action: async ({ text, selector }: TNamed) => {
@@ -492,7 +499,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     //                          NAVIGATION
 
     // formerly On the {name} ${WEB_PAGE}
-    onPage: {
+    gotoPage: {
       gwta: `go to the {name} ${WEB_PAGE}`,
       action: async ({ name }: TNamed) => {
         const location = name.includes('://') ? name : onCurrentTypeForDomain({ name, type: WEB_PAGE }, this.getWorld());
