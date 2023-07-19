@@ -1,6 +1,6 @@
 {
   "name": "@haibun/feature-recorder",
-  "version": "1.28.18",
+  "version": "1.28.19",
   "type": "module",
   "files": [
     "build/**"
@@ -23,15 +23,15 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@haibun/browser-extension": "1.28.18",
-    "@haibun/context": "1.28.18",
-    "@haibun/core": "1.28.18",
-    "@haibun/domain-storage": "1.28.18",
-    "@haibun/domain-webpage": "1.28.18",
-    "@haibun/feature-importer": "1.28.18",
-    "@haibun/storage-fs": "1.28.18",
-    "@haibun/web-playwright": "1.28.18",
-    "@haibun/web-server-express": "1.28.18",
+    "@haibun/browser-extension": "1.28.19",
+    "@haibun/context": "1.28.19",
+    "@haibun/core": "1.28.19",
+    "@haibun/domain-storage": "1.28.19",
+    "@haibun/domain-webpage": "1.28.19",
+    "@haibun/feature-importer": "1.28.19",
+    "@haibun/storage-fs": "1.28.19",
+    "@haibun/web-playwright": "1.28.19",
+    "@haibun/web-server-express": "1.28.19",
     "source-map-support": "^0.5.21"
   },
   "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5"
