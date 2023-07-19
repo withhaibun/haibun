@@ -7,6 +7,7 @@ export const toc = (summary: TIndexSummary, dir: string, uriArgs: string | undef
     
     const index: any = {
         h1: {
+            '@data-testid': 'review-title',
             '@id': linker(dir),
             '#': indexTitle,
         },
