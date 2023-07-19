@@ -6,6 +6,7 @@
   "bin": {
     "haibun-cli": "build/cli.js"
   },
+  "main": "build/cli.js",
   "files": [
     "build/**"
   ],
