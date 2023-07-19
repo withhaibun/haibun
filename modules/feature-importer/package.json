@@ -3,6 +3,7 @@
   "type": "module",
   "version": "1.28.21",
   "description": "command line execution for @haibun",
+  "main": "build/index.js",
   "files": [
     "build/**"
   ],
