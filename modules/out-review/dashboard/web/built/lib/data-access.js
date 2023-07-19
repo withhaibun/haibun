@@ -44,7 +44,7 @@ export class DataAccess {
     getReviewData() {
         return __awaiter(this, void 0, void 0, function* () {
             const links = yield this.getLatest();
-            const reviews = links.filter(link => link.match(/.*-review\.json/));
+            const reviews = links.filter(link => link.match(/.*-reviews\.json/));
             if (!reviews) {
                 return [];
             }

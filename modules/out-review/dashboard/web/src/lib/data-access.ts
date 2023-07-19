@@ -34,7 +34,7 @@ export class DataAccess {
 
   async getReviewData(): Promise<TReviewLink[]> {
     const links = await this.getLatest();
-    const reviews = links.filter(link => link.match(/.*-review\.json/));
+    const reviews = links.filter(link => link.match(/.*-reviews\.json/));
     if (!reviews) {
       return [];
     }
