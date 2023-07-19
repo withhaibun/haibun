@@ -1,4 +1,4 @@
-import { TVStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, AStepper, TEndFeatureCallback, CStepper, TFound, STAY_ALWAYS, TAnyFixme, STAY } from '../lib/defs.js';
+import { TVStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, AStepper, TEndFeatureCallback, CStepper, TFound, TAnyFixme, STAY, STAY_FAILURE } from '../lib/defs.js';
 import { getNamedToVars } from '../lib/namedVars.js';
 import { actionNotOK, applyResShouldContinue, setStepperWorlds, sleep, createSteppers, findStepper } from '../lib/util/index.js';
 
@@ -15,7 +15,7 @@ export class Executor {
   }
   static async execute(csteppers: CStepper[], world: TWorld, features: TResolvedFeature[], endFeatureCallback?: TEndFeatureCallback): Promise<TExecutorResult> {
     let ok = true;
-    const stay = world.options[STAY] === STAY_ALWAYS;
+    const stayOnFailure = world.options[STAY] === STAY_FAILURE;
     const featureResults: TFeatureResult[] = [];
     world.shared.values._scored = [];
     let featureNum = 0;
@@ -31,11 +31,12 @@ export class Executor {
       const featureResult = await featureExecutor.doFeature(feature);
 
       ok = ok && featureResult.ok;
-      if (!stay) {
+      const shouldClose = (!stayOnFailure || ok);
+      featureResults.push(featureResult);
+      if (shouldClose) {
         await featureExecutor.endFeature(featureResult);
       }
-      featureResults.push(featureResult);
-      if (!stay) {
+      if (shouldClose) {
         await featureExecutor.close();
       }
     }

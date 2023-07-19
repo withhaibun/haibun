@@ -322,4 +322,5 @@ export type TRunOptions = {
 export type TRunResult = { output: TAnyFixme; result: TExecutorResult; shared: WorldContext; tag: TTag; runStart: number; runDuration: number; fromStart: number };
 
 export const STAY_ALWAYS = 'always';
+export const STAY_FAILURE = 'failure';
 export const STAY = 'STAY';

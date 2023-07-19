@@ -1,4 +1,4 @@
-import { DEFAULT_DEST, IHasOptions, STAY_ALWAYS, TOptions } from "@haibun/core/build/lib/defs.js";
+import { DEFAULT_DEST, IHasOptions, STAY_ALWAYS, STAY_FAILURE, TOptions } from "@haibun/core/build/lib/defs.js";
 import { LOGGER_LEVELS } from "@haibun/core/build/lib/Logger.js";
 import { boolOrError, intOrError, optionOrError, stringOrError } from "@haibun/core/build/lib/util/index.js";
 
@@ -41,8 +41,8 @@ export class BaseOptions implements IHasOptions {
             parse: (result: string) => ({ result })
         },
         STAY: {
-            desc: 'stay running after execution: ${STAY_ALWAYS}',
-            parse: (result: string) => optionOrError(result, [STAY_ALWAYS])
+            desc: 'stay running after execution: ${STAY_ALWAYS}, ${STAY_FAILURE',
+            parse: (result: string) => optionOrError(result, [STAY_ALWAYS, STAY_FAILURE])
         },
         LOG_FOLLOW: {
             desc: 'filter for output',
