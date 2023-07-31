@@ -222,8 +222,8 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
       // process each loc using func
       for (const { tag, memDir } of locs) {
         const tracksDir = `${memDir}/tracks`;
-        if (!this.reviewsStorage.exists(tracksDir)) {
-          this.getWorld().logger.debug(`no tracks dir ${tracksDir} for ${memDir}`);
+        if (!this.tracksStorage.exists(tracksDir)) {
+          this.getWorld().logger.debug(`no ${this.tracksStorage.constructor.name} tracks dir ${tracksDir} for ${memDir}`);
           return;
         }
         const tracks = await this.utils.readTracksFile(tracksDir);
@@ -256,7 +256,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
 
     await this.writeReviewLinker(link);
 
-    this.getWorld().logger.info(`wrote review dashboard link ${link}`)
+    this.getWorld().logger.info(`wrote reviews dashboard link ${link.title}`)
     return actionOK({ tree: { summary: 'wrote files', details: await this.publishStorage.readTree(this.publishRoot) } })
   }
 
