@@ -1,10 +1,10 @@
-import { CAPTURE, AStepper, OK, TNamed, DEFAULT_DEST } from "@haibun/core/build/lib/defs.js"
+import { CAPTURE, AStepper, OK, TNamed, DEFAULT_DEST, TAnyFixme } from "@haibun/core/build/lib/defs.js"
 import { actionNotOK } from '@haibun/core/build/lib/util/index.js';
 import { setShared } from "@haibun/core/build/steps/vars.js";
 import { IFile, TLocationOptions, TMediaType } from "./domain-storage.js";
 
 export abstract class AStorage extends AStepper {
-    abstract readFile(path: string, coding?: string): any;
+    abstract readFile(path: string, coding?: string): TAnyFixme;
     abstract readdir(dir: string): Promise<string[]>;
     abstract lstatToIFile(file: string): Promise<IFile>;
     abstract writeFileBuffer(file: string, contents: Buffer, mediaType: TMediaType): void;
@@ -50,6 +50,8 @@ export abstract class AStorage extends AStepper {
     abstract mkdir(dir: string);
     abstract mkdirp(dir: string);
     abstract exists(ntt: string);
+
+    abstract indexer?(dir: string): Promise<string[]>;
 
     async rmrf(dir: string) {
         throw Error(`rmrf not implemented at ${dir}`);

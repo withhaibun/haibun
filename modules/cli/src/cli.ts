@@ -86,7 +86,7 @@ async function go() {
   logger.info(`\nRESULT>>> ${JSON.stringify({ ok, startDate: Timer.startTime, key: Timer.key, passed, failed, totalRan, runTime, 'features/s:': totalRan / runTime })}`);
 
   if (ok && exceptionResults.length < 1) {
-    if (protoOptions.options[STAY] !== 'always') {
+    if (protoOptions.options[STAY] !== STAY_ALWAYS) {
       process.exit(0);
     }
   } else if (!protoOptions.options[STAY]) {
