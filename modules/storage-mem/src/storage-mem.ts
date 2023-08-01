@@ -2,6 +2,7 @@ import { Volume, IFs } from 'memfs';
 
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 import { IFile } from '@haibun/domain-storage/build/domain-storage.js';
+import { TAnyFixme } from '@haibun/core/build/lib/defs.js';
 
 export default class StorageMem extends AStorage {
     static BASE_FS = {};
@@ -14,7 +15,7 @@ export default class StorageMem extends AStorage {
         this.exists = (dir) => this.volume.existsSync(dir);
         this.mkdir = (dir) => this.volume.mkdirSync(dir);
     }
-    readFile = (file: string, coding?: any) => this.volume.readFileSync(file, coding);
+    readFile = (file: string, coding?: TAnyFixme) => this.volume.readFileSync(file, coding);
     writeFileBuffer = (fn: string, contents: Buffer) => {
         this.volume.writeFileSync(fn, contents);
     }

@@ -2,9 +2,10 @@ import * as fs from 'fs';
 
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 import { IFile } from '@haibun/domain-storage/build/domain-storage.js';
+import { TAnyFixme } from '@haibun/core/build/lib/defs.js';
 
 export default class StorageFS extends AStorage {
-    readFile = (file: string, coding?: any) => fs.readFileSync(file, coding)
+    readFile = (file: string, coding?: TAnyFixme) => fs.readFileSync(file, coding)
     exists = fs.existsSync;
     writeFileBuffer = (fn: string, contents: Buffer) => {
         fs.writeFileSync(fn, contents);
