@@ -51,7 +51,9 @@ export abstract class AStorage extends AStepper {
     abstract mkdirp(dir: string);
     abstract exists(ntt: string);
 
-    abstract indexer?(dir: string): Promise<string[]>;
+    async webIndexer(dir: string): Promise<string[]> | undefined {
+        return undefined;
+    }
 
     async rmrf(dir: string) {
         throw Error(`rmrf not implemented at ${dir}`);

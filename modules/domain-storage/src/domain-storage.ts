@@ -1,11 +1,11 @@
 import { WorkspaceContext } from '@haibun/core/build/lib/contexts.js'
-import { IHasDomains, TNamed, TVStep, OK, AStepper, TFromDomain, TFileTypeDomain, IHasOptions, TExtraOptions, TFeatureResult, TOptions, TTag, TWorld } from '@haibun/core/build/lib/defs.js';
+import { IHasDomains, TNamed, TVStep, OK, AStepper, TFromDomain, TFileTypeDomain, IHasOptions, TExtraOptions, TFeatureResult, TOptions, TTag, TAnyFixme } from '@haibun/core/build/lib/defs.js';
 import { stringOrError } from '@haibun/core/build/lib/util/index.js';
 
 export type TTrackResult = { meta: { title: string, startTime: string, startOffset: number }, result: TFeatureResult };
 export type TMissingTracks = { error: string };
 
-export type TCoding = any;
+export type TCoding = TAnyFixme;
 
 export const STORAGE_LOCATION = 'STORAGE_LOCATION';
 export const STORAGE_ITEM = 'STORAGE_ITEM';
@@ -17,14 +17,14 @@ export const storageLocation: TFileTypeDomain = {
 };
 
 export interface IFile {
-    name: string;
-    isDirectory: boolean;
-    isFile: boolean;
-    created: number;
+  name: string;
+  isDirectory: boolean;
+  isFile: boolean;
+  created: number;
 }
 
 export interface ICreateStorageDestination {
-  createStorageDestination(dest: string, params: any)
+  createStorageDestination(dest: string, params: TAnyFixme)
 }
 
 export const storageItem: TFromDomain = { name: STORAGE_ITEM, from: STORAGE_LOCATION, is: 'string' };
@@ -65,7 +65,27 @@ const DomainStorage = class DomainStorage extends AStepper implements IHasDomain
 export default DomainStorage;
 
 const MAPPED_MEDIA_TYPES = {
-  webm: 'video'
+  js: 'application/javascript',
+  css: 'text/css',
+  html: 'text/html',
+  json: 'application/json',
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  gif: 'image/gif',
+  svg: 'image/svg+xml',
+  ogg: 'audio/ogg',
+  pdf: 'application/pdf',
+  webm: 'video/webm',
+  weba: 'audio/webm',
+  mp4: 'video/mp4',
+  mp3: 'audio/mpeg',
+  wav: 'audio/wav',
+  ico: 'image/x-icon',
+  woff: 'font/woff',
+  woff2: 'font/woff2',
+  ttf: 'font/ttf',
+  otf: 'font/otf',
 }
 
 const MEDIA_TYPES: { [type: string]: string } = {
@@ -92,20 +112,27 @@ export type TLocationOptions = {
 }
 
 export interface ITrackResults {
-  writeTracksFile(loc: TLocationOptions, title: string, result: TFeatureResult, startTime: Date, startOffset: number): any;
+  writeTracksFile(loc: TLocationOptions, title: string, result: TFeatureResult, startTime: Date, startOffset: number): TAnyFixme;
 }
 
 export interface IReviewResult {
-  writeReview(loc: TLocationOptions, result: TTrackResult | TMissingTracks, allStartTime: number): any;
+  writeReview(loc: TLocationOptions, result: TTrackResult | TMissingTracks, allStartTime: number): TAnyFixme;
 }
 
+/** 
+ * Normalize the extension
+ */
 export function guessMediaExt(file: string) {
   const ext = file.replace(/.*\./, '').toLowerCase();
-  return MAPPED_MEDIA_TYPES[ext] || ext;
+  return MEDIA_TYPES[ext] || ext.replace(/[^A-Z]/g, '');
 }
 
+/**
+ * Assign a mime type based on the extension  
+ */
 export function guessMediaType(file: string) {
-  const ext = guessMediaExt(file);
-  const mediaType = MEDIA_TYPES[ext] || ext.toUpperCase().replace(/[^A-Z]/g, '');
+  const ext = file.replace(/.*\./, '').toLowerCase();
+  const mediaType = MAPPED_MEDIA_TYPES[ext] || ext;
+
   return <TMediaType>mediaType;
 }
