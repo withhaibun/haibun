@@ -7,38 +7,17 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+import { getLatestPublished, resolvePublishedReview } from './indexer.js';
 export class DataAccess {
     constructor() {
         this.latest = [];
-        this.apiUrl = '/reviews';
     }
     getLatest() {
         return __awaiter(this, void 0, void 0, function* () {
             if (this.latest.length > 0) {
                 return this.latest;
             }
-            const response = yield fetch(`${this.apiUrl}/`);
-            const data = yield response.text();
-            this.latest = parseLinks(data).map(link => link.replace(this.apiUrl, ''))
-                .map(link => link.replace(/^\//, '')).filter(link => link.length > 0);
-            return this.latest;
-        });
-    }
-    getJSON(loc) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const response = yield fetch(`${this.apiUrl}/${loc}`);
-            const data = yield response.json();
-            return data;
-        });
-    }
-    getLatestPR() {
-        return __awaiter(this, void 0, void 0, function* () {
-            const links = yield this.getLatest();
-            const prLink = links.find(link => link === 'deployed-pr.json');
-            if (!prLink) {
-                return null;
-            }
-            return yield this.getJSON(prLink);
+            return yield getLatestPublished();
         });
     }
     getReviewData() {
@@ -50,19 +29,21 @@ export class DataAccess {
             }
             const foundReviews = [];
             for (const review of reviews) {
-                foundReviews.push(yield this.getJSON(review));
+                const resolved = yield resolvePublishedReview(review);
+                foundReviews.push(resolved);
             }
             return foundReviews;
         });
     }
-}
-export function parseLinks(html) {
-    const links = [];
-    const linkRegex = /<a\s+(?:[^>]*?\s+)?href=(["'])(.*?)\1/g;
-    let match;
-    while ((match = linkRegex.exec(html)) !== null) {
-        const link = match[2];
-        links.push(link);
+    // Get the latest deployed pull request address
+    getLatestPR() {
+        return __awaiter(this, void 0, void 0, function* () {
+            const links = yield this.getLatest();
+            const prLink = links.find(link => link === 'deployed-pr.json');
+            if (!prLink) {
+                return null;
+            }
+            return yield resolvePublishedReview(prLink);
+        });
     }
-    return links;
 }

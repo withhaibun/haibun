@@ -4,7 +4,7 @@ import { IHasOptions, OK, TNamed, IRequireDomains, TStepResult, TTraceOptions, T
 import { onCurrentTypeForDomain } from '@haibun/core/build/steps/vars.js';
 import { BrowserFactory, TBrowserFactoryOptions, TBrowserTypes } from './BrowserFactory.js';
 import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOption, sleep } from '@haibun/core/build/lib/util/index.js';
-import { WEB_PAGE, WEB_CONTROL } from '@haibun/domain-webpage/build/domain-webpage.js';
+import { WEB_PAGE, WEB_CONTROL } from '@haibun/domain-webpage';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 import { EMediaTypes } from '@haibun/domain-storage/build/domain-storage.js';
 
@@ -175,6 +175,18 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     }
   }
 
+  async sees(text: string, selector: string) {
+    let textContent: string | null = null;
+    // FIXME retry sometimes required?
+    for (let a = 0; a < 2; a++) {
+      textContent = await this.withPage(async (page: Page) => await page.textContent(selector, { timeout: 1e9 }));
+      if (textContent?.toString().includes(text)) {
+        return OK;
+      }
+    }
+    const topics = { textContent: { summary: `in ${textContent?.length} characters`, details: textContent } };
+    return actionNotOK(`Did not find text "${text}" in ${selector}`, { topics });
+  }
   steps = {
     //                                      INPUT
     press: {
@@ -233,32 +245,14 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     seeTextIn: {
       gwta: 'in {selector}, see {text}',
       action: async ({ text, selector }: TNamed) => {
-        let textContent: string | null = null;
-        // FIXME retry sometimes required?
-        for (let a = 0; a < 2; a++) {
-          textContent = await this.withPage(async (page: Page) => await page.textContent(selector, { timeout: 1e9 }));
-          if (textContent?.toString().includes(text)) {
-            return OK;
-          }
-        }
-        const topics = { textContent: { summary: `in ${textContent?.length} characters`, details: textContent } };
-        return actionNotOK(`Did not find text "${text}" in ${selector}`, { topics });
-      },
+        return await this.sees(text, selector);
+      }
     },
     seeText: {
       gwta: 'see {text}',
       action: async ({ text }: TNamed) => {
-        let textContent: string | null = null;
-        // FIXME retry sometimes required?
-        for (let a = 0; a < 2; a++) {
-          textContent = await this.withPage(async (page: Page) => await page.textContent('body', { timeout: 1e9 }));
-          if (textContent?.toString().includes(text)) {
-            return OK;
-          }
-        }
-        const topics = { textContent: { summary: `in ${textContent?.length} characters`, textContent, details: textContent } };
-        return actionNotOK(`Did not find text "${text}" in document`, { topics });
-      },
+        return await this.sees(text, 'body');
+      }
     },
     waitFor: {
       gwta: 'wait for {what}',

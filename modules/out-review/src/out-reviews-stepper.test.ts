@@ -116,7 +116,7 @@ describe('dashboard', () => {
     it('Generates dashboard review links', async () => {
         StorageMem.BASE_FS = TEST_CAPTURES;
         const outReviewsStepper = new OutReviews();
-        const feature = { path: '/features/test.feature', content: `publish reviews dashboard link` };
+        const feature = { path: '/features/test.feature', content: `create index\npublish reviews dashboard link` };
         const result = await testWithDefaults([feature], [OutReviews, DomainStorage, StorageMem, StorageFS], {
             options: { DEST: DEFAULT_DEST },
             extraOptions: {
@@ -125,7 +125,7 @@ describe('dashboard', () => {
             },
         });
         expect(result.ok).toBe(true);
-        const tree = result.featureResults[0].stepResults[0].actionResults[0].topics.tree;
+        const tree = result.featureResults[0].stepResults[1].actionResults[0].topics.tree;
         expect(tree.details[0].entries[0].name).toBe(`/test/reviews/${Timer.key}-${REVIEW_LINKER_FILE}`);
     });
 });

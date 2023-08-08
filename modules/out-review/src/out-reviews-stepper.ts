@@ -2,20 +2,22 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 import { AStepper, DEFAULT_DEST, IHasOptions, IRequireDomains, OK, TFeatureResult, TNamed, TWorld, } from "@haibun/core/build/lib/defs.js";
-import { EMediaTypes, IReviewResult, STORAGE_ITEM, STORAGE_LOCATION, TLocationOptions, TMissingTracks, TTrackResult } from '@haibun/domain-storage/build/domain-storage.js';
+import { IHasWebReviewIndexer, IReviewResult, IWebReviewIndexer, STORAGE_ITEM, STORAGE_LOCATION, TLocationOptions, TMissingTracks, TReviewLink, TTrackResult } from '@haibun/domain-storage';
 import { actionOK, findStepperFromOption, getStepperOption, stringOrError } from '@haibun/core/build/lib/util/index.js';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 import HtmlGenerator, { TIndexSummaryResult } from "./html-generator.js";
-import { ITrackResults } from '@haibun/domain-storage/build/domain-storage.js';
+import { ITrackResults } from '@haibun/domain-storage';
 import { summary } from "./components/index/summary.js";
 import StorageFS from "@haibun/storage-fs/build/storage-fs.js";
 import { ReviewsUtils } from "./lib/ReviewsUtils.js";
 import { Timer } from "@haibun/core/build/lib/Timer.js";
+import { EMediaTypes } from "@haibun/domain-storage/build/domain-storage.js";
 
 export const TRACKS_FILE = `tracks.json`;
 export const REVIEW_FILE = 'review.html';
 export const REVIEWS_INDEX_FILE = 'reviews.html';
 export const REVIEW_LINKER_FILE = 'reviews.json';
+const FINDER = 'finder.json';
 
 export const STORAGE = 'STORAGE';
 export const TRACKS_STORAGE = 'TRACKS_STORAGE';
@@ -24,8 +26,6 @@ export const PUBLISH_STORAGE = 'PUBLISH_STORAGE';
 export const INDEX_STORAGE = 'INDEX_STORAGE';
 export const PUBLISH_ROOT = 'PUBLISH_ROOT';
 const URI_ARGS = 'URI_ARGS';
-
-export type TReviewLink = { link: string; title: string; date: string; results: { fail: number; success: number; } }
 
 export const MISSING_TRACKS: TIndexSummaryResult = { ok: false, sourcePath: 'missing', featureTitle: 'Missing tracks file', startTime: new Date().toString() };
 export const MISSING_TRACKS_FILE = 'Missing tracks file';
@@ -211,6 +211,10 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
         await this.publishStorage.ensureDirExists(this.publishRoot);
         await this.utils.recurseCopy({ src: `${web}/public`, fromFS: this.localFS, toFS: this.publishStorage, toFolder: this.publishRoot, trimFolder: `${web}/public` });
         await this.utils.recurseCopy({ src: `${web}/built`, fromFS: this.localFS, toFS: this.publishStorage, toFolder: this.publishRoot, trimFolder: `${web}/built` });
+        const webLinker: IWebReviewIndexer = ((this.publishStorage as unknown) as IHasWebReviewIndexer).webReviewIndexer;
+        if (webLinker) {
+          await this.publishStorage.writeFile(`${this.publishRoot}/lib/indexer.js`, `const webContext=${JSON.stringify(webLinker.webContext)}\nexport ${webLinker.getLatestPublished.toString()}\nexport ${webLinker.resolvePublishedReview.toString()}`, EMediaTypes.javascript);
+        }
         return actionOK({ tree: { summary: 'wrote files', details: await this.publishStorage.readTree(this.publishRoot) } })
       }
     },
@@ -241,18 +245,32 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     const isum = summary(results);
     const html = await htmlGenerator.getHtmlDocument(isum, { title: this.title, base: 'capture/' },);
     await this.publishStorage.ensureDirExists([this.publishRoot].join('/'));
-    const indexHtml = [this.publishRoot, REVIEWS_INDEX_FILE].join('/');
+    const reviewsLocation = [this.publishRoot, REVIEWS_INDEX_FILE].join('/');
 
-    await this.publishStorage?.writeFile(indexHtml, html, EMediaTypes.html);
-
-    this.getWorld().logger.info(`wrote index file ${indexHtml}`)
+    await this.publishStorage?.writeFile(reviewsLocation, html, EMediaTypes.html);
+    await this.publishFinderReviewLocation();
     return OK;
+  }
+
+  // since the storage options change between steps, use the finder to stash the reviews location
+  async publishFinderReviewLocation() {
+    const publishedReviewLocation = this.publishStorage.pathed(EMediaTypes.html, [this.publishRoot, REVIEWS_INDEX_FILE].join('/'));
+    const finderLocation = await this.getFinderLocation();
+    await this.indexStorage?.writeFile(finderLocation, JSON.stringify({ publishedReviewLocation }), EMediaTypes.json);
+  }
+  async getFinderLocation() {
+    return await this.indexStorage.fromCaptureLocation(EMediaTypes.json, FINDER);
+  }
+  async getPublishedReviewLocation() {
+    const finderLocation = await this.getFinderLocation();
+    const { publishedReviewLocation } = JSON.parse(await this.indexStorage?.readFile(finderLocation, 'utf-8'));
+    return publishedReviewLocation;
   }
 
   async publishReviewsDashboardLink(indexDirs: string[]) {
     const { fail, success } = await this.utils.getReviewsResults(indexDirs);
-    const indexHtml = [this.publishRoot, REVIEWS_INDEX_FILE].join('/');
-    const link: TReviewLink = { date: Timer.key, link: indexHtml.replace(/.*\//, ''), title: this.title, results: { fail, success } };
+    const publishedReviewLocation = await this.getPublishedReviewLocation();
+    const link: TReviewLink = { date: Timer.key, link: publishedReviewLocation, title: this.title, results: { fail, success } };
 
     await this.writeReviewLinker(link);
 

@@ -16,6 +16,17 @@ export const storageLocation: TFileTypeDomain = {
   }
 };
 
+// FIXME these belongs in domain-web
+export interface IHasWebReviewIndexer {
+  webReviewIndexer: IWebReviewIndexer;
+}
+export type TWebContext = { [name: string]: string }
+export interface IWebReviewIndexer { getLatestPublished: TGetLatestPublished, resolvePublishedReview: TResolvePublishedReview, webContext: TWebContext }
+export type TGetLatestPublished = () => Promise<string[]>;
+export type TResolvePublishedReview = (link: string) => Promise<TReviewLink>;
+
+export type TReviewLink = { link: string; title: string; date: string; results: { fail: number; success: number } }
+
 export interface IFile {
   name: string;
   isDirectory: boolean;
@@ -65,7 +76,8 @@ const DomainStorage = class DomainStorage extends AStepper implements IHasDomain
 export default DomainStorage;
 
 const MAPPED_MEDIA_TYPES = {
-  js: 'application/javascript',
+  js: 'text/javascript',
+  javascript: 'text/javascript',
   css: 'text/css',
   html: 'text/html',
   json: 'application/json',
@@ -88,18 +100,19 @@ const MAPPED_MEDIA_TYPES = {
   otf: 'font/otf',
 }
 
-const MEDIA_TYPES: { [type: string]: string } = {
-  html: 'text/html',
-  json: 'json',
-  'video': 'video/mp4'
-}
-
-
 export const enum EMediaTypes {
   html = 'html',
   video = 'video',
   json = 'json',
-  image = 'image'
+  image = 'image',
+  javascript = 'js'
+}
+
+const MEDIA_TYPES: { [type: string]: string } = {
+  html: 'text/html',
+  json: 'json',
+  video: 'video/mp4',
+  js: 'javascript',
 }
 
 export type TMediaType = EMediaTypes;
@@ -120,19 +133,22 @@ export interface IReviewResult {
 }
 
 /** 
- * Normalize the extension
+ * Normalize the extension. This should probably be reconsidered.
  */
 export function guessMediaExt(file: string) {
-  const ext = file.replace(/.*\./, '').toLowerCase();
-  return MEDIA_TYPES[ext] || ext.replace(/[^A-Z]/g, '');
+  const ext = getExtension(file);
+  return MEDIA_TYPES[ext] || ext;
 }
 
 /**
  * Assign a mime type based on the extension  
  */
 export function guessMediaType(file: string) {
-  const ext = file.replace(/.*\./, '').toLowerCase();
-  const mediaType = MAPPED_MEDIA_TYPES[ext] || ext;
-
+  const ext = getExtension(file);
+  const mediaType = MAPPED_MEDIA_TYPES[ext] || 'application/octet-stream';
   return <TMediaType>mediaType;
+}
+
+function getExtension(file: string) {
+  return file.replace(/.*\./, '').toLowerCase();
 }
