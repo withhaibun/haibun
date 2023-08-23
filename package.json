@@ -35,6 +35,7 @@
     "preversion": "npm run test"
   },
   "dependencies": {
-    "@types/chrome": "^0.0.237"
+    "@types/chrome": "^0.0.237",
+    "dependency-cruiser": "^13.1.4"
   }
 }
