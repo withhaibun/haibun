@@ -32,6 +32,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     CAPTURE_VIDEO: {
       desc: 'capture video for every agent',
       parse: (input: string) => boolOrError(input),
+      dependsOn: ['STORAGE']
     },
     STEP_CAPTURE_SCREENSHOT: {
       desc: 'capture screenshot for every step',
@@ -42,7 +43,6 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       parse: (input: string) => intOrError(input),
     },
     [WebPlaywright.STORAGE]: {
-      required: true,
       desc: 'Storage for output',
       parse: (input: string) => stringOrError(input),
     },
@@ -298,7 +298,11 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     beOnPage: {
       gwta: `be on the {name} ${WEB_PAGE}`,
       action: async ({ name }: TNamed) => {
-        const nowon = await this.withPage(async (page: Page) => await page.url());
+        const nowon = await this.withPage(async (page: Page) => {
+          await page.waitForURL(name);
+          return page.url();
+        }
+        );
         if (nowon === name) {
           return OK;
         }
