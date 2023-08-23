@@ -60,8 +60,8 @@ class Versioner {
     if (location !== '.') {
       const pkgFile = `${location}/package.json`;
       const pkg = JSON.parse(readFileSync(pkgFile, 'utf-8'));
-      const {main} = pkg;
-      if (!existsSync(`${location}/${main}`)) {
+      const { main } = pkg;
+      if (main && !existsSync(`${location}/${main}`)) {
         throw Error(`main file ${main} does not exist in ${location}`);
       }
       pkg.version = this.version;
