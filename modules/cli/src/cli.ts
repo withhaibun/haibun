@@ -85,7 +85,7 @@ async function go() {
     if (existsSync('failures.json')) {
       renameSync('failures.json', 'failures-previous.json');
     }
-    writeFileSync('failures.json', JSON.stringify({ results: ranResults[0].result.featureResults || allFailures }, null, 2));
+    writeFileSync('failures.json', JSON.stringify({ results: ranResults || allFailures }, null, 2));
     logger.info('errors were written to failures.json');
   }
   logger.info(`\nRESULT>>> ${JSON.stringify({ ok, startDate: Timer.startTime, key: Timer.key, passed, failed, totalRan, runTime, 'features/s:': totalRan / runTime })}`);
