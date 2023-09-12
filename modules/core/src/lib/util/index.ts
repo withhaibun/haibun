@@ -277,12 +277,21 @@ export function getStepperOption(stepper: AStepper, name: string, extraOptions: 
 /**
  * Find a stepper by option value from a list of steppers
  */
+export function maybeFindStepperFromOption<Type>(steppers: AStepper[], stepper: AStepper, extraOptions: TExtraOptions, ...optionNames: string[]): Type {
+  return doFindStepperFromOption(steppers, stepper, extraOptions, true, ...optionNames);
+};
 export function findStepperFromOption<Type>(steppers: AStepper[], stepper: AStepper, extraOptions: TExtraOptions, ...optionNames: string[]): Type {
+  return doFindStepperFromOption(steppers, stepper, extraOptions, false, ...optionNames);
+};
+function doFindStepperFromOption<Type>(steppers: AStepper[], stepper: AStepper, extraOptions: TExtraOptions, optional: boolean, ...optionNames: string[]): Type {
   const val = optionNames.reduce<string | undefined>((v, n) => {
     const r = getStepperOption(stepper, n, extraOptions);
     return v || r;
   }, undefined);
 
+  if (!val && optional) {
+    return undefined;
+  }
   if (!val) {
     throw Error(`Cannot find ${optionNames.map(o => getStepperOptionName(stepper, o)).join(' or ')} in your ${stepper.constructor.name} options ${JSON.stringify(Object.keys(extraOptions).filter(k => k.startsWith(getPre(stepper))))}`)
   }
