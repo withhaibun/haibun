@@ -99,7 +99,7 @@ export class ReviewsUtils {
     }
     async getReviewSummary(dir: string) {
         const res: Partial<TIndexSummary> = {
-            indexTitle: 'none',
+            indexTitle: 'no title yet',
             results: <TIndexSummaryResult[]>[]
         }
 

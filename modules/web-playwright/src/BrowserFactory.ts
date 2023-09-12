@@ -2,7 +2,7 @@
 import { Browser, BrowserContext, Page, chromium, firefox, webkit, BrowserType, devices } from 'playwright';
 
 import { ILogger, } from '@haibun/core/build/lib/interfaces/logger.js';
-import { TTagValue, TTraceOptions } from '@haibun/core/build/lib/defs.js';
+import { TAnyFixme, TTagValue, TTraceOptions } from '@haibun/core/build/lib/defs.js';
 
 export const BROWSERS: { [name: string]: BrowserType } = {
   firefox,
@@ -96,7 +96,7 @@ export class BrowserFactory {
 
   async closeContext({ sequence }: { sequence: TTagValue }) {
     if (this.contexts[sequence] !== undefined) {
-      let p = this.pages[sequence];
+      const p = this.pages[sequence];
       await p && p?.close();
     }
     await this.contexts[sequence]?.close();
@@ -142,7 +142,7 @@ export class BrowserFactory {
     if (trace) {
       Object.keys(trace).forEach(t => {
         // FIXME
-        (page as any).on(t, trace[t].listener);
+        (page as TAnyFixme).on(t, trace[t].listener);
       })
     }
     this.pages[pageKey] = page;

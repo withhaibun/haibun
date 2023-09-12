@@ -92,7 +92,7 @@ describe('mem getCaptureLocation', () => {
         storageMem.mkdirp(`/${CAPTURE}/wtw`);
         storageMem.writeFileBuffer(`/${CAPTURE}/wtw/test.txt`, Buffer.from('test'));
         const files = await storageMem.readdirStat(`/${CAPTURE}`);
-         [{ name: `/${CAPTURE}/wtw`, isDirectory: true, isFile: false, isSymbolicLink: false }
+        [{ name: `/${CAPTURE}/wtw`, isDirectory: true, isFile: false, isSymbolicLink: false }
             , { name: `/${CAPTURE}/wtw/test.txt`, isDirectory: false, isFile: true, isSymbolicLink: false }]
         expect(files).toEqual(files);
     });

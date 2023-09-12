@@ -1,5 +1,5 @@
+import { TReviewLink } from '@haibun/domain-storage/build/domain-storage.js';
 import { DataAccess, TPRData } from './lib/data-access.js';
-import { TReviewLink } from '@haibun/out-review';
 
 export class PrairieJsonExplorer extends HTMLElement {
   private dataAccess: DataAccess;
