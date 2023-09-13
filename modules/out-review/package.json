@@ -1,7 +1,7 @@
 {
   "name": "@haibun/out-review",
   "type": "module",
-  "version": "1.30.3",
+  "version": "1.30.4",
   "description": "",
   "files": [
     "build/**",
@@ -25,10 +25,10 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@haibun/core": "1.30.3",
-    "@haibun/domain-storage": "1.30.3",
-    "@haibun/storage-fs": "1.30.3",
-    "@haibun/storage-mem": "1.30.3",
+    "@haibun/core": "1.30.4",
+    "@haibun/domain-storage": "1.30.4",
+    "@haibun/storage-fs": "1.30.4",
+    "@haibun/storage-mem": "1.30.4",
     "xmlbuilder2": "^3.0.2"
   },
   "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5"
