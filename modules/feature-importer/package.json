@@ -1,7 +1,7 @@
 {
   "name": "@haibun/feature-importer",
   "type": "module",
-  "version": "1.29.5",
+  "version": "1.30.0",
   "description": "command line execution for @haibun",
   "main": "build/index.js",
   "files": [
@@ -19,11 +19,11 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@haibun/context": "1.29.5",
-    "@haibun/core": "1.29.5"
+    "@haibun/context": "1.30.0",
+    "@haibun/core": "1.30.0"
   },
   "devDependencies": {
-    "@haibun/domain-webpage": "1.29.5"
+    "@haibun/domain-webpage": "1.30.0"
   },
   "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5"
 }
