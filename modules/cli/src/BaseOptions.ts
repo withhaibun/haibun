@@ -41,7 +41,7 @@ export class BaseOptions implements IHasOptions {
             parse: (result: string) => ({ result })
         },
         STAY: {
-            desc: 'stay running after execution: ${STAY_ALWAYS}, ${STAY_FAILURE',
+            desc: `stay running after execution: ${STAY_ALWAYS}, ${STAY_FAILURE}`,
             parse: (result: string) => optionOrError(result, [STAY_ALWAYS, STAY_FAILURE])
         },
         LOG_FOLLOW: {
