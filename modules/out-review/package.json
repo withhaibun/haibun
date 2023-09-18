@@ -26,7 +26,7 @@
   "license": "ISC",
   "dependencies": {
     "@haibun/core": "1.30.7",
-    "@haibun/domain-storage": "1.30.7",
+    "@haibun/domain-storage": "^1.30.7",
     "@haibun/storage-fs": "1.30.7",
     "@haibun/storage-mem": "1.30.7",
     "xmlbuilder2": "^3.0.2"
