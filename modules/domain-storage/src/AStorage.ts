@@ -82,7 +82,7 @@ export abstract class AStorage extends AStepper {
      */
     pathed(mediaType: TMediaType, f: string, relativeTo?: string) {
         if (relativeTo) {
-            return f.replace(relativeTo, '.');
+            return (f || 'FIXMEPATHED').replace(relativeTo, '.');
         }
 
         return f;

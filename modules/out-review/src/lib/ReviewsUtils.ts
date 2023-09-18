@@ -220,7 +220,9 @@ export class ReviewsUtils {
             const ok = !!summary.results.every(r => r.ok);
             success += summary.results.filter(r => r.ok).length;
             fail += summary.results.filter(r => !r.ok).length;
-            const index = toc(summary, dir, this.uriArgs, htmlGenerator.linkFor, (path: string) => this.publishStorage.pathed(EMediaTypes.html, path, `./${CAPTURE}`));
+            const toDir = this.publishStorage.pathed(EMediaTypes.html, dir, `./${CAPTURE}`)
+            console.log('toDir', toDir, dir);
+            const index = toc(summary, toDir, this.uriArgs);
 
             results.push({ ok, dir, link: htmlGenerator.linkFor(dir), index });
         }
