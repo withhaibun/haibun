@@ -78,8 +78,8 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     },
   };
 
-  setWorld(world: TWorld, steppers: AStepper[]) {
-    super.setWorld(world, steppers);
+  async setWorld(world: TWorld, steppers: AStepper[]) {
+    await super.setWorld(world, steppers);
     this.uriArgs = getStepperOption(this, URI_ARGS, this.getWorld().extraOptions) || '';
     this.tracksStorage = findStepperFromOption(steppers, this, world.extraOptions, TRACKS_STORAGE, STORAGE);
     this.reviewsStorage = findStepperFromOption(steppers, this, world.extraOptions, REVIEWS_STORAGE, STORAGE);
@@ -87,7 +87,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     this.publishStorage = findStepperFromOption(steppers, this, world.extraOptions, PUBLISH_STORAGE, STORAGE);
     this.publishRoot = getStepperOption(this, PUBLISH_ROOT, this.getWorld().extraOptions) || './published';
     const localFS = new StorageFS();
-    localFS.setWorld(world, steppers);
+    await localFS.setWorld(world, steppers);
     this.localFS = localFS;
     this.utils = new ReviewsUtils(this.getWorld().logger, this.tracksStorage, this.reviewsStorage, this.publishStorage, this.indexStorage, this.uriArgs);
   }

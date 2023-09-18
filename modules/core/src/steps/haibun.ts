@@ -5,7 +5,7 @@ import { EVENT_AFTER } from '../phases/Builder.js';
 
 const Haibun = class Haibun extends AStepper {
   steppers: AStepper[];
-  setWorld(world: TWorld, steppers: AStepper[]): void {
+  async setWorld(world: TWorld, steppers: AStepper[]) {
     this.steppers = steppers;
     this.world = world;
   }

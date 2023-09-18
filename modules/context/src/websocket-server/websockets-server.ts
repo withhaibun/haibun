@@ -45,7 +45,7 @@ export class WebSocketServer {
 
 const LoggerWebSockets = class LoggerWebsockets extends AStepper {
   ws: WebSocketServer | undefined;
-  setWorld(world: TWorld) {
+  async setWorld(world: TWorld) {
     this.world = world;
   }
 

@@ -160,7 +160,7 @@ export interface CStepper {
     steps: {
       [name: string]: TStep;
     };
-    setWorld(world: TWorld, steppers: AStepper[]): void;
+    setWorld(world: TWorld, steppers: AStepper[]): Promise<void>;
     getWorld(): TWorld;
   };
 }
@@ -173,7 +173,7 @@ export abstract class AStepper {
   endFeature?(): void;
   onFailure?(result: TStepResult): void;
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  setWorld(world: TWorld, steppers: AStepper[]) {
+  async setWorld(world: TWorld, steppers: AStepper[]) {
     this.world = world;
   }
   abstract steps: { [name: string]: TStep };

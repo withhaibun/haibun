@@ -19,7 +19,7 @@ type TFailResult = {
 };
 
 export default class OutXUnit implements IResultOutput {
-  setWorld(world: TWorld, steppers: AStepper[]) {
+  async setWorld(world: TWorld, steppers: AStepper[]) {
     return;
   }
   async getOutput(result: TExecutorResult, { name = 'Haibun-Junit', prettyPrint = true, classname = 'Haibun-Junit-Suite' }) {

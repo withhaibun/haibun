@@ -4,8 +4,8 @@ import { actionNotOK } from '@haibun/core/build/lib/util/index.js';
 import WTW from './lib/WTW.js';
 
 class WTWStepper extends AStepper {
-  setWorld(world: TWorld, steppers: AStepper[]) {
-    super.setWorld(world, steppers);
+  async setWorld(world: TWorld, steppers: AStepper[]) {
+    await super.setWorld(world, steppers);
   }
 
   steps = {
