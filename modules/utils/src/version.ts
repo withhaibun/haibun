@@ -39,27 +39,31 @@ class Versioner {
 
     for (const module of modules) {
       const name = module.replace(/\/$/, '').replace(/.*\//, '');
-      this.verifyStructureAndUpdateVersion(name, module);
-      this.toPublish.push(module);
+      if (this.verifyShouldPublishStructureAndUpdateVersion(name, module)) {
+        this.toPublish.push(module);
+      }
     }
 
-    this.verifyStructureAndUpdateVersion('haibun', '.');
+    this.verifyShouldPublishStructureAndUpdateVersion('haibun', '.');
     this.publishAll();
   }
 
   publishAll() {
     for (const module of this.toPublish) {
-      console.info('publishing', module);
+      console.info('\n\n*** publishing', module);
       spawn(['npm', 'publish'], module);
       spawn(['git', 'push'], module);
     }
   }
 
-  verifyStructureAndUpdateVersion(name: string, location: string) {
-    console.info('updating', name);
+  verifyShouldPublishStructureAndUpdateVersion(name: string, location: string) {
     if (location !== '.') {
       const pkgFile = `${location}/package.json`;
       const pkg = JSON.parse(readFileSync(pkgFile, 'utf-8'));
+      if (!pkg.publsh && pkg.publish !== undefined) {
+        return false;
+      }
+      console.info('updating', name);
       const { main } = pkg;
       if (main && !main.includes('*') && !existsSync(`${location}/${main}`)) {
         throw Error(`main file ${main} does not exist in ${location}`);
@@ -97,6 +101,7 @@ class Versioner {
         throw e;
       }
     }
+    return true;
   }
 }
 
