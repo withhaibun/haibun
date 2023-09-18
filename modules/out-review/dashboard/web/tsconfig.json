@@ -2,13 +2,13 @@
   "compilerOptions": {
     "rootDir": "./src",
     "target": "es6",
+    "module": "NodeNext",
     "moduleResolution": "nodenext",
     "lib": [
       "es2016",
       "esnext",
       "dom"
     ],
-    "module": "ES6",
     "outDir": "./built",
     "strict": true,
     "composite": true
