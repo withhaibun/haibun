@@ -56,11 +56,11 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
   downloaded: string[] = [];
 
   async setWorld(world: TWorld, steppers: AStepper[]) {
-    super.setWorld(world, steppers);
+    await super.setWorld(world, steppers);
     this.storage = findStepperFromOption(steppers, this, world.extraOptions, WebPlaywright.STORAGE);
     const headless = (getStepperOption(this, 'HEADLESS', world.extraOptions) === 'true') || !!process.env.CI;
     const devtools = getStepperOption(this, 'DEVTOOLS', world.extraOptions) === 'true';
-    const args = getStepperOption(this, 'ARGS', world.extraOptions)?.split(';')
+    const args = [...(getStepperOption(this, 'ARGS', world.extraOptions)?.split(';') || ''), '--disable-gpu'];
     const persistentDirectory = getStepperOption(this, WebPlaywright.PERSISTENT_DIRECTORY, world.extraOptions) === 'true';
     const defaultTimeout = parseInt(getStepperOption(this, 'TIMEOUT', world.extraOptions)) || 30000;
     const captureVideo = getStepperOption(this, 'CAPTURE_VIDEO', world.extraOptions);
