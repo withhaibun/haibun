@@ -2,7 +2,7 @@
 
 import sourceMapSupport from 'source-map-support';
 import repl from 'repl';
-import { TSpecl, TWorld, TEndFeatureCallback, TEndFeatureCallbackParams, TRunOptions, TBase, STAY_ALWAYS, STAY } from '@haibun/core/build/lib/defs.js';
+import { TSpecl, TWorld, TEndFeatureCallback, TEndFeatureCallbackParams, TRunOptions, TBase, STAY_ALWAYS, STAY, TNotOKActionResult, TFeatureResult } from '@haibun/core/build/lib/defs.js';
 import { EMediaTypes, ITrackResults } from '@haibun/domain-storage/build/domain-storage.js';
 
 import { findStepper, getConfigFromBase, getDefaultOptions, basesFrom } from '@haibun/core/build/lib/util/index.js';
@@ -81,7 +81,8 @@ async function go() {
   if (ok && exceptionResults.length < 1) {
     logger.log('OK ' + ranResults.every((r) => r.output));
   } else {
-    logger.error('failures:' + JSON.stringify({ results: ranResults[0].result.featureResults || allFailures }, null, 2));
+    const results = summarizeFeatureResults(ranResults[0].result.featureResults) || allFailures;
+    logger.error('failures:' + JSON.stringify({ results }, null, 2));
     if (existsSync('failures.json')) {
       renameSync('failures.json', 'failures-previous.json');
     }
@@ -99,6 +100,16 @@ async function go() {
   }
 }
 
+function summarizeFeatureResults(featureResults: TFeatureResult[]) {
+  return featureResults?.map((f, n) => ({
+    '#': n + 1, ok: f.ok, path: f.path, failure: f.failure, stepResults: f.ok ? undefined : f.stepResults
+      .map(s => (s.ok ? s.in : {
+        ok: s.ok, in: s.in, actionResults: s.actionResults
+          // FIXME shouldn't need cast
+          .map(a => (a.ok ? a.name : { ok: a.ok, name: a.name, message: (a as TNotOKActionResult).message, topics: Object.keys(a.topics).join(',') }))
+      }))
+  }))
+}
 async function getSpeclOrExit(bases: TBase): Promise<TSpecl> {
   const specl = getConfigFromBase(bases);
   if (specl === null || bases?.length < 1) {

@@ -61,10 +61,6 @@ export async function getOutputResult(type: string | undefined, result: TExecuto
       return res;
     }
   }
-  if (!result.ok) {
-    const failedResults = result.featureResults?.filter((r) => !r.ok).map((r) => (r.stepResults = r.stepResults.filter((s) => !s.ok)));
-    return { ...result, featureResults: failedResults };
-  }
   return result;
 }
 
