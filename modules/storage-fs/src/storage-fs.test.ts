@@ -5,7 +5,6 @@ import StorageFS from './storage-fs.js';
 import { Timer } from '@haibun/core/build/lib/Timer.js';
 
 const when = Timer.key;
-console.log('xx', when)
 
 describe('fs getCaptureLocation', () => {
     it('gets capture location', async () => {

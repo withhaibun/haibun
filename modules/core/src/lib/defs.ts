@@ -217,7 +217,7 @@ export type TOKActionResult = {
   topics?: TActionResultTopics;
 };
 
-export type TActionResultTopics = { [topic: string]: { summary: string; details?: TAnyFixme } };
+export type TActionResultTopics = { [topic: string]: { summary: string; details?: TAnyFixme, report?: { html?: string, image?: string, video?: string } } };
 
 export type TNotOKActionResult = {
   ok: false;
