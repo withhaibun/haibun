@@ -117,18 +117,20 @@ export class ReviewsUtils {
             res.indexTitle = indexTitle;
             const featureTitles = getFeatureTitlesFromResults(result);
 
-            if (result && result.ok) {
+            if (result !== undefined) {
                 const loc: TLocationOptions = { tag, options: { DEST: dir }, extraOptions: {}, mediaType: EMediaTypes.html }
                 const r = {
                     ok: result.ok,
                     sourcePath: await this.publishStorage.getCaptureLocation(loc, 'review.html'),
                     startTime: new Date(startTime).toString(),
-                    featureTitle: featureTitles.join(',')
+                    featureTitle: featureTitles.join(','),
+                    memDir
                 }
+                console.log('qrr;', r.sourcePath, loc)
 
                 res.results.push(r);
             } else {
-                res.results.push({ error: `no result`, ok: false });
+                res.results.push({ error: `no result`, ok: false, memDir });
             }
         }
         return res as TIndexSummary;
@@ -212,6 +214,7 @@ export class ReviewsUtils {
         let success = 0;
         let fail = 0;
 
+        console.log('wtw', indexDirs)
         for (const spec of indexDirs) {
             const [type, dirIn] = spec.split(':');
             const dir = dirIn || type;
@@ -221,7 +224,7 @@ export class ReviewsUtils {
             success += summary.results.filter(r => r.ok).length;
             fail += summary.results.filter(r => !r.ok).length;
             const toDir = this.publishStorage.pathed(EMediaTypes.html, dir, `./${CAPTURE}`)
-            console.log('toDir', toDir, dir);
+            console.log('toDir', summary, spec, dir, toDir);
             const index = toc(summary, toDir, this.uriArgs);
 
             results.push({ ok, dir, link: htmlGenerator.linkFor(dir), index });

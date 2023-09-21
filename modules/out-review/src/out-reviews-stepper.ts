@@ -27,7 +27,7 @@ export const INDEX_STORAGE = 'INDEX_STORAGE';
 export const PUBLISH_ROOT = 'PUBLISH_ROOT';
 const URI_ARGS = 'URI_ARGS';
 
-export const MISSING_TRACKS: TIndexSummaryResult = { ok: false, sourcePath: 'missing', featureTitle: 'Missing tracks file', startTime: new Date().toString() };
+export const MISSING_TRACKS: TIndexSummaryResult = { ok: false, sourcePath: 'missing', memDir: undefined, featureTitle: 'Missing tracks file', startTime: new Date().toString() };
 export const MISSING_TRACKS_FILE = 'Missing tracks file';
 export const INDEXED = 'indexed';
 
@@ -243,7 +243,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
 
     const { results } = await this.utils.getReviewsResults(indexDirs);
     const isum = summary(results);
-    const html = await htmlGenerator.getHtmlDocument(isum, { title: this.title, base: 'capture/' },);
+    const html = await htmlGenerator.getHtmlDocument(isum, { title: this.title, /*base: 'capture/'*/ },);
     await this.publishStorage.ensureDirExists([this.publishRoot].join('/'));
     const reviewsLocation = [this.publishRoot, REVIEWS_INDEX_FILE].join('/');
 
