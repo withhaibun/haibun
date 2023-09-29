@@ -138,7 +138,7 @@ export const onCurrentTypeForDomain = ({ name, type }: { name: string; type: str
       domain?.module.domains.map((k) => k.name)
     );
 
-    return domain?.module.locator!(name);
+    return domain?.module.locator?.(name);
   }
   const uri = page.getID();
   return uri;

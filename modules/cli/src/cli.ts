@@ -9,7 +9,8 @@ import { findStepper, getConfigFromBase, getDefaultOptions, basesFrom } from '@h
 import runWithOptions from '@haibun/core/build/lib/run-with-options.js';
 import { processArgs, processBaseEnvToOptionsAndErrors, usageThenExit } from './lib.js';
 import { Timer } from '@haibun/core/build/lib/Timer.js';
-import { existsSync, renameSync, writeFileSync } from 'fs';
+import { writeFileSync } from 'fs';
+import Logger from '@haibun/core/build/lib/Logger.js';
 
 sourceMapSupport.install();
 
@@ -41,7 +42,7 @@ async function go() {
   const { KEY: keyIn, TRACE: trace, OUTPUT: output, OUTPUT_DEST: outputDest } = protoOptions.options;
   const key = keyIn || Timer.key;
   Timer.key = key;
-  const title = protoOptions.options.TITLE || bases + ' ' + [...featureFilter || []].join(',');
+  const title = protoOptions.options.TITLE || bases + ' ' + [...(featureFilter || [])].join(',');
 
   if (outputDest && !output) {
     await usageThenExit(specl, 'OUTPUT_DEST requires OUTPUT');
@@ -49,8 +50,8 @@ async function go() {
 
   let running;
   const startRunCallback = (world: TWorld) => {
-    running = (protoOptions.options.CLI) ? repl.start({ prompt: 'repl: ', useColors: true, useGlobal: true }).context.haibun = { world } : undefined;
-  }
+    running = protoOptions.options.CLI ? (repl.start({ prompt: 'repl: ', useColors: true, useGlobal: true }).context.haibun = { world }) : undefined;
+  };
   let endFeatureCallback: TEndFeatureCallback | undefined = undefined;
   if (trace) {
     endFeatureCallback = async (params: TEndFeatureCallbackParams) => {
@@ -59,8 +60,8 @@ async function go() {
       const loc = { ...world };
       if (running) running.context.haibun.step = { world, result, steppers, startOffset };
 
-      await tracker.writeTracksFile({ ...loc, mediaType: EMediaTypes.json }, title, result, Timer.startTime, startOffset);
-    }
+      await tracker.writeTracksFile({ ...loc, mediaType: EMediaTypes.json }, title, result, Timer.startTime, startOffset, Logger.history);
+    };
   }
 
   const runOptions: TRunOptions = { key, featureFilter, loops, members, splits, trace, specl, bases, protoOptions, startRunCallback, endFeatureCallback };
@@ -81,13 +82,15 @@ async function go() {
   if (ok && exceptionResults.length < 1) {
     logger.log('OK ' + ranResults.every((r) => r.output));
   } else {
-    const results = summarizeFeatureResults(ranResults[0].result.featureResults) || allFailures;
-    logger.error('failures:' + JSON.stringify({ results }, null, 2));
-    if (existsSync('failures.json')) {
-      renameSync('failures.json', 'failures-previous.json');
+    try {
+      const results = summarizeFeatureResults(ranResults[0].result.featureResults) || allFailures;
+      logger.error('failures:' + JSON.stringify({ results }, null, 2));
+      writeFileSync(`failures.${key}.json`, JSON.stringify({ results: ranResults || allFailures }, null, 2));
+      logger.info('errors were written to failures.json');
+    } catch (e) {
+      console.error(e);
+      logger.error('EXCEPTION failures:', e);
     }
-    writeFileSync('failures.json', JSON.stringify({ results: ranResults || allFailures }, null, 2));
-    logger.info('errors were written to failures.json');
   }
   logger.info(`\nRESULT>>> ${JSON.stringify({ ok, startDate: Timer.startTime, key: Timer.key, passed, failed, totalRan, runTime, 'features/s:': totalRan / runTime })}`);
 
@@ -102,13 +105,24 @@ async function go() {
 
 function summarizeFeatureResults(featureResults: TFeatureResult[]) {
   return featureResults?.map((f, n) => ({
-    '#': n + 1, ok: f.ok, path: f.path, failure: f.failure, stepResults: f.ok ? undefined : f.stepResults
-      .map(s => (s.ok ? s.in : {
-        ok: s.ok, in: s.in, actionResults: s.actionResults
-          // FIXME shouldn't need cast
-          .map(a => (a.ok ? a.name : { ok: a.ok, name: a.name, message: (a as TNotOKActionResult).message, topics: Object.keys(a.topics).join(',') }))
-      }))
-  }))
+    '#': n + 1,
+    ok: f.ok,
+    path: f.path,
+    failure: f.failure,
+    stepResults: f.ok
+      ? undefined
+      : f.stepResults.map((s) =>
+          s.ok
+            ? s.in
+            : {
+                ok: s.ok,
+                in: s.in,
+                actionResults: s.actionResults
+                  // FIXME shouldn't need cast
+                  .map((a) => (a.ok ? a.name : { ok: a.ok, name: a.name, message: (a as TNotOKActionResult)?.message, topics: a.topics && Object.keys(a.topics).join(',') })),
+              }
+        ),
+  }));
 }
 async function getSpeclOrExit(bases: TBase): Promise<TSpecl> {
   const specl = getConfigFromBase(bases);

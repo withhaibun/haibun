@@ -27,11 +27,11 @@ describe('ReviewsUtils', () => {
         expect(res).toEqual([
             {
                 memDir: "./capture/default/123/loop-0/seq-0/featn-0/mem-0",
-                tag: { featureNum: 0, loop: 0, member: 0, params: {}, sequence: 0, trace: false, when: '123' }
+                tag: { featureNum: 0, loop: 0, member: 0, params: {}, sequence: 0, trace: false, key: '123' }
             },
             {
                 memDir: "./capture/default/456/loop-0/seq-0/featn-0/mem-0",
-                tag: { featureNum: 0, loop: 0, member: 0, params: {}, sequence: 0, trace: false, when: '456' }
+                tag: { featureNum: 0, loop: 0, member: 0, params: {}, sequence: 0, trace: false, key: '456' }
             }
         ]);
     });

@@ -1,20 +1,30 @@
-import { TStepResult, TTag } from '../defs.js';
+import { TAnyFixme, TStepResult, TTag } from '../defs.js';
 
 export type TLogLevel = 'none' | 'debug' | 'log' | 'info' | 'warn' | 'error';
 export type TLogArgs = string;
 export const TEST_RESULT = { _test: true };
+
+export type TLogHistory = { message: TLogArgs; messageContext: TMessageContext; level: TLogLevel };
 
 export type TExecutorTopic = {
   result: TStepResult | typeof TEST_RESULT;
   seq: number;
   stage: 'Executor';
 };
-// currently there is just the Executor instance
+
+// FIXME better articulate these
 export type TMessageContext = {
   topic?: TMessageTopic;
   tag?: TTag;
+  artifact?: TArtifact;
 };
 
+export type TArtifact = {
+  type: 'picture' | 'html' | 'video' | 'json';
+  event: 'failure' | 'request';
+  path?: string;
+  content?: TAnyFixme;
+};
 export type TTraceTopic = {
   type?: string;
   trace?: object;
@@ -33,7 +43,7 @@ export interface ILogger {
 export interface IConnect {
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
-  addKeepalive?: (keepalive: any) => void;
+  addKeepalive?: (keepalive: TAnyFixme) => void;
 }
 
 export interface IConnectedLogger extends ILogger, IConnect {}

@@ -7,6 +7,7 @@ import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, 
 import { WEB_PAGE, WEB_CONTROL } from '@haibun/domain-webpage';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 import { EMediaTypes } from '@haibun/domain-storage/build/domain-storage.js';
+import { TMessageContext } from '@haibun/core/build/lib/interfaces/logger.js';
 
 const WebPlaywright = class WebPlaywright extends AStepper implements IHasOptions, IRequireDomains {
   static STORAGE = 'STORAGE';
@@ -15,24 +16,24 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
   options = {
     HEADLESS: {
       desc: 'run browsers without a window (true, false)',
-      parse: (input: string) => boolOrError(input)
+      parse: (input: string) => boolOrError(input),
     },
     DEVTOOLS: {
       desc: `show browser devtools (true or false)`,
-      parse: (input: string) => boolOrError(input)
+      parse: (input: string) => boolOrError(input),
     },
     [WebPlaywright.PERSISTENT_DIRECTORY]: {
       desc: 'run browsers with a persistent directory (true or false)',
-      parse: (input: string) => boolOrError(input)
+      parse: (input: string) => boolOrError(input),
     },
     ARGS: {
       desc: 'pass arguments',
-      parse: (input: string) => stringOrError(input)
+      parse: (input: string) => stringOrError(input),
     },
     CAPTURE_VIDEO: {
       desc: 'capture video for every agent',
       parse: (input: string) => boolOrError(input),
-      dependsOn: ['STORAGE']
+      dependsOn: ['STORAGE'],
     },
     STEP_CAPTURE_SCREENSHOT: {
       desc: 'capture screenshot for every step',
@@ -58,32 +59,34 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
   async setWorld(world: TWorld, steppers: AStepper[]) {
     await super.setWorld(world, steppers);
     this.storage = findStepperFromOption(steppers, this, world.extraOptions, WebPlaywright.STORAGE);
-    const headless = (getStepperOption(this, 'HEADLESS', world.extraOptions) === 'true') || !!process.env.CI;
+    const headless = getStepperOption(this, 'HEADLESS', world.extraOptions) === 'true' || !!process.env.CI;
     const devtools = getStepperOption(this, 'DEVTOOLS', world.extraOptions) === 'true';
     const args = [...(getStepperOption(this, 'ARGS', world.extraOptions)?.split(';') || ''), '--disable-gpu'];
     const persistentDirectory = getStepperOption(this, WebPlaywright.PERSISTENT_DIRECTORY, world.extraOptions) === 'true';
     const defaultTimeout = parseInt(getStepperOption(this, 'TIMEOUT', world.extraOptions)) || 30000;
     const captureVideo = getStepperOption(this, 'CAPTURE_VIDEO', world.extraOptions);
     const { trace: doTrace } = world.tag;
-    const trace: TTraceOptions | undefined = doTrace ? {
-      response: {
-        listener: async (res: Response) => {
-          const url = res.url();
-          const headers = await res.headersArray();
-          const headersContent = (await Promise.allSettled(headers)).map(h => (h as PromiseFulfilledResult<{ value: string, name: string }>).value);
-          const topic = { trace: { response: { headersContent } } };
-          world.logger.debug(`response trace ${headersContent.map(h => h.name)}`, { topic });
-          const trace: TTrace = { 'response': { url, since: world.timer.since(), trace: { headersContent } } }
-          world.shared.concat('_trace', trace);
+    const trace: TTraceOptions | undefined = doTrace
+      ? {
+          response: {
+            listener: async (res: Response) => {
+              const url = res.url();
+              const headers = await res.headersArray();
+              const headersContent = (await Promise.allSettled(headers)).map((h) => (h as PromiseFulfilledResult<{ value: string; name: string }>).value);
+              const topic = { trace: { response: { headersContent } } };
+              world.logger.debug(`response trace ${headersContent.map((h) => h.name)}`, { topic });
+              const trace: TTrace = { response: { url, since: world.timer.since(), trace: { headersContent } } };
+              world.shared.concat('_trace', trace);
+            },
+          },
         }
-      }
-    } : undefined;
+      : undefined;
     let recordVideo;
     if (captureVideo) {
       const loc = { ...world, mediaType: EMediaTypes.video };
       recordVideo = {
         dir: await this.storage.ensureCaptureLocation(loc, 'video'),
-      }
+      };
     }
 
     this.factoryOptions = {
@@ -95,8 +98,8 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       recordVideo,
       defaultTimeout,
       persistentDirectory,
-      trace
-    }
+      trace,
+    };
   }
 
   async getBrowserFactory(): Promise<BrowserFactory> {
@@ -104,7 +107,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       this.bf = await BrowserFactory.getBrowserFactory(this.getWorld().logger, this.factoryOptions);
       this.hasFactory = true;
     }
-    return this.bf
+    return this.bf;
   }
 
   async getContext() {
@@ -132,12 +135,12 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     return await f(page);
   }
 
-  async onFailure(result: TStepResult) {
+  async onFailure(result: TStepResult): Promise<TMessageContext> {
     if (this.bf?.hasPage(this.getWorld().tag, this.tab)) {
       const page = await this.getPage();
-      const path = await this.storage.getCaptureLocation({ ...this.getWorld(), mediaType: EMediaTypes.image }, 'failure') + `/${result.seq}.png`;
-
+      const path = (await this.storage.getCaptureLocation({ ...this.getWorld(), mediaType: EMediaTypes.image }, 'failure')) + `/${result.seq}.png`;
       await page.screenshot({ path, fullPage: true, timeout: 60000 });
+      return { artifact: { type: 'picture', path, event: 'failure' } };
     }
   }
 
@@ -194,14 +197,14 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       action: async ({ key }: TNamed) => {
         await this.withPage(async (page: Page) => await page.keyboard.press(key));
         return OK;
-      }
+      },
     },
     type: {
       gwta: `type {text}`,
       action: async ({ text }: TNamed) => {
         await this.withPage(async (page: Page) => await page.keyboard.type(text));
         return OK;
-      }
+      },
     },
     inputVariable: {
       gwta: `input {what} for {field}`,
@@ -225,14 +228,14 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       action: async ({ what, type, value }: TNamed) => {
         const cur = this.getWorld().shared.get(what)?.[type];
 
-        return cur === value ? OK : actionNotOK(`${what} is ${cur}`)
+        return cur === value ? OK : actionNotOK(`${what} is ${cur}`);
       },
     },
     dialogIsUnset: {
       gwta: 'dialog {what} {type} not set',
       action: async ({ what, type }: TNamed) => {
         const cur = this.getWorld().shared.get(what)?.[type];
-        return !cur ? OK : actionNotOK(`${what} is ${cur}`)
+        return !cur ? OK : actionNotOK(`${what} is ${cur}`);
       },
     },
     seeTestId: {
@@ -246,13 +249,13 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       gwta: 'in {selector}, see {text}',
       action: async ({ text, selector }: TNamed) => {
         return await this.sees(text, selector);
-      }
+      },
     },
     seeText: {
       gwta: 'see {text}',
       action: async ({ text }: TNamed) => {
         return await this.sees(text, 'body');
-      }
+      },
     },
     waitFor: {
       gwta: 'wait for {what}',
@@ -301,8 +304,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
         const nowon = await this.withPage(async (page: Page) => {
           await page.waitForURL(name);
           return page.url();
-        }
-        );
+        });
         if (nowon === name) {
           return OK;
         }
@@ -312,7 +314,6 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     extensionContext: {
       gwta: `open extension popup for tab {tab}`,
       action: async ({ tab }: TNamed) => {
-
         if (!this.factoryOptions?.persistentDirectory || this.factoryOptions?.browser.headless) {
           throw Error(`extensions require ${WebPlaywright.PERSISTENT_DIRECTORY} and not HEADLESS`);
         }
@@ -327,9 +328,9 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
           // background = await context.waitForEvent("serviceworker");
         }
 
-        console.log('background', background, context.serviceWorkers())
+        console.log('background', background, context.serviceWorkers());
 
-        const extensionId = background.url().split("/")[2];
+        const extensionId = background.url().split('/')[2];
         this.getWorld().shared.set('extensionContext', extensionId);
         await this.withPage(async (page: Page) => {
           const popupURI = `chrome-extension://${extensionId}/popup.html?${tab}`;
@@ -337,7 +338,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
         });
 
         return OK;
-      }
+      },
     },
     cookieIs: {
       gwta: 'cookie {name} is {value}',
@@ -345,7 +346,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
         const context = await this.getContext();
         const cookies = await context?.cookies();
 
-        const found = cookies?.find(c => c.name === name && c.value === value);
+        const found = cookies?.find((c) => c.name === name && c.value === value);
         return found ? OK : actionNotOK(`did not find cookie ${name} with value ${value}`);
       },
     },
@@ -389,21 +390,21 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       action: async ({ altText }: TNamed) => {
         await this.withPage(async (page: Page) => await page.getByAltText(altText).click());
         return OK;
-      }
+      },
     },
     clickByTestId: {
       gwta: 'click by test id {testId}',
       action: async ({ testId }: TNamed) => {
         await this.withPage(async (page: Page) => await page.getByTestId(testId).click());
         return OK;
-      }
+      },
     },
     clickByPlaceholder: {
       gwta: 'click by placeholder {placeholder}',
       action: async ({ placeholder }: TNamed) => {
         await this.withPage(async (page: Page) => await page.getByPlaceholder(placeholder).click());
         return OK;
-      }
+      },
     },
     clickByRole: {
       gwta: 'click by role {roleStr}',
@@ -417,14 +418,14 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
         }
         await this.withPage(async (page: Page) => await page.getByRole(<TAnyFixme>role, rest || {}).click());
         return OK;
-      }
+      },
     },
     clickByLabel: {
       gwta: 'click by label {label}',
       action: async ({ title: label }: TNamed) => {
         await this.withPage(async (page: Page) => await page.getByLabel(label).click());
         return OK;
-      }
+      },
     },
     clickByTitle: {
       gwta: 'click by title {title}',
@@ -432,14 +433,14 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
         await this.withPage(async (page: Page) => await page.getByTitle(title).click());
 
         return OK;
-      }
+      },
     },
     clickByText: {
       gwta: 'click by text {text}',
       action: async ({ text }: TNamed) => {
         await this.withPage(async (page: Page) => await page.getByText(text).click());
         return OK;
-      }
+      },
     },
     clickOn: {
       gwta: 'click on (?<name>.[^s]+)',
@@ -555,14 +556,14 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       action: async ({ file, selector }: TNamed) => {
         await this.withPage(async (page: Page) => await page.setInputFiles(selector, file));
         return OK;
-      }
+      },
     },
 
     waitForDownload: {
       gwta: 'save download to {file}',
       action: async ({ file }: TNamed) => {
         try {
-          const download = <Download>await (this.withPage(async (page: Page) => page.waitForEvent('download')));
+          const download = <Download>await this.withPage(async (page: Page) => page.waitForEvent('download'));
 
           await download.saveAs(file);
           this.downloaded.push(file);
@@ -570,9 +571,8 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
         } catch (e) {
           return actionNotOK(e);
         }
-      }
+      },
     },
-
 
     //                          MISC
     withFrame: {
@@ -580,20 +580,22 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       action: async ({ name }: TNamed) => {
         this.withFrame = name;
         return OK;
-      }
+      },
     },
     captureDialog: {
       gwta: 'Accept next dialog to {where}',
       action: async ({ where }: TNamed) => {
-        await this.withPage(async (page: Page) => page.on('dialog', async (dialog) => {
-          const res = {
-            defaultValue: dialog.defaultValue(),
-            message: dialog.message(),
-            type: dialog.type()
-          }
-          await dialog.accept();
-          this.getWorld().shared.set(where, res);
-        }));
+        await this.withPage(async (page: Page) =>
+          page.on('dialog', async (dialog) => {
+            const res = {
+              defaultValue: dialog.defaultValue(),
+              message: dialog.message(),
+              type: dialog.type(),
+            };
+            await dialog.accept();
+            this.getWorld().shared.set(where, res);
+          })
+        );
         return OK;
       },
     },
@@ -602,12 +604,14 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       action: async () => {
         const loc = { ...this.getWorld(), mediaType: EMediaTypes.image };
         const dir = await this.storage.ensureCaptureLocation(loc, 'screenshots');
+        const path = `${dir}/screenshot-${Date.now()}.png`;
         await this.withPage(
           async (page: Page) =>
             await page.screenshot({
-              path: `${dir}/screenshot-${Date.now()}.png`,
+              path,
             })
         );
+        this.getWorld().logger.error('screenshot', { artifact: { type: 'picture', path, event: 'request' } });
         return OK;
       },
     },
@@ -632,7 +636,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     },
   };
   setBrowser(browser: string) {
-    this.factoryOptions.type = (browser as unknown) as TBrowserTypes;
+    this.factoryOptions.type = browser as unknown as TBrowserTypes;
     return OK;
   }
   newTab() {

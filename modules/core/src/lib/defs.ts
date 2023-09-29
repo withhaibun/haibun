@@ -1,6 +1,6 @@
 import { Resolver } from '../phases/Resolver.js';
 import { DomainContext, WorkspaceContext, WorldContext } from './contexts.js';
-import { ILogger } from './interfaces/logger.js';
+import { ILogger, TMessageContext } from './interfaces/logger.js';
 import { Timer } from './Timer.js';
 
 export type TSpecl = {
@@ -69,7 +69,6 @@ export type TModuleDomain = TDomain & {
   shared: DomainContext;
 };
 
-
 export type TBase = string[];
 
 export type TWorld = {
@@ -113,7 +112,7 @@ export type TResolvedFeature = TExpandedFeature & {
 
 export type TTagValue = number;
 export type TTag = {
-  when: string
+  key: string;
   sequence: number;
   featureNum: number;
   loop: number;
@@ -130,7 +129,7 @@ export type TVStep = {
 };
 
 export type TAction = (named: TNamed, vstep: TVStep) => Promise<TActionResult>;
-export type TBuildResult = (TOKActionResult & { finalize?: TFinalize, workspace?: WorkspaceContext }) | TNotOKActionResult;
+export type TBuildResult = (TOKActionResult & { finalize?: TFinalize; workspace?: WorkspaceContext }) | TNotOKActionResult;
 export type TBuild = (named: TNamed, vstep: TVStep, workspace: WorkspaceContext, resolver: Resolver, steppers: AStepper[]) => Promise<TBuildResult>;
 
 export type TRequiresResult = { includes?: string[] };
@@ -155,7 +154,7 @@ export type TStep = {
 };
 
 export interface CStepper {
-  new(): AStepper;
+  new (): AStepper;
   prototype: {
     steps: {
       [name: string]: TStep;
@@ -171,7 +170,7 @@ export abstract class AStepper {
   world?: TWorld;
   close?(): void;
   endFeature?(): void;
-  onFailure?(result: TStepResult): void;
+  onFailure?(result: TStepResult): Promise<void | TMessageContext>;
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async setWorld(world: TWorld, steppers: AStepper[]) {
     this.world = world;
@@ -217,13 +216,13 @@ export type TOKActionResult = {
   topics?: TActionResultTopics;
 };
 
-export type TActionResultTopics = { [topic: string]: { summary: string; details?: TAnyFixme, report?: { html?: string, image?: string, video?: string } } };
+export type TActionResultTopics = { [topic: string]: { summary: string; details?: TAnyFixme; report?: { html?: string; image?: string; video?: string } } };
 
 export type TNotOKActionResult = {
   ok: false;
   score?: number;
   message: string;
-  error?: Error,
+  error?: Error;
   topics?: TActionResultTopics;
 };
 

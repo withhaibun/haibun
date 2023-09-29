@@ -49,7 +49,7 @@ export class ReviewsUtils {
                         const members = await reviewsIn.readdir(featDir);
                         for (const member of members) {
                             const memDir = `${featDir}/${member}`;
-                            const tag = { ...getRunTag(n(seqDir), n(loopDir), n(featDir), n(memDir)), when: execution };
+                            const tag = { ...getRunTag(n(seqDir), n(loopDir), n(featDir), n(memDir)), key: execution };
                             allTracks.push({ tag, memDir });
                         }
                     }
@@ -126,7 +126,6 @@ export class ReviewsUtils {
                     featureTitle: featureTitles.join(','),
                     memDir
                 }
-                console.log('qrr;', r.sourcePath, loc)
 
                 res.results.push(r);
             } else {
@@ -186,6 +185,7 @@ export class ReviewsUtils {
             const file = (await storage.readdir(videoBase))[0];
             videoSrc = this.publishStorage.pathed(EMediaTypes.video, await this.publishStorage.getCaptureLocation(loc, 'video') + `/${file}`, dir);
         } catch (e) {
+            console.error('\n\n***no video for', dir)
             // there is no video file
         }
 
@@ -214,7 +214,6 @@ export class ReviewsUtils {
         let success = 0;
         let fail = 0;
 
-        console.log('wtw', indexDirs)
         for (const spec of indexDirs) {
             const [type, dirIn] = spec.split(':');
             const dir = dirIn || type;
@@ -224,7 +223,6 @@ export class ReviewsUtils {
             success += summary.results.filter(r => r.ok).length;
             fail += summary.results.filter(r => !r.ok).length;
             const toDir = this.publishStorage.pathed(EMediaTypes.html, dir, `./${CAPTURE}`)
-            console.log('toDir', summary, spec, dir, toDir);
             const index = toc(summary, toDir, this.uriArgs);
 
             results.push({ ok, dir, link: htmlGenerator.linkFor(dir), index });

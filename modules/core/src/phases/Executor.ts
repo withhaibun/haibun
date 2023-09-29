@@ -1,4 +1,21 @@
-import { TVStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, AStepper, TEndFeatureCallback, CStepper, TFound, TAnyFixme, STAY, STAY_FAILURE } from '../lib/defs.js';
+import {
+  TVStep,
+  TResolvedFeature,
+  TExecutorResult,
+  TStepResult,
+  TFeatureResult,
+  TActionResult,
+  TWorld,
+  TStepActionResult,
+  AStepper,
+  TEndFeatureCallback,
+  CStepper,
+  TFound,
+  TAnyFixme,
+  STAY,
+  STAY_FAILURE,
+} from '../lib/defs.js';
+import { TMessageContext } from '../lib/interfaces/logger.js';
 import { getNamedToVars } from '../lib/namedVars.js';
 import { actionNotOK, applyResShouldContinue, setStepperWorlds, sleep, createSteppers, findStepper } from '../lib/util/index.js';
 
@@ -31,7 +48,7 @@ export class Executor {
       const featureResult = await featureExecutor.doFeature(feature);
 
       ok = ok && featureResult.ok;
-      const shouldClose = (!stayOnFailure || ok);
+      const shouldClose = !stayOnFailure || ok;
       featureResults.push(featureResult);
       if (shouldClose) {
         await featureExecutor.endFeature(featureResult);
@@ -125,8 +142,8 @@ export class FeatureExecutor {
   async onFailure(result: TStepResult) {
     for (const s of this.steppers) {
       if (s.onFailure) {
-        this.world.logger.debug(`onFailure ${s.constructor.name}`);
-        await s.onFailure(result);
+        const res = await s.onFailure(result);
+        this.world.logger.error(`onFailure from ${result.in} for ${s.constructor.name}`, <TMessageContext>res);
       }
     }
   }

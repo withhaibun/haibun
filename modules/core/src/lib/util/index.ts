@@ -275,10 +275,10 @@ export function getStepperOption(stepper: AStepper, name: string, extraOptions: 
  */
 export function maybeFindStepperFromOption<Type>(steppers: AStepper[], stepper: AStepper, extraOptions: TExtraOptions, ...optionNames: string[]): Type {
   return doFindStepperFromOption(steppers, stepper, extraOptions, true, ...optionNames);
-};
+}
 export function findStepperFromOption<Type>(steppers: AStepper[], stepper: AStepper, extraOptions: TExtraOptions, ...optionNames: string[]): Type {
   return doFindStepperFromOption(steppers, stepper, extraOptions, false, ...optionNames);
-};
+}
 function doFindStepperFromOption<Type>(steppers: AStepper[], stepper: AStepper, extraOptions: TExtraOptions, optional: boolean, ...optionNames: string[]): Type {
   const val = optionNames.reduce<string | undefined>((v, n) => {
     const r = getStepperOption(stepper, n, extraOptions);
@@ -329,8 +329,8 @@ export function applyResShouldContinue(world: TWorld, res: Partial<TActionResult
 }
 
 export const getRunTag = (sequence: TTagValue, loop: TTagValue, featureNum: TTagValue, member: TTagValue, params = {}, trace = false) => {
-  const when = Timer.key;
-  const res: TTag = { when, sequence, loop, member, featureNum, params, trace };
+  const key = Timer.key;
+  const res: TTag = { key, sequence, loop, member, featureNum, params, trace };
   ['sequence', 'loop', 'member', 'featureNum'].forEach((w) => {
     const val = (res as TAnyFixme)[w];
     if (parseInt(val) !== val) {
