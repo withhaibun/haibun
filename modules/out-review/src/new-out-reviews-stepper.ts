@@ -1,12 +1,12 @@
 import { AStepper, CAPTURE, IHasOptions, IRequireDomains, OK, TFeatureResult, TNamed, TWorld } from '@haibun/core/build/lib/defs.js';
 import { IReviewResult, STORAGE_ITEM, STORAGE_LOCATION, TLocationOptions } from '@haibun/domain-storage';
-import { actionNotOK, findStepperFromOption, getStepperOption, stringOrError } from '@haibun/core/build/lib/util/index.js';
+import { actionNotOK, actionOK, findStepperFromOption, getStepperOption, stringOrError } from '@haibun/core/build/lib/util/index.js';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 import { TIndexSummaryResult } from './html-generator.js';
 import { ITrackResults } from '@haibun/domain-storage';
-import StorageFS from '@haibun/storage-fs/build/storage-fs.js';
 import { ReviewsUtils } from './lib/ReviewsUtils.js';
 import { TLogHistory } from '@haibun/core/build/lib/interfaces/logger.js';
+import { EMediaTypes } from '@haibun/domain-storage/build/domain-storage.js';
 
 export const TRACKS_FILE = `tracks.json`;
 export const REVIEW_FILE = 'review.html';
@@ -25,6 +25,15 @@ export const MISSING_TRACKS: TIndexSummaryResult = { ok: false, sourcePath: 'mis
 export const MISSING_TRACKS_FILE = 'Missing tracks file';
 export const INDEXED = 'indexed';
 
+export type THistoryWithMeta = {
+  meta: {
+    startTime: string;
+    title: string;
+    startOffset: number;
+  };
+  history: TLogHistory[];
+};
+
 type FoundHistories = {
   [name: string]: TLogHistory[];
 };
@@ -34,7 +43,6 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
   reviewsStorage: AStorage;
   publishStorage: AStorage;
   indexStorage: AStorage;
-  localFS: StorageFS;
   utils: ReviewsUtils;
   title = 'Feature Result Index';
   publishRoot: string;
@@ -84,9 +92,6 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     this.indexStorage = findStepperFromOption(steppers, this, world.extraOptions, INDEX_STORAGE, STORAGE);
     this.publishStorage = findStepperFromOption(steppers, this, world.extraOptions, PUBLISH_STORAGE, STORAGE);
     this.publishRoot = getStepperOption(this, PUBLISH_ROOT, this.getWorld().extraOptions) || './published';
-    const localFS = new StorageFS();
-    await localFS.setWorld(world, steppers);
-    this.localFS = localFS;
     this.utils = new ReviewsUtils(this.getWorld().logger, this.tracksStorage, this.reviewsStorage, this.publishStorage, this.indexStorage, this.uriArgs);
   }
 
@@ -111,8 +116,8 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     createFoundReviews: {
       exact: `create found reviews`,
       action: async () => {
-        const histories = await this.findHistories(this.tracksStorage);
-        return actionNotOK(histories.toString());
+        const location = await this.createReviewsFromTracks();
+        return actionOK();
       },
     },
 
@@ -160,7 +165,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     publishFoundReviews: {
       exact: `publish found reviews`,
       action: async () => {
-        const histories = this.findHistories(this.tracksStorage);
+        const histories = await this.findTracks();
         JSON.stringify(histories, null, 2);
         return actionNotOK('todo');
       },
@@ -192,15 +197,49 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     },
   };
 
-  async writeTracksFile(loc: TLocationOptions, title: string, result: TFeatureResult, startTime: Date, startOffset: number, history: TLogHistory) {
+  async writeTracksFile(loc: TLocationOptions, title: string, result: TFeatureResult, startTime: Date, startOffset: number, history: TLogHistory[]) {
     const dir = await this.reviewsStorage.ensureCaptureLocation(loc, 'tracks', TRACKS_FILE);
-    await this.reviewsStorage.writeFile(dir, JSON.stringify({ meta: { startTime: startTime.toISOString(), title, startOffset }, history }, null, 2), loc.mediaType);
+    const historyWithMeta: THistoryWithMeta = { meta: { startTime: startTime.toISOString(), title, startOffset }, history };
+    await this.reviewsStorage.writeFile(dir, JSON.stringify(historyWithMeta, null, 2), loc.mediaType);
   }
 
-  async findHistories(fromWhere: AStorage): Promise<FoundHistories> {
-    const leaves = await fromWhere.readTree(CAPTURE, 'tracks.json');
-    console.log('ss', leaves)
-    return leaves.reduce<FoundHistories>((a, leaf) => ({ ...a, [leaf.created]: fromWhere.readFile(leaf.name, 'utf-8') }), {});
+  async findTracksJson(startPath: string): Promise<string[]> {
+    let result: string[] = [];
+    const files = await this.tracksStorage.readdirStat(startPath);
+
+    for (const file of files) {
+      const filePath = file.name;
+
+      if (file.isDirectory) {
+        result = result.concat(await this.findTracksJson(filePath));
+      } else if (file.name.endsWith('tracks.json')) {
+        result.push(filePath);
+      }
+    }
+
+    return result;
+  }
+
+  async createReviewsFromTracks() {
+    const histories = await this.findTracks();
+    const locs = [];
+    let output = '';
+    for (const [name, history] of Object.entries(histories)) {
+      console.log('xx', name, JSON.stringify(history, null, 2));
+
+      const dest = this.reviewsStorage.fromCaptureLocation(EMediaTypes.html, `${CAPTURE}/reviews/review-${name}.html`);
+      locs.push(dest);
+      console.log('wtw', dest);
+      await this.reviewsStorage.writeFile(dest, output, EMediaTypes.html);
+    }
+    return locs;
+  }
+  async findTracks(): Promise<FoundHistories> {
+    const tracksJsonFiles = await this.findTracksJson(`/${CAPTURE}`);
+
+    return tracksJsonFiles.reduce<FoundHistories>((a, leaf) => {
+      return { ...a, [leaf]: JSON.parse(this.tracksStorage.readFile(leaf, 'utf-8')) };
+    }, {});
   }
 };
 

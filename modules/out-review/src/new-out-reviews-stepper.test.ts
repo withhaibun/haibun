@@ -2,7 +2,7 @@ import { testWithDefaults } from '@haibun/core/build/lib/test/lib.js';
 import OutReviews, { STORAGE } from './new-out-reviews-stepper.js';
 import DomainStorage from '@haibun/domain-storage/build/domain-storage.js';
 import { getStepperOptionName } from '@haibun/core/build/lib/util/index.js';
-import { DEFAULT_DEST } from '@haibun/core/build/lib/defs.js';
+import { CAPTURE, DEFAULT_DEST } from '@haibun/core/build/lib/defs.js';
 import StorageFS from '@haibun/storage-fs/build/storage-fs.js';
 import StorageMem from '@haibun/storage-mem/build/storage-mem.js';
 
@@ -48,29 +48,44 @@ const track = JSON.stringify({
   },
 });
 const TEST_CAPTURES = {
-  './capture/default': ['123', '456'],
-  './capture/default/123': ['loop-0'],
-  './capture/default/123/loop-0': ['seq-0'],
-  './capture/default/123/loop-0/seq-0': ['featn-0'],
-  './capture/default/123/loop-0/seq-0/featn-0': ['mem-0'],
-  './capture/default/123/loop-0/seq-0/featn-0/mem-0': ['tracks'],
-  './capture/default/123/loop-0/seq-0/featn-0/mem-0/tracks': ['tracks.json'],
-  './capture/default/123/loop-0/seq-0/featn-0/mem-0/tracks/tracks.json': track,
-  './capture/default/456': ['loop-0'],
-  './capture/default/456/loop-0': ['seq-0'],
-  './capture/default/456/loop-0/seq-0': ['featn-0'],
-  './capture/default/456/loop-0/seq-0/featn-0': ['mem-0'],
-  './capture/default/456/loop-0/seq-0/featn-0/mem-0': ['tracks'],
+  '/capture/default': ['123', '456'],
+  '/capture/default/123': ['loop-0'],
+  '/capture/default/123/loop-0': ['seq-0'],
+  '/capture/default/123/loop-0/seq-0': ['featn-0'],
+  '/capture/default/123/loop-0/seq-0/featn-0': ['mem-0'],
+  '/capture/default/123/loop-0/seq-0/featn-0/mem-0': ['tracks'],
+  '/capture/default/123/loop-0/seq-0/featn-0/mem-0/tracks': ['tracks.json'],
+  '/capture/default/123/loop-0/seq-0/featn-0/mem-0/tracks/tracks.json': track,
+  '/capture/default/456': ['loop-0'],
+  '/capture/default/456/loop-0': ['seq-0'],
+  '/capture/default/456/loop-0/seq-0': ['featn-0'],
+  '/capture/default/456/loop-0/seq-0/featn-0': ['mem-0'],
+  '/capture/default/456/loop-0/seq-0/featn-0/mem-0': ['tracks'],
 };
 
-describe.only('findHistories', () => {
-  StorageMem.BASE_FS = TEST_CAPTURES;
-  const histories = new OutReviews().findHistories(new StorageMem());
-  console.log('\n\n\nwoo', JSON.stringify(histories, null, 2));
-  expect(histories).toBeDefined();
+describe('findTracksJson', () => {
+  it('finds tracks', async () => {
+    StorageMem.BASE_FS = TEST_CAPTURES;
+    const outReviews = new OutReviews();
+    outReviews.tracksStorage = new StorageMem();
+    const traces = await outReviews.findTracksJson(`/${CAPTURE}`);
+    expect(traces).toBeDefined();
+    expect(Object.keys(traces).length).toBe(1);
+  });
 });
 
-describe('reviews', () => {
+describe('findHistory', () => {
+  it('finds history', async () => {
+    StorageMem.BASE_FS = TEST_CAPTURES;
+    const outReviews = new OutReviews();
+    outReviews.tracksStorage = new StorageMem();
+    const history = await outReviews.findTracks();
+    expect(history).toBeDefined();
+    expect(history).toEqual({ '/capture/default/123/loop-0/seq-0/featn-0/mem-0/tracks/tracks.json': JSON.parse(track) });
+  });
+});
+
+describe.only('reviews', () => {
   it('create found reviews', async () => {
     StorageMem.BASE_FS = TEST_CAPTURES;
     const outReviewsStepper = new OutReviews();
@@ -81,7 +96,7 @@ describe('reviews', () => {
         [getStepperOptionName(outReviewsStepper, STORAGE)]: 'StorageMem',
       },
     });
-    console.log('result)', JSON.stringify(result.failure.error.message))
+    console.log('🤑', JSON.stringify(result.failure, null, 2));
     expect(result.ok).toBe(true);
   });
 });

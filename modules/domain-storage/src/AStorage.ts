@@ -18,16 +18,12 @@ export abstract class AStorage extends AStepper {
   async readTree(dir: string, filter?: string): Promise<TTree> {
     const entries = await this.readdirStat(dir);
     const tree = [];
-    const treepush = (e: IFile | IFileWithEntries) => {
-      console.log('\n.', e.name, filter === undefined, e.name.match(filter).length);
-      return filter === undefined ? tree.push(e) : e.name.match(filter) && tree.push(e);
-    };
     for (const e of entries) {
       if (e.isDirectory) {
-        const sub = await this.readTree(e.name.replace(/^\/\//, '/'));
-        treepush({ ...e, entries: sub });
+        const sub = await this.readTree(e.name.replace(/^\/\//, '/'), filter);
+        tree.push({ ...e, entries: sub });
       } else {
-        treepush(e);
+        tree.push(e);
       }
     }
     return tree;

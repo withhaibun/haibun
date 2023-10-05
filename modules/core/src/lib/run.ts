@@ -75,7 +75,7 @@ export async function runWith({ specl, world, features, backgrounds, addSteppers
       } catch (e) {
         message = e;
       }
-      result.failure = { stage: 'Execute', error: { message, details: { stack: ['run stack placeholder'], errors: result.featureResults?.filter((r) => !r.ok).map((r) => r.path) } } };
+      result.failure = { stage: 'Execute', error: { message, details: { stack: [], errors: result.featureResults?.filter((r) => !r.ok).map((r) => r.path) } } };
     }
   } catch (error) {
     if (!result) {

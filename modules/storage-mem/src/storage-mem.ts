@@ -31,14 +31,10 @@ export default class StorageMem extends AStorage {
   }
   readdir = async (dir: string) => {
     try {
-      try {
-        const ret = this.volume.readdirSync(dir).map((i) => i.toString());
-        return ret;
-      } catch (e) {
-        console.error('nope', dir, JSON.stringify(this.volume, null, 2));
-      }
+      const ret = this.volume.readdirSync(dir).map((i) => i.toString());
+      return ret;
     } catch (e) {
-      console.error(`can't read ${dir}`);
+      console.error('failed', dir, JSON.stringify(this.volume, null, 2), e);
       throw e;
     }
   };
