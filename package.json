@@ -28,6 +28,7 @@
     "test": "NODE_OPTIONS=--experimental-vm-modules lerna run --load-env-files test",
     "nx-decache": "rm -rf ./node_modules/.cache/nx",
     "test-watch": "NODE_OPTIONS=--experimental-vm-modules lerna watch -- lerna run test --scope=\\$LERNA_PACKAGE_NAME",
+    "clean-build-watch": "npm run nx-decache && rm -rf modules/*/tsconfig.tsbuildinfo; rm -rf modules/*/build; npm run build && npm run build-watch",
     "build-watch": "lerna watch -- lerna run build --scope=\\$LERNA_PACKAGE_NAME",
     "build": "lerna run build",
     "lint": "lerna run lint",
