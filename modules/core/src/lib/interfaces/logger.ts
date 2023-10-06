@@ -4,7 +4,7 @@ export type TLogLevel = 'none' | 'debug' | 'log' | 'info' | 'warn' | 'error';
 export type TLogArgs = string;
 export const TEST_RESULT = { _test: true };
 
-export type TLogHistory = { message: TLogArgs; messageContext: TMessageContext; level: TLogLevel };
+export type TLogHistory = { message: TLogArgs; messageContext: TMessageContext; level: TLogLevel, caller: string };
 
 export type TExecutorTopic = {
   result: TStepResult | typeof TEST_RESULT;
@@ -46,7 +46,7 @@ export interface IConnect {
   addKeepalive?: (keepalive: TAnyFixme) => void;
 }
 
-export interface IConnectedLogger extends ILogger, IConnect {}
+export interface IConnectedLogger extends ILogger, IConnect { }
 
 export interface ILoggerKeepAlive {
   start: () => Promise<void>;

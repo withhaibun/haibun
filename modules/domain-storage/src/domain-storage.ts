@@ -126,7 +126,7 @@ export type TLocationOptions = {
 }
 
 export interface ITrackResults {
-  writeTracksFile(loc: TLocationOptions, title: string, result: TFeatureResult, startTime: Date, startOffset: number, history: TLogHistory[]): TAnyFixme;
+  writeTracksFile(loc: TLocationOptions, title: string, result: TFeatureResult, startTime: Date, startOffset: number, logHistory: TLogHistory[]): TAnyFixme;
 }
 
 export interface IReviewResult {

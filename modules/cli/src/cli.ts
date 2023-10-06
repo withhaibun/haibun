@@ -60,7 +60,7 @@ async function go() {
       const loc = { ...world };
       if (running) running.context.haibun.step = { world, result, steppers, startOffset };
 
-      await tracker.writeTracksFile({ ...loc, mediaType: EMediaTypes.json }, title, result, Timer.startTime, startOffset, Logger.history);
+      await tracker.writeTracksFile({ ...loc, mediaType: EMediaTypes.json }, title, result, Timer.startTime, startOffset, Logger.traceHistory);
     };
   }
 

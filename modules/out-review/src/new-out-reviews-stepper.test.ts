@@ -75,13 +75,13 @@ describe('findTracksJson', () => {
 });
 
 describe('findHistory', () => {
-  it('finds history', async () => {
+  it('finds logHistory', async () => {
     StorageMem.BASE_FS = TEST_CAPTURES;
     const outReviews = new OutReviews();
     outReviews.tracksStorage = new StorageMem();
-    const history = await outReviews.findTracks();
-    expect(history).toBeDefined();
-    expect(history).toEqual({ '/capture/default/123/loop-0/seq-0/featn-0/mem-0/tracks/tracks.json': JSON.parse(track) });
+    const tracksHistory = await outReviews.findTracks();
+    expect(tracksHistory).toBeDefined();
+    expect(tracksHistory).toEqual({ '/capture/default/123/loop-0/seq-0/featn-0/mem-0/tracks/tracks.json': JSON.parse(track) });
   });
 });
 

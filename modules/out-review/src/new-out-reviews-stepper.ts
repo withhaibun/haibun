@@ -31,7 +31,7 @@ export type THistoryWithMeta = {
     title: string;
     startOffset: number;
   };
-  history: TLogHistory[];
+  logHistory: TLogHistory[];
 };
 
 type FoundHistories = {
@@ -197,9 +197,9 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     },
   };
 
-  async writeTracksFile(loc: TLocationOptions, title: string, result: TFeatureResult, startTime: Date, startOffset: number, history: TLogHistory[]) {
+  async writeTracksFile(loc: TLocationOptions, title: string, result: TFeatureResult, startTime: Date, startOffset: number, logHistory: TLogHistory[]) {
     const dir = await this.reviewsStorage.ensureCaptureLocation(loc, 'tracks', TRACKS_FILE);
-    const historyWithMeta: THistoryWithMeta = { meta: { startTime: startTime.toISOString(), title, startOffset }, history };
+    const historyWithMeta: THistoryWithMeta = { meta: { startTime: startTime.toISOString(), title, startOffset }, logHistory };
     await this.reviewsStorage.writeFile(dir, JSON.stringify(historyWithMeta, null, 2), loc.mediaType);
   }
 
