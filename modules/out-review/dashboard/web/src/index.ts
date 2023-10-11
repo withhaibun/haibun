@@ -1,7 +1,6 @@
-import { TReviewLink } from '@haibun/domain-storage/build/domain-storage.js';
-import { DataAccess, TPRData } from './lib/data-access.js';
+import { DataAccess, TPRData, TTraceHistorySummary } from './lib/data-access.js';
 
-export class PrairieJsonExplorer extends HTMLElement {
+export class ReviewOverview extends HTMLElement {
   private dataAccess: DataAccess;
 
   constructor() {
@@ -10,20 +9,18 @@ export class PrairieJsonExplorer extends HTMLElement {
   }
 
   async connectedCallback() {
-    const prData = await this.dataAccess.getLatestPR();
-    const reviewData = await this.dataAccess.getReviewData();
+    const prData = null; //await this.dataAccess.getLatestPR();
+    const reviewData = await this.dataAccess.getTracksHistories();
 
     this.render(prData, reviewData);
   }
 
-  render(prData: TPRData | null, reviewData: TReviewLink[]) {
-    const prLink = prData ? `<a href="${prData.link}" data-testid="_hai-latest-pr">${prData.title} (${prData.date})</a>` : 'No latest PR found.';
-    const reviewLinks = reviewData.length > 0 ? reviewData.map(review => `<a href="${review.link}" data-testid="_hai-review-${review.title}">${review.title} (${review.date}) ✅ ${review.results?.success} ❌ ${review.results?.fail}</a>`).join('<br>') : 'No review files found.';
+  render(prData: TPRData | null, reviewData: TTraceHistorySummary[]) {
+    // const prLink = prData ? `<a href="${prData.link}" data-testid="_hai-latest-pr">${prData.title} (${prData.date})</a>` : 'No latest PR found.';
+    const reviewLinks = reviewData.length > 0 ? reviewData.map(review => `<a href="${review.link}" data-testid="_hai-review-RTITLE">RTITLE (${review.date}) ✅ ${review.results?.success} ❌ ${review.results?.fail}</a>`).join('<br>') : 'No review files found.';
 
     this.innerHTML = `
       <div class="list-container">
-        <h2>Latest PR</h2>
-        <div class="list-item">${prLink}</div>
         <h2>Reviews</h2>
         <div class="list-item">${reviewLinks}</div>
       </div>
@@ -31,4 +28,4 @@ export class PrairieJsonExplorer extends HTMLElement {
   }
 }
 
-customElements.define('link-results', PrairieJsonExplorer);
+customElements.define('link-results', ReviewOverview);

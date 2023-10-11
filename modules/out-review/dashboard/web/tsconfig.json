@@ -4,6 +4,7 @@
     "target": "es6",
     "module": "NodeNext",
     "moduleResolution": "nodenext",
+    "experimentalDecorators": true,
     "lib": [
       "es2016",
       "esnext",
@@ -16,4 +17,7 @@
   "include": [
     "./src/**/*.ts"
   ],
+  "exclude": [
+    "./node_modules"
+  ]
 }

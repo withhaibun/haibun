@@ -12,6 +12,13 @@ export type TExecutorTopic = {
   stage: 'Executor';
 };
 
+export type TTraceTopic = {
+  type?: string;
+  trace?: object;
+};
+
+export type TMessageTopic = TExecutorTopic | TTraceTopic;
+
 // FIXME better articulate these
 export type TMessageContext = {
   topic?: TMessageTopic;
@@ -25,11 +32,6 @@ export type TArtifact = {
   path?: string;
   content?: TAnyFixme;
 };
-export type TTraceTopic = {
-  type?: string;
-  trace?: object;
-};
-export type TMessageTopic = TExecutorTopic | TTraceTopic;
 
 export interface ILogger {
   debug: (what: TLogArgs, ctx?: TMessageContext) => void;
@@ -46,7 +48,7 @@ export interface IConnect {
   addKeepalive?: (keepalive: TAnyFixme) => void;
 }
 
-export interface IConnectedLogger extends ILogger, IConnect { }
+export interface IConnectedLogger extends ILogger, IConnect {}
 
 export interface ILoggerKeepAlive {
   start: () => Promise<void>;

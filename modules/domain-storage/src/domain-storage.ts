@@ -18,15 +18,8 @@ export const storageLocation: TFileTypeDomain = {
 };
 
 // FIXME these belongs in domain-web
-export interface IHasWebReviewIndexer {
-  webReviewIndexer: IWebReviewIndexer;
-}
 export type TWebContext = { [name: string]: string }
-export interface IWebReviewIndexer { getLatestPublished: TGetLatestPublished, resolvePublishedReview: TResolvePublishedReview, webContext: TWebContext }
 export type TGetLatestPublished = () => Promise<string[]>;
-export type TResolvePublishedReview = (link: string) => Promise<TReviewLink>;
-
-export type TReviewLink = { link: string; title: string; date: string; results: { fail: number; success: number } }
 
 export interface IFile {
   name: string;
@@ -127,10 +120,6 @@ export type TLocationOptions = {
 
 export interface ITrackResults {
   writeTracksFile(loc: TLocationOptions, title: string, result: TFeatureResult, startTime: Date, startOffset: number, logHistory: TLogHistory[]): TAnyFixme;
-}
-
-export interface IReviewResult {
-  writeReview(loc: TLocationOptions, result: TTrackResult | TMissingTracks, allStartTime: number): TAnyFixme;
 }
 
 /** 

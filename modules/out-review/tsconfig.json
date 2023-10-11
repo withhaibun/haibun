@@ -4,12 +4,11 @@
     "outDir": "build",
     "rootDir": "src"
   },
-  "include": [
-    "src"
-  ],
-  "references": [
+  "include": ["src"],
+  "xreferences": [
     {
       "path": "./dashboard/web"
     }
-  ]
+  ],
+  "exclude": ["./dashboard/web/node_modules/**"]
 }

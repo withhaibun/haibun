@@ -1,6 +1,19 @@
-export type TPRData = { link: string; title: string, date: string }
-import { TReviewLink } from '@haibun/domain-storage/build/domain-storage.js';
-import { getLatestPublished, resolvePublishedReview } from './indexer.js';
+import { getLatestPublished, summarize } from './indexer.js';
+
+export type TTraceHistorySummary = {
+  link: string,
+  date: string,
+  results: {
+    success: number,
+    fail: number
+  }
+}
+
+export type TPRData = {
+  link: string,
+  title: string,
+  date: string,
+};
 
 export class DataAccess {
   private latest: string[] = [];
@@ -12,29 +25,18 @@ export class DataAccess {
     return await getLatestPublished();
   }
 
-  async getReviewData(): Promise<TReviewLink[]> {
+  async getTracksHistories(): Promise<TTraceHistorySummary[]> {
     const links = await this.getLatest();
-    const reviews = links.filter(link => link.match(/.*-reviews\.json/));
-    if (!reviews) {
+    const historyFiles: string[] = links.filter(link => link.endsWith('-tracksHistory.json'));
+    if (!historyFiles) {
       return [];
     }
-    const foundReviews: TReviewLink[] = [];
-    for (const review of reviews) {
-      const resolved = await resolvePublishedReview(review);
-      foundReviews.push(resolved);
+    const foundHistories: TTraceHistorySummary[] = [];
+    for (const source of historyFiles) {
+      const summary = await summarize(source);
+      foundHistories.push(summary);
     }
-    return foundReviews;
+    return foundHistories;
   }
-  // Get the latest deployed pull request address
-  async getLatestPR(): Promise<TPRData | null> {
-    const links = await this.getLatest();
-
-    const prLink = links.find(link => link === 'deployed-pr.json');
-    if (!prLink) {
-      return null;
-    }
-    return await resolvePublishedReview(prLink);
-  }
-
 }
 

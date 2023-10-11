@@ -1,8 +1,8 @@
-import { TReviewLink } from "@haibun/domain-storage/build/domain-storage.js";
-
 // this module might be replaced by specific storage implementations at runtime
 
-const apiUrl = '/reviews';
+import { TTraceHistorySummary } from "./data-access.js";
+
+const apiUrl = '/tracks';
 
 export async function getLatestPublished() {
   const response = await fetch(`${apiUrl}/`);
@@ -24,9 +24,15 @@ export function parseLinks(html: string): string[] {
 
   return links;
 }
-export async function resolvePublishedReview(link: string): Promise<TReviewLink> {
+export async function summarize(link: string): Promise<TTraceHistorySummary> {
   const response = await fetch(`${apiUrl}/${link}`);
-  const reviewLink: TReviewLink = await response.json();
-  reviewLink.link = reviewLink.link.replace(/.*\//, '');
-  return reviewLink;
+  const foundHistory = await response.json();
+  return {
+    link: link.replace(/.*\//, ''),
+    date: new Date(foundHistory.meta.date).toLocaleString(),
+    results: {
+      success: 1,
+      fail: 0
+    }
+  }
 }

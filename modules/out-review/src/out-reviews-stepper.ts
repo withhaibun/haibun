@@ -1,130 +1,100 @@
 import path from "path";
 import { fileURLToPath } from "url";
 
-import { AStepper, DEFAULT_DEST, IHasOptions, IRequireDomains, OK, TFeatureResult, TNamed, TWorld, } from "@haibun/core/build/lib/defs.js";
-import { IHasWebReviewIndexer, IReviewResult, IWebReviewIndexer, STORAGE_ITEM, STORAGE_LOCATION, TLocationOptions, TMissingTracks, TReviewLink, TTrackResult } from '@haibun/domain-storage';
-import { actionOK, findStepperFromOption, getStepperOption, stringOrError } from '@haibun/core/build/lib/util/index.js';
+import { AStepper, CAPTURE, IHasOptions, IRequireDomains, TFeatureResult, TNamed, TWorld } from '@haibun/core/build/lib/defs.js';
+import { STORAGE_ITEM, STORAGE_LOCATION, } from '@haibun/domain-storage';
+import { actionNotOK, actionOK, findStepperFromOption, getStepperOption, stringOrError } from '@haibun/core/build/lib/util/index.js';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
-import HtmlGenerator, { TIndexSummaryResult } from "./html-generator.js";
-import { ITrackResults } from '@haibun/domain-storage';
-import { summary } from "./components/index/summary.js";
-import StorageFS from "@haibun/storage-fs/build/storage-fs.js";
-import { ReviewsUtils } from "./lib/ReviewsUtils.js";
-import { Timer } from "@haibun/core/build/lib/Timer.js";
-import { EMediaTypes } from "@haibun/domain-storage/build/domain-storage.js";
+import { TLogHistory } from '@haibun/core/build/lib/interfaces/logger.js';
+import { EMediaTypes, ITrackResults, TLocationOptions, guessMediaExt } from '@haibun/domain-storage/build/domain-storage.js';
+import StorageFS from '@haibun/storage-fs/build/storage-fs.js';
 
 export const TRACKS_FILE = `tracks.json`;
-export const REVIEW_FILE = 'review.html';
-export const REVIEWS_INDEX_FILE = 'reviews.html';
-export const REVIEW_LINKER_FILE = 'reviews.json';
-const FINDER = 'finder.json';
+export const TRACKSHISTORY_SUFFIX = '-tracksHistory.json';
 
 export const STORAGE = 'STORAGE';
 export const TRACKS_STORAGE = 'TRACKS_STORAGE';
-export const REVIEWS_STORAGE = 'REVIEWS_STORAGE';
 export const PUBLISH_STORAGE = 'PUBLISH_STORAGE';
-export const INDEX_STORAGE = 'INDEX_STORAGE';
 export const PUBLISH_ROOT = 'PUBLISH_ROOT';
-const URI_ARGS = 'URI_ARGS';
 
-export const MISSING_TRACKS: TIndexSummaryResult = { ok: false, sourcePath: 'missing', memDir: undefined, featureTitle: 'Missing tracks file', startTime: new Date().toString() };
-export const MISSING_TRACKS_FILE = 'Missing tracks file';
-export const INDEXED = 'indexed';
+export type THistoryWithMeta = {
+  meta: {
+    startTime: string;
+    title: string;
+    startOffset: number;
+  };
+  logHistory: TLogHistory[];
+};
 
-const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRequireDomains, ITrackResults, IReviewResult {
+export type TFoundHistories = {
+  meta: {
+    date: number;
+  },
+  histories: { [name: string]: TLogHistory[] };
+};
+
+const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRequireDomains, ITrackResults {
   tracksStorage: AStorage;
-  reviewsStorage: AStorage;
   publishStorage: AStorage;
-  indexStorage: AStorage;
+  // used for publishing dashboard
   localFS: StorageFS;
-  utils: ReviewsUtils;
   title = 'Feature Result Index';
   publishRoot: string;
-  uriArgs: string;
 
   requireDomains = [STORAGE_LOCATION, STORAGE_ITEM];
   options = {
     [STORAGE]: {
       desc: 'General storage type',
-      parse: (input: string) => stringOrError(input)
+      parse: (input: string) => stringOrError(input),
     },
     [TRACKS_STORAGE]: {
       required: true,
       altSource: 'STORAGE',
       desc: 'Storage type used for input',
-      parse: (input: string) => stringOrError(input)
-    },
-    [REVIEWS_STORAGE]: {
-      required: true,
-      altSource: 'STORAGE',
-      desc: 'Storage type used for reviews',
-      parse: (input: string) => stringOrError(input)
+      parse: (input: string) => stringOrError(input),
     },
     [PUBLISH_STORAGE]: {
       desc: 'Storage type used for publishing',
-      parse: (input: string) => stringOrError(input)
-    },
-    [INDEX_STORAGE]: {
-      desc: 'Storage type used for indexes',
-      parse: (input: string) => stringOrError(input)
-    },
-    [URI_ARGS]: {
-      desc: 'Extra arguments for html assets',
-      parse: (input: string) => stringOrError(input)
+      parse: (input: string) => stringOrError(input),
     },
     [PUBLISH_ROOT]: {
       desc: 'Root path for publishing',
-      parse: (input: string) => stringOrError(input)
+      parse: (input: string) => stringOrError(input),
     },
   };
 
   async setWorld(world: TWorld, steppers: AStepper[]) {
     await super.setWorld(world, steppers);
-    this.uriArgs = getStepperOption(this, URI_ARGS, this.getWorld().extraOptions) || '';
+    this.localFS = new StorageFS();
     this.tracksStorage = findStepperFromOption(steppers, this, world.extraOptions, TRACKS_STORAGE, STORAGE);
-    this.reviewsStorage = findStepperFromOption(steppers, this, world.extraOptions, REVIEWS_STORAGE, STORAGE);
-    this.indexStorage = findStepperFromOption(steppers, this, world.extraOptions, INDEX_STORAGE, STORAGE);
     this.publishStorage = findStepperFromOption(steppers, this, world.extraOptions, PUBLISH_STORAGE, STORAGE);
     this.publishRoot = getStepperOption(this, PUBLISH_ROOT, this.getWorld().extraOptions) || './published';
-    const localFS = new StorageFS();
-    await localFS.setWorld(world, steppers);
-    this.localFS = localFS;
-    this.utils = new ReviewsUtils(this.getWorld().logger, this.tracksStorage, this.reviewsStorage, this.publishStorage, this.indexStorage, this.uriArgs);
   }
 
   steps = {
-
-    /** 
-     * Create reviews
-     * Creates review.html files from any found tracks.json. files.
+    /**
+     * Create history
+     * Creates tracksHistory.json files from any found tracks.json. files.
      */
-    createReview: {
+    createHistory: {
       // create a review from current world only
       exact: `create review`,
       action: async () => {
-        const loc = { ...this.getWorld(), mediaType: EMediaTypes.html };
-
-        let tracks;
-        const where = await tracks.getCaptureLocation(loc, 'tracks', 'tracks.json');
-        tracks = await this.utils.readTracksFile(where).catch(error => tracks = { error });
-        await this.writeReview(loc, tracks);
-        return OK;
-      }
+        return actionNotOK('todo');
+      },
     },
-    createReviewsFrom: {
+    createHistoryFrom: {
       gwta: `create reviews from {where}`,
       action: async ({ where }: TNamed) => {
-        await this.writeReviewsFrom(where.split(',').map(s => s.trim()));
-        return OK;
-      }
+        return actionNotOK('todo');
+      },
     },
-    createFoundReviews: {
-      exact: `create found reviews`,
+    createFoundHistory: {
+      exact: `create found history`,
       action: async () => {
-        const found = await this.utils.findArtifacts(this.tracksStorage, `${INDEXED}:`);
-        await this.writeReviewsFrom(found);
-        return OK;
-      }
+        const location = await this.createTracksHistory();
+        return actionOK({ tree: { summary: 'wrote history', details: { location } } });
+      },
     },
 
     /**
@@ -133,193 +103,91 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
      * This will normally be done after creating reviews.
      */
     createIndex: {
-      exact: `create index`,
+      exact: `create history`,
       action: async () => {
-        return await this.createReviewsIndex([this.getWorld().options.DEST]);
-      }
+        return actionNotOK('todo');
+      },
     },
     createIndexesFrom: {
-      gwta: `create indexes from {where}`,
+      gwta: `create history from {where}`,
       action: async ({ where }: TNamed) => {
-        const dirs = where.split(',').map(d => d.trim());
-        return await this.createReviewsIndex(dirs);
-      }
-    },
-    createFoundIndex: {
-      exact: `create found index`,
-      action: async () => {
-        const found = await this.utils.findArtifacts(this.tracksStorage);
-        return await this.createReviewsIndex(found);
-      }
+        return actionNotOK('todo');
+      },
     },
 
     /**
-     * Publish reviews
-     * Copies reviews, indexes and assets to a publish location.
-     * This will normally be done after creating reviews and indexes.
-     */
-    publishReviews: {
-      exact: `publish reviews`,
-      action: async () => {
-        await this.publishReviews({ ...this.getWorld() });
-        return OK;
-      }
-    },
-    publishReviewsFrom: {
-      gwta: `publish reviews from {where}`,
-      action: async ({ where }: TNamed) => {
-        for (const dest of where.split(',').map(d => d.trim())) {
-          await this.publishReviews({ ...this.getWorld(), options: { ...this.getWorld().options, DEST: dest } });
-        }
-        return OK;
-      }
-    },
-    publishFoundReviews: {
-      exact: `publish found reviews`,
-      action: async () => {
-        const found = await this.utils.findArtifacts(this.tracksStorage, `${INDEXED}:`);
-        for (const dest of found) {
-          await this.publishReviews({ ...this.getWorld(), options: { ...this.getWorld().options, DEST: dest } });
-        }
-        return OK;
-      }
-    },
-
-    /**
-     * Publish review dashboard links 
-     * Creates a link in the publish directory for the reviews index
-     * This is used by the dashboard page to link to the reviews index.
-     */
-    publishReviewDashboardLink: {
-      exact: `publish reviews dashboard link`,
-      action: async () => {
-        // FIXME: should not forget DEFAULT_DEST
-        return await this.publishReviewsDashboardLink([this.getWorld().options.DEST || DEFAULT_DEST]);
-      }
-    },
-
-    /**
-     * Create dashboard
-     * 
-     * Creates a dashboard page that links published review indexes.
-     * 
+     * Create web
+     *
+     * Create web pages that link and display published review indexes.
+     *
      */
     createDashboardPage: {
-      exact: `create dashboard page`,
+      exact: `create reviews pages`,
       action: async () => {
         const web = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'dashboard', 'web');
         await this.publishStorage.ensureDirExists(this.publishRoot);
-        await this.utils.recurseCopy({ src: `${web}/public`, fromFS: this.localFS, toFS: this.publishStorage, toFolder: this.publishRoot, trimFolder: `${web}/public` });
-        await this.utils.recurseCopy({ src: `${web}/built`, fromFS: this.localFS, toFS: this.publishStorage, toFolder: this.publishRoot, trimFolder: `${web}/built` });
-        const webLinker: IWebReviewIndexer = ((this.publishStorage as unknown) as IHasWebReviewIndexer).webReviewIndexer;
-        if (webLinker) {
-          await this.publishStorage.writeFile(`${this.publishRoot}/lib/indexer.js`, `const webContext=${JSON.stringify(webLinker.webContext)}\nexport ${webLinker.getLatestPublished.toString()}\nexport ${webLinker.resolvePublishedReview.toString()}`, EMediaTypes.javascript);
-        }
+        await this.recurseCopy({ src: `${web}/public`, fromFS: this.localFS, toFS: this.publishStorage, toFolder: this.publishRoot, trimFolder: `${web}/public` });
+        await this.recurseCopy({ src: `${web}/built`, fromFS: this.localFS, toFS: this.publishStorage, toFolder: this.publishRoot, trimFolder: `${web}/built` });
         return actionOK({ tree: { summary: 'wrote files', details: await this.publishStorage.readTree(this.publishRoot) } })
       }
     },
-  }
+  };
 
-  async writeReviewsFrom(where: string[]) {
-    for (const dir of where) {
-      const locs = await this.utils.getMemberEntries(dir);
-      // process each loc using func
-      for (const { tag, memDir } of locs) {
-        const tracksDir = `${memDir}/tracks`;
-        if (!this.tracksStorage.exists(tracksDir)) {
-          this.getWorld().logger.debug(`no ${this.tracksStorage.constructor.name} tracks dir ${tracksDir} for ${memDir}`);
-          return;
-        }
-        const tracks = await this.utils.readTracksFile(tracksDir);
-        const mediaType = EMediaTypes.html;
-        const loc: TLocationOptions = { mediaType, tag, options: { ...this.getWorld().options, DEST: this.world.options.DEST }, extraOptions: { ...this.getWorld().extraOptions } };
-        await this.writeReview(loc, tracks);
+  async createTracksHistory(where = CAPTURE) {
+    const key = this.getWorld().tag.key;
+    const ps = this.publishStorage;
+    const histories = await this.findTracks(where);
+    await this.publishStorage.ensureDirExists(ps.fromLocation(EMediaTypes.json, this.publishRoot, 'tracks'));
+    const dest = ps.fromLocation(EMediaTypes.json, this.publishRoot, 'tracks', `${key}${TRACKSHISTORY_SUFFIX}`);
+    await this.publishStorage.writeFile(dest, JSON.stringify(histories, null, 2), EMediaTypes.json);
+    return dest;
+  }
+  async findTracks(where: string): Promise<TFoundHistories> {
+    const tracksJsonFiles = await this.findTracksJson(where);
+
+    const histories = tracksJsonFiles.reduce((a, leaf) => {
+      return { ...a, [leaf]: JSON.parse(this.publishStorage.readFile(leaf, 'utf-8')) };
+    }, {});
+    return { meta: { date: Date.now() }, histories };
+  }
+  async findTracksJson(startPath: string): Promise<string[]> {
+    let result: string[] = [];
+    const files = await this.publishStorage.readdirStat(startPath);
+
+    for (const file of files) {
+      const filePath = file.name;
+
+      if (file.isDirectory) {
+        result = result.concat(await this.findTracksJson(filePath));
+      } else if (file.name.endsWith('tracks.json')) {
+        result.push(filePath);
+      }
+    }
+
+    return result;
+  }
+  async recurseCopy({ src, fromFS, toFS, toFolder, trimFolder }: { src: string, fromFS: AStorage, toFS: AStorage, toFolder?: string, trimFolder?: string }) {
+    const entries = await fromFS.readdirStat(src);
+
+    for (const entry of entries) {
+      const here = entry.name;
+      if (entry.isDirectory) {
+        await this.recurseCopy({ src: here, fromFS, toFS, toFolder, trimFolder });
+      } else {
+        const content = await fromFS.readFile(here);
+        const ext = <EMediaTypes>guessMediaExt(entry.name);
+
+        const trimmed = trimFolder ? here.replace(trimFolder, '') : here;
+        const dest = toFS.pathed(ext, toFolder ? `${toFolder}/${trimmed}`.replace(/\/\//, '/') : trimmed);
+        await toFS.mkdirp(path.dirname(dest));
+        await toFS.writeFile(dest, content, ext);
       }
     }
   }
-
-  async createReviewsIndex(indexDirs: string[]) {
-    const htmlGenerator = new HtmlGenerator(this.uriArgs);
-
-    const { results } = await this.utils.getReviewsResults(indexDirs);
-    const isum = summary(results);
-    const html = await htmlGenerator.getHtmlDocument(isum, { title: this.title, /*base: 'capture/'*/ },);
-    await this.publishStorage.ensureDirExists([this.publishRoot].join('/'));
-    const reviewsLocation = [this.publishRoot, REVIEWS_INDEX_FILE].join('/');
-
-    await this.publishStorage?.writeFile(reviewsLocation, html, EMediaTypes.html);
-    await this.publishFinderReviewLocation();
-    return OK;
-  }
-
-  // since the storage options change between steps, use the finder to stash the reviews location
-  async publishFinderReviewLocation() {
-    const publishedReviewLocation = this.publishStorage.pathed(EMediaTypes.html, [this.publishRoot, REVIEWS_INDEX_FILE].join('/'));
-    const finderLocation = await this.getFinderLocation();
-    await this.indexStorage?.writeFile(finderLocation, JSON.stringify({ publishedReviewLocation }), EMediaTypes.json);
-  }
-  async getFinderLocation() {
-    return await this.indexStorage.fromCaptureLocation(EMediaTypes.json, FINDER);
-  }
-  async getPublishedReviewLocation() {
-    const finderLocation = await this.getFinderLocation();
-    const { publishedReviewLocation } = JSON.parse(await this.indexStorage?.readFile(finderLocation, 'utf-8'));
-    return publishedReviewLocation;
-  }
-
-  async publishReviewsDashboardLink(indexDirs: string[]) {
-    const { fail, success } = await this.utils.getReviewsResults(indexDirs);
-    const publishedReviewLocation = await this.getPublishedReviewLocation();
-    const link: TReviewLink = { date: Timer.key, link: publishedReviewLocation, title: this.title, results: { fail, success } };
-
-    await this.writeReviewLinker(link);
-
-    this.getWorld().logger.info(`wrote reviews dashboard link ${link.title}`)
-    return actionOK({ tree: { summary: 'wrote files', details: await this.publishStorage.readTree(this.publishRoot) } })
-  }
-
-
-  async writeReviewLinker(linked: TReviewLink) {
-    await this.publishStorage.ensureDirExists([this.publishRoot, 'reviews'].join('/'));
-    let setting = this.getWorld().options.SETTING;
-    setting = setting ? `${setting}-` : '';
-    const dest = [this.publishRoot, 'reviews'].join('/');
-    await this.publishStorage.ensureDirExists(dest);
-    const fn = `${dest}/${setting}${Timer.key}-${REVIEW_LINKER_FILE}`;
-    await this.publishStorage.writeFile(fn, JSON.stringify(linked), EMediaTypes.json);
-    this.world.logger.info(`wrote review link ${fn}`)
-  }
-
-  async writeReview(loc: TLocationOptions, tracksDoc: TTrackResult | TMissingTracks) {
-    const uriArgs = getStepperOption(this, URI_ARGS, loc.extraOptions);
-    const htmlGenerator = new HtmlGenerator(uriArgs);
-
-    const dir = await this.reviewsStorage.getCaptureLocation(loc);
-    const reviewHtml = await this.reviewsStorage.getCaptureLocation(loc, REVIEW_FILE);
-    await this.reviewsStorage.ensureDirExists(dir);
-
-    const { featureJSON, script } = await this.utils.getFeatureDisplay(tracksDoc, htmlGenerator, loc, dir);
-
-    const html = await htmlGenerator.getHtmlDocument(featureJSON, {
-      title: `Feature Result ${loc.tag.sequence}`,
-      script
-    });
-    await this.reviewsStorage.writeFile(reviewHtml, html, loc.mediaType);
-    this.getWorld().logger.log(`wrote review ${reviewHtml}`);
-  }
-
-  async publishReviews(world: TWorld) {
-    const fromFS = this.tracksStorage;
-    const toFS = this.publishStorage;
-    // FIXME media type is ...
-    const src = await fromFS.fromCaptureLocation(EMediaTypes.html, world.options.DEST);
-
-    await this.utils.recurseCopy({ src, fromFS, toFS, toFolder: this.publishRoot });
-  }
-
+  // implements ITrackResults
   async writeTracksFile(loc: TLocationOptions, title: string, result: TFeatureResult, startTime: Date, startOffset: number) {
-    const dir = await this.reviewsStorage.ensureCaptureLocation(loc, 'tracks', TRACKS_FILE);
-    await this.reviewsStorage.writeFile(dir, JSON.stringify({ meta: { startTime: startTime.toISOString(), title, startOffset }, result }, null, 2), loc.mediaType);
+    const dir = await this.tracksStorage.ensureCaptureLocation(loc, 'tracks', TRACKS_FILE);
+    await this.tracksStorage.writeFile(dir, JSON.stringify({ meta: { startTime: startTime.toISOString(), title, startOffset }, result }, null, 2), loc.mediaType);
   }
 }
 

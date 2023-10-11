@@ -1,5 +1,5 @@
 {
-  "name": "prairie-json-explorer",
+  "name": "haibun-reviews-dashboard",
   "version": "1.0.0",
   "type": "module",
   "scripts": {
@@ -8,7 +8,12 @@
     "test-watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@haibun/out-review": "^1.28.10",
-    "typescript": "^4.5.4"
+    "@haibun/out-review": "^1.30.7",
+    "@lit-labs/router": "^0.1.2",
+    "lit": "^3.0.0",
+    "typescript": "^5.2.2"
+  },
+  "devDependencies": {
+    "urlpattern-polyfill": "^9.0.0"
   }
 }

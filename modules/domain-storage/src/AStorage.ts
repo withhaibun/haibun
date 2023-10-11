@@ -63,7 +63,11 @@ export abstract class AStorage extends AStepper {
   }
 
   fromCaptureLocation(mediaType: TMediaType, ...where: string[]) {
-    return [`./${CAPTURE}`, ...where].join('/');
+    return this.fromLocation(mediaType, ...[`./${CAPTURE}`, ...where]);
+  }
+
+  fromLocation(mediaType: TMediaType, ...where: string[]) {
+    return where.join('/');
   }
 
   locator(loc: TLocationOptions, ...where: (string | undefined)[]) {

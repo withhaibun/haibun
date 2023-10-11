@@ -112,16 +112,16 @@ function summarizeFeatureResults(featureResults: TFeatureResult[]) {
     stepResults: f.ok
       ? undefined
       : f.stepResults.map((s) =>
-          s.ok
-            ? s.in
-            : {
-                ok: s.ok,
-                in: s.in,
-                actionResults: s.actionResults
-                  // FIXME shouldn't need cast
-                  .map((a) => (a.ok ? a.name : { ok: a.ok, name: a.name, message: (a as TNotOKActionResult)?.message, topics: a.topics && Object.keys(a.topics).join(',') })),
-              }
-        ),
+        s.ok
+          ? s.in
+          : {
+            ok: s.ok,
+            in: s.in,
+            actionResults: s.actionResults
+              // FIXME shouldn't need cast
+              .map((a) => (a.ok ? a.name : { ok: a.ok, name: a.name, message: (a as TNotOKActionResult)?.message, topics: a.topics && Object.keys(a.topics).join(',') })),
+          }
+      ),
   }));
 }
 async function getSpeclOrExit(bases: TBase): Promise<TSpecl> {

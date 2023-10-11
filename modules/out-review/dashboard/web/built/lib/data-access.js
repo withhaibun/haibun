@@ -7,7 +7,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-import { getLatestPublished, resolvePublishedReview } from './indexer.js';
+import { getLatestPublished, summarize } from './indexer.js';
 export class DataAccess {
     constructor() {
         this.latest = [];
@@ -20,30 +20,19 @@ export class DataAccess {
             return yield getLatestPublished();
         });
     }
-    getReviewData() {
+    getTracksHistories() {
         return __awaiter(this, void 0, void 0, function* () {
             const links = yield this.getLatest();
-            const reviews = links.filter(link => link.match(/.*-reviews\.json/));
-            if (!reviews) {
+            const historyFiles = links.filter(link => link.endsWith('-tracksHistory.json'));
+            if (!historyFiles) {
                 return [];
             }
-            const foundReviews = [];
-            for (const review of reviews) {
-                const resolved = yield resolvePublishedReview(review);
-                foundReviews.push(resolved);
+            const foundHistories = [];
+            for (const source of historyFiles) {
+                const summary = yield summarize(source);
+                foundHistories.push(summary);
             }
-            return foundReviews;
-        });
-    }
-    // Get the latest deployed pull request address
-    getLatestPR() {
-        return __awaiter(this, void 0, void 0, function* () {
-            const links = yield this.getLatest();
-            const prLink = links.find(link => link === 'deployed-pr.json');
-            if (!prLink) {
-                return null;
-            }
-            return yield resolvePublishedReview(prLink);
+            return foundHistories;
         });
     }
 }
