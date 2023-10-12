@@ -1,4 +1,5 @@
 import { css } from 'lit';
+import { TFoundHistories } from '@haibun/out-review/build/out-reviews-stepper.js';
 
 export const globalStyles = css`
     a {
@@ -22,84 +23,43 @@ export type TRetrievedReviews = {
     [source: string]: TReview[]
 }
 
-export const reviewsLD: TRetrievedReviews = {
-    test1: [{
-        overview: {
-            when: '2021-01-01 12:00:00',
-            title: 'Eat a plum',
-            video: 'https://www.youtube.com/watch?v=1Fg5iWmQjwk',
-            ok: true
-        },
-        steps: [{
-            '@type': 'HowToStep',
-            description: 'Eat the plum',
-            result: true
-        },
-        {
-            '@type': 'HowToStep',
-            description: 'Wash your hands',
-            result: true
-        },
-        {
-            '@type': 'HowToStep',
-            description: 'Dry your hands',
-            result: true,
-        }]
-    }],
-    test2: [{
-        overview: {
-            when: '2021-01-01 12:01:00',
-            title: 'Use a bathtub',
-            video: 'https://www.youtube.com/watch?v=1Fg5iWmQjwk',
-            ok: true
-
-        },
-        steps: [{
-            '@type': 'HowToStep',
-            description: 'fill the bathtub',
-            result: true
-        },
-        {
-            '@type': 'HowToStep',
-            description: 'get in the bathtub',
-            result: true
-        },
-        {
-            '@type': 'HowToStep',
-            description: 'wash yourself',
-            result: true
-        },
-        {
-            '@type': 'HowToStep',
-            description: 'get out of the bathtub',
-            result: true
+export const reviewsLD: TFoundHistories = {
+    "meta": {
+        "date": 1697126156385,
+        "ok": 1,
+        "fail": 1
+    },
+    "histories": {
+        "capture/default/__test/loop-1/seq-0/featn-1/mem-0/tracks/tracks.json": {
+            "meta": {
+                "startTime": "2023-10-12T15:55:54.887Z",
+                "title": "local a11y",
+                "startOffset": 0.25108754,
+                "ok": false
+            },
+            "logHistory": [
+                {
+                    "messageContext": {
+                        "tag": {
+                            "key": "__test",
+                            "sequence": 0,
+                            "loop": 1,
+                            "member": 0,
+                            "featureNum": 1,
+                            "params": {
+                                "test": "http://localhost:8123/a11y.html",
+                                "http://localhost:8123/a11y.html": "http://localhost:8123/a11y.html",
+                                "_scored": [],
+                                "feature": "Test accessibility"
+                            },
+                            "trace": true
+                        }
+                    },
+                    "message": "features: 2 backgrounds: 7 steps: (/features/a11y-fail.feature,/features/a11y-pass.feature), 2",
+                    "level": "log",
+                    "caller": "run:67:18"
+                },
+            ]
         }
-        ]
-    }, {
-        overview: {
-            when: '2021-01-01 09:01:00',
-            title: 'Eat a plum',
-            video: 'https://www.youtube.com/watch?v=1Fg5iWmQjwk',
-            ok: false
-        },
-        steps: [{
-            '@type': 'HowToStep',
-            description: 'Eat the plum',
-            result: true
-        },
-        {
-            '@type': 'HowToStep',
-            description: 'Wash your hands',
-            result: true
-        },
-        {
-            '@type': 'HowToStep',
-            description: 'Dry your hands',
-            result: false,
-            report: {
-                type: 'a11y',
-                html: '<p>Use a towel</p>'
-            }
-        }]
-    }]
+    }
 };

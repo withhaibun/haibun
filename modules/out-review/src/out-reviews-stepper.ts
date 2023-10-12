@@ -22,15 +22,19 @@ export type THistoryWithMeta = {
     startTime: string;
     title: string;
     startOffset: number;
+    ok: boolean;
   };
   logHistory: TLogHistory[];
 };
+type TNamedHistories = { [name: string]: THistoryWithMeta };
 
 export type TFoundHistories = {
   meta: {
     date: number;
+    ok: number;
+    fail: number
   },
-  histories: { [name: string]: TLogHistory[] };
+  histories: TNamedHistories;
 };
 
 const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRequireDomains, ITrackResults {
@@ -127,7 +131,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
         const web = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'dashboard', 'web');
         await this.publishStorage.ensureDirExists(this.publishRoot);
         await this.recurseCopy({ src: `${web}/public`, fromFS: this.localFS, toFS: this.publishStorage, toFolder: this.publishRoot, trimFolder: `${web}/public` });
-        await this.recurseCopy({ src: `${web}/built`, fromFS: this.localFS, toFS: this.publishStorage, toFolder: this.publishRoot, trimFolder: `${web}/built` });
+        await this.recurseCopy({ src: `${web}/built`, fromFS: this.localFS, toFS: this.publishStorage, toFolder: `${this.publishRoot}/built`, trimFolder: `${web}/built` });
         return actionOK({ tree: { summary: 'wrote files', details: await this.publishStorage.readTree(this.publishRoot) } })
       }
     },
@@ -145,11 +149,18 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
   async findTracks(where: string): Promise<TFoundHistories> {
     const tracksJsonFiles = await this.findTracksJson(where);
 
-    const histories = tracksJsonFiles.reduce((a, leaf) => {
-      return { ...a, [leaf]: JSON.parse(this.publishStorage.readFile(leaf, 'utf-8')) };
+    let ok = 0;
+    let fail = 0;
+    const histories: TNamedHistories = tracksJsonFiles.reduce((a, leaf) => {
+      const history = JSON.parse(this.publishStorage.readFile(leaf, 'utf-8'));
+      ok += history.meta.ok ? 1 : 0;
+      fail += history.meta.ok ? 0 : 1;
+      return { ...a, [leaf]: history };
+
     }, {});
-    return { meta: { date: Date.now() }, histories };
+    return { meta: { date: Date.now(), ok, fail }, histories };
   }
+
   async findTracksJson(startPath: string): Promise<string[]> {
     let result: string[] = [];
     const files = await this.publishStorage.readdirStat(startPath);
@@ -185,9 +196,10 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     }
   }
   // implements ITrackResults
-  async writeTracksFile(loc: TLocationOptions, title: string, result: TFeatureResult, startTime: Date, startOffset: number) {
+  async writeTracksFile(loc: TLocationOptions, title: string, result: TFeatureResult, startTime: Date, startOffset: number, logHistory: TLogHistory[]) {
     const dir = await this.tracksStorage.ensureCaptureLocation(loc, 'tracks', TRACKS_FILE);
-    await this.tracksStorage.writeFile(dir, JSON.stringify({ meta: { startTime: startTime.toISOString(), title, startOffset }, result }, null, 2), loc.mediaType);
+    const history: THistoryWithMeta = { meta: { startTime: startTime.toISOString(), title, startOffset, ok: result.ok }, logHistory };
+    await this.tracksStorage.writeFile(dir, JSON.stringify(history, null, 2), loc.mediaType);
   }
 }
 

@@ -24,11 +24,12 @@ export function parseLinks(html: string): string[] {
 
   return links;
 }
-export async function summarize(link: string): Promise<TTraceHistorySummary> {
-  const response = await fetch(`${apiUrl}/${link}`);
+export async function summarize(file: string): Promise<TTraceHistorySummary> {
+  const link = `${apiUrl}/${file}`;
+  const response = await fetch(link);
   const foundHistory = await response.json();
   return {
-    link: link.replace(/.*\//, ''),
+    link: `reviews.html?source=${link}`,
     date: new Date(foundHistory.meta.date).toLocaleString(),
     results: {
       success: 1,

@@ -4,7 +4,8 @@ export const historyWithMeta: THistoryWithMeta = {
   "meta": {
     "startTime": "2023-10-06T11:53:17.597Z",
     "title": "local a11y",
-    "startOffset": 0.791768677
+    "startOffset": 0.791768677,
+    ok: true,
   },
   "logHistory": [
     {

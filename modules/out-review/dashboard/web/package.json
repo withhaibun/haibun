@@ -3,14 +3,17 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "build": "tsc",
-    "build-watch": "tsc --watch",
+    "build": "rollup -c",
+    "build-watch": "rollup -c --watch",
     "test-watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
     "@haibun/out-review": "^1.30.7",
     "@lit-labs/router": "^0.1.2",
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "@rollup/plugin-typescript": "^11.1.5",
     "lit": "^3.0.0",
+    "rollup": "^4.0.2",
     "typescript": "^5.2.2"
   },
   "devDependencies": {

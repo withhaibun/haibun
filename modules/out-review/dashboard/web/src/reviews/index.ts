@@ -3,9 +3,10 @@ import { LitElement, html, } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 
 import './components.js';
-import { reviewsLD, globalStyles, TRetrievedReviews } from './include.js';
+import { globalStyles } from './include.js';
 
 import "urlpattern-polyfill";
+import { TFoundHistories } from '@haibun/out-review/build/out-reviews-stepper.js';
 
 // use hashLinks (client routing only)
 const useHashlinks = true;
@@ -13,14 +14,25 @@ const useHashlinks = true;
 @customElement('reviews-shell')
 export class ReviewsShell extends LitElement {
   private _realRouter = new Router(this, [
-    { path: '/#review/:group/:id', render: ({ group, id }) => html`<a-review .reviewLD=${this.reviewsLD![group!][parseInt(id!, 10)]} />` },
-    // FIXME 
-    { path: '#review/:group/:id', render: ({ group, id }) => html`<a-review .reviewLD=${this.reviewsLD![group!][parseInt(id!, 10)]} />` },
-    { path: '/', render: () => html`<reviews-groups .groups=${this.reviewsLD} />` },
+    { path: '/reviews.html#/:source/:group/:id', render: ({ group }) => html`<a-review .reviewLD=${this.foundHistories?.histories[group!]} />` },
+    // FIXME  alias
+    { path: '/reviews.html#/:source/:group/:id', render: ({ group }) => html`<a-review .reviewLD=${this.foundHistories?.histories[group!]} />` },
+    { path: '/reviews.html', render: () => html`<reviews-groups .foundHistories=${this.foundHistories} />` },
   ]);
-  @property({ type: Object }) reviewsLD?: TRetrievedReviews;
+  @property({ type: Object }) foundHistories?: TFoundHistories;
 
   @property({ type: String }) header = 'Reviews';
+
+  // get source from location &source= query param
+  async _getSource() {
+    const url = new URL(window.location.href);
+    const source = url.searchParams.get('source');
+    if (!source) {
+      throw new Error('No source found in URL');
+    }
+    this.foundHistories = await (await fetch(source)).json();
+    console.log('reviewsLD', this.foundHistories)
+  }
 
   static styles = globalStyles;
 
@@ -37,7 +49,7 @@ export class ReviewsShell extends LitElement {
         return this._realRouter.link(dest);
       },
     } : this._realRouter;
-    this._fetchReviews();
+    await this._getSource();
     await this.handleInitialHashNavigation();
   }
 
@@ -47,18 +59,13 @@ export class ReviewsShell extends LitElement {
 
   private async handleInitialHashNavigation() {
     const initialHash = window.location.hash;
-    console.log('initialHash', initialHash)
     if (initialHash) {
       await this.router().goto(initialHash);
     }
   }
 
-  _fetchReviews() {
-    this.reviewsLD = reviewsLD;
-  }
-
   render() {
-    if (this.reviewsLD === undefined) {
+    if (this.foundHistories === undefined) {
       return html`<h1>Loading reviews</h1>`;
     }
     return html`

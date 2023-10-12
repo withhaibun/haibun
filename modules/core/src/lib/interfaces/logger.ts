@@ -2,7 +2,7 @@ import { TAnyFixme, TStepResult, TTag } from '../defs.js';
 
 export type TLogLevel = 'none' | 'debug' | 'log' | 'info' | 'warn' | 'error';
 export type TLogArgs = string;
-export const TEST_RESULT = { _test: true };
+export const TEST_RESULT = { ok: true };
 
 export type TLogHistory = { message: TLogArgs; messageContext: TMessageContext; level: TLogLevel, caller: string };
 
