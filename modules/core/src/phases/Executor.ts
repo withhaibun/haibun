@@ -133,6 +133,7 @@ export class FeatureExecutor {
       actionResults.push(stepResult);
       const shouldContinue = applyResShouldContinue(world, res, action);
       ok = ok && shouldContinue;
+
       if (!shouldContinue) {
         break;
       }
@@ -141,8 +142,10 @@ export class FeatureExecutor {
   }
   async onFailure(result: TStepResult) {
     for (const s of this.steppers) {
+      console.log('\ns',  typeof(s), s.onFailure)
       if (s.onFailure) {
         const res = await s.onFailure(result);
+        console.log('\n\nres', res)
         this.world.logger.error(`onFailure from ${result.in} for ${s.constructor.name}`, <TMessageContext>res);
       }
     }

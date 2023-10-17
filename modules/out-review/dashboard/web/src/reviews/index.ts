@@ -1,85 +1,64 @@
-import { Router } from '@lit-labs/router';
 import { LitElement, html, } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 
 import './components.js';
 import { globalStyles } from './include.js';
 
-import "urlpattern-polyfill";
 import { TFoundHistories } from '@haibun/out-review/build/out-reviews-stepper.js';
-
-// use hashLinks (client routing only)
-const useHashlinks = true;
+import { TAnyFixme } from '@haibun/core/build/lib/defs.js';
+import { Router, TParams, TRoutable } from './router.js';
 
 @customElement('reviews-shell')
 export class ReviewsShell extends LitElement {
-  private _realRouter = new Router(this, [
-    { path: '/reviews.html#/:source/:group/:id', render: ({ group }) => html`<a-review .reviewLD=${this.foundHistories?.histories[group!]} />` },
-    // FIXME  alias
-    { path: '/reviews.html#/:source/:group/:id', render: ({ group }) => html`<a-review .reviewLD=${this.foundHistories?.histories[group!]} />` },
-    { path: '/reviews.html', render: () => html`<reviews-groups .foundHistories=${this.foundHistories} />` },
-  ]);
+  router = new Router(<TRoutable>this);
   @property({ type: Object }) foundHistories?: TFoundHistories;
+  @property({ type: String }) header = 'Reviews'; boundHandleHashChange: undefined | (() => void);
+  @property({ type: String }) error?: string;
 
-  @property({ type: String }) header = 'Reviews';
-
-  // get source from location &source= query param
+  constructor() {
+    super();
+  }
+  // get source from location
   async _getSource() {
-    const url = new URL(window.location.href);
-    const source = url.searchParams.get('source');
-    if (!source) {
-      throw new Error('No source found in URL');
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    if (this.router.source === undefined) {
+      this.error = 'source is missing';
+      return;
     }
-    this.foundHistories = await (await fetch(source)).json();
-    console.log('reviewsLD', this.foundHistories)
+    this.foundHistories = await (await fetch(this.router.source)).json();
   }
 
   static styles = globalStyles;
 
   async connectedCallback() {
-    super.connectedCallback();
-    (globalThis as any).router = useHashlinks ? {
-      goto: async (where: string) => {
-        console.log('ww', where)
-        window.location.hash = where.replace(/.*#/, '');
-        await this._realRouter.goto(where);
-      },
-      link: (link: string) => {
-        const dest = link.replace(/^\//, '/#');
-        return this._realRouter.link(dest);
-      },
-    } : this._realRouter;
     await this._getSource();
-    await this.handleInitialHashNavigation();
+    this.boundHandleHashChange = this.router.handleHashChange.bind(this.router);
+    window.addEventListener('hashchange', this.boundHandleHashChange);
+    super.connectedCallback();
   }
 
-  router() {
-    return (window as any).router;
+  disconnectedCallback() {
+    window.removeEventListener('hashchange', this.router.handleHashChange.bind(this));
+    super.disconnectedCallback();
   }
 
-  private async handleInitialHashNavigation() {
-    const initialHash = window.location.hash;
-    if (initialHash) {
-      await this.router().goto(initialHash);
+  routes(params: TParams) {
+    if (params.group !== undefined) {
+      return html`<a-review .reviewLD=${this.foundHistories!.histories[this.router.group]}></a-review>`
     }
+    return html`<reviews-groups .foundHistories=${this.foundHistories}></reviews-groups>`;
   }
 
   render() {
-    if (this.foundHistories === undefined) {
+    if (this.error) {
+      return html`<h1>${this.error}</h1>`;
+    }
+    if (this.router === undefined || this.foundHistories === undefined) {
       return html`<h1>Loading reviews</h1>`;
     }
     return html`
-        <h1 @click=${this._home} @keydown=${this._home}>⌂<a href=${this.router().link('')}>${this.header}</a></h1>
-        <main>${this._realRouter.outlet()}</main>
+        <h1>⌂<a href=${this.router.link({})}>${this.header}</a></h1>
+        <main>${this.router.outlet()}</main>
     `;
-  }
-
-  async _home(event: Event) {
-    const anchor = event.target as HTMLAnchorElement;
-    const href = anchor.getAttribute('href');
-    if (href) {
-      event.preventDefault();
-      await this.router().goto(href);
-    }
   }
 }

@@ -68,18 +68,18 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     const { trace: doTrace } = world.tag;
     const trace: TTraceOptions | undefined = doTrace
       ? {
-          response: {
-            listener: async (res: Response) => {
-              const url = res.url();
-              const headers = await res.headersArray();
-              const headersContent = (await Promise.allSettled(headers)).map((h) => (h as PromiseFulfilledResult<{ value: string; name: string }>).value);
-              const topic = { trace: { response: { headersContent } } };
-              world.logger.debug(`response trace ${headersContent.map((h) => h.name)}`, { topic });
-              const trace: TTrace = { response: { url, since: world.timer.since(), trace: { headersContent } } };
-              world.shared.concat('_trace', trace);
-            },
+        response: {
+          listener: async (res: Response) => {
+            const url = res.url();
+            const headers = await res.headersArray();
+            const headersContent = (await Promise.allSettled(headers)).map((h) => (h as PromiseFulfilledResult<{ value: string; name: string }>).value);
+            const topic = { trace: { response: { headersContent } } };
+            world.logger.debug(`response trace ${headersContent.map((h) => h.name)}`, { topic });
+            const trace: TTrace = { response: { url, since: world.timer.since(), trace: { headersContent } } };
+            world.shared.concat('_trace', trace);
           },
-        }
+        },
+      }
       : undefined;
     let recordVideo;
     if (captureVideo) {
@@ -140,6 +140,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       const page = await this.getPage();
       const path = (await this.storage.getCaptureLocation({ ...this.getWorld(), mediaType: EMediaTypes.image }, 'failure')) + `/${result.seq}.png`;
       await page.screenshot({ path, fullPage: true, timeout: 60000 });
+      this.getWorld().logger.info('screenshot', { artifact: { type: 'picture', path, event: 'failure' } });
       return { artifact: { type: 'picture', path, event: 'failure' } };
     }
   }
@@ -611,7 +612,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
               path,
             })
         );
-        this.getWorld().logger.error('screenshot', { artifact: { type: 'picture', path, event: 'request' } });
+        this.getWorld().logger.info('screenshot', { artifact: { type: 'picture', path, event: 'request' } });
         return OK;
       },
     },

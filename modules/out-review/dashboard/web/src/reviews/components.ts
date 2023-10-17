@@ -1,41 +1,40 @@
-import { LitElement, html, css, nothing } from 'lit';
-import { ifDefined } from 'lit/directives/if-defined.js';
+import { LitElement, html, css } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 
 import { TFoundHistories, THistoryWithMeta } from '@haibun/out-review/build/out-reviews-stepper.js';
-import { TAnyFixme } from '@haibun/core/build/lib/defs.js';
+import { TArtifact, TLogHistory } from '@haibun/core/build/lib/interfaces/logger.js';
+import { TWindowRouter } from './router.js';
 
-import { globalStyles } from './include.js';
-import { TLogHistory } from '@haibun/core/build/lib/interfaces/logger.js';
-
-const router = () => (globalThis as TAnyFixme).router;
+const router = () => (globalThis as unknown as TWindowRouter)._router;
 
 @customElement('reviews-groups')
 export class ReviewsGroups extends LitElement {
 
   @property({ type: Object }) foundHistories?: TFoundHistories;
+  @property({ type: Object }) group?: string;
+  @property({ type: Object }) index?: string;
 
   static styles = css`
     ul {
   list-style: none;
 }
 
-li.failed::before {
+li.false::before {
   content: "✕ ";
 }
 
-li.ok::before {
+li.true::before {
   content: "✓ ";
 }`;
 
   render() {
     if (!this.foundHistories) return html`<div>No reviews yet</div>`;
-    const groups = Object.entries(this.foundHistories?.histories).map(([source, historyWithMeta], index) => {
-      const route = router().link(`/review.html/${source}/${index}`);
+    const groups = Object.entries(this.foundHistories?.histories).map(([group, historyWithMeta], index) => {
+      const route = router().link({ index, group });
       const titles = historyWithMeta.meta.title;
       const link = html`<a href=${route} >${titles}</a>`;
-      return html`<li class=${historyWithMeta.meta.ok}><bold>${source}</bold>${link} </li>`;
+      return html`<li class=${historyWithMeta.meta.ok}>${link} </li>`;
     });
     return html`<ul>${groups}</ul>`;
   }
@@ -49,6 +48,9 @@ export class AReview extends LitElement {
   static styles = css`.review-body {
       display: flex;
     }
+    ul {
+     list-style: none;
+    }
     .left-container {
       flex-grow: 1;
     }
@@ -61,42 +63,46 @@ export class AReview extends LitElement {
   }
 
   render() {
-    // return this.reviewLD && html`
-    //   <div>
-    //     <h2><ok-indicator ?ok=${this.reviewLD.overview.ok}></ok-indicator>${this.reviewLD.overview.title}</h2>
-    //     <div class="review-body">
-    //       <review-step class="left-container" .steps=${this.reviewLD.steps} @show-detail=${this.handleShowDetail}>></review-step>
-    //       <div class="right-container">${this.detail}</div>
-    //     </div>
-    //   </div>
-    // `;
+    return this.reviewLD && html`
+      <ul>
+        <h2><ok-indicator ?ok=${this.reviewLD.meta.ok}></ok-indicator>${this.reviewLD.meta.title}</h2>
+        <div class="review-body">
+          <div>
+          ${this.reviewLD.logHistory.map(h => {
+      return html`<review-step class="left-container" .logHistory=${h} @show-detail=${this.handleShowDetail}>></review-step>`
+    })}
+          </div>
+          <div class="right-container">${this.detail}</div>
+        </div>
+      </ul>
+    `;
   }
   handleShowDetail(event: CustomEvent) {
     const detailHTML = event.detail;
     this.detail = html`<button @click=${this.videoDetail}>video</button>${unsafeHTML(detailHTML)}`;
   }
   videoDetail() {
-    this.detail = html`<video controls width="640"><source src="path/to/your/video.mp4" type="video/mp4"></video>`;
+    this.detail = html`<video controls width="640"><source src="/video.webm" type="video/mp4"></video>`;
   }
 }
 
 @customElement('review-step')
 export class ReviewStep extends LitElement {
-  @property({ type: Array }) steps?: TLogHistory;
+  @property({ type: Array }) logHistory?: TLogHistory;
 
   render() {
-    // return this.steps && html`
-    //     <ul>
-    //     ${this.steps.map(step => this._renderStep(step))}
-    //     </ul>`;
+    if (this.logHistory === undefined) return html``;
+    const detailButton = this.logHistory.messageContext?.artifact?.content && this.reportDetail(this.logHistory.messageContext?.artifact);
+    // const ok = this.logHistory.message === "✅";
+    return html`<li>${this.logHistory.message} ${detailButton}</li > `
   }
-
-  private _renderStep(step: TLogHistory) {
-    if (this.steps === undefined) return html``;
-    // const detailButton = step.report?.html && html`<button @click=${() => this.showDetail(step.report!.html)}>📁 Report</button>`;
-    // return html`<li> ${step.description} <ok-indicator ?ok=${step.result}></ok-indicator> ${detailButton}</li > `
+  reportDetail(artifact: TArtifact) {
+    if (artifact.type === 'html') {
+      return html`<button @click=${() => this.showDetail(artifact.content)}>📁 Report</button>`;
+    } else {
+      return html`<button @click=${() => this.showDetail(JSON.stringify(artifact))}>📁 Report</button>`;
+    }
   }
-
   showDetail(html: string) {
     this.dispatchEvent(new CustomEvent('show-detail', { detail: html }));
   }
