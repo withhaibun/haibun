@@ -118,7 +118,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
      * Create web pages that link and display published review indexes.
      *
      */
-    createDashboardPage: {
+    createReviewsPages: {
       exact: `create reviews pages`,
       action: async () => {
         const web = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'dashboard', 'web');
@@ -139,6 +139,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     await this.publishStorage.writeFile(dest, JSON.stringify(histories, null, 2), EMediaTypes.json);
     return dest;
   }
+
   async findTracks(where: string): Promise<TFoundHistories> {
     const tracksJsonFiles = await this.findTracksJson(where);
 

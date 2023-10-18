@@ -1,6 +1,6 @@
 // this module might be replaced by specific storage implementations at runtime
 
-import { TFoundHistories } from "../../../../build/out-reviews-stepper.js";
+import { TFoundHistories } from "@haibun/out-review/build/defs.js";
 import { TTraceHistorySummary } from "./data-access.js";
 
 const apiUrl = '/tracks';
