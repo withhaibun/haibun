@@ -17,7 +17,10 @@ export class ReviewOverview extends HTMLElement {
 
   render(prData: TPRData | null, reviewData: TTraceHistorySummary[]) {
     // const prLink = prData ? `<a href="${prData.link}" data-testid="_hai-latest-pr">${prData.title} (${prData.date})</a>` : 'No latest PR found.';
-    const reviewLinks = reviewData.length > 0 ? reviewData.map(review => `<a href="${review.link}" data-testid="_hai-review-RTITLE">RTITLE (${review.date}) ✅ ${review.results?.success} ❌ ${review.results?.fail}</a>`).join('<br>') : 'No review files found.';
+    const reviewLinks = reviewData.length > 0 ? reviewData.map(review => {
+      const titles = review.titles;
+      return `<a href="${review.link}" data-testid="_hai-review-titles">${titles} (${review.date}) ✅ ${review.results?.success} ❌ ${review.results?.fail}</a>`;
+    }).join('<br>') : 'No review files found.';
 
     this.innerHTML = `
       <div class="list-container">

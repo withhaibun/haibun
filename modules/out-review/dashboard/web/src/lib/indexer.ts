@@ -1,5 +1,6 @@
 // this module might be replaced by specific storage implementations at runtime
 
+import { TFoundHistories, THistoryWithMeta } from "../../../../build/out-reviews-stepper.js";
 import { TTraceHistorySummary } from "./data-access.js";
 
 const apiUrl = '/tracks';
@@ -27,13 +28,14 @@ export function parseLinks(html: string): string[] {
 export async function summarize(file: string): Promise<TTraceHistorySummary> {
   const link = `${apiUrl}/${file}`;
   const response = await fetch(link);
-  const foundHistory = await response.json();
+  const foundHistory: TFoundHistories = await response.json();
   return {
-    link: `reviews.html?source=${link}`,
+    titles: Object.values(foundHistory.histories).map(h => h.meta.title),
+    link: `reviews.html#source=${link}`,
     date: new Date(foundHistory.meta.date).toLocaleString(),
     results: {
-      success: 1,
-      fail: 0
+      success: Object.values(foundHistory.histories).filter(h => !!h.meta.ok).length,
+      fail: Object.values(foundHistory.histories).filter(h => !h.meta.ok).length,
     }
   }
 }

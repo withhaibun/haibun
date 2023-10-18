@@ -3,6 +3,7 @@ import { getLatestPublished, summarize } from './indexer.js';
 export type TTraceHistorySummary = {
   link: string,
   date: string,
+  titles: string[],
   results: {
     success: number,
     fail: number
