@@ -17,13 +17,13 @@ const addConfig = (input, output) => ({
   ],
 });
 
-const dist = `built`
-// const built = `/home/vid/D/withhaibun/haibun-e2e-tests/files/published/built`;
+const dist = `built`;
+const built = `/home/vid/D/withhaibun/haibun-e2e-tests/files/published/built`;
 
 export default [
   addConfig('index.ts', `${dist}/index.js`),
   addConfig('reviews/index.ts', `${dist}/reviews.js`),
 
-  // addConfig('index.ts', `${built}/index.js`),
-  // addConfig('reviews/index.ts', `${built}/reviews.js`),
+  addConfig('index.ts', `${built}/index.js`),
+  addConfig('reviews/index.ts', `${built}/reviews.js`),
 ];

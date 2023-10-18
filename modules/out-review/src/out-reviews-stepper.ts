@@ -8,6 +8,7 @@ import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 import { TLogHistory } from '@haibun/core/build/lib/interfaces/logger.js';
 import { EMediaTypes, ITrackResults, TLocationOptions, guessMediaExt } from '@haibun/domain-storage/build/domain-storage.js';
 import StorageFS from '@haibun/storage-fs/build/storage-fs.js';
+import { TFoundHistories } from "./defs.js";
 
 export const TRACKS_FILE = `tracks.json`;
 export const TRACKSHISTORY_SUFFIX = '-tracksHistory.json';
@@ -17,6 +18,8 @@ export const TRACKS_STORAGE = 'TRACKS_STORAGE';
 export const PUBLISH_STORAGE = 'PUBLISH_STORAGE';
 export const PUBLISH_ROOT = 'PUBLISH_ROOT';
 
+type TNamedHistories = { [name: string]: THistoryWithMeta };
+
 export type THistoryWithMeta = {
   meta: {
     startTime: string;
@@ -25,16 +28,6 @@ export type THistoryWithMeta = {
     ok: boolean;
   };
   logHistory: TLogHistory[];
-};
-type TNamedHistories = { [name: string]: THistoryWithMeta };
-
-export type TFoundHistories = {
-  meta: {
-    date: number;
-    ok: number;
-    fail: number
-  },
-  histories: TNamedHistories;
 };
 
 const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRequireDomains, ITrackResults {

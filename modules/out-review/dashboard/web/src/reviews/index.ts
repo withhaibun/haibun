@@ -4,8 +4,7 @@ import { customElement, property } from 'lit/decorators.js';
 import './components.js';
 import { globalStyles } from './include.js';
 
-import { TFoundHistories } from '@haibun/out-review/build/out-reviews-stepper.js';
-import { TAnyFixme } from '@haibun/core/build/lib/defs.js';
+import { TFoundHistories } from '@haibun/out-review/build/defs.js';
 import { Router, TParams, TRoutable } from './router.js';
 
 @customElement('reviews-shell')

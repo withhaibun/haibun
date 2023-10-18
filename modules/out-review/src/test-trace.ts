@@ -1,5 +1,5 @@
+import { THistoryWithMeta } from "./out-reviews-stepper.js";
 
-import { THistoryWithMeta } from './out-reviews-stepper.js';
 export const historyWithMeta: THistoryWithMeta = {
   "meta": {
     "startTime": "2023-10-06T11:53:17.597Z",

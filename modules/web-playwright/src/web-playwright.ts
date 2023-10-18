@@ -7,7 +7,7 @@ import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, 
 import { WEB_PAGE, WEB_CONTROL } from '@haibun/domain-webpage';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 import { EMediaTypes } from '@haibun/domain-storage/build/domain-storage.js';
-import { TMessageContext } from '@haibun/core/build/lib/interfaces/logger.js';
+import { TArtifact } from '@haibun/core/build/lib/interfaces/logger.js';
 
 const WebPlaywright = class WebPlaywright extends AStepper implements IHasOptions, IRequireDomains {
   static STORAGE = 'STORAGE';
@@ -55,6 +55,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
   tab = 0;
   withFrame: string;
   downloaded: string[] = [];
+  captureVideo: string;
 
   async setWorld(world: TWorld, steppers: AStepper[]) {
     await super.setWorld(world, steppers);
@@ -64,7 +65,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     const args = [...(getStepperOption(this, 'ARGS', world.extraOptions)?.split(';') || ''), '--disable-gpu'];
     const persistentDirectory = getStepperOption(this, WebPlaywright.PERSISTENT_DIRECTORY, world.extraOptions) === 'true';
     const defaultTimeout = parseInt(getStepperOption(this, 'TIMEOUT', world.extraOptions)) || 30000;
-    const captureVideo = getStepperOption(this, 'CAPTURE_VIDEO', world.extraOptions);
+    this.captureVideo = getStepperOption(this, 'CAPTURE_VIDEO', world.extraOptions);
     const { trace: doTrace } = world.tag;
     const trace: TTraceOptions | undefined = doTrace
       ? {
@@ -82,10 +83,9 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       }
       : undefined;
     let recordVideo;
-    if (captureVideo) {
-      const loc = { ...world, mediaType: EMediaTypes.video };
+    if (this.captureVideo) {
       recordVideo = {
-        dir: await this.storage.ensureCaptureLocation(loc, 'video'),
+        dir: await this.getCaptureDir('video')
       };
     }
 
@@ -100,6 +100,11 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       persistentDirectory,
       trace,
     };
+  }
+  async getCaptureDir(type: string) {
+    const loc = { ...this.world, mediaType: EMediaTypes.video };
+    const dir = await this.storage.ensureCaptureLocation(loc, type);
+    return dir;
   }
 
   async getBrowserFactory(): Promise<BrowserFactory> {
@@ -135,20 +140,17 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     return await f(page);
   }
 
-  async onFailure(result: TStepResult): Promise<TMessageContext> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async onFailure(result: TStepResult) {
     if (this.bf?.hasPage(this.getWorld().tag, this.tab)) {
-      const page = await this.getPage();
-      const path = (await this.storage.getCaptureLocation({ ...this.getWorld(), mediaType: EMediaTypes.image }, 'failure')) + `/${result.seq}.png`;
-      await page.screenshot({ path, fullPage: true, timeout: 60000 });
-      this.getWorld().logger.info('screenshot', { artifact: { type: 'picture', path, event: 'failure' } });
-      return { artifact: { type: 'picture', path, event: 'failure' } };
+      await this.captureScreenshot('failure');
     }
   }
 
   async nextStep() {
     const captureScreenshot = getStepperOption(this, 'STEP_CAPTURE_SCREENSHOT', this.getWorld().extraOptions);
     if (captureScreenshot) {
-      console.debug('captureScreenshot');
+      await this.captureScreenshot('request');
     }
   }
 
@@ -156,6 +158,13 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     // close the context, which closes any pages
     if (this.hasFactory) {
       await this.bf?.closeContext(this.getWorld().tag);
+      if (this.captureVideo) {
+        const dir = await this.getCaptureDir('video');
+        const path = await this.storage.readdir(dir)[0];
+        console.log('\n\n^^^^^hats', dir, path)
+        const artifact = <TArtifact>{ type: 'video', path, event: 'request' }
+        this.getWorld().logger.info('endFeature video', { artifact });
+      }
       return;
     }
   }
@@ -603,16 +612,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     takeScreenshot: {
       gwta: 'take a screenshot',
       action: async () => {
-        const loc = { ...this.getWorld(), mediaType: EMediaTypes.image };
-        const dir = await this.storage.ensureCaptureLocation(loc, 'screenshots');
-        const path = `${dir}/screenshot-${Date.now()}.png`;
-        await this.withPage(
-          async (page: Page) =>
-            await page.screenshot({
-              path,
-            })
-        );
-        this.getWorld().logger.info('screenshot', { artifact: { type: 'picture', path, event: 'request' } });
+        await this.captureScreenshot('request');
         return OK;
       },
     },
@@ -642,6 +642,18 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
   }
   newTab() {
     this.tab = this.tab + 1;
+  }
+  async captureScreenshot(event: 'failure' | 'request') {
+    const loc = { ...this.getWorld(), mediaType: EMediaTypes.image };
+    const dir = await this.storage.ensureCaptureLocation(loc, `screenshot ${event}`);
+    const path = `${dir}/${event}-${Date.now()}.png`;
+    await this.withPage(
+      async (page: Page) =>
+        await page.screenshot({
+          path,
+        })
+    );
+    this.getWorld().logger.info('screenshot', { artifact: { type: 'picture', path, event } });
   }
 };
 
