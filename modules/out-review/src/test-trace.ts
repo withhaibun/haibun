@@ -1,4 +1,4 @@
-import { THistoryWithMeta } from "./out-reviews-stepper.js";
+import { THistoryWithMeta } from "./lib.js";
 
 export const historyWithMeta: THistoryWithMeta = {
   "meta": {

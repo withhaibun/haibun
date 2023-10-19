@@ -161,7 +161,6 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       if (this.captureVideo) {
         const dir = await this.getCaptureDir('video');
         const path = await this.storage.readdir(dir)[0];
-        console.log('\n\n^^^^^hats', dir, path)
         const artifact = <TArtifact>{ type: 'video', path, event: 'request' }
         this.getWorld().logger.info('endFeature video', { artifact });
       }

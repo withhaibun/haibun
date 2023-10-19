@@ -79,7 +79,7 @@ describe('findHistory', () => {
     StorageMem.BASE_FS = TEST_CAPTURES;
     const outReviews = new OutReviews();
     outReviews.publishStorage = new StorageMem();
-    const tracksHistory = await outReviews.findTracks(CAPTURE);
+    const tracksHistory = await outReviews.transformTracksAndArtifacts(CAPTURE);
     expect(tracksHistory).toBeDefined();
     expect(tracksHistory).toEqual({ '/capture/default/123/loop-0/seq-0/featn-0/mem-0/tracks/tracks.json': JSON.parse(track) });
   });

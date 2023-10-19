@@ -2,12 +2,11 @@ import { LitElement, html, css, TemplateResult } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 
-import { TFoundHistories, THistoryWithMeta } from '@haibun/out-review/build/defs.js';
+import { TFoundHistories, THistoryWithMeta, findArtifacts } from '@haibun/out-review/build/lib.js';
 import { TArtifact, TLogHistory } from '@haibun/core/build/lib/interfaces/logger.js';
 import { TWindowRouter } from './router.js';
 
 const router = () => (globalThis as unknown as TWindowRouter)._router;
-const findArtifacts = (historyWithMeta?: THistoryWithMeta) => historyWithMeta?.logHistory.filter(h => h.messageContext.artifact);
 @customElement('reviews-groups')
 export class ReviewsGroups extends LitElement {
 

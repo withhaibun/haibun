@@ -19,3 +19,5 @@ export type THistoryWithMeta = {
   };
   logHistory: TLogHistory[];
 };
+
+export const findArtifacts = (historyWithMeta?: THistoryWithMeta) => historyWithMeta?.logHistory.filter(h => h.messageContext.artifact);

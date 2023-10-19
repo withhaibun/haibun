@@ -142,7 +142,6 @@ export class FeatureExecutor {
   }
   async onFailure(result: TStepResult) {
     for (const s of this.steppers) {
-      console.log('\ns',  typeof(s), s.onFailure)
       if (s.onFailure) {
         const res = await s.onFailure(result);
         console.log('\n\nres', res)
