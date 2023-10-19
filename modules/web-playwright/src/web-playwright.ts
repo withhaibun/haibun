@@ -157,13 +157,13 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
   async endFeature() {
     // close the context, which closes any pages
     if (this.hasFactory) {
-      await this.bf?.closeContext(this.getWorld().tag);
       if (this.captureVideo) {
-        const dir = await this.getCaptureDir('video');
-        const path = await this.storage.readdir(dir)[0];
+        const page = await this.getPage();
+        const path = await page.video().path();
         const artifact = <TArtifact>{ type: 'video', path, event: 'request' }
         this.getWorld().logger.info('endFeature video', { artifact });
       }
+      await this.bf?.closeContext(this.getWorld().tag);
       return;
     }
   }

@@ -6,7 +6,7 @@ import { STORAGE_ITEM, STORAGE_LOCATION, } from '@haibun/domain-storage';
 import { actionNotOK, actionOK, findStepperFromOption, getStepperOption, stringOrError } from '@haibun/core/build/lib/util/index.js';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 import { TLogHistory } from '@haibun/core/build/lib/interfaces/logger.js';
-import { EMediaTypes, IFile, ITrackResults, TLocationOptions, guessMediaExt } from '@haibun/domain-storage/build/domain-storage.js';
+import { EMediaTypes, ITrackResults, TLocationOptions, guessMediaExt } from '@haibun/domain-storage/build/domain-storage.js';
 import StorageFS from '@haibun/storage-fs/build/storage-fs.js';
 import { TFoundHistories, THistoryWithMeta, TNamedHistories, findArtifacts } from "./lib.js";
 
@@ -128,9 +128,8 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     const dest = ps.fromLocation(EMediaTypes.json, this.publishRoot, 'tracks', `${key}${TRACKSHISTORY_SUFFIX}`);
     await this.publishStorage.writeFile(dest, JSON.stringify(foundHistories, null, 2), EMediaTypes.json);
     const artifacts = Object.values(foundHistories.histories).reduce((a, h) => [...a, ...findArtifacts(h)], []);
-    // TODO copy artifactMap
     for (const [path, shortPath] of Object.entries(artifactMap)) {
-      await this.copyPublishFile(path, '', 'artifacts');
+      await this.copyFile(path, `${this.publishRoot}/artifacts/${shortPath}`);
     }
     console.log('\nfoundArtifacts', artifacts.map((a: TLogHistory) => a.messageContext.artifact.path));
     return dest;
@@ -150,14 +149,14 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
         logHistory: foundHistory.logHistory.map(h => {
           const path = h.messageContext?.artifact?.path;
           if (path) {
-            artifactMap[path] = `${i}-${path.replace(/.*\/$/, '')}`;
+            artifactMap[path] = `${i}-${path.replaceAll('/', '_')}`;
             return {
               ...h,
               messageContext: {
                 ...h.messageContext,
                 artifact: {
                   ...h.messageContext.artifact,
-                  path: artifactMap[path]
+                  path: `artifacts/${artifactMap[path]}`
                 }
               }
             }
@@ -201,16 +200,18 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
       if (entry.isDirectory) {
         await this.recurseCopy({ src: fileName, fromFS, toFS, toFolder, trimFolder });
       } else {
-        await this.copyPublishFile(fileName, trimFolder, toFolder);
+        const ext = <EMediaTypes>guessMediaExt(fileName);
+        const trimmed = trimFolder ? fileName.replace(trimFolder, '') : fileName;
+        const dest = this.publishStorage.pathed(ext, toFolder ? `${toFolder}/${trimmed}`.replace(/\/\//, '/') : trimmed);
+        await this.copyFile(fileName, dest);
       }
     }
   }
-  private async copyPublishFile(fileName: string, trimFolder: string, toFolder: string) {
-    const content = await this.localFS.readFile(fileName);
-    const ext = <EMediaTypes>guessMediaExt(fileName);
 
-    const trimmed = trimFolder ? fileName.replace(trimFolder, '') : fileName;
-    const dest = this.publishStorage.pathed(ext, toFolder ? `${toFolder}/${trimmed}`.replace(/\/\//, '/') : trimmed);
+  async copyFile(source: string, dest: string) {
+    const ext = <EMediaTypes>guessMediaExt(source);
+    console.log('copyFile', source, dest, ext);
+    const content = await this.localFS.readFile(source);
     await this.publishStorage.mkdirp(path.dirname(dest));
     await this.publishStorage.writeFile(dest, content, ext);
   }

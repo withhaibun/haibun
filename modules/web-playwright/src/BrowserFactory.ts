@@ -18,7 +18,8 @@ export type TBrowserFactoryOptions = {
     args?: string[]
   },
   recordVideo?: {
-    dir: string
+    dir: string,
+    size: { width: 640, height: 480 },
   }
   defaultTimeout?: number,
   persistentDirectory?: boolean,
