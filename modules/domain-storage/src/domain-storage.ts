@@ -11,6 +11,19 @@ export type TCoding = TAnyFixme;
 export const STORAGE_LOCATION = 'STORAGE_LOCATION';
 export const STORAGE_ITEM = 'STORAGE_ITEM';
 
+
+export type TReviewLink = { link: string; title: string; date: string; results: { fail: number; success: number } }
+
+export type TResolvePublishedReview = (link: string) => Promise<TReviewLink>;
+
+
+export interface IGetPublishedReviews {
+  getPublishedReviews: () => Promise<string[]>
+}
+
+export interface IWebReviewIndexer { getLatestPublished: TGetLatestPublished, resolvePublishedReview: TResolvePublishedReview, webContext: TWebContext }
+
+
 export const storageLocation: TFileTypeDomain = {
   name: STORAGE_LOCATION, fileType: STORAGE_LOCATION, is: 'string', validate: (content: string) => {
     return undefined;
@@ -46,6 +59,7 @@ const DomainStorage = class DomainStorage extends AStepper implements IHasDomain
       parse: (input: string) => stringOrError(input)
     }
   }
+
   steps = {
     aLocation: {
       gwta: `a ${STORAGE_LOCATION} at {where}`,

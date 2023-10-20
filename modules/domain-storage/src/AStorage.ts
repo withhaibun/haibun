@@ -45,6 +45,7 @@ export abstract class AStorage extends AStepper {
       await this.writeFileBuffer(file, contents as Buffer, mediaType);
     }
   }
+
   async latestFrom(dir: string) {
     const orderReccentFiles = async (dir: string) => (await this.readdirStat(dir)).filter((f) => f.isFile).sort((a, b) => b.created - a.created);
     return orderReccentFiles(dir)[0];

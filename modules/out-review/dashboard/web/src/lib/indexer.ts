@@ -1,11 +1,6 @@
 // this module might be replaced by specific storage implementations at runtime
 
-import { TFoundHistories } from "@haibun/out-review/build/lib.js";
-import { TTraceHistorySummary } from "./data-access.js";
-
-const apiUrl = '/tracks';
-
-export async function getLatestPublished() {
+export async function getPublishedReviews(apiUrl:string) {
   const response = await fetch(`${apiUrl}/`);
   const data = await response.text();
   const latest = parseLinks(data).map(link => link.replace(apiUrl, ''))
@@ -24,18 +19,4 @@ export function parseLinks(html: string): string[] {
   }
 
   return links;
-}
-export async function summarize(file: string): Promise<TTraceHistorySummary> {
-  const link = `${apiUrl}/${file}`;
-  const response = await fetch(link);
-  const foundHistory: TFoundHistories = await response.json();
-  return {
-    titles: Object.values(foundHistory.histories).map(h => h.meta.title),
-    link: `reviews.html#source=${link}`,
-    date: new Date(foundHistory.meta.date).toLocaleString(),
-    results: {
-      success: Object.values(foundHistory.histories).filter(h => !!h.meta.ok).length,
-      fail: Object.values(foundHistory.histories).filter(h => !!h.meta.ok).length,
-    }
-  }
 }

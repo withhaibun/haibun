@@ -53,16 +53,16 @@ export class AReview extends LitElement {
     .left-container {
       flex-grow: 1;
     }
-    .right-container {
+    .detail-container {
       width: 640px;
+      margin-left: 10px;
     }`;
   artifacts: TLogHistory[] = [];
-  video: TLogHistory | undefined;
+  videoOverview: TLogHistory | undefined;
 
   async connectedCallback() {
     this.artifacts = findArtifacts(this.reviewLD) || [];
-    console.log('aa', this.artifacts);
-    this.video = this.artifacts.find(a => a.messageContext.artifact?.type === 'video');
+    this.videoOverview = this.artifacts.find(a => a.messageContext.artifact?.type === 'video' && a.messageContext.artifact?.event === 'summary');
     this.videoDetail();
     await super.connectedCallback();
   }
@@ -80,19 +80,18 @@ export class AReview extends LitElement {
       return html`<review-step class="left-container" .logHistory=${h} @show-detail=${this.handleShowDetail}>></review-step>`
     })}
           </div>
-          <div class="right-container">${this.detail}</div>
+          <div class="detail-container">${this.detail}</div>
         </div>
       </ul>
     `;
   }
   handleShowDetail(event: CustomEvent) {
     const detailHTML = event.detail;
-    this.detail = html`<button @click=${this.videoDetail}>video</button>${detailHTML}`;
+    this.detail = html`${detailHTML}`;
   }
   videoDetail() {
-    const videoPath = this.video?.messageContext.artifact?.path;
-    console.log('vp', videoPath, this.video);
-    this.detail = videoPath ? html`<video controls width="640"><source src=${videoPath} type="video/mp4"></video>` : html`<div />`;
+    const content = getDetailContent(this.videoOverview?.messageContext?.artifact);
+    this.detail = html`${content}`;
   }
 }
 
@@ -107,7 +106,7 @@ export class ReviewStep extends LitElement {
     return html`<li>${this.logHistory.message} ${detailButton}</li > `
   }
   reportDetail(artifact: TArtifact) {
-    const content = (artifact.type === 'html') ? html`${unsafeHTML(artifact.content)}` : html`<img src=${artifact.path} alt=${JSON.stringify(artifact)} />`;
+    const content = getDetailContent(artifact);
     return html`<button @click=${() => this.showDetail(content)}>📁 ${artifact.event} ${artifact.type}</button>`;
   }
   showDetail(html: TemplateResult) {
@@ -121,4 +120,16 @@ class OkIndicator extends LitElement {
   render() {
     return this.ok ? html`✓` : html`✕`;
   }
+}
+
+function getDetailContent(artifact: TArtifact | undefined) {
+  if (artifact === undefined) {
+    return html`<div />`;
+  } else if (artifact.type === 'html') {
+    return html`${unsafeHTML(artifact.content)}`;
+  } else if (artifact.type === 'video') {
+    const videoPath = artifact?.path;
+    return videoPath ? html`<video controls width="640"><source src=${videoPath} type="video/mp4"></video>` : html`<div />`;
+  }
+  return html`<img src=${artifact.path} alt=${JSON.stringify(artifact)} />`;
 }

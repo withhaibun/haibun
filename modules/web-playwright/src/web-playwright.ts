@@ -160,7 +160,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       if (this.captureVideo) {
         const page = await this.getPage();
         const path = await page.video().path();
-        const artifact = <TArtifact>{ type: 'video', path, event: 'request' }
+        const artifact = <TArtifact>{ type: 'video', path, event: 'summary' }
         this.getWorld().logger.info('endFeature video', { artifact });
       }
       await this.bf?.closeContext(this.getWorld().tag);
