@@ -6,7 +6,7 @@ import { STORAGE_ITEM, STORAGE_LOCATION, } from '@haibun/domain-storage';
 import { actionOK, findStepperFromOption, getStepperOption, stringOrError } from '@haibun/core/build/lib/util/index.js';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 import { TLogHistory } from '@haibun/core/build/lib/interfaces/logger.js';
-import { EMediaTypes, IHasIndexer, ITrackResults, TLocationOptions, guessMediaExt } from '@haibun/domain-storage/build/domain-storage.js';
+import { EMediaTypes, IGetPublishedReviews, ITrackResults, TLocationOptions, guessMediaExt } from '@haibun/domain-storage/build/domain-storage.js';
 import StorageFS from '@haibun/storage-fs/build/storage-fs.js';
 import { TFoundHistories, THistoryWithMeta, TNamedHistories } from "./lib.js";
 
@@ -74,9 +74,9 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     createIndexer: {
       exact: `create indexer`,
       action: async () => {
-        const { getIndexer } = (this.publishStorage as unknown as IHasIndexer);
-        if (getIndexer) {
-          await this.publishStorage.writeFile(`${this.publishRoot}/indexer.js`, JSON.stringify(getIndexer), EMediaTypes.json);
+        const { getPublishedReviews } = (this.publishStorage as unknown as IGetPublishedReviews);
+        if (getPublishedReviews) {
+          await this.publishStorage.writeFile(`${this.publishRoot}/indexer.js`, JSON.stringify(getPublishedReviews), EMediaTypes.json);
           this.getWorld().logger.log(`indexer-endpoint.json written for ${this.publishStorage.constructor.name}`);
         }
 
