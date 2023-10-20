@@ -28,7 +28,7 @@ export type TMessageContext = {
 
 export type TArtifact = {
   type: 'picture' | 'html' | 'video' | 'json';
-  event: 'failure' | 'request';
+  event: 'failure' | 'request' | 'summary';
   path?: string;
   content?: TAnyFixme;
 };
