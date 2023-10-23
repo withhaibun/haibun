@@ -1,7 +1,5 @@
-import { getPublishedReviews } from './indexer.js';
 import { TFoundHistories } from "@haibun/out-review/build/lib.js";
-
-const apiUrl = '/tracks';
+import { endpoint } from "./indexer.js";
 
 export type TTraceHistorySummary = {
   link: string,
@@ -22,17 +20,12 @@ export type TPRData = {
 export class DataAccess {
   private latest: string[] = [];
 
-  async getLatest() {
+  async getLatest(): Promise<string[]> {
     if (this.latest.length > 0) {
       return this.latest;
     }
-    let endpoint = apiUrl;
-    try {
-      endpoint = (await (await fetch('indexer-endpoint.json')).json()).endpoint;
-    } catch (e) {
-      // default endpoint
-    }
-    return await getPublishedReviews(endpoint);
+    const indexer = await import('./indexer.js');
+    return await indexer.getPublishedReviews();
   }
 
   async getTracksHistories(): Promise<TTraceHistorySummary[]> {
@@ -50,14 +43,13 @@ export class DataAccess {
   }
 }
 
-
 export async function summarize(file: string): Promise<TTraceHistorySummary> {
-  const link = `${apiUrl}/${file}`;
+  const link = `${endpoint}/${file}`;
   const response = await fetch(link);
   const foundHistory: TFoundHistories = await response.json();
   return {
     titles: Object.values(foundHistory.histories).map(h => h.meta.title),
-    link: `reviews.html#source=${link}`,
+    link: `reviewer.html#source=${link}`,
     date: new Date(foundHistory.meta.date).toLocaleString(),
     results: {
       success: Object.values(foundHistory.histories).filter(h => !!h.meta.ok).length,

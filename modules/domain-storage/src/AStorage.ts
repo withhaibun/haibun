@@ -1,19 +1,18 @@
 import { CAPTURE, AStepper, OK, TNamed, DEFAULT_DEST, TAnyFixme } from '@haibun/core/build/lib/defs.js';
 import { actionNotOK } from '@haibun/core/build/lib/util/index.js';
 import { setShared } from '@haibun/core/build/steps/vars.js';
-import { IFile, TLocationOptions, TMediaType } from './domain-storage.js';
+import { IFile, TLocationOptions, TMediaType, TPathedOrString } from './domain-storage.js';
 
 type TTree = Array<IFile | IFileWithEntries>;
 
 interface IFileWithEntries extends IFile {
   entries: TTree;
 }
-
 export abstract class AStorage extends AStepper {
   abstract readFile(path: string, coding?: string): TAnyFixme;
   abstract readdir(dir: string): Promise<string[]>;
   abstract lstatToIFile(file: string): Promise<IFile>;
-  abstract writeFileBuffer(file: string, contents: Buffer, mediaType: TMediaType): void;
+  abstract writeFileBuffer(file: TPathedOrString, contents: Buffer, mediaType: TMediaType): void;
 
   async readTree(dir: string, filter?: string): Promise<TTree> {
     const entries = await this.readdirStat(dir);
@@ -38,7 +37,7 @@ export abstract class AStorage extends AStepper {
     }
     return mapped;
   }
-  async writeFile(file: string, contents: string | Buffer, mediaType: TMediaType) {
+  async writeFile(file: TPathedOrString, contents: string | Buffer, mediaType: TMediaType) {
     if (typeof contents === 'string') {
       await this.writeFileBuffer(file, Buffer.from(contents), mediaType);
     } else {
@@ -54,10 +53,6 @@ export abstract class AStorage extends AStepper {
   abstract mkdir(dir: string);
   abstract mkdirp(dir: string);
   abstract exists(ntt: string);
-
-  async webIndexer(dir: string): Promise<string[]> | undefined {
-    return undefined;
-  }
 
   async rmrf(dir: string) {
     throw Error(`rmrf not implemented at ${dir}`);

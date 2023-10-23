@@ -11,6 +11,19 @@ export type TCoding = TAnyFixme;
 export const STORAGE_LOCATION = 'STORAGE_LOCATION';
 export const STORAGE_ITEM = 'STORAGE_ITEM';
 
+export type TPathed = {
+  pathed: string;
+}
+
+export function isPathed(path: TPathedOrString): path is TPathed {
+  return (<TPathed>path).pathed !== undefined;
+}
+
+export function actualPath(path: TPathedOrString): string {
+  return isPathed(path) ? path.pathed : path;
+}
+
+export type TPathedOrString = TPathed | string;
 
 export type TReviewLink = { link: string; title: string; date: string; results: { fail: number; success: number } }
 
@@ -19,6 +32,7 @@ export type TResolvePublishedReview = (link: string) => Promise<TReviewLink>;
 
 export interface IGetPublishedReviews {
   getPublishedReviews: () => Promise<string[]>
+  endpoint: (path: string) => string
 }
 
 export interface IWebReviewIndexer { getLatestPublished: TGetLatestPublished, resolvePublishedReview: TResolvePublishedReview, webContext: TWebContext }
@@ -117,6 +131,7 @@ export const enum EMediaTypes {
 }
 
 const MEDIA_TYPES: { [type: string]: string } = {
+  webm: 'video',
   html: 'text/html',
   json: 'json',
   video: 'video/mp4',

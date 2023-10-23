@@ -1,4 +1,4 @@
-import { DataAccess, TPRData, TTraceHistorySummary } from './lib/data-access.js';
+import { DataAccess, TPRData, TTraceHistorySummary } from './data-access.js';
 
 export class ReviewOverview extends HTMLElement {
   private dataAccess: DataAccess;
@@ -10,7 +10,10 @@ export class ReviewOverview extends HTMLElement {
 
   async connectedCallback() {
     const prData = null; //await this.dataAccess.getLatestPR();
-    const reviewData = await this.dataAccess.getTracksHistories();
+    const reviewData = await this.dataAccess.getTracksHistories().catch(e => {
+      this.innerHTML = `<h1>Failed to load data: ${e.message}</h1>`;
+      throw (e);
+    });
 
     this.render(prData, reviewData);
   }

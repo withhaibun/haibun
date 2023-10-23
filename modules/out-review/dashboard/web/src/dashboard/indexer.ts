@@ -1,9 +1,11 @@
 // this module might be replaced by specific storage implementations at runtime
 
-export async function getPublishedReviews(apiUrl:string) {
-  const response = await fetch(`${apiUrl}/`);
+export const endpoint = '/tracks';
+
+export async function getPublishedReviews() {
+  const response = await fetch(endpoint);
   const data = await response.text();
-  const latest = parseLinks(data).map(link => link.replace(apiUrl, ''))
+  const latest = parseLinks(data).map(link => link.replace(endpoint, ''))
     .map(link => link.replace(/^\//, '')).filter(link => link.length > 0);
   return latest;
 }

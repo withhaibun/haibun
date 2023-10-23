@@ -1,7 +1,7 @@
 import { Volume, IFs } from 'memfs';
 
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
-import { IFile } from '@haibun/domain-storage/build/domain-storage.js';
+import { IFile, TPathedOrString, actualPath } from '@haibun/domain-storage/build/domain-storage.js';
 import { TAnyFixme } from '@haibun/core/build/lib/defs.js';
 
 export default class StorageMem extends AStorage {
@@ -16,8 +16,8 @@ export default class StorageMem extends AStorage {
     this.mkdir = (dir) => this.volume.mkdirSync(dir);
   }
   readFile = (file: string, coding?: TAnyFixme) => this.volume.readFileSync(file, coding);
-  writeFileBuffer = (fn: string, contents: Buffer) => {
-    this.volume.writeFileSync(fn, contents);
+  writeFileBuffer = (fn: TPathedOrString, contents: Buffer) => {
+    this.volume.writeFileSync(actualPath(fn), contents);
   };
   async lstatToIFile(file: string) {
     const l = this.volume.lstatSync(file);

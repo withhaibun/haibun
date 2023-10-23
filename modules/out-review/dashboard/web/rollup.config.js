@@ -1,30 +1,18 @@
 import typescript from '@rollup/plugin-typescript';
 import resolve from '@rollup/plugin-node-resolve';
 
-// `npm run build` -> `production` is true
-// `npm run dev` -> `production` is false
-const production = !process.env.ROLLUP_WATCH;
+const dashboard = {
+  input: [`./src/dashboard/index.ts`, `./src/dashboard/indexer.ts`],
+  output: {
+    dir: `built/dashboard/`,
+  },
+  plugins: [resolve(), typescript({ outDir: './built/dashboard' })],
+};
 
-const addConfig = (input, incl) => ({
-  input: `./src/${input}`,
-  ...incl,
-  // output: {
-  //   file: `${output}`,
-  // format: 'esm',
-  // },
-  plugins: [
-    resolve(), // tells Rollup how to find date-fns in node_modules
-    typescript(),
-  ],
-});
+const reviewer = {
+  input: `./src/reviews/index.ts`,
+  output: { dir: `built/reviewer/` },
+  plugins: [resolve(), typescript({ outDir: './built/reviewer' })],
+};
 
-const dist = `built`;
-const built = `/home/vid/D/withhaibun/haibun-e2e-tests/files/published/built`;
-
-export default [
-  addConfig('index.ts', { output: { file: `${dist}/index.js` }, exclude: ['**/indexer.js'] }),
-  addConfig('reviews/index.ts', { output: { file: `${dist}/reviews.js` } }),
-
-  // addConfig('index.ts', `${built}/index.js`),
-  // addConfig('reviews/index.ts', `${built}/reviews.js`),
-];
+export default [dashboard, reviewer];

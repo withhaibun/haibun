@@ -6,11 +6,12 @@ import { STORAGE_ITEM, STORAGE_LOCATION, } from '@haibun/domain-storage';
 import { actionOK, findStepperFromOption, getStepperOption, stringOrError } from '@haibun/core/build/lib/util/index.js';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 import { TLogHistory } from '@haibun/core/build/lib/interfaces/logger.js';
-import { EMediaTypes, IGetPublishedReviews, ITrackResults, TLocationOptions, guessMediaExt } from '@haibun/domain-storage/build/domain-storage.js';
+import { EMediaTypes, IGetPublishedReviews, ITrackResults, TLocationOptions, TPathed, actualPath, guessMediaExt } from '@haibun/domain-storage/build/domain-storage.js';
 import StorageFS from '@haibun/storage-fs/build/storage-fs.js';
 import { TFoundHistories, THistoryWithMeta, TNamedHistories } from "./lib.js";
 
 export const TRACKS_FILE = `tracks.json`;
+const TRACKS_DIR = 'tracks';
 export const TRACKSHISTORY_SUFFIX = '-tracksHistory.json';
 
 export const STORAGE = 'STORAGE';
@@ -18,7 +19,7 @@ export const TRACKS_STORAGE = 'TRACKS_STORAGE';
 export const PUBLISH_STORAGE = 'PUBLISH_STORAGE';
 export const PUBLISH_ROOT = 'PUBLISH_ROOT';
 
-type TArtifactMap = { [name: string]: string };
+type TArtifactMap = { [name: string]: TPathed };
 
 const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRequireDomains, ITrackResults {
   tracksStorage: AStorage;
@@ -49,6 +50,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
       parse: (input: string) => stringOrError(input),
     },
   };
+  reviewEndpoint?: IGetPublishedReviews;
 
   async setWorld(world: TWorld, steppers: AStepper[]) {
     await super.setWorld(world, steppers);
@@ -56,6 +58,10 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     this.tracksStorage = findStepperFromOption(steppers, this, world.extraOptions, TRACKS_STORAGE, STORAGE);
     this.publishStorage = findStepperFromOption(steppers, this, world.extraOptions, PUBLISH_STORAGE, STORAGE);
     this.publishRoot = getStepperOption(this, PUBLISH_ROOT, this.getWorld().extraOptions) || './published';
+    const ps = (this.publishStorage as unknown as IGetPublishedReviews);
+    if (ps.getPublishedReviews) {
+      this.reviewEndpoint = ps;
+    }
   }
 
   steps = {
@@ -74,18 +80,12 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     createIndexer: {
       exact: `create indexer`,
       action: async () => {
-        const { getPublishedReviews } = (this.publishStorage as unknown as IGetPublishedReviews);
-        if (getPublishedReviews) {
-          await this.publishStorage.writeFile(`${this.publishRoot}/indexer.js`, JSON.stringify(getPublishedReviews), EMediaTypes.json);
-          this.getWorld().logger.log(`indexer-endpoint.json written for ${this.publishStorage.constructor.name}`);
-        }
-
+        await this.createIndexer();
         return OK;
       },
     },
     /**
      * Create web
-     *
      * Create web pages that link and display published review indexes.
      *
      */
@@ -96,22 +96,31 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
         await this.publishStorage.ensureDirExists(this.publishRoot);
         await this.recurseCopy({ src: `${web}/public`, fromFS: this.localFS, toFS: this.publishStorage, toFolder: this.publishRoot, trimFolder: `${web}/public` });
         await this.recurseCopy({ src: `${web}/built`, fromFS: this.localFS, toFS: this.publishStorage, toFolder: `${this.publishRoot}/built`, trimFolder: `${web}/built` });
+        await this.createIndexer();
 
         return actionOK({ tree: { summary: 'wrote files', details: await this.publishStorage.readTree(this.publishRoot) } })
       }
     },
   };
 
+  async createIndexer() {
+    if (this.reviewEndpoint) {
+      const indexer = `const resolvedEndpoint = "${this.reviewEndpoint.endpoint(TRACKS_DIR)}";\n${this.reviewEndpoint.getPublishedReviews.toString().replace('async', 'export async function')}`;
+      await this.publishStorage.writeFile(`${this.publishRoot}/built/dashboard/indexer.js`, indexer, EMediaTypes.javascript);
+      this.getWorld().logger.log(`indexer-endpoint.json written for ${this.publishStorage.constructor.name}`);
+    }
+  }
+
   async createFoundHistory(where = CAPTURE) {
     const key = this.getWorld().tag.key;
     const ps = this.publishStorage;
     const { foundHistories, artifactMap } = await this.transformTracksAndArtifacts(where);
-    await this.publishStorage.ensureDirExists(ps.fromLocation(EMediaTypes.json, this.publishRoot, 'tracks'));
-    const dest = ps.fromLocation(EMediaTypes.json, this.publishRoot, 'tracks', `${key}${TRACKSHISTORY_SUFFIX}`);
+    await this.publishStorage.ensureDirExists(ps.fromLocation(EMediaTypes.json, this.publishRoot, TRACKS_DIR));
+    const dest = ps.fromLocation(EMediaTypes.json, this.publishRoot, TRACKS_DIR, `${key}${TRACKSHISTORY_SUFFIX}`);
     await this.publishStorage.writeFile(dest, JSON.stringify(foundHistories, null, 2), EMediaTypes.json);
-    for (const [path, shortPath] of Object.entries(artifactMap)) {
+    for (const [path, destPathed] of Object.entries(artifactMap)) {
       // copying pages to strict location
-      await this.copyFile(path, `${this.publishRoot}/artifacts/${shortPath}`);
+      await this.copyFile(path, destPathed);
     }
     return dest;
   }
@@ -122,23 +131,27 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
 
     let ok = 0;
     let fail = 0;
-    const histories: TNamedHistories = tracksJsonFiles.reduce((a, leaf, i) => {
-      console.log('ll', leaf);
+    const histories: TNamedHistories = tracksJsonFiles.reduce((a, leaf) => {
       const foundHistory: THistoryWithMeta = JSON.parse(this.localFS.readFile(leaf, 'utf-8'));
+      if (!this.reviewEndpoint) {
+        return { ...a, [leaf]: foundHistory };
+      }
+      const endpoint = this.reviewEndpoint.endpoint(TRACKS_DIR);
       // map files to relative path for later copying
       const history = {
         meta: foundHistory.meta,
         logHistory: foundHistory.logHistory.map(h => {
           const path = h.messageContext?.artifact?.path;
           if (path) {
-            artifactMap[path] = `${i}-${path.replaceAll('/', '_')}`;
+            const dest = this.artifactLocation(path, 'artifacts');
+            artifactMap[path] = dest;
             return {
               ...h,
               messageContext: {
                 ...h.messageContext,
                 artifact: {
                   ...h.messageContext.artifact,
-                  path: `artifacts/${artifactMap[path]}`
+                  path: [endpoint, actualPath(dest)].join('')
                 }
               }
             }
@@ -182,19 +195,24 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
       if (entry.isDirectory) {
         await this.recurseCopy({ src: fileName, fromFS, toFS, toFolder, trimFolder });
       } else {
-        const ext = <EMediaTypes>guessMediaExt(fileName);
-        const trimmed = trimFolder ? fileName.replace(trimFolder, '') : fileName;
-        const dest = this.publishStorage.pathed(ext, toFolder ? `${toFolder}/${trimmed}`.replace(/\/\//, '/') : trimmed);
+        const dest = this.artifactLocation(fileName, toFolder, trimFolder);
         await this.copyFile(fileName, dest);
       }
     }
   }
 
-  async copyFile(source: string, dest: string) {
+  artifactLocation(fileName: string, toFolder: string, trimFolder?: string): TPathed {
+    const ext = <EMediaTypes>guessMediaExt(fileName);
+    const trimmed = trimFolder ? fileName.replace(trimFolder, '') : fileName;
+    const dest = this.publishStorage.pathed(ext, toFolder ? `${toFolder}/${trimmed}`.replace(/\/\//, '/') : trimmed);
+    return { pathed: dest };
+  }
+
+  async copyFile(source: string, pathedDest: TPathed) {
     const ext = <EMediaTypes>guessMediaExt(source);
     const content = await this.localFS.readFile(source);
-    await this.publishStorage.mkdirp(path.dirname(dest));
-    await this.publishStorage.writeFile(dest, content, ext);
+    await this.publishStorage.mkdirp(path.dirname(pathedDest.pathed));
+    await this.publishStorage.writeFile(pathedDest, content, ext);
   }
 
   // implements ITrackResults

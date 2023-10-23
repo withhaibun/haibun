@@ -30,7 +30,7 @@ export class Router {
     }
 
     private _paramsToLink(params: TParams) {
-        const dest = `/reviews.html#source=${this.source}&` + Object.entries(params).map(([key, val]) => `${key}=${val}`).join('&');
+        const dest = `reviewer.html#source=${this.source}&` + Object.entries(params).map(([key, val]) => `${key}=${val}`).join('&');
         return dest;
     }
     handleHashChange() {
