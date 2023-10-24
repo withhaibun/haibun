@@ -29,6 +29,7 @@ export class ReviewOverview extends HTMLElement {
       <div class="list-container">
         <h2>Reviews</h2>
         <div class="list-item">${reviewLinks}</div>
+        <i>Open links in a new window to escape this frame.</i>
       </div>
     `;
   }
