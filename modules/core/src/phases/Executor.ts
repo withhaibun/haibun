@@ -152,6 +152,7 @@ export class FeatureExecutor {
     for (const s of this.steppers) {
       if (s.endFeature) {
         this.world.logger.debug(`endFeature ${s.constructor.name}`);
+        /// FIXME this should probably be awaited
         await s.endFeature();
       }
     }

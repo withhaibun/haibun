@@ -1,4 +1,6 @@
-ul {
+import { css } from "lit";
+
+export const controls  = css`ul {
   list-style: none;
 }
 .ok-true::before,
@@ -45,3 +47,5 @@ h2 {
   font-family: monospace;
   white-space: pre-wrap;
 }
+
+`;

@@ -20,9 +20,9 @@ export type TLogHistoryWithArtifact = TLogHistory & {
 };
 
 export type TArtifactMessageContext = {
-  topic: TArtifactRequestStepTopic | TArtifactSummaryTopic | TArtifactFailureStepTopic,
+  topic: TArtifactRequestStepTopic | TArtifactSummaryTopic | TArtifactFailureStepTopic | TArtifactDebugTopic,
   artifact: TArtifact;
-  tag: TTag;
+  tag?: TTag;
 };
 
 export type TExecutorMessageContext = {
@@ -41,7 +41,7 @@ export type TExecutorResultTopic = {
   stage: 'Executor';
 };
 
-export type TActionStage = 'endFeature' | 'action' | 'onFailure' | 'nextStep';
+export type TActionStage = 'endFeature' | 'action' | 'onFailure' | 'nextStep' | 'init' | 'action';
 
 type TBaseArtifactTopic = {
   stage: TActionStage
@@ -54,6 +54,10 @@ export type TArtifactSummaryTopic = TBaseArtifactTopic & {
 export type TArtifactRequestStepTopic = TBaseArtifactTopic & {
   event: 'request';
   seq: number;
+};
+
+export type TArtifactDebugTopic = TBaseArtifactTopic & {
+  event: 'debug';
 };
 
 export type TArtifactFailureStepTopic = TBaseArtifactTopic & {
@@ -75,7 +79,7 @@ export type TLogHistoryWithExecutorTopic = TLogHistory & {
 };
 
 export type TArtifact = {
-  type: 'video' | 'picture' | 'html';
+  type: 'video' | 'picture' | 'html' | 'json' | 'json/playwright/trace';
   path?: string;
   content?: TAnyFixme;
 };

@@ -1,5 +1,4 @@
 import { css } from 'lit';
-import { TFoundHistories } from '@haibun/out-review/build/lib.js';
 
 export const globalStyles = css`
     a {

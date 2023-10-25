@@ -1,6 +1,6 @@
 import { Page, Response, Download } from 'playwright';
 
-import { IHasOptions, OK, TNamed, IRequireDomains, TStepResult, TTraceOptions, TTrace, AStepper, TWorld, TVStep, TAnyFixme } from '@haibun/core/build/lib/defs.js';
+import { IHasOptions, OK, TNamed, IRequireDomains, TStepResult, AStepper, TWorld, TVStep, TAnyFixme } from '@haibun/core/build/lib/defs.js';
 import { onCurrentTypeForDomain } from '@haibun/core/build/steps/vars.js';
 import { BrowserFactory, TBrowserFactoryOptions, TBrowserTypes } from './BrowserFactory.js';
 import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOption, sleep } from '@haibun/core/build/lib/util/index.js';
@@ -8,6 +8,7 @@ import { WEB_PAGE, WEB_CONTROL } from '@haibun/domain-webpage';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 import { EMediaTypes } from '@haibun/domain-storage/build/domain-storage.js';
 import { TActionStage, TArtifact, TArtifactMessageContext, TTraceMessageContext } from '@haibun/core/build/lib/interfaces/logger.js';
+import { PlaywrightEvents } from './PlaywrightEvents.js';
 
 const WebPlaywright = class WebPlaywright extends AStepper implements IHasOptions, IRequireDomains {
   static STORAGE = 'STORAGE';
@@ -67,21 +68,6 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     const defaultTimeout = parseInt(getStepperOption(this, 'TIMEOUT', world.extraOptions)) || 30000;
     this.captureVideo = getStepperOption(this, 'CAPTURE_VIDEO', world.extraOptions);
     const { trace: doTrace } = world.tag;
-    const trace: TTraceOptions | undefined = doTrace
-      ? {
-        response: {
-          listener: async (res: Response) => {
-            const url = res.url();
-            const headers = await res.headersArray();
-            const headersContent = (await Promise.allSettled(headers)).map((h) => (h as PromiseFulfilledResult<{ value: string; name: string }>).value);
-            const topic = { trace: { response: { headersContent } } };
-            world.logger.debug(`response trace ${headersContent.map((h) => h.name)}`, <TTraceMessageContext>{ topic });
-            const trace: TTrace = { response: { url, since: world.timer.since(), trace: { headersContent } } };
-            world.shared.concat('_trace', trace);
-          },
-        },
-      }
-      : undefined;
     let recordVideo;
     if (this.captureVideo) {
       recordVideo = {
@@ -98,7 +84,6 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       recordVideo,
       defaultTimeout,
       persistentDirectory,
-      trace,
     };
   }
   async getCaptureDir(type: string) {
@@ -165,7 +150,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
         this.getWorld().logger.info('endFeature video', <TArtifactMessageContext>{ artifact, topic: { event: 'summary', stage: 'endFeature' }, tag: this.getWorld().tag });
       }
       await this.bf?.closeContext(this.getWorld().tag);
-      return;
+      console.log('\n\n\ncloseContenxt', 5)
     }
   }
   async close() {

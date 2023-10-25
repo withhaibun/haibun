@@ -2,12 +2,11 @@ import { LitElement, html, css, TemplateResult, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 
-
-import reviewsCSS from './reviews.css';
+import { controls } from './assets/reviews.js';
 
 import { TFoundHistories, THistoryWithMeta, findArtifacts, asArtifact, asActionResult } from '@haibun/out-review/build/lib.js';
-import { TArtifact, TArtifactMessageContext, TLogHistory, TLogHistoryWithArtifact } from '@haibun/core/build/lib/interfaces/logger.js';
 import { TWindowRouter } from './router.js';
+import { TLogHistoryWithArtifact, TLogHistory, TArtifactMessageContext, TArtifact } from '@haibun/core/build/lib/interfaces/logger.js';
 
 const router = () => (globalThis as unknown as TWindowRouter)._router;
 @customElement('reviews-groups')
@@ -17,7 +16,7 @@ export class ReviewsGroups extends LitElement {
   @property({ type: Object }) group?: string;
   @property({ type: Object }) index?: string;
 
-  static styles = [reviewsCSS];
+  static styles = [controls];
 
   render() {
     if (!this.foundHistories) return html`<div>No reviews yet</div>`;
@@ -37,7 +36,7 @@ export class AReview extends LitElement {
   @property({ type: Object }) detail?: object;
   @property({ type: Boolean }) showDetails = false;
 
-  static styles = [reviewsCSS, css`.review-body {
+  static styles = [controls, css`.review-body {
       display: flex;
     }
     .left-container {
@@ -58,7 +57,7 @@ export class AReview extends LitElement {
   }
 
   render() {
-    const currentFilter = (h: TLogHistory) => this.showDetails ? h : (asActionResult(h) || asArtifact(h));
+    const currentFilter = (h: TLogHistory) => this.showDetails ? h : (asActionResult(h) || (asArtifact(h) && asArtifact(h)?.messageContext?.topic?.event !== 'debug'));
     if (!this.reviewLD) {
       return html`<h1>No data</h1>`;
     }
@@ -92,7 +91,7 @@ export class AReview extends LitElement {
 
 @customElement('review-step')
 export class ReviewStep extends LitElement {
-  static styles = [reviewsCSS];
+  static styles = [controls];
   @property({ type: Array }) logHistory?: TLogHistory;
 
   render() {
@@ -104,7 +103,7 @@ export class ReviewStep extends LitElement {
       return html`<div>No history</div>`;
     }
     let okResult: string | symbol = nothing;
-    okResult = `executorResult && ok-${executorResult?.messageContext.topic.result.ok}`;
+    okResult = executorResult ? `ok-${executorResult?.messageContext.topic.result.ok}` : nothing;
     const message = executorResult ? executorResult.messageContext.topic.step.in : logHistory.message;
     const loggerDisplay = executorResult ? nothing : this.loggerButton(logHistory.level);
     const detailButton = logArtifact && this.reportDetail(logArtifact.messageContext);
@@ -130,6 +129,8 @@ function getDetailContent(artifact: TArtifact | undefined) {
     return html`<div />`;
   } else if (artifact.type === 'html') {
     return html`${unsafeHTML(artifact.content)}`;
+  } else if (artifact.type.startsWith('json')) {
+    return html`<div class="code">${JSON.stringify(artifact.content, null, 2)}</div>`;
   } else if (artifact.type === 'video') {
     const videoPath = artifact?.path;
     return videoPath ? html`<video controls width="640"><source src=${videoPath} type="video/mp4"></video>` : html`<div />`;
