@@ -20,7 +20,7 @@ export type TLogHistoryWithArtifact = TLogHistory & {
 };
 
 export type TArtifactMessageContext = {
-  topic: TArtifactRequestStepTopic | TArtifactSummaryTopic,
+  topic: TArtifactRequestStepTopic | TArtifactSummaryTopic | TArtifactFailureStepTopic,
   artifact: TArtifact;
   tag: TTag;
 };
