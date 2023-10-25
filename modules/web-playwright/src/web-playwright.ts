@@ -7,7 +7,7 @@ import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, 
 import { WEB_PAGE, WEB_CONTROL } from '@haibun/domain-webpage';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 import { EMediaTypes } from '@haibun/domain-storage/build/domain-storage.js';
-import { TArtifact } from '@haibun/core/build/lib/interfaces/logger.js';
+import { TActionStage, TArtifact, TArtifactMessageContext, TTraceMessageContext } from '@haibun/core/build/lib/interfaces/logger.js';
 
 const WebPlaywright = class WebPlaywright extends AStepper implements IHasOptions, IRequireDomains {
   static STORAGE = 'STORAGE';
@@ -75,7 +75,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
             const headers = await res.headersArray();
             const headersContent = (await Promise.allSettled(headers)).map((h) => (h as PromiseFulfilledResult<{ value: string; name: string }>).value);
             const topic = { trace: { response: { headersContent } } };
-            world.logger.debug(`response trace ${headersContent.map((h) => h.name)}`, { topic });
+            world.logger.debug(`response trace ${headersContent.map((h) => h.name)}`, <TTraceMessageContext>{ topic });
             const trace: TTrace = { response: { url, since: world.timer.since(), trace: { headersContent } } };
             world.shared.concat('_trace', trace);
           },
@@ -141,16 +141,17 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async onFailure(result: TStepResult) {
+  async onFailure(result: TStepResult, step?: TVStep): Promise<void | TTraceMessageContext> {
     if (this.bf?.hasPage(this.getWorld().tag, this.tab)) {
-      await this.captureScreenshot('failure');
+      await this.captureFailureScreenshot('failure', 'onFailure', step);
     }
   }
 
-  async nextStep() {
+  // FIXME currently not executed
+  async nextStep(step: TVStep) {
     const captureScreenshot = getStepperOption(this, 'STEP_CAPTURE_SCREENSHOT', this.getWorld().extraOptions);
     if (captureScreenshot) {
-      await this.captureScreenshot('request');
+      await this.captureRequestScreenshot('request', 'nextStep', step.seq);
     }
   }
 
@@ -160,8 +161,8 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       if (this.captureVideo) {
         const page = await this.getPage();
         const path = await page.video().path();
-        const artifact = <TArtifact>{ type: 'video', path, event: 'summary' }
-        this.getWorld().logger.info('endFeature video', { artifact });
+        const artifact = <TArtifact>{ type: 'video', path }
+        this.getWorld().logger.info('endFeature video', <TArtifactMessageContext>{ artifact, topic: { event: 'summary', stage: 'endFeature' }, tag: this.getWorld().tag });
       }
       await this.bf?.closeContext(this.getWorld().tag);
       return;
@@ -610,8 +611,8 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     },
     takeScreenshot: {
       gwta: 'take a screenshot',
-      action: async () => {
-        await this.captureScreenshot('request');
+      action: async (notUsed, vstep: TVStep) => {
+        await this.captureScreenshot('request', 'action', vstep);
         return OK;
       },
     },
@@ -642,7 +643,14 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
   newTab() {
     this.tab = this.tab + 1;
   }
-  async captureScreenshot(event: 'failure' | 'request') {
+  async captureFailureScreenshot(event: 'failure', stage: TActionStage, step: TVStep) {
+    return await this.captureScreenshot(event, stage, { step });
+  }
+  async captureRequestScreenshot(event: 'request', stage: TActionStage, seq: number) {
+    return await this.captureScreenshot(event, stage, { seq });
+  }
+
+  async captureScreenshot(event: 'failure' | 'request', stage: TActionStage, details: { seq?: number, step?: TVStep }) {
     const loc = { ...this.getWorld(), mediaType: EMediaTypes.image };
     const dir = await this.storage.ensureCaptureLocation(loc, `screenshot ${event}`);
     const path = `${dir}/${event}-${Date.now()}.png`;
@@ -652,7 +660,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
           path,
         })
     );
-    this.getWorld().logger.info('screenshot', { artifact: { type: 'picture', path, event } });
+    this.getWorld().logger.info('screenshot', <TArtifactMessageContext>{ topic: { ...details, event, stage }, artifact: { type: 'picture', path, }, tag: this.getWorld().tag });
   }
 };
 

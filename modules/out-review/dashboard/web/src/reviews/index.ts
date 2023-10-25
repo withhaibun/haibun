@@ -43,7 +43,7 @@ export class ReviewsShell extends LitElement {
 
   routes(params: TParams) {
     if (params.group !== undefined) {
-      return html`<a-review .reviewLD=${this.foundHistories!.histories[this.router.group]}></a-review>`
+      return html`<a-review .reviewLD=${this.foundHistories?.histories[this.router.group]}></a-review>`
     }
     return html`<reviews-groups .foundHistories=${this.foundHistories}></reviews-groups>`;
   }

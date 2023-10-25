@@ -154,7 +154,7 @@ export type TStep = {
 };
 
 export interface CStepper {
-  new (): AStepper;
+  new(): AStepper;
   prototype: {
     steps: {
       [name: string]: TStep;
@@ -170,7 +170,7 @@ export abstract class AStepper {
   world?: TWorld;
   close?(): void;
   endFeature?(): void;
-  onFailure?(result: TStepResult): Promise<void | TMessageContext>;
+  onFailure?(result: TStepResult, step: TVStep): Promise<void | TMessageContext>;
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async setWorld(world: TWorld, steppers: AStepper[]) {
     this.world = world;

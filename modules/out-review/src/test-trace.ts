@@ -1,6 +1,6 @@
-import { THistoryWithMeta } from "./lib.js";
+// import { THistoryWithMeta } from "./lib.js";
 
-export const historyWithMeta: THistoryWithMeta = {
+export const historyWithMeta/*: THistoryWithMeta */ = {
   "meta": {
     "startTime": "2023-10-06T11:53:17.597Z",
     "title": "local a11y",

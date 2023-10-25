@@ -53,7 +53,7 @@ export async function summarize(file: string): Promise<TTraceHistorySummary> {
     date: new Date(foundHistory.meta.date).toLocaleString(),
     results: {
       success: Object.values(foundHistory.histories).filter(h => !!h.meta.ok).length,
-      fail: Object.values(foundHistory.histories).filter(h => !!h.meta.ok).length,
+      fail: Object.values(foundHistory.histories).filter(h => !h.meta.ok).length,
     }
   }
 }

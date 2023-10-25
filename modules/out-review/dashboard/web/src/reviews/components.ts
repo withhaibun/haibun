@@ -2,8 +2,11 @@ import { LitElement, html, css, TemplateResult } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 
-import { TFoundHistories, THistoryWithMeta, findArtifacts } from '@haibun/out-review/build/lib.js';
-import { TArtifact, TLogHistory } from '@haibun/core/build/lib/interfaces/logger.js';
+
+import reviewsCSS from './reviews.css';
+
+import { TFoundHistories, THistoryWithMeta, findArtifacts, asArtifact, asActionResult } from '@haibun/out-review/build/lib.js';
+import { TArtifact, TArtifactMessageContext, TLogHistory, TLogHistoryWithArtifact } from '@haibun/core/build/lib/interfaces/logger.js';
 import { TWindowRouter } from './router.js';
 
 const router = () => (globalThis as unknown as TWindowRouter)._router;
@@ -14,18 +17,7 @@ export class ReviewsGroups extends LitElement {
   @property({ type: Object }) group?: string;
   @property({ type: Object }) index?: string;
 
-  static styles = css`
-    ul {
-  list-style: none;
-}
-
-li.false::before {
-  content: "✕ ";
-}
-
-li.true::before {
-  content: "✓ ";
-}`;
+  static styles = [reviewsCSS];
 
   render() {
     if (!this.foundHistories) return html`<div>No reviews yet</div>`;
@@ -33,7 +25,7 @@ li.true::before {
       const route = router().link({ index, group });
       const titles = historyWithMeta.meta.title;
       const link = html`<a href=${route} >${titles}</a>`;
-      return html`<li class=${historyWithMeta.meta.ok}>${link} </li>`;
+      return html`<li class="ok-${historyWithMeta.meta.ok}">${link} </li>`;
     });
     return html`<ul>${groups}</ul>`;
   }
@@ -43,12 +35,10 @@ li.true::before {
 export class AReview extends LitElement {
   @property({ type: Object }) reviewLD?: THistoryWithMeta;
   @property({ type: Object }) detail?: object;
+  @property({ type: Boolean }) showDetails = false;
 
-  static styles = css`.review-body {
+  static styles = [reviewsCSS, css`.review-body {
       display: flex;
-    }
-    ul {
-     list-style: none;
     }
     .left-container {
       flex-grow: 1;
@@ -56,33 +46,38 @@ export class AReview extends LitElement {
     .detail-container {
       width: 640px;
       margin-left: 10px;
-    }`;
-  artifacts: TLogHistory[] = [];
-  videoOverview: TLogHistory | undefined;
+    }`];
+  artifacts: TLogHistoryWithArtifact[] = [];
+  videoOverview: TLogHistoryWithArtifact | undefined;
 
   async connectedCallback() {
-    this.artifacts = findArtifacts(this.reviewLD) || [];
-    this.videoOverview = this.artifacts.find(a => a.messageContext.artifact?.type === 'video' && a.messageContext.artifact?.event === 'summary');
+    this.artifacts = (findArtifacts(this.reviewLD) || []);
+    this.videoOverview = this.artifacts.find(a => a.messageContext.artifact.type === 'video' && a.messageContext.topic.event === 'summary');
     this.videoDetail();
     await super.connectedCallback();
   }
 
   render() {
+    const currentFilter = (h: TLogHistory) => this.showDetails ? h : (asActionResult(h) || asArtifact(h));
     if (!this.reviewLD) {
       return html`<h1>No data</h1>`;
     }
+    const checkbox = html`<input id="show-all-messages" type="checkbox" @change=${(e: Event) => this.showDetails = (<HTMLInputElement>e.target).checked} />`;
     return this.reviewLD && html`
-      <ul>
-        <h2><ok-indicator ?ok=${this.reviewLD.meta.ok}></ok-indicator>${this.reviewLD.meta.title}</h2>
+      <div style="margin-left: 40px">
+        <h2 class="ok-${this.reviewLD.meta.ok}">${this.reviewLD.meta.title}</h2>
         <div class="review-body">
           <div>
-          ${this.reviewLD.logHistory.map(h => {
+          ${(this.reviewLD.logHistory).filter(currentFilter).map(h => {
       return html`<review-step class="left-container" .logHistory=${h} @show-detail=${this.handleShowDetail}>></review-step>`
     })}
           </div>
-          <div class="detail-container">${this.detail}</div>
+          <div class="detail-container">
+            ${checkbox} <label for="show-all-messages">Show all messages</label>
+            ${this.detail}
+          </div>
         </div>
-      </ul>
+      </div>
     `;
   }
   handleShowDetail(event: CustomEvent) {
@@ -90,35 +85,40 @@ export class AReview extends LitElement {
     this.detail = html`${detailHTML}`;
   }
   videoDetail() {
-    const content = getDetailContent(this.videoOverview?.messageContext?.artifact);
+    const content = getDetailContent(this.videoOverview?.messageContext.artifact);
     this.detail = html`${content}`;
   }
 }
 
 @customElement('review-step')
 export class ReviewStep extends LitElement {
+  static styles = [reviewsCSS];
   @property({ type: Array }) logHistory?: TLogHistory;
 
   render() {
-    if (this.logHistory === undefined) return html``;
-    const detailButton = this.logHistory.messageContext?.artifact && this.reportDetail(this.logHistory.messageContext?.artifact);
-    // const ok = this.logHistory.message === "✅";
-    return html`<li>${this.logHistory.message} ${detailButton}</li > `
+    const { logHistory } = this;
+    const logArtifact = asArtifact(logHistory);
+    const executorResult = asActionResult(logHistory);
+
+    if (logHistory === undefined) {
+      return html`<div>No history</div>`;
+    }
+    if (executorResult) {
+      const ok = `ok-${executorResult.messageContext.topic.result.ok}`;
+      return html`<div class=${ok}>${executorResult.messageContext.topic.step.in}</div>`
+    }
+    const detailButton = logArtifact && this.reportDetail(logArtifact.messageContext);
+    return html`<div>${this.loggerButton(logHistory.level)} ${logHistory.message} ${detailButton}</div > `
   }
-  reportDetail(artifact: TArtifact) {
-    const content = getDetailContent(artifact);
-    return html`<button @click=${() => this.showDetail(content)}>📁 ${artifact.event} ${artifact.type}</button>`;
+  reportDetail(artifactContext: TArtifactMessageContext) {
+    const content = getDetailContent(artifactContext.artifact);
+    return html`<button @click=${() => this.showDetail(content)}>📁 ${artifactContext.topic.event} ${artifactContext.artifact.type}</button>`;
   }
   showDetail(html: TemplateResult) {
     this.dispatchEvent(new CustomEvent('show-detail', { detail: html }));
   }
-}
-
-@customElement('ok-indicator')
-class OkIndicator extends LitElement {
-  @property({ type: Boolean }) ok = false;
-  render() {
-    return this.ok ? html`✓` : html`✕`;
+  loggerButton(message: string) {
+    return html`<span class="status">${message}</span>`;
   }
 }
 

@@ -15,7 +15,7 @@ import {
   STAY,
   STAY_FAILURE,
 } from '../lib/defs.js';
-import { TMessageContext } from '../lib/interfaces/logger.js';
+import { TExecutorMessageContext, TMessageContext } from '../lib/interfaces/logger.js';
 import { getNamedToVars } from '../lib/namedVars.js';
 import { actionNotOK, applyResShouldContinue, setStepperWorlds, sleep, createSteppers, findStepper } from '../lib/util/index.js';
 
@@ -88,10 +88,9 @@ export class FeatureExecutor {
     world.logger.log(`███ feature ${world.tag.featureNum}: ${feature.path}`);
     let ok = true;
     const stepResults: TStepResult[] = [];
-    let seq = 0;
 
     for (const step of feature.vsteps) {
-      world.logger.log(`${step.in}\r`);
+      world.logger.log(step.in);
       const result = await FeatureExecutor.doFeatureStep(this.steppers, step, world);
 
       if (world.options.step_delay) {
@@ -99,14 +98,13 @@ export class FeatureExecutor {
       }
       ok = ok && result.ok;
       if (!result.ok) {
-        await this.onFailure(result);
+        await this.onFailure(result, step);
       }
-      world.logger.log('✅', { topic: { stage: 'Executor', seq, result } });
+      world.logger.log('✅', <TExecutorMessageContext>{ topic: { stage: 'Executor', result, step } });
       stepResults.push(result);
       if (!ok) {
         break;
       }
-      seq++;
     }
     const featureResult: TFeatureResult = { path: feature.path, ok, stepResults };
 
@@ -140,10 +138,10 @@ export class FeatureExecutor {
     }
     return { ok, in: vstep.in, sourcePath: vstep.source.path, actionResults, seq: vstep.seq };
   }
-  async onFailure(result: TStepResult) {
+  async onFailure(result: TStepResult, step: TVStep) {
     for (const s of this.steppers) {
       if (s.onFailure) {
-        const res = await s.onFailure(result);
+        const res = await s.onFailure(result, step);
         console.log('\n\nres', res)
         this.world.logger.error(`onFailure from ${result.in} for ${s.constructor.name}`, <TMessageContext>res);
       }

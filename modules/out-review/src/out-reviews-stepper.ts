@@ -8,7 +8,7 @@ import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 import { TLogHistory } from '@haibun/core/build/lib/interfaces/logger.js';
 import { EMediaTypes, IGetPublishedReviews, ITrackResults, TLocationOptions, TPathed, actualPath, guessMediaExt } from '@haibun/domain-storage/build/domain-storage.js';
 import StorageFS from '@haibun/storage-fs/build/storage-fs.js';
-import { TFoundHistories, THistoryWithMeta, TNamedHistories } from "./lib.js";
+import { TFoundHistories, THistoryWithMeta, TNamedHistories, asArtifact } from "./lib.js";
 
 export const TRACKS_FILE = `tracks.json`;
 const TRACKS_DIR = 'tracks';
@@ -133,15 +133,12 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     let fail = 0;
     const histories: TNamedHistories = tracksJsonFiles.reduce((a, leaf) => {
       const foundHistory: THistoryWithMeta = JSON.parse(this.localFS.readFile(leaf, 'utf-8'));
-      if (!this.reviewEndpoint) {
-        return { ...a, [leaf]: foundHistory };
-      }
-      const endpoint = this.reviewEndpoint.endpoint(TRACKS_DIR);
+      const endpoint = this.reviewEndpoint?.endpoint(TRACKS_DIR) || TRACKS_DIR;
       // map files to relative path for later copying
       const history = {
         meta: foundHistory.meta,
         logHistory: foundHistory.logHistory.map(h => {
-          const path = h.messageContext?.artifact?.path;
+          const path = asArtifact(h)?.messageContext?.artifact?.path;
           if (path) {
             const dest = this.artifactLocation(path, 'artifacts');
             artifactMap[path] = dest;
@@ -150,7 +147,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
               messageContext: {
                 ...h.messageContext,
                 artifact: {
-                  ...h.messageContext.artifact,
+                  ...asArtifact(h).messageContext.artifact,
                   path: [endpoint, actualPath(dest)].join('')
                 }
               }
