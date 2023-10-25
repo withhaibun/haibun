@@ -48,14 +48,13 @@ export class Executor {
       const featureResult = await featureExecutor.doFeature(feature);
 
       ok = ok && featureResult.ok;
-      const shouldClose = !stayOnFailure || ok;
       featureResults.push(featureResult);
-      if (shouldClose) {
-        await featureExecutor.endFeature(featureResult);
-      }
+      const shouldClose = ok || !stayOnFailure;
+      await featureExecutor.endFeature(); // this should be before close
       if (shouldClose) {
         await featureExecutor.close();
       }
+      await featureExecutor.doEndFeatureCallback(featureResult);
     }
     return { ok, featureResults: featureResults, tag: world.tag, shared: world.shared };
   }
@@ -100,7 +99,8 @@ export class FeatureExecutor {
       if (!result.ok) {
         await this.onFailure(result, step);
       }
-      world.logger.log('✅', <TExecutorMessageContext>{ topic: { stage: 'Executor', result, step } });
+      const indicator = result.ok ? '✅' : '❌';
+      world.logger.log(indicator, <TExecutorMessageContext>{ topic: { stage: 'Executor', result, step } });
       stepResults.push(result);
       if (!ok) {
         break;
@@ -142,21 +142,25 @@ export class FeatureExecutor {
     for (const s of this.steppers) {
       if (s.onFailure) {
         const res = await s.onFailure(result, step);
-        console.log('\n\nres', res)
         this.world.logger.error(`onFailure from ${result.in} for ${s.constructor.name}`, <TMessageContext>res);
       }
     }
   }
 
-  async endFeature(featureResult: TFeatureResult) {
+  async endFeature() {
     for (const s of this.steppers) {
       if (s.endFeature) {
         this.world.logger.debug(`endFeature ${s.constructor.name}`);
-        /// FIXME this should probably be awaited
-        await s.endFeature();
+        await s.endFeature().catch((error: TAnyFixme) => {
+          console.error('endFeature', error)
+          throw (error);
+        })
+        this.world.logger.debug(`endedFeature ${s.constructor.name}`);
       }
     }
 
+  }
+  async doEndFeatureCallback(featureResult: TFeatureResult) {
     if (this.endFeatureCallback) {
       try {
         await this.endFeatureCallback({ world: this.world, result: featureResult, steppers: this.steppers, startOffset: this.startOffset });

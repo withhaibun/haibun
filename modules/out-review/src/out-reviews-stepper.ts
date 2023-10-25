@@ -136,8 +136,10 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
       const endpoint = this.reviewEndpoint?.endpoint(TRACKS_DIR) || TRACKS_DIR;
       // map files to relative path for later copying
       const history = {
+        '$schema': foundHistory['$schema'],
         meta: foundHistory.meta,
         logHistory: foundHistory.logHistory.map(h => {
+          if (!asArtifact(h)) return h;
           const path = asArtifact(h)?.messageContext?.artifact?.path;
           if (path) {
             const dest = this.artifactLocation(path, 'artifacts');
@@ -162,7 +164,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
       return { ...a, [leaf]: history };
     }, {});
     return {
-      foundHistories: { meta: { date: Date.now(), ok, fail }, histories },
+      foundHistories: { '$schema': 'FoundHistories/1.0', meta: { date: Date.now(), ok, fail }, histories },
       artifactMap
     }
   }
@@ -215,7 +217,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
   // implements ITrackResults
   async writeTracksFile(loc: TLocationOptions, title: string, result: TFeatureResult, startTime: Date, startOffset: number, logHistory: TLogHistory[]) {
     const dir = await this.tracksStorage.ensureCaptureLocation(loc, 'tracks', TRACKS_FILE);
-    const history: THistoryWithMeta = { meta: { startTime: startTime.toISOString(), title, startOffset, ok: result.ok }, logHistory };
+    const history: THistoryWithMeta = { '$schema': 'THistoryWithMeta/1.0', meta: { startTime: startTime.toISOString(), title, startOffset, ok: result.ok }, logHistory };
     await this.tracksStorage.writeFile(dir, JSON.stringify(history, null, 2), loc.mediaType);
   }
 }

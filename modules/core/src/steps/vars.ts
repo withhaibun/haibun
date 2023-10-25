@@ -37,7 +37,7 @@ const vars = class Vars extends AStepper {
     showEnv: {
       gwta: 'show env',
       action: async (n: TNamed, vstep: TVStep) => {
-        console.log('env', this.world.options.env);
+        console.info('env', this.world.options.env);
         return await this.set(n, vstep);
       },
       build: async (n: TNamed, vstep: TVStep) => await this.set(n, vstep),
@@ -45,7 +45,7 @@ const vars = class Vars extends AStepper {
     showVars: {
       gwta: 'show vars',
       action: async (n: TNamed, vstep: TVStep) => {
-        console.log('vars', this.world.shared);
+        console.info('vars', this.world.shared);
         return await this.set(n, vstep);
       },
       build: async (n: TNamed, vstep: TVStep) => await this.set(n, vstep),

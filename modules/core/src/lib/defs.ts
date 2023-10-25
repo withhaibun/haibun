@@ -169,7 +169,7 @@ export type TAnyFixme = any;
 export abstract class AStepper {
   world?: TWorld;
   close?(): void;
-  endFeature?(): void;
+  endFeature?(): Promise<void>;
   onFailure?(result: TStepResult, step: TVStep): Promise<void | TMessageContext>;
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async setWorld(world: TWorld, steppers: AStepper[]) {

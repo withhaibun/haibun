@@ -1,4 +1,4 @@
-import { TSpecl, TExecutorResult, TWorld, TFeature, TResolvedFeature, TEndFeatureCallback, CStepper, DEFAULT_DEST, TNotOKActionResult, TBase } from './defs.js';
+import { TSpecl, TExecutorResult, TWorld, TFeature, TResolvedFeature, TEndFeatureCallback, CStepper, DEFAULT_DEST, TNotOKActionResult, TBase, TAnyFixme } from './defs.js';
 import { expand } from './features.js';
 import { Executor } from '../phases/Executor.js';
 import { Resolver } from '../phases/Resolver.js';
@@ -36,7 +36,7 @@ export async function runWith({ specl, world, features, backgrounds, addSteppers
   const { tag } = world;
 
   let result: TExecutorResult = undefined;
-  const errorBail = (phase: string, error: any, details?: any) => {
+  const errorBail = (phase: string, error: TAnyFixme, details?: TAnyFixme) => {
     result = { ok: false, shared: world.shared, tag, failure: { stage: phase, error: { message: error.message, details: { stack: error.stack, details } } } };
     throw Error(error);
   };

@@ -98,19 +98,14 @@ export class BrowserFactory {
   }
 
   async closeContext({ sequence }: { sequence: TTagValue }) {
-    console.log('\n\n\ncloseContenxt', 1)
     if (this.contexts[sequence] !== undefined) {
       const p = this.pages[sequence];
-    console.log('\n\n\ncloseContenxt', p)
       await p && p?.close();
     }
-    console.log('\n\n\ncloseContenxt', 2)
     await this.contexts[sequence]?.close();
-    console.log('\n\n\ncloseContenxt', 3)
     this.tracers[sequence]?.close();
     delete this.pages[sequence];
     delete this.contexts[sequence];
-    console.log('\n\n\ncloseContenxt', 4)
   }
 
   static async closeBrowsers() {
@@ -149,7 +144,6 @@ export class BrowserFactory {
     page = await context.newPage();
     const tracer = new PlaywrightEvents(this.logger, page, tag);
 
-    this.logger.debug(`trace ${JSON.stringify(!!BrowserFactory.tracer)} `);
     this.pages[pageKey] = page;
     this.tracers[sequence] = tracer;
     return page;

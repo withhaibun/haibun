@@ -11,7 +11,7 @@ export type TLogHistory = {
   messageContext: TMessageContext
 };
 
-export type TMessageContext = TArtifactMessageContext | TExecutorMessageContext | TTraceMessageContext;
+export type TMessageContext = TArtifactMessageContext | TExecutorMessageContext | TTraceMessageContext | TBasicMessageContext;
 
 type TContextTopic = TArtifactRequestStepTopic | TArtifactFailureStepTopic | TExecutorResultTopic | TTraceTopic;
 
@@ -23,6 +23,10 @@ export type TArtifactMessageContext = {
   topic: TArtifactRequestStepTopic | TArtifactSummaryTopic | TArtifactFailureStepTopic | TArtifactDebugTopic,
   artifact: TArtifact;
   tag?: TTag;
+};
+
+export type TBasicMessageContext = {
+  tag: TTag;
 };
 
 export type TExecutorMessageContext = {

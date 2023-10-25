@@ -7,8 +7,7 @@ import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, 
 import { WEB_PAGE, WEB_CONTROL } from '@haibun/domain-webpage';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 import { EMediaTypes } from '@haibun/domain-storage/build/domain-storage.js';
-import { TActionStage, TArtifact, TArtifactMessageContext, TTraceMessageContext } from '@haibun/core/build/lib/interfaces/logger.js';
-import { PlaywrightEvents } from './PlaywrightEvents.js';
+import { TActionStage, TArtifactMessageContext, TTraceMessageContext } from '@haibun/core/build/lib/interfaces/logger.js';
 
 const WebPlaywright = class WebPlaywright extends AStepper implements IHasOptions, IRequireDomains {
   static STORAGE = 'STORAGE';
@@ -67,7 +66,6 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     const persistentDirectory = getStepperOption(this, WebPlaywright.PERSISTENT_DIRECTORY, world.extraOptions) === 'true';
     const defaultTimeout = parseInt(getStepperOption(this, 'TIMEOUT', world.extraOptions)) || 30000;
     this.captureVideo = getStepperOption(this, 'CAPTURE_VIDEO', world.extraOptions);
-    const { trace: doTrace } = world.tag;
     let recordVideo;
     if (this.captureVideo) {
       recordVideo = {
@@ -120,7 +118,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
 
   async withPage<TReturn>(f: TAnyFixme): Promise<TReturn> {
     const page = this.withFrame ? (await this.getPage()).frameLocator(this.withFrame) : await this.getPage();
-    this.withFrame && console.log('using frame', this.withFrame);
+    this.withFrame && console.debug('using frame', this.withFrame);
     this.withFrame = undefined;
     return await f(page);
   }
@@ -146,11 +144,10 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       if (this.captureVideo) {
         const page = await this.getPage();
         const path = await page.video().path();
-        const artifact = <TArtifact>{ type: 'video', path }
+        const artifact = { type: 'video', path }
         this.getWorld().logger.info('endFeature video', <TArtifactMessageContext>{ artifact, topic: { event: 'summary', stage: 'endFeature' }, tag: this.getWorld().tag });
       }
-      await this.bf?.closeContext(this.getWorld().tag);
-      console.log('\n\n\ncloseContenxt', 5)
+      // await this.bf?.closeContext(this.getWorld().tag);
     }
   }
   async close() {
@@ -323,7 +320,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
           // background = await context.waitForEvent("serviceworker");
         }
 
-        console.log('background', background, context.serviceWorkers());
+        console.debug('background', background, context.serviceWorkers());
 
         const extensionId = background.url().split('/')[2];
         this.getWorld().shared.set('extensionContext', extensionId);

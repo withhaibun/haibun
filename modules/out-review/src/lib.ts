@@ -1,6 +1,8 @@
 import { TLogHistory, TLogHistoryWithArtifact, TLogHistoryWithExecutorTopic } from '@haibun/core/build/lib/interfaces/logger.js';
 
+// these are bundled tracks files
 export type TFoundHistories = {
+  '$schema': 'FoundHistories/1.0',
   meta: {
     date: number;
     ok: number;
@@ -10,7 +12,9 @@ export type TFoundHistories = {
 };
 export type TNamedHistories = { [name: string]: THistoryWithMeta; };
 
+// these are saved tracks files
 export type THistoryWithMeta = {
+  '$schema': 'THistoryWithMeta/1.0',
   meta: {
     startTime: string;
     title: string;
