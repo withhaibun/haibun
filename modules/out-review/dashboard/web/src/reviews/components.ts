@@ -1,4 +1,4 @@
-import { LitElement, html, css, TemplateResult } from 'lit';
+import { LitElement, html, css, TemplateResult, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 
@@ -103,12 +103,15 @@ export class ReviewStep extends LitElement {
     if (logHistory === undefined) {
       return html`<div>No history</div>`;
     }
-    if (executorResult) {
-      const ok = `ok-${executorResult.messageContext.topic.result.ok}`;
-      return html`<div class=${ok}>${executorResult.messageContext.topic.step.in}</div>`
-    }
+    let okResult: string | symbol = nothing;
+    okResult = `executorResult && ok-${executorResult?.messageContext.topic.result.ok}`;
+    const message = executorResult ? executorResult.messageContext.topic.step.in : logHistory.message;
+    const loggerDisplay = executorResult ? nothing : this.loggerButton(logHistory.level);
     const detailButton = logArtifact && this.reportDetail(logArtifact.messageContext);
-    return html`<div>${this.loggerButton(logHistory.level)} ${logHistory.message} ${detailButton}</div > `
+    return html`<div><span @click=${this.selectMessage} class=${okResult}>${loggerDisplay} ${message}</span> ${detailButton}</div > `
+  }
+  selectMessage() {
+    this.showDetail(html`<div class="code">${JSON.stringify(this.logHistory, null, 2)}</div>`)
   }
   reportDetail(artifactContext: TArtifactMessageContext) {
     const content = getDetailContent(artifactContext.artifact);

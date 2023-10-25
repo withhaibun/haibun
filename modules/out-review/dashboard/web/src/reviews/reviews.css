@@ -40,3 +40,8 @@ h3 {
 h2 {
   font-size: 1.5em;
 }
+
+.code {
+  font-family: monospace;
+  white-space: pre-wrap;
+}
