@@ -42,7 +42,7 @@ async function go() {
   const { KEY: keyIn, TRACE: trace, OUTPUT: output, OUTPUT_DEST: outputDest } = protoOptions.options;
   const key = keyIn || Timer.key;
   Timer.key = key;
-  const title = protoOptions.options.TITLE || bases + ' ' + [...(featureFilter || [])].join(',');
+  const description = protoOptions.options.DESCRIPTION || bases + ' ' + [...(featureFilter || [])].join(',');
 
   if (outputDest && !output) {
     await usageThenExit(specl, 'OUTPUT_DEST requires OUTPUT');
@@ -60,7 +60,7 @@ async function go() {
       const loc = { ...world };
       if (running) running.context.haibun.step = { world, result, steppers, startOffset };
 
-      await tracker.writeTracksFile({ ...loc, mediaType: EMediaTypes.json }, title, result, Timer.startTime, startOffset, Logger.traceHistory);
+      await tracker.writeTracksFile({ ...loc, mediaType: EMediaTypes.json }, description, result, Timer.startTime, startOffset, Logger.traceHistory);
       Logger.traceHistory = [];
     };
   }

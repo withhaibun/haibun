@@ -1,3 +1,4 @@
+import { version } from '../currentVersion.js';
 import { Resolver } from '../phases/Resolver.js';
 import { DomainContext, WorkspaceContext, WorldContext } from './contexts.js';
 import { ILogger, TMessageContext } from './interfaces/logger.js';
@@ -323,3 +324,7 @@ export type TRunResult = { output: TAnyFixme; result: TExecutorResult; shared: W
 export const STAY_ALWAYS = 'always';
 export const STAY_FAILURE = 'failure';
 export const STAY = 'STAY';
+
+export function versionedSchema(schema: string) {
+  return `https://raw.githubusercontent.com/withhaibun/schemas/main/schemas/${schema}.json#${version}`;
+}

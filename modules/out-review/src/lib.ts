@@ -1,8 +1,12 @@
+import { versionedSchema } from '@haibun/core/build/lib/defs.js';
 import { TLogHistory, TLogHistoryWithArtifact, TLogHistoryWithExecutorTopic } from '@haibun/core/build/lib/interfaces/logger.js';
+
+export const SCHEMA_HISTORY_WITH_META = versionedSchema('HistoryWithMeta');
+export const SCHEMA_FOUND_HISTORIES = versionedSchema('FoundHistories');
 
 // these are bundled tracks files
 export type TFoundHistories = {
-  '$schema': 'FoundHistories/1.0',
+  '$schema': typeof SCHEMA_FOUND_HISTORIES
   meta: {
     date: number;
     ok: number;
@@ -11,13 +15,13 @@ export type TFoundHistories = {
   histories: TNamedHistories;
 };
 export type TNamedHistories = { [name: string]: THistoryWithMeta; };
-
 // these are saved tracks files
 export type THistoryWithMeta = {
-  '$schema': 'THistoryWithMeta/1.0',
+  '$schema': typeof SCHEMA_HISTORY_WITH_META;
   meta: {
     startTime: string;
-    title: string;
+    description: string;
+    feature: string,
     startOffset: number;
     ok: boolean;
   };
@@ -38,4 +42,10 @@ export function asActionResult(logHistory: TLogHistory | undefined): TLogHistory
 
 export function asArtifact(logHistory: TLogHistory | undefined): TLogHistoryWithArtifact | undefined {
   return logHistory !== undefined && (<TLogHistoryWithArtifact>logHistory)?.messageContext?.artifact ? <TLogHistoryWithArtifact>logHistory : undefined;
+}
+
+export function asStepperActionType(logHistory: TLogHistory | undefined, stepperType: string): TLogHistoryWithExecutorTopic | undefined {
+  const asTopic = <TLogHistoryWithExecutorTopic>logHistory;
+  const ret = (asTopic.messageContext?.topic?.step?.actions[0].actionName === stepperType) ? <TLogHistoryWithExecutorTopic>logHistory : undefined;
+  return ret;
 }

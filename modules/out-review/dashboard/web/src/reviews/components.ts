@@ -22,7 +22,7 @@ export class ReviewsGroups extends LitElement {
     if (!this.foundHistories) return html`<div>No reviews yet</div>`;
     const groups = Object.entries(this.foundHistories?.histories).map(([group, historyWithMeta], index) => {
       const route = router().link({ index, group });
-      const titles = historyWithMeta.meta.title;
+      const titles = historyWithMeta.meta.feature;
       const link = html`<a href=${route} >${titles}</a>`;
       return html`<li class="ok-${historyWithMeta.meta.ok}">${link} </li>`;
     });
@@ -64,7 +64,7 @@ export class AReview extends LitElement {
     const checkbox = html`<input id="show-all-messages" type="checkbox" @change=${(e: Event) => this.showDetails = (<HTMLInputElement>e.target).checked} />`;
     return this.reviewLD && html`
       <div style="margin-left: 40px">
-        <h2 class="ok-${this.reviewLD.meta.ok}">${this.reviewLD.meta.title}</h2>
+        <h2 class="ok-${this.reviewLD.meta.ok}">${this.reviewLD.meta.feature}</h2>
         <div class="review-body">
           <div>
           ${(this.reviewLD.logHistory).filter(currentFilter).map(h => {

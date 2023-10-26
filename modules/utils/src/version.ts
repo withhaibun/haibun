@@ -43,6 +43,9 @@ class Versioner {
         this.toPublish.push(module);
       }
     }
+    for (const [dest, ext] of Object.entries({ src: 'ts', build: 'js' })) {
+      writeFileSync(`./modules/core/${dest}/currentVersion.${ext}`, `export const currentVersion = '${this.version}';\n`);
+    }
 
     this.verifyShouldPublishStructureAndUpdateVersion('haibun', '.');
     this.publishAll();

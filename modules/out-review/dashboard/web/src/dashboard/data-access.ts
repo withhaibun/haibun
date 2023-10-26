@@ -4,7 +4,7 @@ import { endpoint } from "./indexer.js";
 export type TTraceHistorySummary = {
   link: string,
   date: string,
-  titles: string[],
+  features: string[],
   results: {
     success: number,
     fail: number
@@ -48,7 +48,7 @@ export async function summarize(file: string): Promise<TTraceHistorySummary> {
   const response = await fetch(link);
   const foundHistory: TFoundHistories = await response.json();
   return {
-    titles: Object.values(foundHistory.histories).map(h => h.meta.title),
+    features: Object.values(foundHistory.histories).map(h => h.meta.feature),
     link: `reviewer.html#source=${link}`,
     date: new Date(foundHistory.meta.date).toLocaleString(),
     results: {

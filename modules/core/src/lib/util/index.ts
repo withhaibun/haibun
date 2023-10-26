@@ -24,6 +24,7 @@ import {
   TAnyFixme,
 } from '../defs.js';
 import { Timer } from '../Timer.js';
+import { version } from '../../currentVersion.js';
 
 type TClass = { new <T>(...args: unknown[]): T };
 export type TFileSystem = Partial<typeof nodeFS>;

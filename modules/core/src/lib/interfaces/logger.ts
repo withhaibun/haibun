@@ -2,7 +2,6 @@ import { TAnyFixme, TStepResult, TTag, TVStep } from '../defs.js';
 
 export type TLogLevel = 'none' | 'debug' | 'log' | 'info' | 'warn' | 'error';
 export type TLogArgs = string;
-export const TEST_RESULT = { ok: true };
 
 export type TLogHistory = {
   message: TLogArgs;
@@ -40,7 +39,7 @@ export type TTraceMessageContext = {
 };
 
 export type TExecutorResultTopic = {
-  result: TStepResult | typeof TEST_RESULT;
+  result: TStepResult, 
   step: TVStep,
   stage: 'Executor';
 };
