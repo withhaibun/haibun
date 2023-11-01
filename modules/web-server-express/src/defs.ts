@@ -4,10 +4,12 @@ export const CHECK_LISTENER = 'CHECK_LISTENER';
 import * as express from 'express';
 
 export interface IWebServer {
-  addStaticFolder(subdir: string, loc: string): void;
-  addKnownStaticFolder(subdir: string, mountAt?: string): void;
+  checkAddStaticFolder(subdir: string, loc: string): undefined | string;
+  checkAddIndexFolder(subdir: string, loc: string): undefined | string;
+  addKnownStaticFolder(subdir: string, mountAt?: string): undefined | string;
   listen(): Promise<unknown>;
   close(): Promise<void>;
+  mounted: { get: object, post: object };
   addRoute(type: TRouteTypes, path: string, route: TRequestHandler): void;
   use(middleware: express.RequestHandler): void;
 }

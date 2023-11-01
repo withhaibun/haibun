@@ -1,7 +1,7 @@
 import { create } from 'xmlbuilder2';
 import { EOL } from 'os';
 
-import { AStepper, TWorld, TResult, TNotOkStepActionResult, IResultOutput } from '@haibun/core/build/lib/defs.js';
+import { AStepper, TWorld, TExecutorResult, TNotOkStepActionResult, IResultOutput } from '@haibun/core/build/lib/defs.js';
 
 type TTestCase = {
   '@name': string;
@@ -19,13 +19,13 @@ type TFailResult = {
 };
 
 export default class OutXUnit implements IResultOutput {
-  setWorld(world: TWorld, steppers: AStepper[]) {
+  async setWorld(world: TWorld, steppers: AStepper[]) {
     return;
   }
-  async getOutput(result: TResult, { name = 'Haibun-Junit', prettyPrint = true, classname = 'Haibun-Junit-Suite' }) {
-    const failures = result.results?.filter((t) => !t.ok)?.length;
-    const skipped = result.results?.filter((t) => t.skip)?.length;
-    const count = result.results?.length;
+  async getOutput(result: TExecutorResult, { name = 'Haibun-Junit', prettyPrint = true, classname = 'Haibun-Junit-Suite' }) {
+    const failures = result.featureResults?.filter((t) => !t.ok)?.length;
+    const skipped = result.featureResults?.filter((t) => t.skip)?.length;
+    const count = result.featureResults?.length;
     const forXML: any = {
       testsuites: {
         '@tests': count,
@@ -41,11 +41,11 @@ export default class OutXUnit implements IResultOutput {
       },
     };
 
-    if (!result.results) {
+    if (!result.featureResults) {
       return;
     }
 
-    for (const t of result.results) {
+    for (const t of result.featureResults) {
       const testCase: TTestCase = {
         '@name': t.path,
         '@id': t.path,
@@ -63,7 +63,7 @@ export default class OutXUnit implements IResultOutput {
     }
     return create(forXML).end({ prettyPrint, newline: EOL });
   }
-  async writeOutput(result: TResult, args: any) {
+  async writeOutput(result: TExecutorResult, args: any) {
     return this.getOutput(result, args);
 
   }

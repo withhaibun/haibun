@@ -3,30 +3,40 @@ import WebHttp from '@haibun/web-http/build/web-http.js';
 
 import server from './web-server-stepper.js';
 
-describe.skip('static mount', () => {
+describe('static mount', () => {
   it('serves files', async () => {
-    const feature = { path: '/features/test.feature', content: `serve files from test\nfetch from http://localhost:8123/testfile is "content"` };
+    const feature = { path: '/features/test.feature', content: `serve files from test\nfetch from http://localhost:8123/testfile matches "content"` };
     const result = await testWithDefaults([feature], [server, WebHttp]);
-
     expect(result.ok).toBe(true);
   });
 
   it('restricts characters used in static mount folder name', async () => {
     const feature = { path: '/features/test.feature', content: `serve files from l*(*$\n` }
     const result = await testWithDefaults([feature], [server]);
-
     expect(result.ok).toBe(false);
   });
   it("doesn't re-mount same static mount", async () => {
     const feature = { path: '/features/test.feature', content: `serve files from test\nserve files from test\n` }
     const result = await testWithDefaults([feature], [server]);
-
-    expect(result.ok).toBe(true);
+    expect(result.ok).toBe(false);
   });
   it("doesn't permit different static mount", async () => {
     const feature = { path: '/features/test.feature', content: `serve files from test\nserve files from fails\n` }
     const result = await testWithDefaults([feature], [server]);
-
     expect(result.ok).toBe(false);
+  });
+});
+
+describe.skip('index mount', () => {
+  // FIXME: This fails when both tests are run
+  it('index files at', async () => {
+    const feature = { path: '/features/test.feature', content: `index files at /test from test\nfetch from http://localhost:8123/test/ contains href="/test/testfile"\nfetch from http://localhost:8123/test/testfile matches "content"` };
+    const result = await testWithDefaults([feature], [server, WebHttp]);
+    expect(result.ok).toBe(true);
+  });
+  it('index files', async () => {
+    const feature = { path: '/features/test.feature', content: `index files from test\nfetch from http://localhost:8123/ contains href="/testfile"\nfetch from http://localhost:8123/testfile matches "content"` };
+    const result = await testWithDefaults([feature], [server, WebHttp]);
+    expect(result.ok).toBe(true);
   });
 });

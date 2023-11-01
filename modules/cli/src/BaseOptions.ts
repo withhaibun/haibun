@@ -1,8 +1,13 @@
-import { DEFAULT_DEST, IHasOptions, TOptions } from "@haibun/core/build/lib/defs.js";
+import { DEFAULT_DEST, IHasOptions, STAY_ALWAYS, STAY_FAILURE, TOptions } from "@haibun/core/build/lib/defs.js";
 import { LOGGER_LEVELS } from "@haibun/core/build/lib/Logger.js";
-import { boolOrError, intOrError } from "@haibun/core/build/lib/util/index.js";
+import { boolOrError, intOrError, optionOrError, stringOrError } from "@haibun/core/build/lib/util/index.js";
+
 export class BaseOptions implements IHasOptions {
     static options = {
+        KEY: {
+            desc: 'execution key (defaults to serialtime)',
+            parse: (input: string) => stringOrError(input)
+        },
         SPLIT_SHARED: {
             desc: 'create instances based on variable options, for example, var=option1,option2',
             parse: (input: string) => {
@@ -19,8 +24,8 @@ export class BaseOptions implements IHasOptions {
             desc: 'save tracks data',
             parse: (input: string) => boolOrError(input)
         },
-        TITLE: {
-            desc: 'title for reports',
+        DESCRIPTION: {
+            desc: 'description for reports',
             parse: (result: string) => ({ result })
         },
         CLI: {
@@ -36,8 +41,8 @@ export class BaseOptions implements IHasOptions {
             parse: (result: string) => ({ result })
         },
         STAY: {
-            desc: 'stay running after execution: always',
-            parse: (result: string) => ({ result })
+            desc: `stay running after execution: ${STAY_ALWAYS}, ${STAY_FAILURE}`,
+            parse: (result: string) => optionOrError(result, [STAY_ALWAYS, STAY_FAILURE])
         },
         LOG_FOLLOW: {
             desc: 'filter for output',
@@ -66,7 +71,7 @@ export class BaseOptions implements IHasOptions {
             desc: 'pass multiple environment variables: var1=a,var2=b',
             parse: (input: string, cur: TOptions) => {
                 const pairs = new Set(input?.split(',').map(a => a.split('=')[0]));
-                let env: TOptions = { DEST: DEFAULT_DEST };
+                const env: TOptions = { DEST: DEFAULT_DEST };
 
                 for (const pair of pairs) {
                     const [k] = Array.from(new Set(pair.split('=')));
@@ -117,7 +122,12 @@ export class BaseOptions implements IHasOptions {
         },
         PWDEBUG: {
             desc: '(web) Enable Playwright debugging (0 or 1)',
-            parse: (input: string) => process.env['PWDEBUG'] = 'true'
+            parse: (input: string) => {
+                if (['true', '1'].includes(input)) {
+                    process.env['PWDEBUG'] = 'true';
+                }
+                return { result: input };
+            }
         },
     };
 }

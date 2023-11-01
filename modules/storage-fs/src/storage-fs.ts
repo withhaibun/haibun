@@ -1,14 +1,16 @@
 import * as fs from 'fs';
 
-import { AStorage, IFile } from '@haibun/domain-storage/build/AStorage.js';
+import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
+import { IFile, TPathedOrString, actualPath } from '@haibun/domain-storage/build/domain-storage.js';
+import { TAnyFixme } from '@haibun/core/build/lib/defs.js';
 
 export default class StorageFS extends AStorage {
-    readFile = (file: string, coding?: any) => fs.readFileSync(file, coding)
+    readFile = (file: string, coding?: TAnyFixme) => fs.readFileSync(file, coding)
     exists = fs.existsSync;
-    writeFileBuffer = (fn: string, contents: Buffer) => {
-        fs.writeFileSync(fn, contents);
+    writeFileBuffer = (fn: TPathedOrString, contents: Buffer) => {
+        fs.writeFileSync(actualPath(fn), contents);
     }
-    lstatToIFile(file: string) {
+    async lstatToIFile(file: string) {
         const l = fs.lstatSync(file);
         const ifile = {
             name: file,
@@ -25,10 +27,6 @@ export default class StorageFS extends AStorage {
             console.error(`can't read ${dir}`);
             throw (e);
         }
-    }
-    async readdirStat(dir: string): Promise<IFile[]> {
-        const files = await this.readdir(dir);
-        return files.map(f => this.lstatToIFile(`${dir}/${f}`));
     }
 
     mkdir = fs.mkdirSync;

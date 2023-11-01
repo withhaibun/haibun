@@ -15,7 +15,7 @@ const webSocketLogger = new LoggerWebSocketsClient(port, { keepAlive });
 const background = new Background(webSocketLogger);
 background.init();
 
-loggerConnect(webSocketLogger);
+await loggerConnect(webSocketLogger);
 
 async function loggerConnect(logger: LoggerWebSocketsClient) {
   const errorHandler = {

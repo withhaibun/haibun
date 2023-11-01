@@ -10,7 +10,7 @@ const ParseMD = class ParseMD extends AStepper {
       gwta: `has annotated conformance doc from {where: string}`,
       action: async ({ where }: TNamed) => {
         try {
-          parseMatches({ where: undefined }, this.getWorld().options.base as string, [conformance]);
+          await parseMatches({ where: undefined }, this.getWorld().options.base as string, [conformance]);
         } catch (e: any) {
           return actionNotOK(e.message);
         }

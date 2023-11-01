@@ -1,8 +1,9 @@
 
 import { Browser, BrowserContext, Page, chromium, firefox, webkit, BrowserType, devices } from 'playwright';
 
-import { ILogger, } from '@haibun/core/build/lib/interfaces/logger.js';
-import { TTagValue, TTraceOptions } from '@haibun/core/build/lib/defs.js';
+import { ILogger } from '@haibun/core/build/lib/interfaces/logger.js';
+import { TTag, TTagValue } from '@haibun/core/build/lib/defs.js';
+import { PlaywrightEvents } from './PlaywrightEvents.js';
 
 export const BROWSERS: { [name: string]: BrowserType } = {
   firefox,
@@ -18,11 +19,11 @@ export type TBrowserFactoryOptions = {
     args?: string[]
   },
   recordVideo?: {
-    dir: string
+    dir: string,
+    size: { width: 640, height: 480 },
   }
   defaultTimeout?: number,
   persistentDirectory?: boolean,
-  trace?: TTraceOptions,
   type?: TBrowserTypes,
   device?: string
 }
@@ -33,9 +34,11 @@ export type PageInstance = Page & { _guid: string };
 
 export class BrowserFactory {
   static browsers: { [name: string]: Browser } = {};
+  tracers: { [name: string]: PlaywrightEvents } = {};
   contexts: { [name: string]: BrowserContext } = {};
   pages: { [name: string]: Page | undefined } = {};
   logger: ILogger;
+  static tracer?: PlaywrightEvents = undefined;
   static configs: {
     [name: string]: {
       options: TBrowserFactoryOptions,
@@ -74,7 +77,7 @@ export class BrowserFactory {
     }
   }
 
-  async getBrowserContext(sequence: TTagValue, tag = DEFAULT_CONFIG_TAG): Promise<BrowserContext> {
+  private async getBrowserContext(sequence: TTagValue, tag = DEFAULT_CONFIG_TAG): Promise<BrowserContext> {
     if (!this.contexts[sequence]) {
       let context: BrowserContext;
       if (BrowserFactory.configs.persistentDirectory) {
@@ -96,10 +99,11 @@ export class BrowserFactory {
 
   async closeContext({ sequence }: { sequence: TTagValue }) {
     if (this.contexts[sequence] !== undefined) {
-      let p = this.pages[sequence];
+      const p = this.pages[sequence];
       await p && p?.close();
     }
     await this.contexts[sequence]?.close();
+    this.tracers[sequence]?.close();
     delete this.pages[sequence];
     delete this.contexts[sequence];
   }
@@ -113,33 +117,35 @@ export class BrowserFactory {
     await BrowserFactory.closeBrowsers();
   }
 
-  tt(sequence: number, tab?: number) {
-    return `${sequence}${tab ? `-${tab}` : ''}`;
+  pageKey(sequence: number, tab?: number) {
+    return `${sequence}-${tab}`;
   }
 
   hasPage({ sequence }: { sequence: TTagValue }, tab?: number) {
-    return !!this.pages[this.tt(sequence, tab)]
+    return !!this.pages[this.pageKey(sequence, tab)]
   }
 
-  async getBrowserContextPage({ sequence }: { sequence: TTagValue }, tab?: number): Promise<Page> {
-    const { trace } = BrowserFactory.configs;
-    const tt = this.tt(sequence, tab);
-    let page = this.pages[tt];
+  registerPopup({ sequence }: { sequence: TTagValue }, tab: number, popup: Page) {
+    const tt = this.pageKey(sequence, tab);
+    this.pages[tt] = popup;
+  }
+
+  async getBrowserContextPage(tag: TTag, tab: number): Promise<Page> {
+    const { sequence } = tag;
+    const pageKey = this.pageKey(sequence, tab);
+    let page = this.pages[pageKey];
     if (page) {
+      await page.bringToFront();
       return page;
     }
     this.logger.info(`creating new page for ${sequence}`);
 
     const context = await this.getBrowserContext(sequence);
     page = await context.newPage();
+    const tracer = new PlaywrightEvents(this.logger, page, tag);
 
-    if (trace) {
-      Object.keys(trace).forEach(t => {
-        // FIXME
-        (page as any).on(t, trace[t].listener);
-      })
-    }
-    this.pages[tt] = page;
+    this.pages[pageKey] = page;
+    this.tracers[sequence] = tracer;
     return page;
   }
 }

@@ -3,7 +3,7 @@ import { WorldContext } from './contexts.js';
 import Logger from './Logger.js';
 
 import { run } from './run.js';
-import { resultOutput, getRunTag } from './util/index.js';
+import { getOutputResult, getRunTag } from './util/index.js';
 import { ILogOutput } from './interfaces/logger.js';
 import { Timer } from './Timer.js';
 
@@ -30,7 +30,7 @@ export default async function runWithOptions(runOptions: TRunOptions) {
         const tag: TTag = getRunTag(totalRan, loop, member, 0, split, trace);
         totalRan++;
 
-        const res = await doRun(bases, specl, runtime, featureFilter, new WorldContext(tag, split), protoOptions, logger, tag, timer, startRunCallback, endFeatureCallback);
+        const res = await doInstanceRun(bases, specl, runtime, featureFilter, new WorldContext(tag, split), protoOptions, logger, tag, timer, startRunCallback, endFeatureCallback);
         return res;
       });
       groupRuns = groupRuns.concat(instances);
@@ -54,24 +54,21 @@ export default async function runWithOptions(runOptions: TRunOptions) {
     if (r.result.ok) {
       passed++;
     } else {
-      let message = r.result?.failure?.error?.message;
-      if (!message) {
-        try {
-          message = JSON.stringify(r.result.failure);
-        } catch (e) {
-          console.error('fail message', e);
-          message = 'cannot extract';
-        }
+      try {
+        const errorMessage = r.result?.failure?.error?.message || JSON.stringify(r.result.failure);
+        allFailures[errorMessage] = (allFailures[errorMessage] || []).concat({
+          sequence: r.tag.sequence,
+          runDuration: r.runDuration,
+          fromStart: r.fromStart,
+        });
+        failed++;
+      } catch (e) {
+        console.error('fail message', e, '\nfrom:', r.result.failure, 'bailing');
+        throw (e);
       }
-
-      allFailures[message] = (allFailures[message] || []).concat({
-        sequence: r.tag.sequence,
-        runDuration: r.runDuration,
-        fromStart: r.fromStart,
-      });
-      failed++;
     }
   }
+
   const exceptionResults = allRunResults
     .filter((i) => i.status === 'rejected')
     .map((i) => <PromiseRejectedResult>i)
@@ -82,7 +79,7 @@ export default async function runWithOptions(runOptions: TRunOptions) {
   return { ok, output, exceptionResults, ranResults, allFailures, logger, passed, failed, totalRan, runTime };
 }
 
-async function doRun(
+async function doInstanceRun(
   bases: TBase,
   specl: TSpecl,
   runtime: object,
@@ -103,8 +100,8 @@ async function doRun(
     startRunCallback(world);
   }
 
-  const result = await run({ specl, bases, world, featureFilter, endFeatureCallback });
-  const output = await resultOutput(world.options.OUTPUT, result);
+  const runResult = await run({ specl, bases, world, featureFilter, endFeatureCallback });
+  const output = await getOutputResult(world.options.OUTPUT, runResult);
 
-  return { world, result, shared, output, tag, runStart: runStart[0], runDuration: process.hrtime(runStart)[0], fromStart: timer.since() };
+  return { result: runResult, shared, output, tag, runStart: runStart[0], runDuration: process.hrtime(runStart)[0], fromStart: timer.since() };
 }

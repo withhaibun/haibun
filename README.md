@@ -58,3 +58,4 @@ use this command to see available options:
 * [Feature structure](docs/feature_structure.md)
 * [Developing new modules](docs/new_modules.md)
 * [Developing Haibun](docs/develop_haibun.md)
+* [Debugging steppers](docs/stepping.md)
