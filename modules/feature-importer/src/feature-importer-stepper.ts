@@ -8,7 +8,7 @@ import ContextFeatureImporter from './lib/ContextFeatureImporter.js';
 const FeatureImporterStepper = class FeatureImporterStepper extends AStepper {
   contextToFeatures: ContextFeatureImporter;
 
-  setWorld(world: TWorld, steppers: AStepper[]) {
+  async setWorld(world: TWorld, steppers: AStepper[]) {
     this.world = world;
     this.contextToFeatures = new ContextFeatureImporter(this.getWorld().logger);
     super.setWorld(world, steppers);

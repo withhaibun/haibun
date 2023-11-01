@@ -9,11 +9,11 @@ export class ConnectedLogger extends Logger implements IConnectedLogger {
     super(res);
   }
   async connect() {
-    this.keepalive?.start();
+    await this.keepalive?.start();
   }
 
   async disconnect() {
-    this.keepalive?.stop();
+    await this.keepalive?.stop();
   }
 
   addKeepalive(keepAlive: ILoggerKeepAlive) {

@@ -55,7 +55,7 @@ describe('domain object', () => {
     expect(result.failure.error.message.startsWith(`missing required domain "${TTYPE}"`)).toBe(true);
     expect(result.failure.error.details.stack).toBeDefined();
   });
-  it.only('domain object from background', async () => {
+  it('domain object from background', async () => {
     const specl = getDefaultOptions();
     const key = '/backgrounds/p1';
 

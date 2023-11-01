@@ -37,6 +37,6 @@ describe('domain webpage', () => {
     expect(result.ok).toBe(true);
 
     // FIXME wrong result
-    expect(result.results![0].stepResults[0].actionResults[0].topics).toEqual("http://localhost:8123//backgrounds/p1");
+    expect(result.featureResults[0].stepResults[0].actionResults[0].topics).toEqual("http://localhost:8123//backgrounds/p1");
   });
 });

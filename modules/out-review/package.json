@@ -1,30 +1,34 @@
 {
   "name": "@haibun/out-review",
   "type": "module",
-  "version": "1.25.0",
+  "version": "1.31.1",
   "description": "",
   "files": [
-    "build/**"
+    "build/**",
+    "dashboard/web/built/**",
+    "dashboard/web/public/***"
   ],
   "bin": {
     "review-from-saved": "build/review-from-saved.js"
   },
-  "main": "build/out-review.js",
+  "main": "build/out-reviews-stepper.js",
   "scripts": {
     "build": "tsc -b .",
+    "build-watch": "tsc -b . --watch",
     "prepublishOnly": "tsc -b .",
     "lint": "eslint -c .eslintrc.json --ext .ts,.js src",
     "preversion": "npm run lint",
     "test": "jest",
-    "test-watch": "jest --watch"
+    "test-watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@haibun/core": "1.25.0",
-    "@haibun/domain-storage": "1.25.0",
-    "@haibun/storage-fs": "1.25.0",
+    "@haibun/core": "1.31.1",
+    "@haibun/domain-storage": "1.31.1",
+    "@haibun/storage-fs": "1.31.1",
+    "@haibun/storage-mem": "1.31.1",
     "xmlbuilder2": "^3.0.2"
   },
   "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5"

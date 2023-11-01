@@ -1,12 +1,11 @@
 import { OK, TNamed, AStepper, TWorld, TVStep } from '../lib/defs.js';
 import { Resolver } from '../phases/Resolver.js';
 import { actionNotOK, findStepper, sleep } from '../lib/util/index.js';
-import { getStepperAsDomain } from '../lib/domain.js';
 import { EVENT_AFTER } from '../phases/Builder.js';
 
 const Haibun = class Haibun extends AStepper {
   steppers: AStepper[];
-  setWorld(world: TWorld, steppers: AStepper[]): void {
+  async setWorld(world: TWorld, steppers: AStepper[]) {
     this.steppers = steppers;
     this.world = world;
   }
@@ -15,12 +14,6 @@ const Haibun = class Haibun extends AStepper {
       gwta: '.*[.?!]$',
       action: async () => OK,
     },
-    // sendFeatures: {
-    //   gwta: 'send features',
-    //   action: async () => {
-    //     return actionOK({ features: this.getWorld().shared.values._features });
-    //   },
-    // },
     sequenceToken: {
       gwta: 'a sequence token {token}',
       action: async ({ token }: TNamed) => {
@@ -95,9 +88,8 @@ const Haibun = class Haibun extends AStepper {
       },
     },
     comment: {
-      gwta: '#{what}',
-      action: async ({ comment }: TNamed) => {
-        this.getWorld().logger.log(`comment: ${comment}`);
+      gwta: '#{comment}',
+      action: async () => {
         return OK;
       },
     },

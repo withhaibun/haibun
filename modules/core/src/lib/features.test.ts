@@ -115,4 +115,21 @@ describe('env vars', () => {
     const { world } = await testWithDefaults([feature], [TestEnvcStepper], { options: { DEST: DEFAULT_DEST, env }, extraOptions: {} });
     expect(world.options._index_what).toBe(1);
   });
+  it('env or var or literal finds env', async () => {
+    const feature = { path: '/features/test.feature', content: `set "what" to "var"\nset x to {what}` };
+    const env = { what: 'env' };
+    const { world } = await testWithDefaults([feature], [], { options: { DEST: DEFAULT_DEST, env }, extraOptions: {} });
+    expect(world.shared.get('what')).toBe('var');
+    expect(world.shared.get('x')).toBe('env');
+  });
+  it('env or var or literal finds var', async () => {
+    const feature = { path: '/features/test.feature', content: `set "what" to "var"\nset x to what` };
+    const { world } = await testWithDefaults([feature], [], { options: { DEST: DEFAULT_DEST }, extraOptions: {} });
+    expect(world.shared.get('x')).toBe('var');
+  });
+  it('env or var or literal finds literal', async () => {
+    const feature = { path: '/features/test.feature', content: `set x to what` };
+    const { world } = await testWithDefaults([feature], [], { options: { DEST: DEFAULT_DEST }, extraOptions: {} });
+    expect(world.shared.get('x')).toBe('what');
+  });
 });

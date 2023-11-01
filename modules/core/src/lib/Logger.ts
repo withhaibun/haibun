@@ -1,10 +1,9 @@
 import { TTag } from './defs.js';
-import { ILogger, ILogOutput, TLogArgs, TLogLevel, TMessageContext, TOutputEnv } from './interfaces/logger.js';
+import { ILogger, ILogOutput, TLogArgs, TLogHistory, TLogLevel, TMessageContext, TOutputEnv } from './interfaces/logger.js';
 import { descTag, isFirstTag } from './util/index.js';
 
 export const LOGGER_LOG = { level: 'log' };
 export const LOGGER_NOTHING = { level: 'none' };
-
 export const LOGGER_LEVELS = {
   debug: 1,
   log: 2,
@@ -23,14 +22,17 @@ export default class Logger implements ILogger, ILogOutput {
   subscribers: ILogOutput[] = [];
   follow: string | undefined;
   static lastLevel = undefined;
+  static traceHistory: TLogHistory[] = [];
 
   constructor(conf: TConf) {
     // passed a log level and possibly a follow
     if ((conf as TLevel).level) {
       this.level = LOGGER_LEVELS[(conf as TLevel).level as TLogLevel];
       this.follow = (conf as TLevel).follow;
-    } else {
+    } else if ((conf as TOutputEnv).output) {
       this.env = conf as TOutputEnv;
+    } else {
+      throw Error(`invalid logger config ${conf}`)
     }
   }
 
@@ -48,6 +50,7 @@ export default class Logger implements ILogger, ILogOutput {
     return res;
   }
   out(level: TLogLevel, args: TLogArgs, messageContext?: TMessageContext) {
+
     for (const subscriber of this.subscribers) {
       subscriber.out(level, args, messageContext);
     }
@@ -55,16 +58,16 @@ export default class Logger implements ILogger, ILogOutput {
       this.env.output.out(level, args, { ...messageContext, tag: this.env.tag });
       return;
     }
+    const stack = Error().stack?.split('\n');
+    const caller = stack[Math.min((stack?.length || 1) - 1, 4)]?.replace(/.*\(/, '')?.replace(process.cwd(), '').replace(')', '').replace(/.*\//, '').replace(/\.ts:/, ':');
+    Logger.traceHistory.push({ messageContext, message: args, level, caller });
     if (!Logger.shouldLogLevel(this.level as number, level) && Logger.shouldLogFollow(this.follow, this.env?.tag)) {
       return;
     }
     const showLevel = Logger.lastLevel === level ? level.substring(0, 1).padStart(1 + level.length / 2) : level;
     Logger.lastLevel = level;
-    const e = Error().stack?.split('\n');
-    const ln = e[Math.min((e?.length || 1) - 1, 4)]?.replace(/.*\(/, '')
-      ?.replace(process.cwd(), '').replace(')', '').replace(/.*\//, '').replace(/\.ts:/, ':');
-    const tag = messageContext?.tag ? isFirstTag(messageContext.tag) ? '' : descTag(messageContext.tag) : '';
-    const [proggy, line/*, col*/] = ln.split(':');
+    const tag = messageContext?.tag ? (isFirstTag(messageContext.tag) ? '' : descTag(messageContext.tag)) : '';
+    const [proggy, line /*, col*/] = caller.split(':');
     console[level]((showLevel.padStart(6) + ` █ ${proggy}:${line}${tag}`).padEnd(30) + ` ｜ `, args);
   }
   debug = (args: TLogArgs, mctx?: TMessageContext) => this.out('debug', args, mctx);

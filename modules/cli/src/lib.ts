@@ -42,7 +42,7 @@ export function ranResultError(ranResults: TRunResult[], exceptionResults: any[]
     {
       ran: ranResults
         .filter((r) => !r.result.ok)
-        .map((r) => ({ stage: r.result.failure?.stage, details: r.result.failure?.error.details, results: r.result.results?.find((r) => r.stepResults.find((r) => !r.ok)) })),
+        .map((r) => ({ stage: r.result.failure?.stage, details: r.result.failure?.error.details, results: r.result.featureResults?.find((r) => r.stepResults.find((r) => !r.ok)) })),
       exceptionResults,
     },
     null,

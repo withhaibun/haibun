@@ -1,4 +1,4 @@
-import { OK, TNamed, TVStep, AStepper } from '@haibun/core/build/lib/defs.js';
+import { OK, TNamed, TVStep, AStepper, TAnyFixme } from '@haibun/core/build/lib/defs.js';
 import { TLogLevel, TMessageContext } from '@haibun/core/build/lib/interfaces/logger.js';
 import { getFromRuntime } from '@haibun/core/build/lib/util/index.js';
 import { IWebServer, WEBSERVER } from '@haibun/web-server-express/build/defs.js';
@@ -8,9 +8,9 @@ import { ILogOutput } from '@haibun/core/build/lib/interfaces/logger.js';
 
 import path from 'path';
 // FIXME
-type TWS = { on: (arg0: string, arg1: (message: any) => void) => void; send: (arg0: string) => void };
+type TWS = { on: (arg0: string, arg1: (message: TAnyFixme) => void) => void; send: (arg0: string) => void };
 class WebSocketServer implements ILogOutput {
-  buffered: any[] = [];
+  buffered: TAnyFixme[] = [];
   wss: WebSocket.Server;
   clients: TWS[] = [];
   async connection(ws: TWS) {
@@ -26,7 +26,7 @@ class WebSocketServer implements ILogOutput {
     this.wss = new WebSocket.Server({ host: '0.0.0.0', port: 7071 });
     this.wss.on('connection', this.connection.bind(this));
   }
-  out(level: TLogLevel, message: any, mctx?: TMessageContext) {
+  out(level: TLogLevel, message: TAnyFixme, mctx?: TMessageContext) {
     const content = { message, level, mctx };
     console.error('fixme; topic changed to context');
 

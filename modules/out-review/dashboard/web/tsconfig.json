@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "rootDir": "./src",
+    "target": "es6",
+    "module": "NodeNext",
+    "moduleResolution": "nodenext",
+    "experimentalDecorators": true,
+    "lib": [
+      "es2016",
+      "esnext",
+      "dom"
+    ],
+    "outDir": "./built",
+    "strict": true,
+    "composite": true
+  },
+  "include": [
+    "./src/**/*.ts"
+  ],
+  "exclude": [
+    "./node_modules"
+  ]
+}

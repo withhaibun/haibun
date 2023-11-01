@@ -4,7 +4,11 @@
     "outDir": "build",
     "rootDir": "src"
   },
-  "include": [
-    "src"
-  ]
+  "include": ["src"],
+  "xreferences": [
+    {
+      "path": "./dashboard/web"
+    }
+  ],
+  "exclude": ["./dashboard/web/node_modules/**"]
 }

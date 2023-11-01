@@ -1,25 +1,91 @@
-import { TStepResult, TTag } from '../defs.js';
+import { TAnyFixme, TStepResult, TTag, TVStep } from '../defs.js';
 
 export type TLogLevel = 'none' | 'debug' | 'log' | 'info' | 'warn' | 'error';
 export type TLogArgs = string;
-export const TEST_RESULT = { _test: true };
 
-export type TExecutorTopic = {
-  result: TStepResult | typeof TEST_RESULT;
-  seq: number;
-  stage: 'Executor';
+export type TLogHistory = {
+  message: TLogArgs;
+  level: TLogLevel;
+  caller: string;
+  messageContext: TMessageContext
 };
-// currently there is just the Executor instance
-export type TMessageContext = {
-  topic?: TMessageTopic;
+
+export type TMessageContext = TArtifactMessageContext | TExecutorMessageContext | TTraceMessageContext | TBasicMessageContext;
+
+type TContextTopic = TArtifactRequestStepTopic | TArtifactFailureStepTopic | TExecutorResultTopic | TTraceTopic;
+
+export type TLogHistoryWithArtifact = TLogHistory & {
+  messageContext: TArtifactMessageContext
+};
+
+export type TArtifactMessageContext = {
+  topic: TArtifactRequestStepTopic | TArtifactSummaryTopic | TArtifactFailureStepTopic | TArtifactDebugTopic,
+  artifact: TArtifact;
   tag?: TTag;
 };
+
+export type TBasicMessageContext = {
+  tag: TTag;
+};
+
+export type TExecutorMessageContext = {
+  topic: TExecutorResultTopic;
+  tag: TTag;
+};
+
+export type TTraceMessageContext = {
+  topic: TTraceTopic;
+  tag: TTag;
+};
+
+export type TExecutorResultTopic = {
+  result: TStepResult, 
+  step: TVStep,
+  stage: 'Executor';
+};
+
+export type TActionStage = 'endFeature' | 'action' | 'onFailure' | 'nextStep' | 'init' | 'action';
+
+type TBaseArtifactTopic = {
+  stage: TActionStage
+};
+
+export type TArtifactSummaryTopic = TBaseArtifactTopic & {
+  event: 'summary';
+};
+
+export type TArtifactRequestStepTopic = TBaseArtifactTopic & {
+  event: 'request';
+  seq: number;
+};
+
+export type TArtifactDebugTopic = TBaseArtifactTopic & {
+  event: 'debug';
+};
+
+export type TArtifactFailureStepTopic = TBaseArtifactTopic & {
+  event: 'failure';
+  step: TVStep;
+};
+
 
 export type TTraceTopic = {
   type?: string;
   trace?: object;
 };
-export type TMessageTopic = TExecutorTopic | TTraceTopic;
+
+export type TLogHistoryWithExecutorTopic = TLogHistory & {
+  messageContext: {
+    topic: TExecutorResultTopic;
+    tag: TTag;
+  };
+};
+
+export type TArtifact = {
+  type: 'video' | 'picture' | 'html' | 'json' | 'json/playwright/trace';
+  path?: string;
+  content?: TAnyFixme;
+};
 
 export interface ILogger {
   debug: (what: TLogArgs, ctx?: TMessageContext) => void;
@@ -33,10 +99,10 @@ export interface ILogger {
 export interface IConnect {
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
-  addKeepalive?: (keepalive: any) => void;
+  addKeepalive?: (keepalive: TAnyFixme) => void;
 }
 
-export interface IConnectedLogger extends ILogger, IConnect {}
+export interface IConnectedLogger extends ILogger, IConnect { }
 
 export interface ILoggerKeepAlive {
   start: () => Promise<void>;
@@ -49,6 +115,6 @@ export interface ILogOutput {
 
 export type TOutputEnv = { output: ILogOutput; tag: TTag };
 
-export type TMessage = { level: string; message: string; messageTopic?: TMessageTopic };
+export type TMessage = { level: string; message: string; messageTopic?: TContextTopic };
 // FIXME get rid of result
 export type TMessageWithTopic = { level: string; message: string; messageTopic: { result: TStepResult } };
