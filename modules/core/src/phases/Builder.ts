@@ -1,5 +1,5 @@
 import { WorkspaceContext } from '../lib/contexts.js';
-import { AStepper, TBuildResult, TFinalize, TNotOkStepActionResult, TOKStepActionResult, TResolvedFeature, TVStep, TWorld } from '../lib/defs.js';
+import { AStepper, TBuildResult, TFinalize, TNotOkStepActionResult, TOKStepActionResult, TVStep, TWorld } from '../lib/defs.js';
 import { getNamedToVars } from '../lib/namedVars.js';
 import { applyResShouldContinue, findStepper } from '../lib/util/index.js';
 import { Resolver } from './Resolver.js';

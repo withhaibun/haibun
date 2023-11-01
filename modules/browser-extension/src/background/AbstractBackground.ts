@@ -71,7 +71,7 @@ export default abstract class AbstractBackground {
       console.log('>>>', await chrome.tabs.query({ index: toTabIndex, }));
       const tabId = (await chrome.tabs.query({ index: toTabIndex, }))[0]?.id;
       await this.injectContentScript('startRecording', tabId!);
-      chrome.tabs.update(tabId!, { active: true });
+      await chrome.tabs.update(tabId!, { active: true });
     }
 
     for (const [type, value] of Object.entries(this.handlers!)) {
@@ -89,9 +89,9 @@ export default abstract class AbstractBackground {
 
     this.badge.start()
   }
-  injectContentScript(reason: string, tabId: number) {
+  async injectContentScript(reason: string, tabId: number) {
     this.logger.log(reason, <TWithContext>{ '@context': '#haibun/info', 'info': `inject ${reason}` });
-    browser.injectContentScript(tabId);
+    await browser.injectContentScript(tabId);
   }
 
   async stop() {
@@ -105,7 +105,7 @@ export default abstract class AbstractBackground {
     }
     this.handlers = undefined;
     this.badge.stop(this._badgeState)
-    storage.set({ recording: this._recording })
+    await storage.set({ recording: this._recording })
   }
 
   pause() {
@@ -150,16 +150,16 @@ export default abstract class AbstractBackground {
     }
 
     if (msg.action === 'ERROR') {
-      setTimeout(() => {
+      setTimeout(async () => {
         this.badge.setText('ERR')
-        chrome.runtime.sendMessage(msg);
+        await chrome.runtime.sendMessage(msg);
       }, 1000);
     }
 
     console.log('onMessage', msg, sender);
-    setTimeout(() => {
+    setTimeout(async () => {
       this.badge.setText('WAIT')
-      chrome.runtime.sendMessage(msg);
+      await chrome.runtime.sendMessage(msg);
     }, 1000);
 
     // NOTE: To account for clicks etc. we need to record the frameId

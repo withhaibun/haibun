@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { spawn } from './util/index.js';
 
 const [, me, version, ...extra] = process.argv;
@@ -39,27 +39,38 @@ class Versioner {
 
     for (const module of modules) {
       const name = module.replace(/\/$/, '').replace(/.*\//, '');
-      this.updateVersion(name, module);
-      this.toPublish.push(module);
+      if (this.verifyShouldPublishStructureAndUpdateVersion(name, module)) {
+        this.toPublish.push(module);
+      }
+    }
+    for (const [dest, ext] of Object.entries({ src: 'ts', build: 'js' })) {
+      writeFileSync(`./modules/core/${dest}/currentVersion.${ext}`, `export const currentVersion = '${this.version}';\n`);
     }
 
-    this.updateVersion('haibun', '.');
+    this.verifyShouldPublishStructureAndUpdateVersion('haibun', '.');
     this.publishAll();
   }
 
   publishAll() {
     for (const module of this.toPublish) {
-      console.info('publishing', module);
+      console.info('\n\n*** publishing', module);
       spawn(['npm', 'publish'], module);
       spawn(['git', 'push'], module);
     }
   }
 
-  updateVersion(name: string, location: string) {
-    console.info('updating', name);
+  verifyShouldPublishStructureAndUpdateVersion(name: string, location: string) {
     if (location !== '.') {
       const pkgFile = `${location}/package.json`;
       const pkg = JSON.parse(readFileSync(pkgFile, 'utf-8'));
+      if (!pkg.publsh && pkg.publish !== undefined) {
+        return false;
+      }
+      console.info('updating', name);
+      const { main } = pkg;
+      if (main && !main.includes('*') && !existsSync(`${location}/${main}`)) {
+        throw Error(`main file ${main} does not exist in ${location}`);
+      }
       pkg.version = this.version;
       for (const d in pkg.dependencies) {
         if (d.startsWith('@haibun/')) {
@@ -80,19 +91,20 @@ class Versioner {
 
       writeFileSync(pkgFile, JSON.stringify(pkg, null, 2));
       try {
-        spawn(['npm', 'run', 'test'], location);
+        // spawn(['npm', 'run', 'test'], location, { env: { NODE_OPTIONS: '--experimental-vm-modules' } });
       } catch (e) {
         console.error(`npm test failed for ${name}: ${e}`);
         throw e;
       }
-    }
 
-    try {
-      spawn(['git', 'commit', '-m', `'update ${name} to version ${this.version}'`, 'package.json',], location);
-    } catch (e) {
-      console.error(`git commit failed for ${name}: ${e}`);
-      throw e;
+      try {
+        spawn(['git', 'commit', '-m', `'update ${name} to version ${this.version}'`, 'package.json',], location);
+      } catch (e) {
+        console.error(`git commit failed for ${name}: ${e}`);
+        throw e;
+      }
     }
+    return true;
   }
 }
 

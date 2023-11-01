@@ -11,17 +11,17 @@ import { processBaseEnvToOptionsAndErrors } from './lib.js';
 const s = s => s.split(' ');
 
 describe('usageThenExit', () => {
-  it('exits with success', () => {
+  it('exits with success', async () => {
     const ranOnce = (code: number | undefined) => { expect(code).toBe(0); return <never>undefined }
     jest.spyOn(process, 'exit').mockImplementationOnce(ranOnce);
     jest.spyOn(console, 'info').mockImplementationOnce(() => undefined);
-    lib.usageThenExit({ ...getDefaultOptions(), steppers: ['../core/build/lib/test/TestStepsWithOptions'] });
+    await lib.usageThenExit({ ...getDefaultOptions(), steppers: ['../core/build/lib/test/TestStepsWithOptions'] });
   })
-  it('exits with error', () => {
+  it('exits with error', async () => {
     const ranOnce = (code: number | undefined) => { expect(code).toBe(1); return <never>undefined }
     jest.spyOn(process, 'exit').mockImplementationOnce(ranOnce);
     jest.spyOn(console, 'error').mockImplementationOnce(() => undefined);
-    lib.usageThenExit({ ...getDefaultOptions(), steppers: ['../core/build/lib/test/TestStepsWithOptions'] }, 'woops');
+    await lib.usageThenExit({ ...getDefaultOptions(), steppers: ['../core/build/lib/test/TestStepsWithOptions'] }, 'woops');
   })
 });
 
@@ -31,8 +31,8 @@ describe('options', () => {
     const { protoOptions: protoConfig } = processBaseEnvToOptionsAndErrors({ [HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]: 'true' }, { DEST: DEFAULT_DEST });
     const result = await testWithDefaults([feature], [TestStepsWithOptions], protoConfig);
     expect(result.ok).toBe(true);
-    expect(result.results?.length).toBe(1);
-    expect(result.results[0].stepResults[0].actionResults[0].topics?.options.summary).toEqual('options');
+    expect(result.featureResults?.length).toBe(1);
+    expect(result.featureResults[0].stepResults[0].actionResults[0].topics?.options.summary).toEqual('options');
   });
 });
 

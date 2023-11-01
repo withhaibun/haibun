@@ -1,5 +1,5 @@
 import Logger, { LOGGER_NOTHING } from "@haibun/core/build/lib/Logger.js";
-import { BrowserFactory, DEFAULT_CONFIG_TAG, PageInstance, TBrowserFactoryOptions } from "./BrowserFactory.js";
+import { BrowserFactory, DEFAULT_CONFIG_TAG, TBrowserFactoryOptions } from "./BrowserFactory.js";
 import { getDefaultTag } from "@haibun/core/build/lib/test/lib.js";
 
 const browserContextOptions = {
@@ -17,7 +17,7 @@ describe("types", () => {
     });
     expect(BrowserFactory.configs[DEFAULT_CONFIG_TAG].options.type).toBe('webkit');
     expect(BrowserFactory.configs[DEFAULT_CONFIG_TAG].options.device).toBe("Blackberry PlayBook");
-    BrowserFactory.closeBrowsers();
+    await BrowserFactory.closeBrowsers();
   });
   it("missing type", async () => {
     expect(async () => await BrowserFactory.getBrowserFactory(new Logger(LOGGER_NOTHING), ({
@@ -34,7 +34,7 @@ describe('browser, context, page', () => {
     const bfa = await BrowserFactory.getBrowserFactory(logger, browserContextOptions);
     const test = getDefaultTag(0);
     const test2 = getDefaultTag(1);
-    const pa1 = await bfa.getBrowserContextPage(test);
+    const pa1 = await bfa.getBrowserContextPage(test, 0);
     expect(pa1).toBeDefined();
     expect(Object.keys(BrowserFactory.browsers).length).toBe(1)
     expect(Object.keys(bfa.contexts).length).toBe(1)
@@ -63,7 +63,7 @@ describe('browser, context, page', () => {
     expect(Object.keys(bfa.contexts).length).toBe(1)
     expect(bfa.pages['test2']).toBeUndefined();
     */
-    BrowserFactory.closeBrowsers();
+    await BrowserFactory.closeBrowsers();
   });
 
 });

@@ -1,4 +1,4 @@
-import { TWorld, TVStep, TExpandedLine, TProtoOptions, CStepper, TExpandedFeature, DEFAULT_DEST, TResult } from '../defs.js';
+import { TWorld, TVStep, TExpandedLine, TProtoOptions, CStepper, TExpandedFeature, DEFAULT_DEST, TExecutorResult } from '../defs.js';
 import { Resolver } from '../../phases/Resolver.js';
 import { DEF_PROTO_OPTIONS, runWith } from './../run.js';
 import { getSteppers, getRunTag, verifyExtraOptions, getDefaultOptions, createSteppers } from './../util/index.js';
@@ -26,9 +26,9 @@ export const testVStep = (name: string, actions, base = TEST_BASE): TVStep => ({
 export async function getTestEnv(useSteppers: string[], test: string, world: TWorld) {
   const csteppers = await getSteppers(useSteppers);
   const steppers = await createSteppers(csteppers);
-  verifyExtraOptions({}, csteppers);
+  await verifyExtraOptions({}, csteppers);
   world.domains = await getDomains(steppers);
-  verifyDomainsOrError(steppers, world);
+  await verifyDomainsOrError(steppers, world);
 
   const resolver = new Resolver(steppers, world);
   const actions = resolver.findActionableSteps(test);
@@ -39,8 +39,7 @@ export async function getTestEnv(useSteppers: string[], test: string, world: TWo
 }
 type TTestFeatures = { path: string; content: string, base?: string }[];
 
-export async function testWithDefaults(featuresIn: TTestFeatures | string, addSteppers: CStepper[], protoOptions: TProtoOptions = DEF_PROTO_OPTIONS, backgroundsIn: TTestFeatures = []): Promise<TResult & { world: TWorld }> {
-
+export async function testWithDefaults(featuresIn: TTestFeatures | string, addSteppers: CStepper[], protoOptions: TProtoOptions = DEF_PROTO_OPTIONS, backgroundsIn: TTestFeatures = []): Promise<TExecutorResult & { world: TWorld }> {
   const inFeatures = typeof featuresIn == 'string' ? [{ path: '/features/test', content: featuresIn }] : featuresIn;
   const specl = getDefaultOptions();
   const world = getTestWorldWithOptions(protoOptions);
@@ -67,7 +66,7 @@ export const asFeatures = (w: { base?: string, path: string; content: string }[]
 export const asExpandedFeatures = (w: { base?: string, path: string; content: string }[]): TExpandedFeature[] =>
   asFeatures(w).map((i) => {
     const expanded: TExpandedLine[] = featureSplit(i.content).map((a) => ({ line: a, feature: i }));
-    let a: any = { ...i, expanded };
+    const a: any = { ...i, expanded };
     delete a.content;
     // a.featureLine = asFeatureLine()
     return a;

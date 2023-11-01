@@ -1,371 +1,232 @@
-import { AStepper, CAPTURE, IHasOptions, IRequireDomains, OK, TFeatureResult, TNamed, TWorld, } from "@haibun/core/build/lib/defs.js";
-import { EMediaTypes, guessMediaExt, IPublishResults, IReviewResult, STORAGE_ITEM, STORAGE_LOCATION, TLocationOptions, TMediaType, TMissingTracks, TTrackResult } from '@haibun/domain-storage/build/domain-storage.js';
-import { findStepperFromOption, getFeatureTitlesFromResults, getRunTag, getStepperOption, stringOrError } from '@haibun/core/build/lib/util/index.js';
+import path from "path";
+import { fileURLToPath } from "url";
+
+import { AStepper, CAPTURE, IHasOptions, IRequireDomains, OK, TFeatureResult, TWorld } from '@haibun/core/build/lib/defs.js';
+import { STORAGE_ITEM, STORAGE_LOCATION, } from '@haibun/domain-storage';
+import { actionOK, findStepperFromOption, getStepperOption, stringOrError } from '@haibun/core/build/lib/util/index.js';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
-import HtmlGenerator, { TFeatureSummary, TIndexSummary, TIndexSummaryResult, TStepSummary, TSummaryItem } from "./html-generator.js";
-import { ITrackResults } from '@haibun/domain-storage/build/domain-storage.js';
-import { summary } from "./components/index/summary.js";
-import { toc } from "./components/index/toc.js";
-import { ReviewScript } from "./assets.js";
+import { TLogHistory, TLogHistoryWithExecutorTopic } from '@haibun/core/build/lib/interfaces/logger.js';
+import { EMediaTypes, IGetPublishedReviews, ITrackResults, TLocationOptions, TPathed, actualPath, guessMediaExt } from '@haibun/domain-storage/build/domain-storage.js';
+import StorageFS from '@haibun/storage-fs/build/storage-fs.js';
+import { SCHEMA_FOUND_HISTORIES, SCHEMA_HISTORY_WITH_META, TFoundHistories, THistoryWithMeta, TNamedHistories, asArtifact, asStepperActionType } from "./lib.js";
 
-// FIXME use TRACK_STORAGE
-export const TRACKS_STORAGE = 'TRACE_STORAGE';
-export const REVIEWS_STORAGE = 'REVIEWS_STORAGE';
-const PUBLISH_STORAGE = 'PUBLISH_STORAGE';
-const INDEX_STORAGE = 'INDEX_STORAGE';
-const URI_ARGS = 'URI_ARGS';
+export const TRACKS_FILE = `tracks.json`;
+const TRACKS_DIR = 'tracks';
+export const TRACKSHISTORY_SUFFIX = '-tracksHistory.json';
 
-export const MISSING_TRACKS: TIndexSummaryResult = { ok: false, sourcePath: 'missing', featureTitle: 'Missing tracks file', startTime: new Date().toString() };
-export const MISSING_TRACKS_FILE = 'Missing tracks file';
-const INDEXED = 'indexed';
+export const STORAGE = 'STORAGE';
+export const TRACKS_STORAGE = 'TRACKS_STORAGE';
+export const PUBLISH_STORAGE = 'PUBLISH_STORAGE';
+export const PUBLISH_ROOT = 'PUBLISH_ROOT';
 
-const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRequireDomains, ITrackResults, IReviewResult, IPublishResults {
-  tracksStorage?: AStorage;
-  reviewsStorage?: AStorage;
-  publishStorage?: AStorage;
-  indexStorage?: AStorage;
+type TArtifactMap = { [name: string]: TPathed };
+
+const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRequireDomains, ITrackResults {
+  tracksStorage: AStorage;
+  publishStorage: AStorage;
+  // used for publishing dashboard
+  localFS: AStorage;
+  title = 'Feature Result Index';
+  publishRoot: string;
 
   requireDomains = [STORAGE_LOCATION, STORAGE_ITEM];
   options = {
+    [STORAGE]: {
+      desc: 'General storage type',
+      parse: (input: string) => stringOrError(input),
+    },
     [TRACKS_STORAGE]: {
       required: true,
+      altSource: 'STORAGE',
       desc: 'Storage type used for input',
-      parse: (input: string) => stringOrError(input)
-    },
-    [REVIEWS_STORAGE]: {
-      required: true,
-      desc: 'Storage type used for reviews',
-      parse: (input: string) => stringOrError(input)
+      parse: (input: string) => stringOrError(input),
     },
     [PUBLISH_STORAGE]: {
       desc: 'Storage type used for publishing',
-      parse: (input: string) => stringOrError(input)
+      parse: (input: string) => stringOrError(input),
     },
-    [INDEX_STORAGE]: {
-      desc: 'Storage type used for indexes',
-      parse: (input: string) => stringOrError(input)
-    },
-    [URI_ARGS]: {
-      desc: 'Extra arguments for html assets',
-      parse: (input: string) => stringOrError(input)
+    [PUBLISH_ROOT]: {
+      desc: 'Root path for publishing',
+      parse: (input: string) => stringOrError(input),
     },
   };
-  setWorld(world: TWorld, steppers: AStepper[]) {
-    super.setWorld(world, steppers);
-    this.tracksStorage = findStepperFromOption(steppers, this, world.extraOptions, TRACKS_STORAGE);
-    this.reviewsStorage = findStepperFromOption(steppers, this, world.extraOptions, REVIEWS_STORAGE, TRACKS_STORAGE);
-    this.indexStorage = findStepperFromOption(steppers, this, world.extraOptions, INDEX_STORAGE, REVIEWS_STORAGE, TRACKS_STORAGE);
-    this.publishStorage = findStepperFromOption(steppers, this, world.extraOptions, PUBLISH_STORAGE, REVIEWS_STORAGE, TRACKS_STORAGE);
+  reviewEndpoint?: IGetPublishedReviews;
+
+  async setWorld(world: TWorld, steppers: AStepper[]) {
+    await super.setWorld(world, steppers);
+    this.localFS = new StorageFS();
+    this.tracksStorage = findStepperFromOption(steppers, this, world.extraOptions, TRACKS_STORAGE, STORAGE);
+    this.publishStorage = findStepperFromOption(steppers, this, world.extraOptions, PUBLISH_STORAGE, STORAGE);
+    this.publishRoot = getStepperOption(this, PUBLISH_ROOT, this.getWorld().extraOptions) || './published';
+    const ps = (this.publishStorage as unknown as IGetPublishedReviews);
+    if (ps.getPublishedReviews) {
+      this.reviewEndpoint = ps;
+    }
   }
 
   steps = {
-    createReview: {
-      // create a review from current world only
-      exact: `create review`,
+    /**
+     * Create history
+     * Creates tracksHistory.json files from any found tracks.json. files.
+     */
+    createFoundHistory: {
+      exact: `create found history`,
       action: async () => {
-        const loc = { ...this.getWorld(), mediaType: EMediaTypes.html };
+        const location = await this.createFoundHistory();
+        return actionOK({ tree: { summary: 'wrote history', details: { location } } });
+      },
+    },
 
-        let tracks;
-        tracks = await this.readTracksFile(loc).catch(error => tracks = { error });
-        this.writeReview(loc, tracks);
-        return OK;
-      }
-    },
-    createReviewsFrom: {
-      gwta: `create reviews from {where}`,
-      action: async ({ where }: TNamed) => {
-        await this.writeReviewsFrom(where.split(',').map(s => s.trim()));
-        return OK;
-      }
-    },
-    createFoundReviews: {
-      exact: `create found reviews`,
+    createIndexer: {
+      exact: `create indexer`,
       action: async () => {
-        const found = await this.findArtifacts(this.tracksStorage, `${INDEXED}:`);
-        await this.writeReviewsFrom(found);
+        await this.createIndexer();
         return OK;
-      }
+      },
     },
-    publishResults: {
-      exact: `publish results`,
+    /**
+     * Create web
+     * Create web pages that link and display published review indexes.
+     *
+     */
+    createReviewsPages: {
+      exact: `create reviews pages`,
       action: async () => {
-        await this.publishResults({ ...this.getWorld() });
-        return OK;
-      }
-    },
-    publishResultsFrom: {
-      gwta: `publish results from {where}`,
-      action: async ({ where }: TNamed) => {
-        for (const dest of where.split(',').map(d => d.trim())) {
-          await this.publishResults({ ...this.getWorld(), options: { ...this.getWorld().options, DEST: dest } });
-        }
-        return OK;
-      }
-    },
-    publishFoundResults: {
-      exact: `publish found results`,
-      action: async () => {
-        const found = await this.findArtifacts(this.tracksStorage, `${INDEXED}:`);
-        for (const dest of found) {
-          await this.publishResults({ ...this.getWorld(), options: { ...this.getWorld().options, DEST: dest } });
-        }
-        return OK;
-      }
-    },
-    createIndex: {
-      exact: `create index`,
-      action: async () => {
-        return await this.createReviewsIndex([this.getWorld().options.DEST]);
-      }
-    },
-    createIndexesFrom: {
-      gwta: `create indexes from {where}`,
-      action: async ({ where }: TNamed) => {
-        const dirs = where.split(',').map(d => d.trim());
-        return await this.createReviewsIndex(dirs);
-      }
-    },
-    createFoundIndex: {
-      exact: `create found index`,
-      action: async () => {
-        const found = await this.findArtifacts(this.tracksStorage);
-        return await this.createReviewsIndex(found);
-      }
-    },
-  }
+        const web = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'dashboard', 'web');
+        await this.publishStorage.ensureDirExists(this.publishRoot);
+        await this.recurseCopy({ src: `${web}/public`, fromFS: this.localFS, toFS: this.publishStorage, toFolder: this.publishRoot, trimFolder: `${web}/public` });
+        await this.recurseCopy({ src: `${web}/built`, fromFS: this.localFS, toFS: this.publishStorage, toFolder: `${this.publishRoot}/built`, trimFolder: `${web}/built` });
+        await this.createIndexer();
 
-  // find parseable artifacts from known tracks
-  async findArtifacts(fromWhere: AStorage, filter?: string) {
-    const dir = await fromWhere.readdirStat(`./${CAPTURE}`);
-    const found: string[] = [];
-    for (const entry of dir) {
-      const entryDir = entry.name.replace(/.*\//, '');
-      if (entryDir === 'sarif') {
-        found.push(`${INDEXED}:${entryDir}`);
-      } else if (entry.isDirectory) {
-        const entries = await fromWhere.readdirStat(`${entry.name}`);
-        const loop = entries.map(e => e.name.replace(/.*\//, '')).find(e => e === 'loop-1');
-        if (loop) {
-          found.push(entryDir);
-        }
+        return actionOK({ tree: { summary: 'wrote files', details: await this.publishStorage.readTree(this.publishRoot) } })
       }
-    }
-    return filter ? found.filter(f => !f.includes(filter)) : found;
-  }
-  async writeReviewsFrom(where: string[]) {
-    const func = async (loc: TLocationOptions) => {
-      const tracks = await this.readTracksFile(loc);
-      await this.writeReview(loc, tracks);
-    };
-    for (const dir of where) {
-      await this.withDestLocs(dir, func, EMediaTypes.html);
+    },
+  };
+
+  async createIndexer() {
+    if (this.reviewEndpoint) {
+      const indexer = `const resolvedEndpoint = "${this.reviewEndpoint.endpoint(TRACKS_DIR)}";\n${this.reviewEndpoint.getPublishedReviews.toString().replace('async', 'export async function')}`;
+      await this.publishStorage.writeFile(`${this.publishRoot}/built/dashboard/indexer.js`, indexer, EMediaTypes.javascript);
+      this.getWorld().logger.log(`indexer-endpoint.json written for ${this.publishStorage.constructor.name}`);
     }
   }
 
-  async getIndexedResults(dir: string) {
-    const file = this.indexStorage.fromCaptureLocation(EMediaTypes.json, dir, 'indexed.json');
-    let contents;
-    try {
-      contents = await this.indexStorage.readFile(file);
-      const indexSummary: TIndexSummary = JSON.parse(contents);
-      return indexSummary;
-    } catch (e) {
-      this.getWorld().logger.error(`can't parse indexedResults ${file}: ${e} from ${contents}`);
-      throw (e);
+  async createFoundHistory(where = CAPTURE) {
+    const key = this.getWorld().tag.key;
+    const ps = this.publishStorage;
+    const { foundHistories, artifactMap } = await this.transformTracksAndArtifacts(where);
+    await this.publishStorage.ensureDirExists(ps.fromLocation(EMediaTypes.json, this.publishRoot, TRACKS_DIR));
+    const dest = ps.fromLocation(EMediaTypes.json, this.publishRoot, TRACKS_DIR, `${key}${TRACKSHISTORY_SUFFIX}`);
+    await this.publishStorage.writeFile(dest, JSON.stringify(foundHistories, null, 2), EMediaTypes.json);
+    for (const [path, destPathed] of Object.entries(artifactMap)) {
+      // copying pages to strict location
+      await this.copyFile(path, destPathed);
     }
+    return dest;
   }
 
-  async getReviewSummary(dir: string) {
-    const res: Partial<TIndexSummary> = {
-      indexTitle: 'none',
-      results: <TIndexSummaryResult[]>[]
-    }
-    const func = async (loc: TLocationOptions) => {
-      const tracks = await this.readTracksFile(loc);
-      
-      const { result, meta } = (<TTrackResult>tracks);
-      const { title: indexTitle, startTime } = meta;
-      res.indexTitle = indexTitle;
-      const featureTitles = getFeatureTitlesFromResults(result);
+  async transformTracksAndArtifacts(where: string): Promise<{ foundHistories: TFoundHistories, artifactMap: TArtifactMap }> {
+    const artifactMap = {};
+    const tracksJsonFiles = await this.findTracksJson(where);
 
-      if (result) {
-        const r = {
-          ok: result.ok,
-          sourcePath: await this.publishStorage.getCaptureLocation(loc) + '/review.html',
-          startTime: new Date(startTime).toString(),
-          featureTitle: featureTitles.join(',')
-        }
-
-        res.results.push(r);
-      } else {
-        // res.results!.push({ error: `no result` });
-      }
-    }
-
-    await this.withDestLocs(dir, func, EMediaTypes.html);
-    return res as TIndexSummary;
-  }
-  async createReviewsIndex(indexDirs: string[]) {
-    const uriArgs = getStepperOption(this, URI_ARGS, this.getWorld().extraOptions) || '';
-    const htmlGenerator = new HtmlGenerator(uriArgs);
-    const results: { ok: boolean, link: string, index: TIndexSummary[], dir: string }[] = [];
-
-    for (const spec of indexDirs) {
-      const [type, dirIn] = spec.split(':');
-      const dir = dirIn || type;
-      const indexer = type === INDEXED ? this.getIndexedResults.bind(this) : this.getReviewSummary.bind(this);
-      const summary: TIndexSummary = await indexer(dir);
-
-      const ok = !!summary.results.every(r => r.ok);
-      const index = toc(summary, dir, uriArgs, htmlGenerator.linkFor, (path: string) => this.publishStorage.pathed(EMediaTypes.html, path, `./${CAPTURE}`));
-
-      results.push({ ok, dir, link: htmlGenerator.linkFor(dir), index });
-    }
-
-    const isum = summary(results);
-
-    const html = await htmlGenerator.getHtmlDocument(isum, { title: 'Feature Result Index' });
-    const indexHtml = this.publishStorage?.fromCaptureLocation(EMediaTypes.html, 'index.html');
-
-    await this.publishStorage?.writeFile(indexHtml, html, EMediaTypes.html);
-
-    this.getWorld().logger.info(`wrote index file ${indexHtml}`)
-    return OK;
-  }
-  async withDestLocs(dest: string, func: any, mediaType: TMediaType) {
-    const reviewsIn = this.tracksStorage;
-    const n = (i: string) => {
-      return parseInt(i.replace(/.*-/, ''));
-    }
-
-    const start = this.tracksStorage.fromCaptureLocation(EMediaTypes.html, dest);
-
-    const loops = await reviewsIn.readdir(start);
-    for (const loop of loops) {
-      const loopDir = `${start}/${loop}`;
-
-      const sequences = await reviewsIn.readdir(loopDir);
-      for (const seq of sequences) {
-        const seqDir = `${loopDir}/${seq}`;
-        const featureNums = await reviewsIn.readdir(seqDir)
-        for (const featureNum of featureNums) {
-          const featDir = `${seqDir}/${featureNum}`;
-          const members = await reviewsIn.readdir(featDir);
-          for (const member of members) {
-            const memDir = `${featDir}/${member}`;
-            const tag = getRunTag(n(seqDir), n(loopDir), n(featDir), n(memDir))
-
-            const loc = { mediaType, tag, options: { ...this.getWorld().options, DEST: dest }, extraOptions: { ...this.getWorld().extraOptions } };
-
-            await func(loc);
+    let ok = 0;
+    let fail = 0;
+    const histories: TNamedHistories = tracksJsonFiles.reduce((a, leaf) => {
+      const foundHistory: THistoryWithMeta = JSON.parse(this.localFS.readFile(leaf, 'utf-8'));
+      const endpoint = this.reviewEndpoint?.endpoint(TRACKS_DIR) || TRACKS_DIR;
+      // map files to relative path for later copying
+      const history = {
+        '$schema': foundHistory['$schema'],
+        meta: foundHistory.meta,
+        logHistory: foundHistory.logHistory.map(h => {
+          if (!asArtifact(h)) return h;
+          const path = asArtifact(h)?.messageContext?.artifact?.path;
+          if (path) {
+            const dest = this.artifactLocation(path, 'artifacts');
+            artifactMap[path] = dest;
+            return {
+              ...h,
+              messageContext: {
+                ...h.messageContext,
+                artifact: {
+                  ...asArtifact(h).messageContext.artifact,
+                  path: [endpoint, actualPath(dest)].join('')
+                }
+              }
+            }
           }
-        }
+          return h;
+        })
+      }
+
+      ok += history.meta.ok ? 1 : 0;
+      fail += history.meta.ok ? 0 : 1;
+      return { ...a, [leaf]: history };
+    }, {});
+    return {
+      foundHistories: { '$schema': SCHEMA_FOUND_HISTORIES, meta: { date: Date.now(), ok, fail }, histories },
+      artifactMap
+    }
+  }
+
+  async findTracksJson(startPath: string): Promise<string[]> {
+    let result: string[] = [];
+    const files = await this.localFS.readdirStat(startPath);
+
+    for (const file of files) {
+      const filePath = file.name;
+
+      if (file.isDirectory) {
+        result = result.concat(await this.findTracksJson(filePath));
+      } else if (file.name.endsWith('tracks.json')) {
+        result.push(filePath);
       }
     }
-  }
-  async readTracksFile(loc: TLocationOptions): Promise<TTrackResult | TMissingTracks> {
-    try {
-      const tracks = this.tracksStorage;
-      const output = await tracks.readFile(await tracks.getCaptureLocation(loc, 'tracks') + '/tracks.json', 'utf-8');
-      const result = JSON.parse(output);
-      return result;
-    } catch (e) {
-      return {
-        error: (<any>e).toString()
-      };
-    }
+
+    return result;
   }
 
-  async writeTracksFile(loc: TLocationOptions, title: string, result: TFeatureResult, startTime: Date, startOffset: number) {
-    const dir = await this.reviewsStorage.ensureCaptureLocation(loc, 'tracks', `tracks.json`);
-    await this.reviewsStorage.writeFile(dir, JSON.stringify({ meta: { startTime: startTime.toISOString(), title, startOffset }, result }, null, 2), loc.mediaType);
-  }
-
-  async writeReview(loc: TLocationOptions, tracksDoc: TTrackResult | TMissingTracks) {
-    const uriArgs = getStepperOption(this, URI_ARGS, loc.extraOptions);
-    const htmlGenerator = new HtmlGenerator(uriArgs);
-
-    const dir = await this.reviewsStorage.getCaptureLocation(loc);
-    const reviewHtml = await this.reviewsStorage.getCaptureLocation(loc, `review.html`);
-    await this.reviewsStorage.ensureDirExists(dir);
-
-    const { featureJSON, script } = await this.getFeatureDisplay(tracksDoc, htmlGenerator, loc, dir);
-
-    const html = await htmlGenerator.getHtmlDocument(featureJSON, {
-      title: `Feature Result ${loc.tag.sequence}`,
-      script
-    });
-    await this.reviewsStorage.writeFile(reviewHtml, html, loc.mediaType);
-    this.getWorld().logger.log(`wrote review ${reviewHtml}`);
-  }
-
-  async getFeatureDisplay(tracksDoc: TTrackResult | TMissingTracks, htmlGenerator: HtmlGenerator, loc: TLocationOptions, dir: string) {
-    if ((tracksDoc as TMissingTracks).error) {
-      const dir = await this.reviewsStorage.getCaptureLocation(loc);
-      return { featureJSON: htmlGenerator.getFeatureError(dir, (tracksDoc as TMissingTracks).error), script: undefined };
-    } else {
-      const { startOffset } = (<TTrackResult>tracksDoc).meta;
-      const featureTitle = getFeatureTitlesFromResults((<TTrackResult>tracksDoc).result).join(',');
-      const tracksResult = await this.tracksToSummaryItem(loc, this.tracksStorage, <TTrackResult>tracksDoc, dir);
-      return { featureJSON: htmlGenerator.getFeatureResult(tracksResult as TFeatureSummary, featureTitle), script: ReviewScript(startOffset) };
-    }
-  }
-
-  async publishResults(world: TWorld) {
-    const rin = this.tracksStorage;
-    const rout = this.publishStorage;
-    // FIXME media type is ...
-    const dir = await rin.fromCaptureLocation(EMediaTypes.html, world.options.DEST);
-
-    await this.recurseCopy(dir, rin, rout);
-  }
-  async recurseCopy(dir: string, rin: AStorage, rout: AStorage) {
-    const entries = await rin.readdirStat(dir);
+  async recurseCopy({ src, fromFS, toFS, toFolder, trimFolder }: { src: string, fromFS: AStorage, toFS: AStorage, toFolder?: string, trimFolder?: string }) {
+    const entries = await fromFS.readdirStat(src);
 
     for (const entry of entries) {
-      const here = entry.name;
-
+      const fileName = entry.name;
       if (entry.isDirectory) {
-        await rout.mkdirp(here);
-        await this.recurseCopy(here, rin, rout);
+        await this.recurseCopy({ src: fileName, fromFS, toFS, toFolder, trimFolder });
       } else {
-        const content = await rin.readFile(here);
-        const ext = <EMediaTypes>guessMediaExt(entry.name);
-
-        await rout.writeFile(here, content, ext);
+        const dest = this.artifactLocation(fileName, toFolder, trimFolder);
+        await this.copyFile(fileName, dest);
       }
     }
   }
-  async tracksToSummaryItem(loc: TLocationOptions, storage: AStorage, tracks: TTrackResult | typeof MISSING_TRACKS, dir: string): Promise<TSummaryItem> {
-    const { result, meta } = (<TTrackResult>tracks);
-    const { title, startTime } = meta;
-    const videoBase = await this.tracksStorage.getCaptureLocation(loc, 'video');
-    let videoSrc: string | undefined = undefined;
-    try {
-      const file = (await storage.readdir(videoBase))[0];
-      videoSrc = this.publishStorage.pathed(EMediaTypes.video, await this.publishStorage.getCaptureLocation(loc, 'video') + `/${file}`, dir);
-    } catch (e) {
-      // there is no video file
-    }
 
-    if (!result) {
-      return { title, startTime, sourcePath: MISSING_TRACKS_FILE, ok: false, subResults: [] }
-    } else {
-      const i: Partial<TSummaryItem> = { videoSrc, title, startTime, sourcePath: result.path, ok: result.ok, subResults: [] }
-      for (const stepResult of (result as TFeatureResult).stepResults) {
-        for (const actionResult of stepResult.actionResults) {
-          const sr: Partial<TSummaryItem> = {
-            start: (actionResult as any).start, seq: stepResult.seq, in: stepResult.in,
-            sourcePath: stepResult.sourcePath,
-            ok: actionResult.ok, name: actionResult.name, topics: actionResult.topics, traces: actionResult.traces
-          };
-          i.subResults?.push(sr as TStepSummary);
-        }
-      }
-      return i as TSummaryItem;
-    }
+  artifactLocation(fileName: string, toFolder: string, trimFolder?: string): TPathed {
+    const ext = <EMediaTypes>guessMediaExt(fileName);
+    const trimmed = trimFolder ? fileName.replace(trimFolder, '') : fileName;
+    const dest = this.publishStorage.pathed(ext, toFolder ? `${toFolder}/${trimmed}`.replace(/\/\//, '/') : trimmed);
+    return { pathed: dest };
+  }
+
+  async copyFile(source: string, pathedDest: TPathed) {
+    const ext = <EMediaTypes>guessMediaExt(source);
+    const content = await this.localFS.readFile(source);
+    await this.publishStorage.mkdirp(path.dirname(pathedDest.pathed));
+    await this.publishStorage.writeFile(pathedDest, content, ext);
+  }
+
+  // implements ITrackResults
+  async writeTracksFile(loc: TLocationOptions, description: string, result: TFeatureResult, startTime: Date, startOffset: number, logHistory: TLogHistory[]) {
+    const dir = await this.tracksStorage.ensureCaptureLocation(loc, 'tracks', TRACKS_FILE);
+    const logFeature = <TLogHistoryWithExecutorTopic>logHistory.find(h => asStepperActionType(h, 'feature'));
+    const feature = logFeature?.messageContext.tag.params.feature;
+
+    const history: THistoryWithMeta = {
+      '$schema': SCHEMA_HISTORY_WITH_META,
+      meta: { startTime: startTime.toISOString(), description, feature, startOffset, ok: result.ok },
+      logHistory
+    };
+    await this.tracksStorage.writeFile(dir, JSON.stringify(history, null, 2), loc.mediaType);
   }
 }
-
 
 export default OutReviews;

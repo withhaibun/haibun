@@ -6,7 +6,7 @@ import {
   TNotOKActionResult,
   TOKActionResult,
   IResultOutput,
-  TResult,
+  TExecutorResult,
   TSpecl,
   TWorld,
   TRuntime,
@@ -21,7 +21,10 @@ import {
   TTagValue,
   TFeatureResult,
   TBase,
+  TAnyFixme,
 } from '../defs.js';
+import { Timer } from '../Timer.js';
+import { version } from '../../currentVersion.js';
 
 type TClass = { new <T>(...args: unknown[]): T };
 export type TFileSystem = Partial<typeof nodeFS>;
@@ -49,7 +52,7 @@ export function checkModuleIsClass(re: object, module: string) {
   }
 }
 
-export async function resultOutput(type: string | undefined, result: TResult) {
+export async function getOutputResult(type: string | undefined, result: TExecutorResult): Promise<object | string> {
   if (type) {
     const loc = getModuleLocation(type);
     const AnOut = await use(loc);
@@ -58,9 +61,6 @@ export async function resultOutput(type: string | undefined, result: TResult) {
       const res = await out.writeOutput(result, {});
       return res;
     }
-  }
-  if (!result.ok) {
-    return { ...result, results: result.results?.filter((r) => !r.ok).map((r) => (r.stepResults = r.stepResults.filter((s) => !s.ok))) };
   }
   return result;
 }
@@ -176,10 +176,8 @@ export function getActionable(value: string) {
 export function describeSteppers(steppers: AStepper[]) {
   return steppers
     ?.map((stepper) => {
-      return `${stepper.constructor.name}: ${Object.keys(stepper.steps).sort().join('|')}`;
-    })
-    .sort()
-    .join('  ');
+      return `${stepper.constructor.name}: ${Object.keys(stepper?.steps).sort().join('|')}`;
+    }).sort().join('  ');
 }
 
 // from https://stackoverflow.com/questions/1027224/how-can-i-test-if-a-letter-in-a-string-is-uppercase-or-lowercase-using-javascrip
@@ -243,13 +241,16 @@ export async function verifyRequiredOptions(steppers: CStepper[], options: TExtr
   const requiredMissing: string[] = [];
   for (const Stepper of steppers) {
     const stepper = new Stepper();
-
     const ao = stepper as IHasOptions;
 
     for (const option in ao.options) {
-      const n = getStepperOptionName(stepper, option);
-      if (ao.options[option].required && !options[n]) {
-        requiredMissing.push(n);
+      const optionName = getStepperOptionName(stepper, option);
+      if (ao.options[option].required && !options[optionName]) {
+        const { altSource } = ao.options[option];
+        const altName = getStepperOptionName(stepper, altSource);
+        if (!(altSource && options[altName])) {
+          requiredMissing.push(optionName);
+        }
       }
     }
   }
@@ -270,17 +271,32 @@ export function getStepperOption(stepper: AStepper, name: string, extraOptions: 
   return extraOptions[key];
 }
 
-export function findStepperFromOption<Type>(steppers: AStepper[], stepper: AStepper, extraOptions: TExtraOptions, ...name: string[]): Type {
-  const val = name.reduce<string | undefined>((v, n) => v || getStepperOption(stepper, n, extraOptions), undefined);
+/**
+ * Find a stepper by option value from a list of steppers
+ */
+export function maybeFindStepperFromOption<Type>(steppers: AStepper[], stepper: AStepper, extraOptions: TExtraOptions, ...optionNames: string[]): Type {
+  return doFindStepperFromOption(steppers, stepper, extraOptions, true, ...optionNames);
+}
+export function findStepperFromOption<Type>(steppers: AStepper[], stepper: AStepper, extraOptions: TExtraOptions, ...optionNames: string[]): Type {
+  return doFindStepperFromOption(steppers, stepper, extraOptions, false, ...optionNames);
+}
+function doFindStepperFromOption<Type>(steppers: AStepper[], stepper: AStepper, extraOptions: TExtraOptions, optional: boolean, ...optionNames: string[]): Type {
+  const val = optionNames.reduce<string | undefined>((v, n) => {
+    const r = getStepperOption(stepper, n, extraOptions);
+    return v || r;
+  }, undefined);
 
+  if (!val && optional) {
+    return undefined;
+  }
   if (!val) {
-    throw Error(`Cannot find ${name} from ${stepper.constructor.name} options`);
+    throw Error(`Cannot find ${optionNames.map(o => getStepperOptionName(stepper, o)).join(' or ')} in your ${stepper.constructor.name} options ${JSON.stringify(Object.keys(extraOptions).filter(k => k.startsWith(getPre(stepper))))}`)
   }
   return findStepper(steppers, val);
 }
 
 export function findStepper<Type>(steppers: AStepper[], name: string): Type {
-  const stepper = <Type>(steppers.find((s) => s.constructor.name === name) as any);
+  const stepper = <Type>(steppers.find((s) => s.constructor.name === name) as TAnyFixme);
   if (!stepper) {
     // FIXME does not cascade
     throw Error(
@@ -288,7 +304,8 @@ export function findStepper<Type>(steppers: AStepper[], name: string): Type {
         steppers.map((s) => s.constructor.name),
         null,
         2
-      )}`
+      )
+      } `
     );
   }
   return stepper;
@@ -298,7 +315,7 @@ export function getFromRuntime<Type>(runtime: TRuntime, name: string): Type {
   return runtime[name] as Type;
 }
 
-export function applyResShouldContinue(world: any, res: Partial<TActionResult>, vstep: TFound): boolean {
+export function applyResShouldContinue(world: TWorld, res: Partial<TActionResult>, vstep: TFound): boolean {
   const { score, message } = res as TNotOKActionResult;
   if (res.ok) {
     return true;
@@ -313,11 +330,12 @@ export function applyResShouldContinue(world: any, res: Partial<TActionResult>, 
 }
 
 export const getRunTag = (sequence: TTagValue, loop: TTagValue, featureNum: TTagValue, member: TTagValue, params = {}, trace = false) => {
-  const res: TTag = { sequence, loop, member, featureNum, params, trace };
+  const key = Timer.key;
+  const res: TTag = { key, sequence, loop, member, featureNum, params, trace };
   ['sequence', 'loop', 'member', 'featureNum'].forEach((w) => {
-    const val = (res as any)[w];
+    const val = (res as TAnyFixme)[w];
     if (parseInt(val) !== val) {
-      throw Error(`missing ${w} from ${JSON.stringify(res)}`);
+      throw Error(`non - numeric ${w} from ${JSON.stringify(res)} `);
     }
   });
   return res;
@@ -347,6 +365,13 @@ export const stringOrError = (val: string) => {
   return { result: val };
 };
 
+export const optionOrError = (val: string, options: string[]) => {
+  if (val === undefined || val === null || !options.includes(val)) {
+    return { error: `"${val}" is not defined or not one of ${JSON.stringify(options)} ` };
+  }
+  return { result: val };
+};
+
 export function friendlyTime(d: Date) {
   return new Date(d).toLocaleString();
 }
@@ -369,7 +394,7 @@ export function trying<TResult>(fun: () => void): Promise<Error | TResult> {
 }
 
 export function asError(e: unknown): Error {
-  return typeof e === 'object' && e !== null && 'message' in e && typeof (e as Record<string, unknown>).message === 'string' ? (e as Error) : new Error(e as any);
+  return typeof e === 'object' && e !== null && 'message' in e && typeof (e as Record<string, unknown>).message === 'string' ? (e as Error) : new Error(e as TAnyFixme);
 }
 
 export const getSerialTime = () => Date.now();

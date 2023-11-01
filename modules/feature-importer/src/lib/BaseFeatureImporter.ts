@@ -1,4 +1,4 @@
-import { TResultError } from "@haibun/core/build/lib/defs.js";
+import { TExecutorResultError } from "@haibun/core/build/lib/defs.js";
 import { ILogger } from "@haibun/core/build/lib/interfaces/logger.js";
 import { WEB_PAGE } from "@haibun/domain-webpage";
 import { TFeatureParsed } from "./defs.js";
@@ -16,7 +16,7 @@ export default abstract class BaseFeatureImporter {
         this.logger = logger;
     }
 
-    abstract getResult(): TFeatureParsed | TResultError;
+    abstract getResult(): TFeatureParsed | TExecutorResultError;
 
     setCurrentPage(address: string) {
         const tag = this.getTag(WEB_PAGE, address);

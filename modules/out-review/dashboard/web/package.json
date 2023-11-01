@@ -1,0 +1,22 @@
+{
+  "name": "haibun-reviews-dashboard",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "rollup -c",
+    "build-watch": "rollup -c --watch",
+    "test-watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
+  },
+  "dependencies": {
+    "@haibun/out-review": "^1.30.7",
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "@rollup/plugin-typescript": "^11.1.5",
+    "@types/node": "^20.8.5",
+    "lit": "^3.0.0",
+    "rollup": "^4.1.4",
+    "typescript": "^5.2.2"
+  },
+  "devDependencies": {
+    "rollup-plugin-lit-css": "^4.0.1"
+  }
+}

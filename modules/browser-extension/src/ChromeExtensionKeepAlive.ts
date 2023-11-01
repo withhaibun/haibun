@@ -5,7 +5,7 @@ import { ILoggerKeepAlive } from "@haibun/core/build/lib/interfaces/logger.js";
 export class ChromeExtensionKeepAlive implements ILoggerKeepAlive {
     lifeline: chrome.runtime.Port | undefined;
     async start() {
-        this.keepAlive();
+        await this.keepAlive();
 
         chrome.runtime.onConnect.addListener((port: chrome.runtime.Port): void => {
             if (port.name === 'keepAlive') {
@@ -40,7 +40,7 @@ export class ChromeExtensionKeepAlive implements ILoggerKeepAlive {
 
     async retryOnTabUpdate(tabId: number, info: chrome.tabs.TabChangeInfo, tab: chrome.tabs.Tab) {
         if (info.url && /^(file|https?):/.test(info.url)) {
-            this.keepAlive();
+            await this.keepAlive();
         }
     }
 }

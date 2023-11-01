@@ -1,6 +1,6 @@
 import { popupActions } from '../services/constants.js';
 import Background from './Background.js';
-import MockChrome  from '../mock-chrome/MockChrome.js';
+import MockChrome from '../mock-chrome/MockChrome.js';
 
 declare global {
   interface Window { chrome: typeof chrome; }
@@ -17,14 +17,14 @@ beforeEach(() => {
 })
 
 describe('startRecording', () => {
-  it('starts recording', () => {
-    mockChrome.runtime.sendMessage({ action: popupActions.START_RECORDING })
+  it('starts recording', async () => {
+    await mockChrome.runtime.sendMessage({ action: popupActions.START_RECORDING })
   });
 });
 
 describe('stop', () => {
-  it('stops recording', () => {
-    mockChrome.runtime.sendMessage({ action: popupActions.STOP_RECORDING })
+  it('stops recording', async () => {
+    await mockChrome.runtime.sendMessage({ action: popupActions.STOP_RECORDING })
     // await this.generateCode()
   });
 });

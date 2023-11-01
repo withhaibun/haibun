@@ -1,6 +1,6 @@
 export class Timer {
   static startTime = new Date();
-  static key = `${Timer.startTime}`;
+  static key = `${Timer.startTime.getTime()}`;
   static START_TIME = process.hrtime();
   static setKey(newKey: string) {
     Timer.key = newKey;

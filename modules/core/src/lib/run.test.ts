@@ -1,4 +1,3 @@
-import haibun from '../steps/haibun.js';
 import { AStepper, OK } from './defs.js';
 import { testWithDefaults } from './test/lib.js';
 import TestSteps from './test/TestSteps.js';
@@ -10,8 +9,8 @@ describe('run self-contained', () => {
     const result = await testWithDefaults([feature], [TestSteps]);
 
     expect(result.ok).toBe(true);
-    expect(result.results.length).toBe(1);
-    const t = result.results[0];
+    expect(result.featureResults.length).toBe(1);
+    const t = result.featureResults[0];
     expect(t).toBeDefined();
     expect(t.ok).toBe(true);
     expect(t.stepResults.length).toBe(2);
@@ -49,8 +48,8 @@ describe('run backgrounds', () => {
 
     expect(result.ok).toBe(true);
 
-    expect(result.results.length).toBe(1);
-    const t = result.results[0];
+    expect(result.featureResults.length).toBe(1);
+    const t = result.featureResults[0];
     expect(t).toBeDefined();
     expect(t.ok).toBe(true);
 
@@ -103,7 +102,7 @@ describe('multiple', () => {
     const result = await testWithDefaults(features, [TestSteps]);
 
     expect(result.ok).toBe(false);
-    expect(result.results?.length).toBe(2);
+    expect(result.featureResults?.length).toBe(2);
 
     expect(result.failure?.stage).toBe('Execute');
   });
@@ -132,6 +131,6 @@ describe('handles exception', () => {
 
     expect(result.ok).toBe(false);
 
-    expect(result.results?.length).toBe(1);
+    expect(result.featureResults?.length).toBe(1);
   });
 });

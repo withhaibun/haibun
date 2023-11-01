@@ -1,12 +1,12 @@
 {
   "name": "@haibun/parse-md",
   "type": "module",
-  "version": "1.25.0",
+  "version": "1.31.1",
   "description": "",
   "files": [
     "build/**"
   ],
-  "main": "index.js",
+  "main": "build/parse-md.js",
   "scripts": {
     "build": "tsc -b .",
     "prepublishOnly": "tsc -b .",
@@ -19,7 +19,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@haibun/core": "1.25.0",
+    "@haibun/core": "1.31.1",
     "turndown": "^7.1.1"
   },
   "devDependencies": {

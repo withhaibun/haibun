@@ -1,19 +1,21 @@
 import { spawnSync } from 'child_process';
 
-export function spawn(command: string[], module = '.', show = false): void | Error {
+export function spawn(command: string[], module = '.', opts?: { show?: boolean, env?: { [key: string]: string } }): string | Error {
   const place = module === '.' ? '<root>' : module;
-  console.info(`${place}$ ${command.join(' ')}`);
+  console.group(`${place}$ ${command.join(' ')}`);
   const [cmd, ...args] = command;
-  const { output, stdout, stderr, status, error } = spawnSync(cmd, args, { cwd: module, env: process.env });
+  const { output, stdout, stderr, status, error } = spawnSync(cmd, args, { cwd: module, env: opts?.env || process.env });
   const errString = (error?.message || '') + (stderr?.toString() || '');
   if (errString.length > 0) {
-    console.log(stdout);
-    console.error(`${place}> "${output}" status: ${status}`);
+    console.log('stdout', stdout?.toString());
+    console.error(`${place}> "${output}"\nstatus: ${status}\nerrString: ${errString}`);
     if (status !== 0) {
       throw Error(place + ': ' + (errString.substring(0, errString.indexOf('\n'))));
     }
-    if (show) {
+    if (opts?.show) {
       console.log(`${place}> ${output}`);
     }
   }
+  console.groupEnd();
+  return stdout.toString();
 }

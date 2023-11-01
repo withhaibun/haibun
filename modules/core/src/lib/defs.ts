@@ -1,6 +1,7 @@
+import { version } from '../currentVersion.js';
 import { Resolver } from '../phases/Resolver.js';
 import { DomainContext, WorkspaceContext, WorldContext } from './contexts.js';
-import { ILogger } from './interfaces/logger.js';
+import { ILogger, TMessageContext } from './interfaces/logger.js';
 import { Timer } from './Timer.js';
 
 export type TSpecl = {
@@ -20,15 +21,17 @@ export type TOptions = TBaseOptions & {
   [name: string]: TOptionValue;
 };
 
-export type TOptionValue = any;
+export type TOptionValue = TAnyFixme;
 
 export interface IHasOptions {
   options?: {
     [name: string]: {
       required?: boolean;
+      // alternate for the literal option
+      altSource?: string;
       default?: string;
       desc: string;
-      parse: (input: string, existing?: TOptionValue) => { error?: string; env?: TOptions; result?: any };
+      parse: (input: string, existing?: TOptionValue) => { error?: string; env?: TOptions; result?: TAnyFixme };
     };
   };
 }
@@ -66,7 +69,6 @@ export type TModuleDomain = TDomain & {
   module: IHasDomains;
   shared: DomainContext;
 };
-
 
 export type TBase = string[];
 
@@ -111,11 +113,12 @@ export type TResolvedFeature = TExpandedFeature & {
 
 export type TTagValue = number;
 export type TTag = {
+  key: string;
   sequence: number;
   featureNum: number;
   loop: number;
   member: number;
-  params: any;
+  params: TAnyFixme;
   trace: boolean;
 };
 
@@ -127,7 +130,7 @@ export type TVStep = {
 };
 
 export type TAction = (named: TNamed, vstep: TVStep) => Promise<TActionResult>;
-export type TBuildResult = (TOKActionResult & { finalize?: TFinalize, workspace?: WorkspaceContext }) | TNotOKActionResult;
+export type TBuildResult = (TOKActionResult & { finalize?: TFinalize; workspace?: WorkspaceContext }) | TNotOKActionResult;
 export type TBuild = (named: TNamed, vstep: TVStep, workspace: WorkspaceContext, resolver: Resolver, steppers: AStepper[]) => Promise<TBuildResult>;
 
 export type TRequiresResult = { includes?: string[] };
@@ -139,8 +142,8 @@ export abstract class WorkspaceBuilder {
   constructor(name: string) {
     this.name = name;
   }
-  abstract addControl(...args: any);
-  abstract finalize(): any;
+  abstract addControl(...args: TAnyFixme);
+  abstract finalize(): TAnyFixme;
 }
 
 export type TStep = {
@@ -157,17 +160,20 @@ export interface CStepper {
     steps: {
       [name: string]: TStep;
     };
-    setWorld(world: TWorld, steppers: AStepper[]): void;
+    setWorld(world: TWorld, steppers: AStepper[]): Promise<void>;
     getWorld(): TWorld;
   };
 }
 
+// punt any type problems
+export type TAnyFixme = any;
 export abstract class AStepper {
   world?: TWorld;
   close?(): void;
-  endFeature?(): void;
-  onFailure?(result: TStepResult): void;
-  setWorld(world: TWorld, steppers: AStepper[]) {
+  endFeature?(): Promise<void>;
+  onFailure?(result: TStepResult, step: TVStep): Promise<void | TMessageContext>;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async setWorld(world: TWorld, steppers: AStepper[]) {
     this.world = world;
   }
   abstract steps: { [name: string]: TStep };
@@ -186,23 +192,23 @@ export type TNamedVar = { name: string; type: string };
 
 export const OK: TOKActionResult = { ok: true };
 
-export type TResultError = {
+export type TExecutorResultError = {
   details: {
-    [name: string]: any;
+    [name: string]: TAnyFixme;
     stack: string[];
   };
   message: string;
 };
 
-export type TResult = {
+export type TExecutorResult = {
   ok: boolean;
   tag: TTag;
   shared: WorldContext;
   topics?: TActionResultTopics;
-  results?: TFeatureResult[];
+  featureResults?: TFeatureResult[];
   failure?: {
     stage: string;
-    error: TResultError;
+    error: TExecutorResultError;
   };
 };
 
@@ -211,13 +217,13 @@ export type TOKActionResult = {
   topics?: TActionResultTopics;
 };
 
-export type TActionResultTopics = { [topic: string]: { summary: string; details?: any } };
+export type TActionResultTopics = { [topic: string]: { summary: string; details?: TAnyFixme; report?: { html?: string; image?: string; video?: string } } };
 
 export type TNotOKActionResult = {
   ok: false;
   score?: number;
   message: string;
-  error?: Error,
+  error?: Error;
   topics?: TActionResultTopics;
 };
 
@@ -225,7 +231,7 @@ export type TTrace = {
   [name: string]: {
     url: string;
     since: number;
-    trace: any;
+    trace: TAnyFixme;
   };
 };
 
@@ -238,7 +244,7 @@ export type TTraces = {
 
 export type TTraceOptions = {
   [event: string]: {
-    listener: any;
+    listener: TAnyFixme;
   };
 };
 
@@ -264,8 +270,8 @@ export type TFeatureResult = {
 
 export type TFeatureResultFailure = {
   message: string;
-  error: any;
-  expected?: any;
+  error: TAnyFixme;
+  expected?: TAnyFixme;
 };
 
 export type TStepResult = {
@@ -276,10 +282,10 @@ export type TStepResult = {
   seq: number;
 };
 
-export type TRuntime = { [name: string]: any };
+export type TRuntime = { [name: string]: TAnyFixme };
 
 export interface IResultOutput {
-  writeOutput(result: TResult, args: any): Promise<any>;
+  writeOutput(result: TExecutorResult, args: TAnyFixme): Promise<TAnyFixme>;
 }
 
 export const HAIBUN = 'HAIBUN';
@@ -301,6 +307,7 @@ export type TEndFeatureCallback = (params: TEndFeatureCallbackParams) => Promise
 export type TRunEnv = { [name: string]: string };
 // FIXME remove protoOptions, splits, etc.
 export type TRunOptions = {
+  key: string;
   loops: number;
   members: number;
   trace: boolean;
@@ -312,4 +319,12 @@ export type TRunOptions = {
   splits: TRunEnv[];
   protoOptions: TProtoOptions;
 };
-export type TRunResult = { output: any; result: TResult; shared: WorldContext; tag: TTag; runStart: number; runDuration: number; fromStart: number };
+export type TRunResult = { output: TAnyFixme; result: TExecutorResult; shared: WorldContext; tag: TTag; runStart: number; runDuration: number; fromStart: number };
+
+export const STAY_ALWAYS = 'always';
+export const STAY_FAILURE = 'failure';
+export const STAY = 'STAY';
+
+export function versionedSchema(schema: string) {
+  return `https://raw.githubusercontent.com/withhaibun/schemas/main/schemas/${schema}.json#${version}`;
+}

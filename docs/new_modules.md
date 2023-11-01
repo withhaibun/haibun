@@ -45,7 +45,7 @@ const FilesExist = class FilesExist extends AStepper implements IHasOptions, IRe
     };
     storage?: AStorage;
     async setWorld(world: TWorld, steppers: AStepper[]) {
-        super.setWorld(world, steppers);
+        await super.setWorld(world, steppers);
         this.storage = findStepperFromOption(steppers, this, this.getWorld().extraOptions, STORAGE);
     }
     steps = {
