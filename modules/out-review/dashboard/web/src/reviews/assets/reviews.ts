@@ -1,6 +1,7 @@
 import { css } from "lit";
 
-export const controls = css`ul {
+export const controls = css`
+ul {
   list-style: none;
 }
 .artifact::before,
@@ -19,6 +20,16 @@ export const controls = css`ul {
 .artifact-button {
   background-color: #FAD575;
   border-radius: 4px;
+}
+
+.styled-select {
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  padding: 5px 10px; /* Padding inside the select box */
+  font-size: 16px; /* Font size */
+  appearance: none; /* Removes default browser style */
+  -webkit-appearance: none; /* For Safari */
+  -moz-appearance: none; /* For Firefox */
 }
 
 .ok-false::before {

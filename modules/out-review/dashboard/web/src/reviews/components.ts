@@ -82,7 +82,7 @@ export class AReview extends LitElement {
       return html`<h1>No data</h1>`;
     }
     const chooseView = html`
-  <select @change=${(e: Event) => this.view = <TView>(<HTMLSelectElement>e.target).value}>
+  <select class="styled-select" @change=${(e: Event) => this.view = <TView>(<HTMLSelectElement>e.target).value}>
     ${views.map(option => html`
       <option ?selected=${this.view === option} value=${option}>
         ${option.charAt(0).toUpperCase() + option.slice(1)}
@@ -92,6 +92,7 @@ export class AReview extends LitElement {
 `;
 
     return this.reviewLD && html`
+            <div style="margin-bottom: 4px; padding-left: 20px">View ${chooseView} <label for="show-all-messages"></label></div>
       ${viewStyle}
       <div style="margin-left: 40px">
         <h2 class="ok-${this.reviewLD.meta.ok}">${this.reviewLD.meta.feature}</h2>
@@ -102,7 +103,6 @@ export class AReview extends LitElement {
     })}
           </div>
           <div class="detail-container">
-            View ${chooseView} <label for="show-all-messages"></label>
             ${this.detail}
           </div>
         </div>
