@@ -1,7 +1,7 @@
 
 # Developing new modules
 
-NB: Normally, you'd use the [scaffold command](../modules/utils/README#scaffolding). 
+NB: Normally, you'd use the [[scaffold command](../modules/utils/README#scaffolding](https://github.com/withhaibun/haibun/blob/main/modules/utils/README.md#scaffolding)). 
 
 A new Haibun module is created by extending the `AStepper` abstract class from
 @haibun/core (see example below), and adding the module to the testing target
