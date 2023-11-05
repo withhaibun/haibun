@@ -1,20 +1,44 @@
 import { css } from "lit";
 
-export const controls  = css`ul {
+export const controls = css`
+ul {
   list-style: none;
 }
+.artifact::before,
 .ok-true::before,
 .ok-false::before {
   position: absolute;
   left: -5px; /* Adjust this value to move it further or closer */
 }
+
+.artifact::before {
+  content: '📦 ';
+  position: absolute;
+  padding-left: 33px;
+}
+
+.artifact-button {
+  background-color: #FAD575;
+  border-radius: 4px;
+}
+
+.styled-select {
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  padding: 5px 10px; /* Padding inside the select box */
+  font-size: 16px; /* Font size */
+  appearance: none; /* Removes default browser style */
+  -webkit-appearance: none; /* For Safari */
+  -moz-appearance: none; /* For Firefox */
+}
+
 .ok-false::before {
   content: '✕ ';
   color: red;
   position: absolute;
   padding-left: 33px;
 }
-.ok-true::before {
+.ok-true:not(.stepper-prose):not(.stepper-feature)::before {
   content: '✓ ';
   color: green;
   position: absolute;
@@ -46,6 +70,11 @@ h2 {
 .code {
   font-family: monospace;
   white-space: pre-wrap;
-}
+}`;
 
+export const documentation = css`
+  ::part(review-step) {
+    line-height: 1.5em;
+    margin-top: .5em;
+  }
 `;
