@@ -20,6 +20,7 @@ export class ReviewOverview extends HTMLElement {
 
   render(prData: TPRData | null, reviewData: TTraceHistorySummary[]) {
     // const prLink = prData ? `<a href="${prData.link}" data-testid="_hai-latest-pr">${prData.title} (${prData.date})</a>` : 'No latest PR found.';
+    const openFrame = window !== top ? 'Open links in a new window to escape this frame.' : '';
     const reviewLinks = reviewData.length > 0 ? reviewData.map(review => {
       const titles = review.features;
       return `<a href="${review.link}" data-testid="_hai-review-titles">${titles} (${review.date}) ✅ ${review.results?.success} ❌ ${review.results?.fail}</a>`;
@@ -29,7 +30,7 @@ export class ReviewOverview extends HTMLElement {
       <div class="list-container">
         <h2>Reviews</h2>
         <div class="list-item">${reviewLinks}</div>
-        <i>Open links in a new window to escape this frame.</i>
+        <i>${openFrame}</i>
       </div>
     `;
   }

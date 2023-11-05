@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 import typescript from '@rollup/plugin-typescript';
 import resolve from '@rollup/plugin-node-resolve';
 import litcss from 'rollup-plugin-lit-css';
@@ -10,10 +11,15 @@ const dashboard = {
   plugins: [litcss(), resolve(), typescript({ outDir: './built/dashboard' })],
 };
 
-const reviewer = {
+const reviewer = (dir) => ({
   input: `./src/reviews/index.ts`,
-  output: { dir: `built/reviewer/` },
-  plugins: [litcss(), resolve(), typescript({ outDir: './built/reviewer' })],
-};
+  output: { dir },
+  plugins: [litcss(), resolve(), typescript({ outDir: dir })],
+});
 
-export default [dashboard, reviewer];
+const builds = [dashboard, reviewer('built/reviewer')];
+// export DASHBOARD_PREVIEW="$HOME/D/withhaibun/haibun-e2e-tests/files/published/built/reviewer"
+if (process.env.DASHBOARD_PREVIEW) {
+  builds.push(reviewer(process.env.DASHBOARD_PREVIEW));
+}
+export default builds;

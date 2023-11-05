@@ -2,9 +2,9 @@ import { LitElement, html, css, TemplateResult, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 
-import { controls } from './assets/reviews.js';
+import { controls, documentation } from './assets/reviews.js';
 
-import { TFoundHistories, THistoryWithMeta, findArtifacts, asArtifact, asActionResult } from '@haibun/out-review/build/lib.js';
+import { TFoundHistories, THistoryWithMeta, findArtifacts, asArtifact, asActionResult, actionName } from '@haibun/out-review/build/lib.js';
 import { TWindowRouter } from './router.js';
 import { TLogHistoryWithArtifact, TLogHistory, TArtifactMessageContext, TArtifact } from '@haibun/core/build/lib/interfaces/logger.js';
 
@@ -29,12 +29,13 @@ export class ReviewsGroups extends LitElement {
     return html`<ul>${groups}</ul>`;
   }
 }
-
+const views = ['results', 'everything', 'documentation'] as const;
+type TView = typeof views[number];
 @customElement('a-review')
 export class AReview extends LitElement {
   @property({ type: Object }) reviewLD?: THistoryWithMeta;
   @property({ type: Object }) detail?: object;
-  @property({ type: Boolean }) showDetails = false;
+  @property({ type: String }) view: TView = 'results';
 
   static styles = [controls, css`.review-body {
       display: flex;
@@ -53,26 +54,55 @@ export class AReview extends LitElement {
     this.artifacts = (findArtifacts(this.reviewLD) || []);
     this.videoOverview = this.artifacts.find(a => a.messageContext.artifact.type === 'video' && a.messageContext.topic.event === 'summary');
     this.videoDetail();
+    this.initializeFromCookie();
     await super.connectedCallback();
   }
 
+  currentFilter = (h: TLogHistory) => {
+    if (this.view === 'everything') {
+      return true;
+    }
+    if (this.view === 'results') {
+      return (asActionResult(h) || (asArtifact(h) && asArtifact(h)?.messageContext?.topic?.event !== 'debug'));
+    }
+    const action = asActionResult(h);
+    if (action) {
+      const { actionName, stepperName } = action.messageContext.topic.step.actions[0];
+      // FIXME this should be mapped to something like log level
+      if (!['set', 'setAll'].includes(actionName) && !['WebServerStepper'].includes(stepperName)) {
+        return true;
+      }
+      return false;
+    }
+    return (asArtifact(h) && asArtifact(h)?.messageContext?.topic?.event !== 'debug');
+  };
   render() {
-    const currentFilter = (h: TLogHistory) => this.showDetails ? h : (asActionResult(h) || (asArtifact(h) && asArtifact(h)?.messageContext?.topic?.event !== 'debug'));
+    const viewStyle = this.view === 'documentation' ? html`<style>${documentation}</style>` : nothing;
     if (!this.reviewLD) {
       return html`<h1>No data</h1>`;
     }
-    const checkbox = html`<input id="show-all-messages" type="checkbox" @change=${(e: Event) => this.showDetails = (<HTMLInputElement>e.target).checked} />`;
+    const chooseView = html`
+  <select class="styled-select" @change=${(e: Event) => this.view = <TView>(<HTMLSelectElement>e.target).value}>
+    ${views.map(option => html`
+      <option ?selected=${this.view === option} value=${option}>
+        ${option.charAt(0).toUpperCase() + option.slice(1)}
+      </option>
+    `)}
+  </select>
+`;
+
     return this.reviewLD && html`
+            <div style="margin-bottom: 4px; padding-left: 20px">View ${chooseView} <label for="show-all-messages"></label></div>
+      ${viewStyle}
       <div style="margin-left: 40px">
         <h2 class="ok-${this.reviewLD.meta.ok}">${this.reviewLD.meta.feature}</h2>
         <div class="review-body">
           <div>
-          ${(this.reviewLD.logHistory).filter(currentFilter).map(h => {
-      return html`<review-step class="left-container" .logHistory=${h} @show-detail=${this.handleShowDetail}>></review-step>`
+          ${(this.reviewLD.logHistory).filter(this.currentFilter).map(h => {
+      return html`<review-step class="left-container" ?showLogLevel=${this.view !== 'documentation'} .logHistory=${h} @show-detail=${this.handleShowDetail}> .view=${this.view}></review-step>`
     })}
           </div>
           <div class="detail-container">
-            ${checkbox} <label for="show-all-messages">Show all messages</label>
             ${this.detail}
           </div>
         </div>
@@ -87,12 +117,44 @@ export class AReview extends LitElement {
     const content = getDetailContent(this.videoOverview?.messageContext.artifact);
     this.detail = html`${content}`;
   }
+
+  updated(changedProperties: Map<string | number | symbol, unknown>) {
+    if (changedProperties.has('view')) {
+      this.saveToCookie();
+    }
+  }
+
+  initializeFromCookie() {
+    const cookieValue = this.getCookie('view');
+    console.log('cookie ', cookieValue)
+    if (cookieValue !== null) {
+      this.view = <TView>cookieValue;
+    }
+  }
+
+  saveToCookie() {
+    console.log('saving cookie', this.view)
+    document.cookie = `view=${this.view};path=/;max-age=31536000`; // Expires in 1 year
+  }
+
+  getCookie(name: string): string | null {
+    const nameEQ = name + "=";
+    const ca = document.cookie.split(';');
+    for (let i = 0; i < ca.length; i++) {
+      let c = ca[i];
+      while (c.charAt(0) == ' ') c = c.substring(1, c.length);
+      if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);
+    }
+    return null;
+  }
 }
 
 @customElement('review-step')
 export class ReviewStep extends LitElement {
-  static styles = [controls];
   @property({ type: Array }) logHistory?: TLogHistory;
+  @property({ type: Boolean }) showLogLevel = true;
+
+  static styles = [controls];
 
   render() {
     const { logHistory } = this;
@@ -102,19 +164,25 @@ export class ReviewStep extends LitElement {
     if (logHistory === undefined) {
       return html`<div>No history</div>`;
     }
-    let okResult: string | symbol = nothing;
-    okResult = executorResult ? `ok-${executorResult?.messageContext.topic.result.ok}` : nothing;
+    const okClasses = [`stepper-${actionName(logHistory)}`];
+    const result = executorResult?.messageContext.topic.result.ok;
+    if (result !== undefined) {
+      okClasses.push(`ok-${result}`);
+    } else if (logArtifact !== undefined) {
+      okClasses.push('artifact');
+    }
     const message = executorResult ? executorResult.messageContext.topic.step.in : logHistory.message;
-    const loggerDisplay = executorResult ? nothing : this.loggerButton(logHistory.level);
+    const loggerDisplay = (!this.showLogLevel || executorResult) ? nothing : this.loggerButton(logHistory.level);
     const detailButton = logArtifact && this.reportDetail(logArtifact.messageContext);
-    return html`<div><span @click=${this.selectMessage} class=${okResult}>${loggerDisplay} ${message}</span> ${detailButton}</div > `
+    const actionClass = 'stepper-' + (actionName(logHistory) || 'unknown');
+    return html`<div part="review-step" class="stepper ${actionClass}"><span @click=${this.selectMessage} class=${okClasses.filter(Boolean).join(' ')}>${loggerDisplay} ${message}</span> ${detailButton}</div > `
   }
   selectMessage() {
     this.showDetail(html`<div class="code">${JSON.stringify(this.logHistory, null, 2)}</div>`)
   }
   reportDetail(artifactContext: TArtifactMessageContext) {
     const content = getDetailContent(artifactContext.artifact);
-    return html`<button @click=${() => this.showDetail(content)}>📁 ${artifactContext.topic.event} ${artifactContext.artifact.type}</button>`;
+    return html`<button class="artifact-button" @click=${() => this.showDetail(content)}>${artifactContext.topic.event} ${artifactContext.artifact.type}</button>`;
   }
   showDetail(html: TemplateResult) {
     this.dispatchEvent(new CustomEvent('show-detail', { detail: html }));

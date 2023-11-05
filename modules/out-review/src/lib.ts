@@ -45,7 +45,10 @@ export function asArtifact(logHistory: TLogHistory | undefined): TLogHistoryWith
 }
 
 export function asStepperActionType(logHistory: TLogHistory | undefined, stepperType: string): TLogHistoryWithExecutorTopic | undefined {
-  const asTopic = <TLogHistoryWithExecutorTopic>logHistory;
-  const ret = (asTopic.messageContext?.topic?.step?.actions[0].actionName === stepperType) ? <TLogHistoryWithExecutorTopic>logHistory : undefined;
+  const ret = (actionName(logHistory) === stepperType) ? <TLogHistoryWithExecutorTopic>logHistory : undefined;
   return ret;
+}
+
+export const actionName = (logHistory: TLogHistory | undefined) => {
+  return (<TLogHistoryWithExecutorTopic>logHistory).messageContext?.topic?.step?.actions[0].actionName;
 }
