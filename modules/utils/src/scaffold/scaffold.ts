@@ -7,6 +7,8 @@ import path from 'path';
 import { dirname } from 'path';
 import { fileURLToPath } from 'url';
 
+import { currentVersion } from '@haibun/core/build/currentVersion.js';
+
 type Tkv = { [name: string]: string }
 
 const refDir = path.join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -15,10 +17,12 @@ export async function scaffoldHaibun(dest: string, opts?: { out?: typeof console
     const { noPrompt, out: outIn } = opts || {};
     const out = outIn || console.info;
 
-    const currentPackage = JSON.parse(readFileSync(path.join(refDir, 'package.json'), 'utf-8'));
     const refPackage = JSON.parse(readFileSync(path.join(refDir, 'ref.package.json'), 'utf-8'));
     const what: { dirs: string[], [name: string]: Tkv | string[] } = {
-        dependencies: currentPackage.dependencies,
+        dependencies: {
+            '@haibun/core': currentVersion,
+            '@haibun/cli': currentVersion,
+        },
         devDependencies: ["@types/jest", "@types/node", "@typescript-eslint/eslint-plugin", "@typescript-eslint/parser", "eslint", "eslint-config-airbnb-typescript"
             , "eslint-config-prettier", "eslint-plugin-import", "eslint-plugin-prefer-arrow", "eslint-plugin-prettier", "jest"
             , "prettier", "typescript"]
