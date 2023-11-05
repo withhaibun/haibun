@@ -6,7 +6,8 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import path from 'path';
 import { dirname } from 'path';
 import { fileURLToPath } from 'url';
-import validate from 'validate-npm-package-name';
+
+import { currentVersion } from '@haibun/core/build/currentVersion.js';
 
 type Tkv = { [name: string]: string }
 
@@ -16,15 +17,16 @@ export async function scaffoldHaibun(dest: string, opts?: { out?: typeof console
     const { noPrompt, out: outIn } = opts || {};
     const out = outIn || console.info;
 
-    const refHaibunPackage = JSON.parse(readFileSync(path.join(refDir, 'ref.package.json'), 'utf-8'));
+    const refPackage = JSON.parse(readFileSync(path.join(refDir, 'ref.package.json'), 'utf-8'));
     const what: { dirs: string[], [name: string]: Tkv | string[] } = {
         dependencies: {
-            '@haibun/core': `${refHaibunPackage.version}`
+            '@haibun/core': currentVersion,
+            '@haibun/cli': currentVersion,
         },
         devDependencies: ["@types/jest", "@types/node", "@typescript-eslint/eslint-plugin", "@typescript-eslint/parser", "eslint", "eslint-config-airbnb-typescript"
             , "eslint-config-prettier", "eslint-plugin-import", "eslint-plugin-prefer-arrow", "eslint-plugin-prettier", "jest"
             , "prettier", "typescript"]
-            .reduce((a, i) => ({ ...a, [i]: refHaibunPackage.devDependencies[i] }), {} as Tkv),
+            .reduce((a, i) => ({ ...a, [i]: refPackage.devDependencies[i] }), {} as Tkv),
         scripts: {
             test: 'NODE_OPTIONS=--experimental-vm-modules jest',
             "test-watch": 'NODE_OPTIONS=--experimental-vm-modules jest',
@@ -45,8 +47,8 @@ export async function scaffoldHaibun(dest: string, opts?: { out?: typeof console
         pName = localDest.name.replace(/.*\//, '').replace(/[@]/, '_', 'g').replace(/-./g, (x: string) => x[1].toUpperCase());
     } catch (e) {
         if (!noPrompt) {
-            const name = await readPackageName();
-            localDest = { name };
+            pName = await readPackageName();
+            localDest = { name: pName };
         }
     }
 
@@ -54,8 +56,9 @@ export async function scaffoldHaibun(dest: string, opts?: { out?: typeof console
     if (localDest?.type && localDest.type !== 'module') {
         error.push('package.json type must be "module"');
     }
-    if (!validate(localDest?.name).validForNewPackages) {
-        error.push(`${localDest?.name} is not a valid npm package name`);
+    const validateError = validate(localDest?.name);
+    if (validateError) {
+        error.push(`${localDest?.name} is not a valid npm package name: ${validateError}`);
     }
     if (error.length > 0) {
         throw Error(error.join('\n'));
@@ -92,12 +95,13 @@ export async function scaffoldHaibun(dest: string, opts?: { out?: typeof console
         }
     }
 
+    const cName = pName.replace(/-./g, (x) => x[1].toUpperCase());
     for (const f of ['stepper.ts', 'stepper.test.ts']) {
-        writeIfMissing(`src/${f}`, `src/${pName}-${f}`, 'WTW', pName);
+        writeIfMissing(`src/${f}`, `src/${cName}-${f}`, 'WTW', cName);
     }
 
     for (const f of ['ts', 'test.ts']) {
-        writeIfMissing(`src/lib/${f}`, `src/lib/${pName}.${f}`, 'WTW', pName);
+        writeIfMissing(`src/lib/${f}`, `src/lib/${cName}.${f}`, 'WTW', cName);
     }
 
     function writeIfMissing(from: string, to?: string, replace?: string, instead?: string) {
@@ -130,3 +134,41 @@ export async function scaffoldHaibun(dest: string, opts?: { out?: typeof console
     }
 }
 
+function validate(name: string) {
+    if (name === undefined || name.length < 1 || name.length > 214) {
+        return "Package name must be between one and 214 characters long.";
+    }
+
+    if (name.startsWith('.') || name.startsWith('_')) {
+        return "Package name cannot start with a dot or an underscore.";
+    }
+
+    if (/[~'!()*]/.test(name)) {
+        return "Package name contains non-URL-safe characters.";
+    }
+
+    if (name.trim() !== name || name.includes('--')) {
+        return "Package name cannot contain leading or trailing spaces, or multiple consecutive hyphens.";
+    }
+
+    if (name !== name.toLowerCase()) {
+        return "Package name cannot contain uppercase letters.";
+    }
+
+    const reservedNames = ['node_modules', 'favicon.ico'];
+    if (reservedNames.includes(name)) {
+        return `Package name cannot be a reserved name like '${name}'.`;
+    }
+
+    // This is a simplistic check and does not cover all cases.
+    const coreModules = ['http', 'fs', 'path', 'util'];
+    if (coreModules.includes(name)) {
+        return `Package name cannot be the same as a Node.js core module name like '${name}'.`;
+    }
+
+    if (encodeURIComponent(name) !== name) {
+        return "Package name must be URL-safe.";
+    }
+
+    return undefined;
+}
