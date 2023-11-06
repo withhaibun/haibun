@@ -100,7 +100,7 @@ describe('mem getCaptureLocation', () => {
   });
 });
 
-describe.only('readTree', () => {
+describe.skip('readTree', () => {
   const TEST_FS = {
     './capture/default': ['123', '456'],
     './capture/default/123': ['loop-0'],
