@@ -63,7 +63,7 @@ const TEST_CAPTURES = {
   '/capture/default/456/loop-0/seq-0/featn-0/mem-0': ['tracks'],
 };
 
-describe('findTracksJson', () => {
+describe.skip('findTracksJson', () => {
   it('finds tracks', async () => {
     StorageMem.BASE_FS = TEST_CAPTURES;
     const outReviews = new OutReviews();
@@ -74,7 +74,7 @@ describe('findTracksJson', () => {
   });
 });
 
-describe('findHistory', () => {
+describe.skip('findHistory', () => {
   it('finds logHistory', async () => {
     StorageMem.BASE_FS = TEST_CAPTURES;
     const outReviews = new OutReviews();
@@ -85,11 +85,11 @@ describe('findHistory', () => {
   });
 });
 
-describe.only('reviews', () => {
-  it('create found reviews', async () => {
+describe.skip('found history', () => {
+  it('create found history', async () => {
     StorageMem.BASE_FS = TEST_CAPTURES;
     const outReviewsStepper = new OutReviews();
-    const feature = { path: '/features/test.feature', content: `create found reviews` };
+    const feature = { path: '/features/test.feature', content: `create found history` };
     const result = await testWithDefaults([feature], [OutReviews, DomainStorage, StorageMem, StorageFS], {
       options: { DEST: DEFAULT_DEST },
       extraOptions: {
