@@ -5,6 +5,7 @@
   "description": "",
   "main": "index.js",
   "files": [
+    "ref.package.json",
     "build/**",
     "scaffold/**"
   ],
