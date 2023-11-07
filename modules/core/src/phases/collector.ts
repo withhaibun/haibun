@@ -1,4 +1,4 @@
-import nodeFS from 'fs';
+import nodeFS, { existsSync } from 'fs';
 import { TBase, TFeature } from '../lib/defs.js';
 import { withNameType } from '../lib/features.js';
 import { TFileSystem } from '../lib/util/index.js';
@@ -51,7 +51,7 @@ function recurse(base: string, dir: string, type: string, featureFilter: string[
 
 export function shouldProcess(file: string, type: undefined | string, featureFilter: string[] | undefined) {
   const isType = !type || file.endsWith(`.${type}`);
-  const matchesFilter = featureFilter === undefined || featureFilter.length < 1 ? true : !!featureFilter.find((f) => file.replace(/\/.*?\/([^.*?/])/, '$1').match(f));
+  const matchesFilter = (featureFilter === undefined || featureFilter.every(f => f === '')) || featureFilter.length < 1 ? true : !!featureFilter.find((f) => file.replace(/\/.*?\/([^.*?/])/, '$1').match(f));
 
   return isType && matchesFilter;
 }
