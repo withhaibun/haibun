@@ -37,7 +37,6 @@ export interface IGetPublishedReviews {
 
 export interface IWebReviewIndexer { getLatestPublished: TGetLatestPublished, resolvePublishedReview: TResolvePublishedReview, webContext: TWebContext }
 
-
 export const storageLocation: TFileTypeDomain = {
   name: STORAGE_LOCATION, fileType: STORAGE_LOCATION, is: 'string', validate: (content: string) => {
     return undefined;
