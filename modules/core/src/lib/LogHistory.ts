@@ -52,3 +52,6 @@ export function asStepperActionType(logHistory: TLogHistory | undefined, stepper
 export const actionName = (logHistory: TLogHistory | undefined) => {
     return (<TLogHistoryWithExecutorTopic>logHistory).messageContext?.topic?.step?.actions[0].actionName;
 }
+
+export const TRACKS_FILE = `tracks.json`;
+export const TRACKS_DIR = 'tracks';
