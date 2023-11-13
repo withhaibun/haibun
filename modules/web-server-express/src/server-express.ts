@@ -25,6 +25,7 @@ export class ServerExpress implements IWebServer {
 
     this.app.use(cookieParser());
     this.app.use(express.json({ limit: '150mb' }));
+    this.app.use(express.urlencoded({ extended: true }))
   }
 
   use(middleware: RequestHandler) {
