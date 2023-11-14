@@ -10,6 +10,7 @@ interface IFileWithEntries extends IFile {
 }
 export abstract class AStorage extends AStepper {
   abstract readFile(path: string, coding?: string): TAnyFixme;
+  abstract rm(path: string);
   abstract readdir(dir: string): Promise<string[]>;
   abstract lstatToIFile(file: string): Promise<IFile>;
   abstract writeFileBuffer(file: TPathedOrString, contents: Buffer, mediaType: TMediaType): void;

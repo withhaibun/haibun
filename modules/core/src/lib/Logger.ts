@@ -76,3 +76,4 @@ export default class Logger implements ILogger, ILogOutput {
   warn = (args: TLogArgs, mctx?: TMessageContext) => this.out('warn', args, mctx);
   error = (args: TLogArgs, mctx?: TMessageContext) => this.out('error', args, mctx);
 }
+

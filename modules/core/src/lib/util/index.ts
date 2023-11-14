@@ -189,17 +189,17 @@ export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve
 // has side effects
 export async function verifyExtraOptions(inExtraOptions: TExtraOptions, csteppers: CStepper[]) {
   const extraOptions = { ...inExtraOptions };
-  Object.entries(extraOptions)?.map(([k, v]) => {
-    const conc = getStepperOptionValue(k, v, csteppers);
+  Object.entries(extraOptions)?.map(([option, value]) => {
+    const foundStepper = getStepperOptionValue(option, value, csteppers);
 
-    if (conc === undefined) {
-      throw Error(`no option ${k} from ${JSON.stringify(extraOptions)}`);
+    if (foundStepper === undefined) {
+      throw Error(`unmapped option ${option} from ${JSON.stringify(extraOptions)}`);
     }
-    delete extraOptions[k];
+    delete extraOptions[option];
   });
 
   if (Object.keys(extraOptions).length > 0) {
-    throw Error(`no options provided for ${extraOptions}`);
+    throw Error(`no option for ${extraOptions}`);
   }
 }
 
