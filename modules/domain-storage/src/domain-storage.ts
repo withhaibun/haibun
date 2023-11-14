@@ -52,6 +52,7 @@ export interface IFile {
   isDirectory: boolean;
   isFile: boolean;
   created: number;
+  size: number;
 }
 
 export interface ICreateStorageDestination {
