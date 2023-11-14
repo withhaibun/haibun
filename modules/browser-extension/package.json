@@ -16,6 +16,7 @@
     "old-build": "webpack --config webpack/webpack.config.js",
     "build-watch": "webpack --progress --config webpack/webpack.config.watch.js",
     "test-e2e": "HAIBUN_ENV=PORT=3931 HAIBUN_O_WEBPLAYWRIGHT_HEADLESS=false HAIBUN_O_WEBPLAYWRIGHT_PERSISTENT_DIRECTORY=true HAIBUN_O_WEBPLAYWRIGHT_STORAGE=StorageFS HAIBUN_O_WEBPLAYWRIGHT_ARGS='--disable-extensions-except=./public/' haibun-cli test/",
+    "websocket-server": "HAIBUN_ENV=PORT=3931 haibun-cli websocket-server/",
     "cli-help": "haibun-cli test --help",
     "start:firefox": "web-ext run --source-dir ./public"
   },

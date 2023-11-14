@@ -5,13 +5,13 @@ const STOP = '■';
 
 const btn = <HTMLButtonElement>document.getElementById('button-record');
 
-btn?.addEventListener('click', () => {
+btn?.addEventListener('click', async () => {
   if (btn.innerHTML === START) {
     btn.innerHTML = STOP;
-    chrome.runtime.sendMessage({ action: popupActions.START_RECORDING, payload: window.location.search.replace('?', '') });
+    await chrome.runtime.sendMessage({ action: popupActions.START_RECORDING, payload: window.location.search.replace('?', '') });
   } else {
     btn.innerHTML = START;
-    chrome.runtime.sendMessage({ action: popupActions.STOP_RECORDING });
+    await chrome.runtime.sendMessage({ action: popupActions.STOP_RECORDING });
   }
 });
 

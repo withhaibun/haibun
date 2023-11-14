@@ -4,9 +4,9 @@ import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 
 import { controls, documentation } from './assets/reviews.js';
 
-import { TFoundHistories, THistoryWithMeta, findArtifacts, asArtifact, asActionResult, actionName } from '@haibun/out-review/build/lib.js';
+import { findArtifacts, asArtifact, asActionResult, actionName, TFoundHistories } from '@haibun/core/build/lib/LogHistory.js';
 import { TWindowRouter } from './router.js';
-import { TLogHistoryWithArtifact, TLogHistory, TArtifactMessageContext, TArtifact } from '@haibun/core/build/lib/interfaces/logger.js';
+import { TLogHistoryWithArtifact, TLogHistory, TArtifactMessageContext, TArtifact, THistoryWithMeta } from '@haibun/core/build/lib/interfaces/logger.js';
 
 const router = () => (globalThis as unknown as TWindowRouter)._router;
 @customElement('reviews-groups')

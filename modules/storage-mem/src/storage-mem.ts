@@ -42,4 +42,8 @@ export default class StorageMem extends AStorage {
   mkdirp = (dir: string) => {
     this.volume.mkdirSync(dir, { recursive: true });
   };
+
+  rm = (file: string) => {
+    this.volume.unlinkSync(file);
+  }
 }
