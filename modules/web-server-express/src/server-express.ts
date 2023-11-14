@@ -1,21 +1,23 @@
 import { statSync, existsSync } from 'fs';
+
 import http from 'http';
 
 import express, { RequestHandler } from 'express';
 import serveIndex from 'serve-index';
 import cookieParser from 'cookie-parser';
 
-import { IWebServer, TRouteTypes } from './defs.js';
+import { IWebServer, ROUTE_TYPES, TRouteMap, TRouteTypes, TStaticFolderOptions } from './defs.js';
 import { ILogger } from '@haibun/core/build/lib/interfaces/logger.js';
 
 export const DEFAULT_PORT = 8123;
+const defaultMounted = () => ROUTE_TYPES.reduce((acc, type) => ({ ...acc, [type]: {} }), <TRouteMap>{});
 
 export class ServerExpress implements IWebServer {
   logger: ILogger;
   static listening = false;
   listener?: http.Server;
   app = express();
-  mounted = { get: {}, post: {} };
+  mounted = defaultMounted();
   base: string;
   port: number;
   constructor(logger: ILogger, base: string, port: number = DEFAULT_PORT) {
@@ -25,7 +27,9 @@ export class ServerExpress implements IWebServer {
 
     this.app.use(cookieParser());
     this.app.use(express.json({ limit: '150mb' }));
-    this.app.use(express.urlencoded({ extended: true }))
+    this.app.use(express.urlencoded({ extended: true }));
+    this.app.use(express.text());
+    this.app.disable('x-powered-by');
   }
 
   use(middleware: RequestHandler) {
@@ -53,7 +57,7 @@ export class ServerExpress implements IWebServer {
   }
 
   addRoute(type: TRouteTypes, path: string, route: RequestHandler) {
-    if (type !== 'get' && type !== 'post') {
+    if (type !== 'get' && type !== 'post' && type !== 'put' && type !== 'delete' && type !== 'head') {
       throw Error(`invalid route type ${type}`);
     }
     const bad = this.checkMountBadOrMounted('get', path, route.toString());
@@ -67,34 +71,40 @@ export class ServerExpress implements IWebServer {
     this.addMounted(type, path, route.toString());
   }
 
+  addKnownRoute(type: TRouteTypes, path: string, route: RequestHandler) {
+    this.logger.log(`adding known ${type} route from ${path}`);
+    this.app[type](path, route);
+    this.addMounted(type, path, route.toString());
+  }
+
   private addMounted(type: string, path: string, what: string) {
     this.mounted[type][path] = what;
   }
 
   // add a static folder restricted to relative paths from files
-  checkAddStaticFolder(relativeFolder: string, mountAt = '/') {
+  checkAddStaticFolder(relativeFolder: string, mountAt = '/', options?: TStaticFolderOptions) {
     const folder = [this.base, relativeFolder].join('/');
-    return this.doAddStaticFolder(folder, mountAt);
+    return this.doAddStaticFolder(folder, mountAt, options);
   }
 
   // add a index folder restricted to relative paths from files
-  checkAddIndexFolder(relativeFolder: string, mountAt = '/') {
+  checkAddIndexFolder(relativeFolder: string, mountAt = '/', options?: TStaticFolderOptions) {
     const folder = [this.base, relativeFolder].join('/');
     const bad = this.checkMountBadOrMounted('get', folder, mountAt);
     if (bad) {
       return bad;
     }
     this.logger.info(`serving index from ${folder} at ${mountAt}`);
-    this.app.use(mountAt, serveIndex(folder), express.static(folder));
+    this.app.use(mountAt, serveIndex(folder), express.static(folder, options));
     return;
   }
 
   // add a static folder at any path
-  addKnownStaticFolder(folder: string, mountAt = '/') {
-    return this.doAddStaticFolder(folder, mountAt);
+  addKnownStaticFolder(folder: string, mountAt = '/', options?: TStaticFolderOptions) {
+    return this.doAddStaticFolder(folder, mountAt, options);
   }
 
-  private doAddStaticFolder(folder: string, mountAt = '/') {
+  private doAddStaticFolder(folder: string, mountAt = '/', options: TStaticFolderOptions = {}) {
     const bad = this.checkMountBadOrMounted('get', mountAt, folder);
     if (bad) {
       return bad;
@@ -107,7 +117,7 @@ export class ServerExpress implements IWebServer {
       return `"${folder}" is not a directory`;
     }
 
-    this.app.use(mountAt, express.static(folder));
+    this.app.use(mountAt, express.static(folder, options));
     this.addMounted('get', mountAt, folder);
     this.logger.info(`serving files from ${folder} at ${mountAt}`);
     return;
@@ -127,7 +137,7 @@ export class ServerExpress implements IWebServer {
   async close() {
     this.logger.info(`closing server ${this.port}`);
     await this.listener?.close();
-    this.mounted = { get: {}, post: {} };
+    this.mounted = defaultMounted();
     ServerExpress.listening = false;
   }
 }
