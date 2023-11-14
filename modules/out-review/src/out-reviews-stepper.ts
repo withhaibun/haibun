@@ -5,13 +5,11 @@ import { AStepper, CAPTURE, IHasOptions, IRequireDomains, OK, TFeatureResult, TW
 import { STORAGE_ITEM, STORAGE_LOCATION, } from '@haibun/domain-storage';
 import { actionOK, findStepperFromOption, getStepperOption, stringOrError } from '@haibun/core/build/lib/util/index.js';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
-import { TLogHistory, TLogHistoryWithExecutorTopic } from '@haibun/core/build/lib/interfaces/logger.js';
+import { THistoryWithMeta, TLogHistory } from '@haibun/core/build/lib/interfaces/logger.js';
 import { EMediaTypes, IGetPublishedReviews, ITrackResults, TLocationOptions, TPathed, actualPath, guessMediaExt } from '@haibun/domain-storage/build/domain-storage.js';
 import StorageFS from '@haibun/storage-fs/build/storage-fs.js';
-import { SCHEMA_FOUND_HISTORIES, SCHEMA_HISTORY_WITH_META, TFoundHistories, THistoryWithMeta, TNamedHistories, asArtifact, asStepperActionType } from "./lib.js";
+import { SCHEMA_FOUND_HISTORIES, TFoundHistories, TNamedHistories, TRACKS_DIR, TRACKS_FILE, asArtifact, asHistoryWithMeta, } from '@haibun/core/build/lib/LogHistory.js';
 
-export const TRACKS_FILE = `tracks.json`;
-const TRACKS_DIR = 'tracks';
 export const TRACKSHISTORY_SUFFIX = '-tracksHistory.json';
 
 export const STORAGE = 'STORAGE';
@@ -38,7 +36,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     [TRACKS_STORAGE]: {
       required: true,
       altSource: 'STORAGE',
-      desc: 'Storage type used for input',
+      desc: 'Storage type used for histories',
       parse: (input: string) => stringOrError(input),
     },
     [PUBLISH_STORAGE]: {
@@ -217,14 +215,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
   // implements ITrackResults
   async writeTracksFile(loc: TLocationOptions, description: string, result: TFeatureResult, startTime: Date, startOffset: number, logHistory: TLogHistory[]) {
     const dir = await this.tracksStorage.ensureCaptureLocation(loc, 'tracks', TRACKS_FILE);
-    const logFeature = <TLogHistoryWithExecutorTopic>logHistory.find(h => asStepperActionType(h, 'feature'));
-    const feature = logFeature?.messageContext.tag.params.feature;
-
-    const history: THistoryWithMeta = {
-      '$schema': SCHEMA_HISTORY_WITH_META,
-      meta: { startTime: startTime.toISOString(), description, feature, startOffset, ok: result.ok },
-      logHistory
-    };
+    const history: THistoryWithMeta = asHistoryWithMeta(logHistory, startTime, description, startOffset, result.ok);
     await this.tracksStorage.writeFile(dir, JSON.stringify(history, null, 2), loc.mediaType);
   }
 }

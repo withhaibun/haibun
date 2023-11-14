@@ -50,7 +50,7 @@ const WebServerStepper = class WebServerStepper extends AStepper implements IHas
       action: async () => {
         const webserver = <IWebServer>getFromRuntime(this.getWorld().runtime, WEBSERVER);
         const mounts = webserver.mounted;
-        this.getWorld().logger.info(`mounts: ${JSON.stringify(mounts)}`);
+        this.getWorld().logger.info(`mounts: ${JSON.stringify(mounts, null, 2)}`);
         return OK;
       },
     },

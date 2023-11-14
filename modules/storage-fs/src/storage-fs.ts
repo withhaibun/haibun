@@ -14,6 +14,7 @@ export default class StorageFS extends AStorage {
         const l = fs.lstatSync(file);
         const ifile = {
             name: file,
+            size: l.size,
             created: l.mtime.getDate(),
             isDirectory: l.isDirectory(),
             isFile: l.isFile()
@@ -33,5 +34,6 @@ export default class StorageFS extends AStorage {
     mkdirp = (dir: string) => {
         fs.mkdirSync(dir, { recursive: true });
     }
+    rm = fs.unlinkSync;
 }
 

@@ -1,4 +1,4 @@
-import { TAnyFixme, TStepResult, TTag, TVStep } from '../defs.js';
+import { TAnyFixme, TStepResult, TTag, TVStep, versionedSchema } from '../defs.js';
 
 export type TLogLevel = 'none' | 'debug' | 'log' | 'info' | 'warn' | 'error';
 export type TLogArgs = string;
@@ -9,6 +9,21 @@ export type TLogHistory = {
   caller: string;
   messageContext: TMessageContext
 };
+
+export const SCHEMA_HISTORY_WITH_META = versionedSchema('HistoryWithMeta');
+
+export type THistoryWithMeta = {
+    '$schema': typeof SCHEMA_HISTORY_WITH_META;
+    meta: {
+        startTime: string;
+        description: string;
+        feature: string,
+        startOffset: number;
+        ok: boolean;
+    };
+    logHistory: TLogHistory[];
+};
+
 
 export type TMessageContext = TArtifactMessageContext | TExecutorMessageContext | TTraceMessageContext | TBasicMessageContext;
 
