@@ -32,7 +32,7 @@ export async function run({ specl, bases, world, addSteppers = [], featureFilter
   return res;
 }
 
-export async function runWith({ specl, world, features, backgrounds, addSteppers, endFeatureCallback }: TRunWithFeaturesBackgrounds): Promise<TExecutorResult> {
+export async function runWith({ specl, world, features, backgrounds, addSteppers , endFeatureCallback }: TRunWithFeaturesBackgrounds): Promise<TExecutorResult> {
   const { tag } = world;
 
   let result: TExecutorResult = undefined;

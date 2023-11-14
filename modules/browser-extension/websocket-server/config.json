@@ -2,7 +2,6 @@
   "mode": "all",
   "steppers": [
     "~@haibun/context/build/websocket-server/websockets-server",
-    "~@haibun/web-playwright/build/web-playwright",
     "~@haibun/domain-webpage/build/domain-webpage",
     "~@haibun/storage-fs/build/storage-fs",
     "~@haibun/domain-storage/build/domain-storage",

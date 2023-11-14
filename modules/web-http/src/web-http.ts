@@ -15,27 +15,72 @@ const WebHttp = class WebHttp extends AStepper {
       },
     },
     oidc_config: {
-      gwta: 'http {url} has an oidc well-known configuration',
+      gwta: 'http {url} webpage has an oidc endpoint',
       action: async ({ url }: TNamed) => {
         const response = await fetch(`${url}/.well-known/openid-configuration`);
         const json = await response.json();
-        return json.authorization_endpoint ? OK : actionNotOK(`${json} not recognized`, { topics: { result: { summary: 'json', details: json } } });
+        return json.authorization_endpoint ? OK : actionNotOK(`${json} has no endpoint`, { topics: { result: { summary: 'json', details: json } } });
+      },
+    },
+    statusIs: {
+      gwta: 'http {method} from {url} webpage returns status {status}',
+      action: async ({ url, method, status }: TNamed) => {
+        const response = await fetch(url, { method: method.toUpperCase() });
+        return response.status === parseInt(status) ? OK : actionNotOK(`$${method} {url} does not have status ${status}, it has ${response.status}`)
+      },
+    },
+    hasContentType: {
+      gwta: 'http {method} from {url} webpage returns content-type {contentType}',
+      action: async ({ url, method, contentType }: TNamed) => {
+        const response = await fetch(url, { method: method.toUpperCase() });
+        const requestContentType = response.headers.get('content-type');
+        return requestContentType === contentType ? OK : actionNotOK(`${method} ${url} does not have content type ${contentType}, it has ${requestContentType}`);
+      },
+    },
+    requestWithBody: {
+      gwta: 'http {method} to {url} webpage with {contentType} body {body} returns status {status}',
+      action: async ({ method, url, contentType, body, status }: TNamed) => {
+        const response = await fetch(url, { method: 'POST', body, headers: { contentType } });
+        if (response.status === parseInt(status, 10)) {
+          return OK;
+        }
+        const message = contentType === 'json' ? await response.json() : await response.text();
+        return actionNotOK(`${method} ${url} did not return ${status}, it returned ${response.status} with message ${message}`);
+      },
+    },
+    requestWithNoBody: {
+      gwta: 'http {method} to {url} webpage returns status {status}',
+      action: async ({ method, url, contentType, body, status }: TNamed) => {
+        const response = await fetch(url, { method: 'POST', body, headers: { contentType } });
+        if (response.status === parseInt(status, 10)) {
+          return OK;
+        }
+        const message = contentType === 'json' ? await response.json() : await response.text();
+        return actionNotOK(`${method} ${url} did not return ${status}, it returned ${response.status} with message ${message}`);
       },
     },
     containsContent: {
-      gwta: 'fetch from {url} contains {what}',
-      action: async ({ url, what }: TNamed) => {
-        const response = await fetch(url);
+      gwta: 'http {method} from {url} webpage contains {what}',
+      action: async ({ method, url, what }: TNamed) => {
+        const response = await fetch(url, { method: method.toUpperCase() });
         const text = await response.text();
-        return text.includes(what) ? OK : actionNotOK(`${url} does not contain ${what}, it contains ${text}`)
+        return text.includes(what) ? OK : actionNotOK(`{method} ${url} does not contain ${what}, it contains ${text}`)
       },
     },
-    matchesContent: {
-      gwta: 'fetch from {url} matches {what}',
-      action: async ({ url, what }: TNamed) => {
-        const response = await fetch(url);
+    returnsContent: {
+      gwta: 'http {method} from {url} webpage returns content {what}',
+      action: async ({ method, url, what }: TNamed) => {
+        const response = await fetch(url, { method: method.toUpperCase() });
         const text = await response.text();
-        return text === what ? OK : actionNotOK(`${url} does not contain ${what}, it contains ${text}`)
+        return text === what ? OK : actionNotOK(`${method} ${url} does not contain ${what}, it contains ${text}`)
+      },
+    },
+    //    http options from resource webpage returns header "Allow" with "GET, HEAD, OPTIONS, PUT, DELETE"
+    headerWith: {
+      gwta: 'http {method} from {url} webpage returns header {header} with {contents}',
+      action: async ({ method, url, header, contents }: TNamed) => {
+        const response = await fetch(url, { method: method.toUpperCase() });
+        return response.headers[header.toLowerCase()] === contents ? OK : actionNotOK(`${method} ${url} does not contain ${header} with ${contents}, it contains ${JSON.stringify(response.headers)}`)
       },
     },
   };
