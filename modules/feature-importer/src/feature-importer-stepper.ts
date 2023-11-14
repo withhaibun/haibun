@@ -11,7 +11,7 @@ const FeatureImporterStepper = class FeatureImporterStepper extends AStepper {
   async setWorld(world: TWorld, steppers: AStepper[]) {
     this.world = world;
     this.contextToFeatures = new ContextFeatureImporter(this.getWorld().logger);
-    super.setWorld(world, steppers);
+    await super.setWorld(world, steppers);
   }
 
   steps = {
