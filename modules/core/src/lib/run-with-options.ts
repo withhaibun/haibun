@@ -3,7 +3,8 @@ import { WorldContext } from './contexts.js';
 import Logger from './Logger.js';
 
 import { run } from './run.js';
-import { getOutputResult, getRunTag } from './util/index.js';
+import { getRunTag } from './util/index.js';
+import { getOutputResult } from './util/workspace-lib.js';
 import { ILogOutput } from './interfaces/logger.js';
 import { Timer } from './Timer.js';
 
