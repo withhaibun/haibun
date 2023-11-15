@@ -5,7 +5,8 @@ import repl from 'repl';
 import { TSpecl, TWorld, TEndFeatureCallback, TEndFeatureCallbackParams, TRunOptions, TBase, STAY_ALWAYS, STAY, TNotOKActionResult, TFeatureResult } from '@haibun/core/build/lib/defs.js';
 import { EMediaTypes, ITrackResults } from '@haibun/domain-storage/build/domain-storage.js';
 
-import { findStepper, getConfigFromBase, getDefaultOptions, basesFrom } from '@haibun/core/build/lib/util/index.js';
+import { findStepper, getDefaultOptions, basesFrom } from '@haibun/core/build/lib/util/index.js';
+import { getConfigFromBase } from '@haibun/core/build/lib/util/workspace-lib.js';
 import runWithOptions from '@haibun/core/build/lib/run-with-options.js';
 import { processArgs, processBaseEnvToOptionsAndErrors, usageThenExit } from './lib.js';
 import { Timer } from '@haibun/core/build/lib/Timer.js';
