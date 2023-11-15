@@ -1,7 +1,7 @@
 import nodeFS, { existsSync } from 'fs';
 import { TBase, TFeature } from '../lib/defs.js';
 import { withNameType } from '../lib/features.js';
-import { TFileSystem } from '../lib/util/index.js';
+import { TFileSystem } from '../lib/util/workspace-lib.js';
 
 export type TFeaturesBackgrounds = {
   features: TFeature[];

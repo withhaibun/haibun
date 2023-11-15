@@ -1,4 +1,5 @@
-import { basesFrom, TFileSystem } from '../lib/util/index.js';
+import { basesFrom } from '../lib/util/index.js';
+import { TFileSystem } from '../lib/util/workspace-lib.js';
 import { getFeaturesAndBackgrounds, shouldProcess } from './collector.js';
 
 class MockFS {

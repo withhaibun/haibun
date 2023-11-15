@@ -3,7 +3,7 @@ import { convert } from 'xmlbuilder2';
 import OutXUnit from "./out-xunit.js";
 import { testWithDefaults } from "@haibun/core/build/lib/test/lib.js";
 import TestSteps from "@haibun/core/build/lib/test/TestSteps.js";
-import { getOutputResult } from "@haibun/core/build/lib/util/index.js";
+import { getOutputResult } from "@haibun/core/build/lib/util/workspace-lib.js";
 
 const ox = [process.cwd(), "build", "out-xunit"].join("/");
 
