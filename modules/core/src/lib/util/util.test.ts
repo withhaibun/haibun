@@ -1,4 +1,5 @@
 import * as util from './index.js';
+import * as TFileSystemJs from './workspace-lib.js';
 import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, getDefaultWorld, testWithDefaults, getCreateSteppers, TEST_BASE } from '../test/lib.js';
 import TestSteps from '../test/TestSteps.js';
 import TestStepsWithOptions from '../test/TestStepsWithOptions.js';
@@ -14,7 +15,7 @@ describe('output', () => {
     const result = await testWithDefaults(features, [TestSteps]);
 
     expect(result.ok).toBe(false);
-    const output = await util.getOutputResult(undefined, result);
+    const output = await TFileSystemJs.getOutputResult(undefined, result);
     expect(typeof output).toBe('object');
     expect(result.featureResults?.length).toBe(2);
   });

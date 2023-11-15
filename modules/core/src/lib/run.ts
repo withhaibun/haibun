@@ -3,7 +3,8 @@ import { expand } from './features.js';
 import { Executor } from '../phases/Executor.js';
 import { Resolver } from '../phases/Resolver.js';
 import Builder from '../phases/Builder.js';
-import { getSteppers, verifyExtraOptions, getRunTag, verifyRequiredOptions, createSteppers, setStepperWorlds } from './util/index.js';
+import { verifyExtraOptions, getRunTag, verifyRequiredOptions, createSteppers, setStepperWorlds } from './util/index.js';
+import { getSteppers } from './util/workspace-lib.js';
 import { getDomains, verifyDomainsOrError } from './domain.js';
 import { getFeaturesAndBackgrounds } from '../phases/collector.js';
 

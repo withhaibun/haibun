@@ -1,20 +1,41 @@
 /* eslint-disable no-undef */
+import { readFileSync } from 'fs';
 import typescript from '@rollup/plugin-typescript';
 import resolve from '@rollup/plugin-node-resolve';
 import litcss from 'rollup-plugin-lit-css';
+import license from 'rollup-plugin-license';
 
+const licensed = license({
+  sourcemap: true,
+  banner: {
+    content: {
+      file: './banner',
+      encoding: 'utf-8',
+    },
+  },
+
+  thirdParty: {
+    includePrivate: true,
+    multipleVersions: true,
+    output: {
+      file: './built/third-party-licenses.txt',
+      encoding: 'utf-8',
+    },
+  },
+  data: JSON.parse(readFileSync('../../package.json', 'utf-8'))
+});
 const dashboard = {
   input: [`./src/dashboard/index.ts`, `./src/dashboard/indexer.ts`],
   output: {
     dir: `built/dashboard/`,
   },
-  plugins: [litcss(), resolve(), typescript({ outDir: './built/dashboard' })],
+  plugins: [licensed, litcss(), resolve(), typescript({ outDir: './built/dashboard' })],
 };
 
 const reviewer = (dir) => ({
   input: `./src/reviews/index.ts`,
   output: { dir },
-  plugins: [litcss(), resolve(), typescript({ outDir: dir })],
+  plugins: [licensed, litcss(), resolve(), typescript({ outDir: dir })],
 });
 
 const builds = [dashboard, reviewer('built/reviewer')];
