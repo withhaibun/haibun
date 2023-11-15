@@ -1,4 +1,4 @@
-import { TFoundHistories } from "@haibun/out-review/build/lib.js";
+import { TFoundHistories } from "@haibun/core/build/lib/LogHistory.js";
 import { endpoint } from "./indexer.js";
 
 export type TTraceHistorySummary = {
