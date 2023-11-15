@@ -11,10 +11,11 @@
     "@haibun/out-review": "^1.30.7",
     "@rollup/plugin-node-resolve": "^15.2.3",
     "@rollup/plugin-typescript": "^11.1.5",
-    "@types/node": "^20.8.5",
+    "@types/node": "^20.9.0",
     "@types/typescript": "^2.0.0",
     "lit": "^3.0.0",
     "rollup": "^4.1.4",
+    "rollup-plugin-license": "^3.2.0",
     "typescript": "^5.2.2"
   },
   "devDependencies": {
