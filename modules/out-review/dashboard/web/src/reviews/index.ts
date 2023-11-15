@@ -4,8 +4,8 @@ import { customElement, property } from 'lit/decorators.js';
 import './components.js';
 import { globalStyles } from './include.js';
 
-import { TFoundHistories } from '@haibun/out-review/build/lib.js';
 import { Router, TParams, TRoutable } from './router.js';
+import { TFoundHistories } from '@haibun/core/build/lib/LogHistory.js';
 
 @customElement('reviews-shell')
 export class ReviewsShell extends LitElement {
