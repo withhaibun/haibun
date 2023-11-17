@@ -3,9 +3,9 @@
 import sourceMapSupport from 'source-map-support';
 import repl from 'repl';
 import { TSpecl, TWorld, TEndFeatureCallback, TEndFeatureCallbackParams, TRunOptions, TBase, STAY_ALWAYS, STAY, TNotOKActionResult, TFeatureResult } from '@haibun/core/build/lib/defs.js';
-import { EMediaTypes, ITrackResults } from '@haibun/domain-storage/build/domain-storage.js';
+import { EMediaTypes, IHandleResultHistory, isIHandleResultHistory } from '@haibun/domain-storage';
 
-import { findStepper, getDefaultOptions, basesFrom } from '@haibun/core/build/lib/util/index.js';
+import { findStepperThatDoes, getDefaultOptions, basesFrom } from '@haibun/core/build/lib/util/index.js';
 import { getConfigFromBase } from '@haibun/core/build/lib/util/workspace-lib.js';
 import runWithOptions from '@haibun/core/build/lib/run-with-options.js';
 import { processArgs, processBaseEnvToOptionsAndErrors, usageThenExit } from './lib.js';
@@ -57,11 +57,11 @@ async function go() {
   if (trace) {
     endFeatureCallback = async (params: TEndFeatureCallbackParams) => {
       const { world, result, steppers, startOffset } = params;
-      const tracker = findStepper<ITrackResults>(steppers, 'OutReviews');
+      const tracker = findStepperThatDoes<IHandleResultHistory>(steppers, isIHandleResultHistory);
       const loc = { ...world };
       if (running) running.context.haibun.step = { world, result, steppers, startOffset };
 
-      await tracker.writeTracksFile({ ...loc, mediaType: EMediaTypes.json }, description, result, Timer.startTime, startOffset, Logger.traceHistory);
+      await tracker.handleResultHistory({ ...loc, mediaType: EMediaTypes.json }, description, result, Timer.startTime, startOffset, Logger.traceHistory);
       Logger.traceHistory = [];
     };
   }

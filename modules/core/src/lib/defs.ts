@@ -35,6 +35,8 @@ export interface IHasOptions {
     };
   };
 }
+export interface IHandle extends AStepper {
+}
 
 export interface IHasBuilder {
   finalize: (workspace: WorkspaceContext) => void;
