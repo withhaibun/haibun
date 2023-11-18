@@ -96,7 +96,7 @@ const WebServerStepper = class WebServerStepper extends AStepper implements IHas
     const ws: IWebServer = getFromRuntime(this.getWorld().runtime, WEBSERVER);
     const res = ws.checkAddStaticFolder(loc, where);
     if (res) {
-      throw Error(`failed to add static folder ${loc} at ${where}`);
+      throw Error(`failed to add static folder ${loc} at ${where}: ${res}`);
     }
     await this.listen();
     return OK;
