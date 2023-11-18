@@ -2,7 +2,7 @@
 
 import sourceMapSupport from 'source-map-support';
 import repl from 'repl';
-import { TSpecl, TWorld, TEndFeatureCallback, TEndFeatureCallbackParams, TRunOptions, TBase, STAY_ALWAYS, STAY, TNotOKActionResult, TFeatureResult, IHandle } from '@haibun/core/build/lib/defs.js';
+import { TSpecl, TWorld, TEndFeatureCallback, TEndFeatureCallbackParams, TRunOptions, TBase, STAY_ALWAYS, STAY, TNotOKActionResult, TFeatureResult } from '@haibun/core/build/lib/defs.js';
 import { EMediaTypes, IHandleResultHistory, isIHandleResultHistory } from '@haibun/domain-storage/build/domain-storage.js';
 
 import { findHandler, getDefaultOptions, basesFrom } from '@haibun/core/build/lib/util/index.js';
