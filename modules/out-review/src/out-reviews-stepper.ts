@@ -6,7 +6,7 @@ import { STORAGE_ITEM, STORAGE_LOCATION, } from '@haibun/domain-storage';
 import { actionOK, findStepperFromOption, getStepperOption, stringOrError } from '@haibun/core/build/lib/util/index.js';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 import { THistoryWithMeta, TLogHistory } from '@haibun/core/build/lib/interfaces/logger.js';
-import { EMediaTypes, IGetPublishedReviews, ITrackResults, TLocationOptions, TPathed, actualPath, guessMediaExt } from '@haibun/domain-storage/build/domain-storage.js';
+import { EMediaTypes, IGetPublishedReviews, IHandleResultHistory, TLocationOptions, TPathed, actualPath, guessMediaExt } from '@haibun/domain-storage/build/domain-storage.js';
 import StorageFS from '@haibun/storage-fs/build/storage-fs.js';
 import { SCHEMA_FOUND_HISTORIES, TFoundHistories, TNamedHistories, TRACKS_DIR, TRACKS_FILE, asArtifact, asHistoryWithMeta, } from '@haibun/core/build/lib/LogHistory.js';
 
@@ -19,7 +19,7 @@ export const PUBLISH_ROOT = 'PUBLISH_ROOT';
 
 type TArtifactMap = { [name: string]: TPathed };
 
-const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRequireDomains, ITrackResults {
+const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRequireDomains, IHandleResultHistory {
   tracksStorage: AStorage;
   publishStorage: AStorage;
   // used for publishing dashboard
@@ -212,8 +212,8 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     await this.publishStorage.writeFile(pathedDest, content, ext);
   }
 
-  // implements ITrackResults
-  async writeTracksFile(loc: TLocationOptions, description: string, result: TFeatureResult, startTime: Date, startOffset: number, logHistory: TLogHistory[]) {
+  // implements handleResultHistory
+  async handleResultHistory(loc: TLocationOptions, description: string, result: TFeatureResult, startTime: Date, startOffset: number, logHistory: TLogHistory[]) {
     const dir = await this.tracksStorage.ensureCaptureLocation(loc, 'tracks', TRACKS_FILE);
     const history: THistoryWithMeta = asHistoryWithMeta(logHistory, startTime, description, startOffset, result.ok);
     await this.tracksStorage.writeFile(dir, JSON.stringify(history, null, 2), loc.mediaType);
