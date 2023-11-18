@@ -149,10 +149,10 @@ export type TLocationOptions = {
 
 
 export interface IHandleResultHistory extends IHandle {
-  handleResultHistory(loc: TLocationOptions, description: string, result: TFeatureResult, startTime: Date, startOffset: number, logHistory: TLogHistory[]) {
+  handleResultHistory(loc: TLocationOptions, description: string, result: TFeatureResult, startTime: Date, startOffset: number, logHistory: TLogHistory[]);
 }
 
-export const isIHandleResultHistory = (s: IHandleResultHistory) => s.handleResultHistory !== undefined;
+export const isIHandleResultHistory = (s: IHandleResultHistory): s is IHandleResultHistory => s.handleResultHistory !== undefined;
 
 /** 
  * Normalize the extension. This should probably be reconsidered.

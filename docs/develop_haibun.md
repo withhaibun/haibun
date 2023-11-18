@@ -37,3 +37,13 @@ You can use `nx graph` to view Haibun's module graph structure.
 ---
 
 This project uses NW. With great thanks to [nrwl](https://nx.dev/).
+
+
+## Handlers
+
+Haibun supports stepper handlers for consistency in handling events. 
+For example, IHandleResultHistory can be added to any Stepper with a handleResultHistory method, 
+so it will automatically receive test histories.
+
+Additional handler interfaces should extend IHandle.
+
