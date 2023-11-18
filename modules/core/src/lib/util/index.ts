@@ -16,6 +16,7 @@ import {
   TTagValue,
   TFeatureResult,
   TAnyFixme,
+  IHandle,
 } from '../defs.js';
 import { Timer } from '../Timer.js';
 
@@ -219,6 +220,10 @@ export function findStepper<Type>(steppers: AStepper[], name: string): Type {
     );
   }
   return stepper;
+}
+
+export function findHandler<Type extends IHandle>(steppers: AStepper[], targetType: (s: AStepper) => s is Type) {
+  return steppers.filter(targetType);
 }
 
 export function getFromRuntime<Type>(runtime: TRuntime, name: string): Type {
