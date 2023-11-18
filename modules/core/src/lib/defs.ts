@@ -36,6 +36,8 @@ export interface IHasOptions {
   };
 }
 export interface IHandle extends AStepper {
+  // FIXME this is not really used but is here to enable this superclass
+  handlesPhase: string;
 }
 
 export interface IHasBuilder {
