@@ -41,6 +41,7 @@ const WebHttp = class WebHttp extends AStepper {
       gwta: 'http {method} to {url} webpage with {contentType} body {body} returns status {status}',
       action: async ({ method, url, contentType, body, status }: TNamed) => {
         const response = await fetch(url, { method: 'POST', body, headers: { contentType } });
+        console.log('\npbody', body, response.status)
         if (response.status === parseInt(status, 10)) {
           return OK;
         }
@@ -50,8 +51,8 @@ const WebHttp = class WebHttp extends AStepper {
     },
     requestWithNoBody: {
       gwta: 'http {method} to {url} webpage returns status {status}',
-      action: async ({ method, url, contentType, body, status }: TNamed) => {
-        const response = await fetch(url, { method: 'POST', body, headers: { contentType } });
+      action: async ({ method, url, contentType, status }: TNamed) => {
+        const response = await fetch(url, { method: method.toUpperCase(), headers: { contentType } });
         if (response.status === parseInt(status, 10)) {
           return OK;
         }
