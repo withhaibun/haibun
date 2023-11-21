@@ -35,8 +35,29 @@ export interface IHasOptions {
     };
   };
 }
-export interface IHandle extends AStepper {
+
+
+export enum HANDLER_USAGE {
+  EXCLUSIVE = 'exclusive',
+  FALLBACK = 'fallback',
 }
+export interface IHandler {
+  usage?: HANDLER_USAGE;
+  // eslint-disable-next-line @typescript-eslint/ban-types
+  handle: Function
+}
+export interface ISourcedHandler extends IHandler {
+  stepper: AStepper;
+}
+
+export type THandlers = {
+  [handlesName: string]: IHandler;
+};
+export interface IHasHandlers extends AStepper {
+  handlers: THandlers;
+}
+
+export const isHasHandlers = (s: IHasHandlers): s is IHasHandlers => s.handlers !== undefined;
 
 export interface IHasBuilder {
   finalize: (workspace: WorkspaceContext) => void;

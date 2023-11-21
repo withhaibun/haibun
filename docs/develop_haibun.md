@@ -2,9 +2,9 @@
 
 Clone this repo, then install and build:
 
-  `npm i` (this will trigger npm run clean, npm install)
+`npm i` (this will trigger npm run clean, npm install)
 
-  `npm run build-watch`
+`npm run build-watch`
 
 Use this at the top level to build and watch all modules.
 
@@ -16,9 +16,9 @@ or
 
 `npm run test-watch`
 
-Each module can be developed independently using: 
+Each module can be developed independently using:
 
-`npm run build-watch`  # not needed if using top-level `build-watch`
+`npm run build-watch` # not needed if using top-level `build-watch`
 
 `npm test` or `npm run test-watch`
 
@@ -33,17 +33,3 @@ To develop your own separate module while developing Haibun modules, use:
 and any other modules you may need.
 
 You can use `nx graph` to view Haibun's module graph structure.
-
----
-
-This project uses NW. With great thanks to [nrwl](https://nx.dev/).
-
-
-## Handlers
-
-Haibun supports stepper handlers for consistency in handling events. 
-For example, IHandleResultHistory can be added to any Stepper with a handleResultHistory method, 
-so it will automatically receive test histories.
-
-Additional handler interfaces should extend IHandle.
-

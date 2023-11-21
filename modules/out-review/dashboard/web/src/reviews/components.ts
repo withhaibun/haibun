@@ -8,6 +8,9 @@ import { findArtifacts, asArtifact, asActionResult, actionName, TFoundHistories 
 import { TWindowRouter } from './router.js';
 import { THistoryWithMeta, TLogHistoryWithArtifact, TLogHistory, TArtifactMessageContext, TArtifact } from '@haibun/core/build/lib/interfaces/logger.js';
 
+import '@alenaksu/json-viewer';
+
+
 const router = () => (globalThis as unknown as TWindowRouter)._router;
 @customElement('reviews-groups')
 export class ReviewsGroups extends LitElement {
@@ -179,6 +182,7 @@ export class ReviewStep extends LitElement {
   }
   selectMessage() {
     this.showDetail(html`<div class="code">${JSON.stringify(this.logHistory, null, 2)}</div>`)
+    this.showDetail(html`<json-viewer .data=${this.logHistory}></json-viewer>`);
   }
   reportDetail(artifactContext: TArtifactMessageContext) {
     const content = getDetailContent(artifactContext.artifact);
