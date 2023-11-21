@@ -40,8 +40,7 @@ const WebHttp = class WebHttp extends AStepper {
     requestWithBody: {
       gwta: 'http {method} to {url} webpage with {contentType} body {body} returns status {status}',
       action: async ({ method, url, contentType, body, status }: TNamed) => {
-        const response = await fetch(url, { method: 'POST', body, headers: { contentType } });
-        console.log('\npbody', body, response.status)
+        const response = await fetch(url, { method: 'POST', body: JSON.stringify(JSON.parse(body)), headers: { contentType } });
         if (response.status === parseInt(status, 10)) {
           return OK;
         }
@@ -65,7 +64,15 @@ const WebHttp = class WebHttp extends AStepper {
       action: async ({ method, url, what }: TNamed) => {
         const response = await fetch(url, { method: method.toUpperCase() });
         const text = await response.text();
-        return text.includes(what) ? OK : actionNotOK(`{method} ${url} does not contain ${what}, it contains ${text}`)
+        return text.includes(what) ? OK : actionNotOK(`${method} ${url} does not contain ${what}, it contains ${text}`)
+      },
+    },
+    returnsNoContent: {
+      gwta: 'http {method} from {url} webpage returns no content',
+      action: async ({ method, url }: TNamed) => {
+        const response = await fetch(url, { method: method.toUpperCase() });
+        const text = await response.text();
+        return text === "" ? OK : actionNotOK(`${method} ${url} does not contain no content, it contains ${text}`)
       },
     },
     returnsContent: {
@@ -81,7 +88,9 @@ const WebHttp = class WebHttp extends AStepper {
       gwta: 'http {method} from {url} webpage returns header {header} with {contents}',
       action: async ({ method, url, header, contents }: TNamed) => {
         const response = await fetch(url, { method: method.toUpperCase() });
-        return response.headers[header.toLowerCase()] === contents ? OK : actionNotOK(`${method} ${url} does not contain ${header} with ${contents}, it contains ${JSON.stringify(response.headers)}`)
+        const headers = response.headers;
+        console.log('headers', headers);
+        return headers[header.toLowerCase()] === contents ? OK : actionNotOK(`${method} ${url} does not contain ${header} with ${contents}, it contains ${JSON.stringify(headers)}`)
       },
     },
   };
