@@ -4,7 +4,7 @@ import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, getDefaultWorld, testWithDefaults
 import TestSteps from '../test/TestSteps.js';
 import TestStepsWithOptions from '../test/TestStepsWithOptions.js';
 import { withNameType } from '../features.js';
-import { AStepper, IHasOptions, OK, TAnyFixme } from '../defs.js';
+import { AStepper, HANDLER_USAGE, IHasHandlers, IHasOptions, OK, TAnyFixme } from '../defs.js';
 
 describe('output', () => {
   it('OutputResult default', async () => {
@@ -25,6 +25,80 @@ describe('isLowerCase', () => {
   expect(util.isLowerCase('a')).toBe(true);
   expect(util.isLowerCase('A')).toBe(false);
   expect(util.isLowerCase('0')).toBe(false);
+});
+
+describe('findHandlers', () => {
+  const TEST_HANDLER = 'testHandler';
+  class TestStepper extends AStepper {
+    // eslint-disable-next-line @typescript-eslint/ban-types
+    steps: {};
+  }
+  it('finds handlers from classes that implement IHasHandler', () => {
+    class TestStepperHandler extends TestStepper implements IHasHandlers {
+      handlers = { testHandler: { handle: () => undefined } }
+    }
+    const found = util.findHandlers([new TestStepperHandler()], TEST_HANDLER);
+    expect(found.length).toBe(1);
+    expect(found[0].stepper.constructor.name).toBe('TestStepperHandler');
+  });
+  it(`does not find handlers from classes that don't implement IHasHandler`, () => {
+    const found = util.findHandlers([new TestStepper()], TEST_HANDLER);
+    expect(found.length).toBe(0);
+  });
+  it(`finds exclusive handler`, () => {
+    class ExclusiveTestStepperHandler extends TestStepper implements IHasHandlers {
+      handlers = { testHandler: { handle: () => undefined, usage: HANDLER_USAGE.EXCLUSIVE } }
+    }
+    const found = util.findHandlers([new TestStepper(), new ExclusiveTestStepperHandler()], TEST_HANDLER);
+    expect(found.length).toBe(1);
+    expect(found[0].stepper.constructor.name).toBe('ExclusiveTestStepperHandler');
+  });
+  it(`throws error for duplicate exclusives`, () => {
+    class ExclusiveTestStepperHandler extends TestStepper implements IHasHandlers {
+      handlers = { testHandler: { handle: () => undefined, usage: HANDLER_USAGE.EXCLUSIVE } }
+    }
+    class ExclusiveTestStepperHandlerToo extends TestStepper implements IHasHandlers {
+      handlers = { testHandler: { handle: () => undefined, usage: HANDLER_USAGE.EXCLUSIVE } }
+    }
+
+    expect(() => util.findHandlers([new TestStepper(), new ExclusiveTestStepperHandler(), new ExclusiveTestStepperHandlerToo()], TEST_HANDLER)).toThrow();
+  });
+  it(`removes fallback`, () => {
+    class TestStepperHandler extends TestStepper implements IHasHandlers {
+      handlers = { testHandler: { handle: () => undefined, } }
+    }
+    class FallbackTestStepperHandler extends TestStepper implements IHasHandlers {
+      handlers = { testHandler: { handle: () => undefined, usage: HANDLER_USAGE.FALLBACK } }
+    }
+    const found = util.findHandlers([new TestStepperHandler(), new FallbackTestStepperHandler()], TEST_HANDLER);
+    expect(found.length).toBe(1);
+    expect(found[0].stepper.constructor.name).toBe('TestStepperHandler');
+  });
+  it(`keeps one fallback from mix pak`, () => {
+    class TestStepperHandler extends TestStepper implements IHasHandlers {
+      handlers = { testHandler: { handle: () => undefined, } }
+    }
+    class FallbackTestStepperHandler extends TestStepper implements IHasHandlers {
+      handlers = { testHandler: { handle: () => undefined, usage: HANDLER_USAGE.FALLBACK } }
+    }
+    class FallbackTestStepperHandlerToo extends TestStepper implements IHasHandlers {
+      handlers = { testHandler: { handle: () => undefined, usage: HANDLER_USAGE.FALLBACK } }
+    }
+    const found = util.findHandlers([new TestStepperHandler(), new FallbackTestStepperHandler(), new FallbackTestStepperHandlerToo()], TEST_HANDLER);
+    expect(found.length).toBe(1);
+    expect(found[0].stepper.constructor.name).toBe('TestStepperHandler');
+  });
+  it(`keeps first fallback from multiple fallbacks`, () => {
+    class FallbackTestStepperHandler extends TestStepper implements IHasHandlers {
+      handlers = { testHandler: { handle: () => undefined, usage: HANDLER_USAGE.FALLBACK } }
+    }
+    class FallbackTestStepperHandlerToo extends TestStepper implements IHasHandlers {
+      handlers = { testHandler: { handle: () => undefined, usage: HANDLER_USAGE.FALLBACK } }
+    }
+    const found = util.findHandlers([new FallbackTestStepperHandler(), new FallbackTestStepperHandlerToo()], TEST_HANDLER);
+    expect(found.length).toBe(1);
+    expect(found[0].stepper.constructor.name).toBe('FallbackTestStepperHandler');
+  });
 });
 
 describe('findStepperFromOptions', () => {
@@ -54,14 +128,14 @@ describe('findStepperFromOptions', () => {
     const s = util.findStepperFromOption(steppers, ts, options, 'A');
     expect(s).toBeDefined();
   });
-  it.only('finds from last multiple options', async () => {
+  it('finds from last multiple options', async () => {
     const ts = new TestOptionsStepper();
     const steppers = await getCreateSteppers([], [TestOptionsStepper]);
     const options = { [util.getStepperOptionName(ts, 'B')]: 'TestOptionsStepper' };
     const s = util.findStepperFromOption(steppers, ts, options, 'A', 'B');
     expect(s).toBeDefined();
   });
-  it.only('finds from first multiple options', async () => {
+  it('finds from first multiple options', async () => {
     const ts = new TestOptionsStepper();
     const steppers = await getCreateSteppers([], [TestOptionsStepper, TestSteps]);
     const options = { [util.getStepperOptionName(ts, 'A')]: 'TestSteps', [util.getStepperOptionName(ts, 'B')]: 'TestOptionsStepper' };

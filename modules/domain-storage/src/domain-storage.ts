@@ -1,5 +1,5 @@
 import { WorkspaceContext } from '@haibun/core/build/lib/contexts.js'
-import { IHasDomains, TNamed, TVStep, OK, AStepper, TFromDomain, TFileTypeDomain, IHasOptions, TExtraOptions, TFeatureResult, TOptions, TTag, IHandle, TAnyFixme } from '@haibun/core/build/lib/defs.js';
+import { IHasDomains, TNamed, TVStep, OK, AStepper, TFromDomain, TFileTypeDomain, IHasOptions, TExtraOptions, TFeatureResult, TOptions, TTag, TAnyFixme, IHasHandlers, IHandler, ISourcedHandler } from '@haibun/core/build/lib/defs.js';
 import { TLogHistory } from '@haibun/core/build/lib/interfaces/logger.js';
 import { stringOrError } from '@haibun/core/build/lib/util/index.js';
 
@@ -147,12 +147,11 @@ export type TLocationOptions = {
   mediaType: TMediaType
 }
 
+export const HANDLE_RESULT_HISTORY = 'handleResultHistory';
 
-export interface IHandleResultHistory extends IHandle {
-  handleResultHistory(loc: TLocationOptions, description: string, result: TFeatureResult, startTime: Date, startOffset: number, logHistory: TLogHistory[]);
+export interface IHandleResultHistory extends ISourcedHandler {
+  handle(loc: TLocationOptions, description: string, result: TFeatureResult, startTime: Date, startOffset: number, logHistory: TLogHistory[]);
 }
-
-export const isIHandleResultHistory = (s: IHandleResultHistory): s is IHandleResultHistory => s.handleResultHistory !== undefined;
 
 /** 
  * Normalize the extension. This should probably be reconsidered.
