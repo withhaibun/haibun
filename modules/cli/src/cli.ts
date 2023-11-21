@@ -2,10 +2,10 @@
 
 import sourceMapSupport from 'source-map-support';
 import repl from 'repl';
-import { TSpecl, TWorld, TEndFeatureCallback, TEndFeatureCallbackParams, TRunOptions, TBase, STAY_ALWAYS, STAY, TNotOKActionResult, TFeatureResult, IHandle } from '@haibun/core/build/lib/defs.js';
-import { EMediaTypes, IHandleResultHistory, isIHandleResultHistory } from '@haibun/domain-storage/build/domain-storage.js';
+import { TSpecl, TWorld, TEndFeatureCallback, TEndFeatureCallbackParams, TRunOptions, TBase, STAY_ALWAYS, STAY, TNotOKActionResult, TFeatureResult } from '@haibun/core/build/lib/defs.js';
+import { EMediaTypes, IHandleResultHistory, HANDLE_RESULT_HISTORY } from '@haibun/domain-storage/build/domain-storage.js';
 
-import { findHandler, getDefaultOptions, basesFrom } from '@haibun/core/build/lib/util/index.js';
+import { findHandlers, getDefaultOptions, basesFrom } from '@haibun/core/build/lib/util/index.js';
 import { getConfigFromBase } from '@haibun/core/build/lib/util/workspace-lib.js';
 import runWithOptions from '@haibun/core/build/lib/run-with-options.js';
 import { processArgs, processBaseEnvToOptionsAndErrors, usageThenExit } from './lib.js';
@@ -57,12 +57,12 @@ async function go() {
   if (trace) {
     endFeatureCallback = async (params: TEndFeatureCallbackParams) => {
       const { world, result, steppers, startOffset } = params;
-      const historyHandlers = findHandler<IHandleResultHistory>(steppers, isIHandleResultHistory);
+      const historyHandlers = findHandlers<IHandleResultHistory>(steppers, HANDLE_RESULT_HISTORY);
       const loc = { ...world };
       if (running) running.context.haibun.step = { world, result, steppers, startOffset };
       const traceHistory = [...Logger.traceHistory];
       for (const h of historyHandlers) {
-        await h.handleResultHistory({ ...loc, mediaType: EMediaTypes.json }, description, result, Timer.startTime, startOffset, traceHistory);
+        await h.handle({ ...loc, mediaType: EMediaTypes.json }, description, result, Timer.startTime, startOffset, traceHistory);
       }
       Logger.traceHistory = [];
     };

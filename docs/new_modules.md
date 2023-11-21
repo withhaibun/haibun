@@ -93,3 +93,25 @@ It may be helpful to refer to the [haibun e2e-tests](https://github.com/withhaib
 
 haibun-e2e-tests contains an example of adding a route to a runtime web server (_start test route at {loc}_) 
 in its src directory.
+
+## Handlers
+
+Haibun supports stepper handlers for consistency in handling events. Steppers can implement `IHasHandlers`.
+Here's an exapmle:
+
+```
+export const HANDLE_RESULT_HISTORY = 'handleResultHistory';
+
+export interface IHandleResultHistory extends ISourcedHandler {
+  handle(args: TTypes)  : TReturnType
+}
+
+```
+
+elsewhere:
+
+```
+      const historyHandlers = findHandlers<IHandleResultHistory>(steppers, HANDLE_RESULT_HISTORY);
+```
+Handlers support a `usage` property, which can be `HANDLER_USAGE.FALLBACK` (only used if no others exist) 
+or `HANDLER_USAGE.EXCLUSIVE``.

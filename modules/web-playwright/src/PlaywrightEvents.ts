@@ -45,7 +45,7 @@ export class PlaywrightEvents {
                 type: 'json/playwright/trace'
             }
         };
-        this.logger.log(`playwright ${type}`, mc);
+        this.logger.debug(`playwright ${type}`, mc);
     }
 
     private async routeRequest(route: Route, request: Request): Promise<void> {
@@ -81,7 +81,7 @@ export class PlaywrightEvents {
                 type: 'json/playwright/trace'
             }
         };
-        this.logger.log(`playwright response`, mc);
+        this.logger.debug(`playwright response`, mc);
     }
     public close(): void {
         this.page.off('request', this.logRequest.bind(this));

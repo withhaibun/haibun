@@ -8,6 +8,7 @@
     "test-watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
+    "@alenaksu/json-viewer": "^2.0.1",
     "@haibun/out-review": "^1.30.7",
     "@rollup/plugin-node-resolve": "^15.2.3",
     "@rollup/plugin-typescript": "^11.1.5",
