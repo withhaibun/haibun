@@ -51,7 +51,6 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
   handlers = {
     [HANDLE_RESULT_HISTORY]: {
       handle: async (loc: TLocationOptions, description: string, result: TFeatureResult, startTime: Date, startOffset: number, logHistory: TLogHistory[]) => {
-        console.log('\n\n\nnomomomomo');
         const dir = await this.tracksStorage.ensureCaptureLocation(loc, 'tracks', TRACKS_FILE);
         const history: THistoryWithMeta = asHistoryWithMeta(logHistory, startTime, description, startOffset, result.ok);
         await this.tracksStorage.writeFile(dir, JSON.stringify(history, null, 2), loc.mediaType);
