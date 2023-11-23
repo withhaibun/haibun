@@ -18,7 +18,7 @@ export type TNamedHistories = { [name: string]: THistoryWithMeta; };
 // these are saved tracks files
 export function asHistoryWithMeta(logHistory: TLogHistory[], startTime: Date, description: string, startOffset: number, ok: boolean) {
     const logFeature = <TLogHistoryWithExecutorTopic>logHistory.find(h => asStepperActionType(h, 'feature'));
-    const feature = logFeature?.messageContext.tag.params.feature;
+    const feature = logFeature?.messageContext?.tag?.params?.feature || 'missing feature' + (logFeature?.messageContext?.tag || logFeature);
 
     const history: THistoryWithMeta = {
         '$schema': SCHEMA_HISTORY_WITH_META,

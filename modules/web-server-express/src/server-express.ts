@@ -6,7 +6,7 @@ import express, { RequestHandler } from 'express';
 import serveIndex from 'serve-index';
 import cookieParser from 'cookie-parser';
 
-import { IWebServer, ROUTE_TYPES, TRouteMap, TRouteTypes, TStaticFolderOptions } from './defs.js';
+import { IWebServer, ROUTE_TYPES, TRequestHandler, TRouteMap, TRouteTypes, TStaticFolderOptions } from './defs.js';
 import { ILogger } from '@haibun/core/build/lib/interfaces/logger.js';
 
 export const DEFAULT_PORT = 8123;
@@ -56,25 +56,25 @@ export class ServerExpress implements IWebServer {
     });
   }
 
-  addRoute(type: TRouteTypes, path: string, route: RequestHandler) {
+  addRoute(type: TRouteTypes, path: string, ...routes: RequestHandler[]) {
     if (type !== 'get' && type !== 'post' && type !== 'put' && type !== 'delete' && type !== 'head') {
       throw Error(`invalid route type ${type}`);
     }
-    const bad = this.checkMountBadOrMounted('get', path, route.toString());
+    const bad = this.checkMountBadOrMounted('get', path, routes.toString());
     if (bad) {
       throw Error(bad);
     }
 
     this.logger.log(`adding ${type} route from ${path}`);
-    this.app[type](path, route);
+    this.app[type](path, ...routes);
 
-    this.addMounted(type, path, route.toString());
+    this.addMounted(type, path, routes.toString());
   }
 
-  addKnownRoute(type: TRouteTypes, path: string, route: RequestHandler) {
+  addKnownRoute(type: TRouteTypes, path: string, ...routes: TRequestHandler[]) {
     this.logger.log(`adding known ${type} route from ${path}`);
-    this.app[type](path, route);
-    this.addMounted(type, path, route.toString());
+    this.app[type](path, ...routes);
+    this.addMounted(type, path, routes.toString());
   }
 
   private addMounted(type: string, path: string, what: string) {
