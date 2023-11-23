@@ -10,8 +10,8 @@ export interface IWebServer {
   listen(): Promise<unknown>;
   close(): Promise<void>;
   mounted: TRouteMap;
-  addRoute(type: TRouteTypes, path: string, route: TRequestHandler): void;
-  addKnownRoute(type: TRouteTypes, path: string, route: TRequestHandler): void;
+  addRoute(type: TRouteTypes, path: string, ...routes: TRequestHandler[]): void;
+  addKnownRoute(type: TRouteTypes, path: string, ...routes: TRequestHandler[]): void;
   use(middleware: express.RequestHandler): void;
 }
 
@@ -24,7 +24,7 @@ export type IRequest = typeof express.request;
 
 export type IResponse = typeof express.response;
 
-export type TRequestHandler = (req: IRequest, res: IResponse) => void;
+export type TRequestHandler = (req: IRequest, res: IResponse, next: () => void) => void;
 
 export type TStaticFolderOptions = {
   setHeaders?: (res, filePath, stat) => void;
