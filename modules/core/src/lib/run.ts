@@ -33,7 +33,7 @@ export async function run({ specl, bases, world, addSteppers = [], featureFilter
   return res;
 }
 
-export async function runWith({ specl, world, features, backgrounds, addSteppers , endFeatureCallback }: TRunWithFeaturesBackgrounds): Promise<TExecutorResult> {
+export async function runWith({ specl, world, features, backgrounds, addSteppers = [], endFeatureCallback }: TRunWithFeaturesBackgrounds): Promise<TExecutorResult> {
   const { tag } = world;
 
   let result: TExecutorResult = undefined;
@@ -44,7 +44,7 @@ export async function runWith({ specl, world, features, backgrounds, addSteppers
 
   try {
     const baseSteppers = await getSteppers(specl.steppers).catch((error) => errorBail('Steppers', error));
-    const csteppers = baseSteppers.concat(addSteppers);
+    const csteppers = [...baseSteppers, ...addSteppers];
 
     await verifyRequiredOptions(csteppers, world.extraOptions).catch((error) => errorBail('RequiredOptions', error));
     await verifyExtraOptions(world.extraOptions, csteppers).catch((error) => errorBail('ExtraOptions', error));
