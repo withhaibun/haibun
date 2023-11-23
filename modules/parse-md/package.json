@@ -1,7 +1,7 @@
 {
   "name": "@haibun/parse-md",
   "type": "module",
-  "version": "1.32.1",
+  "version": "1.32.2",
   "description": "",
   "files": [
     "build/**"
@@ -19,7 +19,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@haibun/core": "1.32.1",
+    "@haibun/core": "1.32.2",
     "turndown": "^7.1.1"
   },
   "devDependencies": {
