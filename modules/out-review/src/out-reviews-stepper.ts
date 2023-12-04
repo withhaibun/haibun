@@ -112,7 +112,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
 
   async createIndexer() {
     if (this.reviewEndpoint) {
-      const indexer = `const resolvedEndpoint = "${this.reviewEndpoint.endpoint(TRACKS_DIR)}";\n${this.reviewEndpoint.getPublishedReviews.toString().replace('async', 'export async function')}`;
+      const indexer = `export const endpoint = "${this.reviewEndpoint.endpoint(TRACKS_DIR)}";\n${this.reviewEndpoint.getPublishedReviews.toString().replace('async', 'export async function')}`;
       await this.publishStorage.writeFile(`${this.publishRoot}/built/dashboard/indexer.js`, indexer, EMediaTypes.javascript);
       this.getWorld().logger.log(`indexer-endpoint.json written for ${this.publishStorage.constructor.name}`);
     }

@@ -44,7 +44,7 @@ export class DataAccess {
 }
 
 export async function summarize(file: string): Promise<TTraceHistorySummary> {
-  const link = `${endpoint}/${file}`;
+  const link = `${endpoint}${file}`;
   const response = await fetch(link);
   const foundHistory: TFoundHistories = await response.json();
   return {
