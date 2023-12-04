@@ -1,7 +1,7 @@
 {
   "name": "@haibun/browser-extension",
   "type": "module",
-  "version": "1.32.2",
+  "version": "1.32.5",
   "description": "",
   "main": "dist/js/index.js",
   "files": [
@@ -24,14 +24,14 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "@haibun/cli": "1.32.2",
-    "@haibun/context": "1.32.2",
-    "@haibun/domain-storage": "1.32.2",
-    "@haibun/domain-webpage": "1.32.2",
-    "@haibun/feature-importer": "1.32.2",
-    "@haibun/storage-fs": "1.32.2",
-    "@haibun/web-playwright": "1.32.2",
-    "@haibun/web-server-express": "1.32.2",
+    "@haibun/cli": "1.32.5",
+    "@haibun/context": "1.32.5",
+    "@haibun/domain-storage": "1.32.5",
+    "@haibun/domain-webpage": "1.32.5",
+    "@haibun/feature-importer": "1.32.5",
+    "@haibun/storage-fs": "1.32.5",
+    "@haibun/web-playwright": "1.32.5",
+    "@haibun/web-server-express": "1.32.5",
     "@types/chrome": "^0.0.237",
     "@types/jest": "^29.5.2",
     "@types/urijs": "^1.19.19",
@@ -42,7 +42,7 @@
     "webpack-cli": "^4.9.1"
   },
   "dependencies": {
-    "@haibun/core": "1.32.2",
+    "@haibun/core": "1.32.5",
     "@medv/finder": "^2.1.0",
     "ws": "8.9.0"
   },
