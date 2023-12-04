@@ -3,6 +3,14 @@ import { TTag } from '@haibun/core/build/lib/defs.js';
 import { ILogger, TArtifactMessageContext } from '@haibun/core/build/lib/interfaces/logger.js';
 import { Page, Request, Route, Response } from 'playwright';
 
+
+type TEtc = {
+    headers: Record<string, string>;
+    method?: string;
+    postData?: string;
+    status?: number;
+    statusText?: string;
+}
 export class PlaywrightEvents {
     page: Page;
     tag: TTag;
@@ -20,32 +28,13 @@ export class PlaywrightEvents {
     }
     private async logRequest(request: Request, type = 'request'): Promise<void> {
         const frameURL = request.frame().url();
-        const currentPageURL = this.page.url();
-        const requestingURL = frameURL === currentPageURL ? currentPageURL : `Frame: ${frameURL}`;
-        const targetURL = request.url();
-        const method = request.method();
-        const headers = request.headers();
-        const postData = request.postData();
+        const etc = {
+            method: request.method(),
+            headers: request.headers(),
+            postData: request.postData(),
+        }
 
-        const logData = {
-            requestingURL,
-            targetURL,
-            method,
-            headers,
-            postData
-        };
-
-        const mc: TArtifactMessageContext = {
-            topic: {
-                stage: 'action',
-                event: 'debug',
-            },
-            artifact: {
-                content: logData,
-                type: 'json/playwright/trace'
-            }
-        };
-        this.logger.debug(`playwright ${type}`, mc);
+        this.log(type, frameURL, request.url(), etc);
     }
 
     private async routeRequest(route: Route, request: Request): Promise<void> {
@@ -56,20 +45,31 @@ export class PlaywrightEvents {
 
     private async logResponse(response: Response): Promise<void> {
         const frameURL = response.request().frame().url();
-        const currentPageURL = this.page.url();
-        const requestingURL = frameURL === currentPageURL ? currentPageURL : `Frame: ${frameURL}`;
-        const targetURL = response.url();
-        const status = response.status();
-        const statusText = response.statusText();
-        const headers = response.headers();
+        const etc = {
+            status: response.status(),
+            statusText: response.statusText(),
+            headers: response.headers()
+        }
 
+        this.log('response', frameURL, response.url(), etc);
+    }
+    public close(): void {
+        this.page.off('request', this.logRequest.bind(this));
+        // Note: Playwright doesn't provide a direct way to remove a specific route handler
+        this.page.off('response', this.logResponse.bind(this));
+    }
+    log(type: string, maybeFrameURL: string, targetURL: string, etc: TEtc) {
+        const requestingPage = this.page.url();
+        const frameURL = maybeFrameURL === requestingPage ? undefined : maybeFrameURL;
+        const requestingURL = frameURL ? `frame ${frameURL} on ${requestingPage}` : requestingPage;
         const logData = {
+            frameURL,
+            requestingPage,
             requestingURL,
-            targetURL,
-            status,
-            statusText,
-            headers
+            ...etc
         };
+        const requestingBase = requestingPage.replace(/\/[^/]*$/, '');
+        const targetWithoutRequestingBase = targetURL.replace(requestingBase, '');
 
         const mc: TArtifactMessageContext = {
             topic: {
@@ -81,11 +81,6 @@ export class PlaywrightEvents {
                 type: 'json/playwright/trace'
             }
         };
-        this.logger.debug(`playwright response`, mc);
-    }
-    public close(): void {
-        this.page.off('request', this.logRequest.bind(this));
-        // Note: Playwright doesn't provide a direct way to remove a specific route handler
-        this.page.off('response', this.logResponse.bind(this));
+        this.logger.debug(`playwright ${type} ${logData.requestingURL} -> ${targetWithoutRequestingBase}`, mc);
     }
 }
