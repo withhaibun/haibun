@@ -5,10 +5,5 @@
     "rootDir": "src"
   },
   "include": ["src"],
-  "xreferences": [
-    {
-      "path": "./dashboard/web"
-    }
-  ],
-  "exclude": ["./dashboard/web/node_modules/**"]
+  "exclude": ["./dashboard"]
 }

@@ -13,7 +13,7 @@
   },
   "main": "build/out-reviews-stepper.js",
   "scripts": {
-    "build": "tsc -b .; tsc -b dashboard/web/",
+    "build": "tsc -b .",
     "build-watch": "tsc -b . --watch",
     "prepublishOnly": "tsc -b .",
     "lint": "eslint -c .eslintrc.json --ext .ts,.js src",
