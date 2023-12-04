@@ -11,8 +11,7 @@
       "dom"
     ],
     "outDir": "./built",
-    "strict": true,
-    "composite": true
+    "strict": true
   },
   "include": [
     "./src/**/*.ts"
