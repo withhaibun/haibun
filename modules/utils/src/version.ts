@@ -49,6 +49,10 @@ class Versioner {
     }
     this.verifyShouldPublishStructureAndUpdateVersion('haibun', '.');
     this.publishAll();
+    const packageJson = JSON.parse(readFileSync('./package.json', 'utf-8'));
+    packageJson.version = this.version;
+    writeFileSync('./package.json', JSON.stringify(packageJson, null, 2));
+    spawn(['git', 'commit', '-m', `'update haibun to version ${this.version}'`, 'package.json', 'modules/core/src/currentVersion.ts'], '.');
   }
 
   publishAll() {
