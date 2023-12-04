@@ -9,3 +9,5 @@ coverage/
 out-tsc/
 .env
 
+
+.nx/cache
