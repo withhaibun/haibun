@@ -16,6 +16,8 @@
     "composite": true,
     "importHelpers": true,
     "incremental": true,
+    "declaration": true,
+    "declarationMap": true,
     "paths": {
       "@haibun/*": ["./*"]
     }
