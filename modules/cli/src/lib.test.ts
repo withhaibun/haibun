@@ -1,4 +1,4 @@
-import { jest } from '@jest/globals';
+import { vitest, describe, it, expect } from 'vitest';
 
 import { DEFAULT_DEST } from '@haibun/core/build/lib/defs.js';
 import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, testWithDefaults } from '@haibun/core/build/lib/test/lib.js';
@@ -13,14 +13,14 @@ const s = s => s.split(' ');
 describe('usageThenExit', () => {
   it('exits with success', async () => {
     const ranOnce = (code: number | undefined) => { expect(code).toBe(0); return <never>undefined }
-    jest.spyOn(process, 'exit').mockImplementationOnce(ranOnce);
-    jest.spyOn(console, 'info').mockImplementationOnce(() => undefined);
+    vitest.spyOn(process, 'exit').mockImplementationOnce(ranOnce);
+    vitest.spyOn(console, 'info').mockImplementationOnce(() => undefined);
     await lib.usageThenExit({ ...getDefaultOptions(), steppers: ['../core/build/lib/test/TestStepsWithOptions'] });
   })
   it('exits with error', async () => {
     const ranOnce = (code: number | undefined) => { expect(code).toBe(1); return <never>undefined }
-    jest.spyOn(process, 'exit').mockImplementationOnce(ranOnce);
-    jest.spyOn(console, 'error').mockImplementationOnce(() => undefined);
+    vitest.spyOn(process, 'exit').mockImplementationOnce(ranOnce);
+    vitest.spyOn(console, 'error').mockImplementationOnce(() => undefined);
     await lib.usageThenExit({ ...getDefaultOptions(), steppers: ['../core/build/lib/test/TestStepsWithOptions'] }, 'woops');
   })
 });

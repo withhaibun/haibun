@@ -1,8 +1,10 @@
+import { test, expect, describe } from 'vitest';
+
 import { WebSocketServer } from "../websocket-server/websockets-server.js";
 import LoggerWebSocketsClient from "./LoggerWebSocketsClient.js";
 
 const PORT = 3939;
-xdescribe('logger-websockets', () => {
+describe.skip('logger-websockets', () => {
     test('onmessage handler', async () => {
         const s = new WebSocketServer(PORT, console);
         

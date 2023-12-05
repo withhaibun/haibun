@@ -23,13 +23,13 @@ export async function scaffoldHaibun(dest: string, opts?: { out?: typeof console
             '@haibun/core': currentVersion,
             '@haibun/cli': currentVersion,
         },
-        devDependencies: ["@types/jest", "@types/node", "@typescript-eslint/eslint-plugin", "@typescript-eslint/parser", "eslint", "eslint-config-airbnb-typescript"
-            , "eslint-config-prettier", "eslint-plugin-import", "eslint-plugin-prefer-arrow", "eslint-plugin-prettier", "jest"
+        devDependencies: ["@types/node", "@typescript-eslint/eslint-plugin", "@typescript-eslint/parser", "eslint", "eslint-config-airbnb-typescript"
+            , "eslint-config-prettier", "eslint-plugin-import", "eslint-plugin-prefer-arrow", "eslint-plugin-prettier", "vitest"
             , "prettier", "typescript"]
             .reduce((a, i) => ({ ...a, [i]: refPackage.devDependencies[i] }), {} as Tkv),
         scripts: {
-            test: 'NODE_OPTIONS=--experimental-vm-modules jest',
-            "test-watch": 'NODE_OPTIONS=--experimental-vm-modules jest',
+            test: 'vitest run',
+            "test-watch": 'vitest',
             "build": "tsc",
             lint: 'lint --ext .ts ./src/',
         },

@@ -1,3 +1,5 @@
+import { describe, test } from 'vitest';
+
 import { WorkspaceContext } from '../lib/contexts.js';
 import { OK, TFinalize } from '../lib/defs.js';
 import { getCreateSteppers, getDefaultWorld } from '../lib/test/lib.js';

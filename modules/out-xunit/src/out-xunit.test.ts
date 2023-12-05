@@ -1,3 +1,5 @@
+import { describe, it, expect } from 'vitest';
+
 import { convert } from 'xmlbuilder2';
 
 import OutXUnit from "./out-xunit.js";

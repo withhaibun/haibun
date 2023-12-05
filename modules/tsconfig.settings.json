@@ -3,7 +3,7 @@
     "target": "esnext",
     "module": "NodeNext",
     "moduleResolution": "nodenext",
-    "types": ["node", "jest"],
+    "types": ["node"],
     "skipLibCheck": true, // FIXME
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true,

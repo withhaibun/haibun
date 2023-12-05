@@ -10,10 +10,10 @@
   "scripts": {
     "build": "tsc -b .",
     "prepublishOnly": "tsc -b .",
-    "test": "jest",
+    "test": "vitest run",
     "lint": "eslint -c .eslintrc.json --ext .ts,.js src",
     "preversion": "npm run lint",
-    "test-watch": "jest --watch"
+    "test-watch": "vitest"
   },
   "keywords": [],
   "author": "",

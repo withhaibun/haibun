@@ -3,9 +3,7 @@
   "compilerOptions": {
     "outDir": "public/js",
     "rootDir": "src",
-    "types": ["node", "jest", "chrome"]
+    "types": ["node", "chrome"]
   },
-  "include": [
-    "./src"
-  ]
+  "include": ["./src"]
 }

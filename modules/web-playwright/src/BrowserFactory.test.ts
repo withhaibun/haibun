@@ -1,3 +1,5 @@
+import { describe, it, expect } from 'vitest';
+
 import Logger, { LOGGER_NOTHING } from "@haibun/core/build/lib/Logger.js";
 import { BrowserFactory, DEFAULT_CONFIG_TAG, TBrowserFactoryOptions } from "./BrowserFactory.js";
 import { getDefaultTag } from "@haibun/core/build/lib/test/lib.js";

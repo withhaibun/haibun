@@ -1,3 +1,5 @@
+import { describe, test, expect } from 'vitest';
+
 import { DomainContext, WorldContext } from '../lib/contexts.js';
 import { IHasDomains, OK, TFeatures, TFileTypeDomain } from '../lib/defs.js';
 import { withNameType } from '../lib/features.js';

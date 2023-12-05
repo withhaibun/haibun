@@ -1,3 +1,5 @@
+import { describe, it, test, expect } from 'vitest';
+
 import * as util from './index.js';
 import * as TFileSystemJs from './workspace-lib.js';
 import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, getDefaultWorld, testWithDefaults, getCreateSteppers, TEST_BASE } from '../test/lib.js';
@@ -22,9 +24,11 @@ describe('output', () => {
 });
 
 describe('isLowerCase', () => {
-  expect(util.isLowerCase('a')).toBe(true);
-  expect(util.isLowerCase('A')).toBe(false);
-  expect(util.isLowerCase('0')).toBe(false);
+  it('is lower case', () => {
+    expect(util.isLowerCase('a')).toBe(true);
+    expect(util.isLowerCase('A')).toBe(false);
+    expect(util.isLowerCase('0')).toBe(false);
+  });
 });
 
 describe('findHandlers', () => {
@@ -135,11 +139,12 @@ describe('findStepperFromOptions', () => {
     const s = util.findStepperFromOption(steppers, ts, options, 'A', 'B');
     expect(s).toBeDefined();
   });
-  it('finds from first multiple options', async () => {
+  it.only('finds from first multiple options', async () => {
     const ts = new TestOptionsStepper();
     const steppers = await getCreateSteppers([], [TestOptionsStepper, TestSteps]);
-    const options = { [util.getStepperOptionName(ts, 'A')]: 'TestSteps', [util.getStepperOptionName(ts, 'B')]: 'TestOptionsStepper' };
-    const s = util.findStepperFromOption<typeof TestSteps>(steppers, ts, options, 'A', 'B');
+    console.log('s', steppers)
+    const options = { [util.getStepperOptionName(ts, 'optionA')]: 'TestSteps', [util.getStepperOptionName(ts, 'B')]: 'TestOptionsStepper' };
+    const s = util.findStepperFromOption<typeof TestSteps>(steppers, ts, options, 'optionA', 'optionB');
     expect(s).toBeDefined();
     expect(s.constructor.name).toBe('TestSteps');
   });

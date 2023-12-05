@@ -1,3 +1,5 @@
+import { describe, it, expect } from 'vitest';
+
 import { testWithDefaults } from '@haibun/core/build/lib/test/lib.js';
 import { IWebSocketServer, TWithContext, WEB_SOCKET_SERVER } from '@haibun/context/build/Context.js';
 

@@ -1,3 +1,5 @@
+import { describe, it, expect } from 'vitest';
+
 import ContextFeatureImporter from "./ContextFeatureImporter.js";
 import { TControl, TEvent } from "./defs.js";
 import { WEB_PAGE, SELECTOR } from '@haibun/domain-webpage/build/domain-webpage.js';

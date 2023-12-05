@@ -22,8 +22,6 @@ Each module can be developed independently using:
 
 `npm test` or `npm run test-watch`
 
-You may need to `export NODE_OPTIONS=--experimental-vm-modules`.
-
 ## Developing modules and Haibun core together
 
 To develop your own separate module while developing Haibun modules, use:
@@ -32,4 +30,4 @@ To develop your own separate module while developing Haibun modules, use:
 
 and any other modules you may need.
 
-You can use `nx graph` to view Haibun's module graph structure.
+You can use `npm run depcruise` to view Haibun's depenencies.

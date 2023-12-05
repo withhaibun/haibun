@@ -1,3 +1,5 @@
+import { it, expect, describe } from 'vitest';
+
 import { testWithDefaults } from '@haibun/core/build/lib/test/lib.js';
 import WebHttp from '@haibun/web-http/build/web-http.js';
 

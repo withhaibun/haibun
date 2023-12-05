@@ -1,3 +1,5 @@
+import { describe, it, beforeEach } from 'vitest';
+
 import { popupActions } from '../services/constants.js';
 import Background from './Background.js';
 import MockChrome from '../mock-chrome/MockChrome.js';

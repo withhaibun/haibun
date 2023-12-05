@@ -1,3 +1,5 @@
+import {describe, it, expect} from 'vitest';
+
 import { FeatureExecutor } from '../phases/Executor.js';
 import { asExpandedFeatures, getDefaultWorld, getTestEnv, testWithDefaults } from '../lib/test/lib.js';
 import TestSteps from '../lib/test/TestSteps.js';

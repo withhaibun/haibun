@@ -1,3 +1,5 @@
+import { describe, it, test, expect } from 'vitest';
+
 import { AStepper, OK, TResolvedFeature, TStep } from './defs.js';
 import { getNamedMatches, namedInterpolation, matchGroups, getNamedToVars } from './namedVars.js';
 import { Resolver } from '../phases/Resolver.js';

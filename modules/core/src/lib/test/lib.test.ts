@@ -1,3 +1,5 @@
+import {describe, it, expect} from 'vitest';
+
 import { asFeatures, TEST_BASE } from "./lib.js";
 
 describe('asFeatures', () => {

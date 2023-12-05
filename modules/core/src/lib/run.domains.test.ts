@@ -1,3 +1,5 @@
+import { describe, it, expect } from 'vitest';
+
 import { onCurrentTypeForDomain, setShared } from '../steps/vars.js';
 import { IHasDomains, TNamed, TVStep, IRequireDomains, AStepper } from './defs.js';
 import { getDomain } from './domain.js';

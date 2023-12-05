@@ -1,3 +1,5 @@
+import { describe, it, expect } from 'vitest';
+
 import { onCurrentTypeForDomain } from '@haibun/core/build/steps/vars.js';
 import { AStepper, TNamed, IRequireDomains } from '@haibun/core/build/lib/defs.js';
 import { runWith } from '@haibun/core/build/lib/run.js';
