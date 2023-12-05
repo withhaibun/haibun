@@ -20,6 +20,7 @@
     "typescript": "^5.2.2"
   },
   "scripts": {
+    "depcruise": "depcruise -c .dependency-cruiser.js -T dot modules/**/build/ | dot -T svg > dependencygraph.svg",
     "test": "vitest run",
     "test-watch": "vitest",
     "build-watch": "tsc -b modules/ --watch",
