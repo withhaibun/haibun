@@ -1,5 +1,6 @@
 import { IHasOptions, OK, TWorld, TNamed, TOptions, AStepper, TVStep, } from '@haibun/core/build/lib/defs.js';
 import { actionNotOK, getFromRuntime, getStepperOption, intOrError } from '@haibun/core/build/lib/util/index.js';
+import { getDirname } from '@haibun/core/build/lib/util/workspace-lib.js';
 import { IWebServer, WEBSERVER, } from './defs.js';
 import { ServerExpress, DEFAULT_PORT } from './server-express.js';
 import { WEB_PAGE } from '@haibun/domain-webpage/build/domain-webpage.js';
@@ -18,7 +19,7 @@ const WebServerStepper = class WebServerStepper extends AStepper implements IHas
     await super.setWorld(world, steppers);
     // this.world.runtime[CHECK_LISTENER] = WebServerStepper.checkListener;
     const port = parseInt(getStepperOption(this, 'PORT', world.extraOptions)) || DEFAULT_PORT;
-    this.webserver = new ServerExpress(world.logger, [process.cwd(), 'files'].join('/'), port);
+    this.webserver = new ServerExpress(world.logger, [getDirname(import.meta), '..', 'files'].join('/'), port);
     world.runtime[WEBSERVER] = this.webserver;
   }
 
@@ -57,8 +58,7 @@ const WebServerStepper = class WebServerStepper extends AStepper implements IHas
     serveFilesAt: {
       gwta: 'serve files at {where} from {loc}',
       action: async ({ where, loc }: TNamed) => {
-        await this.doServeFiles(where, loc).catch((e) => actionNotOK(e));
-        return OK;
+        return await this.doServeFiles(where, loc).catch((e) => actionNotOK(e));
       },
     },
     serveFiles: {
@@ -96,7 +96,7 @@ const WebServerStepper = class WebServerStepper extends AStepper implements IHas
     const ws: IWebServer = getFromRuntime(this.getWorld().runtime, WEBSERVER);
     const res = ws.checkAddStaticFolder(loc, where);
     if (res) {
-      throw Error(`failed to add static folder ${loc} at ${where}: ${res}`);
+      return actionNotOK(`failed to add static folder ${loc} at ${where}: ${res}`);
     }
     await this.listen();
     return OK;

@@ -3,7 +3,8 @@
     "target": "esnext",
     "module": "NodeNext",
     "moduleResolution": "nodenext",
-    "types": ["node", "jest"],
+    "isolatedModules": true,
+    "types": ["node"],
     "skipLibCheck": true, // FIXME
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true,
@@ -16,6 +17,8 @@
     "composite": true,
     "importHelpers": true,
     "incremental": true,
+    "declaration": true,
+    "declarationMap": true,
     "paths": {
       "@haibun/*": ["./*"]
     }

@@ -2,6 +2,7 @@ import { WorkspaceContext } from '@haibun/core/build/lib/contexts.js'
 import { IHasDomains, TNamed, TVStep, OK, AStepper, TFromDomain, TFileTypeDomain, IHasOptions, TExtraOptions, TFeatureResult, TOptions, TTag, TAnyFixme, IHasHandlers, IHandler, ISourcedHandler } from '@haibun/core/build/lib/defs.js';
 import { TLogHistory } from '@haibun/core/build/lib/interfaces/logger.js';
 import { stringOrError } from '@haibun/core/build/lib/util/index.js';
+import { TMediaType, MEDIA_TYPES, MAPPED_MEDIA_TYPES } from './media-types.js';
 
 export type TTrackResult = { meta: { title: string, startTime: string, startOffset: number }, result: TFeatureResult };
 export type TMissingTracks = { error: string };
@@ -96,49 +97,6 @@ const DomainStorage = class DomainStorage extends AStepper implements IHasDomain
 };
 
 export default DomainStorage;
-
-const MAPPED_MEDIA_TYPES = {
-  js: 'text/javascript',
-  javascript: 'text/javascript',
-  css: 'text/css',
-  html: 'text/html',
-  json: 'application/json',
-  png: 'image/png',
-  jpg: 'image/jpeg',
-  jpeg: 'image/jpeg',
-  gif: 'image/gif',
-  svg: 'image/svg+xml',
-  ogg: 'audio/ogg',
-  pdf: 'application/pdf',
-  webm: 'video/webm',
-  weba: 'audio/webm',
-  mp4: 'video/mp4',
-  mp3: 'audio/mpeg',
-  wav: 'audio/wav',
-  ico: 'image/x-icon',
-  woff: 'font/woff',
-  woff2: 'font/woff2',
-  ttf: 'font/ttf',
-  otf: 'font/otf',
-}
-
-export const enum EMediaTypes {
-  html = 'html',
-  video = 'video',
-  json = 'json',
-  image = 'image',
-  javascript = 'js'
-}
-
-const MEDIA_TYPES: { [type: string]: string } = {
-  webm: 'video',
-  html: 'text/html',
-  json: 'json',
-  video: 'video/mp4',
-  js: 'javascript',
-}
-
-export type TMediaType = EMediaTypes;
 
 export type TLocationOptions = {
   tag: TTag,

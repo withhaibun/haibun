@@ -1,3 +1,5 @@
+import { describe, it, expect } from 'vitest';
+
 import { testWithDefaults } from '@haibun/core/build/lib/test/lib.js';
 import OutReviews, { STORAGE } from './out-reviews-stepper.js';
 import DomainStorage from '@haibun/domain-storage/build/domain-storage.js';

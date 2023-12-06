@@ -6,8 +6,8 @@ import { BrowserFactory, TBrowserFactoryOptions, TBrowserTypes } from './Browser
 import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOption, sleep } from '@haibun/core/build/lib/util/index.js';
 import { WEB_PAGE, WEB_CONTROL } from '@haibun/domain-webpage';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
-import { EMediaTypes } from '@haibun/domain-storage/build/domain-storage.js';
 import { TActionStage, TArtifactMessageContext, TTraceMessageContext } from '@haibun/core/build/lib/interfaces/logger.js';
+import { EMediaTypes } from '@haibun/domain-storage/build/media-types.js';
 
 const WebPlaywright = class WebPlaywright extends AStepper implements IHasOptions, IRequireDomains {
   static STORAGE = 'STORAGE';

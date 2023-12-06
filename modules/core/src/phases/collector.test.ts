@@ -1,3 +1,5 @@
+import { describe, it, expect } from 'vitest';
+
 import { basesFrom } from '../lib/util/index.js';
 import { TFileSystem } from '../lib/util/workspace-lib.js';
 import { getFeaturesAndBackgrounds, shouldProcess } from './collector.js';

@@ -1,7 +1,10 @@
+import { describe, it, expect } from 'vitest';
+
 import { onCurrentTypeForDomain } from '@haibun/core/build/steps/vars.js';
 import { AStepper, TNamed, IRequireDomains } from '@haibun/core/build/lib/defs.js';
 import { runWith } from '@haibun/core/build/lib/run.js';
-import { asFeatures, getDefaultWorld } from '@haibun/core/build/lib/test/lib.js';
+import { asFeatures } from '@haibun/core/build/lib/resolver-features.js';
+import { getDefaultWorld } from '@haibun/core/build/lib/test/lib.js';
 import { actionOK, getDefaultOptions } from '@haibun/core/build/lib/util/index.js';
 import DomainWebPage, { WEB_CONTROL, WEB_PAGE } from './domain-webpage.js';
 

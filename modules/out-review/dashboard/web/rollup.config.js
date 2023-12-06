@@ -12,30 +12,32 @@ const licensed = license({
       file: './banner',
       encoding: 'utf-8',
     },
+    data: JSON.parse(readFileSync('../../package.json', 'utf-8')),
   },
-
   thirdParty: {
     includePrivate: true,
-    multipleVersions: true,
     output: {
       file: './built/third-party-licenses.txt',
       encoding: 'utf-8',
     },
   },
-  data: JSON.parse(readFileSync('../../package.json', 'utf-8'))
 });
 const dashboard = {
   input: [`./src/dashboard/index.ts`, `./src/dashboard/indexer.ts`],
   output: {
+    sourcemap: true,
     dir: `built/dashboard/`,
   },
-  plugins: [licensed, litcss(), resolve(), typescript({ outDir: './built/dashboard' })],
+  plugins: [licensed, litcss(), resolve(), typescript({ outputToFilesystem: true, outDir: './built/dashboard' })],
 };
 
 const reviewer = (dir) => ({
   input: `./src/reviews/index.ts`,
-  output: { dir },
-  plugins: [licensed, litcss(), resolve(), typescript({ outDir: dir })],
+  output: {
+    dir,
+    sourcemap: true,
+  },
+  plugins: [licensed, litcss(), resolve(), typescript({ outputToFilesystem: true, outDir: dir })],
 });
 
 const builds = [dashboard, reviewer('built/reviewer')];

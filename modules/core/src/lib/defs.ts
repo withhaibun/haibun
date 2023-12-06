@@ -3,6 +3,7 @@ import { Resolver } from '../phases/Resolver.js';
 import { DomainContext, WorkspaceContext, WorldContext } from './contexts.js';
 import { ILogger, TMessageContext } from './interfaces/logger.js';
 import { Timer } from './Timer.js';
+import { constructorName } from './util/index.js';
 
 export type TSpecl = {
   steppers: string[];
@@ -36,13 +37,14 @@ export interface IHasOptions {
   };
 }
 
+export const HANDLER_USAGE = {
+  EXCLUSIVE: 'exclusive',
+  FALLBACK: 'fallback',
+} as const;
 
-export enum HANDLER_USAGE {
-  EXCLUSIVE = 'exclusive',
-  FALLBACK = 'fallback',
-}
+export type THandlerUsage = typeof HANDLER_USAGE[keyof typeof HANDLER_USAGE];
 export interface IHandler {
-  usage?: HANDLER_USAGE;
+  usage?: THandlerUsage;
   // eslint-disable-next-line @typescript-eslint/ban-types
   handle: Function
 }
@@ -202,7 +204,7 @@ export abstract class AStepper {
   abstract steps: { [name: string]: TStep };
   getWorld() {
     if (!this.world) {
-      throw Error(`stepper without world ${this.constructor.name}`);
+      throw Error(`stepper without world ${constructorName(this)}`);
     }
 
     return this.world;

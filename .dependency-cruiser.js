@@ -28,70 +28,70 @@ module.exports = {
     //   to: {},
     // },
     {
-      name: "no-deprecated-core",
+      name: 'no-deprecated-core',
       comment:
-        "A module depends on a node core module that has been deprecated. Find an alternative - these are " +
+        'A module depends on a node core module that has been deprecated. Find an alternative - these are ' +
         "bound to exist - node doesn't deprecate lightly.",
-      severity: "warn",
+      severity: 'warn',
       from: {},
       to: {
-        dependencyTypes: ["core"],
+        dependencyTypes: ['core'],
         path: [
-          "^(v8/tools/codemap)$",
-          "^(v8/tools/consarray)$",
-          "^(v8/tools/csvparser)$",
-          "^(v8/tools/logreader)$",
-          "^(v8/tools/profile_view)$",
-          "^(v8/tools/profile)$",
-          "^(v8/tools/SourceMap)$",
-          "^(v8/tools/splaytree)$",
-          "^(v8/tools/tickprocessor-driver)$",
-          "^(v8/tools/tickprocessor)$",
-          "^(node-inspect/lib/_inspect)$",
-          "^(node-inspect/lib/internal/inspect_client)$",
-          "^(node-inspect/lib/internal/inspect_repl)$",
-          "^(async_hooks)$",
-          "^(assert)$",
-          "^(punycode)$",
-          "^(domain)$",
-          "^(constants)$",
-          "^(sys)$",
-          "^(_linklist)$",
-          "^(_stream_wrap)$",
+          '^(v8/tools/codemap)$',
+          '^(v8/tools/consarray)$',
+          '^(v8/tools/csvparser)$',
+          '^(v8/tools/logreader)$',
+          '^(v8/tools/profile_view)$',
+          '^(v8/tools/profile)$',
+          '^(v8/tools/SourceMap)$',
+          '^(v8/tools/splaytree)$',
+          '^(v8/tools/tickprocessor-driver)$',
+          '^(v8/tools/tickprocessor)$',
+          '^(node-inspect/lib/_inspect)$',
+          '^(node-inspect/lib/internal/inspect_client)$',
+          '^(node-inspect/lib/internal/inspect_repl)$',
+          '^(async_hooks)$',
+          '^(assert)$',
+          '^(punycode)$',
+          '^(domain)$',
+          '^(constants)$',
+          '^(sys)$',
+          '^(_linklist)$',
+          '^(_stream_wrap)$',
         ],
       },
     },
     {
-      name: "not-to-deprecated",
+      name: 'not-to-deprecated',
       comment:
-        "This module uses a (version of an) npm module that has been deprecated. Either upgrade to a later " +
-        "version of that module, or find an alternative. Deprecated modules are a security risk.",
-      severity: "warn",
+        'This module uses a (version of an) npm module that has been deprecated. Either upgrade to a later ' +
+        'version of that module, or find an alternative. Deprecated modules are a security risk.',
+      severity: 'warn',
       from: {},
       to: {
-        dependencyTypes: ["deprecated"],
+        dependencyTypes: ['deprecated'],
       },
     },
     {
-      name: "no-non-package-json",
-      severity: "error",
+      name: 'no-non-package-json',
+      severity: 'error',
       comment:
         "This module depends on an npm package that isn't in the 'dependencies' section of your package.json. " +
         "That's problematic as the package either (1) won't be available on live (2 - worse) will be " +
-        "available on live with an non-guaranteed version. Fix it by adding the package to the dependencies " +
-        "in your package.json.",
+        'available on live with an non-guaranteed version. Fix it by adding the package to the dependencies ' +
+        'in your package.json.',
       from: {},
       to: {
-        dependencyTypes: ["npm-no-pkg", "npm-unknown"],
-        pathNot: "modules/.+",
+        dependencyTypes: ['npm-no-pkg', 'npm-unknown'],
+        pathNot: 'modules/.+',
       },
     },
     {
-      name: "not-to-unresolvable",
+      name: 'not-to-unresolvable',
       comment:
         "This module depends on a module that cannot be found ('resolved to disk'). If it's an npm " +
-        "module: add it to your package.json. In all other cases you likely already know what to do.",
-      severity: "error",
+        'module: add it to your package.json. In all other cases you likely already know what to do.',
+      severity: 'error',
       from: {},
       to: {
         couldNotResolve: true,
@@ -100,59 +100,59 @@ module.exports = {
 
     /* rules you might want to tweak for your specific situation: */
     {
-      name: "not-to-test",
+      name: 'not-to-test',
       comment:
         "This module depends on code within a folder that should only contain tests. As tests don't " +
         "implement functionality this is odd. Either you're writing a test outside the test folder " +
         "or there's something in the test folder that isn't a test.",
-      severity: "error",
+      severity: 'error',
       from: {
-        pathNot: "^(test|spec)",
+        pathNot: '^(test|spec)',
       },
       to: {
-        path: "^(test|spec)",
+        path: '^(test|spec)',
       },
     },
     {
-      name: "not-to-spec",
+      name: 'not-to-spec',
       comment:
-        "This module depends on a spec (test) file. The sole responsibility of a spec file is to test code. " +
+        'This module depends on a spec (test) file. The sole responsibility of a spec file is to test code. ' +
         "If there's something in a spec that's of use to other modules, it doesn't have that single " +
-        "responsibility anymore. Factor it out into (e.g.) a separate utility/ helper or a mock.",
-      severity: "error",
+        'responsibility anymore. Factor it out into (e.g.) a separate utility/ helper or a mock.',
+      severity: 'error',
       from: {},
       to: {
-        path: "\\.spec\\.(js|ts|ls|coffee|litcoffee|coffee\\.md)$",
+        path: '\\.spec\\.(js|ts|ls|coffee|litcoffee|coffee\\.md)$',
       },
     },
     {
-      name: "not-to-dev-dep",
-      severity: "error",
+      name: 'not-to-dev-dep',
+      severity: 'error',
       comment:
         "This module depends on an npm package from the 'devDependencies' section of your " +
-        "package.json. It looks like something that ships to production, though. To prevent problems " +
+        'package.json. It looks like something that ships to production, though. To prevent problems ' +
         "with npm packages that aren't there on production declare it (only!) in the 'dependencies'" +
-        "section of your package.json. If this module is development only - add it to the " +
-        "from.pathNot re of the not-to-dev-dep rule in the dependency-cruiser configuration",
+        'section of your package.json. If this module is development only - add it to the ' +
+        'from.pathNot re of the not-to-dev-dep rule in the dependency-cruiser configuration',
       from: {
-        path: "^(src|app|lib)",
-        pathNot: "\\.spec\\.(js|ts|ls|coffee|litcoffee|coffee\\.md)$",
+        path: '^(src|app|lib)',
+        pathNot: '\\.spec\\.(js|ts|ls|coffee|litcoffee|coffee\\.md)$',
       },
       to: {
-        dependencyTypes: ["npm-dev"],
+        dependencyTypes: ['npm-dev'],
       },
     },
     {
-      name: "optional-deps-used",
-      severity: "info",
+      name: 'optional-deps-used',
+      severity: 'info',
       comment:
-        "This module depends on an npm package that is declared as an optional dependency " +
+        'This module depends on an npm package that is declared as an optional dependency ' +
         "in your package.json. As this makes sense in limited situations only, it's flagged here. " +
         "If you're using an optional dependency here by design - add an exception to your" +
-        "depdency-cruiser configuration.",
+        'depdency-cruiser configuration.',
       from: {},
       to: {
-        dependencyTypes: ["npm-optional"],
+        dependencyTypes: ['npm-optional'],
       },
     },
   ],
@@ -162,15 +162,18 @@ module.exports = {
        - dependencyTypes: see https://github.com/sverweij/dependency-cruiser/blob/main/doc/rules-reference.md#dependencytypes-and-dependencytypesnot
        for a complete list
     */
+    exclude: {
+      path: '\.(test|d)\.[tj]s$',
+    },
     doNotFollow: {
       // path: 'node_modules',
       dependencyTypes: [
-        "npm",
-        "npm-dev",
-        "npm-optional",
-        "npm-peer",
-        "npm-bundled",
-        "npm-no-pkg",
+        'npm',
+        'npm-dev',
+        'npm-optional',
+        'npm-peer',
+        'npm-bundled',
+        'npm-no-pkg',
       ],
     },
 
@@ -187,13 +190,13 @@ module.exports = {
     /* pattern specifying which files to include (regular expression)
        dependency-cruiser will skip everything not matching this pattern
     */
-    includeOnly: "^modules",
+    includeOnly: '^modules',
 
     /* list of module systems to cruise */
     // , moduleSystems: ['amd', 'cjs', 'es6', 'tsd']
 
     /* prefix for links in html and svg output (e.g. https://github.com/you/yourrepo/blob/develop/) */
-    prefix: "https://github.com/facebook/react/blob/master/",
+    prefix: 'https://github.com/withhaibun/haibun/blob/main/',
 
     /* false (the default): ignore dependencies that only exist before typescript-to-javascript compilation
        true: also detect dependencies that only exist before typescript-to-javascript compilation
@@ -218,9 +221,9 @@ module.exports = {
        dependency-cruiser's current working directory). When not provided
        defaults to './tsconfig.json'.
      */
-    // , tsConfig: {
-    //  fileName: './tsconfig.json'
-    // }
+    tsConfig: {
+      fileName: './modules/tsconfig.json',
+    },
 
     /* Webpack configuration to use to get resolve options from.
 
@@ -254,9 +257,9 @@ module.exports = {
     // as when we provide these extensions as well the number of files & dependencies
     // scanned does not go up.
     enhancedResolveOptions: {
-      extensions: [".js"],
+      extensions: ['.js'],
     },
-    progress: { type: "performance-log" },
+    progress: { type: 'performance-log' },
     reporterOptions: {
       dot: {
         /* pattern of modules that can be consolidated in the detailed
@@ -264,7 +267,7 @@ module.exports = {
            collapses everything in node_modules to one folder deep so you see
            the external modules, but not the innards your app depends upon.
          */
-        collapsePattern: "node_modules/[^/]+",
+        collapsePattern: 'node_modules/[^/]+',
       },
       archi: {
         /* pattern of modules that can be consolidated in the high level
@@ -272,7 +275,7 @@ module.exports = {
           dependency graph reporter (`archi`) you probably want to tweak
           this collapsePattern to your situation.
         */
-        collapsePattern: "^(node_modules|modules|src|lib|app|test|spec)/[^/]+",
+        collapsePattern: '^(node_modules|modules|src|lib|app|test|spec)/[^/]+',
 
         /* Options to tweak the appearance of your graph.See
            https://github.com/sverweij/dependency-cruiser/blob/main/doc/options-reference.md#reporteroptions
@@ -286,40 +289,40 @@ module.exports = {
               graphviz might take a long time calculating ortho(gonal)
               routings.
            */
-            splines: "ortho",
-            rankdir: "TD",
+            splines: 'ortho',
+            rankdir: 'TD',
           },
           modules: [
             {
-              criteria: { source: "modules/utils" },
-              attributes: { fillcolor: "#ffcccc" },
+              criteria: { source: 'modules/utils' },
+              attributes: { fillcolor: '#ffcccc' },
             },
             {
-              criteria: { source: "modules/cli$" },
-              attributes: { fillcolor: "#ccccff" },
+              criteria: { source: 'modules/cli$' },
+              attributes: { fillcolor: '#ccccff' },
             },
-            { criteria: {}, attributes: { fillcolor: "#ffffcc" } },
+            { criteria: {}, attributes: { fillcolor: '#ffffcc' } },
           ],
           dependencies: [
             {
-              criteria: { "rules[0].severity": "error" },
-              attributes: { fontcolor: "red", color: "red" },
+              criteria: { 'rules[0].severity': 'error' },
+              attributes: { fontcolor: 'red', color: 'red' },
             },
             {
-              criteria: { "rules[0].severity": "warn" },
-              attributes: { fontcolor: "orange", color: "orange" },
+              criteria: { 'rules[0].severity': 'warn' },
+              attributes: { fontcolor: 'orange', color: 'orange' },
             },
             {
-              criteria: { "rules[0].severity": "info" },
-              attributes: { fontcolor: "blue", color: "blue" },
+              criteria: { 'rules[0].severity': 'info' },
+              attributes: { fontcolor: 'blue', color: 'blue' },
             },
             {
-              criteria: { resolved: "tools" },
-              attributes: { color: "#00770077" },
+              criteria: { resolved: 'tools' },
+              attributes: { color: '#00770077' },
             },
             {
               criteria: {},
-              attributes: { style: "solid" },
+              attributes: { style: 'solid' },
             },
           ],
         },
@@ -328,4 +331,3 @@ module.exports = {
   },
 };
 // generated: dependency-cruiser@7.3.0-beta-5 on 2020-02-29T13:39:42.828Z
-

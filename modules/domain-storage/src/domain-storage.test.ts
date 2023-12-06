@@ -1,3 +1,5 @@
+import { describe, it, expect } from 'vitest';
+
 import { guessMediaExt, guessMediaType } from './domain-storage.js';
 
 describe('guessMediaType', () => {
