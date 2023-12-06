@@ -14,6 +14,6 @@ describe('mounts', () => {
         const tl = new TestLogger();
         const se = new ServerExpress(tl, '/', 8999);
         se.listen = async () => 'started';
-        expect(async () => await se.addRoute('get', '/', () => undefined)).rejects.toThrow();
+        void expect(async () => se.addRoute('get', '/', () => undefined)).rejects.toThrow();
     });
 });

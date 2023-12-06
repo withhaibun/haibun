@@ -15,13 +15,13 @@ describe('usageThenExit', () => {
     const ranOnce = (code: number | undefined) => { expect(code).toBe(0); return <never>undefined }
     vitest.spyOn(process, 'exit').mockImplementationOnce(ranOnce);
     vitest.spyOn(console, 'info').mockImplementationOnce(() => undefined);
-    await lib.usageThenExit({ ...getDefaultOptions(), steppers: ['../core/build/lib/test/TestStepsWithOptions'] });
+    await lib.usageThenExit({ ...getDefaultOptions(), steppers: [] });
   })
   it('exits with error', async () => {
     const ranOnce = (code: number | undefined) => { expect(code).toBe(1); return <never>undefined }
     vitest.spyOn(process, 'exit').mockImplementationOnce(ranOnce);
     vitest.spyOn(console, 'error').mockImplementationOnce(() => undefined);
-    await lib.usageThenExit({ ...getDefaultOptions(), steppers: ['../core/build/lib/test/TestStepsWithOptions'] }, 'woops');
+    await lib.usageThenExit({ ...getDefaultOptions(), steppers: [] }, 'woops');
   })
 });
 

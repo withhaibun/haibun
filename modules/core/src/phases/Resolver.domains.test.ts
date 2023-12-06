@@ -3,7 +3,7 @@ import { describe, test, expect } from 'vitest';
 import { DomainContext, WorldContext } from '../lib/contexts.js';
 import { IHasDomains, OK, TFeatures, TFileTypeDomain } from '../lib/defs.js';
 import { withNameType } from '../lib/features.js';
-import { asExpandedFeatures } from '../lib/test/lib.js';
+import { asExpandedFeatures } from '../lib/resolver-features.js';
 import { Resolver } from './Resolver.js';
 
 describe('validate map steps', () => {

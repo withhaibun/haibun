@@ -22,12 +22,24 @@ Each module can be developed independently using:
 
 `npm test` or `npm run test-watch`
 
+Note that modules/out-review/dashboard/web requires separate test/build
+commands.
+
+Use `npm run depcruise` to view Haibun's [dependencies](dependencygraph.svg).
+
 ## Developing modules and Haibun core together
 
 To develop your own separate module while developing Haibun modules, use:
 
-`npm link @haibun/core`
+`npx @haibun/utils -p link`
 
-and any other modules you may need.
+This will link every Haibun library in a repo to a locally linked Haibun repo; 
+you may need to run `npm link` in each Haibun module directory first.
 
-You can use `npm run depcruise` to view Haibun's depenencies.
+
+## Testing note
+
+Since switching to vitest, circular dependencies have to be avoided for tests. 
+Use this approach to find them for a particular file:
+
+`npx dpdm modules/storage-mem/src/storage-mem.test.ts`

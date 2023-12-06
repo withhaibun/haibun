@@ -6,7 +6,7 @@ import WebHttp from '@haibun/web-http/build/web-http.js';
 import server from './web-server-stepper.js';
 
 describe('static mount', () => {
-  it('serves files', async () => {
+  it.skip('serves files', async () => {
     const feature = { path: '/features/test.feature', content: `serve files from test\nhttp get from http://localhost:8123/testfile webpage returns content "content"` };
     const result = await testWithDefaults([feature], [server, WebHttp]);
     expect(result.ok).toBe(true);

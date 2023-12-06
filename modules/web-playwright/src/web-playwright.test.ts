@@ -1,10 +1,14 @@
 import { describe, it, expect } from 'vitest';
 
+import { getPackageLocation } from '@haibun/core/build/lib/util/workspace-lib.js';
+
 import { FeatureExecutor } from '@haibun/core/build/phases/Executor.js';
 import { getTestEnv, getDefaultWorld, getCreateSteppers } from '@haibun/core/build/lib/test/lib.js';
 import { findStepper } from '@haibun/core/build/lib/util/index.js';
+import path from 'path';
 
-const stxt = ['~@haibun/domain-webpage/build/domain-webpage', [process.cwd(), 'build', 'web-playwright'].join('/')];
+const me = path.join(getPackageLocation(import.meta).replace(/\/src$/, '/build'), 'web-playwright');
+const stxt = ['~@haibun/domain-webpage/build/domain-webpage', me];
 
 describe('playwrightWeb', () => {
   it('sets up steps', async () => {

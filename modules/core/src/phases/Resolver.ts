@@ -1,7 +1,7 @@
 import { TFound, TResolvedFeature, OK, TWorld, BASE_TYPES, TExpandedFeature, AStepper, TStep, TVStep } from '../lib/defs.js';
 import { namedInterpolation, getMatch } from '../lib/namedVars.js';
-import { asExpandedFeatures } from '../lib/test/lib.js';
-import { getActionable, describeSteppers, isLowerCase, dePolite } from '../lib/util/index.js';
+import { asExpandedFeatures } from '../lib/resolver-features.js';
+import { getActionable, describeSteppers, isLowerCase, dePolite, constructorName } from '../lib/util/index.js';
 import Builder, { BUILT, EVENT_AFTER } from './Builder.js';
 
 export class Resolver {
@@ -100,7 +100,7 @@ export class Resolver {
     const found: TFound[] = [];
 
     for (const stepper of this.steppers) {
-      const stepperName = stepper.constructor.name;
+      const stepperName = constructorName(stepper);
       const { steps } = stepper;
       for (const actionName in steps) {
         const step = steps[actionName];

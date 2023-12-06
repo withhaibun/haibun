@@ -5,9 +5,10 @@ import { convert } from 'xmlbuilder2';
 import OutXUnit from "./out-xunit.js";
 import { testWithDefaults } from "@haibun/core/build/lib/test/lib.js";
 import TestSteps from "@haibun/core/build/lib/test/TestSteps.js";
-import { getOutputResult } from "@haibun/core/build/lib/util/workspace-lib.js";
+import { getOutputResult, workspaceRoot } from "@haibun/core/build/lib/util/workspace-lib.js";
+import path from 'path';
 
-const ox = [process.cwd(), "build", "out-xunit"].join("/");
+const ox = path.join(workspaceRoot, "node_modules", "@haibun", "out-xunit", "build", "out-xunit");
 
 describe("AsXML transforms", () => {
   it("transforms single pass result to xunit", async () => {

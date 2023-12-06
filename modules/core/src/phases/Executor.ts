@@ -17,7 +17,7 @@ import {
 } from '../lib/defs.js';
 import { TExecutorMessageContext, TMessageContext } from '../lib/interfaces/logger.js';
 import { getNamedToVars } from '../lib/namedVars.js';
-import { actionNotOK, applyResShouldContinue, setStepperWorlds, sleep, createSteppers, findStepper } from '../lib/util/index.js';
+import { actionNotOK, applyResShouldContinue, setStepperWorlds, sleep, createSteppers, findStepper, constructorName } from '../lib/util/index.js';
 
 export class Executor {
   // find the stepper and action, call it and return its result
@@ -75,7 +75,6 @@ export class FeatureExecutor {
     this.world = world;
     this.startOffset = world.timer.since();
     const errorBail = (phase: string, error: TAnyFixme, extra?: TAnyFixme) => {
-      console.error('error', phase, error, extra);
       throw Error(error);
     };
     const steppers = await createSteppers(this.csteppers);
@@ -142,7 +141,7 @@ export class FeatureExecutor {
     for (const s of this.steppers) {
       if (s.onFailure) {
         const res = await s.onFailure(result, step);
-        this.world.logger.error(`onFailure from ${result.in} for ${s.constructor.name}`, <TMessageContext>res);
+        this.world.logger.error(`onFailure from ${result.in} for ${constructorName(s)}`, <TMessageContext>res);
       }
     }
   }
@@ -150,12 +149,12 @@ export class FeatureExecutor {
   async endFeature() {
     for (const s of this.steppers) {
       if (s.endFeature) {
-        this.world.logger.debug(`endFeature ${s.constructor.name}`);
+        this.world.logger.debug(`endFeature ${constructorName(s)}`);
         await s.endFeature().catch((error: TAnyFixme) => {
           console.error('endFeature', error)
           throw (error);
         })
-        this.world.logger.debug(`endedFeature ${s.constructor.name}`);
+        this.world.logger.debug(`endedFeature ${constructorName(s)}`);
       }
     }
 
@@ -172,7 +171,7 @@ export class FeatureExecutor {
   async close() {
     for (const s of this.steppers) {
       if (s.close) {
-        this.world.logger.debug(`closing ${s.constructor.name}`);
+        this.world.logger.debug(`closing ${constructorName(s)}`);
         await s.close();
       }
     }

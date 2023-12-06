@@ -2,9 +2,9 @@ import { describe, it, expect } from 'vitest';
 
 import { CAPTURE } from '@haibun/core/build/lib/defs.js';
 import { getDefaultWorld, getTestWorldWithOptions } from '@haibun/core/build/lib/test/lib.js';
-import { EMediaTypes } from '@haibun/domain-storage/build/domain-storage.js';
 import StorageFS from './storage-fs.js';
 import { Timer } from '@haibun/core/build/lib/Timer.js';
+import { EMediaTypes } from '@haibun/domain-storage/build/media-types.js';
 
 const { key } = Timer;
 

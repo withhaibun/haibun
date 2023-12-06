@@ -3,7 +3,7 @@
 import sourceMapSupport from 'source-map-support';
 import repl from 'repl';
 import { TSpecl, TWorld, TEndFeatureCallback, TEndFeatureCallbackParams, TRunOptions, TBase, STAY_ALWAYS, STAY, TNotOKActionResult, TFeatureResult } from '@haibun/core/build/lib/defs.js';
-import { EMediaTypes, IHandleResultHistory, HANDLE_RESULT_HISTORY } from '@haibun/domain-storage/build/domain-storage.js';
+import { IHandleResultHistory, HANDLE_RESULT_HISTORY } from '@haibun/domain-storage/build/domain-storage.js';
 
 import { findHandlers, getDefaultOptions, basesFrom } from '@haibun/core/build/lib/util/index.js';
 import { getConfigFromBase } from '@haibun/core/build/lib/util/workspace-lib.js';
@@ -12,6 +12,7 @@ import { processArgs, processBaseEnvToOptionsAndErrors, usageThenExit } from './
 import { Timer } from '@haibun/core/build/lib/Timer.js';
 import { writeFileSync } from 'fs';
 import Logger from '@haibun/core/build/lib/Logger.js';
+import { EMediaTypes } from '@haibun/domain-storage/build/media-types.js';
 
 sourceMapSupport.install();
 

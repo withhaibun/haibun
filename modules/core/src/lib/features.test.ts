@@ -2,7 +2,8 @@ import { describe, it, test, expect } from 'vitest';
 
 import { TNamed, AStepper, DEFAULT_DEST } from './defs.js';
 import * as steps from './features.js';
-import { asFeatures, testWithDefaults } from './test/lib.js';
+import { testWithDefaults } from './test/lib.js';
+import { asFeatures } from './resolver-features.js';
 import { actionOK } from './util/index.js';
 
 describe('expandBackgrounds', () => {

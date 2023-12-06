@@ -11,7 +11,8 @@
   ],
   "bin": {
     "scaffold": "build/scaffold/index.js",
-    "version": "build/version.js"
+    "version": "build/version.js",
+    "link": "build/npm-link-haibuns.js"
   },
   "scripts": {
     "test": "vitest run",

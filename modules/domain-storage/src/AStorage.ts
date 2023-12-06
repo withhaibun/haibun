@@ -1,7 +1,8 @@
 import { CAPTURE, AStepper, OK, TNamed, DEFAULT_DEST, TAnyFixme } from '@haibun/core/build/lib/defs.js';
 import { actionNotOK } from '@haibun/core/build/lib/util/index.js';
 import { setShared } from '@haibun/core/build/steps/vars.js';
-import { IFile, TLocationOptions, TMediaType, TPathedOrString } from './domain-storage.js';
+import { IFile, TLocationOptions, TPathedOrString } from './domain-storage.js';
+import { TMediaType } from './media-types.js';
 
 type TTree = Array<IFile | IFileWithEntries>;
 
