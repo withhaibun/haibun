@@ -2,11 +2,13 @@
 
 Clone this repo, then install and build:
 
-`npm i` (this will trigger npm run clean, npm install)
+`npm i`
+
+`npm run build`
+
+During development of modules, use
 
 `npm run build-watch`
-
-Use this at the top level to build and watch all modules.
 
 Top level tests for all modules are also available:
 
@@ -16,11 +18,8 @@ or
 
 `npm run test-watch`
 
-Each module can be developed independently using:
 
-`npm run build-watch` # not needed if using top-level `build-watch`
-
-`npm test` or `npm run test-watch`
+The same build/test commands are available in individual modules, but are not needed if running the command in the main directory.
 
 Note that modules/out-review/dashboard/web requires separate test/build
 commands.
