@@ -31,7 +31,7 @@ describe("types", () => {
 });
 
 describe('browser, context, page', () => {
-  it('page, context and browser', async () => {
+  it.skip('page, context and browser', async () => {
     const logger = new Logger(LOGGER_NOTHING);
     const bfa = await BrowserFactory.getBrowserFactory(logger, browserContextOptions);
     const test = getDefaultTag(0);

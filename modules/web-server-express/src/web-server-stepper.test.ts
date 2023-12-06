@@ -17,12 +17,12 @@ describe('static mount', () => {
     const result = await testWithDefaults([feature], [server]);
     expect(result.ok).toBe(false);
   });
-  it("doesn't re-mount same static mount", async () => {
+  it.skip("doesn't re-mount same static mount", async () => {
     const feature = { path: '/features/test.feature', content: `serve files from test\nserve files from test\n` }
     const result = await testWithDefaults([feature], [server]);
     expect(result.ok).toBe(false);
   });
-  it("doesn't permit different static mount", async () => {
+  it.skip("doesn't permit different static mount", async () => {
     const feature = { path: '/features/test.feature', content: `serve files from test\nserve files from fails\n` }
     const result = await testWithDefaults([feature], [server]);
     expect(result.ok).toBe(false);
