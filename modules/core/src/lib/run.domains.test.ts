@@ -1,8 +1,11 @@
+import { describe, it, expect } from 'vitest';
+
 import { onCurrentTypeForDomain, setShared } from '../steps/vars.js';
 import { IHasDomains, TNamed, TVStep, IRequireDomains, AStepper } from './defs.js';
 import { getDomain } from './domain.js';
 import { runWith } from './run.js';
-import { asFeatures, getDefaultWorld, testWithDefaults } from './test/lib.js';
+import { getDefaultWorld, testWithDefaults } from './test/lib.js';
+import { asFeatures } from './resolver-features.js';
 import { actionOK, getDefaultOptions } from './util/index.js';
 
 const TTYPE = 'page';

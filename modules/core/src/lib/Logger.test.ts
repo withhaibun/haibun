@@ -1,3 +1,5 @@
+import { describe, test, it, expect } from 'vitest';
+
 import { ILogOutput, TExecutorMessageContext, TExecutorResultTopic, TLogArgs, TMessageContext } from './interfaces/logger.js';
 import Logger, { LOGGER_LEVELS } from './Logger.js';
 import { getDefaultTag } from './test/lib.js';
@@ -16,34 +18,41 @@ describe('log levels', () => {
 });
 
 describe('logger with subscriber', () => {
-  test.skip('subscriber receives topic', (done) => {
+  test.skip('subscriber receives topic', async () => {
     const logger = new Logger({ level: 'debug' });
     const tag = getDefaultTag(0);
     // FIXME
     const step = { '@type': 'Step', description: 'step 1', actions: [], source: { path: 'path', type: 'foo', base: 'foo', name: 'foo', content: 'foo' }, in: 'in', seq: 1 };
-    const subscriber: ILogOutput = {
-      out(level: string, args: TLogArgs, ctx?: TExecutorMessageContext) {
-        expect(ctx.topic).toBeDefined();
-        expect((ctx.topic as TExecutorResultTopic).result).toEqual(step);
-        done();
-      },
-    };
-    logger.addSubscriber(subscriber);
+    const subscriberPromise = new Promise<void>((resolve) => {
+      const subscriber: ILogOutput = {
+        out(level: string, args: TLogArgs, ctx?: TExecutorMessageContext) {
+          expect(ctx.topic).toBeDefined();
+          expect((ctx.topic as TExecutorResultTopic).result).toEqual(step);
+          resolve();
+        },
+      };
+      logger.addSubscriber(subscriber);
+    });
+    await subscriberPromise
     // FIXME
     // logger.log('test', <TExecutorMessageContext>{ topic: { stage: 'Executor', result: { step } }, tag });
   });
 });
 
 describe('logger with output', () => {
-  test('output gets current tag', (done) => {
-    const output: ILogOutput = {
-      out(level: string, args: TLogArgs, ctx?: TMessageContext) {
-        expect(ctx?.tag?.loop).toBe(0);
-        done();
-      },
-    };
-    const dlogger = new Logger({ output, tag: getDefaultTag(0) });
+  it('output gets current tag', async () => {
+    const outputPromise = new Promise<void>((resolve) => {
+      const output: ILogOutput = {
+        out(level: string, args: TLogArgs, ctx?: TMessageContext) {
+          expect(ctx?.tag?.loop).toBe(0);
+          resolve();
+        },
+      };
+      const dlogger = new Logger({ output, tag: getDefaultTag(0) });
 
-    dlogger.log('test');
+      dlogger.log('test');
+    });
+
+    await outputPromise;
   });
 });

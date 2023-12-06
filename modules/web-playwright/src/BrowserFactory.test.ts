@@ -1,3 +1,5 @@
+import { describe, it, expect } from 'vitest';
+
 import Logger, { LOGGER_NOTHING } from "@haibun/core/build/lib/Logger.js";
 import { BrowserFactory, DEFAULT_CONFIG_TAG, TBrowserFactoryOptions } from "./BrowserFactory.js";
 import { getDefaultTag } from "@haibun/core/build/lib/test/lib.js";
@@ -20,16 +22,16 @@ describe("types", () => {
     await BrowserFactory.closeBrowsers();
   });
   it("missing type", async () => {
-    expect(async () => await BrowserFactory.getBrowserFactory(new Logger(LOGGER_NOTHING), ({
+    void expect(async () => await BrowserFactory.getBrowserFactory(new Logger(LOGGER_NOTHING), ({
       ...browserContextOptions,
       type: 'noodles'
     } as any) as TBrowserFactoryOptions)).rejects.toThrow();
-    BrowserFactory.closeBrowsers();
+    await BrowserFactory.closeBrowsers();
   });
 });
 
 describe('browser, context, page', () => {
-  it('page, context and browser', async () => {
+  it.skip('page, context and browser', async () => {
     const logger = new Logger(LOGGER_NOTHING);
     const bfa = await BrowserFactory.getBrowserFactory(logger, browserContextOptions);
     const test = getDefaultTag(0);

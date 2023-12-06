@@ -1,3 +1,5 @@
+import { describe, it, expect } from 'vitest';
+
 import { AStepper, OK } from './defs.js';
 import { testWithDefaults } from './test/lib.js';
 import TestSteps from './test/TestSteps.js';

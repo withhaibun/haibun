@@ -9,15 +9,11 @@
         { "path": "web-http" },
         { "path": "parse-md" },
         { "path": "web-playwright" },
-        { "path": "feature-importer" },
         { "path": "domain-webpage" },
         { "path": "storage-mem" },
         { "path": "out-review" },
         { "path": "domain-storage" },
         { "path": "storage-fs" },
-        { "path": "out-xunit" },
-        { "path": "browser-extension" },
-        { "path": "logger-websockets" },
-        { "path": "feature-recorder" }
+        { "path": "out-xunit" }
     ]
 }

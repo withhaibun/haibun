@@ -1,5 +1,6 @@
 import { Context, DomainContext } from './contexts.js';
 import { BASE_TYPES, AStepper, IHasDomains, IRequireDomains, TFound, TFromDomain, TWorld, TModuleDomain } from './defs.js';
+import { constructorName } from './util/index.js';
 
 export const isBaseType = (type: string) => BASE_TYPES.includes(type);
 export const getStepShared = (type: string, world: TWorld): Context => {
@@ -47,7 +48,7 @@ export const getDomains = async (steppers: AStepper[]) => {
     if (domains) {
       for (const d of domains) {
         if (getDomain(d.name, domainWorld)) {
-          throw Error(`duplicate domain "${d.name}" in "${module.constructor.name}"`);
+          throw Error(`duplicate domain "${d.name}" in "${constructorName(<AStepper><unknown>module)}"`);
         }
         domainWorld.domains.push({ ...d, module, shared: new DomainContext(d.name) });
       }

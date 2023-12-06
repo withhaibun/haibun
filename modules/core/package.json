@@ -23,9 +23,9 @@
   "scripts": {
     "format": "prettier --write \"src/**/*.ts\" \"src/**/*.js\"",
     "lint": "eslint -c .eslintrc.json --ext .ts,.js src",
-    "test": "jest",
-    "coverage": "jest --coverage",
-    "test-watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch",
+    "test": "vitest run",
+    "coverage": "vitest --coverage",
+    "test-watch": "vitest",
     "build": "tsc -b .",
     "build-watch": "tsc -b . --watch",
     "prepublishOnly": "tsc -b .",

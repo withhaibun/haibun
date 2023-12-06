@@ -1,11 +1,12 @@
 import nodeFS from 'fs';
-import path from 'path';
+import path, { dirname } from 'path';
 
 import {
   IResultOutput,
   TExecutorResult, CStepper, DEFAULT_DEST, TBase, TSpecl
 } from '../defs.js';
 import { use } from './index.js';
+import { fileURLToPath } from 'url';
 
 export type TFileSystem = Partial<typeof nodeFS>;
 export async function getSteppers(stepperNames: string[]) {
@@ -21,28 +22,29 @@ export async function getSteppers(stepperNames: string[]) {
   }
   return steppers;
 }
-// workspaceRoot adapted from @nrwl/devkit
-const workspaceRoot = workspaceRootInner(process.cwd(), process.cwd());
-function workspaceRootInner(dir, candidateRoot, fs: TFileSystem = nodeFS) {
-  if (path.dirname(dir) === dir) {
-    return candidateRoot;
-  }
-  // FIXME circumstantial
-  if (fs.existsSync(path.join(dir, 'nx.json'))) {
-    return dir;
-  } else if (fs.existsSync(path.join(dir, 'node_modules', 'nx', 'package.json'))) {
-    return workspaceRootInner(path.dirname(dir), dir);
-  } else {
-    return workspaceRootInner(path.dirname(dir), candidateRoot);
-  }
+// const workspaceRoot = workspaceRootInner(process.cwd(), process.cwd());
+export const workspaceRoot = getWorkspaceRoot();
+
+type TImportMeta = { url: string }
+
+export function getPackageLocation(meta: TImportMeta) {
+  return dirname(fileURLToPath(meta.url));
 }
-function getModuleLocation(name: string) {
+
+export const getFilename = (meta: TImportMeta) => fileURLToPath(meta.url);
+export const getDirname = (meta: TImportMeta) => fileURLToPath(new URL('.', meta.url));
+
+function getWorkspaceRoot() {
+  return process.cwd();
+}
+
+export function getModuleLocation(name: string) {
   if (name.startsWith('~')) {
-    return [workspaceRoot, 'node_modules', name.substr(1)].join('/');
+    return [workspaceRoot, 'node_modules', name.substring(1)].join('/');
   } else if (name.match(/^[a-zA-Z].*/)) {
     return `../../steps/${name}`;
   }
-  return path.resolve(process.cwd(), name);
+  return path.resolve(workspaceRoot, name);
 }
 
 export async function getOutputResult(type: string | undefined, result: TExecutorResult): Promise<object | string> {

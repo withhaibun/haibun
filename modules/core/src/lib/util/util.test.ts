@@ -1,3 +1,5 @@
+import { describe, it, test, expect } from 'vitest';
+
 import * as util from './index.js';
 import * as TFileSystemJs from './workspace-lib.js';
 import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, getDefaultWorld, testWithDefaults, getCreateSteppers, TEST_BASE } from '../test/lib.js';
@@ -5,6 +7,7 @@ import TestSteps from '../test/TestSteps.js';
 import TestStepsWithOptions from '../test/TestStepsWithOptions.js';
 import { withNameType } from '../features.js';
 import { AStepper, HANDLER_USAGE, IHasHandlers, IHasOptions, OK, TAnyFixme } from '../defs.js';
+import { constructorName } from './index.js';
 
 describe('output', () => {
   it('OutputResult default', async () => {
@@ -22,9 +25,11 @@ describe('output', () => {
 });
 
 describe('isLowerCase', () => {
-  expect(util.isLowerCase('a')).toBe(true);
-  expect(util.isLowerCase('A')).toBe(false);
-  expect(util.isLowerCase('0')).toBe(false);
+  it('is lower case', () => {
+    expect(util.isLowerCase('a')).toBe(true);
+    expect(util.isLowerCase('A')).toBe(false);
+    expect(util.isLowerCase('0')).toBe(false);
+  });
 });
 
 describe('findHandlers', () => {
@@ -39,7 +44,7 @@ describe('findHandlers', () => {
     }
     const found = util.findHandlers([new TestStepperHandler()], TEST_HANDLER);
     expect(found.length).toBe(1);
-    expect(found[0].stepper.constructor.name).toBe('TestStepperHandler');
+    expect(constructorName(found[0].stepper)).toBe('TestStepperHandler');
   });
   it(`does not find handlers from classes that don't implement IHasHandler`, () => {
     const found = util.findHandlers([new TestStepper()], TEST_HANDLER);
@@ -51,7 +56,7 @@ describe('findHandlers', () => {
     }
     const found = util.findHandlers([new TestStepper(), new ExclusiveTestStepperHandler()], TEST_HANDLER);
     expect(found.length).toBe(1);
-    expect(found[0].stepper.constructor.name).toBe('ExclusiveTestStepperHandler');
+    expect(constructorName(found[0].stepper)).toBe('ExclusiveTestStepperHandler');
   });
   it(`throws error for duplicate exclusives`, () => {
     class ExclusiveTestStepperHandler extends TestStepper implements IHasHandlers {
@@ -72,7 +77,7 @@ describe('findHandlers', () => {
     }
     const found = util.findHandlers([new TestStepperHandler(), new FallbackTestStepperHandler()], TEST_HANDLER);
     expect(found.length).toBe(1);
-    expect(found[0].stepper.constructor.name).toBe('TestStepperHandler');
+    expect(constructorName(found[0].stepper)).toBe('TestStepperHandler');
   });
   it(`keeps one fallback from mix pak`, () => {
     class TestStepperHandler extends TestStepper implements IHasHandlers {
@@ -86,7 +91,7 @@ describe('findHandlers', () => {
     }
     const found = util.findHandlers([new TestStepperHandler(), new FallbackTestStepperHandler(), new FallbackTestStepperHandlerToo()], TEST_HANDLER);
     expect(found.length).toBe(1);
-    expect(found[0].stepper.constructor.name).toBe('TestStepperHandler');
+    expect(constructorName(found[0].stepper)).toBe('TestStepperHandler');
   });
   it(`keeps first fallback from multiple fallbacks`, () => {
     class FallbackTestStepperHandler extends TestStepper implements IHasHandlers {
@@ -97,7 +102,7 @@ describe('findHandlers', () => {
     }
     const found = util.findHandlers([new FallbackTestStepperHandler(), new FallbackTestStepperHandlerToo()], TEST_HANDLER);
     expect(found.length).toBe(1);
-    expect(found[0].stepper.constructor.name).toBe('FallbackTestStepperHandler');
+    expect(constructorName(found[0].stepper)).toBe('FallbackTestStepperHandler');
   });
 });
 
@@ -135,13 +140,14 @@ describe('findStepperFromOptions', () => {
     const s = util.findStepperFromOption(steppers, ts, options, 'A', 'B');
     expect(s).toBeDefined();
   });
+  // FIXME vitest where is TestSteps2 coming from? 
   it('finds from first multiple options', async () => {
     const ts = new TestOptionsStepper();
-    const steppers = await getCreateSteppers([], [TestOptionsStepper, TestSteps]);
-    const options = { [util.getStepperOptionName(ts, 'A')]: 'TestSteps', [util.getStepperOptionName(ts, 'B')]: 'TestOptionsStepper' };
-    const s = util.findStepperFromOption<typeof TestSteps>(steppers, ts, options, 'A', 'B');
+    const steppers = await getCreateSteppers([], [TestSteps, TestOptionsStepper]);
+    const options = { [util.getStepperOptionName(ts, 'optionA')]: 'TestSteps', [util.getStepperOptionName(ts, 'B')]: 'TestOptionsStepper' };
+    const s = util.findStepperFromOption(steppers, ts, options, 'optionA', 'optionB');
     expect(s).toBeDefined();
-    expect(s.constructor.name).toBe('TestSteps');
+    expect(constructorName(<AStepper>s)).toBe('TestSteps');
   });
   it('throws for not found stepper', async () => {
     const ts = new TestOptionsStepper();
@@ -193,7 +199,7 @@ describe('getStepperOptions', () => {
   it.skip('fills extra', async () => {
     const { world } = getDefaultWorld(0);
     await util.verifyExtraOptions({ [HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]: 'true' }, [TestStepsWithOptions]);
-
+    console.log('🤑', JSON.stringify(world.options, null, 2));
     expect(world.options[HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]).toEqual(42);
   });
   it('throws for unfilled extra', async () => {

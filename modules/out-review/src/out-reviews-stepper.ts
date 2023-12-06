@@ -3,12 +3,13 @@ import { fileURLToPath } from "url";
 
 import { AStepper, CAPTURE, IHasHandlers, IHasOptions, IRequireDomains, OK, TFeatureResult, TWorld } from '@haibun/core/build/lib/defs.js';
 import { STORAGE_ITEM, STORAGE_LOCATION, } from '@haibun/domain-storage';
-import { actionOK, findStepperFromOption, getStepperOption, stringOrError } from '@haibun/core/build/lib/util/index.js';
+import { actionOK, findStepperFromOption, getStepperOption, constructorName, stringOrError } from '@haibun/core/build/lib/util/index.js';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 import { THistoryWithMeta, TLogHistory } from '@haibun/core/build/lib/interfaces/logger.js';
-import { EMediaTypes, HANDLE_RESULT_HISTORY, IGetPublishedReviews, TLocationOptions, TPathed, actualPath, guessMediaExt } from '@haibun/domain-storage/build/domain-storage.js';
+import { HANDLE_RESULT_HISTORY, IGetPublishedReviews, TLocationOptions, TPathed, actualPath, guessMediaExt } from '@haibun/domain-storage/build/domain-storage.js';
 import StorageFS from '@haibun/storage-fs/build/storage-fs.js';
 import { SCHEMA_FOUND_HISTORIES, TFoundHistories, TNamedHistories, TRACKS_DIR, TRACKS_FILE, asArtifact, asHistoryWithMeta, } from '@haibun/core/build/lib/LogHistory.js';
+import { EMediaTypes, TMediaType } from "@haibun/domain-storage/build/media-types.js";
 
 export const TRACKSHISTORY_SUFFIX = '-tracksHistory.json';
 
@@ -114,7 +115,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     if (this.reviewEndpoint) {
       const indexer = `export const endpoint = "${this.reviewEndpoint.endpoint(TRACKS_DIR)}";\n${this.reviewEndpoint.getPublishedReviews.toString().replace('async', 'export async function')}`;
       await this.publishStorage.writeFile(`${this.publishRoot}/built/dashboard/indexer.js`, indexer, EMediaTypes.javascript);
-      this.getWorld().logger.log(`indexer-endpoint.json written for ${this.publishStorage.constructor.name}`);
+      this.getWorld().logger.log(`indexer-endpoint.json written for ${constructorName(this.publishStorage)}`);
     }
   }
 
@@ -208,14 +209,14 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
   }
 
   artifactLocation(fileName: string, toFolder: string, trimFolder?: string): TPathed {
-    const ext = <EMediaTypes>guessMediaExt(fileName);
+    const ext = <TMediaType>guessMediaExt(fileName);
     const trimmed = trimFolder ? fileName.replace(trimFolder, '') : fileName;
     const dest = this.publishStorage.pathed(ext, toFolder ? `${toFolder}/${trimmed}`.replace(/\/\//, '/') : trimmed);
     return { pathed: dest };
   }
 
   async copyFile(source: string, pathedDest: TPathed) {
-    const ext = <EMediaTypes>guessMediaExt(source);
+    const ext = <TMediaType>guessMediaExt(source);
     const content = await this.localFS.readFile(source);
     await this.publishStorage.mkdirp(path.dirname(pathedDest.pathed));
     await this.publishStorage.writeFile(pathedDest, content, ext);

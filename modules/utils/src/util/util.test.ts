@@ -1,5 +1,6 @@
-import { spawn } from './index.js';
+import {describe, it, expect} from 'vitest';
 
+import { spawn } from './index.js';
 describe('spawn', () => {
   it('should spawn', () => {
     expect(() => spawn(['echo', 'hello'])).not.toThrow();
