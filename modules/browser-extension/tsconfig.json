@@ -1,9 +1,0 @@
-{
-  "extends": "../tsconfig.settings.json",
-  "compilerOptions": {
-    "outDir": "public/js",
-    "rootDir": "src",
-    "types": ["node", "chrome"]
-  },
-  "include": ["./src"]
-}
