@@ -17,9 +17,6 @@ import {
   TFeatureResult,
   TAnyFixme,
   IHasHandlers,
-  isHasHandlers,
-  IHandler,
-  THandlers,
   ISourcedHandler,
   HANDLER_USAGE,
 } from '../defs.js';
@@ -89,10 +86,15 @@ export function getActionable(value: string) {
   return value.replace(/#.*/, '').trim();
 }
 
+export function constructorName(stepper: AStepper) {
+  // FIXME deal with vitest / esbuild keepNames nonsense
+  return stepper.constructor.name.replace(/2$/, '');
+}
+
 export function describeSteppers(steppers: AStepper[]) {
   return steppers
     ?.map((stepper) => {
-      return `${stepper.constructor.name}: ${Object.keys(stepper?.steps).sort().join('|')}`;
+      return `${constructorName(stepper)}: ${Object.keys(stepper?.steps).sort().join('|')}`;
     }).sort().join('  ');
 }
 
@@ -125,14 +127,18 @@ export async function setStepperWorlds(steppers: AStepper[], world: TWorld) {
     try {
       await stepper.setWorld(world, steppers);
     } catch (e) {
-      console.error(`setWorldStepperOptions ${stepper.constructor.name} failed`, e);
+      console.error(`setWorldStepperOptions ${constructorName(stepper)} failed`, e);
       throw e;
     }
   }
 }
 export function getPre(stepper: AStepper) {
-  return ['HAIBUN', 'O', stepper.constructor.name.toUpperCase()].join('_') + '_';
+  return ['HAIBUN', 'O', constructorName(stepper).toUpperCase()].join('_') + '_';
 }
+
+/**
+ * Find a stepper by option value from a list of steppers
+ */
 export function getStepperOptionValue(key: string, value: string, csteppers: CStepper[]) {
   for (const cstepper of csteppers) {
     const pre = getPre(cstepper.prototype);
@@ -206,18 +212,18 @@ function doFindStepperFromOption<Type>(steppers: AStepper[], stepper: AStepper, 
     return undefined;
   }
   if (!val) {
-    throw Error(`Cannot find ${optionNames.map(o => getStepperOptionName(stepper, o)).join(' or ')} in your ${stepper.constructor.name} options ${JSON.stringify(Object.keys(extraOptions).filter(k => k.startsWith(getPre(stepper))))}`)
+    throw Error(`Cannot find ${optionNames.map(o => getStepperOptionName(stepper, o)).join(' or ')} in your ${constructorName(stepper)} options ${JSON.stringify(Object.keys(extraOptions).filter(k => k.startsWith(getPre(stepper))))}`)
   }
   return findStepper(steppers, val);
 }
 
 export function findStepper<Type>(steppers: AStepper[], name: string): Type {
-  const stepper = <Type>(steppers.find((s) => s.constructor.name === name) as TAnyFixme);
+  const stepper = <Type>(steppers.find((s) => constructorName(s) === name) as TAnyFixme);
   if (!stepper) {
     // FIXME does not cascade
     throw Error(
       `Cannot find ${name} from ${JSON.stringify(
-        steppers.map((s) => s.constructor.name),
+        steppers.map((s) => constructorName(s)),
         null,
         2
       )

@@ -1,9 +1,0 @@
-{
-  "@context": [
-    "https://linkedsoftwaredependencies.org/bundles/npm/haibun-feature-importer/^0.0.0/components/context.jsonld"
-  ],
-  "@id": "npmd:haibun-feature-importer",
-  "@type": "Module",
-  "requireName": "haibun-feature-importer",
-  "import": []
-}

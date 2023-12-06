@@ -1,13 +1,14 @@
-import { TWorld, TVStep, TExpandedLine, TProtoOptions, CStepper, TExpandedFeature, DEFAULT_DEST, TExecutorResult } from '../defs.js';
+import { TWorld, TVStep, TProtoOptions, CStepper, DEFAULT_DEST, TExecutorResult } from '../defs.js';
 import { Resolver } from '../../phases/Resolver.js';
 import { DEF_PROTO_OPTIONS, runWith } from './../run.js';
 import { getRunTag, verifyExtraOptions, getDefaultOptions, createSteppers } from './../util/index.js';
 import { getSteppers } from '../util/workspace-lib.js';
 import { WorldContext } from '../contexts.js';
-import { featureSplit, withNameType } from './../features.js';
+import { withNameType } from './../features.js';
 import { getDomains, verifyDomainsOrError } from './../domain.js';
 import Logger, { LOGGER_LOG } from '../Logger.js';
 import { Timer } from '../Timer.js';
+import { asFeatures } from '../resolver-features.js';
 
 export const HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS = 'HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS';
 export const TEST_BASE = 'test_base';
@@ -61,17 +62,6 @@ export function getTestWorldWithOptions(protoOptions: TProtoOptions, env = { HAI
   }
   return world;
 }
-
-export const asFeatures = (w: { base?: string, path: string; content: string }[]) => w.map((i) => withNameType(i.base || TEST_BASE, i.path, i.content));
-// FIXME can't really do this without reproducing resolve
-export const asExpandedFeatures = (w: { base?: string, path: string; content: string }[]): TExpandedFeature[] =>
-  asFeatures(w).map((i) => {
-    const expanded: TExpandedLine[] = featureSplit(i.content).map((a) => ({ line: a, feature: i }));
-    const a: any = { ...i, expanded };
-    delete a.content;
-    // a.featureLine = asFeatureLine()
-    return a;
-  });
 
 export function getDefaultWorld(sequence: number, env = process.env): { world: TWorld } {
   return {

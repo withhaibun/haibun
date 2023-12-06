@@ -1,7 +1,10 @@
 {
-  "name": "haibun-reviews-dashboard",
-  "version": "1.0.0",
   "type": "module",
+  "name": "haibun-reviews-dashboard",
+  "files": [
+    "built",
+    "public"
+  ],
   "scripts": {
     "build": "rollup -c",
     "build-watch": "rollup -c --watch",
@@ -10,16 +13,17 @@
   "dependencies": {
     "@alenaksu/json-viewer": "^2.0.1",
     "@haibun/out-review": "^1.30.7",
+    "lit": "3.1",
+    "tslib": "^2.6.2"
+  },
+  "devDependencies": {
     "@rollup/plugin-node-resolve": "^15.2.3",
     "@rollup/plugin-typescript": "^11.1.5",
     "@types/node": "^20.9.0",
     "@types/typescript": "^2.0.0",
-    "lit": "3.1",
     "rollup": "^4.1.4",
     "rollup-plugin-license": "^3.2.0",
+    "rollup-plugin-lit-css": "^4.0.1",
     "typescript": "^5.2.2"
-  },
-  "devDependencies": {
-    "rollup-plugin-lit-css": "^4.0.1"
   }
 }

@@ -1,6 +1,9 @@
-import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "fs";
+import { describe, it, expect, beforeEach, afterAll } from 'vitest';
+
 import path from "path";
+import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { scaffoldHaibun } from "./scaffold.js"
+import { workspaceRoot } from '@haibun/core/build/lib/util/workspace-lib.js';
 
 const TMPDIR = '/tmp/haibun-scaffold-test/';
 const out = (...a: string[]) => undefined;
@@ -15,11 +18,10 @@ afterAll(() => {
 
 describe('scaffold', () => {
     it('throws for empty directory', async () => {
-        expect(async () => await scaffoldHaibun(TMPDIR, { out, noPrompt: true })).rejects.toThrow();
+        void expect(async () => await scaffoldHaibun(TMPDIR, { out, noPrompt: true })).rejects.toThrow();
     });
     it('creates from basic', async () => {
-        const haibunPackage = JSON.parse(readFileSync((path.join(process.cwd(), '..', '..', 'package.json')), 'utf-8'));
-
+        const haibunPackage = JSON.parse(readFileSync(path.join(workspaceRoot, 'package.json'), 'utf-8'));
         writeFileSync(`${TMPDIR}/package.json`, JSON.stringify({ name: 'test' }));
         await scaffoldHaibun(TMPDIR, { out, noPrompt: true });
         const pkg = JSON.parse(readFileSync(`${TMPDIR}/package.json`, 'utf-8'));

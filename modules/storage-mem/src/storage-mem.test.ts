@@ -1,10 +1,11 @@
-import { jest } from '@jest/globals';
-jest.useFakeTimers();
+import { vitest, describe, it, expect } from 'vitest';
+
+vitest.useFakeTimers();
 import { CAPTURE } from '@haibun/core/build/lib/defs.js';
 import { getDefaultWorld, getTestWorldWithOptions } from '@haibun/core/build/lib/test/lib.js';
-import { EMediaTypes } from '@haibun/domain-storage/build/domain-storage.js';
 import StorageMem from './storage-mem.js';
 import { Timer } from '@haibun/core/build/lib/Timer.js';
+import { EMediaTypes } from '@haibun/domain-storage/build/media-types.js';
 
 const { key } = Timer;
 
@@ -25,6 +26,7 @@ describe('mem getCaptureLocation', () => {
   it('gets capture location', async () => {
     const storageMem = new StorageMem();
     const { world } = getDefaultWorld(0);
+    console.log('emedia', EMediaTypes.json)
     const dir = await storageMem.getCaptureLocation({ ...world, mediaType: EMediaTypes.json }, 'test');
     expect(dir).toEqual(`./${CAPTURE}/default/${key}/loop-0/seq-0/featn-0/mem-0/test`);
   });

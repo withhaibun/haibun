@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { parseLinks } from "./indexer.js";
 
 describe('parseLinks', () => {

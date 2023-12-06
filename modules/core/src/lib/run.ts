@@ -38,6 +38,7 @@ export async function runWith({ specl, world, features, backgrounds, addSteppers
 
   let result: TExecutorResult = undefined;
   const errorBail = (phase: string, error: TAnyFixme, details?: TAnyFixme) => {
+    world.logger.error(`errorBail ${phase} ${error} ${details}`, error.stack);
     result = { ok: false, shared: world.shared, tag, failure: { stage: phase, error: { message: error.message, details: { stack: error.stack, details } } } };
     throw Error(error);
   };
