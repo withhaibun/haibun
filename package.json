@@ -23,7 +23,7 @@
     "test": "vitest run",
     "test-watch": "vitest",
     "clean": "rm -rf modules/*/build modules/*/tsconfig.tsbuildinfo modules/out-review/dashboard/web/built",
-    "clean-build": "npm run clean; for i in `ls modules |grep -v \.; do cd modules/$i; npm run build; cd ../..; done",
+    "clean-build": "npm run clean && for i in $(ls modules | grep -v '\\.'); do (cd modules/$i && npm run build); done; npm run build",
     "build-watch": "tsc -b modules/ --watch",
     "build": "tsc -b modules/; cd modules/out-review/dashboard/web; npm run build",
     "format": "prettier --ignore-path .gitignore --write \"./src/**/*.+(ts|json)\"",
