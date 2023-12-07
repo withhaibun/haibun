@@ -12,7 +12,6 @@
     "format": "prettier --write \"src/**/*.ts\" \"src/**/*.js\"",
     "lint": "eslint -c .eslintrc.json --ext .ts,.js src",
     "test": "vitest run",
-    "coverage": "jest --config jest.config.ts --coverage",
     "test-watch": "vitest",
     "build": "tsc -b .",
     "tsc-watch": "tsc --watch",
