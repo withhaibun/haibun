@@ -7,8 +7,7 @@
   ],
   "scripts": {
     "build": "rollup -c",
-    "build-watch": "rollup -c --watch",
-    "test-watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
+    "build-watch": "rollup -c --watch"
   },
   "dependencies": {
     "@alenaksu/json-viewer": "^2.0.1",

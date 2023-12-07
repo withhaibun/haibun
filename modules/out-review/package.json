@@ -19,7 +19,7 @@
     "lint": "eslint -c .eslintrc.json --ext .ts,.js src",
     "preversion": "npm run lint",
     "test": "vitest run",
-    "test-watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
+    "test-watch": "vitest"
   },
   "keywords": [],
   "author": "",
