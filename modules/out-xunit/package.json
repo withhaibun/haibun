@@ -1,7 +1,7 @@
 {
   "name": "@haibun/out-xunit",
   "type": "module",
-  "version": "1.32.11",
+  "version": "1.32.12",
   "description": "",
   "files": [
     "build/**"
@@ -19,7 +19,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@haibun/core": "1.32.11",
+    "@haibun/core": "1.32.12",
     "xmlbuilder2": "^3.0.2"
   },
   "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5"
