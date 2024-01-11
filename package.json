@@ -22,7 +22,7 @@
   "scripts": {
     "test": "vitest run",
     "test-watch": "vitest",
-    "clean": "rm -rf modules/*/build modules/*/tsconfig.tsbuildinfo modules/out-review/dashboard/web/built",
+    "clean": "rm -rf modules/*/build modules/*/tsconfig.tsbuildinfo modules/out-review/dashboard/web/build",
     "build-watch": "tsc -b modules/ --watch",
     "build": "tsc -b modules/core modules/domain-storage modules/domain-webpage modules/web-http modules/storage-fs modules",
     "format": "prettier --ignore-path .gitignore --write \"./src/**/*.+(ts|json)\"",
@@ -34,5 +34,5 @@
     "dependency-cruiser": "^15.5.0",
     "vitest": "^1.0.1"
   },
-  "version": "1.32.12"
+  "version": "1.33.0"
 }
