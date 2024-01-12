@@ -1,7 +1,5 @@
 import { statSync, existsSync } from 'fs';
-
 import http from 'http';
-
 import express, { RequestHandler } from 'express';
 import serveIndex from 'serve-index';
 import cookieParser from 'cookie-parser';

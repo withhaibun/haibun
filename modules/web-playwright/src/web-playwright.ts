@@ -8,6 +8,7 @@ import { WEB_PAGE, WEB_CONTROL } from '@haibun/domain-webpage';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 import { TActionStage, TArtifactMessageContext, TTraceMessageContext } from '@haibun/core/build/lib/interfaces/logger.js';
 import { EMediaTypes } from '@haibun/domain-storage/build/media-types.js';
+import Logger from '@haibun/core/build/lib/Logger.js';
 
 const WebPlaywright = class WebPlaywright extends AStepper implements IHasOptions, IRequireDomains {
   static STORAGE = 'STORAGE';
@@ -642,7 +643,9 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
           path,
         })
     );
-    this.getWorld().logger.info('screenshot', <TArtifactMessageContext>{ topic: { ...details, event, stage }, artifact: { type: 'picture', path, }, tag: this.getWorld().tag });
+    const artifact = Logger.logArtifact({ type: 'picture', path });
+    const artifactTopic = { topic: { ...details, event, stage }, artifact, tag: this.getWorld().tag };
+    this.getWorld().logger.info('screenshot', artifactTopic,);
   }
 };
 
