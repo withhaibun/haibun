@@ -1,9 +1,9 @@
 import { IHasOptions, OK, TWorld, TNamed, TOptions, AStepper, TVStep, } from '@haibun/core/build/lib/defs.js';
 import { actionNotOK, getFromRuntime, getStepperOption, intOrError } from '@haibun/core/build/lib/util/index.js';
-import { getDirname } from '@haibun/core/build/lib/util/workspace-lib.js';
 import { IWebServer, WEBSERVER, } from './defs.js';
 import { ServerExpress, DEFAULT_PORT } from './server-express.js';
 import { WEB_PAGE } from '@haibun/domain-webpage/build/domain-webpage.js';
+import path from 'path';
 
 const WebServerStepper = class WebServerStepper extends AStepper implements IHasOptions {
   webserver: ServerExpress | undefined;
@@ -19,7 +19,7 @@ const WebServerStepper = class WebServerStepper extends AStepper implements IHas
     await super.setWorld(world, steppers);
     // this.world.runtime[CHECK_LISTENER] = WebServerStepper.checkListener;
     const port = parseInt(getStepperOption(this, 'PORT', world.extraOptions)) || DEFAULT_PORT;
-    this.webserver = new ServerExpress(world.logger, [getDirname(import.meta), '..', 'files'].join('/'), port);
+    this.webserver = new ServerExpress(world.logger, path.join([process.cwd(),  'files'].join('/')), port);
     world.runtime[WEBSERVER] = this.webserver;
   }
 
@@ -79,6 +79,7 @@ const WebServerStepper = class WebServerStepper extends AStepper implements IHas
       gwta: 'index files at {where} from {loc}',
       action: async ({ where, loc }: TNamed) => {
         const r = await this.doServeIndex(where, loc).catch((e) => actionNotOK(e));
+        console.log('r', r)
         return r;
       }
     }
@@ -87,7 +88,7 @@ const WebServerStepper = class WebServerStepper extends AStepper implements IHas
     const ws: IWebServer = getFromRuntime(this.getWorld().runtime, WEBSERVER);
     const res = ws.checkAddIndexFolder(loc, where);
     if (res) {
-      throw Error(`failed to add index folder ${loc} at ${where}`);
+      return actionNotOK(`failed to add index folder ${loc} at ${where}: ${res}`);
     }
     await this.listen();
     return OK;
@@ -96,7 +97,7 @@ const WebServerStepper = class WebServerStepper extends AStepper implements IHas
     const ws: IWebServer = getFromRuntime(this.getWorld().runtime, WEBSERVER);
     const res = ws.checkAddStaticFolder(loc, where);
     if (res) {
-      return actionNotOK(`failed to add static folder ${loc} at ${where}: ${res}`);
+      return actionNotOK(`failed to add static folder ${loc} at ${where}: ${res}`, { topics: { failure: { summary: res } } });
     }
     await this.listen();
     return OK;

@@ -21,6 +21,7 @@ export const MAPPED_MEDIA_TYPES = {
   woff2: 'font/woff2',
   ttf: 'font/ttf',
   otf: 'font/otf',
+  '': 'inode/directory'
 };
 
 export const EMediaTypes = {
@@ -28,7 +29,8 @@ export const EMediaTypes = {
   video: 'video',
   json: 'json',
   image: 'image',
-  javascript: 'js'
+  javascript: 'js',
+  directory: ''
 } as const;
 
 export const MEDIA_TYPES: { [type: string]: string; } = {
@@ -37,6 +39,7 @@ export const MEDIA_TYPES: { [type: string]: string; } = {
   json: 'json',
   video: 'video/mp4',
   js: 'javascript',
+  '': 'inode/directory'
 };
 
 // FIXME

@@ -2,7 +2,7 @@ import { CAPTURE, AStepper, OK, TNamed, DEFAULT_DEST, TAnyFixme } from '@haibun/
 import { actionNotOK } from '@haibun/core/build/lib/util/index.js';
 import { setShared } from '@haibun/core/build/steps/vars.js';
 import { IFile, TLocationOptions, TPathedOrString } from './domain-storage.js';
-import { TMediaType } from './media-types.js';
+import { EMediaTypes, TMediaType } from './media-types.js';
 
 type TTree = Array<IFile | IFileWithEntries>;
 
@@ -64,6 +64,14 @@ export abstract class AStorage extends AStepper {
     return this.fromLocation(mediaType, ...[`./${CAPTURE}`, ...where]);
   }
 
+  /**
+   * Returns a storage specific resolved path for a given media type.
+   * Overload this where slash directory conventions aren't used.
+   * 
+   * @param mediaType 
+   * @param where 
+   * @returns string
+   */
   fromLocation(mediaType: TMediaType, ...where: string[]) {
     return where.join('/');
   }
@@ -109,6 +117,27 @@ export abstract class AStorage extends AStepper {
   }
 
   steps = {
+    createFile: {
+      gwta: `create file at {where} with {what}`,
+      action: async ({ where, what }: TNamed) => {
+        await this.writeFile(where, what, EMediaTypes.html);
+        return OK;
+      },
+    },
+    createDirectory: {
+      gwta: `create directory at {where}`,
+      action: async ({ where }: TNamed) => {
+        await this.mkdirp(where);
+        return OK;
+      },
+    },
+    filesCount: {
+      gwta: `directory {where} has {count} files`,
+      action: async ({ where, count }: TNamed) => {
+        const files = await this.readdir(where);
+        return files.length === parseInt(count) ? OK : actionNotOK(`directory ${where} has ${files.length} files`);
+      },
+    },
     fromFile: {
       gwta: `from {where} set {what}`,
       action: async ({ where, what }: TNamed, vstep) => {

@@ -102,6 +102,8 @@ export type TArtifact = {
   content?: TAnyFixme;
 };
 
+export type TArtifactType = TArtifact['type'];
+
 export interface ILogger {
   debug: (what: TLogArgs, ctx?: TMessageContext) => void;
   log: (what: TLogArgs, ctx?: TMessageContext) => void;
