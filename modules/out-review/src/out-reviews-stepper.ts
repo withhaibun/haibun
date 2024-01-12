@@ -1,4 +1,4 @@
-import path from "path";
+import path, { join } from "path";
 import { fileURLToPath } from "url";
 
 import { AStepper, CAPTURE, IHasHandlers, IHasOptions, IRequireDomains, OK, TFeatureResult, TNamed, TWorld } from '@haibun/core/build/lib/defs.js';
@@ -125,7 +125,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     createReviewsPages: {
       exact: `create reviews pages`,
       action: async () => {
-        const web = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'dashboard', 'web');
+        const web = join(path.dirname(fileURLToPath(import.meta.url)), '..', 'dashboard', 'web');
         await this.publishStorage.ensureDirExists(this.publishRoot);
         await this.recurseCopy({ src: `${web}/public`, fromFS: this.localFS, toFS: this.publishStorage, toFolder: this.publishRoot, trimFolder: `${web}/public` });
         await this.recurseCopy({ src: `${web}/build`, fromFS: this.localFS, toFS: this.publishStorage, toFolder: `${this.publishRoot}/build`, trimFolder: `${web}/build` });
@@ -176,6 +176,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     await this.publishStorage.writeFile(dest, JSON.stringify(foundHistories, null, 2), EMediaTypes.json);
     for (const [path, destPathed] of Object.entries(artifactMap)) {
       // copying pages to strict location
+      console.log(`copying ${path} to ${destPathed.pathed}`);
       await this.copyFile(path, destPathed);
     }
     return dest;
@@ -190,6 +191,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     const histories: TNamedHistories = tracksJsonFiles.reduce((a, leaf) => {
       const foundHistory: THistoryWithMeta = JSON.parse(this.localFS.readFile(leaf, 'utf-8'));
       const endpoint = this.reviewEndpoint?.endpoint(TRACKS_DIR) || `${TRACKS_DIR}/`;
+
       // map files to relative path for later copying
       const history = {
         '$schema': foundHistory['$schema'],
@@ -198,7 +200,9 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
           if (!asArtifact(h)) return h;
           const path = asArtifact(h)?.messageContext?.artifact?.path;
           if (path) {
-            const dest = this.artifactLocation(path, 'artifacts');
+            const dest = this.artifactLocation(path, join(this.publishRoot, TRACKS_DIR), join(process.cwd(), where));
+            const destPath = publishedPath(dest.pathed, this.publishRoot);
+            console.log('xi', dest.pathed, this.publishRoot, endpoint)
             artifactMap[path] = dest;
             return {
               ...h,
@@ -206,7 +210,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
                 ...h.messageContext,
                 artifact: {
                   ...asArtifact(h).messageContext.artifact,
-                  path: [endpoint, actualPath(dest)].join('')
+                  path: destPath
                 }
               }
             }
@@ -223,6 +227,14 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
       foundHistories: { '$schema': SCHEMA_FOUND_HISTORIES, meta: { date: Date.now(), ok, fail }, histories },
       artifactMap
     }
+  }
+
+  artifactLocation(fileName: string, toFolder: string, trimFolder?: string): TPathed {
+    const ext = <TMediaType>guessMediaExt(fileName);
+    const trimmed = trimFolder ? fileName.replace(trimFolder, '') : fileName;
+    const finalPath = toFolder ? `${toFolder}/${trimmed}`.replace(/\/\//, '/') : trimmed;
+    const pathed = this.publishStorage.pathed(ext, finalPath)
+    return { pathed };
   }
 
   async findTracksJson(startPath: string): Promise<string[]> {
@@ -256,12 +268,6 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     }
   }
 
-  artifactLocation(fileName: string, toFolder: string, trimFolder?: string): TPathed {
-    const ext = <TMediaType>guessMediaExt(fileName);
-    const trimmed = trimFolder ? fileName.replace(trimFolder, '') : fileName;
-    const dest = this.publishStorage.pathed(ext, toFolder ? `${toFolder}/${trimmed}`.replace(/\/\//, '/') : trimmed);
-    return { pathed: dest };
-  }
 
   async copyFile(source: string, pathedDest: TPathed) {
     const ext = <TMediaType>guessMediaExt(source);
@@ -273,3 +279,10 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
 }
 
 export default OutReviews;
+
+const noabs = (path: string) => path.replace(/[/.]+/, '');
+
+export function publishedPath(pathed: string, publishRoot: string) {
+  const rootRegex = new RegExp(`^${noabs(publishRoot)}`);
+  return noabs(pathed).replace(rootRegex, './');
+}

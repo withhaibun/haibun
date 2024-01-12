@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { testWithDefaults } from '@haibun/core/build/lib/test/lib.js';
 import SetTimeStepper from '@haibun/core/build/lib/test/SetTimeStepper.js';
-import OutReviews, { PUBLISH_ROOT, STORAGE } from './out-reviews-stepper.js';
+import OutReviews, { PUBLISH_ROOT, STORAGE, publishedPath } from './out-reviews-stepper.js';
 import DomainStorage from '@haibun/domain-storage/build/domain-storage.js';
 import { getStepperOptionName } from '@haibun/core/build/lib/util/index.js';
 import { CAPTURE, DEFAULT_DEST } from '@haibun/core/build/lib/defs.js';
@@ -131,3 +131,18 @@ directory ${tracks} has 1 files`;
   });
 });
 
+describe('artifactLocation', () => {
+  it('creates artifactLocation', async () => {
+    const o = new OutReviews();
+    o.publishStorage = new StorageFS();
+    const loc = await o.artifactLocation('capture/bar', 'reviews', 'capture');
+    expect(loc).toEqual({ pathed: 'reviews/bar' });
+  });
+});
+
+describe('publishedPath', () => {
+  it('finds publishedPath', async () => {
+    const o = publishedPath('reviews/tracks/default/video/123.webm', './reviews');
+    expect(o).toEqual('./tracks/default/video/123.webm');
+  });
+});
