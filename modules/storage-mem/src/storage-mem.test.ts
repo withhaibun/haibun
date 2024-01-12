@@ -26,7 +26,6 @@ describe('mem getCaptureLocation', () => {
   it('gets capture location', async () => {
     const storageMem = new StorageMem();
     const { world } = getDefaultWorld(0);
-    console.log('emedia', EMediaTypes.json)
     const dir = await storageMem.getCaptureLocation({ ...world, mediaType: EMediaTypes.json }, 'test');
     expect(dir).toEqual(`./${CAPTURE}/default/${key}/loop-0/seq-0/featn-0/mem-0/test`);
   });
@@ -104,19 +103,8 @@ describe('mem getCaptureLocation', () => {
 
 describe.skip('readTree', () => {
   const TEST_FS = {
-    './capture/default': ['123', '456'],
-    './capture/default/123': ['loop-0'],
-    './capture/default/123/loop-0': ['seq-0'],
-    './capture/default/123/loop-0/seq-0': ['featn-0'],
-    './capture/default/123/loop-0/seq-0/featn-0': ['mem-0'],
-    './capture/default/123/loop-0/seq-0/featn-0/mem-0': ['tracks'],
-    './capture/default/123/loop-0/seq-0/featn-0/mem-0/tracks': ['tracks.json'],
-    './capture/default/123/loop-0/seq-0/featn-0/mem-0/tracks/tracks.json': 12,
-    './capture/default/456': ['loop-0'],
-    './capture/default/456/loop-0': ['seq-0'],
-    './capture/default/456/loop-0/seq-0': ['featn-0'],
-    './capture/default/456/loop-0/seq-0/featn-0': ['mem-0'],
-    './capture/default/456/loop-0/seq-0/featn-0/mem-0': ['tracks'],
+    './capture/default/123/loop-0/seq-0/featn-0/mem-0/tracks/tracks.json': '12',
+    './capture/default/123/loop-0/seq-0/featn-0/mem-1/tracks/tracks.json': '12',
   };
 
   it('reads a tree', async () => {
