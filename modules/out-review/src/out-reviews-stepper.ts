@@ -1,7 +1,7 @@
 import path from "path";
 import { fileURLToPath } from "url";
 
-import { AStepper, CAPTURE, IHasHandlers, IHasOptions, IRequireDomains, OK, TFeatureResult, TWorld } from '@haibun/core/build/lib/defs.js';
+import { AStepper, CAPTURE, IHasHandlers, IHasOptions, IRequireDomains, OK, TFeatureResult, TNamed, TWorld } from '@haibun/core/build/lib/defs.js';
 import { STORAGE_ITEM, STORAGE_LOCATION, } from '@haibun/domain-storage';
 import { actionOK, findStepperFromOption, getStepperOption, constructorName, stringOrError } from '@haibun/core/build/lib/util/index.js';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
@@ -88,12 +88,37 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     createIndexer: {
       exact: `create indexer`,
       action: async () => {
+        await this.publishStorage.ensureDirExists(this.publishRoot);
         await this.createIndexer();
         return OK;
       },
     },
+    createIndexFromTracks: {
+      exact: `create indexer from tracks`,
+      action: async () => {
+        await this.publishStorage.ensureDirExists(this.publishRoot);
+        const loc = this.publishStorage.fromLocation(EMediaTypes.directory, this.publishRoot, TRACKS_DIR)
+        await this.createIndexerFromDirectory(loc);
+        return OK;
+      },
+    },
+    eraseTracksMatchingOlderThan: {
+      gwta: `clear tracks matching {match} older than {hours}h`,
+      action: async ({ hours, match }: TNamed) => {
+        const loc = this.publishStorage.fromLocation(EMediaTypes.directory, this.publishRoot, TRACKS_DIR)
+        await this.eraseTracksOlderThan(hours, loc, match);
+        return OK;
+      },
+    },
+    eraseTracksOlderThan: {
+      gwta: `clear tracks older than {hours}h`,
+      action: async ({ hours }: TNamed) => {
+        const loc = this.publishStorage.fromLocation(EMediaTypes.directory, this.publishRoot, TRACKS_DIR)
+        await this.eraseTracksOlderThan(hours, loc);
+        return OK;
+      },
+    },
     /**
-     * Create web
      * Create web pages that link and display published review indexes.
      *
      */
@@ -103,7 +128,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
         const web = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'dashboard', 'web');
         await this.publishStorage.ensureDirExists(this.publishRoot);
         await this.recurseCopy({ src: `${web}/public`, fromFS: this.localFS, toFS: this.publishStorage, toFolder: this.publishRoot, trimFolder: `${web}/public` });
-        await this.recurseCopy({ src: `${web}/built`, fromFS: this.localFS, toFS: this.publishStorage, toFolder: `${this.publishRoot}/built`, trimFolder: `${web}/built` });
+        await this.recurseCopy({ src: `${web}/build`, fromFS: this.localFS, toFS: this.publishStorage, toFolder: `${this.publishRoot}/build`, trimFolder: `${web}/build` });
         await this.createIndexer();
 
         return actionOK({ tree: { summary: 'wrote files', details: await this.publishStorage.readTree(this.publishRoot) } })
@@ -114,9 +139,32 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
   async createIndexer() {
     if (this.reviewEndpoint) {
       const indexer = `export const endpoint = "${this.reviewEndpoint.endpoint(TRACKS_DIR)}";\n${this.reviewEndpoint.getPublishedReviews.toString().replace('async', 'export async function')}`;
-      await this.publishStorage.writeFile(`${this.publishRoot}/built/dashboard/indexer.js`, indexer, EMediaTypes.javascript);
+      await this.publishStorage.writeFile(`${this.publishRoot}/build/dashboard/indexer.js`, indexer, EMediaTypes.javascript);
       this.getWorld().logger.log(`indexer-endpoint.json written for ${constructorName(this.publishStorage)}`);
     }
+  }
+
+  async eraseTracksOlderThan(hoursIn: string, loc: string, match?: string,) {
+    const files = await this.publishStorage.readdirStat(loc);
+    const now = Date.now();
+    const hours = parseInt(hoursIn, 10);
+    const cutoff = now - (hours * 60 * 60 * 1000);
+    const toDelete = files.filter(f => {
+      if (match && !f.name.match(match)) return false;
+      return f.created < cutoff;
+    });
+    for (const file of toDelete) {
+      await this.publishStorage.rm(file.name);
+    }
+  }
+
+  async createIndexerFromDirectory(loc: string) {
+    this.getWorld().logger.info(`indexer-endpoint.json written for ${loc}`);
+    const ifiles = await this.publishStorage.readdirStat(loc);
+    const files = ifiles.map(i => i.name.replace(/.*\//, ''));
+    const endpoint = this.reviewEndpoint?.endpoint(TRACKS_DIR) || `./${TRACKS_DIR}/`;
+    const indexer = `export const endpoint = "${endpoint}";\nexport async function getPublishedReviews() { return ${JSON.stringify(files)}; }`;
+    await this.publishStorage.writeFile(`${this.publishRoot}/build/dashboard/indexer.js`, indexer, EMediaTypes.javascript);
   }
 
   async createFoundHistory(where = CAPTURE) {
@@ -141,7 +189,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     let fail = 0;
     const histories: TNamedHistories = tracksJsonFiles.reduce((a, leaf) => {
       const foundHistory: THistoryWithMeta = JSON.parse(this.localFS.readFile(leaf, 'utf-8'));
-      const endpoint = this.reviewEndpoint?.endpoint(TRACKS_DIR) || TRACKS_DIR;
+      const endpoint = this.reviewEndpoint?.endpoint(TRACKS_DIR) || `${TRACKS_DIR}/`;
       // map files to relative path for later copying
       const history = {
         '$schema': foundHistory['$schema'],

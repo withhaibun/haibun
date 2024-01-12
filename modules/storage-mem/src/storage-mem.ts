@@ -1,11 +1,11 @@
-import { Volume, IFs } from 'memfs';
+import { Volume, IFs, DirectoryJSON } from 'memfs';
 
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 import { IFile, TPathedOrString, actualPath } from '@haibun/domain-storage/build/domain-storage.js';
 import { TAnyFixme } from '@haibun/core/build/lib/defs.js';
 
 export default class StorageMem extends AStorage {
-  static BASE_FS = {};
+  static BASE_FS: DirectoryJSON = {};
   volume: IFs;
   exists: (file: string) => boolean;
   mkdir: (dir: string) => void;
@@ -23,7 +23,7 @@ export default class StorageMem extends AStorage {
     const l = this.volume.lstatSync(file);
     const ifile = {
       name: file,
-      created: l.mtime.getDate(),
+      created: l.mtimeMs,
       isDirectory: l.isDirectory(),
       isFile: l.isFile(),
     };
