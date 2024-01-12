@@ -6,7 +6,7 @@ import { STORAGE_ITEM, STORAGE_LOCATION, } from '@haibun/domain-storage';
 import { actionOK, findStepperFromOption, getStepperOption, constructorName, stringOrError } from '@haibun/core/build/lib/util/index.js';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 import { THistoryWithMeta, TLogHistory } from '@haibun/core/build/lib/interfaces/logger.js';
-import { HANDLE_RESULT_HISTORY, IGetPublishedReviews, TLocationOptions, TPathed, actualPath, guessMediaExt } from '@haibun/domain-storage/build/domain-storage.js';
+import { HANDLE_RESULT_HISTORY, IGetPublishedReviews, TLocationOptions, TPathed, guessMediaExt } from '@haibun/domain-storage/build/domain-storage.js';
 import StorageFS from '@haibun/storage-fs/build/storage-fs.js';
 import { SCHEMA_FOUND_HISTORIES, TFoundHistories, TNamedHistories, TRACKS_DIR, TRACKS_FILE, asArtifact, asHistoryWithMeta, } from '@haibun/core/build/lib/LogHistory.js';
 import { EMediaTypes, TMediaType } from "@haibun/domain-storage/build/media-types.js";
@@ -102,21 +102,29 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
         return OK;
       },
     },
-    eraseTracksMatchingOlderThan: {
-      gwta: `clear tracks matching {match} older than {hours}h`,
+    clearFilesMatchingOlderThan: {
+      gwta: `clear files matching {match} older than {hours}h`,
       action: async ({ hours, match }: TNamed) => {
         const loc = this.publishStorage.fromLocation(EMediaTypes.directory, this.publishRoot, TRACKS_DIR)
-        await this.eraseTracksOlderThan(hours, loc, match);
+        await this.clearFilesOlderThan(hours, loc, match);
         return OK;
       },
     },
-    eraseTracksOlderThan: {
-      gwta: `clear tracks older than {hours}h`,
+    clearFilesOlderThan: {
+      gwta: `clear files older than {hours}h`,
       action: async ({ hours }: TNamed) => {
         const loc = this.publishStorage.fromLocation(EMediaTypes.directory, this.publishRoot, TRACKS_DIR)
-        await this.eraseTracksOlderThan(hours, loc);
+        await this.clearFilesOlderThan(hours, loc);
         return OK;
       },
+    },
+    clearTracksOlderThanNewest: {
+      gwta: `clear tracks past {num}`,
+      action: async ({ num }: TNamed) => {
+        const loc = this.publishStorage.fromLocation(EMediaTypes.directory, this.publishRoot, TRACKS_DIR)
+        await this.clearTracksPast(loc, num);
+        return OK;
+      }
     },
     /**
      * Create web pages that link and display published review indexes.
@@ -144,7 +152,10 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     }
   }
 
-  async eraseTracksOlderThan(hoursIn: string, loc: string, match?: string,) {
+  async clearTracksPast(loc: string, num: string) {
+  }
+
+  async clearFilesOlderThan(hoursIn: string, loc: string, match?: string,) {
     const files = await this.publishStorage.readdirStat(loc);
     const now = Date.now();
     const hours = parseInt(hoursIn, 10);

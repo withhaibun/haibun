@@ -81,12 +81,11 @@ describe.skip('findHistory', () => {
 describe.skip('found history', () => {
   it('create found history', async () => {
     StorageMem.BASE_FS = TEST_CAPTURES;
-    const outReviewsStepper = new OutReviews();
     const feature = { path: '/features/test.feature', content: `create found history` };
     const result = await testWithDefaults([feature], [OutReviews, DomainStorage, StorageMem, StorageFS], {
       options: { DEST: DEFAULT_DEST },
       extraOptions: {
-        [getStepperOptionName(outReviewsStepper, STORAGE)]: 'StorageMem',
+        [getStepperOptionName(OutReviews, STORAGE)]: 'StorageMem',
       },
     });
     console.log('🤑', JSON.stringify(result.failure, null, 2));
@@ -94,7 +93,7 @@ describe.skip('found history', () => {
   });
 });
 
-describe('clear tracks older than', () => {
+describe('clear files older than', () => {
   beforeEach(() => {
     vi.useFakeTimers()
   })
@@ -102,11 +101,10 @@ describe('clear tracks older than', () => {
   afterEach(() => {
     vi.useRealTimers()
   })
-  it('clear tracks older than 1h', async () => {
+  it('clear files older than 1h', async () => {
     const base = '/published';
     const tracks = `${base}/tracks`;
 
-    const outReviewsStepper = new OutReviews();
     const content = `
 create directory at ${tracks}
 change date to 2024-1-1 13:00:00
@@ -116,17 +114,16 @@ change date to 2024-1-1 14:01:00
 create file at ${tracks}/14.txt with "bar"
 directory ${tracks} has 2 files
 change date to 2024-1-1 15:00:00
-clear tracks older than 1h
+clear files older than 1h
 directory ${tracks} has 1 files`;
     const feature = { path: '/features/test.feature', content };
     const result = await testWithDefaults([feature], [OutReviews, DomainStorage, StorageMem, SetTimeStepper], {
       options: { DEST: DEFAULT_DEST },
       extraOptions: {
-        [getStepperOptionName(outReviewsStepper, PUBLISH_ROOT)]: base,
-        [getStepperOptionName(outReviewsStepper, STORAGE)]: 'StorageMem'
+        [getStepperOptionName(OutReviews, PUBLISH_ROOT)]: base,
+        [getStepperOptionName(OutReviews, STORAGE)]: 'StorageMem'
       },
     });
-    console.log('🤑', JSON.stringify(result.failure, null, 2));
     expect(result.ok).toBe(true);
   });
 });
