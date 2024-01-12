@@ -6,6 +6,6 @@
     "lib": [
       "dom"
     ],
-    "outDir": "./built"
+    "outDir": "./build"
   },
 }

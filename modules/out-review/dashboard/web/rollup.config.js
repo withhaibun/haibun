@@ -17,7 +17,7 @@ const licensed = license({
   thirdParty: {
     includePrivate: true,
     output: {
-      file: './built/third-party-licenses.txt',
+      file: './build/third-party-licenses.txt',
       encoding: 'utf-8',
     },
   },
@@ -26,9 +26,9 @@ const dashboard = {
   input: [`./src/dashboard/index.ts`, `./src/dashboard/indexer.ts`],
   output: {
     sourcemap: true,
-    dir: `built/dashboard/`,
+    dir: `build/dashboard/`,
   },
-  plugins: [licensed, litcss(), resolve(), typescript({ outputToFilesystem: true, outDir: './built/dashboard' })],
+  plugins: [licensed, litcss(), resolve(), typescript({ outputToFilesystem: true, outDir: './build/dashboard' })],
 };
 
 const reviewer = (dir) => ({
@@ -40,8 +40,8 @@ const reviewer = (dir) => ({
   plugins: [licensed, litcss(), resolve(), typescript({ outputToFilesystem: true, outDir: dir })],
 });
 
-const builds = [dashboard, reviewer('built/reviewer')];
-// export DASHBOARD_PREVIEW="$HOME/D/withhaibun/haibun-e2e-tests/files/published/built/reviewer"
+const builds = [dashboard, reviewer('build/reviewer')];
+// export DASHBOARD_PREVIEW="$HOME/D/withhaibun/haibun-e2e-tests/files/published/build/reviewer"
 if (process.env.DASHBOARD_PREVIEW) {
   builds.push(reviewer(process.env.DASHBOARD_PREVIEW));
 }

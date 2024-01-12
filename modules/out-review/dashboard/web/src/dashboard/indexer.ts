@@ -1,6 +1,6 @@
 // this module might be replaced by specific storage implementations at runtime
 
-export const endpoint = '/tracks';
+export const endpoint = '/tracks/';
 
 export async function getPublishedReviews() {
   const response = await fetch(endpoint);

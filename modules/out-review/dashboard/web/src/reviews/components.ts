@@ -2,14 +2,12 @@ import { LitElement, html, css, TemplateResult, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 
-import { controls, documentation } from './assets/reviews.js';
+import '@alenaksu/json-viewer';
 
+import { controls, documentation } from './assets/reviews.js';
 import { findArtifacts, asArtifact, asActionResult, actionName, TFoundHistories } from '@haibun/core/build/lib/LogHistory.js';
 import { TWindowRouter } from './router.js';
 import { THistoryWithMeta, TLogHistoryWithArtifact, TLogHistory, TArtifactMessageContext, TArtifact } from '@haibun/core/build/lib/interfaces/logger.js';
-
-import '@alenaksu/json-viewer';
-
 
 const router = () => (globalThis as unknown as TWindowRouter)._router;
 @customElement('reviews-groups')
@@ -85,7 +83,7 @@ export class AReview extends LitElement {
       return html`<h1>No data</h1>`;
     }
     const chooseView = html`
-  <select class="styled-select" @change=${(e: Event) => this.view = <TView>(<HTMLSelectElement>e.target).value}>
+  <select class="styled-select" @change=${(e: Event) => { this.view = <TView>(<HTMLSelectElement>e.target).value; this.requestUpdate() }}>
     ${views.map(option => html`
       <option ?selected=${this.view === option} value=${option}>
         ${option.charAt(0).toUpperCase() + option.slice(1)}
