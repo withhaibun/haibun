@@ -188,7 +188,7 @@ export abstract class AStorage extends AStepper {
       },
     },
     clearAllFiles: {
-      gwta: `clear files`,
+      exact: `clear files`,
       action: async () => {
         await this.rmrf('');
         return OK;
