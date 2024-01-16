@@ -6,8 +6,8 @@ import OutReviews, { PUBLISH_ROOT, STORAGE, publishedPath } from './out-reviews-
 import DomainStorage from '@haibun/domain-storage/build/domain-storage.js';
 import { getStepperOptionName } from '@haibun/core/build/lib/util/index.js';
 import { CAPTURE, DEFAULT_DEST } from '@haibun/core/build/lib/defs.js';
-import StorageFS from '@haibun/storage-fs/build/storage-fs.js';
 import StorageMem from '@haibun/storage-mem/build/storage-mem.js';
+import { testLogMessage } from './test-log-message.js';
 
 const track = {
   meta: {
@@ -82,7 +82,7 @@ describe.skip('found history', () => {
   it('create found history', async () => {
     StorageMem.BASE_FS = TEST_CAPTURES;
     const feature = { path: '/features/test.feature', content: `create found history` };
-    const result = await testWithDefaults([feature], [OutReviews, DomainStorage, StorageMem, StorageFS], {
+    const result = await testWithDefaults([feature], [OutReviews, DomainStorage, StorageMem], {
       options: { DEST: DEFAULT_DEST },
       extraOptions: {
         [getStepperOptionName(OutReviews, STORAGE)]: 'StorageMem',
@@ -109,12 +109,14 @@ describe('clear files older than', () => {
 create directory at ${tracks}
 change date to 2024-1-1 13:00:00
 create file at ${tracks}/13.txt with "foo"
+list files from ${tracks}
 directory ${tracks} has 1 files
 change date to 2024-1-1 14:01:00
 create file at ${tracks}/14.txt with "bar"
 directory ${tracks} has 2 files
 change date to 2024-1-1 15:00:00
 clear files older than 1h
+list files from ${tracks}
 directory ${tracks} has 1 files`;
     const feature = { path: '/features/test.feature', content };
     const result = await testWithDefaults([feature], [OutReviews, DomainStorage, StorageMem, SetTimeStepper], {
@@ -131,7 +133,7 @@ directory ${tracks} has 1 files`;
 describe('artifactLocation', () => {
   it('creates artifactLocation', async () => {
     const o = new OutReviews();
-    o.publishStorage = new StorageFS();
+    o.publishStorage = new StorageMem();
     const loc = await o.artifactLocation('capture/bar', 'reviews', 'capture');
     expect(loc).toEqual({ pathed: 'reviews/bar' });
   });
@@ -141,5 +143,60 @@ describe('publishedPath', () => {
   it('finds publishedPath', async () => {
     const o = publishedPath('reviews/tracks/default/video/123.webm', './reviews');
     expect(o).toEqual('./tracks/default/video/123.webm');
+  });
+});
+
+describe('clear tracks past', () => {
+  afterEach(() => {
+    StorageMem.BASE_FS = undefined;
+  });
+  const base = '/published';
+  const tracks = `${base}/tracks`;
+  const artifact1 = testLogMessage({ type: 'video', path: `${tracks}/1.webm` });
+  const artifact2 = testLogMessage({ type: 'video', path: `${tracks}/2.webm` });
+  const artifact3 = testLogMessage({ type: 'video', path: `${tracks}/3.webm` });
+  const artifacted = {
+    '/published/tracks/1-tracks.json': JSON.stringify(artifact1),
+    '/published/tracks/1.webm': 'reel1',
+    '/published/tracks/2-tracks.json': JSON.stringify(artifact2),
+    '/published/tracks/2.webm': 'reel2',
+    '/published/tracks/3-tracks.json': JSON.stringify(artifact3),
+    '/published/tracks/3.webm': 'reel3'
+  }
+  const setup = `
+directory ${tracks} has 6 files
+`;
+
+  it('clears tracks past 1', async () => {
+    StorageMem.BASE_FS = artifacted;
+    const content = setup + `
+clear tracks past 1
+directory ${tracks} has 2 files
+`;
+    const feature = { path: '/features/test.feature', content };
+    const result = await testWithDefaults([feature], [OutReviews, DomainStorage, StorageMem, SetTimeStepper], {
+      options: { DEST: DEFAULT_DEST },
+      extraOptions: {
+        [getStepperOptionName(OutReviews, PUBLISH_ROOT)]: base,
+        [getStepperOptionName(OutReviews, STORAGE)]: 'StorageMem'
+      },
+    });
+    expect(result.ok).toBe(true);
+  });
+  it('clears tracks past 2', async () => {
+    StorageMem.BASE_FS = artifacted;
+    const content = setup + `
+clear tracks past 2
+directory ${tracks} has 4 files
+`;
+    const feature = { path: '/features/test.feature', content };
+    const result = await testWithDefaults([feature], [OutReviews, DomainStorage, StorageMem, SetTimeStepper], {
+      options: { DEST: DEFAULT_DEST },
+      extraOptions: {
+        [getStepperOptionName(OutReviews, PUBLISH_ROOT)]: base,
+        [getStepperOptionName(OutReviews, STORAGE)]: 'StorageMem'
+      },
+    });
+    expect(result.ok).toBe(true);
   });
 });
