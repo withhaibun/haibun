@@ -5,10 +5,9 @@ import { AStepper, CAPTURE, IHasHandlers, IHasOptions, IRequireDomains, OK, TFea
 import { STORAGE_ITEM, STORAGE_LOCATION, } from '@haibun/domain-storage';
 import { actionOK, findStepperFromOption, getStepperOption, constructorName, stringOrError } from '@haibun/core/build/lib/util/index.js';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
-import { THistoryWithMeta, TLogHistory } from '@haibun/core/build/lib/interfaces/logger.js';
+import { THistoryWithMeta, TLogHistory, TLogHistoryWithArtifact } from '@haibun/core/build/lib/interfaces/logger.js';
 import { HANDLE_RESULT_HISTORY, IGetPublishedReviews, TLocationOptions, TPathed, guessMediaExt } from '@haibun/domain-storage/build/domain-storage.js';
-import StorageFS from '@haibun/storage-fs/build/storage-fs.js';
-import { SCHEMA_FOUND_HISTORIES, TFoundHistories, TNamedHistories, TRACKS_DIR, TRACKS_FILE, asArtifact, asHistoryWithMeta, } from '@haibun/core/build/lib/LogHistory.js';
+import { SCHEMA_FOUND_HISTORIES, TFoundHistories, TNamedHistories, TRACKS_DIR, TRACKS_FILE, asArtifact, asHistoryWithMeta, findArtifacts, } from '@haibun/core/build/lib/LogHistory.js';
 import { EMediaTypes, TMediaType } from "@haibun/domain-storage/build/media-types.js";
 
 export const TRACKSHISTORY_SUFFIX = '-tracksHistory.json';
@@ -24,7 +23,6 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
   tracksStorage: AStorage;
   publishStorage: AStorage;
   // used for publishing dashboard
-  localFS: AStorage;
   title = 'Feature Result Index';
   publishRoot: string;
 
@@ -62,7 +60,6 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
 
   async setWorld(world: TWorld, steppers: AStepper[]) {
     await super.setWorld(world, steppers);
-    this.localFS = new StorageFS();
     this.tracksStorage = findStepperFromOption(steppers, this, world.extraOptions, TRACKS_STORAGE, STORAGE);
     this.publishStorage = findStepperFromOption(steppers, this, world.extraOptions, PUBLISH_STORAGE, STORAGE);
     this.publishRoot = getStepperOption(this, PUBLISH_ROOT, this.getWorld().extraOptions) || './published';
@@ -75,7 +72,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
   steps = {
     /**
      * Create history
-     * Creates tracksHistory.json files from any found tracks.json. files.
+     * Creates tracksHistory.json files from any found TRACKS_FILE. files.
      */
     createFoundHistory: {
       exact: `create found history`,
@@ -118,11 +115,11 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
         return OK;
       },
     },
-    clearTracksOlderThanNewest: {
+    clearTracksPast: {
       gwta: `clear tracks past {num}`,
       action: async ({ num }: TNamed) => {
-        const loc = this.publishStorage.fromLocation(EMediaTypes.directory, this.publishRoot, TRACKS_DIR)
-        await this.clearTracksPast(loc, num);
+        const where = this.publishStorage.fromLocation(EMediaTypes.directory, this.publishRoot, TRACKS_DIR)
+        await this.clearTracksPast(where, num);
         return OK;
       }
     },
@@ -135,8 +132,8 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
       action: async () => {
         const web = join(path.dirname(fileURLToPath(import.meta.url)), '..', 'dashboard', 'web');
         await this.publishStorage.ensureDirExists(this.publishRoot);
-        await this.recurseCopy({ src: `${web}/public`, fromFS: this.localFS, toFS: this.publishStorage, toFolder: this.publishRoot, trimFolder: `${web}/public` });
-        await this.recurseCopy({ src: `${web}/build`, fromFS: this.localFS, toFS: this.publishStorage, toFolder: `${this.publishRoot}/build`, trimFolder: `${web}/build` });
+        await this.recurseCopy({ src: `${web}/public`, fromFS: this.tracksStorage, toFS: this.publishStorage, toFolder: this.publishRoot, trimFolder: `${web}/public` });
+        await this.recurseCopy({ src: `${web}/build`, fromFS: this.tracksStorage, toFS: this.publishStorage, toFolder: `${this.publishRoot}/build`, trimFolder: `${web}/build` });
         await this.createIndexer();
 
         return actionOK({ tree: { summary: 'wrote files', details: await this.publishStorage.readTree(this.publishRoot) } })
@@ -152,7 +149,25 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     }
   }
 
-  async clearTracksPast(loc: string, num: string) {
+  async clearTracksPast(where: string, num: string) {
+    const tracksJsonFiles = await this.findTracksJson(where);
+    const toDelete = tracksJsonFiles.slice(0, tracksJsonFiles.length - parseInt(num, 10));
+
+    const artifacts = toDelete.map(f => {
+      const history: TFoundHistories = JSON.parse(this.tracksStorage.readFile(f, 'utf-8'));
+      return Object.values(history.histories).map(item => {
+        const a = findArtifacts(item);
+        return a;
+      })
+
+    }).flat(Infinity) as TLogHistoryWithArtifact[];
+
+    for (const item of artifacts) {
+      await this.publishStorage.rm(item.messageContext.artifact.path);
+    }
+    for (const track of toDelete) {
+      await this.publishStorage.rm(track);
+    }
   }
 
   async clearFilesOlderThan(hoursIn: string, loc: string, match?: string,) {
@@ -187,8 +202,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     await this.publishStorage.writeFile(dest, JSON.stringify(foundHistories, null, 2), EMediaTypes.json);
     for (const [path, destPathed] of Object.entries(artifactMap)) {
       // copying pages to strict location
-      console.log(`copying ${path} to ${destPathed.pathed}`);
-      await this.copyFile(path, destPathed);
+      await this.copyFile(ps, path, destPathed);
     }
     return dest;
   }
@@ -200,8 +214,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     let ok = 0;
     let fail = 0;
     const histories: TNamedHistories = tracksJsonFiles.reduce((a, leaf) => {
-      const foundHistory: THistoryWithMeta = JSON.parse(this.localFS.readFile(leaf, 'utf-8'));
-      const endpoint = this.reviewEndpoint?.endpoint(TRACKS_DIR) || `${TRACKS_DIR}/`;
+      const foundHistory: THistoryWithMeta = JSON.parse(this.tracksStorage.readFile(leaf, 'utf-8'));
 
       // map files to relative path for later copying
       const history = {
@@ -213,7 +226,6 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
           if (path) {
             const dest = this.artifactLocation(path, join(this.publishRoot, TRACKS_DIR), join(process.cwd(), where));
             const destPath = publishedPath(dest.pathed, this.publishRoot);
-            console.log('xi', dest.pathed, this.publishRoot, endpoint)
             artifactMap[path] = dest;
             return {
               ...h,
@@ -250,14 +262,14 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
 
   async findTracksJson(startPath: string): Promise<string[]> {
     let result: string[] = [];
-    const files = await this.localFS.readdirStat(startPath);
+    const files = await this.tracksStorage.readdirStat(startPath);
 
     for (const file of files) {
       const filePath = file.name;
 
       if (file.isDirectory) {
         result = result.concat(await this.findTracksJson(filePath));
-      } else if (file.name.endsWith('tracks.json')) {
+      } else if (file.name.endsWith(TRACKS_FILE)) {
         result.push(filePath);
       }
     }
@@ -274,15 +286,15 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
         await this.recurseCopy({ src: fileName, fromFS, toFS, toFolder, trimFolder });
       } else {
         const dest = this.artifactLocation(fileName, toFolder, trimFolder);
-        await this.copyFile(fileName, dest);
+        await this.copyFile(this.tracksStorage, fileName, dest);
       }
     }
   }
 
 
-  async copyFile(source: string, pathedDest: TPathed) {
+  async copyFile(fs: AStorage, source: string, pathedDest: TPathed) {
     const ext = <TMediaType>guessMediaExt(source);
-    const content = await this.localFS.readFile(source);
+    const content = await fs.readFile(source);
     await this.publishStorage.mkdirp(path.dirname(pathedDest.pathed));
     await this.publishStorage.writeFile(pathedDest, content, ext);
   }
