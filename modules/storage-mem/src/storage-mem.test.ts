@@ -6,10 +6,14 @@ import { getDefaultWorld, getTestWorldWithOptions } from '@haibun/core/build/lib
 import StorageMem from './storage-mem.js';
 import { Timer } from '@haibun/core/build/lib/Timer.js';
 import { EMediaTypes } from '@haibun/domain-storage/build/media-types.js';
+import { afterEach } from 'node:test';
 
 const { key } = Timer;
 
 describe('BASE_FS', () => {
+  afterEach(() => {
+    StorageMem.BASE_FS = undefined;
+  });
   it('finds BASE_FS file', async () => {
     StorageMem.BASE_FS = { hello: 'world' };
     const storageMem = new StorageMem();
@@ -102,6 +106,9 @@ describe('mem getCaptureLocation', () => {
 });
 
 describe.skip('readTree', () => {
+  afterEach(() => {
+    StorageMem.BASE_FS = undefined;
+  });
   const TEST_FS = {
     './capture/default/123/loop-0/seq-0/featn-0/mem-0/tracks/tracks.json': '12',
     './capture/default/123/loop-0/seq-0/featn-0/mem-1/tracks/tracks.json': '12',

@@ -5,80 +5,64 @@ import SetTimeStepper from '@haibun/core/build/lib/test/SetTimeStepper.js';
 import OutReviews, { PUBLISH_ROOT, STORAGE, publishedPath } from './out-reviews-stepper.js';
 import DomainStorage from '@haibun/domain-storage/build/domain-storage.js';
 import { getStepperOptionName } from '@haibun/core/build/lib/util/index.js';
-import { CAPTURE, DEFAULT_DEST } from '@haibun/core/build/lib/defs.js';
+import { DEFAULT_DEST } from '@haibun/core/build/lib/defs.js';
 import StorageMem from '@haibun/storage-mem/build/storage-mem.js';
-import { testLogMessage } from './test-log-message.js';
+import { testFoundHistory, testHistoryWithMeta } from './test-log-message.js';
+import { TArtifact, TLogHistoryWithArtifact } from '@haibun/core/build/lib/interfaces/logger.js';
 
-const track = {
-  meta: {
-    startTime: '2023-06-21T16:38:17.308Z',
-    title: 'tests',
-    startOffset: 0.241035356,
-  },
-  result: {
-    path: '/features/auth/login.feature',
-    ok: true,
-    stepResults: [
-      {
-        ok: true,
-        in: 'Feature: Login',
-        sourcePath: '/features/auth/login.feature',
-        actionResults: [
-          {
-            ok: true,
-            name: 'feature',
-            start: 0.242762342,
-            end: 0.242810572,
-          },
-        ],
-        seq: 1,
-      },
-      {
-        ok: true,
-        in: 'Set username input to //*[@id="id_auth- username"]',
-        sourcePath: '/backgrounds/auth/login.feature',
-        actionResults: [
-          {
-            ok: true,
-            name: 'set',
-            start: 0.243154221,
-            end: 0.243194381,
-          },
-        ],
-        seq: 2,
-      },
-    ],
-  },
-};
+const CAPTURE = '/capture';
+const publishRoot = '/published';
+const capturedTracks = `${CAPTURE}/tracks`;
+const publishedTracks = `${publishRoot}/tracks`;
+const captureArtifact1: TArtifact = { type: 'video', path: `${capturedTracks}/1.webm` }
+const captureArtifact2: TArtifact = { type: 'video', path: `${capturedTracks}/2.webm` }
+
+const publishArtifact1: TArtifact = { type: 'video', path: `${publishedTracks}/1.webm` }
+const publishArtifact2: TArtifact = { type: 'video', path: `${publishedTracks}/2.webm` }
+const publishArtifact3: TArtifact = { type: 'video', path: `${publishedTracks}/3.webm` }
+
+const tracks1 = `${CAPTURE}/default/123/loop-0/seq-0/featn-0/mem-0/tracks/tracks.json`;
+const tracks2 = `${CAPTURE}/default/123/loop-0/seq-0/featn-0/mem-1/tracks/tracks.json`;
 
 const TEST_CAPTURES = {
-  [`${CAPTURE}/default/123/loop-0/seq-0/featn-0/mem-0/tracks/tracks.json`]: JSON.stringify(track),
-  [`${CAPTURE}/default/123/loop-0/seq-0/featn-0/mem-1/tracks/tracks.json`]: JSON.stringify({ ...track, meta: { ...track.meta, startTime: '2023-06-21T16:38:17.308Z' } }),
+  [tracks1]: JSON.stringify(testHistoryWithMeta(captureArtifact1)),
+  [tracks2]: JSON.stringify(testHistoryWithMeta(captureArtifact2))
 };
 
-describe.skip('findTracksJson', () => {
+describe('findTracksJson', () => {
+  afterEach(() => {
+    StorageMem.BASE_FS = undefined;
+  });
   it('finds tracks', async () => {
     StorageMem.BASE_FS = TEST_CAPTURES;
     const outReviews = new OutReviews();
-    outReviews.publishStorage = new StorageMem();
-    const traces = await outReviews.findTracksJson(`/${CAPTURE}`);
+    outReviews.tracksStorage = new StorageMem();
+    const traces = await outReviews.findTracksJson(CAPTURE);
     expect(traces).toBeDefined();
-    expect(Object.keys(traces).length).toBe(1);
+    expect(Object.keys(traces).length).toBe(2);
   });
 });
 
-describe.skip('findHistory', () => {
-  it('finds logHistory', async () => {
+describe.skip('transform logHistory', () => {
+  afterEach(() => {
+    StorageMem.BASE_FS = undefined;
+  });
+  it('transform logHistory', async () => {
     StorageMem.BASE_FS = TEST_CAPTURES;
     const outReviews = new OutReviews();
+    outReviews.tracksStorage = new StorageMem();
     outReviews.publishStorage = new StorageMem();
+    outReviews.publishRoot = publishRoot;
     const tracksHistory = await outReviews.transformTracksAndArtifacts(CAPTURE);
     expect(tracksHistory).toBeDefined();
-    expect(tracksHistory).toEqual({ [`/capture/default/123/loop-0/seq-0/featn-0/mem-0/tracks/tracks.json`]: track });
+    expect((tracksHistory.foundHistories.histories[tracks1].logHistory[0] as unknown as TLogHistoryWithArtifact).messageContext.artifact.path).toBe(`${PUBLISH_ROOT}/`)
   });
 });
 
 describe.skip('found history', () => {
+  afterEach(() => {
+    StorageMem.BASE_FS = undefined;
+  });
   it('create found history', async () => {
     StorageMem.BASE_FS = TEST_CAPTURES;
     const feature = { path: '/features/test.feature', content: `create found history` };
@@ -145,55 +129,50 @@ describe('publishedPath', () => {
     expect(o).toEqual('./tracks/default/video/123.webm');
   });
 });
-
 describe('clear tracks past', () => {
   afterEach(() => {
     StorageMem.BASE_FS = undefined;
   });
-  const base = '/published';
-  const tracks = `${base}/tracks`;
-  const artifact1 = testLogMessage({ type: 'video', path: `${tracks}/1.webm` });
-  const artifact2 = testLogMessage({ type: 'video', path: `${tracks}/2.webm` });
-  const artifact3 = testLogMessage({ type: 'video', path: `${tracks}/3.webm` });
+  const foundHistory1 = testFoundHistory(publishArtifact1);
+  const foundHistory2 = testFoundHistory(publishArtifact2);
+  const foundHistory3 = testFoundHistory(publishArtifact3);
   const artifacted = {
-    '/published/tracks/1-tracks.json': JSON.stringify(artifact1),
-    '/published/tracks/1.webm': 'reel1',
-    '/published/tracks/2-tracks.json': JSON.stringify(artifact2),
-    '/published/tracks/2.webm': 'reel2',
-    '/published/tracks/3-tracks.json': JSON.stringify(artifact3),
-    '/published/tracks/3.webm': 'reel3'
+    [`${publishedTracks}/1-tracks.json`]: JSON.stringify(foundHistory1),
+    [`${publishedTracks}/1.webm`]: 'reel1',
+    [`${publishedTracks}/2-tracks.json`]: JSON.stringify(foundHistory2),
+    [`${publishedTracks}/2.webm`]: 'reel2',
+    [`${publishedTracks}/3-tracks.json`]: JSON.stringify(foundHistory3),
+    [`${publishedTracks}/3.webm`]: 'reel3'
   }
-  const setup = `
-directory ${tracks} has 6 files
-`;
+  const setup = `directory ${publishedTracks} has 6 files`;
 
-  it('clears tracks past 1', async () => {
+  it('clears reviews past 1', async () => {
     StorageMem.BASE_FS = artifacted;
-    const content = setup + `
-clear tracks past 1
-directory ${tracks} has 2 files
+    const content = `${setup}
+clear reviews past 1
+directory ${publishedTracks} has 2 files
 `;
     const feature = { path: '/features/test.feature', content };
     const result = await testWithDefaults([feature], [OutReviews, DomainStorage, StorageMem, SetTimeStepper], {
       options: { DEST: DEFAULT_DEST },
       extraOptions: {
-        [getStepperOptionName(OutReviews, PUBLISH_ROOT)]: base,
+        [getStepperOptionName(OutReviews, PUBLISH_ROOT)]: publishRoot,
         [getStepperOptionName(OutReviews, STORAGE)]: 'StorageMem'
       },
     });
     expect(result.ok).toBe(true);
   });
-  it('clears tracks past 2', async () => {
+  it('clears reviews past 2', async () => {
     StorageMem.BASE_FS = artifacted;
-    const content = setup + `
-clear tracks past 2
-directory ${tracks} has 4 files
+    const content = `${setup}
+clear reviews past 2
+directory ${publishedTracks} has 4 files
 `;
     const feature = { path: '/features/test.feature', content };
     const result = await testWithDefaults([feature], [OutReviews, DomainStorage, StorageMem, SetTimeStepper], {
       options: { DEST: DEFAULT_DEST },
       extraOptions: {
-        [getStepperOptionName(OutReviews, PUBLISH_ROOT)]: base,
+        [getStepperOptionName(OutReviews, PUBLISH_ROOT)]: publishRoot,
         [getStepperOptionName(OutReviews, STORAGE)]: 'StorageMem'
       },
     });
