@@ -1,4 +1,4 @@
-import path, { join } from "path";
+import nodePath  from "path";
 import { fileURLToPath } from "url";
 
 import { AStepper, CAPTURE, IHasHandlers, IHasOptions, IRequireDomains, OK, TFeatureResult, TNamed, TWorld } from '@haibun/core/build/lib/defs.js';
@@ -115,11 +115,11 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
         return OK;
       },
     },
-    clearTracksPast: {
-      gwta: `clear tracks past {num}`,
+    clearReviewsPast: {
+      gwta: `clear reviews past {num}`,
       action: async ({ num }: TNamed) => {
         const where = this.publishStorage.fromLocation(EMediaTypes.directory, this.publishRoot, TRACKS_DIR)
-        await this.clearTracksPast(where, num);
+        await this.clearReviewsPast(where, num);
         return OK;
       }
     },
@@ -130,7 +130,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     createReviewsPages: {
       exact: `create reviews pages`,
       action: async () => {
-        const web = join(path.dirname(fileURLToPath(import.meta.url)), '..', 'dashboard', 'web');
+        const web = nodePath.join(nodePath.dirname(fileURLToPath(import.meta.url)), '..', 'dashboard', 'web');
         await this.publishStorage.ensureDirExists(this.publishRoot);
         await this.recurseCopy({ src: `${web}/public`, fromFS: this.tracksStorage, toFS: this.publishStorage, toFolder: this.publishRoot, trimFolder: `${web}/public` });
         await this.recurseCopy({ src: `${web}/build`, fromFS: this.tracksStorage, toFS: this.publishStorage, toFolder: `${this.publishRoot}/build`, trimFolder: `${web}/build` });
@@ -149,12 +149,12 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     }
   }
 
-  async clearTracksPast(where: string, num: string) {
+  async clearReviewsPast(where: string, num: string) {
     const tracksJsonFiles = await this.findTracksJson(where);
     const toDelete = tracksJsonFiles.slice(0, tracksJsonFiles.length - parseInt(num, 10));
 
     const artifacts = toDelete.map(f => {
-      const history: TFoundHistories = JSON.parse(this.tracksStorage.readFile(f, 'utf-8'));
+      const history: TFoundHistories = JSON.parse(this.publishStorage.readFile(f, 'utf-8'));
       return Object.values(history.histories).map(item => {
         const a = findArtifacts(item);
         return a;
@@ -224,7 +224,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
           if (!asArtifact(h)) return h;
           const path = asArtifact(h)?.messageContext?.artifact?.path;
           if (path) {
-            const dest = this.artifactLocation(path, join(this.publishRoot, TRACKS_DIR), join(process.cwd(), where));
+            const dest = this.artifactLocation(path, nodePath.join(this.publishRoot, TRACKS_DIR), nodePath.join(process.cwd(), where));
             const destPath = publishedPath(dest.pathed, this.publishRoot);
             artifactMap[path] = dest;
             return {
@@ -295,7 +295,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
   async copyFile(fs: AStorage, source: string, pathedDest: TPathed) {
     const ext = <TMediaType>guessMediaExt(source);
     const content = await fs.readFile(source);
-    await this.publishStorage.mkdirp(path.dirname(pathedDest.pathed));
+    await this.publishStorage.mkdirp(nodePath.dirname(pathedDest.pathed));
     await this.publishStorage.writeFile(pathedDest, content, ext);
   }
 
