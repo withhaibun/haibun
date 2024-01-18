@@ -1,4 +1,4 @@
-import nodePath  from "path";
+import nodePath from "path";
 import { fileURLToPath } from "url";
 
 import { AStepper, CAPTURE, IHasHandlers, IHasOptions, IRequireDomains, OK, TFeatureResult, TNamed, TWorld } from '@haibun/core/build/lib/defs.js';
@@ -153,19 +153,22 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     const tracksJsonFiles = await this.findTracksJson(where);
     const toDelete = tracksJsonFiles.slice(0, tracksJsonFiles.length - parseInt(num, 10));
 
-    const artifacts = toDelete.map(f => {
-      const history: TFoundHistories = JSON.parse(this.publishStorage.readFile(f, 'utf-8'));
-      return Object.values(history.histories).map(item => {
-        const a = findArtifacts(item);
-        return a;
-      })
-
+    const artifactsToDelete = toDelete.map(f => {
+      const foundHistories: TFoundHistories = JSON.parse(this.publishStorage.readFile(f, 'utf-8'));
+      return Object.values(foundHistories.histories).map(findArtifacts);
     }).flat(Infinity) as TLogHistoryWithArtifact[];
 
-    for (const item of artifacts) {
-      await this.publishStorage.rm(item.messageContext.artifact.path);
+    for (const item of artifactsToDelete.filter(a => a.messageContext.artifact.path)) {
+      const path = relativePublishedPath(item.messageContext.artifact.path, this.publishRoot);
+      this.getWorld().logger.log(`deleting ${path}`);
+      try {
+        await this.publishStorage.rm(path);
+      } catch (e) {
+        this.getWorld().logger.error(`error deleting ${path}: ${e.getMessage()}`);
+      }
     }
     for (const track of toDelete) {
+      this.getWorld().logger.log(`deleting ${track}`);
       await this.publishStorage.rm(track);
     }
   }
@@ -225,7 +228,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
           const path = asArtifact(h)?.messageContext?.artifact?.path;
           if (path) {
             const dest = this.artifactLocation(path, nodePath.join(this.publishRoot, TRACKS_DIR), nodePath.join(process.cwd(), where));
-            const destPath = publishedPath(dest.pathed, this.publishRoot);
+            const destPath = webPublishedPath(dest.pathed, this.publishRoot);
             artifactMap[path] = dest;
             return {
               ...h,
@@ -305,7 +308,11 @@ export default OutReviews;
 
 const noabs = (path: string) => path.replace(/[/.]+/, '');
 
-export function publishedPath(pathed: string, publishRoot: string) {
+export function webPublishedPath(pathed: string, publishRoot: string) {
   const rootRegex = new RegExp(`^${noabs(publishRoot)}`);
   return noabs(pathed).replace(rootRegex, './');
+}
+
+export function relativePublishedPath(pathed: string, publishRoot: string) {
+  return pathed.replace(/^\./, publishRoot);
 }

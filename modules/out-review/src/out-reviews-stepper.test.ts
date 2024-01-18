@@ -2,13 +2,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { testWithDefaults } from '@haibun/core/build/lib/test/lib.js';
 import SetTimeStepper from '@haibun/core/build/lib/test/SetTimeStepper.js';
-import OutReviews, { PUBLISH_ROOT, STORAGE, publishedPath } from './out-reviews-stepper.js';
+import OutReviews, { PUBLISH_ROOT, STORAGE, relativePublishedPath, webPublishedPath } from './out-reviews-stepper.js';
 import DomainStorage from '@haibun/domain-storage/build/domain-storage.js';
 import { getStepperOptionName } from '@haibun/core/build/lib/util/index.js';
 import { DEFAULT_DEST } from '@haibun/core/build/lib/defs.js';
 import StorageMem from '@haibun/storage-mem/build/storage-mem.js';
 import { testFoundHistory, testHistoryWithMeta } from './test-log-message.js';
 import { TArtifact, TLogHistoryWithArtifact } from '@haibun/core/build/lib/interfaces/logger.js';
+import { TRACKS_FILE } from '@haibun/core/build/lib/LogHistory.js';
 
 const CAPTURE = '/capture';
 const publishRoot = '/published';
@@ -18,15 +19,17 @@ const captureArtifact1: TArtifact = { type: 'video', path: `${capturedTracks}/1.
 const captureArtifact2: TArtifact = { type: 'video', path: `${capturedTracks}/2.webm` }
 
 const publishArtifact1: TArtifact = { type: 'video', path: `${publishedTracks}/1.webm` }
+const publishArtifact1NoPath: TArtifact = { type: 'json/playwright/trace', content: `something` }
 const publishArtifact2: TArtifact = { type: 'video', path: `${publishedTracks}/2.webm` }
+const publishArtifact22: TArtifact = { type: 'video', path: `${publishedTracks}/22.webm` }
 const publishArtifact3: TArtifact = { type: 'video', path: `${publishedTracks}/3.webm` }
 
-const tracks1 = `${CAPTURE}/default/123/loop-0/seq-0/featn-0/mem-0/tracks/tracks.json`;
-const tracks2 = `${CAPTURE}/default/123/loop-0/seq-0/featn-0/mem-1/tracks/tracks.json`;
+const tracks1 = `${CAPTURE}/default/123/loop-0/seq-0/featn-0/mem-0/tracks/${TRACKS_FILE}`;
+const tracks2 = `${CAPTURE}/default/123/loop-0/seq-0/featn-0/mem-1/tracks/${TRACKS_FILE}`;
 
 const TEST_CAPTURES = {
-  [tracks1]: JSON.stringify(testHistoryWithMeta(captureArtifact1)),
-  [tracks2]: JSON.stringify(testHistoryWithMeta(captureArtifact2))
+  [tracks1]: JSON.stringify(testHistoryWithMeta([captureArtifact1])),
+  [tracks2]: JSON.stringify(testHistoryWithMeta([captureArtifact2]))
 };
 
 describe('findTracksJson', () => {
@@ -123,34 +126,45 @@ describe('artifactLocation', () => {
   });
 });
 
-describe('publishedPath', () => {
-  it('finds publishedPath', async () => {
-    const o = publishedPath('reviews/tracks/default/video/123.webm', './reviews');
+describe('webPublishedPath', () => {
+  it('finds webPublishedPath', async () => {
+    const o = webPublishedPath('reviews/tracks/default/video/123.webm', './reviews');
     expect(o).toEqual('./tracks/default/video/123.webm');
+  });
+});
+
+describe('relativePublishedPath', () => {
+  it('finds relativePublishedPath', async () => {
+    const o = relativePublishedPath('./tracks/default/video/123.webm', publishRoot);
+    expect(o).toEqual(`${publishRoot}/tracks/default/video/123.webm`);
   });
 });
 describe('clear tracks past', () => {
   afterEach(() => {
     StorageMem.BASE_FS = undefined;
   });
-  const foundHistory1 = testFoundHistory(publishArtifact1);
-  const foundHistory2 = testFoundHistory(publishArtifact2);
-  const foundHistory3 = testFoundHistory(publishArtifact3);
-  const artifacted = {
-    [`${publishedTracks}/1-tracks.json`]: JSON.stringify(foundHistory1),
-    [`${publishedTracks}/1.webm`]: 'reel1',
-    [`${publishedTracks}/2-tracks.json`]: JSON.stringify(foundHistory2),
-    [`${publishedTracks}/2.webm`]: 'reel2',
-    [`${publishedTracks}/3-tracks.json`]: JSON.stringify(foundHistory3),
-    [`${publishedTracks}/3.webm`]: 'reel3'
-  }
-  const setup = `directory ${publishedTracks} has 6 files`;
+  const foundHistory1 = testFoundHistory(Date.now(), [publishArtifact1, publishArtifact1NoPath]);
+  const foundHistory2TwoArtifacts = testFoundHistory(Date.now() - 10000, [publishArtifact2, publishArtifact22]);
+  const foundHistory3OneArtifactOneNoArtifact = testFoundHistory(Date.now() - 20000, [publishArtifact3, undefined]);
+  const foundHistory4NoArtifacts = testFoundHistory(Date.now() - 30000, []);
 
+  const setup7 = `directory ${publishedTracks} has 8 files`;
+
+  const artifacted = {
+    [`${publishedTracks}/1-${TRACKS_FILE}`]: JSON.stringify(foundHistory1),
+    [`${publishedTracks}/1.webm`]: 'reel1',
+    [`${publishedTracks}/2-${TRACKS_FILE}`]: JSON.stringify(foundHistory2TwoArtifacts),
+    [`${publishedTracks}/2.webm`]: 'reel2',
+    [`${publishedTracks}/22.webm`]: 'reel22',
+    [`${publishedTracks}/3-${TRACKS_FILE}`]: JSON.stringify(foundHistory3OneArtifactOneNoArtifact),
+    [`${publishedTracks}/3.webm`]: 'reel3',
+    [`${publishedTracks}/4-${TRACKS_FILE}`]: JSON.stringify(foundHistory4NoArtifacts),
+  }
   it('clears reviews past 1', async () => {
     StorageMem.BASE_FS = artifacted;
-    const content = `${setup}
+    const content = `${setup7}
 clear reviews past 1
-directory ${publishedTracks} has 2 files
+directory ${publishedTracks} has 1 files
 `;
     const feature = { path: '/features/test.feature', content };
     const result = await testWithDefaults([feature], [OutReviews, DomainStorage, StorageMem, SetTimeStepper], {
@@ -164,9 +178,9 @@ directory ${publishedTracks} has 2 files
   });
   it('clears reviews past 2', async () => {
     StorageMem.BASE_FS = artifacted;
-    const content = `${setup}
+    const content = `${setup7}
 clear reviews past 2
-directory ${publishedTracks} has 4 files
+directory ${publishedTracks} has 3 files
 `;
     const feature = { path: '/features/test.feature', content };
     const result = await testWithDefaults([feature], [OutReviews, DomainStorage, StorageMem, SetTimeStepper], {
