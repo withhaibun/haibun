@@ -34,7 +34,7 @@ export default class StorageMem extends AStorage {
       const ret = this.volume.readdirSync(dir).map((i) => i.toString());
       return ret;
     } catch (e) {
-      console.error('failed', dir, JSON.stringify(this.volume, null, 2), e);
+      console.error('StorageMem readdir failed', dir, JSON.stringify(this.volume, null, 2), e);
       throw e;
     }
   };
