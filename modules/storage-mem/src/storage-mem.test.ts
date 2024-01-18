@@ -1,4 +1,5 @@
 import { vitest, describe, it, expect } from 'vitest';
+import { afterEach } from 'node:test';
 
 vitest.useFakeTimers();
 import { CAPTURE } from '@haibun/core/build/lib/defs.js';
@@ -6,7 +7,7 @@ import { getDefaultWorld, getTestWorldWithOptions } from '@haibun/core/build/lib
 import StorageMem from './storage-mem.js';
 import { Timer } from '@haibun/core/build/lib/Timer.js';
 import { EMediaTypes } from '@haibun/domain-storage/build/media-types.js';
-import { afterEach } from 'node:test';
+import { TRACKS_FILE } from '@haibun/core/build/lib/LogHistory.js';
 
 const { key } = Timer;
 
@@ -110,8 +111,8 @@ describe.skip('readTree', () => {
     StorageMem.BASE_FS = undefined;
   });
   const TEST_FS = {
-    './capture/default/123/loop-0/seq-0/featn-0/mem-0/tracks/tracks.json': '12',
-    './capture/default/123/loop-0/seq-0/featn-0/mem-1/tracks/tracks.json': '12',
+    [`./capture/default/123/loop-0/seq-0/featn-0/mem-0/tracks/${TRACKS_FILE}`]: '12',
+    [`./capture/default/123/loop-0/seq-0/featn-0/mem-1/tracks/${TRACKS_FILE}`]: '12',
   };
 
   it('reads a tree', async () => {
@@ -120,6 +121,6 @@ describe.skip('readTree', () => {
   });
   it('reads a filtered tree', async () => {
     StorageMem.BASE_FS = TEST_FS;
-    expect(await new StorageMem().readTree('./capture', 'tracks.json')).toEqual('./capture/default/123/loop-0/seq-0/featn-0/mem-0/tracks/tracks.json');
+    expect(await new StorageMem().readTree('./capture', TRACKS_FILE)).toEqual(`./capture/default/123/loop-0/seq-0/featn-0/mem-0/tracks/${TRACKS_FILE}`);
   });
 });
