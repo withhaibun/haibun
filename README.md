@@ -59,3 +59,12 @@ use this command to see available options:
 * [Developing new modules](docs/new_modules.md)
 * [Developing Haibun](docs/develop_haibun.md)
 * [Debugging steppers](docs/stepping.md)
+
+# Development & Debugging help
+
+When using storage-mem in tests, it may be helpful to use `vi.spyOn(process, 'cwd').mockReturnValue('/');`
+
+It can be handy to access the memfs directoy; use this: `(this.publishStorage as any).debug(`${publishRoot}/tracks/`);``
+
+A few test steppers are provided, such as SetTimeStepper, from '@haibun/core/build/lib/test/SetTimeStepper.js'.
+
