@@ -1,7 +1,7 @@
 {
   "name": "@haibun/utils",
   "type": "module",
-  "version": "1.33.6",
+  "version": "1.34.0",
   "description": "",
   "main": "index.js",
   "files": [
@@ -26,7 +26,7 @@
   "license": "ISC",
   "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5",
   "dependencies": {
-    "@haibun/cli": "1.33.6",
-    "@haibun/core": "1.33.6"
+    "@haibun/cli": "1.34.0",
+    "@haibun/core": "1.34.0"
   }
 }
