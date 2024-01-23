@@ -1,6 +1,7 @@
 import nodePath from "path";
 import { fileURLToPath } from "url";
 
+import StorageFS from "@haibun/storage-fs/build/storage-fs.js";
 import { AStepper, CAPTURE, IHasHandlers, IHasOptions, IRequireDomains, OK, TFeatureResult, TNamed, TWorld } from '@haibun/core/build/lib/defs.js';
 import { STORAGE_ITEM, STORAGE_LOCATION, } from '@haibun/domain-storage';
 import { actionOK, findStepperFromOption, getStepperOption, constructorName, stringOrError } from '@haibun/core/build/lib/util/index.js';
@@ -10,7 +11,7 @@ import { HANDLE_RESULT_HISTORY, IGetPublishedReviews, TLocationOptions, TPathed,
 import { SCHEMA_FOUND_HISTORIES, TFoundHistories, TNamedHistories, TRACKS_DIR, TRACKS_FILE, asArtifact, asHistoryWithMeta, findArtifacts, } from '@haibun/core/build/lib/LogHistory.js';
 import { EMediaTypes, TMediaType } from "@haibun/domain-storage/build/media-types.js";
 
-export const TRACKSHISTORY_SUFFIX = '-tracksHistory.json';
+export const TRACKSHISTORY_SUFFIX = `-${TRACKS_FILE}`;
 
 export const STORAGE = 'STORAGE';
 export const TRACKS_STORAGE = 'TRACKS_STORAGE';
@@ -96,6 +97,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
         await this.publishStorage.ensureDirExists(this.publishRoot);
         const loc = this.publishStorage.fromLocation(EMediaTypes.directory, this.publishRoot, TRACKS_DIR)
         await this.createIndexerFromDirectory(loc);
+
         return OK;
       },
     },
@@ -131,9 +133,10 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
       exact: `create reviews pages`,
       action: async () => {
         const web = nodePath.join(nodePath.dirname(fileURLToPath(import.meta.url)), '..', 'dashboard', 'web');
+        const fromFS = new StorageFS();
         await this.publishStorage.ensureDirExists(this.publishRoot);
-        await this.recurseCopy({ src: `${web}/public`, fromFS: this.tracksStorage, toFS: this.publishStorage, toFolder: this.publishRoot, trimFolder: `${web}/public` });
-        await this.recurseCopy({ src: `${web}/build`, fromFS: this.tracksStorage, toFS: this.publishStorage, toFolder: `${this.publishRoot}/build`, trimFolder: `${web}/build` });
+        await this.recurseCopy({ src: `${web}/public`, fromFS, toFS: this.publishStorage, toFolder: this.publishRoot, trimFolder: `${web}/public` });
+        await this.recurseCopy({ src: `${web}/build`, fromFS, toFS: this.publishStorage, toFolder: `${this.publishRoot}/build`, trimFolder: `${web}/build` });
         await this.createIndexer();
 
         return actionOK({ tree: { summary: 'wrote files', details: await this.publishStorage.readTree(this.publishRoot) } })
@@ -289,11 +292,10 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
         await this.recurseCopy({ src: fileName, fromFS, toFS, toFolder, trimFolder });
       } else {
         const dest = this.artifactLocation(fileName, toFolder, trimFolder);
-        await this.copyFile(this.tracksStorage, fileName, dest);
+        await this.copyFile(fromFS, fileName, dest);
       }
     }
   }
-
 
   async copyFile(fs: AStorage, source: string, pathedDest: TPathed) {
     const ext = <TMediaType>guessMediaExt(source);
@@ -301,18 +303,22 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     await this.publishStorage.mkdirp(nodePath.dirname(pathedDest.pathed));
     await this.publishStorage.writeFile(pathedDest, content, ext);
   }
-
 }
 
 export default OutReviews;
 
 const noabs = (path: string) => path.replace(/[/.]+/, '');
 
+// remove prefix publishRoot from pathed
 export function webPublishedPath(pathed: string, publishRoot: string) {
+  if (pathed.startsWith(publishRoot)) {
+    return pathed.replace(publishRoot, '.');
+  }
   const rootRegex = new RegExp(`^${noabs(publishRoot)}`);
   return noabs(pathed).replace(rootRegex, './');
 }
 
+// prefix publishRoot to path
 export function relativePublishedPath(pathed: string, publishRoot: string) {
   return pathed.replace(/^\./, publishRoot);
 }
