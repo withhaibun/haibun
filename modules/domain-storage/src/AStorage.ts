@@ -1,8 +1,10 @@
-import { CAPTURE, AStepper, OK, TNamed, DEFAULT_DEST, TAnyFixme } from '@haibun/core/build/lib/defs.js';
+import { AStepper, OK, TNamed, DEFAULT_DEST, TAnyFixme } from '@haibun/core/build/lib/defs.js';
 import { actionNotOK } from '@haibun/core/build/lib/util/index.js';
 import { setShared } from '@haibun/core/build/steps/vars.js';
 import { IFile, TLocationOptions, TPathedOrString } from './domain-storage.js';
 import { EMediaTypes, TMediaType } from './media-types.js';
+
+const CAPTURE = 'capture'
 
 type TTree = Array<IFile | IFileWithEntries>;
 
@@ -152,6 +154,13 @@ export abstract class AStorage extends AStepper {
       action: async ({ where, what }: TNamed) => {
         const text = await this.readFile(where, 'utf-8');
         return text === what ? OK : actionNotOK(`text at ${where} is not ${what}; it's ${text}`);
+      },
+    },
+    testContains: {
+      gwta: `text at {where} contains {what}`,
+      action: async ({ where, what }: TNamed) => {
+        const text = await this.readFile(where, 'utf-8');
+        return text.toString().indexOf(what) > -1 ? OK : actionNotOK(`text at ${where} does not contain ${what}; it's ${text}`);
       },
     },
     readText: {

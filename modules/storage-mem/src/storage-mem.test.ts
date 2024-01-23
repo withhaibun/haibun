@@ -1,4 +1,4 @@
-import { vitest, describe, it, expect } from 'vitest';
+import { vitest, describe, it, expect, vi } from 'vitest';
 import { afterEach } from 'node:test';
 
 vitest.useFakeTimers();
@@ -10,6 +10,8 @@ import { EMediaTypes } from '@haibun/domain-storage/build/media-types.js';
 import { TRACKS_FILE } from '@haibun/core/build/lib/LogHistory.js';
 
 const { key } = Timer;
+
+vi.spyOn(process, 'cwd').mockReturnValue('/');
 
 describe('BASE_FS', () => {
   afterEach(() => {
