@@ -4,19 +4,15 @@ import { testWithDefaults } from '@haibun/core/build/lib/test/lib.js';
 import SetTimeStepper from '@haibun/core/build/lib/test/SetTimeStepper.js';
 import OutReviews, { PUBLISH_ROOT, STORAGE, relativePublishedPath, webPublishedPath } from './out-reviews-stepper.js';
 import DomainStorage from '@haibun/domain-storage/build/domain-storage.js';
-import { getStepperOptionName } from '@haibun/core/build/lib/util/index.js';
-import { DEFAULT_DEST } from '@haibun/core/build/lib/defs.js';
+import { actionNotOK, getStepperOptionName } from '@haibun/core/build/lib/util/index.js';
+import { CAPTURE, DEFAULT_DEST, OK } from '@haibun/core/build/lib/defs.js';
 import StorageMem from '@haibun/storage-mem/build/storage-mem.js';
 import { testFoundHistory, testHistoryWithMeta } from './test-log-message.js';
 import { TArtifact, TLogHistoryWithArtifact } from '@haibun/core/build/lib/interfaces/logger.js';
 import { TRACKS_FILE } from '@haibun/core/build/lib/LogHistory.js';
 
-const CAPTURE = '/capture';
 const publishRoot = '/published';
-const capturedTracks = `${CAPTURE}/tracks`;
 const publishedTracks = `${publishRoot}/tracks`;
-const captureArtifact1: TArtifact = { type: 'video', path: `${capturedTracks}/1.webm` }
-const captureArtifact2: TArtifact = { type: 'video', path: `${capturedTracks}/2.webm` }
 
 const publishArtifact1: TArtifact = { type: 'video', path: `${publishedTracks}/1.webm` }
 const publishArtifact1NoPath: TArtifact = { type: 'json/playwright/trace', content: `something` }
@@ -28,9 +24,11 @@ const tracks1 = `${CAPTURE}/default/123/loop-0/seq-0/featn-0/mem-0/tracks/${TRAC
 const tracks2 = `${CAPTURE}/default/123/loop-0/seq-0/featn-0/mem-1/tracks/${TRACKS_FILE}`;
 
 const TEST_CAPTURES = {
-  [tracks1]: JSON.stringify(testHistoryWithMeta([captureArtifact1])),
-  [tracks2]: JSON.stringify(testHistoryWithMeta([captureArtifact2]))
+  [tracks1]: JSON.stringify(testHistoryWithMeta([])),
+  [tracks2]: JSON.stringify(testHistoryWithMeta([]))
 };
+
+vi.spyOn(process, 'cwd').mockReturnValue('/');
 
 describe('findTracksJson', () => {
   afterEach(() => {
@@ -46,7 +44,11 @@ describe('findTracksJson', () => {
   });
 });
 
-describe.skip('transform logHistory', () => {
+describe('transform logHistory', () => {
+  const TEST_CAPTURES = {
+    [tracks1]: JSON.stringify(testHistoryWithMeta([{ type: 'video', path: `${CAPTURE}/1.webm` }])),
+  };
+
   afterEach(() => {
     StorageMem.BASE_FS = undefined;
   });
@@ -58,11 +60,12 @@ describe.skip('transform logHistory', () => {
     outReviews.publishRoot = publishRoot;
     const tracksHistory = await outReviews.transformTracksAndArtifacts(CAPTURE);
     expect(tracksHistory).toBeDefined();
-    expect((tracksHistory.foundHistories.histories[tracks1].logHistory[0] as unknown as TLogHistoryWithArtifact).messageContext.artifact.path).toBe(`${PUBLISH_ROOT}/`)
+    expect((tracksHistory.foundHistories.histories[tracks1].logHistory[0] as unknown as TLogHistoryWithArtifact).messageContext.artifact.path)
+      .toBe(`./tracks/capture/tracks/1.webm`)
   });
 });
 
-describe.skip('found history', () => {
+describe('create found history', () => {
   afterEach(() => {
     StorageMem.BASE_FS = undefined;
   });
@@ -73,6 +76,57 @@ describe.skip('found history', () => {
       options: { DEST: DEFAULT_DEST },
       extraOptions: {
         [getStepperOptionName(OutReviews, STORAGE)]: 'StorageMem',
+      },
+    });
+    expect(result.ok).toBe(true);
+  });
+});
+
+describe('create reviews pages', () => {
+  afterEach(() => {
+    StorageMem.BASE_FS = undefined;
+  });
+  it('create reviews pages', async () => {
+    StorageMem.BASE_FS = TEST_CAPTURES;
+    const feature = { path: '/features/test.feature', content: `create reviews pages` };
+    const result = await testWithDefaults([feature], [OutReviews, DomainStorage, StorageMem], {
+      options: { DEST: DEFAULT_DEST },
+      extraOptions: {
+        [getStepperOptionName(OutReviews, STORAGE)]: 'StorageMem',
+      },
+    });
+    expect(result.ok).toBe(true);
+  });
+});
+
+describe('create indexer from tracks', () => {
+  afterEach(() => {
+    StorageMem.BASE_FS = undefined;
+  });
+  it('create indexer from tracks', async () => {
+    const test = 'indexer contains key';
+    class CheckKeyStepper extends OutReviews {
+      constructor() {
+        super();
+        (this as any).steps = {
+          ...this.steps, checkKey: {
+            exact: test,
+            action: async () => {
+              const track = await this.publishStorage.readdir(`${publishRoot}/tracks/`);
+              const indexer = this.publishStorage.readFile(`${publishRoot}/build/dashboard/indexer.js/`).toString();
+              return indexer.includes(track[0]) ? OK : actionNotOK(`indexer does not contain ${track}, it contains ${indexer}`);
+            }
+          }
+        }
+      }
+    }
+
+    StorageMem.BASE_FS = TEST_CAPTURES;
+    const feature = { path: '/features/test.feature', content: `create found history\ncreate reviews pages\ncreate indexer from tracks\n${test}` };
+    const result = await testWithDefaults([feature], [DomainStorage, StorageMem, CheckKeyStepper], {
+      options: { DEST: DEFAULT_DEST },
+      extraOptions: {
+        [getStepperOptionName(CheckKeyStepper, STORAGE)]: 'StorageMem',
       },
     });
     console.log('🤑', JSON.stringify(result.failure, null, 2));
@@ -127,9 +181,13 @@ describe('artifactLocation', () => {
 });
 
 describe('webPublishedPath', () => {
-  it('finds webPublishedPath', async () => {
-    const o = webPublishedPath('reviews/tracks/default/video/123.webm', './reviews');
-    expect(o).toEqual('./tracks/default/video/123.webm');
+  it('finds absolute webPublishedPath', async () => {
+    const p = webPublishedPath('/reviews/tracks/default/video/123.webm', '/reviews');
+    expect(p).toEqual('./tracks/default/video/123.webm');
+  });
+  it('finds relative webPublishedPath', async () => {
+    const p = webPublishedPath('reviews/tracks/default/video/123.webm', './reviews');
+    expect(p).toEqual('./tracks/default/video/123.webm');
   });
 });
 

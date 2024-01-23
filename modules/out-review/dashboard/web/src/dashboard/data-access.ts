@@ -1,4 +1,4 @@
-import { TFoundHistories } from "@haibun/core/build/lib/LogHistory.js";
+import { TFoundHistories, TRACKS_FILE } from "@haibun/core/build/lib/LogHistory.js";
 import { endpoint } from "./indexer.js";
 
 export type TTraceHistorySummary = {
@@ -21,16 +21,21 @@ export class DataAccess {
   private latest: string[] = [];
 
   async getLatest(): Promise<string[]> {
-    if (this.latest.length > 0) {
-      return this.latest;
+    try {
+      if (this.latest.length > 0) {
+        return this.latest;
+      }
+      const indexer = await import('./indexer.js');
+      return await indexer.getPublishedReviews();
+    } catch (e) {
+      console.error(e);
+      throw Error(`Failed to get latest reviews: ${e.message}`);
     }
-    const indexer = await import('./indexer.js');
-    return await indexer.getPublishedReviews();
   }
 
   async getTracksHistories(): Promise<TTraceHistorySummary[]> {
     const links = await this.getLatest();
-    const historyFiles: string[] = links.filter(link => link.endsWith('-tracksHistory.json'));
+    const historyFiles: string[] = links.filter(link => link.endsWith(TRACKS_FILE));
     if (!historyFiles) {
       return [];
     }
