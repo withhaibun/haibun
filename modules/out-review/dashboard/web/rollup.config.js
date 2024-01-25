@@ -41,7 +41,7 @@ const reviewer = (dir) => ({
 });
 
 const builds = [dashboard, reviewer('build/reviewer')];
-// export DASHBOARD_PREVIEW="$HOME/D/withhaibun/haibun-e2e-tests/files/published/build/reviewer"
+// export DASHBOARD_PREVIEW="$HOME/D/withhaibun/haibun-e2e-tests/reviews/build/reviewer"
 if (process.env.DASHBOARD_PREVIEW) {
   builds.push(reviewer(process.env.DASHBOARD_PREVIEW));
 }

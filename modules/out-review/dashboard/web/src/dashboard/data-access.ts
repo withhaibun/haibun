@@ -34,15 +34,19 @@ export class DataAccess {
   }
 
   async getTracksHistories(): Promise<TTraceHistorySummary[]> {
-    const links = await this.getLatest();
-    const historyFiles: string[] = links.filter(link => link.endsWith(TRACKS_FILE));
+    const historyFiles = await this.getLatest();
     if (!historyFiles) {
       return [];
     }
     const foundHistories: TTraceHistorySummary[] = [];
     for (const source of historyFiles) {
-      const summary = await summarize(source);
-      foundHistories.push(summary);
+      try {
+        const summary = await summarize(source);
+        foundHistories.push(summary);
+      } catch (e) {
+        console.error('summarize', source, e);
+        throw Error(`Failed to summarize ${source}: ${e.message}. Check the console for a stack trace.`);
+      }
     }
     return foundHistories;
   }

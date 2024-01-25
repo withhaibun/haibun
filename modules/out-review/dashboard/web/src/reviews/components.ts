@@ -2,7 +2,7 @@ import { LitElement, html, css, TemplateResult, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 
-import '@alenaksu/json-viewer';
+import './json-view-copy.js';
 
 import { controls, documentation } from './assets/reviews.js';
 import { findArtifacts, asArtifact, asActionResult, actionName, TFoundHistories } from '@haibun/core/build/lib/LogHistory.js';
@@ -113,6 +113,7 @@ export class AReview extends LitElement {
   handleShowDetail(event: CustomEvent) {
     const detailHTML = event.detail;
     this.detail = html`${detailHTML}`;
+    this.requestUpdate();
   }
   videoDetail() {
     const content = getDetailContent(this.videoOverview?.messageContext.artifact);
@@ -179,8 +180,7 @@ export class ReviewStep extends LitElement {
     return html`<div part="review-step" class="stepper ${actionClass}"><span @click=${this.selectMessage} class=${okClasses.filter(Boolean).join(' ')}>${loggerDisplay} ${message}</span> ${detailButton}</div > `
   }
   selectMessage() {
-    this.showDetail(html`<div class="code">${JSON.stringify(this.logHistory, null, 2)}</div>`)
-    this.showDetail(html`<json-viewer .data=${this.logHistory}></json-viewer>`);
+    this.showDetail(html`<json-view-copy .json=${this.logHistory}></json-view-copy>`);
   }
   reportDetail(artifactContext: TArtifactMessageContext) {
     const content = getDetailContent(artifactContext.artifact);
@@ -200,7 +200,8 @@ function getDetailContent(artifact: TArtifact | undefined) {
   } else if (artifact.type === 'html') {
     return html`${unsafeHTML(artifact.content)}`;
   } else if (artifact.type.startsWith('json')) {
-    return html`<div class="code">${JSON.stringify(artifact.content, null, 2)}</div>`;
+    // return html`<div class="code">${JSON.stringify(artifact.content, null, 2)}</div>`;
+    return html`<json-view-copy .json=${JSON.parse(artifact.content)}></json-view-copy>`;
   } else if (artifact.type === 'video') {
     const videoPath = artifact?.path;
     return videoPath ? html`<video controls width="640"><source src=${videoPath} type="video/mp4"></video>` : html`<div />`;

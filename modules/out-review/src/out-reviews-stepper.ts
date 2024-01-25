@@ -167,7 +167,8 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
       try {
         await this.publishStorage.rm(path);
       } catch (e) {
-        this.getWorld().logger.error(`error deleting ${path}: ${e.getMessage()}`);
+        console.error(e);
+        this.getWorld().logger.error(`error deleting ${path}: ${e.message}`);
       }
     }
     for (const track of toDelete) {
@@ -193,7 +194,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
   async createIndexerFromDirectory(loc: string) {
     this.getWorld().logger.info(`indexer-endpoint.json written for ${loc}`);
     const ifiles = await this.publishStorage.readdirStat(loc);
-    const files = ifiles.map(i => i.name.replace(/.*\//, ''));
+    const files = ifiles.filter(i => i.name.endsWith(TRACKS_FILE)).map(i => i.name.replace(/.*\//, ''));
     const endpoint = this.reviewEndpoint?.endpoint(TRACKS_DIR) || `./${TRACKS_DIR}/`;
     const indexer = `export const endpoint = "${endpoint}";\nexport async function getPublishedReviews() { return ${JSON.stringify(files)}; }`;
     await this.publishStorage.writeFile(`${this.publishRoot}/build/dashboard/indexer.js`, indexer, EMediaTypes.javascript);
