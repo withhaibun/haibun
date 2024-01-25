@@ -2,7 +2,7 @@ import { LitElement, html, css, TemplateResult, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 
-import './json-view-copy.js';
+import './json-view-clipboard.js';
 
 import { controls, documentation } from './assets/reviews.js';
 import { findArtifacts, asArtifact, asActionResult, actionName, TFoundHistories } from '@haibun/core/build/lib/LogHistory.js';
@@ -180,7 +180,7 @@ export class ReviewStep extends LitElement {
     return html`<div part="review-step" class="stepper ${actionClass}"><span @click=${this.selectMessage} class=${okClasses.filter(Boolean).join(' ')}>${loggerDisplay} ${message}</span> ${detailButton}</div > `
   }
   selectMessage() {
-    this.showDetail(html`<json-view-copy .json=${this.logHistory}></json-view-copy>`);
+    this.showDetail(html`<json-view-clipboard .json=${this.logHistory}></json-view-clipboard>`);
   }
   reportDetail(artifactContext: TArtifactMessageContext) {
     const content = getDetailContent(artifactContext.artifact);
@@ -201,7 +201,7 @@ function getDetailContent(artifact: TArtifact | undefined) {
     return html`${unsafeHTML(artifact.content)}`;
   } else if (artifact.type.startsWith('json')) {
     // return html`<div class="code">${JSON.stringify(artifact.content, null, 2)}</div>`;
-    return html`<json-view-copy .json=${JSON.parse(artifact.content)}></json-view-copy>`;
+    return html`<json-view-clipboard .json=${JSON.parse(artifact.content)}></json-view-clipboard>`;
   } else if (artifact.type === 'video') {
     const videoPath = artifact?.path;
     return videoPath ? html`<video controls width="640"><source src=${videoPath} type="video/mp4"></video>` : html`<div />`;
