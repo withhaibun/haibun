@@ -153,28 +153,45 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
   }
 
   async clearReviewsPast(where: string, num: string) {
+    const allFiles = await this.publishStorage.readFlat(where);
     const tracksJsonFiles = await this.findTracksJson(where);
     const toDelete = tracksJsonFiles.slice(0, tracksJsonFiles.length - parseInt(num, 10));
+    const toKeep = tracksJsonFiles.slice(tracksJsonFiles.length - parseInt(num, 10));
+    this.getWorld().logger.log(`keeping ${toKeep.length} (${toKeep}) and deleting ${toDelete.length} (${toDelete}) files`);
 
-    const artifactsToDelete = toDelete.map(f => {
+    const artifactsToKeep = toKeep.map(f => {
       const foundHistories: TFoundHistories = JSON.parse(this.publishStorage.readFile(f, 'utf-8'));
       return Object.values(foundHistories.histories).map(findArtifacts);
-    }).flat(Infinity) as TLogHistoryWithArtifact[];
+    }
+    ).flat(Infinity) as TLogHistoryWithArtifact[];
 
-    for (const item of artifactsToDelete.filter(a => a.messageContext.artifact.path)) {
-      const path = relativePublishedPath(item.messageContext.artifact.path, this.publishRoot);
-      this.getWorld().logger.log(`deleting ${path}`);
-      try {
-        await this.publishStorage.rm(path);
-      } catch (e) {
-        console.error(e);
-        this.getWorld().logger.error(`error deleting ${path}: ${e.message}`);
+    // delete files from allFiles that are not in toKeep or artifactsToKeep
+    const toDeleteFiles = allFiles.filter(f => {
+      if (toKeep.includes(f.name) || (artifactsToKeep.find(a => a.messageContext.artifact.path === f.name))) {
+        return false;
       }
+      return true;
+    });
+
+    for (const file of toDeleteFiles) {
+      this.getWorld().logger.log(`deleting ${file.name}`);
+      await this.publishStorage.rm(file.name);
     }
-    for (const track of toDelete) {
-      this.getWorld().logger.log(`deleting ${track}`);
-      await this.publishStorage.rm(track);
-    }
+
+    // for (const item of artifactsToDelete.filter(a => a.messageContext.artifact.path)) {
+    //   const path = relativePublishedPath(item.messageContext.artifact.path, this.publishRoot);
+    //   this.getWorld().logger.log(`deleting ${path}`);
+    //   try {
+    //     await this.publishStorage.rm(path);
+    //   } catch (e) {
+    //     console.error(e);
+    //     this.getWorld().logger.error(`error deleting ${path}: ${e.message}`);
+    //   }
+    // }
+    // for (const track of toDelete) {
+    //   this.getWorld().logger.log(`deleting ${track}`);
+    //   await this.publishStorage.rm(track);
+    // }
   }
 
   async clearFilesOlderThan(hoursIn: string, loc: string, match?: string,) {
