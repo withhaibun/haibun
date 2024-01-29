@@ -6,7 +6,7 @@ import { EMediaTypes, TMediaType } from './media-types.js';
 
 const CAPTURE = 'capture'
 
-type TTree = Array<IFile | IFileWithEntries>;
+export type TTree = Array<IFile | IFileWithEntries>;
 
 interface IFileWithEntries extends IFile {
   entries: TTree;
@@ -18,6 +18,20 @@ export abstract class AStorage extends AStepper {
   abstract lstatToIFile(file: string): Promise<IFile>;
   abstract writeFileBuffer(file: TPathedOrString, contents: Buffer, mediaType: TMediaType): void;
 
+  async readFlat(dir: string, filter?: string): Promise<IFile[]> {
+    const entries = await this.readdirStat(dir);
+    const tree = [];
+    for (const e of entries) {
+      if (e.isDirectory) {
+        const sub = await this.readFlat(e.name.replace(/^\/\//, '/'), filter);
+        tree.push(...sub);
+      } else if (!filter || e.name.match(filter)) {
+        tree.push(e);
+      }
+    }
+    return tree;
+  }
+
   async readTree(dir: string, filter?: string): Promise<TTree> {
     const entries = await this.readdirStat(dir);
     const tree = [];
@@ -25,7 +39,7 @@ export abstract class AStorage extends AStepper {
       if (e.isDirectory) {
         const sub = await this.readTree(e.name.replace(/^\/\//, '/'), filter);
         tree.push({ ...e, entries: sub });
-      } else {
+      } else if (!filter || e.name.match(filter)) {
         tree.push(e);
       }
     }

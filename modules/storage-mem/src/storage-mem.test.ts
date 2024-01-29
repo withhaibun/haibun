@@ -8,6 +8,7 @@ import StorageMem from './storage-mem.js';
 import { Timer } from '@haibun/core/build/lib/Timer.js';
 import { EMediaTypes } from '@haibun/domain-storage/build/media-types.js';
 import { TRACKS_FILE } from '@haibun/core/build/lib/LogHistory.js';
+import { TTree } from '@haibun/domain-storage/build/AStorage.js';
 
 const { key } = Timer;
 
@@ -108,13 +109,14 @@ describe('mem getCaptureLocation', () => {
   });
 });
 
+// FIXME: create this test without replicating IFile
 describe.skip('readTree', () => {
   afterEach(() => {
     StorageMem.BASE_FS = undefined;
   });
   const TEST_FS = {
-    [`./capture/default/123/loop-0/seq-0/featn-0/mem-0/tracks/${TRACKS_FILE}`]: '12',
-    [`./capture/default/123/loop-0/seq-0/featn-0/mem-1/tracks/${TRACKS_FILE}`]: '12',
+    [`./capture/mem-0/tracks/${TRACKS_FILE}`]: '12',
+    [`./capture/mem-1/tracks/${TRACKS_FILE}`]: '12',
   };
 
   it('reads a tree', async () => {
@@ -123,6 +125,25 @@ describe.skip('readTree', () => {
   });
   it('reads a filtered tree', async () => {
     StorageMem.BASE_FS = TEST_FS;
-    expect(await new StorageMem().readTree('./capture', TRACKS_FILE)).toEqual(`./capture/default/123/loop-0/seq-0/featn-0/mem-0/tracks/${TRACKS_FILE}`);
+    expect((await new StorageMem().readTree('./capture', 'mem-0')).map(f => f.name)).toEqual(TEST_FS);
+  });
+});
+
+describe('readFlat', () => {
+  afterEach(() => {
+    StorageMem.BASE_FS = undefined;
+  });
+  const TEST_FS = {
+    [`./capture/default/123/loop-0/seq-0/featn-0/mem-0/tracks/${TRACKS_FILE}`]: '12',
+    [`./capture/default/123/loop-0/seq-0/featn-0/mem-1/tracks/${TRACKS_FILE}`]: '12',
+  };
+
+  it('reads flat', async () => {
+    StorageMem.BASE_FS = TEST_FS;
+    expect((await new StorageMem().readFlat('./capture')).map(s => s.name)).toEqual(Object.keys(TEST_FS));
+  });
+  it('reads flat filtered', async () => {
+    StorageMem.BASE_FS = TEST_FS;
+    expect((await new StorageMem().readFlat('./capture', 'mem-0')).map(s => s.name)).toEqual([Object.keys(TEST_FS)[0]]);
   });
 });
