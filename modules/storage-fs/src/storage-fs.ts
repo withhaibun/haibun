@@ -15,7 +15,7 @@ export default class StorageFS extends AStorage {
         const ifile = {
             name: file,
             size: l.size,
-            created: l.mtime.getDate(),
+            created: l.mtime.getTime(),
             isDirectory: l.isDirectory(),
             isFile: l.isFile()
         }
