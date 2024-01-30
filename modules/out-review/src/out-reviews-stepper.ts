@@ -1,4 +1,4 @@
-import nodePath from "path";
+import nodePath, { relative } from "path";
 import { fileURLToPath } from "url";
 
 import StorageFS from "@haibun/storage-fs/build/storage-fs.js";
@@ -155,43 +155,31 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
   async clearReviewsPast(where: string, num: string) {
     const allFiles = await this.publishStorage.readFlat(where);
     const tracksJsonFiles = await this.findTracksJson(where);
-    const toDelete = tracksJsonFiles.slice(0, tracksJsonFiles.length - parseInt(num, 10));
-    const toKeep = tracksJsonFiles.slice(tracksJsonFiles.length - parseInt(num, 10));
-    this.getWorld().logger.log(`keeping ${toKeep.length} (${toKeep}) and deleting ${toDelete.length} (${toDelete}) files`);
+    // keep num reviews
+    const fileStats = await Promise.all(tracksJsonFiles.map(async (file) => await this.publishStorage.lstatToIFile(file)));
+    const itemsSorted = fileStats.sort((a, b) => b.created - a.created);
+    const toDelete = itemsSorted.slice(0, tracksJsonFiles.length - parseInt(num, 10));
+
+    const toKeep = itemsSorted.slice(- parseInt(num, 10)).map(n => n.name);
 
     const artifactsToKeep = toKeep.map(f => {
       const foundHistories: TFoundHistories = JSON.parse(this.publishStorage.readFile(f, 'utf-8'));
       return Object.values(foundHistories.histories).map(findArtifacts);
-    }
-    ).flat(Infinity) as TLogHistoryWithArtifact[];
+    }).flat(Infinity).map((h: TLogHistoryWithArtifact) => h.messageContext.artifact.path).filter(a => !!a).map(a => relativePublishedPath(a, this.publishRoot));
 
-    // delete files from allFiles that are not in toKeep or artifactsToKeep
-    const toDeleteFiles = allFiles.filter(f => {
-      if (toKeep.includes(f.name) || (artifactsToKeep.find(a => a.messageContext.artifact.path === f.name))) {
+    const toDeleteArtifacts = allFiles.filter(f => {
+      if (toKeep.includes(f.name) || (artifactsToKeep.find(a => a === f.name))) {
         return false;
       }
       return true;
     });
 
-    for (const file of toDeleteFiles) {
+    this.getWorld().logger.log(`${where} keeping ${toKeep.length} reviews (${toKeep}) with ${artifactsToKeep.length} artifacts ${artifactsToKeep.toString()} | deleting ${toDelete.length} (${toDelete}) reviews and ${toDeleteArtifacts.length} artifacts`);
+
+    for (const file of toDeleteArtifacts) {
       this.getWorld().logger.log(`deleting ${file.name}`);
       await this.publishStorage.rm(file.name);
     }
-
-    // for (const item of artifactsToDelete.filter(a => a.messageContext.artifact.path)) {
-    //   const path = relativePublishedPath(item.messageContext.artifact.path, this.publishRoot);
-    //   this.getWorld().logger.log(`deleting ${path}`);
-    //   try {
-    //     await this.publishStorage.rm(path);
-    //   } catch (e) {
-    //     console.error(e);
-    //     this.getWorld().logger.error(`error deleting ${path}: ${e.message}`);
-    //   }
-    // }
-    // for (const track of toDelete) {
-    //   this.getWorld().logger.log(`deleting ${track}`);
-    //   await this.publishStorage.rm(track);
-    // }
   }
 
   async clearFilesOlderThan(hoursIn: string, loc: string, match?: string,) {
@@ -248,9 +236,10 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
           if (!asArtifact(h)) return h;
           const path = asArtifact(h)?.messageContext?.artifact?.path;
           if (path) {
-            const dest = this.artifactLocation(path, nodePath.join(this.publishRoot, TRACKS_DIR), nodePath.join(process.cwd(), where));
+            const n = nodePath.normalize(path);
+            const dest = this.artifactLocation(n, nodePath.join(this.publishRoot, TRACKS_DIR), nodePath.join(process.cwd(), where));
             const destPath = webPublishedPath(dest.pathed, this.publishRoot);
-            artifactMap[path] = dest;
+            artifactMap[n] = dest;
             return {
               ...h,
               messageContext: {
