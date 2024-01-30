@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { testWithDefaults } from '@haibun/core/build/lib/test/lib.js';
 import SetTimeStepper from '@haibun/core/build/lib/test/SetTimeStepper.js';
-import OutReviews, { PUBLISH_ROOT, STORAGE, relativePublishedPath, webPublishedPath } from './out-reviews-stepper.js';
-import DomainStorage from '@haibun/domain-storage/build/domain-storage.js';
+import OutReviews, { PUBLISH_ROOT, STORAGE, keepLatest, relativePublishedPath, webPublishedPath } from './out-reviews-stepper.js';
+import DomainStorage, { IFile } from '@haibun/domain-storage/build/domain-storage.js';
 import { actionNotOK, getStepperOptionName } from '@haibun/core/build/lib/util/index.js';
 import { CAPTURE, DEFAULT_DEST, OK } from '@haibun/core/build/lib/defs.js';
 import StorageMem from '@haibun/storage-mem/build/storage-mem.js';
@@ -251,3 +251,29 @@ directory ${publishedTracks} has 3 files
     expect(result.ok).toBe(true);
   });
 });
+
+describe('keepLatest', () => {
+  it('keeps latest 1', () => {
+    const ifiles = [{ name: '1', created: 1 }, { name: '2', created: 2 }, { name: '3', created: 3 }];
+    const toKeep = keepLatest(<IFile[]>ifiles, 1);
+    expect(toKeep).toEqual(['3']);
+  });
+  it('keeps latest 2', () => {
+    const ifiles = [{ name: '1', created: 1 }, { name: '2', created: 2 }, { name: '3', created: 3 }];
+    const toKeep = keepLatest(<IFile[]>ifiles, 2);
+    expect(toKeep).toEqual(['2', '3']);
+  });
+  it('keeps latest 3', () => {
+    const ifiles = [{ name: '1', created: 1 }, { name: '2', created: 2 }, { name: '3', created: 3 }];
+    const toKeep = keepLatest(<IFile[]>ifiles, 3);
+    expect(toKeep).toEqual(['1', '2', '3']);
+  });
+  it('keeps latest 4', () => {
+    const ifiles = [{ name: '1', created: 1 }, { name: '2', created: 2 }, { name: '3', created: 3 }];
+    const toKeep = keepLatest(<IFile[]>ifiles, 4);
+    expect(toKeep).toEqual(['1', '2', '3']);
+  });
+});
+
+
+
