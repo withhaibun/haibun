@@ -7,7 +7,7 @@ import { STORAGE_ITEM, STORAGE_LOCATION, } from '@haibun/domain-storage';
 import { actionOK, findStepperFromOption, getStepperOption, constructorName, stringOrError } from '@haibun/core/build/lib/util/index.js';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 import { THistoryWithMeta, TLogHistory, TLogHistoryWithArtifact } from '@haibun/core/build/lib/interfaces/logger.js';
-import { HANDLE_RESULT_HISTORY, IGetPublishedReviews, TLocationOptions, TPathed, guessMediaExt } from '@haibun/domain-storage/build/domain-storage.js';
+import { HANDLE_RESULT_HISTORY, IFile, IGetPublishedReviews, TLocationOptions, TPathed, guessMediaExt } from '@haibun/domain-storage/build/domain-storage.js';
 import { SCHEMA_FOUND_HISTORIES, TFoundHistories, TNamedHistories, TRACKS_DIR, TRACKS_FILE, asArtifact, asHistoryWithMeta, findArtifacts, } from '@haibun/core/build/lib/LogHistory.js';
 import { EMediaTypes, TMediaType } from "@haibun/domain-storage/build/media-types.js";
 
@@ -152,15 +152,13 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     }
   }
 
+
   async clearReviewsPast(where: string, num: string) {
     const allFiles = await this.publishStorage.readFlat(where);
     const tracksJsonFiles = await this.findTracksJson(where);
     // keep num reviews
     const fileStats = await Promise.all(tracksJsonFiles.map(async (file) => await this.publishStorage.lstatToIFile(file)));
-    const itemsSorted = fileStats.sort((a, b) => b.created - a.created);
-    const toDelete = itemsSorted.slice(0, tracksJsonFiles.length - parseInt(num, 10));
-
-    const toKeep = itemsSorted.slice(- parseInt(num, 10)).map(n => n.name);
+    const toKeep = keepLatest(fileStats, parseInt(num, 10));
 
     const artifactsToKeep = toKeep.map(f => {
       const foundHistories: TFoundHistories = JSON.parse(this.publishStorage.readFile(f, 'utf-8'));
@@ -174,7 +172,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
       return true;
     });
 
-    this.getWorld().logger.log(`${where} keeping ${toKeep.length} reviews (${toKeep}) with ${artifactsToKeep.length} artifacts ${artifactsToKeep.toString()} | deleting ${toDelete.length} (${toDelete}) reviews and ${toDeleteArtifacts.length} artifacts`);
+    this.getWorld().logger.log(`${where} keeping ${toKeep.length} reviews (${toKeep}) with ${artifactsToKeep.length} artifacts ${artifactsToKeep.toString()} | deleting ${tracksJsonFiles.length - toKeep.length} reviews`);
 
     for (const file of toDeleteArtifacts) {
       this.getWorld().logger.log(`deleting ${file.name}`);
@@ -328,4 +326,9 @@ export function webPublishedPath(pathed: string, publishRoot: string) {
 // prefix publishRoot to path
 export function relativePublishedPath(pathed: string, publishRoot: string) {
   return pathed.replace(/^\./, publishRoot);
+}
+
+export function keepLatest(fileStats: IFile[], num: number) {
+  const itemsSorted = fileStats.sort((a, b) => a.created - b.created);
+  return itemsSorted.slice(- num).map(n => n.name);
 }
