@@ -635,7 +635,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
 
   async captureScreenshot(event: 'failure' | 'request', stage: TActionStage, details: { seq?: number, step?: TVStep }) {
     const loc = { ...this.getWorld(), mediaType: EMediaTypes.image };
-    const dir = await this.storage.ensureCaptureLocation(loc, `screenshot ${event}`);
+    const dir = await this.storage.ensureCaptureLocation(loc, `screenshot/${event}`);
     const path = `${dir}/${event}-${Date.now()}.png`;
     await this.withPage(
       async (page: Page) =>
