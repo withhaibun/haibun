@@ -234,10 +234,10 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
           if (!asArtifact(h)) return h;
           const path = asArtifact(h)?.messageContext?.artifact?.path;
           if (path) {
-            const n = nodePath.normalize(path);
-            const dest = this.artifactLocation(n, nodePath.join(this.publishRoot, TRACKS_DIR), nodePath.join(process.cwd(), where));
+            // replace leading CAPTURE with ./
+            const dest = this.artifactLocation(nodePath.resolve(path), nodePath.join(this.publishRoot, TRACKS_DIR), nodePath.resolve(where));
             const destPath = webPublishedPath(dest.pathed, this.publishRoot);
-            artifactMap[n] = dest;
+            artifactMap[path] = dest;
             return {
               ...h,
               messageContext: {
@@ -265,7 +265,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
 
   artifactLocation(fileName: string, toFolder: string, trimFolder?: string): TPathed {
     const ext = <TMediaType>guessMediaExt(fileName);
-    const trimmed = trimFolder ? fileName.replace(trimFolder, '') : fileName;
+    const trimmed = trimFolder ? fileName.replace(new RegExp(`^${trimFolder}`), '') : fileName;
     const finalPath = toFolder ? `${toFolder}/${trimmed}`.replace(/\/\//, '/') : trimmed;
     const pathed = this.publishStorage.pathed(ext, finalPath)
     return { pathed };
@@ -307,6 +307,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
     const content = await fs.readFile(source);
     await this.publishStorage.mkdirp(nodePath.dirname(pathedDest.pathed));
     await this.publishStorage.writeFile(pathedDest, content, ext);
+    this.getWorld().logger.log(`copied ${source} to ${pathedDest.pathed}`);
   }
 }
 

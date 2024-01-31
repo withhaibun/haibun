@@ -9,6 +9,7 @@ import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 import { TActionStage, TArtifactMessageContext, TTraceMessageContext } from '@haibun/core/build/lib/interfaces/logger.js';
 import { EMediaTypes } from '@haibun/domain-storage/build/media-types.js';
 import Logger from '@haibun/core/build/lib/Logger.js';
+import { normalize, resolve } from 'path';
 
 const WebPlaywright = class WebPlaywright extends AStepper implements IHasOptions, IRequireDomains {
   static STORAGE = 'STORAGE';
@@ -634,9 +635,9 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
   }
 
   async captureScreenshot(event: 'failure' | 'request', stage: TActionStage, details: { seq?: number, step?: TVStep }) {
-    const loc = { ...this.getWorld(), mediaType: EMediaTypes.image };
-    const dir = await this.storage.ensureCaptureLocation(loc, `screenshot/${event}`);
-    const path = `${dir}/${event}-${Date.now()}.png`;
+    const loc = await this.getCaptureDir('image');
+    // FIXME shouldn't be fs dependant
+    const path = resolve(this.storage.fromLocation(EMediaTypes.image, loc, `${event}-${Date.now()}.png`));
     await this.withPage(
       async (page: Page) =>
         await page.screenshot({
