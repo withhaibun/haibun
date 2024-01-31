@@ -89,7 +89,7 @@ export abstract class AStorage extends AStepper {
    * @returns string
    */
   fromLocation(mediaType: TMediaType, ...where: string[]) {
-    return where.join('/');
+    return where.map(w => w.replace(/\/$/, '')).join('/');
   }
 
   locator(loc: TLocationOptions, ...where: (string | undefined)[]) {
