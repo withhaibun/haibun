@@ -9,7 +9,7 @@ import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 import { TActionStage, TArtifactMessageContext, TTraceMessageContext } from '@haibun/core/build/lib/interfaces/logger.js';
 import { EMediaTypes } from '@haibun/domain-storage/build/media-types.js';
 import Logger from '@haibun/core/build/lib/Logger.js';
-import { normalize, resolve } from 'path';
+import { resolve } from 'path';
 
 const WebPlaywright = class WebPlaywright extends AStepper implements IHasOptions, IRequireDomains {
   static STORAGE = 'STORAGE';
@@ -376,6 +376,14 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
         return uri.match(what) ? OK : actionNotOK(`current URI ${uri} does not match ${what}`);
       },
     },
+    caseInsensitiveURIMatches: {
+      gwta: 'URI case insensitively matches {what}',
+      action: async ({ what }: TNamed) => {
+        const uri = await this.withPage<string>(async (page: Page) => await page.url());
+        const matcher = new RegExp(what, 'i');
+        return uri.match(matcher) ? OK : actionNotOK(`current URI ${uri} does not match ${what}`);
+      },
+    },
 
     //                  CLICK
 
@@ -519,6 +527,15 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       },
     },
 
+    blur: {
+      gwta: 'blur {what}',
+      action: async ({ what }: TNamed) => {
+        await this.withPage(
+          async (page: Page) => await page.locator(what).evaluate(e => e.blur())
+        );
+        return OK;
+      },
+    },
     pressBack: {
       gwta: 'press the back button',
       action: async () => {
@@ -616,6 +633,13 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
         const uri = await this.withPage<string>(async (page: Page) => await page.url());
         const found = new URL(uri).searchParams.get(what);
         this.getWorld().shared.set(where, found);
+        return OK;
+      },
+    },
+    resizeWindow: {
+      gwta: 'resize window to {width}x{height}',
+      action: async ({ width, height }: TNamed) => {
+        await this.withPage(async (page: Page) => await page.setViewportSize({ width: parseInt(width), height: parseInt(height) }));
         return OK;
       },
     },
