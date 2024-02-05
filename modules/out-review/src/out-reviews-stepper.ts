@@ -1,4 +1,4 @@
-import nodePath, { relative } from "path";
+import nodePath from "path";
 import { fileURLToPath } from "url";
 
 import StorageFS from "@haibun/storage-fs/build/storage-fs.js";
