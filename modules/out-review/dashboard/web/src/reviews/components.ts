@@ -9,6 +9,10 @@ import { findArtifacts, asArtifact, asActionResult, actionName, TFoundHistories 
 import { TWindowRouter } from './router.js';
 import { THistoryWithMeta, TLogHistoryWithArtifact, TLogHistory, TArtifactMessageContext, TArtifact } from '@haibun/core/build/lib/interfaces/logger.js';
 
+const VIEW_RESULTS = 'results';
+const VIEW_EVERYTHING = 'everything';
+const VIEW_DOCUMENTATION = 'documentation';
+
 const router = () => (globalThis as unknown as TWindowRouter)._router;
 @customElement('reviews-groups')
 export class ReviewsGroups extends LitElement {
@@ -30,13 +34,13 @@ export class ReviewsGroups extends LitElement {
     return html`<ul>${groups}</ul>`;
   }
 }
-const views = ['results', 'everything', 'documentation'] as const;
+const views = [VIEW_RESULTS, VIEW_EVERYTHING, VIEW_DOCUMENTATION] as const;
 type TView = typeof views[number];
 @customElement('a-review')
 export class AReview extends LitElement {
   @property({ type: Object }) reviewLD?: THistoryWithMeta;
   @property({ type: Object }) detail?: object;
-  @property({ type: String }) view: TView = 'results';
+  @property({ type: String }) view: TView = VIEW_RESULTS;
 
   static styles = [controls, css`.review-body {
       display: flex;
@@ -60,25 +64,26 @@ export class AReview extends LitElement {
   }
 
   currentFilter = (h: TLogHistory) => {
-    if (this.view === 'everything') {
+    if (this.view === VIEW_EVERYTHING) {
       return true;
     }
-    if (this.view === 'results') {
-      return (asActionResult(h) || (asArtifact(h) && asArtifact(h)?.messageContext?.topic?.event !== 'debug'));
-    }
     const action = asActionResult(h);
+    if (this.view === VIEW_RESULTS) {
+      return (!!action || (asArtifact(h) && asArtifact(h)?.messageContext?.topic?.event !== 'debug'));
+    }
+    // VIEW_DOCUMENTATION
     if (action) {
       const { actionName, stepperName } = action.messageContext.topic.step.actions[0];
-      // FIXME this should be mapped to something like log level
-      if (!['set', 'setAll'].includes(actionName) && !['WebServerStepper'].includes(stepperName)) {
-        return true;
+      console.log('xx', actionName, stepperName);
+      if (['set', 'setAll'].includes(actionName)) {
+        return false;
       }
-      return false;
+      return true;
     }
-    return (asArtifact(h) && asArtifact(h)?.messageContext?.topic?.event !== 'debug');
+    return ((asArtifact(h) || {})?.messageContext?.topic?.event !== 'debug');
   };
   render() {
-    const viewStyle = this.view === 'documentation' ? html`<style>${documentation}</style>` : nothing;
+    const viewStyle = this.view === VIEW_DOCUMENTATION ? html`<style>${documentation}</style>` : nothing;
     if (!this.reviewLD) {
       return html`<h1>No data</h1>`;
     }
@@ -100,7 +105,7 @@ export class AReview extends LitElement {
         <div class="review-body">
           <div>
           ${(this.reviewLD.logHistory).filter(this.currentFilter).map(h => {
-      return html`<review-step class="left-container" ?showLogLevel=${this.view !== 'documentation'} .logHistory=${h} @show-detail=${this.handleShowDetail}> .view=${this.view}></review-step>`
+      return html`<review-step class="left-container" ?showLogLevel=${this.view !== VIEW_DOCUMENTATION} .logHistory=${h} @show-detail=${this.handleShowDetail}> .view=${this.view}></review-step>`
     })}
           </div>
           <div class="detail-container">
@@ -200,8 +205,11 @@ function getDetailContent(artifact: TArtifact | undefined) {
   } else if (artifact.type === 'html') {
     return html`${unsafeHTML(artifact.content)}`;
   } else if (artifact.type.startsWith('json')) {
-    // return html`<div class="code">${JSON.stringify(artifact.content, null, 2)}</div>`;
-    return html`<json-view-clipboard .json=${JSON.parse(artifact.content)}></json-view-clipboard>`;
+    try {
+      return html`<json-view-clipboard .json=${JSON.parse(artifact.content)}></json-view-clipboard>`;
+    } catch (e) {
+      return html`<div class="code">Not JSON: ${artifact.content}</div>`;
+    }
   } else if (artifact.type === 'video') {
     const videoPath = artifact?.path;
     return videoPath ? html`<video controls width="640"><source src=${videoPath} type="video/mp4"></video>` : html`<div />`;
