@@ -19,7 +19,7 @@ export class PlaywrightEvents {
     constructor(logger: ILogger, page: Page, tag: TTag) {
         this.logger = logger;
         this.page = page;
-        this.logger.log(`setPage ${tag}`);
+        this.logger.log(`setPage ${JSON.stringify(tag)}`);
         this.tag = tag;
         page.on('request', this.logRequest.bind(this));
         // eslint-disable-next-line @typescript-eslint/no-floating-promises
