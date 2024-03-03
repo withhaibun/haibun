@@ -90,7 +90,7 @@ export class BrowserFactory {
         context = await browser.newContext({ ...deviceContext, ...BrowserFactory.configs[tag].options });
       }
       this.contexts[sequence] = context;
-      if (BrowserFactory.configs.defaultTimeout) {
+      if (BrowserFactory.configs[tag].options.defaultTimeout) {
         this.contexts[sequence].setDefaultTimeout(BrowserFactory.configs[tag].options.defaultTimeout)
       }
     }
