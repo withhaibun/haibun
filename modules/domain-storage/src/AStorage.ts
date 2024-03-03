@@ -1,7 +1,7 @@
 import { AStepper, OK, TNamed, DEFAULT_DEST, TAnyFixme } from '@haibun/core/build/lib/defs.js';
 import { actionNotOK } from '@haibun/core/build/lib/util/index.js';
 import { setShared } from '@haibun/core/build/steps/vars.js';
-import { IFile, TLocationOptions, TPathedOrString } from './domain-storage.js';
+import { IFile, TLocationOptions, TPathedOrString, guessMediaExt, guessMediaType } from './domain-storage.js';
 import { EMediaTypes, TMediaType } from './media-types.js';
 
 const CAPTURE = 'capture'
@@ -133,6 +133,17 @@ export abstract class AStorage extends AStepper {
   }
 
   steps = {
+    createFileWithSize: {
+      gwta: `create {size}M file at {where} with {what}`,
+      action: async ({ size, where, what }: TNamed) => {
+        const s = parseInt(size) * 1024 * 1024;
+        const whatSize = what.length;
+        const count = Math.ceil(s / whatSize) + 1;
+        const text = what.repeat(count).slice(0, s);
+        await this.writeFile(where, text, guessMediaType(where));
+        return OK;
+      },
+    },
     createFile: {
       gwta: `create file at {where} with {what}`,
       action: async ({ where, what }: TNamed) => {
