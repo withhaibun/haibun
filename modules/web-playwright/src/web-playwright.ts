@@ -1,4 +1,5 @@
 import { Page, Response, Download } from 'playwright';
+import { resolve } from 'path';
 
 import { IHasOptions, OK, TNamed, IRequireDomains, TStepResult, AStepper, TWorld, TVStep, TAnyFixme } from '@haibun/core/build/lib/defs.js';
 import { onCurrentTypeForDomain } from '@haibun/core/build/steps/vars.js';
@@ -9,7 +10,9 @@ import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 import { TActionStage, TArtifactMessageContext, TTraceMessageContext } from '@haibun/core/build/lib/interfaces/logger.js';
 import { EMediaTypes } from '@haibun/domain-storage/build/media-types.js';
 import Logger from '@haibun/core/build/lib/Logger.js';
-import { resolve } from 'path';
+import { rmSync } from 'fs';
+
+type TActionContext = { file: string, downloadPromise: Promise<Download> };
 
 const WebPlaywright = class WebPlaywright extends AStepper implements IHasOptions, IRequireDomains {
   static STORAGE = 'STORAGE';
@@ -58,6 +61,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
   withFrame: string;
   downloaded: string[] = [];
   captureVideo: string;
+  withAction: { ctx: TActionContext, action: () => Promise<void> };
 
   async setWorld(world: TWorld, steppers: AStepper[]) {
     await super.setWorld(world, steppers);
@@ -122,7 +126,17 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     const page = this.withFrame ? (await this.getPage()).frameLocator(this.withFrame) : await this.getPage();
     this.withFrame && console.debug('using frame', this.withFrame);
     this.withFrame = undefined;
-    return await f(page);
+    const res = await f(page);
+    if (!this.withAction) {
+      return res;
+    }
+    try {
+      this.withAction.action = this.withAction.action.bind(this);
+      await this.withAction.action();
+      return;
+    } finally {
+      this.withAction = undefined;
+    }
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -176,8 +190,8 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     let textContent: string | null = null;
     // FIXME retry sometimes required?
     for (let a = 0; a < 2; a++) {
-      textContent = await this.withPage(async (page: Page) => await page.textContent(selector, { timeout: 1e9 }));
-      if (textContent?.toString().includes(text)) {
+      textContent = await this.withPage(async (page: Page) => await page.textContent(selector));
+      if (textContent?.toString().toLowerCase().includes(text.toLowerCase())) {
         return OK;
       }
     }
@@ -570,19 +584,44 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       },
     },
 
-    waitForDownload: {
-      gwta: 'save download to {file}',
-      action: async ({ file }: TNamed) => {
+    linkToDownload: {
+      gwta: 'change links matching {link} to download',
+      action: async ({ link }: TNamed) => {
         try {
-          const download = <Download>await this.withPage(async (page: Page) => page.waitForEvent('download'));
-
-          await download.saveAs(file);
-          this.downloaded.push(file);
+          await this.withPage(async (page: Page) => {
+            await page.evaluate((selector: string) => {
+              const links = document.querySelectorAll(selector);
+              links.forEach(link => {
+                link.setAttribute('download', '');
+              });
+            }, link);
+          });
           return OK;
-        } catch (e) {
-          return actionNotOK(e);
+        } catch (error) {
+          return actionNotOK(error.message, { error });
         }
       },
+    },
+
+    waitForDownload: {
+      gwta: 'register download to {file}',
+      action: async ({ file }: TNamed) => {
+        const page = await this.getPage();
+        const downloadPromise = <Promise<Download>>page.waitForEvent('download');
+        this.withAction = {
+          action: async () => {
+            const { file, downloadPromise } = this.withAction.ctx;
+            const d = await downloadPromise;
+            await d.saveAs(file);
+            this.downloaded.push(file);
+          },
+          ctx: {
+            file,
+            downloadPromise
+          }
+        }
+        return OK;
+      }
     },
 
     //                          MISC
