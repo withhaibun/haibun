@@ -607,20 +607,25 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       gwta: 'register download to {file}',
       action: async ({ file }: TNamed) => {
         const page = await this.getPage();
-        const downloadPromise = <Promise<Download>>page.waitForEvent('download');
-        this.withAction = {
-          action: async () => {
-            const { file, downloadPromise } = this.withAction.ctx;
-            const d = await downloadPromise;
-            await d.saveAs(file);
-            this.downloaded.push(file);
-          },
-          ctx: {
-            file,
-            downloadPromise
+        try {
+          const downloadPromise = <Promise<Download>>page.waitForEvent('download');
+          this.withAction = {
+            action: async () => {
+              const { file, downloadPromise } = this.withAction.ctx;
+              const d = await downloadPromise;
+              await d.saveAs(file);
+              this.downloaded.push(file);
+            },
+            ctx: {
+              file,
+              downloadPromise
+            }
           }
+          return OK;
+        } catch (error) {
+          return actionNotOK(error.message, { error });
+
         }
-        return OK;
       }
     },
 
