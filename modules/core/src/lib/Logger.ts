@@ -1,5 +1,5 @@
 import { TAnyFixme, TTag } from './defs.js';
-import { ILogger, ILogOutput, TActionStage, TArtifact, TArtifactMessageContext, TArtifactType, TLogArgs, TLogHistory, TLogLevel, TMessageContext, TOutputEnv } from './interfaces/logger.js';
+import { ILogger, ILogOutput, TActionStage, TArtifact, TArtifactEvent, TArtifactMessageContext, TArtifactType, TLogArgs, TLogHistory, TLogLevel, TMessageContext, TOutputEnv } from './interfaces/logger.js';
 import { descTag, isFirstTag } from './util/index.js';
 
 export const LOGGER_LOG = { level: 'log' };
@@ -76,10 +76,13 @@ export default class Logger implements ILogger, ILogOutput {
   warn = (args: TLogArgs, mctx?: TMessageContext) => this.out('warn', args, mctx);
   error = (args: TLogArgs, mctx?: TMessageContext) => this.out('error', args, mctx);
 
-  static logContext({ details, stage, type, path, event, tag, content }: { details: TAnyFixme, stage: TActionStage, type: TArtifactType, path?: string, content?: string, event: string, tag: TTag }): TArtifactMessageContext {
-    return { topic: { ...details, event, stage }, artifact: { type, path, content }, tag };
-  }
   static logArtifact({ type, path, content }: { type: TArtifactType, path?: string, content?: string, }): TArtifact {
     return { type, path, content };
   }
+
+  static getArtifactTopic(artifact: TArtifact, details, event: TArtifactEvent, stage: TActionStage, tag): TArtifactMessageContext {
+    const topic = { ...details, event, stage };
+    return { artifact, topic, tag };
+  }
 }
+

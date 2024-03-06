@@ -13,15 +13,15 @@ export type TLogHistory = {
 export const SCHEMA_HISTORY_WITH_META = versionedSchema('HistoryWithMeta');
 
 export type THistoryWithMeta = {
-    '$schema': typeof SCHEMA_HISTORY_WITH_META;
-    meta: {
-        startTime: string;
-        description: string;
-        feature: string,
-        startOffset: number;
-        ok: boolean;
-    };
-    logHistory: TLogHistory[];
+  '$schema': typeof SCHEMA_HISTORY_WITH_META;
+  meta: {
+    startTime: string;
+    description: string;
+    feature: string,
+    startOffset: number;
+    ok: boolean;
+  };
+  logHistory: TLogHistory[];
 };
 
 
@@ -54,12 +54,14 @@ export type TTraceMessageContext = {
 };
 
 export type TExecutorResultTopic = {
-  result: TStepResult, 
+  result: TStepResult,
   step: TVStep,
   stage: 'Executor';
 };
 
 export type TActionStage = 'endFeature' | 'action' | 'onFailure' | 'nextStep' | 'init' | 'action';
+
+export type TArtifactEvent = 'summary' | 'summary' | 'request' | 'debug' | 'failure';
 
 type TBaseArtifactTopic = {
   stage: TActionStage
@@ -97,7 +99,7 @@ export type TLogHistoryWithExecutorTopic = TLogHistory & {
 };
 
 export type TArtifact = {
-  type: 'video' | 'picture' | 'html' | 'json' | 'json/playwright/trace';
+  type: 'archive' | 'video' | 'picture' | 'html' | 'json' | 'json/playwright/trace';
   path?: string;
   content?: TAnyFixme;
 };
