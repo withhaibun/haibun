@@ -49,9 +49,8 @@ export class Executor {
 
       ok = ok && featureResult.ok;
       featureResults.push(featureResult);
-      const shouldClose = ok || !stayOnFailure;
       await featureExecutor.endFeature(); // this should be before close
-      if (shouldClose) {
+      if (!stayOnFailure) {
         await featureExecutor.close();
       }
       await featureExecutor.doEndFeatureCallback(featureResult);
