@@ -3,7 +3,6 @@ import { TTag } from '@haibun/core/build/lib/defs.js';
 import { ILogger, TArtifactMessageContext } from '@haibun/core/build/lib/interfaces/logger.js';
 import { Page, Request, Route, Response } from 'playwright';
 
-
 type TEtc = {
     headers: Record<string, string>;
     method?: string;
@@ -19,7 +18,6 @@ export class PlaywrightEvents {
     constructor(logger: ILogger, page: Page, tag: TTag) {
         this.logger = logger;
         this.page = page;
-        this.logger.log(`setPage ${JSON.stringify(tag)}`);
         this.tag = tag;
         page.on('request', this.logRequest.bind(this));
         // eslint-disable-next-line @typescript-eslint/no-floating-promises

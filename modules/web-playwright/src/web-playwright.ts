@@ -35,6 +35,11 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       desc: 'pass arguments',
       parse: (input: string) => stringOrError(input),
     },
+    CAPTURE_PLAYWRIGHT_TRACE: {
+      desc: 'capture Playwright trace for every agent',
+      parse: (input: string) => boolOrError(input),
+      dependsOn: ['STORAGE'],
+    },
     CAPTURE_VIDEO: {
       desc: 'capture video for every agent',
       parse: (input: string) => boolOrError(input),
@@ -72,27 +77,27 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     const persistentDirectory = getStepperOption(this, WebPlaywright.PERSISTENT_DIRECTORY, world.extraOptions) === 'true';
     const defaultTimeout = parseInt(getStepperOption(this, 'TIMEOUT', world.extraOptions)) || 30000;
     this.captureVideo = getStepperOption(this, 'CAPTURE_VIDEO', world.extraOptions);
-    let recordVideo;
-    if (this.captureVideo) {
-      recordVideo = {
-        dir: await this.getCaptureDir('video')
-      };
-    }
+    const capturePlaywrightTrace = getStepperOption(this, 'CAPTURE_PLAYWRIGHT_TRACE', world.extraOptions);
 
     this.factoryOptions = {
       browser: {
         headless,
         args,
         devtools,
+        recordVideo: this.captureVideo && {
+          dir: await this.getCaptureDir('video')
+        },
       },
-      recordVideo,
+      capturePlaywrightTrace: capturePlaywrightTrace && {
+        path: await this.getCaptureDir('trace', 'playwright.zip')
+      },
       defaultTimeout,
       persistentDirectory,
     };
   }
-  async getCaptureDir(type: string) {
+  async getCaptureDir(...type: string[]) {
     const loc = { ...this.world, mediaType: EMediaTypes.video };
-    const dir = await this.storage.ensureCaptureLocation(loc, type);
+    const dir = await this.storage.ensureCaptureLocation(loc, ...type);
     return dir;
   }
 
@@ -160,8 +165,8 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       if (this.captureVideo) {
         const page = await this.getPage();
         const path = await page.video().path();
-        const artifact = { type: 'video', path }
-        this.getWorld().logger.info('endFeature video', <TArtifactMessageContext>{ artifact, topic: { event: 'summary', stage: 'endFeature' }, tag: this.getWorld().tag });
+        const logArtifactTopic = Logger.getArtifactTopic({ type: 'video', path }, {}, 'summary', 'endFeature', this.getWorld().tag);
+        this.getWorld().logger.info(`endFeature video ${path}`, logArtifactTopic);
       }
       // await this.bf?.closeContext(this.getWorld().tag);
     }
@@ -712,9 +717,9 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
           path,
         })
     );
-    const artifact = Logger.logArtifact({ type: 'picture', path });
-    const artifactTopic = { topic: { ...details, event, stage }, artifact, tag: this.getWorld().tag };
-    this.getWorld().logger.info('screenshot', artifactTopic,);
+    const logArtifactTopic = Logger.getArtifactTopic({ type: 'picture', path }, details, event, stage, this.getWorld().tag);
+
+    this.getWorld().logger.info('screenshot', logArtifactTopic);
   }
 };
 

@@ -1,9 +1,10 @@
 
-import { Browser, BrowserContext, Page, chromium, firefox, webkit, BrowserType, devices } from 'playwright';
+import { Browser, BrowserContext, Page, chromium, firefox, webkit, BrowserType, devices, BrowserContextOptions } from 'playwright';
 
 import { ILogger } from '@haibun/core/build/lib/interfaces/logger.js';
 import { TTag, TTagValue } from '@haibun/core/build/lib/defs.js';
 import { PlaywrightEvents } from './PlaywrightEvents.js';
+import Logger from '@haibun/core/build/lib/Logger.js';
 
 export const BROWSERS: { [name: string]: BrowserType } = {
   firefox,
@@ -16,12 +17,13 @@ export type TBrowserFactoryOptions = {
   browser: {
     headless: boolean,
     devtools?: boolean,
-    args?: string[]
+    args?: string[],
+    recordVideo?: {
+      dir: string,
+      size?: { width: number, height: number },
+    }
   },
-  recordVideo?: {
-    dir: string,
-    size: { width: 640, height: 480 },
-  }
+  capturePlaywrightTrace?: { path: string } | undefined,
   defaultTimeout?: number,
   persistentDirectory?: boolean,
   type?: TBrowserTypes,
@@ -80,29 +82,43 @@ export class BrowserFactory {
   private async getBrowserContext(sequence: TTagValue, tag = DEFAULT_CONFIG_TAG): Promise<BrowserContext> {
     if (!this.contexts[sequence]) {
       let context: BrowserContext;
+      const { options, browserType } = BrowserFactory.configs[tag];
       if (BrowserFactory.configs.persistentDirectory) {
-        this.logger.info(`creating new persistent context ${sequence} ${BrowserFactory.configs[tag].options.type}, ${BrowserFactory.configs.persistentDirectory} with ${JSON.stringify(BrowserFactory.configs)}`);
-        context = await BrowserFactory.configs[tag].browserType.launchPersistentContext("", BrowserFactory.configs[tag].options);
+        this.logger.info(`creating new persistent context ${sequence} ${options.type}, ${BrowserFactory.configs.persistentDirectory} with ${JSON.stringify(BrowserFactory.configs)}`);
+        context = await browserType.launchPersistentContext("", options.browser);
       } else {
-        this.logger.info(`creating new context ${sequence} ${BrowserFactory.configs[tag].options.type}`);
-        const browser = await this.getBrowser(BrowserFactory.configs[tag].options.type);
-        const deviceContext = BrowserFactory.configs[tag].options.device ? { ...devices[BrowserFactory.configs[tag].options.device] } : {};
-        context = await browser.newContext({ ...deviceContext, ...BrowserFactory.configs[tag].options });
+        this.logger.info(`creating new context ${sequence} ${options.type}`);
+        const browser = await this.getBrowser(options.type);
+        const deviceContext = options.device ? { ...devices[options.device] } : {};
+        const contextOptions: BrowserContextOptions = { ...deviceContext, ...options.browser }
+        context = await browser.newContext(contextOptions);
+        if (options.capturePlaywrightTrace) {
+          await context.tracing.start({ screenshots: true, snapshots: true });
+        }
       }
       this.contexts[sequence] = context;
-      if (BrowserFactory.configs[tag].options.defaultTimeout) {
-        this.contexts[sequence].setDefaultTimeout(BrowserFactory.configs[tag].options.defaultTimeout)
+      if (options.defaultTimeout) {
+        this.contexts[sequence].setDefaultTimeout(options.defaultTimeout)
       }
     }
     return this.contexts[sequence];
   }
 
   async closeContext({ sequence }: { sequence: TTagValue }) {
-    if (this.contexts[sequence] !== undefined) {
+    const context = this.contexts[sequence];
+    if (context !== undefined) {
       const p = this.pages[sequence];
       await p && p?.close();
     }
-    await this.contexts[sequence]?.close();
+    const { options } = BrowserFactory.configs[DEFAULT_CONFIG_TAG];
+    if (options.capturePlaywrightTrace) {
+      const { path } = options.capturePlaywrightTrace
+      await context.tracing.stop({ path });
+      const logArtifactTopic = Logger.getArtifactTopic({ type: 'archive', path }, {}, 'summary', 'endFeature', sequence);
+      this.logger.log('saved playwright trace', logArtifactTopic);
+    }
+    await context?.close();
+
     this.tracers[sequence]?.close();
     delete this.pages[sequence];
     delete this.contexts[sequence];

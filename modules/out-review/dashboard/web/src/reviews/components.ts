@@ -213,6 +213,9 @@ function getDetailContent(artifact: TArtifact | undefined) {
   } else if (artifact.type === 'video') {
     const videoPath = artifact?.path;
     return videoPath ? html`<video controls width="640"><source src=${videoPath} type="video/mp4"></video>` : html`<div />`;
+  } else if (artifact.type === 'archive') {
+    const archivePath = artifact?.path;
+    return html`<a download href=${archivePath}>Download</a>`;
   }
   return html`<img src=${artifact.path} alt=${JSON.stringify(artifact)} />`;
 }
