@@ -14,7 +14,7 @@ export const BROWSERS: { [name: string]: BrowserType } = {
 export type TBrowserTypes = 'firefox' | 'chromium' | 'webkit';
 
 export type TBrowserFactoryOptions = {
-  browser: {
+  browserContext: {
     headless: boolean,
     devtools?: boolean,
     args?: string[],
@@ -66,8 +66,9 @@ export class BrowserFactory {
 
   async getBrowser(type: string, tag = DEFAULT_CONFIG_TAG): Promise<Browser> {
     if (!BrowserFactory.browsers[type]) {
+      const browserContext = BrowserFactory.configs[tag].options.browserContext;
       BrowserFactory.browsers[type] = await BrowserFactory.configs[tag].browserType
-        .launch(BrowserFactory.configs[tag].options.browser);
+        .launch(browserContext);
       this.logger.info(`launched new ${type} browser`);
     }
     return BrowserFactory.browsers[type];
@@ -85,12 +86,12 @@ export class BrowserFactory {
       const { options, browserType } = BrowserFactory.configs[tag];
       if (BrowserFactory.configs.persistentDirectory) {
         this.logger.info(`creating new persistent context ${sequence} ${options.type}, ${BrowserFactory.configs.persistentDirectory} with ${JSON.stringify(BrowserFactory.configs)}`);
-        context = await browserType.launchPersistentContext("", options.browser);
+        context = await browserType.launchPersistentContext("", options.browserContext);
       } else {
         this.logger.info(`creating new context ${sequence} ${options.type}`);
         const browser = await this.getBrowser(options.type);
         const deviceContext = options.device ? { ...devices[options.device] } : {};
-        const contextOptions: BrowserContextOptions = { ...deviceContext, ...options.browser }
+        const contextOptions: BrowserContextOptions = { ...deviceContext, ...options.browserContext }
         context = await browser.newContext(contextOptions);
         if (options.capturePlaywrightTrace) {
           await context.tracing.start({ screenshots: true, snapshots: true });

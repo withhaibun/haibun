@@ -80,7 +80,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     const capturePlaywrightTrace = getStepperOption(this, 'CAPTURE_PLAYWRIGHT_TRACE', world.extraOptions);
 
     this.factoryOptions = {
-      browser: {
+      browserContext: {
         headless,
         args,
         devtools,
@@ -327,7 +327,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     extensionContext: {
       gwta: `open extension popup for tab {tab}`,
       action: async ({ tab }: TNamed) => {
-        if (!this.factoryOptions?.persistentDirectory || this.factoryOptions?.browser.headless) {
+        if (!this.factoryOptions?.persistentDirectory || this.factoryOptions?.browserContext.headless) {
           throw Error(`extensions require ${WebPlaywright.PERSISTENT_DIRECTORY} and not HEADLESS`);
         }
         const context = await this.getContext();

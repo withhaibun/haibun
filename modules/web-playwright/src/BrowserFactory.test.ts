@@ -5,7 +5,7 @@ import { BrowserFactory, DEFAULT_CONFIG_TAG, TBrowserFactoryOptions } from "./Br
 import { getDefaultTag } from "@haibun/core/build/lib/test/lib.js";
 
 const browserContextOptions = {
-  browser: {
+  browserContext: {
     headless: true
   },
 }
