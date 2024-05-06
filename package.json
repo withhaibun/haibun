@@ -32,7 +32,8 @@
   "dependencies": {
     "@types/chrome": "^0.0.253",
     "dependency-cruiser": "^15.5.0",
+    "playwright": "^1.43.1",
     "vitest": "1.2"
   },
-  "version": "1.37.1"
+  "version": "1.38.3"
 }
