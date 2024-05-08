@@ -35,5 +35,5 @@
     "playwright": "^1.43.1",
     "vitest": "1.2"
   },
-  "version": "1.38.3"
+  "version": "1.38.6"
 }
