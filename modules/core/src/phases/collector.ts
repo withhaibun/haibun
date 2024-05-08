@@ -23,7 +23,8 @@ export function getFeaturesAndBackgrounds(bases: TBase, featureFilter: string[],
       }
     }
     if (aret.features.length < 1 && aret.backgrounds.length < 1) {
-      throw Error(`no features or backgrounds found from "${abase}"`);
+      const cwd = process.cwd();
+      throw Error(`no features or backgrounds found from "${abase}" in "${cwd}"`);
     }
     ret.features = ret.features.concat(aret.features);
     ret.backgrounds = ret.backgrounds.concat(aret.backgrounds);
