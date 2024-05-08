@@ -196,6 +196,9 @@ describe('getStepperOptions', () => {
     const conc = util.getStepperOptionValue(HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, 'true', [TestStepsWithOptions]);
     expect(conc).toBeDefined();
   });
+  it('unmapped option', async () => {
+    await expect(async () => util.verifyExtraOptions({ 'HAIBUN_O_NOSUCH': 'true' }, [TestStepsWithOptions])).rejects.toThrowError(/.*for steppers.*/);
+  });
   it.skip('fills extra', async () => {
     const { world } = getDefaultWorld(0);
     await util.verifyExtraOptions({ [HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]: 'true' }, [TestStepsWithOptions]);
