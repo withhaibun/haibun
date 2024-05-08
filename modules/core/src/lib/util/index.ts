@@ -112,7 +112,8 @@ export async function verifyExtraOptions(inExtraOptions: TExtraOptions, cstepper
     const foundStepper = getStepperOptionValue(option, value, csteppers);
 
     if (foundStepper === undefined) {
-      throw Error(`unmapped option ${option} from ${JSON.stringify(extraOptions)}`);
+      const error = `unmapped option ${option} from ${JSON.stringify(extraOptions)} for steppers ${csteppers.map(s => s.name).join(', ')}`
+      throw Error(error);
     }
     delete extraOptions[option];
   });
