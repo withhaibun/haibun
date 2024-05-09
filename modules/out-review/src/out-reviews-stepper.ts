@@ -53,6 +53,7 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
       handle: async (loc: TLocationOptions, description: string, result: TFeatureResult, startTime: Date, startOffset: number, logHistory: TLogHistory[]) => {
         const dir = await this.tracksStorage.ensureCaptureLocation(loc, 'tracks', TRACKS_FILE);
         const history: THistoryWithMeta = asHistoryWithMeta(logHistory, startTime, description, startOffset, result.ok);
+        this.getWorld().logger.debug(`writing history to ${dir}`);
         await this.tracksStorage.writeFile(dir, JSON.stringify(history, null, 2), loc.mediaType);
       }
     }
