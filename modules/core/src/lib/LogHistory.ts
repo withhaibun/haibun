@@ -36,8 +36,12 @@ export const findActionResults = (logHistory?: TLogHistory[]) => logHistory.filt
 
 export function asActionResult(logHistory: TLogHistory | undefined): TLogHistoryWithExecutorTopic | undefined {
     if (logHistory === undefined) { return undefined; }
-    const topic = (<TLogHistoryWithExecutorTopic>logHistory).messageContext.topic;
-    return topic?.stage === 'Executor' && topic?.result ? <TLogHistoryWithExecutorTopic>logHistory : undefined;
+    const topic = (<TLogHistoryWithExecutorTopic>logHistory)?.messageContext?.topic;
+    if (topic) {
+        return topic?.stage === 'Executor' && topic?.result ? <TLogHistoryWithExecutorTopic>logHistory : undefined;
+    }
+    console.error(`asActionResult: missing topic in ${logHistory}`);
+    return undefined;
 }
 
 export function asArtifact(logHistory: TLogHistory | undefined): TLogHistoryWithArtifact | undefined {
