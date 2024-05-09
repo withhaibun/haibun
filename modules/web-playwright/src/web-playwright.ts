@@ -506,6 +506,23 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       },
     },
 
+    // FIXME
+    clickIfEnabledButton: {
+      gwta: 'if enabled, click the button (?<id>.+)',
+      action: async ({ id }: TNamed) => {
+        const field = this.getWorld().shared.get(id) || id;
+        await this.withPage(async (page: Page) => {
+          // get field by evaluate and click if enabled
+          await page.locator(field).evaluate((e: HTMLButtonElement) => {
+            if (!e.disabled) {
+              e.click();
+            }
+          });
+        });
+
+        return OK;
+      },
+    },
     clickButton: {
       gwta: 'click the button (?<id>.+)',
       action: async ({ id }: TNamed) => {
