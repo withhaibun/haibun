@@ -30,7 +30,7 @@
     "preversion": "npm run test"
   },
   "dependencies": {
-    "@types/chrome": "^0.0.253",
+    "@types/chrome": "^0.0.270",
     "dependency-cruiser": "^15.5.0",
     "vitest": "1.2"
   },
