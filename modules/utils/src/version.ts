@@ -1,43 +1,50 @@
 import { existsSync, readFileSync, writeFileSync } from 'fs';
+import prettier from 'prettier';
 import { spawn } from './util/index.js';
 
 const [, me, version, ...extra] = process.argv;
 
 class Versioner {
-	localAndExtraModules = new Set<{ [name: string]: string }>();
+	localAndExtraModules: { [name: string]: string } = {}; // Changed to an object
 
-	version: string;
 	haibunPackageVersions: { [dep: string]: string } = {};
-	constructor(version: string) {
+
+	constructor(private version: string) {
 		if (!version) {
 			console.error(`usage: ${me}: <version> <extra modules>`);
+			process.exit(1);
 		}
-		this.version = version;
 	}
+
 	doVersion() {
 		const haibunPackageJson = this.updateHaibunPackageVersions();
 		haibunPackageJson.version = this.version;
-		writeFileSync('./package.json', JSON.stringify(haibunPackageJson, null, 2));
+		writeFileSync('./package.json', this.format(haibunPackageJson));
 
 		this.setLocalAndExtraModules();
 
 		this.forLocalAndExtraModules(this.updateModule);
-		this.forLocalAndExtraModules(this.npmInstall);
+		// this.forLocalAndExtraModules(this.npmInstall);
 		this.forLocalAndExtraModules(this.npmTest);
 		this.forLocalAndExtraModules(this.gitCommit);
 		this.forLocalAndExtraModules(this.npmPublish);
 		this.forLocalAndExtraModules(this.gitPush);
 
 		this.updateSourceCurrentVersion();
-
 		this.gitCommit('haibun', '.', ['modules/core/src/currentVersion.ts']);
 	}
 
-	forLocalAndExtraModules(updateModule: (name: string, location: string) => void) {
-		for (const { name, module } of this.localAndExtraModules) {
-			updateModule(name, module);
+	format(contents: object) {
+		return prettier.format(JSON.stringify(contents), { parser: 'json' });
+	}
+
+	forLocalAndExtraModules(someFunction: (name: string, location: string) => void) {
+		for (const [name, module] of Object.entries(this.localAndExtraModules)) {
+			console.info('running', someFunction.name, 'for', name, module);
+			someFunction.call(this, name, module); // Bind `this` to each action
 		}
 	}
+
 	updateHaibunPackageVersions() {
 		const hpkg = JSON.parse(readFileSync('./package.json', 'utf-8'));
 		if (hpkg.name !== 'haibun') {
@@ -59,58 +66,54 @@ class Versioner {
 		const modules = JSON.parse(readFileSync(`./modules/tsconfig.json`, 'utf-8'))
 			.references.map((f) => `./modules/${f.path}`)
 			.concat(extra);
-		for (const module in modules) {
+		for (const module of modules) {
 			const name = module.replace(/\/$/, '').replace(/.*\//, '');
-			this.localAndExtraModules.add({ [name]: module });
+			this.localAndExtraModules[name] = module;
 		}
 	}
 
 	testAll() {
-		for (const { name, module } of this.localAndExtraModules) {
-			console.info('\n\n*** publishing', module);
+		for (const [name, module] of Object.entries(this.localAndExtraModules)) {
 			this.npmTest(name, module);
 		}
 	}
 
-	npmPublish(name, module) {
-		console.info('\n\n*** publishing', module);
+	npmPublish(name: string, module: string) {
 		spawn(['npm', 'publish'], module);
 	}
-	gitPush(name, module) {
-		console.info('\n\n*** publishing', module);
+
+	gitPush(name: string, module: string) {
 		spawn(['git', 'push'], module);
 	}
 
 	updateModule(name: string, location: string) {
 		const pkgFile = `${location}/package.json`;
 		const pkg = JSON.parse(readFileSync(pkgFile, 'utf-8'));
-		if (!pkg.publsh && pkg.publish !== undefined) {
+		if (!pkg.publish && pkg.publish !== undefined) {
 			return false;
 		}
-		console.info('updating', name);
 		const { main } = pkg;
 		if (main && !main.includes('*') && !existsSync(`${location}/${main}`)) {
 			throw Error(`main file ${main} does not exist in ${location}`);
 		}
 		pkg.version = this.version;
-		for (const d in pkg.dependencies) {
-			if (d.startsWith('@haibun/')) {
-				pkg.dependencies[d] = this.version;
-			}
-			if (this.haibunPackageVersions[d]) {
-				pkg.dependencies[d] = this.haibunPackageVersions[d];
-			}
-		}
-		for (const d in pkg.devDependencies) {
-			if (d.startsWith('@haibun/')) {
-				pkg.devDependencies[d] = this.version;
-			}
-			if (this.haibunPackageVersions[d]) {
-				pkg.devDependencies[d] = this.haibunPackageVersions[d];
-			}
-		}
+		this.updateDependencies(pkg.dependencies);
+		this.updateDependencies(pkg.devDependencies);
 
-		writeFileSync(pkgFile, JSON.stringify(pkg, null, 2));
+		writeFileSync(pkgFile, this.format(pkg));
+	}
+
+	updateDependencies(dependencies: { [key: string]: string }) {
+		for (const d in dependencies) {
+			if (Object.prototype.hasOwnProperty.call(dependencies, d)) {
+				if (d.startsWith('@haibun/')) {
+					dependencies[d] = this.version;
+				}
+				if (this.haibunPackageVersions[d]) {
+					dependencies[d] = this.haibunPackageVersions[d];
+				}
+			}
+		}
 	}
 
 	gitCommit(name: string, location: string, extraPackages = []) {
@@ -122,6 +125,7 @@ class Versioner {
 			throw e;
 		}
 	}
+
 	npmTest(name: string, location: string) {
 		try {
 			spawn(['npm', 'run', 'test'], location);
@@ -130,6 +134,7 @@ class Versioner {
 			throw e;
 		}
 	}
+
 	npmInstall(name: string, location: string) {
 		try {
 			spawn(['npm', 'install'], location);
