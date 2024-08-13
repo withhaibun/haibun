@@ -133,6 +133,13 @@ export abstract class AStorage extends AStepper {
   }
 
   steps = {
+    createSizedFile: {
+      gwta: `create {x}MB file at {where} with {what}`,
+      action: async ({ where, what }: TNamed) => {
+        await this.writeFile(where, what, EMediaTypes.html);
+        return OK;
+      },
+    },
     createFile: {
       gwta: `create file at {where} with {what}`,
       action: async ({ where, what }: TNamed) => {
