@@ -1,7 +1,7 @@
 {
   "name": "@haibun/core",
   "type": "module",
-  "version": "1.40.6",
+  "version": "1.40.8",
   "description": "",
   "author": "",
   "xexports": {
@@ -9,17 +9,9 @@
     "./util/*": "./build/util/*.js",
     "./test/*": "./build/test/*.js"
   },
-  "xtypesVersions": {
-    "*": {
-      "build/*": [
-        "build/*"
-      ]
-    }
-  },
+  "xtypesVersions": { "*": { "build/*": ["build/*"] } },
   "main": "./build/index.js",
-  "files": [
-    "build/**"
-  ],
+  "files": ["build/**"],
   "scripts": {
     "format": "prettier --write \"src/**/*.ts\" \"src/**/*.js\"",
     "lint": "eslint -c .eslintrc.json --ext .ts,.js src",
