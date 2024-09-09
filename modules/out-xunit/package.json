@@ -1,11 +1,9 @@
 {
   "name": "@haibun/out-xunit",
   "type": "module",
-  "version": "1.40.6",
+  "version": "1.40.8",
   "description": "",
-  "files": [
-    "build/**"
-  ],
+  "files": ["build/**"],
   "main": "build/out-xunit.js",
   "scripts": {
     "build": "tsc -b .",
@@ -18,9 +16,6 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "dependencies": {
-    "@haibun/core": "1.40.6",
-    "xmlbuilder2": "^3.0.2"
-  },
+  "dependencies": { "@haibun/core": "1.40.8", "xmlbuilder2": "^3.0.2" },
   "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5"
 }
