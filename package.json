@@ -1,9 +1,8 @@
 {
   "name": "haibun",
+  "type": "module",
   "private": false,
-  "workspaces": [
-    "modules/*"
-  ],
+  "workspaces": ["modules/*"],
   "devDependencies": {
     "@types/node": "^20.3.1",
     "@typescript-eslint/eslint-plugin": "^5.48.0",
@@ -32,7 +31,7 @@
   "dependencies": {
     "@types/chrome": "^0.0.270",
     "dependency-cruiser": "^15.5.0",
-    "vitest": "1.2"
+    "vitest": "^2.0.4"
   },
-  "version": "1.36.0"
+  "version": "1.40.8"
 }
