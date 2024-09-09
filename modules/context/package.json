@@ -1,13 +1,11 @@
 {
   "name": "@haibun/context",
   "type": "module",
-  "version": "1.40.6",
+  "version": "1.40.8",
   "description": "",
   "author": "",
   "main": "build/Context.js",
-  "files": [
-    "build/**"
-  ],
+  "files": ["build/**"],
   "scripts": {
     "format": "prettier --write \"src/**/*.ts\" \"src/**/*.js\"",
     "lint": "eslint -c .eslintrc.json --ext .ts,.js src",
@@ -21,8 +19,8 @@
     "xversion": "npm run format && git add -A src"
   },
   "dependencies": {
-    "@haibun/core": "1.40.6",
-    "@haibun/web-server-express": "1.40.6",
+    "@haibun/core": "1.40.8",
+    "@haibun/web-server-express": "1.40.8",
     "ws": "^8.9.0"
   },
   "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5"
