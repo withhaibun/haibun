@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import prettier from 'prettier';
 import { spawn } from './util/index.js';
+import { createVitest } from 'vitest/node';
 
 const [, me, version, ...extra] = process.argv;
 
@@ -16,32 +17,31 @@ class Versioner {
 		}
 	}
 
-	doVersion() {
+	async doVersion() {
 		const haibunPackageJson = this.updateHaibunPackageVersions();
 		haibunPackageJson.version = this.version;
 		writeFileSync('./package.json', this.format(haibunPackageJson));
 
 		this.setLocalAndExtraModules();
 
-		this.forLocalAndExtraModules(this.updateModule);
-		// this.forLocalAndExtraModules(this.npmInstall);
-		this.forLocalAndExtraModules(this.npmTest);
-		this.forLocalAndExtraModules(this.gitCommit);
-		this.forLocalAndExtraModules(this.npmPublish);
-		this.forLocalAndExtraModules(this.gitPush);
-
+		await this.forLocalAndExtraModules(this.updateModule);
 		this.updateSourceCurrentVersion();
-		this.gitCommit('haibun', '.', ['modules/core/src/currentVersion.ts']);
+		this.gitCommit('haibun', '.', ['./modules/core/src/currentVersion.ts']);
+		await this.forLocalAndExtraModules(this.npmInstall);
+		await this.forLocalAndExtraModules(this.runTest);
+		await this.forLocalAndExtraModules(this.gitCommit);
+		await this.forLocalAndExtraModules(this.npmPublish);
+		await this.forLocalAndExtraModules(this.gitPush);
 	}
 
 	format(contents: object) {
 		return prettier.format(JSON.stringify(contents), { parser: 'json' });
 	}
 
-	forLocalAndExtraModules(someFunction: (name: string, location: string) => void) {
+	async forLocalAndExtraModules(someFunction: (name: string, location: string) => void) {
 		for (const [name, module] of Object.entries(this.localAndExtraModules)) {
 			console.info('running', someFunction.name, 'for', name, module);
-			someFunction.call(this, name, module); // Bind `this` to each action
+			await someFunction.call(this, name, module); // Bind `this` to each action
 		}
 	}
 
@@ -59,6 +59,7 @@ class Versioner {
 	private updateSourceCurrentVersion() {
 		for (const [dest, ext] of Object.entries({ src: 'ts', build: 'js' })) {
 			writeFileSync(`./modules/core/${dest}/currentVersion.${ext}`, `export const currentVersion = '${this.version}';\n`);
+			console.info('updated currentVersion', dest);
 		}
 	}
 
@@ -69,12 +70,6 @@ class Versioner {
 		for (const module of modules) {
 			const name = module.replace(/\/$/, '').replace(/.*\//, '');
 			this.localAndExtraModules[name] = module;
-		}
-	}
-
-	testAll() {
-		for (const [name, module] of Object.entries(this.localAndExtraModules)) {
-			this.npmTest(name, module);
 		}
 	}
 
@@ -119,19 +114,26 @@ class Versioner {
 	gitCommit(name: string, location: string, extraPackages = []) {
 		const packages = [...extraPackages, 'package.json'];
 		try {
-			spawn(['git', 'commit', '-m', `'update ${name} to version ${this.version}'`, packages.join(' ')], location);
+			spawn(['git', 'commit', '-m', `'update ${name} to version ${this.version}'`, ...packages], location);
 		} catch (e) {
 			console.error(`git commit failed for ${name}: ${e}`);
 			throw e;
 		}
 	}
 
-	npmTest(name: string, location: string) {
+	async runTest(name: string, location: string) {
+		const originalDir = process.cwd();
 		try {
-			spawn(['npm', 'run', 'test'], location);
-		} catch (e) {
-			console.error(`npm test failed for ${name}: ${e}`);
-			throw e;
+			process.chdir(location);
+
+			const vitest = await createVitest('test', { watch: false });
+			await vitest.start();
+			await vitest?.close();
+		} catch (error) {
+			console.error(`npm test failed for ${name}: ${error}`);
+			throw error;
+		} finally {
+			process.chdir(originalDir);
 		}
 	}
 
@@ -145,4 +147,4 @@ class Versioner {
 	}
 }
 
-new Versioner(version).doVersion();
+void (await new Versioner(version).doVersion());
