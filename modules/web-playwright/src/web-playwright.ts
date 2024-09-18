@@ -254,7 +254,8 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     waitFor: {
       gwta: 'wait for {what}',
       action: async ({ what }: TNamed) => {
-        const found = await this.withPage(async (page: Page) => await page.waitForSelector(what));
+        const selector = what.match(/^[.#]/) ? what : `text=${what}`;
+        const found = await this.withPage(async (page: Page) => await page.waitForSelector(selector));
         if (found) {
           return OK;
         }
