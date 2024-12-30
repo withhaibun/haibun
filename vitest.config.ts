@@ -1,6 +1,6 @@
-import { configDefaults, defineConfig } from 'vitest/config'
+import { configDefaults, defineProject } from 'vitest/config'
 
-export default defineConfig({
+export default defineProject({
   test: {
     exclude: [...configDefaults.exclude, '**/**\\.js', '**/build/**']
   }

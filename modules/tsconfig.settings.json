@@ -5,7 +5,7 @@
     "moduleResolution": "nodenext",
     "isolatedModules": true,
     "types": ["node"],
-    "skipLibCheck": true, // FIXME
+    "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
