@@ -26,7 +26,7 @@ const dashboard = {
   input: [`./src/dashboard/index.ts`, `./src/dashboard/indexer.ts`],
   output: {
     sourcemap: true,
-    dir: `build/dashboard/`,
+    dir: `build/dashboard`,
   },
   plugins: [licensed, litcss(), resolve(), typescript({ outputToFilesystem: true, outDir: './build/dashboard' })],
 };
@@ -43,6 +43,7 @@ const reviewer = (dir) => ({
 const builds = [dashboard, reviewer('build/reviewer')];
 // export DASHBOARD_PREVIEW="$HOME/D/withhaibun/haibun-e2e-tests/reviews/build/reviewer"
 if (process.env.DASHBOARD_PREVIEW) {
+  console.log(`Building for preview at ${process.env.DASHBOARD_PREVIEW}`);
   builds.push(reviewer(process.env.DASHBOARD_PREVIEW));
 }
 export default builds;
