@@ -2,10 +2,8 @@ import { TSpecl, TExecutorResult, TWorld, TFeature, TResolvedFeature, TEndFeatur
 import { expand } from './features.js';
 import { Executor } from '../phases/Executor.js';
 import { Resolver } from '../phases/Resolver.js';
-import Builder from '../phases/Builder.js';
 import { verifyExtraOptions, getRunTag, verifyRequiredOptions, createSteppers, setStepperWorlds } from './util/index.js';
 import { getSteppers } from './util/workspace-lib.js';
-import { getDomains, verifyDomainsOrError } from './domain.js';
 import { getFeaturesAndBackgrounds } from '../phases/collector.js';
 
 type TBaseOptions = { specl: TSpecl; world: TWorld; addSteppers?: CStepper[]; endFeatureCallback?: TEndFeatureCallback; };
@@ -25,7 +23,7 @@ export async function run({ specl, bases, world, addSteppers = [], featureFilter
   try {
     featuresBackgrounds = getFeaturesAndBackgrounds(bases, featureFilter);
   } catch (error) {
-    return ({ ok: false, tag: getRunTag(-1, -1, -1, -1, {}, false), failure: { stage: 'Collect', error: { message: error.message, details: { stack: error.stack } } }, shared: world.shared });
+    return ({ ok: false, tag: getRunTag(-1,  -1, {}, false), failure: { stage: 'Collect', error: { message: error.message, details: { stack: error.stack } } }, shared: world.shared });
   }
   const { features, backgrounds } = featuresBackgrounds;
 
@@ -56,15 +54,10 @@ export async function runWith({ specl, world, features, backgrounds, addSteppers
 
     await setStepperWorlds(steppers, world).catch((error) => errorBail('StepperOptions', error));
 
-    world.domains = await getDomains(steppers).catch((error) => errorBail('GetDomains', error));
-    await verifyDomainsOrError(steppers, world).catch((error) => errorBail('RequiredDomains', error));
-
-    const builder = new Builder(steppers, world);
-    const resolver = new Resolver(steppers, world, builder);
+    const resolver = new Resolver(steppers, world );
     const mappedValidatedSteps: TResolvedFeature[] = await resolver.resolveStepsFromFeatures(expandedFeatures).catch((error) => errorBail('Resolve', error));
 
     // await builder.build(mappedValidatedSteps).catch((error) => errorBail('Build', error, { stack: error.stack, mappedValidatedSteps }));
-    await builder.finalize();
 
     world.logger.log(`features: ${expandedFeatures.length} backgrounds: ${backgrounds.length} steps: (${expandedFeatures.map((e) => e.path)}), ${mappedValidatedSteps.length}`);
 

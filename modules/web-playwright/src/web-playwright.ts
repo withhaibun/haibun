@@ -1,17 +1,16 @@
 import { Page, Response, Download } from 'playwright';
 
-import { IHasOptions, OK, TNamed, IRequireDomains, TStepResult, AStepper, TWorld, TVStep, TAnyFixme } from '@haibun/core/build/lib/defs.js';
-import { onCurrentTypeForDomain } from '@haibun/core/build/steps/vars.js';
+import { IHasOptions, OK, TNamed, TStepResult, AStepper, TWorld, TVStep, TAnyFixme } from '@haibun/core/build/lib/defs.js';
+import { WEB_PAGE, WEB_CONTROL } from '@haibun/core/build/lib/domain-types.js';
 import { BrowserFactory, TBrowserFactoryOptions, TBrowserTypes } from './BrowserFactory.js';
 import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOption, sleep } from '@haibun/core/build/lib/util/index.js';
-import { WEB_PAGE, WEB_CONTROL } from '@haibun/domain-webpage';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 import { TActionStage, TArtifactMessageContext, TTraceMessageContext } from '@haibun/core/build/lib/interfaces/logger.js';
 import { EMediaTypes } from '@haibun/domain-storage/build/media-types.js';
 import Logger from '@haibun/core/build/lib/Logger.js';
 import { resolve } from 'path';
 
-const WebPlaywright = class WebPlaywright extends AStepper implements IHasOptions, IRequireDomains {
+const WebPlaywright = class WebPlaywright extends AStepper implements IHasOptions {
   static STORAGE = 'STORAGE';
   static PERSISTENT_DIRECTORY = 'PERSISTENT_DIRECTORY';
   requireDomains = [WEB_PAGE, WEB_CONTROL];
@@ -504,9 +503,8 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     gotoPage: {
       gwta: `go to the {name} ${WEB_PAGE}`,
       action: async ({ name }: TNamed) => {
-        const location = name.includes('://') ? name : onCurrentTypeForDomain({ name, type: WEB_PAGE }, this.getWorld());
         const response = await this.withPage<Response>(async (page: Page) => {
-          return await page.goto(location);
+          return await page.goto(name);
         });
 
         return response?.ok ? OK : actionNotOK(`response not ok`, { topics: { response: { ...response.allHeaders, summary: response.statusText() } } });

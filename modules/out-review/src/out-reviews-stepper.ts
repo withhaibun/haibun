@@ -7,7 +7,6 @@ import {
 	CAPTURE,
 	IHasHandlers,
 	IHasOptions,
-	IRequireDomains,
 	OK,
 	TFeatureResult,
 	TNamed,
@@ -52,7 +51,7 @@ export const PUBLISH_ROOT = 'PUBLISH_ROOT';
 
 type TArtifactMap = { [name: string]: TPathed };
 
-const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRequireDomains, IHasHandlers {
+const OutReviews = class OutReviews extends AStepper implements IHasOptions, IHasHandlers {
 	tracksStorage: AStorage;
 	publishStorage: AStorage;
 	// used for publishing dashboard

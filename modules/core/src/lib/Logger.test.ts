@@ -44,7 +44,7 @@ describe('logger with output', () => {
     const outputPromise = new Promise<void>((resolve) => {
       const output: ILogOutput = {
         out(level: string, args: TLogArgs, ctx?: TMessageContext) {
-          expect(ctx?.tag?.loop).toBe(0);
+          expect(ctx?.tag?.sequence).toBe(0);
           resolve();
         },
       };

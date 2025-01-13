@@ -96,12 +96,6 @@ describe('getNamedWithVars', () => {
 });
 
 describe('special', () => {
-  it('assigns [HERE]', async () => {
-    const feature = { path: '/features/here.feature', content: 'set t to [HERE]' };
-    const verify = { path: '/features/verify.feature', content: 't is "/features/here.feature"' };
-    const res = await testWithDefaults([feature, verify], []);
-    expect(res.ok).toBe(true);
-  });
   it('assigns [SERIALTIME]', async () => {
     const feature = { path: '/features/here.feature', content: 'set t to [SERIALTIME]' };
     const now = getSerialTime();

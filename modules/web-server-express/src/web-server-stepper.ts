@@ -2,7 +2,7 @@ import { IHasOptions, OK, TWorld, TNamed, TOptions, AStepper, TVStep, } from '@h
 import { actionNotOK, getFromRuntime, getStepperOption, intOrError } from '@haibun/core/build/lib/util/index.js';
 import { IWebServer, WEBSERVER, } from './defs.js';
 import { ServerExpress, DEFAULT_PORT } from './server-express.js';
-import { WEB_PAGE } from '@haibun/domain-webpage/build/domain-webpage.js';
+import { WEB_PAGE } from '@haibun/core/build/lib/domain-types.js';
 import path from 'path';
 
 const WebServerStepper = class WebServerStepper extends AStepper implements IHasOptions {

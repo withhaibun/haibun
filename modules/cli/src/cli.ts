@@ -36,11 +36,8 @@ async function go() {
     await usageThenExit(specl, errors.join('\n'));
   }
 
-  const splits: { [name: string]: string }[] = protoOptions.options.SPLITS || [{}];
   console.info('\n_________________________________ start');
 
-  const loops = protoOptions.options.LOOPS || 1;
-  const members = protoOptions.options.MEMBERS || 1;
   const { KEY: keyIn, TRACE: trace, OUTPUT: output, OUTPUT_DEST: outputDest } = protoOptions.options;
   const key = keyIn || Timer.key;
   Timer.key = key;
@@ -69,7 +66,7 @@ async function go() {
     };
   }
 
-  const runOptions: TRunOptions = { key, featureFilter, loops, members, splits, trace, specl, bases, protoOptions, startRunCallback, endFeatureCallback };
+  const runOptions: TRunOptions = { key, featureFilter,  trace, specl, bases, protoOptions, startRunCallback, endFeatureCallback };
   const { ok, exceptionResults, ranResults, allFailures, logger, passed, failed, totalRan, runTime, output: runOutput } = await runWithOptions(runOptions);
   // FIXME
   if (runOutput) {

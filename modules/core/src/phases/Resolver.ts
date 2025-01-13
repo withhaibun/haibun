@@ -1,6 +1,6 @@
-import { TFound, TResolvedFeature, OK, TWorld, BASE_TYPES, TExpandedFeature, AStepper, TStep, TVStep } from '../lib/defs.js';
+import { TFound, TResolvedFeature, OK, TWorld, TExpandedFeature, AStepper, TStep, TVStep } from '../lib/defs.js';
+import { BASE_TYPES } from '../lib/domain-types.js';
 import { namedInterpolation, getMatch } from '../lib/namedVars.js';
-import { asExpandedFeatures } from '../lib/resolver-features.js';
 import { getActionable, describeSteppers, isLowerCase, dePolite, constructorName } from '../lib/util/index.js';
 
 export class Resolver {
@@ -11,33 +11,7 @@ export class Resolver {
 	constructor(steppers: AStepper[], world: TWorld) {
 		this.steppers = steppers;
 		this.world = world;
-		this.types = [...BASE_TYPES, ...this.world.domains.map((d) => d.name)];
-	}
-	private async applyActionEvents(initialVStep: TVStep, values): Promise<TVStep[]> {
-		if (!values) {
-			return [initialVStep];
-		}
-
-		const after = [];
-		for (const [k, a] of Object.entries(values)) {
-			const { action: actionable, vstep: sourceVStep } = <{ action: string; vstep: TVStep }>a;
-			const [event, domain] = k.split(':');
-			if (event !== EVENT_AFTER) {
-				continue;
-			}
-
-			// FIXME this is a test method
-			const expandedFeature = asExpandedFeatures([{ path: sourceVStep.source.path, content: actionable }]);
-			const vstep = await this.findVSteps(expandedFeature[0], `event/${event}`, false);
-			const { source } = sourceVStep;
-
-			const nv = { ...vstep[0], source, in: actionable };
-
-			if (event === EVENT_AFTER) {
-				after.push(nv);
-			}
-		}
-		return [initialVStep, ...after];
+		this.types = BASE_TYPES;
 	}
 
 	async resolveStepsFromFeatures(features: TExpandedFeature[]): Promise<TResolvedFeature[]> {

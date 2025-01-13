@@ -8,7 +8,7 @@ import { findStepper } from '@haibun/core/build/lib/util/index.js';
 import path from 'path';
 
 const me = path.join(getPackageLocation(import.meta).replace(/\/src$/, '/build'), 'web-playwright');
-const stxt = ['~@haibun/domain-webpage/build/domain-webpage', me];
+const stxt = ['', me];
 
 describe('playwrightWeb', () => {
   it('sets up steps', async () => {

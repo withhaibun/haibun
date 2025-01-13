@@ -1,6 +1,6 @@
 import { currentVersion } from '../currentVersion.js';
 import { Resolver } from '../phases/Resolver.js';
-import { DomainContext, WorkspaceContext, WorldContext } from './contexts.js';
+import { WorkspaceContext, WorldContext } from './contexts.js';
 import { ILogger, TMessageContext } from './interfaces/logger.js';
 import { Timer } from './Timer.js';
 import { constructorName } from './util/index.js';
@@ -64,35 +64,10 @@ export const isHasHandlers = (s: IHasHandlers): s is IHasHandlers => s.handlers 
 export interface IHasBuilder {
   finalize: (workspace: WorkspaceContext) => void;
 }
-export interface IHasDomains {
-  domains: TDomain[];
-  locator: (name: string) => string;
-}
-export interface IRequireDomains {
-  requireDomains?: string[];
-}
 export type TExtraOptions = { [name: string]: string };
 export type TProtoOptions = {
   options: TOptions;
   extraOptions: TExtraOptions;
-};
-
-export type TFromDomain = {
-  name: string;
-  from: string;
-  is: string;
-};
-
-export type TFileTypeDomain = {
-  name: string;
-  validate: (content: string) => undefined | string;
-  fileType: string;
-  is: string;
-};
-export type TDomain = TFromDomain | TFileTypeDomain;
-export type TModuleDomain = TDomain & {
-  module: IHasDomains;
-  shared: DomainContext;
 };
 
 export type TBase = string[];
@@ -104,7 +79,6 @@ export type TWorld = {
   logger: ILogger;
   options: TOptions;
   extraOptions: TExtraOptions;
-  domains: TModuleDomain[];
   timer: Timer;
   bases: TBase;
 };
@@ -141,8 +115,6 @@ export type TTag = {
   key: string;
   sequence: number;
   featureNum: number;
-  loop: number;
-  member: number;
   params: TAnyFixme;
   trace: boolean;
 };
@@ -321,8 +293,6 @@ export const DEFAULT_DEST = 'default';
 
 export const BASE_DOMAINS = [{ name: 'string', resolve: (inp: string) => inp }];
 
-export const BASE_TYPES = BASE_DOMAINS.map((b) => b.name);
-
 export type TScored = { name: string; score: number };
 
 export type TStartRunCallback = (world: TWorld) => void;
@@ -334,15 +304,12 @@ export type TRunEnv = { [name: string]: string };
 // FIXME remove protoOptions, splits, etc.
 export type TRunOptions = {
   key: string;
-  loops: number;
-  members: number;
   trace: boolean;
   startRunCallback?: TStartRunCallback;
   endFeatureCallback?: TEndFeatureCallback;
   featureFilter?: string[];
   specl: TSpecl;
   bases: TBase;
-  splits: TRunEnv[];
   protoOptions: TProtoOptions;
 };
 export type TRunResult = { output: TAnyFixme; result: TExecutorResult; shared: WorldContext; tag: TTag; runStart: number; runDuration: number; fromStart: number };

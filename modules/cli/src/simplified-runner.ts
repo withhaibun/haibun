@@ -1,18 +1,15 @@
-import { TWorld, TOptions, TAnyFixme, TExecutorResult, TTag, TNotOKActionResult, TResolvedFeature } from './lib/defs.js';
-import { WorldContext } from './lib/contexts.js';
-import Logger from './lib/Logger.js';
-import { Timer } from './lib/Timer.js';
-import { getSteppers } from './lib/util/workspace-lib.js';
-import { expand } from './lib/features.js';
-import { verifyRequiredOptions, verifyExtraOptions, createSteppers, setStepperWorlds } from './lib/util/index.js';
-import { getFeaturesAndBackgrounds } from './phases/collector.js';
-import { getDomains, verifyDomainsOrError } from './lib/domain.js';
-import Builder from './phases/Builder.js';
-import { Executor } from './phases/Executor.js';
-import { Resolver } from './phases/Resolver.js';
+import { TWorld, TOptions, TAnyFixme, TExecutorResult, TTag, TNotOKActionResult, TResolvedFeature } from '@haibun/core/src/lib/defs.js';
+import { WorldContext } from '@haibun/core/src/lib/contexts.js';
+import Logger from '@haibun/core/src/lib/Logger.js';
+import { Timer } from '@haibun/core/src/lib/Timer.js';
+import { getSteppers } from '@haibun/core/src/lib/util/workspace-lib.js';
+import { expand } from '@haibun/core/src/lib/features.js';
+import { verifyRequiredOptions, verifyExtraOptions, createSteppers, setStepperWorlds } from '@haibun/core/src/lib/util/index.js';
+import { getFeaturesAndBackgrounds } from '@haibun/core/src/phases/collector.js';
+import { Executor } from '@haibun/core/src/phases/Executor.js';
+import { Resolver } from '@haibun/core/src/phases/Resolver.js';
 
 const defaultSteppers = [
-	'~@haibun/domain-webpage/build/domain-webpage',
 	'~@haibun/web-playwright/build/web-playwright',
 	'~@haibun/domain-storage/build/domain-storage',
 	'~@haibun/storage-fs/build/storage-fs',
@@ -29,7 +26,7 @@ export class SimplifiedRunner {
 	tag: TTag;
 
 	constructor() {
-		this.tag = { key: 'test', sequence: 0, featureNum: 0, loop: 0, member: 0, params: {}, trace: false };
+		this.tag = { key: 'test', sequence: 0, featureNum: 0, params: {}, trace: false };
 		const shared = new WorldContext(this.tag);
 		const logger = new Logger({ level: 'debug' });
 		const timer = new Timer();
@@ -42,9 +39,8 @@ export class SimplifiedRunner {
 			logger,
 			options,
 			extraOptions: { HAIBUN_O_WEBPLAYWRIGHT_STORAGE: 'StorageFS' },
-			domains: [],
 			timer,
-			bases: [],
+			bases: [featureDir],
 		};
 	}
 
@@ -63,7 +59,7 @@ export class SimplifiedRunner {
 		};
 		let featuresBackgrounds;
 		try {
-			featuresBackgrounds = getFeaturesAndBackgrounds([featureDir], []);
+			featuresBackgrounds = getFeaturesAndBackgrounds(this.world.bases, []);
 		} catch (error) {
 			console.error('Error collecting features and backgrounds:', error);
 		}
@@ -80,9 +76,6 @@ export class SimplifiedRunner {
 			const steppers = await createSteppers(csteppers);
 
 			await setStepperWorlds(steppers, world).catch((error) => errorBail('StepperOptions', error));
-
-			world.domains = await getDomains(steppers).catch((error) => errorBail('GetDomains', error));
-			await verifyDomainsOrError(steppers, world).catch((error) => errorBail('RequiredDomains', error));
 
 			const resolver = new Resolver(steppers, this.world);
 			const mappedValidatedSteps: TResolvedFeature[] = await resolver

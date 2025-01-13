@@ -1,7 +1,6 @@
 import { OK, TNamed, AStepper, TWorld, TVStep } from '../lib/defs.js';
 import { Resolver } from '../phases/Resolver.js';
 import { actionNotOK, findStepper, sleep } from '../lib/util/index.js';
-import { EVENT_AFTER } from '../phases/Builder.js';
 
 const Haibun = class Haibun extends AStepper {
   steppers: AStepper[];
@@ -54,21 +53,6 @@ const Haibun = class Haibun extends AStepper {
         this.world?.logger.log(`tag ${which}: ${JSON.stringify(what)}`);
         return OK;
       },
-    },
-    afterEvery: {
-      gwta: 'after every {domainID}, {action}',
-      action: async ({ domainID, action }: TNamed) => {
-        return OK;
-      },
-      build: async ({ domainID, action }: TNamed, vstep: TVStep, workspace, resolver: Resolver, steppers: AStepper[]) => {
-        const found = await this.findAction(action, resolver, steppers);
-
-        if (found) {
-          workspace.set(`${EVENT_AFTER}:${domainID}`, { action, vstep });
-          return { ...OK, workspace };
-        }
-        return actionNotOK(`forEvery: action ${action} not found for ${domainID}`)
-      }
     },
     until: {
       gwta: 'until {what} is {value}',
