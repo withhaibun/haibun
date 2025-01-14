@@ -2,18 +2,10 @@
 
 import sourceMapSupport from 'source-map-support';
 
-import {
-	TSpecl,
-	TEndFeatureCallback,
-	TEndFeatureCallbackParams,
-	TBase,
-	STAY_ALWAYS,
-	STAY,
-	TWorld,
-} from '@haibun/core/build/lib/defs.js';
+import { TSpecl, TEndFeatureCallback, TEndFeatureCallbackParams, TBase, STAY_ALWAYS, STAY, TWorld, TProtoOptions } from '@haibun/core/build/lib/defs.js';
 import { IHandleResultHistory, HANDLE_RESULT_HISTORY } from '@haibun/domain-storage/build/domain-storage.js';
 
-import { findHandlers, getDefaultOptions, basesFrom, getRunTag } from '@haibun/core/build/lib/util/index.js';
+import { findHandlers, getDefaultOptions, basesFrom } from '@haibun/core/build/lib/util/index.js';
 import { getConfigFromBase } from '@haibun/core/build/lib/util/workspace-lib.js';
 import { processArgs, processBaseEnvToOptionsAndErrors, usageThenExit } from './lib.js';
 import { Timer } from '@haibun/core/build/lib/Timer.js';
@@ -31,43 +23,26 @@ go().catch(console.error);
 
 async function go() {
 	const { params, configLoc, showHelp } = processArgs(process.argv.slice(2));
-	const featureFilter = params[1] ? params[1].split(',') : undefined;
 	const bases = basesFrom(params[0]?.replace(/\/$/, ''));
 	const specl = await getSpeclOrExit(configLoc ? [configLoc] : bases);
 
 	if (showHelp) {
 		await usageThenExit(specl);
 	}
+	const featureFilter = params[1] ? params[1].split(',') : undefined;
 
 	const { protoOptions, errors } = processBaseEnvToOptionsAndErrors(process.env, specl.options);
 	if (errors.length > 0) {
 		await usageThenExit(specl, errors.join('\n'));
 	}
 
-	const { LOG_LEVEL: logLevel, LOG_FOLLOW: logFollow } = protoOptions.options;
-	const tag = getDefaultTag(0);
-	const logger = new Logger({ level: logLevel || 'debug', follow: logFollow });
-	const shared = new WorldContext(tag);
-	const timer = new Timer();
-
-	const { KEY: keyIn, TRACE: trace, OUTPUT: output, OUTPUT_DEST: outputDest } = protoOptions.options;
-	const key = keyIn || Timer.key;
-	Timer.key = key;
-	const description = protoOptions.options.DESCRIPTION || bases + ' ' + [...(featureFilter || [])].join(',');
-
-	const world: TWorld = {
-		tag,
-		shared,
-		runtime: {},
-		logger,
-		options: protoOptions.options,
-		moduleOptions: protoOptions.moduleOptions,
-		timer,
-		bases,
-	};
+	const { TRACE: trace, OUTPUT: output, OUTPUT_DEST: outputDest } = protoOptions.options;
 	if (outputDest && !output) {
 		await usageThenExit(specl, 'OUTPUT_DEST requires OUTPUT');
 	}
+
+	const description = protoOptions.options.DESCRIPTION || bases + ' ' + [...(featureFilter || [])].join(',');
+	const world = getWorld(protoOptions, bases);
 
 	let endFeatureCallback: TEndFeatureCallback | undefined = undefined;
 	if (trace) {
@@ -102,6 +77,28 @@ async function go() {
 	} else if (!protoOptions.options[STAY]) {
 		process.exit(1);
 	}
+}
+
+function getWorld(protoOptions: TProtoOptions, bases: TBase): TWorld {
+	const { KEY: keyIn, LOG_LEVEL: logLevel, LOG_FOLLOW: logFollow } = protoOptions.options;
+	const tag = getDefaultTag(0);
+	const logger = new Logger({ level: logLevel || 'debug', follow: logFollow });
+	const shared = new WorldContext(tag);
+	const timer = new Timer();
+
+	const key = keyIn || Timer.key;
+	Timer.key = key;
+
+	const world: TWorld = {
+		tag,
+		shared,
+		runtime: {},
+		logger,
+		...protoOptions,
+		timer,
+		bases,
+	};
+	return world;
 }
 
 async function getSpeclOrExit(bases: TBase): Promise<TSpecl> {

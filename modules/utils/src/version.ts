@@ -6,7 +6,7 @@ import { createVitest } from 'vitest/node';
 const [, me, version, ...extra] = process.argv;
 
 class Versioner {
-	localAndExtraModules: { [name: string]: string } = {}; // Changed to an object
+	localAndExtraModules: { [name: string]: string } = {}; 
 	private noTest = false;
 
 	haibunPackageVersions: { [dep: string]: string } = {};
@@ -45,6 +45,7 @@ class Versioner {
 	}
 
 	async forLocalAndExtraModules(someFunction: (name: string, location: string) => void) {
+		console.info(`\n## ${someFunction.name}`);
 		for (const [name, module] of Object.entries(this.localAndExtraModules)) {
 			console.info('running', someFunction.name, 'for', name, module);
 			await someFunction.call(this, name, module); // Bind `this` to each action
@@ -134,6 +135,7 @@ class Versioner {
 		const originalDir = process.cwd();
 		try {
 			process.chdir(location);
+		console.log('cwd', location);
 
 			const vitest = await createVitest('test', { watch: false });
 			await vitest.start();

@@ -1,6 +1,7 @@
 {
     "files": [],
     "references": [
+        { "path": "cli" },
         { "path": "utils" },
         { "path": "core" },
         { "path": "web-server-express" },
