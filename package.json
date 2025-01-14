@@ -2,9 +2,7 @@
   "name": "haibun",
   "type": "module",
   "private": false,
-  "workspaces": [
-    "modules/*"
-  ],
+  "workspaces": ["modules/*"],
   "devDependencies": {
     "@types/node": "^20.3.1",
     "@typescript-eslint/eslint-plugin": "^5.48.0",
@@ -35,5 +33,5 @@
     "dependency-cruiser": "^16.8.0",
     "vitest": "^2.0.4"
   },
-  "version": "1.40.9"
+  "version": "1.41.0-alpha"
 }
