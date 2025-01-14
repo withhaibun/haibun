@@ -33,5 +33,5 @@
     "dependency-cruiser": "^16.8.0",
     "vitest": "^2.0.4"
   },
-  "version": "1.41.0-alpha"
+  "version": "1.41.1-alpha"
 }
