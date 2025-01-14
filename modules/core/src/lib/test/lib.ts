@@ -47,6 +47,9 @@ export async function testWithDefaults(
 	protoOptions: TProtoOptions = DEF_PROTO_OPTIONS,
 	backgroundsIn: TTestFeatures = []
 ): Promise<TExecutorResult & { world: TWorld }> {
+	if (useSteppers.length < 1) {
+		throw Error('useSteppers must have at least one stepper');
+	}
 	const inFeatures = typeof featuresIn == 'string' ? [{ path: '/features/test', content: featuresIn }] : featuresIn;
 	const world = getTestWorldWithOptions(protoOptions);
 

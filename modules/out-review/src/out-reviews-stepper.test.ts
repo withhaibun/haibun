@@ -129,7 +129,6 @@ describe('create indexer from tracks', () => {
         [getStepperOptionName(CheckKeyStepper, STORAGE)]: 'StorageMem',
       },
     });
-    console.log('🤑', JSON.stringify(result.failure, null, 2));
     expect(result.ok).toBe(true);
   });
 });

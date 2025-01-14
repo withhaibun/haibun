@@ -38,7 +38,6 @@ export class WorldContext extends Context {
 	constructor(tag: TTag, initial?: { [name: string]: string }) {
 		super(`world ${tag}`, initial);
 	}
-	getCurrent = (type: string) => this.values[WorldContext[type]];
 }
 
 export class WorkspaceContext extends Context {

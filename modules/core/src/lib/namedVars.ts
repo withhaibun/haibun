@@ -104,8 +104,12 @@ export function getNamedToVars(found: TFound, world: TWorld, vstep: TVStep) {
 		const namedValue = named[namedKey];
 
 		if (namedKey.startsWith(TYPE_ENV_OR_VAR_OR_LITERAL)) {
-			namedFromVars[name] =
-				(world.options.env && world.options.env[namedValue]) || shared?.get(namedValue) || (named && named[namedKey]);
+			// For TYPE_ENV_OR_VAR_OR_LITERAL, check env first if exists
+			if (world.options.env && world.options.env[namedValue] !== undefined) {
+				namedFromVars[name] = world.options.env[namedValue];
+			} else {
+				namedFromVars[name] = shared?.get(namedValue) || (named && named[namedKey]);
+			}
 		} else if (namedKey.startsWith(TYPE_VAR)) {
 			// must be from source
 			if (!shared.get(namedValue)) {

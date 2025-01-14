@@ -74,7 +74,6 @@ export class AReview extends LitElement {
     // VIEW_DOCUMENTATION
     if (action) {
       const { actionName, stepperName } = action.messageContext.topic.step.actions[0];
-      console.log('xx', actionName, stepperName);
       if (['set', 'setAll'].includes(actionName)) {
         return false;
       }

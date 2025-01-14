@@ -22,17 +22,17 @@ describe('usageThenExit', () => {
 	it('exits with error', async () => {
 		vitest.spyOn(process, 'exit').mockImplementationOnce(ranOnce);
 		vitest.spyOn(console, 'error').mockImplementationOnce(() => undefined);
-		await lib.usageThenExit({ ...getDefaultOptions(), steppers: [] }, 'woops');
+		await lib.usageThenExit({ ...getDefaultOptions(), steppers: [] });
 	});
 });
 
 describe('options', () => {
 	it('stepper options', async () => {
 		const feature = { path: '/features/test.feature', content: `When I have a stepper option` };
-		const { protoOptions: protoConfig } = lib.processBaseEnvToOptionsAndErrors(
-			{ [HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]: 'true' },
-			{ DEST: DEFAULT_DEST }
-		);
+		const protoConfig = {
+			moduleOptions: { [HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]: 'true' },
+			options: { DEST: DEFAULT_DEST },
+		};
 		const result = await testWithDefaults([feature], [TestStepsWithOptions], protoConfig);
 		expect(result.ok).toBe(true);
 		expect(result.featureResults?.length).toBe(1);

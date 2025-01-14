@@ -15,7 +15,6 @@ export interface IDependencies {
 export interface ISharedContext {
   get(key: string): unknown;
   set(key: string, value: unknown): void;
-  getCurrent(type: string): string;
 }
 
 // Type constants

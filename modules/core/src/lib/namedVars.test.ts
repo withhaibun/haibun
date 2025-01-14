@@ -7,6 +7,7 @@ import { actionNotOK, createSteppers, getSerialTime } from './util/index.js';
 import { getDefaultWorld, testWithDefaults, TEST_BASE } from './test/lib.js';
 import { asExpandedFeatures } from './resolver-features.js';
 import { withNameType } from './features.js';
+import Vars from '../steps/vars.js';
 
 describe('namedMatches', () => {
   const step: TStep = {
@@ -99,15 +100,14 @@ describe('special', () => {
   it('assigns [SERIALTIME]', async () => {
     const feature = { path: '/features/here.feature', content: 'set t to [SERIALTIME]' };
     const now = getSerialTime();
-    const res = await testWithDefaults([feature], []);
-    console.log('wtw', res.world.shared);
+    const res = await testWithDefaults([feature], [Vars]);
     const t = res.world.shared.get('t');
     expect(t).toBeDefined();
     expect(parseInt(t)).toBeGreaterThanOrEqual(now);
   });
   it('rejects unknown', async () => {
     const fails = { path: '/features/here.feature', content: 'set [NOTHING] to y' };
-    const res = await testWithDefaults([fails], [])
+    const res = await testWithDefaults([fails], [Vars]);
     expect(res.ok).toBe(false)
   });
 });

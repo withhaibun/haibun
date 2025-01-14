@@ -19,6 +19,7 @@
     "typescript": "^5.2.2"
   },
   "scripts": {
+    "init": "npm i && cd modules/out-review/dashboard/web && npm i && npm run build",
     "test": "vitest run",
     "test-watch": "vitest",
     "clean": "rm -rf modules/*/build modules/*/tsconfig.tsbuildinfo modules/out-review/dashboard/web/build modules/out-review/dashboard/web/tsconfig.tsbuildinfo",
