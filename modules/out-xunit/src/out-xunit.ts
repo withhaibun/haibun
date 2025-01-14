@@ -23,9 +23,9 @@ export default class OutXUnit implements IResultOutput {
     return;
   }
   async getOutput(result: TExecutorResult, { name = 'Haibun-Junit', prettyPrint = true, classname = 'Haibun-Junit-Suite' }) {
-    const failures = result.featureResults?.filter((t) => !t.ok)?.length;
-    const skipped = result.featureResults?.filter((t) => t.skip)?.length;
-    const count = result.featureResults?.length;
+    const failures = result.featureResults?.filter((t) => !t.ok)?.length || 0;
+    const skipped = result.featureResults?.filter((t) => t.skip)?.length || 0;
+    const count = result.featureResults?.length || 0;
     const forXML: any = {
       testsuites: {
         '@tests': count,
@@ -40,10 +40,6 @@ export default class OutXUnit implements IResultOutput {
         },
       },
     };
-
-    if (!result.featureResults) {
-      return;
-    }
 
     for (const t of result.featureResults) {
       const testCase: TTestCase = {
@@ -63,10 +59,11 @@ export default class OutXUnit implements IResultOutput {
     }
     return create(forXML).end({ prettyPrint, newline: EOL });
   }
+
   async writeOutput(result: TExecutorResult, args: any) {
     return this.getOutput(result, args);
-
   }
+
   getFailResult(failure: TNotOkStepActionResult) {
     const failResult: TFailResult = {
       '@message': `${failure.name}: ${failure.message}`,

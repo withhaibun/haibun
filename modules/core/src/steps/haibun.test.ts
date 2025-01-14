@@ -2,12 +2,8 @@ import { describe, it, expect } from 'vitest';
 
 import { FeatureExecutor } from '../phases/Executor.js';
 import { getDefaultWorld, getTestEnv, testWithDefaults } from '../lib/test/lib.js';
-import { asExpandedFeatures } from '../lib/resolver-features.js';
 import TestSteps from '../lib/test/TestSteps.js';
 import Haibun from './haibun.js';
-import { AStepper, OK } from '../lib/defs.js';
-import { createSteppers } from '../lib/util/index.js';
-import { Resolver } from '../phases/Resolver.js';
 
 describe('prose', () => {
 	it('finds prose', async () => {
@@ -30,56 +26,5 @@ Prose sections are indicated by the presence of punctuation at the end of paragr
 		expect(result.ok).toBe(true);
 
 		expect(result.featureResults?.length).toBe(1);
-	});
-});
-
-describe('forEvery', () => {
-	class TestStepsWithDomains extends TestSteps {
-	}
-
-	it('does not find afterEvery', async () => {
-		const feature = { path: '/features/test.feature', content: `After every widget, Then the wtw` };
-		const res = await testWithDefaults([feature], [TestStepsWithDomains, Haibun]);
-		expect(res.ok).toBe(false);
-		expect(res.failure.stage).toBe('Resolve');
-	});
-	it('finds afterEvery', async () => {
-		const { world } = getDefaultWorld(0);
-		const features = asExpandedFeatures([{ path: '/features/test.feature', content: `After every widget, passes` }]);
-		const steppers = await createSteppers([TestStepsWithDomains, Haibun]);
-		const resolver = new Resolver(steppers, world);
-		const res = await resolver.resolveStepsFromFeatures(features);
-		expect(res[0].vsteps.length).toBe(2);
-	});
-	it('finds afterEvery and passes', async () => {
-		const feature = { path: '/features/test.feature', content: `After every widget, passes` };
-		const res = await testWithDefaults([feature], [TestStepsWithDomains, Haibun]);
-		expect(res.ok).toBe(true);
-	});
-	it('finds afterEvery and fails', async () => {
-		const feature = { path: '/features/test.feature', content: `After every widget, fails` };
-		const res = await testWithDefaults([feature], [TestStepsWithDomains, Haibun]);
-		expect(res.ok).toBe(false);
-		expect(res.failure.stage).toBe('Execute');
-	});
-	it('calls event', async () => {
-		const feature = { path: '/features/test.feature', content: `After every widget, passes` };
-		let s = 0;
-		class TestSetsVar extends AStepper {
-			domains = [{ name: 'widget', fileType: 'widget', is: 'string', validate: () => undefined }];
-			locator = (name: string) => name;
-			steps = {
-				passes: {
-					exact: 'passes',
-					action: async () => {
-						s = 2;
-						return OK;
-					},
-				},
-			};
-		}
-		const res = await testWithDefaults([feature], [TestSetsVar, Haibun]);
-		expect(res.ok).toBe(true);
-		expect(s).toBe(2);
 	});
 });

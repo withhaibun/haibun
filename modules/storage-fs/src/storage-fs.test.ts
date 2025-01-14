@@ -13,18 +13,18 @@ describe('fs getCaptureLocation', () => {
     const storageFS = new StorageFS();
     const { world } = getDefaultWorld(0);
     const dir = await storageFS.getCaptureLocation({ ...world, mediaType: EMediaTypes.json }, 'test');
-    expect(dir).toEqual(`./${CAPTURE}/default/${key}/loop-0/seq-0/featn-0/mem-0/test`);
+    expect(dir).toEqual(`./${CAPTURE}/default/${key}/seq-0/featn-0/test`);
   });
   it('gets options capture location', async () => {
     const storageFS = new StorageFS();
     const world = getTestWorldWithOptions({ options: { DEST: 'foo' }, moduleOptions: {} });
     const dir = await storageFS.getCaptureLocation({ ...world, mediaType: EMediaTypes.json }, 'test');
-    expect(dir).toEqual(`./${CAPTURE}/foo/${key}/loop-0/seq-0/featn-0/mem-0/test`);
+    expect(dir).toEqual(`./${CAPTURE}/foo/${key}/seq-0/featn-0/test`);
   });
   it('gets relative capture location', async () => {
     const storageFS = new StorageFS();
     const world = getTestWorldWithOptions({ options: { DEST: 'foo' }, moduleOptions: {} });
     const dir = await storageFS.getCaptureLocation({ ...world, mediaType: EMediaTypes.json }, 'test');
-    expect(dir).toEqual(`./${CAPTURE}/foo/${key}/loop-0/seq-0/featn-0/mem-0/test`);
+    expect(dir).toEqual(`./${CAPTURE}/foo/${key}/seq-0/featn-0/test`);
   });
 });

@@ -10,7 +10,8 @@ const vars = class Vars extends AStepper {
 		// FIXME see https://github.com/withhaibun/haibun/issues/18
 		const emptyOnly = !!vstep.in.match(/set empty /);
 
-		return setShared(named, vstep, this.getWorld(), emptyOnly);
+		const res = setShared(named, vstep, this.getWorld(), emptyOnly);
+		return res;
 	};
 	isSet(what: string, orCond: string) {
 		if (this.getWorld().shared.get(what) !== undefined) {
@@ -60,7 +61,6 @@ const vars = class Vars extends AStepper {
 			gwta: '{what: string} is "{value}"',
 			action: async ({ what, value }: TNamed) => {
 				const val = this.getWorld().shared.get(what);
-
 				return val === value ? OK : actionNotOK(`${what} is ${val}, not ${value}`);
 			},
 		},
@@ -108,9 +108,6 @@ export const didNotOverwrite = (what: string, present: string | Context, value: 
 });
 
 export const setShared = ({ what, value }: TNamed, vstep: TVStep, world: TWorld, emptyOnly = false) => {
-	// if on a domain page, set it in that domain's shared
-	const { type, name } = vstep.source;
-
 	let { shared } = world;
 
 	if (!emptyOnly || shared.get(what) === undefined) {

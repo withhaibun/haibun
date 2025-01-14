@@ -43,7 +43,7 @@ type TTestFeatures = { path: string; content: string; base?: string }[];
 
 export async function testWithDefaults(
 	featuresIn: TTestFeatures | string,
-	addSteppers: CStepper[],
+	useSteppers: CStepper[],
 	protoOptions: TProtoOptions = DEF_PROTO_OPTIONS,
 	backgroundsIn: TTestFeatures = []
 ): Promise<TExecutorResult & { world: TWorld }> {
@@ -54,7 +54,7 @@ export async function testWithDefaults(
 	const features = asFeatures(inFeatures.map(withBases));
 	const backgrounds = asFeatures(backgroundsIn.map(withBases));
 
-	const ran = await new Runner(world).runFeaturesAndBackgrounds(addSteppers, { features, backgrounds });
+	const ran = await new Runner(world).runFeaturesAndBackgrounds(useSteppers, { features, backgrounds });
 	return { ...ran, world };
 }
 

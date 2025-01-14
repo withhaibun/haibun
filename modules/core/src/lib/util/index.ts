@@ -295,20 +295,6 @@ export function getFromRuntime<Type>(runtime: TRuntime, name: string): Type {
 	return runtime[name] as Type;
 }
 
-export function applyResShouldContinue(world: TWorld, res: Partial<TActionResult>, vstep: TFound): boolean {
-	const { score, message } = res as TNotOKActionResult;
-	if (res.ok) {
-		return true;
-	}
-	if (world.options.continueOnErrorIfScored && score !== undefined) {
-		const calc = { score, message, action: vstep };
-
-		world.shared.values._scored.push(calc);
-		return true;
-	}
-	return false;
-}
-
 export const getRunTag = (sequence: TTagValue, featureNum: TTagValue, params = {}, trace = false) => {
 	const key = Timer.key;
 	const res: TTag = { key, sequence, featureNum, params, trace };

@@ -35,19 +35,19 @@ describe('mem getCaptureLocation', () => {
     const storageMem = new StorageMem();
     const { world } = getDefaultWorld(0);
     const dir = await storageMem.getCaptureLocation({ ...world, mediaType: EMediaTypes.json }, 'test');
-    expect(dir).toEqual(`./${CAPTURE}/default/${key}/loop-0/seq-0/featn-0/mem-0/test`);
+    expect(dir).toEqual(`./${CAPTURE}/default/${key}/seq-0/featn-0/test`);
   });
   it('gets options capture location', async () => {
     const storageMem = new StorageMem();
     const world = getTestWorldWithOptions({ options: { DEST: 'foo' }, moduleOptions: {} });
     const dir = await storageMem.getCaptureLocation({ ...world, mediaType: EMediaTypes.json }, 'test');
-    expect(dir).toEqual(`./${CAPTURE}/foo/${key}/loop-0/seq-0/featn-0/mem-0/test`);
+    expect(dir).toEqual(`./${CAPTURE}/foo/${key}/seq-0/featn-0/test`);
   });
   it('gets relative capture location', async () => {
     const storageMem = new StorageMem();
     const world = getTestWorldWithOptions({ options: { DEST: 'foo' }, moduleOptions: {} });
     const dir = await storageMem.getCaptureLocation({ ...world, mediaType: EMediaTypes.json }, 'test');
-    expect(dir).toEqual(`./${CAPTURE}/foo/${key}/loop-0/seq-0/featn-0/mem-0/test`);
+    expect(dir).toEqual(`./${CAPTURE}/foo/${key}/seq-0/featn-0/test`);
   });
   it('ensures capture location', async () => {
     const storageMem = new StorageMem();
@@ -115,7 +115,7 @@ describe.skip('readTree', () => {
     StorageMem.BASE_FS = undefined;
   });
   const TEST_FS = {
-    [`./capture/mem-0/tracks/${TRACKS_FILE}`]: '12',
+    [`./capture/tracks/${TRACKS_FILE}`]: '12',
     [`./capture/mem-1/tracks/${TRACKS_FILE}`]: '12',
   };
 
@@ -134,8 +134,8 @@ describe('readFlat', () => {
     StorageMem.BASE_FS = undefined;
   });
   const TEST_FS = {
-    [`./capture/default/123/loop-0/seq-0/featn-0/mem-0/tracks/${TRACKS_FILE}`]: '12',
-    [`./capture/default/123/loop-0/seq-0/featn-0/mem-1/tracks/${TRACKS_FILE}`]: '12',
+    [`./capture/default/123/seq-0/featn-0/tracks/${TRACKS_FILE}`]: '12',
+    [`./capture/default/123/seq-0/featn-0/mem-1/tracks/${TRACKS_FILE}`]: '12',
   };
 
   it('reads flat', async () => {

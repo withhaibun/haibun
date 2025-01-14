@@ -15,7 +15,7 @@ describe('namedMatches', () => {
   };
 
   it('gets named matches', () => {
-    expect(getNamedMatches(step.match, 'It is set')).toEqual({ one: 'It', two: 'set' });
+    expect(getNamedMatches(step.match!, 'It is set')).toEqual({ one: 'It', two: 'set' });
   });
 });
 
@@ -100,6 +100,7 @@ describe('special', () => {
     const feature = { path: '/features/here.feature', content: 'set t to [SERIALTIME]' };
     const now = getSerialTime();
     const res = await testWithDefaults([feature], []);
+    console.log('wtw', res.world.shared);
     const t = res.world.shared.get('t');
     expect(t).toBeDefined();
     expect(parseInt(t)).toBeGreaterThanOrEqual(now);

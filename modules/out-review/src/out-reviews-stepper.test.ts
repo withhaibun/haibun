@@ -20,8 +20,8 @@ const publishArtifact2: TArtifact = { type: 'video', path: `${publishedTracks}/2
 const publishArtifact22: TArtifact = { type: 'video', path: `${publishedTracks}/22.webm` }
 const publishArtifact3: TArtifact = { type: 'video', path: `${publishedTracks}/3.webm` }
 
-const tracks1 = `${CAPTURE}/default/123/loop-0/seq-0/featn-0/mem-0/tracks/${TRACKS_FILE}`;
-const tracks2 = `${CAPTURE}/default/123/loop-0/seq-0/featn-0/mem-1/tracks/${TRACKS_FILE}`;
+const tracks1 = `${CAPTURE}/default/123/seq-0/featn-0/tracks/${TRACKS_FILE}`;
+const tracks2 = `${CAPTURE}/default/123/seq-0/featn-0/mem-1/tracks/${TRACKS_FILE}`;
 
 const TEST_CAPTURES = {
   [tracks1]: JSON.stringify(testHistoryWithMeta([])),
