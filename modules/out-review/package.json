@@ -1,7 +1,7 @@
 {
   "name": "@haibun/out-review",
   "type": "module",
-  "version": "1.41.1-alpha",
+  "version": "1.41.2",
   "description": "",
   "files": ["build/**", "dashboard/web/build/**", "dashboard/web/public/**"],
   "bin": { "review-from-saved": "build/review-from-saved.js" },
@@ -19,10 +19,10 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@haibun/core": "1.41.1-alpha",
-    "@haibun/domain-storage": "1.41.1-alpha",
-    "@haibun/storage-fs": "1.41.1-alpha",
-    "@haibun/storage-mem": "1.41.1-alpha",
+    "@haibun/core": "1.41.2",
+    "@haibun/domain-storage": "1.41.2",
+    "@haibun/storage-fs": "1.41.2",
+    "@haibun/storage-mem": "1.41.2",
     "xmlbuilder2": "^3.0.2"
   },
   "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5"
