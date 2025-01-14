@@ -51,7 +51,7 @@ export function ranResultError(ranResults: TRunResult[], exceptionResults: any[]
 }
 
 export function processBaseEnvToOptionsAndErrors(env: TEnv, options: TOptions) {
-  const protoOptions: TProtoOptions = { options: { ...options }, extraOptions: {} };
+  const protoOptions: TProtoOptions = { options: { ...options }, moduleOptions: {} };
 
   const errors: string[] = [];
   let nenv = {};
@@ -78,7 +78,7 @@ export function processBaseEnvToOptionsAndErrors(env: TEnv, options: TOptions) {
           protoOptions.options[opt] = res.result;
         }
       } else {
-        protoOptions.extraOptions[k] = value;
+        protoOptions.moduleOptions[k] = value;
       }
     });
   protoOptions.options.env = nenv;

@@ -60,13 +60,13 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
 
   async setWorld(world: TWorld, steppers: AStepper[]) {
     await super.setWorld(world, steppers);
-    this.storage = findStepperFromOption(steppers, this, world.extraOptions, WebPlaywright.STORAGE);
-    const headless = getStepperOption(this, 'HEADLESS', world.extraOptions) === 'true' || !!process.env.CI;
-    const devtools = getStepperOption(this, 'DEVTOOLS', world.extraOptions) === 'true';
-    const args = [...(getStepperOption(this, 'ARGS', world.extraOptions)?.split(';') || ''), '--disable-gpu'];
-    const persistentDirectory = getStepperOption(this, WebPlaywright.PERSISTENT_DIRECTORY, world.extraOptions) === 'true';
-    const defaultTimeout = parseInt(getStepperOption(this, 'TIMEOUT', world.extraOptions)) || 30000;
-    this.captureVideo = getStepperOption(this, 'CAPTURE_VIDEO', world.extraOptions);
+    this.storage = findStepperFromOption(steppers, this, world.moduleOptions, WebPlaywright.STORAGE);
+    const headless = getStepperOption(this, 'HEADLESS', world.moduleOptions) === 'true' || !!process.env.CI;
+    const devtools = getStepperOption(this, 'DEVTOOLS', world.moduleOptions) === 'true';
+    const args = [...(getStepperOption(this, 'ARGS', world.moduleOptions)?.split(';') || ''), '--disable-gpu'];
+    const persistentDirectory = getStepperOption(this, WebPlaywright.PERSISTENT_DIRECTORY, world.moduleOptions) === 'true';
+    const defaultTimeout = parseInt(getStepperOption(this, 'TIMEOUT', world.moduleOptions)) || 30000;
+    this.captureVideo = getStepperOption(this, 'CAPTURE_VIDEO', world.moduleOptions);
     let recordVideo;
     if (this.captureVideo) {
       recordVideo = {
@@ -133,7 +133,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
 
   // FIXME currently not executed
   async nextStep(step: TVStep) {
-    const captureScreenshot = getStepperOption(this, 'STEP_CAPTURE_SCREENSHOT', this.getWorld().extraOptions);
+    const captureScreenshot = getStepperOption(this, 'STEP_CAPTURE_SCREENSHOT', this.getWorld().moduleOptions);
     if (captureScreenshot) {
       await this.captureRequestScreenshot('request', 'nextStep', step.seq);
     }

@@ -74,7 +74,7 @@ describe('create found history', () => {
     const feature = { path: '/features/test.feature', content: `create found history` };
     const result = await testWithDefaults([feature], [OutReviews, DomainStorage, StorageMem], {
       options: { DEST: DEFAULT_DEST },
-      extraOptions: {
+      moduleOptions: {
         [getStepperOptionName(OutReviews, STORAGE)]: 'StorageMem',
       },
     });
@@ -91,7 +91,7 @@ describe('create reviews pages', () => {
     const feature = { path: '/features/test.feature', content: `create reviews pages` };
     const result = await testWithDefaults([feature], [OutReviews, DomainStorage, StorageMem], {
       options: { DEST: DEFAULT_DEST },
-      extraOptions: {
+      moduleOptions: {
         [getStepperOptionName(OutReviews, STORAGE)]: 'StorageMem',
       },
     });
@@ -125,7 +125,7 @@ describe('create indexer from tracks', () => {
     const feature = { path: '/features/test.feature', content: `create found history\ncreate reviews pages\ncreate indexer from tracks\n${test}` };
     const result = await testWithDefaults([feature], [DomainStorage, StorageMem, CheckKeyStepper], {
       options: { DEST: DEFAULT_DEST },
-      extraOptions: {
+      moduleOptions: {
         [getStepperOptionName(CheckKeyStepper, STORAGE)]: 'StorageMem',
       },
     });
@@ -162,7 +162,7 @@ directory ${tracks} has 1 files`;
     const feature = { path: '/features/test.feature', content };
     const result = await testWithDefaults([feature], [OutReviews, DomainStorage, StorageMem, SetTimeStepper], {
       options: { DEST: DEFAULT_DEST },
-      extraOptions: {
+      moduleOptions: {
         [getStepperOptionName(OutReviews, PUBLISH_ROOT)]: base,
         [getStepperOptionName(OutReviews, STORAGE)]: 'StorageMem'
       },
@@ -227,7 +227,7 @@ directory ${publishedTracks} has 1 files
     const feature = { path: '/features/test.feature', content };
     const result = await testWithDefaults([feature], [OutReviews, DomainStorage, StorageMem, SetTimeStepper], {
       options: { DEST: DEFAULT_DEST },
-      extraOptions: {
+      moduleOptions: {
         [getStepperOptionName(OutReviews, PUBLISH_ROOT)]: publishRoot,
         [getStepperOptionName(OutReviews, STORAGE)]: 'StorageMem'
       },
@@ -243,7 +243,7 @@ directory ${publishedTracks} has 3 files
     const feature = { path: '/features/test.feature', content };
     const result = await testWithDefaults([feature], [OutReviews, DomainStorage, StorageMem, SetTimeStepper], {
       options: { DEST: DEFAULT_DEST },
-      extraOptions: {
+      moduleOptions: {
         [getStepperOptionName(OutReviews, PUBLISH_ROOT)]: publishRoot,
         [getStepperOptionName(OutReviews, STORAGE)]: 'StorageMem'
       },

@@ -17,13 +17,13 @@ describe('fs getCaptureLocation', () => {
   });
   it('gets options capture location', async () => {
     const storageFS = new StorageFS();
-    const world = getTestWorldWithOptions({ options: { DEST: 'foo' }, extraOptions: {} });
+    const world = getTestWorldWithOptions({ options: { DEST: 'foo' }, moduleOptions: {} });
     const dir = await storageFS.getCaptureLocation({ ...world, mediaType: EMediaTypes.json }, 'test');
     expect(dir).toEqual(`./${CAPTURE}/foo/${key}/loop-0/seq-0/featn-0/mem-0/test`);
   });
   it('gets relative capture location', async () => {
     const storageFS = new StorageFS();
-    const world = getTestWorldWithOptions({ options: { DEST: 'foo' }, extraOptions: {} });
+    const world = getTestWorldWithOptions({ options: { DEST: 'foo' }, moduleOptions: {} });
     const dir = await storageFS.getCaptureLocation({ ...world, mediaType: EMediaTypes.json }, 'test');
     expect(dir).toEqual(`./${CAPTURE}/foo/${key}/loop-0/seq-0/featn-0/mem-0/test`);
   });

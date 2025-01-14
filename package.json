@@ -25,7 +25,7 @@
     "test-watch": "vitest",
     "clean": "rm -rf modules/*/build modules/*/tsconfig.tsbuildinfo modules/out-review/dashboard/web/build modules/out-review/dashboard/web/tsconfig.tsbuildinfo",
     "build-watch": "tsc -b modules/ --watch",
-    "build": "tsc -b modules/core modules/domain-storage modules/domain-webpage modules/web-http modules/storage-fs modules; cd modules/out-review/dashboard/web; npm run build",
+    "build": "tsc -b modules/core modules/domain-storage modules/web-http modules/storage-fs modules; cd modules/out-review/dashboard/web; npm run build",
     "format": "prettier --ignore-path .gitignore --write \"./src/**/*.+(ts|json)\"",
     "depcruise": "depcruise -c .dependency-cruiser.cjs -T dot modules | dot -T svg | depcruise-wrap-stream-in-html > dependency-graph.html",
     "preversion": "npm run test"

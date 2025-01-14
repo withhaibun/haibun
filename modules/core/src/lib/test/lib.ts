@@ -1,13 +1,16 @@
 import { TWorld, TVStep, TProtoOptions, CStepper, DEFAULT_DEST, TExecutorResult } from '../defs.js';
 import { Resolver } from '../../phases/Resolver.js';
-import { DEF_PROTO_OPTIONS, runWith } from './../run.js';
-import { getRunTag, verifyExtraOptions, getDefaultOptions, createSteppers } from './../util/index.js';
+import { getRunTag, verifyExtraOptions, createSteppers } from './../util/index.js';
 import { getSteppers } from '../util/workspace-lib.js';
 import { WorldContext } from '../contexts.js';
 import { withNameType } from './../features.js';
 import Logger, { LOGGER_LOG } from '../Logger.js';
 import { Timer } from '../Timer.js';
 import { asFeatures } from '../resolver-features.js';
+import { Runner } from '../../runner.js';
+
+const DEF_PROTO_DEFAULT_OPTIONS = { DEST: DEFAULT_DEST };
+const DEF_PROTO_OPTIONS = { options: DEF_PROTO_DEFAULT_OPTIONS, moduleOptions: {} };
 
 export const HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS = 'HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS';
 export const TEST_BASE = 'test_base';
@@ -45,14 +48,13 @@ export async function testWithDefaults(
 	backgroundsIn: TTestFeatures = []
 ): Promise<TExecutorResult & { world: TWorld }> {
 	const inFeatures = typeof featuresIn == 'string' ? [{ path: '/features/test', content: featuresIn }] : featuresIn;
-	const specl = getDefaultOptions();
 	const world = getTestWorldWithOptions(protoOptions);
 
 	const withBases = (i) => (i.base ? i : { ...i, base: TEST_BASE });
 	const features = asFeatures(inFeatures.map(withBases));
 	const backgrounds = asFeatures(backgroundsIn.map(withBases));
 
-	const ran = await runWith({ specl, features, backgrounds, addSteppers, world });
+	const ran = await new Runner(world).runFeaturesAndBackgrounds(addSteppers, { features, backgrounds });
 	return { ...ran, world };
 }
 
@@ -60,7 +62,7 @@ export function getTestWorldWithOptions(protoOptions: TProtoOptions, env = { HAI
 	const { world } = getDefaultWorld(0, env);
 	if (protoOptions) {
 		world.options = protoOptions.options;
-		world.extraOptions = protoOptions.extraOptions;
+		world.moduleOptions = protoOptions.moduleOptions;
 	}
 	return world;
 }
@@ -74,7 +76,7 @@ export function getDefaultWorld(sequence: number, env = process.env): { world: T
 			logger: new Logger(env.HAIBUN_LOG_LEVEL ? { level: env.HAIBUN_LOG_LEVEL } : LOGGER_LOG),
 			runtime: {},
 			options: { DEST: DEFAULT_DEST },
-			extraOptions: {},
+			moduleOptions: {},
 			bases: ['/features/'],
 		},
 	};

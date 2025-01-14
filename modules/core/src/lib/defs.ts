@@ -64,10 +64,10 @@ export const isHasHandlers = (s: IHasHandlers): s is IHasHandlers => s.handlers 
 export interface IHasBuilder {
   finalize: (workspace: WorkspaceContext) => void;
 }
-export type TExtraOptions = { [name: string]: string };
+export type TModuleOptions = { [name: string]: string };
 export type TProtoOptions = {
   options: TOptions;
-  extraOptions: TExtraOptions;
+  moduleOptions: TModuleOptions;
 };
 
 export type TBase = string[];
@@ -78,7 +78,7 @@ export type TWorld = {
   runtime: TRuntime;
   logger: ILogger;
   options: TOptions;
-  extraOptions: TExtraOptions;
+  moduleOptions: TModuleOptions;
   timer: Timer;
   bases: TBase;
 };

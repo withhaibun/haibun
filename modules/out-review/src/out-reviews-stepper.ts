@@ -99,9 +99,9 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IHa
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
-		this.tracksStorage = findStepperFromOption(steppers, this, world.extraOptions, TRACKS_STORAGE, STORAGE);
-		this.publishStorage = findStepperFromOption(steppers, this, world.extraOptions, PUBLISH_STORAGE, STORAGE);
-		this.publishRoot = getStepperOption(this, PUBLISH_ROOT, this.getWorld().extraOptions) || './published';
+		this.tracksStorage = findStepperFromOption(steppers, this, world.moduleOptions, TRACKS_STORAGE, STORAGE);
+		this.publishStorage = findStepperFromOption(steppers, this, world.moduleOptions, PUBLISH_STORAGE, STORAGE);
+		this.publishRoot = getStepperOption(this, PUBLISH_ROOT, this.getWorld().moduleOptions) || './published';
 		const ps = this.publishStorage as unknown as IGetPublishedReviews;
 		if (ps.getPublishedReviews) {
 			this.reviewEndpoint = ps;

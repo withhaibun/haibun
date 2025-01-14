@@ -18,7 +18,7 @@ const WebServerStepper = class WebServerStepper extends AStepper implements IHas
   async setWorld(world: TWorld, steppers: AStepper[]) {
     await super.setWorld(world, steppers);
     // this.world.runtime[CHECK_LISTENER] = WebServerStepper.checkListener;
-    const port = parseInt(getStepperOption(this, 'PORT', world.extraOptions)) || DEFAULT_PORT;
+    const port = parseInt(getStepperOption(this, 'PORT', world.moduleOptions)) || DEFAULT_PORT;
     this.webserver = new ServerExpress(world.logger, path.join([process.cwd(),  'files'].join('/')), port);
     world.runtime[WEBSERVER] = this.webserver;
   }

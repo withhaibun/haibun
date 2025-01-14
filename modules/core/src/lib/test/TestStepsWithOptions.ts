@@ -12,7 +12,7 @@ export const TestStepsWithOptions = class TestStepsWithOptions extends AStepper 
     test: {
       exact: 'have a stepper option',
       action: async () => {
-        const res = getStepperOption(this, 'EXISTS', this.getWorld().extraOptions);
+        const res = getStepperOption(this, 'EXISTS', this.getWorld().moduleOptions);
         return actionOK({ options: { summary: 'options', details: res } });
       },
     },
@@ -33,7 +33,7 @@ export const TestStepsWithRequiredOptions = class TestStepsWithRequiredOptions e
     test: {
       exact: 'have a stepper option',
       action: async () => {
-        const res = getStepperOption(this, 'EXISTS', this.getWorld().extraOptions);
+        const res = getStepperOption(this, 'EXISTS', this.getWorld().moduleOptions);
         return actionOK({ options: { summary: 'options', details: res } });
       },
     },

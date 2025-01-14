@@ -78,7 +78,7 @@ export class FeatureExecutor {
       throw Error(error);
     };
     const steppers = await createSteppers(this.csteppers);
-    await setStepperWorlds(steppers, world).catch((error: TAnyFixme) => errorBail('Apply Options', error, world.extraOptions));
+    await setStepperWorlds(steppers, world).catch((error: TAnyFixme) => errorBail('Apply Options', error, world.moduleOptions));
     this.steppers = steppers;
   }
   async doFeature(feature: TResolvedFeature): Promise<TFeatureResult> {

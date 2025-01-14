@@ -6,7 +6,6 @@ import TestSteps from '@haibun/core/build/lib/test/TestSteps.js';
 import TestStepsWithOptions from '@haibun/core/build/lib/test/TestStepsWithOptions.js';
 import { getDefaultOptions } from '@haibun/core/build/lib/util/index.js';
 import * as lib from './lib.js';
-import { processBaseEnvToOptionsAndErrors } from './lib.js';
 
 const s = s => s.split(' ');
 
@@ -28,7 +27,7 @@ describe('usageThenExit', () => {
 describe('options', () => {
   it('stepper options', async () => {
     const feature = { path: '/features/test.feature', content: `When I have a stepper option` };
-    const { protoOptions: protoConfig } = processBaseEnvToOptionsAndErrors({ [HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]: 'true' }, { DEST: DEFAULT_DEST });
+    const { protoOptions: protoConfig } = lib.processBaseEnvToOptionsAndErrors({ [HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]: 'true' }, { DEST: DEFAULT_DEST });
     const result = await testWithDefaults([feature], [TestStepsWithOptions], protoConfig);
     expect(result.ok).toBe(true);
     expect(result.featureResults?.length).toBe(1);
@@ -52,7 +51,7 @@ describe('processEnv', () => {
     const specl = getDefaultOptions();
     const { protoOptions } = lib.processBaseEnvToOptionsAndErrors({ HAIBUN_TEST: 'true' }, specl.options);
 
-    expect(protoOptions.extraOptions['HAIBUN_TEST']).toBeDefined();
+    expect(protoOptions.moduleOptions['HAIBUN_TEST']).toBeDefined();
   });
   it('split_shared incorrect message', () => {
     const specl = getDefaultOptions();

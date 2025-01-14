@@ -10,7 +10,7 @@ import {
 	TFound,
 	TTag,
 	AStepper,
-	TExtraOptions,
+	TModuleOptions,
 	CStepper,
 	DEFAULT_DEST,
 	TTagValue,
@@ -24,7 +24,7 @@ import { Timer } from '../Timer.js';
 
 type TClass = { new <T>(...args: unknown[]): T };
 
-export const basesFrom = (s): string[] => s.split(',').map((b) => b.trim());
+export const basesFrom = (s): string[] => s?.split(',').map((b) => b.trim());
 
 // FIXME tired of wrestling with ts/import issues
 export async function use(module: string): Promise<TClass> {
@@ -109,19 +109,19 @@ export function isLowerCase(str: string) {
 
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-export async function verifyExtraOptions(inExtraOptions: TExtraOptions, csteppers: CStepper[]) {
-	const extraOptions = { ...inExtraOptions };
-	Object.entries(extraOptions)?.map(([option, value]) => {
+export async function verifyExtraOptions(inExtraOptions: TModuleOptions, csteppers: CStepper[]) {
+	const moduleOptions = { ...inExtraOptions };
+	Object.entries(moduleOptions)?.map(([option, value]) => {
 		const foundStepper = getStepperOptionValue(option, value, csteppers);
 
 		if (foundStepper === undefined) {
-			throw Error(`unmapped option ${option} from ${JSON.stringify(extraOptions)}`);
+			throw Error(`unmapped option ${option} from ${JSON.stringify(moduleOptions)}`);
 		}
-		delete extraOptions[option];
+		delete moduleOptions[option];
 	});
 
-	if (Object.keys(extraOptions).length > 0) {
-		throw Error(`no option for ${extraOptions}`);
+	if (Object.keys(moduleOptions).length > 0) {
+		throw Error(`no option for ${moduleOptions}`);
 	}
 }
 
@@ -162,7 +162,7 @@ export function getStepperOptionValue(key: string, value: string, csteppers: CSt
 	}
 }
 
-export async function verifyRequiredOptions(steppers: CStepper[], options: TExtraOptions) {
+export async function verifyRequiredOptions(steppers: CStepper[], options: TModuleOptions) {
 	const requiredMissing: string[] = [];
 	for (const Stepper of steppers) {
 		const stepper = new Stepper();
@@ -191,9 +191,9 @@ export function getStepperOptionName(stepper: AStepper | CStepper, name: string)
 	return getPre(stepper as AStepper) + name;
 }
 
-export function getStepperOption(stepper: AStepper, name: string, extraOptions: TExtraOptions) {
+export function getStepperOption(stepper: AStepper, name: string, moduleOptions: TModuleOptions) {
 	const key = getStepperOptionName(stepper, name);
-	return extraOptions[key];
+	return moduleOptions[key];
 }
 
 /**
@@ -202,28 +202,28 @@ export function getStepperOption(stepper: AStepper, name: string, extraOptions: 
 export function maybeFindStepperFromOption<Type>(
 	steppers: AStepper[],
 	stepper: AStepper,
-	extraOptions: TExtraOptions,
+	moduleOptions: TModuleOptions,
 	...optionNames: string[]
 ): Type {
-	return doFindStepperFromOption(steppers, stepper, extraOptions, true, ...optionNames);
+	return doFindStepperFromOption(steppers, stepper, moduleOptions, true, ...optionNames);
 }
 export function findStepperFromOption<Type>(
 	steppers: AStepper[],
 	stepper: AStepper,
-	extraOptions: TExtraOptions,
+	moduleOptions: TModuleOptions,
 	...optionNames: string[]
 ): Type {
-	return doFindStepperFromOption(steppers, stepper, extraOptions, false, ...optionNames);
+	return doFindStepperFromOption(steppers, stepper, moduleOptions, false, ...optionNames);
 }
 function doFindStepperFromOption<Type>(
 	steppers: AStepper[],
 	stepper: AStepper,
-	extraOptions: TExtraOptions,
+	moduleOptions: TModuleOptions,
 	optional: boolean,
 	...optionNames: string[]
 ): Type {
 	const val = optionNames.reduce<string | undefined>((v, n) => {
-		const r = getStepperOption(stepper, n, extraOptions);
+		const r = getStepperOption(stepper, n, moduleOptions);
 		return v || r;
 	}, undefined);
 
@@ -234,7 +234,7 @@ function doFindStepperFromOption<Type>(
 		throw Error(
 			`Cannot find ${optionNames.map((o) => getStepperOptionName(stepper, o)).join(' or ')} in your ${constructorName(
 				stepper
-			)} options ${JSON.stringify(Object.keys(extraOptions).filter((k) => k.startsWith(getPre(stepper))))}`
+			)} options ${JSON.stringify(Object.keys(moduleOptions).filter((k) => k.startsWith(getPre(stepper))))}`
 		);
 	}
 	return findStepper(steppers, val);
@@ -312,7 +312,7 @@ export function applyResShouldContinue(world: TWorld, res: Partial<TActionResult
 export const getRunTag = (sequence: TTagValue, featureNum: TTagValue, params = {}, trace = false) => {
 	const key = Timer.key;
 	const res: TTag = { key, sequence, featureNum, params, trace };
-	['sequence', 'loop', 'member', 'featureNum'].forEach((w) => {
+	['sequence', 'featureNum'].forEach((w) => {
 		const val = (res as TAnyFixme)[w];
 		if (parseInt(val) !== val) {
 			throw Error(`non - numeric ${w} from ${JSON.stringify(res)} `);

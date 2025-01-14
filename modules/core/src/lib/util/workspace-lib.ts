@@ -67,7 +67,7 @@ export async function getStepper(s: string) {
 }
 
 export function getConfigFromBase(bases: TBase, fs: TFileSystem = nodeFS): TSpecl | null {
-	const found = bases.filter((b) => fs.existsSync(`${b}/config.json`));
+	const found = bases?.filter((b) => fs.existsSync(`${b}/config.json`));
 	if (found.length > 1) {
 		console.error(`Found multiple config.json files: ${found.join(', ')}. Use --config to specify one.`);
 		return null;

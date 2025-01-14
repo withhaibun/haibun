@@ -1,5 +1,5 @@
 import { WorkspaceContext } from '@haibun/core/build/lib/contexts.js'
-import { TNamed, TVStep, OK, AStepper, IHasOptions, TExtraOptions, TFeatureResult, TOptions, TTag, TAnyFixme, IHasHandlers, IHandler, ISourcedHandler } from '@haibun/core/build/lib/defs.js';
+import { TNamed, TVStep, OK, AStepper, IHasOptions, TModuleOptions, TFeatureResult, TOptions, TTag, TAnyFixme, IHasHandlers, IHandler, ISourcedHandler } from '@haibun/core/build/lib/defs.js';
 import { TLogHistory } from '@haibun/core/build/lib/interfaces/logger.js';
 import { stringOrError } from '@haibun/core/build/lib/util/index.js';
 import { TMediaType, MEDIA_TYPES, MAPPED_MEDIA_TYPES } from './media-types.js';
@@ -89,7 +89,7 @@ export default DomainStorage;
 export type TLocationOptions = {
   tag: TTag,
   options: TOptions,
-  extraOptions: TExtraOptions,
+  moduleOptions: TModuleOptions,
   mediaType: TMediaType
 }
 
