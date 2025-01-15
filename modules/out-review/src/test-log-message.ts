@@ -9,7 +9,7 @@ export const testFoundHistory = (date: number, artifacts: TArtifact[]) => ({
         "fail": 0
     },
     "histories": {
-        [`capture/default/__test/loop-1/seq-0/featn-1/mem-0/tracks/${TRACKS_FILE}`]: testHistoryWithMeta(artifacts),
+        [`capture/default/__test/loop-1/seq-0/featn-1/tracks/${TRACKS_FILE}`]: testHistoryWithMeta(artifacts),
     }
 });
 

@@ -1,4 +1,4 @@
-import nodeFS, { existsSync } from 'fs';
+import nodeFS from 'fs';
 import { TBase, TFeature } from '../lib/defs.js';
 import { withNameType } from '../lib/features.js';
 import { TFileSystem } from '../lib/util/workspace-lib.js';
@@ -7,7 +7,6 @@ export type TFeaturesBackgrounds = {
   features: TFeature[];
   backgrounds: TFeature[];
 };
-
 
 export function getFeaturesAndBackgrounds(bases: TBase, featureFilter: string[], fs: TFileSystem = nodeFS): TFeaturesBackgrounds {
   const ret = { features: [], backgrounds: [] };

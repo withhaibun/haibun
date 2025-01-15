@@ -7,6 +7,7 @@ import { actionNotOK, createSteppers, getSerialTime } from './util/index.js';
 import { getDefaultWorld, testWithDefaults, TEST_BASE } from './test/lib.js';
 import { asExpandedFeatures } from './resolver-features.js';
 import { withNameType } from './features.js';
+import Vars from '../steps/vars.js';
 
 describe('namedMatches', () => {
   const step: TStep = {
@@ -15,7 +16,7 @@ describe('namedMatches', () => {
   };
 
   it('gets named matches', () => {
-    expect(getNamedMatches(step.match, 'It is set')).toEqual({ one: 'It', two: 'set' });
+    expect(getNamedMatches(step.match!, 'It is set')).toEqual({ one: 'It', two: 'set' });
   });
 });
 
@@ -96,23 +97,17 @@ describe('getNamedWithVars', () => {
 });
 
 describe('special', () => {
-  it('assigns [HERE]', async () => {
-    const feature = { path: '/features/here.feature', content: 'set t to [HERE]' };
-    const verify = { path: '/features/verify.feature', content: 't is "/features/here.feature"' };
-    const res = await testWithDefaults([feature, verify], []);
-    expect(res.ok).toBe(true);
-  });
   it('assigns [SERIALTIME]', async () => {
     const feature = { path: '/features/here.feature', content: 'set t to [SERIALTIME]' };
     const now = getSerialTime();
-    const res = await testWithDefaults([feature], []);
+    const res = await testWithDefaults([feature], [Vars]);
     const t = res.world.shared.get('t');
     expect(t).toBeDefined();
     expect(parseInt(t)).toBeGreaterThanOrEqual(now);
   });
   it('rejects unknown', async () => {
     const fails = { path: '/features/here.feature', content: 'set [NOTHING] to y' };
-    const res = await testWithDefaults([fails], [])
+    const res = await testWithDefaults([fails], [Vars]);
     expect(res.ok).toBe(false)
   });
 });

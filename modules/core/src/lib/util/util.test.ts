@@ -199,7 +199,6 @@ describe('getStepperOptions', () => {
   it.skip('fills extra', async () => {
     const { world } = getDefaultWorld(0);
     await util.verifyExtraOptions({ [HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]: 'true' }, [TestStepsWithOptions]);
-    console.log('🤑', JSON.stringify(world.options, null, 2));
     expect(world.options[HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]).toEqual(42);
   });
   it('throws for unfilled extra', async () => {

@@ -2,7 +2,7 @@ import { IHasOptions, OK, TWorld, TNamed, TOptions, AStepper, TVStep, } from '@h
 import { actionNotOK, getFromRuntime, getStepperOption, intOrError } from '@haibun/core/build/lib/util/index.js';
 import { IWebServer, WEBSERVER, } from './defs.js';
 import { ServerExpress, DEFAULT_PORT } from './server-express.js';
-import { WEB_PAGE } from '@haibun/domain-webpage/build/domain-webpage.js';
+import { WEB_PAGE } from '@haibun/core/build/lib/domain-types.js';
 import path from 'path';
 
 const WebServerStepper = class WebServerStepper extends AStepper implements IHasOptions {
@@ -18,7 +18,7 @@ const WebServerStepper = class WebServerStepper extends AStepper implements IHas
   async setWorld(world: TWorld, steppers: AStepper[]) {
     await super.setWorld(world, steppers);
     // this.world.runtime[CHECK_LISTENER] = WebServerStepper.checkListener;
-    const port = parseInt(getStepperOption(this, 'PORT', world.extraOptions)) || DEFAULT_PORT;
+    const port = parseInt(getStepperOption(this, 'PORT', world.moduleOptions)) || DEFAULT_PORT;
     this.webserver = new ServerExpress(world.logger, path.join([process.cwd(),  'files'].join('/')), port);
     world.runtime[WEBSERVER] = this.webserver;
   }
