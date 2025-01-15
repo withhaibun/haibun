@@ -7,7 +7,6 @@ import { constructorName } from './util/index.js';
 
 export type TSpecl = {
   steppers: string[];
-  mode: 'all' | 'some';
   refs?: {
     docs: { [name: string]: { src: string } };
   };
@@ -293,26 +292,8 @@ export const DEFAULT_DEST = 'default';
 
 export const BASE_DOMAINS = [{ name: 'string', resolve: (inp: string) => inp }];
 
-export type TScored = { name: string; score: number };
-
-export type TStartRunCallback = (world: TWorld) => void;
-
 export type TEndFeatureCallbackParams = { world: TWorld; result: TFeatureResult; steppers: AStepper[]; startOffset: number };
 export type TEndFeatureCallback = (params: TEndFeatureCallbackParams) => Promise<void>;
-
-export type TRunEnv = { [name: string]: string };
-// FIXME remove protoOptions, splits, etc.
-export type TRunOptions = {
-  key: string;
-  trace: boolean;
-  startRunCallback?: TStartRunCallback;
-  endFeatureCallback?: TEndFeatureCallback;
-  featureFilter?: string[];
-  specl: TSpecl;
-  bases: TBase;
-  protoOptions: TProtoOptions;
-};
-export type TRunResult = { output: TAnyFixme; result: TExecutorResult; shared: WorldContext; tag: TTag; runStart: number; runDuration: number; fromStart: number };
 
 export const STAY_ALWAYS = 'always';
 export const STAY_FAILURE = 'failure';

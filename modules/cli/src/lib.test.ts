@@ -40,44 +40,31 @@ describe('options', () => {
 	});
 });
 
-describe('builds', () => {
-	it.skip('builds with finalizer', async () => {
-		const feature = { path: '/features/test.feature', content: `builds with finalizer` };
-		const result = await testWithDefaults([feature], [TestSteps]);
-
-		expect(result.ok).toBe(true);
-
-		expect(result.shared.get('done')).toEqual('ok');
-	});
-});
-
 describe('processEnv', () => {
-	it('carries module options', () => {
+	it('assigns boolean true', () => {
 		const specl = getDefaultOptions();
-		const { protoOptions } = lib.processBaseEnvToOptionsAndErrors({ HAIBUN_TEST: 'true' }, specl.options);
-		expect(protoOptions.moduleOptions['HAIBUN_TEST']).toBeDefined();
+		const { protoOptions } = lib.processBaseEnvToOptionsAndErrors({ HAIBUN_TRACE: 'true' }, specl.options);
+		expect(protoOptions.options['TRACE']).toBeDefined();
+		expect(protoOptions.options['TRACE']).toBe(true);
 	});
-	it('split_shared incorrect message', () => {
+	it('errors for non-boolean value ', () => {
 		const specl = getDefaultOptions();
-
-		const { errors } = lib.processBaseEnvToOptionsAndErrors({ HAIBUN_SPLIT_SHARED: '1,2' }, specl.options);
-
+		const { errors } = lib.processBaseEnvToOptionsAndErrors({ HAIBUN_TRACE: 'wtw' }, specl.options);
 		expect(errors.length).toBe(1);
-	});
-	it('processes split_shared', () => {
-		const specl = getDefaultOptions();
-		const res = lib.processBaseEnvToOptionsAndErrors({ HAIBUN_SPLIT_SHARED: 'foo=1,2' }, specl.options).protoOptions.options;
-		expect(res.SPLIT_SHARED).toEqual([{ foo: '1' }, { foo: '2' }]);
 	});
 	it('assigns int', () => {
 		const specl = getDefaultOptions();
-		const { options } = lib.processBaseEnvToOptionsAndErrors({ HAIBUN_LOOPS: '1' }, specl.options).protoOptions;
-
-		expect(options.LOOPS).toBe(1);
+		const { options } = lib.processBaseEnvToOptionsAndErrors({ HAIBUN_STEP_DELAY: '1' }, specl.options).protoOptions;
+		expect(options.STEP_DELAY).toBe(1);
 	});
 	it('errors for string passed as int', () => {
 		const specl = getDefaultOptions();
-		const { errors } = lib.processBaseEnvToOptionsAndErrors({ HAIBUN_LOOPS: '1.2' }, specl.options);
+		const { errors } = lib.processBaseEnvToOptionsAndErrors({ HAIBUN_STEP_DELAY: 'x.2' }, specl.options);
+		expect(errors.length).toBe(1);
+	});
+	it('errors for non option', () => {
+		const specl = getDefaultOptions();
+		const { errors } = lib.processBaseEnvToOptionsAndErrors({ HAIBUN_WTW: 'x.2' }, specl.options);
 		expect(errors.length).toBe(1);
 	});
 });

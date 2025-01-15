@@ -27,15 +27,14 @@ Extend the `AStepper` abstract class, and the appropriate properties and methods
 Your file might end up looking like this:
 
 ```typescript
-import { OK, TNamed, IHasOptions, IRequireDomains, AStepper, TWorld } from '@haibun/core/build/lib/defs.js';
+import { OK, TNamed, IHasOptions, AStepper, TWorld } from '@haibun/core/build/lib/defs.js';
 import { actionNotOK, stringOrError, findStepperFromOption } from '@haibun/core/build/lib/util/index.js';
 import { STORAGE_ITEM, STORAGE_LOCATION } from '@haibun/domain-storage/build/domain-storage.js';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 
 const STORAGE = 'STORAGE';
 
-const FilesExist = class FilesExist extends AStepper implements IHasOptions, IRequireDomains {
-    requireDomains = [STORAGE_LOCATION, STORAGE_ITEM];
+const FilesExist = class FilesExist extends AStepper implements IHasOptions {
     options = {
         [STORAGE]: {
             required: true,

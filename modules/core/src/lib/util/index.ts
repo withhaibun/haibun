@@ -6,8 +6,6 @@ import {
 	TWorld,
 	TRuntime,
 	TActionResultTopics,
-	TActionResult,
-	TFound,
 	TTag,
 	AStepper,
 	TModuleOptions,
@@ -78,7 +76,6 @@ export async function createSteppers(steppers: CStepper[]): Promise<AStepper[]> 
 
 export function getDefaultOptions(): TSpecl {
 	return {
-		mode: 'all',
 		steppers: ['vars'],
 		options: { DEST: DEFAULT_DEST },
 	};

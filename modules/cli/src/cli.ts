@@ -6,8 +6,7 @@ import { TSpecl, TEndFeatureCallback, TEndFeatureCallbackParams, TBase, STAY_ALW
 import { IHandleResultHistory, HANDLE_RESULT_HISTORY } from '@haibun/domain-storage/build/domain-storage.js';
 
 import { findHandlers, getDefaultOptions, basesFrom } from '@haibun/core/build/lib/util/index.js';
-import { getConfigFromBase } from '@haibun/core/build/lib/util/workspace-lib.js';
-import { processArgs, processBaseEnvToOptionsAndErrors, usageThenExit } from './lib.js';
+import { getConfigFromBase, processArgs, processBaseEnvToOptionsAndErrors, usageThenExit } from './lib.js';
 import { Timer } from '@haibun/core/build/lib/Timer.js';
 import Logger from '@haibun/core/build/lib/Logger.js';
 import { EMediaTypes } from '@haibun/domain-storage/build/media-types.js';

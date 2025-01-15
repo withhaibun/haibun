@@ -135,7 +135,6 @@ class Versioner {
 		const originalDir = process.cwd();
 		try {
 			process.chdir(location);
-		console.log('cwd', location);
 
 			const vitest = await createVitest('test', { watch: false });
 			await vitest.start();
