@@ -35,9 +35,9 @@ export async function getTestEnv(useSteppers: string[], test: string, world: TWo
 	const resolver = new Resolver(steppers);
 	const actions = resolver.findActionableSteps(test);
 
-	const vstep = testVStep('test', actions[0]);
+	const featureStep = testVStep('test', actions[0]);
 
-	return { world, vstep, csteppers, steppers };
+	return { world, featureStep, csteppers, steppers };
 }
 type TTestFeatures = { path: string; content: string; base?: string }[];
 

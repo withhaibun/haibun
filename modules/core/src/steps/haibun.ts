@@ -102,14 +102,14 @@ const Haibun = class Haibun extends AStepper {
 					const theStepper = findStepper<AStepper>(this.steppers, stepperName);
 					const newSteps = [];
 
-					for (const vstep of rf.vsteps) {
-						newSteps.push(vstep);
-						if (vstep.action.stepperName === stepperName) {
-							const newFeatureStep = await this.newFeatureFromEffect(theStepper, line, vstep.seq + 0.1);
+					for (const featureStep of rf.featureSteps) {
+						newSteps.push(featureStep);
+						if (featureStep.action.stepperName === stepperName) {
+							const newFeatureStep = await this.newFeatureFromEffect(theStepper, line, featureStep.seq + 0.1);
 							newSteps.push(newFeatureStep);
 						}
 					}
-					rf.vsteps = newSteps;
+					rf.featureSteps = newSteps;
 					modifiedFeatures.push(rf);
 				}
 
@@ -120,8 +120,8 @@ const Haibun = class Haibun extends AStepper {
 	async newFeatureFromEffect(stepper: AStepper, content: string, seq: number): Promise<TFeatureStep> {
 		const features = asFeatures([{ path: `resolved from ${content}`, content }]);
 		const expandedFeatures = await expand([], features);
-		const vsteps = await new Resolver([stepper]).findFeatureSteps(expandedFeatures[0]);
-		return { ...vsteps[0], seq };
+		const featureSteps = await new Resolver([stepper]).findFeatureSteps(expandedFeatures[0]);
+		return { ...featureSteps[0], seq };
 	}
 };
 

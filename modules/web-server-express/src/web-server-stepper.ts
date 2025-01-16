@@ -30,8 +30,8 @@ const WebServerStepper = class WebServerStepper extends AStepper implements IHas
   steps = {
     thisURI: {
       gwta: `a ${WEB_PAGE} at {where}`,
-      action: async ({ where }: TNamed, vstep: TVStep) => {
-        const page = vstep.source.name;
+      action: async ({ where }: TNamed, featureStep: TVStep) => {
+        const page = featureStep.source.name;
 
         const webserver = <IWebServer>getFromRuntime(this.getWorld().runtime, WEBSERVER);
         await webserver.checkAddStaticFolder(page, where);

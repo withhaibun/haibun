@@ -82,7 +82,7 @@ export const getMatch = (
 
 // returns named values, assigning variable values as appropriate
 // retrieves from world.shared if a base domain, otherwise world.domains[type].shared
-export function getNamedToVars(found: TStepAction, world: TWorld, vstep: TFeatureStep) {
+export function getNamedToVars(found: TStepAction, world: TWorld, featureStep: TFeatureStep) {
 	const { named, vars } = found;
 	if (!named) {
 		return { _nb: 'no named' };
@@ -115,7 +115,7 @@ export function getNamedToVars(found: TStepAction, world: TWorld, vstep: TFeatur
 			if (!shared.get(namedValue)) {
 				throw Error(
 					`no value for "${namedValue}" from ${JSON.stringify({ keys: Object.keys(shared.values), type })} in ${
-						vstep.source.path
+						featureStep.source.path
 					}`
 				);
 			}

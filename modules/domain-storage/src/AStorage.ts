@@ -164,9 +164,9 @@ export abstract class AStorage extends AStepper {
 		},
 		fromFile: {
 			gwta: `from {where} set {what}`,
-			action: async ({ where, what }: TNamed, vstep) => {
+			action: async ({ where, what }: TNamed, featureStep) => {
 				const text = await this.readFile(where, 'utf-8');
-				setShared({ what, value: text }, vstep, this.getWorld());
+				setShared({ what, value: text }, featureStep, this.getWorld());
 
 				return OK;
 			},

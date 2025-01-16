@@ -96,12 +96,12 @@ export class Runner {
 		let allFeatures = [...resolvedFeatures];
 
 		for (const feature of resolvedFeatures) {
-			for (const vstep of feature.vsteps) {
-				const action = vstep.action;
+			for (const featureStep of feature.featureSteps) {
+				const action = featureStep.action;
 				const stepper = steppers.find((s) => constructorName(s) === action.stepperName);
 				if (stepper && stepper.steps[action.actionName]?.applyEffect) {
 					const found: TStepAction = action;
-					const namedWithVars = getNamedToVars(found, this.world, vstep);
+					const namedWithVars = getNamedToVars(found, this.world, featureStep);
 					allFeatures = await stepper.steps[action.actionName].applyEffect(namedWithVars, [feature]);
 				}
 			}

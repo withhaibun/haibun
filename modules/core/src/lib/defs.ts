@@ -106,7 +106,7 @@ export type TFeatures = TFeature[];
 
 export type TResolvedFeature = TExpandedFeature & {
 	name: string;
-	vsteps: TFeatureStep[];
+	featureSteps: TFeatureStep[];
 };
 
 const example: TResolvedFeature = {
@@ -115,7 +115,7 @@ const example: TResolvedFeature = {
 	base: 'base',
 	name: 'name',
 	expanded: [{ line: 'line', feature: { type: 'type', base: 'base', name: 'name', path: 'path', content: 'content' } }],
-	vsteps: [
+	featureSteps: [
 		{
 			source: { type: 'type', base: 'base', name: 'name', path: 'path', content: 'content' },
 			in: 'in',
@@ -145,7 +145,7 @@ export type TFeatureStep = {
 	action: TStepAction;
 };
 
-export type TAction = (named: TNamed, vstep: TFeatureStep) => Promise<TActionResult>;
+export type TAction = (named: TNamed, featureStep: TFeatureStep) => Promise<TActionResult>;
 
 export type TRequiresResult = { includes?: string[] };
 

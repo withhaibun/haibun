@@ -89,10 +89,9 @@ describe('getNamedWithVars', () => {
 		world.shared.set('exact', 'res');
 		const features = asExpandedFeatures([withNameType(TEST_BASE, 'l1', 'is `exact`')]);
 		const  steps  = await resolver.resolveStepsFromFeatures(features);
-		console.log('rr', steps);
-		const { vsteps } = steps[0] as TResolvedFeature;
-		expect(vsteps[0].action).toBeDefined();
-		const val = getNamedToVars(vsteps[0].action, world, vsteps[0]);
+		const { featureSteps } = steps[0] as TResolvedFeature;
+		expect(featureSteps[0].action).toBeDefined();
+		const val = getNamedToVars(featureSteps[0].action, world, featureSteps[0]);
 		expect(val?.what).toBe('res');
 	});
 });

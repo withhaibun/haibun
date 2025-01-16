@@ -21,13 +21,13 @@ import { actionNotOK, setStepperWorlds, sleep, createSteppers, findStepper, cons
 
 export class Executor {
 	// find the stepper and action, call it and return its result
-	static async action(steppers: AStepper[], vstep: TFeatureStep, found: TStepAction, world: TWorld) {
-		const namedWithVars = getNamedToVars(found, world, vstep);
+	static async action(steppers: AStepper[], featureStep: TFeatureStep, found: TStepAction, world: TWorld) {
+		const namedWithVars = getNamedToVars(found, world, featureStep);
 		const stepper = findStepper<AStepper>(steppers, found.stepperName);
 		const action = stepper.steps[found.actionName].action;
-		return await action(namedWithVars, vstep).catch((caught: TAnyFixme) => {
+		return await action(namedWithVars, featureStep).catch((caught: TAnyFixme) => {
 			world.logger.error(caught.stack);
-			return actionNotOK(`in ${vstep.in}: ${caught.message}`, { topics: { caught: (caught?.stack || caught).toString() } });
+			return actionNotOK(`in ${featureStep.in}: ${caught.message}`, { topics: { caught: (caught?.stack || caught).toString() } });
 		});
 	}
 	static async execute(
@@ -89,7 +89,7 @@ export class FeatureExecutor {
 		let ok = true;
 		const stepResults: TStepResult[] = [];
 
-		for (const step of feature.vsteps) {
+		for (const step of feature.featureSteps) {
 			world.logger.log(step.in);
 			const result = await FeatureExecutor.doFeatureStep(this.steppers, step, world);
 
@@ -112,13 +112,13 @@ export class FeatureExecutor {
 		return featureResult;
 	}
 
-	static async doFeatureStep(steppers: AStepper[], vstep: TFeatureStep, world: TWorld): Promise<TStepResult> {
+	static async doFeatureStep(steppers: AStepper[], featureStep: TFeatureStep, world: TWorld): Promise<TStepResult> {
 		let ok = true;
 
-		// FIXME feature should really be attached to the vstep
-		const action = vstep.action;
+		// FIXME feature should really be attached to the featureStep
+		const action = featureStep.action;
 		const start = world.timer.since();
-		const res: Partial<TActionResult> = await Executor.action(steppers, vstep, action, world);
+		const res: Partial<TActionResult> = await Executor.action(steppers, featureStep, action, world);
 
 		let traces;
 		if (world.shared.get('_trace')) {
@@ -131,7 +131,7 @@ export class FeatureExecutor {
 		const actionResult = stepResult;
 		ok = ok && res.ok;
 
-		return { ok, in: vstep.in, sourcePath: vstep.source.path, actionResult, seq: vstep.seq };
+		return { ok, in: featureStep.in, sourcePath: featureStep.source.path, actionResult, seq: featureStep.seq };
 	}
 	async onFailure(result: TStepResult, step: TFeatureStep) {
 		for (const stepper of this.steppers) {

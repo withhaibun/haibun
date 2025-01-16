@@ -7,8 +7,8 @@ import Haibun from './haibun.js';
 
 describe('prose', () => {
 	it('finds prose', async () => {
-		const { world, vstep, steppers } = await getTestEnv(['haibun'], 'A sentence.', getDefaultWorld(0).world);
-		const res = await FeatureExecutor.doFeatureStep(steppers, vstep, world);
+		const { world, featureStep, steppers } = await getTestEnv(['haibun'], 'A sentence.', getDefaultWorld(0).world);
+		const res = await FeatureExecutor.doFeatureStep(steppers, featureStep, world);
 
 		expect(res.ok).toBe(true);
 		expect(res.actionResult.name).toBe('prose');

@@ -22,8 +22,8 @@ export class Resolver {
 	async resolveStepsFromFeatures(features: TExpandedFeature[]) {
 		const steps: TResolvedFeature[] = [];
 		for (const feature of features) {
-			const vsteps = await this.findFeatureSteps(feature);
-			const e = { ...feature, ...{ vsteps } };
+			const featureSteps = await this.findFeatureSteps(feature);
+			const e = { ...feature, ...{ featureSteps } };
 			steps.push(e);
 		}
 		return steps;
@@ -44,8 +44,8 @@ export class Resolver {
 			} else if (actions.length < 1) {
 				throw Error(`no step found for ${featureLine.line} in ${feature.path} from ${describeSteppers(this.steppers)}`);
 			}
-			const vstep = this.getVStep(featureLine, seq, actions[0]);
-			featureSteps.push(vstep);
+			const featureStep = this.getVStep(featureLine, seq, actions[0]);
+			featureSteps.push(featureStep);
 		}
 
 		return featureSteps;

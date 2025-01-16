@@ -36,7 +36,6 @@ describe('options', () => {
 		const result = await testWithDefaults([feature], [TestStepsWithOptions], protoConfig);
 		expect(result.ok).toBe(true);
 		expect(result.featureResults?.length).toBe(1);
-		console.log('wtw', result.featureResults![0].stepResults[0].actionResult)
 		expect(result.featureResults![0].stepResults[0].actionResult.topics?.options.summary).toEqual('options');
 	});
 });

@@ -66,8 +66,8 @@ const DomainStorage = class DomainStorage extends AStepper implements IHasOption
   steps = {
     aLocation: {
       gwta: `a ${STORAGE_LOCATION} at {where}`,
-      action: async ({ where }: TNamed, vstep: TFeatureStep) => {
-        const location = vstep.source.name;
+      action: async ({ where }: TNamed, featureStep: TFeatureStep) => {
+        const location = featureStep.source.name;
         return OK;
       },
     },

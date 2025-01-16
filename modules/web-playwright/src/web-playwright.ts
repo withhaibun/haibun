@@ -479,8 +479,8 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     clickLink: {
       // TODO: generalize modifier
       gwta: 'click( with alt)? the link {name}',
-      action: async ({ name }: TNamed, vstep: TVStep) => {
-        const modifier = vstep.in.match(/ with alt /) ? { modifiers: ['Alt'] } : {};
+      action: async ({ name }: TNamed, featureStep: TVStep) => {
+        const modifier = featureStep.in.match(/ with alt /) ? { modifiers: ['Alt'] } : {};
         const field = this.getWorld().shared.get(name) || name;
         await this.withPage(async (page: Page) => await page.click(field, <TAnyFixme>modifier));
         return OK;
@@ -611,8 +611,8 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     },
     takeScreenshot: {
       gwta: 'take a screenshot',
-      action: async (notUsed, vstep: TVStep) => {
-        await this.captureScreenshot('request', 'action', vstep);
+      action: async (notUsed, featureStep: TVStep) => {
+        await this.captureScreenshot('request', 'action', featureStep);
         return OK;
       },
     },
