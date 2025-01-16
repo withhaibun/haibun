@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { FeatureExecutor } from './Executor';
-import { OK, TEndFeatureCallback, TFeatureResult, TStepActionResult } from '../lib/defs';
+import { TEndFeatureCallback, TFeatureResult, TStepActionResult } from '../lib/defs';
 import { getDefaultWorld } from '../lib/test/lib';
 import { actionNotOK, actionOK } from '../lib/util';
 

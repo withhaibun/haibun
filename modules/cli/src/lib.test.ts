@@ -2,7 +2,6 @@ import { vitest, describe, it, expect } from 'vitest';
 
 import { DEFAULT_DEST } from '@haibun/core/build/lib/defs.js';
 import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, testWithDefaults } from '@haibun/core/build/lib/test/lib.js';
-import TestSteps from '@haibun/core/build/lib/test/TestSteps.js';
 import TestStepsWithOptions from '@haibun/core/build/lib/test/TestStepsWithOptions.js';
 import { getDefaultOptions } from '@haibun/core/build/lib/util/index.js';
 import * as lib from './lib.js';

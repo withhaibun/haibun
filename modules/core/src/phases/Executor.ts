@@ -27,7 +27,9 @@ export class Executor {
 		const action = stepper.steps[found.actionName].action;
 		return await action(namedWithVars, featureStep).catch((caught: TAnyFixme) => {
 			world.logger.error(caught.stack);
-			return actionNotOK(`in ${featureStep.in}: ${caught.message}`, { topics: { caught: (caught?.stack || caught).toString() } });
+			return actionNotOK(`in ${featureStep.in}: ${caught.message}`, {
+				topics: { caught: (caught?.stack || caught).toString() },
+			});
 		});
 	}
 	static async execute(
@@ -69,10 +71,7 @@ export class FeatureExecutor {
 	steppers?: AStepper[];
 	startOffset = 0;
 
-	constructor(private csteppers: CStepper[], private endFeatureCallbacks?: TEndFeatureCallback[]) {
-		this.csteppers = csteppers;
-		this.endFeatureCallbacks = endFeatureCallbacks;
-	}
+	constructor(private csteppers: CStepper[], private endFeatureCallbacks?: TEndFeatureCallback[]) {}
 	async setup(world: TWorld) {
 		this.world = world;
 		this.startOffset = world.timer.since();

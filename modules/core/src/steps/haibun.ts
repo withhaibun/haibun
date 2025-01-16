@@ -4,16 +4,12 @@ import {
 	AStepper,
 	TWorld,
 	TFeatureStep,
-	TStepperStep,
 	TResolvedFeature,
-	TFeature,
-	TExpandedFeature,
 } from '../lib/defs.js';
 import { Resolver } from '../phases/Resolver.js';
 import { actionNotOK, findStepper, sleep } from '../lib/util/index.js';
-import { expand, findFeatures } from '../lib/features.js';
-import { asExpandedFeatures, asFeatures } from '../lib/resolver-features.js';
-import { resolve } from 'path';
+import { expand, } from '../lib/features.js';
+import {  asFeatures } from '../lib/resolver-features.js';
 
 const Haibun = class Haibun extends AStepper {
 	steppers: AStepper[];

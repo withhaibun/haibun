@@ -47,8 +47,7 @@ export class Runner {
 		try {
 			featuresBackgrounds = getFeaturesAndBackgrounds(this.world.bases, []);
 		} catch (error) {
-			console.error('Error collecting features and backgrounds:', error);
-			throw error;
+			this.errorBail('Collector', error);
 		}
 
 		const { features, backgrounds } = featuresBackgrounds;
