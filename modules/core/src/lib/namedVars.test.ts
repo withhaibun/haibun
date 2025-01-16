@@ -1,6 +1,6 @@
 import { describe, it, test, expect } from 'vitest';
 
-import { AStepper, OK, TResolvedFeature, TStep } from './defs.js';
+import { AStepper, OK, TResolvedFeature, TStepperStep } from './defs.js';
 import { getNamedMatches, namedInterpolation, matchGroups, getNamedToVars } from './namedVars.js';
 import { Resolver } from '../phases/Resolver.js';
 import { actionNotOK, createSteppers, getSerialTime } from './util/index.js';
@@ -10,7 +10,7 @@ import { withNameType } from './features.js';
 import Vars from '../steps/vars.js';
 
 describe('namedMatches', () => {
-	const step: TStep = {
+	const step: TStepperStep = {
 		match: /^(?<one>.*?) is (?<two>.*?)$/,
 		action: async () => actionNotOK('test'),
 	};
@@ -91,8 +91,8 @@ describe('getNamedWithVars', () => {
 		const  steps  = await resolver.resolveStepsFromFeatures(features);
 		console.log('rr', steps);
 		const { vsteps } = steps[0] as TResolvedFeature;
-		expect(vsteps[0].actions[0]).toBeDefined();
-		const val = getNamedToVars(vsteps[0].actions[0], world, vsteps[0]);
+		expect(vsteps[0].action).toBeDefined();
+		const val = getNamedToVars(vsteps[0].action, world, vsteps[0]);
 		expect(val?.what).toBe('res');
 	});
 });

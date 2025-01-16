@@ -1,4 +1,14 @@
-import { TFound, TResolvedFeature, OK, TWorld, TExpandedFeature, AStepper, TStep, TVStep, TExpandedLine } from '../lib/defs.js';
+import {
+	TStepAction,
+	TResolvedFeature,
+	OK,
+	TWorld,
+	TExpandedFeature,
+	AStepper,
+	TStepperStep,
+	TFeatureStep,
+	TExpandedLine,
+} from '../lib/defs.js';
 import { BASE_TYPES } from '../lib/domain-types.js';
 import { namedInterpolation, getMatch } from '../lib/namedVars.js';
 import { getActionable, describeSteppers, isLowerCase, dePolite, constructorName } from '../lib/util/index.js';
@@ -25,8 +35,8 @@ export class Resolver {
 		return steps;
 	}
 
-	private async findVSteps(feature: TExpandedFeature): Promise<TVStep[]> {
-		let vsteps: TVStep[] = [];
+	private async findVSteps(feature: TExpandedFeature): Promise<TFeatureStep[]> {
+		let vsteps: TFeatureStep[] = [];
 		let seq = 0;
 		for (const featureLine of feature.expanded) {
 			seq++;
@@ -40,22 +50,22 @@ export class Resolver {
 			} else if (actions.length < 1) {
 				throw Error(`no step found for ${featureLine.line} in ${feature.path} from ${describeSteppers(this.steppers)}`);
 			}
-			const vstep = this.getVStep(featureLine, seq, actions);
+			const vstep = this.getVStep(featureLine, seq, actions[0]);
 			vsteps.push(vstep);
 		}
 
 		return vsteps;
 	}
 
-	getVStep(featureLine: TExpandedLine, seq: number, actions: TFound[]): TVStep {
-		return { source: featureLine.feature, in: featureLine.line, seq, actions };
+	getVStep(featureLine: TExpandedLine, seq: number, action: TStepAction): TFeatureStep {
+		return { source: featureLine.feature, in: featureLine.line, seq, action };
 	}
 
-	public findActionableSteps(actionable: string): TFound[] {
+	public findActionableSteps(actionable: string): TStepAction[] {
 		if (!actionable.length) {
 			return [comment];
 		}
-		const found: TFound[] = [];
+		const found: TStepAction[] = [];
 
 		for (const stepper of this.steppers) {
 			const stepperName = constructorName(stepper);
@@ -72,7 +82,7 @@ export class Resolver {
 		return found;
 	}
 
-	private stepApplies(step: TStep, actionable: string, actionName: string, stepperName: string) {
+	private stepApplies(step: TStepperStep, actionable: string, actionName: string, stepperName: string) {
 		const curt = dePolite(actionable);
 		if (step.gwta) {
 			const { str, vars } = namedInterpolation(step.gwta, this.types);

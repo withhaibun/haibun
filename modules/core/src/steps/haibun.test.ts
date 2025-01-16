@@ -11,7 +11,7 @@ describe('prose', () => {
 		const res = await FeatureExecutor.doFeatureStep(steppers, vstep, world);
 
 		expect(res.ok).toBe(true);
-		expect(res.actionResults[0].name).toBe('prose');
+		expect(res.actionResult.name).toBe('prose');
 	});
 	it('mixed prose', async () => {
 		const feature = {
@@ -27,10 +27,12 @@ Prose sections are indicated by the presence of punctuation at the end of paragr
 
 		expect(result.featureResults?.length).toBe(1);
 	});
-	it.only('process resolve callbacks', async () => {
-		const feature = { path: '/features/test.feature', content: 'passes\nafter every TestSteps, passes\nhave a test' };
+	it.only('process effect callbacks', async () => {
+		const feature = { path: '/features/test.feature', content: 'have a test\nafter every TestSteps, passes' };
 		const result = await testWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(true);
-		expect(result.featureResults?.length).toBe(4);
+		console.log('🤑', JSON.stringify(result.featureResults, null, 2));
+		expect(result.featureResults![0].stepResults.length).toBe(3);
+		expect(result.featureResults![0].stepResults[1].seq).toBe(1.1);
 	});
 });

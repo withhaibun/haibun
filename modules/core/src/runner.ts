@@ -6,7 +6,7 @@ import {
 	TEndFeatureCallback,
 	AStepper,
 	TResolvedFeature,
-	TFound,
+	TStepAction,
 } from './lib/defs.js';
 import { expand } from './lib/features.js';
 import { getNamedToVars } from './lib/namedVars.js';
@@ -97,13 +97,12 @@ export class Runner {
 
 		for (const feature of resolvedFeatures) {
 			for (const vstep of feature.vsteps) {
-				for (const action of vstep.actions) {
-					const stepper = steppers.find((s) => constructorName(s) === action.stepperName);
-					if (stepper && stepper.steps[action.actionName]?.effectCallback) {
-						const found: TFound = action;
-						const namedWithVars = getNamedToVars(found, this.world, vstep);
-						allFeatures = await stepper.steps[action.actionName].effectCallback(namedWithVars, [feature]);
-					}
+				const action = vstep.action;
+				const stepper = steppers.find((s) => constructorName(s) === action.stepperName);
+				if (stepper && stepper.steps[action.actionName]?.applyEffect) {
+					const found: TStepAction = action;
+					const namedWithVars = getNamedToVars(found, this.world, vstep);
+					allFeatures = await stepper.steps[action.actionName].applyEffect(namedWithVars, [feature]);
 				}
 			}
 		}

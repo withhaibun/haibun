@@ -54,7 +54,7 @@ describe('validate map steps', () => {
 
 			const res = await getResolvedSteps(features);
 			const { vsteps } = res[0] as TResolvedFeature;
-			expect(vsteps[0].actions[0].named).toBeUndefined();
+			expect(vsteps[0].action.named).toBeUndefined();
 		});
 	});
 	describe('match', () => {
@@ -62,7 +62,7 @@ describe('validate map steps', () => {
 			const features = asExpandedFeatures([{ path: 'l1', content: `match1` }]);
 			const res = await getResolvedSteps(features);
 			const { vsteps } = res[0] as TResolvedFeature;
-			expect(vsteps[0].actions[0].named).toEqual({ num: '1' });
+			expect(vsteps[0].action.named).toEqual({ num: '1' });
 		});
 	});
 	describe('gwta regex', () => {
@@ -72,11 +72,11 @@ describe('validate map steps', () => {
 			]);
 			const res = await getResolvedSteps(features);
 			const { vsteps } = res[0] as TResolvedFeature;
-			expect(vsteps[0].actions[0].named).toEqual({ num: '2' });
-			expect(vsteps[1].actions[0].named).toEqual({ num: '3' });
-			expect(vsteps[2].actions[0].named).toEqual({ num: '4' });
-			expect(vsteps[3].actions[0].named).toEqual({ num: '5' });
-			expect(vsteps[4].actions[0].named).toEqual({ num: '6' });
+			expect(vsteps[0].action.named).toEqual({ num: '2' });
+			expect(vsteps[1].action.named).toEqual({ num: '3' });
+			expect(vsteps[2].action.named).toEqual({ num: '4' });
+			expect(vsteps[3].action.named).toEqual({ num: '5' });
+			expect(vsteps[4].action.named).toEqual({ num: '6' });
 		});
 	});
 	describe('gwta interpolated', () => {
@@ -84,13 +84,13 @@ describe('validate map steps', () => {
 			const features = asExpandedFeatures([{ path: 'l1', content: 'is "string"' }]);
 			const res = await getResolvedSteps(features);
 			const { vsteps } = res[0] as TResolvedFeature;
-			expect(vsteps[0].actions[0].named?.q_0).toEqual('string');
+			expect(vsteps[0].action.named?.q_0).toEqual('string');
 		});
 		test('gets uri', async () => {
 			const features = asExpandedFeatures([{ path: 'l1', content: 'is http://url' }]);
 			const res = await getResolvedSteps(features);
 			const { vsteps } = res[0] as TResolvedFeature;
-			expect(vsteps[0].actions[0].named?.t_0).toEqual('http://url');
+			expect(vsteps[0].action.named?.t_0).toEqual('http://url');
 		});
 	});
 });

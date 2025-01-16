@@ -27,7 +27,7 @@ describe('usageThenExit', () => {
 });
 
 describe('options', () => {
-	it('stepper options', async () => {
+	it.only('stepper options', async () => {
 		const feature = { path: '/features/test.feature', content: `When I have a stepper option` };
 		const protoConfig = {
 			moduleOptions: { [HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]: 'true' },
@@ -36,7 +36,8 @@ describe('options', () => {
 		const result = await testWithDefaults([feature], [TestStepsWithOptions], protoConfig);
 		expect(result.ok).toBe(true);
 		expect(result.featureResults?.length).toBe(1);
-		expect(result.featureResults![0].stepResults[0].actionResults[0].topics?.options.summary).toEqual('options');
+		console.log('wtw', result.featureResults![0].stepResults[0].actionResult)
+		expect(result.featureResults![0].stepResults[0].actionResult.topics?.options.summary).toEqual('options');
 	});
 });
 

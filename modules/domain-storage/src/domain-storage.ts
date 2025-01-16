@@ -1,5 +1,5 @@
 import { WorkspaceContext } from '@haibun/core/build/lib/contexts.js'
-import { TNamed, TVStep, OK, AStepper, IHasOptions, TModuleOptions, TFeatureResult, TOptions, TTag, TAnyFixme, IHasHandlers, IHandler, ISourcedHandler } from '@haibun/core/build/lib/defs.js';
+import { TNamed, TFeatureStep, OK, AStepper, IHasOptions, TModuleOptions, TFeatureResult, TOptions, TTag, TAnyFixme, IHasHandlers, IHandler, ISourcedHandler } from '@haibun/core/build/lib/defs.js';
 import { TLogHistory } from '@haibun/core/build/lib/interfaces/logger.js';
 import { stringOrError } from '@haibun/core/build/lib/util/index.js';
 import { TMediaType, MEDIA_TYPES, MAPPED_MEDIA_TYPES } from './media-types.js';
@@ -66,7 +66,7 @@ const DomainStorage = class DomainStorage extends AStepper implements IHasOption
   steps = {
     aLocation: {
       gwta: `a ${STORAGE_LOCATION} at {where}`,
-      action: async ({ where }: TNamed, vstep: TVStep) => {
+      action: async ({ where }: TNamed, vstep: TFeatureStep) => {
         const location = vstep.source.name;
         return OK;
       },
@@ -76,7 +76,7 @@ const DomainStorage = class DomainStorage extends AStepper implements IHasOption
       action: async ({ name }: TNamed) => {
         return OK;
       },
-      build: async ({ name }: TNamed, a: TVStep, workspace: WorkspaceContext) => {
+      build: async ({ name }: TNamed, a: TFeatureStep, workspace: WorkspaceContext) => {
         workspace.getBuilder().addControl(name);
         return { ...OK };
       },

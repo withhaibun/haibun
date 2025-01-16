@@ -1,5 +1,5 @@
 import {
-	TVStep,
+	TFeatureStep,
 	TResolvedFeature,
 	TExecutorResult,
 	TStepResult,
@@ -10,7 +10,7 @@ import {
 	AStepper,
 	TEndFeatureCallback,
 	CStepper,
-	TFound,
+	TStepAction,
 	TAnyFixme,
 	STAY,
 	STAY_FAILURE,
@@ -21,7 +21,7 @@ import { actionNotOK, setStepperWorlds, sleep, createSteppers, findStepper, cons
 
 export class Executor {
 	// find the stepper and action, call it and return its result
-	static async action(steppers: AStepper[], vstep: TVStep, found: TFound, world: TWorld) {
+	static async action(steppers: AStepper[], vstep: TFeatureStep, found: TStepAction, world: TWorld) {
 		const namedWithVars = getNamedToVars(found, world, vstep);
 		const stepper = findStepper<AStepper>(steppers, found.stepperName);
 		const action = stepper.steps[found.actionName].action;
@@ -112,33 +112,28 @@ export class FeatureExecutor {
 		return featureResult;
 	}
 
-	static async doFeatureStep(steppers: AStepper[], vstep: TVStep, world: TWorld): Promise<TStepResult> {
+	static async doFeatureStep(steppers: AStepper[], vstep: TFeatureStep, world: TWorld): Promise<TStepResult> {
 		let ok = true;
-		const actionResults = [];
 
 		// FIXME feature should really be attached to the vstep
-		for (const action of vstep.actions) {
-			const start = world.timer.since();
-			const res: Partial<TActionResult> = await Executor.action(steppers, vstep, action, world);
+		const action = vstep.action;
+		const start = world.timer.since();
+		const res: Partial<TActionResult> = await Executor.action(steppers, vstep, action, world);
 
-			let traces;
-			if (world.shared.get('_trace')) {
-				traces = world.shared.get('_trace');
-				world.shared.unset('_trace');
-			}
-			const end = world.timer.since();
-			// FIXME
-			const stepResult: TStepActionResult = { ...res, name: action.actionName, start, end, traces } as TStepActionResult;
-			actionResults.push(stepResult);
-			ok = ok && res.ok;
-
-			if (!ok) {
-				break;
-			}
+		let traces;
+		if (world.shared.get('_trace')) {
+			traces = world.shared.get('_trace');
+			world.shared.unset('_trace');
 		}
-		return { ok, in: vstep.in, sourcePath: vstep.source.path, actionResults, seq: vstep.seq };
+		const end = world.timer.since();
+		// FIXME
+		const stepResult: TStepActionResult = { ...res, name: action.actionName, start, end, traces } as TStepActionResult;
+		const actionResult = stepResult;
+		ok = ok && res.ok;
+
+		return { ok, in: vstep.in, sourcePath: vstep.source.path, actionResult, seq: vstep.seq };
 	}
-	async onFailure(result: TStepResult, step: TVStep) {
+	async onFailure(result: TStepResult, step: TFeatureStep) {
 		for (const stepper of this.steppers) {
 			if (stepper.onFailure) {
 				const res = await stepper.onFailure(result, step);

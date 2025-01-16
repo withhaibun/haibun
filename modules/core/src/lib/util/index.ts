@@ -343,7 +343,7 @@ export const shortNum = (n: number) => Math.round(n * 100) / 100;
 
 export const getFeatureTitlesFromResults = (result: TFeatureResult) =>
 	result.stepResults
-		.filter((s) => s.actionResults.find((a) => (a.name === 'feature' ? true : false)))
+		.filter((s) => (s.actionResult.name === 'feature' ? true : false))
 		.map((a) => a.in.replace(/^Feature: /, ''));
 
 export function trying<TResult>(fun: () => void): Promise<Error | TResult> {

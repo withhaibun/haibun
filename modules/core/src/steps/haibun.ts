@@ -1,4 +1,4 @@
-import { OK, TNamed, AStepper, TWorld, TVStep, TStep, TResolvedFeature, TFeature, TExpandedFeature } from '../lib/defs.js';
+import { OK, TNamed, AStepper, TWorld, TFeatureStep, TStepperStep, TResolvedFeature, TFeature, TExpandedFeature } from '../lib/defs.js';
 import { Resolver } from '../phases/Resolver.js';
 import { actionNotOK, findStepper, sleep } from '../lib/util/index.js';
 import { expand, findFeatures } from '../lib/features.js';
@@ -82,32 +82,36 @@ const Haibun = class Haibun extends AStepper {
 		},
 		afterEveryStepper: {
 			gwta: 'after every {stepperName}, {line}',
-			action: async (usedInResolved: TNamed) => {
+			action: async (usedInEffect: TNamed) => {
 				return OK;
 			},
-			effectCallback: async ({ stepperName, line }: TNamed, resolvedFeatures: TResolvedFeature[]) => {
-				console.log('afterEvery resolvedCallback called with:', stepperName, line, resolvedFeatures);
+			applyEffect: async ({ stepperName, line }: TNamed, resolvedFeatures: TResolvedFeature[]) => {
+				console.log('afterEvery applyEffect called with:', stepperName, line, resolvedFeatures);
 				const modifiedFeatures: TResolvedFeature[] = [];
 
 				for (const rf of resolvedFeatures) {
-					modifiedFeatures.push(rf);
+					let found = undefined;
 					for (const vstep of rf.vsteps) {
-						for (const vAction of vstep.actions) {
-							if (vAction.stepperName === stepperName) {
-								const theStepper = findStepper<AStepper>(this.steppers, stepperName);
-								let newSeq = rf.vsteps[0].seq + 0.1;
-								while (modifiedFeatures.find((f) => f.vsteps[0].seq === newSeq)) {
-									newSeq += 0.1;
-								}
-								const newFeature = await this.newFeatureFromEffect(theStepper, line, newSeq);
-								console.log('found stepper', line, stepperName, 'in', vAction.stepperName, '::', newFeature);
-								modifiedFeatures.push(newFeature);
-							}
+						if (vstep.action.stepperName === stepperName) {
+							found = stepperName;
 						}
 					}
+					if (found) {
+						const theStepper = findStepper<AStepper>(this.steppers, stepperName);
+						let newSeq = rf.vsteps[0].seq + 0.1;
+						while (modifiedFeatures.find((f) => f.vsteps[0].seq === newSeq)) {
+							newSeq += 0.1;
+						}
+						const newFeature = await this.newFeatureFromEffect(theStepper, line, newSeq);
+						console.log('found stepper', line, stepperName, '::', newFeature);
+						rf.vsteps.push(newFeature.vsteps[0]);
+					}
+					modifiedFeatures.push(rf);
+					console.log('mf now');
+					d(modifiedFeatures);
 				}
 
-				console.log('🤑', JSON.stringify(modifiedFeatures, null, 2));
+				d(modifiedFeatures);
 				return modifiedFeatures;
 			},
 		},
@@ -124,3 +128,6 @@ const Haibun = class Haibun extends AStepper {
 };
 
 export default Haibun;
+
+const d = (r: TResolvedFeature[]) =>
+	console.log('🤑', JSON.stringify(r, null, 2));

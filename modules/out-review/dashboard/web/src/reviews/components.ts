@@ -73,7 +73,7 @@ export class AReview extends LitElement {
     }
     // VIEW_DOCUMENTATION
     if (action) {
-      const { actionName, stepperName } = action.messageContext.topic.step.actions[0];
+      const { actionName, stepperName } = action.messageContext.topic.step.action;
       if (['set', 'setAll'].includes(actionName)) {
         return false;
       }

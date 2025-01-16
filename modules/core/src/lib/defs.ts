@@ -104,9 +104,29 @@ export type TExpandedLine = {
 
 export type TFeatures = TFeature[];
 
-export type TResolvedFeature = TFeatureMeta & {
+export type TResolvedFeature = TExpandedFeature & {
 	name: string;
-	vsteps: TVStep[];
+	vsteps: TFeatureStep[];
+};
+
+const example: TResolvedFeature = {
+	type: 'feature',
+	path: 'path',
+	base: 'base',
+	name: 'name',
+	expanded: [{ line: 'line', feature: { type: 'type', base: 'base', name: 'name', path: 'path', content: 'content' } }],
+	vsteps: [
+		{
+			source: { type: 'type', base: 'base', name: 'name', path: 'path', content: 'content' },
+			in: 'in',
+			seq: 0,
+			action: {
+				actionName: 'actionName',
+				stepperName: 'stepperName',
+				step: { action: async () => OK },
+			},
+		},
+	],
 };
 
 export type TTagValue = number;
@@ -118,14 +138,14 @@ export type TTag = {
 	trace: boolean;
 };
 
-export type TVStep = {
+export type TFeatureStep = {
 	source: TFeature;
 	in: string;
 	seq: number;
-	actions: TFound[];
+	action: TStepAction;
 };
 
-export type TAction = (named: TNamed, vstep: TVStep) => Promise<TActionResult>;
+export type TAction = (named: TNamed, vstep: TFeatureStep) => Promise<TActionResult>;
 
 export type TRequiresResult = { includes?: string[] };
 
@@ -137,21 +157,21 @@ export abstract class WorkspaceBuilder {
 	abstract finalize(): TAnyFixme;
 }
 
-export type TStep = {
+export type TStepperStep = {
 	match?: RegExp;
 	gwta?: string;
 	exact?: string;
 	action: TAction;
-	effectCallback?: TEffectCallback;
+	applyEffect?: TApplyEffect;
 };
 
-export type TEffectCallback = (named: TNamed, resolvedFeatures: TResolvedFeature[]) => Promise<TResolvedFeature[]>;
+export type TApplyEffect = (named: TNamed, resolvedFeatures: TResolvedFeature[]) => Promise<TResolvedFeature[]>;
 
 export interface CStepper {
 	new (): AStepper;
 	prototype: {
 		steps: {
-			[name: string]: TStep;
+			[name: string]: TStepperStep;
 		};
 		setWorld(world: TWorld, steppers: AStepper[]): Promise<void>;
 		getWorld(): TWorld;
@@ -170,12 +190,12 @@ export abstract class AStepper {
 	world?: TWorld;
 	close?(): void;
 	endFeature?(): Promise<void>;
-	onFailure?(result: TStepResult, step: TVStep): Promise<void | TMessageContext>;
+	onFailure?(result: TStepResult, step: TFeatureStep): Promise<void | TMessageContext>;
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		this.world = world;
 	}
-	abstract steps: { [name: string]: TStep };
+	abstract steps: { [name: string]: TStepperStep };
 	getWorld() {
 		if (!this.world) {
 			throw Error(`stepper without world ${constructorName(this)}`);
@@ -185,7 +205,14 @@ export abstract class AStepper {
 	}
 }
 
-export type TFound = { actionName: string; stepperName: string; step: TStep; named?: TNamed | undefined; vars?: TNamedVar[] };
+export type TStepAction = {
+	actionName: string;
+	stepperName: string;
+	step: TStepperStep;
+	named?: TNamed | undefined;
+	vars?: TNamedVar[];
+};
+
 export type TNamed = { [name: string]: string };
 export type TNamedVar = { name: string; type: string };
 
@@ -222,7 +249,6 @@ export type TActionResultTopics = {
 
 export type TNotOKActionResult = {
 	ok: false;
-	score?: number;
 	message: string;
 	error?: Error;
 	topics?: TActionResultTopics;
@@ -277,7 +303,7 @@ export type TFeatureResultFailure = {
 
 export type TStepResult = {
 	ok: boolean;
-	actionResults: TStepActionResult[];
+	actionResult: TStepActionResult;
 	in: string;
 	sourcePath: string;
 	seq: number;

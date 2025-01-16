@@ -1,5 +1,5 @@
 import { cred } from '../steps/credentials.js';
-import { TStep, TNamedVar, TFound, TNamed, TWorld, TVStep, HAIBUN } from './defs.js';
+import { TStepperStep, TNamedVar, TStepAction, TNamed, TWorld, TFeatureStep, HAIBUN } from './defs.js';
 import { BASE_TYPES } from './domain-types.js';
 import { getSerialTime } from './util/index.js';
 
@@ -70,7 +70,7 @@ export const getMatch = (
 	r: RegExp,
 	actionName: string,
 	stepperName: string,
-	step: TStep,
+	step: TStepperStep,
 	vars?: TNamedVar[]
 ) => {
 	if (!r.test(actionable)) {
@@ -82,7 +82,7 @@ export const getMatch = (
 
 // returns named values, assigning variable values as appropriate
 // retrieves from world.shared if a base domain, otherwise world.domains[type].shared
-export function getNamedToVars(found: TFound, world: TWorld, vstep: TVStep) {
+export function getNamedToVars(found: TStepAction, world: TWorld, vstep: TFeatureStep) {
 	const { named, vars } = found;
 	if (!named) {
 		return { _nb: 'no named' };

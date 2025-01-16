@@ -1,4 +1,4 @@
-import { TWorld, TVStep, TProtoOptions, CStepper, DEFAULT_DEST, TExecutorResult } from '../defs.js';
+import { TWorld, TFeatureStep, TProtoOptions, CStepper, DEFAULT_DEST, TExecutorResult } from '../defs.js';
 import { Resolver } from '../../phases/Resolver.js';
 import { getRunTag, verifyExtraOptions, createSteppers } from './../util/index.js';
 import { getSteppers } from '../util/workspace-lib.js';
@@ -20,11 +20,11 @@ export async function getCreateSteppers(steppers: string[], addSteppers?: CStepp
 	return await createSteppers(csteppers.concat(addSteppers || []));
 }
 
-export const testVStep = (name: string, actions, base = TEST_BASE): TVStep => ({
+export const testVStep = (name: string, action, base = TEST_BASE): TFeatureStep => ({
 	source: { ...withNameType(base, name, '') },
 	in: name,
 	seq: 0,
-	actions,
+	action,
 });
 
 export async function getTestEnv(useSteppers: string[], test: string, world: TWorld) {
@@ -35,7 +35,7 @@ export async function getTestEnv(useSteppers: string[], test: string, world: TWo
 	const resolver = new Resolver(steppers, world);
 	const actions = resolver.findActionableSteps(test);
 
-	const vstep = testVStep('test', actions);
+	const vstep = testVStep('test', actions[0]);
 
 	return { world, vstep, csteppers, steppers };
 }

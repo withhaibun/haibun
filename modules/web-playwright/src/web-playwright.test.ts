@@ -29,7 +29,7 @@ describe('playwrightWeb', () => {
     const { world, vstep, steppers } = await getTestEnv([me], 'using nonexistent browser', getDefaultWorld(0).world);
     const result = await FeatureExecutor.doFeatureStep(steppers, vstep, world);
     console.log('🤑', JSON.stringify(result, null, 2));
-    expect(result.actionResults[0].ok).toBe(false);
+    expect(result.actionResult.ok).toBe(false);
   });
   */
 });
