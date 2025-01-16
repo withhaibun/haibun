@@ -32,7 +32,7 @@ export async function getTestEnv(useSteppers: string[], test: string, world: TWo
 	const steppers = await createSteppers(csteppers);
 	await verifyExtraOptions({}, csteppers);
 
-	const resolver = new Resolver(steppers, world);
+	const resolver = new Resolver(steppers);
 	const actions = resolver.findActionableSteps(test);
 
 	const vstep = testVStep('test', actions[0]);

@@ -2,7 +2,6 @@ import {
 	TStepAction,
 	TResolvedFeature,
 	OK,
-	TWorld,
 	TExpandedFeature,
 	AStepper,
 	TStepperStep,
@@ -16,27 +15,22 @@ import { getActionable, describeSteppers, isLowerCase, dePolite, constructorName
 export class Resolver {
 	types: string[];
 
-	constructor(private steppers: AStepper[], private world: TWorld) {
+	constructor(private steppers: AStepper[]) {
 		this.types = BASE_TYPES;
 	}
 
 	async resolveStepsFromFeatures(features: TExpandedFeature[]) {
 		const steps: TResolvedFeature[] = [];
 		for (const feature of features) {
-			try {
-				const vsteps = await this.findVSteps(feature);
-				const e = { ...feature, ...{ vsteps } };
-				steps.push(e);
-			} catch (e) {
-				this.world.logger.error(e);
-				throw e;
-			}
+			const vsteps = await this.findFeatureSteps(feature);
+			const e = { ...feature, ...{ vsteps } };
+			steps.push(e);
 		}
 		return steps;
 	}
 
-	private async findVSteps(feature: TExpandedFeature): Promise<TFeatureStep[]> {
-		let vsteps: TFeatureStep[] = [];
+	public async findFeatureSteps(feature: TExpandedFeature): Promise<TFeatureStep[]> {
+		let featureSteps: TFeatureStep[] = [];
 		let seq = 0;
 		for (const featureLine of feature.expanded) {
 			seq++;
@@ -51,10 +45,10 @@ export class Resolver {
 				throw Error(`no step found for ${featureLine.line} in ${feature.path} from ${describeSteppers(this.steppers)}`);
 			}
 			const vstep = this.getVStep(featureLine, seq, actions[0]);
-			vsteps.push(vstep);
+			featureSteps.push(vstep);
 		}
 
-		return vsteps;
+		return featureSteps;
 	}
 
 	getVStep(featureLine: TExpandedLine, seq: number, action: TStepAction): TFeatureStep {

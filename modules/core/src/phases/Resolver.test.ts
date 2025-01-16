@@ -11,9 +11,7 @@ describe('resolve steps', () => {
 	it('resolves steps', async () => {
 		const features = asExpandedFeatures([{ path: 'l1', content: 'Then it passes' }]);
 		const steppers = await createSteppers([TestSteps]);
-		const resolver = new Resolver(steppers, {
-			...getDefaultWorld(0).world,
-		});
+		const resolver = new Resolver(steppers);
 		const steps = await resolver.resolveStepsFromFeatures(features);
 		expect(steps.length).toBe(1);
 	});
@@ -43,9 +41,7 @@ describe('validate map steps', () => {
 
 	const getResolvedSteps = async (features: TExpandedFeature[]) => {
 		const steppers = await createSteppers([TestStepper]);
-		const resolver = new Resolver(steppers, {
-			...getDefaultWorld(0).world,
-		});
+		const resolver = new Resolver(steppers);
 		return await resolver.resolveStepsFromFeatures(features);
 	};
 	describe('exact', () => {
