@@ -27,4 +27,10 @@ Prose sections are indicated by the presence of punctuation at the end of paragr
 
 		expect(result.featureResults?.length).toBe(1);
 	});
+	it.only('process resolve callbacks', async () => {
+		const feature = { path: '/features/test.feature', content: 'passes\nafter every TestSteps, passes\nhave a test' };
+		const result = await testWithDefaults([feature], [Haibun, TestSteps]);
+		expect(result.ok).toBe(true);
+		expect(result.featureResults?.length).toBe(4);
+	});
 });

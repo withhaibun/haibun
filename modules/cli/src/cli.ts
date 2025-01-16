@@ -2,7 +2,16 @@
 
 import sourceMapSupport from 'source-map-support';
 
-import { TSpecl, TEndFeatureCallback, TEndFeatureCallbackParams, TBase, STAY_ALWAYS, STAY, TWorld, TProtoOptions } from '@haibun/core/build/lib/defs.js';
+import {
+	TSpecl,
+	TEndFeatureCallback,
+	TEndFeatureCallbackParams,
+	TBase,
+	STAY_ALWAYS,
+	STAY,
+	TWorld,
+	TProtoOptions,
+} from '@haibun/core/build/lib/defs.js';
 import { IHandleResultHistory, HANDLE_RESULT_HISTORY } from '@haibun/domain-storage/build/domain-storage.js';
 
 import { findHandlers, getDefaultOptions, basesFrom } from '@haibun/core/build/lib/util/index.js';
@@ -64,7 +73,7 @@ async function go() {
 		};
 	}
 
-	const runner = new Runner(world);
+	const runner = new Runner(world, { endFeature: [endFeatureCallback] });
 
 	console.info('\n_________________________________ start');
 	const result = await runner.run(specl.steppers);

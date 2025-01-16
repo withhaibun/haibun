@@ -15,9 +15,9 @@ import {
 import { STORAGE_ITEM, STORAGE_LOCATION } from '@haibun/domain-storage';
 import {
 	actionOK,
+	constructorName,
 	findStepperFromOption,
 	getStepperOption,
-	constructorName,
 	stringOrError,
 } from '@haibun/core/build/lib/util/index.js';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';

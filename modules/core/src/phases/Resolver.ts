@@ -1,35 +1,31 @@
-import { TFound, TResolvedFeature, OK, TWorld, TExpandedFeature, AStepper, TStep, TVStep } from '../lib/defs.js';
+import { TFound, TResolvedFeature, OK, TWorld, TExpandedFeature, AStepper, TStep, TVStep, TExpandedLine } from '../lib/defs.js';
 import { BASE_TYPES } from '../lib/domain-types.js';
 import { namedInterpolation, getMatch } from '../lib/namedVars.js';
 import { getActionable, describeSteppers, isLowerCase, dePolite, constructorName } from '../lib/util/index.js';
 
 export class Resolver {
-	steppers: AStepper[];
-	world: TWorld;
-	mode: string;
 	types: string[];
-	constructor(steppers: AStepper[], world: TWorld) {
-		this.steppers = steppers;
-		this.world = world;
+
+	constructor(private steppers: AStepper[], private world: TWorld) {
 		this.types = BASE_TYPES;
 	}
 
-	async resolveStepsFromFeatures(features: TExpandedFeature[]): Promise<TResolvedFeature[]> {
-		const expanded: TResolvedFeature[] = [];
+	async resolveStepsFromFeatures(features: TExpandedFeature[]) {
+		const steps: TResolvedFeature[] = [];
 		for (const feature of features) {
 			try {
-				const vsteps = await this.findVSteps(feature, feature.path);
+				const vsteps = await this.findVSteps(feature);
 				const e = { ...feature, ...{ vsteps } };
-				expanded.push(e);
+				steps.push(e);
 			} catch (e) {
 				this.world.logger.error(e);
 				throw e;
 			}
 		}
-		return expanded;
+		return steps;
 	}
 
-	private async findVSteps(feature: TExpandedFeature, path: string, build = true): Promise<TVStep[]> {
+	private async findVSteps(feature: TExpandedFeature): Promise<TVStep[]> {
 		let vsteps: TVStep[] = [];
 		let seq = 0;
 		for (const featureLine of feature.expanded) {
@@ -39,26 +35,22 @@ export class Resolver {
 
 			const actions = this.findActionableSteps(actionable);
 
-			/*
-      try {
-        // FIXME
-        checkRequiredType(feature, featureLine.line, actions, this.world);
-      } catch (e) {
-        throw e;
-      }
-      */
-
 			if (actions.length > 1) {
 				throw Error(`more than one step found for "${featureLine.line}": ${JSON.stringify(actions.map((a) => a.actionName))}`);
 			} else if (actions.length < 1) {
 				throw Error(`no step found for ${featureLine.line} in ${feature.path} from ${describeSteppers(this.steppers)}`);
 			}
-			const vstep = { source: featureLine.feature, in: featureLine.line, seq, actions };
+			const vstep = this.getVStep(featureLine, seq, actions);
 			vsteps.push(vstep);
 		}
 
 		return vsteps;
 	}
+
+	getVStep(featureLine: TExpandedLine, seq: number, actions: TFound[]): TVStep {
+		return { source: featureLine.feature, in: featureLine.line, seq, actions };
+	}
+
 	public findActionableSteps(actionable: string): TFound[] {
 		if (!actionable.length) {
 			return [comment];
@@ -70,7 +62,7 @@ export class Resolver {
 			const { steps } = stepper;
 			for (const actionName in steps) {
 				const step = steps[actionName];
-				const stepFound = this.choose(step, actionable, actionName, stepperName);
+				const stepFound = this.stepApplies(step, actionable, actionName, stepperName);
 
 				if (stepFound) {
 					found.push(stepFound);
@@ -80,7 +72,7 @@ export class Resolver {
 		return found;
 	}
 
-	private choose(step: TStep, actionable: string, actionName: string, stepperName: string) {
+	private stepApplies(step: TStep, actionable: string, actionName: string, stepperName: string) {
 		const curt = dePolite(actionable);
 		if (step.gwta) {
 			const { str, vars } = namedInterpolation(step.gwta, this.types);

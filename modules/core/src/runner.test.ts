@@ -1,3 +1,4 @@
+import { AStepper, OK } from './lib/defs.js';
 import { asFeatures } from './lib/resolver-features.js';
 import { getDefaultWorld } from './lib/test/lib.js';
 import TestSteps from './lib/test/TestSteps.js';
