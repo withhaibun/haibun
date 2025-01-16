@@ -90,22 +90,18 @@ const Haibun = class Haibun extends AStepper {
 				const modifiedFeatures: TResolvedFeature[] = [];
 
 				for (const rf of resolvedFeatures) {
-					let found = undefined;
-					for (const vstep of rf.vsteps) {
+					const theStepper = findStepper<AStepper>(this.steppers, stepperName);
+					const newSteps = [...rf.vsteps];
+
+					for (let i = 0; i < rf.vsteps.length; i++) {
+						const vstep = rf.vsteps[i];
 						if (vstep.action.stepperName === stepperName) {
-							found = stepperName;
+							const newFeature = await this.newFeatureFromEffect(theStepper, line, vstep.seq + 0.1);
+							newSteps.splice(i + 1, 0, newFeature.vsteps[0]);
+							i++; // Skip the newly inserted step
 						}
 					}
-					if (found) {
-						const theStepper = findStepper<AStepper>(this.steppers, stepperName);
-						let newSeq = rf.vsteps[0].seq + 0.1;
-						while (modifiedFeatures.find((f) => f.vsteps[0].seq === newSeq)) {
-							newSeq += 0.1;
-						}
-						const newFeature = await this.newFeatureFromEffect(theStepper, line, newSeq);
-						console.log('found stepper', line, stepperName, '::', newFeature);
-						rf.vsteps.push(newFeature.vsteps[0]);
-					}
+					rf.vsteps = newSteps;
 					modifiedFeatures.push(rf);
 					console.log('mf now');
 					d(modifiedFeatures);

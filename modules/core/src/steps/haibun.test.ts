@@ -27,12 +27,21 @@ Prose sections are indicated by the presence of punctuation at the end of paragr
 
 		expect(result.featureResults?.length).toBe(1);
 	});
-	it.only('process effect callbacks', async () => {
+	it('process effect callback', async () => {
 		const feature = { path: '/features/test.feature', content: 'have a test\nafter every TestSteps, passes' };
 		const result = await testWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(true);
 		console.log('🤑', JSON.stringify(result.featureResults, null, 2));
 		expect(result.featureResults![0].stepResults.length).toBe(3);
 		expect(result.featureResults![0].stepResults[1].seq).toBe(1.1);
+	});
+	it.only('process multiple effect callbacks', async () => {
+		const feature = { path: '/features/test.feature', content: 'have a test\nafter every TestSteps, passes\nhave a test' };
+		const result = await testWithDefaults([feature], [Haibun, TestSteps]);
+		expect(result.ok).toBe(true);
+		console.log('🤑', JSON.stringify(result.featureResults, null, 2));
+		expect(result.featureResults![0].stepResults.length).toBe(4);
+		expect(result.featureResults![0].stepResults[1].seq).toBe(1.1);
+		expect(result.featureResults![0].stepResults[3].seq).toBe(3.1);
 	});
 });
