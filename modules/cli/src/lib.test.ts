@@ -26,7 +26,7 @@ describe('usageThenExit', () => {
 });
 
 describe('options', () => {
-	it.only('stepper options', async () => {
+	it('stepper options', async () => {
 		const feature = { path: '/features/test.feature', content: `When I have a stepper option` };
 		const protoConfig = {
 			moduleOptions: { [HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]: 'true' },

@@ -214,7 +214,7 @@ describe('verifyRequiredOptions', () => {
 });
 
 describe('getStepperOptions', () => {
-	it.only('finds stepper options', async () => {
+	it('finds stepper options', async () => {
 		const conc = util.getStepperOptionValue(HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, 'true', [TestStepsWithOptions]);
 		expect(conc).toBeDefined();
 	});
