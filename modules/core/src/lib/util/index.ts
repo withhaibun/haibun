@@ -182,7 +182,7 @@ export async function verifyRequiredOptions(steppers: CStepper[], options: TModu
 }
 
 export function getStepperOptionName(stepper: AStepper | CStepper, name: string) {
-	if ((stepper as CStepper).prototype) {
+	if ((stepper as CStepper)?.prototype) {
 		return getPre((stepper as CStepper).prototype) + name;
 	}
 	return getPre(stepper as AStepper) + name;

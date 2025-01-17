@@ -119,7 +119,6 @@ describe('findHandlers', () => {
 			TEST_HANDLER
 		);
 		expect(found.length).toBe(1);
-		console.log('name', found[0].stepper);
 		expect(constructorName(found[0].stepper)).toBe('FallbackTestStepperHandler');
 	});
 });
@@ -145,22 +144,21 @@ describe('findStepperFromOptions', () => {
 	};
 
 	it('finds from single option', async () => {
-		const ts = await util.createSteppers([TestOptionsStepper])[0];
+		const ts = new TestOptionsStepper();
 		const steppers = await getCreateSteppers([], [TestOptionsStepper]);
 		const options = { [util.getStepperOptionName(ts, 'A')]: 'TestOptionsStepper' };
 		const s = util.findStepperFromOption(steppers, ts, options, 'A');
 		expect(s).toBeDefined();
 	});
 	it('finds from last multiple options', async () => {
-		const ts = util.createSteppers([TestOptionsStepper])[0];
+		const ts = new TestOptionsStepper();
 		const steppers = await getCreateSteppers([], [TestOptionsStepper]);
 		const options = { [util.getStepperOptionName(ts, 'B')]: 'TestOptionsStepper' };
 		const s = await util.findStepperFromOption(steppers, ts, options, 'A', 'B');
 		expect(s).toBeDefined();
 	});
-	// FIXME vitest where is TestSteps2 coming from?
 	it('finds from first multiple options', async () => {
-		const ts = await util.createSteppers([TestOptionsStepper])[0];
+		const ts = new TestOptionsStepper();
 		const steppers = await getCreateSteppers([], [TestSteps, TestOptionsStepper]);
 		const options = {
 			[util.getStepperOptionName(ts, 'optionA')]: 'TestSteps',
@@ -200,7 +198,7 @@ describe('verifyRequiredOptions', () => {
 		};
 	}
 	it('has option', async () => {
-		const toswq = await util.createSteppers([TestOptionsStepperWithReauired])[0];
+		const toswq = new TestOptionsStepperWithReauired();
 		const options = { [util.getStepperOptionName(toswq, 'A')]: 'TestSteps' };
 		await expect(util.verifyRequiredOptions([TestOptionsStepperWithReauired], options)).resolves.not.toThrow();
 	});

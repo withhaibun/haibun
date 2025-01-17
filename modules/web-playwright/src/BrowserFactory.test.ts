@@ -26,6 +26,10 @@ describe("types", () => {
       ...browserContextOptions,
       type: 'noodles'
     } as any) as TBrowserFactoryOptions)).rejects.toThrow();
+    await expect(async () => await BrowserFactory.getBrowserFactory(new Logger(LOGGER_NOTHING), ({
+      ...browserContextOptions,
+      type: 'noodles'
+    } as any) as TBrowserFactoryOptions)).rejects.toThrow();
     await BrowserFactory.closeBrowsers();
   });
 });

@@ -20,7 +20,7 @@ export async function getCreateSteppers(steppers: string[], addSteppers?: CStepp
 	return await createSteppers(csteppers.concat(addSteppers || []));
 }
 
-export const testVStep = (name: string, action, base = TEST_BASE): TFeatureStep => ({
+export const testFeatureStep = (name: string, action, base = TEST_BASE): TFeatureStep => ({
 	source: { ...withNameType(base, name, '') },
 	in: name,
 	seq: 0,
@@ -35,7 +35,7 @@ export async function getTestEnv(useSteppers: string[], test: string, world: TWo
 	const resolver = new Resolver(steppers);
 	const actions = resolver.findActionableSteps(test);
 
-	const featureStep = testVStep('test', actions[0]);
+	const featureStep = testFeatureStep('test', actions[0]);
 
 	return { world, featureStep, csteppers, steppers };
 }

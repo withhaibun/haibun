@@ -44,14 +44,14 @@ export class Resolver {
 			} else if (actions.length < 1) {
 				throw Error(`no step found for ${featureLine.line} in ${feature.path} from ${describeSteppers(this.steppers)}`);
 			}
-			const featureStep = this.getVStep(featureLine, seq, actions[0]);
+			const featureStep = this.getFeatureStep(featureLine, seq, actions[0]);
 			featureSteps.push(featureStep);
 		}
 
 		return featureSteps;
 	}
 
-	getVStep(featureLine: TExpandedLine, seq: number, action: TStepAction): TFeatureStep {
+	getFeatureStep(featureLine: TExpandedLine, seq: number, action: TStepAction): TFeatureStep {
 		return { source: featureLine.feature, in: featureLine.line, seq, action };
 	}
 
