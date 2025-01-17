@@ -2,10 +2,8 @@ import { TTag, WorkspaceBuilder } from './defs.js';
 
 export class Context {
 	values: { [name: string]: any };
-	context: string;
 
-	constructor(context: string, initial?: { [name: string]: string }) {
-		this.context = context;
+	constructor(private context: string, initial?: { [name: string]: string }) {
 		this.values = initial || {};
 	}
 
