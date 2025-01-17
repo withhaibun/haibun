@@ -5,7 +5,7 @@ import { getDefaultWorld } from '../lib/test/lib';
 import { actionNotOK, actionOK } from '../lib/util';
 
 describe('Executor endFeatureCallback', () => {
-	const { world } = getDefaultWorld(0, { HAIBUN_LOG_LEVEL: 'none' });
+	const world = getDefaultWorld(0, { HAIBUN_LOG_LEVEL: 'none' });
 
 	const passingFeatureResult: TFeatureResult = {
 		path: 'test.feature',

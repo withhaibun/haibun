@@ -77,6 +77,7 @@ async function go() {
 
 	console.info('\n_________________________________ start');
 	const result = await runner.run(specl.steppers);
+	console.log('🤑', JSON.stringify(result, null, 2));
 
 	if (result.ok) {
 		if (protoOptions.options[STAY] !== STAY_ALWAYS) {

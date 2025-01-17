@@ -17,7 +17,7 @@ describe('playwrightWeb', () => {
 	});
   /*
   it('sets browser type and device', async () => {
-    const { world, featureStep, steppers } = await getTestEnv([me], 'using firefox.Pixel 5 browser', getDefaultWorld(0).world);
+    const { world, featureStep, steppers } = await getTestEnv([me], 'using firefox.Pixel 5 browser', getDefaultWorld(0));
     await FeatureExecutor.doFeatureStep(steppers, featureStep, world);
     const webPlaywright = findStepper<any>(steppers, 'WebPlaywright');
     const bf = await webPlaywright.getBrowserFactory();
@@ -26,7 +26,7 @@ describe('playwrightWeb', () => {
     expect(bf.device).toBe('Pixel 5');
   });
   it('fails setting browser type and device', async () => {
-    const { world, featureStep, steppers } = await getTestEnv([me], 'using nonexistent browser', getDefaultWorld(0).world);
+    const { world, featureStep, steppers } = await getTestEnv([me], 'using nonexistent browser', getDefaultWorld(0));
     const result = await FeatureExecutor.doFeatureStep(steppers, featureStep, world);
     console.log('🤑', JSON.stringify(result, null, 2));
     expect(result.actionResult.ok).toBe(false);

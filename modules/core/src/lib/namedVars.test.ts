@@ -82,13 +82,13 @@ describe('getNamedWithVars', () => {
 			},
 		};
 	}
-	const { world } = getDefaultWorld(0);
+	const world = getDefaultWorld(0);
 	test('gets var', async () => {
 		const steppers = await createSteppers([TestStepper]);
-		const resolver = new Resolver(steppers, world);
+		const resolver = new Resolver(steppers);
 		world.shared.set('exact', 'res');
 		const features = asExpandedFeatures([withNameType(TEST_BASE, 'l1', 'is `exact`')]);
-		const  steps  = await resolver.resolveStepsFromFeatures(features);
+		const steps = await resolver.resolveStepsFromFeatures(features);
 		const { featureSteps } = steps[0] as TResolvedFeature;
 		expect(featureSteps[0].action).toBeDefined();
 		const val = getNamedToVars(featureSteps[0].action, world, featureSteps[0]);

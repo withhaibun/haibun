@@ -217,7 +217,7 @@ describe('getStepperOptions', () => {
 		expect(conc).toBeDefined();
 	});
 	it.skip('fills extra', async () => {
-		const { world } = getDefaultWorld(0);
+		const world = getDefaultWorld(0);
 		await util.verifyExtraOptions({ [HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]: 'true' }, [TestStepsWithOptions]);
 		expect(world.options[HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]).toEqual(42);
 	});

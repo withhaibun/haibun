@@ -62,7 +62,7 @@ export async function testWithDefaults(
 }
 
 export function getTestWorldWithOptions(protoOptions: TProtoOptions, env = { HAIBUN_LOG_LEVEL: 'none' }) {
-	const { world } = getDefaultWorld(0, env);
+	const world = getDefaultWorld(0, env);
 	if (protoOptions) {
 		world.options = protoOptions.options;
 		world.moduleOptions = protoOptions.moduleOptions;
@@ -70,18 +70,16 @@ export function getTestWorldWithOptions(protoOptions: TProtoOptions, env = { HAI
 	return world;
 }
 
-export function getDefaultWorld(sequence: number, env = process.env): { world: TWorld } {
+export function getDefaultWorld(sequence: number, env = process.env): TWorld {
 	return {
-		world: {
-			timer: new Timer(),
-			tag: getRunTag(sequence, 0),
-			shared: new WorldContext(getDefaultTag(sequence)),
-			logger: new Logger(env.HAIBUN_LOG_LEVEL ? { level: env.HAIBUN_LOG_LEVEL } : LOGGER_LOG),
-			runtime: {},
-			options: { DEST: DEFAULT_DEST },
-			moduleOptions: {},
-			bases: ['/features/'],
-		},
+		timer: new Timer(),
+		tag: getRunTag(sequence, 0),
+		shared: new WorldContext(getDefaultTag(sequence)),
+		logger: new Logger(env.HAIBUN_LOG_LEVEL ? { level: env.HAIBUN_LOG_LEVEL } : LOGGER_LOG),
+		runtime: {},
+		options: { DEST: DEFAULT_DEST },
+		moduleOptions: {},
+		bases: ['/features/'],
 	};
 }
 
