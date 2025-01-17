@@ -1,6 +1,6 @@
 import { Page, Response, Download } from 'playwright';
 
-import { IHasOptions, OK, TNamed, TStepResult, AStepper, TWorld, TVStep, TAnyFixme } from '@haibun/core/build/lib/defs.js';
+import { IHasOptions, OK, TNamed, TStepResult, AStepper, TWorld, TFeatureStep, TAnyFixme } from '@haibun/core/build/lib/defs.js';
 import { WEB_PAGE, WEB_CONTROL } from '@haibun/core/build/lib/domain-types.js';
 import { BrowserFactory, TBrowserFactoryOptions, TBrowserTypes } from './BrowserFactory.js';
 import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOption, sleep } from '@haibun/core/build/lib/util/index.js';
@@ -125,14 +125,14 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async onFailure(result: TStepResult, step?: TVStep): Promise<void | TTraceMessageContext> {
+  async onFailure(result: TStepResult, step?: TFeatureStep): Promise<void | TTraceMessageContext> {
     if (this.bf?.hasPage(this.getWorld().tag, this.tab)) {
       await this.captureFailureScreenshot('failure', 'onFailure', step);
     }
   }
 
   // FIXME currently not executed
-  async nextStep(step: TVStep) {
+  async nextStep(step: TFeatureStep) {
     const captureScreenshot = getStepperOption(this, 'STEP_CAPTURE_SCREENSHOT', this.getWorld().moduleOptions);
     if (captureScreenshot) {
       await this.captureRequestScreenshot('request', 'nextStep', step.seq);
@@ -479,7 +479,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     clickLink: {
       // TODO: generalize modifier
       gwta: 'click( with alt)? the link {name}',
-      action: async ({ name }: TNamed, featureStep: TVStep) => {
+      action: async ({ name }: TNamed, featureStep: TFeatureStep) => {
         const modifier = featureStep.in.match(/ with alt /) ? { modifiers: ['Alt'] } : {};
         const field = this.getWorld().shared.get(name) || name;
         await this.withPage(async (page: Page) => await page.click(field, <TAnyFixme>modifier));
@@ -611,7 +611,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     },
     takeScreenshot: {
       gwta: 'take a screenshot',
-      action: async (notUsed, featureStep: TVStep) => {
+      action: async (notUsed, featureStep: TFeatureStep) => {
         await this.captureScreenshot('request', 'action', featureStep);
         return OK;
       },
@@ -650,14 +650,14 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
   newTab() {
     this.tab = this.tab + 1;
   }
-  async captureFailureScreenshot(event: 'failure', stage: TActionStage, step: TVStep) {
+  async captureFailureScreenshot(event: 'failure', stage: TActionStage, step: TFeatureStep) {
     return await this.captureScreenshot(event, stage, { step });
   }
   async captureRequestScreenshot(event: 'request', stage: TActionStage, seq: number) {
     return await this.captureScreenshot(event, stage, { seq });
   }
 
-  async captureScreenshot(event: 'failure' | 'request', stage: TActionStage, details: { seq?: number, step?: TVStep }) {
+  async captureScreenshot(event: 'failure' | 'request', stage: TActionStage, details: { seq?: number, step?: TFeatureStep }) {
     const loc = await this.getCaptureDir('image');
     // FIXME shouldn't be fs dependant
     const path = resolve(this.storage.fromLocation(EMediaTypes.image, loc, `${event}-${Date.now()}.png`));
