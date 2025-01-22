@@ -20,8 +20,8 @@ const publishArtifact2: TArtifact = { type: 'video', path: `${publishedTracks}/2
 const publishArtifact22: TArtifact = { type: 'video', path: `${publishedTracks}/22.webm` }
 const publishArtifact3: TArtifact = { type: 'video', path: `${publishedTracks}/3.webm` }
 
-const tracks1 = `${CAPTURE}/default/123/loop-0/seq-0/featn-0/mem-0/tracks/${TRACKS_FILE}`;
-const tracks2 = `${CAPTURE}/default/123/loop-0/seq-0/featn-0/mem-1/tracks/${TRACKS_FILE}`;
+const tracks1 = `${CAPTURE}/default/123/seq-0/featn-0/tracks/${TRACKS_FILE}`;
+const tracks2 = `${CAPTURE}/default/123/seq-0/featn-0/mem-1/tracks/${TRACKS_FILE}`;
 
 const TEST_CAPTURES = {
   [tracks1]: JSON.stringify(testHistoryWithMeta([])),
@@ -74,7 +74,7 @@ describe('create found history', () => {
     const feature = { path: '/features/test.feature', content: `create found history` };
     const result = await testWithDefaults([feature], [OutReviews, DomainStorage, StorageMem], {
       options: { DEST: DEFAULT_DEST },
-      extraOptions: {
+      moduleOptions: {
         [getStepperOptionName(OutReviews, STORAGE)]: 'StorageMem',
       },
     });
@@ -91,7 +91,7 @@ describe('create reviews pages', () => {
     const feature = { path: '/features/test.feature', content: `create reviews pages` };
     const result = await testWithDefaults([feature], [OutReviews, DomainStorage, StorageMem], {
       options: { DEST: DEFAULT_DEST },
-      extraOptions: {
+      moduleOptions: {
         [getStepperOptionName(OutReviews, STORAGE)]: 'StorageMem',
       },
     });
@@ -125,11 +125,10 @@ describe('create indexer from tracks', () => {
     const feature = { path: '/features/test.feature', content: `create found history\ncreate reviews pages\ncreate indexer from tracks\n${test}` };
     const result = await testWithDefaults([feature], [DomainStorage, StorageMem, CheckKeyStepper], {
       options: { DEST: DEFAULT_DEST },
-      extraOptions: {
+      moduleOptions: {
         [getStepperOptionName(CheckKeyStepper, STORAGE)]: 'StorageMem',
       },
     });
-    console.log('🤑', JSON.stringify(result.failure, null, 2));
     expect(result.ok).toBe(true);
   });
 });
@@ -162,7 +161,7 @@ directory ${tracks} has 1 files`;
     const feature = { path: '/features/test.feature', content };
     const result = await testWithDefaults([feature], [OutReviews, DomainStorage, StorageMem, SetTimeStepper], {
       options: { DEST: DEFAULT_DEST },
-      extraOptions: {
+      moduleOptions: {
         [getStepperOptionName(OutReviews, PUBLISH_ROOT)]: base,
         [getStepperOptionName(OutReviews, STORAGE)]: 'StorageMem'
       },
@@ -227,7 +226,7 @@ directory ${publishedTracks} has 1 files
     const feature = { path: '/features/test.feature', content };
     const result = await testWithDefaults([feature], [OutReviews, DomainStorage, StorageMem, SetTimeStepper], {
       options: { DEST: DEFAULT_DEST },
-      extraOptions: {
+      moduleOptions: {
         [getStepperOptionName(OutReviews, PUBLISH_ROOT)]: publishRoot,
         [getStepperOptionName(OutReviews, STORAGE)]: 'StorageMem'
       },
@@ -243,7 +242,7 @@ directory ${publishedTracks} has 3 files
     const feature = { path: '/features/test.feature', content };
     const result = await testWithDefaults([feature], [OutReviews, DomainStorage, StorageMem, SetTimeStepper], {
       options: { DEST: DEFAULT_DEST },
-      extraOptions: {
+      moduleOptions: {
         [getStepperOptionName(OutReviews, PUBLISH_ROOT)]: publishRoot,
         [getStepperOptionName(OutReviews, STORAGE)]: 'StorageMem'
       },
