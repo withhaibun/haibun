@@ -1,15 +1,8 @@
-import {
-	OK,
-	TNamed,
-	AStepper,
-	TWorld,
-	TFeatureStep,
-	TResolvedFeature,
-} from '../lib/defs.js';
+import { OK, TNamed, AStepper, TWorld, TFeatureStep } from '../lib/defs.js';
 import { Resolver } from '../phases/Resolver.js';
 import { actionNotOK, findStepper, sleep } from '../lib/util/index.js';
-import { expand, } from '../lib/features.js';
-import {  asFeatures } from '../lib/resolver-features.js';
+import { expand } from '../lib/features.js';
+import { asFeatures } from '../lib/resolver-features.js';
 
 const Haibun = class Haibun extends AStepper {
 	steppers: AStepper[];
@@ -91,32 +84,24 @@ const Haibun = class Haibun extends AStepper {
 			action: async (usedInEffect: TNamed) => {
 				return OK;
 			},
-			applyEffect: async ({ stepperName, line }: TNamed, resolvedFeatures: TResolvedFeature[]) => {
-				const modifiedFeatures: TResolvedFeature[] = [];
+			applyEffect: async ({ stepperName, line }: TNamed, featureSteps: TFeatureStep[]) => {
+				const newSteps = [];
 
-				for (const rf of resolvedFeatures) {
-					const theStepper = findStepper<AStepper>(this.steppers, stepperName);
-					const newSteps = [];
-
-					for (const featureStep of rf.featureSteps) {
-						newSteps.push(featureStep);
-						if (featureStep.action.stepperName === stepperName) {
-							const newFeatureStep = await this.newFeatureFromEffect(theStepper, line, featureStep.seq + 0.1);
-							newSteps.push(newFeatureStep);
-						}
+				for (const featureStep of featureSteps) {
+					newSteps.push(featureStep);
+					if (featureStep.action.stepperName === stepperName) {
+						const newFeatureStep = await this.newFeatureFromEffect(this.steppers, line, featureStep.seq + 0.1);
+						newSteps.push(newFeatureStep);
 					}
-					rf.featureSteps = newSteps;
-					modifiedFeatures.push(rf);
 				}
-
-				return modifiedFeatures;
+				return newSteps;
 			},
 		},
 	};
-	async newFeatureFromEffect(stepper: AStepper, content: string, seq: number): Promise<TFeatureStep> {
+	async newFeatureFromEffect(steppers: AStepper[], content: string, seq: number): Promise<TFeatureStep> {
 		const features = asFeatures([{ path: `resolved from ${content}`, content }]);
 		const expandedFeatures = await expand([], features);
-		const featureSteps = await new Resolver([stepper]).findFeatureSteps(expandedFeatures[0]);
+		const featureSteps = await new Resolver(steppers).findFeatureSteps(expandedFeatures[0]);
 		return { ...featureSteps[0], seq };
 	}
 };

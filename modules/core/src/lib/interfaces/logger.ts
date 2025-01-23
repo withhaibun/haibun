@@ -1,10 +1,10 @@
 import { TAnyFixme, TStepResult, TTag, TFeatureStep, versionedSchema } from '../defs.js';
 
 export type TLogLevel = 'none' | 'debug' | 'log' | 'info' | 'warn' | 'error';
-export type TLogArgs = string;
+export type TLogMessage = string;
 
 export type TLogHistory = {
-  message: TLogArgs;
+  message: TLogMessage;
   level: TLogLevel;
   caller: string;
   messageContext: TMessageContext
@@ -105,11 +105,11 @@ export type TArtifact = {
 export type TArtifactType = TArtifact['type'];
 
 export interface ILogger {
-  debug: (what: TLogArgs, ctx?: TMessageContext) => void;
-  log: (what: TLogArgs, ctx?: TMessageContext) => void;
-  info: (what: TLogArgs, ctx?: TMessageContext) => void;
-  warn: (what: TLogArgs, ctx?: TMessageContext) => void;
-  error: (what: TLogArgs, ctx?: TMessageContext) => void;
+  debug: (what: TLogMessage, ctx?: TMessageContext) => void;
+  log: (what: TLogMessage, ctx?: TMessageContext) => void;
+  info: (what: TLogMessage, ctx?: TMessageContext) => void;
+  warn: (what: TLogMessage, ctx?: TMessageContext) => void;
+  error: (what: TLogMessage, ctx?: TMessageContext) => void;
   addSubscriber: (subscriber: ILogOutput) => void;
 }
 
@@ -127,7 +127,7 @@ export interface ILoggerKeepAlive {
 }
 
 export interface ILogOutput {
-  out: (level: TLogLevel, args: TLogArgs, ctx?: TMessageContext) => void;
+  out: (level: TLogLevel, message: TLogMessage, ctx?: TMessageContext) => void;
 }
 
 export type TOutputEnv = { output: ILogOutput; tag: TTag };

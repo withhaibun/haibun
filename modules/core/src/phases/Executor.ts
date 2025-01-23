@@ -14,6 +14,8 @@ import {
 	TAnyFixme,
 	STAY,
 	STAY_FAILURE,
+	CHECK_NOT_OK,
+	CHECK_OK,
 } from '../lib/defs.js';
 import { TExecutorMessageContext, TMessageContext } from '../lib/interfaces/logger.js';
 import { getNamedToVars } from '../lib/namedVars.js';
@@ -99,7 +101,7 @@ export class FeatureExecutor {
 			if (!result.ok) {
 				await this.onFailure(result, step);
 			}
-			const indicator = result.ok ? '✅' : '❌';
+			const indicator = result.ok ? CHECK_OK : CHECK_NOT_OK;
 			world.logger.log(indicator, <TExecutorMessageContext>{ topic: { stage: 'Executor', result, step } });
 			stepResults.push(result);
 			if (!ok) {
@@ -156,6 +158,7 @@ export class FeatureExecutor {
 	async doEndFeatureCallback(featureResult: TFeatureResult) {
 		if (this.endFeatureCallbacks) {
 			for (const callback of this.endFeatureCallbacks) {
+			console.log('endFeatureCallbacks', typeof callback);
 				try {
 					await callback({ world: this.world, result: featureResult, steppers: this.steppers, startOffset: this.startOffset });
 				} catch (error: TAnyFixme) {

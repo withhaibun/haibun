@@ -1,21 +1,21 @@
 import {
-	TWorld,
-	TExecutorResult,
-	TAnyFixme,
-	CStepper,
-	TEndFeatureCallback,
 	AStepper,
+	CStepper,
+	TAnyFixme,
+	TEndFeatureCallback,
+	TExecutorResult,
 	TResolvedFeature,
 	TStepAction,
+	TWorld,
 } from './lib/defs.js';
 import { expand } from './lib/features.js';
 import { getNamedToVars } from './lib/namedVars.js';
 import {
-	verifyRequiredOptions,
-	verifyExtraOptions,
+	constructorName,
 	createSteppers,
 	setStepperWorlds,
-	constructorName,
+	verifyExtraOptions,
+	verifyRequiredOptions,
 } from './lib/util/index.js';
 import { getSteppers } from './lib/util/workspace-lib.js';
 import { getFeaturesAndBackgrounds, TFeaturesBackgrounds } from './phases/collector.js';
@@ -32,6 +32,7 @@ export class Runner {
 	constructor(private world: TWorld, private callbacks: TRunnerCallbacks = {}) {}
 
 	private errorBail = (phase: string, error: TAnyFixme, details?: TAnyFixme) => {
+		console.error(error);
 		this.world.logger.error(`errorBail ${phase} ${error} ${details}`, error.stack);
 		this.result = {
 			ok: false,
@@ -92,19 +93,26 @@ export class Runner {
 	}
 
 	private async applyEffectFeatures(resolvedFeatures: TResolvedFeature[], steppers: AStepper[]) {
-		let allFeatures = [...resolvedFeatures];
+		let newFeatures = [];
 
 		for (const feature of resolvedFeatures) {
 			for (const featureStep of feature.featureSteps) {
 				const action = featureStep.action;
 				const stepper = steppers.find((s) => constructorName(s) === action.stepperName);
 				if (stepper && stepper.steps[action.actionName]?.applyEffect) {
-					const found: TStepAction = action;
-					const namedWithVars = getNamedToVars(found, this.world, featureStep);
-					allFeatures = await stepper.steps[action.actionName].applyEffect(namedWithVars, [feature]);
+					const foundAction: TStepAction = action;
+					const namedWithVars = getNamedToVars(foundAction, this.world, featureStep);
+					const newSteps = await stepper.steps[action.actionName].applyEffect(namedWithVars, feature.featureSteps);
+					const appliedFeature = {
+						...feature,
+						featureSteps: newSteps,
+					};
+					newFeatures.push(appliedFeature);
+				} else {
+					newFeatures.push(feature);
 				}
 			}
 		}
-		return allFeatures;
+		return newFeatures;
 	}
 }

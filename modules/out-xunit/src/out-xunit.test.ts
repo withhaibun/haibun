@@ -54,7 +54,6 @@ it('run AsXUnit', async () => {
 
 	expect(result.ok).toBe(false);
 	const output = await getOutputResult(ox, result);
-	console.log('🤑', JSON.stringify(output, null, 2));
 	expect(typeof output).toBe('string');
 	expect((<string>output).startsWith('<?xml')).toBeTruthy();
 });

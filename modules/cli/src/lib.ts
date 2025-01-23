@@ -1,10 +1,13 @@
 import nodeFS from 'fs';
 
-import { BASE_PREFIX, DEFAULT_DEST, IHasOptions, TBase, TOptions, TProtoOptions, TSpecl, } from "@haibun/core/build/lib/defs.js";
-import { getCreateSteppers } from "@haibun/core/build/lib/test/lib.js";
-import { getPre } from "@haibun/core/build/lib/util/index.js";
+import { BASE_PREFIX, DEFAULT_DEST, IHasOptions, TBase, TOptions, TProtoOptions, TSpecl, TWorld, } from "@haibun/core/build/lib/defs.js";
+import { getCreateSteppers, getDefaultTag } from "@haibun/core/build/lib/test/lib.js";
+import { getDefaultOptions, getPre } from "@haibun/core/build/lib/util/index.js";
 import { BaseOptions } from "./BaseOptions.js";
 import { TFileSystem } from "@haibun/core/build/lib/util/workspace-lib.js";
+import { WorldContext } from '@haibun/core/build/lib/contexts.js';
+import Logger from '@haibun/core/build/lib/Logger.js';
+import { Timer } from '@haibun/core/build/lib/Timer.js';
 
 type TEnv = { [name: string]: string | undefined };
 
@@ -63,14 +66,14 @@ export function processBaseEnvToOptionsAndErrors(env: TEnv, options: TOptions) {
         } else if (res.env) {
           nenv = { ...nenv, ...res.env };
         } else if (!res.result) {
-          errors.push(`no option for ${opt} from ${JSON.stringify(res.result)}`);
+          errors.push(`no base option for ${opt} from ${JSON.stringify(res.result)}`);
         } else {
           protoOptions.options[opt] = res.result;
         }
-      } else if (opt.startsWith(`${BASE_PREFIX}_O_`)) {
+      } else if (k.startsWith(`${BASE_PREFIX}O_`)) {
         protoOptions.moduleOptions[k] = value;
       } else {
-        errors.push(`no option for ${opt}`);
+        errors.push(`no found option for ${opt}`);
       }
     });
   protoOptions.options.env = nenv;
@@ -80,6 +83,7 @@ export function processBaseEnvToOptionsAndErrors(env: TEnv, options: TOptions) {
 
 export function processArgs(args: string[]) {
   let showHelp = false;
+  let showVersion = false;
   const params = [];
   let configLoc;
   while (args.length > 0) {
@@ -89,11 +93,13 @@ export function processArgs(args: string[]) {
       configLoc = args.shift()?.replace(/\/config.json$/, '');
     } else if (cur === '--help' || cur === '-h') {
       showHelp = true;
+    } else if (cur === '--version' || cur === '-v') {
+      showVersion = true;
     } else {
       params.push(cur);
     }
   }
-  return { params, configLoc, showHelp };
+  return { params, configLoc, showHelp, showVersion };
 }
 
 export function getConfigFromBase(bases: TBase, fs: TFileSystem = nodeFS): TSpecl | null {
@@ -114,4 +120,37 @@ export function getConfigFromBase(bases: TBase, fs: TFileSystem = nodeFS): TSpec
 	} catch (e) {
 		return null;
 	}
+}
+
+export function getCliWorld(protoOptions: TProtoOptions, bases: TBase): TWorld {
+	const { KEY: keyIn, LOG_LEVEL: logLevel, LOG_FOLLOW: logFollow } = protoOptions.options;
+	const tag = getDefaultTag(0);
+	const logger = new Logger({ level: logLevel || 'debug', follow: logFollow });
+	const shared = new WorldContext(tag);
+	const timer = new Timer();
+
+	const key = keyIn || Timer.key;
+	Timer.key = key;
+
+	const world: TWorld = {
+		tag,
+		shared,
+		runtime: {},
+		logger,
+		...protoOptions,
+		timer,
+		bases,
+	};
+	return world;
+}
+
+export async function getSpeclOrExit(bases: TBase): Promise<TSpecl> {
+	const specl = getConfigFromBase(bases);
+	if (specl === null || bases?.length < 1) {
+		if (specl === null) {
+			console.error(`missing or unusable config.json from ${bases}`);
+		}
+		await usageThenExit(specl ? specl : getDefaultOptions());
+	}
+	return specl;
 }

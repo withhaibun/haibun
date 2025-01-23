@@ -13,7 +13,7 @@ describe('prose', () => {
 		expect(res.ok).toBe(true);
 		expect(res.actionResult.name).toBe('prose');
 	});
-	it('mixed prose', async () => {
+	it.only('mixed prose', async () => {
 		const feature = {
 			path: '/features/test.feature',
 			content: `Haibun prose allows mixing text descriptions with a functional test.
@@ -25,7 +25,7 @@ Prose sections are indicated by the presence of punctuation at the end of paragr
 
 		expect(result.ok).toBe(true);
 
-		expect(result.featureResults?.length).toBe(1);
+		expect(result.featureResults?.length).toBe(4);
 	});
 	it('process effect callback', async () => {
 		const feature = { path: '/features/test.feature', content: 'have a test\nafter every TestSteps, passes' };

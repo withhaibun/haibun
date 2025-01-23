@@ -1,5 +1,5 @@
 import { TAnyFixme, TTag } from './defs.js';
-import { ILogger, ILogOutput, TActionStage, TArtifact, TArtifactMessageContext, TArtifactType, TLogArgs, TLogHistory, TLogLevel, TMessageContext, TOutputEnv } from './interfaces/logger.js';
+import { ILogger, ILogOutput, TActionStage, TArtifact, TArtifactMessageContext, TArtifactType, TLogMessage, TLogHistory, TLogLevel, TMessageContext, TOutputEnv } from './interfaces/logger.js';
 import { descTag, isFirstTag } from './util/index.js';
 
 export const LOGGER_LOG = { level: 'log' };
@@ -49,7 +49,7 @@ export default class Logger implements ILogger, ILogOutput {
     const res = new RegExp(match).test(`${tag.sequence}`);
     return res;
   }
-  out(level: TLogLevel, args: TLogArgs, messageContext?: TMessageContext) {
+  out(level: TLogLevel, args: TLogMessage, messageContext?: TMessageContext) {
 
     for (const subscriber of this.subscribers) {
       subscriber.out(level, args, messageContext);
@@ -70,11 +70,11 @@ export default class Logger implements ILogger, ILogOutput {
     const [proggy, line /*, col*/] = caller.split(':');
     console[level]((showLevel.padStart(6) + ` █ ${proggy}:${line}${tag}`).padEnd(30) + ` ｜ `, args);
   }
-  debug = (args: TLogArgs, mctx?: TMessageContext) => this.out('debug', args, mctx);
-  log = (args: TLogArgs, mctx?: TMessageContext) => this.out('log', args, mctx);
-  info = (args: TLogArgs, mctx?: TMessageContext) => this.out('info', args, mctx);
-  warn = (args: TLogArgs, mctx?: TMessageContext) => this.out('warn', args, mctx);
-  error = (args: TLogArgs, mctx?: TMessageContext) => this.out('error', args, mctx);
+  debug = (args: TLogMessage, mctx?: TMessageContext) => this.out('debug', args, mctx);
+  log = (args: TLogMessage, mctx?: TMessageContext) => this.out('log', args, mctx);
+  info = (args: TLogMessage, mctx?: TMessageContext) => this.out('info', args, mctx);
+  warn = (args: TLogMessage, mctx?: TMessageContext) => this.out('warn', args, mctx);
+  error = (args: TLogMessage, mctx?: TMessageContext) => this.out('error', args, mctx);
 
   static logContext({ details, stage, type, path, event, tag, content }: { details: TAnyFixme, stage: TActionStage, type: TArtifactType, path?: string, content?: string, event: string, tag: TTag }): TArtifactMessageContext {
     return { topic: { ...details, event, stage }, artifact: { type, path, content }, tag };

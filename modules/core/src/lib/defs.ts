@@ -165,7 +165,7 @@ export type TStepperStep = {
 	applyEffect?: TApplyEffect;
 };
 
-export type TApplyEffect = (named: TNamed, resolvedFeatures: TResolvedFeature[]) => Promise<TResolvedFeature[]>;
+export type TApplyEffect = (named: TNamed, featureSteps: TFeatureStep[]) => Promise<TFeatureStep[]>;
 
 export interface CStepper {
 	new (): AStepper;
@@ -216,6 +216,8 @@ export type TStepAction = {
 export type TNamed = { [name: string]: string };
 export type TNamedVar = { name: string; type: string };
 
+export const CHECK_OK = '✅';
+export const CHECK_NOT_OK = '❌';
 export const OK: TOKActionResult = { ok: true };
 
 export type TExecutorResultError = {
