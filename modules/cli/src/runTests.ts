@@ -72,7 +72,7 @@ export async function runWith({ argv, env }: { argv: string[]; env: NodeJS.Proce
 	const runner = new Runner(world, { endFeature: [endFeatureCallback] });
 
 	console.info('\n_________________________________ start');
-	const result = await runner.run(specl.steppers);
+	const result = await runner.run(specl.steppers, featureFilter);
 	if (output) {
 		const wtw = await getOutputResult(world.options.OUTPUT, result);
 		console.log('🤑', JSON.stringify(wtw, null, 2));
@@ -102,10 +102,10 @@ function summarizeFeatureResults(featureResults: TFeatureResult[]) {
 			? undefined
 			: f.stepResults.map((s) =>
 					s.ok
-						? s.in
+						? s.line
 						: {
 								ok: s.ok,
-								in: s.in,
+								line: s.line,
 								actionResult: {
 									name: s.actionResult.name,
 									topics: Object.values(s.actionResult.topics).map((t) => t.summary),
