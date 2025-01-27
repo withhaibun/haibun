@@ -480,7 +480,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       // TODO: generalize modifier
       gwta: 'click( with alt)? the link {name}',
       action: async ({ name }: TNamed, featureStep: TFeatureStep) => {
-        const modifier = featureStep.in.match(/ with alt /) ? { modifiers: ['Alt'] } : {};
+        const modifier = featureStep.line.match(/ with alt /) ? { modifiers: ['Alt'] } : {};
         const field = this.getWorld().shared.get(name) || name;
         await this.withPage(async (page: Page) => await page.click(field, <TAnyFixme>modifier));
         return OK;

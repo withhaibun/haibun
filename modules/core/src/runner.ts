@@ -4,8 +4,10 @@ import {
 	TAnyFixme,
 	TEndFeatureCallback,
 	TExecutorResult,
+	TNamed,
 	TResolvedFeature,
 	TStepAction,
+	TStepperStep,
 	TWorld,
 } from './lib/defs.js';
 import { expand } from './lib/features.js';
@@ -43,10 +45,10 @@ export class Runner {
 		throw Error(error);
 	};
 
-	async run(steppers: string[]) {
+	async run(steppers: string[], featureFilter: string[]) {
 		let featuresBackgrounds: TFeaturesBackgrounds = undefined;
 		try {
-			featuresBackgrounds = getFeaturesAndBackgrounds(this.world.bases, []);
+			featuresBackgrounds = getFeaturesAndBackgrounds(this.world.bases, featureFilter);
 		} catch (error) {
 			this.errorBail('Collector', error);
 		}
@@ -94,24 +96,26 @@ export class Runner {
 
 	private async applyEffectFeatures(resolvedFeatures: TResolvedFeature[], steppers: AStepper[]) {
 		let newFeatures = [];
+		let foundEffect: { stepperStep: TStepperStep; namedWithVars: TNamed } = undefined;
 
 		for (const feature of resolvedFeatures) {
+			const newFeature = { ...feature, featureSteps: [] };
 			for (const featureStep of feature.featureSteps) {
-				const action = featureStep.action;
-				const stepper = steppers.find((s) => constructorName(s) === action.stepperName);
-				if (stepper && stepper.steps[action.actionName]?.applyEffect) {
-					const foundAction: TStepAction = action;
-					const namedWithVars = getNamedToVars(foundAction, this.world, featureStep);
-					const newSteps = await stepper.steps[action.actionName].applyEffect(namedWithVars, feature.featureSteps);
-					const appliedFeature = {
-						...feature,
-						featureSteps: newSteps,
-					};
-					newFeatures.push(appliedFeature);
+				if (foundEffect) {
+					const newSteps = await foundEffect.stepperStep.applyEffect(foundEffect.namedWithVars, featureStep);
+					newFeature.featureSteps.push(...newSteps);
 				} else {
-					newFeatures.push(feature);
+					newFeature.featureSteps.push(featureStep);
+				}
+				const stepperStep = steppers.find((s) => constructorName(s) === featureStep.action.stepperName).steps[
+					featureStep.action.actionName
+				];
+				if (stepperStep.applyEffect) {
+					const namedWithVars = getNamedToVars(featureStep.action, this.world, featureStep);
+					foundEffect = { stepperStep, namedWithVars };
 				}
 			}
+			newFeatures.push(newFeature);
 		}
 		return newFeatures;
 	}

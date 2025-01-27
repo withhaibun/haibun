@@ -177,7 +177,7 @@ export class ReviewStep extends LitElement {
     } else if (logArtifact !== undefined) {
       okClasses.push('artifact');
     }
-    const message = executorResult ? executorResult.messageContext.topic.step.in : logHistory.message;
+    const message = executorResult ? executorResult.messageContext.topic.step.line : logHistory.message;
     const loggerDisplay = (!this.showLogLevel || executorResult) ? nothing : this.loggerButton(logHistory.level);
     const detailButton = logArtifact && this.reportDetail(logArtifact.messageContext);
     const actionClass = 'stepper-' + (actionName(logHistory) || 'unknown');

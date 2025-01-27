@@ -29,7 +29,7 @@ export class Executor {
 		const action = stepper.steps[found.actionName].action;
 		return await action(namedWithVars, featureStep).catch((caught: TAnyFixme) => {
 			world.logger.error(caught.stack);
-			return actionNotOK(`in ${featureStep.in}: ${caught.message}`, {
+			return actionNotOK(`in ${featureStep.line}: ${caught.message}`, {
 				topics: { caught: (caught?.stack || caught).toString() },
 			});
 		});
@@ -91,7 +91,7 @@ export class FeatureExecutor {
 		const stepResults: TStepResult[] = [];
 
 		for (const step of feature.featureSteps) {
-			world.logger.log(step.in);
+			world.logger.log(step.line);
 			const result = await FeatureExecutor.doFeatureStep(this.steppers, step, world);
 
 			if (world.options.step_delay) {
@@ -132,13 +132,13 @@ export class FeatureExecutor {
 		const actionResult = stepResult;
 		ok = ok && res.ok;
 
-		return { ok, in: featureStep.in, sourcePath: featureStep.source.path, actionResult, seq: featureStep.seq };
+		return { ok, line: featureStep.line, sourcePath: featureStep.source.path, actionResult, seq: featureStep.seq };
 	}
 	async onFailure(result: TStepResult, step: TFeatureStep) {
 		for (const stepper of this.steppers) {
 			if (stepper.onFailure) {
 				const res = await stepper.onFailure(result, step);
-				this.world.logger.error(`onFailure from ${result.in} for ${constructorName(stepper)}`, <TMessageContext>res);
+				this.world.logger.error(`onFailure from ${result.line} for ${constructorName(stepper)}`, <TMessageContext>res);
 			}
 		}
 	}

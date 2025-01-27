@@ -84,22 +84,20 @@ const Haibun = class Haibun extends AStepper {
 			action: async (usedInEffect: TNamed) => {
 				return OK;
 			},
-			applyEffect: async ({ stepperName, line }: TNamed, featureSteps: TFeatureStep[]) => {
+			applyEffect: async ({ stepperName, line }: TNamed, featureStep: TFeatureStep) => {
 				const newSteps = [];
 
-				for (const featureStep of featureSteps) {
-					newSteps.push(featureStep);
-					if (featureStep.action.stepperName === stepperName) {
-						const newFeatureStep = await this.newFeatureFromEffect(this.steppers, line, featureStep.seq + 0.1);
-						newSteps.push(newFeatureStep);
-					}
+				newSteps.push(featureStep);
+				if (featureStep.action.stepperName === stepperName) {
+					const newFeatureStep = await this.newFeatureFromEffect(this.steppers, line, featureStep.seq + 0.1);
+					newSteps.push(newFeatureStep);
 				}
 				return newSteps;
 			},
 		},
 	};
-	async newFeatureFromEffect(steppers: AStepper[], content: string, seq: number): Promise<TFeatureStep> {
-		const features = asFeatures([{ path: `resolved from ${content}`, content }]);
+	async newFeatureFromEffect(steppers: AStepper[], line: string, seq: number): Promise<TFeatureStep> {
+		const features = asFeatures([{ path: `afterEvery ${line}`, content: line }]);
 		const expandedFeatures = await expand([], features);
 		const featureSteps = await new Resolver(steppers).findFeatureSteps(expandedFeatures[0]);
 		return { ...featureSteps[0], seq };

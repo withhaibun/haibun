@@ -118,7 +118,7 @@ const example: TResolvedFeature = {
 	featureSteps: [
 		{
 			source: { type: 'type', base: 'base', name: 'name', path: 'path', content: 'content' },
-			in: 'in',
+			line: 'in',
 			seq: 0,
 			action: {
 				actionName: 'actionName',
@@ -140,7 +140,7 @@ export type TTag = {
 
 export type TFeatureStep = {
 	source: TFeature;
-	in: string;
+	line: string;
 	seq: number;
 	action: TStepAction;
 };
@@ -165,7 +165,7 @@ export type TStepperStep = {
 	applyEffect?: TApplyEffect;
 };
 
-export type TApplyEffect = (named: TNamed, featureSteps: TFeatureStep[]) => Promise<TFeatureStep[]>;
+export type TApplyEffect = (named: TNamed, featureStep: TFeatureStep) => Promise<TFeatureStep[]>;
 
 export interface CStepper {
 	new (): AStepper;
@@ -306,7 +306,7 @@ export type TFeatureResultFailure = {
 export type TStepResult = {
 	ok: boolean;
 	actionResult: TStepActionResult;
-	in: string;
+	line: string;
 	sourcePath: string;
 	seq: number;
 };

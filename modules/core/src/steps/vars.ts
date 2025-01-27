@@ -8,7 +8,7 @@ const getOrCond = (fr: string) => fr.replace(/.* is set or /, '');
 const vars = class Vars extends AStepper {
 	set = async (named: TNamed, featureStep: TFeatureStep) => {
 		// FIXME see https://github.com/withhaibun/haibun/issues/18
-		const emptyOnly = !!featureStep.in.match(/set empty /);
+		const emptyOnly = !!featureStep.line.match(/set empty /);
 
 		const res = setShared(named, featureStep, this.getWorld(), emptyOnly);
 		return res;
@@ -67,8 +67,8 @@ const vars = class Vars extends AStepper {
 		isSet: {
 			gwta: '{what: string} is set( or .*)?',
 
-			action: async ({ what }: TNamed, featureStep: TFeatureStep) => this.isSet(what, getOrCond(featureStep.in)),
-			build: async ({ what }: TNamed, featureStep: TFeatureStep) => this.isSet(what, getOrCond(featureStep.in)),
+			action: async ({ what }: TNamed, featureStep: TFeatureStep) => this.isSet(what, getOrCond(featureStep.line)),
+			build: async ({ what }: TNamed, featureStep: TFeatureStep) => this.isSet(what, getOrCond(featureStep.line)),
 		},
 		background: {
 			match: /^Background: ?(?<background>.+)?$/,

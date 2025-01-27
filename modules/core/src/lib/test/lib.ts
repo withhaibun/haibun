@@ -20,9 +20,9 @@ export async function getCreateSteppers(steppers: string[], addSteppers?: CStepp
 	return await createSteppers(csteppers.concat(addSteppers || []));
 }
 
-export const testFeatureStep = (name: string, action, base = TEST_BASE): TFeatureStep => ({
-	source: { ...withNameType(base, name, '') },
-	in: name,
+export const testFeatureStep = (line: string, action, base = TEST_BASE): TFeatureStep => ({
+	source: { ...withNameType(base, line, '') },
+	line,
 	seq: 0,
 	action,
 });

@@ -105,7 +105,7 @@ export async function scaffoldHaibun(dest: string, opts?: { out?: typeof console
 
     function writeIfMissing(from: string, to?: string, replace?: string, instead?: string) {
         to = path.join(dest, to || from);
-        from = `${from}.in`;
+        from = `${from}.line`;
 
         if (existsSync(to)) {
             out(`not copying ${to} because it already exists`);
