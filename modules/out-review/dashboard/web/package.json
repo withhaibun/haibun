@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@alenaksu/json-viewer": "^2.0.1",
-    "@haibun/out-review": "^1.30.7",
+    "@haibun/out-review": "^1.42.0",
     "lit": "3.1",
     "tslib": "^2.6.2"
   },

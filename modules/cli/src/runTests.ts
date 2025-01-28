@@ -17,6 +17,8 @@ import { HANDLE_RESULT_HISTORY, IHandleResultHistory } from '@haibun/domain-stor
 import { EMediaTypes } from '@haibun/domain-storage/build/media-types.js';
 import { getCliWorld, getSpeclOrExit, processArgs, processBaseEnvToOptionsAndErrors, usageThenExit } from './lib.js';
 import TraceLogger from './TraceLogger.js';
+import { existsSync, mkdirSync, writeFileSync } from 'fs';
+import path, { dirname } from 'path';
 
 export async function runWith({ argv, env }: { argv: string[]; env: NodeJS.ProcessEnv }): Promise<void> {
 	const { params, configLoc, showHelp, showVersion } = processArgs(argv.slice(2));
@@ -74,14 +76,18 @@ export async function runWith({ argv, env }: { argv: string[]; env: NodeJS.Proce
 	console.info('\n_________________________________ start');
 	const result = await runner.run(specl.steppers, featureFilter);
 	if (output) {
-		const wtw = await getOutputResult(world.options.OUTPUT, result);
-		console.log('🤑', JSON.stringify(wtw, null, 2));
+		const outputResult = await getOutputResult(world.options.OUTPUT, result);
+		if (outputDest) {
+			doOutput(outputDest, outputResult);
+		} else {
+			console.info('OUTPUT', JSON.stringify(outputResult, null, 2));
+		}
 	}
 
 	const printResult = result.ok
 		? `${CHECK_OK} OK`
 		: `${CHECK_NOT_OK} ` + JSON.stringify(summarizeFeatureResults(result.featureResults), null, 2);
-	console.log('RESULT', printResult);
+	console.info('RESULT', printResult);
 
 	if (result.ok) {
 		if (protoOptions.options[STAY] !== STAY_ALWAYS) {
@@ -90,6 +96,15 @@ export async function runWith({ argv, env }: { argv: string[]; env: NodeJS.Proce
 	} else if (!protoOptions.options[STAY]) {
 		process.exit(1);
 	}
+}
+
+function doOutput(outputDest: string, outputResult: any) {
+	const dir = dirname(outputDest);
+	if (!existsSync(dir)) {
+		mkdirSync(dir, { recursive: true });
+	}
+	writeFileSync(outputDest, outputResult);
+	console.info('wrote OUTPUT to', outputDest);
 }
 
 function summarizeFeatureResults(featureResults: TFeatureResult[]) {

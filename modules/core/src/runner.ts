@@ -96,9 +96,9 @@ export class Runner {
 
 	private async applyEffectFeatures(resolvedFeatures: TResolvedFeature[], steppers: AStepper[]) {
 		let newFeatures = [];
-		let foundEffect: { stepperStep: TStepperStep; namedWithVars: TNamed } = undefined;
 
 		for (const feature of resolvedFeatures) {
+			let foundEffect: { stepperStep: TStepperStep; namedWithVars: TNamed } = undefined;
 			const newFeature = { ...feature, featureSteps: [] };
 			for (const featureStep of feature.featureSteps) {
 				if (foundEffect) {
