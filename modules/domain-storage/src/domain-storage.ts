@@ -1,5 +1,5 @@
 import { WorkspaceContext } from '@haibun/core/build/lib/contexts.js'
-import { IHasDomains, TNamed, TVStep, OK, AStepper, TFromDomain, TFileTypeDomain, IHasOptions, TExtraOptions, TFeatureResult, TOptions, TTag, TAnyFixme, IHasHandlers, IHandler, ISourcedHandler } from '@haibun/core/build/lib/defs.js';
+import { TNamed, TFeatureStep, OK, AStepper, IHasOptions, TModuleOptions, TFeatureResult, TOptions, TTag, TAnyFixme, IHasHandlers, IHandler, ISourcedHandler } from '@haibun/core/build/lib/defs.js';
 import { TLogHistory } from '@haibun/core/build/lib/interfaces/logger.js';
 import { stringOrError } from '@haibun/core/build/lib/util/index.js';
 import { TMediaType, MEDIA_TYPES, MAPPED_MEDIA_TYPES } from './media-types.js';
@@ -38,12 +38,6 @@ export interface IGetPublishedReviews {
 
 export interface IWebReviewIndexer { getLatestPublished: TGetLatestPublished, resolvePublishedReview: TResolvePublishedReview, webContext: TWebContext }
 
-export const storageLocation: TFileTypeDomain = {
-  name: STORAGE_LOCATION, fileType: STORAGE_LOCATION, is: 'string', validate: (content: string) => {
-    return undefined;
-  }
-};
-
 // FIXME these belongs in domain-web
 export type TWebContext = { [name: string]: string }
 export type TGetLatestPublished = () => Promise<string[]>;
@@ -60,13 +54,7 @@ export interface ICreateStorageDestination {
   createStorageDestination(dest: string, params: TAnyFixme)
 }
 
-export const storageItem: TFromDomain = { name: STORAGE_ITEM, from: STORAGE_LOCATION, is: 'string' };
-
-const DomainStorage = class DomainStorage extends AStepper implements IHasDomains, IHasOptions {
-  domains = [
-    storageLocation,
-    storageItem,
-  ];
+const DomainStorage = class DomainStorage extends AStepper implements IHasOptions {
   locator = (location: string) => `./${location}`;
   options = {
     BASE_DIRECTORY: {
@@ -78,8 +66,8 @@ const DomainStorage = class DomainStorage extends AStepper implements IHasDomain
   steps = {
     aLocation: {
       gwta: `a ${STORAGE_LOCATION} at {where}`,
-      action: async ({ where }: TNamed, vstep: TVStep) => {
-        const location = vstep.source.name;
+      action: async ({ where }: TNamed, featureStep: TFeatureStep) => {
+        const location = featureStep.source.name;
         return OK;
       },
     },
@@ -88,7 +76,7 @@ const DomainStorage = class DomainStorage extends AStepper implements IHasDomain
       action: async ({ name }: TNamed) => {
         return OK;
       },
-      build: async ({ name }: TNamed, a: TVStep, workspace: WorkspaceContext) => {
+      build: async ({ name }: TNamed, a: TFeatureStep, workspace: WorkspaceContext) => {
         workspace.getBuilder().addControl(name);
         return { ...OK };
       },
@@ -101,7 +89,7 @@ export default DomainStorage;
 export type TLocationOptions = {
   tag: TTag,
   options: TOptions,
-  extraOptions: TExtraOptions,
+  moduleOptions: TModuleOptions,
   mediaType: TMediaType
 }
 

@@ -6,14 +6,20 @@ import { createVitest } from 'vitest/node';
 const [, me, version, ...extra] = process.argv;
 
 class Versioner {
-	localAndExtraModules: { [name: string]: string } = {}; // Changed to an object
+	localAndExtraModules: { [name: string]: string } = {}; 
+	private noTest = false;
 
 	haibunPackageVersions: { [dep: string]: string } = {};
 
 	constructor(private version: string) {
 		if (!version) {
-			console.error(`usage: ${me}: <version> <extra modules>`);
+			console.error(`usage: ${me}: <version> <extra modules> [--notest]`);
 			process.exit(1);
+		}
+		// check for --notest in extra, if it exist, set a notest flag on class and remove it from extra
+		if (extra.includes('--notest')) {
+			this.noTest = true;
+			extra.splice(extra.indexOf('--notest'), 1);
 		}
 	}
 
@@ -39,6 +45,7 @@ class Versioner {
 	}
 
 	async forLocalAndExtraModules(someFunction: (name: string, location: string) => void) {
+		console.info(`\n## ${someFunction.name}`);
 		for (const [name, module] of Object.entries(this.localAndExtraModules)) {
 			console.info('running', someFunction.name, 'for', name, module);
 			await someFunction.call(this, name, module); // Bind `this` to each action
@@ -122,6 +129,9 @@ class Versioner {
 	}
 
 	async runTest(name: string, location: string) {
+		if (this.noTest) {
+			return;
+		}
 		const originalDir = process.cwd();
 		try {
 			process.chdir(location);

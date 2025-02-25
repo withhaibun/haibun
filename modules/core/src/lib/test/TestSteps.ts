@@ -29,18 +29,6 @@ const TestSteps = class TestSteps extends AStepper {
         throw Error(`<Thrown for test case>`);
       },
     },
-    buildsWithFinalizer: {
-      gwta: 'builds with finalizer',
-      action: async () => actionOK(),
-      build: async () => {
-        return {
-          ...actionOK(),
-          finalize: (workspace: WorkspaceContext) => {
-            this.getWorld().shared.set('done', 'ok');
-          },
-        };
-      },
-    },
   };
 };
 
