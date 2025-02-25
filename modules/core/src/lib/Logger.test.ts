@@ -22,7 +22,7 @@ describe('logger with subscriber', () => {
     const logger = new Logger({ level: 'debug' });
     const tag = getDefaultTag(0);
     // FIXME
-    const step = { '@type': 'Step', description: 'step 1', actions: [], source: { path: 'path', type: 'foo', base: 'foo', name: 'foo', content: 'foo' }, in: 'in', seq: 1 };
+    const step = { '@type': 'Step', description: 'step 1', action: undefined, source: { path: 'path', type: 'foo', base: 'foo', name: 'foo', content: 'foo' }, in: 'in', seq: 1 };
     const subscriberPromise = new Promise<void>((resolve) => {
       const subscriber: ILogOutput = {
         out(level: string, args: TLogArgs, ctx?: TExecutorMessageContext) {
@@ -44,7 +44,7 @@ describe('logger with output', () => {
     const outputPromise = new Promise<void>((resolve) => {
       const output: ILogOutput = {
         out(level: string, args: TLogArgs, ctx?: TMessageContext) {
-          expect(ctx?.tag?.loop).toBe(0);
+          expect(ctx?.tag?.sequence).toBe(0);
           resolve();
         },
       };

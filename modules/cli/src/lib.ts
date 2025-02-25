@@ -1,7 +1,10 @@
-import { BASE_PREFIX, IHasOptions, TOptions, TProtoOptions, TRunResult, TSpecl, } from "@haibun/core/build/lib/defs.js";
+import nodeFS from 'fs';
+
+import { BASE_PREFIX, DEFAULT_DEST, IHasOptions, TBase, TOptions, TProtoOptions, TSpecl, } from "@haibun/core/build/lib/defs.js";
 import { getCreateSteppers } from "@haibun/core/build/lib/test/lib.js";
 import { getPre } from "@haibun/core/build/lib/util/index.js";
 import { BaseOptions } from "./BaseOptions.js";
+import { TFileSystem } from "@haibun/core/build/lib/util/workspace-lib.js";
 
 type TEnv = { [name: string]: string | undefined };
 
@@ -37,21 +40,8 @@ export async function usage(specl: TSpecl, message?: string) {
   return [...ret, ''].join('\n');
 }
 
-export function ranResultError(ranResults: TRunResult[], exceptionResults: any[]): any {
-  return JSON.stringify(
-    {
-      ran: ranResults
-        .filter((r) => !r.result.ok)
-        .map((r) => ({ stage: r.result.failure?.stage, details: r.result.failure?.error.details, results: r.result.featureResults?.find((r) => r.stepResults.find((r) => !r.ok)) })),
-      exceptionResults,
-    },
-    null,
-    2
-  );
-}
-
 export function processBaseEnvToOptionsAndErrors(env: TEnv, options: TOptions) {
-  const protoOptions: TProtoOptions = { options: { ...options }, extraOptions: {} };
+  const protoOptions: TProtoOptions = { options: { ...options }, moduleOptions: {} };
 
   const errors: string[] = [];
   let nenv = {};
@@ -77,8 +67,10 @@ export function processBaseEnvToOptionsAndErrors(env: TEnv, options: TOptions) {
         } else {
           protoOptions.options[opt] = res.result;
         }
+      } else if (opt.startsWith(`${BASE_PREFIX}_O_`)) {
+        protoOptions.moduleOptions[k] = value;
       } else {
-        protoOptions.extraOptions[k] = value;
+        errors.push(`no option for ${opt}`);
       }
     });
   protoOptions.options.env = nenv;
@@ -102,4 +94,24 @@ export function processArgs(args: string[]) {
     }
   }
   return { params, configLoc, showHelp };
+}
+
+export function getConfigFromBase(bases: TBase, fs: TFileSystem = nodeFS): TSpecl | null {
+	const found = bases?.filter((b) => fs.existsSync(`${b}/config.json`));
+	if (found.length > 1) {
+		console.error(`Found multiple config.json files: ${found.join(', ')}. Use --config to specify one.`);
+		return null;
+	}
+	const configDir = found[0] || '.';
+	const f = `${configDir}/config.json`;
+	console.info(`trying ${f}`);
+	try {
+		const specl = JSON.parse(fs.readFileSync(f, 'utf-8'));
+		if (!specl.options) {
+			specl.options = { DEST: DEFAULT_DEST };
+		}
+		return specl;
+	} catch (e) {
+		return null;
+	}
 }

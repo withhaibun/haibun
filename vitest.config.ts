@@ -2,6 +2,7 @@ import { configDefaults, defineProject } from 'vitest/config'
 
 export default defineProject({
   test: {
-    exclude: [...configDefaults.exclude, '**/**\\.js', '**/build/**']
+    include: ['**/*.{test}.ts'],
+    exclude: [...configDefaults.exclude, '**/build/**']
   }
 });

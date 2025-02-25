@@ -8,7 +8,7 @@ export default class StorageFS extends AStorage {
     readFile = (file: string, coding?: TAnyFixme) => fs.readFileSync(file, coding)
     exists = fs.existsSync;
     writeFileBuffer = (fn: TPathedOrString, contents: Buffer) => {
-        fs.writeFileSync(actualPath(fn), contents);
+        fs.writeFileSync(actualPath(fn), new Uint8Array(contents));
     }
     async lstatToIFile(file: string) {
         const l = fs.lstatSync(file);

@@ -2,9 +2,7 @@
 
 Clone this repo, then install and build:
 
-`npm i`
-
-`npm run build`
+`npm run init` - this installs base node_modules, dashboard node_modules, and runs build
 
 During development of modules, use
 

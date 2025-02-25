@@ -1,7 +1,7 @@
-import nodeFS from 'fs';
 import path, { dirname } from 'path';
+import nodeFS from 'fs';
 
-import { IResultOutput, TExecutorResult, CStepper, DEFAULT_DEST, TBase, TSpecl } from '../defs.js';
+import { IResultOutput, TExecutorResult, CStepper } from '../defs.js';
 import { use } from './index.js';
 import { fileURLToPath } from 'url';
 
@@ -63,25 +63,5 @@ export async function getStepper(s: string) {
 	} catch (e) {
 		console.error(`could not use ${s}`);
 		throw e;
-	}
-}
-
-export function getConfigFromBase(bases: TBase, fs: TFileSystem = nodeFS): TSpecl | null {
-	const found = bases.filter((b) => fs.existsSync(`${b}/config.json`));
-	if (found.length > 1) {
-		console.error(`Found multiple config.json files: ${found.join(', ')}. Use --config to specify one.`);
-		return null;
-	}
-	const configDir = found[0] || '.';
-	const f = `${configDir}/config.json`;
-	console.info(`trying ${f}`);
-	try {
-		const specl = JSON.parse(fs.readFileSync(f, 'utf-8'));
-		if (!specl.options) {
-			specl.options = { DEST: DEFAULT_DEST };
-		}
-		return specl;
-	} catch (e) {
-		return null;
 	}
 }

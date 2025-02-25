@@ -22,7 +22,11 @@ describe("types", () => {
     await BrowserFactory.closeBrowsers();
   });
   it("missing type", async () => {
-    void expect(async () => await BrowserFactory.getBrowserFactory(new Logger(LOGGER_NOTHING), ({
+    await expect(async () => await BrowserFactory.getBrowserFactory(new Logger(LOGGER_NOTHING), ({
+      ...browserContextOptions,
+      type: 'noodles'
+    } as any) as TBrowserFactoryOptions)).rejects.toThrow();
+    await expect(async () => await BrowserFactory.getBrowserFactory(new Logger(LOGGER_NOTHING), ({
       ...browserContextOptions,
       type: 'noodles'
     } as any) as TBrowserFactoryOptions)).rejects.toThrow();

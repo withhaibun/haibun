@@ -37,7 +37,6 @@ export class BrowserFactory {
   tracers: { [name: string]: PlaywrightEvents } = {};
   contexts: { [name: string]: BrowserContext } = {};
   pages: { [name: string]: Page | undefined } = {};
-  logger: ILogger;
   static tracer?: PlaywrightEvents = undefined;
   static configs: {
     [name: string]: {
@@ -47,9 +46,7 @@ export class BrowserFactory {
   } = {};
   myBrowsers: { [name: string]: Browser; };
 
-  private constructor(logger: ILogger) {
-    this.logger = logger;
-  }
+  private constructor(private logger: ILogger) { }
 
   static async getBrowserFactory(logger: ILogger, options: TBrowserFactoryOptions, tag = DEFAULT_CONFIG_TAG) {
     options.type = options.type || 'chromium';

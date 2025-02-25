@@ -7,7 +7,6 @@ import {
 	CAPTURE,
 	IHasHandlers,
 	IHasOptions,
-	IRequireDomains,
 	OK,
 	TFeatureResult,
 	TNamed,
@@ -16,9 +15,9 @@ import {
 import { STORAGE_ITEM, STORAGE_LOCATION } from '@haibun/domain-storage';
 import {
 	actionOK,
+	constructorName,
 	findStepperFromOption,
 	getStepperOption,
-	constructorName,
 	stringOrError,
 } from '@haibun/core/build/lib/util/index.js';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
@@ -52,7 +51,7 @@ export const PUBLISH_ROOT = 'PUBLISH_ROOT';
 
 type TArtifactMap = { [name: string]: TPathed };
 
-const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRequireDomains, IHasHandlers {
+const OutReviews = class OutReviews extends AStepper implements IHasOptions, IHasHandlers {
 	tracksStorage: AStorage;
 	publishStorage: AStorage;
 	// used for publishing dashboard
@@ -100,9 +99,9 @@ const OutReviews = class OutReviews extends AStepper implements IHasOptions, IRe
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
-		this.tracksStorage = findStepperFromOption(steppers, this, world.extraOptions, TRACKS_STORAGE, STORAGE);
-		this.publishStorage = findStepperFromOption(steppers, this, world.extraOptions, PUBLISH_STORAGE, STORAGE);
-		this.publishRoot = getStepperOption(this, PUBLISH_ROOT, this.getWorld().extraOptions) || './published';
+		this.tracksStorage = findStepperFromOption(steppers, this, world.moduleOptions, TRACKS_STORAGE, STORAGE);
+		this.publishStorage = findStepperFromOption(steppers, this, world.moduleOptions, PUBLISH_STORAGE, STORAGE);
+		this.publishRoot = getStepperOption(this, PUBLISH_ROOT, this.getWorld().moduleOptions) || './published';
 		const ps = this.publishStorage as unknown as IGetPublishedReviews;
 		if (ps.getPublishedReviews) {
 			this.reviewEndpoint = ps;

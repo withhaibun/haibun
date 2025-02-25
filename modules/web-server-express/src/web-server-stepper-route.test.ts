@@ -29,7 +29,7 @@ describe('route mount', () => {
     const feature = { path: '/features/test.feature', content: `serve test route to /test\nwebserver is listening\nfetch from http://localhost:8124/test is "ok"` };
     const result = await testWithDefaults([feature], [Server, TestRoute, WebHttp], {
       options: { DEST: DEFAULT_DEST, },
-      extraOptions: {
+      moduleOptions: {
         [getStepperOptionName(wss, 'PORT')]: '8124',
       },
     });

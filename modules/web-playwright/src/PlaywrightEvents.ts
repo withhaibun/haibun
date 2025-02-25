@@ -12,15 +12,8 @@ type TEtc = {
     statusText?: string;
 }
 export class PlaywrightEvents {
-    page: Page;
-    tag: TTag;
-    logger: ILogger;
-
-    constructor(logger: ILogger, page: Page, tag: TTag) {
-        this.logger = logger;
-        this.page = page;
+    constructor(private logger: ILogger, private page: Page, private tag: TTag) {
         this.logger.log(`setPage ${JSON.stringify(tag)}`);
-        this.tag = tag;
         page.on('request', this.logRequest.bind(this));
         // eslint-disable-next-line @typescript-eslint/no-floating-promises
         page.route('**/*', this.routeRequest.bind(this));

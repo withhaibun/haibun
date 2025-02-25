@@ -1,15 +1,13 @@
 {
     "files": [],
     "references": [
+        { "path": "cli" },
         { "path": "utils" },
         { "path": "core" },
         { "path": "web-server-express" },
-        { "path": "cli" },
-        { "path": "context" },
         { "path": "web-http" },
         { "path": "parse-md" },
         { "path": "web-playwright" },
-        { "path": "domain-webpage" },
         { "path": "storage-mem" },
         { "path": "out-review" },
         { "path": "domain-storage" },
