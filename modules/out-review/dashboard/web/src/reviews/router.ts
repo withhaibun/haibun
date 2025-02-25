@@ -9,14 +9,12 @@ export type TWindowRouter = {
 }
 
 export class Router {
-    routesFor: TRoutable;
     index = '';
     source = '';
     group = '';
     currentHash = '';
 
-    constructor(routesFor: TRoutable) {
-        this.routesFor = routesFor;
+    constructor(private routesFor: TRoutable) {
         (globalThis as unknown as TWindowRouter)._router = this;
         this._updateProps();
     }

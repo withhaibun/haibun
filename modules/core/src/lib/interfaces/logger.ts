@@ -1,4 +1,4 @@
-import { TAnyFixme, TStepResult, TTag, TVStep, versionedSchema } from '../defs.js';
+import { TAnyFixme, TStepResult, TTag, TFeatureStep, versionedSchema } from '../defs.js';
 
 export type TLogLevel = 'none' | 'debug' | 'log' | 'info' | 'warn' | 'error';
 export type TLogArgs = string;
@@ -55,7 +55,7 @@ export type TTraceMessageContext = {
 
 export type TExecutorResultTopic = {
   result: TStepResult, 
-  step: TVStep,
+  step: TFeatureStep,
   stage: 'Executor';
 };
 
@@ -80,7 +80,7 @@ export type TArtifactDebugTopic = TBaseArtifactTopic & {
 
 export type TArtifactFailureStepTopic = TBaseArtifactTopic & {
   event: 'failure';
-  step: TVStep;
+  step: TFeatureStep;
 };
 
 

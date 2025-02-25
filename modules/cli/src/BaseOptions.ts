@@ -8,18 +8,6 @@ export class BaseOptions implements IHasOptions {
             desc: 'execution key (defaults to serialtime)',
             parse: (input: string) => stringOrError(input)
         },
-        SPLIT_SHARED: {
-            desc: 'create instances based on variable options, for example, var=option1,option2',
-            parse: (input: string) => {
-                const [what, s] = input.split('=');
-
-                if (!what || !s) {
-                    return { error: `var=option1,option2` };
-                } else {
-                    return { result: s.split(',').map((w: string) => ({ [what]: w })) };
-                }
-            }
-        },
         TRACE: {
             desc: 'save tracks data',
             parse: (input: string) => boolOrError(input)
@@ -91,27 +79,6 @@ export class BaseOptions implements IHasOptions {
             desc: 'delay between steps',
             parse: (input: string) => intOrError(input)
         },
-
-        LOOPS: {
-            desc: 'how many loops',
-            parse: (input: string) => intOrError(input)
-        },
-        // LOOP_START: {
-        //     desc: 'wip',
-        //     parse: (input: string) => intOrError(input)
-        // },
-        // LOOP_INC: {
-        //     desc: 'wip',
-        //     parse: (input: string) => intOrError(input)
-        // },
-        MEMBERS: {
-            desc: 'number of members in each loop',
-            parse: (input: string) => intOrError(input)
-        },
-        // CONTINUE_ON_ERROR_IF_SCORED: {
-        //     desc: 'wip',
-        //     parse: (result: string) => ({ result })
-        // },
         OUTPUT: {
             desc: 'Output format (AsXUnit)',
             parse: (result: string) => ({ result })
