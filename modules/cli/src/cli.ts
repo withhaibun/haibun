@@ -15,7 +15,7 @@ import {
 import { IHandleResultHistory, HANDLE_RESULT_HISTORY } from '@haibun/domain-storage/build/domain-storage.js';
 
 import { findHandlers, getDefaultOptions, basesFrom } from '@haibun/core/build/lib/util/index.js';
-import { getConfigFromBase, processArgs, processBaseEnvToOptionsAndErrors, usageThenExit } from './lib.js';
+import { getAllSteppers, getConfigFromBase, processArgs, processBaseEnvToOptionsAndErrors, usageThenExit } from './lib.js';
 import { Timer } from '@haibun/core/build/lib/Timer.js';
 import Logger from '@haibun/core/build/lib/Logger.js';
 import { EMediaTypes } from '@haibun/domain-storage/build/media-types.js';
@@ -30,12 +30,17 @@ process.on('unhandledRejection', console.error);
 go().catch(console.error);
 
 async function go() {
-	const { params, configLoc, showHelp } = processArgs(process.argv.slice(2));
+	const { params, configLoc, showHelp, showSteppers } = processArgs(process.argv.slice(2));
 	const bases = basesFrom(params[0]?.replace(/\/$/, ''));
 	const specl = await getSpeclOrExit(configLoc ? [configLoc] : bases);
 
 	if (showHelp) {
 		await usageThenExit(specl);
+	}
+	if (showSteppers) {
+		const allSteppers = await getAllSteppers(specl);
+		console.log('Steppers:', JSON.stringify(allSteppers, null, 2));
+		process.exit(0);
 	}
 	const featureFilter = params[1] ? params[1].split(',') : undefined;
 
