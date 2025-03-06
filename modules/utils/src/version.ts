@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import prettier from 'prettier';
 import { spawn } from './util/index.js';
