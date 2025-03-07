@@ -1,4 +1,4 @@
-import { DEFAULT_DEST, IHasOptions, STAY_ALWAYS, STAY_FAILURE, TOptions } from '@haibun/core/build/lib/defs.js';
+import { IHasOptions, STAY_ALWAYS, STAY_FAILURE, STEP_DELAY, TOptions } from '@haibun/core/build/lib/defs.js';
 import { LOGGER_LEVELS } from '@haibun/core/build/lib/Logger.js';
 import { boolOrError, intOrError, optionOrError, stringOrError } from '@haibun/core/build/lib/util/index.js';
 
@@ -15,10 +15,6 @@ export class BaseOptions implements IHasOptions {
 		DESCRIPTION: {
 			desc: 'description for reports',
 			parse: (result: string) => ({ result }),
-		},
-		CLI: {
-			desc: 'create a command interface for each member',
-			parse: (input: string) => boolOrError(input),
 		},
 		SETTING: {
 			desc: 'execution setting (eg dev, prod)',
@@ -44,7 +40,7 @@ export class BaseOptions implements IHasOptions {
 					: { error: `${result} not in ${Object.keys(LOGGER_LEVELS).join(', ')}` },
 		},
 		ENV: {
-			desc: 'pass an environment variable: var=value[,var2=value]',
+			desc: 'pass a variable: var=value[,var2=value]',
 			parse: (input: string, cur: TOptions) => {
 				const pairs = input?.split(',');
 				const env: TOptions = { ...cur };
@@ -59,7 +55,7 @@ export class BaseOptions implements IHasOptions {
 			},
 		},
 		ENVC: {
-			desc: 'pass multiple environment variables: var1=a,var2=b',
+			desc: 'pass multiple variables: var1=a,var2=b',
 			parse: (input: string, cur: TOptions) => {
 				const env: TOptions = { ...cur };
 
@@ -73,7 +69,7 @@ export class BaseOptions implements IHasOptions {
 				return { env };
 			},
 		},
-		STEP_DELAY: {
+		[STEP_DELAY]: {
 			desc: 'delay between steps',
 			parse: (input: string) => intOrError(input),
 		},

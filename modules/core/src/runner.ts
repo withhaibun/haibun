@@ -79,7 +79,7 @@ export class Runner {
 				)}), ${appliedResolvedFeatures.length}`
 			);
 
-			this.result = await Executor.execute(csteppers, this.world, appliedResolvedFeatures, this.callbacks.endFeature).catch(
+			this.result = await Executor.execute(csteppers, this.world, appliedResolvedFeatures, this.callbacks).catch(
 				(error) => this.errorBail('Execute', error)
 			);
 		} catch (error) {

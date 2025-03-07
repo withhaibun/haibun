@@ -17,7 +17,7 @@ describe('apply ENV', () => {
 		expect(res.error).toBeDefined();
 	});
 });
-describe.only('apply ENVC', () => {
+describe('apply ENVC', () => {
 	it('creates pairs', () => {
 		const res = BaseOptions.options.ENVC.parse('a=1,b=2', defaultEnv);
 		expect(res.env).toEqual({ ...defaultEnv, a: '1', b: '2' });
