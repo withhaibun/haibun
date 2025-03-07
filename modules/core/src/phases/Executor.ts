@@ -8,16 +8,19 @@ import {
 	TWorld,
 	TStepActionResult,
 	AStepper,
-	TEndFeatureCallback,
 	CStepper,
 	TStepAction,
 	TAnyFixme,
 	STAY,
 	STAY_FAILURE,
+	CHECK_NO,
+	CHECK_YES,
+	STEP_DELAY,
 } from '../lib/defs.js';
 import { TExecutorMessageContext, TMessageContext } from '../lib/interfaces/logger.js';
 import { getNamedToVars } from '../lib/namedVars.js';
 import { actionNotOK, setStepperWorlds, sleep, createSteppers, findStepper, constructorName } from '../lib/util/index.js';
+import { TRunnerCallbacks } from '../runner.js';
 
 export class Executor {
 	// find the stepper and action, call it and return its result
@@ -36,7 +39,7 @@ export class Executor {
 		csteppers: CStepper[],
 		world: TWorld,
 		features: TResolvedFeature[],
-		endFeatureCallbacks?: TEndFeatureCallback[]
+		callbacks?: TRunnerCallbacks
 	): Promise<TExecutorResult> {
 		let ok = true;
 		const stayOnFailure = world.options[STAY] === STAY_FAILURE;
@@ -48,7 +51,7 @@ export class Executor {
 
 			const newWorld = { ...world, tag: { ...world.tag, ...{ featureNum: 0 + featureNum } } };
 
-			const featureExecutor = new FeatureExecutor(csteppers, endFeatureCallbacks);
+			const featureExecutor = new FeatureExecutor(csteppers, callbacks);
 			await featureExecutor.setup(newWorld);
 
 			const featureResult = await featureExecutor.doFeature(feature);
@@ -71,7 +74,7 @@ export class FeatureExecutor {
 	steppers?: AStepper[];
 	startOffset = 0;
 
-	constructor(private csteppers: CStepper[], private endFeatureCallbacks?: TEndFeatureCallback[]) {}
+	constructor(private csteppers: CStepper[], private callbacks?: TRunnerCallbacks) {}
 	async setup(world: TWorld) {
 		this.world = world;
 		this.startOffset = world.timer.since();
@@ -92,14 +95,14 @@ export class FeatureExecutor {
 			world.logger.log(step.in);
 			const result = await FeatureExecutor.doFeatureStep(this.steppers, step, world);
 
-			if (world.options.step_delay) {
-				await sleep(world.options.step_delay as number);
+			if (world.options[STEP_DELAY]) {
+				await sleep(world.options[STEP_DELAY] as number);
 			}
 			ok = ok && result.ok;
 			if (!result.ok) {
 				await this.onFailure(result, step);
 			}
-			const indicator = result.ok ? '✅' : '❌';
+			const indicator = result.ok ? CHECK_YES : CHECK_NO;
 			world.logger.log(indicator, <TExecutorMessageContext>{ topic: { stage: 'Executor', result, step } });
 			stepResults.push(result);
 			if (!ok) {
@@ -154,11 +157,12 @@ export class FeatureExecutor {
 		}
 	}
 	async doEndFeatureCallback(featureResult: TFeatureResult) {
-		if (this.endFeatureCallbacks) {
-			for (const callback of this.endFeatureCallbacks) {
+		if (this.callbacks.endFeature) {
+			for (const callback of this.callbacks.endFeature) {
 				try {
 					await callback({ world: this.world, result: featureResult, steppers: this.steppers, startOffset: this.startOffset });
 				} catch (error: TAnyFixme) {
+					console.error('endFeatureCallback failing', callback.toString());
 					throw Error(error);
 				}
 			}

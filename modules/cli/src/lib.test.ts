@@ -1,6 +1,6 @@
 import { vitest, describe, it, expect } from 'vitest';
 
-import { DEFAULT_DEST } from '@haibun/core/build/lib/defs.js';
+import { DEFAULT_DEST, STEP_DELAY } from '@haibun/core/build/lib/defs.js';
 import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, testWithDefaults } from '@haibun/core/build/lib/test/lib.js';
 import TestStepsWithOptions from '@haibun/core/build/lib/test/TestStepsWithOptions.js';
 import { getDefaultOptions } from '@haibun/core/build/lib/util/index.js';
@@ -53,12 +53,12 @@ describe('processEnv', () => {
 	});
 	it('assigns int', () => {
 		const specl = getDefaultOptions();
-		const { options } = lib.processBaseEnvToOptionsAndErrors({ HAIBUN_STEP_DELAY: '1' }, specl.options).protoOptions;
-		expect(options.STEP_DELAY).toBe(1);
+		const { options } = lib.processBaseEnvToOptionsAndErrors({ [`HAIBUN_${STEP_DELAY}`]: '1' }, specl.options).protoOptions;
+		expect(options[STEP_DELAY]).toBe(1);
 	});
 	it('errors for string passed as int', () => {
 		const specl = getDefaultOptions();
-		const { errors } = lib.processBaseEnvToOptionsAndErrors({ HAIBUN_STEP_DELAY: 'x.2' }, specl.options);
+		const { errors } = lib.processBaseEnvToOptionsAndErrors({ [`HAIBUN_${STEP_DELAY}`]: 'x.2' }, specl.options);
 		expect(errors.length).toBe(1);
 	});
 	it('errors for non option', () => {

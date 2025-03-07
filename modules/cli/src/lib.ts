@@ -86,7 +86,7 @@ export function processBaseEnvToOptionsAndErrors(env: TEnv, options: TOptions) {
 				} else {
 					protoOptions.options[opt] = res.result;
 				}
-			} else if (opt.startsWith(`${BASE_PREFIX}_O_`)) {
+			} else if (opt.startsWith(`O_`)) {
 				protoOptions.moduleOptions[k] = value;
 			} else {
 				errors.push(`no option for ${opt}`);

@@ -1,15 +1,8 @@
-import {
-	OK,
-	TNamed,
-	AStepper,
-	TWorld,
-	TFeatureStep,
-	TResolvedFeature,
-} from '../lib/defs.js';
+import { OK, TNamed, AStepper, TWorld, TFeatureStep, TResolvedFeature, STEP_DELAY } from '../lib/defs.js';
 import { Resolver } from '../phases/Resolver.js';
 import { actionNotOK, findStepper, sleep } from '../lib/util/index.js';
-import { expand, } from '../lib/features.js';
-import {  asFeatures } from '../lib/resolver-features.js';
+import { expand } from '../lib/features.js';
+import { asFeatures } from '../lib/resolver-features.js';
 
 const Haibun = class Haibun extends AStepper {
 	steppers: AStepper[];
@@ -32,7 +25,7 @@ const Haibun = class Haibun extends AStepper {
 		startStepDelay: {
 			gwta: 'start step delay of (?<ms>.+)',
 			action: async ({ ms }: TNamed) => {
-				this.getWorld().options.step_delay = parseInt(ms, 10);
+				this.getWorld().options[STEP_DELAY] = parseInt(ms, 10);
 				return OK;
 			},
 		},
