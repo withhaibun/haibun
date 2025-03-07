@@ -332,3 +332,8 @@ export const STAY = 'STAY';
 export function versionedSchema(schema: string) {
 	return `https://raw.githubusercontent.com/withhaibun/schemas/main/schemas/${schema}.json#${currentVersion}`;
 }
+
+export const CHECK_YES = '✅';
+export const CHECK_NO = '❌';
+
+export const STEP_DELAY = 'STEP_DELAY';

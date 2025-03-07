@@ -1,8 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import { FeatureExecutor } from './Executor';
-import { TEndFeatureCallback, TFeatureResult, TStepActionResult } from '../lib/defs';
+import { TFeatureResult, TStepActionResult } from '../lib/defs';
 import { getDefaultWorld } from '../lib/test/lib';
 import { actionNotOK, actionOK } from '../lib/util';
+import { TRunnerCallbacks } from '../runner';
 
 describe('Executor endFeatureCallback', () => {
 	const world = getDefaultWorld(0, { HAIBUN_LOG_LEVEL: 'none' });
@@ -41,8 +42,8 @@ describe('Executor endFeatureCallback', () => {
 
 	it('should call endFeatureCallback with passing result', async () => {
 		const mockCallback = vi.fn();
-		const endFeatureCallbacks: TEndFeatureCallback[] = [mockCallback];
-		const executor = new FeatureExecutor([], endFeatureCallbacks);
+		const callbacks: TRunnerCallbacks = { endFeature: [mockCallback] };
+		const executor = new FeatureExecutor([], callbacks);
 
 		await executor.setup(world);
 		await executor.doEndFeatureCallback(passingFeatureResult);
@@ -59,8 +60,8 @@ describe('Executor endFeatureCallback', () => {
 
 	it('should call endFeatureCallback with failing result', async () => {
 		const mockCallback = vi.fn();
-		const endFeatureCallbacks: TEndFeatureCallback[] = [mockCallback];
-		const executor = new FeatureExecutor([], endFeatureCallbacks);
+		const callbacks: TRunnerCallbacks = { endFeature: [mockCallback] };
+		const executor = new FeatureExecutor([], callbacks);
 
 		await executor.setup(world);
 		await executor.doEndFeatureCallback(failingFeatureResult);
@@ -78,8 +79,8 @@ describe('Executor endFeatureCallback', () => {
 	it('should handle multiple callbacks', async () => {
 		const mockCallback1 = vi.fn();
 		const mockCallback2 = vi.fn();
-		const endFeatureCallbacks: TEndFeatureCallback[] = [mockCallback1, mockCallback2];
-		const executor = new FeatureExecutor([], endFeatureCallbacks);
+		const callbacks: TRunnerCallbacks = { endFeature: [mockCallback1, mockCallback2] };
+		const executor = new FeatureExecutor([], callbacks);
 
 		await executor.setup(world);
 		await executor.doEndFeatureCallback(passingFeatureResult);
@@ -90,8 +91,8 @@ describe('Executor endFeatureCallback', () => {
 
 	it('should handle callback throwing error', async () => {
 		const mockCallback = vi.fn().mockRejectedValue(new Error('Callback error'));
-		const endFeatureCallbacks: TEndFeatureCallback[] = [mockCallback];
-		const executor = new FeatureExecutor([], endFeatureCallbacks);
+		const callbacks: TRunnerCallbacks = { endFeature: [mockCallback] };
+		const executor = new FeatureExecutor([], callbacks);
 
 		await executor.setup(world);
 

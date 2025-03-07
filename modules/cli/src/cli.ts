@@ -4,13 +4,14 @@ import sourceMapSupport from 'source-map-support';
 
 import {
 	TSpecl,
-	TEndFeatureCallback,
 	TEndFeatureCallbackParams,
 	TBase,
 	STAY_ALWAYS,
 	STAY,
 	TWorld,
 	TProtoOptions,
+	CHECK_NO,
+	CHECK_YES,
 } from '@haibun/core/build/lib/defs.js';
 import { IHandleResultHistory, HANDLE_RESULT_HISTORY } from '@haibun/domain-storage/build/domain-storage.js';
 
@@ -39,7 +40,7 @@ async function go() {
 	}
 	if (showSteppers) {
 		const allSteppers = await getAllSteppers(specl);
-		console.log('Steppers:', JSON.stringify(allSteppers, null, 2));
+		console.info('Steppers:', JSON.stringify(allSteppers, null, 2));
 		process.exit(0);
 	}
 	const featureFilter = params[1] ? params[1].split(',') : undefined;
@@ -57,32 +58,31 @@ async function go() {
 	const description = protoOptions.options.DESCRIPTION || bases + ' ' + [...(featureFilter || [])].join(',');
 	const world = getWorld(protoOptions, bases);
 
-	let endFeatureCallback: TEndFeatureCallback | undefined = undefined;
+	const callbacks = { endFeature: undefined };
 	if (trace) {
-		endFeatureCallback = async (params: TEndFeatureCallbackParams) => {
+		const endFeatureCallback = async (params: TEndFeatureCallbackParams) => {
 			const { world, result, steppers, startOffset } = params;
 			const historyHandlers = findHandlers<IHandleResultHistory>(steppers, HANDLE_RESULT_HISTORY);
 			const loc = { ...world };
 			const traceHistory = [...Logger.traceHistory];
 			for (const h of historyHandlers) {
-				await h.handle(
-					{ ...loc, mediaType: EMediaTypes.json },
-					description,
-					result,
-					Timer.startTime,
-					startOffset,
-					traceHistory
-				);
+				await h
+					.handle({ ...loc, mediaType: EMediaTypes.json }, description, result, Timer.startTime, startOffset, traceHistory)
+					.catch((error) => {
+						console.error(`historyHandler failing`, h.handle.toString());
+						throw error;
+					});
 			}
 			Logger.traceHistory = [];
 		};
+		callbacks.endFeature = [endFeatureCallback];
 	}
 
-	const runner = new Runner(world, { endFeature: [endFeatureCallback] });
+	const runner = new Runner(world, callbacks);
 
 	console.info('\n_________________________________ start');
 	const result = await runner.run(specl.steppers);
-	console.log('🤑', JSON.stringify(result, null, 2));
+	console.info(result.ok ? CHECK_YES : CHECK_NO, JSON.stringify(result, null, 2));
 
 	if (result.ok) {
 		if (protoOptions.options[STAY] !== STAY_ALWAYS) {

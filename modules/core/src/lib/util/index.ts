@@ -118,7 +118,7 @@ export async function verifyExtraOptions(inExtraOptions: TModuleOptions, csteppe
 	});
 
 	if (Object.keys(moduleOptions).length > 0) {
-		throw Error(`no option for ${moduleOptions}`);
+		throw Error(`no extra option for ${moduleOptions}`);
 	}
 }
 
