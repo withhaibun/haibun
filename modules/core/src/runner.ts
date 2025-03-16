@@ -42,10 +42,10 @@ export class Runner {
 		throw Error(error);
 	};
 
-	async run(steppers: string[]) {
+	async run(steppers: string[], featureFilter = []) {
 		let featuresBackgrounds: TFeaturesBackgrounds = undefined;
 		try {
-			featuresBackgrounds = getFeaturesAndBackgrounds(this.world.bases, []);
+			featuresBackgrounds = getFeaturesAndBackgrounds(this.world.bases, featureFilter);
 		} catch (error) {
 			this.errorBail('Collector', error);
 		}
@@ -79,8 +79,8 @@ export class Runner {
 				)}), ${appliedResolvedFeatures.length}`
 			);
 
-			this.result = await Executor.execute(csteppers, this.world, appliedResolvedFeatures, this.callbacks).catch(
-				(error) => this.errorBail('Execute', error)
+			this.result = await Executor.execute(csteppers, this.world, appliedResolvedFeatures, this.callbacks).catch((error) =>
+				this.errorBail('Execute', error)
 			);
 		} catch (error) {
 			if (!this.result) {
