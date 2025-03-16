@@ -1,4 +1,5 @@
 import { Page, Response, Download } from 'playwright';
+import { resolve } from 'path';
 
 import { IHasOptions, OK, TNamed, TStepResult, AStepper, TWorld, TFeatureStep, TAnyFixme } from '@haibun/core/build/lib/defs.js';
 import { WEB_PAGE, WEB_CONTROL } from '@haibun/core/build/lib/domain-types.js';
@@ -8,9 +9,10 @@ import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 import { TActionStage, TArtifactMessageContext, TTraceMessageContext } from '@haibun/core/build/lib/interfaces/logger.js';
 import { EMediaTypes } from '@haibun/domain-storage/build/media-types.js';
 import Logger from '@haibun/core/build/lib/Logger.js';
-import { resolve } from 'path';
 
-const WebPlaywright = class WebPlaywright extends AStepper implements IHasOptions {
+import { restSteps } from './rest-playwright.js';
+
+class WebPlaywright extends AStepper implements IHasOptions {
   static STORAGE = 'STORAGE';
   static PERSISTENT_DIRECTORY = 'PERSISTENT_DIRECTORY';
   requireDomains = [WEB_PAGE, WEB_CONTROL];
@@ -36,12 +38,8 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
       parse: (input: string) => boolOrError(input),
       dependsOn: ['STORAGE'],
     },
-    STEP_CAPTURE_SCREENSHOT: {
-      desc: 'capture screenshot for every step',
-      parse: (input: string) => boolOrError(input),
-    },
     TIMEOUT: {
-      desc: 'timeout for each step',
+      desc: 'browser timeout for each step',
       parse: (input: string) => intOrError(input),
     },
     [WebPlaywright.STORAGE]: {
@@ -131,14 +129,6 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     }
   }
 
-  // FIXME currently not executed
-  async nextStep(step: TFeatureStep) {
-    const captureScreenshot = getStepperOption(this, 'STEP_CAPTURE_SCREENSHOT', this.getWorld().moduleOptions);
-    if (captureScreenshot) {
-      await this.captureRequestScreenshot('request', 'nextStep', step.seq);
-    }
-  }
-
   async endFeature() {
     // close the context, which closes any pages
     if (this.hasFactory) {
@@ -184,6 +174,7 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
     return actionNotOK(`Did not find text "${text}" in ${selector}`, { topics });
   }
   steps = {
+    ...restSteps(this),
     //                                      INPUT
     press: {
       gwta: `press {key}`,
@@ -675,4 +666,3 @@ const WebPlaywright = class WebPlaywright extends AStepper implements IHasOption
 
 export default WebPlaywright;
 
-export type TWebPlaywright = typeof WebPlaywright;
