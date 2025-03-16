@@ -81,8 +81,8 @@ async function go() {
 	const runner = new Runner(world, callbacks);
 
 	console.info('\n_________________________________ start');
-	const result = await runner.run(specl.steppers);
-	console.info(result.ok ? CHECK_YES : CHECK_NO, JSON.stringify(result, null, 2));
+	const result = await runner.run(specl.steppers, featureFilter);
+	console.info(result.ok ? CHECK_YES : CHECK_NO, 'At', result.failure.stage, '\n', result.failure.error.message);
 
 	if (result.ok) {
 		if (protoOptions.options[STAY] !== STAY_ALWAYS) {
