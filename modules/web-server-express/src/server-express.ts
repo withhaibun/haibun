@@ -115,7 +115,7 @@ export class ServerExpress implements IWebServer {
 	}
 
 	checkMountBadOrMounted(type: string, loc: string, what: string) {
-		if (loc !== loc.replace(/[^a-zA-Z-0-9/\-_]/g, '')) {
+		if (loc !== loc.replace(/[^a-zA-Z-0-9:/\-_]/g, '')) {
 			return `mount folder ${loc} has illegal characters`;
 		}
 		const alreadyMounted =
