@@ -96,7 +96,7 @@ export function describeSteppers(steppers: AStepper[]) {
 			return `${constructorName(stepper)}: ${Object.keys(stepper?.steps).sort().join('|')}`;
 		})
 		.sort()
-		.join('  ');
+		.join('  \n');
 }
 
 // from https://stackoverflow.com/questions/1027224/how-can-i-test-if-a-letter-in-a-string-is-uppercase-or-lowercase-using-javascrip
