@@ -16,6 +16,7 @@ import {
 	CHECK_NO,
 	CHECK_YES,
 	STEP_DELAY,
+	TNotOKActionResult,
 } from '../lib/defs.js';
 import { TExecutorMessageContext, TMessageContext } from '../lib/interfaces/logger.js';
 import { getNamedToVars } from '../lib/namedVars.js';
@@ -102,7 +103,7 @@ export class FeatureExecutor {
 			if (!result.ok) {
 				await this.onFailure(result, step);
 			}
-			const indicator = result.ok ? CHECK_YES : CHECK_NO;
+			const indicator = result.ok ? CHECK_YES : CHECK_NO + ' ' + (<TNotOKActionResult>result.actionResult).message;
 			world.logger.log(indicator, <TExecutorMessageContext>{ topic: { stage: 'Executor', result, step } });
 			stepResults.push(result);
 			if (!ok) {
