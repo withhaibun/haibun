@@ -58,14 +58,14 @@ const vars = class Vars extends AStepper {
 			build: async (n: TNamed, featureStep: TFeatureStep) => await this.set(n, featureStep),
 		},
 		is: {
-			gwta: '{what: string} is "{value}"',
+			gwta: 'variable {what: string} is "{value}"',
 			action: async ({ what, value }: TNamed) => {
 				const val = this.getWorld().shared.get(what);
 				return val === value ? OK : actionNotOK(`${what} is ${val}, not ${value}`);
 			},
 		},
 		isSet: {
-			gwta: '{what: string} is set( or .*)?',
+			gwta: 'variable {what: string} is set( or .*)?',
 
 			action: async ({ what }: TNamed, featureStep: TFeatureStep) => this.isSet(what, getOrCond(featureStep.in)),
 			build: async ({ what }: TNamed, featureStep: TFeatureStep) => this.isSet(what, getOrCond(featureStep.in)),
