@@ -165,7 +165,7 @@ class WebPlaywright extends AStepper implements IHasOptions {
 			// await this.bf?.closeContext(this.getWorld().tag);
 		}
 	}
-	async close() {
+	async endedFeature() {
 		// close the context, which closes any pages
 		if (this.hasFactory) {
 			await this.bf?.closeContext(this.getWorld().tag);
@@ -197,16 +197,22 @@ class WebPlaywright extends AStepper implements IHasOptions {
 		const topics = { textContent: { summary: `in ${textContent?.length} characters`, details: textContent } };
 		return actionNotOK(`Did not find text "${text}" in ${selector}`, { topics });
 	}
+	async getCookies() {
+		const browserContext = await this.getBrowserContext();
+		return await browserContext?.cookies();
+	}
 	steps = {
 		...restSteps(this),
 		openDevTools: {
 			gwta: `open devtools`,
 			action: async ({ key }: TNamed) => {
 				await this.withPage(async (page: Page) => {
-					await page.goto('about:blank')
+					await page.goto('about:blank');
 					await sleep(2000);
 					const targetId = await fetch('http://localhost:9223/json/list');
-					await page.goto(`devtools://devtools/bundled/inspector.html?ws=localhost:9223/devtools/page/${targetId}&panel=network`);
+					await page.goto(
+						`devtools://devtools/bundled/inspector.html?ws=localhost:9223/devtools/page/${targetId}&panel=network`
+					);
 				});
 				return OK;
 			},
@@ -365,11 +371,9 @@ class WebPlaywright extends AStepper implements IHasOptions {
 		cookieIs: {
 			gwta: 'cookie {name} is {value}',
 			action: async ({ name, value }: TNamed) => {
-				const browserContext = await this.getBrowserContext();
-				const cookies = await browserContext?.cookies();
-
+				const cookies = await this.getCookies();
 				const found = cookies?.find((c) => c.name === name && c.value === value);
-				return found ? OK : actionNotOK(`did not find cookie ${name} with value ${value}`);
+				return found ? OK : actionNotOK(`did not find cookie ${name} with value ${value} from ${JSON.stringify(cookies)}`);
 			},
 		},
 		URIContains: {

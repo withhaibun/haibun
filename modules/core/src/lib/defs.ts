@@ -188,8 +188,9 @@ export type TSteppers = {
 
 export abstract class AStepper {
 	world?: TWorld;
-	close?(): void;
+	startFeature?(): Promise<void>;
 	endFeature?(): Promise<void>;
+	endedFeature?(): void;
 	onFailure?(result: TStepResult, step: TFeatureStep): Promise<void | TMessageContext>;
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	async setWorld(world: TWorld, steppers: AStepper[]) {
