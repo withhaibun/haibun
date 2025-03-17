@@ -23,8 +23,8 @@ const WebServerStepper = class WebServerStepper extends AStepper implements IHas
 		world.runtime[WEBSERVER] = this.webserver;
 	}
 
-	async close() {
-		await this.webserver?.close();
+	async endedFeature() {
+		await this.webserver?.endedFeatures();
 	}
 
 	steps = {

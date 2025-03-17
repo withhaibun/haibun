@@ -54,15 +54,16 @@ export class Executor {
 
 			const featureExecutor = new FeatureExecutor(csteppers, callbacks);
 			await featureExecutor.setup(newWorld);
+			await featureExecutor.startFeature();
 
 			const featureResult = await featureExecutor.doFeature(feature);
 
 			ok = ok && featureResult.ok;
 			featureResults.push(featureResult);
-			const shouldClose = ok || !stayOnFailure;
+			const shouldEndFeatureClose = ok || !stayOnFailure;
 			await featureExecutor.endFeature(); // this should be before close
-			if (shouldClose) {
-				await featureExecutor.close();
+			if (shouldEndFeatureClose) {
+				await featureExecutor.endedFeature();
 			}
 			await featureExecutor.doEndFeatureCallback(featureResult);
 		}
@@ -145,6 +146,18 @@ export class FeatureExecutor {
 		}
 	}
 
+	async startFeature() {
+		for (const stepper of this.steppers) {
+			if (stepper.startFeature) {
+				this.world.logger.debug(`startFeature ${constructorName(stepper)}`);
+				await stepper.startFeature().catch((error: TAnyFixme) => {
+					console.error('startFeature', error);
+					throw error;
+				});
+				this.world.logger.debug(`startFeature ${constructorName(stepper)}`);
+			}
+		}
+	}
 	async endFeature() {
 		for (const stepper of this.steppers) {
 			if (stepper.endFeature) {
@@ -169,11 +182,11 @@ export class FeatureExecutor {
 			}
 		}
 	}
-	async close() {
+	async endedFeature() {
 		for (const stepper of this.steppers) {
-			if (stepper.close) {
-				this.world.logger.debug(`closing ${constructorName(stepper)}`);
-				await stepper.close();
+			if (stepper.endedFeature) {
+				this.world.logger.debug(`endedFeatures ${constructorName(stepper)}`);
+				await stepper.endedFeature();
 			}
 		}
 	}
