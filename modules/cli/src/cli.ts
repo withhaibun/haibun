@@ -82,7 +82,7 @@ async function go() {
 
 	console.info('\n_________________________________ start');
 	const result = await runner.run(specl.steppers, featureFilter);
-	console.info(result.ok ? CHECK_YES : CHECK_NO, 'At', result.failure.stage, '\n', result.failure.error.message);
+	console.info(result.ok ? CHECK_YES : CHECK_NO, 'At', JSON.stringify(result.failure) /*result.failure.stage, '\n', result.failure.error.message*/);
 
 	if (result.ok) {
 		if (protoOptions.options[STAY] !== STAY_ALWAYS) {
