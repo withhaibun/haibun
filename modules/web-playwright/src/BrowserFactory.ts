@@ -63,7 +63,7 @@ export class BrowserFactory {
 			BrowserFactory.browsers[type] = await BrowserFactory.configs[tag].browserType.launch(
 				BrowserFactory.configs[tag].options.browser
 			);
-			this.logger.info(`launched new ${type} browser`);
+			this.logger.debug(`launched new ${type} browser`);
 		}
 		return BrowserFactory.browsers[type];
 	}
@@ -78,7 +78,7 @@ export class BrowserFactory {
 		if (!this.browserContexts[sequence]) {
 			let browserContext: BrowserContext;
 			if (BrowserFactory.configs.persistentDirectory) {
-				this.logger.info(
+				this.logger.debug(
 					`creating new persistent context ${sequence} ${BrowserFactory.configs[tag].options.type}, ${
 						BrowserFactory.configs.persistentDirectory
 					} with ${JSON.stringify(BrowserFactory.configs)}`
@@ -88,7 +88,7 @@ export class BrowserFactory {
 					BrowserFactory.configs[tag].options
 				);
 			} else {
-				this.logger.info(`creating new context ${sequence} ${BrowserFactory.configs[tag].options.type}`);
+				this.logger.debug(`creating new context ${sequence} ${BrowserFactory.configs[tag].options.type}`);
 				const browser = await this.getBrowser(BrowserFactory.configs[tag].options.type);
 				const deviceContext = BrowserFactory.configs[tag].options.device
 					? { ...devices[BrowserFactory.configs[tag].options.device] }
@@ -144,7 +144,7 @@ export class BrowserFactory {
 			await page.bringToFront();
 			return page;
 		}
-		this.logger.info(`creating new page for ${sequence}`);
+		this.logger.debug(`creating new page for ${sequence}`);
 
 		const context = await this.getBrowserContext(sequence);
 		page = await context.newPage();

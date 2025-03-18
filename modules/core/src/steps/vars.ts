@@ -94,7 +94,7 @@ const vars = class Vars extends AStepper {
 		display: {
 			gwta: 'display {what}',
 			action: async ({ what }: TNamed) => {
-				this.getWorld().logger.log(`is ${JSON.stringify(what)}`);
+				this.getWorld().logger.info(`is ${JSON.stringify(what)}`);
 
 				return OK;
 			},

@@ -1,4 +1,4 @@
-import { Page, Response } from 'playwright';
+import { Page, Response as PlaywrightResponse } from 'playwright';
 
 import { actionNotOK } from '@haibun/core/build/lib/util/index.js';
 import WebPlaywright from './web-playwright.js';
@@ -25,13 +25,14 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 	restTokenRequest: {
 		gwta: `request OAuth 2.0 access token from {endpoint}`,
 		action: async ({ endpoint }: TNamed) => {
-			const response = await webPlaywright.withPage<Response>(async (page: Page) => await page.request.get(endpoint));
-			const captured = await capturedResponse(response);
-			const accessToken = captured.json[ACCESS_TOKEN];
-			const browserContext = await webPlaywright.getBrowserContext();
-			browserContext.setExtraHTTPHeaders({ [AUTHORIZATION]: `Bearer ${accessToken}` });
+			const serialized = await webPlaywright.withPageFetch(endpoint);
 
-			webPlaywright.getWorld().shared.set(LAST_REST_RESPONSE, captured);
+			const accessToken = serialized.json[ACCESS_TOKEN];
+
+			const browserContext = await webPlaywright.getBrowserContext();
+			await browserContext.setExtraHTTPHeaders({ [AUTHORIZATION]: `Bearer ${accessToken}` });
+
+			webPlaywright.getWorld().shared.set(LAST_REST_RESPONSE, serialized);
 
 			return OK;
 		},
@@ -42,9 +43,8 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 			const browserContext = await webPlaywright.getBrowserContext();
 			browserContext.setExtraHTTPHeaders({});
 
-			const response = await webPlaywright.withPage<Response>(async (page: Page) => await page.request.get(endpoint));
-			const captured = await capturedResponse(response);
-			webPlaywright.getWorld().shared.set(LAST_REST_RESPONSE, captured);
+			const serialized = await webPlaywright.withPageFetch(endpoint);
+			webPlaywright.getWorld().shared.set(LAST_REST_RESPONSE, serialized);
 
 			return OK;
 		},
@@ -56,9 +56,8 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 			if (!NO_PAYLOAD_METHODS.includes(method)) {
 				return actionNotOK(`Method ${method} not supported`);
 			}
-			const response = await webPlaywright.withPage<Response>(async (page: Page) => await page.request[method](endpoint));
-
-			webPlaywright.getWorld().shared.set(LAST_REST_RESPONSE, await capturedResponse(response));
+			const serialized = await webPlaywright.withPageFetch(endpoint, method);
+			webPlaywright.getWorld().shared.set(LAST_REST_RESPONSE, serialized);
 
 			return OK;
 		},
@@ -117,12 +116,12 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 
 			const responses = [];
 			for (const item of filtered) {
-				const requesPath = endpoint + '/' + item[property];
-				const response = await webPlaywright.withPage<Response>(async (page: Page) => await page.request[method](requesPath));
-				if (response.status() !== parseInt(status, 10)) {
-					return actionNotOK(`Expected status ${status} to ${requesPath}, got ${response.status()}`);
+				const requestPath = endpoint + '/' + item[property];
+				const serialized = await webPlaywright.withPageFetch(requestPath, method);
+				if (serialized.status !== parseInt(status, 10)) {
+					return actionNotOK(`Expected status ${status} to ${requestPath}, got ${serialized.status}`);
 				}
-				responses.push(await capturedResponse(response));
+				responses.push(serialized);
 			}
 
 			webPlaywright.getWorld().shared.set(LAST_REST_RESPONSE, responses);
@@ -131,26 +130,30 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 		},
 	},
 	restEndpointRequestWithPayload: {
-		gwta: `make an ${HTTP} {method} to {endpoint} with {payload}`,
+		gwta: `make an ${'HTTP'} {method} to {endpoint} with {payload}`,
 		action: async ({ method, endpoint, payload }: TNamed) => {
 			method = method.toLowerCase();
 			if (!PAYLOAD_METHODS.includes(method)) {
-				return actionNotOK(`Method ${method} does not support payload`);
+				return actionNotOK(`Method ${method} (${method}) does not support payload`);
 			}
-			try {
-				const data = typeof payload === 'object' ? payload : JSON.parse(payload);
-				const requestOptions = { data };
-
-				const response = await webPlaywright.withPage<Response>(
-					async (page: Page) => await page.request[method](endpoint, requestOptions)
-				);
-
-				webPlaywright.getWorld().shared.set(LAST_REST_RESPONSE, await capturedResponse(response));
-
-				return OK;
-			} catch (error: any) {
-				return actionNotOK(`REST request failed: ${error.message}`);
+			let postData: string | object;
+			if (typeof payload === 'object') {
+				postData = JSON.stringify(payload);
+			} else {
+				postData = payload;
 			}
+			const requestOptions = {
+				postData,
+				headers: {
+					'Content-Type': 'application/json',
+				},
+			};
+
+			const serialized = await webPlaywright.withPageFetch(endpoint, method, requestOptions);
+
+			webPlaywright.getWorld().shared.set(LAST_REST_RESPONSE, serialized);
+
+			return OK;
 		},
 	},
 	restLastStatusIs: {
@@ -185,20 +188,49 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 	},
 });
 
-async function capturedResponse(response: Response) {
-	const capturedResponse = {
+export type TCapturedResponse = {
+	status: number;
+	statusText: string;
+	headers: any;
+	url: string;
+	json: any;
+	text: string;
+};
+
+async function capturedPlaywrightResponse(response: PlaywrightResponse): Promise<TCapturedResponse> {
+	return {
 		status: await response.status(),
 		statusText: await response.statusText(),
+		headers: response.headers(),
+		url: response.url(),
+		...(await payload(response)),
+	};
+}
+
+async function capturedResponse(response: Partial<Response> & { headers: any }): Promise<TCapturedResponse> {
+	return {
+		status: await response.status,
+		statusText: await response.statusText,
 		headers: response.headers,
 		url: response.url,
-		json: null,
-		text: null,
+		...(await payload(response)),
 	};
+}
 
+async function payload(response: { json?: () => Promise<any>; text?: () => Promise<string> }) {
+	let payload;
 	try {
-		capturedResponse.json = await response.json();
-	} catch (error) {
-		capturedResponse.text = await response.text();
+		payload = {
+			json: await response.json(),
+		};
+	} catch (e) {
+		try {
+			payload = {
+				text: await response.text(),
+			};
+		} catch (e) {
+			console.error('Failed to get payload', e);
+		}
 	}
-	return capturedResponse;
+	return payload;
 }

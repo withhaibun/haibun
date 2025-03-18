@@ -44,7 +44,7 @@ const Haibun = class Haibun extends AStepper {
 		displayEnv: {
 			gwta: 'show the environment',
 			action: async () => {
-				this.world?.logger.log(`env: ${JSON.stringify(this.world.options.env)}`);
+				this.world?.logger.info(`env: ${JSON.stringify(this.world.options.env)}`);
 				return OK;
 			},
 		},
@@ -52,7 +52,7 @@ const Haibun = class Haibun extends AStepper {
 			gwta: 'show stepper tag {which}',
 			action: async ({ which }: TNamed) => {
 				const what = which ? (this.getWorld().tag as any)[which] : this.getWorld().tag;
-				this.world?.logger.log(`tag ${which}: ${JSON.stringify(what)}`);
+				this.world?.logger.info(`tag ${which}: ${JSON.stringify(what)}`);
 				return OK;
 			},
 		},
