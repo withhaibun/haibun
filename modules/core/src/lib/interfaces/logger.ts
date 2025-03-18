@@ -111,6 +111,7 @@ export interface ILogger {
   warn: (what: TLogArgs, ctx?: TMessageContext) => void;
   error: (what: TLogArgs, ctx?: TMessageContext) => void;
   addSubscriber: (subscriber: ILogOutput) => void;
+  removeSubscriber: (subscriber: ILogOutput) => void;
 }
 
 export interface IConnect {

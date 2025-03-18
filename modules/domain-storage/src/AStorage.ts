@@ -189,7 +189,7 @@ export abstract class AStorage extends AStepper {
 			gwta: `read text from {where}`,
 			action: async ({ where }: TNamed) => {
 				const text = await this.readFile(where, 'utf-8');
-				this.getWorld().logger.log(text);
+				this.getWorld().logger.info(text);
 				return OK;
 			},
 		},
@@ -197,7 +197,7 @@ export abstract class AStorage extends AStepper {
 			gwta: `list files from {where}`,
 			action: async ({ where }: TNamed) => {
 				const files = await this.readdir(where);
-				this.getWorld().logger.log(`files from ${where}: ${files.join(', ')}`);
+				this.getWorld().logger.info(`files from ${where}: ${files.join(', ')}`);
 				return OK;
 			},
 		},
