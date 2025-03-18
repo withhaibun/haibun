@@ -26,8 +26,15 @@ import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 import { TActionStage, TArtifactMessageContext, TTraceMessageContext } from '@haibun/core/build/lib/interfaces/logger.js';
 import { EMediaTypes } from '@haibun/domain-storage/build/media-types.js';
 import Logger from '@haibun/core/build/lib/Logger.js';
+import { TLogLevel, TLogArgs, TMessageContext } from '@haibun/core/build/lib/interfaces/logger.js';
 
-import { restSteps } from './rest-playwright.js';
+import { restSteps, TCapturedResponse } from './rest-playwright.js';
+import { logToElement } from './logToElement.js';
+
+type TRequestOptions = {
+	headers?: Record<string, string>;
+	postData?: string | URLSearchParams | FormData | Blob | ArrayBuffer | ArrayBufferView;
+};
 
 class WebPlaywright extends AStepper implements IHasOptions {
 	static STORAGE = 'STORAGE';
@@ -72,6 +79,8 @@ class WebPlaywright extends AStepper implements IHasOptions {
 	withFrame: string;
 	downloaded: string[] = [];
 	captureVideo: string;
+	closers: Array<() => Promise<void>> = [];
+	logElementError: any;
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
@@ -163,6 +172,11 @@ class WebPlaywright extends AStepper implements IHasOptions {
 				});
 			}
 			// await this.bf?.closeContext(this.getWorld().tag);
+		}
+		if (this.closers) {
+			for (const closer of this.closers) {
+				await closer();
+			}
 		}
 	}
 	async endedFeature() {
@@ -296,6 +310,13 @@ class WebPlaywright extends AStepper implements IHasOptions {
 			},
 		},
 
+		inNewWindow: {
+			gwta: `on a new tab`,
+			action: async () => {
+				this.newWindow();
+				return OK;
+			},
+		},
 		onNewPage: {
 			gwta: `on a new tab`,
 			action: async () => {
@@ -569,22 +590,6 @@ class WebPlaywright extends AStepper implements IHasOptions {
 				return OK;
 			},
 		},
-		pressBack: {
-			gwta: 'press the back button',
-			action: async () => {
-				// FIXME
-				await this.withPage(
-					async (page: Page) =>
-						await page.evaluate(() => {
-							console.debug('going back', globalThis.history);
-							globalThis.history.go(-1);
-						})
-				);
-				// await page.focus('body');
-				// await page.keyboard.press('Alt+ArrowRight');
-				return OK;
-			},
-		},
 
 		//                         BROWSER
 		usingBrowserVar: {
@@ -678,6 +683,34 @@ class WebPlaywright extends AStepper implements IHasOptions {
 				return OK;
 			},
 		},
+		addLoggingToElement: {
+			gwta: 'log to {element}',
+			action: async ({ element }: TNamed) => {
+				const subscriber = {
+					out: (level: TLogLevel, args: TLogArgs, messageContext?: TMessageContext) => {
+						this.withPage(async (page: Page) => {
+							try {
+								await page.locator(element).evaluate(logToElement, {
+									level,
+									message: args,
+									messageContext: JSON.stringify({ ...(messageContext || {}) }, null, 2),
+								});
+							} catch (e) {
+								if (!this.logElementError || this.logElementError !== e.message) {
+									console.error('error in logToElement', e.message);
+									this.logElementError = e.message;
+								}
+							}
+						});
+					},
+				};
+				this.getWorld().logger.addSubscriber(subscriber);
+				this.closers.push(async () => {
+					this.getWorld().logger.removeSubscriber(subscriber);
+				});
+				return OK;
+			},
+		},
 	};
 	setBrowser(browser: string) {
 		this.factoryOptions.type = browser as unknown as TBrowserTypes;
@@ -706,6 +739,50 @@ class WebPlaywright extends AStepper implements IHasOptions {
 		const artifact = Logger.logArtifact({ type: 'picture', path });
 		const artifactTopic = { topic: { ...details, event, stage }, artifact, tag: this.getWorld().tag };
 		this.getWorld().logger.info('screenshot', artifactTopic);
+	}
+
+	async withPageFetch(
+		endpoint: string,
+		method: string = 'GET',
+		requestOptions: TRequestOptions = {}
+	): Promise<TCapturedResponse> {
+		const { headers, postData } = requestOptions;
+
+		return await this.withPage(async (page: Page) => {
+			return await page.evaluate(
+				async ({ endpoint, method, headers, postData }) => {
+					const fetchOptions: RequestInit = {
+						method,
+					};
+
+					if (headers) {
+						fetchOptions.headers = headers;
+					}
+
+					if (postData) {
+						fetchOptions.body = postData;
+					}
+
+					try {
+						const response = await fetch(endpoint, fetchOptions);
+
+						const capturedResponse: TCapturedResponse = {
+							status: response.status,
+							statusText: response.statusText,
+							headers: Object.fromEntries(response.headers.entries()),
+							url: response.url,
+							json: await response.json().catch(() => null),
+							text: await response.text().catch(() => ''),
+						};
+
+						return capturedResponse;
+					} catch (e: any) {
+						throw new Error(`Failed to fetch ${method} ${endpoint}: ${e.message}`);
+					}
+				},
+				{ endpoint, method, headers, postData }
+			);
+		});
 	}
 }
 
