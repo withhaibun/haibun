@@ -50,7 +50,7 @@ export const logToElement = (
 		}
 		return detailsDiv;
 	}
-	function createArtifactDiv(artifact: TArtifactMessageContext): HTMLDivElement {
+	function createArtifactDiv(a: TArtifactMessageContext): HTMLDivElement {
 		const artifactDiv = document.createElement('div');
 		artifactDiv.classList.add('haibun-artifact-div');
 
@@ -65,9 +65,14 @@ export const logToElement = (
 			contentDiv.style.width = '100%';
 			contentDiv.style.height = '80vh';
 			details.appendChild(contentDiv);
+		} else if (a.artifact.type === 'image') {
+			const contextPicture = document.createElement('img');
+			contextPicture.alt = `Screen capture from message`;
+			contextPicture.src = a.artifact.path;
+			details.appendChild(contextPicture);
 		} else {
 			const contextPre = document.createElement('pre');
-			contextPre.textContent = JSON.stringify(artifact.artifact, null, 2);
+			contextPre.textContent = JSON.stringify(a.artifact, null, 2);
 			details.appendChild(contextPre);
 		}
 		const detailsWrapper = document.createElement('div');
