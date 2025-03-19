@@ -9,7 +9,6 @@
         { "path": "parse-md" },
         { "path": "web-playwright" },
         { "path": "storage-mem" },
-        { "path": "out-review" },
         { "path": "domain-storage" },
         { "path": "storage-fs" },
         { "path": "out-xunit" }

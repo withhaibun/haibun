@@ -1,4 +1,4 @@
-import { Page, Response, Download, chromium, FileChooser } from 'playwright';
+import { Page, Response, Download } from 'playwright';
 import { resolve } from 'path';
 
 import {
@@ -26,11 +26,9 @@ import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 import { TActionStage, TArtifactMessageContext, TTraceMessageContext } from '@haibun/core/build/lib/interfaces/logger.js';
 import { EMediaTypes } from '@haibun/domain-storage/build/media-types.js';
 import Logger from '@haibun/core/build/lib/Logger.js';
-import { TLogLevel, TLogArgs, TMessageContext } from '@haibun/core/build/lib/interfaces/logger.js';
 
 import { restSteps, TCapturedResponse } from './rest-playwright.js';
-import { logToElement } from './logToElement.js';
-import { dashboard } from './dashboard.js';
+import { createDashboardCreator, writeDashboard } from './dashboard.js';
 
 type TRequestOptions = {
 	headers?: Record<string, string>;
@@ -88,6 +86,7 @@ class WebPlaywright extends AStepper implements IHasOptions {
 	logElementError: any;
 	dashboard: boolean;
 	static dashboardPage: Page;
+	resourceMap = new Map();
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
@@ -191,6 +190,11 @@ class WebPlaywright extends AStepper implements IHasOptions {
 			for (const closer of this.closers) {
 				await closer();
 			}
+		}
+		if (this.dashboard) {
+			const loc = await this.getCaptureDir('dashboard');
+			const fn = await writeDashboard(this.storage, loc, WebPlaywright.dashboardPage, this.resourceMap);
+			this.getWorld().logger.info(`wrote dashboard to ${JSON.stringify(fn)}`);
 		}
 	}
 	async endedFeature() {
@@ -789,33 +793,7 @@ class WebPlaywright extends AStepper implements IHasOptions {
 			);
 		});
 	}
-	async createDashboard() {
-		WebPlaywright.dashboardPage = await (await (await chromium.launch({ headless: false })).newContext()).newPage();
-		await WebPlaywright.dashboardPage.goto('about:blank');
-		const element = 'haibun-dashboard';
-		await WebPlaywright.dashboardPage.setContent(dashboard(element));
-		const subscriber = {
-			out: async (level: TLogLevel, args: TLogArgs, messageContext?: TMessageContext) => {
-				try {
-					await WebPlaywright.dashboardPage.locator(`#${element}`).evaluate(logToElement, {
-						level,
-						message: args,
-						messageContext: JSON.stringify({ ...(messageContext || {}) }, null, 2),
-					});
-				} catch (e) {
-					if (!this.logElementError || this.logElementError !== e.message) {
-						console.error('error in logToElement', e.message);
-						this.logElementError = e.message;
-					}
-				}
-			},
-		};
-		this.getWorld().logger.addSubscriber(subscriber);
-		this.closers.push(async () => {
-			this.getWorld().logger.removeSubscriber(subscriber);
-		});
-		return OK;
-	}
+	createDashboard = createDashboardCreator(this);
 }
 
 export default WebPlaywright;
