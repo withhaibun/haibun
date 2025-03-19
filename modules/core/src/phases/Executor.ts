@@ -20,7 +20,7 @@ import {
 } from '../lib/defs.js';
 import { TExecutorMessageContext, TMessageContext } from '../lib/interfaces/logger.js';
 import { getNamedToVars } from '../lib/namedVars.js';
-import { actionNotOK, setStepperWorlds, sleep, createSteppers, findStepper, constructorName } from '../lib/util/index.js';
+import { actionNotOK, setStepperWorlds, sleep, createSteppers, findStepper, constructorName, doStepperCycleMethods } from '../lib/util/index.js';
 import { TRunnerCallbacks } from '../runner.js';
 
 export class Executor {
@@ -146,30 +146,6 @@ export class FeatureExecutor {
 		}
 	}
 
-	async startFeature() {
-		for (const stepper of this.steppers) {
-			if (stepper.startFeature) {
-				this.world.logger.debug(`startFeature ${constructorName(stepper)}`);
-				await stepper.startFeature().catch((error: TAnyFixme) => {
-					console.error('startFeature', error);
-					throw error;
-				});
-				this.world.logger.debug(`startFeature ${constructorName(stepper)}`);
-			}
-		}
-	}
-	async endFeature() {
-		for (const stepper of this.steppers) {
-			if (stepper.endFeature) {
-				this.world.logger.debug(`endFeature ${constructorName(stepper)}`);
-				await stepper.endFeature().catch((error: TAnyFixme) => {
-					console.error('endFeature', error);
-					throw error;
-				});
-				this.world.logger.debug(`endedFeature ${constructorName(stepper)}`);
-			}
-		}
-	}
 	async doEndFeatureCallback(featureResult: TFeatureResult) {
 		if (this.callbacks.endFeature) {
 			for (const callback of this.callbacks.endFeature) {
@@ -182,12 +158,14 @@ export class FeatureExecutor {
 			}
 		}
 	}
+
+	async startFeature() {
+		await doStepperCycleMethods(this.steppers, 'startFeature');
+	}
+	async endFeature() {
+		await doStepperCycleMethods(this.steppers, 'endFeature');
+	}
 	async endedFeature() {
-		for (const stepper of this.steppers) {
-			if (stepper.endedFeature) {
-				this.world.logger.debug(`endedFeatures ${constructorName(stepper)}`);
-				await stepper.endedFeature();
-			}
-		}
+		await doStepperCycleMethods(this.steppers, 'endedFeature');
 	}
 }
