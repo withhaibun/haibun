@@ -92,7 +92,14 @@ export class BrowserFactory {
 				const browser = await this.getBrowser(BrowserFactory.configs[tag].options.type);
 				const deviceContext = BrowserFactory.configs[tag].options.device
 					? { ...devices[BrowserFactory.configs[tag].options.device] }
-					: {};
+					: {
+							viewport: {
+								width: 600,
+								height: 400,
+								x: 50,
+								y: 50,
+							},
+					  };
 				browserContext = await browser.newContext({ ...deviceContext, ...BrowserFactory.configs[tag].options });
 			}
 			this.browserContexts[sequence] = browserContext;
@@ -148,6 +155,7 @@ export class BrowserFactory {
 
 		const context = await this.getBrowserContext(sequence);
 		page = await context.newPage();
+
 		const tracer = new PlaywrightEvents(this.logger, page, tag);
 
 		this.pages[pageKey] = page;

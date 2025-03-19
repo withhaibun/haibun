@@ -67,7 +67,7 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 		action: async ({ property, match }: TNamed) => {
 			const lastResponse = webPlaywright.getWorld().shared.get(LAST_REST_RESPONSE);
 			if (!lastResponse?.json || !Array.isArray(lastResponse.json)) {
-				return actionNotOK(`No JSON or array from ${lastResponse}`);
+				return actionNotOK(`No JSON or array from ${JSON.stringify(lastResponse)}`);
 			}
 
 			const filtered = lastResponse.json.filter((item: any) => item[property].match(match));

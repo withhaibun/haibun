@@ -16,6 +16,7 @@ import {
 	createSteppers,
 	setStepperWorlds,
 	constructorName,
+	doStepperCycleMethods,
 } from './lib/util/index.js';
 import { getSteppers } from './lib/util/workspace-lib.js';
 import { getFeaturesAndBackgrounds, TFeaturesBackgrounds } from './phases/collector.js';
@@ -79,6 +80,7 @@ export class Runner {
 				)}), ${appliedResolvedFeatures.length}`
 			);
 
+			await doStepperCycleMethods(steppers, 'startExecution');
 			this.result = await Executor.execute(csteppers, this.world, appliedResolvedFeatures, this.callbacks).catch((error) =>
 				this.errorBail('Execute', error)
 			);

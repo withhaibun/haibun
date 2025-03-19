@@ -369,3 +369,15 @@ export const getSerialTime = () => Date.now();
 export function dePolite(s: string) {
 	return s.replace(/^((given|when|then|and|should|the|it|I'm|I|am|an|a) )*/i, '');
 }
+
+export async function doStepperCycleMethods(steppers: AStepper[], method: string) {
+	for (const stepper of steppers) {
+		if (stepper[method]) {
+			stepper.getWorld().logger.debug(`${method} ${constructorName(stepper)}`);
+			await stepper[method]().catch((error: TAnyFixme) => {
+				console.error(`${method} failed`, error);
+				throw error;
+			});
+		}
+	}
+}

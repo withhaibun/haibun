@@ -1,4 +1,4 @@
-import { Page, Response, Download } from 'playwright';
+import { Page, Response, Download, chromium, FileChooser } from 'playwright';
 import { resolve } from 'path';
 
 import {
@@ -30,6 +30,7 @@ import { TLogLevel, TLogArgs, TMessageContext } from '@haibun/core/build/lib/int
 
 import { restSteps, TCapturedResponse } from './rest-playwright.js';
 import { logToElement } from './logToElement.js';
+import { dashboard } from './dashboard.js';
 
 type TRequestOptions = {
 	headers?: Record<string, string>;
@@ -41,6 +42,10 @@ class WebPlaywright extends AStepper implements IHasOptions {
 	static PERSISTENT_DIRECTORY = 'PERSISTENT_DIRECTORY';
 	requireDomains = [WEB_PAGE, WEB_CONTROL];
 	options = {
+		DASHBOARD: {
+			desc: 'display a dashboard with ongoing results',
+			parse: (input: string) => boolOrError(input),
+		},
 		HEADLESS: {
 			desc: 'run browsers without a window (true, false)',
 			parse: (input: string) => boolOrError(input),
@@ -81,6 +86,8 @@ class WebPlaywright extends AStepper implements IHasOptions {
 	captureVideo: string;
 	closers: Array<() => Promise<void>> = [];
 	logElementError: any;
+	dashboard: boolean;
+	static dashboardPage: Page;
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
@@ -91,6 +98,8 @@ class WebPlaywright extends AStepper implements IHasOptions {
 		if (devtools) {
 			args.concat(['--auto-open-devtools-for-tabs', '--devtools-flags=panel-network', '--remote-debugging-port=9223']);
 		}
+		this.dashboard = getStepperOption(this, 'DASHBOARD', world.moduleOptions) === 'true';
+		console.log('args', args);
 		const persistentDirectory = getStepperOption(this, WebPlaywright.PERSISTENT_DIRECTORY, world.moduleOptions) === 'true';
 		const defaultTimeout = parseInt(getStepperOption(this, 'TIMEOUT', world.moduleOptions)) || 30000;
 		this.captureVideo = getStepperOption(this, 'CAPTURE_VIDEO', world.moduleOptions);
@@ -126,8 +135,8 @@ class WebPlaywright extends AStepper implements IHasOptions {
 		return this.bf;
 	}
 
-	async getBrowserContext() {
-		const browserContext = (await this.getBrowserFactory()).getExistingBrowserContext(this.getWorld().tag);
+	async getBrowserContext(tag = this.getWorld().tag) {
+		const browserContext = (await this.getBrowserFactory()).getExistingBrowserContext(tag);
 		return browserContext;
 	}
 
@@ -158,6 +167,11 @@ class WebPlaywright extends AStepper implements IHasOptions {
 		}
 	}
 
+	async startExecution(): Promise<void> {
+		if (this.dashboard) {
+			await this.createDashboard();
+		}
+	}
 	async endFeature() {
 		// close the context, which closes any pages
 		if (this.hasFactory) {
@@ -310,10 +324,11 @@ class WebPlaywright extends AStepper implements IHasOptions {
 			},
 		},
 
-		inNewWindow: {
-			gwta: `on a new tab`,
+		createDashboard: {
+			gwta: 'create dashboard',
 			action: async () => {
-				this.newWindow();
+				await this.createDashboard();
+
 				return OK;
 			},
 		},
@@ -608,6 +623,23 @@ class WebPlaywright extends AStepper implements IHasOptions {
 			},
 		},
 
+		waitForFileChooser: {
+			gwta: 'upload file {file} with {selector}',
+			action: async ({ file, selector }: TNamed) => {
+				try {
+					await this.withPage(async (page: Page) => {
+						const [fileChooser] = await Promise.all([page.waitForEvent('filechooser'), page.locator('#uploadFile').click()]);
+						const changeButton = page.locator(selector);
+						await changeButton.click();
+
+						await fileChooser.setFiles(file);
+					});
+					return OK;
+				} catch (e) {
+					return actionNotOK(e);
+				}
+			},
+		},
 		waitForDownload: {
 			gwta: 'save download to {file}',
 			action: async ({ file }: TNamed) => {
@@ -683,34 +715,6 @@ class WebPlaywright extends AStepper implements IHasOptions {
 				return OK;
 			},
 		},
-		addLoggingToElement: {
-			gwta: 'log to {element}',
-			action: async ({ element }: TNamed) => {
-				const subscriber = {
-					out: (level: TLogLevel, args: TLogArgs, messageContext?: TMessageContext) => {
-						this.withPage(async (page: Page) => {
-							try {
-								await page.locator(element).evaluate(logToElement, {
-									level,
-									message: args,
-									messageContext: JSON.stringify({ ...(messageContext || {}) }, null, 2),
-								});
-							} catch (e) {
-								if (!this.logElementError || this.logElementError !== e.message) {
-									console.error('error in logToElement', e.message);
-									this.logElementError = e.message;
-								}
-							}
-						});
-					},
-				};
-				this.getWorld().logger.addSubscriber(subscriber);
-				this.closers.push(async () => {
-					this.getWorld().logger.removeSubscriber(subscriber);
-				});
-				return OK;
-			},
-		},
 	};
 	setBrowser(browser: string) {
 		this.factoryOptions.type = browser as unknown as TBrowserTypes;
@@ -777,12 +781,40 @@ class WebPlaywright extends AStepper implements IHasOptions {
 
 						return capturedResponse;
 					} catch (e: any) {
+						console.error(e);
 						throw new Error(`Failed to fetch ${method} ${endpoint}: ${e.message}`);
 					}
 				},
 				{ endpoint, method, headers, postData }
 			);
 		});
+	}
+	async createDashboard() {
+		WebPlaywright.dashboardPage = await (await (await chromium.launch({ headless: false })).newContext()).newPage();
+		await WebPlaywright.dashboardPage.goto('about:blank');
+		const element = 'haibun-dashboard';
+		await WebPlaywright.dashboardPage.setContent(dashboard(element));
+		const subscriber = {
+			out: async (level: TLogLevel, args: TLogArgs, messageContext?: TMessageContext) => {
+				try {
+					await WebPlaywright.dashboardPage.locator(`#${element}`).evaluate(logToElement, {
+						level,
+						message: args,
+						messageContext: JSON.stringify({ ...(messageContext || {}) }, null, 2),
+					});
+				} catch (e) {
+					if (!this.logElementError || this.logElementError !== e.message) {
+						console.error('error in logToElement', e.message);
+						this.logElementError = e.message;
+					}
+				}
+			},
+		};
+		this.getWorld().logger.addSubscriber(subscriber);
+		this.closers.push(async () => {
+			this.getWorld().logger.removeSubscriber(subscriber);
+		});
+		return OK;
 	}
 }
 

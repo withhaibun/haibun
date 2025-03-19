@@ -13,7 +13,7 @@ type TEtc = {
 }
 export class PlaywrightEvents {
     constructor(private logger: ILogger, private page: Page, private tag: TTag) {
-        this.logger.log(`setPage ${JSON.stringify(tag)}`);
+        this.logger.debug(`setPage ${JSON.stringify(tag)}`);
         page.on('request', this.logRequest.bind(this));
         // eslint-disable-next-line @typescript-eslint/no-floating-promises
         page.route('**/*', this.routeRequest.bind(this));
