@@ -1,4 +1,4 @@
-import { TExecutorMessageContext } from '@haibun/core/build/lib/interfaces/logger.js';
+import { TArtifactMessageContext, TExecutorMessageContext } from '@haibun/core/build/lib/interfaces/logger.js';
 
 export const CLASS_DISAPPEARS = 'haibun-disappears';
 export const CLASS_LOADER = 'haibun-loader';
@@ -20,38 +20,7 @@ export const logToElement = (
 		const style = document.createElement('style');
 		style.id = 'haibun-loader-style';
 		style.textContent = `
-      .haibun-loader {
-        border: 4px solid #f3f3f3;
-        border-top: 4px solid #3498db;
-        border-radius: 50%;
-        width: 20px;
-        height: 20px;
-        animation: spin 9.8s linear infinite;
-      }
-
-      .haibun-log-container {
-        display: flex;
-        flex-direction: row;
-        width: 100%;
-        align-items: flex-start;
-      }
-      .haibun-details-div {
-        min-width: 100px;
-      }
-      .haibun-messages-div {
-        flex-grow: 1;
-        margin-left: 10px;
-        white-space: pre-wrap;
-      }
-      .haibun-messages-div > div {
-        display: inline;
-      }
-
-      @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-      }
-    `;
+		`;
 		document.head.appendChild(style);
 	}
 
@@ -67,8 +36,8 @@ export const logToElement = (
 		detailsDiv.classList.add('haibun-details-div');
 
 		if (!isContextEmpty(messageContext)) {
-			const details = document.createElement('details');
 			const summary = document.createElement('summary');
+			const details = document.createElement('details');
 			summary.textContent = level;
 			const contextPre = document.createElement('pre');
 			contextPre.textContent = messageContext;
@@ -80,6 +49,27 @@ export const logToElement = (
 			detailsDiv.appendChild(loader);
 		}
 		return detailsDiv;
+	}
+	function createArtifactDiv(artifact: TArtifactMessageContext): HTMLDivElement {
+		const artifactDiv = document.createElement('div');
+		artifactDiv.classList.add('haibun-artifact-div');
+
+		const summary = document.createElement('summary');
+		summary.textContent = a.artifact.type;
+		const details = document.createElement('details');
+		details.appendChild(summary);
+		if (a.artifact.type === 'html' && a.artifact.content) {
+			details.innerHTML = a.artifact.content;
+		} else {
+			const contextPre = document.createElement('pre');
+			contextPre.textContent = JSON.stringify(artifact.artifact, null, 2);
+			details.appendChild(contextPre);
+		}
+		const detailsWrapper = document.createElement('div');
+		detailsWrapper.classList.add('haibun-artifact-content');
+		detailsWrapper.appendChild(details);
+		artifactDiv.appendChild(detailsWrapper);
+		return artifactDiv;
 	}
 
 	function createMessagesDiv(message: string): HTMLDivElement {
@@ -116,6 +106,12 @@ export const logToElement = (
 
 	container.appendChild(detailsDiv);
 	container.appendChild(messagesDiv);
+
+	const a = <TArtifactMessageContext>JSON.parse(messageContext);
+	if (a.artifact) {
+		const artifact = createArtifactDiv(a);
+		messagesDiv.append(artifact);
+	}
 
 	el.appendChild(container);
 
