@@ -59,7 +59,12 @@ export const logToElement = (
 		const details = document.createElement('details');
 		details.appendChild(summary);
 		if (a.artifact.type === 'html' && a.artifact.content) {
-			details.innerHTML = a.artifact.content;
+			const contentDiv = document.createElement('iframe');
+			contentDiv.srcdoc = a.artifact.content;
+			contentDiv.style.border = 'none';
+			contentDiv.style.width = '100%';
+			contentDiv.style.height = '80vh';
+			details.appendChild(contentDiv);
 		} else {
 			const contextPre = document.createElement('pre');
 			contextPre.textContent = JSON.stringify(artifact.artifact, null, 2);
