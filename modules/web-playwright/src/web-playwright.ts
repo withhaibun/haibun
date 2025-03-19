@@ -192,8 +192,7 @@ class WebPlaywright extends AStepper implements IHasOptions {
 			}
 		}
 		if (this.dashboard) {
-			const loc = await this.getCaptureDir('dashboard');
-			const fn = await writeDashboard(this.storage, loc, WebPlaywright.dashboardPage, this.resourceMap);
+			const fn = await writeDashboard(this.world, this.storage, WebPlaywright.dashboardPage, this.resourceMap);
 			this.getWorld().logger.info(`wrote dashboard to ${JSON.stringify(fn)}`);
 		}
 	}

@@ -1,4 +1,4 @@
-import { Page, Response as PlaywrightResponse } from 'playwright';
+import { Response as PlaywrightResponse } from 'playwright';
 
 import { actionNotOK } from '@haibun/core/build/lib/util/index.js';
 import WebPlaywright from './web-playwright.js';

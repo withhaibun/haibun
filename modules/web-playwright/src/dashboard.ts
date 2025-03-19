@@ -1,7 +1,7 @@
 import { basename, join } from 'path';
 import { chromium, Page } from 'playwright';
 import WebPlaywright from './web-playwright.js';
-import { OK } from '@haibun/core/build/lib/defs.js';
+import { OK, TWorld } from '@haibun/core/build/lib/defs.js';
 import { TLogLevel, TLogArgs, TMessageContext } from '@haibun/core/build/lib/interfaces/logger.js';
 import { logToElement } from './logToElement.js';
 import { EMediaTypes } from '@haibun/domain-storage/build/media-types.js';
@@ -53,22 +53,24 @@ export const createDashboardCreator = (webPlaywright: WebPlaywright) => async ()
 	});
 	return OK;
 };
-export async function writeDashboard(storage: AStorage, loc: string, page: Page, resourceMap) {
+export async function writeDashboard(world: TWorld, storage: AStorage, page: Page, resourceMap) {
 	const content = await page.content();
-	const outHtml = join(loc, 'dashboard.html');
-	storage.writeFile(outHtml, content, EMediaTypes.html);
+	const dashboardLoc = await storage.getCaptureLocation({ ...world, mediaType: EMediaTypes.html });
+	const outHtml = join(dashboardLoc, 'dashboard.html');
+	await storage.writeFile(outHtml, content, EMediaTypes.html);
 
 	for (const [url, buffer] of resourceMap) {
 		const parsedUrl = new URL(url);
 		const filename = basename(parsedUrl.pathname);
 		if (filename) {
 			const fnType = guessMediaType(filename);
-			const outFile = join(loc, filename);
-			storage.writeFile(outFile, buffer, fnType);
+			const artifactLoc = await storage.getCaptureLocation({ ...world, mediaType: fnType });
+			const outFile = join(artifactLoc, filename);
+			await storage.writeFile(outFile, buffer, fnType);
 			//Modify the html file to point to the local files.
 			const regex = new RegExp(url, 'g');
 			const newContent = (await storage.readFile(outHtml, 'utf-8')).toString().replace(regex, outFile);
-			storage.writeFile(outHtml, newContent, EMediaTypes.html);
+			await storage.writeFile(outHtml, newContent, EMediaTypes.html);
 		}
 	}
 	return outHtml;
@@ -76,6 +78,38 @@ export async function writeDashboard(storage: AStorage, loc: string, page: Page,
 
 export const dashboard = (element: string) => {
 	return `
+<style>
+.haibun-loader {
+	border: 4px solid #f3f3f3;
+	border-top: 4px solid #3498db;
+	border-radius: 50%;
+	width: 20px;
+	height: 20px;
+	animation: spin 9.8s linear infinite;
+}
+
+.haibun-log-container {
+	display: flex;
+	flex-direction: row;
+	width: 100%;
+	align-items: flex-start;
+}
+.haibun-details-div {
+  min-widh: 150px;
+}
+.haibun-messages-div {
+   margin-left: 50px;
+	flex-grow: 1;
+}
+.haibun-artifact-div {
+  display: block;
+}
+
+@keyframes spin {
+	0% { transform: rotate(0deg); }
+	100% { transform: rotate(360deg); }
+}
+</style>
 <div class="haibun-header" style="position: fixed; top: 0; left: 0; width: 100%; background-color: white; z-index: 1000; display: flex; align-items: center;">
   <h1 style="margin-right: auto;">Haibun Dashboard</h1>
   <div className="haibun-controls" style="padding: 10px; flex-grow: 1; max-width: 80%;">
@@ -89,12 +123,11 @@ export const dashboard = (element: string) => {
   </div>
   </div>
   <div class="haibun-dashboard-output" style="padding-top: 100px; box-sizing: border-box;">
-    <div style="height: calc(100% - 100px); width: 100%; overflow: auto" id="${element}"></div>
-    <div class="haibun-disappears"><div class="haibun-loader"></div>Execution output will appear here.</div>
+    <div style="height: calc(100% - 100px); padding: 10px; overflow: auto" id="${element}">
+      <div class="haibun-disappears"><div class="haibun-loader"></div>Execution output will appear here.</div>
+    </div>
   </div>
 <script>
-// when the select is changed, the .haibun-level-{level} css visbility should change so all levels "lower" than current aren't visibleo
-// order: debug, log, info, error
 
   const levelSelect = document.getElementById('haibun-debug-level-select');
   const levels = ['debug', 'log', 'info', 'error'];
