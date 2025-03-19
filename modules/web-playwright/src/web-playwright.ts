@@ -23,7 +23,12 @@ import {
 	sleep,
 } from '@haibun/core/build/lib/util/index.js';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
-import { TActionStage, TArtifactMessageContext, TTraceMessageContext } from '@haibun/core/build/lib/interfaces/logger.js';
+import {
+	TActionStage,
+	TArtifact,
+	TArtifactMessageContext,
+	TTraceMessageContext,
+} from '@haibun/core/build/lib/interfaces/logger.js';
 import { EMediaTypes } from '@haibun/domain-storage/build/media-types.js';
 import Logger from '@haibun/core/build/lib/Logger.js';
 
@@ -177,8 +182,8 @@ class WebPlaywright extends AStepper implements IHasOptions {
 		if (this.hasFactory) {
 			if (this.captureVideo) {
 				const page = await this.getPage();
-				const path = await page.video().path();
-				const artifact = { type: 'video', path };
+				const path = await this.storage.getRelativePath(await page.video().path());
+				const artifact: TArtifact = { type: 'video', path };
 				this.getWorld().logger.debug('endFeature video', <TArtifactMessageContext>{
 					artifact,
 					topic: { event: 'summary', stage: 'endFeature' },
@@ -332,7 +337,6 @@ class WebPlaywright extends AStepper implements IHasOptions {
 			gwta: 'create monitor',
 			action: async () => {
 				await this.createMonitor();
-
 				return OK;
 			},
 		},
@@ -744,7 +748,7 @@ class WebPlaywright extends AStepper implements IHasOptions {
 					path,
 				})
 		);
-		const artifact = Logger.logArtifact({ type: 'picture', path });
+		const artifact: TArtifact = { type: 'image', path: await this.storage.getRelativePath(path) };
 		const artifactTopic = { topic: { ...details, event, stage }, artifact, tag: this.getWorld().tag };
 		this.getWorld().logger.info('screenshot', artifactTopic);
 	}

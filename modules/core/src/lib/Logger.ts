@@ -114,7 +114,4 @@ export default class Logger implements ILogger, ILogOutput {
 	}): TArtifactMessageContext {
 		return { topic: { ...details, event, stage }, artifact: { type, path, content }, tag };
 	}
-	static logArtifact({ type, path, content }: { type: TArtifactType; path?: string; content?: string }): TArtifact {
-		return { type, path, content };
-	}
 }

@@ -97,7 +97,7 @@ export type TLogHistoryWithExecutorTopic = TLogHistory & {
 };
 
 export type TArtifact = {
-  type: 'video' | 'picture' | 'html' | 'json' | 'json/playwright/trace';
+  type: 'video' | 'image' | 'html' | 'json' | 'json/playwright/trace';
   path?: string;
   content?: TAnyFixme;
 };
