@@ -28,7 +28,8 @@ import { EMediaTypes } from '@haibun/domain-storage/build/media-types.js';
 import Logger from '@haibun/core/build/lib/Logger.js';
 
 import { restSteps, TCapturedResponse } from './rest-playwright.js';
-import { createDashboardCreator, writeDashboard } from './dashboard.js';
+import { createMonitorCreator, writeMonitor } from './monitor.js';
+import { pathToFileURL } from 'url';
 
 type TRequestOptions = {
 	headers?: Record<string, string>;
@@ -40,8 +41,8 @@ class WebPlaywright extends AStepper implements IHasOptions {
 	static PERSISTENT_DIRECTORY = 'PERSISTENT_DIRECTORY';
 	requireDomains = [WEB_PAGE, WEB_CONTROL];
 	options = {
-		DASHBOARD: {
-			desc: 'display a dashboard with ongoing results',
+		MONITOR: {
+			desc: 'display a monitor with ongoing results',
 			parse: (input: string) => boolOrError(input),
 		},
 		HEADLESS: {
@@ -84,8 +85,8 @@ class WebPlaywright extends AStepper implements IHasOptions {
 	captureVideo: string;
 	closers: Array<() => Promise<void>> = [];
 	logElementError: any;
-	dashboard: boolean;
-	static dashboardPage: Page;
+	monitor: boolean;
+	static monitorPage: Page;
 	resourceMap = new Map();
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
@@ -97,7 +98,7 @@ class WebPlaywright extends AStepper implements IHasOptions {
 		if (devtools) {
 			args.concat(['--auto-open-devtools-for-tabs', '--devtools-flags=panel-network', '--remote-debugging-port=9223']);
 		}
-		this.dashboard = getStepperOption(this, 'DASHBOARD', world.moduleOptions) === 'true';
+		this.monitor = getStepperOption(this, 'MONITOR', world.moduleOptions) === 'true';
 		console.log('args', args);
 		const persistentDirectory = getStepperOption(this, WebPlaywright.PERSISTENT_DIRECTORY, world.moduleOptions) === 'true';
 		const defaultTimeout = parseInt(getStepperOption(this, 'TIMEOUT', world.moduleOptions)) || 30000;
@@ -167,8 +168,8 @@ class WebPlaywright extends AStepper implements IHasOptions {
 	}
 
 	async startExecution(): Promise<void> {
-		if (this.dashboard) {
-			await this.createDashboard();
+		if (this.monitor) {
+			await this.createMonitor();
 		}
 	}
 	async endFeature() {
@@ -191,9 +192,9 @@ class WebPlaywright extends AStepper implements IHasOptions {
 				await closer();
 			}
 		}
-		if (this.dashboard) {
-			const fn = await writeDashboard(this.world, this.storage, WebPlaywright.dashboardPage, this.resourceMap);
-			this.getWorld().logger.info(`wrote dashboard to ${JSON.stringify(fn)}`);
+		if (this.monitor) {
+			const fn = await writeMonitor(this.world, this.storage, WebPlaywright.monitorPage, this.resourceMap);
+			this.getWorld().logger.info(`wrote monitor to ${pathToFileURL(resolve(fn))}`);
 		}
 	}
 	async endedFeature() {
@@ -327,10 +328,10 @@ class WebPlaywright extends AStepper implements IHasOptions {
 			},
 		},
 
-		createDashboard: {
-			gwta: 'create dashboard',
+		createMonitor: {
+			gwta: 'create monitor',
 			action: async () => {
-				await this.createDashboard();
+				await this.createMonitor();
 
 				return OK;
 			},
@@ -792,7 +793,7 @@ class WebPlaywright extends AStepper implements IHasOptions {
 			);
 		});
 	}
-	createDashboard = createDashboardCreator(this);
+	createMonitor = createMonitorCreator(this);
 }
 
 export default WebPlaywright;

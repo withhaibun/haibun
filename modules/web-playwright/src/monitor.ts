@@ -3,20 +3,20 @@ import { chromium, Page } from 'playwright';
 import WebPlaywright from './web-playwright.js';
 import { OK, TWorld } from '@haibun/core/build/lib/defs.js';
 import { TLogLevel, TLogArgs, TMessageContext } from '@haibun/core/build/lib/interfaces/logger.js';
-import { logToElement } from './logToElement.js';
+import { logToElement } from './logToMonitor.js';
 import { EMediaTypes } from '@haibun/domain-storage/build/media-types.js';
 import { guessMediaType } from '@haibun/domain-storage/build/domain-storage.js';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 
-export const createDashboardCreator = (webPlaywright: WebPlaywright) => async () => {
-	WebPlaywright.dashboardPage = await (await (await chromium.launch({ headless: false })).newContext()).newPage();
-	await WebPlaywright.dashboardPage.goto('about:blank');
-	const element = 'haibun-dashboard';
-	await WebPlaywright.dashboardPage.setContent(dashboard(element));
+export const createMonitorCreator = (webPlaywright: WebPlaywright) => async () => {
+	WebPlaywright.monitorPage = await (await (await chromium.launch({ headless: false })).newContext()).newPage();
+	await WebPlaywright.monitorPage.goto('about:blank');
+	const element = 'haibun-monitor';
+	await WebPlaywright.monitorPage.setContent(monitor(element));
 	const subscriber = {
 		out: async (level: TLogLevel, args: TLogArgs, messageContext?: TMessageContext) => {
 			try {
-				await WebPlaywright.dashboardPage.locator(`#${element}`).evaluate(logToElement, {
+				await WebPlaywright.monitorPage.locator(`#${element}`).evaluate(logToElement, {
 					level,
 					message: args,
 					messageContext: JSON.stringify({ ...(messageContext || {}) }, null, 2),
@@ -34,7 +34,7 @@ export const createDashboardCreator = (webPlaywright: WebPlaywright) => async ()
 		webPlaywright.getWorld().logger.removeSubscriber(subscriber);
 	});
 
-	WebPlaywright.dashboardPage.on('response', async (response) => {
+	WebPlaywright.monitorPage.on('response', async (response) => {
 		const url = response.url();
 		const contentType = response.headers()['content-type'];
 		if (
@@ -53,10 +53,10 @@ export const createDashboardCreator = (webPlaywright: WebPlaywright) => async ()
 	});
 	return OK;
 };
-export async function writeDashboard(world: TWorld, storage: AStorage, page: Page, resourceMap) {
+export async function writeMonitor(world: TWorld, storage: AStorage, page: Page, resourceMap) {
 	const content = await page.content();
-	const dashboardLoc = await storage.getCaptureLocation({ ...world, mediaType: EMediaTypes.html });
-	const outHtml = join(dashboardLoc, 'dashboard.html');
+	const monitorLoc = await storage.getCaptureLocation({ ...world, mediaType: EMediaTypes.html });
+	const outHtml = join(monitorLoc, 'monitor.html');
 	await storage.writeFile(outHtml, content, EMediaTypes.html);
 
 	for (const [url, buffer] of resourceMap) {
@@ -76,7 +76,7 @@ export async function writeDashboard(world: TWorld, storage: AStorage, page: Pag
 	return outHtml;
 }
 
-export const dashboard = (element: string) => {
+export const monitor = (element: string) => {
 	return `
 <style>
 .haibun-loader {
@@ -111,7 +111,7 @@ export const dashboard = (element: string) => {
 }
 </style>
 <div class="haibun-header" style="position: fixed; top: 0; left: 0; width: 100%; background-color: white; z-index: 1000; display: flex; align-items: center;">
-  <h1 style="margin-right: auto;">Haibun Dashboard</h1>
+  <h1 style="margin-right: auto;">Haibun Monitor</h1>
   <div className="haibun-controls" style="padding: 10px; flex-grow: 1; max-width: 80%;">
     <label for="haibun-debug-level-select">Log level</label>
     <select id="haibun-debug-level-select">
@@ -122,8 +122,8 @@ export const dashboard = (element: string) => {
     </select>
   </div>
   </div>
-  <div class="haibun-dashboard-output" style="padding-top: 100px; box-sizing: border-box;">
-    <div style="height: calc(100% - 100px); padding: 10px; overflow: auto" id="${element}">
+  <div class="haibun-monitor-output" style="padding-top: 100px; box-sizing: border-box;">
+		<div style="height: calc(100% - 100px); padding: 10px; overflow-y: scroll; overflow-x: auth;" id="${element}">
       <div class="haibun-disappears"><div class="haibun-loader"></div>Execution output will appear here.</div>
     </div>
   </div>
