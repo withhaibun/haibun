@@ -26,8 +26,6 @@ jobs:
           node-version: 18
       - name: Install main deps
         run: npm ci
-      - name: Install dashboard deps
-        run: cd modules/out-review/dashboard/web; npm ci
       - name: playwright install
         run: npx playwright install --with-deps
       - name: build
