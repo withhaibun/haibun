@@ -19,9 +19,6 @@ or
 
 The same build/test commands are available in individual modules, but are not needed if running the command in the main directory.
 
-Note that modules/out-review/dashboard/web requires separate test/build
-commands.
-
 Use `npm run depcruise` to view Haibun's [dependencies](dependencygraph.svg).
 
 ## Developing modules and Haibun core together
