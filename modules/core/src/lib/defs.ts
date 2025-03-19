@@ -188,6 +188,7 @@ export type TSteppers = {
 
 export abstract class AStepper {
 	world?: TWorld;
+	startExecution?(): Promise<void>;
 	startFeature?(): Promise<void>;
 	endFeature?(): Promise<void>;
 	endedFeature?(): void;
