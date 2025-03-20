@@ -94,6 +94,9 @@ export const monitor = (element: string) => {
 	width: 100%;
 	align-items: flex-start;
 }
+.haibun-header {
+  padding-left: 5px;
+}
 .haibun-details-div {
   min-widh: 150px;
 }
@@ -122,7 +125,7 @@ export const monitor = (element: string) => {
     </select>
   </div>
   </div>
-  <div class="haibun-monitor-output" style="padding-top: 100px; box-sizing: border-box;">
+  <div class="haibun-monitor-output" style="padding-top: 70px; box-sizing: border-box;">
 		<div style="height: calc(100% - 110px); padding: 10px; overflow-y: scroll; overflow-x: auth;" id="${element}">
       <div class="haibun-disappears"><div class="haibun-loader"></div>Execution output will appear here.</div>
     </div>
