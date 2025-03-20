@@ -30,7 +30,6 @@ import {
 	TTraceMessageContext,
 } from '@haibun/core/build/lib/interfaces/logger.js';
 import { EMediaTypes } from '@haibun/domain-storage/build/media-types.js';
-import Logger from '@haibun/core/build/lib/Logger.js';
 
 import { restSteps, TCapturedResponse } from './rest-playwright.js';
 import { createMonitorCreator, writeMonitor } from './monitor.js';
