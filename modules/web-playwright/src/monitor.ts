@@ -123,7 +123,7 @@ export const monitor = (element: string) => {
   </div>
   </div>
   <div class="haibun-monitor-output" style="padding-top: 100px; box-sizing: border-box;">
-		<div style="height: calc(100% - 100px); padding: 10px; overflow-y: scroll; overflow-x: auth;" id="${element}">
+		<div style="height: calc(100% - 110px); padding: 10px; overflow-y: scroll; overflow-x: auth;" id="${element}">
       <div class="haibun-disappears"><div class="haibun-loader"></div>Execution output will appear here.</div>
     </div>
   </div>
