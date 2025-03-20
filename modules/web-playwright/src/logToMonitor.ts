@@ -70,6 +70,11 @@ export const logToElement = (
 			contextPicture.alt = `Screen capture from message`;
 			contextPicture.src = a.artifact.path;
 			details.appendChild(contextPicture);
+		} else if (a.artifact.type === 'video') {
+			const contextVideo = document.createElement('video');
+			contextVideo.controls = true;
+			contextVideo.src = a.artifact.path;
+			details.appendChild(contextVideo);
 		} else {
 			const contextPre = document.createElement('pre');
 			contextPre.textContent = JSON.stringify(a.artifact, null, 2);
