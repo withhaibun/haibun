@@ -15,15 +15,6 @@ export const logToElement = (
 		return !messageContext || messageContext === '{}';
 	};
 
-	// Check if the style element already exists and create it if not
-	if (!document.querySelector('style#haibun-loader-style')) {
-		const style = document.createElement('style');
-		style.id = 'haibun-loader-style';
-		style.textContent = `
-		`;
-		document.head.appendChild(style);
-	}
-
 	function createLoader(content: string): HTMLDivElement {
 		const loader = document.createElement('div');
 		loader.classList.add('haibun-loader');
