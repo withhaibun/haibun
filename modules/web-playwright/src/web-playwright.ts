@@ -184,7 +184,7 @@ class WebPlaywright extends AStepper implements IHasOptions {
 				const page = await this.getPage();
 				const path = await this.storage.getRelativePath(await page.video().path());
 				const artifact: TArtifact = { type: 'video', path };
-				this.getWorld().logger.debug('endFeature video', <TArtifactMessageContext>{
+				this.getWorld().logger.log('endFeature video', <TArtifactMessageContext>{
 					artifact,
 					topic: { event: 'summary', stage: 'endFeature' },
 					tag: this.getWorld().tag,
@@ -198,6 +198,7 @@ class WebPlaywright extends AStepper implements IHasOptions {
 			}
 		}
 		if (this.monitor) {
+			await sleep(1500);
 			const fn = await writeMonitor(this.world, this.storage, WebPlaywright.monitorPage, this.resourceMap);
 			this.getWorld().logger.info(`wrote monitor to ${pathToFileURL(resolve(fn))}`);
 		}
@@ -750,51 +751,50 @@ class WebPlaywright extends AStepper implements IHasOptions {
 		);
 		const artifact: TArtifact = { type: 'image', path: await this.storage.getRelativePath(path) };
 		const artifactTopic = { topic: { ...details, event, stage }, artifact, tag: this.getWorld().tag };
-		this.getWorld().logger.info('screenshot', artifactTopic);
+		this.getWorld().logger.log('screenshot', artifactTopic);
 	}
 
 	async withPageFetch(
 		endpoint: string,
-		method: string = 'GET',
+		method: string = 'get',
 		requestOptions: TRequestOptions = {}
 	): Promise<TCapturedResponse> {
 		const { headers, postData } = requestOptions;
 
 		return await this.withPage(async (page: Page) => {
-			return await page.evaluate(
-				async ({ endpoint, method, headers, postData }) => {
-					const fetchOptions: RequestInit = {
-						method,
+			const doFetch = async ({ endpoint, method, headers, postData }) => {
+				console.log('fetching', endpoint, method, headers, postData);
+				const fetchOptions: RequestInit = {
+					method,
+				};
+
+				if (headers) fetchOptions.headers = headers;
+
+				if (postData) fetchOptions.body = postData;
+
+				try {
+					const response = await fetch(endpoint, fetchOptions);
+
+					const capturedResponse: TCapturedResponse = {
+						status: response.status,
+						statusText: response.statusText,
+						headers: response.headers,
+						url: response.url,
+						json: await response.json().catch(() => null),
+						text: await response.text().catch(() => null),
 					};
 
-					if (headers) {
-						fetchOptions.headers = headers;
-					}
-
-					if (postData) {
-						fetchOptions.body = postData;
-					}
-
-					try {
-						const response = await fetch(endpoint, fetchOptions);
-
-						const capturedResponse: TCapturedResponse = {
-							status: response.status,
-							statusText: response.statusText,
-							headers: Object.fromEntries(response.headers.entries()),
-							url: response.url,
-							json: await response.json().catch(() => null),
-							text: await response.text().catch(() => ''),
-						};
-
-						return capturedResponse;
-					} catch (e: any) {
-						console.error(e);
-						throw new Error(`Failed to fetch ${method} ${endpoint}: ${e.message}`);
-					}
-				},
-				{ endpoint, method, headers, postData }
-			);
+					return capturedResponse;
+				} catch (e) {
+					console.error(e);
+				}
+			};
+			try {
+				return await page.evaluate(doFetch, { endpoint, method, headers, postData });
+			} catch (e: any) {
+				console.error('wtw', e);
+				throw new Error(`Evaluate fetch error: ${JSON.stringify({ method, endpoint, headers })} : ${e.message}`);
+			}
 		});
 	}
 	createMonitor = createMonitorCreator(this);
