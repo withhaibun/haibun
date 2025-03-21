@@ -88,6 +88,9 @@ export const monitor = (element: string) => {
 	animation: spin 9.8s linear infinite;
 }
 
+.disappeared {
+  display: none;
+}
 .haibun-log-container {
 	display: flex;
 	flex-direction: row;
@@ -95,17 +98,32 @@ export const monitor = (element: string) => {
 	align-items: flex-start;
 }
 .haibun-header {
-  padding-left: 5px;
+	padding-left: 5px;
 }
 .haibun-details-div {
-  min-widh: 150px;
+	min-widh: 150px;
 }
 .haibun-messages-div {
-   margin-left: 50px;
+	 margin-left: 50px;
 	flex-grow: 1;
 }
 .haibun-artifact-div {
-  display: block;
+	display: block;
+}
+
+#haibun-video {
+  display: none;
+	// display: flex;
+	position: fixed;
+	top: 90px;
+	right: 10px;
+	width: 320px;
+	height: 200px;
+	background-color: rgba(0, 0, 0, 0.8);
+	z-index: 1001;
+	color: white;
+	align-items: center;
+	justify-content: center;
 }
 
 @keyframes spin {
@@ -113,54 +131,53 @@ export const monitor = (element: string) => {
 	100% { transform: rotate(360deg); }
 }
 </style>
-<div class="haibun-header" style="position: fixed; top: 0; left: 0; width: 100%; background-color: white; z-index: 1000; display: flex; align-items: center;">
-  <h1 style="margin-right: auto;">Haibun Monitor</h1>
-  <div className="haibun-controls" style="padding: 10px; flex-grow: 1; max-width: 80%;">
-    <label for="haibun-debug-level-select">Log level</label>
-    <select id="haibun-debug-level-select">
-      <option value="error">Error</option>
-      <option value="info">Info</option>
-      <option value="log" selected>Log</option>
-      <option value="debug">Debug</option>
-    </select>
-  </div>
-  </div>
-  <div class="haibun-monitor-output" style="padding-top: 70px; box-sizing: border-box;">
-		<div style="height: calc(100% - 110px); padding: 10px; overflow-y: scroll; overflow-x: auth;" id="${element}">
-      <div class="haibun-disappears"><div class="haibun-loader"></div>Execution output will appear here.</div>
-    </div>
-  </div>
+<div class="haibun-header" style="position: fixed; height: 7vh; top: 0; left: 0; width: 100%; background-color: white; z-index: 1000; display: flex; align-items: center;">
+	<h1 style="margin-right: auto;">Haibun Monitor</h1>
+	<div className="haibun-controls" style="padding: 10px; flex-grow: 1; max-width: 80%;">
+	<label for="haibun-debug-level-select">Log level</label>
+	<select id="haibun-debug-level-select">
+		<option value="error">Error</option>
+		<option value="info">Info</option>
+		<option value="log" selected>Log</option>
+		<option value="debug">Debug</option>
+	</select>
+	</div>
+	</div>
+	<div id="haibun-video">Video Content</div>
+  <div style="height: calc(100% - 8vh); padding-top: 8vh; overflow-y: scroll; overflow-x: auth;" id="${element}">
+	  <div class="haibun-disappears"><div class="haibun-loader"></div>Execution output will appear here.</div>
+	</div>
 <script>
 
-  const levelSelect = document.getElementById('haibun-debug-level-select');
-  const levels = ['debug', 'log', 'info', 'error'];
+	const levelSelect = document.getElementById('haibun-debug-level-select');
+	const levels = ['debug', 'log', 'info', 'error'];
 
-  const updateStyles = (selectedLevel) => {
-    const selectedIndex = levels.indexOf(selectedLevel);
-    let css = '';
+	const updateStyles = (selectedLevel) => {
+	const selectedIndex = levels.indexOf(selectedLevel);
+	let css = '';
 
-    levels.forEach((level, index) => {
-      if (index < selectedIndex) {
-        css += \`div.haibun-log-container.haibun-level-\${level} { display: none !important; }\n\`;
-      } else {
-        css += \`div.haibun-log-container.haibun-level-\${level} { display: flex !important; }\n\`;
-      }
-    });
+	levels.forEach((level, index) => {
+		if (index < selectedIndex) {
+		css += \`div.haibun-log-container.haibun-level-\${level} { display: none !important; }\n\`;
+		} else {
+		css += \`div.haibun-log-container.haibun-level-\${level} { display: flex !important; }\n\`;
+		}
+	});
 
 
-  let styleElement = document.getElementById('haibun-dynamic-styles');
-    if (!styleElement) {
-      styleElement = document.createElement('style');
-      styleElement.id = 'haibun-dynamic-styles';
-      document.head.appendChild(styleElement);
-    }
-    styleElement.textContent = css;
-  }
+	let styleElement = document.getElementById('haibun-dynamic-styles');
+	if (!styleElement) {
+		styleElement = document.createElement('style');
+		styleElement.id = 'haibun-dynamic-styles';
+		document.head.appendChild(styleElement);
+	}
+	styleElement.textContent = css;
+	}
 
-  levelSelect.addEventListener('change', (event) => {
-  console.log('change', event.target.value)
-    updateStyles(event.target.value);
-  });
+	levelSelect.addEventListener('change', (event) => {
+	console.log('change', event.target.value)
+	updateStyles(event.target.value);
+	});
 // Initial style update
 updateStyles(levelSelect.value);
 </script>
