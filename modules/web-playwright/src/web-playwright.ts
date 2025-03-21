@@ -103,7 +103,6 @@ class WebPlaywright extends AStepper implements IHasOptions {
 			args.concat(['--auto-open-devtools-for-tabs', '--devtools-flags=panel-network', '--remote-debugging-port=9223']);
 		}
 		this.monitor = getStepperOption(this, 'MONITOR', world.moduleOptions) === 'true';
-		console.log('args', args);
 		const persistentDirectory = getStepperOption(this, WebPlaywright.PERSISTENT_DIRECTORY, world.moduleOptions) === 'true';
 		const defaultTimeout = parseInt(getStepperOption(this, 'TIMEOUT', world.moduleOptions)) || 30000;
 		this.captureVideo = getStepperOption(this, 'CAPTURE_VIDEO', world.moduleOptions);
@@ -197,7 +196,7 @@ class WebPlaywright extends AStepper implements IHasOptions {
 			}
 		}
 		if (this.monitor) {
-			await sleep(1500);
+			await sleep(500);
 			const fn = await writeMonitor(this.world, this.storage, WebPlaywright.monitorPage, this.resourceMap);
 			this.getWorld().logger.info(`wrote monitor to ${pathToFileURL(resolve(fn))}`);
 		}

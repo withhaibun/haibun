@@ -13,9 +13,20 @@ export const ACCESS_TOKEN = 'access_token';
 
 const HTTP = 'HTTP';
 
+export const base64Encode = ({ username, password }: { username: string; password: string }) =>
+	Buffer.from(`${username}:${password}`).toString('base64');
+
 export const restSteps = (webPlaywright: WebPlaywright) => ({
+	addBasicAuthCredentials: {
+		gwta: `use Authorization Basic header with {username}, {password}`,
+		action: async ({ username, password }: TNamed) => {
+			const browserContext = await webPlaywright.getBrowserContext();
+			browserContext.setExtraHTTPHeaders({ [AUTHORIZATION]: `Basic ${base64Encode({ username, password })}` });
+			return OK;
+		},
+	},
 	addAuthBearerToken: {
-		gwta: `make Authorization Bearer token {token}`,
+		gwta: `use Authorization Bearer header with {token}`,
 		action: async ({ token }: TNamed) => {
 			const browserContext = await webPlaywright.getBrowserContext();
 			browserContext.setExtraHTTPHeaders({ [AUTHORIZATION]: `Bearer ${token}` });
