@@ -27,7 +27,7 @@ export class PlaywrightEvents {
             postData: request.postData(),
         }
 
-        this.log(type, frameURL, request.url(), etc);
+        this.log(`${type} ${etc.method}`, frameURL, request.url(), etc);
     }
 
     private async routeRequest(route: Route, request: Request): Promise<void> {
@@ -74,6 +74,6 @@ export class PlaywrightEvents {
                 type: 'json/playwright/trace'
             }
         };
-        this.logger.debug(`playwright ${type} ${logData.requestingURL} -> ${targetWithoutRequestingBase}`, mc);
+        this.logger.debug(`playwright ${type} ${logData.requestingURL} ➔ ${targetWithoutRequestingBase}`, mc);
     }
 }

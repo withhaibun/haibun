@@ -41,12 +41,12 @@ export const logToElement = (
 		}
 		return detailsDiv;
 	}
-	function createArtifactDiv(a: TArtifactMessageContext): HTMLDivElement {
+	function createArtifactDiv(message: string, a: TArtifactMessageContext): HTMLDivElement {
 		const artifactDiv = document.createElement('div');
-		artifactDiv.classList.add('haibun-artifact-div');
+		artifactDiv.classList.add('haibun-messages-div');
 
 		const summary = document.createElement('summary');
-		summary.textContent = a.artifact.type;
+		summary.textContent = message;
 		const details = document.createElement('details');
 		details.appendChild(summary);
 		if (a.artifact.type === 'html' && a.artifact.content) {
@@ -62,12 +62,25 @@ export const logToElement = (
 			contextPicture.src = a.artifact.path;
 			details.appendChild(contextPicture);
 		} else if (a.artifact.type === 'video') {
+			(window as any).haibun = { video: a.artifact.path };
 			const contextVideo = document.createElement('video');
 			contextVideo.controls = true;
 			contextVideo.src = a.artifact.path;
+			const haibunVideo = document.querySelector('#haibun-video');
+			if (haibunVideo) {
+				// console.log('set video');
+				// haibunVideo.replaceChildren(contextVideo);
+			} else {
+				console.log('cannot find haibun-video');
+			}
 			details.appendChild(contextVideo);
 		} else {
+			if (a.artifact.type === 'json/playwright/trace') {
+				// summary.textContent = `🔄`;
+			}
+
 			const contextPre = document.createElement('pre');
+			contextPre.classList.add('haibun-message-details-json');
 			contextPre.textContent = JSON.stringify(a.artifact, null, 2);
 			details.appendChild(contextPre);
 		}
@@ -82,14 +95,12 @@ export const logToElement = (
 		const messagesDiv = document.createElement('div');
 		messagesDiv.classList.add('haibun-messages-div');
 
-		const div = document.createElement('div');
-		div.textContent = message;
-		messagesDiv.appendChild(div);
+		messagesDiv.textContent = message;
 		return messagesDiv;
 	}
 
 	const existingNoContextElements = el.querySelectorAll(`.haibun-disappears`);
-	existingNoContextElements.forEach((element) => element.remove());
+	existingNoContextElements.forEach((element) => (element.classList.value = 'disappeared'));
 
 	const container = document.createElement('div');
 	container.classList.add('haibun-log-container', `haibun-level-${level}`);
@@ -108,15 +119,16 @@ export const logToElement = (
 		}
 	}
 	const detailsDiv = createDetailsDiv(level, messageContext);
-	const messagesDiv = createMessagesDiv(message);
 
 	container.appendChild(detailsDiv);
-	container.appendChild(messagesDiv);
 
 	const a = <TArtifactMessageContext>JSON.parse(messageContext);
 	if (a.artifact) {
-		const artifact = createArtifactDiv(a);
-		messagesDiv.append(artifact);
+		const artifact = createArtifactDiv(message, a);
+		container.appendChild(artifact);
+	} else {
+		const messagesDiv = createMessagesDiv(message);
+		container.appendChild(messagesDiv);
 	}
 
 	el.appendChild(container);
