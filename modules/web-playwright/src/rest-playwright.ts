@@ -20,16 +20,14 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 	addBasicAuthCredentials: {
 		gwta: `use Authorization Basic header with {username}, {password}`,
 		action: async ({ username, password }: TNamed) => {
-			const browserContext = await webPlaywright.getBrowserContext();
-			browserContext.setExtraHTTPHeaders({ [AUTHORIZATION]: `Basic ${base64Encode({ username, password })}` });
+			await webPlaywright.setExtraHTTPHeaders({ [AUTHORIZATION]: `Basic ${base64Encode({ username, password })}` });
 			return OK;
 		},
 	},
 	addAuthBearerToken: {
 		gwta: `use Authorization Bearer header with {token}`,
 		action: async ({ token }: TNamed) => {
-			const browserContext = await webPlaywright.getBrowserContext();
-			browserContext.setExtraHTTPHeaders({ [AUTHORIZATION]: `Bearer ${token}` });
+			await webPlaywright.setExtraHTTPHeaders({ [AUTHORIZATION]: `Bearer ${token}` });
 			return OK;
 		},
 	},
@@ -40,8 +38,7 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 
 			const accessToken = serialized.json[ACCESS_TOKEN];
 
-			const browserContext = await webPlaywright.getBrowserContext();
-			await browserContext.setExtraHTTPHeaders({ [AUTHORIZATION]: `Bearer ${accessToken}` });
+			await webPlaywright.setExtraHTTPHeaders({ [AUTHORIZATION]: `Bearer ${accessToken}` });
 
 			webPlaywright.getWorld().shared.set(LAST_REST_RESPONSE, serialized);
 
@@ -51,10 +48,26 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 	restTokenLogout: {
 		gwta: `perform OAuth 2.0 logout from {endpoint}`,
 		action: async ({ endpoint }: TNamed) => {
-			const browserContext = await webPlaywright.getBrowserContext();
-			browserContext.setExtraHTTPHeaders({});
+			await webPlaywright.setExtraHTTPHeaders({});
 
 			const serialized = await webPlaywright.withPageFetch(endpoint);
+			webPlaywright.getWorld().shared.set(LAST_REST_RESPONSE, serialized);
+
+			return OK;
+		},
+	},
+
+	acceptEndpointRequest: {
+		gwta: `accept {accept} using ${HTTP} {method} to {endpoint}`,
+		action: async ({ accept, method, endpoint }: TNamed) => {
+			method = method.toLowerCase();
+			if (!NO_PAYLOAD_METHODS.includes(method)) {
+				return actionNotOK(`Method ${method} not supported`);
+			}
+			const headers = {
+				accept
+			}
+			const serialized = await webPlaywright.withPageFetch(endpoint, method, { headers: { accept } });
 			webPlaywright.getWorld().shared.set(LAST_REST_RESPONSE, serialized);
 
 			return OK;

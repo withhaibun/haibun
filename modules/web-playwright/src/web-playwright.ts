@@ -1,34 +1,12 @@
 import { Page, Response, Download } from 'playwright';
 import { resolve } from 'path';
 
-import {
-	IHasOptions,
-	OK,
-	TNamed,
-	TStepResult,
-	AStepper,
-	TWorld,
-	TFeatureStep,
-	TAnyFixme,
-} from '@haibun/core/build/lib/defs.js';
+import { IHasOptions, OK, TNamed, TStepResult, AStepper, TWorld, TFeatureStep, TAnyFixme, } from '@haibun/core/build/lib/defs.js';
 import { WEB_PAGE, WEB_CONTROL } from '@haibun/core/build/lib/domain-types.js';
 import { BrowserFactory, TBrowserFactoryOptions, TBrowserTypes } from './BrowserFactory.js';
-import {
-	actionNotOK,
-	getStepperOption,
-	boolOrError,
-	intOrError,
-	stringOrError,
-	findStepperFromOption,
-	sleep,
-} from '@haibun/core/build/lib/util/index.js';
+import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOption, sleep, } from '@haibun/core/build/lib/util/index.js';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
-import {
-	TActionStage,
-	TArtifact,
-	TArtifactMessageContext,
-	TTraceMessageContext,
-} from '@haibun/core/build/lib/interfaces/logger.js';
+import { TActionStage, TArtifact, TArtifactMessageContext, TTraceMessageContext, } from '@haibun/core/build/lib/interfaces/logger.js';
 import { EMediaTypes } from '@haibun/domain-storage/build/media-types.js';
 
 import { restSteps, TCapturedResponse } from './rest-playwright.js';
@@ -585,8 +563,8 @@ class WebPlaywright extends AStepper implements IHasOptions {
 				return response?.ok
 					? OK
 					: actionNotOK(`response not ok`, {
-							topics: { response: { ...response?.allHeaders, summary: response?.statusText() } },
-					  });
+						topics: { response: { ...response?.allHeaders, summary: response?.statusText() } },
+					});
 			},
 		},
 		reloadPage: {
@@ -752,6 +730,13 @@ class WebPlaywright extends AStepper implements IHasOptions {
 		this.getWorld().logger.log('screenshot', artifactTopic);
 	}
 
+	async setExtraHTTPHeaders(headers: { [name: string]: string; }) {
+		await this.withPage(async () => {
+			const browserContext = await this.getBrowserContext();
+			browserContext.setExtraHTTPHeaders(headers);
+		});
+	}
+
 	async withPageFetch(
 		endpoint: string,
 		method: string = 'get',
@@ -769,6 +754,13 @@ class WebPlaywright extends AStepper implements IHasOptions {
 				if (headers) fetchOptions.headers = headers;
 
 				if (postData) fetchOptions.body = postData;
+
+				const userAgent = 'curl/7.79';
+
+				await page.route('**', async (route) => {
+					const headers = { ...route.request().headers(), 'User-Agent': userAgent };
+					await route.continue({ headers });
+				});
 
 				try {
 					const response = await fetch(endpoint, fetchOptions);
