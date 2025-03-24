@@ -16,6 +16,7 @@ import { pathToFileURL } from 'url';
 type TRequestOptions = {
 	headers?: Record<string, string>;
 	postData?: string | URLSearchParams | FormData | Blob | ArrayBuffer | ArrayBufferView;
+	userAgent?: string
 };
 
 class WebPlaywright extends AStepper implements IHasOptions {
@@ -70,6 +71,9 @@ class WebPlaywright extends AStepper implements IHasOptions {
 	monitor: boolean;
 	static monitorPage: Page;
 	resourceMap = new Map();
+	userAgentPages: { [name: string]: Page } = {};
+	apiUserAgent: string;
+	extraHTTPHeaders: { [name: string]: string; } = {};
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
@@ -117,7 +121,7 @@ class WebPlaywright extends AStepper implements IHasOptions {
 	}
 
 	async getBrowserContext(tag = this.getWorld().tag) {
-		const browserContext = (await this.getBrowserFactory()).getExistingBrowserContext(tag);
+		const browserContext = (await this.getBrowserFactory()).getExistingBrowserContextWithTag(tag);
 		return browserContext;
 	}
 
@@ -734,6 +738,7 @@ class WebPlaywright extends AStepper implements IHasOptions {
 		await this.withPage(async () => {
 			const browserContext = await this.getBrowserContext();
 			browserContext.setExtraHTTPHeaders(headers);
+			this.extraHTTPHeaders = headers;
 		});
 	}
 
@@ -742,50 +747,49 @@ class WebPlaywright extends AStepper implements IHasOptions {
 		method: string = 'get',
 		requestOptions: TRequestOptions = {}
 	): Promise<TCapturedResponse> {
-		const { headers, postData } = requestOptions;
-
-		return await this.withPage(async (page: Page) => {
-			const doFetch = async ({ endpoint, method, headers, postData }) => {
-				console.log('fetching', endpoint, method, headers, postData);
+		const { headers, postData, userAgent } = requestOptions;
+		const ua = userAgent || this.apiUserAgent;
+		const page = await this.getPage();
+		// FIXME Part I this could suffer from race conditions
+		if (ua) {
+			const browserContext = await this.getBrowserContext();
+			const headers = { ...this.extraHTTPHeaders || {}, ...{ 'User-Agent': ua } };
+			browserContext.setExtraHTTPHeaders(headers);
+		}
+		try {
+			return await page.evaluate(async ({ endpoint, method, headers, ua, postData }) => {
 				const fetchOptions: RequestInit = {
 					method,
 				};
-
-				if (headers) fetchOptions.headers = headers;
-
+				fetchOptions.headers = headers ? headers : {};
+				if (ua) {
+					fetchOptions.headers['User-Agent'] = ua;
+				}
 				if (postData) fetchOptions.body = postData;
 
-				const userAgent = 'curl/7.79';
+				const response = await fetch(endpoint, fetchOptions);
 
-				await page.route('**', async (route) => {
-					const headers = { ...route.request().headers(), 'User-Agent': userAgent };
-					await route.continue({ headers });
-				});
+				const capturedResponse: TCapturedResponse = {
+					status: response.status,
+					statusText: response.statusText,
+					headers: Object.fromEntries(response.headers.entries()),
+					url: response.url,
+					json: await response.json().catch(() => null),
+					text: await response.text().catch(() => null),
+				};
 
-				try {
-					const response = await fetch(endpoint, fetchOptions);
-
-					const capturedResponse: TCapturedResponse = {
-						status: response.status,
-						statusText: response.statusText,
-						headers: response.headers,
-						url: response.url,
-						json: await response.json().catch(() => null),
-						text: await response.text().catch(() => null),
-					};
-
-					return capturedResponse;
-				} catch (e) {
-					console.error(e);
-				}
-			};
-			try {
-				return await page.evaluate(doFetch, { endpoint, method, headers, postData });
-			} catch (e: any) {
-				console.error('wtw', e);
-				throw new Error(`Evaluate fetch error: ${JSON.stringify({ method, endpoint, headers })} : ${e.message}`);
+				return capturedResponse;
+			}, { endpoint, method, headers, ua, postData });
+		} catch (e: any) {
+			const ua = userAgent || this.apiUserAgent;
+			throw new Error(`Evaluate fetch error: ${JSON.stringify({ endpoint, method, headers, ua })} : ${e.message}`);
+		} finally {
+		// FIXME Part II this could suffer from race conditions
+			if (ua) {
+				const browserContext = await this.getBrowserContext();
+				browserContext.setExtraHTTPHeaders(this.extraHTTPHeaders);
 			}
-		});
+		}
 	}
 	createMonitor = createMonitorCreator(this);
 }

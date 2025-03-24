@@ -45,7 +45,7 @@ export class BrowserFactory {
 	} = {};
 	static persistentDirectory = undefined;
 
-	private constructor(private logger: ILogger) {}
+	private constructor(private logger: ILogger) { }
 
 	static async getBrowserFactory(logger: ILogger, options: TBrowserFactoryOptions, tag = DEFAULT_CONFIG_TAG) {
 		options.type = options.type || 'chromium';
@@ -68,19 +68,18 @@ export class BrowserFactory {
 		return BrowserFactory.browsers[type];
 	}
 
-	getExistingBrowserContext({ sequence }: { sequence: TTagValue }) {
+	getExistingBrowserContextWithTag({ sequence }: { sequence: TTagValue }) {
 		if (this.browserContexts[sequence]) {
 			return this.browserContexts[sequence];
 		}
 	}
 
-	private async getBrowserContext(sequence: TTagValue, tag = DEFAULT_CONFIG_TAG): Promise<BrowserContext> {
+	private async getBrowserContextWithSequence(sequence: TTagValue, tag = DEFAULT_CONFIG_TAG): Promise<BrowserContext> {
 		if (!this.browserContexts[sequence]) {
 			let browserContext: BrowserContext;
 			if (BrowserFactory.configs.persistentDirectory) {
 				this.logger.debug(
-					`creating new persistent context ${sequence} ${BrowserFactory.configs[tag].options.type}, ${
-						BrowserFactory.configs.persistentDirectory
+					`creating new persistent context ${sequence} ${BrowserFactory.configs[tag].options.type}, ${BrowserFactory.configs.persistentDirectory
 					} with ${JSON.stringify(BrowserFactory.configs)}`
 				);
 				browserContext = await BrowserFactory.configs[tag].browserType.launchPersistentContext(
@@ -93,13 +92,13 @@ export class BrowserFactory {
 				const deviceContext = BrowserFactory.configs[tag].options.device
 					? { ...devices[BrowserFactory.configs[tag].options.device] }
 					: {
-							viewport: {
-								width: 600,
-								height: 400,
-								x: 50,
-								y: 50,
-							},
-					  };
+						viewport: {
+							width: 600,
+							height: 400,
+							x: 50,
+							y: 50,
+						},
+					};
 				browserContext = await browser.newContext({ ...deviceContext, ...BrowserFactory.configs[tag].options });
 			}
 			this.browserContexts[sequence] = browserContext;
@@ -153,7 +152,7 @@ export class BrowserFactory {
 		}
 		this.logger.debug(`creating new page for ${sequence}`);
 
-		const context = await this.getBrowserContext(sequence);
+		const context = await this.getBrowserContextWithSequence(sequence);
 		page = await context.newPage();
 
 		const tracer = new PlaywrightEvents(this.logger, page, tag);
