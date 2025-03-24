@@ -17,6 +17,13 @@ export const base64Encode = ({ username, password }: { username: string; passwor
 	Buffer.from(`${username}:${password}`).toString('base64');
 
 export const restSteps = (webPlaywright: WebPlaywright) => ({
+	setApiUserAgent: {
+		gwta: `API user agent is {agent}`,
+		action: async ({ agent }: TNamed) => {
+			webPlaywright.apiUserAgent = agent;
+			return OK;
+		}
+	},
 	addBasicAuthCredentials: {
 		gwta: `use Authorization Basic header with {username}, {password}`,
 		action: async ({ username, password }: TNamed) => {
@@ -220,41 +227,3 @@ export type TCapturedResponse = {
 	json: any;
 	text: string;
 };
-
-async function capturedPlaywrightResponse(response: PlaywrightResponse): Promise<TCapturedResponse> {
-	return {
-		status: await response.status(),
-		statusText: await response.statusText(),
-		headers: response.headers(),
-		url: response.url(),
-		...(await payload(response)),
-	};
-}
-
-async function capturedResponse(response: Partial<Response> & { headers: any }): Promise<TCapturedResponse> {
-	return {
-		status: await response.status,
-		statusText: await response.statusText,
-		headers: response.headers,
-		url: response.url,
-		...(await payload(response)),
-	};
-}
-
-async function payload(response: { json?: () => Promise<any>; text?: () => Promise<string> }) {
-	let payload;
-	try {
-		payload = {
-			json: await response.json(),
-		};
-	} catch (e) {
-		try {
-			payload = {
-				text: await response.text(),
-			};
-		} catch (e) {
-			console.error('Failed to get payload', e);
-		}
-	}
-	return payload;
-}
