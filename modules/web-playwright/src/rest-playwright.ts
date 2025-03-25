@@ -1,6 +1,6 @@
 import { Response as PlaywrightResponse } from 'playwright';
 
-import { actionNotOK } from '@haibun/core/build/lib/util/index.js';
+import { actionNotOK, actionOK } from '@haibun/core/build/lib/util/index.js';
 import WebPlaywright from './web-playwright.js';
 import { TNamed, OK } from '@haibun/core/build/lib/defs.js';
 
@@ -119,6 +119,30 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 			return OK;
 		},
 	},
+	showResponseLength: {
+		gwta: `show JSON response count`,
+		action: async () => {
+			const lastResponse = webPlaywright.getWorld().shared.get(LAST_REST_RESPONSE);
+			if (!lastResponse?.json || typeof lastResponse.json.length !== 'number') {
+				console.debug(lastResponse);
+				return actionNotOK(`No last response to count`);
+			}
+			webPlaywright.getWorld().logger.info(`lastResponse JSON count is ${lastResponse.json.length}`)
+			return actionOK({ topics: { summary: 'options', details: { count: lastResponse.json.length } } });
+		},
+	},
+	showFilteredLength: {
+		gwta: `show filtered response count`,
+		action: async () => {
+			const lastResponse = webPlaywright.getWorld().shared.get(LAST_REST_RESPONSE);
+			if (!lastResponse?.filtered || typeof lastResponse.filtered.length !== 'number') {
+				console.debug(lastResponse);
+				return actionNotOK(`No filtered response to count`);
+			}
+			webPlaywright.getWorld().logger.info(`lastResponse filtered count is ${lastResponse.filtered.length}`)
+			return actionOK({ topics: { summary: 'options', details: { count: lastResponse.filtered.length } } });
+		},
+	},
 	responseJsonLengthIs: {
 		gwta: `JSON response length is {length}`,
 		action: async ({ length }: TNamed) => {
@@ -147,7 +171,7 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 
 			const responses = [];
 			for (const item of filtered) {
-				const requestPath = endpoint + '/' + item[property];
+				const requestPath = `${endpoint}/${item[property]}`;
 				const serialized = await webPlaywright.withPageFetch(requestPath, method);
 				if (serialized.status !== parseInt(status, 10)) {
 					return actionNotOK(`Expected status ${status} to ${requestPath}, got ${serialized.status}`);
