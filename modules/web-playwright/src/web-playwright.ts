@@ -114,7 +114,7 @@ class WebPlaywright extends AStepper implements IHasOptions {
 
 	async getBrowserFactory(): Promise<BrowserFactory> {
 		if (!this.hasFactory) {
-			this.bf = await BrowserFactory.getBrowserFactory(this.getWorld().logger, this.factoryOptions);
+			this.bf = await BrowserFactory.getBrowserFactory(this.getWorld(), this.factoryOptions);
 			this.hasFactory = true;
 		}
 		return this.bf;

@@ -47,12 +47,13 @@ export const createMonitorCreator = (webPlaywright: WebPlaywright) => async () =
 				const buffer = await response.body();
 				webPlaywright.resourceMap.set(url, buffer);
 			} catch (e) {
-				console.log('error saving response', url, e);
+				console.error('error saving response', url, e);
 			}
 		}
 	});
 	return OK;
 };
+
 export async function writeMonitor(world: TWorld, storage: AStorage, page: Page, resourceMap) {
 	const content = await page.content();
 	const monitorLoc = await storage.getCaptureLocation({ ...world, mediaType: EMediaTypes.html });
@@ -79,19 +80,17 @@ export async function writeMonitor(world: TWorld, storage: AStorage, page: Page,
 const selectLevels = () => {
 	const levelSelect = document.getElementById('haibun-debug-level-select');
 	const levels = ['debug', 'log', 'info', 'error'];
-
 	const updateStyles = (selectedLevel) => {
 		const selectedIndex = levels.indexOf(selectedLevel);
 		let css = '';
-
 		levels.forEach((level, index) => {
 			if (index < selectedIndex) {
 				css += `div.haibun-log-container.haibun-level-${level} { display: none !important; }\n`;
-			} else {
+			}
+			else {
 				css += `div.haibun-log-container.haibun-level-${level} { display: flex !important; }\n`;
 			}
 		});
-
 		let styleElement = document.getElementById('haibun-dynamic-styles');
 		if (!styleElement) {
 			styleElement = document.createElement('style');
@@ -99,40 +98,89 @@ const selectLevels = () => {
 			document.head.appendChild(styleElement);
 		}
 		styleElement.textContent = css;
-	}
-
+	};
 	levelSelect.addEventListener('change', (event) => {
 		const target = (event.target as HTMLSelectElement)
-		console.log('change', target.value)
 		updateStyles(target.value);
 	});
 	// Initial style update
 	updateStyles((levelSelect as HTMLSelectElement).value);
-
 	// haibunVideo
-	const haibunVideo: HTMLElement = document.querySelector('#haibun-video');
-
+	const haibunVideoDiv: HTMLElement = document.querySelector('#haibun-video');
 	function setDefaultPosition() {
-		haibunVideo.style.transform = `scale(1)`;
-		haibunVideo.style.top = `90px`;
-		haibunVideo.style.right = `35px`;
+		haibunVideoDiv.style.transform = `scale(1)`;
+		haibunVideoDiv.style.top = `90px`;
+		haibunVideoDiv.style.right = `35px`;
 	}
 	function setExpandedPosition() {
-		haibunVideo.style.transform = `scale(2)`;
-		haibunVideo.style.top = `200px`;
-		haibunVideo.style.right = `200px`;
+		haibunVideoDiv.style.transform = `scale(2)`;
+		haibunVideoDiv.style.top = `200px`;
+		haibunVideoDiv.style.right = `200px`;
 	}
-
 	setExpandedPosition();
-
-	haibunVideo.addEventListener('mouseover', () => {
+	haibunVideoDiv.addEventListener('mouseover', () => {
 		setExpandedPosition();
 	});
-
-	haibunVideo.addEventListener('mouseout', () => {
+	haibunVideoDiv.addEventListener('mouseout', () => {
 		setDefaultPosition();
 	});
-};
+	// Add event listeners for video playback to update log container classes
+	const haibunVideo: HTMLVideoElement = document.querySelector('#haibun-video video');
+	let playInterval;
+	const updateVideoSteps = () => {
+		const haibunVideoStartEl = document.getElementById('haibun-video-start');
+		if (haibunVideoStartEl) {
+			const haibunVideoStart = parseFloat(haibunVideoStartEl.dataset.start || '0');
+			const currentVideoTime = haibunVideo.currentTime * 1000;
+			let latestContainer;
+			document.querySelectorAll('.haibun-log-container').forEach((container: HTMLElement) => {
+				const containerTime = parseInt(container.dataset.time || '0', 10);
+				const adjustedContainerTime = containerTime - haibunVideoStart;
+				container.classList.remove('haibun-stepper-current');
+				if (containerTime <= currentVideoTime) {
+					container.classList.remove('haibun-stepper-notplayed');
+					container.classList.add('haibun-stepper-played');
+					latestContainer = container;
+				}
+				else {
+					container.classList.remove('haibun-stepper-played');
+					container.classList.add('haibun-stepper-notplayed');
+				}
+			});
+			if (latestContainer) {
+				latestContainer.classList.add('haibun-stepper-current');
+				latestContainer.classList.remove('haibun-stepper-notPlayed');
+				latestContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+				// document.querySelector('#haibun-monitor').scrollBy(0, -90);
+			}
+		}
+		else {
+			console.info('no haibun-video-start');
+		}
+	};
+	haibunVideo.addEventListener('seeked', () => {
+		updateVideoSteps();
+	});
+	haibunVideo.addEventListener('play', () => {
+		playInterval = setInterval(updateVideoSteps, 30);
+	});
+	haibunVideo.addEventListener('pause', () => {
+		clearInterval(playInterval);
+		playInterval.unref;
+	});
+	haibunVideo.addEventListener('ended', () => {
+		clearInterval(playInterval);
+	});
+	// click handler on haibun-log-containers so the video will scroll to its data-time
+	document.querySelectorAll('.haibun-log-container').forEach((container: HTMLElement) => {
+		container.addEventListener('click', () => {
+			const containerTime = parseInt(container.dataset.time || '0', 10);
+			if (!isNaN(containerTime)) {
+				haibunVideo.currentTime = containerTime / 1000;
+			}
+		});
+	});
+}
 
 export const monitor = (element: string) => {
 	return `
@@ -239,6 +287,7 @@ blockquote {
 }
 .haibun-log-container {
 	display: flex;
+  padding: 5px;
 	flex-direction: row;
 	width: 100%;
 	align-items: flex-start;
@@ -257,6 +306,18 @@ blockquote {
 	display: block;
 }
 
+/* Video playback related styles */
+.haibun-stepper-played {
+	background-color: rgba(10, 10, 211, 0.2);
+}
+.haibun-stepper-notplayed {
+	background-color: rgba(10, 211, 10, 0.2);
+}
+.haibun-stepper-current {
+	background-color: yellow;
+	border-left: 3px solid black;
+}
+
 #haibun-video {
 	display: none;
   opacity: 0.5;
@@ -268,6 +329,11 @@ blockquote {
 }
 #haibun-video:hover {
   opacity: 1;
+}
+.time-small {
+  font-size: 80%;
+	display: block;
+	font-family: monospace;
 }
 
 @keyframes spin {

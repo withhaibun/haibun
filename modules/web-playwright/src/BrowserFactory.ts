@@ -1,7 +1,7 @@
 import { Browser, BrowserContext, Page, chromium, firefox, webkit, BrowserType, devices } from 'playwright';
 
-import { ILogger } from '@haibun/core/build/lib/interfaces/logger.js';
-import { TTag, TTagValue } from '@haibun/core/build/lib/defs.js';
+import { TArtifactMessageContext } from '@haibun/core/build/lib/interfaces/logger.js';
+import { TTag, TTagValue, TWorld } from '@haibun/core/build/lib/defs.js';
 import { PlaywrightEvents } from './PlaywrightEvents.js';
 
 export const BROWSERS: { [name: string]: BrowserType } = {
@@ -45,9 +45,9 @@ export class BrowserFactory {
 	} = {};
 	static persistentDirectory = undefined;
 
-	private constructor(private logger: ILogger) { }
+	private constructor(private world: TWorld) { }
 
-	static async getBrowserFactory(logger: ILogger, options: TBrowserFactoryOptions, tag = DEFAULT_CONFIG_TAG) {
+	static async getBrowserFactory(world: TWorld, options: TBrowserFactoryOptions, tag = DEFAULT_CONFIG_TAG) {
 		options.type = options.type || 'chromium';
 		options.device = options.device || '';
 
@@ -55,7 +55,7 @@ export class BrowserFactory {
 			throw Error(`browserType not recognized ${options.type}`);
 		}
 		BrowserFactory.configs[tag] = { options, browserType: BROWSERS[options.type] };
-		return new BrowserFactory(logger);
+		return new BrowserFactory(world);
 	}
 
 	async getBrowser(type: string, tag = DEFAULT_CONFIG_TAG): Promise<Browser> {
@@ -63,7 +63,18 @@ export class BrowserFactory {
 			BrowserFactory.browsers[type] = await BrowserFactory.configs[tag].browserType.launch(
 				BrowserFactory.configs[tag].options.browser
 			);
-			this.logger.debug(`launched new ${type} browser`);
+
+			const vs: TArtifactMessageContext = {
+				topic: {
+					stage: 'action',
+					event: 'debug',
+				},
+				artifact: {
+					content: this.world.timer.since(),
+					type: 'video/start'
+				}
+			};
+			this.world.logger.debug(`launched new ${type} browser`, vs);
 		}
 		return BrowserFactory.browsers[type];
 	}
@@ -78,7 +89,7 @@ export class BrowserFactory {
 		if (!this.browserContexts[sequence]) {
 			let browserContext: BrowserContext;
 			if (BrowserFactory.configs.persistentDirectory) {
-				this.logger.debug(
+				this.world.logger.debug(
 					`creating new persistent context ${sequence} ${BrowserFactory.configs[tag].options.type}, ${BrowserFactory.configs.persistentDirectory
 					} with ${JSON.stringify(BrowserFactory.configs)}`
 				);
@@ -87,7 +98,7 @@ export class BrowserFactory {
 					BrowserFactory.configs[tag].options
 				);
 			} else {
-				this.logger.debug(`creating new context ${sequence} ${BrowserFactory.configs[tag].options.type}`);
+				this.world.logger.debug(`creating new context ${sequence} ${BrowserFactory.configs[tag].options.type}`);
 				const browser = await this.getBrowser(BrowserFactory.configs[tag].options.type);
 				const deviceContext = BrowserFactory.configs[tag].options.device
 					? { ...devices[BrowserFactory.configs[tag].options.device] }
@@ -148,12 +159,12 @@ export class BrowserFactory {
 			await page.bringToFront();
 			return page;
 		}
-		this.logger.debug(`creating new page for ${sequence}`);
+		this.world.logger.debug(`creating new page for ${sequence}`);
 
 		const context = await this.getBrowserContextWithSequence(sequence);
 		page = await context.newPage();
 
-		const tracer = new PlaywrightEvents(this.logger, page, tag);
+		const tracer = new PlaywrightEvents(this.world.logger, page, tag);
 
 		this.pages[pageKey] = page;
 		this.tracers[sequence] = tracer;

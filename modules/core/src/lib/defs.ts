@@ -152,7 +152,7 @@ export type TRequiresResult = { includes?: string[] };
 export type TFinalize = (workspace: WorkspaceContext) => void;
 
 export abstract class WorkspaceBuilder {
-	constructor(private name: string) {}
+	constructor(private name: string) { }
 	abstract addControl(...args: TAnyFixme);
 	abstract finalize(): TAnyFixme;
 }
@@ -168,7 +168,7 @@ export type TStepperStep = {
 export type TApplyEffect = (named: TNamed, resolvedFeatures: TResolvedFeature[]) => Promise<TResolvedFeature[]>;
 
 export interface CStepper {
-	new (): AStepper;
+	new(): AStepper;
 	prototype: {
 		steps: {
 			[name: string]: TStepperStep;
