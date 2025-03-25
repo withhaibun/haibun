@@ -45,10 +45,9 @@ export const logToElement = (
 		const artifactDiv = document.createElement('div');
 		artifactDiv.classList.add('haibun-messages-div');
 
-		const summary = document.createElement('summary');
-		summary.textContent = message;
 		const details = document.createElement('details');
-		details.appendChild(summary);
+
+		let detailsLabel: string = a.artifact.type;
 		if (a.artifact.type === 'html' && a.artifact.content) {
 			const contentDiv = document.createElement('iframe');
 			contentDiv.srcdoc = a.artifact.content;
@@ -66,17 +65,19 @@ export const logToElement = (
 			const contextVideo = document.createElement('video');
 			contextVideo.controls = true;
 			contextVideo.src = a.artifact.path;
-			const haibunVideo = document.querySelector('#haibun-video');
+			contextVideo.style.width = '320px';
+			const haibunVideo: HTMLElement = document.querySelector('#haibun-video');
 			if (haibunVideo) {
-				// console.log('set video');
-				// haibunVideo.replaceChildren(contextVideo);
+				console.log('set video');
+				haibunVideo.replaceChildren(contextVideo);
+				haibunVideo.style.display = 'flex';
 			} else {
 				console.log('cannot find haibun-video');
+				details.appendChild(contextVideo);
 			}
-			details.appendChild(contextVideo);
 		} else {
 			if (a.artifact.type === 'json/playwright/trace') {
-				// summary.textContent = `🔄`;
+				detailsLabel = `⇄`;
 			}
 
 			const contextPre = document.createElement('pre');
@@ -84,6 +85,14 @@ export const logToElement = (
 			contextPre.textContent = JSON.stringify(a.artifact, null, 2);
 			details.appendChild(contextPre);
 		}
+		const summary = document.createElement('summary');
+		const labelSpan = document.createElement('span');
+		labelSpan.className = 'details-type';
+		labelSpan.textContent = detailsLabel;
+		summary.textContent = message;
+		summary.appendChild(labelSpan);
+
+		details.appendChild(summary);
 		const detailsWrapper = document.createElement('div');
 		detailsWrapper.classList.add('haibun-artifact-content');
 		detailsWrapper.appendChild(details);
