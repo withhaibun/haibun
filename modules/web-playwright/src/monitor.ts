@@ -76,9 +76,150 @@ export async function writeMonitor(world: TWorld, storage: AStorage, page: Page,
 	return outHtml;
 }
 
+const selectLevels = () => {
+	const levelSelect = document.getElementById('haibun-debug-level-select');
+	const levels = ['debug', 'log', 'info', 'error'];
+
+	const updateStyles = (selectedLevel) => {
+		const selectedIndex = levels.indexOf(selectedLevel);
+		let css = '';
+
+		levels.forEach((level, index) => {
+			if (index < selectedIndex) {
+				css += `div.haibun-log-container.haibun-level-${level} { display: none !important; }\n`;
+			} else {
+				css += `div.haibun-log-container.haibun-level-${level} { display: flex !important; }\n`;
+			}
+		});
+
+		let styleElement = document.getElementById('haibun-dynamic-styles');
+		if (!styleElement) {
+			styleElement = document.createElement('style');
+			styleElement.id = 'haibun-dynamic-styles';
+			document.head.appendChild(styleElement);
+		}
+		styleElement.textContent = css;
+	}
+
+	levelSelect.addEventListener('change', (event) => {
+		const target = (event.target as HTMLSelectElement)
+		console.log('change', target.value)
+		updateStyles(target.value);
+	});
+	// Initial style update
+	updateStyles((levelSelect as HTMLSelectElement).value);
+
+	// haibunVideo
+	const haibunVideo: HTMLElement = document.querySelector('#haibun-video');
+
+	function setDefaultPosition() {
+		haibunVideo.style.transform = `scale(1)`;
+		haibunVideo.style.top = `90px`;
+		haibunVideo.style.right = `35px`;
+	}
+	function setExpandedPosition() {
+		haibunVideo.style.transform = `scale(2)`;
+		haibunVideo.style.top = `200px`;
+		haibunVideo.style.right = `200px`;
+	}
+
+	setExpandedPosition();
+
+	haibunVideo.addEventListener('mouseover', () => {
+		setExpandedPosition();
+	});
+
+	haibunVideo.addEventListener('mouseout', () => {
+		setDefaultPosition();
+	});
+};
+
 export const monitor = (element: string) => {
 	return `
+<head>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+ <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+ <link href="https://fonts.googleapis.com/css2?family=Roboto&family=Roboto+Mono&display=swap" rel="stylesheet">
+
 <style>
+/* main css */
+body {
+  font-family: 'Roboto', sans-serif; /* Clean, readable sans-serif */
+  line-height: 1.6;
+  margin: 20px;
+  color: #333;
+  background-color: #f8f8f8;
+}
+
+h1, h2, h3 {
+  font-family: 'Roboto', sans-serif;
+  color: #222;
+  line-height: 1.2;
+  font-weight: 600;
+}
+
+h1 {
+  font-size: 2em;
+  margin-bottom: 0.5em;
+}
+
+h2 {
+  font-size: 1.6em;
+  margin-bottom: 0.4em;
+}
+
+h3 {
+  font-size: 1.3em;
+  margin-bottom: 0.3em;
+}
+
+p {
+  margin-bottom: 1em;
+  font-size: 0.95em; /* Slightly smaller for body text */
+}
+
+a {
+  color: #007bff;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+ul, ol {
+  margin-bottom: 1em;
+  font-size: 0.95em;
+}
+
+li {
+  margin-bottom: 0.5em;
+}
+
+code, pre {
+  background-color: #e8e8e8;
+  padding: 5px 10px;
+  border-radius: 3px;
+  font-family: 'Roboto Mono', monospace; /* Monospace for code */
+  font-size: 0.85em;
+  line-height: 1.4;
+  overflow-x: auto;
+}
+
+pre {
+  white-space: pre-wrap;
+}
+
+blockquote {
+  border-left: 3px solid #ddd;
+  padding-left: 10px;
+  margin-left: 0;
+  margin-bottom: 1em;
+  font-style: italic;
+  font-size: 0.95em;
+}
+
+/* elements */
 .haibun-loader {
 	border: 4px solid #f3f3f3;
 	border-top: 4px solid #3498db;
@@ -87,9 +228,14 @@ export const monitor = (element: string) => {
 	height: 20px;
 	animation: spin 9.8s linear infinite;
 }
-
+.details-type {
+	background-color:rgb(208, 182, 154);
+	margin: 4px;
+	padding: 0 4px 0 4px;
+	border-radius: .5rem;
+}
 .disappeared {
-  display: none;
+	display: none;
 }
 .haibun-log-container {
 	display: flex;
@@ -112,18 +258,16 @@ export const monitor = (element: string) => {
 }
 
 #haibun-video {
-  display: none;
-	// display: flex;
+	display: none;
+  opacity: 0.5;
 	position: fixed;
-	top: 90px;
-	right: 10px;
-	width: 320px;
-	height: 200px;
-	background-color: rgba(0, 0, 0, 0.8);
 	z-index: 1001;
 	color: white;
 	align-items: center;
 	justify-content: center;
+}
+#haibun-video:hover {
+  opacity: 1;
 }
 
 @keyframes spin {
@@ -131,6 +275,8 @@ export const monitor = (element: string) => {
 	100% { transform: rotate(360deg); }
 }
 </style>
+</head>
+<body>
 <div class="haibun-header" style="position: fixed; height: 7vh; top: 0; left: 0; width: 100%; background-color: white; z-index: 1000; display: flex; align-items: center;">
 	<h1 style="margin-right: auto;">Haibun Monitor</h1>
 	<div className="haibun-controls" style="padding: 10px; flex-grow: 1; max-width: 80%;">
@@ -148,38 +294,8 @@ export const monitor = (element: string) => {
 	  <div class="haibun-disappears"><div class="haibun-loader"></div>Execution output will appear here.</div>
 	</div>
 <script>
-
-	const levelSelect = document.getElementById('haibun-debug-level-select');
-	const levels = ['debug', 'log', 'info', 'error'];
-
-	const updateStyles = (selectedLevel) => {
-	const selectedIndex = levels.indexOf(selectedLevel);
-	let css = '';
-
-	levels.forEach((level, index) => {
-		if (index < selectedIndex) {
-		css += \`div.haibun-log-container.haibun-level-\${level} { display: none !important; }\n\`;
-		} else {
-		css += \`div.haibun-log-container.haibun-level-\${level} { display: flex !important; }\n\`;
-		}
-	});
-
-
-	let styleElement = document.getElementById('haibun-dynamic-styles');
-	if (!styleElement) {
-		styleElement = document.createElement('style');
-		styleElement.id = 'haibun-dynamic-styles';
-		document.head.appendChild(styleElement);
-	}
-	styleElement.textContent = css;
-	}
-
-	levelSelect.addEventListener('change', (event) => {
-	console.log('change', event.target.value)
-	updateStyles(event.target.value);
-	});
-// Initial style update
-updateStyles(levelSelect.value);
+${selectLevels.toString().replace(/\(\) => \{/, '').replace(/}$/, '')}
 </script>
+</body>
 `;
 };

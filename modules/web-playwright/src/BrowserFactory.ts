@@ -93,10 +93,8 @@ export class BrowserFactory {
 					? { ...devices[BrowserFactory.configs[tag].options.device] }
 					: {
 						viewport: {
-							width: 600,
-							height: 400,
-							x: 50,
-							y: 50,
+							width: 1280,
+							height: 1024,
 						},
 					};
 				browserContext = await browser.newContext({ ...deviceContext, ...BrowserFactory.configs[tag].options });
