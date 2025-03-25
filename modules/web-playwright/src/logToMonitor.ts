@@ -22,14 +22,14 @@ export const logToElement = (
 		return loader;
 	}
 
-	function createDetailsDiv(level: string, messageContext: string): HTMLDivElement {
+	function createDetailsDiv(level: string, latest: number, messageContext: string): HTMLDivElement {
 		const detailsDiv = document.createElement('div');
 		detailsDiv.classList.add('haibun-details-div');
 
 		if (!isContextEmpty(messageContext)) {
 			const summary = document.createElement('summary');
 			const details = document.createElement('details');
-			summary.textContent = level;
+			summary.innerHTML = `${level}<div class="time-small">${('' + latest / 1000).replace('.', ':')}</div>`;
 			const contextPre = document.createElement('pre');
 			contextPre.textContent = messageContext;
 			details.appendChild(summary);
@@ -61,20 +61,24 @@ export const logToElement = (
 			contextPicture.src = a.artifact.path;
 			details.appendChild(contextPicture);
 		} else if (a.artifact.type === 'video') {
-			(window as any).haibun = { video: a.artifact.path };
 			const contextVideo = document.createElement('video');
 			contextVideo.controls = true;
 			contextVideo.src = a.artifact.path;
 			contextVideo.style.width = '320px';
+
 			const haibunVideo: HTMLElement = document.querySelector('#haibun-video');
 			if (haibunVideo) {
-				console.log('set video');
 				haibunVideo.replaceChildren(contextVideo);
 				haibunVideo.style.display = 'flex';
 			} else {
-				console.log('cannot find haibun-video');
+				console.info('cannot find #haibun-video');
 				details.appendChild(contextVideo);
 			}
+		} else if (a.artifact.type === 'video/start') {
+			const startSpan = document.createElement('span');
+			startSpan.id = 'haibun-video-start';
+			startSpan.dataset.start = a.artifact.content;
+			document.body.appendChild(startSpan);
 		} else {
 			if (a.artifact.type === 'json/playwright/trace') {
 				detailsLabel = `⇄`;
@@ -107,14 +111,28 @@ export const logToElement = (
 		messagesDiv.textContent = message;
 		return messagesDiv;
 	}
+	function getStartTime() {
+		let startSpan = document.getElementById('haibun-monitor-start')
+		if (!startSpan) {
+			startSpan = document.createElement('span');
+			startSpan.id = 'haibun-monitor-start';
+			startSpan.dataset.startTime = `${Date.now()}`;
+			document.body.appendChild(startSpan);
+		}
+		const startTime = parseInt(startSpan.dataset.startTime, 10);
+		return startTime;
+	}
 
 	const existingNoContextElements = el.querySelectorAll(`.haibun-disappears`);
 	existingNoContextElements.forEach((element) => (element.classList.value = 'disappeared'));
 
 	const container = document.createElement('div');
+
+	const startTime = getStartTime();
 	container.classList.add('haibun-log-container', `haibun-level-${level}`);
-	const latest = `${Date.now()}`;
-	container.dataset.time = latest;
+	const latest = Date.now() - startTime;
+	container.dataset.time = `${latest}`;
+
 	if (isContextEmpty(messageContext)) {
 		container.classList.add('haibun-disappears');
 	} else {
@@ -127,7 +145,7 @@ export const logToElement = (
 			console.error('Error parsing messageContext', messageContext, e);
 		}
 	}
-	const detailsDiv = createDetailsDiv(level, messageContext);
+	const detailsDiv = createDetailsDiv(level, latest, messageContext);
 
 	container.appendChild(detailsDiv);
 
