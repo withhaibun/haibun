@@ -3,7 +3,6 @@ import { TTag } from '@haibun/core/build/lib/defs.js';
 import { ILogger, TArtifactMessageContext } from '@haibun/core/build/lib/interfaces/logger.js';
 import { Page, Request, Route, Response } from 'playwright';
 
-
 type TEtc = {
     headers: Record<string, string>;
     method?: string;

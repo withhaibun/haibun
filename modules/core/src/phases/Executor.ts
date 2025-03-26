@@ -1,34 +1,7 @@
-import {
-	TFeatureStep,
-	TResolvedFeature,
-	TExecutorResult,
-	TStepResult,
-	TFeatureResult,
-	TActionResult,
-	TWorld,
-	TStepActionResult,
-	AStepper,
-	CStepper,
-	TStepAction,
-	TAnyFixme,
-	STAY,
-	STAY_FAILURE,
-	CHECK_NO,
-	CHECK_YES,
-	STEP_DELAY,
-	TNotOKActionResult,
-} from '../lib/defs.js';
+import { TFeatureStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, AStepper, CStepper, TStepAction, TAnyFixme, STAY, STAY_FAILURE, CHECK_NO, CHECK_YES, STEP_DELAY, TNotOKActionResult, } from '../lib/defs.js';
 import { TExecutorMessageContext, TMessageContext } from '../lib/interfaces/logger.js';
 import { getNamedToVars } from '../lib/namedVars.js';
-import {
-	actionNotOK,
-	setStepperWorlds,
-	sleep,
-	createSteppers,
-	findStepper,
-	constructorName,
-	doStepperCycleMethods,
-} from '../lib/util/index.js';
+import { actionNotOK, setStepperWorlds, sleep, createSteppers, findStepper, constructorName, doStepperCycleMethods, } from '../lib/util/index.js';
 import { TRunnerCallbacks } from '../runner.js';
 
 export class Executor {
@@ -84,7 +57,7 @@ export class FeatureExecutor {
 	steppers?: AStepper[];
 	startOffset = 0;
 
-	constructor(private csteppers: CStepper[], private callbacks?: TRunnerCallbacks) {}
+	constructor(private csteppers: CStepper[], private callbacks?: TRunnerCallbacks) { }
 	async setup(world: TWorld) {
 		this.world = world;
 		this.startOffset = world.timer.since();
