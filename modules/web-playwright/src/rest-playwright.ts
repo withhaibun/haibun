@@ -1,5 +1,3 @@
-import { Response as PlaywrightResponse } from 'playwright';
-
 import { actionNotOK, actionOK } from '@haibun/core/build/lib/util/index.js';
 import WebPlaywright from './web-playwright.js';
 import { TNamed, OK } from '@haibun/core/build/lib/defs.js';
