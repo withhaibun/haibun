@@ -1,4 +1,3 @@
-import { currentVersion } from '../currentVersion.js';
 import { WorkspaceContext, WorldContext } from './contexts.js';
 import { ILogger, TMessageContext } from './interfaces/logger.js';
 import { Timer } from './Timer.js';
