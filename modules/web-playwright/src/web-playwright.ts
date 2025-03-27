@@ -3,7 +3,7 @@ import { resolve } from 'path';
 
 import { IHasOptions, OK, TNamed, TStepResult, AStepper, TWorld, TFeatureStep, TAnyFixme, } from '@haibun/core/build/lib/defs.js';
 import { WEB_PAGE, WEB_CONTROL } from '@haibun/core/build/lib/domain-types.js';
-import { BrowserFactory, TBrowserFactoryOptions, TBrowserTypes } from './BrowserFactory.js';
+import { BrowserFactory, TTaggedBrowserFactoryOptions, TBrowserTypes, BROWSERS } from './BrowserFactory.js';
 import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOption, sleep, } from '@haibun/core/build/lib/util/index.js';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 import { TActionStage, TArtifact, TArtifactMessageContext, TTraceMessageContext, } from '@haibun/core/build/lib/interfaces/logger.js';
@@ -38,7 +38,7 @@ class WebPlaywright extends AStepper implements IHasOptions {
 		},
 		[WebPlaywright.PERSISTENT_DIRECTORY]: {
 			desc: 'run browsers with a persistent directory (true or false)',
-			parse: (input: string) => boolOrError(input),
+			parse: (input: string) => stringOrError(input),
 		},
 		ARGS: {
 			desc: 'pass arguments',
@@ -61,7 +61,7 @@ class WebPlaywright extends AStepper implements IHasOptions {
 	hasFactory = false;
 	bf?: BrowserFactory;
 	storage?: AStorage;
-	factoryOptions?: TBrowserFactoryOptions;
+	factoryOptions?: TTaggedBrowserFactoryOptions;
 	tab = 0;
 	withFrame: string;
 	downloaded: string[] = [];
@@ -74,10 +74,11 @@ class WebPlaywright extends AStepper implements IHasOptions {
 	userAgentPages: { [name: string]: Page } = {};
 	apiUserAgent: string;
 	extraHTTPHeaders: { [name: string]: string; } = {};
+	BROWSER_STATE_PATH: string = undefined;
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
-		const args = [...(getStepperOption(this, 'ARGS', world.moduleOptions)?.split(';') || ''), '--disable-gpu'];
+		const args = [...(getStepperOption(this, 'ARGS', world.moduleOptions)?.split(';') || ''),]; //'--disable-gpu'
 		this.storage = findStepperFromOption(steppers, this, world.moduleOptions, WebPlaywright.STORAGE);
 		const headless = getStepperOption(this, 'HEADLESS', world.moduleOptions) === 'true' || !!process.env.CI;
 		const devtools = getStepperOption(this, 'DEVTOOLS', world.moduleOptions) === 'true';
@@ -85,7 +86,7 @@ class WebPlaywright extends AStepper implements IHasOptions {
 			args.concat(['--auto-open-devtools-for-tabs', '--devtools-flags=panel-network', '--remote-debugging-port=9223']);
 		}
 		this.monitor = getStepperOption(this, 'MONITOR', world.moduleOptions) === 'true';
-		const persistentDirectory = getStepperOption(this, WebPlaywright.PERSISTENT_DIRECTORY, world.moduleOptions) === 'true';
+		const persistentDirectory = getStepperOption(this, WebPlaywright.PERSISTENT_DIRECTORY, world.moduleOptions);
 		const defaultTimeout = parseInt(getStepperOption(this, 'TIMEOUT', world.moduleOptions)) || 30000;
 		this.captureVideo = getStepperOption(this, 'CAPTURE_VIDEO', world.moduleOptions);
 		let recordVideo;
@@ -95,13 +96,15 @@ class WebPlaywright extends AStepper implements IHasOptions {
 			};
 		}
 
+		const launchOptions = {
+			headless,
+			args,
+			devtools,
+		}
 		this.factoryOptions = {
-			browser: {
-				headless,
-				args,
-				devtools,
-			},
-			recordVideo,
+			options: { recordVideo, },
+			browserType: BROWSERS.chromium,
+			launchOptions,
 			defaultTimeout,
 			persistentDirectory,
 		};
@@ -120,7 +123,7 @@ class WebPlaywright extends AStepper implements IHasOptions {
 		return this.bf;
 	}
 
-	async getBrowserContext(tag = this.getWorld().tag) {
+	async getExistingBrowserContext(tag = this.getWorld().tag) {
 		const browserContext = (await this.getBrowserFactory()).getExistingBrowserContextWithTag(tag);
 		return browserContext;
 	}
@@ -216,7 +219,7 @@ class WebPlaywright extends AStepper implements IHasOptions {
 		return actionNotOK(`Did not find text "${text}" in ${selector}`, { topics });
 	}
 	async getCookies() {
-		const browserContext = await this.getBrowserContext();
+		const browserContext = await this.getExistingBrowserContext();
 		return await browserContext?.cookies();
 	}
 	steps = {
@@ -367,10 +370,10 @@ class WebPlaywright extends AStepper implements IHasOptions {
 		extensionContext: {
 			gwta: `open extension popup for tab {tab}`,
 			action: async ({ tab }: TNamed) => {
-				if (!this.factoryOptions?.persistentDirectory || this.factoryOptions?.browser.headless) {
+				if (!this.factoryOptions?.persistentDirectory || this.factoryOptions?.launchOptions.headless) {
 					throw Error(`extensions require ${WebPlaywright.PERSISTENT_DIRECTORY} and not HEADLESS`);
 				}
-				const browserContext = await this.getBrowserContext();
+				const browserContext = await this.getExistingBrowserContext();
 				if (!browserContext) {
 					throw Error(`no browserContext`);
 				}
@@ -599,6 +602,10 @@ class WebPlaywright extends AStepper implements IHasOptions {
 		usingBrowserVar: {
 			gwta: 'using {browser} browser',
 			action: async ({ browser }: TNamed) => {
+
+				if (!BROWSERS[browser]) {
+					throw Error(`browserType not recognized ${browser} from ${BROWSERS.toString()}`);
+				}
 				return this.setBrowser(browser);
 			},
 		},
@@ -731,12 +738,12 @@ class WebPlaywright extends AStepper implements IHasOptions {
 		);
 		const artifact: TArtifact = { type: 'image', path: await this.storage.getRelativePath(path) };
 		const artifactTopic = { topic: { ...details, event, stage }, artifact, tag: this.getWorld().tag };
-		this.getWorld().logger.log('screenshot', artifactTopic);
+		this.getWorld().logger.log(`screenshot to ${path}`, artifactTopic);
 	}
 
 	async setExtraHTTPHeaders(headers: { [name: string]: string; }) {
 		await this.withPage(async () => {
-			const browserContext = await this.getBrowserContext();
+			const browserContext = await this.getExistingBrowserContext();
 			browserContext.setExtraHTTPHeaders(headers);
 			this.extraHTTPHeaders = headers;
 		});
@@ -752,41 +759,49 @@ class WebPlaywright extends AStepper implements IHasOptions {
 		const page = await this.getPage();
 		// FIXME Part I this could suffer from race conditions
 		if (ua) {
-			const browserContext = await this.getBrowserContext();
+			const browserContext = await this.getExistingBrowserContext();
 			const headers = { ...this.extraHTTPHeaders || {}, ...{ 'User-Agent': ua } };
 			browserContext.setExtraHTTPHeaders(headers);
 		}
 		try {
-			return await page.evaluate(async ({ endpoint, method, headers, ua, postData }) => {
-				const fetchOptions: RequestInit = {
-					method,
-				};
-				fetchOptions.headers = headers ? headers : {};
-				if (ua) {
-					fetchOptions.headers['User-Agent'] = ua;
-				}
-				if (postData) fetchOptions.body = postData;
+			const pageConsoleMessages: { type: string; text: string }[] = [];
+			try {
+				page.on('console', (msg) => {
+					pageConsoleMessages.push({ type: msg.type(), text: msg.text() });
+				});
+				const ret = await page.evaluate(async ({ endpoint, method, headers, postData }) => {
+					const fetchOptions: RequestInit = {
+						method,
+					};
+					fetchOptions.headers = headers ? headers : {};
+					if (postData) fetchOptions.body = postData;
 
-				const response = await fetch(endpoint, fetchOptions);
+					let response;
+					response = await fetch(endpoint, fetchOptions);
 
-				const capturedResponse: TCapturedResponse = {
-					status: response.status,
-					statusText: response.statusText,
-					headers: Object.fromEntries(response.headers.entries()),
-					url: response.url,
-					json: await response.json().catch(() => null),
-					text: await response.text().catch(() => null),
-				};
+					const capturedResponse: TCapturedResponse = {
+						status: response.status,
+						statusText: response.statusText,
+						headers: Object.fromEntries(response.headers.entries()),
+						url: response.url,
+						json: await response.json().catch(() => null),
+						text: await response.text().catch(() => null),
+					};
 
-				return capturedResponse;
-			}, { endpoint, method, headers, ua, postData });
+					return capturedResponse;
+				}, { endpoint, method, headers, postData });
+
+				return ret;
+			} catch (e: any) {
+				throw new Error(`Evaluate fetch error: ${JSON.stringify({ endpoint, method, headers, ua })} : ${e.message}. Page console messages: ${pageConsoleMessages.map(msg => `[${msg.type}] ${msg.text}`).join('; ')}`);
+			}
 		} catch (e: any) {
 			const ua = userAgent || this.apiUserAgent;
 			throw new Error(`Evaluate fetch error: ${JSON.stringify({ endpoint, method, headers, ua })} : ${e.message}`);
 		} finally {
-		// FIXME Part II this could suffer from race conditions
+			// FIXME Part II this could suffer from race conditions
 			if (ua) {
-				const browserContext = await this.getBrowserContext();
+				const browserContext = await this.getExistingBrowserContext();
 				browserContext.setExtraHTTPHeaders(this.extraHTTPHeaders);
 			}
 		}
