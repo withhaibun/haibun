@@ -1,20 +1,5 @@
 import { WorkspaceContext } from '@haibun/core/build/lib/contexts.js';
-import {
-	TNamed,
-	TFeatureStep,
-	OK,
-	AStepper,
-	IHasOptions,
-	TModuleOptions,
-	TFeatureResult,
-	TOptions,
-	TTag,
-	TAnyFixme,
-	IHasHandlers,
-	IHandler,
-	ISourcedHandler,
-} from '@haibun/core/build/lib/defs.js';
-import { TLogHistory } from '@haibun/core/build/lib/interfaces/logger.js';
+import { TNamed, TFeatureStep, OK, AStepper, IHasOptions, TModuleOptions, TFeatureResult, TOptions, TTag, TAnyFixme } from '@haibun/core/build/lib/defs.js';
 import { stringOrError } from '@haibun/core/build/lib/util/index.js';
 import { TMediaType, MEDIA_TYPES, MAPPED_MEDIA_TYPES } from './media-types.js';
 
@@ -109,19 +94,6 @@ export type TLocationOptions = {
 	moduleOptions: TModuleOptions;
 	mediaType: TMediaType;
 };
-
-export const HANDLE_RESULT_HISTORY = 'handleResultHistory';
-
-export interface IHandleResultHistory extends ISourcedHandler {
-	handle(
-		loc: TLocationOptions,
-		description: string,
-		result: TFeatureResult,
-		startTime: Date,
-		startOffset: number,
-		logHistory: TLogHistory[]
-	);
-}
 
 /**
  * Normalize the extension. This should probably be reconsidered.

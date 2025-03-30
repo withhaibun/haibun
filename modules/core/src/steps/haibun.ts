@@ -81,7 +81,7 @@ const Haibun = class Haibun extends AStepper {
 		},
 		afterEveryStepper: {
 			gwta: 'after every {stepperName}, {line}',
-			action: async (usedInEffect: TNamed) => {
+			action: async () => {
 				return OK;
 			},
 			applyEffect: async ({ stepperName, line }: TNamed, resolvedFeatures: TResolvedFeature[]) => {
@@ -109,7 +109,7 @@ const Haibun = class Haibun extends AStepper {
 	async newFeatureFromEffect(stepper: AStepper, content: string, seq: number): Promise<TFeatureStep> {
 		const features = asFeatures([{ path: `resolved from ${content}`, content }]);
 		const expandedFeatures = await expand([], features);
-		const featureSteps = await new Resolver([stepper]).findFeatureSteps(expandedFeatures[0]);
+		const featureSteps = await new Resolver(this.steppers).findFeatureSteps(expandedFeatures[0]);
 		return { ...featureSteps[0], seq };
 	}
 };

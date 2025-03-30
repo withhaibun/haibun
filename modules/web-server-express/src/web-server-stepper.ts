@@ -83,6 +83,14 @@ const WebServerStepper = class WebServerStepper extends AStepper implements IHas
 				return r;
 			},
 		},
+		showRoutes: {
+			gwta: 'show routes',
+			action: async () => {
+				const routes = this.webserver?.mounted;
+				this.getWorld().logger.info(`routes: ${JSON.stringify(routes, null, 2)}`);
+				return OK;
+			},
+		}
 	};
 	async doServeIndex(where, loc) {
 		const ws: IWebServer = getFromRuntime(this.getWorld().runtime, WEBSERVER);

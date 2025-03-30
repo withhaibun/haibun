@@ -62,7 +62,6 @@ export type TArtifactFailureStepTopic = TBaseArtifactTopic & {
 	step: TFeatureStep;
 };
 
-
 export type TTraceTopic = {
 	type?: string;
 	trace?: object;

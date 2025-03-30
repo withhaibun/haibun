@@ -42,7 +42,7 @@ export class Resolver {
 			if (actions.length > 1) {
 				throw Error(`more than one step found for "${featureLine.line}": ${JSON.stringify(actions.map((a) => a.actionName))}`);
 			} else if (actions.length < 1) {
-				throw Error(`no step found for ${featureLine.line} in ${feature.path} from\n${describeSteppers(this.steppers)}\nUse --show-steppers for more details`);
+				throw Error(`in ${feature.name}: no step found for ${featureLine.line} in ${feature.path} from\n${describeSteppers(this.steppers)}\nUse --show-steppers for more details`);
 			}
 			const featureStep = this.getFeatureStep(featureLine, seq, actions[0]);
 			featureSteps.push(featureStep);
