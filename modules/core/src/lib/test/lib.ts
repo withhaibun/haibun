@@ -21,7 +21,7 @@ export async function getCreateSteppers(steppers: string[], addSteppers?: CStepp
 }
 
 export const testFeatureStep = (name: string, action, base = TEST_BASE): TFeatureStep => ({
-	source: { ...withNameType(base, name, '') },
+	sourceFeature: { ...withNameType(base, name, '') },
 	in: name,
 	seq: 0,
 	action,

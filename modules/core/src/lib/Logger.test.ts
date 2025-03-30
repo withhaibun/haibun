@@ -26,7 +26,7 @@ describe('logger with subscriber', () => {
 			'@type': 'Step',
 			description: 'step 1',
 			action: undefined,
-			source: { path: 'path', type: 'foo', base: 'foo', name: 'foo', content: 'foo' },
+			sourceFeature: { path: 'path', type: 'foo', base: 'foo', name: 'foo', content: 'foo' },
 			in: 'in',
 			seq: 1,
 		};

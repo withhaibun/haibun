@@ -87,6 +87,7 @@ export class BrowserFactory {
 	static async closeBrowsers() {
 		for (const b in BrowserFactory.browsers) {
 			await BrowserFactory.browsers[b].close();
+			delete BrowserFactory.browsers[b];
 		}
 	}
 	async close() {

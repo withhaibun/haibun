@@ -73,8 +73,7 @@ export default class OutXUnit extends AStepper implements IProcessFeatureResults
 				},
 			},
 		};
-
-		for (const t of result.featureResults) {
+		for (const t of result.featureResults || []) {
 			const testCase: TTestCase = {
 				'@name': t.path,
 				'@id': t.path,
@@ -83,10 +82,6 @@ export default class OutXUnit extends AStepper implements IProcessFeatureResults
 			if (!t.ok) {
 				testCase.failure = this.getFailResult(t.stepResults.find((r) => !r.ok)?.actionResult as TNotOkStepActionResult);
 			}
-
-			// if (t.comments) {
-			//   testCase['system-out'] = t.comments;
-			// }
 
 			forXML.testsuites.testsuite.testcase.push(testCase);
 		}

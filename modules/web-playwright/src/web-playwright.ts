@@ -4,7 +4,7 @@ import { resolve } from 'path';
 import { IHasOptions, OK, TNamed, TStepResult, AStepper, TWorld, TFeatureStep, TAnyFixme, } from '@haibun/core/build/lib/defs.js';
 import { WEB_PAGE, WEB_CONTROL } from '@haibun/core/build/lib/domain-types.js';
 import { BrowserFactory, TTaggedBrowserFactoryOptions, TBrowserTypes, BROWSERS } from './BrowserFactory.js';
-import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOption, sleep, } from '@haibun/core/build/lib/util/index.js';
+import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOption, sleep, actionOK, } from '@haibun/core/build/lib/util/index.js';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 import { TActionStage, TArtifact, TArtifactMessageContext, TTraceMessageContext, } from '@haibun/core/build/lib/interfaces/logger.js';
 import { EMediaTypes } from '@haibun/domain-storage/build/media-types.js';
@@ -680,8 +680,11 @@ class WebPlaywright extends AStepper implements IHasOptions {
 		takeScreenshot: {
 			gwta: 'take a screenshot',
 			action: async (notUsed, featureStep: TFeatureStep) => {
-				await this.captureScreenshot('request', 'action', featureStep);
-				return OK;
+				try {
+					await this.captureScreenshotAndLog('request', 'action', featureStep);
+				} catch (e) {
+					return actionNotOK(e);
+				}
 			},
 		},
 		assertOpen: {
@@ -721,25 +724,26 @@ class WebPlaywright extends AStepper implements IHasOptions {
 		this.tab = this.tab + 1;
 	}
 	async captureFailureScreenshot(event: 'failure', stage: TActionStage, step: TFeatureStep) {
-		return await this.captureScreenshot(event, stage, { step });
+		try {
+			return await this.captureScreenshotAndLog(event, stage, { step });
+		} catch (e) {
+			this.getWorld().logger.debug(`captureFailureScreenshot error ${e}`);
+		}
 	}
-	async captureRequestScreenshot(event: 'request', stage: TActionStage, seq: number) {
-		return await this.captureScreenshot(event, stage, { seq });
+
+	async captureScreenshotAndLog(event: 'failure' | 'request', stage: TActionStage, details: { seq?: number; step?: TFeatureStep }) {
+		const artifactTopic = await this.captureScreenshot(event, stage, details,);
+		this.getWorld().logger.log(`${event} screenshot to ${artifactTopic.artifact.path}`, artifactTopic);
 	}
 
 	async captureScreenshot(event: 'failure' | 'request', stage: TActionStage, details: { seq?: number; step?: TFeatureStep }) {
 		const loc = await this.getCaptureDir('image');
 		// FIXME shouldn't be fs dependant
 		const path = resolve(this.storage.fromLocation(EMediaTypes.image, loc, `${event}-${Date.now()}.png`));
-		await this.withPage(
-			async (page: Page) =>
-				await page.screenshot({
-					path,
-				})
-		);
+		await this.withPage(async (page: Page) => await page.screenshot({ path, }));
 		const artifact: TArtifact = { type: 'image', path: await this.storage.getRelativePath(path) };
 		const artifactTopic = { topic: { ...details, event, stage }, artifact, tag: this.getWorld().tag };
-		this.getWorld().logger.log(`screenshot to ${path}`, artifactTopic);
+		return artifactTopic;
 	}
 
 	async setExtraHTTPHeaders(headers: { [name: string]: string; }) {

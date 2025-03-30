@@ -2,7 +2,8 @@ import { IHasOptions, STAY_ALWAYS, STAY_FAILURE, STEP_DELAY, TOptions } from '@h
 import { LOGGER_LEVELS } from '@haibun/core/build/lib/Logger.js';
 import { boolOrError, intOrError, optionOrError, stringOrError } from '@haibun/core/build/lib/util/index.js';
 
-export const CONTINUE_AFTER_ERROR = 'CONTINUE_AFTER_ERROR';
+import { CONTINUE_AFTER_ERROR } from '@haibun/core/build/phases/Executor.js';
+
 
 export class BaseOptions implements IHasOptions {
 	static options = {

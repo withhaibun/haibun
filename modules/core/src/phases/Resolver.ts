@@ -43,7 +43,7 @@ export class Resolver {
 	}
 
 	getFeatureStep(featureLine: TExpandedLine, seq: number, action: TStepAction): TFeatureStep {
-		return { source: featureLine.feature, in: featureLine.line, seq, action };
+		return { sourceFeature: featureLine.feature, in: featureLine.line, seq, action };
 	}
 
 	public findActionableSteps(actionable: string): TStepAction[] {
