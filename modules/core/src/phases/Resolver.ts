@@ -15,6 +15,7 @@ export class Resolver {
 		for (const feature of features) {
 			const featureSteps = await this.findFeatureSteps(feature);
 			const e = { ...feature, ...{ featureSteps } };
+			delete e.expanded;
 			steps.push(e);
 		}
 		return steps;

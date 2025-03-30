@@ -60,7 +60,6 @@ export type TWorld = {
 };
 
 export type TFeatureMeta = {
-	type: string;
 	base: string;
 	name: string;
 	path: string;
@@ -82,20 +81,20 @@ export type TExpandedLine = {
 
 export type TFeatures = TFeature[];
 
-export type TResolvedFeature = TExpandedFeature & {
+export type TResolvedFeature = {
+	path: string;
+	base: string;
 	name: string;
 	featureSteps: TFeatureStep[];
 };
 
 const example: TResolvedFeature = {
-	type: 'feature',
 	path: 'path',
 	base: 'base',
 	name: 'name',
-	expanded: [{ line: 'line', feature: { type: 'type', base: 'base', name: 'name', path: 'path', content: 'content' } }],
 	featureSteps: [
 		{
-			source: { type: 'type', base: 'base', name: 'name', path: 'path', content: 'content' },
+			sourceFeature: { base: 'base', name: 'name', path: 'path', content: 'content' },
 			in: 'in',
 			seq: 0,
 			action: {
@@ -117,7 +116,7 @@ export type TTag = {
 };
 
 export type TFeatureStep = {
-	source: TFeature;
+	sourceFeature: TFeature;
 	in: string;
 	seq: number;
 	action: TStepAction;
