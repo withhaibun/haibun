@@ -14,13 +14,19 @@ const WebServerStepper = class WebServerStepper extends AStepper implements IHas
 			parse: (port: string) => intOrError(port),
 		},
 	};
+	port: number;
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
 		// this.world.runtime[CHECK_LISTENER] = WebServerStepper.checkListener;
-		const port = parseInt(getStepperOption(this, 'PORT', world.moduleOptions)) || DEFAULT_PORT;
-		this.webserver = new ServerExpress(world.logger, path.join([process.cwd(), 'files'].join('/')), port);
+		this.port = parseInt(getStepperOption(this, 'PORT', world.moduleOptions)) || DEFAULT_PORT;
 		world.runtime[WEBSERVER] = this.webserver;
+	}
+
+	async startFeature() {
+		this.webserver = new ServerExpress(this.world.logger, path.join([process.cwd(), 'files'].join('/')), this.port);
+		console.log('start webserver');
+
 	}
 
 	async endedFeature() {
