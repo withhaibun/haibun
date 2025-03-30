@@ -56,6 +56,7 @@ class WebPlaywright extends AStepper implements IHasOptions {
 		[WebPlaywright.STORAGE]: {
 			desc: 'Storage for output',
 			parse: (input: string) => stringOrError(input),
+			required: true
 		},
 	};
 	hasFactory = false;

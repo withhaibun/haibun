@@ -1,36 +1,17 @@
-import {
-	TWorld,
-	TExecutorResult,
-	TAnyFixme,
-	CStepper,
-	TEndFeatureCallback,
-	AStepper,
-	TResolvedFeature,
-	TStepAction,
-} from './lib/defs.js';
+import { TWorld, TExecutorResult, TAnyFixme, CStepper, AStepper, TResolvedFeature, TStepAction } from './lib/defs.js';
 import { expand } from './lib/features.js';
 import { getNamedToVars } from './lib/namedVars.js';
-import {
-	verifyRequiredOptions,
-	verifyExtraOptions,
-	createSteppers,
-	setStepperWorlds,
-	constructorName,
-	doStepperCycleMethods,
-} from './lib/util/index.js';
+import { verifyRequiredOptions, verifyExtraOptions, createSteppers, setStepperWorlds, constructorName, doStepperCycleMethods } from './lib/util/index.js';
 import { getSteppers } from './lib/util/workspace-lib.js';
 import { getFeaturesAndBackgrounds, TFeaturesBackgrounds } from './phases/collector.js';
 import { Executor } from './phases/Executor.js';
 import { Resolver } from './phases/Resolver.js';
 
-export type TRunnerCallbacks = {
-	endFeature?: TEndFeatureCallback[];
-};
-
 export class Runner {
 	private result: TExecutorResult = undefined;
+	steppers: AStepper[];
 
-	constructor(private world: TWorld, private callbacks: TRunnerCallbacks = {}) {}
+	constructor(private world: TWorld) { }
 
 	private errorBail = (phase: string, error: TAnyFixme, details?: TAnyFixme) => {
 		this.world.logger.error(`errorBail ${phase} ${error} ${details}`, error.stack);
@@ -39,11 +20,12 @@ export class Runner {
 			shared: this.world.shared,
 			tag: this.world.tag,
 			failure: { stage: phase, error: { message: error.message, details: { stack: error.stack, details } } },
+			steppers: this.steppers
 		};
 		throw Error(error);
 	};
 
-	async run(steppers: string[], featureFilter = []) {
+	async run(steppers: string[], featureFilter = []): Promise<TExecutorResult> {
 		let featuresBackgrounds: TFeaturesBackgrounds = undefined;
 		try {
 			featuresBackgrounds = getFeaturesAndBackgrounds(this.world.bases, featureFilter);
@@ -53,7 +35,8 @@ export class Runner {
 
 		const { features, backgrounds } = featuresBackgrounds;
 		const cSteppers = await getSteppers(steppers).catch((error) => this.errorBail('Steppers', error));
-		return await this.runFeaturesAndBackgrounds(cSteppers, { features, backgrounds });
+		const featureResults = await this.runFeaturesAndBackgrounds(cSteppers, { features, backgrounds });
+		return featureResults;
 	}
 
 	async runFeaturesAndBackgrounds(csteppers: CStepper[], { features, backgrounds }: TFeaturesBackgrounds) {
@@ -62,17 +45,17 @@ export class Runner {
 				this.errorBail('RequiredOptions', error)
 			);
 			await verifyExtraOptions(this.world.moduleOptions, csteppers).catch((error) => this.errorBail('moduleOptions', error));
-			const steppers = await createSteppers(csteppers);
-			await setStepperWorlds(steppers, this.world).catch((error) => this.errorBail('StepperOptions', error));
+			this.steppers = await createSteppers(csteppers);
+			await setStepperWorlds(this.steppers, this.world).catch((error) => this.errorBail('StepperOptions', error));
 
 			const expandedFeatures = await expand(backgrounds, features).catch((error) => this.errorBail('Expand', error));
 
-			const resolver = new Resolver(steppers);
+			const resolver = new Resolver(this.steppers);
 			const resolvedFeatures = await resolver
 				.resolveStepsFromFeatures(expandedFeatures)
 				.catch((error) => this.errorBail('Resolve', error));
 
-			const appliedResolvedFeatures = await this.applyEffectFeatures(resolvedFeatures, steppers);
+			const appliedResolvedFeatures = await this.applyEffectFeatures(resolvedFeatures, this.steppers);
 
 			this.world.logger.log(
 				`features: ${expandedFeatures.length} backgrounds: ${backgrounds.length} steps: (${expandedFeatures.map(
@@ -80,8 +63,8 @@ export class Runner {
 				)}), ${appliedResolvedFeatures.length}`
 			);
 
-			await doStepperCycleMethods(steppers, 'startExecution');
-			this.result = await Executor.execute(csteppers, this.world, appliedResolvedFeatures, this.callbacks).catch((error) =>
+			await doStepperCycleMethods(this.steppers, 'startExecution');
+			this.result = await Executor.executeFeatures(csteppers, this.world, appliedResolvedFeatures).catch((error) =>
 				this.errorBail('Execute', error)
 			);
 		} catch (error) {

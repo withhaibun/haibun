@@ -2,15 +2,13 @@ import { IHasOptions, STAY_ALWAYS, STAY_FAILURE, STEP_DELAY, TOptions } from '@h
 import { LOGGER_LEVELS } from '@haibun/core/build/lib/Logger.js';
 import { boolOrError, intOrError, optionOrError, stringOrError } from '@haibun/core/build/lib/util/index.js';
 
+export const CONTINUE_AFTER_ERROR = 'CONTINUE_AFTER_ERROR';
+
 export class BaseOptions implements IHasOptions {
 	static options = {
 		KEY: {
 			desc: 'execution key (defaults to serialtime)',
 			parse: (input: string) => stringOrError(input),
-		},
-		TRACE: {
-			desc: 'save tracks data',
-			parse: (input: string) => boolOrError(input),
 		},
 		DESCRIPTION: {
 			desc: 'description for reports',
@@ -20,13 +18,13 @@ export class BaseOptions implements IHasOptions {
 			desc: 'execution setting (eg dev, prod)',
 			parse: (result: string) => ({ result }),
 		},
-		DEST: {
-			desc: 'destination for captures',
-			parse: (result: string) => ({ result }),
-		},
 		STAY: {
 			desc: `stay running after execution: ${STAY_ALWAYS}, ${STAY_FAILURE}`,
 			parse: (result: string) => optionOrError(result, [STAY_ALWAYS, STAY_FAILURE]),
+		},
+		[CONTINUE_AFTER_ERROR]: {
+			desc: `continue after error`,
+			parse: (input: string) => boolOrError(input),
 		},
 		LOG_FOLLOW: {
 			desc: 'filter for output',
@@ -72,14 +70,6 @@ export class BaseOptions implements IHasOptions {
 		[STEP_DELAY]: {
 			desc: 'delay between steps',
 			parse: (input: string) => intOrError(input),
-		},
-		OUTPUT: {
-			desc: 'Output format (AsXUnit)',
-			parse: (result: string) => ({ result }),
-		},
-		OUTPUT_DEST: {
-			desc: 'Output destination (results.xml)',
-			parse: (result: string) => ({ result }),
 		},
 		PWDEBUG: {
 			desc: '(web) Enable Playwright debugging (0 or 1)',

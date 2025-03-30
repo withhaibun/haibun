@@ -2,7 +2,6 @@ import { TFeatureStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureR
 import { TExecutorMessageContext, TMessageContext } from '../lib/interfaces/logger.js';
 import { getNamedToVars } from '../lib/namedVars.js';
 import { actionNotOK, setStepperWorlds, sleep, createSteppers, findStepper, constructorName, doStepperCycleMethods, } from '../lib/util/index.js';
-import { TRunnerCallbacks } from '../runner.js';
 
 export class Executor {
 	// find the stepper and action, call it and return its result
@@ -17,11 +16,10 @@ export class Executor {
 			});
 		});
 	}
-	static async execute(
+	static async executeFeatures(
 		csteppers: CStepper[],
 		world: TWorld,
 		features: TResolvedFeature[],
-		callbacks?: TRunnerCallbacks
 	): Promise<TExecutorResult> {
 		let ok = true;
 		const stayOnFailure = world.options[STAY] === STAY_FAILURE;
@@ -33,22 +31,22 @@ export class Executor {
 
 			const newWorld = { ...world, tag: { ...world.tag, ...{ featureNum: 0 + featureNum } } };
 
-			const featureExecutor = new FeatureExecutor(csteppers, callbacks);
+			const featureExecutor = new FeatureExecutor(csteppers);
 			await featureExecutor.setup(newWorld);
 			await featureExecutor.startFeature();
 
 			const featureResult = await featureExecutor.doFeature(feature);
 
 			ok = ok && featureResult.ok;
+			console.log(`feature ${featureNum} of ${features.length}`, ok);
 			featureResults.push(featureResult);
 			const shouldEndFeatureClose = ok || !stayOnFailure;
 			await featureExecutor.endFeature(); // this should be before endedFeature
 			if (shouldEndFeatureClose) {
 				await featureExecutor.endedFeature();
 			}
-			await featureExecutor.doEndFeatureCallback(featureResult);
 		}
-		return { ok, featureResults: featureResults, tag: world.tag, shared: world.shared };
+		return { ok, featureResults: featureResults, tag: world.tag, shared: world.shared, steppers: await createSteppers(csteppers) };
 	}
 }
 
@@ -57,7 +55,7 @@ export class FeatureExecutor {
 	steppers?: AStepper[];
 	startOffset = 0;
 
-	constructor(private csteppers: CStepper[], private callbacks?: TRunnerCallbacks) { }
+	constructor(private csteppers: CStepper[]) { }
 	async setup(world: TWorld) {
 		this.world = world;
 		this.startOffset = world.timer.since();
@@ -75,7 +73,6 @@ export class FeatureExecutor {
 		const stepResults: TStepResult[] = [];
 
 		for (const step of feature.featureSteps) {
-			const ifScenario = step.in.match(/^\bScenario: .*$/);
 			world.logger.log(step.in);
 			const result = await FeatureExecutor.doFeatureStep(this.steppers, step, world);
 
@@ -113,8 +110,7 @@ export class FeatureExecutor {
 		}
 		const end = world.timer.since();
 		// FIXME
-		const stepResult: TStepActionResult = { ...res, name: action.actionName, start, end, traces } as TStepActionResult;
-		const actionResult = stepResult;
+		const actionResult: TStepActionResult = { ...res, name: action.actionName, start, end, traces } as TStepActionResult;
 		ok = ok && res.ok;
 
 		return { ok, in: featureStep.in, sourcePath: featureStep.source.path, actionResult, seq: featureStep.seq };
@@ -124,19 +120,6 @@ export class FeatureExecutor {
 			if (stepper.onFailure) {
 				const res = await stepper.onFailure(result, step);
 				this.world.logger.error(`onFailure from ${result.in} for ${constructorName(stepper)}`, <TMessageContext>res);
-			}
-		}
-	}
-
-	async doEndFeatureCallback(featureResult: TFeatureResult) {
-		if (this.callbacks.endFeature) {
-			for (const callback of this.callbacks.endFeature) {
-				try {
-					await callback({ world: this.world, result: featureResult, steppers: this.steppers, startOffset: this.startOffset });
-				} catch (error: TAnyFixme) {
-					console.error('endFeatureCallback failing', callback.toString());
-					throw Error(error);
-				}
 			}
 		}
 	}

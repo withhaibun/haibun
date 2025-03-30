@@ -5,7 +5,7 @@ import { convert } from 'xmlbuilder2';
 import OutXUnit from './out-xunit.js';
 import { testWithDefaults } from '@haibun/core/build/lib/test/lib.js';
 import TestSteps from '@haibun/core/build/lib/test/TestSteps.js';
-import { getOutputResult, workspaceRoot } from '@haibun/core/build/lib/util/workspace-lib.js';
+import { workspaceRoot } from '@haibun/core/build/lib/util/workspace-lib.js';
 import path from 'path';
 import { TAnyFixme } from '@haibun/core/build/lib/defs.js';
 
@@ -18,7 +18,7 @@ describe('AsXML transforms', () => {
 
 		expect(result.ok).toBe(true);
 		const asXunit = new OutXUnit();
-		const res = await asXunit.getOutput(result, {});
+		const res = await asXunit.featureResultAsJunit(result);
 
 		const obj: TAnyFixme = convert(res, { format: 'object' });
 		expect(obj.testsuites.testsuite.testcase['@name']).toBeDefined();
@@ -34,7 +34,7 @@ describe('AsXML transforms', () => {
 
 		expect(result.ok).toBe(false);
 		const asXunit = new OutXUnit();
-		const res = await asXunit.getOutput(result, {});
+		const res = await asXunit.featureResultAsJunit(result);
 		const obj: TAnyFixme = convert(res, { format: 'object' });
 
 		expect(obj.testsuites.testsuite.testcase.length).toBe(2);
@@ -43,18 +43,4 @@ describe('AsXML transforms', () => {
 		expect(obj.testsuites.testsuite.testcase[0].failure).toBeDefined();
 		expect(obj.testsuites.testsuite.testcase[1].failure).toBeUndefined();
 	});
-});
-
-it('run AsXUnit', async () => {
-	const features = [
-		{ path: '/features/fails.feature', content: `When I have a test\nThen fails` },
-		{ path: '/features/passes.feature', content: `When I have a test\nThen passes` },
-	];
-	const result = await testWithDefaults(features, [TestSteps]);
-
-	expect(result.ok).toBe(false);
-	const output = await getOutputResult(ox, result);
-	console.log('🤑', JSON.stringify(output, null, 2));
-	expect(typeof output).toBe('string');
-	expect((<string>output).startsWith('<?xml')).toBeTruthy();
 });

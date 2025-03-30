@@ -34,33 +34,12 @@ export interface IHasOptions {
 	};
 }
 
-export const HANDLER_USAGE = {
-	EXCLUSIVE: 'exclusive',
-	FALLBACK: 'fallback',
-} as const;
-
-export type THandlerUsage = (typeof HANDLER_USAGE)[keyof typeof HANDLER_USAGE];
-export interface IHandler {
-	usage?: THandlerUsage;
-	// eslint-disable-next-line @typescript-eslint/ban-types
-	handle: Function;
-}
-export interface ISourcedHandler extends IHandler {
-	stepper: AStepper;
+export interface IProcessFeatureResults extends AStepper {
+	processFeatureResult: (executorResult: TExecutorResult) => Promise<void>;
 }
 
-export type THandlers = {
-	[handlesName: string]: IHandler;
-};
-export interface IHasHandlers extends AStepper {
-	handlers: THandlers;
-}
+export const isProcessFeatureResults = (s: IProcessFeatureResults): s is IProcessFeatureResults => s.processFeatureResult !== undefined;
 
-export const isHasHandlers = (s: IHasHandlers): s is IHasHandlers => s.handlers !== undefined;
-
-export interface IHasBuilder {
-	finalize: (workspace: WorkspaceContext) => void;
-}
 export type TModuleOptions = { [name: string]: string };
 export type TProtoOptions = {
 	options: TOptions;
@@ -237,6 +216,7 @@ export type TExecutorResult = {
 		stage: string;
 		error: TExecutorResultError;
 	};
+	steppers: AStepper[];
 };
 
 export type TOKActionResult = {
@@ -312,19 +292,12 @@ export type TStepResult = {
 
 export type TRuntime = { [name: string]: TAnyFixme };
 
-export interface IResultOutput {
-	writeOutput(result: TExecutorResult, args: TAnyFixme): Promise<TAnyFixme>;
-}
-
 export const HAIBUN = 'HAIBUN';
 export const BASE_PREFIX = `${HAIBUN}_`;
 export const CAPTURE = 'capture';
 export const DEFAULT_DEST = 'default';
 
 export const BASE_DOMAINS = [{ name: 'string', resolve: (inp: string) => inp }];
-
-export type TEndFeatureCallbackParams = { world: TWorld; result: TFeatureResult; steppers: AStepper[]; startOffset: number };
-export type TEndFeatureCallback = (params: TEndFeatureCallbackParams) => Promise<void>;
 
 export const STAY_ALWAYS = 'always';
 export const STAY_FAILURE = 'failure';

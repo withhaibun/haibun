@@ -1,4 +1,4 @@
-import { IHasOptions, TNotOKActionResult, TOKActionResult, TSpecl, TWorld, TRuntime, TActionResultTopics, TTag, AStepper, TModuleOptions, CStepper, DEFAULT_DEST, TTagValue, TFeatureResult, TAnyFixme, IHasHandlers, ISourcedHandler, HANDLER_USAGE, } from '../defs.js';
+import { IHasOptions, TNotOKActionResult, TOKActionResult, TSpecl, TWorld, TRuntime, TActionResultTopics, TTag, AStepper, TModuleOptions, CStepper, DEFAULT_DEST, TTagValue, TFeatureResult, TAnyFixme } from '../defs.js';
 import { Timer } from '../Timer.js';
 
 type TClass = { new <T>(...args: unknown[]): T };
@@ -231,42 +231,6 @@ export function findStepper<Type>(steppers: AStepper[], name: string): Type {
 		);
 	}
 	return stepper;
-}
-
-function isIHasHandlers(obj: AStepper): obj is IHasHandlers {
-	return obj && typeof (obj as unknown as IHasHandlers).handlers === 'object';
-}
-
-export function findHandlers<R extends ISourcedHandler>(steppers: AStepper[], handlerName: string): R[] {
-	let sourcedHandlers: ISourcedHandler[] = [];
-
-	steppers.forEach((stepper) => {
-		if (isIHasHandlers(stepper)) {
-			const handler = stepper.handlers[handlerName];
-			if (handler) {
-				sourcedHandlers.push({
-					...handler,
-					stepper: stepper,
-				} as ISourcedHandler);
-			}
-		}
-	});
-	const exclusiveHandlers = sourcedHandlers.filter((handler) => handler.usage === HANDLER_USAGE.EXCLUSIVE);
-
-	if (exclusiveHandlers.length > 0) {
-		if (exclusiveHandlers.length > 1) {
-			throw Error('multiple exclusive handlers');
-		}
-		return exclusiveHandlers as R[];
-	}
-	sourcedHandlers = sourcedHandlers.reduce((acc, item) => {
-		if (item.usage !== 'fallback' || acc.length < 1) {
-			acc.push(item);
-		}
-		return acc;
-	}, []);
-
-	return sourcedHandlers as R[];
 }
 
 export function getFromRuntime<Type>(runtime: TRuntime, name: string): Type {

@@ -12,23 +12,8 @@ import {
 import TestSteps from '../test/TestSteps.js';
 import TestStepsWithOptions from '../test/TestStepsWithOptions.js';
 import { withNameType } from '../features.js';
-import { AStepper, HANDLER_USAGE, IHasHandlers, IHasOptions, OK, TAnyFixme } from '../defs.js';
+import { AStepper, IHasOptions, OK, TAnyFixme } from '../defs.js';
 import { constructorName } from './index.js';
-
-describe('output', () => {
-	it('OutputResult default', async () => {
-		const features = [
-			{ path: '/features/test1.feature', content: `When I have a test\nThen fails` },
-			{ path: '/features/test2.feature', content: `When I have a test\nThen it passes` },
-		];
-		const result = await testWithDefaults(features, [TestSteps]);
-
-		expect(result.ok).toBe(false);
-		const output = await TFileSystemJs.getOutputResult(undefined, result);
-		expect(typeof output).toBe('object');
-		expect(result.featureResults?.length).toBe(2);
-	});
-});
 
 describe('isLowerCase', () => {
 	it('is lower case', () => {
@@ -38,90 +23,6 @@ describe('isLowerCase', () => {
 	});
 });
 
-describe('findHandlers', () => {
-	const TEST_HANDLER = 'testHandler';
-	class TestStepper extends AStepper {
-		// eslint-disable-next-line @typescript-eslint/ban-types
-		steps: {};
-	}
-	it('finds handlers from classes that implement IHasHandler', () => {
-		class TestStepperHandler extends TestStepper implements IHasHandlers {
-			handlers = { testHandler: { handle: () => undefined } };
-		}
-		const found = util.findHandlers([new TestStepperHandler()], TEST_HANDLER);
-		expect(found.length).toBe(1);
-		expect(util.constructorName(found[0].stepper)).toBe('TestStepperHandler');
-	});
-	it(`does not find handlers from classes that don't implement IHasHandler`, () => {
-		const found = util.findHandlers([new TestStepper()], TEST_HANDLER);
-		expect(found.length).toBe(0);
-	});
-	it(`finds exclusive handler`, () => {
-		class ExclusiveTestStepperHandler extends TestStepper implements IHasHandlers {
-			handlers = { testHandler: { handle: () => undefined, usage: HANDLER_USAGE.EXCLUSIVE } };
-		}
-		const found = util.findHandlers([new TestStepper(), new ExclusiveTestStepperHandler()], TEST_HANDLER);
-		expect(found.length).toBe(1);
-		expect(util.constructorName(found[0].stepper)).toBe('ExclusiveTestStepperHandler');
-	});
-	it(`throws error for duplicate exclusives`, () => {
-		class ExclusiveTestStepperHandler extends TestStepper implements IHasHandlers {
-			handlers = { testHandler: { handle: () => undefined, usage: HANDLER_USAGE.EXCLUSIVE } };
-		}
-		class ExclusiveTestStepperHandlerToo extends TestStepper implements IHasHandlers {
-			handlers = { testHandler: { handle: () => undefined, usage: HANDLER_USAGE.EXCLUSIVE } };
-		}
-
-		expect(() =>
-			util.findHandlers(
-				[new TestStepper(), new ExclusiveTestStepperHandler(), new ExclusiveTestStepperHandlerToo()],
-				TEST_HANDLER
-			)
-		).toThrow();
-	});
-	it(`removes fallback`, () => {
-		class TestStepperHandler extends TestStepper implements IHasHandlers {
-			handlers = { testHandler: { handle: () => undefined } };
-		}
-		class FallbackTestStepperHandler extends TestStepper implements IHasHandlers {
-			handlers = { testHandler: { handle: () => undefined, usage: HANDLER_USAGE.FALLBACK } };
-		}
-		const found = util.findHandlers([new TestStepperHandler(), new FallbackTestStepperHandler()], TEST_HANDLER);
-		expect(found.length).toBe(1);
-		expect(constructorName(found[0].stepper)).toBe('TestStepperHandler');
-	});
-	it(`keeps one fallback from mix pak`, async () => {
-		class TestStepperHandler extends TestStepper implements IHasHandlers {
-			handlers = { testHandler: { handle: () => undefined } };
-		}
-		class FallbackTestStepperHandler extends TestStepper implements IHasHandlers {
-			handlers = { testHandler: { handle: () => undefined, usage: HANDLER_USAGE.FALLBACK } };
-		}
-		class FallbackTestStepperHandlerToo extends TestStepper implements IHasHandlers {
-			handlers = { testHandler: { handle: () => undefined, usage: HANDLER_USAGE.FALLBACK } };
-		}
-		const found = util.findHandlers(
-			await util.createSteppers([TestStepperHandler, FallbackTestStepperHandler, FallbackTestStepperHandlerToo]),
-			TEST_HANDLER
-		);
-		expect(found.length).toBe(1);
-		expect(constructorName(found[0].stepper)).toBe('TestStepperHandler');
-	});
-	it(`keeps first fallback from multiple fallbacks`, async () => {
-		class FallbackTestStepperHandler extends TestStepper implements IHasHandlers {
-			handlers = { testHandler: { handle: () => undefined, usage: HANDLER_USAGE.FALLBACK } };
-		}
-		class FallbackTestStepperHandlerToo extends TestStepper implements IHasHandlers {
-			handlers = { testHandler: { handle: () => undefined, usage: HANDLER_USAGE.FALLBACK } };
-		}
-		const found = util.findHandlers(
-			await util.createSteppers([FallbackTestStepperHandler, FallbackTestStepperHandlerToo]),
-			TEST_HANDLER
-		);
-		expect(found.length).toBe(1);
-		expect(constructorName(found[0].stepper)).toBe('FallbackTestStepperHandler');
-	});
-});
 
 describe('findStepperFromOptions', () => {
 	const TestOptionsStepper = class TestOptionsStepper extends AStepper implements IHasOptions {
@@ -237,11 +138,11 @@ describe('getType', () => {
 
 describe('check module is class', () => {
 	it('should pass a class', () => {
-		expect(util.checkModuleIsClass(class a {}, 'a')).toEqual(undefined);
+		expect(util.checkModuleIsClass(class a { }, 'a')).toEqual(undefined);
 	});
 	it('should fail a function', () => {
 		// eslint-disable-next-line @typescript-eslint/no-empty-function
-		expect(() => util.checkModuleIsClass(function a() {}, 'a')).toThrow(undefined);
+		expect(() => util.checkModuleIsClass(function a() { }, 'a')).toThrow(undefined);
 	});
 });
 
