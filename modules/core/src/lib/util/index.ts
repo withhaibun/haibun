@@ -1,4 +1,5 @@
 import { IHasOptions, TNotOKActionResult, TOKActionResult, TSpecl, TWorld, TRuntime, TActionResultTopics, TTag, AStepper, TModuleOptions, CStepper, DEFAULT_DEST, TTagValue, TFeatureResult, TAnyFixme } from '../defs.js';
+import { TArtifactFailureStepTopic } from '../interfaces/logger.js';
 import { Timer } from '../Timer.js';
 
 type TClass = { new <T>(...args: unknown[]): T };

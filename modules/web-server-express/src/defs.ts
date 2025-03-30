@@ -7,7 +7,7 @@ export interface IWebServer {
 	checkAddIndexFolder(subdir: string, loc: string): undefined | string;
 	addKnownStaticFolder(subdir: string, mountAt?: string): undefined | string;
 	listen(): Promise<unknown>;
-	endedFeatures(): Promise<void>;
+	endedFeature(): Promise<void>;
 	mounted: TRouteMap;
 	addRoute(type: TRouteTypes, path: string, ...routes: TRequestHandler[]): void;
 	addKnownRoute(type: TRouteTypes, path: string, ...routes: TRequestHandler[]): void;

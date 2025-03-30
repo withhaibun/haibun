@@ -115,7 +115,7 @@ export function getNamedToVars(found: TStepAction, world: TWorld, featureStep: T
 			if (!shared.get(namedValue)) {
 				throw Error(
 					`no value for "${namedValue}" from ${JSON.stringify({ keys: Object.keys(shared.values), type })} in ${
-						featureStep.source.path
+						featureStep.sourceFeature.path
 					}`
 				);
 			}
