@@ -38,7 +38,7 @@ export interface IProcessFeatureResults extends AStepper {
 	processFeatureResult: (executorResult: TExecutorResult) => Promise<void>;
 }
 
-export const isProcessFeatureResults = (s: IProcessFeatureResults): s is IProcessFeatureResults => s.processFeatureResult !== undefined;
+export const isProcessFeatureResults = (s: AStepper): s is IProcessFeatureResults => (<IProcessFeatureResults>s).processFeatureResult !== undefined;
 
 export type TModuleOptions = { [name: string]: string };
 export type TProtoOptions = {

@@ -1,13 +1,6 @@
 import { describe, test, it, expect } from 'vitest';
 
-import {
-	ILogOutput,
-	TExecutorMessageContext,
-	TExecutorResultTopic,
-	TLogArgs,
-	TLogLevel,
-	TMessageContext,
-} from './interfaces/logger.js';
+import { ILogOutput, TExecutorMessageContext, TExecutorResultTopic, TLogArgs, TLogLevel, TMessageContext } from './interfaces/logger.js';
 import Logger, { LOGGER_LEVELS } from './Logger.js';
 import { getDefaultTag } from './test/lib.js';
 

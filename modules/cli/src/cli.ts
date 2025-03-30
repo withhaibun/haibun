@@ -2,7 +2,7 @@
 
 import sourceMapSupport from 'source-map-support';
 
-import { TSpecl, TBase, STAY_ALWAYS, STAY, TWorld, TProtoOptions, CHECK_NO, CHECK_YES } from '@haibun/core/build/lib/defs.js';
+import { TSpecl, TBase, STAY_ALWAYS, STAY, TWorld, TProtoOptions, CHECK_NO, CHECK_YES, isProcessFeatureResults } from '@haibun/core/build/lib/defs.js';
 
 import { getDefaultOptions, basesFrom } from '@haibun/core/build/lib/util/index.js';
 import { getAllSteppers, getConfigFromBase, processArgs, processBaseEnvToOptionsAndErrors, usageThenExit } from './lib.js';
@@ -48,7 +48,7 @@ async function go() {
 	console.info(executorResult.ok ? CHECK_YES : CHECK_NO, 'At', JSON.stringify(executorResult.failure) /*result.failure.stage, '\n', result.failure.error.message*/);
 
 	for (const maybeResultProcessor of executorResult.steppers) {
-		if ('processFeatureResult' in maybeResultProcessor && typeof maybeResultProcessor.processFeatureResult === 'function') {
+		if (isProcessFeatureResults(maybeResultProcessor)) {
 			await maybeResultProcessor.processFeatureResult(executorResult);
 		}
 	}
