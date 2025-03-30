@@ -5,7 +5,7 @@ import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, testWithDefaults } from '@haibun/
 import TestStepsWithOptions from '@haibun/core/build/lib/test/TestStepsWithOptions.js';
 import { getDefaultOptions } from '@haibun/core/build/lib/util/index.js';
 import * as lib from './lib.js';
-import { CONTINUE_AFTER_ERROR } from './BaseOptions.js';
+import { CONTINUE_AFTER_ERROR } from '@haibun/core/build/phases/Executor.js';
 
 const s = (s) => s.split(' ');
 

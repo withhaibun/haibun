@@ -3,6 +3,8 @@ import { TExecutorMessageContext, TMessageContext } from '../lib/interfaces/logg
 import { getNamedToVars } from '../lib/namedVars.js';
 import { actionNotOK, sleep, findStepper, constructorName, doStepperCycleMethods, } from '../lib/util/index.js';
 
+export const CONTINUE_AFTER_ERROR = 'CONTINUE_AFTER_ERROR';
+
 export class Executor {
 	// find the stepper and action, call it and return its result
 	static async action(steppers: AStepper[], featureStep: TFeatureStep, found: TStepAction, world: TWorld) {
@@ -25,9 +27,11 @@ export class Executor {
 		const stayOnFailure = world.options[STAY] === STAY_FAILURE;
 		const featureResults: TFeatureResult[] = [];
 		let featureNum = 0;
+		const continueAfterError = !!(world.options[CONTINUE_AFTER_ERROR]);
 
 		for (const feature of features) {
 			featureNum++;
+			const isLast = featureNum === features.length;
 
 			const newWorld = { ...world, tag: { ...world.tag, ...{ featureNum: 0 + featureNum } } };
 
@@ -38,12 +42,19 @@ export class Executor {
 			const featureResult = await featureExecutor.doFeature(feature);
 
 			ok = ok && featureResult.ok;
-			console.log(`feature ${featureNum} of ${features.length}`, ok);
 			featureResults.push(featureResult);
-			const shouldEndFeatureClose = ok || !stayOnFailure;
-			await featureExecutor.endFeature(); // this should be before endedFeature
+			const shouldEndFeatureClose = ok || (!stayOnFailure || !isLast || !continueAfterError);
+			await featureExecutor.endFeature(); // this must be before endedFeature
 			if (shouldEndFeatureClose) {
 				await featureExecutor.endedFeature();
+			}
+			if (!ok && !continueAfterError && !isLast) {
+				world.logger.debug(`stopping without ${CONTINUE_AFTER_ERROR}`);
+				break;
+			} else {
+				if (!ok && continueAfterError) {
+					world.logger.debug(`continuing because ${CONTINUE_AFTER_ERROR}`);
+				}
 			}
 		}
 		return { ok, featureResults: featureResults, tag: world.tag, shared: world.shared, steppers };
@@ -99,17 +110,12 @@ export class FeatureExecutor {
 		const start = world.timer.since();
 		const res: Partial<TActionResult> = await Executor.action(steppers, featureStep, action, world);
 
-		let traces;
-		if (world.shared.get('_trace')) {
-			traces = world.shared.get('_trace');
-			world.shared.unset('_trace');
-		}
 		const end = world.timer.since();
 		// FIXME
-		const actionResult: TStepActionResult = { ...res, name: action.actionName, start, end, traces } as TStepActionResult;
+		const actionResult: TStepActionResult = { ...res, name: action.actionName, start, end } as TStepActionResult;
 		ok = ok && res.ok;
 
-		return { ok, in: featureStep.in, sourcePath: featureStep.source.path, actionResult, seq: featureStep.seq };
+		return { ok, in: featureStep.in, sourcePath: featureStep.sourceFeature.path, actionResult, seq: featureStep.seq };
 	}
 	async onFailure(result: TStepResult, step: TFeatureStep) {
 		for (const stepper of this.steppers) {

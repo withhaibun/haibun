@@ -41,9 +41,7 @@ export class Runner {
 
 	async runFeaturesAndBackgrounds(csteppers: CStepper[], { features, backgrounds }: TFeaturesBackgrounds) {
 		try {
-			await verifyRequiredOptions(csteppers, this.world.moduleOptions).catch((error) =>
-				this.errorBail('RequiredOptions', error)
-			);
+			await verifyRequiredOptions(csteppers, this.world.moduleOptions).catch((error) => this.errorBail('RequiredOptions', error));
 			await verifyExtraOptions(this.world.moduleOptions, csteppers).catch((error) => this.errorBail('moduleOptions', error));
 			this.steppers = await createSteppers(csteppers);
 			await setStepperWorlds(this.steppers, this.world).catch((error) => this.errorBail('StepperOptions', error));
@@ -51,10 +49,7 @@ export class Runner {
 			const expandedFeatures = await expand(backgrounds, features).catch((error) => this.errorBail('Expand', error));
 
 			const resolver = new Resolver(this.steppers);
-			const resolvedFeatures = await resolver
-				.resolveStepsFromFeatures(expandedFeatures)
-				.catch((error) => this.errorBail('Resolve', error));
-
+			const resolvedFeatures = await resolver.resolveStepsFromFeatures(expandedFeatures).catch((error) => this.errorBail('Resolve', error));
 			const appliedResolvedFeatures = await this.applyEffectFeatures(resolvedFeatures, this.steppers);
 
 			this.world.logger.log(
