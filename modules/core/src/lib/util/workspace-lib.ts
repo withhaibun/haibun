@@ -1,7 +1,7 @@
 import path, { dirname } from 'path';
 import nodeFS from 'fs';
 
-import { IResultOutput, TExecutorResult, CStepper } from '../defs.js';
+import { CStepper } from '../defs.js';
 import { use } from './index.js';
 import { fileURLToPath } from 'url';
 
@@ -43,18 +43,6 @@ export function getModuleLocation(name: string) {
 	return path.resolve(workspaceRoot, name);
 }
 
-export async function getOutputResult(type: string | undefined, result: TExecutorResult): Promise<object | string> {
-	if (type) {
-		const loc = getModuleLocation(type);
-		const AnOut = await use(loc);
-		const out: IResultOutput = new AnOut();
-		if (out) {
-			const res = await out.writeOutput(result, {});
-			return res;
-		}
-	}
-	return result;
-}
 export async function getStepper(s: string) {
 	try {
 		const loc = getModuleLocation(s);

@@ -22,7 +22,6 @@ export default class Logger implements ILogger, ILogOutput {
 	subscribers: ILogOutput[] = [];
 	follow: string | undefined;
 	static lastLevel = undefined;
-	static traceHistory: TLogHistory[] = [];
 
 	constructor(conf: TConf) {
 		// passed a log level and possibly a follow
@@ -67,7 +66,6 @@ export default class Logger implements ILogger, ILogOutput {
 			.replace(')', '')
 			.replace(/.*\//, '')
 			.replace(/\.ts:/, ':');
-		Logger.traceHistory.push({ messageContext, message: args, level, caller });
 		if (!Logger.shouldLogLevel(this.level as number, level) && Logger.shouldLogFollow(this.follow, this.env?.tag)) {
 			return;
 		}

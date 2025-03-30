@@ -5,6 +5,7 @@ import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, testWithDefaults } from '@haibun/
 import TestStepsWithOptions from '@haibun/core/build/lib/test/TestStepsWithOptions.js';
 import { getDefaultOptions } from '@haibun/core/build/lib/util/index.js';
 import * as lib from './lib.js';
+import { CONTINUE_AFTER_ERROR } from './BaseOptions.js';
 
 const s = (s) => s.split(' ');
 
@@ -42,9 +43,9 @@ describe('options', () => {
 describe('processEnv', () => {
 	it('assigns boolean true', () => {
 		const specl = getDefaultOptions();
-		const { protoOptions } = lib.processBaseEnvToOptionsAndErrors({ HAIBUN_TRACE: 'true' }, specl.options);
-		expect(protoOptions.options['TRACE']).toBeDefined();
-		expect(protoOptions.options['TRACE']).toBe(true);
+		const { protoOptions } = lib.processBaseEnvToOptionsAndErrors({ [`HAIBUN_${CONTINUE_AFTER_ERROR}`]: 'true' }, specl.options);
+		expect(protoOptions.options[CONTINUE_AFTER_ERROR]).toBeDefined();
+		expect(protoOptions.options[CONTINUE_AFTER_ERROR]).toBe(true);
 	});
 	it('errors for non-boolean value ', () => {
 		const specl = getDefaultOptions();
