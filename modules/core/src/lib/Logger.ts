@@ -1,5 +1,5 @@
 import { TAnyFixme, TTag } from './defs.js';
-import { ILogger, ILogOutput, TActionStage, TArtifactMessageContext, TArtifactType, TLogArgs, TLogHistory, TLogLevel, TMessageContext, TOutputEnv, } from './interfaces/logger.js';
+import { ILogger, ILogOutput, TActionStage, TArtifactMessageContext, TArtifactType, TLogArgs, TLogLevel, TMessageContext, TOutputEnv, } from './interfaces/logger.js';
 import { descTag, isFirstTag } from './util/index.js';
 
 export const LOGGER_LOG = { level: 'log' };

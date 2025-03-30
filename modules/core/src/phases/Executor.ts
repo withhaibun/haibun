@@ -1,7 +1,7 @@
-import { TFeatureStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, AStepper, CStepper, TStepAction, TAnyFixme, STAY, STAY_FAILURE, CHECK_NO, CHECK_YES, STEP_DELAY, TNotOKActionResult, } from '../lib/defs.js';
+import { TFeatureStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, AStepper, TStepAction, TAnyFixme, STAY, STAY_FAILURE, CHECK_NO, CHECK_YES, STEP_DELAY, TNotOKActionResult, } from '../lib/defs.js';
 import { TExecutorMessageContext, TMessageContext } from '../lib/interfaces/logger.js';
 import { getNamedToVars } from '../lib/namedVars.js';
-import { actionNotOK, setStepperWorlds, sleep, createSteppers, findStepper, constructorName, doStepperCycleMethods, } from '../lib/util/index.js';
+import { actionNotOK, sleep, findStepper, constructorName, doStepperCycleMethods, } from '../lib/util/index.js';
 
 export class Executor {
 	// find the stepper and action, call it and return its result
@@ -17,7 +17,7 @@ export class Executor {
 		});
 	}
 	static async executeFeatures(
-		csteppers: CStepper[],
+		steppers: AStepper[],
 		world: TWorld,
 		features: TResolvedFeature[],
 	): Promise<TExecutorResult> {
@@ -31,7 +31,7 @@ export class Executor {
 
 			const newWorld = { ...world, tag: { ...world.tag, ...{ featureNum: 0 + featureNum } } };
 
-			const featureExecutor = new FeatureExecutor(csteppers);
+			const featureExecutor = new FeatureExecutor(steppers);
 			await featureExecutor.setup(newWorld);
 			await featureExecutor.startFeature();
 
@@ -46,25 +46,21 @@ export class Executor {
 				await featureExecutor.endedFeature();
 			}
 		}
-		return { ok, featureResults: featureResults, tag: world.tag, shared: world.shared, steppers: await createSteppers(csteppers) };
+		return { ok, featureResults: featureResults, tag: world.tag, shared: world.shared, steppers };
 	}
 }
 
 export class FeatureExecutor {
 	world?: TWorld;
-	steppers?: AStepper[];
 	startOffset = 0;
 
-	constructor(private csteppers: CStepper[]) { }
+	constructor(private steppers: AStepper[]) { }
 	async setup(world: TWorld) {
 		this.world = world;
 		this.startOffset = world.timer.since();
 		const errorBail = (phase: string, error: TAnyFixme, extra?: TAnyFixme) => {
 			throw Error(error);
 		};
-		const steppers = await createSteppers(this.csteppers);
-		await setStepperWorlds(steppers, world).catch((error: TAnyFixme) => errorBail('Apply Options', error, world.moduleOptions));
-		this.steppers = steppers;
 	}
 	async doFeature(feature: TResolvedFeature): Promise<TFeatureResult> {
 		const world = this.world;

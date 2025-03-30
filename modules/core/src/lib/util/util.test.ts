@@ -1,14 +1,7 @@
 import { describe, it, test, expect } from 'vitest';
 
 import * as util from './index.js';
-import * as TFileSystemJs from './workspace-lib.js';
-import {
-	HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS,
-	getDefaultWorld,
-	testWithDefaults,
-	getCreateSteppers,
-	TEST_BASE,
-} from '../test/lib.js';
+import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, getDefaultWorld, getCreateSteppers, TEST_BASE } from '../test/lib.js';
 import TestSteps from '../test/TestSteps.js';
 import TestStepsWithOptions from '../test/TestStepsWithOptions.js';
 import { withNameType } from '../features.js';

@@ -1,7 +1,6 @@
 
 import { TNamed, AStepper } from '../defs.js';
 import { actionNotOK, actionOK } from '../util/index.js';
-import { WorkspaceContext } from '../contexts.js';
 
 const TestSteps = class TestSteps extends AStepper {
   steps = {

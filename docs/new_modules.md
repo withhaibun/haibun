@@ -1,7 +1,7 @@
 
 # Developing new modules
 
-NB: Normally, you'd use the [[scaffold command](../modules/utils/README.md#scaffolding](https://github.com/withhaibun/haibun/blob/main/modules/utils/README.md#scaffolding)). 
+NB: Normally, you'd use the [[scaffold command](../modules/utils/README.md#scaffolding](https://github.com/withhaibun/haibun/blob/main/modules/utils/README.md#scaffolding)).
 
 A new Haibun module is created by extending the `AStepper` abstract class from
 @haibun/core (see example below), and adding the module to the testing target
@@ -17,7 +17,7 @@ abstract storage, you might do the following;
 
 `npm i @haibun/core @haibun/domain-storage`
 
-Instrument your repository for Typescript and tests as appropriate (see haibun-sarif for an example, 
+Instrument your repository for Typescript and tests as appropriate (see haibun-sarif for an example,
 or use Haibun's scaffolding).
 
 Create an appropriate source file, for example, src/files-exist.ts
@@ -67,21 +67,21 @@ const FilesExist = class FilesExist extends AStepper implements IHasOptions {
 ```
 
 After compilation, you can now use statements like _file "README.md" exists_ and
-_missing file "missing.md"_ in your features. 
-Using your module will require including a storage implementation as well, 
-for example, storage-fs, 
+_missing file "missing.md"_ in your features.
+Using your module will require including a storage implementation as well,
+for example, storage-fs,
 or potentially multiple implementations via runtime variables,
-which would be specified via the testing repository's package.json, config.json, 
+which would be specified via the testing repository's package.json, config.json,
 and a HAIBUN_O_FILESEXIST_STORAGE runtime variable.
 
 ## gwta statements
 
-`AStepper` steps specify their statements using either `exact` or `gwta`. 
-`gwta` is more useful, 
-since it supports BDD style Given, When, Then, And prefixes. 
-Additionally, it supports the haibun abstract data model for input, 
+`AStepper` steps specify their statements using either `exact` or `gwta`.
+`gwta` is more useful,
+since it supports BDD style Given, When, Then, And prefixes.
+Additionally, it supports the haibun abstract data model for input,
 where names in curly braces,
-for example {name}, are resolved to a type, 
+for example {name}, are resolved to a type,
 which is string if unspecified.
 
 ...
@@ -90,27 +90,5 @@ For an example module external to the main haibun project, please refer to [haib
 
 It may be helpful to refer to the [haibun e2e-tests](https://github.com/withhaibun/haibun-e2e-tests) repository, which contains running examples of integration tests. For example, set up that repository, and run `npm run test-xss`.
 
-haibun-e2e-tests contains an example of adding a route to a runtime web server (_start test route at {loc}_) 
+haibun-e2e-tests contains an example of adding a route to a runtime web server (_start test route at {loc}_)
 in its src directory.
-
-## Handlers
-
-Haibun supports stepper handlers for consistency in handling events. Steppers can implement `IHasHandlers`.
-Here's an exapmle:
-
-```
-export const HANDLE_RESULT_HISTORY = 'handleResultHistory';
-
-export interface IHandleResultHistory extends ISourcedHandler {
-  handle(args: TTypes)  : TReturnType
-}
-
-```
-
-elsewhere:
-
-```
-      const historyHandlers = findHandlers<IHandleResultHistory>(steppers, HANDLE_RESULT_HISTORY);
-```
-Handlers support a `usage` property, which can be `HANDLER_USAGE.FALLBACK` (only used if no others exist) 
-or `HANDLER_USAGE.EXCLUSIVE``.
