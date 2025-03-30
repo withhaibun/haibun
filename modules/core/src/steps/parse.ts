@@ -1,7 +1,5 @@
 import { actionNotOK, actionOK } from '../lib/util/index.js';
 import { AStepper, OK, TNamed } from '../lib/defs.js';
-import { parseMatches } from './lib/parse.js';
-import conformance from './conformance.js';
 
 const Parse = class Parse extends AStepper {
   steps = {

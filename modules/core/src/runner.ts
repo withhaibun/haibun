@@ -64,7 +64,7 @@ export class Runner {
 			);
 
 			await doStepperCycleMethods(this.steppers, 'startExecution');
-			this.result = await Executor.executeFeatures(csteppers, this.world, appliedResolvedFeatures).catch((error) =>
+			this.result = await Executor.executeFeatures(this.steppers, this.world, appliedResolvedFeatures).catch((error) =>
 				this.errorBail('Execute', error)
 			);
 		} catch (error) {
