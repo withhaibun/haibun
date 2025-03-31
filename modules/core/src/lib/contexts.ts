@@ -1,4 +1,4 @@
-import { TTag, WorkspaceBuilder } from './defs.js';
+import { TTag } from './defs.js';
 
 export class Context {
 	values: { [name: string]: any };
@@ -35,25 +35,5 @@ export class Context {
 export class WorldContext extends Context {
 	constructor(tag: TTag, initial?: { [name: string]: string }) {
 		super(`world ${tag}`, initial);
-	}
-}
-
-export class WorkspaceContext extends Context {
-	constructor(context: string, initial?: { [name: string]: string }) {
-		super(`workspace ${context}`, initial);
-	}
-	builder: WorkspaceBuilder | undefined = undefined;
-	createPath(path: string) {
-		this.values[path] = new WorkspaceContext(`path ${path}`);
-		return this.values[path];
-	}
-	addBuilder(what: WorkspaceBuilder) {
-		this.builder = what;
-	}
-	getBuilder(): WorkspaceBuilder {
-		if (!this.builder) {
-			throw Error('no builder');
-		}
-		return this.builder!;
 	}
 }

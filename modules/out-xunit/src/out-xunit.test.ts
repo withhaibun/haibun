@@ -27,8 +27,8 @@ describe('AsXML transforms', () => {
 	});
 	it('transforms multi type result to xunit', async () => {
 		const features = [
-			{ path: '/features/fails.feature', content: `When I have a test\nThen fails` },
 			{ path: '/features/passes.feature', content: `When I have a test\nThen passes` },
+			{ path: '/features/fails.feature', content: `When I have a test\nThen fails` },
 		];
 		const result = await testWithDefaults(features, [TestSteps]);
 
@@ -40,7 +40,7 @@ describe('AsXML transforms', () => {
 		expect(obj.testsuites.testsuite.testcase.length).toBe(2);
 		expect(obj.testsuites['@tests']).toBe('2');
 		expect(obj.testsuites['@failures']).toBe('1');
-		expect(obj.testsuites.testsuite.testcase[0].failure).toBeDefined();
-		expect(obj.testsuites.testsuite.testcase[1].failure).toBeUndefined();
+		expect(obj.testsuites.testsuite.testcase[0].failure).toBeUndefined();
+		expect(obj.testsuites.testsuite.testcase[1].failure).toBeDefined();
 	});
 });

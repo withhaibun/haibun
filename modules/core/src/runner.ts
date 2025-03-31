@@ -1,4 +1,4 @@
-import { TWorld, TExecutorResult, TAnyFixme, CStepper, AStepper, TResolvedFeature, TStepAction } from './lib/defs.js';
+import { TWorld, TExecutorResult, TAnyFixme, CStepper, AStepper, TResolvedFeature, TStepAction, TApplyEffect, TStepperStep, TFeatureStep } from './lib/defs.js';
 import { expand } from './lib/features.js';
 import { getNamedToVars } from './lib/namedVars.js';
 import { verifyRequiredOptions, verifyExtraOptions, createSteppers, setStepperWorlds, constructorName, doStepperCycleMethods } from './lib/util/index.js';
@@ -71,20 +71,33 @@ export class Runner {
 		return this.result;
 	}
 
-	private async applyEffectFeatures(resolvedFeatures: TResolvedFeature[], steppers: AStepper[]) {
-		let allFeatures = [...resolvedFeatures];
+	private async applyEffectFeatures(resolvedFeatures: TResolvedFeature[], steppers: AStepper[]): Promise<TResolvedFeature[]> {
+		const appliedFeatures = [];
 
 		for (const feature of resolvedFeatures) {
+			let featureSteps: TFeatureStep[] = [];
+			const newFeature = { ...feature, featureSteps: [] };
+			const appliers: { applier: TStepperStep, namedWithVars: any }[] = [];
 			for (const featureStep of feature.featureSteps) {
+				let newSteps = [featureStep];
 				const action = featureStep.action;
 				const stepper = steppers.find((s) => constructorName(s) === action.stepperName);
-				if (stepper && stepper.steps[action.actionName]?.applyEffect) {
-					const found: TStepAction = action;
-					const namedWithVars = getNamedToVars(found, this.world, featureStep);
-					allFeatures = await stepper.steps[action.actionName].applyEffect(namedWithVars, [feature]);
+
+				if (stepper?.steps[action.actionName].applyEffect) {
+					const applier = stepper?.steps[action.actionName];
+					appliers.push({ applier, namedWithVars: getNamedToVars(featureStep.action, this.world, featureStep) });
+				} else if (appliers.length > 0) {
+					newSteps = [];
+					for (const a of appliers) {
+						const applied = await a.applier.applyEffect(a.namedWithVars, featureStep);
+						if (applied.length < 1) throw Error('wtw');
+						newSteps.push(...applied);
+					}
 				}
+				featureSteps.push(...newSteps);
 			}
+			appliedFeatures.push({ ...newFeature, featureSteps });
 		}
-		return allFeatures;
+		return appliedFeatures;
 	}
 }

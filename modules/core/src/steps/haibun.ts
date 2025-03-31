@@ -84,26 +84,17 @@ const Haibun = class Haibun extends AStepper {
 			action: async () => {
 				return OK;
 			},
-			applyEffect: async ({ stepperName, line }: TNamed, resolvedFeatures: TResolvedFeature[]) => {
-				const modifiedFeatures: TResolvedFeature[] = [];
+			applyEffect: async ({ stepperName, line }: TNamed, currentFeatureStep: TFeatureStep) => {
+				const theStepper = findStepper<AStepper>(this.steppers, stepperName);
+				const newSteps = [];
 
-				for (const rf of resolvedFeatures) {
-					const theStepper = findStepper<AStepper>(this.steppers, stepperName);
-					const newSteps = [];
-
-					for (const featureStep of rf.featureSteps) {
-						newSteps.push(featureStep);
-						if (featureStep.action.stepperName === stepperName) {
-							const newFeatureStep = await this.newFeatureFromEffect(theStepper, line, featureStep.seq + 0.1);
-							newSteps.push(newFeatureStep);
-						}
-					}
-					rf.featureSteps = newSteps;
-					modifiedFeatures.push(rf);
+				newSteps.push(currentFeatureStep);
+				if (currentFeatureStep.action.stepperName === stepperName) {
+					const newFeatureStep = await this.newFeatureFromEffect(theStepper, line, currentFeatureStep.seq + 0.1);
+					newSteps.push(newFeatureStep);
 				}
-
-				return modifiedFeatures;
-			},
+				return newSteps;
+			}
 		},
 	};
 	async newFeatureFromEffect(stepper: AStepper, content: string, seq: number): Promise<TFeatureStep> {

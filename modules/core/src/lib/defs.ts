@@ -1,4 +1,4 @@
-import { WorkspaceContext, WorldContext } from './contexts.js';
+import { WorldContext } from './contexts.js';
 import { ILogger, TMessageContext } from './interfaces/logger.js';
 import { Timer } from './Timer.js';
 import { constructorName } from './util/index.js';
@@ -94,7 +94,7 @@ const example: TResolvedFeature = {
 	name: 'name',
 	featureSteps: [
 		{
-			sourceFeature: { base: 'base', name: 'name', path: 'path', content: 'content' },
+			path: 'path',
 			in: 'in',
 			seq: 0,
 			action: {
@@ -116,23 +116,13 @@ export type TTag = {
 };
 
 export type TFeatureStep = {
-	sourceFeature: TFeature;
+	path: string;
 	in: string;
 	seq: number;
 	action: TStepAction;
 };
 
 export type TAction = (named: TNamed, featureStep: TFeatureStep) => Promise<TActionResult>;
-
-export type TRequiresResult = { includes?: string[] };
-
-export type TFinalize = (workspace: WorkspaceContext) => void;
-
-export abstract class WorkspaceBuilder {
-	constructor(private name: string) { }
-	abstract addControl(...args: TAnyFixme);
-	abstract finalize(): TAnyFixme;
-}
 
 export type TStepperStep = {
 	match?: RegExp;
@@ -142,7 +132,7 @@ export type TStepperStep = {
 	applyEffect?: TApplyEffect;
 };
 
-export type TApplyEffect = (named: TNamed, resolvedFeatures: TResolvedFeature[]) => Promise<TResolvedFeature[]>;
+export type TApplyEffect = (named: TNamed, featureStep: TFeatureStep) => Promise<TFeatureStep[]>;
 
 export interface CStepper {
 	new(): AStepper;
@@ -287,7 +277,7 @@ export type TStepResult = {
 	ok: boolean;
 	actionResult: TStepActionResult;
 	in: string;
-	sourcePath: string;
+	path: string;
 	seq: number;
 };
 
