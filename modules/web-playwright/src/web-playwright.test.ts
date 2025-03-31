@@ -39,7 +39,7 @@ describe('handles cycles', () => {
 	it('closes browser', async () => {
 		const wp = new WebPlaywright();
 		wp.steps.takeScreenshot.action({}, {} as TFeatureStep);
-		wp.endedFeature();
+		wp.cycles!.endedFeature!();
 		wp.steps.takeScreenshot.action({}, {} as TFeatureStep);
 	});
 })

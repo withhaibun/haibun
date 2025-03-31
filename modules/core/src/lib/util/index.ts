@@ -318,9 +318,9 @@ export function dePolite(s: string) {
 
 export async function doStepperCycleMethods(steppers: AStepper[], method: string) {
 	for (const stepper of steppers) {
-		if (stepper[method]) {
+		if (stepper?.cycles && stepper.cycles[method]) {
 			stepper.getWorld().logger.debug(`${method} ${constructorName(stepper)}`);
-			await stepper[method]().catch((error: TAnyFixme) => {
+			await stepper.cycles[method]().catch((error: TAnyFixme) => {
 				console.error(`${method} failed`, error);
 				throw error;
 			});
