@@ -1,12 +1,10 @@
-import { TFeatureStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, AStepper, TStepAction, TAnyFixme, STAY, STAY_FAILURE, CHECK_NO, CHECK_YES, STEP_DELAY, TNotOKActionResult, } from '../lib/defs.js';
+import { TFeatureStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, AStepper, TStepAction, TAnyFixme, STAY, STAY_FAILURE, CHECK_NO, CHECK_YES, STEP_DELAY, TNotOKActionResult, CONTINUE_AFTER_ERROR, } from '../lib/defs.js';
 import { TExecutorMessageContext, TMessageContext } from '../lib/interfaces/logger.js';
 import { getNamedToVars } from '../lib/namedVars.js';
 import { actionNotOK, sleep, findStepper, constructorName, doStepperCycleMethods, } from '../lib/util/index.js';
 
-export const CONTINUE_AFTER_ERROR = 'CONTINUE_AFTER_ERROR';
-
 export class Executor {
-	// find the stepper and action, call it and return its result
+
 	static async action(steppers: AStepper[], featureStep: TFeatureStep, found: TStepAction, world: TWorld) {
 		const namedWithVars = getNamedToVars(found, world, featureStep);
 		const stepper = findStepper<AStepper>(steppers, found.stepperName);

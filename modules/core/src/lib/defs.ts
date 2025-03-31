@@ -1,4 +1,5 @@
 import { WorldContext } from './contexts.js';
+
 import { ILogger, TMessageContext } from './interfaces/logger.js';
 import { Timer } from './Timer.js';
 import { constructorName } from './util/index.js';
@@ -8,16 +9,25 @@ export type TSpecl = {
 	refs?: {
 		docs: { [name: string]: { src: string } };
 	};
-	options: TOptions;
 };
 
-type TBaseOptions = {
+export type TBaseOptions = {
 	DEST: string;
+	KEY?: string;
+	DESCRIPTION?: string;
+	LOG_LEVEL?: string;
+	LOG_FOLLOW?: string;
+	STAY?: string;
+	SETTING?: string;
+	[CONTINUE_AFTER_ERROR]?: boolean;
+	env?: {
+		[name: string]: string;
+	}
 };
 
-export type TOptions = TBaseOptions & {
-	[name: string]: TOptionValue;
-};
+type TEnvVariables = {
+	[name: string]: string;
+}
 
 export type TOptionValue = TAnyFixme;
 
@@ -29,7 +39,7 @@ export interface IHasOptions {
 			altSource?: string;
 			default?: string;
 			desc: string;
-			parse: (input: string, existing?: TOptionValue) => { error?: string; env?: TOptions; result?: TAnyFixme };
+			parse: (input: string, existing?: TOptionValue) => { error?: string; env?: TEnvVariables; result?: TAnyFixme };
 		};
 	};
 }
@@ -42,7 +52,7 @@ export const isProcessFeatureResults = (s: AStepper): s is IProcessFeatureResult
 
 export type TModuleOptions = { [name: string]: string };
 export type TProtoOptions = {
-	options: TOptions;
+	options: TBaseOptions;
 	moduleOptions: TModuleOptions;
 };
 
@@ -53,7 +63,7 @@ export type TWorld = {
 	shared: WorldContext;
 	runtime: TRuntime;
 	logger: ILogger;
-	options: TOptions;
+	options: TBaseOptions;
 	moduleOptions: TModuleOptions;
 	timer: Timer;
 	bases: TBase;
@@ -286,7 +296,6 @@ export type TRuntime = { [name: string]: TAnyFixme };
 export const HAIBUN = 'HAIBUN';
 export const BASE_PREFIX = `${HAIBUN}_`;
 export const CAPTURE = 'capture';
-export const DEFAULT_DEST = 'default';
 
 export const BASE_DOMAINS = [{ name: 'string', resolve: (inp: string) => inp }];
 
@@ -298,3 +307,5 @@ export const CHECK_YES = '✅';
 export const CHECK_NO = '❌';
 
 export const STEP_DELAY = 'STEP_DELAY';
+export const DEFAULT_DEST = 'default';
+export const CONTINUE_AFTER_ERROR = 'CONTINUE_AFTER_ERROR';

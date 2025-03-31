@@ -1,11 +1,10 @@
 import { vitest, describe, it, expect } from 'vitest';
 
-import { DEFAULT_DEST, STEP_DELAY } from '@haibun/core/build/lib/defs.js';
+import { CONTINUE_AFTER_ERROR, DEFAULT_DEST, STEP_DELAY } from '@haibun/core/build/lib/defs.js';
 import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, testWithDefaults } from '@haibun/core/build/lib/test/lib.js';
 import TestStepsWithOptions from '@haibun/core/build/lib/test/TestStepsWithOptions.js';
 import { getDefaultOptions } from '@haibun/core/build/lib/util/index.js';
 import * as lib from './lib.js';
-import { CONTINUE_AFTER_ERROR } from '@haibun/core/build/phases/Executor.js';
 
 const s = (s) => s.split(' ');
 
@@ -43,28 +42,28 @@ describe('options', () => {
 describe('processEnv', () => {
 	it('assigns boolean true', () => {
 		const specl = getDefaultOptions();
-		const { protoOptions } = lib.processBaseEnvToOptionsAndErrors({ [`HAIBUN_${CONTINUE_AFTER_ERROR}`]: 'true' }, specl.options);
+		const { protoOptions } = lib.processBaseEnvToOptionsAndErrors({ [`HAIBUN_${CONTINUE_AFTER_ERROR}`]: 'true' });
 		expect(protoOptions.options[CONTINUE_AFTER_ERROR]).toBeDefined();
 		expect(protoOptions.options[CONTINUE_AFTER_ERROR]).toBe(true);
 	});
 	it('errors for non-boolean value ', () => {
 		const specl = getDefaultOptions();
-		const { errors } = lib.processBaseEnvToOptionsAndErrors({ HAIBUN_TRACE: 'wtw' }, specl.options);
+		const { errors } = lib.processBaseEnvToOptionsAndErrors({ HAIBUN_TRACE: 'wtw' });
 		expect(errors.length).toBe(1);
 	});
 	it('assigns int', () => {
 		const specl = getDefaultOptions();
-		const { options } = lib.processBaseEnvToOptionsAndErrors({ [`HAIBUN_${STEP_DELAY}`]: '1' }, specl.options).protoOptions;
+		const { options } = lib.processBaseEnvToOptionsAndErrors({ [`HAIBUN_${STEP_DELAY}`]: '1' }).protoOptions;
 		expect(options[STEP_DELAY]).toBe(1);
 	});
 	it('errors for string passed as int', () => {
 		const specl = getDefaultOptions();
-		const { errors } = lib.processBaseEnvToOptionsAndErrors({ [`HAIBUN_${STEP_DELAY}`]: 'x.2' }, specl.options);
+		const { errors } = lib.processBaseEnvToOptionsAndErrors({ [`HAIBUN_${STEP_DELAY}`]: 'x.2' });
 		expect(errors.length).toBe(1);
 	});
 	it('errors for non option', () => {
 		const specl = getDefaultOptions();
-		const { errors } = lib.processBaseEnvToOptionsAndErrors({ HAIBUN_WTW: 'x.2' }, specl.options);
+		const { errors } = lib.processBaseEnvToOptionsAndErrors({ HAIBUN_WTW: 'x.2' });
 		expect(errors.length).toBe(1);
 	});
 });

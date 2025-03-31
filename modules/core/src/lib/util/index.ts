@@ -29,7 +29,7 @@ export function checkModuleIsClass(re: object, module: string) {
 
 export function actionNotOK(
 	message: string,
-	also?: { error?: Error; topics?: TActionResultTopics; score?: number }
+	also?: { error?: Error; topics?: TActionResultTopics }
 ): TNotOKActionResult {
 	return {
 		ok: false,
@@ -59,7 +59,6 @@ export async function createSteppers(steppers: CStepper[]): Promise<AStepper[]> 
 export function getDefaultOptions(): TSpecl {
 	return {
 		steppers: ['vars'],
-		options: { DEST: DEFAULT_DEST },
 	};
 }
 

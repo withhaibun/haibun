@@ -1,6 +1,6 @@
 import nodeFS from 'fs';
 
-import { BASE_PREFIX, DEFAULT_DEST, IHasOptions, TBase, TOptions, TProtoOptions, TSpecl } from '@haibun/core/build/lib/defs.js';
+import { BASE_PREFIX, DEFAULT_DEST, IHasOptions, TBase, TProtoOptions, TSpecl } from '@haibun/core/build/lib/defs.js';
 import { getCreateSteppers } from '@haibun/core/build/lib/test/lib.js';
 import { getPre } from '@haibun/core/build/lib/util/index.js';
 import { BaseOptions } from './BaseOptions.js';
@@ -48,7 +48,7 @@ export async function usage(specl: TSpecl, message?: string) {
 		message || '',
 		'If config.json is not found in project bases, the root directory will be used.\n',
 		'Set these environmental variables to control options:\n',
-		...Object.entries(BaseOptions.options).map(([k, v]) => `${BASE_PREFIX}${k.padEnd(55)} ${v.desc}`),
+		...Object.entries(BaseOptions.options).map(([k, v]) => `${BASE_PREFIX}${String(k).padEnd(55)} ${v.desc}`),
 	];
 	if (Object.keys(a).length) {
 		ret.push(
@@ -59,8 +59,8 @@ export async function usage(specl: TSpecl, message?: string) {
 	return [...ret, ''].join('\n');
 }
 
-export function processBaseEnvToOptionsAndErrors(env: TEnv, options: TOptions) {
-	const protoOptions: TProtoOptions = { options: { ...options }, moduleOptions: {} };
+export function processBaseEnvToOptionsAndErrors(env: TEnv) {
+	const protoOptions: TProtoOptions = { options: { DEST: DEFAULT_DEST }, moduleOptions: {} };
 
 	const errors: string[] = [];
 	let nenv = {};
