@@ -1,10 +1,10 @@
 import { Page, Response, Download } from 'playwright';
 import { resolve } from 'path';
 
-import { IHasOptions, OK, TNamed, TStepResult, AStepper, TWorld, TFeatureStep, TAnyFixme, } from '@haibun/core/build/lib/defs.js';
+import { IHasOptions, OK, TNamed, TStepResult, AStepper, TWorld, TFeatureStep, TAnyFixme, IStepperCycles, } from '@haibun/core/build/lib/defs.js';
 import { WEB_PAGE, WEB_CONTROL } from '@haibun/core/build/lib/domain-types.js';
 import { BrowserFactory, TTaggedBrowserFactoryOptions, TBrowserTypes, BROWSERS } from './BrowserFactory.js';
-import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOption, sleep, actionOK, } from '@haibun/core/build/lib/util/index.js';
+import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOption, sleep } from '@haibun/core/build/lib/util/index.js';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 import { TActionStage, TArtifact, TArtifactMessageContext, TTraceMessageContext, } from '@haibun/core/build/lib/interfaces/logger.js';
 import { EMediaTypes } from '@haibun/domain-storage/build/media-types.js';
@@ -19,7 +19,64 @@ type TRequestOptions = {
 	userAgent?: string
 };
 
+const cycles = (wp: WebPlaywright) => ({
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	async onFailure(result: TStepResult, step?: TFeatureStep): Promise<void | TTraceMessageContext> {
+		if (wp.bf?.hasPage(wp.getWorld().tag, wp.tab)) {
+			await wp.captureFailureScreenshot('failure', 'onFailure', step);
+		}
+	},
+
+	async startFeature(): Promise<void> {
+		if (wp.monitor) {
+			await wp.createMonitor();
+		}
+	},
+	async endFeature() {
+		// close the context, which closes any pages
+		if (wp.hasFactory) {
+			if (wp.captureVideo) {
+				const page = await wp.getPage();
+				const path = await wp.storage.getRelativePath(await page.video().path());
+				const artifact: TArtifact = { type: 'video', path };
+				wp.getWorld().logger.log('endFeature video', <TArtifactMessageContext>{
+					artifact,
+					topic: { event: 'summary', stage: 'endFeature' },
+					tag: wp.getWorld().tag,
+				});
+			}
+			// await wp.bf?.closeContext(wp.getWorld().tag);
+			await wp.bf?.close();
+			wp.bf = undefined;
+			wp.hasFactory = false;
+		}
+		if (wp.closers) {
+			for (const closer of wp.closers) {
+				await closer();
+			}
+		}
+		if (wp.monitor) {
+			await sleep(500);
+			const fn = await writeMonitor(wp.world, wp.storage, WebPlaywright.monitorPage, wp.resourceMap);
+			wp.getWorld().logger.info(`wrote monitor to ${pathToFileURL(resolve(fn))}`);
+		}
+
+	},
+	async endedFeature() {
+		// close the context, which closes any pages
+		if (wp.hasFactory) {
+			await wp.bf?.closeContext(wp.getWorld().tag);
+		}
+		for (const file of wp.downloaded) {
+			wp.getWorld().logger.debug(`removing ${JSON.stringify(file)}`);
+			// rmSync(file);
+		}
+	}
+
+});
+
 class WebPlaywright extends AStepper implements IHasOptions {
+	cycles = cycles(this);
 	static STORAGE = 'STORAGE';
 	static PERSISTENT_DIRECTORY = 'PERSISTENT_DIRECTORY';
 	requireDomains = [WEB_PAGE, WEB_CONTROL];
@@ -147,64 +204,6 @@ class WebPlaywright extends AStepper implements IHasOptions {
 		this.withFrame && console.debug('using frame', this.withFrame);
 		this.withFrame = undefined;
 		return await f(page);
-	}
-
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	async onFailure(result: TStepResult, step?: TFeatureStep): Promise<void | TTraceMessageContext> {
-		if (this.bf?.hasPage(this.getWorld().tag, this.tab)) {
-			await this.captureFailureScreenshot('failure', 'onFailure', step);
-		}
-	}
-
-	async startExecution(): Promise<void> {
-		if (this.monitor) {
-			await this.createMonitor();
-		}
-	}
-	async endFeature() {
-		// close the context, which closes any pages
-		if (this.hasFactory) {
-			if (this.captureVideo) {
-				const page = await this.getPage();
-				const path = await this.storage.getRelativePath(await page.video().path());
-				const artifact: TArtifact = { type: 'video', path };
-				this.getWorld().logger.log('endFeature video', <TArtifactMessageContext>{
-					artifact,
-					topic: { event: 'summary', stage: 'endFeature' },
-					tag: this.getWorld().tag,
-				});
-			}
-			// await this.bf?.closeContext(this.getWorld().tag);
-		}
-		if (this.closers) {
-			for (const closer of this.closers) {
-				await closer();
-			}
-		}
-		if (this.monitor) {
-			await sleep(500);
-			const fn = await writeMonitor(this.world, this.storage, WebPlaywright.monitorPage, this.resourceMap);
-			this.getWorld().logger.info(`wrote monitor to ${pathToFileURL(resolve(fn))}`);
-		}
-	}
-	async endedFeature() {
-		// close the context, which closes any pages
-		if (this.hasFactory) {
-			await this.bf?.closeContext(this.getWorld().tag);
-		}
-		for (const file of this.downloaded) {
-			this.getWorld().logger.debug(`removing ${JSON.stringify(file)}`);
-			// rmSync(file);
-		}
-	}
-
-	// FIXME
-	async finish() {
-		if (this.hasFactory) {
-			await this.bf?.close();
-			this.bf = undefined;
-			this.hasFactory = false;
-		}
 	}
 
 	async sees(text: string, selector: string) {

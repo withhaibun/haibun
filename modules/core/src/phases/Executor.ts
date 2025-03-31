@@ -52,7 +52,7 @@ export class Executor {
 				world.logger.debug(`stopping without ${CONTINUE_AFTER_ERROR}`);
 				break;
 			} else {
-				if (!ok && continueAfterError) {
+				if (!ok && continueAfterError && !isLast) {
 					world.logger.debug(`continuing because ${CONTINUE_AFTER_ERROR}`);
 				}
 			}
@@ -119,8 +119,8 @@ export class FeatureExecutor {
 	}
 	async onFailure(result: TStepResult, step: TFeatureStep) {
 		for (const stepper of this.steppers) {
-			if (stepper.onFailure) {
-				const res = await stepper.onFailure(result, step);
+			if (stepper?.cycles?.onFailure) {
+				const res = await stepper?.cycles?.onFailure(result, step);
 				this.world.logger.error(`onFailure from ${result.in} for ${constructorName(stepper)}`, <TMessageContext>res);
 			}
 		}
