@@ -19,7 +19,7 @@ type TRequestOptions = {
 	userAgent?: string
 };
 
-const cycles = (wp: WebPlaywright) => ({
+const cycles = (wp: WebPlaywright): IStepperCycles => ({
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	async onFailure(result: TStepResult, step?: TFeatureStep): Promise<void | TTraceMessageContext> {
 		if (wp.bf?.hasPage(wp.getWorld().tag, wp.tab)) {

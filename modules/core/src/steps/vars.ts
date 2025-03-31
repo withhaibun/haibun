@@ -1,11 +1,19 @@
 import { Context } from '../lib/contexts.js';
-import { OK, TNamed, TFeatureStep, TWorld, TActionResultTopics, AStepper } from '../lib/defs.js';
+import { OK, TNamed, TFeatureStep, TWorld, TActionResultTopics, AStepper, IStepperCycles } from '../lib/defs.js';
 import { actionNotOK } from '../lib/util/index.js';
 
 // FIXME see https://github.com/withhaibun/haibun/issues/18
 const getOrCond = (fr: string) => fr.replace(/.* is set or /, '');
 
-const vars = class Vars extends AStepper {
+const cycles = (vars: Vars): IStepperCycles => ({
+	startFeature: async () => {
+		console.log('would clear', vars.getWorld().shared);
+		// vars.getWorld().shared.values = {};
+	}
+});
+
+class Vars extends AStepper {
+	cycles = cycles(this);
 	set = async (named: TNamed, featureStep: TFeatureStep) => {
 		// FIXME see https://github.com/withhaibun/haibun/issues/18
 		const emptyOnly = !!featureStep.in.match(/set empty /);
@@ -13,8 +21,11 @@ const vars = class Vars extends AStepper {
 		const res = setShared(named, featureStep, this.getWorld(), emptyOnly);
 		return res;
 	};
+	checkSet(what: string,) {
+		return (this.getWorld().shared.get(what) !== undefined);
+	}
 	isSet(what: string, orCond: string) {
-		if (this.getWorld().shared.get(what) !== undefined) {
+		if (this.checkSet(what)) {
 			return OK;
 		}
 		const [warning, response] = orCond.split(':').map((t) => t.trim());
@@ -26,7 +37,7 @@ const vars = class Vars extends AStepper {
 			topics.response = { summary: response };
 		}
 
-		return actionNotOK(`${what} not set${orCond && ': ' + orCond}`, { score: 10, topics });
+		return actionNotOK(`${what} not set${orCond && ': ' + orCond}`, { topics });
 	}
 
 	steps = {
@@ -40,7 +51,6 @@ const vars = class Vars extends AStepper {
 				console.info('env', this.world.options.env);
 				return await this.set(n, featureStep);
 			},
-			build: async (n: TNamed, featureStep: TFeatureStep) => await this.set(n, featureStep),
 		},
 		showVars: {
 			gwta: 'show vars',
@@ -48,14 +58,12 @@ const vars = class Vars extends AStepper {
 				console.info('vars', this.world.shared);
 				return await this.set(n, featureStep);
 			},
-			build: async (n: TNamed, featureStep: TFeatureStep) => await this.set(n, featureStep),
 		},
 		set: {
 			gwta: 'set( empty)? {what: string} to {value: string}',
 			action: async (n: TNamed, featureStep: TFeatureStep) => {
 				return await this.set(n, featureStep);
 			},
-			build: async (n: TNamed, featureStep: TFeatureStep) => await this.set(n, featureStep),
 		},
 		is: {
 			gwta: 'variable {what: string} is "{value}"',
@@ -68,7 +76,10 @@ const vars = class Vars extends AStepper {
 			gwta: 'variable {what: string} is set( or .*)?',
 
 			action: async ({ what }: TNamed, featureStep: TFeatureStep) => this.isSet(what, getOrCond(featureStep.in)),
-			build: async ({ what }: TNamed, featureStep: TFeatureStep) => this.isSet(what, getOrCond(featureStep.in)),
+		},
+		isNotSet: {
+			gwta: 'variable {what: string} is not set?',
+			action: async ({ what }: TNamed) => this.checkSet(what) ? actionNotOK(`${what} is set`) : OK,
 		},
 		background: {
 			match: /^Background: ?(?<background>.+)?$/,
@@ -101,7 +112,8 @@ const vars = class Vars extends AStepper {
 		},
 	};
 };
-export default vars;
+
+export default Vars;
 
 export const didNotOverwrite = (what: string, present: string | Context, value: string) => ({
 	overwrite: { summary: `did not overwrite ${what} value of "${present}" with "${value}"` },

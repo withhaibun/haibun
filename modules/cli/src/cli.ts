@@ -33,7 +33,7 @@ async function go() {
 	}
 	const featureFilter = params[1] ? params[1].split(',') : undefined;
 
-	const { protoOptions, errors } = processBaseEnvToOptionsAndErrors(process.env, specl.options);
+	const { protoOptions, errors } = processBaseEnvToOptionsAndErrors(process.env);
 	if (errors.length > 0) {
 		await usageThenExit(specl, errors.join('\n'));
 	}

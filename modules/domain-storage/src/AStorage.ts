@@ -96,7 +96,8 @@ export abstract class AStorage extends AStepper {
 
 	locator(loc: TLocationOptions, ...where: (string | undefined)[]) {
 		const { options } = loc;
-		const path = [options.base, CAPTURE, options.DEST || DEFAULT_DEST].concat(where.filter((w) => w !== undefined));
+		const base = '';
+		const path = [base, CAPTURE, options.DEST || DEFAULT_DEST].concat(where.filter((w) => w !== undefined));
 		return '.' + path.join('/');
 	}
 

@@ -1,9 +1,6 @@
-import { IHasOptions, STAY_ALWAYS, STAY_FAILURE, STEP_DELAY, TOptions } from '@haibun/core/build/lib/defs.js';
+import { CONTINUE_AFTER_ERROR, IHasOptions, STAY_ALWAYS, STAY_FAILURE, STEP_DELAY, TBaseOptions } from '@haibun/core/build/lib/defs.js';
 import { LOGGER_LEVELS } from '@haibun/core/build/lib/Logger.js';
 import { boolOrError, intOrError, optionOrError, stringOrError } from '@haibun/core/build/lib/util/index.js';
-
-import { CONTINUE_AFTER_ERROR } from '@haibun/core/build/phases/Executor.js';
-
 
 export class BaseOptions implements IHasOptions {
 	static options = {
@@ -40,9 +37,9 @@ export class BaseOptions implements IHasOptions {
 		},
 		ENV: {
 			desc: 'pass a variable: var=value[,var2=value]',
-			parse: (input: string, cur: TOptions) => {
+			parse: (input: string, cur: TBaseOptions) => {
 				const pairs = input?.split(',');
-				const env: TOptions = { ...cur };
+				const env: TBaseOptions = { ...cur };
 				for (const pair of pairs) {
 					const [k, v] = pair.split('=').map((i) => i.trim());
 					if (cur[k] || env[k]) {
@@ -55,8 +52,8 @@ export class BaseOptions implements IHasOptions {
 		},
 		ENVC: {
 			desc: 'pass multiple variables: var1=a,var2=b',
-			parse: (input: string, cur: TOptions) => {
-				const env: TOptions = { ...cur };
+			parse: (input: string, cur: TBaseOptions) => {
+				const env: TBaseOptions = { ...cur };
 
 				for (const pair of (input || '').split(',')) {
 					const [k, v] = pair.split('=');

@@ -1,4 +1,4 @@
-import { TNamed, TFeatureStep, OK, AStepper, IHasOptions, TModuleOptions, TFeatureResult, TOptions, TTag, TAnyFixme } from '@haibun/core/build/lib/defs.js';
+import { TNamed, TFeatureStep, OK, AStepper, IHasOptions, TModuleOptions, TFeatureResult, TBaseOptions, TTag, TAnyFixme } from '@haibun/core/build/lib/defs.js';
 import { stringOrError } from '@haibun/core/build/lib/util/index.js';
 import { TMediaType, MEDIA_TYPES, MAPPED_MEDIA_TYPES } from './media-types.js';
 
@@ -84,7 +84,7 @@ export default DomainStorage;
 
 export type TLocationOptions = {
 	tag: TTag;
-	options: TOptions;
+	options: TBaseOptions;
 	moduleOptions: TModuleOptions;
 	mediaType: TMediaType;
 };
