@@ -105,8 +105,8 @@ export function getNamedToVars(found: TStepAction, world: TWorld, featureStep: T
 
 		if (namedKey.startsWith(TYPE_ENV_OR_VAR_OR_LITERAL)) {
 			// For TYPE_ENV_OR_VAR_OR_LITERAL, check env first if exists
-			if (world.options.env && world.options.env[namedValue] !== undefined) {
-				namedFromVars[name] = world.options.env[namedValue];
+			if (world.options.envVariables && world.options.envVariables[namedValue] !== undefined) {
+				namedFromVars[name] = world.options.envVariables[namedValue];
 			} else {
 				namedFromVars[name] = shared?.get(namedValue) || (named && named[namedKey]);
 			}
@@ -135,28 +135,16 @@ export function getNamedToVars(found: TStepAction, world: TWorld, featureStep: T
 			namedFromVars[name] = shared.get(cred(namedValue));
 		} else if (namedKey.startsWith(TYPE_ENV)) {
 			// FIXME add test
-			const val = world.options?.env[namedValue];
+			const val = world.options?.envVariables[namedValue];
 
 			if (val === undefined) {
 				throw Error(
 					`no env value for "${namedValue}" from ${JSON.stringify(
-						world.options?.env
+						world.options?.envVariables
 					)}.\nenv values are passed via ${HAIBUN}_ENV and ${HAIBUN}_ENVC.`
 				);
 			}
-			if (Array.isArray(val)) {
-				let index =
-					world.options[`_index_${namedValue}`] === undefined ? val.length - 1 : world.options[`_index_${namedValue}`];
-				index++;
-				if (index > val.length - 1) {
-					index = 0;
-				}
-				world.options[`_index_${namedValue}`] = index;
-
-				namedFromVars[name] = val[index];
-			} else {
-				namedFromVars[name] = val;
-			}
+			namedFromVars[name] = val;
 		} else if (namedKey.startsWith(TYPE_QUOTED)) {
 			// quoted
 			namedFromVars[name] = named[namedKey];

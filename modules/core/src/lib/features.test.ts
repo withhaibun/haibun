@@ -106,33 +106,11 @@ describe('expand features', () => {
 });
 
 describe('env vars', () => {
-	it('rotates ENVC vars', async () => {
-		let index = 0;
-		const TestEnvcStepper = class TestRoute extends AStepper {
-			steps = {
-				addRoute: {
-					gwta: 'finds a {what}',
-					action: async ({ what }: TNamed) => {
-						expect(what).toBe(index);
-						index++;
-						return actionOK();
-					},
-				},
-			};
-		};
-		const feature = { path: '/features/test.feature', content: `\nfinds a {what}\nfinds a {what}` };
-		const env = { what: [0, 1] };
-		const { world } = await testWithDefaults([feature], [TestEnvcStepper], {
-			options: { DEST: DEFAULT_DEST, env },
-			moduleOptions: {},
-		});
-		expect(world.options._index_what).toBe(1);
-	});
 	it('env or var or literal finds env', async () => {
 		const feature = { path: '/features/test.feature', content: `set "what" to "var"\nset x to {what}` };
-		const env = { what: 'env' };
+		const envVariables = { what: 'env' };
 		const { world } = await testWithDefaults([feature], varsStepper, {
-			options: { DEST: DEFAULT_DEST, env },
+			options: { DEST: DEFAULT_DEST, envVariables },
 			moduleOptions: {},
 		});
 		expect(world.shared.get('what')).toBe('var');

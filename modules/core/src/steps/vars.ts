@@ -7,8 +7,7 @@ const getOrCond = (fr: string) => fr.replace(/.* is set or /, '');
 
 const cycles = (vars: Vars): IStepperCycles => ({
 	startFeature: async () => {
-		console.log('would clear', vars.getWorld().shared);
-		// vars.getWorld().shared.values = {};
+		vars.getWorld().shared.values = {};
 	}
 });
 
@@ -21,11 +20,19 @@ class Vars extends AStepper {
 		const res = setShared(named, featureStep, this.getWorld(), emptyOnly);
 		return res;
 	};
-	checkSet(what: string,) {
-		return (this.getWorld().shared.get(what) !== undefined);
+	checkIsSet(what: string,) {
+		return this.getVarValue(what) !== undefined;
+	}
+	// FIXME provide explicit mapping to more carefully handle env, etc.
+	private getVarValue(what: string): any {
+		const envVal = this.getWorld().options.envVariables?.[what];
+		if (envVal !== undefined) {
+			return envVal;
+		}
+		return this.getWorld().shared.get(what);
 	}
 	isSet(what: string, orCond: string) {
-		if (this.checkSet(what)) {
+		if (this.checkIsSet(what)) {
 			return OK;
 		}
 		const [warning, response] = orCond.split(':').map((t) => t.trim());
@@ -48,7 +55,7 @@ class Vars extends AStepper {
 		showEnv: {
 			gwta: 'show env',
 			action: async (n: TNamed, featureStep: TFeatureStep) => {
-				console.info('env', this.world.options.env);
+				console.info('env', this.world.options.envVariables);
 				return await this.set(n, featureStep);
 			},
 		},
@@ -68,8 +75,8 @@ class Vars extends AStepper {
 		is: {
 			gwta: 'variable {what: string} is "{value}"',
 			action: async ({ what, value }: TNamed) => {
-				const val = this.getWorld().shared.get(what);
-				return val === value ? OK : actionNotOK(`${what} is ${val}, not ${value}`);
+				const val = this.getVarValue(what);
+				return val === value ? OK : actionNotOK(`${what} is "${val}", not "${value}"`);
 			},
 		},
 		isSet: {
@@ -79,7 +86,7 @@ class Vars extends AStepper {
 		},
 		isNotSet: {
 			gwta: 'variable {what: string} is not set?',
-			action: async ({ what }: TNamed) => this.checkSet(what) ? actionNotOK(`${what} is set`) : OK,
+			action: async ({ what }: TNamed) => this.checkIsSet(what) ? actionNotOK(`${what} is set`) : OK,
 		},
 		background: {
 			match: /^Background: ?(?<background>.+)?$/,

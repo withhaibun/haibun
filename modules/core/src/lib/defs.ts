@@ -20,9 +20,7 @@ export type TBaseOptions = {
 	STAY?: string;
 	SETTING?: string;
 	[CONTINUE_AFTER_ERROR]?: boolean;
-	env?: {
-		[name: string]: string;
-	}
+	envVariables?: TEnvVariables
 };
 
 type TEnvVariables = {
@@ -142,7 +140,7 @@ export type TStepperStep = {
 	applyEffect?: TApplyEffect;
 };
 
-export type TApplyEffect = (named: TNamed, featureStep: TFeatureStep) => Promise<TFeatureStep[]>;
+export type TApplyEffect = (named: TNamed, featureStep: TFeatureStep, steppers: AStepper[]) => Promise<TFeatureStep[]>;
 
 export interface CStepper {
 	new(): AStepper;
@@ -169,6 +167,7 @@ export interface IStepperCycles {
 	endFeature?(): Promise<void>;
 	endedFeature?(): Promise<void>;
 	onFailure?(result: TStepResult, step: TFeatureStep): Promise<void | TMessageContext>;
+	endExecution?(): Promise<void>
 }
 export abstract class AStepper {
 	world?: TWorld;

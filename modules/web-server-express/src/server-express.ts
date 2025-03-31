@@ -126,7 +126,7 @@ export class ServerExpress implements IWebServer {
 		return undefined;
 	}
 
-	async endedFeature() {
+	async close() {
 		this.logger.debug(`closing server ${this.port}`);
 		await this.listener?.close();
 		this.mounted = defaultMounted();
