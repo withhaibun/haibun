@@ -1,7 +1,7 @@
 import { AStepper, OK, TNamed, DEFAULT_DEST, TAnyFixme } from '@haibun/core/build/lib/defs.js';
 import { actionNotOK } from '@haibun/core/build/lib/util/index.js';
 import { setShared } from '@haibun/core/build/steps/vars.js';
-import { guessMediaType, IFile, TLocationOptions, TPathedOrString } from './domain-storage.js';
+import { guessMediaType, IFile, TLocationOptions } from './domain-storage.js';
 import { EMediaTypes, TMediaType } from './media-types.js';
 import { resolve } from 'path';
 
@@ -17,7 +17,7 @@ export abstract class AStorage extends AStepper {
 	abstract rm(path: string);
 	abstract readdir(dir: string): Promise<string[]>;
 	abstract lstatToIFile(file: string): Promise<IFile>;
-	abstract writeFileBuffer(file: TPathedOrString, contents: Buffer, mediaType: TMediaType): void;
+	abstract writeFileBuffer(file: string, contents: Buffer, mediaType: TMediaType): void;
 
 	async readFlat(dir: string, filter?: string): Promise<IFile[]> {
 		const entries = await this.readdirStat(dir);
@@ -56,7 +56,7 @@ export abstract class AStorage extends AStepper {
 		}
 		return mapped;
 	}
-	async writeFile(file: TPathedOrString, contents: string | Buffer, mediaType: TMediaType) {
+	async writeFile(file: string, contents: string | Buffer, mediaType: TMediaType) {
 		if (typeof contents === 'string') {
 			await this.writeFileBuffer(file, Buffer.from(contents), mediaType);
 		} else {
@@ -101,6 +101,12 @@ export abstract class AStorage extends AStepper {
 		return '.' + path.join('/');
 	}
 
+	async getCapturePath(pathIn: string) {
+		const mediaType = guessMediaType(pathIn);
+		const loc = resolve(await this.getCaptureLocation({ ...this.world, mediaType }));
+		return loc;
+	}
+
 	async getRelativePath(pathIn: string | undefined) {
 		if (!pathIn) {
 			return undefined;
@@ -114,19 +120,6 @@ export abstract class AStorage extends AStepper {
 		const { tag } = loc;
 		const locator = this.locator(loc, tag.key, `seq-${tag.sequence}`, `featn-${tag.featureNum}`, app);
 		return locator;
-	}
-
-	/**
-	 * Overload this where slash directory conventions aren't used.
-	 * Should not be used for any storage method that writes (that should be done in the function).
-	 * @param relativeTo - flag to return a relative location
-	 */
-	pathed(mediaType: TMediaType, f: string, relativeTo?: string) {
-		if (relativeTo) {
-			return (f || 'FIXMEPATHED').replace(relativeTo, '.');
-		}
-
-		return f;
 	}
 
 	async ensureCaptureLocation(loc: TLocationOptions, app?: string | undefined, fn = '') {

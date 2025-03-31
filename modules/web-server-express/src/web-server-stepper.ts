@@ -9,12 +9,16 @@ const cycles = (wss: WebServerStepper): IStepperCycles => ({
 	async startFeature() {
 		wss.webserver = new ServerExpress(wss.world.logger, path.join([process.cwd(), 'files'].join('/')), wss.port);
 		wss.getWorld().runtime[WEBSERVER] = wss.webserver;
+	},
+	async endFeature() {
+		await wss.webserver?.close();
+		wss.webserver = undefined;
 	}
 });
 
 class WebServerStepper extends AStepper implements IHasOptions {
 	webserver: ServerExpress | undefined;
-	cycles = cycles(this);
+	cycles: IStepperCycles = cycles(this);
 
 	options = {
 		PORT: {
@@ -28,12 +32,6 @@ class WebServerStepper extends AStepper implements IHasOptions {
 		await super.setWorld(world, steppers);
 		// this.world.runtime[CHECK_LISTENER] = WebServerStepper.checkListener;
 		this.port = parseInt(getStepperOption(this, 'PORT', world.moduleOptions)) || DEFAULT_PORT;
-	}
-
-
-	async endedFeature() {
-		await this.webserver?.endedFeature();
-		this.webserver = undefined;
 	}
 
 	steps = {

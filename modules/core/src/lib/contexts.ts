@@ -34,6 +34,6 @@ export class Context {
 
 export class WorldContext extends Context {
 	constructor(tag: TTag, initial?: { [name: string]: string }) {
-		super(`world ${tag}`, initial);
+		super(`world ${JSON.stringify(tag)}`, initial);
 	}
 }

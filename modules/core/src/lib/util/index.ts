@@ -1,5 +1,4 @@
-import { IHasOptions, TNotOKActionResult, TOKActionResult, TSpecl, TWorld, TRuntime, TActionResultTopics, TTag, AStepper, TModuleOptions, CStepper, DEFAULT_DEST, TTagValue, TFeatureResult, TAnyFixme } from '../defs.js';
-import { TArtifactFailureStepTopic } from '../interfaces/logger.js';
+import { IHasOptions, TNotOKActionResult, TOKActionResult, TSpecl, TWorld, TRuntime, TActionResultTopics, TTag, AStepper, TModuleOptions, CStepper, TTagValue, TFeatureResult, TAnyFixme } from '../defs.js';
 import { Timer } from '../Timer.js';
 
 type TClass = { new <T>(...args: unknown[]): T };
@@ -113,6 +112,7 @@ export async function setStepperWorlds(steppers: AStepper[], world: TWorld) {
 		}
 	}
 }
+
 export function getPre(stepper: AStepper) {
 	return ['HAIBUN', 'O', constructorName(stepper).toUpperCase()].join('_') + '_';
 }
@@ -313,16 +313,4 @@ export const getSerialTime = () => Date.now();
 
 export function dePolite(s: string) {
 	return s.replace(/^((given|when|then|and|should|the|it|I'm|I|am|an|a) )*/i, '');
-}
-
-export async function doStepperCycleMethods(steppers: AStepper[], method: string) {
-	for (const stepper of steppers) {
-		if (stepper?.cycles && stepper.cycles[method]) {
-			stepper.getWorld().logger.debug(`${method} ${constructorName(stepper)}`);
-			await stepper.cycles[method]().catch((error: TAnyFixme) => {
-				console.error(`${method} failed`, error);
-				throw error;
-			});
-		}
-	}
 }

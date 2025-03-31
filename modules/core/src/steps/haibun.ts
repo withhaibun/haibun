@@ -1,4 +1,4 @@
-import { OK, TNamed, AStepper, TWorld, TFeatureStep, TResolvedFeature, STEP_DELAY } from '../lib/defs.js';
+import { OK, TNamed, AStepper, TWorld, TFeatureStep, STEP_DELAY } from '../lib/defs.js';
 import { Resolver } from '../phases/Resolver.js';
 import { actionNotOK, findStepper, sleep } from '../lib/util/index.js';
 import { expand } from '../lib/features.js';
@@ -44,7 +44,7 @@ const Haibun = class Haibun extends AStepper {
 		displayEnv: {
 			gwta: 'show the environment',
 			action: async () => {
-				this.world?.logger.info(`env: ${JSON.stringify(this.world.options.env)}`);
+				this.world?.logger.info(`env: ${JSON.stringify(this.world.options.envVariables)}`);
 				return OK;
 			},
 		},
@@ -84,23 +84,22 @@ const Haibun = class Haibun extends AStepper {
 			action: async () => {
 				return OK;
 			},
-			applyEffect: async ({ stepperName, line }: TNamed, currentFeatureStep: TFeatureStep) => {
-				const theStepper = findStepper<AStepper>(this.steppers, stepperName);
+			applyEffect: async ({ stepperName, line }: TNamed, currentFeatureStep: TFeatureStep, steppers: AStepper[]) => {
 				const newSteps = [];
 
 				newSteps.push(currentFeatureStep);
 				if (currentFeatureStep.action.stepperName === stepperName) {
-					const newFeatureStep = await this.newFeatureFromEffect(theStepper, line, currentFeatureStep.seq + 0.1);
+					const newFeatureStep = await this.newFeatureFromEffect(line, currentFeatureStep.seq + 0.1, steppers);
 					newSteps.push(newFeatureStep);
 				}
 				return newSteps;
 			}
 		},
 	};
-	async newFeatureFromEffect(stepper: AStepper, content: string, seq: number): Promise<TFeatureStep> {
+	async newFeatureFromEffect(content: string, seq: number, steppers: AStepper[]): Promise<TFeatureStep> {
 		const features = asFeatures([{ path: `resolved from ${content}`, content }]);
 		const expandedFeatures = await expand([], features);
-		const featureSteps = await new Resolver(this.steppers).findFeatureSteps(expandedFeatures[0]);
+		const featureSteps = await new Resolver(steppers).findFeatureSteps(expandedFeatures[0]);
 		return { ...featureSteps[0], seq };
 	}
 };

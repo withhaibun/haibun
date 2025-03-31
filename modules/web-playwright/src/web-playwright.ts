@@ -26,7 +26,6 @@ const cycles = (wp: WebPlaywright): IStepperCycles => ({
 			await wp.captureFailureScreenshot('failure', 'onFailure', step);
 		}
 	},
-
 	async startFeature(): Promise<void> {
 		if (wp.monitor) {
 			await wp.createMonitor();
@@ -731,18 +730,18 @@ class WebPlaywright extends AStepper implements IHasOptions {
 	}
 
 	async captureScreenshotAndLog(event: 'failure' | 'request', stage: TActionStage, details: { seq?: number; step?: TFeatureStep }) {
-		const artifactTopic = await this.captureScreenshot(event, stage, details,);
-		this.getWorld().logger.log(`${event} screenshot to ${artifactTopic.artifact.path}`, artifactTopic);
+		const { artifactTopic, path } = await this.captureScreenshot(event, stage, details,);
+		this.getWorld().logger.log(`${event} screenshot to ${pathToFileURL(path)}`, artifactTopic);
 	}
 
 	async captureScreenshot(event: 'failure' | 'request', stage: TActionStage, details: { seq?: number; step?: TFeatureStep }) {
 		const loc = await this.getCaptureDir('image');
 		// FIXME shouldn't be fs dependant
 		const path = resolve(this.storage.fromLocation(EMediaTypes.image, loc, `${event}-${Date.now()}.png`));
-		await this.withPage(async (page: Page) => await page.screenshot({ path, }));
+		await this.withPage(async (page: Page) => await page.screenshot({ path }));
 		const artifact: TArtifact = { type: 'image', path: await this.storage.getRelativePath(path) };
 		const artifactTopic = { topic: { ...details, event, stage }, artifact, tag: this.getWorld().tag };
-		return artifactTopic;
+		return { artifactTopic, path };
 	}
 
 	async setExtraHTTPHeaders(headers: { [name: string]: string; }) {
