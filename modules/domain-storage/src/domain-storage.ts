@@ -1,4 +1,3 @@
-import { WorkspaceContext } from '@haibun/core/build/lib/contexts.js';
 import { TNamed, TFeatureStep, OK, AStepper, IHasOptions, TModuleOptions, TFeatureResult, TOptions, TTag, TAnyFixme } from '@haibun/core/build/lib/defs.js';
 import { stringOrError } from '@haibun/core/build/lib/util/index.js';
 import { TMediaType, MEDIA_TYPES, MAPPED_MEDIA_TYPES } from './media-types.js';
@@ -69,7 +68,6 @@ const DomainStorage = class DomainStorage extends AStepper implements IHasOption
 		aLocation: {
 			gwta: `a ${STORAGE_LOCATION} at {where}`,
 			action: async ({ where }: TNamed, featureStep: TFeatureStep) => {
-				const location = featureStep.sourceFeature.name;
 				return OK;
 			},
 		},
@@ -77,10 +75,6 @@ const DomainStorage = class DomainStorage extends AStepper implements IHasOption
 			gwta: `A ${STORAGE_ITEM} {name}`,
 			action: async ({ name }: TNamed) => {
 				return OK;
-			},
-			build: async ({ name }: TNamed, a: TFeatureStep, workspace: WorkspaceContext) => {
-				workspace.getBuilder().addControl(name);
-				return { ...OK };
 			},
 		},
 	};

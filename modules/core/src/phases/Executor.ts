@@ -115,7 +115,7 @@ export class FeatureExecutor {
 		const actionResult: TStepActionResult = { ...res, name: action.actionName, start, end } as TStepActionResult;
 		ok = ok && res.ok;
 
-		return { ok, in: featureStep.in, sourcePath: featureStep.sourceFeature.path, actionResult, seq: featureStep.seq };
+		return { ok, in: featureStep.in, path: featureStep.path, actionResult, seq: featureStep.seq };
 	}
 	async onFailure(result: TStepResult, step: TFeatureStep) {
 		for (const stepper of this.steppers) {
