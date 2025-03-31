@@ -92,7 +92,7 @@ export function processBaseEnvToOptionsAndErrors(env: TEnv) {
 				errors.push(`no option for ${opt}`);
 			}
 		});
-	protoOptions.options.env = nenv;
+	protoOptions.options.envVariables = nenv;
 
 	return { protoOptions, errors };
 }

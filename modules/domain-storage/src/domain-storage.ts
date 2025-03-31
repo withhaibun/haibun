@@ -1,47 +1,9 @@
-import { TNamed, TFeatureStep, OK, AStepper, IHasOptions, TModuleOptions, TFeatureResult, TBaseOptions, TTag, TAnyFixme } from '@haibun/core/build/lib/defs.js';
+import { TNamed, TFeatureStep, OK, AStepper, IHasOptions, TModuleOptions, TBaseOptions, TTag } from '@haibun/core/build/lib/defs.js';
 import { stringOrError } from '@haibun/core/build/lib/util/index.js';
 import { TMediaType, MEDIA_TYPES, MAPPED_MEDIA_TYPES } from './media-types.js';
 
-export type TTrackResult = { meta: { title: string; startTime: string; startOffset: number }; result: TFeatureResult };
-export type TMissingTracks = { error: string };
-
-export type TCoding = TAnyFixme;
-
 export const STORAGE_LOCATION = 'STORAGE_LOCATION';
 export const STORAGE_ITEM = 'STORAGE_ITEM';
-
-export type TPathed = {
-	pathed: string;
-};
-
-export function isPathed(path: TPathedOrString): path is TPathed {
-	return (<TPathed>path).pathed !== undefined;
-}
-
-export function actualPath(path: TPathedOrString): string {
-	return isPathed(path) ? path.pathed : path;
-}
-
-export type TPathedOrString = TPathed | string;
-
-export type TReviewLink = { link: string; title: string; date: string; results: { fail: number; success: number } };
-
-export type TResolvePublishedReview = (link: string) => Promise<TReviewLink>;
-
-export interface IGetPublishedReviews {
-	getPublishedReviews: () => Promise<string[]>;
-	endpoint: (path: string) => string;
-}
-
-export interface IWebReviewIndexer {
-	getLatestPublished: TGetLatestPublished;
-	resolvePublishedReview: TResolvePublishedReview;
-	webContext: TWebContext;
-}
-
-// FIXME these belongs in domain-web
-export type TWebContext = { [name: string]: string };
-export type TGetLatestPublished = () => Promise<string[]>;
 
 export interface IFile {
 	name: string;
@@ -49,10 +11,6 @@ export interface IFile {
 	isFile: boolean;
 	created: number;
 	size: number;
-}
-
-export interface ICreateStorageDestination {
-	createStorageDestination(dest: string, params: TAnyFixme);
 }
 
 const DomainStorage = class DomainStorage extends AStepper implements IHasOptions {

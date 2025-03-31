@@ -47,7 +47,7 @@ describe('closes mounts', () => {
 	it('re-mounts after close', async () => {
 		const wss = new WebServerStepper();
 		await wss.steps.serveFilesAt.action({ where: '/foo' })
-		await wss.endedFeature();
+		await wss.cycles.endFeature!();
 		expect(() => wss.steps.serveFilesAt.action({ where: '/foo' })).not.toThrow();
 	});
 })
