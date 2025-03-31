@@ -40,7 +40,7 @@ class WebServerStepper extends AStepper implements IHasOptions {
 		thisURI: {
 			gwta: `a ${WEB_PAGE} at {where}`,
 			action: async ({ where }: TNamed, featureStep: TFeatureStep) => {
-				const page = featureStep.sourceFeature.name
+				const page = featureStep.path
 
 				const webserver = <IWebServer>getFromRuntime(this.getWorld().runtime, WEBSERVER);
 				await webserver.checkAddStaticFolder(page, where);

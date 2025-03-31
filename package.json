@@ -21,7 +21,7 @@
   "scripts": {
     "init": "npm i && npm run build",
     "test": "vitest run",
-    "test-watch": "vitest",
+    "test-watch": "vitest --hideSkippedTests",
     "clean": "rm -rf modules/*/build modules/*/tsconfig.tsbuildinfo",
     "build-watch": "tsc -b modules/ --watch",
     "build": "tsc -b modules/core modules/domain-storage modules/web-http modules/storage-fs modules",
