@@ -1,12 +1,20 @@
-import { IHasOptions, OK, TWorld, TNamed, TOptions, AStepper, TFeatureStep } from '@haibun/core/build/lib/defs.js';
+import { IHasOptions, OK, TWorld, TNamed, TOptions, AStepper, TFeatureStep, IStepperCycles } from '@haibun/core/build/lib/defs.js';
 import { actionNotOK, getFromRuntime, getStepperOption, intOrError } from '@haibun/core/build/lib/util/index.js';
 import { IWebServer, WEBSERVER } from './defs.js';
 import { ServerExpress, DEFAULT_PORT } from './server-express.js';
 import { WEB_PAGE } from '@haibun/core/build/lib/domain-types.js';
 import path from 'path';
 
-const WebServerStepper = class WebServerStepper extends AStepper implements IHasOptions {
+const cycles = (wss: WebServerStepper): IStepperCycles => ({
+	async startFeature() {
+		wss.webserver = new ServerExpress(wss.world.logger, path.join([process.cwd(), 'files'].join('/')), wss.port);
+		wss.getWorld().runtime[WEBSERVER] = wss.webserver;
+	}
+});
+
+class WebServerStepper extends AStepper implements IHasOptions {
 	webserver: ServerExpress | undefined;
+	cycles = cycles(this);
 
 	options = {
 		PORT: {
@@ -20,14 +28,8 @@ const WebServerStepper = class WebServerStepper extends AStepper implements IHas
 		await super.setWorld(world, steppers);
 		// this.world.runtime[CHECK_LISTENER] = WebServerStepper.checkListener;
 		this.port = parseInt(getStepperOption(this, 'PORT', world.moduleOptions)) || DEFAULT_PORT;
-		world.runtime[WEBSERVER] = this.webserver;
 	}
 
-	async startFeature() {
-		this.webserver = new ServerExpress(this.world.logger, path.join([process.cwd(), 'files'].join('/')), this.port);
-		console.log('start webserver');
-
-	}
 
 	async endedFeature() {
 		await this.webserver?.endedFeature();
@@ -121,6 +123,7 @@ const WebServerStepper = class WebServerStepper extends AStepper implements IHas
 		await this.webserver.listen();
 	}
 };
+
 export default WebServerStepper;
 
 export type ICheckListener = (options: TOptions, webserver: IWebServer) => void;
