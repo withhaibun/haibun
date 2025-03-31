@@ -3,7 +3,6 @@ import { Resolver } from '../../phases/Resolver.js';
 import { getRunTag, verifyExtraOptions, createSteppers } from './../util/index.js';
 import { getSteppers } from '../util/workspace-lib.js';
 import { WorldContext } from '../contexts.js';
-import { withNameType } from './../features.js';
 import Logger, { LOGGER_LOG } from '../Logger.js';
 import { Timer } from '../Timer.js';
 import { asFeatures } from '../resolver-features.js';

@@ -1,4 +1,4 @@
-import { IHasOptions, OK, TWorld, TNamed, TOptions, AStepper, TFeatureStep, IStepperCycles } from '@haibun/core/build/lib/defs.js';
+import { IHasOptions, OK, TWorld, TNamed, TBaseOptions, AStepper, TFeatureStep, IStepperCycles } from '@haibun/core/build/lib/defs.js';
 import { actionNotOK, getFromRuntime, getStepperOption, intOrError } from '@haibun/core/build/lib/util/index.js';
 import { IWebServer, WEBSERVER } from './defs.js';
 import { ServerExpress, DEFAULT_PORT } from './server-express.js';
@@ -126,7 +126,7 @@ class WebServerStepper extends AStepper implements IHasOptions {
 
 export default WebServerStepper;
 
-export type ICheckListener = (options: TOptions, webserver: IWebServer) => void;
+export type ICheckListener = (options: TBaseOptions, webserver: IWebServer) => void;
 export interface IWebServerStepper {
 	webserver: IWebServer;
 	close: () => void;
