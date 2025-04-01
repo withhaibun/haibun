@@ -164,8 +164,7 @@ export type TSteppers = {
 export interface IStepperCycles {
 	startExecution?(): Promise<void>;
 	startFeature?(): Promise<void>;
-	endFeature?(): Promise<void>;
-	endedFeature?(): Promise<void>;
+	endFeature?(endedWith?: { isLast?: boolean, okSoFar?: boolean, continueAfterError?: boolean, stayOnFailure?: boolean, thisFeatureOK?: boolean }): Promise<void>;
 	onFailure?(result: TStepResult, step: TFeatureStep): Promise<void | TMessageContext>;
 	endExecution?(): Promise<void>
 }
