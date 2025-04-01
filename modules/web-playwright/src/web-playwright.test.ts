@@ -3,9 +3,7 @@ import { describe, it, expect } from 'vitest';
 import WebPlaywright from './web-playwright.js';
 import { getPackageLocation } from '@haibun/core/build/lib/util/workspace-lib.js';
 
-import { FeatureExecutor } from '@haibun/core/build/phases/Executor.js';
-import { getTestEnv, getDefaultWorld, getCreateSteppers } from '@haibun/core/build/lib/test/lib.js';
-import { findStepper } from '@haibun/core/build/lib/util/index.js';
+import { getCreateSteppers } from '@haibun/core/build/lib/test/lib.js';
 import path from 'path';
 import { TFeatureStep } from '@haibun/core/build/lib/defs.js';
 
@@ -39,7 +37,7 @@ describe('handles cycles', () => {
 	it('closes browser', async () => {
 		const wp = new WebPlaywright();
 		wp.steps.takeScreenshot.action({}, {} as TFeatureStep);
-		wp.cycles!.endedFeature!();
+		wp.cycles!.endFeature!();
 		wp.steps.takeScreenshot.action({}, {} as TFeatureStep);
 	});
 })

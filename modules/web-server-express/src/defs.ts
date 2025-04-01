@@ -1,5 +1,4 @@
 export const WEBSERVER = 'webserver';
-export const CHECK_LISTENER = 'CHECK_LISTENER';
 import * as express from 'express';
 
 export interface IWebServer {
