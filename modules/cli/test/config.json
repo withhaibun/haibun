@@ -1,0 +1,7 @@
+{
+	"steppers": [
+		"vars",
+		"credentials",
+		"haibun"
+	]
+}

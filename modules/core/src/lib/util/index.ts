@@ -89,10 +89,12 @@ export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve
 export async function verifyExtraOptions(inExtraOptions: TModuleOptions, csteppers: CStepper[]) {
 	const moduleOptions = { ...inExtraOptions };
 	Object.entries(moduleOptions)?.map(([option, value]) => {
-		const foundStepper = getStepperOptionValue(option, value, csteppers);
+		const foundStepperParseResult = getStepperOptionValue(option, value, csteppers);
 
-		if (foundStepper === undefined) {
+		if (foundStepperParseResult === undefined) {
 			throw Error(`unmapped option ${option} from ${JSON.stringify(moduleOptions)}`);
+		} else if (foundStepperParseResult.parseError) {
+			throw Error(`wrong option ${option} from ${JSON.stringify(moduleOptions)}: ${foundStepperParseResult.parseError}`);
 		}
 		delete moduleOptions[option];
 	});
@@ -254,42 +256,31 @@ export const isFirstTag = (tag: TTag) => tag.sequence === 0;
 
 export const intOrError = (val: string) => {
 	if (val.match(/[^\d+]/)) {
-		return { error: `${val} is not an integer` };
+		return { parseError: `${val} is not an integer` };
 	}
 	return { result: parseInt(val, 10) };
 };
 
 export const boolOrError = (val: string) => {
 	if (val !== 'false' && val !== 'true') {
-		return { error: `${val} is not true or false` };
+		return { parseError: `${val} is not true or false` };
 	}
 	return { result: val === 'true' };
 };
 
 export const stringOrError = (val: string) => {
 	if (val === undefined || val === null) {
-		return { error: `${val} is not defined` };
+		return { parseError: `${val} is not defined` };
 	}
 	return { result: val };
 };
 
 export const optionOrError = (val: string, options: string[]) => {
 	if (val === undefined || val === null || !options.includes(val)) {
-		return { error: `"${val}" is not defined or not one of ${JSON.stringify(options)} ` };
+		return { parseError: `"${val}" is not defined or not one of ${JSON.stringify(options)} ` };
 	}
 	return { result: val };
 };
-
-export function friendlyTime(d: Date) {
-	return new Date(d).toLocaleString();
-}
-
-export const shortNum = (n: number) => Math.round(n * 100) / 100;
-
-export const getFeatureTitlesFromResults = (result: TFeatureResult) =>
-	result.stepResults
-		.filter((s) => (s.actionResult.name === 'feature' ? true : false))
-		.map((a) => a.in.replace(/^Feature: /, ''));
 
 export function trying<TResult>(fun: () => void): Promise<Error | TResult> {
 	return new Promise((resolve, reject) => {

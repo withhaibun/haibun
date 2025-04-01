@@ -16,8 +16,8 @@ export class Executor {
 		});
 	}
 	static async executeFeatures(steppers: AStepper[], world: TWorld, features: TResolvedFeature[]): Promise<TExecutorResult> {
-		await doStepperCycleMethods(steppers, 'startExecution');
-		let ok = true;
+		await doStepperMethod(steppers, 'startExecution');
+		let okSoFar = true;
 		const stayOnFailure = world.options[STAY] === STAY_FAILURE;
 		const featureResults: TFeatureResult[] = [];
 		let featureNum = 0;
@@ -27,29 +27,33 @@ export class Executor {
 			featureNum++;
 			const isLast = featureNum === features.length;
 
+			world.logger.log(`███ feature ${featureNum}/${features.length}: ${feature.path}`);
 			const newWorld = { ...world, tag: { ...world.tag, ...{ featureNum: 0 + featureNum } } };
 
 			const featureExecutor = new FeatureExecutor(steppers, newWorld);
 			await setStepperWorlds(steppers, newWorld);
-			await doStepperCycleMethods(steppers, 'startFeature');
+			await doStepperMethod(steppers, 'startFeature');
 
 			const featureResult = await featureExecutor.doFeature(feature);
 
-			ok = ok && featureResult.ok;
+			okSoFar = okSoFar && featureResult.ok;
 			featureResults.push(featureResult);
-			const shouldEndFeatureClose = ok || (!stayOnFailure || !isLast || !continueAfterError);
-			await doStepperCycleMethods(steppers, 'endFeature', { isLast, okSoFar: ok, continueAfterError, stayOnFailure, thisFeatureOK: featureResult.ok });
-			if (!ok && !continueAfterError && !isLast) {
-				world.logger.debug(`stopping without ${CONTINUE_AFTER_ERROR}`);
-				break;
-			} else {
-				if (!ok && continueAfterError && !isLast) {
-					world.logger.debug(`continuing because ${CONTINUE_AFTER_ERROR}`);
+			await doStepperMethod(steppers, 'endFeature', { isLast, okSoFar, continueAfterError, stayOnFailure, thisFeatureOK: featureResult.ok });
+			if (!okSoFar) {
+				const failedStep = featureResult.stepResults.find((s) => !s.ok);
+				await doStepperMethod(steppers, 'onFailure', featureResult, failedStep);
+				if (!continueAfterError && !isLast) {
+					world.logger.debug(`stopping without ${CONTINUE_AFTER_ERROR}`);
+					break;
+				} else {
+					if (continueAfterError && !isLast) {
+						world.logger.debug(`continuing because ${CONTINUE_AFTER_ERROR}`);
+					}
 				}
 			}
 		}
-		await doStepperCycleMethods(steppers, 'endExecution');
-		return { ok, featureResults: featureResults, tag: world.tag, shared: world.shared, steppers };
+		await doStepperMethod(steppers, 'endExecution');
+		return { ok: okSoFar, featureResults: featureResults, tag: world.tag, shared: world.shared, steppers };
 	}
 }
 
@@ -61,7 +65,6 @@ export class FeatureExecutor {
 	}
 	async doFeature(feature: TResolvedFeature): Promise<TFeatureResult> {
 		const world = this.world;
-		world.logger.log(`███ feature ${world.tag.featureNum}: ${feature.path}`);
 		let ok = true;
 		const stepResults: TStepResult[] = [];
 
@@ -73,9 +76,6 @@ export class FeatureExecutor {
 				await sleep(world.options[STEP_DELAY] as number);
 			}
 			ok = ok && result.ok;
-			if (!result.ok) {
-				await doStepperCycleMethods(this.steppers, 'onFailure', result, step);
-			}
 			const indicator = result.ok ? CHECK_YES : CHECK_NO + ' ' + (<TNotOKActionResult>result.actionResult).message;
 			world.logger.log(indicator, <TExecutorMessageContext>{ topic: { stage: 'Executor', result, step } });
 			stepResults.push(result);
@@ -105,14 +105,14 @@ export class FeatureExecutor {
 	}
 }
 
-export async function doStepperCycleMethods<K extends keyof IStepperCycles>(steppers: AStepper[], method: K, ...args: TAnyFixme[]) {
+const doStepperMethod = async <K extends keyof IStepperCycles>(steppers: AStepper[], method: K, ...args: TAnyFixme[]) => {
 	for (const stepper of steppers) {
 		if (stepper?.cycles && stepper.cycles[method]) {
-			stepper.getWorld().logger.debug(`${method} ${constructorName(stepper)}`);
+			stepper.getWorld().logger.log(`🔁 ${method} ${constructorName(stepper)}`);
 			await (stepper.cycles[method] as (...args: any[]) => Promise<any>)(...args).catch((error: TAnyFixme) => {
 				console.error(`${method} failed`, error);
 				throw error;
 			});
 		}
 	}
-}
+};
