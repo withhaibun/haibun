@@ -1,4 +1,4 @@
-import { basename, join } from 'path';
+import { basename, join, resolve } from 'path';
 import { chromium, Page } from 'playwright';
 import WebPlaywright from './web-playwright.js';
 import { OK, TWorld } from '@haibun/core/build/lib/defs.js';
@@ -7,6 +7,8 @@ import { logToElement } from './logToMonitor.js';
 import { EMediaTypes } from '@haibun/domain-storage/build/media-types.js';
 import { guessMediaType } from '@haibun/domain-storage/build/domain-storage.js';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
+import { sleep } from '@haibun/core/build/lib/util/index.js';
+import { pathToFileURL } from 'url';
 
 export const createMonitorCreator = (webPlaywright: WebPlaywright) => async () => {
 	WebPlaywright.monitorPage = await (await (await chromium.launch({ headless: false })).newContext()).newPage();
@@ -55,6 +57,7 @@ export const createMonitorCreator = (webPlaywright: WebPlaywright) => async () =
 };
 
 export async function writeMonitor(world: TWorld, storage: AStorage, page: Page, resourceMap) {
+	await sleep(500);
 	const content = await page.content();
 	const monitorLoc = await storage.getCaptureLocation({ ...world, mediaType: EMediaTypes.html });
 	const outHtml = join(monitorLoc, 'monitor.html');
@@ -74,7 +77,7 @@ export async function writeMonitor(world: TWorld, storage: AStorage, page: Page,
 			await storage.writeFile(outHtml, newContent, EMediaTypes.html);
 		}
 	}
-	return outHtml;
+	world.logger.info(`wrote monitor to ${pathToFileURL(resolve(outHtml))}`);
 }
 
 const selectLevels = () => {

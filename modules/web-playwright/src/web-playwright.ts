@@ -1,17 +1,22 @@
 import { Page, Response, Download } from 'playwright';
 import { resolve } from 'path';
+import { pathToFileURL } from 'url';
 
-import { IHasOptions, OK, TNamed, TStepResult, AStepper, TWorld, TFeatureStep, TAnyFixme, IStepperCycles, } from '@haibun/core/build/lib/defs.js';
+import { IHasOptions, OK, TNamed, TStepResult, AStepper, TWorld, TFeatureStep, TAnyFixme, IStepperCycles } from '@haibun/core/build/lib/defs.js';
 import { WEB_PAGE, WEB_CONTROL } from '@haibun/core/build/lib/domain-types.js';
 import { BrowserFactory, TTaggedBrowserFactoryOptions, TBrowserTypes, BROWSERS } from './BrowserFactory.js';
-import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOption, sleep } from '@haibun/core/build/lib/util/index.js';
+import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOption, sleep, optionOrError } from '@haibun/core/build/lib/util/index.js';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 import { TActionStage, TArtifact, TArtifactMessageContext, TTraceMessageContext, } from '@haibun/core/build/lib/interfaces/logger.js';
 import { EMediaTypes } from '@haibun/domain-storage/build/media-types.js';
 
 import { restSteps, TCapturedResponse } from './rest-playwright.js';
 import { createMonitorCreator, writeMonitor } from './monitor.js';
-import { pathToFileURL } from 'url';
+
+export enum EMonitoringTypes {
+	MONITOR_ALL = 'all',
+	MONITOR_EACH = 'each',
+}
 
 type TRequestOptions = {
 	headers?: Record<string, string>;
@@ -27,15 +32,11 @@ const cycles = (wp: WebPlaywright): IStepperCycles => ({
 		}
 	},
 	async startFeature(): Promise<void> {
-		if (wp.monitor) {
+		if (wp.monitor === EMonitoringTypes.MONITOR_EACH) {
 			await wp.createMonitor();
 		}
 	},
 	async endFeature() {
-		// close the context, which closes any pages
-		if (wp.hasFactory) {
-			await wp.bf?.closeContext(wp.getWorld().tag);
-		}
 		for (const file of wp.downloaded) {
 			wp.getWorld().logger.debug(`removing ${JSON.stringify(file)}`);
 			// rmSync(file);
@@ -45,28 +46,35 @@ const cycles = (wp: WebPlaywright): IStepperCycles => ({
 				const page = await wp.getPage();
 				const path = await wp.storage.getRelativePath(await page.video().path());
 				const artifact: TArtifact = { type: 'video', path };
-				wp.getWorld().logger.log('endFeature video', <TArtifactMessageContext>{
+				wp.getWorld().logger.log('feature video', <TArtifactMessageContext>{
 					artifact,
 					topic: { event: 'summary', stage: 'endFeature' },
 					tag: wp.getWorld().tag,
 				});
 			}
-			// await wp.bf?.closeContext(wp.getWorld().tag);
+			// close the context, which closes any pages
+			if (wp.hasFactory) {
+				await wp.bf?.closeContext(wp.getWorld().tag);
+			}
 			await wp.bf?.close();
 			wp.bf = undefined;
 			wp.hasFactory = false;
 		}
-		if (wp.closers) {
-			for (const closer of wp.closers) {
-				await closer();
-			}
+		if (wp.monitor === EMonitoringTypes.MONITOR_EACH) {
+			await wp.callClosers();
+			await writeMonitor(wp.world, wp.storage, WebPlaywright.monitorPage, wp.resourceMap);
 		}
-		if (wp.monitor) {
-			await sleep(500);
-			const fn = await writeMonitor(wp.world, wp.storage, WebPlaywright.monitorPage, wp.resourceMap);
-			wp.getWorld().logger.info(`wrote monitor to ${pathToFileURL(resolve(fn))}`);
+	},
+	async startExecution() {
+		if (wp.monitor === EMonitoringTypes.MONITOR_ALL) {
+			await wp.createMonitor();
 		}
-
+	},
+	async endExecution() {
+		if (wp.monitor === EMonitoringTypes.MONITOR_ALL) {
+			await wp.callClosers();
+			await writeMonitor(wp.world, wp.storage, WebPlaywright.monitorPage, wp.resourceMap);
+		}
 	},
 });
 
@@ -77,8 +85,8 @@ class WebPlaywright extends AStepper implements IHasOptions {
 	requireDomains = [WEB_PAGE, WEB_CONTROL];
 	options = {
 		MONITOR: {
-			desc: 'display a monitor with ongoing results',
-			parse: (input: string) => boolOrError(input),
+			desc: `display a monitor with ongoing results (${EMonitoringTypes.MONITOR_ALL} or ${EMonitoringTypes.MONITOR_EACH})`,
+			parse: (input: string) => optionOrError(input, [EMonitoringTypes.MONITOR_ALL, EMonitoringTypes.MONITOR_EACH]),
 		},
 		HEADLESS: {
 			desc: 'run browsers without a window (true, false)',
@@ -118,10 +126,10 @@ class WebPlaywright extends AStepper implements IHasOptions {
 	tab = 0;
 	withFrame: string;
 	downloaded: string[] = [];
-	captureVideo: string;
+	captureVideo: boolean;
 	closers: Array<() => Promise<void>> = [];
 	logElementError: any;
-	monitor: boolean;
+	monitor: EMonitoringTypes;
 	static monitorPage: Page;
 	resourceMap = new Map();
 	userAgentPages: { [name: string]: Page } = {};
@@ -139,10 +147,10 @@ class WebPlaywright extends AStepper implements IHasOptions {
 		if (devtools) {
 			args.concat(['--auto-open-devtools-for-tabs', '--devtools-flags=panel-network', '--remote-debugging-port=9223']);
 		}
-		this.monitor = getStepperOption(this, 'MONITOR', world.moduleOptions) === 'true';
+		this.monitor = <EMonitoringTypes>getStepperOption(this, 'MONITOR', world.moduleOptions);
 		const persistentDirectory = getStepperOption(this, WebPlaywright.PERSISTENT_DIRECTORY, world.moduleOptions);
 		const defaultTimeout = parseInt(getStepperOption(this, 'TIMEOUT', world.moduleOptions)) || 30000;
-		this.captureVideo = getStepperOption(this, 'CAPTURE_VIDEO', world.moduleOptions);
+		this.captureVideo = getStepperOption(this, 'CAPTURE_VIDEO', world.moduleOptions) === 'true';
 		let recordVideo;
 		if (this.captureVideo) {
 			recordVideo = {
@@ -317,6 +325,13 @@ class WebPlaywright extends AStepper implements IHasOptions {
 			gwta: 'create monitor',
 			action: async () => {
 				await this.createMonitor();
+				return OK;
+			},
+		},
+		finishMonitor: {
+			gwta: 'finish monitor',
+			action: async () => {
+				await writeMonitor(this.world, this.storage, WebPlaywright.monitorPage, this.resourceMap);
 				return OK;
 			},
 		},
@@ -827,6 +842,13 @@ class WebPlaywright extends AStepper implements IHasOptions {
 			if (ua) {
 				const browserContext = await this.getExistingBrowserContext();
 				browserContext.setExtraHTTPHeaders(this.extraHTTPHeaders);
+			}
+		}
+	}
+	async callClosers() {
+		if (this.closers) {
+			for (const closer of this.closers) {
+				await closer();
 			}
 		}
 	}
