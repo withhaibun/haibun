@@ -1,4 +1,4 @@
-import { IHasOptions, OK, TWorld, TNamed, TBaseOptions, AStepper, TFeatureStep, IStepperCycles } from '@haibun/core/build/lib/defs.js';
+import { IHasOptions, OK, TWorld, TNamed, AStepper, TFeatureStep, IStepperCycles } from '@haibun/core/build/lib/defs.js';
 import { actionNotOK, getFromRuntime, getStepperOption, intOrError } from '@haibun/core/build/lib/util/index.js';
 import { IWebServer, WEBSERVER } from './defs.js';
 import { ServerExpress, DEFAULT_PORT } from './server-express.js';
@@ -10,12 +10,12 @@ const cycles = (wss: WebServerStepper): IStepperCycles => ({
 		wss.webserver = new ServerExpress(wss.world.logger, path.join([process.cwd(), 'files'].join('/')), wss.port);
 		wss.getWorld().runtime[WEBSERVER] = wss.webserver;
 	},
-	async endFeature({ isLast = true, okSoFar = true, thisFeatureOK: thisOK = false, continueAfterError = true, stayOnFailure = true } = {}) {
+	async endFeature({ isLast = true, okSoFar = true, thisFeatureOK = true, continueAfterError = false, stayOnFailure = false } = {}) {
 		// leave web server running if there was a failure and it's the last feature
-		if (!thisOK && isLast && stayOnFailure) {
-			wss.getWorld().logger.info(`webserver staying open because ${JSON.stringify({ thisOK, ok: okSoFar, isLast, continueAfterError, stayOnFailure })}`);
+		if (!thisFeatureOK && isLast && stayOnFailure) {
+			wss.getWorld().logger.info(`webserver staying open because ${JSON.stringify({ thisFeatureOK, okSoFar, isLast, continueAfterError, stayOnFailure })}`);
 		} else {
-			wss.getWorld().logger.log(`closing ${JSON.stringify({ ok: okSoFar, isLast, continueAfterError, stayOnFailure })}`);
+			wss.getWorld().logger.log(`closing ${JSON.stringify({ thisFeatureOK, okSoFar, isLast, continueAfterError, stayOnFailure })}`);
 			await wss.webserver?.close();
 			wss.webserver = undefined;
 		}

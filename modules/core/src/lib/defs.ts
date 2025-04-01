@@ -37,7 +37,7 @@ export interface IHasOptions {
 			altSource?: string;
 			default?: string;
 			desc: string;
-			parse: (input: string, existing?: TOptionValue) => { error?: string; env?: TEnvVariables; result?: TAnyFixme };
+			parse: (input: string, existing?: TOptionValue) => { parseError?: string; env?: TEnvVariables; result?: TAnyFixme };
 		};
 	};
 }

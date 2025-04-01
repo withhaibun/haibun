@@ -1,10 +1,16 @@
 import nodeFS from 'fs';
 
-import { BASE_PREFIX, DEFAULT_DEST, IHasOptions, TBase, TProtoOptions, TSpecl } from '@haibun/core/build/lib/defs.js';
+import { BASE_PREFIX, CHECK_NO, CHECK_YES, DEFAULT_DEST, IHasOptions, isProcessFeatureResults, STAY, STAY_ALWAYS, TBase, TProtoOptions, TSpecl, TWorld } from '@haibun/core/build/lib/defs.js';
 import { getCreateSteppers } from '@haibun/core/build/lib/test/lib.js';
 import { getPre } from '@haibun/core/build/lib/util/index.js';
 import { BaseOptions } from './BaseOptions.js';
 import { TFileSystem } from '@haibun/core/build/lib/util/workspace-lib.js';
+import { getDefaultOptions, basesFrom } from '@haibun/core/build/lib/util/index.js';
+import { Timer } from '@haibun/core/build/lib/Timer.js';
+import Logger from '@haibun/core/build/lib/Logger.js';
+import { Runner } from '@haibun/core/build/runner.js';
+import { WorldContext } from '@haibun/core/build/lib/contexts.js';
+import { getDefaultTag } from '@haibun/core/build/lib/test/lib.js';
 
 const OPTION_CONFIG = '--config';
 const OPTION_HELP = '--help';
@@ -12,6 +18,82 @@ const OPTION_SHOW_STEPPERS = '--show-steppers';
 
 type TEnv = { [name: string]: string | undefined };
 
+export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
+	const { params, configLoc, showHelp, showSteppers } = processArgs(args);
+	const bases = basesFrom(params[0]?.replace(/\/$/, ''));
+	const specl = await getSpeclOrExit(configLoc ? [configLoc] : bases);
+
+	if (showHelp) {
+		await usageThenExit(specl);
+	}
+	if (showSteppers) {
+		const allSteppers = await getAllSteppers(specl);
+		console.info('Steppers:', JSON.stringify(allSteppers, null, 2));
+		process.exit(0);
+	}
+	const featureFilter = params[1] ? params[1].split(',') : undefined;
+
+	const { protoOptions, errors } = processBaseEnvToOptionsAndErrors(env);
+	if (errors.length > 0) {
+		await usageThenExit(specl, errors.join('\n'));
+	}
+
+	const description = protoOptions.options.DESCRIPTION || bases + ' ' + [...(featureFilter || [])].join(',');
+	const world = getWorld(protoOptions, bases);
+
+	const runner = new Runner(world);
+
+	console.info('\n_________________________________ start');
+	const executorResult = await runner.run(specl.steppers, featureFilter);
+	console.info(executorResult.ok ? CHECK_YES : `${CHECK_NO} At ${JSON.stringify(executorResult.failure)}`);
+
+	for (const maybeResultProcessor of executorResult.steppers) {
+		if (isProcessFeatureResults(maybeResultProcessor)) {
+			await maybeResultProcessor.processFeatureResult(executorResult);
+		}
+	}
+
+	if (executorResult.ok) {
+		if (protoOptions.options[STAY] !== STAY_ALWAYS) {
+			process.exit(0);
+		}
+	} else if (!protoOptions.options[STAY]) {
+		process.exit(1);
+	}
+}
+
+function getWorld(protoOptions: TProtoOptions, bases: TBase): TWorld {
+	const { KEY: keyIn, LOG_LEVEL: logLevel, LOG_FOLLOW: logFollow } = protoOptions.options;
+	const tag = getDefaultTag(0);
+	const logger = new Logger({ level: logLevel || 'debug', follow: logFollow });
+	const shared = new WorldContext(tag);
+	const timer = new Timer();
+
+	const key = keyIn || Timer.key;
+	Timer.key = key;
+
+	const world: TWorld = {
+		tag,
+		shared,
+		runtime: {},
+		logger,
+		...protoOptions,
+		timer,
+		bases,
+	};
+	return world;
+}
+
+async function getSpeclOrExit(bases: TBase): Promise<TSpecl> {
+	const specl = getConfigFromBase(bases);
+	if (specl === null || bases?.length < 1) {
+		if (specl === null) {
+			await usageThenExit(specl ? specl : getDefaultOptions(), `missing or unusable config.json from ${bases}`);
+		}
+		await usageThenExit(specl ? specl : getDefaultOptions(), 'no bases');
+	}
+	return specl;
+}
 export async function usageThenExit(specl: TSpecl, message?: string) {
 	const output = await usage(specl, message);
 	console[message ? 'error' : 'info'](output);
@@ -77,8 +159,8 @@ export function processBaseEnvToOptionsAndErrors(env: TEnv) {
 
 			if (baseOption) {
 				const res = baseOption.parse(value, nenv);
-				if (res.error) {
-					errors.push(res.error);
+				if (res.parseError) {
+					errors.push(res.parseError);
 				} else if (res.env) {
 					nenv = { ...nenv, ...res.env };
 				} else if (!res.result) {

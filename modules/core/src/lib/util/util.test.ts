@@ -218,10 +218,10 @@ describe('depolite', () => {
 
 describe('optionOrError', () => {
 	it('rejects no option', async () => {
-		expect(util.optionOrError('a', ['b']).error).toBeDefined();
+		expect(util.optionOrError('a', ['b']).parseError).toBeDefined();
 	});
 	it('rejects undefined option', async () => {
-		expect(util.optionOrError(undefined as unknown as string, ['b']).error).toBeDefined();
+		expect(util.optionOrError(undefined as unknown as string, ['b']).parseError).toBeDefined();
 	});
 	it('returns options', async () => {
 		expect(util.optionOrError('b', ['b'])).toEqual({ result: 'b' });
@@ -236,7 +236,7 @@ describe('boolOrError', () => {
 		expect(util.boolOrError('false')).toEqual({ result: false });
 	});
 	it('returns error', async () => {
-		expect(util.boolOrError('wtw').error).toBeDefined();
+		expect(util.boolOrError('wtw').parseError).toBeDefined();
 	});
 });
 
@@ -245,6 +245,6 @@ describe('stringOrError', () => {
 		expect(util.stringOrError('a')).toEqual({ result: 'a' });
 	});
 	it('returns error', async () => {
-		expect(() => util.stringOrError(undefined as unknown as any).error).toBeDefined();
+		expect(() => util.stringOrError(undefined as unknown as any).parseError).toBeDefined();
 	});
 });
