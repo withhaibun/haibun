@@ -10,9 +10,15 @@ const cycles = (wss: WebServerStepper): IStepperCycles => ({
 		wss.webserver = new ServerExpress(wss.world.logger, path.join([process.cwd(), 'files'].join('/')), wss.port);
 		wss.getWorld().runtime[WEBSERVER] = wss.webserver;
 	},
-	async endFeature() {
-		await wss.webserver?.close();
-		wss.webserver = undefined;
+	async endFeature({ isLast = true, okSoFar = true, thisFeatureOK: thisOK = false, continueAfterError = true, stayOnFailure = true } = {}) {
+		// leave web server running if there was a failure and it's the last feature
+		if (!thisOK && isLast && stayOnFailure) {
+			wss.getWorld().logger.info(`webserver staying open because ${JSON.stringify({ thisOK, ok: okSoFar, isLast, continueAfterError, stayOnFailure })}`);
+		} else {
+			wss.getWorld().logger.log(`closing ${JSON.stringify({ ok: okSoFar, isLast, continueAfterError, stayOnFailure })}`);
+			await wss.webserver?.close();
+			wss.webserver = undefined;
+		}
 	}
 });
 
@@ -30,7 +36,6 @@ class WebServerStepper extends AStepper implements IHasOptions {
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
-		// this.world.runtime[CHECK_LISTENER] = WebServerStepper.checkListener;
 		this.port = parseInt(getStepperOption(this, 'PORT', world.moduleOptions)) || DEFAULT_PORT;
 	}
 
@@ -124,7 +129,6 @@ class WebServerStepper extends AStepper implements IHasOptions {
 
 export default WebServerStepper;
 
-export type ICheckListener = (options: TBaseOptions, webserver: IWebServer) => void;
 export interface IWebServerStepper {
 	webserver: IWebServer;
 	close: () => void;

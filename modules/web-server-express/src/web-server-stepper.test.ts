@@ -4,6 +4,7 @@ import { testWithDefaults } from '@haibun/core/build/lib/test/lib.js';
 import WebHttp from '@haibun/web-http/build/web-http.js';
 
 import WebServerStepper from './web-server-stepper.js';
+import { getDefaultWorld } from '@haibun/core/build/lib/test/lib.js';
 
 describe('static mount', () => {
 	it.skip('serves files', async () => {
@@ -46,6 +47,7 @@ describe.skip('index mount', () => {
 describe('closes mounts', () => {
 	it('re-mounts after close', async () => {
 		const wss = new WebServerStepper();
+		wss.setWorld(getDefaultWorld(0), []);
 		await wss.steps.serveFilesAt.action({ where: '/foo' })
 		await wss.cycles.endFeature!();
 		expect(() => wss.steps.serveFilesAt.action({ where: '/foo' })).not.toThrow();

@@ -34,6 +34,13 @@ const cycles = (wp: WebPlaywright): IStepperCycles => ({
 	async endFeature() {
 		// close the context, which closes any pages
 		if (wp.hasFactory) {
+			await wp.bf?.closeContext(wp.getWorld().tag);
+		}
+		for (const file of wp.downloaded) {
+			wp.getWorld().logger.debug(`removing ${JSON.stringify(file)}`);
+			// rmSync(file);
+		}
+		if (wp.hasFactory) {
 			if (wp.captureVideo) {
 				const page = await wp.getPage();
 				const path = await wp.storage.getRelativePath(await page.video().path());
@@ -61,17 +68,6 @@ const cycles = (wp: WebPlaywright): IStepperCycles => ({
 		}
 
 	},
-	async endedFeature() {
-		// close the context, which closes any pages
-		if (wp.hasFactory) {
-			await wp.bf?.closeContext(wp.getWorld().tag);
-		}
-		for (const file of wp.downloaded) {
-			wp.getWorld().logger.debug(`removing ${JSON.stringify(file)}`);
-			// rmSync(file);
-		}
-	}
-
 });
 
 class WebPlaywright extends AStepper implements IHasOptions {
@@ -132,6 +128,7 @@ class WebPlaywright extends AStepper implements IHasOptions {
 	apiUserAgent: string;
 	extraHTTPHeaders: { [name: string]: string; } = {};
 	BROWSER_STATE_PATH: string = undefined;
+	expectedDownload: Promise<Download>;
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
@@ -629,6 +626,30 @@ class WebPlaywright extends AStepper implements IHasOptions {
 
 						await fileChooser.setFiles(file);
 					});
+					return OK;
+				} catch (e) {
+					return actionNotOK(e);
+				}
+			},
+		},
+		expectDownload: {
+			gwta: 'expect a download',
+			action: async () => {
+				try {
+					this.expectedDownload = this.withPage<Download>(async (page: Page) => page.waitForEvent('download'));
+					return OK;
+				} catch (e) {
+					return actionNotOK(e);
+				}
+			},
+		},
+		receiveDownload: {
+			gwta: 'receive download as {file}',
+			action: async ({ file }: TNamed) => {
+				try {
+					const download = await this.expectedDownload;
+					await await download.saveAs(file);
+					this.downloaded.push(file);
 					return OK;
 				} catch (e) {
 					return actionNotOK(e);

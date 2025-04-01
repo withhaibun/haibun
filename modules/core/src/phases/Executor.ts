@@ -4,7 +4,6 @@ import { getNamedToVars } from '../lib/namedVars.js';
 import { actionNotOK, sleep, findStepper, constructorName, setStepperWorlds } from '../lib/util/index.js';
 
 export class Executor {
-
 	static async action(steppers: AStepper[], featureStep: TFeatureStep, found: TStepAction, world: TWorld) {
 		const namedWithVars = getNamedToVars(found, world, featureStep);
 		const stepper = findStepper<AStepper>(steppers, found.stepperName);
@@ -39,10 +38,7 @@ export class Executor {
 			ok = ok && featureResult.ok;
 			featureResults.push(featureResult);
 			const shouldEndFeatureClose = ok || (!stayOnFailure || !isLast || !continueAfterError);
-			await doStepperCycleMethods(steppers, 'endFeature');
-			if (shouldEndFeatureClose) {
-				await doStepperCycleMethods(steppers, 'endedFeature');
-			}
+			await doStepperCycleMethods(steppers, 'endFeature', { isLast, okSoFar: ok, continueAfterError, stayOnFailure, thisFeatureOK: featureResult.ok });
 			if (!ok && !continueAfterError && !isLast) {
 				world.logger.debug(`stopping without ${CONTINUE_AFTER_ERROR}`);
 				break;
