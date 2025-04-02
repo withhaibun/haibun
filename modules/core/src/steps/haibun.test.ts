@@ -31,17 +31,22 @@ Prose sections are indicated by the presence of punctuation at the end of paragr
 		const feature = { path: '/features/test.feature', content: 'have a test\nafter every TestSteps, passes' };
 		const result = await testWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(true);
-		expect(result.featureResults![0].stepResults.length).toBe(2);
+		expect(result.featureResults && result.featureResults[0].stepResults.length).toBe(2);
 	});
 	it('process multiple effect callbacks', async () => {
 		const feature = { path: '/features/test.feature', content: 'have a test\nafter every TestSteps, passes\nhave a test' };
 		const result = await testWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(true);
-		expect(result.featureResults![0].stepResults.length).toBe(4);
+		const rfzs = result.featureResults && result.featureResults[0].stepResults;
+		expect(rfzs?.length).toBe(4);
 		let n = 0;
-		expect(result.featureResults![0].stepResults[n++].seq).toBe(1);
-		expect(result.featureResults![0].stepResults[n++].seq).toBe(2);
-		expect(result.featureResults![0].stepResults[n++].seq).toBe(3);
-		expect(result.featureResults![0].stepResults[n++].seq).toBe(3.1);
+		expect(rfzs).toBeDefined();
+		if (rfzs === undefined) {
+			return;
+		}
+		expect(rfzs[n++].seq).toBe(1);
+		expect(rfzs[n++].seq).toBe(2);
+		expect(rfzs[n++].seq).toBe(3);
+		expect(rfzs[n++].seq).toBe(3.1);
 	});
 });

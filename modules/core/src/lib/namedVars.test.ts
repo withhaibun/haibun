@@ -12,11 +12,11 @@ import Vars from '../steps/vars.js';
 describe('namedMatches', () => {
 	const step: TStepperStep = {
 		match: /^(?<one>.*?) is (?<two>.*?)$/,
-		action: async () => actionNotOK('test'),
+		action: async () => Promise.resolve(actionNotOK('test')),
 	};
 
 	it('gets named matches', () => {
-		expect(getNamedMatches(step.match!, 'It is set')).toEqual({ one: 'It', two: 'set' });
+		expect(getNamedMatches(step.match as RegExp, 'It is set')).toEqual({ one: 'It', two: 'set' });
 	});
 });
 
@@ -78,7 +78,7 @@ describe('getNamedWithVars', () => {
 		steps = {
 			gwtaInterpolated: {
 				gwta: 'is {what}',
-				action: async () => OK,
+				action: async () => Promise.resolve(OK),
 			},
 		};
 	}

@@ -1,12 +1,12 @@
-import { ILogger, ILogOutput } from './interfaces/logger.js';
+import { ILogger } from './interfaces/logger.js';
 
 const nothin = () => undefined;
 export default class TestLogger implements ILogger {
-  debug = nothin;
-  log = nothin;
-  info = nothin;
-  warn = nothin;
-  error = nothin;
-  addSubscriber = nothin;
-  removeSubscriber = nothin;
+	debug = nothin;
+	log = nothin;
+	info = nothin;
+	warn = nothin;
+	error = nothin;
+	addSubscriber = nothin;
+	removeSubscriber = nothin;
 }

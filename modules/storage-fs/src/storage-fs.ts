@@ -19,11 +19,11 @@ export default class StorageFS extends AStorage {
 			isDirectory: l.isDirectory(),
 			isFile: l.isFile()
 		}
-		return <IFile>ifile;
+		return Promise.resolve(<IFile>ifile);
 	}
 	readdir = async (dir: string) => {
 		try {
-			return fs.readdirSync(dir);
+			return Promise.resolve(fs.readdirSync(dir));
 		} catch (e) {
 			console.error(`can't read ${dir}`);
 			throw (e);

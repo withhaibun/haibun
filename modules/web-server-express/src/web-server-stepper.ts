@@ -9,6 +9,7 @@ const cycles = (wss: WebServerStepper): IStepperCycles => ({
 	async startFeature() {
 		wss.webserver = new ServerExpress(wss.world.logger, path.join([process.cwd(), 'files'].join('/')), wss.port);
 		wss.getWorld().runtime[WEBSERVER] = wss.webserver;
+		await Promise.resolve()
 	},
 	async endFeature({ isLast = true, okSoFar = true, thisFeatureOK = true, continueAfterError = false, stayOnFailure = false } = {}) {
 		// leave web server running if there was a failure and it's the last feature
@@ -64,7 +65,7 @@ class WebServerStepper extends AStepper implements IHasOptions {
 				const webserver = <IWebServer>getFromRuntime(this.getWorld().runtime, WEBSERVER);
 				const mounts = webserver.mounted;
 				this.getWorld().logger.info(`mounts: ${JSON.stringify(mounts, null, 2)}`);
-				return OK;
+				return Promise.resolve(OK);
 			},
 		},
 		serveFilesAt: {
@@ -100,7 +101,7 @@ class WebServerStepper extends AStepper implements IHasOptions {
 			action: async () => {
 				const routes = this.webserver?.mounted;
 				this.getWorld().logger.info(`routes: ${JSON.stringify(routes, null, 2)}`);
-				return OK;
+				return Promise.resolve(OK);
 			},
 		}
 	};
@@ -125,7 +126,7 @@ class WebServerStepper extends AStepper implements IHasOptions {
 	async listen() {
 		await this.webserver.listen();
 	}
-};
+}
 
 export default WebServerStepper;
 

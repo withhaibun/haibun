@@ -3,7 +3,7 @@ import { EOL } from 'os';
 
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 import { findStepperFromOption, getStepperOption, stringOrError } from '@haibun/core/build/lib/util/index.js';
-import { AStepper, TWorld, TExecutorResult, TNotOkStepActionResult, IProcessFeatureResults, IHasOptions } from '@haibun/core/build/lib/defs.js';
+import { AStepper, TWorld, TExecutorResult, TNotOkStepActionResult, IProcessFeatureResults, IHasOptions, TAnyFixme } from '@haibun/core/build/lib/defs.js';
 import { MEDIA_TYPES, TMediaType } from '@haibun/domain-storage/build/media-types.js';
 
 const STORAGE = 'STORAGE';
@@ -44,6 +44,7 @@ export default class OutXUnit extends AStepper implements IProcessFeatureResults
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		this.outputFile = getStepperOption(this, 'OUTPUT_FILE', world.moduleOptions) || 'junit.xml';
 		this.storage = findStepperFromOption(steppers, this, world.moduleOptions, STORAGE);
+		await Promise.resolve();
 	}
 
 	async processFeatureResult(result: TExecutorResult) {
@@ -59,7 +60,7 @@ export default class OutXUnit extends AStepper implements IProcessFeatureResults
 		const failures = result.featureResults?.filter((t) => !t.ok)?.length || 0;
 		const skipped = result.featureResults?.filter((t) => t.skip)?.length || 0;
 		const count = result.featureResults?.length || 0;
-		const forXML: any = {
+		const forXML: TAnyFixme = {
 			testsuites: {
 				'@tests': count,
 				'@name': this.name,
@@ -86,8 +87,7 @@ export default class OutXUnit extends AStepper implements IProcessFeatureResults
 			forXML.testsuites.testsuite.testcase.push(testCase);
 		}
 		const junit = create(forXML).end({ prettyPrint: this.prettyPrint, newline: EOL });
-		return junit;
-
+		return Promise.resolve(junit);
 	}
 
 	getFailResult(failure: TNotOkStepActionResult) {

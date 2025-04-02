@@ -3,7 +3,7 @@ import TurndownService from 'turndown';
 
 export async function parseMatches(docs: { [name: string]: string | undefined }, base: string, matches: RegExp[]) {
 
-  let conditions = [];
+  const conditions = [];
 
   for (const doc of Object.keys(docs)) {
     let markdown = docs[doc];

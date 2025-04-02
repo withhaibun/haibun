@@ -1,4 +1,4 @@
-import { TNamed, TFeatureStep, OK, AStepper, IHasOptions, TModuleOptions, TBaseOptions, TTag } from '@haibun/core/build/lib/defs.js';
+import { AStepper, IHasOptions, TModuleOptions, TBaseOptions, TTag } from '@haibun/core/build/lib/defs.js';
 import { stringOrError } from '@haibun/core/build/lib/util/index.js';
 import { TMediaType, MEDIA_TYPES, MAPPED_MEDIA_TYPES } from './media-types.js';
 
@@ -22,20 +22,7 @@ const DomainStorage = class DomainStorage extends AStepper implements IHasOption
 		},
 	};
 
-	steps = {
-		aLocation: {
-			gwta: `a ${STORAGE_LOCATION} at {where}`,
-			action: async ({ where }: TNamed, featureStep: TFeatureStep) => {
-				return OK;
-			},
-		},
-		anItem: {
-			gwta: `A ${STORAGE_ITEM} {name}`,
-			action: async ({ name }: TNamed) => {
-				return OK;
-			},
-		},
-	};
+	steps = {};
 };
 
 export default DomainStorage;

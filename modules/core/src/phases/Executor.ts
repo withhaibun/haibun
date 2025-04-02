@@ -109,7 +109,7 @@ const doStepperMethod = async <K extends keyof IStepperCycles>(steppers: ASteppe
 	for (const stepper of steppers) {
 		if (stepper?.cycles && stepper.cycles[method]) {
 			stepper.getWorld().logger.log(`🔁 ${method} ${constructorName(stepper)}`);
-			await (stepper.cycles[method] as (...args: any[]) => Promise<any>)(...args).catch((error: TAnyFixme) => {
+			await (stepper.cycles[method] as (...args: TAnyFixme[]) => Promise<TAnyFixme>)(...args).catch((error: TAnyFixme) => {
 				console.error(`${method} failed`, error);
 				throw error;
 			});

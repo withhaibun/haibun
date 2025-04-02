@@ -23,7 +23,7 @@ export type TBaseOptions = {
 	envVariables?: TEnvVariables
 };
 
-type TEnvVariables = {
+export type TEnvVariables = {
 	[name: string]: string;
 }
 
@@ -96,6 +96,7 @@ export type TResolvedFeature = {
 	featureSteps: TFeatureStep[];
 };
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const example: TResolvedFeature = {
 	path: 'path',
 	base: 'base',
@@ -108,7 +109,7 @@ const example: TResolvedFeature = {
 			action: {
 				actionName: 'actionName',
 				stepperName: 'stepperName',
-				step: { action: async () => OK },
+				step: { action: async () => await Promise.resolve(OK) },
 			},
 		},
 	],
@@ -171,8 +172,10 @@ export interface IStepperCycles {
 export abstract class AStepper {
 	world?: TWorld;
 	cycles?: IStepperCycles;
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		this.world = world;
+		await Promise.resolve();
 	}
 	abstract steps: { [name: string]: TStepperStep };
 	getWorld() {
