@@ -1,4 +1,4 @@
-import { IHasOptions, OK, TWorld, TNamed, AStepper, TFeatureStep, IStepperCycles } from '@haibun/core/build/lib/defs.js';
+import { IHasOptions, OK, TWorld, TNamed, AStepper, TFeatureStep, IStepperCycles, TEndFeature } from '@haibun/core/build/lib/defs.js';
 import { actionNotOK, getFromRuntime, getStepperOption, intOrError } from '@haibun/core/build/lib/util/index.js';
 import { IWebServer, WEBSERVER } from './defs.js';
 import { ServerExpress, DEFAULT_PORT } from './server-express.js';
@@ -11,14 +11,12 @@ const cycles = (wss: WebServerStepper): IStepperCycles => ({
 		wss.getWorld().runtime[WEBSERVER] = wss.webserver;
 		await Promise.resolve()
 	},
-	async endFeature({ isLast = true, okSoFar = true, thisFeatureOK = true, continueAfterError = false, stayOnFailure = false } = {}) {
+	async endFeature({ shouldClose }: TEndFeature) {
 		// leave web server running if there was a failure and it's the last feature
-		if (!thisFeatureOK && isLast && stayOnFailure) {
-			wss.getWorld().logger.info(`webserver staying open because ${JSON.stringify({ thisFeatureOK, okSoFar, isLast, continueAfterError, stayOnFailure })}`);
-		} else {
-			wss.getWorld().logger.log(`closing ${JSON.stringify({ thisFeatureOK, okSoFar, isLast, continueAfterError, stayOnFailure })}`);
+		if (shouldClose) {
 			await wss.webserver?.close();
 			wss.webserver = undefined;
+			return;
 		}
 	}
 });
