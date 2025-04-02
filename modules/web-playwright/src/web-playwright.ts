@@ -36,7 +36,7 @@ const cycles = (wp: WebPlaywright): IStepperCycles => ({
 			await wp.createMonitor();
 		}
 	},
-	async endFeature({ shouldClose }: TEndFeature) {
+	async endFeature({ shouldClose = true }: TEndFeature) {
 		// leave web server running if there was a failure and it's the last feature
 		if (shouldClose) {
 			for (const file of wp.downloaded) {
