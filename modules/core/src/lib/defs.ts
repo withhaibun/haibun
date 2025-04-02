@@ -162,10 +162,12 @@ export type TSteppers = {
 	[name: string]: AStepper;
 };
 
+export type TEndFeature = { shouldClose: boolean, isLast: boolean, okSoFar: boolean, continueAfterError: boolean, stayOnFailure: boolean, thisFeatureOK: boolean };
+
 export interface IStepperCycles {
 	startExecution?(): Promise<void>;
 	startFeature?(): Promise<void>;
-	endFeature?(endedWith?: { isLast?: boolean, okSoFar?: boolean, continueAfterError?: boolean, stayOnFailure?: boolean, thisFeatureOK?: boolean }): Promise<void>;
+	endFeature?(endedWith?: TEndFeature): Promise<void>;
 	onFailure?(result: TStepResult, step: TFeatureStep): Promise<void | TMessageContext>;
 	endExecution?(): Promise<void>
 }
