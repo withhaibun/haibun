@@ -53,7 +53,7 @@ describe('closes mounts', () => {
 			if (!wss.cycles || !wss.cycles.endFeature) {
 				throw new Error('no cycles');
 			}
-			await wss.cycles.endFeature();
+			await wss.cycles.endFeature({ shouldClose: true, isLast: true, okSoFar: true, continueAfterError: false, stayOnFailure: false, thisFeatureOK: true });
 			return wss.steps.serveFilesAt.action({ where: '/foo' });
 		}).not.toThrow();
 	});

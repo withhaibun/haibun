@@ -28,7 +28,7 @@ class Vars extends AStepper {
 	private getVarValue(what: string): TAnyFixme {
 		const envVal = this.getWorld().options.envVariables?.[what];
 		if (envVal !== undefined) {
-			return Promise.resolve(envVal);
+			return envVal;
 		}
 		return this.getWorld().shared.get(what);
 	}

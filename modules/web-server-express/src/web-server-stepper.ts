@@ -11,7 +11,7 @@ const cycles = (wss: WebServerStepper): IStepperCycles => ({
 		wss.getWorld().runtime[WEBSERVER] = wss.webserver;
 		await Promise.resolve()
 	},
-	async endFeature({ shouldClose }: TEndFeature) {
+	async endFeature({ shouldClose = true }: TEndFeature) {
 		// leave web server running if there was a failure and it's the last feature
 		if (shouldClose) {
 			await wss.webserver?.close();
