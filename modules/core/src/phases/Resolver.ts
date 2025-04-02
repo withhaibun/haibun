@@ -22,7 +22,7 @@ export class Resolver {
 	}
 
 	public async findFeatureSteps(feature: TExpandedFeature): Promise<TFeatureStep[]> {
-		let featureSteps: TFeatureStep[] = [];
+		const featureSteps: TFeatureStep[] = [];
 		let seq = 0;
 		for (const featureLine of feature.expanded) {
 			seq++;
@@ -40,7 +40,7 @@ export class Resolver {
 			featureSteps.push(featureStep);
 		}
 
-		return featureSteps;
+		return Promise.resolve(featureSteps);
 	}
 
 	getFeatureStep(featureLine: TExpandedLine, seq: number, action: TStepAction): TFeatureStep {
@@ -98,7 +98,7 @@ const comment = {
 	step: {
 		match: /.*/,
 		action: async () => {
-			return OK;
+			return Promise.resolve(OK);
 		},
 	},
 };

@@ -1,7 +1,7 @@
-import { TTag } from './defs.js';
+import { TAnyFixme, TTag } from './defs.js';
 
 export class Context {
-	values: { [name: string]: any };
+	values: { [name: string]: TAnyFixme };
 
 	constructor(private context: string, initial?: { [name: string]: string }) {
 		this.values = initial || {};
@@ -23,7 +23,7 @@ export class Context {
 	get(name: string) {
 		return this.values[name];
 	}
-	concat(name: string, value: any) {
+	concat(name: string, value: TAnyFixme) {
 		const t = this.values[name] || [];
 		this.values[name] = [...t, value];
 	}

@@ -5,11 +5,7 @@ import { convert } from 'xmlbuilder2';
 import OutXUnit from './out-xunit.js';
 import { testWithDefaults } from '@haibun/core/build/lib/test/lib.js';
 import TestSteps from '@haibun/core/build/lib/test/TestSteps.js';
-import { workspaceRoot } from '@haibun/core/build/lib/util/workspace-lib.js';
-import path from 'path';
 import { TAnyFixme } from '@haibun/core/build/lib/defs.js';
-
-const ox = path.join(workspaceRoot, 'node_modules', '@haibun', 'out-xunit', 'build', 'out-xunit');
 
 describe('AsXML transforms', () => {
 	it('transforms single pass result to xunit', async () => {

@@ -10,8 +10,8 @@ import * as lib from './lib.js';
 const s = (s) => s.split(' ');
 
 const expectExitAndThrow = (expectedCode: number) => (code?: number | string | null) => {
-  expect(code).toBe(expectedCode);
-  throw new Error(`exit with code ${expectedCode}`);
+	expect(code).toBe(expectedCode);
+	throw new Error(`exit with code ${expectedCode}`);
 };
 
 describe('usageThenExit', () => {
@@ -35,34 +35,29 @@ describe('options', () => {
 		const result = await testWithDefaults([feature], [TestStepsWithOptions], protoConfig);
 		expect(result.ok).toBe(true);
 		expect(result.featureResults?.length).toBe(1);
-		expect(result.featureResults![0].stepResults[0].actionResult.topics?.options.summary).toEqual('options');
+		expect(result.featureResults?.[0].stepResults[0].actionResult.topics?.options.summary).toEqual('options');
 	});
 });
 
 describe('processEnv', () => {
 	it('assigns boolean true', () => {
-		const specl = getDefaultOptions();
 		const { protoOptions } = lib.processBaseEnvToOptionsAndErrors({ [`HAIBUN_${CONTINUE_AFTER_ERROR}`]: 'true' });
 		expect(protoOptions.options[CONTINUE_AFTER_ERROR]).toBeDefined();
 		expect(protoOptions.options[CONTINUE_AFTER_ERROR]).toBe(true);
 	});
 	it('errors for non-boolean value ', () => {
-		const specl = getDefaultOptions();
 		const { errors } = lib.processBaseEnvToOptionsAndErrors({ HAIBUN_TRACE: 'wtw' });
 		expect(errors.length).toBe(1);
 	});
 	it('assigns int', () => {
-		const specl = getDefaultOptions();
 		const { options } = lib.processBaseEnvToOptionsAndErrors({ [`HAIBUN_${STEP_DELAY}`]: '1' }).protoOptions;
 		expect(options[STEP_DELAY]).toBe(1);
 	});
 	it('errors for string passed as int', () => {
-		const specl = getDefaultOptions();
 		const { errors } = lib.processBaseEnvToOptionsAndErrors({ [`HAIBUN_${STEP_DELAY}`]: 'x.2' });
 		expect(errors.length).toBe(1);
 	});
 	it('errors for non option', () => {
-		const specl = getDefaultOptions();
 		const { errors } = lib.processBaseEnvToOptionsAndErrors({ HAIBUN_WTW: 'x.2' });
 		expect(errors.length).toBe(1);
 	});

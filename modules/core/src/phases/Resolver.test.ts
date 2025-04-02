@@ -21,19 +21,19 @@ describe('validate map steps', () => {
 		steps = {
 			exact: {
 				exact: 'exact1',
-				action: async () => OK,
+				action: async () => Promise.resolve(OK),
 			},
 			match: {
 				match: /match(?<num>1)/,
-				action: async () => OK,
+				action: async () => Promise.resolve(OK),
 			},
 			gwta: {
 				gwta: 'gwta(?<num>.)',
-				action: async () => OK,
+				action: async () => Promise.resolve(OK),
 			},
 			gwtaInterpolated: {
 				gwta: 'is {what}',
-				action: async () => OK,
+				action: async () => Promise.resolve(OK),
 			},
 		};
 	}

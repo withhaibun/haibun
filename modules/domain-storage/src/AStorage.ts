@@ -67,13 +67,14 @@ export abstract class AStorage extends AStepper {
 	async latestFrom(dir: string) {
 		const orderReccentFiles = async (dir: string) =>
 			(await this.readdirStat(dir)).filter((f) => f.isFile).sort((a, b) => b.created - a.created);
-		return orderReccentFiles(dir)[0];
+		return Promise.resolve(orderReccentFiles(dir)[0]);
 	}
 
 	abstract mkdir(dir: string);
 	abstract mkdirp(dir: string);
 	abstract exists(ntt: string);
 
+	// eslint-disable-next-line @typescript-eslint/require-await
 	async rmrf(dir: string) {
 		throw Error(`rmrf not implemented at ${dir}`);
 	}
@@ -119,7 +120,7 @@ export abstract class AStorage extends AStepper {
 	async getCaptureLocation(loc: TLocationOptions, app?: string) {
 		const { tag } = loc;
 		const locator = this.locator(loc, tag.key, `seq-${tag.sequence}`, `featn-${tag.featureNum}`, app);
-		return locator;
+		return Promise.resolve(locator);
 	}
 
 	async ensureCaptureLocation(loc: TLocationOptions, app?: string | undefined, fn = '') {
@@ -135,6 +136,7 @@ export abstract class AStorage extends AStepper {
 				throw Error(`creating ${dir}: ${e}`);
 			}
 		}
+		return Promise.resolve();
 	}
 
 	steps = {
@@ -219,7 +221,7 @@ export abstract class AStorage extends AStepper {
 			gwta: `storage entry {what} exists`,
 			action: async ({ what }: TNamed) => {
 				const exists = this.exists(what);
-				return exists ? OK : actionNotOK(`file ${what} does not exist`);
+				return Promise.resolve(exists ? OK : actionNotOK(`file ${what} does not exist`));
 			},
 		},
 		clearAllFiles: {
@@ -234,7 +236,7 @@ export abstract class AStorage extends AStepper {
 			action: async ({ what, where }: TNamed) => {
 				const c1 = this.readFile(what, 'binary');
 				const c2 = this.readFile(where, 'binary');
-				return Buffer.from(c1)?.equals(Buffer.from(c2)) ? OK : actionNotOK(`contents are not the same ${what} ${where}`);
+				return Promise.resolve(Buffer.from(c1)?.equals(Buffer.from(c2)) ? OK : actionNotOK(`contents are not the same ${what} ${where}`));
 			},
 		},
 	};

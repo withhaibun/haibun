@@ -1,5 +1,5 @@
 import { Context } from '../lib/contexts.js';
-import { OK, TNamed, TFeatureStep, TWorld, TActionResultTopics, AStepper, IStepperCycles } from '../lib/defs.js';
+import { OK, TNamed, TFeatureStep, TWorld, TActionResultTopics, AStepper, IStepperCycles, TAnyFixme } from '../lib/defs.js';
 import { actionNotOK } from '../lib/util/index.js';
 
 // FIXME see https://github.com/withhaibun/haibun/issues/18
@@ -8,6 +8,7 @@ const getOrCond = (fr: string) => fr.replace(/.* is set or /, '');
 const cycles = (vars: Vars): IStepperCycles => ({
 	startFeature: async () => {
 		vars.getWorld().shared.values = {};
+		return Promise.resolve();
 	}
 });
 
@@ -18,16 +19,16 @@ class Vars extends AStepper {
 		const emptyOnly = !!featureStep.in.match(/set empty /);
 
 		const res = setShared(named, featureStep, this.getWorld(), emptyOnly);
-		return res;
+		return Promise.resolve(res);
 	};
 	checkIsSet(what: string,) {
 		return this.getVarValue(what) !== undefined;
 	}
 	// FIXME provide explicit mapping to more carefully handle env, etc.
-	private getVarValue(what: string): any {
+	private getVarValue(what: string): TAnyFixme {
 		const envVal = this.getWorld().options.envVariables?.[what];
 		if (envVal !== undefined) {
-			return envVal;
+			return Promise.resolve(envVal);
 		}
 		return this.getWorld().shared.get(what);
 	}
@@ -76,37 +77,37 @@ class Vars extends AStepper {
 			gwta: 'variable {what: string} is "{value}"',
 			action: async ({ what, value }: TNamed) => {
 				const val = this.getVarValue(what);
-				return val === value ? OK : actionNotOK(`${what} is "${val}", not "${value}"`);
+				return Promise.resolve(val === value ? OK : actionNotOK(`${what} is "${val}", not "${value}"`));
 			},
 		},
 		isSet: {
 			gwta: 'variable {what: string} is set( or .*)?',
 
-			action: async ({ what }: TNamed, featureStep: TFeatureStep) => this.isSet(what, getOrCond(featureStep.in)),
+			action: async ({ what }: TNamed, featureStep: TFeatureStep) => Promise.resolve(this.isSet(what, getOrCond(featureStep.in))),
 		},
 		isNotSet: {
 			gwta: 'variable {what: string} is not set?',
-			action: async ({ what }: TNamed) => this.checkIsSet(what) ? actionNotOK(`${what} is set`) : OK,
+			action: async ({ what }: TNamed) => this.checkIsSet(what) ? actionNotOK(`${what} is set`) : Promise.resolve(OK),
 		},
 		background: {
 			match: /^Background: ?(?<background>.+)?$/,
 			action: async ({ background }: TNamed) => {
 				this.getWorld().shared.set('background', background);
-				return OK;
+				return Promise.resolve(OK);
 			},
 		},
 		feature: {
 			match: /^Feature: ?(?<feature>.+)?$/,
 			action: async ({ feature }: TNamed) => {
 				this.getWorld().shared.set('feature', feature);
-				return OK;
+				return Promise.resolve(OK);
 			},
 		},
 		scenario: {
 			match: /^Scenario: (?<scenario>.+)$/,
 			action: async ({ scenario }: TNamed) => {
 				this.getWorld().shared.set('scenario', scenario);
-				return OK;
+				return Promise.resolve(OK);
 			},
 		},
 		display: {
@@ -114,11 +115,11 @@ class Vars extends AStepper {
 			action: async ({ what }: TNamed) => {
 				this.getWorld().logger.info(`is ${JSON.stringify(what)}`);
 
-				return OK;
+				return Promise.resolve(OK);
 			},
 		},
 	};
-};
+}
 
 export default Vars;
 
@@ -127,7 +128,7 @@ export const didNotOverwrite = (what: string, present: string | Context, value: 
 });
 
 export const setShared = ({ what, value }: TNamed, featureStep: TFeatureStep, world: TWorld, emptyOnly = false) => {
-	let { shared } = world;
+	const { shared } = world;
 
 	if (!emptyOnly || shared.get(what) === undefined) {
 		shared.set(what, value);

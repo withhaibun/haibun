@@ -22,7 +22,7 @@ export async function expandBackgrounds(features: TFeatures) {
 		}
 		expanded.push(withNameType(base, path, res));
 	}
-	return expanded;
+	return Promise.resolve(expanded);
 }
 const upperPath = (path: string) => {
 	const r = path.split('/');
@@ -68,7 +68,7 @@ async function expandIncluded(feature: TFeature, backgrounds: TFeatures) {
 		}
 	}
 
-	return lines;
+	return Promise.resolve(lines);
 }
 
 export function withNameType(base, path: string, content: string) {

@@ -20,7 +20,6 @@ describe('log levels', () => {
 describe('logger with subscriber', () => {
 	test.skip('subscriber receives topic', async () => {
 		const logger = new Logger({ level: 'debug' });
-		const tag = getDefaultTag(0);
 		// FIXME
 		const step = {
 			'@type': 'Step',

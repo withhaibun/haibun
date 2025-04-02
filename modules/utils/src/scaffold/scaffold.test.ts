@@ -6,7 +6,7 @@ import { scaffoldHaibun } from './scaffold.js';
 import { workspaceRoot } from '@haibun/core/build/lib/util/workspace-lib.js';
 
 const TMPDIR = '/tmp/haibun-scaffold-test/';
-const out = (...a: string[]) => undefined;
+const out = () => undefined;
 
 beforeEach(() => {
 	rmSync(TMPDIR, { recursive: true, force: true });

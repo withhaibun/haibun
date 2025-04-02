@@ -32,7 +32,7 @@ describe('findStepperFromOptions', () => {
 		steps = {
 			test: {
 				exact: 'When I have a stepper option',
-				action: async () => OK,
+				action: async () => await Promise.resolve(OK),
 			},
 		};
 	};
@@ -87,7 +87,7 @@ describe('verifyRequiredOptions', () => {
 		steps = {
 			test: {
 				exact: 'When I have a stepper option',
-				action: async () => OK,
+				action: async () => await Promise.resolve(OK),
 			},
 		};
 	}
@@ -106,7 +106,7 @@ describe('verifyRequiredOptions', () => {
 });
 
 describe('getStepperOptions', () => {
-	it('finds stepper options', async () => {
+	it('finds stepper options', () => {
 		const conc = util.getStepperOptionValue(HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, 'true', [TestStepsWithOptions]);
 		expect(conc).toBeDefined();
 	});
@@ -217,34 +217,34 @@ describe('depolite', () => {
 });
 
 describe('optionOrError', () => {
-	it('rejects no option', async () => {
+	it('rejects no option', () => {
 		expect(util.optionOrError('a', ['b']).parseError).toBeDefined();
 	});
-	it('rejects undefined option', async () => {
+	it('rejects undefined option', () => {
 		expect(util.optionOrError(undefined as unknown as string, ['b']).parseError).toBeDefined();
 	});
-	it('returns options', async () => {
+	it('returns options', () => {
 		expect(util.optionOrError('b', ['b'])).toEqual({ result: 'b' });
 	});
 });
 
 describe('boolOrError', () => {
-	it('returns true', async () => {
+	it('returns true', () => {
 		expect(util.boolOrError('true')).toEqual({ result: true });
 	});
-	it('returns false', async () => {
+	it('returns false', () => {
 		expect(util.boolOrError('false')).toEqual({ result: false });
 	});
-	it('returns error', async () => {
+	it('returns error', () => {
 		expect(util.boolOrError('wtw').parseError).toBeDefined();
 	});
 });
 
 describe('stringOrError', () => {
-	it('returns value', async () => {
+	it('returns value', () => {
 		expect(util.stringOrError('a')).toEqual({ result: 'a' });
 	});
-	it('returns error', async () => {
-		expect(() => util.stringOrError(undefined as unknown as any).parseError).toBeDefined();
+	it('returns error', () => {
+		expect(() => util.stringOrError(undefined as unknown as TAnyFixme).parseError).toBeDefined();
 	});
 });

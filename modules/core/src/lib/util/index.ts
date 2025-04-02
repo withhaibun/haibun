@@ -1,4 +1,4 @@
-import { IHasOptions, TNotOKActionResult, TOKActionResult, TSpecl, TWorld, TRuntime, TActionResultTopics, TTag, AStepper, TModuleOptions, CStepper, TTagValue, TFeatureResult, TAnyFixme } from '../defs.js';
+import { IHasOptions, TNotOKActionResult, TOKActionResult, TSpecl, TWorld, TRuntime, TActionResultTopics, TTag, AStepper, TModuleOptions, CStepper, TTagValue, TAnyFixme } from '../defs.js';
 import { Timer } from '../Timer.js';
 
 type TClass = { new <T>(...args: unknown[]): T };
@@ -52,7 +52,7 @@ export async function createSteppers(steppers: CStepper[]): Promise<AStepper[]> 
 			throw e;
 		}
 	}
-	return allSteppers;
+	return Promise.resolve(allSteppers);
 }
 
 export function getDefaultOptions(): TSpecl {
@@ -102,6 +102,7 @@ export async function verifyExtraOptions(inExtraOptions: TModuleOptions, csteppe
 	if (Object.keys(moduleOptions).length > 0) {
 		throw Error(`no extra option for ${moduleOptions}`);
 	}
+	return Promise.resolve();
 }
 
 export async function setStepperWorlds(steppers: AStepper[], world: TWorld) {
@@ -162,6 +163,7 @@ export async function verifyRequiredOptions(steppers: CStepper[], options: TModu
 	if (requiredMissing.length) {
 		throw Error(`missing required options ${requiredMissing}`);
 	}
+	return Promise.resolve();
 }
 
 export function getStepperOptionName(stepper: AStepper | CStepper, name: string) {

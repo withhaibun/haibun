@@ -1,6 +1,6 @@
 import nodeFS from 'fs';
 
-import { BASE_PREFIX, CHECK_NO, CHECK_YES, DEFAULT_DEST, IHasOptions, isProcessFeatureResults, STAY, STAY_ALWAYS, TBase, TProtoOptions, TSpecl, TWorld } from '@haibun/core/build/lib/defs.js';
+import { BASE_PREFIX, CHECK_NO, CHECK_YES, DEFAULT_DEST, IHasOptions, isProcessFeatureResults, STAY, STAY_ALWAYS, TAnyFixme, TBase, TProtoOptions, TSpecl, TWorld } from '@haibun/core/build/lib/defs.js';
 import { getCreateSteppers } from '@haibun/core/build/lib/test/lib.js';
 import { getPre } from '@haibun/core/build/lib/util/index.js';
 import { BaseOptions } from './BaseOptions.js';
@@ -38,7 +38,7 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 		await usageThenExit(specl, errors.join('\n'));
 	}
 
-	const description = protoOptions.options.DESCRIPTION || bases + ' ' + [...(featureFilter || [])].join(',');
+	// const description = protoOptions.options.DESCRIPTION || bases + ' ' + [...(featureFilter || [])].join(',');
 	const world = getWorld(protoOptions, bases);
 
 	const runner = new Runner(world);
@@ -105,7 +105,7 @@ export async function getAllSteppers(specl: TSpecl) {
 	const a = steppers.reduce((acc, o) => {
 		return {
 			...acc,
-			[(o as any).constructor.name]: Object.entries(o.steps).map(
+			[(o as TAnyFixme).constructor.name]: Object.entries(o.steps).map(
 				([stepperName, stepperMatch]) => stepperName + ': ' + (stepperMatch.gwta || stepperMatch.match || stepperMatch.match)
 			),
 		};
