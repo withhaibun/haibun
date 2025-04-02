@@ -7,6 +7,7 @@ import { getDefaultWorld, getTestWorldWithOptions } from '@haibun/core/build/lib
 import StorageMem from './storage-mem.js';
 import { Timer } from '@haibun/core/build/lib/Timer.js';
 import { EMediaTypes } from '@haibun/domain-storage/build/media-types.js';
+import { TAnyFixme } from '@haibun/core/src/lib/defs.js';
 
 const { key } = Timer;
 
@@ -14,14 +15,14 @@ vi.spyOn(process, 'cwd').mockReturnValue('/');
 
 describe('BASE_FS', () => {
 	afterEach(() => {
-		(StorageMem.BASE_FS as any) = undefined;
+		(StorageMem.BASE_FS as TAnyFixme) = undefined;
 	});
-	it('finds BASE_FS file', async () => {
+	it('finds BASE_FS file', () => {
 		StorageMem.BASE_FS = { hello: 'world' };
 		const storageMem = new StorageMem();
 		expect(storageMem.readFile('hello', 'utf-8')).toEqual('world');
 	});
-	it('finds BASE_FS subdir', async () => {
+	it('finds BASE_FS subdir', () => {
 		StorageMem.BASE_FS = { '/hello/world': 'eh' };
 		const storageMem = new StorageMem();
 		expect(storageMem.readFile('/hello/world', 'utf-8')).toEqual('eh');

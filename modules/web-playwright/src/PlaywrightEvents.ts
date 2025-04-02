@@ -27,6 +27,7 @@ export class PlaywrightEvents {
 		}
 
 		this.log(`${type} ${etc.method}`, frameURL, request.url(), etc);
+		return Promise.resolve();
 	}
 
 	private async routeRequest(route: Route, request: Request): Promise<void> {
@@ -44,6 +45,7 @@ export class PlaywrightEvents {
 		}
 
 		this.log(`response ${etc.status}`, frameURL, response.url(), etc);
+		return Promise.resolve();
 	}
 	public close(): void {
 		this.page.off('request', this.logRequest.bind(this));

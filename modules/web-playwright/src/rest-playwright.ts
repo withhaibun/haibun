@@ -1,6 +1,6 @@
 import { actionNotOK, actionOK } from '@haibun/core/build/lib/util/index.js';
 import WebPlaywright from './web-playwright.js';
-import { TNamed, OK } from '@haibun/core/build/lib/defs.js';
+import { TNamed, OK, TAnyFixme } from '@haibun/core/build/lib/defs.js';
 
 const LAST_REST_RESPONSE = 'LAST_REST_RESPONSE';
 const PAYLOAD_METHODS = ['post', 'put', 'patch'];
@@ -19,21 +19,21 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 		gwta: `API user agent is {agent}`,
 		action: async ({ agent }: TNamed) => {
 			webPlaywright.apiUserAgent = agent;
-			return OK;
+			return Promise.resolve(OK);
 		}
 	},
 	addBasicAuthCredentials: {
 		gwta: `use Authorization Basic header with {username}, {password}`,
 		action: async ({ username, password }: TNamed) => {
 			await webPlaywright.setExtraHTTPHeaders({ [AUTHORIZATION]: `Basic ${base64Encode({ username, password })}` });
-			return OK;
+			return Promise.resolve(OK);
 		},
 	},
 	addAuthBearerToken: {
 		gwta: `use Authorization Bearer header with {token}`,
 		action: async ({ token }: TNamed) => {
 			await webPlaywright.setExtraHTTPHeaders({ [AUTHORIZATION]: `Bearer ${token}` });
-			return OK;
+			return Promise.resolve(OK);
 		},
 	},
 	restTokenRequest: {
@@ -47,7 +47,7 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 
 			webPlaywright.getWorld().shared.set(LAST_REST_RESPONSE, serialized);
 
-			return OK;
+			return Promise.resolve(OK);
 		},
 	},
 	restTokenLogout: {
@@ -58,7 +58,7 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 			const serialized = await webPlaywright.withPageFetch(endpoint);
 			webPlaywright.getWorld().shared.set(LAST_REST_RESPONSE, serialized);
 
-			return OK;
+			return Promise.resolve(OK);
 		},
 	},
 
@@ -69,13 +69,10 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 			if (!NO_PAYLOAD_METHODS.includes(method)) {
 				return actionNotOK(`Method ${method} not supported`);
 			}
-			const headers = {
-				accept
-			}
 			const serialized = await webPlaywright.withPageFetch(endpoint, method, { headers: { accept } });
 			webPlaywright.getWorld().shared.set(LAST_REST_RESPONSE, serialized);
 
-			return OK;
+			return Promise.resolve(OK);
 		},
 	},
 	restEndpointRequest: {
@@ -88,7 +85,7 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 			const serialized = await webPlaywright.withPageFetch(endpoint, method);
 			webPlaywright.getWorld().shared.set(LAST_REST_RESPONSE, serialized);
 
-			return OK;
+			return Promise.resolve(OK);
 		},
 	},
 	filterResponseJson: {
@@ -99,12 +96,12 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 				return actionNotOK(`No JSON or array from ${JSON.stringify(lastResponse)}`);
 			}
 
-			const filtered = lastResponse.json.filter((item: any) => item[property].match(match));
+			const filtered = lastResponse.json.filter((item: TAnyFixme) => item[property].match(match));
 			webPlaywright.getWorld().shared.set(LAST_REST_RESPONSE, {
 				...lastResponse,
 				filtered,
 			});
-			return OK;
+			return Promise.resolve(OK);
 		},
 	},
 	filteredResponseLengthIs: {
@@ -114,7 +111,7 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 			if (!lastResponse?.filtered || lastResponse.filtered.length !== parseInt(length)) {
 				return actionNotOK(`Expected ${length}, got ${lastResponse?.filtered?.length}`);
 			}
-			return OK;
+			return Promise.resolve(OK);
 		},
 	},
 	showResponseLength: {
@@ -123,10 +120,10 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 			const lastResponse = webPlaywright.getWorld().shared.get(LAST_REST_RESPONSE);
 			if (!lastResponse?.json || typeof lastResponse.json.length !== 'number') {
 				console.debug(lastResponse);
-				return actionNotOK(`No last response to count`);
+				return Promise.resolve(actionNotOK(`No last response to count`));
 			}
 			webPlaywright.getWorld().logger.info(`lastResponse JSON count is ${lastResponse.json.length}`)
-			return actionOK({ topics: { summary: 'options', details: { count: lastResponse.json.length } } });
+			return Promise.resolve(actionOK({ topics: { summary: 'options', details: { count: lastResponse.json.length } } }));
 		},
 	},
 	showFilteredLength: {
@@ -135,10 +132,10 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 			const lastResponse = webPlaywright.getWorld().shared.get(LAST_REST_RESPONSE);
 			if (!lastResponse?.filtered || typeof lastResponse.filtered.length !== 'number') {
 				console.debug(lastResponse);
-				return actionNotOK(`No filtered response to count`);
+				return Promise.resolve(actionNotOK(`No filtered response to count`));
 			}
 			webPlaywright.getWorld().logger.info(`lastResponse filtered count is ${lastResponse.filtered.length}`)
-			return actionOK({ topics: { summary: 'options', details: { count: lastResponse.filtered.length } } });
+			return Promise.resolve(actionOK({ topics: { summary: 'options', details: { count: lastResponse.filtered.length } } }));
 		},
 	},
 	responseJsonLengthIs: {
@@ -148,7 +145,7 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 			if (!lastResponse?.json || lastResponse.json.length !== parseInt(length)) {
 				return actionNotOK(`Expected ${length}, got ${lastResponse?.json?.length}`);
 			}
-			return OK;
+			return Promise.resolve(OK);
 		},
 	},
 	restEndpointFilteredPropertyRequest: {
@@ -163,7 +160,7 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 			if (!filtered) {
 				return actionNotOK(`No filtered response in ${lastResponse}`);
 			}
-			if (!filtered.every((item: any) => item[property] !== undefined)) {
+			if (!filtered.every((item: TAnyFixme) => item[property] !== undefined)) {
 				return actionNotOK(`Property ${property} not found in all items`);
 			}
 
@@ -179,7 +176,7 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 
 			webPlaywright.getWorld().shared.set(LAST_REST_RESPONSE, responses);
 
-			return OK;
+			return Promise.resolve(OK);
 		},
 	},
 	restEndpointRequestWithPayload: {
@@ -206,7 +203,7 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 
 			webPlaywright.getWorld().shared.set(LAST_REST_RESPONSE, serialized);
 
-			return OK;
+			return Promise.resolve(OK);
 		},
 	},
 	restLastStatusIs: {
@@ -214,7 +211,7 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 		action: async ({ status }: TNamed) => {
 			const response = webPlaywright.getWorld().shared.get(LAST_REST_RESPONSE);
 			if (response && response.status === parseInt(status)) {
-				return OK;
+				return Promise.resolve(OK);
 			}
 			return actionNotOK(`Expected status ${status}, got ${response?.status || 'no response'}`);
 		},
@@ -224,7 +221,7 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 		action: async ({ property, value }: TNamed) => {
 			const response = webPlaywright.getWorld().shared.get(LAST_REST_RESPONSE);
 			if (response && response.json && response.json[property] === value) {
-				return OK;
+				return Promise.resolve(OK);
 			}
 			return actionNotOK(`Expected response.json.${property} to be ${value}, got ${JSON.stringify(response?.json[property])}`);
 		},
@@ -234,7 +231,7 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 		action: async ({ value }: TNamed) => {
 			const response = webPlaywright.getWorld().shared.get(LAST_REST_RESPONSE);
 			if (response && response.text === value) {
-				return OK;
+				return Promise.resolve(OK);
 			}
 			return actionNotOK(`Expected response to be ${value}, got ${response?.text}`);
 		},
@@ -244,8 +241,8 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 export type TCapturedResponse = {
 	status: number;
 	statusText: string;
-	headers: any;
+	headers: TAnyFixme;
 	url: string;
-	json: any;
+	json: TAnyFixme;
 	text: string;
 };

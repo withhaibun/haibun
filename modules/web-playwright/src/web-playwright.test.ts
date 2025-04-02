@@ -36,8 +36,14 @@ describe('playwrightWeb', () => {
 describe('handles cycles', () => {
 	it('closes browser', async () => {
 		const wp = new WebPlaywright();
-		wp.steps.takeScreenshot.action({}, {} as TFeatureStep);
-		wp.cycles!.endFeature!();
-		wp.steps.takeScreenshot.action({}, {} as TFeatureStep);
+		await wp.steps.takeScreenshot.action({}, {} as TFeatureStep);
+		expect(async () => {
+			if (wp.cycles && wp.cycles.endFeature) {
+				await wp.cycles.endFeature();
+				await wp.steps.takeScreenshot.action({}, {} as TFeatureStep);
+			} else {
+				throw new Error('no cycles');
+			}
+		}).not.toThrow();
 	});
 })

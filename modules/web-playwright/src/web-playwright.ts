@@ -128,7 +128,7 @@ class WebPlaywright extends AStepper implements IHasOptions {
 	downloaded: string[] = [];
 	captureVideo: boolean;
 	closers: Array<() => Promise<void>> = [];
-	logElementError: any;
+	logElementError: TAnyFixme;
 	monitor: EMonitoringTypes;
 	static monitorPage: Page;
 	resourceMap = new Map();
@@ -230,7 +230,7 @@ class WebPlaywright extends AStepper implements IHasOptions {
 		...restSteps(this),
 		openDevTools: {
 			gwta: `open devtools`,
-			action: async ({ key }: TNamed) => {
+			action: async () => {
 				await this.withPage(async (page: Page) => {
 					await page.goto('about:blank');
 					await sleep(2000);
@@ -280,14 +280,14 @@ class WebPlaywright extends AStepper implements IHasOptions {
 			action: async ({ what, type, value }: TNamed) => {
 				const cur = this.getWorld().shared.get(what)?.[type];
 
-				return cur === value ? OK : actionNotOK(`${what} is ${cur}`);
+				return Promise.resolve(cur === value ? OK : actionNotOK(`${what} is ${cur}`));
 			},
 		},
 		dialogIsUnset: {
 			gwta: 'dialog {what} {type} not set',
 			action: async ({ what, type }: TNamed) => {
 				const cur = this.getWorld().shared.get(what)?.[type];
-				return !cur ? OK : actionNotOK(`${what} is ${cur}`);
+				return Promise.resolve(!cur ? OK : actionNotOK(`${what} is ${cur}`));
 			},
 		},
 		seeTestId: {
@@ -339,7 +339,7 @@ class WebPlaywright extends AStepper implements IHasOptions {
 			gwta: `on a new tab`,
 			action: async () => {
 				this.newTab();
-				return OK;
+				return Promise.resolve(OK);
 			},
 		},
 		waitForTabX: {
@@ -362,7 +362,7 @@ class WebPlaywright extends AStepper implements IHasOptions {
 			gwta: `on tab {tab}`,
 			action: async ({ tab }: TNamed) => {
 				this.tab = parseInt(tab, 10);
-				return OK;
+				return Promise.resolve(OK);
 			},
 		},
 		beOnPage: {
@@ -617,7 +617,7 @@ class WebPlaywright extends AStepper implements IHasOptions {
 				if (!BROWSERS[browser]) {
 					throw Error(`browserType not recognized ${browser} from ${BROWSERS.toString()}`);
 				}
-				return this.setBrowser(browser);
+				return Promise.resolve(this.setBrowser(browser));
 			},
 		},
 
@@ -652,9 +652,9 @@ class WebPlaywright extends AStepper implements IHasOptions {
 			action: async () => {
 				try {
 					this.expectedDownload = this.withPage<Download>(async (page: Page) => page.waitForEvent('download'));
-					return OK;
+					return Promise.resolve(OK);
 				} catch (e) {
-					return actionNotOK(e);
+					return Promise.resolve(actionNotOK(e));
 				}
 			},
 		},
@@ -691,14 +691,14 @@ class WebPlaywright extends AStepper implements IHasOptions {
 			gwta: 'with frame {name}',
 			action: async ({ name }: TNamed) => {
 				this.withFrame = name;
-				return OK;
+				return Promise.resolve(OK);
 			},
 		},
 		captureDialog: {
 			gwta: 'Accept next dialog to {where}',
 			action: async ({ where }: TNamed) => {
-				await this.withPage(async (page: Page) =>
-					page.on('dialog', async (dialog) => {
+				await this.withPage(async (page: Page) => {
+					return page.on('dialog', async (dialog) => {
 						const res = {
 							defaultValue: dialog.defaultValue(),
 							message: dialog.message(),
@@ -706,9 +706,11 @@ class WebPlaywright extends AStepper implements IHasOptions {
 						};
 						await dialog.accept();
 						this.getWorld().shared.set(where, res);
-					})
+					});
+					return Promise.resolve();
+				}
 				);
-				return OK;
+				return Promise.resolve(OK);
 			},
 		},
 		takeScreenshot: {
@@ -783,14 +785,14 @@ class WebPlaywright extends AStepper implements IHasOptions {
 	async setExtraHTTPHeaders(headers: { [name: string]: string; }) {
 		await this.withPage(async () => {
 			const browserContext = await this.getExistingBrowserContext();
-			browserContext.setExtraHTTPHeaders(headers);
+			await browserContext.setExtraHTTPHeaders(headers);
 			this.extraHTTPHeaders = headers;
 		});
 	}
 
 	async withPageFetch(
 		endpoint: string,
-		method: string = 'get',
+		method = 'get',
 		requestOptions: TRequestOptions = {}
 	): Promise<TCapturedResponse> {
 		const { headers, postData, userAgent } = requestOptions;
@@ -800,7 +802,7 @@ class WebPlaywright extends AStepper implements IHasOptions {
 		if (ua) {
 			const browserContext = await this.getExistingBrowserContext();
 			const headers = { ...this.extraHTTPHeaders || {}, ...{ 'User-Agent': ua } };
-			browserContext.setExtraHTTPHeaders(headers);
+			await browserContext.setExtraHTTPHeaders(headers);
 		}
 		try {
 			const pageConsoleMessages: { type: string; text: string }[] = [];
@@ -815,9 +817,7 @@ class WebPlaywright extends AStepper implements IHasOptions {
 					fetchOptions.headers = headers ? headers : {};
 					if (postData) fetchOptions.body = postData;
 
-					let response;
-					response = await fetch(endpoint, fetchOptions);
-
+					const response = await fetch(endpoint, fetchOptions);
 					const capturedResponse: TCapturedResponse = {
 						status: response.status,
 						statusText: response.statusText,
@@ -831,17 +831,17 @@ class WebPlaywright extends AStepper implements IHasOptions {
 				}, { endpoint, method, headers, postData });
 
 				return ret;
-			} catch (e: any) {
+			} catch (e: TAnyFixme) {
 				throw new Error(`Evaluate fetch error: ${JSON.stringify({ endpoint, method, headers, ua })} : ${e.message}. Page console messages: ${pageConsoleMessages.map(msg => `[${msg.type}] ${msg.text}`).join('; ')}`);
 			}
-		} catch (e: any) {
+		} catch (e: TAnyFixme) {
 			const ua = userAgent || this.apiUserAgent;
 			throw new Error(`Evaluate fetch error: ${JSON.stringify({ endpoint, method, headers, ua })} : ${e.message}`);
 		} finally {
 			// FIXME Part II this could suffer from race conditions
 			if (ua) {
 				const browserContext = await this.getExistingBrowserContext();
-				browserContext.setExtraHTTPHeaders(this.extraHTTPHeaders);
+				await browserContext.setExtraHTTPHeaders(this.extraHTTPHeaders);
 			}
 		}
 	}

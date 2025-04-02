@@ -28,7 +28,7 @@ export default class StorageMem extends AStorage {
 			isDirectory: l.isDirectory(),
 			isFile: l.isFile(),
 		};
-		return <IFile>ifile;
+		return Promise.resolve(<IFile>ifile);
 	}
 	debug(where: string) {
 		console.debug(toTreeSync(this.volume, { dir: where || process.cwd() }));
@@ -36,7 +36,7 @@ export default class StorageMem extends AStorage {
 	readdir = async (dir: string) => {
 		try {
 			const ret = this.volume.readdirSync(dir).map((i) => i.toString());
-			return ret;
+			return Promise.resolve(ret);
 		} catch (e) {
 			console.error('StorageMem readdir failed', dir, JSON.stringify(this.volume, null, 2), e);
 			throw e;

@@ -12,7 +12,7 @@ describe('apply ENV', () => {
 		expect(res.env).toEqual({ ...defaultEnv, a: '1' });
 	});
 	it('prevents collision', () => {
-		const p = { DEST: DEFAULT_DEST, a: 1 };
+		const p = { a: '1' };
 		const res = BaseOptions.options.ENV.parse('a=1', p);
 		expect(res.error).toBeDefined();
 	});
@@ -23,7 +23,7 @@ describe('apply ENVC', () => {
 		expect(res.env).toEqual({ ...defaultEnv, a: '1', b: '2' });
 	});
 	it('prevents existing collision', () => {
-		const res = BaseOptions.options.ENVC.parse('a=1', {...defaultEnv, a: '2'});
+		const res = BaseOptions.options.ENVC.parse('a=1', { ...defaultEnv, ...{ a: '2' } });
 		expect(res.error).toBeDefined();
 	});
 	it('prevents duplicate collision', () => {

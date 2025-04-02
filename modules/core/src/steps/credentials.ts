@@ -29,7 +29,7 @@ const Credentials = class Credentials extends AStepper {
       match: /^have a valid random username <(?<name>.+)>/,
       action: async ({ name }: TNamed) => {
         this.generateRandomUsername(name);
-        return OK;
+        return Promise.resolve(OK);
       },
     },
 
@@ -37,7 +37,7 @@ const Credentials = class Credentials extends AStepper {
       match: /^have a valid random password <(?<name>.+)>/,
       action: async ({ name }: TNamed) => {
         this.generateRandomPassword(name);
-        return OK;
+        return Promise.resolve(OK);
       },
     },
   };

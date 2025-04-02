@@ -1,4 +1,4 @@
-import { TWorld, TResolvedFeature, AStepper, TFeatureStep, TStepperStep } from './lib/defs.js';
+import { TWorld, TResolvedFeature, AStepper, TFeatureStep, TStepperStep, TAnyFixme } from './lib/defs.js';
 import { getNamedToVars } from './lib/namedVars.js';
 import { constructorName } from './lib/util/index.js';
 
@@ -6,9 +6,9 @@ export async function applyEffectFeatures(world: TWorld, resolvedFeatures: TReso
 	const appliedFeatures = [];
 
 	for (const feature of resolvedFeatures) {
-		let featureSteps: TFeatureStep[] = [];
+		const featureSteps: TFeatureStep[] = [];
 		const newFeature = { ...feature, featureSteps: [] };
-		const appliers: { applier: TStepperStep; namedWithVars: any; }[] = [];
+		const appliers: { applier: TStepperStep; namedWithVars: TAnyFixme; }[] = [];
 		for (const featureStep of feature.featureSteps) {
 			let newSteps = [featureStep];
 			const action = featureStep.action;

@@ -34,6 +34,7 @@ export const createMonitorCreator = (webPlaywright: WebPlaywright) => async () =
 	webPlaywright.getWorld().logger.addSubscriber(subscriber);
 	webPlaywright.closers.push(async () => {
 		webPlaywright.getWorld().logger.removeSubscriber(subscriber);
+		return Promise.resolve();
 	});
 
 	WebPlaywright.monitorPage.on('response', async (response) => {
@@ -139,6 +140,7 @@ const selectLevels = () => {
 			document.querySelectorAll('.haibun-log-container').forEach((container: HTMLElement) => {
 				const containerTime = parseInt(container.dataset.time || '0', 10);
 				const adjustedContainerTime = containerTime - haibunVideoStart;
+				console.log(`containerTime: ${containerTime}, adjustedContainerTime: ${adjustedContainerTime}, currentVideoTime: ${currentVideoTime}`);
 				container.classList.remove('haibun-stepper-current');
 				if (containerTime <= currentVideoTime) {
 					container.classList.remove('haibun-stepper-notplayed');

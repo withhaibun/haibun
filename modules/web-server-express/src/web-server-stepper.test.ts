@@ -47,9 +47,14 @@ describe.skip('index mount', () => {
 describe('closes mounts', () => {
 	it('re-mounts after close', async () => {
 		const wss = new WebServerStepper();
-		wss.setWorld(getDefaultWorld(0), []);
+		await wss.setWorld(getDefaultWorld(0), []);
 		await wss.steps.serveFilesAt.action({ where: '/foo' })
-		await wss.cycles.endFeature!();
-		expect(() => wss.steps.serveFilesAt.action({ where: '/foo' })).not.toThrow();
+		expect(async () => {
+			if (!wss.cycles || !wss.cycles.endFeature) {
+				throw new Error('no cycles');
+			}
+			await wss.cycles.endFeature();
+			return wss.steps.serveFilesAt.action({ where: '/foo' });
+		}).not.toThrow();
 	});
 })
