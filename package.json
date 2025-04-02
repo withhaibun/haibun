@@ -2,21 +2,23 @@
   "name": "haibun",
   "type": "module",
   "private": false,
-  "workspaces": ["modules/*"],
+  "workspaces": [
+    "modules/*"
+  ],
   "devDependencies": {
-    "@types/node": "^20.3.1",
-    "@typescript-eslint/eslint-plugin": "^5.48.0",
-    "@typescript-eslint/parser": "^5.48.0",
-    "eslint": "^8.31.0",
-    "eslint-config-airbnb-typescript": "^17.0.0",
-    "eslint-config-prettier": "^8.6.0",
-    "eslint-plugin-import": "^2.22.1",
-    "eslint-plugin-prefer-arrow": "^1.2.2",
-    "eslint-plugin-prettier": "^4.2.1",
+    "@types/node": "^22.14.0",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "eslint": "^8.57.0",
+    "eslint-config-airbnb-typescript": "^18.0.0",
+    "eslint-config-prettier": "^10.1.1",
+    "eslint-plugin-import": "^2.31.0",
+    "eslint-plugin-prefer-arrow": "^1.2.3",
+    "eslint-plugin-prettier": "^5.2.6",
     "node-notifier": "^10.0.1",
-    "prettier": "^2.8.1",
-    "ts-node": "^10.9.1",
-    "typescript": "^5.2.2"
+    "prettier": "^3.5.3",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.2"
   },
   "scripts": {
     "init": "npm i && npm run build",
@@ -30,9 +32,9 @@
     "preversion": "npm run test"
   },
   "dependencies": {
-    "@types/chrome": "^0.0.270",
-    "dependency-cruiser": "^16.8.0",
-    "vitest": "^2.0.4"
+    "@types/chrome": "^0.0.313",
+    "dependency-cruiser": "^16.10.0",
+    "vitest": "^3.1.1"
   },
   "version": "1.43.0"
 }

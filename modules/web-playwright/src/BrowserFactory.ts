@@ -76,7 +76,13 @@ export class BrowserFactory {
 	public async closeContext({ sequence }: { sequence: TTagValue }) {
 		if (this.browserContexts[sequence] !== undefined) {
 			const p = this.pages[sequence];
-			(await p) && p?.close();
+			if (p) {
+				try {
+					await p.close();
+				} catch (error) {
+					this.world.logger.error(`Error closing page: ${error}`);
+				}
+			}
 		}
 		await this.browserContexts[sequence]?.close();
 		this.tracers[sequence]?.close();
