@@ -2,7 +2,7 @@ import { Page, Response, Download } from 'playwright';
 import { resolve } from 'path';
 import { pathToFileURL } from 'url';
 
-import { IHasOptions, OK, TNamed, TStepResult, AStepper, TWorld, TFeatureStep, TAnyFixme, IStepperCycles } from '@haibun/core/build/lib/defs.js';
+import { IHasOptions, OK, TNamed, TStepResult, AStepper, TWorld, TFeatureStep, TAnyFixme, IStepperCycles, TEndFeature } from '@haibun/core/build/lib/defs.js';
 import { WEB_PAGE, WEB_CONTROL } from '@haibun/core/build/lib/domain-types.js';
 import { BrowserFactory, TTaggedBrowserFactoryOptions, TBrowserTypes, BROWSERS } from './BrowserFactory.js';
 import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOption, sleep, optionOrError } from '@haibun/core/build/lib/util/index.js';
@@ -36,29 +36,32 @@ const cycles = (wp: WebPlaywright): IStepperCycles => ({
 			await wp.createMonitor();
 		}
 	},
-	async endFeature() {
-		for (const file of wp.downloaded) {
-			wp.getWorld().logger.debug(`removing ${JSON.stringify(file)}`);
-			// rmSync(file);
-		}
-		if (wp.hasFactory) {
-			if (wp.captureVideo) {
-				const page = await wp.getPage();
-				const path = await wp.storage.getRelativePath(await page.video().path());
-				const artifact: TArtifact = { type: 'video', path };
-				wp.getWorld().logger.log('feature video', <TArtifactMessageContext>{
-					artifact,
-					topic: { event: 'summary', stage: 'endFeature' },
-					tag: wp.getWorld().tag,
-				});
+	async endFeature({ shouldClose }: TEndFeature) {
+		// leave web server running if there was a failure and it's the last feature
+		if (shouldClose) {
+			for (const file of wp.downloaded) {
+				wp.getWorld().logger.debug(`removing ${JSON.stringify(file)}`);
+				// rmSync(file);
 			}
-			// close the context, which closes any pages
 			if (wp.hasFactory) {
-				await wp.bf?.closeContext(wp.getWorld().tag);
+				if (wp.captureVideo) {
+					const page = await wp.getPage();
+					const path = await wp.storage.getRelativePath(await page.video().path());
+					const artifact: TArtifact = { type: 'video', path };
+					wp.getWorld().logger.log('feature video', <TArtifactMessageContext>{
+						artifact,
+						topic: { event: 'summary', stage: 'endFeature' },
+						tag: wp.getWorld().tag
+					});
+				}
+				// close the context, which closes any pages
+				if (wp.hasFactory) {
+					await wp.bf?.closeContext(wp.getWorld().tag);
+				}
+				await wp.bf?.close();
+				wp.bf = undefined;
+				wp.hasFactory = false;
 			}
-			await wp.bf?.close();
-			wp.bf = undefined;
-			wp.hasFactory = false;
 		}
 		if (wp.monitor === EMonitoringTypes.MONITOR_EACH) {
 			await wp.callClosers();
