@@ -39,7 +39,7 @@ describe('handles cycles', () => {
 		await wp.steps.takeScreenshot.action({}, {} as TFeatureStep);
 		expect(async () => {
 			if (wp.cycles && wp.cycles.endFeature) {
-				await wp.cycles.endFeature();
+				await wp.cycles.endFeature({ shouldClose: true, isLast: true, okSoFar: true, continueAfterError: false, stayOnFailure: false, thisFeatureOK: true });
 				await wp.steps.takeScreenshot.action({}, {} as TFeatureStep);
 			} else {
 				throw new Error('no cycles');
