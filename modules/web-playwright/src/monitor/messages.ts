@@ -1,101 +1,296 @@
+// modules/web-playwright/src/monitor/messages.ts
 import { TArtifact, TMessageContext, TExecutorMessageContext, TArtifactMessageContext } from '@haibun/core/build/lib/interfaces/logger.js';
 import { TPlaywrightTraceEvent } from '../PlaywrightEvents.js';
-import { sequenceDiagramGenerator } from './monitor.js';
+import { sequenceDiagramGenerator } from './monitor.js'; // Assuming monitor.js exports this
 
-export function logMessageDetails(level: string, timestamp: number) {
-	const messageDetailsDiv = document.createElement('div');
-	messageDetailsDiv.classList.add('haibun-details-div');
-	const summary = document.createElement('summary');
-	const startTime = parseInt(document.body.dataset.startTime || `${Date.now()}`, 10);
-	const relativeTime = timestamp - startTime;
-	summary.innerHTML = `${level}<div class="time-small">${(relativeTime / 1000).toFixed(3).replace('.', ':')}s</div>`;
-	return summary;
+
+// --- Base Component Class (Foundation) ---
+
+abstract class LogComponent<T extends HTMLElement = HTMLElement> {
+	readonly element: T;
+
+	constructor(tagName: keyof HTMLElementTagNameMap, className?: string | string[]) {
+		this.element = document.createElement(tagName) as T;
+		if (className) {
+			const classes = Array.isArray(className) ? className : [className];
+			this.element.classList.add(...classes);
+		}
+	}
+
+	append(child: LogComponent | HTMLElement): void {
+		// Type guard ensures we append the .element property if it's a LogComponent
+		this.element.appendChild(child instanceof LogComponent ? child.element : child);
+	}
+
+	addClass(className: string): void {
+		this.element.classList.add(className);
+	}
+
+	setData(key: string, value: string): void {
+		this.element.dataset[key] = value;
+	}
+
+	setHtml(html: string): void {
+		this.element.innerHTML = html;
+	}
+
+	setText(text: string): void {
+		this.element.textContent = text;
+	}
 }
 
-export function logMessageContent(message: string, messageContext: TMessageContext) {
-	let summaryMessage = message;
-	const messageContentDiv = document.createElement('div');
-	messageContentDiv.classList.add('haibun-messages-div');
 
-	if (messageContext) {
-		if ((<TExecutorMessageContext>messageContext).topic?.stage === 'Executor' && (messageContext as TExecutorMessageContext).topic.result?.in) {
-			summaryMessage = `${message} ${(messageContext as TExecutorMessageContext).topic.result.in}`;
-		}
+// --- Abstract Artifact Display Base Class ---
 
-		if ((messageContext as TArtifactMessageContext).artifact) {
-			const artifact = (messageContext as TArtifactMessageContext).artifact;
-			createArtifactDiv(artifact, summaryMessage);
+// Abstract base for artifact displays
+abstract class ArtifactDisplay extends LogComponent {
+	readonly artifact: TArtifact;
+	readonly label: string;
+	abstract readonly placementTarget: 'details' | 'haibun-video' | 'body' | 'none';
 
-			if (artifact.type === 'json/playwright/trace' && artifact.content) {
-				sequenceDiagramGenerator.processEvent(<TPlaywrightTraceEvent>artifact);
+	constructor(artifact: TArtifact, tagName: keyof HTMLElementTagNameMap, className?: string | string[]) {
+		super(tagName, className);
+		this.artifact = artifact;
+		this.label = this.deriveLabel(); // Use derived label
+		this.render(); // Render content into the element
+	}
+
+	// Default label derivation, can be overridden
+	protected deriveLabel(): string {
+		return this.artifact.type;
+	}
+
+	// Subclasses must implement this to populate their element
+	protected abstract render(): void;
+}
+
+
+export class LogEntry extends LogComponent {
+	private detailsSummary: LogDetailsSummary;
+	private messageContent: LogMessageContent;
+
+	constructor(level: string, timestamp: number, message: string, messageContext?: TMessageContext) {
+		super('div', ['haibun-log-entry', `haibun-level-${level}`]);
+		this.setData('time', `${timestamp}`);
+
+		// Create structural components
+		this.detailsSummary = new LogDetailsSummary(level, timestamp);
+		this.messageContent = new LogMessageContent(message, messageContext);
+
+		// Assemble the main structure
+		this.append(this.detailsSummary);
+		// Always append message content; layout will be handled by CSS
+		this.append(this.messageContent);
+
+		// Handle placements for artifacts that don't go in the main flow
+		this.handleSpecialPlacements();
+	}
+
+	private handleSpecialPlacements(): void {
+		const artifactDisplay = this.messageContent.artifactDisplay; // Access the created artifact display
+		if (!artifactDisplay) return;
+
+		if (artifactDisplay.placementTarget === 'body') {
+			document.body.appendChild(artifactDisplay.element);
+		} else if (artifactDisplay.placementTarget === 'haibun-video') {
+			const haibunVideoContainer = document.querySelector<HTMLElement>('#haibun-video');
+			if (haibunVideoContainer) {
+				haibunVideoContainer.replaceChildren(artifactDisplay.element);
+				haibunVideoContainer.style.display = 'flex';
 			}
-		} else {
-			// logContainer.classList.add('haibun-disappears');
 		}
-
-		return messageContentDiv;
+		// 'details' placement is handled within LogMessageContent constructor
 	}
 }
 
-function createArtifactDiv(artifact: TArtifact, summaryMessage: string) {
-	const artifactDiv = document.createElement('div');
-	artifactDiv.classList.add('haibun-messages-div');
+// --- Log Entry Structure Components (Used by LogEntry) ---
 
-	const details = document.createElement('details');
-
-	let detailsLabel: string = artifact.type;
-	if (artifact.type === 'html' && artifact.content) {
-		const contentDiv = document.createElement('iframe');
-		contentDiv.srcdoc = artifact.content;
-		contentDiv.style.border = 'none';
-		contentDiv.style.width = '100%';
-		contentDiv.style.height = '80vh';
-		details.appendChild(contentDiv);
-	} else if (artifact.type === 'image') {
-		const contextPicture = document.createElement('img');
-		contextPicture.alt = `Screen capture from message`;
-		contextPicture.src = artifact.path;
-		details.appendChild(contextPicture);
-	} else if (artifact.type === 'video') {
-		const contextVideo = document.createElement('video');
-		contextVideo.controls = true;
-		contextVideo.src = artifact.path;
-		contextVideo.style.width = '320px';
-
-		const haibunVideo: HTMLElement = document.querySelector('#haibun-video');
-		if (haibunVideo) {
-			haibunVideo.replaceChildren(contextVideo);
-			haibunVideo.style.display = 'flex';
-		} else {
-			console.info('cannot find #haibun-video');
-			details.appendChild(contextVideo);
-		}
-	} else if (artifact.type === 'video/start') {
-		const startSpan = document.createElement('span');
-		startSpan.id = 'haibun-video-start';
-		startSpan.dataset.start = artifact.content;
-		document.body.appendChild(startSpan);
-	} else {
-		if (artifact.type === 'json/playwright/trace') {
-			detailsLabel = `⇄`;
-		}
-
-		const contextPre = document.createElement('pre');
-		contextPre.classList.add('haibun-message-details-json');
-		contextPre.textContent = JSON.stringify(artifact, null, 2);
-		details.appendChild(contextPre);
+class LogDetailsSummary extends LogComponent<HTMLElement> { // Using HTMLElement for summary tag
+	constructor(level: string, timestamp: number) {
+		super('summary', 'haibun-log-details-summary');
+		const relativeTime = calculateRelativeTime(timestamp);
+		this.setHtml(`${level}<div class="time-small">${formatTime(relativeTime)}s</div>`);
 	}
-	const summary = document.createElement('summary');
-	const labelSpan = document.createElement('span');
-	labelSpan.className = 'details-type';
-	labelSpan.textContent = detailsLabel;
-	summary.textContent = summaryMessage;
-	summary.appendChild(labelSpan);
+}
 
-	details.appendChild(summary);
-	const detailsWrapper = document.createElement('div');
-	detailsWrapper.classList.add('haibun-artifact-content');
-	detailsWrapper.appendChild(details);
-	artifactDiv.appendChild(detailsWrapper);
-	return { artifactDiv, detailsLabel };
+class LogMessageContent extends LogComponent {
+	// Publicly accessible artifact display for LogEntry to check placement
+	readonly artifactDisplay: ArtifactDisplay | null = null;
+
+	constructor(message: string, messageContext?: TMessageContext) {
+		super('div', 'haibun-message-content');
+
+		const summaryMessage = getSummaryMessage(message, messageContext);
+		const artifact = (messageContext as TArtifactMessageContext)?.artifact
+
+		if (artifact) {
+			this.artifactDisplay = createArtifactDisplay(artifact); // Factory creates the specific display
+
+			if (this.artifactDisplay && this.artifactDisplay.placementTarget === 'details') {
+				// Case 1: Artifact exists and belongs in the details section here.
+				const detailsElement = document.createElement('details');
+				detailsElement.classList.add('haibun-artifact-details');
+				const messageSummary = new LogMessageSummary(summaryMessage, this.artifactDisplay.label);
+				detailsElement.appendChild(messageSummary.element);
+				detailsElement.appendChild(this.artifactDisplay.element);
+				this.append(detailsElement);
+
+			} else if (this.artifactDisplay && this.artifactDisplay.placementTarget !== 'details') {
+				// Case 2: Artifact exists but is placed elsewhere (body, #haibun-video).
+				// Display the summary message here for context.
+				this.addClass('haibun-simple-message');
+				this.setText(summaryMessage);
+
+			} else if (!this.artifactDisplay) {
+				// Case 3: Artifact was expected but couldn't be created (unsupported type).
+				this.addClass('haibun-simple-message');
+				this.setText(`[Unsupported artifact type: ${artifact.type}] ${summaryMessage}`);
+			}
+		} else if (summaryMessage !== message) {
+			// Case 4: No artifact, but the summary message was modified.
+			this.addClass('haibun-simple-message');
+			this.setText(summaryMessage);
+		} else {
+			// Case 5: No artifact, message not modified. Display original message.
+			this.addClass('haibun-simple-message');
+			this.setText(message);
+		}
+		// Ensure the element is never hidden by default
+		this.element.style.display = '';
+	}
+}
+
+class LogMessageSummary extends LogComponent<HTMLElement> { // Using HTMLElement for summary tag
+	constructor(summaryMessage: string, artifactLabel: string) {
+		super('summary', 'haibun-log-message-summary');
+		const labelSpan = document.createElement('span');
+		labelSpan.className = 'details-type';
+		labelSpan.textContent = artifactLabel;
+		// Set text first, then append span
+		this.setText(summaryMessage);
+		this.append(labelSpan);
+	}
+}
+
+
+// --- Artifact Display Components (Details) ---
+
+// Factory function to create the correct ArtifactDisplay instance
+function createArtifactDisplay(artifact: TArtifact): ArtifactDisplay | null {
+	switch (artifact.type) {
+		case 'html': return new HtmlArtifactDisplay(artifact);
+		case 'image': return new ImageArtifactDisplay(artifact);
+		case 'video': return new VideoArtifactDisplay(artifact);
+		case 'video/start': return new VideoStartArtifactDisplay(artifact);
+		case 'json': // Fallthrough for generic JSON
+		case 'json/playwright/trace':
+			return new JsonArtifactDisplay(artifact);
+		// Add cases for other artifact types if needed
+		default:
+			console.warn(`Unsupported artifact type "${artifact.type}" for display. Rendering as JSON.`);
+			// Default to JSON display for unknown types
+			return new JsonArtifactDisplay(artifact);
+	}
+}
+
+// Specific implementations for each artifact type
+class HtmlArtifactDisplay extends ArtifactDisplay {
+	readonly placementTarget = 'details';
+	constructor(artifact: TArtifact) {
+		super(artifact, 'iframe');
+		this.element.style.border = 'none';
+		this.element.style.width = '100%';
+		this.element.style.height = '80vh';
+	}
+	protected render(): void {
+		if (this.artifact.content) {
+			(this.element as HTMLIFrameElement).srcdoc = this.artifact.content;
+		}
+	}
+}
+
+class ImageArtifactDisplay extends ArtifactDisplay {
+	readonly placementTarget = 'details';
+	constructor(artifact: TArtifact) {
+		super(artifact, 'img');
+		(this.element as HTMLImageElement).alt = 'Screen capture artifact';
+	}
+	protected render(): void {
+		if (this.artifact.path) {
+			(this.element as HTMLImageElement).src = this.artifact.path;
+		}
+	}
+}
+
+class VideoArtifactDisplay extends ArtifactDisplay {
+	readonly placementTarget: 'details' | 'haibun-video';
+	constructor(artifact: TArtifact) {
+		super(artifact, 'video');
+		const videoElement = this.element as HTMLVideoElement;
+		videoElement.controls = true;
+		videoElement.style.width = '320px';
+		this.placementTarget = document.querySelector('#haibun-video') ? 'haibun-video' : 'details';
+		if (this.placementTarget === 'details') {
+			console.info('Cannot find #haibun-video container; appending video to details.');
+		}
+	}
+	protected render(): void {
+		if (this.artifact.path) {
+			(this.element as HTMLVideoElement).src = this.artifact.path;
+		}
+	}
+}
+
+class VideoStartArtifactDisplay extends ArtifactDisplay {
+	readonly placementTarget = 'body';
+	constructor(artifact: TArtifact) {
+		super(artifact, 'span');
+		this.element.id = 'haibun-video-start';
+	}
+	protected render(): void {
+		if (this.artifact.content) {
+			this.setData('start', this.artifact.content);
+		}
+	}
+}
+
+class JsonArtifactDisplay extends ArtifactDisplay {
+	readonly placementTarget = 'details';
+	constructor(artifact: TArtifact) {
+		super(artifact, 'pre', 'haibun-message-details-json');
+	}
+	protected deriveLabel(): string {
+		return this.artifact.type === 'json/playwright/trace' ? '⇄ Trace' : this.artifact.type;
+	}
+	protected render(): void {
+		try {
+			const contentToShow = this.artifact.content !== undefined ? this.artifact.content : this.artifact;
+			this.setText(JSON.stringify(contentToShow, null, 2));
+			if (this.artifact.type === 'json/playwright/trace' && this.artifact.content) {
+				sequenceDiagramGenerator.processEvent(this.artifact as TPlaywrightTraceEvent);
+			}
+		} catch (error) {
+			const message = `Error stringifying artifact: ${error instanceof Error ? error.message : String(error)}`;
+			this.setText(message);
+			console.error("Error stringifying artifact:", this.artifact, error);
+		}
+	}
+}
+
+// --- Helper Functions ---
+
+function calculateRelativeTime(timestamp: number): number {
+	const startTime = parseInt(document.body.dataset.startTime || `${Date.now()}`, 10);
+	return timestamp - startTime;
+}
+
+function formatTime(relativeTimeMs: number): string {
+	return (relativeTimeMs / 1000).toFixed(3).replace('.', ':');
+}
+
+function getSummaryMessage(message: string, messageContext?: TMessageContext): string {
+	if (messageContext && (messageContext as TExecutorMessageContext).topic?.stage === 'Executor' && (messageContext as TExecutorMessageContext).topic.result?.in) {
+		return `${message} ${(messageContext as TExecutorMessageContext).topic.result.in}`;
+	}
+	return message;
 }
