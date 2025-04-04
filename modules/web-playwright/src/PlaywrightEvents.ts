@@ -1,5 +1,5 @@
 
-import { TTag } from '@haibun/core/build/lib/defs.js';
+import { TAnyFixme, TTag } from '@haibun/core/build/lib/defs.js';
 import { ILogger, TArtifactMessageContext } from '@haibun/core/build/lib/interfaces/logger.js';
 import { Page, Request, Route, Response } from 'playwright';
 
@@ -10,6 +10,23 @@ type TEtc = {
 	status?: number;
 	statusText?: string;
 }
+
+export type TPlaywrightTraceContent = {
+	frameURL?: string;
+	requestingPage?: string;
+	requestingURL?: string;
+	method?: string;
+	headers?: Record<string, string>;
+	postData?: TAnyFixme;
+	status?: number;
+	statusText?: string;
+}
+
+export type TPlaywrightTraceEvent = {
+	content: TPlaywrightTraceContent;
+	type: "json/playwright/trace";
+}
+
 export class PlaywrightEvents {
 	constructor(private logger: ILogger, private page: Page, private tag: TTag) {
 		this.logger.debug(`setPage ${JSON.stringify(tag)}`);
@@ -56,7 +73,7 @@ export class PlaywrightEvents {
 		const requestingPage = this.page.url();
 		const frameURL = maybeFrameURL === requestingPage ? undefined : maybeFrameURL;
 		const requestingURL = frameURL ? `frame ${frameURL} on ${requestingPage}` : requestingPage;
-		const logData = {
+		const logData: TPlaywrightTraceContent = {
 			frameURL,
 			requestingPage,
 			requestingURL,

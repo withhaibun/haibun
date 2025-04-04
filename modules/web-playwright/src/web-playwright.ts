@@ -11,7 +11,7 @@ import { TActionStage, TArtifact, TArtifactMessageContext, TTraceMessageContext,
 import { EMediaTypes } from '@haibun/domain-storage/build/media-types.js';
 
 import { restSteps, TCapturedResponse } from './rest-playwright.js';
-import { createMonitorCreator, writeMonitor } from './monitor.js';
+import { createMonitorPageAndSubscriber, writeMonitor } from './monitor/monitorHandler.js';
 
 export enum EMonitoringTypes {
 	MONITOR_ALL = 'all',
@@ -65,7 +65,7 @@ const cycles = (wp: WebPlaywright): IStepperCycles => ({
 		}
 		if (wp.monitor === EMonitoringTypes.MONITOR_EACH) {
 			await wp.callClosers();
-			await writeMonitor(wp.world, wp.storage, WebPlaywright.monitorPage, wp.resourceMap);
+			await writeMonitor(wp.world, wp.storage, WebPlaywright.monitorPage);
 		}
 	},
 	async startExecution() {
@@ -76,7 +76,7 @@ const cycles = (wp: WebPlaywright): IStepperCycles => ({
 	async endExecution() {
 		if (wp.monitor === EMonitoringTypes.MONITOR_ALL) {
 			await wp.callClosers();
-			await writeMonitor(wp.world, wp.storage, WebPlaywright.monitorPage, wp.resourceMap);
+			await writeMonitor(wp.world, wp.storage, WebPlaywright.monitorPage);
 		}
 	},
 });
@@ -134,7 +134,6 @@ class WebPlaywright extends AStepper implements IHasOptions {
 	logElementError: TAnyFixme;
 	monitor: EMonitoringTypes;
 	static monitorPage: Page;
-	resourceMap = new Map();
 	userAgentPages: { [name: string]: Page } = {};
 	apiUserAgent: string;
 	extraHTTPHeaders: { [name: string]: string; } = {};
@@ -334,7 +333,7 @@ class WebPlaywright extends AStepper implements IHasOptions {
 		finishMonitor: {
 			gwta: 'finish monitor',
 			action: async () => {
-				await writeMonitor(this.world, this.storage, WebPlaywright.monitorPage, this.resourceMap);
+				await writeMonitor(this.world, this.storage, WebPlaywright.monitorPage);
 				return OK;
 			},
 		},
@@ -855,7 +854,23 @@ class WebPlaywright extends AStepper implements IHasOptions {
 			}
 		}
 	}
-	createMonitor = createMonitorCreator(this);
+	createMonitor = async () => {
+		if (WebPlaywright.monitorPage && !WebPlaywright.monitorPage.isClosed()) {
+			console.log("Monitor page already exists.");
+			await WebPlaywright.monitorPage.bringToFront();
+			return OK;
+		}
+		const { monitorPage, subscriber } = await (await createMonitorPageAndSubscriber())();
+		WebPlaywright.monitorPage = monitorPage;
+		this.getWorld().logger.addSubscriber(subscriber);
+
+		this.closers.push(async () => {
+			console.log("Removing monitor logger subscriber.");
+			this.getWorld().logger.removeSubscriber(subscriber);
+			return Promise.resolve();
+		});
+		return OK;
+	}
 }
 
 export default WebPlaywright;
