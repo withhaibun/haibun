@@ -14,9 +14,12 @@
     .haibun-header h1 { margin-right: auto; font-size: 1.5em; }
     .haibun-controls { display: flex; align-items: center; gap: 15px; }
     #haibun-log-display-area { height: calc(100vh - 7vh); padding-top: 7vh; overflow-y: scroll; box-sizing: border-box; }
-    .haibun-log-container { display: flex; padding: 5px 10px; flex-direction: row; width: 100%; align-items: flex-start; border-bottom: 1px solid #eee; }
-    .haibun-details-div { min-width: 100px; padding-right: 10px; font-size: 0.9em; }
-    .haibun-messages-div { margin-left: 10px; flex-grow: 1; word-break: break-word; }
+    /* New styles for two-column layout */
+    .haibun-log-entry { display: flex; padding: 5px 10px; flex-direction: row; width: 100%; align-items: flex-start; border-bottom: 1px solid #eee; box-sizing: border-box; }
+    .haibun-log-entry > .haibun-log-details-summary { flex: 0 0 120px; /* Fixed width for left column */ padding-right: 15px; font-size: 0.9em; cursor: default; /* Summary elements are often clickable, make it look static */ list-style: none; /* Remove default summary marker */ }
+    .haibun-log-entry > .haibun-log-details-summary::-webkit-details-marker { display: none; } /* Hide marker in WebKit */
+    .haibun-log-entry > .haibun-message-content { flex-grow: 1; /* Right column takes remaining space */ word-break: break-word; }
+    /* Removed old styles for .haibun-log-container, .haibun-details-div, .haibun-messages-div */
     .haibun-artifact-div details { margin-top: 5px; }
     .haibun-artifact-div summary { cursor: pointer; font-weight: bold; }
     .time-small { font-size: 0.8em; color: #666; display: block; font-family: monospace; }

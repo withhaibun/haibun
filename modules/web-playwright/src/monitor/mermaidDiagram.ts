@@ -1,4 +1,34 @@
+import mermaid from 'mermaid'; // Import mermaid library
+import { TAnyFixme } from '@haibun/core/build/lib/defs.js'; // Import TAnyFixme
 import { TPlaywrightTraceEvent } from "../PlaywrightEvents.js";
+// Helper function for sanitization
+const sanitizeMermaidMessage = (message: string): string => {
+	// Sanitize characters problematic for Mermaid syntax within quoted strings:
+	// 1. Replace double quotes with single quotes.
+	// 2. Replace parentheses, commas, and semicolons with HTML entities.
+	let sanitized = message.replace(/"/g, "'"); // Replace double quotes
+	// IMPORTANT: Escape semicolon FIRST to avoid breaking other entities
+	sanitized = sanitized.replace(/;/g, '#59;');  // Escape semicolon
+	sanitized = sanitized.replace(/\(/g, '#40;'); // Escape opening parenthesis
+	sanitized = sanitized.replace(/\)/g, '#41;'); // Escape closing parenthesis
+	sanitized = sanitized.replace(/,/g, '#44;');  // Escape comma
+	return sanitized; // Return sanitized text without surrounding quotes
+};
+
+// Helper function for sanitizing note content (no surrounding quotes)
+const sanitizeMermaidNote = (note: string): string => {
+	// Sanitize characters problematic for Mermaid syntax within note text:
+	// 1. Replace double quotes with single quotes (or HTML entity).
+	// 2. Replace parentheses, commas, and semicolons with HTML entities.
+	let sanitized = note.replace(/"/g, "'"); // Replace double quotes with single quotes
+	// IMPORTANT: Escape semicolon FIRST to avoid breaking other entities
+	sanitized = sanitized.replace(/;/g, '#59;');  // Escape semicolon
+	sanitized = sanitized.replace(/\(/g, '#40;'); // Escape opening parenthesis
+	sanitized = sanitized.replace(/\)/g, '#41;'); // Escape closing parenthesis
+	sanitized = sanitized.replace(/,/g, '#44;');  // Escape comma
+	return sanitized; // Return sanitized text without surrounding quotes
+};
+
 
 export class SequenceDiagramGenerator {
 	private needsUpdate = false;
@@ -25,53 +55,85 @@ export class SequenceDiagramGenerator {
 		const headers = content.headers;
 
 		// Use URL hostname as the server participant
-		let serverAlias = 'Server';
-		let serverName = 'Server';
+		let serverAlias = 'UnknownAlias'; // Default if URL is missing
+		let serverName = 'Unknown';
 		if (requestingURL) {
 			try {
 				const url = new URL(requestingURL);
 				serverName = url.hostname;
-				// Create a simple alias (e.g., remove dots)
-				serverAlias = serverName.replace(/[.-]/g, ''); // Corrected regex
-				this.addParticipant(serverAlias, serverName);
+				// Handle empty hostname (e.g., for about:blank)
+				if (!serverName) {
+					serverName = 'Internal';
+					serverAlias = 'InternalAlias';
+				} else {
+					// Create a simple alias from non-empty hostname
+					serverAlias = serverName.replace(/[.-]/g, '');
+					// Ensure alias is not empty after replacement (e.g., if hostname was just '.')
+					if (!serverAlias) {
+						serverAlias = 'HostAlias'; // Fallback alias if replacement results in empty string
+					}
+				}
 			} catch (e) {
-				// Invalid URL, use default server name
-				this.addParticipant(serverAlias, serverName);
+				// Invalid URL
+				serverName = 'Invalid URL';
+				serverAlias = 'InvalidURLAlias';
 			}
-		} else {
-			this.addParticipant(serverAlias, serverName);
 		}
+		// Add the determined participant (Unknown, Internal, HostAlias, InvalidURLAlias, or derived)
+		this.addParticipant(serverAlias, serverName);
 
 
 		if (requestingPage && requestingURL) {
 			let pageAlias = this.pageNames[requestingPage];
 			if (!pageAlias) {
-				pageAlias = `Page${this.pageCounter}`;
+				let pageName = `Browser Page ${this.pageCounter}`;
+				let baseAlias = '';
+				try {
+					// Try to get hostname from the current URL for a better name
+					const url = new URL(requestingURL);
+					const hostname = url.hostname;
+					if (hostname && requestingURL !== 'about:blank') {
+						baseAlias = hostname.replace(/[.-]/g, '');
+						if (!baseAlias) baseAlias = 'Host'; // Fallback if hostname becomes empty
+						pageName = `${hostname} ${this.pageCounter}`;
+					} else {
+						// Fallback for about:blank or empty hostname
+						baseAlias = 'Page';
+					}
+				} catch (e) {
+					// Fallback for invalid URL
+					baseAlias = 'Page';
+				}
+				// Ensure unique alias by appending counter
+				pageAlias = `${baseAlias}${this.pageCounter}`;
 				this.pageNames[requestingPage] = pageAlias;
-				this.addParticipant(pageAlias, `Browser Page ${this.pageCounter}`); // Add participant declaration
+				this.addParticipant(pageAlias, pageName);
 				this.pageCounter++;
 			}
 
 
-			if (method) {
-				// Sanitize message content for Mermaid
-				const message = `${method} ${requestingURL}`.replace(/[:]/g, ''); // Basic sanitization
+			if (method) { // Removed the incorrect about:blank check
+				// Sanitize message content for Mermaid using the helper function
+				const message = sanitizeMermaidMessage(`${method} ${requestingURL}`);
 				this.diagramLines.push(`${pageAlias}->>${serverAlias}: ${message}`);
 				if (headers && headers.referer) {
-					const note = `Referer: ${headers.referer}`.replace(/[:]/g, '');
+					// Sanitize note content as well
+					// Use sanitizeMermaidNote for note content
+					const note = sanitizeMermaidNote(`Referer: ${headers.referer}`);
 					this.diagramLines.push(`Note right of ${pageAlias}: ${note}`);
 				}
 				// more notes, e.g., User-Agent
-				/*
-if (headers && headers["user-agent"]) {
-						const note = `User-Agent: ${headers["user-agent"]}`.replace(/[:]/g, '');
-	this.diagramLines.push(`Note right of ${pageAlias}: ${note}`);
-}
-				*/
+				if (headers && headers["user-agent"]) {
+					// Sanitize user-agent note
+					// Use sanitizeMermaidNote for note content
+					const note = sanitizeMermaidNote(`User-Agent: ${headers["user-agent"]}`);
+					this.diagramLines.push(`Note right of ${pageAlias}: ${note}`);
+				}
 			}
 
-			if (status) {
-				const message = `${status} ${statusText || ''}`.replace(/[:]/g, '');
+			if (status) { // Removed the incorrect about:blank check
+				// Sanitize response message
+				const message = sanitizeMermaidMessage(`${status} ${statusText || ''}`);
 				this.diagramLines.push(`${serverAlias}-->>${pageAlias}: ${message}`);
 			}
 		}
@@ -81,27 +143,43 @@ if (headers && headers["user-agent"]) {
 	public getDiagram(): string {
 		return this.diagramLines.join("\n");
 	}
-	public update() {
+	public async update() { // Make async
+		// Only update the DOM and render if necessary
+		if (!this.needsUpdate) {
+			return;
+		}
+
 		const mermaidContainer = document.getElementById('sequence-diagram');
 		if (mermaidContainer) {
+			let diagramDefinition = ''; // Declare outside try
 			try {
-				const diagramDefinition = this.getDiagram();
+				diagramDefinition = this.getDiagram(); // Assign inside try
 				// Ensure container is empty before rendering
 				mermaidContainer.innerHTML = '';
 				// Insert the diagram definition for Mermaid to process
 				const insert = `<pre class="mermaid">${diagramDefinition}</pre>`;
 				mermaidContainer.insertAdjacentHTML('beforeend', insert);
 
-				// Re-run Mermaid initialization for the updated content
-				// await mermaid.run({ nodes: [mermaidContainer.querySelector('.mermaid')] });
+				// Render the diagram using mermaid
+				await mermaid.run({ nodes: [mermaidContainer.querySelector('.mermaid')] });
 
-
-				console.log("Mermaid diagram updated.");
+				console.log("Mermaid diagram rendered.");
+				this.needsUpdate = false; // Reset flag only after successful render
 			} catch (e) {
+				console.error("Failed Mermaid diagram definition:\n", diagramDefinition); // Log failing definition
 				console.error("Error rendering Mermaid diagram:", e);
-				mermaidContainer.innerHTML = `<pre>Error rendering Mermaid diagram:\n${e.message}</pre>`;
+				// Display error in the container
+				// Check if 'e' is an object and has 'str' property before accessing
+				const detailedError = (typeof e === 'object' && e !== null && 'str' in e) ? (e as TAnyFixme).str : null;
+				const errorMessage = detailedError || (e instanceof Error ? e.message : String(e));
+				mermaidContainer.innerHTML = `<pre>Error rendering Mermaid diagram:\n\n${errorMessage}\n\n--- Diagram Definition ---\n${diagramDefinition}</pre>`;
+				// Optionally reset needsUpdate here too, or leave it true to retry later? Resetting for now.
+				this.needsUpdate = false;
 			}
+		} else {
+			console.warn("Sequence diagram container not found.");
+			// Reset flag even if container not found to avoid repeated attempts
+			this.needsUpdate = false;
 		}
-		this.needsUpdate = false;
 	}
 }

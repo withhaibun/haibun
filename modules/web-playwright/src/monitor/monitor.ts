@@ -3,7 +3,7 @@ import mermaid from 'mermaid';
 import { SequenceDiagramGenerator } from './mermaidDiagram.js';
 import { TAnyFixme } from '@haibun/core/build/lib/defs.js';
 import { TLogLevel, TLogArgs, TMessageContext } from '@haibun/core/build/lib/interfaces/logger.js';
-import { logMessageDetails, logMessageContent } from './messages.js';
+import { LogEntry } from './messages.js';
 import { setupControls } from './controls.js';
 
 declare global {
@@ -20,27 +20,26 @@ console.log('monitor', window.haibunLogData);
 window.receiveLogData = (logEntry) => {
 	window.haibunLogData.push(logEntry);
 	renderLogEntry(logEntry);
-	sequenceDiagramGenerator.update();
+	void sequenceDiagramGenerator.update(); // Ignore returned promise
 };
 
 export const sequenceDiagramGenerator = new SequenceDiagramGenerator();
 
-function renderLogEntry(logEntry: { level: TLogLevel; message: TLogArgs; messageContext?: TMessageContext, timestamp: number }) {
-	const { level, message, messageContext, timestamp } = logEntry;
+function renderLogEntry(logEntryData: { level: TLogLevel; message: TLogArgs; messageContext?: TMessageContext, timestamp: number }) {
+	const { level, message, messageContext, timestamp } = logEntryData;
 	const container = document.getElementById('haibun-log-display-area');
-	const logContainer = document.createElement('div');
-	logContainer.classList.add('haibun-log-container', `haibun-level-${level}`);
-	logContainer.dataset.time = `${timestamp}`;
+	if (!container) {
+		console.error('Could not find log display area #haibun-log-display-area');
+		return;
+	}
 
-	const messageDetailsDiv = logMessageDetails(level, timestamp);
-	// const messageContentDiv = logMessageContent(message, messageContext);
-	logContainer.appendChild(messageDetailsDiv);
-	// logContainer.appendChild(messageContentDiv);
-	container.appendChild(logContainer);
+	const logEntry = new LogEntry(level, timestamp, message, messageContext);
+
+	container.appendChild(logEntry.element);
 
 	// Auto-scroll
 	if (container.scrollHeight > container.clientHeight) {
-		logContainer.scrollIntoView({ block: 'end' });
+		logEntry.element.scrollIntoView({ block: 'end' });
 	}
 }
 function renderAllLogs() {
@@ -48,7 +47,7 @@ function renderAllLogs() {
 	if (container) {
 		// container.innerHTML = '<div class="haibun-disappears"><div class="haibun-loader"></div>Rendering logs...</div>'; // Clear and show loader
 		window.haibunLogData.forEach(renderLogEntry);
-		sequenceDiagramGenerator.update();
+		void sequenceDiagramGenerator.update(); // Ignore returned promise
 	}
 }
 
