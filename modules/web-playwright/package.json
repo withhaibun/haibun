@@ -4,7 +4,9 @@
   "version": "1.43.0",
   "description": "",
   "main": "build/web-playwright.js",
-  "files": ["build/"],
+  "files": [
+    "build/"
+  ],
   "scripts": {
     "build": "tsc -b .",
     "build-watch": "tsc -b . --watch",
@@ -20,6 +22,7 @@
   "dependencies": {
     "@haibun/core": "1.43.0",
     "@haibun/domain-storage": "1.43.0",
+    "mermaid": "^11.6.0",
     "playwright": "1.51"
   },
   "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5"
