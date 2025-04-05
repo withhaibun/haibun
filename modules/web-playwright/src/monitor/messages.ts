@@ -1,10 +1,6 @@
 // modules/web-playwright/src/monitor/messages.ts
-import { TArtifact, TMessageContext, TExecutorMessageContext, TArtifactMessageContext } from '@haibun/core/build/lib/interfaces/logger.js';
-import { TPlaywrightTraceEvent } from '../PlaywrightEvents.js';
+import { TArtifact, TMessageContext, TExecutorMessageContext, TArtifactMessageContext, TArtifactVideo, TArtifactImage, TArtifactHTML, TArtifactJSON, TArtifactHTTPTrace, TArtifactVideoStart } from '@haibun/core/build/lib/interfaces/logger.js';
 import { sequenceDiagramGenerator } from './monitor.js'; // Assuming monitor.js exports this
-
-
-// --- Base Component Class (Foundation) ---
 
 abstract class LogComponent<T extends HTMLElement = HTMLElement> {
 	readonly element: T;
@@ -44,20 +40,19 @@ abstract class LogComponent<T extends HTMLElement = HTMLElement> {
 
 // Abstract base for artifact displays
 abstract class ArtifactDisplay extends LogComponent {
-	readonly artifact: TArtifact;
 	readonly label: string;
 	abstract readonly placementTarget: 'details' | 'haibun-video' | 'body' | 'none';
 
-	constructor(artifact: TArtifact, tagName: keyof HTMLElementTagNameMap, className?: string | string[]) {
+	constructor(protected artifact: TArtifact, tagName: keyof HTMLElementTagNameMap, className?: string | string[]) {
 		super(tagName, className);
 		this.artifact = artifact;
-		this.label = this.deriveLabel(); // Use derived label
-		this.render(); // Render content into the element
+		this.label = this.deriveLabel();
+		this.render();
 	}
 
 	// Default label derivation, can be overridden
 	protected deriveLabel(): string {
-		return this.artifact.type;
+		return this.artifact.artifactType;
 	}
 
 	// Subclasses must implement this to populate their element
@@ -144,7 +139,7 @@ class LogMessageContent extends LogComponent {
 			} else if (!this.artifactDisplay) {
 				// Case 3: Artifact was expected but couldn't be created (unsupported type).
 				this.addClass('haibun-simple-message');
-				this.setText(`[Unsupported artifact type: ${artifact.type}] ${summaryMessage}`);
+				this.setText(`[Unsupported artifact type: ${artifact.artifactType}] ${summaryMessage}`);
 			}
 		} else if (summaryMessage !== message) {
 			// Case 4: No artifact, but the summary message was modified.
@@ -177,41 +172,39 @@ class LogMessageSummary extends LogComponent<HTMLElement> { // Using HTMLElement
 
 // Factory function to create the correct ArtifactDisplay instance
 function createArtifactDisplay(artifact: TArtifact): ArtifactDisplay | null {
-	switch (artifact.type) {
-		case 'html': return new HtmlArtifactDisplay(artifact);
-		case 'image': return new ImageArtifactDisplay(artifact);
-		case 'video': return new VideoArtifactDisplay(artifact);
-		case 'video/start': return new VideoStartArtifactDisplay(artifact);
-		case 'json': // Fallthrough for generic JSON
-		case 'json/playwright/trace':
-			return new JsonArtifactDisplay(artifact);
-		// Add cases for other artifact types if needed
-		default:
-			console.warn(`Unsupported artifact type "${artifact.type}" for display. Rendering as JSON.`);
-			// Default to JSON display for unknown types
-			return new JsonArtifactDisplay(artifact);
+	switch (artifact.artifactType) {
+		case 'html': return new HtmlArtifactDisplay(<TArtifactHTML>artifact);
+		case 'image': return new ImageArtifactDisplay(<TArtifactImage>artifact);
+		case 'video': return new VideoArtifactDisplay(<TArtifactVideo>artifact);
+		case 'video/start': return new VideoStartArtifactDisplay(<TArtifactVideoStart>artifact);
+		case 'json': return new JsonArtifactDisplay(<TArtifactJSON>artifact);
+		case 'json/http/trace':
+			return new JsonArtifactHTTPTrace(<TArtifactHTTPTrace>artifact);
+		default: {
+			throw Error(`Unsupported artifact type "${(<TArtifact>artifact).artifactType}" for display`);
+		}
 	}
 }
 
 // Specific implementations for each artifact type
 class HtmlArtifactDisplay extends ArtifactDisplay {
 	readonly placementTarget = 'details';
-	constructor(artifact: TArtifact) {
+	constructor(protected artifact: TArtifactHTML) {
 		super(artifact, 'iframe');
 		this.element.style.border = 'none';
 		this.element.style.width = '100%';
 		this.element.style.height = '80vh';
 	}
 	protected render(): void {
-		if (this.artifact.content) {
-			(this.element as HTMLIFrameElement).srcdoc = this.artifact.content;
+		if (this.artifact.html) {
+			(this.element as HTMLIFrameElement).srcdoc = this.artifact.html;
 		}
 	}
 }
 
 class ImageArtifactDisplay extends ArtifactDisplay {
 	readonly placementTarget = 'details';
-	constructor(artifact: TArtifact) {
+	constructor(protected artifact: TArtifactImage) {
 		super(artifact, 'img');
 		(this.element as HTMLImageElement).alt = 'Screen capture artifact';
 	}
@@ -224,7 +217,7 @@ class ImageArtifactDisplay extends ArtifactDisplay {
 
 class VideoArtifactDisplay extends ArtifactDisplay {
 	readonly placementTarget: 'details' | 'haibun-video';
-	constructor(artifact: TArtifact) {
+	constructor(protected artifact: TArtifactVideo) {
 		super(artifact, 'video');
 		const videoElement = this.element as HTMLVideoElement;
 		videoElement.controls = true;
@@ -235,45 +228,44 @@ class VideoArtifactDisplay extends ArtifactDisplay {
 		}
 	}
 	protected render(): void {
-		if (this.artifact.path) {
-			(this.element as HTMLVideoElement).src = this.artifact.path;
-		}
+		(this.element as HTMLVideoElement).src = this.artifact.path;
 	}
 }
 
 class VideoStartArtifactDisplay extends ArtifactDisplay {
 	readonly placementTarget = 'body';
-	constructor(artifact: TArtifact) {
+	constructor(protected artifact: TArtifactVideoStart) {
 		super(artifact, 'span');
 		this.element.id = 'haibun-video-start';
 	}
 	protected render(): void {
-		if (this.artifact.content) {
-			this.setData('start', this.artifact.content);
-		}
+		this.setData('start', `${this.artifact.start}`);
+	}
+}
+
+class JsonArtifactHTTPTrace extends ArtifactDisplay {
+	readonly placementTarget = 'details';
+	constructor(protected artifact: TArtifactHTTPTrace) {
+		super(artifact, 'pre', 'haibun-message-details-json');
+	}
+	protected deriveLabel(): string {
+		return '⇄ Trace';
+	}
+	protected render(): void {
+		sequenceDiagramGenerator.processEvent(this.artifact.trace);
 	}
 }
 
 class JsonArtifactDisplay extends ArtifactDisplay {
 	readonly placementTarget = 'details';
-	constructor(artifact: TArtifact) {
+	constructor(protected artifact: TArtifactJSON) {
 		super(artifact, 'pre', 'haibun-message-details-json');
 	}
 	protected deriveLabel(): string {
-		return this.artifact.type === 'json/playwright/trace' ? '⇄ Trace' : this.artifact.type;
+		return this.artifact.artifactType;
 	}
 	protected render(): void {
-		try {
-			const contentToShow = this.artifact.content !== undefined ? this.artifact.content : this.artifact;
-			this.setText(JSON.stringify(contentToShow, null, 2));
-			if (this.artifact.type === 'json/playwright/trace' && this.artifact.content) {
-				sequenceDiagramGenerator.processEvent(this.artifact as TPlaywrightTraceEvent);
-			}
-		} catch (error) {
-			const message = `Error stringifying artifact: ${error instanceof Error ? error.message : String(error)}`;
-			this.setText(message);
-			console.error("Error stringifying artifact:", this.artifact, error);
-		}
+		this.setText(JSON.stringify(this.artifact.json, null, 2));
 	}
 }
 

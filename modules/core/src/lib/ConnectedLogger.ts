@@ -1,5 +1,6 @@
 import Logger from './Logger.js';
-import { IConnectedLogger, ILoggerKeepAlive, ILogOutput, TLogLevel, TMessageContext, TOutputEnv } from './interfaces/logger.js';
+import { IConnectedLogger, ILoggerKeepAlive, ILogOutput, TLogLevel, TOutputEnv } from './interfaces/logger.js';
+import { TMessageContext } from './interfaces/messageContexts.js';
 import { TAnyFixme, TTag } from './defs.js';
 
 export class ConnectedLogger extends Logger implements IConnectedLogger {

@@ -5,6 +5,8 @@ import { actionNotOK } from '../lib/util/index.js';
 // FIXME see https://github.com/withhaibun/haibun/issues/18
 const getOrCond = (fr: string) => fr.replace(/.* is set or /, '');
 
+export const SCENARIO_START = 'scenarioStart';
+
 const cycles = (vars: Vars): IStepperCycles => ({
 	startFeature: async () => {
 		vars.getWorld().shared.values = {};
@@ -103,7 +105,7 @@ class Vars extends AStepper {
 				return Promise.resolve(OK);
 			},
 		},
-		scenario: {
+		[SCENARIO_START]: {
 			match: /^Scenario: (?<scenario>.+)$/,
 			action: async ({ scenario }: TNamed) => {
 				this.getWorld().shared.set('scenario', scenario);
