@@ -253,6 +253,8 @@ class JsonArtifactHTTPTrace extends ArtifactDisplay {
 	}
 	protected render(): void {
 		sequenceDiagramGenerator.processEvent(this.artifact.trace);
+		// Also render the JSON trace data into the <pre> element
+		this.setText(JSON.stringify(this.artifact.trace, null, 2));
 	}
 }
 
