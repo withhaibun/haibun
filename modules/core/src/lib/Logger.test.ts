@@ -1,6 +1,6 @@
 import { describe, test, it, expect } from 'vitest';
 
-import { ILogOutput, TExecutorMessageContext, TExecutorResultTopic, TLogArgs, TLogLevel, TMessageContext } from './interfaces/logger.js';
+import { ILogOutput, TExecutorResultMessageContext, TExecutorStepResult, TLogArgs, TLogLevel, TMessageContext } from './interfaces/logger.js';
 import Logger, { LOGGER_LEVELS } from './Logger.js';
 import { getDefaultTag } from './test/lib.js';
 
@@ -32,9 +32,9 @@ describe('logger with subscriber', () => {
 		const subscriberPromise = new Promise<void>((resolve) => {
 			const subscriber: ILogOutput = {
 				out(level: TLogLevel, args: TLogArgs, ctx?: TMessageContext) {
-					const emc = <TExecutorMessageContext>ctx;
+					const emc = <TExecutorResultMessageContext>ctx;
 					expect(emc.topic).toBeDefined();
-					expect((emc.topic as TExecutorResultTopic).result).toEqual(step);
+					expect((emc.topic as TExecutorStepResult).result).toEqual(step);
 					resolve();
 				},
 			};

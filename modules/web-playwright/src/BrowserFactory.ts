@@ -1,6 +1,6 @@
 import { Browser, BrowserContext, Page, chromium, firefox, webkit, BrowserType, devices, BrowserContextOptions } from 'playwright';
 
-import { TArtifactMessageContext } from '@haibun/core/build/lib/interfaces/logger.js';
+import { TArtifactMessageContext, TArtifactVideoStart } from '@haibun/core/build/lib/interfaces/logger.js';
 import { TTag, TTagValue, TWorld } from '@haibun/core/build/lib/defs.js';
 import { PlaywrightEvents } from './PlaywrightEvents.js';
 
@@ -56,9 +56,9 @@ export class BrowserFactory {
 					stage: 'action',
 					event: 'debug',
 				},
-				artifact: {
-					content: this.world.timer.since(),
-					type: 'video/start'
+				artifact: <TArtifactVideoStart>{
+					start: this.world.timer.since(),
+					artifactType: 'video/start'
 				}
 			};
 			this.world.logger.debug(`launched new ${type} browser`, vs);

@@ -1,6 +1,7 @@
 import { WorldContext } from './contexts.js';
 
-import { ILogger, TMessageContext } from './interfaces/logger.js';
+import { ILogger } from './interfaces/logger.js';
+import { TMessageContext } from './interfaces/messageContexts.js';
 import { Timer } from './Timer.js';
 import { constructorName } from './util/index.js';
 
