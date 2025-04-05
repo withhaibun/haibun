@@ -78,16 +78,15 @@ export class FeatureExecutor {
 		let ok = true;
 		const stepResults: TStepResult[] = [];
 
-		let currentScenarioSeq: number = undefined;
+		let currentScenario: number = 0;
 
 		for (const step of feature.featureSteps) {
 			if (step.action.actionName === SCENARIO_START) {
-				if (currentScenarioSeq) {
-					currentScenarioSeq = step.seq;
-					this.logit(`end scenario ${currentScenarioSeq}`, { incident: EExecutionMessageType.SCENARIO_END }, 'debug');
+				if (currentScenario) {
+					this.logit(`end scenario ${currentScenario}`, { incident: EExecutionMessageType.SCENARIO_END, incidentDetails: { currentScenario } }, 'debug');
 				}
-				currentScenarioSeq = step.seq;
-				this.logit(`start scenario ${currentScenarioSeq}`, { incident: EExecutionMessageType.SCENARIO_START }, 'debug');
+				currentScenario = currentScenario + 1;
+				this.logit(`start scenario ${currentScenario}`, { incident: EExecutionMessageType.SCENARIO_START, incidentDetails: { currentScenario } }, 'debug');
 			}
 
 			world.logger.log(step.in, { incident: EExecutionMessageType.STEP_START, tag: world.tag });
@@ -103,6 +102,9 @@ export class FeatureExecutor {
 			if (!ok) {
 				break;
 			}
+		}
+		if (currentScenario) {
+			this.logit(`end scenario ${currentScenario}`, { incident: EExecutionMessageType.SCENARIO_END, incidentDetails: { currentScenario } }, 'debug');
 		}
 		const featureResult: TFeatureResult = { path: feature.path, ok, stepResults };
 
