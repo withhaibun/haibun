@@ -1,34 +1,6 @@
-import { TAnyFixme, TFeatureStep } from '../defs.ts';
-import { TActionStage } from './logger.ts';
+import { TAnyFixme,  } from '../defs.js';
 
 export type TArtifact = { artifactType: string } & TArtifactVideo | TArtifactVideoStart | TArtifactImage | TArtifactHTML | TArtifactJSON | TArtifactHTTPTrace;
-
-type TBaseArtifactTopic = {
-	stage: TActionStage;
-};
-
-export type TArtifactSummaryTopic = TBaseArtifactTopic & {
-	event: 'summary';
-};
-
-export type TArtifactRequestStepTopic = TBaseArtifactTopic & {
-	event: 'request';
-	seq: number;
-};
-
-export type TArtifactDebugTopic = TBaseArtifactTopic & {
-	event: 'debug';
-};
-
-export type TArtifactFailureStepTopic = TBaseArtifactTopic & {
-	event: 'failure';
-	step: TFeatureStep;
-};
-
-export type TTraceTopic = {
-	type?: string;
-	trace?: object;
-};
 
 export type TArtifactVideo = {
 	artifactType: 'video';

@@ -1,5 +1,5 @@
 import { TFeatureStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, AStepper, TStepAction, TAnyFixme, STAY, STAY_FAILURE, CHECK_NO, CHECK_YES, STEP_DELAY, TNotOKActionResult, CONTINUE_AFTER_ERROR, IStepperCycles } from '../lib/defs.js';
-import { TExecutorResultMessageContext } from '../lib/interfaces/messageContexts.js';
+import { EExecutionMessageType } from '../lib/interfaces/logger.js';
 import { topicArtifactLogger } from '../lib/Logger.js';
 import { getNamedToVars } from '../lib/namedVars.js';
 import { actionNotOK, sleep, findStepper, constructorName, setStepperWorlds } from '../lib/util/index.js';
@@ -70,23 +70,27 @@ export class Executor {
 }
 
 export class FeatureExecutor {
-	constructor(private steppers: AStepper[], private world: TWorld, private logit = topicArtifactLogger(this.world), startOffset = world.timer.since()) { }
+	constructor(private steppers: AStepper[], private world: TWorld, private logit = topicArtifactLogger(world), private startOffset = world.timer.since()) {
+	}
 
 	async doFeature(feature: TResolvedFeature): Promise<TFeatureResult> {
 		const world = this.world;
 		let ok = true;
 		const stepResults: TStepResult[] = [];
 
-		// let currentScenarioSeq: number = undefined;
+		let currentScenarioSeq: number = undefined;
 
 		for (const step of feature.featureSteps) {
 			if (step.action.actionName === SCENARIO_START) {
-				// if (currentScenarioSeq) {
-				// const scenarioEnd : TExecutorResultMessageContext =
-				// this.logit(`scenario end`, { topic: { stage: 'Executor', feature, step } },);
+				if (currentScenarioSeq) {
+					currentScenarioSeq = step.seq;
+					this.logit(`end scenario ${currentScenarioSeq}`, { incident: EExecutionMessageType.SCENARIO_END }, 'debug');
+				}
+				currentScenarioSeq = step.seq;
+				this.logit(`start scenario ${currentScenarioSeq}`, { incident: EExecutionMessageType.SCENARIO_START }, 'debug');
 			}
 
-			world.logger.log(step.in);
+			world.logger.log(step.in, { incident: EExecutionMessageType.STEP_START, tag: world.tag });
 			const result = await FeatureExecutor.doFeatureStep(this.steppers, step, world);
 
 			if (world.options[STEP_DELAY]) {
@@ -94,8 +98,7 @@ export class FeatureExecutor {
 			}
 			ok = ok && result.ok;
 			const indicator = result.ok ? CHECK_YES : CHECK_NO + ' ' + (<TNotOKActionResult>result.actionResult).message;
-			world.logger.log(indicator, <TExecutorResultMessageContext>{ topic: { stage: 'Executor', result, step } });
-			world.logger.log(indicator, <TExecutorResultMessageContext>{ topic: { stage: 'Executor', result, step } });
+			world.logger.log(indicator, { incident: EExecutionMessageType.STEP_END, tag: world.tag, incidentDetails: { result, step } });
 			stepResults.push(result);
 			if (!ok) {
 				break;
@@ -126,7 +129,7 @@ export class FeatureExecutor {
 const doStepperMethod = async <K extends keyof IStepperCycles>(steppers: AStepper[], method: K, ...args: TAnyFixme[]) => {
 	for (const stepper of steppers) {
 		if (stepper?.cycles && stepper.cycles[method]) {
-			stepper.getWorld().logger.log(`🔁 ${method} ${constructorName(stepper)}`);
+			stepper.getWorld().logger.debug(`🔁 ${method} ${constructorName(stepper)}`);
 			await (stepper.cycles[method] as (...args: TAnyFixme[]) => Promise<TAnyFixme>)(...args).catch((error: TAnyFixme) => {
 				console.error(`${method} failed`, error);
 				throw error;

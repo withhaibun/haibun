@@ -1,5 +1,4 @@
-// modules/web-playwright/src/monitor/messages.ts
-import { TArtifact, TMessageContext, TExecutorMessageContext, TArtifactMessageContext, TArtifactVideo, TArtifactImage, TArtifactHTML, TArtifactJSON, TArtifactHTTPTrace, TArtifactVideoStart } from '@haibun/core/build/lib/interfaces/logger.js';
+import { TArtifact, TMessageContext, TArtifactVideo, TArtifactImage, TArtifactHTML, TArtifactJSON, TArtifactHTTPTrace, TArtifactVideoStart, EExecutionMessageType } from '@haibun/core/build/lib/interfaces/logger.js'; // Removed old context types, added Enum
 import { sequenceDiagramGenerator } from './monitor.js'; // Assuming monitor.js exports this
 
 abstract class LogComponent<T extends HTMLElement = HTMLElement> {
@@ -57,6 +56,11 @@ abstract class ArtifactDisplay extends LogComponent {
 
 	// Subclasses must implement this to populate their element
 	protected abstract render(): void;
+
+	// Public getter for the artifact type
+	public get artifactType(): string {
+		return this.artifact.artifactType;
+	}
 }
 
 
@@ -115,55 +119,84 @@ class LogMessageContent extends LogComponent {
 	constructor(message: string, messageContext?: TMessageContext) {
 		super('div', 'haibun-message-content');
 
-		const summaryMessage = getSummaryMessage(message, messageContext);
-		const artifact = (messageContext as TArtifactMessageContext)?.artifact
+		const summaryMessage = getSummaryMessage(message, messageContext); // Still gets potentially modified message
 
-		if (artifact) {
-			this.artifactDisplay = createArtifactDisplay(artifact); // Factory creates the specific display
+		if (messageContext) {
+			// Context exists, create a details element
+			const detailsElement = document.createElement('details');
+			detailsElement.classList.add('haibun-context-details'); // General class for context
 
-			if (this.artifactDisplay && this.artifactDisplay.placementTarget === 'details') {
-				// Case 1: Artifact exists and belongs in the details section here.
-				const detailsElement = document.createElement('details');
-				detailsElement.classList.add('haibun-artifact-details');
-				const messageSummary = new LogMessageSummary(summaryMessage, this.artifactDisplay.label);
-				detailsElement.appendChild(messageSummary.element);
-				detailsElement.appendChild(this.artifactDisplay.element);
-				this.append(detailsElement);
+			const incident = messageContext.incident;
+			const incidentDetails = messageContext.incidentDetails;
+			const artifact = messageContext.artifact;
+			let finalLabel = EExecutionMessageType[incident] || 'Context'; // Default label is incident type
 
-			} else if (this.artifactDisplay && this.artifactDisplay.placementTarget !== 'details') {
-				// Case 2: Artifact exists but is placed elsewhere (body, #haibun-video).
-				// Display the summary message here for context.
-				this.addClass('haibun-simple-message');
-				this.setText(summaryMessage);
+			// Handle artifact first to determine placement and potentially override label
+			if (artifact) {
+				this.artifactDisplay = createArtifactDisplay(artifact);
+				if (this.artifactDisplay) {
+					// If artifact has a specific label different from its type, use it
+					if (this.artifactDisplay.label !== this.artifactDisplay.artifactType) {
+						finalLabel = this.artifactDisplay.label;
+					} else {
+						// Otherwise, use the artifact type as the label if it's not just 'Context'
+						finalLabel = this.artifactDisplay.artifactType || finalLabel;
+					}
 
-			} else if (!this.artifactDisplay) {
-				// Case 3: Artifact was expected but couldn't be created (unsupported type).
-				this.addClass('haibun-simple-message');
-				this.setText(`[Unsupported artifact type: ${artifact.artifactType}] ${summaryMessage}`);
+					// If artifact is placed elsewhere, don't create the details wrapper here
+					if (this.artifactDisplay.placementTarget !== 'details') {
+						this.addClass('haibun-simple-message');
+						this.setText(summaryMessage); // Only show summary message
+						// Special placement handled by LogEntry
+						return;
+					}
+				}
 			}
-		} else if (summaryMessage !== message) {
-			// Case 4: No artifact, but the summary message was modified.
-			this.addClass('haibun-simple-message');
-			this.setText(summaryMessage);
+
+			// Create the summary line with the determined label
+			const messageSummary = new LogMessageSummary(summaryMessage, finalLabel);
+			detailsElement.appendChild(messageSummary.element);
+
+			// Add incidentDetails JSON inside the details element
+			if (incidentDetails) {
+				const pre = document.createElement('pre');
+				pre.classList.add('haibun-message-details-json'); // Reuse JSON styling
+				pre.textContent = JSON.stringify(incidentDetails, null, 2);
+				detailsElement.appendChild(pre);
+			}
+
+			// Add artifact display if it exists and belongs here
+			if (this.artifactDisplay && this.artifactDisplay.placementTarget === 'details') {
+				detailsElement.appendChild(this.artifactDisplay.element);
+			}
+
+			this.append(detailsElement);
+
 		} else {
-			// Case 5: No artifact, message not modified. Display original message.
+			// No context, display simple message
 			this.addClass('haibun-simple-message');
-			this.setText(message);
+			this.setText(message); // Use original message if no context modification happened
 		}
 		// Ensure the element is never hidden by default
 		this.element.style.display = '';
 	}
 }
 
-class LogMessageSummary extends LogComponent<HTMLElement> { // Using HTMLElement for summary tag
-	constructor(summaryMessage: string, artifactLabel: string) {
+class LogMessageSummary extends LogComponent<HTMLElement> {
+	private labelSpan: HTMLSpanElement;
+
+	constructor(summaryMessage: string, initialLabel: string) {
 		super('summary', 'haibun-log-message-summary');
-		const labelSpan = document.createElement('span');
-		labelSpan.className = 'details-type';
-		labelSpan.textContent = artifactLabel;
+		this.labelSpan = document.createElement('span');
+		this.labelSpan.className = 'details-type'; // Class for styling the label
+		this.updateLabel(initialLabel); // Set initial label with formatting
 		// Set text first, then append span
 		this.setText(summaryMessage);
-		this.append(labelSpan);
+		this.append(this.labelSpan);
+	}
+
+	updateLabel(newLabel: string): void {
+		this.labelSpan.textContent = newLabel.replace(/_/g, ' ');
 	}
 }
 
@@ -283,8 +316,9 @@ function formatTime(relativeTimeMs: number): string {
 }
 
 function getSummaryMessage(message: string, messageContext?: TMessageContext): string {
-	if (messageContext && (messageContext as TExecutorMessageContext).topic?.stage === 'Executor' && (messageContext as TExecutorMessageContext).topic.result?.in) {
-		return `${message} ${(messageContext as TExecutorMessageContext).topic.result.in}`;
+	// Check for STEP_END incident and access details via incidentDetails
+	if (messageContext?.incident === EExecutionMessageType.STEP_END && messageContext.incidentDetails?.result?.in) {
+		return `${message} ${messageContext.incidentDetails.result.in}`;
 	}
 	return message;
 }

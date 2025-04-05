@@ -1,7 +1,7 @@
-import { TTag, TWorld } from './defs.js';
+import { TTag, TWorld, TAnyFixme } from './defs.js'; // Added TAnyFixme
 import { TArtifact } from './interfaces/artifacts.js';
-import { ILogger, ILogOutput, TLogArgs, TLogLevel, TOutputEnv } from './interfaces/logger.js';
-import { TMessageContext, TMessageContextTopic } from './interfaces/messageContexts.js';
+import { ILogger, ILogOutput, TLogArgs, TLogLevel, TOutputEnv, EExecutionMessageType } from './interfaces/logger.js'; // Added EExecutionMessageType
+import { TMessageContext } from './interfaces/messageContexts.js'; // Removed TMessageContextTopic
 import { descTag, isFirstTag } from './util/index.js';
 
 export const LOGGER_LOG = { level: 'log' };
@@ -85,11 +85,16 @@ export default class Logger implements ILogger, ILogOutput {
 }
 
 // Convenience function to create a log with message context and artifact
-export const topicArtifactLogger = (world: TWorld) => <T extends TArtifact>(message: TLogArgs, artifact: T, topic: TMessageContextTopic, level: TLogLevel = 'log'): void => {
+export const topicArtifactLogger = (world: TWorld) => <T extends TArtifact>(
+	message: TLogArgs,
+	data: { incident: EExecutionMessageType, artifact?: T, incidentDetails?: TAnyFixme },
+	level: TLogLevel = 'log'
+): void => {
 	const context: TMessageContext = {
-		topic,
-		artifact,
-		tag: world.tag
+		incident: data.incident,
+		artifact: data.artifact,
+		incidentDetails: data.incidentDetails,
+		tag: world.tag // Automatically add the tag from the curried world
 	};
 	world.logger[level](message, context);
 }

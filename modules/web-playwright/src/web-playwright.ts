@@ -7,7 +7,7 @@ import { WEB_PAGE, WEB_CONTROL } from '@haibun/core/build/lib/domain-types.js';
 import { BrowserFactory, TTaggedBrowserFactoryOptions, TBrowserTypes, BROWSERS } from './BrowserFactory.js';
 import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOption, sleep, optionOrError } from '@haibun/core/build/lib/util/index.js';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
-import { TActionStage, TArtifactImage, TArtifactMessageContext, TArtifactVideo } from '@haibun/core/build/lib/interfaces/logger.js';
+import { EExecutionMessageType, TArtifactImage, TArtifactVideo, TMessageContext } from '@haibun/core/build/lib/interfaces/logger.js'; // Removed TArtifactMessageContext, added TMessageContext
 import { EMediaTypes } from '@haibun/domain-storage/build/media-types.js';
 
 import { restSteps, TCapturedResponse } from './rest-playwright.js';
@@ -28,7 +28,7 @@ const cycles = (wp: WebPlaywright): IStepperCycles => ({
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	async onFailure(result: TStepResult, step?: TFeatureStep): Promise<void> {
 		if (wp.bf?.hasPage(wp.getWorld().tag, wp.tab)) {
-			await wp.captureFailureScreenshot('failure', 'onFailure', step);
+			await wp.captureFailureScreenshot('failure', EExecutionMessageType.ON_FAILURE, step);
 		}
 	},
 	async startFeature(): Promise<void> {
@@ -48,11 +48,13 @@ const cycles = (wp: WebPlaywright): IStepperCycles => ({
 					const page = await wp.getPage();
 					const path = await wp.storage.getRelativePath(await page.video().path());
 					const artifact: TArtifactVideo = { artifactType: 'video', path };
-					wp.getWorld().logger.log('feature video', <TArtifactMessageContext>{
+					// Log feature video using the new context structure
+					const context: TMessageContext = {
+						incident: EExecutionMessageType.FEATURE_END, // Use appropriate incident type
 						artifact,
-						topic: { event: 'summary', stage: 'endFeature' },
 						tag: wp.getWorld().tag
-					});
+					}; // End context object definition
+					wp.getWorld().logger.log('feature video', context); // Add the missing log call
 				}
 				// close the context, which closes any pages
 				if (wp.hasFactory) {
@@ -719,7 +721,7 @@ class WebPlaywright extends AStepper implements IHasOptions {
 			gwta: 'take a screenshot',
 			action: async (notUsed, featureStep: TFeatureStep) => {
 				try {
-					await this.captureScreenshotAndLog('request', 'action', featureStep);
+					await this.captureScreenshotAndLog('request', EExecutionMessageType.ACTION, featureStep);
 				} catch (e) {
 					return actionNotOK(e);
 				}
@@ -761,7 +763,7 @@ class WebPlaywright extends AStepper implements IHasOptions {
 	newTab() {
 		this.tab = this.tab + 1;
 	}
-	async captureFailureScreenshot(event: 'failure', stage: TActionStage, step: TFeatureStep) {
+	async captureFailureScreenshot(event: 'failure', stage: EExecutionMessageType, step: TFeatureStep) {
 		try {
 			return await this.captureScreenshotAndLog(event, stage, { step });
 		} catch (e) {
@@ -769,19 +771,27 @@ class WebPlaywright extends AStepper implements IHasOptions {
 		}
 	}
 
-	async captureScreenshotAndLog(event: 'failure' | 'request', stage: TActionStage, details: { seq?: number; step?: TFeatureStep }) {
-		const { artifactTopic, path } = await this.captureScreenshot(event, stage, details,);
-		this.getWorld().logger.log(`${event} screenshot to ${pathToFileURL(path)}`, artifactTopic);
+	async captureScreenshotAndLog(event: 'failure' | 'request', stage: EExecutionMessageType, details: { seq?: number; step?: TFeatureStep }) {
+		const { context, path } = await this.captureScreenshot(event, stage, details,); // Destructure 'context' instead of 'artifactTopic'
+		this.getWorld().logger.log(`${event} screenshot to ${pathToFileURL(path)}`, context); // Use 'context' instead of 'artifactTopic'
 	}
 
-	async captureScreenshot(event: 'failure' | 'request', stage: TActionStage, details: { seq?: number; step?: TFeatureStep }) {
+	async captureScreenshot(event: 'failure' | 'request', stage: EExecutionMessageType, details: { seq?: number; step?: TFeatureStep }) {
 		const loc = await this.getCaptureDir('image');
 		// FIXME shouldn't be fs dependant
 		const path = resolve(this.storage.fromLocation(EMediaTypes.image, loc, `${event}-${Date.now()}.png`));
 		await this.withPage(async (page: Page) => await page.screenshot({ path }));
 		const artifact: TArtifactImage = { artifactType: 'image', path: await this.storage.getRelativePath(path) };
-		const artifactTopic = { topic: { ...details, event, stage }, artifact, tag: this.getWorld().tag };
-		return { artifactTopic, path };
+		// Create context using the new structure
+		const context: TMessageContext = {
+			incident: EExecutionMessageType.ACTION, // Assuming ACTION is appropriate here
+			artifact,
+			tag: this.getWorld().tag,
+			incidentDetails: { ...details, event, stage } // Store original topic details if needed
+		};
+		// Return the context and path (adjusting the return type of the calling function might be needed)
+		return { context, path };
+		// Remove duplicate/incorrect return statement
 	}
 
 	async setExtraHTTPHeaders(headers: { [name: string]: string; }) {

@@ -19,6 +19,7 @@
     .haibun-log-entry > .haibun-log-details-summary { flex: 0 0 120px; /* Fixed width for left column */ padding-right: 15px; font-size: 0.9em; cursor: default; /* Summary elements are often clickable, make it look static */ list-style: none; /* Remove default summary marker */ }
     .haibun-log-entry > .haibun-log-details-summary::-webkit-details-marker { display: none; } /* Hide marker in WebKit */
     .haibun-log-entry > .haibun-message-content { flex-grow: 1; /* Right column takes remaining space */ word-break: break-word; }
+    .haibun-log-message-summary { display: flex; align-items: center; width: 100%; } /* Use flexbox for summary */
     /* Removed old styles for .haibun-log-container, .haibun-details-div, .haibun-messages-div */
     .haibun-artifact-div details { margin-top: 5px; }
     .haibun-artifact-div summary { cursor: pointer; font-weight: bold; }
@@ -32,6 +33,16 @@
     .haibun-stepper-played { background-color: rgba(10, 10, 211, 0.1); }
     .haibun-stepper-notplayed { background-color: rgba(10, 211, 10, 0.1); }
     .haibun-stepper-current { background-color: rgba(255, 255, 0, 0.3); border-left: 3px solid orange; }
+		.details-type {
+			background-color: #f5deb3;
+			border-radius: 5px;
+			margin-left: auto; /* Push to the far right */
+			padding: 1px 5px; /* Slightly adjust padding */
+			text-transform: lowercase;
+			display: inline-block;
+			font-size: 0.75em; /* Make slightly smaller */
+			color: #a80;
+		}
 
     #haibun-video { /* ... video styles ... */ }
 

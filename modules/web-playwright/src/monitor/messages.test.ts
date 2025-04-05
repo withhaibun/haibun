@@ -3,7 +3,7 @@
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 // Import necessary types for mocking contexts
-import { TArtifact, TExecutorMessageContext, TArtifactMessageContext, TArtifactDebugTopic, TArtifactVideo, TArtifactVideoStart, TArtifactJSON, TArtifactHTTPTrace, TArtifactHTML, TArtifactImage, THTTPTraceContent } from '@haibun/core/build/lib/interfaces/logger.js';
+import { TArtifact, TMessageContext, TArtifactVideo, TArtifactVideoStart, TArtifactJSON, TArtifactHTTPTrace, TArtifactHTML, TArtifactImage, THTTPTraceContent, EExecutionMessageType } from '@haibun/core/build/lib/interfaces/logger.js'; // Updated imports
 import { TTag, TFeatureStep, TStepResult, TStepAction, TStepActionResult, OK } from '@haibun/core/build/lib/defs.js';
 import { LogEntry } from './messages.js'; // Import the main class
 
@@ -74,11 +74,11 @@ describe('Monitor Messages Logic (messages.ts)', () => {
 			const mockActionResult: TStepActionResult = { ok: true, name: 'testAction' };
 			const mockStepResult: TStepResult = { ok: true, actionResult: mockActionResult, in: 'Given something', path: 'test.feature', seq: 1 };
 
-			// Provide a valid TExecutorMessageContext structure
-			const context: TExecutorMessageContext = {
+			// Provide a valid TMessageContext structure for STEP_END
+			const context: TMessageContext = {
+				incident: EExecutionMessageType.STEP_END,
 				tag: mockTag,
-				topic: {
-					stage: 'Executor',
+				incidentDetails: {
 					step: mockFeatureStep,
 					result: mockStepResult
 				}
@@ -88,11 +88,21 @@ describe('Monitor Messages Logic (messages.ts)', () => {
 
 			const messageContent = element.querySelector('.haibun-message-content') as HTMLElement;
 			expect(messageContent).not.toBeNull();
-			expect(messageContent?.classList.contains('haibun-simple-message')).toBe(true);
-			expect(messageContent?.textContent).toBe('Action Given something'); // Match mock data
+			// Check that the context details wrapper exists
+			const details = element.querySelector('.haibun-context-details');
+			expect(details).not.toBeNull();
+			const summary = details?.querySelector('.haibun-log-message-summary');
+			expect(summary?.textContent).toContain('Action Given something'); // Check summary text part
+			// Check the label span specifically for the incident type string
+			expect(summary?.querySelector('.details-type')?.textContent).toBe('STEP END'); // Expect spaces, original casing
+			// Ensure the simple message class is NOT present on the main content div
+			expect(messageContent?.classList.contains('haibun-simple-message')).toBe(false);
 
 			// Ensure no artifact details wrapper is present
-			expect(element.querySelector('.haibun-artifact-details')).toBeNull();
+			// Check for incident details pre tag within the context details
+			expect(details?.querySelector('pre.haibun-message-details-json')).not.toBeNull();
+			// Ensure incident type div is NOT present anymore
+			expect(details?.querySelector('.haibun-incident-type')).toBeNull();
 		});
 
 		it('should render an HTML artifact correctly', () => {
@@ -100,23 +110,23 @@ describe('Monitor Messages Logic (messages.ts)', () => {
 			const artifact: TArtifactHTML = { artifactType: 'html', html: htmlContent };
 			// Provide a valid TArtifactMessageContext
 			const mockTagHtml: TTag = { key: 'html', sequence: 2, featureNum: 1, params: {}, trace: false };
-			const mockTopicHtml: TArtifactDebugTopic = { stage: 'action', event: 'debug' };
-			const context: TArtifactMessageContext = {
+			const context: TMessageContext = {
+				incident: EExecutionMessageType.ACTION, // Standard incident for artifacts
 				tag: mockTagHtml,
-				topic: mockTopicHtml,
 				artifact
 			};
 			const logEntry = new LogEntry('info', BASE_TIMESTAMP, 'HTML Artifact', context);
 			const element = logEntry.element;
 
-			const details = element.querySelector('.haibun-artifact-details');
+			// Look for the main context wrapper, then the artifact inside
+			const details = element.querySelector('.haibun-context-details');
 			expect(details).not.toBeNull();
 			expect(details?.tagName).toBe('DETAILS');
 
 			const messageSummary = details?.querySelector('.haibun-log-message-summary');
 			expect(messageSummary).not.toBeNull();
 			expect(messageSummary?.textContent).toContain('HTML Artifact');
-			expect(messageSummary?.querySelector('.details-type')?.textContent).toBe('html');
+			expect(messageSummary?.querySelector('.details-type')?.textContent).toBe('html'); // Artifact type used as label
 
 			const iframe = details?.querySelector('iframe') as HTMLIFrameElement;
 			expect(iframe).not.toBeNull();
@@ -128,21 +138,21 @@ describe('Monitor Messages Logic (messages.ts)', () => {
 			const imagePath = '/path/to/image.png';
 			const artifact: TArtifactImage = { artifactType: 'image', path: imagePath };
 			const mockTagImage: TTag = { key: 'image', sequence: 3, featureNum: 1, params: {}, trace: false };
-			const mockTopicImage: TArtifactDebugTopic = { stage: 'action', event: 'debug' };
-			const context: TArtifactMessageContext = {
+			const context: TMessageContext = {
+				incident: EExecutionMessageType.ACTION, // Standard incident for artifacts
 				tag: mockTagImage,
-				topic: mockTopicImage,
 				artifact
 			};
 			const logEntry = new LogEntry('info', BASE_TIMESTAMP, 'Image Artifact', context);
 			const element = logEntry.element;
 
-			const details = element.querySelector('.haibun-artifact-details');
+			// Look for the main context wrapper, then the artifact inside
+			const details = element.querySelector('.haibun-context-details');
 			expect(details).not.toBeNull();
 
 			const messageSummary = details?.querySelector('.haibun-log-message-summary');
 			expect(messageSummary?.textContent).toContain('Image Artifact');
-			expect(messageSummary?.querySelector('.details-type')?.textContent).toBe('image');
+			expect(messageSummary?.querySelector('.details-type')?.textContent).toBe('image'); // Artifact type used as label
 
 			const img = details?.querySelector('img') as HTMLImageElement;
 			expect(img).not.toBeNull();
@@ -156,21 +166,21 @@ describe('Monitor Messages Logic (messages.ts)', () => {
 			const artifact: TArtifactVideo = { artifactType: 'video', path: videoPath };
 			// Provide a valid TArtifactMessageContext
 			const mockTagVideo1: TTag = { key: 'video1', sequence: 4, featureNum: 1, params: {}, trace: false };
-			const mockTopicVideo1: TArtifactDebugTopic = { stage: 'action', event: 'debug' };
-			const context: TArtifactMessageContext = {
+			const context: TMessageContext = {
+				incident: EExecutionMessageType.ACTION, // Standard incident for artifacts
 				tag: mockTagVideo1,
-				topic: mockTopicVideo1,
 				artifact
 			};
 			const logEntry = new LogEntry('info', BASE_TIMESTAMP, 'Video Artifact', context);
 			const element = logEntry.element;
 
-			const details = element.querySelector('.haibun-artifact-details');
+			// Look for the main context wrapper, then the artifact inside
+			const details = element.querySelector('.haibun-context-details');
 			expect(details).not.toBeNull();
 
 			const messageSummary = details?.querySelector('.haibun-log-message-summary');
 			expect(messageSummary?.textContent).toContain('Video Artifact');
-			expect(messageSummary?.querySelector('.details-type')?.textContent).toBe('video');
+			expect(messageSummary?.querySelector('.details-type')?.textContent).toBe('video'); // Artifact type used as label
 
 			const video = details?.querySelector('video') as HTMLVideoElement;
 			expect(video).not.toBeNull();
@@ -192,23 +202,22 @@ describe('Monitor Messages Logic (messages.ts)', () => {
 			const artifact: TArtifactVideo = { artifactType: 'video', path: videoPath };
 			// Provide a valid TArtifactMessageContext
 			const mockTagVideo2: TTag = { key: 'video2', sequence: 5, featureNum: 1, params: {}, trace: false };
-			const mockTopicVideo2: TArtifactDebugTopic = { stage: 'action', event: 'debug' };
-			const context: TArtifactMessageContext = {
+			const context: TMessageContext = {
+				incident: EExecutionMessageType.ACTION, // Standard incident for artifacts
 				tag: mockTagVideo2,
-				topic: mockTopicVideo2,
 				artifact
 			};
 			const logEntry = new LogEntry('info', BASE_TIMESTAMP, 'Video Artifact', context);
 			const element = logEntry.element;
 
-			// Should NOT be in the main log entry's details
-			expect(element.querySelector('.haibun-artifact-details')).toBeNull();
-			// Assert that the message content element is NOT appended in this case
-			// Assert that the message content element exists and contains the summary message
+			// Should NOT have the details wrapper at all because artifact is placed elsewhere
+			expect(element.querySelector('.haibun-context-details')).toBeNull();
+
+			// Should have the simple message class now
 			const messageContent = element.querySelector('.haibun-message-content') as HTMLElement;
 			expect(messageContent).not.toBeNull();
 			expect(messageContent.classList.contains('haibun-simple-message')).toBe(true);
-			expect(messageContent.textContent).toBe('Video Artifact'); // Check for summary message
+			expect(messageContent.textContent).toBe('Video Artifact'); // Check text content is just the summary
 
 			// Should be in the dedicated container
 			const video = document.querySelector('#haibun-video video') as HTMLVideoElement;
@@ -227,23 +236,24 @@ describe('Monitor Messages Logic (messages.ts)', () => {
 			const artifact: TArtifactVideoStart = { artifactType: 'video/start', start: startTime };
 			// Provide a valid TArtifactMessageContext
 			const mockTagVideoStart: TTag = { key: 'vstart', sequence: 6, featureNum: 1, params: {}, trace: false };
-			const mockTopicVideoStart: TArtifactDebugTopic = { stage: 'action', event: 'debug' };
-			const context: TArtifactMessageContext = {
+			const context: TMessageContext = {
+				incident: EExecutionMessageType.ACTION, // Standard incident for artifacts
 				tag: mockTagVideoStart,
-				topic: mockTopicVideoStart,
 				artifact
 			};
 			const logEntry = new LogEntry('info', BASE_TIMESTAMP, 'Video Start', context);
 			const element = logEntry.element;
 
-			// Should NOT be in the main log entry's details
-			expect(element.querySelector('.haibun-artifact-details')).toBeNull();
-			// Assert that the message content element is NOT appended in this case
-			// Assert that the message content element exists and contains the summary message
+			// Should NOT have artifact details inside the main context details
+			expect(element.querySelector('.haibun-context-details .haibun-artifact-details')).toBeNull();
+			// Should NOT have the details wrapper at all because artifact is placed elsewhere
+			expect(element.querySelector('.haibun-context-details')).toBeNull();
+
+			// Should have the simple message class now
 			const messageContent = element.querySelector('.haibun-message-content') as HTMLElement;
 			expect(messageContent).not.toBeNull();
 			expect(messageContent.classList.contains('haibun-simple-message')).toBe(true);
-			expect(messageContent.textContent).toBe('Video Start'); // Check for summary message
+			expect(messageContent.textContent).toBe('Video Start'); // Check text content is just the summary
 
 			// Should be appended to the body
 			const startSpan = document.body.querySelector('#haibun-video-start') as HTMLSpanElement;
@@ -257,21 +267,21 @@ describe('Monitor Messages Logic (messages.ts)', () => {
 			const artifact: TArtifactJSON = { artifactType: 'json', json: jsonData }; // Content can be object
 			// Provide a valid TArtifactMessageContext
 			// Or: const artifact: TArtifact = { artifactType: 'json', content: jsonData }; // If content can be object
-			const context: TArtifactMessageContext = {
-				// Provide a full TTag mock
+			const context: TMessageContext = {
+				incident: EExecutionMessageType.ACTION, // Standard incident for artifacts
 				tag: { key: 'json', sequence: 7, featureNum: 1, params: {}, trace: false },
-				topic: { stage: 'action', event: 'debug' },
 				artifact
 			};
 			const logEntry = new LogEntry('info', BASE_TIMESTAMP, 'JSON Artifact', context);
 			const element = logEntry.element;
 
-			const details = element.querySelector('.haibun-artifact-details');
+			// Look for the main context wrapper, then the artifact inside
+			const details = element.querySelector('.haibun-context-details');
 			expect(details).not.toBeNull();
 
 			const messageSummary = details?.querySelector('.haibun-log-message-summary');
 			expect(messageSummary?.textContent).toContain('JSON Artifact');
-			expect(messageSummary?.querySelector('.details-type')?.textContent).toBe('json');
+			expect(messageSummary?.querySelector('.details-type')?.textContent).toBe('json'); // Artifact type used as label
 
 			const pre = details?.querySelector('pre') as HTMLPreElement;
 			expect(pre).not.toBeNull();
@@ -295,21 +305,21 @@ describe('Monitor Messages Logic (messages.ts)', () => {
 			};
 			const artifact: TArtifactHTTPTrace = { artifactType: 'json/http/trace', trace: traceData };
 			const mockTagTrace: TTag = { key: 'trace', sequence: 8, featureNum: 1, params: {}, trace: false };
-			const mockTopicTrace: TArtifactDebugTopic = { stage: 'action', event: 'debug' };
-			const context: TArtifactMessageContext = {
+			const context: TMessageContext = {
+				incident: EExecutionMessageType.ACTION, // Standard incident for artifacts
 				tag: mockTagTrace,
-				topic: mockTopicTrace,
 				artifact
 			};
 			const logEntry = new LogEntry('debug', BASE_TIMESTAMP, 'Trace Event', context);
 			const element = logEntry.element;
 
-			const details = element.querySelector('.haibun-artifact-details');
+			// Look for the main context wrapper, then the artifact inside
+			const details = element.querySelector('.haibun-context-details');
 			expect(details).not.toBeNull();
 
 			const messageSummary = details?.querySelector('.haibun-log-message-summary');
 			expect(messageSummary?.textContent).toContain('Trace Event');
-			expect(messageSummary?.querySelector('.details-type')?.textContent).toBe('⇄ Trace'); // Special label
+			expect(messageSummary?.querySelector('.details-type')?.textContent).toBe('⇄ Trace'); // Specific artifact label used
 
 			const pre = details?.querySelector('pre') as HTMLPreElement;
 			expect(pre).not.toBeNull();
@@ -322,10 +332,9 @@ describe('Monitor Messages Logic (messages.ts)', () => {
 		it('should throw if artifact type is not recognized', () => {
 			const artifact = <TArtifact>(<unknown>{ artifactType: 'notAThing' });
 			const mockTagGeneric: TTag = { key: 'generic', sequence: 9, featureNum: 1, params: {}, trace: false };
-			const mockTopicGeneric: TArtifactDebugTopic = { stage: 'action', event: 'debug' };
-			const context: TArtifactMessageContext = {
+			const context: TMessageContext = {
+				incident: EExecutionMessageType.ACTION, // Standard incident for artifacts
 				tag: mockTagGeneric,
-				topic: mockTopicGeneric,
 				artifact
 			};
 			expect(() => new LogEntry('warn', BASE_TIMESTAMP, 'Generic JSON', context)).toThrow();
