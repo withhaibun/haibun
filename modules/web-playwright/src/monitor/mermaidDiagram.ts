@@ -94,7 +94,7 @@ export class SequenceDiagramGenerator {
 			}
 
 
-			if (method) { // Removed the incorrect about:blank check
+			if (method) {
 				// Sanitize message content for Mermaid using the helper function
 				const message = sanitizeMermaidContent(`${method} ${requestingURL}`);
 				this.diagramLines.push(`${pageAlias}->>${serverAlias}: ${message}`);
@@ -111,7 +111,7 @@ export class SequenceDiagramGenerator {
 				}
 			}
 
-			if (status) { // Removed the incorrect about:blank check
+			if (status) {
 				// Sanitize response message
 				const message = sanitizeMermaidContent(`${status} ${statusText || ''}`);
 				this.diagramLines.push(`${serverAlias}-->>${pageAlias}: ${message}`);

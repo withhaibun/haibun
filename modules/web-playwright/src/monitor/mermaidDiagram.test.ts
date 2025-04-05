@@ -4,6 +4,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { SequenceDiagramGenerator } from './mermaidDiagram.js';
 import { THTTPTraceContent } from '@haibun/core/build/lib/interfaces/artifacts.js';
+import { TAnyFixme } from '@haibun/core/build/lib/defs.js';
 
 // Use vi.hoisted to declare the mock function before vi.mock runs
 const { mockMermaidRun } = vi.hoisted(() => {
@@ -12,10 +13,9 @@ const { mockMermaidRun } = vi.hoisted(() => {
 
 // Mock the mermaid library using the hoisted mock function
 vi.mock('mermaid', () => ({
-	default: { // Assuming mermaid is imported as default
+	default: {
 		run: mockMermaidRun,
 		initialize: vi.fn(),
-		// Add other necessary mocked methods/properties if needed
 	}
 }));
 
@@ -24,18 +24,15 @@ describe('SequenceDiagramGenerator', () => {
 	let container: HTMLDivElement;
 
 	beforeEach(() => {
-		// Setup DOM element
 		container = document.createElement('div');
 		container.id = 'sequence-diagram';
 		document.body.appendChild(container);
 
 		generator = new SequenceDiagramGenerator();
-		vi.clearAllMocks(); // Clear mocks before each test
+		vi.clearAllMocks();
 	});
 
 	afterEach(() => {
-		// Cleanup DOM
-		// Find the container by ID again, as it might have been removed by a test
 		const containerInBody = document.getElementById('sequence-diagram');
 		if (containerInBody) {
 			document.body.removeChild(containerInBody);
@@ -50,7 +47,7 @@ describe('SequenceDiagramGenerator', () => {
 	it('should generate diagram, insert into container, and call mermaid.run when needsUpdate is true', async () => {
 		// Simulate processing an event to set needsUpdate = true
 		const mockEvent: THTTPTraceContent = {
-			requestingPage: 'about:blank', // Use about:blank
+			requestingPage: 'about:blank',
 			requestingURL: 'http://example.com/api',
 			method: 'GET',
 			status: 200,
@@ -66,32 +63,24 @@ describe('SequenceDiagramGenerator', () => {
 		// Check if container has the mermaid pre tag
 		const preElement = container.querySelector('pre.mermaid');
 		expect(preElement).not.toBeNull();
-		// Define the exact expected output string
-		// Expect alias based on hostname 'example.com' + counter 1
 		const expectedDiagram = `sequenceDiagram
 participant examplecom1 as example.com 1
 participant examplecom as example.com
 examplecom1->>examplecom: GET http://example.com/api
 Note right of examplecom1: User-Agent: Mozilla/5.0 #40;X11#59; Linux x86_64#41; AppleWebKit/537.36 #40;KHTML#44; like Gecko#41; Chrome/134.0.0.0 Safari/537.36
 examplecom-->>examplecom1: 200 OK`;
-		// Compare the exact text content (trimming potential whitespace)
 		expect(preElement?.textContent?.trim()).toBe(expectedDiagram);
 
-		// Check if mermaid.run was called
 		expect(mockMermaidRun).toHaveBeenCalledTimes(1);
 		expect(mockMermaidRun).toHaveBeenCalledWith({ nodes: [preElement] });
 
-		// Check if needsUpdate is reset
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		expect((generator as any).needsUpdate).toBe(false); // Access private member for testing
+		expect((generator as TAnyFixme).needsUpdate).toBe(false); // Access private member for testing
 	});
 
 	it('should handle errors during mermaid.run and display the error', async () => {
-		// Simulate the actual error seen in jsdom environment
 		const internalErrorMessage = '(textElem._groups || textElem)[0][0].getBBox is not a function';
 		mockMermaidRun.mockRejectedValueOnce(new Error(internalErrorMessage)); // Simulate internal error
 
-		// Simulate processing an event
 		const mockEvent: THTTPTraceContent = { requestingURL: 'http://test.com' }
 		generator.processEvent(mockEvent);
 
@@ -117,7 +106,6 @@ examplecom-->>examplecom1: 200 OK`;
 		const errorObject = { details: 'Simulated non-Error rejection for testing mermaid.run' };
 		mockMermaidRun.mockRejectedValueOnce(errorObject); // Simulate non-Error rejection
 
-		// Simulate processing an event
 		const mockEvent: THTTPTraceContent = { requestingPage: 'p1', requestingURL: 'http://test.com' };
 		generator.processEvent(mockEvent);
 
@@ -148,7 +136,7 @@ examplecom-->>examplecom1: 200 OK`;
 			document.body.removeChild(containerToRemove);
 		}
 		expect(document.getElementById('sequence-diagram')).toBeNull(); // Verify removal worked
-		// Simulate processing an event
+
 		const mockEvent: THTTPTraceContent = { requestingPage: 'p1', requestingURL: 'http://test.com' }
 		generator.processEvent(mockEvent);
 

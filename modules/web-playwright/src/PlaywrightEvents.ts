@@ -1,6 +1,6 @@
 
-import { TAnyFixme, TTag } from '@haibun/core/build/lib/defs.js';
-import { ILogger, TArtifactMessageContext, TArtifactHTTPTrace, THTTPTraceContent } from '@haibun/core/build/lib/interfaces/logger.js';
+import { TTag } from '@haibun/core/build/lib/defs.js';
+import { TMessageContext, TArtifactHTTPTrace, THTTPTraceContent, ILogger, EExecutionMessageType } from '@haibun/core/build/lib/interfaces/logger.js'; // Updated imports
 import { Page, Request, Route, Response } from 'playwright';
 
 type TEtc = {
@@ -70,12 +70,11 @@ export class PlaywrightEvents {
 			trace: logData,
 			artifactType: 'json/http/trace'
 		}
-		const mc: TArtifactMessageContext = {
-			topic: {
-				stage: 'action',
-				event: 'debug',
-			},
-			artifact
+		const mc: TMessageContext = {
+			incident: EExecutionMessageType.ACTION, // Assuming ACTION is appropriate for a trace event
+			artifact,
+			tag: this.tag // Need to add the tag property
+			// incidentDetails could potentially hold original topic info if needed: { stage: 'action', event: 'debug' }
 		};
 		this.logger.debug(`playwright ${type} ${logData.requestingURL} ➔ ${targetWithoutRequestingBase}`, mc);
 	}

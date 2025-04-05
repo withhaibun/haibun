@@ -1,6 +1,6 @@
 import { Browser, BrowserContext, Page, chromium, firefox, webkit, BrowserType, devices, BrowserContextOptions } from 'playwright';
 
-import { TArtifactMessageContext, TArtifactVideoStart } from '@haibun/core/build/lib/interfaces/logger.js';
+import { TMessageContext, TArtifactVideoStart, EExecutionMessageType } from '@haibun/core/build/lib/interfaces/logger.js'; // Updated imports
 import { TTag, TTagValue, TWorld } from '@haibun/core/build/lib/defs.js';
 import { PlaywrightEvents } from './PlaywrightEvents.js';
 
@@ -51,15 +51,14 @@ export class BrowserFactory {
 				{ ...config.options, ...config.launchOptions }
 			);
 
-			const vs: TArtifactMessageContext = {
-				topic: {
-					stage: 'action',
-					event: 'debug',
-				},
+			// Create context using the new structure
+			const vs: TMessageContext = {
+				incident: EExecutionMessageType.ACTION, // Assuming ACTION is appropriate here
 				artifact: <TArtifactVideoStart>{
 					start: this.world.timer.since(),
 					artifactType: 'video/start'
-				}
+				},
+				tag: this.world.tag // Add the tag
 			};
 			this.world.logger.debug(`launched new ${type} browser`, vs);
 		}
