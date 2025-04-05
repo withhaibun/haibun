@@ -249,7 +249,7 @@ describe('Monitor Messages Logic (messages.ts)', () => {
 			const startSpan = document.body.querySelector('#haibun-video-start') as HTMLSpanElement;
 			expect(startSpan).not.toBeNull();
 			expect(startSpan?.tagName).toBe('SPAN');
-			expect(startSpan?.dataset.start).toBe(startTime);
+			expect(startSpan?.dataset.start).toBe(`${startTime}`);
 		});
 
 		it('should render a JSON artifact correctly', () => {
@@ -281,7 +281,7 @@ describe('Monitor Messages Logic (messages.ts)', () => {
 			expect(JSON.parse(pre?.textContent || '{}')).toEqual(jsonData);
 		});
 
-		it.only('should render a Playwright Trace artifact and call sequenceDiagramGenerator', async () => {
+		it('should render a Playwright Trace artifact and call sequenceDiagramGenerator', async () => {
 			const { sequenceDiagramGenerator } = await import('./monitor.js'); // Get the mock
 			const traceData: THTTPTraceContent = {
 				frameURL: 'http://example.com/frame',
@@ -305,7 +305,6 @@ describe('Monitor Messages Logic (messages.ts)', () => {
 			const element = logEntry.element;
 
 			const details = element.querySelector('.haibun-artifact-details');
-			console.log('🤑', JSON.stringify(details, null, 2));
 			expect(details).not.toBeNull();
 
 			const messageSummary = details?.querySelector('.haibun-log-message-summary');
@@ -317,7 +316,7 @@ describe('Monitor Messages Logic (messages.ts)', () => {
 			expect(JSON.parse(pre?.textContent || '{}')).toEqual(traceData);
 
 			expect(sequenceDiagramGenerator.processEvent).toHaveBeenCalledTimes(1);
-			expect(sequenceDiagramGenerator.processEvent).toHaveBeenCalledWith(artifact);
+			expect(sequenceDiagramGenerator.processEvent).toHaveBeenCalledWith(artifact.trace);
 		});
 
 		it('should throw if artifact type is not recognized', () => {
