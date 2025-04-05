@@ -7,7 +7,7 @@ import { WEB_PAGE, WEB_CONTROL } from '@haibun/core/build/lib/domain-types.js';
 import { BrowserFactory, TTaggedBrowserFactoryOptions, TBrowserTypes, BROWSERS } from './BrowserFactory.js';
 import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOption, sleep, optionOrError } from '@haibun/core/build/lib/util/index.js';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
-import { TActionStage, TArtifact, TArtifactMessageContext, TTraceMessageContext, } from '@haibun/core/build/lib/interfaces/logger.js';
+import { TActionStage, TArtifactImage, TArtifactMessageContext, TArtifactVideo } from '@haibun/core/build/lib/interfaces/logger.js';
 import { EMediaTypes } from '@haibun/domain-storage/build/media-types.js';
 
 import { restSteps, TCapturedResponse } from './rest-playwright.js';
@@ -26,7 +26,7 @@ type TRequestOptions = {
 
 const cycles = (wp: WebPlaywright): IStepperCycles => ({
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	async onFailure(result: TStepResult, step?: TFeatureStep): Promise<void | TTraceMessageContext> {
+	async onFailure(result: TStepResult, step?: TFeatureStep): Promise<void> {
 		if (wp.bf?.hasPage(wp.getWorld().tag, wp.tab)) {
 			await wp.captureFailureScreenshot('failure', 'onFailure', step);
 		}
@@ -47,7 +47,7 @@ const cycles = (wp: WebPlaywright): IStepperCycles => ({
 				if (wp.captureVideo) {
 					const page = await wp.getPage();
 					const path = await wp.storage.getRelativePath(await page.video().path());
-					const artifact: TArtifact = { type: 'video', path };
+					const artifact: TArtifactVideo = { artifactType: 'video', path };
 					wp.getWorld().logger.log('feature video', <TArtifactMessageContext>{
 						artifact,
 						topic: { event: 'summary', stage: 'endFeature' },
@@ -779,7 +779,7 @@ class WebPlaywright extends AStepper implements IHasOptions {
 		// FIXME shouldn't be fs dependant
 		const path = resolve(this.storage.fromLocation(EMediaTypes.image, loc, `${event}-${Date.now()}.png`));
 		await this.withPage(async (page: Page) => await page.screenshot({ path }));
-		const artifact: TArtifact = { type: 'image', path: await this.storage.getRelativePath(path) };
+		const artifact: TArtifactImage = { artifactType: 'image', path: await this.storage.getRelativePath(path) };
 		const artifactTopic = { topic: { ...details, event, stage }, artifact, tag: this.getWorld().tag };
 		return { artifactTopic, path };
 	}

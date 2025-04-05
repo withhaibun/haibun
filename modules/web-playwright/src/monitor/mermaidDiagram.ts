@@ -1,34 +1,17 @@
-import mermaid from 'mermaid'; // Import mermaid library
-import { TAnyFixme } from '@haibun/core/build/lib/defs.js'; // Import TAnyFixme
-import { TPlaywrightTraceEvent } from "../PlaywrightEvents.js";
+import mermaid from 'mermaid';
+import { TAnyFixme } from '@haibun/core/build/lib/defs.js';
+import { THTTPTraceContent } from '@haibun/core/build/lib/interfaces/logger.js';
+
 // Helper function for sanitization
-const sanitizeMermaidMessage = (message: string): string => {
-	// Sanitize characters problematic for Mermaid syntax within quoted strings:
-	// 1. Replace double quotes with single quotes.
-	// 2. Replace parentheses, commas, and semicolons with HTML entities.
+const sanitizeMermaidContent = (message: string): string => {
 	let sanitized = message.replace(/"/g, "'"); // Replace double quotes
 	// IMPORTANT: Escape semicolon FIRST to avoid breaking other entities
-	sanitized = sanitized.replace(/;/g, '#59;');  // Escape semicolon
-	sanitized = sanitized.replace(/\(/g, '#40;'); // Escape opening parenthesis
-	sanitized = sanitized.replace(/\)/g, '#41;'); // Escape closing parenthesis
-	sanitized = sanitized.replace(/,/g, '#44;');  // Escape comma
-	return sanitized; // Return sanitized text without surrounding quotes
+	sanitized = sanitized.replace(/;/g, '#59;');
+	sanitized = sanitized.replace(/\(/g, '#40;');
+	sanitized = sanitized.replace(/\)/g, '#41;');
+	sanitized = sanitized.replace(/,/g, '#44;');
+	return sanitized;
 };
-
-// Helper function for sanitizing note content (no surrounding quotes)
-const sanitizeMermaidNote = (note: string): string => {
-	// Sanitize characters problematic for Mermaid syntax within note text:
-	// 1. Replace double quotes with single quotes (or HTML entity).
-	// 2. Replace parentheses, commas, and semicolons with HTML entities.
-	let sanitized = note.replace(/"/g, "'"); // Replace double quotes with single quotes
-	// IMPORTANT: Escape semicolon FIRST to avoid breaking other entities
-	sanitized = sanitized.replace(/;/g, '#59;');  // Escape semicolon
-	sanitized = sanitized.replace(/\(/g, '#40;'); // Escape opening parenthesis
-	sanitized = sanitized.replace(/\)/g, '#41;'); // Escape closing parenthesis
-	sanitized = sanitized.replace(/,/g, '#44;');  // Escape comma
-	return sanitized; // Return sanitized text without surrounding quotes
-};
-
 
 export class SequenceDiagramGenerator {
 	private needsUpdate = false;
@@ -45,14 +28,13 @@ export class SequenceDiagramGenerator {
 		}
 	}
 
-	public processEvent(event: TPlaywrightTraceEvent): void {
-		const content = event.content;
-		const requestingPage = content.requestingPage;
-		const requestingURL = content.requestingURL;
-		const method = content.method;
-		const status = content.status;
-		const statusText = content.statusText;
-		const headers = content.headers;
+	public processEvent(trace: THTTPTraceContent): void {
+		const requestingPage = trace.requestingPage;
+		const requestingURL = trace.requestingURL;
+		const method = trace.method;
+		const status = trace.status;
+		const statusText = trace.statusText;
+		const headers = trace.headers;
 
 		// Use URL hostname as the server participant
 		let serverAlias = 'UnknownAlias'; // Default if URL is missing
@@ -114,26 +96,24 @@ export class SequenceDiagramGenerator {
 
 			if (method) { // Removed the incorrect about:blank check
 				// Sanitize message content for Mermaid using the helper function
-				const message = sanitizeMermaidMessage(`${method} ${requestingURL}`);
+				const message = sanitizeMermaidContent(`${method} ${requestingURL}`);
 				this.diagramLines.push(`${pageAlias}->>${serverAlias}: ${message}`);
 				if (headers && headers.referer) {
-					// Sanitize note content as well
-					// Use sanitizeMermaidNote for note content
-					const note = sanitizeMermaidNote(`Referer: ${headers.referer}`);
+					const note = sanitizeMermaidContent(`Referer: ${headers.referer}`);
 					this.diagramLines.push(`Note right of ${pageAlias}: ${note}`);
 				}
 				// more notes, e.g., User-Agent
 				if (headers && headers["user-agent"]) {
 					// Sanitize user-agent note
 					// Use sanitizeMermaidNote for note content
-					const note = sanitizeMermaidNote(`User-Agent: ${headers["user-agent"]}`);
+					const note = sanitizeMermaidContent(`User-Agent: ${headers["user-agent"]}`);
 					this.diagramLines.push(`Note right of ${pageAlias}: ${note}`);
 				}
 			}
 
 			if (status) { // Removed the incorrect about:blank check
 				// Sanitize response message
-				const message = sanitizeMermaidMessage(`${status} ${statusText || ''}`);
+				const message = sanitizeMermaidContent(`${status} ${statusText || ''}`);
 				this.diagramLines.push(`${serverAlias}-->>${pageAlias}: ${message}`);
 			}
 		}

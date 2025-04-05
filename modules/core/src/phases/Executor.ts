@@ -1,7 +1,9 @@
 import { TFeatureStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, AStepper, TStepAction, TAnyFixme, STAY, STAY_FAILURE, CHECK_NO, CHECK_YES, STEP_DELAY, TNotOKActionResult, CONTINUE_AFTER_ERROR, IStepperCycles } from '../lib/defs.js';
-import { TExecutorMessageContext } from '../lib/interfaces/logger.js';
+import { TExecutorResultMessageContext } from '../lib/interfaces/messageContexts.js';
+import { topicArtifactLogger } from '../lib/Logger.js';
 import { getNamedToVars } from '../lib/namedVars.js';
 import { actionNotOK, sleep, findStepper, constructorName, setStepperWorlds } from '../lib/util/index.js';
+import { SCENARIO_START } from '../steps/vars.js';
 
 function calculateShouldClose(isLast: boolean, okSoFar: boolean, thisFeatureOK: boolean, continueAfterError: boolean, stayOnFailure: boolean) {
 	return (!thisFeatureOK && isLast && stayOnFailure);
@@ -68,17 +70,22 @@ export class Executor {
 }
 
 export class FeatureExecutor {
-	startOffset = 0;
+	constructor(private steppers: AStepper[], private world: TWorld, private logit = topicArtifactLogger(this.world), startOffset = world.timer.since()) { }
 
-	constructor(private steppers: AStepper[], private world: TWorld) {
-		this.startOffset = world.timer.since();
-	}
 	async doFeature(feature: TResolvedFeature): Promise<TFeatureResult> {
 		const world = this.world;
 		let ok = true;
 		const stepResults: TStepResult[] = [];
 
+		// let currentScenarioSeq: number = undefined;
+
 		for (const step of feature.featureSteps) {
+			if (step.action.actionName === SCENARIO_START) {
+				// if (currentScenarioSeq) {
+				// const scenarioEnd : TExecutorResultMessageContext =
+				// this.logit(`scenario end`, { topic: { stage: 'Executor', feature, step } },);
+			}
+
 			world.logger.log(step.in);
 			const result = await FeatureExecutor.doFeatureStep(this.steppers, step, world);
 
@@ -87,7 +94,8 @@ export class FeatureExecutor {
 			}
 			ok = ok && result.ok;
 			const indicator = result.ok ? CHECK_YES : CHECK_NO + ' ' + (<TNotOKActionResult>result.actionResult).message;
-			world.logger.log(indicator, <TExecutorMessageContext>{ topic: { stage: 'Executor', result, step } });
+			world.logger.log(indicator, <TExecutorResultMessageContext>{ topic: { stage: 'Executor', result, step } });
+			world.logger.log(indicator, <TExecutorResultMessageContext>{ topic: { stage: 'Executor', result, step } });
 			stepResults.push(result);
 			if (!ok) {
 				break;

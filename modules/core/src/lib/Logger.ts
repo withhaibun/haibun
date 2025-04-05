@@ -1,5 +1,7 @@
-import { TAnyFixme, TTag } from './defs.js';
-import { ILogger, ILogOutput, TActionStage, TArtifactMessageContext, TArtifactType, TLogArgs, TLogLevel, TMessageContext, TOutputEnv, } from './interfaces/logger.js';
+import { TTag, TWorld } from './defs.js';
+import { TArtifact } from './interfaces/artifacts.js';
+import { ILogger, ILogOutput, TLogArgs, TLogLevel, TOutputEnv } from './interfaces/logger.js';
+import { TMessageContext, TMessageContextTopic } from './interfaces/messageContexts.js';
 import { descTag, isFirstTag } from './util/index.js';
 
 export const LOGGER_LOG = { level: 'log' };
@@ -80,24 +82,14 @@ export default class Logger implements ILogger, ILogOutput {
 	info = (args: TLogArgs, mctx?: TMessageContext) => this.out('info', args, mctx);
 	warn = (args: TLogArgs, mctx?: TMessageContext) => this.out('warn', args, mctx);
 	error = (args: TLogArgs, mctx?: TMessageContext) => this.out('error', args, mctx);
+}
 
-	static logContext({
-		details,
-		stage,
-		type,
-		path,
-		event,
-		tag,
-		content,
-	}: {
-		details: TAnyFixme;
-		stage: TActionStage;
-		type: TArtifactType;
-		path?: string;
-		content?: string;
-		event: string;
-		tag: TTag;
-	}): TArtifactMessageContext {
-		return { topic: { ...details, event, stage }, artifact: { type, path, content }, tag };
-	}
+// Convenience function to create a log with message context and artifact
+export const topicArtifactLogger = (world: TWorld) => <T extends TArtifact>(message: TLogArgs, artifact: T, topic: TMessageContextTopic, level: TLogLevel = 'log'): void => {
+	const context: TMessageContext = {
+		topic,
+		artifact,
+		tag: world.tag
+	};
+	world.logger[level](message, context);
 }
