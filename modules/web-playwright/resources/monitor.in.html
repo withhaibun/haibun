@@ -4,16 +4,23 @@
 <head>
 	<meta charset="UTF-8">
 	<title>Haibun Monitor</title>
+	<base href="./"> <!-- Add base href for relative paths -->
 	<link rel="preconnect" href="https://fonts.googleapis.com">
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 	<link href="https://fonts.googleapis.com/css2?family=Roboto&family=Roboto+Mono&display=swap" rel="stylesheet">
 	<style>
+		html, body { /* Ensure html also takes full height */
+			height: 100%;
+			margin: 0;
+			overflow: hidden; /* Prevent body scrollbars */
+		}
 		body {
 			font-family: 'Roboto', sans-serif;
 			line-height: 1.6;
-			margin: 0;
 			color: #333;
 			background-color: #f8f8f8;
+			display: flex;
+			flex-direction: column;
 		}
 
 		pre {
@@ -28,7 +35,8 @@
 		}
 
 		.haibun-header {
-			position: fixed;
+			/* position: fixed; /* Removed, now part of flex flow */
+			flex-shrink: 0; /* Prevent header from shrinking */
 			height: 7vh;
 			top: 0;
 			left: 0;
@@ -54,10 +62,12 @@
 		}
 
 		#haibun-log-display-area {
-			height: calc(100vh - 6vh);
-			padding-top: 7vh;
+			flex: 1 1 auto; /* Allow log area to grow and shrink */
 			overflow-y: scroll;
 			box-sizing: border-box;
+			/* padding-bottom needed to prevent content going under fixed handle/panel */
+			padding-bottom: 255px; /* Initial bottom_panel(250) + handle(5) */
+			/* No right padding needed now */
 		}
 
 		.haibun-log-entry {
@@ -76,10 +86,6 @@
 			padding-right: 15px;
 			font-size: 0.9em;
 			cursor: default;
-		}
-
-		.haibun-log-entry>.haibun-log-details-summary::-webkit-details-marker {
-			/* display: none; */
 		}
 
 		/* Hide marker in WebKit */
@@ -186,7 +192,62 @@
 		}
 
 		#haibun-video {
-			/* ... video styles ... */
+			/* Styles for video container within bottom panel */
+			display: none; /* Initially hidden */
+			padding: 5px;
+			box-sizing: border-box;
+			overflow: auto; /* Allow scroll if needed */
+			flex: 0 0 330px; /* Fixed width for video (adjust as needed) */
+			border-right: 1px solid #ccc; /* Separator */
+		}
+		#haibun-video video {
+			max-width: 100%;
+			height: auto;
+			display: block; /* Prevent extra space below video */
+		}
+		#sequence-diagram-container {
+			/* Styles for sequence diagram container within bottom panel */
+			padding: 5px;
+			box-sizing: border-box;
+			overflow: auto; /* Allow scroll if needed */
+			flex: 1 1 auto; /* Allow sequence diagram to grow and shrink */
+			display: flex;
+			flex-direction: column;
+		}
+		#sequence-diagram-container h2 {
+			font-size: 1em;
+			margin: 0 0 5px 0;
+			text-align: center;
+			flex-shrink: 0; /* Prevent shrinking */
+		}
+		#sequence-diagram {
+			text-align: center;
+			flex-grow: 1; /* Allow diagram to take remaining space */
+			overflow: auto; /* Scroll if diagram is large */
+		}
+		#haibun-media-display {
+			position: fixed;
+			bottom: 0;
+			left: 0;
+			width: 100%;
+			height: 250px; /* Initial height */
+			background-color: #f0f0f0;
+			border-top: 1px solid #ccc;
+			z-index: 999;
+			display: flex; /* Arrange video and diagram side-by-side */
+			overflow: hidden; /* Hide internal overflow, children handle scrolling */
+			box-sizing: border-box;
+		}
+		#resize-handle {
+			position: fixed;
+			bottom: 250px; /* Positioned above the bottom display */
+			left: 0;
+			width: 100%;
+			height: 5px;
+			background-color: #aaa;
+			cursor: ns-resize;
+			/* Ensure handle is above log area scroll content */
+			z-index: 1000; /* Above bottom display */
 		}
 	</style>
 </head>
@@ -204,17 +265,27 @@
 			</select>
 		</div>
 	</div>
+
 	<div id="haibun-log-display-area">
+		<!-- Log entries will be appended here -->
 		<div class="haibun-disappears">
 			<div class="haibun-loader"></div>Execution output will appear here.
 		</div>
 	</div>
-	<div id="sequence-diagram-container" style="padding: 10px; border-top: 1px solid #ccc;">
-		<h2>Sequence Diagram</h2>
-		<div id="sequence-diagram"></div>
+
+	<div id="resize-handle"></div>
+	<div id="haibun-media-display">
+		<div id="haibun-video">
+			<!-- Video element will be placed here -->
+		</div>
+		<div id="sequence-diagram-container">
+			<div id="sequence-diagram">
+				<!-- Sequence diagram will be rendered here -->
+			</div>
+		</div>
 	</div>
-	<div id="haibun-video">Video Content</div>
+
 	<script src="../src/monitor/monitor.ts" type="module"></script>
 </body>
 
-</html>`;
+</html>

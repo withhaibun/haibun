@@ -13,13 +13,18 @@ import { getPackageLocation } from '@haibun/core/build/lib/util/workspace-lib.js
 const monitorLocation = join(getPackageLocation(import.meta), '..', '..', 'web', 'monitor.html');
 
 export const createMonitorPageAndSubscriber = () => async () => {
-	console.log("Creating new monitor page...");
+	console.log(`Creating new monitor page`);
 	const browser = await chromium.launch({ headless: false });
 	const context = await browser.newContext();
 	const monitorPage = await context.newPage();
 
 	await waitForMonitorPage();
 	await monitorPage.goto(pathToFileURL(monitorLocation).toString(), { waitUntil: 'networkidle' });
+
+	await monitorPage.evaluate(() => {
+		document.body.dataset.haibunRuntime = 'true';
+	});
+
 
 	const subscriber = {
 		out: async (level: TLogLevel, message: TLogArgs, messageContext?: TMessageContext) => {
@@ -77,7 +82,11 @@ export async function writeMonitor(world: TWorld, storage: AStorage, page: Page)
 	}
 	await sleep(500); // Allow final rendering
 
-	// Get final HTML content
+	await page.evaluate(() => {
+		delete document.body.dataset.haibunRuntime;
+	});
+
+
 	const content = await page.content();
 
 	const monitorLoc = await storage.getCaptureLocation({ ...world, mediaType: EMediaTypes.html });
@@ -86,8 +95,6 @@ export async function writeMonitor(world: TWorld, storage: AStorage, page: Page)
 	world.logger.info(`Wrote monitor HTML instance to ${pathToFileURL(resolve(outHtml))}`);
 }
 
-
-// wait if monitor is being updated
 async function waitForMonitorPage() {
 	let waitForMonitor = 0;
 	while (!existsSync(monitorLocation) && waitForMonitor < 20) {
