@@ -27,7 +27,7 @@ export class PlaywrightEvents {
 			postData: request.postData(),
 		}
 
-		this.log(`${type} ${etc.method}`, frameURL, request.url(), etc);
+		this.log(`${type} ${etc.method}`, <TArtifactHTTPTrace['httpEvent']>type, frameURL, request.url(), etc);
 		return Promise.resolve();
 	}
 
@@ -45,7 +45,7 @@ export class PlaywrightEvents {
 			headers: response.headers()
 		}
 
-		this.log(`response ${etc.status}`, frameURL, response.url(), etc);
+		this.log(`response ${etc.status}`, 'response', frameURL, response.url(), etc);
 		return Promise.resolve();
 	}
 	public close(): void {
@@ -53,7 +53,7 @@ export class PlaywrightEvents {
 		// Note: Playwright doesn't provide a direct way to remove a specific route handler
 		this.page.off('response', this.logResponse.bind(this));
 	}
-	log(type: string, maybeFrameURL: string, targetURL: string, etc: TEtc) {
+	log(label: string, httpEvent: TArtifactHTTPTrace['httpEvent'], maybeFrameURL: string, targetURL: string, etc: TEtc) {
 		const requestingPage = this.page.url();
 		const frameURL = maybeFrameURL === requestingPage ? undefined : maybeFrameURL;
 		const requestingURL = frameURL ? `frame ${frameURL} on ${requestingPage}` : requestingPage;
@@ -66,6 +66,7 @@ export class PlaywrightEvents {
 		const requestingBase = requestingPage.replace(/\/[^/]*$/, '');
 		const targetWithoutRequestingBase = targetURL.replace(requestingBase, '');
 		const artifact: TArtifactHTTPTrace = {
+			httpEvent,
 			trace: logData,
 			artifactType: 'json/http/trace'
 		}
@@ -74,6 +75,6 @@ export class PlaywrightEvents {
 			artifact,
 			tag: this.tag
 		};
-		this.logger.debug(`playwright ${type} ${logData.requestingURL} ➔ ${targetWithoutRequestingBase}`, mc);
+		this.logger.debug(`playwright ${label} ${logData.requestingURL} ➔ ${targetWithoutRequestingBase}`, mc);
 	}
 }

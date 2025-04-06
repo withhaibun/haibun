@@ -45,8 +45,7 @@ export class SequenceDiagramGenerator {
 				serverName = url.hostname;
 				// Handle empty hostname (e.g., for about:blank)
 				if (!serverName) {
-					serverName = 'Internal';
-					serverAlias = 'InternalAlias';
+					return;
 				} else {
 					// Create a simple alias from non-empty hostname
 					serverAlias = serverName.replace(/[.-]/g, '');
