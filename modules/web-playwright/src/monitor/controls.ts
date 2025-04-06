@@ -109,7 +109,7 @@ function setupResizeHandle() {
 	};
 }
 
-function setupVideoPlayback() {
+export function setupVideoPlayback() { // Add export
 	// Initialize sequence diagram if it exists
 	const sequenceDiagram = document.getElementById('sequence-diagram');
 	if (sequenceDiagram) {
@@ -134,25 +134,41 @@ function setupVideoPlayback() {
 		if (logEntry && logEntry.dataset.time) {
 			const videoElement = videoContainer.querySelector('video');
 			if (videoElement) {
-				// Get the start time from the video-start element or body
-				const startTimeElement = document.getElementById('haibun-video-start') || document.body;
-				const startTime = parseInt(startTimeElement.dataset.start || startTimeElement.dataset.startTime || '0', 10); // Check body data-startTime too
+				// Get Monitor start time and Video start offset
+				const monitorStartTimeStr = document.body.dataset.startTime;
+				const videoStartOffsetStr = document.getElementById('haibun-video-start')?.dataset.start;
+
+				if (!monitorStartTimeStr || !videoStartOffsetStr) {
+					console.warn('Monitor start time or video start offset not found. Cannot seek video.');
+					return;
+				}
+				const monitorStartTime = parseInt(monitorStartTimeStr, 10);
+				const videoStartOffset = parseInt(videoStartOffsetStr, 10);
+
+				if (isNaN(monitorStartTime) || isNaN(videoStartOffset)) {
+					console.warn('Invalid monitor start time or video start offset.');
+					return;
+				}
+				const videoAbsoluteStartTime = monitorStartTime + videoStartOffset;
 
 				// Calculate the time to seek to
-				const entryTime = parseInt(logEntry.dataset.time, 10);
-				const seekTime = (entryTime - startTime) / 1000;
+				const entryAbsoluteTime = parseInt(logEntry.dataset.time, 10);
+				if (isNaN(entryAbsoluteTime)) {
+					console.warn('Clicked log entry missing or invalid data-time:', logEntry);
+					return;
+				}
+				// Calculate time relative to video start
+				const logRelativeToVideoMs = entryAbsoluteTime - videoAbsoluteStartTime;
+				const seekTime = logRelativeToVideoMs / 1000;
+				// Corrected variable names in the log message if uncommented later
+				// console.log(`Calculated seekTime: ${seekTime}s (Entry: ${entryAbsoluteTime}, Start: ${videoAbsoluteStartTime})`);
 
-				// Seek the video
-				if (seekTime >= 0) {
-					videoElement.currentTime = seekTime;
+				// Seek the video (allow seeking slightly before 0 for precision)
+				if (!isNaN(seekTime)) {
+					videoElement.currentTime = Math.max(0, seekTime); // Ensure seek time is not negative
 
-					// Remove current class from all entries
-					document.querySelectorAll('.haibun-stepper-current').forEach(el => {
-						el.classList.remove('haibun-stepper-current');
-					});
-
-					// Add current class to clicked entry
-					logEntry.classList.add('haibun-stepper-current');
+					// No need to manually update classes here,
+					// the 'seeked' event handler will take care of it.
 				}
 			}
 		}
@@ -160,75 +176,128 @@ function setupVideoPlayback() {
 
 	// Setup timeupdate handler for video to highlight current step
 	const setupVideoTimeUpdateHandler = (videoElement: HTMLVideoElement) => {
-		videoElement.addEventListener('timeupdate', () => {
-			const currentTime = videoElement.currentTime * 1000; // Convert to ms
-			const startTimeElement = document.getElementById('haibun-video-start') || document.body;
-			const startTime = parseInt(startTimeElement.dataset.start || startTimeElement.dataset.startTime || '0', 10); // Check body data-startTime too
+		let playInterval: number | undefined; // Use number for interval ID, undefined when not set
+		let latestCurrentEntry: HTMLElement | null = null; // Track the current entry
 
-			// Find the log entry closest to the current video time
-			const logEntries = document.querySelectorAll('.haibun-log-entry');
-			let closestEntry: HTMLElement | null = null;
-			let closestDiff = Number.MAX_VALUE;
+		const updateVideoSteps = () => {
+			// Get Monitor start time and Video start offset
+			const monitorStartTimeStr = document.body.dataset.startTime;
+			const videoStartOffsetStr = document.getElementById('haibun-video-start')?.dataset.start;
 
-			logEntries.forEach(entry => {
-				const entryTime = parseInt((entry as HTMLElement).dataset.time || '0', 10);
-				const entryVideoTime = entryTime - startTime;
+			if (!monitorStartTimeStr || !videoStartOffsetStr) {
+				// console.warn('Monitor start time or video start offset not found during update.');
+				return; // Cannot calculate relative times
+			}
+			const monitorStartTime = parseInt(monitorStartTimeStr, 10);
+			const videoStartOffset = parseInt(videoStartOffsetStr, 10);
 
-				// Only consider entries that have happened before the current video time
-				if (entryVideoTime <= currentTime) {
-					const diff = currentTime - entryVideoTime;
-					if (diff < closestDiff) {
-						closestDiff = diff;
-						closestEntry = entry as HTMLElement;
+			if (isNaN(monitorStartTime) || isNaN(videoStartOffset)) {
+				// console.warn('Invalid monitor start time or video start offset during update.');
+				return; // Cannot calculate relative times
+			}
+			const videoAbsoluteStartTime = monitorStartTime + videoStartOffset;
+			// Removed extra closing brace here
+
+			const currentVideoTimeMs = videoElement.currentTime * 1000;
+			let currentLatestEntry: HTMLElement | null = null; // Entry to be marked current in this update
+
+			document.querySelectorAll<HTMLElement>('.haibun-log-entry').forEach(entry => {
+				// Clear previous state for all entries first
+				entry.classList.remove('haibun-stepper-played', 'haibun-stepper-notplayed', 'haibun-stepper-current');
+
+				const entryTimeStr = entry.dataset.time;
+				if (!entryTimeStr) return; // Skip entries without time
+				const entryAbsoluteTime = parseInt(entryTimeStr, 10);
+				if (isNaN(entryAbsoluteTime)) return; // Skip entries with invalid time
+
+				// Calculate entry time relative to video start
+				const logRelativeToVideoMs = entryAbsoluteTime - videoAbsoluteStartTime;
+
+				// Determine played/notplayed status
+				if (logRelativeToVideoMs <= currentVideoTimeMs) {
+					entry.classList.add('haibun-stepper-played');
+					entry.classList.remove('haibun-stepper-notplayed');
+					// This entry is a candidate for the current step
+					// Update if this entry is later than the current candidate
+					if (!currentLatestEntry || entryAbsoluteTime > parseInt(currentLatestEntry.dataset.time || '0', 10)) {
+						currentLatestEntry = entry;
 					}
+				} else {
+					entry.classList.add('haibun-stepper-notplayed');
+					entry.classList.remove('haibun-stepper-played');
 				}
+				// entry.classList.remove('haibun-stepper-current'); // Already removed above
 			});
 
-			// Update classes
-			document.querySelectorAll('.haibun-stepper-current').forEach(el => {
-				el.classList.remove('haibun-stepper-current');
-			});
-
-			if (closestEntry) {
-				closestEntry.classList.add('haibun-stepper-current');
-
-				// Mark entries as played/not played
-				logEntries.forEach(entry => {
-					const entryTime = parseInt((entry as HTMLElement).dataset.time || '0', 10);
-					const entryVideoTime = entryTime - startTime;
-
-					if (entryVideoTime <= currentTime) {
-						entry.classList.add('haibun-stepper-played');
-						entry.classList.remove('haibun-stepper-notplayed');
-					} else {
-						entry.classList.add('haibun-stepper-notplayed');
-						entry.classList.remove('haibun-stepper-played');
+			// Mark the actual latest entry as current and scroll if needed
+			if (currentLatestEntry) {
+				currentLatestEntry.classList.add('haibun-stepper-current');
+				if (currentLatestEntry !== latestCurrentEntry) { // Only scroll if the current entry changed
+					if (!isElementInViewport(currentLatestEntry)) {
+						currentLatestEntry.scrollIntoView({ behavior: 'smooth', block: 'center' });
 					}
-				});
-
-				// Scroll to the current entry if it's not visible
-				if (!isElementInViewport(closestEntry)) {
-					closestEntry.scrollIntoView({ behavior: 'smooth', block: 'center' });
+					latestCurrentEntry = currentLatestEntry;
 				}
+			} else {
+				// If no entry is before or at the current time, clear the tracker
+				latestCurrentEntry = null;
+			}
+		};
+
+		// Update state definitively after a seek
+		videoElement.addEventListener('seeked', () => {
+			// console.log('seeked');
+			updateVideoSteps();
+		});
+
+		// Use interval for smooth updates during playback
+		videoElement.addEventListener('play', () => {
+			// console.log('play');
+			if (playInterval === undefined) { // Prevent multiple intervals
+				updateVideoSteps(); // Update immediately on play
+				playInterval = window.setInterval(updateVideoSteps, 50); // Update frequently (e.g., 50ms)
 			}
 		});
+
+		// Clear interval on pause or end
+		const clearPlayInterval = () => {
+			// console.log('pause/ended');
+			if (playInterval !== undefined) {
+				clearInterval(playInterval);
+				playInterval = undefined;
+				updateVideoSteps(); // Ensure final state is correct after pause/end
+			}
+		};
+		videoElement.addEventListener('pause', clearPlayInterval);
+		videoElement.addEventListener('ended', clearPlayInterval);
+
+		// Initial update in case video is loaded paused or has an initial time
+		updateVideoSteps();
 	};
 
-	// Setup any existing or future videos
-	let existingVideo = videoContainer.querySelector('video'); // Use let
+	// --- MutationObserver setup ---
+	let existingVideo = videoContainer.querySelector('video');
 	if (existingVideo) {
 		setupVideoTimeUpdateHandler(existingVideo as HTMLVideoElement);
 	}
 
-	// Use MutationObserver to detect when new videos are added
 	const observer = new MutationObserver((mutations) => {
 		mutations.forEach((mutation) => {
 			if (mutation.type === 'childList') {
 				const newVideo = videoContainer.querySelector('video');
 				if (newVideo && newVideo !== existingVideo) {
+					console.log('New video detected, setting up handlers.');
+					// Potentially clean up old interval if video element is replaced?
+					// For now, just setup handlers for the new one.
 					setupVideoTimeUpdateHandler(newVideo as HTMLVideoElement);
-					existingVideo = newVideo; // Update reference to the current video
+					existingVideo = newVideo;
 				}
+				// Handle video removal? (Optional)
+				// else if (!newVideo && existingVideo) {
+				//   console.log('Video removed.');
+				//   existingVideo = null;
+				//   // Clean up any associated intervals if necessary
+				// }
 			}
 		});
 	});
