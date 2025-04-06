@@ -7,9 +7,9 @@ export function setupControls() {
 		let css = '';
 		levels.forEach((level, index) => {
 			if (index < selectedIndex) {
-				css += `div.haibun-log-container.haibun-level-${level} { display: none !important; }\n`;
+				css += `div.haibun-log-entry.haibun-level-${level}:not(.disappeared) { display: none; }\n`;
 			} else {
-				css += `div.haibun-log-container.haibun-level-${level} { display: flex !important; }\n`;
+				css += `div.haibun-log-entry.haibun-level-${level}:not(.disappeared) { display: flex; }\n`;
 			}
 		});
 		let styleElement = document.getElementById('haibun-dynamic-styles');
