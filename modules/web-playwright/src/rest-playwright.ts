@@ -1,6 +1,7 @@
 import { actionNotOK, actionOK } from '@haibun/core/build/lib/util/index.js';
 import WebPlaywright from './web-playwright.js';
 import { TNamed, OK, TAnyFixme } from '@haibun/core/build/lib/defs.js';
+import { EExecutionMessageType } from '@haibun/core/build/lib/interfaces/logger.js';
 
 const LAST_REST_RESPONSE = 'LAST_REST_RESPONSE';
 const PAYLOAD_METHODS = ['post', 'put', 'patch'];
@@ -123,7 +124,7 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 				return Promise.resolve(actionNotOK(`No last response to count`));
 			}
 			webPlaywright.getWorld().logger.info(`lastResponse JSON count is ${lastResponse.json.length}`)
-			return Promise.resolve(actionOK({ topics: { summary: 'options', details: { count: lastResponse.json.length } } }));
+			return Promise.resolve(actionOK({ incident: EExecutionMessageType.ACTION, incidentDetails: { summary: 'options', details: { count: lastResponse.json.length } } }));
 		},
 	},
 	showFilteredLength: {
@@ -135,7 +136,7 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 				return Promise.resolve(actionNotOK(`No filtered response to count`));
 			}
 			webPlaywright.getWorld().logger.info(`lastResponse filtered count is ${lastResponse.filtered.length}`)
-			return Promise.resolve(actionOK({ topics: { summary: 'options', details: { count: lastResponse.filtered.length } } }));
+			return Promise.resolve(actionOK({ incident: EExecutionMessageType.ACTION, incidentDetails: { summary: 'options', count: lastResponse.filtered.length } }));
 		},
 	},
 	responseJsonLengthIs: {

@@ -9,7 +9,6 @@ export function setupControls() {
 			if (index < selectedIndex) {
 				css += `div.haibun-log-container.haibun-level-${level} { display: none !important; }\n`;
 			} else {
-				// Use flex since it was the original display type
 				css += `div.haibun-log-container.haibun-level-${level} { display: flex !important; }\n`;
 			}
 		});

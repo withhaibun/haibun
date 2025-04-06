@@ -1,74 +1,220 @@
-
 <!DOCTYPE html>
 <html>
-<head>
-<meta charset="UTF-8">
-<title>Haibun Monitor</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Roboto&family=Roboto+Mono&display=swap" rel="stylesheet">
-<style>
-    body { font-family: 'Roboto', sans-serif; line-height: 1.6; margin: 0; color: #333; background-color: #f8f8f8; }
-    pre { background-color: #e8e8e8; padding: 5px 10px; border-radius: 3px; font-family: 'Roboto Mono', monospace; font-size: 0.85em; line-height: 1.4; overflow-x: auto; white-space: pre-wrap; }
-    .haibun-header { position: fixed; height: 7vh; top: 0; left: 0; width: 100%; background-color: white; z-index: 1000; display: flex; align-items: center; padding: 0 20px; border-bottom: 1px solid #ccc; box-sizing: border-box;}
-    .haibun-header h1 { margin-right: auto; font-size: 1.5em; }
-    .haibun-controls { display: flex; align-items: center; gap: 15px; }
-    #haibun-log-display-area { height: calc(100vh - 7vh); padding-top: 7vh; overflow-y: scroll; box-sizing: border-box; }
-    /* New styles for two-column layout */
-    .haibun-log-entry { display: flex; padding: 5px 10px; flex-direction: row; width: 100%; align-items: flex-start; border-bottom: 1px solid #eee; box-sizing: border-box; }
-    .haibun-log-entry > .haibun-log-details-summary { flex: 0 0 120px; /* Fixed width for left column */ padding-right: 15px; font-size: 0.9em; cursor: default; /* Summary elements are often clickable, make it look static */ list-style: none; /* Remove default summary marker */ }
-    .haibun-log-entry > .haibun-log-details-summary::-webkit-details-marker { display: none; } /* Hide marker in WebKit */
-    .haibun-log-entry > .haibun-message-content { flex-grow: 1; /* Right column takes remaining space */ word-break: break-word; }
-    .haibun-log-message-summary { display: flex; align-items: center; width: 100%; } /* Use flexbox for summary */
-    /* Removed old styles for .haibun-log-container, .haibun-details-div, .haibun-messages-div */
-    .haibun-artifact-div details { margin-top: 5px; }
-    .haibun-artifact-div summary { cursor: pointer; font-weight: bold; }
-    .time-small { font-size: 0.8em; color: #666; display: block; font-family: monospace; }
-    .haibun-loader { /* ... spinner styles ... */ }
-    .disappeared { display: none; }
-    /* Add other styles from original monitor.ts here */
-    .mermaid { text-align: center; margin-top: 10px; } /* Basic Mermaid styling */
 
-     /* Video playback related styles */
-    .haibun-stepper-played { background-color: rgba(10, 10, 211, 0.1); }
-    .haibun-stepper-notplayed { background-color: rgba(10, 211, 10, 0.1); }
-    .haibun-stepper-current { background-color: rgba(255, 255, 0, 0.3); border-left: 3px solid orange; }
+<head>
+	<meta charset="UTF-8">
+	<title>Haibun Monitor</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Roboto&family=Roboto+Mono&display=swap" rel="stylesheet">
+	<style>
+		body {
+			font-family: 'Roboto', sans-serif;
+			line-height: 1.6;
+			margin: 0;
+			color: #333;
+			background-color: #f8f8f8;
+		}
+
+		pre {
+			background-color: #e8e8e8;
+			padding: 5px 10px;
+			border-radius: 3px;
+			font-family: 'Roboto Mono', monospace;
+			font-size: 0.6em;
+			line-height: 1.4;
+			overflow-x: auto;
+			white-space: pre-wrap;
+		}
+
+		.haibun-header {
+			position: fixed;
+			height: 7vh;
+			top: 0;
+			left: 0;
+			width: 100%;
+			background-color: white;
+			z-index: 1000;
+			display: flex;
+			align-items: center;
+			padding: 0 20px;
+			border-bottom: 1px solid #ccc;
+			box-sizing: border-box;
+		}
+
+		.haibun-header h1 {
+			margin-right: auto;
+			font-size: 1.5em;
+		}
+
+		.haibun-controls {
+			display: flex;
+			align-items: center;
+			gap: 15px;
+		}
+
+		#haibun-log-display-area {
+			height: calc(100vh - 6vh);
+			padding-top: 7vh;
+			overflow-y: scroll;
+			box-sizing: border-box;
+		}
+
+		.haibun-log-entry {
+			display: flex;
+			padding: 5px 10px;
+			flex-direction: row;
+			width: 100%;
+			align-items: flex-start;
+			border-bottom: 1px solid #eee;
+			box-sizing: border-box;
+		}
+
+		.haibun-log-entry>.haibun-log-details-summary {
+			flex: 0 0 120px;
+			/* Fixed width for left column */
+			padding-right: 15px;
+			font-size: 0.9em;
+			cursor: default;
+		}
+
+		.haibun-log-entry>.haibun-log-details-summary::-webkit-details-marker {
+			/* display: none; */
+		}
+
+		/* Hide marker in WebKit */
+		.haibun-log-entry>.haibun-message-content {
+			flex-grow: 1;
+			/* Right column takes remaining space */
+			word-break: break-word;
+		}
+
+		/* Ensure details element and summary in message content show properly */
+		.haibun-message-content details {
+			display: block;
+		}
+
+		.haibun-message-content details summary {
+			display: list-item; /* This is crucial for showing the twisty */
+			list-style-type: disclosure-closed; /* Explicitly set the disclosure triangle */
+		}
+
+		.haibun-message-content details[open] summary {
+			list-style-type: disclosure-open; /* Change style when open */
+		}
+
+		.haibun-log-message-summary {
+			width: 100%;
+			position: relative;
+			cursor: pointer; /* Add cursor pointer to indicate it's clickable */
+		}
+
+		/* Use flexbox for summary */
+		.haibun-artifact-div details {
+			margin-top: 5px;
+		}
+
+		.haibun-artifact-div summary {
+			cursor: pointer;
+			font-weight: bold;
+		}
+
+		.time-small {
+			font-size: 0.8em;
+			color: #666;
+			display: block;
+			font-family: monospace;
+		}
+
+		.haibun-loader {
+			border: 2px solid #f3f3f3;
+			border-top: 2px solid #3498db;
+			border-radius: 50%;
+			width: 10px;
+			height: 10px;
+			animation: spin 1s linear infinite;
+			display: inline-block;
+			margin-right: 5px;
+			vertical-align: middle;
+		}
+
+		@keyframes spin {
+			0% {
+				transform: rotate(0deg);
+			}
+
+			100% {
+				transform: rotate(360deg);
+			}
+		}
+
+		.disappeared {
+			display: none;
+		}
+
+		.mermaid {
+			text-align: center;
+			margin-top: 10px;
+		}
+
+		/* Basic Mermaid styling */
+
+		/* Video playback related styles */
+		.haibun-stepper-played {
+			background-color: rgba(10, 10, 211, 0.1);
+		}
+
+		.haibun-stepper-notplayed {
+			background-color: rgba(10, 211, 10, 0.1);
+		}
+
+		.haibun-stepper-current {
+			background-color: rgba(255, 255, 0, 0.3);
+			border-left: 3px solid orange;
+		}
+
 		.details-type {
 			background-color: #f5deb3;
 			border-radius: 5px;
-			margin-left: auto; /* Push to the far right */
-			padding: 1px 5px; /* Slightly adjust padding */
+			float: right; /* Float the label to the right */
+			margin-left: 10px; /* Add some margin for spacing */
+			padding: 1px 5px;
 			text-transform: lowercase;
 			display: inline-block;
-			font-size: 0.75em; /* Make slightly smaller */
+			font-size: 0.75em;
 			color: #a80;
 		}
 
-    #haibun-video { /* ... video styles ... */ }
-
-</style>
+		#haibun-video {
+			/* ... video styles ... */
+		}
+	</style>
 </head>
+
 <body>
-<div class="haibun-header">
-    <h1>Haibun Monitor</h1>
-    <div class="haibun-controls">
-        <label for="haibun-debug-level-select">Log level</label>
-        <select id="haibun-debug-level-select">
-            <option value="error">Error</option>
-            <option value="info">Info</option>
-            <option value="log" selected>Log</option>
-            <option value="debug">Debug</option>
-        </select>
-        </div>
-</div>
-<div id="haibun-log-display-area">
-    <div class="haibun-disappears"><div class="haibun-loader"></div>Execution output will appear here.</div>
-</div>
- <div id="sequence-diagram-container" style="padding: 10px; border-top: 1px solid #ccc;">
-    <h2>Sequence Diagram</h2>
-    <div id="sequence-diagram"></div>
-</div>
-<div id="haibun-video">Video Content</div>
-<script src="../src/monitor/monitor.ts" type="module"></script>
+	<div class="haibun-header">
+		<h1>Haibun Monitor</h1>
+		<div class="haibun-controls">
+			<label for="haibun-debug-level-select">Log level</label>
+			<select id="haibun-debug-level-select">
+				<option value="error">Error</option>
+				<option value="info">Info</option>
+				<option value="log" selected>Log</option>
+				<option value="debug">Debug</option>
+			</select>
+		</div>
+	</div>
+	<div id="haibun-log-display-area">
+		<div class="haibun-disappears">
+			<div class="haibun-loader"></div>Execution output will appear here.
+		</div>
+	</div>
+	<div id="sequence-diagram-container" style="padding: 10px; border-top: 1px solid #ccc;">
+		<h2>Sequence Diagram</h2>
+		<div id="sequence-diagram"></div>
+	</div>
+	<div id="haibun-video">Video Content</div>
+	<script src="../src/monitor/monitor.ts" type="module"></script>
 </body>
+
 </html>`;

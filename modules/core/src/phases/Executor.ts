@@ -16,7 +16,8 @@ export class Executor {
 		return await action(namedWithVars, featureStep).catch((caught: TAnyFixme) => {
 			world.logger.error(caught.stack);
 			return actionNotOK(`in ${featureStep.in}: ${caught.message}`, {
-				topics: { caught: (caught?.stack || caught).toString() },
+				incident: EExecutionMessageType.ACTION,
+				incidentDetails: { caught: (caught?.stack || caught).toString() },
 			});
 		});
 	}
@@ -40,8 +41,12 @@ export class Executor {
 			await doStepperMethod(steppers, 'startFeature');
 
 			const featureResult = await featureExecutor.doFeature(feature);
-
-			okSoFar = okSoFar && featureResult.ok;
+			const thisFeatureOK = featureResult.ok;
+			if (!thisFeatureOK) {
+				const failedStep = featureResult.stepResults.find((s) => !s.ok);
+				await doStepperMethod(steppers, 'onFailure', featureResult, failedStep);
+			}
+			okSoFar = okSoFar && thisFeatureOK;
 			featureResults.push(featureResult);
 			const shouldClose = calculateShouldClose(isLast, okSoFar, featureResult.ok, continueAfterError, stayOnFailure);
 			const shouldCloseFactors = { thisFeatureOK: featureResult.ok, okSoFar, isLast, continueAfterError, stayOnFailure }
@@ -52,8 +57,6 @@ export class Executor {
 			}
 			await doStepperMethod(steppers, 'endFeature', { shouldClose, isLast, okSoFar, continueAfterError, stayOnFailure, thisFeatureOK: featureResult.ok });
 			if (!okSoFar) {
-				const failedStep = featureResult.stepResults.find((s) => !s.ok);
-				await doStepperMethod(steppers, 'onFailure', featureResult, failedStep);
 				if (!continueAfterError && !isLast) {
 					world.logger.debug(`stopping without ${CONTINUE_AFTER_ERROR}`);
 					break;

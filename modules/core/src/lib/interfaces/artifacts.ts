@@ -6,7 +6,7 @@ export type TArtifactVideo = {
 	artifactType: 'video';
 	path: string;
 };
-// FIXME goofy
+
 export type TArtifactVideoStart = {
 	artifactType: 'video/start';
 	start: number;
@@ -27,7 +27,6 @@ export type TArtifactHTTPTrace = {
 	artifactType: 'json/http/trace';
 	trace: THTTPTraceContent;
 };
-
 
 export type TArtifactType = TArtifact['artifactType'];
 

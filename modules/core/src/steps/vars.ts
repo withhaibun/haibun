@@ -1,5 +1,7 @@
 import { Context } from '../lib/contexts.js';
-import { OK, TNamed, TFeatureStep, TWorld, TActionResultTopics, AStepper, IStepperCycles, TAnyFixme } from '../lib/defs.js';
+import { OK, TNamed, TFeatureStep, TWorld, AStepper, IStepperCycles, TAnyFixme } from '../lib/defs.js';
+import { EExecutionMessageType } from '../lib/interfaces/logger.js';
+import { TMessageContext } from '../lib/interfaces/messageContexts.js';
 import { actionNotOK } from '../lib/util/index.js';
 
 // FIXME see https://github.com/withhaibun/haibun/issues/18
@@ -39,15 +41,11 @@ class Vars extends AStepper {
 			return OK;
 		}
 		const [warning, response] = orCond.split(':').map((t) => t.trim());
-		const topics: TActionResultTopics = {
-			warning: { summary: warning },
+		const incident: TMessageContext = {
+			incident: EExecutionMessageType.ACTION, incidentDetails: { summary: warning || response, }, tag: this.getWorld().tag
 		};
 
-		if (response) {
-			topics.response = { summary: response };
-		}
-
-		return actionNotOK(`${what} not set${orCond && ': ' + orCond}`, { topics });
+		return actionNotOK(`${what} not set${orCond && ': ' + orCond}`, incident);
 	}
 
 	steps = {

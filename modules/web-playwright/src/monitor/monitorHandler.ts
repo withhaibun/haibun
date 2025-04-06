@@ -24,7 +24,7 @@ export const createMonitorPageAndSubscriber = () => async () => {
 	const subscriber = {
 		out: async (level: TLogLevel, message: TLogArgs, messageContext?: TMessageContext) => {
 			if (!monitorPage || monitorPage.isClosed()) {
-				console.log("Monitor page closed, cannot send logs.");
+				console.error("Monitor page closed, cannot send logs.");
 				return;
 			}
 			try {
@@ -33,7 +33,6 @@ export const createMonitorPageAndSubscriber = () => async () => {
 					if (window.receiveLogData) {
 						// Parse the context string back into an object inside the browser.
 						const contextObject = entry.messageContextString ? JSON.parse(entry.messageContextString) : undefined;
-						console.log('contextObject', contextObject);
 
 						window.receiveLogData({
 							level: entry.level,
