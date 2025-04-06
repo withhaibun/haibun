@@ -1,12 +1,12 @@
-import { TFeatureStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, AStepper, TStepAction, TAnyFixme, STAY, STAY_FAILURE, CHECK_NO, CHECK_YES, STEP_DELAY, TNotOKActionResult, CONTINUE_AFTER_ERROR, IStepperCycles } from '../lib/defs.js';
+import { TFeatureStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, AStepper, TStepAction, TAnyFixme, STAY, STAY_FAILURE, CHECK_NO, CHECK_YES, STEP_DELAY, TNotOKActionResult, CONTINUE_AFTER_ERROR, IStepperCycles, TEndFeature } from '../lib/defs.js';
 import { EExecutionMessageType } from '../lib/interfaces/logger.js';
 import { topicArtifactLogger } from '../lib/Logger.js';
 import { getNamedToVars } from '../lib/namedVars.js';
 import { actionNotOK, sleep, findStepper, constructorName, setStepperWorlds } from '../lib/util/index.js';
 import { SCENARIO_START } from '../steps/vars.js';
 
-function calculateShouldClose(isLast: boolean, okSoFar: boolean, thisFeatureOK: boolean, continueAfterError: boolean, stayOnFailure: boolean) {
-	return (!thisFeatureOK && isLast && stayOnFailure);
+function calculateShouldClose({ thisFeatureOK, isLast, stayOnFailure }) {
+	return (thisFeatureOK || (!thisFeatureOK && isLast && stayOnFailure));
 }
 export class Executor {
 	static async action(steppers: AStepper[], featureStep: TFeatureStep, found: TStepAction, world: TWorld) {
@@ -48,14 +48,14 @@ export class Executor {
 			}
 			okSoFar = okSoFar && thisFeatureOK;
 			featureResults.push(featureResult);
-			const shouldClose = calculateShouldClose(isLast, okSoFar, featureResult.ok, continueAfterError, stayOnFailure);
 			const shouldCloseFactors = { thisFeatureOK: featureResult.ok, okSoFar, isLast, continueAfterError, stayOnFailure }
+			const shouldClose = calculateShouldClose(shouldCloseFactors);
 			if (shouldClose) {
 				world.logger.debug(`shouldClose ${JSON.stringify(shouldCloseFactors)}`);
 			} else {
 				world.logger.debug(`no shouldClose because ${JSON.stringify(shouldCloseFactors)}`);
 			}
-			await doStepperMethod(steppers, 'endFeature', { shouldClose, isLast, okSoFar, continueAfterError, stayOnFailure, thisFeatureOK: featureResult.ok });
+			await doStepperMethod(steppers, 'endFeature', <TEndFeature>{ world: newWorld, shouldClose, isLast, okSoFar, continueAfterError, stayOnFailure, thisFeatureOK: featureResult.ok });
 			if (!okSoFar) {
 				if (!continueAfterError && !isLast) {
 					world.logger.debug(`stopping without ${CONTINUE_AFTER_ERROR}`);

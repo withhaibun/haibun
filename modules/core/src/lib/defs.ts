@@ -163,7 +163,7 @@ export type TSteppers = {
 	[name: string]: AStepper;
 };
 
-export type TEndFeature = { shouldClose: boolean, isLast: boolean, okSoFar: boolean, continueAfterError: boolean, stayOnFailure: boolean, thisFeatureOK: boolean };
+export type TEndFeature = { world: TWorld, shouldClose: boolean, isLast: boolean, okSoFar: boolean, continueAfterError: boolean, stayOnFailure: boolean, thisFeatureOK: boolean };
 
 export interface IStepperCycles {
 	startExecution?(): Promise<void>;
