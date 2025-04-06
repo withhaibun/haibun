@@ -1,4 +1,5 @@
-import { IHasOptions, TNotOKActionResult, TOKActionResult, TSpecl, TWorld, TRuntime, TActionResultTopics, TTag, AStepper, TModuleOptions, CStepper, TTagValue, TAnyFixme } from '../defs.js';
+import { IHasOptions, TNotOKActionResult, TOKActionResult, TSpecl, TWorld, TRuntime, TTag, AStepper, TModuleOptions, CStepper, TTagValue, TAnyFixme } from '../defs.js';
+import { TMessageContext } from '../interfaces/messageContexts.js';
 import { Timer } from '../Timer.js';
 
 type TClass = { new <T>(...args: unknown[]): T };
@@ -26,19 +27,16 @@ export function checkModuleIsClass(re: object, module: string) {
 	}
 }
 
-export function actionNotOK(
-	message: string,
-	also?: { error?: Error; topics?: TActionResultTopics }
-): TNotOKActionResult {
+export function actionNotOK(message: string, messageContext?: TMessageContext): TNotOKActionResult {
 	return {
 		ok: false,
 		message,
-		...also,
+		messageContext
 	};
 }
 
-export function actionOK(topics?: TActionResultTopics): TOKActionResult {
-	return { ok: true, topics };
+export function actionOK(messageContext?: TMessageContext): TOKActionResult {
+	return { ok: true, messageContext };
 }
 
 export async function createSteppers(steppers: CStepper[]): Promise<AStepper[]> {

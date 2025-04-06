@@ -1,7 +1,7 @@
-import { TTag, TWorld, TAnyFixme } from './defs.js'; // Added TAnyFixme
+import { TWorld, TAnyFixme } from './defs.js';
 import { TArtifact } from './interfaces/artifacts.js';
-import { ILogger, ILogOutput, TLogArgs, TLogLevel, TOutputEnv, EExecutionMessageType } from './interfaces/logger.js'; // Added EExecutionMessageType
-import { TMessageContext } from './interfaces/messageContexts.js'; // Removed TMessageContextTopic
+import { ILogger, ILogOutput, TLogArgs, TLogLevel, TOutputEnv, EExecutionMessageType } from './interfaces/logger.js';
+import { TMessageContext } from './interfaces/messageContexts.js';
 import { descTag, isFirstTag } from './util/index.js';
 
 export const LOGGER_LOG = { level: 'log' };
@@ -46,13 +46,6 @@ export default class Logger implements ILogger, ILogOutput {
 	static shouldLogLevel(level: number, name: TLogLevel) {
 		return LOGGER_LEVELS[name] >= level;
 	}
-	static shouldLogFollow(match: string, tag: TTag) {
-		if (!match || !tag) {
-			return true;
-		}
-		const res = new RegExp(match).test(`${tag.sequence}`);
-		return res;
-	}
 	out(level: TLogLevel, args: TLogArgs, messageContext?: TMessageContext) {
 		for (const subscriber of this.subscribers) {
 			subscriber.out(level, args, messageContext);
@@ -68,7 +61,7 @@ export default class Logger implements ILogger, ILogOutput {
 			.replace(')', '')
 			.replace(/.*\//, '')
 			.replace(/\.ts:/, ':');
-		if (!Logger.shouldLogLevel(this.level as number, level) && Logger.shouldLogFollow(this.follow, this.env?.tag)) {
+		if (!Logger.shouldLogLevel(this.level as number, level)) {
 			return;
 		}
 		const showLevel = Logger.lastLevel === level ? level.substring(0, 1).padStart(1 + level.length / 2) : level;
@@ -94,7 +87,6 @@ export const topicArtifactLogger = (world: TWorld) => <T extends TArtifact>(
 		incident: data.incident,
 		artifact: data.artifact,
 		incidentDetails: data.incidentDetails,
-		tag: world.tag // Automatically add the tag from the curried world
 	};
 	world.logger[level](message, context);
 }

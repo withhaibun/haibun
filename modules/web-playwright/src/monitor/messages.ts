@@ -1,5 +1,6 @@
 import { TArtifact, TMessageContext, TArtifactVideo, TArtifactImage, TArtifactHTML, TArtifactJSON, TArtifactHTTPTrace, TArtifactVideoStart, EExecutionMessageType } from '@haibun/core/build/lib/interfaces/logger.js'; // Removed old context types, added Enum
 import { sequenceDiagramGenerator } from './monitor.js'; // Assuming monitor.js exports this
+import { disclosureJson } from './disclosureJson.js';
 
 abstract class LogComponent<T extends HTMLElement = HTMLElement> {
 	readonly element: T;
@@ -40,7 +41,7 @@ abstract class LogComponent<T extends HTMLElement = HTMLElement> {
 // Abstract base for artifact displays
 abstract class ArtifactDisplay extends LogComponent {
 	readonly label: string;
-	abstract readonly placementTarget: 'details' | 'haibun-video' | 'body' | 'none';
+	abstract readonly placementTarget: 'details' | 'haibun-video' | 'haibun-sequence-diagram' | 'body' | 'none';
 
 	constructor(protected artifact: TArtifact, tagName: keyof HTMLElementTagNameMap, className?: string | string[]) {
 		super(tagName, className);
@@ -76,9 +77,7 @@ export class LogEntry extends LogComponent {
 		this.detailsSummary = new LogDetailsSummary(level, timestamp);
 		this.messageContent = new LogMessageContent(message, messageContext);
 
-		// Assemble the main structure
 		this.append(this.detailsSummary);
-		// Always append message content; layout will be handled by CSS
 		this.append(this.messageContent);
 
 		// Handle placements for artifacts that don't go in the main flow
@@ -97,6 +96,8 @@ export class LogEntry extends LogComponent {
 				haibunVideoContainer.replaceChildren(artifactDisplay.element);
 				haibunVideoContainer.style.display = 'flex';
 			}
+		} else if (artifactDisplay.placementTarget === 'haibun-sequence-diagram') {
+			console.log('hsd', artifactDisplay)
 		}
 		// 'details' placement is handled within LogMessageContent constructor
 	}
@@ -119,66 +120,77 @@ class LogMessageContent extends LogComponent {
 	constructor(message: string, messageContext?: TMessageContext) {
 		super('div', 'haibun-message-content');
 
-		const summaryMessage = getSummaryMessage(message, messageContext); // Still gets potentially modified message
+		const summaryMessage = getSummaryMessage(message, messageContext);
+
+		// REMOVED loader creation from here
 
 		if (messageContext) {
-			// Context exists, create a details element
-			const detailsElement = document.createElement('details');
-			detailsElement.classList.add('haibun-context-details'); // General class for context
-
+			// Context exists: ALWAYS create the details structure
 			const incident = messageContext.incident;
 			const incidentDetails = messageContext.incidentDetails;
 			const artifact = messageContext.artifact;
 			let finalLabel = EExecutionMessageType[incident] || 'Context'; // Default label is incident type
 
-			// Handle artifact first to determine placement and potentially override label
+			// Check for artifact and update label if needed
 			if (artifact) {
 				this.artifactDisplay = createArtifactDisplay(artifact);
 				if (this.artifactDisplay) {
-					// If artifact has a specific label different from its type, use it
-					if (this.artifactDisplay.label !== this.artifactDisplay.artifactType) {
-						finalLabel = this.artifactDisplay.label;
-					} else {
-						// Otherwise, use the artifact type as the label if it's not just 'Context'
-						finalLabel = this.artifactDisplay.artifactType || finalLabel;
-					}
-
-					// If artifact is placed elsewhere, don't create the details wrapper here
-					if (this.artifactDisplay.placementTarget !== 'details') {
-						this.addClass('haibun-simple-message');
-						this.setText(summaryMessage); // Only show summary message
-						// Special placement handled by LogEntry
-						return;
-					}
+					// Use artifact label if available and different, otherwise use type
+					finalLabel = (this.artifactDisplay.label !== this.artifactDisplay.artifactType)
+						? this.artifactDisplay.label
+						: (this.artifactDisplay.artifactType || finalLabel);
+					// NOTE: We no longer check placementTarget or return early here
 				}
 			}
 
-			// Create the summary line with the determined label
+			// --- Create Details Wrapper ---
+			const detailsElement = document.createElement('details');
+			detailsElement.classList.add('haibun-context-details');
+
+			// Create the summary line
 			const messageSummary = new LogMessageSummary(summaryMessage, finalLabel);
-			detailsElement.appendChild(messageSummary.element);
+
+			// Add loader specifically to the message summary if STEP_START
+			if (incident === EExecutionMessageType.STEP_START) {
+				const loader = document.createElement('div');
+				loader.className = 'haibun-loader';
+				messageSummary.element.prepend(loader); // Prepend to the summary element
+			}
+			detailsElement.appendChild(messageSummary.element); // Append the summary (with potential loader)
+
 
 			// Add incidentDetails JSON inside the details element
 			if (incidentDetails) {
 				const pre = document.createElement('pre');
-				pre.classList.add('haibun-message-details-json'); // Reuse JSON styling
-				pre.textContent = JSON.stringify(incidentDetails, null, 2);
+				pre.classList.add('haibun-message-details-json');
+				pre.appendChild(disclosureJson(incidentDetails))
 				detailsElement.appendChild(pre);
 			}
 
-			// Add artifact display if it exists and belongs here
+			// Add artifact display if it exists AND belongs in details
 			if (this.artifactDisplay && this.artifactDisplay.placementTarget === 'details') {
 				detailsElement.appendChild(this.artifactDisplay.element);
 			}
 
-			this.append(detailsElement);
+			this.append(detailsElement); // Append the whole details structure
+
+			// If artifact placement is NOT 'details', we might still want the simple message class on the parent
+			if (this.artifactDisplay && this.artifactDisplay.placementTarget !== 'details') {
+				this.addClass('haibun-simple-message');
+				// Optionally set text again if the summary text differs significantly from the desired simple text
+				// this.setText(summaryMessage);
+			}
 
 		} else {
-			// No context, display simple message
+			// No context: display simple message
 			this.addClass('haibun-simple-message');
-			this.setText(message); // Use original message if no context modification happened
+			this.setText(message); // Use original message
 		}
-		// Ensure the element is never hidden by default
-		this.element.style.display = '';
+
+		// REMOVED loader creation from here too
+
+		// Ensure the element is never hidden by default (redundant?)
+		// this.element.style.display = ''; // Probably not needed as default is block/inline-block
 	}
 }
 
@@ -205,7 +217,8 @@ class LogMessageSummary extends LogComponent<HTMLElement> {
 
 // Factory function to create the correct ArtifactDisplay instance
 function createArtifactDisplay(artifact: TArtifact): ArtifactDisplay | null {
-	switch (artifact.artifactType) {
+	const { artifactType } = artifact;
+	switch (artifactType) {
 		case 'html': return new HtmlArtifactDisplay(<TArtifactHTML>artifact);
 		case 'image': return new ImageArtifactDisplay(<TArtifactImage>artifact);
 		case 'video': return new VideoArtifactDisplay(<TArtifactVideo>artifact);
@@ -214,7 +227,7 @@ function createArtifactDisplay(artifact: TArtifact): ArtifactDisplay | null {
 		case 'json/http/trace':
 			return new JsonArtifactHTTPTrace(<TArtifactHTTPTrace>artifact);
 		default: {
-			throw Error(`Unsupported artifact type "${(<TArtifact>artifact).artifactType}" for display`);
+			throw Error(`Unsupported artifact type "${(<TArtifact>artifact).artifactType}" for display from ${artifactType}`);
 		}
 	}
 }
@@ -277,17 +290,17 @@ class VideoStartArtifactDisplay extends ArtifactDisplay {
 }
 
 class JsonArtifactHTTPTrace extends ArtifactDisplay {
-	readonly placementTarget = 'details';
+	readonly placementTarget: 'details' | 'haibun-sequence-diagram';
 	constructor(protected artifact: TArtifactHTTPTrace) {
 		super(artifact, 'pre', 'haibun-message-details-json');
+		this.placementTarget = document.querySelector('#haibun-sequence-video') ? 'haibun-sequence-diagram' : 'details';
 	}
 	protected deriveLabel(): string {
 		return '⇄ Trace';
 	}
 	protected render(): void {
 		sequenceDiagramGenerator.processEvent(this.artifact.trace);
-		// Also render the JSON trace data into the <pre> element
-		this.setText(JSON.stringify(this.artifact.trace, null, 2));
+		this.append(disclosureJson(this.artifact.trace));
 	}
 }
 
@@ -300,7 +313,7 @@ class JsonArtifactDisplay extends ArtifactDisplay {
 		return this.artifact.artifactType;
 	}
 	protected render(): void {
-		this.setText(JSON.stringify(this.artifact.json, null, 2));
+		this.append(disclosureJson(this.artifact.trace));
 	}
 }
 

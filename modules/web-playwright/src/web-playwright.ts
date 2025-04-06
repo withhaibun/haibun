@@ -12,6 +12,7 @@ import { EMediaTypes } from '@haibun/domain-storage/build/media-types.js';
 
 import { restSteps, TCapturedResponse } from './rest-playwright.js';
 import { createMonitorPageAndSubscriber, writeMonitor } from './monitor/monitorHandler.js';
+import { rmSync } from 'fs';
 
 export enum EMonitoringTypes {
 	MONITOR_ALL = 'all',
@@ -28,7 +29,7 @@ const cycles = (wp: WebPlaywright): IStepperCycles => ({
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	async onFailure(result: TStepResult, step?: TFeatureStep): Promise<void> {
 		if (wp.bf?.hasPage(wp.getWorld().tag, wp.tab)) {
-			await wp.captureFailureScreenshot('failure', EExecutionMessageType.ON_FAILURE, step);
+			await wp.captureFailureScreenshot(EExecutionMessageType.ON_FAILURE, step);
 		}
 	},
 	async startFeature(): Promise<void> {
@@ -41,20 +42,19 @@ const cycles = (wp: WebPlaywright): IStepperCycles => ({
 		if (shouldClose) {
 			for (const file of wp.downloaded) {
 				wp.getWorld().logger.debug(`removing ${JSON.stringify(file)}`);
-				// rmSync(file);
+				rmSync(file);
 			}
 			if (wp.hasFactory) {
 				if (wp.captureVideo) {
 					const page = await wp.getPage();
 					const path = await wp.storage.getRelativePath(await page.video().path());
 					const artifact: TArtifactVideo = { artifactType: 'video', path };
-					// Log feature video using the new context structure
 					const context: TMessageContext = {
 						incident: EExecutionMessageType.FEATURE_END, // Use appropriate incident type
 						artifact,
 						tag: wp.getWorld().tag
-					}; // End context object definition
-					wp.getWorld().logger.log('feature video', context); // Add the missing log call
+					};
+					wp.getWorld().logger.log('feature video', context);
 				}
 				// close the context, which closes any pages
 				if (wp.hasFactory) {
@@ -223,8 +223,8 @@ class WebPlaywright extends AStepper implements IHasOptions {
 				return OK;
 			}
 		}
-		const topics = { textContent: { summary: `in ${textContent?.length} characters`, details: textContent } };
-		return actionNotOK(`Did not find text "${text}" in ${selector}`, { topics });
+		const incident = { incident: EExecutionMessageType.ON_FAILURE, incidentDetails: { summary: `in ${textContent?.length} characters`, details: textContent } };
+		return actionNotOK(`Did not find text "${text}" in ${selector}`, incident);
 	}
 	async getCookies() {
 		const browserContext = await this.getExistingBrowserContext();
@@ -585,7 +585,8 @@ class WebPlaywright extends AStepper implements IHasOptions {
 				return response?.ok
 					? OK
 					: actionNotOK(`response not ok`, {
-						topics: { response: { ...response?.allHeaders, summary: response?.statusText() } },
+						incident: EExecutionMessageType.ACTION,
+						incidentDetails: { ...response?.allHeaders, summary: response?.statusText() }
 					});
 			},
 		},
@@ -721,7 +722,7 @@ class WebPlaywright extends AStepper implements IHasOptions {
 			gwta: 'take a screenshot',
 			action: async (notUsed, featureStep: TFeatureStep) => {
 				try {
-					await this.captureScreenshotAndLog('request', EExecutionMessageType.ACTION, featureStep);
+					await this.captureScreenshotAndLog(EExecutionMessageType.ACTION, featureStep);
 				} catch (e) {
 					return actionNotOK(e);
 				}
@@ -763,35 +764,32 @@ class WebPlaywright extends AStepper implements IHasOptions {
 	newTab() {
 		this.tab = this.tab + 1;
 	}
-	async captureFailureScreenshot(event: 'failure', stage: EExecutionMessageType, step: TFeatureStep) {
+	async captureFailureScreenshot(event: EExecutionMessageType, step: TFeatureStep) {
 		try {
-			return await this.captureScreenshotAndLog(event, stage, { step });
+			return await this.captureScreenshotAndLog(event, { step });
 		} catch (e) {
 			this.getWorld().logger.debug(`captureFailureScreenshot error ${e}`);
 		}
 	}
 
-	async captureScreenshotAndLog(event: 'failure' | 'request', stage: EExecutionMessageType, details: { seq?: number; step?: TFeatureStep }) {
-		const { context, path } = await this.captureScreenshot(event, stage, details,); // Destructure 'context' instead of 'artifactTopic'
-		this.getWorld().logger.log(`${event} screenshot to ${pathToFileURL(path)}`, context); // Use 'context' instead of 'artifactTopic'
+	async captureScreenshotAndLog(event: EExecutionMessageType, details: { seq?: number; step?: TFeatureStep }) {
+		const { context, path } = await this.captureScreenshot(event, details,);
+		this.getWorld().logger.log(`${event} screenshot to ${pathToFileURL(path)}`, context);
 	}
 
-	async captureScreenshot(event: 'failure' | 'request', stage: EExecutionMessageType, details: { seq?: number; step?: TFeatureStep }) {
+	async captureScreenshot(event: EExecutionMessageType, details: { seq?: number; step?: TFeatureStep }) {
 		const loc = await this.getCaptureDir('image');
 		// FIXME shouldn't be fs dependant
 		const path = resolve(this.storage.fromLocation(EMediaTypes.image, loc, `${event}-${Date.now()}.png`));
 		await this.withPage(async (page: Page) => await page.screenshot({ path }));
 		const artifact: TArtifactImage = { artifactType: 'image', path: await this.storage.getRelativePath(path) };
-		// Create context using the new structure
 		const context: TMessageContext = {
-			incident: EExecutionMessageType.ACTION, // Assuming ACTION is appropriate here
+			incident: EExecutionMessageType.ACTION,
 			artifact,
 			tag: this.getWorld().tag,
-			incidentDetails: { ...details, event, stage } // Store original topic details if needed
+			incidentDetails: { ...details, event } // Store original topic details if needed
 		};
-		// Return the context and path (adjusting the return type of the calling function might be needed)
 		return { context, path };
-		// Remove duplicate/incorrect return statement
 	}
 
 	async setExtraHTTPHeaders(headers: { [name: string]: string; }) {

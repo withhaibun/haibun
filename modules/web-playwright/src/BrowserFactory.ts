@@ -140,8 +140,8 @@ export class BrowserFactory {
 				? { ...devices[config.device] }
 				: {
 					viewport: {
-						width: 1280,
-						height: 1024,
+						width: 800,
+						height: 600
 					},
 				};
 			const launchConfig = { ...deviceContext, ...config.options, ...config.launchOptions }

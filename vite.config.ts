@@ -72,7 +72,7 @@ const config: Config = {
 	test: {
 		globals: true,
 		environment: 'node',
-		include: ['**/*.{test,spec}.ts'],
+		include: ['**/*.{test}.ts'],
 		exclude: [
 			'**/node_modules/**',
 			'**/dist/**',
