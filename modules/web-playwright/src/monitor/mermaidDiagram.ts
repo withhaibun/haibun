@@ -29,6 +29,7 @@ export class SequenceDiagramGenerator {
 	}
 
 	public processEvent(trace: THTTPTraceContent): void {
+		this.needsUpdate = true; // Set flag immediately
 		const requestingPage = trace.requestingPage;
 		const requestingURL = trace.requestingURL;
 		const method = trace.method;
@@ -116,7 +117,7 @@ export class SequenceDiagramGenerator {
 				this.diagramLines.push(`${serverAlias}-->>${pageAlias}: ${message}`);
 			}
 		}
-		this.needsUpdate = true;
+		// this.needsUpdate = true; // Moved to the beginning
 	}
 
 	public getDiagram(): string {

@@ -71,6 +71,10 @@ export class LogEntry extends LogComponent {
 
 	constructor(level: string, timestamp: number, message: string, messageContext?: TMessageContext) {
 		super('div', ['haibun-log-entry', `haibun-level-${level}`]);
+		// Add step start class directly to the entry if applicable
+		if (messageContext?.incident === EExecutionMessageType.STEP_START) {
+			this.addClass('haibun-step-start');
+		}
 		this.setData('time', `${timestamp}`);
 
 		// Create structural components
