@@ -25,6 +25,7 @@ export type TArtifactJSON = {
 };
 export type TArtifactHTTPTrace = {
 	artifactType: 'json/http/trace';
+	httpEvent: 'response' | 'request' | 'route';
 	trace: THTTPTraceContent;
 };
 
