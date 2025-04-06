@@ -97,7 +97,11 @@ export class LogEntry extends LogComponent {
 				haibunVideoContainer.style.display = 'flex';
 			}
 		} else if (artifactDisplay.placementTarget === 'haibun-sequence-diagram') {
-			console.log('hsd', artifactDisplay)
+			const sequenceDiagramContainer = document.querySelector<HTMLElement>('#sequence-diagram');
+			if (sequenceDiagramContainer) {
+				// For sequence diagrams, we want to append rather than replace
+				sequenceDiagramContainer.appendChild(artifactDisplay.element);
+			}
 		}
 		// 'details' placement is handled within LogMessageContent constructor
 	}
@@ -255,9 +259,7 @@ class ImageArtifactDisplay extends ArtifactDisplay {
 		(this.element as HTMLImageElement).alt = 'Screen capture artifact';
 	}
 	protected render(): void {
-		if (this.artifact.path) {
-			(this.element as HTMLImageElement).src = this.artifact.path;
-		}
+		(this.element as HTMLImageElement).src = getRuntimePath(this.artifact);
 	}
 }
 
@@ -274,7 +276,7 @@ class VideoArtifactDisplay extends ArtifactDisplay {
 		}
 	}
 	protected render(): void {
-		(this.element as HTMLVideoElement).src = this.artifact.path;
+		(this.element as HTMLVideoElement).src = getRuntimePath(this.artifact);
 	}
 }
 
@@ -293,13 +295,15 @@ class JsonArtifactHTTPTrace extends ArtifactDisplay {
 	readonly placementTarget: 'details' | 'haibun-sequence-diagram';
 	constructor(protected artifact: TArtifactHTTPTrace) {
 		super(artifact, 'pre', 'haibun-message-details-json');
-		this.placementTarget = document.querySelector('#haibun-sequence-video') ? 'haibun-sequence-diagram' : 'details';
+		this.placementTarget = document.querySelector('#sequence-diagram') ? 'haibun-sequence-diagram' : 'details';
 	}
 	protected deriveLabel(): string {
 		return '⇄ Trace';
 	}
 	protected render(): void {
-		sequenceDiagramGenerator.processEvent(this.artifact.trace);
+		if (this.artifact.httpEvent === 'route') {
+			sequenceDiagramGenerator.processEvent(this.artifact.trace);
+		}
 		this.append(disclosureJson(this.artifact.trace));
 	}
 }
@@ -313,7 +317,7 @@ class JsonArtifactDisplay extends ArtifactDisplay {
 		return this.artifact.artifactType;
 	}
 	protected render(): void {
-		this.append(disclosureJson(this.artifact.trace));
+		this.append(disclosureJson(this.artifact.json || {}));
 	}
 }
 
@@ -335,3 +339,15 @@ function getSummaryMessage(message: string, messageContext?: TMessageContext): s
 	}
 	return message;
 }
+
+
+function getRuntimePath(artifact: { path: string, runtimePath?: string }): string {
+	const isRuntime = document.body.dataset.haibunRuntime === 'true';
+	console.log('isRuntime', isRuntime, artifact);
+	if (isRuntime && artifact.runtimePath) {
+		const prefix = artifact.runtimePath.endsWith('/') ? artifact.runtimePath : `${artifact.runtimePath}/`;
+		return `${prefix}${artifact.path.replace(/^\.\//, '')}`;
+	}
+	return artifact.path;
+}
+
