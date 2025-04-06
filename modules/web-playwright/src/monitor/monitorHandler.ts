@@ -95,4 +95,3 @@ async function waitForMonitorPage() {
 		await sleep(500);
 	}
 }
-
