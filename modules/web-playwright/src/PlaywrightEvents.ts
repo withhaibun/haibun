@@ -1,7 +1,7 @@
+import { Page, Request, Route, Response } from 'playwright';
 
 import { TTag } from '@haibun/core/build/lib/defs.js';
 import { TMessageContext, TArtifactHTTPTrace, THTTPTraceContent, ILogger, EExecutionMessageType } from '@haibun/core/build/lib/interfaces/logger.js'; // Updated imports
-import { Page, Request, Route, Response } from 'playwright';
 
 type TEtc = {
 	headers: Record<string, string>;
@@ -10,7 +10,6 @@ type TEtc = {
 	status?: number;
 	statusText?: string;
 }
-
 
 export class PlaywrightEvents {
 	constructor(private logger: ILogger, private page: Page, private tag: TTag) {
@@ -71,10 +70,9 @@ export class PlaywrightEvents {
 			artifactType: 'json/http/trace'
 		}
 		const mc: TMessageContext = {
-			incident: EExecutionMessageType.ACTION, // Assuming ACTION is appropriate for a trace event
+			incident: EExecutionMessageType.TRACE,
 			artifact,
-			tag: this.tag // Need to add the tag property
-			// incidentDetails could potentially hold original topic info if needed: { stage: 'action', event: 'debug' }
+			tag: this.tag
 		};
 		this.logger.debug(`playwright ${type} ${logData.requestingURL} ➔ ${targetWithoutRequestingBase}`, mc);
 	}

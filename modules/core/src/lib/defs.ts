@@ -215,7 +215,7 @@ export type TExecutorResult = {
 	ok: boolean;
 	tag: TTag;
 	shared: WorldContext;
-	topics?: TActionResultTopics;
+	topics?: TMessageContext;
 	featureResults?: TFeatureResult[];
 	failure?: {
 		stage: string;
@@ -226,18 +226,13 @@ export type TExecutorResult = {
 
 export type TOKActionResult = {
 	ok: true;
-	topics?: TActionResultTopics;
-};
-
-export type TActionResultTopics = {
-	[topic: string]: { summary: string; details?: TAnyFixme; report?: { html?: string; image?: string; video?: string } };
+	messageContext?: TMessageContext;
 };
 
 export type TNotOKActionResult = {
 	ok: false;
 	message: string;
-	error?: Error;
-	topics?: TActionResultTopics;
+	messageContext?: TMessageContext;
 };
 
 export type TTrace = {
