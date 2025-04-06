@@ -193,12 +193,17 @@
 
 		#haibun-video {
 			/* Styles for video container within bottom panel */
-			display: none; /* Initially hidden */
-			padding: 5px;
+			display: none; /* Initially hidden, shown by JS when video added */
+			/* Removed padding: 5px; */
 			box-sizing: border-box;
 			overflow: auto; /* Allow scroll if needed */
 			flex: 0 0 330px; /* Fixed width for video (adjust as needed) */
 			border-right: 1px solid #ccc; /* Separator */
+			background-color: transparent; /* Remove background from this container */
+			/* Add flex properties for alignment */
+			display: flex;
+			align-items: flex-start; /* Align video to the top */
+			justify-content: center; /* Center video horizontally if needed, or remove */
 		}
 		#haibun-video video {
 			max-width: 100%;
