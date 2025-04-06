@@ -38,21 +38,19 @@ function renderLogEntry(logEntryData: { level: TLogLevel; message: TLogArgs; mes
 
 	container.appendChild(logEntryElement);
 
-	// On STEP_START, add 'haibun-disappears' class to the log entry
-	if (messageContext?.incident === EExecutionMessageType.STEP_START) {
-		logEntryElement.classList.add('haibun-disappears');
-	}
-
-	// On STEP_END, find all elements with 'haibun-disappears' and add 'disappeared'
+	// On STEP_END, find the last active STEP_START entry and hide it
 	if (messageContext?.incident === EExecutionMessageType.STEP_END) {
-		const entriesToHide = container.querySelectorAll('.haibun-disappears');
-		entriesToHide.forEach(entry => {
-			entry.classList.add('disappeared');
-			// Optionally remove the marker class now that it's disappeared
-			// entry.classList.remove('haibun-disappears');
-		});
-		// No warning needed here, as it's okay if nothing needs hiding
+		// Find the last .haibun-step-start element that does NOT have .disappeared
+		const activeStepStartEntries = container.querySelectorAll('.haibun-step-start:not(.disappeared)');
+		if (activeStepStartEntries.length > 0) {
+			const lastActiveEntry = activeStepStartEntries[activeStepStartEntries.length - 1];
+			lastActiveEntry.classList.add('disappeared');
+		} else {
+			// Warn if STEP_END received but no active STEP_START found
+			console.warn('Received STEP_END but found no active STEP_START log entry to hide.');
+		}
 	}
+	// Note: The .haibun-step-start class is added in messages.ts LogEntry constructor
 
 	// Auto-scroll (move this after appending and potential modifications)
 	if (container.scrollHeight > container.clientHeight) {

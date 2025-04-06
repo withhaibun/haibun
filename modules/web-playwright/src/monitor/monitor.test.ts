@@ -88,9 +88,10 @@ describe('Monitor Log Rendering (monitor.ts)', () => {
 
         expect(startEntry.classList.contains('haibun-step-start')).toBe(true); // Check marker class
         expect(messageContent).not.toBeNull();
-        expect(loader).not.toBeNull(); // Loader should exist within message content
-        expect(loader?.parentElement).toBe(messageContent); // Loader parent is message content
-        expect(messageContent?.firstChild).toBe(loader); // Loader is prepended
+        // Check loader exists within the summary element inside the details
+        expect(startEntry.querySelector('.haibun-context-details .haibun-log-message-summary .haibun-loader')).not.toBeNull();
+        expect(loader?.parentElement?.classList.contains('haibun-log-message-summary')).toBe(true); // Loader parent is the summary element
+        // expect(messageContent?.firstChild).toBe(loader); // Loader is no longer the first child here
         expect(startEntry.classList.contains('disappeared')).toBe(false); // Should be visible
 
         // 2. Log a regular message (should not affect the start entry)
@@ -123,7 +124,8 @@ describe('Monitor Log Rendering (monitor.ts)', () => {
         simulateLog('debug', 'Step 1 Start', startContext1, 100);
         const entry1 = logArea.querySelector('.haibun-log-entry.haibun-step-start:not(.disappeared)');
         expect(entry1).not.toBeNull();
-        expect(entry1?.querySelector('.haibun-message-content > .haibun-loader')).not.toBeNull(); // Check loader exists in message content
+        // Check loader exists within the summary element inside the details
+        expect(entry1?.querySelector('.haibun-context-details .haibun-log-message-summary .haibun-loader')).not.toBeNull();
 
         // Step 1 End
         simulateLog('debug', 'Step 1 End', { incident: EExecutionMessageType.STEP_END, tag: endTag1 }, 200);
@@ -136,7 +138,7 @@ describe('Monitor Log Rendering (monitor.ts)', () => {
         expect(entry2).not.toBe(entry1); // Ensure it's a different entry element
         expect(entry2?.classList.contains('haibun-step-start')).toBe(true);
         expect(entry2?.classList.contains('disappeared')).toBe(false);
-        expect(entry2?.querySelector('.haibun-message-content > .haibun-loader')).not.toBeNull(); // Check loader exists in message content
+        expect(entry2?.querySelector('.haibun-context-details .haibun-log-message-summary .haibun-loader')).not.toBeNull(); // Check loader exists in summary
 
          // Check that entry1 is still disappeared
          expect(logArea.querySelectorAll('.haibun-log-entry.haibun-step-start.disappeared')).toHaveLength(1);

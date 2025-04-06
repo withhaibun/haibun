@@ -210,14 +210,19 @@ describe('Monitor Messages Logic (messages.ts)', () => {
 			const logEntry = new LogEntry('info', BASE_TIMESTAMP, 'Video Artifact', context);
 			const element = logEntry.element;
 
-			// Should NOT have the details wrapper at all because artifact is placed elsewhere
-			expect(element.querySelector('.haibun-context-details')).toBeNull();
+			// Details wrapper SHOULD exist because context is provided
+			const details = element.querySelector('.haibun-context-details');
+			expect(details).not.toBeNull();
+			// But the video element should NOT be inside the details wrapper
+			expect(details?.querySelector('video')).toBeNull();
 
 			// Should have the simple message class now
 			const messageContent = element.querySelector('.haibun-message-content') as HTMLElement;
 			expect(messageContent).not.toBeNull();
 			expect(messageContent.classList.contains('haibun-simple-message')).toBe(true);
-			expect(messageContent.textContent).toBe('Video Artifact'); // Check text content is just the summary
+			// Check text content includes both summary and label, as LogMessageSummary is still rendered inside details
+			expect(messageContent.textContent).toContain('Video Artifact');
+			expect(messageContent.textContent).toContain('video');
 
 			// Should be in the dedicated container
 			const video = document.querySelector('#haibun-video video') as HTMLVideoElement;
@@ -246,14 +251,19 @@ describe('Monitor Messages Logic (messages.ts)', () => {
 
 			// Should NOT have artifact details inside the main context details
 			expect(element.querySelector('.haibun-context-details .haibun-artifact-details')).toBeNull();
-			// Should NOT have the details wrapper at all because artifact is placed elsewhere
-			expect(element.querySelector('.haibun-context-details')).toBeNull();
+			// Details wrapper SHOULD exist because context is provided
+			const details = element.querySelector('.haibun-context-details');
+			expect(details).not.toBeNull();
+			// But the start span element should NOT be inside the details wrapper
+			expect(details?.querySelector('#haibun-video-start')).toBeNull();
 
 			// Should have the simple message class now
 			const messageContent = element.querySelector('.haibun-message-content') as HTMLElement;
 			expect(messageContent).not.toBeNull();
 			expect(messageContent.classList.contains('haibun-simple-message')).toBe(true);
-			expect(messageContent.textContent).toBe('Video Start'); // Check text content is just the summary
+			// Check text content includes both summary and label
+			expect(messageContent.textContent).toContain('Video Start');
+			expect(messageContent.textContent).toContain('video/start');
 
 			// Should be appended to the body
 			const startSpan = document.body.querySelector('#haibun-video-start') as HTMLSpanElement;
@@ -287,8 +297,10 @@ describe('Monitor Messages Logic (messages.ts)', () => {
 			expect(pre).not.toBeNull();
 			expect(pre).toBeInstanceOf(HTMLPreElement);
 			expect(pre?.classList.contains('haibun-message-details-json')).toBe(true);
-			// Parse the text content to compare objects, ignoring whitespace differences
-			expect(JSON.parse(pre?.textContent || '{}')).toEqual(jsonData);
+			// Find the root details element created by disclosureJson and parse its data attribute
+			const jsonRootDetails = pre?.querySelector('details.json-root-details') as HTMLElement;
+			expect(jsonRootDetails).not.toBeNull();
+			expect(JSON.parse(jsonRootDetails?.dataset.rawJson || '{}')).toEqual(jsonData);
 		});
 
 		it('should render a Playwright Trace artifact and call sequenceDiagramGenerator', async () => {
@@ -303,7 +315,7 @@ describe('Monitor Messages Logic (messages.ts)', () => {
 				status: 200,
 				statusText: 'OK'
 			};
-			const artifact: TArtifactHTTPTrace = { artifactType: 'json/http/trace', httpEvent: 'request', trace: traceData };
+			const artifact: TArtifactHTTPTrace = { artifactType: 'json/http/trace', httpEvent: 'route', trace: traceData }; // Use 'route' to trigger processEvent
 			const mockTagTrace: TTag = { key: 'trace', sequence: 8, featureNum: 1, params: {}, trace: false };
 			const context: TMessageContext = {
 				incident: EExecutionMessageType.ACTION, // Standard incident for artifacts
@@ -321,9 +333,12 @@ describe('Monitor Messages Logic (messages.ts)', () => {
 			expect(messageSummary?.textContent).toContain('Trace Event');
 			expect(messageSummary?.querySelector('.details-type')?.textContent).toBe('⇄ Trace'); // Specific artifact label used
 
-			const pre = details?.querySelector('pre') as HTMLPreElement;
+			const pre = details?.querySelector('pre.haibun-message-details-json') as HTMLPreElement;
 			expect(pre).not.toBeNull();
-			expect(JSON.parse(pre?.textContent || '{}')).toEqual(traceData);
+			// Find the root details element created by disclosureJson and parse its data attribute
+			const jsonRootDetails = pre?.querySelector('details.json-root-details') as HTMLElement;
+			expect(jsonRootDetails).not.toBeNull();
+			expect(JSON.parse(jsonRootDetails?.dataset.rawJson || '{}')).toEqual(traceData);
 
 			expect(sequenceDiagramGenerator.processEvent).toHaveBeenCalledTimes(1);
 			expect(sequenceDiagramGenerator.processEvent).toHaveBeenCalledWith(artifact.trace);

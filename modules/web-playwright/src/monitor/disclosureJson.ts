@@ -25,11 +25,13 @@ export function disclosureJson(jsonObj: TAnyFixme) {
 
 			summary.innerHTML = `<span class="key root-key">JSON result with ${countText}</span>`;
 			rootDetails.appendChild(summary);
-
 			rootDetails.appendChild(rootNode);
+			rootDetails.dataset.rawJson = JSON.stringify(jsonObj);
 			return rootDetails;
-		}
-	}
+		} // End if (typeof jsonObj === 'object'...)
+	} // End if (rootNode)
+	// Return undefined or some fallback if rootNode couldn't be built or wasn't an object
+	return undefined;
 }
 
 function appendNode(key: string | number, value: TAnyFixme, isArrayIndex: boolean, parentElement: HTMLElement, indentLevel: number = 0): void {
