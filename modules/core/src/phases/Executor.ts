@@ -6,7 +6,13 @@ import { actionNotOK, sleep, findStepper, constructorName, setStepperWorlds } fr
 import { SCENARIO_START } from '../steps/vars.js';
 
 function calculateShouldClose({ thisFeatureOK, isLast, stayOnFailure }) {
-	return (thisFeatureOK || (!thisFeatureOK && isLast && stayOnFailure));
+	if (thisFeatureOK) {
+		return true;
+	}
+	if (isLast && stayOnFailure) {
+		return false;
+	}
+	return true;
 }
 export class Executor {
 	static async action(steppers: AStepper[], featureStep: TFeatureStep, found: TStepAction, world: TWorld) {

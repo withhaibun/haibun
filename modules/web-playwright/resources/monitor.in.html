@@ -9,11 +9,15 @@
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 	<link href="https://fonts.googleapis.com/css2?family=Roboto&family=Roboto+Mono&display=swap" rel="stylesheet">
 	<style>
-		html, body { /* Ensure html also takes full height */
+		html,
+		body {
+			/* Ensure html also takes full height */
 			height: 100%;
 			margin: 0;
-			overflow: hidden; /* Prevent body scrollbars */
+			overflow: hidden;
+			/* Prevent body scrollbars */
 		}
+
 		body {
 			font-family: 'Roboto', sans-serif;
 			line-height: 1.6;
@@ -35,8 +39,8 @@
 		}
 
 		.haibun-header {
-			/* position: fixed; /* Removed, now part of flex flow */
-			flex-shrink: 0; /* Prevent header from shrinking */
+			flex-shrink: 0;
+			/* Prevent header from shrinking */
 			height: 7vh;
 			top: 0;
 			left: 0;
@@ -62,12 +66,11 @@
 		}
 
 		#haibun-log-display-area {
-			flex: 1 1 auto; /* Allow log area to grow and shrink */
+			flex: 1 1 auto;
+			/* Allow log area to grow and shrink */
 			overflow-y: scroll;
 			box-sizing: border-box;
-			/* padding-bottom needed to prevent content going under fixed handle/panel */
-			padding-bottom: 255px; /* Initial bottom_panel(250) + handle(5) */
-			/* No right padding needed now */
+			/* No padding needed at top or bottom for layout */
 		}
 
 		.haibun-log-entry {
@@ -101,18 +104,22 @@
 		}
 
 		.haibun-message-content details summary {
-			display: list-item; /* This is crucial for showing the twisty */
-			list-style-type: disclosure-closed; /* Explicitly set the disclosure triangle */
+			display: list-item;
+			/* This is crucial for showing the twisty */
+			list-style-type: disclosure-closed;
+			/* Explicitly set the disclosure triangle */
 		}
 
 		.haibun-message-content details[open] summary {
-			list-style-type: disclosure-open; /* Change style when open */
+			list-style-type: disclosure-open;
+			/* Change style when open */
 		}
 
 		.haibun-log-message-summary {
 			width: 100%;
 			position: relative;
-			cursor: pointer; /* Add cursor pointer to indicate it's clickable */
+			cursor: pointer;
+			/* Add cursor pointer to indicate it's clickable */
 		}
 
 		/* Use flexbox for summary */
@@ -182,8 +189,10 @@
 		.details-type {
 			background-color: #f5deb3;
 			border-radius: 5px;
-			float: right; /* Float the label to the right */
-			margin-left: 10px; /* Add some margin for spacing */
+			float: right;
+			/* Float the label to the right */
+			margin-left: 10px;
+			/* Add some margin for spacing */
 			padding: 1px 5px;
 			text-transform: lowercase;
 			display: inline-block;
@@ -193,66 +202,123 @@
 
 		#haibun-video {
 			/* Styles for video container within bottom panel */
-			display: none; /* Initially hidden, shown by JS when video added */
-			/* Removed padding: 5px; */
+			display: none;
+			/* Initially hidden, shown by JS when video added */
 			box-sizing: border-box;
-			overflow: auto; /* Allow scroll if needed */
-			flex: 0 0 330px; /* Fixed width for video (adjust as needed) */
-			border-right: 1px solid #ccc; /* Separator */
-			background-color: transparent; /* Remove background from this container */
+			overflow: visible;
+			flex: 0 0 330px;
+			/* Fixed width for video (adjust as needed) */
+			border-right: 1px solid #ccc;
+			/* Separator */
+			background-color: transparent;
+			/* Remove background from this container */
 			/* Add flex properties for alignment */
 			display: flex;
-			align-items: flex-start; /* Align video to the top */
-			justify-content: center; /* Center video horizontally if needed, or remove */
+			align-items: flex-start;
+			/* Align video to the top */
+			justify-content: center;
+			/* Center video horizontally if needed, or remove */
+			position: relative;
+			/* Positioning context for absolute video */
 		}
+
 		#haibun-video video {
 			max-width: 100%;
 			height: auto;
-			display: block; /* Prevent extra space below video */
+			display: block;
+			/* Prevent extra space below video */
+			transition: transform 0.3s ease;
+			transform-origin: top left;
 		}
+
+		#haibun-video video:hover {
+			transform: scale(2);
+			/* Double the size */
+			position: absolute;
+			/* Position relative to #haibun-video */
+			top: 0;
+			left: 0;
+			z-index: 10;
+			/* Ensure scaled video is on top */
+		}
+
 		#sequence-diagram-container {
 			/* Styles for sequence diagram container within bottom panel */
 			padding: 5px;
 			box-sizing: border-box;
-			overflow: auto; /* Allow scroll if needed */
-			flex: 1 1 auto; /* Allow sequence diagram to grow and shrink */
+			overflow: visible;
+			flex: 1 1 auto;
+			/* Allow sequence diagram to grow and shrink */
 			display: flex;
 			flex-direction: column;
+			position: relative;
+			/* Positioning context for absolute diagram */
 		}
+
 		#sequence-diagram-container h2 {
 			font-size: 1em;
 			margin: 0 0 5px 0;
 			text-align: center;
-			flex-shrink: 0; /* Prevent shrinking */
+			flex-shrink: 0;
+			/* Prevent shrinking */
 		}
+
 		#sequence-diagram {
 			text-align: center;
-			flex-grow: 1; /* Allow diagram to take remaining space */
-			overflow: auto; /* Scroll if diagram is large */
+			flex-grow: 1;
+			/* Allow diagram to take remaining space */
+			overflow: auto;
+			/* Scroll if diagram is large (for non-hovered state) */
+			transition: transform 0.3s ease;
+			transform-origin: top left;
 		}
-		#haibun-media-display {
-			position: fixed;
-			bottom: 0;
+
+		#sequence-diagram:hover {
+			position: absolute;
+			/* Position relative to #sequence-diagram-container */
+			top: 0;
 			left: 0;
 			width: 100%;
-			height: 250px; /* Initial height */
-			background-color: #f0f0f0;
-			border-top: 1px solid #ccc;
-			z-index: 999;
-			display: flex; /* Arrange video and diagram side-by-side */
-			overflow: hidden; /* Hide internal overflow, children handle scrolling */
-			box-sizing: border-box;
+			height: auto;
+			/* Maintain aspect ratio or natural height */
+			max-height: 80vh;
+			/* Limit height to avoid excessive scrolling */
+			z-index: 10;
+			background-color: #f8f8f8;
+			/* Use body background or similar */
+			padding: 10px;
+			border: 1px solid #ccc;
+			box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+			overflow: auto !important;
+			/* Ensure content scrolls if needed */
+			/* Remove transition for width/height change */
+			transition: none;
+			transform-origin: initial;
+			/* Reset transform origin */
 		}
+
+		#haibun-media-display {
+			left: 0;
+			width: 100%;
+			height: 250px;
+			/* Initial height, adjustable */
+			background-color: #f0f0f0;
+			border-bottom: 1px solid #ccc;
+			display: flex;
+			/* Arrange video and diagram side-by-side */
+			box-sizing: border-box;
+			flex-shrink: 0;
+			display: none;
+		}
+
 		#resize-handle {
-			position: fixed;
-			bottom: 250px; /* Positioned above the bottom display */
 			left: 0;
 			width: 100%;
 			height: 5px;
 			background-color: #aaa;
 			cursor: ns-resize;
-			/* Ensure handle is above log area scroll content */
-			z-index: 1000; /* Above bottom display */
+			flex-shrink: 0;
+			display: none;
 		}
 	</style>
 </head>
@@ -271,14 +337,6 @@
 		</div>
 	</div>
 
-	<div id="haibun-log-display-area">
-		<!-- Log entries will be appended here -->
-		<div class="haibun-disappears">
-			<div class="haibun-loader"></div>Execution output will appear here.
-		</div>
-	</div>
-
-	<div id="resize-handle"></div>
 	<div id="haibun-media-display">
 		<div id="haibun-video">
 			<!-- Video element will be placed here -->
@@ -287,6 +345,14 @@
 			<div id="sequence-diagram">
 				<!-- Sequence diagram will be rendered here -->
 			</div>
+		</div>
+	</div>
+	<div id="resize-handle"></div>
+
+	<div id="haibun-log-display-area">
+		<!-- Log entries will be appended here -->
+		<div class="haibun-disappears">
+			<div class="haibun-loader"></div>Execution output will appear here.
 		</div>
 	</div>
 

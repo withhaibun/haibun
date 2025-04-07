@@ -1,3 +1,5 @@
+let userScrolledManually = false; // Flag to track manual scrolling (module-level)
+
 export function setupControls() {
 	const levelSelect = document.getElementById('haibun-debug-level-select') as HTMLSelectElement;
 	const levels = ['debug', 'log', 'info', 'error'];
@@ -38,39 +40,23 @@ export function setupControls() {
 
 function setupResizeHandle() {
 	const resizeHandle = document.getElementById('resize-handle');
-	const bottomDisplay = document.getElementById('haibun-media-display') as HTMLElement;
+	const topDisplay = document.getElementById('haibun-media-display') as HTMLElement;
 	const logDisplayArea = document.getElementById('haibun-log-display-area') as HTMLElement;
 	const header = document.querySelector('.haibun-header'); // Assuming header has this class
 
-	if (!resizeHandle || !bottomDisplay || !logDisplayArea || !header) {
+	if (!resizeHandle || !topDisplay || !logDisplayArea || !header) {
 		console.error('Resize elements not found');
 		return;
 	}
 
 	let isResizing = false;
 	let startY: number;
-	let startHeightBottom: number;
-	// No longer need startHeightLog or headerHeight for this logic
-
-	// Set initial padding-bottom for log display area
-	const setInitialLogPadding = () => {
-		requestAnimationFrame(() => {
-			const initialBottomHeight = bottomDisplay.clientHeight;
-			const initialHandleHeight = resizeHandle.clientHeight;
-			logDisplayArea.style.paddingBottom = `${initialBottomHeight + initialHandleHeight}px`;
-		});
-	};
-	setInitialLogPadding(); // Call immediately
-	// Optional: Recalculate on window resize if needed
-	// window.addEventListener('resize', setInitialLogPadding);
-
+	let startHeightTop: number;
 
 	resizeHandle.addEventListener('mousedown', (e) => {
 		isResizing = true;
 		startY = e.clientY;
-		startHeightBottom = bottomDisplay.clientHeight;
-		// No longer need startHeightLog
-		// startHeightLog = logDisplayArea.clientHeight; // No longer needed
+		startHeightTop = topDisplay.clientHeight;
 		document.body.style.cursor = 'ns-resize'; // Change cursor during resize
 		document.body.style.userSelect = 'none'; // Prevent text selection
 
@@ -82,20 +68,16 @@ function setupResizeHandle() {
 	const handleMouseMove = (e: MouseEvent) => {
 		if (!isResizing) return;
 
-		const deltaY = startY - e.clientY; // Calculate change in Y
-		const newHeightBottom = startHeightBottom + deltaY;
-		const minHeight = 50; // Minimum height for the bottom panel
-		const maxHeight = window.innerHeight - header.clientHeight - 50; // Max height (leave space for header and min log area)
+		const deltaY = e.clientY - startY; // Calculate change in Y (Reversed for top panel)
+		const newHeightTop = startHeightTop + deltaY;
+		const minHeight = 50; // Minimum height for the top panel
+		const maxHeight = window.innerHeight - header.clientHeight - 50; // Max height (leave space for header and min log area below)
 
 		// Clamp the new height
-		const clampedHeightBottom = Math.max(minHeight, Math.min(newHeightBottom, maxHeight));
+		const clampedHeightTop = Math.max(minHeight, Math.min(newHeightTop, maxHeight));
 
-		// Apply new height to bottom panel and handle position
-		bottomDisplay.style.height = `${clampedHeightBottom}px`;
-		resizeHandle.style.bottom = `${clampedHeightBottom}px`; // Move handle with the panel
-
-		// Adjust padding-bottom of log area instead of height
-		logDisplayArea.style.paddingBottom = `${clampedHeightBottom + resizeHandle.clientHeight}px`;
+		// Apply new height to top panel
+		topDisplay.style.height = `${clampedHeightTop}px`;
 	};
 
 	const handleMouseUp = () => {
@@ -109,22 +91,38 @@ function setupResizeHandle() {
 	};
 }
 
-export function setupVideoPlayback() { // Add export
-	// Initialize sequence diagram if it exists
-	const sequenceDiagram = document.getElementById('sequence-diagram');
-	if (sequenceDiagram) {
-		// Make sure the sequence diagram is visible
-		const sequenceDiagramContainer = document.getElementById('sequence-diagram-container');
-		if (sequenceDiagramContainer) {
-			sequenceDiagramContainer.style.display = 'flex'; // Use flex for internal layout
+// Helper function to show the media panel and resize handle
+function showMediaPanelIfNeeded(mediaPanel: HTMLElement | null, resizeHandle: HTMLElement | null) {
+	if (mediaPanel && resizeHandle) {
+		// Check if already visible to avoid redundant style changes
+		if (mediaPanel.style.display !== 'flex') {
+			mediaPanel.style.display = 'flex';
+		}
+		if (resizeHandle.style.display !== 'block') {
+			resizeHandle.style.display = 'block';
 		}
 	}
-	const logDisplayArea = document.getElementById('haibun-log-display-area');
-	if (!logDisplayArea) return;
+}
 
-	// Find video element in the #haibun-video container
+export function setupVideoPlayback() { // Add export
+	// Get references to media elements and controls
+	const mediaPanel = document.getElementById('haibun-media-display');
+	const resizeHandle = document.getElementById('resize-handle');
+	const sequenceDiagram = document.getElementById('sequence-diagram'); // Check inner div for content
 	const videoContainer = document.getElementById('haibun-video');
-	if (!videoContainer) return;
+	const logDisplayArea = document.getElementById('haibun-log-display-area') as HTMLElement; // Keep this check and cast
+
+	if (!logDisplayArea || !videoContainer || !mediaPanel || !resizeHandle) {
+		console.error("Required elements for video playback/layout not found.");
+		return; // Exit if essential elements are missing
+	}
+	// userScrolledManually is now module-level
+
+	// Check if media exists initially (video OR sequence diagram content)
+	const existingVideoCheck = videoContainer.querySelector('video');
+	if (existingVideoCheck || (sequenceDiagram && sequenceDiagram.hasChildNodes())) {
+		showMediaPanelIfNeeded(mediaPanel, resizeHandle);
+	}
 
 	// Setup click handlers for log entries to seek video
 	logDisplayArea.addEventListener('click', (event) => {
@@ -134,6 +132,7 @@ export function setupVideoPlayback() { // Add export
 		if (logEntry && logEntry.dataset.time) {
 			const videoElement = videoContainer.querySelector('video');
 			if (videoElement) {
+				userScrolledManually = false; // Resume auto-scroll on click/seek
 				// Get Monitor start time and Video start offset
 				const monitorStartTimeStr = document.body.dataset.startTime;
 				const videoStartOffsetStr = document.getElementById('haibun-video-start')?.dataset.start;
@@ -174,6 +173,19 @@ export function setupVideoPlayback() { // Add export
 		}
 	});
 
+	// Detect manual scroll
+	let scrollTimeout: number | undefined;
+	logDisplayArea.addEventListener('scroll', () => {
+		const videoElement = videoContainer.querySelector('video'); // Need video element ref here too
+		// Use a timeout to avoid setting the flag during programmatic scrolls which might trigger rapid scroll events
+		clearTimeout(scrollTimeout);
+		scrollTimeout = window.setTimeout(() => {
+			// Simpler approach: Any scroll event sets the flag. Play/seek events clear it.
+			userScrolledManually = true;
+			// console.log('Manual scroll detected, setting flag.');
+		}, 150); // Wait 150ms after the last scroll event to set the flag
+	});
+
 	// Setup timeupdate handler for video to highlight current step
 	const setupVideoTimeUpdateHandler = (videoElement: HTMLVideoElement) => {
 		let playInterval: number | undefined; // Use number for interval ID, undefined when not set
@@ -196,7 +208,6 @@ export function setupVideoPlayback() { // Add export
 				return; // Cannot calculate relative times
 			}
 			const videoAbsoluteStartTime = monitorStartTime + videoStartOffset;
-			// Removed extra closing brace here
 
 			const currentVideoTimeMs = videoElement.currentTime * 1000;
 			let currentLatestEntry: HTMLElement | null = null; // Entry to be marked current in this update
@@ -226,18 +237,20 @@ export function setupVideoPlayback() { // Add export
 					entry.classList.add('haibun-stepper-notplayed');
 					entry.classList.remove('haibun-stepper-played');
 				}
-				// entry.classList.remove('haibun-stepper-current'); // Already removed above
 			});
 
 			// Mark the actual latest entry as current and scroll if needed
 			if (currentLatestEntry) {
 				currentLatestEntry.classList.add('haibun-stepper-current');
-				if (currentLatestEntry !== latestCurrentEntry) { // Only scroll if the current entry changed
-					if (!isElementInViewport(currentLatestEntry)) {
-						currentLatestEntry.scrollIntoView({ behavior: 'smooth', block: 'center' });
-					}
-					latestCurrentEntry = currentLatestEntry;
-				}
+				// Scroll the current entry into view ONLY if the user hasn't scrolled manually
+				// Scroll the current entry into view ONLY if the user hasn't scrolled manually AND it's not already visible
+				if (!userScrolledManually && !isElementInViewport(currentLatestEntry)) {
+					// console.log('Auto-scrolling to:', currentLatestEntry);
+					currentLatestEntry.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); // Use 'nearest'
+				} else if (userScrolledManually) {
+					// console.log('Manual scroll active, not auto-scrolling.');
+				} // else: Element is already in viewport, no need to scroll
+				latestCurrentEntry = currentLatestEntry; // Update the tracked entry
 			} else {
 				// If no entry is before or at the current time, clear the tracker
 				latestCurrentEntry = null;
@@ -247,12 +260,16 @@ export function setupVideoPlayback() { // Add export
 		// Update state definitively after a seek
 		videoElement.addEventListener('seeked', () => {
 			// console.log('seeked');
+			userScrolledManually = false; // Resume auto-scroll on seek
+			// console.log('Seek detected, clearing manual scroll flag.');
 			updateVideoSteps();
 		});
 
 		// Use interval for smooth updates during playback
 		videoElement.addEventListener('play', () => {
 			// console.log('play');
+			userScrolledManually = false; // Resume auto-scroll on play
+			// console.log('Play detected, clearing manual scroll flag.');
 			if (playInterval === undefined) { // Prevent multiple intervals
 				updateVideoSteps(); // Update immediately on play
 				playInterval = window.setInterval(updateVideoSteps, 50); // Update frequently (e.g., 50ms)
@@ -276,8 +293,8 @@ export function setupVideoPlayback() { // Add export
 	};
 
 	// --- MutationObserver setup ---
-	let existingVideo = videoContainer.querySelector('video');
-	if (existingVideo) {
+	let existingVideo = videoContainer.querySelector('video'); // Keep tracking var separate
+	if (existingVideo) { // Setup handler if video exists initially
 		setupVideoTimeUpdateHandler(existingVideo as HTMLVideoElement);
 	}
 
@@ -286,23 +303,34 @@ export function setupVideoPlayback() { // Add export
 			if (mutation.type === 'childList') {
 				const newVideo = videoContainer.querySelector('video');
 				if (newVideo && newVideo !== existingVideo) {
-					console.log('New video detected, setting up handlers.');
-					// Potentially clean up old interval if video element is replaced?
-					// For now, just setup handlers for the new one.
+					console.log('New video detected, setting up handlers and showing panel.');
+					// Show panel/handle when new video is added
+					showMediaPanelIfNeeded(mediaPanel, resizeHandle);
 					setupVideoTimeUpdateHandler(newVideo as HTMLVideoElement);
-					existingVideo = newVideo;
+					existingVideo = newVideo; // Update tracked video element
 				}
-				// Handle video removal? (Optional)
-				// else if (!newVideo && existingVideo) {
-				//   console.log('Video removed.');
-				//   existingVideo = null;
-				//   // Clean up any associated intervals if necessary
-				// }
 			}
 		});
 	});
 
 	observer.observe(videoContainer, { childList: true });
+
+	// --- Separate Observer for Sequence Diagram Content ---
+	const diagramObserver = new MutationObserver((mutations) => {
+		mutations.forEach((mutation) => {
+			// Check if nodes were added AND the target is the sequence diagram div
+			if (mutation.type === 'childList' && mutation.addedNodes.length > 0 && mutation.target === sequenceDiagram) {
+				console.log('Sequence diagram content detected, showing panel.');
+				showMediaPanelIfNeeded(mediaPanel, resizeHandle);
+				diagramObserver.disconnect(); // Stop observing once content is added
+			}
+		});
+	});
+
+	// Start observing the sequence diagram div for added children (like the SVG)
+	if (sequenceDiagram) {
+		diagramObserver.observe(sequenceDiagram, { childList: true });
+	}
 }
 
 // Helper function to find the parent log entry element
