@@ -2,6 +2,7 @@ import { Page, Request, Route, Response } from 'playwright';
 
 import { TTag } from '@haibun/core/build/lib/defs.js';
 import { TMessageContext, TArtifactHTTPTrace, THTTPTraceContent, ILogger, EExecutionMessageType } from '@haibun/core/build/lib/interfaces/logger.js'; // Updated imports
+import { shortenURI } from '@haibun/core/build/lib/util/index.js';
 
 type TEtc = {
 	headers: Record<string, string>;
@@ -75,6 +76,6 @@ export class PlaywrightEvents {
 			artifact,
 			tag: this.tag
 		};
-		this.logger.debug(`playwright ${label} ${logData.requestingURL} ➔ ${targetWithoutRequestingBase}`, mc);
+		this.logger.debug(`playwright ${label} ${shortenURI(logData.requestingURL)} ➔ ${targetWithoutRequestingBase}`, mc);
 	}
 }

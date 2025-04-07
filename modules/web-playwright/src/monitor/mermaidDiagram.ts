@@ -1,6 +1,7 @@
 import mermaid from 'mermaid';
 import { TAnyFixme } from '@haibun/core/build/lib/defs.js';
-import { THTTPTraceContent } from '@haibun/core/build/lib/interfaces/logger.js';
+import { TArtifactHTTPTrace, THTTPTraceContent } from '@haibun/core/build/lib/interfaces/logger.js';
+import { shortenURI, shortenUserAgent } from '@haibun/core/build/lib/util/index.js';
 
 // Helper function for sanitization
 const sanitizeMermaidContent = (message: string): string => {
@@ -12,6 +13,17 @@ const sanitizeMermaidContent = (message: string): string => {
 	sanitized = sanitized.replace(/,/g, '#44;');
 	return sanitized;
 };
+
+
+const jsonFilters = {
+	request: {
+		method: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+		accept: ['application/json'],
+	},
+	response: {
+		type: ['application/json'],
+	},
+}
 
 export class SequenceDiagramGenerator {
 	private needsUpdate = false;
@@ -28,7 +40,7 @@ export class SequenceDiagramGenerator {
 		}
 	}
 
-	public processEvent(trace: THTTPTraceContent): void {
+	public processEvent(trace: THTTPTraceContent, httpEvent: TArtifactHTTPTrace['httpEvent'], filters = jsonFilters): void {
 		this.needsUpdate = true; // Set flag immediately
 		const requestingPage = trace.requestingPage;
 		const requestingURL = trace.requestingURL;
@@ -45,25 +57,21 @@ export class SequenceDiagramGenerator {
 				const url = new URL(requestingURL);
 				serverName = url.hostname;
 				// Handle empty hostname (e.g., for about:blank)
-				if (!serverName) {
-					return;
-				} else {
-					// Create a simple alias from non-empty hostname
+				if (serverName) {
 					serverAlias = serverName.replace(/[.-]/g, '');
-					// Ensure alias is not empty after replacement (e.g., if hostname was just '.')
 					if (!serverAlias) {
 						serverAlias = 'HostAlias'; // Fallback alias if replacement results in empty string
 					}
 				}
 			} catch (e) {
-				// Invalid URL
-				serverName = 'Invalid URL';
 				serverAlias = 'InvalidURLAlias';
 			}
 		}
-		// Add the determined participant (Unknown, Internal, HostAlias, InvalidURLAlias, or derived)
 		this.addParticipant(serverAlias, serverName);
 
+		if (skipEvent(filters, httpEvent, serverName, trace)) {
+			return;
+		}
 
 		if (requestingPage && requestingURL) {
 			let pageAlias = this.pageNames[requestingPage];
@@ -95,18 +103,18 @@ export class SequenceDiagramGenerator {
 
 
 			if (method) {
-				// Sanitize message content for Mermaid using the helper function
-				const message = sanitizeMermaidContent(`${method} ${requestingURL}`);
+				const message = sanitizeMermaidContent(`${method} ${shortenURI(requestingURL)}`);
 				this.diagramLines.push(`${pageAlias}->>${serverAlias}: ${message}`);
 				if (headers && headers.referer) {
-					const note = sanitizeMermaidContent(`Referer: ${headers.referer}`);
+					const note = shortenURI(sanitizeMermaidContent(`Referer: ${headers.referer}`));
 					this.diagramLines.push(`Note right of ${pageAlias}: ${note}`);
 				}
-				// more notes, e.g., User-Agent
-				if (headers && headers["user-agent"]) {
-					// Sanitize user-agent note
-					// Use sanitizeMermaidNote for note content
-					const note = sanitizeMermaidContent(`User-Agent: ${headers["user-agent"]}`);
+				if (headers && headers["accept"]) {
+					const note = sanitizeMermaidContent(`Accept: ${headers["accept"]}`);
+					this.diagramLines.push(`Note right of ${pageAlias}: ${note}`);
+				}
+				if (headers && headers["content-type"]) {
+					const note = sanitizeMermaidContent(`Content-type: ${headers['content-type']}`);
 					this.diagramLines.push(`Note right of ${pageAlias}: ${note}`);
 				}
 			}
@@ -134,13 +142,14 @@ export class SequenceDiagramGenerator {
 			let diagramDefinition = ''; // Declare outside try
 			try {
 				diagramDefinition = this.getDiagram(); // Assign inside try
+
+				mermaid.initialize({ maxTextSize: 900000 });
 				// Ensure container is empty before rendering
 				mermaidContainer.innerHTML = '';
 				// Insert the diagram definition for Mermaid to process
 				const insert = `<pre class="mermaid">${diagramDefinition}</pre>`;
 				mermaidContainer.insertAdjacentHTML('beforeend', insert);
 
-				// Render the diagram using mermaid
 				await mermaid.run({ nodes: [mermaidContainer.querySelector('.mermaid')] });
 
 				console.log("Mermaid diagram rendered.");
@@ -148,8 +157,6 @@ export class SequenceDiagramGenerator {
 			} catch (e) {
 				console.error("Failed Mermaid diagram definition:\n", diagramDefinition); // Log failing definition
 				console.error("Error rendering Mermaid diagram:", e);
-				// Display error in the container
-				// Check if 'e' is an object and has 'str' property before accessing
 				const detailedError = (typeof e === 'object' && e !== null && 'str' in e) ? (e as TAnyFixme).str : null;
 				const errorMessage = detailedError || (e instanceof Error ? e.message : String(e));
 				mermaidContainer.innerHTML = `<pre>Error rendering Mermaid diagram:\n\n${errorMessage}\n\n--- Diagram Definition ---\n${diagramDefinition}</pre>`;
@@ -162,4 +169,39 @@ export class SequenceDiagramGenerator {
 			this.needsUpdate = false;
 		}
 	}
+}
+export function skipEvent(filters, httpEvent, serverName, { requestingPage, requestingURL, method, status, statusText, headers }: THTTPTraceContent) {
+	if (!serverName) {
+		console.info('No server name found, skipping result.');
+		return true;
+	}
+	if (requestingURL === 'about:blank') {
+		console.info('Requesting URL is about:blank, skipping result.');
+		return true;
+	}
+	if (httpEvent === 'request') {
+		if (headers && headers.accept) {
+			const acceptHeader = headers.accept;
+			if (!filters.request.accept.some(filterValue => acceptHeader.includes(filterValue))) {
+				console.info('qx', acceptHeader, filters.request.accept);
+				return true;
+			} else {
+				console.info('qY', acceptHeader, filters.request.accept);
+			}
+		}
+	} else if (httpEvent === 'response') {
+		if (headers && headers['content-type']) {
+			const contentTypeHeader = headers['content-type'];
+			if (!filters.response.type.some(filterValue => contentTypeHeader.includes(filterValue))) {
+				console.info('px', contentTypeHeader);
+				return true;
+			} else {
+				console.info('pY', contentTypeHeader);
+			}
+		}
+	} else {
+		console.warn(`Unknown HTTP event type: ${httpEvent}`);
+		return true;
+	}
+	return false;
 }
