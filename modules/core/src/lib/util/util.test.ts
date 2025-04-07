@@ -1,34 +1,12 @@
 import { describe, it, test, expect } from 'vitest';
 
 import * as util from './index.js';
-import * as TFileSystemJs from './workspace-lib.js';
-import {
-	HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS,
-	getDefaultWorld,
-	testWithDefaults,
-	getCreateSteppers,
-	TEST_BASE,
-} from '../test/lib.js';
+import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, getDefaultWorld, getCreateSteppers, TEST_BASE } from '../test/lib.js';
 import TestSteps from '../test/TestSteps.js';
 import TestStepsWithOptions from '../test/TestStepsWithOptions.js';
 import { withNameType } from '../features.js';
-import { AStepper, HANDLER_USAGE, IHasHandlers, IHasOptions, OK, TAnyFixme } from '../defs.js';
+import { AStepper, IHasOptions, OK, TAnyFixme } from '../defs.js';
 import { constructorName } from './index.js';
-
-describe('output', () => {
-	it('OutputResult default', async () => {
-		const features = [
-			{ path: '/features/test1.feature', content: `When I have a test\nThen fails` },
-			{ path: '/features/test2.feature', content: `When I have a test\nThen it passes` },
-		];
-		const result = await testWithDefaults(features, [TestSteps]);
-
-		expect(result.ok).toBe(false);
-		const output = await TFileSystemJs.getOutputResult(undefined, result);
-		expect(typeof output).toBe('object');
-		expect(result.featureResults?.length).toBe(2);
-	});
-});
 
 describe('isLowerCase', () => {
 	it('is lower case', () => {
@@ -38,90 +16,6 @@ describe('isLowerCase', () => {
 	});
 });
 
-describe('findHandlers', () => {
-	const TEST_HANDLER = 'testHandler';
-	class TestStepper extends AStepper {
-		// eslint-disable-next-line @typescript-eslint/ban-types
-		steps: {};
-	}
-	it('finds handlers from classes that implement IHasHandler', () => {
-		class TestStepperHandler extends TestStepper implements IHasHandlers {
-			handlers = { testHandler: { handle: () => undefined } };
-		}
-		const found = util.findHandlers([new TestStepperHandler()], TEST_HANDLER);
-		expect(found.length).toBe(1);
-		expect(util.constructorName(found[0].stepper)).toBe('TestStepperHandler');
-	});
-	it(`does not find handlers from classes that don't implement IHasHandler`, () => {
-		const found = util.findHandlers([new TestStepper()], TEST_HANDLER);
-		expect(found.length).toBe(0);
-	});
-	it(`finds exclusive handler`, () => {
-		class ExclusiveTestStepperHandler extends TestStepper implements IHasHandlers {
-			handlers = { testHandler: { handle: () => undefined, usage: HANDLER_USAGE.EXCLUSIVE } };
-		}
-		const found = util.findHandlers([new TestStepper(), new ExclusiveTestStepperHandler()], TEST_HANDLER);
-		expect(found.length).toBe(1);
-		expect(util.constructorName(found[0].stepper)).toBe('ExclusiveTestStepperHandler');
-	});
-	it(`throws error for duplicate exclusives`, () => {
-		class ExclusiveTestStepperHandler extends TestStepper implements IHasHandlers {
-			handlers = { testHandler: { handle: () => undefined, usage: HANDLER_USAGE.EXCLUSIVE } };
-		}
-		class ExclusiveTestStepperHandlerToo extends TestStepper implements IHasHandlers {
-			handlers = { testHandler: { handle: () => undefined, usage: HANDLER_USAGE.EXCLUSIVE } };
-		}
-
-		expect(() =>
-			util.findHandlers(
-				[new TestStepper(), new ExclusiveTestStepperHandler(), new ExclusiveTestStepperHandlerToo()],
-				TEST_HANDLER
-			)
-		).toThrow();
-	});
-	it(`removes fallback`, () => {
-		class TestStepperHandler extends TestStepper implements IHasHandlers {
-			handlers = { testHandler: { handle: () => undefined } };
-		}
-		class FallbackTestStepperHandler extends TestStepper implements IHasHandlers {
-			handlers = { testHandler: { handle: () => undefined, usage: HANDLER_USAGE.FALLBACK } };
-		}
-		const found = util.findHandlers([new TestStepperHandler(), new FallbackTestStepperHandler()], TEST_HANDLER);
-		expect(found.length).toBe(1);
-		expect(constructorName(found[0].stepper)).toBe('TestStepperHandler');
-	});
-	it(`keeps one fallback from mix pak`, async () => {
-		class TestStepperHandler extends TestStepper implements IHasHandlers {
-			handlers = { testHandler: { handle: () => undefined } };
-		}
-		class FallbackTestStepperHandler extends TestStepper implements IHasHandlers {
-			handlers = { testHandler: { handle: () => undefined, usage: HANDLER_USAGE.FALLBACK } };
-		}
-		class FallbackTestStepperHandlerToo extends TestStepper implements IHasHandlers {
-			handlers = { testHandler: { handle: () => undefined, usage: HANDLER_USAGE.FALLBACK } };
-		}
-		const found = util.findHandlers(
-			await util.createSteppers([TestStepperHandler, FallbackTestStepperHandler, FallbackTestStepperHandlerToo]),
-			TEST_HANDLER
-		);
-		expect(found.length).toBe(1);
-		expect(constructorName(found[0].stepper)).toBe('TestStepperHandler');
-	});
-	it(`keeps first fallback from multiple fallbacks`, async () => {
-		class FallbackTestStepperHandler extends TestStepper implements IHasHandlers {
-			handlers = { testHandler: { handle: () => undefined, usage: HANDLER_USAGE.FALLBACK } };
-		}
-		class FallbackTestStepperHandlerToo extends TestStepper implements IHasHandlers {
-			handlers = { testHandler: { handle: () => undefined, usage: HANDLER_USAGE.FALLBACK } };
-		}
-		const found = util.findHandlers(
-			await util.createSteppers([FallbackTestStepperHandler, FallbackTestStepperHandlerToo]),
-			TEST_HANDLER
-		);
-		expect(found.length).toBe(1);
-		expect(constructorName(found[0].stepper)).toBe('FallbackTestStepperHandler');
-	});
-});
 
 describe('findStepperFromOptions', () => {
 	const TestOptionsStepper = class TestOptionsStepper extends AStepper implements IHasOptions {
@@ -138,7 +32,7 @@ describe('findStepperFromOptions', () => {
 		steps = {
 			test: {
 				exact: 'When I have a stepper option',
-				action: async () => OK,
+				action: async () => await Promise.resolve(OK),
 			},
 		};
 	};
@@ -193,7 +87,7 @@ describe('verifyRequiredOptions', () => {
 		steps = {
 			test: {
 				exact: 'When I have a stepper option',
-				action: async () => OK,
+				action: async () => await Promise.resolve(OK),
 			},
 		};
 	}
@@ -212,7 +106,7 @@ describe('verifyRequiredOptions', () => {
 });
 
 describe('getStepperOptions', () => {
-	it('finds stepper options', async () => {
+	it('finds stepper options', () => {
 		const conc = util.getStepperOptionValue(HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, 'true', [TestStepsWithOptions]);
 		expect(conc).toBeDefined();
 	});
@@ -237,11 +131,11 @@ describe('getType', () => {
 
 describe('check module is class', () => {
 	it('should pass a class', () => {
-		expect(util.checkModuleIsClass(class a {}, 'a')).toEqual(undefined);
+		expect(util.checkModuleIsClass(class a { }, 'a')).toEqual(undefined);
 	});
 	it('should fail a function', () => {
 		// eslint-disable-next-line @typescript-eslint/no-empty-function
-		expect(() => util.checkModuleIsClass(function a() {}, 'a')).toThrow(undefined);
+		expect(() => util.checkModuleIsClass(function a() { }, 'a')).toThrow(undefined);
 	});
 });
 
@@ -323,34 +217,34 @@ describe('depolite', () => {
 });
 
 describe('optionOrError', () => {
-	it('rejects no option', async () => {
-		expect(util.optionOrError('a', ['b']).error).toBeDefined();
+	it('rejects no option', () => {
+		expect(util.optionOrError('a', ['b']).parseError).toBeDefined();
 	});
-	it('rejects undefined option', async () => {
-		expect(util.optionOrError(undefined as unknown as string, ['b']).error).toBeDefined();
+	it('rejects undefined option', () => {
+		expect(util.optionOrError(undefined as unknown as string, ['b']).parseError).toBeDefined();
 	});
-	it('returns options', async () => {
+	it('returns options', () => {
 		expect(util.optionOrError('b', ['b'])).toEqual({ result: 'b' });
 	});
 });
 
 describe('boolOrError', () => {
-	it('returns true', async () => {
+	it('returns true', () => {
 		expect(util.boolOrError('true')).toEqual({ result: true });
 	});
-	it('returns false', async () => {
+	it('returns false', () => {
 		expect(util.boolOrError('false')).toEqual({ result: false });
 	});
-	it('returns error', async () => {
-		expect(util.boolOrError('wtw').error).toBeDefined();
+	it('returns error', () => {
+		expect(util.boolOrError('wtw').parseError).toBeDefined();
 	});
 });
 
 describe('stringOrError', () => {
-	it('returns value', async () => {
+	it('returns value', () => {
 		expect(util.stringOrError('a')).toEqual({ result: 'a' });
 	});
-	it('returns error', async () => {
-		expect(() => util.stringOrError(undefined as unknown as any).error).toBeDefined();
+	it('returns error', () => {
+		expect(() => util.stringOrError(undefined as unknown as TAnyFixme).parseError).toBeDefined();
 	});
 });

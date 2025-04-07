@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import prettier from 'prettier';
 import { spawn } from './util/index.js';
@@ -6,7 +8,7 @@ import { createVitest } from 'vitest/node';
 const [, me, version, ...extra] = process.argv;
 
 class Versioner {
-	localAndExtraModules: { [name: string]: string } = {}; 
+	localAndExtraModules: { [name: string]: string } = {};
 	private noTest = false;
 
 	haibunPackageVersions: { [dep: string]: string } = {};
@@ -34,6 +36,8 @@ class Versioner {
 		this.updateSourceCurrentVersion();
 		this.gitCommit('haibun', '.', ['./modules/core/src/currentVersion.ts']);
 		await this.forLocalAndExtraModules(this.npmInstall);
+		// FIXME
+		// eslint-disable-next-line @typescript-eslint/no-misused-promises
 		await this.forLocalAndExtraModules(this.runTest);
 		await this.forLocalAndExtraModules(this.gitCommit);
 		await this.forLocalAndExtraModules(this.npmPublish);

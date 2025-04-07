@@ -1,13 +1,4 @@
-import {
-	TStepAction,
-	TResolvedFeature,
-	OK,
-	TExpandedFeature,
-	AStepper,
-	TStepperStep,
-	TFeatureStep,
-	TExpandedLine,
-} from '../lib/defs.js';
+import { TStepAction, TResolvedFeature, OK, TExpandedFeature, AStepper, TStepperStep, TFeatureStep, TExpandedLine } from '../lib/defs.js';
 import { BASE_TYPES } from '../lib/domain-types.js';
 import { namedInterpolation, getMatch } from '../lib/namedVars.js';
 import { getActionable, describeSteppers, isLowerCase, dePolite, constructorName } from '../lib/util/index.js';
@@ -24,13 +15,14 @@ export class Resolver {
 		for (const feature of features) {
 			const featureSteps = await this.findFeatureSteps(feature);
 			const e = { ...feature, ...{ featureSteps } };
+			delete e.expanded;
 			steps.push(e);
 		}
 		return steps;
 	}
 
 	public async findFeatureSteps(feature: TExpandedFeature): Promise<TFeatureStep[]> {
-		let featureSteps: TFeatureStep[] = [];
+		const featureSteps: TFeatureStep[] = [];
 		let seq = 0;
 		for (const featureLine of feature.expanded) {
 			seq++;
@@ -42,17 +34,17 @@ export class Resolver {
 			if (actions.length > 1) {
 				throw Error(`more than one step found for "${featureLine.line}": ${JSON.stringify(actions.map((a) => a.actionName))}`);
 			} else if (actions.length < 1) {
-				throw Error(`no step found for ${featureLine.line} in ${feature.path} from ${describeSteppers(this.steppers)}`);
+				throw Error(`in ${feature.name}: no step found for ${featureLine.line} in ${feature.path} from\n${describeSteppers(this.steppers)}\nUse --show-steppers for more details`);
 			}
 			const featureStep = this.getFeatureStep(featureLine, seq, actions[0]);
 			featureSteps.push(featureStep);
 		}
 
-		return featureSteps;
+		return Promise.resolve(featureSteps);
 	}
 
 	getFeatureStep(featureLine: TExpandedLine, seq: number, action: TStepAction): TFeatureStep {
-		return { source: featureLine.feature, in: featureLine.line, seq, action };
+		return { path: featureLine.feature.path, in: featureLine.line, seq, action };
 	}
 
 	public findActionableSteps(actionable: string): TStepAction[] {
@@ -106,7 +98,7 @@ const comment = {
 	step: {
 		match: /.*/,
 		action: async () => {
-			return OK;
+			return Promise.resolve(OK);
 		},
 	},
 };

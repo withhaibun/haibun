@@ -3,7 +3,6 @@ import { Resolver } from '../../phases/Resolver.js';
 import { getRunTag, verifyExtraOptions, createSteppers } from './../util/index.js';
 import { getSteppers } from '../util/workspace-lib.js';
 import { WorldContext } from '../contexts.js';
-import { withNameType } from './../features.js';
 import Logger, { LOGGER_LOG } from '../Logger.js';
 import { Timer } from '../Timer.js';
 import { asFeatures } from '../resolver-features.js';
@@ -20,8 +19,8 @@ export async function getCreateSteppers(steppers: string[], addSteppers?: CStepp
 	return await createSteppers(csteppers.concat(addSteppers || []));
 }
 
-export const testFeatureStep = (name: string, action, base = TEST_BASE): TFeatureStep => ({
-	source: { ...withNameType(base, name, '') },
+export const testFeatureStep = (name: string, action): TFeatureStep => ({
+	path: '/features/test',
 	in: name,
 	seq: 0,
 	action,

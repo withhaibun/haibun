@@ -21,6 +21,7 @@ export const MAPPED_MEDIA_TYPES = {
   woff2: 'font/woff2',
   ttf: 'font/ttf',
   otf: 'font/otf',
+	xml: 'text/xml',
   '': 'inode/directory'
 };
 

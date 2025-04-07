@@ -1,5 +1,0 @@
-Set prairie-json-explorer to 'https://localhost:8080'
-Set _hai-json-files to '//*[@data-testid="_hai-json-files"]'
-Set latest-pr.json to '//*[@data-testid="_hai-latest-pr"]'
-Set review-1.json to '//*[@data-testid="_hai-review-1"]'
-Set review-2.json to '//*[@data-testid="_hai-review-2"]'

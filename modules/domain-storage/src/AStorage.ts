@@ -1,8 +1,9 @@
 import { AStepper, OK, TNamed, DEFAULT_DEST, TAnyFixme } from '@haibun/core/build/lib/defs.js';
 import { actionNotOK } from '@haibun/core/build/lib/util/index.js';
 import { setShared } from '@haibun/core/build/steps/vars.js';
-import { IFile, TLocationOptions, TPathedOrString } from './domain-storage.js';
+import { guessMediaType, IFile, TLocationOptions } from './domain-storage.js';
 import { EMediaTypes, TMediaType } from './media-types.js';
+import { resolve } from 'path';
 
 const CAPTURE = 'capture';
 
@@ -16,7 +17,7 @@ export abstract class AStorage extends AStepper {
 	abstract rm(path: string);
 	abstract readdir(dir: string): Promise<string[]>;
 	abstract lstatToIFile(file: string): Promise<IFile>;
-	abstract writeFileBuffer(file: TPathedOrString, contents: Buffer, mediaType: TMediaType): void;
+	abstract writeFileBuffer(file: string, contents: Buffer, mediaType: TMediaType): void;
 
 	async readFlat(dir: string, filter?: string): Promise<IFile[]> {
 		const entries = await this.readdirStat(dir);
@@ -55,7 +56,7 @@ export abstract class AStorage extends AStepper {
 		}
 		return mapped;
 	}
-	async writeFile(file: TPathedOrString, contents: string | Buffer, mediaType: TMediaType) {
+	async writeFile(file: string, contents: string | Buffer, mediaType: TMediaType) {
 		if (typeof contents === 'string') {
 			await this.writeFileBuffer(file, Buffer.from(contents), mediaType);
 		} else {
@@ -66,13 +67,14 @@ export abstract class AStorage extends AStepper {
 	async latestFrom(dir: string) {
 		const orderReccentFiles = async (dir: string) =>
 			(await this.readdirStat(dir)).filter((f) => f.isFile).sort((a, b) => b.created - a.created);
-		return orderReccentFiles(dir)[0];
+		return Promise.resolve(orderReccentFiles(dir)[0]);
 	}
 
 	abstract mkdir(dir: string);
 	abstract mkdirp(dir: string);
 	abstract exists(ntt: string);
 
+	// eslint-disable-next-line @typescript-eslint/require-await
 	async rmrf(dir: string) {
 		throw Error(`rmrf not implemented at ${dir}`);
 	}
@@ -95,27 +97,30 @@ export abstract class AStorage extends AStepper {
 
 	locator(loc: TLocationOptions, ...where: (string | undefined)[]) {
 		const { options } = loc;
-		const path = [options.base, CAPTURE, options.DEST || DEFAULT_DEST].concat(where.filter((w) => w !== undefined));
+		const base = '';
+		const path = [base, CAPTURE, options.DEST || DEFAULT_DEST].concat(where.filter((w) => w !== undefined));
 		return '.' + path.join('/');
+	}
+
+	async getCapturePath(pathIn: string) {
+		const mediaType = guessMediaType(pathIn);
+		const loc = resolve(await this.getCaptureLocation({ ...this.world, mediaType }));
+		return loc;
+	}
+
+	async getRelativePath(pathIn: string | undefined) {
+		if (!pathIn) {
+			return undefined;
+		}
+		const mediaType = guessMediaType(pathIn);
+		const loc = resolve(await this.getCaptureLocation({ ...this.world, mediaType }));
+		return pathIn.replace(loc, '.');
 	}
 
 	async getCaptureLocation(loc: TLocationOptions, app?: string) {
 		const { tag } = loc;
 		const locator = this.locator(loc, tag.key, `seq-${tag.sequence}`, `featn-${tag.featureNum}`, app);
-		return locator;
-	}
-
-	/**
-	 * Overload this where slash directory conventions aren't used.
-	 * Should not be used for any storage method that writes (that should be done in the function).
-	 * @param relativeTo - flag to return a relative location
-	 */
-	pathed(mediaType: TMediaType, f: string, relativeTo?: string) {
-		if (relativeTo) {
-			return (f || 'FIXMEPATHED').replace(relativeTo, '.');
-		}
-
-		return f;
+		return Promise.resolve(locator);
 	}
 
 	async ensureCaptureLocation(loc: TLocationOptions, app?: string | undefined, fn = '') {
@@ -131,6 +136,7 @@ export abstract class AStorage extends AStepper {
 				throw Error(`creating ${dir}: ${e}`);
 			}
 		}
+		return Promise.resolve();
 	}
 
 	steps = {
@@ -189,7 +195,7 @@ export abstract class AStorage extends AStepper {
 			gwta: `read text from {where}`,
 			action: async ({ where }: TNamed) => {
 				const text = await this.readFile(where, 'utf-8');
-				this.getWorld().logger.log(text);
+				this.getWorld().logger.info(text);
 				return OK;
 			},
 		},
@@ -197,7 +203,7 @@ export abstract class AStorage extends AStepper {
 			gwta: `list files from {where}`,
 			action: async ({ where }: TNamed) => {
 				const files = await this.readdir(where);
-				this.getWorld().logger.log(`files from ${where}: ${files.join(', ')}`);
+				this.getWorld().logger.info(`files from ${where}: ${files.join(', ')}`);
 				return OK;
 			},
 		},
@@ -215,7 +221,7 @@ export abstract class AStorage extends AStepper {
 			gwta: `storage entry {what} exists`,
 			action: async ({ what }: TNamed) => {
 				const exists = this.exists(what);
-				return exists ? OK : actionNotOK(`file ${what} does not exist`);
+				return Promise.resolve(exists ? OK : actionNotOK(`file ${what} does not exist`));
 			},
 		},
 		clearAllFiles: {
@@ -230,7 +236,7 @@ export abstract class AStorage extends AStepper {
 			action: async ({ what, where }: TNamed) => {
 				const c1 = this.readFile(what, 'binary');
 				const c2 = this.readFile(where, 'binary');
-				return Buffer.from(c1)?.equals(Buffer.from(c2)) ? OK : actionNotOK(`contents are not the same ${what} ${where}`);
+				return Promise.resolve(Buffer.from(c1)?.equals(Buffer.from(c2)) ? OK : actionNotOK(`contents are not the same ${what} ${where}`));
 			},
 		},
 	};

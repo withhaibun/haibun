@@ -1,0 +1,13 @@
+{
+  // Extends the base settings used for building
+  "extends": "./tsconfig.settings.json",
+  // Include source files AND test files for ESLint's type-aware rules
+  "include": [
+    "**/*.ts" // Include all .ts files within the modules directory
+  ],
+  // Override the exclude from the base settings - we WANT to lint tests
+  "exclude": [
+    "**/build/**", // Still exclude build output
+    "node_modules/**"
+  ]
+}

@@ -1,10 +1,16 @@
 import nodeFS from 'fs';
 
-import { BASE_PREFIX, DEFAULT_DEST, IHasOptions, TBase, TOptions, TProtoOptions, TSpecl } from '@haibun/core/build/lib/defs.js';
+import { BASE_PREFIX, CHECK_NO, CHECK_YES, DEFAULT_DEST, IHasOptions, isProcessFeatureResults, STAY, STAY_ALWAYS, TAnyFixme, TBase, TProtoOptions, TSpecl, TWorld } from '@haibun/core/build/lib/defs.js';
 import { getCreateSteppers } from '@haibun/core/build/lib/test/lib.js';
 import { getPre } from '@haibun/core/build/lib/util/index.js';
 import { BaseOptions } from './BaseOptions.js';
 import { TFileSystem } from '@haibun/core/build/lib/util/workspace-lib.js';
+import { getDefaultOptions, basesFrom } from '@haibun/core/build/lib/util/index.js';
+import { Timer } from '@haibun/core/build/lib/Timer.js';
+import Logger from '@haibun/core/build/lib/Logger.js';
+import { Runner } from '@haibun/core/build/runner.js';
+import { WorldContext } from '@haibun/core/build/lib/contexts.js';
+import { getDefaultTag } from '@haibun/core/build/lib/test/lib.js';
 
 const OPTION_CONFIG = '--config';
 const OPTION_HELP = '--help';
@@ -12,6 +18,82 @@ const OPTION_SHOW_STEPPERS = '--show-steppers';
 
 type TEnv = { [name: string]: string | undefined };
 
+export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
+	const { params, configLoc, showHelp, showSteppers } = processArgs(args);
+	const bases = basesFrom(params[0]?.replace(/\/$/, ''));
+	const specl = await getSpeclOrExit(configLoc ? [configLoc] : bases);
+
+	if (showHelp) {
+		await usageThenExit(specl);
+	}
+	if (showSteppers) {
+		const allSteppers = await getAllSteppers(specl);
+		console.info('Steppers:', JSON.stringify(allSteppers, null, 2));
+		process.exit(0);
+	}
+	const featureFilter = params[1] ? params[1].split(',') : undefined;
+
+	const { protoOptions, errors } = processBaseEnvToOptionsAndErrors(env);
+	if (errors.length > 0) {
+		await usageThenExit(specl, errors.join('\n'));
+	}
+
+	// const description = protoOptions.options.DESCRIPTION || bases + ' ' + [...(featureFilter || [])].join(',');
+	const world = getWorld(protoOptions, bases);
+
+	const runner = new Runner(world);
+
+	console.info('\n_________________________________ start');
+	const executorResult = await runner.run(specl.steppers, featureFilter);
+	console.info(executorResult.ok ? CHECK_YES : `${CHECK_NO} At ${JSON.stringify(executorResult.failure)}`);
+
+	for (const maybeResultProcessor of executorResult.steppers) {
+		if (isProcessFeatureResults(maybeResultProcessor)) {
+			await maybeResultProcessor.processFeatureResult(executorResult);
+		}
+	}
+
+	if (executorResult.ok) {
+		if (protoOptions.options[STAY] !== STAY_ALWAYS) {
+			process.exit(0);
+		}
+	} else if (!protoOptions.options[STAY]) {
+		process.exit(1);
+	}
+}
+
+function getWorld(protoOptions: TProtoOptions, bases: TBase): TWorld {
+	const { KEY: keyIn, LOG_LEVEL: logLevel, LOG_FOLLOW: logFollow } = protoOptions.options;
+	const tag = getDefaultTag(0);
+	const logger = new Logger({ level: logLevel || 'debug', follow: logFollow });
+	const shared = new WorldContext(tag);
+	const timer = new Timer();
+
+	const key = keyIn || Timer.key;
+	Timer.key = key;
+
+	const world: TWorld = {
+		tag,
+		shared,
+		runtime: {},
+		logger,
+		...protoOptions,
+		timer,
+		bases,
+	};
+	return world;
+}
+
+async function getSpeclOrExit(bases: TBase): Promise<TSpecl> {
+	const specl = getConfigFromBase(bases);
+	if (specl === null || bases?.length < 1) {
+		if (specl === null) {
+			await usageThenExit(specl ? specl : getDefaultOptions(), `missing or unusable config.json from ${bases}`);
+		}
+		await usageThenExit(specl ? specl : getDefaultOptions(), 'no bases');
+	}
+	return specl;
+}
 export async function usageThenExit(specl: TSpecl, message?: string) {
 	const output = await usage(specl, message);
 	console[message ? 'error' : 'info'](output);
@@ -23,7 +105,7 @@ export async function getAllSteppers(specl: TSpecl) {
 	const a = steppers.reduce((acc, o) => {
 		return {
 			...acc,
-			[(o as any).constructor.name]: Object.entries(o.steps).map(
+			[(o as TAnyFixme).constructor.name]: Object.entries(o.steps).map(
 				([stepperName, stepperMatch]) => stepperName + ': ' + (stepperMatch.gwta || stepperMatch.match || stepperMatch.match)
 			),
 		};
@@ -48,7 +130,7 @@ export async function usage(specl: TSpecl, message?: string) {
 		message || '',
 		'If config.json is not found in project bases, the root directory will be used.\n',
 		'Set these environmental variables to control options:\n',
-		...Object.entries(BaseOptions.options).map(([k, v]) => `${BASE_PREFIX}${k.padEnd(55)} ${v.desc}`),
+		...Object.entries(BaseOptions.options).map(([k, v]) => `${BASE_PREFIX}${String(k).padEnd(55)} ${v.desc}`),
 	];
 	if (Object.keys(a).length) {
 		ret.push(
@@ -59,8 +141,8 @@ export async function usage(specl: TSpecl, message?: string) {
 	return [...ret, ''].join('\n');
 }
 
-export function processBaseEnvToOptionsAndErrors(env: TEnv, options: TOptions) {
-	const protoOptions: TProtoOptions = { options: { ...options }, moduleOptions: {} };
+export function processBaseEnvToOptionsAndErrors(env: TEnv) {
+	const protoOptions: TProtoOptions = { options: { DEST: DEFAULT_DEST }, moduleOptions: {} };
 
 	const errors: string[] = [];
 	let nenv = {};
@@ -77,8 +159,8 @@ export function processBaseEnvToOptionsAndErrors(env: TEnv, options: TOptions) {
 
 			if (baseOption) {
 				const res = baseOption.parse(value, nenv);
-				if (res.error) {
-					errors.push(res.error);
+				if (res.parseError) {
+					errors.push(res.parseError);
 				} else if (res.env) {
 					nenv = { ...nenv, ...res.env };
 				} else if (!res.result) {
@@ -86,13 +168,13 @@ export function processBaseEnvToOptionsAndErrors(env: TEnv, options: TOptions) {
 				} else {
 					protoOptions.options[opt] = res.result;
 				}
-			} else if (opt.startsWith(`${BASE_PREFIX}_O_`)) {
+			} else if (opt.startsWith(`O_`)) {
 				protoOptions.moduleOptions[k] = value;
 			} else {
 				errors.push(`no option for ${opt}`);
 			}
 		});
-	protoOptions.options.env = nenv;
+	protoOptions.options.envVariables = nenv;
 
 	return { protoOptions, errors };
 }

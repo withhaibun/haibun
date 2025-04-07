@@ -26,18 +26,18 @@ const Credentials = class Credentials extends AStepper {
 
   steps = {
     hasRandomUsername: {
-      match: /^When I have a valid random username <(?<name>.+)>/,
+      match: /^have a valid random username <(?<name>.+)>/,
       action: async ({ name }: TNamed) => {
         this.generateRandomUsername(name);
-        return OK;
+        return Promise.resolve(OK);
       },
     },
 
     hasRandomPassword: {
-      match: /^When I have a valid random password <(?<name>.+)>/,
+      match: /^have a valid random password <(?<name>.+)>/,
       action: async ({ name }: TNamed) => {
         this.generateRandomPassword(name);
-        return OK;
+        return Promise.resolve(OK);
       },
     },
   };

@@ -1,23 +1,5 @@
-import {
-	IHasOptions,
-	TNotOKActionResult,
-	TOKActionResult,
-	TSpecl,
-	TWorld,
-	TRuntime,
-	TActionResultTopics,
-	TTag,
-	AStepper,
-	TModuleOptions,
-	CStepper,
-	DEFAULT_DEST,
-	TTagValue,
-	TFeatureResult,
-	TAnyFixme,
-	IHasHandlers,
-	ISourcedHandler,
-	HANDLER_USAGE,
-} from '../defs.js';
+import { IHasOptions, TNotOKActionResult, TOKActionResult, TSpecl, TWorld, TRuntime, TTag, AStepper, TModuleOptions, CStepper, TTagValue, TAnyFixme } from '../defs.js';
+import { TMessageContext } from '../interfaces/messageContexts.js';
 import { Timer } from '../Timer.js';
 
 type TClass = { new <T>(...args: unknown[]): T };
@@ -45,19 +27,16 @@ export function checkModuleIsClass(re: object, module: string) {
 	}
 }
 
-export function actionNotOK(
-	message: string,
-	also?: { error?: Error; topics?: TActionResultTopics; score?: number }
-): TNotOKActionResult {
+export function actionNotOK(message: string, messageContext?: TMessageContext): TNotOKActionResult {
 	return {
 		ok: false,
 		message,
-		...also,
+		messageContext
 	};
 }
 
-export function actionOK(topics?: TActionResultTopics): TOKActionResult {
-	return { ok: true, topics };
+export function actionOK(messageContext?: TMessageContext): TOKActionResult {
+	return { ok: true, messageContext };
 }
 
 export async function createSteppers(steppers: CStepper[]): Promise<AStepper[]> {
@@ -71,13 +50,12 @@ export async function createSteppers(steppers: CStepper[]): Promise<AStepper[]> 
 			throw e;
 		}
 	}
-	return allSteppers;
+	return Promise.resolve(allSteppers);
 }
 
 export function getDefaultOptions(): TSpecl {
 	return {
 		steppers: ['vars'],
-		options: { DEST: DEFAULT_DEST },
 	};
 }
 
@@ -96,7 +74,7 @@ export function describeSteppers(steppers: AStepper[]) {
 			return `${constructorName(stepper)}: ${Object.keys(stepper?.steps).sort().join('|')}`;
 		})
 		.sort()
-		.join('  ');
+		.join('  \n');
 }
 
 // from https://stackoverflow.com/questions/1027224/how-can-i-test-if-a-letter-in-a-string-is-uppercase-or-lowercase-using-javascrip
@@ -109,17 +87,20 @@ export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve
 export async function verifyExtraOptions(inExtraOptions: TModuleOptions, csteppers: CStepper[]) {
 	const moduleOptions = { ...inExtraOptions };
 	Object.entries(moduleOptions)?.map(([option, value]) => {
-		const foundStepper = getStepperOptionValue(option, value, csteppers);
+		const foundStepperParseResult = getStepperOptionValue(option, value, csteppers);
 
-		if (foundStepper === undefined) {
+		if (foundStepperParseResult === undefined) {
 			throw Error(`unmapped option ${option} from ${JSON.stringify(moduleOptions)}`);
+		} else if (foundStepperParseResult.parseError) {
+			throw Error(`wrong option ${option} from ${JSON.stringify(moduleOptions)}: ${foundStepperParseResult.parseError}`);
 		}
 		delete moduleOptions[option];
 	});
 
 	if (Object.keys(moduleOptions).length > 0) {
-		throw Error(`no option for ${moduleOptions}`);
+		throw Error(`no extra option for ${moduleOptions}`);
 	}
+	return Promise.resolve();
 }
 
 export async function setStepperWorlds(steppers: AStepper[], world: TWorld) {
@@ -132,6 +113,7 @@ export async function setStepperWorlds(steppers: AStepper[], world: TWorld) {
 		}
 	}
 }
+
 export function getPre(stepper: AStepper) {
 	return ['HAIBUN', 'O', constructorName(stepper).toUpperCase()].join('_') + '_';
 }
@@ -179,6 +161,7 @@ export async function verifyRequiredOptions(steppers: CStepper[], options: TModu
 	if (requiredMissing.length) {
 		throw Error(`missing required options ${requiredMissing}`);
 	}
+	return Promise.resolve();
 }
 
 export function getStepperOptionName(stepper: AStepper | CStepper, name: string) {
@@ -252,42 +235,6 @@ export function findStepper<Type>(steppers: AStepper[], name: string): Type {
 	return stepper;
 }
 
-function isIHasHandlers(obj: AStepper): obj is IHasHandlers {
-	return obj && typeof (obj as unknown as IHasHandlers).handlers === 'object';
-}
-
-export function findHandlers<R extends ISourcedHandler>(steppers: AStepper[], handlerName: string): R[] {
-	let sourcedHandlers: ISourcedHandler[] = [];
-
-	steppers.forEach((stepper) => {
-		if (isIHasHandlers(stepper)) {
-			const handler = stepper.handlers[handlerName];
-			if (handler) {
-				sourcedHandlers.push({
-					...handler,
-					stepper: stepper,
-				} as ISourcedHandler);
-			}
-		}
-	});
-	const exclusiveHandlers = sourcedHandlers.filter((handler) => handler.usage === HANDLER_USAGE.EXCLUSIVE);
-
-	if (exclusiveHandlers.length > 0) {
-		if (exclusiveHandlers.length > 1) {
-			throw Error('multiple exclusive handlers');
-		}
-		return exclusiveHandlers as R[];
-	}
-	sourcedHandlers = sourcedHandlers.reduce((acc, item) => {
-		if (item.usage !== 'fallback' || acc.length < 1) {
-			acc.push(item);
-		}
-		return acc;
-	}, []);
-
-	return sourcedHandlers as R[];
-}
-
 export function getFromRuntime<Type>(runtime: TRuntime, name: string): Type {
 	return runtime[name] as Type;
 }
@@ -309,42 +256,31 @@ export const isFirstTag = (tag: TTag) => tag.sequence === 0;
 
 export const intOrError = (val: string) => {
 	if (val.match(/[^\d+]/)) {
-		return { error: `${val} is not an integer` };
+		return { parseError: `${val} is not an integer` };
 	}
 	return { result: parseInt(val, 10) };
 };
 
 export const boolOrError = (val: string) => {
 	if (val !== 'false' && val !== 'true') {
-		return { error: `${val} is not true or false` };
+		return { parseError: `${val} is not true or false` };
 	}
 	return { result: val === 'true' };
 };
 
 export const stringOrError = (val: string) => {
 	if (val === undefined || val === null) {
-		return { error: `${val} is not defined` };
+		return { parseError: `${val} is not defined` };
 	}
 	return { result: val };
 };
 
 export const optionOrError = (val: string, options: string[]) => {
 	if (val === undefined || val === null || !options.includes(val)) {
-		return { error: `"${val}" is not defined or not one of ${JSON.stringify(options)} ` };
+		return { parseError: `"${val}" is not defined or not one of ${JSON.stringify(options)} ` };
 	}
 	return { result: val };
 };
-
-export function friendlyTime(d: Date) {
-	return new Date(d).toLocaleString();
-}
-
-export const shortNum = (n: number) => Math.round(n * 100) / 100;
-
-export const getFeatureTitlesFromResults = (result: TFeatureResult) =>
-	result.stepResults
-		.filter((s) => (s.actionResult.name === 'feature' ? true : false))
-		.map((a) => a.in.replace(/^Feature: /, ''));
 
 export function trying<TResult>(fun: () => void): Promise<Error | TResult> {
 	return new Promise((resolve, reject) => {
@@ -368,4 +304,14 @@ export const getSerialTime = () => Date.now();
 
 export function dePolite(s: string) {
 	return s.replace(/^((given|when|then|and|should|the|it|I'm|I|am|an|a) )*/i, '');
+}
+
+export function shortenUserAgent(ua: string) {
+	return ua.length < 32 ? ua : ua.substring(0, 26) + '...' + ua.substring(ua.length - 6);
+}
+
+export function shortenURI(uri: string) {
+	const shortURI = uri.startsWith('https://') ? uri.replace('https://', '') : uri;
+	return shortURI.length < 32 ? shortURI : shortURI.substring(0, 26) + '...' + shortURI.substring(uri.length - 6);
+
 }

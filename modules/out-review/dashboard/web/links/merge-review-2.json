@@ -1,9 +1,0 @@
-{
-    "title": "review 2",
-    "link": "http://test.com",
-    "date": "2023-07-02",
-    "results": {
-        "success": 3,
-        "fail": 1
-    }
-}

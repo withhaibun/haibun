@@ -1,6 +1,7 @@
-import { currentVersion } from '../currentVersion.js';
-import { WorkspaceContext, WorldContext } from './contexts.js';
-import { ILogger, TMessageContext } from './interfaces/logger.js';
+import { WorldContext } from './contexts.js';
+
+import { ILogger } from './interfaces/logger.js';
+import { TMessageContext } from './interfaces/messageContexts.js';
 import { Timer } from './Timer.js';
 import { constructorName } from './util/index.js';
 
@@ -9,16 +10,23 @@ export type TSpecl = {
 	refs?: {
 		docs: { [name: string]: { src: string } };
 	};
-	options: TOptions;
 };
 
-type TBaseOptions = {
+export type TBaseOptions = {
 	DEST: string;
+	KEY?: string;
+	DESCRIPTION?: string;
+	LOG_LEVEL?: string;
+	LOG_FOLLOW?: string;
+	STAY?: string;
+	SETTING?: string;
+	[CONTINUE_AFTER_ERROR]?: boolean;
+	envVariables?: TEnvVariables
 };
 
-export type TOptions = TBaseOptions & {
-	[name: string]: TOptionValue;
-};
+export type TEnvVariables = {
+	[name: string]: string;
+}
 
 export type TOptionValue = TAnyFixme;
 
@@ -30,41 +38,20 @@ export interface IHasOptions {
 			altSource?: string;
 			default?: string;
 			desc: string;
-			parse: (input: string, existing?: TOptionValue) => { error?: string; env?: TOptions; result?: TAnyFixme };
+			parse: (input: string, existing?: TOptionValue) => { parseError?: string; env?: TEnvVariables; result?: TAnyFixme };
 		};
 	};
 }
 
-export const HANDLER_USAGE = {
-	EXCLUSIVE: 'exclusive',
-	FALLBACK: 'fallback',
-} as const;
-
-export type THandlerUsage = (typeof HANDLER_USAGE)[keyof typeof HANDLER_USAGE];
-export interface IHandler {
-	usage?: THandlerUsage;
-	// eslint-disable-next-line @typescript-eslint/ban-types
-	handle: Function;
-}
-export interface ISourcedHandler extends IHandler {
-	stepper: AStepper;
+export interface IProcessFeatureResults extends AStepper {
+	processFeatureResult: (executorResult: TExecutorResult) => Promise<void>;
 }
 
-export type THandlers = {
-	[handlesName: string]: IHandler;
-};
-export interface IHasHandlers extends AStepper {
-	handlers: THandlers;
-}
+export const isProcessFeatureResults = (s: AStepper): s is IProcessFeatureResults => (<IProcessFeatureResults>s).processFeatureResult !== undefined;
 
-export const isHasHandlers = (s: IHasHandlers): s is IHasHandlers => s.handlers !== undefined;
-
-export interface IHasBuilder {
-	finalize: (workspace: WorkspaceContext) => void;
-}
 export type TModuleOptions = { [name: string]: string };
 export type TProtoOptions = {
-	options: TOptions;
+	options: TBaseOptions;
 	moduleOptions: TModuleOptions;
 };
 
@@ -75,14 +62,13 @@ export type TWorld = {
 	shared: WorldContext;
 	runtime: TRuntime;
 	logger: ILogger;
-	options: TOptions;
+	options: TBaseOptions;
 	moduleOptions: TModuleOptions;
 	timer: Timer;
 	bases: TBase;
 };
 
 export type TFeatureMeta = {
-	type: string;
 	base: string;
 	name: string;
 	path: string;
@@ -104,26 +90,27 @@ export type TExpandedLine = {
 
 export type TFeatures = TFeature[];
 
-export type TResolvedFeature = TExpandedFeature & {
+export type TResolvedFeature = {
+	path: string;
+	base: string;
 	name: string;
 	featureSteps: TFeatureStep[];
 };
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const example: TResolvedFeature = {
-	type: 'feature',
 	path: 'path',
 	base: 'base',
 	name: 'name',
-	expanded: [{ line: 'line', feature: { type: 'type', base: 'base', name: 'name', path: 'path', content: 'content' } }],
 	featureSteps: [
 		{
-			source: { type: 'type', base: 'base', name: 'name', path: 'path', content: 'content' },
+			path: 'path',
 			in: 'in',
 			seq: 0,
 			action: {
 				actionName: 'actionName',
 				stepperName: 'stepperName',
-				step: { action: async () => OK },
+				step: { action: async () => await Promise.resolve(OK) },
 			},
 		},
 	],
@@ -139,23 +126,13 @@ export type TTag = {
 };
 
 export type TFeatureStep = {
-	source: TFeature;
+	path: string;
 	in: string;
 	seq: number;
 	action: TStepAction;
 };
 
 export type TAction = (named: TNamed, featureStep: TFeatureStep) => Promise<TActionResult>;
-
-export type TRequiresResult = { includes?: string[] };
-
-export type TFinalize = (workspace: WorkspaceContext) => void;
-
-export abstract class WorkspaceBuilder {
-	constructor(private name: string) {}
-	abstract addControl(...args: TAnyFixme);
-	abstract finalize(): TAnyFixme;
-}
 
 export type TStepperStep = {
 	match?: RegExp;
@@ -165,10 +142,10 @@ export type TStepperStep = {
 	applyEffect?: TApplyEffect;
 };
 
-export type TApplyEffect = (named: TNamed, resolvedFeatures: TResolvedFeature[]) => Promise<TResolvedFeature[]>;
+export type TApplyEffect = (named: TNamed, featureStep: TFeatureStep, steppers: AStepper[]) => Promise<TFeatureStep[]>;
 
 export interface CStepper {
-	new (): AStepper;
+	new(): AStepper;
 	prototype: {
 		steps: {
 			[name: string]: TStepperStep;
@@ -186,14 +163,22 @@ export type TSteppers = {
 	[name: string]: AStepper;
 };
 
+export type TEndFeature = { world: TWorld, shouldClose: boolean, isLast: boolean, okSoFar: boolean, continueAfterError: boolean, stayOnFailure: boolean, thisFeatureOK: boolean };
+
+export interface IStepperCycles {
+	startExecution?(): Promise<void>;
+	startFeature?(): Promise<void>;
+	endFeature?(endedWith?: TEndFeature): Promise<void>;
+	onFailure?(result: TStepResult, step: TFeatureStep): Promise<void | TMessageContext>;
+	endExecution?(): Promise<void>
+}
 export abstract class AStepper {
 	world?: TWorld;
-	close?(): void;
-	endFeature?(): Promise<void>;
-	onFailure?(result: TStepResult, step: TFeatureStep): Promise<void | TMessageContext>;
+	cycles?: IStepperCycles;
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		this.world = world;
+		await Promise.resolve();
 	}
 	abstract steps: { [name: string]: TStepperStep };
 	getWorld() {
@@ -230,28 +215,24 @@ export type TExecutorResult = {
 	ok: boolean;
 	tag: TTag;
 	shared: WorldContext;
-	topics?: TActionResultTopics;
+	topics?: TMessageContext;
 	featureResults?: TFeatureResult[];
 	failure?: {
 		stage: string;
 		error: TExecutorResultError;
 	};
+	steppers: AStepper[];
 };
 
 export type TOKActionResult = {
 	ok: true;
-	topics?: TActionResultTopics;
-};
-
-export type TActionResultTopics = {
-	[topic: string]: { summary: string; details?: TAnyFixme; report?: { html?: string; image?: string; video?: string } };
+	messageContext?: TMessageContext;
 };
 
 export type TNotOKActionResult = {
 	ok: false;
 	message: string;
-	error?: Error;
-	topics?: TActionResultTopics;
+	messageContext?: TMessageContext;
 };
 
 export type TTrace = {
@@ -305,30 +286,25 @@ export type TStepResult = {
 	ok: boolean;
 	actionResult: TStepActionResult;
 	in: string;
-	sourcePath: string;
+	path: string;
 	seq: number;
 };
 
 export type TRuntime = { [name: string]: TAnyFixme };
 
-export interface IResultOutput {
-	writeOutput(result: TExecutorResult, args: TAnyFixme): Promise<TAnyFixme>;
-}
-
 export const HAIBUN = 'HAIBUN';
 export const BASE_PREFIX = `${HAIBUN}_`;
 export const CAPTURE = 'capture';
-export const DEFAULT_DEST = 'default';
 
 export const BASE_DOMAINS = [{ name: 'string', resolve: (inp: string) => inp }];
-
-export type TEndFeatureCallbackParams = { world: TWorld; result: TFeatureResult; steppers: AStepper[]; startOffset: number };
-export type TEndFeatureCallback = (params: TEndFeatureCallbackParams) => Promise<void>;
 
 export const STAY_ALWAYS = 'always';
 export const STAY_FAILURE = 'failure';
 export const STAY = 'STAY';
 
-export function versionedSchema(schema: string) {
-	return `https://raw.githubusercontent.com/withhaibun/schemas/main/schemas/${schema}.json#${currentVersion}`;
-}
+export const CHECK_YES = '✅';
+export const CHECK_NO = '❌';
+
+export const STEP_DELAY = 'STEP_DELAY';
+export const DEFAULT_DEST = 'default';
+export const CONTINUE_AFTER_ERROR = 'CONTINUE_AFTER_ERROR';

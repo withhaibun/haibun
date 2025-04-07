@@ -1,27 +1,27 @@
 import { vitest, describe, it, expect } from 'vitest';
 
-import { DEFAULT_DEST } from '@haibun/core/build/lib/defs.js';
+import { CONTINUE_AFTER_ERROR, DEFAULT_DEST, STEP_DELAY } from '@haibun/core/build/lib/defs.js';
 import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, testWithDefaults } from '@haibun/core/build/lib/test/lib.js';
 import TestStepsWithOptions from '@haibun/core/build/lib/test/TestStepsWithOptions.js';
 import { getDefaultOptions } from '@haibun/core/build/lib/util/index.js';
+
 import * as lib from './lib.js';
 
 const s = (s) => s.split(' ');
 
-const ranOnce = (code?: number | string | null) => {
-	expect(code).toBe(0);
-	return <never>undefined;
+const expectExitAndThrow = (expectedCode: number) => (code?: number | string | null) => {
+	expect(code).toBe(expectedCode);
+	throw new Error(`exit with code ${expectedCode}`);
 };
+
 describe('usageThenExit', () => {
-	it('exits with success', async () => {
-		vitest.spyOn(process, 'exit').mockImplementationOnce(ranOnce);
-		vitest.spyOn(console, 'info').mockImplementationOnce(() => undefined);
-		await lib.usageThenExit({ ...getDefaultOptions(), steppers: [] });
+	it('exits with success code 0', async () => {
+		vitest.spyOn(process, 'exit').mockImplementationOnce(expectExitAndThrow(0));
+		await expect(lib.usageThenExit({ ...getDefaultOptions(), steppers: [] })).rejects.toThrow('exit with code 0');
 	});
-	it('exits with error', async () => {
-		vitest.spyOn(process, 'exit').mockImplementationOnce(ranOnce);
-		vitest.spyOn(console, 'error').mockImplementationOnce(() => undefined);
-		await lib.usageThenExit({ ...getDefaultOptions(), steppers: [] });
+	it('exits with error code 1', async () => {
+		vitest.spyOn(process, 'exit').mockImplementationOnce(expectExitAndThrow(1));
+		await expect(lib.usageThenExit({ ...getDefaultOptions(), steppers: [] }, 'Test Error Message')).rejects.toThrow('exit with code 1');
 	});
 });
 
@@ -35,35 +35,30 @@ describe('options', () => {
 		const result = await testWithDefaults([feature], [TestStepsWithOptions], protoConfig);
 		expect(result.ok).toBe(true);
 		expect(result.featureResults?.length).toBe(1);
-		expect(result.featureResults![0].stepResults[0].actionResult.topics?.options.summary).toEqual('options');
+		expect(result.featureResults?.[0].stepResults[0].actionResult.messageContext?.incidentDetails?.summary).toEqual('options');
 	});
 });
 
 describe('processEnv', () => {
 	it('assigns boolean true', () => {
-		const specl = getDefaultOptions();
-		const { protoOptions } = lib.processBaseEnvToOptionsAndErrors({ HAIBUN_TRACE: 'true' }, specl.options);
-		expect(protoOptions.options['TRACE']).toBeDefined();
-		expect(protoOptions.options['TRACE']).toBe(true);
+		const { protoOptions } = lib.processBaseEnvToOptionsAndErrors({ [`HAIBUN_${CONTINUE_AFTER_ERROR}`]: 'true' });
+		expect(protoOptions.options[CONTINUE_AFTER_ERROR]).toBeDefined();
+		expect(protoOptions.options[CONTINUE_AFTER_ERROR]).toBe(true);
 	});
 	it('errors for non-boolean value ', () => {
-		const specl = getDefaultOptions();
-		const { errors } = lib.processBaseEnvToOptionsAndErrors({ HAIBUN_TRACE: 'wtw' }, specl.options);
+		const { errors } = lib.processBaseEnvToOptionsAndErrors({ HAIBUN_TRACE: 'wtw' });
 		expect(errors.length).toBe(1);
 	});
 	it('assigns int', () => {
-		const specl = getDefaultOptions();
-		const { options } = lib.processBaseEnvToOptionsAndErrors({ HAIBUN_STEP_DELAY: '1' }, specl.options).protoOptions;
-		expect(options.STEP_DELAY).toBe(1);
+		const { options } = lib.processBaseEnvToOptionsAndErrors({ [`HAIBUN_${STEP_DELAY}`]: '1' }).protoOptions;
+		expect(options[STEP_DELAY]).toBe(1);
 	});
 	it('errors for string passed as int', () => {
-		const specl = getDefaultOptions();
-		const { errors } = lib.processBaseEnvToOptionsAndErrors({ HAIBUN_STEP_DELAY: 'x.2' }, specl.options);
+		const { errors } = lib.processBaseEnvToOptionsAndErrors({ [`HAIBUN_${STEP_DELAY}`]: 'x.2' });
 		expect(errors.length).toBe(1);
 	});
 	it('errors for non option', () => {
-		const specl = getDefaultOptions();
-		const { errors } = lib.processBaseEnvToOptionsAndErrors({ HAIBUN_WTW: 'x.2' }, specl.options);
+		const { errors } = lib.processBaseEnvToOptionsAndErrors({ HAIBUN_WTW: 'x.2' });
 		expect(errors.length).toBe(1);
 	});
 });
@@ -95,5 +90,21 @@ describe('processArgs', () => {
 		expect(params).toEqual(['foo', 'bar']);
 		expect(configLoc).toBe('boo');
 		expect(showHelp).toBe(true);
+	});
+});
+
+describe('runCli', () => {
+	it('runs with --show-steppers', async () => {
+		vitest.spyOn(process, 'exit').mockImplementationOnce(expectExitAndThrow(0));
+		await expect(lib.runCli(s('--config modules/cli/test --show-steppers'), {})).rejects.toThrow('exit with code 0');
+	});
+	it('fails with no config', async () => {
+		vitest.spyOn(process, 'exit').mockImplementationOnce(expectExitAndThrow(1));
+		await expect(lib.runCli(s('--config nowhere/noway'), {})).rejects.toThrow('exit with code 1');
+	});
+	it('runs a basic test', async () => {
+		vitest.spyOn(process, 'exit').mockImplementationOnce(expectExitAndThrow(0));
+		// vitest.spyOn(console, 'info').mockImplementation(() => undefined); // Suppress steppers output
+		await expect(lib.runCli(s('--config modules/cli/test modules/cli/test/tests'), {})).rejects.toThrow('exit with code 0');
 	});
 });

@@ -5,7 +5,7 @@ import { TFileSystem } from '../lib/util/workspace-lib.js';
 import { getFeaturesAndBackgrounds, shouldProcess } from './collector.js';
 
 class MockFS {
-	constructor(private files: object) {}
+	constructor(private files: object) { }
 
 	existsSync(where: string) {
 		return !!this.files[where];
@@ -26,22 +26,22 @@ class MockFS {
 const nfs = (files: object) => <TFileSystem>(new MockFS(files) as unknown);
 
 describe('getFeaturesAndBackgrounds', () => {
-	it('directory does not exist', async () => {
+	it('directory does not exist', () => {
 		expect(() => getFeaturesAndBackgrounds(['/'], [], { existsSync: () => false })).toThrow();
 	});
-	it('no features or backgrounds', async () => {
+	it('no features or backgrounds', () => {
 		expect(() => getFeaturesAndBackgrounds(['/'], [], { existsSync: () => true })).toThrow();
 	});
-	it('no features', async () => {
+	it('no features', () => {
 		expect(() => getFeaturesAndBackgrounds(['/0'], [], nfs({ '/0/backgrounds': { 'a.feature': '#' } }))).toThrow();
 	});
-	it('gets features', async () => {
+	it('gets features', () => {
 		expect(getFeaturesAndBackgrounds(['/0'], [], nfs({ '/0/features': { 'a.feature': '#' } }))).toEqual({
 			features: [{ base: '/0', path: '/features/a.feature', name: '/0/features/a', type: 'feature', content: '#' }],
 			backgrounds: [],
 		});
 	});
-	it('gets features and backgrounds', async () => {
+	it('gets features and backgrounds', () => {
 		const res = getFeaturesAndBackgrounds(
 			['/0'],
 			[],
@@ -53,10 +53,10 @@ describe('getFeaturesAndBackgrounds', () => {
 		});
 	});
 
-	it('multi-base no features or backgrounds', async () => {
+	it('multi-base no features or backgrounds', () => {
 		expect(() => getFeaturesAndBackgrounds(['/,x'], [], { existsSync: () => true })).toThrow();
 	});
-	it('multi-base gets features', async () => {
+	it('multi-base gets features', () => {
 		expect(
 			getFeaturesAndBackgrounds(
 				basesFrom('/0,/1'),
@@ -71,7 +71,7 @@ describe('getFeaturesAndBackgrounds', () => {
 			backgrounds: [],
 		});
 	});
-	it('multi-base no features', async () => {
+	it('multi-base no features', () => {
 		expect(() =>
 			getFeaturesAndBackgrounds(
 				'/0,/1'.split(','),
@@ -80,13 +80,13 @@ describe('getFeaturesAndBackgrounds', () => {
 			)
 		).toThrow();
 	});
-	it('multi-base no features or backgrounds from first dir', async () => {
+	it('multi-base no features or backgrounds from first dir', () => {
 		expect(() => getFeaturesAndBackgrounds(basesFrom('/0,/1'), [], nfs({ '/1/backgrounds': { 'a.feature': '#' } }))).toThrow();
 	});
-	it('multi-base no features or backgrounds from second dir', async () => {
+	it('multi-base no features or backgrounds from second dir', () => {
 		expect(() => getFeaturesAndBackgrounds(basesFrom('/0,/1'), [], nfs({ '/0/backgrounds': { 'a.feature': '#' } }))).toThrow();
 	});
-	it('multi-base get features and backgrounds', async () => {
+	it('multi-base get features and backgrounds', () => {
 		expect(
 			getFeaturesAndBackgrounds(
 				basesFrom('/0,/1'),
