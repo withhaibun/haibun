@@ -1,6 +1,6 @@
 import { describe, test, it, expect } from 'vitest';
 
-import { ILogOutput, TLogArgs, TLogLevel, TMessageContext } from './interfaces/logger.js'; // Removed TExecutorMessageContext, TExecutorResultTopic, added EExecutionMessageType
+import { ILogOutput, TLogArgs, TLogLevel, TMessageContext } from './interfaces/logger.js';
 import Logger, { LOGGER_LEVELS } from './Logger.js';
 import { getDefaultTag } from './test/lib.js';
 
@@ -32,9 +32,7 @@ describe('logger with subscriber', () => {
 		const subscriberPromise = new Promise<void>((resolve) => {
 			const subscriber: ILogOutput = {
 				out(level: TLogLevel, args: TLogArgs, ctx?: TMessageContext) {
-					// Test logic related to old topic structure removed as test is skipped
-					// If re-enabled, would need to check ctx.incident and ctx.incidentDetails
-					expect(ctx).toBeDefined(); // Keep a basic assertion
+					expect(ctx).toBeDefined();
 					resolve();
 				},
 			};

@@ -52,10 +52,8 @@ function renderLogEntry(logEntryData: { level: TLogLevel; message: TLogArgs; mes
 	}
 	// Note: The .haibun-step-start class is added in messages.ts LogEntry constructor
 
-	// Auto-scroll (move this after appending and potential modifications)
-	if (container.scrollHeight > container.clientHeight) {
-		logEntryElement.scrollIntoView({ block: 'end' });
-	}
+	// Auto-scroll the container to the bottom
+	container.scrollTop = container.scrollHeight;
 }
 function renderAllLogs() {
 	const container = document.getElementById('haibun-log-display-area');

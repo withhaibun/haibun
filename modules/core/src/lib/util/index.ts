@@ -305,3 +305,13 @@ export const getSerialTime = () => Date.now();
 export function dePolite(s: string) {
 	return s.replace(/^((given|when|then|and|should|the|it|I'm|I|am|an|a) )*/i, '');
 }
+
+export function shortenUserAgent(ua: string) {
+	return ua.length < 32 ? ua : ua.substring(0, 26) + '...' + ua.substring(ua.length - 6);
+}
+
+export function shortenURI(uri: string) {
+	const shortURI = uri.startsWith('https://') ? uri.replace('https://', '') : uri;
+	return shortURI.length < 32 ? shortURI : shortURI.substring(0, 26) + '...' + shortURI.substring(uri.length - 6);
+
+}

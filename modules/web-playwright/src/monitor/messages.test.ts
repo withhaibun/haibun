@@ -2,7 +2,6 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-// Import necessary types for mocking contexts
 import { TArtifact, TMessageContext, TArtifactVideo, TArtifactVideoStart, TArtifactJSON, TArtifactHTTPTrace, TArtifactHTML, TArtifactImage, THTTPTraceContent, EExecutionMessageType } from '@haibun/core/build/lib/interfaces/logger.js'; // Updated imports
 import { TTag, TFeatureStep, TStepResult, TStepAction, TStepActionResult, OK } from '@haibun/core/build/lib/defs.js';
 import { LogEntry } from './messages.js'; // Import the main class
@@ -315,7 +314,7 @@ describe('Monitor Messages Logic (messages.ts)', () => {
 				status: 200,
 				statusText: 'OK'
 			};
-			const artifact: TArtifactHTTPTrace = { artifactType: 'json/http/trace', httpEvent: 'route', trace: traceData }; // Use 'route' to trigger processEvent
+			const artifact: TArtifactHTTPTrace = { artifactType: 'json/http/trace', httpEvent: 'request', trace: traceData }; // Use 'request' instead of 'route' to trigger processEvent
 			const mockTagTrace: TTag = { key: 'trace', sequence: 8, featureNum: 1, params: {}, trace: false };
 			const context: TMessageContext = {
 				incident: EExecutionMessageType.ACTION, // Standard incident for artifacts
@@ -341,7 +340,7 @@ describe('Monitor Messages Logic (messages.ts)', () => {
 			expect(JSON.parse(jsonRootDetails?.dataset.rawJson || '{}')).toEqual(traceData);
 
 			expect(sequenceDiagramGenerator.processEvent).toHaveBeenCalledTimes(1);
-			expect(sequenceDiagramGenerator.processEvent).toHaveBeenCalledWith(artifact.trace);
+			expect(sequenceDiagramGenerator.processEvent).toHaveBeenCalledWith(artifact.trace, 'request'); // Expect 'request'
 		});
 
 		it('should throw if artifact type is not recognized', () => {
@@ -355,27 +354,8 @@ describe('Monitor Messages Logic (messages.ts)', () => {
 			expect(() => new LogEntry('warn', BASE_TIMESTAMP, 'Generic JSON', context)).toThrow();
 		});
 	});
-
-	// --- Helper Function Tests (Optional but good practice) ---
-	// describe('Helper Functions', () => {
-	//     it('calculateRelativeTime calculates correctly', () => { /* ... */ });
-	//     it('formatTime formats correctly', () => { /* ... */ });
-	//     it('getSummaryMessage returns correct message', () => { /* ... */ });
-	//     it('getArtifact extracts artifact', () => { /* ... */ });
-	// });
-
-	// --- Factory Function Test ---
-	// describe('createArtifactDisplay Factory', () => {
-	//     it('should return correct ArtifactDisplay subclass for each artifactType', () => { /* ... */ });
-	// });
-
-	// --- ArtifactDisplay Subclass Tests (More granular) ---
-	// describe('ArtifactDisplay Subclasses', () => {
-	//     describe('HtmlArtifactDisplay', () => { /* ... */ });
-	//     describe('ImageArtifactDisplay', () => { /* ... */ });
-	//     // etc.
-	// });
 });
+
 function fakeRuntimePath(artifactPath: string): string {
 	return `./some/where/${artifactPath}`;
 }

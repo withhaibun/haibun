@@ -1,5 +1,5 @@
-import { TArtifact, TMessageContext, TArtifactVideo, TArtifactImage, TArtifactHTML, TArtifactJSON, TArtifactHTTPTrace, TArtifactVideoStart, EExecutionMessageType } from '@haibun/core/build/lib/interfaces/logger.js'; // Removed old context types, added Enum
-import { sequenceDiagramGenerator } from './monitor.js'; // Assuming monitor.js exports this
+import { TArtifact, TMessageContext, TArtifactVideo, TArtifactImage, TArtifactHTML, TArtifactJSON, TArtifactHTTPTrace, TArtifactVideoStart, EExecutionMessageType } from '@haibun/core/build/lib/interfaces/logger.js';
+import { sequenceDiagramGenerator } from './monitor.js';
 import { disclosureJson } from './disclosureJson.js';
 
 abstract class LogComponent<T extends HTMLElement = HTMLElement> {
@@ -50,15 +50,12 @@ abstract class ArtifactDisplay extends LogComponent {
 		this.render();
 	}
 
-	// Default label derivation, can be overridden
 	protected deriveLabel(): string {
 		return this.artifact.artifactType;
 	}
 
-	// Subclasses must implement this to populate their element
 	protected abstract render(): void;
 
-	// Public getter for the artifact type
 	public get artifactType(): string {
 		return this.artifact.artifactType;
 	}
@@ -71,25 +68,22 @@ export class LogEntry extends LogComponent {
 
 	constructor(level: string, timestamp: number, message: string, messageContext?: TMessageContext) {
 		super('div', ['haibun-log-entry', `haibun-level-${level}`]);
-		// Add step start class directly to the entry if applicable
 		if (messageContext?.incident === EExecutionMessageType.STEP_START) {
 			this.addClass('haibun-step-start');
 		}
 		this.setData('time', `${timestamp}`);
 
-		// Create structural components
 		this.detailsSummary = new LogDetailsSummary(level, timestamp);
 		this.messageContent = new LogMessageContent(message, messageContext);
 
 		this.append(this.detailsSummary);
 		this.append(this.messageContent);
 
-		// Handle placements for artifacts that don't go in the main flow
 		this.handleSpecialPlacements();
 	}
 
 	private handleSpecialPlacements(): void {
-		const artifactDisplay = this.messageContent.artifactDisplay; // Access the created artifact display
+		const artifactDisplay = this.messageContent.artifactDisplay;
 		if (!artifactDisplay) return;
 
 		if (artifactDisplay.placementTarget === 'body') {
@@ -101,11 +95,11 @@ export class LogEntry extends LogComponent {
 				haibunVideoContainer.style.display = 'flex';
 			}
 		} else if (artifactDisplay.placementTarget === 'haibun-sequence-diagram') {
-			const sequenceDiagramContainer = document.querySelector<HTMLElement>('#sequence-diagram');
-			if (sequenceDiagramContainer) {
-				// For sequence diagrams, we want to append rather than replace
-				sequenceDiagramContainer.appendChild(artifactDisplay.element);
-			}
+			// The element is already rendered in the details by LogMessageContent.
+			// Here, we just need to ensure the data is processed for the diagram if needed.
+			// The JsonArtifactHTTPTrace.render method already handles this.
+			// No need to move the element itself.
+			// sequenceDiagramGenerator.processEvent is called within JsonArtifactHTTPTrace.render
 		}
 		// 'details' placement is handled within LogMessageContent constructor
 	}
@@ -122,15 +116,12 @@ class LogDetailsSummary extends LogComponent<HTMLElement> { // Using HTMLElement
 }
 
 class LogMessageContent extends LogComponent {
-	// Publicly accessible artifact display for LogEntry to check placement
 	readonly artifactDisplay: ArtifactDisplay | null = null;
 
 	constructor(message: string, messageContext?: TMessageContext) {
 		super('div', 'haibun-message-content');
 
 		const summaryMessage = getSummaryMessage(message, messageContext);
-
-		// REMOVED loader creation from here
 
 		if (messageContext) {
 			// Context exists: ALWAYS create the details structure
@@ -175,8 +166,9 @@ class LogMessageContent extends LogComponent {
 				detailsElement.appendChild(pre);
 			}
 
-			// Add artifact display if it exists AND belongs in details
-			if (this.artifactDisplay && this.artifactDisplay.placementTarget === 'details') {
+			// Add artifact display if it exists.
+			// For JsonArtifactHTTPTrace, this ensures the <pre> is always added here.
+			if (this.artifactDisplay) {
 				detailsElement.appendChild(this.artifactDisplay.element);
 			}
 
@@ -195,10 +187,6 @@ class LogMessageContent extends LogComponent {
 			this.setText(message); // Use original message
 		}
 
-		// REMOVED loader creation from here too
-
-		// Ensure the element is never hidden by default (redundant?)
-		// this.element.style.display = ''; // Probably not needed as default is block/inline-block
 	}
 }
 
@@ -305,8 +293,8 @@ class JsonArtifactHTTPTrace extends ArtifactDisplay {
 		return '⇄ Trace';
 	}
 	protected render(): void {
-		if (this.artifact.httpEvent === 'route') {
-			sequenceDiagramGenerator.processEvent(this.artifact.trace);
+		if (this.artifact.httpEvent !== 'route') {
+			sequenceDiagramGenerator.processEvent(this.artifact.trace, this.artifact.httpEvent);
 		}
 		this.append(disclosureJson(this.artifact.trace));
 	}
@@ -347,7 +335,6 @@ function getSummaryMessage(message: string, messageContext?: TMessageContext): s
 
 function getRuntimePath(artifact: { path: string, runtimePath?: string }): string {
 	const isRuntime = document.body.dataset.haibunRuntime === 'true';
-	console.log('isRuntime', isRuntime, artifact);
 	if (isRuntime && artifact.runtimePath) {
 		const prefix = artifact.runtimePath.endsWith('/') ? artifact.runtimePath : `${artifact.runtimePath}/`;
 		return `${prefix}${artifact.path.replace(/^\.\//, '')}`;
