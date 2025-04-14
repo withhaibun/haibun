@@ -1,10 +1,10 @@
 {
   "name": "@haibun/web-playwright",
   "type": "module",
-  "version": "1.44.0",
+  "version": "1.44.1",
   "description": "",
   "main": "build/web-playwright.js",
-  "files": ["build/"],
+  "files": ["build/", "web/monitor.html"],
   "scripts": {
     "build": "tsc -b .",
     "build-watch": "tsc -b . --watch",
@@ -18,8 +18,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@haibun/core": "1.44.0",
-    "@haibun/domain-storage": "1.44.0",
+    "@haibun/core": "1.44.1",
+    "@haibun/domain-storage": "1.44.1",
     "mermaid": "^11.6.0",
     "playwright": "1.51"
   },
