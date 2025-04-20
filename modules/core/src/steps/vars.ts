@@ -30,7 +30,8 @@ class Vars extends AStepper {
 	}
 	// FIXME provide explicit mapping to more carefully handle env, etc.
 	private getVarValue(what: string): TAnyFixme {
-		const envVal = this.getWorld().options.envVariables?.[what];
+		const envVal = this.getWorld().options.envVariables[what];
+		console.log('envval', envVal, what, this.getWorld().options.envVariables);
 		if (envVal !== undefined) {
 			return envVal;
 		}
