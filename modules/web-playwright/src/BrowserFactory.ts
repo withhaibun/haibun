@@ -1,4 +1,4 @@
-import { Browser, BrowserContext, Page, chromium, firefox, webkit, BrowserType, devices, BrowserContextOptions } from 'playwright';
+import { Browser, BrowserContext, Page, chromium, firefox, webkit, BrowserType, devices, BrowserContextOptions, LaunchOptions } from 'playwright';
 
 import { TMessageContext, TArtifactVideoStart, EExecutionMessageType } from '@haibun/core/build/lib/interfaces/logger.js'; // Updated imports
 import { TTag, TTagValue, TWorld } from '@haibun/core/build/lib/defs.js';
@@ -46,10 +46,10 @@ export class BrowserFactory {
 
 	public async getBrowser(type: string, tag = DEFAULT_CONFIG_TAG): Promise<Browser> {
 		const config = BrowserFactory.configs[tag];
+
+		const browserOptions: LaunchOptions = { ...config.options, ...config.launchOptions }
 		if (!BrowserFactory.browsers[type]) {
-			BrowserFactory.browsers[type] = await config.browserType.launch(
-				{ ...config.options, ...config.launchOptions }
-			);
+			BrowserFactory.browsers[type] = await config.browserType.launch(browserOptions);
 
 			// Create context using the new structure
 			const vs: TMessageContext = {

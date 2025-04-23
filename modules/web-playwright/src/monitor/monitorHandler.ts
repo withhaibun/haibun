@@ -12,9 +12,9 @@ import { getPackageLocation } from '@haibun/core/build/lib/util/workspace-lib.js
 
 const monitorLocation = join(getPackageLocation(import.meta), '..', '..', 'web', 'monitor.html');
 
-export const createMonitorPageAndSubscriber = () => async () => {
-	console.log(`Creating new monitor page`);
-	const browser = await chromium.launch({ headless: false });
+export const createMonitorPageAndSubscriber = (headless: boolean) => async () => {
+	console.info(`Creating new monitor page`);
+	const browser = await chromium.launch({ headless });
 	const context = await browser.newContext();
 	const monitorPage = await context.newPage();
 
