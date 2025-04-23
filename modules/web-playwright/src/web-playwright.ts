@@ -141,12 +141,13 @@ class WebPlaywright extends AStepper implements IHasOptions {
 	extraHTTPHeaders: { [name: string]: string; } = {};
 	BROWSER_STATE_PATH: string = undefined;
 	expectedDownload: Promise<Download>;
+	headless: boolean;
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
 		const args = [...(getStepperOption(this, 'ARGS', world.moduleOptions)?.split(';') || ''),]; //'--disable-gpu'
 		this.storage = findStepperFromOption(steppers, this, world.moduleOptions, WebPlaywright.STORAGE);
-		const headless = getStepperOption(this, 'HEADLESS', world.moduleOptions) === 'true' || !!process.env.CI;
+		this.headless = getStepperOption(this, 'HEADLESS', world.moduleOptions) === 'true' || !!process.env.CI;
 		const devtools = getStepperOption(this, 'DEVTOOLS', world.moduleOptions) === 'true';
 		if (devtools) {
 			args.concat(['--auto-open-devtools-for-tabs', '--devtools-flags=panel-network', '--remote-debugging-port=9223']);
@@ -163,7 +164,7 @@ class WebPlaywright extends AStepper implements IHasOptions {
 		}
 
 		const launchOptions = {
-			headless,
+			headless: this.headless,
 			args,
 			devtools,
 		}
@@ -868,7 +869,7 @@ class WebPlaywright extends AStepper implements IHasOptions {
 			await WebPlaywright.monitorPage.bringToFront();
 			return OK;
 		}
-		const { monitorPage, subscriber } = await (await createMonitorPageAndSubscriber())(); // Removed runtimePath argument
+		const { monitorPage, subscriber } = await (await createMonitorPageAndSubscriber(this.headless))(); // Removed runtimePath argument
 		WebPlaywright.monitorPage = monitorPage;
 		this.getWorld().logger.addSubscriber(subscriber);
 
