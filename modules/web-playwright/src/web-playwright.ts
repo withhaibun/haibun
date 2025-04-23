@@ -147,7 +147,6 @@ class WebPlaywright extends AStepper implements IHasOptions {
 		const args = [...(getStepperOption(this, 'ARGS', world.moduleOptions)?.split(';') || ''),]; //'--disable-gpu'
 		this.storage = findStepperFromOption(steppers, this, world.moduleOptions, WebPlaywright.STORAGE);
 		const headless = getStepperOption(this, 'HEADLESS', world.moduleOptions) === 'true' || !!process.env.CI;
-		console.log('hh',headless);
 		const devtools = getStepperOption(this, 'DEVTOOLS', world.moduleOptions) === 'true';
 		if (devtools) {
 			args.concat(['--auto-open-devtools-for-tabs', '--devtools-flags=panel-network', '--remote-debugging-port=9223']);
@@ -724,6 +723,7 @@ class WebPlaywright extends AStepper implements IHasOptions {
 			action: async (notUsed, featureStep: TFeatureStep) => {
 				try {
 					await this.captureScreenshotAndLog(EExecutionMessageType.ACTION, featureStep);
+					return OK;
 				} catch (e) {
 					return actionNotOK(e);
 				}
@@ -865,7 +865,6 @@ class WebPlaywright extends AStepper implements IHasOptions {
 	}
 	createMonitor = async () => {
 		if (WebPlaywright.monitorPage && !WebPlaywright.monitorPage.isClosed()) {
-			console.log("Monitor page already exists.");
 			await WebPlaywright.monitorPage.bringToFront();
 			return OK;
 		}
@@ -874,7 +873,6 @@ class WebPlaywright extends AStepper implements IHasOptions {
 		this.getWorld().logger.addSubscriber(subscriber);
 
 		this.closers.push(async () => {
-			console.log("Removing monitor logger subscriber.");
 			this.getWorld().logger.removeSubscriber(subscriber);
 			return Promise.resolve();
 		});
