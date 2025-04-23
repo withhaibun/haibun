@@ -1,11 +1,12 @@
 import { describe, it, expect } from 'vitest';
+import path from 'path';
 
 import WebPlaywright from './web-playwright.js';
 import { getPackageLocation } from '@haibun/core/build/lib/util/workspace-lib.js';
 
-import { getCreateSteppers, getTestWorldWithOptions } from '@haibun/core/build/lib/test/lib.js';
-import path from 'path';
-import { TFeatureStep } from '@haibun/core/build/lib/defs.js';
+import { getCreateSteppers, getDefaultWorld, testWithDefaults } from '@haibun/core/build/lib/test/lib.js';
+import { DEFAULT_DEST, TFeatureStep } from '@haibun/core/build/lib/defs.js';
+import { getStepperOptionName } from '@haibun/core/build/lib/util/index.js';
 
 const me = path.join(getPackageLocation(import.meta).replace(/\/src$/, '/build'), 'web-playwright');
 
@@ -40,7 +41,7 @@ describe('handles cycles', () => {
 		expect(async () => {
 			if (wp.cycles && wp.cycles.endFeature) {
 
-				const world = getTestWorldWithOptions();
+				const world = getDefaultWorld(0);
 				await wp.cycles.endFeature({ world, shouldClose: true, isLast: true, okSoFar: true, continueAfterError: false, stayOnFailure: false, thisFeatureOK: true });
 				await wp.steps.takeScreenshot.action({}, {} as TFeatureStep);
 			} else {
@@ -49,3 +50,15 @@ describe('handles cycles', () => {
 		}).not.toThrow();
 	});
 })
+
+describe('options', () => {
+	it('sets headless', async () => {
+		const feature = { path: '/features/test.feature', content: `set "what" to "var"\nset x to {what}` };
+		const result = await testWithDefaults([feature], [WebPlaywright, ], {
+			options: { DEST: DEFAULT_DEST, },
+			moduleOptions: {
+				[getStepperOptionName(WebPlaywright, 'PORT')]: '8124',
+			},
+		});
+	});
+});
