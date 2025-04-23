@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import WebPlaywright from './web-playwright.js';
 import { getPackageLocation } from '@haibun/core/build/lib/util/workspace-lib.js';
 
-import { getCreateSteppers } from '@haibun/core/build/lib/test/lib.js';
+import { getCreateSteppers, getTestWorldWithOptions } from '@haibun/core/build/lib/test/lib.js';
 import path from 'path';
 import { TFeatureStep } from '@haibun/core/build/lib/defs.js';
 
@@ -39,7 +39,9 @@ describe('handles cycles', () => {
 		await wp.steps.takeScreenshot.action({}, {} as TFeatureStep);
 		expect(async () => {
 			if (wp.cycles && wp.cycles.endFeature) {
-				await wp.cycles.endFeature({ shouldClose: true, isLast: true, okSoFar: true, continueAfterError: false, stayOnFailure: false, thisFeatureOK: true });
+
+				const world = getTestWorldWithOptions();
+				await wp.cycles.endFeature({ world, shouldClose: true, isLast: true, okSoFar: true, continueAfterError: false, stayOnFailure: false, thisFeatureOK: true });
 				await wp.steps.takeScreenshot.action({}, {} as TFeatureStep);
 			} else {
 				throw new Error('no cycles');
