@@ -299,16 +299,15 @@
 
 		#haibun-media-display {
 			left: 0;
+			padding: 0px;
 			width: 100%;
-			height: 250px;
-			/* Initial height, adjustable */
+			height: 0px;
 			background-color: #f0f0f0;
 			border-bottom: 1px solid #ccc;
 			display: flex;
 			/* Arrange video and diagram side-by-side */
 			box-sizing: border-box;
 			flex-shrink: 0;
-			display: none;
 		}
 
 		#resize-handle {
@@ -318,7 +317,6 @@
 			background-color: #aaa;
 			cursor: ns-resize;
 			flex-shrink: 0;
-			display: none;
 		}
 	</style>
 </head>
@@ -327,6 +325,7 @@
 	<div class="haibun-header">
 		<h1>Haibun Monitor</h1>
 		<div class="haibun-controls">
+			<button id="haibun-media-toggle">🖼️</button>
 			<label for="haibun-debug-level-select">Log level</label>
 			<select id="haibun-debug-level-select">
 				<option value="error">Error</option>
@@ -351,9 +350,6 @@
 
 	<div id="haibun-log-display-area">
 		<!-- Log entries will be appended here -->
-		<div class="haibun-disappears">
-			<div class="haibun-loader"></div>Execution output will appear here.
-		</div>
 	</div>
 
 	<script src="../src/monitor/monitor.ts" type="module"></script>
