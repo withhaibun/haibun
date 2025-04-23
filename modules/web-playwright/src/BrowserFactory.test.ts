@@ -12,9 +12,7 @@ describe("types", () => {
 		await BrowserFactory.getBrowserFactory(testWorld, {
 			options: {},
 			browserType: BROWSERS.webkit,
-			launchOptions: {
-				...launchOptions,
-			},
+			launchOptions,
 			device: 'Blackberry PlayBook'
 		});
 		expect(BrowserFactory.configs[DEFAULT_CONFIG_TAG].device).toBe("Blackberry PlayBook");
