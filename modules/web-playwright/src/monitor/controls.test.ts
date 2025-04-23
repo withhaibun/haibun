@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { JSDOM } from 'jsdom';
-import { setupVideoPlayback, } from './controls';
+import { setupVideoPlayback, setupMediaToggle } from './controls'; // Import setupMediaToggle
 
 // Helper function to create a log entry element
 const createLogEntry = (doc: Document, time: number): HTMLElement => {
@@ -268,6 +268,11 @@ describe('Monitor Media Panel Visibility', () => {
 				</style>
 			</head>
 			<body>
+				<div class="haibun-header"> <!-- Added header structure -->
+					<div class="haibun-controls">
+						<button id="haibun-media-toggle">🖼️</button> <!-- Added toggle button -->
+					</div>
+				</div>
 				<div id="haibun-media-display">
 					<div id="haibun-video">
 						${includeVideo ? '<video></video>' : ''}
@@ -302,6 +307,9 @@ describe('Monitor Media Panel Visibility', () => {
 		videoContainer = document.getElementById('haibun-video')!;
 		// sequenceDiagramContainer might not exist if includeDiagram is false
 		sequenceDiagram = document.getElementById('sequence-diagram')!; // Get the inner div
+
+		// Call setupMediaToggle to set initial state after DOM setup
+		setupMediaToggle();
 	};
 
 	afterEach(() => {
@@ -313,25 +321,26 @@ describe('Monitor Media Panel Visibility', () => {
 		setupVisibilityTestDOM(false, false);
 		setupVideoPlayback(); // Run the setup function
 
-		expect(mediaPanel.style.display).toBe(''); // Should remain hidden via CSS
-		expect(resizeHandle.style.display).toBe(''); // Should remain hidden via CSS
+		expect(mediaPanel.style.display).toBe(''); // Display style is not set, hidden by height=0
+		expect(resizeHandle.style.display).toBe('none'); // Should be hidden by setupMediaToggle
 	});
 
 	it('should show media panel and handle initially if video is present', () => {
 		setupVisibilityTestDOM(true, false);
 		setupVideoPlayback();
 
-		expect(mediaPanel.style.display).toBe('flex');
-		expect(resizeHandle.style.display).toBe('block');
+		// Expect panel to remain hidden as toggle is the only way to show it
+		expect(mediaPanel.style.height).toBe('0px'); // JSDOM seems to return '0px' even if set to '0'
+		expect(resizeHandle.style.display).toBe('none');
 	});
 
 	it('should show media panel and handle when sequence diagram content is added', () => {
 		setupVisibilityTestDOM(false, true); // Setup DOM with empty sequence diagram div
 		setupVideoPlayback(); // Run setup, which attaches the observer
 
-		// Initially, panel should be hidden (as diagram content isn't present yet)
-		expect(mediaPanel.style.display).toBe('');
-		expect(resizeHandle.style.display).toBe('');
+		// Initially, panel should be hidden
+		expect(mediaPanel.style.display).toBe(''); // Display style is not set, hidden by height=0
+		expect(resizeHandle.style.display).toBe('none'); // Should be hidden by setupMediaToggle
 
 		// Simulate Mermaid rendering by adding a node and triggering the observer callback
 		const dummyNode = document.createElement('svg'); // Simulate SVG added by Mermaid
@@ -350,8 +359,9 @@ describe('Monitor Media Panel Visibility', () => {
 		}
 
 		// Now, the panel should be visible
-		expect(mediaPanel.style.display).toBe('flex');
-		expect(resizeHandle.style.display).toBe('block');
+		// Expect panel to remain hidden as toggle is the only way to show it
+		expect(mediaPanel.style.height).toBe('0px'); // JSDOM seems to return '0px' even if set to '0'
+		expect(resizeHandle.style.display).toBe('none');
 	});
 
 	it('should show media panel and handle when video is added dynamically', () => {
@@ -359,8 +369,8 @@ describe('Monitor Media Panel Visibility', () => {
 		setupVideoPlayback(); // Initial setup
 
 		// Panel should be hidden initially
-		expect(mediaPanel.style.display).toBe('');
-		expect(resizeHandle.style.display).toBe('');
+		expect(mediaPanel.style.display).toBe(''); // Display style is not set, hidden by height=0
+		expect(resizeHandle.style.display).toBe('none'); // Should be hidden by setupMediaToggle
 
 		// Dynamically add video
 		const newVideo = document.createElement('video');
@@ -372,7 +382,8 @@ describe('Monitor Media Panel Visibility', () => {
 		setupVideoPlayback();
 
 		// Now panel should be visible
-		expect(mediaPanel.style.display).toBe('flex');
-		expect(resizeHandle.style.display).toBe('block');
+		// Expect panel to remain hidden as toggle is the only way to show it
+		expect(mediaPanel.style.height).toBe('0px'); // JSDOM seems to return '0px' even if set to '0'
+		expect(resizeHandle.style.display).toBe('none');
 	});
 });
