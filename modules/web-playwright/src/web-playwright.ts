@@ -43,6 +43,7 @@ const cycles = (wp: WebPlaywright): IStepperCycles => ({
 			for (const file of wp.downloaded) {
 				wp.getWorld().logger.debug(`removing ${JSON.stringify(file)}`);
 				rmSync(file);
+				wp.downloaded = [];
 			}
 			if (wp.hasFactory) {
 				if (wp.captureVideo) {
