@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { CAPTURE } from '@haibun/core/build/lib/defs.js';
+import { CAPTURE, DEFAULT_DEST } from '@haibun/core/build/lib/defs.js';
 import { getDefaultWorld, getTestWorldWithOptions } from '@haibun/core/build/lib/test/lib.js';
 import StorageFS from './storage-fs.js';
 import { Timer } from '@haibun/core/build/lib/Timer.js';
@@ -17,14 +17,14 @@ describe('fs getCaptureLocation', () => {
 	});
 	it('gets options capture location', async () => {
 		const storageFS = new StorageFS();
-		const world = getTestWorldWithOptions({ options: { DEST: 'foo' }, moduleOptions: {} });
+		const world = getTestWorldWithOptions();
 		const dir = await storageFS.getCaptureLocation({ ...world, mediaType: EMediaTypes.json }, 'test');
-		expect(dir).toEqual(`./${CAPTURE}/foo/${key}/seq-0/featn-0/test`);
+		expect(dir).toEqual(`./${CAPTURE}/${DEFAULT_DEST}/${key}/seq-0/featn-0/test`);
 	});
 	it('gets relative capture location', async () => {
 		const storageFS = new StorageFS();
-		const world = getTestWorldWithOptions({ options: { DEST: 'foo' }, moduleOptions: {} });
+		const world = getTestWorldWithOptions();
 		const dir = await storageFS.getCaptureLocation({ ...world, mediaType: EMediaTypes.json }, 'test');
-		expect(dir).toEqual(`./${CAPTURE}/foo/${key}/seq-0/featn-0/test`);
+		expect(dir).toEqual(`./${CAPTURE}/${DEFAULT_DEST}/${key}/seq-0/featn-0/test`);
 	});
 });

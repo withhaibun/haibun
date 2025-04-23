@@ -147,6 +147,7 @@ class WebPlaywright extends AStepper implements IHasOptions {
 		const args = [...(getStepperOption(this, 'ARGS', world.moduleOptions)?.split(';') || ''),]; //'--disable-gpu'
 		this.storage = findStepperFromOption(steppers, this, world.moduleOptions, WebPlaywright.STORAGE);
 		const headless = getStepperOption(this, 'HEADLESS', world.moduleOptions) === 'true' || !!process.env.CI;
+		console.log('hh',headless);
 		const devtools = getStepperOption(this, 'DEVTOOLS', world.moduleOptions) === 'true';
 		if (devtools) {
 			args.concat(['--auto-open-devtools-for-tabs', '--devtools-flags=panel-network', '--remote-debugging-port=9223']);
