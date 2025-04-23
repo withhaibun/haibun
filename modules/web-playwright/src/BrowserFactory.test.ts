@@ -6,7 +6,7 @@ import { getTestWorldWithOptions } from "@haibun/core/build/lib/test/lib.js";
 const launchOptions = {
 	headless: true
 }
-const testWorld = getTestWorldWithOptions({ options: { DEST: 'foo' }, moduleOptions: {} });
+const testWorld = getTestWorldWithOptions();
 describe("types", () => {
 	it("gets type and device", async () => {
 		await BrowserFactory.getBrowserFactory(testWorld, {
