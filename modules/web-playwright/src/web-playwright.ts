@@ -49,7 +49,7 @@ const cycles = (wp: WebPlaywright): IStepperCycles => ({
 				if (wp.captureVideo) {
 					const page = await wp.getPage();
 					const path = await wp.storage.getRelativePath(await page.video().path());
-					const artifact: TArtifactVideo = { artifactType: 'video', path, runtimePath: await wp.runtimePath(world) };
+					const artifact: TArtifactVideo = { artifactType: 'video', path, runtimePath: await wp.storage.runtimePath(world) };
 					const context: TMessageContext = {
 						incident: EExecutionMessageType.FEATURE_END, // Use appropriate incident type
 						artifact,
@@ -785,7 +785,7 @@ class WebPlaywright extends AStepper implements IHasOptions {
 		// FIXME shouldn't be fs dependant
 		const path = resolve(this.storage.fromLocation(EMediaTypes.image, loc, `${event}-${Date.now()}.png`));
 		await this.withPage(async (page: Page) => await page.screenshot({ path }));
-		const artifact: TArtifactImage = { artifactType: 'image', path: await this.storage.getRelativePath(path), runtimePath: await this.runtimePath() };
+		const artifact: TArtifactImage = { artifactType: 'image', path: await this.storage.getRelativePath(path), runtimePath: await this.storage.runtimePath() };
 		const context: TMessageContext = {
 			incident: EExecutionMessageType.ACTION,
 			artifact,
@@ -870,7 +870,7 @@ class WebPlaywright extends AStepper implements IHasOptions {
 			await WebPlaywright.monitorPage.bringToFront();
 			return OK;
 		}
-		const { monitorPage, subscriber } = await (await createMonitorPageAndSubscriber(this.headless))(); // Removed runtimePath argument
+		const { monitorPage, subscriber } = await (await createMonitorPageAndSubscriber(this.headless))();
 		WebPlaywright.monitorPage = monitorPage;
 		this.getWorld().logger.addSubscriber(subscriber);
 
@@ -879,9 +879,6 @@ class WebPlaywright extends AStepper implements IHasOptions {
 			return Promise.resolve();
 		});
 		return OK;
-	}
-	async runtimePath(world?: TWorld): Promise<string> {
-		return pathToFileURL(await this.storage.getCaptureLocation({ ...(world || this.getWorld()), mediaType: EMediaTypes.html })).pathname;
 	}
 }
 

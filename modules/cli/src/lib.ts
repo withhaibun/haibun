@@ -29,6 +29,7 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 	if (showSteppers) {
 		const allSteppers = await getAllSteppers(specl);
 		console.info('Steppers:', JSON.stringify(allSteppers, null, 2));
+		console.info('Use the full text version for steps. {vars} should be enclosed in " for literals, or defined by Set or env commands.\nWrite comments using normal sentence punctuation, ending with [.,!?]. ')
 		process.exit(0);
 	}
 	const featureFilter = params[1] ? params[1].split(',') : undefined;

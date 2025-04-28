@@ -2,7 +2,7 @@ import mermaid from 'mermaid';
 
 import { SequenceDiagramGenerator } from './mermaidDiagram.js';
 import { TAnyFixme } from '@haibun/core/build/lib/defs.js';
-import { TLogLevel, TLogArgs, TMessageContext, EExecutionMessageType } from '@haibun/core/build/lib/interfaces/logger.js'; // Moved EExecutionMessageType here
+import { TLogLevel, TLogArgs, TMessageContext, EExecutionMessageType } from '@haibun/core/build/lib/interfaces/logger.js';
 import { LogEntry } from './messages.js';
 import { setupControls } from './controls.js';
 
@@ -50,7 +50,6 @@ function renderLogEntry(logEntryData: { level: TLogLevel; message: TLogArgs; mes
 			console.warn('Received STEP_END but found no active STEP_START log entry to hide.');
 		}
 	}
-	// Note: The .haibun-step-start class is added in messages.ts LogEntry constructor
 
 	// Auto-scroll the container to the bottom
 	container.scrollTop = container.scrollHeight;
