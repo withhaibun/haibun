@@ -1,6 +1,21 @@
-import { TAnyFixme,  } from '../defs.js';
+import { TAnyFixme, } from '../defs.js';
 
-export type TArtifact = { artifactType: string } & TArtifactVideo | TArtifactVideoStart | TArtifactImage | TArtifactHTML | TArtifactJSON | TArtifactHTTPTrace;
+export type TArtifact = (
+    TArtifactSpeech |
+    TArtifactVideo |
+    TArtifactVideoStart |
+    TArtifactImage |
+    TArtifactHTML |
+    TArtifactJSON |
+    TArtifactHTTPTrace
+);
+
+export type TArtifactSpeech = {
+	artifactType: 'speech';
+	transcript: string;
+	path: string;
+	runtimePath: string;
+};
 
 export type TArtifactVideo = {
 	artifactType: 'video';
