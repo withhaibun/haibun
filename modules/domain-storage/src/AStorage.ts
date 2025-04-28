@@ -1,9 +1,10 @@
-import { AStepper, OK, TNamed, DEFAULT_DEST, TAnyFixme } from '@haibun/core/build/lib/defs.js';
+import { AStepper, OK, TNamed, DEFAULT_DEST, TAnyFixme, TWorld } from '@haibun/core/build/lib/defs.js';
 import { actionNotOK } from '@haibun/core/build/lib/util/index.js';
 import { setShared } from '@haibun/core/build/steps/vars.js';
 import { guessMediaType, IFile, TLocationOptions } from './domain-storage.js';
 import { EMediaTypes, TMediaType } from './media-types.js';
 import { resolve } from 'path';
+import { pathToFileURL } from 'url';
 
 const CAPTURE = 'capture';
 
@@ -121,6 +122,9 @@ export abstract class AStorage extends AStepper {
 		const { tag } = loc;
 		const locator = this.locator(loc, tag.key, `seq-${tag.sequence}`, `featn-${tag.featureNum}`, app);
 		return Promise.resolve(locator);
+	}
+	async runtimePath(world?: TWorld): Promise<string> {
+		return pathToFileURL(await this.getCaptureLocation({ ...(world || this.world), mediaType: EMediaTypes.html })).pathname;
 	}
 
 	async ensureCaptureLocation(loc: TLocationOptions, app?: string | undefined, fn = '') {

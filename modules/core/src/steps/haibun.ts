@@ -1,14 +1,39 @@
-import { OK, TNamed, AStepper, TWorld, TFeatureStep, STEP_DELAY, TAnyFixme } from '../lib/defs.js';
+import { OK, TNamed, AStepper, TWorld, TFeatureStep, STEP_DELAY, TAnyFixme, IHasOptions } from '../lib/defs.js';
+import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 import { Resolver } from '../phases/Resolver.js';
-import { actionNotOK, sleep } from '../lib/util/index.js';
+import { actionNotOK, findStepperFromOption, getStepperOption, sleep, stringOrError } from '../lib/util/index.js';
 import { expand } from '../lib/features.js';
 import { asFeatures } from '../lib/resolver-features.js';
+import { sayText } from './lib/say-text.js';
+import { cpSync } from 'fs';
+import { TArtifactSpeech } from '../lib/interfaces/artifacts.js';
+import { EExecutionMessageType, TMessageContext } from '../lib/interfaces/logger.js';
+import { resolve } from 'path';
+import { EMediaTypes } from '@haibun/domain-storage/build/media-types.js';
 
-const Haibun = class Haibun extends AStepper {
+const Haibun = class Haibun extends AStepper implements IHasOptions {
+
+	options = {
+		TTS_CMD: {
+			desc: `TTS "say" command that accepts text as @WHAT@ and returns a full path to stdout`,
+			parse: (input: string) => stringOrError(input),
+			required: false
+		},
+		STORAGE: {
+			desc: 'Storage for output',
+			parse: (input: string) => stringOrError(input),
+			required: false
+		},
+	}
+
 	steppers: AStepper[];
+	ttsCmd: string;
+	storage: AStorage;
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		this.steppers = steppers;
 		this.world = world;
+		this.ttsCmd = getStepperOption(this, 'TTS_CMD', world.moduleOptions);
+		this.storage = getStepperOption(this, 'STORAGE', world.moduleOptions) ? findStepperFromOption(steppers, this, world.moduleOptions, 'STORAGE') : undefined;
 		return Promise.resolve();
 	}
 	steps = {
@@ -79,6 +104,32 @@ const Haibun = class Haibun extends AStepper {
 			action: async () => {
 				return Promise.resolve(OK);
 			},
+		},
+		sayText: {
+			gwta: 'say {transcript}',
+			action: async ({ transcript }: TNamed) => {
+				if (!this.ttsCmd || !this.storage) {
+					return Promise.resolve(actionNotOK('say requires TTS_CMD (which accepts input as @WHAT@ and returns a full path) and STORAGE'));
+				}
+				this.getWorld().logger.debug(`saying ${transcript}`);
+				const fn = sayText(this.ttsCmd, transcript);
+				const loc = await this.storage.ensureCaptureLocation({ ...this.getWorld(), mediaType: EMediaTypes.video });
+				const destFN = `speech-${this.getWorld().tag.sequence}-${Date.now()}.wav`;
+				const path = resolve(this.storage.fromLocation(EMediaTypes.video, loc, destFN));
+				const runtimePath = await this.storage.runtimePath();
+				cpSync(fn, path);
+				this.getWorld().logger.debug(`copied audio to ${path}`);
+				const artifact: TArtifactSpeech = { artifactType: 'speech', path: destFN, runtimePath, transcript };
+				const context: TMessageContext = {
+					incident: EExecutionMessageType.ACTION,
+					artifact,
+					tag: this.getWorld().tag,
+				};
+
+				this.getWorld().logger.info('said audio', context);
+				return OK;
+			}
+
 		},
 		afterEveryStepper: {
 			gwta: 'after every {stepperName}, {line}',

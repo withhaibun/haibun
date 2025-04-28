@@ -232,14 +232,14 @@
 		}
 
 		#haibun-video video:hover {
-			transform: scale(2);
-			/* Double the size */
+			transform: scale(2) translateX(-50%);
 			position: absolute;
-			/* Position relative to #haibun-video */
 			top: 0;
 			left: 0;
+			right: auto;
 			z-index: 10;
-			/* Ensure scaled video is on top */
+			box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+			background: white;
 		}
 
 		#sequence-diagram-container {
@@ -337,13 +337,13 @@
 	</div>
 
 	<div id="haibun-media-display">
-		<div id="haibun-video">
-			<!-- Video element will be placed here -->
-		</div>
 		<div id="sequence-diagram-container">
 			<div id="sequence-diagram">
 				<!-- Sequence diagram will be rendered here -->
 			</div>
+		</div>
+		<div id="haibun-video">
+			<!-- Video element will be placed here -->
 		</div>
 	</div>
 	<div id="resize-handle"></div>

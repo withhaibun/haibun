@@ -1,4 +1,5 @@
-import { TArtifact, TMessageContext, TArtifactVideo, TArtifactImage, TArtifactHTML, TArtifactJSON, TArtifactHTTPTrace, TArtifactVideoStart, EExecutionMessageType } from '@haibun/core/build/lib/interfaces/logger.js';
+import { TArtifact, TArtifactSpeech, TArtifactVideo, TArtifactVideoStart, TArtifactImage, TArtifactHTML, TArtifactJSON, TArtifactHTTPTrace } from '@haibun/core/build/lib/interfaces/artifacts.js';
+import { TMessageContext, EExecutionMessageType } from '@haibun/core/build/lib/interfaces/logger.js';
 import { sequenceDiagramGenerator } from './monitor.js';
 import { disclosureJson } from './disclosureJson.js';
 
@@ -39,7 +40,7 @@ abstract class LogComponent<T extends HTMLElement = HTMLElement> {
 // --- Abstract Artifact Display Base Class ---
 
 // Abstract base for artifact displays
-abstract class ArtifactDisplay extends LogComponent {
+export abstract class ArtifactDisplay extends LogComponent {
 	readonly label: string;
 	abstract readonly placementTarget: 'details' | 'haibun-video' | 'haibun-sequence-diagram' | 'body' | 'none';
 
@@ -217,6 +218,7 @@ function createArtifactDisplay(artifact: TArtifact): ArtifactDisplay | null {
 	switch (artifactType) {
 		case 'html': return new HtmlArtifactDisplay(<TArtifactHTML>artifact);
 		case 'image': return new ImageArtifactDisplay(<TArtifactImage>artifact);
+		case 'speech': return new SpeechArtifactDisplay(<TArtifactSpeech>artifact);
 		case 'video': return new VideoArtifactDisplay(<TArtifactVideo>artifact);
 		case 'video/start': return new VideoStartArtifactDisplay(<TArtifactVideoStart>artifact);
 		case 'json': return new JsonArtifactDisplay(<TArtifactJSON>artifact);
@@ -228,7 +230,6 @@ function createArtifactDisplay(artifact: TArtifact): ArtifactDisplay | null {
 	}
 }
 
-// Specific implementations for each artifact type
 class HtmlArtifactDisplay extends ArtifactDisplay {
 	readonly placementTarget = 'details';
 	constructor(protected artifact: TArtifactHTML) {
@@ -269,6 +270,25 @@ class VideoArtifactDisplay extends ArtifactDisplay {
 	}
 	protected render(): void {
 		(this.element as HTMLVideoElement).src = getRuntimePath(this.artifact);
+	}
+}
+class SpeechArtifactDisplay extends ArtifactDisplay {
+	readonly placementTarget: 'details';
+	constructor(protected artifact: TArtifactSpeech) {
+		super(artifact, 'audio');
+		const audioElement = this.element as HTMLAudioElement;
+		audioElement.controls = true;
+		audioElement.style.width = '320px';
+		// create audio element that plays when it is clicked
+		audioElement.addEventListener('click', () => {
+			audioElement.play().catch((error) => {
+				console.error('Error playing audio:', error);
+			});
+		}
+		);
+	}
+	protected render(): void {
+		(this.element as HTMLAudioElement).src = getRuntimePath(this.artifact);
 	}
 }
 
@@ -331,7 +351,6 @@ function getSummaryMessage(message: string, messageContext?: TMessageContext): s
 	}
 	return message;
 }
-
 
 function getRuntimePath(artifact: { path: string, runtimePath?: string }): string {
 	const isRuntime = document.body.dataset.haibunRuntime === 'true';
