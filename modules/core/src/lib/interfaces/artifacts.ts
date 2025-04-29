@@ -13,6 +13,7 @@ export type TArtifact = (
 export type TArtifactSpeech = {
 	artifactType: 'speech';
 	transcript: string;
+	durationS: number;
 	path: string;
 	runtimePath: string;
 };
