@@ -1,9 +1,9 @@
-import { TFeatureStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, AStepper, TStepAction, TAnyFixme, STAY, STAY_FAILURE, CHECK_NO, CHECK_YES, STEP_DELAY, TNotOKActionResult, CONTINUE_AFTER_ERROR, IStepperCycles, TEndFeature } from '../lib/defs.js';
+import { TFeatureStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, AStepper, TStepAction, TAnyFixme, STAY, STAY_FAILURE, CHECK_NO, CHECK_YES, STEP_DELAY, TNotOKActionResult, CONTINUE_AFTER_ERROR, IStepperCycles, TEndFeature, TStartFeature } from '../lib/defs.js';
 import { EExecutionMessageType } from '../lib/interfaces/logger.js';
 import { topicArtifactLogger } from '../lib/Logger.js';
 import { getNamedToVars } from '../lib/namedVars.js';
 import { actionNotOK, sleep, findStepper, constructorName, setStepperWorlds } from '../lib/util/index.js';
-import { SCENARIO_START } from '../steps/vars.js';
+import { SCENARIO_START } from '../lib/defs.js';
 
 function calculateShouldClose({ thisFeatureOK, isLast, stayOnFailure }) {
 	if (thisFeatureOK) {
@@ -44,7 +44,7 @@ export class Executor {
 
 			const featureExecutor = new FeatureExecutor(steppers, newWorld);
 			await setStepperWorlds(steppers, newWorld);
-			await doStepperMethod(steppers, 'startFeature');
+			await doStepperMethod(steppers, 'startFeature', <TStartFeature>feature);
 
 			const featureResult = await featureExecutor.doFeature(feature);
 			const thisFeatureOK = featureResult.ok;
