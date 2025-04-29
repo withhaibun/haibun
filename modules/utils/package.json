@@ -1,7 +1,7 @@
 {
   "name": "@haibun/utils",
   "type": "module",
-  "version": "1.46.0",
+  "version": "1.46.1",
   "description": "",
   "main": "index.js",
   "files": ["ref.package.json", "build/**", "scaffold/**"],
@@ -21,5 +21,5 @@
   "author": "",
   "license": "ISC",
   "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5",
-  "dependencies": { "@haibun/cli": "1.46.0", "@haibun/core": "1.46.0" }
+  "dependencies": { "@haibun/cli": "1.46.1", "@haibun/core": "1.46.1" }
 }
