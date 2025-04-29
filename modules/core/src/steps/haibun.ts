@@ -1,7 +1,7 @@
 import { OK, TNamed, AStepper, TWorld, TFeatureStep, STEP_DELAY, TAnyFixme, IHasOptions, IStepperCycles, TResolvedFeature, SCENARIO_START } from '../lib/defs.js';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 import { Resolver } from '../phases/Resolver.js';
-import { actionNotOK, findStepperFromOption, getStepperOption, sleep, stringOrError } from '../lib/util/index.js';
+import { actionNotOK, actionOK, findStepperFromOption, getStepperOption, sleep, stringOrError } from '../lib/util/index.js';
 import { expand } from '../lib/features.js';
 import { asFeatures } from '../lib/resolver-features.js';
 import { copyPreRenderedAudio, preRenderFeatureProse, TRenderedAudioMap } from './lib/tts.js';
@@ -47,24 +47,21 @@ class Haibun extends AStepper implements IHasOptions {
 		prose: {
 			gwta: '(?<what>.*[.?!])$',
 			action: async (t: TNamed, featureStep: TFeatureStep) => {
-				await this.maybeSay(featureStep.in);
-				return Promise.resolve(OK);
+				return await this.maybeSay(featureStep.in);
 			}
 		},
 		feature: {
 			match: /^Feature: ?(?<feature>.+)?$/,
 			action: async ({ feature }: TNamed, featureStep: TFeatureStep) => {
 				this.getWorld().shared.set('feature', feature);
-				await this.maybeSay(featureStep.in);
-				return Promise.resolve(OK);
+				return await this.maybeSay(featureStep.in);
 			},
 		},
 		[SCENARIO_START]: {
 			match: /^Scenario: (?<scenario>.+)$/,
 			action: async ({ scenario }: TNamed, featureStep: TFeatureStep) => {
 				this.getWorld().shared.set('scenario', scenario);
-				await this.maybeSay(featureStep.in);
-				return Promise.resolve(OK);
+				return await this.maybeSay(featureStep.in);
 			},
 		},
 		sequenceToken: {
@@ -150,10 +147,10 @@ class Haibun extends AStepper implements IHasOptions {
 	};
 	async maybeSay(transcript: string) {
 		if (!this.ttsCmd) {
-			return;
+			return OK;
 		}
 		if (!this.storage) {
-			throw Error(`TTS_CMD requires STORAGE): ${transcript}`);
+			return actionNotOK(`TTS_CMD requires STORAGE): ${transcript}`);
 		}
 		const loc = await this.storage.ensureCaptureLocation({ ...this.getWorld(), mediaType: EMediaTypes.video });
 		const dir = this.storage.fromLocation(EMediaTypes.video, loc);
@@ -168,6 +165,7 @@ class Haibun extends AStepper implements IHasOptions {
 		};
 		this.world?.logger.info(`prose "${transcript}"`, context);
 		await sleep(durationS * 1000);
+		return actionOK(context);
 	}
 
 	async newFeatureFromEffect(content: string, seq: number, steppers: AStepper[]): Promise<TFeatureStep> {
