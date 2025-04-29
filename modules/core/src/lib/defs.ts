@@ -164,10 +164,11 @@ export type TSteppers = {
 };
 
 export type TEndFeature = { world: TWorld, shouldClose: boolean, isLast: boolean, okSoFar: boolean, continueAfterError: boolean, stayOnFailure: boolean, thisFeatureOK: boolean };
+export type TStartFeature = TResolvedFeature;
 
 export interface IStepperCycles {
 	startExecution?(): Promise<void>;
-	startFeature?(): Promise<void>;
+	startFeature?(feature: TStartFeature): Promise<void>;
 	endFeature?(endedWith?: TEndFeature): Promise<void>;
 	onFailure?(result: TStepResult, step: TFeatureStep): Promise<void | TMessageContext>;
 	endExecution?(): Promise<void>
@@ -307,4 +308,5 @@ export const CHECK_NO = '❌';
 
 export const STEP_DELAY = 'STEP_DELAY';
 export const DEFAULT_DEST = 'default';
-export const CONTINUE_AFTER_ERROR = 'CONTINUE_AFTER_ERROR';
+export const CONTINUE_AFTER_ERROR = 'CONTINUE_AFTER_ERROR';export const SCENARIO_START = 'scenarioStart';
+
