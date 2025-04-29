@@ -1,7 +1,7 @@
 {
   "name": "@haibun/parse-md",
   "type": "module",
-  "version": "1.46.0",
+  "version": "1.46.1",
   "description": "",
   "files": ["build/**"],
   "main": "build/parse-md.js",
@@ -16,7 +16,7 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "dependencies": { "@haibun/core": "1.46.0", "turndown": "^7.1.1" },
+  "dependencies": { "@haibun/core": "1.46.1", "turndown": "^7.1.1" },
   "devDependencies": { "@types/node-fetch": "^2.5.10" },
   "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5"
 }
