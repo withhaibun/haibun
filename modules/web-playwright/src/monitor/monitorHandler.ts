@@ -11,6 +11,7 @@ import { EMediaTypes } from '@haibun/domain-storage/build/media-types.js';
 import { getPackageLocation } from '@haibun/core/build/lib/util/workspace-lib.js';
 
 const monitorLocation = join(getPackageLocation(import.meta), '..', '..', 'web', 'monitor.html');
+const capturedMessages = [];
 
 export const createMonitorPageAndSubscriber = (headless: boolean) => async () => {
 	console.info(`Creating new monitor page`);
@@ -25,9 +26,9 @@ export const createMonitorPageAndSubscriber = (headless: boolean) => async () =>
 		document.body.dataset.haibunRuntime = 'true';
 	});
 
-
 	const subscriber = {
 		out: async (level: TLogLevel, message: TLogArgs, messageContext?: TMessageContext) => {
+			capturedMessages.push({ level, message, messageContext })
 			if (!monitorPage || monitorPage.isClosed()) {
 				console.error("Monitor page closed, cannot send logs.");
 				return;
@@ -91,8 +92,10 @@ export async function writeMonitor(world: TWorld, storage: AStorage, page: Page)
 
 	const monitorLoc = await storage.getCaptureLocation({ ...world, mediaType: EMediaTypes.html });
 	const outHtml = join(monitorLoc, 'monitor.html');
+	world.logger.info(`Wrote monitor HTML to ${pathToFileURL(resolve(outHtml))}`);
 	await storage.writeFile(outHtml, content, EMediaTypes.html);
-	world.logger.info(`Wrote monitor HTML instance to ${pathToFileURL(resolve(outHtml))}`);
+	const outMessages = join(monitorLoc, 'monitor.json');
+	await storage.writeFile(outMessages, JSON.stringify(capturedMessages, null, 2), EMediaTypes.html);
 }
 
 async function waitForMonitorPage() {
