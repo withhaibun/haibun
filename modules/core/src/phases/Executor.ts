@@ -6,6 +6,7 @@ import { topicArtifactLogger } from '../lib/Logger.js';
 import { getNamedToVars } from '../lib/namedVars.js';
 import { actionNotOK, sleep, findStepper, constructorName, setStepperWorlds } from '../lib/util/index.js';
 import { SCENARIO_START } from '../lib/defs.js';
+import { totalmem } from 'os';
 
 function calculateShouldClose({ thisFeatureOK, isLast, stayOnFailure }) {
 	if (thisFeatureOK) {
@@ -92,6 +93,8 @@ export class FeatureExecutor {
 
 		let currentScenario: number = 0;
 
+		this.logit(`start feature ${currentScenario}`, { incident: EExecutionMessageType.FEATURE_START, incidentDetails: { feature } }, 'debug');
+
 		for (const step of feature.featureSteps) {
 			if (step.action.actionName === SCENARIO_START) {
 				if (currentScenario) {
@@ -121,6 +124,11 @@ export class FeatureExecutor {
 		if (currentScenario) {
 			this.logit(`end scenario ${currentScenario}`, { incident: EExecutionMessageType.SCENARIO_END, incidentDetails: { currentScenario } }, 'debug');
 		}
+		this.logit(`end feature ${currentScenario}`, {
+			incident: EExecutionMessageType.FEATURE_END, incidentDetails: {
+				totalTime: world.timer.since() - this.startOffset,
+			}
+		}, 'debug');
 		const featureResult: TFeatureResult = { path: feature.path, ok, stepResults };
 
 		return featureResult;
