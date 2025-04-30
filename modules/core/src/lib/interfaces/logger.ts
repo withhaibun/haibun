@@ -1,11 +1,15 @@
-import { TAnyFixme, TTag } from '../defs.js';
-import { TMessageContext } from './messageContexts.js';
-
-export type * from './messageContexts.js';
-export type * from './artifacts.js'
+import { TAnyFixme } from '../fixme.js';
+import { TTag } from '../ttag.js';
 
 export type TLogLevel = 'none' | 'debug' | 'log' | 'info' | 'warn' | 'error';
 export type TLogArgs = string;
+
+export type TMessageContext = {
+	incident: EExecutionMessageType;
+	artifact?: TArtifact;
+	incidentDetails?: TAnyFixme;
+	tag?: TTag;
+};
 
 export type TLogHistory = {
 	message: TLogArgs;
@@ -13,7 +17,6 @@ export type TLogHistory = {
 	caller: string;
 	messageContext: TMessageContext
 };
-
 
 export enum EExecutionMessageType {
 	INIT = 'INIT',
@@ -41,21 +44,68 @@ export interface ILogger {
 	removeSubscriber: (subscriber: ILogOutput) => void;
 }
 
-export interface IConnect {
-	connect: () => Promise<void>;
-	disconnect: () => Promise<void>;
-	addKeepalive?: (keepalive: TAnyFixme) => void;
-}
-
-export interface IConnectedLogger extends ILogger, IConnect { }
-
-export interface ILoggerKeepAlive {
-	start: () => Promise<void>;
-	stop: () => Promise<void>;
-}
-
 export interface ILogOutput {
 	out: (level: TLogLevel, args: TLogArgs, ctx?: TMessageContext) => void;
 }
 
 export type TOutputEnv = { output: ILogOutput; tag: TTag };
+
+export type TArtifact = (
+	TArtifactSpeech |
+	TArtifactVideo |
+	TArtifactVideoStart |
+	TArtifactImage |
+	TArtifactHTML |
+	TArtifactJSON |
+	TArtifactHTTPTrace
+);
+
+export type TArtifactSpeech = {
+	artifactType: 'speech';
+	transcript: string;
+	durationS: number;
+	path: string;
+	runtimePath: string;
+};
+
+export type TArtifactVideo = {
+	artifactType: 'video';
+	path: string;
+	runtimePath: string;
+};
+
+export type TArtifactVideoStart = {
+	artifactType: 'video/start';
+	start: number;
+};
+export type TArtifactImage = {
+	artifactType: 'image';
+	path: string;
+	runtimePath: string;
+};
+export type TArtifactHTML = {
+	artifactType: 'html';
+	html: string;
+};
+export type TArtifactJSON = {
+	artifactType: 'json';
+	json: object;
+};
+export type TArtifactHTTPTrace = {
+	artifactType: 'json/http/trace';
+	httpEvent: 'response' | 'request' | 'route';
+	trace: THTTPTraceContent;
+};
+
+export type TArtifactType = TArtifact['artifactType'];
+
+export type THTTPTraceContent = {
+	frameURL?: string;
+	requestingPage?: string;
+	requestingURL?: string;
+	method?: string;
+	headers?: Record<string, string>;
+	postData?: unknown;
+	status?: number;
+	statusText?: string;
+}

@@ -1,6 +1,7 @@
 import { describe, it, test, expect } from 'vitest';
 
-import { AStepper, OK, TExpandedFeature, TResolvedFeature } from '../lib/defs.js';
+import { OK, TExpandedFeature, TResolvedFeature } from '../lib/defs.js';
+import { AStepper } from '../lib/astepper.js';
 import { asExpandedFeatures } from '../lib/resolver-features.js';
 import TestSteps from '../lib/test/TestSteps.js';
 import { createSteppers } from '../lib/util/index.js';

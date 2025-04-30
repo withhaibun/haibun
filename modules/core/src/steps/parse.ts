@@ -1,5 +1,6 @@
 import { actionNotOK, actionOK } from '../lib/util/index.js';
-import { AStepper, OK } from '../lib/defs.js';
+import { OK } from '../lib/defs.js';
+import { AStepper } from '../lib/astepper.js';
 
 const Parse = class Parse extends AStepper {
 	steps = {

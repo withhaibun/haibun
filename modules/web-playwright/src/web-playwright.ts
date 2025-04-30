@@ -2,18 +2,21 @@ import { Page, Response, Download } from 'playwright';
 import { resolve } from 'path';
 import { pathToFileURL } from 'url';
 
-import { IHasOptions, OK, TNamed, TStepResult, AStepper, TWorld, TFeatureStep, TAnyFixme, IStepperCycles, TEndFeature } from '@haibun/core/build/lib/defs.js';
+import { OK, TNamed, TStepResult, TWorld, TFeatureStep, IStepperCycles, TEndFeature } from '@haibun/core/build/lib/defs.js';
 import { WEB_PAGE, WEB_CONTROL } from '@haibun/core/build/lib/domain-types.js';
 import { BrowserFactory, TTaggedBrowserFactoryOptions, TBrowserTypes, BROWSERS } from './BrowserFactory.js';
 import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOption, sleep, optionOrError } from '@haibun/core/build/lib/util/index.js';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
-import { EExecutionMessageType, TArtifactImage, TArtifactVideo, TMessageContext } from '@haibun/core/build/lib/interfaces/logger.js'; // Removed TArtifactMessageContext, added TMessageContext
+import { EExecutionMessageType, TArtifactImage, TArtifactVideo, TMessageContext } from '@haibun/core/build/lib/interfaces/logger.js';
 import { EMediaTypes } from '@haibun/domain-storage/build/media-types.js';
 
 import { restSteps, TCapturedResponse } from './rest-playwright.js';
 import { createMonitorPageAndSubscriber, writeMonitor } from './monitor/monitorHandler.js';
 import { rmSync } from 'fs';
+import { TAnyFixme } from '@haibun/core/build/lib/fixme.js';
+import { AStepper, IHasOptions } from '@haibun/core/build/lib/astepper.js';
 
+export const LAST_REST_RESPONSE = 'LAST_REST_RESPONSE';
 export enum EMonitoringTypes {
 	MONITOR_ALL = 'all',
 	MONITOR_EACH = 'each',
@@ -51,7 +54,7 @@ const cycles = (wp: WebPlaywright): IStepperCycles => ({
 					const path = await wp.storage.getRelativePath(await page.video().path());
 					const artifact: TArtifactVideo = { artifactType: 'video', path, runtimePath: await wp.storage.runtimePath(world) };
 					const context: TMessageContext = {
-						incident: EExecutionMessageType.FEATURE_END, // Use appropriate incident type
+						incident: EExecutionMessageType.FEATURE_END,
 						artifact,
 						tag: wp.getWorld().tag
 					};
@@ -225,8 +228,8 @@ class WebPlaywright extends AStepper implements IHasOptions {
 				return OK;
 			}
 		}
-		const incident = { incident: EExecutionMessageType.ON_FAILURE, incidentDetails: { summary: `in ${textContent?.length} characters`, details: textContent } };
-		return actionNotOK(`Did not find text "${text}" in ${selector}`, incident);
+		const messageContext = { incident: EExecutionMessageType.ON_FAILURE, incidentDetails: { summary: `in ${textContent?.length} characters`, details: textContent } };
+		return actionNotOK(`Did not find text "${text}" in ${selector}`, { messageContext });
 	}
 	async getCookies() {
 		const browserContext = await this.getExistingBrowserContext();
@@ -583,13 +586,11 @@ class WebPlaywright extends AStepper implements IHasOptions {
 				const response = await this.withPage<Response>(async (page: Page) => {
 					return await page.goto(name);
 				});
-
-				return response?.ok
-					? OK
-					: actionNotOK(`response not ok`, {
-						incident: EExecutionMessageType.ACTION,
-						incidentDetails: { ...response?.allHeaders, summary: response?.statusText() }
-					});
+				const messageContext = {
+					incident: EExecutionMessageType.ACTION,
+					incidentDetails: { ...response?.allHeaders, summary: response?.statusText() }
+				}
+				return response?.ok ? OK : actionNotOK(`response not ok`, { messageContext });
 			},
 		},
 		reloadPage: {
@@ -712,7 +713,7 @@ class WebPlaywright extends AStepper implements IHasOptions {
 							type: dialog.type(),
 						};
 						await dialog.accept();
-						this.getWorld().shared.set(where, res);
+						this.getWorld().shared.setJSON(where, res);
 					});
 					return Promise.resolve();
 				}
@@ -880,6 +881,13 @@ class WebPlaywright extends AStepper implements IHasOptions {
 		});
 		return OK;
 	}
+	getLastResponse(): TCapturedResponse {
+		return this.getWorld().shared.getJSON(LAST_REST_RESPONSE) as TCapturedResponse;
+	}
+	setLastResponse(serialized: TCapturedResponse) {
+		this.getWorld().shared.setJSON(LAST_REST_RESPONSE, serialized);
+	}
+
 }
 
 export default WebPlaywright;

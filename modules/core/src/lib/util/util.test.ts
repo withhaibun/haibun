@@ -5,7 +5,10 @@ import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, getDefaultWorld, getCreateStepper
 import TestSteps from '../test/TestSteps.js';
 import TestStepsWithOptions from '../test/TestStepsWithOptions.js';
 import { withNameType } from '../features.js';
-import { AStepper, IHasOptions, OK, TAnyFixme } from '../defs.js';
+import { OK } from '../defs.js';
+import { TAnyFixme } from '../fixme.js';
+import { IHasOptions } from '../astepper.js';
+import { AStepper } from '../astepper.js';
 import { constructorName } from './index.js';
 
 describe('isLowerCase', () => {

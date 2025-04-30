@@ -1,9 +1,9 @@
 import { actionNotOK, actionOK } from '@haibun/core/build/lib/util/index.js';
 import WebPlaywright from './web-playwright.js';
-import { TNamed, OK, TAnyFixme } from '@haibun/core/build/lib/defs.js';
+import { TNamed, OK } from '@haibun/core/build/lib/defs.js';
 import { EExecutionMessageType } from '@haibun/core/build/lib/interfaces/logger.js';
+import { TAnyFixme } from '@haibun/core/build/lib/fixme.js';
 
-const LAST_REST_RESPONSE = 'LAST_REST_RESPONSE';
 const PAYLOAD_METHODS = ['post', 'put', 'patch'];
 const NO_PAYLOAD_METHODS = ['get', 'delete', 'head'];
 
@@ -46,7 +46,7 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 
 			await webPlaywright.setExtraHTTPHeaders({ [AUTHORIZATION]: `Bearer ${accessToken}` });
 
-			webPlaywright.getWorld().shared.set(LAST_REST_RESPONSE, serialized);
+			webPlaywright.setLastResponse(serialized);
 
 			return Promise.resolve(OK);
 		},
@@ -57,7 +57,7 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 			await webPlaywright.setExtraHTTPHeaders({});
 
 			const serialized = await webPlaywright.withPageFetch(endpoint);
-			webPlaywright.getWorld().shared.set(LAST_REST_RESPONSE, serialized);
+			webPlaywright.setLastResponse(serialized);
 
 			return Promise.resolve(OK);
 		},
@@ -71,7 +71,7 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 				return actionNotOK(`Method ${method} not supported`);
 			}
 			const serialized = await webPlaywright.withPageFetch(endpoint, method, { headers: { accept } });
-			webPlaywright.getWorld().shared.set(LAST_REST_RESPONSE, serialized);
+			webPlaywright.setLastResponse(serialized);
 
 			return Promise.resolve(OK);
 		},
@@ -84,7 +84,7 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 				return actionNotOK(`Method ${method} not supported`);
 			}
 			const serialized = await webPlaywright.withPageFetch(endpoint, method);
-			webPlaywright.getWorld().shared.set(LAST_REST_RESPONSE, serialized);
+			webPlaywright.setLastResponse(serialized);
 
 			return Promise.resolve(OK);
 		},
@@ -92,13 +92,13 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 	filterResponseJson: {
 		gwta: `filter JSON response by {property} matching {match}`,
 		action: async ({ property, match }: TNamed) => {
-			const lastResponse = webPlaywright.getWorld().shared.get(LAST_REST_RESPONSE);
+			const lastResponse = webPlaywright.getLastResponse();
 			if (!lastResponse?.json || !Array.isArray(lastResponse.json)) {
 				return actionNotOK(`No JSON or array from ${JSON.stringify(lastResponse)}`);
 			}
 
 			const filtered = lastResponse.json.filter((item: TAnyFixme) => item[property].match(match));
-			webPlaywright.getWorld().shared.set(LAST_REST_RESPONSE, {
+			webPlaywright.setLastResponse({
 				...lastResponse,
 				filtered,
 			});
@@ -108,7 +108,7 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 	filteredResponseLengthIs: {
 		gwta: `filtered response length is {length}`,
 		action: async ({ length }: TNamed) => {
-			const lastResponse = webPlaywright.getWorld().shared.get(LAST_REST_RESPONSE);
+			const lastResponse = webPlaywright.getLastResponse();
 			if (!lastResponse?.filtered || lastResponse.filtered.length !== parseInt(length)) {
 				return actionNotOK(`Expected ${length}, got ${lastResponse?.filtered?.length}`);
 			}
@@ -118,7 +118,7 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 	showResponseLength: {
 		gwta: `show JSON response count`,
 		action: async () => {
-			const lastResponse = webPlaywright.getWorld().shared.get(LAST_REST_RESPONSE);
+			const lastResponse = webPlaywright.getLastResponse();
 			if (!lastResponse?.json || typeof lastResponse.json.length !== 'number') {
 				console.debug(lastResponse);
 				return Promise.resolve(actionNotOK(`No last response to count`));
@@ -130,7 +130,7 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 	showFilteredLength: {
 		gwta: `show filtered response count`,
 		action: async () => {
-			const lastResponse = webPlaywright.getWorld().shared.get(LAST_REST_RESPONSE);
+			const lastResponse = webPlaywright.getLastResponse();
 			if (!lastResponse?.filtered || typeof lastResponse.filtered.length !== 'number') {
 				console.debug(lastResponse);
 				return Promise.resolve(actionNotOK(`No filtered response to count`));
@@ -142,7 +142,7 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 	responseJsonLengthIs: {
 		gwta: `JSON response length is {length}`,
 		action: async ({ length }: TNamed) => {
-			const lastResponse = webPlaywright.getWorld().shared.get(LAST_REST_RESPONSE);
+			const lastResponse = webPlaywright.getLastResponse();
 			if (!lastResponse?.json || lastResponse.json.length !== parseInt(length)) {
 				return actionNotOK(`Expected ${length}, got ${lastResponse?.json?.length}`);
 			}
@@ -156,7 +156,7 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 			if (!NO_PAYLOAD_METHODS.includes(method)) {
 				return actionNotOK(`Method ${method} not supported`);
 			}
-			const lastResponse = webPlaywright.getWorld().shared.get(LAST_REST_RESPONSE);
+			const lastResponse = webPlaywright.getLastResponse();
 			const { filtered } = lastResponse;
 			if (!filtered) {
 				return actionNotOK(`No filtered response in ${lastResponse}`);
@@ -174,8 +174,6 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 				}
 				responses.push(serialized);
 			}
-
-			webPlaywright.getWorld().shared.set(LAST_REST_RESPONSE, responses);
 
 			return Promise.resolve(OK);
 		},
@@ -202,7 +200,7 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 
 			const serialized = await webPlaywright.withPageFetch(endpoint, method, requestOptions);
 
-			webPlaywright.getWorld().shared.set(LAST_REST_RESPONSE, serialized);
+			webPlaywright.setLastResponse(serialized);
 
 			return Promise.resolve(OK);
 		},
@@ -210,31 +208,31 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 	restLastStatusIs: {
 		gwta: `${HTTP} status is {status}`,
 		action: async ({ status }: TNamed) => {
-			const response = webPlaywright.getWorld().shared.get(LAST_REST_RESPONSE);
-			if (response && response.status === parseInt(status)) {
+			const lastResponse = webPlaywright.getLastResponse();
+			if (lastResponse && lastResponse.status === parseInt(status)) {
 				return Promise.resolve(OK);
 			}
-			return actionNotOK(`Expected status ${status}, got ${response?.status || 'no response'}`);
+			return actionNotOK(`Expected status ${status}, got ${lastResponse?.status || 'no response'}`);
 		},
 	},
 	restResponsePropertyIs: {
 		gwta: `${HTTP} response property {property} is {value}`,
 		action: async ({ property, value }: TNamed) => {
-			const response = webPlaywright.getWorld().shared.get(LAST_REST_RESPONSE);
-			if (response && response.json && response.json[property] === value) {
+			const lastResponse = webPlaywright.getLastResponse();
+			if (lastResponse && lastResponse.json && lastResponse.json[property] === value) {
 				return Promise.resolve(OK);
 			}
-			return actionNotOK(`Expected response.json.${property} to be ${value}, got ${JSON.stringify(response?.json[property])}`);
+			return actionNotOK(`Expected lastResponse.json.${property} to be ${value}, got ${JSON.stringify(lastResponse?.json[property])}`);
 		},
 	},
 	restResponseIs: {
 		gwta: `${HTTP} text response is {value}`,
 		action: async ({ value }: TNamed) => {
-			const response = webPlaywright.getWorld().shared.get(LAST_REST_RESPONSE);
-			if (response && response.text === value) {
+			const lastResponse = webPlaywright.getLastResponse();
+			if (lastResponse && lastResponse.text === value) {
 				return Promise.resolve(OK);
 			}
-			return actionNotOK(`Expected response to be ${value}, got ${response?.text}`);
+			return actionNotOK(`Expected response to be ${value}, got ${lastResponse?.text}`);
 		},
 	},
 });
@@ -246,4 +244,5 @@ export type TCapturedResponse = {
 	url: string;
 	json: TAnyFixme;
 	text: string;
+	filtered?: TAnyFixme
 };

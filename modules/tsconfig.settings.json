@@ -23,5 +23,5 @@
       "@haibun/*": ["./*"]
     }
   },
-  "exclude": ["**/*.test.ts"]
+  "exclude": ["**/*.test.ts", "**/build/*"]
 }

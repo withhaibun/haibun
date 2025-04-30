@@ -1,12 +1,13 @@
 import { TWorld, TFeatureStep, TProtoOptions, CStepper, DEFAULT_DEST, TExecutorResult } from '../defs.js';
 import { Resolver } from '../../phases/Resolver.js';
-import { getRunTag, verifyExtraOptions, createSteppers } from './../util/index.js';
+import { verifyExtraOptions, createSteppers } from './../util/index.js';
+import { getRunTag } from '../ttag.js';
 import { getSteppers } from '../util/workspace-lib.js';
-import { WorldContext } from '../contexts.js';
 import Logger, { LOGGER_LOG } from '../Logger.js';
 import { Timer } from '../Timer.js';
 import { asFeatures } from '../resolver-features.js';
 import { Runner } from '../../runner.js';
+import { FeatureVariables } from '../feature-variables.js';
 
 const DEF_PROTO_DEFAULT_OPTIONS = { DEST: DEFAULT_DEST };
 const DEF_PROTO_OPTIONS = { options: DEF_PROTO_DEFAULT_OPTIONS, moduleOptions: {} };
@@ -73,7 +74,7 @@ export function getDefaultWorld(sequence: number, env = process.env): TWorld {
 	return {
 		timer: new Timer(),
 		tag: getRunTag(sequence, 0),
-		shared: new WorldContext(getDefaultTag(sequence)),
+		shared: new FeatureVariables(getDefaultTag(sequence).toString()),
 		logger: new Logger(env.HAIBUN_LOG_LEVEL ? { level: env.HAIBUN_LOG_LEVEL } : LOGGER_LOG),
 		runtime: {},
 		options: { DEST: DEFAULT_DEST, envVariables: env },

@@ -3,8 +3,7 @@
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { SequenceDiagramGenerator } from './mermaidDiagram.js';
-import { THTTPTraceContent } from '@haibun/core/build/lib/interfaces/artifacts.js';
-import { TAnyFixme } from '@haibun/core/build/lib/defs.js';
+import { THTTPTraceContent } from '@haibun/core/build/lib/interfaces/logger.js';
 
 // Use vi.hoisted to declare the mock function before vi.mock runs
 const { mockMermaidRun } = vi.hoisted(() => {
@@ -249,6 +248,7 @@ export function filterEvent(...) { ... }
 */
 // Then import it here:
 import { skipEvent } from './mermaidDiagram.js';
+import { TAnyFixme } from '@haibun/core/build/lib/fixme.js';
 
 
 describe('skipEvent', () => {

@@ -1,10 +1,10 @@
 import mermaid from 'mermaid';
 
 import { SequenceDiagramGenerator } from './mermaidDiagram.js';
-import { TAnyFixme } from '@haibun/core/build/lib/defs.js';
-import { TLogLevel, TLogArgs, TMessageContext, EExecutionMessageType } from '@haibun/core/build/lib/interfaces/logger.js';
+import { TLogLevel, TLogArgs, EExecutionMessageType, TMessageContext } from '@haibun/core/build/lib/interfaces/logger.js';
 import { LogEntry } from './messages.js';
 import { setupControls } from './controls.js';
+import { TAnyFixme } from '@haibun/core/build/lib/fixme.js';
 
 declare global {
 	interface Window {
