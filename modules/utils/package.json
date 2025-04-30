@@ -8,7 +8,8 @@
   "bin": {
     "scaffold": "build/scaffold/index.js",
     "version": "build/version.js",
-    "link": "build/npm-link-haibuns.js"
+    "link": "build/npm-link-haibuns.js",
+    "generate-video": "bin/generate-video.sh"
   },
   "scripts": {
     "test": "vitest run",
