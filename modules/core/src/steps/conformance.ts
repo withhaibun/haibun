@@ -1,5 +1,5 @@
 import { actionNotOK } from '../lib/util/index.js';
-import { AStepper } from '../lib/defs.js';
+import { AStepper } from '../lib/astepper.js';
 
 const Conformance = class Conformance extends AStepper {
 	steps = {

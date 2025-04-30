@@ -1,4 +1,5 @@
-import { TStepAction, TResolvedFeature, OK, TExpandedFeature, AStepper, TStepperStep, TFeatureStep, TExpandedLine } from '../lib/defs.js';
+import { TStepAction, TResolvedFeature, OK, TExpandedFeature, TStepperStep, TFeatureStep, TExpandedLine } from '../lib/defs.js';
+import { AStepper } from '../lib/astepper.js';
 import { BASE_TYPES } from '../lib/domain-types.js';
 import { namedInterpolation, getMatch } from '../lib/namedVars.js';
 import { getActionable, describeSteppers, isLowerCase, dePolite, constructorName } from '../lib/util/index.js';

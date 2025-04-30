@@ -1,4 +1,6 @@
-import { TWorld, TResolvedFeature, AStepper, TFeatureStep, TStepperStep, TAnyFixme } from './lib/defs.js';
+import { TWorld, TResolvedFeature, TFeatureStep, TStepperStep } from './lib/defs.js';
+import { TAnyFixme } from './lib/fixme.js';
+import { AStepper } from './lib/astepper.js';
 import { getNamedToVars } from './lib/namedVars.js';
 import { constructorName } from './lib/util/index.js';
 

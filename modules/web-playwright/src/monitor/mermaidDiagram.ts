@@ -1,7 +1,7 @@
 import mermaid from 'mermaid';
-import { TAnyFixme } from '@haibun/core/build/lib/defs.js';
 import { TArtifactHTTPTrace, THTTPTraceContent } from '@haibun/core/build/lib/interfaces/logger.js';
-import { shortenURI, shortenUserAgent } from '@haibun/core/build/lib/util/index.js';
+import { shortenURI } from '@haibun/core/build/lib/util/index.js';
+import { TAnyFixme } from '@haibun/core/build/lib/fixme.js';
 
 // Helper function for sanitization
 const sanitizeMermaidContent = (message: string): string => {

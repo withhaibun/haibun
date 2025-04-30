@@ -1,10 +1,11 @@
-import { IHasOptions, OK, TWorld, TNamed, AStepper, TFeatureStep, IStepperCycles, TEndFeature } from '@haibun/core/build/lib/defs.js';
+import { OK, TWorld, TNamed, TFeatureStep, IStepperCycles, TEndFeature } from '@haibun/core/build/lib/defs.js';
 import { actionNotOK, getFromRuntime, getStepperOption, intOrError } from '@haibun/core/build/lib/util/index.js';
 import { IWebServer, WEBSERVER } from './defs.js';
 import { ServerExpress, DEFAULT_PORT } from './server-express.js';
 import { WEB_PAGE } from '@haibun/core/build/lib/domain-types.js';
 import path from 'path';
 import { EExecutionMessageType } from '@haibun/core/build/lib/interfaces/logger.js';
+import { AStepper, IHasOptions } from '@haibun/core/build/lib/astepper.js';
 
 const cycles = (wss: WebServerStepper): IStepperCycles => ({
 	async startFeature() {
@@ -117,8 +118,8 @@ class WebServerStepper extends AStepper implements IHasOptions {
 		const ws: IWebServer = getFromRuntime(this.getWorld().runtime, WEBSERVER);
 		const res = ws.checkAddStaticFolder(loc, where);
 		if (res) {
-			const incident = { incident: EExecutionMessageType.ON_FAILURE, incidentDetails: { summary: res, } };
-			return actionNotOK(`failed to add static folder ${loc} at ${where}: ${res}`, incident);
+			const messageContext = { incident: EExecutionMessageType.ON_FAILURE, incidentDetails: { summary: res, } };
+			return actionNotOK(`failed to add static folder ${loc} at ${where}: ${res}`, { messageContext });
 		}
 		await this.listen();
 		return OK;

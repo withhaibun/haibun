@@ -1,5 +1,7 @@
 import { applyEffectFeatures } from './applyEffectFeatures.js';
-import { TWorld, TExecutorResult, TAnyFixme, CStepper, AStepper } from './lib/defs.js';
+import { TWorld, TExecutorResult, CStepper } from './lib/defs.js';
+import { TAnyFixme } from './lib/fixme.js';
+import { AStepper } from './lib/astepper.js';
 import { expand } from './lib/features.js';
 import { verifyRequiredOptions, verifyExtraOptions, createSteppers, setStepperWorlds } from './lib/util/index.js';
 import { getSteppers } from './lib/util/workspace-lib.js';

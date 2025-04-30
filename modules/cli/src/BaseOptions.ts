@@ -1,4 +1,5 @@
-import { CONTINUE_AFTER_ERROR, IHasOptions, STAY_ALWAYS, STAY_FAILURE, STEP_DELAY, TEnvVariables } from '@haibun/core/build/lib/defs.js';
+import { IHasOptions } from '@haibun/core/build/lib/astepper.js';
+import { CONTINUE_AFTER_ERROR, STAY_ALWAYS, STAY_FAILURE, STEP_DELAY, TEnvVariables } from '@haibun/core/build/lib/defs.js';
 import { LOGGER_LEVELS } from '@haibun/core/build/lib/Logger.js';
 import { boolOrError, intOrError, optionOrError, stringOrError } from '@haibun/core/build/lib/util/index.js';
 

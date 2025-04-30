@@ -1,7 +1,6 @@
-import { TWorld, TAnyFixme } from './defs.js';
-import { TArtifact } from './interfaces/artifacts.js';
-import { ILogger, ILogOutput, TLogArgs, TLogLevel, TOutputEnv, EExecutionMessageType } from './interfaces/logger.js';
-import { TMessageContext } from './interfaces/messageContexts.js';
+import { TWorld } from './defs.js';
+import { TAnyFixme } from './fixme.js';
+import { ILogger, ILogOutput, TLogArgs, TLogLevel, TOutputEnv, EExecutionMessageType, TMessageContext, TArtifact } from './interfaces/logger.js';
 import { descTag, isFirstTag } from './util/index.js';
 
 export const LOGGER_LOG = { level: 'log' };
