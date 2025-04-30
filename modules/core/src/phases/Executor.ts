@@ -1,7 +1,7 @@
 import { TFeatureStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, TStepAction, STAY, STAY_FAILURE, CHECK_NO, CHECK_YES, STEP_DELAY, TNotOKActionResult, CONTINUE_AFTER_ERROR, IStepperCycles, TEndFeature, TStartFeature } from '../lib/defs.js';
 import { TAnyFixme } from '../lib/fixme.js';
 import { AStepper } from '../lib/astepper.js';
-import { EExecutionMessageType } from '../lib/interfaces/logger.js';
+import { EExecutionMessageType, TMessageContext } from '../lib/interfaces/logger.js';
 import { topicArtifactLogger } from '../lib/Logger.js';
 import { getNamedToVars } from '../lib/namedVars.js';
 import { actionNotOK, sleep, findStepper, constructorName, setStepperWorlds } from '../lib/util/index.js';
@@ -104,15 +104,18 @@ export class FeatureExecutor {
 			world.logger.log(step.in, { incident: EExecutionMessageType.STEP_START, tag: world.tag });
 			const result = await FeatureExecutor.doFeatureStep(this.steppers, step, world);
 
-			if (world.options[STEP_DELAY]) {
-				await sleep(world.options[STEP_DELAY] as number);
-			}
 			ok = ok && result.ok;
 			const indicator = result.ok ? CHECK_YES : CHECK_NO + ' ' + (<TNotOKActionResult>result.actionResult).message;
-			world.logger.log(indicator, { incident: EExecutionMessageType.STEP_END, tag: world.tag, incidentDetails: { result, step } });
+
+			// FIXME artifact shuffling
+			const messageContext: TMessageContext = { artifact: result.actionResult.artifact, incident: EExecutionMessageType.STEP_END, tag: world.tag, incidentDetails: { result, step } }
+			world.logger.log(indicator, messageContext);
 			stepResults.push(result);
 			if (!ok) {
 				break;
+			}
+			if (world.options[STEP_DELAY]) {
+				await sleep(world.options[STEP_DELAY] as number);
 			}
 		}
 		if (currentScenario) {
