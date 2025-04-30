@@ -1,4 +1,5 @@
-import { OK, TNamed, AStepper } from '@haibun/core/build/lib/defs.js';
+import { AStepper } from '@haibun/core/build/lib/astepper.js';
+import { OK, TNamed } from '@haibun/core/build/lib/defs.js';
 import { EExecutionMessageType } from '@haibun/core/build/lib/interfaces/logger.js';
 import { actionNotOK } from '@haibun/core/build/lib/util/index.js';
 
@@ -11,7 +12,8 @@ const WebHttp = class WebHttp extends AStepper {
 					await fetch(url);
 					return OK;
 				} catch (e) {
-					return actionNotOK(`${url} is not listening`, { incident: EExecutionMessageType.ACTION, incidentDetails: { result: { summary: 'error', details: e } } });
+					const messageContext = { incident: EExecutionMessageType.ACTION, incidentDetails: { result: { summary: 'error', details: e } } }
+					return actionNotOK(`${url} is not listening`, { messageContext });
 				}
 			},
 		},
@@ -20,7 +22,7 @@ const WebHttp = class WebHttp extends AStepper {
 			action: async ({ url }: TNamed) => {
 				const response = await fetch(`${url}/.well-known/openid-configuration`);
 				const json = await response.json();
-				return json.authorization_endpoint ? OK : actionNotOK(`${json} has no endpoint`, { incident: EExecutionMessageType.ACTION, incidentDetails: { result: { summary: 'json', details: json } } });
+				return json.authorization_endpoint ? OK : actionNotOK(`${json} has no endpoint`, { messageContext: { incident: EExecutionMessageType.ACTION, incidentDetails: { result: { summary: 'json', details: json } } } });
 			},
 		},
 		statusIs: {

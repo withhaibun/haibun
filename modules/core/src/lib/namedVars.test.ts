@@ -1,6 +1,7 @@
 import { describe, it, test, expect } from 'vitest';
 
-import { AStepper, OK, TResolvedFeature, TStepperStep } from './defs.js';
+import { OK, TResolvedFeature, TStepperStep } from './defs.js';
+import { AStepper } from './astepper.js';
 import { getNamedMatches, namedInterpolation, matchGroups, getNamedToVars } from './namedVars.js';
 import { Resolver } from '../phases/Resolver.js';
 import { actionNotOK, createSteppers, getSerialTime } from './util/index.js';

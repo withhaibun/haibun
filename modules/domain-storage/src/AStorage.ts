@@ -1,10 +1,14 @@
-import { AStepper, OK, TNamed, DEFAULT_DEST, TAnyFixme, TWorld } from '@haibun/core/build/lib/defs.js';
+import { resolve } from 'path';
+import { pathToFileURL } from 'url';
+
+import { OK, TNamed, TWorld } from '@haibun/core/build/lib/defs.js';
+import { captureLocator } from '@haibun/core/build/lib/capture-locator.js';
 import { actionNotOK } from '@haibun/core/build/lib/util/index.js';
 import { setShared } from '@haibun/core/build/steps/vars.js';
 import { guessMediaType, IFile, TLocationOptions } from './domain-storage.js';
 import { EMediaTypes, TMediaType } from './media-types.js';
-import { resolve } from 'path';
-import { pathToFileURL } from 'url';
+import { AStepper } from '@haibun/core/build/lib/astepper.js';
+import { TAnyFixme } from '@haibun/core/build/lib/fixme.js';
 
 const CAPTURE = 'capture';
 
@@ -96,13 +100,7 @@ export abstract class AStorage extends AStepper {
 		return where.map((w) => w.replace(/\/$/, '')).join('/');
 	}
 
-	locator(loc: TLocationOptions, ...where: (string | undefined)[]) {
-		const { options } = loc;
-		const base = '';
-		const path = [base, CAPTURE, options.DEST || DEFAULT_DEST].concat(where.filter((w) => w !== undefined));
-		return '.' + path.join('/');
-	}
-
+	locator = captureLocator;
 	async getCapturePath(pathIn: string) {
 		const mediaType = guessMediaType(pathIn);
 		const loc = resolve(await this.getCaptureLocation({ ...this.world, mediaType }));
@@ -120,7 +118,7 @@ export abstract class AStorage extends AStepper {
 
 	async getCaptureLocation(loc: TLocationOptions, app?: string) {
 		const { tag } = loc;
-		const locator = this.locator(loc, tag.key, `seq-${tag.sequence}`, `featn-${tag.featureNum}`, app);
+		const locator = this.locator(loc.options, tag.key, `seq-${tag.sequence}`, `featn-${tag.featureNum}`, app);
 		return Promise.resolve(locator);
 	}
 	async runtimePath(world?: TWorld): Promise<string> {

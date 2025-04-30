@@ -7,7 +7,7 @@ import { getDefaultWorld, getTestWorldWithOptions } from '@haibun/core/build/lib
 import StorageMem from './storage-mem.js';
 import { Timer } from '@haibun/core/build/lib/Timer.js';
 import { EMediaTypes } from '@haibun/domain-storage/build/media-types.js';
-import { TAnyFixme } from '@haibun/core/src/lib/defs.js';
+import { TAnyFixme } from '@haibun/core/build/lib/fixme.js';
 
 const { key } = Timer;
 

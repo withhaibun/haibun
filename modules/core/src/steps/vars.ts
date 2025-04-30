@@ -1,7 +1,7 @@
-import { Context } from '../lib/contexts.js';
-import { OK, TNamed, TFeatureStep, TWorld, AStepper, IStepperCycles, TAnyFixme } from '../lib/defs.js';
-import { EExecutionMessageType } from '../lib/interfaces/logger.js';
-import { TMessageContext } from '../lib/interfaces/messageContexts.js';
+import { OK, TNamed, TFeatureStep, TWorld, IStepperCycles } from '../lib/defs.js';
+import { TAnyFixme } from '../lib/fixme.js';
+import { AStepper } from '../lib/astepper.js';
+import { EExecutionMessageType, TMessageContext } from '../lib/interfaces/logger.js';
 import { actionNotOK } from '../lib/util/index.js';
 
 // FIXME see https://github.com/withhaibun/haibun/issues/18
@@ -9,7 +9,7 @@ const getOrCond = (fr: string) => fr.replace(/.* is set or /, '');
 
 const cycles = (vars: Vars): IStepperCycles => ({
 	startFeature: async () => {
-		vars.getWorld().shared.values = {};
+		vars.getWorld().shared.clear()
 		return Promise.resolve();
 	}
 });
@@ -107,7 +107,7 @@ class Vars extends AStepper {
 
 export default Vars;
 
-export const didNotOverwrite = (what: string, present: string | Context, value: string) => ({
+export const didNotOverwrite = (what: string, present: string, value: string) => ({
 	overwrite: { summary: `did not overwrite ${what} value of "${present}" with "${value}"` },
 });
 

@@ -1,13 +1,15 @@
-import { OK, TNamed, AStepper, TWorld, TFeatureStep, STEP_DELAY, TAnyFixme, IHasOptions, IStepperCycles, TResolvedFeature, SCENARIO_START } from '../lib/defs.js';
-import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
+import { OK, TNamed, TWorld, TFeatureStep, STEP_DELAY, IStepperCycles, TResolvedFeature, SCENARIO_START } from '../lib/defs.js';
+import { TAnyFixme } from '../lib/fixme.js';
+import { IHasOptions } from '../lib/astepper.js';
+import { AStepper } from '../lib/astepper.js';
 import { Resolver } from '../phases/Resolver.js';
-import { actionNotOK, actionOK, findStepperFromOption, getStepperOption, sleep, stringOrError } from '../lib/util/index.js';
+import { actionNotOK, actionOK, getStepperOption, sleep, stringOrError } from '../lib/util/index.js';
 import { expand } from '../lib/features.js';
 import { asFeatures } from '../lib/resolver-features.js';
 import { copyPreRenderedAudio, preRenderFeatureProse, TRenderedAudioMap } from './lib/tts.js';
-import { TArtifactSpeech } from '../lib/interfaces/artifacts.js';
-import { EExecutionMessageType, TMessageContext } from '../lib/interfaces/logger.js';
-import { EMediaTypes } from '@haibun/domain-storage/build/media-types.js';
+import { TArtifactSpeech } from '../lib/interfaces/logger.js';
+import { captureLocator } from '../lib/capture-locator.js';
+import { resolve } from 'path';
 
 const cycles = (hb: Haibun): IStepperCycles => ({
 	async startFeature(feature: TResolvedFeature) {
@@ -25,22 +27,15 @@ class Haibun extends AStepper implements IHasOptions {
 			parse: (input: string) => stringOrError(input),
 			required: false
 		},
-		STORAGE: {
-			desc: 'Storage for output',
-			parse: (input: string) => stringOrError(input),
-			required: false
-		},
 	}
 
 	cycles = cycles(this);
 	steppers: AStepper[];
 	ttsCmd: string;
-	storage: AStorage;
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		this.steppers = steppers;
 		this.world = world;
 		this.ttsCmd = getStepperOption(this, 'TTS_CMD', world.moduleOptions);
-		this.storage = getStepperOption(this, 'STORAGE', world.moduleOptions) ? findStepperFromOption(steppers, this, world.moduleOptions, 'STORAGE') : undefined;
 		return Promise.resolve();
 	}
 	steps = {
@@ -108,7 +103,7 @@ class Haibun extends AStepper implements IHasOptions {
 		until: {
 			gwta: 'until {what} is {value}',
 			action: async ({ what, value }: TNamed) => {
-				while (this.getWorld().shared.values[what] !== value) {
+				while (this.getWorld().shared.get(what) !== value) {
 					await sleep(100);
 				}
 				return Promise.resolve(OK);
@@ -149,23 +144,14 @@ class Haibun extends AStepper implements IHasOptions {
 		if (!this.ttsCmd) {
 			return OK;
 		}
-		if (!this.storage) {
-			return actionNotOK(`TTS_CMD requires STORAGE): ${transcript}`);
-		}
-		const loc = await this.storage.ensureCaptureLocation({ ...this.getWorld(), mediaType: EMediaTypes.video });
-		const dir = this.storage.fromLocation(EMediaTypes.video, loc);
+		const dir = captureLocator(this.world.options);
 
 		const { path, durationS } = await copyPreRenderedAudio(dir, this.renderedAudio, transcript);
-		const runtimePath = await this.storage.runtimePath();
+		const runtimePath = resolve(dir);
+
 		const artifact: TArtifactSpeech = { artifactType: 'speech', path, durationS, runtimePath, transcript };
-		const context: TMessageContext = {
-			incident: EExecutionMessageType.ACTION,
-			artifact,
-			tag: this.getWorld().tag,
-		};
-		this.world?.logger.info(`prose "${transcript}"`, context);
 		await sleep(durationS * 1000);
-		return actionOK(context);
+		return actionOK({ artifact });
 	}
 
 	async newFeatureFromEffect(content: string, seq: number, steppers: AStepper[]): Promise<TFeatureStep> {

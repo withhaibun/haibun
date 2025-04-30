@@ -1,4 +1,6 @@
-import { TFeatureStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, AStepper, TStepAction, TAnyFixme, STAY, STAY_FAILURE, CHECK_NO, CHECK_YES, STEP_DELAY, TNotOKActionResult, CONTINUE_AFTER_ERROR, IStepperCycles, TEndFeature, TStartFeature } from '../lib/defs.js';
+import { TFeatureStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, TStepAction, STAY, STAY_FAILURE, CHECK_NO, CHECK_YES, STEP_DELAY, TNotOKActionResult, CONTINUE_AFTER_ERROR, IStepperCycles, TEndFeature, TStartFeature } from '../lib/defs.js';
+import { TAnyFixme } from '../lib/fixme.js';
+import { AStepper } from '../lib/astepper.js';
 import { EExecutionMessageType } from '../lib/interfaces/logger.js';
 import { topicArtifactLogger } from '../lib/Logger.js';
 import { getNamedToVars } from '../lib/namedVars.js';
@@ -21,10 +23,11 @@ export class Executor {
 		const action = stepper.steps[found.actionName].action;
 		return await action(namedWithVars, featureStep).catch((caught: TAnyFixme) => {
 			world.logger.error(caught.stack);
-			return actionNotOK(`in ${featureStep.in}: ${caught.message}`, {
+			const messageContext = {
 				incident: EExecutionMessageType.ACTION,
 				incidentDetails: { caught: (caught?.stack || caught).toString() },
-			});
+			}
+			return actionNotOK(`in ${featureStep.in}: ${caught.message}`, { messageContext });
 		});
 	}
 	static async executeFeatures(steppers: AStepper[], world: TWorld, features: TResolvedFeature[]): Promise<TExecutorResult> {

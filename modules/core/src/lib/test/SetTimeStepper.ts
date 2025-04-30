@@ -1,5 +1,6 @@
 import { vi } from 'vitest';
-import { TNamed, AStepper, OK } from '../defs.js';
+import { TNamed, OK } from '../defs.js';
+import { AStepper } from '../astepper.js';
 
 const checkedInt = (p: string, v: string) => {
   if (v === undefined) throw Error(`undefined value "${v}" for ${p}`);

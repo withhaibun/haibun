@@ -1,9 +1,9 @@
-import { WorldContext } from './contexts.js';
-
-import { ILogger } from './interfaces/logger.js';
-import { TMessageContext } from './interfaces/messageContexts.js';
+import { AStepper } from './astepper.js';
+import { ILogger, TArtifact, TMessageContext } from './interfaces/logger.js';
+import { TAnyFixme } from './fixme.js';
 import { Timer } from './Timer.js';
-import { constructorName } from './util/index.js';
+import { TTag } from './ttag.js';
+import { FeatureVariables } from './feature-variables.js';
 
 export type TSpecl = {
 	steppers: string[];
@@ -30,24 +30,6 @@ export type TEnvVariables = {
 
 export type TOptionValue = TAnyFixme;
 
-export interface IHasOptions {
-	options?: {
-		[name: string]: {
-			required?: boolean;
-			// alternate for the literal option
-			altSource?: string;
-			default?: string;
-			desc: string;
-			parse: (input: string, existing?: TOptionValue) => { parseError?: string; env?: TEnvVariables; result?: TAnyFixme };
-		};
-	};
-}
-
-export interface IProcessFeatureResults extends AStepper {
-	processFeatureResult: (executorResult: TExecutorResult) => Promise<void>;
-}
-
-export const isProcessFeatureResults = (s: AStepper): s is IProcessFeatureResults => (<IProcessFeatureResults>s).processFeatureResult !== undefined;
 
 export type TModuleOptions = { [name: string]: string };
 export type TProtoOptions = {
@@ -59,7 +41,7 @@ export type TBase = string[];
 
 export type TWorld = {
 	tag: TTag;
-	shared: WorldContext;
+	shared: FeatureVariables;
 	runtime: TRuntime;
 	logger: ILogger;
 	options: TBaseOptions;
@@ -116,15 +98,6 @@ const example: TResolvedFeature = {
 	],
 };
 
-export type TTagValue = number;
-export type TTag = {
-	key: string;
-	sequence: number;
-	featureNum: number;
-	params: TAnyFixme;
-	trace: boolean;
-};
-
 export type TFeatureStep = {
 	path: string;
 	in: string;
@@ -155,10 +128,6 @@ export interface CStepper {
 	};
 }
 
-// punt any type problems
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type TAnyFixme = any;
-
 export type TSteppers = {
 	[name: string]: AStepper;
 };
@@ -173,24 +142,6 @@ export interface IStepperCycles {
 	onFailure?(result: TStepResult, step: TFeatureStep): Promise<void | TMessageContext>;
 	endExecution?(): Promise<void>
 }
-export abstract class AStepper {
-	world?: TWorld;
-	cycles?: IStepperCycles;
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	async setWorld(world: TWorld, steppers: AStepper[]) {
-		this.world = world;
-		await Promise.resolve();
-	}
-	abstract steps: { [name: string]: TStepperStep };
-	getWorld() {
-		if (!this.world) {
-			throw Error(`stepper without world ${constructorName(this)}`);
-		}
-
-		return this.world;
-	}
-}
-
 export type TStepAction = {
 	actionName: string;
 	stepperName: string;
@@ -215,7 +166,7 @@ export type TExecutorResultError = {
 export type TExecutorResult = {
 	ok: boolean;
 	tag: TTag;
-	shared: WorldContext;
+	shared: FeatureVariables;
 	topics?: TMessageContext;
 	featureResults?: TFeatureResult[];
 	failure?: {
@@ -228,12 +179,14 @@ export type TExecutorResult = {
 export type TOKActionResult = {
 	ok: true;
 	messageContext?: TMessageContext;
+	artifact?: TArtifact
 };
 
 export type TNotOKActionResult = {
 	ok: false;
 	message: string;
 	messageContext?: TMessageContext;
+	artifact?: TArtifact
 };
 
 export type TTrace = {
@@ -308,5 +261,6 @@ export const CHECK_NO = '❌';
 
 export const STEP_DELAY = 'STEP_DELAY';
 export const DEFAULT_DEST = 'default';
-export const CONTINUE_AFTER_ERROR = 'CONTINUE_AFTER_ERROR';export const SCENARIO_START = 'scenarioStart';
+export const CONTINUE_AFTER_ERROR = 'CONTINUE_AFTER_ERROR'; export const SCENARIO_START = 'scenarioStart';
+
 

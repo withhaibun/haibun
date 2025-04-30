@@ -1,6 +1,9 @@
-import { IHasOptions, TNotOKActionResult, TOKActionResult, TSpecl, TWorld, TRuntime, TTag, AStepper, TModuleOptions, CStepper, TTagValue, TAnyFixme } from '../defs.js';
-import { TMessageContext } from '../interfaces/messageContexts.js';
-import { Timer } from '../Timer.js';
+import { TNotOKActionResult, TOKActionResult, TSpecl, TWorld, TRuntime, TModuleOptions, CStepper } from '../defs.js';
+import { TAnyFixme } from '../fixme.js';
+import { IHasOptions } from '../astepper.js';
+import { AStepper } from '../astepper.js';
+import { TTag } from '../ttag.js';
+import { TArtifact, TMessageContext } from '../interfaces/logger.js';
 
 type TClass = { new <T>(...args: unknown[]): T };
 
@@ -27,16 +30,19 @@ export function checkModuleIsClass(re: object, module: string) {
 	}
 }
 
-export function actionNotOK(message: string, messageContext?: TMessageContext): TNotOKActionResult {
+export function actionNotOK(message: string, w?: { messageContext?: TMessageContext, artifact?: TArtifact }): TNotOKActionResult {
+	const { messageContext, artifact } = w || {};
 	return {
 		ok: false,
 		message,
-		messageContext
+		messageContext,
+		artifact
 	};
 }
 
-export function actionOK(messageContext?: TMessageContext): TOKActionResult {
-	return { ok: true, messageContext };
+export function actionOK(w?: { messageContext?: TMessageContext, artifact?: TArtifact }): TOKActionResult {
+	const { messageContext, artifact } = w || {};
+	return { ok: true, messageContext, artifact };
 }
 
 export async function createSteppers(steppers: CStepper[]): Promise<AStepper[]> {
@@ -238,18 +244,6 @@ export function findStepper<Type>(steppers: AStepper[], name: string): Type {
 export function getFromRuntime<Type>(runtime: TRuntime, name: string): Type {
 	return runtime[name] as Type;
 }
-
-export const getRunTag = (sequence: TTagValue, featureNum: TTagValue, params = {}, trace = false) => {
-	const key = Timer.key;
-	const res: TTag = { key, sequence, featureNum, params, trace };
-	['sequence', 'featureNum'].forEach((w) => {
-		const val = (res as TAnyFixme)[w];
-		if (parseInt(val) !== val) {
-			throw Error(`non - numeric ${w} from ${JSON.stringify(res)} `);
-		}
-	});
-	return res;
-};
 
 export const descTag = (tag: TTag) => ` @${tag.sequence}`;
 export const isFirstTag = (tag: TTag) => tag.sequence === 0;

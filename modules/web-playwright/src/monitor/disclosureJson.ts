@@ -1,4 +1,4 @@
-import { TAnyFixme } from "@haibun/core/build/lib/defs.js";
+import { TAnyFixme } from "@haibun/core/build/lib/fixme.js";
 
 export function disclosureJson(jsonObj: TAnyFixme) {
 	const rootNode = buildRecursiveDetails(jsonObj, 0);

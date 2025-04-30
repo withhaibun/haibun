@@ -1,5 +1,6 @@
 
-import { TNamed, AStepper } from '../defs.js';
+import { TNamed } from '../defs.js';
+import { AStepper } from '../astepper.js';
 import { actionNotOK, actionOK } from '../util/index.js';
 
 const TestSteps = class TestSteps extends AStepper {

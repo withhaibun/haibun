@@ -1,5 +1,6 @@
-import { IHasOptions, AStepper } from '../defs.js';
-import { EExecutionMessageType } from '../interfaces/logger.js';
+import { IHasOptions } from '../astepper.js';
+import { AStepper } from '../astepper.js';
+import { EExecutionMessageType, TMessageContext } from '../interfaces/logger.js';
 import { actionOK, getStepperOption } from '../util/index.js';
 
 export const TestStepsWithOptions = class TestStepsWithOptions extends AStepper implements IHasOptions {
@@ -14,7 +15,8 @@ export const TestStepsWithOptions = class TestStepsWithOptions extends AStepper 
 			exact: 'have a stepper option',
 			action: async () => {
 				const res = getStepperOption(this, 'EXISTS', this.getWorld().moduleOptions);
-				return Promise.resolve(actionOK({ incident: EExecutionMessageType.ACTION, incidentDetails: { summary: 'options', details: res } }));
+				const messageContext: TMessageContext = { incident: EExecutionMessageType.ACTION, incidentDetails: { summary: 'options', details: res } };
+				return Promise.resolve(actionOK({ messageContext }));
 			},
 		},
 	};
