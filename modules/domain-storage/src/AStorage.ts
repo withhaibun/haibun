@@ -118,7 +118,7 @@ export abstract class AStorage extends AStepper {
 
 	async getCaptureLocation(loc: TLocationOptions, app?: string) {
 		const { tag } = loc;
-		const locator = this.locator(loc.options, tag.key, `seq-${tag.sequence}`, `featn-${tag.featureNum}`, app);
+		const locator = this.locator(loc.options, tag, app);
 		return Promise.resolve(locator);
 	}
 	async runtimePath(world?: TWorld): Promise<string> {

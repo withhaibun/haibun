@@ -144,7 +144,7 @@ class Haibun extends AStepper implements IHasOptions {
 		if (!this.ttsCmd) {
 			return OK;
 		}
-		const dir = captureLocator(this.world.options);
+		const dir = captureLocator(this.world.options, this.world.tag);
 
 		const { path, durationS } = await copyPreRenderedAudio(dir, this.renderedAudio, transcript);
 		const runtimePath = resolve(dir);
