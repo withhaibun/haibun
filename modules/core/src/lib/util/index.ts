@@ -39,6 +39,9 @@ export function actionNotOK(message: string, w?: { messageContext?: TMessageCont
 		artifact
 	};
 }
+export function randomString() {
+	return ['rnd', Math.floor(Date.now() / 1000).toString(36), Math.floor(Math.random() * 1e8).toString(36)].join('_');
+}
 
 export function actionOK(w?: { messageContext?: TMessageContext, artifact?: TArtifact }): TOKActionResult {
 	const { messageContext, artifact } = w || {};
