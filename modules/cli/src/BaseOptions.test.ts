@@ -17,17 +17,3 @@ describe('apply ENV', () => {
 		expect(res.error).toBeDefined();
 	});
 });
-describe('apply ENVC', () => {
-	it('creates pairs', () => {
-		const res = BaseOptions.options.ENVC.parse('a=1,b=2', defaultEnv);
-		expect(res.env).toEqual({ ...defaultEnv, a: '1', b: '2' });
-	});
-	it('prevents existing collision', () => {
-		const res = BaseOptions.options.ENVC.parse('a=1', { ...defaultEnv, ...{ a: '2' } });
-		expect(res.error).toBeDefined();
-	});
-	it('prevents duplicate collision', () => {
-		const res = BaseOptions.options.ENVC.parse('a=1,a=2', defaultEnv);
-		expect(res.error).toBeDefined();
-	});
-});

@@ -1,7 +1,7 @@
 import { IHasOptions } from '@haibun/core/build/lib/astepper.js';
 import { CONTINUE_AFTER_ERROR, STAY_ALWAYS, STAY_FAILURE, STEP_DELAY, TEnvVariables } from '@haibun/core/build/lib/defs.js';
 import { LOGGER_LEVELS } from '@haibun/core/build/lib/Logger.js';
-import { boolOrError, intOrError, optionOrError, stringOrError } from '@haibun/core/build/lib/util/index.js';
+import { boolOrError, intOrError, optionOrError, randomString, stringOrError } from '@haibun/core/build/lib/util/index.js';
 
 export class BaseOptions implements IHasOptions {
 	static options = {
@@ -37,7 +37,7 @@ export class BaseOptions implements IHasOptions {
 					: { error: `${result} not in ${Object.keys(LOGGER_LEVELS).join(', ')}` },
 		},
 		ENV: {
-			desc: 'pass a variable: var=value[,var2=value]',
+			desc: 'pass variables: var=value[,var2=value]',
 			parse: (input: string, cur: TEnvVariables) => {
 				const pairs = input?.split(',');
 				const env: TEnvVariables = { ...cur };
@@ -46,20 +46,8 @@ export class BaseOptions implements IHasOptions {
 					if (cur[k] || env[k]) {
 						return { error: `ENV ${k} already defined` };
 					}
-					env[k] = v;
-				}
-				return { env };
-			},
-		},
-		ENVC: {
-			desc: 'pass multiple variables: var1=a,var2=b',
-			parse: (input: string, cur: TEnvVariables) => {
-				const env: TEnvVariables = { ...cur };
-
-				for (const pair of (input || '').split(',')) {
-					const [k, v] = pair.split('=');
-					if (env[k]) {
-						return { error: `ENVC ${k} already exists` };
+					if (v.match(/{random}/)) {
+						v.replace(/{random}/g, randomString());
 					}
 					env[k] = v;
 				}
