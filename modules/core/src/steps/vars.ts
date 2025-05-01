@@ -47,8 +47,8 @@ class Vars extends AStepper {
 	}
 
 	steps = {
-		concat: {
-			gwta: 'concat {p1} and {p2} as {what}',
+		combine: {
+			gwta: 'combine {p1} and {p2} as {what}',
 			action: async ({ p1, p2, what }: TNamed, featureStep: TFeatureStep) => await this.set({ what, value: `${p1}${p2}` }, featureStep),
 		},
 		showEnv: {
