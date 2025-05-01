@@ -4,6 +4,7 @@ import { TArtifactVideoStart, EExecutionMessageType, TMessageContext } from '@ha
 import { PlaywrightEvents } from './PlaywrightEvents.js';
 import { TWorld } from '@haibun/core/build/lib/defs.js';
 import { TTagValue, TTag } from '@haibun/core/build/lib/ttag.js';
+import { Timer } from '@haibun/core/build/lib/Timer.js';
 
 export const BROWSERS: { [name: string]: BrowserType } = {
 	firefox,
@@ -35,6 +36,7 @@ export class BrowserFactory {
 	tracers: { [name: string]: PlaywrightEvents } = {};
 	browserContexts: { [name: string]: BrowserContext } = {};
 	pages: { [name: string]: Page | undefined } = {};
+	contextStats: { [sequence: string]: { start: number, end?: number, duration?: number } } = {};
 	static tracer?: PlaywrightEvents = undefined;
 	static configs: { [name: string]: TTaggedBrowserFactoryOptions } = {};
 
@@ -51,19 +53,10 @@ export class BrowserFactory {
 		const browserOptions: LaunchOptions = { ...config.options, ...config.launchOptions }
 		if (!BrowserFactory.browsers[type]) {
 			BrowserFactory.browsers[type] = await config.browserType.launch(browserOptions);
+			const browser = BrowserFactory.browsers[type];
 
-			// Create context using the new structure
-			const vs: TMessageContext = {
-				incident: EExecutionMessageType.ACTION, // Assuming ACTION is appropriate here
-				artifact: <TArtifactVideoStart>{
-					start: this.world.timer.since(),
-					artifactType: 'video/start'
-				},
-				tag: this.world.tag // Add the tag
-			};
-			this.world.logger.debug(`launched new ${type} browser`, vs);
+			return browser;
 		}
-		return BrowserFactory.browsers[type];
 	}
 
 	public getExistingBrowserContextWithTag({ sequence }: { sequence: TTagValue }) {
@@ -74,6 +67,7 @@ export class BrowserFactory {
 
 
 	public async closeContext({ sequence }: { sequence: TTagValue }) {
+		this.world.logger.debug(`closed browser context ${sequence}`);
 		if (this.browserContexts[sequence] !== undefined) {
 			const p = this.pages[sequence];
 			if (p) {
@@ -86,6 +80,17 @@ export class BrowserFactory {
 		}
 		await this.browserContexts[sequence]?.close();
 		this.tracers[sequence]?.close();
+		this.contextStats[sequence].end = Timer.since();
+		this.contextStats[sequence].duration = this.contextStats[sequence].end - this.contextStats[sequence].start;
+		const vs: TMessageContext = {
+			incident: EExecutionMessageType.ACTION,
+			artifact: <TArtifactVideoStart>{
+				start: Timer.since() - this.contextStats[sequence].duration,
+				artifactType: 'video/start'
+			},
+			tag: this.world.tag
+		};
+		this.world.logger.debug(`video start`, vs);
 		delete this.pages[sequence];
 		delete this.browserContexts[sequence];
 	}
@@ -161,6 +166,7 @@ export class BrowserFactory {
 				browserContext = await browser.newContext(launchConfig);
 			}
 			this.browserContexts[sequence] = browserContext;
+			this.contextStats[sequence] = { start: Timer.since() };
 			if (BrowserFactory.configs.defaultTimeout) {
 				this.browserContexts[sequence].setDefaultTimeout(config.defaultTimeout);
 			}
