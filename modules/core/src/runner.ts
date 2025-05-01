@@ -24,7 +24,7 @@ export class Runner {
 			failure: { stage: phase, error: { message: error.message, details: { stack: error.stack, details } } },
 			steppers: this.steppers
 		};
-		console.error(error.stack);
+		// console.error(error.stack);
 		throw Error(error);
 	};
 
