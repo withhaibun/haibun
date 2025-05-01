@@ -57,7 +57,7 @@ export const createMonitorPageAndSubscriber = (headless: boolean) => async () =>
 					timestamp: Date.now()
 				});
 
-			} catch (e) { // Use 'any' or a more specific error type
+			} catch (e) {
 				// Specific check for the serialization error
 				if (e instanceof Error && e.message.includes('Unexpected value')) {
 					console.error('Error sending log to monitor via evaluate: Serialization failed. Check the structure of messageContext.', e.message);

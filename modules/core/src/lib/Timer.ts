@@ -6,7 +6,7 @@ export class Timer {
 		Timer.key = newKey;
 	}
 
-	since() {
+	static since() {
 		return Date.now() - Timer.START_TIME;
 	}
 }
