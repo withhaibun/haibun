@@ -7,7 +7,7 @@ import { actionNotOK, actionOK, getStepperOption, sleep, stringOrError } from '.
 import { expand } from '../lib/features.js';
 import { asFeatures } from '../lib/resolver-features.js';
 import { copyPreRenderedAudio, preRenderFeatureProse, TRenderedAudioMap } from './lib/tts.js';
-import { TArtifactSpeech } from '../lib/interfaces/logger.js';
+import { EExecutionMessageType, TArtifactSpeech, TMessageContext } from '../lib/interfaces/logger.js';
 import { captureLocator } from '../lib/capture-locator.js';
 import { resolve } from 'path';
 
@@ -150,6 +150,7 @@ class Haibun extends AStepper implements IHasOptions {
 		const runtimePath = resolve(dir);
 
 		const artifact: TArtifactSpeech = { artifactType: 'speech', path, durationS, runtimePath, transcript };
+
 		await sleep(durationS * 1000);
 		return actionOK({ artifact });
 	}

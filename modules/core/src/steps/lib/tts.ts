@@ -54,10 +54,11 @@ function renderSpeech(cmd: string, what: string): string {
 	what = what.replace(/'/g, "\\'");
 	const command = cmd.replace('@WHAT@', `'${what}'`);
 	const fn = execSync(command, { encoding: 'utf8' });
+	console.log('wtw', command, fn);
 	return fn.trim();
 }
 
-async function getAudioFileDuration(filePath: string): Promise<number> {
+export async function getMediafileDuration(filePath: string): Promise<number> {
 	try {
 		const command = `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${filePath}"`;
 		const durationStr = execSync(command, { encoding: 'utf8' }).trim();
@@ -66,7 +67,7 @@ async function getAudioFileDuration(filePath: string): Promise<number> {
 		if (isNaN(duration)) {
 			throw new Error(`ffprobe returned non-numeric duration: "${durationStr}" for ${filePath}`);
 		}
-		return duration;
+		return Promise.resolve(duration);
 
 	} catch (error) {
 		console.error(`Error getting duration for ${filePath}: ${error.message}`);
@@ -80,7 +81,7 @@ export async function renderAudio(hash: string, ttsCmd: string, transcript: stri
 		throw new Error(`TTS command did not produce expected file: ${generatedWavPath}`);
 	}
 
-	const durationS = await getAudioFileDuration(generatedWavPath);
+	const durationS = await getMediafileDuration(generatedWavPath);
 	const targetFilename = `${hash}-${durationS.toFixed(3)}.wav`;
 	const finalCachedPath = nodePath.join(cacheDir, targetFilename);
 
@@ -96,5 +97,5 @@ export async function copyPreRenderedAudio(dir: string, renderedAudio: TRendered
 
 	const path = nodePath.resolve(nodePath.join(dir, cacheFilename));
 	cpSync(cachedPath, path, { force: true });
-	return { path: cacheFilename, durationS };
+	return Promise.resolve({ path: cacheFilename, durationS });
 }

@@ -74,6 +74,3 @@ document.addEventListener('DOMContentLoaded', () => {
 	setupControls();
 	console.log("Initial logs rendered.");
 });
-
-
-

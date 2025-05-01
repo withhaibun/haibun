@@ -6,7 +6,7 @@ import { topicArtifactLogger } from '../lib/Logger.js';
 import { getNamedToVars } from '../lib/namedVars.js';
 import { actionNotOK, sleep, findStepper, constructorName, setStepperWorlds } from '../lib/util/index.js';
 import { SCENARIO_START } from '../lib/defs.js';
-import { totalmem } from 'os';
+import { Timer } from '../lib/Timer.js';
 
 function calculateShouldClose({ thisFeatureOK, isLast, stayOnFailure }) {
 	if (thisFeatureOK) {
@@ -83,7 +83,7 @@ export class Executor {
 }
 
 export class FeatureExecutor {
-	constructor(private steppers: AStepper[], private world: TWorld, private logit = topicArtifactLogger(world), private startOffset = world.timer.since()) {
+	constructor(private steppers: AStepper[], private world: TWorld, private logit = topicArtifactLogger(world), private startOffset = Timer.since()) {
 	}
 
 	async doFeature(feature: TResolvedFeature): Promise<TFeatureResult> {
@@ -93,7 +93,7 @@ export class FeatureExecutor {
 
 		let currentScenario: number = 0;
 
-		this.logit(`start feature ${currentScenario}`, { incident: EExecutionMessageType.FEATURE_START, incidentDetails: { feature } }, 'debug');
+		this.logit(`start feature ${currentScenario}`, { incident: EExecutionMessageType.FEATURE_START, incidentDetails: { startTime: Timer.START_TIME, feature } }, 'debug');
 
 		for (const step of feature.featureSteps) {
 			if (step.action.actionName === SCENARIO_START) {
@@ -126,7 +126,7 @@ export class FeatureExecutor {
 		}
 		this.logit(`end feature ${currentScenario}`, {
 			incident: EExecutionMessageType.FEATURE_END, incidentDetails: {
-				totalTime: world.timer.since() - this.startOffset,
+				totalTime: Timer.since() - this.startOffset,
 			}
 		}, 'debug');
 		const featureResult: TFeatureResult = { path: feature.path, ok, stepResults };
@@ -139,10 +139,10 @@ export class FeatureExecutor {
 
 		// FIXME feature should really be attached to the featureStep
 		const action = featureStep.action;
-		const start = world.timer.since();
+		const start = Timer.since();
 		const res: Partial<TActionResult> = await Executor.action(steppers, featureStep, action, world);
 
-		const end = world.timer.since();
+		const end = Timer.since();
 		// FIXME
 		const actionResult: TStepActionResult = { ...res, name: action.actionName, start, end } as TStepActionResult;
 		ok = ok && res.ok;
