@@ -1,6 +1,7 @@
 import { TWorld } from './defs.js';
 import { TAnyFixme } from './fixme.js';
 import { ILogger, ILogOutput, TLogArgs, TLogLevel, TOutputEnv, EExecutionMessageType, TMessageContext, TArtifact } from './interfaces/logger.js';
+import { Timer } from './Timer.js';
 import { descTag, isFirstTag } from './util/index.js';
 
 export const LOGGER_LOG = { level: 'log' };
@@ -67,7 +68,7 @@ export default class Logger implements ILogger, ILogOutput {
 		Logger.lastLevel = level;
 		const tag = messageContext?.tag ? (isFirstTag(messageContext.tag) ? '' : descTag(messageContext.tag)) : '';
 		const [proggy, line /*, col*/] = caller.split(':');
-		console[level]((showLevel.padStart(6) + ` █ ${proggy}:${line}${tag}`).padEnd(30) + ` ｜ `, args);
+		console[level]((showLevel.padStart(6) + ` █ ${Timer.since()/1000}:${proggy}:${line}${tag}`).padEnd(30) + ` ｜ `, args);
 	}
 	debug = (args: TLogArgs, mctx?: TMessageContext) => this.out('debug', args, mctx);
 	log = (args: TLogArgs, mctx?: TMessageContext) => this.out('log', args, mctx);
