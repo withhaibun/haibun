@@ -65,7 +65,6 @@ export class BrowserFactory {
 		}
 	}
 
-
 	public async closeContext({ sequence }: { sequence: TTagValue }) {
 		this.world.logger.debug(`closed browser context ${sequence}`);
 		if (this.browserContexts[sequence] !== undefined) {
@@ -79,7 +78,13 @@ export class BrowserFactory {
 			}
 		}
 		await this.browserContexts[sequence]?.close();
+		this.captureVideoStart(sequence);
 		this.tracers[sequence]?.close();
+		delete this.pages[sequence];
+		delete this.browserContexts[sequence];
+	}
+
+	private captureVideoStart(sequence: number) {
 		this.contextStats[sequence].end = Timer.since();
 		this.contextStats[sequence].duration = this.contextStats[sequence].end - this.contextStats[sequence].start;
 		const vs: TMessageContext = {
@@ -91,8 +96,6 @@ export class BrowserFactory {
 			tag: this.world.tag
 		};
 		this.world.logger.debug(`video start`, vs);
-		delete this.pages[sequence];
-		delete this.browserContexts[sequence];
 	}
 
 	static async closeBrowsers() {

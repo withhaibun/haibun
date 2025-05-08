@@ -54,7 +54,6 @@ function renderSpeech(cmd: string, what: string): string {
 	what = what.replace(/'/g, "\\'");
 	const command = cmd.replace('@WHAT@', `'${what}'`);
 	const fn = execSync(command, { encoding: 'utf8' });
-	console.log('wtw', command, fn);
 	return fn.trim();
 }
 
