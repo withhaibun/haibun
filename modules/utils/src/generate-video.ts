@@ -17,7 +17,7 @@ interface MediaAsset {
 	metadata?: TAnyFixme;
 }
 
-const generateEditlyConfig = async (logEntries: LogEntry[], outputPath: string, inputFilePath: string, title: string): Promise<TAnyFixme> => {
+const generateEditlyConfig = async (logEntries: LogEntry[], outputPath: string, jitter: number, inputFilePath: string, title: string, endTitle: string): Promise<TAnyFixme> => {
 	// Get the base directory from the input file path to resolve relative paths
 	const basePath = inputFilePath.substring(0, inputFilePath.lastIndexOf('/') + 1);
 	console.log(`Base path for assets: ${basePath}`);
@@ -43,20 +43,21 @@ const generateEditlyConfig = async (logEntries: LogEntry[], outputPath: string, 
 	const featureStartEntry = logEntries.find(e => e.messageContext?.incident === 'FEATURE_START' && e.messageContext?.incidentDetails?.startTime);
 	if (featureStartEntry) {
 		assets.featureStart = featureStartEntry.messageContext.incidentDetails.startTime;
+	} else {
+		throw new Error('No FEATURE_START with startTime found in log.');
 	}
 	const featureEndEntry = logEntries.find(e => e.messageContext?.incident === 'FEATURE_END' && e.messageContext?.incidentDetails?.totalTime);
 	const totalDuration = featureEndEntry.messageContext.incidentDetails.totalTime / 1000;
 
 	if (!featureEndEntry) throw new Error('No FEATURE_END with totalTime found in log.');
-	// Find the main video asset
+
 	if (assets.video.length === 0) throw new Error('No video asset found.');
 	const mainVideoAsset = assets.video[0];
 
 	const videoFileDuration = await getMediafileDuration(mainVideoAsset.path!);
-	if (!assets.featureStart) throw new Error('No FEATURE_START with startTime found in log.');
 	const videoLayerStart = totalDuration - videoFileDuration;
 	const videoStartFromArtifact = (logEntries.find(e => e.messageContext?.artifact?.artifactType === 'video/start').messageContext.artifact as TArtifactVideoStart).start / 1000;
-
+	if (videoStartFromArtifact < 1) throw new Error('No video start time found in log.');
 
 	console.info("\nAssets:");
 	console.info("video:", assets.video.map(v => ({ start: v.start, path: v.path })));
@@ -68,7 +69,9 @@ const generateEditlyConfig = async (logEntries: LogEntry[], outputPath: string, 
 	console.info('videoStartFromArtifact', videoStartFromArtifact);
 
 	// this is subject to wobble, videoLayerStart or videoStartFromArtifact are forays
-	const videoStart = videoStartFromArtifact;
+	const videoStart = videoStartFromArtifact + jitter;
+
+	const endSlideDuration = 2;
 
 	// Build layers for the single clip
 	const layers: TAnyFixme[] = [];
@@ -97,7 +100,18 @@ const generateEditlyConfig = async (logEntries: LogEntry[], outputPath: string, 
 		path: mainVideoAsset.path,
 		start: videoStart
 	});
-	// Sort layers by their start time (if present)
+	// Add end slide
+	layers.push({
+		type: 'title',
+		text: endTitle,
+		textColor: '#cccccc',
+		backgroundColor: '#222',
+		position: 'center',
+		start: totalDuration,
+		duration: endSlideDuration,
+		fadeIn: 0,
+		transition: null
+	});
 	layers.sort((a, b) => (a.start ?? 0) - (b.start ?? 0));
 
 	const config: TAnyFixme = {
@@ -109,7 +123,7 @@ const generateEditlyConfig = async (logEntries: LogEntry[], outputPath: string, 
 		},
 		clips: [
 			{
-				duration: totalDuration,
+				duration: totalDuration + endSlideDuration,
 				layers
 			}
 		]
@@ -118,44 +132,53 @@ const generateEditlyConfig = async (logEntries: LogEntry[], outputPath: string, 
 };
 
 const main = async () => {
-	try {
-		if (process.argv.length < 5) {
-			console.error('Usage: node generate-video.js <inputFile> <outputFile> <configOutput> <title>');
-			process.exit(1);
+	const packageJson = JSON.parse(fs.readFileSync('./package.json', 'utf-8'));
+	let jitter = -2;
+
+	const positional: string[] = [];
+	for (const arg of process.argv.slice(2)) {
+		if (arg.startsWith('--jitter=')) {
+			const val = arg.split('=')[1];
+			if (!isNaN(Number(val))) {
+				jitter = Number(val);
+			} else {
+				throw new Error(`Invalid value for --jitter: ${val}`);
+			}
+		} else {
+			positional.push(arg);
 		}
-		const packageJson = JSON.parse(fs.readFileSync('./package.json', 'utf-8'));
-		const args = process.argv.slice(2);
-		const inputFile = args[0];
-		const outputFile = args[1];
-		const configOutput = args[2];
-		const title = args[3] || packageJson?.description || packageJson?.name;
+	}
 
-		console.info(args)
-		console.info(`Input file: ${inputFile}`);
-		console.info(`Output video file: ${outputFile}`);
-		console.info(`Config output: ${configOutput}`);
-		console.info('Title:', title);
-
-		// Read monitor.json
-		const logData = fs.readFileSync(inputFile, 'utf-8');
-		const logEntries: LogEntry[] = JSON.parse(logData);
-		console.log(`Loaded ${logEntries.length} log entries`);
-
-		// Generate editly config
-		const editlyConfig = await generateEditlyConfig(logEntries, outputFile, inputFile, title);
-
-		// Write config to file
-		fs.writeFileSync(configOutput, JSON.stringify(editlyConfig, null, 2));
-
-		console.info(`\nEditly config written to ${configOutput}`);
-
-	} catch (error) {
-		console.error('Error:', error);
+	if (positional.length < 3) {
+		console.error('Usage: node generate-video.js [--jitter=<n>] <inputFile> <outputFile> <configOutput> [title] [endTitle]');
 		process.exit(1);
 	}
+
+	const defaultTitle = packageJson?.description || packageJson?.name;
+	const defaultEndTitle = "End of test";
+
+	const [inputFile, outputFile, configOutput, title, endTitle] = positional;
+
+	console.info('Jitter:', jitter);
+	console.info(`Input file: ${inputFile}`);
+	console.info(`Output video file: ${outputFile}`);
+	console.info(`Config output: ${configOutput}`);
+	console.info('Title:', title);
+	console.info('End Title:', endTitle);
+
+	const logData = fs.readFileSync(inputFile, 'utf-8');
+	const logEntries: LogEntry[] = JSON.parse(logData);
+	console.log(`Loaded ${logEntries.length} log entries`);
+
+	const editlyConfig = await generateEditlyConfig(logEntries, outputFile, jitter, inputFile, title || defaultTitle, endTitle || defaultEndTitle);
+
+	fs.writeFileSync(configOutput, JSON.stringify(editlyConfig, null, 2));
+
+	console.info(`\nEditly config written to ${configOutput}`);
 };
 
 main().catch((error) => {
 	console.error('Error in main function:', error);
+	process.exit(1);
 });
 

@@ -19,7 +19,7 @@ PACKAGE_DIR=$(npm root)/@haibun/utils
 # Generate editly configuration from monitor.json
 echo "Generating editly configuration..."
 # Use the correct path to the built JS file
-node "$PACKAGE_DIR/build/generate-video.js" "$1" "$2" editly-config.json || handle_error "Failed to generate editly configuration"
+node "$PACKAGE_DIR/build/generate-video.js" $* || handle_error "Failed to generate editly configuration"
 
 # Run editly using Docker directly instead of alias
 echo "Generating video with editly..."
