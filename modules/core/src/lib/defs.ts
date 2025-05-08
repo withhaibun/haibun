@@ -167,7 +167,6 @@ export type TExecutorResult = {
 	ok: boolean;
 	tag: TTag;
 	shared: FeatureVariables;
-	topics?: TMessageContext;
 	featureResults?: TFeatureResult[];
 	failure?: {
 		stage: string;

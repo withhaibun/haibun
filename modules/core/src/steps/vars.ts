@@ -120,5 +120,5 @@ export const setShared = ({ what, value }: TNamed, featureStep: TFeatureStep, wo
 		return OK;
 	}
 
-	return { ...OK, topics: { ...didNotOverwrite(what, shared.get(what), value) } };
+	return OK;
 };
