@@ -17,7 +17,7 @@ class WTWStepper extends AStepper {
           return OK;
         }
         const { message } = value.error;
-        return actionNotOK(message, { topics: { WTW: { summary: message, details: value } } });
+        return actionNotOK(message } });
       }
     },
   }

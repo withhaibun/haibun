@@ -4,11 +4,17 @@
   "version": "1.49.0",
   "description": "",
   "main": "index.js",
-  "files": ["ref.package.json", "build/**", "scaffold/**"],
+  "files": [
+    "ref.package.json",
+    "build/**",
+    "scaffold/**",
+    "walkthrough-container/**"
+  ],
   "bin": {
     "scaffold": "build/scaffold/index.js",
     "version": "build/version.js",
-    "link": "build/npm-link-haibuns.js"
+    "link": "build/npm-link-haibuns.js",
+    "run-walkthrough-container": "build/walkthrough-container/index.js"
   },
   "scripts": {
     "test": "vitest run",
