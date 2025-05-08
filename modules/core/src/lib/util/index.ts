@@ -69,7 +69,7 @@ export function getDefaultOptions(): TSpecl {
 }
 
 export function getActionable(value: string) {
-	return value.replace(/#.*/, '').trim();
+	return value.replace(/;;.*/, '').trim();
 }
 
 export function constructorName(stepper: AStepper) {
