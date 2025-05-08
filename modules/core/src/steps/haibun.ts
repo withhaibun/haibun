@@ -7,9 +7,10 @@ import { actionNotOK, actionOK, getStepperOption, sleep, stringOrError } from '.
 import { expand } from '../lib/features.js';
 import { asFeatures } from '../lib/resolver-features.js';
 import { copyPreRenderedAudio, preRenderFeatureProse, TRenderedAudioMap } from './lib/tts.js';
-import { EExecutionMessageType, TArtifactSpeech, TMessageContext } from '../lib/interfaces/logger.js';
+import { TArtifactSpeech } from '../lib/interfaces/logger.js';
 import { captureLocator } from '../lib/capture-locator.js';
 import { resolve } from 'path';
+import { execSync } from 'child_process';
 
 const cycles = (hb: Haibun): IStepperCycles => ({
 	async startFeature(feature: TResolvedFeature) {
@@ -27,15 +28,22 @@ class Haibun extends AStepper implements IHasOptions {
 			parse: (input: string) => stringOrError(input),
 			required: false
 		},
+		TTS_PLAY: {
+			desc: `Shell command that plays an audio file using @WHAT@`,
+			parse: (input: string) => stringOrError(input),
+			required: false
+		},
 	}
 
 	cycles = cycles(this);
 	steppers: AStepper[];
 	ttsCmd: string;
+	ttsPlay: string;
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		this.steppers = steppers;
 		this.world = world;
 		this.ttsCmd = getStepperOption(this, 'TTS_CMD', world.moduleOptions);
+		this.ttsPlay = getStepperOption(this, 'TTS_PLAY', world.moduleOptions);
 		return Promise.resolve();
 	}
 	steps = {
@@ -118,7 +126,7 @@ class Haibun extends AStepper implements IHasOptions {
 			},
 		},
 		comment: {
-			gwta: '#{comment}',
+			gwta: ';;{comment}',
 			action: async () => {
 				return Promise.resolve(OK);
 			},
@@ -150,8 +158,19 @@ class Haibun extends AStepper implements IHasOptions {
 		const runtimePath = resolve(dir);
 
 		const artifact: TArtifactSpeech = { artifactType: 'speech', path, durationS, runtimePath, transcript };
-
-		await sleep(durationS * 1000);
+		if (this.ttsPlay) {
+			const playCmd = this.ttsPlay.replace(/@WHAT@/g, `${runtimePath}/${path}`);
+			this.world.logger.debug(`playing audio: ${playCmd}`);
+			try {
+				execSync(playCmd, { stdio: 'pipe' }).toString();
+			} catch (error: TAnyFixme) {
+				const stderr = error.stderr ? error.stderr.toString() : '';
+				this.world.logger.error(`Error playing audio using ${playCmd}: ${error.message}\nOutput: ${stderr}`);
+				return actionNotOK(`Error playing audio: ${error.message}\nOutput: ${stderr}`);
+			}
+		} else {
+			await sleep(durationS * 1000);
+		}
 		return actionOK({ artifact });
 	}
 
