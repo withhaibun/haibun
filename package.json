@@ -39,5 +39,5 @@
     "preversion": "npm run test"
   },
   "dependencies": {},
-  "version": "1.50.3"
+  "version": "1.51.1"
 }
