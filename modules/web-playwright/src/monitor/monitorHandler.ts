@@ -3,7 +3,7 @@ import { existsSync } from 'fs';
 import { pathToFileURL } from 'url';
 import { chromium, Page } from 'playwright';
 
-import { TWorld } from '@haibun/core/build/lib/defs.js';
+import { HOST_PROJECT_DIR, TWorld } from '@haibun/core/build/lib/defs.js';
 import { TLogLevel, TLogArgs, TMessageContext } from '@haibun/core/build/lib/interfaces/logger.js';
 import { sleep } from '@haibun/core/build/lib/util/index.js';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
@@ -92,7 +92,9 @@ export async function writeMonitor(world: TWorld, storage: AStorage, page: Page)
 
 	const monitorLoc = await storage.getCaptureLocation({ ...world, mediaType: EMediaTypes.html });
 	const outHtml = join(monitorLoc, 'monitor.html');
-	world.logger.info(`Wrote monitor HTML to ${pathToFileURL(resolve(outHtml))}`);
+	const hostPath = process.env[HOST_PROJECT_DIR];
+	const monitorPath = pathToFileURL(hostPath ? resolve(hostPath, outHtml) : resolve(outHtml));
+	world.logger.info(`Wrote monitor HTML to ${monitorPath}`);
 	await storage.writeFile(outHtml, content, EMediaTypes.html);
 	const outMessages = join(monitorLoc, 'monitor.json');
 	await storage.writeFile(outMessages, JSON.stringify(capturedMessages, null, 2), EMediaTypes.html);
