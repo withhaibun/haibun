@@ -12,7 +12,6 @@ const runContainer = (testToRun, filter, includeDirs = [], recreate) => {
 		const projectDir = process.cwd();
 		const tmpFile = resolve(tmpdir(), `docker-compose.override-${Date.now()}.yml`);
 		const envs = existsSync(`${projectDir}/.env`) ? readFileSync(`${projectDir}/.env`, 'utf8').split('\n').filter(l => l.length > 0) : [];
-		console.log('envs', envs);
 		const haibunEnvc = (envs.length > 0) ? `HAIBUN_ENV=${envs.join(',')} ` : '';
 		// Ensure capture directory exists
 		const captureDir = resolve(projectDir, 'capture');
