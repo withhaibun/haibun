@@ -262,4 +262,4 @@ export const STEP_DELAY = 'STEP_DELAY';
 export const DEFAULT_DEST = 'default';
 export const CONTINUE_AFTER_ERROR = 'CONTINUE_AFTER_ERROR'; export const SCENARIO_START = 'scenarioStart';
 
-
+export const HOST_PROJECT_DIR = 'HOST_PROJECT_DIR';

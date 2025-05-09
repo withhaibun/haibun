@@ -124,6 +124,9 @@ export abstract class AStorage extends AStepper {
 	}
 
 	async ensureCaptureLocation(loc: TLocationOptions, app?: string | undefined, fn = '') {
+		if (loc.tag.sequence < 0) {
+			return;
+		}
 		const dir = await this.getCaptureLocation(loc, app);
 		await this.ensureDirExists(dir);
 		return `${dir}/${fn}`;

@@ -43,6 +43,8 @@ export class BaseOptions implements IHasOptions {
 				const env: TEnvVariables = { ...cur };
 				for (const pair of pairs) {
 					const [k, v] = pair.split('=').map((i) => i.trim());
+					if (!k && !v) continue;
+					if (!k) throw Error(`No key provided for ENV ${v}`);
 					if (cur[k] || env[k]) {
 						return { error: `ENV ${k} already defined` };
 					}

@@ -51,14 +51,15 @@ export async function preRenderFeatureProse(feature: TResolvedFeature, ttsCmd: s
 }
 
 function renderSpeech(cmd: string, what: string): string {
-	what = what.replace(/'/g, "\\'");
+	// Escape single quotes and wrap entire text in single quotes
+	what = what.replace(/'/g, "'\\''");
 	const command = cmd.replace('@WHAT@', `'${what}'`);
 	try {
 		const fn = execSync(command, { encoding: 'utf8' });
 		return fn.trim();
 	} catch (error) {
 		const stderr = error.stderr ? error.stderr.toString() : '';
-		this.world.logger.error(`Error rendering audio using ${command}: ${error.message}\nOutput: ${stderr}`);
+		throw new Error(`Error rendering audio using ${command}: ${error.message}\nOutput: ${stderr}`);
 	}
 }
 
