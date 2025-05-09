@@ -1,0 +1,8 @@
+services:
+  haibun-recorder:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    working_dir: /app
+    ports:
+      - "5900:5900"
