@@ -50,7 +50,7 @@ const config: Config = {
 				if (fs.existsSync(incorrectPath)) {
 					fs.mkdirSync(path.dirname(correctPath), { recursive: true });
 					fs.renameSync(incorrectPath, correctPath);
-					console.log(`\nMoved ${incorrectPath} to ${correctPath}`);
+					console.info(`\nMoved ${incorrectPath} to ${correctPath}`);
 
 					const intermediateDir = path.dirname(incorrectPath);
 					const resourcesDir = path.dirname(intermediateDir);
