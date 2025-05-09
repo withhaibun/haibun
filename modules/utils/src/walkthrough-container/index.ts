@@ -89,6 +89,6 @@ if (!testToRun || includeDirs.length === 0) {
 }
 runContainer(testToRun, filter, includeDirs, recreate);
 function printHelp() {
-	console.error('Usage: ${process.argv[1] [--rebuild] script filter features files ...');
+	console.error(`Usage: ${process.argv[1]} [--rebuild] script filter features files ...`);
 	process.exit(1);
 }
