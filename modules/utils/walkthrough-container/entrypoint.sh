@@ -21,7 +21,7 @@ echo "entrypoint is setting up the environment (logfile is $LOGFILE)"
 
 	# In entrypoint.sh, after starting x11vnc
 	echo "Starting noVNC websockify proxy on port 8080 (to 5930)..."
-	/opt/noVNC/utils/novnc_proxy --vnc localhost:5930 --listen 8080
+	/opt/noVNC/utils/novnc_proxy --vnc localhost:5930 --listen 8080 &
 
 	# Start pipewire server
 	echo "Starting pipewire..."
