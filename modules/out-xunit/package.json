@@ -1,7 +1,7 @@
 {
   "name": "@haibun/out-xunit",
   "type": "module",
-  "version": "1.51.9",
+  "version": "1.51.10",
   "description": "",
   "files": ["build/**"],
   "main": "build/out-xunit.js",
@@ -17,8 +17,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@haibun/core": "1.51.9",
-    "@haibun/domain-storage": "1.51.9",
+    "@haibun/core": "1.51.10",
+    "@haibun/domain-storage": "1.51.10",
     "xmlbuilder2": "^3.0.2"
   },
   "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5"
