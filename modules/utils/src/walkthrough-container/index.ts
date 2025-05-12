@@ -6,6 +6,19 @@ import { resolve } from 'path';
 import { writeFileSync, unlinkSync, readFileSync, mkdirSync, existsSync } from 'fs';
 import { tmpdir } from 'os';
 import { HOST_PROJECT_DIR } from '@haibun/core/build/lib/defs.js';
+import { TAnyFixme } from '@haibun/core/build/lib/fixme.js';
+
+process.on('unhandledRejection', (err: TAnyFixme) => {
+	console.error('cli Unhandled Rejection:', err);
+	if (err && err.stack) {
+		console.error(err.stack);
+	} else {
+		console.error(err);
+	}
+});
+
+const VIRTUAL_SCREEN_RESOLUTION = '1280x1024';
+
 const runContainer = (testToRun, filter, includeDirs = [], recreate) => {
 	try {
 		const utilDir = resolve(getPackageLocation(import.meta), '..', '..', 'walkthrough-container');
@@ -31,7 +44,7 @@ const runContainer = (testToRun, filter, includeDirs = [], recreate) => {
 		// Copy project's package files to build context
 		execSync(`cp ${projectDir}/package*.json ${buildContextDir}/`);
 		// Copy container files to build context
-		execSync(`cp ${utilDir}/speak-to-wav.sh ${utilDir}/kokoro-speak.cjs ${utilDir}/entrypoint.sh ${buildContextDir}/`);
+		execSync(`cp ${utilDir}/*.sh ${utilDir}/kokoro-speak.cjs ${buildContextDir}/`);
 		const composeFile = `
 services:
   haibun-recorder:
@@ -44,8 +57,11 @@ services:
 ${volumeConfig}
     environment:
       - DISPLAY=:99
+      - RES=${VIRTUAL_SCREEN_RESOLUTION}
       - HAIBUN_O_HAIBUN_TTS_CMD=/app/speak-to-wav.sh @WHAT@
       - HAIBUN_O_HAIBUN_TTS_PLAY=aplay @WHAT@
+      - HAIBUN_O_HAIBUN_CAPTURE_START=/app/capture-start.sh
+      - HAIBUN_O_HAIBUN_CAPTURE_STOP=/app/capture-stop.sh
       - ${HOST_PROJECT_DIR}=${projectDir}
       - COMMAND_TO_RECORD=${HOST_PROJECT_DIR}="${projectDir}" HAIBUN_LOG_LEVEL=log ${haibunEnvc} npm run ${testToRun} ${filter}
 `;
@@ -66,17 +82,20 @@ ${volumeConfig}
 			unlinkSync(tmpFile);
 			execSync(`rm -rf ${buildContextDir}`);
 		}
-	}
-	catch (error) {
+	} catch (error) {
 		console.error('Error:', error.stderr?.toString() || error.message);
 		process.exit(1);
 	}
 };
 let recreate = false;
 const args = process.argv.slice(2).reduce((acc, arg) => {
-	if (arg === '--recreate') {
-		recreate = true;
-		return acc;
+	if (arg.startsWith('--')) {
+		if (arg === '--recreate') {
+			recreate = true;
+			return acc;
+		}
+		console.error(`unknown -- arg ${arg}`);
+		printHelp();
 	}
 	else if (arg === '--help') {
 		printHelp();
@@ -89,6 +108,6 @@ if (!testToRun || includeDirs.length === 0) {
 }
 runContainer(testToRun, filter, includeDirs, recreate);
 function printHelp() {
-	console.error(`Usage: ${process.argv[1]} [--rebuild] script filter features files ...`);
+	console.error(`Usage: ${process.argv[1]} [--recreate] script filter features files ...`);
 	process.exit(1);
 }
