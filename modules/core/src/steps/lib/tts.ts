@@ -1,4 +1,4 @@
-import { execSync } from "child_process";
+import { execSync, spawn } from "child_process";
 import { createHash } from 'crypto';
 import { existsSync, mkdirSync, readdirSync, cpSync } from 'fs';
 import * as nodePath from 'path';
@@ -42,7 +42,7 @@ export async function preRenderFeatureProse(feature: TResolvedFeature, ttsCmd: s
 			const cachedPath = nodePath.join(CACHE_DIR, existing);
 			renderedAudio[hash] = { transcript, durationS, cachedPath };
 		} else {
-			logger.debug(`Rendering audio for transcript "${transcript}"`);
+			logger.info(`Rendering audio for transcript "${transcript}"`);
 			const audioInfo = await renderAudio(hash, ttsCmd, transcript, CACHE_DIR);
 			renderedAudio[hash] = audioInfo;
 		}
@@ -50,30 +50,16 @@ export async function preRenderFeatureProse(feature: TResolvedFeature, ttsCmd: s
 	return renderedAudio;
 }
 
-function renderSpeech(cmd: string, what: string): string {
-	// Escape single quotes and wrap entire text in single quotes
-	what = what.replace(/'/g, "'\\''");
-	const command = cmd.replace('@WHAT@', `'${what}'`);
-	try {
-		const fn = execSync(command, { encoding: 'utf8' });
-		return fn.trim();
-	} catch (error) {
-		const stderr = error.stderr ? error.stderr.toString() : '';
-		throw new Error(`Error rendering audio using ${command}: ${error.message}\nOutput: ${stderr}`);
-	}
-}
-
 export async function getMediafileDuration(filePath: string): Promise<number> {
 	try {
 		const command = `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${filePath}"`;
-		const durationStr = execSync(command, { encoding: 'utf8' }).trim();
+		const durationStr = await doExec(command);
 		const duration = parseFloat(durationStr);
 
 		if (isNaN(duration)) {
 			throw new Error(`ffprobe returned non-numeric duration: "${durationStr}" for ${filePath}`);
 		}
 		return Promise.resolve(duration);
-
 	} catch (error) {
 		console.error(`Error getting duration for ${filePath}: ${error.message}`);
 		throw error;
@@ -81,7 +67,7 @@ export async function getMediafileDuration(filePath: string): Promise<number> {
 }
 
 export async function renderAudio(hash: string, ttsCmd: string, transcript: string, cacheDir: string): Promise<TCachedAudio> {
-	const generatedWavPath = renderSpeech(ttsCmd, transcript);
+	const generatedWavPath = await renderSpeech(ttsCmd, transcript);
 	if (!existsSync(generatedWavPath)) {
 		throw new Error(`TTS command did not produce expected file: ${generatedWavPath}`);
 	}
@@ -103,4 +89,30 @@ export async function copyPreRenderedAudio(dir: string, renderedAudio: TRendered
 	const path = nodePath.resolve(nodePath.join(dir, cacheFilename));
 	cpSync(cachedPath, path, { force: true });
 	return Promise.resolve({ path: cacheFilename, durationS });
+}
+
+export async function playAudioFile(playCmd: string) {
+	await doExec(playCmd);
+}
+
+export async function doExec(command: string): Promise<string> {
+	try {
+		const stdout = execSync(command, { encoding: 'utf8', stdio: 'pipe' }).toString();
+		return Promise.resolve(stdout.trim());
+	} catch (error) {
+		const stderr = error.stderr ? error.stderr.toString() : '';
+		console.error(stderr);
+		throw (error);
+	}
+}
+
+export function doSpawn(command: string) {
+	const captureProc = spawn(command, { shell: true, detached: true, stdio: 'ignore' });
+	captureProc.unref();
+}
+
+async function renderSpeech(cmd: string, what: string): Promise<string> {
+	what = what.replace(/"/g, '\\"');
+	const command = cmd.replace('@WHAT@', `"${what}"`);
+	return await doExec(command)
 }
