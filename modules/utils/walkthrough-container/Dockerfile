@@ -29,6 +29,9 @@ RUN apt-get update && apt-get install -y \
     libportaudio2 \
     && rm -rf /var/lib/apt/lists/*
 
+RUN git clone https://github.com/novnc/noVNC.git /opt/noVNC && \
+	git clone https://github.com/novnc/websockify /opt/noVNC/utils/websockify
+
 RUN sed -i 's/geteuid/getppid/' /usr/bin/vlc
 
 WORKDIR /app
