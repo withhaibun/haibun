@@ -760,6 +760,18 @@ class WebPlaywright extends AStepper implements IHasOptions {
 				return OK;
 			},
 		},
+		resizeAvailable: {
+			gwta: 'resize window to largest dimensions',
+			action: async () => {
+				await this.withPage(
+					async (page: Page) => {
+						const { availHeight: height, availWidth: width } = await page.evaluate(() => ({ availHeight: window.screen.availHeight, availWidth: window.screen.availWidth }));
+						return await page.setViewportSize({ width, height });
+					}
+				);
+				return OK;
+			},
+		},
 	};
 	setBrowser(browser: string) {
 		this.factoryOptions.type = browser as unknown as TBrowserTypes;

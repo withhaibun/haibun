@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash +x
 
 LOGFILE=./output/container-setup.log
 
@@ -13,7 +13,6 @@ echo "entrypoint is setting up the environment (logfile is $LOGFILE)"
 
     # Start Xvfb in the background
     echo "Setup Xvfb..."
-    export RES=1280x800
     Xvfb $DISPLAY -screen 0 ${RES}x24 -ac +extension GLX +render -noreset &
 
     # Start x11vnc
@@ -46,40 +45,12 @@ echo "entrypoint is setting up the environment (logfile is $LOGFILE)"
     pactl load-module module-virtual-sink sink_name=v1
     pactl set-default-sink v1
     pactl set-default-source v1.monitor
-    sleep 1
-
-# Start recording
-ffmpeg \
-  -f x11grab \
-  -r 30 \
-  -thread_queue_size 512 \
-  -s "$RES" \
-  -i "$DISPLAY" \
-  -f pulse \
-  -thread_queue_size 512 \
-  -i default \
-  -c:v libvpx-vp9 \
-  -deadline realtime \
-  -speed 6 \
-  -c:a libopus \
-  -flush_packets 1 \
-  "output/walkthrough.webm" &
-
-FFMPEG_PID=$!
 } > "$LOGFILE" 2>&1
-
-# Check if ffmpeg started successfully
-sleep 1
-if ! ps -p "$FFMPEG_PID" > /dev/null; then
-    echo "FFmpeg failed to start"
-    cat "$LOGFILE"
-    exit 1
-fi
 
 echo "About to run $COMMAND_TO_RECORD"
 eval "$COMMAND_TO_RECORD"
-echo "finalizing file://${HOST_PROJECT_DIR}/walkthrough.webm"
-sleep 5
-
-kill -SIGHUP "$FFMPEG_PID"
+echo "created file://${HOST_PROJECT_DIR}/walkthrough.webm"
+SLEEPTIME=2
+echo "Waiting for $SLEEPTIME seconds."
+sleep $SLEEPTIME
 

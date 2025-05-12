@@ -12,6 +12,8 @@ RUN apt-get update && apt-get install -y \
     xvfb \
     ffmpeg \
     curl \
+		vim-tiny \
+		strace \
     bash \
     software-properties-common \
     dbus-x11 \
@@ -31,16 +33,11 @@ RUN sed -i 's/geteuid/getppid/' /usr/bin/vlc
 
 WORKDIR /app
 
-# Copy all needed files at once
-COPY package*.json kokoro-speak.cjs speak-to-wav.sh ./
+COPY package*.json kokoro-speak.cjs *.sh ./
+RUN chmod +x *.sh
 
-# Single npm install for everything
-RUN npm i && \
-    npm install kokoro-js
+RUN npm i # && npm install kokoro-js
 
 RUN mkdir -p /run/user/1000 && chmod 700 /run/user/1000
-
-COPY entrypoint.sh ./
-RUN chmod +x speak-to-wav.sh entrypoint.sh
 
 ENTRYPOINT ["./entrypoint.sh"]

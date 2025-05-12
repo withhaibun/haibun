@@ -1,3 +1,5 @@
+import { resolve } from 'path';
+
 import { OK, TNamed, TWorld, TFeatureStep, STEP_DELAY, IStepperCycles, TResolvedFeature, SCENARIO_START } from '../lib/defs.js';
 import { TAnyFixme } from '../lib/fixme.js';
 import { IHasOptions } from '../lib/astepper.js';
@@ -6,18 +8,26 @@ import { Resolver } from '../phases/Resolver.js';
 import { actionNotOK, actionOK, getStepperOption, sleep, stringOrError } from '../lib/util/index.js';
 import { expand } from '../lib/features.js';
 import { asFeatures } from '../lib/resolver-features.js';
-import { copyPreRenderedAudio, preRenderFeatureProse, TRenderedAudioMap } from './lib/tts.js';
+import { copyPreRenderedAudio, doExec, doSpawn, playAudioFile, preRenderFeatureProse, TRenderedAudioMap } from './lib/tts.js';
 import { TArtifactSpeech } from '../lib/interfaces/logger.js';
 import { captureLocator } from '../lib/capture-locator.js';
-import { resolve } from 'path';
-import { execSync } from 'child_process';
 
 const cycles = (hb: Haibun): IStepperCycles => ({
 	async startFeature(feature: TResolvedFeature) {
-		if (!hb.ttsCmd) {
-			return Promise.resolve();
+		if (hb.ttsCmd) {
+			hb.renderedAudio = await preRenderFeatureProse(feature, hb.ttsCmd, hb.world.logger);
 		}
-		hb.renderedAudio = await preRenderFeatureProse(feature, hb.ttsCmd, hb.world.logger);
+
+		if (hb.captureStart) {
+			hb.getWorld().logger.info(`Spawning screen capture using ${hb.captureStart}`);
+			doSpawn(hb.captureStart);
+		}
+	},
+	async endFeature() {
+		if (hb.captureStop) {
+			hb.getWorld().logger.info(`Stopping screen capture using ${hb.captureStop}`);
+			await doExec(hb.captureStop);
+		}
 	}
 });
 class Haibun extends AStepper implements IHasOptions {
@@ -33,17 +43,34 @@ class Haibun extends AStepper implements IHasOptions {
 			parse: (input: string) => stringOrError(input),
 			required: false
 		},
+		CAPTURE_START: {
+			desc: `Shell command to start screen capture'`,
+			parse: (input: string) => stringOrError(input),
+			required: false
+		},
+		CAPTURE_STOP: {
+			desc: `Shell command to stop screen capture'`,
+			parse: (input: string) => stringOrError(input),
+			required: false
+		},
 	}
 
 	cycles = cycles(this);
 	steppers: AStepper[];
 	ttsCmd: string;
 	ttsPlay: string;
+	captureStart: string;
+	captureStop: string;
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		this.steppers = steppers;
 		this.world = world;
 		this.ttsCmd = getStepperOption(this, 'TTS_CMD', world.moduleOptions);
 		this.ttsPlay = getStepperOption(this, 'TTS_PLAY', world.moduleOptions);
+		this.captureStart = getStepperOption(this, 'CAPTURE_START', world.moduleOptions);
+		this.captureStop = getStepperOption(this, 'CAPTURE_STOP', world.moduleOptions);
+		if (this.captureStart && !this.captureStop || this.captureStop && !this.captureStart) {
+			throw Error(`Capture requires both CAPTURE_START and CAPTURE_STOP`);
+		}
 		return Promise.resolve();
 	}
 	steps = {
@@ -159,10 +186,10 @@ class Haibun extends AStepper implements IHasOptions {
 
 		const artifact: TArtifactSpeech = { artifactType: 'speech', path, durationS, runtimePath, transcript };
 		if (this.ttsPlay) {
-			const playCmd = this.ttsPlay.replace(/@WHAT@/g, `${runtimePath}/${path}`);
-			this.world.logger.debug(`playing audio: ${playCmd}`);
+			const playCmd = this.ttsPlay.replace(/@WHAT@/g, `"${runtimePath}/${path}"`);
 			try {
-				execSync(playCmd, { stdio: 'pipe' }).toString();
+				this.world.logger.debug(`playing audio: ${playCmd}`);
+				await playAudioFile(playCmd);
 			} catch (error: TAnyFixme) {
 				const stderr = error.stderr ? error.stderr.toString() : '';
 				this.world.logger.error(`Error playing audio using ${playCmd}: ${error.message}\nOutput: ${stderr}`);
