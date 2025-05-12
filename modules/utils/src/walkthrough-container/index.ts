@@ -41,8 +41,8 @@ const runContainer = (testToRun, filter, includeDirs = [], recreate) => {
 		}).join('\n');
 		const buildContextDir = resolve(tmpdir(), `build-context-${Date.now()}`);
 		mkdirSync(buildContextDir, { recursive: true });
-		// Copy project's package files to build context
-		execSync(`cp ${projectDir}/package*.json ${buildContextDir}/`);
+		// Copy project's json files to build context
+		execSync(`cp ${projectDir}/*.json ${buildContextDir}/`);
 		// Copy container files to build context
 		execSync(`cp ${utilDir}/*.sh ${utilDir}/kokoro-speak.cjs ${buildContextDir}/`);
 		const composeFile = `
