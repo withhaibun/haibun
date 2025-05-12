@@ -5,6 +5,5 @@ services:
       dockerfile: Dockerfile
     working_dir: /app
     ports:
-      - "5900:5900"
       - "8080:8080"   # noVNC static files
       - "9222:9222"   # Chrome DevTools
