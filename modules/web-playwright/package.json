@@ -1,7 +1,7 @@
 {
   "name": "@haibun/web-playwright",
   "type": "module",
-  "version": "1.53.0",
+  "version": "1.54.0",
   "description": "",
   "main": "build/web-playwright.js",
   "files": ["build/", "web/monitor.html"],
@@ -18,8 +18,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@haibun/core": "1.53.0",
-    "@haibun/domain-storage": "1.53.0",
+    "@haibun/core": "1.54.0",
+    "@haibun/domain-storage": "1.54.0",
     "mermaid": "^11.6.0",
     "playwright": "1.52"
   },
