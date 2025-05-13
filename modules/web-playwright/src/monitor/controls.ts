@@ -214,8 +214,8 @@ export function setupVideoPlayback() {
 
 			if (currentLatestEntry) {
 				currentLatestEntry.classList.add('haibun-stepper-current');
-				if (!userScrolledManually && !isElementInViewport(currentLatestEntry)) {
-					currentLatestEntry.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+				if (!isElementInViewport(currentLatestEntry)) {
+					currentLatestEntry.scrollIntoView({ behavior: 'smooth', block: 'center' });
 				}
 				latestCurrentEntry = currentLatestEntry;
 			} else {
@@ -229,7 +229,7 @@ export function setupVideoPlayback() {
 		});
 
 		videoElement.addEventListener('play', () => {
-			userScrolledManually = false;
+			userScrolledManually = false; // Reset manual scroll when video starts playing
 			if (playInterval === undefined) {
 				updateVideoSteps();
 				playInterval = window.setInterval(updateVideoSteps, 50);
@@ -281,6 +281,16 @@ export function setupVideoPlayback() {
 	if (sequenceDiagram) {
 		diagramObserver.observe(sequenceDiagram, { childList: true });
 	}
+
+	// Ensure correct log entry is scrolled into view on static replay (monitor.html)
+	window.addEventListener('load', () => {
+		setTimeout(() => {
+			const currentLatestEntry = document.querySelector('.haibun-log-entry.haibun-stepper-current') as HTMLElement;
+			if (currentLatestEntry) {
+				currentLatestEntry.scrollIntoView({ behavior: 'auto', block: 'nearest' });
+			}
+		}, 0);
+	});
 }
 
 function findLogEntry(element: HTMLElement): HTMLElement | null {
