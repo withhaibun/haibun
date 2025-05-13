@@ -26,9 +26,11 @@ This feature requires Docker Compose to be installed on the host system.
 `--recreate`: Re-create the container
 
 `--tts`: uses local Kokoro text-to-speech.
-
 Any prose lines in the tests, along with headings like "Scenario" will be spoken (using kokoro-tts).
 
+`--pass-env`: HAIBUN_ENV variables to pass through, for example, `--pass-nv=HAIBUN_STAY=failure,HAIBUN_LOG_LEVEL=log`.
+
 Runtime options should be passed to package.json script commands using `-- --option`.
+
 
 
