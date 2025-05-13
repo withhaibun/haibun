@@ -17,7 +17,7 @@ ffmpeg \
   -speed 6 \
   -c:a libopus \
   -flush_packets 1 \
-  "output/walkthrough.webm" &
+  "output/vcapture.webm" &
 
 echo $! > /tmp/ffmpeg.pid
 

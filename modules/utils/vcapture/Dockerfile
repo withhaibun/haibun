@@ -39,7 +39,7 @@ WORKDIR /app
 COPY package*.json kokoro-speak.cjs *.sh ./
 RUN chmod +x *.sh
 
-RUN npm i # && npm install kokoro-js
+RUN npm i # && npm install kokoro-js # kokoro-js is installed on demand in capture-start.sh
 
 RUN mkdir -p /run/user/1000 && chmod 700 /run/user/1000
 

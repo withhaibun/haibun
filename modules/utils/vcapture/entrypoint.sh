@@ -2,7 +2,7 @@
 
 LOGFILE=./output/container-setup.log
 
-rm output/walkthrough.webm 2>/dev/null
+rm output/vcapture.webm 2>/dev/null
 
 echo "entrypoint is setting up the environment (logfile is $LOGFILE)"
 {
@@ -54,7 +54,6 @@ echo "entrypoint is setting up the environment (logfile is $LOGFILE)"
 
 echo "About to run $COMMAND_TO_RECORD"
 eval "$COMMAND_TO_RECORD"
-echo "created file://${HOST_PROJECT_DIR}/walkthrough.webm"
 SLEEPTIME=2
 echo "Waiting for $SLEEPTIME seconds."
 sleep $SLEEPTIME
