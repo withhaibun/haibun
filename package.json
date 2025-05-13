@@ -2,9 +2,7 @@
   "name": "haibun",
   "type": "module",
   "private": false,
-  "workspaces": [
-    "modules/*"
-  ],
+  "workspaces": ["modules/*"],
   "devDependencies": {
     "@types/node": "^22.14.0",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
@@ -41,5 +39,5 @@
     "depcruise": "depcruise -c .dependency-cruiser.cjs -T dot modules | dot -T svg | depcruise-wrap-stream-in-html > dependency-graph.html",
     "preversion": "npm run test"
   },
-  "version": "1.55.0"
+  "version": "1.56.0"
 }
