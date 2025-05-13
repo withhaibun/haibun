@@ -6,6 +6,7 @@ import { IHasOptions } from '../lib/astepper.js';
 import { AStepper } from '../lib/astepper.js';
 import { Resolver } from '../phases/Resolver.js';
 import { actionNotOK, actionOK, getStepperOption, sleep, stringOrError } from '../lib/util/index.js';
+import { actualURI } from '../lib/util/actualURI.js';
 import { expand } from '../lib/features.js';
 import { asFeatures } from '../lib/resolver-features.js';
 import { copyPreRenderedAudio, doExec, doSpawn, playAudioFile, preRenderFeatureProse, TRenderedAudioMap } from './lib/tts.js';
@@ -19,13 +20,15 @@ const cycles = (hb: Haibun): IStepperCycles => ({
 		}
 
 		if (hb.captureStart) {
-			hb.getWorld().logger.info(`Spawning screen capture using ${hb.captureStart}`);
+			hb.getWorld().logger.debug(`Spawning screen capture using ${hb.captureStart}`);
 			doSpawn(hb.captureStart);
 		}
 	},
 	async endFeature() {
 		if (hb.captureStop) {
-			hb.getWorld().logger.info(`Stopping screen capture using ${hb.captureStop}`);
+			const uri = actualURI('vcapture.webm');
+			hb.getWorld().logger.info(`Stopping vcapture ${uri} using ${hb.captureStop}`);
+			await sleep(2000);
 			await doExec(hb.captureStop);
 		}
 	}
