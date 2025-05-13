@@ -1,14 +1,15 @@
-import { join, resolve } from 'path';
+import { join } from 'path';
 import { existsSync } from 'fs';
 import { pathToFileURL } from 'url';
 import { chromium, Page } from 'playwright';
 
-import { HOST_PROJECT_DIR, TWorld } from '@haibun/core/build/lib/defs.js';
+import { TWorld } from '@haibun/core/build/lib/defs.js';
 import { TLogLevel, TLogArgs, TMessageContext } from '@haibun/core/build/lib/interfaces/logger.js';
-import { sleep } from '@haibun/core/build/lib/util/index.js';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 import { EMediaTypes } from '@haibun/domain-storage/build/media-types.js';
 import { getPackageLocation } from '@haibun/core/build/lib/util/workspace-lib.js';
+import { sleep } from '@haibun/core/build/lib/util/index.js';
+import { actualURI } from '@haibun/core/build/lib/util/actualURI.js';
 
 const monitorLocation = join(getPackageLocation(import.meta), '..', '..', 'web', 'monitor.html');
 const capturedMessages = [];
@@ -87,13 +88,11 @@ export async function writeMonitor(world: TWorld, storage: AStorage, page: Page)
 		delete document.body.dataset.haibunRuntime;
 	});
 
-
 	const content = await page.content();
 
 	const monitorLoc = await storage.getCaptureLocation({ ...world, mediaType: EMediaTypes.html });
 	const outHtml = join(monitorLoc, 'monitor.html');
-	const hostPath = process.env[HOST_PROJECT_DIR];
-	const monitorPath = pathToFileURL(hostPath ? resolve(hostPath, outHtml) : resolve(outHtml));
+	const monitorPath = actualURI(outHtml);
 	world.logger.info(`Wrote monitor HTML to ${monitorPath}`);
 	await storage.writeFile(outHtml, content, EMediaTypes.html);
 	const outMessages = join(monitorLoc, 'monitor.json');
