@@ -252,7 +252,7 @@ class ImageArtifactDisplay extends ArtifactDisplay {
 		(this.element as HTMLImageElement).alt = 'Screen capture artifact';
 	}
 	protected render(): void {
-		(this.element as HTMLImageElement).src = getRuntimePath(this.artifact);
+		(this.element as HTMLImageElement).src = this.artifact.path;;
 	}
 }
 
@@ -269,7 +269,7 @@ class VideoArtifactDisplay extends ArtifactDisplay {
 		}
 	}
 	protected render(): void {
-		(this.element as HTMLVideoElement).src = getRuntimePath(this.artifact);
+		(this.element as HTMLVideoElement).src = this.artifact.path;
 	}
 }
 class SpeechArtifactDisplay extends ArtifactDisplay {
@@ -288,7 +288,7 @@ class SpeechArtifactDisplay extends ArtifactDisplay {
 		);
 	}
 	protected render(): void {
-		(this.element as HTMLAudioElement).src = getRuntimePath(this.artifact);
+		(this.element as HTMLAudioElement).src = this.artifact.path;
 	}
 }
 
@@ -351,13 +351,3 @@ function getSummaryMessage(message: string, messageContext?: TMessageContext): s
 	}
 	return message;
 }
-
-function getRuntimePath(artifact: { path: string, runtimePath?: string }): string {
-	const isRuntime = document.body.dataset.haibunRuntime === 'true';
-	if (isRuntime && artifact.runtimePath) {
-		const prefix = artifact.runtimePath.endsWith('/') ? artifact.runtimePath : `${artifact.runtimePath}/`;
-		return `${prefix}${artifact.path.replace(/^\.\//, '')}`;
-	}
-	return artifact.path;
-}
-

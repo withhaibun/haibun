@@ -135,7 +135,7 @@ describe('Monitor Messages Logic (messages.ts)', () => {
 
 		it('should render an Image artifact correctly', () => {
 			const imagePath = '/path/to/image.png';
-			const artifact: TArtifactImage = { artifactType: 'image', path: imagePath, runtimePath: fakeRuntimePath(imagePath) };
+			const artifact: TArtifactImage = { artifactType: 'image', path: imagePath };
 			const mockTagImage: TTag = { key: 'image', sequence: 3, featureNum: 1, params: {}, trace: false };
 			const context: TMessageContext = {
 				incident: EExecutionMessageType.ACTION, // Standard incident for artifacts
@@ -162,7 +162,7 @@ describe('Monitor Messages Logic (messages.ts)', () => {
 
 		it('should render a Video artifact in details when container is missing', () => {
 			const videoPath = '/path/to/video.mp4';
-			const artifact: TArtifactVideo = { artifactType: 'video', path: videoPath, runtimePath: fakeRuntimePath(videoPath) };
+			const artifact: TArtifactVideo = { artifactType: 'video', path: videoPath };
 			// Provide a valid TArtifactMessageContext
 			const mockTagVideo1: TTag = { key: 'video1', sequence: 4, featureNum: 1, params: {}, trace: false };
 			const context: TMessageContext = {
@@ -198,7 +198,7 @@ describe('Monitor Messages Logic (messages.ts)', () => {
 			document.body.appendChild(videoContainer);
 
 			const videoPath = '/path/to/video.mp4';
-			const artifact: TArtifactVideo = { artifactType: 'video', path: videoPath, runtimePath: fakeRuntimePath(videoPath) };
+			const artifact: TArtifactVideo = { artifactType: 'video', path: videoPath };
 			// Provide a valid TArtifactMessageContext
 			const mockTagVideo2: TTag = { key: 'video2', sequence: 5, featureNum: 1, params: {}, trace: false };
 			const context: TMessageContext = {
@@ -355,8 +355,4 @@ describe('Monitor Messages Logic (messages.ts)', () => {
 		});
 	});
 });
-
-function fakeRuntimePath(artifactPath: string): string {
-	return `./some/where/${artifactPath}`;
-}
 

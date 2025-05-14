@@ -65,13 +65,11 @@ export type TArtifactSpeech = {
 	transcript: string;
 	durationS: number;
 	path: string;
-	runtimePath: string;
 };
 
 export type TArtifactVideo = {
 	artifactType: 'video';
 	path: string;
-	runtimePath: string;
 };
 
 export type TArtifactVideoStart = {
@@ -81,7 +79,6 @@ export type TArtifactVideoStart = {
 export type TArtifactImage = {
 	artifactType: 'image';
 	path: string;
-	runtimePath: string;
 };
 export type TArtifactHTML = {
 	artifactType: 'html';
