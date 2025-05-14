@@ -110,6 +110,54 @@ export function setupMediaToggle() { // Export the function
 	resizeHandle.style.display = 'none';
 }
 
+// Update log entry classes and scroll to current entry based on video time
+function updateLogEntriesForCurrentTime(videoElement: HTMLVideoElement) {
+	const monitorStartTimeStr = document.body.dataset.startTime;
+	const videoStartOffsetStr = document.getElementById('haibun-video-start')?.dataset.start;
+	if (!monitorStartTimeStr || !videoStartOffsetStr) return;
+	const monitorStartTime = parseInt(monitorStartTimeStr, 10);
+	const videoStartOffset = parseInt(videoStartOffsetStr, 10);
+	if (isNaN(monitorStartTime) || isNaN(videoStartOffset)) return;
+	const videoAbsoluteStartTime = monitorStartTime + videoStartOffset;
+	const currentVideoTimeMs = videoElement.currentTime * 1000;
+	let currentLatestEntry: HTMLElement | null = null;
+
+	document.querySelectorAll<HTMLElement>('.haibun-log-entry').forEach(entry => {
+		entry.classList.remove('haibun-stepper-played', 'haibun-stepper-notplayed', 'haibun-stepper-current');
+		const entryTimeStr = entry.dataset.time;
+		if (!entryTimeStr) return;
+		const entryAbsoluteTime = parseInt(entryTimeStr, 10);
+		if (isNaN(entryAbsoluteTime)) return;
+		const logRelativeToVideoMs = entryAbsoluteTime - videoAbsoluteStartTime;
+		if (logRelativeToVideoMs <= currentVideoTimeMs) {
+			entry.classList.add('haibun-stepper-played');
+			if (!currentLatestEntry || entryAbsoluteTime > parseInt(currentLatestEntry.dataset.time || '0', 10)) {
+				currentLatestEntry = entry;
+			}
+		} else {
+			entry.classList.add('haibun-stepper-notplayed');
+		}
+	});
+
+	if (currentLatestEntry) {
+		currentLatestEntry.classList.add('haibun-stepper-current');
+		setTimeout(() => {
+			currentLatestEntry.scrollIntoView({ behavior: 'smooth', block: 'center' });
+		}, 0);
+	}
+}
+
+// Poll video time and update log entries if it changes
+function pollVideoTimeAndUpdate(videoElement: HTMLVideoElement) {
+	let lastTime = videoElement.currentTime;
+	setInterval(() => {
+		if (videoElement.currentTime !== lastTime) {
+			lastTime = videoElement.currentTime;
+			updateLogEntriesForCurrentTime(videoElement);
+		}
+	}, 100);
+}
+
 export function setupVideoPlayback() {
 	const sequenceDiagram = document.getElementById('sequence-diagram');
 	const videoContainer = document.getElementById('haibun-video');
@@ -173,54 +221,7 @@ export function setupVideoPlayback() {
 		let latestCurrentEntry: HTMLElement | null = null;
 
 		const updateVideoSteps = () => {
-			const monitorStartTimeStr = document.body.dataset.startTime;
-			const videoStartOffsetStr = document.getElementById('haibun-video-start')?.dataset.start;
-
-			if (!monitorStartTimeStr || !videoStartOffsetStr) {
-				return;
-			}
-			const monitorStartTime = parseInt(monitorStartTimeStr, 10);
-			const videoStartOffset = parseInt(videoStartOffsetStr, 10);
-
-			if (isNaN(monitorStartTime) || isNaN(videoStartOffset)) {
-				return;
-			}
-			const videoAbsoluteStartTime = monitorStartTime + videoStartOffset;
-
-			const currentVideoTimeMs = videoElement.currentTime * 1000;
-			let currentLatestEntry: HTMLElement | null = null;
-
-			document.querySelectorAll<HTMLElement>('.haibun-log-entry').forEach(entry => {
-				entry.classList.remove('haibun-stepper-played', 'haibun-stepper-notplayed', 'haibun-stepper-current');
-
-				const entryTimeStr = entry.dataset.time;
-				if (!entryTimeStr) return;
-				const entryAbsoluteTime = parseInt(entryTimeStr, 10);
-				if (isNaN(entryAbsoluteTime)) return;
-
-				const logRelativeToVideoMs = entryAbsoluteTime - videoAbsoluteStartTime;
-
-				if (logRelativeToVideoMs <= currentVideoTimeMs) {
-					entry.classList.add('haibun-stepper-played');
-					entry.classList.remove('haibun-stepper-notplayed');
-					if (!currentLatestEntry || entryAbsoluteTime > parseInt(currentLatestEntry.dataset.time || '0', 10)) {
-						currentLatestEntry = entry;
-					}
-				} else {
-					entry.classList.add('haibun-stepper-notplayed');
-					entry.classList.remove('haibun-stepper-played');
-				}
-			});
-
-			if (currentLatestEntry) {
-				currentLatestEntry.classList.add('haibun-stepper-current');
-				if (!isElementInViewport(currentLatestEntry)) {
-					currentLatestEntry.scrollIntoView({ behavior: 'smooth', block: 'center' });
-				}
-				latestCurrentEntry = currentLatestEntry;
-			} else {
-				latestCurrentEntry = null;
-			}
+			updateLogEntriesForCurrentTime(videoElement);
 		};
 
 		videoElement.addEventListener('seeked', () => {
@@ -252,22 +253,24 @@ export function setupVideoPlayback() {
 	let existingVideo = videoContainer.querySelector('video');
 	if (existingVideo) {
 		setupVideoTimeUpdateHandler(existingVideo as HTMLVideoElement);
+		pollVideoTimeAndUpdate(existingVideo as HTMLVideoElement);
 	}
 
-	const observer = new MutationObserver((mutations) => {
+	const videoObserver = new MutationObserver((mutations) => {
 		mutations.forEach((mutation) => {
 			if (mutation.type === 'childList') {
 				const newVideo = videoContainer.querySelector('video');
 				if (newVideo && newVideo !== existingVideo) {
 					console.log('New video detected, setting up handlers.');
 					setupVideoTimeUpdateHandler(newVideo as HTMLVideoElement);
+					pollVideoTimeAndUpdate(newVideo as HTMLVideoElement);
 					existingVideo = newVideo;
 				}
 			}
 		});
 	});
 
-	observer.observe(videoContainer, { childList: true });
+	videoObserver.observe(videoContainer, { childList: true });
 
 	const diagramObserver = new MutationObserver((mutations) => {
 		mutations.forEach((mutation) => {
@@ -291,6 +294,47 @@ export function setupVideoPlayback() {
 			}
 		}, 0);
 	});
+
+	// Robust auto-scroll for monitor.html and live playback
+	function scrollToCurrentLogEntry() {
+		const logDisplayArea = document.getElementById('haibun-log-display-area');
+		if (!logDisplayArea) return;
+		// Try to find the first not-played entry
+		let entry = logDisplayArea.querySelector('.haibun-log-entry.haibun-stepper-notplayed');
+		// If all are played, scroll to the last played
+		if (!entry) {
+			const played = logDisplayArea.querySelectorAll('.haibun-log-entry.haibun-stepper-played');
+			if (played.length) entry = played[played.length - 1];
+		}
+		if (entry) {
+			(entry as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'center' });
+		}
+	}
+
+	if (logDisplayArea) {
+		const scrollObserver = new MutationObserver(() => {
+			scrollToCurrentLogEntry();
+		});
+		scrollObserver.observe(logDisplayArea, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+	}
+
+	window.addEventListener('DOMContentLoaded', () => {
+		const logEntries = document.querySelectorAll('.haibun-log-entry');
+		if (logEntries.length > 0) {
+			// If no current, set the first as current and all as notplayed
+			if (!document.querySelector('.haibun-stepper-current')) {
+				logEntries.forEach(entry => {
+					entry.classList.remove('haibun-stepper-current', 'haibun-stepper-played', 'haibun-stepper-notplayed');
+					entry.classList.add('haibun-stepper-notplayed');
+				});
+				logEntries[0].classList.add('haibun-stepper-current');
+			}
+			// Scroll to the current entry
+			setTimeout(() => {
+				logEntries[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+			}, 0);
+		}
+	});
 }
 
 function findLogEntry(element: HTMLElement): HTMLElement | null {
@@ -299,18 +343,4 @@ function findLogEntry(element: HTMLElement): HTMLElement | null {
 		current = current.parentElement;
 	}
 	return current;
-}
-
-function isElementInViewport(element: HTMLElement): boolean {
-	const rect = element.getBoundingClientRect();
-	const logDisplayArea = document.getElementById('haibun-log-display-area')!;
-
-	const logRect = logDisplayArea.getBoundingClientRect();
-
-	return (
-		rect.top >= logRect.top &&
-		rect.left >= logRect.left &&
-		rect.bottom <= logRect.bottom &&
-		rect.right <= logRect.right
-	);
 }

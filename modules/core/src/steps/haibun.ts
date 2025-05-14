@@ -187,7 +187,7 @@ class Haibun extends AStepper implements IHasOptions {
 		const { path, durationS } = await copyPreRenderedAudio(dir, this.renderedAudio, transcript);
 		const runtimePath = resolve(dir);
 
-		const artifact: TArtifactSpeech = { artifactType: 'speech', path, durationS, runtimePath, transcript };
+		const artifact: TArtifactSpeech = { artifactType: 'speech', path, durationS, transcript };
 		if (this.ttsPlay) {
 			const playCmd = this.ttsPlay.replace(/@WHAT@/g, `"${runtimePath}/${path}"`);
 			try {

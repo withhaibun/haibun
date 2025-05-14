@@ -172,31 +172,31 @@ export class SequenceDiagramGenerator {
 }
 export function skipEvent(filters, httpEvent, serverName, { requestingPage, requestingURL, method, status, statusText, headers }: THTTPTraceContent) {
 	if (!serverName) {
-		console.info('No server name found, skipping result.');
+		// console.info('No server name found, skipping result.');
 		return true;
 	}
 	if (requestingURL === 'about:blank') {
-		console.info('Requesting URL is about:blank, skipping result.');
+		// console.info('Requesting URL is about:blank, skipping result.');
 		return true;
 	}
 	if (httpEvent === 'request') {
 		if (headers && headers.accept) {
 			const acceptHeader = headers.accept;
 			if (!filters.request.accept.some(filterValue => acceptHeader.includes(filterValue))) {
-				console.info('qx', acceptHeader, filters.request.accept);
+				// console.info('qx', acceptHeader, filters.request.accept);
 				return true;
 			} else {
-				console.info('qY', acceptHeader, filters.request.accept);
+				// console.info('qY', acceptHeader, filters.request.accept);
 			}
 		}
 	} else if (httpEvent === 'response') {
 		if (headers && headers['content-type']) {
 			const contentTypeHeader = headers['content-type'];
 			if (!filters.response.type.some(filterValue => contentTypeHeader.includes(filterValue))) {
-				console.info('px', contentTypeHeader);
+				// console.info('px', contentTypeHeader);
 				return true;
 			} else {
-				console.info('pY', contentTypeHeader);
+				// console.info('pY', contentTypeHeader);
 			}
 		}
 	} else {
