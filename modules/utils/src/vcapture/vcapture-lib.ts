@@ -81,7 +81,7 @@ export function getContainerSetup(thisRunOptions: TCaptureOptions, includeDirs: 
 		`${projectDir}:/app/output`,
 		...dirsToMount.map(dir => `${resolve(projectDir, dir)}:/app/${dir}`)
 	];
-	const flags = thisRunOptions.featureFilter ? ` --${thisRunOptions.featureFilter}` : '';
+	const flags = thisRunOptions.featureFilter ? ` -- ${thisRunOptions.featureFilter}` : '';
 	const composeEnvironment = [
 		'DISPLAY=:99',
 		`RES=${thisRunOptions.res}`,

@@ -101,6 +101,6 @@ describe('getComposeEnvironment', () => {
 		const captureOptions = { ...protoRunOptions, featureFilter: 'foo' };
 		const { composeEnvironment } = getContainerSetup(captureOptions, includeDirs, testToRun);
 		const command = composeEnvironment.find((e) => e.startsWith('COMMAND_TO_RECORD='));
-		expect(command).toMatch(/COMMAND_TO_RECORD=HOST_PROJECT_DIR=".*?haibun" HAIBUN_LOG_LEVEL=log\s+npm run testToRun --foo/);
+		expect(command).toMatch(/COMMAND_TO_RECORD=HOST_PROJECT_DIR=".*?haibun" HAIBUN_LOG_LEVEL=log\s+npm run testToRun -- foo/);
 	});
 });
