@@ -252,7 +252,7 @@ class ImageArtifactDisplay extends ArtifactDisplay {
 		(this.element as HTMLImageElement).alt = 'Screen capture artifact';
 	}
 	protected render(): void {
-		(this.element as HTMLImageElement).src = this.artifact.path;;
+		(this.element as HTMLImageElement).src = this.artifact.path;
 	}
 }
 
