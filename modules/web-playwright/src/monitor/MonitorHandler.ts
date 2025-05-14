@@ -36,7 +36,6 @@ export class MonitorHandler {
 		await this.monitorPage.goto(pathToFileURL(monitorLocation).toString(), { waitUntil: 'networkidle' });
 
 		await this.inMonitor<string>((monitorLoc) => {
-			document.body.dataset.haibunRuntime = 'true';
 			const base = document.createElement('base');
 			base.href = `${monitorLoc}/`;
 			document.head.appendChild(base);
@@ -94,10 +93,6 @@ export class MonitorHandler {
 			return;
 		}
 		await sleep(500); // Allow final rendering
-
-		await this.inMonitor(() => {
-			delete document.body.dataset.haibunRuntime;
-		});
 
 		const content = await this.monitorPage.content();
 		await this.inMonitor(() => {
