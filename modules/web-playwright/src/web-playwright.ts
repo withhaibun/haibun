@@ -11,7 +11,7 @@ import { EExecutionMessageType, TArtifactImage, TArtifactVideo, TMessageContext 
 import { EMediaTypes } from '@haibun/domain-storage/build/media-types.js';
 
 import { restSteps, TCapturedResponse } from './rest-playwright.js';
-import { createMonitorPageAndSubscriber, writeMonitor } from './monitor/monitorHandler.js';
+import { MonitorHandler } from './monitor/MonitorHandler.js';
 import { rmSync } from 'fs';
 import { TAnyFixme } from '@haibun/core/build/lib/fixme.js';
 import { AStepper, IHasOptions } from '@haibun/core/build/lib/astepper.js';
@@ -40,7 +40,7 @@ const cycles = (wp: WebPlaywright): IStepperCycles => ({
 			await wp.createMonitor();
 		}
 	},
-	async endFeature({ shouldClose = true, world }: TEndFeature) {
+	async endFeature({ shouldClose = true }: TEndFeature) {
 		// leave web server running if there was a failure and it's the last feature
 		if (shouldClose) {
 			for (const file of wp.downloaded) {
@@ -52,7 +52,7 @@ const cycles = (wp: WebPlaywright): IStepperCycles => ({
 				if (wp.captureVideo) {
 					const page = await wp.getPage();
 					const path = await wp.storage.getRelativePath(await page.video().path());
-					const artifact: TArtifactVideo = { artifactType: 'video', path, runtimePath: await wp.storage.runtimePath(world) };
+					const artifact: TArtifactVideo = { artifactType: 'video', path };
 					const context: TMessageContext = {
 						incident: EExecutionMessageType.FEATURE_END,
 						artifact,
@@ -71,7 +71,7 @@ const cycles = (wp: WebPlaywright): IStepperCycles => ({
 		}
 		if (wp.monitor === EMonitoringTypes.MONITOR_EACH) {
 			await wp.callClosers();
-			await writeMonitor(wp.world, wp.storage, WebPlaywright.monitorPage);
+			await WebPlaywright.monitorHandler.writeMonitor();
 		}
 	},
 	async startExecution() {
@@ -82,7 +82,7 @@ const cycles = (wp: WebPlaywright): IStepperCycles => ({
 	async endExecution() {
 		if (wp.monitor === EMonitoringTypes.MONITOR_ALL) {
 			await wp.callClosers();
-			await writeMonitor(wp.world, wp.storage, WebPlaywright.monitorPage);
+			await WebPlaywright.monitorHandler.writeMonitor();
 		}
 	},
 });
@@ -139,7 +139,7 @@ class WebPlaywright extends AStepper implements IHasOptions {
 	closers: Array<() => Promise<void>> = [];
 	logElementError: TAnyFixme;
 	monitor: EMonitoringTypes;
-	static monitorPage: Page;
+	static monitorHandler: MonitorHandler;
 	userAgentPages: { [name: string]: Page } = {};
 	apiUserAgent: string;
 	extraHTTPHeaders: { [name: string]: string; } = {};
@@ -180,7 +180,7 @@ class WebPlaywright extends AStepper implements IHasOptions {
 			persistentDirectory,
 		};
 	}
-	async getCaptureDir(type: string) {
+	async getCaptureDir(type = '') {
 		const loc = { ...this.world, mediaType: EMediaTypes.video };
 		const dir = await this.storage.ensureCaptureLocation(loc, type);
 		return dir;
@@ -340,7 +340,7 @@ class WebPlaywright extends AStepper implements IHasOptions {
 		finishMonitor: {
 			gwta: 'finish monitor',
 			action: async () => {
-				await writeMonitor(this.world, this.storage, WebPlaywright.monitorPage);
+				await WebPlaywright.monitorHandler.writeMonitor();
 				return OK;
 			},
 		},
@@ -671,7 +671,7 @@ class WebPlaywright extends AStepper implements IHasOptions {
 			action: async ({ file }: TNamed) => {
 				try {
 					const download = await this.expectedDownload;
-					await await download.saveAs(file);
+					await download.saveAs(file);
 					this.downloaded.push(file);
 					return OK;
 				} catch (e) {
@@ -705,7 +705,7 @@ class WebPlaywright extends AStepper implements IHasOptions {
 		captureDialog: {
 			gwta: 'Accept next dialog to {where}',
 			action: async ({ where }: TNamed) => {
-				await this.withPage(async (page: Page) => {
+				await this.withPage((page: Page) => {
 					return page.on('dialog', async (dialog) => {
 						const res = {
 							defaultValue: dialog.defaultValue(),
@@ -715,7 +715,6 @@ class WebPlaywright extends AStepper implements IHasOptions {
 						await dialog.accept();
 						this.getWorld().shared.setJSON(where, res);
 					});
-					return Promise.resolve();
 				}
 				);
 				return Promise.resolve(OK);
@@ -798,7 +797,7 @@ class WebPlaywright extends AStepper implements IHasOptions {
 		// FIXME shouldn't be fs dependant
 		const path = resolve(this.storage.fromLocation(EMediaTypes.image, loc, `${event}-${Date.now()}.png`));
 		await this.withPage(async (page: Page) => await page.screenshot({ path }));
-		const artifact: TArtifactImage = { artifactType: 'image', path: await this.storage.getRelativePath(path), runtimePath: await this.storage.runtimePath() };
+		const artifact: TArtifactImage = { artifactType: 'image', path: await this.storage.getRelativePath(path) };
 		const context: TMessageContext = {
 			incident: EExecutionMessageType.ACTION,
 			artifact,
@@ -879,16 +878,17 @@ class WebPlaywright extends AStepper implements IHasOptions {
 		}
 	}
 	createMonitor = async () => {
-		if (WebPlaywright.monitorPage && !WebPlaywright.monitorPage.isClosed()) {
-			await WebPlaywright.monitorPage.bringToFront();
+		if (WebPlaywright.monitorHandler && !WebPlaywright.monitorHandler.monitorPage.isClosed()) {
+			await WebPlaywright.monitorHandler.monitorPage.bringToFront();
 			return OK;
 		}
-		const { monitorPage, subscriber } = await (await createMonitorPageAndSubscriber(this.headless))();
-		WebPlaywright.monitorPage = monitorPage;
-		this.getWorld().logger.addSubscriber(subscriber);
+
+		WebPlaywright.monitorHandler = new MonitorHandler(this.getWorld(), this.storage, this.headless)
+		await WebPlaywright.monitorHandler.initMonitor();
+		this.getWorld().logger.addSubscriber(WebPlaywright.monitorHandler.subscriber);
 
 		this.closers.push(async () => {
-			this.getWorld().logger.removeSubscriber(subscriber);
+			this.getWorld().logger.removeSubscriber(WebPlaywright.monitorHandler.subscriber);
 			return Promise.resolve();
 		});
 		return OK;

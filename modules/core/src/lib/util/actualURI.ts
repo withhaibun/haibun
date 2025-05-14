@@ -1,11 +1,11 @@
 import { resolve } from 'path/posix';
 import { pathToFileURL } from 'url';
-import { HOST_PROJECT_DIR } from '../defs.js';
+
+export const HOST_PROJECT_DIR = 'HOST_PROJECT_DIR';
+export const containerHostPath = process.env[HOST_PROJECT_DIR];
 
 // return either the virtual host path or the real path
-
 export function actualURI(file: string) {
-	const hostPath = process.env[HOST_PROJECT_DIR];
-	const actualPath = pathToFileURL(hostPath ? resolve(hostPath, file) : resolve(file));
+	const actualPath = pathToFileURL(containerHostPath ? resolve(containerHostPath, file) : resolve(file));
 	return actualPath;
 }

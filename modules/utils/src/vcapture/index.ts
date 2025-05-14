@@ -13,11 +13,11 @@ process.on('unhandledRejection', (err: TAnyFixme) => {
 });
 
 const args = process.argv.slice(2);
-const { testToRun, includeDirs, runOptions } = parseVCaptureArgs(args, printHelp);
+const { testToRun, includeDirs, captureOptions } = parseVCaptureArgs(args, printHelp);
 
-runContainer(testToRun, includeDirs, runOptions);
+runContainer(testToRun, includeDirs, captureOptions);
 
 function printHelp(exitCode = 1) {
-	console.error(`Usage: ${process.argv[1]} [--feature-filter] [--pass-env=<ENV=VAR,...>] [--recreate[=boolean]] [--tts[=boolean]] [--no-capture] [--help] [--res=WxH] script filter features files ...`);
+	console[exitCode === 1 ? 'error' : 'info'](`Usage: ${process.argv[1]} [--feature-filter] [--cli-env=<name=value,...>] [--pass-env=<VAR=FOO>] [--pass-env ...] [--recreate[=boolean]] [--tts[=boolean]] [--no-capture] [--help] [--res=WxH] script filter features files ...`);
 	process.exit(exitCode);
 }
