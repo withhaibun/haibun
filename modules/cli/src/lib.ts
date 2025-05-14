@@ -72,8 +72,7 @@ function getWorld(protoOptions: TProtoOptions, bases: TBase): TWorld {
 	const shared = new FeatureVariables(tag.toString());
 	const timer = new Timer();
 
-	const key = keyIn || Timer.key;
-	Timer.key = key;
+	Timer.key = keyIn || Timer.key;
 
 	const world: TWorld = {
 		tag,
