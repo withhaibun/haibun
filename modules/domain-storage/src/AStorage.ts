@@ -99,11 +99,6 @@ export abstract class AStorage extends AStepper {
 	}
 
 	locator = captureLocator;
-	async getCapturePath(pathIn: string) {
-		const mediaType = guessMediaType(pathIn);
-		const loc = resolve(await this.getCaptureLocation({ ...this.world, mediaType }));
-		return loc;
-	}
 
 	async getRelativePath(pathIn: string | undefined) {
 		if (!pathIn) {

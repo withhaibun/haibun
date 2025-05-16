@@ -10,8 +10,10 @@ import { actualURI } from '../lib/util/actualURI.js';
 import { expand } from '../lib/features.js';
 import { asFeatures } from '../lib/resolver-features.js';
 import { copyPreRenderedAudio, doExec, doSpawn, playAudioFile, preRenderFeatureProse, TRenderedAudioMap } from './lib/tts.js';
-import { TArtifactSpeech } from '../lib/interfaces/logger.js';
+import { EExecutionMessageType, TArtifactSpeech, TArtifactVideo, TMessageContext } from '../lib/interfaces/logger.js';
 import { captureLocator } from '../lib/capture-locator.js';
+
+const CAPTURE_FILENAME = 'vcapture.webm';
 
 const cycles = (hb: Haibun): IStepperCycles => ({
 	async startFeature(feature: TResolvedFeature) {
@@ -26,10 +28,19 @@ const cycles = (hb: Haibun): IStepperCycles => ({
 	},
 	async endFeature() {
 		if (hb.captureStop) {
-			const uri = actualURI('vcapture.webm');
+			const uri = actualURI(CAPTURE_FILENAME);
 			hb.getWorld().logger.info(`Stopping vcapture ${uri} using ${hb.captureStop}`);
 			await sleep(2000);
-			await doExec(hb.captureStop);
+			await doExec(hb.captureStop, false);
+
+			const path = captureLocator(hb.world.options, hb.world.tag);
+			const artifact: TArtifactVideo = { artifactType: 'video', path };
+			const context: TMessageContext = {
+				incident: EExecutionMessageType.FEATURE_END,
+				artifact,
+				tag: hb.getWorld().tag
+			};
+			hb.getWorld().logger.log('feature video', context);
 		}
 	}
 });

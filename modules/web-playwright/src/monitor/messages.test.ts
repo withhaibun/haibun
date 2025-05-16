@@ -3,8 +3,9 @@
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { TArtifact, TMessageContext, TArtifactVideo, TArtifactVideoStart, TArtifactJSON, TArtifactHTTPTrace, TArtifactHTML, TArtifactImage, THTTPTraceContent, EExecutionMessageType } from '@haibun/core/build/lib/interfaces/logger.js'; // Updated imports
-import { TTag, TFeatureStep, TStepResult, TStepAction, TStepActionResult, OK } from '@haibun/core/build/lib/defs.js';
+import { TFeatureStep, TStepResult, TStepAction, TStepActionResult, OK } from '@haibun/core/build/lib/defs.js';
 import { LogEntry } from './messages.js'; // Import the main class
+import { TTag } from '@haibun/core/build/lib/ttag.js';
 
 // Mock the sequenceDiagramGenerator if its side effects are not desired during unit testing
 vi.mock('./monitor.js', () => ({

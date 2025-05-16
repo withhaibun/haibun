@@ -104,7 +104,7 @@ export class MonitorHandler {
 
 		const outHtml = join(this.monitorLoc, 'monitor.html');
 		const monitorPath = actualURI(outHtml);
-		this.world.logger.info(`Wrote monitor HTML to ${monitorPath}`);
+		this.world.logger.info(`Writing monitor HTML to ${monitorPath}`);
 		await this.storage.writeFile(outHtml, content, EMediaTypes.html);
 		const outMessages = join(this.monitorLoc, 'monitor.json');
 		await this.storage.writeFile(outMessages, JSON.stringify(capturedMessages, null, 2), EMediaTypes.html);
