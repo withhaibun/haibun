@@ -52,7 +52,8 @@ echo "entrypoint is setting up the environment (logfile is $LOGFILE)"
 
 } >"$LOGFILE" 2>&1
 
-echo "About to run $COMMAND_TO_RECORD"
+echo $COMMAND_TO_RECORD > output/command_to_record.txt
+echo "Command recorded in output/command_to_record.txt"
 eval "$COMMAND_TO_RECORD"
 SLEEPTIME=2
 echo "Waiting for $SLEEPTIME seconds."

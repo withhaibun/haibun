@@ -95,14 +95,14 @@ export async function playAudioFile(playCmd: string) {
 	await doExec(playCmd);
 }
 
-export async function doExec(command: string): Promise<string> {
+export async function doExec(command: string, throwOnError = true): Promise<string> {
 	try {
 		const stdout = execSync(command, { encoding: 'utf8', stdio: 'pipe' }).toString();
 		return Promise.resolve(stdout.trim());
 	} catch (error) {
 		const stderr = error.stderr ? error.stderr.toString() : '';
 		console.error(stderr);
-		throw (error);
+		if (throwOnError) throw (error);
 	}
 }
 
