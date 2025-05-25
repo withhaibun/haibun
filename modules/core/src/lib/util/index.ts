@@ -313,4 +313,14 @@ export function shortenURI(uri: string) {
 
 }
 
-
+export function describeStepperSteps(steppers: AStepper[]) {
+	const a = steppers.reduce((acc, o) => {
+		return {
+			...acc,
+			[(o as TAnyFixme).constructor.name]: Object.entries(o.steps).map(
+				([stepperName, stepperMatch]) => stepperName + ': ' + (stepperMatch.gwta || stepperMatch.match || stepperMatch.match)
+			),
+		};
+	}, {} as { [name: string]: { desc: string } });
+	return a;
+}
