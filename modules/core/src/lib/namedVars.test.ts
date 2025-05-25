@@ -104,7 +104,7 @@ describe('special', () => {
 		const res = await testWithDefaults([feature], [Vars]);
 		const t = res.world.shared.get('t');
 		expect(t).toBeDefined();
-		expect(parseInt(t)).toBeGreaterThanOrEqual(now);
+		expect(parseInt(t!)).toBeGreaterThanOrEqual(now);
 	});
 	it('rejects unknown', async () => {
 		const fails = { path: '/features/here.feature', content: 'set [NOTHING] to y' };
