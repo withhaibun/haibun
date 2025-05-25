@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCP E2E Test Page</title>
+</head>
+<body>
+    <h1>MCP E2E Test</h1>
+    
+    <section>
+        <h2>Input Test</h2>
+        <input type="text" id="testInput" placeholder="Enter text here">
+        <p>Input value: <span id="inputValueDisplay"></span></p>
+    </section>
+
+    <section>
+        <h2>Button Click Test</h2>
+        <button id="testButton">Click Me</button>
+        <p id="displayText">Initial text</p>
+    </section>
+
+    <script>
+        const inputField = document.getElementById('testInput');
+        const inputValueDisplay = document.getElementById('inputValueDisplay');
+        const button = document.getElementById('testButton');
+        const displayText = document.getElementById('displayText');
+
+        inputField.addEventListener('input', (event) => {
+            inputValueDisplay.textContent = event.target.value;
+        });
+
+        button.addEventListener('click', () => {
+            displayText.textContent = 'Button Clicked!';
+        });
+    </script>
+</body>
+</html>

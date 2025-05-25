@@ -17,6 +17,9 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "devDependencies": {
+    "typescript": "^4.5.2"
+  },
   "dependencies": {
     "@haibun/core": "1.59.0",
     "@haibun/domain-storage": "1.59.0",

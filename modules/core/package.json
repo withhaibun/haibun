@@ -12,6 +12,11 @@
   "xtypesVersions": { "*": { "build/*": ["build/*"] } },
   "main": "./build/index.js",
   "files": ["build/**"],
+  "devDependencies": {
+    "typescript": "^4.5.2",
+    "vitest": "^0.34.0",
+    "turndown": "^7.0.0"
+  },
   "scripts": {
     "format": "prettier --write \"src/**/*.ts\" \"src/**/*.js\"",
     "lint": "eslint -c .eslintrc.json --ext .ts,.js src",
