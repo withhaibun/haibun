@@ -27,6 +27,9 @@ RUN apt-get update && apt-get install -y \
     pipewire-audio-client-libraries \
     pulseaudio-utils \
     libportaudio2 \
+    xfce4 \
+    xfce4-terminal \
+    xterm \
     && rm -rf /var/lib/apt/lists/*
 
 RUN git clone https://github.com/novnc/noVNC.git /opt/noVNC && \
@@ -43,4 +46,5 @@ RUN npm i # && npm install kokoro-js # kokoro-js is installed on demand in captu
 
 RUN mkdir -p /run/user/1000 && chmod 700 /run/user/1000
 
+# Set xfce4 as the default desktop environment
 ENTRYPOINT ["./entrypoint.sh"]
