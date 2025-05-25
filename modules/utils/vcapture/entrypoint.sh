@@ -52,6 +52,8 @@ echo "entrypoint is setting up the environment (logfile is $LOGFILE)"
 
 } >"$LOGFILE" 2>&1
 
+xfce4-session &
+
 echo $COMMAND_TO_RECORD > output/command_to_record.txt
 echo "Command recorded in output/command_to_record.txt"
 eval "$COMMAND_TO_RECORD"
