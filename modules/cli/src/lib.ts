@@ -2,7 +2,7 @@ import nodeFS from 'fs';
 
 import { BASE_PREFIX, CHECK_NO, CHECK_YES, DEFAULT_DEST, STAY, STAY_ALWAYS, TBase, TProtoOptions, TSpecl, TWorld } from '@haibun/core/build/lib/defs.js';
 import { getCreateSteppers } from '@haibun/core/build/lib/test/lib.js';
-import { getPre } from '@haibun/core/build/lib/util/index.js';
+import { getPre, describeStepperSteps } from '@haibun/core/build/lib/util/index.js';
 import { BaseOptions } from './BaseOptions.js';
 import { TFileSystem } from '@haibun/core/build/lib/util/workspace-lib.js';
 import { getDefaultOptions, basesFrom } from '@haibun/core/build/lib/util/index.js';
@@ -12,7 +12,6 @@ import { Runner } from '@haibun/core/build/runner.js';
 import { getDefaultTag } from '@haibun/core/build/lib/test/lib.js';
 import { isProcessFeatureResults, IHasOptions } from '@haibun/core/build/lib/astepper.js';
 import { FeatureVariables } from '@haibun/core/build/lib/feature-variables.js';
-import { TAnyFixme } from '@haibun/core/build/lib/fixme.js';
 
 const OPTION_CONFIG = '--config';
 const OPTION_HELP = '--help';
@@ -29,7 +28,8 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 		await usageThenExit(specl);
 	}
 	if (showSteppers) {
-		const allSteppers = await getAllSteppers(specl);
+	const steppers = await getCreateSteppers(specl.steppers);
+		const allSteppers = await describeStepperSteps(steppers);
 		console.info('Steppers:', JSON.stringify(allSteppers, null, 2));
 		console.info('Use the full text version for steps. {vars} should be enclosed in " for literals, or defined by Set or env commands.\nWrite comments using normal sentence punctuation, ending with [.,!?]. ')
 		process.exit(0);
@@ -100,19 +100,6 @@ export async function usageThenExit(specl: TSpecl, message?: string) {
 	const output = await usage(specl, message);
 	console[message ? 'error' : 'info'](output);
 	process.exit(message ? 1 : 0);
-}
-
-export async function getAllSteppers(specl: TSpecl) {
-	const steppers = await getCreateSteppers(specl.steppers);
-	const a = steppers.reduce((acc, o) => {
-		return {
-			...acc,
-			[(o as TAnyFixme).constructor.name]: Object.entries(o.steps).map(
-				([stepperName, stepperMatch]) => stepperName + ': ' + (stepperMatch.gwta || stepperMatch.match || stepperMatch.match)
-			),
-		};
-	}, {} as { [name: string]: { desc: string } });
-	return a;
 }
 
 export async function usage(specl: TSpecl, message?: string) {

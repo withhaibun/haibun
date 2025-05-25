@@ -18,4 +18,4 @@ export interface ISharedContext {
 }
 
 // Type constants
-export const BASE_TYPES = ['string', WEB_CONTROL, WEB_PAGE, SELECTOR];
+export const BASE_TYPES = ['string', 'number', WEB_CONTROL, WEB_PAGE, SELECTOR];
