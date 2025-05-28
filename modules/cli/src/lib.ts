@@ -69,7 +69,7 @@ function getWorld(protoOptions: TProtoOptions, bases: TBase): TWorld {
 	const { KEY: keyIn, LOG_LEVEL: logLevel, LOG_FOLLOW: logFollow } = protoOptions.options;
 	const tag = getDefaultTag(0);
 	const logger = new Logger({ level: logLevel || 'debug', follow: logFollow });
-	const shared = new FeatureVariables(tag.toString());
+	const shared = new FeatureVariables(JSON.stringify(tag));
 	const timer = new Timer();
 
 	Timer.key = keyIn || Timer.key;

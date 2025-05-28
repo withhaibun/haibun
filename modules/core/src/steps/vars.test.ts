@@ -3,7 +3,8 @@ import { it, expect, describe } from 'vitest';
 import { testWithDefaults } from '../lib/test/lib.js';
 import Vars from './vars.js';
 import { DEFAULT_DEST } from '../lib/defs.js';
-const steppers = [Vars];
+import Haibun from './haibun.js';
+const steppers = [Vars, Haibun];
 
 describe('vars', () => {
 	it('assigns', async () => {
@@ -28,6 +29,23 @@ describe('vars', () => {
 	});
 });
 
+
+describe.only('vars between scenarios', () => {
+	it('clears variables between scenarios', async () => {
+		const features = [{
+			path: '/features/test.feature',
+			content: `
+Scenario: Scenario 1
+set "a" to 1
+variable "a" is "1"
+Scenario: Scenario 2
+show vars
+variable "a" is is "1"
+`}];
+		const res = await testWithDefaults(features, steppers);
+		expect(res.ok).toBe(true);
+	});
+});
 
 describe('vars between features', () => {
 	it('clears variables between features', async () => {

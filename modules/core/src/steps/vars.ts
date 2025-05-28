@@ -60,9 +60,9 @@ class Vars extends AStepper {
 		},
 		showVars: {
 			gwta: 'show vars',
-			action: async (n: TNamed, featureStep: TFeatureStep) => {
-				console.info('vars', this.world.shared);
-				return await this.set(n, featureStep);
+			action: async () => {
+				console.info('vars', JSON.stringify(this.world.shared));
+				return Promise.resolve(OK);
 			},
 		},
 		set: {
@@ -75,7 +75,7 @@ class Vars extends AStepper {
 			gwta: 'variable {what: string} is "{value}"',
 			action: async ({ what, value }: TNamed) => {
 				const val = this.getVarValue(what);
-				return Promise.resolve(val === value ? OK : actionNotOK(`${what} is "${val}", not "${value}"`));
+				return Promise.resolve(val === value ? OK : actionNotOK(`${what} is "${value}", not "${val}"`));
 			},
 		},
 		isSet: {

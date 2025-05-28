@@ -5,6 +5,7 @@
         { "path": "utils" },
         { "path": "core" },
         { "path": "web-server-express" },
+        { "path": "haibun-mcp-server" },
         { "path": "web-http" },
         { "path": "parse-md" },
         { "path": "web-playwright" },
