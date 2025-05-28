@@ -30,7 +30,7 @@ describe('vars', () => {
 });
 
 
-describe.only('vars between scenarios', () => {
+describe('vars between scenarios', () => {
 	it('clears variables between scenarios', async () => {
 		const features = [{
 			path: '/features/test.feature',
@@ -39,8 +39,7 @@ Scenario: Scenario 1
 set "a" to 1
 variable "a" is "1"
 Scenario: Scenario 2
-show vars
-variable "a" is is "1"
+variable "a" is not set
 `}];
 		const res = await testWithDefaults(features, steppers);
 		expect(res.ok).toBe(true);
@@ -54,7 +53,7 @@ describe('vars between features', () => {
 		const res = await testWithDefaults([feature, anotherFeature], steppers);
 		expect(res.ok).toBe(true);
 	});
-	it('keeps env vars between features', async () => {
+	it('sees env vars between features', async () => {
 		const feature = { path: '/features/test.feature', content: 'variable "b" is "1"' };
 		const anotherFeature = { path: '/features/verify.feature', content: 'variable "b" is "1"' };
 		const envVariables = { b: '1' };

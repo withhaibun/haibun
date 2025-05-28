@@ -2,7 +2,7 @@ import { Page, Response, Download } from 'playwright';
 import { resolve } from 'path';
 import { pathToFileURL } from 'url';
 
-import { OK, TNamed, TStepResult, TWorld, TFeatureStep, IStepperCycles, TEndFeature } from '@haibun/core/build/lib/defs.js';
+import { OK, TNamed, TWorld, TFeatureStep, IStepperCycles, TEndFeature, TFailureArgs } from '@haibun/core/build/lib/defs.js';
 import { WEB_PAGE, WEB_CONTROL } from '@haibun/core/build/lib/domain-types.js';
 import { BrowserFactory, TTaggedBrowserFactoryOptions, TBrowserTypes, BROWSERS } from './BrowserFactory.js';
 import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOption, sleep, optionOrError } from '@haibun/core/build/lib/util/index.js';
@@ -30,7 +30,7 @@ type TRequestOptions = {
 
 const cycles = (wp: WebPlaywright): IStepperCycles => ({
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	async onFailure(result: TStepResult, step?: TFeatureStep): Promise<void> {
+	async onFailure({ step }: TFailureArgs): Promise<void> {
 		if (wp.bf?.hasPage(wp.getWorld().tag, wp.tab)) {
 			await wp.captureFailureScreenshot(EExecutionMessageType.ON_FAILURE, step);
 		}

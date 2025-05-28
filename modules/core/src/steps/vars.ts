@@ -7,11 +7,14 @@ import { actionNotOK } from '../lib/util/index.js';
 // FIXME see https://github.com/withhaibun/haibun/issues/18
 const getOrCond = (fr: string) => fr.replace(/.* is set or /, '');
 
+const clearVars = (vars) => async () => {
+	vars.getWorld().shared.clear()
+	return Promise.resolve();
+}
+
 const cycles = (vars: Vars): IStepperCycles => ({
-	startFeature: async () => {
-		vars.getWorld().shared.clear()
-		return Promise.resolve();
-	}
+	endScenario: clearVars(vars),
+	startFeature: clearVars(vars)
 });
 
 class Vars extends AStepper {
@@ -75,7 +78,7 @@ class Vars extends AStepper {
 			gwta: 'variable {what: string} is "{value}"',
 			action: async ({ what, value }: TNamed) => {
 				const val = this.getVarValue(what);
-				return Promise.resolve(val === value ? OK : actionNotOK(`${what} is "${value}", not "${val}"`));
+				return Promise.resolve(val === value ? OK : actionNotOK(`${what} is "${val}", not "${value}"`));
 			},
 		},
 		isSet: {

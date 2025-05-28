@@ -1,4 +1,4 @@
-import { TFeatureStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, TStepAction, STAY, STAY_FAILURE, CHECK_NO, CHECK_YES, STEP_DELAY, TNotOKActionResult, CONTINUE_AFTER_ERROR, IStepperCycles, TEndFeature, TStartFeature } from '../lib/defs.js';
+import { TFeatureStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, TStepAction, STAY, STAY_FAILURE, CHECK_NO, CHECK_YES, STEP_DELAY, TNotOKActionResult, CONTINUE_AFTER_ERROR, TEndFeature, StepperMethodArgs } from '../lib/defs.js';
 import { TAnyFixme } from '../lib/fixme.js';
 import { AStepper } from '../lib/astepper.js';
 import { EExecutionMessageType, TMessageContext } from '../lib/interfaces/logger.js';
@@ -32,7 +32,7 @@ export class Executor {
 		});
 	}
 	static async executeFeatures(steppers: AStepper[], world: TWorld, features: TResolvedFeature[]): Promise<TExecutorResult> {
-		await doStepperMethod(steppers, 'startExecution');
+		await doStepperMethod(steppers, 'startExecution', undefined);
 		let okSoFar = true;
 		const stayOnFailure = world.options[STAY] === STAY_FAILURE;
 		const featureResults: TFeatureResult[] = [];
@@ -48,13 +48,13 @@ export class Executor {
 
 			const featureExecutor = new FeatureExecutor(steppers, newWorld);
 			await setStepperWorlds(steppers, newWorld);
-			await doStepperMethod(steppers, 'startFeature', <TStartFeature>feature);
+			await doStepperMethod(steppers, 'startFeature', feature);
 
 			const featureResult = await featureExecutor.doFeature(feature);
 			const thisFeatureOK = featureResult.ok;
 			if (!thisFeatureOK) {
 				const failedStep = featureResult.stepResults.find((s) => !s.ok);
-				await doStepperMethod(steppers, 'onFailure', featureResult, failedStep);
+				await doStepperMethod(steppers, 'onFailure', { featureResult, failedStep });
 			}
 			okSoFar = okSoFar && thisFeatureOK;
 			featureResults.push(featureResult);
@@ -77,7 +77,7 @@ export class Executor {
 				}
 			}
 		}
-		await doStepperMethod(steppers, 'endExecution');
+		await doStepperMethod(steppers, 'endExecution', undefined);
 		return { ok: okSoFar, featureResults: featureResults, tag: world.tag, shared: world.shared, steppers };
 	}
 }
@@ -99,9 +99,11 @@ export class FeatureExecutor {
 			if (step.action.actionName === SCENARIO_START) {
 				if (currentScenario) {
 					this.logit(`end scenario ${currentScenario}`, { incident: EExecutionMessageType.SCENARIO_END, incidentDetails: { currentScenario } }, 'debug');
+					await doStepperMethod(this.steppers, 'endScenario', undefined);
 				}
 				currentScenario = currentScenario + 1;
 				this.logit(`start scenario ${currentScenario}`, { incident: EExecutionMessageType.SCENARIO_START, incidentDetails: { currentScenario } }, 'debug');
+				await doStepperMethod(this.steppers, 'startScenario', undefined);
 			}
 
 			world.logger.log(step.in, { incident: EExecutionMessageType.STEP_START, tag: world.tag });
@@ -123,6 +125,7 @@ export class FeatureExecutor {
 		}
 		if (currentScenario) {
 			this.logit(`end scenario ${currentScenario}`, { incident: EExecutionMessageType.SCENARIO_END, incidentDetails: { currentScenario } }, 'debug');
+			await doStepperMethod(this.steppers, 'endScenario', undefined);
 		}
 		this.logit(`end feature ${currentScenario}`, {
 			incident: EExecutionMessageType.FEATURE_END, incidentDetails: {
@@ -151,14 +154,11 @@ export class FeatureExecutor {
 	}
 }
 
-const doStepperMethod = async <K extends keyof IStepperCycles>(steppers: AStepper[], method: K, ...args: TAnyFixme[]) => {
+const doStepperMethod = async <K extends keyof StepperMethodArgs>(steppers: AStepper[], method: K, args: StepperMethodArgs[K]): Promise<void> => {
 	for (const stepper of steppers) {
 		if (stepper?.cycles && stepper.cycles[method]) {
 			stepper.getWorld().logger.debug(`🔁 ${method} ${constructorName(stepper)}`);
-			await (stepper.cycles[method] as (...args: TAnyFixme[]) => Promise<TAnyFixme>)(...args).catch((error: TAnyFixme) => {
-				console.error(`${method} failed`, error);
-				throw error;
-			});
+			await (stepper.cycles[method] as (arg: StepperMethodArgs[K]) => Promise<TAnyFixme>)(args);
 		}
 	}
-};
+}
