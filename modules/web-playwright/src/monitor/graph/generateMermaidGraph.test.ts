@@ -12,7 +12,6 @@ import { TProtoFeature } from '@haibun/core/build/lib/resolver-features.js';
 import { AStepper } from '@haibun/core/build/lib/astepper.js';
 import { OK } from '@haibun/core/build/lib/defs.js';
 import { expand } from '@haibun/core/build/lib/features.js';
-import { writeFileSync } from 'fs';
 
 class TestStepper extends AStepper {
 	steps = {
@@ -66,9 +65,7 @@ describe('generateMermaidGraph', () => {
 			content: `is "the background"`,
 		}];
 		const resolvedFeatures = await toResolvedFeatures(features, backgrounds);
-		writeFileSync('test-resolved-features.json', JSON.stringify(resolvedFeatures, null, 2));
 		const lines = await generateMermaidGraph(resolvedFeatures);
-		writeFileSync('test-graph.mermaid', lines.join('\n'));
 
 		const graphContent = lines.join('\n');
 		// Validate overall Mermaid syntax first

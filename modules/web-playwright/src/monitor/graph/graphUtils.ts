@@ -11,9 +11,3 @@ export const formatLabel = (text: string): string => {
     const escapedText = text.replace(/"/g, '#quot;');
     return `"${escapedText}"`;
 };
-
-// Helper function to escape text for Mermaid labels (without surrounding quotes)
-export const escapeMermaidLabel = (text: string): string => {
-    if (text === undefined || text === null) return '';
-    return text.replace(/"/g, '#quot;');
-};
