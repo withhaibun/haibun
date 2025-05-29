@@ -1,6 +1,6 @@
 import { describe, it, test, expect } from 'vitest';
 
-import { OK, TExpandedFeature, TResolvedFeature } from '../lib/defs.js';
+import { OK, TExpandedFeature } from '../lib/defs.js';
 import { AStepper } from '../lib/astepper.js';
 import { asExpandedFeatures } from '../lib/resolver-features.js';
 import TestSteps from '../lib/test/TestSteps.js';
@@ -49,7 +49,7 @@ describe('validate map steps', () => {
 			const features = asExpandedFeatures([{ path: 'l1', content: `exact1` }]);
 
 			const res = await getResolvedSteps(features);
-			const { featureSteps } = res[0] as TResolvedFeature;
+			const { featureSteps } = res[0];
 			expect(featureSteps[0].action.named).toBeUndefined();
 		});
 	});
@@ -57,7 +57,7 @@ describe('validate map steps', () => {
 		test('match', async () => {
 			const features = asExpandedFeatures([{ path: 'l1', content: `match1` }]);
 			const res = await getResolvedSteps(features);
-			const { featureSteps } = res[0] as TResolvedFeature;
+			const { featureSteps } = res[0];
 			expect(featureSteps[0].action.named).toEqual({ num: '1' });
 		});
 	});

@@ -11,7 +11,7 @@ export class Resolver {
 		this.types = BASE_TYPES;
 	}
 
-	async resolveStepsFromFeatures(features: TExpandedFeature[]) {
+	public async resolveStepsFromFeatures(features: TExpandedFeature[]) {
 		const steps: TResolvedFeature[] = [];
 		for (const feature of features) {
 			const featureSteps = await this.findFeatureSteps(feature);
@@ -45,7 +45,13 @@ export class Resolver {
 	}
 
 	getFeatureStep(featureLine: TExpandedLine, seq: number, action: TStepAction): TFeatureStep {
-		return { path: featureLine.feature.path, in: featureLine.line, seq, action };
+		return {
+			path: featureLine.feature.path,
+			in: featureLine.line,
+			seq,
+			action,
+			origin: featureLine.origin, // Correctly set the origin property to reflect the actual source of the step
+		};
 	}
 
 	public findActionableSteps(actionable: string): TStepAction[] {

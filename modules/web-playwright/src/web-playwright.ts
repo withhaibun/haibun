@@ -2,7 +2,7 @@ import { Page, Response, Download } from 'playwright';
 import { resolve } from 'path';
 import { pathToFileURL } from 'url';
 
-import { OK, TNamed, TWorld, TFeatureStep, IStepperCycles, TEndFeature, TFailureArgs } from '@haibun/core/build/lib/defs.js';
+import { OK, TNamed, TWorld, TFeatureStep, IStepperCycles, TEndFeature, TFailureArgs, TStepResult } from '@haibun/core/build/lib/defs.js';
 import { WEB_PAGE, WEB_CONTROL } from '@haibun/core/build/lib/domain-types.js';
 import { BrowserFactory, TTaggedBrowserFactoryOptions, TBrowserTypes, BROWSERS } from './BrowserFactory.js';
 import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOption, sleep, optionOrError } from '@haibun/core/build/lib/util/index.js';
@@ -30,9 +30,9 @@ type TRequestOptions = {
 
 const cycles = (wp: WebPlaywright): IStepperCycles => ({
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	async onFailure({ step }: TFailureArgs): Promise<void> {
+	async onFailure({ failedStep }: TFailureArgs): Promise<void> {
 		if (wp.bf?.hasPage(wp.getWorld().tag, wp.tab)) {
-			await wp.captureFailureScreenshot(EExecutionMessageType.ON_FAILURE, step);
+			await wp.captureFailureScreenshot(EExecutionMessageType.ON_FAILURE, failedStep);
 		}
 	},
 	async startFeature(): Promise<void> {
@@ -779,7 +779,7 @@ class WebPlaywright extends AStepper implements IHasOptions {
 	newTab() {
 		this.tab = this.tab + 1;
 	}
-	async captureFailureScreenshot(event: EExecutionMessageType, step: TFeatureStep) {
+	async captureFailureScreenshot(event: EExecutionMessageType, step: TStepResult) {
 		try {
 			return await this.captureScreenshotAndLog(event, { step });
 		} catch (e) {
@@ -787,12 +787,12 @@ class WebPlaywright extends AStepper implements IHasOptions {
 		}
 	}
 
-	async captureScreenshotAndLog(event: EExecutionMessageType, details: { seq?: number; step?: TFeatureStep }) {
+	async captureScreenshotAndLog(event: EExecutionMessageType, details: { seq?: number; step?: TStepResult }) {
 		const { context, path } = await this.captureScreenshot(event, details,);
 		this.getWorld().logger.log(`${event} screenshot to ${pathToFileURL(path)}`, context);
 	}
 
-	async captureScreenshot(event: EExecutionMessageType, details: { seq?: number; step?: TFeatureStep }) {
+	async captureScreenshot(event: EExecutionMessageType, details: { seq?: number; step?: TStepResult }) {
 		const loc = await this.getCaptureDir('image');
 		// FIXME shouldn't be fs dependant
 		const path = resolve(this.storage.fromLocation(EMediaTypes.image, loc, `${event}-${Date.now()}.png`));

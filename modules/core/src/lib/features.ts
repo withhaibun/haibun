@@ -1,7 +1,7 @@
 import { TExpandedFeature, TExpandedLine, TFeature, TFeatures } from './defs.js';
 import { getActionable } from './util/index.js';
 
-export async function expand(backgrounds: TFeatures, features: TFeatures): Promise<TExpandedFeature[]> {
+export async function expand({ backgrounds, features }: { backgrounds: TFeatures, features: TFeatures }): Promise<TExpandedFeature[]> {
 	const expandedBackgrounds = await expandBackgrounds(backgrounds);
 	const expandedFeatures = await expandFeatures(features, expandedBackgrounds);
 	return expandedFeatures;
@@ -58,9 +58,9 @@ async function expandIncluded(feature: TFeature, backgrounds: TFeatures) {
 	for (const l of split) {
 		const actionable = getActionable(l);
 
-		if (actionable.match(/^Backgrounds: .*$/)) {
+		if (actionable.match(/^Backgrounds: .*$/i)) {
 			lines = lines.concat(doIncludes(l, backgrounds));
-		} else if (actionable.match(/^Scenarios: .*$/)) {
+		} else if (actionable.match(/^Scenarios: .*$/i)) {
 			lines = lines.concat(doIncludes(l, backgrounds));
 		} else {
 			const nl = asFeatureLine(l, feature);
@@ -78,7 +78,7 @@ export function withNameType(base, path: string, content: string) {
 	return { path, base, name, type, content };
 }
 
-export const asFeatureLine = (line: string, feature: TFeature) => ({ line, feature });
+export const asFeatureLine = (line: string, feature: TFeature): TExpandedLine => ({ line, feature, origin: feature.path });
 
 function doIncludes(input: string, backgrounds: TFeatures) {
 	const includes = input

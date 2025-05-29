@@ -217,7 +217,7 @@ class Haibun extends AStepper implements IHasOptions {
 
 	async newFeatureFromEffect(content: string, seq: number, steppers: AStepper[]): Promise<TFeatureStep> {
 		const features = asFeatures([{ path: `resolved from ${content}`, content }]);
-		const expandedFeatures = await expand([], features);
+		const expandedFeatures = await expand({ backgrounds: [], features });
 		const featureSteps = await new Resolver(steppers).findFeatureSteps(expandedFeatures[0]);
 		return { ...featureSteps[0], seq };
 	}

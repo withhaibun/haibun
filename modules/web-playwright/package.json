@@ -4,7 +4,10 @@
   "version": "1.59.0",
   "description": "",
   "main": "build/web-playwright.js",
-  "files": ["build/", "web/monitor.html"],
+  "files": [
+    "build/",
+    "web/monitor.html"
+  ],
   "scripts": {
     "build": "tsc -b .",
     "build-watch": "tsc -b . --watch",
@@ -20,8 +23,12 @@
   "dependencies": {
     "@haibun/core": "1.59.0",
     "@haibun/domain-storage": "1.59.0",
-    "mermaid": "^11.6.0",
     "playwright": "1.52"
   },
-  "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5"
+  "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5",
+  "devDependencies": {
+    "dompurify": "^3.2.6",
+    "jsdom": "^26.1.0",
+    "mermaid": "^11.6.0"
+  }
 }

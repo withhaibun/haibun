@@ -49,7 +49,7 @@ export class Runner {
 			this.steppers = await createSteppers(csteppers);
 			await setStepperWorlds(this.steppers, this.world);
 
-			const expandedFeatures = await expand(backgrounds, features).catch((error) => this.errorBail('Expand', error));
+			const expandedFeatures = await expand({ backgrounds, features }).catch((error) => this.errorBail('Expand', error));
 
 			const resolver = new Resolver(this.steppers);
 			const resolvedFeatures = await resolver.resolveStepsFromFeatures(expandedFeatures).catch((error) => this.errorBail('Resolve', error));

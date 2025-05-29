@@ -90,7 +90,10 @@ describe('expand features', () => {
 
 		expect(res[0].expanded.map((e) => e.line)).toEqual(['result', 'Extant']);
 		expect(res[0].expanded.map((e) => e.feature.name)).toEqual(['/b1', '/f1']);
+		expect(res[0].expanded.map((e) => e.feature.path)).toEqual(['/b1.feature', '/f1']);
+		expect(res[0].expanded.map((e) => e.origin)).toEqual(['/b1.feature', '/f1']);
 	});
+
 	test('applies backgrounds hierarchical', async () => {
 		const features = asFeatures([{ path: '/l1/f1', content: 'Backgrounds: b2' }]);
 		const backgrounds = asFeatures([
@@ -98,9 +101,32 @@ describe('expand features', () => {
 			{ path: '/l2/b2.feature', content: 'result' },
 		]);
 		const res = await steps.expandFeatures(features, backgrounds);
+
 		expect(res[0].expanded.length).toBe(1);
 		expect(res[0].expanded[0].line).toEqual('result');
 		expect(res[0].expanded[0].feature.name).toEqual('/l2/b2');
+		expect(res[0].expanded[0].feature.path).toEqual('/l2/b2.feature');
+		expect(res[0].expanded[0].origin).toEqual('/l2/b2.feature');
+	});
+
+	test('multiple features and backgrounds', async () => {
+		const features = asFeatures([
+			{ path: '/f1', content: 'Backgrounds: b1\nFeature step 1' },
+			{ path: '/f2', content: 'Backgrounds: b2\nFeature step 2' },
+		]);
+		const backgrounds = asFeatures([
+			{ path: '/b1.feature', content: 'Background step 1' },
+			{ path: '/b2.feature', content: 'Background step 2' },
+		]);
+		const res = await steps.expandFeatures(features, backgrounds);
+
+		expect(res[0].expanded.map((e) => e.line)).toEqual(['Background step 1', 'Feature step 1']);
+		expect(res[0].expanded.map((e) => e.feature.path)).toEqual(['/b1.feature', '/f1']);
+		expect(res[0].expanded.map((e) => e.origin)).toEqual(['/b1.feature', '/f1']);
+
+		expect(res[1].expanded.map((e) => e.line)).toEqual(['Background step 2', 'Feature step 2']);
+		expect(res[1].expanded.map((e) => e.feature.path)).toEqual(['/b2.feature', '/f2']);
+		expect(res[1].expanded.map((e) => e.origin)).toEqual(['/b2.feature', '/f2']);
 	});
 });
 
@@ -122,7 +148,7 @@ describe('env vars', () => {
 	});
 	it('env or var or literal finds literal', async () => {
 		const feature = { path: '/features/test.feature', content: `set x to what` };
-		const { world } = await testWithDefaults([feature], varsStepper );
+		const { world } = await testWithDefaults([feature], varsStepper);
 		expect(world.shared.get('x')).toBe('what');
 	});
 });
