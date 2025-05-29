@@ -1,21 +1,16 @@
 import { TResolvedFeature } from '@haibun/core/build/lib/defs.js';
 import { sanitize, formatLabel } from './graphUtils.js';
 import { getBaseLocations } from './feature-bases.js';
-import { getEnvVarLinks, getScenarioVars } from './mermaidGraphLinks.js';
 
 export async function generateMermaidGraph(resolvedFeatures: TResolvedFeature[]): Promise<string[]> {
     const graphLines: string[] = ['graph TD'];
 
-    // BASES SUBGRAPH (defined first)
+    // BASES (defined first, top-level)
     const baseLocations = getBaseLocations(resolvedFeatures);
-    if (baseLocations.size) {
-        graphLines.push('    subgraph BASES [Bases]');
-        baseLocations.forEach(basePath => {
-            const basePathStr = String(basePath);
-            graphLines.push(`        base_${sanitize(basePathStr)}([${formatLabel(basePathStr)}])`);
-        });
-        graphLines.push('    end');
-    }
+    baseLocations.forEach(basePath => {
+        const basePathStr = String(basePath);
+        graphLines.push(`    base_${sanitize(basePathStr)}(${formatLabel(basePathStr)})`);
+    });
 
     // ENV SUBGRAPH
     const envVars = new Set<string>();
@@ -44,99 +39,112 @@ export async function generateMermaidGraph(resolvedFeatures: TResolvedFeature[])
     if (backgrounds.size) {
         graphLines.push('    subgraph BACKGROUNDS [Backgrounds]');
         backgrounds.forEach(bgPath => { // bgPath is the path string from the Set
-            graphLines.push(`        bg_${sanitize(bgPath)}([${formatLabel(bgPath)}])`);
+            graphLines.push(`        bg_${sanitize(bgPath)}[${formatLabel(bgPath)}]`);
         });
         graphLines.push('    end');
     }
 
     // FEATURES & SCENARIOS
+    const baseToStepLinks: string[] = []; // Store base-to-step links here
     resolvedFeatures.forEach((feature, featureIdx) => {
         const featureId = `feature_${sanitize(feature.path)}`;
         // Use featureId directly as the subgraph ID for cleaner linking
         graphLines.push(`    subgraph ${featureId} [${formatLabel(feature.path)}]`);
-        // Link base to the first step of the first scenario
+
+        // Link base to the feature subgraph
         if (feature.base && typeof feature.base === 'string' && feature.base.trim() !== '') {
             const baseId = `base_${sanitize(feature.base)}`;
-            let firstStepIdToLink: string | null = null;
-
-            for (let i = 0; i < feature.featureSteps.length; i++) {
-                const currentStepDetails = feature.featureSteps[i];
-                if (currentStepDetails.action?.actionName === 'scenarioStart') {
-                    // This is a scenario declaration. We need the *next* step, if it's an actual step.
-                    if (i + 1 < feature.featureSteps.length) {
-                        const nextStepDetails = feature.featureSteps[i + 1];
-                        // Check if the next line is an actual step (not another scenario start)
-                        if (nextStepDetails.action?.actionName !== 'scenarioStart') {
-                            firstStepIdToLink = `step_${featureIdx}_${i + 1}`;
-                            break; // Found the first step of the first scenario
-                        }
-                    }
-                    // Only consider the first scenario encountered for this linking logic.
-                    break;
-                }
-            }
-
-            if (firstStepIdToLink) {
-                graphLines.push(`    ${baseId} --> ${firstStepIdToLink}`);
-            }
+            baseToStepLinks.push(`    ${baseId} --> ${featureId}`); // Collect the link to the feature subgraph
         }
+
         let scenarioIdx = 0;
         let currentScenarioId: string | null = null;
         let previousStepActualId: string | null = null;
         let previousStepIsInScenario: boolean = false;
 
         feature.featureSteps.forEach((step, stepIdx) => {
-            const stepId = `step_${featureIdx}_${stepIdx}`;
+            // Assuming step.action and step.action.actionName are always present
+            const actionNamePart = sanitize(step.action!.actionName);
+            const newStepId = `step_${actionNamePart}_${featureIdx}_${stepIdx}`;
             const indent = currentScenarioId ? '            ' : '        ';
             const currentStepIsInCurrentScenario = !!currentScenarioId;
 
-            if (step.action?.actionName === 'scenarioStart') {
+            if (step.action!.actionName === 'scenarioStart') {
                 if (currentScenarioId) graphLines.push('        end'); // End previous scenario subgraph
                 currentScenarioId = `scenario_${featureIdx}_${++scenarioIdx}`;
                 graphLines.push(`        subgraph ${currentScenarioId} [${formatLabel(step.in)}]`);
                 previousStepActualId = null; // Reset for steps within the new scenario
             } else {
                 // This is an actual step node
-                graphLines.push(`${indent}${stepId}[${formatLabel(step.in)}]`);
+                graphLines.push(`${indent}${newStepId}[${formatLabel(step.in)}]`);
 
                 // Link from previous actual step in the same scope (feature or scenario)
                 if (previousStepActualId) {
                     if (currentStepIsInCurrentScenario === previousStepIsInScenario) {
-                        graphLines.push(`${indent}${previousStepActualId} ==> ${stepId}`);
+                        graphLines.push(`${indent}${previousStepActualId} ==> ${newStepId}`);
                     }
                 }
-                previousStepActualId = stepId;
+                previousStepActualId = newStepId;
 
                 // Link to background if step is from background
                 if (step.origin && step.origin !== feature.path && backgrounds.has(step.origin)) {
-                    graphLines.push(`${indent}${stepId} -.-> bg_${sanitize(step.origin)}`);
+                    graphLines.push(`${indent}${newStepId} -.-> bg_${sanitize(step.origin)}`);
+                }
+
+                // Inline variable linking logic
+                if (step.action!.vars && step.action!.actionName !== 'scenarioStart') {
+                    const definedScenarioVarsForStep = new Set<string>();
+
+                    step.action.vars.forEach((varDef, varIndex) => {
+                        const varName = varDef.name; // e.g., "what"
+                        let actualNamedValue: string | undefined = undefined;
+                        let isEnvLink = false;
+                        let envLinkTargetName: string | undefined = undefined;
+
+                        // Prefixes for indexed named parameters (excluding 'e' which is special)
+                        // These correspond to TYPE_QUOTED, TYPE_VAR, TYPE_ENV_OR_VAR_OR_LITERAL, TYPE_SPECIAL, TYPE_CREDENTIAL etc. from namedVars.ts
+                        const indexedPrefixes = ['q', 'b', 't', 's', 'c', 'a', 'n'];
+                        const envPrefix = 'e';
+
+                        // Check for environment variable first (e.g., e_0)
+                        const envNamedKey = `${envPrefix}_${varIndex}`;
+                        if (step.action!.named && step.action!.named[envNamedKey] !== undefined) {
+                            actualNamedValue = String(step.action!.named[envNamedKey]);
+                            isEnvLink = true;
+                            envLinkTargetName = actualNamedValue; // For e_X, the value in 'named' is the env var name
+                        } else {
+                            // Check other indexed prefixes for scenario variables
+                            for (const prefix of indexedPrefixes) {
+                                const namedKeyCandidate = `${prefix}_${varIndex}`;
+                                if (step.action!.named && step.action!.named[namedKeyCandidate] !== undefined) {
+                                    actualNamedValue = String(step.action!.named[namedKeyCandidate]);
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (actualNamedValue !== undefined) { // A value was found for this varDef
+                            if (isEnvLink && envLinkTargetName) {
+                                graphLines.push(`${indent}${newStepId} -.-> env_${sanitize(envLinkTargetName)}`);
+                            } else {
+                                const scenarioVarNodeId = `scenariovar_${actionNamePart}_${featureIdx}_${stepIdx}_${sanitize(varName)}`;
+                                if (!definedScenarioVarsForStep.has(scenarioVarNodeId)) {
+                                    graphLines.push(`${indent}${scenarioVarNodeId}([${formatLabel(varName + " = " + actualNamedValue)}])`);
+                                    definedScenarioVarsForStep.add(scenarioVarNodeId);
+                                }
+                                graphLines.push(`${indent}${newStepId} -.-> ${scenarioVarNodeId}`);
+                            }
+                        }
+                    });
                 }
             }
             previousStepIsInScenario = currentStepIsInCurrentScenario;
         });
         if (currentScenarioId) graphLines.push('        end'); // End the last scenario subgraph
         graphLines.push('    end');
-        // VARS
-        const envLinks = getEnvVarLinks(feature.featureSteps);
-        envLinks.forEach(({ stepIndex, envVar }) => {
-            const stepDetails = feature.featureSteps[stepIndex]; // stepDetails is TFeatureStep
-            // Ensure link originates from an actual step, not a scenario start action
-            if (stepDetails && stepDetails.action?.actionName !== 'scenarioStart') {
-                const stepId = `step_${featureIdx}_${stepIndex}`;
-                graphLines.push(`    ${stepId} -.-> env_${sanitize(envVar)}`);
-            }
-        });
-        const scenarioVars = getScenarioVars(feature.featureSteps);
-        scenarioVars.forEach(({ stepIndex, varName }) => {
-            const stepDetails = feature.featureSteps[stepIndex];
-            // Ensure link originates from an actual step, not a scenario start action
-            if (stepDetails && stepDetails.action?.actionName !== 'scenarioStart') {
-                const stepId = `step_${featureIdx}_${stepIndex}`;
-                const scenarioVarNodeId = `var_${featureIdx}_${stepIndex}_${sanitize(varName)}`;
-                graphLines.push(`    ${stepId} -.-> ${scenarioVarNodeId}`);
-                graphLines.push(`    ${scenarioVarNodeId}([${formatLabel(varName)}])`);
-            }
-        });
     });
+
+    // Add base-to-step links at the top level, after all subgraphs are defined
+    graphLines.push(...baseToStepLinks);
     return graphLines;
 }
