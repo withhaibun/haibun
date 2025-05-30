@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+
 import { getBackgroundFeatures } from './feature-bases.js';
 import { asFeatures } from '@haibun/core/build/lib/resolver-features.js';
 import { createSteppers } from '@haibun/core/build/lib/util/index.js';

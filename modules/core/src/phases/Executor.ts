@@ -32,7 +32,7 @@ export class Executor {
 		});
 	}
 	static async executeFeatures(steppers: AStepper[], world: TWorld, features: TResolvedFeature[]): Promise<TExecutorResult> {
-		await doStepperMethod(steppers, 'startExecution', undefined);
+		await doStepperMethod(steppers, 'startExecution', features);
 		let okSoFar = true;
 		const stayOnFailure = world.options[STAY] === STAY_FAILURE;
 		const featureResults: TFeatureResult[] = [];

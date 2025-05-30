@@ -53,6 +53,7 @@ export type TOutputEnv = { output: ILogOutput; tag: TTag };
 export type TArtifact = (
 	TArtifactSpeech |
 	TArtifactVideo |
+	TArtifactMermaid |
 	TArtifactVideoStart |
 	TArtifactImage |
 	TArtifactHTML |
@@ -64,6 +65,11 @@ export type TArtifactSpeech = {
 	artifactType: 'speech';
 	transcript: string;
 	durationS: number;
+	path: string;
+};
+
+export type TArtifactMermaid = {
+	artifactType: 'mermaid';
 	path: string;
 };
 

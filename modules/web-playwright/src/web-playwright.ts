@@ -2,19 +2,19 @@ import { Page, Response, Download } from 'playwright';
 import { resolve } from 'path';
 import { pathToFileURL } from 'url';
 
-import { OK, TNamed, TWorld, TFeatureStep, IStepperCycles, TEndFeature, TFailureArgs, TStepResult } from '@haibun/core/build/lib/defs.js';
+import { OK, TNamed, TWorld, TFeatureStep, TStepResult } from '@haibun/core/build/lib/defs.js';
 import { WEB_PAGE, WEB_CONTROL } from '@haibun/core/build/lib/domain-types.js';
 import { BrowserFactory, TTaggedBrowserFactoryOptions, TBrowserTypes, BROWSERS } from './BrowserFactory.js';
 import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOption, sleep, optionOrError } from '@haibun/core/build/lib/util/index.js';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
-import { EExecutionMessageType, TArtifactImage, TArtifactVideo, TMessageContext } from '@haibun/core/build/lib/interfaces/logger.js';
+import { EExecutionMessageType, TArtifactImage, TMessageContext } from '@haibun/core/build/lib/interfaces/logger.js';
 import { EMediaTypes } from '@haibun/domain-storage/build/media-types.js';
 
 import { restSteps, TCapturedResponse } from './rest-playwright.js';
 import { MonitorHandler } from './monitor/MonitorHandler.js';
-import { rmSync } from 'fs';
 import { TAnyFixme } from '@haibun/core/build/lib/fixme.js';
 import { AStepper, IHasOptions } from '@haibun/core/build/lib/astepper.js';
+import { cycles } from './cycles.js';
 
 export const LAST_REST_RESPONSE = 'LAST_REST_RESPONSE';
 export enum EMonitoringTypes {
@@ -28,66 +28,7 @@ type TRequestOptions = {
 	userAgent?: string
 };
 
-const cycles = (wp: WebPlaywright): IStepperCycles => ({
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	async onFailure({ failedStep }: TFailureArgs): Promise<void> {
-		if (wp.bf?.hasPage(wp.getWorld().tag, wp.tab)) {
-			await wp.captureFailureScreenshot(EExecutionMessageType.ON_FAILURE, failedStep);
-		}
-	},
-	async startFeature(): Promise<void> {
-		if (wp.monitor === EMonitoringTypes.MONITOR_EACH) {
-			await wp.createMonitor();
-		}
-	},
-	async endFeature({ shouldClose = true }: TEndFeature) {
-		// leave web server running if there was a failure and it's the last feature
-		if (shouldClose) {
-			for (const file of wp.downloaded) {
-				wp.getWorld().logger.debug(`removing ${JSON.stringify(file)}`);
-				rmSync(file);
-				wp.downloaded = [];
-			}
-			if (wp.hasFactory) {
-				if (wp.captureVideo) {
-					const page = await wp.getPage();
-					const path = await wp.storage.getRelativePath(await page.video().path());
-					const artifact: TArtifactVideo = { artifactType: 'video', path };
-					const context: TMessageContext = {
-						incident: EExecutionMessageType.FEATURE_END,
-						artifact,
-						tag: wp.getWorld().tag
-					};
-					wp.getWorld().logger.log('feature video', context);
-				}
-				// close the context, which closes any pages
-				if (wp.hasFactory) {
-					await wp.bf?.closeContext(wp.getWorld().tag);
-				}
-				await wp.bf?.close();
-				wp.bf = undefined;
-				wp.hasFactory = false;
-			}
-		}
-		if (wp.monitor === EMonitoringTypes.MONITOR_EACH) {
-			await wp.callClosers();
-			await WebPlaywright.monitorHandler.writeMonitor();
-		}
-	},
-	async startExecution() {
-		if (wp.monitor === EMonitoringTypes.MONITOR_ALL) {
-			await wp.createMonitor();
-		}
-	},
-	async endExecution() {
-		if (wp.monitor === EMonitoringTypes.MONITOR_ALL) {
-			await wp.callClosers();
-			await WebPlaywright.monitorHandler.writeMonitor();
-		}
-	},
-});
-
-class WebPlaywright extends AStepper implements IHasOptions {
+export class WebPlaywright extends AStepper implements IHasOptions {
 	cycles = cycles(this);
 	static STORAGE = 'STORAGE';
 	static PERSISTENT_DIRECTORY = 'PERSISTENT_DIRECTORY';
