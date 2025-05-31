@@ -48,7 +48,7 @@ export class Executor {
 
 			const featureExecutor = new FeatureExecutor(steppers, newWorld);
 			await setStepperWorlds(steppers, newWorld);
-			await doStepperMethod(steppers, 'startFeature', feature);
+			await doStepperMethod(steppers, 'startFeature', { resolvedFeature: feature, index: featureNum });
 
 			const featureResult = await featureExecutor.doFeature(feature);
 			const thisFeatureOK = featureResult.ok;

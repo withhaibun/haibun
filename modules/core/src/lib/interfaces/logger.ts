@@ -1,3 +1,4 @@
+import { TResolvedFeature } from '../defs.js';
 import { TAnyFixme } from '../fixme.js';
 import { TTag } from '../ttag.js';
 
@@ -53,7 +54,7 @@ export type TOutputEnv = { output: ILogOutput; tag: TTag };
 export type TArtifact = (
 	TArtifactSpeech |
 	TArtifactVideo |
-	TArtifactMermaid |
+	TArtifactResolvedFeatures |
 	TArtifactVideoStart |
 	TArtifactImage |
 	TArtifactHTML |
@@ -68,8 +69,10 @@ export type TArtifactSpeech = {
 	path: string;
 };
 
-export type TArtifactMermaid = {
-	artifactType: 'mermaid';
+export type TArtifactResolvedFeatures = {
+	artifactType: 'resolvedFeatures';
+	resolvedFeatures: TResolvedFeature[];
+	index?: number;
 	path: string;
 };
 

@@ -1,6 +1,6 @@
 import { resolve } from 'path';
 
-import { OK, TNamed, TWorld, TFeatureStep, STEP_DELAY, IStepperCycles, TResolvedFeature, SCENARIO_START } from '../lib/defs.js';
+import { OK, TNamed, TWorld, TFeatureStep, STEP_DELAY, IStepperCycles, SCENARIO_START, TStartFeature } from '../lib/defs.js';
 import { TAnyFixme } from '../lib/fixme.js';
 import { IHasOptions } from '../lib/astepper.js';
 import { AStepper } from '../lib/astepper.js';
@@ -16,9 +16,9 @@ import { captureLocator } from '../lib/capture-locator.js';
 const CAPTURE_FILENAME = 'vcapture.webm';
 
 const cycles = (hb: Haibun): IStepperCycles => ({
-	async startFeature(feature: TResolvedFeature) {
+	async startFeature({ resolvedFeature }: TStartFeature) {
 		if (hb.ttsCmd) {
-			hb.renderedAudio = await preRenderFeatureProse(feature, hb.ttsCmd, hb.world.logger);
+			hb.renderedAudio = await preRenderFeatureProse(resolvedFeature, hb.ttsCmd, hb.world.logger);
 		}
 
 		if (hb.captureStart) {
