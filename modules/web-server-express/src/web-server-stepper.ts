@@ -92,7 +92,6 @@ class WebServerStepper extends AStepper implements IHasOptions {
 			gwta: 'index files at {where} from {loc}',
 			action: async ({ where, loc }: TNamed) => {
 				const r = await this.doServeIndex(where, loc).catch((e) => actionNotOK(e));
-				console.log('r', r);
 				return r;
 			},
 		},
