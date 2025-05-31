@@ -10,12 +10,12 @@ import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 import { EExecutionMessageType, TArtifactImage, TMessageContext } from '@haibun/core/build/lib/interfaces/logger.js';
 import { EMediaTypes } from '@haibun/domain-storage/build/media-types.js';
 
-import { restSteps, TCapturedResponse } from './rest-playwright.js';
 import { MonitorHandler } from './monitor/MonitorHandler.js';
 import { TAnyFixme } from '@haibun/core/build/lib/fixme.js';
 import { AStepper, IHasOptions } from '@haibun/core/build/lib/astepper.js';
 import { cycles } from './cycles.js';
 import { interactionSteps } from './interactionSteps.js';
+import { restSteps, TCapturedResponse } from './rest-playwright.js';
 
 /**
  * This is the infrastructure for web-playwright.
@@ -86,13 +86,10 @@ export class WebPlaywright extends AStepper implements IHasOptions {
 	downloaded: string[] = [];
 	captureVideo: boolean;
 	closers: Array<() => Promise<void>> = [];
-	logElementError: TAnyFixme;
 	monitor: EMonitoringTypes;
 	static monitorHandler: MonitorHandler;
-	userAgentPages: { [name: string]: Page } = {};
 	apiUserAgent: string;
 	extraHTTPHeaders: { [name: string]: string; } = {};
-	BROWSER_STATE_PATH: string = undefined;
 	expectedDownload: Promise<Download>;
 	headless: boolean;
 
@@ -272,10 +269,10 @@ export class WebPlaywright extends AStepper implements IHasOptions {
 				}, { endpoint, method, headers, postData });
 
 				return ret;
-			} catch (e: TAnyFixme) {
+			} catch (e) {
 				throw new Error(`Evaluate fetch error: ${JSON.stringify({ endpoint, method, headers, ua })} : ${e.message}. Page console messages: ${pageConsoleMessages.map(msg => `[${msg.type}] ${msg.text}`).join('; ')}`);
 			}
-		} catch (e: TAnyFixme) {
+		} catch (e) {
 			const ua = userAgent || this.apiUserAgent;
 			throw new Error(`Evaluate fetch error: ${JSON.stringify({ endpoint, method, headers, ua })} : ${e.message}`);
 		} finally {
