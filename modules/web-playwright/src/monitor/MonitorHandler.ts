@@ -94,7 +94,13 @@ export class MonitorHandler {
 		}
 		await sleep(500); // Allow final rendering
 
-		const content = await this.monitorPage.content();
+		const content = (await this.monitorPage.content()).replace('<head>', `
+<head>
+<script>
+window.haibunStaticPage = true;
+window.haibunCapturedMessages = ${JSON.stringify(capturedMessages, null, 2)};
+</script>
+`);
 		await this.inMonitor(() => {
 			const base = document.querySelector('base');
 			if (base) {
@@ -102,10 +108,10 @@ export class MonitorHandler {
 			}
 		});
 
-		const outHtml = join(this.monitorLoc, 'monitor.html');
-		const monitorPath = actualURI(outHtml);
+		const outHtmlFile = join(this.monitorLoc, 'monitor.html');
+		const monitorPath = actualURI(outHtmlFile);
 		this.world.logger.info(`Writing monitor HTML to ${monitorPath}`);
-		await this.storage.writeFile(outHtml, content, EMediaTypes.html);
+		await this.storage.writeFile(outHtmlFile, content, EMediaTypes.html);
 		const outMessages = join(this.monitorLoc, 'monitor.json');
 		await this.storage.writeFile(outMessages, JSON.stringify(capturedMessages, null, 2), EMediaTypes.html);
 	}
