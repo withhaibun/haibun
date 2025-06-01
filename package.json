@@ -2,7 +2,9 @@
   "name": "haibun",
   "type": "module",
   "private": false,
-  "workspaces": ["modules/*"],
+  "workspaces": [
+    "modules/*"
+  ],
   "devDependencies": {
     "@types/node": "^22.14.0",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
@@ -15,6 +17,7 @@
     "eslint-plugin-import": "^2.31.0",
     "eslint-plugin-prefer-arrow": "^1.2.3",
     "eslint-plugin-prettier": "^5.2.6",
+    "isomorphic-dompurify": "^2.25.0",
     "jsdom": "^26.1.0",
     "prettier": "^3.5.3",
     "rollup-plugin-visualizer": "^5.14.0",

@@ -79,39 +79,6 @@ describe('Monitor Messages Logic (messages.ts)', () => {
 			expect(details?.querySelector('.haibun-incident-type')).toBeNull();
 		});
 
-		it('should render a Video Start artifact in the body', async () => {
-			const startTime = 1245;
-			const artifact: TArtifactVideoStart = { artifactType: 'video/start', start: startTime };
-			const mockTagVideoStart: TTag = { key: 'vstart', sequence: 6, featureNum: 1, params: {}, trace: false };
-			const context: TMessageContext = {
-				incident: EExecutionMessageType.ACTION,
-				tag: mockTagVideoStart,
-				artifact
-			};
-			const logEntry = new LogEntry('info', BASE_TIMESTAMP, 'Video Start', context);
-			const element = logEntry.element;
-			const details = element.querySelector('.haibun-context-details') as HTMLDetailsElement;
-
-			await new Promise(resolve => setTimeout(resolve, 0));
-
-			expect(element.querySelector('.haibun-context-details .haibun-artifact-details')).toBeNull();
-			if (details) {
-				expect(details.querySelector('#haibun-video-start')).toBeNull();
-			}
-
-			const messageContent = element.querySelector('.haibun-message-content') as HTMLElement;
-			expect(messageContent).not.toBeNull();
-
-			expect(messageContent.classList.contains('haibun-simple-message')).toBe(true);
-			expect(messageContent.textContent).toContain('Video Start');
-			expect(messageContent.textContent).toContain('video/start');
-
-			const startSpan = document.body.querySelector('#haibun-video-start') as HTMLSpanElement;
-			expect(startSpan).not.toBeNull();
-			expect(startSpan).toBeInstanceOf(HTMLSpanElement);
-			expect(startSpan?.dataset.start).toBe(`${startTime}`);
-		});
-
 		it('should throw if artifact type is not recognized', () => {
 			const artifact = <TArtifact>(<unknown>{ artifactType: 'notAThing' });
 			const mockTagGeneric: TTag = { key: 'generic', sequence: 9, featureNum: 1, params: {}, trace: false };

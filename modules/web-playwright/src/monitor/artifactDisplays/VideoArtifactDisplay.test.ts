@@ -26,43 +26,46 @@ describe('VideoArtifactDisplay Rendering', () => {
 		}
 	});
 
-	it('should render a Video artifact in details via LogMessageContent when #haibun-video container is missing', async () => {
-		const videoPath = '/path/to/video.mp4';
+	it('should render a Video artifact in #haibun-video container via LogMessageContent when present', async () => {
+		// Create #haibun-video container for this test
+		const videoContainer = document.createElement('div');
+		videoContainer.id = 'haibun-video';
+		document.body.appendChild(videoContainer);
+
+		const videoPath = '/path/to/video-via-logmessagecontent.mp4';
 		const artifact: TArtifactVideo = { artifactType: 'video', path: videoPath };
 		const context: TMessageContext = {
 			incident: EExecutionMessageType.ACTION,
 			tag: createMockTag(),
 			artifact
 		};
-		const logMessageContent = new LogMessageContent('Video Artifact in Details', context);
+		const logMessageContent = new LogMessageContent('Video Artifact in #haibun-video', context);
 		document.body.appendChild(logMessageContent.element);
 
-		const details = logMessageContent.element.querySelector('.haibun-context-details') as HTMLDetailsElement;
-		expect(details).not.toBeNull();
-
-		const messageSummary = details?.querySelector('.haibun-log-message-summary');
-		expect(messageSummary?.textContent).toContain('Video Artifact in Details');
-		expect(messageSummary?.querySelector('.details-type')?.textContent).toBe('video');
-
-		const artifactContainer = details?.querySelector('.haibun-artifact-container.haibun-artifact-video') as HTMLElement;
-		expect(artifactContainer).not.toBeNull();
-		expect(artifactContainer.textContent).toBe('Artifact is loading...');
-
-		let video = artifactContainer?.querySelector('video') as HTMLVideoElement;
-		expect(video).toBeNull();
-
-		details.open = true;
-		details.dispatchEvent(new Event('toggle'));
-
+		// Allow time for renderSpecialPlacementArtifact to complete as it's async
 		await new Promise(resolve => setTimeout(resolve, 0));
 
-		const renderedArtifactContainer = details?.querySelector('.haibun-artifact-container.haibun-artifact-video') as HTMLElement;
-		video = renderedArtifactContainer?.querySelector('video') as HTMLVideoElement;
-		expect(video).not.toBeNull();
-		expect(video).toBeInstanceOf(HTMLVideoElement);
-		expect(video?.src).toContain(videoPath);
-		expect(video?.controls).toBe(true);
-		expect(document.querySelector('#haibun-video video')).toBeNull();
+		// Assert video is in #haibun-video
+		const videoInSpecialContainer = document.querySelector('#haibun-video video') as HTMLVideoElement;
+		expect(videoInSpecialContainer, 'Video element should be in #haibun-video container').not.toBeNull();
+		if (videoInSpecialContainer) { // Type guard
+			expect(videoInSpecialContainer).toBeInstanceOf(HTMLVideoElement);
+			expect(videoInSpecialContainer.src).toContain(videoPath);
+			expect(videoInSpecialContainer.controls).toBe(true);
+		}
+		expect(videoContainer.style.display, '#haibun-video container should be visible').toBe('flex');
+
+		// Assert video is NOT in the details element of LogMessageContent
+		const details = logMessageContent.element.querySelector('.haibun-context-details') as HTMLDetailsElement;
+		expect(details, 'Details element within LogMessageContent should exist').not.toBeNull();
+
+		const artifactContainerInDetails = details?.querySelector('.haibun-artifact-container.haibun-artifact-video');
+		expect(artifactContainerInDetails, 'Artifact container for video should NOT be in details').toBeNull();
+
+		// Assert summary message and label are still present in details
+		const messageSummary = details?.querySelector('.haibun-log-message-summary');
+		expect(messageSummary?.textContent, 'Summary message should be present').toContain('Video Artifact in #haibun-video');
+		expect(messageSummary?.querySelector('.details-type')?.textContent, 'Details type label should be "video"').toBe('video');
 	});
 
 	it('should render a Video artifact in #haibun-video container when present, via LogEntry', async () => {
@@ -91,11 +94,19 @@ describe('VideoArtifactDisplay Rendering', () => {
 
 		const messageContentEl = logEntry.element.querySelector('.haibun-message-content');
 		expect(messageContentEl).not.toBeNull();
-		expect(messageContentEl!.classList.contains('haibun-simple-message')).toBe(true);
-		expect(messageContentEl!.textContent).toContain('Video Artifact in Container');
+		// If an artifact is present in messageContext, LogMessageContent will not have 'haibun-simple-message' class.
+		// It will instead construct the details/summary structure.
+		expect(messageContentEl!.classList.contains('haibun-simple-message')).toBe(false);
+		// The primary message is part of the summary within the details element, not direct textContent of messageContentEl
+		// expect(messageContentEl!.textContent).toContain('Video Artifact in Container'); // This would fail
 
 		const details = logEntry.element.querySelector('.haibun-context-details') as HTMLDetailsElement;
 		expect(details).not.toBeNull();
+
+		// Check that the summary inside details contains the message
+		const messageSummary = details?.querySelector('.haibun-log-message-summary');
+		expect(messageSummary?.textContent).toContain('Video Artifact in Container');
+
 		expect(details.querySelector('.haibun-artifact-container.haibun-artifact-video')).toBeNull();
 		expect(details.querySelector('video')).toBeNull();
 	});

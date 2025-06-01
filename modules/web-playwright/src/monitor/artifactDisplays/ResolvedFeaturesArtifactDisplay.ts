@@ -1,9 +1,8 @@
 import { TArtifactResolvedFeatures } from "@haibun/core/build/lib/interfaces/logger.js";
-import { generateMermaidGraph } from "../graph/generateMermaidGraph.js";
+import { generateMermaidGraphAsMarkdown } from "../graph/generateMermaidGraph.js";
 import { ArtifactDisplay } from "./artifactDisplayBase.js";
 
 import mermaid from 'mermaid';
-mermaid.initialize({ maxTextSize: 900000, maxEdges: 5000 });
 
 let instanceCounter = 0;
 
@@ -21,8 +20,7 @@ export class ResolvedFeaturesArtifactDisplay extends ArtifactDisplay {
 			return;
 		}
 
-		const mermaidGraphLines = await generateMermaidGraph(this.artifact.resolvedFeatures);
-		const mermaidGraph = mermaidGraphLines.join('\n');
+		const mermaidGraph = await generateMermaidGraphAsMarkdown(this.artifact.resolvedFeatures);
 
 		const graphSvgId = `mermaid-graph-svg-${instanceCounter++}-${Date.now()}`;
 
