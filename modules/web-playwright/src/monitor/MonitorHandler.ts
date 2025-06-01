@@ -16,8 +16,6 @@ import { TLogEntry } from './monitor.js';
 const monitorLocation = join(getPackageLocation(import.meta), '..', '..', 'web', 'monitor.html');
 const capturedMessages: TLogEntry[] = [];
 
-type TEntry = { level: TLogLevel, message: TLogArgs, ctx?: TMessageContext, timestamp: number, messageContextString?: string };
-
 export class MonitorHandler {
 	subscriber: ILogOutput;
 	monitorPage: Page;

@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { TArtifact, TMessageContext, TArtifactVideoStart, EExecutionMessageType, } from '@haibun/core/build/lib/interfaces/logger.js';
+import { TArtifact, TMessageContext, EExecutionMessageType, } from '@haibun/core/build/lib/interfaces/logger.js';
 import { TFeatureStep, TStepResult, TStepAction, TStepActionResult, OK } from '@haibun/core/build/lib/defs.js';
 import { LogEntry } from './messages.js';
 import { TTag } from '@haibun/core/build/lib/ttag.js';

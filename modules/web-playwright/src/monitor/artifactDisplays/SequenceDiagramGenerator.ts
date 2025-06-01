@@ -82,8 +82,8 @@ export class SequenceDiagramGenerator {
 	public generateDiagramFromHistory(): void {
 		this.resetDiagramState();
 
-		if (window.haibunLogData) {
-			const httpTraceEvents = window.haibunLogData.filter(
+		if (window.haibunCapturedMessages) {
+			const httpTraceEvents = window.haibunCapturedMessages.filter(
 				entry => entry.messageContext?.artifact?.artifactType === 'json/http/trace' &&
 					(entry.messageContext.artifact as TArtifactHTTPTrace).httpEvent !== 'route'
 			);
@@ -241,11 +241,11 @@ export class SequenceDiagramGenerator {
 				mermaidContainer.innerHTML = `<pre>Error: Could not find .mermaid element for rendering.</pre>`;
 			}
 		} catch (e) {
-			console.error("Failed Mermaid diagram definition:\\\\n", diagramToRender);
+			console.error("Failed Mermaid diagram definition:\n", diagramToRender);
 			console.error("Error rendering Mermaid diagram:", e);
 			const detailedError = (typeof e === 'object' && e !== null && 'str' in e) ? (e as TAnyFixme).str : null;
 			const errorMessage = detailedError || (e instanceof Error ? e.message : String(e));
-			mermaidContainer.innerHTML = `<pre>Error rendering Mermaid diagram:\\\\n\\\\n${errorMessage}\\\\n\\\\n--- Diagram Definition ---\\n${diagramToRender}</pre>`;
+			mermaidContainer.innerHTML = `<pre>Error rendering Mermaid diagram:\n\n${errorMessage}\n\n--- Diagram Definition ---\n${diagramToRender}</pre>`;
 			// Even on error, we consider this "render attempt" complete.
 			// Setting currentDiagramString to the one that failed, and needsUpdate to false prevents re-looping on a bad diagram.
 			this.currentDiagramString = diagramToRender;
