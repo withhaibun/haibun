@@ -4,6 +4,11 @@ import { ArtifactDisplay } from "./artifactDisplayBase.js";
 
 import mermaid from 'mermaid';
 
+mermaid.initialize({
+	maxTextSize: 1000000,
+	maxEdges: 10000,
+});
+
 let instanceCounter = 0;
 
 export class ResolvedFeaturesArtifactDisplay extends ArtifactDisplay {
