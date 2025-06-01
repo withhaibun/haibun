@@ -1,67 +1,17 @@
-import { TArtifact, TArtifactSpeech, TArtifactVideo, TArtifactVideoStart, TArtifactImage, TArtifactHTML, TArtifactJSON, TArtifactHTTPTrace, TMessageContext } from '@haibun/core/build/lib/interfaces/logger.js';
+import { TArtifact, TArtifactSpeech, TArtifactVideo, TArtifactVideoStart, TArtifactImage, TArtifactHTML, TArtifactJSON, TArtifactHTTPTrace, TMessageContext, TArtifactResolvedFeatures } from '@haibun/core/build/lib/interfaces/logger.js';
 import { EExecutionMessageType } from '@haibun/core/build/lib/interfaces/logger.js';
-import { sequenceDiagramGenerator } from './monitor.js';
+
 import { disclosureJson } from './disclosureJson.js';
+import { JsonArtifactDisplay } from './artifactDisplays/JsonArtifactDisplay.js';
+import { HtmlArtifactDisplay } from './artifactDisplays/HtmlArtifactDisplay.js';
+import { ImageArtifactDisplay } from './artifactDisplays/ImageArtifactDisplay.js';
+import { VideoArtifactDisplay } from './artifactDisplays/VideoArtifactDisplay.js';
+import { SpeechArtifactDisplay } from './artifactDisplays/SpeechArtifactDisplay.js';
+import { VideoStartArtifactDisplay } from './artifactDisplays/VideoStartArtifactDisplay.js';
+import { JsonArtifactHTTPTrace } from './artifactDisplays/JsonArtifactHTTPTrace.js';
 
-abstract class LogComponent<T extends HTMLElement = HTMLElement> {
-	readonly element: T;
-
-	constructor(tagName: keyof HTMLElementTagNameMap, className?: string | string[]) {
-		this.element = document.createElement(tagName) as T;
-		if (className) {
-			const classes = Array.isArray(className) ? className : [className];
-			this.element.classList.add(...classes);
-		}
-	}
-
-	append(child: LogComponent | HTMLElement): void {
-		// Type guard ensures we append the .element property if it's a LogComponent
-		this.element.appendChild(child instanceof LogComponent ? child.element : child);
-	}
-
-	addClass(className: string): void {
-		this.element.classList.add(className);
-	}
-
-	setData(key: string, value: string): void {
-		this.element.dataset[key] = value;
-	}
-
-	setHtml(html: string): void {
-		this.element.innerHTML = html;
-	}
-
-	setText(text: string): void {
-		this.element.textContent = text;
-	}
-}
-
-
-// --- Abstract Artifact Display Base Class ---
-
-// Abstract base for artifact displays
-export abstract class ArtifactDisplay extends LogComponent {
-	readonly label: string;
-	abstract readonly placementTarget: 'details' | 'haibun-video' | 'haibun-sequence-diagram' | 'body' | 'none';
-
-	constructor(protected artifact: TArtifact, tagName: keyof HTMLElementTagNameMap, className?: string | string[]) {
-		super(tagName, className);
-		this.artifact = artifact;
-		this.label = this.deriveLabel();
-		this.render();
-	}
-
-	protected deriveLabel(): string {
-		return this.artifact.artifactType;
-	}
-
-	protected abstract render(): void;
-
-	public get artifactType(): string {
-		return this.artifact.artifactType;
-	}
-}
-
+import { ResolvedFeaturesArtifactDisplay } from './artifactDisplays/ResolvedFeaturesArtifactDisplay.js';
+import { LogComponent, ArtifactDisplay } from './artifactDisplays/artifactDisplayBase.js';
 
 export class LogEntry extends LogComponent {
 	private detailsSummary: LogDetailsSummary;
@@ -80,35 +30,13 @@ export class LogEntry extends LogComponent {
 		this.append(this.detailsSummary);
 		this.append(this.messageContent);
 
-		this.handleSpecialPlacements();
 	}
 
-	private handleSpecialPlacements(): void {
-		const artifactDisplay = this.messageContent.artifactDisplay;
-		if (!artifactDisplay) return;
-
-		if (artifactDisplay.placementTarget === 'body') {
-			document.body.appendChild(artifactDisplay.element);
-		} else if (artifactDisplay.placementTarget === 'haibun-video') {
-			const haibunVideoContainer = document.querySelector<HTMLElement>('#haibun-video');
-			if (haibunVideoContainer) {
-				haibunVideoContainer.replaceChildren(artifactDisplay.element);
-				haibunVideoContainer.style.display = 'flex';
-			}
-		} else if (artifactDisplay.placementTarget === 'haibun-sequence-diagram') {
-			// The element is already rendered in the details by LogMessageContent.
-			// Here, we just need to ensure the data is processed for the diagram if needed.
-			// The JsonArtifactHTTPTrace.render method already handles this.
-			// No need to move the element itself.
-			// sequenceDiagramGenerator.processEvent is called within JsonArtifactHTTPTrace.render
-		}
-		// 'details' placement is handled within LogMessageContent constructor
-	}
 }
 
 // --- Log Entry Structure Components (Used by LogEntry) ---
 
-class LogDetailsSummary extends LogComponent<HTMLElement> { // Using HTMLElement for summary tag
+class LogDetailsSummary extends LogComponent<HTMLElement> {
 	constructor(level: string, timestamp: number) {
 		super('summary', 'haibun-log-details-summary');
 		const relativeTime = calculateRelativeTime(timestamp);
@@ -116,78 +44,107 @@ class LogDetailsSummary extends LogComponent<HTMLElement> { // Using HTMLElement
 	}
 }
 
-class LogMessageContent extends LogComponent {
+export class LogMessageContent extends LogComponent {
 	readonly artifactDisplay: ArtifactDisplay | null = null;
+	private artifactContainer: HTMLElement | null = null;
+	private hasArtifactBeenRendered = false;
 
 	constructor(message: string, messageContext?: TMessageContext) {
 		super('div', 'haibun-message-content');
 
-		const summaryMessage = getSummaryMessage(message, messageContext);
-
 		if (messageContext) {
-			// Context exists: ALWAYS create the details structure
-			const incident = messageContext.incident;
-			const incidentDetails = messageContext.incidentDetails;
-			const artifact = messageContext.artifact;
-			let finalLabel = EExecutionMessageType[incident] || 'Context'; // Default label is incident type
+			const { incident, incidentDetails, artifact } = messageContext;
+			const summaryMessageToDisplay = getSummaryMessage(message, messageContext);
+			let labelForSummary = EExecutionMessageType[incident] || 'Context';
 
-			// Check for artifact and update label if needed
+			// Attempt to create artifact display first, as it might influence the label
 			if (artifact) {
 				this.artifactDisplay = createArtifactDisplay(artifact);
 				if (this.artifactDisplay) {
-					// Use artifact label if available and different, otherwise use type
-					finalLabel = (this.artifactDisplay.label !== this.artifactDisplay.artifactType)
+					labelForSummary = (this.artifactDisplay.label !== this.artifactDisplay.artifactType)
 						? this.artifactDisplay.label
-						: (this.artifactDisplay.artifactType || finalLabel);
-					// NOTE: We no longer check placementTarget or return early here
+						: (this.artifactDisplay.artifactType || labelForSummary);
 				}
 			}
 
-			// --- Create Details Wrapper ---
 			const detailsElement = document.createElement('details');
 			detailsElement.classList.add('haibun-context-details');
 
-			// Create the summary line
-			const messageSummary = new LogMessageSummary(summaryMessage, finalLabel);
-
-			// Add loader specifically to the message summary if STEP_START
+			const messageSummary = new LogMessageSummary(summaryMessageToDisplay, labelForSummary);
 			if (incident === EExecutionMessageType.STEP_START) {
 				const loader = document.createElement('div');
 				loader.className = 'haibun-loader';
-				messageSummary.element.prepend(loader); // Prepend to the summary element
+				messageSummary.element.prepend(loader);
 			}
-			detailsElement.appendChild(messageSummary.element); // Append the summary (with potential loader)
+			detailsElement.appendChild(messageSummary.element);
 
-
-			// Add incidentDetails JSON inside the details element
 			if (incidentDetails) {
 				const pre = document.createElement('pre');
 				pre.classList.add('haibun-message-details-json');
-				pre.appendChild(disclosureJson(incidentDetails))
+				pre.appendChild(disclosureJson(incidentDetails));
 				detailsElement.appendChild(pre);
 			}
 
-			// Add artifact display if it exists.
-			// For JsonArtifactHTTPTrace, this ensures the <pre> is always added here.
 			if (this.artifactDisplay) {
-				detailsElement.appendChild(this.artifactDisplay.element);
+				const placement = this.artifactDisplay.placementTarget;
+				if (!placement || placement === 'details') {
+					this.artifactContainer = document.createElement('div');
+					this.artifactContainer.className = `haibun-artifact-container haibun-artifact-${this.artifactDisplay.artifactType.replace(/\//g, '-')}`;
+					this.artifactContainer.textContent = 'Artifact is loading...';
+					detailsElement.appendChild(this.artifactContainer);
+
+					const targetContainer = this.artifactContainer;
+					const onceToggleListener = async () => {
+						if (detailsElement.open && this.artifactDisplay && !this.hasArtifactBeenRendered) {
+							try {
+								await this.artifactDisplay.render(targetContainer);
+							} catch (error) {
+								console.error(`[LogMessageContent] Error rendering artifact ${this.artifactDisplay.label}:`, error);
+								targetContainer.innerHTML = `<p class="haibun-artifact-error">Error loading artifact: ${(error as Error).message}</p>`;
+							}
+							this.hasArtifactBeenRendered = true;
+						}
+					};
+					detailsElement.addEventListener('toggle', () => { void onceToggleListener(); });
+				} else {
+					// Special placement, artifact rendered outside detailsElement
+					void this.renderSpecialPlacementArtifact(this.artifactDisplay, placement);
+				}
 			}
-
-			this.append(detailsElement); // Append the whole details structure
-
-			// If artifact placement is NOT 'details', we might still want the simple message class on the parent
-			if (this.artifactDisplay && this.artifactDisplay.placementTarget !== 'details') {
-				this.addClass('haibun-simple-message');
-				// Optionally set text again if the summary text differs significantly from the desired simple text
-				// this.setText(summaryMessage);
-			}
-
+			this.append(detailsElement);
 		} else {
-			// No context: display simple message
 			this.addClass('haibun-simple-message');
-			this.setText(message); // Use original message
+			this.setText(message);
 		}
+	}
 
+	private async renderSpecialPlacementArtifact(artifactDisplay: ArtifactDisplay, placement: string): Promise<void> {
+		const createAndRenderArtifact = async (targetElementUpdater: (container: HTMLElement) => void) => {
+			const container = document.createElement('div');
+			container.className = `haibun-artifact-special-placement haibun-artifact-${artifactDisplay.artifactType.replace(/\//g, '-')}`;
+			container.textContent = 'Artifact is loading...';
+			try {
+				await artifactDisplay.render(container);
+			} catch (error) {
+				console.error(`[LogMessageContent] Error rendering artifact ${artifactDisplay.label} for special placement ${placement}:`, error);
+				container.innerHTML = `<p class="haibun-artifact-error">Error loading artifact: ${(error as Error).message}</p>`;
+			}
+			targetElementUpdater(container);
+		};
+
+		if (placement === 'body') {
+			await createAndRenderArtifact(container => document.body.appendChild(container));
+		} else if (placement === 'haibun-video') {
+			const haibunVideoContainer = document.querySelector<HTMLElement>('#haibun-video');
+			if (haibunVideoContainer) {
+				await createAndRenderArtifact(container => {
+					haibunVideoContainer.replaceChildren(container);
+					haibunVideoContainer.style.display = 'flex';
+				});
+			} else {
+				console.warn('[LogMessageContent] #haibun-video container not found for artifact placement.');
+			}
+		}
 	}
 }
 
@@ -197,9 +154,8 @@ class LogMessageSummary extends LogComponent<HTMLElement> {
 	constructor(summaryMessage: string, initialLabel: string) {
 		super('summary', 'haibun-log-message-summary');
 		this.labelSpan = document.createElement('span');
-		this.labelSpan.className = 'details-type'; // Class for styling the label
-		this.updateLabel(initialLabel); // Set initial label with formatting
-		// Set text first, then append span
+		this.labelSpan.className = 'details-type';
+		this.updateLabel(initialLabel);
 		this.setText(summaryMessage);
 		this.append(this.labelSpan);
 	}
@@ -209,12 +165,11 @@ class LogMessageSummary extends LogComponent<HTMLElement> {
 	}
 }
 
-
 // --- Artifact Display Components (Details) ---
 
-// Factory function to create the correct ArtifactDisplay instance
 function createArtifactDisplay(artifact: TArtifact): ArtifactDisplay | null {
 	const { artifactType } = artifact;
+
 	switch (artifactType) {
 		case 'html': return new HtmlArtifactDisplay(<TArtifactHTML>artifact);
 		case 'image': return new ImageArtifactDisplay(<TArtifactImage>artifact);
@@ -224,112 +179,12 @@ function createArtifactDisplay(artifact: TArtifact): ArtifactDisplay | null {
 		case 'json': return new JsonArtifactDisplay(<TArtifactJSON>artifact);
 		case 'json/http/trace':
 			return new JsonArtifactHTTPTrace(<TArtifactHTTPTrace>artifact);
+		case 'resolvedFeatures': {
+			return new ResolvedFeaturesArtifactDisplay(artifact as TArtifactResolvedFeatures);
+		}
 		default: {
 			throw Error(`Unsupported artifact type "${(<TArtifact>artifact).artifactType}" for display from ${artifactType}`);
 		}
-	}
-}
-
-class HtmlArtifactDisplay extends ArtifactDisplay {
-	readonly placementTarget = 'details';
-	constructor(protected artifact: TArtifactHTML) {
-		super(artifact, 'iframe');
-		this.element.style.border = 'none';
-		this.element.style.width = '100%';
-		this.element.style.height = '80vh';
-	}
-	protected render(): void {
-		if (this.artifact.html) {
-			(this.element as HTMLIFrameElement).srcdoc = this.artifact.html;
-		}
-	}
-}
-
-class ImageArtifactDisplay extends ArtifactDisplay {
-	readonly placementTarget = 'details';
-	constructor(protected artifact: TArtifactImage) {
-		super(artifact, 'img');
-		(this.element as HTMLImageElement).alt = 'Screen capture artifact';
-	}
-	protected render(): void {
-		(this.element as HTMLImageElement).src = this.artifact.path;
-	}
-}
-
-class VideoArtifactDisplay extends ArtifactDisplay {
-	readonly placementTarget: 'details' | 'haibun-video';
-	constructor(protected artifact: TArtifactVideo) {
-		super(artifact, 'video');
-		const videoElement = this.element as HTMLVideoElement;
-		videoElement.controls = true;
-		videoElement.style.width = '320px';
-		this.placementTarget = document.querySelector('#haibun-video') ? 'haibun-video' : 'details';
-		if (this.placementTarget === 'details') {
-			console.info('Cannot find #haibun-video container; appending video to details.');
-		}
-	}
-	protected render(): void {
-		(this.element as HTMLVideoElement).src = this.artifact.path;
-	}
-}
-class SpeechArtifactDisplay extends ArtifactDisplay {
-	readonly placementTarget: 'details';
-	constructor(protected artifact: TArtifactSpeech) {
-		super(artifact, 'audio');
-		const audioElement = this.element as HTMLAudioElement;
-		audioElement.controls = true;
-		audioElement.style.width = '320px';
-		// create audio element that plays when it is clicked
-		audioElement.addEventListener('click', () => {
-			audioElement.play().catch((error) => {
-				console.error('Error playing audio:', error);
-			});
-		}
-		);
-	}
-	protected render(): void {
-		(this.element as HTMLAudioElement).src = this.artifact.path;
-	}
-}
-
-class VideoStartArtifactDisplay extends ArtifactDisplay {
-	readonly placementTarget = 'body';
-	constructor(protected artifact: TArtifactVideoStart) {
-		super(artifact, 'span');
-		this.element.id = 'haibun-video-start';
-	}
-	protected render(): void {
-		this.setData('start', `${this.artifact.start}`);
-	}
-}
-
-class JsonArtifactHTTPTrace extends ArtifactDisplay {
-	readonly placementTarget: 'details' | 'haibun-sequence-diagram';
-	constructor(protected artifact: TArtifactHTTPTrace) {
-		super(artifact, 'pre', 'haibun-message-details-json');
-		this.placementTarget = document.querySelector('#sequence-diagram') ? 'haibun-sequence-diagram' : 'details';
-	}
-	protected deriveLabel(): string {
-		return '⇄ Trace';
-	}
-	protected render(): void {
-		if (this.artifact.httpEvent !== 'route') {
-			sequenceDiagramGenerator.processEvent(this.artifact.trace, this.artifact.httpEvent);
-		}
-		this.append(disclosureJson(this.artifact.trace));
-	}
-}
-
-class JsonArtifactDisplay extends ArtifactDisplay {
-	readonly placementTarget = 'details';
-	constructor(protected artifact: TArtifactJSON) {
-		super(artifact, 'pre', 'haibun-message-details-json');
-	}
-	protected deriveLabel(): string {
-		return this.artifact.artifactType;
-	}
-	protected render(): void {
-		this.append(disclosureJson(this.artifact.json || {}));
 	}
 }
 
@@ -345,7 +200,6 @@ function formatTime(relativeTimeMs: number): string {
 }
 
 function getSummaryMessage(message: string, messageContext?: TMessageContext): string {
-	// Check for STEP_END incident and access details via incidentDetails
 	if (messageContext?.incident === EExecutionMessageType.STEP_END && messageContext.incidentDetails?.result?.in) {
 		return `${message} ${messageContext.incidentDetails.result.in}`;
 	}

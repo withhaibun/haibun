@@ -1,31 +1,32 @@
-import mermaid from 'mermaid';
-
-import { SequenceDiagramGenerator } from './mermaidDiagram.js';
 import { TLogLevel, TLogArgs, EExecutionMessageType, TMessageContext } from '@haibun/core/build/lib/interfaces/logger.js';
 import { LogEntry } from './messages.js';
 import { setupControls } from './controls.js';
-import { TAnyFixme } from '@haibun/core/build/lib/fixme.js';
+
+export type TLogEntry = {
+	level: TLogLevel;
+	message: TLogArgs;
+	messageContext?: TMessageContext;
+	timestamp: number;
+};
 
 declare global {
 	interface Window {
-		haibunLogData: TAnyFixme[];
+		haibunLogData: TLogEntry[];
 		receiveLogData: (logEntry: { level: TLogLevel; message: TLogArgs; messageContext?: TMessageContext, timestamp: number }) => void;
+		webSocket?: WebSocket;
 	}
 }
 
 window.haibunLogData = window.haibunLogData || [];
-console.log('monitor', window.haibunLogData);
+console.info('monitor.ts: window.haibunLogData initialized.');
 
 // Function exposed to Playwright to receive new logs
 window.receiveLogData = (logEntry) => {
 	window.haibunLogData.push(logEntry);
-	renderLogEntry(logEntry);
-	void sequenceDiagramGenerator.update();
+	renderLogEntry(logEntry); // Add this line to render the log entry immediately
 };
 
-export const sequenceDiagramGenerator = new SequenceDiagramGenerator();
-
-function renderLogEntry(logEntryData: { level: TLogLevel; message: TLogArgs; messageContext?: TMessageContext, timestamp: number }) {
+export function renderLogEntry(logEntryData: TLogEntry) {
 	const { level, message, messageContext, timestamp } = logEntryData;
 	const container = document.getElementById('haibun-log-display-area');
 	if (!container) {
@@ -58,19 +59,26 @@ function renderAllLogs() {
 	const container = document.getElementById('haibun-log-display-area');
 	if (container) {
 		window.haibunLogData.forEach(renderLogEntry);
-		void sequenceDiagramGenerator.update();
 	}
 }
 
 // Initial render on page load
 document.addEventListener('DOMContentLoaded', () => {
-	console.log("Monitor DOMContentLoaded");
 	// Set start time on body for relative calculations
 	if (!document.body.dataset.startTime) {
 		document.body.dataset.startTime = `${Date.now()}`;
 	}
-	mermaid.initialize({ startOnLoad: false, securityLevel: 'loose' });
+
 	renderAllLogs();
 	setupControls();
-	console.log("Initial logs rendered.");
+	console.info("Initial logs rendered.");
+
+	// After logs are rendered, check for static load
+	{
+		const liveSessionIndicator = typeof window.WebSocket !== 'undefined' && window.webSocket instanceof WebSocket;
+		const isStaticLoad = window.haibunLogData && !liveSessionIndicator;
+		if (isStaticLoad) {
+			console.log('Static load detected. Graphs and other async artifacts will render when their <details> are opened.');
+		}
+	}
 });

@@ -89,10 +89,18 @@ export type TArtifactImage = {
 	artifactType: 'image';
 	path: string;
 };
-export type TArtifactHTML = {
+export type TArtifactHTML = TArtifactHTMLWithHtml | TArtifactHTMLWithPath;
+
+type TArtifactHTMLWithHtml = {
 	artifactType: 'html';
 	html: string;
-};
+}
+
+type TArtifactHTMLWithPath = {
+	artifactType: 'html';
+	path: string;
+}
+
 export type TArtifactJSON = {
 	artifactType: 'json';
 	json: object;

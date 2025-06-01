@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { SequenceDiagramGenerator } from './mermaidDiagram.js';
+import { SequenceDiagramGenerator } from './MermaidDiagram.js';
 import { THTTPTraceContent } from '@haibun/core/build/lib/interfaces/logger.js';
 
 // Use vi.hoisted to declare the mock function before vi.mock runs
@@ -44,7 +44,6 @@ describe('SequenceDiagramGenerator', () => {
 	});
 
 	it('should generate diagram, insert into container, and call mermaid.run when needsUpdate is true', async () => {
-		// Simulate processing an event to set needsUpdate = true
 		const mockEvent: THTTPTraceContent = {
 			requestingPage: 'about:blank',
 			requestingURL: 'http://example.com/api',
@@ -55,11 +54,10 @@ describe('SequenceDiagramGenerator', () => {
 				"user-agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36"
 			}
 		};
-		generator.processEvent(mockEvent, 'request'); // Add httpEvent
+		generator.processEvent(mockEvent, 'request');
 
 		await generator.update();
 
-		// Check if container has the mermaid pre tag
 		const preElement = container.querySelector('pre.mermaid');
 		expect(preElement).not.toBeNull();
 		const expectedDiagram = `sequenceDiagram
@@ -72,7 +70,7 @@ examplecom-->>examplecom1: 200 OK`;
 		expect(mockMermaidRun).toHaveBeenCalledTimes(1);
 		expect(mockMermaidRun).toHaveBeenCalledWith({ nodes: [preElement] });
 
-		expect((generator as TAnyFixme).needsUpdate).toBe(false); // Access private member for testing
+		expect((generator as TAnyFixme).needsUpdate).toBe(false);
 	});
 
 	it('should handle errors during mermaid.run and display the error', async () => {
@@ -80,49 +78,41 @@ examplecom-->>examplecom1: 200 OK`;
 		mockMermaidRun.mockRejectedValueOnce(new Error(internalErrorMessage)); // Simulate internal error
 
 		const mockEvent: THTTPTraceContent = { requestingURL: 'http://test.com' }
-		generator.processEvent(mockEvent, 'request'); // Add httpEvent
+		generator.processEvent(mockEvent, 'request');
 
 		await generator.update();
 
-		// Check if error message is displayed
 		const preElement = container.querySelector('pre');
 		expect(preElement).not.toBeNull();
-		// Check if error message and diagram definition are displayed
 		expect(preElement?.textContent).toContain('Error rendering Mermaid diagram:');
 		expect(preElement?.textContent).toContain(internalErrorMessage);
 		expect(preElement?.textContent).toContain('--- Diagram Definition ---');
-		// Check if the diagram definition itself is present (basic check)
 		expect(preElement?.textContent).toContain('sequenceDiagram');
 		expect(preElement?.textContent).toContain('participant testcom as test.com');
 
-		// Check if needsUpdate is reset even after error
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		expect((generator as any).needsUpdate).toBe(false);
 	});
 
 	it('should handle non-Error objects thrown during mermaid.run', async () => {
 		const errorObject = { details: 'Simulated non-Error rejection for testing mermaid.run' };
-		mockMermaidRun.mockRejectedValueOnce(errorObject); // Simulate non-Error rejection
+		mockMermaidRun.mockRejectedValueOnce(errorObject);
 
 		const mockEvent: THTTPTraceContent = { requestingPage: 'p1', requestingURL: 'http://test.com' };
-		generator.processEvent(mockEvent, 'request'); // Add httpEvent
+		generator.processEvent(mockEvent, 'request');
 
 		await generator.update();
 
-		// Check if error message is displayed (using String(e))
 		const preElement = container.querySelector('pre');
 		expect(preElement).not.toBeNull();
-		// Check if error message, stringified error object, and diagram definition are displayed
+
 		expect(preElement?.textContent).toContain('Error rendering Mermaid diagram:');
 		expect(preElement?.textContent).toContain(String(errorObject));
 		expect(preElement?.textContent).toContain('--- Diagram Definition ---');
-		// Check if the diagram definition itself is present (basic check)
+
 		expect(preElement?.textContent).toContain('sequenceDiagram');
 		expect(preElement?.textContent).toContain('participant testcom as test.com');
 
-		// Check if needsUpdate is reset
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		expect((generator as any).needsUpdate).toBe(false);
+		expect((generator as TAnyFixme).needsUpdate).toBe(false);
 	});
 
 	it('should warn if container is not found and reset needsUpdate', async () => {
@@ -176,7 +166,7 @@ participant quotescom as quotes.com
 quotescom1->>quotescom: GET http://quotes.com/search?q...'test'
 Note right of quotescom1: Referer: http://source.com...rigin'
 quotescom-->>quotescom1: 200 OK 'Success'`;
-			expect(preElement?.textContent?.trim()).toBe(expectedDiagram);
+		expect(preElement?.textContent?.trim()).toBe(expectedDiagram);
 		expect(mockMermaidRun).toHaveBeenCalledTimes(1);
 	});
 	it('should handle requestingURL about:blank correctly', async () => {
@@ -247,7 +237,7 @@ InvalidURLAlias-->>Page1: 400 Bad Request`;
 export function filterEvent(...) { ... }
 */
 // Then import it here:
-import { skipEvent } from './mermaidDiagram.js';
+import { skipEvent } from './MermaidDiagram.js';
 import { TAnyFixme } from '@haibun/core/build/lib/fixme.js';
 
 

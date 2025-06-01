@@ -25,7 +25,7 @@ describe('runFeaturesAndBackgrounds', () => {
 	});
 });
 
-describe.only('encapsulation', () => {
+describe('encapsulation', () => {
 	it('should encapsulate background variables to each scenario', async () => {
 		const world = getDefaultWorld(0, { HAIBUN_LOG_LEVEL: 'debug' });
 		const runner = new Runner(world);
