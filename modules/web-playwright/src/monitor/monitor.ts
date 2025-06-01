@@ -11,28 +11,24 @@ export type TLogEntry = {
 
 declare global {
 	interface Window {
-		haibunLogData: TLogEntry[];
+		haibunCapturedMessages: TLogEntry[];
 		receiveLogData: (logEntry: { level: TLogLevel; message: TLogArgs; messageContext?: TMessageContext, timestamp: number }) => void;
 		webSocket?: WebSocket;
 	}
 }
 
-window.haibunLogData = window.haibunLogData || [];
-console.info('monitor.ts: window.haibunLogData initialized.');
+window.haibunCapturedMessages = window.haibunCapturedMessages || [];
+console.info('monitor.ts: window.haibunCapturedMessages initialized.');
 
 // Function exposed to Playwright to receive new logs
 window.receiveLogData = (logEntry) => {
-	window.haibunLogData.push(logEntry);
+	window.haibunCapturedMessages.push(logEntry);
 	renderLogEntry(logEntry); // Add this line to render the log entry immediately
 };
 
 export function renderLogEntry(logEntryData: TLogEntry) {
 	const { level, message, messageContext, timestamp } = logEntryData;
 	const container = document.getElementById('haibun-log-display-area');
-	if (!container) {
-		console.error('Could not find log display area #haibun-log-display-area');
-		return;
-	}
 
 	const logEntry = new LogEntry(level, timestamp, message, messageContext);
 	const logEntryElement = logEntry.element; // Get the actual DOM element
@@ -58,7 +54,8 @@ export function renderLogEntry(logEntryData: TLogEntry) {
 function renderAllLogs() {
 	const container = document.getElementById('haibun-log-display-area');
 	if (container) {
-		window.haibunLogData.forEach(renderLogEntry);
+		console.log(`Rendering ${window.haibunCapturedMessages.length} log entries...`);
+		window.haibunCapturedMessages.forEach(renderLogEntry);
 	}
 }
 
@@ -73,12 +70,4 @@ document.addEventListener('DOMContentLoaded', () => {
 	setupControls();
 	console.info("Initial logs rendered.");
 
-	// After logs are rendered, check for static load
-	{
-		const liveSessionIndicator = typeof window.WebSocket !== 'undefined' && window.webSocket instanceof WebSocket;
-		const isStaticLoad = window.haibunLogData && !liveSessionIndicator;
-		if (isStaticLoad) {
-			console.log('Static load detected. Graphs and other async artifacts will render when their <details> are opened.');
-		}
-	}
 });
