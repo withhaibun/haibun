@@ -1,7 +1,7 @@
 {
   "name": "@haibun/cli",
   "type": "module",
-  "version": "1.59.0",
+  "version": "1.60.0",
   "description": "command line execution for @haibun",
   "bin": { "haibun-cli": "build/cli.js" },
   "main": "build/cli.js",
@@ -19,8 +19,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@haibun/core": "1.59.0",
-    "@haibun/domain-storage": "1.59.0",
+    "@haibun/core": "1.60.0",
+    "@haibun/domain-storage": "1.60.0",
     "source-map-support": "^0.5.21"
   },
   "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5"
