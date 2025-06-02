@@ -1,8 +1,9 @@
-import { OK, TNamed, TFeatureStep, TWorld, IStepperCycles } from '../lib/defs.js';
+import { OK, TNamed, TFeatureStep, TWorld, IStepperCycles, TStartScenario } from '../lib/defs.js';
 import { TAnyFixme } from '../lib/fixme.js';
 import { AStepper } from '../lib/astepper.js';
 import { EExecutionMessageType, TMessageContext } from '../lib/interfaces/logger.js';
 import { actionNotOK } from '../lib/util/index.js';
+import { FeatureVariables } from '../lib/feature-variables.js';
 
 // FIXME see https://github.com/withhaibun/haibun/issues/18
 const getOrCond = (fr: string) => fr.replace(/.* is set or /, '');
@@ -14,7 +15,11 @@ const clearVars = (vars) => async () => {
 
 const cycles = (vars: Vars): IStepperCycles => ({
 	endScenario: clearVars(vars),
-	startFeature: clearVars(vars)
+	startFeature: clearVars(vars),
+	startScenario: ({ featureVars }: TStartScenario) => {
+		vars.getWorld().shared = new FeatureVariables(vars.getWorld().tag.toString(), { ...featureVars.all() });
+		return Promise.resolve();
+	},
 });
 
 class Vars extends AStepper {

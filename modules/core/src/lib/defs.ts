@@ -138,12 +138,13 @@ export type TSteppers = {
 export type TEndFeature = { world: TWorld, shouldClose: boolean, isLast: boolean, okSoFar: boolean, continueAfterError: boolean, stayOnFailure: boolean, thisFeatureOK: boolean };
 export type TStartFeature = { resolvedFeature: TResolvedFeature, index: number };
 export type TStartExecution = TResolvedFeature[]
-
+export type TStartScenario = { featureVars: FeatureVariables };
 export type TFailureArgs = { featureResult: TFeatureResult, failedStep: TStepResult }
+
 export interface IStepperCycles {
 	startExecution?(features: TStartExecution): Promise<void>;
 	startFeature?(startFeature: TStartFeature): Promise<void>;
-	startScenario?(): Promise<void>;
+	startScenario?(startScenario: TStartScenario): Promise<void>;
 	endScenario?(): Promise<void>;
 	endFeature?(endedWith?: TEndFeature): Promise<void>;
 	onFailure?(result: TFailureArgs): Promise<void | TMessageContext>;

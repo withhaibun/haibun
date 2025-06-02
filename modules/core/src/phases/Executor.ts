@@ -7,6 +7,7 @@ import { getNamedToVars } from '../lib/namedVars.js';
 import { actionNotOK, sleep, findStepper, constructorName, setStepperWorlds } from '../lib/util/index.js';
 import { SCENARIO_START } from '../lib/defs.js';
 import { Timer } from '../lib/Timer.js';
+import { FeatureVariables } from '../lib/feature-variables.js';
 
 function calculateShouldClose({ thisFeatureOK, isLast, stayOnFailure }) {
 	if (thisFeatureOK) {
@@ -32,7 +33,7 @@ export class Executor {
 		});
 	}
 	static async executeFeatures(steppers: AStepper[], world: TWorld, features: TResolvedFeature[]): Promise<TExecutorResult> {
-		await doStepperMethod(steppers, 'startExecution', features);
+		await doStepperCycle(steppers, 'startExecution', features);
 		let okSoFar = true;
 		const stayOnFailure = world.options[STAY] === STAY_FAILURE;
 		const featureResults: TFeatureResult[] = [];
@@ -48,13 +49,13 @@ export class Executor {
 
 			const featureExecutor = new FeatureExecutor(steppers, newWorld);
 			await setStepperWorlds(steppers, newWorld);
-			await doStepperMethod(steppers, 'startFeature', { resolvedFeature: feature, index: featureNum });
+			await doStepperCycle(steppers, 'startFeature', { resolvedFeature: feature, index: featureNum });
 
 			const featureResult = await featureExecutor.doFeature(feature);
 			const thisFeatureOK = featureResult.ok;
 			if (!thisFeatureOK) {
 				const failedStep = featureResult.stepResults.find((s) => !s.ok);
-				await doStepperMethod(steppers, 'onFailure', { featureResult, failedStep });
+				await doStepperCycle(steppers, 'onFailure', { featureResult, failedStep });
 			}
 			okSoFar = okSoFar && thisFeatureOK;
 			featureResults.push(featureResult);
@@ -65,7 +66,7 @@ export class Executor {
 			} else {
 				world.logger.debug(`no shouldClose because ${JSON.stringify(shouldCloseFactors)}`);
 			}
-			await doStepperMethod(steppers, 'endFeature', <TEndFeature>{ world: newWorld, shouldClose, isLast, okSoFar, continueAfterError, stayOnFailure, thisFeatureOK: featureResult.ok });
+			await doStepperCycle(steppers, 'endFeature', <TEndFeature>{ world: newWorld, shouldClose, isLast, okSoFar, continueAfterError, stayOnFailure, thisFeatureOK: featureResult.ok });
 			if (!okSoFar) {
 				if (!continueAfterError && !isLast) {
 					world.logger.debug(`stopping without ${CONTINUE_AFTER_ERROR}`);
@@ -77,7 +78,7 @@ export class Executor {
 				}
 			}
 		}
-		await doStepperMethod(steppers, 'endExecution', undefined);
+		await doStepperCycle(steppers, 'endExecution', undefined);
 		return { ok: okSoFar, featureResults: featureResults, tag: world.tag, shared: world.shared, steppers };
 	}
 }
@@ -95,15 +96,17 @@ export class FeatureExecutor {
 
 		this.logit(`start feature ${currentScenario}`, { incident: EExecutionMessageType.FEATURE_START, incidentDetails: { startTime: Timer.START_TIME, feature } }, 'debug');
 
+		let featureVars: FeatureVariables = new FeatureVariables(feature.path, {});
+
 		for (const step of feature.featureSteps) {
 			if (step.action.actionName === SCENARIO_START) {
 				if (currentScenario) {
 					this.logit(`end scenario ${currentScenario}`, { incident: EExecutionMessageType.SCENARIO_END, incidentDetails: { currentScenario } }, 'debug');
-					await doStepperMethod(this.steppers, 'endScenario', undefined);
+					await doStepperCycle(this.steppers, 'endScenario', undefined);
 				}
 				currentScenario = currentScenario + 1;
 				this.logit(`start scenario ${currentScenario}`, { incident: EExecutionMessageType.SCENARIO_START, incidentDetails: { currentScenario } }, 'debug');
-				await doStepperMethod(this.steppers, 'startScenario', undefined);
+				await doStepperCycle(this.steppers, 'startScenario', { featureVars });
 			}
 
 			world.logger.log(step.in, { incident: EExecutionMessageType.STEP_START, tag: world.tag });
@@ -122,10 +125,14 @@ export class FeatureExecutor {
 			if (world.options[STEP_DELAY]) {
 				await sleep(world.options[STEP_DELAY] as number);
 			}
+			// Stash feature variables
+			if (!currentScenario) {
+				featureVars = new FeatureVariables(feature.path, world.shared.all());
+			}
 		}
 		if (currentScenario) {
 			this.logit(`end scenario ${currentScenario}`, { incident: EExecutionMessageType.SCENARIO_END, incidentDetails: { currentScenario } }, 'debug');
-			await doStepperMethod(this.steppers, 'endScenario', undefined);
+			await doStepperCycle(this.steppers, 'endScenario', undefined);
 		}
 		this.logit(`end feature ${currentScenario}`, {
 			incident: EExecutionMessageType.FEATURE_END, incidentDetails: {
@@ -154,7 +161,7 @@ export class FeatureExecutor {
 	}
 }
 
-const doStepperMethod = async <K extends keyof StepperMethodArgs>(steppers: AStepper[], method: K, args: StepperMethodArgs[K]): Promise<void> => {
+const doStepperCycle = async <K extends keyof StepperMethodArgs>(steppers: AStepper[], method: K, args: StepperMethodArgs[K]): Promise<void> => {
 	for (const stepper of steppers) {
 		if (stepper?.cycles && stepper.cycles[method]) {
 			stepper.getWorld().logger.debug(`🔁 ${method} ${constructorName(stepper)}`);

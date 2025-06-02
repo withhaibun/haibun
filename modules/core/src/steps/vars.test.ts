@@ -61,3 +61,16 @@ describe('vars between features', () => {
 		expect(res.ok).toBe(true);
 	});
 });
+
+describe('feature variables', () => {
+	it('keeps pre-scenario feature variables', async () => {
+		const feature = { path: '/features/test.feature', content: 'set "x" to "y"\nScenario: Checks x\nvariable "x" is "y"' };
+		const res = await testWithDefaults([feature], steppers);
+		expect(res.ok).toBe(true);
+	});
+	it('does not overwrite feature variables', async () => {
+		const feature = { path: '/features/test.feature', content: 'set "x" to "y"\nScenario: Sets x\nvariable "x" is "y"\nset "x" to "z"\nScenario: Checks x\nvariable "x" is "y"' };
+		const res = await testWithDefaults([feature], steppers);
+		expect(res.ok).toBe(true);
+	});
+});
