@@ -4,9 +4,9 @@ import { DEFAULT_DEST } from './defs.js';
 import * as steps from './features.js';
 import { testWithDefaults } from './test/lib.js';
 import { asFeatures } from './resolver-features.js';
-import Vars from '../steps/vars.js';
+import VariablesStepper from '../steps/variables-stepper.js';
 
-const varsStepper = [Vars];
+const varsStepper = [VariablesStepper];
 
 describe('expandBackgrounds', () => {
 	test('simple', async () => {

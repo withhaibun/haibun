@@ -160,7 +160,7 @@ export type TStepAction = {
 	stepperName: string;
 	step: TStepperStep;
 	named?: TNamed | undefined;
-	vars?: TNamedVar[];
+	stepVariables?: TNamedVar[];
 };
 
 export type TNamed = { [name: string]: string };

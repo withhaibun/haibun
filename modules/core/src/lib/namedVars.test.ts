@@ -8,7 +8,7 @@ import { actionNotOK, createSteppers, getSerialTime } from './util/index.js';
 import { getDefaultWorld, testWithDefaults, TEST_BASE } from './test/lib.js';
 import { asExpandedFeatures } from './resolver-features.js';
 import { withNameType } from './features.js';
-import Vars from '../steps/vars.js';
+import VariablesStepper from '../steps/variables-stepper.js';
 
 describe('namedMatches', () => {
 	const step: TStepperStep = {
@@ -26,27 +26,27 @@ describe('namedInterpolation', () => {
 		expect(namedInterpolation('hi').str).toEqual('hi');
 	});
 	test('gets var', () => {
-		expect(namedInterpolation('{hi}')).toEqual({ str: `${matchGroups(0)}`, vars: [{ name: 'hi', type: 'string' }] });
+		expect(namedInterpolation('{hi}')).toEqual({ str: `${matchGroups(0)}`, stepVariables: [{ name: 'hi', type: 'string' }] });
 	});
 	test('gets var with type', () => {
-		expect(namedInterpolation('{hi: string}')).toEqual({ str: `${matchGroups(0)}`, vars: [{ name: 'hi', type: 'string' }] });
+		expect(namedInterpolation('{hi: string}')).toEqual({ str: `${matchGroups(0)}`, stepVariables: [{ name: 'hi', type: 'string' }] });
 	});
 	test('gets var with post string', () => {
-		expect(namedInterpolation('{hi} eh')).toEqual({ str: `${matchGroups(0)} eh`, vars: [{ name: 'hi', type: 'string' }] });
+		expect(namedInterpolation('{hi} eh')).toEqual({ str: `${matchGroups(0)} eh`, stepVariables: [{ name: 'hi', type: 'string' }] });
 	});
-	test('gets vars', () => {
+	test('gets stepVariables', () => {
 		expect(namedInterpolation('{hi} and {there}')).toEqual({
 			str: `${matchGroups(0)} and ${matchGroups(1)}`,
-			vars: [
+			stepVariables: [
 				{ name: 'hi', type: 'string' },
 				{ name: 'there', type: 'string' },
 			],
 		});
 	});
-	test('gets vars with post text', () => {
+	test('gets stepVariables with post text', () => {
 		expect(namedInterpolation('{hi} and {there} eh')).toEqual({
 			str: `${matchGroups(0)} and ${matchGroups(1)} eh`,
-			vars: [
+			stepVariables: [
 				{ name: 'hi', type: 'string' },
 				{ name: 'there', type: 'string' },
 			],
@@ -101,14 +101,14 @@ describe('special', () => {
 	it('assigns [SERIALTIME]', async () => {
 		const feature = { path: '/features/here.feature', content: 'set t to [SERIALTIME]' };
 		const now = getSerialTime();
-		const res = await testWithDefaults([feature], [Vars]);
+		const res = await testWithDefaults([feature], [VariablesStepper]);
 		const t = res.world.shared.get('t');
 		expect(t).toBeDefined();
 		expect(parseInt(t!)).toBeGreaterThanOrEqual(now);
 	});
 	it('rejects unknown', async () => {
 		const fails = { path: '/features/here.feature', content: 'set [NOTHING] to y' };
-		const res = await testWithDefaults([fails], [Vars]);
+		const res = await testWithDefaults([fails], [VariablesStepper]);
 		expect(res.ok).toBe(false);
 	});
 });

@@ -13,16 +13,16 @@ const clearVars = (vars) => async () => {
 	return Promise.resolve();
 }
 
-const cycles = (vars: Vars): IStepperCycles => ({
-	endScenario: clearVars(vars),
-	startFeature: clearVars(vars),
+const cycles = (variablesStepper: VariablesStepper): IStepperCycles => ({
+	endScenario: clearVars(variablesStepper),
+	startFeature: clearVars(variablesStepper),
 	startScenario: ({ featureVars }: TStartScenario) => {
-		vars.getWorld().shared = new FeatureVariables(vars.getWorld().tag.toString(), { ...featureVars.all() });
+		variablesStepper.getWorld().shared = new FeatureVariables(variablesStepper.getWorld().tag.toString(), { ...featureVars.all() });
 		return Promise.resolve();
 	},
 });
 
-class Vars extends AStepper {
+class VariablesStepper extends AStepper {
 	cycles = cycles(this);
 	set = async (named: TNamed, featureStep: TFeatureStep) => {
 		// FIXME see https://github.com/withhaibun/haibun/issues/18
@@ -113,7 +113,7 @@ class Vars extends AStepper {
 	};
 }
 
-export default Vars;
+export default VariablesStepper;
 
 export const didNotOverwrite = (what: string, present: string, value: string) => ({
 	overwrite: { summary: `did not overwrite ${what} value of "${present}" with "${value}"` },

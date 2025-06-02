@@ -97,10 +97,10 @@ export async function generateMermaidGraph(resolvedFeatures: TResolvedFeature[])
 				}
 
 				// Inline variable linking logic
-				if (step.action!.vars && step.action!.actionName !== 'scenarioStart') {
+				if (step.action!.stepVariables && step.action!.actionName !== 'scenarioStart') {
 					const definedScenarioVarsForStep = new Set<string>();
 
-					step.action.vars.forEach((varDef, varIndex) => {
+					step.action.stepVariables.forEach((varDef, varIndex) => {
 						const varName = varDef.name; // e.g., "what"
 						let actualNamedValue: string | undefined = undefined;
 						let isEnvLink = false;

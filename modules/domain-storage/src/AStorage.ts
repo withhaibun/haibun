@@ -4,7 +4,7 @@ import { pathToFileURL } from 'url';
 import { CAPTURE, OK, TNamed, TWorld } from '@haibun/core/build/lib/defs.js';
 import { captureLocator } from '@haibun/core/build/lib/capture-locator.js';
 import { actionNotOK } from '@haibun/core/build/lib/util/index.js';
-import { setShared } from '@haibun/core/build/steps/vars.js';
+import { setShared } from '@haibun/core/build/steps/variables-stepper.js';
 import { guessMediaType, IFile, TLocationOptions } from './domain-storage.js';
 import { EMediaTypes, TMediaType } from './media-types.js';
 import { AStepper } from '@haibun/core/build/lib/astepper.js';

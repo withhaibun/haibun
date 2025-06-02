@@ -1,10 +1,10 @@
 import { it, expect, describe } from 'vitest';
 
 import { testWithDefaults } from '../lib/test/lib.js';
-import Vars from './vars.js';
+import VariablesStepper from './variables-stepper.js';
 import { DEFAULT_DEST } from '../lib/defs.js';
 import Haibun from './haibun.js';
-const steppers = [Vars, Haibun];
+const steppers = [VariablesStepper, Haibun];
 
 describe('vars', () => {
 	it('assigns', async () => {

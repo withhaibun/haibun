@@ -1,6 +1,6 @@
 import TestSteps from './lib/test/TestSteps.js';
 import Haibun from './steps/haibun.js'
-import Vars from './steps/vars.js'
+import VariablesStepper from './steps/variables-stepper.js'
 import { asFeatures } from './lib/resolver-features.js';
 import { getDefaultWorld } from './lib/test/lib.js';
 import { Runner } from './runner.js';
@@ -45,7 +45,7 @@ Backgrounds: bg
 variable "a" is "0"
 `
 		}]);
-		const steppers = [TestSteps, Haibun, Vars];
+		const steppers = [TestSteps, Haibun, VariablesStepper];
 		const result = await runner.runFeaturesAndBackgrounds(steppers, { features, backgrounds });
 		expect(result.ok).toBe(true);
 	});

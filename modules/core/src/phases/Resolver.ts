@@ -78,7 +78,7 @@ export class Resolver {
 	private stepApplies(step: TStepperStep, actionable: string, actionName: string, stepperName: string) {
 		const curt = dePolite(actionable);
 		if (step.gwta) {
-			const { str, vars } = namedInterpolation(step.gwta, this.types);
+			const { str, stepVariables: vars } = namedInterpolation(step.gwta, this.types);
 			const f = str.charAt(0);
 			const s = isLowerCase(f) ? ['[', f, f.toUpperCase(), ']', str.substring(1)].join('') : str;
 			const r = new RegExp(`^${s}`);
