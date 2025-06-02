@@ -1,47 +1,47 @@
 import { JSDOM } from 'jsdom';
 import createDOMPurify from 'dompurify';
 import mermaid from 'mermaid';
-import { TArtifact, TMessageContext, TArtifactHTTPTrace, THTTPTraceContent } from '@haibun/core/build/lib/interfaces/logger.js';
+import { THTTPTraceContent } from '@haibun/core/build/lib/interfaces/logger.js';
 import { TAnyFixme } from '@haibun/core/build/lib/fixme.js';
 import { TTag, TTagValue } from '@haibun/core/build/lib/ttag.js';
 
 export function defineGlobalMermaidAndDOMPurify() {
-    const jsdom = new JSDOM('<!DOCTYPE html><html><head></head><body></body></html>', {
-        url: 'http://localhost',
-        runScripts: 'dangerously',
-        pretendToBeVisual: true,
-    });
-    const jsdomWindow = jsdom.window;
+	const jsdom = new JSDOM('<!DOCTYPE html><html><head></head><body></body></html>', {
+		url: 'http://localhost',
+		runScripts: 'dangerously',
+		pretendToBeVisual: true,
+	});
+	const jsdomWindow = jsdom.window;
 
-    global.window = jsdomWindow as unknown as Window & typeof globalThis;
-    global.document = jsdomWindow.document;
-    global.navigator = jsdomWindow.navigator;
-    global.HTMLElement = jsdomWindow.HTMLElement;
-    global.HTMLDivElement = jsdomWindow.HTMLDivElement;
-    global.HTMLDetailsElement = jsdomWindow.HTMLDetailsElement;
-    global.HTMLSummaryElement = jsdomWindow.HTMLSummaryElement;
-    global.Event = jsdomWindow.Event;
-    global.CustomEvent = jsdomWindow.CustomEvent;
-    global.Node = jsdomWindow.Node;
-    global.XMLSerializer = jsdomWindow.XMLSerializer;
-    global.DOMParser = jsdomWindow.DOMParser;
+	global.window = jsdomWindow as unknown as Window & typeof globalThis;
+	global.document = jsdomWindow.document;
+	global.navigator = jsdomWindow.navigator;
+	global.HTMLElement = jsdomWindow.HTMLElement;
+	global.HTMLDivElement = jsdomWindow.HTMLDivElement;
+	global.HTMLDetailsElement = jsdomWindow.HTMLDetailsElement;
+	global.HTMLSummaryElement = jsdomWindow.HTMLSummaryElement;
+	global.Event = jsdomWindow.Event;
+	global.CustomEvent = jsdomWindow.CustomEvent;
+	global.Node = jsdomWindow.Node;
+	global.XMLSerializer = jsdomWindow.XMLSerializer;
+	global.DOMParser = jsdomWindow.DOMParser;
 
-    const purifyInstance = createDOMPurify(jsdomWindow as TAnyFixme);
+	const purifyInstance = createDOMPurify(jsdomWindow as TAnyFixme);
 
-    (jsdomWindow as TAnyFixme).DOMPurify = purifyInstance;
-    (globalThis as TAnyFixme).DOMPurify = purifyInstance;
-    (global as TAnyFixme).DOMPurify = purifyInstance;
+	(jsdomWindow as TAnyFixme).DOMPurify = purifyInstance;
+	(globalThis as TAnyFixme).DOMPurify = purifyInstance;
+	(global as TAnyFixme).DOMPurify = purifyInstance;
 
-    mermaid.initialize({
-        startOnLoad: false,
-        securityLevel: 'antiscript',
-        theme: 'neutral',
-        flowchart: {
-            htmlLabels: true,
-            useMaxWidth: false,
-        },
-        dompurifyConfig: {},
-    });
+	mermaid.initialize({
+		startOnLoad: false,
+		securityLevel: 'antiscript',
+		theme: 'neutral',
+		flowchart: {
+			htmlLabels: true,
+			useMaxWidth: false,
+		},
+		dompurifyConfig: {},
+	});
 }
 
 export function setupMessagesTestDOM(testStartTime: number): void {
@@ -79,34 +79,4 @@ export function createMockHTTPTraceArtifact(partialTrace: Partial<THTTPTraceCont
 		statusText: 'OK',
 		...partialTrace,
 	};
-}
-
-export function createMockLogEntryWithArtifact(traceContent: THTTPTraceContent, httpEvent: TArtifactHTTPTrace['httpEvent'], level: TLogLevel, message: TLogArgs, timestamp: number = Date.now()): TLogEntry {
-	const artifact: TArtifactHTTPTrace = {
-		trace: traceContent, artifactType: 'json/http/trace',
-		httpEvent,
-	};
-	return {
-		message,
-		timestamp,
-		level,
-		messageContext: {
-			artifact: artifact as TArtifact,
-		} as TMessageContext,
-	};
-}
-
-export function setupDOMWithGeneratorContainer(parentId: string, generatorId: string, withExistingMermaidContainer = false): HTMLDivElement {
-	document.body.innerHTML = '';
-	const parentDiv = document.createElement('div');
-	parentDiv.id = parentId;
-	document.body.appendChild(parentDiv);
-
-	if (withExistingMermaidContainer) {
-		const mermaidContainer = document.createElement('div');
-		mermaidContainer.id = `${MOCK_MERMAID_CONTAINER_ID_PREFFIX}${generatorId}`;
-		mermaidContainer.className = 'mermaid';
-		parentDiv.appendChild(mermaidContainer);
-	}
-	return parentDiv;
 }
