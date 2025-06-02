@@ -2,6 +2,8 @@ import { TArtifact, TArtifactSpeech, TArtifactVideo, TArtifactVideoStart, TArtif
 import { EExecutionMessageType } from '@haibun/core/build/lib/interfaces/logger.js';
 
 import { disclosureJson } from './disclosureJson.js';
+import { LogComponent, ArtifactDisplay } from './artifactDisplays/artifactDisplayBase.js';
+
 import { JsonArtifactDisplay } from './artifactDisplays/JsonArtifactDisplay.js';
 import { HtmlArtifactDisplay } from './artifactDisplays/HtmlArtifactDisplay.js';
 import { ImageArtifactDisplay } from './artifactDisplays/ImageArtifactDisplay.js';
@@ -9,9 +11,7 @@ import { VideoArtifactDisplay } from './artifactDisplays/VideoArtifactDisplay.js
 import { SpeechArtifactDisplay } from './artifactDisplays/SpeechArtifactDisplay.js';
 import { VideoStartArtifactDisplay } from './artifactDisplays/VideoStartArtifactDisplay.js';
 import { JsonArtifactHTTPTrace } from './artifactDisplays/JsonArtifactHTTPTrace.js';
-
 import { ResolvedFeaturesArtifactDisplay } from './artifactDisplays/ResolvedFeaturesArtifactDisplay.js';
-import { LogComponent, ArtifactDisplay } from './artifactDisplays/artifactDisplayBase.js';
 
 export class LogEntry extends LogComponent {
 	private detailsSummary: LogDetailsSummary;
