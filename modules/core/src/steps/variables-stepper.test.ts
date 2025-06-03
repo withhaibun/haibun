@@ -74,3 +74,19 @@ describe('feature variables', () => {
 		expect(res.ok).toBe(true);
 	});
 });
+
+describe('vars between scenarios', () => {
+	it('should encapsulate variables to each scenario', async () => {
+		const feature = {
+			path: 'test.feature',
+			content: `
+Scenario: Scenario 1
+set a to 1
+
+Scenario: Scenario 2
+variable "a" is not set
+` }
+		const res = await testWithDefaults([feature], steppers);
+		expect(res.ok).toBe(true);
+	});
+});
