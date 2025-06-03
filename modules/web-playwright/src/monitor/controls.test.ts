@@ -40,7 +40,7 @@ describe('Monitor Video Playback Controls', () => {
             <head></head>
             <body data-start-time="${monitorStartTime}">
             	<div id="haibun-media-display"> <!-- Added -->
-            		<div id="haibun-video">
+            		<div id="haibun-focus">
             			<video controls></video>
             		</div>
             		<!-- Sequence diagram container not needed for these specific tests -->
@@ -81,7 +81,7 @@ describe('Monitor Video Playback Controls', () => {
 
         // Get DOM elements
         logDisplayArea = document.getElementById('haibun-log-display-area')!;
-        videoContainer = document.getElementById('haibun-video')!;
+        videoContainer = document.getElementById('haibun-focus')!;
         videoElement = videoContainer.querySelector('video')!;
         videoStartElement = document.getElementById('haibun-video-start')!;
 
@@ -274,7 +274,7 @@ describe('Monitor Media Panel Visibility', () => {
 					</div>
 				</div>
 				<div id="haibun-media-display">
-					<div id="haibun-video">
+					<div id="haibun-focus">
 						${includeVideo ? '<video></video>' : ''}
 					</div>
 					${includeDiagram ? '<div id="sequence-diagram-container"><div id="sequence-diagram"></div></div>' : ''}
@@ -304,7 +304,7 @@ describe('Monitor Media Panel Visibility', () => {
 
 		mediaPanel = document.getElementById('haibun-media-display')!;
 		resizeHandle = document.getElementById('resize-handle')!;
-		videoContainer = document.getElementById('haibun-video')!;
+		videoContainer = document.getElementById('haibun-focus')!;
 		// sequenceDiagramContainer might not exist if includeDiagram is false
 		sequenceDiagram = document.getElementById('sequence-diagram')!; // Get the inner div
 

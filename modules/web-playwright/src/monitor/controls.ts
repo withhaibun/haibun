@@ -160,7 +160,7 @@ function pollVideoTimeAndUpdate(videoElement: HTMLVideoElement) {
 
 export function setupVideoPlayback() {
 	const sequenceDiagram = document.getElementById('sequence-diagram');
-	const videoContainer = document.getElementById('haibun-video');
+	const videoContainer = document.getElementById('haibun-focus');
 	const logDisplayArea = document.getElementById('haibun-log-display-area') as HTMLElement;
 
 	// if (existingVideoCheck || (sequenceDiagram && sequenceDiagram.hasChildNodes())) {

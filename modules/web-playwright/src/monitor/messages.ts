@@ -134,15 +134,15 @@ export class LogMessageContent extends LogComponent {
 
 		if (placement === 'body') {
 			await createAndRenderArtifact(container => document.body.appendChild(container));
-		} else if (placement === 'haibun-video') {
-			const haibunVideoContainer = document.querySelector<HTMLElement>('#haibun-video');
+		} else if (placement === 'haibun-focus') {
+			const haibunVideoContainer = document.querySelector<HTMLElement>('#haibun-focus');
 			if (haibunVideoContainer) {
 				await createAndRenderArtifact(container => {
 					haibunVideoContainer.replaceChildren(container);
 					haibunVideoContainer.style.display = 'flex';
 				});
 			} else {
-				console.warn('[LogMessageContent] #haibun-video container not found for artifact placement.');
+				console.warn('[LogMessageContent] #haibun-focus container not found for artifact placement.');
 			}
 		}
 	}
