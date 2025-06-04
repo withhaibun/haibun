@@ -163,10 +163,6 @@ export function setupVideoPlayback() {
 	const videoContainer = document.getElementById('haibun-focus');
 	const logDisplayArea = document.getElementById('haibun-log-display-area') as HTMLElement;
 
-	// if (existingVideoCheck || (sequenceDiagram && sequenceDiagram.hasChildNodes())) {
-	// 	showMediaPanelIfNeeded(mediaPanel, resizeHandle);
-	// }
-
 	logDisplayArea.addEventListener('click', (event) => {
 		const target = event.target as HTMLElement;
 		const logEntry = findLogEntry(target);

@@ -50,7 +50,6 @@ export class Resolver {
 			in: featureLine.line,
 			seq,
 			action,
-			origin: featureLine.origin, // Correctly set the origin property to reflect the actual source of the step
 		};
 	}
 

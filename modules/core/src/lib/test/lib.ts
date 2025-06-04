@@ -22,7 +22,6 @@ export async function getCreateSteppers(steppers: string[], addSteppers?: CStepp
 
 export const testFeatureStep = (name: string, action): TFeatureStep => ({
 	path: '/features/test',
-	origin: '/features/test',
 	in: name,
 	seq: 0,
 	action,

@@ -25,7 +25,7 @@ export class ResolvedFeaturesArtifactDisplay extends ArtifactDisplay {
 			return;
 		}
 
-		const mermaidGraph = await generateMermaidGraphAsMarkdown(this.artifact.resolvedFeatures);
+		const mermaidGraph = await generateMermaidGraphAsMarkdown(this.artifact.resolvedFeatures, false);
 
 		const graphSvgId = `mermaid-graph-svg-${instanceCounter++}-${Date.now()}`;
 

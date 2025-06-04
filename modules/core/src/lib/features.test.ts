@@ -91,7 +91,6 @@ describe('expand features', () => {
 		expect(res[0].expanded.map((e) => e.line)).toEqual(['result', 'Extant']);
 		expect(res[0].expanded.map((e) => e.feature.name)).toEqual(['/b1', '/f1']);
 		expect(res[0].expanded.map((e) => e.feature.path)).toEqual(['/b1.feature', '/f1']);
-		expect(res[0].expanded.map((e) => e.origin)).toEqual(['/b1.feature', '/f1']);
 	});
 
 	test('applies backgrounds hierarchical', async () => {
@@ -106,7 +105,6 @@ describe('expand features', () => {
 		expect(res[0].expanded[0].line).toEqual('result');
 		expect(res[0].expanded[0].feature.name).toEqual('/l2/b2');
 		expect(res[0].expanded[0].feature.path).toEqual('/l2/b2.feature');
-		expect(res[0].expanded[0].origin).toEqual('/l2/b2.feature');
 	});
 
 	test('multiple features and backgrounds', async () => {
@@ -122,11 +120,9 @@ describe('expand features', () => {
 
 		expect(res[0].expanded.map((e) => e.line)).toEqual(['Background step 1', 'Feature step 1']);
 		expect(res[0].expanded.map((e) => e.feature.path)).toEqual(['/b1.feature', '/f1']);
-		expect(res[0].expanded.map((e) => e.origin)).toEqual(['/b1.feature', '/f1']);
 
 		expect(res[1].expanded.map((e) => e.line)).toEqual(['Background step 2', 'Feature step 2']);
 		expect(res[1].expanded.map((e) => e.feature.path)).toEqual(['/b2.feature', '/f2']);
-		expect(res[1].expanded.map((e) => e.origin)).toEqual(['/b2.feature', '/f2']);
 	});
 });
 

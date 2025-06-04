@@ -51,7 +51,7 @@ describe('Monitor Messages Logic (messages.ts)', () => {
 			const message = 'Action';
 			const mockTag: TTag = { key: 'test', sequence: 1, featureNum: 1, params: {}, trace: false };
 			const mockStepAction: TStepAction = { actionName: 'testAction', stepperName: 'testStepper', step: { action: async () => Promise.resolve(OK) } };
-			const mockFeatureStep: TFeatureStep = { path: 'test.feature', origin: 'test.feature', in: 'Given something', seq: 1, action: mockStepAction };
+			const mockFeatureStep: TFeatureStep = { path: 'test.feature', in: 'Given something', seq: 1, action: mockStepAction };
 			const mockActionResult: TStepActionResult = { ok: true, name: 'testAction' };
 			const mockStepResult: TStepResult = { ok: true, actionResult: mockActionResult, in: 'Given something', path: 'test.feature', seq: 1 };
 

@@ -68,7 +68,6 @@ export type TExpandedFeature = TFeatureMeta & {
 export type TExpandedLine = {
 	line: string;
 	feature: TFeature;
-	origin: string;
 };
 
 export type TFeatures = TFeature[];
@@ -88,7 +87,6 @@ const example: TResolvedFeature = {
 	featureSteps: [
 		{
 			path: 'path',
-			origin: 'origin',
 			in: 'in',
 			seq: 0,
 			action: {
@@ -105,7 +103,6 @@ export type TFeatureStep = {
 	in: string;
 	seq: number;
 	action: TStepAction;
-	origin: string;
 };
 
 export type TAction = (named: TNamed, featureStep: TFeatureStep) => Promise<TActionResult>;

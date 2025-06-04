@@ -2,12 +2,12 @@ import { TResolvedFeature } from '@haibun/core/build/lib/defs.js';
 import { sanitize, formatLabel } from './graphUtils.js';
 import { getBaseLocations } from './feature-bases.js';
 
-export async function generateMermaidGraphAsMarkdown(resolvedFeatures: TResolvedFeature[]): Promise<string> {
-	const graphLines = await generateMermaidGraph(resolvedFeatures);
+export async function generateMermaidGraphAsMarkdown(resolvedFeatures: TResolvedFeature[], showVariables = true): Promise<string> {
+	const graphLines = await generateMermaidGraph(resolvedFeatures, showVariables);
 	return graphLines.join('\n');
 }
 
-export async function generateMermaidGraph(resolvedFeatures: TResolvedFeature[]): Promise<string[]> {
+export async function generateMermaidGraph(resolvedFeatures: TResolvedFeature[], showVariables = true): Promise<string[]> {
 	const graphLines: string[] = ['graph TD'];
 
 	// BASES (defined first, top-level)
@@ -87,60 +87,62 @@ export async function generateMermaidGraph(resolvedFeatures: TResolvedFeature[])
 				previousStepActualId = newStepId;
 
 				// Link to background if step is from background
-				if (step.origin && step.origin !== feature.path) {
-					if (backgrounds.has(step.origin)) {
+				if (step.path !== feature.path) {
+					if (backgrounds.has(step.path)) {
 
-						graphLines.push(`${indent}${newStepId} -.-> bg_${sanitize(step.origin)}`);
+						graphLines.push(`${indent}${newStepId} -.-> bg_${sanitize(step.path)}`);
 					} else {
-						console.warn(`Background step origin "${step.origin}" not found in backgrounds set.`);
+						console.warn(`Background step patah "${step.path}" not found in backgrounds set.`);
 					}
 				}
 
 				// Inline variable linking logic
-				if (step.action!.stepVariables && step.action!.actionName !== 'scenarioStart') {
-					const definedScenarioVarsForStep = new Set<string>();
+				if (showVariables) {
+					if (step.action!.stepVariables && step.action!.actionName !== 'scenarioStart') {
+						const definedScenarioVarsForStep = new Set<string>();
 
-					step.action.stepVariables.forEach((varDef, varIndex) => {
-						const varName = varDef.name; // e.g., "what"
-						let actualNamedValue: string | undefined = undefined;
-						let isEnvLink = false;
-						let envLinkTargetName: string | undefined = undefined;
+						step.action.stepVariables.forEach((varDef, varIndex) => {
+							const varName = varDef.name; // e.g., "what"
+							let actualNamedValue: string | undefined = undefined;
+							let isEnvLink = false;
+							let envLinkTargetName: string | undefined = undefined;
 
-						// Prefixes for indexed named parameters (excluding 'e' which is special)
-						// These correspond to TYPE_QUOTED, TYPE_VAR, TYPE_ENV_OR_VAR_OR_LITERAL, TYPE_SPECIAL, TYPE_CREDENTIAL etc. from namedVars.ts
-						const indexedPrefixes = ['q', 'b', 't', 's', 'c', 'a', 'n'];
-						const envPrefix = 'e';
+							// Prefixes for indexed named parameters (excluding 'e' which is special)
+							// These correspond to TYPE_QUOTED, TYPE_VAR, TYPE_ENV_OR_VAR_OR_LITERAL, TYPE_SPECIAL, TYPE_CREDENTIAL etc. from namedVars.ts
+							const indexedPrefixes = ['q', 'b', 't', 's', 'c', 'a', 'n'];
+							const envPrefix = 'e';
 
-						// Check for environment variable first (e.g., e_0)
-						const envNamedKey = `${envPrefix}_${varIndex}`;
-						if (step.action!.named && step.action!.named[envNamedKey] !== undefined) {
-							actualNamedValue = String(step.action!.named[envNamedKey]);
-							isEnvLink = true;
-							envLinkTargetName = actualNamedValue; // For e_X, the value in 'named' is the env var name
-						} else {
-							// Check other indexed prefixes for scenario variables
-							for (const prefix of indexedPrefixes) {
-								const namedKeyCandidate = `${prefix}_${varIndex}`;
-								if (step.action!.named && step.action!.named[namedKeyCandidate] !== undefined) {
-									actualNamedValue = String(step.action!.named[namedKeyCandidate]);
-									break;
-								}
-							}
-						}
-
-						if (actualNamedValue !== undefined) { // A value was found for this varDef
-							if (isEnvLink && envLinkTargetName) {
-								graphLines.push(`${indent}${newStepId} -.-> env_${sanitize(envLinkTargetName)}`);
+							// Check for environment variable first (e.g., e_0)
+							const envNamedKey = `${envPrefix}_${varIndex}`;
+							if (step.action!.named && step.action!.named[envNamedKey] !== undefined) {
+								actualNamedValue = String(step.action!.named[envNamedKey]);
+								isEnvLink = true;
+								envLinkTargetName = actualNamedValue; // For e_X, the value in 'named' is the env var name
 							} else {
-								const scenarioVarNodeId = `sv_${actionNamePart}_${stepIdx}_${sanitize(varName)}`;
-								if (!definedScenarioVarsForStep.has(scenarioVarNodeId)) {
-									graphLines.push(`${indent}${scenarioVarNodeId}([${formatLabel(varName + " = " + actualNamedValue)}])`);
-									definedScenarioVarsForStep.add(scenarioVarNodeId);
+								// Check other indexed prefixes for scenario variables
+								for (const prefix of indexedPrefixes) {
+									const namedKeyCandidate = `${prefix}_${varIndex}`;
+									if (step.action!.named && step.action!.named[namedKeyCandidate] !== undefined) {
+										actualNamedValue = String(step.action!.named[namedKeyCandidate]);
+										break;
+									}
 								}
-								graphLines.push(`${indent}${newStepId} -.-> ${scenarioVarNodeId}`);
 							}
-						}
-					});
+
+							if (actualNamedValue !== undefined) { // A value was found for this varDef
+								if (isEnvLink && envLinkTargetName) {
+									graphLines.push(`${indent}${newStepId} -.-> env_${sanitize(envLinkTargetName)}`);
+								} else {
+									const scenarioVarNodeId = `sv_${actionNamePart}_${stepIdx}_${sanitize(varName)}`;
+									if (!definedScenarioVarsForStep.has(scenarioVarNodeId)) {
+										graphLines.push(`${indent}${scenarioVarNodeId}([${formatLabel(varName + " = " + actualNamedValue)}])`);
+										definedScenarioVarsForStep.add(scenarioVarNodeId);
+									}
+									graphLines.push(`${indent}${newStepId} -.-> ${scenarioVarNodeId}`);
+								}
+							}
+						});
+					}
 				}
 			}
 			previousStepIsInScenario = currentStepIsInCurrentScenario;

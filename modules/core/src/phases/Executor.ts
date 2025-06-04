@@ -33,6 +33,7 @@ export class Executor {
 		});
 	}
 	static async executeFeatures(steppers: AStepper[], world: TWorld, features: TResolvedFeature[]): Promise<TExecutorResult> {
+		console.log('🤑', JSON.stringify(features, null, 2));
 		await doStepperCycle(steppers, 'startExecution', features);
 		let okSoFar = true;
 		const stayOnFailure = world.options[STAY] === STAY_FAILURE;
