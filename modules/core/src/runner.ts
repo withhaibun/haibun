@@ -36,26 +36,25 @@ export class Runner {
 			this.errorBail('Collector', error);
 		}
 
-		const { features, backgrounds } = featuresBackgrounds;
-		const cSteppers = await getSteppers(steppers).catch((error) => this.errorBail('Steppers', error));
-		const featureResults = await this.runFeaturesAndBackgrounds(cSteppers, { features, backgrounds });
+		const csteppers = await getSteppers(steppers).catch((error) => this.errorBail('Steppers', error));
+		await verifyRequiredOptions(csteppers, this.world.moduleOptions).catch((error) => this.errorBail('RequiredOptions', error));
+		await verifyExtraOptions(this.world.moduleOptions, csteppers).catch((error) => this.errorBail('moduleOptions', error));
+
+		const featureResults = await this.runFeaturesAndBackgrounds(csteppers, featuresBackgrounds);
 		return featureResults;
 	}
 
-	async runFeaturesAndBackgrounds(csteppers: CStepper[], { features, backgrounds }: TFeaturesBackgrounds) {
+	async runFeaturesAndBackgrounds(csteppers: CStepper[], featuresBackgrounds: TFeaturesBackgrounds) {
 		try {
-			await verifyRequiredOptions(csteppers, this.world.moduleOptions).catch((error) => this.errorBail('RequiredOptions', error));
-			await verifyExtraOptions(this.world.moduleOptions, csteppers).catch((error) => this.errorBail('moduleOptions', error));
 			this.steppers = await createSteppers(csteppers);
 			await setStepperWorlds(this.steppers, this.world);
-
-			const expandedFeatures = await expand({ backgrounds, features }).catch((error) => this.errorBail('Expand', error));
+			const expandedFeatures = await expand(featuresBackgrounds).catch((error) => this.errorBail('Expand', error));
 
 			const resolver = new Resolver(this.steppers);
 			const resolvedFeatures = await resolver.resolveStepsFromFeatures(expandedFeatures).catch((error) => this.errorBail('Resolve', error));
 			const appliedResolvedFeatures = await applyEffectFeatures(this.world, resolvedFeatures, this.steppers);
 
-			this.world.logger.log(`features: ${appliedResolvedFeatures.length} (${appliedResolvedFeatures.map((e) => e.path)}) backgrounds: ${backgrounds.length}`);
+			this.world.logger.log(`features: ${appliedResolvedFeatures.length} (${appliedResolvedFeatures.map((e) => e.path)}) backgrounds: ${featuresBackgrounds.backgrounds.length}`);
 
 			this.result = await Executor.executeFeatures(this.steppers, this.world, appliedResolvedFeatures).catch((error) =>
 				this.errorBail('Execute', error)

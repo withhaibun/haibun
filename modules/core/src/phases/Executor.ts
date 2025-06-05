@@ -9,12 +9,18 @@ import { SCENARIO_START } from '../lib/defs.js';
 import { Timer } from '../lib/Timer.js';
 import { FeatureVariables } from '../lib/feature-variables.js';
 
-function calculateShouldClose({ thisFeatureOK, isLast, stayOnFailure }) {
+function calculateShouldClose({ thisFeatureOK, isLast, stayOnFailure, continueAfterError }) {
 	if (thisFeatureOK) {
 		return true;
 	}
 	if (isLast && stayOnFailure) {
 		return false;
+	}
+	if (!thisFeatureOK && !isLast && continueAfterError) {
+		return true;
+	}
+	if (!thisFeatureOK) {
+		return true;
 	}
 	return true;
 }
@@ -33,7 +39,6 @@ export class Executor {
 		});
 	}
 	static async executeFeatures(steppers: AStepper[], world: TWorld, features: TResolvedFeature[]): Promise<TExecutorResult> {
-		console.log('🤑', JSON.stringify(features, null, 2));
 		await doStepperCycle(steppers, 'startExecution', features);
 		let okSoFar = true;
 		const stayOnFailure = world.options[STAY] === STAY_FAILURE;

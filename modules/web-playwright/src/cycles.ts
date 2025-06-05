@@ -84,5 +84,5 @@ async function createResolvedFeaturesArtifact(wp: WebPlaywright, type: string, r
 		tag: wp.getWorld().tag,
 	};
 	await wp.storage.writeFile(path, JSON.stringify(resolvedFeatures, null, 2), mediaType);
-	wp.getWorld().logger.info(`resolvedFeatures for ${type} written to ${pathToFileURL(path)}`, context);
+	wp.getWorld().logger.info(`resolvedFeatures for ${type}`, context);
 }

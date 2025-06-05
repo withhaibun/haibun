@@ -8,44 +8,6 @@ import VariablesStepper from '../steps/variables-stepper.js';
 
 const varsStepper = [VariablesStepper];
 
-describe('expandBackgrounds', () => {
-	test('simple', async () => {
-		const features = asFeatures([{ path: '/f1', content: 'f1_step' }]);
-
-		const res = await steps.expandBackgrounds(features);
-
-		expect(res).toEqual(features);
-	});
-	test('hierarchical', async () => {
-		const features = asFeatures([
-			{ path: '/f1', content: 'f1_step' },
-			{ path: '/f1/l1f1', content: 'l1f1_step' },
-		]);
-		const expected = asFeatures([
-			{ path: '/f1', content: 'f1_step' },
-			{ path: '/f1/l1f1', content: 'f1_step\nl1f1_step' },
-		]);
-		const res = await steps.expandBackgrounds(features);
-
-		expect(res).toEqual(expected);
-	});
-	test('multiple hierarchical', async () => {
-		const features = asFeatures([
-			{ path: '/f1', content: 'f1_step' },
-			{ path: '/l1/l1f1', content: 'l1_step' },
-			{ path: '/l2/l2f1', content: 'l2_step' },
-		]);
-		const expected = asFeatures([
-			{ path: '/f1', content: 'f1_step' },
-			{ path: '/l1/l1f1', content: 'f1_step\nl1_step' },
-			{ path: '/l2/l2f1', content: 'f1_step\nl2_step' },
-		]);
-		const res = await steps.expandBackgrounds(features);
-
-		expect(res).toEqual(expected);
-	});
-});
-
 describe('feature finding', () => {
 	const features = asFeatures([
 		{ path: '/l0.feature', content: 'l0_feature' },
@@ -148,3 +110,21 @@ describe('env vars', () => {
 		expect(world.shared.get('x')).toBe('what');
 	});
 });
+
+describe('does not include backgrounds that are not referenced', () => {
+	it('does not include unreferenced backgrounds', async () => {
+		const features = asFeatures([{ path: '/f1', content: 'Backgrounds: b1\nFeature step 1' }]);
+		const backgrounds = asFeatures([
+			{ path: '/b1.feature', content: 'Background step 1' },
+			{ path: '/b2.feature', content: 'Scenario: Foo\nBackground step 2' },
+		]);
+		const res = await steps.expandFeatures(features, backgrounds);
+		console.log('🤑', JSON.stringify(res, null, 2));
+		expect(res[0].expanded.map((e) => e.line)).toEqual(['Background step 1', 'Feature step 1']);
+		expect(res[0].expanded.map((e) => e.feature.path)).toEqual(['/b1.feature', '/f1']);
+		expect(res[0].expanded.map((e) => e.feature.name)).toEqual(['/b1', '/f1']);
+		expect(res[0].expanded.length).toBe(2);
+		expect(res[0].expanded.some((e) => e.feature.path === '/b2.feature')).toBe(false);
+	});
+});
+

@@ -92,57 +92,8 @@ set "feature variable" to "something else"
 Scenario: Make sure it is still the feature variable value
 
 variable "feature variable" is "something"
-
-
 ` }
 		const res = await testWithDefaults([feature], steppers);
 		expect(res.ok).toBe(true);
 	});
 });
-
-describe.only('complex case', () => {
-	it('should handle complex variable assignments', async () => {
-		const feature = {
-			path: 'portal/features/app/create-complete.feature',
-			content: `
-Backgrounds: pages/portal, service/frontend
-
-Scenario: Setup
-  Backgrounds: flows/login
-
-Scenario: First scenario
-  Backgrounds: flows/test-name, flows/entity-names
-  Backgrounds: entities/create-authority`
-		};
-
-		const backgrounds = [
-			{
-				path: 'portal/backgrounds/pages/portal.feature',
-				content: `;; portal`
-			},
-			{
-				path: 'portal/backgrounds/service/frontend.feature',
-				content: `;; frontend`
-			},
-			{
-				path: 'portal/backgrounds/flows/login.feature',
-				content: `;; login`
-			},
-			{
-				path: 'portal/backgrounds/flows/test-name.feature',
-				content: `;; test-name`
-			},
-			{
-				path: 'portal/backgrounds/flows/entity-names.feature',
-				content: `;; entity-names`
-			},
-			{
-				path: 'portal/backgrounds/entities/create-authority.feature',
-				content: `;; create-authority`
-			}
-		]
-		const res = await testWithDefaults([feature], steppers, { options: { DEST: DEFAULT_DEST }, moduleOptions: {} }, backgrounds);
-		console.log('🤑', JSON.stringify(res.featureResults, null, 2));
-		expect(res.ok).toBe(true);
-	})
-})
