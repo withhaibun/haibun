@@ -21,7 +21,7 @@ export const runContainer = (testToRun, includeDirs = [], thisCaptureOptions: TC
 		const { tmpFile, composeEnvironment, utilDir, composeVolumes, projectDir, buildContextDir } = getContainerSetup(thisCaptureOptions, includeDirs, testToRun);
 		const captureDir = resolve(projectDir, 'capture');
 		if (!existsSync(captureDir)) {
-			console.log('Creating capture directory');
+			console.info('Creating capture directory');
 			mkdirSync(captureDir, { recursive: true });
 		}
 		mkdirSync(buildContextDir, { recursive: true });
@@ -39,11 +39,11 @@ ${asYamlOptions(composeVolumes)}
 ${(asYamlOptions(composeEnvironment))}
 `;
 		writeFileSync(tmpFile, composeFile);
-		console.log(`Building then starting vcapture container using ${utilDir}`);
-		console.log(`Mounting directories:\n${composeVolumes.join('\n')}`);
+		console.info(`Building then starting vcapture container using ${utilDir}`);
+		console.info(`Mounting directories:\n${composeVolumes.join('\n')}`);
 		try {
 			const cmd = `docker compose -f docker-compose.yml -f ${tmpFile} up ${thisCaptureOptions.recreate ? '--force-recreate --build' : ''}`
-			console.log('building with:', cmd);
+			console.info('building with:', cmd);
 			execSync(cmd, {
 				cwd: utilDir,
 				stdio: 'inherit',

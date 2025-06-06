@@ -1,3 +1,4 @@
+import { TResolvedFeature } from '../defs.js';
 import { TAnyFixme } from '../fixme.js';
 import { TTag } from '../ttag.js';
 
@@ -53,6 +54,7 @@ export type TOutputEnv = { output: ILogOutput; tag: TTag };
 export type TArtifact = (
 	TArtifactSpeech |
 	TArtifactVideo |
+	TArtifactResolvedFeatures |
 	TArtifactVideoStart |
 	TArtifactImage |
 	TArtifactHTML |
@@ -64,6 +66,13 @@ export type TArtifactSpeech = {
 	artifactType: 'speech';
 	transcript: string;
 	durationS: number;
+	path: string;
+};
+
+export type TArtifactResolvedFeatures = {
+	artifactType: 'resolvedFeatures';
+	resolvedFeatures: TResolvedFeature[];
+	index?: number;
 	path: string;
 };
 
@@ -80,10 +89,18 @@ export type TArtifactImage = {
 	artifactType: 'image';
 	path: string;
 };
-export type TArtifactHTML = {
+export type TArtifactHTML = TArtifactHTMLWithHtml | TArtifactHTMLWithPath;
+
+type TArtifactHTMLWithHtml = {
 	artifactType: 'html';
 	html: string;
-};
+}
+
+type TArtifactHTMLWithPath = {
+	artifactType: 'html';
+	path: string;
+}
+
 export type TArtifactJSON = {
 	artifactType: 'json';
 	json: object;

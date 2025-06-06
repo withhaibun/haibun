@@ -1,9 +1,10 @@
 import { it, expect, describe } from 'vitest';
 
 import { testWithDefaults } from '../lib/test/lib.js';
-import Vars from './vars.js';
+import VariablesStepper from './variables-stepper.js';
 import { DEFAULT_DEST } from '../lib/defs.js';
-const steppers = [Vars];
+import Haibun from './haibun.js';
+const steppers = [VariablesStepper, Haibun];
 
 describe('vars', () => {
 	it('assigns', async () => {
@@ -29,6 +30,22 @@ describe('vars', () => {
 });
 
 
+describe('vars between scenarios', () => {
+	it('clears variables between scenarios', async () => {
+		const features = [{
+			path: '/features/test.feature',
+			content: `
+Scenario: Scenario 1
+set "a" to 1
+variable "a" is "1"
+Scenario: Scenario 2
+variable "a" is not set
+`}];
+		const res = await testWithDefaults(features, steppers);
+		expect(res.ok).toBe(true);
+	});
+});
+
 describe('vars between features', () => {
 	it('clears variables between features', async () => {
 		const feature = { path: '/features/test.feature', content: 'set "x" to y' };
@@ -36,11 +53,47 @@ describe('vars between features', () => {
 		const res = await testWithDefaults([feature, anotherFeature], steppers);
 		expect(res.ok).toBe(true);
 	});
-	it('keeps env vars between features', async () => {
+	it('sees env vars between features', async () => {
 		const feature = { path: '/features/test.feature', content: 'variable "b" is "1"' };
 		const anotherFeature = { path: '/features/verify.feature', content: 'variable "b" is "1"' };
 		const envVariables = { b: '1' };
 		const res = await testWithDefaults([feature, anotherFeature], steppers, { options: { envVariables, DEST: DEFAULT_DEST }, moduleOptions: {} })
+		expect(res.ok).toBe(true);
+	});
+});
+
+describe('feature variables', () => {
+	it('keeps pre-scenario feature variables', async () => {
+		const feature = { path: '/features/test.feature', content: 'set "x" to "y"\nScenario: Checks x\nvariable "x" is "y"' };
+		const res = await testWithDefaults([feature], steppers);
+		expect(res.ok).toBe(true);
+	});
+	it('does not overwrite feature variables', async () => {
+		const feature = { path: '/features/test.feature', content: 'set "x" to "y"\nScenario: Sets x\nvariable "x" is "y"\nset "x" to "z"\nScenario: Checks x\nvariable "x" is "y"' };
+		const res = await testWithDefaults([feature], steppers);
+		expect(res.ok).toBe(true);
+	});
+});
+
+describe('vars between scenarios', () => {
+	it('should encapsulate variables to each scenario', async () => {
+		const feature = {
+			path: 'test.feature',
+			content: `
+
+set "feature variable" to "something"
+
+Scenario: Check the variable and set it
+
+variable "feature variable" is "something"
+
+set "feature variable" to "something else"
+
+Scenario: Make sure it is still the feature variable value
+
+variable "feature variable" is "something"
+` }
+		const res = await testWithDefaults([feature], steppers);
 		expect(res.ok).toBe(true);
 	});
 });
