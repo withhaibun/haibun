@@ -32,86 +32,11 @@ export function setupControls() {
 	}
 
 	setupVideoPlayback();
-	setupResizeHandle();
-	setupMediaToggle();
-}
-
-function setupResizeHandle() {
-	const resizeHandle = document.getElementById('resize-handle');
-	const topDisplay = document.getElementById('haibun-media-display') as HTMLElement;
-	const logDisplayArea = document.getElementById('haibun-log-display-area') as HTMLElement;
-	const header = document.querySelector('.haibun-header');
-
-	if (!resizeHandle || !topDisplay || !logDisplayArea || !header) {
-		console.error('Resize elements not found');
-		return;
-	}
-
-	let isResizing = false;
-	let startY: number;
-	let startHeightTop: number;
-
-	resizeHandle.addEventListener('mousedown', (e) => {
-		isResizing = true;
-		startY = e.clientY;
-		startHeightTop = topDisplay.clientHeight;
-		document.body.style.cursor = 'ns-resize';
-		document.body.style.userSelect = 'none';
-
-		document.addEventListener('mousemove', handleMouseMove);
-		document.addEventListener('mouseup', handleMouseUp);
-	});
-
-	const handleMouseMove = (e: MouseEvent) => {
-		if (!isResizing) return;
-
-		const deltaY = e.clientY - startY;
-		const newHeightTop = startHeightTop + deltaY;
-		const minHeight = 50;
-		const maxHeight = window.innerHeight - header.clientHeight - 50;
-
-		const clampedHeightTop = Math.max(minHeight, Math.min(newHeightTop, maxHeight));
-
-		topDisplay.style.height = `${clampedHeightTop}px`;
-	};
-
-	const handleMouseUp = () => {
-		if (isResizing) {
-			isResizing = false;
-			document.body.style.cursor = '';
-			document.body.style.userSelect = '';
-			document.removeEventListener('mousemove', handleMouseMove);
-			document.removeEventListener('mouseup', handleMouseUp);
-		}
-	};
-}
-
-export function setupMediaToggle() { // Export the function
-	const toggleButton = document.getElementById('haibun-media-toggle')!;
-	const mediaPanel = document.getElementById('haibun-media-display') as HTMLElement;
-	const resizeHandle = document.getElementById('resize-handle') as HTMLElement;
-
-	let lastMediaHeight = 250;
-
-	toggleButton.addEventListener('click', () => {
-		const isHidden = mediaPanel.clientHeight <= 20;
-
-		if (isHidden) {
-			mediaPanel.style.height = `${lastMediaHeight}px`;
-			resizeHandle.style.display = 'block';
-		} else {
-			lastMediaHeight = mediaPanel.clientHeight;
-			mediaPanel.style.height = '0';
-			resizeHandle.style.display = 'none';
-		}
-	});
-
-	mediaPanel.style.height = '0';
-	resizeHandle.style.display = 'none';
 }
 
 // Update log entry classes and scroll to current entry based on video time
 function updateLogEntriesForCurrentTime(videoElement: HTMLVideoElement) {
+	if (userScrolledManually) return;
 	const monitorStartTimeStr = document.body.dataset.startTime;
 	const videoStartOffsetStr = document.getElementById('haibun-video-start')?.dataset.start;
 	if (!monitorStartTimeStr || !videoStartOffsetStr) return;
@@ -170,7 +95,6 @@ export function setupVideoPlayback() {
 		if (logEntry && logEntry.dataset.time) {
 			const videoElement = videoContainer.querySelector('video');
 			if (videoElement) {
-				userScrolledManually = false;
 				const monitorStartTimeStr = document.body.dataset.startTime;
 				const videoStartOffsetStr = document.getElementById('haibun-video-start')?.dataset.start;
 
@@ -226,7 +150,7 @@ export function setupVideoPlayback() {
 		});
 
 		videoElement.addEventListener('play', () => {
-			userScrolledManually = false; // Reset manual scroll when video starts playing
+			userScrolledManually = false;
 			if (playInterval === undefined) {
 				updateVideoSteps();
 				playInterval = window.setInterval(updateVideoSteps, 50);

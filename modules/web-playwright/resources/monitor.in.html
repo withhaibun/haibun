@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+
 <head>
 	<meta charset="UTF-8">
 	<title>Haibun Monitor</title>
@@ -39,7 +40,7 @@
 		.haibun-header {
 			flex-shrink: 0;
 			/* Prevent header from shrinking */
-			height: 7vh;
+			height: 5vh;
 			top: 0;
 			left: 0;
 			width: 100%;
@@ -61,6 +62,7 @@
 			display: flex;
 			align-items: center;
 			gap: 15px;
+			padding: 15px;
 		}
 
 		#haibun-log-display-area {
@@ -168,8 +170,6 @@
 			margin-top: 10px;
 		}
 
-		/* Basic Mermaid styling */
-
 		/* Video playback related styles */
 		.haibun-stepper-played {
 			background-color: rgba(10, 10, 211, 0.1);
@@ -198,123 +198,51 @@
 			color: #a80;
 		}
 
-		#haibun-focus {
-			/* Styles for video container within bottom panel */
-			display: none;
-			/* Initially hidden, shown by JS when video added */
-			box-sizing: border-box;
-			overflow: visible;
-			flex: 0 0 330px;
-			/* Fixed width for video (adjust as needed) */
-			border-right: 1px solid #ccc;
-			/* Separator */
-			background-color: transparent;
-			/* Remove background from this container */
-			/* Add flex properties for alignment */
-			display: flex;
-			align-items: flex-start;
-			/* Align video to the top */
-			justify-content: center;
-			/* Center video horizontally if needed, or remove */
+		#haibun-media-display {
 			position: relative;
-			/* Positioning context for absolute video */
+			width: 100%;
+			height: auto;
+			background-color: #f0f0f0;
+			border-bottom: 1px solid #ccc;
+			display: block;
+			box-sizing: border-box;
+			flex-shrink: 0;
+			padding: 0;
 		}
 
-		#haibunfocusvideo video {
-			max-width: 100%;
+		#haibun-focus {
+			position: absolute;
+			top: 2vh;
+			right: 0;
+			width: auto;
+			height: auto;
+			background: transparent;
+			border: none;
+			z-index: 1100;
+			display: block;
+			box-sizing: border-box;
+			pointer-events: none;
+		}
+
+		#haibun-focus video {
+			max-width: 330px;
 			height: auto;
 			display: block;
-			/* Prevent extra space below video */
 			transition: transform 0.3s ease;
-			transform-origin: top left;
-		}
-
-		#haibun-focus video:hover {
-			transform: scale(2) translateX(-50%);
-			position: absolute;
-			top: 0;
-			left: 0;
-			right: auto;
-			z-index: 10;
+			transform-origin: top right;
+			pointer-events: auto;
 			box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
 			background: white;
 		}
 
-		#sequence-diagram-container {
-			/* Styles for sequence diagram container within bottom panel */
-			padding: 5px;
-			box-sizing: border-box;
-			overflow: visible;
-			flex: 1 1 auto;
-			/* Allow sequence diagram to grow and shrink */
-			display: flex;
-			flex-direction: column;
-			position: relative;
-			/* Positioning context for absolute diagram */
-		}
-
-		#sequence-diagram-container h2 {
-			font-size: 1em;
-			margin: 0 0 5px 0;
-			text-align: center;
-			flex-shrink: 0;
-			/* Prevent shrinking */
-		}
-
-		#sequence-diagram {
-			text-align: center;
-			flex-grow: 1;
-			/* Allow diagram to take remaining space */
-			overflow: auto;
-			/* Scroll if diagram is large (for non-hovered state) */
-			transition: transform 0.3s ease;
-			transform-origin: top left;
-		}
-
-		#sequence-diagram:hover {
+		#haibun-focus video:hover {
+			transform: scale(2);
 			position: absolute;
-			/* Position relative to #sequence-diagram-container */
 			top: 0;
-			left: 0;
-			width: 100%;
-			height: auto;
-			/* Maintain aspect ratio or natural height */
-			max-height: 80vh;
-			/* Limit height to avoid excessive scrolling */
-			z-index: 10;
-			background-color: #f8f8f8;
-			/* Use body background or similar */
-			padding: 10px;
-			border: 1px solid #ccc;
-			box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-			overflow: auto !important;
-			/* Ensure content scrolls if needed */
-			/* Remove transition for width/height change */
-			transition: none;
-			transform-origin: initial;
-			/* Reset transform origin */
-		}
-
-		#haibun-media-display {
-			left: 0;
-			padding: 0px;
-			width: 100%;
-			height: 0px;
-			background-color: #f0f0f0;
-			border-bottom: 1px solid #ccc;
-			display: flex;
-			/* Arrange video and diagram side-by-side */
-			box-sizing: border-box;
-			flex-shrink: 0;
-		}
-
-		#resize-handle {
-			left: 0;
-			width: 100%;
-			height: 5px;
-			background-color: #aaa;
-			cursor: ns-resize;
-			flex-shrink: 0;
+			right: 0;
+			left: auto;
+			box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+			background: white;
 		}
 	</style>
 </head>
@@ -323,29 +251,21 @@
 	<div class="haibun-header">
 		<h1>Haibun Monitor</h1>
 		<div class="haibun-controls">
-			<button id="haibun-media-toggle">🖼️</button>
 			<label for="haibun-debug-level-select">Log level</label>
 			<select id="haibun-debug-level-select">
-				<option value="error">Error</option>
-				<option value="info">Info</option>
-				<option value="log" selected>Log</option>
 				<option value="debug">Debug</option>
+				<option value="log" selected>Log</option>
+				<option value="info">Info</option>
+				<option value="error">Error</option>
 			</select>
 		</div>
 	</div>
 
 	<div id="haibun-media-display">
-		<div id="sequence-diagram-container">
-			<div id="sequence-diagram">
-				<!-- Sequence diagram will be rendered here -->
-			</div>
-		</div>
 		<div id="haibun-focus">
-			<!-- Video element will be placed here -->
+			No focus element
 		</div>
 	</div>
-	<div id="resize-handle"></div>
-
 	<div id="haibun-log-display-area">
 		<!-- Log entries will be appended here -->
 	</div>
