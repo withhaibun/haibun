@@ -5,7 +5,7 @@ export class VideoArtifactDisplay extends ArtifactDisplay {
 	readonly placementTarget: 'details' | 'haibun-focus';
 	constructor(protected artifact: TArtifactVideo) {
 		super(artifact);
-		this.placementTarget = document.querySelector('#haibun-video') ? 'haibun-focus' : 'details';
+		this.placementTarget = document.querySelector('#haibun-focus') ? 'haibun-focus' : 'details';
 		if (this.placementTarget === 'details') {
 			console.info('Cannot find #haibun-video container; video will be appended to details on toggle.');
 		}
