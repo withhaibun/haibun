@@ -212,8 +212,8 @@
 
 		#haibun-focus {
 			position: absolute;
-			top: 2vh;
-			right: 0;
+			top: 1vh;
+			right: 24px;
 			width: auto;
 			height: auto;
 			background: transparent;
@@ -225,14 +225,15 @@
 		}
 
 		#haibun-focus video {
-			max-width: 330px;
+			max-width: 320px;
 			height: auto;
 			display: block;
-			transition: transform 0.3s ease;
+			transition: transform 0.3s ease, opacity 0.3s ease;
 			transform-origin: top right;
 			pointer-events: auto;
 			box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
 			background: white;
+			opacity: 0.7;
 		}
 
 		#haibun-focus video:hover {
@@ -243,6 +244,8 @@
 			left: auto;
 			box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 			background: white;
+			margin-right: 8px;
+			opacity: 1;
 		}
 	</style>
 </head>
