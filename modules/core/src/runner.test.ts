@@ -1,6 +1,6 @@
+import TestSteps from './lib/test/TestSteps.js';
 import { asFeatures } from './lib/resolver-features.js';
 import { getDefaultWorld } from './lib/test/lib.js';
-import TestSteps from './lib/test/TestSteps.js';
 import { Runner } from './runner.js';
 import { describe, it, expect } from 'vitest';
 

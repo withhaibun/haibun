@@ -8,6 +8,4 @@ coverage/
 *.tsbuildinfo
 out-tsc/
 .env
-
-
-.nx/cache
+modules/web-playwright/web/

@@ -1,37 +1,34 @@
-import mermaid from 'mermaid';
-
-import { SequenceDiagramGenerator } from './mermaidDiagram.js';
 import { TLogLevel, TLogArgs, EExecutionMessageType, TMessageContext } from '@haibun/core/build/lib/interfaces/logger.js';
 import { LogEntry } from './messages.js';
 import { setupControls } from './controls.js';
-import { TAnyFixme } from '@haibun/core/build/lib/fixme.js';
+
+export type TLogEntry = {
+	level: TLogLevel;
+	message: TLogArgs;
+	messageContext?: TMessageContext;
+	timestamp: number;
+};
 
 declare global {
 	interface Window {
-		haibunLogData: TAnyFixme[];
+		haibunCapturedMessages: TLogEntry[];
 		receiveLogData: (logEntry: { level: TLogLevel; message: TLogArgs; messageContext?: TMessageContext, timestamp: number }) => void;
+		webSocket?: WebSocket;
 	}
 }
 
-window.haibunLogData = window.haibunLogData || [];
-console.log('monitor', window.haibunLogData);
+window.haibunCapturedMessages = window.haibunCapturedMessages || [];
+console.info('monitor.ts: window.haibunCapturedMessages initialized.');
 
 // Function exposed to Playwright to receive new logs
 window.receiveLogData = (logEntry) => {
-	window.haibunLogData.push(logEntry);
-	renderLogEntry(logEntry);
-	void sequenceDiagramGenerator.update();
+	window.haibunCapturedMessages.push(logEntry);
+	renderLogEntry(logEntry); // Add this line to render the log entry immediately
 };
 
-export const sequenceDiagramGenerator = new SequenceDiagramGenerator();
-
-function renderLogEntry(logEntryData: { level: TLogLevel; message: TLogArgs; messageContext?: TMessageContext, timestamp: number }) {
+export function renderLogEntry(logEntryData: TLogEntry) {
 	const { level, message, messageContext, timestamp } = logEntryData;
 	const container = document.getElementById('haibun-log-display-area');
-	if (!container) {
-		console.error('Could not find log display area #haibun-log-display-area');
-		return;
-	}
 
 	const logEntry = new LogEntry(level, timestamp, message, messageContext);
 	const logEntryElement = logEntry.element; // Get the actual DOM element
@@ -57,20 +54,20 @@ function renderLogEntry(logEntryData: { level: TLogLevel; message: TLogArgs; mes
 function renderAllLogs() {
 	const container = document.getElementById('haibun-log-display-area');
 	if (container) {
-		window.haibunLogData.forEach(renderLogEntry);
-		void sequenceDiagramGenerator.update();
+		console.info(`Rendering ${window.haibunCapturedMessages.length} log entries...`);
+		window.haibunCapturedMessages.forEach(renderLogEntry);
 	}
 }
 
 // Initial render on page load
 document.addEventListener('DOMContentLoaded', () => {
-	console.log("Monitor DOMContentLoaded");
 	// Set start time on body for relative calculations
 	if (!document.body.dataset.startTime) {
 		document.body.dataset.startTime = `${Date.now()}`;
 	}
-	mermaid.initialize({ startOnLoad: false, securityLevel: 'loose' });
+
 	renderAllLogs();
 	setupControls();
-	console.log("Initial logs rendered.");
+	console.info("Initial logs rendered.");
+
 });

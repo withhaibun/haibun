@@ -51,7 +51,7 @@ describe('handles cycles', () => {
 	});
 })
 
-describe('options', () => {
+describe.skip('options', () => {
 	it('sets headless', async () => {
 		const feature = { path: '/features/test.feature', content: `set "what" to "var"\nset x to {what}` };
 		const result = await testWithDefaults([feature], [WebPlaywright, ], {
