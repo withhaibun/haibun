@@ -34,7 +34,7 @@ export abstract class LogComponent<T extends HTMLElement = HTMLElement> {
 
 export abstract class ArtifactDisplay {
 	readonly label: string;
-	abstract readonly placementTarget: 'details' | 'haibun-focus' | 'haibun-sequence-diagram' | 'body' | 'none';
+	abstract readonly placementTarget: 'details' | 'haibun-focus' | 'body' | 'none';
 
 	constructor(protected artifact: TArtifact) {
 		this.label = this.deriveLabel();
