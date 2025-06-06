@@ -22,11 +22,11 @@ export const matchGroups = (num = 0) => {
 	return `(${b}|${e}|${s}|${c}|${q}|${t})`;
 };
 
-export const namedInterpolation = (inp: string, types: string[] = BASE_TYPES): { str: string; vars?: TNamedVar[] } => {
+export const namedInterpolation = (inp: string, types: string[] = BASE_TYPES): { str: string; stepVariables?: TNamedVar[] } => {
 	if (!inp.includes('{')) {
 		return { str: inp };
 	}
-	const vars: TNamedVar[] = [];
+	const stepVariables: TNamedVar[] = [];
 	let last = 0;
 	let str = '';
 	let bs = inp.indexOf('{');
@@ -40,13 +40,13 @@ export const namedInterpolation = (inp: string, types: string[] = BASE_TYPES): {
 		if (be < 0) {
 			throw Error(`missing end bracket in ${inp}`);
 		}
-		vars.push(pairToVar(inp.substring(bs + 1, be), types));
+		stepVariables.push(pairToVar(inp.substring(bs + 1, be), types));
 		bs = inp.indexOf('{', be);
 		last = be + 1;
 		str += matchGroups(matches++);
 	}
 	str += inp.substring(be + 1);
-	return { vars, str };
+	return { stepVariables, str };
 };
 
 function pairToVar(pair: string, types: string[]): TNamedVar {
@@ -71,27 +71,27 @@ export const getMatch = (
 	actionName: string,
 	stepperName: string,
 	step: TStepperStep,
-	vars?: TNamedVar[]
+	stepVariables?: TNamedVar[]
 ) => {
 	if (!r.test(actionable)) {
 		return;
 	}
 	const named = getNamedMatches(r, actionable);
-	return { actionName, stepperName, step, named, vars };
+	return { actionName, stepperName, step, named, stepVariables };
 };
 
 // returns named values, assigning variable values as appropriate
 // retrieves from world.shared if a base domain, otherwise world.domains[type].shared
 export function getNamedToVars(found: TStepAction, world: TWorld, featureStep: TFeatureStep) {
-	const { named, vars } = found;
+	const { named, stepVariables } = found;
 	if (!named) {
 		return { _nb: 'no named' };
 	}
-	if (!vars || vars.length < 1) {
+	if (!stepVariables || stepVariables.length < 1) {
 		return named;
 	}
 	const namedFromVars: TNamed = {};
-	vars.forEach((v, i) => {
+	stepVariables.forEach((v, i) => {
 		const { name, type } = v;
 
 		const { shared } = world;

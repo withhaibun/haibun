@@ -11,11 +11,10 @@ import { getPackageLocation } from '@haibun/core/build/lib/util/workspace-lib.js
 import { sleep } from '@haibun/core/build/lib/util/index.js';
 import { actualURI } from '@haibun/core/build/lib/util/actualURI.js';
 import { TAnyFixme } from '@haibun/core/build/lib/fixme.js';
+import { TLogEntry } from './monitor.js';
 
 const monitorLocation = join(getPackageLocation(import.meta), '..', '..', 'web', 'monitor.html');
-const capturedMessages = [];
-
-type TEntry = { level: TLogLevel, message: TLogArgs, ctx?: TMessageContext, timestamp: number, messageContextString?: string };
+const capturedMessages: TLogEntry[] = [];
 
 export class MonitorHandler {
 	subscriber: ILogOutput;
@@ -43,47 +42,21 @@ export class MonitorHandler {
 
 		this.subscriber = {
 			out: (level: TLogLevel, message: TLogArgs, messageContext?: TMessageContext) => {
-				capturedMessages.push({ level, message, messageContext })
-				if (!this.monitorPage || this.monitorPage.isClosed()) {
-					console.error("Monitor page closed, cannot send logs.");
-					return;
+				const logEntry: TLogEntry = {
+					level,
+					message,
+					messageContext,
+					timestamp: Date.now()
 				}
-				try {
-					// this is async but we don't need to wait for it
-					void this.inMonitor<TEntry>((entry) => {
-						// This code runs in the browser context (monitor.html)
-						if (window.receiveLogData) {
-							// Parse the context string back into an object inside the browser.
-							const contextObject = entry.messageContextString ? JSON.parse(entry.messageContextString) : undefined;
 
-							window.receiveLogData({
-								level: entry.level,
-								message: entry.message,
-								messageContext: contextObject,
-								timestamp: entry.timestamp
-							});
-						} else {
-							throw Error('window.receiveLogData not defined in monitor page');
-						}
-					}, {
-						// Data being sent from Node.js to the browser
-						level,
-						message,
-						messageContextString: messageContext ? JSON.stringify(messageContext) : undefined,
-						timestamp: Date.now()
-					});
-
-				} catch (e) {
-					// Specific check for the serialization error
-					if (e instanceof Error && e.message.includes('Unexpected value')) {
-						console.error('Error sending log to monitor via evaluate: Serialization failed. Check the structure of messageContext.', e.message);
-						console.error('Problematic messageContext object before stringify:', messageContext);
-					} else if (e instanceof Error && !e.message.includes('Target page, context or browser has been closed')) {
-						console.error('Error sending log to monitor via evaluate:', e.message);
-					}
-					throw (e);
-				}
-			},
+				capturedMessages.push(logEntry)
+				// this is async but we don't need to wait for it
+				void this.inMonitor<string>((entry) => {
+					// This code runs in the browser context (monitor.html)
+					window.receiveLogData(JSON.parse(entry) as TLogEntry)
+					// following is passed to the context
+				}, JSON.stringify(logEntry));
+			}
 		};
 	}
 
@@ -94,7 +67,13 @@ export class MonitorHandler {
 		}
 		await sleep(500); // Allow final rendering
 
-		const content = await this.monitorPage.content();
+		const content = (await this.monitorPage.content()) + `
+<script>
+window.haibunStaticPage = true;
+window.haibunCapturedMessages = ${JSON.stringify(capturedMessages, null, 2)};
+document.getElementById('haibun-log-display-area').innerHTML = '';
+</script>
+`;
 		await this.inMonitor(() => {
 			const base = document.querySelector('base');
 			if (base) {
@@ -102,10 +81,10 @@ export class MonitorHandler {
 			}
 		});
 
-		const outHtml = join(this.monitorLoc, 'monitor.html');
-		const monitorPath = actualURI(outHtml);
+		const outHtmlFile = join(this.monitorLoc, 'monitor.html');
+		const monitorPath = actualURI(outHtmlFile);
 		this.world.logger.info(`Writing monitor HTML to ${monitorPath}`);
-		await this.storage.writeFile(outHtml, content, EMediaTypes.html);
+		await this.storage.writeFile(outHtmlFile, content, EMediaTypes.html);
 		const outMessages = join(this.monitorLoc, 'monitor.json');
 		await this.storage.writeFile(outMessages, JSON.stringify(capturedMessages, null, 2), EMediaTypes.html);
 	}

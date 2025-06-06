@@ -1,20 +1,28 @@
-import { OK, TNamed, TFeatureStep, TWorld, IStepperCycles } from '../lib/defs.js';
+import { OK, TNamed, TFeatureStep, TWorld, IStepperCycles, TStartScenario } from '../lib/defs.js';
 import { TAnyFixme } from '../lib/fixme.js';
 import { AStepper } from '../lib/astepper.js';
 import { EExecutionMessageType, TMessageContext } from '../lib/interfaces/logger.js';
 import { actionNotOK } from '../lib/util/index.js';
+import { FeatureVariables } from '../lib/feature-variables.js';
 
 // FIXME see https://github.com/withhaibun/haibun/issues/18
 const getOrCond = (fr: string) => fr.replace(/.* is set or /, '');
 
-const cycles = (vars: Vars): IStepperCycles => ({
-	startFeature: async () => {
-		vars.getWorld().shared.clear()
+const clearVars = (vars) => async () => {
+	vars.getWorld().shared.clear()
+	return Promise.resolve();
+}
+
+const cycles = (variablesStepper: VariablesStepper): IStepperCycles => ({
+	endScenario: clearVars(variablesStepper),
+	startFeature: clearVars(variablesStepper),
+	startScenario: ({ featureVars }: TStartScenario) => {
+		variablesStepper.getWorld().shared = new FeatureVariables(variablesStepper.getWorld().tag.toString(), { ...featureVars.all() });
 		return Promise.resolve();
-	}
+	},
 });
 
-class Vars extends AStepper {
+class VariablesStepper extends AStepper {
 	cycles = cycles(this);
 	set = async (named: TNamed, featureStep: TFeatureStep) => {
 		// FIXME see https://github.com/withhaibun/haibun/issues/18
@@ -60,9 +68,8 @@ class Vars extends AStepper {
 		},
 		showVars: {
 			gwta: 'show vars',
-			action: async (n: TNamed, featureStep: TFeatureStep) => {
-				console.info('vars', this.world.shared);
-				return await this.set(n, featureStep);
+			action: async () => {
+				return Promise.resolve(OK);
 			},
 		},
 		set: {
@@ -105,7 +112,7 @@ class Vars extends AStepper {
 	};
 }
 
-export default Vars;
+export default VariablesStepper;
 
 export const didNotOverwrite = (what: string, present: string, value: string) => ({
 	overwrite: { summary: `did not overwrite ${what} value of "${present}" with "${value}"` },

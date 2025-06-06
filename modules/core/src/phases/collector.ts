@@ -13,19 +13,19 @@ export function getFeaturesAndBackgrounds(bases: TBase, featureFilter: string[],
   for (const abase of bases) {
     const ff = { feature: featureFilter };
 
-    const aret = { features: [], backgrounds: [] };
+    const rawFeaturesAndBackgrounds = { features: [], backgrounds: [] };
     for (const t of ['feature', 'background']) {
       const p = `${t}s`;
       if (fs.existsSync(`${abase}/${p}`)) {
         const more = debase(abase, recurse(abase, `/${p}`, 'feature', ff[t], fs));
-        aret[p] = aret[p].concat(more);
+        rawFeaturesAndBackgrounds[p] = rawFeaturesAndBackgrounds[p].concat(more);
       }
     }
-    if (aret.features.length < 1 && aret.backgrounds.length < 1) {
+    if (rawFeaturesAndBackgrounds.features.length < 1 && rawFeaturesAndBackgrounds.backgrounds.length < 1) {
       throw Error(`no features or backgrounds found from "${abase}"`);
     }
-    ret.features = ret.features.concat(aret.features);
-    ret.backgrounds = ret.backgrounds.concat(aret.backgrounds);
+    ret.features = ret.features.concat(rawFeaturesAndBackgrounds.features);
+    ret.backgrounds = ret.backgrounds.concat(rawFeaturesAndBackgrounds.backgrounds);
   }
   if (ret.features.length < 1) {
     throw Error(`no features found from "${bases}"`);

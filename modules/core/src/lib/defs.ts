@@ -133,21 +133,31 @@ export type TSteppers = {
 };
 
 export type TEndFeature = { world: TWorld, shouldClose: boolean, isLast: boolean, okSoFar: boolean, continueAfterError: boolean, stayOnFailure: boolean, thisFeatureOK: boolean };
-export type TStartFeature = TResolvedFeature;
+export type TStartFeature = { resolvedFeature: TResolvedFeature, index: number };
+export type TStartExecution = TResolvedFeature[]
+export type TStartScenario = { featureVars: FeatureVariables };
+export type TFailureArgs = { featureResult: TFeatureResult, failedStep: TStepResult }
 
 export interface IStepperCycles {
-	startExecution?(): Promise<void>;
-	startFeature?(feature: TStartFeature): Promise<void>;
+	startExecution?(features: TStartExecution): Promise<void>;
+	startFeature?(startFeature: TStartFeature): Promise<void>;
+	startScenario?(startScenario: TStartScenario): Promise<void>;
+	endScenario?(): Promise<void>;
 	endFeature?(endedWith?: TEndFeature): Promise<void>;
-	onFailure?(result: TStepResult, step: TFeatureStep): Promise<void | TMessageContext>;
+	onFailure?(result: TFailureArgs): Promise<void | TMessageContext>;
 	endExecution?(): Promise<void>
 }
+
+export type StepperMethodArgs = {
+	[K in keyof IStepperCycles]: Parameters<NonNullable<IStepperCycles[K]>>[0];
+};
+
 export type TStepAction = {
 	actionName: string;
 	stepperName: string;
 	step: TStepperStep;
 	named?: TNamed | undefined;
-	vars?: TNamedVar[];
+	stepVariables?: TNamedVar[];
 };
 
 export type TNamed = { [name: string]: string };
