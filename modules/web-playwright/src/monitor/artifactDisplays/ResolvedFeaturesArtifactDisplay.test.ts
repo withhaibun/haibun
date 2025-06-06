@@ -18,8 +18,6 @@ describe('ResolvedFeaturesArtifactDisplay Rendering via LogMessageContent', () =
     beforeEach(async () => {
         await defineGlobalMermaidAndDOMPurify();
         setupMessagesTestDOM(TEST_START_TIME);
-        // Log the DOM structure for debugging
-        console.log('Current document.body.innerHTML before test:', document.body.innerHTML);
     });
 
     afterEach(() => {
@@ -61,7 +59,6 @@ describe('ResolvedFeaturesArtifactDisplay Rendering via LogMessageContent', () =
 
         const details = logMessageContent.element.querySelector('.haibun-context-details') as HTMLDetailsElement;
         expect(details).not.toBeNull();
-        console.log('details.innerHTML before querying for artifactContainer:', details.innerHTML);
 
         // Get the container for the artifact display from within the details element's content
         // Adjusted selector based on console output: .haibun-artifact-container is a direct child of details
@@ -84,7 +81,6 @@ describe('ResolvedFeaturesArtifactDisplay Rendering via LogMessageContent', () =
         // Wait for any async rendering triggered by the event
         await new Promise(resolve => setTimeout(resolve, 500));
 
-        console.log('artifactContainer.innerHTML after open:', artifactContainer!.innerHTML);
         // Check that an SVG is rendered when open
         let svgElement = artifactContainer!.querySelector('svg');
         expect(svgElement, 'SVG element should be present when details are open').not.toBeNull();
@@ -100,7 +96,6 @@ describe('ResolvedFeaturesArtifactDisplay Rendering via LogMessageContent', () =
         details.dispatchEvent(toggleEventClose);
         await new Promise(resolve => setTimeout(resolve, 100)); // Wait for potential cleanup
 
-        console.log('artifactContainer.innerHTML after close:', artifactContainer!.innerHTML);
         // Check that the SVG is removed (or no longer present) when closed again
         svgElement = artifactContainer!.querySelector('svg');
         expect(svgElement, 'SVG should not be present when details are closed again').toBeNull();

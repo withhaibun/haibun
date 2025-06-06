@@ -27,7 +27,6 @@ describe('VideoArtifactDisplay Rendering', () => {
 	});
 
 	it.skip('should render a Video artifact in #haibun-focus container via LogMessageContent when present', async () => {
-		// Create #haibun-focus container for this test
 		const videoContainer = document.createElement('div');
 		videoContainer.id = 'haibun-focus';
 		document.body.appendChild(videoContainer);
@@ -42,11 +41,8 @@ describe('VideoArtifactDisplay Rendering', () => {
 		const logMessageContent = new LogMessageContent('Video Artifact in #haibun-focus', context);
 		document.body.appendChild(logMessageContent.element);
 
-		// Allow time for renderSpecialPlacementArtifact to complete as it's async
 		await new Promise(resolve => setTimeout(resolve, 0));
 
-		console.log(document.body.innerHTML); // Debugging output
-		// Assert video is in #haibun-focus
 		const videoInSpecialContainer = document.querySelector('#haibun-focus video') as HTMLVideoElement;
 		expect(videoInSpecialContainer, 'Video element should be in #haibun-focus container').not.toBeNull();
 		if (videoInSpecialContainer) { // Type guard
@@ -55,15 +51,11 @@ describe('VideoArtifactDisplay Rendering', () => {
 			expect(videoInSpecialContainer.controls).toBe(true);
 		}
 		expect(videoContainer.style.display, '#haibun-focus container should be visible').toBe('flex');
-
-		// Assert video is NOT in the details element of LogMessageContent
 		const details = logMessageContent.element.querySelector('.haibun-context-details') as HTMLDetailsElement;
 		expect(details, 'Details element within LogMessageContent should exist').not.toBeNull();
 
 		const artifactContainerInDetails = details?.querySelector('.haibun-artifact-container.haibun-artifact-video');
 		expect(artifactContainerInDetails, 'Artifact container for video should NOT be in details').toBeNull();
-
-		// Assert summary message and label are still present in details
 		const messageSummary = details?.querySelector('.haibun-log-message-summary');
 		expect(messageSummary?.textContent, 'Summary message should be present').toContain('Video Artifact in #haibun-focus');
 		expect(messageSummary?.querySelector('.details-type')?.textContent, 'Details type label should be "video"').toBe('video');

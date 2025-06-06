@@ -69,7 +69,6 @@ class VariablesStepper extends AStepper {
 		showVars: {
 			gwta: 'show vars',
 			action: async () => {
-				console.info('vars', JSON.stringify(this.world.shared));
 				return Promise.resolve(OK);
 			},
 		},

@@ -181,7 +181,7 @@ export function setupVideoPlayback() {
 			if (mutation.type === 'childList') {
 				const newVideo = videoContainer.querySelector('video');
 				if (newVideo && newVideo !== existingVideo) {
-					console.log('New video detected, setting up handlers.');
+					console.info('New video detected, setting up handlers.');
 					setupVideoTimeUpdateHandler(newVideo as HTMLVideoElement);
 					pollVideoTimeAndUpdate(newVideo as HTMLVideoElement);
 					existingVideo = newVideo;
@@ -195,7 +195,7 @@ export function setupVideoPlayback() {
 	const diagramObserver = new MutationObserver((mutations) => {
 		mutations.forEach((mutation) => {
 			if (mutation.type === 'childList' && mutation.addedNodes.length > 0 && mutation.target === sequenceDiagram) {
-				console.log('Sequence diagram content detected.');
+				console.info('Sequence diagram content detected.');
 				diagramObserver.disconnect();
 			}
 		});

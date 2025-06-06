@@ -233,7 +233,7 @@ export class SequenceDiagramGenerator {
 			const mermaidElement = mermaidContainer.querySelector<HTMLElement>('.mermaid');
 			if (mermaidElement) {
 				await mermaid.run({ nodes: [mermaidElement] });
-				console.log("Mermaid diagram rendered.");
+				console.info("Mermaid diagram rendered.");
 				this.currentDiagramString = diagramToRender;
 				this.needsUpdate = false;
 			} else {

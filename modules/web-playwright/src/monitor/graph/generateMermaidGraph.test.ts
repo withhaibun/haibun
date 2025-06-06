@@ -32,7 +32,6 @@ describe('generateMermaidGraph', () => {
 			await mermaid.default.parse(graphContent);
 		} catch (e) {
 			console.error('Mermaid parse error:', e);
-			console.log('Generated Mermaid Graph (on error):\n', graphContent);
 			throw e;
 		}
 

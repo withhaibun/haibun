@@ -54,7 +54,7 @@ export function renderLogEntry(logEntryData: TLogEntry) {
 function renderAllLogs() {
 	const container = document.getElementById('haibun-log-display-area');
 	if (container) {
-		console.log(`Rendering ${window.haibunCapturedMessages.length} log entries...`);
+		console.info(`Rendering ${window.haibunCapturedMessages.length} log entries...`);
 		window.haibunCapturedMessages.forEach(renderLogEntry);
 	}
 }

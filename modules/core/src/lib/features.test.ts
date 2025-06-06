@@ -119,7 +119,6 @@ describe('does not include backgrounds that are not referenced', () => {
 			{ path: '/b2.feature', content: 'Scenario: Foo\nBackground step 2' },
 		]);
 		const res = await steps.expandFeatures(features, backgrounds);
-		console.log('🤑', JSON.stringify(res, null, 2));
 		expect(res[0].expanded.map((e) => e.line)).toEqual(['Background step 1', 'Feature step 1']);
 		expect(res[0].expanded.map((e) => e.feature.path)).toEqual(['/b1.feature', '/f1']);
 		expect(res[0].expanded.map((e) => e.feature.name)).toEqual(['/b1', '/f1']);
