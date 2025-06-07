@@ -1,4 +1,4 @@
-import { TFeatureStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, TStepAction, STAY, STAY_FAILURE, CHECK_NO, CHECK_YES, STEP_DELAY, TNotOKActionResult, CONTINUE_AFTER_ERROR, TEndFeature, StepperMethodArgs } from '../lib/defs.js';
+import { TFeatureStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, TStepAction, STAY, STAY_FAILURE, CHECK_NO, CHECK_YES, STEP_DELAY, TNotOKActionResult, CONTINUE_AFTER_ERROR, TEndFeature, StepperMethodArgs, TStartStep, TEndStep } from '../lib/defs.js';
 import { TAnyFixme } from '../lib/fixme.js';
 import { AStepper } from '../lib/astepper.js';
 import { EExecutionMessageType, TMessageContext } from '../lib/interfaces/logger.js';
@@ -156,7 +156,9 @@ export class FeatureExecutor {
 		// FIXME feature should really be attached to the featureStep
 		const action = featureStep.action;
 		const start = Timer.since();
+		await doStepperCycle(steppers, 'startStep', <TStartStep>({ featureStep }));
 		const res: Partial<TActionResult> = await Executor.action(steppers, featureStep, action, world);
+		await doStepperCycle(steppers, 'endStep', <TEndStep>({ featureStep }));
 
 		const end = Timer.since();
 		// FIXME

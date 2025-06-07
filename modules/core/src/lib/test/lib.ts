@@ -8,9 +8,10 @@ import { Timer } from '../Timer.js';
 import { asFeatures } from '../resolver-features.js';
 import { Runner } from '../../runner.js';
 import { FeatureVariables } from '../feature-variables.js';
+import { Prompter } from '../prompter.js';
 
 const DEF_PROTO_DEFAULT_OPTIONS = { DEST: DEFAULT_DEST };
-const DEF_PROTO_OPTIONS = { options: DEF_PROTO_DEFAULT_OPTIONS, moduleOptions: {} };
+export const DEF_PROTO_OPTIONS = { options: DEF_PROTO_DEFAULT_OPTIONS, moduleOptions: {} };
 
 export const HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS = 'HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS';
 export const TEST_BASE = 'test_base';
@@ -41,17 +42,16 @@ export async function getTestEnv(useSteppers: string[], test: string, world: TWo
 }
 type TTestFeatures = { path: string; content: string; base?: string }[];
 
-export async function testWithDefaults(
-	featuresIn: TTestFeatures | string,
-	useSteppers: CStepper[],
-	protoOptions: TProtoOptions = DEF_PROTO_OPTIONS,
-	backgroundsIn: TTestFeatures = []
-): Promise<TExecutorResult & { world: TWorld }> {
+export async function testWithDefaults(featuresIn: TTestFeatures | string, useSteppers: CStepper[], protoOptions: TProtoOptions = DEF_PROTO_OPTIONS, backgroundsIn: TTestFeatures = []) {
+	const world = getTestWorldWithOptions(protoOptions);
+	return await testWithWorld(world, featuresIn, useSteppers, backgroundsIn);
+}
+
+export async function testWithWorld(world: TWorld, featuresIn: TTestFeatures | string, useSteppers: CStepper[], backgroundsIn: TTestFeatures = []): Promise<TExecutorResult & { world: TWorld }> {
 	if (useSteppers.length < 1) {
 		throw Error('useSteppers must have at least one stepper');
 	}
 	const inFeatures = typeof featuresIn == 'string' ? [{ path: '/features/test', content: featuresIn }] : featuresIn;
-	const world = getTestWorldWithOptions(protoOptions);
 
 	const withBases = (i) => (i.base ? i : { ...i, base: TEST_BASE });
 	const features = asFeatures(inFeatures.map(withBases));
@@ -67,6 +67,7 @@ export function getTestWorldWithOptions(protoOptions: TProtoOptions = DEF_PROTO_
 		world.options = { ...protoOptions.options, envVariables: protoOptions.options.envVariables || {} };
 		world.moduleOptions = protoOptions.moduleOptions;
 	}
+	// Allow test to override prompter after creation
 	return world;
 }
 
@@ -76,6 +77,7 @@ export function getDefaultWorld(sequence: number, env = process.env): TWorld {
 		tag: getRunTag(sequence, 0),
 		shared: new FeatureVariables(getDefaultTag(sequence).toString()),
 		logger: new Logger(env.HAIBUN_LOG_LEVEL ? { level: env.HAIBUN_LOG_LEVEL } : LOGGER_LOG),
+		prompter: new Prompter(),
 		runtime: {},
 		options: { DEST: DEFAULT_DEST, envVariables: env },
 		moduleOptions: {},

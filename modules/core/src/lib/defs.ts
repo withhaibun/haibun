@@ -4,6 +4,7 @@ import { TAnyFixme } from './fixme.js';
 import { Timer } from './Timer.js';
 import { TTag } from './ttag.js';
 import { FeatureVariables } from './feature-variables.js';
+import { Prompter } from './prompter.js';
 
 export type TSpecl = {
 	steppers: string[];
@@ -44,6 +45,7 @@ export type TWorld = {
 	shared: FeatureVariables;
 	runtime: TRuntime;
 	logger: ILogger;
+	prompter: Prompter;
 	options: TBaseOptions;
 	moduleOptions: TModuleOptions;
 	timer: Timer;
@@ -136,12 +138,16 @@ export type TEndFeature = { world: TWorld, shouldClose: boolean, isLast: boolean
 export type TStartFeature = { resolvedFeature: TResolvedFeature, index: number };
 export type TStartExecution = TResolvedFeature[]
 export type TStartScenario = { featureVars: FeatureVariables };
-export type TFailureArgs = { featureResult: TFeatureResult, failedStep: TStepResult }
+export type TStartStep = { featureStep: TFeatureStep, stepperName: string, actionName: string, named?: TNamed, stepVariables?: TNamedVar[] };
+export type TEndStep = { featureStep: TFeatureStep, actionResult: TStepActionResult };
+export type TFailureArgs = { featureResult: TFeatureResult, failedStep: TStepResult };
 
 export interface IStepperCycles {
 	startExecution?(features: TStartExecution): Promise<void>;
 	startFeature?(startFeature: TStartFeature): Promise<void>;
 	startScenario?(startScenario: TStartScenario): Promise<void>;
+	startStep?(startStep: TStartStep): Promise<void>;
+	endStep?(endStep: TEndStep): Promise<void>;
 	endScenario?(): Promise<void>;
 	endFeature?(endedWith?: TEndFeature): Promise<void>;
 	onFailure?(result: TFailureArgs): Promise<void | TMessageContext>;
