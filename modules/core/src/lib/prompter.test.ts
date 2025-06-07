@@ -18,7 +18,7 @@ describe('Prompter', () => {
 		const result = await prompter.prompt({ message: 'What?' });
 		expect(result).toBeUndefined();
 	});
-	it('unsubscribes default prompter', async () => {
+	it('unsubscribes default prompter', () => {
 		const prompter = new Prompter();
 		prompter.unsubscribe(readlinePrompt);
 		expect(prompter['subscribers']).toHaveLength(0);
