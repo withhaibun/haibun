@@ -10,11 +10,9 @@
 	<style>
 		html,
 		body {
-			/* Ensure html also takes full height */
 			height: 100%;
 			margin: 0;
 			overflow: hidden;
-			/* Prevent body scrollbars */
 		}
 
 		body {
@@ -39,7 +37,6 @@
 
 		.haibun-header {
 			flex-shrink: 0;
-			/* Prevent header from shrinking */
 			height: 5vh;
 			top: 0;
 			left: 0;
@@ -48,7 +45,7 @@
 			z-index: 1000;
 			display: flex;
 			align-items: center;
-			padding: 0 20px; /* Adjusted padding to accommodate prompt controls */
+			padding: 0 20px;
 			border-bottom: 1px solid #ccc;
 			box-sizing: border-box;
 		}
@@ -67,7 +64,6 @@
 
 		#haibun-log-display-area {
 			flex: 1 1 auto;
-			/* Allow log area to grow and shrink */
 			overflow-y: scroll;
 			box-sizing: border-box;
 		}
@@ -84,44 +80,35 @@
 
 		.haibun-log-entry>.haibun-log-details-summary {
 			flex: 0 0 120px;
-			/* Fixed width for left column */
 			padding-right: 15px;
 			font-size: 0.9em;
 			cursor: default;
 		}
 
-		/* Hide marker in WebKit */
 		.haibun-log-entry>.haibun-message-content {
 			flex-grow: 1;
-			/* Right column takes remaining space */
 			word-break: break-word;
 		}
 
-		/* Ensure details element and summary in message content show properly */
 		.haibun-message-content details {
 			display: block;
 		}
 
 		.haibun-message-content details summary {
 			display: list-item;
-			/* This is crucial for showing the twisty */
 			list-style-type: disclosure-closed;
-			/* Explicitly set the disclosure triangle */
 		}
 
 		.haibun-message-content details[open] summary {
 			list-style-type: disclosure-open;
-			/* Change style when open */
 		}
 
 		.haibun-log-message-summary {
 			width: 100%;
 			position: relative;
 			cursor: pointer;
-			/* Add cursor pointer to indicate it's clickable */
 		}
 
-		/* Use flexbox for summary */
 		.haibun-artifact-div details {
 			margin-top: 5px;
 		}
@@ -169,7 +156,6 @@
 			margin-top: 10px;
 		}
 
-		/* Video playback related styles */
 		.haibun-stepper-played {
 			background-color: rgba(10, 10, 211, 0.1);
 		}
@@ -187,86 +173,55 @@
 			background-color: #f5deb3;
 			border-radius: 5px;
 			float: right;
-			/* Float the label to the right */
 			margin-left: 10px;
-			/* Add some margin for spacing */
 			padding: 1px 5px;
 			text-transform: lowercase;
-			/* display: inline-block; Removed due to conflict with float */
 			font-size: 0.75em;
 			color: #a80;
 		}
 
-		/* Consolidated Prompt Controls Styles */
 		#haibun-prompt-controls-container {
-			/* This is the primary definition for the prompt controls container */
 			display: none;
-			/* Initially hidden */
 			align-items: center;
 			padding: 0 10px;
-			/* Adjusted padding */
 			background-color: transparent;
-			/* Transparent background to blend with header */
-			/* Removed fixed positioning, border-top, width, z-index */
 			gap: 5px;
-			/* Spacing between elements, moved from the duplicate */
 			margin-right: 15px;
-			/* Space before log level dropdown, moved from duplicate */
 		}
 
 		#haibun-prompt-controls-container button {
-			/* General button style */
 			padding: 8px 15px;
-			/* Original padding */
 			border: 1px solid #ccc;
 			border-radius: 4px;
 			cursor: pointer;
 			background-color: #e9e9e9;
-			/* Original background */
-			/* General button style */
-			padding: 8px 15px;
-			/* Original padding */
-			border: 1px solid #ccc;
-			border-radius: 4px;
-			cursor: pointer;
-			background-color: #e9e9e9;
-			/* Original background */
 			font-size: 0.9em;
-			/* From duplicate, seems reasonable */
 		}
 
 		#haibun-prompt-controls-container button:disabled {
 			cursor: not-allowed;
 			opacity: 0.6;
-			/* Consistent with duplicate */
 			background-color: #f5f5f5;
-			/* From duplicate */
 		}
 
 		#haibun-prompt-controls-container button:hover:not(:disabled) {
 			background-color: #dcdcdc;
-			/* Original hover */
 		}
 
 		#haibun-prompt-message {
 			flex-grow: 1;
 			margin-left: 10px;
-			/* Original margin */
 			font-size: 0.9em;
 			white-space: pre-wrap;
-			/* From duplicate, good for wrapping */
 			color: #333;
-			/* From duplicate */
 		}
 
 		#haibun-prompt-indicator-thinking {
 			display: none;
-			/* Initially hidden, shown by JS */
 			margin-left: 10px;
 			margin-right: 5px;
 			font-size: 1.2em;
-			animation: grow-shrink 1.5s ease-in-out infinite;
-			/* Using 1.5s from original, 1s from duplicate */
+			animation: grow-shrink 2.5s ease-in-out infinite;
 		}
 
 		@keyframes grow-shrink {
@@ -277,7 +232,6 @@
 
 			50% {
 				transform: scale(1.3);
-				/* Using 1.3 from original, 1.2 from duplicate */
 			}
 		}
 
@@ -322,7 +276,6 @@
 
 		#haibun-focus video:hover {
 			transform: scale(2);
-			/* transform: scale(2); */
 			position: absolute;
 			top: 0;
 			right: 0;
@@ -337,11 +290,9 @@
 <body>
 	<div class="haibun-header">
 		<h1>Haibun Monitor</h1>
-		<!-- Ensure this HTML structure matches the CSS selectors and JS expectations -->
 		<div id="haibun-prompt-controls-container">
 			<button id="haibun-step-button" title="Step" disabled>👣 step</button>
 			<button id="haibun-continue-button" title="Continue" disabled style="margin-left: 5px;">▶️ continue</button>
-			<!-- Thinking indicator style is now fully in CSS -->
 			<span id="haibun-prompt-indicator-thinking">🤔</span>
 			<div id="haibun-prompt-message"></div>
 		</div>
@@ -362,7 +313,6 @@
 		</div>
 	</div>
 	<div id="haibun-log-display-area">
-		<!-- Log entries will be appended here -->
 	</div>
 
 	<script>
@@ -373,7 +323,6 @@
 			const thinkingIndicator = document.getElementById('haibun-prompt-indicator-thinking');
 			const messageArea = document.getElementById('haibun-prompt-message');
 
-			// Ensure elements exist before proceeding
 			if (!promptContainer || !stepButton || !continueButton || !thinkingIndicator || !messageArea) {
 				console.error('Prompt control elements not found! Check IDs and HTML structure.');
 				return;
@@ -383,28 +332,24 @@
 				messageArea.textContent = message;
 				stepButton.disabled = false;
 				continueButton.disabled = false;
-				thinkingIndicator.style.display = 'inline-block'; // Show thinking face
-				promptContainer.style.display = 'flex'; // Show the container
+				thinkingIndicator.style.display = 'inline-block';
+				promptContainer.style.display = 'flex';
 			};
 
 			window.hidePromptControls = () => {
-				// Ensure all elements are correctly referenced if not already in scope
 				const pc = document.getElementById('haibun-prompt-controls-container');
 				const sb = document.getElementById('haibun-step-button');
 				const cb = document.getElementById('haibun-continue-button');
 				const ti = document.getElementById('haibun-prompt-indicator-thinking');
 				const ma = document.getElementById('haibun-prompt-message');
 
-				if (pc) pc.style.display = 'none'; // Hide the container
+				if (pc) pc.style.display = 'none';
 				if (sb) sb.disabled = true;
 				if (cb) cb.disabled = true;
-				if (ti) ti.style.display = 'none'; // Hide thinking face
-				if (ma) ma.textContent = ''; // Clear message
+				if (ti) ti.style.display = 'none';
+				if (ma) ma.textContent = '';
 			};
 
-			// Initial state: controls hidden, buttons disabled, indicator hidden.
-			// The initial display:none is set in CSS for promptContainer.
-			// Call hidePromptControls to ensure buttons are disabled and indicator is none.
 			window.hidePromptControls();
 
 			stepButton.addEventListener('click', () => {
