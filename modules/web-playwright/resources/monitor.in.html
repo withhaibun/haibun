@@ -183,61 +183,33 @@
 		#haibun-prompt-controls-container {
 			display: none;
 			align-items: center;
-			padding: 0 10px;
-			background-color: transparent;
+			padding: 10px;
+			background-color: white;
 			gap: 5px;
 			margin-right: 15px;
-		}
-
-		#haibun-prompt-controls-container button {
-			padding: 8px 15px;
-			border: 1px solid #ccc;
+			position: relative;
 			border-radius: 4px;
-			cursor: pointer;
-			background-color: #e9e9e9;
-			font-size: 0.9em;
 		}
 
-		#haibun-prompt-controls-container button:disabled {
-			cursor: not-allowed;
-			opacity: 0.6;
-			background-color: #f5f5f5;
+		#haibun-prompt-controls-container.paused-program-glow {
+			animation: pulse-glow 7s linear infinite;
 		}
 
-		#haibun-prompt-controls-container button:hover:not(:disabled) {
-			background-color: #dcdcdc;
-		}
-
-		#haibun-prompt-message {
-			flex-grow: 1;
-			margin-left: 10px;
-			font-size: 0.9em;
-			white-space: pre-wrap;
-			color: #333;
-		}
-
-		#haibun-prompt-indicator-thinking {
-			display: none;
-			margin-left: 5px;
-			margin-right: 2px;
-			font-size: 1.2em;
-			animation: thinking-animation 3.5s ease-in-out 4;
-		}
-
-		@keyframes thinking-animation {
+		@keyframes pulse-glow {
 			0% {
-				transform: scale(0.8);
-				opacity: .7;
+				box-shadow: 0 -2px 8px 0px rgba(100, 149, 237, 0.3);
 			}
 
-			60% {
-				transform: scale(1.2);
-				opacity: 1;
+			7% {
+				box-shadow: 0 -3px 15px 1px rgba(100, 149, 237, 0.7);
+			}
+
+			14% {
+				box-shadow: 0 -2px 8px 0px rgba(100, 149, 237, 0.3);
 			}
 
 			100% {
-				transform: scale(0.8);
-				opacity:.7;
+				box-shadow: 0 -2px 8px 0px rgba(100, 149, 237, 0.3);
 			}
 		}
 
@@ -299,7 +271,6 @@
 		<div id="haibun-prompt-controls-container">
 			<button id="haibun-step-button" title="Step" disabled>👣 step</button>
 			<button id="haibun-continue-button" title="Continue" disabled style="margin-left: 5px;">▶️ continue</button>
-			<span id="haibun-prompt-indicator-thinking">🤔</span>
 			<div id="haibun-prompt-message"></div>
 		</div>
 		<div class="haibun-controls">
@@ -315,7 +286,6 @@
 
 	<div id="haibun-media-display">
 		<div id="haibun-focus">
-			No focus element
 		</div>
 	</div>
 	<div id="haibun-log-display-area">
@@ -326,10 +296,9 @@
 			const promptContainer = document.getElementById('haibun-prompt-controls-container');
 			const stepButton = document.getElementById('haibun-step-button');
 			const continueButton = document.getElementById('haibun-continue-button');
-			const thinkingIndicator = document.getElementById('haibun-prompt-indicator-thinking');
 			const messageArea = document.getElementById('haibun-prompt-message');
 
-			if (!promptContainer || !stepButton || !continueButton || !thinkingIndicator || !messageArea) {
+			if (!promptContainer || !stepButton || !continueButton || !messageArea) {
 				console.error('Prompt control elements not found! Check IDs and HTML structure.');
 				return;
 			}
@@ -338,7 +307,8 @@
 				messageArea.textContent = message;
 				stepButton.disabled = false;
 				continueButton.disabled = false;
-				thinkingIndicator.style.display = 'inline-block';
+
+				promptContainer.classList.add('paused-program-glow');
 				promptContainer.style.display = 'flex';
 			};
 
@@ -346,13 +316,14 @@
 				const pc = document.getElementById('haibun-prompt-controls-container');
 				const sb = document.getElementById('haibun-step-button');
 				const cb = document.getElementById('haibun-continue-button');
-				const ti = document.getElementById('haibun-prompt-indicator-thinking');
 				const ma = document.getElementById('haibun-prompt-message');
 
-				if (pc) pc.style.display = 'none';
+				if (pc) {
+					pc.style.display = 'none';
+					pc.classList.remove('paused-program-glow');
+				}
 				if (sb) sb.disabled = true;
 				if (cb) cb.disabled = true;
-				if (ti) ti.style.display = 'none';
 				if (ma) ma.textContent = '';
 			};
 
