@@ -1,6 +1,6 @@
 
 import { AStepper } from '../lib/astepper.js';
-import { IStepperCycles, TStartStep, TActionResult, OK } from '../lib/defs.js';
+import { IStepperCycles, TActionResult, OK } from '../lib/defs.js';
 
 export enum TDebuggingType {
 	StepByStep = 'stepByStep',
@@ -9,11 +9,12 @@ export enum TDebuggingType {
 }
 
 const cycles = (stepper: DebuggerStepper): IStepperCycles => ({
-	async startStep(startStep: TStartStep) {
+	async beforeStep() {
 		if (stepper.debuggingType === TDebuggingType.StepByStep) {
-			const { featureStep } = startStep;
-			stepper.getWorld().logger.info(`About to execute step: ${featureStep.in}`);
-			await stepper.getWorld().prompter.prompt({ message: 'Press Enter to continue...' });
+			const response = await stepper.getWorld().prompter.prompt({ message: 'step or continue', options: ['step', 'continue', 's', 'c'] });
+			if (response === 'continue' || response === 'c') {
+				stepper.debuggingType = TDebuggingType.Continue;
+			}
 		}
 		return Promise.resolve();
 	},

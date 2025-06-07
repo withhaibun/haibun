@@ -138,16 +138,16 @@ export type TEndFeature = { world: TWorld, shouldClose: boolean, isLast: boolean
 export type TStartFeature = { resolvedFeature: TResolvedFeature, index: number };
 export type TStartExecution = TResolvedFeature[]
 export type TStartScenario = { featureVars: FeatureVariables };
-export type TStartStep = { featureStep: TFeatureStep, stepperName: string, actionName: string, named?: TNamed, stepVariables?: TNamedVar[] };
-export type TEndStep = { featureStep: TFeatureStep, actionResult: TStepActionResult };
+export type TBeforeStep = { featureStep: TFeatureStep, stepperName: string, actionName: string, named?: TNamed, stepVariables?: TNamedVar[] };
+export type TAfterStep = { featureStep: TFeatureStep, actionResult: TStepActionResult };
 export type TFailureArgs = { featureResult: TFeatureResult, failedStep: TStepResult };
 
 export interface IStepperCycles {
 	startExecution?(features: TStartExecution): Promise<void>;
 	startFeature?(startFeature: TStartFeature): Promise<void>;
 	startScenario?(startScenario: TStartScenario): Promise<void>;
-	startStep?(startStep: TStartStep): Promise<void>;
-	endStep?(endStep: TEndStep): Promise<void>;
+	beforeStep?(beforeStep: TBeforeStep): Promise<void>;
+	afterStep?(afterStep: TAfterStep): Promise<void>;
 	endScenario?(): Promise<void>;
 	endFeature?(endedWith?: TEndFeature): Promise<void>;
 	onFailure?(result: TFailureArgs): Promise<void | TMessageContext>;

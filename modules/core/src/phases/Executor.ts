@@ -1,4 +1,4 @@
-import { TFeatureStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, TStepAction, STAY, STAY_FAILURE, CHECK_NO, CHECK_YES, STEP_DELAY, TNotOKActionResult, CONTINUE_AFTER_ERROR, TEndFeature, StepperMethodArgs, TStartStep, TEndStep } from '../lib/defs.js';
+import { TFeatureStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, TStepAction, STAY, STAY_FAILURE, CHECK_NO, CHECK_YES, STEP_DELAY, TNotOKActionResult, CONTINUE_AFTER_ERROR, TEndFeature, StepperMethodArgs, TBeforeStep, TAfterStep, TNamed } from '../lib/defs.js';
 import { TAnyFixme } from '../lib/fixme.js';
 import { AStepper } from '../lib/astepper.js';
 import { EExecutionMessageType, TMessageContext } from '../lib/interfaces/logger.js';
@@ -25,8 +25,7 @@ function calculateShouldClose({ thisFeatureOK, isLast, stayOnFailure, continueAf
 	return true;
 }
 export class Executor {
-	static async action(steppers: AStepper[], featureStep: TFeatureStep, found: TStepAction, world: TWorld) {
-		const namedWithVars = getNamedToVars(found, world, featureStep);
+	static async action(steppers: AStepper[], featureStep: TFeatureStep, found: TStepAction, namedWithVars: TNamed, world: TWorld) {
 		const stepper = findStepper<AStepper>(steppers, found.stepperName);
 		const action = stepper.steps[found.actionName].action;
 		return await action(namedWithVars, featureStep).catch((caught: TAnyFixme) => {
@@ -115,7 +114,6 @@ export class FeatureExecutor {
 				await doStepperCycle(this.steppers, 'startScenario', { featureVars });
 			}
 
-			world.logger.log(step.in, { incident: EExecutionMessageType.STEP_START, tag: world.tag });
 			const result = await FeatureExecutor.doFeatureStep(this.steppers, step, world);
 
 			ok = ok && result.ok;
@@ -156,9 +154,11 @@ export class FeatureExecutor {
 		// FIXME feature should really be attached to the featureStep
 		const action = featureStep.action;
 		const start = Timer.since();
-		await doStepperCycle(steppers, 'startStep', <TStartStep>({ featureStep }));
-		const res: Partial<TActionResult> = await Executor.action(steppers, featureStep, action, world);
-		await doStepperCycle(steppers, 'endStep', <TEndStep>({ featureStep }));
+		const namedWithVars = getNamedToVars(action, world, featureStep);
+		world.logger.log(featureStep.in, { incident: EExecutionMessageType.STEP_START, tag: world.tag, incidentDetails: { featureStep, namedWithVars } });
+		await doStepperCycle(steppers, 'beforeStep', <TBeforeStep>({ featureStep }));
+		const res: Partial<TActionResult> = await Executor.action(steppers, featureStep, action, namedWithVars, world);
+		await doStepperCycle(steppers, 'afterStep', <TAfterStep>({ featureStep }));
 
 		const end = Timer.since();
 		// FIXME
