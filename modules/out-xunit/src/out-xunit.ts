@@ -83,7 +83,7 @@ export default class OutXUnit extends AStepper implements IProcessFeatureResults
 			};
 
 			if (!t.ok) {
-				testCase.failure = this.getFailResult(t.stepResults.find((r) => !r.ok)?.actionResult as TNotOkStepActionResult);
+				testCase.failure = this.getFailResult(t.stepResults.find((r) => !r.ok)?.stepActionResult as TNotOkStepActionResult);
 			}
 
 			forXML.testsuites.testsuite.testcase.push(testCase);
