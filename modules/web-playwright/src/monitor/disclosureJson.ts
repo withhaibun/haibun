@@ -1,5 +1,14 @@
 import { TAnyFixme } from "@haibun/core/build/lib/fixme.js";
 
+function escapeHtml(unsafe: string): string {
+    return unsafe
+         .replace(/&/g, "&amp;")
+         .replace(/</g, "&lt;")
+         .replace(/>/g, "&gt;")
+         .replace(/"/g, "&quot;")
+         .replace(/'/g, "&#039;");
+}
+
 function isSimpleAggregate(value: TAnyFixme): boolean {
 	if (typeof value !== 'object' || value === null) {
 		return false;
@@ -14,7 +23,10 @@ function isSimpleAggregate(value: TAnyFixme): boolean {
 	}
 }
 
-function getPrimitiveString(value: TAnyFixme): string {
+function getPrimitiveString(value: TAnyFixme, key?: string | number): string {
+	if (key === 'html') {
+		return '<html>';
+	}
 	if (typeof value === 'string') {
 		return JSON.stringify(value);
 	}
@@ -26,7 +38,13 @@ function getSimpleAggregateString(value: TAnyFixme): string {
 	if (Array.isArray(value)) {
 		return `[${value.map(item => getPrimitiveString(item)).join(', ')}]`;
 	} else if (typeof value === 'object' && value !== null) {
-		const parts = Object.entries(value).map(([k, v]) => `"${k}": ${getPrimitiveString(v)}`);
+		const parts = Object.entries(value).map(([k, v]) => {
+            let primStr = getPrimitiveString(v, k);
+            if (k === 'html') {
+                primStr = escapeHtml(primStr);
+            }
+			return `"${k}": ${primStr}`;
+        });
 		return `{ ${parts.join(', ')} }`;
 	}
 	return String(value);
@@ -53,7 +71,7 @@ function createInlineDisplayForSimpleAggregate(aggregateValue: TAnyFixme): HTMLE
 			keySpan.className = 'key inline-key';
 			keySpan.textContent = `"${key}": `;
 			containerSpan.appendChild(keySpan);
-			containerSpan.appendChild(createPrimitiveNode(aggregateValue[key]));
+			containerSpan.appendChild(createPrimitiveNode(aggregateValue[key], key));
 			if (index < keys.length - 1) {
 				containerSpan.appendChild(document.createTextNode(', '));
 			}
@@ -192,7 +210,7 @@ function appendNode(key: string | number, value: TAnyFixme, isArrayIndex: boolea
 				setInitialWidth(textArea);
 			});
 		} else {
-			lineDiv.appendChild(createPrimitiveNode(value));
+			lineDiv.appendChild(createPrimitiveNode(value, key));
 			parentElement.appendChild(lineDiv);
 		}
 	} else {
@@ -245,7 +263,7 @@ function appendNode(key: string | number, value: TAnyFixme, isArrayIndex: boolea
 					const childKeyString = String(childIndex);
 					const isChildValuePrimitive = typeof childValue !== 'object' || childValue === null;
 					if (isChildValuePrimitive) {
-						summaryChildrenParts.push(`{${childKeyString}: ${getPrimitiveString(childValue)}}`);
+						summaryChildrenParts.push(`{${childKeyString}: ${getPrimitiveString(childValue, childIndex)}}`);
 					} else if (isSimpleAggregate(childValue)) {
 						summaryChildrenParts.push(`{${childKeyString}: ${getSimpleAggregateString(childValue)}}`);
 					} else {
@@ -256,7 +274,11 @@ function appendNode(key: string | number, value: TAnyFixme, isArrayIndex: boolea
 				Object.entries(value).forEach(([childKey, childValue]) => {
 					const isChildValuePrimitive = typeof childValue !== 'object' || childValue === null;
 					if (isChildValuePrimitive) {
-						summaryChildrenParts.push(`{${childKey}: ${getPrimitiveString(childValue)}}`);
+                        let primDisplayStr = getPrimitiveString(childValue, childKey);
+                        if (childKey === 'html') {
+                            primDisplayStr = escapeHtml(primDisplayStr);
+                        }
+						summaryChildrenParts.push(`{${childKey}: ${primDisplayStr}}`);
 					} else if (isSimpleAggregate(childValue)) {
 						summaryChildrenParts.push(`{${childKey}: ${getSimpleAggregateString(childValue)}}`);
 					} else {
@@ -317,16 +339,19 @@ function getPathToNode(element: HTMLElement): string {
 	return parts.join('-');
 }
 
-function createPrimitiveNode(value: TAnyFixme): HTMLSpanElement {
+function createPrimitiveNode(value: TAnyFixme, key?: string | number): HTMLSpanElement {
 	const span = document.createElement('span');
 	span.classList.add('value');
 
 	let displayValue: string;
 	let typeClass: string = typeof value;
 
-	if (value === null) {
+	if (key === 'html') {
+		displayValue = '<html>';
+		typeClass = 'html';
+	} else if (value === null) {
 		typeClass = 'null';
-		displayValue = 'null';
+		displayValue = '<null>';
 	} else if (typeClass === 'string') {
 		displayValue = JSON.stringify(value);
 	} else if (typeClass === 'undefined') {
