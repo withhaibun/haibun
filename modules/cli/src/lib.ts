@@ -13,6 +13,7 @@ import { getDefaultTag } from '@haibun/core/build/lib/test/lib.js';
 import { isProcessFeatureResults, IHasOptions } from '@haibun/core/build/lib/astepper.js';
 import { FeatureVariables } from '@haibun/core/build/lib/feature-variables.js';
 import { TAnyFixme } from '@haibun/core/build/lib/fixme.js';
+import { Prompter } from '@haibun/core/build/lib/prompter.js';
 
 const OPTION_CONFIG = '--config';
 const OPTION_HELP = '--help';
@@ -79,6 +80,7 @@ function getWorld(protoOptions: TProtoOptions, bases: TBase): TWorld {
 		shared,
 		runtime: {},
 		logger,
+		prompter: new Prompter(),
 		...protoOptions,
 		timer,
 		bases,

@@ -1,5 +1,6 @@
 import { TArtifactHTTPTrace } from '@haibun/core/build/lib/interfaces/logger.js';
 import { ArtifactDisplay } from './artifactDisplayBase.js';
+import { TAnyFixme } from '@haibun/core/build/lib/fixme.js';
 import { disclosureJson } from '../disclosureJson.js';
 import { SequenceDiagramGenerator } from './SequenceDiagramGenerator.js';
 
@@ -22,7 +23,10 @@ export class JsonArtifactHTTPTrace extends ArtifactDisplay {
 
 		const preElement = document.createElement('pre');
 		preElement.classList.add('haibun-message-details-json');
-		preElement.appendChild(disclosureJson(this.artifact.trace));
+		const jsonDetailElement = disclosureJson(this.artifact.trace as Record<string, TAnyFixme>);
+		if (jsonDetailElement) {
+			preElement.appendChild(jsonDetailElement);
+		}
 		container.appendChild(preElement);
 
 		if (!this.diagramGenerator) {
