@@ -37,7 +37,7 @@ describe('SpeechArtifactDisplay', () => {
 		let artifactContainer = detailsElement.querySelector('.haibun-artifact-container') as HTMLElement;
 		expect(artifactContainer).not.toBeNull();
 		if (!artifactContainer) return;
-		expect(artifactContainer.textContent).toBe('Artifact is loading...');
+		expect(artifactContainer.textContent).toBe('Artifact is rendering...');
 
 		detailsElement.open = true;
 		detailsElement.dispatchEvent(new Event('toggle'));
@@ -79,7 +79,7 @@ describe('SpeechArtifactDisplay', () => {
 		if (!artifactContainer) return;
 
 		const initialTextContent = artifactContainer.textContent;
-		expect(initialTextContent).toBe('Artifact is loading...');
+		expect(initialTextContent).toBe('Artifact is rendering...');
 
 		detailsElement.open = true;
 		detailsElement.dispatchEvent(new Event('toggle'));
