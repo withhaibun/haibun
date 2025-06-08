@@ -156,7 +156,8 @@ export class FeatureExecutor {
 		const start = Timer.since();
 		const namedWithVars = getNamedToVars(action, world, featureStep);
 		world.logger.log(featureStep.in, { incident: EExecutionMessageType.STEP_START, tag: world.tag, incidentDetails: { featureStep, namedWithVars } });
-		await doStepperCycle(steppers, 'beforeStep', <TBeforeStep>({ featureStep }));
+		await doStepperCycle(steppers, 'beforeStep', <TBeforeStep>({ featureStep, action }));
+
 		const res: Partial<TActionResult> = await Executor.action(steppers, featureStep, action, namedWithVars, world);
 		await doStepperCycle(steppers, 'afterStep', <TAfterStep>({ featureStep }));
 
