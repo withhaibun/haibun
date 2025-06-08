@@ -415,6 +415,8 @@
 	<div class="haibun-header">
 		<h1>Haibun Monitor</h1>
 		<div id="haibun-prompt-controls-container">
+			<button id="haibun-retry-button" title="retry" disabled>♻️ retry</button>
+			<button id="haibun-fail-button" title="Fail" disabled>❌ fail</button>
 			<button id="haibun-step-button" title="Step" disabled>👣 step</button>
 			<button id="haibun-continue-button" title="Continue" disabled style="margin-left: 5px;">▶️ continue</button>
 			<div id="haibun-prompt-message"></div>
@@ -437,61 +439,6 @@
 	<div id="haibun-log-display-area">
 	</div>
 
-	<script>
-		document.addEventListener('DOMContentLoaded', () => {
-			const promptContainer = document.getElementById('haibun-prompt-controls-container');
-			const stepButton = document.getElementById('haibun-step-button');
-			const continueButton = document.getElementById('haibun-continue-button');
-			const messageArea = document.getElementById('haibun-prompt-message');
-
-			if (!promptContainer || !stepButton || !continueButton || !messageArea) {
-				console.error('Prompt control elements not found! Check IDs and HTML structure.');
-				return;
-			}
-
-			window.showPromptControls = (message) => {
-				messageArea.textContent = message;
-				stepButton.disabled = false;
-				continueButton.disabled = false;
-
-				promptContainer.classList.add('paused-program-glow');
-				promptContainer.style.display = 'flex';
-			};
-
-			window.hidePromptControls = () => {
-				const pc = document.getElementById('haibun-prompt-controls-container');
-				const sb = document.getElementById('haibun-step-button');
-				const cb = document.getElementById('haibun-continue-button');
-				const ma = document.getElementById('haibun-prompt-message');
-
-				if (pc) {
-					pc.style.display = 'none';
-					pc.classList.remove('paused-program-glow');
-				}
-				if (sb) sb.disabled = true;
-				if (cb) cb.disabled = true;
-				if (ma) ma.textContent = '';
-			};
-
-			window.hidePromptControls();
-
-			stepButton.addEventListener('click', () => {
-				if (window.haibunResolvePrompt) {
-					window.haibunResolvePrompt('step');
-				} else {
-					console.warn('haibunResolvePrompt function not found on window.');
-				}
-			});
-
-			continueButton.addEventListener('click', () => {
-				if (window.haibunResolvePrompt) {
-					window.haibunResolvePrompt('continue');
-				} else {
-					console.warn('haibunResolvePrompt function not found on window.');
-				}
-			});
-		});
-	</script>
 	<script src="../src/monitor/monitor.ts" type="module"></script>
 </body>
 

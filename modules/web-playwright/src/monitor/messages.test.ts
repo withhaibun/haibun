@@ -6,7 +6,7 @@ import { TArtifact, TMessageContext, EExecutionMessageType, } from '@haibun/core
 import { TFeatureStep, TStepResult, TStepAction, TStepActionResult, OK } from '@haibun/core/build/lib/defs.js';
 import { LogEntry } from './messages.js';
 import { TTag } from '@haibun/core/build/lib/ttag.js';
-import { setupMessagesTestDOM, cleanupMessagesTestDOM } from './test-utils';
+import { setupMessagesTestDOM, cleanupMessagesTestDOM, createMockTag } from './test-utils';
 
 describe('Monitor Messages Logic (messages.ts)', () => {
 	const TEST_START_TIME = 1700000000000;
@@ -49,18 +49,18 @@ describe('Monitor Messages Logic (messages.ts)', () => {
 		it('should display a modified summary message when context provides it', () => {
 			const level = 'debug';
 			const message = 'Action';
-			const mockTag: TTag = { key: 'test', sequence: 1, featureNum: 1, params: {}, trace: false };
+			const mockTag: TTag = createMockTag();
 			const mockStepAction: TStepAction = { actionName: 'testAction', stepperName: 'testStepper', step: { action: async () => Promise.resolve(OK) } };
 			const mockFeatureStep: TFeatureStep = { path: 'test.feature', in: 'Given something', seq: 1, action: mockStepAction };
 			const mockActionResult: TStepActionResult = { ok: true, name: 'testAction' };
-			const mockStepResult: TStepResult = { ok: true, actionResult: mockActionResult, in: 'Given something', path: 'test.feature', seq: 1 };
+			const mockStepResult: TStepResult = { ok: true, stepActionResult: mockActionResult, in: 'Given something', path: 'test.feature', seq: 1 };
 
 			const context: TMessageContext = {
 				incident: EExecutionMessageType.STEP_END,
 				tag: mockTag,
 				incidentDetails: {
-					step: mockFeatureStep,
-					result: mockStepResult
+					featureStep: mockFeatureStep,
+					actionResult: mockStepResult
 				}
 			};
 			const logEntry = new LogEntry(level, BASE_TIMESTAMP + 100, message, context);
@@ -81,7 +81,7 @@ describe('Monitor Messages Logic (messages.ts)', () => {
 
 		it('should throw if artifact type is not recognized', () => {
 			const artifact = <TArtifact>(<unknown>{ artifactType: 'notAThing' });
-			const mockTagGeneric: TTag = { key: 'generic', sequence: 9, featureNum: 1, params: {}, trace: false };
+			const mockTagGeneric: TTag = createMockTag();
 			const context: TMessageContext = {
 				incident: EExecutionMessageType.ACTION,
 				tag: mockTagGeneric,

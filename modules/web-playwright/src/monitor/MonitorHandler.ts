@@ -15,11 +15,11 @@ import { TLogEntry } from './monitor.js';
 import { IPrompter, TPromptResponse, TPrompt } from '@haibun/core/build/lib/prompter.js';
 
 declare global {
-  interface Window {
-    showPromptControls: (message: string) => void;
-    hidePromptControls: () => void;
-    receiveLogData: (entry: TLogEntry) => void;
-  }
+	interface Window {
+		showPromptControls: (prompt: string) => void;
+		hidePromptControls: () => void;
+		receiveLogData: (entry: TLogEntry) => void;
+	}
 }
 
 const monitorLocation = join(getPackageLocation(import.meta), '..', '..', 'web', 'monitor.html');
@@ -35,7 +35,7 @@ class ButtonPrompter implements IPrompter {
 			this.currentPromptResolve = resolve;
 			this.monitorHandler.inMonitor<string>(
 				(message) => window.showPromptControls(message),
-				prompt.message
+				JSON.stringify(prompt)
 			).catch(reject);
 		});
 	}
