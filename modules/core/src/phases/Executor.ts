@@ -1,4 +1,4 @@
-import { TFeatureStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, TStepAction, STAY, STAY_FAILURE, CHECK_NO, CHECK_YES, STEP_DELAY, TNotOKActionResult, CONTINUE_AFTER_ERROR, TEndFeature, StepperMethodArgs, TBeforeStep, TAfterStep, TNamed } from '../lib/defs.js';
+import { TFeatureStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, TStepAction, STAY, STAY_FAILURE, CHECK_NO, CHECK_YES, STEP_DELAY, TNotOKActionResult, CONTINUE_AFTER_ERROR, TEndFeature, StepperMethodArgs, TBeforeStep, TAfterStep, TNamed, IStepperCycles, TAfterStepResult } from '../lib/defs.js';
 import { TAnyFixme } from '../lib/fixme.js';
 import { AStepper } from '../lib/astepper.js';
 import { EExecutionMessageType, TMessageContext } from '../lib/interfaces/logger.js';
@@ -117,11 +117,6 @@ export class FeatureExecutor {
 			const result = await FeatureExecutor.doFeatureStep(this.steppers, step, world);
 
 			ok = ok && result.ok;
-			const indicator = result.ok ? CHECK_YES : CHECK_NO + ' ' + (<TNotOKActionResult>result.actionResult).message;
-
-			// FIXME artifact shuffling
-			const messageContext: TMessageContext = { artifact: result.actionResult.artifact, incident: EExecutionMessageType.STEP_END, tag: world.tag, incidentDetails: { result, step } }
-			world.logger.log(indicator, messageContext);
 			stepResults.push(result);
 			if (!ok) {
 				break;
@@ -158,23 +153,38 @@ export class FeatureExecutor {
 		world.logger.log(featureStep.in, { incident: EExecutionMessageType.STEP_START, tag: world.tag, incidentDetails: { featureStep, namedWithVars } });
 		await doStepperCycle(steppers, 'beforeStep', <TBeforeStep>({ featureStep, action }));
 
-		const res: Partial<TActionResult> = await Executor.action(steppers, featureStep, action, namedWithVars, world);
-		await doStepperCycle(steppers, 'afterStep', <TAfterStep>({ featureStep }));
+		let doAction = true;
+		let actionResult: Partial<TActionResult>;
+		while (doAction) {
+			actionResult = await Executor.action(steppers, featureStep, action, namedWithVars, world);
+			const indicator = actionResult.ok ? CHECK_YES : CHECK_NO + ' ' + (<TNotOKActionResult>actionResult).message;
+
+			const messageContext: TMessageContext = { artifact: actionResult.artifact, incident: EExecutionMessageType.STEP_END, tag: world.tag, incidentDetails: { actionResult, featureStep } }
+			world.logger.log(indicator, messageContext);
+			const instructions: TAfterStepResult[] = await doStepperCycle(steppers, 'afterStep', <TAfterStep>({ featureStep, actionResult }));
+			doAction = instructions.some(i => i?.rerunStep);
+		}
 
 		const end = Timer.since();
 		// FIXME
-		const actionResult: TStepActionResult = { ...res, name: action.actionName, start, end } as TStepActionResult;
-		ok = ok && res.ok;
+		const stepActionResult: TStepActionResult = { ...actionResult, name: action.actionName, start, end } as TStepActionResult;
+		ok = ok && actionResult.ok;
 
-		return { ok, in: featureStep.in, path: featureStep.path, actionResult, seq: featureStep.seq };
+		return { ok, in: featureStep.in, path: featureStep.path, stepActionResult, seq: featureStep.seq };
 	}
 }
 
-const doStepperCycle = async <K extends keyof StepperMethodArgs>(steppers: AStepper[], method: K, args: StepperMethodArgs[K]): Promise<void> => {
+const doStepperCycle = async <K extends keyof IStepperCycles>(steppers: AStepper[], method: K, args: StepperMethodArgs[K]): Promise<Awaited<ReturnType<NonNullable<IStepperCycles[K]>>>[]> => {
+	const results: Awaited<ReturnType<NonNullable<IStepperCycles[K]>>>[] = [];
 	for (const stepper of steppers) {
 		if (stepper?.cycles && stepper.cycles[method]) {
 			stepper.getWorld().logger.debug(`🔁 ${method} ${constructorName(stepper)}`);
-			await (stepper.cycles[method] as (arg: StepperMethodArgs[K]) => Promise<TAnyFixme>)(args);
+			const cycle = stepper.cycles[method]!;
+			const paramsForApply = args === undefined ? [] : [args];
+			// The cast here is to help TypeScript understand '.apply' and 'await' with a specifically typed function
+			const result = await (cycle as (...a: unknown[]) => Promise<unknown>).apply(stepper, paramsForApply);
+			results.push(result as Awaited<ReturnType<NonNullable<IStepperCycles[K]>>>);
 		}
 	}
-}
+	return results;
+};

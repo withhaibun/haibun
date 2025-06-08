@@ -23,7 +23,7 @@ console.info('monitor.ts: window.haibunCapturedMessages initialized.');
 // Function exposed to Playwright to receive new logs
 window.receiveLogData = (logEntry) => {
 	window.haibunCapturedMessages.push(logEntry);
-	renderLogEntry(logEntry); // Add this line to render the log entry immediately
+	renderLogEntry(logEntry);
 };
 
 export function renderLogEntry(logEntryData: TLogEntry) {
@@ -31,24 +31,21 @@ export function renderLogEntry(logEntryData: TLogEntry) {
 	const container = document.getElementById('haibun-log-display-area');
 
 	const logEntry = new LogEntry(level, timestamp, message, messageContext);
-	const logEntryElement = logEntry.element; // Get the actual DOM element
+	const logEntryElement = logEntry.element;
 
 	container.appendChild(logEntryElement);
 
 	// On STEP_END, find the last active STEP_START entry and hide it
 	if (messageContext?.incident === EExecutionMessageType.STEP_END) {
-		// Find the last .haibun-step-start element that does NOT have .disappeared
 		const activeStepStartEntries = container.querySelectorAll('.haibun-step-start:not(.disappeared)');
 		if (activeStepStartEntries.length > 0) {
 			const lastActiveEntry = activeStepStartEntries[activeStepStartEntries.length - 1];
 			lastActiveEntry.classList.add('disappeared');
 		} else {
-			// Warn if STEP_END received but no active STEP_START found
 			console.warn('Received STEP_END but found no active STEP_START log entry to hide.');
 		}
 	}
 
-	// Auto-scroll the container to the bottom
 	container.scrollTop = container.scrollHeight;
 }
 function renderAllLogs() {
@@ -59,9 +56,7 @@ function renderAllLogs() {
 	}
 }
 
-// Initial render on page load
 document.addEventListener('DOMContentLoaded', () => {
-	// Set start time on body for relative calculations
 	if (!document.body.dataset.startTime) {
 		document.body.dataset.startTime = `${Date.now()}`;
 	}
