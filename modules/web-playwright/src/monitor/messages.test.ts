@@ -75,7 +75,7 @@ describe('Monitor Messages Logic (messages.ts)', () => {
 			expect(summary?.querySelector('.details-type')?.textContent).toBe('STEP END');
 			expect(messageContent?.classList.contains('haibun-simple-message')).toBe(false);
 
-			expect(details?.querySelector('pre.haibun-message-details-json')).not.toBeNull();
+			expect(details?.querySelector('.haibun-message-details-json')).not.toBeNull();
 			expect(details?.querySelector('.haibun-incident-type')).toBeNull();
 		});
 

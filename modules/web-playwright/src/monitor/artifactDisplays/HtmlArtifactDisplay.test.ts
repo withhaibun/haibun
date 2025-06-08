@@ -44,7 +44,7 @@ describe('HtmlArtifactDisplay', () => {
 
 		const artifactContainer = details?.querySelector('.haibun-artifact-container.haibun-artifact-html') as HTMLElement;
 		expect(artifactContainer).not.toBeNull();
-		expect(artifactContainer.textContent).toBe('Artifact is loading...');
+		expect(artifactContainer.textContent).toBe('Artifact is rendering...');
 
 		let iframe = artifactContainer?.querySelector('iframe') as HTMLIFrameElement;
 		expect(iframe).toBeNull();
@@ -55,7 +55,7 @@ describe('HtmlArtifactDisplay', () => {
 		await new Promise(process.nextTick);
 
 		expect(artifactContainer.innerHTML).toContain('<p>Test HTML</p>');
-		expect(artifactContainer.textContent).not.toBe('Artifact is loading...');
+		expect(artifactContainer.textContent).not.toBe('Artifact is rendering...');
 
 		iframe = artifactContainer?.querySelector('iframe') as HTMLIFrameElement;
 		expect(iframe).not.toBeNull();

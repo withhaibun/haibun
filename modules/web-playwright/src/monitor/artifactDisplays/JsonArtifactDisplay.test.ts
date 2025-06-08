@@ -50,7 +50,7 @@ describe('JsonArtifactDisplay Rendering within LogMessageContent', () => {
 
 		const artifactContainer = detailsElement?.querySelector('.haibun-artifact-container.haibun-artifact-json') as HTMLElement;
 		expect(artifactContainer).not.toBeNull();
-		expect(artifactContainer.textContent).toBe('Artifact is loading...');
+		expect(artifactContainer.textContent).toBe('Artifact is rendering...');
 
 		expect(artifactContainer.querySelector('pre')).toBeNull();
 		expect(artifactContainer.querySelector('details.json-root-details')).toBeNull();
@@ -62,7 +62,7 @@ describe('JsonArtifactDisplay Rendering within LogMessageContent', () => {
 
 		const renderedArtifactContainer = detailsElement?.querySelector('.haibun-artifact-container.haibun-artifact-json') as HTMLElement;
 		expect(renderedArtifactContainer).not.toBeNull();
-		expect(renderedArtifactContainer.textContent).not.toBe('Artifact is loading...');
+		expect(renderedArtifactContainer.textContent).not.toBe('Artifact is rendering...');
 
 
 		const preElement = renderedArtifactContainer.querySelector('pre.haibun-message-details-json');
@@ -94,7 +94,7 @@ describe('JsonArtifactDisplay Rendering within LogMessageContent', () => {
 		expect(firstRenderPre).not.toBeNull();
 		expect(firstRenderPre!.firstElementChild).not.toBeNull();
 		expect(firstRenderPre!.firstElementChild?.tagName).toBe('DIV');
-		expect(artifactContainer.textContent).not.toBe('Artifact is loading...');
+		expect(artifactContainer.textContent).not.toBe('Artifact is rendering...');
 
 		detailsElement.open = false;
 		detailsElement.dispatchEvent(new Event('toggle'));
@@ -104,7 +104,7 @@ describe('JsonArtifactDisplay Rendering within LogMessageContent', () => {
 		expect(afterClosePre).not.toBeNull();
 		expect(afterClosePre!.firstElementChild).not.toBeNull();
 		expect(afterClosePre!.firstElementChild?.tagName).toBe('DIV');
-		expect(artifactContainer.textContent).not.toBe('Artifact is loading...');
+		expect(artifactContainer.textContent).not.toBe('Artifact is rendering...');
 
 		detailsElement.open = true;
 		detailsElement.dispatchEvent(new Event('toggle'));
