@@ -6,7 +6,7 @@ import { TArtifact, TMessageContext, EExecutionMessageType, } from '@haibun/core
 import { TFeatureStep, TStepResult, TStepAction, TStepActionResult, OK } from '@haibun/core/build/lib/defs.js';
 import { LogEntry } from './messages.js';
 import { TTag } from '@haibun/core/build/lib/ttag.js';
-import { setupMessagesTestDOM, cleanupMessagesTestDOM } from './test-utils.js';
+import { setupMessagesTestDOM, cleanupMessagesTestDOM } from './test-utils';
 
 describe('Monitor Messages Logic (messages.ts)', () => {
 	const TEST_START_TIME = 1700000000000;

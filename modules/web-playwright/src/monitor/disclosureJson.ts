@@ -100,52 +100,6 @@ export function disclosureJson(jsonObj: TAnyFixme): HTMLElement | undefined {
 function appendNode(key: string | number, value: TAnyFixme, isArrayIndex: boolean, parentElement: HTMLElement, indentLevel: number = 0, parentKey?: string | number): void {
 	const isPrimitiveVal = typeof value !== 'object' || value === null;
 
-	const autoGrow = (element: HTMLTextAreaElement) => {
-		let helper = document.getElementById('autogrow-helper') as HTMLDivElement | null;
-		if (!helper) {
-			helper = document.createElement('div');
-			helper.id = 'autogrow-helper';
-			helper.style.position = 'absolute';
-			helper.style.left = '-9999px';
-			helper.style.top = '0';
-			helper.style.visibility = 'hidden';
-			helper.style.pointerEvents = 'none';
-			document.body.appendChild(helper);
-		}
-
-		const computedStyle = window.getComputedStyle(element);
-		helper.style.font = computedStyle.font;
-		helper.style.letterSpacing = computedStyle.letterSpacing;
-		helper.style.paddingTop = computedStyle.paddingTop;
-		helper.style.paddingRight = computedStyle.paddingRight;
-		helper.style.paddingBottom = computedStyle.paddingBottom;
-		helper.style.paddingLeft = computedStyle.paddingLeft;
-		helper.style.borderTopWidth = computedStyle.borderTopWidth;
-		helper.style.borderRightWidth = computedStyle.borderRightWidth;
-		helper.style.borderBottomWidth = computedStyle.borderBottomWidth;
-		helper.style.borderLeftWidth = computedStyle.borderLeftWidth;
-		helper.style.borderStyle = computedStyle.borderStyle;
-		helper.style.boxSizing = 'border-box';
-		helper.style.lineHeight = computedStyle.lineHeight;
-
-		helper.style.whiteSpace = 'nowrap';
-		helper.style.width = 'auto';
-		helper.textContent = element.value || ' ';
-		let contentWidth = helper.scrollWidth;
-		contentWidth += 2; // Add a small buffer to make it slightly wider
-
-		element.style.width = contentWidth + 'px';
-
-		const actualTextareaWidth = element.offsetWidth;
-
-		helper.style.whiteSpace = 'pre-wrap';
-		helper.style.width = actualTextareaWidth + 'px';
-		helper.textContent = element.value || ' ';
-		const newHeight = helper.scrollHeight;
-
-		element.style.height = newHeight + 'px';
-	};
-
 	if (isPrimitiveVal) {
 		const lineDiv = document.createElement('div');
 		lineDiv.className = 'json-line primitive-kv';
@@ -224,8 +178,6 @@ function appendNode(key: string | number, value: TAnyFixme, isArrayIndex: boolea
 			};
 
 			const handleInputResize = (element: HTMLTextAreaElement) => {
-				// Optional: Recalculate width on input if desired, or assume user will resize manually if initial width is not perfect.
-				// For now, focus on height for input.
 				element.style.height = 'auto';
 				element.style.height = element.scrollHeight + 'px';
 			};
@@ -357,7 +309,7 @@ function getPathToNode(element: HTMLElement): string {
 		const keySpan = element.querySelector(':scope > summary > span > .key');
 		let key = keySpan?.textContent?.replace(/: $/, '') || 'item';
 		if (element.classList.contains('json-array-item')) {
-			key = element.querySelector(':scope > summary > span > .key.index')?.textContent?.replace(/[\[\]:]/g, '') || 'index';
+			key = element.querySelector(':scope > summary > span > .key.index')?.textContent?.replace(/[[\]:]/g, '') || 'index';
 		}
 		parts.unshift(key);
 		element = element.parentElement.closest('details, .json-root-complex');

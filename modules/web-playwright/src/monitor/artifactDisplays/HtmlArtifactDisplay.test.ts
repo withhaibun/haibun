@@ -7,11 +7,12 @@ import { LogMessageContent } from '../messages.js';
 import { TTag } from '@haibun/core/build/lib/ttag.js';
 import { setupMessagesTestDOM, cleanupMessagesTestDOM } from '../test-utils.js';
 
-describe('HtmlArtifactDisplay Rendering', () => {
+describe('HtmlArtifactDisplay', () => {
 	const TEST_START_TIME = 1700000000000;
 
 	beforeEach(() => {
 		setupMessagesTestDOM(TEST_START_TIME);
+		document.body.innerHTML = '';
 	});
 
 	afterEach(() => {
@@ -51,12 +52,12 @@ describe('HtmlArtifactDisplay Rendering', () => {
 		details.open = true;
 		details.dispatchEvent(new Event('toggle'));
 
-		await new Promise(resolve => setTimeout(resolve, 0));
+		await new Promise(process.nextTick);
 
-		const renderedArtifactContainer = details?.querySelector('.haibun-artifact-container.haibun-artifact-html') as HTMLElement;
-		expect(renderedArtifactContainer).not.toBeNull();
+		expect(artifactContainer.innerHTML).toContain('<p>Test HTML</p>');
+		expect(artifactContainer.textContent).not.toBe('Artifact is loading...');
 
-		iframe = renderedArtifactContainer?.querySelector('iframe') as HTMLIFrameElement;
+		iframe = artifactContainer?.querySelector('iframe') as HTMLIFrameElement;
 		expect(iframe).not.toBeNull();
 		expect(iframe).toBeInstanceOf(HTMLIFrameElement);
 		expect(iframe?.srcdoc).toBe(htmlContent);

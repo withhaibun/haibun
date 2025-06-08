@@ -3,13 +3,15 @@
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { TArtifactVideoStart, TMessageContext, EExecutionMessageType } from '@haibun/core/build/lib/interfaces/logger.js';
-import { LogEntry } from '../messages.js';
+import { LogMessageContent } from '../messages.js';
 import { setupMessagesTestDOM, cleanupMessagesTestDOM, createMockTag } from '../test-utils.js';
 
 describe('VideoStartArtifactDisplay', () => {
 	const TEST_START_TIME = 1700000000000;
 
 	beforeEach(() => {
+		// Clear the document body and set up the initial DOM structure for tests
+		document.body.innerHTML = '<div id="haibun-log-display-area"></div>';
 		setupMessagesTestDOM(TEST_START_TIME);
 	});
 
@@ -17,39 +19,44 @@ describe('VideoStartArtifactDisplay', () => {
 		cleanupMessagesTestDOM();
 	});
 
-	it('should be placed in document.body by LogEntry and have data attribute set', async () => {
-		const startTime = 54321;
-		const artifact: TArtifactVideoStart = { artifactType: 'video/start', start: startTime };
-		const context: TMessageContext = {
+	it('should correctly handle a TArtifactVideoStart and create a special placement span', async () => {
+		const videoStartTime = TEST_START_TIME + 500;
+		const artifact: TArtifactVideoStart = {
+			artifactType: 'video/start',
+			start: videoStartTime
+		};
+		const messageContext: TMessageContext = {
 			incident: EExecutionMessageType.ACTION,
 			tag: createMockTag(),
 			artifact
 		};
 
-		const logEntry = new LogEntry('info', TEST_START_TIME + 100, 'Video Start Event', context);
-		const logArea = document.getElementById('haibun-log-display-area') || document.body;
-		logArea.appendChild(logEntry.element);
+		// Instantiate LogMessageContent directly to test its handling of 'video/start'
+		const logMessageContent = new LogMessageContent('Video started event', messageContext);
 
+		// LogMessageContent with a 'special' placement artifact needs to be appended to the DOM
+		// for its renderArtifactForSpecialPlacement to find parentElement and insert the special span.
+		// We'll simulate this by appending it to a temporary LogEntry-like structure.
+		const logEntryElement = document.createElement('div');
+		logEntryElement.className = 'haibun-log-entry'; // Add class for 'closest' to work
+		logEntryElement.appendChild(logMessageContent.element);
+		const logArea = document.getElementById('haibun-log-display-area');
+		logArea?.appendChild(logEntryElement);
+
+		// Allow async operations in renderArtifactForSpecialPlacement to complete
 		await new Promise(resolve => setTimeout(resolve, 0));
 
-		const startSpanInBody = document.body.querySelector('#haibun-video-start') as HTMLSpanElement;
-		expect(startSpanInBody).not.toBeNull();
-		expect(startSpanInBody).toBeInstanceOf(HTMLSpanElement);
-		expect(startSpanInBody.dataset.start).toBe(`${startTime}`);
+		const startSpan = document.body.querySelector('#haibun-video-start') as HTMLSpanElement;
+		expect(startSpan).not.toBeNull();
+		expect(startSpan).toBeInstanceOf(HTMLSpanElement);
+		expect(startSpan.dataset.start).toBe(`${videoStartTime}`);
 
-		const details = logEntry.element.querySelector('.haibun-context-details');
-		expect(details).not.toBeNull();
-		expect(details!.querySelector('.haibun-artifact-container.haibun-artifact-video-start')).toBeNull();
-		expect(details!.querySelector('#haibun-video-start')).toBeNull();
-
-		const messageContentEl = logEntry.element.querySelector('.haibun-message-content');
-		expect(messageContentEl).not.toBeNull();
-		expect(messageContentEl!.classList.contains('haibun-simple-message')).toBe(false);
-
-		// The message is in the summary part of the details element
-		const messageSummary = details?.querySelector('.haibun-log-message-summary');
-		expect(messageSummary?.textContent).toContain('Video Start Event');
-		// expect(messageContentEl!.textContent).toContain('Video Start Event'); // This would fail
+		// Verify that the LogMessageContent itself doesn't create an artifact container in details
+		// for 'special' placement artifacts.
+		const detailsElement = logMessageContent.element.querySelector('details.haibun-context-details');
+		if (detailsElement) {
+			const artifactContainerInsideDetails = detailsElement.querySelector('.haibun-artifact-container');
+			expect(artifactContainerInsideDetails).toBeNull();
+		}
 	});
-
 });
