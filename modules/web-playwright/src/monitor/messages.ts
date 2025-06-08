@@ -79,7 +79,7 @@ export class LogMessageContent extends LogComponent {
 			detailsElement.appendChild(messageSummary.element);
 
 			if (incidentDetails) {
-				const pre = document.createElement('pre');
+				const pre = document.createElement('div');
 				pre.classList.add('haibun-message-details-json');
 				pre.appendChild(disclosureJson(incidentDetails));
 				detailsElement.appendChild(pre);
@@ -90,7 +90,7 @@ export class LogMessageContent extends LogComponent {
 				if (!placement || placement === 'details') {
 					this.artifactContainer = document.createElement('div');
 					this.artifactContainer.className = `haibun-artifact-container haibun-artifact-${this.artifactDisplay.artifactType.replace(/\//g, '-')}`;
-					this.artifactContainer.textContent = 'Artifact is loading...';
+					this.artifactContainer.textContent = 'Artifact is rendering...';
 					detailsElement.appendChild(this.artifactContainer);
 
 					const targetContainer = this.artifactContainer;
@@ -107,7 +107,6 @@ export class LogMessageContent extends LogComponent {
 					};
 					detailsElement.addEventListener('toggle', () => { void onceToggleListener(); });
 				} else {
-					// Special placement, artifact rendered outside detailsElement
 					void this.renderSpecialPlacementArtifact(this.artifactDisplay, placement);
 				}
 			}
@@ -122,7 +121,7 @@ export class LogMessageContent extends LogComponent {
 		const createAndRenderArtifact = async (targetElementUpdater: (container: HTMLElement) => void) => {
 			const container = document.createElement('div');
 			container.className = `haibun-artifact-special-placement haibun-artifact-${artifactDisplay.artifactType.replace(/\//g, '-')}`;
-			container.textContent = 'Artifact is loading...';
+			container.textContent = 'Artifact is rendering...';
 			try {
 				await artifactDisplay.render(container);
 			} catch (error) {

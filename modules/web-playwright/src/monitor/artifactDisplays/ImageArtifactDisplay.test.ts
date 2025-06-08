@@ -44,7 +44,7 @@ describe('ImageArtifactDisplay', () => {
 
 		const artifactContainer = details?.querySelector('.haibun-artifact-container.haibun-artifact-image') as HTMLElement;
 		expect(artifactContainer).not.toBeNull();
-		expect(artifactContainer.textContent).toBe('Artifact is loading...');
+		expect(artifactContainer.textContent).toBe('Artifact is rendering...');
 
 		let img = artifactContainer?.querySelector('img') as HTMLImageElement;
 		expect(img).toBeNull();
@@ -84,7 +84,7 @@ describe('ImageArtifactDisplay', () => {
 		if (!artifactContainer) return;
 
 		const initialTextContent = artifactContainer.textContent;
-		expect(initialTextContent).toBe('Artifact is loading...');
+		expect(initialTextContent).toBe('Artifact is rendering...');
 
 		detailsElement.open = true;
 		detailsElement.dispatchEvent(new Event('toggle'));
