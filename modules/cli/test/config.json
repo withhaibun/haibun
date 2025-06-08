@@ -1,6 +1,6 @@
 {
 	"steppers": [
-		"vars",
+		"variables-stepper",
 		"credentials",
 		"haibun"
 	]
