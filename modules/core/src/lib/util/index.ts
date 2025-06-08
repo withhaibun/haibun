@@ -64,7 +64,7 @@ export async function createSteppers(steppers: CStepper[]): Promise<AStepper[]> 
 
 export function getDefaultOptions(): TSpecl {
 	return {
-		steppers: ['vars'],
+		steppers: ['variables-stepper'],
 	};
 }
 

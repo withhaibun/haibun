@@ -10,7 +10,6 @@ export class VideoStartArtifactDisplay extends ArtifactDisplay {
 		const span = document.createElement('span');
 		span.id = 'haibun-video-start';
 		span.dataset.start = `${this.artifact.start}`;
-		span.textContent = `Video start event: ${this.artifact.start}`;
 		container.replaceChildren(span);
 	}
 }
