@@ -4,7 +4,6 @@ import { IStepperCycles, TActionResult, OK } from '../lib/defs.js';
 
 export enum TDebuggingType {
 	StepByStep = 'stepByStep',
-	BreakPoint = 'breakPoint',
 	Continue = 'continue',
 }
 
@@ -26,15 +25,22 @@ export class DebuggerStepper extends AStepper {
 
 	steps = {
 		continue: {
-			gwta: 'continue',
+			exact: 'continue',
 			action: (): Promise<TActionResult> => {
 				this.getWorld().logger.info('Continuing execution without debugging');
 				this.debuggingType = TDebuggingType.Continue;
 				return Promise.resolve(OK);
 			}
 		},
-		debug: {
-			gwta: 'debug step by step',
+		exact: {
+			gwta: 'debug',
+			action: async (): Promise<TActionResult> => {
+				await this.getWorld().prompter.prompt({ message: 'step', options: ['step', 's'] });
+				return Promise.resolve(OK);
+			},
+		},
+		debugStepByStep: {
+			exact: 'debug step by step',
 			action: (): Promise<TActionResult> => {
 				this.getWorld().logger.info('Executing debug step');
 				this.debuggingType = TDebuggingType.StepByStep;
