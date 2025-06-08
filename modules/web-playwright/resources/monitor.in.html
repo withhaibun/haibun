@@ -10,11 +10,9 @@
 	<style>
 		html,
 		body {
-			/* Ensure html also takes full height */
 			height: 100%;
 			margin: 0;
 			overflow: hidden;
-			/* Prevent body scrollbars */
 		}
 
 		body {
@@ -39,7 +37,6 @@
 
 		.haibun-header {
 			flex-shrink: 0;
-			/* Prevent header from shrinking */
 			height: 5vh;
 			top: 0;
 			left: 0;
@@ -67,10 +64,8 @@
 
 		#haibun-log-display-area {
 			flex: 1 1 auto;
-			/* Allow log area to grow and shrink */
 			overflow-y: scroll;
 			box-sizing: border-box;
-			/* No padding needed at top or bottom for layout */
 		}
 
 		.haibun-log-entry {
@@ -85,44 +80,35 @@
 
 		.haibun-log-entry>.haibun-log-details-summary {
 			flex: 0 0 120px;
-			/* Fixed width for left column */
 			padding-right: 15px;
 			font-size: 0.9em;
 			cursor: default;
 		}
 
-		/* Hide marker in WebKit */
 		.haibun-log-entry>.haibun-message-content {
 			flex-grow: 1;
-			/* Right column takes remaining space */
 			word-break: break-word;
 		}
 
-		/* Ensure details element and summary in message content show properly */
 		.haibun-message-content details {
 			display: block;
 		}
 
 		.haibun-message-content details summary {
 			display: list-item;
-			/* This is crucial for showing the twisty */
 			list-style-type: disclosure-closed;
-			/* Explicitly set the disclosure triangle */
 		}
 
 		.haibun-message-content details[open] summary {
 			list-style-type: disclosure-open;
-			/* Change style when open */
 		}
 
 		.haibun-log-message-summary {
 			width: 100%;
 			position: relative;
 			cursor: pointer;
-			/* Add cursor pointer to indicate it's clickable */
 		}
 
-		/* Use flexbox for summary */
 		.haibun-artifact-div details {
 			margin-top: 5px;
 		}
@@ -170,7 +156,6 @@
 			margin-top: 10px;
 		}
 
-		/* Video playback related styles */
 		.haibun-stepper-played {
 			background-color: rgba(10, 10, 211, 0.1);
 		}
@@ -188,14 +173,44 @@
 			background-color: #f5deb3;
 			border-radius: 5px;
 			float: right;
-			/* Float the label to the right */
 			margin-left: 10px;
-			/* Add some margin for spacing */
 			padding: 1px 5px;
 			text-transform: lowercase;
-			display: inline-block;
 			font-size: 0.75em;
 			color: #a80;
+		}
+
+		#haibun-prompt-controls-container {
+			display: none;
+			align-items: center;
+			padding: 10px;
+			background-color: white;
+			gap: 5px;
+			margin-right: 15px;
+			position: relative;
+			border-radius: 4px;
+		}
+
+		#haibun-prompt-controls-container.paused-program-glow {
+			animation: pulse-glow 7s linear infinite;
+		}
+
+		@keyframes pulse-glow {
+			0% {
+				box-shadow: 0 -2px 8px 0px rgba(100, 149, 237, 0.3);
+			}
+
+			7% {
+				box-shadow: 0 -3px 15px 1px rgba(100, 149, 237, 0.7);
+			}
+
+			14% {
+				box-shadow: 0 -2px 8px 0px rgba(100, 149, 237, 0.3);
+			}
+
+			100% {
+				box-shadow: 0 -2px 8px 0px rgba(100, 149, 237, 0.3);
+			}
 		}
 
 		#haibun-media-display {
@@ -247,12 +262,168 @@
 			background: white;
 			opacity: 1;
 		}
+
+		.json-root-primitive,
+		.json-root-simple-aggregate,
+		.json-root-complex {
+			padding: 5px;
+			border: 1px solid #ddd;
+			border-radius: 4px;
+			margin-bottom: 5px;
+			background-color: #f9f9f9;
+			font-family: 'Roboto Mono', monospace;
+    		font-size: 1.1em;
+		}
+
+		.json-line {
+			font-family: 'Roboto Mono', monospace;
+			font-size: 1.1em;
+			margin-bottom: 2px;
+		}
+
+		.primitive-kv,
+		.simple-aggregate-kv {
+			padding: 2px 0;
+		}
+
+		.key {
+			background-color: #8B4513;
+			color: white;
+			padding: 2px 2px 2px 4px;
+			border-radius: 4px;
+			font-weight: normal;
+			margin-right: 3px;
+			display: inline-block;
+		}
+
+		.key.index {
+			background-color: #007bff;
+			color: white;
+            padding: 2px 2px 2px 4px;
+		}
+
+		.inline-key {
+			background-color: #8B4513;
+			color: white;
+			padding: 1px 1px 1px 3px;
+			border-radius: 3px;
+			font-weight: normal;
+			margin-right: 2px;
+			display: inline-block;
+		}
+
+		.value {
+			color: #0000cd;
+			white-space: pre-wrap;
+		}
+
+		.value-string {
+			color: #006400;
+		}
+
+		.value-number {
+			color: #C70039;
+		}
+
+		.value-boolean {
+			color: #5D3FD3;
+		}
+
+		.value-null {
+			color: #36454F;
+			font-style: italic;
+		}
+
+		.value-undefined {
+			color: #36454F;
+			font-style: italic;
+		}
+
+		.simple-aggregate-inline {
+			white-space: pre-wrap;
+		}
+
+		.expandable {
+			margin-bottom: 3px;
+		}
+
+		.expandable > summary {
+			cursor: pointer;
+			display: list-item;
+			padding: 2px 0;
+		}
+
+		.expandable > summary .key {
+			background-color: #4A0082;
+		}
+
+		.expandable > summary .key.index {
+			background-color: #005f87;
+		}
+
+		.expandable summary:hover {
+			background-color: #f0f0f0;
+		}
+
+		.children-summary-inline {
+			color: #333;
+			margin-left: 5px;
+			white-space: pre-wrap;
+		}
+
+		.children-summary-inline.hidden {
+			display: none;
+		}
+
+		.complex-child-marker {
+			font-weight: bold;
+			color: white;
+			background-color: #4A0082;
+			padding: 1px 3px;
+			border-radius: 3px;
+			font-family: 'Roboto Mono', monospace;
+		}
+
+		.details-content {
+			border-left: 1px dashed #ccc;
+			margin-left: 20px;
+			padding-top: 5px;
+			padding-bottom: 5px;
+		}
+
+		.expanded-value-textarea {
+			display: inline-block;
+			border: 1px solid var(--vscode-input-border, #ccc);
+			background-color: var(--vscode-input-background, #fff);
+			color: var(--vscode-input-foreground, #000);
+			font-family: var(--vscode-editor-font-family, monospace);
+			font-size: var(--vscode-editor-font-size, 0.9em);
+			border-radius: 3px;
+			min-width: 15ch;
+			max-width: 100%;
+			overflow: auto;
+			resize: both;
+			vertical-align: baseline;
+			box-sizing: border-box;
+			line-height: 1.4;
+			padding: 2px 4px;
+		}
+
+		.line-with-textarea {
+			display: flex;
+			align-items: baseline;
+		}
 	</style>
 </head>
 
 <body>
 	<div class="haibun-header">
 		<h1>Haibun Monitor</h1>
+		<div id="haibun-prompt-controls-container">
+			<button id="haibun-step-button" title="Step" disabled>👣 step</button>
+			<button id="haibun-continue-button" title="Continue" disabled style="margin-left: 5px;">▶️ continue</button>
+			<div id="haibun-prompt-message"></div>
+		</div>
 		<div class="haibun-controls">
 			<label for="haibun-debug-level-select">Log level</label>
 			<select id="haibun-debug-level-select">
@@ -266,13 +437,66 @@
 
 	<div id="haibun-media-display">
 		<div id="haibun-focus">
-			No focus element
 		</div>
 	</div>
 	<div id="haibun-log-display-area">
-		<!-- Log entries will be appended here -->
 	</div>
 
+	<script>
+		document.addEventListener('DOMContentLoaded', () => {
+			const promptContainer = document.getElementById('haibun-prompt-controls-container');
+			const stepButton = document.getElementById('haibun-step-button');
+			const continueButton = document.getElementById('haibun-continue-button');
+			const messageArea = document.getElementById('haibun-prompt-message');
+
+			if (!promptContainer || !stepButton || !continueButton || !messageArea) {
+				console.error('Prompt control elements not found! Check IDs and HTML structure.');
+				return;
+			}
+
+			window.showPromptControls = (message) => {
+				messageArea.textContent = message;
+				stepButton.disabled = false;
+				continueButton.disabled = false;
+
+				promptContainer.classList.add('paused-program-glow');
+				promptContainer.style.display = 'flex';
+			};
+
+			window.hidePromptControls = () => {
+				const pc = document.getElementById('haibun-prompt-controls-container');
+				const sb = document.getElementById('haibun-step-button');
+				const cb = document.getElementById('haibun-continue-button');
+				const ma = document.getElementById('haibun-prompt-message');
+
+				if (pc) {
+					pc.style.display = 'none';
+					pc.classList.remove('paused-program-glow');
+				}
+				if (sb) sb.disabled = true;
+				if (cb) cb.disabled = true;
+				if (ma) ma.textContent = '';
+			};
+
+			window.hidePromptControls();
+
+			stepButton.addEventListener('click', () => {
+				if (window.haibunResolvePrompt) {
+					window.haibunResolvePrompt('step');
+				} else {
+					console.warn('haibunResolvePrompt function not found on window.');
+				}
+			});
+
+			continueButton.addEventListener('click', () => {
+				if (window.haibunResolvePrompt) {
+					window.haibunResolvePrompt('continue');
+				} else {
+					console.warn('haibunResolvePrompt function not found on window.');
+				}
+			});
+		});
+	</script>
 	<script src="../src/monitor/monitor.ts" type="module"></script>
 </body>
 

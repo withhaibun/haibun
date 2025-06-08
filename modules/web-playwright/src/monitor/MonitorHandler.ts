@@ -12,9 +12,41 @@ import { sleep } from '@haibun/core/build/lib/util/index.js';
 import { actualURI } from '@haibun/core/build/lib/util/actualURI.js';
 import { TAnyFixme } from '@haibun/core/build/lib/fixme.js';
 import { TLogEntry } from './monitor.js';
+import { IPrompter, TPromptResponse, TPrompt } from '@haibun/core/build/lib/prompter.js';
+
+declare global {
+  interface Window {
+    showPromptControls: (message: string) => void;
+    hidePromptControls: () => void;
+    receiveLogData: (entry: TLogEntry) => void;
+  }
+}
 
 const monitorLocation = join(getPackageLocation(import.meta), '..', '..', 'web', 'monitor.html');
 const capturedMessages: TLogEntry[] = [];
+
+class ButtonPrompter implements IPrompter {
+	private currentPromptResolve?: (response: TPromptResponse) => void;
+
+	constructor(private monitorHandler: MonitorHandler) { }
+
+	async prompt(prompt: TPrompt): Promise<TPromptResponse> {
+		return new Promise<TPromptResponse>((resolve, reject) => {
+			this.currentPromptResolve = resolve;
+			this.monitorHandler.inMonitor<string>(
+				(message) => window.showPromptControls(message),
+				prompt.message
+			).catch(reject);
+		});
+	}
+
+	resolvePrompt(response: TPromptResponse) {
+		if (this.currentPromptResolve) {
+			this.currentPromptResolve(response);
+			this.currentPromptResolve = undefined;
+		}
+	}
+}
 
 export class MonitorHandler {
 	subscriber: ILogOutput;
@@ -30,6 +62,17 @@ export class MonitorHandler {
 		const browser = await chromium.launch({ headless: this.headless });
 		const context = await browser.newContext();
 		this.monitorPage = await context.newPage();
+
+		await this.monitorPage.exposeFunction('haibunResolvePrompt', (response: TPromptResponse) => {
+			if (this.buttonPrompter) {
+				this.buttonPrompter.resolvePrompt(response);
+				void this.inMonitor(() => {
+					window.hidePromptControls();
+				});
+			} else {
+				this.world.logger.error('ButtonPrompter not initialized when haibunResolvePrompt was called.');
+			}
+		});
 
 		await this.waitForMonitorPage();
 		await this.monitorPage.goto(pathToFileURL(monitorLocation).toString(), { waitUntil: 'networkidle' });
@@ -50,22 +93,30 @@ export class MonitorHandler {
 				}
 
 				capturedMessages.push(logEntry)
-				// this is async but we don't need to wait for it
 				void this.inMonitor<string>((entry) => {
-					// This code runs in the browser context (monitor.html)
 					window.receiveLogData(JSON.parse(entry) as TLogEntry)
-					// following is passed to the context
 				}, JSON.stringify(logEntry));
 			}
 		};
+		this.buttonPrompter = new ButtonPrompter(this);
+		this.world.prompter.subscribe(this.buttonPrompter);
 	}
+
+	private buttonPrompter?: ButtonPrompter;
 
 	async writeMonitor() {
 		if (!this.monitorPage || this.monitorPage.isClosed()) {
 			this.world.logger.error('Monitor page is closed, cannot write monitor file.');
 			return;
 		}
-		await sleep(500); // Allow final rendering
+		await sleep(500);
+
+		await this.inMonitor(() => {
+			const promptControls = document.getElementById('haibun-prompt-controls-container');
+			if (promptControls && promptControls.parentNode) {
+				promptControls.parentNode.removeChild(promptControls);
+			}
+		});
 
 		const content = (await this.monitorPage.content()) + `
 <script>
