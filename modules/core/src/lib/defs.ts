@@ -142,12 +142,13 @@ export type TBeforeStep = { featureStep: TFeatureStep, action: TStepAction };
 export type TAfterStep = { featureStep: TFeatureStep, actionResult: TStepActionResult };
 export type TFailureArgs = { featureResult: TFeatureResult, failedStep: TStepResult };
 
+export type TAfterStepResult = { rerunStep?: boolean }
 export interface IStepperCycles {
 	startExecution?(features: TStartExecution): Promise<void>;
 	startFeature?(startFeature: TStartFeature): Promise<void>;
 	startScenario?(startScenario: TStartScenario): Promise<void>;
 	beforeStep?(beforeStep: TBeforeStep): Promise<void>;
-	afterStep?(afterStep: TAfterStep): Promise<void>;
+	afterStep?(afterStep: TAfterStep): Promise<TAfterStepResult>;
 	endScenario?(): Promise<void>;
 	endFeature?(endedWith?: TEndFeature): Promise<void>;
 	onFailure?(result: TFailureArgs): Promise<void | TMessageContext>;
@@ -253,7 +254,7 @@ export type TFeatureResultFailure = {
 
 export type TStepResult = {
 	ok: boolean;
-	actionResult: TStepActionResult;
+	stepActionResult: TStepActionResult;
 	in: string;
 	path: string;
 	seq: number;
