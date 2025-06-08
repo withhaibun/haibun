@@ -31,7 +31,6 @@
 			font-size: 0.6em;
 			line-height: 1.4;
 			overflow-x: auto;
-			white-space: pre-wrap;
 		}
 
 		.haibun-header {
@@ -95,11 +94,6 @@
 
 		.haibun-message-content details summary {
 			display: list-item;
-			list-style-type: disclosure-closed;
-		}
-
-		.haibun-message-content details[open] summary {
-			list-style-type: disclosure-open;
 		}
 
 		.haibun-log-message-summary {
@@ -271,7 +265,7 @@
 			margin-bottom: 5px;
 			background-color: #f9f9f9;
 			font-family: 'Roboto Mono', monospace;
-    		font-size: 1.1em;
+			font-size: 1.1em;
 		}
 
 		.json-line {
@@ -298,7 +292,7 @@
 		.key.index {
 			background-color: #007bff;
 			color: white;
-            padding: 2px 2px 2px 4px;
+			padding: 2px 2px 2px 4px;
 		}
 
 		.inline-key {
@@ -313,7 +307,6 @@
 
 		.value {
 			color: #0000cd;
-			white-space: pre-wrap;
 		}
 
 		.value-string {
@@ -338,36 +331,39 @@
 			font-style: italic;
 		}
 
-		.simple-aggregate-inline {
-			white-space: pre-wrap;
-		}
-
 		.expandable {
 			margin-bottom: 3px;
 		}
 
-		.expandable > summary {
+		.expandable>summary {
 			cursor: pointer;
 			display: list-item;
 			padding: 2px 0;
 		}
 
-		.expandable > summary .key {
+		.expandable>summary::-webkit-details-marker {
+			color: #333;
+		}
+
+		.expandable>summary::marker {
+			color: #333;
+		}
+
+		.expandable>summary .key {
 			background-color: #4A0082;
 		}
 
-		.expandable > summary .key.index {
+		.expandable>summary .key.index {
 			background-color: #005f87;
 		}
 
-		.expandable :hover {
+		.expandable:hover {
 			background-color: #f0f0f0;
 		}
 
 		.children-summary-inline {
 			color: #333;
 			margin-left: 5px;
-			white-space: pre-wrap;
 		}
 
 		.children-summary-inline.hidden {
