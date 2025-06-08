@@ -199,8 +199,8 @@ function formatTime(relativeTimeMs: number): string {
 }
 
 function getSummaryMessage(message: string, messageContext?: TMessageContext): string {
-	if (messageContext?.incident === EExecutionMessageType.STEP_END && messageContext.incidentDetails?.result?.in) {
-		return `${message} ${messageContext.incidentDetails.result.in}`;
+	if (messageContext?.incident === EExecutionMessageType.STEP_END) {
+		return `${message} ${messageContext.incidentDetails?.featureStep.in}`;
 	}
 	return message;
 }

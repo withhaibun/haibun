@@ -1,3 +1,13 @@
+import { TPrompt } from "@haibun/core/build/lib/prompter.js";
+
+declare global {
+	interface Window {
+		haibunResolvePrompt: (action: string) => void;
+		showPromptControls: (prompt: string) => void;
+		hidePromptControls: () => void;
+	}
+}
+
 let userScrolledManually = false;
 
 export function setupControls() {
@@ -138,7 +148,6 @@ export function setupVideoPlayback() {
 
 	const setupVideoTimeUpdateHandler = (videoElement: HTMLVideoElement) => {
 		let playInterval: number | undefined;
-		let latestCurrentEntry: HTMLElement | null = null;
 
 		const updateVideoSteps = () => {
 			updateLogEntriesForCurrentTime(videoElement);
@@ -239,6 +248,57 @@ export function setupVideoPlayback() {
 	}
 
 	window.addEventListener('DOMContentLoaded', () => {
+		const promptContainer = document.getElementById('haibun-prompt-controls-container');
+		const rerunButton = <HTMLButtonElement>document.getElementById('haibun-retry-button');
+		const failButton = <HTMLButtonElement>document.getElementById('haibun-fail-button');
+		const stepButton = <HTMLButtonElement>document.getElementById('haibun-step-button');
+		const continueButton = <HTMLButtonElement>document.getElementById('haibun-continue-button');
+		const messageArea = document.getElementById('haibun-prompt-message');
+
+		window.showPromptControls = (prompt) => {
+			const { message, options } = <TPrompt>JSON.parse(prompt);
+			messageArea.textContent = message;
+			if (options.includes('r') || options.includes('retry')) {
+				rerunButton.disabled = false;
+			}
+			if (options.includes('f') || options.includes('fail')) {
+				failButton.disabled = false;
+			}
+			if (options.includes('s') || options.includes('step')) {
+				stepButton.disabled = false;
+			}
+			if (options.includes('c') || options.includes('continue')) {
+				continueButton.disabled = false;
+			}
+
+			promptContainer.classList.add('paused-program-glow');
+			promptContainer.style.display = 'flex';
+		};
+
+		window.hidePromptControls = () => {
+			promptContainer.style.display = 'none';
+			promptContainer.classList.remove('paused-program-glow');
+		}
+		rerunButton.disabled = true;
+		failButton.disabled = true;
+		stepButton.disabled = true;
+		continueButton.disabled = true;
+		messageArea.textContent = '';
+
+		window.hidePromptControls();
+
+		rerunButton.addEventListener('click', () => {
+			window.haibunResolvePrompt('retry');
+		});
+		failButton.addEventListener('click', () => {
+			window.haibunResolvePrompt('fail');
+		});
+		stepButton.addEventListener('click', () => {
+			window.haibunResolvePrompt('step');
+		});
+		continueButton.addEventListener('click', () => {
+			window.haibunResolvePrompt('continue');
+		});
 		const logEntries = document.querySelectorAll('.haibun-log-entry');
 		if (logEntries.length > 0) {
 			// If no current, set the first as current and all as notplayed

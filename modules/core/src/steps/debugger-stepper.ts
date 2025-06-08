@@ -1,6 +1,6 @@
 
 import { AStepper } from '../lib/astepper.js';
-import { IStepperCycles, TActionResult, OK, TWorld, TNamed, TBeforeStep } from '../lib/defs.js';
+import { IStepperCycles, TActionResult, OK, TWorld, TNamed, TBeforeStep, TAfterStep, TAfterStepResult } from '../lib/defs.js';
 
 export enum TDebuggingType {
 	StepByStep = 'stepByStep',
@@ -22,6 +22,14 @@ const cycles = (stepper: DebuggerStepper): IStepperCycles => ({
 		}
 		return Promise.resolve();
 	},
+	async afterStep({ actionResult }: TAfterStep): Promise<TAfterStepResult> {
+		if (!actionResult.ok) {
+			const response = await stepper.getWorld().prompter.prompt({ message: 'retry or fail', options: ['retry', 'fail', 'r', 'f'] });
+			if (response === 'retry' || response === 'r') {
+				return Promise.resolve({ rerunStep: true });
+			}
+		}
+	}
 });
 
 export class DebuggerStepper extends AStepper {
