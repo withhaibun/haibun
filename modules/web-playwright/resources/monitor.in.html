@@ -262,6 +262,157 @@
 			background: white;
 			opacity: 1;
 		}
+
+		.json-root-primitive,
+		.json-root-simple-aggregate,
+		.json-root-complex {
+			padding: 5px;
+			border: 1px solid #ddd;
+			border-radius: 4px;
+			margin-bottom: 5px;
+			background-color: #f9f9f9;
+			font-family: 'Roboto Mono', monospace;
+    		font-size: 1.1em;
+		}
+
+		.json-line {
+			font-family: 'Roboto Mono', monospace;
+			font-size: 1.1em;
+			margin-bottom: 2px;
+		}
+
+		.primitive-kv,
+		.simple-aggregate-kv {
+			padding: 2px 0;
+		}
+
+		.key {
+			background-color: #8B4513;
+			color: white;
+			padding: 2px 2px 2px 4px;
+			border-radius: 4px;
+			font-weight: normal;
+			margin-right: 3px;
+			display: inline-block;
+		}
+
+		.key.index {
+			background-color: #007bff;
+			color: white;
+            padding: 2px 2px 2px 4px;
+		}
+
+		.inline-key {
+			background-color: #8B4513;
+			color: white;
+			padding: 1px 1px 1px 3px;
+			border-radius: 3px;
+			font-weight: normal;
+			margin-right: 2px;
+			display: inline-block;
+		}
+
+		.value {
+			color: #0000cd;
+			white-space: pre-wrap;
+		}
+
+		.value-string {
+			color: #006400;
+		}
+
+		.value-number {
+			color: #C70039;
+		}
+
+		.value-boolean {
+			color: #5D3FD3;
+		}
+
+		.value-null {
+			color: #36454F;
+			font-style: italic;
+		}
+
+		.value-undefined {
+			color: #36454F;
+			font-style: italic;
+		}
+
+		.simple-aggregate-inline {
+			white-space: pre-wrap;
+		}
+
+		.expandable {
+			margin-bottom: 3px;
+		}
+
+		.expandable > summary {
+			cursor: pointer;
+			display: list-item;
+			padding: 2px 0;
+		}
+
+		.expandable > summary .key {
+			background-color: #4A0082;
+		}
+
+		.expandable > summary .key.index {
+			background-color: #005f87;
+		}
+
+		.expandable summary:hover {
+			background-color: #f0f0f0;
+		}
+
+		.children-summary-inline {
+			color: #333;
+			margin-left: 5px;
+			white-space: pre-wrap;
+		}
+
+		.children-summary-inline.hidden {
+			display: none;
+		}
+
+		.complex-child-marker {
+			font-weight: bold;
+			color: white;
+			background-color: #4A0082;
+			padding: 1px 3px;
+			border-radius: 3px;
+			font-family: 'Roboto Mono', monospace;
+		}
+
+		.details-content {
+			border-left: 1px dashed #ccc;
+			margin-left: 20px;
+			padding-top: 5px;
+			padding-bottom: 5px;
+		}
+
+		.expanded-value-textarea {
+			display: inline-block;
+			border: 1px solid var(--vscode-input-border, #ccc);
+			background-color: var(--vscode-input-background, #fff);
+			color: var(--vscode-input-foreground, #000);
+			font-family: var(--vscode-editor-font-family, monospace);
+			font-size: var(--vscode-editor-font-size, 0.9em);
+			border-radius: 3px;
+			min-width: 15ch;
+			max-width: 100%;
+			overflow: auto;
+			resize: both;
+			vertical-align: baseline;
+			box-sizing: border-box;
+			line-height: 1.4;
+			padding: 2px 4px;
+		}
+
+		.line-with-textarea {
+			display: flex;
+			align-items: baseline;
+		}
 	</style>
 </head>
 
