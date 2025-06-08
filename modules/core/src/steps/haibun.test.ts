@@ -11,7 +11,7 @@ describe('prose', () => {
 		const res = await FeatureExecutor.doFeatureStep(steppers, featureStep, world);
 
 		expect(res.ok).toBe(true);
-		expect(res.actionResult.name).toBe('prose');
+		expect(res.stepActionResult.name).toBe('prose');
 	});
 	it('mixed prose', async () => {
 		const feature = {
