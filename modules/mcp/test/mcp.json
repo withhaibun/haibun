@@ -1,0 +1,14 @@
+{
+  "servers": {
+    "haibun-mcp": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "@haibun/cli",
+        "--config",
+        "./modules/mcp/test/config.json"
+      ],
+      "cwd": "/home/vid/D/dev/withhaibun/haibunk" // Optional, but good practice to keep the server's context stable
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+	"steppers": [
+		"/home/vid/D/dev/withhaibun/haibun/modules/mcp/build/mcp-server-stepper",
+		"variables-stepper",
+		"credentials",
+		"haibun"
+	]
+}
