@@ -6,10 +6,10 @@ import type { TextContent } from '@modelcontextprotocol/sdk/types.js';
 import { AStepper } from "@haibun/core/build/lib/astepper.js";
 import { namedInterpolation } from "@haibun/core/build/lib/namedVars.js";
 import { currentVersion as version } from '@haibun/core/build/currentVersion.js';
-import { TWorld, TFeatureStep, TStepAction, TStepperStep } from "@haibun/core/build/lib/defs.js";
+import { TWorld, TStepperStep } from "@haibun/core/build/lib/defs.js";
 import { constructorName } from "@haibun/core/build/lib/util/index.js";
-import { Executor } from "@haibun/core/build/phases/Executor.js";
-import { getNamedToVars } from "@haibun/core/build/lib/namedVars.js";
+import { getActionableStatement } from '@haibun/core/build/phases/Resolver.js';
+import { FeatureExecutor } from "@haibun/core/build/phases/Executor.js";
 
 type ToolHandlerResponse = { content?: TextContent[] };
 
@@ -46,42 +46,28 @@ export class MCPStepperServer {
 					}
 				}
 				const toolDescription: {
-                    description: string;
-                    title: string;
-                    inputSchema?: ZodRawShape;
-                } = {
+					description: string;
+					title: string;
+					inputSchema?: ZodRawShape;
+				} = {
 					description: stepName,
 					title: (stepDef.gwta || stepDef.match?.toString() || stepDef.exact || stepName),
 				}
-                if (Object.keys(variables).length > 0) {
-                    toolDescription.inputSchema = variables;
-                }
+				if (Object.keys(variables).length > 0) {
+					toolDescription.inputSchema = variables;
+				}
 
-				this.server.registerTool(`${stepperName}-${stepName}`, toolDescription, this.createToolHandler(stepperName, stepName, stepDef));
+				const toolName = `${stepperName}-${stepName}`;
+				this.server.registerTool(toolName, toolDescription, this.createToolHandler(stepperName, stepName, stepDef));
 			}
 		}
 	}
 	private createToolHandler(stepperName: string, stepName: string, stepDef: TStepperStep) {
 		return async (input: Record<string, string | number | boolean | string[]>): Promise<ToolHandlerResponse> => {
 			try {
-				const stepAction: TStepAction = {
-					actionName: stepName,
-					stepperName: stepperName,
-					step: stepDef
-				};
 
-				const featureStep: TFeatureStep = {
-					path: 'mcp-execution',
-					in: stepDef.gwta || stepDef.exact || stepName,
-					seq: 1,
-					action: stepAction
-				};
-
-				const namedWithVars = getNamedToVars(stepAction, this.world, featureStep);
-
-				Object.assign(namedWithVars, input);
-
-				const result = await Executor.action(this.steppers, featureStep, stepAction, namedWithVars, this.world);
+				const { featureStep } = await getActionableStatement(this.steppers, stepDef.gwta || stepDef.exact || stepName, ``);
+				const result = await FeatureExecutor.doFeatureStep(this.steppers, featureStep, this.world);
 
 				return {
 					content: [{

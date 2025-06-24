@@ -1,7 +1,6 @@
-import { TNotOKActionResult, TOKActionResult, TSpecl, TWorld, TRuntime, TModuleOptions, CStepper, OK } from '../defs.js';
+import { TNotOKActionResult, TOKActionResult, TSpecl, TWorld, TRuntime, TModuleOptions, CStepper, OK, TFeatureStep } from '../defs.js';
 import { TAnyFixme } from '../fixme.js';
-import { IHasOptions } from '../astepper.js';
-import { AStepper } from '../astepper.js';
+import { IHasOptions, AStepper } from '../astepper.js';
 import { TTag } from '../ttag.js';
 import { TArtifact, TMessageContext } from '../interfaces/logger.js';
 
@@ -310,5 +309,4 @@ export function shortenUserAgent(ua: string) {
 export function shortenURI(uri: string) {
 	const shortURI = uri.startsWith('https://') ? uri.replace('https://', '') : uri;
 	return shortURI.length < 32 ? shortURI : shortURI.substring(0, 26) + '...' + shortURI.substring(uri.length - 6);
-
 }

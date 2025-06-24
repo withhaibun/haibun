@@ -2,13 +2,14 @@ import { describe, it, expect, beforeEach, afterEach, afterAll, beforeAll } from
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { serverParameters } from './mcp-client-stepper.integration.test.js';
+import { currentVersion as version } from '@haibun/core/build/currentVersion.js';
 
 describe('haibun-mcp tool execution', () => {
 	let client: Client;
 	let transport: StdioClientTransport;
 
 	beforeAll(async () => {
-		client = new Client({ name: "haibun-mcp-test-client", version: "1.0.0" });
+		client = new Client({ name: "haibun-mcp-test-client", version });
 		transport = new StdioClientTransport(serverParameters);
 		await client.connect(transport);
 	});
