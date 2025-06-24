@@ -28,7 +28,7 @@ class MCPClientStepper extends AStepper implements IHasOptions {
 
 	steps = {
 		listMcpTools: {
-			gwta: `lists mcp tools`,
+			gwta: `list mcp tools`,
 			action: async () => {
 				try {
 					const client = new Client({ name: "haibun-mcp-client", version });

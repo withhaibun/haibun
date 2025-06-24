@@ -1,8 +1,10 @@
 {
 	"steppers": [
-		"/home/vid/D/dev/withhaibun/haibun/modules/mcp/build/mcp-server-stepper",
-		"variables-stepper",
-		"credentials",
-		"haibun"
+		"./modules/mcp/build/mcp-server-stepper",
+		"./modules/mcp/build/mcp-test-stepper",
+		"./modules/web-playwright/build/web-playwright",
+		"./modules/storage-mem/build/storage-mem",
+		"@haibun/core/build/steps/variables-stepper",
+		"@haibun/core/build/steps/haibun"
 	]
 }

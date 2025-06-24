@@ -92,7 +92,7 @@ async function getSpeclOrExit(bases: TBase): Promise<TSpecl> {
 	const specl = getConfigFromBase(bases);
 	if (specl === null || bases?.length < 1) {
 		if (specl === null) {
-			await usageThenExit(specl ? specl : getDefaultOptions(), `missing or unusable config.json from ${bases}`);
+			await usageThenExit(specl ? specl : getDefaultOptions(), `missing or unusable config.json from ${bases} in ${process.cwd()}`);
 		}
 		await usageThenExit(specl ? specl : getDefaultOptions(), 'no bases');
 	}

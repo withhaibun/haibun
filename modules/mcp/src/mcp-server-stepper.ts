@@ -15,7 +15,7 @@ class MCPServerStepper extends AStepper {
 		startMcpTools: {
 			gwta: `serve mcp tools from steppers`,
 			action: async () => {
-				this.mcpServer = new MCPStepperServer(this.steppers);
+				this.mcpServer = new MCPStepperServer(this.steppers, this.world);
 				void this.mcpServer.start();
 				return Promise.resolve(OK);
 			}
