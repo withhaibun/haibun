@@ -144,6 +144,7 @@ export class FeatureExecutor {
 	}
 
 	static async doFeatureStep(steppers: AStepper[], featureStep: TFeatureStep, world: TWorld): Promise<TStepResult> {
+		console.log('doFeatureStep', featureStep.in, featureStep.action.actionName, featureStep.seq);
 		let ok = true;
 
 		// FIXME feature should really be attached to the featureStep

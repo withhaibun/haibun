@@ -13,7 +13,7 @@ import { FeatureExecutor } from "@haibun/core/build/phases/Executor.js";
 
 type ToolHandlerResponse = { content?: TextContent[] };
 
-export class MCPStepperServer {
+export class MCPExecutorServer {
 	server: McpServer;
 	constructor(private steppers: AStepper[], private world: TWorld) { }
 
@@ -65,8 +65,18 @@ export class MCPStepperServer {
 	private createToolHandler(stepperName: string, stepName: string, stepDef: TStepperStep) {
 		return async (input: Record<string, string | number | boolean | string[]>): Promise<ToolHandlerResponse> => {
 			try {
+				// Create the actual statement by substituting parameters into the pattern
+				let statement = stepDef.gwta || stepDef.exact || stepDef.match.toString;
 
-				const { featureStep } = await getActionableStatement(this.steppers, stepDef.gwta || stepDef.exact || stepName, ``);
+				if (stepDef.gwta && Object.keys(input).length > 0) {
+					// For gwta patterns, substitute the parameters
+					for (const [key, value] of Object.entries(input)) {
+						const pattern = new RegExp(`\\{${key}(:[^}]*)?\\}`, 'g');
+						statement = statement.replace(pattern, String(value));
+					}
+				}
+
+				const { featureStep } = await getActionableStatement(this.steppers, statement, `/mcp/${stepperName}.${stepName}`);
 				const result = await FeatureExecutor.doFeatureStep(this.steppers, featureStep, this.world);
 
 				return {

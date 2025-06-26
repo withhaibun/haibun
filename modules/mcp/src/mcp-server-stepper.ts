@@ -1,11 +1,11 @@
 import { AStepper } from '@haibun/core/build/lib/astepper.js';
 import { OK, TWorld } from '@haibun/core/build/lib/defs.js';
 import { actionNotOK } from '@haibun/core/build/lib/util/index.js';
-import { MCPStepperServer } from './lib/mcp-stepper-server.js';
+import { MCPExecutorServer } from './lib/mcp-executor-server.js';
 
 class MCPServerStepper extends AStepper {
 	steppers: AStepper[];
-	mcpServer: MCPStepperServer;
+	mcpServer: MCPExecutorServer;
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
 		this.steppers = steppers;
@@ -15,7 +15,7 @@ class MCPServerStepper extends AStepper {
 		startMcpTools: {
 			gwta: `serve mcp tools from steppers`,
 			action: async () => {
-				this.mcpServer = new MCPStepperServer(this.steppers, this.world);
+				this.mcpServer = new MCPExecutorServer(this.steppers, this.world);
 				void this.mcpServer.start();
 				return Promise.resolve(OK);
 			}

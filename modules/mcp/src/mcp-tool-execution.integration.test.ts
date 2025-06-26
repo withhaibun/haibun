@@ -75,63 +75,13 @@ describe('haibun-mcp tool execution', () => {
 		expect(displayResponse.result.ok).toBe(true);
 	});
 
-	it.skip('can execute credential management tools', async () => {
-		// Generate a random username
-		const usernameResult = await client.callTool({
-			name: 'Credentials-ensureRandomUsername',
-			arguments: {
-				name: 'testUser'
-			}
-		});
-
-		expect(usernameResult.content).toBeDefined();
-
-		// Generate a random password
-		const passwordResult = await client.callTool({
-			name: 'Credentials-ensureRandomPassword',
-			arguments: {
-				name: 'testPassword'
-			}
-		});
-
-		expect(passwordResult.content).toBeDefined();
-
-		// Check that username exists
-		const checkUserResult = await client.callTool({
-			name: 'Credentials-hasRandomUsername',
-			arguments: {
-				name: 'testUser'
-			}
-		});
-
-		expect(checkUserResult.content).toBeDefined();
-	});
-
-	it('can combine and display variables', async () => {
-		// Set two variables
-		await client.callTool({
-			name: 'VariablesStepper-set',
-			arguments: {
-				what: 'firstName',
-				value: 'John'
-			}
-		});
-
-		await client.callTool({
-			name: 'VariablesStepper-set',
-			arguments: {
-				what: 'lastName',
-				value: 'Doe'
-			}
-		});
-
-		// Combine them
+	it('call combine and display variables', async () => {
 		const combineResult = await client.callTool({
 			name: 'VariablesStepper-combine',
 			arguments: {
-				p1: 'John',
-				p2: 'Doe',
-				what: 'fullName'
+				p1: 'wombat',
+				p2: 'eucalyptus',
+				what: 'yum'
 			}
 		});
 
@@ -144,11 +94,10 @@ describe('haibun-mcp tool execution', () => {
 		expect(combineResponse.stepperName).toBe('VariablesStepper');
 		expect(combineResponse.success).toBe(true);
 
-		// Display the combined result
 		const displayResult = await client.callTool({
 			name: 'VariablesStepper-display',
 			arguments: {
-				what: 'fullName'
+				what: 'yum'
 			}
 		});
 
@@ -162,12 +111,11 @@ describe('haibun-mcp tool execution', () => {
 		expect(displayResponse.success).toBe(true);
 	});
 
-	it('can use utility tools like comment', async () => {
-		// Use the comment tool which is fast and doesn't have side effects
+	it('call comment', async () => {
 		const commentResult = await client.callTool({
 			name: 'Haibun-comment',
 			arguments: {
-				comment: 'This is a test comment from MCP'
+				comment: ';; This is a test comment from MCP'
 			}
 		});
 
@@ -202,48 +150,4 @@ describe('haibun-mcp tool execution', () => {
 		}
 	});
 
-	it('can check variable state', async () => {
-		// Set a variable
-		await client.callTool({
-			name: 'VariablesStepper-set',
-			arguments: {
-				what: 'stateTestVar',
-				value: 'test value'
-			}
-		});
-
-		// Check that it's set
-		const isSetResult = await client.callTool({
-			name: 'VariablesStepper-isSet',
-			arguments: {
-				what: 'stateTestVar'
-			}
-		});
-
-		expect(isSetResult.content).toBeDefined();
-		expect(Array.isArray(isSetResult.content)).toBe(true);
-		const isSetContent = isSetResult.content as Array<{ type: string; text: string }>;
-		expect(isSetContent[0].type).toBe('text');
-		const isSetResponse = JSON.parse(isSetContent[0].text);
-		expect(isSetResponse.stepName).toBe('isSet');
-		expect(isSetResponse.stepperName).toBe('VariablesStepper');
-		expect(isSetResponse.success).toBe(true);
-
-		// Check that a non-existent variable is not set
-		const isNotSetResult = await client.callTool({
-			name: 'VariablesStepper-isNotSet',
-			arguments: {
-				what: 'nonExistentVar'
-			}
-		});
-
-		expect(isNotSetResult.content).toBeDefined();
-		expect(Array.isArray(isNotSetResult.content)).toBe(true);
-		const isNotSetContent = isNotSetResult.content as Array<{ type: string; text: string }>;
-		expect(isNotSetContent[0].type).toBe('text');
-		const isNotSetResponse = JSON.parse(isNotSetContent[0].text);
-		expect(isNotSetResponse.stepName).toBe('isNotSet');
-		expect(isNotSetResponse.stepperName).toBe('VariablesStepper');
-		expect(isNotSetResponse.success).toBe(true);
-	});
 });

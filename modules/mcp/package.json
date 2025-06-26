@@ -3,9 +3,6 @@
 	"type": "module",
 	"version": "1.63.0",
 	"description": "haibun mcp server and client steppers",
-	"bin": {
-		"haibun-mcp": "build/mcp-server-stepper.js"
-	},
 	"main": "build/mcp-server-stepper.js",
 	"files": [
 		"build/**"
@@ -24,11 +21,11 @@
 	"license": "ISC",
 	"dependencies": {
 		"@haibun/core": "^1.63.0",
-		"@haibun/storage-mem": "^1.63.0",
 		"@modelcontextprotocol/sdk": "^1.13.0",
 		"zod": "^3.25.67"
 	},
 	"devDependencies": {
+		"@haibun/storage-mem": "^1.63.0",
 		"@types/node": "^18.11.14",
 		"@typescript-eslint/eslint-plugin": "^5.48.0",
 		"@typescript-eslint/parser": "^5.48.0",

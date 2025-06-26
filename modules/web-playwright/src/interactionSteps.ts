@@ -4,7 +4,7 @@ import { OK, TNamed, TFeatureStep } from "@haibun/core/build/lib/defs.js";
 import { WEB_CONTROL, WEB_PAGE } from "@haibun/core/build/lib/domain-types.js";
 import { TAnyFixme } from "@haibun/core/build/lib/fixme.js";
 import { EExecutionMessageType } from "@haibun/core/build/lib/interfaces/logger.js";
-import { sleep, actionNotOK, actionOK } from "@haibun/core/build/lib/util/index.js";
+import { sleep, actionNotOK } from "@haibun/core/build/lib/util/index.js";
 import { BROWSERS } from "./BrowserFactory.js";
 import { WebPlaywright } from "./web-playwright.js";
 
@@ -558,13 +558,6 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 				);
 			});
 			return OK;
-		},
-	},
-	fetchPageContents: {
-		gwta: 'fetch page contents',
-		action: async () => {
-			const html = await wp.withPage(async (page: Page) => await page.content());
-			return actionOK({ artifact: { artifactType: 'html', html: String(html) } });
 		},
 	},
 });
