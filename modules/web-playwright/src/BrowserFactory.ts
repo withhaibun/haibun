@@ -89,10 +89,10 @@ export class BrowserFactory {
 		this.contextStats[sequence].duration = this.contextStats[sequence].end - this.contextStats[sequence].start;
 		const vs: TMessageContext = {
 			incident: EExecutionMessageType.ACTION,
-			artifact: <TArtifactVideoStart>{
+			artifacts: [{
 				start: Timer.since() - this.contextStats[sequence].duration,
 				artifactType: 'video/start'
-			},
+			}],
 			tag: this.world.tag
 		};
 		this.world.logger.debug(`video start`, vs);

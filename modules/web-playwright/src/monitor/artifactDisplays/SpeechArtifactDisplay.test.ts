@@ -22,7 +22,7 @@ describe('SpeechArtifactDisplay', () => {
 
 	it('should create an audio element with controls and set src on render', async () => {
 		const artifact: TArtifactSpeech = { artifactType: 'speech', path: 'test.mp3', transcript: 'Test transcription', durationS: 5 };
-		const context: TMessageContext = { incident: EExecutionMessageType.ACTION, tag: mockTag, artifact };
+		const context: TMessageContext = { incident: EExecutionMessageType.ACTION, tag: mockTag, artifacts: [artifact] };
 
 		const logMessageContent = new LogMessageContent('Speech artifact', context);
 		const logDisplayArea = document.getElementById('haibun-log-display-area');
@@ -62,7 +62,7 @@ describe('SpeechArtifactDisplay', () => {
 	it('should render audio artifact in details after toggle', async () => {
 		const audioBase64 = 'data:audio/mpeg;base64,test';
 		const artifact: TArtifactSpeech = { artifactType: 'speech', path: audioBase64, transcript: 'Test transcription', durationS: 5 };
-		const context: TMessageContext = { incident: EExecutionMessageType.ACTION, tag: mockTag, artifact };
+		const context: TMessageContext = { incident: EExecutionMessageType.ACTION, tag: mockTag, artifacts: [artifact] };
 
 		const logMessageElement = new LogMessageContent('Speech artifact message', context);
 		const logDisplayArea = document.getElementById('haibun-log-display-area');

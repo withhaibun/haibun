@@ -85,7 +85,7 @@ export const topicArtifactLogger = (world: TWorld) => <T extends TArtifact>(
 ): void => {
 	const context: TMessageContext = {
 		incident: data.incident,
-		artifact: data.artifact,
+		artifacts: data.artifact ? [data.artifact] : undefined,
 		incidentDetails: data.incidentDetails,
 	};
 	world.logger[level](message, context);
