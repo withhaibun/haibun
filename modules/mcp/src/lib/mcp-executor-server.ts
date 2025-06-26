@@ -66,7 +66,7 @@ export class MCPExecutorServer {
 		return async (input: Record<string, string | number | boolean | string[]>): Promise<ToolHandlerResponse> => {
 			try {
 				// Create the actual statement by substituting parameters into the pattern
-				let statement = stepDef.gwta || stepDef.exact || stepDef.match.toString;
+				let statement = stepDef.gwta || stepDef.exact || stepDef.match.toString();
 
 				if (stepDef.gwta && Object.keys(input).length > 0) {
 					// For gwta patterns, substitute the parameters
