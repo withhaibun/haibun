@@ -213,9 +213,9 @@ export class WebPlaywright extends AStepper implements IHasOptions {
 		const artifact: TArtifactImage = { artifactType: 'image', path: await this.storage.getRelativePath(path) };
 		const context: TMessageContext = {
 			incident: EExecutionMessageType.ACTION,
-			artifact,
+			artifacts: [artifact],
 			tag: this.getWorld().tag,
-			incidentDetails: { ...details, event } // Store original topic details if needed
+			incidentDetails: { ...details, event }
 		};
 		return { context, path };
 	}

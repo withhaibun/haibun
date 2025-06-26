@@ -7,7 +7,7 @@ export type TLogArgs = string;
 
 export type TMessageContext = {
 	incident: EExecutionMessageType;
-	artifact?: TArtifact;
+	artifacts?: TArtifact[];
 	incidentDetails?: TAnyFixme;
 	tag?: TTag;
 };

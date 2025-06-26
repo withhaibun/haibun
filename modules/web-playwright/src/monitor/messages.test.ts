@@ -85,7 +85,7 @@ describe('Monitor Messages Logic (messages.ts)', () => {
 			const context: TMessageContext = {
 				incident: EExecutionMessageType.ACTION,
 				tag: mockTagGeneric,
-				artifact
+				artifacts: [artifact]
 			};
 			expect(() => new LogEntry('warn', BASE_TIMESTAMP, 'Generic JSON', context)).toThrow();
 		});

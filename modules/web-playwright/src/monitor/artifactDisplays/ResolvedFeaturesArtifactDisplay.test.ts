@@ -42,7 +42,7 @@ describe('ResolvedFeaturesArtifactDisplay Rendering via LogMessageContent', () =
         const context: TMessageContext = {
             incident: EExecutionMessageType.ACTION,
             tag: mockTag,
-            artifact
+            artifacts: [artifact]
         };
 
         const logEntryData: TLogEntry = {

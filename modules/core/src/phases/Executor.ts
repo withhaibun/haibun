@@ -159,7 +159,12 @@ export class FeatureExecutor {
 			actionResult = await Executor.action(steppers, featureStep, action, namedWithVars, world);
 			const indicator = actionResult.ok ? CHECK_YES : CHECK_NO + ' ' + (<TNotOKActionResult>actionResult).message;
 
-			const messageContext: TMessageContext = { artifact: actionResult.artifact, incident: EExecutionMessageType.STEP_END, tag: world.tag, incidentDetails: { actionResult, featureStep } }
+			const messageContext: TMessageContext = {
+				artifacts: actionResult.artifact ? [actionResult.artifact] : undefined,
+				incident: EExecutionMessageType.STEP_END,
+				tag: world.tag,
+				incidentDetails: { actionResult, featureStep }
+			}
 			world.logger.log(indicator, messageContext);
 			const instructions: TAfterStepResult[] = await doStepperCycle(steppers, 'afterStep', <TAfterStep>({ featureStep, actionResult }));
 			doAction = instructions.some(i => i?.rerunStep);
