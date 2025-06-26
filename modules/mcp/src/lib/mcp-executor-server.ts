@@ -6,16 +6,21 @@ import type { TextContent } from '@modelcontextprotocol/sdk/types.js';
 import { AStepper } from "@haibun/core/build/lib/astepper.js";
 import { namedInterpolation } from "@haibun/core/build/lib/namedVars.js";
 import { currentVersion as version } from '@haibun/core/build/currentVersion.js';
-import { TWorld, TStepperStep } from "@haibun/core/build/lib/defs.js";
+import { TWorld, TStepperStep, TStepResult } from "@haibun/core/build/lib/defs.js";
 import { constructorName } from "@haibun/core/build/lib/util/index.js";
 import { getActionableStatement } from '@haibun/core/build/phases/Resolver.js';
 import { FeatureExecutor } from "@haibun/core/build/phases/Executor.js";
 
 type ToolHandlerResponse = { content?: TextContent[] };
 
+interface RemoteExecutorConfig {
+	url: string;
+	accessToken?: string;
+}
+
 export class MCPExecutorServer {
 	server: McpServer;
-	constructor(private steppers: AStepper[], private world: TWorld) { }
+	constructor(private steppers: AStepper[], private world: TWorld, private remoteConfig?: RemoteExecutorConfig) { }
 
 	async start() {
 		this.server = new McpServer({
@@ -65,19 +70,18 @@ export class MCPExecutorServer {
 	private createToolHandler(stepperName: string, stepName: string, stepDef: TStepperStep) {
 		return async (input: Record<string, string | number | boolean | string[]>): Promise<ToolHandlerResponse> => {
 			try {
-				// Create the actual statement by substituting parameters into the pattern
-				let statement = stepDef.gwta || stepDef.exact || stepDef.match.toString();
+				let statement = stepDef.gwta || stepDef.exact || stepDef.match?.toString();
 
 				if (stepDef.gwta && Object.keys(input).length > 0) {
-					// For gwta patterns, substitute the parameters
 					for (const [key, value] of Object.entries(input)) {
 						const pattern = new RegExp(`\\{${key}(:[^}]*)?\\}`, 'g');
 						statement = statement.replace(pattern, String(value));
 					}
 				}
 
-				const { featureStep } = await getActionableStatement(this.steppers, statement, `/mcp/${stepperName}.${stepName}`);
-				const result = await FeatureExecutor.doFeatureStep(this.steppers, featureStep, this.world);
+				const stepResult: TStepResult = this.remoteConfig
+					? await this.executeViaRemoteApi(statement, `/mcp/${stepperName}-${stepName}`)
+					: await this.executeInCurrentRuntime(statement, `/mcp/${stepperName}-${stepName}`);
 
 				return {
 					content: [{
@@ -86,8 +90,8 @@ export class MCPExecutorServer {
 							stepName,
 							stepperName,
 							input,
-							result,
-							success: result.ok !== false
+							result: stepResult,
+							success: stepResult.ok !== false
 						}, null, 2)
 					}]
 				};
@@ -108,5 +112,34 @@ export class MCPExecutorServer {
 				};
 			}
 		}
+	}
+
+	private async executeInCurrentRuntime(statement: string, source: string) {
+		const { featureStep } = await getActionableStatement(this.steppers, statement, source);
+		return await FeatureExecutor.doFeatureStep(this.steppers, featureStep, this.world);
+	}
+
+	private async executeViaRemoteApi(statement: string, source: string) {
+		const headers: Record<string, string> = {
+			'Content-Type': 'application/json',
+		};
+
+		if (this.remoteConfig!.accessToken) {
+			headers.Authorization = `Bearer ${this.remoteConfig!.accessToken}`;
+		}
+
+		const response = await fetch(`${this.remoteConfig!.url}/execute-step`, {
+			method: 'POST',
+			headers,
+			body: JSON.stringify({ statement, source })
+		});
+
+		if (!response.ok) {
+			const errorText = await response.text();
+			throw new Error(`Remote execution failed: ${response.status} ${errorText}`);
+		}
+
+		const responseData = await response.json();
+		return responseData;
 	}
 }

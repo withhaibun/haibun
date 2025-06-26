@@ -12,6 +12,34 @@ The **MCP Server** automatically exposes all available Haibun steppers as MCP to
 - **Discover available tools** through MCP's tool listing protocol
 - **Execute any stepper functionality** available in your workspace
 
+### Remote Execution Support
+
+For enhanced security and isolation, the MCP server can connect to a remote Haibun execution context via HTTP. This is particularly useful when:
+
+- The execution environment needs to be isolated from the MCP server
+- You want to pause execution and interact via an IDE or other tools
+- Multiple agents need to share the same execution context
+
+#### Configuration
+
+To enable remote execution with authentication:
+
+```bash
+# Start Haibun with remote executor enabled and access token
+HAIBUN_O_REMOTE_EXECUTOR=true HAIBUN_O_ACCESS_TOKEN=your-secret-token node modules/cli/build/cli.js --cwd modules/mcp/test tests
+```
+
+Then configure the MCP server to use the remote endpoint:
+
+```typescript
+const mcpServer = new MCPExecutorServer(steppers, world, {
+  url: 'http://localhost:8123',  // Default web server port
+  accessToken: 'your-secret-token'
+});
+```
+
+⚠️ **Security Warning**: The remote executor exposes execution context via HTTP. Only use in secure, controlled environments with proper authentication.
+
 ### Starting an MCP Server
 
 The MCP Server is a Haibun stepper. For an example implementation with representative steppers, use:
@@ -33,6 +61,11 @@ Feature: MCP Server Management
 
     When I stop mcp tools
     The server is stopped.
+
+  Scenario: Enable remote execution API
+    Given I enable remote executor
+
+    Now external MCP servers can connect to this execution context via HTTP.
 ```
 
 ## MCP Client
