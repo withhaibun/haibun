@@ -27,7 +27,7 @@ describe('ImageArtifactDisplay', () => {
 		const context: TMessageContext = {
 			incident: EExecutionMessageType.ACTION,
 			tag: mockTagImage,
-			artifact
+			artifacts: [artifact]
 		};
 		const logMessageContent = new LogMessageContent('Image Artifact', context);
 		const element = logMessageContent.element;
@@ -70,7 +70,7 @@ describe('ImageArtifactDisplay', () => {
 		const messageContext: TMessageContext = {
 			incident: EExecutionMessageType.ACTION,
 			tag: mockTagImage,
-			artifact
+			artifacts: [artifact]
 		};
 		const logMessageElement = new LogMessageContent('Image artifact message', messageContext);
 		document.body.appendChild(logMessageElement.element);

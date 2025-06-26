@@ -11,7 +11,7 @@ interface SimulateLogContextOptions {
 	tag?: TTag;
 	incident?: EExecutionMessageType;
 	incidentDetails?: TMessageContext['incidentDetails'];
-	artifact?: TArtifact;
+	artifacts?: TArtifact[];
 }
 
 const simulateLog = (level: TLogLevel, messageText: TLogArgs, contextIn?: SimulateLogContextOptions, timestampOverride?: number) => {
@@ -19,7 +19,7 @@ const simulateLog = (level: TLogLevel, messageText: TLogArgs, contextIn?: Simula
 		tag: contextIn.tag,
 		incident: contextIn.incident || EExecutionMessageType.ACTION,
 		incidentDetails: contextIn.incidentDetails,
-		artifact: contextIn.artifact,
+		artifacts: contextIn.artifacts,
 	} : undefined;
 
 	const logEntryData: MonitorTLogEntry = {

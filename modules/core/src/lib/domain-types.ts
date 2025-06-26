@@ -3,19 +3,5 @@ export const WEB_PAGE = 'webpage';
 export const WEB_CONTROL = 'webcontrol';
 export const SELECTOR = 'selector';
 
-// Basic type validation if needed
-export type TValidator = (content: string) => string | undefined;
-
-// Simple dependency system to replace IRequireDomains
-export interface IDependencies {
-  requires?: string[];
-}
-
-// Simplified context system to replace domain contexts
-export interface ISharedContext {
-  get(key: string): unknown;
-  set(key: string, value: unknown): void;
-}
-
 // Type constants
 export const BASE_TYPES = ['string', 'number', WEB_CONTROL, WEB_PAGE, SELECTOR];

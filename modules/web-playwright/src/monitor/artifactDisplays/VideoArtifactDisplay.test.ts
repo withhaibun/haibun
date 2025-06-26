@@ -36,7 +36,7 @@ describe('VideoArtifactDisplay Rendering', () => {
 		const context: TMessageContext = {
 			incident: EExecutionMessageType.ACTION,
 			tag: createMockTag(),
-			artifact
+			artifacts: [artifact]
 		};
 		const logMessageContent = new LogMessageContent('Video Artifact in #haibun-focus', context);
 		document.body.appendChild(logMessageContent.element);
@@ -71,7 +71,7 @@ describe('VideoArtifactDisplay Rendering', () => {
 		const context: TMessageContext = {
 			incident: EExecutionMessageType.ACTION,
 			tag: createMockTag(),
-			artifact
+			artifacts: [artifact]
 		};
 		const logEntry = new LogEntry('info', TEST_START_TIME + 500, 'Video Artifact in Container', context);
 		document.body.appendChild(logEntry.element);

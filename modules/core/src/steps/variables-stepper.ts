@@ -51,7 +51,7 @@ class VariablesStepper extends AStepper {
 			incident: EExecutionMessageType.ACTION, incidentDetails: { summary: warning || response, }, tag: this.getWorld().tag
 		};
 
-		return actionNotOK(`${what} not set${orCond && ': ' + orCond}`, incident);
+		return actionNotOK(`${what} not set${orCond && ': ' + orCond}`, { messageContext: incident });
 	}
 
 	steps = {

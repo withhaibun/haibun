@@ -37,7 +37,7 @@ const cycles = (hb: Haibun): IStepperCycles => ({
 			const artifact: TArtifactVideo = { artifactType: 'video', path };
 			const context: TMessageContext = {
 				incident: EExecutionMessageType.FEATURE_END,
-				artifact,
+				artifacts: [artifact],
 				tag: hb.getWorld().tag
 			};
 			hb.getWorld().logger.log('feature video', context);

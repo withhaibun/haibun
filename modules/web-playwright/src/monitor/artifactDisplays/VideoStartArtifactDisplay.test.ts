@@ -28,7 +28,7 @@ describe('VideoStartArtifactDisplay', () => {
 		const messageContext: TMessageContext = {
 			incident: EExecutionMessageType.ACTION,
 			tag: createMockTag(),
-			artifact
+			artifacts: [artifact]
 		};
 
 		// Instantiate LogMessageContent directly to test its handling of 'video/start'
