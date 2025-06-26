@@ -83,15 +83,14 @@ export class SequenceDiagramGenerator {
 		this.resetDiagramState();
 
 		if (window.haibunCapturedMessages) {
-			const httpTraceEvents = window.haibunCapturedMessages.filter(
-				entry => entry.messageContext?.artifact?.artifactType === 'json/http/trace' &&
-					(entry.messageContext.artifact as TArtifactHTTPTrace).httpEvent !== 'route'
+			// FIXME should aggregate traces
+			const httpTraceEvents = window.haibunCapturedMessages.filter(entry => entry.messageContext?.artifacts?.[0]?.artifactType === 'json/http/trace' && (entry.messageContext.artifacts?.[0] as TArtifactHTTPTrace).httpEvent !== 'route'
 			);
 
 			for (const logEntry of httpTraceEvents) {
-				// Ensure messageContext and artifact are defined before trying to cast and access httpEvent
-				if (logEntry.messageContext && logEntry.messageContext.artifact) {
-					const artifact = logEntry.messageContext.artifact as TArtifactHTTPTrace;
+				// Ensure messageContext and artifacts are defined before trying to cast and access httpEvent
+				if (logEntry.messageContext && logEntry.messageContext.artifacts?.[0]) {
+					const artifact = logEntry.messageContext.artifacts[0] as TArtifactHTTPTrace;
 					if (artifact && artifact.trace && typeof artifact.trace === 'object') {
 						this.processSingleEvent(artifact.trace, artifact.httpEvent);
 					}
