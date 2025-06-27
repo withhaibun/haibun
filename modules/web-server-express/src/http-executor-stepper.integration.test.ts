@@ -16,7 +16,7 @@ describe('HttpExecutorStepper integration', () => {
 		moduleOptions: {},
 	};
 
-	it('enables remote executor without authentication', async () => {
+	it('fails to enable remote executor without access token', async () => {
 		const testPort = TEST_PORTS.HTTP_EXECUTOR_BASE.toString();
 		const feature = {
 			path: '/features/http-executor.feature',
@@ -35,13 +35,11 @@ describe('HttpExecutorStepper integration', () => {
 			},
 		};
 
-		const result = await testWithDefaults(
+		await expect(testWithDefaults(
 			[feature],
 			[WebServerStepper, HttpExecutorStepper, VariablesStepper],
 			options
-		);
-
-		expect(result.ok).toBe(true);
+		)).rejects.toThrow('ACCESS_TOKEN is required when enabling remote executor');
 	});
 
 	it('enables remote executor with authentication', async () => {

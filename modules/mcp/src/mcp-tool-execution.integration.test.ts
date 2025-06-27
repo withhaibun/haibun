@@ -13,6 +13,7 @@ const toolExecutionServerParameters: StdioServerParameters = {
 		// Use test ports to avoid conflicts with live servers
 		'HAIBUN_O_WEBSERVERSTEPPER_PORT': TEST_PORTS.MCP_TOOL_EXECUTION.toString(),
 		'HAIBUN_O_HTTPEXECUTORSTEPPER_LISTEN_PORT': (TEST_PORTS.MCP_TOOL_EXECUTION + 1).toString(),
+		'HAIBUN_O_HTTPEXECUTORSTEPPER_ACCESS_TOKEN': 'test-token-tool-execution',
 	},
 	args: [
 		"modules/cli/build/cli.js",

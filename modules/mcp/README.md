@@ -22,30 +22,75 @@ For enhanced security and isolation, the MCP server can connect to a remote Haib
 
 #### Configuration
 
-To enable remote execution with authentication:
+⚠️ **Security Requirement**: ACCESS_TOKEN is mandatory when enabling remote execution. The system will fail fast if a port is configured without proper authentication.
+
+To enable remote execution, configure both the HTTP executor and MCP server with matching ports and tokens:
 
 ```bash
 # Start Haibun with remote executor enabled and access token
-HAIBUN_O_HTTPEXECUTORSTEPPER_LISTEN_PORT=8124 HAIBUN_O_HTTPEXECUTORSTEPPER_ACCESS_TOKEN=your-secret-token node modules/cli/build/cli.js --cwd modules/mcp/test tests
+HAIBUN_O_WEBPLAYWRIGHT_STORAGE=StorageMem \
+HAIBUN_O_HTTPEXECUTORSTEPPER_LISTEN_PORT=8124 \
+HAIBUN_O_HTTPEXECUTORSTEPPER_ACCESS_TOKEN=your-secret-token \
+node modules/cli/build/cli.js --cwd modules/mcp/test tests
 ```
 
-Then configure the MCP server to use the remote endpoint:
+If you want the MCP server to connect to a remote execution endpoint, configure it explicitly:
 
-```typescript
-const mcpServer = new MCPExecutorServer(steppers, world, {
-  url: 'http://localhost:8123',  // Default web server port
-  accessToken: 'your-secret-token'
-});
+```bash
+# Configure MCP server to use remote execution
+HAIBUN_O_MCPSERVERSTEPPER_REMOTE_PORT=8124 \
+HAIBUN_O_MCPSERVERSTEPPER_ACCESS_TOKEN=your-secret-token \
+node modules/cli/build/cli.js --cwd modules/mcp/test tests
 ```
 
-⚠️ **Security Warning**: The remote executor exposes execution context via HTTP. Only use in secure, controlled environments with proper authentication.
+**Important**: Both steppers require explicit configuration. The ACCESS_TOKEN must match between the HTTP executor and MCP server for successful authentication.
+
+#### Remote Execution API
+
+When the HTTP executor is running, you can interact with it directly via HTTP API. All requests require authentication via the ACCESS_TOKEN.
+
+**Execute a step:**
+```bash
+curl -X POST http://localhost:8124/execute-step \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-secret-token" \
+  -d '{
+    "statement": "I set MY_VAR to hello world",
+    "source": "direct-api-call"
+  }'
+```
+
+**Stop the remote executor:**
+```bash
+curl -X POST http://localhost:8124/execute-step \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-secret-token" \
+  -d '{
+    "statement": "I set finished-mcp-cli to true",
+    "source": "direct-api-call"
+  }'
+```
+
+Both `statement` and `source` fields are required in all requests.
 
 ### Starting an MCP Server
 
-The MCP Server is a Haibun stepper. For an example implementation with representative steppers, use:
+The MCP Server is a Haibun stepper. For a basic example with representative steppers:
 
 ```bash
-HAIBUN_O_WEBPLAYWRIGHT_STORAGE=StorageMem node modules/cli/build/cli.js --cwd modules/mcp/test tests
+# Basic local execution
+HAIBUN_O_WEBPLAYWRIGHT_STORAGE=StorageMem \
+node modules/cli/build/cli.js --cwd modules/mcp/test tests
+```
+
+Or with remote execution enabled:
+
+```bash
+# With remote execution capability
+HAIBUN_O_WEBPLAYWRIGHT_STORAGE=StorageMem \
+HAIBUN_O_HTTPEXECUTORSTEPPER_LISTEN_PORT=8124 \
+HAIBUN_O_HTTPEXECUTORSTEPPER_ACCESS_TOKEN=your-secret-token \
+node modules/cli/build/cli.js --cwd modules/mcp/test tests
 ```
 
 ### Using from External MCP Clients
@@ -66,6 +111,9 @@ Feature: MCP Server Management
     Given I enable remote executor
 
     Now external MCP servers can connect to this execution context via HTTP.
+
+    When I finished mcp cli
+    The remote executor is stopped.
 ```
 
 ## MCP Client

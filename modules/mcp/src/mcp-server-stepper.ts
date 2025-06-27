@@ -1,11 +1,14 @@
 import { AStepper, IHasOptions } from '@haibun/core/build/lib/astepper.js';
 import { OK, TWorld } from '@haibun/core/build/lib/defs.js';
-import { actionNotOK, getStepperOption } from '@haibun/core/build/lib/util/index.js';
+import { actionNotOK, getStepperOption, intOrError } from '@haibun/core/build/lib/util/index.js';
 import { MCPExecutorServer } from './lib/mcp-executor-server.js';
 
 class MCPServerStepper extends AStepper implements IHasOptions {
 	steppers: AStepper[];
 	mcpServer: MCPExecutorServer;
+	remotePort: number;
+	accessToken: string;
+
 	options = {
 		REMOTE_PORT: {
 			desc: 'Port for remote execution API',
@@ -14,28 +17,37 @@ class MCPServerStepper extends AStepper implements IHasOptions {
 		ACCESS_TOKEN: {
 			desc: 'Access token for remote execution API authentication',
 			parse: (token: string) => ({ result: token }),
-			required: true
 		},
 	};
-	remotePort: any;
-	accessToken: any;
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
 		this.steppers = steppers;
-		this.remotePort = getStepperOption(this, 'REMOTE_PORT', world.moduleOptions);
+
+		this.remotePort = intOrError(getStepperOption(this, 'REMOTE_PORT', world.moduleOptions) || '').result || NaN;
 		this.accessToken = getStepperOption(this, 'ACCESS_TOKEN', world.moduleOptions);
+
+		if (!isNaN(this.remotePort) && !this.accessToken) {
+			throw new Error('ACCESS_TOKEN is required when REMOTE_PORT is configured for remote execution');
+		}
+	}
+
+	private getRemoteConfig() {
+		if (!isNaN(this.remotePort)) {
+			return {
+				url: `http://localhost:${this.remotePort}`,
+				accessToken: this.accessToken
+			};
+		}
+
+		return undefined;
 	}
 
 	steps = {
 		startMcpTools: {
 			gwta: `serve mcp tools from steppers`,
 			action: async () => {
-				// Create remote configuration if port and token are available
-				const remoteConfig = this.remotePort && this.accessToken ? {
-					url: `http://localhost:${this.remotePort}`,
-					accessToken: this.accessToken
-				} : undefined;
+				const remoteConfig = this.getRemoteConfig();
 
 				this.mcpServer = new MCPExecutorServer(this.steppers, this.world, remoteConfig);
 				void this.mcpServer.start();

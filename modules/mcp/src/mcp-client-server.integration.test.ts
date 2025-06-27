@@ -16,6 +16,7 @@ const clientServerParameters: StdioServerParameters = {
 		// Use test ports to avoid conflicts with live servers
 		'HAIBUN_O_WEBSERVERSTEPPER_PORT': TEST_PORTS.MCP_CLIENT_SERVER.toString(),
 		'HAIBUN_O_HTTPEXECUTORSTEPPER_LISTEN_PORT': (TEST_PORTS.MCP_CLIENT_SERVER + 1).toString(),
+		'HAIBUN_O_HTTPEXECUTORSTEPPER_ACCESS_TOKEN': 'test-token-client-server',
 	},
 	args: [
 		"modules/cli/build/cli.js",
