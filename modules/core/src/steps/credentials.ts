@@ -4,7 +4,7 @@ import { randomString } from '../lib/util/index.js';
 
 export const cred = (key: string) => `__cred_${key}`;
 
-const Credentials = class Credentials extends AStepper {
+class Credentials extends AStepper {
 	generateRandomUsername(ref: string) {
 		this.getWorld().shared.set(cred(ref), randomString());
 		return this.getWorld().shared.get(cred(ref));

@@ -92,7 +92,7 @@ async function getSpeclOrExit(bases: TBase): Promise<TSpecl> {
 	const specl = getConfigFromBase(bases);
 	if (specl === null || bases?.length < 1) {
 		if (specl === null) {
-			await usageThenExit(specl ? specl : getDefaultOptions(), `missing or unusable config.json from ${bases}`);
+			await usageThenExit(specl ? specl : getDefaultOptions(), `missing or unusable config.json from ${bases} in ${process.cwd()}`);
 		}
 		await usageThenExit(specl ? specl : getDefaultOptions(), 'no bases');
 	}
@@ -130,7 +130,7 @@ export async function usage(specl: TSpecl, message?: string) {
 
 	const ret = [
 		'',
-		`usage: ${process.argv[1]} [${OPTION_CONFIG} path/to/specific/config.json] [${OPTION_HELP}] [${OPTION_SHOW_STEPPERS}] <project base[,project base]> <[filter,filter]>`,
+		`usage: ${process.argv[1]} [${OPTION_CONFIG} path/to/specific/config.json] [--cwd working_directory] [${OPTION_HELP}] [${OPTION_SHOW_STEPPERS}] <project base[,project base]> <[filter,filter]>`,
 		message || '',
 		'If config.json is not found in project bases, the root directory will be used.\n',
 		'Set these environmental variables to control options:\n',
@@ -193,6 +193,8 @@ export function processArgs(args: string[]) {
 
 		if (cur === OPTION_CONFIG || cur === '-c') {
 			configLoc = args.shift()?.replace(/\/config.json$/, '');
+		} else if (cur === '--cwd') {
+			process.chdir(args.shift());
 		} else if (cur === OPTION_HELP || cur === '-h') {
 			showHelp = true;
 		} else if (cur === OPTION_SHOW_STEPPERS) {

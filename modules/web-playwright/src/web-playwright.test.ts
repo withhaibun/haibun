@@ -7,6 +7,7 @@ import { getPackageLocation } from '@haibun/core/build/lib/util/workspace-lib.js
 import { getCreateSteppers, getDefaultWorld, testWithDefaults } from '@haibun/core/build/lib/test/lib.js';
 import { DEFAULT_DEST, TFeatureStep } from '@haibun/core/build/lib/defs.js';
 import { getStepperOptionName } from '@haibun/core/build/lib/util/index.js';
+import { TEST_PORTS } from './test-constants.js';
 
 const me = path.join(getPackageLocation(import.meta).replace(/\/src$/, '/build'), 'web-playwright');
 
@@ -57,7 +58,7 @@ describe.skip('options', () => {
 		const result = await testWithDefaults([feature], [WebPlaywright, ], {
 			options: { DEST: DEFAULT_DEST, },
 			moduleOptions: {
-				[getStepperOptionName(WebPlaywright, 'PORT')]: '8124',
+				[getStepperOptionName(WebPlaywright, 'PORT')]: TEST_PORTS.WEB_PLAYWRIGHT.toString(),
 			},
 		});
 	});
