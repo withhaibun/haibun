@@ -108,3 +108,17 @@ const comment = {
 		},
 	},
 };
+
+export function getActionableStatement(steppers: AStepper[], statement: string, path: string) {
+	const resolver = new Resolver(steppers);
+	const action = resolver.findActionableSteps(statement)[0];
+
+	const featureStep: TFeatureStep = {
+		path,
+		in: statement,
+		seq: 0,
+		action,
+	};
+
+	return { featureStep, steppers };
+}

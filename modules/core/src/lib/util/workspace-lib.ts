@@ -37,6 +37,9 @@ function getWorkspaceRoot() {
 export function getModuleLocation(name: string) {
 	if (name.startsWith('~')) {
 		return [workspaceRoot, 'node_modules', name.substring(1)].join('/');
+	} else if (name.startsWith('@')) {
+		const parts = name.split('/');
+		return [workspaceRoot, 'node_modules', ...parts].join('/');
 	} else if (name.match(/^[a-zA-Z].*/)) {
 		return `../../steps/${name}`;
 	}

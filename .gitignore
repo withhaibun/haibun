@@ -9,3 +9,5 @@ coverage/
 out-tsc/
 .env
 modules/web-playwright/web/
+modules/mcp/test/capture/
+

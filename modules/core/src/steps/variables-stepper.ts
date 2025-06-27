@@ -2,7 +2,7 @@ import { OK, TNamed, TFeatureStep, TWorld, IStepperCycles, TStartScenario } from
 import { TAnyFixme } from '../lib/fixme.js';
 import { AStepper } from '../lib/astepper.js';
 import { EExecutionMessageType, TMessageContext } from '../lib/interfaces/logger.js';
-import { actionNotOK } from '../lib/util/index.js';
+import { actionNotOK, actionOK } from '../lib/util/index.js';
 import { FeatureVariables } from '../lib/feature-variables.js';
 
 // FIXME see https://github.com/withhaibun/haibun/issues/18
@@ -69,7 +69,8 @@ class VariablesStepper extends AStepper {
 		showVars: {
 			gwta: 'show vars',
 			action: async () => {
-				return Promise.resolve(OK);
+				console.info('vars', this.getWorld().shared.all());
+				return Promise.resolve(actionOK({ artifact: { artifactType: 'json', json: { vars: this.getWorld().shared.all() } } }));
 			},
 		},
 		set: {
@@ -106,7 +107,7 @@ class VariablesStepper extends AStepper {
 			action: async ({ what }: TNamed) => {
 				this.getWorld().logger.info(`is ${JSON.stringify(what)}`);
 
-				return Promise.resolve(OK);
+				return Promise.resolve(actionOK({ artifact: { artifactType: 'json', json: { [what]: this.getVarValue(what) } } }));
 			},
 		},
 	};

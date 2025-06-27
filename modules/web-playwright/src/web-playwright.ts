@@ -220,6 +220,15 @@ export class WebPlaywright extends AStepper implements IHasOptions {
 		return { context, path };
 	}
 
+	async captureAccessibilitySnapshot() {
+		return await this.withPage(async (page: Page) => {
+			const snapshot = await page.accessibility.snapshot({
+				interestingOnly: false,
+			});
+			return snapshot;
+		});
+	}
+
 	async setExtraHTTPHeaders(headers: { [name: string]: string; }) {
 		await this.withPage(async () => {
 			const browserContext = await this.getExistingBrowserContext();
@@ -292,10 +301,12 @@ export class WebPlaywright extends AStepper implements IHasOptions {
 	}
 	createMonitor = async () => {
 		if (WebPlaywright.monitorHandler && !WebPlaywright.monitorHandler.monitorPage.isClosed()) {
+			this.getWorld().logger.info('Monitor is already running, bringing existing monitor to front');
 			await WebPlaywright.monitorHandler.monitorPage.bringToFront();
 			return OK;
 		}
 
+		this.getWorld().logger.info('Creating new monitor page');
 		WebPlaywright.monitorHandler = new MonitorHandler(this.getWorld(), this.storage, this.headless)
 		await WebPlaywright.monitorHandler.initMonitor();
 		this.getWorld().logger.addSubscriber(WebPlaywright.monitorHandler.subscriber);

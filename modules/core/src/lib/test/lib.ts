@@ -1,6 +1,5 @@
-import { TWorld, TFeatureStep, TProtoOptions, CStepper, DEFAULT_DEST, TExecutorResult } from '../defs.js';
-import { Resolver } from '../../phases/Resolver.js';
-import { verifyExtraOptions, createSteppers } from './../util/index.js';
+import { TWorld, TProtoOptions, CStepper, DEFAULT_DEST, TExecutorResult } from '../defs.js';
+import { createSteppers } from './../util/index.js';
 import { getRunTag } from '../ttag.js';
 import { getSteppers } from '../util/workspace-lib.js';
 import Logger, { LOGGER_LOG } from '../Logger.js';
@@ -21,25 +20,7 @@ export async function getCreateSteppers(steppers: string[], addSteppers?: CStepp
 	return await createSteppers(csteppers.concat(addSteppers || []));
 }
 
-export const testFeatureStep = (name: string, action): TFeatureStep => ({
-	path: '/features/test',
-	in: name,
-	seq: 0,
-	action,
-});
 
-export async function getTestEnv(useSteppers: string[], test: string, world: TWorld) {
-	const csteppers = await getSteppers(useSteppers);
-	const steppers = await createSteppers(csteppers);
-	await verifyExtraOptions({}, csteppers);
-
-	const resolver = new Resolver(steppers);
-	const actions = resolver.findActionableSteps(test);
-
-	const featureStep = testFeatureStep('test', actions[0]);
-
-	return { world, featureStep, csteppers, steppers };
-}
 type TTestFeatures = { path: string; content: string; base?: string }[];
 
 export async function testWithDefaults(featuresIn: TTestFeatures | string, useSteppers: CStepper[], protoOptions: TProtoOptions = DEF_PROTO_OPTIONS, backgroundsIn: TTestFeatures = []) {
