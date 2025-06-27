@@ -1,13 +1,15 @@
 import { describe, it, expect } from 'vitest';
 
 import { FeatureExecutor } from '../phases/Executor.js';
-import { getDefaultWorld, getTestEnv, testWithDefaults } from '../lib/test/lib.js';
+import { getDefaultWorld, testWithDefaults } from '../lib/test/lib.js';
 import TestSteps from '../lib/test/TestSteps.js';
 import Haibun from './haibun.js';
+import { getActionableStatement } from '../phases/Resolver.js';
 
 describe('prose', () => {
 	it('finds prose', async () => {
-		const { world, featureStep, steppers } = await getTestEnv(['haibun'], 'A sentence.', getDefaultWorld(0));
+		const world = getDefaultWorld(0);
+		const { featureStep, steppers } = getActionableStatement([new Haibun()], 'A sentence.', '/feature/test');
 		const res = await FeatureExecutor.doFeatureStep(steppers, featureStep, world);
 
 		expect(res.ok).toBe(true);

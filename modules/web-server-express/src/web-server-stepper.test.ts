@@ -5,10 +5,11 @@ import WebHttp from '@haibun/web-http/build/web-http.js';
 
 import WebServerStepper from './web-server-stepper.js';
 import { getDefaultWorld } from '@haibun/core/build/lib/test/lib.js';
+import { TEST_PORTS } from './test-constants.js';
 
 describe('static mount', () => {
 	it.skip('serves files', async () => {
-		const feature = { path: '/features/test.feature', content: `serve files from test\nhttp get from http://localhost:8123/testfile webpage returns content "content"` };
+		const feature = { path: '/features/test.feature', content: `serve files from test\nhttp get from http://localhost:${TEST_PORTS.WEB_SERVER_FILES}/testfile webpage returns content "content"` };
 		const result = await testWithDefaults([feature], [WebServerStepper, WebHttp]);
 		expect(result.ok).toBe(true);
 	});
@@ -33,12 +34,12 @@ describe('static mount', () => {
 describe.skip('index mount', () => {
 	// FIXME: This fails when both tests are run
 	it('index files at', async () => {
-		const feature = { path: '/features/test.feature', content: `index files at /test from test\nfetch from http://localhost:8123/test/ contains href="/test/testfile"\nfetch from http://localhost:8123/test/testfile matches "content"` };
+		const feature = { path: '/features/test.feature', content: `index files at /test from test\nfetch from http://localhost:${TEST_PORTS.WEB_SERVER_INDEX}/test/ contains href="/test/testfile"\nfetch from http://localhost:${TEST_PORTS.WEB_SERVER_INDEX}/test/testfile matches "content"` };
 		const result = await testWithDefaults([feature], [WebServerStepper, WebHttp]);
 		expect(result.ok).toBe(true);
 	});
 	it('index files', async () => {
-		const feature = { path: '/features/test.feature', content: `index files from test\nfetch from http://localhost:8123/ contains href="/testfile"\nfetch from http://localhost:8123/testfile matches "content"` };
+		const feature = { path: '/features/test.feature', content: `index files from test\nfetch from http://localhost:${TEST_PORTS.WEB_SERVER_INDEX}/ contains href="/testfile"\nfetch from http://localhost:${TEST_PORTS.WEB_SERVER_INDEX}/testfile matches "content"` };
 		const result = await testWithDefaults([feature], [WebServerStepper, WebHttp]);
 		expect(result.ok).toBe(true);
 	});

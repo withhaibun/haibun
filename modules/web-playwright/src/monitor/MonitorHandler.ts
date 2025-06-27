@@ -58,7 +58,7 @@ export class MonitorHandler {
 
 	async initMonitor() {
 		this.monitorLoc = await this.storage.getCaptureLocation({ ...this.world, mediaType: EMediaTypes.html });
-		console.info(`Creating new monitor page`);
+		this.world.logger.info(`Creating new monitor page`);
 		const browser = await chromium.launch({ headless: this.headless });
 		const context = await browser.newContext();
 		this.monitorPage = await context.newPage();
@@ -146,7 +146,7 @@ document.getElementById('haibun-log-display-area').innerHTML = '';
 	async waitForMonitorPage() {
 		let waitForMonitor = 0;
 		while (!existsSync(monitorLocation) && waitForMonitor < 20) {
-			if (waitForMonitor++ === 1) console.info(`Waiting up to ${20 * .5} seconds for monitor.html`);
+			if (waitForMonitor++ === 1) this.world.logger.info(`Waiting up to ${20 * .5} seconds for monitor.html`);
 			await sleep(500);
 		}
 	}

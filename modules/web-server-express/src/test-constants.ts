@@ -1,0 +1,42 @@
+// Test port constants to avoid conflicts with live server instances
+// Live servers use ports 8123-8125, so tests use 12000+ range
+// Each category gets a 100-port range for expansion
+
+export const TEST_PORTS = {
+  // HTTP Executor tests (12000-12099)
+  HTTP_EXECUTOR_BASE: 12001,
+  HTTP_EXECUTOR_AUTH: 12002,
+  HTTP_EXECUTOR_RETRY: 12003,
+  HTTP_EXECUTOR_TIMEOUT: 12004,
+
+  // Web server tests (12100-12199)
+  WEB_SERVER_FILES: 12101,
+  WEB_SERVER_ROUTE: 12102,
+  WEB_SERVER_EXPRESS: 12103,
+  WEB_SERVER_INDEX: 12104,
+  WEB_SERVER_STATIC: 12105,
+
+  // Web Playwright tests (12200-12299)
+  WEB_PLAYWRIGHT: 12201,
+  WEB_PLAYWRIGHT_BROWSER: 12202,
+  WEB_PLAYWRIGHT_HEADLESS: 12203,
+
+  // MCP tests (12300-12399)
+  MCP_REMOTE_EXECUTOR: 12301,
+  MCP_REMOTE_EXECUTION: 12302,
+  MCP_SERVER_STDIO: 12303,
+  MCP_CLIENT_TEST: 12304,
+
+  // Integration tests (12400-12499)
+  INTEGRATION_BASE: 12401,
+  INTEGRATION_AUTH: 12402,
+  INTEGRATION_MULTI: 12403,
+
+  // Performance/Load tests (12500-12599)
+  PERF_BASE: 12501,
+  LOAD_TEST: 12502,
+
+  // Utility/Mock servers (12600-12699)
+  MOCK_SERVER: 12601,
+  TEST_UTILS: 12602,
+} as const;

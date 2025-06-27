@@ -11,6 +11,7 @@
         { "path": "storage-mem" },
         { "path": "domain-storage" },
         { "path": "storage-fs" },
-        { "path": "out-xunit" }
+        { "path": "out-xunit" },
+	{ "path": "mcp" }
     ]
 }

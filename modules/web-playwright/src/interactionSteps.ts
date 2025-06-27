@@ -488,6 +488,24 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 			}
 		},
 	},
+	takeAccessibilitySnapshot: {
+		gwta: 'take an accessibility snapshot',
+		action: async (notUsed, featureStep: TFeatureStep) => {
+			const snapshot = await wp.captureAccessibilitySnapshot();
+			const artifact = {
+				artifactType: 'json' as const,
+				json: (snapshot as object) || {}
+			};
+			const messageContext = {
+				incident: EExecutionMessageType.ACTION,
+				tag: wp.getWorld().tag,
+				incidentDetails: { step: featureStep },
+				artifact
+			};
+			wp.getWorld().logger.info('Accessibility snapshot captured', messageContext);
+			return OK;
+		},
+	},
 	assertOpen: {
 		gwta: '{what} is expanded with the {using}',
 		action: async ({ what, using }: TNamed) => {

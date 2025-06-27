@@ -1,7 +1,6 @@
-import { TNotOKActionResult, TOKActionResult, TSpecl, TWorld, TRuntime, TModuleOptions, CStepper } from '../defs.js';
+import { TNotOKActionResult, TOKActionResult, TSpecl, TWorld, TRuntime, TModuleOptions, CStepper, OK, TFeatureStep } from '../defs.js';
 import { TAnyFixme } from '../fixme.js';
-import { IHasOptions } from '../astepper.js';
-import { AStepper } from '../astepper.js';
+import { IHasOptions, AStepper } from '../astepper.js';
 import { TTag } from '../ttag.js';
 import { TArtifact, TMessageContext } from '../interfaces/logger.js';
 
@@ -45,7 +44,7 @@ export function randomString() {
 
 export function actionOK(w?: { messageContext?: TMessageContext, artifact?: TArtifact }): TOKActionResult {
 	const { messageContext, artifact } = w || {};
-	return { ok: true, messageContext, artifact };
+	return { ...OK, messageContext, artifact };
 }
 
 export async function createSteppers(steppers: CStepper[]): Promise<AStepper[]> {
@@ -117,7 +116,7 @@ export async function setStepperWorlds(steppers: AStepper[], world: TWorld) {
 		try {
 			await stepper.setWorld(world, steppers);
 		} catch (e) {
-			console.error(`setWorldStepperOptions ${constructorName(stepper)} failed`, e);
+			console.error(`setStepperWorlds for ${constructorName(stepper)} failed`, e);
 			throw e;
 		}
 	}
@@ -234,7 +233,7 @@ export function findStepper<Type>(steppers: AStepper[], name: string): Type {
 	if (!stepper) {
 		// FIXME does not cascade
 		throw Error(
-			`Cannot find ${name} from ${JSON.stringify(
+			`Cannot find stepper ${name} from ${JSON.stringify(
 				steppers.map((s) => constructorName(s)),
 				null,
 				2
@@ -310,17 +309,4 @@ export function shortenUserAgent(ua: string) {
 export function shortenURI(uri: string) {
 	const shortURI = uri.startsWith('https://') ? uri.replace('https://', '') : uri;
 	return shortURI.length < 32 ? shortURI : shortURI.substring(0, 26) + '...' + shortURI.substring(uri.length - 6);
-
-}
-
-export function describeStepperSteps(steppers: AStepper[]) {
-	const a = steppers.reduce((acc, o) => {
-		return {
-			...acc,
-			[(o as TAnyFixme).constructor.name]: Object.entries(o.steps).map(
-				([stepperName, stepperMatch]) => stepperName + ': ' + (stepperMatch.gwta || stepperMatch.match || stepperMatch.match)
-			),
-		};
-	}, {} as { [name: string]: { desc: string } });
-	return a;
 }
