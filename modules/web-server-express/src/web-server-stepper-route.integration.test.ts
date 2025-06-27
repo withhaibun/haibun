@@ -10,6 +10,7 @@ import { TNamed } from '@haibun/core/build/lib/defs.js';
 import { testWithDefaults } from '@haibun/core/build/lib/test/lib.js';
 import WebServerStepper from './web-server-stepper.js';
 import { AStepper } from '@haibun/core/build/lib/astepper.js';
+import { TEST_PORTS } from './test-constants.js';
 
 describe('route mount', () => {
 	it.skip('mounts a route', async () => {
@@ -27,11 +28,11 @@ describe('route mount', () => {
 			};
 		};
 		const wss = new WebServerStepper();
-		const feature = { path: '/features/test.feature', content: `serve test route to /test\nwebserver is listening\nfetch from http://localhost:8124/test is "ok"` };
+		const feature = { path: '/features/test.feature', content: `serve test route to /test\nwebserver is listening\nfetch from http://localhost:${TEST_PORTS.WEB_SERVER_ROUTE}/test is "ok"` };
 		const result = await testWithDefaults([feature], [Server, TestRoute, WebHttp], {
 			options: { DEST: DEFAULT_DEST, },
 			moduleOptions: {
-				[getStepperOptionName(wss, 'PORT')]: '8124',
+				[getStepperOptionName(wss, 'PORT')]: TEST_PORTS.WEB_SERVER_ROUTE.toString(),
 			},
 		});
 		expect(result.ok).toBe(true);
