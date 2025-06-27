@@ -31,7 +31,7 @@ To enable remote execution, configure both the HTTP executor and MCP server with
 HAIBUN_O_WEBPLAYWRIGHT_STORAGE=StorageMem \
 HAIBUN_O_HTTPEXECUTORSTEPPER_LISTEN_PORT=8124 \
 HAIBUN_O_HTTPEXECUTORSTEPPER_ACCESS_TOKEN=your-secret-token \
-node modules/cli/build/cli.js --cwd modules/mcp/test tests
+node modules/cli/build/cli.js --cwd modules/mcp/runtime cli
 ```
 
 If you want the MCP server to connect to a remote execution endpoint, configure it explicitly:

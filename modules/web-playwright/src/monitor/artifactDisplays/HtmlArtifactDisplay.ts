@@ -13,17 +13,13 @@ export class HtmlArtifactDisplay extends ArtifactDisplay {
 		iframe.style.width = '100%';
 		iframe.style.height = '80vh';
 
-		// TArtifactHTML is a union, check for the 'html' property for direct content
 		if ('html' in this.artifact && typeof this.artifact.html === 'string') {
 			iframe.srcdoc = this.artifact.html;
 		} else if ('path' in this.artifact && typeof this.artifact.path === 'string') {
-			// If it has a path, this display class isn't equipped to load it.
-			// Log a warning and show an error in the iframe.
-			console.warn(`HtmlArtifactDisplay received artifact with path: ${this.artifact.path}. This display expects direct HTML content.`);
-            iframe.srcdoc = '<p class="haibun-artifact-error">Error: Artifact is a path, but direct HTML content was expected.</p>';
+			iframe.src = this.artifact.path;
 		} else {
-            iframe.srcdoc = '<p class="haibun-artifact-error">Error: HTML content not available or in an unexpected format.</p>';
-        }
+			iframe.srcdoc = '<p class="haibun-artifact-error">Error: HTML content not available or in an unexpected format.</p>';
+		}
 		container.appendChild(iframe);
 	}
 }
