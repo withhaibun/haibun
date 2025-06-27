@@ -45,25 +45,29 @@ class LogDetailsSummary extends LogComponent<HTMLElement> {
 }
 
 export class LogMessageContent extends LogComponent {
-	readonly artifactDisplay: ArtifactDisplay | null = null;
-	private artifactContainer: HTMLElement | null = null;
-	private hasArtifactBeenRendered = false;
+	readonly artifactDisplays: ArtifactDisplay[] = [];
+	private artifactContainers: HTMLElement[] = [];
 
 	constructor(message: string, messageContext?: TMessageContext) {
 		super('div', 'haibun-message-content');
 
 		if (messageContext) {
-			const { incident, incidentDetails, artifact } = messageContext;
+			const { incident, incidentDetails, artifacts } = messageContext;
 			const summaryMessageToDisplay = getSummaryMessage(message, messageContext);
 			let labelForSummary = EExecutionMessageType[incident] || 'Context';
 
-			// Attempt to create artifact display first, as it might influence the label
-			if (artifact) {
-				this.artifactDisplay = createArtifactDisplay(artifact);
-				if (this.artifactDisplay) {
-					labelForSummary = (this.artifactDisplay.label !== this.artifactDisplay.artifactType)
-						? this.artifactDisplay.label
-						: (this.artifactDisplay.artifactType || labelForSummary);
+			// Create artifact displays for all artifacts
+			if (artifacts && artifacts.length > 0) {
+				for (const artifact of artifacts) {
+					const display = createArtifactDisplay(artifact);
+					if (display) {
+						this.artifactDisplays.push(display);
+						if (display.label !== display.artifactType) {
+							labelForSummary = display.label;
+						} else if (display.artifactType) {
+							labelForSummary = display.artifactType;
+						}
+					}
 				}
 			}
 
@@ -85,29 +89,33 @@ export class LogMessageContent extends LogComponent {
 				detailsElement.appendChild(pre);
 			}
 
-			if (this.artifactDisplay) {
-				const placement = this.artifactDisplay.placementTarget;
-				if (!placement || placement === 'details') {
-					this.artifactContainer = document.createElement('div');
-					this.artifactContainer.className = `haibun-artifact-container haibun-artifact-${this.artifactDisplay.artifactType.replace(/\//g, '-')}`;
-					this.artifactContainer.textContent = 'Artifact is rendering...';
-					detailsElement.appendChild(this.artifactContainer);
+			if (this.artifactDisplays.length > 0) {
+				for (const [i, artifactDisplay] of this.artifactDisplays.entries()) {
+					const placement = artifactDisplay.placementTarget;
+					if (!placement || placement === 'details') {
+						const artifactContainer = document.createElement('div');
+						artifactContainer.className = `haibun-artifact-container haibun-artifact-${artifactDisplay.artifactType.replace(/\//g, '-')}`;
+						artifactContainer.textContent = 'Artifact is rendering...';
+						detailsElement.appendChild(artifactContainer);
+						this.artifactContainers.push(artifactContainer);
 
-					const targetContainer = this.artifactContainer;
-					const onceToggleListener = async () => {
-						if (detailsElement.open && this.artifactDisplay && !this.hasArtifactBeenRendered) {
-							try {
-								await this.artifactDisplay.render(targetContainer);
-							} catch (error) {
-								console.error(`[LogMessageContent] Error rendering artifact ${this.artifactDisplay.label}:`, error);
-								targetContainer.innerHTML = `<p class="haibun-artifact-error">Error loading artifact: ${(error as Error).message}</p>`;
+						// Attach a handler for this artifact container only
+						const onToggle = async () => {
+							if (detailsElement.open) {
+								try {
+									await artifactDisplay.render(artifactContainer);
+								} catch (error) {
+									console.error(`[LogMessageContent] Error rendering artifact ${artifactDisplay.label}:`, error);
+									artifactContainer.innerHTML = `<p class=\"haibun-artifact-error\">Error loading artifact: ${(error as Error).message}</p>`;
+								}
+							} else {
+								artifactContainer.innerHTML = 'Artifact is rendering...';
 							}
-							this.hasArtifactBeenRendered = true;
-						}
-					};
-					detailsElement.addEventListener('toggle', () => { void onceToggleListener(); });
-				} else {
-					void this.renderSpecialPlacementArtifact(this.artifactDisplay, placement);
+						};
+						detailsElement.addEventListener('toggle', onToggle);
+					} else {
+						void this.renderSpecialPlacementArtifact(artifactDisplay, placement);
+					}
 				}
 			}
 			this.append(detailsElement);

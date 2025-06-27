@@ -37,7 +37,7 @@ export const cycles = (wp: WebPlaywright): IStepperCycles => ({
 					const artifact: TArtifactVideo = { artifactType: 'video', path };
 					const context: TMessageContext = {
 						incident: EExecutionMessageType.FEATURE_END,
-						artifact,
+						artifacts: [artifact],
 						tag: wp.getWorld().tag
 					};
 					wp.getWorld().logger.log('feature video', context);
@@ -73,16 +73,16 @@ export const cycles = (wp: WebPlaywright): IStepperCycles => ({
 });
 
 async function createResolvedFeaturesArtifact(wp: WebPlaywright, type: string, resolvedFeatures: TResolvedFeature[], index = undefined) {
-	const loc = await wp.getCaptureDir('image');
-	const mediaType = EMediaTypes.json;
-	// FIXME shouldn't be fs dependant
-	const path = resolve(wp.storage.fromLocation(mediaType, loc, `${type}.json`));
-	const artifact: TArtifactResolvedFeatures = { artifactType: 'resolvedFeatures', resolvedFeatures, index, path };
-	const context: TMessageContext = {
-		incident: EExecutionMessageType.ACTION,
-		artifact,
-		tag: wp.getWorld().tag,
-	};
-	await wp.storage.writeFile(path, JSON.stringify(resolvedFeatures, null, 2), mediaType);
-	wp.getWorld().logger.info(`resolvedFeatures for ${type}`, context);
+    const loc = await wp.getCaptureDir('image');
+    const mediaType = EMediaTypes.json;
+    // FIXME shouldn't be fs dependant
+    const path = resolve(wp.storage.fromLocation(mediaType, loc, `${type}.json`));
+    const artifact: TArtifactResolvedFeatures = { artifactType: 'resolvedFeatures', resolvedFeatures, index, path };
+    const context: TMessageContext = {
+        incident: EExecutionMessageType.ACTION,
+        artifacts: [artifact],
+        tag: wp.getWorld().tag,
+    };
+    await wp.storage.writeFile(path, JSON.stringify(resolvedFeatures, null, 2), mediaType);
+    wp.getWorld().logger.info(`resolvedFeatures for ${type}`, context);
 }

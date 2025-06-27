@@ -73,7 +73,7 @@ export class PlaywrightEvents {
 		}
 		const mc: TMessageContext = {
 			incident: EExecutionMessageType.TRACE,
-			artifact,
+			artifacts: [artifact],
 			tag: this.tag
 		};
 		this.logger.debug(`playwright ${label} ${shortenURI(logData.requestingURL)} ➔ ${targetWithoutRequestingBase}`, mc);

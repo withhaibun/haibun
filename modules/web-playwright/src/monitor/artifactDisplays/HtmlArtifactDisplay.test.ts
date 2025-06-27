@@ -27,7 +27,7 @@ describe('HtmlArtifactDisplay', () => {
 		const context: TMessageContext = {
 			incident: EExecutionMessageType.ACTION,
 			tag: mockTagHtml,
-			artifact
+			artifacts: [artifact]
 		};
 		const logMessageContent = new LogMessageContent('HTML Artifact', context);
 		const element = logMessageContent.element;
