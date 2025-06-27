@@ -5,11 +5,12 @@ import { getStepperOptionName } from '@haibun/core/build/lib/util/index.js';
 
 import { MCPExecutorServer } from './lib/mcp-executor-server.js';
 import WebServerStepper from '@haibun/web-server-express/build/web-server-stepper.js';
-import RemoteExecutorStepper from '@haibun/web-server-express/build/http-executor-stepper.js';
+import HttpExecutorStepper from '@haibun/web-server-express/build/http-executor-stepper.js';
 import VariablesStepper from '@haibun/core/build/steps/variables-stepper.js';
+import { TEST_PORTS } from './test-constants.js';
 
 describe('MCP Remote Executor integration', () => {
-	const webPort = '8126';
+	const webPort = TEST_PORTS.MCP_REMOTE_EXECUTOR.toString();
 	const accessToken = 'mcp-test-token-456';
 
 	it('can create MCP server with remote config', async () => {
@@ -24,14 +25,14 @@ describe('MCP Remote Executor integration', () => {
 		const options = {
 			options: { DEST: DEFAULT_DEST },
 			moduleOptions: {
-				[getStepperOptionName(new RemoteExecutorStepper(), 'LISTEN_PORT')]: webPort,
-				[getStepperOptionName(new RemoteExecutorStepper(), 'ACCESS_TOKEN')]: accessToken,
+				[getStepperOptionName(new HttpExecutorStepper(), 'LISTEN_PORT')]: webPort,
+				[getStepperOptionName(new HttpExecutorStepper(), 'ACCESS_TOKEN')]: accessToken,
 			},
 		};
 
 		const result = await testWithDefaults(
 			[feature],
-			[WebServerStepper, RemoteExecutorStepper, VariablesStepper],
+			[WebServerStepper, HttpExecutorStepper, VariablesStepper],
 			options
 		);
 

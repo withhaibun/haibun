@@ -4,6 +4,7 @@ import { DEFAULT_DEST } from '@haibun/core/build/lib/defs.js';
 
 import { MCPExecutorServer } from './lib/mcp-executor-server.js';
 import VariablesStepper from '@haibun/core/build/steps/variables-stepper.js';
+import { TEST_PORTS } from './test-constants.js';
 
 describe('MCP Remote Execution', () => {
 	it('can create MCP server with and without remote config', async () => {
@@ -33,7 +34,7 @@ describe('MCP Remote Execution', () => {
 			result.steppers,
 			result.world,
 			{
-				url: 'http://localhost:8123',
+				url: `http://localhost:${TEST_PORTS.MCP_REMOTE_EXECUTION}`,
 				accessToken: 'test-token'
 			}
 		);

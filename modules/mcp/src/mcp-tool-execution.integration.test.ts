@@ -1,8 +1,26 @@
 import { describe, it, expect, beforeEach, afterEach, afterAll, beforeAll } from 'vitest';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import { serverParameters } from './mcp-client-stepper.integration.test.js';
+import { StdioServerParameters } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { currentVersion as version } from '@haibun/core/build/currentVersion.js';
+import { TEST_PORTS } from './test-constants.js';
+
+const toolExecutionServerParameters: StdioServerParameters = {
+	command: process.execPath, // Use current Node.js executable (required when node is installed via nvm)
+	env: {
+		'HAIBUN_O_WEBPLAYWRIGHT_STORAGE': 'StorageMem',
+		'HAIBUN_O_WEBPLAYWRIGHT_HEADLESS': 'true',
+		// Use test ports to avoid conflicts with live servers
+		'HAIBUN_O_WEBSERVERSTEPPER_PORT': TEST_PORTS.MCP_TOOL_EXECUTION.toString(),
+		'HAIBUN_O_HTTPEXECUTORSTEPPER_LISTEN_PORT': (TEST_PORTS.MCP_TOOL_EXECUTION + 1).toString(),
+	},
+	args: [
+		"modules/cli/build/cli.js",
+		'--cwd',
+		'modules/mcp/test',
+		"tests",
+	],
+};
 
 describe('haibun-mcp tool execution', () => {
 	let client: Client;
@@ -10,7 +28,7 @@ describe('haibun-mcp tool execution', () => {
 
 	beforeAll(async () => {
 		client = new Client({ name: "haibun-mcp-test-client", version });
-		transport = new StdioClientTransport(serverParameters);
+		transport = new StdioClientTransport(toolExecutionServerParameters);
 		await client.connect(transport);
 	});
 

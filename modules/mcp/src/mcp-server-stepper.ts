@@ -14,6 +14,7 @@ class MCPServerStepper extends AStepper implements IHasOptions {
 		ACCESS_TOKEN: {
 			desc: 'Access token for remote execution API authentication',
 			parse: (token: string) => ({ result: token }),
+			required: true
 		},
 	};
 	remotePort: any;

@@ -6,7 +6,7 @@ import { IRequest, IResponse, IWebServer, WEBSERVER } from './defs.js';
 import WebServerStepper from './web-server-stepper.js';
 import { getActionableStatement } from '@haibun/core/build/phases/Resolver.js';
 
-export default class RemoteExecutorStepper extends AStepper implements IHasOptions {
+export default class HttpExecutorStepper extends AStepper implements IHasOptions {
 	options = {
 		LISTEN_PORT: {
 			desc: 'Port for remote execution API',
@@ -15,6 +15,7 @@ export default class RemoteExecutorStepper extends AStepper implements IHasOptio
 		ACCESS_TOKEN: {
 			desc: 'Access token for remote execution API authentication',
 			parse: (token: string) => ({ result: token }),
+			required: true
 		},
 	};
 

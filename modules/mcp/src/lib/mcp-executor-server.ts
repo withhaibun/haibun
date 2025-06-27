@@ -128,18 +128,36 @@ export class MCPExecutorServer {
 			headers.Authorization = `Bearer ${this.remoteConfig!.accessToken}`;
 		}
 
-		const response = await fetch(`${this.remoteConfig!.url}/execute-step`, {
-			method: 'POST',
-			headers,
-			body: JSON.stringify({ statement, source })
-		});
+		const maxRetries = 3;
+		const retryDelay = 1000;
 
-		if (!response.ok) {
-			const errorText = await response.text();
-			throw new Error(`Remote execution failed: ${response.status} ${errorText}`);
+		for (let attempt = 1; attempt <= maxRetries; attempt++) {
+			try {
+				const response = await fetch(`${this.remoteConfig!.url}/execute-step`, {
+					method: 'POST',
+					headers,
+					body: JSON.stringify({ statement, source })
+				});
+
+				if (!response.ok) {
+					const errorText = await response.text();
+					throw new Error(`Remote execution failed: ${response.status} ${errorText}`);
+				}
+
+				const responseData = await response.json();
+				return responseData;
+
+			} catch (error) {
+				const errorMessage = error instanceof Error ? error.message : String(error);
+
+				if (attempt === maxRetries) {
+					throw new Error(`Remote execution failed after ${maxRetries} attempts: ${errorMessage}`);
+				}
+
+				// Log retry attempt and wait before retrying
+				console.warn(`Remote execution attempt ${attempt} failed: ${errorMessage}. Retrying in ${retryDelay}ms...`);
+				await new Promise(resolve => setTimeout(resolve, retryDelay));
+			}
 		}
-
-		const responseData = await response.json();
-		return responseData;
 	}
 }

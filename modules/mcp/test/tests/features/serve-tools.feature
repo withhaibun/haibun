@@ -1,3 +1,5 @@
+Feature: Remote executor server
+
 serve mcp tools from steppers
 enable remote executor
 webserver is listening

@@ -4,11 +4,11 @@ import { DEFAULT_DEST } from '@haibun/core/build/lib/defs.js';
 import { getStepperOptionName } from '@haibun/core/build/lib/util/index.js';
 
 import WebServerStepper from './web-server-stepper.js';
-import RemoteExecutorStepper from './http-executor-stepper.js';
+import HttpExecutorStepper from './http-executor-stepper.js';
 import VariablesStepper from '@haibun/core/build/steps/variables-stepper.js';
+import { TEST_PORTS } from './test-constants.js';
 
-describe('RemoteExecutorStepper integration', () => {
-	const remotePort = '8125';
+describe('HttpExecutorStepper integration', () => {
 	const accessToken = 'test-secret-token-123';
 
 	const baseOptions = {
@@ -17,6 +17,7 @@ describe('RemoteExecutorStepper integration', () => {
 	};
 
 	it('enables remote executor without authentication', async () => {
+		const testPort = TEST_PORTS.HTTP_EXECUTOR_BASE.toString();
 		const feature = {
 			path: '/features/http-executor.feature',
 			content: `
@@ -30,13 +31,13 @@ describe('RemoteExecutorStepper integration', () => {
 			...baseOptions,
 			moduleOptions: {
 				...baseOptions.moduleOptions,
-				[getStepperOptionName(new RemoteExecutorStepper(), 'LISTEN_PORT')]: remotePort,
+				[getStepperOptionName(new HttpExecutorStepper(), 'LISTEN_PORT')]: testPort,
 			},
 		};
 
 		const result = await testWithDefaults(
 			[feature],
-			[WebServerStepper, RemoteExecutorStepper, VariablesStepper],
+			[WebServerStepper, HttpExecutorStepper, VariablesStepper],
 			options
 		);
 
@@ -44,6 +45,7 @@ describe('RemoteExecutorStepper integration', () => {
 	});
 
 	it('enables remote executor with authentication', async () => {
+		const testPort = TEST_PORTS.HTTP_EXECUTOR_AUTH.toString();
 		const feature = {
 			path: '/features/http-executor-auth.feature',
 			content: `
@@ -57,14 +59,14 @@ describe('RemoteExecutorStepper integration', () => {
 			...baseOptions,
 			moduleOptions: {
 				...baseOptions.moduleOptions,
-				[getStepperOptionName(new RemoteExecutorStepper(), 'LISTEN_PORT')]: remotePort,
-				[getStepperOptionName(new RemoteExecutorStepper(), 'ACCESS_TOKEN')]: accessToken,
+				[getStepperOptionName(new HttpExecutorStepper(), 'LISTEN_PORT')]: testPort,
+				[getStepperOptionName(new HttpExecutorStepper(), 'ACCESS_TOKEN')]: accessToken,
 			},
 		};
 
 		const result = await testWithDefaults(
 			[feature],
-			[WebServerStepper, RemoteExecutorStepper, VariablesStepper],
+			[WebServerStepper, HttpExecutorStepper, VariablesStepper],
 			options
 		);
 
@@ -83,7 +85,7 @@ describe('RemoteExecutorStepper integration', () => {
 		// No LISTEN_PORT configured
 		const result = await testWithDefaults(
 			[feature],
-			[WebServerStepper, RemoteExecutorStepper, VariablesStepper],
+			[WebServerStepper, HttpExecutorStepper, VariablesStepper],
 			baseOptions
 		);
 

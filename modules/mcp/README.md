@@ -26,7 +26,7 @@ To enable remote execution with authentication:
 
 ```bash
 # Start Haibun with remote executor enabled and access token
-HAIBUN_O_REMOTE_EXECUTOR=true HAIBUN_O_ACCESS_TOKEN=your-secret-token node modules/cli/build/cli.js --cwd modules/mcp/test tests
+HAIBUN_O_HTTPEXECUTORSTEPPER_LISTEN_PORT=8124 HAIBUN_O_HTTPEXECUTORSTEPPER_ACCESS_TOKEN=your-secret-token node modules/cli/build/cli.js --cwd modules/mcp/test tests
 ```
 
 Then configure the MCP server to use the remote endpoint:
