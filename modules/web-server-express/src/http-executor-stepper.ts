@@ -56,11 +56,13 @@ export default class HttpExecutorStepper extends AStepper implements IHasOptions
 					const providedToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
 
 					if (!providedToken || providedToken !== this.configuredToken) {
+						this.getWorld().logger.warn(`Unauthorized access attempt with token: "${providedToken}"`);
 						res.status(401).json({ error: 'Invalid or missing access token' });
 						return;
 					}
 
 					if (!['statement', 'source'].every(key => typeof req.body[key] === 'string')) {
+						this.getWorld().logger.warn(`missing or invalid body parameters: ${JSON.stringify(req.body)}`);
 						res.status(400).json({ error: 'statement and source are required' });
 						return;
 					}
