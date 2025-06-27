@@ -73,7 +73,7 @@ export const cycles = (wp: WebPlaywright): IStepperCycles => ({
 });
 
 async function createResolvedFeaturesArtifact(wp: WebPlaywright, type: string, resolvedFeatures: TResolvedFeature[], index = undefined) {
-    const loc = await wp.getCaptureDir('image');
+    const loc = await wp.getCaptureDir('json');
     const mediaType = EMediaTypes.json;
     // FIXME shouldn't be fs dependant
     const path = resolve(wp.storage.fromLocation(mediaType, loc, `${type}.json`));
