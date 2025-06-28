@@ -11,11 +11,12 @@ class MCPClientStepper extends AStepper implements IHasOptions {
 	static SERVER = 'SERVER';
 	options = {
 		[MCPClientStepper.SERVER]: {
-			desc: `MCP server to connect to`,
+			desc: `MCP server to start (stdio)`,
 			parse: (input: string) => stringOrError(input)
 		},
 	}
 	serverParameters: StdioServerParameters;
+	client: Client<{ method: string; params?: { [x: string]: unknown; _meta?: { [x: string]: unknown; progressToken?: string | number; }; }; }, { method: string; params?: { [x: string]: unknown; _meta?: { [x: string]: unknown; }; }; }, { [x: string]: unknown; _meta?: { [x: string]: unknown; }; }>;
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
 		const serverJson = getStepperOption(this, MCPClientStepper.SERVER, this.world.moduleOptions);
@@ -31,12 +32,12 @@ class MCPClientStepper extends AStepper implements IHasOptions {
 			gwta: `list mcp tools`,
 			action: async () => {
 				try {
-					const client = new Client({ name: "haibun-mcp-client", version });
+					this.client = new Client({ name: "haibun-mcp-client", version });
 					const transport = new StdioClientTransport(this.serverParameters);
-					await client.connect(transport);
-					const toolsResult = await client.listTools();
-					await client.close();
+					await this.client.connect(transport);
+					const toolsResult = await this.client.listTools();
 					const tools = Array.isArray(toolsResult) ? toolsResult : (toolsResult.tools || []);
+					await this.client.close();
 					const messageContext: TMessageContext = { incident: EExecutionMessageType.ACTION, incidentDetails: { tools } }
 					return actionOK({ messageContext });
 				} catch (e) {
@@ -45,6 +46,21 @@ class MCPClientStepper extends AStepper implements IHasOptions {
 				}
 			}
 		},
+		shutdownMcpClient: {
+			gwta: `shutdown mcp client`,
+			action: async () => {
+				try {
+					const client = new Client({ name: "haibun-mcp-client", version });
+					const transport = new StdioClientTransport(this.serverParameters);
+					await client.connect(transport);
+					await client.close();
+					return actionOK();
+				} catch (e) {
+					console.error(e);
+					return actionNotOK(`Failed to shutdown MCP client: ${e}`);
+				}
+			}
+		}
 	}
 }
 

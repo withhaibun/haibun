@@ -1,4 +1,4 @@
-import { TNotOKActionResult, TOKActionResult, TSpecl, TWorld, TRuntime, TModuleOptions, CStepper, OK, TFeatureStep } from '../defs.js';
+import { TNotOKActionResult, TOKActionResult, TSpecl, TWorld, TRuntime, TModuleOptions, CStepper, OK } from '../defs.js';
 import { TAnyFixme } from '../fixme.js';
 import { IHasOptions, AStepper } from '../astepper.js';
 import { TTag } from '../ttag.js';

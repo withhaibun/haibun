@@ -56,20 +56,20 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 			return Promise.resolve(!cur ? OK : actionNotOK(`${what} is ${cur}`));
 		},
 	},
-	seeTestId: {
+	shouldSeeTestId: {
 		gwta: 'has test id {testId}',
 		action: async ({ testId }: TNamed) => {
 			const found = await wp.withPage(async (page: Page) => await page.getByTestId(testId));
 			return found ? OK : actionNotOK(`Did not find test id ${testId}`);
 		},
 	},
-	seeTextIn: {
+	shouldSeeTextIn: {
 		gwta: 'in {selector}, see {text}',
 		action: async ({ text, selector }: TNamed) => {
 			return await wp.sees(text, selector);
 		},
 	},
-	seeText: {
+	shouldSeeText: {
 		gwta: 'see {text}',
 		action: async ({ text }: TNamed) => {
 			return await wp.sees(text, 'body');
@@ -101,7 +101,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 			return OK;
 		},
 	},
-	onNewPage: {
+	onNewTab: {
 		gwta: `on a new tab`,
 		action: async () => {
 			wp.newTab();
@@ -490,7 +490,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 	},
 	takeAccessibilitySnapshot: {
 		gwta: 'take an accessibility snapshot',
-		action: async (notUsed, featureStep: TFeatureStep) => {
+		action: async () => {
 			const snapshot = await wp.captureAccessibilitySnapshot();
 			const artifact = {
 				artifactType: 'json' as const,
@@ -499,7 +499,6 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 			const messageContext = {
 				incident: EExecutionMessageType.ACTION,
 				tag: wp.getWorld().tag,
-				incidentDetails: { step: featureStep },
 				artifact
 			};
 			wp.getWorld().logger.info('Accessibility snapshot captured', messageContext);
