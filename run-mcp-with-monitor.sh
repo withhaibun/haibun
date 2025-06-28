@@ -16,7 +16,7 @@ export HAIBUN_O_HTTPEXECUTORSTEPPER_LISTEN_PORT=8125
 export HAIBUN_O_HTTPEXECUTORSTEPPER_ACCESS_TOKEN=mooCowMoo
 
 # Start the MCP server with monitoring enabled
-node modules/cli/build/cli.js --cwd modules/mcp/runtime cli start-executor
+node modules/cli/build/cli.js --cwd modules/mcp/runtime http
 
 echo "✅ MCP Server with monitoring started!"
 echo "💡 Use MCP tools to interact with the browser and watch the results in the monitor"
