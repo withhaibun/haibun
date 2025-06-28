@@ -1,7 +1,7 @@
 import { AStepper, IHasOptions } from '@haibun/core/build/lib/astepper.js';
 import { TStepResult, TWorld } from '@haibun/core/build/lib/defs.js';
 import { FeatureExecutor } from '@haibun/core/build/phases/Executor.js';
-import { actionOK, getFromRuntime, getStepperOption, intOrError } from '@haibun/core/build/lib/util/index.js';
+import { actionNotOK, actionOK, getFromRuntime, getStepperOption, intOrError } from '@haibun/core/build/lib/util/index.js';
 import { IRequest, IResponse, IWebServer, WEBSERVER } from './defs.js';
 import WebServerStepper from './web-server-stepper.js';
 import { getActionableStatement } from '@haibun/core/build/phases/Resolver.js';
@@ -92,13 +92,16 @@ export default class HttpExecutorStepper extends AStepper implements IHasOptions
 		});
 
 		this.routeAdded = true;
-		this.getWorld().logger.warn('⚠️  DANGEROUS: Remote executor route added at /execute-step');
+		this.getWorld().logger.warn(`⚠️  Remote executor route added with ACCESS_TOKEN on port ${this.port}.`);
 	}
 
 	steps = {
 		enableRemoteExecutor: {
 			gwta: 'enable remote executor',
 			action: () => {
+				if (isNaN(this.port)) {
+					return Promise.resolve(actionNotOK('Remote executor is not configured - LISTEN_PORT is not set'));
+				}
 				this.addRemoteExecutorRoute();
 				return Promise.resolve(actionOK());
 			},
