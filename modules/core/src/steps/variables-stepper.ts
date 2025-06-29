@@ -1,6 +1,6 @@
 import { OK, TNamed, TFeatureStep, TWorld, IStepperCycles, TStartScenario } from '../lib/defs.js';
 import { TAnyFixme } from '../lib/fixme.js';
-import { AStepper } from '../lib/astepper.js';
+import { AStepper, IHasCycles } from '../lib/astepper.js';
 import { EExecutionMessageType, TMessageContext } from '../lib/interfaces/logger.js';
 import { actionNotOK, actionOK } from '../lib/util/index.js';
 import { FeatureVariables } from '../lib/feature-variables.js';
@@ -22,7 +22,7 @@ const cycles = (variablesStepper: VariablesStepper): IStepperCycles => ({
 	},
 });
 
-class VariablesStepper extends AStepper {
+class VariablesStepper extends AStepper implements IHasCycles {
 	cycles = cycles(this);
 	set = async (named: TNamed, featureStep: TFeatureStep) => {
 		// FIXME see https://github.com/withhaibun/haibun/issues/18

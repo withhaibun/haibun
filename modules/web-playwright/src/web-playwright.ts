@@ -12,7 +12,7 @@ import { EMediaTypes } from '@haibun/domain-storage/build/media-types.js';
 
 import { MonitorHandler } from './monitor/MonitorHandler.js';
 import { TAnyFixme } from '@haibun/core/build/lib/fixme.js';
-import { AStepper, IHasOptions } from '@haibun/core/build/lib/astepper.js';
+import { AStepper, IHasCycles, IHasOptions } from '@haibun/core/build/lib/astepper.js';
 import { cycles } from './cycles.js';
 import { interactionSteps } from './interactionSteps.js';
 import { restSteps, TCapturedResponse } from './rest-playwright.js';
@@ -36,7 +36,7 @@ type TRequestOptions = {
 	userAgent?: string
 };
 
-export class WebPlaywright extends AStepper implements IHasOptions {
+export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	cycles = cycles(this);
 	static STORAGE = 'STORAGE';
 	static PERSISTENT_DIRECTORY = 'PERSISTENT_DIRECTORY';
