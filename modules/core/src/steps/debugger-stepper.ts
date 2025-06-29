@@ -1,5 +1,5 @@
 
-import { AStepper } from '../lib/astepper.js';
+import { AStepper, IHasCycles } from '../lib/astepper.js';
 import { IStepperCycles, TActionResult, OK, TWorld, TNamed, TBeforeStep, TAfterStep, TAfterStepResult } from '../lib/defs.js';
 
 export enum TDebuggingType {
@@ -32,7 +32,7 @@ const cycles = (stepper: DebuggerStepper): IStepperCycles => ({
 	}
 });
 
-export class DebuggerStepper extends AStepper {
+export class DebuggerStepper extends AStepper implements IHasCycles {
 	debuggingType: TDebuggingType = TDebuggingType.Continue;
 	cycles: IStepperCycles = cycles(this);
 	steppers: AStepper[];
