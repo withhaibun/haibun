@@ -1,11 +1,11 @@
 import { TPrompt } from "@haibun/core/build/lib/prompter.js";
 
 declare global {
-	interface Window {
-		haibunResolvePrompt: (action: string) => void;
-		showPromptControls: (prompt: string) => void;
-		hidePromptControls: () => void;
-	}
+    interface Window {
+        haibunResolvePrompt: (id: string, action: string) => void;
+        showPromptControls: (prompts: string) => void;
+        hidePromptControls: () => void;
+    }
 }
 
 let userScrolledManually = false;
@@ -248,73 +248,69 @@ export function setupVideoPlayback() {
 	}
 
 	window.addEventListener('DOMContentLoaded', () => {
-		const promptContainer = document.getElementById('haibun-prompt-controls-container');
-		const rerunButton = <HTMLButtonElement>document.getElementById('haibun-retry-button');
-		const failButton = <HTMLButtonElement>document.getElementById('haibun-fail-button');
-		const stepButton = <HTMLButtonElement>document.getElementById('haibun-step-button');
-		const continueButton = <HTMLButtonElement>document.getElementById('haibun-continue-button');
-		const messageArea = document.getElementById('haibun-prompt-message');
+    const promptContainer = document.getElementById('haibun-prompt-controls-container');
+    const rerunButton = <HTMLButtonElement>document.getElementById('haibun-retry-button');
+    const failButton = <HTMLButtonElement>document.getElementById('haibun-fail-button');
+    const stepButton = <HTMLButtonElement>document.getElementById('haibun-step-button');
+    const continueButton = <HTMLButtonElement>document.getElementById('haibun-continue-button');
+    const messageArea = document.getElementById('haibun-prompt-message');
 
-		window.showPromptControls = (prompt) => {
-			const { message, options } = <TPrompt>JSON.parse(prompt);
-			messageArea.textContent = message;
-			if (options.includes('r') || options.includes('retry')) {
-				rerunButton.disabled = false;
-			}
-			if (options.includes('f') || options.includes('fail')) {
-				failButton.disabled = false;
-			}
-			if (options.includes('s') || options.includes('step')) {
-				stepButton.disabled = false;
-			}
-			if (options.includes('c') || options.includes('continue')) {
-				continueButton.disabled = false;
-			}
+    // Store current prompt id and options for button actions
+    let currentPrompt: TPrompt | undefined;
 
-			promptContainer.classList.add('paused-program-glow');
-			promptContainer.style.display = 'flex';
-		};
+    window.showPromptControls = (promptsJson) => {
+        const prompts: TPrompt[] = JSON.parse(promptsJson);
+        if (!prompts.length) {
+            promptContainer.style.display = 'none';
+            promptContainer.classList.remove('paused-program-glow');
+            messageArea.textContent = '';
+            rerunButton.disabled = true;
+            failButton.disabled = true;
+            stepButton.disabled = true;
+            continueButton.disabled = true;
+            currentPrompt = undefined;
+            return;
+        }
+        // Only show the first outstanding prompt (for classic controls)
+        const prompt = prompts[0];
+        currentPrompt = prompt;
+        messageArea.textContent = prompt.message;
+        // Enable/disable buttons based on options
+        rerunButton.disabled = !prompt.options?.includes('retry');
+        failButton.disabled = !prompt.options?.includes('fail');
+        stepButton.disabled = !prompt.options?.includes('step');
+        continueButton.disabled = !prompt.options?.includes('continue');
+        promptContainer.classList.add('paused-program-glow');
+        promptContainer.style.display = 'flex';
+    };
 
-		window.hidePromptControls = () => {
-			promptContainer.style.display = 'none';
-			promptContainer.classList.remove('paused-program-glow');
-		}
-		rerunButton.disabled = true;
-		failButton.disabled = true;
-		stepButton.disabled = true;
-		continueButton.disabled = true;
-		messageArea.textContent = '';
+    window.hidePromptControls = () => {
+        promptContainer.style.display = 'none';
+        promptContainer.classList.remove('paused-program-glow');
+        messageArea.textContent = '';
+        rerunButton.disabled = true;
+        failButton.disabled = true;
+        stepButton.disabled = true;
+        continueButton.disabled = true;
+        currentPrompt = undefined;
+    };
 
-		window.hidePromptControls();
+    rerunButton.addEventListener('click', () => {
+        if (currentPrompt) window.haibunResolvePrompt(currentPrompt.id, 'retry');
+    });
+    failButton.addEventListener('click', () => {
+        if (currentPrompt) window.haibunResolvePrompt(currentPrompt.id, 'fail');
+    });
+    stepButton.addEventListener('click', () => {
+        if (currentPrompt) window.haibunResolvePrompt(currentPrompt.id, 'step');
+    });
+    continueButton.addEventListener('click', () => {
+        if (currentPrompt) window.haibunResolvePrompt(currentPrompt.id, 'continue');
+    });
 
-		rerunButton.addEventListener('click', () => {
-			window.haibunResolvePrompt('retry');
-		});
-		failButton.addEventListener('click', () => {
-			window.haibunResolvePrompt('fail');
-		});
-		stepButton.addEventListener('click', () => {
-			window.haibunResolvePrompt('step');
-		});
-		continueButton.addEventListener('click', () => {
-			window.haibunResolvePrompt('continue');
-		});
-		const logEntries = document.querySelectorAll('.haibun-log-entry');
-		if (logEntries.length > 0) {
-			// If no current, set the first as current and all as notplayed
-			if (!document.querySelector('.haibun-stepper-current')) {
-				logEntries.forEach(entry => {
-					entry.classList.remove('haibun-stepper-current', 'haibun-stepper-played', 'haibun-stepper-notplayed');
-					entry.classList.add('haibun-stepper-notplayed');
-				});
-				logEntries[0].classList.add('haibun-stepper-current');
-			}
-			// Scroll to the current entry
-			setTimeout(() => {
-				logEntries[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
-			}, 0);
-		}
-	});
+    window.hidePromptControls();
+});
+
 }
 
 function findLogEntry(element: HTMLElement): HTMLElement | null {

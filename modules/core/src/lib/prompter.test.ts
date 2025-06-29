@@ -1,9 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { IPrompter, Prompter, ReadlinePrompter } from './prompter.js';
+import { IPrompter, Prompter, TPromptResponse } from './prompter.js';
+import { makePrompt } from './prompter.js';
+import { ReadlinePrompter } from './readline-prompter.js';
 
 class TestPrompter implements IPrompter {
-	constructor(private answer) { }
+	constructor(private answer: TPromptResponse) { }
 	prompt = async () => Promise.resolve(this.answer);
+	cancel(_id: string, _reason?: string) { }
+	resolve(_id: string, _value: TPromptResponse) { }
 }
 
 describe('Prompter', () => {
@@ -15,10 +19,12 @@ describe('Prompter', () => {
 				CallsPrompter.calls++;
 				return Promise.resolve(undefined);
 			}
+			cancel(_id: string, _reason?: string) { }
+			resolve(_id: string, _value: TPromptResponse) { }
 		}
 		prompter.subscribe(new CallsPrompter());
 		prompter.subscribe(new CallsPrompter());
-		const result = await prompter.prompt({ message: 'What?' });
+		const result = await prompter.prompt(makePrompt('What?'));
 		expect(result).toBe(undefined);
 		expect(CallsPrompter.calls).toBe(2);
 	});
@@ -26,12 +32,12 @@ describe('Prompter', () => {
 		const prompter = new Prompter();
 		prompter.subscribe(new TestPrompter(undefined));
 		prompter.subscribe(new TestPrompter(undefined));
-		const result = await prompter.prompt({ message: 'What?' });
+		const result = await prompter.prompt(makePrompt('What?'));
 		expect(result).toBeUndefined();
 	});
 	it('unsubscribes default prompter', () => {
 		const prompter = new Prompter();
-		prompter.unsubscribe(new ReadlinePrompter());
+		prompter.unsubscribe(prompter.getDefaultPrompter());
 		expect(prompter['subscribers']).toHaveLength(0);
 	});
 });
