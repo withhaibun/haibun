@@ -1,12 +1,18 @@
-import { AStepper, IHasOptions } from '@haibun/core/build/lib/astepper.js';
+import { AStepper, IHasCycles, IHasOptions } from '@haibun/core/build/lib/astepper.js';
 import { TStepResult, TWorld } from '@haibun/core/build/lib/defs.js';
 import { FeatureExecutor } from '@haibun/core/build/phases/Executor.js';
 import { actionNotOK, actionOK, getFromRuntime, getStepperOption, intOrError } from '@haibun/core/build/lib/util/index.js';
 import { IRequest, IResponse, IWebServer, WEBSERVER } from './defs.js';
 import WebServerStepper from './web-server-stepper.js';
 import { getActionableStatement } from '@haibun/core/build/phases/Resolver.js';
+import { HttpPrompter } from './http-prompter.js';
 
-export default class HttpExecutorStepper extends AStepper implements IHasOptions {
+export const HTTP_PROMPTER_ENDPOINTS = {
+	PROMPTS: '/prompts', // GET: list all pending prompts
+	PROMPT_RESPONSE: '/prompt', // POST: respond to a prompt { promptId, response }
+};
+
+export default class HttpExecutorStepper extends AStepper implements IHasOptions, IHasCycles {
 	options = {
 		LISTEN_PORT: {
 			desc: 'Port for remote execution API',
@@ -17,9 +23,18 @@ export default class HttpExecutorStepper extends AStepper implements IHasOptions
 			parse: (token: string) => ({ result: token }),
 		},
 	};
+	cycles = {
+		async startFeature() {
+			this.addRemoteExecutorRoute();
+		},
+		async endFeature() {
+			this.close();
+		}
+	}
 
 	private routeAdded = false;
 	private steppers: AStepper[] = [];
+	protected httpPrompter?: HttpPrompter;
 	configuredToken: string;
 	port: number;
 
@@ -52,12 +67,7 @@ export default class HttpExecutorStepper extends AStepper implements IHasOptions
 		webserver.addRoute('post', '/execute-step', (req: IRequest, res: IResponse) => {
 			void (async () => {
 				try {
-					const authHeader = req.headers.authorization;
-					const providedToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
-
-					if (!providedToken || providedToken !== this.configuredToken) {
-						this.getWorld().logger.warn(`Unauthorized access attempt with token: "${providedToken}"`);
-						res.status(401).json({ error: 'Invalid or missing access token' });
+					if (!this.checkAuth(req, res)) {
 						return;
 					}
 
@@ -73,11 +83,7 @@ export default class HttpExecutorStepper extends AStepper implements IHasOptions
 
 					const { featureStep } = await getActionableStatement(steppers, statement, source);
 
-					const result: TStepResult = await FeatureExecutor.doFeatureStep(
-						steppers,
-						featureStep,
-						world
-					);
+					const result: TStepResult = await FeatureExecutor.doFeatureStep(steppers, featureStep, world);
 
 					res.json(result);
 
@@ -91,8 +97,50 @@ export default class HttpExecutorStepper extends AStepper implements IHasOptions
 			})();
 		});
 
+		// Add prompt handling routes
+		webserver.addRoute('get', '/prompts', (req: IRequest, res: IResponse) => {
+			if (!this.checkAuth(req, res)) {
+				return;
+			}
+
+			const prompts = this.httpPrompter.getPendingPrompts();
+			res.json({ prompts });
+		});
+
+		webserver.addRoute('post', '/prompt', (req: IRequest, res: IResponse) => {
+			try {
+				if (!this.checkAuth(req, res)) {
+					return;
+				}
+
+				if (!['promptId', 'response'].every(key => req.body[key] !== undefined)) {
+					res.status(400).json({ error: 'promptId and response are required' });
+					return;
+				}
+
+				const { promptId, response } = req.body;
+
+				this.httpPrompter.resolve(promptId, response);
+				res.json({ success: true, promptId, fixme: "This should actually test if it passed" });
+
+			} catch (error) {
+				const errorMessage = error instanceof Error ? error.message : String(error);
+				res.status(500).json({ error: errorMessage });
+			}
+		});
+
 		this.routeAdded = true;
 		this.getWorld().logger.warn(`⚠️  Remote executor route added with ACCESS_TOKEN on port ${this.port}.`);
+	}
+	checkAuth(req: IRequest, res: IResponse): boolean {
+		const authHeader = req.headers.authorization;
+		const providedToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+
+		if (!providedToken || providedToken !== this.configuredToken) {
+			this.getWorld().logger.warn(`Unauthorized access attempt with token: "${providedToken}"`);
+			res.status(401).json({ error: 'Invalid or missing access token' });
+			return;
+		}
 	}
 
 	steps = {
@@ -103,8 +151,15 @@ export default class HttpExecutorStepper extends AStepper implements IHasOptions
 					return Promise.resolve(actionNotOK('Remote executor is not configured - LISTEN_PORT is not set'));
 				}
 				this.addRemoteExecutorRoute();
+				this.httpPrompter = new HttpPrompter(this.getWorld());
 				return Promise.resolve(actionOK());
 			},
 		},
-	};
+	}
+	close() {
+		if (this.httpPrompter) {
+			this.world.prompter.unsubscribe(this.httpPrompter);
+			this.httpPrompter = undefined;
+		}
+	}
 }
