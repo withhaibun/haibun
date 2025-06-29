@@ -5,7 +5,7 @@ import { ServerExpress, DEFAULT_PORT } from './server-express.js';
 import { WEB_PAGE } from '@haibun/core/build/lib/domain-types.js';
 import path from 'path';
 import { EExecutionMessageType } from '@haibun/core/build/lib/interfaces/logger.js';
-import { AStepper, IHasOptions } from '@haibun/core/build/lib/astepper.js';
+import { AStepper, IHasCycles, IHasOptions } from '@haibun/core/build/lib/astepper.js';
 
 const cycles = (wss: WebServerStepper): IStepperCycles => ({
 	async startFeature() {
@@ -23,7 +23,7 @@ const cycles = (wss: WebServerStepper): IStepperCycles => ({
 	}
 });
 
-class WebServerStepper extends AStepper implements IHasOptions {
+class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 	webserver: ServerExpress | undefined;
 	cycles: IStepperCycles = cycles(this);
 

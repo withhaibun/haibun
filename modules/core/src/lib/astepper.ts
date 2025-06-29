@@ -32,6 +32,10 @@ export interface IHasOptions {
 	};
 }
 
+export interface IHasCycles {
+	cycles: IStepperCycles;
+}
+
 export interface IProcessFeatureResults extends AStepper {
 	processFeatureResult: (executorResult: TExecutorResult) => Promise<void>;
 }
