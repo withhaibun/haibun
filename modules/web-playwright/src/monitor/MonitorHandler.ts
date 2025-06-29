@@ -12,7 +12,8 @@ import { sleep } from '@haibun/core/build/lib/util/index.js';
 import { actualURI } from '@haibun/core/build/lib/util/actualURI.js';
 import { TAnyFixme } from '@haibun/core/build/lib/fixme.js';
 import { TLogEntry } from './monitor.js';
-import { IPrompter, TPromptResponse, TPrompt } from '@haibun/core/build/lib/prompter.js';
+import { TPromptResponse, TPrompt } from '@haibun/core/build/lib/prompter.js';
+import { BasePromptManager } from '@haibun/core/build/lib/base-prompt-manager.js';
 
 declare global {
 	interface Window {
@@ -25,26 +26,37 @@ declare global {
 const monitorLocation = join(getPackageLocation(import.meta), '..', '..', 'web', 'monitor.html');
 const capturedMessages: TLogEntry[] = [];
 
-class ButtonPrompter implements IPrompter {
-	private currentPromptResolve?: (response: TPromptResponse) => void;
+class ButtonPrompter extends BasePromptManager {
+	private monitorHandler: MonitorHandler;
+	private buttonPrompts: Map<string, TPrompt> = new Map();
 
-	constructor(private monitorHandler: MonitorHandler) { }
-
-	async prompt(prompt: TPrompt): Promise<TPromptResponse> {
-		return new Promise<TPromptResponse>((resolve, reject) => {
-			this.currentPromptResolve = resolve;
-			this.monitorHandler.inMonitor<string>(
-				(message) => window.showPromptControls(message),
-				JSON.stringify(prompt)
-			).catch(reject);
-		});
+	constructor(monitorHandler: MonitorHandler) {
+		super();
+		this.monitorHandler = monitorHandler;
 	}
 
-	resolvePrompt(response: TPromptResponse) {
-		if (this.currentPromptResolve) {
-			this.currentPromptResolve(response);
-			this.currentPromptResolve = undefined;
-		}
+	protected showPrompt(prompt: TPrompt): void {
+		this.buttonPrompts.set(prompt.id, prompt);
+		void this.monitorHandler.inMonitor<string>(
+			(prompts) => window.showPromptControls(prompts),
+			JSON.stringify(Array.from(this.buttonPrompts.values()))
+		);
+	}
+
+	protected hidePrompt(id: string): void {
+		this.buttonPrompts.delete(id);
+		void this.monitorHandler.inMonitor<string>(
+			(prompts) => window.showPromptControls(prompts),
+			JSON.stringify(this.buttonPrompts)
+		);
+	}
+
+	// Expose resolve and cancel as public methods
+	public resolve(id: string, response: TPromptResponse) {
+		super.resolve(id, response);
+	}
+	public cancel(id: string, reason?: string) {
+		super.cancel(id, reason);
 	}
 }
 
@@ -52,6 +64,7 @@ export class MonitorHandler {
 	subscriber: ILogOutput;
 	monitorPage: Page;
 	monitorLoc: string;
+	buttonPrompter: ButtonPrompter;
 
 	constructor(private world: TWorld, private storage: AStorage, private headless: boolean) {
 	}
@@ -63,17 +76,10 @@ export class MonitorHandler {
 		const context = await browser.newContext();
 		this.monitorPage = await context.newPage();
 
-		await this.monitorPage.exposeFunction('haibunResolvePrompt', (response: TPromptResponse) => {
-			if (this.buttonPrompter) {
-				this.buttonPrompter.resolvePrompt(response);
-				void this.inMonitor(() => {
-					window.hidePromptControls();
-				});
-			} else {
-				this.world.logger.error('ButtonPrompter not initialized when haibunResolvePrompt was called.');
-			}
+		this.buttonPrompter = new ButtonPrompter(this);
+		await this.monitorPage.exposeFunction('haibunResolvePrompt', (id: string, response: TPromptResponse) => {
+			this.buttonPrompter.resolve(id, response);
 		});
-
 		await this.waitForMonitorPage();
 		await this.monitorPage.goto(pathToFileURL(monitorLocation).toString(), { waitUntil: 'networkidle' });
 
@@ -98,11 +104,8 @@ export class MonitorHandler {
 				}, JSON.stringify(logEntry));
 			}
 		};
-		this.buttonPrompter = new ButtonPrompter(this);
 		this.world.prompter.subscribe(this.buttonPrompter);
 	}
-
-	private buttonPrompter?: ButtonPrompter;
 
 	async writeMonitor() {
 		if (!this.monitorPage || this.monitorPage.isClosed()) {

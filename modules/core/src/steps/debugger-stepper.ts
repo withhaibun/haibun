@@ -1,6 +1,6 @@
-
 import { AStepper, IHasCycles } from '../lib/astepper.js';
 import { IStepperCycles, TActionResult, OK, TWorld, TNamed, TBeforeStep, TAfterStep, TAfterStepResult } from '../lib/defs.js';
+import { makePrompt } from '../lib/prompter.js';
 
 export enum TDebuggingType {
 	StepByStep = 'stepByStep',
@@ -10,12 +10,12 @@ export enum TDebuggingType {
 const cycles = (stepper: DebuggerStepper): IStepperCycles => ({
 	async beforeStep({ action }: TBeforeStep) {
 		if (stepper.debuggingType === TDebuggingType.StepByStep) {
-			const response = await stepper.getWorld().prompter.prompt({ message: 'step or continue', options: ['step', 'continue', 's', 'c'] });
+			const response = await stepper.getWorld().prompter.prompt(makePrompt('step or continue', undefined, ['step', 'continue', 's', 'c']));
 			if (response === 'continue' || response === 'c') {
 				stepper.debuggingType = TDebuggingType.Continue;
 			}
 		} else if (stepper.debugSteppers.includes(action.stepperName)) {
-			const response = await stepper.getWorld().prompter.prompt({ message: `Debugging ${action.stepperName}`, options: ['step', 'continue', 's', 'c'] });
+			const response = await stepper.getWorld().prompter.prompt(makePrompt(`Debugging ${action.stepperName}`, undefined, ['step', 'continue', 's', 'c']));
 			if (response === 'continue' || response === 'c') {
 				stepper.debugSteppers = stepper.debugSteppers.filter(name => name !== action.stepperName);
 			}
@@ -24,7 +24,7 @@ const cycles = (stepper: DebuggerStepper): IStepperCycles => ({
 	},
 	async afterStep({ actionResult }: TAfterStep): Promise<TAfterStepResult> {
 		if (!actionResult.ok) {
-			const response = await stepper.getWorld().prompter.prompt({ message: 'retry or fail', options: ['retry', 'fail', 'r', 'f'] });
+			const response = await stepper.getWorld().prompter.prompt(makePrompt('retry or fail', undefined, ['retry', 'fail', 'r', 'f']));
 			if (response === 'retry' || response === 'r') {
 				return Promise.resolve({ rerunStep: true });
 			}
@@ -56,7 +56,7 @@ export class DebuggerStepper extends AStepper implements IHasCycles {
 		exact: {
 			exact: 'debug',
 			action: async (): Promise<TActionResult> => {
-				await this.getWorld().prompter.prompt({ message: 'step', options: ['step', 's'] });
+				await this.getWorld().prompter.prompt(makePrompt('step', undefined, ['step', 's']));
 				return Promise.resolve(OK);
 			},
 		},
