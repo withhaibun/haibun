@@ -2,7 +2,7 @@ import { resolve } from 'path';
 
 import { OK, TNamed, TWorld, TFeatureStep, STEP_DELAY, IStepperCycles, SCENARIO_START, TStartFeature } from '../lib/defs.js';
 import { TAnyFixme } from '../lib/fixme.js';
-import { IHasOptions } from '../lib/astepper.js';
+import { IHasCycles, IHasOptions } from '../lib/astepper.js';
 import { AStepper } from '../lib/astepper.js';
 import { Resolver } from '../phases/Resolver.js';
 import { actionNotOK, actionOK, getStepperOption, sleep, stringOrError } from '../lib/util/index.js';
@@ -44,7 +44,7 @@ const cycles = (hb: Haibun): IStepperCycles => ({
 		}
 	}
 });
-class Haibun extends AStepper implements IHasOptions {
+class Haibun extends AStepper implements IHasOptions, IHasCycles {
 	renderedAudio: TRenderedAudioMap = {};
 	options = {
 		TTS_CMD: {
