@@ -38,23 +38,24 @@ export class DebuggerStepper extends AStepper implements IHasCycles {
 	}
 	async fail(): Promise<TActionResult> {
 		this.getWorld().logger.info('fail');
-		const messageContext: TMessageContext = { incident: EExecutionMessageType.DEBUG, incidentDetails: { fail: true } };
+		const messageContext: TMessageContext = { incident: EExecutionMessageType.DEBUG, incidentDetails: { fail: true } }; // this will fall through
 		return Promise.resolve(actionOK({ messageContext }));
 	}
 	async retry(): Promise<TActionResult> {
 		this.getWorld().logger.info('retry');
-		const messageContext: TMessageContext = { incident: EExecutionMessageType.DEBUG, incidentDetails: { rerunStep: true } };
+		const messageContext: TMessageContext = { incident: EExecutionMessageType.DEBUG, incidentDetails: { rerunStep: true } }; // will trigger rerun in Executor
 		return Promise.resolve(actionOK({ messageContext }));
 	}
 	async step(): Promise<TActionResult> {
 		this.getWorld().logger.info('step');
-		const messageContext: TMessageContext = { incident: EExecutionMessageType.DEBUG, incidentDetails: { step: true } };
+		const messageContext: TMessageContext = { incident: EExecutionMessageType.DEBUG, incidentDetails: { step: true } }; // will fall through
 		return Promise.resolve(actionOK({ messageContext }));
 	}
 	async continue(): Promise<TActionResult> {
 		this.getWorld().logger.info('Continuing execution without debugging');
 		this.debuggingType = TDebuggingType.Continue;
-		return Promise.resolve(OK);
+		const messageContext: TMessageContext = { incident: EExecutionMessageType.DEBUG, incidentDetails: { continue: true } }; // will fall through
+		return Promise.resolve(actionOK({ messageContext }));
 	}
 
 	async debugLoop(prompt: string, prompts: string[]) {
