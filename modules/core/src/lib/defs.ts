@@ -138,7 +138,7 @@ export type TEndFeature = { world: TWorld, shouldClose: boolean, isLast: boolean
 export type TStartFeature = { resolvedFeature: TResolvedFeature, index: number };
 export type TStartExecution = TResolvedFeature[]
 export type TStartScenario = { featureVars: FeatureVariables };
-export type TBeforeStep = { featureStep: TFeatureStep, action: TStepAction };
+export type TBeforeStep = { featureStep: TFeatureStep };
 export type TAfterStep = { featureStep: TFeatureStep, actionResult: TStepActionResult };
 export type TFailureArgs = { featureResult: TFeatureResult, failedStep: TStepResult };
 

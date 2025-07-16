@@ -2,7 +2,7 @@ import nodeFS from 'fs';
 
 import { BASE_PREFIX, CHECK_NO, CHECK_YES, DEFAULT_DEST, STAY, STAY_ALWAYS, TBase, TProtoOptions, TSpecl, TWorld } from '@haibun/core/build/lib/defs.js';
 import { getCreateSteppers } from '@haibun/core/build/lib/test/lib.js';
-import { getPre } from '@haibun/core/build/lib/util/index.js';
+import { formattedSteppers, getPre } from '@haibun/core/build/lib/util/index.js';
 import { BaseOptions } from './BaseOptions.js';
 import { TFileSystem } from '@haibun/core/build/lib/util/workspace-lib.js';
 import { getDefaultOptions, basesFrom } from '@haibun/core/build/lib/util/index.js';
@@ -10,7 +10,7 @@ import { Timer } from '@haibun/core/build/lib/Timer.js';
 import Logger from '@haibun/core/build/lib/Logger.js';
 import { Runner } from '@haibun/core/build/runner.js';
 import { getDefaultTag } from '@haibun/core/build/lib/test/lib.js';
-import { isProcessFeatureResults, IHasOptions } from '@haibun/core/build/lib/astepper.js';
+import { isProcessFeatureResults, IHasOptions, AStepper } from '@haibun/core/build/lib/astepper.js';
 import { FeatureVariables } from '@haibun/core/build/lib/feature-variables.js';
 import { TAnyFixme } from '@haibun/core/build/lib/fixme.js';
 import { Prompter } from '@haibun/core/build/lib/prompter.js';
@@ -106,15 +106,7 @@ export async function usageThenExit(specl: TSpecl, message?: string) {
 
 export async function getAllSteppers(specl: TSpecl) {
 	const steppers = await getCreateSteppers(specl.steppers);
-	const a = steppers.reduce((acc, o) => {
-		return {
-			...acc,
-			[(o as TAnyFixme).constructor.name]: Object.entries(o.steps).map(
-				([stepperName, stepperMatch]) => stepperName + ': ' + (stepperMatch.gwta || stepperMatch.match || stepperMatch.match)
-			),
-		};
-	}, {} as { [name: string]: { desc: string } });
-	return a;
+	return formattedSteppers(steppers);
 }
 
 export async function usage(specl: TSpecl, message?: string) {

@@ -5,7 +5,7 @@ import { TAnyFixme } from '../lib/fixme.js';
 import { IHasCycles, IHasOptions } from '../lib/astepper.js';
 import { AStepper } from '../lib/astepper.js';
 import { Resolver } from '../phases/Resolver.js';
-import { actionNotOK, actionOK, getStepperOption, sleep, stringOrError } from '../lib/util/index.js';
+import { actionNotOK, actionOK, formattedSteppers, getStepperOption, sleep, stringOrError } from '../lib/util/index.js';
 import { actualURI } from '../lib/util/actualURI.js';
 import { expand } from '../lib/features.js';
 import { asFeatures } from '../lib/resolver-features.js';
@@ -129,13 +129,21 @@ class Haibun extends AStepper implements IHasOptions, IHasCycles {
 			},
 		},
 		stopStepDelay: {
-			gwta: 'stop step delay',
+			exact: 'stop step delay',
 			action: async () => {
 				return Promise.resolve(OK);
 			},
 		},
-		displayEnv: {
-			gwta: 'show the environment',
+		showSteps: {
+			exact: 'show steppers',
+			action: async () => {
+				const allSteppers = formattedSteppers(this.steppers);
+				this.world?.logger.info(`Steppers: ${JSON.stringify(allSteppers, null, 2)}`);
+				return Promise.resolve(actionOK({ messageContext: { incident: EExecutionMessageType.ACTION, incidentDetails: { steppers: allSteppers } } }));
+			}
+		},
+		showEnv: {
+			exact: 'show the environment',
 			action: async () => {
 				this.world?.logger.info(`env: ${JSON.stringify(this.world.options.envVariables)}`);
 				return Promise.resolve(OK);

@@ -143,7 +143,7 @@ export class FeatureExecutor {
 		return featureResult;
 	}
 
-	static async doFeatureStep(steppers: AStepper[], featureStep: TFeatureStep, world: TWorld): Promise<TStepResult> {
+	static async doFeatureStep(steppers: AStepper[], featureStep: TFeatureStep, world: TWorld, runOnly = false): Promise<TStepResult> {
 		let ok = true;
 
 		// FIXME feature should really be attached to the featureStep
@@ -151,11 +151,11 @@ export class FeatureExecutor {
 		const start = Timer.since();
 		const namedWithVars = getNamedToVars(action, world, featureStep);
 		world.logger.log(featureStep.in, { incident: EExecutionMessageType.STEP_START, tag: world.tag, incidentDetails: { featureStep, namedWithVars } });
-		await doStepperCycle(steppers, 'beforeStep', <TBeforeStep>({ featureStep, action }));
 
 		let doAction = true;
 		let actionResult: Partial<TActionResult>;
 		while (doAction) {
+			!runOnly && await doStepperCycle(steppers, 'beforeStep', <TBeforeStep>({ featureStep }));
 			actionResult = await Executor.action(steppers, featureStep, action, namedWithVars, world);
 			const indicator = actionResult.ok ? CHECK_YES : CHECK_NO + ' ' + (<TNotOKActionResult>actionResult).message;
 
@@ -166,7 +166,8 @@ export class FeatureExecutor {
 				incidentDetails: { actionResult, featureStep }
 			}
 			world.logger.log(indicator, messageContext);
-			const instructions: TAfterStepResult[] = await doStepperCycle(steppers, 'afterStep', <TAfterStep>({ featureStep, actionResult }));
+			if (runOnly) break;
+			const instructions: TAfterStepResult[] = await doStepperCycle(steppers, 'afterStep', <TAfterStep>({ featureStep, actionResult }), action.actionName);
 			doAction = instructions.some(i => i?.rerunStep);
 		}
 
@@ -175,15 +176,15 @@ export class FeatureExecutor {
 		const stepActionResult: TStepActionResult = { ...actionResult, name: action.actionName, start, end } as TStepActionResult;
 		ok = ok && actionResult.ok;
 
-		return { ok, in: featureStep.in, path: featureStep.path, stepActionResult, seq: featureStep.seq };
+		return { ok, in: featureStep.in, path: featureStep.path, stepActionResult, seq: featureStep.seq }
 	}
 }
 
-const doStepperCycle = async <K extends keyof IStepperCycles>(steppers: AStepper[], method: K, args: StepperMethodArgs[K]): Promise<Awaited<ReturnType<NonNullable<IStepperCycles[K]>>>[]> => {
+const doStepperCycle = async <K extends keyof IStepperCycles>(steppers: AStepper[], method: K, args: StepperMethodArgs[K], guidance = ''): Promise<Awaited<ReturnType<NonNullable<IStepperCycles[K]>>>[]> => {
 	const results: Awaited<ReturnType<NonNullable<IStepperCycles[K]>>>[] = [];
 	for (const stepper of steppers) {
 		if (stepper?.cycles && stepper.cycles[method]) {
-			stepper.getWorld().logger.debug(`🔁 ${method} ${constructorName(stepper)}`);
+			stepper.getWorld().logger.debug(`🔁 ${method} ${constructorName(stepper)} ${guidance}`);
 			const cycle = stepper.cycles[method]!;
 			const paramsForApply = args === undefined ? [] : [args];
 			// The cast here is to help TypeScript understand '.apply' and 'await' with a specifically typed function
