@@ -8,8 +8,7 @@ import { namedInterpolation } from "@haibun/core/build/lib/namedVars.js";
 import { currentVersion as version } from '@haibun/core/build/currentVersion.js';
 import { TWorld, TStepperStep, TStepResult } from "@haibun/core/build/lib/defs.js";
 import { constructorName } from "@haibun/core/build/lib/util/index.js";
-import { getActionableStatement } from '@haibun/core/build/phases/Resolver.js';
-import { FeatureExecutor } from "@haibun/core/build/phases/Executor.js";
+import { resolveAndExecuteStatement } from "@haibun/core/build/lib/util/resolveAndExecuteStatement.js";
 
 type ToolHandlerResponse = { content?: TextContent[] };
 
@@ -81,7 +80,7 @@ export class MCPExecutorServer {
 
 				const stepResult: TStepResult = this.remoteConfig
 					? await this.executeViaRemoteApi(statement, `/mcp/${stepperName}-${stepName}`)
-					: await this.executeInCurrentRuntime(statement, `/mcp/${stepperName}-${stepName}`);
+					: await resolveAndExecuteStatement(statement, `/mcp/${stepperName}-${stepName}`, this.steppers, this.world);
 
 				return {
 					content: [{
@@ -112,11 +111,6 @@ export class MCPExecutorServer {
 				};
 			}
 		}
-	}
-
-	private async executeInCurrentRuntime(statement: string, source: string) {
-		const { featureStep } = await getActionableStatement(this.steppers, statement, source);
-		return await FeatureExecutor.doFeatureStep(this.steppers, featureStep, this.world);
 	}
 
 	private async executeViaRemoteApi(statement: string, source: string) {

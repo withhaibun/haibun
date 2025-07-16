@@ -8,15 +8,13 @@ This module provides both server and client capabilities for MCP integration wit
 
 The **MCP Server** automatically exposes all available Haibun steppers as MCP tools, allowing external agents to:
 
-- **Access all configured Haibun modules** seamlessly
-- **Discover available tools** through MCP's tool listing protocol
+- **Discover available steppers** through MCP's tool listing protocol
 - **Execute any stepper functionality** available in your workspace
 
 ### Remote Execution Support
 
-For enhanced security and isolation, the MCP server can connect to a remote Haibun execution context via HTTP. This is particularly useful when:
+The MCP server can connect to a remote Haibun execution context via HTTP. This is particularly useful when:
 
-- The execution environment needs to be isolated from the MCP server
 - You want to pause execution and interact via an IDE or other tools
 - Multiple agents need to share the same execution context
 
@@ -42,9 +40,6 @@ HAIBUN_O_MCPSERVERSTEPPER_REMOTE_PORT=8124 \
 HAIBUN_O_MCPSERVERSTEPPER_ACCESS_TOKEN=your-secret-token \
 node modules/cli/build/cli.js --cwd modules/mcp/test tests
 ```
-
-**Important**: Both steppers require explicit configuration. The ACCESS_TOKEN must match between the HTTP executor and MCP server for successful authentication.
-
 #### Remote Execution API
 
 When the HTTP executor is running, you can interact with it directly via HTTP API. All requests require authentication via the ACCESS_TOKEN.
@@ -56,22 +51,9 @@ curl -X POST http://localhost:8124/execute-step \
   -H "Authorization: Bearer your-secret-token" \
   -d '{
     "statement": "I set MY_VAR to hello world",
-    "source": "direct-api-call"
+    "source": "curl"
   }'
 ```
-
-**Stop the remote executor:**
-```bash
-curl -X POST http://localhost:8124/execute-step \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer your-secret-token" \
-  -d '{
-    "statement": "I set finished-mcp-cli to true",
-    "source": "direct-api-call"
-  }'
-```
-
-Both `statement` and `source` fields are required in all requests.
 
 ### Starting an MCP Server
 
@@ -80,7 +62,7 @@ The MCP Server is a Haibun stepper. For a basic example with representative step
 ```bash
 # Basic local execution
 HAIBUN_O_WEBPLAYWRIGHT_STORAGE=StorageMem \
-node modules/cli/build/cli.js --cwd modules/mcp/test tests
+node modules/cli/build/cli.js --cwd modules/mcp/runtime local
 ```
 
 Or with remote execution enabled:
@@ -90,7 +72,7 @@ Or with remote execution enabled:
 HAIBUN_O_WEBPLAYWRIGHT_STORAGE=StorageMem \
 HAIBUN_O_HTTPEXECUTORSTEPPER_LISTEN_PORT=8124 \
 HAIBUN_O_HTTPEXECUTORSTEPPER_ACCESS_TOKEN=your-secret-token \
-node modules/cli/build/cli.js --cwd modules/mcp/test tests
+node modules/cli/build/cli.js --cwd modules/mcp/runtime http
 ```
 
 ### Using from External MCP Clients
@@ -111,9 +93,6 @@ Feature: MCP Server Management
     Given I enable remote executor
 
     Now external MCP servers can connect to this execution context via HTTP.
-
-    When I finished mcp cli
-    The remote executor is stopped.
 ```
 
 ## MCP Client
@@ -141,6 +120,37 @@ The client requires server connection parameters to be configured via module opt
 
 ## Examples
 
+## VSCode config
+
+```
+ "mcp": {
+    "servers": {
+      "haibun-mcp": {
+        "type": "stdio",
+        "command": "tsx",
+        "cwd": "~",
+        "args": [
+          "modules/cli/build/cli.js",
+          "-c",
+          "./modules/mcp/runtime/config.json",
+          "./modules/mcp/runtime/http"
+        ],
+        "env": {
+          "HAIBUN_O_MCPSERVERSTEPPER_REMOTE_PORT": "8125",
+          "HAIBUN_O_MCPSERVERSTEPPER_ACCESS_TOKEN": "some-great-password",
+          "HAIBUN_O_HTTPEXECUTORSTEPPER_LISTEN_PORT": "8125",
+          "HAIBUN_O_HTTPEXECUTORSTEPPER_ACCESS_TOKEN": "some-great-password",
+          "HAIBUN_O_WEBPLAYWRIGHT_STORAGE": "StorageMem"
+        },
+        "dev": {
+          "watch": "modules/**/build/**/*.js",
+          "debug": {
+            "type": "node"
+          }
+        },
+      },
+			```
+
 ### Server Tools
 Depending on which Haibun modules you have configured, you might see tools like:
 
@@ -148,16 +158,7 @@ Depending on which Haibun modules you have configured, you might see tools like:
 - `VariablesStepper-display` - Display variable values
 - `WebPlaywright-gotoPage` - Navigate to web pages
 - `Haibun-comment` - Add comments
-- Any custom steppers you've created
-
-The specific tools available depend entirely on your Haibun workspace configuration.
+- Any locally configured steppers
 
 ### Client Tools
 - `list mcp tools` - Discover tools available from external MCP servers
-
-## Benefits
-
-- **Zero Configuration**: Server automatically exposes all available steppers
-- **Standardized Protocol**: Uses industry-standard MCP
-- **Bidirectional**: Both server and client capabilities
-- **Type Safe**: Full parameter validation

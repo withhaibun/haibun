@@ -7,24 +7,24 @@ export enum TDebuggingType {
 	Continue = 'continue',
 }
 
-const cycles = (stepper: DebuggerStepper): IStepperCycles => ({
+const cycles = (debugerStepper: DebuggerStepper): IStepperCycles => ({
 	async beforeStep({ action }: TBeforeStep) {
-		if (stepper.debuggingType === TDebuggingType.StepByStep) {
-			const response = await stepper.getWorld().prompter.prompt(makePrompt('step or continue', undefined, ['step', 'continue', 's', 'c']));
+		if (debugerStepper.debuggingType === TDebuggingType.StepByStep) {
+			const response = await debugerStepper.getWorld().prompter.prompt(makePrompt('step or continue', undefined, ['step', 'continue', 's', 'c']));
 			if (response === 'continue' || response === 'c') {
-				stepper.debuggingType = TDebuggingType.Continue;
+				debugerStepper.debuggingType = TDebuggingType.Continue;
 			}
-		} else if (stepper.debugSteppers.includes(action.stepperName)) {
-			const response = await stepper.getWorld().prompter.prompt(makePrompt(`Debugging ${action.stepperName}`, undefined, ['step', 'continue', 's', 'c']));
+		} else if (debugerStepper.debugSteppers.includes(action.stepperName)) {
+			const response = await debugerStepper.getWorld().prompter.prompt(makePrompt(`Debugging ${action.stepperName}`, undefined, ['step', 'continue', 's', 'c']));
 			if (response === 'continue' || response === 'c') {
-				stepper.debugSteppers = stepper.debugSteppers.filter(name => name !== action.stepperName);
+				debugerStepper.debugSteppers = debugerStepper.debugSteppers.filter(name => name !== action.stepperName);
 			}
 		}
 		return Promise.resolve();
 	},
 	async afterStep({ actionResult }: TAfterStep): Promise<TAfterStepResult> {
 		if (!actionResult.ok) {
-			const response = await stepper.getWorld().prompter.prompt(makePrompt('retry or fail', undefined, ['retry', 'fail', 'r', 'f']));
+			const response = await debugerStepper.getWorld().prompter.prompt(makePrompt('retry or fail', undefined, ['retry', 'fail', 'r', 'f']));
 			if (response === 'retry' || response === 'r') {
 				return Promise.resolve({ rerunStep: true });
 			}

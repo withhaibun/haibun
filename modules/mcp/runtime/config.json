@@ -6,6 +6,7 @@
 		"./modules/web-server-express/build/web-server-stepper",
 		"./modules/web-server-express/build/http-executor-stepper",
 		"@haibun/core/build/steps/variables-stepper",
+		"@haibun/core/build/steps/debugger-stepper",
 		"@haibun/core/build/steps/haibun"
 	]
 }
