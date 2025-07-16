@@ -14,6 +14,9 @@ declare global {
 		haibunCapturedMessages: TLogEntry[];
 		receiveLogData: (logEntry: { level: TLogLevel; message: TLogArgs; messageContext?: TMessageContext, timestamp: number }) => void;
 		webSocket?: WebSocket;
+		showStatementInput: () => void;
+		hideStatementInput: () => void;
+		submitStatement: (statement: string) => void;
 	}
 }
 
@@ -24,6 +27,30 @@ console.info('monitor.ts: window.haibunCapturedMessages initialized.');
 window.receiveLogData = (logEntry) => {
 	window.haibunCapturedMessages.push(logEntry);
 	renderLogEntry(logEntry);
+};
+
+// Functions for statement input control
+window.showStatementInput = () => {
+	const statementInput = document.getElementById('haibun-statement-input') as HTMLInputElement;
+	if (statementInput) {
+		statementInput.style.display = 'inline-block';
+		statementInput.focus();
+	}
+};
+
+window.hideStatementInput = () => {
+	const statementInput = document.getElementById('haibun-statement-input') as HTMLInputElement;
+	if (statementInput) {
+		statementInput.style.display = 'none';
+		statementInput.value = '';
+	}
+};
+
+window.submitStatement = (statement: string) => {
+	if (typeof window.haibunSubmitStatement === 'function') {
+		window.haibunSubmitStatement(statement);
+	}
+	window.hideStatementInput();
 };
 
 export function renderLogEntry(logEntryData: TLogEntry) {

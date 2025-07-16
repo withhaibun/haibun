@@ -15,7 +15,7 @@ const cycles = (debuggerStepper: DebuggerStepper): IStepperCycles => ({
 		const { action } = featureStep;
 		if (debuggerStepper.debuggingType === TDebuggingType.StepByStep || debuggerStepper.debugSteppers.includes(action.stepperName)) {
 			const prompt = (debuggerStepper.debugSteppers.includes(action.stepperName)) ? `[Debugging ${action.stepperName}]` : '[Debug]';
-			return debuggerStepper.debugLoop(prompt, ['step', 'continue', 'fail', '*']);
+			return debuggerStepper.debugLoop(prompt, ['step', 'continue', '*']);
 		}
 	},
 	async afterStep({ actionResult }: TAfterStep): Promise<TAfterStepResult> {

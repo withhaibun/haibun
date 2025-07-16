@@ -20,6 +20,10 @@ declare global {
 		showPromptControls: (prompt: string) => void;
 		hidePromptControls: () => void;
 		receiveLogData: (entry: TLogEntry) => void;
+		showStatementInput: () => void;
+		hideStatementInput: () => void;
+		submitStatement: (statement: string) => void;
+		haibunSubmitStatement: (statement: string) => void;
 	}
 }
 
@@ -41,6 +45,11 @@ class ButtonPrompter extends BasePromptManager {
 			(prompts) => window.showPromptControls(prompts),
 			JSON.stringify(Array.from(this.buttonPrompts.values()))
 		);
+
+		// Show statement input for debugger prompts that allow arbitrary input
+		if (prompt.options?.includes('*')) {
+			void this.monitorHandler.inMonitor(() => window.showStatementInput());
+		}
 	}
 
 	protected hidePrompt(id: string): void {
@@ -49,6 +58,12 @@ class ButtonPrompter extends BasePromptManager {
 			(prompts) => window.showPromptControls(prompts),
 			JSON.stringify(this.buttonPrompts)
 		);
+
+		// Hide statement input when no prompts with '*' option remain
+		const hasStatementPrompts = Array.from(this.buttonPrompts.values()).some(p => p.options?.includes('*'));
+		if (!hasStatementPrompts) {
+			void this.monitorHandler.inMonitor(() => window.hideStatementInput());
+		}
 	}
 
 	// Expose resolve and cancel as public methods
@@ -58,6 +73,11 @@ class ButtonPrompter extends BasePromptManager {
 	public cancel(id: string, reason?: string) {
 		super.cancel(id, reason);
 	}
+
+	// Public getter for accessing prompts
+	public getPrompts(): Map<string, TPrompt> {
+		return this.buttonPrompts;
+	}
 }
 
 export class MonitorHandler {
@@ -65,6 +85,7 @@ export class MonitorHandler {
 	monitorPage: Page;
 	monitorLoc: string;
 	buttonPrompter: ButtonPrompter;
+	steppers: TAnyFixme[]; // Store steppers for statement execution
 
 	constructor(private world: TWorld, private storage: AStorage, private headless: boolean) {
 	}
@@ -79,6 +100,15 @@ export class MonitorHandler {
 		this.buttonPrompter = new ButtonPrompter(this);
 		await this.monitorPage.exposeFunction('haibunResolvePrompt', (id: string, response: TPromptResponse) => {
 			this.buttonPrompter.resolve(id, response);
+		});
+
+		await this.monitorPage.exposeFunction('haibunSubmitStatement', (statement: string) => {
+			// Find the first prompt that accepts arbitrary input and resolve it with the statement
+			const statementPrompt = Array.from(this.buttonPrompter.getPrompts().values())
+				.find(p => p.options?.includes('*'));
+			if (statementPrompt) {
+				this.buttonPrompter.resolve(statementPrompt.id, statement);
+			}
 		});
 		await this.waitForMonitorPage();
 		await this.monitorPage.goto(pathToFileURL(monitorLocation).toString(), { waitUntil: 'networkidle' });
