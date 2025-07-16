@@ -1,4 +1,5 @@
 node_modules/
+.parcel-cache/
 lerna-debug.log
 npm-debug.log
 packages/*/lib
@@ -10,4 +11,5 @@ out-tsc/
 .env
 modules/web-playwright/web/
 modules/mcp/test/capture/
+
 

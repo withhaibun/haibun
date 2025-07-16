@@ -81,11 +81,7 @@ describe('HttpExecutorStepper integration', () => {
 		};
 
 		// No LISTEN_PORT configured
-		const result = await testWithDefaults(
-			[feature],
-			[WebServerStepper, HttpExecutorStepper, VariablesStepper],
-			baseOptions
-		);
+		const result = await testWithDefaults([feature], [WebServerStepper, HttpExecutorStepper, VariablesStepper], baseOptions);
 
 		expect(result.ok).toBe(true);
 	});
