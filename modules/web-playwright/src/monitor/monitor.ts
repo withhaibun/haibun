@@ -73,7 +73,10 @@ export function renderLogEntry(logEntryData: TLogEntry) {
 		}
 	}
 
-	container.scrollTop = container.scrollHeight;
+	// Ensure scrolling happens after DOM update
+	setTimeout(() => {
+		container.scrollTop = container.scrollHeight;
+	}, 0);
 }
 function renderAllLogs() {
 	const container = document.getElementById('haibun-log-display-area');
