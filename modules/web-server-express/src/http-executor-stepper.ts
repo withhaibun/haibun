@@ -1,6 +1,6 @@
 import { AStepper, IHasCycles, IHasOptions } from '@haibun/core/build/lib/astepper.js';
 import { TStepResult, TWorld } from '@haibun/core/build/lib/defs.js';
-import { FeatureExecutor } from '@haibun/core/build/phases/Executor.js';
+import { resolveAndExecuteStatement } from "@haibun/core/build/lib/util/resolveAndExecuteStatement.js";
 import { actionNotOK, actionOK, getFromRuntime, getStepperOption, intOrError } from '@haibun/core/build/lib/util/index.js';
 import { IRequest, IResponse, IWebServer, WEBSERVER } from './defs.js';
 import WebServerStepper from './web-server-stepper.js';
@@ -81,9 +81,7 @@ export default class HttpExecutorStepper extends AStepper implements IHasOptions
 					const world = this.getWorld();
 					const steppers = this.steppers;
 
-					const { featureStep } = await getActionableStatement(steppers, statement, source);
-
-					const result: TStepResult = await FeatureExecutor.doFeatureStep(steppers, featureStep, world);
+					const result: TStepResult = await resolveAndExecuteStatement(statement, source, steppers, world);
 
 					res.json(result);
 
