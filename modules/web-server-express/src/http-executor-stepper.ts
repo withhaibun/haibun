@@ -4,7 +4,6 @@ import { resolveAndExecuteStatement } from "@haibun/core/build/lib/util/resolveA
 import { actionNotOK, actionOK, getFromRuntime, getStepperOption, intOrError } from '@haibun/core/build/lib/util/index.js';
 import { IRequest, IResponse, IWebServer, WEBSERVER } from './defs.js';
 import WebServerStepper from './web-server-stepper.js';
-import { getActionableStatement } from '@haibun/core/build/phases/Resolver.js';
 import { HttpPrompter } from './http-prompter.js';
 
 export const HTTP_PROMPTER_ENDPOINTS = {

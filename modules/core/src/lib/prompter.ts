@@ -41,7 +41,7 @@ export class Prompter {
 		let responded = 1;
 		return await new Promise<TPromptResponse>((resolve) => {
 			for (const subscriber of this.subscribers) {
-				subscriber.prompt(prompt).then(result => {
+				void subscriber.prompt(prompt).then(result => {
 					if (result !== undefined) {
 						this.subscribers.forEach(s => s.cancel && s.cancel(prompt.id));
 						resolve(result);
