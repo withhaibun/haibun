@@ -33,6 +33,7 @@ export enum EExecutionMessageType {
 	FEATURE_END = 'FEATURE_END',
 	EXECUTION_END = 'EXECUTION_END',
 	ON_FAILURE = 'ON_FAILURE',
+	DEBUG = "DEBUG",
 }
 
 export interface ILogger {

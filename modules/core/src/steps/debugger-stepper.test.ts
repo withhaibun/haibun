@@ -4,11 +4,9 @@ import DebuggerStepper, { TDebuggingType } from './debugger-stepper.js';
 import Haibun from './haibun.js';
 import { IPrompter } from '../lib/prompter.js';
 import { ReadlinePrompter } from '../lib/readline-prompter.js';
-import { Prompter } from '../lib/prompter.js';
 
 class TestPrompter implements IPrompter {
 	prompt = async () => {
-		console.log('TestPrompter.prompt called');
 		return Promise.resolve('continue');
 	};
 	cancel: () => void;

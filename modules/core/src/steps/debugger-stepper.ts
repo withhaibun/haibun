@@ -1,33 +1,26 @@
 import { AStepper, IHasCycles } from '../lib/astepper.js';
-import { IStepperCycles, TActionResult, OK, TWorld, TNamed, TBeforeStep, TAfterStep, TAfterStepResult } from '../lib/defs.js';
+import { IStepperCycles, TActionResult, OK, TWorld, TNamed, TBeforeStep, TAfterStep, TAfterStepResult, TStepResult } from '../lib/defs.js';
+import { TMessageContext, EExecutionMessageType } from '../lib/interfaces/logger.js';
 import { makePrompt } from '../lib/prompter.js';
+import { actionNotOK, actionOK } from '../lib/util/index.js';
+import { resolveAndExecuteStatement } from '../lib/util/resolveAndExecuteStatement.js';
 
 export enum TDebuggingType {
 	StepByStep = 'stepByStep',
 	Continue = 'continue',
 }
 
-const cycles = (debugerStepper: DebuggerStepper): IStepperCycles => ({
-	async beforeStep({ action }: TBeforeStep) {
-		if (debugerStepper.debuggingType === TDebuggingType.StepByStep) {
-			const response = await debugerStepper.getWorld().prompter.prompt(makePrompt('step or continue', undefined, ['step', 'continue', 's', 'c']));
-			if (response === 'continue' || response === 'c') {
-				debugerStepper.debuggingType = TDebuggingType.Continue;
-			}
-		} else if (debugerStepper.debugSteppers.includes(action.stepperName)) {
-			const response = await debugerStepper.getWorld().prompter.prompt(makePrompt(`Debugging ${action.stepperName}`, undefined, ['step', 'continue', 's', 'c']));
-			if (response === 'continue' || response === 'c') {
-				debugerStepper.debugSteppers = debugerStepper.debugSteppers.filter(name => name !== action.stepperName);
-			}
+const cycles = (debuggerStepper: DebuggerStepper): IStepperCycles => ({
+	async beforeStep({ featureStep }: TBeforeStep) {
+		const { action } = featureStep;
+		if (debuggerStepper.debuggingType === TDebuggingType.StepByStep || debuggerStepper.debugSteppers.includes(action.stepperName)) {
+			const prompt = (debuggerStepper.debugSteppers.includes(action.stepperName)) ? `[Debugging ${action.stepperName}]` : '[Debug]';
+			return debuggerStepper.debugLoop(prompt, ['step', 'continue', 'fail', '*']);
 		}
-		return Promise.resolve();
 	},
 	async afterStep({ actionResult }: TAfterStep): Promise<TAfterStepResult> {
 		if (!actionResult.ok) {
-			const response = await debugerStepper.getWorld().prompter.prompt(makePrompt('retry or fail', undefined, ['retry', 'fail', 'r', 'f']));
-			if (response === 'retry' || response === 'r') {
-				return Promise.resolve({ rerunStep: true });
-			}
+			return await debuggerStepper.debugLoop('[Failure]', ['*', 'retry', 'fail']);
 		}
 	}
 });
@@ -43,14 +36,86 @@ export class DebuggerStepper extends AStepper implements IHasCycles {
 		this.world = world;
 		return Promise.resolve();
 	}
+	async fail(): Promise<TActionResult> {
+		this.getWorld().logger.info('fail');
+		const messageContext: TMessageContext = { incident: EExecutionMessageType.DEBUG, incidentDetails: { fail: true } };
+		return Promise.resolve(actionOK({ messageContext }));
+	}
+	async retry(): Promise<TActionResult> {
+		this.getWorld().logger.info('retry');
+		const messageContext: TMessageContext = { incident: EExecutionMessageType.DEBUG, incidentDetails: { rerunStep: true } };
+		return Promise.resolve(actionOK({ messageContext }));
+	}
+	async step(): Promise<TActionResult> {
+		this.getWorld().logger.info('step');
+		const messageContext: TMessageContext = { incident: EExecutionMessageType.DEBUG, incidentDetails: { step: true } };
+		return Promise.resolve(actionOK({ messageContext }));
+	}
+	async continue(): Promise<TActionResult> {
+		this.getWorld().logger.info('Continuing execution without debugging');
+		this.debuggingType = TDebuggingType.Continue;
+		return Promise.resolve(OK);
+	}
 
+	async debugLoop(prompt: string, prompts: string[]) {
+		let postFailurePromptResult: TStepResult | undefined;
+		while (postFailurePromptResult === undefined || postFailurePromptResult.stepActionResult.messageContext?.incident !== EExecutionMessageType.DEBUG) {
+			const response = await this.getWorld().prompter.prompt(makePrompt(prompt, undefined, prompts));
+			try {
+				postFailurePromptResult = await resolveAndExecuteStatement(response.toString(), 'debugger', this.steppers, this.getWorld());
+			} catch (e) {
+				this.getWorld().logger.error(`Failed to execute post - failure action: ${e.message}`);
+			}
+		}
+		return postFailurePromptResult.stepActionResult.messageContext?.incidentDetails;
+	}
 	steps = {
+		f: {
+			exact: 'f',
+			action: async (): Promise<TActionResult> => {
+				return await this.fail();
+			},
+		},
+		fail: {
+			exact: 'fail',
+			action: async (): Promise<TActionResult> => {
+				return await this.fail();
+			}
+		},
+		r: {
+			exact: 'r',
+			action: async (): Promise<TActionResult> => {
+				return await this.retry();
+			},
+		},
+		retry: {
+			exact: 'retry',
+			action: async (): Promise<TActionResult> => {
+				return await this.retry();
+			}
+		},
+		s: {
+			exact: 's',
+			action: async (): Promise<TActionResult> => {
+				return await this.step();
+			},
+		},
+		step: {
+			exact: 'step',
+			action: async (): Promise<TActionResult> => {
+				return await this.step();
+			}
+		},
+		c: {
+			exact: 'c',
+			action: async (): Promise<TActionResult> => {
+				return await this.continue();
+			},
+		},
 		continue: {
 			exact: 'continue',
-			action: (): Promise<TActionResult> => {
-				this.getWorld().logger.info('Continuing execution without debugging');
-				this.debuggingType = TDebuggingType.Continue;
-				return Promise.resolve(OK);
+			action: async (): Promise<TActionResult> => {
+				return await this.continue();
 			}
 		},
 		exact: {
@@ -69,16 +134,30 @@ export class DebuggerStepper extends AStepper implements IHasCycles {
 			},
 		},
 		debugStepper: {
-			gwta: `debug stepper {stepperName}`,
+			gwta: `debug stepper { stepperName }`,
 			action: async ({ stepperName }: TNamed) => {
 				const stepperNames = stepperName.split(',').map(name => name.trim());
 				for (const name of stepperNames) {
 					const found = this.steppers.find((s) => s.constructor.name === name);
 					if (!found) {
-						return Promise.reject(new Error(`Stepper ${name} not found`));
+						return Promise.resolve(actionNotOK(`Stepper ${name} not found`));
 					}
 				}
 				this.debugSteppers = this.debugSteppers.concat(stepperNames);
+				return Promise.resolve(OK);
+			}
+		},
+		continueStepper: {
+			gwta: `continue stepper { stepperName } `,
+			action: async ({ stepperName }: TNamed) => {
+				const stepperNames = stepperName.split(',').map(name => name.trim());
+				for (const name of stepperNames) {
+					const found = this.steppers.find((s) => s.constructor.name === name);
+					if (!found) {
+						return Promise.resolve(actionNotOK(`Stepper ${name} not found`));
+					}
+				}
+				this.debugSteppers = this.debugSteppers.filter(name => !stepperNames.includes(name));
 				return Promise.resolve(OK);
 			}
 		}
