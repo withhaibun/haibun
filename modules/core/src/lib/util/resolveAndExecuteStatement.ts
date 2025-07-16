@@ -8,6 +8,6 @@ export async function resolveAndExecuteStatement(statement: string, source: stri
 		const { featureStep } = await getActionableStatement(steppers, statement, source);
 		return await FeatureExecutor.doFeatureStep(steppers, featureStep, world, true);
 	} catch (e) {
-		throw new Error(`No feature step found for statement: ${statement}: ${e.message}`);
+		throw new Error(`No feature step found for statement: "${statement}": ${e.message}`);
 	}
 }
