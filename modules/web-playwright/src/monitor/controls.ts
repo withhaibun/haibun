@@ -5,6 +5,9 @@ declare global {
         haibunResolvePrompt: (id: string, action: string) => void;
         showPromptControls: (prompts: string) => void;
         hidePromptControls: () => void;
+        showStatementInput: () => void;
+        hideStatementInput: () => void;
+        submitStatement: (statement: string) => void;
     }
 }
 
@@ -41,7 +44,24 @@ export function setupControls() {
 		updateStyles(levelSelect.value);
 	}
 
+	setupStatementInput();
 	setupVideoPlayback();
+}
+
+function setupStatementInput() {
+	const statementInput = document.getElementById('haibun-statement-input') as HTMLInputElement;
+	if (statementInput) {
+		statementInput.addEventListener('keydown', (event) => {
+			if (event.key === 'Enter') {
+				const statement = statementInput.value.trim();
+				if (statement) {
+					window.submitStatement(statement);
+				}
+			} else if (event.key === 'Escape') {
+				window.hideStatementInput();
+			}
+		});
+	}
 }
 
 // Update log entry classes and scroll to current entry based on video time
