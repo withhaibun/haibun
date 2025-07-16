@@ -261,7 +261,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 	},
 	clickByLabel: {
 		gwta: 'click by label {label}',
-		action: async ({ title: label }: TNamed) => {
+		action: async ({ label }: TNamed) => {
 			await wp.withPage(async (page: Page) => await page.getByLabel(label).click());
 			return OK;
 		},
@@ -282,7 +282,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 		},
 	},
 	clickOn: {
-		gwta: 'click on (?<name>.[^s]+)',
+		gwta: 'click on (?<name>.+)',
 		action: async ({ name }: TNamed) => {
 			const what = wp.getWorld().shared.get(name) || `text=${name}`;
 			await wp.withPage(async (page: Page) => await page.click(what));
@@ -400,10 +400,10 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 		action: async ({ file, selector }: TNamed) => {
 			try {
 				await wp.withPage(async (page: Page) => {
-					const [fileChooser] = await Promise.all([page.waitForEvent('filechooser'), page.locator('#uploadFile').click()]);
-					const changeButton = page.locator(selector);
-					await changeButton.click();
-
+					const [fileChooser] = await Promise.all([
+						page.waitForEvent('filechooser'), 
+						page.locator(selector).click()
+					]);
 					await fileChooser.setFiles(file);
 				});
 				return OK;
@@ -542,6 +542,17 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 					return await page.setViewportSize({ width, height });
 				}
 			);
+			return OK;
+		},
+	},
+	usingTimeout: {
+		gwta: 'using timeout of {timeout}ms',
+		action: async ({ timeout }: TNamed) => {
+			const timeoutMs = parseInt(timeout, 10);
+			await wp.withPage((page: Page) => {
+				page.setDefaultTimeout(timeoutMs);
+				page.setDefaultNavigationTimeout(timeoutMs);
+			});
 			return OK;
 		},
 	},
