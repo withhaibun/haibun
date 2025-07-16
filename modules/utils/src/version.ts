@@ -22,15 +22,17 @@ class Versioner {
 			console.error(`usage: ${me}: <version> <extra modules> [--notest]`);
 			process.exit(1);
 		}
-		// check for --notest in extra, if it exist, set a notest flag on class and remove it from extra
-		if (extra.includes('--notest')) {
-			this.noTest = true;
-			extra.splice(extra.indexOf('--notest'), 1);
-		}
-		if (extra.includes('--nopublish')) {
-			this.noPublish = true;
-			extra.splice(extra.indexOf('--nopublish'), 1);
-		}
+		extra.forEach((e, i) => {
+			if (e === '--notest') {
+				this.noTest = true;
+				extra.splice(i, 1);
+			} else if (e === '--nopublish') {
+				this.noPublish = true;
+				extra.splice(i, 1);
+			} else if (e.startsWith('-')) {
+				throw Error(`unknown option ${e}; use --notest or --nopublish`);
+			}
+		});
 	}
 
 	async doVersion() {
