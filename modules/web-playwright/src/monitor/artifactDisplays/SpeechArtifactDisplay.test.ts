@@ -2,10 +2,10 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { TArtifactSpeech, TMessageContext, EExecutionMessageType } from '@haibun/core/build/lib/interfaces/logger.js';
+import { TArtifactSpeech, TMessageContext, EExecutionMessageType } from '@haibun/core/lib/interfaces/logger.js';
 import { LogMessageContent } from '../messages.js';
 import { setupMessagesTestDOM, cleanupMessagesTestDOM, createMockTag } from '../test-utils.js';
-import { TTag } from '@haibun/core/build/lib/ttag.js';
+import { TTag } from '@haibun/core/lib/ttag.js';
 
 describe('SpeechArtifactDisplay', () => {
 	const TEST_START_TIME = 1700000000000;

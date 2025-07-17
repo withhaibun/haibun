@@ -1,19 +1,19 @@
 import nodeFS from 'fs';
 
-import { BASE_PREFIX, CHECK_NO, CHECK_YES, DEFAULT_DEST, STAY, STAY_ALWAYS, TBase, TProtoOptions, TSpecl, TWorld } from '@haibun/core/build/lib/defs.js';
-import { getCreateSteppers } from '@haibun/core/build/lib/test/lib.js';
-import { formattedSteppers, getPre } from '@haibun/core/build/lib/util/index.js';
+import { BASE_PREFIX, CHECK_NO, CHECK_YES, DEFAULT_DEST, STAY, STAY_ALWAYS, TBase, TProtoOptions, TSpecl, TWorld } from '@haibun/core/lib/defs.js';
+import { getCreateSteppers } from '@haibun/core/lib/test/lib.js';
+import { formattedSteppers, getPre } from '@haibun/core/lib/util/index.js';
 import { BaseOptions } from './BaseOptions.js';
-import { TFileSystem } from '@haibun/core/build/lib/util/workspace-lib.js';
-import { getDefaultOptions, basesFrom } from '@haibun/core/build/lib/util/index.js';
-import { Timer } from '@haibun/core/build/lib/Timer.js';
-import Logger from '@haibun/core/build/lib/Logger.js';
-import { Runner } from '@haibun/core/build/runner.js';
-import { getDefaultTag } from '@haibun/core/build/lib/test/lib.js';
-import { isProcessFeatureResults, IHasOptions, AStepper } from '@haibun/core/build/lib/astepper.js';
-import { FeatureVariables } from '@haibun/core/build/lib/feature-variables.js';
-import { TAnyFixme } from '@haibun/core/build/lib/fixme.js';
-import { Prompter } from '@haibun/core/build/lib/prompter.js';
+import { TFileSystem } from '@haibun/core/lib/util/workspace-lib.js';
+import { getDefaultOptions, basesFrom } from '@haibun/core/lib/util/index.js';
+import { Timer } from '@haibun/core/lib/Timer.js';
+import Logger from '@haibun/core/lib/Logger.js';
+import { Runner } from '@haibun/core/runner.js';
+import { getDefaultTag } from '@haibun/core/lib/test/lib.js';
+import { isProcessFeatureResults, IHasOptions, AStepper } from '@haibun/core/lib/astepper.js';
+import { FeatureVariables } from '@haibun/core/lib/feature-variables.js';
+import { TAnyFixme } from '@haibun/core/lib/fixme.js';
+import { Prompter } from '@haibun/core/lib/prompter.js';
 
 const OPTION_CONFIG = '--config';
 const OPTION_HELP = '--help';

@@ -5,7 +5,7 @@ import serveIndex from 'serve-index';
 import cookieParser from 'cookie-parser';
 
 import { IWebServer, ROUTE_TYPES, TRequestHandler, TRouteMap, TRouteTypes, TStaticFolderOptions } from './defs.js';
-import { ILogger } from '@haibun/core/build/lib/interfaces/logger.js';
+import { ILogger } from '@haibun/core/lib/interfaces/logger.js';
 
 export const DEFAULT_PORT = 8123;
 const defaultMounted = () => ROUTE_TYPES.reduce((acc, type) => ({ ...acc, [type]: {} }), <TRouteMap>{});

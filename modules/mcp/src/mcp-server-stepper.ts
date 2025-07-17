@@ -1,6 +1,6 @@
-import { AStepper, IHasOptions } from '@haibun/core/build/lib/astepper.js';
-import { OK, TWorld } from '@haibun/core/build/lib/defs.js';
-import { actionNotOK, getStepperOption, intOrError } from '@haibun/core/build/lib/util/index.js';
+import { AStepper, IHasOptions } from '@haibun/core/lib/astepper.js';
+import { OK, TWorld } from '@haibun/core/lib/defs.js';
+import { actionNotOK, getStepperOption, intOrError } from '@haibun/core/lib/util/index.js';
 import { MCPExecutorServer } from './lib/mcp-executor-server.js';
 
 class MCPServerStepper extends AStepper implements IHasOptions {

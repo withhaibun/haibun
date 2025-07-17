@@ -1,12 +1,12 @@
 import { create } from 'xmlbuilder2';
 import { EOL } from 'os';
 
-import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
-import { findStepperFromOption, getStepperOption, stringOrError } from '@haibun/core/build/lib/util/index.js';
-import { TWorld, TExecutorResult, TNotOkStepActionResult } from '@haibun/core/build/lib/defs.js';
-import { AStepper, IProcessFeatureResults, IHasOptions } from '@haibun/core/build/lib/astepper.js';
-import { TAnyFixme } from '@haibun/core/build/lib/fixme.js';
-import { MEDIA_TYPES, TMediaType } from '@haibun/domain-storage/build/media-types.js';
+import { AStorage } from '@haibun/domain-storage/AStorage.js';
+import { findStepperFromOption, getStepperOption, stringOrError } from '@haibun/core/lib/util/index.js';
+import { TWorld, TExecutorResult, TNotOkStepActionResult } from '@haibun/core/lib/defs.js';
+import { AStepper, IProcessFeatureResults, IHasOptions } from '@haibun/core/lib/astepper.js';
+import { TAnyFixme } from '@haibun/core/lib/fixme.js';
+import { MEDIA_TYPES, TMediaType } from '@haibun/domain-storage/media-types.js';
 
 const STORAGE = 'STORAGE';
 

@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { TArtifactJSON, TMessageContext, EExecutionMessageType } from '@haibun/core/build/lib/interfaces/logger.js';
+import { TArtifactJSON, TMessageContext, EExecutionMessageType } from '@haibun/core/lib/interfaces/logger.js';
 import { JsonArtifactDisplay } from './JsonArtifactDisplay.js';
 import { LogMessageContent } from '../messages.js';
 import { setupMessagesTestDOM, cleanupMessagesTestDOM, createMockTag } from '../test-utils.js';

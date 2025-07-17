@@ -1,13 +1,13 @@
 import { StdioClientTransport, StdioServerParameters } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 
-import { BasePromptManager } from '@haibun/core/build/lib/base-prompt-manager.js';
-import { AStepper, IHasCycles, IHasOptions } from '@haibun/core/build/lib/astepper.js';
-import { TWorld, TNamed, TFeatureStep, IStepperCycles } from '@haibun/core/build/lib/defs.js';
-import { actionNotOK, actionOK, getStepperOption, stringOrError } from '@haibun/core/build/lib/util/index.js';
-import { currentVersion as version } from '@haibun/core/build/currentVersion.js';
-import { EExecutionMessageType, TMessageContext } from '@haibun/core/build/lib/interfaces/logger.js';
-import { TPrompt, TPromptResponse } from '@haibun/core/build/lib/prompter.js';
+import { BasePromptManager } from '@haibun/core/lib/base-prompt-manager.js';
+import { AStepper, IHasCycles, IHasOptions } from '@haibun/core/lib/astepper.js';
+import { TWorld, TNamed, TFeatureStep, IStepperCycles } from '@haibun/core/lib/defs.js';
+import { actionNotOK, actionOK, getStepperOption, stringOrError } from '@haibun/core/lib/util/index.js';
+import { currentVersion as version } from '@haibun/core/currentVersion.js';
+import { EExecutionMessageType, TMessageContext } from '@haibun/core/lib/interfaces/logger.js';
+import { TPrompt, TPromptResponse } from '@haibun/core/lib/prompter.js';
 
 class MCPClientPrompter extends BasePromptManager {
 	private client?: Client<any, any, any>;

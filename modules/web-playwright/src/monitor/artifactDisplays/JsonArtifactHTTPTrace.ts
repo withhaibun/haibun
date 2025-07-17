@@ -1,6 +1,6 @@
-import { TArtifactHTTPTrace } from '@haibun/core/build/lib/interfaces/logger.js';
+import { TArtifactHTTPTrace } from '@haibun/core/lib/interfaces/logger.js';
 import { ArtifactDisplay } from './artifactDisplayBase.js';
-import { TAnyFixme } from '@haibun/core/build/lib/fixme.js';
+import { TAnyFixme } from '@haibun/core/lib/fixme.js';
 import { disclosureJson } from '../disclosureJson.js';
 import { SequenceDiagramGenerator } from './SequenceDiagramGenerator.js';
 

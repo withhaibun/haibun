@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { testWithDefaults } from '@haibun/core/build/lib/test/lib.js';
-import { DEFAULT_DEST } from '@haibun/core/build/lib/defs.js';
-import { getStepperOptionName } from '@haibun/core/build/lib/util/index.js';
+import { testWithDefaults } from '@haibun/core/lib/test/lib.js';
+import { DEFAULT_DEST } from '@haibun/core/lib/defs.js';
+import { getStepperOptionName } from '@haibun/core/lib/util/index.js';
 
 import WebServerStepper from './web-server-stepper.js';
 import HttpExecutorStepper from './http-executor-stepper.js';
-import VariablesStepper from '@haibun/core/build/steps/variables-stepper.js';
+import VariablesStepper from '@haibun/core/steps/variables-stepper.js';
 import { TEST_PORTS } from './test-constants.js';
 
 describe('HttpExecutorStepper integration', () => {

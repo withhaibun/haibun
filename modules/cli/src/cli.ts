@@ -2,7 +2,7 @@
 
 import sourceMapSupport from 'source-map-support';
 import { runCli } from './lib.js';
-import { TAnyFixme } from '@haibun/core/build/lib/fixme.js';
+import { TAnyFixme } from '@haibun/core/lib/fixme.js';
 
 sourceMapSupport.install();
 

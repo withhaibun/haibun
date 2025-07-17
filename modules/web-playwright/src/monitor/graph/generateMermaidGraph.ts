@@ -1,4 +1,4 @@
-import { TResolvedFeature } from '@haibun/core/build/lib/defs.js';
+import { TResolvedFeature } from '@haibun/core/lib/defs.js';
 import { sanitize, formatLabel } from './graphUtils.js';
 import { getBaseLocations } from './feature-bases.js';
 

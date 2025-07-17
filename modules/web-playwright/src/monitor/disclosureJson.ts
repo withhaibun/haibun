@@ -1,4 +1,4 @@
-import { TAnyFixme } from "@haibun/core/build/lib/fixme.js";
+import { TAnyFixme } from "@haibun/core/lib/fixme.js";
 
 function escapeHtml(unsafe: string): string {
     return unsafe

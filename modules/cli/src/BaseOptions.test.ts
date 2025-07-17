@@ -1,6 +1,6 @@
 import { it, expect, describe } from 'vitest';
 
-import { DEFAULT_DEST } from '@haibun/core/build/lib/defs.js';
+import { DEFAULT_DEST } from '@haibun/core/lib/defs.js';
 import { BaseOptions } from './BaseOptions.js';
 
 const defaultEnv = { DEST: DEFAULT_DEST };

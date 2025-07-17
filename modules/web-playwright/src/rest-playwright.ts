@@ -1,8 +1,8 @@
-import { actionNotOK, actionOK } from '@haibun/core/build/lib/util/index.js';
+import { actionNotOK, actionOK } from '@haibun/core/lib/util/index.js';
 import WebPlaywright from './web-playwright.js';
-import { TNamed, OK } from '@haibun/core/build/lib/defs.js';
-import { EExecutionMessageType, TMessageContext } from '@haibun/core/build/lib/interfaces/logger.js';
-import { TAnyFixme } from '@haibun/core/build/lib/fixme.js';
+import { TNamed, OK } from '@haibun/core/lib/defs.js';
+import { EExecutionMessageType, TMessageContext } from '@haibun/core/lib/interfaces/logger.js';
+import { TAnyFixme } from '@haibun/core/lib/fixme.js';
 
 const PAYLOAD_METHODS = ['post', 'put', 'patch'];
 const NO_PAYLOAD_METHODS = ['get', 'delete', 'head'];

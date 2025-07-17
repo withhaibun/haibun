@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { EExecutionMessageType, TMessageContext, TArtifactResolvedFeatures, TLogLevel, TLogArgs } from '@haibun/core/build/lib/interfaces/logger.js';
-import { TResolvedFeature } from '@haibun/core/build/lib/defs.js';
-import { getResolvedTestFeatures } from '@haibun/core/build/lib/test/resolvedTestFeatures.js';
+import { EExecutionMessageType, TMessageContext, TArtifactResolvedFeatures, TLogLevel, TLogArgs } from '@haibun/core/lib/interfaces/logger.js';
+import { TResolvedFeature } from '@haibun/core/lib/defs.js';
+import { getResolvedTestFeatures } from '@haibun/core/lib/test/resolvedTestFeatures.js';
 import { defineGlobalMermaidAndDOMPurify, setupMessagesTestDOM, cleanupMessagesTestDOM, createMockTag } from '../test-utils.js';
 import { LogMessageContent } from '../messages.js';
 

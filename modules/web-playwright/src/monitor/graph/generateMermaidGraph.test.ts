@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { getResolvedTestFeatures } from '@haibun/core/build/lib/test/resolvedTestFeatures.js';
+import { getResolvedTestFeatures } from '@haibun/core/lib/test/resolvedTestFeatures.js';
 
 // Setup jsdom and real DOMPurify for mermaid parsing in Node.js
 defineGlobalDOMPurify();

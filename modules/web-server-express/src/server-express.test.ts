@@ -1,7 +1,7 @@
 import { it, expect, describe } from 'vitest';
 
 import { ServerExpress } from "./server-express.js"
-import TestLogger from '@haibun/core/build/lib/TestLogger.js';
+import TestLogger from '@haibun/core/lib/TestLogger.js';
 
 describe('mounts', () => {
 	it('mounts a route', () => {

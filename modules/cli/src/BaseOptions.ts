@@ -1,7 +1,7 @@
-import { IHasOptions } from '@haibun/core/build/lib/astepper.js';
-import { CONTINUE_AFTER_ERROR, STAY_ALWAYS, STAY_FAILURE, STEP_DELAY, TEnvVariables } from '@haibun/core/build/lib/defs.js';
-import { LOGGER_LEVELS } from '@haibun/core/build/lib/Logger.js';
-import { boolOrError, intOrError, optionOrError, randomString, stringOrError } from '@haibun/core/build/lib/util/index.js';
+import { IHasOptions } from '@haibun/core/lib/astepper.js';
+import { CONTINUE_AFTER_ERROR, STAY_ALWAYS, STAY_FAILURE, STEP_DELAY, TEnvVariables } from '@haibun/core/lib/defs.js';
+import { LOGGER_LEVELS } from '@haibun/core/lib/Logger.js';
+import { boolOrError, intOrError, optionOrError, randomString, stringOrError } from '@haibun/core/lib/util/index.js';
 
 export class BaseOptions implements IHasOptions {
 	static options = {

@@ -1,5 +1,5 @@
-import { BasePromptManager } from '@haibun/core/build/lib/base-prompt-manager.js';
-import { TWorld } from '@haibun/core/build/lib/defs.js';
+import { BasePromptManager } from '@haibun/core/lib/base-prompt-manager.js';
+import { TWorld } from '@haibun/core/lib/defs.js';
 
 /**
  * HTTP-based prompter that responds to prompt requests via HTTP API

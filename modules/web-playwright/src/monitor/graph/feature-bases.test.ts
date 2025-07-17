@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { getBaseFeatures } from './feature-bases.js';
-import { asFeatures } from '@haibun/core/build/lib/resolver-features.js';
+import { asFeatures } from '@haibun/core/lib/resolver-features.js';
 
 describe('getBaseFeatures', () => {
   it('returns a map of base paths to base features', () => {

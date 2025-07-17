@@ -1,4 +1,4 @@
-import { testWithDefaults } from '@haibun/core/build/lib/test/lib.js';
+import { testWithDefaults } from '@haibun/core/lib/test/lib.js';
 
 import haibunMcp from './mcp-server-stepper.js';
 import { describe, it, expect } from 'vitest';

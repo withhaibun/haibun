@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { TAnyFixme } from "@haibun/core/build/lib/fixme.js";
+import { TAnyFixme } from "@haibun/core/lib/fixme.js";
 import { parseVCaptureArgs, runContainer } from "./vcapture-lib.js";
 
 process.on('unhandledRejection', (err: TAnyFixme) => {
