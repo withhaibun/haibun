@@ -19,7 +19,14 @@ interface RemoteExecutorConfig {
 
 export class MCPExecutorServer {
 	server: McpServer;
-	constructor(private steppers: AStepper[], private world: TWorld, private remoteConfig?: RemoteExecutorConfig) { }
+	constructor(private steppers: AStepper[], private world: TWorld, private remoteConfig?: RemoteExecutorConfig) {
+		// Log the execution mode
+		if (remoteConfig) {
+			console.log(`🔗 MCPExecutorServer: Remote execution mode - connecting to ${remoteConfig.url}`);
+		} else {
+			console.log(`🏠 MCPExecutorServer: Local execution mode`);
+		}
+	}
 
 	async start() {
 		this.server = new McpServer({
