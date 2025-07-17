@@ -1,5 +1,5 @@
-import { TArtifact, TArtifactSpeech, TArtifactVideo, TArtifactVideoStart, TArtifactImage, TArtifactHTML, TArtifactJSON, TArtifactHTTPTrace, TMessageContext, TArtifactResolvedFeatures } from '@haibun/core/build/lib/interfaces/logger.js';
-import { EExecutionMessageType } from '@haibun/core/build/lib/interfaces/logger.js';
+import { TArtifact, TArtifactSpeech, TArtifactVideo, TArtifactVideoStart, TArtifactImage, TArtifactHTML, TArtifactJSON, TArtifactHTTPTrace, TMessageContext, TArtifactResolvedFeatures } from '@haibun/core/lib/interfaces/logger.js';
+import { EExecutionMessageType } from '@haibun/core/lib/interfaces/logger.js';
 
 import { disclosureJson } from './disclosureJson.js';
 import { LogComponent, ArtifactDisplay } from './artifactDisplays/artifactDisplayBase.js';

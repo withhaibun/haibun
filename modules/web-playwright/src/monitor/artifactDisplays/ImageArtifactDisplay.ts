@@ -1,4 +1,4 @@
-import { TArtifactImage } from '@haibun/core/build/lib/interfaces/logger.js';
+import { TArtifactImage } from '@haibun/core/lib/interfaces/logger.js';
 import { ArtifactDisplay } from './artifactDisplayBase.js';
 
 export class ImageArtifactDisplay extends ArtifactDisplay {

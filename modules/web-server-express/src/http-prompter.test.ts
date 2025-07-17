@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { HttpPrompter } from './http-prompter.js';
-import { makePrompt } from '@haibun/core/build/lib/prompter.js';
+import { makePrompt } from '@haibun/core/lib/prompter.js';
 
 describe('HttpPrompter', () => {
   it('resolves when handlePromptResponse is called', async () => {

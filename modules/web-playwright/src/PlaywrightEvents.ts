@@ -1,8 +1,8 @@
 import { Page, Request, Route, Response } from 'playwright';
 
-import { TArtifactHTTPTrace, THTTPTraceContent, ILogger, EExecutionMessageType, TMessageContext } from '@haibun/core/build/lib/interfaces/logger.js'; // Updated imports
-import { shortenURI } from '@haibun/core/build/lib/util/index.js';
-import { TTag } from '@haibun/core/build/lib/ttag.js';
+import { TArtifactHTTPTrace, THTTPTraceContent, ILogger, EExecutionMessageType, TMessageContext } from '@haibun/core/lib/interfaces/logger.js'; // Updated imports
+import { shortenURI } from '@haibun/core/lib/util/index.js';
+import { TTag } from '@haibun/core/lib/ttag.js';
 
 type TEtc = {
 	headers: Record<string, string>;

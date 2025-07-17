@@ -1,4 +1,4 @@
-import { TPrompt } from "@haibun/core/build/lib/prompter.js";
+import { TPrompt } from "@haibun/core/lib/prompter.js";
 
 declare global {
     interface Window {

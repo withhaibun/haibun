@@ -1,4 +1,4 @@
-import { TArtifactResolvedFeatures } from "@haibun/core/build/lib/interfaces/logger.js";
+import { TArtifactResolvedFeatures } from "@haibun/core/lib/interfaces/logger.js";
 import { generateMermaidGraphAsMarkdown } from "../graph/generateMermaidGraph.js";
 import { ArtifactDisplay } from "./artifactDisplayBase.js";
 

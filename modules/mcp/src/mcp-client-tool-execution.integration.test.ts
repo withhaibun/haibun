@@ -2,7 +2,7 @@ import { describe, it, expect, afterAll, beforeAll } from 'vitest';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 
-import { currentVersion as version } from '@haibun/core/build/currentVersion.js';
+import { currentVersion as version } from '@haibun/core/currentVersion.js';
 import { runtimeStdio, TEST_PORTS } from './mcp-test-utils.js';
 
 const toolExecutionServerParameters = runtimeStdio(TEST_PORTS.MCP_TOOL_EXECUTION);

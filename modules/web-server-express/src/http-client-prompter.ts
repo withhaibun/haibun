@@ -1,5 +1,5 @@
-import { TPrompt, TPromptResponse } from '@haibun/core/build/lib/prompter.js';
-import { BasePromptManager } from '@haibun/core/build/lib/base-prompt-manager.js';
+import { TPrompt, TPromptResponse } from '@haibun/core/lib/prompter.js';
+import { BasePromptManager } from '@haibun/core/lib/base-prompt-manager.js';
 import { HTTP_PROMPTER_ENDPOINTS } from './http-executor-stepper.js';
 
 export class HttpClientPrompter extends BasePromptManager {

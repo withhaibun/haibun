@@ -1,9 +1,9 @@
 import { vitest, describe, it, expect } from 'vitest';
 
-import { CONTINUE_AFTER_ERROR, DEFAULT_DEST, STEP_DELAY } from '@haibun/core/build/lib/defs.js';
-import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, testWithDefaults } from '@haibun/core/build/lib/test/lib.js';
-import TestStepsWithOptions from '@haibun/core/build/lib/test/TestStepsWithOptions.js';
-import { getDefaultOptions } from '@haibun/core/build/lib/util/index.js';
+import { CONTINUE_AFTER_ERROR, DEFAULT_DEST, STEP_DELAY } from '@haibun/core/lib/defs.js';
+import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, testWithDefaults } from '@haibun/core/lib/test/lib.js';
+import TestStepsWithOptions from '@haibun/core/lib/test/TestStepsWithOptions.js';
+import { getDefaultOptions } from '@haibun/core/lib/util/index.js';
 
 import * as lib from './lib.js';
 
