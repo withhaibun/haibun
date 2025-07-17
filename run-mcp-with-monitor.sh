@@ -13,10 +13,11 @@ export HAIBUN_O_WEBPLAYWRIGHT_MONITOR=all
 export HAIBUN_O_WEBPLAYWRIGHT_STORAGE=StorageMem
 export HAIBUN_O_WEBPLAYWRIGHT_HEADLESS=false
 export HAIBUN_O_HTTPEXECUTORSTEPPER_LISTEN_PORT=8125
-export HAIBUN_O_HTTPEXECUTORSTEPPER_ACCESS_TOKEN=mooCowMoo
+export HAIBUN_O_HTTPEXECUTORSTEPPER_ACCESS_TOKEN=localTest
 
-# Start the MCP server with monitoring enabled
-node modules/cli/build/cli.js --cwd modules/mcp/runtime http
+# Start the HTTP executor only (no MCP server - VS Code will handle that)
+node modules/cli/build/cli.js -c ./modules/mcp/runtime/config.json ./modules/mcp/runtime/http-only
 
-echo "✅ MCP Server with monitoring started!"
-echo "💡 Use MCP tools to interact with the browser and watch the results in the monitor"
+echo "✅ HTTP Executor with monitoring started!"
+echo "🔌 VS Code MCP will connect to this HTTP executor on port 8125"
+echo "💡 Use MCP tools in VS Code to interact with the browser and watch the results in the monitor"
