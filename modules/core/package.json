@@ -1,12 +1,10 @@
 {
   "name": "@haibun/core",
   "type": "module",
-  "version": "1.67.0",
+  "version": "1.68.0",
   "description": "",
   "author": "",
-  "exports": {
-    "./*": "./build/*"
-  },
+  "exports": { "./*": "./build/*" },
   "main": "./build/index.js",
   "files": ["build/**"],
   "scripts": {
