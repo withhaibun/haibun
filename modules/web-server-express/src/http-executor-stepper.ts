@@ -24,10 +24,10 @@ export default class HttpExecutorStepper extends AStepper implements IHasOptions
 	};
 	cycles = {
 		async startFeature() {
-			this.addRemoteExecutorRoute();
+			await this.addRemoteExecutorRoute();
 		},
 		async endFeature() {
-			this.close();
+			await this.close();
 		}
 	}
 
@@ -64,8 +64,10 @@ export default class HttpExecutorStepper extends AStepper implements IHasOptions
 		}
 
 		webserver.addRoute('post', '/execute-step', (req: IRequest, res: IResponse) => {
-			void (async () => {
+			(async () => {
 				try {
+					console.log(`📥 HTTP Executor: Received request for statement: "${req.body?.statement}"`);
+					
 					if (!this.checkAuth(req, res)) {
 						return;
 					}
@@ -77,21 +79,38 @@ export default class HttpExecutorStepper extends AStepper implements IHasOptions
 					}
 					const { statement, source } = req.body;
 
+					console.log(`🔄 HTTP Executor: Starting execution of "${statement}" from ${source}`);
 					const world = this.getWorld();
 					const steppers = this.steppers;
 
 					const result: TStepResult = await resolveAndExecuteStatement(statement, source, steppers, world);
+					console.log(`✅ HTTP Executor: Execution completed`, result);
 
 					res.json(result);
 
 				} catch (error) {
 					const errorMessage = error instanceof Error ? error.message : String(error);
+					const stack = error instanceof Error ? error.stack : 'No stack trace';
+					console.error(`❌ HTTP Executor: Error during execution:`, {
+						error: errorMessage,
+						stack,
+						statement: req.body?.statement,
+						source: req.body?.source
+					});
 					res.status(500).json({
 						error: errorMessage,
 						success: false
 					});
 				}
-			})();
+			})().catch(error => {
+				console.error(`❌ HTTP Executor: Unhandled async error:`, error);
+				if (!res.headersSent) {
+					res.status(500).json({
+						error: 'Internal server error',
+						success: false
+					});
+				}
+			});
 		});
 
 		// Add prompt handling routes
@@ -136,8 +155,10 @@ export default class HttpExecutorStepper extends AStepper implements IHasOptions
 		if (!providedToken || providedToken !== this.configuredToken) {
 			this.getWorld().logger.warn(`Unauthorized access attempt with token: "${providedToken}"`);
 			res.status(401).json({ error: 'Invalid or missing access token' });
-			return;
+			return false;
 		}
+		
+		return true;
 	}
 
 	steps = {

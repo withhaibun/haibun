@@ -30,6 +30,13 @@ class MCPServerStepper extends AStepper implements IHasOptions {
 		if (!isNaN(this.remotePort) && !this.accessToken) {
 			throw new Error('ACCESS_TOKEN is required when REMOTE_PORT is configured for remote execution');
 		}
+
+		// Log the remote configuration
+		if (!isNaN(this.remotePort)) {
+			this.getWorld().logger.warn(`🔗 MCP Server configured for remote execution on http://localhost:${this.remotePort}`);
+		} else {
+			this.getWorld().logger.info(`🏠 MCP Server configured for local execution`);
+		}
 	}
 
 	private getRemoteConfig() {
