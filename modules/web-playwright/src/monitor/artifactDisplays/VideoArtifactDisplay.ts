@@ -1,4 +1,4 @@
-import { TArtifactVideo } from '@haibun/core/build/lib/interfaces/logger.js';
+import { TArtifactVideo } from '@haibun/core/lib/interfaces/logger.js';
 import { ArtifactDisplay } from './artifactDisplayBase.js';
 
 export class VideoArtifactDisplay extends ArtifactDisplay {

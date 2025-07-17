@@ -1,4 +1,4 @@
-import { TLogLevel, TLogArgs, EExecutionMessageType, TMessageContext } from '@haibun/core/build/lib/interfaces/logger.js';
+import { TLogLevel, TLogArgs, EExecutionMessageType, TMessageContext } from '@haibun/core/lib/interfaces/logger.js';
 import { LogEntry } from './messages.js';
 import { setupControls } from './controls.js';
 

@@ -1,27 +1,35 @@
 {
-  "name": "@haibun/cli",
-  "type": "module",
-  "version": "1.67.0",
-  "description": "command line execution for @haibun",
-  "bin": { "haibun-cli": "build/cli.js" },
-  "main": "build/cli.js",
-  "files": ["build/**"],
-  "scripts": {
-    "prepublishOnly": "tsc -b .",
-    "build": "tsc -b .",
-    "build-watch": "tsc -b --watch .",
-    "lint": "eslint -c .eslintrc.json --ext .ts,.js src",
-    "preversion": "npm run lint",
-    "test": "vitest run",
-    "test-watch": "vitest"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "@haibun/core": "1.67.0",
-    "@haibun/domain-storage": "1.67.0",
-    "source-map-support": "^0.5.21"
-  },
-  "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5"
+	"name": "@haibun/cli",
+	"type": "module",
+	"version": "1.67.0",
+	"description": "command line execution for @haibun",
+	"bin": {
+		"haibun-cli": "build/cli.js"
+	},
+	"main": "build/cli.js",
+	"files": [
+		"build/**"
+	],
+	"exports": {
+		".": "./build/cli.js",
+		"./*": "./build/*"
+	},
+	"scripts": {
+		"prepublishOnly": "tsc -b .",
+		"build": "tsc -b .",
+		"build-watch": "tsc -b --watch .",
+		"lint": "eslint -c .eslintrc.json --ext .ts,.js src",
+		"preversion": "npm run lint",
+		"test": "vitest run",
+		"test-watch": "vitest"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC",
+	"dependencies": {
+		"@haibun/core": "1.67.0",
+		"@haibun/domain-storage": "1.67.0",
+		"source-map-support": "^0.5.21"
+	},
+	"gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5"
 }

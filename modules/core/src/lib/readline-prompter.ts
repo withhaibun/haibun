@@ -3,7 +3,6 @@ import { stdin as input, stdout as output } from 'process';
 
 import { IPrompter, TPrompt, TPromptResponse } from './prompter.js';
 
-
 export class ReadlinePrompter implements IPrompter {
 	private rl?: Interface;
 	private currentPromptId?: string;
@@ -23,10 +22,8 @@ export class ReadlinePrompter implements IPrompter {
 		});
 		try {
 			const answer = await this.rl.question(`${prompt.message} ${prompt.options?.join(', ') ?? ''}: `);
-			// Add non-empty answers to history
 			if (answer && answer.trim() && !this.history.includes(answer.trim())) {
 				this.history.unshift(answer.trim());
-				// Keep history size manageable
 				if (this.history.length > 100) {
 					this.history = this.history.slice(0, 100);
 				}

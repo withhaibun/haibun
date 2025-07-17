@@ -2,11 +2,11 @@ import { describe, it, expect } from 'vitest';
 import path from 'path';
 
 import WebPlaywright from './web-playwright.js';
-import { getPackageLocation } from '@haibun/core/build/lib/util/workspace-lib.js';
+import { getPackageLocation } from '@haibun/core/lib/util/workspace-lib.js';
 
-import { getCreateSteppers, getDefaultWorld, testWithDefaults } from '@haibun/core/build/lib/test/lib.js';
-import { DEFAULT_DEST, TFeatureStep } from '@haibun/core/build/lib/defs.js';
-import { getStepperOptionName } from '@haibun/core/build/lib/util/index.js';
+import { getCreateSteppers, getDefaultWorld, testWithDefaults } from '@haibun/core/lib/test/lib.js';
+import { DEFAULT_DEST, TFeatureStep } from '@haibun/core/lib/defs.js';
+import { getStepperOptionName } from '@haibun/core/lib/util/index.js';
 import { TEST_PORTS } from './test-constants.js';
 
 const me = path.join(getPackageLocation(import.meta).replace(/\/src$/, '/build'), 'web-playwright');

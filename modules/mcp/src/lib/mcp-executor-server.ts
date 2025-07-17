@@ -3,12 +3,12 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z, ZodRawShape } from "zod";
 import type { TextContent } from '@modelcontextprotocol/sdk/types.js';
 
-import { AStepper } from "@haibun/core/build/lib/astepper.js";
-import { namedInterpolation } from "@haibun/core/build/lib/namedVars.js";
-import { currentVersion as version } from '@haibun/core/build/currentVersion.js';
-import { TWorld, TStepperStep, TStepResult } from "@haibun/core/build/lib/defs.js";
-import { constructorName } from "@haibun/core/build/lib/util/index.js";
-import { resolveAndExecuteStatement } from "@haibun/core/build/lib/util/resolveAndExecuteStatement.js";
+import { AStepper } from "@haibun/core/lib/astepper.js";
+import { namedInterpolation } from "@haibun/core/lib/namedVars.js";
+import { currentVersion as version } from '@haibun/core/currentVersion.js';
+import { TWorld, TStepperStep, TStepResult } from "@haibun/core/lib/defs.js";
+import { constructorName } from "@haibun/core/lib/util/index.js";
+import { resolveAndExecuteStatement } from "@haibun/core/lib/util/resolveAndExecuteStatement.js";
 
 type ToolHandlerResponse = { content?: TextContent[] };
 

@@ -27,8 +27,8 @@ Extend the `AStepper` abstract class, and the appropriate properties and methods
 Your file might end up looking like this:
 
 ```typescript
-import { OK, TNamed, AStepper, TWorld } from '@haibun/core/build/lib/defs.js';
-import { actionNotOK, stringOrError, findStepperFromOption } from '@haibun/core/build/lib/util/index.js';
+import { OK, TNamed, AStepper, TWorld } from '@haibun/core/lib/defs.js';
+import { actionNotOK, stringOrError, findStepperFromOption } from '@haibun/core/lib/util/index.js';
 import { STORAGE_ITEM, STORAGE_LOCATION } from '@haibun/domain-storage/build/domain-storage.js';
 import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
 

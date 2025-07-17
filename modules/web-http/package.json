@@ -1,22 +1,30 @@
 {
-  "name": "@haibun/web-http",
-  "type": "module",
-  "version": "1.67.0",
-  "description": "",
-  "main": "build/web-http.js",
-  "files": ["build/"],
-  "scripts": {
-    "build": "tsc -b .",
-    "build-watch": "tsc -b . -w",
-    "prepublishOnly": "tsc -b .",
-    "lint": "eslint -c .eslintrc.json --ext .ts,.js src",
-    "preversion": "npm run lint",
-    "test": "vitest run",
-    "test-watch": "vitest"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "dependencies": { "@haibun/core": "1.67.0" },
-  "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5"
+	"name": "@haibun/web-http",
+	"type": "module",
+	"version": "1.67.0",
+	"description": "",
+	"main": "build/web-http.js",
+	"files": [
+		"build/"
+	],
+	"exports": {
+		".": "./build/web-server-stepper.js",
+		"./*": "./build/*"
+	},
+	"scripts": {
+		"build": "tsc -b .",
+		"build-watch": "tsc -b . -w",
+		"prepublishOnly": "tsc -b .",
+		"lint": "eslint -c .eslintrc.json --ext .ts,.js src",
+		"preversion": "npm run lint",
+		"test": "vitest run",
+		"test-watch": "vitest"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC",
+	"dependencies": {
+		"@haibun/core": "1.67.0"
+	},
+	"gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5"
 }

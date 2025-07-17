@@ -3,17 +3,17 @@ import { existsSync } from 'fs';
 import { pathToFileURL } from 'url';
 import { chromium, Page } from 'playwright';
 
-import { TWorld } from '@haibun/core/build/lib/defs.js';
-import { TLogLevel, TLogArgs, TMessageContext, ILogOutput } from '@haibun/core/build/lib/interfaces/logger.js';
-import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
-import { EMediaTypes } from '@haibun/domain-storage/build/media-types.js';
-import { getPackageLocation } from '@haibun/core/build/lib/util/workspace-lib.js';
-import { sleep } from '@haibun/core/build/lib/util/index.js';
-import { actualURI } from '@haibun/core/build/lib/util/actualURI.js';
-import { TAnyFixme } from '@haibun/core/build/lib/fixme.js';
+import { TWorld } from '@haibun/core/lib/defs.js';
+import { TLogLevel, TLogArgs, TMessageContext, ILogOutput } from '@haibun/core/lib/interfaces/logger.js';
+import { AStorage } from '@haibun/domain-storage/AStorage.js';
+import { EMediaTypes } from '@haibun/domain-storage/media-types.js';
+import { getPackageLocation } from '@haibun/core/lib/util/workspace-lib.js';
+import { sleep } from '@haibun/core/lib/util/index.js';
+import { actualURI } from '@haibun/core/lib/util/actualURI.js';
+import { TAnyFixme } from '@haibun/core/lib/fixme.js';
+import { TPromptResponse, TPrompt } from '@haibun/core/lib/prompter.js';
+import { BasePromptManager } from '@haibun/core/lib/base-prompt-manager.js';
 import { TLogEntry } from './monitor.js';
-import { TPromptResponse, TPrompt } from '@haibun/core/build/lib/prompter.js';
-import { BasePromptManager } from '@haibun/core/build/lib/base-prompt-manager.js';
 
 declare global {
 	interface Window {

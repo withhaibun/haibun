@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { THTTPTraceContent } from '@haibun/core/build/lib/interfaces/logger.js';
+import { THTTPTraceContent } from '@haibun/core/lib/interfaces/logger.js';
 import { setupMessagesTestDOM, createMockTag, defineGlobalMermaidAndDOMPurify, createMockHTTPTraceArtifact } from '../test-utils.js';
 
 describe('JsonArtifactHTTPTrace', () => {

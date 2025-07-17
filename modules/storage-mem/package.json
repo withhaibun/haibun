@@ -1,26 +1,32 @@
 {
-  "name": "@haibun/storage-mem",
-  "type": "module",
-  "version": "1.67.0",
-  "description": "",
-  "main": "index.js",
-  "files": ["build/"],
-  "scripts": {
-    "build": "tsc -b .",
-    "build-watch": "tsc -b . --watch",
-    "prepublishOnly": "tsc -b .",
-    "lint": "eslint -c .eslintrc.json --ext .ts,.js src",
-    "preversion": "npm run lint",
-    "test": "vitest run",
-    "test-watch": "vitest"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "@haibun/core": "1.67.0",
-    "@haibun/domain-storage": "1.67.0",
-    "memfs": "^4.6.0"
-  },
-  "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5"
+	"name": "@haibun/storage-mem",
+	"type": "module",
+	"version": "1.67.0",
+	"description": "",
+	"main": "index.js",
+	"files": [
+		"build/"
+	],
+	"exports": {
+		".": "./build/storage-mem.js",
+		"./*": "./build/*"
+	},
+	"scripts": {
+		"build": "tsc -b .",
+		"build-watch": "tsc -b . --watch",
+		"prepublishOnly": "tsc -b .",
+		"lint": "eslint -c .eslintrc.json --ext .ts,.js src",
+		"preversion": "npm run lint",
+		"test": "vitest run",
+		"test-watch": "vitest"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC",
+	"dependencies": {
+		"@haibun/core": "1.67.0",
+		"@haibun/domain-storage": "1.67.0",
+		"memfs": "^4.6.0"
+	},
+	"gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5"
 }

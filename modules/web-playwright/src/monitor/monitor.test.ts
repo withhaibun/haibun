@@ -4,8 +4,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi, beforeAll } from 'vitest';
 import { setupMessagesTestDOM, cleanupMessagesTestDOM, defineGlobalMermaidAndDOMPurify, createMockTag as createMockTagFromUtil } from './test-utils.js';
 import { renderLogEntry, TLogEntry as MonitorTLogEntry } from './monitor.js';
-import { EExecutionMessageType, TLogLevel, TLogArgs, TMessageContext, TArtifact } from '@haibun/core/build/lib/interfaces/logger.js';
-import { TTag } from '@haibun/core/build/lib/ttag.js';
+import { EExecutionMessageType, TLogLevel, TLogArgs, TMessageContext, TArtifact } from '@haibun/core/lib/interfaces/logger.js';
+import { TTag } from '@haibun/core/lib/ttag.js';
 
 interface SimulateLogContextOptions {
 	tag?: TTag;

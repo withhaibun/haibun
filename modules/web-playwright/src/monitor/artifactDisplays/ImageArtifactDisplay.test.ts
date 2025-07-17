@@ -2,9 +2,9 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { TArtifactImage, TMessageContext, EExecutionMessageType } from '@haibun/core/build/lib/interfaces/logger.js';
+import { TArtifactImage, TMessageContext, EExecutionMessageType } from '@haibun/core/lib/interfaces/logger.js';
 import { LogMessageContent } from '../messages.js';
-import { TTag } from '@haibun/core/build/lib/ttag.js';
+import { TTag } from '@haibun/core/lib/ttag.js';
 import { setupMessagesTestDOM, cleanupMessagesTestDOM } from '../test-utils.js';
 
 describe('ImageArtifactDisplay', () => {

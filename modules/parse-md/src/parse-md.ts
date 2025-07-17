@@ -1,7 +1,7 @@
-import { OK } from '@haibun/core/build/lib/defs.js';
-import { actionNotOK } from '@haibun/core/build/lib/util/index.js';
+import { OK } from '@haibun/core/lib/defs.js';
+import { actionNotOK } from '@haibun/core/lib/util/index.js';
 import { parseMatches } from './parse.js';
-import { AStepper } from '@haibun/core/build/lib/astepper.js';
+import { AStepper } from '@haibun/core/lib/astepper.js';
 
 const conformance = /(?!\n|. )\b([A-Z].*? must .*?\.)/;
 

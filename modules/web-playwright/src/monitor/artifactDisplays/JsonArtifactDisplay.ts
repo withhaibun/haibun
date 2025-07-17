@@ -1,4 +1,4 @@
-import { TArtifactJSON } from "@haibun/core/build/lib/interfaces/logger.js";
+import { TArtifactJSON } from "@haibun/core/lib/interfaces/logger.js";
 import { ArtifactDisplay } from "./artifactDisplayBase.js";
 import { disclosureJson } from "../disclosureJson.js";
 

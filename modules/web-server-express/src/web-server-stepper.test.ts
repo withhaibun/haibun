@@ -1,10 +1,10 @@
 import { it, expect, describe } from 'vitest';
 
-import { testWithDefaults } from '@haibun/core/build/lib/test/lib.js';
-import WebHttp from '@haibun/web-http/build/web-http.js';
+import { testWithDefaults } from '@haibun/core/lib/test/lib.js';
+import WebHttp from '@haibun/web-http/web-http.js';
 
 import WebServerStepper from './web-server-stepper.js';
-import { getDefaultWorld } from '@haibun/core/build/lib/test/lib.js';
+import { getDefaultWorld } from '@haibun/core/lib/test/lib.js';
 import { TEST_PORTS } from './test-constants.js';
 
 describe('static mount', () => {

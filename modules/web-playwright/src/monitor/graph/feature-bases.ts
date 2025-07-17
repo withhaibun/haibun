@@ -1,4 +1,4 @@
-import { TResolvedFeature } from "@haibun/core/build/lib/defs.js";
+import { TResolvedFeature } from "@haibun/core/lib/defs.js";
 
 export function getBaseLocations(resolvedFeatures) {
   // Collect all unique base locations from features

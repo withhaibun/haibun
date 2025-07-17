@@ -1,4 +1,4 @@
-import { TArtifactHTML } from "@haibun/core/build/lib/interfaces/logger.js";
+import { TArtifactHTML } from "@haibun/core/lib/interfaces/logger.js";
 import { ArtifactDisplay } from "./artifactDisplayBase.js";
 
 export class HtmlArtifactDisplay extends ArtifactDisplay {
