@@ -78,7 +78,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 	waitFor: {
 		gwta: 'wait for {what}',
 		action: async ({ what }: TNamed) => {
-			const selector = what.match(/^[.#]/) ? what : `text=${what}`;
+			const selector = what.match(/^[#]/) ? what : `text=${what}`;
 			const found = await wp.withPage(async (page: Page) => await page.waitForSelector(selector));
 			if (found) {
 				return OK;
@@ -224,67 +224,38 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 
 	//                  CLICK
 
-	clickByAltText: {
-		gwta: 'click by alt text {altText}',
-		action: async ({ altText }: TNamed) => {
-			await wp.withPage(async (page: Page) => await page.getByAltText(altText).click());
-			return OK;
-		},
-	},
-	clickByTestId: {
-		gwta: 'click by test id {testId}',
-		action: async ({ testId }: TNamed) => {
-			await wp.withPage(async (page: Page) => await page.getByTestId(testId).click());
-			return OK;
-		},
-	},
-	clickByPlaceholder: {
-		gwta: 'click by placeholder {placeholder}',
-		action: async ({ placeholder }: TNamed) => {
-			await wp.withPage(async (page: Page) => await page.getByPlaceholder(placeholder).click());
-			return OK;
-		},
-	},
-	clickByRole: {
-		gwta: 'click by role {roleStr}',
-		action: async ({ roleStr }: TNamed) => {
-			const [role, ...restStr] = roleStr.split(' ');
-			let rest;
-			try {
-				rest = JSON.parse(restStr.join(' '));
-			} catch (e) {
-				return actionNotOK(`could not parse role ${roleStr} as JSON: ${e}`);
+	clickBy: {
+		gwta: 'click by {what} {where}',
+		action: async ({ what, where }: TNamed) => {
+			const bys = {
+				'alt text': async (page: Page) => await page.getByAltText(where).click(),
+				'test id': async (page: Page) => await page.getByTestId(where).click(),
+				'placeholder': async (page: Page) => await page.getByPlaceholder(where).click(),
+				'role': async (page: Page) => {
+					const [role, ...restStr] = where.split(' ');
+					let rest;
+					try {
+						rest = JSON.parse(restStr.join(' '));
+					} catch (e) {
+						return actionNotOK(`could not parse role ${where} as JSON: ${e}`);
+					}
+					await page.getByRole(<TAnyFixme>role, rest || {}).click();
+				},
+				'label': async (page: Page) => await page.getByLabel(where).click(),
+				'title': async (page: Page) => await page.getByTitle(where).click(),
+				'text': async (page: Page) => await page.getByText(where).click(),
+			};
+			if (!bys[what]) {
+				return actionNotOK(`unknown click by ${what} from ${Object.keys(bys).join(', ')}`);
 			}
-			await wp.withPage(async (page: Page) => await page.getByRole(<TAnyFixme>role, rest || {}).click());
-			return OK;
-		},
-	},
-	clickByLabel: {
-		gwta: 'click by label {label}',
-		action: async ({ label }: TNamed) => {
-			await wp.withPage(async (page: Page) => await page.getByLabel(label).click());
-			return OK;
-		},
-	},
-	clickByTitle: {
-		gwta: 'click by title {title}',
-		action: async ({ title }: TNamed) => {
-			await wp.withPage(async (page: Page) => await page.getByTitle(title).click());
-
-			return OK;
-		},
-	},
-	clickByText: {
-		gwta: 'click by text {text}',
-		action: async ({ text }: TNamed) => {
-			await wp.withPage(async (page: Page) => await page.getByText(text).click());
+			await wp.withPage(async (page: Page) => await bys[what](page));
 			return OK;
 		},
 	},
 	clickOn: {
-		gwta: 'click on (?<name>.+)',
-		action: async ({ name }: TNamed) => {
-			const what = wp.getWorld().shared.get(name) || `text=${name}`;
+		gwta: 'click on {what}',
+		action: async ({ what }: TNamed) => {
+			console.log('wtw', what);
 			await wp.withPage(async (page: Page) => await page.click(what));
 			return OK;
 		},
@@ -295,14 +266,6 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 			const what = wp.getWorld().shared.get(name) || name;
 			wp.getWorld().logger.log(`click ${name} ${what}`);
 			await wp.withPage(async (page: Page) => await page.click(what));
-			return OK;
-		},
-	},
-	clickShared: {
-		gwta: 'click `(?<id>.+)`',
-		action: async ({ id }: TNamed) => {
-			const name = wp.getWorld().shared.get(id);
-			await wp.withPage(async (page: Page) => await page.click(name));
 			return OK;
 		},
 	},
@@ -401,7 +364,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 			try {
 				await wp.withPage(async (page: Page) => {
 					const [fileChooser] = await Promise.all([
-						page.waitForEvent('filechooser'), 
+						page.waitForEvent('filechooser'),
 						page.locator(selector).click()
 					]);
 					await fileChooser.setFiles(file);
