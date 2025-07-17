@@ -1,12 +1,14 @@
-import { Page, Response, Download } from "playwright";
+import { Download, Page, Response } from "playwright";
 
-import { OK, TNamed, TFeatureStep } from "@haibun/core/build/lib/defs.js";
-import { WEB_CONTROL, WEB_PAGE } from "@haibun/core/build/lib/domain-types.js";
-import { TAnyFixme } from "@haibun/core/build/lib/fixme.js";
-import { EExecutionMessageType } from "@haibun/core/build/lib/interfaces/logger.js";
-import { sleep, actionNotOK } from "@haibun/core/build/lib/util/index.js";
+import { OK, TFeatureStep, TNamed } from "@haibun/core/lib/defs.js";
+import { WEB_CONTROL, WEB_PAGE } from "@haibun/core/lib/domain-types.js";
+import { TAnyFixme } from "@haibun/core/lib/fixme.js";
+import { EExecutionMessageType } from "@haibun/core/lib/interfaces/logger.js";
+import { actionNotOK, sleep } from "@haibun/core/lib/util/index.js";
 import { BROWSERS } from "./BrowserFactory.js";
 import { WebPlaywright } from "./web-playwright.js";
+
+const byMatch = / by (placeholder|role|label|title|alt text|test id|text)$/;
 
 export const interactionSteps = (wp: WebPlaywright) => ({
 	//                                      INPUT
@@ -181,13 +183,6 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 			return found ? OK : actionNotOK(`did not find cookie ${name} with value ${value} from ${JSON.stringify(cookies)}`);
 		},
 	},
-	URIContains: {
-		gwta: 'URI includes {what}',
-		action: async ({ what }: TNamed) => {
-			const uri = await wp.withPage<string>(async (page: Page) => await page.url());
-			return uri.includes(what) ? OK : actionNotOK(`current URI ${uri} does not contain ${what}`);
-		},
-	},
 	URIQueryParameterIs: {
 		gwta: 'URI query parameter {what} is {value}',
 		action: async ({ what, value }: TNamed) => {
@@ -207,96 +202,65 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 		},
 	},
 	URIMatches: {
-		gwta: 'URI matches {what}',
-		action: async ({ what }: TNamed) => {
+		gwta: 'URI (case insensitively)? matches {what}',
+		action: async ({ what }: TNamed, featureStep) => {
+			const modifier = featureStep.in.match(/ case insensitively /) ? 'i' : '';
 			const uri = await wp.withPage<string>(async (page: Page) => await page.url());
-			return uri.match(what) ? OK : actionNotOK(`current URI ${uri} does not match ${what}`);
-		},
-	},
-	caseInsensitiveURIMatches: {
-		gwta: 'URI case insensitively matches {what}',
-		action: async ({ what }: TNamed) => {
-			const uri = await wp.withPage<string>(async (page: Page) => await page.url());
-			const matcher = new RegExp(what, 'i');
+			const matcher = new RegExp(what, modifier);
 			return uri.match(matcher) ? OK : actionNotOK(`current URI ${uri} does not match ${what}`);
 		},
 	},
 
 	//                  CLICK
 
-	clickBy: {
-		gwta: 'click by {what} {where}',
-		action: async ({ what, where }: TNamed) => {
+	click: {
+		gwta: `click {what}(${byMatch})?`,
+		action: async ({ what }: TNamed, featureStep) => {
+			const byType = featureStep.in.match(new RegExp(byMatch))?.[1];
+			if (!byType) {
+				// Check if it looks like a CSS selector (starts with # . [ or contains specific characters)
+				const isCssSelector = /^[#.[[]|::|>>/.test(what) || what.includes('=');
+				if (isCssSelector) {
+					await wp.withPage(async (page: Page) => await page.locator(what).click());
+				} else {
+					// Default to exact text-based search
+					await wp.withPage(async (page: Page) => await page.getByText(what, { exact: true }).click());
+				}
+				return OK;
+			}
+			what = what.replace(new RegExp(byMatch), '');
 			const bys = {
-				'alt text': async (page: Page) => await page.getByAltText(where).click(),
-				'test id': async (page: Page) => await page.getByTestId(where).click(),
-				'placeholder': async (page: Page) => await page.getByPlaceholder(where).click(),
-				'role': async (page: Page) => {
-					const [role, ...restStr] = where.split(' ');
+				'alt text': (page: Page) => page.getByAltText(what),
+				'test id': (page: Page) => page.getByTestId(what),
+				'placeholder': (page: Page) => page.getByPlaceholder(what),
+				'role': (page: Page) => {
+					const [role, ...restStr] = what.split(' ');
 					let rest;
 					try {
 						rest = JSON.parse(restStr.join(' '));
 					} catch (e) {
-						return actionNotOK(`could not parse role ${where} as JSON: ${e}`);
+						return actionNotOK(`could not parse role ${what} as JSON: ${e}`);
 					}
-					await page.getByRole(<TAnyFixme>role, rest || {}).click();
+					return page.getByRole(<TAnyFixme>role, rest || {});
 				},
-				'label': async (page: Page) => await page.getByLabel(where).click(),
-				'title': async (page: Page) => await page.getByTitle(where).click(),
-				'text': async (page: Page) => await page.getByText(where).click(),
+				'label': (page: Page) => page.getByLabel(what),
+				'title': (page: Page) => page.getByTitle(what),
+				'text': (page: Page) => page.getByText(what, { exact: true }),
 			};
-			if (!bys[what]) {
-				return actionNotOK(`unknown click by ${what} from ${Object.keys(bys).join(', ')}`);
+			if (!bys[byType]) {
+				return actionNotOK(`unknown click by "${byType}" from ${Object.keys(bys).toString()}`);
 			}
-			await wp.withPage(async (page: Page) => await bys[what](page));
+			await wp.withPage(async (page: Page) => {
+				const locatorResult = bys[byType](page);
+				if (typeof locatorResult === 'object' && 'message' in locatorResult) {
+					return locatorResult; // Return error from role parsing
+				}
+				console.log('byType', byType, locatorResult);
+				await locatorResult.click();
+			});
 			return OK;
 		},
 	},
-	clickOn: {
-		gwta: 'click on {what}',
-		action: async ({ what }: TNamed) => {
-			console.log('wtw', what);
-			await wp.withPage(async (page: Page) => await page.click(what));
-			return OK;
-		},
-	},
-	clickCheckbox: {
-		gwta: 'click the checkbox (?<name>.+)',
-		action: async ({ name }: TNamed) => {
-			const what = wp.getWorld().shared.get(name) || name;
-			wp.getWorld().logger.log(`click ${name} ${what}`);
-			await wp.withPage(async (page: Page) => await page.click(what));
-			return OK;
-		},
-	},
-	clickQuoted: {
-		gwta: 'click "(?<name>.+)"',
-		action: async ({ name }: TNamed) => {
-			await wp.withPage(async (page: Page) => await page.click(`text=${name}`));
-			return OK;
-		},
-	},
-	clickLink: {
-		// TODO: generalize modifier
-		gwta: 'click( with alt)? the link {name}',
-		action: async ({ name }: TNamed, featureStep: TFeatureStep) => {
-			const modifier = featureStep.in.match(/ with alt /) ? { modifiers: ['Alt'] } : {};
-			const field = wp.getWorld().shared.get(name) || name;
-			await wp.withPage(async (page: Page) => await page.click(field, <TAnyFixme>modifier));
-			return OK;
-		},
-	},
-
-	clickButton: {
-		gwta: 'click the button (?<id>.+)',
-		action: async ({ id }: TNamed) => {
-			const field = wp.getWorld().shared.get(id) || id;
-			await wp.withPage(async (page: Page) => await page.click(field));
-
-			return OK;
-		},
-	},
-
 	//                          NAVIGATION
 
 	// formerly On the {name} ${WEB_PAGE}
