@@ -9,36 +9,62 @@ import { currentVersion as version } from '@haibun/core/currentVersion.js';
 import { TWorld, TStepperStep, TStepResult } from "@haibun/core/lib/defs.js";
 import { constructorName } from "@haibun/core/lib/util/index.js";
 import { resolveAndExecuteStatement } from "@haibun/core/lib/util/resolveAndExecuteStatement.js";
+import { HttpPrompterClient } from './http-prompter-client.js';
 
 type ToolHandlerResponse = { content?: TextContent[] };
 
-interface RemoteExecutorConfig {
+type IRemoteExecutorConfig = {
 	url: string;
 	accessToken?: string;
-}
+};
 
 export class MCPExecutorServer {
 	server: McpServer;
-	constructor(private steppers: AStepper[], private world: TWorld, private remoteConfig?: RemoteExecutorConfig) {
+	httpPrompterClient?: HttpPrompterClient;
+	private samplingInterval?: NodeJS.Timeout;
+	private _isRunning: boolean = false;
+	
+	get isRunning(): boolean {
+		return this._isRunning;
+	}
+	
+	constructor(private steppers: AStepper[], private world: TWorld, private remoteConfig?: IRemoteExecutorConfig) {
 		// Log the execution mode
 		if (remoteConfig) {
-			console.log(`🔗 MCPExecutorServer: Remote execution mode - connecting to ${remoteConfig.url}`);
+			this.world.logger.log(`🔗 MCPExecutorServer: Remote execution mode - connecting to ${remoteConfig.url}`);
 		} else {
-			console.log(`🏠 MCPExecutorServer: Local execution mode`);
+			this.world.logger.log(`🏠 MCPExecutorServer: Local execution mode`);
 		}
 	}
 
 	async start() {
+		this._isRunning = true;
 		this.server = new McpServer({
 			name: "haibun-mcp",
 			version,
 			capabilities: {
 				resources: {},
 				tools: {},
+				sampling: {
+					enabled: true
+				}
 			},
 		});
 
+		// Initialize HTTP prompter client for debug prompt access
+		if (!this.remoteConfig?.url) {
+			this.world.logger.warn(`⚠️  MCPExecutorServer: No remote config URL provided - debug prompt tools will not be available`);
+			this.httpPrompterClient = undefined;
+		} else {
+			this.httpPrompterClient = new HttpPrompterClient(this.remoteConfig.url, this.remoteConfig.accessToken);
+			this.world.logger.log(`🤖 MCPExecutorServer: HTTP prompter client initialized for debugging with URL ${this.remoteConfig.url}`);
+			
+			// Prompt notifications now handled by MCPClientPrompter - no sampling needed
+			this.startPromptSampling();
+		}
+
 		this.registerSteppers();
+		this.registerPromptTools();
 		const transport = new StdioServerTransport();
 		await this.server.connect(transport);
 	}
@@ -73,12 +99,104 @@ export class MCPExecutorServer {
 			}
 		}
 	}
+
+	registerPromptTools() {
+		// Tool to list pending debug prompts
+		this.server.registerTool('listDebugPrompts', {
+			description: 'List all pending debug prompts',
+			title: 'List Debug Prompts'
+		}, async (): Promise<ToolHandlerResponse> => {
+			if (!this.httpPrompterClient) {
+				return {
+					content: [{
+						type: "text",
+						text: JSON.stringify({
+							success: false,
+							error: 'HttpPrompterClient not initialized - no remote config URL provided',
+							prompts: [],
+							count: 0
+						}, null, 2)
+					}]
+				};
+			}
+
+			const prompts = await this.httpPrompterClient.getPrompts();
+			return {
+				content: [{
+					type: "text",
+					text: JSON.stringify({
+						prompts,
+						count: prompts.length,
+						message: prompts.length > 0 ? 
+							`Found ${prompts.length} pending debug prompt(s)` : 
+							'No pending debug prompts'
+					}, null, 2)
+				}]
+			};
+		});
+
+		// Tool to respond to debug prompts
+		this.server.registerTool('respondToDebugPrompt', {
+			description: 'Respond to a debug prompt to continue execution',
+			title: 'Respond to Debug Prompt',
+			inputSchema: {
+				promptId: z.string(),
+				response: z.string()
+			}
+		}, async (input: { promptId: string, response: string }): Promise<ToolHandlerResponse> => {
+			if (!this.httpPrompterClient) {
+				return {
+					content: [{
+						type: "text",
+						text: JSON.stringify({
+							success: false,
+							error: 'HttpPrompterClient not initialized - no remote config URL provided',
+							promptId: input.promptId
+						}, null, 2)
+					}]
+				};
+			}
+
+			try {
+				const result = await this.httpPrompterClient.respondToPrompt(input.promptId, input.response);
+				return {
+					content: [{
+						type: "text",
+						text: JSON.stringify({
+							success: true,
+							promptId: input.promptId,
+							response: input.response,
+							result,
+							message: `Debug prompt ${input.promptId} resolved with: "${input.response}"`
+						}, null, 2)
+					}]
+				};
+			} catch (error) {
+				const errorMessage = error instanceof Error ? error.message : String(error);
+				return {
+					content: [{
+						type: "text",
+						text: JSON.stringify({
+							success: false,
+							error: errorMessage,
+							promptId: input.promptId
+						}, null, 2)
+					}]
+				};
+			}
+		});
+	}
 	private createToolHandler(stepperName: string, stepName: string, stepDef: TStepperStep) {
 		return async (input: Record<string, string | number | boolean | string[]>): Promise<ToolHandlerResponse> => {
 			try {
 				let statement = stepDef.gwta || stepDef.exact || stepDef.match?.toString();
 
 				if (stepDef.gwta && Object.keys(input).length > 0) {
+					// First, handle optional parts like ( empty)?
+					// Remove optional parts that are not used (for now, just remove all optional parts)
+					statement = statement.replace(/\([^)]*\)\?/g, '');
+					
+					// Then replace the named variables
 					for (const [key, value] of Object.entries(input)) {
 						const pattern = new RegExp(`\\{${key}(:[^}]*)?\\}`, 'g');
 						statement = statement.replace(pattern, String(value));
@@ -127,6 +245,9 @@ export class MCPExecutorServer {
 
 		if (this.remoteConfig!.accessToken) {
 			headers.Authorization = `Bearer ${this.remoteConfig!.accessToken}`;
+			this.world.logger.log(`🔐 MCPExecutorServer: Using access token for authentication`);
+		} else {
+			this.world.logger.warn(`⚠️  MCPExecutorServer: No access token available for remote API call`);
 		}
 
 		const maxRetries = 3;
@@ -156,9 +277,20 @@ export class MCPExecutorServer {
 				}
 
 				// Log retry attempt and wait before retrying
-				console.warn(`Remote execution attempt ${attempt} failed: ${errorMessage}. Retrying in ${retryDelay}ms...`);
+				this.world.logger.warn(`Remote execution attempt ${attempt} failed: ${errorMessage}. Retrying in ${retryDelay}ms...`);
 				await new Promise(resolve => setTimeout(resolve, retryDelay));
 			}
 		}
+	}
+
+	// REMOVED: Redundant prompt sampling system
+	// Prompt notifications are now handled by MCPClientPrompter's showPrompt/hidePrompt methods
+	// This provides real-time notifications without polling overhead
+	startPromptSampling() {
+		this.world.logger.log('📡 MCP: Prompt notifications handled by MCPClientPrompter - no polling needed');
+	}
+
+	stopPromptSampling() {
+		this.world.logger.log('📡 MCP: No prompt sampling to stop - using real-time notifications');
 	}
 }

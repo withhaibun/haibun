@@ -119,13 +119,6 @@ export class DebuggerStepper extends AStepper implements IHasCycles {
 				return await this.continue();
 			}
 		},
-		exact: {
-			exact: 'debug',
-			action: async (): Promise<TActionResult> => {
-				await this.getWorld().prompter.prompt(makePrompt('step', undefined, ['step', 's']));
-				return Promise.resolve(OK);
-			},
-		},
 		debugStepByStep: {
 			exact: 'debug step by step',
 			action: (): Promise<TActionResult> => {
