@@ -202,7 +202,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 		},
 	},
 	URIMatches: {
-		gwta: 'URI (case insensitively)? matches {what}',
+		gwta: 'URI(case insensitively)? matches {what}',
 		action: async ({ what }: TNamed, featureStep) => {
 			const modifier = featureStep.in.match(/ case insensitively /) ? 'i' : '';
 			const uri = await wp.withPage<string>(async (page: Page) => await page.url());

@@ -4,7 +4,9 @@ import { StdioServerParameters } from "@modelcontextprotocol/sdk/client/stdio.js
 export const runtimeStdio = (port?: number) => {
 	const listening = port ? {
 		'HAIBUN_O_HTTPEXECUTORSTEPPER_LISTEN_PORT': port.toString(),
-		'HAIBUN_O_HTTPEXECUTORSTEPPER_ACCESS_TOKEN': 'test-token-client'
+		'HAIBUN_O_HTTPEXECUTORSTEPPER_ACCESS_TOKEN': 'test-token-client',
+		'HAIBUN_O_MCPSERVERSTEPPER_REMOTE_PORT': port.toString(),
+		'HAIBUN_O_MCPSERVERSTEPPER_ACCESS_TOKEN': 'test-token-client'
 	} : {};
 	const config: StdioServerParameters = {
 		command: process.execPath,
@@ -25,12 +27,11 @@ export const runtimeStdio = (port?: number) => {
 
 
 export const TEST_PORTS = {
-	MCP_REMOTE_EXECUTOR: 12300,
-	MCP_REMOTE_EXECUTION: 12310,
 	MCP_CLIENT_LIST_TOOLS: 12342,
 	MCP_CLIENT_PROMPTER: 12341,
 	MCP_TOOL_EXECUTION: 12350,
-	MCP_TOOL_EXECUTION_ALT: 12351,
-	MCP_CLIENT_LIFECYCLE: 12360,
 	MCP_HTTP_PROMPTER_TEST: 12370,
+	MCP_EXECUTOR_PROMPTER_TEST_EXECUTOR: 12381,
+	MCP_EXECUTOR_PROMPTER_TEST_DEBUG: 12383,
+	MCP_DEBUG_STEPS_TEST: 12390,
 } as const;

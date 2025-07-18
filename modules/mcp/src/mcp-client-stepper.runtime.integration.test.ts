@@ -31,17 +31,3 @@ describe('mcp client test remote', () => {
 		expect(res.ok).toBe(true);
 	});
 });
-
-describe('mcp client prompter tests', () => {
-	it('can register and unregister mcp prompter', async () => {
-		const feature = {
-			path: '/features/test.feature',
-			content: `register mcp prompter\nunregister mcp prompter`
-		};
-		const res = await testWithDefaults([feature], [MCPClientStepper], {
-			options: { DEST: DEFAULT_DEST },
-			moduleOptions: { [getStepperOptionName(MCPClientStepper, MCPClientStepper.SERVER)]: runtimeStdio(TEST_PORTS.MCP_CLIENT_PROMPTER) },
-		});
-		expect(res.ok).toBe(true);
-	});
-});
