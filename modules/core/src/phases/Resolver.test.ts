@@ -91,20 +91,20 @@ describe('validate map steps', () => {
 	});
 });
 
-describe('preclude stepper', async () => {
+describe('preclude stepper', () => {
 	class PrecludedStepper extends AStepper {
 		steps = {
-			gwta: {
-				exact: 'does {something}',
+			doesSomething: {
+				gwta: 'does {something}',
 				action: async () => Promise.resolve(OK),
 			},
 		}
 	}
 	class PrecluderStepper extends AStepper {
 		steps = {
-			gwta: {
+			doesSomething: {
 				gwta: 'does {something} else',
-				precludes: ['PrecludedStepper.gwta'],
+				precludes: ['PrecludedStepper.doesSomething'],
 				action: async () => Promise.resolve(OK),
 			},
 		};
