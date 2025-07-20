@@ -1,6 +1,6 @@
 import { AStepper, IHasOptions, IHasCycles } from '@haibun/core/lib/astepper.js';
 import { OK, TWorld, IStepperCycles, TStartFeature } from '@haibun/core/lib/defs.js';
-import { actionNotOK, getStepperOption, intOrError } from '@haibun/core/lib/util/index.js';
+import { actionNotOK, getStepperOption, getStepperOptionName, intOrError } from '@haibun/core/lib/util/index.js';
 import { MCPExecutorServer } from './lib/mcp-executor-server.js';
 
 const cycles = (mcpStepper: MCPServerStepper): IStepperCycles => ({
@@ -45,7 +45,7 @@ class MCPServerStepper extends AStepper implements IHasOptions, IHasCycles {
 		this.accessToken = getStepperOption(this, 'ACCESS_TOKEN', world.moduleOptions);
 
 		if (!isNaN(this.remotePort) && !this.accessToken) {
-			throw new Error('ACCESS_TOKEN is required when REMOTE_PORT is configured for remote execution');
+			throw new Error(`${getStepperOptionName(this, 'ACCESS_TOKEN')} is required when REMOTE_PORT is configured for remote execution`);
 		}
 
 		// Log the remote configuration
