@@ -2,7 +2,6 @@ import { Download, Page, Response } from "playwright";
 
 import { OK, TFeatureStep, TNamed } from "@haibun/core/lib/defs.js";
 import { WEB_CONTROL, WEB_PAGE } from "@haibun/core/lib/domain-types.js";
-import { TAnyFixme } from "@haibun/core/lib/fixme.js";
 import { EExecutionMessageType } from "@haibun/core/lib/interfaces/logger.js";
 import { actionNotOK, actionOK, sleep } from "@haibun/core/lib/util/index.js";
 import { BROWSERS } from "./BrowserFactory.js";
@@ -223,7 +222,8 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 		}
 	},
 	clickBy: {
-		gwta: `by {method}, click {what}`,
+		precludes: [`${wp.constructor.name}.click`],
+		gwta: `click {what} by {method}`,
 		action: async ({ what, method }: TNamed) => {
 			let withModifier = {};
 
