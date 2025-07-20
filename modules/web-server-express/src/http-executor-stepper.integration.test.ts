@@ -39,7 +39,7 @@ describe('HttpExecutorStepper integration', () => {
 			[feature],
 			[WebServerStepper, HttpExecutorStepper, VariablesStepper],
 			options
-		)).rejects.toThrow('ACCESS_TOKEN is required when enabling remote executor');
+		)).rejects.toThrow(`${getStepperOptionName(HttpExecutorStepper, 'ACCESS_TOKEN')} is required when REMOTE_PORT is configured for remote execution`);
 	});
 
 	it('enables remote executor with authentication', async () => {

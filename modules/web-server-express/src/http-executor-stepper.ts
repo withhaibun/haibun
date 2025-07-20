@@ -1,7 +1,7 @@
 import { AStepper, IHasCycles, IHasOptions } from '@haibun/core/lib/astepper.js';
 import { TStepResult, TWorld } from '@haibun/core/lib/defs.js';
 import { resolveAndExecuteStatement } from "@haibun/core/lib/util/resolveAndExecuteStatement.js";
-import { actionNotOK, actionOK, getFromRuntime, getStepperOption, intOrError } from '@haibun/core/lib/util/index.js';
+import { actionNotOK, actionOK, getFromRuntime, getStepperOption, getStepperOptionName, intOrError } from '@haibun/core/lib/util/index.js';
 import { IRequest, IResponse, IWebServer, WEBSERVER } from './defs.js';
 import WebServerStepper from './web-server-stepper.js';
 import { HttpPrompter } from './http-prompter.js';
@@ -45,7 +45,7 @@ export default class HttpExecutorStepper extends AStepper implements IHasOptions
 		this.steppers = steppers;
 		if (!isNaN(this.port)) {
 			if (!this.configuredToken) {
-				throw new Error('ACCESS_TOKEN is required when enabling remote executor');
+				throw new Error(`${getStepperOptionName(this, 'ACCESS_TOKEN')} is required when REMOTE_PORT is configured for remote execution`);
 			}
 			const webServerStepper = steppers.find(s => s instanceof WebServerStepper) as WebServerStepper;
 			if (webServerStepper) {
@@ -67,7 +67,7 @@ export default class HttpExecutorStepper extends AStepper implements IHasOptions
 			(async () => {
 				try {
 					console.log(`📥 HTTP Executor: Received request for statement: "${req.body?.statement}"`);
-					
+
 					if (!this.checkAuth(req, res)) {
 						return;
 					}
@@ -157,7 +157,7 @@ export default class HttpExecutorStepper extends AStepper implements IHasOptions
 			res.status(401).json({ error: 'Invalid or missing access token' });
 			return false;
 		}
-		
+
 		return true;
 	}
 
