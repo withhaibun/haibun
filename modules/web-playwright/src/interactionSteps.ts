@@ -4,11 +4,9 @@ import { OK, TFeatureStep, TNamed } from "@haibun/core/lib/defs.js";
 import { WEB_CONTROL, WEB_PAGE } from "@haibun/core/lib/domain-types.js";
 import { TAnyFixme } from "@haibun/core/lib/fixme.js";
 import { EExecutionMessageType } from "@haibun/core/lib/interfaces/logger.js";
-import { actionNotOK, sleep } from "@haibun/core/lib/util/index.js";
+import { actionNotOK, actionOK, sleep } from "@haibun/core/lib/util/index.js";
 import { BROWSERS } from "./BrowserFactory.js";
 import { WebPlaywright } from "./web-playwright.js";
-
-const byMatch = / by (placeholder|role|label|title|alt text|test id|text)$/;
 
 export const interactionSteps = (wp: WebPlaywright) => ({
 	//                                      INPUT
@@ -212,51 +210,43 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 	},
 
 	//                  CLICK
-
 	click: {
-		gwta: `click {what}(${byMatch})?`,
-		action: async ({ what }: TNamed, featureStep) => {
-			const byType = featureStep.in.match(new RegExp(byMatch))?.[1];
-			if (!byType) {
-				// Check if it looks like a CSS selector (starts with # . [ or contains specific characters)
-				const isCssSelector = /^[#.[[]|::|>>/.test(what) || what.includes('=');
-				if (isCssSelector) {
-					await wp.withPage(async (page: Page) => await page.locator(what).click());
-				} else {
-					// Default to exact text-based search
-					await wp.withPage(async (page: Page) => await page.getByText(what, { exact: true }).click());
-				}
-				return OK;
+		gwta: `click {what}`,
+		action: async ({ what }: TNamed) => {
+			const isCssSelector = /^[#.[[]|::|>>/.test(what) || what.includes('=');
+			if (isCssSelector) {
+				await wp.withPage(async (page: Page) => await page.locator(what).click());
+			} else {
+				await wp.withPage(async (page: Page) => await page.getByText(what, { exact: true }).click());
 			}
-			what = what.replace(new RegExp(byMatch), '');
+			return OK;
+		}
+	},
+	clickBy: {
+		gwta: `by {method}, click {what}`,
+		action: async ({ what, method }: TNamed) => {
+			let withModifier = {};
+
 			const bys = {
 				'alt text': (page: Page) => page.getByAltText(what),
 				'test id': (page: Page) => page.getByTestId(what),
-				'placeholder': (page: Page) => page.getByPlaceholder(what),
-				'role': (page: Page) => {
-					const [role, ...restStr] = what.split(' ');
-					let rest;
-					try {
-						rest = JSON.parse(restStr.join(' '));
-					} catch (e) {
-						return actionNotOK(`could not parse role ${what} as JSON: ${e}`);
-					}
-					return page.getByRole(<TAnyFixme>role, rest || {});
-				},
-				'label': (page: Page) => page.getByLabel(what),
-				'title': (page: Page) => page.getByTitle(what),
-				'text': (page: Page) => page.getByText(what, { exact: true }),
+				placeholder: (page: Page) => page.getByPlaceholder(what),
+				role: (page: Page) => page.getByRole(what as Parameters<Page['getByRole']>[0]),
+				label: (page: Page) => page.getByLabel(what),
+				title: (page: Page) => page.getByTitle(what),
+				text: (page: Page) => page.getByText(what, { exact: true }),
+				dispatch: (page: Page) => page.locator(what).dispatchEvent('click'),
+				modifier: (page: Page) => {
+					withModifier = JSON.parse(method);
+					return page.locator(what);
+				}
 			};
-			if (!bys[byType]) {
-				return actionNotOK(`unknown click by "${byType}" from ${Object.keys(bys).toString()}`);
+			if (!bys[method]) {
+				return actionNotOK(`unknown click by "${method}" from ${Object.keys(bys).toString()}`);
 			}
 			await wp.withPage(async (page: Page) => {
-				const locatorResult = bys[byType](page);
-				if (typeof locatorResult === 'object' && 'message' in locatorResult) {
-					return locatorResult; // Return error from role parsing
-				}
-				console.log('byType', byType, locatorResult);
-				await locatorResult.click();
+				const locatorResult = bys[method](page);
+				await locatorResult.click(withModifier);
 			});
 			return OK;
 		},
@@ -414,6 +404,20 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 				return actionNotOK(e);
 			}
 		},
+	},
+	getPageContents: {
+		gwta: 'get page contents',
+		action: async () => {
+			const contents = await wp.withPage<string>(async (page: Page) => await page.content());
+			const messageContext = {
+				incident: EExecutionMessageType.ACTION,
+				artifact: {
+					artifactType: 'html' as const,
+					html: contents || ''
+				}
+			};
+			return actionOK(messageContext);
+		}
 	},
 	takeAccessibilitySnapshot: {
 		gwta: 'take an accessibility snapshot',
