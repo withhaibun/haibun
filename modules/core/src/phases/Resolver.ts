@@ -30,10 +30,14 @@ export class Resolver {
 
 			const actionable = getActionable(featureLine.line);
 
-			const actions = this.findActionableSteps(actionable);
+			let actions = this.findActionableSteps(actionable);
 
 			if (actions.length > 1) {
-				throw Error(`more than one step found for "${featureLine.line}": ${JSON.stringify(actions.map((a) => a.actionName))}`);
+				const precludes = actions.filter(a => a.step.precludes).map(a => a.step.precludes).reduce((acc, cur) => [...acc, ...cur], []);
+				actions = actions.filter(a => !precludes.includes(`${a.stepperName}.${a.actionName}`));
+				if (actions.length !== 1) {
+					throw Error(`not one step found for "${featureLine.line}": ${JSON.stringify(actions.map((a) => a.actionName))} using precludes ${precludes}`);
+				}
 			} else if (actions.length < 1) {
 				throw Error(`in ${feature.name}: no step found for ${featureLine.line} in ${feature.path}\nUse --show-steppers for more details`);
 			}
