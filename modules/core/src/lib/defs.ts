@@ -110,6 +110,7 @@ export type TFeatureStep = {
 export type TAction = (named: TNamed, featureStep: TFeatureStep) => Promise<TActionResult>;
 
 export type TStepperStep = {
+	precludes?: string[];
 	match?: RegExp;
 	gwta?: string;
 	exact?: string;
