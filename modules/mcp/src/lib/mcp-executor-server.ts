@@ -21,15 +21,13 @@ type IRemoteExecutorConfig = {
 export class MCPExecutorServer {
 	server: McpServer;
 	httpPrompterClient?: HttpPrompterClient;
-	private samplingInterval?: NodeJS.Timeout;
 	private _isRunning: boolean = false;
-	
+
 	get isRunning(): boolean {
 		return this._isRunning;
 	}
-	
+
 	constructor(private steppers: AStepper[], private world: TWorld, private remoteConfig?: IRemoteExecutorConfig) {
-		// Log the execution mode
 		if (remoteConfig) {
 			this.world.logger.log(`🔗 MCPExecutorServer: Remote execution mode - connecting to ${remoteConfig.url}`);
 		} else {
@@ -58,9 +56,6 @@ export class MCPExecutorServer {
 		} else {
 			this.httpPrompterClient = new HttpPrompterClient(this.remoteConfig.url, this.remoteConfig.accessToken);
 			this.world.logger.log(`🤖 MCPExecutorServer: HTTP prompter client initialized for debugging with URL ${this.remoteConfig.url}`);
-			
-			// Prompt notifications now handled by MCPClientPrompter - no sampling needed
-			this.startPromptSampling();
 		}
 
 		this.registerSteppers();
@@ -127,8 +122,8 @@ export class MCPExecutorServer {
 					text: JSON.stringify({
 						prompts,
 						count: prompts.length,
-						message: prompts.length > 0 ? 
-							`Found ${prompts.length} pending debug prompt(s)` : 
+						message: prompts.length > 0 ?
+							`Found ${prompts.length} pending debug prompt(s)` :
 							'No pending debug prompts'
 					}, null, 2)
 				}]
@@ -195,7 +190,7 @@ export class MCPExecutorServer {
 					// First, handle optional parts like ( empty)?
 					// Remove optional parts that are not used (for now, just remove all optional parts)
 					statement = statement.replace(/\([^)]*\)\?/g, '');
-					
+
 					// Then replace the named variables
 					for (const [key, value] of Object.entries(input)) {
 						const pattern = new RegExp(`\\{${key}(:[^}]*)?\\}`, 'g');
@@ -281,16 +276,5 @@ export class MCPExecutorServer {
 				await new Promise(resolve => setTimeout(resolve, retryDelay));
 			}
 		}
-	}
-
-	// REMOVED: Redundant prompt sampling system
-	// Prompt notifications are now handled by MCPClientPrompter's showPrompt/hidePrompt methods
-	// This provides real-time notifications without polling overhead
-	startPromptSampling() {
-		this.world.logger.log('📡 MCP: Prompt notifications handled by MCPClientPrompter - no polling needed');
-	}
-
-	stopPromptSampling() {
-		this.world.logger.log('📡 MCP: No prompt sampling to stop - using real-time notifications');
 	}
 }

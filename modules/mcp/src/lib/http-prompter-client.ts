@@ -31,17 +31,12 @@ export class HttpPrompterClient {
 			throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 		}
 		const responseData = await response.json();
-
-		// Handle different response formats:
-		// 1. Direct array: [prompt1, prompt2, ...]
-		// 2. Wrapped object: { prompts: [prompt1, prompt2, ...] }
 		if (Array.isArray(responseData)) {
 			return responseData;
 		} else if (responseData && Array.isArray(responseData.prompts)) {
 			return responseData.prompts;
 		} else {
-			// Return empty array for unexpected formats
-			return [];
+			throw Error(`Unexpected response format: ${JSON.stringify(responseData)}`);
 		}
 	}
 
@@ -62,8 +57,7 @@ export class HttpPrompterClient {
 
 			return await httpResponse.json();
 		} catch (error) {
-			console.warn('Failed to respond to prompt via HTTP prompter:', error);
-			throw error;
+			throw Error('Failed to respond to prompt via HTTP prompter:', error);
 		}
 	}
 }

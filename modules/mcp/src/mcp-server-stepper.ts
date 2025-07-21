@@ -1,30 +1,13 @@
-import { AStepper, IHasOptions, IHasCycles } from '@haibun/core/lib/astepper.js';
-import { OK, TWorld, IStepperCycles, TStartFeature } from '@haibun/core/lib/defs.js';
+import { AStepper, IHasOptions } from '@haibun/core/lib/astepper.js';
+import { OK, TWorld } from '@haibun/core/lib/defs.js';
 import { actionNotOK, getStepperOption, getStepperOptionName, intOrError } from '@haibun/core/lib/util/index.js';
 import { MCPExecutorServer } from './lib/mcp-executor-server.js';
 
-const cycles = (mcpStepper: MCPServerStepper): IStepperCycles => ({
-	async startFeature({ resolvedFeature, index }: TStartFeature): Promise<void> {
-		if (mcpStepper.mcpServer && mcpStepper.mcpServer.isRunning) {
-			mcpStepper.getWorld().logger.debug(`🔗 Starting MCP sampling for feature ${index}: ${resolvedFeature.path}`);
-			await mcpStepper.mcpServer.startPromptSampling();
-		}
-	},
-	endFeature(): Promise<void> {
-		if (mcpStepper.mcpServer && mcpStepper.mcpServer.isRunning) {
-			mcpStepper.getWorld().logger.debug(`🔗 Stopping MCP sampling for feature`);
-			mcpStepper.mcpServer.stopPromptSampling();
-		}
-		return Promise.resolve();
-	}
-});
-
-class MCPServerStepper extends AStepper implements IHasOptions, IHasCycles {
+class MCPServerStepper extends AStepper implements IHasOptions {
 	steppers: AStepper[];
 	mcpServer: MCPExecutorServer;
 	remotePort: number;
 	accessToken: string;
-	cycles: IStepperCycles = cycles(this);
 
 	options = {
 		REMOTE_PORT: {

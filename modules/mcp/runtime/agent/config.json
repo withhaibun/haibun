@@ -1,8 +1,8 @@
 {
 	"steppers": [
-		"./modules/mcp/build/mcp-server-stepper",
-		"./modules/web-playwright/build/web-playwright",
-		"./modules/storage-mem/build/storage-mem",
+		"./mcp/build/mcp-server-stepper",
+		"./web-playwright/build/web-playwright",
+		"./storage-mem/build/storage-mem",
 		"variables-stepper",
 		"debugger-stepper",
 		"haibun"
