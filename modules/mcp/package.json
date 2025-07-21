@@ -1,10 +1,10 @@
 {
   "name": "@haibun/mcp",
   "type": "module",
-  "version": "1.70.0",
+  "version": "1.70.1",
   "description": "haibun mcp server and client steppers",
   "main": "build/mcp-server-stepper.js",
-  "files": ["build/**"],
+  "files": ["build/**", "runtime/**"],
   "exports": { ".": "./build/mcp-server-stepper.js", "./*": "./build/*" },
   "scripts": {
     "prepublishOnly": "tsc -b .",
