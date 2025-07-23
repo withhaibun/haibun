@@ -1,6 +1,6 @@
 import { AStepper, IHasOptions } from '@haibun/core/lib/astepper.js';
 import { OK, TWorld } from '@haibun/core/lib/defs.js';
-import { actionNotOK, getStepperOption, getStepperOptionName, intOrError } from '@haibun/core/lib/util/index.js';
+import { actionNotOK, getStepperOption, getStepperOptionName, intOrError, stringOrError } from '@haibun/core/lib/util/index.js';
 import { MCPExecutorServer } from './lib/mcp-executor-server.js';
 
 class MCPServerStepper extends AStepper implements IHasOptions {
@@ -12,11 +12,11 @@ class MCPServerStepper extends AStepper implements IHasOptions {
 	options = {
 		REMOTE_PORT: {
 			desc: 'Port for remote execution API',
-			parse: (port: string) => ({ result: parseInt(port, 10) }),
+			parse: (port: string) => intOrError(port),
 		},
 		ACCESS_TOKEN: {
 			desc: 'Access token for remote execution API authentication',
-			parse: (token: string) => ({ result: token }),
+			parse: (token: string) => stringOrError(token),
 		},
 	};
 

@@ -111,6 +111,7 @@ export type TAction = (named: TNamed, featureStep: TFeatureStep) => Promise<TAct
 
 export type TStepperStep = {
 	precludes?: string[];
+	expose?: boolean;
 	match?: RegExp;
 	gwta?: string;
 	exact?: string;

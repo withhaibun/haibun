@@ -68,6 +68,9 @@ export class MCPExecutorServer {
 		for (const stepper of this.steppers) {
 			const stepperName = constructorName(stepper);
 			for (const [stepName, stepDef] of Object.entries(stepper.steps)) {
+				if (stepDef.expose === false) {
+					continue;
+				}
 				const variables: ZodRawShape = {};
 				if (stepDef.gwta) {
 					const { stepVariables } = namedInterpolation(stepDef.gwta);
