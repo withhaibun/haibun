@@ -312,7 +312,7 @@ export function formattedSteppers(steppers: AStepper[]) {
 		return {
 			...acc,
 			[(o as TAnyFixme).constructor.name]: Object.entries(o.steps).map(
-				([stepperName, stepperMatch]) => stepperName + ': ' + (stepperMatch.gwta || stepperMatch.match || stepperMatch.match)
+				([stepperName, stepperMatch]) => stepperName + ': ' + (stepperMatch.gwta || stepperMatch.exact || stepperMatch.match)
 			),
 		};
 	}, {} as { [name: string]: { desc: string } });
