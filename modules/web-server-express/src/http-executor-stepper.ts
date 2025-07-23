@@ -1,7 +1,7 @@
 import { AStepper, IHasCycles, IHasOptions } from '@haibun/core/lib/astepper.js';
 import { TStepResult, TWorld } from '@haibun/core/lib/defs.js';
 import { resolveAndExecuteStatement } from "@haibun/core/lib/util/resolveAndExecuteStatement.js";
-import { getFromRuntime, getStepperOption, getStepperOptionName, intOrError } from '@haibun/core/lib/util/index.js';
+import { getFromRuntime, getStepperOption, getStepperOptionName, intOrError, stringOrError } from '@haibun/core/lib/util/index.js';
 import { IRequest, IResponse, IWebServer, WEBSERVER } from './defs.js';
 import { HttpPrompter } from './http-prompter.js';
 
@@ -9,11 +9,11 @@ export default class HttpExecutorStepper extends AStepper implements IHasOptions
 	options = {
 		LISTEN_PORT: {
 			desc: 'Port for remote execution API',
-			parse: (port: string) => ({ result: parseInt(port, 10) }),
+			parse: (port: string) => intOrError(port),
 		},
 		ACCESS_TOKEN: {
 			desc: 'Access token for remote execution API authentication',
-			parse: (token: string) => ({ result: token }),
+			parse: (token: string) => stringOrError(token),
 		},
 	};
 	cycles = {

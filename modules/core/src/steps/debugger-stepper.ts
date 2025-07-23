@@ -1,8 +1,8 @@
-import { AStepper, IHasCycles } from '../lib/astepper.js';
+import { AStepper, IHasCycles, IHasOptions } from '../lib/astepper.js';
 import { IStepperCycles, TActionResult, OK, TWorld, TNamed, TBeforeStep, TAfterStep, TAfterStepResult, TStepResult } from '../lib/defs.js';
 import { TMessageContext, EExecutionMessageType } from '../lib/interfaces/logger.js';
 import { makePrompt } from '../lib/prompter.js';
-import { actionNotOK, actionOK } from '../lib/util/index.js';
+import { actionNotOK, actionOK, getStepperOption, stringOrError } from '../lib/util/index.js';
 import { resolveAndExecuteStatement } from '../lib/util/resolveAndExecuteStatement.js';
 
 export enum TDebuggingType {
@@ -25,15 +25,32 @@ const cycles = (debuggerStepper: DebuggerStepper): IStepperCycles => ({
 	}
 });
 
-export class DebuggerStepper extends AStepper implements IHasCycles {
+export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions {
 	debuggingType: TDebuggingType = TDebuggingType.Continue;
 	cycles: IStepperCycles = cycles(this);
 	steppers: AStepper[];
 	debugSteppers: string[] = [];
 
+	options = {
+		DEBUG_STEPPERS: {
+			desc: 'Comma-separated list of steppers to debug',
+			parse: stringOrError
+		},
+	};
+
 	async setWorld(world: TWorld, steppers: AStepper[]): Promise<void> {
 		this.steppers = steppers;
 		this.world = world;
+		const debugSteppersStart = getStepperOption(this, 'DEBUG_STEPPERS', world.moduleOptions);
+		if (debugSteppersStart) {
+			for (const stepper of debugSteppersStart.split(',').map(name => name.trim())) {
+				if (!this.steppers.some(s => s.constructor.name === stepper)) {
+					throw new Error(`DEBUG_STEPPER ${stepper} not found`);
+				}
+				this.debugSteppers.push(stepper);
+			}
+			this.getWorld().logger.info(`Debugging steppers: ${this.debugSteppers.join(', ')}`);
+		}
 		return Promise.resolve();
 	}
 	async fail(): Promise<TActionResult> {
@@ -72,6 +89,7 @@ export class DebuggerStepper extends AStepper implements IHasCycles {
 	}
 	steps = {
 		f: {
+			expose: false,
 			exact: 'f',
 			action: async (): Promise<TActionResult> => {
 				return await this.fail();
@@ -84,6 +102,7 @@ export class DebuggerStepper extends AStepper implements IHasCycles {
 			}
 		},
 		r: {
+			expose: false,
 			exact: 'r',
 			action: async (): Promise<TActionResult> => {
 				return await this.retry();
@@ -96,6 +115,7 @@ export class DebuggerStepper extends AStepper implements IHasCycles {
 			}
 		},
 		s: {
+			expose: false,
 			exact: 's',
 			action: async (): Promise<TActionResult> => {
 				return await this.step();
@@ -108,6 +128,7 @@ export class DebuggerStepper extends AStepper implements IHasCycles {
 			}
 		},
 		c: {
+			expose: false,
 			exact: 'c',
 			action: async (): Promise<TActionResult> => {
 				return await this.continue();
