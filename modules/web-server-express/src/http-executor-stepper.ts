@@ -1,15 +1,9 @@
 import { AStepper, IHasCycles, IHasOptions } from '@haibun/core/lib/astepper.js';
 import { TStepResult, TWorld } from '@haibun/core/lib/defs.js';
 import { resolveAndExecuteStatement } from "@haibun/core/lib/util/resolveAndExecuteStatement.js";
-import { actionNotOK, actionOK, getFromRuntime, getStepperOption, getStepperOptionName, intOrError } from '@haibun/core/lib/util/index.js';
+import { getFromRuntime, getStepperOption, getStepperOptionName, intOrError } from '@haibun/core/lib/util/index.js';
 import { IRequest, IResponse, IWebServer, WEBSERVER } from './defs.js';
-import WebServerStepper from './web-server-stepper.js';
 import { HttpPrompter } from './http-prompter.js';
-
-export const HTTP_PROMPTER_ENDPOINTS = {
-	PROMPTS: '/prompts', // GET: list all pending prompts
-	PROMPT_RESPONSE: '/prompt', // POST: respond to a prompt { promptId, response }
-};
 
 export default class HttpExecutorStepper extends AStepper implements IHasOptions, IHasCycles {
 	options = {
@@ -43,14 +37,8 @@ export default class HttpExecutorStepper extends AStepper implements IHasOptions
 		this.port = intOrError(getStepperOption(this, 'LISTEN_PORT', world.moduleOptions) || '').result || NaN;
 		this.configuredToken = getStepperOption(this, 'ACCESS_TOKEN', this.getWorld().moduleOptions);
 		this.steppers = steppers;
-		if (!isNaN(this.port)) {
-			if (!this.configuredToken) {
-				throw new Error(`${getStepperOptionName(this, 'ACCESS_TOKEN')} is required when REMOTE_PORT is configured for remote execution`);
-			}
-			const webServerStepper = steppers.find(s => s instanceof WebServerStepper) as WebServerStepper;
-			if (webServerStepper) {
-				webServerStepper.port = this.port;
-			}
+		if (isNaN(this.port) || !this.configuredToken) {
+			throw new Error(`${getStepperOptionName(this, 'LISTEN_PORT')} and ${getStepperOptionName(this, 'ACCESS_TOKEN')} are required for remote execution`);
 		}
 	}
 	addRemoteExecutorRoute() {
@@ -62,6 +50,7 @@ export default class HttpExecutorStepper extends AStepper implements IHasOptions
 		if (!webserver) {
 			throw new Error('WebServer not available - ensure web-server-stepper is loaded');
 		}
+		void webserver.listen(this.port);
 
 		webserver.addRoute('post', '/execute-step', (req: IRequest, res: IResponse) => {
 			(async () => {
@@ -161,19 +150,7 @@ export default class HttpExecutorStepper extends AStepper implements IHasOptions
 		return true;
 	}
 
-	steps = {
-		enableRemoteExecutor: {
-			gwta: 'enable remote executor',
-			action: () => {
-				if (isNaN(this.port)) {
-					return Promise.resolve(actionNotOK('Remote executor is not configured - LISTEN_PORT is not set'));
-				}
-				this.addRemoteExecutorRoute();
-				this.httpPrompter = new HttpPrompter(this.getWorld());
-				return Promise.resolve(actionOK());
-			},
-		},
-	}
+	steps = {}
 	close() {
 		if (this.httpPrompter) {
 			this.world.prompter.unsubscribe(this.httpPrompter);
