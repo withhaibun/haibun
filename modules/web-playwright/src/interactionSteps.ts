@@ -87,6 +87,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 	},
 
 	createMonitor: {
+		expose: false,
 		gwta: 'create monitor',
 		action: async () => {
 			await wp.createMonitor();
@@ -94,6 +95,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 		},
 	},
 	finishMonitor: {
+		expose: false,
 		gwta: 'finish monitor',
 		action: async () => {
 			await WebPlaywright.monitorHandler.writeMonitor();
@@ -144,6 +146,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 		},
 	},
 	extensionContext: {
+		expose: false,
 		gwta: `open extension popup for tab {tab}`,
 		action: async ({ tab }: TNamed) => {
 			if (!wp.factoryOptions?.persistentDirectory || wp.factoryOptions?.launchOptions.headless) {
@@ -446,7 +449,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 			return OK;
 		},
 	},
-	setToURIQueryParameter: {
+	saveURIQueryParameter: {
 		gwta: 'save URI query parameter {what} to {where}',
 		action: async ({ what, where }: TNamed) => {
 			const uri = await wp.withPage<string>(async (page: Page) => await page.url());
@@ -486,19 +489,5 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 			});
 			return OK;
 		},
-	},
-	openDevTools: {
-		gwta: `open devtools`,
-		action: async () => {
-			await wp.withPage(async (page: Page) => {
-				await page.goto('about:blank');
-				await sleep(2000);
-				const targetId = await fetch('http://localhost:9223/json/list');
-				await page.goto(
-					`devtools://devtools/bundled/inspector.html?ws=localhost:9223/devtools/page/${targetId}&panel=network`
-				);
-			});
-			return OK;
-		},
-	},
+	}
 });
