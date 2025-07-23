@@ -210,7 +210,7 @@ class Haibun extends AStepper implements IHasOptions, IHasCycles {
 		if (this.ttsPlay) {
 			const playCmd = this.ttsPlay.replace(/@WHAT@/g, `"${runtimePath}/${path}"`);
 			try {
-				this.world.logger.debug(`playing audio: ${playCmd}`);
+				this.world.logger.log(`playing audio: ${playCmd}`);
 				await playAudioFile(playCmd);
 			} catch (error: TAnyFixme) {
 				const stderr = error.stderr ? error.stderr.toString() : '';
