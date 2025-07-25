@@ -1,7 +1,6 @@
 import { resolve } from 'path';
 
 import { OK, TNamed, TWorld, TFeatureStep, STEP_DELAY, IStepperCycles, SCENARIO_START, TStartFeature } from '../lib/defs.js';
-import { TAnyFixme } from '../lib/fixme.js';
 import { IHasCycles, IHasOptions } from '../lib/astepper.js';
 import { AStepper } from '../lib/astepper.js';
 import { Resolver } from '../phases/Resolver.js';
@@ -108,15 +107,8 @@ class Haibun extends AStepper implements IHasOptions, IHasCycles {
 				return await this.maybeSay(featureStep.in);
 			},
 		},
-		sequenceToken: {
-			gwta: 'a sequence token {token}',
-			action: async ({ token }: TNamed) => {
-				this.getWorld().shared.set(token, '' + new Date().getTime());
-				return Promise.resolve(OK);
-			},
-		},
 		startStepDelay: {
-			gwta: 'start step delay of (?<ms>.+)',
+			gwta: 'step delay of (?<ms>.+)ms',
 			action: async ({ ms }: TNamed) => {
 				this.getWorld().options[STEP_DELAY] = parseInt(ms, 10);
 				return Promise.resolve(OK);
@@ -128,12 +120,6 @@ class Haibun extends AStepper implements IHasOptions, IHasCycles {
 				return Promise.resolve(actionNotOK(`fails: ${message}`));
 			},
 		},
-		stopStepDelay: {
-			exact: 'stop step delay',
-			action: async () => {
-				return Promise.resolve(OK);
-			},
-		},
 		showSteps: {
 			exact: 'show steppers',
 			action: async () => {
@@ -141,21 +127,6 @@ class Haibun extends AStepper implements IHasOptions, IHasCycles {
 				this.world?.logger.info(`Steppers: ${JSON.stringify(allSteppers, null, 2)}`);
 				return Promise.resolve(actionOK({ messageContext: { incident: EExecutionMessageType.ACTION, incidentDetails: { steppers: allSteppers } } }));
 			}
-		},
-		showEnv: {
-			exact: 'show the environment',
-			action: async () => {
-				this.world?.logger.info(`env: ${JSON.stringify(this.world.options.envVariables)}`);
-				return Promise.resolve(OK);
-			},
-		},
-		showTag: {
-			gwta: 'show stepper tag {which}',
-			action: async ({ which }: TNamed) => {
-				const what = which ? (this.getWorld().tag as TAnyFixme)[which] : this.getWorld().tag;
-				this.world?.logger.info(`tag ${which}: ${JSON.stringify(what)}`);
-				return Promise.resolve(OK);
-			},
 		},
 		until: {
 			gwta: 'until {what} is {value}',
@@ -212,7 +183,7 @@ class Haibun extends AStepper implements IHasOptions, IHasCycles {
 			try {
 				this.world.logger.log(`playing audio: ${playCmd}`);
 				await playAudioFile(playCmd);
-			} catch (error: TAnyFixme) {
+			} catch (error) {
 				const stderr = error.stderr ? error.stderr.toString() : '';
 				this.world.logger.error(`Error playing audio using ${playCmd}: ${error.message}\nOutput: ${stderr}`);
 				return actionNotOK(`Error playing audio: ${error.message}\nOutput: ${stderr}`);
