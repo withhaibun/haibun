@@ -1,12 +1,8 @@
 import { OK, TNamed, TFeatureStep, TWorld, IStepperCycles, TStartScenario } from '../lib/defs.js';
 import { TAnyFixme } from '../lib/fixme.js';
 import { AStepper, IHasCycles } from '../lib/astepper.js';
-import { EExecutionMessageType, TMessageContext } from '../lib/interfaces/logger.js';
 import { actionNotOK, actionOK } from '../lib/util/index.js';
 import { FeatureVariables } from '../lib/feature-variables.js';
-
-// FIXME see https://github.com/withhaibun/haibun/issues/18
-const getOrCond = (fr: string) => fr.replace(/.* is set or /, '');
 
 const clearVars = (vars) => async () => {
 	vars.getWorld().shared.clear()
@@ -42,16 +38,11 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		}
 		return this.getWorld().shared.get(what);
 	}
-	isSet(what: string, orCond: string) {
+	isSet(what: string) {
 		if (this.checkIsSet(what)) {
 			return OK;
 		}
-		const [warning, response] = orCond.split(':').map((t) => t.trim());
-		const incident: TMessageContext = {
-			incident: EExecutionMessageType.ACTION, incidentDetails: { summary: warning || response, }, tag: this.getWorld().tag
-		};
-
-		return actionNotOK(`${what} not set${orCond && ': ' + orCond}`, { messageContext: incident });
+		return actionNotOK(`${what} not set`);
 	}
 
 	steps = {
@@ -61,6 +52,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		},
 		showEnv: {
 			gwta: 'show env',
+			export: false,
 			action: async (n: TNamed, featureStep: TFeatureStep) => {
 				console.info('env', this.world.options.envVariables);
 				return await this.set(n, featureStep);
@@ -87,26 +79,17 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			},
 		},
 		isSet: {
-			gwta: 'variable {what: string} is set( or .*)?',
-
-			action: async ({ what }: TNamed, featureStep: TFeatureStep) => Promise.resolve(this.isSet(what, getOrCond(featureStep.in))),
+			gwta: 'variable {what: string} is set',
+			action: async ({ what }: TNamed) => Promise.resolve(this.isSet(what)),
 		},
 		isNotSet: {
-			gwta: 'variable {what: string} is not set?',
+			gwta: 'variable {what: string} is not set',
 			action: async ({ what }: TNamed) => this.checkIsSet(what) ? actionNotOK(`${what} is set`) : Promise.resolve(OK),
-		},
-		background: {
-			match: /^Background: ?(?<background>.+)?$/,
-			action: async ({ background }: TNamed) => {
-				this.getWorld().shared.set('background', background);
-				return Promise.resolve(OK);
-			},
 		},
 		display: {
 			gwta: 'display {what}',
 			action: async ({ what }: TNamed) => {
 				this.getWorld().logger.info(`is ${JSON.stringify(what)}`);
-
 				return Promise.resolve(actionOK({ artifact: { artifactType: 'json', json: { [what]: this.getVarValue(what) } } }));
 			},
 		},
