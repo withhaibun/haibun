@@ -4,10 +4,8 @@ import path from 'path';
 import WebPlaywright from './web-playwright.js';
 import { getPackageLocation } from '@haibun/core/lib/util/workspace-lib.js';
 
-import { getCreateSteppers, getDefaultWorld, testWithDefaults } from '@haibun/core/lib/test/lib.js';
-import { DEFAULT_DEST, TFeatureStep } from '@haibun/core/lib/defs.js';
-import { getStepperOptionName } from '@haibun/core/lib/util/index.js';
-import { TEST_PORTS } from './test-constants.js';
+import { getCreateSteppers, getDefaultWorld } from '@haibun/core/lib/test/lib.js';
+import { TFeatureStep } from '@haibun/core/lib/defs.js';
 
 const me = path.join(getPackageLocation(import.meta).replace(/\/src$/, '/build'), 'web-playwright');
 
@@ -51,15 +49,3 @@ describe('handles cycles', () => {
 		}).not.toThrow();
 	});
 })
-
-describe.skip('options', () => {
-	it('sets headless', async () => {
-		const feature = { path: '/features/test.feature', content: `set "what" to "var"\nset x to {what}` };
-		const result = await testWithDefaults([feature], [WebPlaywright, ], {
-			options: { DEST: DEFAULT_DEST, },
-			moduleOptions: {
-				[getStepperOptionName(WebPlaywright, 'PORT')]: TEST_PORTS.WEB_PLAYWRIGHT.toString(),
-			},
-		});
-	});
-});
