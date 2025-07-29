@@ -3,7 +3,7 @@ import { resolve } from 'path';
 import { OK, TNamed, TWorld, TFeatureStep, STEP_DELAY, IStepperCycles, SCENARIO_START, TStartFeature } from '../lib/defs.js';
 import { IHasCycles, IHasOptions } from '../lib/astepper.js';
 import { AStepper } from '../lib/astepper.js';
-import { Resolver } from '../phases/Resolver.js';
+import { getActionableStatement, Resolver } from '../phases/Resolver.js';
 import { actionNotOK, actionOK, formattedSteppers, getStepperOption, sleep, stringOrError } from '../lib/util/index.js';
 import { actualURI } from '../lib/util/actualURI.js';
 import { expand } from '../lib/features.js';
@@ -12,6 +12,7 @@ import { copyPreRenderedAudio, doExec, doSpawn, playAudioFile, preRenderFeatureP
 import { EExecutionMessageType, TArtifactSpeech, TArtifactVideo, TMessageContext } from '../lib/interfaces/logger.js';
 import { captureLocator } from '../lib/capture-locator.js';
 import { endExecutonContext } from '../phases/Executor.js';
+import { resolveAndExecuteStatement } from '../lib/util/resolveAndExecuteStatement.js';
 
 const CAPTURE_FILENAME = 'vcapture.webm';
 
@@ -115,7 +116,22 @@ class Haibun extends AStepper implements IHasOptions, IHasCycles {
 				return Promise.resolve(OK);
 			},
 		},
-		end: {
+		if: {
+			gwta: `if {when}, {what}`,
+			action: async ({ when, what }: TNamed) => {
+				this.getWhenWhat(when, what);
+				const res = await resolveAndExecuteStatement(when, 'Haibun.if-when', this.steppers, this.getWorld());
+				if (res.ok) {
+					return Promise.resolve((await resolveAndExecuteStatement(what, 'Haibun.if-what', this.steppers, this.getWorld(), false)).stepActionResult);
+				}
+				return Promise.resolve(OK);
+			},
+			check: ({ when, what }: TNamed) => {
+				this.getWhenWhat(when, what);
+				return true;
+			}
+		},
+		endsWith: {
 			gwta: `ends with {result}`,
 			action: async ({ result }: TNamed) => {
 				if (result.toUpperCase() === 'OK') {
@@ -203,6 +219,11 @@ class Haibun extends AStepper implements IHasOptions, IHasCycles {
 			await sleep(durationS * 1000);
 		}
 		return actionOK({ artifact });
+	}
+	getWhenWhat(when: string, what: string) {
+		const { featureStep: whenStep } = getActionableStatement(this.steppers, when, 'Haibun.if-when');
+		const { featureStep: whatStep } = getActionableStatement(this.steppers, what, 'Haibun.if-what');
+		return { whenStep, whatStep };
 	}
 
 	async newFeatureFromEffect(content: string, seq: number, steppers: AStepper[]): Promise<TFeatureStep> {
