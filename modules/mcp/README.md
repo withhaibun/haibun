@@ -2,9 +2,10 @@
 
 Enables agents to interact with Haibun steppers through the standardized [Model Context Protocol (MCP)](https://modelcontextprotocol.io/).
 
+
 ## Quick Start
 
-### 1. Run exampe external HTTP executor
+### 1. Run example external HTTP executor
 
 ```bash
 
@@ -22,7 +23,7 @@ Add to your VS Code `mcp.json`:
 	"haibun-mcp": {
 		"type": "stdio",
 		"command": "node",
-		"cwd": "<project base>/haibun/modules",
+		"cwd": "<project base>/node_modules/@haibun/modules",
 		"args": [
 			"./cli/build/cli.js",
 			"-c",
@@ -44,65 +45,32 @@ Add to your VS Code `mcp.json`:
 }
 ```
 
-### 3. Use MCP Tools
-
-Available tools automatically expose all Haibun steppers:
-
-- `WebPlaywright-gotoPage` - Navigate to web pages
-- `WebPlaywright-click` - Click elements
-- `WebPlaywright-shouldSeeText` - Verify page content
-- `VariablesStepper-set` - Set variables
-- `Haibun-pauseSeconds` - Add delays
-- And all other loaded steppers
 
 ## Architecture
 
-**External Runtime**
+### Overview
 
-- Runs HTTP executor with monitoring
-- Provides step execution API on port 8125
-- Browser automation visible in monitor
+```mermaid
+flowchart TD
+MCP_Agent["MCP Runtime (eg VS Code)"]
+ProjectAgent["Project Runtime (eg via cli)"]
+ProjectAgent --> ProjectExecutor["Project Executor"]
+ProjectExecutor --> ProjectSteppers["Project Steppers"]
+ProjectSteppers -- "LISTEN_PORT, ACCESS_TOKEN?" --> HTTPExecutorStepper
 
-**MCP Agent**
-
-- Lightweight process that connects to external runtime
-- Exposes remote steppers as MCP tools via stdio
-- Acts as bridge between eg VS Code and your tests
-
-## Advanced Usage
-
-### Local MCP Server (no external runtime)
-
-```bash
-HAIBUN_O_WEBPLAYWRIGHT_STORAGE=StorageMem \
-node modules/cli/build/cli.js -c ./modules/mcp/runtime/config.json ./modules/mcp/runtime/local
+MCP_Agent -- "MCP stdio init" --> MCPClientStepper
+MCP_Agent -- "MCP request" --> MCPClient
+MCPClientStepper -- Creates --> MCPClient
+MCPClient-- "REMOTE_PORT, ACCESS_TOKEN?" --> McpServerStepperRemote
+MCPClient-- "local?" --> MCPSteppers["MCP Steppers"]
+McpServerStepperRemote["McpServerStepper (remote)"]
+McpServerStepperRemote -- HTTP API --> HTTPExecutorStepper
 ```
-
-### HTTP API Direct Access
-
-```bash
-curl -X POST http://localhost:8125/execute-step \
-  -H "Authorization: Bearer localTest" \
-  -H "Content-Type: application/json" \
-  -d '{"statement": "pause for 1s", "source": "/api"}'
-```
-
-### Control from Haibun Features
-
-```gherkin
-Start MCP server.
-serve mcp tools from steppers
-
-Enable remote execution.
-enable remote executor
-```
-
 ## Configuration
 
 | Environment Variable                        | Description                     |
 | ------------------------------------------- | ------------------------------- |
-| `HAIBUN_O_HTTPEXECUTORSTEPPER_LISTEN_PORT`  | HTTP API port (e.g., 8125)      |
-| `HAIBUN_O_HTTPEXECUTORSTEPPER_ACCESS_TOKEN` | HTTP API auth token             |
 | `HAIBUN_O_MCPSERVERSTEPPER_REMOTE_PORT`     | Connect to remote HTTP executor |
 | `HAIBUN_O_MCPSERVERSTEPPER_ACCESS_TOKEN`    | Remote executor auth token      |
-| `HAIBUN_O_WEBPLAYWRIGHT_STORAGE`            | Storage backend (StorageMem)    |
+| `HAIBUN_O_HTTPEXECUTORSTEPPER_LISTEN_PORT`  | HTTP API port (e.g., 8125)      |
+| `HAIBUN_O_HTTPEXECUTORSTEPPER_ACCESS_TOKEN` | HTTP API auth token             |

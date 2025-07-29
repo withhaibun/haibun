@@ -1,4 +1,3 @@
-enable remote executor
 webserver is listening
 serve mcp tools from steppers
 
