@@ -1,8 +1,9 @@
 import { TStepAction, TResolvedFeature, OK, TExpandedFeature, TStepperStep, TFeatureStep, TExpandedLine } from '../lib/defs.js';
 import { AStepper } from '../lib/astepper.js';
 import { BASE_TYPES } from '../lib/domain-types.js';
-import { namedInterpolation, getMatch } from '../lib/namedVars.js';
+import { namedInterpolation, getMatch, getNamedToVars } from '../lib/namedVars.js';
 import { getActionable, isLowerCase, dePolite, constructorName } from '../lib/util/index.js';
+import { getDefaultWorld } from '../lib/test/lib.js';
 
 export class Resolver {
 	types: string[];
@@ -22,7 +23,7 @@ export class Resolver {
 		return steps;
 	}
 
-	public async findFeatureSteps(feature: TExpandedFeature): Promise<TFeatureStep[]> {
+	public async findFeatureSteps(feature: TExpandedFeature, world = getDefaultWorld(0)): Promise<TFeatureStep[]> {
 		const featureSteps: TFeatureStep[] = [];
 		let seq = 0;
 		for (const featureLine of feature.expanded) {
@@ -30,18 +31,25 @@ export class Resolver {
 
 			const actionable = getActionable(featureLine.line);
 
-			let actions = this.findActionableSteps(actionable);
+			let stepActions = this.findActionableSteps(actionable);
 
-			if (actions.length > 1) {
-				const precludes = actions.filter(a => a.step.precludes).map(a => a.step.precludes).reduce((acc, cur) => [...acc, ...cur], []);
-				actions = actions.filter(a => !precludes.includes(`${a.stepperName}.${a.actionName}`));
-				if (actions.length !== 1) {
-					throw Error(`not one step found for "${featureLine.line}": ${JSON.stringify(actions.map((a) => a.actionName))} using precludes ${precludes}`);
+			if (stepActions.length > 1) {
+				const precludes = stepActions.filter(a => a.step.precludes).map(a => a.step.precludes).reduce((acc, cur) => [...acc, ...cur], []);
+				stepActions = stepActions.filter(a => !precludes.includes(`${a.stepperName}.${a.actionName}`));
+				if (stepActions.length !== 1) {
+					throw Error(`not one step found for "${featureLine.line}": ${JSON.stringify(stepActions.map((a) => a.actionName))} using precludes ${precludes}`);
 				}
-			} else if (actions.length < 1) {
+			} else if (stepActions.length < 1) {
 				throw Error(`in ${feature.name}: no step found for ${featureLine.line} in ${feature.path}\nUse --show-steppers for more details`);
 			}
-			const featureStep = this.getFeatureStep(featureLine, seq, actions[0]);
+			const stepAction = stepActions[0];
+			const featureStep = this.getFeatureStep(featureLine, seq, stepAction);
+			if (stepAction.step.check) { //throws if it fails
+				const namedWithVars = getNamedToVars(stepAction, world, featureStep);
+				await stepAction.step.check(namedWithVars, featureStep);
+			}
+			console.log('wtw');
+
 			featureSteps.push(featureStep);
 		}
 
