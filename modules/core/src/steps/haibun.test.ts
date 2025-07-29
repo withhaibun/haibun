@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest';
 
 import { FeatureExecutor } from '../phases/Executor.js';
-import { getDefaultWorld, testWithDefaults } from '../lib/test/lib.js';
+import { DEF_PROTO_OPTIONS, getDefaultWorld, testWithDefaults } from '../lib/test/lib.js';
 import TestSteps from '../lib/test/TestSteps.js';
 import Haibun from './haibun.js';
+import VariablesSteppers from './variables-stepper.js';
 import { getActionableStatement } from '../phases/Resolver.js';
 
 describe('prose', () => {
@@ -55,7 +56,7 @@ Prose sections are indicated by the presence of punctuation at the end of paragr
 
 describe('ends with', () => {
 	it('ends with ok', async () => {
-		const feature = { path: '/features/test.feature', content: 'ends with OK\nDIs not reached.' };
+		const feature = { path: '/features/test.feature', content: 'ends with OK\nIs not reached.' };
 		const result = await testWithDefaults([feature], [Haibun]);
 		expect(result.ok).toBe(true);
 		expect(result.featureResults?.length).toBe(1);
@@ -67,3 +68,25 @@ describe('ends with', () => {
 		expect(result.featureResults?.length).toBe(1);
 	});
 })
+
+describe('if', () => {
+	it('if condition true', async () => {
+		const feature = { path: '/features/test.feature', content: 'if passes, ends with OK\nends with not ok' };
+		const result = await testWithDefaults([feature], [Haibun, TestSteps]);
+		expect(result.ok).toBe(true);
+	});
+	it('if condition false', async () => {
+		const feature = { path: '/features/test.feature', content: 'if fails, ends with not OK\nends with ok' };
+		const result = await testWithDefaults([feature], [Haibun, TestSteps]);
+		expect(result.ok).toBe(true);
+	});
+	it('if condition continues to backgrounds', async () => {
+		const feature = { path: '/features/test.feature', content: 'if fails, ends with not OK\nBackgrounds: bg' };
+		const background = { path: '/backgrounds/bg.feature', content: 'set ran to true\nends with ok' };
+		const result = await testWithDefaults([feature], [Haibun, TestSteps, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
+		expect(result.world.shared.get('ran')).toBe('true')
+
+		expect(result.ok).toBe(true);
+		expect(result.featureResults![0].stepResults.length).toBe(3);
+	});
+});
