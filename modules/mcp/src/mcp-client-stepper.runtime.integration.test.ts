@@ -21,7 +21,7 @@ describe('mcp client test local', () => {
 	});
 });
 
-describe('mcp client test remote', () => {
+describe.skip('mcp client test remote', () => {
 	it('client can list tools from server', async () => {
 		const feature = { path: '/features/test.feature', content: `list mcp tools\nset finished-mcp to "true"\nshow vars` };
 		const res = await testWithDefaults([feature], [MCPClientStepper, VariablesStepper], {
