@@ -48,7 +48,6 @@ export class Resolver {
 				const namedWithVars = getNamedToVars(stepAction, world, featureStep);
 				await stepAction.step.check(namedWithVars, featureStep);
 			}
-			console.log('wtw');
 
 			featureSteps.push(featureStep);
 		}

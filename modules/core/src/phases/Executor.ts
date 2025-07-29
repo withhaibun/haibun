@@ -9,6 +9,8 @@ import { SCENARIO_START } from '../lib/defs.js';
 import { Timer } from '../lib/Timer.js';
 import { FeatureVariables } from '../lib/feature-variables.js';
 
+export const endExecutonContext: TMessageContext = { incident: EExecutionMessageType.ACTION, incidentDetails: { end: true } };
+
 function calculateShouldClose({ thisFeatureOK, isLast, stayOnFailure, continueAfterError }) {
 	if (thisFeatureOK) {
 		return true;
@@ -118,7 +120,7 @@ export class FeatureExecutor {
 
 			ok = ok && result.ok;
 			stepResults.push(result);
-			if (!ok) {
+			if (!ok || result.stepActionResult.messageContext === endExecutonContext) {
 				break;
 			}
 			if (world.options[STEP_DELAY]) {
