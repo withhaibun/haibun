@@ -120,7 +120,7 @@ describe('preclude stepper', () => {
 	});
 });
 
-describe.only('action check', () => {
+describe('action check', () => {
 	class CheckStepper extends AStepper {
 		steps = {
 			checks: {

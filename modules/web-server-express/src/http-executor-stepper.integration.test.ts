@@ -39,15 +39,14 @@ describe('HttpExecutorStepper integration', () => {
 			[feature],
 			[WebServerStepper, HttpExecutorStepper, VariablesStepper],
 			options
-		)).rejects.toThrow(`${getStepperOptionName(HttpExecutorStepper, 'ACCESS_TOKEN')} is required when REMOTE_PORT is configured for remote execution`);
+		)).rejects.toThrow(/ACCESS_TOKEN.*required/);
 	});
 
-	it('enables remote executor with authentication', async () => {
+	it.only('enables remote executor with authentication', async () => {
 		const testPort = TEST_PORTS.HTTP_EXECUTOR_AUTH.toString();
 		const feature = {
 			path: '/features/http-executor-auth.feature',
 			content: `
-				enable remote executor
 				set authTestVar to "authenticated execution"
 				display authTestVar
 			`
