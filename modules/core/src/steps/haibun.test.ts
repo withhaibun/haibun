@@ -52,3 +52,18 @@ Prose sections are indicated by the presence of punctuation at the end of paragr
 		expect(rfzs[n++].seq).toBe(3.1);
 	});
 });
+
+describe('ends with', () => {
+	it('ends with ok', async () => {
+		const feature = { path: '/features/test.feature', content: 'ends with OK\nDIs not reached.' };
+		const result = await testWithDefaults([feature], [Haibun]);
+		expect(result.ok).toBe(true);
+		expect(result.featureResults?.length).toBe(1);
+	});
+	it('ends with not ok', async () => {
+		const feature = { path: '/features/test.feature', content: 'ends with not OK\nIs not reached.' };
+		const result = await testWithDefaults([feature], [Haibun]);
+		expect(result.ok).toBe(false);
+		expect(result.featureResults?.length).toBe(1);
+	});
+})

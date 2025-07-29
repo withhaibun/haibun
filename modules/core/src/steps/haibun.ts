@@ -11,6 +11,7 @@ import { asFeatures } from '../lib/resolver-features.js';
 import { copyPreRenderedAudio, doExec, doSpawn, playAudioFile, preRenderFeatureProse, TRenderedAudioMap } from './lib/tts.js';
 import { EExecutionMessageType, TArtifactSpeech, TArtifactVideo, TMessageContext } from '../lib/interfaces/logger.js';
 import { captureLocator } from '../lib/capture-locator.js';
+import { endExecutonContext } from '../phases/Executor.js';
 
 const CAPTURE_FILENAME = 'vcapture.webm';
 
@@ -114,10 +115,20 @@ class Haibun extends AStepper implements IHasOptions, IHasCycles {
 				return Promise.resolve(OK);
 			},
 		},
-		fails: {
-			gwta: `fails with {message}`,
-			action: async ({ message }: TNamed) => {
-				return Promise.resolve(actionNotOK(`fails: ${message}`));
+		end: {
+			gwta: `ends with {result}`,
+			action: async ({ result }: TNamed) => {
+				if (result.toUpperCase() === 'OK') {
+					return Promise.resolve(actionOK({ messageContext: endExecutonContext }));
+				}
+
+				return Promise.resolve(actionNotOK('ends with not ok'));
+			},
+			check: ({ result }: TNamed) => {
+				if (result.toUpperCase() === 'OK' || result.toUpperCase() === 'NOT OK') {
+					return true;
+				}
+				throw Error('must be "OK" or "not OK"');
 			},
 		},
 		showSteps: {
