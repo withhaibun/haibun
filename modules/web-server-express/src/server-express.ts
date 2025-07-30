@@ -1,5 +1,5 @@
 import { statSync, existsSync } from 'fs';
-import http  from 'http';
+import http from 'http';
 import express, { RequestHandler } from 'express';
 import serveIndex from 'serve-index';
 import cookieParser from 'cookie-parser';
@@ -115,7 +115,10 @@ export class ServerExpress implements IWebServer {
 	}
 
 	checkMountBadOrMounted(type: string, loc: string, what: string) {
-		if (loc !== loc.replace(/[^a-zA-Z-0-9:/\-_]/g, '')) {
+		// accepts valid characters and placeholders
+		const sanitized = loc.replace(/[^a-zA-Z0-9/\-:_]/g, '').replace(/:(?![a-zA-Z0-9_-])/g, '')
+		if (loc !== sanitized) {
+			console.log('sanitized', sanitized, loc);
 			return `mount folder ${loc} has illegal characters`;
 		}
 		const alreadyMounted =
