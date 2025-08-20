@@ -44,7 +44,6 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 		gwta: 'dialog {what} {type} says {value}',
 		action: async ({ what, type, value }: TNamed) => {
 			const cur = wp.getWorld().shared.get(what)?.[type];
-
 			return Promise.resolve(cur === value ? OK : actionNotOK(`${what} is ${cur}`));
 		},
 	},
@@ -380,7 +379,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 		},
 	},
 	captureDialog: {
-		gwta: 'Accept next dialog to {where}',
+		gwta: 'accept next dialog to {where}',
 		action: async ({ where }: TNamed) => {
 			await wp.withPage((page: Page) => {
 				return page.on('dialog', async (dialog) => {
