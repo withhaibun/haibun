@@ -57,7 +57,7 @@ export class HttpPrompterClient {
 
 			return await httpResponse.json();
 		} catch (error) {
-			throw Error('Failed to respond to prompt via HTTP prompter:', error);
+			throw new Error(`Failed to respond to prompt via HTTP prompter: ${error}`);
 		}
 	}
 }
