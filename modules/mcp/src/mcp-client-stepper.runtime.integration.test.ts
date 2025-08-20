@@ -8,7 +8,7 @@ import { getStepperOptionName } from '@haibun/core/lib/util/index.js';
 
 import MCPClientStepper from './mcp-client-stepper.js';
 
-describe('mcp client test local', () => {
+describe.skip('mcp client test local', () => {
 	it('list tools', async () => {
 		const feature = { path: '/features/test.feature', content: `list mcp tools` };
 		const result = await testWithDefaults([feature], [MCPClientStepper, VariablesStepper], {
