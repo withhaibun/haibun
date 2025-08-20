@@ -1,6 +1,6 @@
-import { AStepper, IHasOptions } from '@haibun/core/build/lib/astepper.js';
-import { OK, TWorld } from '@haibun/core/build/lib/defs.js';
-import { actionNotOK, getStepperOption, intOrError } from '@haibun/core/build/lib/util/index.js';
+import { AStepper, IHasOptions } from '@haibun/core/lib/astepper.js';
+import { OK, TWorld } from '@haibun/core/lib/defs.js';
+import { actionNotOK, getStepperOption, getStepperOptionName, intOrError, stringOrError } from '@haibun/core/lib/util/index.js';
 import { MCPExecutorServer } from './lib/mcp-executor-server.js';
 
 class MCPServerStepper extends AStepper implements IHasOptions {
@@ -12,11 +12,11 @@ class MCPServerStepper extends AStepper implements IHasOptions {
 	options = {
 		REMOTE_PORT: {
 			desc: 'Port for remote execution API',
-			parse: (port: string) => ({ result: parseInt(port, 10) }),
+			parse: (port: string) => intOrError(port),
 		},
 		ACCESS_TOKEN: {
 			desc: 'Access token for remote execution API authentication',
-			parse: (token: string) => ({ result: token }),
+			parse: (token: string) => stringOrError(token),
 		},
 	};
 
@@ -28,16 +28,25 @@ class MCPServerStepper extends AStepper implements IHasOptions {
 		this.accessToken = getStepperOption(this, 'ACCESS_TOKEN', world.moduleOptions);
 
 		if (!isNaN(this.remotePort) && !this.accessToken) {
-			throw new Error('ACCESS_TOKEN is required when REMOTE_PORT is configured for remote execution');
+			throw new Error(`${getStepperOptionName(this, 'ACCESS_TOKEN')} is required when REMOTE_PORT is configured for remote execution`);
+		}
+
+		// Log the remote configuration
+		if (!isNaN(this.remotePort)) {
+			this.getWorld().logger.warn(`🔗 MCP Server configured for remote execution on http://localhost:${this.remotePort}`);
+		} else {
+			this.getWorld().logger.info(`🏠 MCP Server configured for local execution`);
 		}
 	}
 
 	private getRemoteConfig() {
 		if (!isNaN(this.remotePort)) {
-			return {
+			const config = {
 				url: `http://localhost:${this.remotePort}`,
 				accessToken: this.accessToken
 			};
+			this.world.logger.log(`🔗 MCP Server configured for remote execution on ${config.url} with token: ${config.accessToken ? '[PRESENT]' : '[MISSING]'}`);
+			return config;
 		}
 
 		return undefined;

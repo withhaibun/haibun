@@ -5,13 +5,13 @@ import serveIndex from 'serve-index';
 import cookieParser from 'cookie-parser';
 
 import { IWebServer, ROUTE_TYPES, TRequestHandler, TRouteMap, TRouteTypes, TStaticFolderOptions } from './defs.js';
-import { ILogger } from '@haibun/core/build/lib/interfaces/logger.js';
+import { ILogger } from '@haibun/core/lib/interfaces/logger.js';
 
 export const DEFAULT_PORT = 8123;
 const defaultMounted = () => ROUTE_TYPES.reduce((acc, type) => ({ ...acc, [type]: {} }), <TRouteMap>{});
 
 export class ServerExpress implements IWebServer {
-	static listening = false;
+	static listening: number[] = [];
 	listener?: http.Server;
 	app = express();
 	mounted = defaultMounted();
@@ -27,14 +27,14 @@ export class ServerExpress implements IWebServer {
 		this.app.use(middleware);
 	}
 
-	listen() {
+	listen(port = this.port) {
 		return new Promise((resolve, reject) => {
-			if (!ServerExpress.listening) {
+			if (!ServerExpress.listening.includes(port)) {
 				try {
-					this.listener = this.app.listen(this.port, () => {
-						this.logger.debug(`Server listening on port: ${this.port}`);
-						ServerExpress.listening = true;
-						this.logger.debug('express listening');
+					this.listener = this.app.listen(port, () => {
+						this.logger.debug(`Server listening on port: ${port}`);
+						ServerExpress.listening.push(port);
+						this.logger.debug(`express listening on ports ${ServerExpress.listening}`);
 						resolve('started');
 					});
 				} catch (e) {
@@ -115,7 +115,10 @@ export class ServerExpress implements IWebServer {
 	}
 
 	checkMountBadOrMounted(type: string, loc: string, what: string) {
-		if (loc !== loc.replace(/[^a-zA-Z-0-9:/\-_]/g, '')) {
+		// accepts valid characters and placeholders
+		const sanitized = loc.replace(/[^a-zA-Z0-9/\-:_]/g, '').replace(/:(?![a-zA-Z0-9_-])/g, '')
+		if (loc !== sanitized) {
+			console.log('sanitized', sanitized, loc);
 			return `mount folder ${loc} has illegal characters`;
 		}
 		const alreadyMounted =
@@ -126,10 +129,10 @@ export class ServerExpress implements IWebServer {
 		return undefined;
 	}
 
-	async close() {
-		this.logger.debug(`closing server ${this.port}`);
+	async close(port = this.port) {
+		this.logger.debug(`closing server ${port}`);
 		await this.listener?.close();
 		this.mounted = defaultMounted();
-		ServerExpress.listening = false;
+		ServerExpress.listening = ServerExpress.listening.filter(p => p !== port);
 	}
 }

@@ -1,17 +1,18 @@
 import { resolve } from 'path';
 
 import { OK, TNamed, TWorld, TFeatureStep, STEP_DELAY, IStepperCycles, SCENARIO_START, TStartFeature } from '../lib/defs.js';
-import { TAnyFixme } from '../lib/fixme.js';
-import { IHasOptions } from '../lib/astepper.js';
+import { IHasCycles, IHasOptions } from '../lib/astepper.js';
 import { AStepper } from '../lib/astepper.js';
-import { Resolver } from '../phases/Resolver.js';
-import { actionNotOK, actionOK, getStepperOption, sleep, stringOrError } from '../lib/util/index.js';
+import { getActionableStatement, Resolver } from '../phases/Resolver.js';
+import { actionNotOK, actionOK, formattedSteppers, getStepperOption, sleep, stringOrError } from '../lib/util/index.js';
 import { actualURI } from '../lib/util/actualURI.js';
 import { expand } from '../lib/features.js';
 import { asFeatures } from '../lib/resolver-features.js';
 import { copyPreRenderedAudio, doExec, doSpawn, playAudioFile, preRenderFeatureProse, TRenderedAudioMap } from './lib/tts.js';
 import { EExecutionMessageType, TArtifactSpeech, TArtifactVideo, TMessageContext } from '../lib/interfaces/logger.js';
 import { captureLocator } from '../lib/capture-locator.js';
+import { endExecutonContext } from '../phases/Executor.js';
+import { resolveAndExecuteStatement } from '../lib/util/resolveAndExecuteStatement.js';
 
 const CAPTURE_FILENAME = 'vcapture.webm';
 
@@ -44,7 +45,7 @@ const cycles = (hb: Haibun): IStepperCycles => ({
 		}
 	}
 });
-class Haibun extends AStepper implements IHasOptions {
+class Haibun extends AStepper implements IHasOptions, IHasCycles {
 	renderedAudio: TRenderedAudioMap = {};
 	options = {
 		TTS_CMD: {
@@ -108,46 +109,51 @@ class Haibun extends AStepper implements IHasOptions {
 				return await this.maybeSay(featureStep.in);
 			},
 		},
-		sequenceToken: {
-			gwta: 'a sequence token {token}',
-			action: async ({ token }: TNamed) => {
-				this.getWorld().shared.set(token, '' + new Date().getTime());
-				return Promise.resolve(OK);
-			},
-		},
 		startStepDelay: {
-			gwta: 'start step delay of (?<ms>.+)',
+			gwta: 'step delay of (?<ms>.+)ms',
 			action: async ({ ms }: TNamed) => {
 				this.getWorld().options[STEP_DELAY] = parseInt(ms, 10);
 				return Promise.resolve(OK);
 			},
 		},
-		fails: {
-			gwta: `fails with {message}`,
-			action: async ({ message }: TNamed) => {
-				return Promise.resolve(actionNotOK(`fails: ${message}`));
+		if: {
+			gwta: `if {when}, {what}`,
+			action: async ({ when, what }: TNamed) => {
+				this.getWhenWhat(when, what);
+				const res = await resolveAndExecuteStatement(when, 'Haibun.if-when', this.steppers, this.getWorld());
+				if (res.ok) {
+					return Promise.resolve((await resolveAndExecuteStatement(what, 'Haibun.if-what', this.steppers, this.getWorld(), false)).stepActionResult);
+				}
+				return Promise.resolve(OK);
+			},
+			check: ({ when, what }: TNamed) => {
+				this.getWhenWhat(when, what);
+				return true;
+			}
+		},
+		endsWith: {
+			gwta: `ends with {result}`,
+			action: async ({ result }: TNamed) => {
+				if (result.toUpperCase() === 'OK') {
+					return Promise.resolve(actionOK({ messageContext: endExecutonContext }));
+				}
+
+				return Promise.resolve(actionNotOK('ends with not ok'));
+			},
+			check: ({ result }: TNamed) => {
+				if (result.toUpperCase() === 'OK' || result.toUpperCase() === 'NOT OK') {
+					return true;
+				}
+				throw Error('must be "OK" or "not OK"');
 			},
 		},
-		stopStepDelay: {
-			gwta: 'stop step delay',
+		showSteps: {
+			exact: 'show steppers',
 			action: async () => {
-				return Promise.resolve(OK);
-			},
-		},
-		displayEnv: {
-			gwta: 'show the environment',
-			action: async () => {
-				this.world?.logger.info(`env: ${JSON.stringify(this.world.options.envVariables)}`);
-				return Promise.resolve(OK);
-			},
-		},
-		showTag: {
-			gwta: 'show stepper tag {which}',
-			action: async ({ which }: TNamed) => {
-				const what = which ? (this.getWorld().tag as TAnyFixme)[which] : this.getWorld().tag;
-				this.world?.logger.info(`tag ${which}: ${JSON.stringify(what)}`);
-				return Promise.resolve(OK);
-			},
+				const allSteppers = formattedSteppers(this.steppers);
+				this.world?.logger.info(`Steppers: ${JSON.stringify(allSteppers, null, 2)}`);
+				return Promise.resolve(actionOK({ messageContext: { incident: EExecutionMessageType.ACTION, incidentDetails: { steppers: allSteppers } } }));
+			}
 		},
 		until: {
 			gwta: 'until {what} is {value}',
@@ -202,9 +208,9 @@ class Haibun extends AStepper implements IHasOptions {
 		if (this.ttsPlay) {
 			const playCmd = this.ttsPlay.replace(/@WHAT@/g, `"${runtimePath}/${path}"`);
 			try {
-				this.world.logger.debug(`playing audio: ${playCmd}`);
+				this.world.logger.log(`playing audio: ${playCmd}`);
 				await playAudioFile(playCmd);
-			} catch (error: TAnyFixme) {
+			} catch (error) {
 				const stderr = error.stderr ? error.stderr.toString() : '';
 				this.world.logger.error(`Error playing audio using ${playCmd}: ${error.message}\nOutput: ${stderr}`);
 				return actionNotOK(`Error playing audio: ${error.message}\nOutput: ${stderr}`);
@@ -213,6 +219,11 @@ class Haibun extends AStepper implements IHasOptions {
 			await sleep(durationS * 1000);
 		}
 		return actionOK({ artifact });
+	}
+	getWhenWhat(when: string, what: string) {
+		const { featureStep: whenStep } = getActionableStatement(this.steppers, when, 'Haibun.if-when');
+		const { featureStep: whatStep } = getActionableStatement(this.steppers, what, 'Haibun.if-what');
+		return { whenStep, whatStep };
 	}
 
 	async newFeatureFromEffect(content: string, seq: number, steppers: AStepper[]): Promise<TFeatureStep> {

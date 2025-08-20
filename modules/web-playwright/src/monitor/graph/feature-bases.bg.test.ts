@@ -1,13 +1,13 @@
 import { describe, it, expect } from 'vitest';
 
 import { getBackgroundFeatures } from './feature-bases.js';
-import { asFeatures } from '@haibun/core/build/lib/resolver-features.js';
-import { createSteppers } from '@haibun/core/build/lib/util/index.js';
-import { Resolver } from '@haibun/core/build/phases/Resolver.js';
-import { expand } from '@haibun/core/build/lib/features.js';
-import Haibun from '@haibun/core/build/steps/haibun.js';
-import { OK } from '@haibun/core/build/lib/defs.js';
-import { AStepper } from '@haibun/core/build/lib/astepper.js';
+import { asFeatures } from '@haibun/core/lib/resolver-features.js';
+import { createSteppers } from '@haibun/core/lib/util/index.js';
+import { Resolver } from '@haibun/core/phases/Resolver.js';
+import { expand } from '@haibun/core/lib/features.js';
+import Haibun from '@haibun/core/steps/haibun.js';
+import { OK } from '@haibun/core/lib/defs.js';
+import { AStepper } from '@haibun/core/lib/astepper.js';
 
 class TestStepper extends AStepper {
 	steps = {

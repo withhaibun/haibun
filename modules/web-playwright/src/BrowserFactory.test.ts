@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
 import { BrowserFactory, BROWSERS, DEFAULT_CONFIG_TAG } from "./BrowserFactory.js";
-import { getTestWorldWithOptions } from "@haibun/core/build/lib/test/lib.js";
+import { getTestWorldWithOptions } from "@haibun/core/lib/test/lib.js";
 
 const launchOptions = {
 	headless: true

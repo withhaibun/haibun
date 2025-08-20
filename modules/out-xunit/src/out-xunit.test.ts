@@ -3,9 +3,9 @@ import { describe, it, expect } from 'vitest';
 import { convert } from 'xmlbuilder2';
 
 import OutXUnit from './out-xunit.js';
-import { testWithDefaults } from '@haibun/core/build/lib/test/lib.js';
-import TestSteps from '@haibun/core/build/lib/test/TestSteps.js';
-import { TAnyFixme } from '@haibun/core/build/lib/fixme.js';
+import { testWithDefaults } from '@haibun/core/lib/test/lib.js';
+import TestSteps from '@haibun/core/lib/test/TestSteps.js';
+import { TAnyFixme } from '@haibun/core/lib/fixme.js';
 
 describe('AsXML transforms', () => {
 	it('transforms single pass result to xunit', async () => {

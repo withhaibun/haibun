@@ -1,9 +1,9 @@
 import { JSDOM } from 'jsdom';
 import createDOMPurify from 'dompurify';
 import mermaid from 'mermaid';
-import { THTTPTraceContent } from '@haibun/core/build/lib/interfaces/logger.js';
-import { TAnyFixme } from '@haibun/core/build/lib/fixme.js';
-import { TTag, TTagValue } from '@haibun/core/build/lib/ttag.js';
+import { THTTPTraceContent } from '@haibun/core/lib/interfaces/logger.js';
+import { TAnyFixme } from '@haibun/core/lib/fixme.js';
+import { TTag, TTagValue } from '@haibun/core/lib/ttag.js';
 
 export function defineGlobalMermaidAndDOMPurify() {
 	const jsdom = new JSDOM('<!DOCTYPE html><html><head></head><body></body></html>', {

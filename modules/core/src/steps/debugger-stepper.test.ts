@@ -2,11 +2,15 @@ import { it, expect, describe, vi } from 'vitest';
 import { DEF_PROTO_OPTIONS, getTestWorldWithOptions, testWithWorld } from '../lib/test/lib.js';
 import DebuggerStepper, { TDebuggingType } from './debugger-stepper.js';
 import Haibun from './haibun.js';
-import { IPrompter, ReadlinePrompter, } from '../lib/prompter.js';
+import { IPrompter } from '../lib/prompter.js';
+import { ReadlinePrompter } from '../lib/readline-prompter.js';
 
 class TestPrompter implements IPrompter {
-	prompt = async () => Promise.resolve('continue')
-	cancel: () => void
+	prompt = async () => {
+		return Promise.resolve('continue');
+	};
+	cancel: () => void;
+	resolve: (_id: string, _value: unknown) => void = () => {};
 }
 
 describe('DebuggerStepper', () => {

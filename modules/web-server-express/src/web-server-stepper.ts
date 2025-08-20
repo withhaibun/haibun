@@ -1,11 +1,10 @@
-import { OK, TWorld, TNamed, TFeatureStep, TEndFeature, IStepperCycles } from '@haibun/core/build/lib/defs.js';
-import { actionNotOK, getFromRuntime, getStepperOption, intOrError } from '@haibun/core/build/lib/util/index.js';
+import { OK, TWorld, TNamed, TEndFeature, IStepperCycles } from '@haibun/core/lib/defs.js';
+import { actionNotOK, getFromRuntime, getStepperOption, intOrError } from '@haibun/core/lib/util/index.js';
 import { IWebServer, WEBSERVER } from './defs.js';
 import { ServerExpress, DEFAULT_PORT } from './server-express.js';
-import { WEB_PAGE } from '@haibun/core/build/lib/domain-types.js';
 import path from 'path';
-import { EExecutionMessageType } from '@haibun/core/build/lib/interfaces/logger.js';
-import { AStepper, IHasOptions } from '@haibun/core/build/lib/astepper.js';
+import { EExecutionMessageType } from '@haibun/core/lib/interfaces/logger.js';
+import { AStepper, IHasCycles, IHasOptions } from '@haibun/core/lib/astepper.js';
 
 const cycles = (wss: WebServerStepper): IStepperCycles => ({
 	async startFeature() {
@@ -23,7 +22,7 @@ const cycles = (wss: WebServerStepper): IStepperCycles => ({
 	}
 });
 
-class WebServerStepper extends AStepper implements IHasOptions {
+class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 	webserver: ServerExpress | undefined;
 	cycles: IStepperCycles = cycles(this);
 
@@ -41,17 +40,6 @@ class WebServerStepper extends AStepper implements IHasOptions {
 	}
 
 	steps = {
-		thisURI: {
-			gwta: `a ${WEB_PAGE} at {where}`,
-			action: async ({ where }: TNamed, featureStep: TFeatureStep) => {
-				const page = featureStep.path
-
-				const webserver = <IWebServer>getFromRuntime(this.getWorld().runtime, WEBSERVER);
-				await webserver.checkAddStaticFolder(page, where);
-				return OK;
-			},
-		},
-		/// generator
 		isListening: {
 			gwta: 'webserver is listening',
 			action: async () => {

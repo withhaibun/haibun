@@ -3,36 +3,63 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z, ZodRawShape } from "zod";
 import type { TextContent } from '@modelcontextprotocol/sdk/types.js';
 
-import { AStepper } from "@haibun/core/build/lib/astepper.js";
-import { namedInterpolation } from "@haibun/core/build/lib/namedVars.js";
-import { currentVersion as version } from '@haibun/core/build/currentVersion.js';
-import { TWorld, TStepperStep, TStepResult } from "@haibun/core/build/lib/defs.js";
-import { constructorName } from "@haibun/core/build/lib/util/index.js";
-import { getActionableStatement } from '@haibun/core/build/phases/Resolver.js';
-import { FeatureExecutor } from "@haibun/core/build/phases/Executor.js";
+import { AStepper } from "@haibun/core/lib/astepper.js";
+import { namedInterpolation } from "@haibun/core/lib/namedVars.js";
+import { currentVersion as version } from '@haibun/core/currentVersion.js';
+import { TWorld, TStepperStep, TStepResult } from "@haibun/core/lib/defs.js";
+import { constructorName } from "@haibun/core/lib/util/index.js";
+import { resolveAndExecuteStatement } from "@haibun/core/lib/util/resolveAndExecuteStatement.js";
+import { HttpPrompterClient } from './http-prompter-client.js';
 
 type ToolHandlerResponse = { content?: TextContent[] };
 
-interface RemoteExecutorConfig {
+type IRemoteExecutorConfig = {
 	url: string;
 	accessToken?: string;
-}
+};
 
 export class MCPExecutorServer {
 	server: McpServer;
-	constructor(private steppers: AStepper[], private world: TWorld, private remoteConfig?: RemoteExecutorConfig) { }
+	httpPrompterClient?: HttpPrompterClient;
+	private _isRunning: boolean = false;
+
+	get isRunning(): boolean {
+		return this._isRunning;
+	}
+
+	constructor(private steppers: AStepper[], private world: TWorld, private remoteConfig?: IRemoteExecutorConfig) {
+		if (remoteConfig) {
+			this.world.logger.log(`🔗 MCPExecutorServer: Remote execution mode - connecting to ${remoteConfig.url}`);
+		} else {
+			this.world.logger.log(`🏠 MCPExecutorServer: Local execution mode`);
+		}
+	}
 
 	async start() {
+		this._isRunning = true;
 		this.server = new McpServer({
 			name: "haibun-mcp",
 			version,
 			capabilities: {
 				resources: {},
 				tools: {},
+				sampling: {
+					enabled: true
+				}
 			},
 		});
 
+		// Initialize HTTP prompter client for debug prompt access
+		if (!this.remoteConfig?.url) {
+			this.world.logger.warn(`⚠️  MCPExecutorServer: No remote config URL provided - debug prompt tools will not be available`);
+			this.httpPrompterClient = undefined;
+		} else {
+			this.httpPrompterClient = new HttpPrompterClient(this.remoteConfig.url, this.remoteConfig.accessToken);
+			this.world.logger.log(`🤖 MCPExecutorServer: HTTP prompter client initialized for debugging with URL ${this.remoteConfig.url}`);
+		}
+
 		this.registerSteppers();
+		this.registerPromptTools();
 		const transport = new StdioServerTransport();
 		await this.server.connect(transport);
 	}
@@ -41,6 +68,9 @@ export class MCPExecutorServer {
 		for (const stepper of this.steppers) {
 			const stepperName = constructorName(stepper);
 			for (const [stepName, stepDef] of Object.entries(stepper.steps)) {
+				if (stepDef.expose === false) {
+					continue;
+				}
 				const variables: ZodRawShape = {};
 				if (stepDef.gwta) {
 					const { stepVariables } = namedInterpolation(stepDef.gwta);
@@ -67,12 +97,104 @@ export class MCPExecutorServer {
 			}
 		}
 	}
+
+	registerPromptTools() {
+		// Tool to list pending debug prompts
+		this.server.registerTool('listDebugPrompts', {
+			description: 'List all pending debug prompts',
+			title: 'List Debug Prompts'
+		}, async (): Promise<ToolHandlerResponse> => {
+			if (!this.httpPrompterClient) {
+				return {
+					content: [{
+						type: "text",
+						text: JSON.stringify({
+							success: false,
+							error: 'HttpPrompterClient not initialized - no remote config URL provided',
+							prompts: [],
+							count: 0
+						}, null, 2)
+					}]
+				};
+			}
+
+			const prompts = await this.httpPrompterClient.getPrompts();
+			return {
+				content: [{
+					type: "text",
+					text: JSON.stringify({
+						prompts,
+						count: prompts.length,
+						message: prompts.length > 0 ?
+							`Found ${prompts.length} pending debug prompt(s)` :
+							'No pending debug prompts'
+					}, null, 2)
+				}]
+			};
+		});
+
+		// Tool to respond to debug prompts
+		this.server.registerTool('respondToDebugPrompt', {
+			description: 'Respond to a debug prompt to continue execution',
+			title: 'Respond to Debug Prompt',
+			inputSchema: {
+				promptId: z.string(),
+				response: z.string()
+			}
+		}, async (input: { promptId: string, response: string }): Promise<ToolHandlerResponse> => {
+			if (!this.httpPrompterClient) {
+				return {
+					content: [{
+						type: "text",
+						text: JSON.stringify({
+							success: false,
+							error: 'HttpPrompterClient not initialized - no remote config URL provided',
+							promptId: input.promptId
+						}, null, 2)
+					}]
+				};
+			}
+
+			try {
+				const result = await this.httpPrompterClient.respondToPrompt(input.promptId, input.response);
+				return {
+					content: [{
+						type: "text",
+						text: JSON.stringify({
+							success: true,
+							promptId: input.promptId,
+							response: input.response,
+							result,
+							message: `Debug prompt ${input.promptId} resolved with: "${input.response}"`
+						}, null, 2)
+					}]
+				};
+			} catch (error) {
+				const errorMessage = error instanceof Error ? error.message : String(error);
+				return {
+					content: [{
+						type: "text",
+						text: JSON.stringify({
+							success: false,
+							error: errorMessage,
+							promptId: input.promptId
+						}, null, 2)
+					}]
+				};
+			}
+		});
+	}
 	private createToolHandler(stepperName: string, stepName: string, stepDef: TStepperStep) {
 		return async (input: Record<string, string | number | boolean | string[]>): Promise<ToolHandlerResponse> => {
 			try {
 				let statement = stepDef.gwta || stepDef.exact || stepDef.match?.toString();
 
 				if (stepDef.gwta && Object.keys(input).length > 0) {
+					// First, handle optional parts like ( empty)?
+					// Remove optional parts that are not used (for now, just remove all optional parts)
+					statement = statement.replace(/\([^)]*\)\?/g, '');
+
+					// Then replace the named variables
 					for (const [key, value] of Object.entries(input)) {
 						const pattern = new RegExp(`\\{${key}(:[^}]*)?\\}`, 'g');
 						statement = statement.replace(pattern, String(value));
@@ -81,7 +203,7 @@ export class MCPExecutorServer {
 
 				const stepResult: TStepResult = this.remoteConfig
 					? await this.executeViaRemoteApi(statement, `/mcp/${stepperName}-${stepName}`)
-					: await this.executeInCurrentRuntime(statement, `/mcp/${stepperName}-${stepName}`);
+					: await resolveAndExecuteStatement(statement, `/mcp/${stepperName}-${stepName}`, this.steppers, this.world);
 
 				return {
 					content: [{
@@ -114,11 +236,6 @@ export class MCPExecutorServer {
 		}
 	}
 
-	private async executeInCurrentRuntime(statement: string, source: string) {
-		const { featureStep } = await getActionableStatement(this.steppers, statement, source);
-		return await FeatureExecutor.doFeatureStep(this.steppers, featureStep, this.world);
-	}
-
 	private async executeViaRemoteApi(statement: string, source: string) {
 		const headers: Record<string, string> = {
 			'Content-Type': 'application/json',
@@ -126,6 +243,9 @@ export class MCPExecutorServer {
 
 		if (this.remoteConfig!.accessToken) {
 			headers.Authorization = `Bearer ${this.remoteConfig!.accessToken}`;
+			this.world.logger.log(`🔐 MCPExecutorServer: Using access token for authentication`);
+		} else {
+			this.world.logger.warn(`⚠️  MCPExecutorServer: No access token available for remote API call`);
 		}
 
 		const maxRetries = 3;
@@ -155,7 +275,7 @@ export class MCPExecutorServer {
 				}
 
 				// Log retry attempt and wait before retrying
-				console.warn(`Remote execution attempt ${attempt} failed: ${errorMessage}. Retrying in ${retryDelay}ms...`);
+				this.world.logger.warn(`Remote execution attempt ${attempt} failed: ${errorMessage}. Retrying in ${retryDelay}ms...`);
 				await new Promise(resolve => setTimeout(resolve, retryDelay));
 			}
 		}

@@ -1,4 +1,4 @@
-import { TArtifact } from '@haibun/core/build/lib/interfaces/logger.js';
+import { TArtifact } from '@haibun/core/lib/interfaces/logger.js';
 
 export abstract class LogComponent<T extends HTMLElement = HTMLElement> {
 	readonly element: T;

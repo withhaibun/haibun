@@ -1,0 +1,10 @@
+{
+	"steppers": [
+		"./mcp/build/mcp-server-stepper",
+		"./web-playwright/build/web-playwright",
+		"./storage-mem/build/storage-mem",
+		"variables-stepper",
+		"debugger-stepper",
+		"haibun"
+	]
+}

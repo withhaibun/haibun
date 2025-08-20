@@ -1,15 +1,15 @@
 import { describe, it, expect } from 'vitest';
 
-import WebHttp from '@haibun/web-http/build/web-http.js';
-import { actionOK, getFromRuntime, getStepperOptionName } from '@haibun/core/build/lib/util/index.js';
-import { DEFAULT_DEST } from '@haibun/core/build/lib/defs.js';
+import WebHttp from '@haibun/web-http/web-http.js';
+import { actionOK, getFromRuntime, getStepperOptionName } from '@haibun/core/lib/util/index.js';
+import { DEFAULT_DEST } from '@haibun/core/lib/defs.js';
 import { IWebServer, IRequest, IResponse, WEBSERVER } from './defs.js';
 
 import Server from './web-server-stepper.js';
-import { TNamed } from '@haibun/core/build/lib/defs.js';
-import { testWithDefaults } from '@haibun/core/build/lib/test/lib.js';
+import { TNamed } from '@haibun/core/lib/defs.js';
+import { testWithDefaults } from '@haibun/core/lib/test/lib.js';
 import WebServerStepper from './web-server-stepper.js';
-import { AStepper } from '@haibun/core/build/lib/astepper.js';
+import { AStepper } from '@haibun/core/lib/astepper.js';
 import { TEST_PORTS } from './test-constants.js';
 
 describe('route mount', () => {

@@ -65,5 +65,5 @@ class Credentials extends AStepper {
 			},
 		},
 	};
-};
+}
 export default Credentials;

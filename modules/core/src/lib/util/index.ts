@@ -1,4 +1,4 @@
-import { TNotOKActionResult, TOKActionResult, TSpecl, TWorld, TRuntime, TModuleOptions, CStepper, OK, TFeatureStep } from '../defs.js';
+import { TNotOKActionResult, TOKActionResult, TSpecl, TWorld, TRuntime, TModuleOptions, CStepper, OK } from '../defs.js';
 import { TAnyFixme } from '../fixme.js';
 import { IHasOptions, AStepper } from '../astepper.js';
 import { TTag } from '../ttag.js';
@@ -302,11 +302,19 @@ export function dePolite(s: string) {
 	return s.replace(/^((given|when|then|and|should|the|it|I'm|I|am|an|a) )*/i, '');
 }
 
-export function shortenUserAgent(ua: string) {
-	return ua.length < 32 ? ua : ua.substring(0, 26) + '...' + ua.substring(ua.length - 6);
-}
-
 export function shortenURI(uri: string) {
 	const shortURI = uri.startsWith('https://') ? uri.replace('https://', '') : uri;
 	return shortURI.length < 32 ? shortURI : shortURI.substring(0, 26) + '...' + shortURI.substring(uri.length - 6);
+}
+
+export function formattedSteppers(steppers: AStepper[]) {
+	const a = steppers.reduce((acc, o) => {
+		return {
+			...acc,
+			[(o as TAnyFixme).constructor.name]: Object.entries(o.steps).map(
+				([stepperName, stepperMatch]) => stepperName + ': ' + (stepperMatch.gwta || stepperMatch.exact || stepperMatch.match)
+			),
+		};
+	}, {} as { [name: string]: { desc: string } });
+	return a;
 }

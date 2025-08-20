@@ -1,6 +1,6 @@
 import { describe, it, test, expect } from 'vitest';
 
-import { OK, TExpandedFeature } from '../lib/defs.js';
+import { OK, TExpandedFeature, TNamed, TResolvedFeature } from '../lib/defs.js';
 import { AStepper } from '../lib/astepper.js';
 import { asExpandedFeatures } from '../lib/resolver-features.js';
 import TestSteps from '../lib/test/TestSteps.js';
@@ -88,5 +88,63 @@ describe('validate map steps', () => {
 			const { featureSteps } = res[0] as TResolvedFeature;
 			expect(featureSteps[0].action.named?.t_0).toEqual('http://url');
 		});
+	});
+});
+
+describe('preclude stepper', () => {
+	class PrecludedStepper extends AStepper {
+		steps = {
+			doesSomething: {
+				gwta: 'does {something}',
+				action: async () => Promise.resolve(OK),
+			},
+		}
+	}
+	class PrecluderStepper extends AStepper {
+		steps = {
+			doesSomething: {
+				gwta: 'does {something} else',
+				precludes: ['PrecludedStepper.doesSomething'],
+				action: async () => Promise.resolve(OK),
+			},
+		};
+	}
+	test('precludes stepper', async () => {
+		const features = asExpandedFeatures([{ path: 'l1', content: 'does something else' }]);
+		const steppers = await createSteppers([PrecludedStepper, PrecluderStepper]);
+		const resolver = new Resolver(steppers);
+		const steps = await resolver.resolveStepsFromFeatures(features);
+		expect(steps.length).toBe(1);
+		expect(steps[0].featureSteps.length).toBe(1);
+		expect(steps[0].featureSteps[0].action.stepperName).toBe('PrecluderStepper');
+	});
+});
+
+describe('action check', () => {
+	class CheckStepper extends AStepper {
+		steps = {
+			checks: {
+				gwta: 'checks {what}',
+				action: async () => Promise.resolve(OK),
+				check: ({ what }: TNamed) => {
+					if (what !== 'ok') {
+						throw Error(`check failed for ${what}`);
+					}
+					return true;
+				},
+			},
+		}
+	}
+	test('check passes', async () => {
+		const features = asExpandedFeatures([{ path: 'l1', content: 'checks ok' }]);
+		const steppers = await createSteppers([CheckStepper]);
+		const resolver = new Resolver(steppers);
+		await expect(resolver.resolveStepsFromFeatures(features)).resolves.toBeDefined();
+	});
+	test('check fails', async () => {
+		const features = asExpandedFeatures([{ path: 'l1', content: 'checks not ok' }]);
+		const steppers = await createSteppers([CheckStepper]);
+		const resolver = new Resolver(steppers);
+		await expect(resolver.resolveStepsFromFeatures(features)).rejects.toThrow();
 	});
 });

@@ -1,8 +1,8 @@
-import { TModuleOptions, TBaseOptions } from '@haibun/core/build/lib/defs.js';
-import { stringOrError } from '@haibun/core/build/lib/util/index.js';
+import { TModuleOptions, TBaseOptions } from '@haibun/core/lib/defs.js';
+import { stringOrError } from '@haibun/core/lib/util/index.js';
 import { TMediaType, MEDIA_TYPES, MAPPED_MEDIA_TYPES } from './media-types.js';
-import { AStepper, IHasOptions } from '@haibun/core/build/lib/astepper.js';
-import { TTag } from '@haibun/core/build/lib/ttag.js';
+import { AStepper, IHasOptions } from '@haibun/core/lib/astepper.js';
+import { TTag } from '@haibun/core/lib/ttag.js';
 
 export const STORAGE_LOCATION = 'STORAGE_LOCATION';
 export const STORAGE_ITEM = 'STORAGE_ITEM';

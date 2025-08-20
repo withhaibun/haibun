@@ -22,15 +22,17 @@ class Versioner {
 			console.error(`usage: ${me}: <version> <extra modules> [--notest]`);
 			process.exit(1);
 		}
-		// check for --notest in extra, if it exist, set a notest flag on class and remove it from extra
-		if (extra.includes('--notest')) {
-			this.noTest = true;
-			extra.splice(extra.indexOf('--notest'), 1);
-		}
-		if (extra.includes('--nopublish')) {
-			this.noPublish = true;
-			extra.splice(extra.indexOf('--nopublish'), 1);
-		}
+		extra.forEach((e, i) => {
+			if (e === '--notest') {
+				this.noTest = true;
+				extra.splice(i, 1);
+			} else if (e === '--nopublish') {
+				this.noPublish = true;
+				extra.splice(i, 1);
+			} else if (e.startsWith('-')) {
+				throw Error(`unknown option ${e}; use --notest or --nopublish`);
+			}
+		});
 	}
 
 	async doVersion() {
@@ -92,11 +94,15 @@ class Versioner {
 		if (this.noPublish) {
 			return;
 		}
-		await spawnCommand(['npm', 'publish'], module);
+		await spawnCommand(['npm', 'publish'], module).catch((e) => {
+			console.error(`npm publish failed for ${name}: ${e}`);
+		});
 	}
 
 	async gitPush(name: string, module: string) {
-		await spawnCommand(['git', 'push'], module);
+		await spawnCommand(['git', 'push'], module).catch((e) => {
+			console.error(`git push failed for ${name}: ${e}`);
+		});
 	}
 
 	async updateModule(name: string, location: string): Promise<void> {
@@ -132,12 +138,9 @@ class Versioner {
 
 	async gitCommit(name: string, location: string, extraPackages = []) {
 		const packages = [...extraPackages, 'package.json'];
-		try {
-			await spawnCommand(['git', 'commit', '-m', `'update ${name} to version ${this.version}'`, ...packages], location);
-		} catch (e) {
+		await spawnCommand(['git', 'commit', '-m', `'update ${name} to version ${this.version}'`, ...packages], location).catch((e) => {
 			console.error(`git commit failed for ${name}: ${e}`);
-			throw e;
-		}
+		});
 	}
 
 	async runTest(name: string, location: string) {
@@ -160,12 +163,9 @@ class Versioner {
 	}
 
 	async npmInstall(name: string, location: string) {
-		try {
-			await spawnCommand(['npm', 'install'], location);
-		} catch (e) {
+		await spawnCommand(['npm', 'install'], location).catch((e) => {
 			console.error(`npm install failed for ${name}: ${e}`);
-			throw e;
-		}
+		});
 	}
 }
 

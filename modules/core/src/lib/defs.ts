@@ -108,12 +108,16 @@ export type TFeatureStep = {
 };
 
 export type TAction = (named: TNamed, featureStep: TFeatureStep) => Promise<TActionResult>;
+export type TCheck = (named: TNamed, featureStep: TFeatureStep) => boolean;
 
 export type TStepperStep = {
+	precludes?: string[];
+	expose?: boolean;
 	match?: RegExp;
 	gwta?: string;
 	exact?: string;
 	action: TAction;
+	check?: TCheck;
 	applyEffect?: TApplyEffect;
 };
 
@@ -138,7 +142,7 @@ export type TEndFeature = { world: TWorld, shouldClose: boolean, isLast: boolean
 export type TStartFeature = { resolvedFeature: TResolvedFeature, index: number };
 export type TStartExecution = TResolvedFeature[]
 export type TStartScenario = { featureVars: FeatureVariables };
-export type TBeforeStep = { featureStep: TFeatureStep, action: TStepAction };
+export type TBeforeStep = { featureStep: TFeatureStep };
 export type TAfterStep = { featureStep: TFeatureStep, actionResult: TStepActionResult };
 export type TFailureArgs = { featureResult: TFeatureResult, failedStep: TStepResult };
 

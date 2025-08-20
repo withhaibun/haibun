@@ -1,4 +1,4 @@
-import { TArtifactSpeech } from '@haibun/core/build/lib/interfaces/logger.js';
+import { TArtifactSpeech } from '@haibun/core/lib/interfaces/logger.js';
 import { ArtifactDisplay } from './artifactDisplayBase.js';
 
 export class SpeechArtifactDisplay extends ArtifactDisplay {

@@ -3,7 +3,7 @@ import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'fs'
 
 import path from 'path';
 import { scaffoldHaibun } from './scaffold.js';
-import { workspaceRoot } from '@haibun/core/build/lib/util/workspace-lib.js';
+import { workspaceRoot } from '@haibun/core/lib/util/workspace-lib.js';
 
 const TMPDIR = '/tmp/haibun-scaffold-test/';
 const out = () => undefined;

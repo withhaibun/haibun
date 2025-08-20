@@ -1,5 +1,5 @@
-import { AStepper, OK, TNamed, TWorld } from '@haibun/core/build/lib/defs.js';
-import { actionNotOK } from '@haibun/core/build/lib/util/index.js';
+import { AStepper, OK, TNamed, TWorld } from '@haibun/core/lib/defs.js';
+import { actionNotOK } from '@haibun/core/lib/util/index.js';
 
 import WTW from './lib/WTW.js';
 
