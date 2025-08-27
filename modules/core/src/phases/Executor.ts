@@ -97,7 +97,7 @@ export class FeatureExecutor {
 	async doFeature(feature: TResolvedFeature): Promise<TFeatureResult> {
 		const world = this.world;
 		let ok = true;
-		const stepResults: TStepResult[] = [];
+		world.runtime.stepResults = [];
 
 		let currentScenario: number = 0;
 
@@ -119,7 +119,7 @@ export class FeatureExecutor {
 			const result = await FeatureExecutor.doFeatureStep(this.steppers, step, world);
 
 			ok = ok && result.ok;
-			stepResults.push(result);
+			world.runtime.stepResults.push(result);
 			if (!ok || result.stepActionResult.messageContext === endExecutonContext) {
 				break;
 			}
@@ -140,8 +140,9 @@ export class FeatureExecutor {
 				totalTime: Timer.since() - this.startOffset,
 			}
 		}, 'debug');
-		const featureResult: TFeatureResult = { path: feature.path, ok, stepResults };
+		const featureResult: TFeatureResult = { path: feature.path, ok, stepResults: world.runtime.stepResults };
 
+		console.log(featureResult.stepResults.map(s => [s.seq, s.in]));
 		return featureResult;
 	}
 
@@ -182,7 +183,12 @@ export class FeatureExecutor {
 	}
 }
 
-const doStepperCycle = async <K extends keyof IStepperCycles>(steppers: AStepper[], method: K, args: StepperMethodArgs[K], guidance = ''): Promise<Awaited<ReturnType<NonNullable<IStepperCycles[K]>>>[]> => {
+const doStepperCycle = async <K extends keyof IStepperCycles>(
+	steppers: AStepper[],
+	method: K,
+	args: StepperMethodArgs[K],
+	guidance = ''
+): Promise<Awaited<ReturnType<NonNullable<IStepperCycles[K]>>>[]> => {
 	const results: Awaited<ReturnType<NonNullable<IStepperCycles[K]>>>[] = [];
 	for (const stepper of steppers) {
 		if (stepper?.cycles && stepper.cycles[method]) {

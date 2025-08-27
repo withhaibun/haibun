@@ -18,7 +18,7 @@ export async function expandFeatures(features: TFeature[], backgrounds: TFeature
 	return expandeds;
 }
 
-async function expandIncluded(feature: TFeature, backgrounds: TFeatures) {
+export async function expandIncluded(feature: TFeature, backgrounds: TFeatures) {
 	let lines: TExpandedLine[] = [];
 	const split = featureSplit(feature.content);
 	for (const l of split) {

@@ -104,6 +104,7 @@ export type TFeatureStep = {
 	path: string;
 	in: string;
 	seq: number;
+	seqLabel?: string; // optional hierarchical label like "2.1"
 	action: TStepAction;
 };
 
@@ -199,14 +200,18 @@ export type TExecutorResult = {
 export type TOKActionResult = {
 	ok: true;
 	messageContext?: TMessageContext;
-	artifact?: TArtifact
+	artifact?: TArtifact;
+	// Optional child step results executed within this action (e.g., inline Backgrounds)
+	children?: TStepResult[];
 };
 
 export type TNotOKActionResult = {
 	ok: false;
 	message: string;
 	messageContext?: TMessageContext;
-	artifact?: TArtifact
+	artifact?: TArtifact;
+	// Optional child step results executed within this action (e.g., inline Backgrounds)
+	children?: TStepResult[];
 };
 
 export type TTrace = {
@@ -262,10 +267,15 @@ export type TStepResult = {
 	in: string;
 	path: string;
 	seq: number;
+	seqLabel?: string; // optional hierarchical label like "2.1"
 };
 
-export type TRuntime = { [name: string]: TAnyFixme };
-
+export type TRuntime = {
+	backgrounds?: TFeature[];
+	stepResults?: TStepResult[];
+	pendingStepResults?: TStepResult[];
+	[name: string]: TAnyFixme;
+};
 export const HAIBUN = 'HAIBUN';
 export const BASE_PREFIX = `${HAIBUN}_`;
 export const CAPTURE = 'capture';

@@ -10,7 +10,7 @@ import { getActionableStatement } from '../phases/Resolver.js';
 describe('prose', () => {
 	it('finds prose', async () => {
 		const world = getDefaultWorld(0);
-		const { featureStep, steppers } = getActionableStatement([new Haibun()], 'A sentence.', '/feature/test');
+		const { featureStep, steppers } = getActionableStatement([new Haibun()], 'A sentence.', '/feature/test', 0);
 		const res = await FeatureExecutor.doFeatureStep(steppers, featureStep, world);
 
 		expect(res.ok).toBe(true);
@@ -88,5 +88,17 @@ describe('if', () => {
 
 		expect(result.ok).toBe(true);
 		expect(result.featureResults![0].stepResults.length).toBe(3);
+	});
+	it.only('if condition condition with backgrounds', async () => {
+		const feature = { path: '/features/test.feature', content: 'if passes, Backgrounds: bg' };
+		const background = { path: '/backgrounds/bg.feature', content: 'set ran to true\nends with ok' };
+		const result = await testWithDefaults([feature], [Haibun, TestSteps, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
+		expect(result.world.shared.get('ran')).toBe('true')
+
+		expect(result.ok).toBe(true);
+		expect(result.featureResults![0].stepResults.length).toBe(3);
+		expect(result.featureResults![0].stepResults[0].seq).toBe(1.1);
+		expect(result.featureResults![0].stepResults[1].seq).toBe(1.2);
+		expect(result.featureResults![0].stepResults[2].seq).toBe(1);
 	});
 });

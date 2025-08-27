@@ -48,6 +48,8 @@ export class Runner {
 		try {
 			this.steppers = await createSteppers(csteppers);
 			await setStepperWorlds(this.steppers, this.world);
+			// Make backgrounds available at runtime for inline `Backgrounds:` expansion
+			this.world.runtime.backgrounds = featuresBackgrounds.backgrounds;
 			const expandedFeatures = await expand(featuresBackgrounds).catch((error) => this.errorBail('Expand', error));
 
 			const resolver = new Resolver(this.steppers);
