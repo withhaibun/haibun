@@ -120,14 +120,14 @@ const comment = {
 	},
 };
 
-export function getActionableStatement(steppers: AStepper[], statement: string, path: string) {
+export function getActionableStatement(steppers: AStepper[], statement: string, path: string, startSeq: number, subSeq = 0) {
 	const resolver = new Resolver(steppers);
 	const action = resolver.findActionableSteps(statement)[0];
 
 	const featureStep: TFeatureStep = {
 		path,
 		in: statement,
-		seq: 0,
+		seq: Math.round((startSeq + subSeq) * 100) / 100,
 		action,
 	};
 
