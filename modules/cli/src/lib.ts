@@ -10,9 +10,8 @@ import { Timer } from '@haibun/core/lib/Timer.js';
 import Logger from '@haibun/core/lib/Logger.js';
 import { Runner } from '@haibun/core/runner.js';
 import { getDefaultTag } from '@haibun/core/lib/test/lib.js';
-import { isProcessFeatureResults, IHasOptions, AStepper } from '@haibun/core/lib/astepper.js';
+import { isProcessFeatureResults, IHasOptions } from '@haibun/core/lib/astepper.js';
 import { FeatureVariables } from '@haibun/core/lib/feature-variables.js';
-import { TAnyFixme } from '@haibun/core/lib/fixme.js';
 import { Prompter } from '@haibun/core/lib/prompter.js';
 
 const OPTION_CONFIG = '--config';
@@ -43,7 +42,7 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 	}
 
 	// const description = protoOptions.options.DESCRIPTION || bases + ' ' + [...(featureFilter || [])].join(',');
-	const world = getWorld(protoOptions, bases);
+	const world = getCliWorld(protoOptions, bases);
 
 	const runner = new Runner(world);
 
@@ -66,7 +65,7 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 	}
 }
 
-function getWorld(protoOptions: TProtoOptions, bases: TBase): TWorld {
+function getCliWorld(protoOptions: TProtoOptions, bases: TBase): TWorld {
 	const { KEY: keyIn, LOG_LEVEL: logLevel, LOG_FOLLOW: logFollow } = protoOptions.options;
 	const tag = getDefaultTag(0);
 	const logger = new Logger({ level: logLevel || 'log', follow: logFollow });
