@@ -1,9 +1,8 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it } from 'vitest';
 
 import { getResolvedTestFeatures } from '@haibun/core/lib/test/resolvedTestFeatures.js';
 
 // Setup jsdom and real DOMPurify for mermaid parsing in Node.js
-defineGlobalDOMPurify();
 
 import { generateMermaidGraph } from './generateMermaidGraph.js';
 
@@ -37,21 +36,3 @@ describe.skip('generateMermaidGraph', () => {
 
 	});
 });
-
-function defineGlobalDOMPurify() {
-	if (typeof window === 'undefined' || !(globalThis as Record<string, unknown>).DOMPurify) {
-		// Use require to get the CommonJS build for Node.js compatibility
-		// eslint-disable-next-line @typescript-eslint/no-var-requires
-		const { JSDOM } = require('jsdom');
-		// eslint-disable-next-line @typescript-eslint/no-var-requires
-		const createDOMPurify = require('dompurify');
-		const { window } = new JSDOM('<!DOCTYPE html>');
-		global.window = window;
-		global.document = window.document;
-		global.navigator = window.navigator;
-		// The CJS build returns the correct instance for mermaid
-		const domPurifyInstance = createDOMPurify(window);
-		global.DOMPurify = domPurifyInstance;
-		window.DOMPurify = domPurifyInstance;
-	}
-}
