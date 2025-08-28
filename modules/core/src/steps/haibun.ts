@@ -119,10 +119,10 @@ class Haibun extends AStepper implements IHasOptions, IHasCycles {
 		if: {
 			gwta: `if {when}, {what}`,
 			action: async ({ when, what }: TNamed, featureStep: TFeatureStep) => {
-				const base = featureStep.seq;
-				const whenExec = await resolveAndExecuteStatement(when, 'Haibun.if-when', this.steppers, this.getWorld(), base + .1);
+				const {seq} = featureStep;
+				const whenExec = await resolveAndExecuteStatement(when, 'Haibun.if:when', this.steppers, this.getWorld(), seq + .1);
 				if (whenExec.ok) {
-					const whatExec = await resolveAndExecuteStatement(what, 'Haibun.if-what', this.steppers, this.getWorld(), base + .2, false);
+					const whatExec = await resolveAndExecuteStatement(what, 'Haibun.if:what', this.steppers, this.getWorld(), seq + .2, false);
 					return Promise.resolve(whatExec.stepActionResult);
 				}
 				return Promise.resolve(OK);
