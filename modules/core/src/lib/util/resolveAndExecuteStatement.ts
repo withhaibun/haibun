@@ -23,12 +23,11 @@ async function executeBackgrounds(names: string, source: string, steppers: AStep
 		throw new Error('runtime.backgrounds is undefined; cannot expand inline Backgrounds');
 	}
 	// Build a temporary feature to reuse expandIncluded logic
-	const backgroundFeature: TFeature = { path: source, base: '', name: 'inline-backgrounds', content: `Backgrounds: ${names}` };
+	const backgroundFeature: TFeature = { path: source, base: '<inline>', name: 'inline-backgrounds', content: `Backgrounds: ${names}` };
 	const expanded = await expandIncluded(backgroundFeature, world.runtime.backgrounds);
 	let lastResult: TStepResult | undefined = undefined;
 	let sub = 0;
 	for (const x of expanded) {
-		console.log('xx', x.line, startSeq, sub)
 		const { featureStep } = await getActionableStatement(steppers, x.line, x.feature.path, startSeq, sub);
 		lastResult = await FeatureExecutor.doFeatureStep(steppers, featureStep, world, runOnly);
 		world.runtime.stepResults.push(lastResult);
