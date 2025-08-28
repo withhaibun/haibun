@@ -1,7 +1,7 @@
 {
   "name": "@haibun/core",
   "type": "module",
-  "version": "1.71.0",
+  "version": "1.71.1",
   "description": "",
   "author": "",
   "exports": { "./*": "./build/*" },
