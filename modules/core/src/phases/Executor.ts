@@ -142,7 +142,6 @@ export class FeatureExecutor {
 		}, 'debug');
 		const featureResult: TFeatureResult = { path: feature.path, ok, stepResults: world.runtime.stepResults };
 
-		console.log(featureResult.stepResults.map(s => [s.seq, s.in]));
 		return featureResult;
 	}
 
