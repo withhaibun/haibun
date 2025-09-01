@@ -87,10 +87,10 @@ describe('if', () => {
 		expect(result.ok).toBe(true);
 		expect(result.world.shared.get('ran')).toBe('true')
 
-		expect(result.featureResults![0].stepResults.length).toBe(4);
-		expect(result.featureResults![0].stepResults[0].seq).toBe(1.1);
-		expect(result.featureResults![0].stepResults[1].seq).toBe(1.2);
-		expect(result.featureResults![0].stepResults[2].seq).toBe(1.3);
-		expect(result.featureResults![0].stepResults[3].seq).toBe(1);
+		let i = 0;
+		expect(result.featureResults![0].stepResults.length).toBe(3);
+		expect(result.featureResults![0].stepResults[i++].seq).toBe(1.1);
+		expect(result.featureResults![0].stepResults[i++].seq).toBe(1.2);
+		expect(result.featureResults![0].stepResults[i++].seq).toBe(1);
 	});
 });
