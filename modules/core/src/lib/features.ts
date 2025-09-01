@@ -19,24 +19,30 @@ export async function expandFeatures(features: TFeature[], backgrounds: TFeature
 }
 
 export async function expandIncluded(feature: TFeature, backgrounds: TFeatures) {
-	let lines: TExpandedLine[] = [];
+	const lines: TExpandedLine[] = [];
 	const split = featureSplit(feature.content);
 	for (const l of split) {
-		const actionable = getActionable(l);
-
-		if (actionable.match(/^Backgrounds: .*$/i)) {
-			const includes = doIncludes(l.replace(/^Backgrounds: /i, ''), backgrounds);
-			lines = lines.concat(includes);
-		} else {
-			const nl = asFeatureLine(l, feature);
-			lines.push(nl);
-		}
+		lines.push(...expandLine(l, backgrounds, feature));
 	}
 
 	return Promise.resolve(lines);
 }
 
 export const asFeatureLine = (line: string, feature: TFeature): TExpandedLine => ({ line, feature });
+
+export function expandLine(l: string, backgrounds: TFeatures, feature: TFeature) {
+	const lines: TExpandedLine[] = [];
+	const actionable = getActionable(l);
+
+	if (actionable.match(/^Backgrounds: .*$/i)) {
+		const includes = doIncludes(l.replace(/^Backgrounds: /i, ''), backgrounds);
+		lines.push(...includes);
+	} else {
+		const nl = asFeatureLine(l, feature);
+		lines.push(nl);
+	}
+	return lines;
+}
 
 function doIncludes(input: string, backgrounds: TFeatures) {
 	const includes = input.split(',').map((a) => a.trim());

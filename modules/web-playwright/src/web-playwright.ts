@@ -263,7 +263,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 						method,
 					};
 					fetchOptions.headers = headers ? headers : {};
-					if (postData) fetchOptions.body = postData;
+					// if (postData) fetchOptions.body = postData;
 
 					const response = await fetch(endpoint, fetchOptions);
 					const capturedResponse: TCapturedResponse = {

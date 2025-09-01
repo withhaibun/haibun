@@ -45,7 +45,7 @@ describe('haibun-mcp tool execution', () => {
 			name: 'VariablesStepper-set',
 			arguments: {
 				what: 'testVariable',
-				value: 'Hello from MCP!'
+				value: 'Hello from MCP'
 			}
 		});
 
