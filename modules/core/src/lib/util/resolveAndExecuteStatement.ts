@@ -5,23 +5,23 @@ import { TWorld, TStepResult, TFeature, TFeatureStep } from '../defs.js';
 import { expandLine } from '../features.js';
 
 export async function resolveAndExecuteStatementWithCycles(names: string, base: string, steppers: AStepper[], world: TWorld, startSeq?: number): Promise<TStepResult> {
-	return await doResolveAndExecuteStatement(names, base, steppers, world, startSeq, true);
+	return await doResolveAndExecuteStatement(names, base, steppers, world, startSeq, false);
 }
 
 export async function resolveAndExecuteStatement(names: string, base: string, steppers: AStepper[], world: TWorld): Promise<TStepResult> {
-	return await doResolveAndExecuteStatement(names, base, steppers, world, null, false);
+	return await doResolveAndExecuteStatement(names, base, steppers, world, null, true);
 }
 
-async function doResolveAndExecuteStatement(names: string, base: string, steppers: AStepper[], world: TWorld, startSeq: number, noCycles: boolean,): Promise<TStepResult> {
+async function doResolveAndExecuteStatement(names: string, base: string, steppers: AStepper[], world: TWorld, startSeq: number, noCycles: boolean): Promise<TStepResult> {
 	const featureSteps = await findFeatureStepsFromStatement(names, steppers, world, base, startSeq);
 	let lastResult;
 	for (const x of featureSteps) {
-		console.log('🤑', JSON.stringify(x, null, 2));
 		lastResult = await FeatureExecutor.doFeatureStep(steppers, x, world, noCycles);
-		world.runtime.stepResults.push(lastResult);
+		if (!noCycles) {
+			world.runtime.stepResults.push(lastResult);
+		}
 		if (!lastResult.ok) return lastResult;
 	}
-	console.log('f🤑', JSON.stringify(lastResult, null, 2));
 	return lastResult!;
 }
 
@@ -34,9 +34,9 @@ export async function findFeatureStepsFromStatement(statement: string, steppers:
 	const backgroundFeature: TFeature = { path: `from ${statement}`, base, name: 'inline-backgrounds', content: `Backgrounds: ${statement}` };
 	const expanded = expandLine(statement, world.runtime.backgrounds, backgroundFeature);
 	for (const x of expanded) {
+		sub += .1;
 		const { featureStep } = await getActionableStatement(steppers, x.line, x.feature.path, startSeq, sub);
 		featureSteps.push(featureStep);
-		sub += .1;
 	}
 	return featureSteps;
 }

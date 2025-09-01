@@ -122,7 +122,7 @@ class Haibun extends AStepper implements IHasOptions, IHasCycles {
 				const { seq } = featureStep;
 				const whenExec = await resolveAndExecuteStatement(when, '<Haibun.if:when>', this.steppers, this.getWorld());
 				if (whenExec.ok) {
-					const whatExec = await resolveAndExecuteStatementWithCycles(what, '<Haibun.if:what', this.steppers, this.getWorld());
+					const whatExec = await resolveAndExecuteStatementWithCycles(what, '<Haibun.if:what', this.steppers, this.getWorld(), seq);
 					return Promise.resolve(whatExec.stepActionResult);
 				}
 				return Promise.resolve(OK);
