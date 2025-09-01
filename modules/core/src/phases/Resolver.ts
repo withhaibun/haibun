@@ -31,29 +31,36 @@ export class Resolver {
 
 			const actionable = getActionable(featureLine.line);
 
-			let stepActions = this.findActionableSteps(actionable);
+			try {
+				let stepAction = this.findSingleStepAction(actionable);
+				const featureStep = this.getFeatureStep(featureLine, seq, stepAction);
+				if (stepAction.step.check) { //throws if it fails
+					const namedWithVars = getNamedToVars(stepAction, world, featureStep);
+					await stepAction.step.check(namedWithVars, featureStep);
+				}
+
+				featureSteps.push(featureStep);
+			} catch (e) {
+				throw Error(`findFeatureStep for "${featureLine.line}": ${e.message}in ${feature.path}\nUse --show-steppers for more details`);
+			}
+		}
+
+		return Promise.resolve(featureSteps);
+	}
+	findSingleStepAction(line: string): TStepAction {
+			let stepActions = this.findActionableSteps(line);
 
 			if (stepActions.length > 1) {
 				const precludes = stepActions.filter(a => a.step.precludes).map(a => a.step.precludes).reduce((acc, cur) => [...acc, ...cur], []);
 				stepActions = stepActions.filter(a => !precludes.includes(`${a.stepperName}.${a.actionName}`));
 				if (stepActions.length !== 1) {
-					throw Error(`not one step found for "${featureLine.line}": ${JSON.stringify(stepActions.map((a) => a.actionName))} using precludes ${precludes}`);
+					throw Error(`not one step found for "${line}": ${JSON.stringify(stepActions.map((a) => a.actionName))} using precludes ${precludes}`);
 				}
 			} else if (stepActions.length < 1) {
-				throw Error(`in ${feature.name}: no step found for ${featureLine.line} in ${feature.path}\nUse --show-steppers for more details`);
+				throw Error(`no step found for "${line}"`);
 			}
-			const stepAction = stepActions[0];
-			const featureStep = this.getFeatureStep(featureLine, seq, stepAction);
-			if (stepAction.step.check) { //throws if it fails
-				const namedWithVars = getNamedToVars(stepAction, world, featureStep);
-				await stepAction.step.check(namedWithVars, featureStep);
-			}
-
-			featureSteps.push(featureStep);
+			return stepActions[0];
 		}
-
-		return Promise.resolve(featureSteps);
-	}
 
 	getFeatureStep(featureLine: TExpandedLine, seq: number, action: TStepAction): TFeatureStep {
 		return {
@@ -122,7 +129,7 @@ const comment = {
 
 export function getActionableStatement(steppers: AStepper[], statement: string, path: string, startSeq: number, subSeq = 0) {
 	const resolver = new Resolver(steppers);
-	const action = resolver.findActionableSteps(statement)[0];
+	const action = resolver.findSingleStepAction(statement);
 
 	const featureStep: TFeatureStep = {
 		path,

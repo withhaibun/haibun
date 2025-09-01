@@ -80,7 +80,7 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 		while (postFailurePromptResult === undefined || postFailurePromptResult.stepActionResult.messageContext?.incident !== EExecutionMessageType.DEBUG) {
 			const response = await this.getWorld().prompter.prompt(makePrompt(prompt, undefined, prompts));
 			try {
-				postFailurePromptResult = await resolveAndExecuteStatement(response.toString(), 'debugger', this.steppers, this.getWorld());
+				postFailurePromptResult = await resolveAndExecuteStatement(response.toString(), '<debugger>', this.steppers, this.getWorld());
 			} catch (e) {
 				this.getWorld().logger.error(`Failed to execute post - failure action: ${e.message}`);
 			}
