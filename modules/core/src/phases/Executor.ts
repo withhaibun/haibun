@@ -145,7 +145,7 @@ export class FeatureExecutor {
 		return featureResult;
 	}
 
-	static async doFeatureStep(steppers: AStepper[], featureStep: TFeatureStep, world: TWorld, runOnly = false): Promise<TStepResult> {
+	static async doFeatureStep(steppers: AStepper[], featureStep: TFeatureStep, world: TWorld, noCycles = false): Promise<TStepResult> {
 		let ok = true;
 
 		// FIXME feature should really be attached to the featureStep
@@ -157,7 +157,7 @@ export class FeatureExecutor {
 		let doAction = true;
 		let actionResult: Partial<TActionResult>;
 		while (doAction) {
-			!runOnly && await doStepperCycle(steppers, 'beforeStep', <TBeforeStep>({ featureStep }));
+			!noCycles && await doStepperCycle(steppers, 'beforeStep', <TBeforeStep>({ featureStep }));
 			actionResult = await Executor.action(steppers, featureStep, action, namedWithVars, world);
 			const indicator = actionResult.ok ? CHECK_YES : CHECK_NO + ' ' + (<TNotOKActionResult>actionResult).message;
 
@@ -168,7 +168,7 @@ export class FeatureExecutor {
 				incidentDetails: { actionResult, featureStep }
 			}
 			world.logger.log(indicator, messageContext);
-			if (runOnly) break;
+			if (noCycles) break;
 			const instructions: TAfterStepResult[] = await doStepperCycle(steppers, 'afterStep', <TAfterStep>({ featureStep, actionResult }), action.actionName);
 			doAction = instructions.some(i => i?.rerunStep);
 		}

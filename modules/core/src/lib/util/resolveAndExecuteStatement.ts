@@ -1,42 +1,42 @@
 import { getActionableStatement } from '../../phases/Resolver.js';
 import { FeatureExecutor } from '../../phases/Executor.js';
 import { AStepper } from '../astepper.js';
-import { TWorld, TStepResult, TFeature } from '../defs.js';
-import { expandIncluded } from '../features.js';
+import { TWorld, TStepResult, TFeature, TFeatureStep } from '../defs.js';
+import { expandLine } from '../features.js';
 
-export async function resolveAndExecuteStatement(statement: string, source: string, steppers: AStepper[], world: TWorld, startSeq?: number, runOnly = true): Promise<TStepResult> {
-	try {
-		const bgMatch = statement.match(/^Backgrounds:\s*(.*)$/i);
-		if (bgMatch) {
-			return await executeBackgrounds(bgMatch[1].trim(), source, steppers, world, startSeq, runOnly);
-		}
-		const { featureStep } = await getActionableStatement(steppers, statement, source, startSeq);
-		const result = await FeatureExecutor.doFeatureStep(steppers, featureStep, world, runOnly);
-		return result;
-	} catch (e) {
-		throw new Error(`No feature step found for statement: "${statement}": ${e.message}`);
-	}
+export async function resolveAndExecuteStatementWithCycles(names: string, base: string, steppers: AStepper[], world: TWorld, startSeq?: number): Promise<TStepResult> {
+	return await doResolveAndExecuteStatement(names, base, steppers, world, startSeq, true);
 }
 
-async function executeBackgrounds(names: string, source: string, steppers: AStepper[], world: TWorld, startSeq: number, runOnly: boolean): Promise<TStepResult> {
+export async function resolveAndExecuteStatement(names: string, base: string, steppers: AStepper[], world: TWorld): Promise<TStepResult> {
+	return await doResolveAndExecuteStatement(names, base, steppers, world, null, false);
+}
+
+async function doResolveAndExecuteStatement(names: string, base: string, steppers: AStepper[], world: TWorld, startSeq: number, noCycles: boolean,): Promise<TStepResult> {
+	const featureSteps = await findFeatureStepsFromStatement(names, steppers, world, base, startSeq);
+	let lastResult;
+	for (const x of featureSteps) {
+		console.log('🤑', JSON.stringify(x, null, 2));
+		lastResult = await FeatureExecutor.doFeatureStep(steppers, x, world, noCycles);
+		world.runtime.stepResults.push(lastResult);
+		if (!lastResult.ok) return lastResult;
+	}
+	console.log('f🤑', JSON.stringify(lastResult, null, 2));
+	return lastResult!;
+}
+
+export async function findFeatureStepsFromStatement(statement: string, steppers: AStepper[], world: TWorld, base: string, startSeq: number, sub = 0): Promise<TFeatureStep[]> {
+	const featureSteps: TFeatureStep[] = [];
 	if (!world.runtime.backgrounds) {
 		throw new Error('runtime.backgrounds is undefined; cannot expand inline Backgrounds');
 	}
-	// Build a temporary feature to reuse expandIncluded logic
-	const backgroundFeature: TFeature = { path: source, base: '<inline>', name: 'inline-backgrounds', content: `Backgrounds: ${names}` };
-	const expanded = await expandIncluded(backgroundFeature, world.runtime.backgrounds);
-	let lastResult: TStepResult | undefined = undefined;
-	let sub = 0;
+	// temporary feature for expandLine
+	const backgroundFeature: TFeature = { path: `from ${statement}`, base, name: 'inline-backgrounds', content: `Backgrounds: ${statement}` };
+	const expanded = expandLine(statement, world.runtime.backgrounds, backgroundFeature);
 	for (const x of expanded) {
 		const { featureStep } = await getActionableStatement(steppers, x.line, x.feature.path, startSeq, sub);
-		lastResult = await FeatureExecutor.doFeatureStep(steppers, featureStep, world, runOnly);
-		world.runtime.stepResults.push(lastResult);
-		if (!lastResult.ok) return lastResult;
+		featureSteps.push(featureStep);
 		sub += .1;
 	}
-	// If no lines were found, error for clarity
-	if (!expanded.length) {
-		throw new Error(`No background lines found for: ${names}`);
-	}
-	return lastResult!;
+	return featureSteps;
 }

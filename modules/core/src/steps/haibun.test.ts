@@ -84,12 +84,13 @@ describe('if', () => {
 		const feature = { path: '/features/test.feature', content: 'if passes, Backgrounds: bg' };
 		const background = { path: '/backgrounds/bg.feature', content: 'set ran to true\nends with ok' };
 		const result = await testWithDefaults([feature], [Haibun, TestSteps, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
+		expect(result.ok).toBe(true);
 		expect(result.world.shared.get('ran')).toBe('true')
 
-		expect(result.ok).toBe(true);
-		expect(result.featureResults![0].stepResults.length).toBe(3);
-		expect(result.featureResults![0].stepResults[0].seq).toBe(1.2);
-		expect(result.featureResults![0].stepResults[1].seq).toBe(1.3);
-		expect(result.featureResults![0].stepResults[2].seq).toBe(1);
+		expect(result.featureResults![0].stepResults.length).toBe(4);
+		expect(result.featureResults![0].stepResults[0].seq).toBe(1.1);
+		expect(result.featureResults![0].stepResults[1].seq).toBe(1.2);
+		expect(result.featureResults![0].stepResults[2].seq).toBe(1.3);
+		expect(result.featureResults![0].stepResults[3].seq).toBe(1);
 	});
 });
