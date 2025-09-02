@@ -3,7 +3,7 @@ import { resolve } from 'path';
 import { OK, TNamed, TWorld, TFeatureStep, STEP_DELAY, IStepperCycles, SCENARIO_START, TStartFeature } from '../lib/defs.js';
 import { IHasCycles, IHasOptions } from '../lib/astepper.js';
 import { AStepper } from '../lib/astepper.js';
-import { getActionableStatement, Resolver } from '../phases/Resolver.js';
+import { Resolver } from '../phases/Resolver.js';
 import { actionNotOK, actionOK, formattedSteppers, getStepperOption, sleep, stringOrError } from '../lib/util/index.js';
 import { actualURI } from '../lib/util/actualURI.js';
 import { expand } from '../lib/features.js';
