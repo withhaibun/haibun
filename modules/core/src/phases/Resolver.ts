@@ -32,7 +32,7 @@ export class Resolver {
 			const actionable = getActionable(featureLine.line);
 
 			try {
-				let stepAction = this.findSingleStepAction(actionable);
+				const stepAction = this.findSingleStepAction(actionable);
 				const featureStep = this.getFeatureStep(featureLine, seq, stepAction);
 				if (stepAction.step.check) { //throws if it fails
 					const namedWithVars = getNamedToVars(stepAction, world, featureStep);
@@ -48,19 +48,19 @@ export class Resolver {
 		return Promise.resolve(featureSteps);
 	}
 	findSingleStepAction(line: string): TStepAction {
-			let stepActions = this.findActionableSteps(line);
+		let stepActions = this.findActionableSteps(line);
 
-			if (stepActions.length > 1) {
-				const precludes = stepActions.filter(a => a.step.precludes).map(a => a.step.precludes).reduce((acc, cur) => [...acc, ...cur], []);
-				stepActions = stepActions.filter(a => !precludes.includes(`${a.stepperName}.${a.actionName}`));
-				if (stepActions.length !== 1) {
-					throw Error(`not one step found for "${line}": ${JSON.stringify(stepActions.map((a) => a.actionName))} using precludes ${precludes}`);
-				}
-			} else if (stepActions.length < 1) {
-				throw Error(`no step found for "${line}"`);
+		if (stepActions.length > 1) {
+			const precludes = stepActions.filter(a => a.step.precludes).map(a => a.step.precludes).reduce((acc, cur) => [...acc, ...cur], []);
+			stepActions = stepActions.filter(a => !precludes.includes(`${a.stepperName}.${a.actionName}`));
+			if (stepActions.length !== 1) {
+				throw Error(`not one step found for "${line}": ${JSON.stringify(stepActions.map((a) => a.actionName))} using precludes ${precludes}`);
 			}
-			return stepActions[0];
+		} else if (stepActions.length < 1) {
+			throw Error(`no step found for "${line}"`);
 		}
+		return stepActions[0];
+	}
 
 	getFeatureStep(featureLine: TExpandedLine, seq: number, action: TStepAction): TFeatureStep {
 		return {
