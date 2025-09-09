@@ -34,9 +34,9 @@ export class Resolver {
 			try {
 				const stepAction = this.findSingleStepAction(actionable);
 				const featureStep = this.getFeatureStep(featureLine, seq, stepAction);
-				if (stepAction.step.check) { //throws if it fails
+				if (stepAction.step.checkAction) { //throws if it fails
 					const namedWithVars = getNamedToVars(stepAction, world, featureStep);
-					await stepAction.step.check(namedWithVars, featureStep);
+					await stepAction.step.checkAction(namedWithVars, featureStep);
 				}
 
 				featureSteps.push(featureStep);
