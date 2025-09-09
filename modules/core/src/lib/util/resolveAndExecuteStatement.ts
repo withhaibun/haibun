@@ -14,6 +14,10 @@ export async function resolveAndExecuteStatement(names: string, base: string, st
 
 async function doResolveAndExecuteStatement(names: string, base: string, steppers: AStepper[], world: TWorld, startSeq: number, noCycles: boolean): Promise<TStepResult> {
 	const featureSteps = await findFeatureStepsFromStatement(names, steppers, world, base, startSeq);
+	return await doExecuteFeatureSteps(featureSteps, steppers, world, noCycles);
+}
+
+export async function doExecuteFeatureSteps(featureSteps: TFeatureStep[], steppers: AStepper[], world: TWorld, noCycles = false): Promise<TStepResult> {
 	let lastResult;
 	for (const x of featureSteps) {
 		lastResult = await FeatureExecutor.doFeatureStep(steppers, x, world, noCycles);
@@ -25,7 +29,7 @@ async function doResolveAndExecuteStatement(names: string, base: string, stepper
 	return lastResult!;
 }
 
-export async function findFeatureStepsFromStatement(statement: string, steppers: AStepper[], world: TWorld, base: string, startSeq: number, sub = 0): Promise<TFeatureStep[]> {
+export async function findFeatureStepsFromStatement(statement: string, steppers: AStepper[], world: TWorld, base: string, startSeq = 0, sub = 0): Promise<TFeatureStep[]> {
 	const featureSteps: TFeatureStep[] = [];
 	if (!world.runtime.backgrounds) {
 		throw new Error('runtime.backgrounds is undefined; cannot expand inline Backgrounds');
