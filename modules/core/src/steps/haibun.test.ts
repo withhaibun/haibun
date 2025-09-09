@@ -70,15 +70,30 @@ describe('ends with', () => {
 })
 
 describe('if', () => {
+	it('if when missing', async () => {
+		const feature = { path: '/features/test.feature', content: 'if doesnotexist, ends with OK' };
+		const result = await testWithDefaults([feature], [Haibun, TestSteps]);
+		expect(result.ok).toBe(false);
+	});
+	it('if what missing', async () => {
+		const feature = { path: '/features/test.feature', content: 'if passes, doesnotexist' };
+		const result = await testWithDefaults([feature], [Haibun, TestSteps]);
+		expect(result.ok).toBe(false);
+	});
 	it('if condition true', async () => {
-		const feature = { path: '/features/test.feature', content: 'if passes, ends with OK\nends with not ok' };
+		const feature = { path: '/features/test.feature', content: 'if passes, ends with OK' };
 		const result = await testWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(true);
 	});
 	it('if condition false', async () => {
-		const feature = { path: '/features/test.feature', content: 'if fails, ends with not OK\nends with ok' };
+		const feature = { path: '/features/test.feature', content: 'if fails, ends with not OK' };
 		const result = await testWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(true);
+	});
+	it('if condition fails', async () => {
+		const feature = { path: '/features/test.feature', content: 'if passes, ends with not OK' };
+		const result = await testWithDefaults([feature], [Haibun, TestSteps]);
+		expect(result.ok).toBe(false);
 	});
 	it('if condition condition with backgrounds', async () => {
 		const feature = { path: '/features/test.feature', content: 'if passes, Backgrounds: bg' };
@@ -89,8 +104,57 @@ describe('if', () => {
 
 		let i = 0;
 		expect(result.featureResults![0].stepResults.length).toBe(3);
-		expect(result.featureResults![0].stepResults[i++].seq).toBe(1.1);
-		expect(result.featureResults![0].stepResults[i++].seq).toBe(1.2);
+		expect(result.featureResults![0].stepResults[i++].seq).toBe(2.2);
+		expect(result.featureResults![0].stepResults[i++].seq).toBe(2.3);
 		expect(result.featureResults![0].stepResults[i++].seq).toBe(1);
+	});
+});
+
+describe('not', () => {
+	it('not what missing', async () => {
+		const feature = { path: '/features/test.feature', content: 'not doesnotexist' };
+		const result = await testWithDefaults([feature], [Haibun, TestSteps]);
+		expect(result.ok).toBe(false);
+	});
+	it('not condition true', async () => {
+		const feature = { path: '/features/test.feature', content: 'not fails\nends with OK' };
+		const result = await testWithDefaults([feature], [Haibun, TestSteps]);
+		expect(result.ok).toBe(true);
+	});
+	it('not condition false', async () => {
+		const feature = { path: '/features/test.feature', content: 'not passes\nends with not OK' };
+		const result = await testWithDefaults([feature], [Haibun, TestSteps]);
+		expect(result.ok).toBe(false);
+	});
+});
+
+describe('if not', () => {
+	it('if not condition true', async () => {
+		const feature = { path: '/features/test.feature', content: 'if not fails, ends with OK' };
+		const result = await testWithDefaults([feature], [Haibun, TestSteps]);
+		expect(result.ok).toBe(true);
+	});
+	it('if not condition false', async () => {
+		const feature = { path: '/features/test.feature', content: 'if not passes, ends with not OK' };
+		const result = await testWithDefaults([feature], [Haibun, TestSteps]);
+		expect(result.ok).toBe(true);
+	});
+	it('if not condition fails', async () => {
+		const feature = { path: '/features/test.feature', content: 'if not fails, ends with not OK' };
+		const result = await testWithDefaults([feature], [Haibun, TestSteps]);
+		expect(result.ok).toBe(false);
+	});
+});
+
+describe('not not', () => {
+	it('not not passes', async () => {
+		const feature = { path: '/features/test.feature', content: 'not not passes' };
+		const result = await testWithDefaults([feature], [Haibun, TestSteps]);
+		expect(result.ok).toBe(true);
+	});
+	it('not not fails', async () => {
+		const feature = { path: '/features/test.feature', content: 'not not fails' };
+		const result = await testWithDefaults([feature], [Haibun, TestSteps]);
+		expect(result.ok).toBe(false);
 	});
 });

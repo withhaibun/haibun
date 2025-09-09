@@ -109,7 +109,7 @@ export type TFeatureStep = {
 };
 
 export type TAction = (named: TNamed, featureStep: TFeatureStep) => Promise<TActionResult>;
-export type TCheck = (named: TNamed, featureStep: TFeatureStep) => boolean;
+export type TCheck = (named: TNamed, featureStep: TFeatureStep) => Promise<boolean>;
 
 export type TStepperStep = {
 	precludes?: string[];
@@ -118,7 +118,7 @@ export type TStepperStep = {
 	gwta?: string;
 	exact?: string;
 	action: TAction;
-	check?: TCheck;
+	checkAction?: TCheck;
 	applyEffect?: TApplyEffect;
 };
 
