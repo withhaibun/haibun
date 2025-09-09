@@ -77,10 +77,14 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 		gwta: 'wait for {what}',
 		action: async ({ what }: TNamed) => {
 			const selector = what.match(/^[#]/) ? what : `text=${what}`;
+			try {
 			const found = await wp.withPage(async (page: Page) => await page.waitForSelector(selector));
 			if (found) {
 				return OK;
 			}
+		} catch (e) {
+			// playwright insists on throwing here
+		}
 			return actionNotOK(`Did not find ${what}`);
 		},
 	},
