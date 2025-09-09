@@ -120,7 +120,7 @@ class Haibun extends AStepper implements IHasOptions, IHasCycles {
 			gwta: `not {what}`,
 			action: async ({ what }: TNamed) => {
 				const whatStep = await this.getNotWhat(what);
-				const whatExec = await doExecuteFeatureSteps(whatStep, this.steppers, this.getWorld(), false);
+				const whatExec = await doExecuteFeatureSteps(whatStep, this.steppers, this.getWorld(), true);
 				if (whatExec.ok) {
 					return Promise.resolve(actionNotOK(`not ${what} was true`));
 				}
