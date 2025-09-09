@@ -1,7 +1,7 @@
 {
   "name": "@haibun/web-playwright",
   "type": "module",
-  "version": "1.71.3",
+  "version": "1.72.0",
   "description": "",
   "main": "build/web-playwright.js",
   "exports": { ".": "./build/web-playwright.js", "./*": "./build/*" },
@@ -19,8 +19,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@haibun/core": "1.71.2",
-    "@haibun/domain-storage": "1.71.2",
+    "@haibun/core": "1.72.0",
+    "@haibun/domain-storage": "1.72.0",
     "playwright": "1.52"
   },
   "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5",
