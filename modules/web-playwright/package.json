@@ -4,8 +4,14 @@
   "version": "1.72.1",
   "description": "",
   "main": "build/web-playwright.js",
-  "exports": { ".": "./build/web-playwright.js", "./*": "./build/*" },
-  "files": ["build/", "web/monitor.html"],
+  "exports": {
+    ".": "./build/web-playwright.js",
+    "./*": "./build/*"
+  },
+  "files": [
+    "build/",
+    "web/monitor.html"
+  ],
   "scripts": {
     "build": "tsc -b .",
     "build-watch": "tsc -b . --watch",

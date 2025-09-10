@@ -142,7 +142,7 @@ describe('action check', () => {
 		const resolver = new Resolver(steppers);
 		await expect(resolver.resolveStepsFromFeatures(features)).resolves.toBeDefined();
 	});
-	test.only('check fails', async () => {
+	test('check fails', async () => {
 		const features = asExpandedFeatures([{ path: 'l1', content: 'checks not ok' }]);
 		const steppers = await createSteppers([CheckStepper]);
 		const resolver = new Resolver(steppers);

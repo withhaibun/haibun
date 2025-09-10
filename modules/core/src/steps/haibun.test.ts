@@ -126,6 +126,18 @@ describe('not', () => {
 		const result = await testWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(false);
 	});
+	it('not with Backgrounds fails', async () => {
+		const feature = { path: '/features/test.feature', content: 'not Backgrounds: bg' };
+		const background = { path: '/backgrounds/bg.feature', content: 'fails' };
+		const result = await testWithDefaults([feature], [Haibun, TestSteps, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
+		expect(result.ok).toBe(true);
+	});
+	it('not with Backgrounds passes', async () => {
+		const feature = { path: '/features/test.feature', content: 'not Backgrounds: bg' };
+		const background = { path: '/backgrounds/bg.feature', content: 'passes' };
+		const result = await testWithDefaults([feature], [Haibun, TestSteps, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
+		expect(result.ok).toBe(false);
+	});
 });
 
 describe('if not', () => {
@@ -143,6 +155,13 @@ describe('if not', () => {
 		const feature = { path: '/features/test.feature', content: 'if not fails, ends with not OK' };
 		const result = await testWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(false);
+	});
+	it('if not with Backgrounds', async () => {
+		const feature = { path: '/features/test.feature', content: 'if not fails, Backgrounds: bg' };
+		const background = { path: '/backgrounds/bg.feature', content: 'passes' };
+		const result = await testWithDefaults([feature], [Haibun, TestSteps, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
+		expect(result.ok).toBe(true);
+		expect(result.world.shared.get('ran')).toBeUndefined();
 	});
 });
 

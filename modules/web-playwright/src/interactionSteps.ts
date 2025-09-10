@@ -6,6 +6,9 @@ import { EExecutionMessageType } from "@haibun/core/lib/interfaces/logger.js";
 import { actionNotOK, actionOK, sleep } from "@haibun/core/lib/util/index.js";
 import { BROWSERS } from "./BrowserFactory.js";
 import { WebPlaywright } from "./web-playwright.js";
+import { pathToFileURL } from "node:url";
+
+const isCssSelector = (what) => what.match(/^[/.#]/);
 
 export const interactionSteps = (wp: WebPlaywright) => ({
 	//                                      INPUT
@@ -76,15 +79,15 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 	waitFor: {
 		gwta: 'wait for {what}',
 		action: async ({ what }: TNamed) => {
-			const selector = what.match(/^[#]/) ? what : `text=${what}`;
+			const selector = isCssSelector(what) ? what : `text=${what}`;
 			try {
-			const found = await wp.withPage(async (page: Page) => await page.waitForSelector(selector));
-			if (found) {
-				return OK;
+				const found = await wp.withPage(async (page: Page) => await page.waitForSelector(selector));
+				if (found) {
+					return OK;
+				}
+			} catch (e) {
+				// playwright insists on throwing here
 			}
-		} catch (e) {
-			// playwright insists on throwing here
-		}
 			return actionNotOK(`Did not find ${what}`);
 		},
 	},
@@ -218,8 +221,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 	click: {
 		gwta: `click {what}`,
 		action: async ({ what }: TNamed) => {
-			const isCssSelector = /^[#.[[]|::|>>/.test(what) || what.includes('=');
-			if (isCssSelector) {
+			if (isCssSelector(what)) {
 				await wp.withPage(async (page: Page) => await page.locator(what).click());
 			} else {
 				await wp.withPage(async (page: Page) => await page.getByText(what, { exact: true }).click());
@@ -395,9 +397,57 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 					await dialog.accept();
 					wp.getWorld().shared.setJSON(where, res);
 				});
-			}
-			);
+			});
 			return Promise.resolve(OK);
+		},
+	},
+	canvasIsEmpty: {
+		gwta: 'canvas {what} is empty',
+		action: async ({ what }: TNamed) => {
+			const isNotEmpty = await wp.withPage<boolean>(async (page: Page) => {
+				const locator = page.locator(what);
+
+				try {
+					await locator.waitFor({ state: 'attached', timeout: 1000 });
+				} catch (error) {
+					if (error.name === 'TimeoutError') {
+						return false;
+					}
+					throw error;
+				}
+
+				return await locator.evaluate((canvas: HTMLCanvasElement) => {
+					const ctx = canvas.getContext('2d');
+					if (!ctx) {
+						return false;
+					}
+					const pixelBuffer = new Uint32Array(
+						ctx.getImageData(0, 0, canvas.width, canvas.height).data.buffer
+					);
+					return pixelBuffer.some(color => color !== 0);
+				});
+			});
+
+			return !isNotEmpty ? OK : actionNotOK(`canvas ${what} is not empty`);
+		},
+	},
+	takeScreenshotOf: {
+		gwta: 'take a screenshot of {what} to {where}',
+		action: async ({ what, path }: TNamed) => {
+			try {
+				await wp.withPage(async (page: Page) => {
+
+					const locator = await page.locator(what);
+					if (await locator.count() !== 1) {
+						throw Error(`no single ${what} from ${locator}`);
+					}
+					await locator.screenshot({ path });
+					wp.getWorld().logger.info(`screenshot of ${what} saved to ${pathToFileURL(path)}`);
+				});
+				return OK;
+			} catch (e) {
+				return actionNotOK(e);
+			}
 		},
 	},
 	takeScreenshot: {
