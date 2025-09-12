@@ -118,16 +118,16 @@ class Haibun extends AStepper implements IHasOptions, IHasCycles {
 		},
 		not: {
 			gwta: `not {what:statement}`,
-			action: async ({ what }: TNamed) => {
-				const whatStep = await this.getNotWhat(what);
+			action: async ({ what }: TNamed, featureStep) => {
+				const whatStep = await this.getNotWhat(what, featureStep.seq);
 				const whatExec = await doExecuteFeatureSteps(whatStep, this.steppers, this.getWorld(), true);
 				if (whatExec.ok) {
 					return Promise.resolve(actionNotOK(`not ${what} was true`));
 				}
 				return Promise.resolve(OK);
 			},
-			checkAction: async ({ what }: TNamed) => {
-				const whatStep = await this.getNotWhat(what);
+			checkAction: async ({ what }: TNamed, featureStep) => {
+				const whatStep = await this.getNotWhat(what, featureStep.seq);
 				return !!whatStep;
 			}
 		},
@@ -242,8 +242,8 @@ class Haibun extends AStepper implements IHasOptions, IHasCycles {
 		return { whenSteps, whatSteps };
 	}
 
-	async getNotWhat(what: string) {
-		return await findFeatureStepsFromStatement(what, this.steppers, this.getWorld(), '<Haibun.not>');
+	async getNotWhat(what: string, seq: number) {
+		return await findFeatureStepsFromStatement(what, this.steppers, this.getWorld(), '<Haibun.not>', seq);
 	}
 	async newFeatureFromEffect(content: string, seq: number, steppers: AStepper[]): Promise<TFeatureStep> {
 		const features = asFeatures([{ path: `resolved from ${content}`, content }]);

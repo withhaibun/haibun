@@ -1,4 +1,4 @@
-import { TFeatureStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, TStepAction, STAY, STAY_FAILURE, CHECK_NO, CHECK_YES, STEP_DELAY, TNotOKActionResult, CONTINUE_AFTER_ERROR, TEndFeature, StepperMethodArgs, TBeforeStep, TAfterStep, TNamed, IStepperCycles, TAfterStepResult } from '../lib/defs.js';
+import { TFeatureStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, TStepAction, STAY, STAY_FAILURE, CHECK_NO, CHECK_YES, CHECK_YIELD, STEP_DELAY, TNotOKActionResult, CONTINUE_AFTER_ERROR, TEndFeature, StepperMethodArgs, TBeforeStep, TAfterStep, TNamed, IStepperCycles, TAfterStepResult } from '../lib/defs.js';
 import { TAnyFixme } from '../lib/fixme.js';
 import { AStepper } from '../lib/astepper.js';
 import { EExecutionMessageType, TMessageContext } from '../lib/interfaces/logger.js';
@@ -159,7 +159,7 @@ export class FeatureExecutor {
 		while (doAction) {
 			!noCycles && await doStepperCycle(steppers, 'beforeStep', <TBeforeStep>({ featureStep }));
 			actionResult = await Executor.action(steppers, featureStep, action, namedWithVars, world);
-			const indicator = actionResult.ok ? CHECK_YES : CHECK_NO + ' ' + (<TNotOKActionResult>actionResult).message;
+			const indicator = (noCycles ? CHECK_YIELD : (actionResult.ok ? CHECK_YES : `${CHECK_NO} (${(<TNotOKActionResult>actionResult).message})`));
 
 			const messageContext: TMessageContext = {
 				artifacts: actionResult.artifact ? [actionResult.artifact] : undefined,
