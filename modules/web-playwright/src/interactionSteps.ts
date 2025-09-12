@@ -8,7 +8,8 @@ import { BROWSERS } from "./BrowserFactory.js";
 import { WebPlaywright } from "./web-playwright.js";
 import { pathToFileURL } from "node:url";
 
-const isCssSelector = (what) => what.match(/^[/.#]/);
+const isCssSelector = (what) => /^[/.#]|\(.*\)|\[.*\]/.test(what);
+const asText = (what) => `*:text-is('${what}')`;
 
 export const interactionSteps = (wp: WebPlaywright) => ({
 	//                                      INPUT
@@ -36,7 +37,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 	selectionOption: {
 		gwta: `select {option} for {field: ${WEB_CONTROL}}`,
 		action: async ({ option, field }: TNamed) => {
-			await wp.withPage(async (page: Page) => await page.selectOption(field, { label: option }));
+			await wp.withPage(async (page: Page) => await page.locator(field).selectOption({ label: option }));
 			// FIXME have to use id value
 			return OK;
 		},
@@ -81,10 +82,8 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 		action: async ({ what }: TNamed) => {
 			const selector = isCssSelector(what) ? what : `text=${what}`;
 			try {
-				const found = await wp.withPage(async (page: Page) => await page.waitForSelector(selector));
-				if (found) {
-					return OK;
-				}
+				await wp.withPage(async (page: Page) => await page.locator(selector).waitFor());
+				return OK;
 			} catch (e) {
 				// playwright insists on throwing here
 			}
@@ -221,11 +220,8 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 	click: {
 		gwta: `click {what}`,
 		action: async ({ what }: TNamed) => {
-			if (isCssSelector(what)) {
-				await wp.withPage(async (page: Page) => await page.locator(what).click());
-			} else {
-				await wp.withPage(async (page: Page) => await page.getByText(what, { exact: true }).click());
-			}
+			const selector = isCssSelector(what) ? what : asText(what);
+			await wp.withPage(async (page: Page) => await page.locator(selector).click());
 			return OK;
 		}
 	},
@@ -315,7 +311,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 	uploadFile: {
 		gwta: 'upload file {file} using {selector}',
 		action: async ({ file, selector }: TNamed) => {
-			await wp.withPage(async (page: Page) => await page.setInputFiles(selector, file));
+			await wp.withPage(async (page: Page) => await page.locator(selector).setInputFiles(file));
 			return OK;
 		},
 	},
@@ -377,13 +373,6 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 	},
 
 	//                          MISC
-	withFrame: {
-		gwta: 'with frame {name}',
-		action: async ({ name }: TNamed) => {
-			wp.withFrame = name;
-			return Promise.resolve(OK);
-		},
-	},
 	captureDialog: {
 		gwta: 'accept next dialog to {where}',
 		action: async ({ where }: TNamed) => {
@@ -495,9 +484,9 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 	assertOpen: {
 		gwta: '{what} is expanded with the {using}',
 		action: async ({ what, using }: TNamed) => {
-			const isVisible = await wp.withPage(async (page: Page) => await page.isVisible(what));
+			const isVisible = await wp.withPage(async (page: Page) => await page.locator(what).isVisible());
 			if (!isVisible) {
-				await wp.withPage(async (page: Page) => await page.click(using));
+				await wp.withPage(async (page: Page) => await page.locator(using).click());
 			}
 			return OK;
 		},

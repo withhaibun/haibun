@@ -15,8 +15,14 @@ export const cycles = (wp: WebPlaywright): IStepperCycles => ({
 		}
 	},
 	async startFeature({ resolvedFeature, index }: TStartFeature): Promise<void> {
+		if (WebPlaywright.twinPage) {
+			WebPlaywright.twinPage.updateWorld(wp.getWorld());
+		}
 		if (wp.monitor === EMonitoringTypes.MONITOR_EACH) {
 			await wp.createMonitor();
+		}
+		if (WebPlaywright.monitorHandler) {
+			await WebPlaywright.monitorHandler.updateWorld(wp.getWorld());
 		}
 		await sleep(1000);
 		await createResolvedFeaturesArtifact(wp, `feature-${index}`, [resolvedFeature], index);
@@ -50,6 +56,10 @@ export const cycles = (wp: WebPlaywright): IStepperCycles => ({
 				wp.hasFactory = false;
 			}
 		}
+		if (wp.twin) {
+			const page = await wp.getPage();
+			await WebPlaywright.twinPage.writePage(page);
+		}
 		if (wp.monitor === EMonitoringTypes.MONITOR_EACH) {
 			await wp.callClosers();
 			await WebPlaywright.monitorHandler.writeMonitor();
@@ -58,6 +68,9 @@ export const cycles = (wp: WebPlaywright): IStepperCycles => ({
 	async startExecution(resolvedFeatures: TStartExecution): Promise<void> {
 		if (wp.monitor === EMonitoringTypes.MONITOR_ALL) {
 			await wp.createMonitor();
+		}
+		if (wp.twin) {
+			await wp.createTwin();
 		}
 		await createResolvedFeaturesArtifact(wp, 'features', resolvedFeatures);
 
@@ -72,16 +85,16 @@ export const cycles = (wp: WebPlaywright): IStepperCycles => ({
 });
 
 async function createResolvedFeaturesArtifact(wp: WebPlaywright, type: string, resolvedFeatures: TResolvedFeature[], index = undefined) {
-    const loc = await wp.getCaptureDir('json');
-    const mediaType = EMediaTypes.json;
-    // FIXME shouldn't be fs dependant
-    const path = resolve(wp.storage.fromLocation(mediaType, loc, `${type}.json`));
-    const artifact: TArtifactResolvedFeatures = { artifactType: 'resolvedFeatures', resolvedFeatures, index, path };
-    const context: TMessageContext = {
-        incident: EExecutionMessageType.ACTION,
-        artifacts: [artifact],
-        tag: wp.getWorld().tag,
-    };
-    await wp.storage.writeFile(path, JSON.stringify(resolvedFeatures, null, 2), mediaType);
-    wp.getWorld().logger.info(`resolvedFeatures for ${type}`, context);
+	const loc = await wp.getCaptureDir('json');
+	const mediaType = EMediaTypes.json;
+	// FIXME shouldn't be fs dependant
+	const path = resolve(wp.storage.fromLocation(mediaType, loc, `${type}.json`));
+	const artifact: TArtifactResolvedFeatures = { artifactType: 'resolvedFeatures', resolvedFeatures, index, path };
+	const context: TMessageContext = {
+		incident: EExecutionMessageType.ACTION,
+		artifacts: [artifact],
+		tag: wp.getWorld().tag,
+	};
+	await wp.storage.writeFile(path, JSON.stringify(resolvedFeatures, null, 2), mediaType);
+	wp.getWorld().logger.info(`resolvedFeatures for ${type}`, context);
 }
