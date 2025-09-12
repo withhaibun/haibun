@@ -182,12 +182,7 @@ export class FeatureExecutor {
 	}
 }
 
-const doStepperCycle = async <K extends keyof IStepperCycles>(
-	steppers: AStepper[],
-	method: K,
-	args: StepperMethodArgs[K],
-	guidance = ''
-): Promise<Awaited<ReturnType<NonNullable<IStepperCycles[K]>>>[]> => {
+const doStepperCycle = async <K extends keyof IStepperCycles>(steppers: AStepper[], method: K, args: StepperMethodArgs[K], guidance = ''): Promise<Awaited<ReturnType<NonNullable<IStepperCycles[K]>>>[]> => {
 	const results: Awaited<ReturnType<NonNullable<IStepperCycles[K]>>>[] = [];
 	for (const stepper of steppers) {
 		if (stepper?.cycles && stepper.cycles[method]) {

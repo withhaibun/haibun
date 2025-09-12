@@ -117,7 +117,7 @@ class Haibun extends AStepper implements IHasOptions, IHasCycles {
 			},
 		},
 		not: {
-			gwta: `not {what}`,
+			gwta: `not {what:statement}`,
 			action: async ({ what }: TNamed) => {
 				const whatStep = await this.getNotWhat(what);
 				const whatExec = await doExecuteFeatureSteps(whatStep, this.steppers, this.getWorld(), true);
@@ -132,7 +132,7 @@ class Haibun extends AStepper implements IHasOptions, IHasCycles {
 			}
 		},
 		if: {
-			gwta: `if {when}, {what}`,
+			gwta: `if {when:statement}, {what:statement}`,
 			action: async ({ when, what }: TNamed, featureStep: TFeatureStep) => {
 				const { whenSteps, whatSteps } = await this.getWhenWhat(when, what, featureStep.seq);
 				const whenExec = await doExecuteFeatureSteps(whenSteps, this.steppers, this.getWorld(), true);
