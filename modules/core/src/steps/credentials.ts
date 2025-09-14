@@ -1,4 +1,4 @@
-import { OK, TNamed } from '../lib/defs.js';
+import { OK } from '../lib/defs.js';
 import { AStepper } from '../lib/astepper.js';
 import { randomString } from '../lib/util/index.js';
 
@@ -28,39 +28,36 @@ class Credentials extends AStepper {
 
 	steps = {
 		hasRandomUsername: {
-			gwta: `have a valid random username <{name}>`,
-			action: async ({ name }: TNamed) => {
-				this.generateRandomUsername(name);
+			gwta: 'have a valid random username <{name}>',
+			action: ({ name }) => {
+				this.generateRandomUsername(name as string);
 				return Promise.resolve(OK);
 			},
 		},
-
 		ensureRandomUsername: {
-			gwta: `ensure valid random username <{name}>`,
-			action: async ({ name }: TNamed) => {
-				if (this.getWorld().shared.get(cred(name))) {
-					return OK;
+			gwta: 'ensure valid random username <{name}>',
+			action: ({ name }) => {
+				if (this.getWorld().shared.get(cred(name as string))) {
+					return Promise.resolve(OK);
 				}
-				this.generateRandomUsername(name);
+				this.generateRandomUsername(name as string);
 				return Promise.resolve(OK);
 			},
 		},
-
 		hasRandomPassword: {
-			gwta: `have a valid random password <{name}>`,
-			action: async ({ name }: TNamed) => {
-				this.generateRandomPassword(name);
+			gwta: 'have a valid random password <{name}>',
+			action: ({ name }) => {
+				this.generateRandomPassword(name as string);
 				return Promise.resolve(OK);
 			},
 		},
-
 		ensureRandomPassword: {
-			gwta: `ensure valid random password <{name}>`,
-			action: async ({ name }: TNamed) => {
-				if (this.getWorld().shared.get(cred(name))) {
-					return OK;
+			gwta: 'ensure valid random password <{name}>',
+			action: ({ name }) => {
+				if (this.getWorld().shared.get(cred(name as string))) {
+					return Promise.resolve(OK);
 				}
-				this.generateRandomPassword(name);
+				this.generateRandomPassword(name as string);
 				return Promise.resolve(OK);
 			},
 		},

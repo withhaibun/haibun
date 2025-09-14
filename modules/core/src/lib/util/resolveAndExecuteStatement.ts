@@ -4,16 +4,16 @@ import { AStepper } from '../astepper.js';
 import { TWorld, TStepResult, TFeature, TFeatureStep } from '../defs.js';
 import { expandLine } from '../features.js';
 
-export async function resolveAndExecuteStatementWithCycles(names: string, base: string, steppers: AStepper[], world: TWorld, startSeq?: number): Promise<TStepResult> {
-	return await doResolveAndExecuteStatement(names, base, steppers, world, startSeq, false);
+export async function resolveAndExecuteStatementWithCycles(names: string, base: string, steppers: AStepper[], world: TWorld): Promise<TStepResult> {
+	return await doResolveAndExecuteStatement(names, base, steppers, world, false);
 }
 
 export async function resolveAndExecuteStatement(names: string, base: string, steppers: AStepper[], world: TWorld): Promise<TStepResult> {
-	return await doResolveAndExecuteStatement(names, base, steppers, world, null, true);
+	return await doResolveAndExecuteStatement(names, base, steppers, world, true);
 }
 
-async function doResolveAndExecuteStatement(names: string, base: string, steppers: AStepper[], world: TWorld, startSeq: number, noCycles: boolean): Promise<TStepResult> {
-	const featureSteps = await findFeatureStepsFromStatement(names, steppers, world, base, startSeq);
+async function doResolveAndExecuteStatement(names: string, base: string, steppers: AStepper[], world: TWorld, noCycles: boolean): Promise<TStepResult> {
+	const featureSteps = await findFeatureStepsFromStatement(names, steppers, world, base);
 	return await doExecuteFeatureSteps(featureSteps, steppers, world, noCycles);
 }
 
@@ -29,7 +29,7 @@ export async function doExecuteFeatureSteps(featureSteps: TFeatureStep[], steppe
 	return lastResult!;
 }
 
-export async function findFeatureStepsFromStatement(statement: string, steppers: AStepper[], world: TWorld, base: string, startSeq = 0, sub = 0): Promise<TFeatureStep[]> {
+export async function findFeatureStepsFromStatement(statement: string, steppers: AStepper[], world: TWorld, base: string): Promise<TFeatureStep[]> {
 	const featureSteps: TFeatureStep[] = [];
 	if (!world.runtime.backgrounds) {
 		throw new Error('runtime.backgrounds is undefined; cannot expand inline Backgrounds');
@@ -37,9 +37,10 @@ export async function findFeatureStepsFromStatement(statement: string, steppers:
 	// temporary feature for expandLine
 	const backgroundFeature: TFeature = { path: `from ${statement}`, base, name: 'inline-backgrounds', content: `Backgrounds: ${statement}` };
 	const expanded = expandLine(statement, world.runtime.backgrounds, backgroundFeature);
+	let idx = 0;
 	for (const x of expanded) {
-		sub += .1;
-		const { featureStep } = await getActionableStatement(steppers, x.line, x.feature.path, startSeq, sub);
+		idx++;
+		const { featureStep } = await getActionableStatement(steppers, x.line, x.feature.path, idx, 0);
 		featureSteps.push(featureStep);
 	}
 	return featureSteps;

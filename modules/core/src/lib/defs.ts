@@ -90,7 +90,7 @@ const example: TResolvedFeature = {
 		{
 			path: 'path',
 			in: 'in',
-			seq: 0,
+			seqPath: [0],
 			action: {
 				actionName: 'actionName',
 				stepperName: 'stepperName',
@@ -103,13 +103,18 @@ const example: TResolvedFeature = {
 export type TFeatureStep = {
 	path: string;
 	in: string;
-	seq: number;
-	seqLabel?: string; // optional hierarchical label like "2.1"
+	// hierarchical ordering; top-level steps have single element [n], injected / expanded children append indices
+	seqPath: number[];
 	action: TStepAction;
 };
 
-export type TAction = (named: TNamed, featureStep: TFeatureStep) => Promise<TActionResult>;
-export type TCheck = (named: TNamed, featureStep: TFeatureStep) => Promise<boolean>;
+// Step argument values passed to actions: simple label -> resolved string value.
+// Unified type (previous alias TNamed removed).
+// Step argument bag at runtime. Supports strings, numbers (parsed from placeholders with : number), and future statement arrays.
+export type TStepArgs = { [name: string]: string | number | TFeatureStep[] };
+
+// Allow step actions to return either a Promise or a direct result for ergonomic plain functions.
+export type TAction = (args: TStepArgs, featureStep: TFeatureStep) => Promise<TActionResult> | TActionResult;
 
 export type TStepperStep = {
 	precludes?: string[];
@@ -118,11 +123,10 @@ export type TStepperStep = {
 	gwta?: string;
 	exact?: string;
 	action: TAction;
-	checkAction?: TCheck;
 	applyEffect?: TApplyEffect;
 };
 
-export type TApplyEffect = (named: TNamed, featureStep: TFeatureStep, steppers: AStepper[]) => Promise<TFeatureStep[]>;
+export type TApplyEffect = (args: TStepArgs, featureStep: TFeatureStep, steppers: AStepper[]) => Promise<TFeatureStep[]>;
 
 export interface CStepper {
 	new(): AStepper;
@@ -147,13 +151,12 @@ export type TBeforeStep = { featureStep: TFeatureStep };
 export type TAfterStep = { featureStep: TFeatureStep, actionResult: TStepActionResult };
 export type TFailureArgs = { featureResult: TFeatureResult, failedStep: TStepResult };
 
-export type TAfterStepResult = { rerunStep?: boolean }
 export interface IStepperCycles {
 	startExecution?(features: TStartExecution): Promise<void>;
 	startFeature?(startFeature: TStartFeature): Promise<void>;
 	startScenario?(startScenario: TStartScenario): Promise<void>;
 	beforeStep?(beforeStep: TBeforeStep): Promise<void>;
-	afterStep?(afterStep: TAfterStep): Promise<TAfterStepResult>;
+	afterStep?(afterStep: TAfterStep): Promise<void>;
 	endScenario?(): Promise<void>;
 	endFeature?(endedWith?: TEndFeature): Promise<void>;
 	onFailure?(result: TFailureArgs): Promise<void | TMessageContext>;
@@ -168,12 +171,17 @@ export type TStepAction = {
 	actionName: string;
 	stepperName: string;
 	step: TStepperStep;
-	named?: TNamed | undefined;
-	stepVariables?: TNamedVar[];
+	stepValuesMap?: Record<string, TStepValue>;
 };
 
-export type TNamed = { [name: string]: string };
-export type TNamedVar = { name: string; type: string };
+export type TStepValue = {
+	label: string;
+	type?: string;
+	original?: string;
+	value?: string | number | TFeatureStep[]; // statement placeholders may hold resolved feature steps or numeric conversion
+	source?: 'literal' | 'var' | 'env' | 'credential' | 'special' | 'quoted' | 'statement';
+	// classification flags no longer required (rawKey removed); source + type drive behavior
+};
 
 export const OK: TOKActionResult = { ok: true };
 
@@ -266,8 +274,7 @@ export type TStepResult = {
 	stepActionResult: TStepActionResult;
 	in: string;
 	path: string;
-	seq: number;
-	seqLabel?: string; // optional hierarchical label like "2.1"
+	seqPath: number[];
 };
 
 export type TRuntime = {

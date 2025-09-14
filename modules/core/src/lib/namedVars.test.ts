@@ -2,7 +2,7 @@ import { describe, it, test, expect } from 'vitest';
 
 import { OK, TResolvedFeature, TStepperStep } from './defs.js';
 import { AStepper } from './astepper.js';
-import { getNamedMatches, namedInterpolation, matchGroups, getNamedToVars } from './namedVars.js';
+import { getNamedMatches, namedInterpolation, matchGroups, getStepArgs } from './namedVars.js';
 import { Resolver } from '../phases/Resolver.js';
 import { actionNotOK, createSteppers, getSerialTime } from './util/index.js';
 import { getDefaultWorld, testWithDefaults, TEST_BASE } from './test/lib.js';
@@ -26,31 +26,31 @@ describe('namedInterpolation', () => {
 		expect(namedInterpolation('hi').str).toEqual('hi');
 	});
 	test('gets var', () => {
-		expect(namedInterpolation('{hi}')).toEqual({ str: `${matchGroups(0)}`, stepVariables: [{ name: 'hi', type: 'string' }] });
+		const res = namedInterpolation('{hi}');
+		expect(res.str).toEqual(`${matchGroups(0)}`);
+		expect(res.stepValuesMap?.hi).toEqual({ label: 'hi', type: 'string' });
 	});
 	test('gets var with type', () => {
-		expect(namedInterpolation('{hi: string}')).toEqual({ str: `${matchGroups(0)}`, stepVariables: [{ name: 'hi', type: 'string' }] });
+		const res = namedInterpolation('{hi: string}');
+		expect(res.str).toEqual(`${matchGroups(0)}`);
+		expect(res.stepValuesMap?.hi).toEqual({ label: 'hi', type: 'string' });
 	});
 	test('gets var with post string', () => {
-		expect(namedInterpolation('{hi} eh')).toEqual({ str: `${matchGroups(0)} eh`, stepVariables: [{ name: 'hi', type: 'string' }] });
+		const res = namedInterpolation('{hi} eh');
+		expect(res.str).toEqual(`${matchGroups(0)} eh`);
+		expect(res.stepValuesMap?.hi).toEqual({ label: 'hi', type: 'string' });
 	});
-	test('gets stepVariables', () => {
-		expect(namedInterpolation('{hi} and {there}')).toEqual({
-			str: `${matchGroups(0)} and ${matchGroups(1)}`,
-			stepVariables: [
-				{ name: 'hi', type: 'string' },
-				{ name: 'there', type: 'string' },
-			],
-		});
+	test('gets step placeholders', () => {
+		const res = namedInterpolation('{hi} and {there}');
+		expect(res.str).toEqual(`${matchGroups(0)} and ${matchGroups(1)}`);
+		expect(res.stepValuesMap?.hi).toEqual({ label: 'hi', type: 'string' });
+		expect(res.stepValuesMap?.there).toEqual({ label: 'there', type: 'string' });
 	});
-	test('gets stepVariables with post text', () => {
-		expect(namedInterpolation('{hi} and {there} eh')).toEqual({
-			str: `${matchGroups(0)} and ${matchGroups(1)} eh`,
-			stepVariables: [
-				{ name: 'hi', type: 'string' },
-				{ name: 'there', type: 'string' },
-			],
-		});
+	test('gets step placeholders with post text', () => {
+		const res = namedInterpolation('{hi} and {there} eh');
+		expect(res.str).toEqual(`${matchGroups(0)} and ${matchGroups(1)} eh`);
+		expect(res.stepValuesMap?.hi).toEqual({ label: 'hi', type: 'string' });
+		expect(res.stepValuesMap?.there).toEqual({ label: 'there', type: 'string' });
 	});
 	test('throws for bad type', () => {
 		expect(() => namedInterpolation('{hi: wtw}')).toThrow();
@@ -92,7 +92,7 @@ describe('getNamedWithVars', () => {
 		const steps = await resolver.resolveStepsFromFeatures(features);
 		const { featureSteps } = steps[0] as TResolvedFeature;
 		expect(featureSteps[0].action).toBeDefined();
-		const val = getNamedToVars(featureSteps[0].action, world, featureSteps[0]);
+		const val = await getStepArgs(featureSteps[0].action, world, featureSteps[0], steppers);
 		expect(val?.what).toBe('res');
 	});
 });

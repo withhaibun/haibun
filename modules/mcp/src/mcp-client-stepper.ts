@@ -3,7 +3,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 
 import { BasePromptManager } from '@haibun/core/lib/base-prompt-manager.js';
 import { AStepper, IHasCycles, IHasOptions } from '@haibun/core/lib/astepper.js';
-import { TWorld, TNamed, IStepperCycles } from '@haibun/core/lib/defs.js';
+import { TWorld, TStepArgs, IStepperCycles } from '@haibun/core/lib/defs.js';
 import { actionNotOK, actionOK, getStepperOption, stringOrError } from '@haibun/core/lib/util/index.js';
 import { currentVersion as version } from '@haibun/core/currentVersion.js';
 import { EExecutionMessageType, TMessageContext } from '@haibun/core/lib/interfaces/logger.js';
@@ -161,16 +161,16 @@ class MCPClientStepper extends AStepper implements IHasOptions, IHasCycles {
 	// Public method to get client and ensure prompter is registered
 	async getClient(): Promise<Client | undefined> {
 		await this.ensureConnection();
-		
+
 		if (!this.mcpPrompter && this.client && this.isConnected) {
 			this.mcpPrompter = new MCPClientPrompter(() => this.client, () => this.isConnected);
 			this.world.prompter.subscribe(this.mcpPrompter);
 			this.world.logger.log('📡 MCPClientPrompter registered - real-time notifications enabled');
-			
+
 			// Check for existing prompts on first registration
 			await this.checkAndNotifyExistingPrompts();
 		}
-		
+
 		return this.client;
 	}
 
@@ -263,7 +263,7 @@ class MCPClientStepper extends AStepper implements IHasOptions, IHasCycles {
 					return actionOK({ messageContext });
 				} catch (e) {
 					console.error(e);
-					return actionNotOK(`Failed to test real-time notifications: ${e}`);
+					return Promise.resolve(actionNotOK(`Failed to test real-time notifications: ${e}`));
 				}
 			}
 		},
@@ -333,7 +333,7 @@ class MCPClientStepper extends AStepper implements IHasOptions, IHasCycles {
 		},
 		respondToDebugPrompt: {
 			gwta: `respond to debug prompt {promptId} with {response}`,
-			action: async ({ promptId, response }: TNamed) => {
+			action: async ({ promptId, response }) => {
 				try {
 					const client = await this.getClient();
 					const result = await client.callTool({
@@ -394,7 +394,7 @@ class MCPClientStepper extends AStepper implements IHasOptions, IHasCycles {
 		},
 		promptViaMcp: {
 			gwta: `prompt via mcp {message} with options {options}`,
-			action: async ({ message, options }: TNamed) => {
+			action: async ({ message, options }: TStepArgs) => {
 				try {
 					const client = await this.getClient();
 
@@ -446,7 +446,7 @@ class MCPClientStepper extends AStepper implements IHasOptions, IHasCycles {
 		},
 		promptViaMcpWithContext: {
 			gwta: `prompt via mcp {message} with context {context} and options {options}`,
-			action: async ({ message, context, options }: TNamed) => {
+			action: async ({ message, context, options }: TStepArgs) => {
 				try {
 					const client = await this.getClient();
 

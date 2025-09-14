@@ -1,9 +1,8 @@
 import { TStepAction, TResolvedFeature, OK, TExpandedFeature, TStepperStep, TFeatureStep, TExpandedLine } from '../lib/defs.js';
 import { AStepper } from '../lib/astepper.js';
 import { BASE_TYPES } from '../lib/domain-types.js';
-import { namedInterpolation, getMatch, getNamedToVars } from '../lib/namedVars.js';
+import { namedInterpolation, getMatch } from '../lib/namedVars.js';
 import { getActionable, isLowerCase, dePolite, constructorName } from '../lib/util/index.js';
-import { getDefaultWorld } from '../lib/test/lib.js';
 
 export class Resolver {
 	types: string[];
@@ -23,7 +22,7 @@ export class Resolver {
 		return steps;
 	}
 
-	public async findFeatureSteps(feature: TExpandedFeature, world = getDefaultWorld(0)): Promise<TFeatureStep[]> {
+	public async findFeatureSteps(feature: TExpandedFeature): Promise<TFeatureStep[]> {
 		const featureSteps: TFeatureStep[] = [];
 		let seq = 0;
 		for (const featureLine of feature.expanded) {
@@ -33,12 +32,20 @@ export class Resolver {
 
 			try {
 				const stepAction = this.findSingleStepAction(actionable);
-				const featureStep = this.getFeatureStep(featureLine, seq, stepAction);
-				if (stepAction.step.checkAction) { //throws if it fails
-					const namedWithVars = getNamedToVars(stepAction, world, featureStep);
-					await stepAction.step.checkAction(namedWithVars, featureStep);
+				// Early validation for statement-typed placeholders using their original captured value
+				if (stepAction.stepValuesMap) {
+					const statements = Object.values(stepAction.stepValuesMap).filter(v => v.type === 'statement' && v.original);
+					for (const ph of statements) {
+						const rawVal = ph.original!;
+						if (rawVal.trim().startsWith('Backgrounds:')) continue; // skip inline backgrounds directive
+						try {
+							this.findSingleStepAction(rawVal);
+						} catch (e) {
+							throw Error(`statement '${rawVal}' invalid: ${e.message}`);
+						}
+					}
 				}
-
+				const featureStep = this.getFeatureStep(featureLine, seq, stepAction);
 				featureSteps.push(featureStep);
 			} catch (e) {
 				throw Error(`findFeatureStep for "${featureLine.line}": ${e.message}in ${feature.path}\nUse --show-steppers for more details`);
@@ -66,7 +73,7 @@ export class Resolver {
 		return {
 			path: featureLine.feature.path,
 			in: featureLine.line,
-			seq,
+			seqPath: [seq],
 			action,
 		};
 	}
@@ -95,12 +102,11 @@ export class Resolver {
 	private stepApplies(step: TStepperStep, actionable: string, actionName: string, stepperName: string) {
 		const curt = dePolite(actionable);
 		if (step.gwta) {
-			const { str, stepVariables: vars } = namedInterpolation(step.gwta, this.types);
+			const { str, stepValuesMap } = namedInterpolation(step.gwta, this.types);
 			const f = str.charAt(0);
 			const s = isLowerCase(f) ? ['[', f, f.toUpperCase(), ']', str.substring(1)].join('') : str;
 			const r = new RegExp(`^${s}`);
-			//const r = new RegExp(`^(Given|When|Then|And)?( the )?( I('m)? (am )?)? ?${s}`);
-			return getMatch(curt, r, actionName, stepperName, step, vars);
+			return getMatch(curt, r, actionName, stepperName, step, stepValuesMap);
 		} else if (step.match) {
 			return getMatch(actionable, step.match, actionName, stepperName, step);
 		} else if (step.exact === curt) {
@@ -134,7 +140,7 @@ export function getActionableStatement(steppers: AStepper[], statement: string, 
 	const featureStep: TFeatureStep = {
 		path,
 		in: statement,
-		seq: Math.round((startSeq + subSeq) * 100) / 100,
+		seqPath: [startSeq, subSeq],
 		action,
 	};
 

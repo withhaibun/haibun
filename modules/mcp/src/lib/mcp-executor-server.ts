@@ -73,10 +73,12 @@ export class MCPExecutorServer {
 				}
 				const variables: ZodRawShape = {};
 				if (stepDef.gwta) {
-					const { stepVariables } = namedInterpolation(stepDef.gwta);
-					if (Array.isArray(stepVariables)) {
-						for (const v of stepVariables) {
-							variables[v.name] = v.type === 'number' ? z.number() : z.string();
+					const { stepValuesMap } = namedInterpolation(stepDef.gwta);
+					if (stepValuesMap) {
+						// Preserve declaration order: namedInterpolation builds the map in textual order.
+						for (const v of Object.values(stepValuesMap)) {
+							const t = v.type || 'string';
+							variables[v.label] = t === 'number' ? z.number() : z.string();
 						}
 					}
 				}

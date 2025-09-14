@@ -1,5 +1,5 @@
 import { AStepper, IHasCycles, IHasOptions } from '../lib/astepper.js';
-import { IStepperCycles, TActionResult, OK, TWorld, TNamed, TBeforeStep, TAfterStep, TAfterStepResult, TStepResult } from '../lib/defs.js';
+import { IStepperCycles, TActionResult, OK, TWorld, TBeforeStep, TAfterStep, TStepResult } from '../lib/defs.js';
 import { TMessageContext, EExecutionMessageType } from '../lib/interfaces/logger.js';
 import { makePrompt } from '../lib/prompter.js';
 import { actionNotOK, actionOK, getStepperOption, stringOrError } from '../lib/util/index.js';
@@ -18,9 +18,9 @@ const cycles = (debuggerStepper: DebuggerStepper): IStepperCycles => ({
 			return debuggerStepper.debugLoop(prompt, ['step', 'continue', '*']);
 		}
 	},
-	async afterStep({ actionResult }: TAfterStep): Promise<TAfterStepResult> {
+	async afterStep({ actionResult }: TAfterStep): Promise<void> {
 		if (!actionResult.ok) {
-			return await debuggerStepper.debugLoop('[Failure]', ['*', 'retry', 'fail']);
+			await debuggerStepper.debugLoop('[Failure]', ['*', 'fail']);
 		}
 	}
 });
@@ -56,11 +56,6 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 	async fail(): Promise<TActionResult> {
 		this.getWorld().logger.info('fail');
 		const messageContext: TMessageContext = { incident: EExecutionMessageType.DEBUG, incidentDetails: { fail: true } }; // this will fall through
-		return Promise.resolve(actionOK({ messageContext }));
-	}
-	async retry(): Promise<TActionResult> {
-		this.getWorld().logger.info('retry');
-		const messageContext: TMessageContext = { incident: EExecutionMessageType.DEBUG, incidentDetails: { rerunStep: true } }; // will trigger rerun in Executor
 		return Promise.resolve(actionOK({ messageContext }));
 	}
 	async step(): Promise<TActionResult> {
@@ -101,19 +96,7 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 				return await this.fail();
 			}
 		},
-		r: {
-			expose: false,
-			exact: 'r',
-			action: async (): Promise<TActionResult> => {
-				return await this.retry();
-			},
-		},
-		retry: {
-			exact: 'retry',
-			action: async (): Promise<TActionResult> => {
-				return await this.retry();
-			}
-		},
+		// retry functionality removed
 		s: {
 			expose: false,
 			exact: 's',
@@ -150,8 +133,9 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 		},
 		debugStepper: {
 			gwta: `debug stepper { stepperName }`,
-			action: async ({ stepperName }: TNamed) => {
-				const stepperNames = stepperName.split(',').map(name => name.trim());
+			action: async ({ stepperName }: TStepArgs) => {
+				if (Array.isArray(stepperName)) throw new Error('stepperName must be string');
+				const stepperNames = (stepperName as string).split(',').map(name => name.trim());
 				for (const name of stepperNames) {
 					const found = this.steppers.find((s) => s.constructor.name === name);
 					if (!found) {
@@ -164,8 +148,9 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 		},
 		continueStepper: {
 			gwta: `continue stepper { stepperName } `,
-			action: async ({ stepperName }: TNamed) => {
-				const stepperNames = stepperName.split(',').map(name => name.trim());
+			action: async ({ stepperName }) => {
+				if (Array.isArray(stepperName)) throw new Error('stepperName must be string');
+				const stepperNames = (stepperName as string).split(',').map(name => name.trim());
 				for (const name of stepperNames) {
 					const found = this.steppers.find((s) => s.constructor.name === name);
 					if (!found) {

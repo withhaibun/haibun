@@ -1,9 +1,9 @@
-import { TFeatureStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, TStepAction, STAY, STAY_FAILURE, CHECK_NO, CHECK_YES, CHECK_YIELD, STEP_DELAY, TNotOKActionResult, CONTINUE_AFTER_ERROR, TEndFeature, StepperMethodArgs, TBeforeStep, TAfterStep, TNamed, IStepperCycles, TAfterStepResult } from '../lib/defs.js';
+import { TFeatureStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, TStepAction, STAY, STAY_FAILURE, CHECK_NO, CHECK_YES, CHECK_YIELD, STEP_DELAY, TNotOKActionResult, CONTINUE_AFTER_ERROR, TEndFeature, StepperMethodArgs, TBeforeStep, TAfterStep, TStepArgs, IStepperCycles } from '../lib/defs.js';
 import { TAnyFixme } from '../lib/fixme.js';
 import { AStepper } from '../lib/astepper.js';
 import { EExecutionMessageType, TMessageContext } from '../lib/interfaces/logger.js';
 import { topicArtifactLogger } from '../lib/Logger.js';
-import { getNamedToVars } from '../lib/namedVars.js';
+import { getStepArgs } from '../lib/namedVars.js';
 import { actionNotOK, sleep, findStepper, constructorName, setStepperWorlds } from '../lib/util/index.js';
 import { SCENARIO_START } from '../lib/defs.js';
 import { Timer } from '../lib/Timer.js';
@@ -27,10 +27,10 @@ function calculateShouldClose({ thisFeatureOK, isLast, stayOnFailure, continueAf
 	return true;
 }
 export class Executor {
-	static async action(steppers: AStepper[], featureStep: TFeatureStep, found: TStepAction, namedWithVars: TNamed, world: TWorld) {
+	static async action(steppers: AStepper[], featureStep: TFeatureStep, found: TStepAction, args: TStepArgs, world: TWorld) {
 		const stepper = findStepper<AStepper>(steppers, found.stepperName);
 		const action = stepper.steps[found.actionName].action;
-		return await action(namedWithVars, featureStep).catch((caught: TAnyFixme) => {
+		return await Promise.resolve(action(args, featureStep)).catch((caught: TAnyFixme) => {
 			world.logger.error(caught.stack);
 			const messageContext = {
 				incident: EExecutionMessageType.ACTION,
@@ -151,34 +151,29 @@ export class FeatureExecutor {
 		// FIXME feature should really be attached to the featureStep
 		const action = featureStep.action;
 		const start = Timer.since();
-		const namedWithVars = getNamedToVars(action, world, featureStep);
-		world.logger.log(featureStep.in, { incident: EExecutionMessageType.STEP_START, tag: world.tag, incidentDetails: { featureStep, namedWithVars } });
+		// resolve (async) step arguments including any nested statement placeholders
+		const args = await getStepArgs(action, world, featureStep, steppers);
+		world.logger.log(featureStep.in, { incident: EExecutionMessageType.STEP_START, tag: world.tag, incidentDetails: { featureStep, args } });
 
-		let doAction = true;
-		let actionResult: Partial<TActionResult>;
-		while (doAction) {
-			!noCycles && await doStepperCycle(steppers, 'beforeStep', <TBeforeStep>({ featureStep }));
-			actionResult = await Executor.action(steppers, featureStep, action, namedWithVars, world);
-			const indicator = (noCycles ? CHECK_YIELD : (actionResult.ok ? CHECK_YES : `${CHECK_NO} (${(<TNotOKActionResult>actionResult).message})`));
+		!noCycles && await doStepperCycle(steppers, 'beforeStep', <TBeforeStep>({ featureStep }));
+		const actionResult: Partial<TActionResult> = await Executor.action(steppers, featureStep, action, args, world);
+		const indicator = (noCycles ? CHECK_YIELD : (actionResult.ok ? CHECK_YES : `${CHECK_NO} (${(<TNotOKActionResult>actionResult).message})`));
 
-			const messageContext: TMessageContext = {
-				artifacts: actionResult.artifact ? [actionResult.artifact] : undefined,
-				incident: EExecutionMessageType.STEP_END,
-				tag: world.tag,
-				incidentDetails: { actionResult, featureStep }
-			}
-			world.logger.log(indicator, messageContext);
-			if (noCycles) break;
-			const instructions: TAfterStepResult[] = await doStepperCycle(steppers, 'afterStep', <TAfterStep>({ featureStep, actionResult }), action.actionName);
-			doAction = instructions.some(i => i?.rerunStep);
+		const messageContext: TMessageContext = {
+			artifacts: actionResult.artifact ? [actionResult.artifact] : undefined,
+			incident: EExecutionMessageType.STEP_END,
+			tag: world.tag,
+			incidentDetails: { actionResult, featureStep }
 		}
+		world.logger.log(indicator, messageContext);
+		!noCycles && await doStepperCycle(steppers, 'afterStep', <TAfterStep>({ featureStep, actionResult }), action.actionName);
 
 		const end = Timer.since();
 		// FIXME
 		const stepActionResult: TStepActionResult = { ...actionResult, name: action.actionName, start, end } as TStepActionResult;
 		ok = ok && actionResult.ok;
 
-		return { ok, in: featureStep.in, path: featureStep.path, stepActionResult, seq: featureStep.seq }
+		return { ok, in: featureStep.in, path: featureStep.path, stepActionResult, seqPath: featureStep.seqPath }
 	}
 }
 

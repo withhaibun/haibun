@@ -1,6 +1,6 @@
 import { actionNotOK, actionOK } from '@haibun/core/lib/util/index.js';
 import WebPlaywright from './web-playwright.js';
-import { TNamed, OK } from '@haibun/core/lib/defs.js';
+import { OK } from '@haibun/core/lib/defs.js';
 import { EExecutionMessageType, TMessageContext } from '@haibun/core/lib/interfaces/logger.js';
 import { TAnyFixme } from '@haibun/core/lib/fixme.js';
 
@@ -18,142 +18,130 @@ export const base64Encode = ({ username, password }: { username: string; passwor
 export const restSteps = (webPlaywright: WebPlaywright) => ({
 	setApiUserAgent: {
 		gwta: `API user agent is {agent}`,
-		action: async ({ agent }: TNamed) => {
+		action: ({ agent }: { agent: string }) => {
 			webPlaywright.apiUserAgent = agent;
-			return Promise.resolve(OK);
+			return OK;
 		}
 	},
 	addBasicAuthCredentials: {
 		gwta: `use Authorization Basic header with {username}, {password}`,
-		action: async ({ username, password }: TNamed) => {
+		action: async ({ username, password }: { username: string; password: string }) => {
 			await webPlaywright.setExtraHTTPHeaders({ [AUTHORIZATION]: `Basic ${base64Encode({ username, password })}` });
-			return Promise.resolve(OK);
+			return OK;
 		},
 	},
 	addAuthBearerToken: {
 		gwta: `use Authorization Bearer header with {token}`,
-		action: async ({ token }: TNamed) => {
+		action: async ({ token }: { token: string }) => {
 			await webPlaywright.setExtraHTTPHeaders({ [AUTHORIZATION]: `Bearer ${token}` });
-			return Promise.resolve(OK);
+			return OK;
 		},
 	},
 	restTokenRequest: {
 		gwta: `request OAuth 2.0 access token from {endpoint}`,
-		action: async ({ endpoint }: TNamed) => {
+		action: async ({ endpoint }: { endpoint: string }) => {
 			const serialized = await webPlaywright.withPageFetch(endpoint);
-
 			const accessToken = serialized.json[ACCESS_TOKEN];
-
 			await webPlaywright.setExtraHTTPHeaders({ [AUTHORIZATION]: `Bearer ${accessToken}` });
-
 			webPlaywright.setLastResponse(serialized);
-
-			return Promise.resolve(OK);
+			return OK;
 		},
 	},
 	restTokenLogout: {
 		gwta: `perform OAuth 2.0 logout from {endpoint}`,
-		action: async ({ endpoint }: TNamed) => {
+		action: async ({ endpoint }: { endpoint: string }) => {
 			await webPlaywright.setExtraHTTPHeaders({});
-
 			const serialized = await webPlaywright.withPageFetch(endpoint);
 			webPlaywright.setLastResponse(serialized);
-
-			return Promise.resolve(OK);
+			return OK;
 		},
 	},
 
 	acceptEndpointRequest: {
 		gwta: `accept {accept} using ${HTTP} {method} to {endpoint}`,
-		action: async ({ accept, method, endpoint }: TNamed) => {
+		action: async ({ accept, method, endpoint }: { accept: string; method: string; endpoint: string }) => {
 			method = method.toLowerCase();
 			if (!NO_PAYLOAD_METHODS.includes(method)) {
 				return actionNotOK(`Method ${method} not supported`);
 			}
 			const serialized = await webPlaywright.withPageFetch(endpoint, method, { headers: { accept } });
 			webPlaywright.setLastResponse(serialized);
-
-			return Promise.resolve(OK);
+			return OK;
 		},
 	},
 	restEndpointRequest: {
 		gwta: `make an ${HTTP} {method} to {endpoint}`,
-		action: async ({ method, endpoint }: TNamed) => {
+		action: async ({ method, endpoint }: { method: string; endpoint: string }) => {
 			method = method.toLowerCase();
 			if (!NO_PAYLOAD_METHODS.includes(method)) {
 				return actionNotOK(`Method ${method} not supported`);
 			}
 			const serialized = await webPlaywright.withPageFetch(endpoint, method);
 			webPlaywright.setLastResponse(serialized);
-
-			return Promise.resolve(OK);
+			return OK;
 		},
 	},
 	filterResponseJson: {
 		gwta: `filter JSON response by {property} matching {match}`,
-		action: async ({ property, match }: TNamed) => {
+		action: ({ property, match }: { property: string; match: string }) => {
 			const lastResponse = webPlaywright.getLastResponse();
 			if (!lastResponse?.json || !Array.isArray(lastResponse.json)) {
 				return actionNotOK(`No JSON or array from ${JSON.stringify(lastResponse)}`);
 			}
-
 			const filtered = lastResponse.json.filter((item: TAnyFixme) => item[property].match(match));
-			webPlaywright.setLastResponse({
-				...lastResponse,
-				filtered,
-			});
-			return Promise.resolve(OK);
+			webPlaywright.setLastResponse({ ...lastResponse, filtered });
+			return OK;
 		},
 	},
 	filteredResponseLengthIs: {
 		gwta: `filtered response length is {length}`,
-		action: async ({ length }: TNamed) => {
+		action: ({ length }: { length: string }) => {
 			const lastResponse = webPlaywright.getLastResponse();
 			if (!lastResponse?.filtered || lastResponse.filtered.length !== parseInt(length)) {
 				return actionNotOK(`Expected ${length}, got ${lastResponse?.filtered?.length}`);
 			}
-			return Promise.resolve(OK);
+			return OK;
 		},
 	},
 	showResponseLength: {
 		gwta: `show JSON response count`,
-		action: async () => {
+		action: () => {
 			const lastResponse = webPlaywright.getLastResponse();
 			if (!lastResponse?.json || typeof lastResponse.json.length !== 'number') {
 				console.debug(lastResponse);
-				return Promise.resolve(actionNotOK(`No last response to count`));
+				return actionNotOK(`No last response to count`);
 			}
 			webPlaywright.getWorld().logger.info(`lastResponse JSON count is ${lastResponse.json.length}`)
 			const messageContext: TMessageContext = { incident: EExecutionMessageType.ACTION, incidentDetails: { summary: 'options', details: { count: lastResponse.json.length } } }
-			return Promise.resolve(actionOK({ messageContext }));
+			return actionOK({ messageContext });
 		},
 	},
 	showFilteredLength: {
 		gwta: `show filtered response count`,
-		action: async () => {
+		action: () => {
 			const lastResponse = webPlaywright.getLastResponse();
 			if (!lastResponse?.filtered || typeof lastResponse.filtered.length !== 'number') {
 				console.debug(lastResponse);
-				return Promise.resolve(actionNotOK(`No filtered response to count`));
+				return actionNotOK(`No filtered response to count`);
 			}
 			webPlaywright.getWorld().logger.info(`lastResponse filtered count is ${lastResponse.filtered.length}`)
 			const messageContext: TMessageContext = { incident: EExecutionMessageType.ACTION, incidentDetails: { summary: 'options', count: lastResponse.filtered.length } };
-			return Promise.resolve(actionOK({ messageContext }));
+			return actionOK({ messageContext });
 		},
 	},
 	responseJsonLengthIs: {
 		gwta: `JSON response length is {length}`,
-		action: async ({ length }: TNamed) => {
+		action: ({ length }: { length: string }) => {
 			const lastResponse = webPlaywright.getLastResponse();
 			if (!lastResponse?.json || lastResponse.json.length !== parseInt(length)) {
 				return actionNotOK(`Expected ${length}, got ${lastResponse?.json?.length}`);
 			}
-			return Promise.resolve(OK);
+			return OK;
 		},
 	},
 	restEndpointFilteredPropertyRequest: {
 		gwta: `for each filtered {property}, make REST {method} to {endpoint} yielding status {status}`,
-		action: async ({ property, method, endpoint, status }: TNamed) => {
+		action: async ({ property, method, endpoint, status }: { property: string; method: string; endpoint: string; status: string }) => {
 			method = method.toLowerCase();
 			if (!NO_PAYLOAD_METHODS.includes(method)) {
 				return actionNotOK(`Method ${method} not supported`);
@@ -166,73 +154,55 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 			if (!filtered.every((item: TAnyFixme) => item[property] !== undefined)) {
 				return actionNotOK(`Property ${property} not found in all items`);
 			}
-
-			const responses = [];
 			for (const item of filtered) {
 				const requestPath = `${endpoint}/${item[property]}`;
 				const serialized = await webPlaywright.withPageFetch(requestPath, method);
 				if (serialized.status !== parseInt(status, 10)) {
 					return actionNotOK(`Expected status ${status} to ${requestPath}, got ${serialized.status}`);
 				}
-				responses.push(serialized);
 			}
-
-			return Promise.resolve(OK);
+			return OK;
 		},
 	},
 	restEndpointRequestWithPayload: {
 		gwta: `make an ${'HTTP'} {method} to {endpoint} with {payload}`,
-		action: async ({ method, endpoint, payload }: TNamed) => {
+		action: async ({ method, endpoint, payload }: { method: string; endpoint: string; payload: string }) => {
 			method = method.toLowerCase();
 			if (!PAYLOAD_METHODS.includes(method)) {
 				return actionNotOK(`Method ${method} (${method}) does not support payload`);
 			}
-			let postData: string | object;
-			if (typeof payload === 'object') {
-				postData = JSON.stringify(payload);
-			} else {
-				postData = payload;
-			}
-			const requestOptions = {
-				postData,
-				headers: {
-					'Content-Type': 'application/json',
-				},
-			};
-
+			const requestOptions = { postData: payload, headers: { 'Content-Type': 'application/json' } };
 			const serialized = await webPlaywright.withPageFetch(endpoint, method, requestOptions);
-
 			webPlaywright.setLastResponse(serialized);
-
-			return Promise.resolve(OK);
+			return OK;
 		},
 	},
 	restLastStatusIs: {
 		gwta: `${HTTP} status is {status}`,
-		action: async ({ status }: TNamed) => {
+		action: ({ status }: { status: string }) => {
 			const lastResponse = webPlaywright.getLastResponse();
 			if (lastResponse && lastResponse.status === parseInt(status)) {
-				return Promise.resolve(OK);
+				return OK;
 			}
 			return actionNotOK(`Expected status ${status}, got ${lastResponse?.status || 'no response'}`);
 		},
 	},
 	restResponsePropertyIs: {
 		gwta: `${HTTP} response property {property} is {value}`,
-		action: async ({ property, value }: TNamed) => {
+		action: ({ property, value }: { property: string; value: string }) => {
 			const lastResponse = webPlaywright.getLastResponse();
 			if (lastResponse && lastResponse.json && lastResponse.json[property] === value) {
-				return Promise.resolve(OK);
+				return OK;
 			}
 			return actionNotOK(`Expected lastResponse.json.${property} to be ${value}, got ${JSON.stringify(lastResponse?.json[property])}`);
 		},
 	},
 	restResponseIs: {
 		gwta: `${HTTP} text response is {value}`,
-		action: async ({ value }: TNamed) => {
+		action: ({ value }: { value: string }) => {
 			const lastResponse = webPlaywright.getLastResponse();
 			if (lastResponse && lastResponse.text === value) {
-				return Promise.resolve(OK);
+				return OK;
 			}
 			return actionNotOK(`Expected response to be ${value}, got ${lastResponse?.text}`);
 		},
