@@ -17,21 +17,18 @@ export async function generateMermaidGraph(resolvedFeatures: TResolvedFeature[],
 		graphLines.push(`    base_${sanitize(basePathStr)}(${formatLabel(basePathStr)})`);
 	});
 
-	// ENV SUBGRAPH
+	// ENV SUBGRAPH (collect values with source === 'env')
 	const envVars = new Set<string>();
-	for (const f of resolvedFeatures)
+	for (const f of resolvedFeatures) {
 		for (const step of f.featureSteps) {
-			for (const [k, v] of Object.entries(step.action.named || {})) {
-				if (/^e_\d+$/.test(k)) {
-					envVars.add(v);
-				}
+			for (const { source, value } of Object.values(step.action.stepValuesMap || {})) {
+				if (source === 'env' && typeof value === 'string') envVars.add(value);
 			}
 		}
+	}
 	if (envVars.size) {
 		graphLines.push('    subgraph ENV [Environment Variables]');
-		envVars.forEach(v => {
-			graphLines.push(`        env_${sanitize(v)}([${formatLabel(v)}])`);
-		});
+		envVars.forEach(v => graphLines.push(`        env_${sanitize(v)}([${formatLabel(v)}])`));
 		graphLines.push('    end');
 	}
 
@@ -96,53 +93,26 @@ export async function generateMermaidGraph(resolvedFeatures: TResolvedFeature[],
 					}
 				}
 
-				// Inline variable linking logic
-				if (showVariables) {
-					if (step.action!.stepVariables && step.action!.actionName !== 'scenarioStart') {
-						const definedScenarioVarsForStep = new Set<string>();
-
-						step.action.stepVariables.forEach((varDef, varIndex) => {
-							const varName = varDef.name; // e.g., "what"
-							let actualNamedValue: string | undefined = undefined;
-							let isEnvLink = false;
-							let envLinkTargetName: string | undefined = undefined;
-
-							// Prefixes for indexed named parameters (excluding 'e' which is special)
-							// These correspond to TYPE_QUOTED, TYPE_VAR, TYPE_ENV_OR_VAR_OR_LITERAL, TYPE_SPECIAL, TYPE_CREDENTIAL etc. from namedVars.ts
-							const indexedPrefixes = ['q', 'b', 't', 's', 'c', 'a', 'n'];
-							const envPrefix = 'e';
-
-							// Check for environment variable first (e.g., e_0)
-							const envNamedKey = `${envPrefix}_${varIndex}`;
-							if (step.action!.named && step.action!.named[envNamedKey] !== undefined) {
-								actualNamedValue = String(step.action!.named[envNamedKey]);
-								isEnvLink = true;
-								envLinkTargetName = actualNamedValue; // For e_X, the value in 'named' is the env var name
-							} else {
-								// Check other indexed prefixes for scenario variables
-								for (const prefix of indexedPrefixes) {
-									const namedKeyCandidate = `${prefix}_${varIndex}`;
-									if (step.action!.named && step.action!.named[namedKeyCandidate] !== undefined) {
-										actualNamedValue = String(step.action!.named[namedKeyCandidate]);
-										break;
-									}
-								}
-							}
-
-							if (actualNamedValue !== undefined) { // A value was found for this varDef
-								if (isEnvLink && envLinkTargetName) {
-									graphLines.push(`${indent}${newStepId} -.-> env_${sanitize(envLinkTargetName)}`);
-								} else {
-									const scenarioVarNodeId = `sv_${actionNamePart}_${stepIdx}_${sanitize(varName)}`;
-									if (!definedScenarioVarsForStep.has(scenarioVarNodeId)) {
-										graphLines.push(`${indent}${scenarioVarNodeId}([${formatLabel(varName + " = " + actualNamedValue)}])`);
-										definedScenarioVarsForStep.add(scenarioVarNodeId);
-									}
-									graphLines.push(`${indent}${newStepId} -.-> ${scenarioVarNodeId}`);
-								}
-							}
-						});
-					}
+				// Inline variable linking logic using new stepValuesMap.source classification
+				if (showVariables && step.action!.stepValuesMap && step.action!.actionName !== 'scenarioStart') {
+					const definedScenarioVarsForStep = new Set<string>();
+					Object.entries(step.action.stepValuesMap).forEach(([name, sv]) => {
+						const { source, value } = sv;
+						if (value == null) return;
+						if (source === 'env' && typeof value === 'string') {
+							graphLines.push(`${indent}${newStepId} -.-> env_${sanitize(value)}`);
+							return;
+						}
+						// scenario/shared variable or literal display (exclude statements/arrays)
+						if (Array.isArray(value)) return; // skip nested statements
+						const displayVal = typeof value === 'number' ? String(value) : value;
+						const scenarioVarNodeId = `sv_${actionNamePart}_${stepIdx}_${sanitize(name)}`;
+						if (!definedScenarioVarsForStep.has(scenarioVarNodeId)) {
+							graphLines.push(`${indent}${scenarioVarNodeId}([${formatLabel(name + ' = ' + displayVal)}])`);
+							definedScenarioVarsForStep.add(scenarioVarNodeId);
+						}
+						graphLines.push(`${indent}${newStepId} -.-> ${scenarioVarNodeId}`);
+					});
 				}
 			}
 			previousStepIsInScenario = currentStepIsInCurrentScenario;

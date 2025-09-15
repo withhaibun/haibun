@@ -5,17 +5,17 @@ import { actionNotOK, actionOK } from '../lib/util/index.js';
 import { FeatureVariables } from '../lib/feature-variables.js';
 
 const clearVars = (vars) => async () => {
-	vars.getWorld().shared.clear()
+	vars.getWorld().shared.clear();
 	return Promise.resolve();
-}
+};
 
 const cycles = (variablesStepper: VariablesStepper): IStepperCycles => ({
-	endScenario: clearVars(variablesStepper),
 	startFeature: clearVars(variablesStepper),
 	startScenario: ({ featureVars }: TStartScenario) => {
 		variablesStepper.getWorld().shared = new FeatureVariables(variablesStepper.getWorld().tag.toString(), { ...featureVars.all() });
 		return Promise.resolve();
 	},
+	endScenario: clearVars(variablesStepper),
 });
 
 class VariablesStepper extends AStepper implements IHasCycles {
@@ -48,18 +48,11 @@ class VariablesStepper extends AStepper implements IHasCycles {
 	steps = {
 		combine: {
 			gwta: 'combine {p1} and {p2} as {what}',
-			action: async ({ p1, p2, what }: TStepArgs, featureStep: TFeatureStep) => {
-				if (Array.isArray(p1) || Array.isArray(p2) || Array.isArray(what)) throw new Error('p1/p2/what must be strings');
-				return await this.set({ what: what as string, value: `${p1 as string}${p2 as string}` }, featureStep);
-			},
+			action: async ({ p1, p2, what }: TStepArgs, featureStep: TFeatureStep) => await this.set({ what: what as string, value: `${p1 as string}${p2 as string}` }, featureStep)
 		},
 		showEnv: {
-			gwta: 'show env',
-			export: false,
-			action: async (n: TStepArgs, featureStep: TFeatureStep) => {
-				console.info('env', this.world.options.envVariables);
-				return await this.set(n, featureStep);
-			},
+			gwta: 'show env', export: false,
+			action: async (args: TStepArgs, featureStep: TFeatureStep) => { console.info('env', this.world.options.envVariables); return await this.set(args, featureStep); }
 		},
 		showVars: {
 			gwta: 'show vars',
@@ -70,39 +63,25 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		},
 		set: {
 			gwta: 'set( empty)? {what: string} to {value: string}',
-			action: async (n: TStepArgs, featureStep: TFeatureStep) => {
-				return await this.set(n, featureStep);
-			},
+			action: async (args: TStepArgs, featureStep: TFeatureStep) => await this.set(args, featureStep)
 		},
 		is: {
 			gwta: 'variable {what: string} is "{value}"',
-			action: async ({ what, value }: TStepArgs) => {
-				if (Array.isArray(what) || Array.isArray(value)) throw new Error('what/value must be strings');
+			action: ({ what, value }: TStepArgs) => {
 				const val = this.getVarValue(what as string);
-				return Promise.resolve(val === value ? OK : actionNotOK(`${what as string} is "${val}", not "${value}"`));
-			},
+				return val === value ? OK : actionNotOK(`${what as string} is "${val}", not "${value}"`);
+			}
 		},
 		isSet: {
 			gwta: 'variable {what: string} is set',
-			action: async ({ what }: TStepArgs) => {
-				if (Array.isArray(what)) throw new Error('what must be string');
-				return Promise.resolve(this.isSet(what as string));
-			},
-		},
-		isNotSet: {
-			gwta: 'variable {what: string} is not set',
-			action: async ({ what }: TStepArgs) => {
-				if (Array.isArray(what)) throw new Error('what must be string');
-				return this.checkIsSet(what as string) ? actionNotOK(`${what as string} is set`) : Promise.resolve(OK);
-			},
+			action: ({ what }: TStepArgs) => this.isSet(what as string)
 		},
 		display: {
 			gwta: 'display {what}',
-			action: async ({ what }: TStepArgs) => {
-				if (Array.isArray(what)) throw new Error('what must be string');
+			action: ({ what }: TStepArgs) => {
 				this.getWorld().logger.info(`is ${JSON.stringify(what)}`);
-				return Promise.resolve(actionOK({ artifact: { artifactType: 'json', json: { [what as string]: this.getVarValue(what as string) } } }));
-			},
+				return actionOK({ artifact: { artifactType: 'json', json: { [what as string]: this.getVarValue(what as string) } } });
+			}
 		},
 	};
 }

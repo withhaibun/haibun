@@ -1,4 +1,4 @@
-import { TStepAction, TResolvedFeature, OK, TExpandedFeature, TStepperStep, TFeatureStep, TExpandedLine } from '../lib/defs.js';
+import { TStepAction, TResolvedFeature, OK, TExpandedFeature, TStepperStep, TFeatureStep, TExpandedLine, TStepArgs } from '../lib/defs.js';
 import { AStepper } from '../lib/astepper.js';
 import { BASE_TYPES } from '../lib/domain-types.js';
 import { namedInterpolation, getMatch } from '../lib/namedVars.js';
@@ -30,26 +30,27 @@ export class Resolver {
 
 			const actionable = getActionable(featureLine.line);
 
-			try {
-				const stepAction = this.findSingleStepAction(actionable);
-				// Early validation for statement-typed placeholders using their original captured value
-				if (stepAction.stepValuesMap) {
-					const statements = Object.values(stepAction.stepValuesMap).filter(v => v.type === 'statement' && v.original);
-					for (const ph of statements) {
-						const rawVal = ph.original!;
-						if (rawVal.trim().startsWith('Backgrounds:')) continue; // skip inline backgrounds directive
-						try {
-							this.findSingleStepAction(rawVal);
-						} catch (e) {
-							throw Error(`statement '${rawVal}' invalid: ${e.message}`);
+				try {
+					const stepAction = this.findSingleStepAction(actionable);
+					// Early validation for statement-typed placeholders using their original captured value
+					if (stepAction.stepValuesMap) {
+						const statements = Object.values(stepAction.stepValuesMap).filter(v => v.type === 'statement' && v.original);
+						for (const ph of statements) {
+							const rawVal = ph.original!;
+							if (rawVal.trim().startsWith('Backgrounds:')) continue; // skip inline backgrounds directive
+							try { this.findSingleStepAction(rawVal); } catch (e) { throw Error(`statement '${rawVal}' invalid: ${e.message}`); }
 						}
 					}
+					const featureStep = this.getFeatureStep(featureLine, seq, stepAction);
+					if (stepAction.step.checkAction) {
+						const named = Object.fromEntries(Object.entries(stepAction.stepValuesMap || {}).map(([k, v]) => [k, v.value ?? v.original ?? ''])) as TStepArgs;
+						const valid = await stepAction.step.checkAction(named, featureStep);
+						if (valid === false) throw Error('checkAction failed');
+					}
+					featureSteps.push(featureStep);
+				} catch (e) {
+					throw Error(`findFeatureStep for "${featureLine.line}": ${e.message}in ${feature.path}\nUse --show-steppers for more details`);
 				}
-				const featureStep = this.getFeatureStep(featureLine, seq, stepAction);
-				featureSteps.push(featureStep);
-			} catch (e) {
-				throw Error(`findFeatureStep for "${featureLine.line}": ${e.message}in ${feature.path}\nUse --show-steppers for more details`);
-			}
 		}
 
 		return Promise.resolve(featureSteps);

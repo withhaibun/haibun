@@ -57,8 +57,7 @@ export const cycles = (wp: WebPlaywright): IStepperCycles => ({
 			}
 		}
 		if (wp.twin) {
-			const page = await wp.getPage();
-			await WebPlaywright.twinPage.writePage(page);
+			await WebPlaywright.twinPage.writePage();
 		}
 		if (wp.monitor === EMonitoringTypes.MONITOR_EACH) {
 			await wp.callClosers();

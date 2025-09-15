@@ -94,7 +94,6 @@ export const getMatch = (
 		return;
 	}
 	const groups = getNamedMatches(r, actionable);
-	// enrich stepValuesMap placeholders with original and early source classification (no rawKey persistence)
 	interface TInternalStepValue extends TStepValue { captureKey?: string }
 	if (groups && stepValuesMap) {
 		let i = 0;
@@ -179,16 +178,18 @@ export async function getStepArgs(found: TStepAction, world: TWorld, featureStep
 		} else {
 			throw Error(`unknown assignment ${captureKey}`);
 		}
-		// coerce numeric type placeholders
 		if (placeholder.type === 'number') {
 			const asNum = Number(resolved);
 			if (Number.isNaN(asNum)) {
 				throw Error(`invalid number for ${placeholder.label}: ${resolved}`);
 			}
-			resolved = asNum;
+			args[placeholder.label] = asNum;
+			placeholder.value = asNum;
+		} else {
+			const asStr = String(resolved);
+			args[placeholder.label] = asStr;
+			placeholder.value = asStr;
 		}
-		args[placeholder.label] = resolved as (string | number);
-		placeholder.value = resolved as (string | number);
 		if (!placeholder.source) {
 			placeholder.source = inferSource(captureKey);
 		}

@@ -1,5 +1,5 @@
 import { OK } from '../lib/defs.js';
-import { AStepper } from '../lib/astepper.js';
+import { AStepper, TStepperSteps } from '../lib/astepper.js';
 import { randomString } from '../lib/util/index.js';
 
 export const cred = (key: string) => `__cred_${key}`;
@@ -26,7 +26,7 @@ class Credentials extends AStepper {
 		return this.getWorld().shared.get(cred(name));
 	}
 
-	steps = {
+	steps: TStepperSteps = {
 		hasRandomUsername: {
 			gwta: 'have a valid random username <{name}>',
 			action: ({ name }) => {

@@ -39,7 +39,7 @@ Scenario: Scenario 1
 set "a" to 1
 variable "a" is "1"
 Scenario: Scenario 2
-variable "a" is not set
+not variable "a" is set
 `}];
 		const res = await testWithDefaults(features, steppers);
 		expect(res.ok).toBe(true);
@@ -49,7 +49,7 @@ variable "a" is not set
 describe('vars between features', () => {
 	it('clears variables between features', async () => {
 		const feature = { path: '/features/test.feature', content: 'set "x" to y' };
-		const anotherFeature = { path: '/features/verify.feature', content: 'variable "x" is not set' };
+		const anotherFeature = { path: '/features/verify.feature', content: 'not variable "x" is set' };
 		const res = await testWithDefaults([feature, anotherFeature], steppers);
 		expect(res.ok).toBe(true);
 	});

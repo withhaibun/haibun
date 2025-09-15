@@ -1,5 +1,5 @@
-import { AStepper, IHasCycles, IHasOptions } from '../lib/astepper.js';
-import { IStepperCycles, TActionResult, OK, TWorld, TBeforeStep, TAfterStep, TStepResult } from '../lib/defs.js';
+import { AStepper, IHasCycles, IHasOptions, TStepperSteps } from '../lib/astepper.js';
+import { IStepperCycles, TActionResult, OK, TWorld, TBeforeStep, TAfterStep, TStepResult, ExecMode } from '../lib/defs.js';
 import { TMessageContext, EExecutionMessageType } from '../lib/interfaces/logger.js';
 import { makePrompt } from '../lib/prompter.js';
 import { actionNotOK, actionOK, getStepperOption, stringOrError } from '../lib/util/index.js';
@@ -55,18 +55,18 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 	}
 	async fail(): Promise<TActionResult> {
 		this.getWorld().logger.info('fail');
-		const messageContext: TMessageContext = { incident: EExecutionMessageType.DEBUG, incidentDetails: { fail: true } }; // this will fall through
+		const messageContext: TMessageContext = { incident: EExecutionMessageType.DEBUG, incidentDetails: { fail: true } };
 		return Promise.resolve(actionOK({ messageContext }));
 	}
 	async step(): Promise<TActionResult> {
 		this.getWorld().logger.info('step');
-		const messageContext: TMessageContext = { incident: EExecutionMessageType.DEBUG, incidentDetails: { step: true } }; // will fall through
+		const messageContext: TMessageContext = { incident: EExecutionMessageType.DEBUG, incidentDetails: { step: true } };
 		return Promise.resolve(actionOK({ messageContext }));
 	}
 	async continue(): Promise<TActionResult> {
 		this.getWorld().logger.info('Continuing execution without debugging');
 		this.debuggingType = TDebuggingType.Continue;
-		const messageContext: TMessageContext = { incident: EExecutionMessageType.DEBUG, incidentDetails: { continue: true } }; // will fall through
+		const messageContext: TMessageContext = { incident: EExecutionMessageType.DEBUG, incidentDetails: { continue: true } };
 		return Promise.resolve(actionOK({ messageContext }));
 	}
 
@@ -75,14 +75,15 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 		while (postFailurePromptResult === undefined || postFailurePromptResult.stepActionResult.messageContext?.incident !== EExecutionMessageType.DEBUG) {
 			const response = await this.getWorld().prompter.prompt(makePrompt(prompt, undefined, prompts));
 			try {
-				postFailurePromptResult = await resolveAndExecuteStatement(response.toString(), '<debugger>', this.steppers, this.getWorld());
+				postFailurePromptResult = await resolveAndExecuteStatement(response.toString(), '<debugger>', this.steppers, this.getWorld(), ExecMode.PROMPT);
+
 			} catch (e) {
 				this.getWorld().logger.error(`Failed to execute post - failure action: ${e.message}`);
 			}
 		}
 		return postFailurePromptResult.stepActionResult.messageContext?.incidentDetails;
 	}
-	steps = {
+	steps: TStepperSteps = {
 		f: {
 			expose: false,
 			exact: 'f',
@@ -133,7 +134,7 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 		},
 		debugStepper: {
 			gwta: `debug stepper { stepperName }`,
-			action: async ({ stepperName }: TStepArgs) => {
+			action: async ({ stepperName }) => {
 				if (Array.isArray(stepperName)) throw new Error('stepperName must be string');
 				const stepperNames = (stepperName as string).split(',').map(name => name.trim());
 				for (const name of stepperNames) {

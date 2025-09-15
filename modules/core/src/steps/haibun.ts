@@ -1,200 +1,109 @@
-import { resolve } from 'path';
-
-import { OK, TStepArgs, TWorld, TFeatureStep, STEP_DELAY, IStepperCycles, SCENARIO_START, TStartFeature, TStepResult } from '../lib/defs.js';
-import { IHasCycles, IHasOptions } from '../lib/astepper.js';
+import { OK, TFeatureStep, STEP_DELAY, TStepArgs, TWorld, ExecMode } from '../lib/defs.js';
 import { AStepper } from '../lib/astepper.js';
 import { Resolver } from '../phases/Resolver.js';
-import { actionNotOK, actionOK, formattedSteppers, getStepperOption, sleep, stringOrError } from '../lib/util/index.js';
-import { actualURI } from '../lib/util/actualURI.js';
+import { actionNotOK, actionOK, formattedSteppers, sleep } from '../lib/util/index.js';
+import { doExecuteFeatureSteps } from '../lib/util/resolveAndExecuteStatement.js';
 import { expand } from '../lib/features.js';
 import { asFeatures } from '../lib/resolver-features.js';
-import { copyPreRenderedAudio, doExec, doSpawn, playAudioFile, preRenderFeatureProse, TRenderedAudioMap } from './lib/tts.js';
-import { EExecutionMessageType, TArtifactSpeech, TArtifactVideo, TMessageContext } from '../lib/interfaces/logger.js';
-import { captureLocator } from '../lib/capture-locator.js';
-import { endExecutonContext, FeatureExecutor } from '../phases/Executor.js';
-import { doExecuteFeatureSteps } from '../lib/util/resolveAndExecuteStatement.js';
+import { EExecutionMessageType } from '../lib/interfaces/logger.js';
+import { endExecutonContext } from '../phases/Executor.js';
 
-const CAPTURE_FILENAME = 'vcapture.webm';
-
-const cycles = (hb: Haibun): IStepperCycles => ({
-	async startFeature({ resolvedFeature }: TStartFeature) {
-		if (hb.ttsCmd) {
-			hb.renderedAudio = await preRenderFeatureProse(resolvedFeature, hb.ttsCmd, hb.world.logger);
-		}
-		if (hb.captureStart) {
-			hb.getWorld().logger.debug(`Spawning screen capture using ${hb.captureStart}`);
-			doSpawn(hb.captureStart);
-		}
-	},
-	async endFeature() {
-		if (hb.captureStop) {
-			const uri = actualURI(CAPTURE_FILENAME);
-			hb.getWorld().logger.info(`Stopping vcapture ${uri} using ${hb.captureStop}`);
-			await sleep(2000);
-			await doExec(hb.captureStop, false);
-			const path = captureLocator(hb.world.options, hb.world.tag);
-			const artifact: TArtifactVideo = { artifactType: 'video', path };
-			const context: TMessageContext = { incident: EExecutionMessageType.FEATURE_END, artifacts: [artifact], tag: hb.getWorld().tag };
-			hb.getWorld().logger.log('feature video', context);
-		}
-	}
-});
-
-class Haibun extends AStepper implements IHasOptions, IHasCycles {
-	renderedAudio: TRenderedAudioMap = {};
-	options = {
-		TTS_CMD: { desc: 'TTS command that accepts text as @WHAT@ and returns a full path to stdout', parse: (input: string) => stringOrError(input), required: false },
-		TTS_PLAY: { desc: 'Shell command that plays an audio file using @WHAT@', parse: (input: string) => stringOrError(input), required: false },
-		CAPTURE_START: { desc: 'Shell command to start screen capture', parse: (input: string) => stringOrError(input), required: false },
-		CAPTURE_STOP: { desc: 'Shell command to stop screen capture', parse: (input: string) => stringOrError(input), required: false },
-	};
-
-	cycles = cycles(this);
+class Haibun extends AStepper {
 	steppers: AStepper[] = [];
-	ttsCmd: string;
-	ttsPlay: string;
-	captureStart: string;
-	captureStop: string;
-
+	// eslint-disable-next-line @typescript-eslint/require-await
 	async setWorld(world: TWorld, steppers: AStepper[]) {
-		this.steppers = steppers;
 		this.world = world;
-		this.ttsCmd = getStepperOption(this, 'TTS_CMD', world.moduleOptions);
-		this.ttsPlay = getStepperOption(this, 'TTS_PLAY', world.moduleOptions);
-		this.captureStart = getStepperOption(this, 'CAPTURE_START', world.moduleOptions);
-		this.captureStop = getStepperOption(this, 'CAPTURE_STOP', world.moduleOptions);
-		if ((this.captureStart && !this.captureStop) || (this.captureStop && !this.captureStart)) {
-			throw Error('Capture requires both CAPTURE_START and CAPTURE_STOP');
-		}
-		return Promise.resolve();
+		this.steppers = steppers;
 	}
 
 	steps = {
 		prose: {
-			gwta: '(?<what>.*[.?!])$',
-			action: async (_: TStepArgs, featureStep: TFeatureStep) => await this.maybeSay(featureStep.in),
+			match: /.+[.!?]$/,
+			action: async () => Promise.resolve(OK),
 		},
 		feature: {
 			gwta: 'Feature: {feature}',
-			action: async ({ feature }, featureStep: TFeatureStep) => {
-				if (Array.isArray(feature)) throw new Error('feature must be string');
-				this.getWorld().shared.set('feature', feature as string);
-				return await this.maybeSay(featureStep.in);
-			},
+			action: async () => Promise.resolve(OK),
 		},
-		[SCENARIO_START]: {
+		scenario: {
 			gwta: 'Scenario: {scenario}',
-			action: async ({ scenario }, featureStep: TFeatureStep) => {
-				if (Array.isArray(scenario)) throw new Error('scenario must be string');
-				this.getWorld().shared.set('scenario', scenario as string);
-				return await this.maybeSay(featureStep.in);
-			},
-		},
-		startStepDelay: {
-			gwta: 'step delay of {ms:number}ms',
-			action: ({ ms }) => {
-				this.getWorld().options[STEP_DELAY] = ms as number;
-				return OK;
-			},
+			action: async () => Promise.resolve(OK),
 		},
 		not: {
 			gwta: 'not {what:statement}',
-			action: async ({ what }) => {
-				const executed = await doExecuteFeatureSteps(what as TFeatureStep[], this.steppers, this.getWorld(), true);
-				return executed.ok ? actionNotOK('not statement was true') : OK;
-			},
-		},
-		ifNot: {
-			gwta: 'if not {when:statement}, {what:statement}',
-			precludes: ['Haibun.if'],
-			action: async ({ when, what }) => {
-				const whenSteps = when as TFeatureStep[];
-				let whenResult: TStepResult | undefined;
-				for (const s of whenSteps) {
-					whenResult = await FeatureExecutor.doFeatureStep(this.steppers, s, this.getWorld(), true);
-					if (!whenResult.ok) break;
+			action: async ({ what }: TStepArgs, featureStep: TFeatureStep) => {
+				const list = <TFeatureStep[]>what;
+				let last;
+				for (let i = 0; i < list.length; i++) {
+					const nested = { ...list[i], seqPath: [...featureStep.seqPath, i + 1] };
+					last = await doExecuteFeatureSteps([nested], this.steppers, this.getWorld(), ExecMode.NO_CYCLES);
+					this.getWorld().runtime.stepResults.push(last);
+					if (!last.ok) break;
 				}
-				if (whenResult?.ok) return OK; // condition true -> skip what
-				const whatSteps = what as TFeatureStep[];
-				let lastWhat: TStepResult | undefined;
-				for (const s of whatSteps) {
-					lastWhat = await FeatureExecutor.doFeatureStep(this.steppers, s, this.getWorld(), true);
-					if (!lastWhat.ok) break;
-				}
-				return lastWhat?.ok ? OK : actionNotOK('if not statement failed');
+				if (!last) return actionNotOK('not statement empty');
+				return last.ok ? actionNotOK('not statement was true') : OK;
 			},
 		},
 		if: {
 			gwta: 'if {when:statement}, {what:statement}',
-			action: async ({ when, what }, featureStep: TFeatureStep) => {
-				const whenSteps = when as TFeatureStep[];
-				let whenResult: TStepResult | undefined;
-				for (const s of whenSteps) {
-					whenResult = await FeatureExecutor.doFeatureStep(this.steppers, s, this.getWorld(), true);
-					if (!whenResult.ok) break;
+			action: async ({ when, what }: TStepArgs, featureStep: TFeatureStep) => {
+				const whenList = Array.isArray(when) ? when : [];
+				const whenNested = whenList.map((s, i) => ({ ...s, seqPath: [...featureStep.seqPath, i + 1] }));
+				const whenResult = await doExecuteFeatureSteps(whenNested, this.steppers, this.getWorld(), ExecMode.NO_CYCLES);
+				if (!whenResult.ok) return OK;
+				const whatList = Array.isArray(what) ? what : [];
+				const offset = whenNested.length + 1;
+				let accumulatedOK = true;
+				for (let i = 0; i < whatList.length; i++) {
+					const nested = { ...whatList[i], seqPath: [...featureStep.seqPath, offset + i] };
+					const res = await doExecuteFeatureSteps([nested], this.steppers, this.getWorld(), ExecMode.CYCLES);
+					if (!res.ok) { accumulatedOK = false; break; }
 				}
-				if (!whenResult?.ok) return OK; // condition false => overall step ok
-				const whatSteps = what as TFeatureStep[];
-				const nestedResults: TStepResult[] = [];
-				let lastWhat: TStepResult | undefined;
-				const whatOriginal = featureStep.action.stepValuesMap?.what?.original || '';
-				const includeNested = whatOriginal.includes('Backgrounds:');
-				for (const s of whatSteps) {
-					const r = await FeatureExecutor.doFeatureStep(this.steppers, s, this.getWorld(), true);
-						nestedResults.push(r);
-						lastWhat = r;
-						if (!r.ok) break;
-				}
-				if (includeNested) {
-					this.getWorld().runtime.stepResults.push(...nestedResults);
-				}
-				return lastWhat?.ok ? OK : actionNotOK('if statement failed');
+				return accumulatedOK ? OK : actionNotOK('if body failed');
+			},
+		},
+		startStepDelay: {
+			gwta: 'step delay of {ms:number}ms',
+			action: ({ ms }: TStepArgs) => {
+				this.getWorld().options[STEP_DELAY] = ms as number;
+				return OK;
 			},
 		},
 		endsWith: {
 			gwta: 'ends with {result}',
-			action: ({ result }) => (result as string).toUpperCase() === 'OK' ? actionOK({ messageContext: endExecutonContext }) : actionNotOK('ends with not ok'),
-			check: ({ result }: { result: string }) => {
-				if (['OK', 'NOT OK'].includes(result.toUpperCase())) return true;
+			action: ({ result }: TStepArgs) => (String(result).toUpperCase() === 'OK' ? actionOK({ messageContext: endExecutonContext }) : actionNotOK('ends with not ok')),
+			checkAction: ({ result }: TStepArgs) => {
+				if (['OK', 'NOT OK'].includes(((<string>result).toUpperCase()))) return true;
 				throw Error('must be "OK" or "not OK"');
-			},
+			}
 		},
-			showSteps: {
-				exact: 'show steppers',
-				action: () => {
+		showSteps: {
+			exact: 'show steppers',
+			action: () => {
 				const allSteppers = formattedSteppers(this.steppers);
 				this.world?.logger.info(`Steppers: ${JSON.stringify(allSteppers, null, 2)}`);
 				return actionOK({ messageContext: { incident: EExecutionMessageType.ACTION, incidentDetails: { steppers: allSteppers } } });
-			}
+			},
 		},
 		until: {
 			gwta: 'until {what} is {value}',
-			action: async ({ what, value }) => {
-				if (Array.isArray(what) || Array.isArray(value)) throw new Error('what/value must be strings');
-				while (this.getWorld().shared.get(what as string) !== value) {
-					await sleep(100);
-				}
-				return OK;
-			},
+			action: async ({ what, value }: TStepArgs) => { const key = String(what); while (this.getWorld().shared.get(key) !== value) { await sleep(100); } return OK; },
 		},
 		pauseSeconds: {
-			gwta: 'pause for {ms}s',
-			action: async ({ ms }) => {
-				if (Array.isArray(ms)) throw new Error('ms must be string');
-				const seconds = parseInt(ms as string, 10) * 1000;
-				await sleep(seconds);
-				return OK;
-			},
+			gwta: 'pause for {ms:number}s',
+			action: async ({ ms }: TStepArgs) => { await sleep((ms as number) * 1000); return OK; },
 		},
-		comment: { gwta: ';;{comment}', action: () => OK },
+		comment: {
+			gwta: ';;{comment}',
+			action: () => OK,
+		},
 		afterEveryStepper: {
 			gwta: 'after every {stepperName}, {line}',
 			action: () => OK,
-			applyEffect: async ({ stepperName, line }, currentFeatureStep: TFeatureStep, steppers: AStepper[]) => {
-				if (Array.isArray(stepperName) || Array.isArray(line)) throw new Error('stepperName/line must be strings');
+			applyEffect: async ({ stepperName, line }: TStepArgs, currentFeatureStep: TFeatureStep, steppers: AStepper[]) => {
 				const newSteps: TFeatureStep[] = [currentFeatureStep];
-				if (currentFeatureStep.action.stepperName === (stepperName as string)) {
-					const newFeatureStep = await this.newFeatureFromEffect(line as string, currentFeatureStep.seqPath, steppers);
+				if (typeof stepperName === 'string' && currentFeatureStep.action.stepperName === stepperName) {
+					const newFeatureStep = await this.newFeatureFromEffect(String(line), currentFeatureStep.seqPath, steppers);
 					newSteps.push(newFeatureStep);
 				}
 				return newSteps;
@@ -202,34 +111,10 @@ class Haibun extends AStepper implements IHasOptions, IHasCycles {
 		},
 	};
 
-	async maybeSay(transcript: string) {
-		if (!this.ttsCmd) return OK;
-		const dir = captureLocator(this.world.options, this.world.tag);
-		const { path, durationS } = await copyPreRenderedAudio(dir, this.renderedAudio, transcript);
-		const runtimePath = resolve(dir);
-		const artifact: TArtifactSpeech = { artifactType: 'speech', path, durationS, transcript };
-		if (this.ttsPlay) {
-			const playCmd = this.ttsPlay.replace(/@WHAT@/g, `"${runtimePath}/${path}"`);
-			try {
-				this.world.logger.log(`playing audio: ${playCmd}`);
-				await playAudioFile(playCmd);
-					} catch (error: unknown) {
-						const e = error as { message: string; stderr?: unknown };
-						const stderr = e.stderr ? String(e.stderr) : '';
-						this.world.logger.error(`Error playing audio using ${playCmd}: ${e.message}\nOutput: ${stderr}`);
-						return actionNotOK(`Error playing audio: ${e.message}\nOutput: ${stderr}`);
-			}
-		} else {
-			await sleep(durationS * 1000);
-		}
-		return actionOK({ artifact });
-	}
-
 	async newFeatureFromEffect(content: string, parentSeqPath: number[], steppers: AStepper[]): Promise<TFeatureStep> {
 		const features = asFeatures([{ path: `resolved from ${content}`, content }]);
 		const expandedFeatures = await expand({ backgrounds: [], features });
 		const featureSteps = await new Resolver(steppers).findFeatureSteps(expandedFeatures[0]);
-		// first injected child index = 1
 		return { ...featureSteps[0], seqPath: [...parentSeqPath, 1] };
 	}
 }

@@ -2,7 +2,7 @@ import { StdioClientTransport, StdioServerParameters } from '@modelcontextprotoc
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 
 import { BasePromptManager } from '@haibun/core/lib/base-prompt-manager.js';
-import { AStepper, IHasCycles, IHasOptions } from '@haibun/core/lib/astepper.js';
+import { AStepper, IHasCycles, IHasOptions, TStepperSteps } from '@haibun/core/lib/astepper.js';
 import { TWorld, TStepArgs, IStepperCycles } from '@haibun/core/lib/defs.js';
 import { actionNotOK, actionOK, getStepperOption, stringOrError } from '@haibun/core/lib/util/index.js';
 import { currentVersion as version } from '@haibun/core/currentVersion.js';
@@ -221,7 +221,7 @@ class MCPClientStepper extends AStepper implements IHasOptions, IHasCycles {
 		}
 	}
 
-	steps = {
+	steps: TStepperSteps = {
 		checkAndNotifyExistingPrompts: {
 			gwta: `check and notify existing prompts`,
 			action: async () => {
@@ -400,8 +400,8 @@ class MCPClientStepper extends AStepper implements IHasOptions, IHasCycles {
 
 					const prompt: TPrompt = {
 						id: 'test-' + Math.random().toString(36).slice(2),
-						message,
-						options: options ? options.split(',').map(o => o.trim()) : undefined
+						message: String(message),
+						options: options ? String(options).split(',').map(o => o.trim()) : undefined
 					};
 
 					// Try to call a prompt handling tool on the MCP server
@@ -446,7 +446,7 @@ class MCPClientStepper extends AStepper implements IHasOptions, IHasCycles {
 		},
 		promptViaMcpWithContext: {
 			gwta: `prompt via mcp {message} with context {context} and options {options}`,
-			action: async ({ message, context, options }: TStepArgs) => {
+			action: async ({ message, context, options }: { message: string, context: string, options: string }) => {
 				try {
 					const client = await this.getClient();
 

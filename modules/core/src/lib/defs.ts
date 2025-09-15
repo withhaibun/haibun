@@ -103,18 +103,14 @@ const example: TResolvedFeature = {
 export type TFeatureStep = {
 	path: string;
 	in: string;
-	// hierarchical ordering; top-level steps have single element [n], injected / expanded children append indices
 	seqPath: number[];
 	action: TStepAction;
 };
 
-// Step argument values passed to actions: simple label -> resolved string value.
-// Unified type (previous alias TNamed removed).
-// Step argument bag at runtime. Supports strings, numbers (parsed from placeholders with : number), and future statement arrays.
 export type TStepArgs = { [name: string]: string | number | TFeatureStep[] };
 
-// Allow step actions to return either a Promise or a direct result for ergonomic plain functions.
-export type TAction = (args: TStepArgs, featureStep: TFeatureStep) => Promise<TActionResult> | TActionResult;
+export type TAction<Args = TStepArgs> = (args: Args, featureStep: TFeatureStep) => Promise<TActionResult> | TActionResult;
+export type TCheckAction<Args = TStepArgs> = (args: Args, featureStep: TFeatureStep) => Promise<boolean> | boolean;
 
 export type TStepperStep = {
 	precludes?: string[];
@@ -123,6 +119,7 @@ export type TStepperStep = {
 	gwta?: string;
 	exact?: string;
 	action: TAction;
+	checkAction?: TCheckAction;
 	applyEffect?: TApplyEffect;
 };
 
@@ -299,4 +296,10 @@ export const CHECK_YIELD = '🔀'
 
 export const STEP_DELAY = 'STEP_DELAY';
 export const DEFAULT_DEST = 'default';
-export const CONTINUE_AFTER_ERROR = 'CONTINUE_AFTER_ERROR'; export const SCENARIO_START = 'scenarioStart';
+export const CONTINUE_AFTER_ERROR = 'CONTINUE_AFTER_ERROR'; export const SCENARIO_START = 'scenario';
+
+export enum ExecMode {
+	CYCLES = 'CYCLES',
+	NO_CYCLES = 'NO_CYCLES',
+	PROMPT = 'PROMPT',
+}

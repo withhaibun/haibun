@@ -1,4 +1,4 @@
-import { TFeatureStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, TStepAction, STAY, STAY_FAILURE, CHECK_NO, CHECK_YES, CHECK_YIELD, STEP_DELAY, TNotOKActionResult, CONTINUE_AFTER_ERROR, TEndFeature, StepperMethodArgs, TBeforeStep, TAfterStep, TStepArgs, IStepperCycles } from '../lib/defs.js';
+import { TFeatureStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, TStepAction, STAY, STAY_FAILURE, CHECK_NO, CHECK_YES, CHECK_YIELD, STEP_DELAY, TNotOKActionResult, CONTINUE_AFTER_ERROR, TEndFeature, StepperMethodArgs, TBeforeStep, TAfterStep, TStepArgs, IStepperCycles, ExecMode } from '../lib/defs.js';
 import { TAnyFixme } from '../lib/fixme.js';
 import { AStepper } from '../lib/astepper.js';
 import { EExecutionMessageType, TMessageContext } from '../lib/interfaces/logger.js';
@@ -145,31 +145,39 @@ export class FeatureExecutor {
 		return featureResult;
 	}
 
-	static async doFeatureStep(steppers: AStepper[], featureStep: TFeatureStep, world: TWorld, noCycles = false): Promise<TStepResult> {
+	static async doFeatureStep(steppers: AStepper[], featureStep: TFeatureStep, world: TWorld, execMode: ExecMode = ExecMode.CYCLES): Promise<TStepResult> {
 		let ok = true;
 
-		// FIXME feature should really be attached to the featureStep
-		const action = featureStep.action;
+		const { action } = featureStep;
 		const start = Timer.since();
-		// resolve (async) step arguments including any nested statement placeholders
 		const args = await getStepArgs(action, world, featureStep, steppers);
-		world.logger.log(featureStep.in, { incident: EExecutionMessageType.STEP_START, tag: world.tag, incidentDetails: { featureStep, args } });
+		const isFullCycles = execMode === ExecMode.CYCLES;
+		const isPrompt = execMode === ExecMode.PROMPT;
+		if (isFullCycles) {
+			world.logger.log(featureStep.in, { incident: EExecutionMessageType.STEP_START, tag: world.tag, incidentDetails: { featureStep, args } });
+		}
 
-		!noCycles && await doStepperCycle(steppers, 'beforeStep', <TBeforeStep>({ featureStep }));
+		isFullCycles && await doStepperCycle(steppers, 'beforeStep', <TBeforeStep>({ featureStep }));
 		const actionResult: Partial<TActionResult> = await Executor.action(steppers, featureStep, action, args, world);
-		const indicator = (noCycles ? CHECK_YIELD : (actionResult.ok ? CHECK_YES : `${CHECK_NO} (${(<TNotOKActionResult>actionResult).message})`));
 
-		const messageContext: TMessageContext = {
+		const baseContext = {
 			artifacts: actionResult.artifact ? [actionResult.artifact] : undefined,
-			incident: EExecutionMessageType.STEP_END,
 			tag: world.tag,
 			incidentDetails: { actionResult, featureStep }
+		};
+		if (isFullCycles) {
+			const messageContext: TMessageContext = { ...baseContext, incident: EExecutionMessageType.STEP_END };
+			world.logger.log((actionResult.ok ? CHECK_YES : `${CHECK_NO} (${(<TNotOKActionResult>actionResult).message})`), messageContext);
+			await doStepperCycle(steppers, 'afterStep', <TAfterStep>({ featureStep, actionResult }), action.actionName);
+		} else if (isPrompt) {
+			const messageContext: TMessageContext = { ...baseContext, incident: EExecutionMessageType.ACTION, incidentDetails: { ...baseContext.incidentDetails, execMode, prompt: true } };
+			world.logger.log((actionResult.ok ? CHECK_YES : `${CHECK_NO} (${(<TNotOKActionResult>actionResult).message})`) + ` ${featureStep.in}`, messageContext);
+		} else {
+			const messageContext: TMessageContext = { ...baseContext, incident: EExecutionMessageType.ACTION, incidentDetails: { ...baseContext.incidentDetails, execMode } };
+			world.logger.log(`${CHECK_YIELD} ${featureStep.in}`, messageContext);
 		}
-		world.logger.log(indicator, messageContext);
-		!noCycles && await doStepperCycle(steppers, 'afterStep', <TAfterStep>({ featureStep, actionResult }), action.actionName);
 
 		const end = Timer.since();
-		// FIXME
 		const stepActionResult: TStepActionResult = { ...actionResult, name: action.actionName, start, end } as TStepActionResult;
 		ok = ok && actionResult.ok;
 
