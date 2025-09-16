@@ -13,6 +13,7 @@ import { getDefaultTag } from '@haibun/core/lib/test/lib.js';
 import { isProcessFeatureResults, IHasOptions } from '@haibun/core/lib/astepper.js';
 import { FeatureVariables } from '@haibun/core/lib/feature-variables.js';
 import { Prompter } from '@haibun/core/lib/prompter.js';
+import { getCoreDomains } from '@haibun/core/lib/domain-types.js';
 
 const OPTION_CONFIG = '--config';
 const OPTION_HELP = '--help';
@@ -74,7 +75,7 @@ function getCliWorld(protoOptions: TProtoOptions, bases: TBase): TWorld {
 
 	Timer.key = keyIn || Timer.key;
 
-	const world: TWorld = {
+	const world: Partial<TWorld> = {
 		tag,
 		shared,
 		runtime: {},
@@ -84,7 +85,8 @@ function getCliWorld(protoOptions: TProtoOptions, bases: TBase): TWorld {
 		timer,
 		bases,
 	};
-	return world;
+	world.domains = getCoreDomains(world as TWorld)
+	return world as TWorld;
 }
 
 async function getSpeclOrExit(bases: TBase): Promise<TSpecl> {

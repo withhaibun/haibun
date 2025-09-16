@@ -1,7 +1,7 @@
 import { TWorld, TResolvedFeature, TFeatureStep, TStepperStep } from './lib/defs.js';
 import { TAnyFixme } from './lib/fixme.js';
 import { AStepper } from './lib/astepper.js';
-import { getStepArgs } from './lib/namedVars.js';
+import { simplifyStepArgs } from './lib/simplifyStepArgs.js';
 import { constructorName } from './lib/util/index.js';
 
 export async function applyEffectFeatures(world: TWorld, resolvedFeatures: TResolvedFeature[], steppers: AStepper[]): Promise<TResolvedFeature[]> {
@@ -18,7 +18,7 @@ export async function applyEffectFeatures(world: TWorld, resolvedFeatures: TReso
 
 			if (stepper?.steps[action.actionName].applyEffect) {
 				const applier = stepper?.steps[action.actionName];
-				appliers.push({ applier, namedWithVars: await getStepArgs(featureStep.action, world, featureStep, steppers) });
+				appliers.push({ applier, namedWithVars: simplifyStepArgs(featureStep) });
 			} else if (appliers.length > 0) {
 				newSteps = [];
 				for (const a of appliers) {

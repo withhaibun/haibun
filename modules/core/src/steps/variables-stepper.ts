@@ -2,6 +2,7 @@ import { OK, TStepArgs, TFeatureStep, TWorld, IStepperCycles, TStartScenario } f
 import { TAnyFixme } from '../lib/fixme.js';
 import { AStepper, IHasCycles } from '../lib/astepper.js';
 import { actionNotOK, actionOK } from '../lib/util/index.js';
+import { DOMAIN_STRING } from '../lib/domain-types.js';
 import { FeatureVariables } from '../lib/feature-variables.js';
 
 const clearVars = (vars) => async () => {
@@ -20,12 +21,24 @@ const cycles = (variablesStepper: VariablesStepper): IStepperCycles => ({
 
 class VariablesStepper extends AStepper implements IHasCycles {
 	cycles = cycles(this);
-	set = async (named: TStepArgs, featureStep: TFeatureStep) => {
-		// FIXME see https://github.com/withhaibun/haibun/issues/18
+	steppers: AStepper[];
+	async setWorld(world: TWorld, steppers: AStepper[]) {
+		this.world = world;
+		this.steppers = steppers;
+		await Promise.resolve();
+	}
+	set = (args: TStepArgs, featureStep: TFeatureStep) => {
 		const emptyOnly = !!featureStep.in.match(/set empty /);
-		if (Array.isArray(named.what) || Array.isArray(named.value)) throw new Error('what/value must be strings');
-		const res = setShared(named as TStepArgs, featureStep, this.getWorld(), emptyOnly);
-		return Promise.resolve(res);
+		// Always treat the variable name as the label, not a resolved env/var value.
+		const what = featureStep.action.stepValuesMap.what.label;
+		const { domains, shared } = this.getWorld();
+		if (emptyOnly && shared.get(what) !== undefined) return OK;
+		const label = featureStep.action.stepValuesMap.what.label;
+		const domain = featureStep.action.stepValuesMap.what.domain;
+		const value = domains[domain].coerce(label, this.steppers);
+		console.log('f🤑', JSON.stringify(value, null, 2));
+		shared.set({ label: what, value, domain, origin: 'literal' });
+		return OK;
 	};
 	checkIsSet(what: string,) {
 		return this.getVarValue(what) !== undefined;
@@ -48,7 +61,11 @@ class VariablesStepper extends AStepper implements IHasCycles {
 	steps = {
 		combine: {
 			gwta: 'combine {p1} and {p2} as {what}',
-			action: async ({ p1, p2, what }: TStepArgs, featureStep: TFeatureStep) => await this.set({ what: what as string, value: `${p1 as string}${p2 as string}` }, featureStep)
+			action: async ({ p1, p2 }: TStepArgs, featureStep: TFeatureStep) => {
+				const label = featureStep.action.stepValuesMap.what.label;
+				const what = (label !== undefined ? label : featureStep.action.stepValuesMap?.what?.value) as string;
+				return await this.set({ what, value: `${p1 as string}${p2 as string}` }, featureStep);
+			}
 		},
 		showEnv: {
 			gwta: 'show env', export: false,
@@ -91,16 +108,3 @@ export default VariablesStepper;
 export const didNotOverwrite = (what: string, present: string, value: string) => ({
 	overwrite: { summary: `did not overwrite ${what} value of "${present}" with "${value}"` },
 });
-
-export const setShared = ({ what, value }: TStepArgs, featureStep: TFeatureStep, world: TWorld, emptyOnly = false) => {
-	if (Array.isArray(what) || Array.isArray(value)) throw new Error('what/value must be strings');
-	const { shared } = world;
-
-	if (!emptyOnly || shared.get(what as string) === undefined) {
-		shared.set(what as string, value as string);
-
-		return OK;
-	}
-
-	return OK;
-};

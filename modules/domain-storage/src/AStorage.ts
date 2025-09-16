@@ -1,10 +1,9 @@
 import { resolve } from 'path';
 import { pathToFileURL } from 'url';
 
-import { CAPTURE, OK, TNamed, TWorld } from '@haibun/core/lib/defs.js';
+import { CAPTURE, OK, TStepArgs, TWorld } from '@haibun/core/lib/defs.js';
 import { captureLocator } from '@haibun/core/lib/capture-locator.js';
 import { actionNotOK } from '@haibun/core/lib/util/index.js';
-import { setShared } from '@haibun/core/steps/variables-stepper.js';
 import { guessMediaType, IFile, TLocationOptions } from './domain-storage.js';
 import { EMediaTypes, TMediaType } from './media-types.js';
 import { AStepper } from '@haibun/core/lib/astepper.js';
@@ -24,7 +23,7 @@ export abstract class AStorage extends AStepper {
 
 	async readFlat(dir: string, filter?: string): Promise<IFile[]> {
 		const entries = await this.readdirStat(dir);
-		const tree = [];
+		const tree: IFile[] = [];
 		for (const e of entries) {
 			if (e.isDirectory) {
 				const sub = await this.readFlat(e.name.replace(/^\/\//, '/'), filter);
@@ -38,7 +37,7 @@ export abstract class AStorage extends AStepper {
 
 	async readTree(dir: string, filter?: string): Promise<TTree> {
 		const entries = await this.readdirStat(dir);
-		const tree = [];
+		const tree: TTree = [];
 		for (const e of entries) {
 			if (e.isDirectory) {
 				const sub = await this.readTree(e.name.replace(/^\/\//, '/'), filter);
@@ -52,7 +51,7 @@ export abstract class AStorage extends AStepper {
 
 	async readdirStat(dir: string): Promise<IFile[]> {
 		const files = await this.readdir(dir);
-		const mapped = [];
+		const mapped: IFile[] = [];
 		for (const file of files) {
 			const f = await this.lstatToIFile(`${dir}/${file}`);
 			mapped.push(f);
@@ -89,10 +88,6 @@ export abstract class AStorage extends AStepper {
 	/**
 	 * Returns a storage specific resolved path for a given media type.
 	 * Overload this where slash directory conventions aren't used.
-	 *
-	 * @param mediaType
-	 * @param where
-	 * @returns string
 	 */
 	fromLocation(mediaType: TMediaType, ...where: string[]) {
 		return where.map((w) => w.replace(/\/$/, '')).join('/');
@@ -140,75 +135,66 @@ export abstract class AStorage extends AStepper {
 	steps = {
 		createSizedFile: {
 			gwta: `create {x}MB file at {where} with {what}`,
-			action: async ({ where, what }: TNamed) => {
-				await this.writeFile(where, what, EMediaTypes.html);
+				action: async ({ where, what }: TStepArgs) => {
+				await this.writeFile(String(where), String(what), EMediaTypes.html);
 				return OK;
 			},
 		},
 		createFile: {
 			gwta: `create file at {where} with {what}`,
-			action: async ({ where, what }: TNamed) => {
-				await this.writeFile(where, what, EMediaTypes.html);
+				action: async ({ where, what }: TStepArgs) => {
+				await this.writeFile(String(where), String(what), EMediaTypes.html);
 				return OK;
 			},
 		},
 		createDirectory: {
 			gwta: `create directory at {where}`,
-			action: async ({ where }: TNamed) => {
-				await this.mkdirp(where);
+				action: async ({ where }: TStepArgs) => {
+				await this.mkdirp(String(where));
 				return OK;
 			},
 		},
 		filesCount: {
 			gwta: `directory {where} has {count} files`,
-			action: async ({ where, count }: TNamed) => {
-				const files = await this.readdir(where);
-				return files.length === parseInt(count) ? OK : actionNotOK(`directory ${where} has ${files.length} files`);
-			},
-		},
-		fromFile: {
-			gwta: `from {where} set {what}`,
-			action: async ({ where, what }: TNamed, featureStep) => {
-				const text = await this.readFile(where, 'utf-8');
-				setShared({ what, value: text }, featureStep, this.getWorld());
-
-				return OK;
+				action: async ({ where, count }: TStepArgs) => {
+				const files = await this.readdir(String(where));
+				return files.length === parseInt(String(count)) ? OK : actionNotOK(`directory ${where} has ${files.length} files`);
 			},
 		},
 		testIs: {
 			gwta: `text at {where} is {what}`,
-			action: async ({ where, what }: TNamed) => {
-				const text = await this.readFile(where, 'utf-8');
-				return text === what ? OK : actionNotOK(`text at ${where} is not ${what}; it's ${text}`);
+				action: async ({ where, what }: TStepArgs) => {
+				const text = await this.readFile(String(where), 'utf-8');
+				return text === String(what) ? OK : actionNotOK(`text at ${where} is not ${what}; it's ${text}`);
 			},
 		},
 		testContains: {
 			gwta: `text at {where} contains {what}`,
-			action: async ({ where, what }: TNamed) => {
-				const text = await this.readFile(where, 'utf-8');
-				return text.toString().indexOf(what) > -1 ? OK : actionNotOK(`text at ${where} does not contain ${what}; it's ${text}`);
+				action: async ({ where, what }: TStepArgs) => {
+				const text = await this.readFile(String(where), 'utf-8');
+				return text.toString().indexOf(String(what)) > -1 ? OK : actionNotOK(`text at ${where} does not contain ${what}; it's ${text}`);
 			},
 		},
 		readText: {
 			gwta: `read text from {where}`,
-			action: async ({ where }: TNamed) => {
-				const text = await this.readFile(where, 'utf-8');
+				action: async ({ where }: TStepArgs) => {
+				const text = await this.readFile(String(where), 'utf-8');
 				this.getWorld().logger.info(text);
 				return OK;
 			},
 		},
 		listFiles: {
 			gwta: `list files from {where}`,
-			action: async ({ where }: TNamed) => {
-				const files = await this.readdir(where);
+				action: async ({ where }: TStepArgs) => {
+				const files = await this.readdir(String(where));
 				this.getWorld().logger.info(`files from ${where}: ${files.join(', ')}`);
 				return OK;
 			},
 		},
 		clearFiles: {
 			gwta: `clear files matching {where}`,
-			action: async ({ where }: TNamed) => {
-				const dirs = where.split(',').map((d) => d.trim());
+				action: async ({ where }: TStepArgs) => {
+				const dirs = String(where).split(',').map((d) => d.trim());
 				for (const dir of dirs) {
 					await this.rmrf(dir);
 				}
@@ -217,8 +203,8 @@ export abstract class AStorage extends AStepper {
 		},
 		fileExists: {
 			gwta: `storage entry {what} exists`,
-			action: async ({ what }: TNamed) => {
-				const exists = this.exists(what);
+				action: async ({ what }: TStepArgs) => {
+				const exists = this.exists(String(what));
 				return Promise.resolve(exists ? OK : actionNotOK(`file ${what} does not exist`));
 			},
 		},
@@ -231,9 +217,9 @@ export abstract class AStorage extends AStepper {
 		},
 		isTheSame: {
 			gwta: `{what} is the same as {where}`,
-			action: async ({ what, where }: TNamed) => {
-				const c1 = this.readFile(what, 'binary');
-				const c2 = this.readFile(where, 'binary');
+				action: async ({ what, where }: TStepArgs) => {
+				const c1 = this.readFile(String(what), 'binary');
+				const c2 = this.readFile(String(where), 'binary');
 				return Promise.resolve(Buffer.from(c1)?.equals(Buffer.from(c2)) ? OK : actionNotOK(`contents are not the same ${what} ${where}`));
 			},
 		},

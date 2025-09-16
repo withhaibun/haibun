@@ -6,20 +6,17 @@ export const cred = (key: string) => `__cred_${key}`;
 
 class Credentials extends AStepper {
 	generateRandomUsername(ref: string) {
-		this.getWorld().shared.set(cred(ref), randomString());
+		this.getWorld().shared.set({ label: cred(ref), value: randomString(), domain: 'string', origin: 'literal' });
 		return this.getWorld().shared.get(cred(ref));
 	}
 
 	generateRandomPassword(ref: string) {
-		this.getWorld().shared.set(
-			cred(ref),
-			[
-				'testpass',
-				Math.floor(Math.random() * 1e8)
-					.toString(36)
-					.toUpperCase(),
-			].join('_')
-		);
+		this.getWorld().shared.set({
+			label: cred(ref),
+			value: ['testpass', Math.floor(Math.random() * 1e8).toString(36).toUpperCase(),].join('_'),
+			domain: 'string',
+			origin: 'literal',
+		});
 		return this.getWorld().shared.get(cred(ref));
 	}
 	getRandom(name: string) {

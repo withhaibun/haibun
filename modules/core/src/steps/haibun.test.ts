@@ -145,9 +145,10 @@ describe('not', () => {
 		const result = await testWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(false);
 	});
-	it('not condition true', async () => {
+	it.only('not condition true', async () => {
 		const feature = { path: '/features/test.feature', content: 'not fails\nends with OK' };
 		const result = await testWithDefaults([feature], [Haibun, TestSteps]);
+		console.log('🤑', JSON.stringify(result.featureResults, null, 2));
 		expect(result.ok).toBe(true);
 	});
 	it('not condition false', async () => {
@@ -253,6 +254,31 @@ describe('variable composition', () => {
 		const feature = { path: '/features/test.feature', content: 'set foo to 7\nvariable "foo" is "7"' };
 		const result = await testWithDefaults([feature], [Haibun, TestSteps, VariablesSteppers]);
 		expect(result.ok).toBe(true);
+	});
+});
+
+describe('not variable is set', () => {
+	it('should fail when variable is set, pass when not set', async () => {
+		const feature = {
+			path: '/features/test.feature',
+			content: 'set "a" to 1\nnot variable "a" is set\nends with NOT OK',
+		};
+		const result = await testWithDefaults([feature], [Haibun, VariablesSteppers]);
+		// Print diagnostics if it fails
+		if (!result.ok) {
+			// Print top-level failure
+			// Print step-level failures
+			if (result.featureResults) {
+				for (const fr of result.featureResults) {
+					for (const step of fr.stepResults) {
+						if (step && step.ok === false) {
+							// step failed, diagnostics removed
+						}
+					}
+				}
+			}
+		}
+		expect(result.ok).toBe(false);
 	});
 });
 

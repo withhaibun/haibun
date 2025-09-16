@@ -1,13 +1,13 @@
-import { TFeatureStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, TStepAction, STAY, STAY_FAILURE, CHECK_NO, CHECK_YES, CHECK_YIELD, STEP_DELAY, TNotOKActionResult, CONTINUE_AFTER_ERROR, TEndFeature, StepperMethodArgs, TBeforeStep, TAfterStep, TStepArgs, IStepperCycles, ExecMode } from '../lib/defs.js';
+import { TFeatureStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, TStepAction, STAY, STAY_FAILURE, CHECK_NO, CHECK_YES, CHECK_YIELD, STEP_DELAY, TNotOKActionResult, CONTINUE_AFTER_ERROR, TEndFeature, StepperMethodArgs, TBeforeStep, TAfterStep, IStepperCycles, ExecMode, TStepArgs } from '../lib/defs.js';
 import { TAnyFixme } from '../lib/fixme.js';
 import { AStepper } from '../lib/astepper.js';
 import { EExecutionMessageType, TMessageContext } from '../lib/interfaces/logger.js';
 import { topicArtifactLogger } from '../lib/Logger.js';
-import { getStepArgs } from '../lib/namedVars.js';
 import { actionNotOK, sleep, findStepper, constructorName, setStepperWorlds } from '../lib/util/index.js';
 import { SCENARIO_START } from '../lib/defs.js';
 import { Timer } from '../lib/Timer.js';
 import { FeatureVariables } from '../lib/feature-variables.js';
+import { simplifyStepArgs } from '../lib/simplifyStepArgs.js';
 
 export const endExecutonContext: TMessageContext = { incident: EExecutionMessageType.ACTION, incidentDetails: { end: true } };
 
@@ -150,7 +150,7 @@ export class FeatureExecutor {
 
 		const { action } = featureStep;
 		const start = Timer.since();
-		const args = await getStepArgs(action, world, featureStep, steppers);
+		const args = await simplifyStepArgs(featureStep);
 		const isFullCycles = execMode === ExecMode.CYCLES;
 		const isPrompt = execMode === ExecMode.PROMPT;
 		if (isFullCycles) {
@@ -170,7 +170,7 @@ export class FeatureExecutor {
 			world.logger.log((actionResult.ok ? CHECK_YES : `${CHECK_NO} (${(<TNotOKActionResult>actionResult).message})`), messageContext);
 			await doStepperCycle(steppers, 'afterStep', <TAfterStep>({ featureStep, actionResult }), action.actionName);
 		} else if (isPrompt) {
-			const messageContext: TMessageContext = { ...baseContext, incident: EExecutionMessageType.ACTION, incidentDetails: { ...baseContext.incidentDetails, execMode, prompt: true } };
+			const messageContext: TMessageContext = { ...baseContext, incident: EExecutionMessageType.ACTION, incidentDetails: { ...baseContext.incidentDetails, execMode } };
 			world.logger.log((actionResult.ok ? CHECK_YES : `${CHECK_NO} (${(<TNotOKActionResult>actionResult).message})`) + ` ${featureStep.in}`, messageContext);
 		} else {
 			const messageContext: TMessageContext = { ...baseContext, incident: EExecutionMessageType.ACTION, incidentDetails: { ...baseContext.incidentDetails, execMode } };

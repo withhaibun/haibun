@@ -1,7 +1,8 @@
 import { Download, Page, Response } from "playwright";
+type ClickResult = import('playwright').Locator;
 
-import { OK } from "@haibun/core/lib/defs.js";
-import { WEB_CONTROL, WEB_PAGE } from "@haibun/core/lib/domain-types.js";
+import { OK, TFeatureStep } from "@haibun/core/lib/defs.js";
+import { WEB_CONTROL, WEB_PAGE, DOMAIN_PAGE_LOCATOR, DOMAIN_STRING } from "@haibun/core/lib/domain-types.js";
 import { actionNotOK, sleep } from "@haibun/core/lib/util/index.js";
 import { WebPlaywright } from "./web-playwright.js";
 import { BROWSERS } from "./BrowserFactory.js";
@@ -9,8 +10,6 @@ import { EExecutionMessageType } from "@haibun/core/lib/interfaces/logger.js";
 import { actionOK } from "@haibun/core/lib/util/index.js";
 import { pathToFileURL } from 'node:url';
 
-const isCssSelector = (what: string) => /^[/.#]|\(.*\)|\[.*\]/.test(what);
-const asText = (what: string) => `*:text-is('${what}')`;
 
 export const interactionSteps = (wp: WebPlaywright) => ({
 	// INPUT
@@ -72,16 +71,15 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 		action: async ({ text }: { text: string }) => await wp.sees(text, 'body'),
 	},
 	waitFor: {
-		gwta: 'wait for {what}',
-		action: async ({ what }: { what: string }) => {
-			const selector = isCssSelector(what) ? what : `text=${what}`;
+		gwta: 'wait for {target}',
+		action: async ({ target }: { target: string }, featureStep: TFeatureStep) => {
+			const selector = selectorFromFeatureStep('target', target, featureStep);
 			try {
 				await wp.withPage(async (page: Page) => await page.locator(selector).waitFor());
 				return OK;
 			} catch (e) {
-				// fall through
+				return actionNotOK(`Did not find ${selector}`);
 			}
-			return actionNotOK(`Did not find ${what}`);
 		},
 	},
 
@@ -212,32 +210,31 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 
 	//                  CLICK
 	click: {
-		gwta: `click {what}`,
-		action: async ({ what }: { what: string }) => {
-			const selector = isCssSelector(what) ? what : asText(what);
+		gwta: `click {target}`,
+		action: async ({ target }: { target: string }, featureStep: TFeatureStep) => {
+			const selector = selectorFromFeatureStep('target', target, featureStep);
 			await wp.withPage(async (page: Page) => await page.locator(selector).click());
 			return OK;
 		},
 	},
 	clickBy: {
 		precludes: [`${wp.constructor.name}.click`],
-		gwta: `click {what} by {method}`,
-		action: async ({ what, method }: { what: string; method: string }) => {
+		gwta: 'click {target} by {method}',
+		action: async ({ target, method }: { target: string; method: string }) => {
 			let withModifier: Record<string, unknown> = {};
 
-			type ClickResult = import('playwright').Locator;
 			const bys: Record<string, (page: Page) => ClickResult | Promise<void>> = {
-				'alt text': (page: Page) => page.getByAltText(what),
-				'test id': (page: Page) => page.getByTestId(what),
-				placeholder: (page: Page) => page.getByPlaceholder(what),
-				role: (page: Page) => page.getByRole(what as Parameters<Page['getByRole']>[0]),
-				label: (page: Page) => page.getByLabel(what),
-				title: (page: Page) => page.getByTitle(what),
-				text: (page: Page) => page.getByText(what, { exact: true }),
-				dispatch: (page: Page) => page.locator(what).dispatchEvent('click'),
+				'alt text': (page: Page) => page.getByAltText(target),
+				'test id': (page: Page) => page.getByTestId(target),
+				placeholder: (page: Page) => page.getByPlaceholder(target),
+				role: (page: Page) => page.getByRole(target as Parameters<Page['getByRole']>[0]),
+				label: (page: Page) => page.getByLabel(target),
+				title: (page: Page) => page.getByTitle(target),
+				text: (page: Page) => page.getByText(target, { exact: true }),
+				dispatch: (page: Page) => page.locator(target).dispatchEvent('click'),
 				modifier: (page: Page) => {
 					withModifier = JSON.parse(method);
-					return page.locator(what);
+					return page.locator(target);
 				},
 			};
 			if (!bys[method]) {
@@ -526,3 +523,15 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 		},
 	}
 });
+
+function selectorFromFeatureStep(label: string, raw: string, featureStep: TFeatureStep): string {
+	const sv = featureStep.action.stepValuesMap?.[label];
+	if (!sv) return `*:text-is('${escapeText(raw)}')`;
+	const domain = sv.domain;
+	console.log('🤑', JSON.stringify(sv, null, 2));
+	if (domain === DOMAIN_PAGE_LOCATOR) return String(sv.value);
+	if (domain === DOMAIN_STRING) return `*:text-is('${escapeText(String(sv.value))}')`;
+	throw Error(`unsupported domain '${domain}' for locator '${label}'`);
+}
+
+function escapeText(inp: string) { return (inp || '').replace(/'/g, "\\'"); }

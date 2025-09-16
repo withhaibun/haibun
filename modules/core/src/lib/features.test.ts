@@ -90,7 +90,7 @@ describe('expand features', () => {
 
 describe('env vars', () => {
 	it('env or var or literal finds env', async () => {
-		const feature = { path: '/features/test.feature', content: `set "what" to "var"\nset x to {what}` };
+		const feature = { path: '/features/test.feature', content: `set "what" to "var"\nset x to $what$` };
 		const envVariables = { what: 'env' };
 		const { world } = await testWithDefaults([feature], varsStepper, {
 			options: { DEST: DEFAULT_DEST, envVariables },

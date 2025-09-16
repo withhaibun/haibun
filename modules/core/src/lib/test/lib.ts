@@ -1,4 +1,5 @@
 import { TWorld, TProtoOptions, CStepper, DEFAULT_DEST, TExecutorResult } from '../defs.js';
+import { getCoreDomains } from '../domain-types.js';
 import { createSteppers } from './../util/index.js';
 import { getRunTag } from '../ttag.js';
 import { getSteppers } from '../util/workspace-lib.js';
@@ -53,7 +54,7 @@ export function getTestWorldWithOptions(protoOptions: TProtoOptions = DEF_PROTO_
 }
 
 export function getDefaultWorld(sequence: number, env = process.env): TWorld {
-	return {
+	const world: Partial<TWorld> = {
 		timer: new Timer(),
 		tag: getRunTag(sequence, 0),
 		shared: new FeatureVariables(getDefaultTag(sequence).toString()),
@@ -64,6 +65,8 @@ export function getDefaultWorld(sequence: number, env = process.env): TWorld {
 		moduleOptions: {},
 		bases: ['/features/'],
 	};
+	world.domains = getCoreDomains(world as TWorld);
+	return world as TWorld;
 }
 
 export function getDefaultTag(sequence: number, desc: string | undefined = undefined) {

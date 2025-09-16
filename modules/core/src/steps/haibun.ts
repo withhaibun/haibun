@@ -32,6 +32,7 @@ class Haibun extends AStepper {
 		not: {
 			gwta: 'not {what:statement}',
 			action: async ({ what }: TStepArgs, featureStep: TFeatureStep) => {
+				console.log('🤑', JSON.stringify(what, null, 2));
 				const list = <TFeatureStep[]>what;
 				let last;
 				for (let i = 0; i < list.length; i++) {
@@ -92,6 +93,13 @@ class Haibun extends AStepper {
 		pauseSeconds: {
 			gwta: 'pause for {ms:number}s',
 			action: async ({ ms }: TStepArgs) => { await sleep((ms as number) * 1000); return OK; },
+		},
+		showDomains: {
+			gwta: 'show domains',
+			action: () => {
+				this.getWorld().logger.info(`Domains: ${JSON.stringify(this.getWorld().domains, null, 2)}`);
+				return OK;
+			}
 		},
 		comment: {
 			gwta: ';;{comment}',

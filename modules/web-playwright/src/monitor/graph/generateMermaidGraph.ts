@@ -21,7 +21,7 @@ export async function generateMermaidGraph(resolvedFeatures: TResolvedFeature[],
 	const envVars = new Set<string>();
 	for (const f of resolvedFeatures) {
 		for (const step of f.featureSteps) {
-			for (const { source, value } of Object.values(step.action.stepValuesMap || {})) {
+			for (const { origin: source, value } of Object.values(step.action.stepValuesMap || {})) {
 				if (source === 'env' && typeof value === 'string') envVars.add(value);
 			}
 		}
@@ -97,7 +97,7 @@ export async function generateMermaidGraph(resolvedFeatures: TResolvedFeature[],
 				if (showVariables && step.action!.stepValuesMap && step.action!.actionName !== 'scenarioStart') {
 					const definedScenarioVarsForStep = new Set<string>();
 					Object.entries(step.action.stepValuesMap).forEach(([name, sv]) => {
-						const { source, value } = sv;
+						const { origin: source, value } = sv;
 						if (value == null) return;
 						if (source === 'env' && typeof value === 'string') {
 							graphLines.push(`${indent}${newStepId} -.-> env_${sanitize(value)}`);

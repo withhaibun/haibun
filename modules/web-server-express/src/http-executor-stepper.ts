@@ -1,5 +1,5 @@
 import { AStepper, IHasCycles, IHasOptions } from '@haibun/core/lib/astepper.js';
-import { TStepResult, TWorld } from '@haibun/core/lib/defs.js';
+import { TStepResult, TWorld, ExecMode } from '@haibun/core/lib/defs.js';
 import { resolveAndExecuteStatement } from "@haibun/core/lib/util/resolveAndExecuteStatement.js";
 import { getFromRuntime, getStepperOption, getStepperOptionName, intOrError, stringOrError } from '@haibun/core/lib/util/index.js';
 import { IRequest, IResponse, IWebServer, WEBSERVER } from './defs.js';
@@ -72,7 +72,7 @@ export default class HttpExecutorStepper extends AStepper implements IHasOptions
 					const world = this.getWorld();
 					const steppers = this.steppers;
 
-					const result: TStepResult = await resolveAndExecuteStatement(statement, source, steppers, world);
+					const result: TStepResult = await resolveAndExecuteStatement(statement, source, steppers, world, ExecMode.NO_CYCLES);
 					console.log(`✅ HTTP Executor: Execution completed`, result);
 
 					res.json(result);

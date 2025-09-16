@@ -50,6 +50,7 @@ export type TWorld = {
 	moduleOptions: TModuleOptions;
 	timer: Timer;
 	bases: TBase;
+	domains: Record<string, { coerce: (label: string, steppers) => TStepValueValue }>;
 };
 
 export type TFeatureMeta = {
@@ -107,7 +108,7 @@ export type TFeatureStep = {
 	action: TStepAction;
 };
 
-export type TStepArgs = { [name: string]: string | number | TFeatureStep[] };
+export type TStepArgs = Record<string, TStepValueValue>;
 
 export type TAction<Args = TStepArgs> = (args: Args, featureStep: TFeatureStep) => Promise<TActionResult> | TActionResult;
 export type TCheckAction<Args = TStepArgs> = (args: Args, featureStep: TFeatureStep) => Promise<boolean> | boolean;
@@ -163,21 +164,21 @@ export interface IStepperCycles {
 export type StepperMethodArgs = {
 	[K in keyof IStepperCycles]: Parameters<NonNullable<IStepperCycles[K]>>[0];
 };
+export type TStepValuesMap = Record<string, TStepValue>;
 
 export type TStepAction = {
 	actionName: string;
 	stepperName: string;
 	step: TStepperStep;
-	stepValuesMap?: Record<string, TStepValue>;
+	stepValuesMap?: TStepValuesMap;
 };
-
+export type TOrigin = 'literal' | 'var' | 'env' | 'credential' | 'quoted' | 'statement';
+export type TStepValueValue = string | number | TFeatureStep[]
 export type TStepValue = {
 	label: string;
-	type?: string;
-	original?: string;
-	value?: string | number | TFeatureStep[]; // statement placeholders may hold resolved feature steps or numeric conversion
-	source?: 'literal' | 'var' | 'env' | 'credential' | 'special' | 'quoted' | 'statement';
-	// classification flags no longer required (rawKey removed); source + type drive behavior
+	domain: string;
+	value?: TStepValueValue;
+	origin: TOrigin
 };
 
 export const OK: TOKActionResult = { ok: true };

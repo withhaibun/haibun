@@ -42,6 +42,7 @@ Scenario: Scenario 2
 not variable "a" is set
 `}];
 		const res = await testWithDefaults(features, steppers);
+		console.log('🤑', JSON.stringify(res.featureResults, null, 2));
 		expect(res.ok).toBe(true);
 	});
 });

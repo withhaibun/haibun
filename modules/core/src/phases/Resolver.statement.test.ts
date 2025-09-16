@@ -36,3 +36,4 @@ describe('statement variable validation', () => {
     await expect(resolver.resolveStepsFromFeatures(features)).rejects.toThrow(/statement 'not-an-action' invalid/);
   });
 });
+

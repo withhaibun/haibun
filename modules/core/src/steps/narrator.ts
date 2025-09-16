@@ -3,11 +3,8 @@ import { resolve } from 'path';
 import { OK, TWorld, TFeatureStep, IStepperCycles, TStartFeature, TStepArgs } from '../lib/defs.js';
 import { IHasCycles, IHasOptions } from '../lib/astepper.js';
 import { AStepper } from '../lib/astepper.js';
-import { Resolver } from '../phases/Resolver.js';
 import { actionNotOK, actionOK, getStepperOption, sleep, stringOrError } from '../lib/util/index.js';
 import { actualURI } from '../lib/util/actualURI.js';
-import { expand } from '../lib/features.js';
-import { asFeatures } from '../lib/resolver-features.js';
 import { copyPreRenderedAudio, doExec, doSpawn, playAudioFile, preRenderFeatureProse, TRenderedAudioMap } from './lib/tts.js';
 import { EExecutionMessageType, TArtifactSpeech, TArtifactVideo, TMessageContext } from '../lib/interfaces/logger.js';
 import { captureLocator } from '../lib/capture-locator.js';
@@ -63,7 +60,7 @@ class Narrator extends AStepper implements IHasOptions, IHasCycles {
 	}
 
 	private rememberAndSay(key: string, value: string) {
-		this.getWorld().shared.set(key, value);
+		this.getWorld().shared.set({ label: key, value, domain: 'string', origin: 'literal' });
 		return this.maybeSay(value);
 	}
 
@@ -108,12 +105,6 @@ class Narrator extends AStepper implements IHasOptions, IHasCycles {
 		return actionOK({ artifact });
 	}
 
-	async newFeatureFromEffect(content: string, parentSeqPath: number[], steppers: AStepper[]): Promise<TFeatureStep> {
-		const features = asFeatures([{ path: `resolved from ${content}`, content }]);
-		const expandedFeatures = await expand({ backgrounds: [], features });
-		const featureSteps = await new Resolver(steppers).findFeatureSteps(expandedFeatures[0]);
-		return { ...featureSteps[0], seqPath: [...parentSeqPath, 1] };
-	}
 }
 
 export default Narrator;
