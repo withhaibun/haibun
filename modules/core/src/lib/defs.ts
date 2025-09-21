@@ -50,7 +50,7 @@ export type TWorld = {
 	moduleOptions: TModuleOptions;
 	timer: Timer;
 	bases: TBase;
-	domains: Record<string, { coerce: (label: string, steppers) => TStepValueValue }>;
+	domains: Record<string, { coerce: (label: TStepValueValue, steppers: AStepper[] | undefined) => Promise<TStepValueValue> | TStepValueValue }>;
 };
 
 export type TFeatureMeta = {
@@ -172,7 +172,17 @@ export type TStepAction = {
 	step: TStepperStep;
 	stepValuesMap?: TStepValuesMap;
 };
-export type TOrigin = 'literal' | 'var' | 'env' | 'credential' | 'quoted' | 'statement';
+
+export enum Origin {
+	fallthrough = 'fallthrough',
+	var = 'var',
+	env = 'env',
+	credential = 'credential',
+	quoted = 'quoted',
+	statement ='statement'
+}
+
+export type TOrigin = keyof typeof Origin;
 export type TStepValueValue = string | number | TFeatureStep[]
 export type TStepValue = {
 	label: string;

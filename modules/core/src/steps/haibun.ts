@@ -32,7 +32,7 @@ class Haibun extends AStepper {
 		not: {
 			gwta: 'not {what:statement}',
 			action: async ({ what }: TStepArgs, featureStep: TFeatureStep) => {
-				console.log('🤑', JSON.stringify(what, null, 2));
+
 				const list = <TFeatureStep[]>what;
 				let last;
 				for (let i = 0; i < list.length; i++) {

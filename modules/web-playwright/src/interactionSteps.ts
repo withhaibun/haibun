@@ -1,7 +1,7 @@
 import { Download, Page, Response } from "playwright";
 type ClickResult = import('playwright').Locator;
 
-import { OK, TFeatureStep } from "@haibun/core/lib/defs.js";
+import { OK, Origin, TFeatureStep } from "@haibun/core/lib/defs.js";
 import { WEB_CONTROL, WEB_PAGE, DOMAIN_PAGE_LOCATOR, DOMAIN_STRING } from "@haibun/core/lib/domain-types.js";
 import { actionNotOK, sleep } from "@haibun/core/lib/util/index.js";
 import { WebPlaywright } from "./web-playwright.js";
@@ -9,7 +9,6 @@ import { BROWSERS } from "./BrowserFactory.js";
 import { EExecutionMessageType } from "@haibun/core/lib/interfaces/logger.js";
 import { actionOK } from "@haibun/core/lib/util/index.js";
 import { pathToFileURL } from 'node:url';
-
 
 export const interactionSteps = (wp: WebPlaywright) => ({
 	// INPUT
@@ -73,7 +72,8 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 	waitFor: {
 		gwta: 'wait for {target}',
 		action: async ({ target }: { target: string }, featureStep: TFeatureStep) => {
-			const selector = selectorFromFeatureStep('target', target, featureStep);
+			console.log('🤑', JSON.stringify({ target, featureStep }, null, 2));
+			const selector = selectorFromFeatureStep(wp, 'target', target, featureStep);
 			try {
 				await wp.withPage(async (page: Page) => await page.locator(selector).waitFor());
 				return OK;
@@ -163,7 +163,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 			console.debug('background', background, browserContext.serviceWorkers());
 
 			const extensionId = background.url().split('/')[2];
-			wp.getWorld().shared.set('extensionContext', extensionId);
+			wp.getWorld().shared.set({ label: 'extensionContext', value: extensionId, domain: 'string', origin: Origin.fallthrough });
 			await wp.withPage(async (page: Page) => {
 				const popupURI = `chrome-extension://${extensionId}/popup.html?${tab}`;
 				return await page.goto(popupURI);
@@ -212,7 +212,8 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 	click: {
 		gwta: `click {target}`,
 		action: async ({ target }: { target: string }, featureStep: TFeatureStep) => {
-			const selector = selectorFromFeatureStep('target', target, featureStep);
+			console.log('🤑', JSON.stringify(featureStep, null, 2));
+			const selector = selectorFromFeatureStep(wp, 'target', target, featureStep);
 			await wp.withPage(async (page: Page) => await page.locator(selector).click());
 			return OK;
 		},
@@ -252,7 +253,6 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 	},
 	//                          NAVIGATION
 
-	// formerly On the {name} ${WEB_PAGE}
 	gotoPage: {
 		gwta: `go to the {name} ${WEB_PAGE}`,
 		action: async ({ name }: { name: string }) => {
@@ -486,7 +486,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 		action: async ({ what, where }: { what: string; where: string }) => {
 			const uri = await wp.withPage<string>(async (page: Page) => await page.url());
 			const found = new URL(uri).searchParams.get(what);
-			wp.getWorld().shared.set(where, found);
+			wp.getWorld().shared.set({ label: where, value: found, domain: 'string', origin: Origin.fallthrough });
 			return OK;
 		},
 	},
@@ -524,14 +524,26 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 	}
 });
 
-function selectorFromFeatureStep(label: string, raw: string, featureStep: TFeatureStep): string {
-	const sv = featureStep.action.stepValuesMap?.[label];
-	if (!sv) return `*:text-is('${escapeText(raw)}')`;
-	const domain = sv.domain;
-	console.log('🤑', JSON.stringify(sv, null, 2));
-	if (domain === DOMAIN_PAGE_LOCATOR) return String(sv.value);
-	if (domain === DOMAIN_STRING) return `*:text-is('${escapeText(String(sv.value))}')`;
-	throw Error(`unsupported domain '${domain}' for locator '${label}'`);
+
+function selectorFromFeatureStep(wp: WebPlaywright, label: string, value: string, featureStep: TFeatureStep): string {
+	const stepMap = featureStep?.action?.stepValuesMap;
+	console.log('🤑', JSON.stringify({ stepMap, label }, null, 2));
+	if (stepMap && stepMap[label]) {
+		let { domain } = stepMap[label];
+		const { origin, label: varLabel } = stepMap[label];
+		// If the placeholder came from a variable or fallthrough, prefer the stored variable's domain
+		if (origin === Origin.var || origin === Origin.fallthrough) {
+			const storedEntry = wp.getWorld().shared.all()[String(varLabel)];
+			if (storedEntry && storedEntry.domain) {
+				domain = storedEntry.domain as string;
+			}
+		}
+		if (domain === DOMAIN_STRING) return escapeTextIsSelector(value);
+		if (domain === DOMAIN_PAGE_LOCATOR) return String(value);
+		throw Error(`unsupported domain '${domain}' for locator '${label}'`);
+	}
+	throw Error(`missing placeholder '${label}' for selector construction`);
+
 }
 
-function escapeText(inp: string) { return (inp || '').replace(/'/g, "\\'"); }
+const escapeTextIsSelector = (inp: string) => `*:text-is('${inp.replace(/'/g, "\\'")}')`;

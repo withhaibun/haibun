@@ -7,7 +7,7 @@ import { actionNotOK, sleep, findStepper, constructorName, setStepperWorlds } fr
 import { SCENARIO_START } from '../lib/defs.js';
 import { Timer } from '../lib/Timer.js';
 import { FeatureVariables } from '../lib/feature-variables.js';
-import { simplifyStepArgs } from '../lib/simplifyStepArgs.js';
+import { populateActionArgs } from '../lib/populateActionArgs.js';
 
 export const endExecutonContext: TMessageContext = { incident: EExecutionMessageType.ACTION, incidentDetails: { end: true } };
 
@@ -150,7 +150,8 @@ export class FeatureExecutor {
 
 		const { action } = featureStep;
 		const start = Timer.since();
-		const args = await simplifyStepArgs(featureStep);
+		const args = await populateActionArgs(featureStep, world, steppers);
+
 		const isFullCycles = execMode === ExecMode.CYCLES;
 		const isPrompt = execMode === ExecMode.PROMPT;
 		if (isFullCycles) {

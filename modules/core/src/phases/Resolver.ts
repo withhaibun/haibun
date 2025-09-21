@@ -1,16 +1,14 @@
 import { TStepAction, TResolvedFeature, OK, TExpandedFeature, TStepperStep, TFeatureStep, TExpandedLine, TStepArgs, TStepValue } from '../lib/defs.js';
 import { AStepper } from '../lib/astepper.js';
 import { BASE_TYPES } from '../lib/domain-types.js';
-import { namedInterpolation, getMatch } from '../lib/namedVars.js';
-import { getActionable, isLowerCase, dePolite, constructorName } from '../lib/util/index.js';
+import { matchGwtaToAction, getMatch } from '../lib/namedVars.js';
+import { getActionable, dePolite, constructorName } from '../lib/util/index.js';
 
 export class Resolver {
 	types: string[];
-	verboseResolver: boolean;
 
 	constructor(private steppers: AStepper[]) {
 		this.types = BASE_TYPES;
-		this.verboseResolver = process && process.env && (process.env.HAIBUN_VERBOSE_RESOLVER === '1' || process.env.HAIBUN_VERBOSE_RESOLVER === 'true');
 	}
 
 	public async resolveStepsFromFeatures(features: TExpandedFeature[]) {
@@ -34,6 +32,7 @@ export class Resolver {
 
 				try {
 					const stepAction = this.findSingleStepAction(actionable);
+					// stepValuesMap is attached to stepAction for downstream processing
 					// Early validation for statement-typed placeholders using their label value
 					if (stepAction.stepValuesMap) {
 						const statements = Object.values(stepAction.stepValuesMap).filter((v: TStepValue & { label?: string }) => v.domain === 'statement' && v.label);
@@ -85,10 +84,7 @@ export class Resolver {
 		if (!actionable.length) {
 			return [comment];
 		}
-		   const found: TStepAction[] = [];
-		   if (process.env.HAIBUN_VERBOSE_RESOLVER === '1') {
-			   console.info(`[Resolver] Looking for actionable: '${actionable}'`);
-		   }
+		const found: TStepAction[] = [];
 
 		for (const stepper of this.steppers) {
 			const stepperName = constructorName(stepper);
@@ -102,41 +98,19 @@ export class Resolver {
 				}
 			}
 		}
-		   if (process.env.HAIBUN_VERBOSE_RESOLVER === '1') {
-			   console.info(`[Resolver] Found actions for '${actionable}':`, found.map(f => `${f.stepperName}.${f.actionName}`));
-		   }
-		   return found;
+		return found;
 	}
 
 	private stepApplies(step: TStepperStep, actionable: string, actionName: string, stepperName: string) {
 		const curt = dePolite(actionable);
-			if (step.gwta) {
-					const { regexPattern, stepValuesMap } = namedInterpolation(step.gwta);
-			const f = regexPattern.charAt(0);
-			const s = isLowerCase(f) ? ['[', f, f.toUpperCase(), ']', regexPattern.substring(1)].join('') : regexPattern;
-			const r = new RegExp(`^${s}`);
-			// DEBUG: print pattern information to help diagnose matching/capture issues in tests
-			if (this.verboseResolver) {
-				console.debug('Resolver.stepApplies gwta=', step.gwta);
-				console.debug('  regexPattern=', regexPattern);
-				console.debug('  transformed=', s);
-				console.debug('  regexp=', r);
-				console.debug('  actionable=', curt);
-			}
-			return getMatch(curt, r, actionName, stepperName, step, stepValuesMap);
+				if (step.gwta) {
+					return matchGwtaToAction(step.gwta, curt, actionName, stepperName, step);
 		} else if (step.match) {
 			return getMatch(actionable, step.match, actionName, stepperName, step);
 		} else if (step.exact === curt) {
 			return { actionName, stepperName, step };
 		}
 	}
-	/*   static getPrelude = (path: string, line: string, featureLine: string) => `In '${path}', step '${featureLine}' using '${line}':`;
-	 */ static getTypeValidationError = (prelude: string, fileType: string, name: string, typeValidationError: string) =>
-		`${prelude} Type '${fileType}' doesn't validate for '${name}': ${typeValidationError}`;
-	static getMoreThanOneInclusionError = (prelude: string, fileType: string, name: string) =>
-		`${prelude} more than one '${fileType}' inclusion for '${name}'`;
-	static getNoFileTypeInclusionError = (prelude: string, fileType: string, name: string) =>
-		`${prelude} no '${fileType}' inclusion for '${name}'`;
 }
 
 const comment = {

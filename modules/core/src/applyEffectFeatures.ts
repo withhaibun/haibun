@@ -1,7 +1,7 @@
 import { TWorld, TResolvedFeature, TFeatureStep, TStepperStep } from './lib/defs.js';
 import { TAnyFixme } from './lib/fixme.js';
 import { AStepper } from './lib/astepper.js';
-import { simplifyStepArgs } from './lib/simplifyStepArgs.js';
+import { populateActionArgs } from './lib/populateActionArgs.js';
 import { constructorName } from './lib/util/index.js';
 
 export async function applyEffectFeatures(world: TWorld, resolvedFeatures: TResolvedFeature[], steppers: AStepper[]): Promise<TResolvedFeature[]> {
@@ -16,9 +16,11 @@ export async function applyEffectFeatures(world: TWorld, resolvedFeatures: TReso
 			const action = featureStep.action;
 			const stepper = steppers.find((s) => constructorName(s) === action.stepperName);
 
-			if (stepper?.steps[action.actionName].applyEffect) {
+				if (stepper?.steps[action.actionName].applyEffect) {
 				const applier = stepper?.steps[action.actionName];
-				appliers.push({ applier, namedWithVars: simplifyStepArgs(featureStep) });
+				// simplifyStepArgs is async (may await domain coercers) so await it here
+				const namedWithVars = await populateActionArgs(featureStep, world, steppers);
+				appliers.push({ applier, namedWithVars });
 			} else if (appliers.length > 0) {
 				newSteps = [];
 				for (const a of appliers) {

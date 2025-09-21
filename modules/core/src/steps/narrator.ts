@@ -1,6 +1,6 @@
 import { resolve } from 'path';
 
-import { OK, TWorld, TFeatureStep, IStepperCycles, TStartFeature, TStepArgs } from '../lib/defs.js';
+import { OK, TWorld, TFeatureStep, IStepperCycles, TStartFeature, TStepArgs, Origin } from '../lib/defs.js';
 import { IHasCycles, IHasOptions } from '../lib/astepper.js';
 import { AStepper } from '../lib/astepper.js';
 import { actionNotOK, actionOK, getStepperOption, sleep, stringOrError } from '../lib/util/index.js';
@@ -60,7 +60,7 @@ class Narrator extends AStepper implements IHasOptions, IHasCycles {
 	}
 
 	private rememberAndSay(key: string, value: string) {
-		this.getWorld().shared.set({ label: key, value, domain: 'string', origin: 'literal' });
+		this.getWorld().shared.set({ label: key, value, domain: 'string', origin: Origin.fallthrough });
 		return this.maybeSay(value);
 	}
 

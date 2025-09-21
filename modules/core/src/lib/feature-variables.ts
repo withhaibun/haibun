@@ -26,7 +26,8 @@ export class FeatureVariables {
 		this.values[sv.label] = sv;
 	}
 	get(name: string): TStepValueValue | undefined {
-		return this.values[name].value
+		if (!this.values[name]) return undefined;
+		return this.values[name].value;
 	}
 	getJSON<T>(name: string): T | undefined {
 		if (!this.values[name]) return undefined;

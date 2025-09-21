@@ -16,29 +16,41 @@ export const BASE_TYPES = [DOMAIN_STRING, DOMAIN_NUMBER, WEB_CONTROL, WEB_PAGE, 
 
 // Core domain registry factory. Returns coercion functions for built-in domains.
 export const getCoreDomains = (world: TWorld) => ({
-	[DOMAIN_STRING]: { coerce: (label: string) => label },
+	[DOMAIN_STRING]: { coerce: (label: TStepValueValue) => {
+		if (typeof label === 'string') return label;
+		// non-string values are returned as-is for string domain
+		return String(label);
+	} },
 	[DOMAIN_NUMBER]: {
-		coerce: (label: string) => {
+		coerce: (label: TStepValueValue) => {
+			if (typeof label !== 'string' && typeof label !== 'number') throw new Error(`invalid number '${String(label)}'`);
 			const n = Number(label);
 			if (isNaN(n)) throw new Error(`invalid number '${label}'`);
 			return n;
 		}
 	},
-	[DOMAIN_PAGE_LOCATOR]: { coerce: (label: string) => label },
+	[DOMAIN_PAGE_LOCATOR]: { coerce: (label: TStepValueValue) => {
+		if (typeof label === 'string') return label;
+		return String(label);
+	} },
 	[DOMAIN_JSON]: {
-		coerce: (label: string) => {
+		coerce: (label: TStepValueValue) => {
+			console.log('www', label)
+			if (typeof label !== 'string') throw new Error(`invalid json '${String(label)}'`);
 			try {
-				JSON.parse(label); return label;
+				JSON.parse(label);
+				return label;
 			}
 			catch { throw new Error(`invalid json '${label}'`); }
 		}
 	},
 	[DOMAIN_STATEMENT]: {
-		coerce: (label: string, steppers) => {
+		coerce: async (label: TStepValueValue, steppers) => {
 			if (label === undefined) {
 				throw Error(`missing label for statement placeholder ${label}`);
 			}
-			return <TStepValueValue><unknown>findFeatureStepsFromStatement(label, steppers, world, `<${DOMAIN_STATEMENT}.${label}>`);
+			const lbl = String(label);
+			return <TStepValueValue><unknown>await findFeatureStepsFromStatement(lbl, steppers, world, `<${DOMAIN_STATEMENT}.${lbl}>`);
 		}
 	}
 });

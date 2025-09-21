@@ -42,7 +42,6 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 		await usageThenExit(specl, errors.join('\n'));
 	}
 
-	// const description = protoOptions.options.DESCRIPTION || bases + ' ' + [...(featureFilter || [])].join(',');
 	const world = getCliWorld(protoOptions, bases);
 
 	const runner = new Runner(world);

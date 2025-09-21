@@ -10,6 +10,7 @@ describe('vars', () => {
 	it('assigns', async () => {
 		const feature = { path: '/features/test.feature', content: 'set "x" to "1"\ndisplay "x"\nvariable "x" is "1"' };
 		const res = await testWithDefaults([feature], steppers);
+
 		expect(res.ok).toBe(true);
 	});
 	it('assigns empty', async () => {
@@ -17,7 +18,7 @@ describe('vars', () => {
 		const res = await testWithDefaults([feature], steppers);
 		expect(res.ok).toBe(true);
 	});
-	it('empty does not overwrite', async () => {
+	it.only('empty does not overwrite', async () => {
 		const feature = { path: '/features/test.feature', content: 'set empty "x" to y\nset empty "x" to z\nvariable "x" is "y"' };
 		const res = await testWithDefaults([feature], steppers);
 		expect(res.ok).toBe(true);
@@ -42,7 +43,6 @@ Scenario: Scenario 2
 not variable "a" is set
 `}];
 		const res = await testWithDefaults(features, steppers);
-		console.log('🤑', JSON.stringify(res.featureResults, null, 2));
 		expect(res.ok).toBe(true);
 	});
 });

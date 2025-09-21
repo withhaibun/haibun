@@ -1,9 +1,9 @@
-import { OK, TStepArgs, TFeatureStep, TWorld, IStepperCycles, TStartScenario } from '../lib/defs.js';
+import { OK, TStepArgs, TFeatureStep, TWorld, IStepperCycles, TStartScenario, Origin, TStepValueValue } from '../lib/defs.js';
 import { TAnyFixme } from '../lib/fixme.js';
 import { AStepper, IHasCycles } from '../lib/astepper.js';
 import { actionNotOK, actionOK } from '../lib/util/index.js';
-import { DOMAIN_STRING } from '../lib/domain-types.js';
 import { FeatureVariables } from '../lib/feature-variables.js';
+import { DOMAIN_STRING } from '../lib/domain-types.js';
 
 const clearVars = (vars) => async () => {
 	vars.getWorld().shared.clear();
@@ -27,19 +27,6 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		this.steppers = steppers;
 		await Promise.resolve();
 	}
-	set = (args: TStepArgs, featureStep: TFeatureStep) => {
-		const emptyOnly = !!featureStep.in.match(/set empty /);
-		// Always treat the variable name as the label, not a resolved env/var value.
-		const what = featureStep.action.stepValuesMap.what.label;
-		const { domains, shared } = this.getWorld();
-		if (emptyOnly && shared.get(what) !== undefined) return OK;
-		const label = featureStep.action.stepValuesMap.what.label;
-		const domain = featureStep.action.stepValuesMap.what.domain;
-		const value = domains[domain].coerce(label, this.steppers);
-		console.log('f🤑', JSON.stringify(value, null, 2));
-		shared.set({ label: what, value, domain, origin: 'literal' });
-		return OK;
-	};
 	checkIsSet(what: string,) {
 		return this.getVarValue(what) !== undefined;
 	}
@@ -58,18 +45,24 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		return actionNotOK(`${what} not set`);
 	}
 
+	// Steps
 	steps = {
 		combine: {
 			gwta: 'combine {p1} and {p2} as {what}',
 			action: async ({ p1, p2 }: TStepArgs, featureStep: TFeatureStep) => {
 				const label = featureStep.action.stepValuesMap.what.label;
-				const what = (label !== undefined ? label : featureStep.action.stepValuesMap?.what?.value) as string;
-				return await this.set({ what, value: `${p1 as string}${p2 as string}` }, featureStep);
+				this.getWorld().shared.set({ label: String(label), value: `${p1}${p2}`, domain: DOMAIN_STRING, origin: Origin.var });
+				return Promise.resolve(OK);
 			}
 		},
 		showEnv: {
-			gwta: 'show env', export: false,
-			action: async (args: TStepArgs, featureStep: TFeatureStep) => { console.info('env', this.world.options.envVariables); return await this.set(args, featureStep); }
+			gwta: 'show env',
+			export: false,
+			action: async () => {
+				// only available locally since it might contain sensitive info.
+				console.info('env', this.world.options.envVariables);
+				return Promise.resolve(OK);
+			}
 		},
 		showVars: {
 			gwta: 'show vars',
@@ -80,24 +73,53 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		},
 		set: {
 			gwta: 'set( empty)? {what: string} to {value: string}',
-			action: async (args: TStepArgs, featureStep: TFeatureStep) => await this.set(args, featureStep)
+			action: async (args: TStepArgs, featureStep: TFeatureStep) => {
+				const emptyOnly = !!featureStep.in.match(/set empty /);
+				const { label, domain, origin } = featureStep.action.stepValuesMap.what;
+
+				if (emptyOnly && this.getWorld().shared.get(label) !== undefined) {
+					return OK;
+				}
+
+				// Prefer already-populated/coerced runtime arg when available (populateActionArgs runs before step actions)
+				if (args && args.value !== undefined) {
+					this.getWorld().shared.set({ label: String(label), value: args.value, domain, origin });
+					return Promise.resolve(OK);
+				}
+
+				// Fallback: coerce raw label
+				if (domain !== 'string') {
+					const rawValueLabel = featureStep.action.stepValuesMap.value.label;
+					const coercedValue = await Promise.resolve(this.getWorld().domains[domain].coerce(rawValueLabel as TStepValueValue, this.steppers));
+					this.getWorld().shared.set({ label: String(label), value: coercedValue, domain, origin });
+					return Promise.resolve(OK);
+				} else {
+					this.getWorld().shared.set({ label: String(label), value: featureStep.action.stepValuesMap.value.value, domain, origin });
+					return Promise.resolve(OK);
+				}
+			}
 		},
 		is: {
-			gwta: 'variable {what: string} is "{value}"',
-			action: ({ what, value }: TStepArgs) => {
-				const val = this.getVarValue(what as string);
-				return val === value ? OK : actionNotOK(`${what as string} is "${val}", not "${value}"`);
+			gwta: 'variable {what} is {value}',
+			action: ({ value }: TStepArgs, featureStep: TFeatureStep) => {
+				console.log('🤑', JSON.stringify(featureStep, null, 2));
+				const label = featureStep.action.stepValuesMap?.what?.label as string;
+				const val = this.getVarValue(label);
+
+				return val === value ? OK : actionNotOK(`${label} is "${val}", not "${value}"`);
 			}
 		},
 		isSet: {
+			precludes: ['VariablesStepper.is'],
 			gwta: 'variable {what: string} is set',
 			action: ({ what }: TStepArgs) => this.isSet(what as string)
 		},
 		display: {
 			gwta: 'display {what}',
-			action: ({ what }: TStepArgs) => {
-				this.getWorld().logger.info(`is ${JSON.stringify(what)}`);
-				return actionOK({ artifact: { artifactType: 'json', json: { [what as string]: this.getVarValue(what as string) } } });
+			action: (args: TStepArgs, featureStep: TFeatureStep) => {
+				const stepValue = featureStep.action.stepValuesMap.what;
+				this.getWorld().logger.info(`is ${JSON.stringify(stepValue)}`);
+				return actionOK({ artifact: { artifactType: 'json', json: { json: stepValue } } });
 			}
 		},
 	};

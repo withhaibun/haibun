@@ -1,4 +1,5 @@
-import { TStepperStep, TStepAction, TStepValue, TOrigin } from './defs.js';
+import { TStepperStep, TStepAction, TStepValue, TOrigin, Origin } from './defs.js';
+import { DOMAIN_STRING } from './domain-types.js';
 
 export const TYPE_QUOTED = 'q_';
 export const TYPE_CREDENTIAL = 'c_';
@@ -18,91 +19,78 @@ export const namedInterpolation = (inp: string): { regexPattern: string; stepVal
 	let bail = 0;
 	let matchIndex = 0;
 
-	// For most placeholders we prefer a greedy match so that, when there's
-	// nothing after the placeholder, the full literal is captured (e.g. URLs).
-	// For `statement` domains we allow multiline greedy captures.
-	const placeholderRegex = '.+'; // greedy by default
-	const placeholderRegexGreedy = '[\\s\\S]+'; // greedy, matches newlines as well
+	const placeholderRegex = '.+';
 
 	while (bs > -1 && bail++ < 400) {
-		// Append the literal text before the placeholder. If the placeholder has an
-		// explicit marker immediately before it (like a quote, backtick, < or $)
-		// we don't want to duplicate that marker when we also emit it inside the
-		// generated capture pattern. Trim it from the appended literal in that case.
-		let literalBefore = inp.substring(last, bs);
+		regexPattern += inp.substring(last, bs);
 		be = inp.indexOf('}', bs);
-		const precedingChar = inp.substring(bs - 1, bs);
-		const origin = inferOrigin(precedingChar);
-		if (origin !== 'literal' && literalBefore.endsWith(precedingChar)) {
-			literalBefore = literalBefore.substring(0, literalBefore.length - 1);
-		}
-		regexPattern += literalBefore;
 		if (be < 0) {
 			throw Error(`missing end bracket in ${inp}`);
 		}
 		const rawPair = inp.substring(bs + 1, be);
 		const { name, domain } = pairToVar(rawPair);
 
-		// Default step value entry; origin may be refined after matching
+		const precedingChar = inp.substring(bs - 1, bs);
+		const origin = inferOrigin(precedingChar);
+
+		// Strip any already-appended preceding delimiter from the
+		// regexPattern so the group pattern can insert the correct single
+		// delimiter.
+		if (precedingChar && ['$', '`', '<', '"'].includes(precedingChar)) {
+			// remove the last character we just added (the delimiter)
+			regexPattern = regexPattern.slice(0, -1);
+		}
+
 		stepValuesMap[name] = { label: name, domain, origin };
 
-		// Build match group pattern. If the template included an explicit marker (env/var/etc)
-		// we only create that specific capture. Otherwise we create an alternation that
-		// accepts quoted, credential, var (backticks), env ($...$) or a bare literal.
-		let matchGroupPattern: string;
-		if (origin === 'env') {
+		let matchGroupPattern;
+		if (origin === Origin.env) {
 			matchGroupPattern = `\\$(?<${TYPE_ENV}${matchIndex}>[A-Za-z_][A-Za-z0-9_]*)\\$`;
-		} else if (origin === 'var') {
-			// match a backtick-delimited var: `value`
-			matchGroupPattern = '\\`(?<' + TYPE_VAR + matchIndex + '>.+?)\\`';
-		} else if (origin === 'credential') {
-			matchGroupPattern = `<(?<${TYPE_CREDENTIAL}${matchIndex}>.+?)>`;
-		} else if (origin === 'quoted') {
-			// Use greedy quoted capture so inner double-quotes inside JSON or
-			// other quoted values don't prematurely terminate the match.
-			const quotedInner = '.+';
-			matchGroupPattern = `"(?<${TYPE_QUOTED}${matchIndex}>${quotedInner})"`;
+		} else if (origin === Origin.var) {
+			matchGroupPattern = `\`(?<${TYPE_VAR}${matchIndex}>.+)\``;
+		} else if (origin === Origin.credential) {
+			matchGroupPattern = `<(?<${TYPE_CREDENTIAL}${matchIndex}>.+)>`;
+		} else if (origin === Origin.quoted) {
+			matchGroupPattern = `"(?<${TYPE_QUOTED}${matchIndex}>.+)"`;
 		} else {
-			// no explicit marker in template: accept any of the common syntaxes and record
-			// the matching subgroup. Order matters: try quoted, credential, var, env, then literal.
-			// Use greedy quoted capture for json domain so JSON like {"a":1}
-			// (which contains inner quotes) is captured until the final quote.
-			const qInner = '.+';
-			const q = `"(?<${TYPE_QUOTED}${matchIndex}>${qInner})"`;
-			const c = `<(?<${TYPE_CREDENTIAL}${matchIndex}>.+?)>`;
-			const b = '\\`(?<' + TYPE_VAR + matchIndex + '>.+?)\\`';
-			const e = `\\$(?<${TYPE_ENV}${matchIndex}>[A-Za-z_][A-Za-z0-9_]*)\\$`;
-			// If the declared domain for this placeholder is `statement` prefer a
-			// greedy multiline capture so it can swallow line breaks and long text.
-			const literalPattern = stepValuesMap[name]?.domain === 'statement' ? placeholderRegexGreedy : placeholderRegex;
-			const t = `(?<${TYPE_ENV_OR_VAR_OR_LITERAL}${matchIndex}>${literalPattern})`;
-			matchGroupPattern = `(?:${q}|${c}|${b}|${e}|${t})`;
+			// For a plain placeholder we accept several syntaxes and capture each
+			// into a distinct named group so callers can detect whether the
+			// value was quoted, credentialed, backticked or a bare literal.
+			matchGroupPattern = `(?:"(?<${TYPE_QUOTED}${matchIndex}>.+)"|<(?<${TYPE_CREDENTIAL}${matchIndex}>.+)>|\`(?<${TYPE_VAR}${matchIndex}>.+)\`|(?<${TYPE_ENV_OR_VAR_OR_LITERAL}${matchIndex}>${placeholderRegex}))`;
 		}
 
 		regexPattern += matchGroupPattern;
 		matchIndex++;
-		// If the template used an explicit closing marker (e.g. the char after the
-		// closing brace matches the preceding marker like "{value}"), we already
-		// included that marker in the generated capture pattern. Consume that
-		// trailing marker so it isn't appended again when we add the remaining
-		// literal text after the placeholder.
-		let closingConsumed = false;
-		if (origin !== 'literal') {
-			const nextChar = inp.substring(be + 1, be + 2);
-			if (nextChar === precedingChar) {
-				closingConsumed = true;
-			}
+		bs = inp.indexOf('{', be);
+		// If the placeholder was wrapped with a delimiter on the left, the
+		// corresponding closing delimiter appears immediately after the '}' and
+		// must be skipped from the trailing substring to avoid duplicating it
+		// in the final regex. Otherwise include the character after '}' as
+		// normal.
+		if (precedingChar && ['$', '`', '<', '"'].includes(precedingChar)) {
+			last = be + 2;
+		} else {
+			last = be + 1;
 		}
-		last = be + 1 + (closingConsumed ? 1 : 0);
-		bs = inp.indexOf('{', last);
 	}
 	regexPattern += inp.substring(last);
+
 	return { stepValuesMap, regexPattern };
 };
 
+export const matchGwtaToAction = (gwta: string, actionable: string, actionName: string, stepperName: string, step: TStepperStep) => {
+	const { regexPattern, stepValuesMap } = namedInterpolation(gwta);
+	// anchor the pattern so the whole actionable matches
+	// use case-insensitive matching to be consistent with dePolite handling
+	const r = new RegExp(`^${regexPattern}$`, 'i');
+	return getMatch(actionable, r, actionName, stepperName, step, stepValuesMap);
+};
+
+// no-op
+
 function pairToVar(pair: string): { name: string; domain: string } {
 	const [name, domainRaw] = pair.split(':').map((i) => i.trim());
-	const domain = domainRaw || 'string';
+	const domain = domainRaw || DOMAIN_STRING;
 	return { name, domain };
 }
 
@@ -119,24 +107,60 @@ export const getMatch = (actionable: string, r: RegExp, actionName: string, step
 	interface TInternalStepValue extends TStepValue { captureKey?: string }
 
 	if (groups && stepValuesMap) {
+		const entries = Object.values(stepValuesMap) as TInternalStepValue[];
 		let i = 0;
-		const groupKeys = Object.keys(groups);
-		for (const ph of Object.values(stepValuesMap) as TInternalStepValue[]) {
-			const captureKey = groupKeys.find(c => c.endsWith(`_${i}`) && groups[c] !== undefined);
-			if (captureKey) {
-				ph.captureKey = captureKey;
-				ph.label = groups[captureKey];
-				// If this placeholder represents a nested statement, keep that origin.
-				if (ph.domain === 'statement') {
-					ph.origin = 'statement';
-				} else {
-					// Otherwise infer origin from the capture key prefix
-				if (captureKey.startsWith(TYPE_QUOTED)) ph.origin = 'quoted';
-				else if (captureKey.startsWith(TYPE_CREDENTIAL)) ph.origin = 'credential';
-				else if (captureKey.startsWith(TYPE_VAR)) ph.origin = 'var';
-				else if (captureKey.startsWith(TYPE_ENV)) ph.origin = 'env';
-				else ph.origin = 'literal';
+		for (const ph of entries) {
+			// Prefer quoted, credential, backtick, then bare literal captures.
+			const q = groups[`${TYPE_QUOTED}${i}`];
+			const c = groups[`${TYPE_CREDENTIAL}${i}`];
+			const b = groups[`${TYPE_VAR}${i}`];
+			const e = groups[`${TYPE_ENV}${i}`];
+			const t = groups[`${TYPE_ENV_OR_VAR_OR_LITERAL}${i}`];
+			const chosen = q ?? c ?? b ?? t;
+			// prefer the dedicated env group if present
+			const actuallyChosen = q ?? c ?? b ?? e ?? t;
+			if (actuallyChosen !== undefined) {
+				ph.label = chosen;
+				// set origin according to which capture matched
+				if (q !== undefined) {
+					ph.origin = Origin.quoted;
+				} else if (c !== undefined) {
+					ph.origin = Origin.credential;
+				} else if (b !== undefined) {
+					ph.origin = Origin.var;
+			} else if (e !== undefined) {
+				ph.origin = Origin.env;
+			} else if (t !== undefined) {
+					// bare literal capture - detect env syntax $NAME$ or inline name:domain
+					const envMatch = /^\$([A-Za-z_][A-Za-z0-9_]*)\$$/.exec(t);
+					if (envMatch) {
+						ph.label = envMatch[1];
+					ph.origin = Origin.env;
+					} else {
+						// inline explicit domain: accept 'name:domain' (name may be multi-word)
+							if (t !== undefined) {
+							// If the bare literal looks like JSON, treat it as fallthrough.
+							const tTrim = String(t).trim();
+							if (tTrim.startsWith('{') || tTrim.startsWith('[')) {
+								ph.label = tTrim;
+								ph.origin = Origin.fallthrough;
+							} else {
+								const inlineLocal = /^(.+?):([A-Za-z_][A-Za-z0-9_-]*)$/.exec(t);
+								if (inlineLocal) {
+										ph.label = inlineLocal[1].trim();
+										ph.domain = inlineLocal[2];
+										ph.origin = Origin.fallthrough;
+								} else {
+									ph.origin = Origin.fallthrough;
+								}
+							}
+						} else {
+							ph.origin = Origin.fallthrough;
+						}
+					}
 				}
+				// domain 'statement' should force origin to 'statement'
+				if (ph.domain === 'statement') ph.origin = Origin.statement;
 			}
 			i++;
 		}
@@ -147,14 +171,14 @@ export const getMatch = (actionable: string, r: RegExp, actionName: string, step
 const inferOrigin = (char: string): TOrigin => {
 	switch (char) {
 		case '$':
-			return 'env';
+			return Origin.env;
 		case '`':
-			return 'var';
+			return Origin.var;
 		case '<':
-			return 'credential';
+			return Origin.credential;
 		case '"':
-			return 'quoted';
-		default:
-			return 'literal';
+			return Origin.quoted;
+			default:
+			return Origin.fallthrough;
 	}
 };
