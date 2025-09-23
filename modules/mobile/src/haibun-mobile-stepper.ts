@@ -37,10 +37,8 @@ export default class HaibunMobileStepper extends AStepper {
 
 	cycles: IStepperCycles = {
 		startExecution: async () => {
-			this.driver = await remote(this.wdioOptions);
 		},
 		startScenario: async () => {
-			await this.driver.reset();
 		},
 		endExecution: async () => {
 			if (this.driver) {
