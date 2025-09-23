@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "module": "NodeNext",
+    "target": "esnext",
+    "sourceMap": true,
+    "declaration": true,
+    "outDir": "./build",
+    "rootDir": "./src"
+  },
+  "exclude": [
+    "build"
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "name": "@haibun/mobile",
+  "type": "module",
+  "dependencies": {
+    "@haibun/core": "1.71.1",
+    "@types/node": "^24.3.0",
+    "typescript": "^5.9.2"
+  },
+  "scripts": {
+    "test": "tsc && node --test \"build/**/*.test.js\"",
+    "test-watch": "node --test --watch \"build/**/*.test.js\"",
+    "build": "tsc",
+    "build-watch": "tsc -w"
+  }
+}
