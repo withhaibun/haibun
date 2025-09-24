@@ -3,7 +3,6 @@ import { findFeatureStepsFromStatement } from "./util/resolveAndExecuteStatement
 
 // Core types that replace the domain system, used in vars and modules like filesystem, web
 export const WEB_PAGE = 'webpage';
-export const WEB_CONTROL = 'webcontrol';
 export const DOMAIN_STATEMENT = 'statement';
 
 // Type constants
@@ -12,7 +11,7 @@ export const DOMAIN_NUMBER = 'number';
 export const DOMAIN_PAGE_LOCATOR = 'page-locator';
 export const DOMAIN_JSON = 'json';
 
-export const BASE_TYPES = [DOMAIN_STRING, DOMAIN_NUMBER, WEB_CONTROL, WEB_PAGE, DOMAIN_STATEMENT, DOMAIN_PAGE_LOCATOR, DOMAIN_JSON];
+export const BASE_TYPES = [DOMAIN_STRING, DOMAIN_NUMBER, WEB_PAGE, DOMAIN_STATEMENT, DOMAIN_PAGE_LOCATOR, DOMAIN_JSON];
 
 // Core domain registry factory. Returns coercion functions for built-in domains.
 export const getCoreDomains = (world: TWorld) => ({

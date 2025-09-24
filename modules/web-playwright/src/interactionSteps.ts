@@ -2,7 +2,7 @@ import { Download, Page, Response } from "playwright";
 type ClickResult = import('playwright').Locator;
 
 import { OK, Origin, TFeatureStep } from "@haibun/core/lib/defs.js";
-import { WEB_CONTROL, WEB_PAGE, DOMAIN_PAGE_LOCATOR, DOMAIN_STRING } from "@haibun/core/lib/domain-types.js";
+import { WEB_PAGE, DOMAIN_PAGE_LOCATOR, DOMAIN_STRING } from "@haibun/core/lib/domain-types.js";
 import { actionNotOK, sleep } from "@haibun/core/lib/util/index.js";
 import { WebPlaywright } from "./web-playwright.js";
 import { BROWSERS } from "./BrowserFactory.js";
@@ -34,7 +34,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 		},
 	},
 	selectionOption: {
-		gwta: `select {option} for {field: ${WEB_CONTROL}}`,
+		gwta: `select {option} for {field: string | page-locator}`,
 		action: async ({ option, field }: { option: string; field: string }) => {
 			await wp.withPage(async (page: Page) => await page.locator(field).selectOption({ label: option }));
 			return OK;
@@ -70,9 +70,8 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 		action: async ({ text }: { text: string }) => await wp.sees(text, 'body'),
 	},
 	waitFor: {
-		gwta: 'wait for {target}',
+		gwta: 'wait for {target: string | page-locator}',
 		action: async ({ target }: { target: string }, featureStep: TFeatureStep) => {
-			console.log('🤑', JSON.stringify({ target, featureStep }, null, 2));
 			const selector = selectorFromFeatureStep(wp, 'target', target, featureStep);
 			try {
 				await wp.withPage(async (page: Page) => await page.locator(selector).waitFor());
@@ -210,9 +209,8 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 
 	//                  CLICK
 	click: {
-		gwta: `click {target}`,
+		gwta: `click {target: string | page-locator}`,
 		action: async ({ target }: { target: string }, featureStep: TFeatureStep) => {
-			console.log('🤑', JSON.stringify(featureStep, null, 2));
 			const selector = selectorFromFeatureStep(wp, 'target', target, featureStep);
 			await wp.withPage(async (page: Page) => await page.locator(selector).click());
 			return OK;
@@ -527,23 +525,13 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 
 function selectorFromFeatureStep(wp: WebPlaywright, label: string, value: string, featureStep: TFeatureStep): string {
 	const stepMap = featureStep?.action?.stepValuesMap;
-	console.log('🤑', JSON.stringify({ stepMap, label }, null, 2));
 	if (stepMap && stepMap[label]) {
-		let { domain } = stepMap[label];
-		const { origin, label: varLabel } = stepMap[label];
-		// If the placeholder came from a variable or fallthrough, prefer the stored variable's domain
-		if (origin === Origin.var || origin === Origin.fallthrough) {
-			const storedEntry = wp.getWorld().shared.all()[String(varLabel)];
-			if (storedEntry && storedEntry.domain) {
-				domain = storedEntry.domain as string;
-			}
-		}
-		if (domain === DOMAIN_STRING) return escapeTextIsSelector(value);
+		const { domain } = stepMap[label];
 		if (domain === DOMAIN_PAGE_LOCATOR) return String(value);
+		if (domain === DOMAIN_STRING) return escapeTextIsSelector(value);
 		throw Error(`unsupported domain '${domain}' for locator '${label}'`);
 	}
 	throw Error(`missing placeholder '${label}' for selector construction`);
-
 }
 
 const escapeTextIsSelector = (inp: string) => `*:text-is('${inp.replace(/'/g, "\\'")}')`;

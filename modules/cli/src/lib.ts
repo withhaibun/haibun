@@ -84,8 +84,9 @@ function getCliWorld(protoOptions: TProtoOptions, bases: TBase): TWorld {
 		timer,
 		bases,
 	};
-	world.domains = getCoreDomains(world as TWorld)
-	return world as TWorld;
+	const fullWorld = world as TWorld;
+	fullWorld.domains = getCoreDomains(fullWorld);
+	return fullWorld;
 }
 
 async function getSpeclOrExit(bases: TBase): Promise<TSpecl> {
