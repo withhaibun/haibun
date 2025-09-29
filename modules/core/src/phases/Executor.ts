@@ -3,7 +3,7 @@ import { TAnyFixme } from '../lib/fixme.js';
 import { AStepper } from '../lib/astepper.js';
 import { EExecutionMessageType, TMessageContext } from '../lib/interfaces/logger.js';
 import { topicArtifactLogger } from '../lib/Logger.js';
-import { actionNotOK, sleep, findStepper, constructorName, setStepperWorlds } from '../lib/util/index.js';
+import { actionNotOK, sleep, findStepper, constructorName, setStepperWorldsAndDomains } from '../lib/util/index.js';
 import { SCENARIO_START } from '../lib/defs.js';
 import { Timer } from '../lib/Timer.js';
 import { FeatureVariables } from '../lib/feature-variables.js';
@@ -40,6 +40,7 @@ export class Executor {
 		});
 	}
 	static async executeFeatures(steppers: AStepper[], world: TWorld, features: TResolvedFeature[]): Promise<TExecutorResult> {
+		await addStepperDomains(world, steppers);
 		await doStepperCycle(steppers, 'startExecution', features);
 		let okSoFar = true;
 		const stayOnFailure = world.options[STAY] === STAY_FAILURE;
@@ -55,7 +56,7 @@ export class Executor {
 			const newWorld = { ...world, tag: { ...world.tag, ...{ featureNum: 0 + featureNum } } };
 
 			const featureExecutor = new FeatureExecutor(steppers, newWorld);
-			await setStepperWorlds(steppers, newWorld);
+			await setStepperWorldsAndDomains(steppers, newWorld);
 			await doStepperCycle(steppers, 'startFeature', { resolvedFeature: feature, index: featureNum });
 
 			const featureResult = await featureExecutor.doFeature(feature);
@@ -200,3 +201,19 @@ const doStepperCycle = async <K extends keyof IStepperCycles>(steppers: AStepper
 	}
 	return results;
 };
+
+// Register domains from stepper cycles after setWorld
+const addStepperDomains = async (world, steppers: AStepper[]) => {
+	const results = await doStepperCycle(steppers, 'getDomains', undefined);
+	for (const stepperWithDomains of results) {
+		for (const definition of stepperWithDomains) {
+			const domainKey = definition.selectors.sort().join(' | ');
+
+			if (world.domains[domainKey]) {
+				throw Error(`Domain "${domainKey}" is already registered}`);
+			}
+
+			world.domains[domainKey] = { coerce: definition.coerce };
+		}
+	}
+}

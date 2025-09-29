@@ -15,12 +15,12 @@ const cycles = (debuggerStepper: DebuggerStepper): IStepperCycles => ({
 		const { action } = featureStep;
 		if (debuggerStepper.debuggingType === TDebuggingType.StepByStep || debuggerStepper.debugSteppers.includes(action.stepperName)) {
 			const prompt = (debuggerStepper.debugSteppers.includes(action.stepperName)) ? `[Debugging ${action.stepperName}]` : '[Debug]';
-			return debuggerStepper.debugLoop(prompt, ['step', 'continue', '*']);
+			return debuggerStepper.debugLoop(prompt, ['*', 'step', 'continue']);
 		}
 	},
 	async afterStep({ actionResult }: TAfterStep): Promise<void> {
 		if (!actionResult.ok) {
-			await debuggerStepper.debugLoop('[Failure]', ['*', 'fail']);
+			await debuggerStepper.debugLoop('[Failure]', ['*', 'retry', 'fail']);
 		}
 	}
 });
@@ -97,7 +97,20 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 				return await this.fail();
 			}
 		},
-		// retry functionality removed
+		r: {
+			expose: false,
+			exact: 'r',
+			action: async (): Promise<TActionResult> => {
+				return await this.retry();
+			},
+		},
+		retry: {
+			exact: 'retry',
+			action: async (): Promise<TActionResult> => {
+				return await this.retry();
+			}
+		},
+
 		s: {
 			expose: false,
 			exact: 's',
@@ -163,6 +176,12 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 			}
 		}
 	};
+
+	async retry(): Promise<TActionResult> {
+		this.getWorld().logger.info('retry');
+		const messageContext: TMessageContext = { incident: EExecutionMessageType.DEBUG, incidentDetails: { rerunStep: true } }; // will trigger rerun in Executor
+		return Promise.resolve(actionOK({ messageContext }));
+	}
 
 	constructor() {
 		super();

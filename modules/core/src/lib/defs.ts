@@ -50,7 +50,7 @@ export type TWorld = {
 	moduleOptions: TModuleOptions;
 	timer: Timer;
 	bases: TBase;
-	domains: Record<string, { coerce: (label: TStepValueValue, steppers: AStepper[] | undefined) => Promise<TStepValueValue> | TStepValueValue }>;
+	domains: Record<string, { coerce: (label: TStepValueValue, steppers: AStepper[] | undefined, domainResolution?: { setDomain: string; actionDomain: string[] }) => Promise<TStepValueValue> | TStepValueValue }>;
 };
 
 export type TFeatureMeta = {
@@ -149,7 +149,13 @@ export type TBeforeStep = { featureStep: TFeatureStep };
 export type TAfterStep = { featureStep: TFeatureStep, actionResult: TStepActionResult };
 export type TFailureArgs = { featureResult: TFeatureResult, failedStep: TStepResult };
 
+export type TDomainDefinition = {
+	selectors: string[];
+	coerce: (label: TStepValueValue, steppers: AStepper[] | undefined, domainResolution?: { resolvedDomain: string; possibleDomains: string[] }) => Promise<TStepValueValue> | TStepValueValue;
+};
+
 export interface IStepperCycles {
+	getDomains?(): TDomainDefinition[];
 	startExecution?(features: TStartExecution): Promise<void>;
 	startFeature?(startFeature: TStartFeature): Promise<void>;
 	startScenario?(startScenario: TStartScenario): Promise<void>;
@@ -179,7 +185,7 @@ export enum Origin {
 	env = 'env',
 	credential = 'credential',
 	quoted = 'quoted',
-	statement ='statement'
+	statement = 'statement'
 }
 
 export type TOrigin = keyof typeof Origin;

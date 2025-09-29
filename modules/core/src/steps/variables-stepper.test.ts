@@ -30,6 +30,21 @@ describe('vars', () => {
 	});
 });
 
+describe('variable name literal handling', () => {
+  it('set uses literal name even if env collides', async () => {
+    const feature = { path: '/f.feature', content: 'set what to "value"' };
+    const envVariables = { what: 'ENV' };
+    const { world } = await testWithDefaults([feature], steppers, { options: { DEST: DEFAULT_DEST, envVariables }, moduleOptions: {} });
+    expect(world.shared.get('what')).toBe('value');
+  });
+  it('combine uses literal name even if env collides', async () => {
+    const feature = { path: '/f.feature', content: 'set a to "A"\nset b to "B"\ncombine a and b as what' };
+    const envVariables = { what: 'ENV' };
+    const { world } = await testWithDefaults([feature], steppers, { options: { DEST: DEFAULT_DEST, envVariables }, moduleOptions: {} });
+    expect(world.shared.get('what')).toBe('AB');
+  });
+});
+
 
 describe('vars between scenarios', () => {
 	it('clears variables between scenarios', async () => {

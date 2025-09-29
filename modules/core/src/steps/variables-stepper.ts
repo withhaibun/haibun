@@ -1,4 +1,4 @@
-import { OK, TStepArgs, TFeatureStep, TWorld, IStepperCycles, TStartScenario, Origin, TStepValueValue } from '../lib/defs.js';
+import { OK, TStepArgs, TFeatureStep, TWorld, IStepperCycles, TStartScenario, Origin } from '../lib/defs.js';
 import { TAnyFixme } from '../lib/fixme.js';
 import { AStepper, IHasCycles } from '../lib/astepper.js';
 import { actionNotOK, actionOK } from '../lib/util/index.js';
@@ -81,28 +81,13 @@ class VariablesStepper extends AStepper implements IHasCycles {
 					return OK;
 				}
 
-				// Prefer already-populated/coerced runtime arg when available (populateActionArgs runs before step actions)
-				if (args && args.value !== undefined) {
-					this.getWorld().shared.set({ label: String(label), value: args.value, domain, origin });
-					return Promise.resolve(OK);
-				}
-
-				// Fallback: coerce raw label
-				if (domain !== 'string') {
-					const rawValueLabel = featureStep.action.stepValuesMap.value.label;
-					const coercedValue = await Promise.resolve(this.getWorld().domains[domain].coerce(rawValueLabel as TStepValueValue, this.steppers));
-					this.getWorld().shared.set({ label: String(label), value: coercedValue, domain, origin });
-					return Promise.resolve(OK);
-				} else {
-					this.getWorld().shared.set({ label: String(label), value: featureStep.action.stepValuesMap.value.value, domain, origin });
-					return Promise.resolve(OK);
-				}
+				this.getWorld().shared.set({ label: String(label), value: args.value, domain, origin });
+				return Promise.resolve(OK);
 			}
 		},
 		is: {
 			gwta: 'variable {what} is {value}',
 			action: ({ value }: TStepArgs, featureStep: TFeatureStep) => {
-				console.log('🤑', JSON.stringify(featureStep, null, 2));
 				const label = featureStep.action.stepValuesMap?.what?.label as string;
 				const val = this.getVarValue(label);
 
@@ -114,8 +99,8 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			gwta: 'variable {what: string} is set',
 			action: ({ what }: TStepArgs) => this.isSet(what as string)
 		},
-		display: {
-			gwta: 'display {what}',
+		showVar: {
+			gwta: 'show var {what}',
 			action: (args: TStepArgs, featureStep: TFeatureStep) => {
 				const stepValue = featureStep.action.stepValuesMap.what;
 				this.getWorld().logger.info(`is ${JSON.stringify(stepValue)}`);

@@ -8,18 +8,15 @@ export const DOMAIN_STATEMENT = 'statement';
 // Type constants
 export const DOMAIN_STRING = 'string';
 export const DOMAIN_NUMBER = 'number';
-export const DOMAIN_PAGE_LOCATOR = 'page-locator';
 export const DOMAIN_JSON = 'json';
 
-export const BASE_TYPES = [DOMAIN_STRING, DOMAIN_NUMBER, WEB_PAGE, DOMAIN_STATEMENT, DOMAIN_PAGE_LOCATOR, DOMAIN_JSON];
+export const BASE_TYPES = [DOMAIN_STRING, DOMAIN_NUMBER, WEB_PAGE, DOMAIN_STATEMENT, DOMAIN_JSON];
 
 // Core domain registry factory. Returns coercion functions for built-in domains.
 export const getCoreDomains = (world: TWorld) => ({
-	[DOMAIN_STRING]: { coerce: (label: TStepValueValue) => {
-		if (typeof label === 'string') return label;
-		// non-string values are returned as-is for string domain
-		return String(label);
-	} },
+	[DOMAIN_STRING]: {
+		coerce: (label: TStepValueValue) => String(label),
+	},
 	[DOMAIN_NUMBER]: {
 		coerce: (label: TStepValueValue) => {
 			if (typeof label !== 'string' && typeof label !== 'number') throw new Error(`invalid number '${String(label)}'`);
@@ -28,13 +25,8 @@ export const getCoreDomains = (world: TWorld) => ({
 			return n;
 		}
 	},
-	[DOMAIN_PAGE_LOCATOR]: { coerce: (label: TStepValueValue) => {
-		if (typeof label === 'string') return label;
-		return String(label);
-	} },
 	[DOMAIN_JSON]: {
 		coerce: (label: TStepValueValue) => {
-			console.log('www', label)
 			if (typeof label !== 'string') throw new Error(`invalid json '${String(label)}'`);
 			try {
 				JSON.parse(label);
@@ -45,9 +37,6 @@ export const getCoreDomains = (world: TWorld) => ({
 	},
 	[DOMAIN_STATEMENT]: {
 		coerce: async (label: TStepValueValue, steppers) => {
-			if (label === undefined) {
-				throw Error(`missing label for statement placeholder ${label}`);
-			}
 			const lbl = String(label);
 			return <TStepValueValue><unknown>await findFeatureStepsFromStatement(lbl, steppers, world, `<${DOMAIN_STATEMENT}.${lbl}>`);
 		}
