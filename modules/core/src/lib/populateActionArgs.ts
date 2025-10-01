@@ -1,84 +1,81 @@
 import { AStepper } from './astepper.js';
 import { TFeatureStep, TStepArgs, TWorld, TStepValueValue, Origin } from './defs.js';
+import { DOMAIN_STRING } from './domain-types.js';
 
 export async function populateActionArgs(featureStep: TFeatureStep, world: TWorld, steppers: AStepper[]): Promise<TStepArgs> {
 	const stepArgs: TStepArgs = {};
 	if (!featureStep?.action?.stepValuesMap) return stepArgs; // no variables for this step
 
-	for (const [name, stepVal] of Object.entries(featureStep.action.stepValuesMap)) {
+	for (const [name, actionVal] of Object.entries(featureStep.action.stepValuesMap)) {
 		let runtimeValue: TStepValueValue;
 
-		if (stepVal.origin === Origin.statement) {
-			runtimeValue = stepVal.label;
-		} else if (stepVal.origin === Origin.env) {
-			runtimeValue = world.options.envVariables[stepVal.label]; // might be undefined
-		} else if (stepVal.origin === Origin.var) {
-			runtimeValue = world.shared.get(stepVal.label); // might be undefined
-		} else if (stepVal.origin === Origin.fallthrough) {
-			runtimeValue = world.options.envVariables[stepVal.label] ?? world.shared.get(stepVal.label) ?? stepVal.label;
-		} else if (stepVal.origin === Origin.credential) {
-			runtimeValue = stepVal.label;
-		} else if (stepVal.origin === Origin.quoted) {
-			runtimeValue = stepVal.label;
+		if (actionVal.origin === Origin.statement) {
+			runtimeValue = actionVal.label;
+		} else if (actionVal.origin === Origin.env) {
+			runtimeValue = world.options.envVariables[actionVal.label]; // might be undefined
+		} else if (actionVal.origin === Origin.var) {
+			runtimeValue = world.shared.get(actionVal.label); // might be undefined
+		} else if (actionVal.origin === Origin.fallthrough) {
+			runtimeValue = world.options.envVariables[actionVal.label] ?? world.shared.get(actionVal.label) ?? actionVal.label;
+		} else if (actionVal.origin === Origin.credential) {
+			runtimeValue = actionVal.label;
+		} else if (actionVal.origin === Origin.quoted) {
+			runtimeValue = actionVal.label;
 		} else {
-			throw new Error(`Unsupported origin type: ${stepVal.origin}`);
+			throw new Error(`Unsupported origin type: ${actionVal.origin}`);
 		}
 		if (runtimeValue === undefined) {
 			continue;
 		}
 
-		const actionVal = world.shared.get(stepVal.label);
-		if (actionVal !== undefined) {
-			const storedEntry = world.shared.all()[stepVal.label];
-			console.log('y🤑', JSON.stringify(storedEntry, null, 2));
-			stepVal.domain = storedEntry.domain;
-		} else {
-		console.log('a🤑ctionVal', {actionVal, stepVal}, world.shared.all());
-
-		}
 		// Resolve domain for coercion
-		let domainToUse = stepVal.domain;
-		if (stepVal.origin === Origin.var || stepVal.origin === Origin.fallthrough) {
-			const storedEntry = world.shared.all()[stepVal.label];
+		let domainToUse = actionVal.domain;
+		if (actionVal.origin === Origin.var || actionVal.origin === Origin.fallthrough) {
+			const storedEntry = world.shared.all()[actionVal.label];
 			if (storedEntry?.domain) {
 				domainToUse = storedEntry.domain;
 			}
 		}
 
+		const isUnion = actionVal.domain.includes('|');
+		const actionDomain = isUnion ? actionVal.domain.split('|').map(d => d.trim()).sort() : [actionVal.domain];
+
+		if (isUnion && (actionVal.origin === Origin.quoted)) {
+			if (actionDomain.includes(DOMAIN_STRING)) {
+				domainToUse = DOMAIN_STRING;
+			}
+		}
+
+		if (domainToUse !== actionVal.domain && !actionDomain.includes(domainToUse)) {
+			const declaredDomains = isUnion ? actionVal.domain : `"${actionVal.domain}"`;
+			throw new Error(`For "${featureStep.in}": Domain mismatch: variable "${actionVal.label}" has domain "${domainToUse}" but action parameter expects ${declaredDomains}. The variable's domain must match the action's declared domain or be included in a union domain.`);
+		}
+
 		let coerced: TStepValueValue;
-
-		const isUnion = stepVal.domain.includes('|');
-		const actionDomain = isUnion ? stepVal.domain.split('|').map(d => d.trim()).sort() : [domainToUse];
-
-		// Common domain existence check
 		const availableDomains = Object.keys(world.domains).sort();
 
 		if (isUnion) {
-			// If we have a resolved domain from stored variable, use it if it's in the union
-			if (domainToUse !== stepVal.domain && actionDomain.includes(domainToUse)) {
+			console.log('🤑', JSON.stringify(actionVal, null, 2));
+			if (domainToUse !== actionVal.domain && actionDomain.includes(domainToUse)) {
 				if (!world.domains[domainToUse]) {
 					throw new Error(`No domain coercer found for resolved domain: "${domainToUse}". Available domains: ${availableDomains.join(', ')}. Check that the required stepper is included and has registered this domain.`);
 				}
+				actionVal.domain = domainToUse;
 				coerced = await world.domains[domainToUse].coerce(runtimeValue as TStepValueValue, steppers);
 			} else {
-				// Look for union domain coercer using sorted domain key
 				const sortedUnionKey = actionDomain.join(' | ');
 				if (!world.domains[sortedUnionKey]) {
-					throw new Error(`No domain coercer found for union domain: ${stepVal.domain} (sorted: ${sortedUnionKey}). Available domains: ${availableDomains.join(', ')}. Union domains require either a specific union coercer or variable resolution to a constituent domain.`);
+					throw new Error(`No domain coercer found for union domain: ${actionVal.domain} (sorted: ${sortedUnionKey}). Available domains: ${availableDomains.join(', ')}. Union domains require either a specific union coercer or variable resolution to a constituent domain.`);
 				}
-				// Pass the union domain itself as the resolved domain for literals
 				const domainResolution = { setDomain: sortedUnionKey, actionDomain };
 				coerced = await Promise.resolve(world.domains[sortedUnionKey].coerce(runtimeValue as TStepValueValue, steppers, domainResolution));
 			}
 		} else {
-			// Single domain handling
 			if (!world.domains[domainToUse]) {
 				throw new Error(`No domain coercer found for domain: "${domainToUse}". Available domains: ${availableDomains.join(', ')}. Check that the required stepper is included and has registered this domain.`);
 			}
 			coerced = await Promise.resolve(world.domains[domainToUse].coerce(runtimeValue as TStepValueValue, steppers));
-		}
-
-		stepVal.value = coerced;
+		} actionVal.value = coerced;
 		stepArgs[name] = coerced;
 	}
 

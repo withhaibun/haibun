@@ -4,7 +4,7 @@ import { testWithDefaults } from '../lib/test/lib';
 
 describe('credentials', () => {
 	it('hasRandomUsername', async () => {
-		const feature = { path: '/features/d.feature', content: 'have a valid random username <boop>' };
+		const feature = { path: '/features/d.feature', content: 'have a valid random username <boop>\nvariable <boop> is defined' };
 		const res = await testWithDefaults([feature], [Credentials]);
 		expect(res.ok).toBe(true);
 

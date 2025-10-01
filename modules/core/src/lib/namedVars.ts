@@ -128,34 +128,20 @@ export const getMatch = (actionable: string, r: RegExp, actionName: string, step
 					ph.origin = Origin.credential;
 				} else if (b !== undefined) {
 					ph.origin = Origin.var;
-			} else if (e !== undefined) {
-				ph.origin = Origin.env;
-			} else if (t !== undefined) {
+				} else if (e !== undefined) {
+					ph.origin = Origin.env;
+				} else if (t !== undefined) {
 					// bare literal capture - detect env syntax $NAME$ or inline name:domain
 					const envMatch = /^\$([A-Za-z_][A-Za-z0-9_]*)\$$/.exec(t);
 					if (envMatch) {
 						ph.label = envMatch[1];
-					ph.origin = Origin.env;
+						ph.origin = Origin.env;
 					} else {
-						// inline explicit domain: accept 'name:domain' (name may be multi-word)
-							if (t !== undefined) {
-							// If the bare literal looks like JSON, treat it as fallthrough.
-							const tTrim = String(t).trim();
-							if (tTrim.startsWith('{') || tTrim.startsWith('[')) {
-								ph.label = tTrim;
-								ph.origin = Origin.fallthrough;
-							} else {
-								const inlineLocal = /^(.+?):([A-Za-z_][A-Za-z0-9_-]*)$/.exec(t);
-								if (inlineLocal) {
-										ph.label = inlineLocal[1].trim();
-										ph.domain = inlineLocal[2];
-										ph.origin = Origin.fallthrough;
-								} else {
-									ph.origin = Origin.fallthrough;
-								}
-							}
-						} else {
-							ph.origin = Origin.fallthrough;
+						ph.origin = Origin.fallthrough;
+						// If the bare literal looks like JSON, treat it as fallthrough.
+						const tTrim = String(t).trim();
+						if (tTrim.startsWith('{') || tTrim.startsWith('[')) {
+							ph.label = tTrim;
 						}
 					}
 				}
@@ -178,7 +164,7 @@ const inferOrigin = (char: string): TOrigin => {
 			return Origin.credential;
 		case '"':
 			return Origin.quoted;
-			default:
+		default:
 			return Origin.fallthrough;
 	}
 };

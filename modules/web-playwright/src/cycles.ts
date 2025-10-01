@@ -5,23 +5,20 @@ import { IStepperCycles, TFailureArgs, TEndFeature, TStartExecution, TResolvedFe
 import { DOMAIN_STRING } from '@haibun/core/lib/domain-types.js';
 import { EExecutionMessageType, TArtifactVideo, TArtifactResolvedFeatures, TMessageContext } from '@haibun/core/lib/interfaces/logger.js';
 import { EMediaTypes } from '@haibun/domain-storage/media-types.js';
-import { WebPlaywright, EMonitoringTypes, DOMAIN_PAGE_LOCATOR } from './web-playwright.js';
+import { WebPlaywright, EMonitoringTypes } from './web-playwright.js';
+import { DOMAIN_PAGE_LOCATOR } from './domains.js';
 import { sleep } from '@haibun/core/lib/util/index.js';
 
 export const cycles = (wp: WebPlaywright): IStepperCycles => ({
 	getDomains(): TDomainDefinition[] {
 		return [
-			// Single page-locator domain
 			{
 				selectors: [DOMAIN_PAGE_LOCATOR],
 				coerce: (value: TStepValueValue) => String(value)
 			},
-			// Union domain: page-locator | string
 			{
 				selectors: [DOMAIN_PAGE_LOCATOR, DOMAIN_STRING],
-				coerce: (value: TStepValueValue, steppers, domainResolution) => {
-					return value;
-				}
+				coerce: (value: TStepValueValue) => String(value)
 			}
 		];
 	},

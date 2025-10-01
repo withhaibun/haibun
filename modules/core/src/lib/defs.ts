@@ -21,6 +21,7 @@ export type TBaseOptions = {
 	LOG_FOLLOW?: string;
 	STAY?: string;
 	SETTING?: string;
+	STEP_DELAY?: number;
 	[CONTINUE_AFTER_ERROR]?: boolean;
 	envVariables?: TEnvVariables
 };

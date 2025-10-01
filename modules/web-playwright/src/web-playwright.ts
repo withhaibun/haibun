@@ -5,9 +5,6 @@ import { pathToFileURL } from 'url';
 import { TWorld, OK, TStepResult } from '@haibun/core/lib/defs.js';
 import { WEB_PAGE } from '@haibun/core/lib/domain-types.js';
 import { BrowserFactory, TTaggedBrowserFactoryOptions, TBrowserTypes, BROWSERS } from './BrowserFactory.js';
-
-// Web-playwright specific domain constant
-export const DOMAIN_PAGE_LOCATOR = 'page-locator';
 import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOption, optionOrError } from '@haibun/core/lib/util/index.js';
 import { AStorage } from '@haibun/domain-storage/AStorage.js';
 import { EExecutionMessageType, TArtifactImage, TMessageContext } from '@haibun/core/lib/interfaces/logger.js';
@@ -28,7 +25,7 @@ import { TwinPage } from './twin-page.js';
  * @see {@link restSteps} for rest steps
  */
 
-
+export { DOMAIN_PAGE_LOCATOR } from './domains.js';
 export const LAST_REST_RESPONSE = 'LAST_REST_RESPONSE';
 export enum EMonitoringTypes {
 	MONITOR_ALL = 'all',

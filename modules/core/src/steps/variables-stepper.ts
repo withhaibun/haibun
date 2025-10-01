@@ -1,6 +1,6 @@
 import { OK, TStepArgs, TFeatureStep, TWorld, IStepperCycles, TStartScenario, Origin } from '../lib/defs.js';
 import { TAnyFixme } from '../lib/fixme.js';
-import { AStepper, IHasCycles } from '../lib/astepper.js';
+import { AStepper, IHasCycles, TStepperSteps } from '../lib/astepper.js';
 import { actionNotOK, actionOK } from '../lib/util/index.js';
 import { FeatureVariables } from '../lib/feature-variables.js';
 import { DOMAIN_STRING } from '../lib/domain-types.js';
@@ -46,9 +46,17 @@ class VariablesStepper extends AStepper implements IHasCycles {
 	}
 
 	// Steps
-	steps = {
+	steps: TStepperSteps = {
+		combineAs: {
+			gwta: 'combine {p1} and {p2} as {domain} to {what}',
+			action: async ({ p1, p2, domain }: { p1: string, p2: string, domain: string }, featureStep: TFeatureStep) => {
+				const label = featureStep.action.stepValuesMap.what.label;
+				this.getWorld().shared.set({ label: String(label), value: `${p1}${p2}`, domain, origin: Origin.var });
+				return Promise.resolve(OK);
+			}
+		},
 		combine: {
-			gwta: 'combine {p1} and {p2} as {what}',
+			gwta: 'combine {p1} and {p2} to {what}',
 			action: async ({ p1, p2 }: TStepArgs, featureStep: TFeatureStep) => {
 				const label = featureStep.action.stepValuesMap.what.label;
 				this.getWorld().shared.set({ label: String(label), value: `${p1}${p2}`, domain: DOMAIN_STRING, origin: Origin.var });
@@ -57,7 +65,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		},
 		showEnv: {
 			gwta: 'show env',
-			export: false,
+			expose: false,
 			action: async () => {
 				// only available locally since it might contain sensitive info.
 				console.info('env', this.world.options.envVariables);
@@ -82,6 +90,21 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				}
 
 				this.getWorld().shared.set({ label: String(label), value: args.value, domain, origin });
+				return Promise.resolve(OK);
+			}
+		},
+		setAs: {
+			gwta: 'set( empty)? {what: string} as {domain: string} to {value: string}',
+			precludes: [`${VariablesStepper.name}.set`],
+			action: async ({ value, domain }: { value: string, domain: string }, featureStep: TFeatureStep) => {
+				const emptyOnly = !!featureStep.in.match(/set empty /);
+				const { label, origin } = featureStep.action.stepValuesMap.what;
+
+				if (emptyOnly && this.getWorld().shared.get(label) !== undefined) {
+					return OK;
+				}
+
+				this.getWorld().shared.set({ label: String(label), value: value, domain, origin });
 				return Promise.resolve(OK);
 			}
 		},

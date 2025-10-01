@@ -1,10 +1,11 @@
 import { Download, Page, Response } from "playwright";
 type ClickResult = import('playwright').Locator;
 
-import { OK, Origin } from "@haibun/core/lib/defs.js";
+import { OK, Origin, TFeatureStep } from "@haibun/core/lib/defs.js";
 import { DOMAIN_STRING, WEB_PAGE } from "@haibun/core/lib/domain-types.js";
 import { actionNotOK, sleep } from "@haibun/core/lib/util/index.js";
-import { DOMAIN_PAGE_LOCATOR, WebPlaywright } from "./web-playwright.js";
+import { DOMAIN_PAGE_LOCATOR } from "./domains.js";
+import { WebPlaywright } from "./web-playwright.js";
 import { BROWSERS } from "./BrowserFactory.js";
 import { EExecutionMessageType } from "@haibun/core/lib/interfaces/logger.js";
 import { actionOK } from "@haibun/core/lib/util/index.js";
@@ -30,16 +31,16 @@ export const interactionSteps = (wp: WebPlaywright): TStepperSteps => ({
 		},
 	},
 	inputVariable: {
-		gwta: 'input {what} for {field}',
-		action: async ({ what, field }: { what: string; field: string }) => {
-			await wp.withPage(async (page: Page) => await page.locator(field).fill(what));
+		gwta: `input {what} for {field: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}`,
+		action: async ({ what, field }: { what: string; field: string }, featureStep: TFeatureStep) => {
+			await wp.withPage(async (page: Page) => await locateByDomain(page, featureStep, 'field').fill(what));
 			return OK;
 		},
 	},
 	selectionOption: {
 		gwta: `select {option} for {field: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}`,
-		action: async ({ option, field }: { option: string; field: string }) => {
-			await wp.withPage(async (page: Page) => await page.locator(field).selectOption({ label: option }));
+		action: async ({ option, field }: { option: string; field: string }, featureStep: TFeatureStep) => {
+			await wp.withPage(async (page: Page) => await locateByDomain(page, featureStep, 'field').selectOption({ label: option }));
 			return OK;
 		},
 	},
@@ -74,9 +75,9 @@ export const interactionSteps = (wp: WebPlaywright): TStepperSteps => ({
 	},
 	waitFor: {
 		gwta: `wait for {target: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}`,
-		action: async ({ target }: { target: string }) => {
+		action: async ({ target }: { target: string }, featureStep: TFeatureStep) => {
 			try {
-				await wp.withPage(async (page: Page) => await page.locator(target).waitFor());
+				await wp.withPage(async (page: Page) => await locateByDomain(page, featureStep, 'target').waitFor());
 				return OK;
 			} catch (e) {
 				return actionNotOK(`Did not find ${target}`);
@@ -213,19 +214,16 @@ export const interactionSteps = (wp: WebPlaywright): TStepperSteps => ({
 	click: {
 		gwta: `click {target: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}`,
 		action: async ({ target }: { target: string }, featureStep) => {
-			console.log('OO🤑', JSON.stringify(target, null, 2));
-			console.log('LL🤑', JSON.stringify(featureStep.action.stepValuesMap, null, 2));
-			const method = (featureStep.action.stepValuesMap?.target.domain === 'string') ? 'getByText' : 'locator';
-			console.log('mm', method);
-
-			await wp.withPage(async (page: Page) => await page[method](target).click());
+			await wp.withPage(async (page: Page) => {
+				return await locateByDomain(page, featureStep, 'target').click();
+			});
 			return OK;
 		},
 	},
 	clickBy: {
 		precludes: [`${wp.constructor.name}.click`],
-		gwta: 'click {target} by {method}',
-		action: async ({ target, method }: { target: string; method: string }) => {
+		gwta: `click {target: ${DOMAIN_STRING_OR_PAGE_LOCATOR}} by {method}`,
+		action: async ({ target, method }: { target: string; method: string }, featureStep: TFeatureStep) => {
 			let withModifier: Record<string, unknown> = {};
 
 			const bys: Record<string, (page: Page) => ClickResult | Promise<void>> = {
@@ -235,11 +233,10 @@ export const interactionSteps = (wp: WebPlaywright): TStepperSteps => ({
 				role: (page: Page) => page.getByRole(target as Parameters<Page['getByRole']>[0]),
 				label: (page: Page) => page.getByLabel(target),
 				title: (page: Page) => page.getByTitle(target),
-				text: (page: Page) => page.getByText(target, { exact: true }),
-				dispatch: (page: Page) => page.locator(target).dispatchEvent('click'),
+				text: (page: Page) => page.getByText(target),
 				modifier: (page: Page) => {
 					withModifier = JSON.parse(method);
-					return page.locator(target);
+					return locateByDomain(page, featureStep, 'target');
 				},
 			};
 			if (!bys[method]) {
@@ -258,7 +255,7 @@ export const interactionSteps = (wp: WebPlaywright): TStepperSteps => ({
 	//                          NAVIGATION
 
 	gotoPage: {
-		gwta: `go to the { name } ${WEB_PAGE} `,
+		gwta: `go to the { name } ${WEB_PAGE}`,
 		action: async ({ name }: { name: string }) => {
 			const response = await wp.withPage<Response | null>(async (page: Page) => {
 				return await page.goto(name);
@@ -287,9 +284,9 @@ export const interactionSteps = (wp: WebPlaywright): TStepperSteps => ({
 	},
 
 	blur: {
-		gwta: 'blur {what}',
-		action: async ({ what }: { what: string }) => {
-			await wp.withPage(async (page: Page) => await page.locator(what).evaluate((e) => e.blur()));
+		gwta: `blur {what: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}`,
+		action: async ({ what }: { what: string }, featureStep: TFeatureStep) => {
+			await wp.withPage(async (page: Page) => await locateByDomain(page, featureStep, 'what').evaluate((e) => e.blur()));
 			return OK;
 		},
 	},
@@ -307,21 +304,21 @@ export const interactionSteps = (wp: WebPlaywright): TStepperSteps => ({
 
 	//  FILE DOWNLOAD/UPLOAD
 	uploadFile: {
-		gwta: 'upload file {file} using {selector}',
-		action: async ({ file, selector }: { file: string; selector: string }) => {
-			await wp.withPage(async (page: Page) => await page.locator(selector).setInputFiles(file));
+		gwta: `upload file {file} using {selector: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}`,
+		action: async ({ file, selector }: { file: string; selector: string }, featureStep: TFeatureStep) => {
+			await wp.withPage(async (page: Page) => await locateByDomain(page, featureStep, 'selector').setInputFiles(file));
 			return OK;
 		},
 	},
 
 	waitForFileChooser: {
-		gwta: 'upload file {file} with {selector}',
-		action: async ({ file, selector }: { file: string; selector: string }) => {
+		gwta: `upload file {file} with {selector: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}`,
+		action: async ({ file, selector }: { file: string; selector: string }, featureStep: TFeatureStep) => {
 			try {
 				await wp.withPage(async (page: Page) => {
 					const [fileChooser] = await Promise.all([
 						page.waitForEvent('filechooser'),
-						page.locator(selector).click()
+						locateByDomain(page, featureStep, 'selector').click()
 					]);
 					await fileChooser.setFiles(file);
 				});
@@ -419,12 +416,11 @@ export const interactionSteps = (wp: WebPlaywright): TStepperSteps => ({
 		},
 	},
 	takeScreenshotOf: {
-		gwta: 'take a screenshot of {what} to {where}',
-		action: async ({ what, where }: { what: string; where: string }) => {
+		gwta: `take a screenshot of {what: ${DOMAIN_STRING_OR_PAGE_LOCATOR}} to {where}`,
+		action: async ({ what, where }: { what: string; where: string }, featureStep: TFeatureStep) => {
 			try {
 				await wp.withPage(async (page: Page) => {
-
-					const locator = await page.locator(what);
+					const locator = await locateByDomain(page, featureStep, 'what');
 					if (await locator.count() !== 1) {
 						throw Error(`no single ${what} from ${locator} `);
 					}
@@ -475,16 +471,6 @@ export const interactionSteps = (wp: WebPlaywright): TStepperSteps => ({
 			return OK;
 		},
 	},
-	assertOpen: {
-		gwta: '{what} is expanded with the {using}',
-		action: async ({ what, using }: { what: string; using: string }) => {
-			const isVisible = await wp.withPage(async (page: Page) => await page.locator(what).isVisible());
-			if (!isVisible) {
-				await wp.withPage(async (page: Page) => await page.locator(using).click());
-			}
-			return OK;
-		},
-	},
 	saveURIQueryParameter: {
 		gwta: 'save URI query parameter {what} to {where}',
 		action: async ({ what, where }: { what: string; where: string }) => {
@@ -528,4 +514,11 @@ export const interactionSteps = (wp: WebPlaywright): TStepperSteps => ({
 	}
 });
 
+
+function locateByDomain(page: Page, featureStep: TFeatureStep, where: string) {
+	const value = featureStep.action.stepValuesMap[where].value as string
+	console.log('🤑', JSON.stringify({ featureStep, where, }, null, 2));
+	const located = (featureStep.action.stepValuesMap[where].domain === 'string') ? page.getByText(value, { exact: true }) : page.locator(value);
+	return located;
+}
 
