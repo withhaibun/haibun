@@ -110,22 +110,19 @@ export const getMatch = (actionable: string, r: RegExp, actionName: string, step
 		const entries = Object.values(stepValuesMap) as TInternalStepValue[];
 		let i = 0;
 		for (const ph of entries) {
-			// Prefer quoted, credential, backtick, then bare literal captures.
+			// Prefer quoted, backtick, then bare literal captures.
 			const q = groups[`${TYPE_QUOTED}${i}`];
-			const c = groups[`${TYPE_CREDENTIAL}${i}`];
 			const b = groups[`${TYPE_VAR}${i}`];
 			const e = groups[`${TYPE_ENV}${i}`];
 			const t = groups[`${TYPE_ENV_OR_VAR_OR_LITERAL}${i}`];
-			const chosen = q ?? c ?? b ?? t;
+			const chosen = q ?? b ?? t;
 			// prefer the dedicated env group if present
-			const actuallyChosen = q ?? c ?? b ?? e ?? t;
+			const actuallyChosen = q ?? b ?? e ?? t;
 			if (actuallyChosen !== undefined) {
 				ph.label = chosen;
 				// set origin according to which capture matched
 				if (q !== undefined) {
 					ph.origin = Origin.quoted;
-				} else if (c !== undefined) {
-					ph.origin = Origin.credential;
 				} else if (b !== undefined) {
 					ph.origin = Origin.var;
 				} else if (e !== undefined) {
@@ -160,8 +157,6 @@ const inferOrigin = (char: string): TOrigin => {
 			return Origin.env;
 		case '`':
 			return Origin.var;
-		case '<':
-			return Origin.credential;
 		case '"':
 			return Origin.quoted;
 		default:

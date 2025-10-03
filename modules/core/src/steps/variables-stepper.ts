@@ -108,6 +108,29 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				return Promise.resolve(OK);
 			}
 		},
+		setRandom: {
+			precludes: [`${VariablesStepper.name}.set`],
+			gwta: `set( empty)? {what: string} to {length: number} random characters`,
+			action: async ({ length }: { length: number }, featureStep: TFeatureStep) => {
+				const emptyOnly = !!featureStep.in.match(/set empty /);
+				const { label } = featureStep.action.stepValuesMap.what;
+
+				if (length < 1 || length > 100) {
+					return actionNotOK(`length ${length} must be between 1 and 100`);
+				}
+				if (emptyOnly && this.getWorld().shared.get(label) !== undefined) {
+					return OK;
+				}
+
+				let rand = '';
+				while (rand.length < length) {
+					rand += Math.random().toString(36).substring(2, 2 + length);
+				}
+				rand = rand.substring(0, length);
+				this.getWorld().shared.set({ label: String(label), value: rand, domain: DOMAIN_STRING, origin: Origin.var });
+				return Promise.resolve(OK);
+			}
+		},
 		is: {
 			gwta: 'variable {what} is {value}',
 			action: ({ value }: TStepArgs, featureStep: TFeatureStep) => {

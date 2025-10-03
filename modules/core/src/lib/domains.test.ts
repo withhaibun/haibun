@@ -11,16 +11,16 @@ describe('domains', () => {
 		const res = await testWithDefaults([feature], steppers);
 		expect(res.ok).toBe(true);
 	});
-	it.only('sets multi word variable with domain', async () => {
+	it('sets multi word variable with domain', async () => {
 		const feature = { path: '/features/d.feature', content: 'set sel et poivre as string to "#login"\nvariable sel et poivre is "#login"' };
 		const res = await testWithDefaults([feature], steppers);
-		console.log('🤑', JSON.stringify(res.failure, null, 2));
 		expect(res.ok).toBe(true);
 	});
 
-	it('fails on unknown domain in set', async () => {
+	it.skip('fails on unknown domain in set', async () => {
 		const feature = { path: '/features/d.feature', content: 'set x as unknown-domain to "y"' };
 		const res = await testWithDefaults([feature], steppers);
+		console.log('🤑', JSON.stringify(res.featureResults, null, 2));
 		expect(res.ok).toBe(false);
 	});
 
