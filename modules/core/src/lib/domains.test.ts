@@ -17,10 +17,9 @@ describe('domains', () => {
 		expect(res.ok).toBe(true);
 	});
 
-	it.skip('fails on unknown domain in set', async () => {
+	it('fails on unknown domain in set', async () => {
 		const feature = { path: '/features/d.feature', content: 'set x as unknown-domain to "y"' };
 		const res = await testWithDefaults([feature], steppers);
-		console.log('🤑', JSON.stringify(res.featureResults, null, 2));
 		expect(res.ok).toBe(false);
 	});
 
@@ -43,7 +42,6 @@ describe('domains', () => {
 	it.skip('Set number', async () => {
 		const feature = { path: '/features/d.feature', content: 'Set Value as number to 4' };
 		const res = await testWithDefaults([feature], steppers);
-		console.log('🤑', JSON.stringify(res.failure, null, 2));
 		expect(res.ok).toBe(true);
 
 		const stored = res.world.shared.all()['Value'];

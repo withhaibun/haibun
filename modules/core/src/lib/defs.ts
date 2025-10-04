@@ -51,7 +51,7 @@ export type TWorld = {
 	moduleOptions: TModuleOptions;
 	timer: Timer;
 	bases: TBase;
-	domains: Record<string, { coerce: (label: TStepValueValue, steppers: AStepper[] | undefined, domainResolution?: { setDomain: string; actionDomain: string[] }) => Promise<TStepValueValue> | TStepValueValue }>;
+	domains: Record<string, { coerce: TDomainCoercer }>;
 };
 
 export type TFeatureMeta = {
@@ -150,9 +150,11 @@ export type TBeforeStep = { featureStep: TFeatureStep };
 export type TAfterStep = { featureStep: TFeatureStep, actionResult: TStepActionResult };
 export type TFailureArgs = { featureResult: TFeatureResult, failedStep: TStepResult };
 
+export type TDomainCoercer = (proto: TStepValue, steppers?: AStepper[]) => TStepValueValue;
+
 export type TDomainDefinition = {
 	selectors: string[];
-	coerce: (label: TStepValueValue, steppers: AStepper[] | undefined, domainResolution?: { resolvedDomain: string; possibleDomains: string[] }) => Promise<TStepValueValue> | TStepValueValue;
+	coerce: TDomainCoercer
 };
 
 export interface IStepperCycles {
@@ -184,7 +186,6 @@ export enum Origin {
 	fallthrough = 'fallthrough',
 	var = 'var',
 	env = 'env',
-	credential = 'credential',
 	quoted = 'quoted',
 	statement = 'statement'
 }
@@ -192,9 +193,9 @@ export enum Origin {
 export type TOrigin = keyof typeof Origin;
 export type TStepValueValue = string | number | TFeatureStep[]
 export type TStepValue = {
-	label: string;
+	term: string;
 	domain: string;
-	value?: TStepValueValue;
+	value?: TStepValueValue; // value is added in populateActionArgs
 	origin: TOrigin
 };
 

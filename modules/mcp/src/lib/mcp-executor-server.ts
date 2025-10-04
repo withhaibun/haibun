@@ -78,7 +78,7 @@ export class MCPExecutorServer {
 						// Preserve declaration order: namedInterpolation builds the map in textual order.
 						for (const v of Object.values(stepValuesMap)) {
 							const d = v.domain || 'string';
-							variables[v.label] = d === 'number' ? z.number() : z.string();
+							variables[v.term] = d === 'number' ? z.number() : z.string();
 						}
 					}
 				}

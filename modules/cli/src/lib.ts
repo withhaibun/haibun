@@ -69,14 +69,12 @@ function getCliWorld(protoOptions: TProtoOptions, bases: TBase): TWorld {
 	const { KEY: keyIn, LOG_LEVEL: logLevel, LOG_FOLLOW: logFollow } = protoOptions.options;
 	const tag = getDefaultTag(0);
 	const logger = new Logger({ level: logLevel || 'log', follow: logFollow });
-	const shared = new FeatureVariables(JSON.stringify(tag));
 	const timer = new Timer();
 
 	Timer.key = keyIn || Timer.key;
 
 	const world: Partial<TWorld> = {
 		tag,
-		shared,
 		runtime: {},
 		logger,
 		prompter: new Prompter(),
@@ -84,6 +82,8 @@ function getCliWorld(protoOptions: TProtoOptions, bases: TBase): TWorld {
 		timer,
 		bases,
 	};
+	const shared = new FeatureVariables(world as TWorld);
+	world.shared = shared;
 	const fullWorld = world as TWorld;
 	fullWorld.domains = getCoreDomains(fullWorld);
 	return fullWorld;

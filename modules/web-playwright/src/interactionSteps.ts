@@ -165,7 +165,7 @@ export const interactionSteps = (wp: WebPlaywright): TStepperSteps => ({
 			console.debug('background', background, browserContext.serviceWorkers());
 
 			const extensionId = background.url().split('/')[2];
-			wp.getWorld().shared.set({ label: 'extensionContext', value: extensionId, domain: 'string', origin: Origin.fallthrough });
+			wp.getWorld().shared.set({ term: 'extensionContext', value: extensionId, domain: 'string', origin: Origin.fallthrough });
 			await wp.withPage(async (page: Page) => {
 				const popupURI = `chrome-extension://${extensionId}/popup.html?${tab}`;
 				return await page.goto(popupURI);
@@ -184,13 +184,14 @@ export const interactionSteps = (wp: WebPlaywright): TStepperSteps => ({
 	},
 	URIQueryParameterIs: {
 		gwta: 'URI query parameter {what} is {value}',
-		action: async ({ what, value }: { what: string; value: string }) => {
+		action: async ({ value }: { value: string }, featureStep) => {
+			const { term } = featureStep.action.stepValuesMap.what;
 			const uri = await wp.withPage<string>(async (page: Page) => await page.url());
-			const found = new URL(uri).searchParams.get(what);
+			const found = new URL(uri).searchParams.get(term);
 			if (found === value) {
 				return OK;
 			}
-			return actionNotOK(`URI query ${what} contains "${found}"", not "${value}""`);
+			return actionNotOK(`URI query ${term} contains "${found}", not "${value}"`);
 		},
 	},
 	URIStartsWith: {
@@ -476,7 +477,7 @@ export const interactionSteps = (wp: WebPlaywright): TStepperSteps => ({
 		action: async ({ what, where }: { what: string; where: string }) => {
 			const uri = await wp.withPage<string>(async (page: Page) => await page.url());
 			const found = new URL(uri).searchParams.get(what);
-			wp.getWorld().shared.set({ label: where, value: found, domain: 'string', origin: Origin.fallthrough });
+			wp.getWorld().shared.set({ term: where, value: found, domain: 'string', origin: Origin.fallthrough });
 			return OK;
 		},
 	},
@@ -517,7 +518,6 @@ export const interactionSteps = (wp: WebPlaywright): TStepperSteps => ({
 
 function locateByDomain(page: Page, featureStep: TFeatureStep, where: string) {
 	const value = featureStep.action.stepValuesMap[where].value as string
-	console.log('🤑', JSON.stringify({ featureStep, where, }, null, 2));
 	const located = (featureStep.action.stepValuesMap[where].domain === 'string') ? page.getByText(value, { exact: true }) : page.locator(value);
 	return located;
 }

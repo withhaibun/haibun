@@ -35,16 +35,16 @@ export class Resolver {
 					// stepValuesMap is attached to stepAction for downstream processing
 					// Early validation for statement-typed placeholders using their label value
 					if (stepAction.stepValuesMap) {
-						const statements = Object.values(stepAction.stepValuesMap).filter((v: TStepValue & { label?: string }) => v.domain === 'statement' && v.label);
+						const statements = Object.values(stepAction.stepValuesMap).filter((v: TStepValue & { label?: string }) => v.domain === 'statement' && v.term);
 						for (const ph of statements) {
-							const rawVal = ph.label!;
+							const rawVal = ph.term!;
 							if (rawVal.trim().startsWith('Backgrounds:')) continue; // skip inline backgrounds directive
 							try { this.findSingleStepAction(rawVal); } catch (e) { throw Error(`statement '${rawVal}' invalid: ${e.message}`); }
 						}
 					}
 					const featureStep = this.getFeatureStep(featureLine, seq, stepAction);
 					if (stepAction.step.checkAction) {
-						const named = Object.fromEntries(Object.entries(stepAction.stepValuesMap || {}).map(([k, v]) => [k, v.value ?? v.label ?? ''])) as TStepArgs;
+						const named = Object.fromEntries(Object.entries(stepAction.stepValuesMap || {}).map(([k, v]) => [k, v.value ?? v.term ?? ''])) as TStepArgs;
 						const valid = await stepAction.step.checkAction(named, featureStep);
 						if (valid === false) throw Error('checkAction failed');
 					}

@@ -8,6 +8,7 @@ import { SCENARIO_START } from '../lib/defs.js';
 import { Timer } from '../lib/Timer.js';
 import { FeatureVariables } from '../lib/feature-variables.js';
 import { populateActionArgs } from '../lib/populateActionArgs.js';
+import { registerDomains } from '../lib/domain-types.js';
 
 export const endExecutonContext: TMessageContext = { incident: EExecutionMessageType.ACTION, incidentDetails: { end: true } };
 
@@ -104,7 +105,7 @@ export class FeatureExecutor {
 
 		this.logit(`start feature ${currentScenario}`, { incident: EExecutionMessageType.FEATURE_START, incidentDetails: { startTime: Timer.START_TIME, feature } }, 'debug');
 
-		let featureVars: FeatureVariables = new FeatureVariables(feature.path, {});
+		let featureVars: FeatureVariables = new FeatureVariables(world, {});
 
 		for (const step of feature.featureSteps) {
 			if (step.action.actionName === SCENARIO_START) {
@@ -129,7 +130,7 @@ export class FeatureExecutor {
 			}
 			// Stash feature variables
 			if (!currentScenario) {
-				featureVars = new FeatureVariables(feature.path, world.shared.all());
+				featureVars = new FeatureVariables(world, world.shared.all());
 			}
 		}
 		if (currentScenario) {
@@ -205,15 +206,5 @@ const doStepperCycle = async <K extends keyof IStepperCycles>(steppers: AStepper
 // Register domains from stepper cycles after setWorld
 const addStepperDomains = async (world, steppers: AStepper[]) => {
 	const results = await doStepperCycle(steppers, 'getDomains', undefined);
-	for (const stepperWithDomains of results) {
-		for (const definition of stepperWithDomains) {
-			const domainKey = definition.selectors.sort().join(' | ');
-
-			if (world.domains[domainKey]) {
-				throw Error(`Domain "${domainKey}" is already registered}`);
-			}
-
-			world.domains[domainKey] = { coerce: definition.coerce };
-		}
-	}
+	registerDomains(world, results);
 }

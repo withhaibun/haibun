@@ -25,7 +25,7 @@ import { TwinPage } from './twin-page.js';
  * @see {@link restSteps} for rest steps
  */
 
-export { DOMAIN_PAGE_LOCATOR } from './domains.js';
+
 export const LAST_REST_RESPONSE = 'LAST_REST_RESPONSE';
 export enum EMonitoringTypes {
 	MONITOR_ALL = 'all',

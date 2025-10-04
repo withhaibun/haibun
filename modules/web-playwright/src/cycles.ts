@@ -1,27 +1,15 @@
 import { rmSync } from 'fs';
 import { resolve } from 'path/posix';
 
-import { IStepperCycles, TFailureArgs, TEndFeature, TStartExecution, TResolvedFeature, TStartFeature, TDomainDefinition, TStepValueValue } from '@haibun/core/lib/defs.js';
-import { DOMAIN_STRING } from '@haibun/core/lib/domain-types.js';
+import { IStepperCycles, TFailureArgs, TEndFeature, TStartExecution, TResolvedFeature, TStartFeature } from '@haibun/core/lib/defs.js';
 import { EExecutionMessageType, TArtifactVideo, TArtifactResolvedFeatures, TMessageContext } from '@haibun/core/lib/interfaces/logger.js';
 import { EMediaTypes } from '@haibun/domain-storage/media-types.js';
 import { WebPlaywright, EMonitoringTypes } from './web-playwright.js';
-import { DOMAIN_PAGE_LOCATOR } from './domains.js';
+import { WebPlaywrightDomains } from './domains.js';
 import { sleep } from '@haibun/core/lib/util/index.js';
 
 export const cycles = (wp: WebPlaywright): IStepperCycles => ({
-	getDomains(): TDomainDefinition[] {
-		return [
-			{
-				selectors: [DOMAIN_PAGE_LOCATOR],
-				coerce: (value: TStepValueValue) => String(value)
-			},
-			{
-				selectors: [DOMAIN_PAGE_LOCATOR, DOMAIN_STRING],
-				coerce: (value: TStepValueValue) => String(value)
-			}
-		];
-	},
+	getDomains: () => WebPlaywrightDomains,
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	async onFailure({ failedStep }: TFailureArgs): Promise<void> {
 		if (wp.bf?.hasPage(wp.getWorld().tag, wp.tab)) {

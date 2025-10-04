@@ -57,7 +57,6 @@ export function getDefaultWorld(sequence: number, env = process.env): TWorld {
 	const world: Partial<TWorld> = {
 		timer: new Timer(),
 		tag: getRunTag(sequence, 0),
-		shared: new FeatureVariables(getDefaultTag(sequence).toString()),
 		logger: new Logger(env.HAIBUN_LOG_LEVEL ? { level: env.HAIBUN_LOG_LEVEL } : LOGGER_LOG),
 		prompter: new Prompter(),
 		runtime: {},
@@ -66,6 +65,7 @@ export function getDefaultWorld(sequence: number, env = process.env): TWorld {
 		bases: ['/features/'],
 	};
 	world.domains = getCoreDomains(world as TWorld);
+	world.shared = new FeatureVariables(world as TWorld);
 	return world as TWorld;
 }
 

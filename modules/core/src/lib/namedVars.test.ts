@@ -22,50 +22,11 @@ describe('namedMatches', () => {
 	});
 });
 
-/*
-describe('namedInterpolation', () => {
-	test('gets string', () => {
-		expect(namedInterpolation('hi').regexPattern).toEqual('hi');
-	});
-	test('gets var', () => {
-		const res = namedInterpolation('{hi}');
-		expect(res.regexPattern).toEqual(`${matchGroups(0)}`);
-		expect(res.stepValuesMap?.hi).toMatchObject({ label: 'hi', domain: DOMAIN_STRING });
-	});
-	test('gets var with domain explicit', () => {
-		const res = namedInterpolation('{hi: string}');
-		expect(res.regexPattern).toEqual(`${matchGroups(0)}`);
-		expect(res.stepValuesMap?.hi).toMatchObject({ label: 'hi', domain: DOMAIN_STRING });
-	});
-	test('gets var with post string', () => {
-		const res = namedInterpolation('{hi} eh');
-		expect(res.regexPattern).toEqual(`${matchGroups(0)} eh`);
-		expect(res.stepValuesMap?.hi).toMatchObject({ label: 'hi', domain: DOMAIN_STRING });
-	});
-	test('gets step placeholders', () => {
-		const res = namedInterpolation('{hi} and {there}');
-		expect(res.regexPattern).toEqual(`${matchGroups(0)} and ${matchGroups(1)}`);
-		expect(res.stepValuesMap?.hi).toMatchObject({ label: 'hi', domain: DOMAIN_STRING });
-		expect(res.stepValuesMap?.there).toMatchObject({ label: 'there', domain: DOMAIN_STRING });
-	});
-	test('gets step placeholders with post text', () => {
-		const res = namedInterpolation('{hi} and {there} eh');
-		expect(res.regexPattern).toEqual(`${matchGroups(0)} and ${matchGroups(1)} eh`);
-		expect(res.stepValuesMap?.hi).toMatchObject({ label: 'hi', domain: DOMAIN_STRING });
-		expect(res.stepValuesMap?.there).toMatchObject({ label: 'there', domain: DOMAIN_STRING });
-	});
-	test('unknown domain is accepted at parse time (runtime will validate)', () => {
-		const res = namedInterpolation('{hi: not-a-domain}');
-		expect(res.stepValuesMap?.hi).toMatchObject({ label: 'hi', domain: 'not-a-domain' });
-	});
-});
-*/
 describe('namedInterpolation regexes', () => {
 	test('regexes single', () => {
 		const r = new RegExp(namedInterpolation('{ v1: string } ').regexPattern);
 
 		expect(r.exec('"hi" there')?.groups?.q_0).toBe('hi');
-		expect(r.exec('<hi> there')?.groups?.c_0).toBe('hi');
 		expect(r.exec('`hi` there')?.groups?.b_0).toBe('hi');
 		expect(r.exec('hi there')?.groups?.t_0).toBe('hi');
 	});
@@ -91,7 +52,7 @@ describe('getNamedWithVars', () => {
 	test('gets var', async () => {
 		const steppers = await createSteppers([TestStepper]);
 		const resolver = new Resolver(steppers);
-		world.shared.set({ label: 'exact', value: 'res', domain: DOMAIN_STRING, origin: Origin.fallthrough });
+		world.shared.set({ term: 'exact', value: 'res', domain: DOMAIN_STRING, origin: Origin.fallthrough });
 		const features = asExpandedFeatures([withNameType(TEST_BASE, 'l1', 'is `exact`')]);
 		const steps = await resolver.resolveStepsFromFeatures(features);
 		const { featureSteps } = steps[0] as TResolvedFeature;

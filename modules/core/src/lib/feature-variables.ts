@@ -1,10 +1,10 @@
-import { TOrigin, TStepValue, TStepValueValue } from "./defs.js";
+import { TOrigin, TStepValue, TStepValueValue, TWorld } from "./defs.js";
 import { DOMAIN_JSON } from "./domain-types.js";
 
 export class FeatureVariables {
 	private values: { [name: string]: TStepValue; };
 
-	constructor(private context: string, initial?: { [name: string]: TStepValue; }) {
+	constructor(private world: TWorld, initial?: { [name: string]: TStepValue; }) {
 		this.values = initial || {};
 	}
 	clear() {
@@ -16,14 +16,19 @@ export class FeatureVariables {
 	}
 
 	toString() {
-		return `context ${this.context} values ${this.values}`;
+		return `context ${this.world.tag} values ${this.values}`;
 	}
 
 	setJSON(label: string, value: object, origin?: TOrigin) {
-		this.set({ label, value: JSON.stringify(value), domain: DOMAIN_JSON, origin });
+		this.set({ term: label, value: JSON.stringify(value), domain: DOMAIN_JSON, origin });
 	}
 	set(sv: TStepValue) {
-		this.values[sv.label] = sv;
+		const domain = this.world.domains[sv.domain]
+		if (domain === undefined) {
+			throw Error(`Cannot set variable "${sv.term}": unknown domain "${sv.domain}"`);
+		}
+		this.world.domains[sv.domain].coerce(sv);
+		this.values[sv.term] = sv;
 	}
 	get(name: string): TStepValueValue | undefined {
 		if (!this.values[name]) return undefined;

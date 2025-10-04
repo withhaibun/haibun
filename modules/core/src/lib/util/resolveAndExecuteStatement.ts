@@ -5,7 +5,7 @@ import { TWorld, TStepResult, TFeature, TFeatureStep, ExecMode } from '../defs.j
 import { expandLine } from '../features.js';
 
 export async function resolveAndExecuteStatement(statement: string, base: string, steppers: AStepper[], world: TWorld, execMode: ExecMode): Promise<TStepResult> {
-	const featureSteps = await findFeatureStepsFromStatement(statement, steppers, world, base);
+	const featureSteps = findFeatureStepsFromStatement(statement, steppers, world, base);
 	return await doExecuteFeatureSteps(featureSteps, steppers, world, execMode);
 }
 
@@ -21,7 +21,7 @@ export async function doExecuteFeatureSteps(featureSteps: TFeatureStep[], steppe
 	return lastResult!;
 }
 
-export async function findFeatureStepsFromStatement(statement: string, steppers: AStepper[], world: TWorld, base: string): Promise<TFeatureStep[]> {
+export function findFeatureStepsFromStatement(statement: string, steppers: AStepper[], world: TWorld, base: string): TFeatureStep[] {
 	const featureSteps: TFeatureStep[] = [];
 	if (!world.runtime.backgrounds) {
 		throw new Error('runtime.backgrounds is undefined; cannot expand inline Backgrounds');
@@ -31,7 +31,7 @@ export async function findFeatureStepsFromStatement(statement: string, steppers:
 	let idx = 0;
 	for (const x of expanded) {
 		idx++;
-		const { featureStep } = await getActionableStatement(steppers, x.line, x.feature.path, idx, 0);
+		const { featureStep } = getActionableStatement(steppers, x.line, x.feature.path, idx, 0);
 		featureSteps.push(featureStep);
 	}
 	return featureSteps;

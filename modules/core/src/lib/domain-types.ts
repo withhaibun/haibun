@@ -1,4 +1,5 @@
-import { TStepValueValue, TWorld } from "./defs.js";
+import { AStepper } from "./astepper.js";
+import { TDomainDefinition, TStepValue, TStepValueValue, TWorld } from "./defs.js";
 import { findFeatureStepsFromStatement } from "./util/resolveAndExecuteStatement.js";
 
 // Core types that replace the domain system, used in vars and modules like filesystem, web
@@ -15,30 +16,46 @@ export const BASE_TYPES = [DOMAIN_STRING, DOMAIN_NUMBER, WEB_PAGE, DOMAIN_STATEM
 // Core domain registry factory. Returns coercion functions for built-in domains.
 export const getCoreDomains = (world: TWorld) => ({
 	[DOMAIN_STRING]: {
-		coerce: (label: TStepValueValue) => String(label),
+		coerce: (proto: TStepValue) => String(proto.value),
 	},
 	[DOMAIN_NUMBER]: {
-		coerce: (label: TStepValueValue) => {
-			if (typeof label !== 'string' && typeof label !== 'number') throw new Error(`invalid number '${String(label)}'`);
-			const n = Number(label);
-			if (isNaN(n)) throw new Error(`invalid number '${label}'`);
+		coerce: (proto: TStepValue) => {
+			if (typeof proto.value !== 'string' && typeof proto.value !== 'number') throw new Error(`invalid number '${String(proto.value)}'`);
+			const n = Number(proto.value);
+			if (isNaN(n)) throw new Error(`invalid number '${proto.value}'`);
 			return n;
 		}
 	},
 	[DOMAIN_JSON]: {
-		coerce: (label: TStepValueValue) => {
-			if (typeof label !== 'string') throw new Error(`invalid json '${String(label)}'`);
+		coerce: (proto: TStepValue) => {
+			if (typeof proto.value !== 'string') throw new Error(`invalid json '${String(proto.value)}'`);
 			try {
-				JSON.parse(label);
-				return label;
+				JSON.parse(proto.value);
+				return proto.value;
 			}
-			catch { throw new Error(`invalid json '${label}'`); }
+			catch { throw new Error(`invalid json '${proto.value}'`); }
 		}
 	},
 	[DOMAIN_STATEMENT]: {
-		coerce: async (label: TStepValueValue, steppers) => {
-			const lbl = String(label);
-			return <TStepValueValue><unknown>await findFeatureStepsFromStatement(lbl, steppers, world, `<${DOMAIN_STATEMENT}.${lbl}>`);
+		coerce: (proto: TStepValue, steppers: AStepper[]) => {
+			const lbl = String(proto.value);
+			return <TStepValueValue>findFeatureStepsFromStatement(lbl, steppers, world, `<${DOMAIN_STATEMENT}.${lbl}>`);
 		}
 	}
 });
+
+export const registerDomains = (world: TWorld, results: TDomainDefinition[][]) => {
+	for (const stepperWithDomains of results) {
+		for (const definition of stepperWithDomains) {
+			const domainKey = asDomainKey(definition.selectors);
+
+			if (world.domains[domainKey]) {
+				throw Error(`Domain "${domainKey}" is already registered}`);
+			}
+
+			world.domains[domainKey] = { coerce: definition.coerce };
+		}
+	}
+}
+
+export const asDomainKey = (domains: string[]) => domains.sort().join(' | ');

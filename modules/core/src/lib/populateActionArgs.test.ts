@@ -18,7 +18,7 @@ function makeStep(name: string, label: string, domain: string, origin: Origin): 
 				}
 			},
 			stepValuesMap: {
-				[name]: { label, domain, origin },
+				[name]: { term: label, domain, origin },
 			},
 		},
 	};

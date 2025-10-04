@@ -2,7 +2,6 @@ import { TStepperStep, TStepAction, TStepValue, TOrigin, Origin } from './defs.j
 import { DOMAIN_STRING } from './domain-types.js';
 
 export const TYPE_QUOTED = 'q_';
-export const TYPE_CREDENTIAL = 'c_';
 export const TYPE_ENV = 'e_';
 export const TYPE_VAR = 'b_';
 export const TYPE_ENV_OR_VAR_OR_LITERAL = 't_';
@@ -41,22 +40,20 @@ export const namedInterpolation = (inp: string): { regexPattern: string; stepVal
 			regexPattern = regexPattern.slice(0, -1);
 		}
 
-		stepValuesMap[name] = { label: name, domain, origin };
+		stepValuesMap[name] = { term: name, domain, origin };
 
 		let matchGroupPattern;
 		if (origin === Origin.env) {
 			matchGroupPattern = `\\$(?<${TYPE_ENV}${matchIndex}>[A-Za-z_][A-Za-z0-9_]*)\\$`;
 		} else if (origin === Origin.var) {
 			matchGroupPattern = `\`(?<${TYPE_VAR}${matchIndex}>.+)\``;
-		} else if (origin === Origin.credential) {
-			matchGroupPattern = `<(?<${TYPE_CREDENTIAL}${matchIndex}>.+)>`;
 		} else if (origin === Origin.quoted) {
 			matchGroupPattern = `"(?<${TYPE_QUOTED}${matchIndex}>.+)"`;
 		} else {
 			// For a plain placeholder we accept several syntaxes and capture each
 			// into a distinct named group so callers can detect whether the
-			// value was quoted, credentialed, backticked or a bare literal.
-			matchGroupPattern = `(?:"(?<${TYPE_QUOTED}${matchIndex}>.+)"|<(?<${TYPE_CREDENTIAL}${matchIndex}>.+)>|\`(?<${TYPE_VAR}${matchIndex}>.+)\`|(?<${TYPE_ENV_OR_VAR_OR_LITERAL}${matchIndex}>${placeholderRegex}))`;
+			// value was quoted, backticked or a bare literal.
+			matchGroupPattern = `(?:"(?<${TYPE_QUOTED}${matchIndex}>.+)"|\`(?<${TYPE_VAR}${matchIndex}>.+)\`|(?<${TYPE_ENV_OR_VAR_OR_LITERAL}${matchIndex}>${placeholderRegex}))`;
 		}
 
 		regexPattern += matchGroupPattern;
@@ -119,7 +116,7 @@ export const getMatch = (actionable: string, r: RegExp, actionName: string, step
 			// prefer the dedicated env group if present
 			const actuallyChosen = q ?? b ?? e ?? t;
 			if (actuallyChosen !== undefined) {
-				ph.label = chosen;
+				ph.term = chosen;
 				// set origin according to which capture matched
 				if (q !== undefined) {
 					ph.origin = Origin.quoted;
@@ -131,14 +128,14 @@ export const getMatch = (actionable: string, r: RegExp, actionName: string, step
 					// bare literal capture - detect env syntax $NAME$ or inline name:domain
 					const envMatch = /^\$([A-Za-z_][A-Za-z0-9_]*)\$$/.exec(t);
 					if (envMatch) {
-						ph.label = envMatch[1];
+						ph.term = envMatch[1];
 						ph.origin = Origin.env;
 					} else {
 						ph.origin = Origin.fallthrough;
 						// If the bare literal looks like JSON, treat it as fallthrough.
 						const tTrim = String(t).trim();
 						if (tTrim.startsWith('{') || tTrim.startsWith('[')) {
-							ph.label = tTrim;
+							ph.term = tTrim;
 						}
 					}
 				}
