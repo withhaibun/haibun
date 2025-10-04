@@ -49,17 +49,18 @@ class VariablesStepper extends AStepper implements IHasCycles {
 	steps: TStepperSteps = {
 		combineAs: {
 			gwta: 'combine {p1} and {p2} as {domain} to {what}',
+			precludes: [`${VariablesStepper.name}.combine`],
 			action: async ({ p1, p2, domain }: { p1: string, p2: string, domain: string }, featureStep: TFeatureStep) => {
-				const { term: seen } = featureStep.action.stepValuesMap.what;
-				this.getWorld().shared.set({ term: String(seen), value: `${p1}${p2}`, domain, origin: Origin.var });
+				const { term } = featureStep.action.stepValuesMap.what;
+				this.getWorld().shared.set({ term: String(term), value: `${p1}${p2}`, domain, origin: Origin.var });
 				return Promise.resolve(OK);
 			}
 		},
 		combine: {
 			gwta: 'combine {p1} and {p2} to {what}',
 			action: async ({ p1, p2 }: TStepArgs, featureStep: TFeatureStep) => {
-				const { term: seen } = featureStep.action.stepValuesMap.what;
-				this.getWorld().shared.set({ term: String(seen), value: `${p1}${p2}`, domain: DOMAIN_STRING, origin: Origin.var });
+				const { term } = featureStep.action.stepValuesMap.what;
+				this.getWorld().shared.set({ term: String(term), value: `${p1}${p2}`, domain: DOMAIN_STRING, origin: Origin.var });
 				return Promise.resolve(OK);
 			}
 		},
@@ -83,13 +84,13 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			gwta: 'set( empty)? {what: string} to {value: string}',
 			action: async (args: TStepArgs, featureStep: TFeatureStep) => {
 				const emptyOnly = !!featureStep.in.match(/set empty /);
-				const { term: seen, domain, origin } = featureStep.action.stepValuesMap.what;
+				const { term, domain, origin } = featureStep.action.stepValuesMap.what;
 
-				if (emptyOnly && this.getWorld().shared.get(seen) !== undefined) {
+				if (emptyOnly && this.getWorld().shared.get(term) !== undefined) {
 					return OK;
 				}
 
-				this.getWorld().shared.set({ term: String(seen), value: args.value, domain, origin });
+				this.getWorld().shared.set({ term: String(term), value: args.value, domain, origin });
 				return Promise.resolve(OK);
 			}
 		},
@@ -98,13 +99,13 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			precludes: [`${VariablesStepper.name}.set`],
 			action: async ({ value, domain }: { value: string, domain: string }, featureStep: TFeatureStep) => {
 				const emptyOnly = !!featureStep.in.match(/set empty /);
-				const { term: seen, origin } = featureStep.action.stepValuesMap.what;
+				const { term, origin } = featureStep.action.stepValuesMap.what;
 
-				if (emptyOnly && this.getWorld().shared.get(seen) !== undefined) {
+				if (emptyOnly && this.getWorld().shared.get(term) !== undefined) {
 					return OK;
 				}
 
-				this.getWorld().shared.set({ term: String(seen), value: value, domain, origin });
+				this.getWorld().shared.set({ term: String(term), value: value, domain, origin });
 				return Promise.resolve(OK);
 			}
 		},
@@ -113,12 +114,12 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			gwta: `set( empty)? {what: string} to {length: number} random characters`,
 			action: async ({ length }: { length: number }, featureStep: TFeatureStep) => {
 				const emptyOnly = !!featureStep.in.match(/set empty /);
-				const { term: seen } = featureStep.action.stepValuesMap.what;
+				const { term } = featureStep.action.stepValuesMap.what;
 
 				if (length < 1 || length > 100) {
 					return actionNotOK(`length ${length} must be between 1 and 100`);
 				}
-				if (emptyOnly && this.getWorld().shared.get(seen) !== undefined) {
+				if (emptyOnly && this.getWorld().shared.get(term) !== undefined) {
 					return OK;
 				}
 
@@ -127,17 +128,17 @@ class VariablesStepper extends AStepper implements IHasCycles {
 					rand += Math.random().toString(36).substring(2, 2 + length);
 				}
 				rand = rand.substring(0, length);
-				this.getWorld().shared.set({ term: String(seen), value: rand, domain: DOMAIN_STRING, origin: Origin.var });
+				this.getWorld().shared.set({ term: String(term), value: rand, domain: DOMAIN_STRING, origin: Origin.var });
 				return Promise.resolve(OK);
 			}
 		},
 		is: {
 			gwta: 'variable {what} is {value}',
 			action: ({ value }: TStepArgs, featureStep: TFeatureStep) => {
-				const { term: seen } = featureStep.action.stepValuesMap.what;
-				const val = this.getVarValue(seen);
+				const { term } = featureStep.action.stepValuesMap.what;
+				const val = this.getVarValue(term);
 
-				return val === value ? OK : actionNotOK(`${seen} is "${val}", not "${value}"`);
+				return val === value ? OK : actionNotOK(`${term} is "${val}", not "${value}"`);
 			}
 		},
 		isSet: {
