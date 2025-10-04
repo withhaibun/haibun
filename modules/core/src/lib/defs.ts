@@ -150,25 +150,26 @@ export type TBeforeStep = { featureStep: TFeatureStep };
 export type TAfterStep = { featureStep: TFeatureStep, actionResult: TStepActionResult };
 export type TFailureArgs = { featureResult: TFeatureResult, failedStep: TStepResult };
 
-export type TDomainCoercer = (proto: TStepValue, steppers?: AStepper[]) => TStepValueValue;
-
-export type TDomainDefinition = {
-	selectors: string[];
-	coerce: TDomainCoercer
-};
-
+export type TAfterStepResult = { rerunStep?: boolean, nextStep?: boolean };
 export interface IStepperCycles {
 	getDomains?(): TDomainDefinition[];
 	startExecution?(features: TStartExecution): Promise<void>;
 	startFeature?(startFeature: TStartFeature): Promise<void>;
 	startScenario?(startScenario: TStartScenario): Promise<void>;
 	beforeStep?(beforeStep: TBeforeStep): Promise<void>;
-	afterStep?(afterStep: TAfterStep): Promise<void>;
+	afterStep?(afterStep: TAfterStep): Promise<TAfterStepResult>;
 	endScenario?(): Promise<void>;
 	endFeature?(endedWith?: TEndFeature): Promise<void>;
 	onFailure?(result: TFailureArgs): Promise<void | TMessageContext>;
 	endExecution?(): Promise<void>
 }
+
+export type TDomainCoercer = (proto: TStepValue, steppers?: AStepper[]) => TStepValueValue;
+
+export type TDomainDefinition = {
+	selectors: string[];
+	coerce: TDomainCoercer
+};
 
 export type StepperMethodArgs = {
 	[K in keyof IStepperCycles]: Parameters<NonNullable<IStepperCycles[K]>>[0];

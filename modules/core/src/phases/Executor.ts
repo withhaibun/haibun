@@ -1,4 +1,4 @@
-import { TFeatureStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, TStepAction, STAY, STAY_FAILURE, CHECK_NO, CHECK_YES, CHECK_YIELD, STEP_DELAY, TNotOKActionResult, CONTINUE_AFTER_ERROR, TEndFeature, StepperMethodArgs, TBeforeStep, TAfterStep, IStepperCycles, ExecMode, TStepArgs } from '../lib/defs.js';
+import { TFeatureStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, TStepAction, STAY, STAY_FAILURE, CHECK_NO, CHECK_YES, CHECK_YIELD, STEP_DELAY, TNotOKActionResult, CONTINUE_AFTER_ERROR, TEndFeature, StepperMethodArgs, TBeforeStep, TAfterStep, IStepperCycles, ExecMode, TStepArgs, TAfterStepResult } from '../lib/defs.js';
 import { TAnyFixme } from '../lib/fixme.js';
 import { AStepper } from '../lib/astepper.js';
 import { EExecutionMessageType, TMessageContext } from '../lib/interfaces/logger.js';
@@ -156,28 +156,42 @@ export class FeatureExecutor {
 
 		const isFullCycles = execMode === ExecMode.CYCLES;
 		const isPrompt = execMode === ExecMode.PROMPT;
+
+		let actionResult: TActionResult;
 		if (isFullCycles) {
 			world.logger.log(featureStep.in, { incident: EExecutionMessageType.STEP_START, tag: world.tag, incidentDetails: { featureStep, args } });
-		}
-
-		isFullCycles && await doStepperCycle(steppers, 'beforeStep', <TBeforeStep>({ featureStep }));
-		const actionResult: Partial<TActionResult> = await Executor.action(steppers, featureStep, action, args, world);
-
-		const baseContext = {
-			artifacts: actionResult.artifact ? [actionResult.artifact] : undefined,
-			tag: world.tag,
-			incidentDetails: { actionResult, featureStep }
-		};
-		if (isFullCycles) {
-			const messageContext: TMessageContext = { ...baseContext, incident: EExecutionMessageType.STEP_END };
-			world.logger.log((actionResult.ok ? CHECK_YES : `${CHECK_NO} (${(<TNotOKActionResult>actionResult).message})`), messageContext);
-			await doStepperCycle(steppers, 'afterStep', <TAfterStep>({ featureStep, actionResult }), action.actionName);
-		} else if (isPrompt) {
-			const messageContext: TMessageContext = { ...baseContext, incident: EExecutionMessageType.ACTION, incidentDetails: { ...baseContext.incidentDetails, execMode } };
-			world.logger.log((actionResult.ok ? CHECK_YES : `${CHECK_NO} (${(<TNotOKActionResult>actionResult).message})`) + ` ${featureStep.in}`, messageContext);
+			let doAction = true;
+			while (doAction) {
+				await doStepperCycle(steppers, 'beforeStep', <TBeforeStep>({ featureStep }));
+				actionResult = await Executor.action(steppers, featureStep, action, args, world);
+				const baseContext = {
+					artifacts: actionResult.artifact ? [actionResult.artifact] : undefined,
+					tag: world.tag,
+					incidentDetails: { actionResult, featureStep }
+				};
+				const messageContext: TMessageContext = { ...baseContext, incident: EExecutionMessageType.STEP_END };
+				world.logger.log((actionResult.ok ? CHECK_YES : `${CHECK_NO} (${(<TNotOKActionResult>actionResult).message})`), messageContext);
+				const instructions: TAfterStepResult[] = await doStepperCycle(steppers, 'afterStep', <TAfterStep>({ featureStep, actionResult }), action.actionName);
+				doAction = instructions.some(i => i?.rerunStep);
+				const doNext = instructions.some(i => i?.nextStep);
+				if (doNext) {
+					// wrap the previous actionResult in a new passing actionResult messageContext
+					actionResult = { ...actionResult, ok: true, messageContext: { ...messageContext, incident: EExecutionMessageType.DEBUG, incidentDetails: { nextStep: true } } };
+				}
+			}
 		} else {
+			actionResult = await Executor.action(steppers, featureStep, action, args, world);
+			const baseContext = {
+				artifacts: actionResult.artifact ? [actionResult.artifact] : undefined,
+				tag: world.tag,
+				incidentDetails: { actionResult, featureStep }
+			};
 			const messageContext: TMessageContext = { ...baseContext, incident: EExecutionMessageType.ACTION, incidentDetails: { ...baseContext.incidentDetails, execMode } };
-			world.logger.log(`${CHECK_YIELD} ${featureStep.in}`, messageContext);
+			if (isPrompt) {
+				world.logger.log((actionResult.ok ? CHECK_YES : `${CHECK_NO} (${(<TNotOKActionResult>actionResult).message})`) + ` ${featureStep.in}`, messageContext);
+			} else {
+				world.logger.log(`${CHECK_YIELD} ${featureStep.in}`, messageContext);
+			}
 		}
 
 		const end = Timer.since();

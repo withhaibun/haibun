@@ -8,7 +8,6 @@ export async function populateActionArgs(featureStep: TFeatureStep, world: TWorl
 	if (!featureStep.action.stepValuesMap) return stepArgs; // no variables for this step
 
 	for (const [name, actionVal] of Object.entries(featureStep.action.stepValuesMap)) {
-		console.log('🤑', JSON.stringify({name, l: actionVal}, null, 2));
 		const storedEntry = world.shared.all()[actionVal.term];
 		if (actionVal.origin === Origin.statement) {
 			actionVal.value = actionVal.term;

@@ -1,5 +1,5 @@
 import { AStepper, IHasCycles, IHasOptions, TStepperSteps } from '../lib/astepper.js';
-import { IStepperCycles, TActionResult, OK, TWorld, TBeforeStep, TAfterStep, TStepResult, ExecMode } from '../lib/defs.js';
+import { IStepperCycles, TActionResult, OK, TWorld, TBeforeStep, TAfterStep, TStepResult, ExecMode, TAfterStepResult } from '../lib/defs.js';
 import { TMessageContext, EExecutionMessageType } from '../lib/interfaces/logger.js';
 import { makePrompt } from '../lib/prompter.js';
 import { actionNotOK, actionOK, getStepperOption, stringOrError } from '../lib/util/index.js';
@@ -18,9 +18,9 @@ const cycles = (debuggerStepper: DebuggerStepper): IStepperCycles => ({
 			return debuggerStepper.debugLoop(prompt, ['*', 'step', 'continue']);
 		}
 	},
-	async afterStep({ actionResult }: TAfterStep): Promise<void> {
+	async afterStep({ actionResult }: TAfterStep): Promise<TAfterStepResult> {
 		if (!actionResult.ok) {
-			await debuggerStepper.debugLoop('[Failure]', ['*', 'retry', 'fail']);
+			return await debuggerStepper.debugLoop('[Failure]', ['*', 'retry', 'next', 'fail']);
 		}
 	}
 });
@@ -95,6 +95,19 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 			exact: 'fail',
 			action: async (): Promise<TActionResult> => {
 				return await this.fail();
+			}
+		},
+		n: {
+			expose: false,
+			exact: 'n',
+			action: async (): Promise<TActionResult> => {
+				return await this.next();
+			},
+		},
+		next: {
+			exact: 'next',
+			action: async (): Promise<TActionResult> => {
+				return await this.next();
 			}
 		},
 		r: {
@@ -180,6 +193,11 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 	async retry(): Promise<TActionResult> {
 		this.getWorld().logger.info('retry');
 		const messageContext: TMessageContext = { incident: EExecutionMessageType.DEBUG, incidentDetails: { rerunStep: true } }; // will trigger rerun in Executor
+		return Promise.resolve(actionOK({ messageContext }));
+	}
+	async next(): Promise<TActionResult> {
+		this.getWorld().logger.info('next');
+		const messageContext: TMessageContext = { incident: EExecutionMessageType.DEBUG, incidentDetails: { nextStep: true } }; // will trigger next step in Executor
 		return Promise.resolve(actionOK({ messageContext }));
 	}
 
