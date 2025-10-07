@@ -1,4 +1,4 @@
-import { TOrigin, TStepValue, TStepValueValue, TWorld } from "./defs.js";
+import { TFeatureStep, TOrigin, TStepValue, TStepValueValue, TWorld } from "./defs.js";
 import { DOMAIN_JSON } from "./domain-types.js";
 
 export class FeatureVariables {
@@ -19,16 +19,22 @@ export class FeatureVariables {
 		return `context ${this.world.tag} values ${this.values}`;
 	}
 
-	setJSON(label: string, value: object, origin?: TOrigin) {
-		this.set({ term: label, value: JSON.stringify(value), domain: DOMAIN_JSON, origin });
+	setJSON(label: string, value: object, origin: TOrigin, source: TFeatureStep) {
+		this.set({ term: label, value: JSON.stringify(value), domain: DOMAIN_JSON, origin }, source);
 	}
-	set(sv: TStepValue) {
+	set(sv: TStepValue, source: TFeatureStep) {
 		const domain = this.world.domains[sv.domain]
 		if (domain === undefined) {
 			throw Error(`Cannot set variable "${sv.term}": unknown domain "${sv.domain}"`);
 		}
 		this.world.domains[sv.domain].coerce(sv);
-		this.values[sv.term] = sv;
+		const existingProvenance: TFeatureStep[] = this.values[sv.term]?.provenance;
+		const provenance = existingProvenance ? [...existingProvenance, source] : [source];
+		this.values[sv.term] = {
+			...sv,
+			provenance
+		};
+		this.world.logger.debug(`Set variable "${sv.term}" to "${sv.value}" (domain ${sv.domain}, origin ${sv.origin})`);
 	}
 	get(name: string): TStepValueValue | undefined {
 		if (!this.values[name]) return undefined;

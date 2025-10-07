@@ -18,6 +18,7 @@ export async function populateActionArgs(featureStep: TFeatureStep, world: TWorl
 			if (storedEntry) {
 				actionVal.domain = storedEntry.domain;
 				actionVal.value = storedEntry.value;
+				actionVal.provenance = storedEntry.provenance;
 			}
 		} else if (actionVal.origin === Origin.fallthrough) {
 			if (world.options.envVariables[actionVal.term]) {
@@ -25,6 +26,7 @@ export async function populateActionArgs(featureStep: TFeatureStep, world: TWorl
 			} else if (storedEntry) {
 				actionVal.value = storedEntry.value;
 				actionVal.domain = storedEntry.domain;
+				actionVal.provenance = storedEntry.provenance;
 			} else {
 				actionVal.value = actionVal.term;
 				actionVal.domain = DOMAIN_STRING;

@@ -13,10 +13,12 @@ describe('vars', () => {
 
 		expect(res.ok).toBe(true);
 	});
-	it('assigns empty', async () => {
-		const feature = { path: '/features/test.feature', content: 'set empty "x" to "y", variable "x" is "y"' };
+	it('tracks provenance', async () => {
+		const feature = { path: '/features/test.feature', content: 'set x to "1"\nset x to 2' };
 		const res = await testWithDefaults([feature], steppers);
 		expect(res.ok).toBe(true);
+		expect(res.world.shared.all()['x']?.provenance?.length).toBe(2);
+		expect(res.world.shared.all()['x']?.provenance?.map(p => p.in)).toEqual(['set x to "1"', 'set x to 2']);
 	});
 	it('empty does not overwrite', async () => {
 		const feature = { path: '/features/test.feature', content: 'set empty "x" to y\nset empty "x" to z\nvariable "x" is "y"' };

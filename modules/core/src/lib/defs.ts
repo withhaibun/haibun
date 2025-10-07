@@ -197,7 +197,8 @@ export type TStepValue = {
 	term: string;
 	domain: string;
 	value?: TStepValueValue; // value is added in populateActionArgs
-	origin: TOrigin
+	origin: TOrigin;
+	provenance?: TFeatureStep[]
 };
 
 export const OK: TOKActionResult = { ok: true };

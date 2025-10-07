@@ -52,7 +52,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			precludes: [`${VariablesStepper.name}.combine`],
 			action: async ({ p1, p2, domain }: { p1: string, p2: string, domain: string }, featureStep: TFeatureStep) => {
 				const { term } = featureStep.action.stepValuesMap.what;
-				this.getWorld().shared.set({ term: String(term), value: `${p1}${p2}`, domain, origin: Origin.var });
+				this.getWorld().shared.set({ term: String(term), value: `${p1}${p2}`, domain, origin: Origin.var }, featureStep);
 				return Promise.resolve(OK);
 			}
 		},
@@ -60,7 +60,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			gwta: 'combine {p1} and {p2} to {what}',
 			action: async ({ p1, p2 }: TStepArgs, featureStep: TFeatureStep) => {
 				const { term } = featureStep.action.stepValuesMap.what;
-				this.getWorld().shared.set({ term: String(term), value: `${p1}${p2}`, domain: DOMAIN_STRING, origin: Origin.var });
+				this.getWorld().shared.set({ term: String(term), value: `${p1}${p2}`, domain: DOMAIN_STRING, origin: Origin.var }, featureStep);
 				return Promise.resolve(OK);
 			}
 		},
@@ -90,7 +90,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 					return OK;
 				}
 
-				this.getWorld().shared.set({ term: String(term), value: args.value, domain, origin });
+				this.getWorld().shared.set({ term: String(term), value: args.value, domain, origin }, featureStep);
 				return Promise.resolve(OK);
 			}
 		},
@@ -105,7 +105,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 					return OK;
 				}
 
-				this.getWorld().shared.set({ term: String(term), value: value, domain, origin });
+				this.getWorld().shared.set({ term: String(term), value: value, domain, origin }, featureStep);
 				return Promise.resolve(OK);
 			}
 		},
@@ -128,7 +128,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 					rand += Math.random().toString(36).substring(2, 2 + length);
 				}
 				rand = rand.substring(0, length);
-				this.getWorld().shared.set({ term: String(term), value: rand, domain: DOMAIN_STRING, origin: Origin.var });
+				this.getWorld().shared.set({ term: String(term), value: rand, domain: DOMAIN_STRING, origin: Origin.var }, featureStep);
 				return Promise.resolve(OK);
 			}
 		},
@@ -149,8 +149,13 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		showVar: {
 			gwta: 'show var {what}',
 			action: (args: TStepArgs, featureStep: TFeatureStep) => {
-				const stepValue = featureStep.action.stepValuesMap.what;
-				this.getWorld().logger.info(`is ${JSON.stringify(stepValue)}`);
+				const { term } = featureStep.action.stepValuesMap.what;
+				const stepValue = this.getWorld().shared.all()[term];
+				if (!stepValue) {
+					this.getWorld().logger.info(`is undefined`);
+				} else {
+					this.getWorld().logger.info(`is ${JSON.stringify({ ...stepValue, provenance: stepValue.provenance.map((p, i) => ({ [i]: p })) }, null, 2)}`);
+				}
 				return actionOK({ artifact: { artifactType: 'json', json: { json: stepValue } } });
 			}
 		},
