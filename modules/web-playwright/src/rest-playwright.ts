@@ -39,57 +39,57 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 	},
 	restTokenRequest: {
 		gwta: `request OAuth 2.0 access token from {endpoint}`,
-		action: async ({ endpoint }: { endpoint: string }) => {
+		action: async ({ endpoint }: { endpoint: string }, featureStep) => {
 			const serialized = await webPlaywright.withPageFetch(endpoint);
 			const accessToken = serialized.json[ACCESS_TOKEN];
 			await webPlaywright.setExtraHTTPHeaders({ [AUTHORIZATION]: `Bearer ${accessToken}` });
-			webPlaywright.setLastResponse(serialized);
+			webPlaywright.setLastResponse(serialized, featureStep);
 			return OK;
 		},
 	},
 	restTokenLogout: {
 		gwta: `perform OAuth 2.0 logout from {endpoint}`,
-		action: async ({ endpoint }: { endpoint: string }) => {
+		action: async ({ endpoint }: { endpoint: string }, featureStep) => {
 			await webPlaywright.setExtraHTTPHeaders({});
 			const serialized = await webPlaywright.withPageFetch(endpoint);
-			webPlaywright.setLastResponse(serialized);
+			webPlaywright.setLastResponse(serialized, featureStep);
 			return OK;
 		},
 	},
 
 	acceptEndpointRequest: {
 		gwta: `accept {accept} using ${HTTP} {method} to {endpoint}`,
-		action: async ({ accept, method, endpoint }: { accept: string; method: string; endpoint: string }) => {
+		action: async ({ accept, method, endpoint }: { accept: string; method: string; endpoint: string }, featureStep) => {
 			method = method.toLowerCase();
 			if (!NO_PAYLOAD_METHODS.includes(method)) {
 				return actionNotOK(`Method ${method} not supported`);
 			}
 			const serialized = await webPlaywright.withPageFetch(endpoint, method, { headers: { accept } });
-			webPlaywright.setLastResponse(serialized);
+			webPlaywright.setLastResponse(serialized, featureStep);
 			return OK;
 		},
 	},
 	restEndpointRequest: {
 		gwta: `make an ${HTTP} {method} to {endpoint}`,
-		action: async ({ method, endpoint }: { method: string; endpoint: string }) => {
+		action: async ({ method, endpoint }: { method: string; endpoint: string }, featureStep) => {
 			method = method.toLowerCase();
 			if (!NO_PAYLOAD_METHODS.includes(method)) {
 				return actionNotOK(`Method ${method} not supported`);
 			}
 			const serialized = await webPlaywright.withPageFetch(endpoint, method);
-			webPlaywright.setLastResponse(serialized);
+			webPlaywright.setLastResponse(serialized, featureStep);
 			return OK;
 		},
 	},
 	filterResponseJson: {
 		gwta: `filter JSON response by {property} matching {match}`,
-		action: ({ property, match }: { property: string; match: string }) => {
+		action: ({ property, match }: { property: string; match: string }, featureStep) => {
 			const lastResponse = webPlaywright.getLastResponse();
 			if (!lastResponse?.json || !Array.isArray(lastResponse.json)) {
 				return actionNotOK(`No JSON or array from ${JSON.stringify(lastResponse)}`);
 			}
 			const filtered = lastResponse.json.filter((item: TAnyFixme) => item[property].match(match));
-			webPlaywright.setLastResponse({ ...lastResponse, filtered });
+			webPlaywright.setLastResponse({ ...lastResponse, filtered }, featureStep);
 			return OK;
 		},
 	},
@@ -166,14 +166,14 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 	},
 	restEndpointRequestWithPayload: {
 		gwta: `make an ${'HTTP'} {method} to {endpoint} with {payload}`,
-		action: async ({ method, endpoint, payload }: { method: string; endpoint: string; payload: string }) => {
+		action: async ({ method, endpoint, payload }: { method: string; endpoint: string; payload: string }, featureStep) => {
 			method = method.toLowerCase();
 			if (!PAYLOAD_METHODS.includes(method)) {
 				return actionNotOK(`Method ${method} (${method}) does not support payload`);
 			}
 			const requestOptions = { postData: payload, headers: { 'Content-Type': 'application/json' } };
 			const serialized = await webPlaywright.withPageFetch(endpoint, method, requestOptions);
-			webPlaywright.setLastResponse(serialized);
+			webPlaywright.setLastResponse(serialized, featureStep);
 			return OK;
 		},
 	},
