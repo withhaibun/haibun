@@ -52,7 +52,7 @@ describe('getNamedWithVars', () => {
 	test('gets var', async () => {
 		const steppers = await createSteppers([TestStepper]);
 		const resolver = new Resolver(steppers);
-		world.shared.set({ term: 'exact', value: 'res', domain: DOMAIN_STRING, origin: Origin.fallthrough });
+		world.shared.set({ term: 'exact', value: 'res', domain: DOMAIN_STRING, origin: Origin.fallthrough }, { seq: [0], when: 'test' });
 		const features = asExpandedFeatures([withNameType(TEST_BASE, 'l1', 'is `exact`')]);
 		const steps = await resolver.resolveStepsFromFeatures(features);
 		const { featureSteps } = steps[0] as TResolvedFeature;

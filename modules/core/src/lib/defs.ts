@@ -164,7 +164,7 @@ export interface IStepperCycles {
 	endExecution?(): Promise<void>
 }
 
-export type TDomainCoercer = (proto: TStepValue, steppers?: AStepper[]) => TStepValueValue;
+export type TDomainCoercer = (proto: TStepValue, featureStep?: TFeatureStep, steppers?: AStepper[]) => TStepValueValue;
 
 export type TDomainDefinition = {
 	selectors: string[];
@@ -192,7 +192,7 @@ export enum Origin {
 }
 
 export type TOrigin = keyof typeof Origin;
-export type TProvenanceIdentifier = { in: string; seq: number[], stepperName: string, actionName: string };
+export type TProvenanceIdentifier = { in?: string; seq: number[], when: string };
 export type TStepValueValue = string | number | TFeatureStep[]
 export type TStepValue = {
 	term: string;

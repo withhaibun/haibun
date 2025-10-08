@@ -1,9 +1,9 @@
 import { AStepper, IHasCycles, IHasOptions, TStepperSteps } from '../lib/astepper.js';
-import { IStepperCycles, TActionResult, OK, TWorld, TBeforeStep, TAfterStep, TStepResult, ExecMode, TAfterStepResult } from '../lib/defs.js';
+import { IStepperCycles, TActionResult, OK, TWorld, TBeforeStep, TAfterStep, TStepResult, ExecMode, TAfterStepResult, TFeatureStep } from '../lib/defs.js';
 import { TMessageContext, EExecutionMessageType } from '../lib/interfaces/logger.js';
 import { makePrompt } from '../lib/prompter.js';
 import { actionNotOK, actionOK, getStepperOption, stringOrError } from '../lib/util/index.js';
-import { resolveAndExecuteStatement } from '../lib/util/resolveAndExecuteStatement.js';
+import { resolveAndExecuteStatement } from '../lib/util/featureStep-executor.js';
 
 export enum TDebuggingType {
 	StepByStep = 'stepByStep',
@@ -15,12 +15,12 @@ const cycles = (debuggerStepper: DebuggerStepper): IStepperCycles => ({
 		const { action } = featureStep;
 		if (debuggerStepper.debuggingType === TDebuggingType.StepByStep || debuggerStepper.debugSteppers.includes(action.stepperName)) {
 			const prompt = (debuggerStepper.debugSteppers.includes(action.stepperName)) ? `[Debugging ${action.stepperName}]` : '[Debug]';
-			return debuggerStepper.debugLoop(prompt, ['*', 'step', 'continue']);
+			return debuggerStepper.debugLoop(prompt, ['*', 'step', 'continue'], featureStep, -1);
 		}
 	},
-	async afterStep({ actionResult }: TAfterStep): Promise<TAfterStepResult> {
+	async afterStep({ featureStep, actionResult }: TAfterStep): Promise<TAfterStepResult> {
 		if (!actionResult.ok) {
-			return await debuggerStepper.debugLoop('[Failure]', ['*', 'retry', 'next', 'fail']);
+			return await debuggerStepper.debugLoop('[Failure]', ['*', 'retry', 'next', 'fail'], featureStep, 1);
 		}
 	}
 });
@@ -70,18 +70,28 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 		return Promise.resolve(actionOK({ messageContext }));
 	}
 
-	async debugLoop(prompt: string, prompts: string[]) {
-		let postFailurePromptResult: TStepResult | undefined;
-		while (postFailurePromptResult === undefined || postFailurePromptResult.stepActionResult.messageContext?.incident !== EExecutionMessageType.DEBUG) {
-			const response = await this.getWorld().prompter.prompt(makePrompt(prompt, undefined, prompts));
-			try {
-				postFailurePromptResult = await resolveAndExecuteStatement(response.toString(), '<debugger>', this.steppers, this.getWorld(), ExecMode.PROMPT);
+	async debugLoop(prompt: string, prompts: string[], featureStep: TFeatureStep, inc: number) {
+		const prefix = featureStep.seqPath;
+		let seqStart = [...prefix, inc > 0 ? 1 : -1];
+		let promptResult: TStepResult | undefined;
+		let continueLoop = true;
 
+		while (continueLoop) {
+			const response = await this.getWorld().prompter.prompt(makePrompt(`${featureStep.seqPath.join('~')}-${prompt}`, undefined, prompts));
+			try {
+				promptResult = await resolveAndExecuteStatement(response.toString(), '<debugger>', this.steppers, this.getWorld(), ExecMode.PROMPT, seqStart);
+				const details = promptResult.stepActionResult.messageContext?.incidentDetails;
+				if (details?.step || details?.continue || details?.fail || details?.rerunStep || details?.nextStep) {
+					continueLoop = false;
+				} else {
+					const nextLast = seqStart[seqStart.length - 1] + (inc > 0 ? 1 : -1);
+					seqStart = [...seqStart.slice(0, -1), nextLast];
+				}
 			} catch (e) {
-				this.getWorld().logger.error(`Failed to execute post - failure action: ${e.message}`);
+				this.getWorld().logger.error(`Failed to execute debug prompt command '${response}': ${e.message}`);
 			}
 		}
-		return postFailurePromptResult.stepActionResult.messageContext?.incidentDetails;
+		return promptResult.stepActionResult.messageContext?.incidentDetails;
 	}
 	steps: TStepperSteps = {
 		f: {

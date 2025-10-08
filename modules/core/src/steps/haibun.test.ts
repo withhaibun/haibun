@@ -10,7 +10,8 @@ import { getActionableStatement } from '../phases/Resolver.js';
 describe('seqPath ordering', () => {
 	it('getActionableStatement custom sub-seq produces two-element seqPath', async () => {
 		const world = getDefaultWorld(0);
-		const { featureStep, steppers } = getActionableStatement([new Haibun(), new TestSteps()], 'passes', '/feature/test', 5, 7);
+		const { featureStep, steppers } = getActionableStatement([new Haibun(), new TestSteps()], 'passes', '/feature/test', [5, 7]);
+
 		const res = await FeatureExecutor.doFeatureStep(steppers, featureStep, world);
 		expect(res.ok).toBe(true);
 		expect(res.seqPath).toEqual([5, 7]);
@@ -56,7 +57,7 @@ describe('seqPath ordering', () => {
 describe('prose', () => {
 	it('finds prose', async () => {
 		const world = getDefaultWorld(0);
-		const { featureStep, steppers } = getActionableStatement([new Haibun()], 'A sentence.', '/feature/test', 0);
+		const { featureStep, steppers } = getActionableStatement([new Haibun()], 'A sentence.', '/feature/test', [0]);
 		const res = await FeatureExecutor.doFeatureStep(steppers, featureStep, world);
 
 		expect(res.ok).toBe(true);

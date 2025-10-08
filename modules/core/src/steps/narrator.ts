@@ -60,7 +60,7 @@ class Narrator extends AStepper implements IHasOptions, IHasCycles {
 	}
 
 	private rememberAndSay(key: string, value: string, featureStep: TFeatureStep) {
-		this.getWorld().shared.set({ term: key, value, domain: 'string', origin: Origin.fallthrough }, featureStep);
+		this.getWorld().shared.set({ term: key, value, domain: 'string', origin: Origin.fallthrough }, { in: featureStep.in, seq: featureStep.seqPath, when: `${featureStep.action.stepperName}.${featureStep.action.actionName}` });
 		return this.maybeSay(value);
 	}
 

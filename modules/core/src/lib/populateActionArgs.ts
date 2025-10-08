@@ -46,7 +46,7 @@ export async function populateActionArgs(featureStep: TFeatureStep, world: TWorl
 			throw new Error(`No domain coercer found for domain "${actionDomainKey}"`);
 		}
 
-		actionVal.value = await Promise.resolve(world.domains[actionDomainKey].coerce(actionVal, steppers));
+		actionVal.value = await Promise.resolve(world.domains[actionDomainKey].coerce(actionVal, featureStep, steppers));
 
 		// actionVal has been updated, update the actionVal in place for downstream processing
 		stepArgs[name] = actionVal.value;

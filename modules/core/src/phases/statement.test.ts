@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { AStepper } from '../lib/astepper.js';
 import { OK, TFeatureStep, TStepArgs, ExecMode } from '../lib/defs.js';
 import { testWithDefaults, DEF_PROTO_OPTIONS } from '../lib/test/lib.js';
-import { doExecuteFeatureSteps } from '../lib/util/resolveAndExecuteStatement.js';
 import { actionNotOK } from '../lib/util/index.js';
+import { doExecuteFeatureSteps } from '../lib/util/featureStep-executor.js';
 
 class StatementTestStepper extends AStepper {
   steps = {

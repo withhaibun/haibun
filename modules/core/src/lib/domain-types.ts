@@ -1,6 +1,6 @@
 import { AStepper } from "./astepper.js";
-import { TDomainDefinition, TStepValue, TStepValueValue, TWorld } from "./defs.js";
-import { findFeatureStepsFromStatement } from "./util/resolveAndExecuteStatement.js";
+import { TDomainDefinition, TFeatureStep, TStepValue, TStepValueValue, TWorld } from "./defs.js";
+import { findFeatureStepsFromStatement } from "./util/featureStep-executor.js";
 
 // Core types that replace the domain system, used in vars and modules like filesystem, web
 export const WEB_PAGE = 'webpage';
@@ -37,9 +37,10 @@ export const getCoreDomains = (world: TWorld) => ({
 		}
 	},
 	[DOMAIN_STATEMENT]: {
-		coerce: (proto: TStepValue, steppers: AStepper[]) => {
+		coerce: (proto: TStepValue, featureStep: TFeatureStep, steppers: AStepper[]) => {
 			const lbl = String(proto.value);
-			return <TStepValueValue>findFeatureStepsFromStatement(lbl, steppers, world, `<${DOMAIN_STATEMENT}.${lbl}>`);
+			const seqStart = featureStep.seqPath;
+			return <TStepValueValue>findFeatureStepsFromStatement(lbl, steppers, world, `<${DOMAIN_STATEMENT}.${lbl}>`, [...seqStart, 0], -1);
 		}
 	}
 });

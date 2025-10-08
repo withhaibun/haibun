@@ -1,4 +1,4 @@
-import { OK, TStepArgs, TFeatureStep, TWorld, IStepperCycles, TStartScenario, Origin } from '../lib/defs.js';
+import { OK, TStepArgs, TFeatureStep, TWorld, IStepperCycles, TStartScenario, Origin, TProvenanceIdentifier } from '../lib/defs.js';
 import { TAnyFixme } from '../lib/fixme.js';
 import { AStepper, IHasCycles, TStepperSteps } from '../lib/astepper.js';
 import { actionNotOK, actionOK } from '../lib/util/index.js';
@@ -52,7 +52,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			precludes: [`${VariablesStepper.name}.combine`],
 			action: async ({ p1, p2, domain }: { p1: string, p2: string, domain: string }, featureStep: TFeatureStep) => {
 				const { term } = featureStep.action.stepValuesMap.what;
-				this.getWorld().shared.set({ term: String(term), value: `${p1}${p2}`, domain, origin: Origin.var }, featureStep);
+				this.getWorld().shared.set({ term: String(term), value: `${p1}${p2}`, domain, origin: Origin.var }, provenanceFromFeatureStep(featureStep));
 				return Promise.resolve(OK);
 			}
 		},
@@ -60,7 +60,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			gwta: 'combine {p1} and {p2} to {what}',
 			action: async ({ p1, p2 }: TStepArgs, featureStep: TFeatureStep) => {
 				const { term } = featureStep.action.stepValuesMap.what;
-				this.getWorld().shared.set({ term: String(term), value: `${p1}${p2}`, domain: DOMAIN_STRING, origin: Origin.var }, featureStep);
+				this.getWorld().shared.set({ term: String(term), value: `${p1}${p2}`, domain: DOMAIN_STRING, origin: Origin.var }, provenanceFromFeatureStep(featureStep));
 				return Promise.resolve(OK);
 			}
 		},
@@ -90,7 +90,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 					return OK;
 				}
 
-				this.getWorld().shared.set({ term: String(term), value: args.value, domain, origin }, featureStep);
+				this.getWorld().shared.set({ term: String(term), value: args.value, domain, origin }, provenanceFromFeatureStep(featureStep));
 				return Promise.resolve(OK);
 			}
 		},
@@ -105,7 +105,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 					return OK;
 				}
 
-				this.getWorld().shared.set({ term: String(term), value: value, domain, origin }, featureStep);
+				this.getWorld().shared.set({ term: String(term), value: value, domain, origin }, provenanceFromFeatureStep(featureStep));
 				return Promise.resolve(OK);
 			}
 		},
@@ -128,7 +128,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 					rand += Math.random().toString(36).substring(2, 2 + length);
 				}
 				rand = rand.substring(0, length);
-				this.getWorld().shared.set({ term: String(term), value: rand, domain: DOMAIN_STRING, origin: Origin.var }, featureStep);
+				this.getWorld().shared.set({ term: String(term), value: rand, domain: DOMAIN_STRING, origin: Origin.var }, provenanceFromFeatureStep(featureStep));
 				return Promise.resolve(OK);
 			}
 		},
@@ -167,3 +167,12 @@ export default VariablesStepper;
 export const didNotOverwrite = (what: string, present: string, value: string) => ({
 	overwrite: { summary: `did not overwrite ${what} value of "${present}" with "${value}"` },
 });
+
+export function provenanceFromFeatureStep(featureStep: TFeatureStep): TProvenanceIdentifier {
+	return {
+		in: featureStep.in,
+		seq: featureStep.seqPath,
+		when: `${featureStep.action.stepperName}.steps.${featureStep.action.actionName}`
+	};
+}
+

@@ -30,28 +30,28 @@ export class Resolver {
 
 			const actionable = getActionable(featureLine.line);
 
-				try {
-					const stepAction = this.findSingleStepAction(actionable);
-					// stepValuesMap is attached to stepAction for downstream processing
-					// Early validation for statement-typed placeholders using their label value
-					if (stepAction.stepValuesMap) {
-						const statements = Object.values(stepAction.stepValuesMap).filter((v: TStepValue & { label?: string }) => v.domain === 'statement' && v.term);
-						for (const ph of statements) {
-							const rawVal = ph.term!;
-							if (rawVal.trim().startsWith('Backgrounds:')) continue; // skip inline backgrounds directive
-							try { this.findSingleStepAction(rawVal); } catch (e) { throw Error(`statement '${rawVal}' invalid: ${e.message}`); }
-						}
+			try {
+				const stepAction = this.findSingleStepAction(actionable);
+				// stepValuesMap is attached to stepAction for downstream processing
+				// Early validation for statement-typed placeholders using their label value
+				if (stepAction.stepValuesMap) {
+					const statements = Object.values(stepAction.stepValuesMap).filter((v: TStepValue & { label?: string }) => v.domain === 'statement' && v.term);
+					for (const ph of statements) {
+						const rawVal = ph.term!;
+						if (rawVal.trim().startsWith('Backgrounds:')) continue; // skip inline backgrounds directive
+						try { this.findSingleStepAction(rawVal); } catch (e) { throw Error(`statement '${rawVal}' invalid: ${e.message}`); }
 					}
-					const featureStep = this.getFeatureStep(featureLine, seq, stepAction);
-					if (stepAction.step.checkAction) {
-						const named = Object.fromEntries(Object.entries(stepAction.stepValuesMap || {}).map(([k, v]) => [k, v.value ?? v.term ?? ''])) as TStepArgs;
-						const valid = await stepAction.step.checkAction(named, featureStep);
-						if (valid === false) throw Error('checkAction failed');
-					}
-					featureSteps.push(featureStep);
-				} catch (e) {
-					throw Error(`findFeatureStep for "${featureLine.line}": ${e.message}in ${feature.path}\nUse --show-steppers for more details`);
 				}
+				const featureStep = this.getFeatureStep(featureLine, seq, stepAction);
+				if (stepAction.step.checkAction) {
+					const named = Object.fromEntries(Object.entries(stepAction.stepValuesMap || {}).map(([k, v]) => [k, v.value ?? v.term ?? ''])) as TStepArgs;
+					const valid = await stepAction.step.checkAction(named, featureStep);
+					if (valid === false) throw Error('checkAction failed');
+				}
+				featureSteps.push(featureStep);
+			} catch (e) {
+				throw Error(`findFeatureStep for "${featureLine.line}": ${e.message}in ${feature.path}\nUse --show-steppers for more details`);
+			}
 		}
 
 		return Promise.resolve(featureSteps);
@@ -103,8 +103,8 @@ export class Resolver {
 
 	private stepApplies(step: TStepperStep, actionable: string, actionName: string, stepperName: string) {
 		const curt = dePolite(actionable);
-				if (step.gwta) {
-					return matchGwtaToAction(step.gwta, curt, actionName, stepperName, step);
+		if (step.gwta) {
+			return matchGwtaToAction(step.gwta, curt, actionName, stepperName, step);
 		} else if (step.match) {
 			return getMatch(actionable, step.match, actionName, stepperName, step);
 		} else if (step.exact === curt) {
@@ -124,14 +124,14 @@ const comment = {
 	},
 };
 
-export function getActionableStatement(steppers: AStepper[], statement: string, path: string, startSeq: number, subSeq = 0) {
+export function getActionableStatement(steppers: AStepper[], statement: string, path: string, seqPath: number[]) {
 	const resolver = new Resolver(steppers);
 	const action = resolver.findSingleStepAction(statement);
 
 	const featureStep: TFeatureStep = {
 		path,
 		in: statement,
-		seqPath: [startSeq, subSeq],
+		seqPath,
 		action,
 	};
 

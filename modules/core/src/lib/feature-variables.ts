@@ -20,20 +20,19 @@ export class FeatureVariables {
 	}
 
 	setJSON(label: string, value: object, origin: TOrigin, source: TFeatureStep) {
-		this.set({ term: label, value: JSON.stringify(value), domain: DOMAIN_JSON, origin }, source);
+		this.set({ term: label, value: JSON.stringify(value), domain: DOMAIN_JSON, origin }, { in: source.in, seq: source.seqPath, when: `${source.action.stepperName}.${source.action.actionName}` });
 	}
-	set(sv: TStepValue, source: TFeatureStep) {
+	set(sv: TStepValue, provenance: TProvenanceIdentifier) {
 		const domain = this.world.domains[sv.domain]
 		if (domain === undefined) {
 			throw Error(`Cannot set variable "${sv.term}": unknown domain "${sv.domain}"`);
 		}
 		this.world.domains[sv.domain].coerce(sv);
 		const existingProvenance: TProvenanceIdentifier[] = this.values[sv.term]?.provenance;
-		const provKey: TProvenanceIdentifier = { in: source.in, seq: source.seqPath, stepperName: source.action.stepperName, actionName: source.action.actionName };
-		const provenance = existingProvenance ? [...existingProvenance, provKey] : [provKey];
+		const provenances = existingProvenance ? [...existingProvenance, provenance] : [provenance];
 		this.values[sv.term] = {
 			...sv,
-			provenance
+			provenance: provenances
 		};
 		this.world.logger.debug(`Set variable "${sv.term}" to "${sv.value}" (domain ${sv.domain}, origin ${sv.origin})`);
 	}

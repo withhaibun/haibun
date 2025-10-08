@@ -2,7 +2,7 @@ import { OK, TFeatureStep, STEP_DELAY, TStepArgs, TWorld, ExecMode } from '../li
 import { AStepper } from '../lib/astepper.js';
 import { Resolver } from '../phases/Resolver.js';
 import { actionNotOK, actionOK, formattedSteppers, sleep } from '../lib/util/index.js';
-import { doExecuteFeatureSteps } from '../lib/util/resolveAndExecuteStatement.js';
+import { doExecuteFeatureSteps } from '../lib/util/featureStep-executor.js';
 import { expand } from '../lib/features.js';
 import { asFeatures } from '../lib/resolver-features.js';
 import { EExecutionMessageType } from '../lib/interfaces/logger.js';
