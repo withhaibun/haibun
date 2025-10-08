@@ -5,9 +5,11 @@ import { IStepperCycles, TFailureArgs, TEndFeature, TStartExecution, TResolvedFe
 import { EExecutionMessageType, TArtifactVideo, TArtifactResolvedFeatures, TMessageContext } from '@haibun/core/lib/interfaces/logger.js';
 import { EMediaTypes } from '@haibun/domain-storage/media-types.js';
 import { WebPlaywright, EMonitoringTypes } from './web-playwright.js';
+import { WebPlaywrightDomains } from './domains.js';
 import { sleep } from '@haibun/core/lib/util/index.js';
 
 export const cycles = (wp: WebPlaywright): IStepperCycles => ({
+	getDomains: () => WebPlaywrightDomains,
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	async onFailure({ failedStep }: TFailureArgs): Promise<void> {
 		if (wp.bf?.hasPage(wp.getWorld().tag, wp.tab)) {

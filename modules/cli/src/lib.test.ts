@@ -7,7 +7,7 @@ import { getDefaultOptions } from '@haibun/core/lib/util/index.js';
 
 import * as lib from './lib.js';
 
-const s = (s) => s.split(' ');
+const s = (s: string) => s.split(' ');
 
 const expectExitAndThrow = (expectedCode: number) => (code?: number | string | null) => {
 	expect(code).toBe(expectedCode);

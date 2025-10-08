@@ -1,9 +1,10 @@
-type TContextValue = string;
+import { TFeatureStep, TOrigin, TProvenanceIdentifier, TStepValue, TStepValueValue, TWorld } from "./defs.js";
+import { DOMAIN_JSON } from "./domain-types.js";
 
 export class FeatureVariables {
-	private values: { [name: string]: TContextValue; };
+	private values: { [name: string]: TStepValue; };
 
-	constructor(private context: string, initial?: { [name: string]: TContextValue; }) {
+	constructor(private world: TWorld, initial?: { [name: string]: TStepValue; }) {
 		this.values = initial || {};
 	}
 	clear() {
@@ -15,19 +16,34 @@ export class FeatureVariables {
 	}
 
 	toString() {
-		return `context ${this.context} values ${this.values}`;
+		return `context ${this.world.tag} values ${this.values}`;
 	}
 
-	setJSON(name: string, value: object) {
-		this.values[name] = JSON.stringify(value);
+	setJSON(label: string, value: object, origin: TOrigin, source: TFeatureStep) {
+		this.set({ term: label, value: JSON.stringify(value), domain: DOMAIN_JSON, origin }, { in: source.in, seq: source.seqPath, when: `${source.action.stepperName}.${source.action.actionName}` });
 	}
-	set(name: string, value: TContextValue) {
-		this.values[name] = value;
+	set(sv: TStepValue, provenance: TProvenanceIdentifier) {
+		const domain = this.world.domains[sv.domain]
+		if (domain === undefined) {
+			throw Error(`Cannot set variable "${sv.term}": unknown domain "${sv.domain}"`);
+		}
+		this.world.domains[sv.domain].coerce(sv);
+		const existingProvenance: TProvenanceIdentifier[] = this.values[sv.term]?.provenance;
+		const provenances = existingProvenance ? [...existingProvenance, provenance] : [provenance];
+		this.values[sv.term] = {
+			...sv,
+			provenance: provenances
+		};
+		this.world.logger.debug(`Set variable "${sv.term}" to "${sv.value}" (domain ${sv.domain}, origin ${sv.origin})`);
 	}
-	get(name: string): string | undefined {
-		return this.values[name];
+	get(name: string): TStepValueValue | undefined {
+		if (!this.values[name]) return undefined;
+		return this.values[name].value;
 	}
 	getJSON<T>(name: string): T | undefined {
-		return this.values[name] ? (JSON.parse(this.values[name]) as T) : undefined;
+		if (!this.values[name]) return undefined;
+
+		if (this.values[name].domain !== DOMAIN_JSON) throw Error(`${name} is ${this.values[name].domain}, not json`);
+		return JSON.parse(this.values[name].value as string);
 	}
 }

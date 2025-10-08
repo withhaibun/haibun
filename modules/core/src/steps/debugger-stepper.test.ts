@@ -6,10 +6,8 @@ import { IPrompter } from '../lib/prompter.js';
 import { ReadlinePrompter } from '../lib/readline-prompter.js';
 
 class TestPrompter implements IPrompter {
-	prompt = async () => {
-		return Promise.resolve('continue');
-	};
-	cancel: () => void;
+	prompt = async () => Promise.resolve('continue');
+	cancel = () => {};
 	resolve: (_id: string, _value: unknown) => void = () => {};
 }
 
@@ -42,5 +40,52 @@ describe('DebuggerStepper', () => {
 		const res = await testWithWorld(world, [feature], [ContinueDebuggerStepper, Haibun]);
 		expect(res.ok).toBe(true);
 		expect(testPrompter.prompt).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe('DebuggerStepper sequence integration', () => {
+	it('beforeStep: increments seqPath with negative inc for debug prompts', async () => {
+		class SequenceTestPrompter implements IPrompter {
+			responses = [';;comment 1', ';;comment 2', 'step', 'step', 'continue'];
+			idx = 0;
+			prompt = async () => {
+				const response = this.responses[this.idx++];
+				return Promise.resolve(response);
+			};
+			cancel = () => {};
+			resolve: (_id: string, _value: unknown) => void = () => {};
+		}
+		const world = getTestWorldWithOptions(DEF_PROTO_OPTIONS);
+		world.prompter.unsubscribe(new ReadlinePrompter());
+		const testPrompter = new SequenceTestPrompter();
+		world.prompter.subscribe(testPrompter);
+		const feature = { path: '/features/test.feature', content: 'debug step by step\nThis should be prompted.\nAnother step.' };
+		const res = await testWithWorld(world, [feature], [DebuggerStepper, Haibun]);
+		expect(res.ok).toBe(true);
+		// [1] debug step by step, [2,-1] comment 1, [2,-2] comment 2, [2,-3] step (exits loop), [2] step 2, [3,-1] step (exits loop), [3] step 3
+		const seqs = res.featureResults![0].stepResults.map(r => r.seqPath);
+		expect(seqs).toEqual([[1], [2,-1], [2,-2], [2,-3], [2], [3,-1], [3]]);
+	});
+
+	it('afterStep: increments seqPath with positive inc for failure prompts', async () => {
+		const TestSteps = (await import('../lib/test/TestSteps.js')).default;
+		class FailurePrompter implements IPrompter {
+			responses = [';;comment 1', ';;comment 2', 'next'];
+			idx = 0;
+			prompt = async () => Promise.resolve(this.responses[this.idx++]);
+			cancel = () => {};
+			resolve: (_id: string, _value: unknown) => void = () => {};
+		}
+		const world = getTestWorldWithOptions(DEF_PROTO_OPTIONS);
+		world.prompter.unsubscribe(new ReadlinePrompter());
+		const testPrompter = new FailurePrompter();
+		world.prompter.subscribe(testPrompter);
+		// Use TestSteps' fails action
+		const feature = { path: '/features/test.feature', content: 'fails' };
+		const res = await testWithWorld(world, [feature], [DebuggerStepper, TestSteps, Haibun]);
+		expect(res.ok).toBe(true); // 'next' allows continuation
+		// [1,1] comment 1, [1,2] comment 2, [1,3] next (exits loop), [1] failed step
+		const seqs = res.featureResults![0].stepResults.map(r => r.seqPath);
+		expect(seqs).toEqual([[1,1], [1,2], [1,3], [1]]);
 	});
 });
