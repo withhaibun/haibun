@@ -1,4 +1,4 @@
-import { TFeatureStep, TOrigin, TStepValue, TStepValueValue, TWorld } from "./defs.js";
+import { TFeatureStep, TOrigin, TProvenanceIdentifier, TStepValue, TStepValueValue, TWorld } from "./defs.js";
 import { DOMAIN_JSON } from "./domain-types.js";
 
 export class FeatureVariables {
@@ -28,8 +28,9 @@ export class FeatureVariables {
 			throw Error(`Cannot set variable "${sv.term}": unknown domain "${sv.domain}"`);
 		}
 		this.world.domains[sv.domain].coerce(sv);
-		const existingProvenance: TFeatureStep[] = this.values[sv.term]?.provenance;
-		const provenance = existingProvenance ? [...existingProvenance, source] : [source];
+		const existingProvenance: TProvenanceIdentifier[] = this.values[sv.term]?.provenance;
+		const provKey: TProvenanceIdentifier = { in: source.in, seq: source.seqPath, stepperName: source.action.stepperName, actionName: source.action.actionName };
+		const provenance = existingProvenance ? [...existingProvenance, provKey] : [provKey];
 		this.values[sv.term] = {
 			...sv,
 			provenance

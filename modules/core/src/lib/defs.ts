@@ -192,13 +192,14 @@ export enum Origin {
 }
 
 export type TOrigin = keyof typeof Origin;
+export type TProvenanceIdentifier = { in: string; seq: number[], stepperName: string, actionName: string };
 export type TStepValueValue = string | number | TFeatureStep[]
 export type TStepValue = {
 	term: string;
 	domain: string;
 	value?: TStepValueValue; // value is added in populateActionArgs
 	origin: TOrigin;
-	provenance?: TFeatureStep[]
+	provenance?: TProvenanceIdentifier[]
 };
 
 export const OK: TOKActionResult = { ok: true };
