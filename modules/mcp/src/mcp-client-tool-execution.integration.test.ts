@@ -3,6 +3,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 
 import { currentVersion as version } from '@haibun/core/currentVersion.js';
+import { TAnyFixme } from '@haibun/core/lib/fixme.js';
 import { runtimeStdio, TEST_PORTS } from './mcp-test-utils.js';
 
 const toolExecutionServerParameters = runtimeStdio(TEST_PORTS.MCP_TOOL_EXECUTION);
@@ -33,13 +34,13 @@ describe('haibun-mcp tool execution', () => {
 
 		// Should have variable management tools
 		expect(tools.some(t => t.name === 'VariablesStepper-set')).toBe(true);
-		expect(tools.some(t => t.name === 'VariablesStepper-display')).toBe(true);
+		expect(tools.some(t => t.name === 'VariablesStepper-showVars')).toBe(true);
 
 		// Should have utility tools
 		expect(tools.some(t => t.name === 'Haibun-pauseSeconds')).toBe(true);
 	});
 
-	it('can execute variable setting and display tools', async () => {
+	it('can execute variable setting and showVars tools', async () => {
 		// Set a variable using the VariablesStepper-set tool
 		const setResult = await client.callTool({
 			name: 'VariablesStepper-set',
@@ -59,26 +60,25 @@ describe('haibun-mcp tool execution', () => {
 		expect(setResponse.success).toBe(true);
 		expect(setResponse.result.ok).toBe(true);
 
-		// Display the variable using the VariablesStepper-display tool
-		const displayResult = await client.callTool({
-			name: 'VariablesStepper-display',
+		const showVarsResult = await client.callTool({
+			name: 'VariablesStepper-showVars',
 			arguments: {
 				what: 'testVariable'
 			}
 		});
 
-		expect(displayResult.content).toBeDefined();
-		expect(Array.isArray(displayResult.content)).toBe(true);
-		const displayContent = displayResult.content as Array<{ type: string; text: string }>;
+		expect(showVarsResult.content).toBeDefined();
+		expect(Array.isArray(showVarsResult.content)).toBe(true);
+		const displayContent = showVarsResult.content as Array<{ type: string; text: string }>;
 		expect(displayContent[0].type).toBe('text');
 		const displayResponse = JSON.parse(displayContent[0].text);
-		expect(displayResponse.stepName).toBe('display');
+		expect(displayResponse.stepName).toBe('showVars');
 		expect(displayResponse.stepperName).toBe('VariablesStepper');
 		expect(displayResponse.success).toBe(true);
 		expect(displayResponse.result.ok).toBe(true);
 	});
 
-	it('call combine and display variables', async () => {
+	it('call combine and showVars variables', async () => {
 		const combineResult = await client.callTool({
 			name: 'VariablesStepper-combine',
 			arguments: {
@@ -97,19 +97,19 @@ describe('haibun-mcp tool execution', () => {
 		expect(combineResponse.stepperName).toBe('VariablesStepper');
 		expect(combineResponse.success).toBe(true);
 
-		const displayResult = await client.callTool({
-			name: 'VariablesStepper-display',
+		const showVarsResult = await client.callTool({
+			name: 'VariablesStepper-showVars',
 			arguments: {
 				what: 'yum'
 			}
 		});
 
-		expect(displayResult.content).toBeDefined();
-		expect(Array.isArray(displayResult.content)).toBe(true);
-		const displayContent = displayResult.content as Array<{ type: string; text: string }>;
+		expect(showVarsResult.content).toBeDefined();
+		expect(Array.isArray(showVarsResult.content)).toBe(true);
+		const displayContent = showVarsResult.content as Array<{ type: string; text: string }>;
 		expect(displayContent[0].type).toBe('text');
 		const displayResponse = JSON.parse(displayContent[0].text);
-		expect(displayResponse.stepName).toBe('display');
+		expect(displayResponse.stepName).toBe('showVars');
 		expect(displayResponse.stepperName).toBe('VariablesStepper');
 		expect(displayResponse.success).toBe(true);
 	});
@@ -146,7 +146,7 @@ describe('haibun-mcp tool execution', () => {
 
 			// If we get here, the call succeeded when it should have failed
 			expect.fail('Expected tool call to throw an error due to missing required parameter');
-		} catch (error) {
+		} catch (error: TAnyFixme) {
 			// This is the expected behavior - the tool should throw/error on invalid parameters
 			expect(error).toBeDefined();
 			expect(error.message).toContain('Invalid arguments');

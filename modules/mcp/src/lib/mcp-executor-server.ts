@@ -6,9 +6,9 @@ import type { TextContent } from '@modelcontextprotocol/sdk/types.js';
 import { AStepper } from "@haibun/core/lib/astepper.js";
 import { namedInterpolation } from "@haibun/core/lib/namedVars.js";
 import { currentVersion as version } from '@haibun/core/currentVersion.js';
-import { TWorld, TStepperStep, TStepResult } from "@haibun/core/lib/defs.js";
+import { TWorld, TStepperStep, TStepResult, ExecMode } from "@haibun/core/lib/defs.js";
 import { constructorName } from "@haibun/core/lib/util/index.js";
-import { resolveAndExecuteStatement } from "@haibun/core/lib/util/resolveAndExecuteStatement.js";
+import { resolveAndExecuteStatement } from "@haibun/core/lib/util/featureStep-executor.js";
 import { HttpPrompterClient } from './http-prompter-client.js';
 
 type ToolHandlerResponse = { content?: TextContent[] };
@@ -73,10 +73,12 @@ export class MCPExecutorServer {
 				}
 				const variables: ZodRawShape = {};
 				if (stepDef.gwta) {
-					const { stepVariables } = namedInterpolation(stepDef.gwta);
-					if (Array.isArray(stepVariables)) {
-						for (const v of stepVariables) {
-							variables[v.name] = v.type === 'number' ? z.number() : z.string();
+					const { stepValuesMap } = namedInterpolation(stepDef.gwta);
+					if (stepValuesMap) {
+						// Preserve declaration order: namedInterpolation builds the map in textual order.
+						for (const v of Object.values(stepValuesMap)) {
+							const d = v.domain || 'string';
+							variables[v.term] = d === 'number' ? z.number() : z.string();
 						}
 					}
 				}
@@ -203,7 +205,7 @@ export class MCPExecutorServer {
 
 				const stepResult: TStepResult = this.remoteConfig
 					? await this.executeViaRemoteApi(statement, `/mcp/${stepperName}-${stepName}`)
-					: await resolveAndExecuteStatement(statement, `/mcp/${stepperName}-${stepName}`, this.steppers, this.world);
+					: await resolveAndExecuteStatement(statement, `/mcp/${stepperName}-${stepName}`, this.steppers, this.world, ExecMode.NO_CYCLES, [0]);
 
 				return {
 					content: [{

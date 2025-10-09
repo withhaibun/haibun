@@ -1,6 +1,7 @@
 {
 	"steppers": [
 		"variables-stepper",
+		"debugger-stepper",
 		"credentials",
 		"haibun"
 	]

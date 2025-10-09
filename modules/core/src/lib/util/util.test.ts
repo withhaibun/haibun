@@ -1,7 +1,7 @@
 import { describe, it, test, expect } from 'vitest';
 
 import * as util from './index.js';
-import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, getDefaultWorld, getCreateSteppers, TEST_BASE } from '../test/lib.js';
+import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, getCreateSteppers, TEST_BASE } from '../test/lib.js';
 import TestSteps from '../test/TestSteps.js';
 import TestStepsWithOptions from '../test/TestStepsWithOptions.js';
 import { withNameType } from '../features.js';
@@ -66,7 +66,7 @@ describe('findStepperFromOptions', () => {
 		expect(constructorName(<AStepper>s)).toBe('TestSteps');
 	});
 	it('throws for not found stepper', async () => {
-		const ts = await util.createSteppers([TestOptionsStepper])[0];
+		const ts = (await util.createSteppers([TestOptionsStepper]))[0];
 		const steppers = await getCreateSteppers([], [TestOptionsStepper]);
 		const options = {};
 		expect(() => util.findStepperFromOption(steppers, ts, options, 'S')).toThrow;
@@ -112,11 +112,6 @@ describe('getStepperOptions', () => {
 	it('finds stepper options', () => {
 		const conc = util.getStepperOptionValue(HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, 'true', [TestStepsWithOptions]);
 		expect(conc).toBeDefined();
-	});
-	it.skip('fills extra', async () => {
-		const world = getDefaultWorld(0);
-		await util.verifyExtraOptions({ [HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]: 'true' }, [TestStepsWithOptions]);
-		expect(world.options[HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]).toEqual(42);
 	});
 	it('throws for unfilled extra', async () => {
 		await expect(async () => util.verifyExtraOptions({ HAIBUN_NE: 'true' }, [])).rejects.toThrow();

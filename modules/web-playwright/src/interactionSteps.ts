@@ -1,91 +1,88 @@
 import { Download, Page, Response } from "playwright";
+type ClickResult = import('playwright').Locator;
 
-import { OK, TFeatureStep, TNamed } from "@haibun/core/lib/defs.js";
-import { WEB_CONTROL, WEB_PAGE } from "@haibun/core/lib/domain-types.js";
-import { EExecutionMessageType } from "@haibun/core/lib/interfaces/logger.js";
-import { actionNotOK, actionOK, sleep } from "@haibun/core/lib/util/index.js";
-import { BROWSERS } from "./BrowserFactory.js";
+import { OK, Origin, TFeatureStep } from "@haibun/core/lib/defs.js";
+import { DOMAIN_STRING, WEB_PAGE } from "@haibun/core/lib/domain-types.js";
+import { actionNotOK, sleep } from "@haibun/core/lib/util/index.js";
+import { DOMAIN_PAGE_LOCATOR } from "./domains.js";
 import { WebPlaywright } from "./web-playwright.js";
+import { BROWSERS } from "./BrowserFactory.js";
+import { EExecutionMessageType } from "@haibun/core/lib/interfaces/logger.js";
+import { actionOK } from "@haibun/core/lib/util/index.js";
+import { pathToFileURL } from 'node:url';
+import { TStepperSteps } from "@haibun/core/lib/astepper.js";
+import { provenanceFromFeatureStep } from "@haibun/core/steps/variables-stepper.js";
 
-export const interactionSteps = (wp: WebPlaywright) => ({
-	//                                      INPUT
+const DOMAIN_STRING_OR_PAGE_LOCATOR = `${DOMAIN_STRING} | ${DOMAIN_PAGE_LOCATOR}`;
+
+export const interactionSteps = (wp: WebPlaywright): TStepperSteps => ({
+	// INPUT
 	press: {
-		gwta: `press {key}`,
-		action: async ({ key }: TNamed) => {
+		gwta: 'press {key}',
+		action: async ({ key }: { key: string }) => {
 			await wp.withPage(async (page: Page) => await page.keyboard.press(key));
 			return OK;
 		},
 	},
 	type: {
-		gwta: `type {text}`,
-		action: async ({ text }: TNamed) => {
+		gwta: 'type {text}',
+		action: async ({ text }: { text: string }) => {
 			await wp.withPage(async (page: Page) => await page.keyboard.type(text));
 			return OK;
 		},
 	},
 	inputVariable: {
-		gwta: `input {what} for {field}`,
-		action: async ({ what, field }: TNamed) => {
-			await wp.withPage(async (page: Page) => await page.locator(field).fill(what));
+		gwta: `input {what} for {field: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}`,
+		action: async ({ what, field }: { what: string; field: string }, featureStep: TFeatureStep) => {
+			await wp.withPage(async (page: Page) => await locateByDomain(page, featureStep, 'field').fill(what));
 			return OK;
 		},
 	},
 	selectionOption: {
-		gwta: `select {option} for {field: ${WEB_CONTROL}}`,
-		action: async ({ option, field }: TNamed) => {
-			await wp.withPage(async (page: Page) => await page.selectOption(field, { label: option }));
-			// FIXME have to use id value
+		gwta: `select {option} for {field: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}`,
+		action: async ({ option, field }: { option: string; field: string }, featureStep: TFeatureStep) => {
+			await wp.withPage(async (page: Page) => await locateByDomain(page, featureStep, 'field').selectOption({ label: option }));
 			return OK;
 		},
 	},
-
-	//                ASSERTIONS
 	dialogIs: {
 		gwta: 'dialog {what} {type} says {value}',
-		action: async ({ what, type, value }: TNamed) => {
+		action: ({ what, type, value }: { what: string; type: string; value: string }) => {
 			const cur = wp.getWorld().shared.get(what)?.[type];
-			return Promise.resolve(cur === value ? OK : actionNotOK(`${what} is ${cur}`));
+			return cur === value ? OK : actionNotOK(`${what} is ${cur}`);
 		},
 	},
 	dialogIsUnset: {
 		gwta: 'dialog {what} {type} not set',
-		action: async ({ what, type }: TNamed) => {
+		action: ({ what, type }: { what: string; type: string }) => {
 			const cur = wp.getWorld().shared.get(what)?.[type];
-			return Promise.resolve(!cur ? OK : actionNotOK(`${what} is ${cur}`));
+			return !cur ? OK : actionNotOK(`${what} is ${cur}`);
 		},
 	},
 	shouldSeeTestId: {
 		gwta: 'has test id {testId}',
-		action: async ({ testId }: TNamed) => {
+		action: async ({ testId }: { testId: string }) => {
 			const found = await wp.withPage(async (page: Page) => await page.getByTestId(testId));
 			return found ? OK : actionNotOK(`Did not find test id ${testId}`);
 		},
 	},
 	shouldSeeTextIn: {
 		gwta: 'in {selector}, see {text}',
-		action: async ({ text, selector }: TNamed) => {
-			return await wp.sees(text, selector);
-		},
+		action: async ({ text, selector }: { text: string; selector: string }) => await wp.sees(text, selector),
 	},
 	shouldSeeText: {
 		gwta: 'see {text}',
-		action: async ({ text }: TNamed) => {
-			return await wp.sees(text, 'body');
-		},
+		action: async ({ text }: { text: string }) => await wp.sees(text, 'body'),
 	},
 	waitFor: {
-		gwta: 'wait for {what}',
-		action: async ({ what }: TNamed) => {
-			const selector = what.match(/^[#]/) ? what : `text=${what}`;
+		gwta: `wait for {target: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}`,
+		action: async ({ target }: { target: string }, featureStep: TFeatureStep) => {
 			try {
-			const found = await wp.withPage(async (page: Page) => await page.waitForSelector(selector));
-			if (found) {
+				await wp.withPage(async (page: Page) => await locateByDomain(page, featureStep, 'target').waitFor());
 				return OK;
+			} catch (e) {
+				return actionNotOK(`Did not find ${target}`);
 			}
-		} catch (e) {
-			// playwright insists on throwing here
-		}
-			return actionNotOK(`Did not find ${what}`);
 		},
 	},
 
@@ -107,14 +104,14 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 	},
 	onNewTab: {
 		gwta: `on a new tab`,
-		action: async () => {
+		action: () => {
 			wp.newTab();
-			return Promise.resolve(OK);
+			return OK;
 		},
 	},
 	waitForTabX: {
 		gwta: `pause until current tab is {tab}`,
-		action: async ({ tab }: TNamed) => {
+		action: async ({ tab }: { tab: string }) => {
 			const waitForTab = parseInt(tab, 10);
 			let timedOut = false;
 			setTimeout(() => {
@@ -130,14 +127,14 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 	},
 	onTabX: {
 		gwta: `on tab {tab}`,
-		action: async ({ tab }: TNamed) => {
+		action: ({ tab }: { tab: string }) => {
 			wp.tab = parseInt(tab, 10);
-			return Promise.resolve(OK);
+			return OK;
 		},
 	},
 	beOnPage: {
 		gwta: `be on the {name} ${WEB_PAGE}`,
-		action: async ({ name }: TNamed) => {
+		action: async ({ name }: { name: string }) => {
 			const nowon = await wp.withPage(async (page: Page) => {
 				await page.waitForURL(name);
 				return page.url();
@@ -151,7 +148,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 	extensionContext: {
 		expose: false,
 		gwta: `open extension popup for tab {tab}`,
-		action: async ({ tab }: TNamed) => {
+		action: async ({ tab }: { tab: string }, featureStep) => {
 			if (!wp.factoryOptions?.persistentDirectory || wp.factoryOptions?.launchOptions.headless) {
 				throw Error(`extensions require ${WebPlaywright.PERSISTENT_DIRECTORY} and not HEADLESS`);
 			}
@@ -169,7 +166,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 			console.debug('background', background, browserContext.serviceWorkers());
 
 			const extensionId = background.url().split('/')[2];
-			wp.getWorld().shared.set('extensionContext', extensionId);
+			wp.getWorld().shared.set({ term: 'extensionContext', value: extensionId, domain: 'string', origin: Origin.fallthrough }, provenanceFromFeatureStep(featureStep));
 			await wp.withPage(async (page: Page) => {
 				const popupURI = `chrome-extension://${extensionId}/popup.html?${tab}`;
 				return await page.goto(popupURI);
@@ -180,7 +177,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 	},
 	cookieIs: {
 		gwta: 'cookie {name} is {value}',
-		action: async ({ name, value }: TNamed) => {
+		action: async ({ name, value }: { name: string; value: string }) => {
 			const cookies = await wp.getCookies();
 			const found = cookies?.find((c) => c.name === name && c.value === value);
 			return found ? OK : actionNotOK(`did not find cookie ${name} with value ${value} from ${JSON.stringify(cookies)}`);
@@ -188,25 +185,26 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 	},
 	URIQueryParameterIs: {
 		gwta: 'URI query parameter {what} is {value}',
-		action: async ({ what, value }: TNamed) => {
+		action: async ({ value }: { value: string }, featureStep) => {
+			const { term } = featureStep.action.stepValuesMap.what;
 			const uri = await wp.withPage<string>(async (page: Page) => await page.url());
-			const found = new URL(uri).searchParams.get(what);
+			const found = new URL(uri).searchParams.get(term);
 			if (found === value) {
 				return OK;
 			}
-			return actionNotOK(`URI query ${what} contains "${found}"", not "${value}""`);
+			return actionNotOK(`URI query ${term} contains "${found}", not "${value}"`);
 		},
 	},
 	URIStartsWith: {
 		gwta: 'URI starts with {start}',
-		action: async ({ start }: TNamed) => {
+		action: async ({ start }: { start: string }) => {
 			const uri = await wp.withPage<string>(async (page: Page) => await page.url());
 			return uri.startsWith(start) ? OK : actionNotOK(`current URI ${uri} does not start with ${start}`);
 		},
 	},
 	URIMatches: {
 		gwta: 'URI(case insensitively)? matches {what}',
-		action: async ({ what }: TNamed, featureStep) => {
+		action: async ({ what }: { what: string }, featureStep) => {
 			const modifier = featureStep.in.match(/ case insensitively /) ? 'i' : '';
 			const uri = await wp.withPage<string>(async (page: Page) => await page.url());
 			const matcher = new RegExp(what, modifier);
@@ -216,61 +214,59 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 
 	//                  CLICK
 	click: {
-		gwta: `click {what}`,
-		action: async ({ what }: TNamed) => {
-			const isCssSelector = /^[#.[[]|::|>>/.test(what) || what.includes('=');
-			if (isCssSelector) {
-				await wp.withPage(async (page: Page) => await page.locator(what).click());
-			} else {
-				await wp.withPage(async (page: Page) => await page.getByText(what, { exact: true }).click());
-			}
+		gwta: `click {target: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}`,
+		action: async ({ target }: { target: string }, featureStep) => {
+			await wp.withPage(async (page: Page) => {
+				return await locateByDomain(page, featureStep, 'target').click();
+			});
 			return OK;
-		}
+		},
 	},
 	clickBy: {
 		precludes: [`${wp.constructor.name}.click`],
-		gwta: `click {what} by {method}`,
-		action: async ({ what, method }: TNamed) => {
-			let withModifier = {};
+		gwta: `click {target: ${DOMAIN_STRING_OR_PAGE_LOCATOR}} by {method}`,
+		action: async ({ target, method }: { target: string; method: string }, featureStep: TFeatureStep) => {
+			let withModifier: Record<string, unknown> = {};
 
-			const bys = {
-				'alt text': (page: Page) => page.getByAltText(what),
-				'test id': (page: Page) => page.getByTestId(what),
-				placeholder: (page: Page) => page.getByPlaceholder(what),
-				role: (page: Page) => page.getByRole(what as Parameters<Page['getByRole']>[0]),
-				label: (page: Page) => page.getByLabel(what),
-				title: (page: Page) => page.getByTitle(what),
-				text: (page: Page) => page.getByText(what, { exact: true }),
-				dispatch: (page: Page) => page.locator(what).dispatchEvent('click'),
+			const bys: Record<string, (page: Page) => ClickResult | Promise<void>> = {
+				'alt text': (page: Page) => page.getByAltText(target),
+				'test id': (page: Page) => page.getByTestId(target),
+				placeholder: (page: Page) => page.getByPlaceholder(target),
+				role: (page: Page) => page.getByRole(target as Parameters<Page['getByRole']>[0]),
+				label: (page: Page) => page.getByLabel(target),
+				title: (page: Page) => page.getByTitle(target),
+				text: (page: Page) => page.getByText(target),
 				modifier: (page: Page) => {
 					withModifier = JSON.parse(method);
-					return page.locator(what);
-				}
+					return locateByDomain(page, featureStep, 'target');
+				},
 			};
 			if (!bys[method]) {
-				return actionNotOK(`unknown click by "${method}" from ${Object.keys(bys).toString()}`);
+				return actionNotOK(`unknown click by "${method}" from ${Object.keys(bys).toString()} `);
 			}
 			await wp.withPage(async (page: Page) => {
 				const locatorResult = bys[method](page);
-				await locatorResult.click(withModifier);
+				const maybeLocator = locatorResult as unknown;
+				if (typeof maybeLocator === 'object' && maybeLocator && 'click' in maybeLocator) {
+					await (maybeLocator as import('playwright').Locator).click(withModifier);
+				}
 			});
 			return OK;
 		},
 	},
 	//                          NAVIGATION
 
-	// formerly On the {name} ${WEB_PAGE}
 	gotoPage: {
-		gwta: `go to the {name} ${WEB_PAGE}`,
-		action: async ({ name }: TNamed) => {
-			const response = await wp.withPage<Response>(async (page: Page) => {
+		gwta: `go to the { name } ${WEB_PAGE}`,
+		action: async ({ name }: { name: string }) => {
+			const response = await wp.withPage<Response | null>(async (page: Page) => {
 				return await page.goto(name);
 			});
 			const messageContext = {
 				incident: EExecutionMessageType.ACTION,
-				incidentDetails: { ...response?.allHeaders, summary: response?.statusText() }
-			}
-			return response?.ok ? OK : actionNotOK(`response not ok`, { messageContext });
+				incidentDetails: { ...(response?.allHeaders || {}), summary: response?.statusText() }
+			};
+			return response?.ok() ? OK : actionNotOK(`response not ok`, { messageContext });
 		},
 	},
 	reloadPage: {
@@ -290,9 +286,9 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 	},
 
 	blur: {
-		gwta: 'blur {what}',
-		action: async ({ what }: TNamed) => {
-			await wp.withPage(async (page: Page) => await page.locator(what).evaluate((e) => e.blur()));
+		gwta: `blur {what: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}`,
+		action: async ({ what }: { what: string }, featureStep: TFeatureStep) => {
+			await wp.withPage(async (page: Page) => await locateByDomain(page, featureStep, 'what').evaluate((e) => e.blur()));
 			return OK;
 		},
 	},
@@ -300,32 +296,31 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 	//                         BROWSER
 	usingBrowserVar: {
 		gwta: 'using {browser} browser',
-		action: async ({ browser }: TNamed) => {
-
+		action: ({ browser }: { browser: string }) => {
 			if (!BROWSERS[browser]) {
-				throw Error(`browserType not recognized ${browser} from ${BROWSERS.toString()}`);
+				throw Error(`browserType not recognized ${browser} from ${BROWSERS.toString()} `);
 			}
-			return Promise.resolve(wp.setBrowser(browser));
+			return wp.setBrowser(browser);
 		},
 	},
 
 	//  FILE DOWNLOAD/UPLOAD
 	uploadFile: {
-		gwta: 'upload file {file} using {selector}',
-		action: async ({ file, selector }: TNamed) => {
-			await wp.withPage(async (page: Page) => await page.setInputFiles(selector, file));
+		gwta: `upload file {file} using {selector: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}`,
+		action: async ({ file, selector }: { file: string; selector: string }, featureStep: TFeatureStep) => {
+			await wp.withPage(async (page: Page) => await locateByDomain(page, featureStep, 'selector').setInputFiles(file));
 			return OK;
 		},
 	},
 
 	waitForFileChooser: {
-		gwta: 'upload file {file} with {selector}',
-		action: async ({ file, selector }: TNamed) => {
+		gwta: `upload file {file} with {selector: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}`,
+		action: async ({ file, selector }: { file: string; selector: string }, featureStep: TFeatureStep) => {
 			try {
 				await wp.withPage(async (page: Page) => {
 					const [fileChooser] = await Promise.all([
 						page.waitForEvent('filechooser'),
-						page.locator(selector).click()
+						locateByDomain(page, featureStep, 'selector').click()
 					]);
 					await fileChooser.setFiles(file);
 				});
@@ -337,18 +332,18 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 	},
 	expectDownload: {
 		gwta: 'expect a download',
-		action: async () => {
+		action: () => {
 			try {
 				wp.expectedDownload = wp.withPage<Download>(async (page: Page) => page.waitForEvent('download'));
-				return Promise.resolve(OK);
+				return OK;
 			} catch (e) {
-				return Promise.resolve(actionNotOK(e));
+				return actionNotOK(e);
 			}
 		},
 	},
 	receiveDownload: {
 		gwta: 'receive download as {file}',
-		action: async ({ file }: TNamed) => {
+		action: async ({ file }: { file: string }) => {
 			try {
 				const download = await wp.expectedDownload;
 				await download.saveAs(file);
@@ -361,7 +356,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 	},
 	waitForDownload: {
 		gwta: 'save download to {file}',
-		action: async ({ file }: TNamed) => {
+		action: async ({ file }: { file: string }) => {
 			try {
 				const download = <Download>await wp.withPage(async (page: Page) => page.waitForEvent('download'));
 
@@ -375,16 +370,9 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 	},
 
 	//                          MISC
-	withFrame: {
-		gwta: 'with frame {name}',
-		action: async ({ name }: TNamed) => {
-			wp.withFrame = name;
-			return Promise.resolve(OK);
-		},
-	},
 	captureDialog: {
 		gwta: 'accept next dialog to {where}',
-		action: async ({ where }: TNamed) => {
+		action: async ({ where }: { where: string }, featureStep) => {
 			await wp.withPage((page: Page) => {
 				return page.on('dialog', async (dialog) => {
 					const res = {
@@ -393,22 +381,65 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 						type: dialog.type(),
 					};
 					await dialog.accept();
-					wp.getWorld().shared.setJSON(where, res);
+					wp.getWorld().shared.setJSON(where, res, Origin.var, featureStep);
 				});
-			}
-			);
-			return Promise.resolve(OK);
+			});
+			return OK;
 		},
 	},
-	takeScreenshot: {
-		gwta: 'take a screenshot',
-		action: async (notUsed, featureStep: TFeatureStep) => {
+	canvasIsEmpty: {
+		gwta: 'canvas {what} is empty',
+		action: async ({ what }: { what: string }) => {
+			const isNotEmpty = await wp.withPage<boolean>(async (page: Page) => {
+				const locator = page.locator(what);
+
+				try {
+					await locator.waitFor({ state: 'attached', timeout: 1000 });
+				} catch (error: unknown) {
+					if (typeof error === 'object' && error && 'name' in error && (error as { name?: string }).name === 'TimeoutError') {
+						return false;
+					}
+					throw error;
+				}
+
+				return await locator.evaluate((canvas: HTMLCanvasElement) => {
+					const ctx = canvas.getContext('2d');
+					if (!ctx) {
+						return false;
+					}
+					const pixelBuffer = new Uint32Array(
+						ctx.getImageData(0, 0, canvas.width, canvas.height).data.buffer
+					);
+					return pixelBuffer.some(color => color !== 0);
+				});
+			});
+
+			return !isNotEmpty ? OK : actionNotOK(`canvas ${what} is not empty`);
+		},
+	},
+	takeScreenshotOf: {
+		gwta: `take a screenshot of {what: ${DOMAIN_STRING_OR_PAGE_LOCATOR}} to {where}`,
+		action: async ({ what, where }: { what: string; where: string }, featureStep: TFeatureStep) => {
 			try {
-				await wp.captureScreenshotAndLog(EExecutionMessageType.ACTION, featureStep);
+				await wp.withPage(async (page: Page) => {
+					const locator = await locateByDomain(page, featureStep, 'what');
+					if (await locator.count() !== 1) {
+						throw Error(`no single ${what} from ${locator} `);
+					}
+					await locator.screenshot({ path: where });
+					wp.getWorld().logger.info(`screenshot of ${what} saved to ${pathToFileURL(where)} `);
+				});
 				return OK;
 			} catch (e) {
 				return actionNotOK(e);
 			}
+		},
+	},
+	takeScreenshot: {
+		gwta: 'take a screenshot',
+		action: async () => {
+			await wp.captureScreenshotAndLog(EExecutionMessageType.ACTION, {});
+			return OK;
 		},
 	},
 	getPageContents: {
@@ -423,7 +454,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 				}
 			};
 			return actionOK(messageContext);
-		}
+		},
 	},
 	takeAccessibilitySnapshot: {
 		gwta: 'take an accessibility snapshot',
@@ -442,28 +473,18 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 			return OK;
 		},
 	},
-	assertOpen: {
-		gwta: '{what} is expanded with the {using}',
-		action: async ({ what, using }: TNamed) => {
-			const isVisible = await wp.withPage(async (page: Page) => await page.isVisible(what));
-			if (!isVisible) {
-				await wp.withPage(async (page: Page) => await page.click(using));
-			}
-			return OK;
-		},
-	},
 	saveURIQueryParameter: {
 		gwta: 'save URI query parameter {what} to {where}',
-		action: async ({ what, where }: TNamed) => {
+		action: async ({ what, where }: { what: string; where: string }, featureStep) => {
 			const uri = await wp.withPage<string>(async (page: Page) => await page.url());
 			const found = new URL(uri).searchParams.get(what);
-			wp.getWorld().shared.set(where, found);
+			wp.getWorld().shared.set({ term: where, value: found, domain: 'string', origin: Origin.fallthrough }, provenanceFromFeatureStep(featureStep));
 			return OK;
 		},
 	},
 	resizeWindow: {
 		gwta: 'resize window to {width}x{height}',
-		action: async ({ width, height }: TNamed) => {
+		action: async ({ width, height }: { width: string; height: string }) => {
 			await wp.withPage(
 				async (page: Page) => await page.setViewportSize({ width: parseInt(width), height: parseInt(height) })
 			);
@@ -484,7 +505,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 	},
 	usingTimeout: {
 		gwta: 'using timeout of {timeout}ms',
-		action: async ({ timeout }: TNamed) => {
+		action: async ({ timeout }: { timeout: string }) => {
 			const timeoutMs = parseInt(timeout, 10);
 			await wp.withPage((page: Page) => {
 				page.setDefaultTimeout(timeoutMs);
@@ -494,3 +515,11 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 		},
 	}
 });
+
+
+function locateByDomain(page: Page, featureStep: TFeatureStep, where: string) {
+	const value = featureStep.action.stepValuesMap[where].value as string
+	const located = (featureStep.action.stepValuesMap[where].domain === 'string') ? page.getByText(value, { exact: true }) : page.locator(value);
+	return located;
+}
+

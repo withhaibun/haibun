@@ -118,7 +118,6 @@ export class ServerExpress implements IWebServer {
 		// accepts valid characters and placeholders
 		const sanitized = loc.replace(/[^a-zA-Z0-9/\-:_]/g, '').replace(/:(?![a-zA-Z0-9_-])/g, '')
 		if (loc !== sanitized) {
-			console.log('sanitized', sanitized, loc);
 			return `mount folder ${loc} has illegal characters`;
 		}
 		const alreadyMounted =

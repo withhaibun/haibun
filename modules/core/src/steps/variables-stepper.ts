@@ -1,32 +1,32 @@
-import { OK, TNamed, TFeatureStep, TWorld, IStepperCycles, TStartScenario } from '../lib/defs.js';
+import { OK, TStepArgs, TFeatureStep, TWorld, IStepperCycles, TStartScenario, Origin, TProvenanceIdentifier } from '../lib/defs.js';
 import { TAnyFixme } from '../lib/fixme.js';
-import { AStepper, IHasCycles } from '../lib/astepper.js';
+import { AStepper, IHasCycles, TStepperSteps } from '../lib/astepper.js';
 import { actionNotOK, actionOK } from '../lib/util/index.js';
 import { FeatureVariables } from '../lib/feature-variables.js';
+import { DOMAIN_STRING } from '../lib/domain-types.js';
 
 const clearVars = (vars) => async () => {
-	vars.getWorld().shared.clear()
+	vars.getWorld().shared.clear();
 	return Promise.resolve();
-}
+};
 
 const cycles = (variablesStepper: VariablesStepper): IStepperCycles => ({
-	endScenario: clearVars(variablesStepper),
 	startFeature: clearVars(variablesStepper),
 	startScenario: ({ featureVars }: TStartScenario) => {
-		variablesStepper.getWorld().shared = new FeatureVariables(variablesStepper.getWorld().tag.toString(), { ...featureVars.all() });
+		variablesStepper.getWorld().shared = new FeatureVariables(variablesStepper.getWorld(), { ...featureVars.all() });
 		return Promise.resolve();
 	},
+	endScenario: clearVars(variablesStepper),
 });
 
 class VariablesStepper extends AStepper implements IHasCycles {
 	cycles = cycles(this);
-	set = async (named: TNamed, featureStep: TFeatureStep) => {
-		// FIXME see https://github.com/withhaibun/haibun/issues/18
-		const emptyOnly = !!featureStep.in.match(/set empty /);
-
-		const res = setShared(named, featureStep, this.getWorld(), emptyOnly);
-		return Promise.resolve(res);
-	};
+	steppers: AStepper[];
+	async setWorld(world: TWorld, steppers: AStepper[]) {
+		this.world = world;
+		this.steppers = steppers;
+		await Promise.resolve();
+	}
 	checkIsSet(what: string,) {
 		return this.getVarValue(what) !== undefined;
 	}
@@ -45,18 +45,33 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		return actionNotOK(`${what} not set`);
 	}
 
-	steps = {
+	// Steps
+	steps: TStepperSteps = {
+		combineAs: {
+			gwta: 'combine {p1} and {p2} as {domain} to {what}',
+			precludes: [`${VariablesStepper.name}.combine`],
+			action: async ({ p1, p2, domain }: { p1: string, p2: string, domain: string }, featureStep: TFeatureStep) => {
+				const { term } = featureStep.action.stepValuesMap.what;
+				this.getWorld().shared.set({ term: String(term), value: `${p1}${p2}`, domain, origin: Origin.var }, provenanceFromFeatureStep(featureStep));
+				return Promise.resolve(OK);
+			}
+		},
 		combine: {
-			gwta: 'combine {p1} and {p2} as {what}',
-			action: async ({ p1, p2, what }: TNamed, featureStep: TFeatureStep) => await this.set({ what, value: `${p1}${p2}` }, featureStep),
+			gwta: 'combine {p1} and {p2} to {what}',
+			action: async ({ p1, p2 }: TStepArgs, featureStep: TFeatureStep) => {
+				const { term } = featureStep.action.stepValuesMap.what;
+				this.getWorld().shared.set({ term: String(term), value: `${p1}${p2}`, domain: DOMAIN_STRING, origin: Origin.var }, provenanceFromFeatureStep(featureStep));
+				return Promise.resolve(OK);
+			}
 		},
 		showEnv: {
 			gwta: 'show env',
-			export: false,
-			action: async (n: TNamed, featureStep: TFeatureStep) => {
+			expose: false,
+			action: async () => {
+				// only available locally since it might contain sensitive info.
 				console.info('env', this.world.options.envVariables);
-				return await this.set(n, featureStep);
-			},
+				return Promise.resolve(OK);
+			}
 		},
 		showVars: {
 			gwta: 'show vars',
@@ -67,31 +82,82 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		},
 		set: {
 			gwta: 'set( empty)? {what: string} to {value: string}',
-			action: async (n: TNamed, featureStep: TFeatureStep) => {
-				return await this.set(n, featureStep);
-			},
+			action: async (args: TStepArgs, featureStep: TFeatureStep) => {
+				const emptyOnly = !!featureStep.in.match(/set empty /);
+				const { term, domain, origin } = featureStep.action.stepValuesMap.what;
+
+				if (emptyOnly && this.getWorld().shared.get(term) !== undefined) {
+					return OK;
+				}
+
+				this.getWorld().shared.set({ term: String(term), value: args.value, domain, origin }, provenanceFromFeatureStep(featureStep));
+				return Promise.resolve(OK);
+			}
+		},
+		setAs: {
+			gwta: 'set( empty)? {what: string} as {domain: string} to {value: string}',
+			precludes: [`${VariablesStepper.name}.set`],
+			action: async ({ value, domain }: { value: string, domain: string }, featureStep: TFeatureStep) => {
+				const emptyOnly = !!featureStep.in.match(/set empty /);
+				const { term, origin } = featureStep.action.stepValuesMap.what;
+
+				if (emptyOnly && this.getWorld().shared.get(term) !== undefined) {
+					return OK;
+				}
+
+				this.getWorld().shared.set({ term: String(term), value: value, domain, origin }, provenanceFromFeatureStep(featureStep));
+				return Promise.resolve(OK);
+			}
+		},
+		setRandom: {
+			precludes: [`${VariablesStepper.name}.set`],
+			gwta: `set( empty)? {what: string} to {length: number} random characters`,
+			action: async ({ length }: { length: number }, featureStep: TFeatureStep) => {
+				const emptyOnly = !!featureStep.in.match(/set empty /);
+				const { term } = featureStep.action.stepValuesMap.what;
+
+				if (length < 1 || length > 100) {
+					return actionNotOK(`length ${length} must be between 1 and 100`);
+				}
+				if (emptyOnly && this.getWorld().shared.get(term) !== undefined) {
+					return OK;
+				}
+
+				let rand = '';
+				while (rand.length < length) {
+					rand += Math.random().toString(36).substring(2, 2 + length);
+				}
+				rand = rand.substring(0, length);
+				this.getWorld().shared.set({ term: String(term), value: rand, domain: DOMAIN_STRING, origin: Origin.var }, provenanceFromFeatureStep(featureStep));
+				return Promise.resolve(OK);
+			}
 		},
 		is: {
-			gwta: 'variable {what: string} is "{value}"',
-			action: async ({ what, value }: TNamed) => {
-				const val = this.getVarValue(what);
-				return Promise.resolve(val === value ? OK : actionNotOK(`${what} is "${val}", not "${value}"`));
-			},
+			gwta: 'variable {what} is {value}',
+			action: ({ value }: TStepArgs, featureStep: TFeatureStep) => {
+				const { term } = featureStep.action.stepValuesMap.what;
+				const val = this.getVarValue(term);
+
+				return val === value ? OK : actionNotOK(`${term} is "${val}", not "${value}"`);
+			}
 		},
 		isSet: {
+			precludes: ['VariablesStepper.is'],
 			gwta: 'variable {what: string} is set',
-			action: async ({ what }: TNamed) => Promise.resolve(this.isSet(what)),
+			action: ({ what }: TStepArgs) => this.isSet(what as string)
 		},
-		isNotSet: {
-			gwta: 'variable {what: string} is not set',
-			action: async ({ what }: TNamed) => this.checkIsSet(what) ? actionNotOK(`${what} is set`) : Promise.resolve(OK),
-		},
-		display: {
-			gwta: 'display {what}',
-			action: async ({ what }: TNamed) => {
-				this.getWorld().logger.info(`is ${JSON.stringify(what)}`);
-				return Promise.resolve(actionOK({ artifact: { artifactType: 'json', json: { [what]: this.getVarValue(what) } } }));
-			},
+		showVar: {
+			gwta: 'show var {what}',
+			action: (args: TStepArgs, featureStep: TFeatureStep) => {
+				const { term } = featureStep.action.stepValuesMap.what;
+				const stepValue = this.getWorld().shared.all()[term];
+				if (!stepValue) {
+					this.getWorld().logger.info(`is undefined`);
+				} else {
+					this.getWorld().logger.info(`is ${JSON.stringify({ ...stepValue, provenance: stepValue.provenance.map((p, i) => ({ [i]: p })) }, null, 2)}`);
+				}
+				return actionOK({ artifact: { artifactType: 'json', json: { json: stepValue } } });
+			}
 		},
 	};
 }
@@ -102,14 +168,11 @@ export const didNotOverwrite = (what: string, present: string, value: string) =>
 	overwrite: { summary: `did not overwrite ${what} value of "${present}" with "${value}"` },
 });
 
-export const setShared = ({ what, value }: TNamed, featureStep: TFeatureStep, world: TWorld, emptyOnly = false) => {
-	const { shared } = world;
+export function provenanceFromFeatureStep(featureStep: TFeatureStep): TProvenanceIdentifier {
+	return {
+		in: featureStep.in,
+		seq: featureStep.seqPath,
+		when: `${featureStep.action.stepperName}.steps.${featureStep.action.actionName}`
+	};
+}
 
-	if (!emptyOnly || shared.get(what) === undefined) {
-		shared.set(what, value);
-
-		return OK;
-	}
-
-	return OK;
-};
