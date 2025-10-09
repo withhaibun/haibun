@@ -2,9 +2,7 @@
   "mode": "all",
   "steppers": [
     "variables-stepper",
-    "debugger-stepper",
-    "credentials",
-    "haibun",
-    "./build/haibunNostr-stepper"
+    "storage-fs",
+    "../build/haibun-mobile-stepper"
   ]
 }
