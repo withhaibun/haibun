@@ -228,8 +228,6 @@ export type TOKActionResult = {
 	ok: true;
 	messageContext?: TMessageContext;
 	artifact?: TArtifact;
-	// Optional child step results executed within this action (e.g., inline Backgrounds)
-	children?: TStepResult[];
 };
 
 export type TNotOKActionResult = {
@@ -237,8 +235,6 @@ export type TNotOKActionResult = {
 	message: string;
 	messageContext?: TMessageContext;
 	artifact?: TArtifact;
-	// Optional child step results executed within this action (e.g., inline Backgrounds)
-	children?: TStepResult[];
 };
 
 export type TTrace = {
