@@ -1,14 +1,16 @@
 {
-  "compilerOptions": {
-    "module": "NodeNext",
-    "target": "esnext",
-    "sourceMap": true,
-    "declaration": true,
-    "outDir": "./build",
-    "rootDir": "./src",
-    "skipLibCheck": true
-  },
-  "exclude": [
-    "build"
-  ]
+	"compilerOptions": {
+		"module": "NodeNext",
+		"target": "esnext",
+		"sourceMap": true,
+		"declaration": true,
+		"outDir": "./build",
+		"rootDir": "./src",
+		"skipLibCheck": true
+	},
+	"exclude": [
+		"build",
+		"expo-rn-app",
+		"**/*.test.ts",
+	]
 }

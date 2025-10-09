@@ -33,6 +33,15 @@ describe('mobile domains', () => {
 		expect(res.ok).toBe(true);
 	});
 
+	it('sets element with mobile-accessibility domain', async () => {
+		const feature = {
+			path: '/features/mobile-accessibility.feature',
+			content: 'set Login Field as mobile-accessibility to loginInput\nvariable "Login Field" is "loginInput"'
+		};
+		const res = await testWithDefaults([feature], steppers, testOptions);
+		expect(res.ok).toBe(true);
+	});
+
 	it('sets multi-word element name with mobile-testid domain', async () => {
 		const feature = {
 			path: '/features/multi-word.feature',
@@ -101,6 +110,29 @@ describe('mobile domains', () => {
 		const feature = {
 			path: '/features/complex-xpath.feature',
 			content: `set iOS Button as mobile-xpath to //XCUIElementTypeButton[@name="Log In" and @visible="true"]\nvariable "iOS Button" is "//XCUIElementTypeButton[@name="Log In" and @visible="true"]"`
+		};
+		const res = await testWithDefaults([feature], steppers, testOptions);
+		expect(res.ok).toBe(true);
+	});
+
+	it('stores mobile-accessibility domain correctly', async () => {
+		const feature = {
+			path: '/features/accessibility-storage.feature',
+			content: 'set Password Field as mobile-accessibility to passwordInput'
+		};
+		const res = await testWithDefaults([feature], steppers, testOptions);
+		expect(res.ok).toBe(true);
+
+		const stored = res.world.shared.all()['Password Field'];
+		expect(stored).toBeDefined();
+		expect(stored.domain).toBe('mobile-accessibility');
+		expect(stored.value).toBe('passwordInput');
+	});
+
+	it('handles multi-word accessibility labels', async () => {
+		const feature = {
+			path: '/features/multi-word-accessibility.feature',
+			content: 'set User Profile Button as mobile-accessibility to user profile button\nvariable "User Profile Button" is "user profile button"'
 		};
 		const res = await testWithDefaults([feature], steppers, testOptions);
 		expect(res.ok).toBe(true);

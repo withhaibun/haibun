@@ -2,10 +2,10 @@ import { OK, TFeatureStep } from '@haibun/core/lib/defs.js';
 import { actionNotOK } from '@haibun/core/lib/util/index.js';
 import { TStepperSteps } from '@haibun/core/lib/astepper.js';
 import type HaibunMobileStepper from './haibun-mobile-stepper.js';
-import { MOBILE_TESTID, MOBILE_XPATH } from './domains.js';
+import { MOBILE_TESTID, MOBILE_ACCESSIBILITY, MOBILE_XPATH } from './domains.js';
 import { DOMAIN_STRING } from '@haibun/core/lib/domain-types.js';
 
-const MOBILE_ELEMENT = `${MOBILE_TESTID} | ${MOBILE_XPATH} | ${DOMAIN_STRING}`;
+const MOBILE_ELEMENT = `${MOBILE_TESTID} | ${MOBILE_ACCESSIBILITY} | ${MOBILE_XPATH} | ${DOMAIN_STRING}`;
 
 async function locateByDomain(mobile: HaibunMobileStepper, featureStep: TFeatureStep, where: string) {
   const stepValue = featureStep.action.stepValuesMap[where];
