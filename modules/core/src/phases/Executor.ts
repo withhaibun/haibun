@@ -1,13 +1,14 @@
-import { TFeatureStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, TStepAction, STAY, STAY_FAILURE, CHECK_NO, CHECK_YES, STEP_DELAY, TNotOKActionResult, CONTINUE_AFTER_ERROR, TEndFeature, StepperMethodArgs, TBeforeStep, TAfterStep, TNamed, IStepperCycles, TAfterStepResult } from '../lib/defs.js';
+import { TFeatureStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, TStepAction, STAY, STAY_FAILURE, CHECK_NO, CHECK_YES, CHECK_YIELD, STEP_DELAY, TNotOKActionResult, CONTINUE_AFTER_ERROR, TEndFeature, StepperMethodArgs, TBeforeStep, TAfterStep, IStepperCycles, ExecMode, TStepArgs, TAfterStepResult } from '../lib/defs.js';
 import { TAnyFixme } from '../lib/fixme.js';
 import { AStepper } from '../lib/astepper.js';
 import { EExecutionMessageType, TMessageContext } from '../lib/interfaces/logger.js';
 import { topicArtifactLogger } from '../lib/Logger.js';
-import { getNamedToVars } from '../lib/namedVars.js';
-import { actionNotOK, sleep, findStepper, constructorName, setStepperWorlds } from '../lib/util/index.js';
+import { actionNotOK, sleep, findStepper, constructorName, setStepperWorldsAndDomains } from '../lib/util/index.js';
 import { SCENARIO_START } from '../lib/defs.js';
 import { Timer } from '../lib/Timer.js';
 import { FeatureVariables } from '../lib/feature-variables.js';
+import { populateActionArgs } from '../lib/populateActionArgs.js';
+import { registerDomains } from '../lib/domain-types.js';
 
 export const endExecutonContext: TMessageContext = { incident: EExecutionMessageType.ACTION, incidentDetails: { end: true } };
 
@@ -27,10 +28,10 @@ function calculateShouldClose({ thisFeatureOK, isLast, stayOnFailure, continueAf
 	return true;
 }
 export class Executor {
-	static async action(steppers: AStepper[], featureStep: TFeatureStep, found: TStepAction, namedWithVars: TNamed, world: TWorld) {
+	static async action(steppers: AStepper[], featureStep: TFeatureStep, found: TStepAction, args: TStepArgs, world: TWorld) {
 		const stepper = findStepper<AStepper>(steppers, found.stepperName);
 		const action = stepper.steps[found.actionName].action;
-		return await action(namedWithVars, featureStep).catch((caught: TAnyFixme) => {
+		return await Promise.resolve(action(args, featureStep)).catch((caught: TAnyFixme) => {
 			world.logger.error(caught.stack);
 			const messageContext = {
 				incident: EExecutionMessageType.ACTION,
@@ -40,6 +41,7 @@ export class Executor {
 		});
 	}
 	static async executeFeatures(steppers: AStepper[], world: TWorld, features: TResolvedFeature[]): Promise<TExecutorResult> {
+		await addStepperDomains(world, steppers);
 		await doStepperCycle(steppers, 'startExecution', features);
 		let okSoFar = true;
 		const stayOnFailure = world.options[STAY] === STAY_FAILURE;
@@ -55,7 +57,7 @@ export class Executor {
 			const newWorld = { ...world, tag: { ...world.tag, ...{ featureNum: 0 + featureNum } } };
 
 			const featureExecutor = new FeatureExecutor(steppers, newWorld);
-			await setStepperWorlds(steppers, newWorld);
+			await setStepperWorldsAndDomains(steppers, newWorld);
 			await doStepperCycle(steppers, 'startFeature', { resolvedFeature: feature, index: featureNum });
 
 			const featureResult = await featureExecutor.doFeature(feature);
@@ -103,7 +105,7 @@ export class FeatureExecutor {
 
 		this.logit(`start feature ${currentScenario}`, { incident: EExecutionMessageType.FEATURE_START, incidentDetails: { startTime: Timer.START_TIME, feature } }, 'debug');
 
-		let featureVars: FeatureVariables = new FeatureVariables(feature.path, {});
+		let featureVars: FeatureVariables = new FeatureVariables(world, {});
 
 		for (const step of feature.featureSteps) {
 			if (step.action.actionName === SCENARIO_START) {
@@ -128,7 +130,7 @@ export class FeatureExecutor {
 			}
 			// Stash feature variables
 			if (!currentScenario) {
-				featureVars = new FeatureVariables(feature.path, world.shared.all());
+				featureVars = new FeatureVariables(world, world.shared.all());
 			}
 		}
 		if (currentScenario) {
@@ -145,49 +147,62 @@ export class FeatureExecutor {
 		return featureResult;
 	}
 
-	static async doFeatureStep(steppers: AStepper[], featureStep: TFeatureStep, world: TWorld, noCycles = false): Promise<TStepResult> {
+	static async doFeatureStep(steppers: AStepper[], featureStep: TFeatureStep, world: TWorld, execMode: ExecMode = ExecMode.CYCLES): Promise<TStepResult> {
 		let ok = true;
 
-		// FIXME feature should really be attached to the featureStep
-		const action = featureStep.action;
+		const { action } = featureStep;
 		const start = Timer.since();
-		const namedWithVars = getNamedToVars(action, world, featureStep);
-		world.logger.log(featureStep.in, { incident: EExecutionMessageType.STEP_START, tag: world.tag, incidentDetails: { featureStep, namedWithVars } });
+		const args = await populateActionArgs(featureStep, world, steppers);
 
-		let doAction = true;
-		let actionResult: Partial<TActionResult>;
-		while (doAction) {
-			!noCycles && await doStepperCycle(steppers, 'beforeStep', <TBeforeStep>({ featureStep }));
-			actionResult = await Executor.action(steppers, featureStep, action, namedWithVars, world);
-			const indicator = actionResult.ok ? CHECK_YES : CHECK_NO + ' ' + (<TNotOKActionResult>actionResult).message;
+		const isFullCycles = execMode === ExecMode.CYCLES;
+		const isPrompt = execMode === ExecMode.PROMPT;
 
-			const messageContext: TMessageContext = {
+		let actionResult: TActionResult;
+		if (isFullCycles) {
+			world.logger.log(featureStep.in, { incident: EExecutionMessageType.STEP_START, tag: world.tag, incidentDetails: { featureStep, args } });
+			let doAction = true;
+			while (doAction) {
+				await doStepperCycle(steppers, 'beforeStep', <TBeforeStep>({ featureStep }));
+				actionResult = await Executor.action(steppers, featureStep, action, args, world);
+				const baseContext = {
+					artifacts: actionResult.artifact ? [actionResult.artifact] : undefined,
+					tag: world.tag,
+					incidentDetails: { actionResult, featureStep }
+				};
+				const messageContext: TMessageContext = { ...baseContext, incident: EExecutionMessageType.STEP_END };
+				world.logger.log((actionResult.ok ? CHECK_YES : `${CHECK_NO} (${(<TNotOKActionResult>actionResult).message})`), messageContext);
+				const instructions: TAfterStepResult[] = await doStepperCycle(steppers, 'afterStep', <TAfterStep>({ featureStep, actionResult }), action.actionName);
+				doAction = instructions.some(i => i?.rerunStep);
+				const doNext = instructions.some(i => i?.nextStep);
+				if (doNext) {
+					// wrap the previous actionResult in a new passing actionResult messageContext
+					actionResult = { ...actionResult, ok: true, messageContext: { ...messageContext, incident: EExecutionMessageType.DEBUG, incidentDetails: { nextStep: true } } };
+				}
+			}
+		} else {
+			actionResult = await Executor.action(steppers, featureStep, action, args, world);
+			const baseContext = {
 				artifacts: actionResult.artifact ? [actionResult.artifact] : undefined,
-				incident: EExecutionMessageType.STEP_END,
 				tag: world.tag,
 				incidentDetails: { actionResult, featureStep }
+			};
+			const messageContext: TMessageContext = { ...baseContext, incident: EExecutionMessageType.ACTION, incidentDetails: { ...baseContext.incidentDetails, execMode } };
+			if (isPrompt) {
+				world.logger.log((actionResult.ok ? CHECK_YES : `${CHECK_NO} (${(<TNotOKActionResult>actionResult).message})`) + ` ${featureStep.in}`, messageContext);
+			} else {
+				world.logger.log(`${CHECK_YIELD} ${featureStep.in}`, messageContext);
 			}
-			world.logger.log(indicator, messageContext);
-			if (noCycles) break;
-			const instructions: TAfterStepResult[] = await doStepperCycle(steppers, 'afterStep', <TAfterStep>({ featureStep, actionResult }), action.actionName);
-			doAction = instructions.some(i => i?.rerunStep);
 		}
 
 		const end = Timer.since();
-		// FIXME
 		const stepActionResult: TStepActionResult = { ...actionResult, name: action.actionName, start, end } as TStepActionResult;
 		ok = ok && actionResult.ok;
 
-		return { ok, in: featureStep.in, path: featureStep.path, stepActionResult, seq: featureStep.seq }
+		return { ok, in: featureStep.in, path: featureStep.path, stepActionResult, seqPath: featureStep.seqPath }
 	}
 }
 
-const doStepperCycle = async <K extends keyof IStepperCycles>(
-	steppers: AStepper[],
-	method: K,
-	args: StepperMethodArgs[K],
-	guidance = ''
-): Promise<Awaited<ReturnType<NonNullable<IStepperCycles[K]>>>[]> => {
+const doStepperCycle = async <K extends keyof IStepperCycles>(steppers: AStepper[], method: K, args: StepperMethodArgs[K], guidance = ''): Promise<Awaited<ReturnType<NonNullable<IStepperCycles[K]>>>[]> => {
 	const results: Awaited<ReturnType<NonNullable<IStepperCycles[K]>>>[] = [];
 	for (const stepper of steppers) {
 		if (stepper?.cycles && stepper.cycles[method]) {
@@ -201,3 +216,9 @@ const doStepperCycle = async <K extends keyof IStepperCycles>(
 	}
 	return results;
 };
+
+// Register domains from stepper cycles after setWorld
+const addStepperDomains = async (world, steppers: AStepper[]) => {
+	const results = await doStepperCycle(steppers, 'getDomains', undefined);
+	registerDomains(world, results);
+}

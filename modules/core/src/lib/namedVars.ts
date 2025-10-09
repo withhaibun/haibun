@@ -1,63 +1,94 @@
-import { cred } from '../steps/credentials.js';
-import { TStepperStep, TNamedVar, TStepAction, TNamed, TWorld, TFeatureStep, HAIBUN } from './defs.js';
-import { BASE_TYPES } from './domain-types.js';
-import { getSerialTime } from './util/index.js';
+import { TStepperStep, TStepAction, TStepValue, TOrigin, Origin } from './defs.js';
+import { DOMAIN_STRING } from './domain-types.js';
 
-const TYPE_QUOTED = 'q_';
-const TYPE_CREDENTIAL = 'c_';
-const TYPE_SPECIAL = 's_';
-const TYPE_ENV = 'e_';
-const TYPE_VAR = 'b_';
-// from source or literal
-const TYPE_ENV_OR_VAR_OR_LITERAL = 't_';
+export const TYPE_QUOTED = 'q_';
+export const TYPE_ENV = 'e_';
+export const TYPE_VAR = 'b_';
+export const TYPE_ENV_OR_VAR_OR_LITERAL = 't_';
 
-export const matchGroups = (num = 0) => {
-	const b = `\`(?<${TYPE_VAR}${num}>.+)\``; // var
-	const e = `{(?<${TYPE_ENV}${num}>.+)}`; // env var
-	// FIXME this is being assigned as t_
-	const s = `\\[(?<${TYPE_SPECIAL}${num}>.+)\\]`; // special
-	const c = `<(?<${TYPE_CREDENTIAL}${num}>.+)>`; // credential
-	const q = `"(?<${TYPE_QUOTED}${num}>.+)"`; // quoted string
-	const t = `(?<${TYPE_ENV_OR_VAR_OR_LITERAL}${num}>.+)`; // var or enve or literal
-	return `(${b}|${e}|${s}|${c}|${q}|${t})`;
-};
-
-export const namedInterpolation = (inp: string, types: string[] = BASE_TYPES): { str: string; stepVariables?: TNamedVar[] } => {
+export const namedInterpolation = (inp: string): { regexPattern: string; stepValuesMap?: Record<string, TStepValue> } => {
 	if (!inp.includes('{')) {
-		return { str: inp };
+		return { regexPattern: inp };
 	}
-	const stepVariables: TNamedVar[] = [];
+	const stepValuesMap: Record<string, TStepValue> = {};
 	let last = 0;
-	let str = '';
+	let regexPattern = '';
 	let bs = inp.indexOf('{');
-	let be = 401;
+	let be = -1;
 	let bail = 0;
-	let matches = 0;
-	while (bs > -1 && bail++ < 400) {
-		str += inp.substring(last, bs);
-		be = inp.indexOf('}', bs);
+	let matchIndex = 0;
 
+	const placeholderRegex = '.+';
+
+	while (bs > -1 && bail++ < 400) {
+		regexPattern += inp.substring(last, bs);
+		be = inp.indexOf('}', bs);
 		if (be < 0) {
 			throw Error(`missing end bracket in ${inp}`);
 		}
-		stepVariables.push(pairToVar(inp.substring(bs + 1, be), types));
+		const rawPair = inp.substring(bs + 1, be);
+		const { name, domain } = pairToVar(rawPair);
+
+		const precedingChar = inp.substring(bs - 1, bs);
+		const origin = inferOrigin(precedingChar);
+
+		// Strip any already-appended preceding delimiter from the
+		// regexPattern so the group pattern can insert the correct single
+		// delimiter.
+		if (precedingChar && ['$', '`', '<', '"'].includes(precedingChar)) {
+			// remove the last character we just added (the delimiter)
+			regexPattern = regexPattern.slice(0, -1);
+		}
+
+		stepValuesMap[name] = { term: name, domain, origin };
+
+		let matchGroupPattern;
+		if (origin === Origin.env) {
+			matchGroupPattern = `\\$(?<${TYPE_ENV}${matchIndex}>[A-Za-z_][A-Za-z0-9_]*)\\$`;
+		} else if (origin === Origin.var) {
+			matchGroupPattern = `\`(?<${TYPE_VAR}${matchIndex}>.+)\``;
+		} else if (origin === Origin.quoted) {
+			matchGroupPattern = `"(?<${TYPE_QUOTED}${matchIndex}>.+)"`;
+		} else {
+			// For a plain placeholder we accept several syntaxes and capture each
+			// into a distinct named group so callers can detect whether the
+			// value was quoted, backticked or a bare literal.
+			matchGroupPattern = `(?:"(?<${TYPE_QUOTED}${matchIndex}>.+)"|\`(?<${TYPE_VAR}${matchIndex}>.+)\`|(?<${TYPE_ENV_OR_VAR_OR_LITERAL}${matchIndex}>${placeholderRegex}))`;
+		}
+
+		regexPattern += matchGroupPattern;
+		matchIndex++;
 		bs = inp.indexOf('{', be);
-		last = be + 1;
-		str += matchGroups(matches++);
+		// If the placeholder was wrapped with a delimiter on the left, the
+		// corresponding closing delimiter appears immediately after the '}' and
+		// must be skipped from the trailing substring to avoid duplicating it
+		// in the final regex. Otherwise include the character after '}' as
+		// normal.
+		if (precedingChar && ['$', '`', '<', '"'].includes(precedingChar)) {
+			last = be + 2;
+		} else {
+			last = be + 1;
+		}
 	}
-	str += inp.substring(be + 1);
-	return { stepVariables, str };
+	regexPattern += inp.substring(last);
+
+	return { stepValuesMap, regexPattern };
 };
 
-function pairToVar(pair: string, types: string[]): TNamedVar {
-	// eslint-disable-next-line prefer-const
-	let [name, type] = pair.split(':').map((i) => i.trim());
-	if (!type) type = 'string';
-	if (!types.includes(type)) {
-		throw Error(`unknown type ${type}`);
-	}
+export const matchGwtaToAction = (gwta: string, actionable: string, actionName: string, stepperName: string, step: TStepperStep) => {
+	const { regexPattern, stepValuesMap } = namedInterpolation(gwta);
+	// anchor the pattern so the whole actionable matches
+	// use case-insensitive matching to be consistent with dePolite handling
+	const r = new RegExp(`^${regexPattern}$`, 'i');
+	return getMatch(actionable, r, actionName, stepperName, step, stepValuesMap);
+};
 
-	return { name, type };
+// no-op
+
+function pairToVar(pair: string): { name: string; domain: string } {
+	const [name, domainRaw] = pair.split(':').map((i) => i.trim());
+	const domain = domainRaw || DOMAIN_STRING;
+	return { name, domain };
 }
 
 export function getNamedMatches(regexp: RegExp, what: string) {
@@ -65,92 +96,67 @@ export function getNamedMatches(regexp: RegExp, what: string) {
 	return named?.groups;
 }
 
-export const getMatch = (
-	actionable: string,
-	r: RegExp,
-	actionName: string,
-	stepperName: string,
-	step: TStepperStep,
-	stepVariables?: TNamedVar[]
-) => {
+export const getMatch = (actionable: string, r: RegExp, actionName: string, stepperName: string, step: TStepperStep, stepValuesMap?: Record<string, TStepValue>) => {
 	if (!r.test(actionable)) {
 		return;
 	}
-	const named = getNamedMatches(r, actionable);
-	return { actionName, stepperName, step, named, stepVariables };
+	const groups = getNamedMatches(r, actionable);
+	interface TInternalStepValue extends TStepValue { captureKey?: string }
+
+	if (groups && stepValuesMap) {
+		const entries = Object.values(stepValuesMap) as TInternalStepValue[];
+		let i = 0;
+		for (const ph of entries) {
+			// Prefer quoted, backtick, then bare literal captures.
+			const q = groups[`${TYPE_QUOTED}${i}`];
+			const b = groups[`${TYPE_VAR}${i}`];
+			const e = groups[`${TYPE_ENV}${i}`];
+			const t = groups[`${TYPE_ENV_OR_VAR_OR_LITERAL}${i}`];
+			const chosen = q ?? b ?? t;
+			// prefer the dedicated env group if present
+			const actuallyChosen = q ?? b ?? e ?? t;
+			if (actuallyChosen !== undefined) {
+				ph.term = chosen;
+				// set origin according to which capture matched
+				if (q !== undefined) {
+					ph.origin = Origin.quoted;
+				} else if (b !== undefined) {
+					ph.origin = Origin.var;
+				} else if (e !== undefined) {
+					ph.origin = Origin.env;
+				} else if (t !== undefined) {
+					// bare literal capture - detect env syntax $NAME$ or inline name:domain
+					const envMatch = /^\$([A-Za-z_][A-Za-z0-9_]*)\$$/.exec(t);
+					if (envMatch) {
+						ph.term = envMatch[1];
+						ph.origin = Origin.env;
+					} else {
+						ph.origin = Origin.fallthrough;
+						// If the bare literal looks like JSON, treat it as fallthrough.
+						const tTrim = String(t).trim();
+						if (tTrim.startsWith('{') || tTrim.startsWith('[')) {
+							ph.term = tTrim;
+						}
+					}
+				}
+				// domain 'statement' should force origin to 'statement'
+				if (ph.domain === 'statement') ph.origin = Origin.statement;
+			}
+			i++;
+		}
+	}
+	return { actionName, stepperName, step, stepValuesMap } as TStepAction;
 };
 
-// returns named values, assigning variable values as appropriate
-// retrieves from world.shared if a base domain, otherwise world.domains[type].shared
-export function getNamedToVars(found: TStepAction, world: TWorld, featureStep: TFeatureStep) {
-	const { named, stepVariables } = found;
-	if (!named) {
-		return { _nb: 'no named' };
+const inferOrigin = (char: string): TOrigin => {
+	switch (char) {
+		case '$':
+			return Origin.env;
+		case '`':
+			return Origin.var;
+		case '"':
+			return Origin.quoted;
+		default:
+			return Origin.fallthrough;
 	}
-	if (!stepVariables || stepVariables.length < 1) {
-		return named;
-	}
-	const namedFromVars: TNamed = {};
-	stepVariables.forEach((v, i) => {
-		const { name, type } = v;
-
-		const { shared } = world;
-
-		const namedKey = Object.keys(named).find((c) => c.endsWith(`_${i}`) && named[c] !== undefined);
-
-		if (!namedKey) {
-			throw Error(`no namedKey from ${named} for ${i}`);
-		}
-		const namedValue = named[namedKey];
-
-		if (namedKey.startsWith(TYPE_ENV_OR_VAR_OR_LITERAL)) {
-			// For TYPE_ENV_OR_VAR_OR_LITERAL, check env first if exists
-			if (world.options.envVariables && world.options.envVariables[namedValue] !== undefined) {
-				namedFromVars[name] = world.options.envVariables[namedValue];
-			} else {
-				namedFromVars[name] = shared?.get(namedValue) || (named && named[namedKey]);
-			}
-		} else if (namedKey.startsWith(TYPE_VAR)) {
-			// must be from source
-			if (!shared.get(namedValue)) {
-				throw Error(
-					`no value for "${namedValue}" from ${JSON.stringify({ keys: Object.keys(shared.all()), type })} in ${featureStep.path
-					}`
-				);
-			}
-			namedFromVars[name] = shared.get(namedValue);
-		} else if (namedKey.startsWith(TYPE_SPECIAL)) {
-			let toSet: string;
-			if (namedValue === 'SERIALTIME') {
-				toSet = '' + getSerialTime();
-			} else {
-				throw Error(`unknown special "${namedValue}" in ${JSON.stringify(found)}`);
-			}
-			namedFromVars[name] = toSet;
-		} else if (namedKey.startsWith(TYPE_CREDENTIAL)) {
-			// must be from source
-			if (!shared.get(cred(namedValue))) {
-				throw Error(`no value for credential "${namedValue}" from ${JSON.stringify({ keys: Object.keys(shared), type })}`);
-			}
-			namedFromVars[name] = shared.get(cred(namedValue));
-		} else if (namedKey.startsWith(TYPE_ENV)) {
-			// FIXME add test
-			const val = world.options?.envVariables[namedValue];
-
-			if (val === undefined) {
-				throw Error(
-					`no env value for "${namedValue}" from ${JSON.stringify(
-						world.options?.envVariables
-					)}.\nenv values are passed via ${HAIBUN}_ENV and ${HAIBUN}_ENVC.`
-				);
-			}
-			namedFromVars[name] = val;
-		} else if (namedKey.startsWith(TYPE_QUOTED)) {
-			// quoted
-			namedFromVars[name] = named[namedKey];
-		} else {
-			throw Error(`unknown assignment ${namedKey}`);
-		}
-	});
-	return namedFromVars;
-}
+};

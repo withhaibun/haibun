@@ -1,14 +1,14 @@
 import { TPrompt } from "@haibun/core/lib/prompter.js";
 
 declare global {
-    interface Window {
-        haibunResolvePrompt: (id: string, action: string) => void;
-        showPromptControls: (prompts: string) => void;
-        hidePromptControls: () => void;
-        showStatementInput: () => void;
-        hideStatementInput: () => void;
-        submitStatement: (statement: string) => void;
-    }
+	interface Window {
+		haibunResolvePrompt: (id: string, action: string) => void;
+		showPromptControls: (prompts: string) => void;
+		hidePromptControls: () => void;
+		showStatementInput: () => void;
+		hideStatementInput: () => void;
+		submitStatement: (statement: string) => void;
+	}
 }
 
 let userScrolledManually = false;
@@ -268,68 +268,73 @@ export function setupVideoPlayback() {
 	}
 
 	window.addEventListener('DOMContentLoaded', () => {
-    const promptContainer = document.getElementById('haibun-prompt-controls-container');
-    const rerunButton = <HTMLButtonElement>document.getElementById('haibun-retry-button');
-    const failButton = <HTMLButtonElement>document.getElementById('haibun-fail-button');
-    const stepButton = <HTMLButtonElement>document.getElementById('haibun-step-button');
-    const continueButton = <HTMLButtonElement>document.getElementById('haibun-continue-button');
-    const messageArea = document.getElementById('haibun-prompt-message');
+		const promptContainer = document.getElementById('haibun-prompt-controls-container');
+		const rerunButton = <HTMLButtonElement>document.getElementById('haibun-retry-button');
+		const nextButton = <HTMLButtonElement>document.getElementById('haibun-next-button');
+		const failButton = <HTMLButtonElement>document.getElementById('haibun-fail-button');
+		const stepButton = <HTMLButtonElement>document.getElementById('haibun-step-button');
+		const continueButton = <HTMLButtonElement>document.getElementById('haibun-continue-button');
+		const messageArea = document.getElementById('haibun-prompt-message');
 
-    // Store current prompt id and options for button actions
-    let currentPrompt: TPrompt | undefined;
+		// Store current prompt id and options for button actions
+		let currentPrompt: TPrompt | undefined;
 
-    window.showPromptControls = (promptsJson) => {
-        const prompts: TPrompt[] = JSON.parse(promptsJson);
-        if (!prompts.length) {
-            promptContainer.style.display = 'none';
-            promptContainer.classList.remove('paused-program-glow');
-            messageArea.textContent = '';
-            rerunButton.disabled = true;
-            failButton.disabled = true;
-            stepButton.disabled = true;
-            continueButton.disabled = true;
-            currentPrompt = undefined;
-            return;
-        }
-        // Only show the first outstanding prompt (for classic controls)
-        const prompt = prompts[0];
-        currentPrompt = prompt;
-        messageArea.textContent = prompt.message;
-        // Enable/disable buttons based on options
-        rerunButton.disabled = !prompt.options?.includes('retry');
-        failButton.disabled = !prompt.options?.includes('fail');
-        stepButton.disabled = !prompt.options?.includes('step');
-        continueButton.disabled = !prompt.options?.includes('continue');
-        promptContainer.classList.add('paused-program-glow');
-        promptContainer.style.display = 'flex';
-    };
+		window.showPromptControls = (promptsJson) => {
+			const prompts: TPrompt[] = JSON.parse(promptsJson);
+			if (!prompts.length) {
+				promptContainer.style.display = 'none';
+				promptContainer.classList.remove('paused-program-glow');
+				messageArea.textContent = '';
+				rerunButton.disabled = true;
+				failButton.disabled = true;
+				stepButton.disabled = true;
+				continueButton.disabled = true;
+				currentPrompt = undefined;
+				return;
+			}
+			// Only show the first outstanding prompt (for classic controls)
+			const prompt = prompts[0];
+			currentPrompt = prompt;
+			messageArea.textContent = prompt.message;
+			// Enable/disable buttons based on options
+			rerunButton.disabled = !prompt.options?.includes('retry');
+			nextButton.disabled = !prompt.options?.includes('next');
+			failButton.disabled = !prompt.options?.includes('fail');
+			stepButton.disabled = !prompt.options?.includes('step');
+			continueButton.disabled = !prompt.options?.includes('continue');
+			promptContainer.classList.add('paused-program-glow');
+			promptContainer.style.display = 'flex';
+		};
 
-    window.hidePromptControls = () => {
-        promptContainer.style.display = 'none';
-        promptContainer.classList.remove('paused-program-glow');
-        messageArea.textContent = '';
-        rerunButton.disabled = true;
-        failButton.disabled = true;
-        stepButton.disabled = true;
-        continueButton.disabled = true;
-        currentPrompt = undefined;
-    };
+		window.hidePromptControls = () => {
+			promptContainer.style.display = 'none';
+			promptContainer.classList.remove('paused-program-glow');
+			messageArea.textContent = '';
+			rerunButton.disabled = true;
+			failButton.disabled = true;
+			stepButton.disabled = true;
+			continueButton.disabled = true;
+			currentPrompt = undefined;
+		};
 
-    rerunButton.addEventListener('click', () => {
-        if (currentPrompt) window.haibunResolvePrompt(currentPrompt.id, 'retry');
-    });
-    failButton.addEventListener('click', () => {
-        if (currentPrompt) window.haibunResolvePrompt(currentPrompt.id, 'fail');
-    });
-    stepButton.addEventListener('click', () => {
-        if (currentPrompt) window.haibunResolvePrompt(currentPrompt.id, 'step');
-    });
-    continueButton.addEventListener('click', () => {
-        if (currentPrompt) window.haibunResolvePrompt(currentPrompt.id, 'continue');
-    });
+		rerunButton.addEventListener('click', () => {
+			if (currentPrompt) window.haibunResolvePrompt(currentPrompt.id, 'retry');
+		});
+		nextButton.addEventListener('click', () => {
+			if (currentPrompt) window.haibunResolvePrompt(currentPrompt.id, 'next');
+		});
+		failButton.addEventListener('click', () => {
+			if (currentPrompt) window.haibunResolvePrompt(currentPrompt.id, 'fail');
+		});
+		stepButton.addEventListener('click', () => {
+			if (currentPrompt) window.haibunResolvePrompt(currentPrompt.id, 'step');
+		});
+		continueButton.addEventListener('click', () => {
+			if (currentPrompt) window.haibunResolvePrompt(currentPrompt.id, 'continue');
+		});
 
-    window.hidePromptControls();
-});
+		window.hidePromptControls();
+	});
 
 }
 

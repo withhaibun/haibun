@@ -23,7 +23,7 @@ describe('HttpExecutorStepper integration', () => {
 			content: `
 				enable remote executor
 				set testVar to "remote execution works"
-				display testVar
+				show var testVar
 			`
 		};
 
@@ -48,7 +48,7 @@ describe('HttpExecutorStepper integration', () => {
 			path: '/features/http-executor-auth.feature',
 			content: `
 				set authTestVar to "authenticated execution"
-				display authTestVar
+				show var authTestVar
 			`
 		};
 
@@ -75,7 +75,7 @@ describe('HttpExecutorStepper integration', () => {
 			path: '/features/no-remote.feature',
 			content: `
 				set normalVar to "normal execution"
-				display normalVar
+				show var normalVar
 			`
 		};
 

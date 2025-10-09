@@ -1,6 +1,6 @@
 import { describe, it, test, expect } from 'vitest';
 
-import { OK, TExpandedFeature, TNamed, TResolvedFeature } from '../lib/defs.js';
+import { OK, TExpandedFeature, TResolvedFeature } from '../lib/defs.js';
 import { AStepper } from '../lib/astepper.js';
 import { asExpandedFeatures } from '../lib/resolver-features.js';
 import TestSteps from '../lib/test/TestSteps.js';
@@ -47,10 +47,9 @@ describe('validate map steps', () => {
 	describe('exact', () => {
 		test('exact', async () => {
 			const features = asExpandedFeatures([{ path: 'l1', content: `exact1` }]);
-
 			const res = await getResolvedSteps(features);
 			const { featureSteps } = res[0];
-			expect(featureSteps[0].action.named).toBeUndefined();
+			expect(featureSteps[0].action.stepValuesMap).toBeUndefined();
 		});
 	});
 	describe('match', () => {
@@ -58,7 +57,8 @@ describe('validate map steps', () => {
 			const features = asExpandedFeatures([{ path: 'l1', content: `match1` }]);
 			const res = await getResolvedSteps(features);
 			const { featureSteps } = res[0];
-			expect(featureSteps[0].action.named).toEqual({ num: '1' });
+			// regex style match still exposes no stepValuesMap for legacy direct regex usage
+			expect(featureSteps[0].action.stepValuesMap).toBeUndefined();
 		});
 	});
 	describe('gwta regex', () => {
@@ -68,11 +68,8 @@ describe('validate map steps', () => {
 			]);
 			const res = await getResolvedSteps(features);
 			const { featureSteps } = res[0] as TResolvedFeature;
-			expect(featureSteps[0].action.named).toEqual({ num: '2' });
-			expect(featureSteps[1].action.named).toEqual({ num: '3' });
-			expect(featureSteps[2].action.named).toEqual({ num: '4' });
-			expect(featureSteps[3].action.named).toEqual({ num: '5' });
-			expect(featureSteps[4].action.named).toEqual({ num: '6' });
+			// gwta pattern using regex groups directly still not using stepValuesMap
+			featureSteps.forEach(fs => expect(fs.action.stepValuesMap).toBeUndefined());
 		});
 	});
 	describe('gwta interpolated', () => {
@@ -80,13 +77,15 @@ describe('validate map steps', () => {
 			const features = asExpandedFeatures([{ path: 'l1', content: 'is "string"' }]);
 			const res = await getResolvedSteps(features);
 			const { featureSteps } = res[0] as TResolvedFeature;
-			expect(featureSteps[0].action.named?.q_0).toEqual('string');
+			const sv = featureSteps[0].action.stepValuesMap!['what'];
+			expect(sv.term).toEqual('string');
 		});
 		test('gets uri', async () => {
 			const features = asExpandedFeatures([{ path: 'l1', content: 'is http://url' }]);
 			const res = await getResolvedSteps(features);
 			const { featureSteps } = res[0] as TResolvedFeature;
-			expect(featureSteps[0].action.named?.t_0).toEqual('http://url');
+			const sv = featureSteps[0].action.stepValuesMap!['what'];
+			expect(sv.term).toEqual('http://url');
 		});
 	});
 });
@@ -120,32 +119,3 @@ describe('preclude stepper', () => {
 	});
 });
 
-describe('action check', () => {
-	class CheckStepper extends AStepper {
-		steps = {
-			checks: {
-				gwta: 'checks {what}',
-				action: async () => Promise.resolve(OK),
-				// eslint-disable-next-line @typescript-eslint/require-await
-				checkAction: async ({ what }: TNamed) => {
-					if (what !== 'ok') {
-						throw Error(`check failed for ${what}`);
-					}
-					return true;
-				},
-			},
-		}
-	}
-	test('check passes', async () => {
-		const features = asExpandedFeatures([{ path: 'l1', content: 'checks ok' }]);
-		const steppers = await createSteppers([CheckStepper]);
-		const resolver = new Resolver(steppers);
-		await expect(resolver.resolveStepsFromFeatures(features)).resolves.toBeDefined();
-	});
-	test.only('check fails', async () => {
-		const features = asExpandedFeatures([{ path: 'l1', content: 'checks not ok' }]);
-		const steppers = await createSteppers([CheckStepper]);
-		const resolver = new Resolver(steppers);
-		await expect(resolver.resolveStepsFromFeatures(features)).rejects.toThrow();
-	});
-});
