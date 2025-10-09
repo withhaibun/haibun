@@ -19,7 +19,7 @@
     "isomorphic-dompurify": "^2.25.0",
     "jsdom": "^26.1.0",
     "prettier": "^3.5.3",
-    "playwright": "1.52"
+    "playwright": "1.52",
     "rollup-plugin-visualizer": "^5.14.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.2",
