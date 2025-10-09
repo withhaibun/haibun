@@ -10,7 +10,8 @@ import { BROWSERS } from "./BrowserFactory.js";
 import { EExecutionMessageType } from "@haibun/core/lib/interfaces/logger.js";
 import { actionOK } from "@haibun/core/lib/util/index.js";
 import { pathToFileURL } from 'node:url';
-import { TStepperSteps } from "@haibun/core/build/lib/astepper.js";
+import { TStepperSteps } from "@haibun/core/lib/astepper.js";
+import { provenanceFromFeatureStep } from "@haibun/core/steps/variables-stepper.js";
 
 const DOMAIN_STRING_OR_PAGE_LOCATOR = `${DOMAIN_STRING} | ${DOMAIN_PAGE_LOCATOR}`;
 
@@ -147,7 +148,7 @@ export const interactionSteps = (wp: WebPlaywright): TStepperSteps => ({
 	extensionContext: {
 		expose: false,
 		gwta: `open extension popup for tab {tab}`,
-		action: async ({ tab }: { tab: string }) => {
+		action: async ({ tab }: { tab: string }, featureStep) => {
 			if (!wp.factoryOptions?.persistentDirectory || wp.factoryOptions?.launchOptions.headless) {
 				throw Error(`extensions require ${WebPlaywright.PERSISTENT_DIRECTORY} and not HEADLESS`);
 			}
@@ -165,7 +166,7 @@ export const interactionSteps = (wp: WebPlaywright): TStepperSteps => ({
 			console.debug('background', background, browserContext.serviceWorkers());
 
 			const extensionId = background.url().split('/')[2];
-			wp.getWorld().shared.set({ term: 'extensionContext', value: extensionId, domain: 'string', origin: Origin.fallthrough });
+			wp.getWorld().shared.set({ term: 'extensionContext', value: extensionId, domain: 'string', origin: Origin.fallthrough }, provenanceFromFeatureStep(featureStep));
 			await wp.withPage(async (page: Page) => {
 				const popupURI = `chrome-extension://${extensionId}/popup.html?${tab}`;
 				return await page.goto(popupURI);
@@ -371,7 +372,7 @@ export const interactionSteps = (wp: WebPlaywright): TStepperSteps => ({
 	//                          MISC
 	captureDialog: {
 		gwta: 'accept next dialog to {where}',
-		action: async ({ where }: { where: string }) => {
+		action: async ({ where }: { where: string }, featureStep) => {
 			await wp.withPage((page: Page) => {
 				return page.on('dialog', async (dialog) => {
 					const res = {
@@ -380,7 +381,7 @@ export const interactionSteps = (wp: WebPlaywright): TStepperSteps => ({
 						type: dialog.type(),
 					};
 					await dialog.accept();
-					wp.getWorld().shared.setJSON(where, res);
+					wp.getWorld().shared.setJSON(where, res, Origin.var, featureStep);
 				});
 			});
 			return OK;
@@ -474,10 +475,10 @@ export const interactionSteps = (wp: WebPlaywright): TStepperSteps => ({
 	},
 	saveURIQueryParameter: {
 		gwta: 'save URI query parameter {what} to {where}',
-		action: async ({ what, where }: { what: string; where: string }) => {
+		action: async ({ what, where }: { what: string; where: string }, featureStep) => {
 			const uri = await wp.withPage<string>(async (page: Page) => await page.url());
 			const found = new URL(uri).searchParams.get(what);
-			wp.getWorld().shared.set({ term: where, value: found, domain: 'string', origin: Origin.fallthrough });
+			wp.getWorld().shared.set({ term: where, value: found, domain: 'string', origin: Origin.fallthrough }, provenanceFromFeatureStep(featureStep));
 			return OK;
 		},
 	},

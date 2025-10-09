@@ -2,7 +2,7 @@ import { Page, Download } from 'playwright';
 import { resolve } from 'path';
 import { pathToFileURL } from 'url';
 
-import { TWorld, OK, TStepResult } from '@haibun/core/lib/defs.js';
+import { TWorld, OK, TStepResult, TFeatureStep, Origin } from '@haibun/core/lib/defs.js';
 import { WEB_PAGE } from '@haibun/core/lib/domain-types.js';
 import { BrowserFactory, TTaggedBrowserFactoryOptions, TBrowserTypes, BROWSERS } from './BrowserFactory.js';
 import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOption, optionOrError } from '@haibun/core/lib/util/index.js';
@@ -336,8 +336,8 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	getLastResponse(): TCapturedResponse {
 		return this.getWorld().shared.getJSON(LAST_REST_RESPONSE) as TCapturedResponse;
 	}
-	setLastResponse(serialized: TCapturedResponse) {
-		this.getWorld().shared.setJSON(LAST_REST_RESPONSE, serialized);
+	setLastResponse(serialized: TCapturedResponse, featureStep: TFeatureStep) {
+		this.getWorld().shared.setJSON(LAST_REST_RESPONSE, serialized, Origin.var, featureStep);
 	}
 }
 
