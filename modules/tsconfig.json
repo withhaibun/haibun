@@ -4,6 +4,7 @@
         { "path": "cli" },
         { "path": "utils" },
         { "path": "core" },
+        { "path": "mobile" },
         { "path": "web-server-express" },
         { "path": "web-http" },
         { "path": "parse-md" },
