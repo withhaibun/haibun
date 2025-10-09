@@ -1,47 +1,47 @@
 {
-  "name": "@haibun/mobile",
-  "type": "module",
-  "version": "1.74.0",
-  "description": "Haibun stepper for mobile testing with Appium and WebDriver.IO - supports React Native, Android, and iOS",
-  "main": "build/haibun-mobile-stepper.js",
-  "exports": {
-    ".": "./build/haibun-mobile-stepper.js",
-    "./*": "./build/*"
-  },
-  "files": [
-    "build/"
-  ],
-  "dependencies": {
-    "@haibun/core": "1.74.0",
-    "@haibun/domain-storage": "1.74.0",
-    "@types/node": "^24.3.0",
-    "appium": "^3.1.0",
-    "appium-uiautomator2-driver": "^5.0.5",
-    "appium-xcuitest-driver": "^10.1.6",
-    "typescript": "^5.9.2",
-    "webdriverio": "^9.19.2"
-  },
-  "devDependencies": {
-    "@haibun/storage-mem": "1.74.0",
-    "vitest": "^3.0.0"
-  },
-  "scripts": {
-    "build": "tsc -b .",
-    "build-watch": "tsc -b . --watch",
-    "prepublishOnly": "tsc -b .",
-    "test": "vitest run",
-    "test-watch": "vitest"
-  },
-  "keywords": [
-    "haibun",
-    "mobile",
-    "appium",
-    "testing",
-    "react-native",
-    "android",
-    "ios",
-    "automation"
-  ],
-  "author": "",
-  "license": "ISC"
+	"name": "@haibun/mobile",
+	"type": "module",
+	"version": "1.74.0",
+	"description": "Haibun stepper for mobile testing with Appium and WebDriver.IO - supports React Native, Android, and iOS",
+	"main": "build/haibun-mobile-stepper.js",
+	"exports": {
+		".": "./build/haibun-mobile-stepper.js",
+		"./*": "./build/*"
+	},
+	"files": [
+		"build/"
+	],
+	"dependencies": {
+		"@haibun/core": "1.74.0",
+		"@haibun/domain-storage": "1.74.0",
+		"@types/node": "^24.3.0",
+		"appium": "^3.1.0",
+		"appium-uiautomator2-driver": "^5.0.5",
+		"appium-xcuitest-driver": "^10.1.6",
+		"typescript": "^5.9.2",
+		"webdriverio": "^9.19.2"
+	},
+	"devDependencies": {
+		"@haibun/storage-mem": "1.74.0",
+		"vitest": "^3.0.0"
+	},
+	"scripts": {
+		"build": "tsc -b .",
+		"build-watch": "tsc -b . --watch",
+		"prepublishOnly": "tsc -b .",
+		"test": "vitest run",
+		"test-watch": "vitest"
+	},
+	"keywords": [
+		"haibun",
+		"mobile",
+		"appium",
+		"testing",
+		"react-native",
+		"android",
+		"ios",
+		"automation"
+	],
+	"author": "",
+	"license": "ISC"
 }
