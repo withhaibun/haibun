@@ -10,7 +10,7 @@ export abstract class AStepper {
 		this.world = world;
 		await Promise.resolve();
 	}
-	abstract steps: { [name: string]: TStepperStep; };
+	abstract steps: TStepperSteps;
 	getWorld() {
 		if (!this.world) {
 			throw Error(`stepper without world ${constructorName(this)}`);
@@ -19,6 +19,8 @@ export abstract class AStepper {
 		return this.world;
 	}
 }
+export type TStepperSteps = Record<string, TStepperStep>;
+
 export interface IHasOptions {
 	options?: {
 		[name: string]: {

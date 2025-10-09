@@ -1,4 +1,4 @@
-import { OK, TWorld, TNamed, TEndFeature, IStepperCycles } from '@haibun/core/lib/defs.js';
+import { OK, TWorld, TEndFeature, IStepperCycles, TStepArgs } from '@haibun/core/lib/defs.js';
 import { actionNotOK, getFromRuntime, getStepperOption, intOrError } from '@haibun/core/lib/util/index.js';
 import { IWebServer, WEBSERVER } from './defs.js';
 import { ServerExpress, DEFAULT_PORT } from './server-express.js';
@@ -58,28 +58,28 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 		},
 		serveFilesAt: {
 			gwta: 'serve files at {where} from {loc}',
-			action: async ({ where, loc }: TNamed) => {
-				return await this.doServeFiles(where, loc).catch((e) => actionNotOK(e));
+			action: async ({ where, loc }: TStepArgs) => {
+				return await this.doServeFiles(String(where), String(loc)).catch((e) => actionNotOK(e));
 			},
 		},
 		serveFiles: {
 			gwta: 'serve files from {loc}',
-			action: async ({ loc }: TNamed) => {
-				const r = await this.doServeFiles('/', loc).catch((e) => actionNotOK(e));
+			action: async ({ loc }: TStepArgs) => {
+				const r = await this.doServeFiles('/', String(loc)).catch((e) => actionNotOK(e));
 				return r;
 			},
 		},
 		indexFiles: {
 			gwta: 'index files from {loc}',
-			action: async ({ loc }: TNamed) => {
-				const r = await this.doServeIndex('/', loc).catch((e) => actionNotOK(e));
+			action: async ({ loc }: TStepArgs) => {
+				const r = await this.doServeIndex('/', String(loc)).catch((e) => actionNotOK(e));
 				return r;
 			},
 		},
 		indexFilesAt: {
 			gwta: 'index files at {where} from {loc}',
-			action: async ({ where, loc }: TNamed) => {
-				const r = await this.doServeIndex(where, loc).catch((e) => actionNotOK(e));
+			action: async ({ where, loc }: TStepArgs) => {
+				const r = await this.doServeIndex(String(where), String(loc)).catch((e) => actionNotOK(e));
 				return r;
 			},
 		},

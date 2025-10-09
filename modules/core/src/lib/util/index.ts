@@ -111,12 +111,12 @@ export async function verifyExtraOptions(inExtraOptions: TModuleOptions, csteppe
 	return Promise.resolve();
 }
 
-export async function setStepperWorlds(steppers: AStepper[], world: TWorld) {
+export async function setStepperWorldsAndDomains(steppers: AStepper[], world: TWorld) {
 	for (const stepper of steppers) {
 		try {
 			await stepper.setWorld(world, steppers);
 		} catch (e) {
-			console.error(`setStepperWorlds for ${constructorName(stepper)} failed`, e);
+			console.error(`setStepperWorldsAndDomains for ${constructorName(stepper)} failed`, e);
 			throw e;
 		}
 	}
@@ -295,8 +295,6 @@ export function asError(e: unknown): Error {
 		? (e as Error)
 		: new Error(e as TAnyFixme);
 }
-
-export const getSerialTime = () => Date.now();
 
 export function dePolite(s: string) {
 	return s.replace(/^((given|when|then|and|should|the|it|I'm|I|am|an|a) )*/i, '');

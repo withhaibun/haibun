@@ -13,6 +13,7 @@ import { getDefaultTag } from '@haibun/core/lib/test/lib.js';
 import { isProcessFeatureResults, IHasOptions } from '@haibun/core/lib/astepper.js';
 import { FeatureVariables } from '@haibun/core/lib/feature-variables.js';
 import { Prompter } from '@haibun/core/lib/prompter.js';
+import { getCoreDomains } from '@haibun/core/lib/domain-types.js';
 
 const OPTION_CONFIG = '--config';
 const OPTION_HELP = '--help';
@@ -41,7 +42,6 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 		await usageThenExit(specl, errors.join('\n'));
 	}
 
-	// const description = protoOptions.options.DESCRIPTION || bases + ' ' + [...(featureFilter || [])].join(',');
 	const world = getCliWorld(protoOptions, bases);
 
 	const runner = new Runner(world);
@@ -69,14 +69,12 @@ function getCliWorld(protoOptions: TProtoOptions, bases: TBase): TWorld {
 	const { KEY: keyIn, LOG_LEVEL: logLevel, LOG_FOLLOW: logFollow } = protoOptions.options;
 	const tag = getDefaultTag(0);
 	const logger = new Logger({ level: logLevel || 'log', follow: logFollow });
-	const shared = new FeatureVariables(JSON.stringify(tag));
 	const timer = new Timer();
 
 	Timer.key = keyIn || Timer.key;
 
-	const world: TWorld = {
+	const world: Partial<TWorld> = {
 		tag,
-		shared,
 		runtime: {},
 		logger,
 		prompter: new Prompter(),
@@ -84,7 +82,11 @@ function getCliWorld(protoOptions: TProtoOptions, bases: TBase): TWorld {
 		timer,
 		bases,
 	};
-	return world;
+	const shared = new FeatureVariables(world as TWorld);
+	world.shared = shared;
+	const fullWorld = world as TWorld;
+	fullWorld.domains = getCoreDomains(fullWorld);
+	return fullWorld;
 }
 
 async function getSpeclOrExit(bases: TBase): Promise<TSpecl> {

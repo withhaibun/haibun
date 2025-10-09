@@ -21,6 +21,7 @@ export type TBaseOptions = {
 	LOG_FOLLOW?: string;
 	STAY?: string;
 	SETTING?: string;
+	STEP_DELAY?: number;
 	[CONTINUE_AFTER_ERROR]?: boolean;
 	envVariables?: TEnvVariables
 };
@@ -50,6 +51,7 @@ export type TWorld = {
 	moduleOptions: TModuleOptions;
 	timer: Timer;
 	bases: TBase;
+	domains: Record<string, { coerce: TDomainCoercer }>;
 };
 
 export type TFeatureMeta = {
@@ -90,7 +92,7 @@ const example: TResolvedFeature = {
 		{
 			path: 'path',
 			in: 'in',
-			seq: 0,
+			seqPath: [0],
 			action: {
 				actionName: 'actionName',
 				stepperName: 'stepperName',
@@ -103,13 +105,14 @@ const example: TResolvedFeature = {
 export type TFeatureStep = {
 	path: string;
 	in: string;
-	seq: number;
-	seqLabel?: string; // optional hierarchical label like "2.1"
+	seqPath: number[];
 	action: TStepAction;
 };
 
-export type TAction = (named: TNamed, featureStep: TFeatureStep) => Promise<TActionResult>;
-export type TCheck = (named: TNamed, featureStep: TFeatureStep) => Promise<boolean>;
+export type TStepArgs = Record<string, TStepValueValue>;
+
+export type TAction<Args = TStepArgs> = (args: Args, featureStep: TFeatureStep) => Promise<TActionResult> | TActionResult;
+export type TCheckAction<Args = TStepArgs> = (args: Args, featureStep: TFeatureStep) => Promise<boolean> | boolean;
 
 export type TStepperStep = {
 	precludes?: string[];
@@ -118,11 +121,11 @@ export type TStepperStep = {
 	gwta?: string;
 	exact?: string;
 	action: TAction;
-	checkAction?: TCheck;
+	checkAction?: TCheckAction;
 	applyEffect?: TApplyEffect;
 };
 
-export type TApplyEffect = (named: TNamed, featureStep: TFeatureStep, steppers: AStepper[]) => Promise<TFeatureStep[]>;
+export type TApplyEffect = (args: TStepArgs, featureStep: TFeatureStep, steppers: AStepper[]) => Promise<TFeatureStep[]>;
 
 export interface CStepper {
 	new(): AStepper;
@@ -147,8 +150,9 @@ export type TBeforeStep = { featureStep: TFeatureStep };
 export type TAfterStep = { featureStep: TFeatureStep, actionResult: TStepActionResult };
 export type TFailureArgs = { featureResult: TFeatureResult, failedStep: TStepResult };
 
-export type TAfterStepResult = { rerunStep?: boolean }
+export type TAfterStepResult = { rerunStep?: boolean, nextStep?: boolean };
 export interface IStepperCycles {
+	getDomains?(): TDomainDefinition[];
 	startExecution?(features: TStartExecution): Promise<void>;
 	startFeature?(startFeature: TStartFeature): Promise<void>;
 	startScenario?(startScenario: TStartScenario): Promise<void>;
@@ -160,20 +164,43 @@ export interface IStepperCycles {
 	endExecution?(): Promise<void>
 }
 
+export type TDomainCoercer = (proto: TStepValue, featureStep?: TFeatureStep, steppers?: AStepper[]) => TStepValueValue;
+
+export type TDomainDefinition = {
+	selectors: string[];
+	coerce: TDomainCoercer
+};
+
 export type StepperMethodArgs = {
 	[K in keyof IStepperCycles]: Parameters<NonNullable<IStepperCycles[K]>>[0];
 };
+export type TStepValuesMap = Record<string, TStepValue>;
 
 export type TStepAction = {
 	actionName: string;
 	stepperName: string;
 	step: TStepperStep;
-	named?: TNamed | undefined;
-	stepVariables?: TNamedVar[];
+	stepValuesMap?: TStepValuesMap;
 };
 
-export type TNamed = { [name: string]: string };
-export type TNamedVar = { name: string; type: string };
+export enum Origin {
+	fallthrough = 'fallthrough',
+	var = 'var',
+	env = 'env',
+	quoted = 'quoted',
+	statement = 'statement'
+}
+
+export type TOrigin = keyof typeof Origin;
+export type TProvenanceIdentifier = { in?: string; seq: number[], when: string };
+export type TStepValueValue = string | number | TFeatureStep[]
+export type TStepValue = {
+	term: string;
+	domain: string;
+	value?: TStepValueValue; // value is added in populateActionArgs
+	origin: TOrigin;
+	provenance?: TProvenanceIdentifier[]
+};
 
 export const OK: TOKActionResult = { ok: true };
 
@@ -201,8 +228,6 @@ export type TOKActionResult = {
 	ok: true;
 	messageContext?: TMessageContext;
 	artifact?: TArtifact;
-	// Optional child step results executed within this action (e.g., inline Backgrounds)
-	children?: TStepResult[];
 };
 
 export type TNotOKActionResult = {
@@ -210,8 +235,6 @@ export type TNotOKActionResult = {
 	message: string;
 	messageContext?: TMessageContext;
 	artifact?: TArtifact;
-	// Optional child step results executed within this action (e.g., inline Backgrounds)
-	children?: TStepResult[];
 };
 
 export type TTrace = {
@@ -266,8 +289,7 @@ export type TStepResult = {
 	stepActionResult: TStepActionResult;
 	in: string;
 	path: string;
-	seq: number;
-	seqLabel?: string; // optional hierarchical label like "2.1"
+	seqPath: number[];
 };
 
 export type TRuntime = {
@@ -288,7 +310,14 @@ export const STAY = 'STAY';
 
 export const CHECK_YES = '✅';
 export const CHECK_NO = '❌';
+export const CHECK_YIELD = '🔀'
 
 export const STEP_DELAY = 'STEP_DELAY';
 export const DEFAULT_DEST = 'default';
-export const CONTINUE_AFTER_ERROR = 'CONTINUE_AFTER_ERROR'; export const SCENARIO_START = 'scenarioStart';
+export const CONTINUE_AFTER_ERROR = 'CONTINUE_AFTER_ERROR'; export const SCENARIO_START = 'scenario';
+
+export enum ExecMode {
+	CYCLES = 'CYCLES',
+	NO_CYCLES = 'NO_CYCLES',
+	PROMPT = 'PROMPT',
+}

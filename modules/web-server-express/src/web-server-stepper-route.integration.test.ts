@@ -6,7 +6,7 @@ import { DEFAULT_DEST } from '@haibun/core/lib/defs.js';
 import { IWebServer, IRequest, IResponse, WEBSERVER } from './defs.js';
 
 import Server from './web-server-stepper.js';
-import { TNamed } from '@haibun/core/lib/defs.js';
+import { TStepArgs } from '@haibun/core/lib/defs.js';
 import { testWithDefaults } from '@haibun/core/lib/test/lib.js';
 import WebServerStepper from './web-server-stepper.js';
 import { AStepper } from '@haibun/core/lib/astepper.js';
@@ -18,10 +18,10 @@ describe('route mount', () => {
 			steps = {
 				addRoute: {
 					gwta: 'serve test route to {loc}',
-					action: async ({ loc }: TNamed) => {
+					action: async ({ loc }: TStepArgs) => {
 						const route = (req: IRequest, res: IResponse) => res.status(200).send('ok');
 						const webserver: IWebServer = await getFromRuntime(this.getWorld().runtime, WEBSERVER);
-						await webserver.addRoute('get', loc, route);
+						await webserver.addRoute('get', loc as string, route);
 						return actionOK();
 					},
 				},

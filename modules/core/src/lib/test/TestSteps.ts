@@ -1,5 +1,5 @@
 
-import { TNamed } from '../defs.js';
+import { TStepArgs } from '../defs.js';
 import { AStepper } from '../astepper.js';
 import { actionNotOK, actionOK } from '../util/index.js';
 
@@ -18,8 +18,9 @@ const TestSteps = class TestSteps extends AStepper {
 			action: async () => Promise.resolve(actionOK()),
 		},
 		named: {
-			match: /^parameter (?<param>.+) is accepted$/,
-			action: async ({ param }: TNamed) => {
+			gwta: 'parameter {param} is accepted',
+			action: async ({ param }: TStepArgs) => {
+				if (Array.isArray(param)) throw new Error('param must be string');
 				return Promise.resolve(param === 'x' ? actionOK() : actionNotOK('test'));
 			},
 		},

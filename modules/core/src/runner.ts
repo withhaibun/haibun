@@ -3,7 +3,7 @@ import { TWorld, TExecutorResult, CStepper } from './lib/defs.js';
 import { TAnyFixme } from './lib/fixme.js';
 import { AStepper } from './lib/astepper.js';
 import { expand } from './lib/features.js';
-import { verifyRequiredOptions, verifyExtraOptions, createSteppers, setStepperWorlds } from './lib/util/index.js';
+import { verifyRequiredOptions, verifyExtraOptions, createSteppers, setStepperWorldsAndDomains } from './lib/util/index.js';
 import { getSteppers } from './lib/util/workspace-lib.js';
 import { getFeaturesAndBackgrounds, TFeaturesBackgrounds } from './phases/collector.js';
 import { Executor } from './phases/Executor.js';
@@ -47,7 +47,7 @@ export class Runner {
 	async runFeaturesAndBackgrounds(csteppers: CStepper[], featuresBackgrounds: TFeaturesBackgrounds) {
 		try {
 			this.steppers = await createSteppers(csteppers);
-			await setStepperWorlds(this.steppers, this.world);
+			await setStepperWorldsAndDomains(this.steppers, this.world);
 			// Make backgrounds available at runtime for inline `Backgrounds:` expansion
 			this.world.runtime.backgrounds = featuresBackgrounds.backgrounds;
 			const expandedFeatures = await expand(featuresBackgrounds).catch((error) => this.errorBail('Expand', error));

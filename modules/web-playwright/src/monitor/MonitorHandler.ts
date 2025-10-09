@@ -83,15 +83,24 @@ class ButtonPrompter extends BasePromptManager {
 export class MonitorHandler {
 	subscriber: ILogOutput;
 	monitorPage: Page;
-	monitorLoc: string;
 	buttonPrompter: ButtonPrompter;
 	steppers: TAnyFixme[]; // Store steppers for statement execution
 
 	constructor(private world: TWorld, private storage: AStorage, private headless: boolean) {
 	}
+	async updateWorld(world: TWorld) {
+		this.world = world;
+		await this.inMonitor<string>((monitorLoc) => {
+			let base = document.querySelector('base');
+			if (!base) {
+				base = document.createElement('base');
+				document.head.appendChild(base);
+			}
+			base.href = `${monitorLoc}/`;
+		}, resolve(await this.getMonitorLoc()));
+	}
 
 	async initMonitor() {
-		this.monitorLoc = await this.storage.getCaptureLocation({ ...this.world, mediaType: EMediaTypes.html });
 		this.world.logger.info(`Creating new monitor page`);
 		const browser = await chromium.launch({ headless: this.headless });
 		const context = await browser.newContext();
@@ -113,12 +122,6 @@ export class MonitorHandler {
 		await this.waitForMonitorPage();
 		await this.monitorPage.goto(pathToFileURL(monitorLocation).toString(), { waitUntil: 'networkidle' });
 
-		await this.inMonitor<string>((monitorLoc) => {
-			const base = document.createElement('base');
-			base.href = `${monitorLoc}/`;
-			document.head.appendChild(base);
-		}, resolve(this.monitorLoc));
-
 		this.subscriber = {
 			out: (level: TLogLevel, message: TLogArgs, messageContext?: TMessageContext) => {
 				const logEntry: TLogEntry = {
@@ -136,6 +139,9 @@ export class MonitorHandler {
 		};
 		this.world.prompter.subscribe(this.buttonPrompter);
 	}
+	async getMonitorLoc() {
+		return await this.storage.getCaptureLocation({ ...this.world, mediaType: EMediaTypes.html });
+	}
 
 	async writeMonitor() {
 		if (!this.monitorPage || this.monitorPage.isClosed()) {
@@ -149,6 +155,10 @@ export class MonitorHandler {
 			if (promptControls && promptControls.parentNode) {
 				promptControls.parentNode.removeChild(promptControls);
 			}
+			const base = document.querySelector('base');
+			if (base) {
+				base.parentNode?.removeChild(base);
+			}
 		});
 
 		const content = (await this.monitorPage.content()) + `
@@ -158,18 +168,11 @@ window.haibunCapturedMessages = ${JSON.stringify(capturedMessages, null, 2)};
 document.getElementById('haibun-log-display-area').innerHTML = '';
 </script>
 `;
-		await this.inMonitor(() => {
-			const base = document.querySelector('base');
-			if (base) {
-				base.parentNode?.removeChild(base);
-			}
-		});
-
-		const outHtmlFile = join(this.monitorLoc, 'monitor.html');
+		const outHtmlFile = join(await this.getMonitorLoc(), 'monitor.html');
 		const monitorPath = actualURI(outHtmlFile);
 		this.world.logger.info(`Writing monitor HTML to ${monitorPath}`);
 		await this.storage.writeFile(outHtmlFile, content, EMediaTypes.html);
-		const outMessages = join(this.monitorLoc, 'monitor.json');
+		const outMessages = join(await this.getMonitorLoc(), 'monitor.json');
 		await this.storage.writeFile(outMessages, JSON.stringify(capturedMessages, null, 2), EMediaTypes.html);
 	}
 	async inMonitor<T>(toRun: (p: T) => void, context?: TAnyFixme) {

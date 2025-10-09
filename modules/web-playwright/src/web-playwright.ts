@@ -2,8 +2,8 @@ import { Page, Download } from 'playwright';
 import { resolve } from 'path';
 import { pathToFileURL } from 'url';
 
-import { OK, TWorld, TStepResult } from '@haibun/core/lib/defs.js';
-import { WEB_PAGE, WEB_CONTROL } from '@haibun/core/lib/domain-types.js';
+import { TWorld, OK, TStepResult, TFeatureStep, Origin } from '@haibun/core/lib/defs.js';
+import { WEB_PAGE } from '@haibun/core/lib/domain-types.js';
 import { BrowserFactory, TTaggedBrowserFactoryOptions, TBrowserTypes, BROWSERS } from './BrowserFactory.js';
 import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOption, optionOrError } from '@haibun/core/lib/util/index.js';
 import { AStorage } from '@haibun/domain-storage/AStorage.js';
@@ -16,6 +16,7 @@ import { AStepper, IHasCycles, IHasOptions } from '@haibun/core/lib/astepper.js'
 import { cycles } from './cycles.js';
 import { interactionSteps } from './interactionSteps.js';
 import { restSteps, TCapturedResponse } from './rest-playwright.js';
+import { TwinPage } from './twin-page.js';
 
 /**
  * This is the infrastructure for web-playwright.
@@ -41,8 +42,12 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	cycles = cycles(this);
 	static STORAGE = 'STORAGE';
 	static PERSISTENT_DIRECTORY = 'PERSISTENT_DIRECTORY';
-	requireDomains = [WEB_PAGE, WEB_CONTROL];
+	requireDomains = [WEB_PAGE];
 	options = {
+		TWIN: {
+			desc: `twin page elements based on interactions)`,
+			parse: (input: string) => boolOrError(input),
+		},
 		MONITOR: {
 			desc: `display a monitor with ongoing results (${EMonitoringTypes.MONITOR_ALL} or ${EMonitoringTypes.MONITOR_EACH})`,
 			parse: (input: string) => optionOrError(input, [EMonitoringTypes.MONITOR_ALL, EMonitoringTypes.MONITOR_EACH]),
@@ -83,12 +88,13 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	storage?: AStorage;
 	factoryOptions?: TTaggedBrowserFactoryOptions;
 	tab = 0;
-	withFrame: string;
 	downloaded: string[] = [];
 	captureVideo: boolean;
 	closers: Array<() => Promise<void>> = [];
 	monitor: EMonitoringTypes;
+	twin: boolean;
 	static monitorHandler: MonitorHandler;
+	static twinPage: TwinPage;
 	apiUserAgent: string;
 	extraHTTPHeaders: { [name: string]: string; } = {};
 	expectedDownload: Promise<Download>;
@@ -96,6 +102,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
+
 		const args = [...(getStepperOption(this, 'ARGS', world.moduleOptions)?.split(';') || ''),]; //'--disable-gpu'
 		this.storage = findStepperFromOption(steppers, this, world.moduleOptions, WebPlaywright.STORAGE);
 		this.headless = getStepperOption(this, 'HEADLESS', world.moduleOptions) === 'true' || !!process.env.CI;
@@ -104,6 +111,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			args.concat(['--auto-open-devtools-for-tabs', '--devtools-flags=panel-network', '--remote-debugging-port=9223']);
 		}
 		this.monitor = <EMonitoringTypes>getStepperOption(this, 'MONITOR', world.moduleOptions);
+		this.twin = getStepperOption(this, 'TWIN', world.moduleOptions) === 'true';
 		const persistentDirectory = getStepperOption(this, WebPlaywright.PERSISTENT_DIRECTORY, world.moduleOptions);
 		const defaultTimeout = parseInt(getStepperOption(this, 'TIMEOUT', world.moduleOptions)) || 30000;
 		this.captureVideo = getStepperOption(this, 'CAPTURE_VIDEO', world.moduleOptions) === 'true';
@@ -160,10 +168,13 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	}
 
 	async withPage<TReturn>(f: TAnyFixme): Promise<TReturn> {
-		const page = this.withFrame ? (await this.getPage()).frameLocator(this.withFrame) : await this.getPage();
-		this.withFrame && console.debug('using frame', this.withFrame);
-		this.withFrame = undefined;
-		return await f(page);
+		const pageOrFrame = await this.getPage();
+
+		if (WebPlaywright.twinPage) {
+			await WebPlaywright.twinPage.patchPage(pageOrFrame);
+		}
+
+		return await f(pageOrFrame);
 	}
 
 	async sees(text: string, selector: string) {
@@ -258,12 +269,12 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 				page.on('console', (msg) => {
 					pageConsoleMessages.push({ type: msg.type(), text: msg.text() });
 				});
-				const ret = await page.evaluate(async ({ endpoint, method, headers, postData }) => {
+				const ret = await page.evaluate(async ({ endpoint, method, headers, postData: postDataForEval }) => {
 					const fetchOptions: RequestInit = {
 						method,
 					};
 					fetchOptions.headers = headers ? headers : {};
-					// if (postData) fetchOptions.body = postData;
+					if (postDataForEval) fetchOptions.body = postDataForEval as BodyInit;
 
 					const response = await fetch(endpoint, fetchOptions);
 					const capturedResponse: TCapturedResponse = {
@@ -300,7 +311,11 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			}
 		}
 	}
-	createMonitor = async () => {
+	async createTwin() {
+		WebPlaywright.twinPage = new TwinPage(this, this.storage, this.headless);
+		await WebPlaywright.twinPage.initTwin();
+	}
+	async createMonitor() {
 		if (WebPlaywright.monitorHandler && !WebPlaywright.monitorHandler.monitorPage.isClosed()) {
 			this.getWorld().logger.info('Monitor is already running, bringing existing monitor to front');
 			await WebPlaywright.monitorHandler.monitorPage.bringToFront();
@@ -321,8 +336,8 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	getLastResponse(): TCapturedResponse {
 		return this.getWorld().shared.getJSON(LAST_REST_RESPONSE) as TCapturedResponse;
 	}
-	setLastResponse(serialized: TCapturedResponse) {
-		this.getWorld().shared.setJSON(LAST_REST_RESPONSE, serialized);
+	setLastResponse(serialized: TCapturedResponse, featureStep: TFeatureStep) {
+		this.getWorld().shared.setJSON(LAST_REST_RESPONSE, serialized, Origin.var, featureStep);
 	}
 }
 
