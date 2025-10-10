@@ -1,8 +1,12 @@
 {
-  "mode": "all",
-  "steppers": [
-    "variables-stepper",
-    "storage-fs",
-    "../build/haibun-mobile-stepper"
-  ]
+	"mode": "all",
+	"steppers": [
+		"haibun",
+		"debugger-stepper",
+		"variables-stepper",
+		"~@haibun/web-server-express/build/web-server-stepper",
+		"~@haibun/web-server-express/build/http-executor-stepper",
+		"~@haibun/storage-mem/build/storage-mem",
+		"./modules/mobile/build/haibun-mobile-stepper"
+	]
 }

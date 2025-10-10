@@ -6,14 +6,7 @@ import { EMediaTypes } from '@haibun/domain-storage/media-types.js';
 import type HaibunMobileStepper from './haibun-mobile-stepper.js';
 import { MobileDomains } from './domains.js';
 
-/**
- * Lifecycle hooks for mobile testing
- * Manages Appium server, driver lifecycle, and failure screenshots
- */
 export const cycles = (mobile: HaibunMobileStepper): IStepperCycles => ({
-	/**
-	 * Return domain definitions for mobile elements
-	 */
 	getDomains: () => MobileDomains,
 
 	async onFailure({ failedStep }: TFailureArgs): Promise<void> {
@@ -34,10 +27,6 @@ export const cycles = (mobile: HaibunMobileStepper): IStepperCycles => ({
 		}
 	},
 
-	/**
-	 * Called at the end of all test execution
-	 * Stops Appium server and cleans up all drivers
-	 */
 	async endExecution(): Promise<void> {
 		if (mobile.driverFactory) {
 			mobile.getWorld().logger.info('Stopping mobile test execution');
@@ -60,15 +49,7 @@ export const cycles = (mobile: HaibunMobileStepper): IStepperCycles => ({
 	},
 });
 
-/**
- * Capture screenshot helper method
- * Extended from HaibunMobileStepper class
- */
-export async function captureScreenshot(
-	mobile: HaibunMobileStepper,
-	event: EExecutionMessageType,
-	details: { seq?: number; step?: TStepResult }
-): Promise<{ context: TMessageContext; path: string }> {
+export async function captureScreenshot(mobile: HaibunMobileStepper, event: EExecutionMessageType, details: { seq?: number; step?: TStepResult }): Promise<{ context: TMessageContext; path: string }> {
 	const loc = await mobile.getCaptureDir('image');
 	const path = resolve(mobile.storage!.fromLocation(EMediaTypes.image, loc, `${event}-${Date.now()}.png`));
 

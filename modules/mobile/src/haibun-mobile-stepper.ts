@@ -10,7 +10,7 @@ import { EExecutionMessageType } from '@haibun/core/lib/interfaces/logger.js';
 
 import { DriverFactory, TDriverFactoryOptions, TPlatformName, TAutomationName, TMobileCapabilities } from './DriverFactory.js';
 import { cycles, captureScreenshot } from './cycles.js';
-import { interactionSteps } from './interactionSteps.js';
+import { mobileSteps } from './mobileSteps.js';
 
 export default class HaibunMobileStepper extends AStepper implements IHasOptions, IHasCycles {
 	cycles = cycles(this);
@@ -23,9 +23,20 @@ export default class HaibunMobileStepper extends AStepper implements IHasOptions
 			required: true,
 		},
 		APP: {
-			desc: 'The absolute path to the .apk (Android) or .app (iOS) file',
+			desc: 'The absolute path to the .apk (Android) or .app (iOS) file. Not required if APP_PACKAGE is provided.',
 			parse: (input: string) => stringOrError(input),
-			required: true,
+		},
+		APP_PACKAGE: {
+			desc: 'Android: Package name of an already-installed app (e.g., com.example.app)',
+			parse: (input: string) => stringOrError(input),
+		},
+		APP_ACTIVITY: {
+			desc: 'Android: Activity name to launch (e.g., .MainActivity). Used with APP_PACKAGE.',
+			parse: (input: string) => stringOrError(input),
+		},
+		BUNDLE_ID: {
+			desc: 'iOS: Bundle identifier of an already-installed app (e.g., com.example.app)',
+			parse: (input: string) => stringOrError(input),
 		},
 		[HaibunMobileStepper.STORAGE]: {
 			desc: 'Storage for screenshots and artifacts',
@@ -102,6 +113,9 @@ export default class HaibunMobileStepper extends AStepper implements IHasOptions
 		// Get configuration
 		const platformName = getStepperOption(this, 'PLATFORMNAME', world.moduleOptions) as TPlatformName;
 		const app = getStepperOption(this, 'APP', world.moduleOptions);
+		const appPackage = getStepperOption(this, 'APP_PACKAGE', world.moduleOptions);
+		const appActivity = getStepperOption(this, 'APP_ACTIVITY', world.moduleOptions);
+		const bundleId = getStepperOption(this, 'BUNDLE_ID', world.moduleOptions);
 		const deviceName = getStepperOption(this, 'DEVICE_NAME', world.moduleOptions);
 		const platformVersion = getStepperOption(this, 'PLATFORM_VERSION', world.moduleOptions);
 		const udid = getStepperOption(this, 'UDID', world.moduleOptions);
@@ -119,15 +133,41 @@ export default class HaibunMobileStepper extends AStepper implements IHasOptions
 		// Determine automation name based on platform
 		const automationName: TAutomationName = platformName === 'Android' ? 'UiAutomator2' : 'XCUITest';
 
-		// Build capabilities
+		// Build capabilities - support both app file path and installed app scenarios
 		const capabilities: TMobileCapabilities = {
 			platformName,
-			'appium:app': app,
 			'appium:automationName': automationName,
 			'appium:newCommandTimeout': 300,
 			'appium:noReset': noReset,
 			'appium:fullReset': fullReset,
 		};
+
+		// Configure app launch: either by file path or by package/bundle identifier
+		if (platformName === 'Android') {
+			if (appPackage) {
+				// Testing an already-installed Android app
+				capabilities['appium:appPackage'] = appPackage;
+				if (appActivity) {
+					capabilities['appium:appActivity'] = appActivity;
+				}
+			} else if (app) {
+				// Installing and testing from app file
+				capabilities['appium:app'] = app;
+			} else {
+				throw new Error('Either APP or APP_PACKAGE must be provided for Android');
+			}
+		} else {
+			// iOS
+			if (bundleId) {
+				// Testing an already-installed iOS app
+				capabilities['appium:bundleId'] = bundleId;
+			} else if (app) {
+				// Installing and testing from app file
+				capabilities['appium:app'] = app;
+			} else {
+				throw new Error('Either APP or BUNDLE_ID must be provided for iOS');
+			}
+		}
 
 		if (deviceName) {
 			capabilities['appium:deviceName'] = deviceName;
@@ -161,14 +201,10 @@ export default class HaibunMobileStepper extends AStepper implements IHasOptions
 			useBrowserStack,
 		};
 
-		// Create driver factory
 		this.driverFactory = DriverFactory.getDriverFactory(world, this.factoryOptions);
 		this.hasFactory = true;
 	}
 
-	/**
-	 * Get the driver for the current test context
-	 */
 	async getDriver(): Promise<Browser> {
 		if (!this.driver) {
 			this.driver = await this.driverFactory!.getDriver(String(this.getWorld().tag));
@@ -176,9 +212,6 @@ export default class HaibunMobileStepper extends AStepper implements IHasOptions
 		return this.driver;
 	}
 
-	/**
-	 * Get capture directory for screenshots/videos
-	 */
 	async getCaptureDir(type = ''): Promise<string> {
 		const loc = { ...this.world, mediaType: EMediaTypes.image };
 		const dir = await this.storage!.ensureCaptureLocation(loc, type);
@@ -205,6 +238,6 @@ export default class HaibunMobileStepper extends AStepper implements IHasOptions
 	}
 
 	steps = {
-		...interactionSteps(this),
+		...mobileSteps(this),
 	};
 }

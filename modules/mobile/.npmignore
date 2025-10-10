@@ -1,0 +1,5 @@
+# Exclude the Expo React Native test app from npm packaging and workspace operations
+expo-rn-app/
+test-results/
+*.feature
+run-tests.sh

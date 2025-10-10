@@ -12,5 +12,6 @@
 		"build",
 		"expo-rn-app",
 		"**/*.test.ts",
+		"vitest.config.ts"
 	]
 }

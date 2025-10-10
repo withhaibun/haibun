@@ -8,10 +8,13 @@ export const MOBILE_XPATH = 'mobile-xpath';
 export const MobileDomains: TDomainDefinition[] = [
   {
     selectors: [MOBILE_TESTID],
-    coerce: (proto: TStepValue) => `~${String(proto.value)}`,
+    // testID in React Native maps to resource-id on Android and accessibilityIdentifier on iOS
+    // Use id: prefix for Android resource-id, ~ for iOS accessibility identifier
+    coerce: (proto: TStepValue) => String(proto.value), // Will be used as resource-id selector
   },
   {
     selectors: [MOBILE_ACCESSIBILITY],
+    // accessibilityLabel maps to content-desc (accessibility id) - use ~ prefix
     coerce: (proto: TStepValue) => `~${String(proto.value)}`,
   },
   {
@@ -24,7 +27,12 @@ export const MobileDomains: TDomainDefinition[] = [
       if (proto.domain === MOBILE_XPATH) {
         return String(proto.value);
       }
-      if (proto.domain === MOBILE_TESTID || proto.domain === MOBILE_ACCESSIBILITY) {
+      if (proto.domain === MOBILE_TESTID) {
+        // resource-id selector - no prefix needed, will use id strategy
+        return String(proto.value);
+      }
+      if (proto.domain === MOBILE_ACCESSIBILITY) {
+        // accessibility id - use ~ prefix
         return `~${String(proto.value)}`;
       }
       return String(proto.value);

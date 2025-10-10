@@ -7,7 +7,10 @@ export type TAutomationName = 'UiAutomator2' | 'XCUITest';
 
 export interface TMobileCapabilities {
   platformName: TPlatformName;
-  'appium:app': string;
+  'appium:app'?: string;
+  'appium:appPackage'?: string;
+  'appium:appActivity'?: string;
+  'appium:bundleId'?: string;
   'appium:automationName': TAutomationName;
   'appium:deviceName'?: string;
   'appium:platformVersion'?: string;
@@ -15,7 +18,7 @@ export interface TMobileCapabilities {
   'appium:newCommandTimeout'?: number;
   'appium:noReset'?: boolean;
   'appium:fullReset'?: boolean;
-  // BrowserStack capabilities (for future use)
+  // BrowserStack capabilities
   'bstack:options'?: {
     userName?: string;
     accessKey?: string;
@@ -69,6 +72,20 @@ export class DriverFactory {
   }
 
   /**
+   * Check if Appium server is already running
+   */
+  private async isAppiumRunning(host: string, port: number): Promise<boolean> {
+    try {
+      const response = await fetch(`http://${host}:${port}/status`);
+      return response.ok;
+    } catch {
+      return false;
+    }
+  }
+
+
+
+  /**
    * Start the Appium server if not using BrowserStack or external server
    */
   async startAppiumServer(): Promise<void> {
@@ -76,12 +93,19 @@ export class DriverFactory {
       return;
     }
 
+    const host = this.options.host || '127.0.0.1';
+    const port = this.options.port || 4723;
+
+    // Check if Appium is already running
+    if (await this.isAppiumRunning(host, port)) {
+      this.world.logger.info(`Appium server already running on ${host}:${port}`);
+      this.serverStarted = true;
+      return;
+    }
+
     return new Promise((resolve, reject) => {
       try {
         this.world.logger.info('Starting Appium server...');
-
-        const host = this.options.host || '127.0.0.1';
-        const port = this.options.port || 4723;
 
         // Start Appium as a child process
         // Users should have 'appium' installed globally or in node_modules
@@ -106,8 +130,10 @@ export class DriverFactory {
           }
         });
 
+        let stderrOutput = '';
         this.appiumProcess.stderr?.on('data', (data) => {
           const error = data.toString();
+          stderrOutput += error;
           if (this.options.logLevel === 'debug' || this.options.logLevel === 'trace') {
             this.world.logger.debug(`[Appium Error] ${error}`);
           }
@@ -120,7 +146,9 @@ export class DriverFactory {
 
         this.appiumProcess.on('exit', (code) => {
           if (code !== 0 && !serverReady) {
-            reject(new Error(`Appium server exited with code ${code}`));
+            const errorMsg = stderrOutput || 'Unknown error';
+            this.world.logger.error(`Appium stderr: ${errorMsg}`);
+            reject(new Error(`Appium server exited with code ${code}. ${errorMsg}`));
           }
         });
 
@@ -179,7 +207,7 @@ export class DriverFactory {
     const driverOptions: TDriverOptions = {
       host: this.options.host || '127.0.0.1',
       port: this.options.port || 4723,
-      path: '/wd/hub',
+      path: '/',  // Appium 2.x/3.x uses '/' instead of '/wd/hub'
       logLevel: this.options.logLevel || 'info',
       capabilities: this.options.capabilities,
     };
@@ -188,7 +216,7 @@ export class DriverFactory {
     if (this.options.useBrowserStack) {
       driverOptions.host = 'hub-cloud.browserstack.com';
       driverOptions.port = 443;
-      driverOptions.path = '/wd/hub';
+      driverOptions.path = '/wd/hub';  // BrowserStack still uses /wd/hub
     }
 
     this.world.logger.debug(`Creating driver with capabilities: ${JSON.stringify(driverOptions.capabilities)}`);
@@ -214,23 +242,14 @@ export class DriverFactory {
     }
   }
 
-  /**
-   * Get existing driver for a tag
-   */
   getExistingDriver(tag: string): Browser | undefined {
     return this.drivers.get(tag);
   }
 
-  /**
-   * Check if driver exists for tag
-   */
   hasDriver(tag: string): boolean {
     return this.drivers.has(tag);
   }
 
-  /**
-   * Close a specific driver
-   */
   async closeDriver(tag: string): Promise<void> {
     const driver = this.drivers.get(tag);
     if (driver) {
@@ -250,52 +269,70 @@ export class DriverFactory {
    * Close all drivers and stop server
    */
   async closeAll(): Promise<void> {
-    // Close all drivers
     const closeTasks = Array.from(this.drivers.keys()).map((tag) =>
       this.closeDriver(tag)
     );
     await Promise.all(closeTasks);
 
-    // Stop Appium server
     await this.stopAppiumServer();
 
     // Reset singleton
     DriverFactory.instance = undefined;
   }
 
-  /**
-   * Reset app to initial state (useful between scenarios)
-   */
-  async resetApp(tag: string): Promise<void> {
-    const driver = this.getExistingDriver(tag);
-    if (driver) {
-      try {
-        this.world.logger.debug(`Resetting app for tag: ${tag}`);
-        // Reset is done by terminating and reactivating the app
-        await driver.terminateApp(this.options.capabilities['appium:app']);
-        await driver.activateApp(this.options.capabilities['appium:app']);
-      } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        this.world.logger.error(`Error resetting app: ${errorMessage}`);
-        // Don't throw - some apps may not support reset
-      }
-    }
-  }
+	async resetApp(tag: string): Promise<void> {
+		const driver = this.getExistingDriver(tag);
+		if (driver) {
+			try {
+				this.world.logger.debug(`Resetting app for tag: ${tag}`);
+				// Reset is done by terminating and reactivating the app
+				// Determine app identifier based on platform
+				const appId = this.getAppIdentifier();
+				if (appId) {
+					await driver.terminateApp(appId);
+					await driver.activateApp(appId);
+				} else {
+					this.world.logger.warn('Cannot reset app: no app identifier available');
+				}
+			} catch (error: unknown) {
+				const errorMessage = error instanceof Error ? error.message : String(error);
+				this.world.logger.warn(`Error resetting app: ${errorMessage}`);
+				// Don't throw - some apps may not support reset
+			}
+		}
+	}
 
-  /**
-   * Terminate and relaunch app (more aggressive than reset)
-   */
-  async relaunchApp(tag: string): Promise<void> {
-    const driver = this.getExistingDriver(tag);
-    if (driver) {
-      try {
-        this.world.logger.debug(`Relaunching app for tag: ${tag}`);
-        await driver.terminateApp(this.options.capabilities['appium:app']);
-        await driver.activateApp(this.options.capabilities['appium:app']);
-      } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        this.world.logger.error(`Error relaunching app: ${errorMessage}`);
-      }
-    }
-  }
+	/**
+	 * Terminate and relaunch app (more aggressive than reset)
+	 */
+	async relaunchApp(tag: string): Promise<void> {
+		const driver = this.getExistingDriver(tag);
+		if (driver) {
+			try {
+				this.world.logger.debug(`Relaunching app for tag: ${tag}`);
+				const appId = this.getAppIdentifier();
+				if (appId) {
+					await driver.terminateApp(appId);
+					await driver.activateApp(appId);
+				} else {
+					this.world.logger.warn('Cannot relaunch app: no app identifier available');
+				}
+			} catch (error: unknown) {
+				const errorMessage = error instanceof Error ? error.message : String(error);
+				this.world.logger.error(`Error relaunching app: ${errorMessage}`);
+			}
+		}
+	}
+
+	/**
+	 * Get the app identifier for terminate/activate operations
+	 * Returns package name for Android or bundle ID for iOS
+	 */
+	private getAppIdentifier(): string | undefined {
+		return (
+			this.options.capabilities['appium:appPackage'] ||
+			this.options.capabilities['appium:bundleId'] ||
+			this.options.capabilities['appium:app']
+		);
+	}
 }
