@@ -4,8 +4,14 @@
   "version": "1.74.0",
   "description": "haibun mcp server and client steppers",
   "main": "build/mcp-server-stepper.js",
-  "files": ["build/**", "runtime/**"],
-  "exports": { ".": "./build/mcp-server-stepper.js", "./*": "./build/*" },
+  "files": [
+    "build/**",
+    "runtime/**"
+  ],
+  "exports": {
+    ".": "./build/mcp-server-stepper.js",
+    "./*": "./build/*"
+  },
   "scripts": {
     "prepublishOnly": "tsc -b .",
     "build": "tsc -b .",
@@ -20,7 +26,7 @@
   "license": "ISC",
   "dependencies": {
     "@haibun/core": "1.74.0",
-    "@modelcontextprotocol/sdk": "^1.13.0",
+    "@modelcontextprotocol/sdk": "1.20",
     "zod": "^3.25.67"
   },
   "devDependencies": {
