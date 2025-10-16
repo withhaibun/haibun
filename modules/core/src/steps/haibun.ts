@@ -86,6 +86,19 @@ class Haibun extends AStepper {
 				return actionOK({ messageContext: { incident: EExecutionMessageType.ACTION, incidentDetails: { steppers: allSteppers } } });
 			},
 		},
+		showCompletedSteps: {
+			exact: 'show completed steps',
+			action: () => {
+				const completedSteps = this.getWorld().runtime.stepResults || [];
+				const steps = completedSteps.map((step, idx) => {
+					const timing = step.stepActionResult.end! - step.stepActionResult.start!;
+					const status = step.ok ? '✅' : '❌';
+					return { index: idx + 1, status, step: step.in, timing: `${timing}ms` };
+				});
+				this.world?.logger.info(`Completed ${completedSteps.length} step(s): ${JSON.stringify(steps, null, 2)}`);
+				return actionOK({ messageContext: { incident: EExecutionMessageType.ACTION, incidentDetails: { completedSteps: steps, count: completedSteps.length } } });
+			},
+		},
 		until: {
 			gwta: 'until {what} is {value}',
 			action: async ({ what, value }: TStepArgs) => { const key = String(what); while (this.getWorld().shared.get(key) !== value) { await sleep(100); } return OK; },
