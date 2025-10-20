@@ -1,8 +1,8 @@
 import { Download, Page, Response } from "playwright";
 type ClickResult = import('playwright').Locator;
 
-import { OK, Origin, TFeatureStep } from "@haibun/core/lib/defs.js";
-import { DOMAIN_STRING, WEB_PAGE } from "@haibun/core/lib/domain-types.js";
+import { ExecMode, OK, Origin, TFeatureStep } from "@haibun/core/lib/defs.js";
+import { DOMAIN_STATEMENT, DOMAIN_STRING, WEB_PAGE } from "@haibun/core/lib/domain-types.js";
 import { actionNotOK, sleep } from "@haibun/core/lib/util/index.js";
 import { DOMAIN_PAGE_LOCATOR } from "./domains.js";
 import { WebPlaywright } from "./web-playwright.js";
@@ -12,6 +12,7 @@ import { actionOK } from "@haibun/core/lib/util/index.js";
 import { pathToFileURL } from 'node:url';
 import { TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { provenanceFromFeatureStep } from "@haibun/core/steps/variables-stepper.js";
+import { doExecuteFeatureSteps } from "@haibun/core/lib/util/featureStep-executor.js";
 
 const DOMAIN_STRING_OR_PAGE_LOCATOR = `${DOMAIN_STRING} | ${DOMAIN_PAGE_LOCATOR}`;
 
@@ -220,6 +221,19 @@ export const interactionSteps = (wp: WebPlaywright): TStepperSteps => ({
 				return await locateByDomain(page, featureStep, 'target').click();
 			});
 			return OK;
+		},
+	},
+	inElement: {
+		gwta: `in {container: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}, {what: ${DOMAIN_STATEMENT}}`,
+		action: async ({ what }: { container: string; what: TFeatureStep[] }, featureStep: TFeatureStep) => {
+			return await wp.withPage(async (page: Page) => {
+				const containerLocator = locateByDomain(page, featureStep, 'container');
+				wp.inContainer = containerLocator;
+				const whenResult = await doExecuteFeatureSteps(what, [wp], wp.getWorld(), ExecMode.CYCLES);
+				console.log('!!', whenResult);
+				wp.inContainer = undefined;
+				return whenResult;
+			});
 		},
 	},
 	clickBy: {
