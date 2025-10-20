@@ -224,12 +224,18 @@ export class DriverFactory {
     try {
       const driver = await remote(driverOptions);
 
-      // Set timeouts
-      if (this.options.timeout) {
-        await driver.setTimeout({
-          implicit: this.options.timeout,
-        });
-      }
+      // Set implicit timeout to 0 for best performance
+      // Use explicit waits in individual steps instead
+      await driver.setTimeout({
+        implicit: 0,
+      });
+
+      // Set WAIT_FOR_IDLE_TIMEOUT to reduce delays before actions
+      // Default is 10000ms which causes long delays on clicks
+      // 500ms is sufficient for most cases
+      await driver.updateSettings({
+        waitForIdleTimeout: 500,
+      });
 
       this.drivers.set(tag, driver);
       this.world.logger.info(`Driver created for tag: ${tag}`);

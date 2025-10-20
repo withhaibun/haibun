@@ -45,8 +45,16 @@ async function locateByDomain(mobile: HaibunMobileStepper, featureStep: TFeature
 		return await driver.$(`~${value}`);
 	} else if (domain === MOBILE_XPATH) {
 		return await driver.$(value);
+	} else if (domain === DOMAIN_STRING) {
+		// For string domain, use text-based selectors
+		if (platformName === 'android') {
+			return await driver.$(`android=new UiSelector().text("${value}")`);
+		} else {
+			// iOS: Use predicate string for text matching
+			return await driver.$(`-ios predicate string:label == "${value}" OR name == "${value}"`);
+		}
 	} else {
-		return await driver.$(value);
+		throw Error(`unknown domain: ${domain}`);
 	}
 }
 
@@ -58,7 +66,6 @@ export const mobileSteps = (mobile: HaibunMobileStepper): TStepperSteps => ({
 			try {
 				await withStaleRetry(async () => {
 					const element = await locateByDomain(mobile, featureStep, 'target');
-					await element.waitForDisplayed({ timeout: mobile.timeout });
 					await element.click();
 				});
 				return OK;
@@ -88,7 +95,6 @@ export const mobileSteps = (mobile: HaibunMobileStepper): TStepperSteps => ({
 		action: async ({ field }: { field: string }, featureStep: TFeatureStep) => {
 			try {
 				const element = await locateByDomain(mobile, featureStep, 'field');
-				await element.waitForDisplayed({ timeout: mobile.timeout });
 				await element.clearValue();
 				return OK;
 			} catch (error: unknown) {
@@ -103,7 +109,7 @@ export const mobileSteps = (mobile: HaibunMobileStepper): TStepperSteps => ({
 		action: async ({ target }: { target: string }, featureStep: TFeatureStep) => {
 			try {
 				const element = await locateByDomain(mobile, featureStep, 'target');
-				await element.waitForDisplayed({ timeout: mobile.timeout });
+				await element.isDisplayed();
 				return OK;
 			} catch (error: unknown) {
 				const errorMessage = error instanceof Error ? error.message : String(error);
@@ -126,32 +132,18 @@ export const mobileSteps = (mobile: HaibunMobileStepper): TStepperSteps => ({
 		},
 	},
 
-	seeText: {
-		gwta: `see text {text}`,
-		action: async ({ text }: { text: string }) => {
-			try {
-				const driver = await mobile.getDriver();
-				const element = await driver.$(`~${text}`);
-				const exists = await element.isDisplayed();
-				return exists ? OK : actionNotOK(`Text "${text}" not found on screen`);
-			} catch (error: unknown) {
-				return actionNotOK(`Text "${text}" not found on screen`);
-			}
-		},
-	},
-
-	shouldSeeTextIn: {
-		gwta: `in {target: ${MOBILE_ELEMENT}}, see {text}`,
-		action: async ({ target, text }: { target: string; text: string }, featureStep: TFeatureStep) => {
+	seeElementIn: {
+		gwta: `in {target: ${MOBILE_ELEMENT}}, see {value: ${MOBILE_ELEMENT}}`,
+		action: async ({ target, value }: { target: string; value: string }, featureStep: TFeatureStep) => {
 			try {
 				const element = await locateByDomain(mobile, featureStep, 'target');
 				const elementText = await element.getText();
-				return elementText.includes(text)
+				return elementText.includes(value)
 					? OK
-					: actionNotOK(`Expected "${target}" to contain "${text}", but got "${elementText}"`);
+					: actionNotOK(`Expected "${target}" to contain "${value}", but got "${elementText}"`);
 			} catch (error: unknown) {
 				const errorMessage = error instanceof Error ? error.message : String(error);
-				return actionNotOK(`Failed to verify text in "${target}": ${errorMessage}`);
+				return actionNotOK(`Failed to verify value in "${target}": ${errorMessage}`);
 			}
 		},
 	},
@@ -262,24 +254,24 @@ export const mobileSteps = (mobile: HaibunMobileStepper): TStepperSteps => ({
 		},
 	},
 
-	getPageContents: {
-		gwta: 'get page contents',
+	getScreenContents: {
+		gwta: 'get screen contents',
 		action: async () => {
 			try {
 				const driver = await mobile.getDriver();
-				const pageSource = await driver.getPageSource();
+				const screenSource = await driver.getPageSource();
 				const messageContext = {
 					incident: EExecutionMessageType.ACTION,
 					artifact: {
 						artifactType: 'html' as const,
-						html: pageSource || ''
+						html: screenSource || ''
 					}
 				};
-				mobile.getWorld().logger.info('Page source captured', messageContext);
+				mobile.getWorld().logger.info('Screen source captured', messageContext);
 				return OK;
 			} catch (error: unknown) {
 				const errorMessage = error instanceof Error ? error.message : String(error);
-				return actionNotOK(`Failed to get page contents: ${errorMessage}`);
+				return actionNotOK(`Failed to get screen contents: ${errorMessage}`);
 			}
 		},
 	},
@@ -307,24 +299,6 @@ export const mobileSteps = (mobile: HaibunMobileStepper): TStepperSteps => ({
 			} catch (error: unknown) {
 				const errorMessage = error instanceof Error ? error.message : String(error);
 				return actionNotOK(`Failed to take accessibility snapshot: ${errorMessage}`);
-			}
-		},
-	},
-
-	showPageSource: {
-		gwta: 'show page source',
-		action: async () => {
-			try {
-				const driver = await mobile.getDriver();
-				const source = await driver.getPageSource();
-				console.log('=== PAGE SOURCE ===');
-				console.log(source);
-				console.log('===================');
-				mobile.getWorld().logger.log(`Page source retrieved (${source.length} chars)`);
-				return OK;
-			} catch (error: unknown) {
-				const errorMessage = error instanceof Error ? error.message : String(error);
-				return actionNotOK(`Failed to get page source: ${errorMessage}`);
 			}
 		},
 	},

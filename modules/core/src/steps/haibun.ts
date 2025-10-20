@@ -90,10 +90,12 @@ class Haibun extends AStepper {
 			exact: 'show completed steps',
 			action: () => {
 				const completedSteps = this.getWorld().runtime.stepResults || [];
-				const steps = completedSteps.map((step, idx) => {
+				const steps = completedSteps.map((step) => {
 					const timing = step.stepActionResult.end! - step.stepActionResult.start!;
+					const seqPath = step.seqPath.join('>');
+					const name = step.stepActionResult.name;
 					const status = step.ok ? '✅' : '❌';
-					return { index: idx + 1, status, step: step.in, timing: `${timing}ms` };
+					return { seqPath, name, step: step.in, status, timing: `${timing}ms` };
 				});
 				this.world?.logger.info(`Completed ${completedSteps.length} step(s): ${JSON.stringify(steps, null, 2)}`);
 				return actionOK({ messageContext: { incident: EExecutionMessageType.ACTION, incidentDetails: { completedSteps: steps, count: completedSteps.length } } });

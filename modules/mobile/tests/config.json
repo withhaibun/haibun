@@ -6,6 +6,7 @@
 		"variables-stepper",
 		"~@haibun/web-server-express/build/web-server-stepper",
 		"~@haibun/web-server-express/build/http-executor-stepper",
+		"~@haibun/mcp/build/mcp-server-stepper",
 		"~@haibun/storage-mem/build/storage-mem",
 		"./modules/mobile/build/haibun-mobile-stepper"
 	]

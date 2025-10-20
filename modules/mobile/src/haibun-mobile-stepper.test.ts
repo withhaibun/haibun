@@ -11,6 +11,8 @@ const testOptions = {
 	options: { DEST: 'default' },
 	moduleOptions: {
 		HAIBUN_O_HAIBUNMOBILESTEPPER_STORAGE: 'StorageMem',
+		HAIBUN_O_HAIBUNMOBILESTEPPER_PLATFORMNAME: 'Android',
+		HAIBUN_O_HAIBUNMOBILESTEPPER_APP_PACKAGE: 'com.test.app',
 	},
 };
 
