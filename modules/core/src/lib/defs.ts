@@ -316,6 +316,7 @@ export const MAYBE_CHECK_NO = '✗';
 
 export const STEP_DELAY = 'STEP_DELAY';
 export const DEFAULT_DEST = 'default';
+export const TEST_BASE = 'test_base';
 export const CONTINUE_AFTER_ERROR = 'CONTINUE_AFTER_ERROR'; export const SCENARIO_START = 'scenario';
 
 export enum ExecMode {

@@ -1,4 +1,4 @@
-import { Page, Download } from 'playwright';
+import { Page, Download, Locator } from 'playwright';
 import { resolve } from 'path';
 import { pathToFileURL } from 'url';
 
@@ -99,6 +99,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	extraHTTPHeaders: { [name: string]: string; } = {};
 	expectedDownload: Promise<Download>;
 	headless: boolean;
+	inContainer: Locator;
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
@@ -168,13 +169,14 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	}
 
 	async withPage<TReturn>(f: TAnyFixme): Promise<TReturn> {
-		const pageOrFrame = await this.getPage();
+		const containerPageOrFrame = this.inContainer || await this.getPage();
 
-		if (WebPlaywright.twinPage) {
-			await WebPlaywright.twinPage.patchPage(pageOrFrame);
+		if (!this.inContainer && WebPlaywright.twinPage) {
+			await WebPlaywright.twinPage.patchPage(<Page>containerPageOrFrame);
 		}
 
-		return await f(pageOrFrame);
+		const res = await f(containerPageOrFrame);
+		return res;
 	}
 
 	async sees(text: string, selector: string) {
