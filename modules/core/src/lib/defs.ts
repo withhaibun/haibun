@@ -311,6 +311,8 @@ export const STAY = 'STAY';
 export const CHECK_YES = '✅';
 export const CHECK_NO = '❌';
 export const CHECK_YIELD = '🔀'
+export const MAYBE_CHECK_YES = '✓';
+export const MAYBE_CHECK_NO = '✗';
 
 export const STEP_DELAY = 'STEP_DELAY';
 export const DEFAULT_DEST = 'default';
