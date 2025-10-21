@@ -67,11 +67,7 @@ export const interactionSteps = (wp: WebPlaywright): TStepperSteps => ({
 			return found ? OK : actionNotOK(`Did not find test id ${testId}`);
 		},
 	},
-	shouldSeeTextIn: {
-		gwta: 'in {selector}, see {text}',
-		action: async ({ text, selector }: { text: string; selector: string }) => await wp.sees(text, selector),
-	},
-	shouldSeeText: {
+	seeText: {
 		gwta: 'see {text}',
 		action: async ({ text }: { text: string }) => await wp.sees(text, 'body'),
 	},
@@ -230,7 +226,6 @@ export const interactionSteps = (wp: WebPlaywright): TStepperSteps => ({
 				const containerLocator = locateByDomain(page, featureStep, 'container');
 				wp.inContainer = containerLocator;
 				const whenResult = await doExecuteFeatureSteps(what, [wp], wp.getWorld(), ExecMode.CYCLES);
-				console.log('!!', whenResult);
 				wp.inContainer = undefined;
 				return whenResult;
 			});
