@@ -2,10 +2,10 @@ import { Download, Page, Response } from "playwright";
 type ClickResult = import('playwright').Locator;
 
 import { ExecMode, OK, Origin, TFeatureStep } from "@haibun/core/lib/defs.js";
-import { DOMAIN_STATEMENT, DOMAIN_STRING, WEB_PAGE } from "@haibun/core/lib/domain-types.js";
+import { DOMAIN_STATEMENT, DOMAIN_STRING } from "@haibun/core/lib/domain-types.js";
 import { actionNotOK, sleep } from "@haibun/core/lib/util/index.js";
 import { DOMAIN_PAGE_LOCATOR } from "./domains.js";
-import { WebPlaywright } from "./web-playwright.js";
+import { WEB_PAGE, WebPlaywright } from "./web-playwright.js";
 import { BROWSERS } from "./BrowserFactory.js";
 import { EExecutionMessageType } from "@haibun/core/lib/interfaces/logger.js";
 import { actionOK } from "@haibun/core/lib/util/index.js";

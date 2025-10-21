@@ -3,7 +3,6 @@ import { resolve } from 'path';
 import { pathToFileURL } from 'url';
 
 import { TWorld, OK, TStepResult, TFeatureStep, Origin } from '@haibun/core/lib/defs.js';
-import { WEB_PAGE } from '@haibun/core/lib/domain-types.js';
 import { BrowserFactory, TTaggedBrowserFactoryOptions, TBrowserTypes, BROWSERS } from './BrowserFactory.js';
 import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOption, optionOrError } from '@haibun/core/lib/util/index.js';
 import { AStorage } from '@haibun/domain-storage/AStorage.js';
@@ -18,6 +17,7 @@ import { interactionSteps } from './interactionSteps.js';
 import { restSteps, TCapturedResponse } from './rest-playwright.js';
 import { TwinPage } from './twin-page.js';
 
+export const WEB_PAGE = 'webpage';
 /**
  * This is the infrastructure for web-playwright.
  *
@@ -42,7 +42,6 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	cycles = cycles(this);
 	static STORAGE = 'STORAGE';
 	static PERSISTENT_DIRECTORY = 'PERSISTENT_DIRECTORY';
-	requireDomains = [WEB_PAGE];
 	options = {
 		TWIN: {
 			desc: `twin page elements based on interactions)`,
