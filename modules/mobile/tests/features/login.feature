@@ -7,6 +7,7 @@ This feature demonstrates all mobile domain types (mobile-testid, mobile-accessi
 Scenario: Verify using mixed domains
 
 ;; Demonstrating mobile-xpath, testID, and string domains together
+wait for Login Title
 see Login Title
 see Username Label
 tap Username Input

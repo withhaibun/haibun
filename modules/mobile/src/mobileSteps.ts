@@ -47,8 +47,9 @@ async function locateByDomain(mobile: HaibunMobileStepper, featureStep: TFeature
 		return await driver.$(value);
 	} else if (domain === DOMAIN_STRING) {
 		// For string domain, use text-based selectors
+		// Prefer clickable elements for string matching to avoid matching non-interactive text
 		if (platformName === 'android') {
-			return await driver.$(`android=new UiSelector().text("${value}")`);
+			return await driver.$(`android=new UiSelector().text("${value}").clickable(true)`);
 		} else {
 			// iOS: Use predicate string for text matching
 			return await driver.$(`-ios predicate string:label == "${value}" OR name == "${value}"`);
@@ -109,7 +110,7 @@ export const mobileSteps = (mobile: HaibunMobileStepper): TStepperSteps => ({
 		action: async ({ target }: { target: string }, featureStep: TFeatureStep) => {
 			try {
 				const element = await locateByDomain(mobile, featureStep, 'target');
-				await element.isDisplayed();
+				await element.waitForDisplayed({ timeout: mobile.timeout });
 				return OK;
 			} catch (error: unknown) {
 				const errorMessage = error instanceof Error ? error.message : String(error);
@@ -123,6 +124,7 @@ export const mobileSteps = (mobile: HaibunMobileStepper): TStepperSteps => ({
 		action: async ({ target }: { target: string }, featureStep: TFeatureStep) => {
 			try {
 				const element = await locateByDomain(mobile, featureStep, 'target');
+				await element.waitForDisplayed({ timeout: mobile.timeout });
 				const isDisplayed = await element.isDisplayed();
 				return isDisplayed ? OK : actionNotOK(`Element "${target}" is not visible`);
 			} catch (error: unknown) {
