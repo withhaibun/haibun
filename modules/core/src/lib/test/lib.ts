@@ -1,5 +1,4 @@
-import { TWorld, TProtoOptions, CStepper, DEFAULT_DEST, TExecutorResult } from '../defs.js';
-import { getCoreDomains } from '../domain-types.js';
+import { TWorld, TProtoOptions, CStepper, DEFAULT_DEST, TExecutorResult, TEST_BASE } from '../defs.js';
 import { createSteppers } from './../util/index.js';
 import { getRunTag } from '../ttag.js';
 import { getSteppers } from '../util/workspace-lib.js';
@@ -9,12 +8,12 @@ import { asFeatures } from '../resolver-features.js';
 import { Runner } from '../../runner.js';
 import { FeatureVariables } from '../feature-variables.js';
 import { Prompter } from '../prompter.js';
+import { getCoreDomains } from '../core-domains.js';
 
 const DEF_PROTO_DEFAULT_OPTIONS = { DEST: DEFAULT_DEST };
 export const DEF_PROTO_OPTIONS = { options: DEF_PROTO_DEFAULT_OPTIONS, moduleOptions: {} };
 
 export const HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS = 'HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS';
-export const TEST_BASE = 'test_base';
 
 export async function getCreateSteppers(steppers: string[], addSteppers?: CStepper[]) {
 	const csteppers = await getSteppers(steppers);

@@ -4,6 +4,7 @@ import { OK, TFeatureStep, TStepArgs, ExecMode } from '../lib/defs.js';
 import { testWithDefaults, DEF_PROTO_OPTIONS } from '../lib/test/lib.js';
 import { actionNotOK } from '../lib/util/index.js';
 import { doExecuteFeatureSteps } from '../lib/util/featureStep-executor.js';
+import { DOMAIN_STATEMENT } from '../lib/domain-types.js';
 
 class StatementTestStepper extends AStepper {
   steps = {
@@ -16,7 +17,7 @@ class StatementTestStepper extends AStepper {
       action: async () => Promise.resolve(OK),
     },
     do: {
-      gwta: 'do {steps:statement}',
+      gwta: `do {steps:${DOMAIN_STATEMENT}}`,
       action: async (args: TStepArgs) => {
         try {
           const steps = args.steps as unknown;

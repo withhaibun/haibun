@@ -1,9 +1,8 @@
-import { Page, Download } from 'playwright';
+import { Page, Download, Locator } from 'playwright';
 import { resolve } from 'path';
 import { pathToFileURL } from 'url';
 
 import { TWorld, OK, TStepResult, TFeatureStep, Origin } from '@haibun/core/lib/defs.js';
-import { WEB_PAGE } from '@haibun/core/lib/domain-types.js';
 import { BrowserFactory, TTaggedBrowserFactoryOptions, TBrowserTypes, BROWSERS } from './BrowserFactory.js';
 import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOption, optionOrError } from '@haibun/core/lib/util/index.js';
 import { AStorage } from '@haibun/domain-storage/AStorage.js';
@@ -18,6 +17,7 @@ import { interactionSteps } from './interactionSteps.js';
 import { restSteps, TCapturedResponse } from './rest-playwright.js';
 import { TwinPage } from './twin-page.js';
 
+export const WEB_PAGE = 'webpage';
 /**
  * This is the infrastructure for web-playwright.
  *
@@ -42,7 +42,6 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	cycles = cycles(this);
 	static STORAGE = 'STORAGE';
 	static PERSISTENT_DIRECTORY = 'PERSISTENT_DIRECTORY';
-	requireDomains = [WEB_PAGE];
 	options = {
 		TWIN: {
 			desc: `twin page elements based on interactions)`,
@@ -99,6 +98,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	extraHTTPHeaders: { [name: string]: string; } = {};
 	expectedDownload: Promise<Download>;
 	headless: boolean;
+	inContainer: Locator;
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
@@ -168,13 +168,14 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	}
 
 	async withPage<TReturn>(f: TAnyFixme): Promise<TReturn> {
-		const pageOrFrame = await this.getPage();
+		const containerPageOrFrame = this.inContainer || await this.getPage();
 
-		if (WebPlaywright.twinPage) {
-			await WebPlaywright.twinPage.patchPage(pageOrFrame);
+		if (!this.inContainer && WebPlaywright.twinPage) {
+			await WebPlaywright.twinPage.patchPage(<Page>containerPageOrFrame);
 		}
 
-		return await f(pageOrFrame);
+		const res = await f(containerPageOrFrame);
+		return res;
 	}
 
 	async sees(text: string, selector: string) {
