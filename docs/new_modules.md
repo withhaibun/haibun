@@ -1,4 +1,3 @@
-
 # Developing new modules
 
 NB: Normally, you'd use the [[scaffold command](../modules/utils/README.md#scaffolding](https://github.com/withhaibun/haibun/blob/main/modules/utils/README.md#scaffolding)).
@@ -29,41 +28,41 @@ Your file might end up looking like this:
 ```typescript
 import { OK, TNamed, AStepper, TWorld } from '@haibun/core/lib/defs.js';
 import { actionNotOK, stringOrError, findStepperFromOption } from '@haibun/core/lib/util/index.js';
-import { STORAGE_ITEM, STORAGE_LOCATION } from '@haibun/domain-storage/build/domain-storage.js';
-import { AStorage } from '@haibun/domain-storage/build/AStorage.js';
+import { STORAGE_ITEM, STORAGE_LOCATION } from '@haibun/domain-storage/domain-storage.js';
+import { AStorage } from '@haibun/domain-storage/AStorage.js';
 
 const STORAGE = 'STORAGE';
 
 const FilesExist = class FilesExist extends AStepper implements IHasOptions {
-    options = {
-        [STORAGE]: {
-            required: true,
-            desc: 'Storage for file tests',
-            parse: (input: string) => stringOrError(input),
-        },
-    };
-    storage?: AStorage;
-    async setWorld(world: TWorld, steppers: AStepper[]) {
-        await super.setWorld(world, steppers);
-        this.storage = findStepperFromOption(steppers, this, this.getWorld().moduleOptions, STORAGE);
-    }
-    steps = {
-        fileExists: {
-            gwta: `file {what} exists`,
-            action: async ({ what }: TNamed) => {
-                const exists = this.storage?.exists(what);
-                return exists ? OK : actionNotOK(`${what} does not exist`);
-            },
-        },
-        fileDoesNotExist: {
-            gwta: `missing file {what}`,
-            action: async ({ what }: TNamed) => {
-                const exists = this.storage?.exists(what);
-                return exists ?  actionNotOK(`${what} is not missing`) : OK;
-            },
-        }
-    }
-}
+	options = {
+		[STORAGE]: {
+			required: true,
+			desc: 'Storage for file tests',
+			parse: (input: string) => stringOrError(input),
+		},
+	};
+	storage?: AStorage;
+	async setWorld(world: TWorld, steppers: AStepper[]) {
+		await super.setWorld(world, steppers);
+		this.storage = findStepperFromOption(steppers, this, this.getWorld().moduleOptions, STORAGE);
+	}
+	steps = {
+		fileExists: {
+			gwta: `file {what} exists`,
+			action: async ({ what }: TNamed) => {
+				const exists = this.storage?.exists(what);
+				return exists ? OK : actionNotOK(`${what} does not exist`);
+			},
+		},
+		fileDoesNotExist: {
+			gwta: `missing file {what}`,
+			action: async ({ what }: TNamed) => {
+				const exists = this.storage?.exists(what);
+				return exists ? actionNotOK(`${what} is not missing`) : OK;
+			},
+		},
+	};
+};
 ```
 
 After compilation, you can now use statements like _file "README.md" exists_ and
@@ -86,60 +85,72 @@ Placeholders are declared inside `{}` and have the form `{name[:domain]}`.
 
 Examples:
 
-* `{what}` → domain defaults to `string`.
-* `{ms:number}` → domain is `number` (value will be coerced / validated).
-* `{target:css-selector}` → domain is `css-selector`.
-* `{when:statement}` → domain is `statement` (an embedded Haibun statement that must itself resolve to a known step).
+- `{what}` → domain defaults to `string`.
+- `{ms:number}` → domain is `number` (value will be coerced / validated).
+- `{target:${DOMAIN_PAGE_SELECTOR}}` → domain is `page-selector`.
+- `{when:$DOMAIN_STATEMENT}` → domain is `statement` (an embedded Haibun statement that must itself resolve to a known step).
 
 Internally every placeholder is represented with a mandatory `domain` field. If you omit `:domain` in the gwta text, the parser assigns `string` – so the domain is still present in the runtime model even when you don't write it explicitly.
 
 #### Built‑in domains
 
-Current built-ins (may evolve):
+Current built-ins:
 
-* `string` – raw text (default)
-* `number` – coerced via `Number(value)`; fails if `NaN`
-* `css-selector` – treated as opaque string, but distinguished for tooling / IDEs
-* `json` – parses JSON; fails on invalid syntax
-* `statement` – nested step statement (is parsed & must resolve to an existing step)
+- `string` – raw text (default)
+- `number` – coerced via `Number(value)`; fails if `NaN`
+- `css-selector` – treated as opaque string, but distinguished for tooling / IDEs
+- `json` – parses JSON; fails on invalid syntax
+- `statement` – nested step statement (is parsed & must resolve to an existing step)
 
 #### Domain registry
 
 Domains are resolved at runtime through a registry on the `world` (`world.domains`). Each domain entry provides a `coerce(raw: string)` function returning the typed value or throwing an error string / Error. Adding a new domain is as simple as registering it before steps execute:
 
 ```ts
-world.domains['uuid'] = { coerce: (raw) => /^[0-9a-f-]{36}$/i.test(raw) ? raw : (() => { throw new Error(`invalid uuid ${raw}`) })() };
+world.domains['uuid'] = {
+	coerce: (raw) =>
+		/^[0-9a-f-]{36}$/i.test(raw)
+			? raw
+			: (() => {
+					throw new Error(`invalid uuid ${raw}`);
+				})(),
+};
 ```
 
 #### Validation & errors
 
-* Unknown domain name → immediate error: `unknown domain 'x'`.
-* Coercion failure (e.g. `{age:number}` with `abc`) → error from domain coercer.
-* `{x:statement}` whose inner text does not resolve to a known step → `statement '...' invalid`.
+- Unknown domain name → immediate error: `unknown domain 'x'`.
+- Coercion failure (e.g. `{age:number}` with `abc`) → error from domain coercer.
+- `{x:${DOMAIN_STATEMENT}}` whose inner text does not resolve to a known step → `statement '...' invalid`.
 
 #### Authoring guidelines
 
-* Prefer explicit domains when semantic meaning or validation matters (`{ms:number}` over `{ms}`).
-* Use kebab-case for multi-word domain names (`css-selector`).
-* Keep domains narrowly focused; compose behavior in step actions, not coercers.
-* If your step depends on a new data shape, add a domain instead of ad-hoc parsing inside many steps.
+- Prefer explicit domains when semantic meaning or validation matters (`{ms:number}` over `{ms}`).
+- Use kebab-case for multi-word domain names (`css-selector`).
+- Keep domains narrowly focused; compose behavior in step actions, not coercers.
+- If your step depends on a new data shape, add a domain instead of ad-hoc parsing inside many steps.
 
 #### Example
 
 ```ts
 steps = {
-    pauseSeconds: {
-        gwta: 'pause for {ms:number}s',
-        action: async ({ ms }) => { await delay(ms * 1000); return OK; }
-    },
-    click: {
-        gwta: 'click {selector:css-selector}',
-        action: async ({ selector }) => this.page.click(selector)
-    },
-    conditional: {
-        gwta: 'if {when:statement}, {what:statement}',
-        action: async ({ when, what }) => { /* both are previously resolved statement strings */ }
-    }
+	pauseSeconds: {
+		gwta: `pause for {ms:${DOMAIN_NUMBER}}s`,
+		action: async ({ ms }) => {
+			await delay(ms * 1000);
+			return OK;
+		},
+	},
+	click: {
+		gwta: `click {selector:${PAGE_SELECTOR}}`,
+		action: async ({ selector }) => this.page.click(selector),
+	},
+	conditional: {
+		gwta: `if {when:${DOAIN_STATEMENT}}, {what:${DOAIN_STATEMENT}}`,
+		action: async ({ when, what }) => {
+			/* both are previously resolved statement strings */
+		},
+	},
 };
 ```
 

@@ -7,6 +7,7 @@ import { expand } from '../lib/features.js';
 import { asFeatures } from '../lib/resolver-features.js';
 import { EExecutionMessageType } from '../lib/interfaces/logger.js';
 import { endExecutonContext } from '../phases/Executor.js';
+import { DOMAIN_STATEMENT } from '../lib/domain-types.js';
 
 class Haibun extends AStepper {
 	steppers: AStepper[] = [];
@@ -30,7 +31,7 @@ class Haibun extends AStepper {
 			action: async () => Promise.resolve(OK),
 		},
 		not: {
-			gwta: 'not {what:statement}',
+			gwta: `not {what:${DOMAIN_STATEMENT}}`,
 			action: async ({ what }: TStepArgs, featureStep: TFeatureStep) => {
 
 				const list = <TFeatureStep[]>what;
@@ -46,7 +47,7 @@ class Haibun extends AStepper {
 			},
 		},
 		if: {
-			gwta: 'if {when:statement}, {what:statement}',
+			gwta: `if {when:${DOMAIN_STATEMENT}}, {what:${DOMAIN_STATEMENT}}`,
 			action: async ({ when, what }: TStepArgs, featureStep: TFeatureStep) => {
 				const whenList = Array.isArray(when) ? when : [];
 				const whenNested = whenList.map((s, i) => ({ ...s, seqPath: [...featureStep.seqPath, i + 1] }));
