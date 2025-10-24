@@ -1,7 +1,7 @@
 import {describe, it, expect} from 'vitest';
 
-import { TEST_BASE } from "./lib.js";
 import { asFeatures } from '../resolver-features.js';
+import { TEST_BASE } from '../defs.js';
 
 describe('asFeatures', () => {
     it('should add base to path', () => {

@@ -1,7 +1,6 @@
-import { TExpandedLine, TExpandedFeature } from './defs.js';
+import { TExpandedLine, TExpandedFeature, TEST_BASE } from './defs.js';
 import { TAnyFixme } from './fixme.js';
 import { featureSplit, withNameType } from './features.js';
-import { TEST_BASE } from './test/lib.js';
 
 export type TProtoFeature = { base?: string; path: string; content: string; }[]
 

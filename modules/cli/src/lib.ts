@@ -13,7 +13,7 @@ import { getDefaultTag } from '@haibun/core/lib/test/lib.js';
 import { isProcessFeatureResults, IHasOptions } from '@haibun/core/lib/astepper.js';
 import { FeatureVariables } from '@haibun/core/lib/feature-variables.js';
 import { Prompter } from '@haibun/core/lib/prompter.js';
-import { getCoreDomains } from '@haibun/core/lib/domain-types.js';
+import { getCoreDomains } from '@haibun/core/lib/core-domains.js';
 
 const OPTION_CONFIG = '--config';
 const OPTION_HELP = '--help';

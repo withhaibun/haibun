@@ -1,4 +1,4 @@
-import { TFeatureStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, TStepAction, STAY, STAY_FAILURE, CHECK_NO, CHECK_YES, CHECK_YIELD, STEP_DELAY, TNotOKActionResult, CONTINUE_AFTER_ERROR, TEndFeature, StepperMethodArgs, TBeforeStep, TAfterStep, IStepperCycles, ExecMode, TStepArgs, TAfterStepResult } from '../lib/defs.js';
+import { TFeatureStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, TStepAction, STAY, STAY_FAILURE, CHECK_NO, CHECK_YES, CHECK_YIELD, STEP_DELAY, TNotOKActionResult, CONTINUE_AFTER_ERROR, TEndFeature, StepperMethodArgs, TBeforeStep, TAfterStep, IStepperCycles, ExecMode, TStepArgs, TAfterStepResult, MAYBE_CHECK_YES, MAYBE_CHECK_NO } from '../lib/defs.js';
 import { TAnyFixme } from '../lib/fixme.js';
 import { AStepper } from '../lib/astepper.js';
 import { EExecutionMessageType, TMessageContext } from '../lib/interfaces/logger.js';
@@ -190,7 +190,7 @@ export class FeatureExecutor {
 			if (isPrompt) {
 				world.logger.log((actionResult.ok ? CHECK_YES : `${CHECK_NO} (${(<TNotOKActionResult>actionResult).message})`) + ` ${featureStep.in}`, messageContext);
 			} else {
-				world.logger.log(`${CHECK_YIELD} ${featureStep.in}`, messageContext);
+				world.logger.log(`${CHECK_YIELD}[${actionResult.ok ? MAYBE_CHECK_YES : MAYBE_CHECK_NO}] ${featureStep.in}`, messageContext);
 			}
 		}
 
