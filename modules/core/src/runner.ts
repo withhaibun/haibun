@@ -1,4 +1,3 @@
-import { applyEffectFeatures } from './applyEffectFeatures.js';
 import { TWorld, TExecutorResult, CStepper } from './lib/defs.js';
 import { TAnyFixme } from './lib/fixme.js';
 import { AStepper } from './lib/astepper.js';
@@ -54,11 +53,8 @@ export class Runner {
 
 			const resolver = new Resolver(this.steppers);
 			const resolvedFeatures = await resolver.resolveStepsFromFeatures(expandedFeatures).catch((error) => this.errorBail('Resolve', error));
-			const appliedResolvedFeatures = await applyEffectFeatures(this.world, resolvedFeatures, this.steppers);
 
-			this.world.logger.log(`features: ${appliedResolvedFeatures.length} (${appliedResolvedFeatures.map((e) => e.path)}) backgrounds: ${featuresBackgrounds.backgrounds.length}`);
-
-			this.result = await Executor.executeFeatures(this.steppers, this.world, appliedResolvedFeatures).catch((error) =>
+			this.result = await Executor.executeFeatures(this.steppers, this.world, resolvedFeatures).catch((error) =>
 				this.errorBail('Execute', error)
 			);
 		} catch (error) {

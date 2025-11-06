@@ -42,6 +42,7 @@ export class Resolver {
 						try { this.findSingleStepAction(rawVal); } catch (e) { throw Error(`statement '${rawVal}' invalid: ${e.message}`); }
 					}
 				}
+
 				const featureStep = this.getFeatureStep(featureLine, seq, stepAction);
 				if (stepAction.step.checkAction) {
 					const named = Object.fromEntries(Object.entries(stepAction.stepValuesMap || {}).map(([k, v]) => [k, v.value ?? v.term ?? ''])) as TStepArgs;
@@ -60,6 +61,10 @@ export class Resolver {
 		let stepActions = this.findActionableSteps(line);
 
 		if (stepActions.length > 1) {
+			const unique = stepActions.filter(a => a.step.unique);
+			if (unique.length === 1) {
+				return unique[0];
+			}
 			const precludes = stepActions.filter(a => a.step.precludes).map(a => a.step.precludes).reduce((acc, cur) => [...acc, ...cur], []);
 			stepActions = stepActions.filter(a => !precludes.includes(`${a.stepperName}.${a.actionName}`));
 			if (stepActions.length !== 1) {

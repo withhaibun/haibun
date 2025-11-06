@@ -19,8 +19,9 @@ export abstract class AStepper {
 		return this.world;
 	}
 }
-export type TStepperSteps = Record<string, TStepperStep>;
-
+export type TStepperSteps = {
+  [key: string]: TStepperStep;
+};
 export interface IHasOptions {
 	options?: {
 		[name: string]: {

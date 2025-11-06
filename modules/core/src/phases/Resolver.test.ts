@@ -90,6 +90,31 @@ describe('validate map steps', () => {
 	});
 });
 
+describe('unique stepper', () => {
+	const astep = 'step';
+	class UniqueStepper extends AStepper {
+		steps = {
+			uniqueStep: {
+				unique: true,
+				gwta: astep,
+				action: async () => Promise.resolve(OK),
+			},
+			normalStep: {
+				gwta: astep,
+				action: async () => Promise.resolve(OK),
+			},
+		};
+	}
+	test('uses unique step when multiple match', async () => {
+		const features = asExpandedFeatures([{ path: 'l1', content: astep }]);
+		const steppers = await createSteppers([UniqueStepper]);
+		const resolver = new Resolver(steppers);
+		const steps = await resolver.resolveStepsFromFeatures(features);
+		expect(steps.length).toBe(1);
+		expect(steps[0].featureSteps.length).toBe(1);
+		expect(steps[0].featureSteps[0].action.stepperName).toBe('UniqueStepper');
+	});
+});
 describe('preclude stepper', () => {
 	class PrecludedStepper extends AStepper {
 		steps = {

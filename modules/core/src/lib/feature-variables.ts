@@ -1,4 +1,4 @@
-import { TFeatureStep, TOrigin, TProvenanceIdentifier, TStepValue, TStepValueValue, TWorld } from "./defs.js";
+import { TFeatureStep, TOrigin, TProvenanceIdentifier, TStepValue, TWorld } from "./defs.js";
 import { DOMAIN_JSON } from "./domain-types.js";
 
 export class FeatureVariables {
@@ -12,7 +12,7 @@ export class FeatureVariables {
 	}
 
 	all() {
-		return this.values;
+		return { ...this.values };
 	}
 
 	toString() {
@@ -36,9 +36,9 @@ export class FeatureVariables {
 		};
 		this.world.logger.debug(`Set variable "${sv.term}" to "${sv.value}" (domain ${sv.domain}, origin ${sv.origin})`);
 	}
-	get(name: string): TStepValueValue | undefined {
+	get<T>(name: string): T | undefined {
 		if (!this.values[name]) return undefined;
-		return this.values[name].value;
+		return this.values[name].value as T;
 	}
 	getJSON<T>(name: string): T | undefined {
 		if (!this.values[name]) return undefined;

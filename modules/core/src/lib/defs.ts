@@ -105,37 +105,32 @@ const example: TResolvedFeature = {
 export type TFeatureStep = {
 	path: string;
 	in: string;
-	seqPath: number[];
+	seqPath: TSeqPath;
 	action: TStepAction;
 };
 
+export type TSeqPath = number[];
 export type TStepArgs = Record<string, TStepValueValue>;
 
-export type TAction<Args = TStepArgs> = (args: Args, featureStep: TFeatureStep) => Promise<TActionResult> | TActionResult;
-export type TCheckAction<Args = TStepArgs> = (args: Args, featureStep: TFeatureStep) => Promise<boolean> | boolean;
+export type TAction = (args: TStepArgs, featureStep: TFeatureStep) => Promise<TActionResult> | TActionResult;
+
+export type TCheckAction = (args: TStepArgs, featureStep: TFeatureStep) => Promise<boolean> | boolean;
 
 export type TStepperStep = {
+	description?: string;
 	precludes?: string[];
+	unique?: boolean;
 	expose?: boolean;
 	match?: RegExp;
 	gwta?: string;
 	exact?: string;
-	action: TAction;
-	checkAction?: TCheckAction;
-	applyEffect?: TApplyEffect;
-};
-
-export type TApplyEffect = (args: TStepArgs, featureStep: TFeatureStep, steppers: AStepper[]) => Promise<TFeatureStep[]>;
+	// FIXME Using method syntax for bivariant parameter checking for action & checkAction
+	action(args: TStepArgs, featureStep?: TFeatureStep): Promise<TActionResult> | TActionResult;
+	checkAction?(args: TStepArgs, featureStep: TFeatureStep): Promise<boolean> | boolean;
+}
 
 export interface CStepper {
 	new(): AStepper;
-	prototype: {
-		steps: {
-			[name: string]: TStepperStep;
-		};
-		setWorld(world: TWorld, steppers: AStepper[]): Promise<void>;
-		getWorld(): TWorld;
-	};
 }
 
 export type TSteppers = {
@@ -150,7 +145,7 @@ export type TBeforeStep = { featureStep: TFeatureStep };
 export type TAfterStep = { featureStep: TFeatureStep, actionResult: TStepActionResult };
 export type TFailureArgs = { featureResult: TFeatureResult, failedStep: TStepResult };
 
-export type TAfterStepResult = { rerunStep?: boolean, nextStep?: boolean };
+export type TAfterStepResult = { rerunStep?: boolean, nextStep?: boolean, failed: boolean };
 export interface IStepperCycles {
 	getDomains?(): TDomainDefinition[];
 	startExecution?(features: TStartExecution): Promise<void>;
@@ -188,16 +183,19 @@ export enum Origin {
 	var = 'var',
 	env = 'env',
 	quoted = 'quoted',
-	statement = 'statement'
+	statement = 'statement', // DOMAIN_STATEMENT
 }
 
 export type TOrigin = keyof typeof Origin;
 export type TProvenanceIdentifier = { in?: string; seq: number[], when: string };
-export type TStepValueValue = string | number | TFeatureStep[]
+
+// FIXME: set of by domain value types
+export type TStepValueValue = unknown;
+
 export type TStepValue = {
 	term: string;
 	domain: string;
-	value?: TStepValueValue; // value is added in populateActionArgs
+	value?: TStepValueValue;
 	origin: TOrigin;
 	provenance?: TProvenanceIdentifier[]
 };
@@ -289,13 +287,12 @@ export type TStepResult = {
 	stepActionResult: TStepActionResult;
 	in: string;
 	path: string;
-	seqPath: number[];
+	seqPath: TSeqPath;
 };
 
 export type TRuntime = {
 	backgrounds?: TFeature[];
 	stepResults?: TStepResult[];
-	pendingStepResults?: TStepResult[];
 	[name: string]: TAnyFixme;
 };
 export const HAIBUN = 'HAIBUN';
@@ -320,7 +317,7 @@ export const TEST_BASE = 'test_base';
 export const CONTINUE_AFTER_ERROR = 'CONTINUE_AFTER_ERROR'; export const SCENARIO_START = 'scenario';
 
 export enum ExecMode {
-	CYCLES = 'CYCLES',
+	WITH_CYCLES = 'WITH_CYCLES',
 	NO_CYCLES = 'NO_CYCLES',
 	PROMPT = 'PROMPT',
 }

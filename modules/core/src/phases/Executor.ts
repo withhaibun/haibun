@@ -1,4 +1,4 @@
-import { TFeatureStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, TStepAction, STAY, STAY_FAILURE, CHECK_NO, CHECK_YES, CHECK_YIELD, STEP_DELAY, TNotOKActionResult, CONTINUE_AFTER_ERROR, TEndFeature, StepperMethodArgs, TBeforeStep, TAfterStep, IStepperCycles, ExecMode, TStepArgs, TAfterStepResult, MAYBE_CHECK_YES, MAYBE_CHECK_NO } from '../lib/defs.js';
+import { TFeatureStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, TStepAction, STAY, STAY_FAILURE, CHECK_NO, CHECK_YES, CHECK_YIELD, STEP_DELAY, TNotOKActionResult, CONTINUE_AFTER_ERROR, TEndFeature, StepperMethodArgs, TBeforeStep, TAfterStep, IStepperCycles, ExecMode, TStepArgs, TAfterStepResult, MAYBE_CHECK_YES, MAYBE_CHECK_NO, TSeqPath } from '../lib/defs.js';
 import { TAnyFixme } from '../lib/fixme.js';
 import { AStepper } from '../lib/astepper.js';
 import { EExecutionMessageType, TMessageContext } from '../lib/interfaces/logger.js';
@@ -121,7 +121,6 @@ export class FeatureExecutor {
 			const result = await FeatureExecutor.doFeatureStep(this.steppers, step, world);
 
 			ok = ok && result.ok;
-			world.runtime.stepResults.push(result);
 			if (!ok || result.stepActionResult.messageContext === endExecutonContext) {
 				break;
 			}
@@ -147,14 +146,14 @@ export class FeatureExecutor {
 		return featureResult;
 	}
 
-	static async doFeatureStep(steppers: AStepper[], featureStep: TFeatureStep, world: TWorld, execMode: ExecMode = ExecMode.CYCLES): Promise<TStepResult> {
+	static async doFeatureStep(steppers: AStepper[], featureStep: TFeatureStep, world: TWorld, execMode: ExecMode = ExecMode.WITH_CYCLES): Promise<TStepResult> {
 		let ok = true;
 
 		const { action } = featureStep;
 		const start = Timer.since();
 		const args = await populateActionArgs(featureStep, world, steppers);
 
-		const isFullCycles = execMode === ExecMode.CYCLES;
+		const isFullCycles = execMode === ExecMode.WITH_CYCLES;
 		const isPrompt = execMode === ExecMode.PROMPT;
 
 		let actionResult: TActionResult;
@@ -171,12 +170,20 @@ export class FeatureExecutor {
 				};
 				const messageContext: TMessageContext = { ...baseContext, incident: EExecutionMessageType.STEP_END };
 				world.logger.log((actionResult.ok ? CHECK_YES : `${CHECK_NO} (${(<TNotOKActionResult>actionResult).message})`), messageContext);
+				// Run afterStep cycle first, which may generate child steps
 				const instructions: TAfterStepResult[] = await doStepperCycle(steppers, 'afterStep', <TAfterStep>({ featureStep, actionResult }), action.actionName);
+				// Push result AFTER afterStep so child steps appear before parent in stepResults
+				world.runtime.stepResults.push(stepResultFromActionResult(actionResult, action, start, Timer.since(), featureStep, ok && actionResult.ok));
 				doAction = instructions.some(i => i?.rerunStep);
-				const doNext = instructions.some(i => i?.nextStep);
-				if (doNext) {
-					// wrap the previous actionResult in a new passing actionResult messageContext
-					actionResult = { ...actionResult, ok: true, messageContext: { ...messageContext, incident: EExecutionMessageType.DEBUG, incidentDetails: { nextStep: true } } };
+				const failed = instructions.some(i => i?.failed);
+				if (failed) {
+					ok = false;
+				} else {
+					const doNext = instructions.some(i => i?.nextStep);
+					if (doNext) {
+						// wrap the previous actionResult in a new passing actionResult messageContext
+						actionResult = { ...actionResult, ok: true, messageContext: { ...messageContext, incident: EExecutionMessageType.DEBUG, incidentDetails: { nextStep: true } } };
+					}
 				}
 			}
 		} else {
@@ -194,11 +201,10 @@ export class FeatureExecutor {
 			}
 		}
 
-		const end = Timer.since();
-		const stepActionResult: TStepActionResult = { ...actionResult, name: action.actionName, start, end } as TStepActionResult;
 		ok = ok && actionResult.ok;
+		const stepResult = stepResultFromActionResult(actionResult, action, start, Timer.since(), featureStep, ok);
 
-		return { ok, in: featureStep.in, path: featureStep.path, stepActionResult, seqPath: featureStep.seqPath }
+		return stepResult;
 	}
 }
 
@@ -221,4 +227,28 @@ const doStepperCycle = async <K extends keyof IStepperCycles>(steppers: AStepper
 const addStepperDomains = async (world, steppers: AStepper[]) => {
 	const results = await doStepperCycle(steppers, 'getDomains', undefined);
 	registerDomains(world, results);
+}
+function stepResultFromActionResult(actionResult: TActionResult, action: TStepAction, start: number, end: number, featureStep: TFeatureStep, ok: boolean) {
+	const stepActionResult: TStepActionResult = { ...actionResult, name: action.actionName, start, end } as TStepActionResult;
+	const seqPath = featureStep.seqPath;
+	const stepResult: TStepResult = { in: featureStep.in, path: featureStep.path, ok, stepActionResult, seqPath };
+	return stepResult;
+}
+
+
+export function incSeqPath(withSeqPath: { seqPath: TSeqPath }[], seqPath: TSeqPath, dir = 1): TSeqPath {
+	// add a path to seqpath, then check world.runtime.stepResults to find the next available index accodring to dir
+	const prefix = seqPath.slice(0, -1);
+	// negative seqPath "starts" at -1 and counts down
+	let last = dir === -1 ? -1 : seqPath[seqPath.length - 1];
+	let candidate = [...prefix, last];
+	let found = true;
+	while (found) {
+		found = withSeqPath.some(r => JSON.stringify(r.seqPath) === JSON.stringify(candidate));
+		if (found) {
+			last += dir;
+			candidate = [...prefix, last];
+		}
+	}
+	return candidate;
 }

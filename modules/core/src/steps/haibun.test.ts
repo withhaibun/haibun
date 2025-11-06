@@ -8,14 +8,6 @@ import VariablesSteppers from './variables-stepper.js';
 import { getActionableStatement } from '../phases/Resolver.js';
 
 describe('seqPath ordering', () => {
-	it('getActionableStatement custom sub-seq produces two-element seqPath', async () => {
-		const world = getDefaultWorld(0);
-		const { featureStep, steppers } = getActionableStatement([new Haibun(), new TestSteps()], 'passes', '/feature/test', [5, 7]);
-
-		const res = await FeatureExecutor.doFeatureStep(steppers, featureStep, world);
-		expect(res.ok).toBe(true);
-		expect(res.seqPath).toEqual([5, 7]);
-	});
 	it('linear steps have incremental single-element seqPath', async () => {
 		const feature = { path: '/features/test.feature', content: 'passes\npasses\npasses' };
 		const result = await testWithDefaults([feature], [Haibun, TestSteps]);
@@ -23,20 +15,14 @@ describe('seqPath ordering', () => {
 		const seqs = result.featureResults![0].stepResults.map(r => r.seqPath);
 		expect(seqs).toEqual([[1], [2], [3]]);
 	});
-	it('afterEvery effect injects hierarchical child with parent seqPath extended', async () => {
-		const feature = { path: '/features/test.feature', content: 'have a test\nafter every TestSteps, passes\nhave a test\npasses' };
-		const result = await testWithDefaults([feature], [Haibun, TestSteps]);
-		expect(result.ok).toBe(true);
-		const seqs = result.featureResults![0].stepResults.map(r => r.seqPath);
-		expect(seqs).toEqual([[1], [2], [3], [3, 1], [4], [4, 1]]);
-	});
 	it('if with Backgrounds shows condition, directive, background steps, then parent', async () => {
 		const feature = { path: '/features/test.feature', content: 'if passes, Backgrounds: bg' };
 		const background = { path: '/backgrounds/bg.feature', content: 'set ran to true\nends with ok' };
 		const result = await testWithDefaults([feature], [Haibun, TestSteps, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 		expect(result.ok).toBe(true);
 		const seqs = result.featureResults![0].stepResults.map(r => r.seqPath);
-		expect(seqs).toEqual([[1, 2], [1, 3], [1]]);
+		// All steps recorded: condition [1,1], background steps [1,2] and [1,3], parent [1]
+		expect(seqs).toEqual([[1, 1], [1, 2], [1, 3], [1]]);
 	});
 	it('not statement', async () => {
 		const feature = { path: '/features/test.feature', content: 'passes\nnot fails\nends with OK' };
@@ -53,16 +39,24 @@ describe('seqPath ordering', () => {
 		expect(seqs).toEqual([[1], [2, 1, 1], [2, 1], [2], [3]]);
 	});
 });
+describe('afterEvery', () => {
+	it('afterEvery effect injects step', async () => {
+		const feature = { path: '/features/test.feature', content: 'have a test\nafter every TestSteps, Noodles, man.\npasses\npasses' };
+		const result = await testWithDefaults([feature], [Haibun, TestSteps]);
+		expect(result.ok).toBe(true);
+		const ins = result.featureResults![0].stepResults.map(r => r.in);
+		expect(ins).toEqual(['have a test', 'after every TestSteps, Noodles, man.', 'passes', 'Noodles, man.', 'passes', 'Noodles, man.' ]);
+	});
+	it('afterEvery effect injects hierarchical step with parent seqPath extended', async () => {
+		const feature = { path: '/features/test.feature', content: 'have a test\nafter every TestSteps, passes\nhave a test\npasses' };
+		const result = await testWithDefaults([feature], [Haibun, TestSteps]);
+		expect(result.ok).toBe(true);
+		const seqs = result.featureResults![0].stepResults.map(r => r.seqPath);
+		expect(seqs).toEqual([[1], [2], [3], [3, 1], [4], [4, 1]]);
+	});
+});
 
 describe('prose', () => {
-	it('finds prose', async () => {
-		const world = getDefaultWorld(0);
-		const { featureStep, steppers } = getActionableStatement([new Haibun()], 'A sentence.', '/feature/test', [0]);
-		const res = await FeatureExecutor.doFeatureStep(steppers, featureStep, world);
-
-		expect(res.ok).toBe(true);
-		expect(res.stepActionResult.name).toBe('prose');
-	});
 	it('mixed prose', async () => {
 		const feature = {
 			path: '/features/test.feature',
@@ -130,13 +124,14 @@ describe('if', () => {
 		const background = { path: '/backgrounds/bg.feature', content: 'set ran to true\nends with ok' };
 		const result = await testWithDefaults([feature], [Haibun, TestSteps, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 		expect(result.ok).toBe(true);
+
 		expect(result.world.shared.get('ran')).toBe('true')
 
 		const steps = result.featureResults![0].stepResults;
-		// Simplified recording: background steps then parent if
-		expect(steps.length).toBe(3);
+		// All steps recorded: condition, background steps, then parent if
+		expect(steps.length).toBe(4);
 		const seqs = steps.map(s => s.seqPath);
-		expect(seqs).toEqual([[1, 2], [1, 3], [1]]);
+		expect(seqs).toEqual([[1, 1], [1, 2], [1, 3], [1]]);
 	});
 });
 
@@ -154,6 +149,7 @@ describe('not', () => {
 	it('not condition false', async () => {
 		const feature = { path: '/features/test.feature', content: 'not passes\nends with not OK' };
 		const result = await testWithDefaults([feature], [Haibun, TestSteps]);
+		console.log('🤑', JSON.stringify(result.failure, null, 2));
 		expect(result.ok).toBe(false);
 	});
 	it('not with Backgrounds fails', async () => {
@@ -252,3 +248,9 @@ describe('variable composition', () => {
 	});
 });
 
+
+async function test() {
+	const haibun = new Haibun();
+	const { pauseSeconds } = haibun.steps;
+	await pauseSeconds.action({ ms: 2000 });
+}

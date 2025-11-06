@@ -1,5 +1,5 @@
 import { AStepper } from "./astepper.js";
-import { TFeatureStep, TStepValue, TStepValueValue, TWorld } from "./defs.js";
+import { TFeatureStep, TStepValue, TWorld } from "./defs.js";
 import { DOMAIN_STATEMENT, DOMAIN_STRING, DOMAIN_NUMBER, DOMAIN_JSON } from './domain-types.js';
 import { findFeatureStepsFromStatement } from "./util/featureStep-executor.js";
 
@@ -30,7 +30,7 @@ export const getCoreDomains = (world: TWorld) => ({
 		coerce: (proto: TStepValue, featureStep: TFeatureStep, steppers: AStepper[]) => {
 			const lbl = String(proto.value);
 			const seqStart = featureStep.seqPath;
-			return <TStepValueValue>findFeatureStepsFromStatement(lbl, steppers, world, `<${DOMAIN_STATEMENT}.${lbl}>`, [...seqStart, 0], -1);
+			return findFeatureStepsFromStatement(lbl, steppers, world, `<${DOMAIN_STATEMENT}.${lbl}>`, [...seqStart, 0], -1);
 		}
 	}
 });

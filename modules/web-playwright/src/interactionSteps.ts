@@ -12,7 +12,7 @@ import { actionOK } from "@haibun/core/lib/util/index.js";
 import { pathToFileURL } from 'node:url';
 import { TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { provenanceFromFeatureStep } from "@haibun/core/steps/variables-stepper.js";
-import { doExecuteFeatureSteps } from "@haibun/core/lib/util/featureStep-executor.js";
+import { executeFeatureSteps } from "@haibun/core/lib/util/featureStep-executor.js";
 
 const DOMAIN_STRING_OR_PAGE_LOCATOR = `${DOMAIN_STRING} | ${DOMAIN_PAGE_LOCATOR}`;
 
@@ -225,7 +225,7 @@ export const interactionSteps = (wp: WebPlaywright): TStepperSteps => ({
 			return await wp.withPage(async (page: Page) => {
 				const containerLocator = locateByDomain(page, featureStep, 'container');
 				wp.inContainer = containerLocator;
-				const whenResult = await doExecuteFeatureSteps(what, [wp], wp.getWorld(), ExecMode.CYCLES);
+				const whenResult = await executeFeatureSteps(what, [wp], wp.getWorld(), ExecMode.WITH_CYCLES);
 				wp.inContainer = undefined;
 				return whenResult;
 			});
