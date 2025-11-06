@@ -170,10 +170,9 @@ export class FeatureExecutor {
 				};
 				const messageContext: TMessageContext = { ...baseContext, incident: EExecutionMessageType.STEP_END };
 				world.logger.log((actionResult.ok ? CHECK_YES : `${CHECK_NO} (${(<TNotOKActionResult>actionResult).message})`), messageContext);
-				// Run afterStep cycle first, which may generate child steps
-				const instructions: TAfterStepResult[] = await doStepperCycle(steppers, 'afterStep', <TAfterStep>({ featureStep, actionResult }), action.actionName);
-				// Push result AFTER afterStep so child steps appear before parent in stepResults
+				// Push result BEFORE afterStep so parent appears before afterEvery child steps
 				world.runtime.stepResults.push(stepResultFromActionResult(actionResult, action, start, Timer.since(), featureStep, ok && actionResult.ok));
+				const instructions: TAfterStepResult[] = await doStepperCycle(steppers, 'afterStep', <TAfterStep>({ featureStep, actionResult }), action.actionName);
 				doAction = instructions.some(i => i?.rerunStep);
 				const failed = instructions.some(i => i?.failed);
 				if (failed) {

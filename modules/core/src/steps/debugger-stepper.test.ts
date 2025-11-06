@@ -84,8 +84,8 @@ describe('DebuggerStepper sequence integration', () => {
 		const feature = { path: '/features/test.feature', content: 'fails' };
 		const res = await testWithWorld(world, [feature], [DebuggerStepper, TestSteps, Haibun]);
 		expect(res.ok).toBe(true); // 'next' allows continuation
-		// [1,1] comment 1, [1,2] comment 2, [1,3] next (exits loop), [1] failed step
+		// [1] failed step, [1,1] comment 1, [1,2] comment 2, [1,3] next (exits loop)
 		const seqs = res.featureResults![0].stepResults.map(r => r.seqPath);
-		expect(seqs).toEqual([[1,1], [1,2], [1,3], [1]]);
+		expect(seqs).toEqual([[1], [1,1], [1,2], [1,3]]);
 	});
 });
