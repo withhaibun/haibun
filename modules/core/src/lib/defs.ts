@@ -114,8 +114,6 @@ export type TStepArgs = Record<string, TStepValueValue>;
 
 export type TAction = (args: TStepArgs, featureStep: TFeatureStep) => Promise<TActionResult> | TActionResult;
 
-export type TCheckAction = (args: TStepArgs, featureStep: TFeatureStep) => Promise<boolean> | boolean;
-
 export type TStepperStep = {
 	description?: string;
 	precludes?: string[];
@@ -124,9 +122,8 @@ export type TStepperStep = {
 	match?: RegExp;
 	gwta?: string;
 	exact?: string;
-	// FIXME Using method syntax for bivariant parameter checking for action & checkAction
+	// FIXME Using method syntax for bivariant parameter checking for action
 	action(args: TStepArgs, featureStep?: TFeatureStep): Promise<TActionResult> | TActionResult;
-	checkAction?(args: TStepArgs, featureStep: TFeatureStep): Promise<boolean> | boolean;
 }
 
 export interface CStepper {

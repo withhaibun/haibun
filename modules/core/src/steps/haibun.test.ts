@@ -169,6 +169,42 @@ describe('not', () => {
 		const result = await testWithDefaults([feature], [Haibun, TestSteps, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 		expect(result.ok).toBe(false);
 	});
+	it('invalid background fails during Resolve', async () => {
+		const feature = { path: '/features/test.feature', content: 'if passes, Backgrounds: nonexistent' };
+		const result = await testWithDefaults([feature], [Haibun, TestSteps, VariablesSteppers], DEF_PROTO_OPTIONS, []);
+		expect(result.ok).toBe(false);
+		expect(result.failure?.stage).toBe('Resolve');
+		expect(result.failure?.error.message).toMatch(/can't find single "nonexistent.feature"/);
+	});
+	it('simple Backgrounds fails during Expand', async () => {
+		const feature = { path: '/features/test.feature', content: 'Backgrounds: missing' };
+		const result = await testWithDefaults([feature], [Haibun, TestSteps, VariablesSteppers], DEF_PROTO_OPTIONS, []);
+		expect(result.ok).toBe(false);
+		expect(result.failure?.stage).toBe('Expand');
+		expect(result.failure?.error.message).toMatch(/can't find single "missing.feature"/);
+	});
+	it('not invalid Backgrounds fails during Resolve', async () => {
+		const feature = { path: '/features/test.feature', content: 'not Backgrounds: nowhere' };
+		const result = await testWithDefaults([feature], [Haibun, TestSteps, VariablesSteppers], DEF_PROTO_OPTIONS, []);
+		expect(result.ok).toBe(false);
+		expect(result.failure?.stage).toBe('Resolve');
+		expect(result.failure?.error.message).toMatch(/can't find single "nowhere.feature"/);
+	});
+	it('background steps have correct file path', async () => {
+		const feature = { path: '/features/test.feature', content: 'if passes, Backgrounds: bg' };
+		const background = { path: '/backgrounds/bg.feature', content: 'set ran to true\nends with ok' };
+		const result = await testWithDefaults([feature], [Haibun, TestSteps, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
+		expect(result.ok).toBe(true);
+
+		const paths = result.featureResults![0].stepResults.map(r => r.path);
+		// Condition step (from feature), two background steps (from bg.feature), then parent if (from feature)
+		expect(paths).toEqual([
+			'/features/test.feature',  // condition: "passes"
+			'/backgrounds/bg.feature',  // background step: "set ran to true"
+			'/backgrounds/bg.feature',  // background step: "ends with ok"
+			'/features/test.feature'    // parent if
+		]);
+	});
 });
 
 
@@ -296,11 +332,4 @@ describe('variable composition', () => {
 		expect(seqs).toEqual([[1,1,1], [1,1,2,-1], [1,1,2,1,-1,-1], [1,1,2,1,-1], [1,1,2,1], [1,1,2]]);
 		expect(seqs.length).toBe(6);
 	});
-});
-
-
-async function test() {
-	const haibun = new Haibun();
-	const { pauseSeconds } = haibun.steps;
-	await pauseSeconds.action({ ms: 2000 });
-}
+	});

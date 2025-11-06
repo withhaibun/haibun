@@ -30,7 +30,8 @@ export const getCoreDomains = (world: TWorld) => ({
 		coerce: (proto: TStepValue, featureStep: TFeatureStep, steppers: AStepper[]) => {
 			const lbl = String(proto.value);
 			const seqStart = featureStep.seqPath;
-			return findFeatureStepsFromStatement(lbl, steppers, world, `<${DOMAIN_STATEMENT}.${lbl}>`, [...seqStart, 0], -1);
+			// Use the featureStep's path as the base so non-background statements get the correct path
+			return findFeatureStepsFromStatement(lbl, steppers, world, featureStep.path, [...seqStart, 0], -1);
 		}
 	}
 });

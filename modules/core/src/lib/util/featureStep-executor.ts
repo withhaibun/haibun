@@ -39,7 +39,7 @@ export async function executeFeatureSteps(featureSteps: TFeatureStep[], steppers
 
 	for (const x of featureSteps) {
 		lastResult = await FeatureExecutor.doFeatureStep(steppers, x, world, execMode);
-		
+
 		// Push to stepResults if not already pushed (doFeatureStep pushes when WITH_CYCLES)
 		if (execMode !== ExecMode.WITH_CYCLES) {
 			world.runtime.stepResults.push(lastResult);
@@ -57,8 +57,11 @@ export function findFeatureStepsFromStatement(statement: string, steppers: AStep
 	if (!world.runtime.backgrounds) {
 		throw new Error('runtime.backgrounds is undefined; cannot expand inline Backgrounds');
 	}
-	const backgroundFeature: TFeature = { path: `<from ${statement}>`, base, name: 'inline-backgrounds', content: `Backgrounds: ${statement}` };
-	const expanded = expandLine(statement, world.runtime.backgrounds, backgroundFeature);
+	// For expandLine, we need to provide a feature context. If the statement is a Backgrounds: directive,
+	// expandLine will ignore this feature and use the actual background files. If it's a regular statement,
+	// expandLine will use this feature's path. So we pass the base (feature path) here.
+	const contextFeature: TFeature = { path: base, base, name: 'statement-context', content: statement };
+	const expanded = expandLine(statement, world.runtime.backgrounds, contextFeature);
 	// Increment the last segment of seqStart by inc for each expanded step
 	const prefix = seqStart.slice(0, -1);
 	let latest = seqStart[seqStart.length - 1];

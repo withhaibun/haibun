@@ -1,7 +1,7 @@
-import { OK, TFeatureStep, STEP_DELAY, TWorld, ExecMode, TStepResult, TCheckAction, IStepperCycles } from '../lib/defs.js';
+import { OK, TFeatureStep, STEP_DELAY, TWorld, ExecMode, TStepResult, IStepperCycles } from '../lib/defs.js';
 import { AStepper, TStepperSteps } from '../lib/astepper.js';
 import { actionNotOK, actionOK, formattedSteppers, sleep } from '../lib/util/index.js';
-import { executeSubFeatureSteps } from '../lib/util/featureStep-executor.js';
+import { executeSubFeatureSteps, findFeatureStepsFromStatement } from '../lib/util/featureStep-executor.js';
 import { EExecutionMessageType, TMessageContext } from '../lib/interfaces/logger.js';
 import { endExecutonContext } from '../phases/Executor.js';
 import { DOMAIN_STATEMENT } from '../lib/domain-types.js';
@@ -110,6 +110,17 @@ class Haibun extends AStepper {
 			}),
 		},
 
+		backgrounds: {
+			gwta: 'Backgrounds: {names}',
+			action: async ({ names }: { names: string }, featureStep: TFeatureStep) => {
+				// Expand backgrounds at runtime using world.runtime.backgrounds
+				const world = this.getWorld();
+				const expanded = findFeatureStepsFromStatement(names, this.steppers, world, featureStep.path, featureStep.seqPath, 1);
+				const result = await executeSubFeatureSteps(featureStep, expanded, this.steppers, world, ExecMode.WITH_CYCLES);
+				return result.ok ? OK : actionNotOK('backgrounds failed');
+			},
+		},
+
 		prose: {
 			match: /.+[.!?]$/,
 			precludes: [`Haibun.and`, `Haibun.or`],
@@ -133,10 +144,6 @@ class Haibun extends AStepper {
 		endsWith: {
 			gwta: 'ends with {result}',
 			action: (({ result }: { result: string }) => (result.toUpperCase() === 'OK' ? actionOK({ messageContext: endExecutonContext }) : actionNotOK('ends with not ok'))),
-			checkAction: (({ result }: { result: string }) => {
-				if (['OK', 'NOT OK'].includes(result.toUpperCase())) return true;
-				throw Error('must be "OK" or "not OK"');
-			}) as TCheckAction,
 		},
 		showSteps: {
 			exact: 'show steppers',
@@ -167,10 +174,6 @@ class Haibun extends AStepper {
 			action: ({ stepperName, statement }: { stepperName: string; statement: TFeatureStep[] }) => {
 				this.afterEverySteps[stepperName] = statement;
 				return OK;
-			},
-			checkAction: () => {
-				// this will throw an exception if statement isn't valid
-				return true;
 			},
 		},
 	};

@@ -36,7 +36,7 @@ export const getResolvedTestFeatures = async (f: TProtoFeature, b: TProtoFeature
 	const backgrounds = asFeatures(b);
 	const steppers = await createSteppers(steppersIn);
 	const expandedFeatures = await expand({ backgrounds, features });
-	const resolver = new Resolver(steppers);
+	const resolver = new Resolver(steppers, backgrounds);
 
 	const resolvedFeatures = await resolver.resolveStepsFromFeatures(expandedFeatures);
 	return resolvedFeatures;

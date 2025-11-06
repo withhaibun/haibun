@@ -1,14 +1,31 @@
-import { TStepAction, TResolvedFeature, OK, TExpandedFeature, TStepperStep, TFeatureStep, TExpandedLine, TStepArgs, TStepValue } from '../lib/defs.js';
+import { TStepAction, TResolvedFeature, OK, TExpandedFeature, TStepperStep, TFeatureStep, TExpandedLine, TStepValue, TFeatures } from '../lib/defs.js';
 import { AStepper } from '../lib/astepper.js';
 import { BASE_TYPES } from '../lib/domain-types.js';
 import { matchGwtaToAction, getMatch } from '../lib/namedVars.js';
 import { getActionable, dePolite, constructorName } from '../lib/util/index.js';
+import { findFeatures } from '../lib/features.js';
 
 export class Resolver {
 	types: string[];
 
-	constructor(private steppers: AStepper[]) {
+	constructor(private steppers: AStepper[], private backgrounds: TFeatures = []) {
 		this.types = BASE_TYPES;
+	}
+
+	private validateBackgroundsPattern(rawStatement: string): void {
+		if (!rawStatement.match(/^Backgrounds:\s*/i)) {
+			return;
+		}
+
+		const names = rawStatement.replace(/^Backgrounds:\s*/i, '').trim();
+		const bgNames = names.split(',').map((a) => a.trim());
+
+		for (const bgName of bgNames) {
+			const bg = findFeatures(bgName, this.backgrounds);
+			if (bg.length !== 1) {
+				throw new Error(`can't find single "${bgName}.feature" from ${this.backgrounds.map((b) => b.path).join(', ')}`);
+			}
+		}
 	}
 
 	public async resolveStepsFromFeatures(features: TExpandedFeature[]) {
@@ -32,23 +49,26 @@ export class Resolver {
 
 			try {
 				const stepAction = this.findSingleStepAction(actionable);
+
+				// Validate Backgrounds: statements during Resolve (not just in DOMAIN_STATEMENT)
+				this.validateBackgroundsPattern(actionable);
+
 				// stepValuesMap is attached to stepAction for downstream processing
 				// Early validation for statement-typed placeholders using their label value
 				if (stepAction.stepValuesMap) {
 					const statements = Object.values(stepAction.stepValuesMap).filter((v: TStepValue & { label?: string }) => v.domain === 'statement' && v.term);
 					for (const ph of statements) {
 						const rawVal = ph.term!;
-						if (rawVal.trim().startsWith('Backgrounds:')) continue; // skip inline backgrounds directive
-						try { this.findSingleStepAction(rawVal); } catch (e) { throw Error(`statement '${rawVal}' invalid: ${e.message}`); }
+						try {
+							this.findSingleStepAction(rawVal);
+							this.validateBackgroundsPattern(rawVal);
+						} catch (e) {
+							throw Error(`statement '${rawVal}' invalid: ${e.message}`);
+						}
 					}
 				}
 
 				const featureStep = this.getFeatureStep(featureLine, seq, stepAction);
-				if (stepAction.step.checkAction) {
-					const named = Object.fromEntries(Object.entries(stepAction.stepValuesMap || {}).map(([k, v]) => [k, v.value ?? v.term ?? ''])) as TStepArgs;
-					const valid = await stepAction.step.checkAction(named, featureStep);
-					if (valid === false) throw Error('checkAction failed');
-				}
 				featureSteps.push(featureStep);
 			} catch (e) {
 				throw Error(`findFeatureStep for "${featureLine.line}": ${e.message}in ${feature.path}\nUse --show-steppers for more details`);
