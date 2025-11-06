@@ -44,7 +44,7 @@ class Haibun extends AStepper {
 		not: {
 			gwta: `not {statements:${DOMAIN_STATEMENT}}`,
 			action: async ({ statements }: { statements: TFeatureStep[] }, featureStep: TFeatureStep) => {
-				const lastResult = await executeSubFeatureSteps(featureStep, statements, this.steppers, this.getWorld(), ExecMode.NO_CYCLES);
+				const lastResult = await executeSubFeatureSteps(featureStep, statements, this.steppers, this.getWorld(), ExecMode.NO_CYCLES, -1);
 
 				// Negation: action is OK if the inner statement failed (was NOT true)
 				return lastResult.ok ? actionNotOK('not statement was true (failed negation)') : OK;
@@ -56,16 +56,16 @@ class Haibun extends AStepper {
 			gwta: `if {ifStatements:${DOMAIN_STATEMENT}}, {thenStatements:${DOMAIN_STATEMENT}}`,
 			action: async ({ ifStatements, thenStatements }: { ifStatements: TFeatureStep[], thenStatements: TFeatureStep[] }, featureStep: TFeatureStep) => {
 
-				// 1. Evaluate Antecedent (WHEN)
-				const ifResult = await executeSubFeatureSteps(featureStep, ifStatements, this.steppers, this.getWorld(), ExecMode.NO_CYCLES);
+				// 1. Evaluate Antecedent (WHEN) - use dir=-1 for condition evaluation
+				const ifResult = await executeSubFeatureSteps(featureStep, ifStatements, this.steppers, this.getWorld(), ExecMode.NO_CYCLES, -1);
 
 				// If antecedent fails, the implication is true (vacuously true: F => T/F), so we return OK.
 				if (!ifResult.ok) {
 					return OK;
 				}
 
-				// 2. Evaluate Consequent (THEN)
-				const ifThenResult = await executeSubFeatureSteps(featureStep, thenStatements, this.steppers, this.getWorld(), ExecMode.WITH_CYCLES);
+				// 2. Evaluate Consequent (THEN) - use dir=1 for body execution
+				const ifThenResult = await executeSubFeatureSteps(featureStep, thenStatements, this.steppers, this.getWorld(), ExecMode.WITH_CYCLES, 1);
 
 				// Consequent must succeed to prove the implication is true (T => T)
 				return ifThenResult.ok ? OK : actionNotOK('if antecedent was TRUE, but consequent failed');

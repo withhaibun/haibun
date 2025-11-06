@@ -8,12 +8,17 @@ import VariablesSteppers from './variables-stepper.js';
 import { getActionableStatement } from '../phases/Resolver.js';
 
 describe('seqPath ordering', () => {
+	// seqPath format: [featureNum, scenarioNum, ...stepPath]
+	// featureNum: 1-based feature number
+	// scenarioNum: 1-based scenario number (1 when no scenario declared)
+	// stepPath: hierarchical step numbering with negative numbers for conditions
+
 	it('linear steps have incremental single-element seqPath', async () => {
 		const feature = { path: '/features/test.feature', content: 'passes\npasses\npasses' };
 		const result = await testWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(true);
 		const seqs = result.featureResults![0].stepResults.map(r => r.seqPath);
-		expect(seqs).toEqual([[1], [2], [3]]);
+		expect(seqs).toEqual([[1,1,1], [1,1,2], [1,1,3]]);
 	});
 	it('if with Backgrounds shows condition, directive, background steps, then parent', async () => {
 		const feature = { path: '/features/test.feature', content: 'if passes, Backgrounds: bg' };
@@ -21,22 +26,22 @@ describe('seqPath ordering', () => {
 		const result = await testWithDefaults([feature], [Haibun, TestSteps, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 		expect(result.ok).toBe(true);
 		const seqs = result.featureResults![0].stepResults.map(r => r.seqPath);
-		// All steps recorded: condition [1,1], background steps [1,2] and [1,3], parent [1]
-		expect(seqs).toEqual([[1, 1], [1, 2], [1, 3], [1]]);
+		// Condition uses dir=-1, body uses dir=1: condition [1,1,1,-1], background steps [1,1,1,1] and [1,1,1,2], parent [1,1,1]
+		expect(seqs).toEqual([[1,1,1,-1], [1,1,1,1], [1,1,1,2], [1,1,1]]);
 	});
 	it('not statement', async () => {
 		const feature = { path: '/features/test.feature', content: 'passes\nnot fails\nends with OK' };
 		const result = await testWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(true);
 		const seqs = result.featureResults![0].stepResults.map(r => r.seqPath);
-		expect(seqs).toEqual([[1], [2, 1], [2], [3]]);
+		expect(seqs).toEqual([[1,1,1], [1,1,2,-1], [1,1,2], [1,1,3]]);
 	});
 	it('not not statement', async () => {
 		const feature = { path: '/features/test.feature', content: 'passes\nnot not passes\nends with OK' };
 		const result = await testWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(true);
 		const seqs = result.featureResults![0].stepResults.map(r => r.seqPath);
-		expect(seqs).toEqual([[1], [2, 1, 1], [2, 1], [2], [3]]);
+		expect(seqs).toEqual([[1,1,1], [1,1,2,-1,-1], [1,1,2,-1], [1,1,2], [1,1,3]]);
 	});
 });
 describe('afterEvery', () => {
@@ -52,7 +57,7 @@ describe('afterEvery', () => {
 		const result = await testWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(true);
 		const seqs = result.featureResults![0].stepResults.map(r => r.seqPath);
-		expect(seqs).toEqual([[1], [2], [3], [3, 1], [4], [4, 1]]);
+		expect(seqs).toEqual([[1,1,1], [1,1,2], [1,1,3], [1,1,3,1], [1,1,4], [1,1,4,1]]);
 	});
 });
 
@@ -131,7 +136,7 @@ describe('if', () => {
 		// All steps recorded: condition, background steps, then parent if
 		expect(steps.length).toBe(4);
 		const seqs = steps.map(s => s.seqPath);
-		expect(seqs).toEqual([[1, 1], [1, 2], [1, 3], [1]]);
+		expect(seqs).toEqual([[1,1,1,-1], [1,1,1,1], [1,1,1,2], [1,1,1]]);
 	});
 });
 
@@ -202,7 +207,7 @@ describe('variable composition', () => {
 		expect(result.ok).toBe(true);
 		const seqs = result.featureResults![0].stepResults.map(r => r.seqPath);
 		// nested variable check then parent not then ends with
-		expect(seqs).toEqual([[1, 1], [1]]);
+		expect(seqs).toEqual([[1,1,1,-1], [1,1,1]]);
 	});
 	it('not variable set is set fails', async () => {
 		const feature = { path: '/features/test.feature', content: 'set wtw to 5\nnot variable "wtw" is set' };
@@ -245,6 +250,51 @@ describe('variable composition', () => {
 		const feature = { path: '/features/test.feature', content: 'set foo to 7\nvariable "foo" is "7"' };
 		const result = await testWithDefaults([feature], [Haibun, TestSteps, VariablesSteppers]);
 		expect(result.ok).toBe(true);
+	});
+
+	it('deeply nested negation with variable "who" demonstrates seqPath hierarchy', async () => {
+		// Tests that nested negations properly extend seqPath with -1 at each level.
+		// Validates the complete execution trace through four meta-levels.
+		const feature = {
+			path: '/features/test.feature',
+			content: 'set who to "there"\nnot not not not variable "who" is "there"'
+		};
+		const result = await testWithDefaults([feature], [Haibun, TestSteps, VariablesSteppers]);
+		expect(result.ok).toBe(true);
+
+		const seqs = result.featureResults![0].stepResults.map(r => r.seqPath);
+		// Verifies seqPath structure through recursive descent and ascent:
+		// [1,1,1] - variable assignment
+		// [1,1,2,-1,-1,-1,-1] - innermost condition evaluation
+		// [1,1,2,-1,-1,-1] - third negation layer
+		// [1,1,2,-1,-1] - second negation layer
+		// [1,1,2,-1] - first negation layer
+		// [1,1,2] - final statement resolution
+		expect(seqs).toEqual([[1,1,1], [1,1,2,-1,-1,-1,-1], [1,1,2,-1,-1,-1], [1,1,2,-1,-1], [1,1,2,-1], [1,1,2]]);
+		expect(seqs.length).toBe(6);
+	});
+
+	it('if-not-if demonstrates nested conditional evaluation with contradictory conditions', async () => {
+		// Tests behavior when outer if condition succeeds but inner if condition
+		// contradicts it. Verifies that inner if with false condition succeeds vacuously
+		// and that all conditions and resolutions are recorded in stepResults.
+		const feature = {
+			path: '/features/test.feature',
+			content: 'set who to "there"\nif variable "who" is "there", if not variable "who" is "there", passes'
+		};
+		const result = await testWithDefaults([feature], [Haibun, TestSteps, VariablesSteppers]);
+		expect(result.ok).toBe(true); // outer succeeds, inner condition fails but if succeeds, body never runs
+
+		const seqs = result.featureResults![0].stepResults.map(r => r.seqPath);
+		// Validates complete execution trace with nested conditions:
+		// [1,1,1] - variable assignment
+		// [1,1,2,-1] - outer if condition evaluation (succeeds)
+		// [1,1,2,1,-1,-1] - inner not's deepest evaluation
+		// [1,1,2,1,-1] - inner not resolution (evaluates to false)
+		// [1,1,2,1] - inner if resolution (condition false, succeeds without executing body)
+		// [1,1,2] - outer if resolution (consequence executed successfully)
+		expect(seqs).toEqual([[1,1,1], [1,1,2,-1], [1,1,2,1,-1,-1], [1,1,2,1,-1], [1,1,2,1], [1,1,2]]);
+		expect(seqs.length).toBe(6);
 	});
 });
 

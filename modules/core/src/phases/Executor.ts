@@ -118,7 +118,14 @@ export class FeatureExecutor {
 				await doStepperCycle(this.steppers, 'startScenario', { featureVars });
 			}
 
-			const result = await FeatureExecutor.doFeatureStep(this.steppers, step, world);
+			// Prepend feature number and scenario number to seqPath
+			// Use 1-based scenario numbering in seqPath (currentScenario 0 becomes 1, etc.)
+			const augmentedStep = {
+				...step,
+				seqPath: [world.tag.featureNum, currentScenario + 1, ...step.seqPath]
+			};
+
+			const result = await FeatureExecutor.doFeatureStep(this.steppers, augmentedStep, world);
 
 			ok = ok && result.ok;
 			if (!ok || result.stepActionResult.messageContext === endExecutonContext) {
