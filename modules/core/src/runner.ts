@@ -30,7 +30,7 @@ export class Runner {
 	async run(steppers: string[], featureFilter = []): Promise<TExecutorResult> {
 		let featuresBackgrounds: TFeaturesBackgrounds = undefined;
 		try {
-			featuresBackgrounds = getFeaturesAndBackgrounds(this.world.bases, featureFilter);
+			featuresBackgrounds = await getFeaturesAndBackgrounds(this.world.bases, featureFilter);
 		} catch (error) {
 			this.errorBail('Collector', error);
 		}
