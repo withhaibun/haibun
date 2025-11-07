@@ -26,23 +26,23 @@ class MockFS {
 const nfs = (files: object) => <TFileSystem>(new MockFS(files) as unknown);
 
 describe('getFeaturesAndBackgrounds', () => {
-	it('directory does not exist', () => {
-		expect(() => getFeaturesAndBackgrounds(['/'], [], { existsSync: () => false })).toThrow();
+	it('directory does not exist', async () => {
+		await expect(getFeaturesAndBackgrounds(['/'], [], { existsSync: () => false })).rejects.toThrow();
 	});
-	it('no features or backgrounds', () => {
-		expect(() => getFeaturesAndBackgrounds(['/'], [], { existsSync: () => true })).toThrow();
+	it('no features or backgrounds', async () => {
+		await expect(getFeaturesAndBackgrounds(['/'], [], { existsSync: () => true, readdirSync: () => [] })).rejects.toThrow();
 	});
-	it('no features', () => {
-		expect(() => getFeaturesAndBackgrounds(['/0'], [], nfs({ '/0/backgrounds': { 'a.feature': '#' } }))).toThrow();
+	it('no features', async () => {
+		await expect(getFeaturesAndBackgrounds(['/0'], [], nfs({ '/0/backgrounds': { 'a.feature': '#' } }))).rejects.toThrow();
 	});
-	it('gets features', () => {
-		expect(getFeaturesAndBackgrounds(['/0'], [], nfs({ '/0/features': { 'a.feature': '#' } }))).toEqual({
+	it('gets features', async () => {
+		expect(await getFeaturesAndBackgrounds(['/0'], [], nfs({ '/0/features': { 'a.feature': '#' } }))).toEqual({
 			features: [{ base: '/0', path: '/features/a.feature', name: '/0/features/a', type: 'feature', content: '#' }],
 			backgrounds: [],
 		});
 	});
-	it('gets features and backgrounds', () => {
-		const res = getFeaturesAndBackgrounds(
+	it('gets features and backgrounds', async () => {
+		const res = await getFeaturesAndBackgrounds(
 			['/0'],
 			[],
 			nfs({ '/0/features': { 'a.feature': '#' }, '/0/backgrounds': { 'b.feature': '#' } })
@@ -53,12 +53,12 @@ describe('getFeaturesAndBackgrounds', () => {
 		});
 	});
 
-	it('multi-base no features or backgrounds', () => {
-		expect(() => getFeaturesAndBackgrounds(['/,x'], [], { existsSync: () => true })).toThrow();
+	it('multi-base no features or backgrounds', async () => {
+		await expect(getFeaturesAndBackgrounds(['/,x'], [], { existsSync: () => true, readdirSync: () => [] })).rejects.toThrow();
 	});
-	it('multi-base gets features', () => {
+	it('multi-base gets features', async () => {
 		expect(
-			getFeaturesAndBackgrounds(
+			await getFeaturesAndBackgrounds(
 				basesFrom('/0,/1'),
 				[],
 				nfs({ '/0/features': { 'a.feature': '#' }, '/1/features': { 'b.feature': '#' } })
@@ -71,24 +71,24 @@ describe('getFeaturesAndBackgrounds', () => {
 			backgrounds: [],
 		});
 	});
-	it('multi-base no features', () => {
-		expect(() =>
+	it('multi-base no features', async () => {
+		await expect(
 			getFeaturesAndBackgrounds(
 				'/0,/1'.split(','),
 				[],
 				nfs({ '/0/backgrounds': { 'a.feature': '#' }, '/1/backgrounds': { 'a.feature': '#' } })
 			)
-		).toThrow();
+		).rejects.toThrow();
 	});
-	it('multi-base no features or backgrounds from first dir', () => {
-		expect(() => getFeaturesAndBackgrounds(basesFrom('/0,/1'), [], nfs({ '/1/backgrounds': { 'a.feature': '#' } }))).toThrow();
+	it('multi-base no features or backgrounds from first dir', async () => {
+		await expect(getFeaturesAndBackgrounds(basesFrom('/0,/1'), [], nfs({ '/1/backgrounds': { 'a.feature': '#' } }))).rejects.toThrow();
 	});
-	it('multi-base no features or backgrounds from second dir', () => {
-		expect(() => getFeaturesAndBackgrounds(basesFrom('/0,/1'), [], nfs({ '/0/backgrounds': { 'a.feature': '#' } }))).toThrow();
+	it('multi-base no features or backgrounds from second dir', async () => {
+		await expect(getFeaturesAndBackgrounds(basesFrom('/0,/1'), [], nfs({ '/0/backgrounds': { 'a.feature': '#' } }))).rejects.toThrow();
 	});
-	it('multi-base get features and backgrounds', () => {
+	it('multi-base get features and backgrounds', async () => {
 		expect(
-			getFeaturesAndBackgrounds(
+			await getFeaturesAndBackgrounds(
 				basesFrom('/0,/1'),
 				[],
 				nfs({ '/0/backgrounds': { 'a.feature': '#' }, '/1/features': { 'b.feature': '#' } })
