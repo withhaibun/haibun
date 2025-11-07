@@ -3,29 +3,30 @@ import { withAction } from './withAction.js';
 import { toBdd, fromBdd } from './converter.js';
 import { AStepper } from '../lib/astepper.js';
 import { OK } from '../lib/defs.js';
+import { CombinedStepper } from './stepper-utils.js';
 
 // A mock stepper for testing purposes
 class TestStepper extends AStepper {
   steps = {
     set: {
       gwta: 'set {what} to {value}',
-      action: async () => OK,
+      action: () => Promise.resolve(OK),
     },
     doSomething: {
       gwta: 'do something',
-      action: async () => OK,
+      action: () => Promise.resolve(OK),
     },
     registerOutcome: {
       gwta: 'outcome {outcome}',
-      action: async () => OK,
+      action: () => Promise.resolve(OK),
     },
     ensure: {
       gwta: 'ensure {outcome}',
-      action: async () => OK,
+      action: () => Promise.resolve(OK),
     },
     not: {
         gwta: 'not {statement}',
-        action: async () => OK,
+        action: () => Promise.resolve(OK),
     }
   };
 }
@@ -34,15 +35,8 @@ class ProseStepper extends AStepper {
     steps = {
         prose: {
             gwta: 'prose: {prose}',
-            action: async () => OK,
+            action: () => Promise.resolve(OK),
         }
-    }
-}
-
-class CombinedStepper extends AStepper {
-    constructor(steppers: AStepper[]) {
-        super();
-        this.steps = steppers.reduce((acc, stepper) => ({ ...acc, ...stepper.steps }), {});
     }
 }
 
@@ -61,7 +55,7 @@ describe('withAction', () => {
   });
 
   it('should throw an error if a required argument is missing', () => {
-    // @ts-expect-error
+    // @ts-expect-error - Verifying missing argument detection
     expect(() => set({ what: 'sound' })).toThrow('Missing argument "value" for action "set"');
   });
 

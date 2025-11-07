@@ -1,9 +1,11 @@
 import { AStepper } from '../lib/astepper.js';
 import { Resolver } from '../phases/Resolver.js';
+import { TActionExecutor } from './withAction.js';
+import { CombinedStepper } from './stepper-utils.js';
 
-// The structure of a jsprolog feature
+// The structure of a jsprolog feature, using the ActionExecutor for type safety.
 type TJsPrologFeature = {
-  [key: string]: (() => any)[];
+  [key: string]: TActionExecutor<string>[];
 };
 
 export const toBdd = (feature: TJsPrologFeature): string => {
@@ -40,17 +42,14 @@ export const fromBdd = async (bdd: string, steppers: AStepper[]): Promise<TJsPro
                 args[key] = stepValuesMap[key].term;
             }
         }
-        return actions[actionName](args);
+        const actionFunction = actions[actionName];
+        if (!actionFunction) {
+            throw new Error(`Action "${actionName}" not found in provided steppers.`);
+        }
+        return actionFunction(args);
     });
 
     return {
         [featureName]: jsprologSteps,
     };
-}
-
-class CombinedStepper extends AStepper {
-    constructor(steppers: AStepper[]) {
-        super();
-        this.steps = steppers.reduce((acc, stepper) => ({ ...acc, ...stepper.steps }), {});
-    }
 }
