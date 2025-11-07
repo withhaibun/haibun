@@ -34,7 +34,7 @@ export type TActionExecutor<S extends string> = () => {
   gwta: string;
 };
 
-type TCurriedAction<S extends string> = (args: TActionArgs<S>) => TActionExecutor<S>;
+export type TCurriedAction<S extends string> = (args: TActionArgs<S>) => TActionExecutor<S>;
 
 type TActionsFromStepper<S extends TStepperSteps> = {
   [K in keyof S]: S[K] extends { gwta: infer G }

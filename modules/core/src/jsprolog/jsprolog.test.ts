@@ -41,6 +41,7 @@ class ProseStepper extends AStepper {
 }
 
 const stepper = new CombinedStepper([new TestStepper(), new ProseStepper()]);
+stepper.init();
 
 describe('withAction', () => {
   const { set, doSomething, registerOutcome, ensure, not, prose } = withAction(stepper);

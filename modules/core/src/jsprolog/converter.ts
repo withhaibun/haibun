@@ -1,6 +1,6 @@
 import { AStepper } from '../lib/astepper.js';
 import { Resolver } from '../phases/Resolver.js';
-import { TActionExecutor } from './withAction.js';
+import { TActionExecutor, TCurriedAction } from './withAction.js';
 import { CombinedStepper } from './stepper-utils.js';
 
 // The structure of a jsprolog feature, using the ActionExecutor for type safety.
@@ -31,12 +31,14 @@ export const fromBdd = async (bdd: string, steppers: AStepper[]): Promise<TJsPro
 
     const resolver = new Resolver(steppers);
     const { withAction } = await import('./withAction.js');
-    const actions = withAction(new CombinedStepper(steppers));
+    const combinedStepper = new CombinedStepper(steppers);
+    combinedStepper.init();
+    const actions = withAction(combinedStepper) as { [key: string]: TCurriedAction<string> };
 
     const jsprologSteps = steps.map(step => {
         const action = resolver.findSingleStepAction(step);
         const { actionName, stepValuesMap } = action;
-        const args = {};
+        const args: { [key: string]: string } = {};
         if (stepValuesMap) {
             for (const key in stepValuesMap) {
                 args[key] = stepValuesMap[key].term;
