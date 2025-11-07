@@ -51,7 +51,7 @@ export class Runner {
 			this.world.runtime.backgrounds = featuresBackgrounds.backgrounds;
 			const expandedFeatures = await expand(featuresBackgrounds).catch((error) => this.errorBail('Expand', error));
 
-			const resolver = new Resolver(this.steppers, featuresBackgrounds.backgrounds);
+			const resolver = new Resolver(this.steppers, featuresBackgrounds.backgrounds, expandedFeatures);
 			const resolvedFeatures = await resolver.resolveStepsFromFeatures(expandedFeatures).catch((error) => this.errorBail('Resolve', error));
 
 			this.result = await Executor.executeFeatures(this.steppers, this.world, resolvedFeatures).catch((error) =>

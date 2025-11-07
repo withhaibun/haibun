@@ -75,7 +75,7 @@ function getCliWorld(protoOptions: TProtoOptions, bases: TBase): TWorld {
 
 	const world: Partial<TWorld> = {
 		tag,
-		runtime: {},
+		runtime: { stepResults: [], satisfiedOutcomes: {} },
 		logger,
 		prompter: new Prompter(),
 		...protoOptions,

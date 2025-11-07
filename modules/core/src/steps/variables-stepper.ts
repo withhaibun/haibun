@@ -16,7 +16,6 @@ const cycles = (variablesStepper: VariablesStepper): IStepperCycles => ({
 		variablesStepper.getWorld().shared = new FeatureVariables(variablesStepper.getWorld(), { ...featureVars.all() });
 		return Promise.resolve();
 	},
-	endScenario: clearVars(variablesStepper),
 });
 
 class VariablesStepper extends AStepper implements IHasCycles {

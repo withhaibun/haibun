@@ -2,7 +2,7 @@ import { OK, TFeatureStep, STEP_DELAY, TWorld, ExecMode, TStepResult, IStepperCy
 import { AStepper, TStepperSteps } from '../lib/astepper.js';
 import { actionNotOK, actionOK, formattedSteppers, sleep } from '../lib/util/index.js';
 import { executeSubFeatureSteps, findFeatureStepsFromStatement } from '../lib/util/featureStep-executor.js';
-import { EExecutionMessageType, TMessageContext } from '../lib/interfaces/logger.js';
+import { EExecutionMessageType } from '../lib/interfaces/logger.js';
 import { endExecutonContext } from '../phases/Executor.js';
 import { DOMAIN_STATEMENT } from '../lib/domain-types.js';
 
@@ -38,7 +38,7 @@ class Haibun extends AStepper {
 	};
 
 	steps: TStepperSteps = {
-		// --- LOGIC PRIMITIVES (FLOW CONTROL) ---
+		// --- LOGIC OPERATORS ---
 
 		// Represents Logical Negation (~P).
 		not: {
@@ -72,32 +72,7 @@ class Haibun extends AStepper {
 			},
 		},
 
-		registerCondition: {
-			description: 'Register the condition based on the provided argument, storing the result and proof in the execution runtime state.',
-			gwta: 'register {condition: DOMAIN_STRING} with {proof: DOMAIN_STATEMENT}',
-			action: (async ({ condition, proof }: { condition: string, proof: TFeatureStep[] }, featureStep: TFeatureStep) => {
-				const proofsPassed = await executeSubFeatureSteps(featureStep, proof, this.steppers, this.getWorld(), ExecMode.WITH_CYCLES).then(res => res.ok);
-				if (proofsPassed) {
-					this.getWorld().runtime.condition.push({ condition, proof: proofsPassed });
-					const messageContext: TMessageContext = { incident: EExecutionMessageType.ACTION, incidentDetails: { proof: proofsPassed } };
-					return actionOK({ messageContext });
-				}
-				return actionNotOK('tbd');
-			}),
-		},
-		ensureCondition: {
-			description: 'ensures a condition exists in the runtime state, or fails',
-			gwta: `ensure {condition}`,
-			action: (({ condition }: { condition: string }) => {
-				const runtimeCondition = this.getWorld().runtime.condition.find(o => o.condition === condition);
-				if (runtimeCondition) {
-					const conditionProof: TMessageContext = { incident: EExecutionMessageType.ACTION, incidentDetails: { proof: runtimeCondition } };
-					return actionOK({ messageContext: conditionProof });
-				}
-				return actionNotOK('tbd');
-			}),
-		},
-		// --- META& UTILITIES ---
+		// --- META & UTILITIES ---
 		until: {
 			gwta: 'until {statements:DOMAIN_STATEMENT}',
 			action: (async ({ statements }: { statements: TFeatureStep[] }, featureStep: TFeatureStep) => {

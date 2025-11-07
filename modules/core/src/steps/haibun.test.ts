@@ -1,11 +1,9 @@
 import { describe, it, expect } from 'vitest';
 
-import { FeatureExecutor } from '../phases/Executor.js';
-import { DEF_PROTO_OPTIONS, getDefaultWorld, testWithDefaults } from '../lib/test/lib.js';
+import { DEF_PROTO_OPTIONS,  testWithDefaults } from '../lib/test/lib.js';
 import TestSteps from '../lib/test/TestSteps.js';
 import Haibun from './haibun.js';
 import VariablesSteppers from './variables-stepper.js';
-import { getActionableStatement } from '../phases/Resolver.js';
 
 describe('seqPath ordering', () => {
 	// seqPath format: [featureNum, scenarioNum, ...stepPath]

@@ -1,15 +1,40 @@
 import { TStepAction, TResolvedFeature, OK, TExpandedFeature, TStepperStep, TFeatureStep, TExpandedLine, TStepValue, TFeatures } from '../lib/defs.js';
 import { AStepper } from '../lib/astepper.js';
-import { BASE_TYPES } from '../lib/domain-types.js';
 import { matchGwtaToAction, getMatch } from '../lib/namedVars.js';
 import { getActionable, dePolite, constructorName } from '../lib/util/index.js';
 import { findFeatures } from '../lib/features.js';
+import { ActivitiesStepper } from '../steps/activities-stepper.js';
 
 export class Resolver {
-	types: string[];
-
 	constructor(private steppers: AStepper[], private backgrounds: TFeatures = []) {
-		this.types = BASE_TYPES;
+		this.registerActivitiesFromSources(backgrounds);
+	}
+
+	private registerActivitiesFromSources(sources: TFeatures | TExpandedFeature[]): void {
+		const activitiesStepper = this.steppers.find(s => s instanceof ActivitiesStepper) as ActivitiesStepper | undefined;
+		if (!activitiesStepper) {
+			return; // No ActivitiesStepper, skip outcome registration
+		}
+
+		// Process each source (background or feature) to find remember statements
+		for (const source of sources) {
+			// Check if this is an expanded feature (has 'expanded' property) vs a background feature file
+			const lines = 'expanded' in source
+				? source.expanded.map(fl => fl.line)
+				: source.content.trim().split('\n');
+
+			for (const line of lines) {
+				const actionable = getActionable(typeof line === 'string' ? line : line);
+				const rememberMatch = actionable.match(/^remember\s+(.+?)\s+with\s+(.+?)(?:\s+forgets\s+(.+))?$/i);
+				if (rememberMatch) {
+					const outcome = rememberMatch[1].trim();
+					const proofStatement = rememberMatch[2].trim();
+					const forgets = rememberMatch[3]?.trim();
+
+					activitiesStepper.registerOutcome(outcome, [proofStatement], source.path, forgets);
+				}
+			}
+		}
 	}
 
 	private validateBackgroundsPattern(rawStatement: string): void {
@@ -29,6 +54,9 @@ export class Resolver {
 	}
 
 	public async resolveStepsFromFeatures(features: TExpandedFeature[]) {
+		// First pass: register all Activities/remember statements from all features
+		this.registerActivitiesFromSources(features);
+
 		const steps: TResolvedFeature[] = [];
 		for (const feature of features) {
 			const featureSteps = await this.findFeatureSteps(feature);
@@ -46,6 +74,11 @@ export class Resolver {
 			seq++;
 
 			const actionable = getActionable(featureLine.line);
+
+			// Skip remember statements - they're processed in registerActivitiesFromSources()
+			if (actionable.match(/^remember\s+(.+?)\s+with\s+(.+?)(?:\s+forgets\s+(.+))?$/i)) {
+				continue;
+			}
 
 			try {
 				const stepAction = this.findSingleStepAction(actionable);

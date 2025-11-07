@@ -287,9 +287,14 @@ export type TStepResult = {
 	seqPath: TSeqPath;
 };
 
+export type TSatisfiedOutcome = {
+	proofResult: TStepResult;
+};
+
 export type TRuntime = {
 	backgrounds?: TFeature[];
-	stepResults?: TStepResult[];
+	stepResults: TStepResult[];
+	satisfiedOutcomes: { [outcome: string]: TSatisfiedOutcome };
 	[name: string]: TAnyFixme;
 };
 export const HAIBUN = 'HAIBUN';
@@ -311,7 +316,9 @@ export const MAYBE_CHECK_NO = '✗';
 export const STEP_DELAY = 'STEP_DELAY';
 export const DEFAULT_DEST = 'default';
 export const TEST_BASE = 'test_base';
-export const CONTINUE_AFTER_ERROR = 'CONTINUE_AFTER_ERROR'; export const SCENARIO_START = 'scenario';
+export const CONTINUE_AFTER_ERROR = 'CONTINUE_AFTER_ERROR';
+export const SCENARIO_START = 'scenario';
+export const HAPPENING_START = 'happening';
 
 export enum ExecMode {
 	WITH_CYCLES = 'WITH_CYCLES',
