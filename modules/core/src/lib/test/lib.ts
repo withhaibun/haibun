@@ -58,7 +58,7 @@ export function getDefaultWorld(sequence: number, env = process.env): TWorld {
 		tag: getRunTag(sequence, 0),
 		logger: new Logger(env.HAIBUN_LOG_LEVEL ? { level: env.HAIBUN_LOG_LEVEL } : LOGGER_LOG),
 		prompter: new Prompter(),
-		runtime: { stepResults: [], satisfiedOutcomes: {} },
+		runtime: { stepResults: [] },
 		options: { DEST: DEFAULT_DEST, envVariables: env },
 		moduleOptions: {},
 		bases: ['/features/'],

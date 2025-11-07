@@ -100,7 +100,6 @@ export class FeatureExecutor {
 		const world = this.world;
 		let ok = true;
 		world.runtime.stepResults = [];
-		world.runtime.satisfiedOutcomes = {};
 
 		let currentScenario: number = 0;
 

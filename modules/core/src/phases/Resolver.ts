@@ -2,60 +2,34 @@ import { TStepAction, TResolvedFeature, OK, TExpandedFeature, TStepperStep, TFea
 import { AStepper } from '../lib/astepper.js';
 import { matchGwtaToAction, getMatch } from '../lib/namedVars.js';
 import { getActionable, dePolite, constructorName } from '../lib/util/index.js';
-import { findFeatures } from '../lib/features.js';
-import { ActivitiesStepper } from '../steps/activities-stepper.js';
 
 export class Resolver {
 	constructor(private steppers: AStepper[], private backgrounds: TFeatures = []) {
-		this.registerActivitiesFromSources(backgrounds);
+		// Process backgrounds to allow steppers to register metadata (e.g., remember statements)
+		for (const background of backgrounds) {
+			const lines = background.content.trim().split('\n');
+			for (const line of lines) {
+				const actionable = getActionable(line);
+				this.callResolveFeatureLine(actionable, background.path);
+			}
+		}
 	}
 
-	private registerActivitiesFromSources(sources: TFeatures | TExpandedFeature[]): void {
-		const activitiesStepper = this.steppers.find(s => s instanceof ActivitiesStepper) as ActivitiesStepper | undefined;
-		if (!activitiesStepper) {
-			return; // No ActivitiesStepper, skip outcome registration
-		}
-
-		// Process each source (background or feature) to find remember statements
-		for (const source of sources) {
-			// Check if this is an expanded feature (has 'expanded' property) vs a background feature file
-			const lines = 'expanded' in source
-				? source.expanded.map(fl => fl.line)
-				: source.content.trim().split('\n');
-
-			for (const line of lines) {
-				const actionable = getActionable(typeof line === 'string' ? line : line);
-				const rememberMatch = actionable.match(/^remember\s+(.+?)\s+with\s+(.+?)(?:\s+forgets\s+(.+))?$/i);
-				if (rememberMatch) {
-					const outcome = rememberMatch[1].trim();
-					const proofStatement = rememberMatch[2].trim();
-					const forgets = rememberMatch[3]?.trim();
-
-					activitiesStepper.registerOutcome(outcome, [proofStatement], source.path, forgets);
+	private callResolveFeatureLine(line: string, path: string): boolean {
+		for (const stepper of this.steppers) {
+			for (const step of Object.values(stepper.steps)) {
+				if (step.resolveFeatureLine) {
+					const shouldSkip = step.resolveFeatureLine(line, path, stepper, this.backgrounds);
+					if (shouldSkip) {
+						return true;
+					}
 				}
 			}
 		}
-	}
-
-	private validateBackgroundsPattern(rawStatement: string): void {
-		if (!rawStatement.match(/^Backgrounds:\s*/i)) {
-			return;
-		}
-
-		const names = rawStatement.replace(/^Backgrounds:\s*/i, '').trim();
-		const bgNames = names.split(',').map((a) => a.trim());
-
-		for (const bgName of bgNames) {
-			const bg = findFeatures(bgName, this.backgrounds);
-			if (bg.length !== 1) {
-				throw new Error(`can't find single "${bgName}.feature" from ${this.backgrounds.map((b) => b.path).join(', ')}`);
-			}
-		}
+		return false;
 	}
 
 	public async resolveStepsFromFeatures(features: TExpandedFeature[]) {
-		// First pass: register all Activities/remember statements from all features
-		this.registerActivitiesFromSources(features);
 
 		const steps: TResolvedFeature[] = [];
 		for (const feature of features) {
@@ -75,16 +49,13 @@ export class Resolver {
 
 			const actionable = getActionable(featureLine.line);
 
-			// Skip remember statements - they're processed in registerActivitiesFromSources()
-			if (actionable.match(/^remember\s+(.+?)\s+with\s+(.+?)(?:\s+forgets\s+(.+))?$/i)) {
+			// Give steppers a chance to handle special resolution logic
+			if (this.callResolveFeatureLine(actionable, feature.path)) {
 				continue;
 			}
 
 			try {
 				const stepAction = this.findSingleStepAction(actionable);
-
-				// Validate Backgrounds: statements during Resolve (not just in DOMAIN_STATEMENT)
-				this.validateBackgroundsPattern(actionable);
 
 				// stepValuesMap is attached to stepAction for downstream processing
 				// Early validation for statement-typed placeholders using their label value
@@ -93,8 +64,9 @@ export class Resolver {
 					for (const ph of statements) {
 						const rawVal = ph.term!;
 						try {
+							// Also give steppers a chance to validate nested statements
+							this.callResolveFeatureLine(rawVal, feature.path);
 							this.findSingleStepAction(rawVal);
-							this.validateBackgroundsPattern(rawVal);
 						} catch (e) {
 							throw Error(`statement '${rawVal}' invalid: ${e.message}`);
 						}

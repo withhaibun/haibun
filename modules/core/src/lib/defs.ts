@@ -119,9 +119,11 @@ export type TStepperStep = {
 	precludes?: string[];
 	unique?: boolean;
 	expose?: boolean;
+	virtual?: boolean;
 	match?: RegExp;
 	gwta?: string;
 	exact?: string;
+	resolveFeatureLine?(line: string, path: string, stepper: AStepper, backgrounds: TFeatures): boolean | void;
 	// FIXME Using method syntax for bivariant parameter checking for action
 	action(args: TStepArgs, featureStep?: TFeatureStep): Promise<TActionResult> | TActionResult;
 }
@@ -146,14 +148,14 @@ export type TAfterStepResult = { rerunStep?: boolean, nextStep?: boolean, failed
 export interface IStepperCycles {
 	getDomains?(): TDomainDefinition[];
 	startExecution?(features: TStartExecution): Promise<void>;
-	startFeature?(startFeature: TStartFeature): Promise<void>;
+	startFeature?(startFeature: TStartFeature): Promise<void> | void;
 	startScenario?(startScenario: TStartScenario): Promise<void>;
 	beforeStep?(beforeStep: TBeforeStep): Promise<void>;
 	afterStep?(afterStep: TAfterStep): Promise<TAfterStepResult>;
 	endScenario?(): Promise<void>;
 	endFeature?(endedWith?: TEndFeature): Promise<void>;
 	onFailure?(result: TFailureArgs): Promise<void | TMessageContext>;
-	endExecution?(): Promise<void>
+	endExecution?(): Promise<void>;
 }
 
 export type TDomainCoercer = (proto: TStepValue, featureStep?: TFeatureStep, steppers?: AStepper[]) => TStepValueValue;
@@ -294,7 +296,8 @@ export type TSatisfiedOutcome = {
 export type TRuntime = {
 	backgrounds?: TFeature[];
 	stepResults: TStepResult[];
-	satisfiedOutcomes: { [outcome: string]: TSatisfiedOutcome };
+	// activities-stepper
+	satisfiedOutcomes?: { [outcome: string]: TSatisfiedOutcome };
 	[name: string]: TAnyFixme;
 };
 export const HAIBUN = 'HAIBUN';

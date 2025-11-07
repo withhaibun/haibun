@@ -1,14 +1,16 @@
-import { OK, TFeatureStep, STEP_DELAY, TWorld, ExecMode, TStepResult, IStepperCycles } from '../lib/defs.js';
+import { OK, TFeatureStep, STEP_DELAY, TWorld, ExecMode, TStepResult, IStepperCycles, TFeatures } from '../lib/defs.js';
 import { AStepper, TStepperSteps } from '../lib/astepper.js';
 import { actionNotOK, actionOK, formattedSteppers, sleep } from '../lib/util/index.js';
 import { executeSubFeatureSteps, findFeatureStepsFromStatement } from '../lib/util/featureStep-executor.js';
 import { EExecutionMessageType } from '../lib/interfaces/logger.js';
 import { endExecutonContext } from '../phases/Executor.js';
 import { DOMAIN_STATEMENT } from '../lib/domain-types.js';
+import { findFeatures } from '../lib/features.js';
 
 class Haibun extends AStepper {
 	afterEverySteps: { [stepperName: string]: TFeatureStep[] } = {};
 	steppers: AStepper[] = [];
+	
 	// eslint-disable-next-line @typescript-eslint/require-await
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		this.world = world;
@@ -87,6 +89,22 @@ class Haibun extends AStepper {
 
 		backgrounds: {
 			gwta: 'Backgrounds: {names}',
+			resolveFeatureLine: (line: string, _path: string, _stepper: AStepper, backgrounds: TFeatures) => {
+				if (!line.match(/^Backgrounds:\s*/i)) {
+					return false;
+				}
+				
+				const names = line.replace(/^Backgrounds:\s*/i, '').trim();
+				const bgNames = names.split(',').map((a) => a.trim());
+
+				for (const bgName of bgNames) {
+					const bg = findFeatures(bgName, backgrounds);
+					if (bg.length !== 1) {
+						throw new Error(`can't find single "${bgName}.feature" from ${backgrounds.map((b) => b.path).join(', ')}`);
+					}
+				}
+				return false; // Don't skip - still needs to execute normally
+			},
 			action: async ({ names }: { names: string }, featureStep: TFeatureStep) => {
 				// Expand backgrounds at runtime using world.runtime.backgrounds
 				const world = this.getWorld();

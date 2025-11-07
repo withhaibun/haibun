@@ -335,4 +335,102 @@ variable "created" is "Widget1"
 
 		expect(result.ok).toBe(true);
 	});
+
+	it('outcomes from backgrounds are shared, but feature outcomes are isolated', async () => {
+		const setupBackground = {
+			path: '/backgrounds/setup.background',
+			content: 'remember Shared setup with set "shared" to "yes"',
+		};
+
+		const featureC = {
+			path: '/features/featureC.feature',
+			content: `
+Feature: Feature C
+remember Feature C outcome with set "featureC" to "yes"
+ensure Shared setup
+variable "shared" is "yes"
+ensure Feature C outcome
+variable "featureC" is "yes"
+`
+		};
+
+		const featureD = {
+			path: '/features/featureD.feature',
+			content: `
+Feature: Feature D
+ensure Shared setup
+variable "shared" is "yes"
+`
+		};
+
+		const result = await testWithDefaults(
+			[featureC, featureD],
+			[ActivitiesStepper, Haibun, VariablesSteppers],
+			DEF_PROTO_OPTIONS,
+			[setupBackground]
+		);
+
+		expect(result.ok).toBe(true);
+	});
+});
+
+describe('outcomes between features', () => {
+	it('clears outcome satisfaction between features', async () => {
+		const background = {
+			path: '/backgrounds/login.background',
+			content: 'remember Is logged in with set "loggedIn" to "true"',
+		};
+
+		const feature1 = {
+			path: '/features/feature1.feature',
+			content: 'ensure Is logged in\nvariable "loggedIn" is "true"'
+		};
+
+		const feature2 = {
+			path: '/features/feature2.feature',
+			content: 'ensure Is logged in\nvariable "loggedIn" is "true"'
+		};
+
+		const result = await testWithDefaults([feature1, feature2], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
+		expect(result.ok).toBe(true);
+	});
+
+	it('feature-defined outcomes not available in other features', async () => {
+		const feature1 = {
+			path: '/features/feature1.feature',
+			content: 'remember Feature 1 outcome with set "f1" to "yes"',
+		};
+
+		const feature2 = {
+			path: '/features/feature2.feature',
+			content: 'ensure Feature 1 outcome',
+		};
+
+		const result = await testWithDefaults([feature1, feature2], [ActivitiesStepper, Haibun, VariablesSteppers]);
+
+		// Feature outcome from feature1 is removed after feature1 ends, so feature2 can't use it
+		expect(result.ok).toBe(false);
+		expect(result.failure?.stage).toBe('Execute');
+		expect(result.failure?.error.message).toContain('no step found for "Feature 1 outcome"');
+	});
+
+	it('background outcomes available in all features', async () => {
+		const background = {
+			path: '/backgrounds/shared.background',
+			content: 'remember Shared outcome with set "shared" to "value"',
+		};
+
+		const feature1 = {
+			path: '/features/feature1.feature',
+			content: 'ensure Shared outcome\nvariable "shared" is "value"',
+		};
+
+		const feature2 = {
+			path: '/features/feature2.feature',
+			content: 'ensure Shared outcome\nvariable "shared" is "value"',
+		};
+
+		const result = await testWithDefaults([feature1, feature2], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
+		expect(result.ok).toBe(true);
+	});
 });
