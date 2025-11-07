@@ -42,7 +42,7 @@ async function recurse(base: string, dir: string, type: string, featureFilter: s
     const here = `${base}${dir}/${file}`;
     if (fs.statSync(here).isDirectory()) {
       all = all.concat(await recurse(base, `${dir}/${file}`, type, featureFilter, fs));
-    } else if (shouldProcess(here, type, featureFilter)) {
+    } else if (shouldProcess(here, 'feature', featureFilter)) {
       let contents;
       if (here.endsWith('.jsprolog.ts')) {
         const module = await import(path.resolve(here));
@@ -57,7 +57,7 @@ async function recurse(base: string, dir: string, type: string, featureFilter: s
 }
 
 export function shouldProcess(file: string, type: undefined | string, featureFilter: string[] | undefined) {
-    const isJsprolog = file.endsWith('.jsprolog.ts') && (type === 'feature' || type === 'background');
+    const isJsprolog = file.endsWith('.jsprolog.ts');
     const isType = !type || file.endsWith(`.${type}`) || isJsprolog;
     const matchesFilter = (featureFilter === undefined || featureFilter.every(f => f === '')) || featureFilter.length < 1 ? true : !!featureFilter.find((f) => file.replace(/\/.*?\/([^.*?/])/, '$1').match(f));
 
