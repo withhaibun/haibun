@@ -51,7 +51,7 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 	if (executorResult.ok) {
 		console.info(`${CHECK_YES} All ${executorResult.featureResults.length} features passed.`);
 	} else {
-		console.error(`${CHECK_NO} ${executorResult.failure.error.message} with ${JSON.stringify(executorResult.failure)}`);
+		console.error(`${CHECK_NO} ${executorResult.failure.error.message}\nwith ${JSON.stringify(executorResult.failure)}`);
 	}
 
 	for (const maybeResultProcessor of executorResult.steppers) {

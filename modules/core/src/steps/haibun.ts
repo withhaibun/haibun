@@ -10,7 +10,7 @@ import { findFeatures } from '../lib/features.js';
 class Haibun extends AStepper {
 	afterEverySteps: { [stepperName: string]: TFeatureStep[] } = {};
 	steppers: AStepper[] = [];
-	
+
 	// eslint-disable-next-line @typescript-eslint/require-await
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		this.world = world;
@@ -93,7 +93,7 @@ class Haibun extends AStepper {
 				if (!line.match(/^Backgrounds:\s*/i)) {
 					return false;
 				}
-				
+
 				const names = line.replace(/^Backgrounds:\s*/i, '').trim();
 				const bgNames = names.split(',').map((a) => a.trim());
 
@@ -138,13 +138,21 @@ class Haibun extends AStepper {
 			gwta: 'ends with {result}',
 			action: (({ result }: { result: string }) => (result.toUpperCase() === 'OK' ? actionOK({ messageContext: endExecutonContext }) : actionNotOK('ends with not ok'))),
 		},
-		showSteps: {
+		showSteppers: {
 			exact: 'show steppers',
 			action: () => {
 				const allSteppers = formattedSteppers(this.steppers);
 				this.world?.logger.info(`Steppers: ${JSON.stringify(allSteppers, null, 2)}`);
 				return actionOK({ messageContext: { incident: EExecutionMessageType.ACTION, incidentDetails: { steppers: allSteppers } } });
 			},
+		},
+		showSteps: {
+			gwta: 'show step results',
+			action: () => {
+				const steps = this.getWorld().runtime.stepResults;
+				this.world?.logger.info(`Steps: ${JSON.stringify(steps, null, 2)}`);
+				return actionOK({ messageContext: { incident: EExecutionMessageType.ACTION, incidentDetails: { steps } } });
+			}
 		},
 		pauseSeconds: {
 			gwta: 'pause for {ms:number}s',
