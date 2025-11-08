@@ -3,7 +3,7 @@ import path from 'path';
 import { TBase, TFeature } from '../lib/defs.js';
 import { withNameType } from '../lib/features.js';
 import { TFileSystem } from '../lib/util/workspace-lib.js';
-import { toBdd } from '../jsprolog/converter.js';
+import { toBdd } from '../kireji/converter.js';
 
 export type TFeaturesBackgrounds = {
   features: TFeature[];
@@ -42,11 +42,27 @@ async function recurse(base: string, dir: string, type: string, featureFilter: s
     const here = `${base}${dir}/${file}`;
     if (fs.statSync(here).isDirectory()) {
       all = all.concat(await recurse(base, `${dir}/${file}`, type, featureFilter, fs));
-    } else if (shouldProcess(here, 'feature', featureFilter)) {
+    } else if (shouldProcess(here, type, featureFilter)) {
       let contents;
-      if (here.endsWith('.jsprolog.ts')) {
+      if (here.endsWith('.kireji.ts')) {
         const module = await import(path.resolve(here));
-        contents = toBdd(module.features);
+        let kirejiContent;
+
+        if (type === 'background') {
+          // For backgrounds directory: prefer 'backgrounds' export, fallback to 'features'
+          kirejiContent = module.backgrounds || module.features;
+          if (!kirejiContent) {
+            throw new Error(`Kireji file ${here} in backgrounds/ must export 'backgrounds' or 'features' object`);
+          }
+        } else {
+          // For features directory: can export either 'features' or 'backgrounds'
+          kirejiContent = module.features || module.backgrounds;
+          if (!kirejiContent) {
+            throw new Error(`Kireji file ${here} must export 'features' or 'backgrounds' object`);
+          }
+        }
+
+        contents = toBdd(kirejiContent);
       } else {
         contents = fs.readFileSync(here, 'utf-8');
       }
@@ -57,8 +73,11 @@ async function recurse(base: string, dir: string, type: string, featureFilter: s
 }
 
 export function shouldProcess(file: string, type: undefined | string, featureFilter: string[] | undefined) {
-    const isJsprolog = file.endsWith('.jsprolog.ts');
-    const isType = !type || file.endsWith(`.${type}`) || isJsprolog;
+    const iskireji = file.endsWith('.kireji.ts');
+    // For kireji files, always process regardless of type
+    // For .feature files, check if type matches or is undefined
+    // Note: both 'feature' and 'background' types use .feature extension
+    const isType = iskireji || !type || file.endsWith(`.${type}`) || (type === 'background' && file.endsWith('.feature'));
     const matchesFilter = (featureFilter === undefined || featureFilter.every(f => f === '')) || featureFilter.length < 1 ? true : !!featureFilter.find((f) => file.replace(/\/.*?\/([^.*?/])/, '$1').match(f));
 
     return isType && matchesFilter;

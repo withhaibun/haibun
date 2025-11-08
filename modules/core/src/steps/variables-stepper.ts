@@ -44,8 +44,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		return actionNotOK(`${what} not set`);
 	}
 
-	// Steps
-	steps: TStepperSteps = {
+	steps = {
 		combineAs: {
 			gwta: 'combine {p1} and {p2} as {domain} to {what}',
 			precludes: [`${VariablesStepper.name}.combine`],
@@ -158,7 +157,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				return actionOK({ artifact: { artifactType: 'json', json: { json: stepValue } } });
 			}
 		},
-	};
+	} as const satisfies TStepperSteps;
 }
 
 export default VariablesStepper;

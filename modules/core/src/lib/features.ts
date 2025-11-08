@@ -63,11 +63,19 @@ function doIncludes(input: string, backgrounds: TFeatures) {
 
 export function findFeatures(name: string, backgrounds: TFeatures, type = 'feature'): TFeatures {
 	const ftype = findFeaturesOfType(backgrounds, type);
-	return ftype.filter((f) => f.path.endsWith(`/${name}.${fileTypeToExt(type)}`));
+	// Match both .feature and .kireji.ts extensions
+	return ftype.filter((f) =>
+		f.path.endsWith(`/${name}.${fileTypeToExt(type)}`) ||
+		f.path.endsWith(`/${name}.kireji.ts`)
+	);
 }
 
 export function findFeaturesOfType(backgrounds: TFeatures, type = 'feature'): TFeatures {
-	return backgrounds.filter((f) => f.path.endsWith(`.${fileTypeToExt(type)}`));
+	// Match both .feature and .kireji.ts files
+	return backgrounds.filter((f) =>
+		f.path.endsWith(`.${fileTypeToExt(type)}`) ||
+		f.path.endsWith('.kireji.ts')
+	);
 }
 
 const fileTypeToExt = (type: string) => (type === 'feature' ? 'feature' : `${type}.feature`);

@@ -76,11 +76,9 @@ export class Resolver {
 				const featureStep = this.getFeatureStep(featureLine, seq, stepAction);
 				featureSteps.push(featureStep);
 			} catch (e) {
-				throw Error(`findFeatureStep for "${featureLine.line}": ${e.message}in ${feature.path}\nUse --show-steppers for more details`);
+				throw Error(`findFeatureStep for "${featureLine.line}": ${e.message} in ${feature.path}\nUse --show-steppers for more details`);
 			}
-		}
-
-		return Promise.resolve(featureSteps);
+		} return Promise.resolve(featureSteps);
 	}
 	findSingleStepAction(line: string): TStepAction {
 		let stepActions = this.findActionableSteps(line);

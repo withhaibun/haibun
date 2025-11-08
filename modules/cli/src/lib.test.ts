@@ -107,4 +107,13 @@ describe('runCli', () => {
 		// vitest.spyOn(console, 'info').mockImplementation(() => undefined); // Suppress steppers output
 		await expect(lib.runCli(s('--config modules/cli/test modules/cli/test/tests'), {})).rejects.toThrow('exit with code 0');
 	});
+	it('runs a kireji test with backgrounds and features', async () => {
+		vitest.spyOn(process, 'exit').mockImplementationOnce(expectExitAndThrow(0));
+		await expect(lib.runCli(s('--config modules/cli/test/kireji modules/cli/test/kireji'), {})).rejects.toThrow('exit with code 0');
+	});
+
+	it('runs a kireji test with outcomes', async () => {
+		vitest.spyOn(process, 'exit').mockImplementationOnce(expectExitAndThrow(0));
+		await expect(lib.runCli(s('--config modules/cli/test/kireji-outcomes modules/cli/test/kireji-outcomes'), {})).rejects.toThrow('exit with code 0');
+	});
 });

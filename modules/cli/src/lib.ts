@@ -48,7 +48,11 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 
 	console.info('\n_________________________________ start');
 	const executorResult = await runner.run(specl.steppers, featureFilter);
-	console.info(executorResult.ok ? CHECK_YES : `${CHECK_NO} At ${JSON.stringify(executorResult.failure)}`);
+	if (executorResult.ok) {
+		console.info(`${CHECK_YES} All ${executorResult.featureResults.length} features passed.`);
+	} else {
+		console.error(`${CHECK_NO} ${executorResult.failure.error.message} with ${JSON.stringify(executorResult.failure)}`);
+	}
 
 	for (const maybeResultProcessor of executorResult.steppers) {
 		if (isProcessFeatureResults(maybeResultProcessor)) {

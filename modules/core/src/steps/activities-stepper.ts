@@ -1,12 +1,21 @@
-import { AStepper } from '../lib/astepper.js';
-import { TStepperSteps } from '../lib/astepper.js';
-import { TActionResult, TStepArgs, TFeatureStep, OK, TWorld, IStepperCycles } from '../lib/defs.js';
+import { AStepper, TStepperSteps } from '../lib/astepper.js';
+import { TActionResult, TStepArgs, TFeatureStep, OK, TWorld, IStepperCycles, TStepperStep } from '../lib/defs.js';
 import { executeSubFeatureSteps, findFeatureStepsFromStatement } from '../lib/util/featureStep-executor.js';
 import { ExecMode } from '../lib/defs.js';
 import { actionOK, actionNotOK } from '../lib/util/index.js';
 import { DOMAIN_STATEMENT } from '../lib/domain-types.js';
 import { EExecutionMessageType, TMessageContext } from '../lib/interfaces/logger.js';
 
+
+type TActivitiesFixedSteps = {
+	activity: TStepperStep;
+	remember: TStepperStep;
+	ensure: TStepperStep;
+	forget: TStepperStep;
+	showOutcomes: TStepperStep;
+};
+
+type TActivitiesStepperSteps = TStepperSteps & TActivitiesFixedSteps;
 
 /**
  * Stepper that dynamically builds virtual steps from `remember` statements.
@@ -17,25 +26,7 @@ export class ActivitiesStepper extends AStepper {
 	private backgroundOutcomePatterns: Set<string> = new Set();
 	private featureOutcomePatterns: Set<string> = new Set();
 
-	cycles: IStepperCycles = {
-		startFeature: () => {
-			this.getWorld().runtime.satisfiedOutcomes = {};
-		},
-		endFeature: async () => {
-			// Remove feature-scoped outcome steps (so they're not available to next feature)
-			for (const pattern of this.featureOutcomePatterns) {
-				delete this.steps[pattern];
-			}
-			this.featureOutcomePatterns.clear();
-			return Promise.resolve();
-		}
-	}
-	async setWorld(world: TWorld, steppers: AStepper[]) {
-		await super.setWorld(world, steppers);
-		this.steppers = steppers;
-	}
-
-	steps: TStepperSteps = {
+	private readonly baseSteps = {
 		activity: {
 			gwta: 'Activity: {activity}',
 			virtual: true,
@@ -43,7 +34,7 @@ export class ActivitiesStepper extends AStepper {
 		},
 
 		remember: {
-			match: /^remember\s+(.+?)\s+with\s+(.+?)(?:\s+forgets\s+(.+))?$/i,
+			gwta: 'remember {outcome} with {proof}',
 			virtual: true,
 			resolveFeatureLine: (line: string, path: string, stepper: AStepper) => {
 				const activitiesStepper = stepper as ActivitiesStepper;
@@ -166,7 +157,29 @@ export class ActivitiesStepper extends AStepper {
 				return actionOK({ messageContext: { incident: EExecutionMessageType.ACTION, incidentDetails: { outcomes: allOutcomes } } });
 			},
 		},
-	};
+	} as const satisfies TActivitiesFixedSteps;
+
+	readonly typedSteps = this.baseSteps;
+
+	steps: TActivitiesStepperSteps = { ...this.baseSteps };
+
+	cycles: IStepperCycles = {
+		startFeature: () => {
+			this.getWorld().runtime.satisfiedOutcomes = {};
+		},
+		endFeature: async () => {
+			// Remove feature-scoped outcome steps (so they're not available to next feature)
+			for (const pattern of this.featureOutcomePatterns) {
+				delete this.steps[pattern];
+			}
+			this.featureOutcomePatterns.clear();
+			return Promise.resolve();
+		}
+	}
+	async setWorld(world: TWorld, steppers: AStepper[]) {
+		await super.setWorld(world, steppers);
+		this.steppers = steppers;
+	}
 
 	// Track which outcomes cause other outcomes to be forgotten
 	// Key: outcome pattern, Value: array of outcome patterns to forget
