@@ -123,7 +123,7 @@ export type TStepperStep = {
 	match?: RegExp;
 	gwta?: string;
 	exact?: string;
-	resolveFeatureLine?(line: string, path: string, stepper: AStepper, backgrounds: TFeatures): boolean | void;
+	resolveFeatureLine?(line: string, path: string, stepper: AStepper, backgrounds: TFeatures, allLines?: string[], lineIndex?: number): boolean | void;
 	// FIXME Using method syntax for bivariant parameter checking for action
 	action(args: TStepArgs, featureStep?: TFeatureStep): Promise<TActionResult> | TActionResult;
 }
@@ -136,7 +136,7 @@ export type TSteppers = {
 	[name: string]: AStepper;
 };
 
-export type TEndFeature = { world: TWorld, shouldClose: boolean, isLast: boolean, okSoFar: boolean, continueAfterError: boolean, stayOnFailure: boolean, thisFeatureOK: boolean };
+export type TEndFeature = { shouldClose: boolean, isLast: boolean, okSoFar: boolean, continueAfterError: boolean, stayOnFailure: boolean, thisFeatureOK: boolean };
 export type TStartFeature = { resolvedFeature: TResolvedFeature, index: number };
 export type TStartExecution = TResolvedFeature[]
 export type TStartScenario = { featureVars: FeatureVariables };

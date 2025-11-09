@@ -113,7 +113,8 @@ const resolveArgValue = (value: TNestedArgValue): string => {
 		return `{ ${entries.join(', ')} }`;
 	}
 
-	return String(value);
+	// Escape newlines in string values for BDD format
+	return String(value).replace(/\n/g, '\\n');
 };
 
 // Map to typedSteps if available (e.g., ActivitiesStepper), otherwise use steps directly

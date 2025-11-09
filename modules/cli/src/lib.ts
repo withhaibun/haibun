@@ -51,7 +51,7 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 	if (executorResult.ok) {
 		console.info(`${CHECK_YES} All ${executorResult.featureResults.length} features passed.`);
 	} else {
-		console.error(`${CHECK_NO} ${executorResult.failure.error.message}\nwith ${JSON.stringify(executorResult.failure)}`);
+		console.error(`${CHECK_NO} ${executorResult.failure?.error?.message}\nwith ${JSON.stringify(executorResult.failure)}`);
 	}
 
 	for (const maybeResultProcessor of executorResult.steppers) {
@@ -204,13 +204,14 @@ export function processArgs(args: string[]) {
 }
 
 export function getConfigFromBase(bases: TBase, fs: TFileSystem = nodeFS): TSpecl | null {
-	const found = bases?.filter((b) => fs.existsSync(`${b}/config.json`));
+	// accept either full path with exact config filename or a directory that contains config.json
+	const found = bases?.filter((b) => (b.endsWith('json') && fs.existsSync(b)) || fs.existsSync(`${b}/config.json`));
 	if (found?.length > 1) {
 		console.error(`Found multiple config.json files: ${found.join(', ')}. Use --config to specify one.`);
 		return null;
 	}
-	const configDir = (found && found[0]) || '.';
-	const f = `${configDir}/config.json`;
+	const configCandidate = (found && found[0]) || '.';
+	const f = configCandidate.endsWith('json') ? configCandidate : `${configCandidate}/config.json`;
 	console.info(`trying ${f}`);
 	try {
 		const specl = JSON.parse(fs.readFileSync(f, 'utf-8'));

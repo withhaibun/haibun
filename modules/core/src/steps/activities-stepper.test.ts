@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { ActivitiesStepper } from './activities-stepper.js';
-import { getDefaultWorld } from '../lib/test/lib.js';
+import { getDefaultWorld, testWithDefaults } from '../lib/test/lib.js';
+import VariablesStepper from './variables-stepper.js';
 
 describe('ActivitiesStepper', () => {
   describe('registerOutcome', () => {
@@ -67,18 +68,28 @@ describe('ActivitiesStepper', () => {
       expect(step.gwta).toBe('Test outcome');
     });
 
-    it('should store forgets relationship when provided', async () => {
+
+    it('should support multi-line proof statements', async () => {
       const stepper = new ActivitiesStepper();
       await stepper.setWorld(getDefaultWorld(0), []);
 
-      stepper.registerOutcome(
-        'Is logged in as {user}',
-        ['set "loggedIn" to "true"'],
-        '/test.feature',
-        'Is logged out'
-      );
+      const multiLineProof = [
+        'set "url" to "https://example.com"',
+        'set "page" to "home"',
+        'combine url and page to fullUrl',
+        'go to the fullUrl webpage'
+      ];
 
-      expect(stepper.forgetsMap['Is logged in as {user}']).toEqual(['Is logged out']);
+      stepper.registerOutcome('Navigate to home', multiLineProof, '/test.feature');
+
+      const step = stepper.steps['Navigate to home'];
+      expect(step).toBeDefined();
+      expect(step.gwta).toBe('Navigate to home');
+      expect(step.description).toContain('Navigate to home');
+      // The description should contain all the proof statements
+      multiLineProof.forEach(proofStep => {
+        expect(step.description).toContain(proofStep);
+      });
     });
   });
 
@@ -89,10 +100,152 @@ describe('ActivitiesStepper', () => {
       expect(Object.keys(stepper.steps)).toContain('ensure');
       expect(Object.keys(stepper.steps)).toContain('forget');
     });
+  });
 
-    it('should have empty forgetsMap initially', () => {
-      const stepper = new ActivitiesStepper();
-      expect(stepper.forgetsMap).toEqual({});
+  describe('ensure step', () => {
+    const steppers = [VariablesStepper, ActivitiesStepper];
+
+    it('should execute outcome on first ensure', async () => {
+      const background = {
+        path: '/backgrounds/test.feature',
+        content: `Activity: Test
+remember Task completed with set "result" to "done"`
+      };
+
+      const feature = {
+        path: '/features/test.feature',
+        content: `set "result" to "initial"
+ensure Task completed
+variable "result" is "done"`
+      };
+
+      const result = await testWithDefaults([feature], steppers, undefined, [background]);
+      expect(result.ok).toBe(true);
+    });
+
+    it('should use cached outcome on second ensure', async () => {
+      const background = {
+        path: '/backgrounds/test.feature',
+        content: `Activity: Test
+remember Task completed with set "marker" to "executed"`
+      };
+
+      const feature = {
+        path: '/features/test.feature',
+        content: `set "marker" to "not executed"
+ensure Task completed
+variable "marker" is "executed"
+set "marker" to "not executed"
+ensure Task completed
+variable "marker" is "not executed"`
+      };
+
+      const result = await testWithDefaults([feature], steppers, undefined, [background]);
+      expect(result.ok).toBe(true);
+    });
+  });
+
+  describe('remembered step', () => {
+    const steppers = [VariablesStepper, ActivitiesStepper];
+
+    it('should detect when outcome is cached', async () => {
+      const background = {
+        path: '/backgrounds/test.feature',
+        content: `Activity: Test
+set "result" to "done"
+remember Task completed with set "result" to "done"`
+      };
+
+      const feature = {
+        path: '/features/test.feature',
+        content: `ensure Task completed
+remembered Task completed`
+      };
+
+      const result = await testWithDefaults([feature], steppers, undefined, [background]);
+      expect(result.ok).toBe(true);
+    });
+
+    it('should fail when outcome is not cached', async () => {
+      const background = {
+        path: '/backgrounds/test.feature',
+        content: `Activity: Test
+set "result" to "done"
+remember Task completed with set "result" to "done"`
+      };
+
+      const feature = {
+        path: '/features/test.feature',
+        content: `remembered Task completed`
+      };
+
+      const result = await testWithDefaults([feature], steppers, undefined, [background]);
+      expect(result.ok).toBe(false);
+    });
+  });
+
+  describe('forget step', () => {
+    const steppers = [VariablesStepper, ActivitiesStepper];
+
+    it('should remove cached outcome', async () => {
+      const background = {
+        path: '/backgrounds/test.feature',
+        content: `Activity: Test
+remember Task completed with set "count" to "1"`
+      };
+
+      const feature = {
+        path: '/features/test.feature',
+        content: `set "count" to "0"
+ensure Task completed
+variable "count" is "1"
+forget Task completed
+set "count" to "0"
+ensure Task completed
+variable "count" is "1"`
+      };
+
+      const result = await testWithDefaults([feature], steppers, undefined, [background]);
+      expect(result.ok).toBe(true);
+    });
+
+    it('should handle forgetting non-cached outcomes gracefully', async () => {
+      const background = {
+        path: '/backgrounds/test.feature',
+        content: `Activity: Test
+remember Something happened with set "result" to "done"`
+      };
+
+      const feature = {
+        path: '/features/test.feature',
+        content: `forget Something happened
+ensure Something happened
+variable "result" is "done"
+remembered Something happened`
+      };
+
+      const result = await testWithDefaults([feature], steppers, undefined, [background]);
+      expect(result.ok).toBe(true);
+    });
+
+    it('should make outcome no longer remembered', async () => {
+      const background = {
+        path: '/backgrounds/test.feature',
+        content: `Activity: Test
+set "result" to "done"
+remember Task completed with set "result" to "done"`
+      };
+
+      const feature = {
+        path: '/features/test.feature',
+        content: `ensure Task completed
+remembered Task completed
+forget Task completed
+remembered Task completed`
+      };
+
+      const result = await testWithDefaults([feature], steppers, undefined, [background]);
+      expect(result.ok).toBe(false);
     });
   });
 });

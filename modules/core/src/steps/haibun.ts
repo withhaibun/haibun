@@ -1,4 +1,4 @@
-import { OK, TFeatureStep, STEP_DELAY, TWorld, ExecMode, TStepResult, IStepperCycles, TFeatures } from '../lib/defs.js';
+import { OK, TFeatureStep, STEP_DELAY, TWorld, ExecMode, TStepResult, IStepperCycles, TFeatures, TResolvedFeature } from '../lib/defs.js';
 import { AStepper, TStepperSteps } from '../lib/astepper.js';
 import { actionNotOK, actionOK, formattedSteppers, sleep } from '../lib/util/index.js';
 import { executeSubFeatureSteps, findFeatureStepsFromStatement } from '../lib/util/featureStep-executor.js';
@@ -10,6 +10,7 @@ import { findFeatures } from '../lib/features.js';
 class Haibun extends AStepper {
 	afterEverySteps: { [stepperName: string]: TFeatureStep[] } = {};
 	steppers: AStepper[] = [];
+	resolvedFeature: TResolvedFeature;
 
 	// eslint-disable-next-line @typescript-eslint/require-await
 	async setWorld(world: TWorld, steppers: AStepper[]) {
@@ -17,7 +18,10 @@ class Haibun extends AStepper {
 		this.steppers = steppers;
 	}
 	cycles: IStepperCycles = {
-		// add a cycle that processes any afterEvery effects after each step
+		// processes any afterEvery effects after each step
+		startFeature: ({ resolvedFeature }: { resolvedFeature: TResolvedFeature }) => {
+			this.resolvedFeature = resolvedFeature;
+		},
 		afterStep: async ({ featureStep }: { featureStep: TFeatureStep }) => {
 			const afterEvery = this.afterEverySteps[featureStep.action.stepperName];
 			let failed = false;
@@ -152,6 +156,20 @@ class Haibun extends AStepper {
 				const steps = this.getWorld().runtime.stepResults;
 				this.world?.logger.info(`Steps: ${JSON.stringify(steps, null, 2)}`);
 				return actionOK({ messageContext: { incident: EExecutionMessageType.ACTION, incidentDetails: { steps } } });
+			}
+		},
+		showFeatures: {
+			gwta: 'show features',
+			action: () => {
+				this.world?.logger.info(`Features: ${JSON.stringify(this.resolvedFeature, null, 2)}`);
+				return actionOK({ messageContext: { incident: EExecutionMessageType.ACTION, incidentDetails: { features: this.resolvedFeature } } });
+			}
+		},
+		showBackgrounds: {
+			gwta: 'show backgrounds',
+			action: () => {
+				this.world?.logger.info(`Backgrounds: ${JSON.stringify(this.getWorld().runtime.backgrounds, null, 2)}`);
+				return actionOK({ messageContext: { incident: EExecutionMessageType.ACTION, incidentDetails: { backgrounds: this.getWorld().runtime.backgrounds } } });
 			}
 		},
 		pauseSeconds: {

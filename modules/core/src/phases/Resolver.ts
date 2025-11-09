@@ -8,18 +8,18 @@ export class Resolver {
 		// Process backgrounds to allow steppers to register metadata (e.g., remember statements)
 		for (const background of backgrounds) {
 			const lines = background.content.trim().split('\n');
-			for (const line of lines) {
-				const actionable = getActionable(line);
-				this.callResolveFeatureLine(actionable, background.path);
+			for (let i = 0; i < lines.length; i++) {
+				const actionable = getActionable(lines[i]);
+				this.callResolveFeatureLine(actionable, background.path, lines, i);
 			}
 		}
 	}
 
-	private callResolveFeatureLine(line: string, path: string): boolean {
+	private callResolveFeatureLine(line: string, path: string, allLines?: string[], lineIndex?: number): boolean {
 		for (const stepper of this.steppers) {
 			for (const step of Object.values(stepper.steps)) {
 				if (step.resolveFeatureLine) {
-					const shouldSkip = step.resolveFeatureLine(line, path, stepper, this.backgrounds);
+					const shouldSkip = step.resolveFeatureLine(line, path, stepper, this.backgrounds, allLines, lineIndex);
 					if (shouldSkip) {
 						return true;
 					}
@@ -43,14 +43,16 @@ export class Resolver {
 
 	public async findFeatureSteps(feature: TExpandedFeature): Promise<TFeatureStep[]> {
 		const featureSteps: TFeatureStep[] = [];
+		const allLines = feature.expanded.map(fl => fl.line);
 		let seq = 0;
-		for (const featureLine of feature.expanded) {
+		for (let i = 0; i < feature.expanded.length; i++) {
+			const featureLine = feature.expanded[i];
 			seq++;
 
 			const actionable = getActionable(featureLine.line);
 
 			// Give steppers a chance to handle special resolution logic
-			if (this.callResolveFeatureLine(actionable, feature.path)) {
+			if (this.callResolveFeatureLine(actionable, feature.path, allLines, i)) {
 				continue;
 			}
 

@@ -4,6 +4,7 @@ import { AStepper, IHasCycles, TStepperSteps } from '../lib/astepper.js';
 import { actionNotOK, actionOK } from '../lib/util/index.js';
 import { FeatureVariables } from '../lib/feature-variables.js';
 import { DOMAIN_STRING } from '../lib/domain-types.js';
+import { EExecutionMessageType, TMessageContext } from '../lib/interfaces/logger.js';
 
 const clearVars = (vars) => async () => {
 	vars.getWorld().shared.clear();
@@ -59,6 +60,30 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			action: async ({ p1, p2 }: TStepArgs, featureStep: TFeatureStep) => {
 				const { term } = featureStep.action.stepValuesMap.what;
 				this.getWorld().shared.set({ term: String(term), value: `${p1}${p2}`, domain: DOMAIN_STRING, origin: Origin.var }, provenanceFromFeatureStep(featureStep));
+				return Promise.resolve(OK);
+			}
+		},
+		increment: {
+			gwta: 'increment {what}',
+			action: async ({ what }: { what: string }, featureStep: TFeatureStep) => {
+				const { term, domain } = featureStep.action.stepValuesMap.what;
+				const presentVal = this.getVarValue(term);
+				let newVal: number;
+				if (presentVal === undefined) {
+					newVal = 0;
+				} else {
+					const numVal = Number(presentVal);
+					if (isNaN(numVal)) {
+						return actionNotOK(`cannot increment non-numeric variable ${term} with value "${presentVal}"`);
+					}
+					newVal = numVal + 1;
+				}
+				this.getWorld().shared.set({ term: String(term), value: newVal, domain, origin: Origin.var }, provenanceFromFeatureStep(featureStep));
+				const messageContext = {
+					incident: EExecutionMessageType.ACTION,
+					incidentDetails: { json: { incremented: { [term]: newVal } } },
+				}
+				this.getWorld().logger.info(`incremented ${term} to ${newVal}`, messageContext);
 				return Promise.resolve(OK);
 			}
 		},
@@ -132,11 +157,11 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		},
 		is: {
 			gwta: 'variable {what} is {value}',
-			action: ({ value }: TStepArgs, featureStep: TFeatureStep) => {
+			action: ({ what, value }: { what: string, value: string }, featureStep: TFeatureStep) => {
 				const { term } = featureStep.action.stepValuesMap.what;
 				const val = this.getVarValue(term);
 
-				return val === value ? OK : actionNotOK(`${term} is "${val}", not "${value}"`);
+				return String(val) === String(value) ? OK : actionNotOK(`${term} is "${val}", not "${value}"`);
 			}
 		},
 		isSet: {
@@ -152,7 +177,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				if (!stepValue) {
 					this.getWorld().logger.info(`is undefined`);
 				} else {
-					this.getWorld().logger.info(`is ${JSON.stringify({ ...stepValue, provenance: stepValue.provenance.map((p, i) => ({ [i]: p })) }, null, 2)}`);
+					this.getWorld().logger.info(`is ${JSON.stringify({ ...stepValue, provenance: stepValue.provenance.map((p, i) => ({ [i]: { in: p.in, seq: p.seq.join(','), when: p.when } })) }, null, 2)}`);
 				}
 				return actionOK({ artifact: { artifactType: 'json', json: { json: stepValue } } });
 			}

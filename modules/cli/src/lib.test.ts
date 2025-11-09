@@ -72,7 +72,7 @@ describe('processArgs', () => {
 		const { configLoc } = lib.processArgs(s('--config boo'));
 		expect(configLoc).toBe('boo');
 	});
-	it('get config as path', () => {
+	it('get config as filename', () => {
 		const { configLoc } = lib.processArgs(s('--config boo/config.json'));
 		expect(configLoc).toBe('boo');
 	});

@@ -47,7 +47,6 @@ describe.skip('index mount', () => {
 
 describe('closes mounts', () => {
 	it('re-mounts after close', async () => {
-		const world = getDefaultWorld(0);
 		const wss = new WebServerStepper();
 		await wss.setWorld(getDefaultWorld(0), []);
 		await wss.steps.serveFilesAt.action({ where: '/foo' })
@@ -55,7 +54,7 @@ describe('closes mounts', () => {
 			if (!wss.cycles || !wss.cycles.endFeature) {
 				throw new Error('no cycles');
 			}
-			await wss.cycles.endFeature({ world, shouldClose: true, isLast: true, okSoFar: true, continueAfterError: false, stayOnFailure: false, thisFeatureOK: true });
+			await wss.cycles.endFeature({ shouldClose: true, isLast: true, okSoFar: true, continueAfterError: false, stayOnFailure: false, thisFeatureOK: true });
 			return wss.steps.serveFilesAt.action({ where: '/foo' });
 		}).not.toThrow();
 	});

@@ -47,9 +47,8 @@ describe.skip('handles cycles', () => {
 		expect(async () => {
 			if (wp.cycles && wp.cycles.endFeature) {
 
-				const world = getDefaultWorld(0);
-				await wp.cycles.endFeature({ world, shouldClose: true, isLast: true, okSoFar: true, continueAfterError: false, stayOnFailure: false, thisFeatureOK: true });
-				await wp.steps.takeScreenshot.action();
+				await wp.cycles.endFeature({ shouldClose: true, isLast: true, okSoFar: true, continueAfterError: false, stayOnFailure: false, thisFeatureOK: true });
+				// await wp.steps.takeScreenshot.action();
 			} else {
 				throw new Error('no cycles');
 			}

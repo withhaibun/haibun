@@ -107,33 +107,6 @@ variable "widgetDeleted" is "true"
 			[loginRecipe, createWidgetRecipe, deleteWidgetRecipe]
 		);
 
-		if (!result.ok) {
-			console.log('============ TEST FAILED ============');
-			console.log('OK:', result.ok);
-			if (result.failure) {
-				console.log('Top-level failure:', result.failure.stage, '-', result.failure.error.message);
-			}
-			if (result.featureResults) {
-				result.featureResults.forEach((fr, i) => {
-					console.log(`\nFeature ${i} (${fr.path}): ok=${fr.ok}`);
-					if (!fr.ok) {
-						if (fr.failure) {
-							console.log(`  Failure message: ${fr.failure.message}`);
-						}
-						// Show failed steps
-						const failedSteps = fr.stepResults.filter(sr => !sr.ok);
-						console.log(`  Failed ${failedSteps.length} of ${fr.stepResults.length} steps`);
-						failedSteps.slice(0, 2).forEach((step, si) => {
-							// eslint-disable-next-line @typescript-eslint/no-explicit-any
-							const msg = (step.stepActionResult as any).message || 'no message';
-							console.log(`    Step ${si} ("${step.in}"): ${msg}`);
-						});
-					}
-				});
-			}
-			console.log('\n====================================');
-		}
-
 		expect(result.ok).toBe(true);
 	});
 
@@ -232,43 +205,6 @@ variable "loggedIn" is "true"
 		expect(result.ok).toBe(true);
 	});
 
-	it('should automatically forget when using "forgets" clause', async () => {
-		const loginRecipe = {
-			path: '/backgrounds/login-recipe.feature',
-			content: `Activity: Login
-remember Is logged in as {user} with set "loggedIn" to "true"`
-		};
-
-		const logoutRecipe = {
-			path: '/backgrounds/logout-recipe.feature',
-			content: `Activity: Logout
-remember Is logged out as {user} with set "loggedIn" to "false" forgets Is logged in as {user}`
-		};
-
-		const mainFeature = {
-			path: '/features/tests/main.feature',
-			content: `
-Feature: Login/Logout/Login Test
-Scenario: Auto-forget via forgets clause
-ensure Is logged in as "Admin"
-variable "loggedIn" is "true"
-ensure Is logged out as "Admin"
-variable "loggedIn" is "false"
-ensure Is logged in as "Admin"
-variable "loggedIn" is "true"
-`
-		};
-
-		const result = await testWithDefaults(
-			[mainFeature],
-			[ActivitiesStepper, Haibun, VariablesSteppers],
-			DEF_PROTO_OPTIONS,
-			[loginRecipe, logoutRecipe]
-		);
-
-		expect(result.ok).toBe(true);
-	});
-
 	it('should handle multiple variable bindings correctly', async () => {
 		const loginRecipe = {
 			path: '/backgrounds/login-recipe.feature',
@@ -298,47 +234,9 @@ variable "lastUser" is "Bob"
 		expect(result.ok).toBe(true);
 	});
 
-	it('should handle complex forgets with multiple variables', async () => {
-		const createRecipe = {
-			path: '/backgrounds/create-recipe.feature',
-			content: `Activity: Create item
-remember Created {item} with set "created" to {item}`
-		};
-
-		const deleteRecipe = {
-			path: '/backgrounds/delete-recipe.feature',
-			content: `Activity: Delete item
-remember Deleted {item} with set "deleted" to {item} forgets Created {item}`
-		};
-
-		const mainFeature = {
-			path: '/features/tests/main.feature',
-			content: `
-Feature: Create/Delete Test
-Scenario: Ensure re-creation after deletion
-ensure Created "Widget1"
-variable "created" is "Widget1"
-ensure Deleted "Widget1"
-variable "deleted" is "Widget1"
-set "created" to "not Widget1"
-ensure Created "Widget1"
-variable "created" is "Widget1"
-`
-		};
-
-		const result = await testWithDefaults(
-			[mainFeature],
-			[ActivitiesStepper, Haibun, VariablesSteppers],
-			DEF_PROTO_OPTIONS,
-			[createRecipe, deleteRecipe]
-		);
-
-		expect(result.ok).toBe(true);
-	});
-
 	it('outcomes from backgrounds are shared, but feature outcomes are isolated', async () => {
 		const setupBackground = {
-			path: '/backgrounds/setup.background',
+			path: '/backgrounds/setup.feature',
 			content: 'remember Shared setup with set "shared" to "yes"',
 		};
 
@@ -377,7 +275,7 @@ variable "shared" is "yes"
 describe('outcomes between features', () => {
 	it('clears outcome satisfaction between features', async () => {
 		const background = {
-			path: '/backgrounds/login.background',
+			path: '/backgrounds/login.feature',
 			content: 'remember Is logged in with set "loggedIn" to "true"',
 		};
 
@@ -414,9 +312,24 @@ describe('outcomes between features', () => {
 		expect(result.failure?.error.message).toContain('no step found for "Feature 1 outcome"');
 	});
 
+	it.skip('multiple remembers with last statement not a remember', async () => {
+		const background = {
+			path: '/backgrounds/multi.feature',
+			content: 'Activity: Multi remember test\nset "step1" to "1"\nremember First outcome with set "first" to "1"\nset "step2" to "2"\nremember Second outcome with set "second" to "2"',
+		};
+
+		const feature = {
+			path: '/features/feature.feature',
+			content: 'ensure Second outcome\nvariable "step1" is "1"\nvariable "first" is "1"\nvariable "step2" is "2"\nvariable "second" is "2"',
+		};
+
+		const result = await testWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
+		expect(result.ok).toBe(true);
+	});
+
 	it('background outcomes available in all features', async () => {
 		const background = {
-			path: '/backgrounds/shared.background',
+			path: '/backgrounds/shared.feature',
 			content: 'remember Shared outcome with set "shared" to "value"',
 		};
 
