@@ -107,6 +107,7 @@ export type TFeatureStep = {
 	in: string;
 	seqPath: TSeqPath;
 	action: TStepAction;
+	isSubStep?: boolean;
 };
 
 export type TSeqPath = number[];
@@ -291,10 +292,13 @@ export type TStepResult = {
 
 export type TSatisfiedOutcome = {
 	proofResult: TStepResult;
+	proofSteps: TFeatureStep[];
 };
 
 export type TRuntime = {
 	backgrounds?: TFeature[];
+	scenario?: string;
+	feature?: string;
 	stepResults: TStepResult[];
 	// activities-stepper
 	satisfiedOutcomes?: { [outcome: string]: TSatisfiedOutcome };

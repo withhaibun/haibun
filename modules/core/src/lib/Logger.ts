@@ -8,10 +8,11 @@ export const LOGGER_LOG = { level: 'log' };
 export const LOGGER_NOTHING = { level: 'none' };
 export const LOGGER_LEVELS = {
 	debug: 1,
-	log: 2,
-	info: 3,
-	warn: 4,
-	error: 5,
+	trace: 2,
+	log: 3,
+	info: 4,
+	warn: 5,
+	error: 6,
 	none: 9,
 };
 
@@ -68,9 +69,12 @@ export default class Logger implements ILogger, ILogOutput {
 		Logger.lastLevel = level;
 		const tag = messageContext?.tag ? (isFirstTag(messageContext.tag) ? '' : descTag(messageContext.tag)) : '';
 		const [proggy, line /*, col*/] = caller.split(':');
-		console[level]((showLevel.padStart(6) + ` █ ${Timer.since()/1000}:${proggy}:${line}${tag}`).padEnd(30) + ` ｜ `, args);
+		// Map trace to log for console output (console.trace prints stack traces)
+		const consoleLevel = level === 'trace' ? 'log' : level;
+		console[consoleLevel]((showLevel.padStart(6) + ` █ ${Timer.since()/1000}:${proggy}:${line}${tag}`).padEnd(38) + ` ｜ `, args);
 	}
 	debug = (args: TLogArgs, mctx?: TMessageContext) => this.out('debug', args, mctx);
+	trace = (args: TLogArgs, mctx?: TMessageContext) => this.out('trace', args, mctx);
 	log = (args: TLogArgs, mctx?: TMessageContext) => this.out('log', args, mctx);
 	info = (args: TLogArgs, mctx?: TMessageContext) => this.out('info', args, mctx);
 	warn = (args: TLogArgs, mctx?: TMessageContext) => this.out('warn', args, mctx);

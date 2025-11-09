@@ -16,7 +16,7 @@ export async function executeSubFeatureSteps(superFeatureStep: TFeatureStep, fea
 		// Calculate seqPath for this step based on current state of stepResults
 		const baseSeqPath = [...superFeatureStep.seqPath, 1];
 		const seqPath = incSeqPath(world.runtime.stepResults, baseSeqPath, dir);
-		const mappedStep = { ...step, seqPath };
+		const mappedStep = { ...step, seqPath, isSubStep: true };
 
 		// Execute the step
 		lastResult = await FeatureExecutor.doFeatureStep(steppers, mappedStep, world, execMode);

@@ -4,7 +4,7 @@ import { AStepper, IHasCycles, TStepperSteps } from '../lib/astepper.js';
 import { actionNotOK, actionOK } from '../lib/util/index.js';
 import { FeatureVariables } from '../lib/feature-variables.js';
 import { DOMAIN_STRING } from '../lib/domain-types.js';
-import { EExecutionMessageType, TMessageContext } from '../lib/interfaces/logger.js';
+import { EExecutionMessageType } from '../lib/interfaces/logger.js';
 
 const clearVars = (vars) => async () => {
 	vars.getWorld().shared.clear();
@@ -49,7 +49,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		combineAs: {
 			gwta: 'combine {p1} and {p2} as {domain} to {what}',
 			precludes: [`${VariablesStepper.name}.combine`],
-			action: async ({ p1, p2, domain }: { p1: string, p2: string, domain: string }, featureStep: TFeatureStep) => {
+			action: ({ p1, p2, domain }: { p1: string, p2: string, domain: string }, featureStep: TFeatureStep) => {
 				const { term } = featureStep.action.stepValuesMap.what;
 				this.getWorld().shared.set({ term: String(term), value: `${p1}${p2}`, domain, origin: Origin.var }, provenanceFromFeatureStep(featureStep));
 				return Promise.resolve(OK);
@@ -57,7 +57,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		},
 		combine: {
 			gwta: 'combine {p1} and {p2} to {what}',
-			action: async ({ p1, p2 }: TStepArgs, featureStep: TFeatureStep) => {
+			action: ({ p1, p2 }: TStepArgs, featureStep: TFeatureStep) => {
 				const { term } = featureStep.action.stepValuesMap.what;
 				this.getWorld().shared.set({ term: String(term), value: `${p1}${p2}`, domain: DOMAIN_STRING, origin: Origin.var }, provenanceFromFeatureStep(featureStep));
 				return Promise.resolve(OK);
@@ -65,7 +65,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		},
 		increment: {
 			gwta: 'increment {what}',
-			action: async ({ what }: { what: string }, featureStep: TFeatureStep) => {
+			action: ({ what }: { what: string }, featureStep: TFeatureStep) => {
 				const { term, domain } = featureStep.action.stepValuesMap.what;
 				const presentVal = this.getVarValue(term);
 				let newVal: number;
@@ -90,7 +90,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		showEnv: {
 			gwta: 'show env',
 			expose: false,
-			action: async () => {
+			action: () => {
 				// only available locally since it might contain sensitive info.
 				console.info('env', this.world.options.envVariables);
 				return Promise.resolve(OK);
@@ -98,14 +98,14 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		},
 		showVars: {
 			gwta: 'show vars',
-			action: async () => {
+			action: () => {
 				console.info('vars', this.getWorld().shared.all());
 				return Promise.resolve(actionOK({ artifact: { artifactType: 'json', json: { vars: this.getWorld().shared.all() } } }));
 			},
 		},
 		set: {
 			gwta: 'set( empty)? {what: string} to {value: string}',
-			action: async (args: TStepArgs, featureStep: TFeatureStep) => {
+			action: (args: TStepArgs, featureStep: TFeatureStep) => {
 				const emptyOnly = !!featureStep.in.match(/set empty /);
 				const { term, domain, origin } = featureStep.action.stepValuesMap.what;
 
@@ -120,7 +120,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		setAs: {
 			gwta: 'set( empty)? {what: string} as {domain: string} to {value: string}',
 			precludes: [`${VariablesStepper.name}.set`],
-			action: async ({ value, domain }: { value: string, domain: string }, featureStep: TFeatureStep) => {
+			action: ({ value, domain }: { value: string, domain: string }, featureStep: TFeatureStep) => {
 				const emptyOnly = !!featureStep.in.match(/set empty /);
 				const { term, origin } = featureStep.action.stepValuesMap.what;
 
@@ -135,7 +135,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		setRandom: {
 			precludes: [`${VariablesStepper.name}.set`],
 			gwta: `set( empty)? {what: string} to {length: number} random characters`,
-			action: async ({ length }: { length: number }, featureStep: TFeatureStep) => {
+			action: ({ length }: { length: number }, featureStep: TFeatureStep) => {
 				const emptyOnly = !!featureStep.in.match(/set empty /);
 				const { term } = featureStep.action.stepValuesMap.what;
 
@@ -182,7 +182,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				return actionOK({ artifact: { artifactType: 'json', json: { json: stepValue } } });
 			}
 		},
-	} as const satisfies TStepperSteps;
+	} satisfies TStepperSteps;
 }
 
 export default VariablesStepper;

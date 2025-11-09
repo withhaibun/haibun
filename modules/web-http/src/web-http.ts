@@ -4,7 +4,7 @@ import { EExecutionMessageType } from '@haibun/core/lib/interfaces/logger.js';
 import { actionNotOK } from '@haibun/core/lib/util/index.js';
 
 const WebHttp = class WebHttp extends AStepper {
-	steps: TStepperSteps = {
+	steps = {
 		listening: {
 			gwta: 'http {url} is listening',
 			action: async ({ url }: { url: string }) => {
@@ -96,7 +96,7 @@ const WebHttp = class WebHttp extends AStepper {
 				return headers[header.toLowerCase()] === contents ? OK : actionNotOK(`${method} ${url} does not contain ${header} with ${contents}, it contains ${JSON.stringify(headers)}`)
 			},
 		},
-	};
+	} satisfies TStepperSteps;
 };
 
 export default WebHttp;

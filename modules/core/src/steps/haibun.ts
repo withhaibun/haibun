@@ -43,10 +43,8 @@ class Haibun extends AStepper {
 		}
 	};
 
-	steps: TStepperSteps = {
-		// --- LOGIC OPERATORS ---
-
-		// Represents Logical Negation (~P).
+	steps = {
+		// --- LOGIC OPERATORS ---		// Represents Logical Negation (~P).
 		not: {
 			gwta: `not {statements:${DOMAIN_STATEMENT}}`,
 			action: async ({ statements }: { statements: TFeatureStep[] }, featureStep: TFeatureStep) => {
@@ -121,15 +119,22 @@ class Haibun extends AStepper {
 		prose: {
 			match: /.+[.!?]$/,
 			precludes: [`Haibun.and`, `Haibun.or`],
-			action: async () => Promise.resolve(OK),
+			action: () => Promise.resolve(OK),
 		},
 		feature: {
 			gwta: 'Feature: {feature}',
-			action: async () => Promise.resolve(OK),
+			action: ({ feature }: { feature: string }) => {
+				this.getWorld().runtime.feature = feature;
+				return OK;
+			}
 		},
 		scenario: {
 			gwta: 'Scenario: {scenario}',
-			action: async () => Promise.resolve(OK),
+			action: ({ scenario }: { scenario: string }) => {
+				this.getWorld().runtime.scenario = scenario;
+				return OK;
+			}
+
 		},
 		startStepDelay: {
 			gwta: 'step delay of {ms:number}ms',
@@ -195,7 +200,6 @@ class Haibun extends AStepper {
 				return OK;
 			},
 		},
-	};
+	} satisfies TStepperSteps;
 }
-
 export default Haibun;

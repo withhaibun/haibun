@@ -2,7 +2,7 @@ import { AStepper, TStepperSteps } from '../lib/astepper.js';
 import { TActionResult, TStepArgs, TFeatureStep, OK, TWorld, IStepperCycles, TStepperStep, TFeatures } from '../lib/defs.js';
 import { executeSubFeatureSteps, findFeatureStepsFromStatement } from '../lib/util/featureStep-executor.js';
 import { ExecMode } from '../lib/defs.js';
-import { actionOK, actionNotOK, getActionable } from '../lib/util/index.js';
+import { actionOK, actionNotOK, getActionable, formatCurrentSeqPath } from '../lib/util/index.js';
 import { DOMAIN_STATEMENT } from '../lib/domain-types.js';
 import { EExecutionMessageType, TMessageContext } from '../lib/interfaces/logger.js';
 
@@ -157,7 +157,8 @@ export class ActivitiesStepper extends AStepper {
 
 				// Cache the satisfied outcome with its proof result
 				satisfiedOutcomes[outcomeKey] = {
-					proofResult: result
+					proofResult: result,
+					proofSteps: outcome
 				};
 
 				this.getWorld().logger.debug(`ensure: cached outcome "${outcomeKey}"`);
@@ -214,15 +215,14 @@ export class ActivitiesStepper extends AStepper {
 					if (this.steps[outcomePattern].virtual) {
 						const instances = [];
 
-						for (const satisfiedKey in satisfied) {
-							if (satisfiedKey === outcomePattern) {
-								instances.push({
-									in: satisfiedKey
-								});
-							}
+					for (const satisfiedKey in satisfied) {
+						if (satisfiedKey === outcomePattern) {
+							instances.push({
+								proof: satisfied[satisfiedKey].proofSteps.map(s => s.in).join('; '),
+								seqPath: formatCurrentSeqPath(satisfied[satisfiedKey].proofResult.seqPath)
+							});
 						}
-
-						allOutcomes[outcomePattern] = instances.length > 0 ? { satisfied: instances } : {};
+					}						allOutcomes[outcomePattern] = instances.length > 0 ? { satisfied: instances } : {};
 					}
 				}
 

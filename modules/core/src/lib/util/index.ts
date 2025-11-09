@@ -1,4 +1,4 @@
-import { TNotOKActionResult, TOKActionResult, TSpecl, TWorld, TRuntime, TModuleOptions, CStepper, OK } from '../defs.js';
+import { TNotOKActionResult, TOKActionResult, TSpecl, TWorld, TRuntime, TModuleOptions, CStepper, OK, TSeqPath } from '../defs.js';
 import { TAnyFixme } from '../fixme.js';
 import { IHasOptions, AStepper } from '../astepper.js';
 import { TTag } from '../ttag.js';
@@ -316,3 +316,7 @@ export function formattedSteppers(steppers: AStepper[]) {
 	}, {} as { [name: string]: { desc: string } });
 	return a;
 }
+
+export const formatCurrentSection = (runtime: TRuntime) => [runtime.feature, runtime.scenario].filter(s => !!s).join('>');
+
+export const formatCurrentSeqPath = (seqPath: TSeqPath) => '[' + seqPath.join('.') + ']';

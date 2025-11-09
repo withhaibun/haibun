@@ -4,6 +4,7 @@
     "~@haibun/web-playwright/build/web-playwright",
     "~@haibun/out-xunit/build/out-xunit",
     "~@haibun/web-server-express/build/web-server-stepper",
+    "~@haibun/web-server-express/build/http-executor-stepper",
     "~@haibun/storage-fs/build/storage-fs",
     "~@haibun/web-accessibility-axe/build/a11y-axe-stepper",
     "variables-stepper",

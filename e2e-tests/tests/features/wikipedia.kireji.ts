@@ -2,14 +2,17 @@ import { withAction } from '@haibun/core/kireji/withAction.js';
 import type { TKirejiExport } from '@haibun/core/kireji/withAction.js';
 import ActivitiesStepper from '@haibun/core/steps/activities-stepper.js';
 import VariablesStepper from '@haibun/core/steps/variables-stepper.js';
+import Haibun from '@haibun/core/steps/haibun.js';
 
 import { knowsAboutWikipedia, onMainPage, onHaibunPage, pagesVisited, } from '../backgrounds/wikipedia-bg.kireji.ts';
 
 const { ensure } = withAction(new ActivitiesStepper());
 const { is } = withAction(new VariablesStepper());
+const { feature, scenario } = withAction(new Haibun());
 
 export const features: TKirejiExport = {
 	'Visit pages': [
+		feature({ feature: 'Visit pages' }),
 		`Navigate Wikipedia and explore articles using Activities and Outcomes.
 		This demonstrates using waypoint statements to define reusable outcomes.
 		Use ensure to execute outcomes only once, even when called multiple times.
@@ -18,9 +21,11 @@ export const features: TKirejiExport = {
 
 		'after every ActivityStepper, show var pagesVisited',
 
+		scenario({scenario: 'Visit pages with ensures'}),
 		ensure({ outcome: knowsAboutWikipedia }),
 		ensure({ outcome: onHaibunPage }),
 
+		'debug step by step',
 		ensure({ outcome: onMainPage }),
 
 		ensure({ outcome: onHaibunPage }),

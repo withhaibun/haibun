@@ -22,7 +22,6 @@ export const backgrounds: TKirejiExport = {
 		combine({ p1: enWikipedia, p2: 'Haibun', what: 'haibunUrl' }),
 		combine({ p1: enWikipedia, p2: 'Main_Page', what: 'mainUrl' }),
 		set({ what: pagesVisited, value: '0' }),
-		'show vars',
 		`waypoint ${knowsAboutWikipedia} with set enWikipedia to https://en.wikipedia.org/wiki/`,
 
 		activity({ activity: 'Navigate to page' }),

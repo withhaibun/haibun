@@ -3,7 +3,7 @@ import { TAnyFixme } from '../lib/fixme.js';
 import { AStepper } from '../lib/astepper.js';
 import { EExecutionMessageType, TMessageContext } from '../lib/interfaces/logger.js';
 import { topicArtifactLogger } from '../lib/Logger.js';
-import { actionNotOK, sleep, findStepper, constructorName, setStepperWorldsAndDomains } from '../lib/util/index.js';
+import { actionNotOK, sleep, findStepper, constructorName, setStepperWorldsAndDomains, formatCurrentSeqPath } from '../lib/util/index.js';
 import { SCENARIO_START } from '../lib/defs.js';
 import { Timer } from '../lib/Timer.js';
 import { FeatureVariables } from '../lib/feature-variables.js';
@@ -162,10 +162,18 @@ export class FeatureExecutor {
 
 		const isFullCycles = execMode === ExecMode.WITH_CYCLES;
 		const isPrompt = execMode === ExecMode.PROMPT;
+		const isSubStep = featureStep.isSubStep || false;
+
+		// Check if the action function is async
+		const stepper = findStepper<AStepper>(steppers, action.stepperName);
+		const actionFn = stepper.steps[action.actionName].action;
+		const isAsync = actionFn.constructor.name === 'AsyncFunction';
 
 		let actionResult: TActionResult;
 		if (isFullCycles) {
-			world.logger.log(featureStep.in, { incident: EExecutionMessageType.STEP_START, tag: world.tag, incidentDetails: { featureStep, args } });
+			if (isAsync) {
+				world.logger.log(`⏳ ${formatCurrentSeqPath(featureStep.seqPath)} ${featureStep.in}`, { incident: EExecutionMessageType.STEP_START, tag: world.tag, incidentDetails: { featureStep, args } });
+			}
 			let doAction = true;
 			while (doAction) {
 				await doStepperCycle(steppers, 'beforeStep', <TBeforeStep>({ featureStep }));
@@ -176,8 +184,16 @@ export class FeatureExecutor {
 					incidentDetails: { actionResult, featureStep }
 				};
 				const messageContext: TMessageContext = { ...baseContext, incident: EExecutionMessageType.STEP_END };
-				console.log(action.actionName)
-				world.logger.log((actionResult.ok ? CHECK_YES : `${CHECK_NO} (${(<TNotOKActionResult>actionResult).message})`), messageContext);
+				const checkMark = isSubStep
+					? CHECK_YIELD
+					: (actionResult.ok ? CHECK_YES : `${CHECK_NO} (${(<TNotOKActionResult>actionResult).message})`);
+				const logMessage = `${checkMark} ${formatCurrentSeqPath(featureStep.seqPath)} ${featureStep.in}`;
+				// Use trace level for sub-steps, log level for top-level steps
+				if (isSubStep) {
+					world.logger.trace(logMessage, messageContext);
+				} else {
+					world.logger.log(logMessage, messageContext);
+				}
 				// Push result BEFORE afterStep so parent appears before afterEvery child steps
 				world.runtime.stepResults.push(stepResultFromActionResult(actionResult, action, start, Timer.since(), featureStep, ok && actionResult.ok));
 				const instructions: TAfterStepResult[] = await doStepperCycle(steppers, 'afterStep', <TAfterStep>({ featureStep, actionResult }), action.actionName);
