@@ -13,7 +13,8 @@ export type TFeaturesBackgrounds = {
 export async function getFeaturesAndBackgrounds(bases: TBase, featureFilter: string[], fs: TFileSystem = nodeFS): Promise<TFeaturesBackgrounds> {
   const ret = { features: [], backgrounds: [] };
   for (const abase of bases) {
-    const ff = { feature: featureFilter, background: featureFilter };
+    // Only filter features, not backgrounds - backgrounds should always be loaded
+    const ff = { feature: featureFilter, background: [] };
 
     const rawFeaturesAndBackgrounds = { features: [], backgrounds: [] };
     for (const t of ['feature', 'background']) {

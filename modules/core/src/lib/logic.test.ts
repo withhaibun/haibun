@@ -6,19 +6,19 @@ import ActivitiesStepper from '../steps/activities-stepper.js';
 import { DEF_PROTO_OPTIONS } from './test/lib.js';
 
 describe('Logic system - dependency-based execution (remember/ensure/forget)', () => {
-  it('should only execute the requested Activity from multiple in one background', async () => {
+	it('should only execute the requested Activity from multiple in one background', async () => {
 		// Background file with multiple Activities - only one should execute
 		const multipleOutcomes = {
 			path: '/backgrounds/outcomes.feature',
 			content: `
 Activity: Login as admin
-remember Is logged in as admin with set "loginType" to "admin"
+remember Is logged in as admin with set loginType to "admin"
 
 Activity: Login as user
-remember Is logged in as user with set "loginType" to "user"
+remember Is logged in as user with set loginType to "user"
 
 Activity: Login as guest
-remember Is logged in as guest with set "loginType" to "guest"
+remember Is logged in as guest with set loginType to "guest"
 `
 		};
 
@@ -29,7 +29,7 @@ remember Is logged in as guest with set "loginType" to "guest"
 Feature: Multi-outcome test
 Scenario: Use only one outcome
 ensure Is logged in as user
-variable "loginType" is "user"
+variable loginType is "user"
 `
 		};
 
@@ -94,9 +94,9 @@ Scenario: Create and delete a widget
 ensure Is logged in as "admin"
 ensure Created widget "SuperWidget" that is "42" by "42"
 ensure Deleted widget "SuperWidget"
-variable "loggedIn" is "true"
-variable "widgetCreated" is "true"
-variable "widgetDeleted" is "true"
+variable loggedIn is "true"
+variable widgetCreated is "true"
+variable widgetDeleted is "true"
 `
 		};
 
@@ -114,7 +114,7 @@ variable "widgetDeleted" is "true"
 		const loginRecipe = {
 			path: '/backgrounds/login-recipe.feature',
 			content: `Activity: Login
-remember Is logged in as {user} with set "loggedIn" to "true"`
+remember Is logged in as {user} with set loggedIn to "true"`
 		};
 
 		const mainFeature = {
@@ -124,7 +124,7 @@ Feature: Multiple Ensures Test
 Scenario: Use same condition twice
 ensure Is logged in as "Admin"
 ensure Is logged in as "Admin"
-variable "loggedIn" is "true"
+variable loggedIn is "true"
 `
 		};
 
@@ -170,11 +170,11 @@ remember Is logged in as {user} with set "loggedIn" to "true"`
 Feature: Login/Logout Test
 Scenario: Login, logout, login again
 ensure Is logged in as "Admin"
-variable "loggedIn" is "true"
+variable loggedIn is "true"
 forget Is logged in as "Admin"
-set "loggedIn" to "false"
+set loggedIn to "false"
 ensure Is logged in as "Admin"
-variable "loggedIn" is "true"
+variable loggedIn is "true"
 `
 		};
 
@@ -209,7 +209,7 @@ variable "loggedIn" is "true"
 		const loginRecipe = {
 			path: '/backgrounds/login-recipe.feature',
 			content: `Activity: Login tracking
-remember Is logged in as {user} with set "lastUser" to {user}`
+remember Is logged in as {user} with set lastUser to {user}`
 		};
 
 		const mainFeature = {
@@ -218,9 +218,9 @@ remember Is logged in as {user} with set "lastUser" to {user}`
 Feature: Multi-user Test
 Scenario: Different users can log in
 ensure Is logged in as "Alice"
-variable "lastUser" is "Alice"
+variable lastUser is "Alice"
 ensure Is logged in as "Bob"
-variable "lastUser" is "Bob"
+variable lastUser is "Bob"
 `
 		};
 
@@ -276,17 +276,17 @@ describe('outcomes between features', () => {
 	it('clears outcome satisfaction between features', async () => {
 		const background = {
 			path: '/backgrounds/login.feature',
-			content: 'remember Is logged in with set "loggedIn" to "true"',
+			content: 'remember Is logged in with set loggedIn to "true"',
 		};
 
 		const feature1 = {
 			path: '/features/feature1.feature',
-			content: 'ensure Is logged in\nvariable "loggedIn" is "true"'
+			content: 'ensure Is logged in\nvariable loggedIn is "true"'
 		};
 
 		const feature2 = {
 			path: '/features/feature2.feature',
-			content: 'ensure Is logged in\nvariable "loggedIn" is "true"'
+			content: 'ensure Is logged in\nvariable loggedIn is "true"'
 		};
 
 		const result = await testWithDefaults([feature1, feature2], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
@@ -296,7 +296,7 @@ describe('outcomes between features', () => {
 	it('feature-defined outcomes not available in other features', async () => {
 		const feature1 = {
 			path: '/features/feature1.feature',
-			content: 'remember Feature 1 outcome with set "f1" to "yes"',
+			content: 'remember Feature 1 outcome with set f1 to "yes"',
 		};
 
 		const feature2 = {
@@ -312,38 +312,64 @@ describe('outcomes between features', () => {
 		expect(result.failure?.error.message).toContain('no step found for "Feature 1 outcome"');
 	});
 
-	it.skip('multiple remembers with last statement not a remember', async () => {
+	it('background outcomes available in all features', async () => {
 		const background = {
-			path: '/backgrounds/multi.feature',
-			content: 'Activity: Multi remember test\nset "step1" to "1"\nremember First outcome with set "first" to "1"\nset "step2" to "2"\nremember Second outcome with set "second" to "2"',
+			path: '/backgrounds/shared.feature',
+			content: 'remember Shared outcome with set shared to "value"',
 		};
 
+		const feature1 = {
+			path: '/features/feature1.feature',
+			content: 'ensure Shared outcome\nvariable shared is "value"',
+		};
+
+		const feature2 = {
+			path: '/features/feature2.feature',
+			content: 'ensure Shared outcome\nvariable shared is "value"',
+		};
+
+		const result = await testWithDefaults([feature1, feature2], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
+		expect(result.ok).toBe(true);
+	});
+});
+
+describe('multiple remember', () => {
+	const background = {
+		path: '/backgrounds/multi.feature',
+		content: `Activity: Multi remember test
+		set step1 to "1"
+		remember First outcome with set "first" to "1"
+		set step2 to "2"
+		remember Second outcome with set "second" to "2"
+		set afterstep to "done"`
+	};
+
+	it('first remembers', async () => {
 		const feature = {
 			path: '/features/feature.feature',
-			content: 'ensure Second outcome\nvariable "step1" is "1"\nvariable "first" is "1"\nvariable "step2" is "2"\nvariable "second" is "2"',
+			content: `ensure First outcome
+			variable step1 is "1"
+			variable first is "1"
+			not variable step2 is set
+			not variable second is set`,
 		};
 
 		const result = await testWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 		expect(result.ok).toBe(true);
 	});
 
-	it('background outcomes available in all features', async () => {
-		const background = {
-			path: '/backgrounds/shared.feature',
-			content: 'remember Shared outcome with set "shared" to "value"',
+	it('second remembers with last statement not a remember', async () => {
+		const feature = {
+			path: '/features/feature.feature',
+			content: `ensure Second outcome
+			variable step1 is "1"
+			variable first is "1"
+			variable step2 is "2"
+			variable second is "2"
+			not variable afterstep is set`,
 		};
 
-		const feature1 = {
-			path: '/features/feature1.feature',
-			content: 'ensure Shared outcome\nvariable "shared" is "value"',
-		};
-
-		const feature2 = {
-			path: '/features/feature2.feature',
-			content: 'ensure Shared outcome\nvariable "shared" is "value"',
-		};
-
-		const result = await testWithDefaults([feature1, feature2], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
+		const result = await testWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 		expect(result.ok).toBe(true);
 	});
 });

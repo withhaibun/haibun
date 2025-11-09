@@ -81,6 +81,14 @@ export type TActionExecutor<S extends string> = () => {
 
 export type TCurriedAction<S extends string> = (args: TActionArgsInput<S>) => TActionExecutor<S>;
 
+// Kireji step: either a string (prose/step) or an action executor function
+export type TKirejiStep = string | TActionExecutor<string>;
+
+// Kireji export structure: keys are feature/background names, values are arrays of steps
+export type TKirejiExport = {
+	[featureName: string]: TKirejiStep[];
+};
+
 type TActionsFromStepper<S extends TStepperSteps> = {
 	[K in keyof S]: S[K] extends { gwta: infer G }
 	? G extends string

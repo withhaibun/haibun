@@ -51,7 +51,7 @@ function doIncludes(input: string, backgrounds: TFeatures) {
 	for (const l of includes) {
 		const bg = findFeatures(l, backgrounds);
 		if (bg.length !== 1) {
-			throw Error(`can't find single "${l}.feature" from ${backgrounds.map((b) => b.path).join(', ')}`);
+			throw Error(`can't find single "${l}.feature" from ${backgrounds?.map((b) => b.path).join(', ')}`);
 		}
 		const origin = bg[0];
 		for (const l of featureSplit(origin.content)) {

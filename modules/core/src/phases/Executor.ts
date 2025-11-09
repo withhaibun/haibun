@@ -176,6 +176,7 @@ export class FeatureExecutor {
 					incidentDetails: { actionResult, featureStep }
 				};
 				const messageContext: TMessageContext = { ...baseContext, incident: EExecutionMessageType.STEP_END };
+				console.log(action.actionName)
 				world.logger.log((actionResult.ok ? CHECK_YES : `${CHECK_NO} (${(<TNotOKActionResult>actionResult).message})`), messageContext);
 				// Push result BEFORE afterStep so parent appears before afterEvery child steps
 				world.runtime.stepResults.push(stepResultFromActionResult(actionResult, action, start, Timer.since(), featureStep, ok && actionResult.ok));

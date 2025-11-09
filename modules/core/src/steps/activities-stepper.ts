@@ -85,9 +85,9 @@ export class ActivitiesStepper extends AStepper {
 					}
 
 					if (activityStartLine !== -1) {
-						// Collect ALL steps in the activity block up to (but not including) the current remember statement
+						// Collect ALL steps in the activity block up to and including the current remember statement
 						const blockLines: string[] = [];
-						for (let i = activityStartLine + 1; i < lineIndex; i++) {
+						for (let i = activityStartLine + 1; i <= lineIndex; i++) {
 							const stepLine = getActionable(allLines[i]);
 							if (stepLine) {
 								blockLines.push(stepLine);
@@ -122,7 +122,7 @@ export class ActivitiesStepper extends AStepper {
 		},
 
 		ensure: {
-			description: 'Ensure an outcome is satisfied, executing its recipe if not already cached',
+			description: 'Ensure an outcome is satisfied, executing it if not already cached',
 			gwta: `ensure {outcome:${DOMAIN_STATEMENT}}`,
 			action: async ({ outcome }: { outcome: TFeatureStep[] }, featureStep: TFeatureStep) => {
 				// Build cache key from the resolved outcome steps
