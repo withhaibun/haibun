@@ -160,7 +160,7 @@ export class ActivitiesStepper extends AStepper {
 
 				// Extract the interpolated proof statements from the registered outcome's result
 				const proofStatements = (result.stepActionResult?.messageContext?.incidentDetails as { proofStatements?: string[] })?.proofStatements;
-				
+
 				// Parse proof statements into TFeatureStep array for display
 				const proofSteps: TFeatureStep[] = proofStatements
 					? proofStatements.map((stmt, idx) => ({
@@ -225,11 +225,11 @@ export class ActivitiesStepper extends AStepper {
 			exact: 'show outcomes',
 			action: () => {
 				const satisfied = this.getWorld().runtime.satisfiedOutcomes;
-				
+
 				// Group satisfied outcomes by pattern
-				const outcomesByPattern: Record<string, { 
+				const outcomesByPattern: Record<string, {
 					proof?: { steps: string; seqPath: string };
-					satisfied: { in: string; seqPath: string }[] 
+					satisfied: { in: string; seqPath: string }[]
 				}> = {};
 
 				// First, add all registered patterns (even if no instances)
@@ -370,7 +370,7 @@ export class ActivitiesStepper extends AStepper {
 					return expanded;
 				});
 
-				return actionOK({ 
+				return actionOK({
 					messageContext: {
 						incident: EExecutionMessageType.ACTION,
 						incidentDetails: { proofStatements: interpolatedProof }

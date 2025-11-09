@@ -18,12 +18,10 @@ export const features: TKirejiExport = {
 		The pattern 'Navigate to {page}' is defined once in the background.
 		Each ensure call with a different page value (mainUrl, haibunUrl) creates a separate cached instance, tracked independently.`,
 
-		'after every ActivityStepper, show var pagesVisited',
+		'after every ActivitiesStepper, show var pagesVisited',
 
 		scenario({scenario: 'Visit pages with parameterized outcomes'}),
 		ensure({ outcome: knowsAboutWikipedia }),
-		'show vars',
-'debug step by step',
 		ensure({ outcome: 'Navigate to haibunUrl' }),
 		`↑ Creates instance "Navigate to haibunUrl" under the "Navigate to {page}" pattern.`,
 
