@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "outDir": "./build-local",
+    "rootDir": "./src",
+    "target": "esnext",
+    "module": "NodeNext",
+    "lib": [
+      "es2020", "DOM", "ESNext"
+    ],
+    "types": [
+      "node",
+      "jest"
+    ],
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "strict": true,
+    "experimentalDecorators": true,
+    "sourceMap": true
+  },
+  "include": [
+    "./src/**/*"
+  ],
+  "exclude": ["node_modules"]
+}
