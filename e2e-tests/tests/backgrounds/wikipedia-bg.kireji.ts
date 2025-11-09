@@ -10,7 +10,6 @@ const enWikipedia = 'enWikipedia';
 export const onMainPage = 'On the main webpage';
 export const onHaibunPage = 'On the haibun webpage';
 export const pagesVisited = 'pagesVisited';
-const lastPageVisited = 'lastPageVisited';
 
 export const backgrounds = {
 	'Wikipedia Activities': [
@@ -27,17 +26,14 @@ export const backgrounds = {
 
 		activity({ activity: 'Navigate to page' }),
 		increment({ what: pagesVisited }),
-		set({ what: lastPageVisited, value: 'page' }),
 		'remember Navigate to {page} with go to the {page} webpage',
 
 		activity({ activity: 'Navigate to Main page' }),
 		forget({ outcome: onHaibunPage }),
-		'Navigate to mainUrl',
-		`remember ${onMainPage} with ensure Navigate to mainUrl`,
+		`remember ${onMainPage} with Navigate to mainUrl`,
 
 		activity({ activity: 'Navigate to Haibun page' }),
 		forget({ outcome: onMainPage }),
-		'Navigate to haibunUrl',
-		`remember ${onHaibunPage} with ensure Navigate to haibunUrl`,
+		`remember ${onHaibunPage} with Navigate to haibunUrl`,
 	],
 };
