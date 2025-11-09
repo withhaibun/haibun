@@ -1,4 +1,5 @@
 import { withAction } from '@haibun/core/kireji/withAction.js';
+import type { TKirejiExport } from '@haibun/core/kireji/withAction.js';
 import ActivitiesStepper from '@haibun/core/steps/activities-stepper.js';
 import VariablesStepper from '@haibun/core/steps/variables-stepper.js';
 
@@ -11,10 +12,10 @@ export const onMainPage = 'On the main webpage';
 export const onHaibunPage = 'On the haibun webpage';
 export const pagesVisited = 'pagesVisited';
 
-export const backgrounds = {
-	'Wikipedia Activities': [
-		'Define reusable outcomes using web-playwright and variables.',
-		'Outcomes can capture page state and navigate efficiently.',
+export const backgrounds: TKirejiExport = {
+	'Page visit outcomes': [
+		`Define reusable outcomes using web-playwright and variables.
+		Outcomes can capture page state and navigate efficiently.`,
 
 		activity({ activity: knowsAboutWikipedia }),
 		set({ what: enWikipedia, value: 'https://en.wikipedia.org/wiki/' }),
@@ -25,6 +26,7 @@ export const backgrounds = {
 		`remember ${knowsAboutWikipedia} with set enWikipedia to https://en.wikipedia.org/wiki/`,
 
 		activity({ activity: 'Navigate to page' }),
+		`Notice this activity accessed without ensure, which means it won't be cached.`,
 		increment({ what: pagesVisited }),
 		'remember Navigate to {page} with go to the {page} webpage',
 
