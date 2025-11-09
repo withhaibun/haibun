@@ -293,6 +293,7 @@ export type TStepResult = {
 export type TSatisfiedOutcome = {
 	proofResult: TStepResult;
 	proofSteps: TFeatureStep[];
+	pattern: string; // The pattern template (e.g., "Navigate to {page}")
 };
 
 export type TRuntime = {

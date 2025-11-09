@@ -4,9 +4,9 @@ import ActivitiesStepper from '@haibun/core/steps/activities-stepper.js';
 import VariablesStepper from '@haibun/core/steps/variables-stepper.js';
 import Haibun from '@haibun/core/steps/haibun.js';
 
-import { knowsAboutWikipedia, onMainPage, onHaibunPage, pagesVisited, } from '../backgrounds/wikipedia-bg.kireji.ts';
+import { knowsAboutWikipedia, pagesVisited } from '../backgrounds/wikipedia-bg.kireji.ts';
 
-const { ensure } = withAction(new ActivitiesStepper());
+const { ensure, forget } = withAction(new ActivitiesStepper());
 const { is } = withAction(new VariablesStepper());
 const { feature, scenario } = withAction(new Haibun());
 
@@ -14,25 +14,33 @@ export const features: TKirejiExport = {
 	'Visit pages': [
 		feature({ feature: 'Visit pages' }),
 		`Navigate Wikipedia and explore articles using Activities and Outcomes.
-		This demonstrates using waypoint statements to define reusable outcomes.
-		Use ensure to execute outcomes only once, even when called multiple times.
-		Use forget to reset cached outcomes when navigating between pages.
-		Capture page state in variables to verify navigation.`,
+		This demonstrates using waypoint statements with interpolated parameters.
+		The pattern 'Navigate to {page}' is defined once in the background.
+		Each ensure call with a different page value (mainUrl, haibunUrl) creates a separate cached instance, tracked independently.`,
 
 		'after every ActivityStepper, show var pagesVisited',
 
-		scenario({scenario: 'Visit pages with ensures'}),
+		scenario({scenario: 'Visit pages with parameterized outcomes'}),
 		ensure({ outcome: knowsAboutWikipedia }),
-		ensure({ outcome: onHaibunPage }),
+		'show vars',
+'debug step by step',
+		ensure({ outcome: 'Navigate to haibunUrl' }),
+		`↑ Creates instance "Navigate to haibunUrl" under the "Navigate to {page}" pattern.`,
 
-		'debug step by step',
-		ensure({ outcome: onMainPage }),
+		forget({ outcome: 'Navigate to haibunUrl' }),
+		ensure({ outcome: 'Navigate to mainUrl' }),
+		`↑ Creates instance "Navigate to mainUrl" - a different cached outcome.`,
 
-		ensure({ outcome: onHaibunPage }),
-		`The previous onHaibunPage is waypointed.`,
-		ensure({ outcome: onHaibunPage }),
+		forget({ outcome: 'Navigate to mainUrl' }),
+		ensure({ outcome: 'Navigate to haibunUrl' }),
+		`↑ Re-executes haibunUrl since we forgot it above.`,
 
-		'Verify we visited three pages; the first three are actual accesses, the fourth is waypointed to be current.',
+		ensure({ outcome: 'Navigate to haibunUrl' }),
+		`↑ Uses cached haibunUrl instance (no re-execution).`,
+
 		is({ what: pagesVisited, value: '3' }),
+		`↑ Verify three actual page visits (fourth ensure was cached).`,
+
+		'show outcomes',
 	]
 }

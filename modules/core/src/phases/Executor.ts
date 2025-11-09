@@ -185,7 +185,7 @@ export class FeatureExecutor {
 				};
 				const messageContext: TMessageContext = { ...baseContext, incident: EExecutionMessageType.STEP_END };
 				const checkMark = isSubStep
-					? CHECK_YIELD
+					? `${CHECK_YIELD} ${actionResult.ok ? MAYBE_CHECK_YES : MAYBE_CHECK_NO}`
 					: (actionResult.ok ? CHECK_YES : `${CHECK_NO} (${(<TNotOKActionResult>actionResult).message})`);
 				const logMessage = `${checkMark} ${formatCurrentSeqPath(featureStep.seqPath)} ${featureStep.in}`;
 				// Use trace level for sub-steps, log level for top-level steps

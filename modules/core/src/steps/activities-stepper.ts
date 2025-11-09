@@ -138,6 +138,9 @@ export class ActivitiesStepper extends AStepper {
 					return actionOK({ messageContext });
 				}
 
+				// Get the pattern from the first outcome step's action
+				const pattern = outcome[0]?.action?.actionName || outcomeKey;
+
 				// Execute the outcome steps
 				const result = await executeSubFeatureSteps(
 					featureStep,
@@ -155,13 +158,27 @@ export class ActivitiesStepper extends AStepper {
 					return actionNotOK(`ensure: outcome "${outcomeKey}" could not be satisfied`, { messageContext });
 				}
 
-				// Cache the satisfied outcome with its proof result
+				// Extract the interpolated proof statements from the registered outcome's result
+				const proofStatements = (result.stepActionResult?.messageContext?.incidentDetails as { proofStatements?: string[] })?.proofStatements;
+				
+				// Parse proof statements into TFeatureStep array for display
+				const proofSteps: TFeatureStep[] = proofStatements
+					? proofStatements.map((stmt, idx) => ({
+						path: featureStep.path,
+						in: stmt,
+						seqPath: [...featureStep.seqPath, idx],
+						action: { actionName: 'proof', stepperName: 'activities', step: {} as TStepperStep }
+					}))
+					: outcome;
+
+				// Cache the satisfied outcome with its proof result and pattern
 				satisfiedOutcomes[outcomeKey] = {
 					proofResult: result,
-					proofSteps: outcome
+					proofSteps: proofSteps,
+					pattern: pattern
 				};
 
-				this.getWorld().logger.debug(`ensure: cached outcome "${outcomeKey}"`);
+				this.getWorld().logger.debug(`ensure: cached outcome "${outcomeKey}" with pattern "${pattern}"`);
 
 				const messageContext: TMessageContext = { incident: EExecutionMessageType.ACTION, incidentDetails: { outcome: outcomeKey, satisfied: true } };
 				return actionOK({ messageContext });
@@ -208,26 +225,47 @@ export class ActivitiesStepper extends AStepper {
 			exact: 'show outcomes',
 			action: () => {
 				const satisfied = this.getWorld().runtime.satisfiedOutcomes;
-				const allOutcomes: Record<string, { satisfied?: { in: string }[] }> = {};
+				
+				// Group satisfied outcomes by pattern
+				const outcomesByPattern: Record<string, { 
+					proof?: { steps: string; seqPath: string };
+					satisfied: { in: string; seqPath: string }[] 
+				}> = {};
 
+				// First, add all registered patterns (even if no instances)
 				for (const outcomePattern in this.steps) {
-					// Only show virtual (registered outcome) steps, not built-in steps like ensure, forget
 					if (this.steps[outcomePattern].virtual) {
-						const instances = [];
-
-					for (const satisfiedKey in satisfied) {
-						if (satisfiedKey === outcomePattern) {
-							instances.push({
-								proof: satisfied[satisfiedKey].proofSteps.map(s => s.in).join('; '),
-								seqPath: formatCurrentSeqPath(satisfied[satisfiedKey].proofResult.seqPath)
-							});
-						}
-					}						allOutcomes[outcomePattern] = instances.length > 0 ? { satisfied: instances } : {};
+						outcomesByPattern[outcomePattern] = { satisfied: [] };
 					}
 				}
 
-				this.getWorld().logger.info(`Outcomes (${Object.keys(allOutcomes).length} registered, ${Object.keys(satisfied).length} satisfied):\n${JSON.stringify(allOutcomes, null, 2)}`);
-				return actionOK({ messageContext: { incident: EExecutionMessageType.ACTION, incidentDetails: { outcomes: allOutcomes } } });
+				// Then populate with satisfied instances
+				for (const satisfiedKey in satisfied) {
+					const outcome = satisfied[satisfiedKey];
+					const pattern = outcome.pattern;
+
+					// Initialize pattern if not already present (shouldn't happen, but defensive)
+					if (!outcomesByPattern[pattern]) {
+						outcomesByPattern[pattern] = { satisfied: [] };
+					}
+
+					// Store proof at pattern level (first instance sets it)
+					if (!outcomesByPattern[pattern].proof && outcome.proofSteps.length > 0) {
+						outcomesByPattern[pattern].proof = {
+							steps: outcome.proofSteps.map(s => s.in).join('; '),
+							seqPath: formatCurrentSeqPath(outcome.proofResult.seqPath)
+						};
+					}
+
+					// Add this satisfied instance to its pattern group (just the instance details)
+					outcomesByPattern[pattern].satisfied.push({
+						in: satisfiedKey,
+						seqPath: formatCurrentSeqPath(outcome.proofResult.seqPath)
+					});
+				}
+
+				this.getWorld().logger.info(`Outcomes (${Object.keys(outcomesByPattern).length} registered, ${Object.keys(satisfied).length} satisfied):\n${JSON.stringify(outcomesByPattern, null, 2)}`);
+				return actionOK({ messageContext: { incident: EExecutionMessageType.ACTION, incidentDetails: { outcomes: outcomesByPattern } } });
 			},
 		},
 	} as const satisfies TActivitiesFixedSteps;
@@ -282,6 +320,9 @@ export class ActivitiesStepper extends AStepper {
 		// Determine which statements to execute: activity block if available and non-empty, otherwise proof statements
 		const statementsToExecute = (activityBlockSteps && activityBlockSteps.length > 0) ? activityBlockSteps : proofStatements;
 
+		// Store proofStatements for later retrieval
+		const outcomeProofStatements = proofStatements;
+
 		this.steps[outcome] = {
 			gwta: outcome,
 			virtual: true,  // Dynamically registered outcomes are virtual
@@ -319,7 +360,22 @@ export class ActivitiesStepper extends AStepper {
 					return actionNotOK(`ActivitiesStepper: failed to satisfy outcome "${outcome}"`);
 				}
 
-				return actionOK();
+				// Return the original proof statements (interpolated) in messageContext
+				// so ensure can store them as the proof
+				const interpolatedProof = outcomeProofStatements.map(statement => {
+					let expanded = statement;
+					for (const [key, value] of Object.entries(args)) {
+						expanded = expanded.replace(new RegExp(`\\{${key}\\}`, 'g'), String(value));
+					}
+					return expanded;
+				});
+
+				return actionOK({ 
+					messageContext: {
+						incident: EExecutionMessageType.ACTION,
+						incidentDetails: { proofStatements: interpolatedProof }
+					}
+				});
 			}
 		};
 

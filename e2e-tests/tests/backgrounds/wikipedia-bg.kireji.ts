@@ -3,13 +3,11 @@ import type { TKirejiExport } from '@haibun/core/kireji/withAction.js';
 import ActivitiesStepper from '@haibun/core/steps/activities-stepper.js';
 import VariablesStepper from '@haibun/core/steps/variables-stepper.js';
 
-const { activity, forget } = withAction(new ActivitiesStepper());
+const { activity } = withAction(new ActivitiesStepper());
 const { set, combine, increment } = withAction(new VariablesStepper());
 
 export const knowsAboutWikipedia = 'Knows about Wikipedia';
 const enWikipedia = 'enWikipedia';
-export const onMainPage = 'On the main webpage';
-export const onHaibunPage = 'On the haibun webpage';
 export const pagesVisited = 'pagesVisited';
 
 export const backgrounds: TKirejiExport = {
@@ -24,17 +22,9 @@ export const backgrounds: TKirejiExport = {
 		set({ what: pagesVisited, value: '0' }),
 		`waypoint ${knowsAboutWikipedia} with set enWikipedia to https://en.wikipedia.org/wiki/`,
 
-		activity({ activity: 'Navigate to page' }),
-		`Notice this activity accessed without ensure, which means it won't be cached.`,
+		activity({ activity: 'Navigate to any Wikipedia page' }),
 		increment({ what: pagesVisited }),
 		'waypoint Navigate to {page} with go to the {page} webpage',
-
-		activity({ activity: 'Navigate to Main page' }),
-		forget({ outcome: onHaibunPage }),
-		`waypoint ${onMainPage} with Navigate to mainUrl`,
-
-		activity({ activity: 'Navigate to Haibun page' }),
-		forget({ outcome: onMainPage }),
-		`waypoint ${onHaibunPage} with Navigate to haibunUrl`,
+		`↑ Parameterized outcome - use with: ensure Navigate to mainUrl, ensure Navigate to haibunUrl.`,
 	],
 };
