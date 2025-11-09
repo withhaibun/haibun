@@ -9,12 +9,12 @@ import Haibun from '../steps/haibun.js';
 describe('kireji activities', () => {
 	it('should convert multi-line proof template strings to BDD format correctly', () => {
 		const activitiesStepper = new ActivitiesStepper();
-		const { activity, remember } = withAction(activitiesStepper);
+		const { activity, waypoint } = withAction(activitiesStepper);
 
 		const testBackground = {
 			'Test Background': [
 				activity({ activity: 'Setup variables' }),
-				remember({
+				waypoint({
 					outcome: 'Variables are set',
 					proof: `set x to 1
 set y to 2
@@ -26,19 +26,19 @@ set z to 3`
 		const bdd = toBdd(testBackground);
 		console.log('Generated BDD:', bdd);
 
-		// The BDD should have the remember statement with the full proof
-		expect(bdd).toContain('remember Variables are set with');
+		// The BDD should have the waypoint statement with the full proof
+		expect(bdd).toContain('waypoint Variables are set with');
 		// Check if newlines are preserved
 		const lines = bdd.split('\n');
-		const rememberLine = lines.find(l => l.includes('remember Variables are set with'));
-		expect(rememberLine).toBeDefined();
+		const waypointLine = lines.find(l => l.includes('waypoint Variables are set with'));
+		expect(waypointLine).toBeDefined();
 	});
 
 	it('should handle single-line proofs in actual feature execution', async () => {
 		const background = {
 			path: '/backgrounds/setup.feature',
 			content: `Activity: Setup
-remember Has setup with set xy to "12"`
+waypoint Has setup with set xy to "12"`
 		};
 
 		const feature = {
@@ -77,7 +77,7 @@ variable xy is "12"`
 		const background = {
 			path: '/backgrounds/multi.feature',
 			content: `Activity: Navigate to page
-remember On homepage with set fullUrl to "https://example.com/home"`
+waypoint On homepage with set fullUrl to "https://example.com/home"`
 		};
 
 		const feature = {

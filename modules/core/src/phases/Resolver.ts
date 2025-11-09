@@ -5,7 +5,7 @@ import { getActionable, dePolite, constructorName } from '../lib/util/index.js';
 
 export class Resolver {
 	constructor(private steppers: AStepper[], private backgrounds: TFeatures = []) {
-		// Process backgrounds to allow steppers to register metadata (e.g., remember statements)
+		// Process backgrounds to allow steppers to register metadata (e.g., waypoint statements)
 		for (const background of backgrounds) {
 			const lines = background.content.trim().split('\n');
 			for (let i = 0; i < lines.length; i++) {

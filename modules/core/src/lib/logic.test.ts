@@ -5,20 +5,20 @@ import VariablesSteppers from '../steps/variables-stepper.js';
 import ActivitiesStepper from '../steps/activities-stepper.js';
 import { DEF_PROTO_OPTIONS } from './test/lib.js';
 
-describe('Logic system - dependency-based execution (remember/ensure/forget)', () => {
+describe('Logic system - dependency-based execution (waypoint/ensure/forget)', () => {
 	it('should only execute the requested Activity from multiple in one background', async () => {
 		// Background file with multiple Activities - only one should execute
 		const multipleOutcomes = {
 			path: '/backgrounds/outcomes.feature',
 			content: `
 Activity: Login as admin
-remember Is logged in as admin with set loginType to "admin"
+waypoint Is logged in as admin with set loginType to "admin"
 
 Activity: Login as user
-remember Is logged in as user with set loginType to "user"
+waypoint Is logged in as user with set loginType to "user"
 
 Activity: Login as guest
-remember Is logged in as guest with set loginType to "guest"
+waypoint Is logged in as guest with set loginType to "guest"
 `
 		};
 
@@ -65,7 +65,7 @@ variable loginType is "user"
 			path: '/backgrounds/login-recipe.feature',
 			content: `
 Activity: Login
-remember Is logged in as {user} with set "loggedIn" to "true"
+waypoint Is logged in as {user} with set "loggedIn" to "true"
 `
 		};
 
@@ -73,7 +73,7 @@ remember Is logged in as {user} with set "loggedIn" to "true"
 			path: '/backgrounds/create-widget-recipe.feature',
 			content: `
 Activity: Create widget
-remember Created widget {widgetName} that is {width} by {height} with set "widgetCreated" to "true"
+waypoint Created widget {widgetName} that is {width} by {height} with set "widgetCreated" to "true"
 `
 		};
 
@@ -81,7 +81,7 @@ remember Created widget {widgetName} that is {width} by {height} with set "widge
 			path: '/backgrounds/delete-widget-recipe.feature',
 			content: `
 Activity: Delete widget
-remember Deleted widget {widgetName} with set "widgetDeleted" to "true"
+waypoint Deleted widget {widgetName} with set "widgetDeleted" to "true"
 `
 		};
 
@@ -114,7 +114,7 @@ variable widgetDeleted is "true"
 		const loginRecipe = {
 			path: '/backgrounds/login-recipe.feature',
 			content: `Activity: Login
-remember Is logged in as {user} with set loggedIn to "true"`
+waypoint Is logged in as {user} with set loggedIn to "true"`
 		};
 
 		const mainFeature = {
@@ -161,7 +161,7 @@ variable loggedIn is "true"
 		const loginRecipe = {
 			path: '/backgrounds/login-recipe.feature',
 			content: `Activity: Login count
-remember Is logged in as {user} with set "loggedIn" to "true"`
+waypoint Is logged in as {user} with set "loggedIn" to "true"`
 		};
 
 		const mainFeature = {
@@ -209,7 +209,7 @@ variable loggedIn is "true"
 		const loginRecipe = {
 			path: '/backgrounds/login-recipe.feature',
 			content: `Activity: Login tracking
-remember Is logged in as {user} with set lastUser to {user}`
+waypoint Is logged in as {user} with set lastUser to {user}`
 		};
 
 		const mainFeature = {
@@ -237,14 +237,14 @@ variable lastUser is "Bob"
 	it('outcomes from backgrounds are shared, but feature outcomes are isolated', async () => {
 		const setupBackground = {
 			path: '/backgrounds/setup.feature',
-			content: 'remember Shared setup with set "shared" to "yes"',
+			content: 'waypoint Shared setup with set "shared" to "yes"',
 		};
 
 		const featureC = {
 			path: '/features/featureC.feature',
 			content: `
 Feature: Feature C
-remember Feature C outcome with set "featureC" to "yes"
+waypoint Feature C outcome with set "featureC" to "yes"
 ensure Shared setup
 variable "shared" is "yes"
 ensure Feature C outcome
@@ -276,7 +276,7 @@ describe('outcomes between features', () => {
 	it('clears outcome satisfaction between features', async () => {
 		const background = {
 			path: '/backgrounds/login.feature',
-			content: 'remember Is logged in with set loggedIn to "true"',
+			content: 'waypoint Is logged in with set loggedIn to "true"',
 		};
 
 		const feature1 = {
@@ -296,7 +296,7 @@ describe('outcomes between features', () => {
 	it('feature-defined outcomes not available in other features', async () => {
 		const feature1 = {
 			path: '/features/feature1.feature',
-			content: 'remember Feature 1 outcome with set f1 to "yes"',
+			content: 'waypoint Feature 1 outcome with set f1 to "yes"',
 		};
 
 		const feature2 = {
@@ -315,7 +315,7 @@ describe('outcomes between features', () => {
 	it('background outcomes available in all features', async () => {
 		const background = {
 			path: '/backgrounds/shared.feature',
-			content: 'remember Shared outcome with set shared to "value"',
+			content: 'waypoint Shared outcome with set shared to "value"',
 		};
 
 		const feature1 = {
@@ -333,18 +333,18 @@ describe('outcomes between features', () => {
 	});
 });
 
-describe('multiple remember', () => {
+describe('multiple waypoint', () => {
 	const background = {
 		path: '/backgrounds/multi.feature',
-		content: `Activity: Multi remember test
+		content: `Activity: Multi waypoint test
 		set step1 to "1"
-		remember First outcome with set "first" to "1"
+		waypoint First outcome with set "first" to "1"
 		set step2 to "2"
-		remember Second outcome with set "second" to "2"
+		waypoint Second outcome with set "second" to "2"
 		set afterstep to "done"`
 	};
 
-	it('first remembers', async () => {
+	it('first waypoints', async () => {
 		const feature = {
 			path: '/features/feature.feature',
 			content: `ensure First outcome
@@ -358,7 +358,7 @@ describe('multiple remember', () => {
 		expect(result.ok).toBe(true);
 	});
 
-	it('second remembers with last statement not a remember', async () => {
+	it('second waypoints with last statement not a waypoint', async () => {
 		const feature = {
 			path: '/features/feature.feature',
 			content: `ensure Second outcome

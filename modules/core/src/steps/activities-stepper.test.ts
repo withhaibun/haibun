@@ -109,7 +109,7 @@ describe('ActivitiesStepper', () => {
       const background = {
         path: '/backgrounds/test.feature',
         content: `Activity: Test
-remember Task completed with set "result" to "done"`
+waypoint Task completed with set "result" to "done"`
       };
 
       const feature = {
@@ -127,7 +127,7 @@ variable "result" is "done"`
       const background = {
         path: '/backgrounds/test.feature',
         content: `Activity: Test
-remember Task completed with set "marker" to "executed"`
+waypoint Task completed with set "marker" to "executed"`
       };
 
       const feature = {
@@ -145,7 +145,7 @@ variable "marker" is "not executed"`
     });
   });
 
-  describe('remembered step', () => {
+  describe('waypointed step', () => {
     const steppers = [VariablesStepper, ActivitiesStepper];
 
     it('should detect when outcome is cached', async () => {
@@ -153,13 +153,13 @@ variable "marker" is "not executed"`
         path: '/backgrounds/test.feature',
         content: `Activity: Test
 set "result" to "done"
-remember Task completed with set "result" to "done"`
+waypoint Task completed with set "result" to "done"`
       };
 
       const feature = {
         path: '/features/test.feature',
         content: `ensure Task completed
-remembered Task completed`
+waypointed Task completed`
       };
 
       const result = await testWithDefaults([feature], steppers, undefined, [background]);
@@ -171,12 +171,12 @@ remembered Task completed`
         path: '/backgrounds/test.feature',
         content: `Activity: Test
 set "result" to "done"
-remember Task completed with set "result" to "done"`
+waypoint Task completed with set "result" to "done"`
       };
 
       const feature = {
         path: '/features/test.feature',
-        content: `remembered Task completed`
+        content: `waypointed Task completed`
       };
 
       const result = await testWithDefaults([feature], steppers, undefined, [background]);
@@ -191,7 +191,7 @@ remember Task completed with set "result" to "done"`
       const background = {
         path: '/backgrounds/test.feature',
         content: `Activity: Test
-remember Task completed with set "count" to "1"`
+waypoint Task completed with set "count" to "1"`
       };
 
       const feature = {
@@ -213,7 +213,7 @@ variable "count" is "1"`
       const background = {
         path: '/backgrounds/test.feature',
         content: `Activity: Test
-remember Something happened with set "result" to "done"`
+waypoint Something happened with set "result" to "done"`
       };
 
       const feature = {
@@ -221,27 +221,27 @@ remember Something happened with set "result" to "done"`
         content: `forget Something happened
 ensure Something happened
 variable "result" is "done"
-remembered Something happened`
+waypointed Something happened`
       };
 
       const result = await testWithDefaults([feature], steppers, undefined, [background]);
       expect(result.ok).toBe(true);
     });
 
-    it('should make outcome no longer remembered', async () => {
+    it('should make outcome no longer waypointed', async () => {
       const background = {
         path: '/backgrounds/test.feature',
         content: `Activity: Test
 set "result" to "done"
-remember Task completed with set "result" to "done"`
+waypoint Task completed with set "result" to "done"`
       };
 
       const feature = {
         path: '/features/test.feature',
         content: `ensure Task completed
-remembered Task completed
+waypointed Task completed
 forget Task completed
-remembered Task completed`
+waypointed Task completed`
       };
 
       const result = await testWithDefaults([feature], steppers, undefined, [background]);

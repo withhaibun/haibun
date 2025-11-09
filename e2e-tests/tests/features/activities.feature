@@ -1,14 +1,14 @@
-Haibun supports Activities and remembered Outcomes that can be used to infer conditions for scenarios. This feature file tests multi-condition scenarios using Activities to set conditions.
+Haibun supports Activities and waypointed Outcomes that can be used to infer conditions for scenarios. This feature file tests multi-condition scenarios using Activities to set conditions.
 Outcomes define the "what", Activities define the "how".
 
 Activity: Login as admin
-remember Is logged in as admin {who} with set "loginType" to "admin"
+waypoint Is logged in as admin {who} with set "loginType" to "admin"
 
 Activity: Login as user
-remember Is logged in as user {who} with set "loginType" to "user"
+waypoint Is logged in as user {who} with set "loginType" to "user"
 
 Activity: Login as guest
-remember Is guest with set "loginType" to "guest"
+waypoint Is guest with set "loginType" to "guest"
 
 Feature: Multi-condition test
 

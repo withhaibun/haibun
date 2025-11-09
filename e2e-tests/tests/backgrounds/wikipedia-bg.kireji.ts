@@ -23,19 +23,19 @@ export const backgrounds: TKirejiExport = {
 		combine({ p1: enWikipedia, p2: 'Main_Page', what: 'mainUrl' }),
 		set({ what: pagesVisited, value: '0' }),
 		'show vars',
-		`remember ${knowsAboutWikipedia} with set enWikipedia to https://en.wikipedia.org/wiki/`,
+		`waypoint ${knowsAboutWikipedia} with set enWikipedia to https://en.wikipedia.org/wiki/`,
 
 		activity({ activity: 'Navigate to page' }),
 		`Notice this activity accessed without ensure, which means it won't be cached.`,
 		increment({ what: pagesVisited }),
-		'remember Navigate to {page} with go to the {page} webpage',
+		'waypoint Navigate to {page} with go to the {page} webpage',
 
 		activity({ activity: 'Navigate to Main page' }),
 		forget({ outcome: onHaibunPage }),
-		`remember ${onMainPage} with Navigate to mainUrl`,
+		`waypoint ${onMainPage} with Navigate to mainUrl`,
 
 		activity({ activity: 'Navigate to Haibun page' }),
 		forget({ outcome: onMainPage }),
-		`remember ${onHaibunPage} with Navigate to haibunUrl`,
+		`waypoint ${onHaibunPage} with Navigate to haibunUrl`,
 	],
 };

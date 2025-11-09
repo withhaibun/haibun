@@ -11,7 +11,7 @@ const { is } = withAction(new VariablesStepper());
 export const features: TKirejiExport = {
 	'Visit pages': [
 		`Navigate Wikipedia and explore articles using Activities and Outcomes.
-		This demonstrates using remember statements to define reusable outcomes.
+		This demonstrates using waypoint statements to define reusable outcomes.
 		Use ensure to execute outcomes only once, even when called multiple times.
 		Use forget to reset cached outcomes when navigating between pages.
 		Capture page state in variables to verify navigation.`,
@@ -24,10 +24,10 @@ export const features: TKirejiExport = {
 		ensure({ outcome: onMainPage }),
 
 		ensure({ outcome: onHaibunPage }),
-		`The previous onHaibunPage is remembered.`,
+		`The previous onHaibunPage is waypointed.`,
 		ensure({ outcome: onHaibunPage }),
 
-		'Verify we visited three pages; the first three are actual accesses, the fourth is remembered to be current.',
+		'Verify we visited three pages; the first three are actual accesses, the fourth is waypointed to be current.',
 		is({ what: pagesVisited, value: '3' }),
 	]
 }

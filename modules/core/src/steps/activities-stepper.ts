@@ -9,17 +9,17 @@ import { EExecutionMessageType, TMessageContext } from '../lib/interfaces/logger
 
 type TActivitiesFixedSteps = {
 	activity: TStepperStep;
-	remember: TStepperStep;
+	waypoint: TStepperStep;
 	ensure: TStepperStep;
 	forget: TStepperStep;
-	remembered: TStepperStep;
+	waypointed: TStepperStep;
 	showOutcomes: TStepperStep;
 };
 
 type TActivitiesStepperSteps = TStepperSteps & TActivitiesFixedSteps;
 
 /**
- * Stepper that dynamically builds virtual steps from `remember` statements.
+ * Stepper that dynamically builds virtual steps from `waypoint` statements.
  */
 export class ActivitiesStepper extends AStepper {
 	private steppers: AStepper[] = [];
@@ -33,18 +33,18 @@ export class ActivitiesStepper extends AStepper {
 			action: async () => Promise.resolve(OK),
 		},
 
-		remember: {
-			gwta: `remember {outcome} with {proof:${DOMAIN_STATEMENT}}`,
+		waypoint: {
+			gwta: `waypoint {outcome} with {proof:${DOMAIN_STATEMENT}}`,
 			resolveFeatureLine: (line: string, path: string, stepper: AStepper, _backgrounds: TFeatures, allLines?: string[], lineIndex?: number) => {
-				// Simple regex match to check if this is a remember statement
-				if (!line.match(/^remember\s+.+?\s+with\s+/i)) {
+				// Simple regex match to check if this is a waypoint statement
+				if (!line.match(/^waypoint\s+.+?\s+with\s+/i)) {
 					return false;
 				}
 
 				const activitiesStepper = stepper as ActivitiesStepper;
 
 				// Extract outcome name
-				const match = line.match(/^remember\s+(.+?)\s+with\s+(.+?)$/i);
+				const match = line.match(/^waypoint\s+(.+?)\s+with\s+(.+?)$/i);
 				if (!match) {
 					return false;
 				}
@@ -60,7 +60,7 @@ export class ActivitiesStepper extends AStepper {
 				const isBackground = path.includes('backgrounds/');
 				const proofRaw = match[2].trim();
 
-				// Parse the proof statements from the remember clause (DOMAIN_STATEMENT)
+				// Parse the proof statements from the waypoint clause (DOMAIN_STATEMENT)
 				const proofFromRemember = proofRaw
 					.split(/\\n|\n/)
 					.map(s => s.trim())
@@ -85,7 +85,7 @@ export class ActivitiesStepper extends AStepper {
 					}
 
 					if (activityStartLine !== -1) {
-						// Collect ALL steps in the activity block up to and including the current remember statement
+						// Collect ALL steps in the activity block up to and including the current waypoint statement
 						const blockLines: string[] = [];
 						for (let i = activityStartLine + 1; i <= lineIndex; i++) {
 							const stepLine = getActionable(allLines[i]);
@@ -103,7 +103,7 @@ export class ActivitiesStepper extends AStepper {
 			},
 			action: async ({ proof }: { proof: TFeatureStep[] }, featureStep: TFeatureStep) => {
 				// Execute the proof statements to satisfy this outcome
-				this.getWorld().logger.debug(`remember action: executing ${proof?.length || 0} proof steps`);
+				this.getWorld().logger.debug(`waypoint action: executing ${proof?.length || 0} proof steps`);
 
 				const result = await executeSubFeatureSteps(
 					featureStep,
@@ -114,7 +114,7 @@ export class ActivitiesStepper extends AStepper {
 				);
 
 				if (!result.ok) {
-					return actionNotOK(`remember: failed to execute proof steps`);
+					return actionNotOK(`waypoint: failed to execute proof steps`);
 				}
 
 				return actionOK();
@@ -186,19 +186,19 @@ export class ActivitiesStepper extends AStepper {
 			},
 		},
 
-		remembered: {
+		waypointed: {
 			description: 'Check if an outcome is already cached/satisfied',
-			gwta: `remembered {outcome:${DOMAIN_STATEMENT}}`,
+			gwta: `waypointed {outcome:${DOMAIN_STATEMENT}}`,
 			action: ({ outcome }: { outcome: TFeatureStep[] }) => {
 				const outcomeKey = outcome.map(step => step.in).join(' ');
 				const satisfied = this.getWorld().runtime.satisfiedOutcomes;
 
 				if (satisfied[outcomeKey]) {
-					this.getWorld().logger.debug(`remembered: outcome "${outcomeKey}" is cached`);
-					const messageContext: TMessageContext = { incident: EExecutionMessageType.ACTION, incidentDetails: { outcome: outcomeKey, remembered: true } };
+					this.getWorld().logger.debug(`waypointed: outcome "${outcomeKey}" is cached`);
+					const messageContext: TMessageContext = { incident: EExecutionMessageType.ACTION, incidentDetails: { outcome: outcomeKey, waypointed: true } };
 					return actionOK({ messageContext });
 				} else {
-					return actionNotOK(`outcome "${outcomeKey}" is not remembered`);
+					return actionNotOK(`outcome "${outcomeKey}" is not waypointed`);
 				}
 			},
 		},
@@ -256,7 +256,7 @@ export class ActivitiesStepper extends AStepper {
 
 	/**
 	 * Register a dynamic outcome step.
-	 * This is called when parsing `remember` statements.
+	 * This is called when parsing `waypoint` statements.
 	 *
 	 * @param outcome - The outcome pattern (e.g., "Is logged in as {user}")
 	 * @param proofStatements - Array of statement strings from the DOMAIN_STATEMENT proof
