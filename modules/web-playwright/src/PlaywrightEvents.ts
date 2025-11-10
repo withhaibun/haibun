@@ -1,8 +1,10 @@
 import { Page, Request, Route, Response } from 'playwright';
 
-import { TArtifactHTTPTrace, THTTPTraceContent, ILogger, EExecutionMessageType, TMessageContext } from '@haibun/core/lib/interfaces/logger.js'; // Updated imports
+import { TArtifactHTTPTrace, THTTPTraceContent, EExecutionMessageType, TMessageContext } from '@haibun/core/lib/interfaces/logger.js'; // Updated imports
 import { shortenURI } from '@haibun/core/lib/util/index.js';
 import { TTag } from '@haibun/core/lib/ttag.js';
+import { TWorld } from '@haibun/core/build/lib/defs.js';
+import { DOMAIN_STRING } from '@haibun/core/lib/domain-types.js';
 
 type TEtc = {
 	headers: Record<string, string>;
@@ -13,12 +15,13 @@ type TEtc = {
 }
 
 export class PlaywrightEvents {
-	constructor(private logger: ILogger, private page: Page, private tag: TTag) {
-		this.logger.debug(`setPage ${JSON.stringify(tag)}`);
+	constructor(private world: TWorld, private page: Page, private tag: TTag) {
+		world.logger.debug(`setPage ${JSON.stringify(tag)}`);
 		page.on('request', this.logRequest.bind(this));
 		// eslint-disable-next-line @typescript-eslint/no-floating-promises
 		page.route('**/*', this.routeRequest.bind(this));
 		page.on('response', this.logResponse.bind(this));
+		page.on('framenavigated', this.framenavigated.bind(this));
 	}
 	private async logRequest(request: Request, type = 'request'): Promise<void> {
 		const frameURL = request.frame().url();
@@ -49,6 +52,15 @@ export class PlaywrightEvents {
 		this.log(`response ${etc.status}`, 'response', frameURL, response.url(), etc);
 		return Promise.resolve();
 	}
+	private framenavigated(frame) {
+		if (frame === this.page.mainFrame()) {
+			this.world.shared.setForStepper('WebPlaywright', {
+				term: 'currentURI', value: frame.url(),
+				domain: DOMAIN_STRING,
+				origin: 'fallthrough'
+			}, { in: 'PlaywrightEvents.framenavigated', seq: [], when: 'framenavigated' });
+		}
+	}
 	public close(): void {
 		this.page.off('request', this.logRequest.bind(this));
 		// Note: Playwright doesn't provide a direct way to remove a specific route handler
@@ -76,6 +88,6 @@ export class PlaywrightEvents {
 			artifacts: [artifact],
 			tag: this.tag
 		};
-		this.logger.debug(`playwright ${label} ${shortenURI(logData.requestingURL)} ➔ ${targetWithoutRequestingBase}`, mc);
+		this.world.logger.debug(`playwright ${label} ${shortenURI(logData.requestingURL)} ➔ ${targetWithoutRequestingBase}`, mc);
 	}
 }

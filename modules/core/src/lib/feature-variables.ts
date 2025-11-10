@@ -22,7 +22,16 @@ export class FeatureVariables {
 	setJSON(label: string, value: object, origin: TOrigin, source: TFeatureStep) {
 		this.set({ term: label, value: JSON.stringify(value), domain: DOMAIN_JSON, origin }, { in: source.in, seq: source.seqPath, when: `${source.action.stepperName}.${source.action.actionName}` });
 	}
+	setForStepper(stepper: string, sv: TStepValue, provenance: TProvenanceIdentifier) {
+		return this._set({ ...sv, term: `${stepper}.${sv.term}` }, provenance);
+	}
 	set(sv: TStepValue, provenance: TProvenanceIdentifier) {
+		if (sv.term.match(/.*\..*/)) {
+			throw Error('non-stepper variables cannot use dots');
+		}
+		return this._set(sv, provenance);
+	}
+	_set(sv: TStepValue, provenance: TProvenanceIdentifier) {
 		const domain = this.world.domains[sv.domain]
 		if (domain === undefined) {
 			throw Error(`Cannot set variable "${sv.term}": unknown domain "${sv.domain}"`);

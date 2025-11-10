@@ -127,6 +127,8 @@ export class ActivitiesStepper extends AStepper {
 			action: async ({ outcome }: { outcome: TFeatureStep[] }, featureStep: TFeatureStep) => {
 				// Build cache key from the resolved outcome steps
 				const outcomeKey = outcome.map(step => step.in).join(' ');
+				console.log('🤑', JSON.stringify(outcomeKey, null, 2));
+
 				this.getWorld().logger.debug(`ensure: requesting outcome "${outcomeKey}"`);
 
 				const satisfiedOutcomes = this.getWorld().runtime.satisfiedOutcomes;
@@ -142,13 +144,7 @@ export class ActivitiesStepper extends AStepper {
 				const pattern = outcome[0]?.action?.actionName || outcomeKey;
 
 				// Execute the outcome steps
-				const result = await executeSubFeatureSteps(
-					featureStep,
-					outcome,
-					this.steppers,
-					this.getWorld(),
-					ExecMode.WITH_CYCLES
-				);
+				const result = await executeSubFeatureSteps(featureStep, outcome, this.steppers, this.getWorld(), ExecMode.WITH_CYCLES);
 
 				if (!result.ok) {
 					const messageContext: TMessageContext = {
@@ -183,7 +179,8 @@ export class ActivitiesStepper extends AStepper {
 				const messageContext: TMessageContext = { incident: EExecutionMessageType.ACTION, incidentDetails: { outcome: outcomeKey, satisfied: true } };
 				return actionOK({ messageContext });
 			},
-		}, forget: {
+		},
+		forget: {
 			description: 'Forget (invalidate) a previously satisfied outcome, forcing it to re-execute on next ensure',
 			gwta: `forget {outcome:${DOMAIN_STATEMENT}}`,
 			action: ({ outcome }: { outcome: TFeatureStep[] }, featureStep: TFeatureStep) => {
@@ -203,7 +200,6 @@ export class ActivitiesStepper extends AStepper {
 				return actionOK({ messageContext });
 			},
 		},
-
 		waypointed: {
 			description: 'Check if an outcome is already cached/satisfied',
 			gwta: `waypointed {outcome:${DOMAIN_STATEMENT}}`,

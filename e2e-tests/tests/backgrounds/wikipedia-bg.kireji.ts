@@ -24,7 +24,8 @@ export const backgrounds: TKirejiExport = {
 
 		activity({ activity: 'Navigate to any Wikipedia page' }),
 		increment({ what: pagesVisited }),
-		'waypoint Navigate to {page} with go to the {page} webpage',
-		`↑ Parameterized outcome - use with: ensure Navigate to mainUrl, ensure Navigate to haibunUrl.`,
+		'go to the {page} webpage',
+		'waypoint Navigate to {page} with variable WebPlaywright.currentURI is {page}',
+			`↑ Parameterized outcome - use with: ensure Navigate to mainUrl, ensure Navigate to haibunUrl.`,
 	],
 };
