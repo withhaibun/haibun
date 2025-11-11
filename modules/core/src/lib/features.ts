@@ -45,7 +45,6 @@ export function expandLine(l: string, backgrounds: TFeatures, feature: TFeature)
 }
 
 function doIncludes(input: string, backgrounds: TFeatures) {
-	console.log('\n\ninputs', input);
 	const includes = input.split(',').map((a) => a.trim());
 	const ret: TExpandedLine[] = [];
 	for (const l of includes) {
