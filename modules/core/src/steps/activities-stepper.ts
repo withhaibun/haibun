@@ -26,6 +26,8 @@ export class ActivitiesStepper extends AStepper {
 	// Track which outcome patterns were defined in backgrounds vs features
 	private backgroundOutcomePatterns: Set<string> = new Set();
 	private featureOutcomePatterns: Set<string> = new Set();
+	// Track ensured waypoint instances with their interpolated proofs
+	private ensuredInstances: Map<string, { proof: string[]; valid: boolean }> = new Map();
 
 	private readonly baseSteps = {
 		activity: {
@@ -156,6 +158,11 @@ export class ActivitiesStepper extends AStepper {
 				// Extract the interpolated proof statements from the result
 				const proofStatements = (result.stepActionResult?.messageContext?.incidentDetails as { proofStatements?: string[] })?.proofStatements;
 
+				// Track this ensured instance
+				if (proofStatements) {
+					this.ensuredInstances.set(outcomeKey, { proof: proofStatements, valid: true });
+				}
+
 				this.getWorld().logger.debug(`ensure: waypoint "${outcomeKey}" verified and satisfied`);
 
 				const messageContext: TMessageContext = {
@@ -195,63 +202,61 @@ export class ActivitiesStepper extends AStepper {
 		showWaypoints: {
 			exact: 'show waypoints',
 			action: async (_args, featureStep: TFeatureStep) => {
-				// Collect all registered waypoint patterns
+				// Show ensured waypoint instances with their current validity
 				const waypointResults: Record<string, {
 					proof: string;
 					currentlyValid: boolean;
 					error?: string;
 				}> = {};
 
-				for (const waypointPattern in this.steps) {
-					if (this.steps[waypointPattern].virtual) {
-						// Get the description which contains the proof
-						const description = this.steps[waypointPattern].description || '';
-						const proofMatch = description.match(/Proof: (.+)$/);
-						const proof = proofMatch ? proofMatch[1] : 'unknown';
+				// Check validity of all ensured instances
+				for (const [instanceKey, instanceData] of this.ensuredInstances.entries()) {
+					this.getWorld().logger.debug(`show waypoints: verifying "${instanceKey}"`);
+					try {
+						// Re-verify the proof for this instance
+						const resolvedSteps: TFeatureStep[] = [];
 
-						try {
-							// Parse the proof statements and execute them directly to check validity
-							// Do NOT execute the waypoint step itself, as that would run the activity body
-							const proofStatements = proof.split('; ');
-							const resolvedSteps: TFeatureStep[] = [];
-
-							for (let i = 0; i < proofStatements.length; i++) {
-								const statement = proofStatements[i];
-								const resolved = findFeatureStepsFromStatement(
-									statement,
-									this.steppers,
-									this.getWorld(),
-									featureStep.path,
-									[...featureStep.seqPath, i],
-									1
-								);
-								resolvedSteps.push(...resolved);
-							}
-
-							// Execute the proof statements with NO_CYCLES to check current validity
-							const result = await executeSubFeatureSteps(
-								featureStep,
-								resolvedSteps,
+						for (let i = 0; i < instanceData.proof.length; i++) {
+							const statement = instanceData.proof[i];
+							const resolved = findFeatureStepsFromStatement(
+								statement,
 								this.steppers,
 								this.getWorld(),
-								ExecMode.NO_CYCLES
+								featureStep.path,
+								[...featureStep.seqPath, i],
+								1
 							);
-
-							waypointResults[waypointPattern] = {
-								proof,
-								currentlyValid: result.ok
-							};
-						} catch (error) {
-							waypointResults[waypointPattern] = {
-								proof,
-								currentlyValid: false,
-								error: error instanceof Error ? error.message : String(error)
-							};
+							// Add waypoint context to each proof step
+							const contextualizedSteps = resolved.map(step => ({
+								...step,
+								in: `[${instanceKey} proof] ${step.in}`
+							}));
+							resolvedSteps.push(...contextualizedSteps);
 						}
+
+						// Execute the proof statements with NO_CYCLES to check current validity
+						const result = await executeSubFeatureSteps(
+							featureStep,
+							resolvedSteps,
+							this.steppers,
+							this.getWorld(),
+							ExecMode.NO_CYCLES
+						);
+
+						waypointResults[instanceKey] = {
+							proof: instanceData.proof.join('; '),
+							currentlyValid: result.ok
+						};
+					} catch (error) {
+						waypointResults[instanceKey] = {
+							proof: instanceData.proof.join('; '),
+							currentlyValid: false,
+							error: error instanceof Error ? error.message : String(error)
+						};
 					}
 				}
 
-				this.getWorld().logger.info(`Waypoints (${Object.keys(waypointResults).length} registered):\n${JSON.stringify(waypointResults, null, 2)}`);
+				this.getWorld().logger.info(`Waypoints (${Object.keys(waypointResults).length} ensured):\n${JSON.stringify(waypointResults, null, 2)}`);
 				return actionOK({ messageContext: { incident: EExecutionMessageType.ACTION, incidentDetails: { waypoints: waypointResults } } });
 			},
 		},
@@ -268,6 +273,8 @@ export class ActivitiesStepper extends AStepper {
 				delete this.steps[pattern];
 			}
 			this.featureOutcomePatterns.clear();
+			// Clear ensured instances for next feature
+			this.ensuredInstances.clear();
 			return Promise.resolve();
 		}
 	}
@@ -353,7 +360,7 @@ export class ActivitiesStepper extends AStepper {
 				return actionOK({
 					messageContext: {
 						incident: EExecutionMessageType.ACTION,
-						incidentDetails: { proofStatements: interpolatedProof }
+						incidentDetails: { proofStatements: interpolatedProof, proofSatisfied: true }
 					}
 				});
 			}

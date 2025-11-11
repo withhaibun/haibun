@@ -9,14 +9,14 @@ export async function resolveAndExecuteStatement(statement: string, base: string
 	return await executeFeatureSteps(featureSteps, steppers, world, execMode);
 }
 
-export async function executeSubFeatureSteps(superFeatureStep: TFeatureStep, featureSteps: TFeatureStep[], steppers: AStepper[], world: TWorld, execMode: ExecMode = ExecMode.WITH_CYCLES, dir = 1): Promise<TStepResult> {
+export async function executeSubFeatureSteps(superFeatureStep: TFeatureStep, featureSteps: TFeatureStep[], steppers: AStepper[], world: TWorld, execMode: ExecMode = ExecMode.WITH_CYCLES, dir = 1, markAsSubStep = true): Promise<TStepResult> {
 	let lastResult: TStepResult;
 
 	for (const step of featureSteps) {
 		// Calculate seqPath for this step based on current state of stepResults
 		const baseSeqPath = [...superFeatureStep.seqPath, 1];
 		const seqPath = incSeqPath(world.runtime.stepResults, baseSeqPath, dir);
-		const mappedStep = { ...step, seqPath, isSubStep: true };
+		const mappedStep = { ...step, seqPath, isSubStep: markAsSubStep };
 
 		// Execute the step
 		lastResult = await FeatureExecutor.doFeatureStep(steppers, mappedStep, world, execMode);

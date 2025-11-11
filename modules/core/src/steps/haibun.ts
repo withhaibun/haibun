@@ -27,12 +27,18 @@ class Haibun extends AStepper {
 			let failed = false;
 			if (afterEvery) {
 				for (const aeStep of afterEvery) {
+					// Skip if the afterEvery step is the same as the current step (prevent infinite recursion)
+					if (aeStep.action.actionName === featureStep.action.actionName) {
+						continue;
+					}
+					
 					// Map the seqPath to extend from the current featureStep
 					const mappedStep: TFeatureStep = {
 						...aeStep,
 						seqPath: [...featureStep.seqPath, ...(aeStep.seqPath.slice(1))],
 					};
-					const res = await executeSubFeatureSteps(featureStep, [mappedStep], this.steppers, this.getWorld(), ExecMode.NO_CYCLES);
+					// After every steps are substeps (triggered by parent step)
+					const res = await executeSubFeatureSteps(featureStep, [mappedStep], this.steppers, this.getWorld(), ExecMode.NO_CYCLES, 1, true);
 					if (!res.ok) {
 						failed = true;
 						break;

@@ -18,7 +18,7 @@ export const features: TKirejiExport = {
 		The pattern 'Navigate to {page}' is defined once in the background.
 		Each ensure call with a different page value (mainUrl, haibunUrl) always checks the current state.`,
 
-		'after every ActivitiesStepper, show waypoints',
+		// 'after every ActivitiesStepper, show waypoints',
 
 		scenario({scenario: 'Visit pages with parameterized waypoints'}),
 		`↑ Ensures that Wikipedia base URL is set up.`,

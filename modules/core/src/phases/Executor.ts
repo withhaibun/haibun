@@ -30,6 +30,45 @@ function calculateShouldClose({ thisFeatureOK, isLast, stayOnFailure, continueAf
 const MAX_EXECUTE_SEQPATH = 50;
 
 export class Executor {
+	private static createExecutionFailure(featureResults: TFeatureResult[], world: TWorld): TExecutorResult['failure'] | undefined {
+		const firstFailedFeature = featureResults.find(fr => !fr.ok);
+		if (!firstFailedFeature) {
+			return undefined;
+		}
+
+		const failedStep = firstFailedFeature.stepResults.find(sr => !sr.ok);
+		if (!failedStep) {
+			return undefined;
+		}
+
+		const errorMessage = failedStep.stepActionResult && 'message' in failedStep.stepActionResult
+			? failedStep.stepActionResult.message
+			: 'Step execution failed';
+
+		const stackTrace = [
+			`Failed step: ${failedStep.in}`,
+			`Path: ${failedStep.path}`,
+			`SeqPath: ${failedStep.seqPath.join(',')}`,
+		];
+
+		if (world.runtime.depthLimitExceeded) {
+			stackTrace.push('Depth limit exceeded');
+		}
+
+		return {
+			stage: 'Execute',
+			error: {
+				message: errorMessage,
+				details: {
+					stack: stackTrace,
+					step: failedStep.in,
+					path: failedStep.path,
+					seqPath: failedStep.seqPath
+				}
+			}
+		};
+	}
+
 	static async action(steppers: AStepper[], featureStep: TFeatureStep, found: TStepAction, args: TStepArgs, world: TWorld) {
 		const stepper = findStepper<AStepper>(steppers, found.stepperName);
 		const action = stepper.steps[found.actionName].action;
@@ -93,44 +132,16 @@ export class Executor {
 
 		// If execution failed, capture the failure details from the first failed step
 		if (!okSoFar) {
-			const firstFailedFeature = featureResults.find(fr => !fr.ok);
-			if (firstFailedFeature) {
-				const failedStep = firstFailedFeature.stepResults.find(sr => !sr.ok);
-				if (failedStep) {
-					const errorMessage = failedStep.stepActionResult && 'message' in failedStep.stepActionResult
-						? failedStep.stepActionResult.message
-						: 'Step execution failed';
-
-					const stackTrace = [
-						`Failed step: ${failedStep.in}`,
-						`Path: ${failedStep.path}`,
-						`SeqPath: ${failedStep.seqPath.join(',')}`,
-					];
-
-					if (world.runtime.depthLimitExceeded) {
-						stackTrace.push('Depth limit exceeded');
-					}
-
-					return {
-						ok: false,
-						featureResults,
-						tag: world.tag,
-						shared: world.shared,
-						steppers,
-						failure: {
-							stage: 'Execute',
-							error: {
-								message: errorMessage,
-								details: {
-									stack: stackTrace,
-									step: failedStep.in,
-									path: failedStep.path,
-									seqPath: failedStep.seqPath
-								}
-							}
-						}
-					};
-				}
+			const failure = this.createExecutionFailure(featureResults, world);
+			if (failure) {
+				return {
+					ok: false,
+					featureResults,
+					tag: world.tag,
+					shared: world.shared,
+					steppers,
+					failure
+				};
 			}
 		}
 
@@ -140,6 +151,24 @@ export class Executor {
 
 export class FeatureExecutor {
 	constructor(private steppers: AStepper[], private world: TWorld, private logit = topicArtifactLogger(world), private startOffset = Timer.since()) {
+	}
+
+	private static formatStepLogMessage(featureStep: TFeatureStep, actionResult: TActionResult, isSubStep: boolean): string {
+		const seqPathStr = formatCurrentSeqPath(featureStep.seqPath);
+		
+		if (isSubStep) {
+			// Substeps use yield icon with maybe status
+			const maybeStatus = actionResult.ok ? MAYBE_CHECK_YES : MAYBE_CHECK_NO;
+			return `${CHECK_YIELD} ${seqPathStr} ${maybeStatus} ${featureStep.in}`;
+		}
+		
+		// Top-level steps use YES/NO icons
+		if (actionResult.ok) {
+			return `${CHECK_YES} ${seqPathStr} ${featureStep.in}`;
+		}
+		
+		const errorMsg = (<TNotOKActionResult>actionResult).message;
+		return `${CHECK_NO} ${seqPathStr} ${featureStep.in}\n   Error: ${errorMsg}`;
 	}
 
 	async doFeature(feature: TResolvedFeature): Promise<TFeatureResult> {
@@ -263,23 +292,8 @@ export class FeatureExecutor {
 				};
 				const messageContext: TMessageContext = { ...baseContext, incident: EExecutionMessageType.STEP_END };
 
-				// Format the status indicator and message consistently
-				const seqPathStr = formatCurrentSeqPath(featureStep.seqPath);
-				let logMessage: string;
-
-				if (isSubStep) {
-					// Substeps: show compact format with seqPath and status
-					const status = actionResult.ok ? CHECK_YES : CHECK_NO;
-					logMessage = `  ${CHECK_YIELD} ${seqPathStr} ${status} ${featureStep.in}`;
-				} else {
-					// Top-level steps: show full format with optional error message
-					if (actionResult.ok) {
-						logMessage = `${CHECK_YES} ${seqPathStr} ${featureStep.in}`;
-					} else {
-						const errorMsg = (<TNotOKActionResult>actionResult).message;
-						logMessage = `${CHECK_NO} ${seqPathStr} ${featureStep.in}\n   Error: ${errorMsg}`;
-					}
-				}
+				// Format the log message
+				const logMessage = FeatureExecutor.formatStepLogMessage(featureStep, actionResult, isSubStep);
 
 				// Use trace level for sub-steps, log level for top-level steps
 				if (isSubStep) {
@@ -310,10 +324,22 @@ export class FeatureExecutor {
 				incidentDetails: { actionResult, featureStep }
 			};
 			const messageContext: TMessageContext = { ...baseContext, incident: EExecutionMessageType.ACTION, incidentDetails: { ...baseContext.incidentDetails, execMode } };
-			if (isPrompt) {
-				world.logger.log((actionResult.ok ? CHECK_YES : `${CHECK_NO} (${(<TNotOKActionResult>actionResult).message})`) + ` ${featureStep.in}`, messageContext);
-			} else {
-				world.logger.log(`${CHECK_YIELD}[${actionResult.ok ? MAYBE_CHECK_YES : MAYBE_CHECK_NO}] ${featureStep.in}`, messageContext);
+
+			// Format the log message using the same formatter
+			const logMessage = FeatureExecutor.formatStepLogMessage(featureStep, actionResult, isSubStep);
+
+			// Only log if we have a message (null means skip logging)
+			if (logMessage) {
+				if (isPrompt) {
+					world.logger.log(logMessage, messageContext);
+				} else {
+					// Use trace for substeps, log for others
+					if (isSubStep) {
+						world.logger.trace(logMessage, messageContext);
+					} else {
+						world.logger.log(logMessage, messageContext);
+					}
+				}
 			}
 		}
 

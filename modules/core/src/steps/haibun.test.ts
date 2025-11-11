@@ -55,7 +55,8 @@ describe('afterEvery', () => {
 		const result = await testWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(true);
 		const seqs = result.featureResults![0].stepResults.map(r => r.seqPath);
-		expect(seqs).toEqual([[1,1,1], [1,1,2], [1,1,3], [1,1,3,1], [1,1,4], [1,1,4,1]]);
+		// Step [1,1,4] "passes" does not trigger afterEvery because it's the same action (prevents infinite recursion)
+		expect(seqs).toEqual([[1,1,1], [1,1,2], [1,1,3], [1,1,3,1], [1,1,4]]);
 	});
 });
 
