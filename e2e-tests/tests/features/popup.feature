@@ -7,7 +7,7 @@ Scenario: Handle popup window
     Go to the test webpage
     click "Open popup"
 
-    pause until current tab is 2
+    pause until current tab is 4
     on tab 2
     be on the popped up webpage
     see "Congratulations"
