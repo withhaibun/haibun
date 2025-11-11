@@ -157,7 +157,7 @@ export interface IStepperCycles {
 	endScenario?(): Promise<void>;
 	endFeature?(endedWith?: TEndFeature): Promise<void>;
 	onFailure?(result: TFailureArgs): Promise<void | TMessageContext>;
-	endExecution?(): Promise<void>;
+	endExecution?(results: TExecutorResult): Promise<void>;
 }
 
 export type TDomainCoercer = (proto: TStepValue, featureStep?: TFeatureStep, steppers?: AStepper[]) => TStepValueValue;
@@ -206,7 +206,6 @@ export const OK: TOKActionResult = { ok: true };
 export type TExecutorResultError = {
 	details: {
 		[name: string]: TAnyFixme;
-		stack: string[];
 	};
 	message: string;
 };

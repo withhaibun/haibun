@@ -30,7 +30,7 @@ function calculateShouldClose({ thisFeatureOK, isLast, stayOnFailure, continueAf
 const MAX_EXECUTE_SEQPATH = 50;
 
 export class Executor {
-	private static createExecutionFailure(featureResults: TFeatureResult[], world: TWorld): TExecutorResult['failure'] | undefined {
+	private static createExecutionFailure(featureResults: TFeatureResult[]): TExecutorResult['failure'] | undefined {
 		const firstFailedFeature = featureResults.find(fr => !fr.ok);
 		if (!firstFailedFeature) {
 			return undefined;
@@ -45,21 +45,11 @@ export class Executor {
 			? failedStep.stepActionResult.message
 			: 'Step execution failed';
 
-		const stackTrace = [
-			`Failed step: ${failedStep.in}`,
-			`Path: ${failedStep.path}`,
-			`SeqPath: ${failedStep.seqPath.join(',')}`,
-		];
-
-		if (world.runtime.depthLimitExceeded) {
-			stackTrace.push('Depth limit exceeded');
-		}
 		return {
 			stage: 'Execute',
 			error: {
 				message: errorMessage,
 				details: {
-					stack: stackTrace,
 					step: failedStep.in,
 					path: failedStep.path,
 					seqPath: failedStep.seqPath
@@ -128,24 +118,16 @@ export class Executor {
 				}
 			}
 		}
-		await doStepperCycle(steppers, 'endExecution', undefined);
 
-		// If execution failed, capture the failure details from the first failed step
+		const results = { ok: okSoFar, featureResults: featureResults, tag: world.tag, shared: world.shared, steppers, failure: undefined };
 		if (!okSoFar) {
-			const failure = this.createExecutionFailure(featureResults, world);
+			const failure = this.createExecutionFailure(featureResults);
 			if (failure) {
-				return {
-					ok: false,
-					featureResults,
-					tag: world.tag,
-					shared: world.shared,
-					steppers,
-					failure
-				};
+				results.failure = failure;
 			}
 		}
-
-		return { ok: okSoFar, featureResults: featureResults, tag: world.tag, shared: world.shared, steppers };
+		await doStepperCycle(steppers, 'endExecution', results);
+		return results;
 	}
 }
 

@@ -10,7 +10,7 @@ import { Timer } from '@haibun/core/lib/Timer.js';
 import Logger from '@haibun/core/lib/Logger.js';
 import { Runner } from '@haibun/core/runner.js';
 import { getDefaultTag } from '@haibun/core/lib/test/lib.js';
-import { isProcessFeatureResults, IHasOptions } from '@haibun/core/lib/astepper.js';
+import { IHasOptions } from '@haibun/core/lib/astepper.js';
 import { FeatureVariables } from '@haibun/core/lib/feature-variables.js';
 import { Prompter } from '@haibun/core/lib/prompter.js';
 import { getCoreDomains } from '@haibun/core/lib/core-domains.js';
@@ -48,32 +48,19 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 
 	console.info('\n_________________________________ start');
 	const executorResult = await runner.run(specl.steppers, featureFilter);
-	if (executorResult.ok && !world.runtime.depthLimitExceeded) {
-		console.info(`${CHECK_YES} All ${executorResult.featureResults.length} features passed.`);
+	if (executorResult.ok) {
+		console.info(`\n${CHECK_YES} All ${executorResult.featureResults.length} features passed.`);
 	} else {
 		const errorMessage = executorResult.failure?.error?.message || (world.runtime.depthLimitExceeded && 'Execution depth limit exceeded') || 'Unknown error';
-		const errorStack = executorResult.failure?.error?.details?.stack;
 		const stage = executorResult.failure?.stage;
 
-		console.error(`${CHECK_NO} ${stage ? `${stage} Error: ` : ''}${errorMessage}`);
-
-		if (errorStack && errorStack.length > 0) {
-			console.error('\nStack trace:');
-			errorStack?.forEach(line => console.error(`  ${line}`));
-		}
+		console.error(`\n${CHECK_NO} ${stage ? `${stage} Error: ` : ''}${errorMessage}`);
 
 		if (executorResult.failure?.error?.details) {
-			// eslint-disable-next-line @typescript-eslint/no-unused-vars
-			const { stack, ...otherDetails } = executorResult.failure.error.details;
+			const { ...otherDetails } = executorResult.failure.error.details;
 			if (Object.keys(otherDetails).length > 0) {
 				console.error('\nAdditional details:', otherDetails);
 			}
-		}
-	}
-
-	for (const maybeResultProcessor of executorResult.steppers) {
-		if (isProcessFeatureResults(maybeResultProcessor)) {
-			await maybeResultProcessor.processFeatureResult(executorResult);
 		}
 	}
 

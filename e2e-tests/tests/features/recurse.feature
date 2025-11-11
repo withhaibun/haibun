@@ -1,6 +1,6 @@
 
-Activity: boo
-waypoint boo with ensure boo
+Activity: recursion
+waypoint recursion with recursion
 
-not ensure boo
+not recursion
 

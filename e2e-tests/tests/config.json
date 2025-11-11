@@ -2,7 +2,7 @@
   "mode": "all",
   "steppers": [
     "~@haibun/web-playwright/build/web-playwright",
-    "~@haibun/out-xunit/build/out-xunit",
+    "~@haibun/out-junit/build/out-junit",
     "~@haibun/web-server-express/build/web-server-stepper",
     "~@haibun/storage-fs/build/storage-fs",
     "~@haibun/web-accessibility-axe/build/a11y-axe-stepper",

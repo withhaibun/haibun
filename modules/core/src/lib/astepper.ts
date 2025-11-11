@@ -38,9 +38,3 @@ export interface IHasOptions {
 export interface IHasCycles {
 	cycles: IStepperCycles;
 }
-
-export interface IProcessFeatureResults extends AStepper {
-	processFeatureResult: (executorResult: TExecutorResult) => Promise<void>;
-}
-
-export const isProcessFeatureResults = (s: AStepper): s is IProcessFeatureResults => (<IProcessFeatureResults>s).processFeatureResult !== undefined;

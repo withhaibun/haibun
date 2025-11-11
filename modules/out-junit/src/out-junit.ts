@@ -3,8 +3,8 @@ import { EOL } from 'os';
 
 import { AStorage } from '@haibun/domain-storage/AStorage.js';
 import { findStepperFromOption, getStepperOption, stringOrError } from '@haibun/core/lib/util/index.js';
-import { TWorld, TExecutorResult, TNotOkStepActionResult } from '@haibun/core/lib/defs.js';
-import { AStepper, IProcessFeatureResults, IHasOptions } from '@haibun/core/lib/astepper.js';
+import { TWorld, TExecutorResult, TNotOkStepActionResult, IStepperCycles } from '@haibun/core/lib/defs.js';
+import { AStepper, IHasOptions } from '@haibun/core/lib/astepper.js';
 import { TAnyFixme } from '@haibun/core/lib/fixme.js';
 import { MEDIA_TYPES, TMediaType } from '@haibun/domain-storage/media-types.js';
 
@@ -25,7 +25,17 @@ type TFailResult = {
 	type?: string;
 };
 
-export default class OutXUnit extends AStepper implements IProcessFeatureResults, IHasOptions {
+export default class OutJUnit extends AStepper implements IHasOptions {
+	cycles: IStepperCycles = {
+		endExecution: async (results: TExecutorResult) => {
+			const junit = await this.featureResultAsJunit(results);
+			if (this.storage && this.outputFile) {
+				await this.storage.writeFileBuffer(this.outputFile, Buffer.from(junit), <TMediaType>MEDIA_TYPES.xml);
+			} else {
+				console.info(junit);
+			}
+		},
+	};
 	options = {
 		OUTPUT_FILE: {
 			desc: `output file (default junit.xml)`,
@@ -44,20 +54,12 @@ export default class OutXUnit extends AStepper implements IProcessFeatureResults
 	outputFile: string;
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
+		await super.setWorld(world, steppers);
 		this.outputFile = getStepperOption(this, 'OUTPUT_FILE', world.moduleOptions) || 'junit.xml';
 		this.storage = findStepperFromOption(steppers, this, world.moduleOptions, STORAGE);
 		await Promise.resolve();
 	}
 
-	async processFeatureResult(result: TExecutorResult) {
-		const junit = await this.featureResultAsJunit(result);
-		if (this.storage && this.outputFile) {
-			await this.storage.writeFileBuffer(this.outputFile, Buffer.from(junit), <TMediaType>MEDIA_TYPES.xml);
-		} else {
-			console.info(junit);
-		}
-
-	}
 	async featureResultAsJunit(result: TExecutorResult) {
 		const failures = result.featureResults?.filter((t) => !t.ok)?.length || 0;
 		const skipped = result.featureResults?.filter((t) => t.skip)?.length || 0;
@@ -94,7 +96,7 @@ export default class OutXUnit extends AStepper implements IProcessFeatureResults
 
 	getFailResult(failure: TNotOkStepActionResult) {
 		const failResult: TFailResult = {
-			'@message': `${failure.name}: ${failure.message}`,
+			'@message': `${failure?.name || 'nofeaturename'}: ${failure?.message || failure?.toString()}`,
 			'@type': 'fail',
 		};
 
