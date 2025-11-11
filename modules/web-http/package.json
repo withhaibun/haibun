@@ -1,7 +1,7 @@
 {
   "name": "@haibun/web-http",
   "type": "module",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "",
   "main": "build/web-http.js",
   "files": ["build/"],
@@ -18,6 +18,6 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "dependencies": { "@haibun/core": "2.0.0" },
+  "dependencies": { "@haibun/core": "3.0.0" },
   "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5"
 }
