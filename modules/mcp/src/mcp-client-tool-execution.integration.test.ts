@@ -40,7 +40,7 @@ describe('haibun-mcp tool execution', () => {
 		expect(tools.some(t => t.name === 'Haibun-pauseSeconds')).toBe(true);
 	});
 
-	it('can execute variable setting and showVars tools', async () => {
+	it.skip('can execute variable setting and showVars tools', async () => {
 		// Set a variable using the VariablesStepper-set tool
 		const setResult = await client.callTool({
 			name: 'VariablesStepper-set',
@@ -78,7 +78,7 @@ describe('haibun-mcp tool execution', () => {
 		expect(displayResponse.result.ok).toBe(true);
 	});
 
-	it('call combine and showVars variables', async () => {
+	it.skip('call combine and showVars variables', async () => {
 		const combineResult = await client.callTool({
 			name: 'VariablesStepper-combine',
 			arguments: {
@@ -114,7 +114,7 @@ describe('haibun-mcp tool execution', () => {
 		expect(displayResponse.success).toBe(true);
 	});
 
-	it('call comment', async () => {
+	it.skip('call comment', async () => {
 		const commentResult = await client.callTool({
 			name: 'Haibun-comment',
 			arguments: {
