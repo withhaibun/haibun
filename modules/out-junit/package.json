@@ -1,7 +1,7 @@
 {
   "name": "@haibun/out-junit",
   "type": "module",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "",
   "files": ["build/**"],
   "main": "build/out-junit.js",
@@ -17,8 +17,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@haibun/core": "2.0.0",
-    "@haibun/domain-storage": "2.0.0",
+    "@haibun/core": "3.0.0",
+    "@haibun/domain-storage": "3.0.0",
     "xmlbuilder2": "^3.0.2"
   },
   "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5"
