@@ -43,7 +43,7 @@ describe.skip('handles cycles', () => {
 		// cast to satisfy AStepper array without redefining full type expectations in test
 		// Provide wp in steppers array with correct structural type
 		await wp.setWorld(getDefaultWorld(0), [wp as unknown as AStepper as TAnyFixme]);
-		await wp.steps.takeScreenshot.action();
+		// await wp.steps.takeScreenshot.action();
 		expect(async () => {
 			if (wp.cycles && wp.cycles.endFeature) {
 
