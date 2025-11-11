@@ -94,6 +94,7 @@ export class Executor {
 			const isLast = featureNum === features.length;
 
 			world.logger.log(`███ feature ${featureNum}/${features.length}: ${feature.path}`);
+			world.runtime.depthLimitExceeded = undefined;
 			const newWorld = { ...world, tag: { ...world.tag, ...{ featureNum: 0 + featureNum } } };
 
 			const featureExecutor = new FeatureExecutor(steppers, newWorld);
