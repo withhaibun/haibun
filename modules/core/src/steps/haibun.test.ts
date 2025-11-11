@@ -5,6 +5,22 @@ import TestSteps from '../lib/test/TestSteps.js';
 import Haibun from './haibun.js';
 import VariablesSteppers from './variables-stepper.js';
 
+describe('not', () => {
+	it('not passes', async () => {
+		const feature = { path: '/features/test.feature', content: 'not fails' };
+		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
+		expect(result.ok).toBe(true);
+	});
+});
+
+describe('until', () => {
+	it('until passes', async () => {
+		const feature = { path: '/features/test.feature', content: 'until passes' };
+		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
+		expect(result.ok).toBe(true);
+	});
+});
+
 describe('seqPath ordering', () => {
 	// seqPath format: [featureNum, scenarioNum, ...stepPath]
 	// featureNum: 1-based feature number
@@ -57,14 +73,6 @@ describe('afterEvery', () => {
 		const seqs = result.featureResults![0].stepResults.map(r => r.seqPath);
 		// Step [1,1,4] "passes" does not trigger afterEvery because it's the same action (prevents infinite recursion)
 		expect(seqs).toEqual([[1, 1, 1], [1, 1, 2], [1, 1, 3], [1, 1, 3, 1], [1, 1, 4]]);
-	});
-});
-
-describe('until', () => {
-	it.only('until passes', async () => {
-		const feature = { path: '/features/test.feature', content: 'until passes' };
-		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
-		expect(result.ok).toBe(true);
 	});
 });
 
