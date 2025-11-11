@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { ActivitiesStepper } from './activities-stepper.js';
-import { testWithDefaults } from '../lib/test/lib.js';
+import { passWithDefaults } from '../lib/test/lib.js';
 import VariablesStepper from './variables-stepper.js';
 import Haibun from './haibun.js';
 
@@ -23,7 +23,7 @@ The activity body should have run and set the variable.
     variable myVariable is "fromActivity"
 `;
 
-        const result = await testWithDefaults(feature, [ActivitiesStepper, VariablesStepper, Haibun]);
+        const result = await passWithDefaults(feature, [ActivitiesStepper, VariablesStepper, Haibun]);
 
         expect(result.ok).toBe(true);
     });
@@ -48,7 +48,7 @@ The bug would cause myVariable to change to "fromActivity".
     variable myVariable is "initialValue"
 `;
 
-        const result = await testWithDefaults(feature, [ActivitiesStepper, VariablesStepper, Haibun]);
+        const result = await passWithDefaults(feature, [ActivitiesStepper, VariablesStepper, Haibun]);
 
         if (!result.ok) {
             console.log('Test 2 failed:', result.failure);
@@ -72,7 +72,7 @@ When the waypoint line executes, it should NOT trigger another execution of the 
     variable counter is "1"
 `;
 
-        const result = await testWithDefaults(feature, [ActivitiesStepper, VariablesStepper, Haibun]);
+        const result = await passWithDefaults(feature, [ActivitiesStepper, VariablesStepper, Haibun]);
 
         expect(result.ok).toBe(true);
     });

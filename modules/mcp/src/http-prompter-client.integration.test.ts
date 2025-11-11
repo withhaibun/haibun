@@ -1,4 +1,4 @@
-import { testWithDefaults } from '@haibun/core/lib/test/lib.js';
+import { passWithDefaults } from '@haibun/core/lib/test/lib.js';
 import { describe, it, expect } from 'vitest';
 import { HttpPrompterClient } from './lib/http-prompter-client.js';
 import { TEST_PORTS } from './mcp-test-utils.js';
@@ -44,7 +44,7 @@ Scenario: Test MCP prompt tools availability
 			`.trim()
 		};
 
-		const result = await testWithDefaults([feature], [haibunMcp, HaibunStepper]);
+		const result = await passWithDefaults([feature], [haibunMcp, HaibunStepper]);
 
 		expect(result.ok).toBe(true);
 	});
@@ -64,7 +64,7 @@ Scenario: Start MCP server with HTTP prompter client tools
 			`.trim()
 		};
 
-		const result = await testWithDefaults([feature], [haibunMcp, HaibunStepper]);
+		const result = await passWithDefaults([feature], [haibunMcp, HaibunStepper]);
 
 		expect(result.ok).toBe(true);
 	});

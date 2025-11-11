@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { testWithDefaults } from '../lib/test/lib.js';
+import { failWithDefaults, passWithDefaults } from '../lib/test/lib.js';
 import Haibun from './haibun.js';
 import VariablesSteppers from './variables-stepper.js';
 import ActivitiesStepper from './activities-stepper.js';
@@ -24,12 +24,7 @@ ensure Infinite loop
 `
 		};
 
-		const result = await testWithDefaults(
-			[feature],
-			[ActivitiesStepper, Haibun, VariablesSteppers],
-			DEF_PROTO_OPTIONS,
-			[background]
-		);
+		const result = await failWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 
 		// Should fail due to depth limit
 		expect(result.ok).toBe(false);

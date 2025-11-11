@@ -1,6 +1,6 @@
 import { it, expect, describe } from 'vitest';
 
-import { testWithDefaults } from '@haibun/core/lib/test/lib.js';
+import { failWithDefaults, passWithDefaults } from '@haibun/core/lib/test/lib.js';
 import WebHttp from '@haibun/web-http/web-http.js';
 
 import WebServerStepper from './web-server-stepper.js';
@@ -10,23 +10,23 @@ import { TEST_PORTS } from './test-constants.js';
 describe('static mount', () => {
 	it.skip('serves files', async () => {
 		const feature = { path: '/features/test.feature', content: `serve files from test\nhttp get from http://localhost:${TEST_PORTS.WEB_SERVER_FILES}/testfile webpage returns content "content"` };
-		const result = await testWithDefaults([feature], [WebServerStepper, WebHttp]);
+		const result = await passWithDefaults([feature], [WebServerStepper, WebHttp]);
 		expect(result.ok).toBe(true);
 	});
 
 	it('restricts characters used in static mount folder name', async () => {
 		const feature = { path: '/features/test.feature', content: `serve files from l*(*$\n` }
-		const result = await testWithDefaults([feature], [WebServerStepper]);
+		const result = await failWithDefaults([feature], [WebServerStepper]);
 		expect(result.ok).toBe(false);
 	});
 	it.skip("doesn't re-mount same static mount", async () => {
 		const feature = { path: '/features/test.feature', content: `serve files from test\nserve files from test\n` }
-		const result = await testWithDefaults([feature], [WebServerStepper]);
+		const result = await failWithDefaults([feature], [WebServerStepper]);
 		expect(result.ok).toBe(false);
 	});
 	it.skip("doesn't permit different static mount", async () => {
 		const feature = { path: '/features/test.feature', content: `serve files from test\nserve files from fails\n` }
-		const result = await testWithDefaults([feature], [WebServerStepper]);
+		const result = await failWithDefaults([feature], [WebServerStepper]);
 		expect(result.ok).toBe(false);
 	});
 });
@@ -35,12 +35,12 @@ describe.skip('index mount', () => {
 	// FIXME: This fails when both tests are run
 	it('index files at', async () => {
 		const feature = { path: '/features/test.feature', content: `index files at /test from test\nfetch from http://localhost:${TEST_PORTS.WEB_SERVER_INDEX}/test/ contains href="/test/testfile"\nfetch from http://localhost:${TEST_PORTS.WEB_SERVER_INDEX}/test/testfile matches "content"` };
-		const result = await testWithDefaults([feature], [WebServerStepper, WebHttp]);
+		const result = await passWithDefaults([feature], [WebServerStepper, WebHttp]);
 		expect(result.ok).toBe(true);
 	});
 	it('index files', async () => {
 		const feature = { path: '/features/test.feature', content: `index files from test\nfetch from http://localhost:${TEST_PORTS.WEB_SERVER_INDEX}/ contains href="/testfile"\nfetch from http://localhost:${TEST_PORTS.WEB_SERVER_INDEX}/testfile matches "content"` };
-		const result = await testWithDefaults([feature], [WebServerStepper, WebHttp]);
+		const result = await passWithDefaults([feature], [WebServerStepper, WebHttp]);
 		expect(result.ok).toBe(true);
 	});
 });

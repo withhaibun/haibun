@@ -3,7 +3,7 @@ import { withAction } from './withAction.js';
 import { toBdd } from './converter.js';
 import { ActivitiesStepper } from '../steps/activities-stepper.js';
 import VariablesStepper from '../steps/variables-stepper.js';
-import { testWithDefaults } from '../lib/test/lib.js';
+import { failWithDefaults, passWithDefaults } from '../lib/test/lib.js';
 import Haibun from '../steps/haibun.js';
 
 describe('kireji activities', () => {
@@ -48,7 +48,7 @@ waypoint Has setup with variable xy is "12"`
 variable xy is "12"`
 		};
 
-		const result = await testWithDefaults(
+		const result = await passWithDefaults(
 			[feature],
 			[ActivitiesStepper, Haibun, VariablesStepper],
 			undefined,
@@ -64,10 +64,7 @@ variable xy is "12"`
 			content: 'ensure Nonexistent outcome'
 		};
 
-		const result = await testWithDefaults(
-			[feature],
-			[ActivitiesStepper, Haibun, VariablesStepper]
-		);
+		const result = await failWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesStepper]);
 
 		expect(result.ok).toBe(false);
 		expect(result.failure?.stage).toBe('Resolve');
@@ -88,7 +85,7 @@ waypoint On homepage with variable fullUrl is "https://example.com/home"`
 variable fullUrl is "https://example.com/home"`
 		};
 
-		const result = await testWithDefaults(
+		const result = await passWithDefaults(
 			[feature],
 			[ActivitiesStepper, Haibun, VariablesStepper],
 			undefined,

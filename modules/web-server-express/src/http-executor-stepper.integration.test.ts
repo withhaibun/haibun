@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { testWithDefaults } from '@haibun/core/lib/test/lib.js';
+import { passWithDefaults } from '@haibun/core/lib/test/lib.js';
 import { DEFAULT_DEST } from '@haibun/core/lib/defs.js';
 import { getStepperOptionName } from '@haibun/core/lib/util/index.js';
 
@@ -35,7 +35,7 @@ describe('HttpExecutorStepper integration', () => {
 			},
 		};
 
-		await expect(testWithDefaults(
+		await expect(passWithDefaults(
 			[feature],
 			[WebServerStepper, HttpExecutorStepper, VariablesStepper],
 			options
@@ -61,7 +61,7 @@ describe('HttpExecutorStepper integration', () => {
 			},
 		};
 
-		const result = await testWithDefaults(
+		const result = await passWithDefaults(
 			[feature],
 			[WebServerStepper, HttpExecutorStepper, VariablesStepper],
 			options
@@ -80,7 +80,7 @@ describe('HttpExecutorStepper integration', () => {
 		};
 
 		// No LISTEN_PORT configured
-		const result = await testWithDefaults([feature], [WebServerStepper, HttpExecutorStepper, VariablesStepper], baseOptions);
+		const result = await passWithDefaults([feature], [WebServerStepper, HttpExecutorStepper, VariablesStepper], baseOptions);
 
 		expect(result.ok).toBe(true);
 	});

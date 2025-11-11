@@ -1,9 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { ActivitiesStepper } from './activities-stepper.js';
-import { getDefaultWorld, testWithDefaults } from '../lib/test/lib.js';
+import { getDefaultWorld, passWithDefaults } from '../lib/test/lib.js';
 import VariablesStepper from './variables-stepper.js';
-import { Origin } from '../lib/defs.js';
-import { DOMAIN_STRING } from '../lib/domain-types.js';
 
 describe('ActivitiesStepper', () => {
   describe('registerOutcome', () => {
@@ -120,7 +118,7 @@ ensure Task completed
 variable "result" is "done"`
       };
 
-      const result = await testWithDefaults([feature], steppers, undefined, [background]);
+      const result = await passWithDefaults([feature], steppers, undefined, [background]);
       expect(result.ok).toBe(true);
     });
   });
@@ -142,7 +140,7 @@ waypoint Task completed with variable result is "done"`
 waypointed Task completed`
       };
 
-      const result = await testWithDefaults([feature], steppers, undefined, [background]);
+      const result = await passWithDefaults([feature], steppers, undefined, [background]);
       expect(result.ok).toBe(true);
     });
   });
@@ -168,7 +166,7 @@ ensure Task completed
 variable "count" is "1"`
       };
 
-      const result = await testWithDefaults([feature], steppers, undefined, [background]);
+      const result = await passWithDefaults([feature], steppers, undefined, [background]);
       expect(result.ok).toBe(true);
     });
 
@@ -187,7 +185,7 @@ variable "result" is "done"
 waypointed Something happened`
       };
 
-      const result = await testWithDefaults([feature], steppers, undefined, [background]);
+      const result = await passWithDefaults([feature], steppers, undefined, [background]);
       expect(result.ok).toBe(true);
     });
   });

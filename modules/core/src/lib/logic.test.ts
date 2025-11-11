@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { testWithDefaults } from './test/lib.js';
+import { passWithDefaults } from './test/lib.js';
 import Haibun from '../steps/haibun.js';
 import VariablesSteppers from '../steps/variables-stepper.js';
 import ActivitiesStepper from '../steps/activities-stepper.js';
@@ -36,7 +36,7 @@ variable loginType is "user"
 `
 		};
 
-		const result = await testWithDefaults(
+		const result = await passWithDefaults(
 			[mainFeature],
 			[ActivitiesStepper, Haibun, VariablesSteppers],
 			DEF_PROTO_OPTIONS,
@@ -106,7 +106,7 @@ variable widgetDeleted is "true"
 `
 		};
 
-		const result = await testWithDefaults(
+		const result = await passWithDefaults(
 			[mainFeature],
 			[ActivitiesStepper, Haibun, VariablesSteppers],
 			DEF_PROTO_OPTIONS,
@@ -136,7 +136,7 @@ variable lastUser is "Bob"
 `
 		};
 
-		const result = await testWithDefaults(
+		const result = await passWithDefaults(
 			[mainFeature],
 			[ActivitiesStepper, Haibun, VariablesSteppers],
 			DEF_PROTO_OPTIONS,
@@ -166,7 +166,7 @@ waypoint Shared outcome with variable shared is "value"`,
 			content: 'ensure Shared outcome\nvariable shared is "value"',
 		};
 
-		const result = await testWithDefaults([feature1, feature2], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
+		const result = await passWithDefaults([feature1, feature2], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 		expect(result.ok).toBe(true);
 	});
 });
@@ -194,7 +194,7 @@ set afterstep to "done"`
 			not variable second is set`,
 		};
 
-		const result = await testWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
+		const result = await passWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 		expect(result.ok).toBe(true);
 	});
 
@@ -209,7 +209,7 @@ set afterstep to "done"`
 			not variable afterstep is set`,
 		};
 
-		const result = await testWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
+		const result = await passWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 		expect(result.ok).toBe(true);
 	});
 });

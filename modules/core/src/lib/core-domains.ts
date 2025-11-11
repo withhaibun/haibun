@@ -20,10 +20,8 @@ export const getCoreDomains = (world: TWorld) => ({
 		coerce: (proto: TStepValue) => {
 			if (typeof proto.value !== 'string') throw new Error(`invalid json '${String(proto.value)}'`);
 			try {
-				JSON.parse(proto.value);
-				return proto.value;
-			}
-			catch { throw new Error(`invalid json '${proto.value}'`); }
+				return JSON.parse(proto.value);
+			} catch { throw new Error(`invalid json '${proto.value}'`); }
 		}
 	},
 	[DOMAIN_STATEMENT]: {

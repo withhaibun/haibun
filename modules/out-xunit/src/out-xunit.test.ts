@@ -3,14 +3,14 @@ import { describe, it, expect } from 'vitest';
 import { convert } from 'xmlbuilder2';
 
 import OutXUnit from './out-xunit.js';
-import { testWithDefaults } from '@haibun/core/lib/test/lib.js';
+import { failWithDefaults, passWithDefaults } from '@haibun/core/lib/test/lib.js';
 import TestSteps from '@haibun/core/lib/test/TestSteps.js';
 import { TAnyFixme } from '@haibun/core/lib/fixme.js';
 
 describe('AsXML transforms', () => {
 	it('transforms single pass result to xunit', async () => {
 		const features = [{ path: '/features/fails.feature', content: `When I have a test\nThen passes` }];
-		const result = await testWithDefaults(features, [TestSteps]);
+		const result = await passWithDefaults(features, [TestSteps]);
 
 		expect(result.ok).toBe(true);
 		const asXunit = new OutXUnit();
@@ -26,7 +26,7 @@ describe('AsXML transforms', () => {
 			{ path: '/features/passes.feature', content: `When I have a test\nThen passes` },
 			{ path: '/features/fails.feature', content: `When I have a test\nThen fails` },
 		];
-		const result = await testWithDefaults(features, [TestSteps]);
+		const result = await failWithDefaults(features, [TestSteps]);
 
 		expect(result.ok).toBe(false);
 		const asXunit = new OutXUnit();

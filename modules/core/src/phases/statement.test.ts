@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { AStepper } from '../lib/astepper.js';
 import { OK, TFeatureStep, TStepArgs, ExecMode } from '../lib/defs.js';
-import { testWithDefaults, DEF_PROTO_OPTIONS } from '../lib/test/lib.js';
+import { passWithDefaults, DEF_PROTO_OPTIONS, failWithDefaults } from '../lib/test/lib.js';
 import { actionNotOK } from '../lib/util/index.js';
 import { executeFeatureSteps } from '../lib/util/featureStep-executor.js';
 import { DOMAIN_STATEMENT } from '../lib/domain-types.js';
@@ -39,18 +39,18 @@ class StatementTestStepper extends AStepper {
 describe('statement type', () => {
   it('executes single known statement', async () => {
   const feature = { path: '/features/test.feature', content: 'do alpha' };
-    const result = await testWithDefaults([feature], [StatementTestStepper], DEF_PROTO_OPTIONS, []);
+    const result = await passWithDefaults([feature], [StatementTestStepper], DEF_PROTO_OPTIONS, []);
     expect(result.ok).toBe(true);
   });
   it('fails unknown statement', async () => {
     const feature = { path: '/features/test.feature', content: 'do gamma' };
-    const result = await testWithDefaults([feature], [StatementTestStepper], DEF_PROTO_OPTIONS, []);
+    const result = await failWithDefaults([feature], [StatementTestStepper], DEF_PROTO_OPTIONS, []);
     expect(result.ok).toBe(false);
   });
   it('executes multi-line backgrounds via statement list', async () => {
     // Compose statement referencing beta after alpha
   const feature = { path: '/features/test.feature', content: 'do alpha\nalpha\nbeta' };
-    const result = await testWithDefaults([feature], [StatementTestStepper], DEF_PROTO_OPTIONS, []);
+    const result = await passWithDefaults([feature], [StatementTestStepper], DEF_PROTO_OPTIONS, []);
     expect(result.ok).toBe(true);
   });
 });

@@ -159,10 +159,10 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		is: {
 			gwta: 'variable {what} is {value}',
 			action: ({ what, value }: { what: string, value: string }, featureStep: TFeatureStep) => {
-				const { term } = featureStep.action.stepValuesMap.what;
+				const { term, domain } = featureStep.action.stepValuesMap.what;
 				const val = this.getVarValue(term);
-
-				return String(val) === String(value) ? OK : actionNotOK(`${term} is "${val}", not "${value}"`);
+				const asDomain = this.getWorld().domains[domain].coerce({ domain, value, term, origin: 'quoted' })
+				return JSON.stringify(val) === JSON.stringify(asDomain) ? OK : actionNotOK(`${term} is ${JSON.stringify(val)}, not ${JSON.stringify(value)}`);
 			}
 		},
 		isSet: {

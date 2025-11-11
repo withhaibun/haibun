@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { testWithDefaults } from '../lib/test/lib.js';
+import { passWithDefaults } from '../lib/test/lib.js';
 import Haibun from './haibun.js';
 import VariablesSteppers from './variables-stepper.js';
 import ActivitiesStepper from './activities-stepper.js';
@@ -26,7 +26,7 @@ variable counter is "0"
 `
 		};
 
-		const result = await testWithDefaults(
+		const result = await passWithDefaults(
 			[feature],
 			[ActivitiesStepper, Haibun, VariablesSteppers],
 			DEF_PROTO_OPTIONS,

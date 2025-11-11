@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { testWithDefaults } from '../lib/test/lib.js';
+import { failWithDefaults, passWithDefaults } from '../lib/test/lib.js';
 import Haibun from './haibun.js';
 import VariablesSteppers from './variables-stepper.js';
 import ActivitiesStepper from './activities-stepper.js';
 import { DEF_PROTO_OPTIONS } from '../lib/test/lib.js';
 
 describe('Activities ensure flow', () => {
-	it.only('should execute activity body then verify proof when proof initially fails', async () => {
+	it('should execute activity body then verify proof when proof initially fails', async () => {
 		const background = {
 			path: '/backgrounds/test.feature',
 			content: `
@@ -45,7 +45,7 @@ variable haibunUrl is "https://en.wikipedia.org/wiki/Haibun"
 `
 		};
 
-		const result = await testWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
+		const result = await passWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 
 		expect(result.ok).toBe(true);
 	});
@@ -73,7 +73,7 @@ ensure Knows about Wikipedia
 `
 		};
 
-		const result = await testWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
+		const result = await passWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 
 		expect(result.ok).toBe(true);
 	});
@@ -99,7 +99,7 @@ ensure Needs correct variable
 `
 		};
 
-		const result = await testWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
+		const result = await failWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 
 		expect(result.ok).toBe(false);
 	});
@@ -127,7 +127,7 @@ ensure Knows about Wikipedia
 `
 		};
 
-		const result = await testWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
+		const result = await passWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 
 		// If the waypoint line WAS in activityBlockSteps, this would create infinite recursion:
 		// 1. ensure → check proof → fails

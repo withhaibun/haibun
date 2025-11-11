@@ -9,6 +9,7 @@ import { Runner } from '../../runner.js';
 import { FeatureVariables } from '../feature-variables.js';
 import { Prompter } from '../prompter.js';
 import { getCoreDomains } from '../core-domains.js';
+import assert from 'assert';
 
 const DEF_PROTO_DEFAULT_OPTIONS = { DEST: DEFAULT_DEST };
 export const DEF_PROTO_OPTIONS = { options: DEF_PROTO_DEFAULT_OPTIONS, moduleOptions: {} };
@@ -23,15 +24,27 @@ export async function getCreateSteppers(steppers: string[], addSteppers?: CStepp
 
 type TTestFeatures = { path: string; content: string; base?: string }[];
 
-export async function testWithDefaults(featuresIn: TTestFeatures | string, useSteppers: CStepper[], protoOptions: TProtoOptions = DEF_PROTO_OPTIONS, backgroundsIn: TTestFeatures = []) {
+export async function passWithDefaults(featuresIn: TTestFeatures | string, useSteppers: CStepper[], protoOptions: TProtoOptions = DEF_PROTO_OPTIONS, backgroundsIn: TTestFeatures = []) {
+	const res = await testWithDefaults(featuresIn, useSteppers, protoOptions, backgroundsIn);
+	if (!res.ok) {
+		console.error('🥺passWithDefaults', JSON.stringify({ failure: res.failure?.error.message || res.failure, featureResults: res.featureResults && res.featureResults.map(sr => sr.stepResults.map(ar => ([ar.in, ar.ok].join(': ')))) }, null, 2));
+	}
+	return res;
+}
+export async function failWithDefaults(featuresIn: TTestFeatures | string, useSteppers: CStepper[], protoOptions: TProtoOptions = DEF_PROTO_OPTIONS, backgroundsIn: TTestFeatures = []) {
+	const res = await testWithDefaults(featuresIn, useSteppers, protoOptions, backgroundsIn);
+	if (res.ok) {
+		console.error('🥺failWithDefaults', JSON.stringify({ featureResults: res.featureResults }, null, 2));
+	}
+	return res;
+}
+async function testWithDefaults(featuresIn: TTestFeatures | string, useSteppers: CStepper[], protoOptions: TProtoOptions = DEF_PROTO_OPTIONS, backgroundsIn: TTestFeatures = []) {
 	const world = getTestWorldWithOptions(protoOptions);
 	return await testWithWorld(world, featuresIn, useSteppers, backgroundsIn);
 }
 
 export async function testWithWorld(world: TWorld, featuresIn: TTestFeatures | string, useSteppers: CStepper[], backgroundsIn: TTestFeatures = []): Promise<TExecutorResult & { world: TWorld }> {
-	if (useSteppers.length < 1) {
-		throw Error('useSteppers must have at least one stepper');
-	}
+	assert(useSteppers.length > 0, 'useSteppers must have at least one stepper')
 	const inFeatures = typeof featuresIn == 'string' ? [{ path: '/features/test', content: featuresIn }] : featuresIn;
 
 	const withBases = (i) => (i.base ? i : { ...i, base: TEST_BASE });

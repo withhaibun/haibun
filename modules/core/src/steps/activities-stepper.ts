@@ -6,7 +6,7 @@ import { actionOK, actionNotOK, getActionable } from '../lib/util/index.js';
 import { DOMAIN_STATEMENT } from '../lib/domain-types.js';
 import { EExecutionMessageType, TMessageContext } from '../lib/interfaces/logger.js';
 
-
+// need this type because some steps are virtual
 type TActivitiesFixedSteps = {
 	activity: TStepperStep;
 	waypoint: TStepperStep;
@@ -63,10 +63,7 @@ export class ActivitiesStepper extends AStepper {
 				const proofRaw = match[2].trim();
 
 				// Parse the proof statements from the waypoint clause (DOMAIN_STATEMENT)
-				const proofFromRemember = proofRaw
-					.split(/\\n|\n/)
-					.map(s => s.trim())
-					.filter(s => s.length > 0);
+				const proofFromRemember = proofRaw.split('\n').map(s => s.trim()).filter(s => s.length > 0);
 
 				// Check if we're in an activity block by scanning backwards through allLines
 				let activityBlockSteps: string[] | undefined;
@@ -344,61 +341,61 @@ export class ActivitiesStepper extends AStepper {
 						);
 						resolvedSteps.push(...resolved);
 					}
-				return await executeSubFeatureSteps(featureStep, resolvedSteps, this.steppers, this.getWorld(), execMode);
-			};
+					return await executeSubFeatureSteps(featureStep, resolvedSteps, this.steppers, this.getWorld(), execMode);
+				};
 
-			// ALWAYS-VERIFY SEMANTICS: Try proof first
-			// Use NO_CYCLES for proof checking to avoid triggering hooks
-			this.getWorld().logger.debug(`ActivitiesStepper: checking proof for outcome "${outcome}"`);
-			this.getWorld().logger.debug(`ActivitiesStepper: proof statements: ${JSON.stringify(proofStatements)}`);
-			const proofResult = await resolveAndExecute(proofStatements, 0, ExecMode.NO_CYCLES);
+				// ALWAYS-VERIFY SEMANTICS: Try proof first
+				// Use NO_CYCLES for proof checking to avoid triggering hooks
+				this.getWorld().logger.debug(`ActivitiesStepper: checking proof for outcome "${outcome}"`);
+				this.getWorld().logger.debug(`ActivitiesStepper: proof statements: ${JSON.stringify(proofStatements)}`);
+				const proofResult = await resolveAndExecute(proofStatements, 0, ExecMode.NO_CYCLES);
 
-			// If proof passes, we're done (waypoint already satisfied)
-			if (proofResult.ok) {
-				this.getWorld().logger.debug(`ActivitiesStepper: proof passed for outcome "${outcome}", skipping activity body`);
-				const interpolatedProof = expandStatements(outcomeProofStatements);
-				return actionOK({
-					messageContext: {
-						incident: EExecutionMessageType.ACTION,
-						incidentDetails: { proofStatements: interpolatedProof, proofSatisfied: true }
-					}
-				});
-			}
-
-			// Proof failed - execute activity body (WITHOUT waypoint line), then verify proof
-			// Flow: 1) Execute activity body steps, 2) Execute proof to verify, 3) Success or fail
-			if (activityBlockSteps && activityBlockSteps.length > 0) {
-				this.getWorld().logger.debug(`ActivitiesStepper: proof failed for outcome "${outcome}", running activity body`);
-
-				// Step 1: Execute activity body (does NOT include the waypoint line to avoid recursion)
-				// Use WITH_CYCLES so that activity body steps can trigger hooks
-				const activityResult = await resolveAndExecute(activityBlockSteps, 100, ExecMode.WITH_CYCLES);
-
-				if (!activityResult.ok) {
-					return actionNotOK(`ActivitiesStepper: activity body failed for outcome "${outcome}"`);
+				// If proof passes, we're done (waypoint already satisfied)
+				if (proofResult.ok) {
+					this.getWorld().logger.debug(`ActivitiesStepper: proof passed for outcome "${outcome}", skipping activity body`);
+					const interpolatedProof = expandStatements(outcomeProofStatements);
+					return actionOK({
+						messageContext: {
+							incident: EExecutionMessageType.ACTION,
+							incidentDetails: { proofStatements: interpolatedProof, proofSatisfied: true }
+						}
+					});
 				}
 
-				// Step 2: Activity body succeeded - now verify the proof passes
-				// Use NO_CYCLES for proof verification to avoid triggering hooks
-				this.getWorld().logger.debug(`ActivitiesStepper: verifying proof after activity body for outcome "${outcome}"`);
-				const verifyResult = await resolveAndExecute(proofStatements, 200, ExecMode.NO_CYCLES);
+				// Proof failed - execute activity body (WITHOUT waypoint line), then verify proof
+				// Flow: 1) Execute activity body steps, 2) Execute proof to verify, 3) Success or fail
+				if (activityBlockSteps && activityBlockSteps.length > 0) {
+					this.getWorld().logger.debug(`ActivitiesStepper: proof failed for outcome "${outcome}", running activity body`);
 
-				if (!verifyResult.ok) {
-					return actionNotOK(`ActivitiesStepper: proof verification failed after activity body for outcome "${outcome}"`);
-				}
+					// Step 1: Execute activity body (does NOT include the waypoint line to avoid recursion)
+					// Use WITH_CYCLES so that activity body steps can trigger hooks
+					const activityResult = await resolveAndExecute(activityBlockSteps, 100, ExecMode.WITH_CYCLES);
 
-				// Step 3: Success - proof now passes
-				const interpolatedProof = expandStatements(outcomeProofStatements);
-				return actionOK({
-					messageContext: {
-						incident: EExecutionMessageType.ACTION,
-						incidentDetails: { proofStatements: interpolatedProof }
+					if (!activityResult.ok) {
+						return actionNotOK(`ActivitiesStepper: activity body failed for outcome "${outcome}"`);
 					}
-				});
-			} else {
-				// No activity body, just proof - and it failed
-				return actionNotOK(`ActivitiesStepper: proof failed and no activity body available for outcome "${outcome}"`);
-			}
+
+					// Step 2: Activity body succeeded - now verify the proof passes
+					// Use NO_CYCLES for proof verification to avoid triggering hooks
+					this.getWorld().logger.debug(`ActivitiesStepper: verifying proof after activity body for outcome "${outcome}"`);
+					const verifyResult = await resolveAndExecute(proofStatements, 200, ExecMode.NO_CYCLES);
+
+					if (!verifyResult.ok) {
+						return actionNotOK(`ActivitiesStepper: proof verification failed after activity body for outcome "${outcome}"`);
+					}
+
+					// Step 3: Success - proof now passes
+					const interpolatedProof = expandStatements(outcomeProofStatements);
+					return actionOK({
+						messageContext: {
+							incident: EExecutionMessageType.ACTION,
+							incidentDetails: { proofStatements: interpolatedProof }
+						}
+					});
+				} else {
+					// No activity body, just proof - and it failed
+					return actionNotOK(`ActivitiesStepper: proof failed and no activity body available for outcome "${outcome}"`);
+				}
 			}
 		};
 

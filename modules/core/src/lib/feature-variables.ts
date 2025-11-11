@@ -47,7 +47,8 @@ export class FeatureVariables {
 	}
 	get<T>(name: string): T | undefined {
 		if (!this.values[name]) return undefined;
-		return this.values[name].value as T;
+		const ret = <T>this.world.domains[this.values[name].domain].coerce(this.values[name]);
+		return ret;
 	}
 	getJSON<T>(name: string): T | undefined {
 		if (!this.values[name]) return undefined;
