@@ -4,7 +4,7 @@ import ActivitiesStepper from '@haibun/core/steps/activities-stepper.js';
 import VariablesStepper from '@haibun/core/steps/variables-stepper.js';
 import Haibun from '@haibun/core/steps/haibun.js';
 
-import { knowsAboutWikipedia, pagesVisited } from '../backgrounds/wikipedia-bg.kireji.ts';
+import { pagesVisited } from '../backgrounds/wikipedia-bg.kireji.ts';
 
 const { ensure } = withAction(new ActivitiesStepper());
 const { is } = withAction(new VariablesStepper());
@@ -18,9 +18,9 @@ export const features: TKirejiExport = {
 		The pattern 'Navigate to {page}' is defined once in the background.
 		Each ensure call with a different page value (mainUrl, haibunUrl) always checks the current state.`,
 
-		// 'after every ActivitiesStepper, show waypoints',
+		'after every ActivitiesStepper, show waypoints',
 
-		scenario({scenario: 'Visit pages with parameterized waypoints'}),
+		scenario({ scenario: 'Visit pages with parameterized waypoints' }),
 		`↑ Ensures that Wikipedia base URL is set up.`,
 
 		ensure({ outcome: 'Navigate to mainUrl' }),
@@ -32,7 +32,5 @@ export const features: TKirejiExport = {
 
 		is({ what: pagesVisited, value: '2' }),
 		`↑ Verify three actual page visits (fourth ensure was already satisfied).`,
-
-		'show waypoints',
 	]
 }
