@@ -15,7 +15,10 @@ export class Runner {
 	constructor(private world: TWorld) { }
 
 	private errorBail = (phase: string, error: TAnyFixme, details?: TAnyFixme) => {
-		this.world.logger.error(`errorBail ${phase} ${error} ${details}`, error.stack);
+		if (typeof error?.stack === 'string') { // FIXME
+			error.stack = error.stack.split('\n');
+		}
+		// this.world.logger.error(`errorBail ${phase} ${error} ${details}`, error.stack);
 		this.result = {
 			ok: false,
 			shared: this.world.shared,

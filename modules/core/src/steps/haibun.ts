@@ -83,14 +83,14 @@ class Haibun extends AStepper {
 		// --- META & UTILITIES ---
 		until: {
 			gwta: 'until {statements:DOMAIN_STATEMENT}',
-			action: (async ({ statements }: { statements: TFeatureStep[] }, featureStep: TFeatureStep) => {
+			action: async ({ statements }: { statements: TFeatureStep[] }, featureStep: TFeatureStep) => {
 				let result: TStepResult;
 				do {
 					result = await executeSubFeatureSteps(featureStep, statements, this.steppers, this.getWorld(), ExecMode.WITH_CYCLES);
 					await sleep(500);
 				} while (!result.ok);
 				return OK;
-			}),
+			},
 		},
 
 		backgrounds: {

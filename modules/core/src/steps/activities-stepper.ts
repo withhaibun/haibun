@@ -32,7 +32,7 @@ export class ActivitiesStepper extends AStepper {
 	private readonly baseSteps = {
 		activity: {
 			gwta: 'Activity: {activity}',
-			action: async () => Promise.resolve(OK),
+			action: () => OK
 		},
 
 		waypoint: {
@@ -104,13 +104,7 @@ export class ActivitiesStepper extends AStepper {
 				// Execute the proof statements to satisfy this outcome
 				this.getWorld().logger.debug(`waypoint action: executing ${proof?.length || 0} proof steps`);
 
-				const result = await executeSubFeatureSteps(
-					featureStep,
-					proof,
-					this.steppers,
-					this.getWorld(),
-					ExecMode.NO_CYCLES
-				);
+				const result = await executeSubFeatureSteps(featureStep, proof, this.steppers, this.getWorld(), ExecMode.NO_CYCLES);
 
 				if (!result.ok) {
 					return actionNotOK(`waypoint: failed to execute proof steps`);
@@ -232,13 +226,7 @@ export class ActivitiesStepper extends AStepper {
 						}
 
 						// Execute the proof statements with NO_CYCLES to check current validity
-						const result = await executeSubFeatureSteps(
-							featureStep,
-							resolvedSteps,
-							this.steppers,
-							this.getWorld(),
-							ExecMode.NO_CYCLES
-						);
+						const result = await executeSubFeatureSteps(featureStep, resolvedSteps, this.steppers, this.getWorld(), ExecMode.NO_CYCLES);
 
 						waypointResults[instanceKey] = {
 							proof: instanceData.proof.join('; '),

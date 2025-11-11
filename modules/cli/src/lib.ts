@@ -59,14 +59,14 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 
 		if (errorStack && errorStack.length > 0) {
 			console.error('\nStack trace:');
-			errorStack.forEach(line => console.error(`  ${line}`));
+			errorStack?.forEach(line => console.error(`  ${line}`));
 		}
 
 		if (executorResult.failure?.error?.details) {
 			// eslint-disable-next-line @typescript-eslint/no-unused-vars
 			const { stack, ...otherDetails } = executorResult.failure.error.details;
 			if (Object.keys(otherDetails).length > 0) {
-				console.error('\nAdditional details:', JSON.stringify(otherDetails, null, 2));
+				console.error('\nAdditional details:', otherDetails);
 			}
 		}
 	}

@@ -54,7 +54,6 @@ export class Executor {
 		if (world.runtime.depthLimitExceeded) {
 			stackTrace.push('Depth limit exceeded');
 		}
-
 		return {
 			stage: 'Execute',
 			error: {
@@ -253,7 +252,7 @@ export class FeatureExecutor {
 		if (featureStep.seqPath.length > MAX_EXECUTE_SEQPATH) {
 			const errorMessage = `Execution depth limit exceeded (${featureStep.seqPath.length} > ${MAX_EXECUTE_SEQPATH}). Possible infinite recursion in step: ${featureStep.in}`;
 			console.error('\n' + errorMessage);
-			console.error('SeqPath:', featureStep.seqPath);
+			console.error('SeqPath:', formatCurrentSeqPath(featureStep.seqPath));
 			console.error('This indicates a bug in the test definition or framework.');
 
 			// Set flag to stop all further execution

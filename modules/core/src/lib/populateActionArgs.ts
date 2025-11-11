@@ -5,7 +5,7 @@ import { asDomainKey, DOMAIN_STRING } from './domain-types.js';
 // Given a feature step and the current world, populate the action args. This will update the existing stepValuesMap as actionVal
 export async function populateActionArgs(featureStep: TFeatureStep, world: TWorld, steppers: AStepper[]): Promise<TStepArgs> {
 	const stepArgs: TStepArgs = {};
-	if (!featureStep.action.stepValuesMap) return stepArgs; // no variables for this step
+	if (!featureStep?.action?.stepValuesMap) return stepArgs; // no variables for this step
 
 	for (const [name, actionVal] of Object.entries(featureStep.action.stepValuesMap)) {
 		const storedEntry = world.shared.all()[actionVal.term];

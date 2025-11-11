@@ -60,6 +60,14 @@ describe('afterEvery', () => {
 	});
 });
 
+describe('until', () => {
+	it.only('until passes', async () => {
+		const feature = { path: '/features/test.feature', content: 'until passes' };
+		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
+		expect(result.ok).toBe(true);
+	});
+});
+
 describe('prose', () => {
 	it('mixed prose', async () => {
 		const feature = {
