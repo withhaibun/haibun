@@ -20,6 +20,7 @@ type TActivitiesStepperSteps = TStepperSteps & TActivitiesFixedSteps;
 
 /**
  * Stepper that dynamically builds virtual steps from `waypoint` statements.
+ * implements this logic: P ∨ (¬P ∧ [A]P)
  */
 export class ActivitiesStepper extends AStepper {
 	private steppers: AStepper[] = [];
