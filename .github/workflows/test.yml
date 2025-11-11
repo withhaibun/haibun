@@ -19,7 +19,6 @@ concurrency:
 jobs:
   unit_test:
     runs-on: ubuntu-latest
-    # I've removed the container block. See the explanation below.
 
     steps:
       - name: Check out code
