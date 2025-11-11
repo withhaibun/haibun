@@ -109,7 +109,12 @@ describe('withAction', () => {
 		expect(action.gwta).toBe('not not set boo to bar');
 	});
 
-	it('should handle the "prose" step generically', () => {
+	it('should handle ensure', () => {
+		const executor = ensure({ outcome: 'Activity: deploy release v1.2.0' });
+		const action = executor();
+		expect(action.actionName).toBe('ensure');
+		expect(action.gwta).toBe('ensure Activity: deploy release v1.2.0');
+	});	it('should handle the "prose" step generically', () => {
 		const executor = prose({ prose: 'this is a test' });
 		const action = executor();
 		expect(action.actionName).toBe('prose');

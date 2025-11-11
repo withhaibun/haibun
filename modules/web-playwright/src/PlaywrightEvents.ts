@@ -54,11 +54,7 @@ export class PlaywrightEvents {
 	}
 	private framenavigated(frame) {
 		if (frame === this.page.mainFrame()) {
-			this.world.shared.setForStepper('WebPlaywright', {
-				term: 'currentURI', value: frame.url(),
-				domain: DOMAIN_STRING,
-				origin: 'fallthrough'
-			}, { in: 'PlaywrightEvents.framenavigated', seq: [], when: 'framenavigated' });
+			this.world.shared.setForStepper('WebPlaywright', { term: 'currentURI', value: frame.url(), domain: DOMAIN_STRING, origin: 'fallthrough' }, { in: 'PlaywrightEvents.framenavigated', seq: [], when: 'framenavigated' });
 		}
 	}
 	public close(): void {

@@ -34,6 +34,7 @@ export enum EExecutionMessageType {
 	EXECUTION_END = 'EXECUTION_END',
 	ON_FAILURE = 'ON_FAILURE',
 	DEBUG = "DEBUG",
+	EXECUTION_DEPTH_LIMIT_EXCEEDED = 'EXECUTION_DEPTH_LIMIT_EXCEEDED',
 }
 
 export interface ILogger {

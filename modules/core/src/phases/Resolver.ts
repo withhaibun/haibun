@@ -90,10 +90,18 @@ export class Resolver {
 			if (unique.length === 1) {
 				return unique[0];
 			}
-			const precludes = stepActions.filter(a => a.step.precludes).map(a => a.step.precludes).reduce((acc, cur) => [...acc, ...cur], []);
-			stepActions = stepActions.filter(a => !precludes.includes(`${a.stepperName}.${a.actionName}`));
+			// Filter out fallback steps if there are non-fallback alternatives
+			const nonFallback = stepActions.filter(a => !a.step.fallback);
+			if (nonFallback.length > 0) {
+				stepActions = nonFallback;
+			}
+			// If still multiple matches, use precludes
+			if (stepActions.length > 1) {
+				const precludes = stepActions.filter(a => a.step.precludes).map(a => a.step.precludes).reduce((acc, cur) => [...acc, ...cur], []);
+				stepActions = stepActions.filter(a => !precludes.includes(`${a.stepperName}.${a.actionName}`));
+			}
 			if (stepActions.length !== 1) {
-				throw Error(`not one step found for "${line}": ${JSON.stringify(stepActions.map((a) => a.actionName))} using precludes ${precludes}`);
+				throw Error(`not one step found for "${line}": ${JSON.stringify(stepActions.map((a) => a.actionName))}`);
 			}
 		} else if (stepActions.length < 1) {
 			throw Error(`no step found for "${line}"`);

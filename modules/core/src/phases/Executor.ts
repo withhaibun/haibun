@@ -27,6 +27,8 @@ function calculateShouldClose({ thisFeatureOK, isLast, stayOnFailure, continueAf
 	}
 	return true;
 }
+const MAX_EXECUTE_SEQPATH = 50;
+
 export class Executor {
 	static async action(steppers: AStepper[], featureStep: TFeatureStep, found: TStepAction, args: TStepArgs, world: TWorld) {
 		const stepper = findStepper<AStepper>(steppers, found.stepperName);
@@ -88,6 +90,50 @@ export class Executor {
 			}
 		}
 		await doStepperCycle(steppers, 'endExecution', undefined);
+
+		// If execution failed, capture the failure details from the first failed step
+		if (!okSoFar) {
+			const firstFailedFeature = featureResults.find(fr => !fr.ok);
+			if (firstFailedFeature) {
+				const failedStep = firstFailedFeature.stepResults.find(sr => !sr.ok);
+				if (failedStep) {
+					const errorMessage = failedStep.stepActionResult && 'message' in failedStep.stepActionResult
+						? failedStep.stepActionResult.message
+						: 'Step execution failed';
+
+					const stackTrace = [
+						`Failed step: ${failedStep.in}`,
+						`Path: ${failedStep.path}`,
+						`SeqPath: ${failedStep.seqPath.join(',')}`,
+					];
+
+					if (world.runtime.depthLimitExceeded) {
+						stackTrace.push('Depth limit exceeded');
+					}
+
+					return {
+						ok: false,
+						featureResults,
+						tag: world.tag,
+						shared: world.shared,
+						steppers,
+						failure: {
+							stage: 'Execute',
+							error: {
+								message: errorMessage,
+								details: {
+									stack: stackTrace,
+									step: failedStep.in,
+									path: failedStep.path,
+									seqPath: failedStep.seqPath
+								}
+							}
+						}
+					};
+				}
+			}
+		}
+
 		return { ok: okSoFar, featureResults: featureResults, tag: world.tag, shared: world.shared, steppers };
 	}
 }
@@ -126,11 +172,11 @@ export class FeatureExecutor {
 			};
 
 			const result = await FeatureExecutor.doFeatureStep(this.steppers, augmentedStep, world);
-
 			ok = ok && result.ok;
 			if (!ok || result.stepActionResult.messageContext === endExecutonContext) {
 				break;
 			}
+
 			if (world.options[STEP_DELAY]) {
 				await sleep(world.options[STEP_DELAY] as number);
 			}
@@ -154,9 +200,41 @@ export class FeatureExecutor {
 	}
 
 	static async doFeatureStep(steppers: AStepper[], featureStep: TFeatureStep, world: TWorld, execMode: ExecMode = ExecMode.WITH_CYCLES): Promise<TStepResult> {
+		const { action } = featureStep;
+		const currentTime = Timer.since();
+
+		// Helper to create a failed step result
+		const createFailedStepResult = (message: string): TStepResult => {
+			return stepResultFromActionResult(
+				actionNotOK(message),
+				action,
+				currentTime,
+				Timer.since(),
+				featureStep,
+				false
+			);
+		};
+
+		// Check depth limit flag first - if already exceeded, immediately return failure to stop recursion
+		if (world.runtime.depthLimitExceeded) {
+			return createFailedStepResult('Execution halted due to depth limit exceeded');
+		}
+
+		// Check for excessive recursion depth
+		if (featureStep.seqPath.length > MAX_EXECUTE_SEQPATH) {
+			const errorMessage = `Execution depth limit exceeded (${featureStep.seqPath.length} > ${MAX_EXECUTE_SEQPATH}). Possible infinite recursion in step: ${featureStep.in}`;
+			console.error('\n' + errorMessage);
+			console.error('SeqPath:', featureStep.seqPath);
+			console.error('This indicates a bug in the test definition or framework.');
+
+			// Set flag to stop all further execution
+			world.runtime.depthLimitExceeded = true;
+
+			return createFailedStepResult(errorMessage);
+		}
+
 		let ok = true;
 
-		const { action } = featureStep;
 		const start = Timer.since();
 		const args = await populateActionArgs(featureStep, world, steppers);
 
@@ -184,10 +262,25 @@ export class FeatureExecutor {
 					incidentDetails: { actionResult, featureStep }
 				};
 				const messageContext: TMessageContext = { ...baseContext, incident: EExecutionMessageType.STEP_END };
-				const checkMark = isSubStep
-					? `${CHECK_YIELD} ${actionResult.ok ? MAYBE_CHECK_YES : MAYBE_CHECK_NO}`
-					: (actionResult.ok ? CHECK_YES : `${CHECK_NO} (${(<TNotOKActionResult>actionResult).message})`);
-				const logMessage = `${checkMark} ${formatCurrentSeqPath(featureStep.seqPath)} ${featureStep.in}`;
+
+				// Format the status indicator and message consistently
+				const seqPathStr = formatCurrentSeqPath(featureStep.seqPath);
+				let logMessage: string;
+
+				if (isSubStep) {
+					// Substeps: show compact format with seqPath and status
+					const status = actionResult.ok ? CHECK_YES : CHECK_NO;
+					logMessage = `  ${CHECK_YIELD} ${seqPathStr} ${status} ${featureStep.in}`;
+				} else {
+					// Top-level steps: show full format with optional error message
+					if (actionResult.ok) {
+						logMessage = `${CHECK_YES} ${seqPathStr} ${featureStep.in}`;
+					} else {
+						const errorMsg = (<TNotOKActionResult>actionResult).message;
+						logMessage = `${CHECK_NO} ${seqPathStr} ${featureStep.in}\n   Error: ${errorMsg}`;
+					}
+				}
+
 				// Use trace level for sub-steps, log level for top-level steps
 				if (isSubStep) {
 					world.logger.trace(logMessage, messageContext);

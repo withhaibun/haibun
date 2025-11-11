@@ -105,6 +105,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		},
 		set: {
 			gwta: 'set( empty)? {what: string} to {value: string}',
+			precludes: ['Haibun.prose'],
 			action: (args: TStepArgs, featureStep: TFeatureStep) => {
 				const emptyOnly = !!featureStep.in.match(/set empty /);
 				const { term, domain, origin } = featureStep.action.stepValuesMap.what;
@@ -167,7 +168,11 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		isSet: {
 			precludes: ['VariablesStepper.is'],
 			gwta: 'variable {what: string} is set',
-			action: ({ what }: TStepArgs) => this.isSet(what as string)
+			action: ({ what }: TStepArgs, featureStep: TFeatureStep) => {
+				// Use term from stepValuesMap when available (normal execution), fall back to what for kireji
+				const term = featureStep?.action?.stepValuesMap?.what?.term ?? what;
+				return this.isSet(term as string);
+			}
 		},
 		showVar: {
 			gwta: 'show var {what}',

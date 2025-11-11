@@ -51,7 +51,24 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 	if (executorResult.ok) {
 		console.info(`${CHECK_YES} All ${executorResult.featureResults.length} features passed.`);
 	} else {
-		console.error(`${CHECK_NO} ${executorResult.failure?.error?.message}\nwith ${JSON.stringify(executorResult.failure)}`);
+		const errorMessage = executorResult.failure?.error?.message || 'Unknown error';
+		const errorStack = executorResult.failure?.error?.details?.stack;
+		const stage = executorResult.failure?.stage;
+
+		console.error(`${CHECK_NO} ${stage ? `${stage} Error: ` : ''}${errorMessage}`);
+
+		if (errorStack && errorStack.length > 0) {
+			console.error('\nStack trace:');
+			errorStack.forEach(line => console.error(`  ${line}`));
+		}
+
+		if (executorResult.failure?.error?.details) {
+			// eslint-disable-next-line @typescript-eslint/no-unused-vars
+			const { stack, ...otherDetails } = executorResult.failure.error.details;
+			if (Object.keys(otherDetails).length > 0) {
+				console.error('\nAdditional details:', JSON.stringify(otherDetails, null, 2));
+			}
+		}
 	}
 
 	for (const maybeResultProcessor of executorResult.steppers) {

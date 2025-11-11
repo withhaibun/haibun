@@ -38,7 +38,8 @@ set z to 3`
 		const background = {
 			path: '/backgrounds/setup.feature',
 			content: `Activity: Setup
-waypoint Has setup with set xy to "12"`
+set xy to "12"
+waypoint Has setup with variable xy is "12"`
 		};
 
 		const feature = {
@@ -77,7 +78,8 @@ variable xy is "12"`
 		const background = {
 			path: '/backgrounds/multi.feature',
 			content: `Activity: Navigate to page
-waypoint On homepage with set fullUrl to "https://example.com/home"`
+set fullUrl to "https://example.com/home"
+waypoint On homepage with variable fullUrl is "https://example.com/home"`
 		};
 
 		const feature = {

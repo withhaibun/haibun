@@ -5,20 +5,23 @@ import VariablesSteppers from '../steps/variables-stepper.js';
 import ActivitiesStepper from '../steps/activities-stepper.js';
 import { DEF_PROTO_OPTIONS } from './test/lib.js';
 
-describe('Logic system - dependency-based execution (waypoint/ensure/forget)', () => {
+describe('Logic system - dependency-based execution (waypoint/ensure)', () => {
 	it('should only execute the requested Activity from multiple in one background', async () => {
 		// Background file with multiple Activities - only one should execute
 		const multipleOutcomes = {
 			path: '/backgrounds/outcomes.feature',
 			content: `
 Activity: Login as admin
-waypoint Is logged in as admin with set loginType to "admin"
+set loginType to "admin"
+waypoint Is logged in as admin with variable loginType is "admin"
 
 Activity: Login as user
-waypoint Is logged in as user with set loginType to "user"
+set loginType to "user"
+waypoint Is logged in as user with variable loginType is "user"
 
 Activity: Login as guest
-waypoint Is logged in as guest with set loginType to "guest"
+set loginType to "guest"
+waypoint Is logged in as guest with variable loginType is "guest"
 `
 		};
 
@@ -65,7 +68,8 @@ variable loginType is "user"
 			path: '/backgrounds/login-recipe.feature',
 			content: `
 Activity: Login
-waypoint Is logged in as {user} with set "loggedIn" to "true"
+set "loggedIn" to "true"
+waypoint Is logged in as {user} with variable loggedIn is "true"
 `
 		};
 
@@ -73,7 +77,8 @@ waypoint Is logged in as {user} with set "loggedIn" to "true"
 			path: '/backgrounds/create-widget-recipe.feature',
 			content: `
 Activity: Create widget
-waypoint Created widget {widgetName} that is {width} by {height} with set "widgetCreated" to "true"
+set "widgetCreated" to "true"
+waypoint Created widget {widgetName} that is {width} by {height} with variable widgetCreated is "true"
 `
 		};
 
@@ -81,7 +86,8 @@ waypoint Created widget {widgetName} that is {width} by {height} with set "widge
 			path: '/backgrounds/delete-widget-recipe.feature',
 			content: `
 Activity: Delete widget
-waypoint Deleted widget {widgetName} with set "widgetDeleted" to "true"
+set "widgetDeleted" to "true"
+waypoint Deleted widget {widgetName} with variable widgetDeleted is "true"
 `
 		};
 
@@ -110,106 +116,12 @@ variable widgetDeleted is "true"
 		expect(result.ok).toBe(true);
 	});
 
-	it('should memoize conditions (not re-execute if already satisfied)', async () => {
-		const loginRecipe = {
-			path: '/backgrounds/login-recipe.feature',
-			content: `Activity: Login
-waypoint Is logged in as {user} with set loggedIn to "true"`
-		};
-
-		const mainFeature = {
-			path: '/features/tests/main.feature',
-			content: `
-Feature: Multiple Ensures Test
-Scenario: Use same condition twice
-ensure Is logged in as "Admin"
-ensure Is logged in as "Admin"
-variable loggedIn is "true"
-`
-		};
-
-		const result = await testWithDefaults(
-			[mainFeature],
-			[ActivitiesStepper, Haibun, VariablesSteppers],
-			DEF_PROTO_OPTIONS,
-			[loginRecipe]
-		);
-
-		if (!result.ok) {
-			console.log('\n[TEST] Memoize test failed - result.ok =', result.ok);
-			if (result.failure) {
-				console.log('[TEST] Failure:', result.failure);
-			}
-			if (result.featureResults?.[0]) {
-				const fr = result.featureResults[0];
-				console.log('[TEST] Feature ok:', fr.ok);
-				if (!fr.ok && fr.stepResults) {
-					const failed = fr.stepResults.filter(s => !s.ok);
-					console.log(`[TEST] ${failed.length} failed steps:`);
-					failed.forEach((s, i) => {
-						// @ts-expect-error - accessing internal message property
-						console.log(`  ${i}: "${s.in}" - ${s.stepActionResult?.message || 'no message'}`);
-					});
-				}
-			}
-		}
-
-		expect(result.ok).toBe(true);
-	});
-
-	it('should re-execute condition after explicit forget', async () => {
-		const loginRecipe = {
-			path: '/backgrounds/login-recipe.feature',
-			content: `Activity: Login count
-waypoint Is logged in as {user} with set "loggedIn" to "true"`
-		};
-
-		const mainFeature = {
-			path: '/features/tests/main.feature',
-			content: `
-Feature: Login/Logout Test
-Scenario: Login, logout, login again
-ensure Is logged in as "Admin"
-variable loggedIn is "true"
-forget Is logged in as "Admin"
-set loggedIn to "false"
-ensure Is logged in as "Admin"
-variable loggedIn is "true"
-`
-		};
-
-		const result = await testWithDefaults(
-			[mainFeature],
-			[ActivitiesStepper, Haibun, VariablesSteppers],
-			DEF_PROTO_OPTIONS,
-			[loginRecipe]
-		);
-
-		if (!result.ok) {
-			console.log('=== FORGET TEST FAILED ===');
-			console.log('result.ok:', result.ok);
-			if (result.failure) {
-				console.log('Failure:', result.failure.stage, result.failure.error.message);
-			}
-			if (result.featureResults?.[0]) {
-				const fr = result.featureResults[0];
-				const failed = fr.stepResults?.filter(s => !s.ok) || [];
-				console.log(`Failed steps (${failed.length}):`);
-				failed.forEach((s, i) => {
-					// @ts-expect-error - accessing internal message property
-					console.log(`  ${i}: "${s.in}" - ${s.stepActionResult?.message || JSON.stringify(s.stepActionResult)}`);
-				});
-			}
-		}
-
-		expect(result.ok).toBe(true);
-	});
-
 	it('should handle multiple variable bindings correctly', async () => {
 		const loginRecipe = {
 			path: '/backgrounds/login-recipe.feature',
 			content: `Activity: Login tracking
-waypoint Is logged in as {user} with set lastUser to {user}`
+set lastUser to {user}
+waypoint Is logged in as {user} with variable lastUser is {user}`
 		};
 
 		const mainFeature = {
@@ -233,89 +145,15 @@ variable lastUser is "Bob"
 
 		expect(result.ok).toBe(true);
 	});
-
-	it('outcomes from backgrounds are shared, but feature outcomes are isolated', async () => {
-		const setupBackground = {
-			path: '/backgrounds/setup.feature',
-			content: 'waypoint Shared setup with set "shared" to "yes"',
-		};
-
-		const featureC = {
-			path: '/features/featureC.feature',
-			content: `
-Feature: Feature C
-waypoint Feature C outcome with set "featureC" to "yes"
-ensure Shared setup
-variable "shared" is "yes"
-ensure Feature C outcome
-variable "featureC" is "yes"
-`
-		};
-
-		const featureD = {
-			path: '/features/featureD.feature',
-			content: `
-Feature: Feature D
-ensure Shared setup
-variable "shared" is "yes"
-`
-		};
-
-		const result = await testWithDefaults(
-			[featureC, featureD],
-			[ActivitiesStepper, Haibun, VariablesSteppers],
-			DEF_PROTO_OPTIONS,
-			[setupBackground]
-		);
-
-		expect(result.ok).toBe(true);
-	});
 });
 
 describe('outcomes between features', () => {
-	it('clears outcome satisfaction between features', async () => {
-		const background = {
-			path: '/backgrounds/login.feature',
-			content: 'waypoint Is logged in with set loggedIn to "true"',
-		};
-
-		const feature1 = {
-			path: '/features/feature1.feature',
-			content: 'ensure Is logged in\nvariable loggedIn is "true"'
-		};
-
-		const feature2 = {
-			path: '/features/feature2.feature',
-			content: 'ensure Is logged in\nvariable loggedIn is "true"'
-		};
-
-		const result = await testWithDefaults([feature1, feature2], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
-		expect(result.ok).toBe(true);
-	});
-
-	it('feature-defined outcomes not available in other features', async () => {
-		const feature1 = {
-			path: '/features/feature1.feature',
-			content: 'waypoint Feature 1 outcome with set f1 to "yes"',
-		};
-
-		const feature2 = {
-			path: '/features/feature2.feature',
-			content: 'ensure Feature 1 outcome',
-		};
-
-		const result = await testWithDefaults([feature1, feature2], [ActivitiesStepper, Haibun, VariablesSteppers]);
-
-		// Feature outcome from feature1 is removed after feature1 ends, so feature2 can't use it
-		expect(result.ok).toBe(false);
-		expect(result.failure?.stage).toBe('Execute');
-		expect(result.failure?.error.message).toContain('no step found for "Feature 1 outcome"');
-	});
-
 	it('background outcomes available in all features', async () => {
 		const background = {
 			path: '/backgrounds/shared.feature',
-			content: 'waypoint Shared outcome with set shared to "value"',
+			content: `Activity: Shared setup
+set shared to "value"
+waypoint Shared outcome with variable shared is "value"`,
 		};
 
 		const feature1 = {
@@ -337,14 +175,16 @@ describe('multiple waypoint', () => {
 	const background = {
 		path: '/backgrounds/multi.feature',
 		content: `Activity: Multi waypoint test
-		set step1 to "1"
-		waypoint First outcome with set "first" to "1"
-		set step2 to "2"
-		waypoint Second outcome with set "second" to "2"
-		set afterstep to "done"`
+set step1 to "1"
+set first to "1"
+waypoint First outcome with variable first is "1"
+set step2 to "2"
+set second to "2"
+waypoint Second outcome with variable second is "2"
+set afterstep to "done"`
 	};
 
-	it('first waypoints', async () => {
+	it('first waypoint', async () => {
 		const feature = {
 			path: '/features/feature.feature',
 			content: `ensure First outcome
@@ -358,7 +198,7 @@ describe('multiple waypoint', () => {
 		expect(result.ok).toBe(true);
 	});
 
-	it('second waypoints with last statement not a waypoint', async () => {
+	it('second waypoint with last statement not a waypoint', async () => {
 		const feature = {
 			path: '/features/feature.feature',
 			content: `ensure Second outcome

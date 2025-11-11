@@ -2,7 +2,7 @@ import { AStepper, TStepperSteps } from '../lib/astepper.js';
 import { TActionResult, TStepArgs, TFeatureStep, OK, TWorld, IStepperCycles, TStepperStep, TFeatures } from '../lib/defs.js';
 import { executeSubFeatureSteps, findFeatureStepsFromStatement } from '../lib/util/featureStep-executor.js';
 import { ExecMode } from '../lib/defs.js';
-import { actionOK, actionNotOK, getActionable, formatCurrentSeqPath } from '../lib/util/index.js';
+import { actionOK, actionNotOK, getActionable } from '../lib/util/index.js';
 import { DOMAIN_STATEMENT } from '../lib/domain-types.js';
 import { EExecutionMessageType, TMessageContext } from '../lib/interfaces/logger.js';
 
@@ -13,7 +13,7 @@ type TActivitiesFixedSteps = {
 	ensure: TStepperStep;
 	forget: TStepperStep;
 	waypointed: TStepperStep;
-	showOutcomes: TStepperStep;
+	showWaypoints: TStepperStep;
 };
 
 type TActivitiesStepperSteps = TStepperSteps & TActivitiesFixedSteps;
@@ -87,7 +87,7 @@ export class ActivitiesStepper extends AStepper {
 					if (activityStartLine !== -1) {
 						// Collect ALL steps in the activity block up to and including the current waypoint statement
 						const blockLines: string[] = [];
-						for (let i = activityStartLine + 1; i <= lineIndex; i++) {
+						for (let i = activityStartLine + 1; i < lineIndex; i++) {  // Use < instead of <= to exclude waypoint line
 							const stepLine = getActionable(allLines[i]);
 							if (stepLine) {
 								blockLines.push(stepLine);
@@ -110,7 +110,7 @@ export class ActivitiesStepper extends AStepper {
 					proof,
 					this.steppers,
 					this.getWorld(),
-					ExecMode.WITH_CYCLES
+					ExecMode.NO_CYCLES
 				);
 
 				if (!result.ok) {
@@ -122,146 +122,137 @@ export class ActivitiesStepper extends AStepper {
 		},
 
 		ensure: {
-			description: 'Ensure an outcome is satisfied, executing it if not already cached',
+			description: 'Ensure a waypoint condition by always running the proof. If proof passes, waypoint is already satisfied. If proof fails, run the full activity to satisfy it.',
 			gwta: `ensure {outcome:${DOMAIN_STATEMENT}}`,
 			action: async ({ outcome }: { outcome: TFeatureStep[] }, featureStep: TFeatureStep) => {
-				// Build cache key from the resolved outcome steps
+				// Build outcome key from the resolved outcome steps
 				const outcomeKey = outcome.map(step => step.in).join(' ');
-				console.log('🤑', JSON.stringify(outcomeKey, null, 2));
-
-				this.getWorld().logger.debug(`ensure: requesting outcome "${outcomeKey}"`);
-
-				const satisfiedOutcomes = this.getWorld().runtime.satisfiedOutcomes;
-
-				// Check if already satisfied (cached)
-				if (satisfiedOutcomes[outcomeKey]) {
-					this.getWorld().logger.debug(`ensure: outcome "${outcomeKey}" already satisfied (cached)`);
-					const messageContext: TMessageContext = { incident: EExecutionMessageType.ACTION, incidentDetails: { outcome: outcomeKey, cached: true } };
-					return actionOK({ messageContext });
-				}
+				this.getWorld().logger.debug(`ensure: verifying waypoint "${outcomeKey}"`);
 
 				// Get the pattern from the first outcome step's action
 				const pattern = outcome[0]?.action?.actionName || outcomeKey;
 
-				// Execute the outcome steps
-				const result = await executeSubFeatureSteps(featureStep, outcome, this.steppers, this.getWorld(), ExecMode.WITH_CYCLES);
+				// Get the registered waypoint to access its proof
+				const registeredWaypoint = this.steps[pattern];
+				if (!registeredWaypoint) {
+					const messageContext: TMessageContext = {
+						incident: EExecutionMessageType.ACTION,
+						incidentDetails: { waypoint: outcomeKey, error: 'waypoint not registered' }
+					};
+					return actionNotOK(`ensure: waypoint "${outcomeKey}" (pattern "${pattern}") is not registered`, { messageContext });
+				}
+
+				// Always execute the full waypoint (which includes the proof verification)
+				const result = await executeSubFeatureSteps(featureStep, outcome, this.steppers, this.getWorld(), ExecMode.NO_CYCLES);
 
 				if (!result.ok) {
 					const messageContext: TMessageContext = {
 						incident: EExecutionMessageType.ACTION,
-						incidentDetails: { outcome: outcomeKey, error: result }
+						incidentDetails: { waypoint: outcomeKey, satisfied: false, error: result }
 					};
-					return actionNotOK(`ensure: outcome "${outcomeKey}" could not be satisfied`, { messageContext });
+					return actionNotOK(`ensure: waypoint "${outcomeKey}" could not be satisfied`, { messageContext });
 				}
 
-				// Extract the interpolated proof statements from the registered outcome's result
+				// Extract the interpolated proof statements from the result
 				const proofStatements = (result.stepActionResult?.messageContext?.incidentDetails as { proofStatements?: string[] })?.proofStatements;
 
-				// Parse proof statements into TFeatureStep array for display
-				const proofSteps: TFeatureStep[] = proofStatements
-					? proofStatements.map((stmt, idx) => ({
-						path: featureStep.path,
-						in: stmt,
-						seqPath: [...featureStep.seqPath, idx],
-						action: { actionName: 'proof', stepperName: 'activities', step: {} as TStepperStep }
-					}))
-					: outcome;
+				this.getWorld().logger.debug(`ensure: waypoint "${outcomeKey}" verified and satisfied`);
 
-				// Cache the satisfied outcome with its proof result and pattern
-				satisfiedOutcomes[outcomeKey] = {
-					proofResult: result,
-					proofSteps: proofSteps,
-					pattern: pattern
+				const messageContext: TMessageContext = {
+					incident: EExecutionMessageType.ACTION,
+					incidentDetails: {
+						waypoint: outcomeKey,
+						satisfied: true,
+						proofStatements
+					}
 				};
-
-				this.getWorld().logger.debug(`ensure: cached outcome "${outcomeKey}" with pattern "${pattern}"`);
-
-				const messageContext: TMessageContext = { incident: EExecutionMessageType.ACTION, incidentDetails: { outcome: outcomeKey, satisfied: true } };
 				return actionOK({ messageContext });
 			},
 		},
 		forget: {
-			description: 'Forget (invalidate) a previously satisfied outcome, forcing it to re-execute on next ensure',
+			description: 'Deprecated: forget is no longer needed since ensure always re-verifies outcomes',
 			gwta: `forget {outcome:${DOMAIN_STATEMENT}}`,
 			action: ({ outcome }: { outcome: TFeatureStep[] }, featureStep: TFeatureStep) => {
-				// Build the outcome key from the resolved outcome steps (same as ensure)
 				const outcomeKey = outcome.map(step => step.in).join(' ');
-				this.getWorld().logger.debug(`forget: invalidating outcome "${outcomeKey}" (from ${featureStep.in})`);
+				this.getWorld().logger.debug(`forget: deprecated no-op for outcome "${outcomeKey}" (from ${featureStep.in}). Outcomes are no longer cached, so forget is unnecessary.`);
 
-				// Delete only the exact matching entry
-				if (this.getWorld().runtime.satisfiedOutcomes[outcomeKey]) {
-					delete this.getWorld().runtime.satisfiedOutcomes[outcomeKey];
-					this.getWorld().logger.debug(`forget: removed cached outcome "${outcomeKey}"`);
-				} else {
-					this.getWorld().logger.debug(`forget: outcome "${outcomeKey}" was not cached`);
-				}
-
-				const messageContext: TMessageContext = { incident: EExecutionMessageType.ACTION, incidentDetails: { outcome: outcomeKey, forgotten: true } };
+				const messageContext: TMessageContext = { incident: EExecutionMessageType.ACTION, incidentDetails: { outcome: outcomeKey, deprecated: true } };
 				return actionOK({ messageContext });
 			},
 		},
 		waypointed: {
-			description: 'Check if an outcome is already cached/satisfied',
+			description: 'Deprecated: waypointed is no longer meaningful since outcomes are not cached',
 			gwta: `waypointed {outcome:${DOMAIN_STATEMENT}}`,
 			action: ({ outcome }: { outcome: TFeatureStep[] }) => {
 				const outcomeKey = outcome.map(step => step.in).join(' ');
-				const satisfied = this.getWorld().runtime.satisfiedOutcomes;
+				this.getWorld().logger.debug(`waypointed: deprecated for outcome "${outcomeKey}". Outcomes are verified on each ensure, not cached.`);
 
-				if (satisfied[outcomeKey]) {
-					this.getWorld().logger.debug(`waypointed: outcome "${outcomeKey}" is cached`);
-					const messageContext: TMessageContext = { incident: EExecutionMessageType.ACTION, incidentDetails: { outcome: outcomeKey, waypointed: true } };
-					return actionOK({ messageContext });
-				} else {
-					return actionNotOK(`outcome "${outcomeKey}" is not waypointed`);
-				}
+				const messageContext: TMessageContext = { incident: EExecutionMessageType.ACTION, incidentDetails: { outcome: outcomeKey, deprecated: true } };
+				return actionOK({ messageContext });
 			},
 		},
 
-		showOutcomes: {
-			exact: 'show outcomes',
-			action: () => {
-				const satisfied = this.getWorld().runtime.satisfiedOutcomes;
-
-				// Group satisfied outcomes by pattern
-				const outcomesByPattern: Record<string, {
-					proof?: { steps: string; seqPath: string };
-					satisfied: { in: string; seqPath: string }[]
+		showWaypoints: {
+			exact: 'show waypoints',
+			action: async (_args, featureStep: TFeatureStep) => {
+				// Collect all registered waypoint patterns
+				const waypointResults: Record<string, {
+					proof: string;
+					currentlyValid: boolean;
+					error?: string;
 				}> = {};
 
-				// First, add all registered patterns (even if no instances)
-				for (const outcomePattern in this.steps) {
-					if (this.steps[outcomePattern].virtual) {
-						outcomesByPattern[outcomePattern] = { satisfied: [] };
+				for (const waypointPattern in this.steps) {
+					if (this.steps[waypointPattern].virtual) {
+						// Get the description which contains the proof
+						const description = this.steps[waypointPattern].description || '';
+						const proofMatch = description.match(/Proof: (.+)$/);
+						const proof = proofMatch ? proofMatch[1] : 'unknown';
+
+						try {
+							// Parse the proof statements and execute them directly to check validity
+							// Do NOT execute the waypoint step itself, as that would run the activity body
+							const proofStatements = proof.split('; ');
+							const resolvedSteps: TFeatureStep[] = [];
+
+							for (let i = 0; i < proofStatements.length; i++) {
+								const statement = proofStatements[i];
+								const resolved = findFeatureStepsFromStatement(
+									statement,
+									this.steppers,
+									this.getWorld(),
+									featureStep.path,
+									[...featureStep.seqPath, i],
+									1
+								);
+								resolvedSteps.push(...resolved);
+							}
+
+							// Execute the proof statements with NO_CYCLES to check current validity
+							const result = await executeSubFeatureSteps(
+								featureStep,
+								resolvedSteps,
+								this.steppers,
+								this.getWorld(),
+								ExecMode.NO_CYCLES
+							);
+
+							waypointResults[waypointPattern] = {
+								proof,
+								currentlyValid: result.ok
+							};
+						} catch (error) {
+							waypointResults[waypointPattern] = {
+								proof,
+								currentlyValid: false,
+								error: error instanceof Error ? error.message : String(error)
+							};
+						}
 					}
 				}
 
-				// Then populate with satisfied instances
-				for (const satisfiedKey in satisfied) {
-					const outcome = satisfied[satisfiedKey];
-					const pattern = outcome.pattern;
-
-					// Initialize pattern if not already present (shouldn't happen, but defensive)
-					if (!outcomesByPattern[pattern]) {
-						outcomesByPattern[pattern] = { satisfied: [] };
-					}
-
-					// Store proof at pattern level (first instance sets it)
-					if (!outcomesByPattern[pattern].proof && outcome.proofSteps.length > 0) {
-						outcomesByPattern[pattern].proof = {
-							steps: outcome.proofSteps.map(s => s.in).join('; '),
-							seqPath: formatCurrentSeqPath(outcome.proofResult.seqPath)
-						};
-					}
-
-					// Add this satisfied instance to its pattern group (just the instance details)
-					outcomesByPattern[pattern].satisfied.push({
-						in: satisfiedKey,
-						seqPath: formatCurrentSeqPath(outcome.proofResult.seqPath)
-					});
-				}
-
-				this.getWorld().logger.info(`Outcomes (${Object.keys(outcomesByPattern).length} registered, ${Object.keys(satisfied).length} satisfied):\n${JSON.stringify(outcomesByPattern, null, 2)}`);
-				return actionOK({ messageContext: { incident: EExecutionMessageType.ACTION, incidentDetails: { outcomes: outcomesByPattern } } });
+				this.getWorld().logger.info(`Waypoints (${Object.keys(waypointResults).length} registered):\n${JSON.stringify(waypointResults, null, 2)}`);
+				return actionOK({ messageContext: { incident: EExecutionMessageType.ACTION, incidentDetails: { waypoints: waypointResults } } });
 			},
 		},
 	} as const satisfies TActivitiesFixedSteps;
@@ -271,11 +262,8 @@ export class ActivitiesStepper extends AStepper {
 	steps: TActivitiesStepperSteps = { ...this.baseSteps };
 
 	cycles: IStepperCycles = {
-		startFeature: () => {
-			this.getWorld().runtime.satisfiedOutcomes = {};
-		},
 		endFeature: async () => {
-			// Remove feature-scoped outcome steps (so they're not available to next feature)
+			// Remove feature-scoped waypoint steps (so they're not available to next feature)
 			for (const pattern of this.featureOutcomePatterns) {
 				delete this.steps[pattern];
 			}
@@ -313,9 +301,6 @@ export class ActivitiesStepper extends AStepper {
 
 		this.getWorld().logger.info(`ActivitiesStepper: registerOutcome called with ${proofStatements.length} proof steps for "${outcome}"`);
 
-		// Determine which statements to execute: activity block if available and non-empty, otherwise proof statements
-		const statementsToExecute = (activityBlockSteps && activityBlockSteps.length > 0) ? activityBlockSteps : proofStatements;
-
 		// Store proofStatements for later retrieval
 		const outcomeProofStatements = proofStatements;
 
@@ -326,39 +311,8 @@ export class ActivitiesStepper extends AStepper {
 			action: async (args: TStepArgs, featureStep: TFeatureStep): Promise<TActionResult> => {
 				this.getWorld().logger.debug(`ActivitiesStepper: executing recipe for outcome "${outcome}" with args ${JSON.stringify(args)}`);
 
-				// Expand variables in the statements using the matched args
-				const expandedStatements = statementsToExecute.map(statement => {
-					let expanded = statement;
-					for (const [key, value] of Object.entries(args)) {
-						expanded = expanded.replace(new RegExp(`\\{${key}\\}`, 'g'), String(value));
-					}
-					return expanded;
-				});				// Re-resolve the statements in the current execution context
-				const resolvedProofSteps: TFeatureStep[] = [];
-				for (let i = 0; i < expandedStatements.length; i++) {
-					const statement = expandedStatements[i];
-					this.getWorld().logger.debug(`ActivitiesStepper: resolving proof statement ${i}: "${statement}"`);
-					const resolved = findFeatureStepsFromStatement(
-						statement,
-						this.steppers,
-						this.getWorld(),
-						proofPath,
-						[...featureStep.seqPath, i],
-						1
-					);
-					resolvedProofSteps.push(...resolved);
-				}
-
-				// Execute the re-resolved proof steps
-				const result = await executeSubFeatureSteps(featureStep, resolvedProofSteps, this.steppers, this.getWorld(), ExecMode.WITH_CYCLES);
-
-				if (!result.ok) {
-					return actionNotOK(`ActivitiesStepper: failed to satisfy outcome "${outcome}"`);
-				}
-
-				// Return the original proof statements (interpolated) in messageContext
-				// so ensure can store them as the proof
-				const interpolatedProof = outcomeProofStatements.map(statement => {
+				// Helper to expand variables in statements
+				const expandStatements = (statements: string[]) => statements.map(statement => {
 					let expanded = statement;
 					for (const [key, value] of Object.entries(args)) {
 						expanded = expanded.replace(new RegExp(`\\{${key}\\}`, 'g'), String(value));
@@ -366,12 +320,78 @@ export class ActivitiesStepper extends AStepper {
 					return expanded;
 				});
 
+				// Helper to resolve and execute statements
+				const resolveAndExecute = async (statements: string[], stepOffset: number = 0, execMode: ExecMode = ExecMode.NO_CYCLES) => {
+					const expandedStatements = expandStatements(statements);
+					const resolvedSteps: TFeatureStep[] = [];
+					for (let i = 0; i < expandedStatements.length; i++) {
+						const statement = expandedStatements[i];
+						this.getWorld().logger.debug(`ActivitiesStepper: resolving statement ${i}: "${statement}"`);
+						const resolved = findFeatureStepsFromStatement(
+							statement,
+							this.steppers,
+							this.getWorld(),
+							proofPath,
+							[...featureStep.seqPath, stepOffset + i],
+							1
+						);
+						resolvedSteps.push(...resolved);
+					}
+				return await executeSubFeatureSteps(featureStep, resolvedSteps, this.steppers, this.getWorld(), execMode);
+			};
+
+			// ALWAYS-VERIFY SEMANTICS: Try proof first
+			// Use NO_CYCLES for proof checking to avoid triggering hooks
+			this.getWorld().logger.debug(`ActivitiesStepper: checking proof for outcome "${outcome}"`);
+			this.getWorld().logger.debug(`ActivitiesStepper: proof statements: ${JSON.stringify(proofStatements)}`);
+			const proofResult = await resolveAndExecute(proofStatements, 0, ExecMode.NO_CYCLES);
+
+			// If proof passes, we're done (waypoint already satisfied)
+			if (proofResult.ok) {
+				this.getWorld().logger.debug(`ActivitiesStepper: proof passed for outcome "${outcome}", skipping activity body`);
+				const interpolatedProof = expandStatements(outcomeProofStatements);
 				return actionOK({
 					messageContext: {
 						incident: EExecutionMessageType.ACTION,
 						incidentDetails: { proofStatements: interpolatedProof }
 					}
 				});
+			}
+
+			// Proof failed - execute activity body (WITHOUT waypoint line), then verify proof
+			// Flow: 1) Execute activity body steps, 2) Execute proof to verify, 3) Success or fail
+			if (activityBlockSteps && activityBlockSteps.length > 0) {
+				this.getWorld().logger.debug(`ActivitiesStepper: proof failed for outcome "${outcome}", running activity body`);
+
+				// Step 1: Execute activity body (does NOT include the waypoint line to avoid recursion)
+				// Use WITH_CYCLES so that activity body steps can trigger hooks
+				const activityResult = await resolveAndExecute(activityBlockSteps, 100, ExecMode.WITH_CYCLES);
+
+				if (!activityResult.ok) {
+					return actionNotOK(`ActivitiesStepper: activity body failed for outcome "${outcome}"`);
+				}
+
+				// Step 2: Activity body succeeded - now verify the proof passes
+				// Use NO_CYCLES for proof verification to avoid triggering hooks
+				this.getWorld().logger.debug(`ActivitiesStepper: verifying proof after activity body for outcome "${outcome}"`);
+				const verifyResult = await resolveAndExecute(proofStatements, 200, ExecMode.NO_CYCLES);
+
+				if (!verifyResult.ok) {
+					return actionNotOK(`ActivitiesStepper: proof verification failed after activity body for outcome "${outcome}"`);
+				}
+
+				// Step 3: Success - proof now passes
+				const interpolatedProof = expandStatements(outcomeProofStatements);
+				return actionOK({
+					messageContext: {
+						incident: EExecutionMessageType.ACTION,
+						incidentDetails: { proofStatements: interpolatedProof }
+					}
+				});
+			} else {
+				// No activity body, just proof - and it failed
+				return actionNotOK(`ActivitiesStepper: proof failed and no activity body available for outcome "${outcome}"`);
+			}
 			}
 		};
 

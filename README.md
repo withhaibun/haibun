@@ -3,6 +3,7 @@
 # haibun
 
 Haibun is inspired by the literary form that combines descriptive and objective prose with haiku.
+The result is a type of literate programming for always up to date specifications, tests, and documentation.
 
 This package is intended to enable specification driven development, with end to end tests.
 This type of development is often tedious to develop,

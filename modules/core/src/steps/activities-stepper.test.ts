@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { ActivitiesStepper } from './activities-stepper.js';
 import { getDefaultWorld, testWithDefaults } from '../lib/test/lib.js';
 import VariablesStepper from './variables-stepper.js';
+import { Origin } from '../lib/defs.js';
+import { DOMAIN_STRING } from '../lib/domain-types.js';
 
 describe('ActivitiesStepper', () => {
   describe('registerOutcome', () => {
@@ -94,11 +96,10 @@ describe('ActivitiesStepper', () => {
   });
 
   describe('steps initialization', () => {
-    it('should start with built-in steps (activity, ensure, forget)', () => {
+    it('should start with built-in steps (activity, ensure)', () => {
       const stepper = new ActivitiesStepper();
       expect(Object.keys(stepper.steps)).toContain('activity');
       expect(Object.keys(stepper.steps)).toContain('ensure');
-      expect(Object.keys(stepper.steps)).toContain('forget');
     });
   });
 
@@ -122,27 +123,6 @@ variable "result" is "done"`
       const result = await testWithDefaults([feature], steppers, undefined, [background]);
       expect(result.ok).toBe(true);
     });
-
-    it('should use cached outcome on second ensure', async () => {
-      const background = {
-        path: '/backgrounds/test.feature',
-        content: `Activity: Test
-waypoint Task completed with set "marker" to "executed"`
-      };
-
-      const feature = {
-        path: '/features/test.feature',
-        content: `set "marker" to "not executed"
-ensure Task completed
-variable "marker" is "executed"
-set "marker" to "not executed"
-ensure Task completed
-variable "marker" is "not executed"`
-      };
-
-      const result = await testWithDefaults([feature], steppers, undefined, [background]);
-      expect(result.ok).toBe(true);
-    });
   });
 
   describe('waypointed step', () => {
@@ -153,7 +133,7 @@ variable "marker" is "not executed"`
         path: '/backgrounds/test.feature',
         content: `Activity: Test
 set "result" to "done"
-waypoint Task completed with set "result" to "done"`
+waypoint Task completed with variable result is "done"`
       };
 
       const feature = {
@@ -165,23 +145,6 @@ waypointed Task completed`
       const result = await testWithDefaults([feature], steppers, undefined, [background]);
       expect(result.ok).toBe(true);
     });
-
-    it('should fail when outcome is not cached', async () => {
-      const background = {
-        path: '/backgrounds/test.feature',
-        content: `Activity: Test
-set "result" to "done"
-waypoint Task completed with set "result" to "done"`
-      };
-
-      const feature = {
-        path: '/features/test.feature',
-        content: `waypointed Task completed`
-      };
-
-      const result = await testWithDefaults([feature], steppers, undefined, [background]);
-      expect(result.ok).toBe(false);
-    });
   });
 
   describe('forget step', () => {
@@ -191,7 +154,8 @@ waypoint Task completed with set "result" to "done"`
       const background = {
         path: '/backgrounds/test.feature',
         content: `Activity: Test
-waypoint Task completed with set "count" to "1"`
+set count to "1"
+waypoint Task completed with variable count is "1"`
       };
 
       const feature = {
@@ -199,7 +163,6 @@ waypoint Task completed with set "count" to "1"`
         content: `set "count" to "0"
 ensure Task completed
 variable "count" is "1"
-forget Task completed
 set "count" to "0"
 ensure Task completed
 variable "count" is "1"`
@@ -213,39 +176,19 @@ variable "count" is "1"`
       const background = {
         path: '/backgrounds/test.feature',
         content: `Activity: Test
-waypoint Something happened with set "result" to "done"`
+set result to "done"
+waypoint Something happened with variable result is "done"`
       };
 
       const feature = {
         path: '/features/test.feature',
-        content: `forget Something happened
-ensure Something happened
+        content: `ensure Something happened
 variable "result" is "done"
 waypointed Something happened`
       };
 
       const result = await testWithDefaults([feature], steppers, undefined, [background]);
       expect(result.ok).toBe(true);
-    });
-
-    it('should make outcome no longer waypointed', async () => {
-      const background = {
-        path: '/backgrounds/test.feature',
-        content: `Activity: Test
-set "result" to "done"
-waypoint Task completed with set "result" to "done"`
-      };
-
-      const feature = {
-        path: '/features/test.feature',
-        content: `ensure Task completed
-waypointed Task completed
-forget Task completed
-waypointed Task completed`
-      };
-
-      const result = await testWithDefaults([feature], steppers, undefined, [background]);
-      expect(result.ok).toBe(false);
     });
   });
 });

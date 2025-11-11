@@ -119,6 +119,7 @@ export type TStepperStep = {
 	description?: string;
 	precludes?: string[];
 	unique?: boolean;
+	fallback?: boolean;
 	expose?: boolean;
 	virtual?: boolean;
 	match?: RegExp;
@@ -301,6 +302,7 @@ export type TRuntime = {
 	scenario?: string;
 	feature?: string;
 	stepResults: TStepResult[];
+	depthLimitExceeded?: boolean;
 	// activities-stepper
 	satisfiedOutcomes?: { [outcome: string]: TSatisfiedOutcome };
 	[name: string]: TAnyFixme;
