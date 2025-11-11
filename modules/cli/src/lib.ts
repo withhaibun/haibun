@@ -48,10 +48,10 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 
 	console.info('\n_________________________________ start');
 	const executorResult = await runner.run(specl.steppers, featureFilter);
-	if (executorResult.ok) {
+	if (executorResult.ok && !world.runtime.depthLimitExceeded) {
 		console.info(`${CHECK_YES} All ${executorResult.featureResults.length} features passed.`);
 	} else {
-		const errorMessage = executorResult.failure?.error?.message || 'Unknown error';
+		const errorMessage = executorResult.failure?.error?.message || (world.runtime.depthLimitExceeded && 'Execution depth limit exceeded') || 'Unknown error';
 		const errorStack = executorResult.failure?.error?.details?.stack;
 		const stage = executorResult.failure?.stage;
 
