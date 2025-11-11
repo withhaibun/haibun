@@ -26,7 +26,7 @@ variable verifyCount is 1
 		expect(result.ok).toBe(true);
 	});
 
-	it.only('after every hook should not trigger during ensure outcome execution (substeps)', async () => {
+	it('after every hook should not trigger during ensure outcome execution (substeps)', async () => {
 		const feature = {
 			path: '/features/test.feature',
 			content: `Activity: Setup
