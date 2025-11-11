@@ -279,7 +279,14 @@ export class FeatureExecutor {
 		let actionResult: TActionResult;
 		if (isFullCycles) {
 			if (isAsync) {
-				world.logger.log(`⏳ ${formatCurrentSeqPath(featureStep.seqPath)} ${featureStep.in}`, { incident: EExecutionMessageType.STEP_START, tag: world.tag, incidentDetails: { featureStep, args } });
+				// Use same log level for start as we'll use for completion
+				const startMessage = `⏳ ${formatCurrentSeqPath(featureStep.seqPath)} ${featureStep.in}`;
+				const startContext = { incident: EExecutionMessageType.STEP_START, tag: world.tag, incidentDetails: { featureStep, args } };
+				if (isSubStep) {
+					world.logger.trace(startMessage, startContext);
+				} else {
+					world.logger.log(startMessage, startContext);
+				}
 			}
 			let doAction = true;
 			while (doAction) {
