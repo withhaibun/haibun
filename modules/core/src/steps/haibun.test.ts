@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { DEF_PROTO_OPTIONS,  failWithDefaults,  passWithDefaults } from '../lib/test/lib.js';
+import { DEF_PROTO_OPTIONS, failWithDefaults, passWithDefaults } from '../lib/test/lib.js';
 import TestSteps from '../lib/test/TestSteps.js';
 import Haibun from './haibun.js';
 import VariablesSteppers from './variables-stepper.js';
@@ -16,7 +16,7 @@ describe('seqPath ordering', () => {
 		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(true);
 		const seqs = result.featureResults![0].stepResults.map(r => r.seqPath);
-		expect(seqs).toEqual([[1,1,1], [1,1,2], [1,1,3]]);
+		expect(seqs).toEqual([[1, 1, 1], [1, 1, 2], [1, 1, 3]]);
 	});
 	it('if with Backgrounds shows condition, directive, background steps, then parent', async () => {
 		const feature = { path: '/features/test.feature', content: 'if passes, Backgrounds: bg' };
@@ -25,21 +25,21 @@ describe('seqPath ordering', () => {
 		expect(result.ok).toBe(true);
 		const seqs = result.featureResults![0].stepResults.map(r => r.seqPath);
 		// Condition uses dir=-1, body uses dir=1: condition [1,1,1,-1], background steps [1,1,1,1] and [1,1,1,2], parent [1,1,1]
-		expect(seqs).toEqual([[1,1,1,-1], [1,1,1,1], [1,1,1,2], [1,1,1]]);
+		expect(seqs).toEqual([[1, 1, 1, -1], [1, 1, 1, 1], [1, 1, 1, 2], [1, 1, 1]]);
 	});
 	it('not statement', async () => {
 		const feature = { path: '/features/test.feature', content: 'passes\nnot fails\nends with OK' };
 		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(true);
 		const seqs = result.featureResults![0].stepResults.map(r => r.seqPath);
-		expect(seqs).toEqual([[1,1,1], [1,1,2,-1], [1,1,2], [1,1,3]]);
+		expect(seqs).toEqual([[1, 1, 1], [1, 1, 2, -1], [1, 1, 2], [1, 1, 3]]);
 	});
 	it('not not statement', async () => {
 		const feature = { path: '/features/test.feature', content: 'passes\nnot not passes\nends with OK' };
 		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(true);
 		const seqs = result.featureResults![0].stepResults.map(r => r.seqPath);
-		expect(seqs).toEqual([[1,1,1], [1,1,2,-1,-1], [1,1,2,-1], [1,1,2], [1,1,3]]);
+		expect(seqs).toEqual([[1, 1, 1], [1, 1, 2, -1, -1], [1, 1, 2, -1], [1, 1, 2], [1, 1, 3]]);
 	});
 });
 describe('afterEvery', () => {
@@ -48,7 +48,7 @@ describe('afterEvery', () => {
 		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(true);
 		const ins = result.featureResults![0].stepResults.map(r => r.in);
-		expect(ins).toEqual(['have a test', 'after every TestSteps, Noodles, man.', 'passes', 'Noodles, man.', 'passes', 'Noodles, man.' ]);
+		expect(ins).toEqual(['have a test', 'after every TestSteps, Noodles, man.', 'passes', 'Noodles, man.', 'passes', 'Noodles, man.']);
 	});
 	it('afterEvery effect injects hierarchical step with parent seqPath extended', async () => {
 		const feature = { path: '/features/test.feature', content: 'have a test\nafter every TestSteps, passes\nhave a test\npasses' };
@@ -56,7 +56,7 @@ describe('afterEvery', () => {
 		expect(result.ok).toBe(true);
 		const seqs = result.featureResults![0].stepResults.map(r => r.seqPath);
 		// Step [1,1,4] "passes" does not trigger afterEvery because it's the same action (prevents infinite recursion)
-		expect(seqs).toEqual([[1,1,1], [1,1,2], [1,1,3], [1,1,3,1], [1,1,4]]);
+		expect(seqs).toEqual([[1, 1, 1], [1, 1, 2], [1, 1, 3], [1, 1, 3, 1], [1, 1, 4]]);
 	});
 });
 
@@ -94,6 +94,13 @@ Prose sections are indicated by the presence of punctuation at the end of paragr
 		}
 		expect(rfzs[n++].stepActionResult).toBeDefined(); // sanity
 		expect(rfzs[0].stepActionResult).toBeDefined();
+	});
+});
+describe('nothing', () => {
+	it('nothing step does nothing and passes', async () => {
+		const feature = { path: '/features/test.feature', content: '' };
+		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
+		expect(result.ok).toBe(true);
 	});
 });
 
@@ -135,7 +142,7 @@ describe('if', () => {
 		// All steps recorded: condition, background steps, then parent if
 		expect(steps.length).toBe(4);
 		const seqs = steps.map(s => s.seqPath);
-		expect(seqs).toEqual([[1,1,1,-1], [1,1,1,1], [1,1,1,2], [1,1,1]]);
+		expect(seqs).toEqual([[1, 1, 1, -1], [1, 1, 1, 1], [1, 1, 1, 2], [1, 1, 1]]);
 	});
 });
 
@@ -241,7 +248,7 @@ describe('variable composition', () => {
 		expect(result.ok).toBe(true);
 		const seqs = result.featureResults![0].stepResults.map(r => r.seqPath);
 		// nested variable check then parent not then ends with
-		expect(seqs).toEqual([[1,1,1,-1], [1,1,1]]);
+		expect(seqs).toEqual([[1, 1, 1, -1], [1, 1, 1]]);
 	});
 	it('not variable set is set fails', async () => {
 		const feature = { path: '/features/test.feature', content: 'set wtw to 5\nnot variable "wtw" is set' };
@@ -304,7 +311,7 @@ describe('variable composition', () => {
 		// [1,1,2,-1,-1] - second negation layer
 		// [1,1,2,-1] - first negation layer
 		// [1,1,2] - final statement resolution
-		expect(seqs).toEqual([[1,1,1], [1,1,2,-1,-1,-1,-1], [1,1,2,-1,-1,-1], [1,1,2,-1,-1], [1,1,2,-1], [1,1,2]]);
+		expect(seqs).toEqual([[1, 1, 1], [1, 1, 2, -1, -1, -1, -1], [1, 1, 2, -1, -1, -1], [1, 1, 2, -1, -1], [1, 1, 2, -1], [1, 1, 2]]);
 		expect(seqs.length).toBe(6);
 	});
 
@@ -327,7 +334,7 @@ describe('variable composition', () => {
 		// [1,1,2,1,-1] - inner not resolution (evaluates to false)
 		// [1,1,2,1] - inner if resolution (condition false, succeeds without executing body)
 		// [1,1,2] - outer if resolution (consequence executed successfully)
-		expect(seqs).toEqual([[1,1,1], [1,1,2,-1], [1,1,2,1,-1,-1], [1,1,2,1,-1], [1,1,2,1], [1,1,2]]);
+		expect(seqs).toEqual([[1, 1, 1], [1, 1, 2, -1], [1, 1, 2, 1, -1, -1], [1, 1, 2, 1, -1], [1, 1, 2, 1], [1, 1, 2]]);
 		expect(seqs.length).toBe(6);
 	});
-	});
+});

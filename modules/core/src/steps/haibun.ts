@@ -61,10 +61,10 @@ class Haibun extends AStepper {
 			},
 		},
 
-	// Represents Logical Implication (P => Q).
-	if: {
-		gwta: `if {ifStatements:${DOMAIN_STATEMENT}}, {thenStatements:${DOMAIN_STATEMENT}}`,
-		action: async ({ ifStatements, thenStatements }: { ifStatements: TFeatureStep[], thenStatements: TFeatureStep[] }, featureStep: TFeatureStep) => {				// 1. Evaluate Antecedent (WHEN) - use dir=-1 for condition evaluation
+		// Represents Logical Implication (P => Q).
+		if: {
+			gwta: `if {ifStatements:${DOMAIN_STATEMENT}}, {thenStatements:${DOMAIN_STATEMENT}}`,
+			action: async ({ ifStatements, thenStatements }: { ifStatements: TFeatureStep[], thenStatements: TFeatureStep[] }, featureStep: TFeatureStep) => {				// 1. Evaluate Antecedent (WHEN) - use dir=-1 for condition evaluation
 				const ifResult = await executeSubFeatureSteps(featureStep, ifStatements, this.steppers, this.getWorld(), ExecMode.NO_CYCLES, -1);
 
 				// If antecedent fails, the implication is true (vacuously true: F => T/F), so we return OK.
@@ -119,7 +119,10 @@ class Haibun extends AStepper {
 				return result.ok ? OK : actionNotOK('backgrounds failed');
 			},
 		},
-
+		nothing: {
+			exact: '',
+			action: () => OK,
+		},
 		prose: {
 			match: /.+[.!?]$/,
 			fallback: true,

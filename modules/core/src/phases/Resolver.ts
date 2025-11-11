@@ -119,9 +119,6 @@ export class Resolver {
 	}
 
 	public findActionableSteps(actionable: string): TStepAction[] {
-		if (!actionable.length) {
-			return [comment];
-		}
 		const found: TStepAction[] = [];
 
 		for (const stepper of this.steppers) {
@@ -150,17 +147,6 @@ export class Resolver {
 		}
 	}
 }
-
-const comment = {
-	stepperName: 'Haibun',
-	actionName: 'comment',
-	step: {
-		match: /.*/,
-		action: async () => {
-			return Promise.resolve(OK);
-		},
-	},
-};
 
 export function getActionableStatement(steppers: AStepper[], statement: string, path: string, seqPath: number[]) {
 	const resolver = new Resolver(steppers);

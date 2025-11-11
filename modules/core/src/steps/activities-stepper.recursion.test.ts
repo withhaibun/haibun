@@ -11,8 +11,8 @@ describe('Activities recursion test', () => {
 			path: '/backgrounds/test.feature',
 			content: `
 Activity: Setup
-set counter to "0"
-waypoint Setup complete with variable counter is "0"
+set counter as number to 0
+waypoint Setup complete with variable counter is 0
 `
 		};
 
@@ -22,7 +22,7 @@ waypoint Setup complete with variable counter is "0"
 Feature: Test recursion
 Scenario: Ensure setup
 ensure Setup complete
-variable counter is "0"
+variable counter is 0
 `
 		};
 
