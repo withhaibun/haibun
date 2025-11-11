@@ -31,7 +31,7 @@ class Haibun extends AStepper {
 					if (aeStep.action.actionName === featureStep.action.actionName) {
 						continue;
 					}
-					
+
 					// Map the seqPath to extend from the current featureStep
 					const mappedStep: TFeatureStep = {
 						...aeStep,

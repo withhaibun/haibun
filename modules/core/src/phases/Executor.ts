@@ -155,18 +155,18 @@ export class FeatureExecutor {
 
 	private static formatStepLogMessage(featureStep: TFeatureStep, actionResult: TActionResult, isSubStep: boolean): string {
 		const seqPathStr = formatCurrentSeqPath(featureStep.seqPath);
-		
+
 		if (isSubStep) {
 			// Substeps use yield icon with maybe status
 			const maybeStatus = actionResult.ok ? MAYBE_CHECK_YES : MAYBE_CHECK_NO;
 			return `${CHECK_YIELD} ${seqPathStr} ${maybeStatus} ${featureStep.in}`;
 		}
-		
+
 		// Top-level steps use YES/NO icons
 		if (actionResult.ok) {
 			return `${CHECK_YES} ${seqPathStr} ${featureStep.in}`;
 		}
-		
+
 		const errorMsg = (<TNotOKActionResult>actionResult).message;
 		return `${CHECK_NO} ${seqPathStr} ${featureStep.in}\n   Error: ${errorMsg}`;
 	}
