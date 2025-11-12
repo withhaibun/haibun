@@ -1,4 +1,4 @@
-import { TWorld, IStepperCycles, TStepperStep, TOptionValue, TEnvVariables, TExecutorResult } from './defs.js';
+import { TWorld, IStepperCycles, TStepperStep, TOptionValue, TEnvVariables } from './defs.js';
 import { TAnyFixme } from './fixme.js';
 import { constructorName } from './util/index.js';
 
@@ -19,7 +19,7 @@ export abstract class AStepper {
 	}
 }
 export type TStepperSteps = {
-  [key: string]: TStepperStep;
+	[key: string]: TStepperStep;
 };
 export interface IHasOptions {
 	options?: {

@@ -65,6 +65,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		},
 		increment: {
 			gwta: 'increment {what}',
+			// eslint-disable-next-line @typescript-eslint/no-unused-vars
 			action: ({ what }: { what: string }, featureStep: TFeatureStep) => {
 				const { term, domain } = featureStep.action.stepValuesMap.what;
 				const presentVal = this.getVarValue(term);
@@ -158,6 +159,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		},
 		is: {
 			gwta: 'variable {what} is {value}',
+			// eslint-disable-next-line @typescript-eslint/no-unused-vars
 			action: ({ what, value }: { what: string, value: string }, featureStep: TFeatureStep) => {
 				const { term, domain } = featureStep.action.stepValuesMap.what;
 				const val = this.getVarValue(term);
