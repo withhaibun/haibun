@@ -4,7 +4,6 @@ import { constructorName } from './util/index.js';
 
 export abstract class AStepper {
 	world?: TWorld;
-	cycles?: IStepperCycles;
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		this.world = world;

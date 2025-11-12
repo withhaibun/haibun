@@ -1,4 +1,4 @@
-import { AStepper, TStepperSteps } from '../lib/astepper.js';
+import { AStepper, IHasCycles, TStepperSteps } from '../lib/astepper.js';
 import { TActionResult, TStepArgs, TFeatureStep, OK, TWorld, IStepperCycles, TStepperStep, TFeatures } from '../lib/defs.js';
 import { executeSubFeatureSteps, findFeatureStepsFromStatement } from '../lib/util/featureStep-executor.js';
 import { ExecMode } from '../lib/defs.js';
@@ -22,7 +22,7 @@ type TActivitiesStepperSteps = TStepperSteps & TActivitiesFixedSteps;
  * Stepper that dynamically builds virtual steps from `waypoint` statements.
  * implements this logic: P ∨ (¬P ∧ [A]P)
  */
-export class ActivitiesStepper extends AStepper {
+export class ActivitiesStepper extends AStepper implements IHasCycles {
 	private steppers: AStepper[] = [];
 	// Track which outcome patterns were defined in backgrounds vs features
 	private backgroundOutcomePatterns: Set<string> = new Set();
@@ -260,11 +260,11 @@ export class ActivitiesStepper extends AStepper {
 
 	cycles: IStepperCycles = {
 		startFeature: (startFeature) => {
-			this.getWorld().logger.info(`ActivitiesStepper.startFeature: starting feature at path "${startFeature.resolvedFeature.path}"`);
+			this.getWorld().logger.debug(`ActivitiesStepper.startFeature: starting feature at path "${startFeature.resolvedFeature.path}"`);
 
 			// If we were running a different feature before, clear its outcomes
 			if (this.lastFeaturePath && this.lastFeaturePath !== startFeature.resolvedFeature.path) {
-				this.getWorld().logger.info(`ActivitiesStepper.startFeature: clearing outcomes from previous feature "${this.lastFeaturePath}"`);
+				this.getWorld().logger.debug(`ActivitiesStepper.startFeature: clearing outcomes from previous feature "${this.lastFeaturePath}"`);
 				const outcomesToClear: string[] = [];
 				for (const [outcome, featurePath] of this.outcomeToFeaturePath.entries()) {
 					if (featurePath === this.lastFeaturePath) {
@@ -276,7 +276,7 @@ export class ActivitiesStepper extends AStepper {
 				for (const outcome of outcomesToClear) {
 					this.outcomeToFeaturePath.delete(outcome);
 				}
-				this.getWorld().logger.info(`ActivitiesStepper.startFeature: cleared ${outcomesToClear.length} outcomes from previous feature`);
+				this.getWorld().logger.debug(`ActivitiesStepper.startFeature: cleared ${outcomesToClear.length} outcomes from previous feature`);
 			}
 
 			this.currentFeaturePath = startFeature.resolvedFeature.path;
@@ -319,8 +319,8 @@ export class ActivitiesStepper extends AStepper {
 			this.outcomeToFeaturePath.set(outcome, proofPath);
 		}
 
-		this.getWorld().logger.info(`ActivitiesStepper: registerOutcome called with ${proofStatements.length} proof steps for "${outcome}"`);
-		this.getWorld().logger.info(`ActivitiesStepper: outcome is background=${isBackground}, will be added to ${isBackground ? 'backgroundOutcomePatterns' : 'featureOutcomePatterns'}`);
+		this.getWorld().logger.debug(`ActivitiesStepper: registerOutcome called with ${proofStatements.length} proof steps for "${outcome}"`);
+		this.getWorld().logger.debug(`ActivitiesStepper: outcome is background=${isBackground}, will be added to ${isBackground ? 'backgroundOutcomePatterns' : 'featureOutcomePatterns'}`);
 
 		// Store proofStatements for later retrieval
 		const outcomeProofStatements = proofStatements;
@@ -416,7 +416,7 @@ export class ActivitiesStepper extends AStepper {
 			}
 		};
 
-		this.getWorld().logger.info(`ActivitiesStepper: registered outcome pattern "${outcome}" with ${proofStatements.length} proof steps`);
+		this.getWorld().logger.debug(`ActivitiesStepper: registered outcome pattern "${outcome}" with ${proofStatements.length} proof steps`);
 	}
 }
 

@@ -1,5 +1,5 @@
 import { OK, TFeatureStep, STEP_DELAY, TWorld, ExecMode, TStepResult, IStepperCycles, TFeatures, TResolvedFeature } from '../lib/defs.js';
-import { AStepper, TStepperSteps } from '../lib/astepper.js';
+import { AStepper, IHasCycles, TStepperSteps } from '../lib/astepper.js';
 import { actionNotOK, actionOK, formattedSteppers, sleep } from '../lib/util/index.js';
 import { executeSubFeatureSteps, findFeatureStepsFromStatement } from '../lib/util/featureStep-executor.js';
 import { EExecutionMessageType } from '../lib/interfaces/logger.js';
@@ -7,7 +7,7 @@ import { endExecutonContext } from '../phases/Executor.js';
 import { DOMAIN_STATEMENT } from '../lib/domain-types.js';
 import { findFeatures } from '../lib/features.js';
 
-class Haibun extends AStepper {
+class Haibun extends AStepper implements IHasCycles {
 	afterEverySteps: { [stepperName: string]: TFeatureStep[] } = {};
 	steppers: AStepper[] = [];
 	resolvedFeature: TResolvedFeature;

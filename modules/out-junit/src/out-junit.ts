@@ -4,7 +4,7 @@ import { EOL } from 'os';
 import { AStorage } from '@haibun/domain-storage/AStorage.js';
 import { findStepperFromOption, getStepperOption, stringOrError } from '@haibun/core/lib/util/index.js';
 import { TWorld, TExecutorResult, TNotOkStepActionResult, IStepperCycles } from '@haibun/core/lib/defs.js';
-import { AStepper, IHasOptions } from '@haibun/core/lib/astepper.js';
+import { AStepper, IHasCycles, IHasOptions } from '@haibun/core/lib/astepper.js';
 import { TAnyFixme } from '@haibun/core/lib/fixme.js';
 import { MEDIA_TYPES, TMediaType } from '@haibun/domain-storage/media-types.js';
 
@@ -25,8 +25,8 @@ type TFailResult = {
 	type?: string;
 };
 
-export default class OutJUnit extends AStepper implements IHasOptions {
-	cycles: IStepperCycles = {
+export default class OutJUnit extends AStepper implements IHasOptions, IHasCycles {
+	cycles:IStepperCycles = {
 		endExecution: async (results: TExecutorResult) => {
 			const junit = await this.featureResultAsJunit(results);
 			if (this.storage && this.outputFile) {

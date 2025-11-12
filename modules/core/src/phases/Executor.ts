@@ -1,6 +1,6 @@
 import { TFeatureStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, TStepAction, STAY, STAY_FAILURE, CHECK_NO, CHECK_YES, CHECK_YIELD, STEP_DELAY, TNotOKActionResult, CONTINUE_AFTER_ERROR, TEndFeature, StepperMethodArgs, TBeforeStep, TAfterStep, IStepperCycles, ExecMode, TStepArgs, TAfterStepResult, MAYBE_CHECK_YES, MAYBE_CHECK_NO, TSeqPath } from '../lib/defs.js';
 import { TAnyFixme } from '../lib/fixme.js';
-import { AStepper } from '../lib/astepper.js';
+import { AStepper, IHasCycles } from '../lib/astepper.js';
 import { EExecutionMessageType, TMessageContext } from '../lib/interfaces/logger.js';
 import { topicArtifactLogger } from '../lib/Logger.js';
 import { actionNotOK, sleep, findStepper, constructorName, setStepperWorldsAndDomains, formatCurrentSeqPath } from '../lib/util/index.js';
@@ -342,9 +342,10 @@ export class FeatureExecutor {
 const doStepperCycle = async <K extends keyof IStepperCycles>(steppers: AStepper[], method: K, args: StepperMethodArgs[K], guidance = ''): Promise<Awaited<ReturnType<NonNullable<IStepperCycles[K]>>>[]> => {
 	const results: Awaited<ReturnType<NonNullable<IStepperCycles[K]>>>[] = [];
 	for (const stepper of steppers) {
-		if (stepper?.cycles && stepper.cycles[method]) {
+		const cycling = (stepper as unknown as IHasCycles);
+		if (cycling.cycles && cycling.cycles[method]) {
 			stepper.getWorld().logger.debug(`🔁 ${method} ${constructorName(stepper)} ${guidance}`);
-			const cycle = stepper.cycles[method]!;
+			const cycle = cycling.cycles[method]!;
 			const paramsForApply = args === undefined ? [] : [args];
 			// The cast here is to help TypeScript understand '.apply' and 'await' with a specifically typed function
 			const result = await (cycle as (...a: unknown[]) => Promise<unknown>).apply(stepper, paramsForApply);
