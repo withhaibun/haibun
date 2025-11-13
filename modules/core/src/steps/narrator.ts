@@ -13,9 +13,7 @@ const CAPTURE_FILENAME = 'vcapture.webm';
 
 const cycles = (narrator: Narrator): IStepperCycles => ({
 	async startFeature({ resolvedFeature }: TStartFeature) {
-		if (narrator.ttsCmd) {
-			narrator.renderedAudio = await preRenderFeatureProse(resolvedFeature, narrator.ttsCmd, narrator.world.logger);
-		}
+			narrator.renderedAudio = await preRenderFeatureProse(resolvedFeature, narrator.world.logger);
 		if (narrator.captureStart) {
 			narrator.getWorld().logger.debug(`Spawning screen capture using ${narrator.captureStart}`);
 			doSpawn(narrator.captureStart);
@@ -38,30 +36,25 @@ const cycles = (narrator: Narrator): IStepperCycles => ({
 class Narrator extends AStepper implements IHasOptions, IHasCycles {
 	renderedAudio: TRenderedAudioMap = {};
 	options = {
-		TTS_CMD: { desc: 'TTS command that accepts text as @WHAT@ and returns a full path to stdout', parse: (input: string) => stringOrError(input), required: false },
-		TTS_PLAY: { desc: 'Shell command that plays an audio file using @WHAT@', parse: (input: string) => stringOrError(input), required: false },
 		CAPTURE_START: { desc: 'Shell command to start screen capture', parse: (input: string) => stringOrError(input), required: false },
 		CAPTURE_STOP: { desc: 'Shell command to stop screen capture', parse: (input: string) => stringOrError(input), required: false },
 	};
 
 	cycles = cycles(this);
 	steppers: AStepper[] = [];
-	ttsCmd: string | undefined;
-	ttsPlay: string | undefined;
 	captureStart: string | undefined;
 	captureStop: string | undefined;
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
-		this.ttsCmd = getStepperOption(this, 'TTS_CMD', world.moduleOptions);
-		this.ttsPlay = getStepperOption(this, 'TTS_PLAY', world.moduleOptions);
 		this.captureStart = getStepperOption(this, 'CAPTURE_START', world.moduleOptions);
 		this.captureStop = getStepperOption(this, 'CAPTURE_STOP', world.moduleOptions);
 	}
 
 	private rememberAndSay(key: string, value: string, featureStep: TFeatureStep) {
 		this.getWorld().shared.set({ term: key, value, domain: 'string', origin: Origin.fallthrough }, { in: featureStep.in, seq: featureStep.seqPath, when: `${featureStep.action.stepperName}.${featureStep.action.actionName}` });
-		return this.maybeSay(value);
+		// Use featureStep.in for audio playback since that's what was pre-rendered
+		return this.maybeSay(featureStep.in);
 	}
 
 	steps = {
@@ -83,24 +76,21 @@ class Narrator extends AStepper implements IHasOptions, IHasCycles {
 	};
 
 	async maybeSay(transcript: string) {
-		if (!this.ttsCmd) return OK;
 		const dir = captureLocator(this.world.options, this.world.tag);
-		const { path, durationS } = await copyPreRenderedAudio(dir, this.renderedAudio, transcript);
+		const { path, durationS } = copyPreRenderedAudio(dir, this.renderedAudio, transcript);
 		const runtimePath = resolve(dir);
 		const artifact: TArtifactSpeech = { artifactType: 'speech', path, durationS, transcript };
-		if (this.ttsPlay) {
-			const playCmd = this.ttsPlay.replace(/@WHAT@/g, `"${runtimePath}/${path}"`);
-			try {
-				this.world.logger.log(`playing audio: ${playCmd}`);
-				await playAudioFile(playCmd);
-			} catch (error: unknown) {
-				const e = error as { message: string; stderr?: unknown };
-				const stderr = e.stderr ? String(e.stderr) : '';
-				this.world.logger.error(`Error playing audio using ${playCmd}: ${e.message}\nOutput: ${stderr}`);
-				return actionNotOK(`Error playing audio: ${e.message}\nOutput: ${stderr}`);
-			}
-		} else {
-			await sleep(durationS * 1000);
+
+		// Play audio using built-in ffmpeg playback
+		try {
+			const audioFullPath = `${runtimePath}/${path}`;
+			this.world.logger.debug(`playing audio: ${audioFullPath}`);
+			await playAudioFile(audioFullPath);
+		} catch (error: unknown) {
+			const e = error as { message: string; stderr?: unknown };
+			const stderr = e.stderr ? String(e.stderr) : '';
+			this.world.logger.error(`Error playing audio: ${e.message}\nOutput: ${stderr}`);
+			return actionNotOK(`Error playing audio: ${e.message}\nOutput: ${stderr}`);
 		}
 		return actionOK({ artifact });
 	}

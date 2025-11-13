@@ -26,7 +26,7 @@ export const runContainer = (testToRun, includeDirs = [], thisCaptureOptions: TC
 		}
 		mkdirSync(buildContextDir, { recursive: true });
 		execSync(`cp ${projectDir}/*.json ${buildContextDir}/`);
-		execSync(`cp ${utilDir}/*.sh ${utilDir}/kokoro-speak.cjs ${buildContextDir}/`);
+		execSync(`cp ${utilDir}/*.sh ${buildContextDir}/`);
 		const composeFile = `
 services:
   haibun-recorder:

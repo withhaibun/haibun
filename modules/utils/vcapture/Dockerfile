@@ -39,7 +39,7 @@ RUN sed -i 's/geteuid/getppid/' /usr/bin/vlc
 
 WORKDIR /app
 
-COPY package*.json kokoro-speak.cjs *.sh ./
+COPY package*.json *.sh ./
 RUN chmod +x *.sh
 
 RUN npm i # && npm install kokoro-js # kokoro-js is installed on demand in capture-start.sh
