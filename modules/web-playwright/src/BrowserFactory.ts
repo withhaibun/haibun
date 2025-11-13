@@ -130,7 +130,7 @@ export class BrowserFactory {
 		const context = await this.getBrowserContextWithSequence(sequence);
 		page = await context.newPage();
 
-		const tracer = new PlaywrightEvents(this.world, page, tag);
+		const tracer = await (new PlaywrightEvents(this.world, page, tag)).init();
 
 		this.pages[pageKey] = page;
 		this.tracers[sequence] = tracer;

@@ -11,12 +11,12 @@ describe('disclosureJson', () => {
 		cancelAnimationFrame: (id: number) => void;
 	}
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	let windowObject: TestWindow;
+	let _windowObject: TestWindow;
 
 	beforeEach(() => {
 		dom = new JSDOM('<!DOCTYPE html><html><body></body></html>', { runScripts: "dangerously", resources: "usable" });
 		document = dom.window.document;
-		windowObject = dom.window as TestWindow;
+		_windowObject = dom.window as unknown as TestWindow;
 
 		(global as typeof globalThis & { document: Document }).document = document;
 		(global as typeof globalThis & { window: Window }).window = dom.window;
@@ -82,7 +82,7 @@ describe('disclosureJson', () => {
 	});
 
 	it('should return an HTMLElement for an empty array', () => {
-		const jsonData = [];
+		const jsonData: never[] = [];
 		const result = disclosureJson(jsonData);
 		expect(result).toBeDefined();
 		expect(result).toBeInstanceOf(dom.window.HTMLElement);

@@ -104,8 +104,7 @@ describe('runCli', () => {
 	});
 	it('runs a basic test', async () => {
 		vitest.spyOn(process, 'exit').mockImplementationOnce(expectExitAndThrow(0));
-		// vitest.spyOn(console, 'info').mockImplementation(() => undefined); // Suppress steppers output
-		await expect(lib.runCli(s('--config modules/cli/test modules/cli/test/tests'), {})).rejects.toThrow('exit with code 0');
+		await expect(() => lib.runCli(s('--config modules/cli/test modules/cli/test/tests'), {})).rejects.toThrow('exit with code 0');
 	});
 	it('runs a kireji test with backgrounds and features', async () => {
 		vitest.spyOn(process, 'exit').mockImplementationOnce(expectExitAndThrow(0));

@@ -6,9 +6,9 @@ import { FeatureVariables } from '../lib/feature-variables.js';
 import { DOMAIN_STRING } from '../lib/domain-types.js';
 import { EExecutionMessageType } from '../lib/interfaces/logger.js';
 
-const clearVars = (vars) => async () => {
+const clearVars = (vars) => () => {
 	vars.getWorld().shared.clear();
-	return Promise.resolve();
+	return;
 };
 
 const cycles = (variablesStepper: VariablesStepper): IStepperCycles => ({
@@ -65,8 +65,8 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		},
 		increment: {
 			gwta: 'increment {what}',
-			// eslint-disable-next-line @typescript-eslint/no-unused-vars
 			action: ({ what }: { what: string }, featureStep: TFeatureStep) => {
+				void what; // used for type checking
 				const { term, domain } = featureStep.action.stepValuesMap.what;
 				const presentVal = this.getVarValue(term);
 				let newVal: number;
@@ -159,8 +159,8 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		},
 		is: {
 			gwta: 'variable {what} is {value}',
-			// eslint-disable-next-line @typescript-eslint/no-unused-vars
 			action: ({ what, value }: { what: string, value: string }, featureStep: TFeatureStep) => {
+				void what; // used for type checking
 				const { term, domain } = featureStep.action.stepValuesMap.what;
 				const val = this.getVarValue(term);
 				const asDomain = this.getWorld().domains[domain].coerce({ domain, value, term, origin: 'quoted' })

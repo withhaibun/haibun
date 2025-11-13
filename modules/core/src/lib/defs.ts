@@ -83,7 +83,7 @@ export type TResolvedFeature = {
 	featureSteps: TFeatureStep[];
 };
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// biome-ignore lint/correctness/noUnusedVariables: it's an example
 const example: TResolvedFeature = {
 	path: 'path',
 	base: 'base',
@@ -170,25 +170,6 @@ export type TDomainDefinition = {
 export type StepperMethodArgs = {
 	[K in keyof IStepperCycles]: Parameters<NonNullable<IStepperCycles[K]>>[0];
 };
-
-// Reusable cycle typing helpers - use these when calling or describing cycle methods
-export type CycleMethod<K extends keyof IStepperCycles> = NonNullable<IStepperCycles[K]>;
-export type CycleMethodArgs<K extends keyof IStepperCycles> = Parameters<CycleMethod<K>>;
-export type CycleMethodReturn<K extends keyof IStepperCycles> = Awaited<ReturnType<CycleMethod<K>>>;
-export type TStepperWithCycles = { cycles?: IStepperCycles };
-
-/**
- * Runtime type-guard that narrows a generic AStepper to one that has a specific cycle method.
- * Use this before calling `stepper.cycles[method]` so TypeScript understands the method exists.
- */
-export function hasCycle<K extends keyof IStepperCycles>(stepper: AStepper, method: K): stepper is AStepper & { cycles: { [P in K]: NonNullable<IStepperCycles[K]> } } {
-	// runtime check: cycles exists and the requested key is a function
-	// We use a loose check here because cycle methods may return void or Promise<void> and can be optional on stepper implementations
-	// The type predicate provides the compile-time narrowing.
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const s = stepper as any;
-	return !!s && !!s.cycles && typeof s.cycles[method] === 'function';
-}
 export type TStepValuesMap = Record<string, TStepValue>;
 
 export type TStepAction = {

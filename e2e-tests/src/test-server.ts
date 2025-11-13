@@ -61,7 +61,7 @@ class TestServer extends AStepper {
 	addRoute = (route: TRequestHandler, method: 'get' | 'post' | 'delete' = 'get') => {
 		return async (args: TStepArgs, vstep: TFeatureStep) => {
 			const { loc } = args as { loc: string };
-			let webserver: IWebServer = getFromRuntime(this.getWorld().runtime, WEBSERVER);
+			const webserver: IWebServer = getFromRuntime(this.getWorld().runtime, WEBSERVER);
 
 			try {
 				webserver.addRoute(method, loc!, route);

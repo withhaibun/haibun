@@ -47,7 +47,7 @@ export function actionOK(w?: { messageContext?: TMessageContext, artifact?: TArt
 	return { ...OK, messageContext, artifact };
 }
 
-export async function createSteppers(steppers: CStepper[]): Promise<AStepper[]> {
+export function createSteppers(steppers: CStepper[]): AStepper[] {
 	const allSteppers: AStepper[] = [];
 	for (const S of steppers) {
 		try {
@@ -58,7 +58,7 @@ export async function createSteppers(steppers: CStepper[]): Promise<AStepper[]> 
 			throw e;
 		}
 	}
-	return Promise.resolve(allSteppers);
+	return allSteppers;
 }
 
 export function getDefaultOptions(): TSpecl {
@@ -92,7 +92,7 @@ export function isLowerCase(str: string) {
 
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-export async function verifyExtraOptions(inExtraOptions: TModuleOptions, csteppers: CStepper[]) {
+export function verifyExtraOptions(inExtraOptions: TModuleOptions, csteppers: CStepper[]) {
 	const moduleOptions = { ...inExtraOptions };
 	Object.entries(moduleOptions)?.map(([option, value]) => {
 		const foundStepperParseResult = getStepperOptionValue(option, value, csteppers);
@@ -108,7 +108,7 @@ export async function verifyExtraOptions(inExtraOptions: TModuleOptions, csteppe
 	if (Object.keys(moduleOptions).length > 0) {
 		throw Error(`no extra option for ${moduleOptions}`);
 	}
-	return Promise.resolve();
+	return;
 }
 
 export async function setStepperWorldsAndDomains(steppers: AStepper[], world: TWorld) {
@@ -149,7 +149,7 @@ export function getStepperOptionValue(key: string, value: string, csteppers: CSt
 	}
 }
 
-export async function verifyRequiredOptions(steppers: CStepper[], options: TModuleOptions) {
+export function verifyRequiredOptions(steppers: CStepper[], options: TModuleOptions) {
 	const requiredMissing: string[] = [];
 	for (const Stepper of steppers) {
 		const stepper = new Stepper();
@@ -169,7 +169,6 @@ export async function verifyRequiredOptions(steppers: CStepper[], options: TModu
 	if (requiredMissing.length) {
 		throw Error(`missing required options ${requiredMissing}`);
 	}
-	return Promise.resolve();
 }
 
 export function getStepperOptionName(stepper: AStepper | CStepper, name: string) {

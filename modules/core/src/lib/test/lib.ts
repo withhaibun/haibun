@@ -18,7 +18,7 @@ export const HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS = 'HAIBUN_O_TESTSTEPSWITHOPTIO
 
 export async function getCreateSteppers(steppers: string[], addSteppers?: CStepper[]) {
 	const csteppers = await getSteppers(steppers);
-	return await createSteppers(csteppers.concat(addSteppers || []));
+	return createSteppers(csteppers.concat(addSteppers || []));
 }
 
 

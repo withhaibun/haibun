@@ -32,7 +32,7 @@ describe('getBackgroundFeatures', () => {
 			{ path: '/b1.feature', content: 'Background step 1' },
 			{ path: '/b2.feature', content: 'Background step 1' },
 		]);
-		const steppers = await createSteppers([TestStepper, Haibun]);
+		const steppers = createSteppers([TestStepper, Haibun]);
 		const expandedFeatures = await expand({ backgrounds, features });
 		const resolver = new Resolver(steppers);
 		const resolvedFeatures = await resolver.resolveStepsFromFeatures(expandedFeatures);

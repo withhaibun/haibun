@@ -90,14 +90,14 @@ export function getContainerSetup(thisRunOptions: TCaptureOptions, includeDirs: 
 	];
 	if (thisRunOptions.tts) {
 		composeEnvironment.push(
-			'HAIBUN_O_HAIBUN_TTS_CMD=/app/speak-to-wav.sh @WHAT@',
-			'HAIBUN_O_HAIBUN_TTS_PLAY=aplay @WHAT@'
+			'HAIBUN_O_NARRATOR_TTS_CMD=/app/speak-to-wav.sh @WHAT@',
+			'HAIBUN_O_NARRATOR_TTS_PLAY=aplay @WHAT@'
 		);
 	}
 	if (thisRunOptions.capture) {
 		composeEnvironment.push(
-			'HAIBUN_O_HAIBUN_CAPTURE_START=/app/capture-start.sh',
-			'HAIBUN_O_HAIBUN_CAPTURE_STOP=/app/capture-stop.sh'
+			'HAIBUN_O_NARRATOR_CAPTURE_START=/app/capture-start.sh',
+			'HAIBUN_O_NARRATOR_CAPTURE_STOP=/app/capture-stop.sh'
 		);
 	}
 

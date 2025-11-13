@@ -16,14 +16,17 @@ type TEtc = {
 
 export class PlaywrightEvents {
 	constructor(private world: TWorld, private page: Page, private tag: TTag) {
-		world.logger.debug(`setPage ${JSON.stringify(tag)}`);
-		page.on('request', this.logRequest.bind(this));
-		// eslint-disable-next-line @typescript-eslint/no-floating-promises
-		page.route('**/*', this.routeRequest.bind(this));
-		page.on('response', this.logResponse.bind(this));
-		page.on('framenavigated', this.framenavigated.bind(this));
 	}
-	private async logRequest(request: Request, type = 'request'): Promise<void> {
+	async init() {
+		this.world.logger.debug(`setPage ${JSON.stringify(this.tag)}`);
+		this.page.on('request', this.logRequest.bind(this));
+		// biome-disable-next-line @typescript-eslint/no-floating-promises
+		await this.page.route('**/*', this.routeRequest.bind(this));
+		this.page.on('response', this.logResponse.bind(this));
+		this.page.on('framenavigated', this.framenavigated.bind(this));
+		return this;
+	}
+	private logRequest(request: Request, type = 'request') {
 		const frameURL = request.frame().url();
 		const etc = {
 			method: request.method(),
@@ -32,16 +35,16 @@ export class PlaywrightEvents {
 		}
 
 		this.log(`${type} ${etc.method}`, <TArtifactHTTPTrace['httpEvent']>type, frameURL, request.url(), etc);
-		return Promise.resolve();
+		return;
 	}
 
-	private async routeRequest(route: Route, request: Request): Promise<void> {
-		await this.logRequest(request, 'route');
-		// eslint-disable-next-line @typescript-eslint/no-floating-promises
-		route.continue();
+	private async routeRequest(route: Route, request: Request) {
+		this.logRequest(request, 'route');
+		// biome-disable-next-line @typescript-eslint/no-floating-promises
+		await route.continue();
 	}
 
-	private async logResponse(response: Response): Promise<void> {
+	private logResponse(response: Response) {
 		const frameURL = response.request().frame().url();
 		const etc = {
 			status: response.status(),
@@ -50,7 +53,7 @@ export class PlaywrightEvents {
 		}
 
 		this.log(`response ${etc.status}`, 'response', frameURL, response.url(), etc);
-		return Promise.resolve();
+		return ;
 	}
 	private framenavigated(frame) {
 		if (frame === this.page.mainFrame()) {

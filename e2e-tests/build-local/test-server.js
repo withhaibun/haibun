@@ -51,7 +51,7 @@ class TestServer extends AStepper {
     addRoute = (route, method = 'get') => {
         return async (args, vstep) => {
             const { loc } = args;
-            let webserver = getFromRuntime(this.getWorld().runtime, WEBSERVER);
+            const webserver = getFromRuntime(this.getWorld().runtime, WEBSERVER);
             try {
                 webserver.addRoute(method, loc, route);
             }

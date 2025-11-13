@@ -89,7 +89,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	tab = 0;
 	downloaded: string[] = [];
 	captureVideo: boolean;
-	closers: Array<() => Promise<void>> = [];
+	closers: Array<() => void> = [];
 	monitor: EMonitoringTypes;
 	twin: boolean;
 	static monitorHandler: MonitorHandler;
@@ -328,10 +328,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		await WebPlaywright.monitorHandler.initMonitor();
 		this.getWorld().logger.addSubscriber(WebPlaywright.monitorHandler.subscriber);
 
-		this.closers.push(async () => {
-			this.getWorld().logger.removeSubscriber(WebPlaywright.monitorHandler.subscriber);
-			return Promise.resolve();
-		});
+		this.closers.push(() => this.getWorld().logger.removeSubscriber(WebPlaywright.monitorHandler.subscriber));
 		return OK;
 	}
 	getLastResponse(): TCapturedResponse {

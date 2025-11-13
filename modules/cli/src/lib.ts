@@ -223,7 +223,7 @@ export function getConfigFromBase(bases: TBase, fs: TFileSystem = nodeFS): TSpec
 			specl.options = { DEST: DEFAULT_DEST };
 		}
 		return specl;
-	} catch (e) {
+	} catch {
 		return null;
 	}
 }

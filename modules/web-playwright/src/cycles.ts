@@ -10,7 +10,7 @@ import { sleep } from '@haibun/core/lib/util/index.js';
 
 export const cycles = (wp: WebPlaywright): IStepperCycles => ({
 	getDomains: () => WebPlaywrightDomains,
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	// biome-disable-next-line @typescript-eslint/no-unused-vars
 	async onFailure({ failedStep }: TFailureArgs): Promise<void> {
 		if (wp.bf?.hasPage(wp.getWorld().tag, wp.tab)) {
 			await wp.captureFailureScreenshot(EExecutionMessageType.ON_FAILURE, failedStep);

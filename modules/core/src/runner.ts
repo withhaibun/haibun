@@ -36,8 +36,16 @@ export class Runner {
 		}
 
 		const csteppers = await getSteppers(steppers).catch((error) => this.errorBail('Steppers', error));
-		await verifyRequiredOptions(csteppers, this.world.moduleOptions).catch((error) => this.errorBail('RequiredOptions', error));
-		await verifyExtraOptions(this.world.moduleOptions, csteppers).catch((error) => this.errorBail('moduleOptions', error));
+		try {
+			verifyRequiredOptions(csteppers, this.world.moduleOptions);
+		} catch (error) {
+			this.errorBail('RequiredOptions', error);
+		}
+		try {
+			verifyExtraOptions(this.world.moduleOptions, csteppers);
+		} catch (error) {
+			this.errorBail('ExtraOptions', error);
+		}
 
 		const featureResults = await this.runFeaturesAndBackgrounds(csteppers, featuresBackgrounds);
 		return featureResults;
@@ -45,7 +53,7 @@ export class Runner {
 
 	async runFeaturesAndBackgrounds(csteppers: CStepper[], featuresBackgrounds: TFeaturesBackgrounds) {
 		try {
-			this.steppers = await createSteppers(csteppers);
+			this.steppers = createSteppers(csteppers);
 			await setStepperWorldsAndDomains(this.steppers, this.world);
 			// Make backgrounds available at runtime for inline `Backgrounds:` expansion
 			this.world.runtime.backgrounds = featuresBackgrounds.backgrounds;

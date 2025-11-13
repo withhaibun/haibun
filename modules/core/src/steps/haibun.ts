@@ -12,9 +12,9 @@ class Haibun extends AStepper implements IHasCycles {
 	steppers: AStepper[] = [];
 	resolvedFeature: TResolvedFeature;
 
-	// eslint-disable-next-line @typescript-eslint/require-await
+	// biome-disable-next-line @typescript-eslint/require-await
 	async setWorld(world: TWorld, steppers: AStepper[]) {
-		this.world = world;
+		await super.setWorld(world, steppers);
 		this.steppers = steppers;
 	}
 	cycles: IStepperCycles = {
