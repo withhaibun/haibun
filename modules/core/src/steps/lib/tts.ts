@@ -106,7 +106,7 @@ export async function renderSpeech(transcript: string): Promise<string> {
 
 		const audio = await tts.generate(transcript, {
 			// Use `tts.list_voices()` to list all available voices
-			voice: "af_heart",
+			voice: "bf_emma",
 		});
 
 		// Save to temporary file
