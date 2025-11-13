@@ -42,9 +42,9 @@ export class BrowserFactory {
 
 	private constructor(private world: TWorld) { }
 
-	static async getBrowserFactory(world: TWorld, tagConfig: TTaggedBrowserFactoryOptions, tag = DEFAULT_CONFIG_TAG) {
+	static getBrowserFactory(world: TWorld, tagConfig: TTaggedBrowserFactoryOptions, tag = DEFAULT_CONFIG_TAG) {
 		BrowserFactory.configs[tag] = tagConfig;
-		return Promise.resolve(new BrowserFactory(world));
+		return new BrowserFactory(world);
 	}
 
 	public async getBrowser(type: string, tag = DEFAULT_CONFIG_TAG): Promise<Browser> {

@@ -22,7 +22,7 @@ describe('playwrightWeb', () => {
 		const { world, featureStep, steppers } = await getTestEnv([me], 'using firefox.Pixel 5 browser', getDefaultWorld(0));
 		await FeatureExecutor.doFeatureStep(steppers, featureStep, world);
 		const webPlaywright = findStepper<any>(steppers, 'WebPlaywright');
-		const bf = await webPlaywright.getBrowserFactory();
+		const bf = webPlaywright.getBrowserFactory();
 
 		expect(bf.browserType.name()).toBe('firefox');
 		expect(bf.device).toBe('Pixel 5');

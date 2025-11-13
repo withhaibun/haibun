@@ -317,18 +317,10 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		await WebPlaywright.twinPage.initTwin();
 	}
 	async createMonitor() {
-		if (WebPlaywright.monitorHandler && !WebPlaywright.monitorHandler.monitorPage.isClosed()) {
-			this.getWorld().logger.info('Monitor is already running, bringing existing monitor to front');
-			await WebPlaywright.monitorHandler.monitorPage.bringToFront();
-			return OK;
-		}
-
 		this.getWorld().logger.info('Creating new monitor page');
 		WebPlaywright.monitorHandler = new MonitorHandler(this.getWorld(), this.storage, this.headless)
-		await WebPlaywright.monitorHandler.initMonitor();
-		this.getWorld().logger.addSubscriber(WebPlaywright.monitorHandler.subscriber);
+		await WebPlaywright.monitorHandler.initMonitorContext();
 
-		this.closers.push(() => this.getWorld().logger.removeSubscriber(WebPlaywright.monitorHandler.subscriber));
 		return OK;
 	}
 	getLastResponse(): TCapturedResponse {
