@@ -44,7 +44,6 @@ export const fromBdd = (bdd: string, steppers: AStepper[]): Promise<TkirejiFeatu
     if (stepValuesMap) {
       for (const key in stepValuesMap) {
         args[key] = stepValuesMap[key].term;
-				console.log('\\nx', stepValuesMap[key].term);
       }
     }
 
