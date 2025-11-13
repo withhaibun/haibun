@@ -344,7 +344,7 @@ const doStepperCycle = async <K extends keyof IStepperCycles>(steppers: AStepper
 	for (const stepper of steppers) {
 		const cycling = (stepper as unknown as IHasCycles);
 		if (cycling.cycles && cycling.cycles[method]) {
-			stepper.getWorld().logger.debug(`🔁 ${method} ${constructorName(stepper)} ${guidance}`);
+			stepper.getWorld().logger.debug(`♻️ ${method} ${constructorName(stepper)} ${guidance}`);
 			const cycle = cycling.cycles[method]!;
 			const paramsForApply = args === undefined ? [] : [args];
 			// The cast here is to help TypeScript understand '.apply' and 'await' with a specifically typed function
