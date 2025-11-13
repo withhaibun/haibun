@@ -6,7 +6,6 @@ import { EExecutionMessageType, TArtifactVideo, TArtifactResolvedFeatures, TMess
 import { EMediaTypes } from '@haibun/domain-storage/media-types.js';
 import { WebPlaywright, EMonitoringTypes } from './web-playwright.js';
 import { WebPlaywrightDomains } from './domains.js';
-import { sleep } from '@haibun/core/lib/util/index.js';
 
 export const cycles = (wp: WebPlaywright): IStepperCycles => ({
 	getDomains: () => WebPlaywrightDomains,
@@ -16,47 +15,30 @@ export const cycles = (wp: WebPlaywright): IStepperCycles => ({
 			await wp.captureFailureScreenshot(EExecutionMessageType.ON_FAILURE, failedStep);
 		}
 	},
+	async startExecution(resolvedFeatures: TStartExecution): Promise<void> {
+		await wp.createMonitor();
+		await WebPlaywright.monitorHandler.createMonitorPage(wp);
+		if (wp.twin) {
+			await wp.createTwin();
+		}
+		await createResolvedFeaturesArtifact(wp, 'features', resolvedFeatures);
+	},
+
 	async startFeature({ resolvedFeature, index }: TStartFeature): Promise<void> {
+		if (wp.monitor === EMonitoringTypes.MONITOR_EACH) {
+			await wp.callClosers(); // first tab
+			await WebPlaywright.monitorHandler.createMonitorPage(wp);
+			await WebPlaywright.monitorHandler.updateWorld(wp.getWorld());
+		}
 		if (WebPlaywright.twinPage) {
 			WebPlaywright.twinPage.updateWorld(wp.getWorld());
 		}
-		if (wp.monitor === EMonitoringTypes.MONITOR_EACH) {
-			await wp.createMonitor();
-		}
-		if (WebPlaywright.monitorHandler) {
-			await WebPlaywright.monitorHandler.updateWorld(wp.getWorld());
-		}
-		await sleep(1000);
 		await createResolvedFeaturesArtifact(wp, `feature-${index}`, [resolvedFeature], index);
 	},
 	async endFeature({ shouldClose = true }: TEndFeature) {
 		// leave web server running if there was a failure and it's the last feature
 		if (shouldClose) {
-			for (const file of wp.downloaded) {
-				wp.getWorld().logger.debug(`removing ${JSON.stringify(file)}`);
-				rmSync(file);
-				wp.downloaded = [];
-			}
-			if (wp.hasFactory) {
-				if (wp.captureVideo) {
-					const page = await wp.getPage();
-					const path = await wp.storage.getRelativePath(await page.video().path());
-					const artifact: TArtifactVideo = { artifactType: 'video', path };
-					const context: TMessageContext = {
-						incident: EExecutionMessageType.FEATURE_END,
-						artifacts: [artifact],
-						tag: wp.getWorld().tag
-					};
-					wp.getWorld().logger.log('feature video', context);
-				}
-				// close the context, which closes any pages
-				if (wp.hasFactory) {
-					await wp.bf?.closeContext(wp.getWorld().tag);
-				}
-				await wp.bf?.close();
-				wp.bf = undefined;
-				wp.hasFactory = false;
-			}
+			await closeAfterFeature(wp);
 		}
 		if (wp.twin) {
 			await WebPlaywright.twinPage.writePage();
@@ -66,17 +48,6 @@ export const cycles = (wp: WebPlaywright): IStepperCycles => ({
 			await WebPlaywright.monitorHandler.writeMonitor();
 		}
 	},
-	async startExecution(resolvedFeatures: TStartExecution): Promise<void> {
-		if (wp.monitor === EMonitoringTypes.MONITOR_ALL) {
-			await wp.createMonitor();
-		}
-		if (wp.twin) {
-			await wp.createTwin();
-		}
-		await createResolvedFeaturesArtifact(wp, 'features', resolvedFeatures);
-
-	},
-
 	async endExecution() {
 		if (wp.monitor === EMonitoringTypes.MONITOR_ALL) {
 			await wp.callClosers();
@@ -90,12 +61,40 @@ async function createResolvedFeaturesArtifact(wp: WebPlaywright, type: string, r
 	const mediaType = EMediaTypes.json;
 	// FIXME shouldn't be fs dependant
 	const path = resolve(wp.storage.fromLocation(mediaType, loc, `${type}.json`));
+	await wp.storage.writeFile(path, JSON.stringify(resolvedFeatures, null, 2), mediaType);
 	const artifact: TArtifactResolvedFeatures = { artifactType: 'resolvedFeatures', resolvedFeatures, index, path };
 	const context: TMessageContext = {
 		incident: EExecutionMessageType.ACTION,
 		artifacts: [artifact],
 		tag: wp.getWorld().tag,
 	};
-	await wp.storage.writeFile(path, JSON.stringify(resolvedFeatures, null, 2), mediaType);
 	wp.getWorld().logger.info(`resolvedFeatures for ${type}`, context);
+}
+
+async function closeAfterFeature(wp: WebPlaywright) {
+	for (const file of wp.downloaded) {
+		wp.getWorld().logger.debug(`removing ${JSON.stringify(file)}`);
+		rmSync(file);
+		wp.downloaded = [];
+	}
+	if (wp.hasFactory) {
+		if (wp.captureVideo) {
+			const page = await wp.getPage();
+			const path = await wp.storage.getRelativePath(await page.video().path());
+			const artifact: TArtifactVideo = { artifactType: 'video', path };
+			const context: TMessageContext = {
+				incident: EExecutionMessageType.FEATURE_END,
+				artifacts: [artifact],
+				tag: wp.getWorld().tag
+			};
+			wp.getWorld().logger.log('feature video', context);
+		}
+		// close the context, which closes any pages
+		if (wp.hasFactory) {
+			await wp.bf?.closeContext(wp.getWorld().tag);
+		}
+		await wp.bf?.close();
+		wp.bf = undefined;
+		wp.hasFactory = false;
+	}
 }
