@@ -117,7 +117,7 @@ export class BrowserFactory {
 		this.pages[tt] = popup;
 	}
 
-	public async getBrowserContextPage(tag: TTag, tab: number): Promise<Page> {
+	public async getBrowserContextPage(tag: TTag, tab: number, runGraph: any, featureStep: any): Promise<Page> {
 		const { sequence } = tag;
 		const pageKey = this.pageKey(sequence, tab);
 		let page = this.pages[pageKey];
@@ -130,7 +130,7 @@ export class BrowserFactory {
 		const context = await this.getBrowserContextWithSequence(sequence);
 		page = await context.newPage();
 
-		const tracer = new PlaywrightEvents(this.world, page, tag);
+		const tracer = new PlaywrightEvents(this.world, page, tag, runGraph, featureStep);
 
 		this.pages[pageKey] = page;
 		this.tracers[sequence] = tracer;

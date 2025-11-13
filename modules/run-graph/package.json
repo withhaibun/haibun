@@ -1,0 +1,18 @@
+{
+  "name": "@haibun/run-graph",
+  "version": "1.0.0",
+  "description": "",
+  "main": "build/run-graph.js",
+  "scripts": {
+    "test": "vitest"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "vitest": "^0.34.4"
+  },
+  "dependencies": {
+    "@haibun/core": "file:../core"
+  }
+}

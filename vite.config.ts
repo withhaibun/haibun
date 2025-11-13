@@ -78,6 +78,9 @@ const config: Config = {
 			'**/dist/**',
 			'**/build/**',
 		],
+        alias: {
+            '@haibun/core': path.resolve(__dirname, 'modules/core/src'),
+        },
 	}
 };
 

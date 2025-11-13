@@ -154,9 +154,9 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		return browserContext;
 	}
 
-	async getPage() {
-		const { tag } = this.getWorld();
-		const page = await (await this.getBrowserFactory()).getBrowserContextPage(tag, this.tab);
+	async getPage(featureStep: TFeatureStep) {
+		const { tag, runtime } = this.getWorld();
+		const page = await (await this.getBrowserFactory()).getBrowserContextPage(tag, this.tab, runtime.runGraph, featureStep);
 		page.on('popup', async (popup: Page) => {
 			await popup.waitForLoadState();
 			// const title = await popup.title();
@@ -167,8 +167,8 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		return page;
 	}
 
-	async withPage<TReturn>(f: TAnyFixme): Promise<TReturn> {
-		const containerPageOrFrame = this.inContainer || await this.getPage();
+	async withPage<TReturn>(f: TAnyFixme, featureStep: TFeatureStep): Promise<TReturn> {
+		const containerPageOrFrame = this.inContainer || await this.getPage(featureStep);
 
 		if (!this.inContainer && WebPlaywright.twinPage) {
 			await WebPlaywright.twinPage.patchPage(<Page>containerPageOrFrame);
@@ -178,11 +178,11 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		return res;
 	}
 
-	async sees(text: string, selector: string) {
+	async sees(text: string, selector: string, featureStep: TFeatureStep) {
 		let textContent: string | null = null;
 		// FIXME retry sometimes required?
 		for (let a = 0; a < 2; a++) {
-			textContent = await this.withPage(async (page: Page) => await page.textContent(selector, { timeout: 1e9 }));
+			textContent = await this.withPage(async (page: Page) => await page.textContent(selector, { timeout: 1e9 }), featureStep);
 			if (textContent?.toString().includes(text)) {
 				return OK;
 			}
@@ -214,15 +214,15 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	}
 
 	async captureScreenshotAndLog(event: EExecutionMessageType, details: { seq?: number; step?: TStepResult }) {
-		const { context, path } = await this.captureScreenshot(event, details,);
+		const { context, path } = await this.captureScreenshot(event, details);
 		this.getWorld().logger.log(`${event} screenshot to ${pathToFileURL(path)}`, context);
 	}
 
-	async captureScreenshot(event: EExecutionMessageType, details: { seq?: number; step?: TStepResult }) {
+	async captureScreenshot(event: EExecutionMessageType, details: { seq?: number; step?: TStepResult }, featureStep: TFeatureStep) {
 		const loc = await this.getCaptureDir('image');
 		// FIXME shouldn't be fs dependant
 		const path = resolve(this.storage.fromLocation(EMediaTypes.image, loc, `${event}-${Date.now()}.png`));
-		await this.withPage(async (page: Page) => await page.screenshot({ path }));
+		await this.withPage(async (page: Page) => await page.screenshot({ path }), featureStep);
 		const artifact: TArtifactImage = { artifactType: 'image', path: await this.storage.getRelativePath(path) };
 		const context: TMessageContext = {
 			incident: EExecutionMessageType.ACTION,
@@ -233,31 +233,32 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		return { context, path };
 	}
 
-	async captureAccessibilitySnapshot() {
+	async captureAccessibilitySnapshot(featureStep: TFeatureStep) {
 		return await this.withPage(async (page: Page) => {
 			const snapshot = await page.accessibility.snapshot({
 				interestingOnly: false,
 			});
 			return snapshot;
-		});
+		}, featureStep);
 	}
 
-	async setExtraHTTPHeaders(headers: { [name: string]: string; }) {
+	async setExtraHTTPHeaders(headers: { [name: string]: string; }, featureStep: TFeatureStep) {
 		await this.withPage(async () => {
 			const browserContext = await this.getExistingBrowserContext();
 			await browserContext.setExtraHTTPHeaders(headers);
 			this.extraHTTPHeaders = headers;
-		});
+		}, featureStep);
 	}
 
 	async withPageFetch(
 		endpoint: string,
 		method = 'get',
-		requestOptions: TRequestOptions = {}
+		requestOptions: TRequestOptions = {},
+		featureStep: TFeatureStep,
 	): Promise<TCapturedResponse> {
 		const { headers, postData, userAgent } = requestOptions;
 		const ua = userAgent || this.apiUserAgent;
-		const page = await this.getPage();
+		const page = await this.getPage(featureStep);
 		// FIXME Part I this could suffer from race conditions
 		if (ua) {
 			const browserContext = await this.getExistingBrowserContext();

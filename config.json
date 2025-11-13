@@ -1,0 +1,6 @@
+{
+  "steppers": [
+    "out-junit",
+    "graph-stepper"
+  ]
+}

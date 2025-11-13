@@ -1,0 +1,22 @@
+{
+  "name": "@haibun/graph-stepper",
+  "version": "1.0.0",
+  "description": "",
+  "main": "build/graph-stepper.js",
+  "scripts": {
+    "test": "vitest"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@haibun/core": "file:../core",
+    "@haibun/run-graph": "file:../run-graph",
+    "@haibun/web-playwright": "file:../web-playwright",
+    "@haibun/web-server-express": "file:../web-server-express",
+    "vitest": "^0.34.4"
+  },
+  "dependencies": {
+    "@haibun/core": "file:../core"
+  }
+}

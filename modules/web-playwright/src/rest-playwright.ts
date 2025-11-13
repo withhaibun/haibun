@@ -1,6 +1,6 @@
 import { actionNotOK, actionOK } from '@haibun/core/lib/util/index.js';
 import WebPlaywright from './web-playwright.js';
-import { OK } from '@haibun/core/lib/defs.js';
+import { OK, TFeatureStep } from '@haibun/core/lib/defs.js';
 import { EExecutionMessageType, TMessageContext } from '@haibun/core/lib/interfaces/logger.js';
 import { TAnyFixme } from '@haibun/core/lib/fixme.js';
 
@@ -40,7 +40,7 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 	restTokenRequest: {
 		gwta: `request OAuth 2.0 access token from {endpoint}`,
 		action: async ({ endpoint }: { endpoint: string }, featureStep) => {
-			const serialized = await webPlaywright.withPageFetch(endpoint);
+			const serialized = await webPlaywright.withPageFetch(endpoint, 'get', {}, featureStep);
 			const accessToken = serialized.json[ACCESS_TOKEN];
 			await webPlaywright.setExtraHTTPHeaders({ [AUTHORIZATION]: `Bearer ${accessToken}` });
 			webPlaywright.setLastResponse(serialized, featureStep);
@@ -51,7 +51,7 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 		gwta: `perform OAuth 2.0 logout from {endpoint}`,
 		action: async ({ endpoint }: { endpoint: string }, featureStep) => {
 			await webPlaywright.setExtraHTTPHeaders({});
-			const serialized = await webPlaywright.withPageFetch(endpoint);
+			const serialized = await webPlaywright.withPageFetch(endpoint, 'get', {}, featureStep);
 			webPlaywright.setLastResponse(serialized, featureStep);
 			return OK;
 		},
@@ -64,7 +64,7 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 			if (!NO_PAYLOAD_METHODS.includes(method)) {
 				return actionNotOK(`Method ${method} not supported`);
 			}
-			const serialized = await webPlaywright.withPageFetch(endpoint, method, { headers: { accept } });
+			const serialized = await webPlaywright.withPageFetch(endpoint, method, { headers: { accept } }, featureStep);
 			webPlaywright.setLastResponse(serialized, featureStep);
 			return OK;
 		},
@@ -76,7 +76,7 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 			if (!NO_PAYLOAD_METHODS.includes(method)) {
 				return actionNotOK(`Method ${method} not supported`);
 			}
-			const serialized = await webPlaywright.withPageFetch(endpoint, method);
+			const serialized = await webPlaywright.withPageFetch(endpoint, method, {}, featureStep);
 			webPlaywright.setLastResponse(serialized, featureStep);
 			return OK;
 		},
@@ -141,7 +141,7 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 	},
 	restEndpointFilteredPropertyRequest: {
 		gwta: `for each filtered {property}, make REST {method} to {endpoint} yielding status {status}`,
-		action: async ({ property, method, endpoint, status }: { property: string; method: string; endpoint: string; status: string }) => {
+		action: async ({ property, method, endpoint, status }: { property: string; method: string; endpoint: string; status: string }, featureStep: TFeatureStep) => {
 			method = method.toLowerCase();
 			if (!NO_PAYLOAD_METHODS.includes(method)) {
 				return actionNotOK(`Method ${method} not supported`);
@@ -156,7 +156,7 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 			}
 			for (const item of filtered) {
 				const requestPath = `${endpoint}/${item[property]}`;
-				const serialized = await webPlaywright.withPageFetch(requestPath, method);
+				const serialized = await webPlaywright.withPageFetch(requestPath, method, {}, featureStep);
 				if (serialized.status !== parseInt(status, 10)) {
 					return actionNotOK(`Expected status ${status} to ${requestPath}, got ${serialized.status}`);
 				}
@@ -172,7 +172,7 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 				return actionNotOK(`Method ${method} (${method}) does not support payload`);
 			}
 			const requestOptions = { postData: payload, headers: { 'Content-Type': 'application/json' } };
-			const serialized = await webPlaywright.withPageFetch(endpoint, method, requestOptions);
+			const serialized = await webPlaywright.withPageFetch(endpoint, method, requestOptions, featureStep);
 			webPlaywright.setLastResponse(serialized, featureStep);
 			return OK;
 		},

@@ -85,7 +85,7 @@ describe('getComposeEnvironment', () => {
 		}
 		const { composeEnvironment } = getContainerSetup(captureOptions, includeDirs, testToRun);
 		const command = composeEnvironment.find((e) => e.startsWith('COMMAND_TO_RECORD='));
-		expect(command).toMatch(/COMMAND_TO_RECORD=HOST_PROJECT_DIR=".*?haibun" HAIBUN_LOG_LEVEL=log HAIBUN_ENV=foo=bar,wut=wow\s+HAIBUN_STAY=failure npm run testToRun/);
+		expect(command).toMatch(/COMMAND_TO_RECORD=HOST_PROJECT_DIR=".*?" HAIBUN_LOG_LEVEL=log HAIBUN_ENV=foo=bar,wut=wow\s+HAIBUN_STAY=failure npm run testToRun/);
 	});
 	it('should handle multiple passEnv and cliEnv', () => {
 		const captureOptions: TCaptureOptions = {
@@ -95,12 +95,12 @@ describe('getComposeEnvironment', () => {
 		}
 		const { composeEnvironment } = getContainerSetup(captureOptions, includeDirs, testToRun);
 		const command = composeEnvironment.find((e) => e.startsWith('COMMAND_TO_RECORD='));
-		expect(command).toMatch(/COMMAND_TO_RECORD=HOST_PROJECT_DIR=".*?haibun" HAIBUN_LOG_LEVEL=log HAIBUN_ENV=foo=bar,wut=wow,moo=cow,miaow=cat\s+HAIBUN_STAY=failure A=B npm run testToRun/);
+		expect(command).toMatch(/COMMAND_TO_RECORD=HOST_PROJECT_DIR=".*?" HAIBUN_LOG_LEVEL=log HAIBUN_ENV=foo=bar,wut=wow,moo=cow,miaow=cat\s+HAIBUN_STAY=failure A=B npm run testToRun/);
 	});
 	it('should handle feature-flag', () => {
 		const captureOptions = { ...protoRunOptions, featureFilter: 'foo' };
 		const { composeEnvironment } = getContainerSetup(captureOptions, includeDirs, testToRun);
 		const command = composeEnvironment.find((e) => e.startsWith('COMMAND_TO_RECORD='));
-		expect(command).toMatch(/COMMAND_TO_RECORD=HOST_PROJECT_DIR=".*?haibun" HAIBUN_LOG_LEVEL=log\s+npm run testToRun -- foo/);
+		expect(command).toMatch(/COMMAND_TO_RECORD=HOST_PROJECT_DIR=".*?" HAIBUN_LOG_LEVEL=log\s+npm run testToRun -- foo/);
 	});
 });

@@ -12,6 +12,9 @@
         { "path": "domain-storage" },
         { "path": "storage-fs" },
         { "path": "out-junit" },
-	{ "path": "mcp" }
+        { "path": "mcp" },
+        { "path": "run-graph" },
+        { "path": "graph-stepper" },
+        { "path": "websocket-server" }
     ]
 }

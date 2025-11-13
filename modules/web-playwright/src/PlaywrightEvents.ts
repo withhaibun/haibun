@@ -3,8 +3,9 @@ import { Page, Request, Route, Response } from 'playwright';
 import { TArtifactHTTPTrace, THTTPTraceContent, EExecutionMessageType, TMessageContext } from '@haibun/core/lib/interfaces/logger.js'; // Updated imports
 import { shortenURI } from '@haibun/core/lib/util/index.js';
 import { TTag } from '@haibun/core/lib/ttag.js';
-import { TWorld } from '@haibun/core/build/lib/defs.js';
+import { TWorld, TFeatureStep } from '@haibun/core/build/lib/defs.js';
 import { DOMAIN_STRING } from '@haibun/core/lib/domain-types.js';
+import { RunGraph } from '@haibun/run-graph/build/run-graph.js';
 
 type TEtc = {
 	headers: Record<string, string>;
@@ -15,7 +16,7 @@ type TEtc = {
 }
 
 export class PlaywrightEvents {
-	constructor(private world: TWorld, private page: Page, private tag: TTag) {
+	constructor(private world: TWorld, private page: Page, private tag: TTag, private runGraph: RunGraph, private featureStep: TFeatureStep) {
 		world.logger.debug(`setPage ${JSON.stringify(tag)}`);
 		page.on('request', this.logRequest.bind(this));
 		// eslint-disable-next-line @typescript-eslint/no-floating-promises
@@ -85,5 +86,20 @@ export class PlaywrightEvents {
 			tag: this.tag
 		};
 		this.world.logger.debug(`playwright ${label} ${shortenURI(logData.requestingURL)} ➔ ${targetWithoutRequestingBase}`, mc);
+
+        const siteId = new URL(targetURL).origin;
+        const pageId = targetURL;
+        const accessId = `${this.featureStep.in} -> ${targetURL}`;
+
+        this.runGraph.addNode({ id: siteId, type: 'site', url: siteId });
+        this.runGraph.addInstanceOf(siteId, 'site');
+        this.runGraph.addNode({ id: pageId, type: 'page', url: pageId });
+        this.runGraph.addInstanceOf(pageId, 'page');
+        this.runGraph.addNode({ id: accessId, type: 'access', url: targetURL });
+        this.runGraph.addInstanceOf(accessId, 'access');
+
+        this.runGraph.addEdge({ source: siteId, target: pageId, type: 'has', time: Date.now() });
+        this.runGraph.addEdge({ source: pageId, target: accessId, type: 'has', time: Date.now() });
+        this.runGraph.addEdge({ source: this.featureStep.in, target: accessId, type: 'generates', time: Date.now() });
 	}
 }

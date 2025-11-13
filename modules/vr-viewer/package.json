@@ -1,0 +1,22 @@
+{
+  "name": "@haibun/vr-viewer",
+  "version": "1.0.0",
+  "description": "",
+  "main": "build/vr-viewer.js",
+  "scripts": {
+    "build": "esbuild src/vr-viewer.ts --bundle --outfile=build/vr-viewer.js --format=esm"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "three": "^0.158.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.19.5",
+    "jsdom": "^22.1.0",
+    "@types/three": "^0.158.2",
+    "vitest": "^0.34.4",
+    "canvas": "^2.11.2"
+  }
+}

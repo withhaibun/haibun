@@ -98,14 +98,12 @@ function getCliWorld(protoOptions: TProtoOptions, bases: TBase): TWorld {
 }
 
 async function getSpeclOrExit(bases: TBase): Promise<TSpecl> {
-	const specl = getConfigFromBase(bases);
-	if (specl === null || bases?.length < 1) {
-		if (specl === null) {
-			await usageThenExit(specl ? specl : getDefaultOptions(), `missing or unusable config.json from ${bases} in ${process.cwd()}`);
-		}
-		await usageThenExit(specl ? specl : getDefaultOptions(), 'no bases');
-	}
-	return specl;
+    const specl = getConfigFromBase(bases);
+    if (specl === null) {
+        await usageThenExit(getDefaultOptions(), `missing or unusable config.json from ${bases} in ${process.cwd()}`);
+        throw new Error('exit');
+    }
+    return specl;
 }
 export async function usageThenExit(specl: TSpecl, message?: string) {
 	const output = await usage(specl, message);
@@ -214,7 +212,10 @@ export function getConfigFromBase(bases: TBase, fs: TFileSystem = nodeFS): TSpec
 		console.error(`Found multiple config.json files: ${found.join(', ')}. Use --config to specify one.`);
 		return null;
 	}
-	const configCandidate = (found && found[0]) || '.';
+	const configCandidate = (found && found[0]) || (bases?.length > 0 ? null : '.');
+    if (configCandidate === null) {
+        return null;
+    }
 	const f = configCandidate.endsWith('json') ? configCandidate : `${configCandidate}/config.json`;
 	console.info(`trying ${f}`);
 	try {

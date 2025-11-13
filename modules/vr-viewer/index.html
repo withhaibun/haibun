@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Haibun VR Viewer</title>
+    <style>
+        body { margin: 0; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <div id="ui">
+        <div id="filters">
+            <label><input type="checkbox" name="nodeType" value="feature" checked> Feature</label>
+            <label><input type="checkbox" name="nodeType" value="scenario" checked> Scenario</label>
+            <label><input type="checkbox" name="nodeType" value="step" checked> Step</label>
+            <label><input type="checkbox" name="nodeType" value="site" checked> Site</label>
+            <label><input type="checkbox" name="nodeType" value="page" checked> Page</label>
+            <label><input type="checkbox" name="nodeType" value="access" checked> Access</label>
+        </div>
+        <div id="timeline">
+            <input type="range" id="time-slider" min="0" max="100" value="100">
+        </div>
+    </div>
+    <script type="module" src="build/vr-viewer.js"></script>
+</body>
+</html>
