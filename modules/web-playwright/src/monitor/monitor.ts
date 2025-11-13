@@ -23,9 +23,14 @@ declare global {
 window.haibunCapturedMessages = window.haibunCapturedMessages || [];
 console.info('monitor.ts: window.haibunCapturedMessages initialized.');
 
+// Track the number of messages we've already rendered to avoid duplicates
+let renderedMessageCount = 0;
+
 // Function exposed to Playwright to receive new logs
 window.receiveLogData = (logEntry) => {
+	console.info(`[receiveLogData] Received log entry:`, logEntry.level, logEntry.message.substring(0, 50));
 	window.haibunCapturedMessages.push(logEntry);
+	renderedMessageCount++;
 	renderLogEntry(logEntry);
 };
 
@@ -78,11 +83,19 @@ export function renderLogEntry(logEntryData: TLogEntry) {
 		container.scrollTop = container.scrollHeight;
 	}, 0);
 }
+
+// ...existing code...
+
 function renderAllLogs() {
 	const container = document.getElementById('haibun-log-display-area');
 	if (container) {
-		console.info(`Rendering ${window.haibunCapturedMessages.length} log entries...`);
-		window.haibunCapturedMessages.forEach(renderLogEntry);
+		// Only render messages that haven't been rendered yet
+		const messagesToRender = window.haibunCapturedMessages.slice(renderedMessageCount);
+		console.info(`Rendering ${messagesToRender.length} new log entries (already had ${renderedMessageCount})...`);
+		messagesToRender.forEach(logEntry => {
+			renderLogEntry(logEntry);
+			renderedMessageCount++;
+		});
 	}
 }
 

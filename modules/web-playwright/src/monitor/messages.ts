@@ -53,7 +53,7 @@ export class LogMessageContent extends LogComponent {
 
 		if (messageContext) {
 			const { incident, incidentDetails, artifacts } = messageContext;
-			const summaryMessageToDisplay = getSummaryMessage(message, messageContext);
+			const summaryMessageToDisplay = getSummaryMessage(message);
 			let labelForSummary = EExecutionMessageType[incident] || 'Context';
 
 			// Create artifact displays for all artifacts
@@ -206,9 +206,8 @@ function formatTime(relativeTimeMs: number): string {
 	return (relativeTimeMs / 1000).toFixed(3).replace('.', ':');
 }
 
-function getSummaryMessage(message: string, messageContext?: TMessageContext): string {
-	if (messageContext?.incident === EExecutionMessageType.STEP_END) {
-		return `${message} ${messageContext.incidentDetails?.featureStep.in}`;
-	}
+function getSummaryMessage(message: string): string {
+	// The message already contains featureStep.in for both STEP_START and STEP_END
+	// so we don't need to append it
 	return message;
 }

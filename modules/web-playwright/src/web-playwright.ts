@@ -310,6 +310,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			for (const closer of this.closers) {
 				await closer();
 			}
+			this.closers = [];
 		}
 	}
 	async createTwin() {

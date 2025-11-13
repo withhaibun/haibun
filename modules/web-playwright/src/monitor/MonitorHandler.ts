@@ -145,7 +145,7 @@ export class MonitorHandler {
 			}
 		};
 		this.world.logger.addSubscriber(this.subscriber);
-		wp.closers.push(() => this.world.logger.removeSubscriber(WebPlaywright.monitorHandler.subscriber));
+		wp.closers.push(() => this.world.logger.removeSubscriber(this.subscriber));
 		this.world.prompter.subscribe(this.buttonPrompter);
 	}
 	async getMonitorLoc() {
