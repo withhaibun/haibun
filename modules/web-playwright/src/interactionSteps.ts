@@ -213,6 +213,7 @@ export const interactionSteps = (wp: WebPlaywright): TStepperSteps => ({
 	click: {
 		gwta: `click {target: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}`,
 		action: async ({ target }: { target: string }, featureStep) => {
+			void target; // used for type checking
 			await wp.withPage(async (page: Page) => {
 				return await locateByDomain(page, featureStep, 'target').click();
 			});
