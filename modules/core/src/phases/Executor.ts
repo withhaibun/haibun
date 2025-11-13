@@ -83,13 +83,13 @@ export class Executor {
 			featureNum++;
 			const isLast = featureNum === features.length;
 
-			world.logger.log(`███ feature ${featureNum}/${features.length}: ${feature.path}`);
 			world.runtime.depthLimitExceeded = undefined;
 			const newWorld = { ...world, tag: { ...world.tag, ...{ featureNum: 0 + featureNum } } };
 
 			const featureExecutor = new FeatureExecutor(steppers, newWorld);
 			await setStepperWorldsAndDomains(steppers, newWorld);
 			await doStepperCycle(steppers, 'startFeature', { resolvedFeature: feature, index: featureNum });
+			world.logger.log(`███ feature ${featureNum}/${features.length}: ${feature.path}`);
 
 			const featureResult = await featureExecutor.doFeature(feature);
 			const thisFeatureOK = featureResult.ok;
