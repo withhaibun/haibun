@@ -165,6 +165,7 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 		},
 	},
 	restEndpointRequestWithPayload: {
+		precludes: ["WebPlaywright.restEndpointRequest"],
 		gwta: `make an ${'HTTP'} {method} to {endpoint} with {payload}`,
 		action: async ({ method, endpoint, payload }: { method: string; endpoint: string; payload: string }, featureStep) => {
 			method = method.toLowerCase();
