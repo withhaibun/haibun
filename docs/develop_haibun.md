@@ -2,7 +2,7 @@
 
 Clone this repo, then install and build:
 
-`npm run init` - this installs base node_modules, and runs build
+`npm install ` - this will also do a first build via npm prepare
 
 During development of modules, use
 
@@ -27,13 +27,13 @@ To develop your own separate module while developing Haibun modules, use:
 
 `npx @haibun/utils -p link`
 
-This will link every Haibun library in a repo to a locally linked Haibun repo; 
+This will link every Haibun library in a repo to a locally linked Haibun repo;
 you may need to run `npm link` in each Haibun module directory first.
 
 
 ## Testing note
 
-Since switching to vitest, circular dependencies have to be avoided for tests. 
+Since switching to vitest, circular dependencies have to be avoided for tests.
 Use this approach to find them for a particular file:
 
 `npx dpdm modules/storage-mem/src/storage-mem.test.ts`
