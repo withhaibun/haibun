@@ -1,6 +1,6 @@
 import { resolve } from 'path';
 
-import { OK, TWorld, TFeatureStep, IStepperCycles, TStartFeature, TStepArgs, Origin } from '../lib/defs.js';
+import { TWorld, TFeatureStep, IStepperCycles, TStartFeature, TStepArgs, Origin } from '../lib/defs.js';
 import { IHasCycles, IHasOptions } from '../lib/astepper.js';
 import { AStepper } from '../lib/astepper.js';
 import { actionNotOK, actionOK, getStepperOption, sleep, stringOrError } from '../lib/util/index.js';

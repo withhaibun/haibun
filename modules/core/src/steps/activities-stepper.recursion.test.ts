@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+
 import { passWithDefaults } from '../lib/test/lib.js';
 import Haibun from './haibun.js';
 import VariablesSteppers from './variables-stepper.js';

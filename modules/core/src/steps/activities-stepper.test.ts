@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+
 import { ActivitiesStepper } from './activities-stepper.js';
 import { getDefaultWorld, passWithDefaults } from '../lib/test/lib.js';
 import VariablesStepper from './variables-stepper.js';
