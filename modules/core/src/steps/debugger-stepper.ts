@@ -77,8 +77,12 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 
 		while (continueLoop) {
 			const response = await this.getWorld().prompter.prompt(makePrompt(`${formatCurrentSeqPath(featureStep.seqPath)}-${prompt}`, undefined, prompts));
+
+			// If response is undefined (no prompter available), default to 'continue'
+			const responseStr = response === undefined ? 'continue' : response.toString();
+
 			try {
-				promptResult = await resolveAndExecuteStatement(response.toString(), '<debugger>', this.steppers, this.getWorld(), ExecMode.PROMPT, seqStart);
+				promptResult = await resolveAndExecuteStatement(responseStr, '<debugger>', this.steppers, this.getWorld(), ExecMode.PROMPT, seqStart);
 				const details = promptResult.stepActionResult.messageContext?.incidentDetails;
 				if (details?.step || details?.continue || details?.fail || details?.rerunStep || details?.nextStep) {
 					continueLoop = false;
@@ -87,7 +91,7 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 					seqStart = [...seqStart.slice(0, -1), nextLast];
 				}
 			} catch (e) {
-				this.getWorld().logger.error(`Failed to execute debug prompt command '${response}': ${e.message}`);
+				this.getWorld().logger.error(`Failed to execute debug prompt command '${responseStr}': ${e.message}`);
 			}
 		}
 		return promptResult.stepActionResult.messageContext?.incidentDetails;
