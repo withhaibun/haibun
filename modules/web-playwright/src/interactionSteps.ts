@@ -35,6 +35,7 @@ export const interactionSteps = (wp: WebPlaywright): TStepperSteps => ({
 	inputVariable: {
 		gwta: `input {what} for {field: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}`,
 		action: async ({ what, field }: { what: string; field: string }, featureStep: TFeatureStep) => {
+			void field;
 			await wp.withPage(async (page: Page) => await locateByDomain(page, featureStep, 'field').fill(what));
 			return OK;
 		},
@@ -42,6 +43,7 @@ export const interactionSteps = (wp: WebPlaywright): TStepperSteps => ({
 	selectionOption: {
 		gwta: `select {option} for {field: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}`,
 		action: async ({ option, field }: { option: string; field: string }, featureStep: TFeatureStep) => {
+			void field;
 			await wp.withPage(async (page: Page) => await locateByDomain(page, featureStep, 'field').selectOption({ label: option }));
 			return OK;
 		},
@@ -282,6 +284,7 @@ export const interactionSteps = (wp: WebPlaywright): TStepperSteps => ({
 	blur: {
 		gwta: `blur {what: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}`,
 		action: async ({ what }: { what: string }, featureStep: TFeatureStep) => {
+			void what;
 			await wp.withPage(async (page: Page) => await locateByDomain(page, featureStep, 'what').evaluate((e) => e.blur()));
 			return OK;
 		},
@@ -302,6 +305,7 @@ export const interactionSteps = (wp: WebPlaywright): TStepperSteps => ({
 	uploadFile: {
 		gwta: `upload file {file} using {selector: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}`,
 		action: async ({ file, selector }: { file: string; selector: string }, featureStep: TFeatureStep) => {
+			void selector;
 			await wp.withPage(async (page: Page) => await locateByDomain(page, featureStep, 'selector').setInputFiles(file));
 			return OK;
 		},
@@ -310,6 +314,7 @@ export const interactionSteps = (wp: WebPlaywright): TStepperSteps => ({
 	waitForFileChooser: {
 		gwta: `upload file {file} with {selector: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}`,
 		action: async ({ file, selector }: { file: string; selector: string }, featureStep: TFeatureStep) => {
+			void selector;
 			try {
 				await wp.withPage(async (page: Page) => {
 					const [fileChooser] = await Promise.all([
