@@ -2,13 +2,8 @@
   "name": "haibun",
   "type": "module",
   "private": false,
-  "workspaces": [
-    "modules/*"
-  ],
-  "engines": {
-    "node": ">=24.0.0",
-    "npm": ">=11.0.0"
-  },
+  "workspaces": ["modules/*"],
+  "engines": { "node": ">=24.0.0", "npm": ">=11.0.0" },
   "devDependencies": {
     "@biomejs/biome": "2.3.5",
     "@types/node": "^24.10.0",
@@ -41,5 +36,5 @@
     "depcruise": "depcruise -c .dependency-cruiser.cjs -T dot modules | dot -T svg | depcruise-wrap-stream-in-html > dependency-graph.html",
     "preversion": "npm run test"
   },
-  "version": "3.0.2"
+  "version": "3.0.3"
 }
