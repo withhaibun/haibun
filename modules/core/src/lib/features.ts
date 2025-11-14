@@ -6,26 +6,27 @@ export async function expand({ features, backgrounds }: { features: TFeatures, b
 	return expandedFeatures;
 }
 // Expand backgrounds by prepending 'upper' features to 'lower' features
+// biome-ignore lint/suspicious/useAwait: it's nice to be able to .catch this inline
 export async function expandFeatures(features: TFeature[], backgrounds: TFeature[]): Promise<TExpandedFeature[]> {
 	const expandeds: TExpandedFeature[] = [];
 
 	for (const feature of features) {
-		const expanded = await expandIncluded(feature as TFeature, backgrounds);
+		const expanded = expandIncluded(feature as TFeature, backgrounds);
 		const ex: TExpandedFeature = { path: feature.path, base: feature.base, name: feature.name, expanded };
 		expandeds.push(ex);
 	}
 
-	return expandeds;
+	return Promise.resolve(expandeds);
 }
 
-export async function expandIncluded(feature: TFeature, backgrounds: TFeatures) {
+function expandIncluded(feature: TFeature, backgrounds: TFeatures) {
 	const lines: TExpandedLine[] = [];
 	const split = featureSplit(feature.content);
 	for (const l of split) {
 		lines.push(...expandLine(l, backgrounds, feature));
 	}
 
-	return Promise.resolve(lines);
+	return lines;
 }
 
 export const asFeatureLine = (line: string, feature: TFeature): TExpandedLine => ({ line, feature });
