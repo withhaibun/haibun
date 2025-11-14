@@ -1,7 +1,7 @@
 import { withAction } from '@haibun/core/kireji/withAction.js';
 import ActivitiesStepper from '@haibun/core/steps/activities-stepper.js';
 import VariablesStepper from '@haibun/core/steps/variables-stepper.js';
-import { loggedIn, dataLoaded } from '../backgrounds/outcomes.kireji.js';
+import { loggedIn, dataLoaded } from '../backgrounds/outcomes.feature.js';
 
 const activitiesStepper = new ActivitiesStepper();
 const variablesStepper = new VariablesStepper();

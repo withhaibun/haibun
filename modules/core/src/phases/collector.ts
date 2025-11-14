@@ -45,7 +45,7 @@ async function recurse(base: string, dir: string, type: string, featureFilter: s
       all = all.concat(await recurse(base, `${dir}/${file}`, type, featureFilter, fs));
     } else if (shouldProcess(here, type, featureFilter)) {
       let contents;
-      if (here.endsWith('.kireji.ts')) {
+      if (here.endsWith('.feature.ts')) {
         const module = await import(path.resolve(here));
         let kirejiContent;
 
@@ -53,13 +53,13 @@ async function recurse(base: string, dir: string, type: string, featureFilter: s
           // For backgrounds directory: prefer 'backgrounds' export, fallback to 'features'
           kirejiContent = module.backgrounds || module.features;
           if (!kirejiContent) {
-            throw new Error(`Kireji file ${here} in backgrounds/ must export 'backgrounds' or 'features' object`);
+            throw new Error(`.feature.ts file ${here} in backgrounds/ must export 'backgrounds' or 'features' object`);
           }
         } else {
           // For features directory: can export either 'features' or 'backgrounds'
           kirejiContent = module.features || module.backgrounds;
           if (!kirejiContent) {
-            throw new Error(`Kireji file ${here} must export 'features' or 'backgrounds' object`);
+            throw new Error(`.feature.ts file ${here} must export 'features' or 'backgrounds' object`);
           }
         }
 
@@ -74,7 +74,7 @@ async function recurse(base: string, dir: string, type: string, featureFilter: s
 }
 
 export function shouldProcess(file: string, type: undefined | string, featureFilter: string[] | undefined) {
-    const iskireji = file.endsWith('.kireji.ts');
+    const iskireji = file.endsWith('.feature.ts');
     // For kireji files, always process regardless of type
     // For .feature files, check if type matches or is undefined
     // Note: both 'feature' and 'background' types use .feature extension

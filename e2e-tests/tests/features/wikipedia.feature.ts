@@ -4,7 +4,7 @@ import ActivitiesStepper from '@haibun/core/steps/activities-stepper.js';
 import VariablesStepper from '@haibun/core/steps/variables-stepper.js';
 import Haibun from '@haibun/core/steps/haibun.js';
 
-import { pagesVisited } from '../backgrounds/wikipedia-bg.kireji.ts';
+import { pagesVisited } from '../backgrounds/wikipedia-bg.feature.ts';
 
 const { ensure } = withAction(new ActivitiesStepper());
 const { is } = withAction(new VariablesStepper());
