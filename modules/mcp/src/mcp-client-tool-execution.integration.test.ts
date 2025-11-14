@@ -3,7 +3,6 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 
 import { currentVersion as version } from '@haibun/core/currentVersion.js';
-import { TAnyFixme } from '@haibun/core/lib/fixme.js';
 import { runtimeStdio, TEST_PORTS } from './mcp-test-utils.js';
 
 const toolExecutionServerParameters = runtimeStdio(TEST_PORTS.MCP_TOOL_EXECUTION);
@@ -40,7 +39,7 @@ describe('haibun-mcp tool execution', () => {
 		expect(tools.some(t => t.name === 'Haibun-pauseSeconds')).toBe(true);
 	});
 
-	it.skip('can execute variable setting and showVars tools', async () => {
+	it('can execute variable setting and showVars tools', async () => {
 		// Set a variable using the VariablesStepper-set tool
 		const setResult = await client.callTool({
 			name: 'VariablesStepper-set',
@@ -78,7 +77,7 @@ describe('haibun-mcp tool execution', () => {
 		expect(displayResponse.result.ok).toBe(true);
 	});
 
-	it.skip('call combine and showVars variables', async () => {
+	it('call combine and showVars variables', async () => {
 		const combineResult = await client.callTool({
 			name: 'VariablesStepper-combine',
 			arguments: {
@@ -114,7 +113,7 @@ describe('haibun-mcp tool execution', () => {
 		expect(displayResponse.success).toBe(true);
 	});
 
-	it.skip('call comment', async () => {
+	it('call comment', async () => {
 		const commentResult = await client.callTool({
 			name: 'Haibun-comment',
 			arguments: {
@@ -135,22 +134,23 @@ describe('haibun-mcp tool execution', () => {
 
 	it('can handle tool execution errors gracefully', async () => {
 		// Try to call a tool with invalid parameters
-		try {
-			await client.callTool({
-				name: 'VariablesStepper-set',
-				arguments: {
-					// Missing required 'value' parameter
-					what: 'incompleteVariable'
-				}
-			});
+		const result = await client.callTool({
+			name: 'VariablesStepper-set',
+			arguments: {
+				// Missing required 'value' parameter
+				what: 'incompleteVariable'
+			}
+		});
 
-			// If we get here, the call succeeded when it should have failed
-			expect.fail('Expected tool call to throw an error due to missing required parameter');
-		} catch (error: TAnyFixme) {
-			// This is the expected behavior - the tool should throw/error on invalid parameters
-			expect(error).toBeDefined();
-			expect(error.message).toContain('Invalid arguments');
-		}
+		// The tool should return an error response
+		expect(result.content).toBeDefined();
+		expect(Array.isArray(result.content)).toBe(true);
+		const content = result.content as Array<{ type: string; text?: string }>;
+		expect(content.length).toBeGreaterThan(0);
+		expect(content[0].text).toBeDefined();
+
+		// The error message should contain our validation error
+		expect(content[0].text).toContain('Invalid arguments');
 	});
 
 });
