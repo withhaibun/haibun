@@ -16,7 +16,7 @@ import { executeFeatureSteps } from "@haibun/core/lib/util/featureStep-executor.
 
 const DOMAIN_STRING_OR_PAGE_LOCATOR = `${DOMAIN_STRING} | ${DOMAIN_PAGE_LOCATOR}`;
 
-export const interactionSteps = (wp: WebPlaywright): TStepperSteps => ({
+export const interactionSteps = (wp: WebPlaywright) => ({
 	// INPUT
 	press: {
 		gwta: 'press {key}',
@@ -513,7 +513,7 @@ export const interactionSteps = (wp: WebPlaywright): TStepperSteps => ({
 			return OK;
 		},
 	}
-});
+} as const satisfies TStepperSteps);
 
 
 function locateByDomain(page: Page, featureStep: TFeatureStep, where: string) {

@@ -17,6 +17,9 @@ import { interactionSteps } from './interactionSteps.js';
 import { restSteps, TCapturedResponse } from './rest-playwright.js';
 import { TwinPage } from './twin-page.js';
 
+type TWebPlaywrightSteps = ReturnType<typeof interactionSteps> & ReturnType<typeof restSteps>;
+type TWebPlaywrightTypedSteps = ReturnType<typeof interactionSteps> & ReturnType<typeof restSteps>;
+
 export const WEB_PAGE = 'webpage';
 /**
  * This is the infrastructure for web-playwright.
@@ -194,7 +197,12 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		const browserContext = await this.getExistingBrowserContext();
 		return await browserContext?.cookies();
 	}
-	steps = {
+
+	get typedSteps(): TWebPlaywrightTypedSteps {
+		return { ...restSteps(this), ...interactionSteps(this) } as TWebPlaywrightTypedSteps;
+	}
+
+	steps: TWebPlaywrightSteps = {
 		...restSteps(this),
 		...interactionSteps(this),
 	};

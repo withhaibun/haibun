@@ -3,6 +3,7 @@ import WebPlaywright from './web-playwright.js';
 import { OK } from '@haibun/core/lib/defs.js';
 import { EExecutionMessageType, TMessageContext } from '@haibun/core/lib/interfaces/logger.js';
 import { TAnyFixme } from '@haibun/core/lib/fixme.js';
+import { TStepperSteps } from '@haibun/core/lib/astepper.js';
 
 const PAYLOAD_METHODS = ['post', 'put', 'patch'];
 const NO_PAYLOAD_METHODS = ['get', 'delete', 'head'];
@@ -207,7 +208,7 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 			return actionNotOK(`Expected response to be ${value}, got ${lastResponse?.text}`);
 		},
 	},
-});
+} as const satisfies TStepperSteps);
 
 export type TCapturedResponse = {
 	status: number;

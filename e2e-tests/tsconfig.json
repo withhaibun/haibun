@@ -10,6 +10,10 @@
     "resolveJsonModule": true,
     "allowImportingTsExtensions": true,
     "noEmit": true,
+    "preserveSymlinks": true,
+    "paths": {
+      "@haibun/*": ["../modules/*/build", "../modules/*"]
+    },
     "types": [
       "node",
       "@playwright/test"

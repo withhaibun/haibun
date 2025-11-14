@@ -5,7 +5,7 @@
   "description": "",
   "main": "build/web-server-stepper.js",
   "files": ["build/**"],
-  "exports": { ".": "./build/web-server-express.js", "./*": "./build/*" },
+  "exports": { ".": "./build/web-server-stepper.js", "./*": "./build/*" },
   "scripts": {
     "prepublishOnly": "tsc -b .",
     "build": "tsc -b .",
