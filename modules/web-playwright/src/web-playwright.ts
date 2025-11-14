@@ -92,8 +92,8 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	closers: Array<() => void> = [];
 	monitor: EMonitoringTypes;
 	twin: boolean;
-	static monitorHandler: MonitorHandler;
-	static twinPage: TwinPage;
+	monitorHandler?: MonitorHandler;
+	twinPage?: TwinPage;
 	apiUserAgent: string;
 	extraHTTPHeaders: { [name: string]: string; } = {};
 	expectedDownload: Promise<Download>;
@@ -170,8 +170,8 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	async withPage<TReturn>(f: TAnyFixme): Promise<TReturn> {
 		const containerPageOrFrame = this.inContainer || await this.getPage();
 
-		if (!this.inContainer && WebPlaywright.twinPage) {
-			await WebPlaywright.twinPage.patchPage(<Page>containerPageOrFrame);
+		if (!this.inContainer && this.twinPage) {
+			await this.twinPage.patchPage(<Page>containerPageOrFrame);
 		}
 
 		const res = await f(containerPageOrFrame);
@@ -314,13 +314,13 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		}
 	}
 	async createTwin() {
-		WebPlaywright.twinPage = new TwinPage(this, this.storage, this.headless);
-		await WebPlaywright.twinPage.initTwin();
+		this.twinPage = new TwinPage(this, this.storage, this.headless);
+		await this.twinPage.initTwin();
 	}
 	async createMonitor() {
 		this.getWorld().logger.info('Creating new monitor page');
-		WebPlaywright.monitorHandler = new MonitorHandler(this.getWorld(), this.storage, this.headless)
-		await WebPlaywright.monitorHandler.initMonitorContext();
+		this.monitorHandler = new MonitorHandler(this.getWorld(), this.storage, this.headless)
+		await this.monitorHandler.initMonitorContext();
 
 		return OK;
 	}

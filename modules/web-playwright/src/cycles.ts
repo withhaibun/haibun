@@ -16,8 +16,10 @@ export const cycles = (wp: WebPlaywright): IStepperCycles => ({
 		}
 	},
 	async startExecution(resolvedFeatures: TStartExecution): Promise<void> {
-		await wp.createMonitor();
-		await WebPlaywright.monitorHandler.createMonitorPage(wp);
+		if (wp.monitor) {
+			await wp.createMonitor();
+			await wp.monitorHandler.createMonitorPage(wp);
+		}
 		if (wp.twin) {
 			await wp.createTwin();
 		}
@@ -27,11 +29,11 @@ export const cycles = (wp: WebPlaywright): IStepperCycles => ({
 	async startFeature({ resolvedFeature, index }: TStartFeature): Promise<void> {
 		if (wp.monitor === EMonitoringTypes.MONITOR_EACH) {
 			await wp.callClosers(); // first tab
-			await WebPlaywright.monitorHandler.createMonitorPage(wp);
-			await WebPlaywright.monitorHandler.updateWorld(wp.getWorld());
+			await wp.monitorHandler.createMonitorPage(wp);
+			await wp.monitorHandler.updateWorld(wp.getWorld());
 		}
-		if (WebPlaywright.twinPage) {
-			WebPlaywright.twinPage.updateWorld(wp.getWorld());
+		if (wp.twinPage) {
+			wp.twinPage.updateWorld(wp.getWorld());
 		}
 		await createResolvedFeaturesArtifact(wp, `feature-${index}`, [resolvedFeature], index);
 	},
@@ -41,17 +43,17 @@ export const cycles = (wp: WebPlaywright): IStepperCycles => ({
 			await closeAfterFeature(wp);
 		}
 		if (wp.twin) {
-			await WebPlaywright.twinPage.writePage();
+			await wp.twinPage.writePage();
 		}
 		if (wp.monitor === EMonitoringTypes.MONITOR_EACH) {
 			await wp.callClosers();
-			await WebPlaywright.monitorHandler.writeMonitor();
+			await wp.monitorHandler.writeMonitor();
 		}
 	},
 	async endExecution() {
 		if (wp.monitor === EMonitoringTypes.MONITOR_ALL) {
 			await wp.callClosers();
-			await WebPlaywright.monitorHandler.writeMonitor();
+			await wp.monitorHandler.writeMonitor();
 		}
 	},
 });

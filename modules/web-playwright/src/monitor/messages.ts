@@ -106,7 +106,7 @@ export class LogMessageContent extends LogComponent {
 									await artifactDisplay.render(artifactContainer);
 								} catch (error) {
 									console.error(`[LogMessageContent] Error rendering artifact ${artifactDisplay.label}:`, error);
-									artifactContainer.innerHTML = `<p class=\"haibun-artifact-error\">Error loading artifact: ${(error as Error).message}</p>`;
+									artifactContainer.innerHTML = `<p class="haibun-artifact-error">Error loading artifact: ${(error as Error).message}</p>`;
 								}
 							} else {
 								artifactContainer.innerHTML = 'Artifact is rendering...';

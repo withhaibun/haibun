@@ -77,28 +77,12 @@ export const interactionSteps = (wp: WebPlaywright): TStepperSteps => ({
 			try {
 				await wp.withPage(async (page: Page) => await locateByDomain(page, featureStep, 'target').waitFor());
 				return OK;
-			} catch (e) {
+			} catch {
 				return actionNotOK(`Did not find ${target}`);
 			}
 		},
 	},
 
-	createMonitor: {
-		expose: false,
-		gwta: 'create monitor',
-		action: async () => {
-			await wp.createMonitor();
-			return OK;
-		},
-	},
-	finishMonitor: {
-		expose: false,
-		gwta: 'finish monitor',
-		action: async () => {
-			await WebPlaywright.monitorHandler.writeMonitor();
-			return OK;
-		},
-	},
 	onNewTab: {
 		gwta: `on a new tab`,
 		action: () => {
