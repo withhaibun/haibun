@@ -1,7 +1,7 @@
 import { vitest, describe, it, expect } from 'vitest';
 
 import { CONTINUE_AFTER_ERROR, DEFAULT_DEST, STEP_DELAY } from '@haibun/core/lib/defs.js';
-import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, testWithDefaults } from '@haibun/core/lib/test/lib.js';
+import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, passWithDefaults } from '@haibun/core/lib/test/lib.js';
 import TestStepsWithOptions from '@haibun/core/lib/test/TestStepsWithOptions.js';
 import { getDefaultOptions } from '@haibun/core/lib/util/index.js';
 
@@ -32,7 +32,7 @@ describe('options', () => {
 			moduleOptions: { [HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]: 'true' },
 			options: { DEST: DEFAULT_DEST },
 		};
-		const result = await testWithDefaults([feature], [TestStepsWithOptions], protoConfig);
+		const result = await passWithDefaults([feature], [TestStepsWithOptions], protoConfig);
 		expect(result.ok).toBe(true);
 		expect(result.featureResults?.length).toBe(1);
 		expect(result.featureResults?.[0].stepResults[0].stepActionResult.messageContext?.incidentDetails?.summary).toEqual('options');
@@ -72,7 +72,7 @@ describe('processArgs', () => {
 		const { configLoc } = lib.processArgs(s('--config boo'));
 		expect(configLoc).toBe('boo');
 	});
-	it('get config as path', () => {
+	it('get config as filename', () => {
 		const { configLoc } = lib.processArgs(s('--config boo/config.json'));
 		expect(configLoc).toBe('boo');
 	});
@@ -104,7 +104,15 @@ describe('runCli', () => {
 	});
 	it('runs a basic test', async () => {
 		vitest.spyOn(process, 'exit').mockImplementationOnce(expectExitAndThrow(0));
-		// vitest.spyOn(console, 'info').mockImplementation(() => undefined); // Suppress steppers output
-		await expect(lib.runCli(s('--config modules/cli/test modules/cli/test/tests'), {})).rejects.toThrow('exit with code 0');
+		await expect(() => lib.runCli(s('--config modules/cli/test modules/cli/test/tests'), {})).rejects.toThrow('exit with code 0');
+	});
+	it('runs a kireji test with backgrounds and features', async () => {
+		vitest.spyOn(process, 'exit').mockImplementationOnce(expectExitAndThrow(0));
+		await expect(lib.runCli(s('--config modules/cli/test/kireji modules/cli/test/kireji'), {})).rejects.toThrow('exit with code 0');
+	});
+
+	it('runs a kireji test with outcomes', async () => {
+		vitest.spyOn(process, 'exit').mockImplementationOnce(expectExitAndThrow(0));
+		await expect(lib.runCli(s('--config modules/cli/test/kireji-outcomes modules/cli/test/kireji-outcomes'), {})).rejects.toThrow('exit with code 0');
 	});
 });

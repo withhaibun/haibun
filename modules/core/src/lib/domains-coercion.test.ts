@@ -37,11 +37,11 @@ describe('domain coercion', () => {
 		it('accepts valid object json', () => {
 			const raw = '{"a":1,"b":[true,null,"x"]}';
 			// coercer validates only; returns original string
-			expect(domains[DOMAIN_JSON].coerce(p(raw))).toEqual(raw);
+			expect(domains[DOMAIN_JSON].coerce(p(raw))).toEqual(JSON.parse(raw));
 		});
 		it('accepts valid array json', () => {
 			const raw = '[1,2,3]';
-			expect(domains[DOMAIN_JSON].coerce(p(raw))).toEqual(raw);
+			expect(domains[DOMAIN_JSON].coerce(p(raw))).toEqual(JSON.parse(raw));
 		});
 		it('rejects invalid json', () => {
 			expect(() => domains[DOMAIN_JSON].coerce(p('{bad json', DOMAIN_JSON))).toThrow();

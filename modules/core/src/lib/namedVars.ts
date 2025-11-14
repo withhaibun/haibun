@@ -18,8 +18,6 @@ export const namedInterpolation = (inp: string): { regexPattern: string; stepVal
 	let bail = 0;
 	let matchIndex = 0;
 
-	const placeholderRegex = '.+';
-
 	while (bs > -1 && bail++ < 400) {
 		regexPattern += inp.substring(last, bs);
 		be = inp.indexOf('}', bs);
@@ -41,6 +39,15 @@ export const namedInterpolation = (inp: string): { regexPattern: string; stepVal
 		}
 
 		stepValuesMap[name] = { term: name, domain, origin };
+
+		// Look ahead to see what comes after this placeholder
+		const nextCharAfterBrace = inp.substring(be + 1, be + 2);
+		// Only use negative lookahead for specific separators (comma, colon) that won't appear in values
+		let placeholderRegex = '.+';
+		if (nextCharAfterBrace === ',' || nextCharAfterBrace === ':') {
+			// Use negative lookahead to prevent matching these separators
+			placeholderRegex = `.+?(?=${nextCharAfterBrace.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`;
+		}
 
 		let matchGroupPattern;
 		if (origin === Origin.env) {

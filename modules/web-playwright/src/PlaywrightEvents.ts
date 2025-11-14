@@ -1,8 +1,10 @@
 import { Page, Request, Route, Response } from 'playwright';
 
-import { TArtifactHTTPTrace, THTTPTraceContent, ILogger, EExecutionMessageType, TMessageContext } from '@haibun/core/lib/interfaces/logger.js'; // Updated imports
+import { TArtifactHTTPTrace, THTTPTraceContent, EExecutionMessageType, TMessageContext } from '@haibun/core/lib/interfaces/logger.js'; // Updated imports
 import { shortenURI } from '@haibun/core/lib/util/index.js';
 import { TTag } from '@haibun/core/lib/ttag.js';
+import { TWorld } from '@haibun/core/build/lib/defs.js';
+import { DOMAIN_STRING } from '@haibun/core/lib/domain-types.js';
 
 type TEtc = {
 	headers: Record<string, string>;
@@ -13,14 +15,18 @@ type TEtc = {
 }
 
 export class PlaywrightEvents {
-	constructor(private logger: ILogger, private page: Page, private tag: TTag) {
-		this.logger.debug(`setPage ${JSON.stringify(tag)}`);
-		page.on('request', this.logRequest.bind(this));
-		// eslint-disable-next-line @typescript-eslint/no-floating-promises
-		page.route('**/*', this.routeRequest.bind(this));
-		page.on('response', this.logResponse.bind(this));
+	constructor(private world: TWorld, private page: Page, private tag: TTag) {
 	}
-	private async logRequest(request: Request, type = 'request'): Promise<void> {
+	async init() {
+		this.world.logger.debug(`setPage ${JSON.stringify(this.tag)}`);
+		this.page.on('request', this.logRequest.bind(this));
+		// biome-disable-next-line @typescript-eslint/no-floating-promises
+		await this.page.route('**/*', this.routeRequest.bind(this));
+		this.page.on('response', this.logResponse.bind(this));
+		this.page.on('framenavigated', this.framenavigated.bind(this));
+		return this;
+	}
+	private logRequest(request: Request, type = 'request') {
 		const frameURL = request.frame().url();
 		const etc = {
 			method: request.method(),
@@ -29,16 +35,16 @@ export class PlaywrightEvents {
 		}
 
 		this.log(`${type} ${etc.method}`, <TArtifactHTTPTrace['httpEvent']>type, frameURL, request.url(), etc);
-		return Promise.resolve();
+		return;
 	}
 
-	private async routeRequest(route: Route, request: Request): Promise<void> {
-		await this.logRequest(request, 'route');
-		// eslint-disable-next-line @typescript-eslint/no-floating-promises
-		route.continue();
+	private async routeRequest(route: Route, request: Request) {
+		this.logRequest(request, 'route');
+		// biome-disable-next-line @typescript-eslint/no-floating-promises
+		await route.continue();
 	}
 
-	private async logResponse(response: Response): Promise<void> {
+	private logResponse(response: Response) {
 		const frameURL = response.request().frame().url();
 		const etc = {
 			status: response.status(),
@@ -47,7 +53,12 @@ export class PlaywrightEvents {
 		}
 
 		this.log(`response ${etc.status}`, 'response', frameURL, response.url(), etc);
-		return Promise.resolve();
+		return ;
+	}
+	private framenavigated(frame) {
+		if (frame === this.page.mainFrame()) {
+			this.world.shared.setForStepper('WebPlaywright', { term: 'currentURI', value: frame.url(), domain: DOMAIN_STRING, origin: 'fallthrough' }, { in: 'PlaywrightEvents.framenavigated', seq: [], when: 'framenavigated' });
+		}
 	}
 	public close(): void {
 		this.page.off('request', this.logRequest.bind(this));
@@ -76,6 +87,6 @@ export class PlaywrightEvents {
 			artifacts: [artifact],
 			tag: this.tag
 		};
-		this.logger.debug(`playwright ${label} ${shortenURI(logData.requestingURL)} ➔ ${targetWithoutRequestingBase}`, mc);
+		this.world.logger.debug(`playwright ${label} ${shortenURI(logData.requestingURL)} ➔ ${targetWithoutRequestingBase}`, mc);
 	}
 }

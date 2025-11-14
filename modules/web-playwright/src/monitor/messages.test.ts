@@ -48,12 +48,13 @@ describe('Monitor Messages Logic (messages.ts)', () => {
 
 		it('should display a modified summary message when context provides it', () => {
 			const level = 'debug';
-			const message = 'Action';
+			// In reality, the message from Executor already contains featureStep.in
+			const message = '✅ [1] Given something';
 			const mockTag: TTag = createMockTag();
 			const mockStepAction: TStepAction = { actionName: 'testAction', stepperName: 'testStepper', step: { action: async () => Promise.resolve(OK) } };
-			const mockFeatureStep: TFeatureStep = { path: 'test.feature', in: 'Given something', seq: 1, action: mockStepAction };
+			const mockFeatureStep: TFeatureStep = { path: 'test.feature', in: 'Given something', seqPath: [1], action: mockStepAction };
 			const mockActionResult: TStepActionResult = { ok: true, name: 'testAction' };
-			const mockStepResult: TStepResult = { ok: true, stepActionResult: mockActionResult, in: 'Given something', path: 'test.feature', seq: 1 };
+			const mockStepResult: TStepResult = { ok: true, stepActionResult: mockActionResult, in: 'Given something', path: 'test.feature', seqPath: [1] };
 
 			const context: TMessageContext = {
 				incident: EExecutionMessageType.STEP_END,
@@ -71,15 +72,14 @@ describe('Monitor Messages Logic (messages.ts)', () => {
 			const details = element.querySelector('.haibun-context-details');
 			expect(details).not.toBeNull();
 			const summary = details?.querySelector('.haibun-log-message-summary');
-			expect(summary?.textContent).toContain('Action Given something');
+			// The summary should show the message as-is (which already contains the step text)
+			expect(summary?.textContent).toContain('Given something');
 			expect(summary?.querySelector('.details-type')?.textContent).toBe('STEP END');
 			expect(messageContent?.classList.contains('haibun-simple-message')).toBe(false);
 
 			expect(details?.querySelector('.haibun-message-details-json')).not.toBeNull();
 			expect(details?.querySelector('.haibun-incident-type')).toBeNull();
-		});
-
-		it('should throw if artifact type is not recognized', () => {
+		}); it('should throw if artifact type is not recognized', () => {
 			const artifact = <TArtifact>(<unknown>{ artifactType: 'notAThing' });
 			const mockTagGeneric: TTag = createMockTag();
 			const context: TMessageContext = {

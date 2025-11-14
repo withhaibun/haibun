@@ -2,7 +2,7 @@ import { TResolvedFeature } from '../defs.js';
 import { TAnyFixme } from '../fixme.js';
 import { TTag } from '../ttag.js';
 
-export type TLogLevel = 'none' | 'debug' | 'log' | 'info' | 'warn' | 'error';
+export type TLogLevel = 'none' | 'debug' | 'trace' | 'log' | 'info' | 'warn' | 'error';
 export type TLogArgs = string;
 
 export type TMessageContext = {
@@ -34,10 +34,12 @@ export enum EExecutionMessageType {
 	EXECUTION_END = 'EXECUTION_END',
 	ON_FAILURE = 'ON_FAILURE',
 	DEBUG = "DEBUG",
+	EXECUTION_DEPTH_LIMIT_EXCEEDED = 'EXECUTION_DEPTH_LIMIT_EXCEEDED',
 }
 
 export interface ILogger {
 	debug: (what: TLogArgs, ctx?: TMessageContext) => void;
+	trace: (what: TLogArgs, ctx?: TMessageContext) => void;
 	log: (what: TLogArgs, ctx?: TMessageContext) => void;
 	info: (what: TLogArgs, ctx?: TMessageContext) => void;
 	warn: (what: TLogArgs, ctx?: TMessageContext) => void;

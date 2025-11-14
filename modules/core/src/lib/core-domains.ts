@@ -1,5 +1,5 @@
 import { AStepper } from "./astepper.js";
-import { TFeatureStep, TStepValue, TStepValueValue, TWorld } from "./defs.js";
+import { TFeatureStep, TStepValue, TWorld } from "./defs.js";
 import { DOMAIN_STATEMENT, DOMAIN_STRING, DOMAIN_NUMBER, DOMAIN_JSON } from './domain-types.js';
 import { findFeatureStepsFromStatement } from "./util/featureStep-executor.js";
 
@@ -20,17 +20,16 @@ export const getCoreDomains = (world: TWorld) => ({
 		coerce: (proto: TStepValue) => {
 			if (typeof proto.value !== 'string') throw new Error(`invalid json '${String(proto.value)}'`);
 			try {
-				JSON.parse(proto.value);
-				return proto.value;
-			}
-			catch { throw new Error(`invalid json '${proto.value}'`); }
+				return JSON.parse(proto.value);
+			} catch { throw new Error(`invalid json '${proto.value}'`); }
 		}
 	},
 	[DOMAIN_STATEMENT]: {
 		coerce: (proto: TStepValue, featureStep: TFeatureStep, steppers: AStepper[]) => {
 			const lbl = String(proto.value);
 			const seqStart = featureStep.seqPath;
-			return <TStepValueValue>findFeatureStepsFromStatement(lbl, steppers, world, `<${DOMAIN_STATEMENT}.${lbl}>`, [...seqStart, 0], -1);
+			// Use the featureStep's path as the base so non-background statements get the correct path
+			return findFeatureStepsFromStatement(lbl, steppers, world, featureStep.path, [...seqStart, 0], -1);
 		}
 	}
 });

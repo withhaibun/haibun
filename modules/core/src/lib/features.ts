@@ -6,26 +6,27 @@ export async function expand({ features, backgrounds }: { features: TFeatures, b
 	return expandedFeatures;
 }
 // Expand backgrounds by prepending 'upper' features to 'lower' features
+// biome-ignore lint/suspicious/useAwait: it's nice to be able to .catch this inline
 export async function expandFeatures(features: TFeature[], backgrounds: TFeature[]): Promise<TExpandedFeature[]> {
 	const expandeds: TExpandedFeature[] = [];
 
 	for (const feature of features) {
-		const expanded = await expandIncluded(feature as TFeature, backgrounds);
+		const expanded = expandIncluded(feature as TFeature, backgrounds);
 		const ex: TExpandedFeature = { path: feature.path, base: feature.base, name: feature.name, expanded };
 		expandeds.push(ex);
 	}
 
-	return expandeds;
+	return Promise.resolve(expandeds);
 }
 
-export async function expandIncluded(feature: TFeature, backgrounds: TFeatures) {
+function expandIncluded(feature: TFeature, backgrounds: TFeatures) {
 	const lines: TExpandedLine[] = [];
 	const split = featureSplit(feature.content);
 	for (const l of split) {
 		lines.push(...expandLine(l, backgrounds, feature));
 	}
 
-	return Promise.resolve(lines);
+	return lines;
 }
 
 export const asFeatureLine = (line: string, feature: TFeature): TExpandedLine => ({ line, feature });
@@ -50,7 +51,7 @@ function doIncludes(input: string, backgrounds: TFeatures) {
 	for (const l of includes) {
 		const bg = findFeatures(l, backgrounds);
 		if (bg.length !== 1) {
-			throw Error(`can't find single "${l}.feature" from ${backgrounds.map((b) => b.path).join(', ')}`);
+			throw Error(`can't find single "${l}.feature" from ${backgrounds?.map((b) => b.path).join(', ')}`);
 		}
 		const origin = bg[0];
 		for (const l of featureSplit(origin.content)) {
@@ -62,11 +63,19 @@ function doIncludes(input: string, backgrounds: TFeatures) {
 
 export function findFeatures(name: string, backgrounds: TFeatures, type = 'feature'): TFeatures {
 	const ftype = findFeaturesOfType(backgrounds, type);
-	return ftype.filter((f) => f.path.endsWith(`/${name}.${fileTypeToExt(type)}`));
+	// Match both .feature and .feature.ts extensions
+	return ftype.filter((f) =>
+		f.path.endsWith(`/${name}.${fileTypeToExt(type)}`) ||
+		f.path.endsWith(`/${name}.feature.ts`)
+	);
 }
 
 export function findFeaturesOfType(backgrounds: TFeatures, type = 'feature'): TFeatures {
-	return backgrounds.filter((f) => f.path.endsWith(`.${fileTypeToExt(type)}`));
+	// Match both .feature and .feature.ts files
+	return backgrounds.filter((f) =>
+		f.path.endsWith(`.${fileTypeToExt(type)}`) ||
+		f.path.endsWith('.feature.ts')
+	);
 }
 
 const fileTypeToExt = (type: string) => (type === 'feature' ? 'feature' : `${type}.feature`);

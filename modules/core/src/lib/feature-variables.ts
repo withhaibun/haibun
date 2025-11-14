@@ -1,4 +1,4 @@
-import { TFeatureStep, TOrigin, TProvenanceIdentifier, TStepValue, TStepValueValue, TWorld } from "./defs.js";
+import { TFeatureStep, TOrigin, TProvenanceIdentifier, TStepValue, TWorld } from "./defs.js";
 import { DOMAIN_JSON } from "./domain-types.js";
 
 export class FeatureVariables {
@@ -12,7 +12,7 @@ export class FeatureVariables {
 	}
 
 	all() {
-		return this.values;
+		return { ...this.values };
 	}
 
 	toString() {
@@ -22,7 +22,16 @@ export class FeatureVariables {
 	setJSON(label: string, value: object, origin: TOrigin, source: TFeatureStep) {
 		this.set({ term: label, value: JSON.stringify(value), domain: DOMAIN_JSON, origin }, { in: source.in, seq: source.seqPath, when: `${source.action.stepperName}.${source.action.actionName}` });
 	}
+	setForStepper(stepper: string, sv: TStepValue, provenance: TProvenanceIdentifier) {
+		return this._set({ ...sv, term: `${stepper}.${sv.term}` }, provenance);
+	}
 	set(sv: TStepValue, provenance: TProvenanceIdentifier) {
+		if (sv.term.match(/.*\..*/)) {
+			throw Error('non-stepper variables cannot use dots');
+		}
+		return this._set(sv, provenance);
+	}
+	_set(sv: TStepValue, provenance: TProvenanceIdentifier) {
 		const domain = this.world.domains[sv.domain]
 		if (domain === undefined) {
 			throw Error(`Cannot set variable "${sv.term}": unknown domain "${sv.domain}"`);
@@ -36,9 +45,10 @@ export class FeatureVariables {
 		};
 		this.world.logger.debug(`Set variable "${sv.term}" to "${sv.value}" (domain ${sv.domain}, origin ${sv.origin})`);
 	}
-	get(name: string): TStepValueValue | undefined {
+	get<T>(name: string): T | undefined {
 		if (!this.values[name]) return undefined;
-		return this.values[name].value;
+		const ret = <T>this.world.domains[this.values[name].domain].coerce(this.values[name]);
+		return ret;
 	}
 	getJSON<T>(name: string): T | undefined {
 		if (!this.values[name]) return undefined;

@@ -2,7 +2,7 @@ import { AStepper, IHasCycles, IHasOptions, TStepperSteps } from '../lib/asteppe
 import { IStepperCycles, TActionResult, OK, TWorld, TBeforeStep, TAfterStep, TStepResult, ExecMode, TAfterStepResult, TFeatureStep } from '../lib/defs.js';
 import { TMessageContext, EExecutionMessageType } from '../lib/interfaces/logger.js';
 import { makePrompt } from '../lib/prompter.js';
-import { actionNotOK, actionOK, getStepperOption, stringOrError } from '../lib/util/index.js';
+import { actionNotOK, actionOK, formatCurrentSection, formatCurrentSeqPath, getStepperOption, stringOrError } from '../lib/util/index.js';
 import { resolveAndExecuteStatement } from '../lib/util/featureStep-executor.js';
 
 export enum TDebuggingType {
@@ -14,17 +14,16 @@ const cycles = (debuggerStepper: DebuggerStepper): IStepperCycles => ({
 	async beforeStep({ featureStep }: TBeforeStep) {
 		const { action } = featureStep;
 		if (debuggerStepper.debuggingType === TDebuggingType.StepByStep || debuggerStepper.debugSteppers.includes(action.stepperName)) {
-			const prompt = (debuggerStepper.debugSteppers.includes(action.stepperName)) ? `[Debugging ${action.stepperName}]` : '[Debug]';
-			return debuggerStepper.debugLoop(prompt, ['*', 'step', 'continue'], featureStep, -1);
+			const prompt = (debuggerStepper.debugSteppers.includes(action.stepperName)) ? `Debugging ${action.stepperName}` : 'Debug';
+			return debuggerStepper.debugLoop(`${prompt} ${formatCurrentSection(debuggerStepper.getWorld().runtime)}`, ['*', 'step', 'continue'], featureStep, -1);
 		}
 	},
 	async afterStep({ featureStep, actionResult }: TAfterStep): Promise<TAfterStepResult> {
 		if (!actionResult.ok) {
-			return await debuggerStepper.debugLoop('[Failure]', ['*', 'retry', 'next', 'fail'], featureStep, 1);
+			return await debuggerStepper.debugLoop(`[Failure] ${formatCurrentSection(debuggerStepper.getWorld().runtime)}`, ['*', 'retry', 'next', 'fail'], featureStep, 1);
 		}
 	}
 });
-
 export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions {
 	debuggingType: TDebuggingType = TDebuggingType.Continue;
 	cycles: IStepperCycles = cycles(this);
@@ -77,9 +76,13 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 		let continueLoop = true;
 
 		while (continueLoop) {
-			const response = await this.getWorld().prompter.prompt(makePrompt(`${featureStep.seqPath.join('~')}-${prompt}`, undefined, prompts));
+			const response = await this.getWorld().prompter.prompt(makePrompt(`${formatCurrentSeqPath(featureStep.seqPath)}-${prompt}`, undefined, prompts));
+
+			// If response is undefined (no prompter available), default to 'continue'
+			const responseStr = response === undefined ? 'continue' : response.toString();
+
 			try {
-				promptResult = await resolveAndExecuteStatement(response.toString(), '<debugger>', this.steppers, this.getWorld(), ExecMode.PROMPT, seqStart);
+				promptResult = await resolveAndExecuteStatement(responseStr, '<debugger>', this.steppers, this.getWorld(), ExecMode.PROMPT, seqStart);
 				const details = promptResult.stepActionResult.messageContext?.incidentDetails;
 				if (details?.step || details?.continue || details?.fail || details?.rerunStep || details?.nextStep) {
 					continueLoop = false;
@@ -88,12 +91,12 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 					seqStart = [...seqStart.slice(0, -1), nextLast];
 				}
 			} catch (e) {
-				this.getWorld().logger.error(`Failed to execute debug prompt command '${response}': ${e.message}`);
+				this.getWorld().logger.error(`Failed to execute debug prompt command '${responseStr}': ${e.message}`);
 			}
 		}
 		return promptResult.stepActionResult.messageContext?.incidentDetails;
 	}
-	steps: TStepperSteps = {
+	steps = {
 		f: {
 			expose: false,
 			exact: 'f',
@@ -198,7 +201,7 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 				return Promise.resolve(OK);
 			}
 		}
-	};
+	} satisfies TStepperSteps;
 
 	async retry(): Promise<TActionResult> {
 		this.getWorld().logger.info('retry');

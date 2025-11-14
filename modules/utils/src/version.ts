@@ -46,7 +46,7 @@ class Versioner {
 		this.updateSourceCurrentVersion();
 		await this.gitCommit('haibun', '.', ['./modules/core/src/currentVersion.ts']);
 		await this.forLocalAndExtraModules(this.npmInstall);
-		// eslint-disable-next-line @typescript-eslint/no-misused-promises
+		// biome-disable-next-line @typescript-eslint/no-misused-promises
 		await this.forLocalAndExtraModules(this.runTest);
 		await this.forLocalAndExtraModules(this.gitCommit);
 		await this.forLocalAndExtraModules(this.npmPublish);
@@ -125,7 +125,7 @@ class Versioner {
 
 	updateDependencies(dependencies: { [key: string]: string }) {
 		for (const d in dependencies) {
-			if (Object.prototype.hasOwnProperty.call(dependencies, d)) {
+			if (Object.hasOwn(dependencies, d)) {
 				if (d.startsWith('@haibun/')) {
 					dependencies[d] = this.version;
 				}

@@ -66,20 +66,9 @@ export abstract class AStorage extends AStepper {
 		}
 	}
 
-	async latestFrom(dir: string) {
-		const orderReccentFiles = async (dir: string) =>
-			(await this.readdirStat(dir)).filter((f) => f.isFile).sort((a, b) => b.created - a.created);
-		return Promise.resolve(orderReccentFiles(dir)[0]);
-	}
-
 	abstract mkdir(dir: string);
 	abstract mkdirp(dir: string);
 	abstract exists(ntt: string);
-
-	// eslint-disable-next-line @typescript-eslint/require-await
-	async rmrf(dir: string) {
-		throw Error(`rmrf not implemented at ${dir}`);
-	}
 
 	fromCaptureLocation(mediaType: TMediaType, ...where: string[]) {
 		return this.fromLocation(mediaType, ...[`./${CAPTURE}`, ...where]);
@@ -104,6 +93,7 @@ export abstract class AStorage extends AStepper {
 		return pathIn.replace(loc, '.');
 	}
 
+	// biome-ignore lint/suspicious/useAwait: may be async in some implementations
 	async getCaptureLocation(loc: TLocationOptions, app?: string) {
 		const { tag } = loc;
 		const location = this.locator(loc.options, tag, app);
@@ -121,6 +111,7 @@ export abstract class AStorage extends AStepper {
 		await this.ensureDirExists(dir);
 		return `${dir}/${fn}`;
 	}
+	// biome-ignore lint/suspicious/useAwait: may be async in some implementations
 	async ensureDirExists(dir: string) {
 		if (!this.exists(dir)) {
 			try {
@@ -135,49 +126,49 @@ export abstract class AStorage extends AStepper {
 	steps = {
 		createSizedFile: {
 			gwta: `create {x}MB file at {where} with {what}`,
-				action: async ({ where, what }: TStepArgs) => {
+			action: async ({ where, what }: TStepArgs) => {
 				await this.writeFile(String(where), String(what), EMediaTypes.html);
 				return OK;
 			},
 		},
 		createFile: {
 			gwta: `create file at {where} with {what}`,
-				action: async ({ where, what }: TStepArgs) => {
+			action: async ({ where, what }: TStepArgs) => {
 				await this.writeFile(String(where), String(what), EMediaTypes.html);
 				return OK;
 			},
 		},
 		createDirectory: {
 			gwta: `create directory at {where}`,
-				action: async ({ where }: TStepArgs) => {
+			action: async ({ where }: TStepArgs) => {
 				await this.mkdirp(String(where));
 				return OK;
 			},
 		},
 		filesCount: {
 			gwta: `directory {where} has {count} files`,
-				action: async ({ where, count }: TStepArgs) => {
+			action: async ({ where, count }: TStepArgs) => {
 				const files = await this.readdir(String(where));
 				return files.length === parseInt(String(count)) ? OK : actionNotOK(`directory ${where} has ${files.length} files`);
 			},
 		},
 		testIs: {
 			gwta: `text at {where} is {what}`,
-				action: async ({ where, what }: TStepArgs) => {
+			action: async ({ where, what }: TStepArgs) => {
 				const text = await this.readFile(String(where), 'utf-8');
 				return text === String(what) ? OK : actionNotOK(`text at ${where} is not ${what}; it's ${text}`);
 			},
 		},
 		testContains: {
 			gwta: `text at {where} contains {what}`,
-				action: async ({ where, what }: TStepArgs) => {
+			action: async ({ where, what }: TStepArgs) => {
 				const text = await this.readFile(String(where), 'utf-8');
 				return text.toString().indexOf(String(what)) > -1 ? OK : actionNotOK(`text at ${where} does not contain ${what}; it's ${text}`);
 			},
 		},
 		readText: {
 			gwta: `read text from {where}`,
-				action: async ({ where }: TStepArgs) => {
+			action: async ({ where }: TStepArgs) => {
 				const text = await this.readFile(String(where), 'utf-8');
 				this.getWorld().logger.info(text);
 				return OK;
@@ -185,42 +176,25 @@ export abstract class AStorage extends AStepper {
 		},
 		listFiles: {
 			gwta: `list files from {where}`,
-				action: async ({ where }: TStepArgs) => {
+			action: async ({ where }: TStepArgs) => {
 				const files = await this.readdir(String(where));
 				this.getWorld().logger.info(`files from ${where}: ${files.join(', ')}`);
 				return OK;
 			},
 		},
-		clearFiles: {
-			gwta: `clear files matching {where}`,
-				action: async ({ where }: TStepArgs) => {
-				const dirs = String(where).split(',').map((d) => d.trim());
-				for (const dir of dirs) {
-					await this.rmrf(dir);
-				}
-				return OK;
-			},
-		},
 		fileExists: {
 			gwta: `storage entry {what} exists`,
-				action: async ({ what }: TStepArgs) => {
+			action: ({ what }: TStepArgs) => {
 				const exists = this.exists(String(what));
 				return Promise.resolve(exists ? OK : actionNotOK(`file ${what} does not exist`));
 			},
 		},
-		clearAllFiles: {
-			exact: `clear files`,
-			action: async () => {
-				await this.rmrf('');
-				return OK;
-			},
-		},
 		isTheSame: {
 			gwta: `{what} is the same as {where}`,
-				action: async ({ what, where }: TStepArgs) => {
+			action: ({ what, where }: TStepArgs) => {
 				const c1 = this.readFile(String(what), 'binary');
 				const c2 = this.readFile(String(where), 'binary');
-				return Promise.resolve(Buffer.from(c1)?.equals(Buffer.from(c2)) ? OK : actionNotOK(`contents are not the same ${what} ${where}`));
+				return Buffer.from(c1)?.equals(Buffer.from(c2)) ? OK : actionNotOK(`contents are not the same ${what} ${where}`);
 			},
 		},
 	};

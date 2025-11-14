@@ -17,13 +17,6 @@ const TestSteps = class TestSteps extends AStepper {
 			exact: 'passes',
 			action: async () => Promise.resolve(actionOK()),
 		},
-		named: {
-			gwta: 'parameter {param} is accepted',
-			action: async ({ param }: TStepArgs) => {
-				if (Array.isArray(param)) throw new Error('param must be string');
-				return Promise.resolve(param === 'x' ? actionOK() : actionNotOK('test'));
-			},
-		},
 		throws: {
 			gwta: 'throw an exception',
 			action: () => {

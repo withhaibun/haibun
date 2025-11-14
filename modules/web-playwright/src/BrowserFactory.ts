@@ -1,6 +1,6 @@
 import { Browser, BrowserContext, Page, chromium, firefox, webkit, BrowserType, devices, BrowserContextOptions, LaunchOptions } from 'playwright';
 
-import { TArtifactVideoStart, EExecutionMessageType, TMessageContext } from '@haibun/core/lib/interfaces/logger.js';
+import { EExecutionMessageType, TMessageContext } from '@haibun/core/lib/interfaces/logger.js';
 import { PlaywrightEvents } from './PlaywrightEvents.js';
 import { TWorld } from '@haibun/core/lib/defs.js';
 import { TTagValue, TTag } from '@haibun/core/lib/ttag.js';
@@ -42,9 +42,9 @@ export class BrowserFactory {
 
 	private constructor(private world: TWorld) { }
 
-	static async getBrowserFactory(world: TWorld, tagConfig: TTaggedBrowserFactoryOptions, tag = DEFAULT_CONFIG_TAG) {
+	static getBrowserFactory(world: TWorld, tagConfig: TTaggedBrowserFactoryOptions, tag = DEFAULT_CONFIG_TAG) {
 		BrowserFactory.configs[tag] = tagConfig;
-		return Promise.resolve(new BrowserFactory(world));
+		return new BrowserFactory(world);
 	}
 
 	public async getBrowser(type: string, tag = DEFAULT_CONFIG_TAG): Promise<Browser> {
@@ -130,7 +130,7 @@ export class BrowserFactory {
 		const context = await this.getBrowserContextWithSequence(sequence);
 		page = await context.newPage();
 
-		const tracer = new PlaywrightEvents(this.world.logger, page, tag);
+		const tracer = await (new PlaywrightEvents(this.world, page, tag)).init();
 
 		this.pages[pageKey] = page;
 		this.tracers[sequence] = tracer;

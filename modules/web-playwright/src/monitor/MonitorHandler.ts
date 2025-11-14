@@ -1,7 +1,7 @@
 import { join, resolve } from 'path';
 import { existsSync } from 'fs';
 import { pathToFileURL } from 'url';
-import { chromium, Page } from 'playwright';
+import { BrowserContext, chromium, Page } from 'playwright';
 
 import { TWorld } from '@haibun/core/lib/defs.js';
 import { TLogLevel, TLogArgs, TMessageContext, ILogOutput } from '@haibun/core/lib/interfaces/logger.js';
@@ -14,6 +14,7 @@ import { TAnyFixme } from '@haibun/core/lib/fixme.js';
 import { TPromptResponse, TPrompt } from '@haibun/core/lib/prompter.js';
 import { BasePromptManager } from '@haibun/core/lib/base-prompt-manager.js';
 import { TLogEntry } from './monitor.js';
+import WebPlaywright from '../web-playwright.js';
 
 declare global {
 	interface Window {
@@ -28,7 +29,6 @@ declare global {
 }
 
 const monitorLocation = join(getPackageLocation(import.meta), '..', '..', 'web', 'monitor.html');
-const capturedMessages: TLogEntry[] = [];
 
 class ButtonPrompter extends BasePromptManager {
 	private monitorHandler: MonitorHandler;
@@ -85,6 +85,8 @@ export class MonitorHandler {
 	monitorPage: Page;
 	buttonPrompter: ButtonPrompter;
 	steppers: TAnyFixme[]; // Store steppers for statement execution
+	context: BrowserContext;
+	capturedMessages: TLogEntry[] = [];
 
 	constructor(private world: TWorld, private storage: AStorage, private headless: boolean) {
 	}
@@ -100,11 +102,16 @@ export class MonitorHandler {
 		}, resolve(await this.getMonitorLoc()));
 	}
 
-	async initMonitor() {
-		this.world.logger.info(`Creating new monitor page`);
+	async initMonitorContext() {
 		const browser = await chromium.launch({ headless: this.headless });
-		const context = await browser.newContext();
-		this.monitorPage = await context.newPage();
+		this.context = await browser.newContext();
+	}
+	createMonitorPage = async (wp: WebPlaywright) => {
+		// Reset captured messages for each new monitor page
+		this.capturedMessages = [];
+
+		// Create a new tab in the current context
+		this.monitorPage = await this.context.newPage();
 
 		this.buttonPrompter = new ButtonPrompter(this);
 		await this.monitorPage.exposeFunction('haibunResolvePrompt', (id: string, response: TPromptResponse) => {
@@ -131,12 +138,14 @@ export class MonitorHandler {
 					timestamp: Date.now()
 				}
 
-				capturedMessages.push(logEntry)
+				this.capturedMessages.push(logEntry)
 				void this.inMonitor<string>((entry) => {
 					window.receiveLogData(JSON.parse(entry) as TLogEntry)
 				}, JSON.stringify(logEntry));
 			}
 		};
+		this.world.logger.addSubscriber(this.subscriber);
+		wp.closers.push(() => this.world.logger.removeSubscriber(this.subscriber));
 		this.world.prompter.subscribe(this.buttonPrompter);
 	}
 	async getMonitorLoc() {
@@ -164,7 +173,7 @@ export class MonitorHandler {
 		const content = (await this.monitorPage.content()) + `
 <script>
 window.haibunStaticPage = true;
-window.haibunCapturedMessages = ${JSON.stringify(capturedMessages, null, 2)};
+window.haibunCapturedMessages = ${JSON.stringify(this.capturedMessages, null, 2)};
 document.getElementById('haibun-log-display-area').innerHTML = '';
 </script>
 `;
@@ -173,7 +182,7 @@ document.getElementById('haibun-log-display-area').innerHTML = '';
 		this.world.logger.info(`Writing monitor HTML to ${monitorPath}`);
 		await this.storage.writeFile(outHtmlFile, content, EMediaTypes.html);
 		const outMessages = join(await this.getMonitorLoc(), 'monitor.json');
-		await this.storage.writeFile(outMessages, JSON.stringify(capturedMessages, null, 2), EMediaTypes.html);
+		await this.storage.writeFile(outMessages, JSON.stringify(this.capturedMessages, null, 2), EMediaTypes.html);
 	}
 	async inMonitor<T>(toRun: (p: T) => void, context?: TAnyFixme) {
 		await this.monitorPage.evaluate(toRun, context);

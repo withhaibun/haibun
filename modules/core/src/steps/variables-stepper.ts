@@ -4,10 +4,11 @@ import { AStepper, IHasCycles, TStepperSteps } from '../lib/astepper.js';
 import { actionNotOK, actionOK } from '../lib/util/index.js';
 import { FeatureVariables } from '../lib/feature-variables.js';
 import { DOMAIN_STRING } from '../lib/domain-types.js';
+import { EExecutionMessageType } from '../lib/interfaces/logger.js';
 
-const clearVars = (vars) => async () => {
+const clearVars = (vars) => () => {
 	vars.getWorld().shared.clear();
-	return Promise.resolve();
+	return;
 };
 
 const cycles = (variablesStepper: VariablesStepper): IStepperCycles => ({
@@ -16,7 +17,6 @@ const cycles = (variablesStepper: VariablesStepper): IStepperCycles => ({
 		variablesStepper.getWorld().shared = new FeatureVariables(variablesStepper.getWorld(), { ...featureVars.all() });
 		return Promise.resolve();
 	},
-	endScenario: clearVars(variablesStepper),
 });
 
 class VariablesStepper extends AStepper implements IHasCycles {
@@ -45,12 +45,11 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		return actionNotOK(`${what} not set`);
 	}
 
-	// Steps
-	steps: TStepperSteps = {
+	steps = {
 		combineAs: {
 			gwta: 'combine {p1} and {p2} as {domain} to {what}',
 			precludes: [`${VariablesStepper.name}.combine`],
-			action: async ({ p1, p2, domain }: { p1: string, p2: string, domain: string }, featureStep: TFeatureStep) => {
+			action: ({ p1, p2, domain }: { p1: string, p2: string, domain: string }, featureStep: TFeatureStep) => {
 				const { term } = featureStep.action.stepValuesMap.what;
 				this.getWorld().shared.set({ term: String(term), value: `${p1}${p2}`, domain, origin: Origin.var }, provenanceFromFeatureStep(featureStep));
 				return Promise.resolve(OK);
@@ -58,16 +57,41 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		},
 		combine: {
 			gwta: 'combine {p1} and {p2} to {what}',
-			action: async ({ p1, p2 }: TStepArgs, featureStep: TFeatureStep) => {
+			action: ({ p1, p2 }: TStepArgs, featureStep: TFeatureStep) => {
 				const { term } = featureStep.action.stepValuesMap.what;
 				this.getWorld().shared.set({ term: String(term), value: `${p1}${p2}`, domain: DOMAIN_STRING, origin: Origin.var }, provenanceFromFeatureStep(featureStep));
+				return Promise.resolve(OK);
+			}
+		},
+		increment: {
+			gwta: 'increment {what}',
+			action: ({ what }: { what: string }, featureStep: TFeatureStep) => {
+				void what; // used for type checking
+				const { term, domain } = featureStep.action.stepValuesMap.what;
+				const presentVal = this.getVarValue(term);
+				let newVal: number;
+				if (presentVal === undefined) {
+					newVal = 0;
+				} else {
+					const numVal = Number(presentVal);
+					if (isNaN(numVal)) {
+						return actionNotOK(`cannot increment non-numeric variable ${term} with value "${presentVal}"`);
+					}
+					newVal = numVal + 1;
+				}
+				this.getWorld().shared.set({ term: String(term), value: newVal, domain, origin: Origin.var }, provenanceFromFeatureStep(featureStep));
+				const messageContext = {
+					incident: EExecutionMessageType.ACTION,
+					incidentDetails: { json: { incremented: { [term]: newVal } } },
+				}
+				this.getWorld().logger.info(`incremented ${term} to ${newVal}`, messageContext);
 				return Promise.resolve(OK);
 			}
 		},
 		showEnv: {
 			gwta: 'show env',
 			expose: false,
-			action: async () => {
+			action: () => {
 				// only available locally since it might contain sensitive info.
 				console.info('env', this.world.options.envVariables);
 				return Promise.resolve(OK);
@@ -75,14 +99,15 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		},
 		showVars: {
 			gwta: 'show vars',
-			action: async () => {
+			action: () => {
 				console.info('vars', this.getWorld().shared.all());
 				return Promise.resolve(actionOK({ artifact: { artifactType: 'json', json: { vars: this.getWorld().shared.all() } } }));
 			},
 		},
 		set: {
 			gwta: 'set( empty)? {what: string} to {value: string}',
-			action: async (args: TStepArgs, featureStep: TFeatureStep) => {
+			precludes: ['Haibun.prose'],
+			action: (args: TStepArgs, featureStep: TFeatureStep) => {
 				const emptyOnly = !!featureStep.in.match(/set empty /);
 				const { term, domain, origin } = featureStep.action.stepValuesMap.what;
 
@@ -97,7 +122,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		setAs: {
 			gwta: 'set( empty)? {what: string} as {domain: string} to {value: string}',
 			precludes: [`${VariablesStepper.name}.set`],
-			action: async ({ value, domain }: { value: string, domain: string }, featureStep: TFeatureStep) => {
+			action: ({ value, domain }: { value: string, domain: string }, featureStep: TFeatureStep) => {
 				const emptyOnly = !!featureStep.in.match(/set empty /);
 				const { term, origin } = featureStep.action.stepValuesMap.what;
 
@@ -112,7 +137,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		setRandom: {
 			precludes: [`${VariablesStepper.name}.set`],
 			gwta: `set( empty)? {what: string} to {length: number} random characters`,
-			action: async ({ length }: { length: number }, featureStep: TFeatureStep) => {
+			action: ({ length }: { length: number }, featureStep: TFeatureStep) => {
 				const emptyOnly = !!featureStep.in.match(/set empty /);
 				const { term } = featureStep.action.stepValuesMap.what;
 
@@ -134,17 +159,22 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		},
 		is: {
 			gwta: 'variable {what} is {value}',
-			action: ({ value }: TStepArgs, featureStep: TFeatureStep) => {
-				const { term } = featureStep.action.stepValuesMap.what;
+			action: ({ what, value }: { what: string, value: string }, featureStep: TFeatureStep) => {
+				void what; // used for type checking
+				const { term, domain } = featureStep.action.stepValuesMap.what;
 				const val = this.getVarValue(term);
-
-				return val === value ? OK : actionNotOK(`${term} is "${val}", not "${value}"`);
+				const asDomain = this.getWorld().domains[domain].coerce({ domain, value, term, origin: 'quoted' })
+				return JSON.stringify(val) === JSON.stringify(asDomain) ? OK : actionNotOK(`${term} is ${JSON.stringify(val)}, not ${JSON.stringify(value)}`);
 			}
 		},
 		isSet: {
 			precludes: ['VariablesStepper.is'],
 			gwta: 'variable {what: string} is set',
-			action: ({ what }: TStepArgs) => this.isSet(what as string)
+			action: ({ what }: TStepArgs, featureStep: TFeatureStep) => {
+				// Use term from stepValuesMap when available (normal execution), fall back to what for kireji
+				const term = featureStep?.action?.stepValuesMap?.what?.term ?? what;
+				return this.isSet(term as string);
+			}
 		},
 		showVar: {
 			gwta: 'show var {what}',
@@ -154,12 +184,12 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				if (!stepValue) {
 					this.getWorld().logger.info(`is undefined`);
 				} else {
-					this.getWorld().logger.info(`is ${JSON.stringify({ ...stepValue, provenance: stepValue.provenance.map((p, i) => ({ [i]: p })) }, null, 2)}`);
+					this.getWorld().logger.info(`is ${JSON.stringify({ ...stepValue, provenance: stepValue.provenance.map((p, i) => ({ [i]: { in: p.in, seq: p.seq.join(','), when: p.when } })) }, null, 2)}`);
 				}
 				return actionOK({ artifact: { artifactType: 'json', json: { json: stepValue } } });
 			}
 		},
-	};
+	} satisfies TStepperSteps;
 }
 
 export default VariablesStepper;

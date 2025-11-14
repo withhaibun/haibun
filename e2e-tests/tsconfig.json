@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "esModuleInterop": true,
+    "baseUrl": ".",
+    "skipLibCheck": true,
+    "strict": true,
+    "resolveJsonModule": true,
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "preserveSymlinks": true,
+    "paths": {
+      "@haibun/*": ["../modules/*/build", "../modules/*"]
+    },
+    "types": [
+      "node",
+      "@playwright/test"
+    ],
+    "lib": [
+      "ES2022",
+      "DOM"
+    ]
+  },
+  "exclude": [
+    "node_modules",
+  ]
+}

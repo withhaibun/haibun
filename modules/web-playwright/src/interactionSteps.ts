@@ -12,11 +12,11 @@ import { actionOK } from "@haibun/core/lib/util/index.js";
 import { pathToFileURL } from 'node:url';
 import { TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { provenanceFromFeatureStep } from "@haibun/core/steps/variables-stepper.js";
-import { doExecuteFeatureSteps } from "@haibun/core/lib/util/featureStep-executor.js";
+import { executeFeatureSteps } from "@haibun/core/lib/util/featureStep-executor.js";
 
 const DOMAIN_STRING_OR_PAGE_LOCATOR = `${DOMAIN_STRING} | ${DOMAIN_PAGE_LOCATOR}`;
 
-export const interactionSteps = (wp: WebPlaywright): TStepperSteps => ({
+export const interactionSteps = (wp: WebPlaywright) => ({
 	// INPUT
 	press: {
 		gwta: 'press {key}',
@@ -35,6 +35,7 @@ export const interactionSteps = (wp: WebPlaywright): TStepperSteps => ({
 	inputVariable: {
 		gwta: `input {what} for {field: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}`,
 		action: async ({ what, field }: { what: string; field: string }, featureStep: TFeatureStep) => {
+			void field;
 			await wp.withPage(async (page: Page) => await locateByDomain(page, featureStep, 'field').fill(what));
 			return OK;
 		},
@@ -42,6 +43,7 @@ export const interactionSteps = (wp: WebPlaywright): TStepperSteps => ({
 	selectionOption: {
 		gwta: `select {option} for {field: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}`,
 		action: async ({ option, field }: { option: string; field: string }, featureStep: TFeatureStep) => {
+			void field;
 			await wp.withPage(async (page: Page) => await locateByDomain(page, featureStep, 'field').selectOption({ label: option }));
 			return OK;
 		},
@@ -77,28 +79,12 @@ export const interactionSteps = (wp: WebPlaywright): TStepperSteps => ({
 			try {
 				await wp.withPage(async (page: Page) => await locateByDomain(page, featureStep, 'target').waitFor());
 				return OK;
-			} catch (e) {
+			} catch {
 				return actionNotOK(`Did not find ${target}`);
 			}
 		},
 	},
 
-	createMonitor: {
-		expose: false,
-		gwta: 'create monitor',
-		action: async () => {
-			await wp.createMonitor();
-			return OK;
-		},
-	},
-	finishMonitor: {
-		expose: false,
-		gwta: 'finish monitor',
-		action: async () => {
-			await WebPlaywright.monitorHandler.writeMonitor();
-			return OK;
-		},
-	},
 	onNewTab: {
 		gwta: `on a new tab`,
 		action: () => {
@@ -213,6 +199,7 @@ export const interactionSteps = (wp: WebPlaywright): TStepperSteps => ({
 	click: {
 		gwta: `click {target: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}`,
 		action: async ({ target }: { target: string }, featureStep) => {
+			void target; // used for type checking
 			await wp.withPage(async (page: Page) => {
 				return await locateByDomain(page, featureStep, 'target').click();
 			});
@@ -225,7 +212,7 @@ export const interactionSteps = (wp: WebPlaywright): TStepperSteps => ({
 			return await wp.withPage(async (page: Page) => {
 				const containerLocator = locateByDomain(page, featureStep, 'container');
 				wp.inContainer = containerLocator;
-				const whenResult = await doExecuteFeatureSteps(what, [wp], wp.getWorld(), ExecMode.CYCLES);
+				const whenResult = await executeFeatureSteps(what, [wp], wp.getWorld(), ExecMode.WITH_CYCLES);
 				wp.inContainer = undefined;
 				return whenResult;
 			});
@@ -297,6 +284,7 @@ export const interactionSteps = (wp: WebPlaywright): TStepperSteps => ({
 	blur: {
 		gwta: `blur {what: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}`,
 		action: async ({ what }: { what: string }, featureStep: TFeatureStep) => {
+			void what;
 			await wp.withPage(async (page: Page) => await locateByDomain(page, featureStep, 'what').evaluate((e) => e.blur()));
 			return OK;
 		},
@@ -317,6 +305,7 @@ export const interactionSteps = (wp: WebPlaywright): TStepperSteps => ({
 	uploadFile: {
 		gwta: `upload file {file} using {selector: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}`,
 		action: async ({ file, selector }: { file: string; selector: string }, featureStep: TFeatureStep) => {
+			void selector;
 			await wp.withPage(async (page: Page) => await locateByDomain(page, featureStep, 'selector').setInputFiles(file));
 			return OK;
 		},
@@ -325,6 +314,7 @@ export const interactionSteps = (wp: WebPlaywright): TStepperSteps => ({
 	waitForFileChooser: {
 		gwta: `upload file {file} with {selector: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}`,
 		action: async ({ file, selector }: { file: string; selector: string }, featureStep: TFeatureStep) => {
+			void selector;
 			try {
 				await wp.withPage(async (page: Page) => {
 					const [fileChooser] = await Promise.all([
@@ -523,7 +513,7 @@ export const interactionSteps = (wp: WebPlaywright): TStepperSteps => ({
 			return OK;
 		},
 	}
-});
+} as const satisfies TStepperSteps);
 
 
 function locateByDomain(page: Page, featureStep: TFeatureStep, where: string) {

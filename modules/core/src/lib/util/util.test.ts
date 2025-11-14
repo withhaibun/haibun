@@ -1,11 +1,11 @@
 import { describe, it, test, expect } from 'vitest';
 
 import * as util from './index.js';
-import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, getCreateSteppers, TEST_BASE } from '../test/lib.js';
+import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, getCreateSteppers } from '../test/lib.js';
 import TestSteps from '../test/TestSteps.js';
 import TestStepsWithOptions from '../test/TestStepsWithOptions.js';
 import { withNameType } from '../features.js';
-import { OK } from '../defs.js';
+import { OK, TEST_BASE } from '../defs.js';
 import { TAnyFixme } from '../fixme.js';
 import { IHasOptions } from '../astepper.js';
 import { AStepper } from '../astepper.js';
@@ -66,7 +66,7 @@ describe('findStepperFromOptions', () => {
 		expect(constructorName(<AStepper>s)).toBe('TestSteps');
 	});
 	it('throws for not found stepper', async () => {
-		const ts = (await util.createSteppers([TestOptionsStepper]))[0];
+		const ts = util.createSteppers([TestOptionsStepper])[0];
 		const steppers = await getCreateSteppers([], [TestOptionsStepper]);
 		const options = {};
 		expect(() => util.findStepperFromOption(steppers, ts, options, 'S')).toThrow;
@@ -74,7 +74,7 @@ describe('findStepperFromOptions', () => {
 });
 
 describe('verifyRequiredOptions', () => {
-	class TestOptionsStepperWithReauired extends AStepper implements IHasOptions {
+	class TestOptionsStepperWithRequired extends AStepper implements IHasOptions {
 		options = {
 			A: {
 				required: true,
@@ -94,17 +94,17 @@ describe('verifyRequiredOptions', () => {
 			},
 		};
 	}
-	it('has option', async () => {
-		const toswq = new TestOptionsStepperWithReauired();
+	it('has option', () => {
+		const toswq = new TestOptionsStepperWithRequired();
 		const options = { [util.getStepperOptionName(toswq, 'A')]: 'TestSteps' };
-		await expect(util.verifyRequiredOptions([TestOptionsStepperWithReauired], options)).resolves.not.toThrow();
+		expect(() => util.verifyRequiredOptions([TestOptionsStepperWithRequired], options)).not.toThrow();
 	});
-	it('throws for missing option', async () => {
-		await expect(util.verifyRequiredOptions([TestOptionsStepperWithReauired], {})).rejects.toThrow();
+	it('throws for missing option', () => {
+		expect(() => util.verifyRequiredOptions([TestOptionsStepperWithRequired], {})).toThrow();
 	});
-	it('uses altSource', async () => {
-		const options = { [util.getStepperOptionName(new TestOptionsStepperWithReauired(), 'B')]: 'TestSteps' };
-		await expect(util.verifyRequiredOptions([TestOptionsStepperWithReauired], options)).resolves.not.toThrow();
+	it('uses altSource', () => {
+		const options = { [util.getStepperOptionName(new TestOptionsStepperWithRequired(), 'B')]: 'TestSteps' };
+		expect(() => util.verifyRequiredOptions([TestOptionsStepperWithRequired], options)).not.toThrow();
 	});
 });
 
@@ -113,8 +113,8 @@ describe('getStepperOptions', () => {
 		const conc = util.getStepperOptionValue(HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, 'true', [TestStepsWithOptions]);
 		expect(conc).toBeDefined();
 	});
-	it('throws for unfilled extra', async () => {
-		await expect(async () => util.verifyExtraOptions({ HAIBUN_NE: 'true' }, [])).rejects.toThrow();
+	it('throws for unfilled extra', () => {
+		expect(() => util.verifyExtraOptions({ HAIBUN_NE: 'true' }, [])).toThrow();
 	});
 });
 
@@ -132,8 +132,8 @@ describe('check module is class', () => {
 		expect(util.checkModuleIsClass(class a { }, 'a')).toEqual(undefined);
 	});
 	it('should fail a function', () => {
-		// eslint-disable-next-line @typescript-eslint/no-empty-function
-		expect(() => util.checkModuleIsClass(function a() { }, 'a')).toThrow(undefined);
+		// biome-disable-next-line @typescript-eslint/no-empty-function
+		expect(() => util.checkModuleIsClass(function a() {/* */ }, 'a')).toThrow(undefined);
 	});
 });
 

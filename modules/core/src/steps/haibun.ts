@@ -1,85 +1,161 @@
-import { OK, TFeatureStep, STEP_DELAY, TStepArgs, TWorld, ExecMode } from '../lib/defs.js';
-import { AStepper } from '../lib/astepper.js';
-import { Resolver } from '../phases/Resolver.js';
+import { OK, TFeatureStep, STEP_DELAY, TWorld, ExecMode, TStepResult, IStepperCycles, TFeatures, TResolvedFeature } from '../lib/defs.js';
+import { AStepper, IHasCycles, TStepperSteps } from '../lib/astepper.js';
 import { actionNotOK, actionOK, formattedSteppers, sleep } from '../lib/util/index.js';
-import { doExecuteFeatureSteps } from '../lib/util/featureStep-executor.js';
-import { expand } from '../lib/features.js';
-import { asFeatures } from '../lib/resolver-features.js';
+import { executeSubFeatureSteps, findFeatureStepsFromStatement } from '../lib/util/featureStep-executor.js';
 import { EExecutionMessageType } from '../lib/interfaces/logger.js';
 import { endExecutonContext } from '../phases/Executor.js';
 import { DOMAIN_STATEMENT } from '../lib/domain-types.js';
+import { findFeatures } from '../lib/features.js';
 
-class Haibun extends AStepper {
+class Haibun extends AStepper implements IHasCycles {
+	afterEverySteps: { [stepperName: string]: TFeatureStep[] } = {};
 	steppers: AStepper[] = [];
-	// eslint-disable-next-line @typescript-eslint/require-await
+	resolvedFeature: TResolvedFeature;
+
+	// biome-disable-next-line @typescript-eslint/require-await
 	async setWorld(world: TWorld, steppers: AStepper[]) {
-		this.world = world;
+		await super.setWorld(world, steppers);
 		this.steppers = steppers;
 	}
+	cycles: IStepperCycles = {
+		// processes any afterEvery effects after each step
+		startFeature: ({ resolvedFeature }: { resolvedFeature: TResolvedFeature }) => {
+			this.resolvedFeature = resolvedFeature;
+		},
+		afterStep: async ({ featureStep }: { featureStep: TFeatureStep }) => {
+			const afterEvery = this.afterEverySteps[featureStep.action.stepperName];
+			let failed = false;
+			if (afterEvery) {
+				for (const aeStep of afterEvery) {
+					// Skip if the afterEvery step is the same as the current step (prevent infinite recursion)
+					if (aeStep.action.actionName === featureStep.action.actionName) {
+						continue;
+					}
+
+					// Map the seqPath to extend from the current featureStep
+					const mappedStep: TFeatureStep = {
+						...aeStep,
+						seqPath: [...featureStep.seqPath, ...(aeStep.seqPath.slice(1))],
+					};
+					// After every steps are substeps (triggered by parent step)
+					const res = await executeSubFeatureSteps(featureStep, [mappedStep], this.steppers, this.getWorld(), ExecMode.NO_CYCLES, 1, true);
+					if (!res.ok) {
+						failed = true;
+						break;
+					}
+				}
+			}
+			return Promise.resolve({ failed });
+		}
+	};
 
 	steps = {
-		prose: {
-			match: /.+[.!?]$/,
-			action: async () => Promise.resolve(OK),
-		},
-		feature: {
-			gwta: 'Feature: {feature}',
-			action: async () => Promise.resolve(OK),
-		},
-		scenario: {
-			gwta: 'Scenario: {scenario}',
-			action: async () => Promise.resolve(OK),
-		},
+		// --- LOGIC OPERATORS ---		// Represents Logical Negation (~P).
 		not: {
-			gwta: `not {what:${DOMAIN_STATEMENT}}`,
-			action: async ({ what }: TStepArgs, featureStep: TFeatureStep) => {
+			gwta: `not {statements:${DOMAIN_STATEMENT}}`,
+			action: async ({ statements }: { statements: TFeatureStep[] }, featureStep: TFeatureStep) => {
+				const lastResult = await executeSubFeatureSteps(featureStep, statements, this.steppers, this.getWorld(), ExecMode.NO_CYCLES, -1);
 
-				const list = <TFeatureStep[]>what;
-				let last;
-				for (let i = 0; i < list.length; i++) {
-					const nested = { ...list[i], seqPath: [...featureStep.seqPath, i + 1] };
-					last = await doExecuteFeatureSteps([nested], this.steppers, this.getWorld(), ExecMode.NO_CYCLES);
-					this.getWorld().runtime.stepResults.push(last);
-					if (!last.ok) break;
-				}
-				if (!last) return actionNotOK('not statement empty');
-				return last.ok ? actionNotOK('not statement was true') : OK;
+				// Negation: action is OK if the inner statement failed (was NOT true)
+				return lastResult.ok ? actionNotOK('not statement was true (failed negation)') : OK;
 			},
 		},
+
+		// Represents Logical Implication (P => Q).
 		if: {
-			gwta: `if {when:${DOMAIN_STATEMENT}}, {what:${DOMAIN_STATEMENT}}`,
-			action: async ({ when, what }: TStepArgs, featureStep: TFeatureStep) => {
-				const whenList = Array.isArray(when) ? when : [];
-				const whenNested = whenList.map((s, i) => ({ ...s, seqPath: [...featureStep.seqPath, i + 1] }));
-				const whenResult = await doExecuteFeatureSteps(whenNested, this.steppers, this.getWorld(), ExecMode.NO_CYCLES);
-				if (!whenResult.ok) return OK;
-				const whatList = Array.isArray(what) ? what : [];
-				const offset = whenNested.length + 1;
-				let accumulatedOK = true;
-				for (let i = 0; i < whatList.length; i++) {
-					const nested = { ...whatList[i], seqPath: [...featureStep.seqPath, offset + i] };
-					const res = await doExecuteFeatureSteps([nested], this.steppers, this.getWorld(), ExecMode.CYCLES);
-					if (!res.ok) { accumulatedOK = false; break; }
+			gwta: `if {ifStatements:${DOMAIN_STATEMENT}}, {thenStatements:${DOMAIN_STATEMENT}}`,
+			action: async ({ ifStatements, thenStatements }: { ifStatements: TFeatureStep[], thenStatements: TFeatureStep[] }, featureStep: TFeatureStep) => {				// 1. Evaluate Antecedent (WHEN) - use dir=-1 for condition evaluation
+				const ifResult = await executeSubFeatureSteps(featureStep, ifStatements, this.steppers, this.getWorld(), ExecMode.NO_CYCLES, -1);
+
+				// If antecedent fails, the implication is true (vacuously true: F => T/F), so we return OK.
+				if (!ifResult.ok) {
+					return OK;
 				}
-				return accumulatedOK ? OK : actionNotOK('if body failed');
+
+				// 2. Evaluate Consequent (THEN) - use dir=1 for body execution
+				const ifThenResult = await executeSubFeatureSteps(featureStep, thenStatements, this.steppers, this.getWorld(), ExecMode.WITH_CYCLES, 1);
+
+				// Consequent must succeed to prove the implication is true (T => T)
+				return ifThenResult.ok ? OK : actionNotOK('if antecedent was TRUE, but consequent failed');
 			},
 		},
-		startStepDelay: {
-			gwta: 'step delay of {ms:number}ms',
-			action: ({ ms }: TStepArgs) => {
-				this.getWorld().options[STEP_DELAY] = ms as number;
+
+		// --- META & UTILITIES ---
+		until: {
+			gwta: `until {statements:${DOMAIN_STATEMENT}}`,
+			action: async ({ statements }: { statements: TFeatureStep[] }, featureStep: TFeatureStep) => {
+				let result: TStepResult;
+				do {
+					result = await executeSubFeatureSteps(featureStep, statements, this.steppers, this.getWorld(), ExecMode.WITH_CYCLES);
+					await sleep(200);
+				} while (!result.ok);
 				return OK;
 			},
 		},
-		endsWith: {
-			gwta: 'ends with {result}',
-			action: ({ result }: TStepArgs) => (String(result).toUpperCase() === 'OK' ? actionOK({ messageContext: endExecutonContext }) : actionNotOK('ends with not ok')),
-			checkAction: ({ result }: TStepArgs) => {
-				if (['OK', 'NOT OK'].includes(((<string>result).toUpperCase()))) return true;
-				throw Error('must be "OK" or "not OK"');
+
+		backgrounds: {
+			gwta: 'Backgrounds: {names}',
+			resolveFeatureLine: (line: string, _path: string, _stepper: AStepper, backgrounds: TFeatures) => {
+				if (!line.match(/^Backgrounds:\s*/i)) {
+					return false;
+				}
+
+				const names = line.replace(/^Backgrounds:\s*/i, '').trim();
+				const bgNames = names.split(',').map((a) => a.trim());
+
+				for (const bgName of bgNames) {
+					const bg = findFeatures(bgName, backgrounds);
+					if (bg.length !== 1) {
+						throw new Error(`can't find single "${bgName}.feature" from ${backgrounds.map((b) => b.path).join(', ')}`);
+					}
+				}
+				return false; // Don't skip - still needs to execute normally
+			},
+			action: async ({ names }: { names: string }, featureStep: TFeatureStep) => {
+				// Expand backgrounds at runtime using world.runtime.backgrounds
+				const world = this.getWorld();
+				const expanded = findFeatureStepsFromStatement(names, this.steppers, world, featureStep.path, featureStep.seqPath, 1);
+				const result = await executeSubFeatureSteps(featureStep, expanded, this.steppers, world, ExecMode.WITH_CYCLES);
+				return result.ok ? OK : actionNotOK('backgrounds failed');
+			},
+		},
+		nothing: {
+			exact: '',
+			action: () => OK,
+		},
+		prose: {
+			match: /.+[.!?]$/,
+			fallback: true,
+			action: () => OK,
+		},
+
+		feature: {
+			gwta: 'Feature: {feature}',
+			action: ({ feature }: { feature: string }) => {
+				this.getWorld().runtime.feature = feature;
+				return OK;
 			}
 		},
-		showSteps: {
+		scenario: {
+			gwta: 'Scenario: {scenario}',
+			action: ({ scenario }: { scenario: string }) => {
+				this.getWorld().runtime.scenario = scenario;
+				return OK;
+			}
+
+		},
+		startStepDelay: {
+			gwta: 'step delay of {ms:number}ms',
+			action: (({ ms }: { ms: number }) => {
+				this.getWorld().options[STEP_DELAY] = ms;
+				return OK;
+			}),
+		},
+		endsWith: {
+			gwta: 'ends with {result}',
+			action: (({ result }: { result: string }) => (result.toUpperCase() === 'OK' ? actionOK({ messageContext: endExecutonContext }) : actionNotOK('ends with not ok'))),
+		},
+		showSteppers: {
 			exact: 'show steppers',
 			action: () => {
 				const allSteppers = formattedSteppers(this.steppers);
@@ -87,13 +163,31 @@ class Haibun extends AStepper {
 				return actionOK({ messageContext: { incident: EExecutionMessageType.ACTION, incidentDetails: { steppers: allSteppers } } });
 			},
 		},
-		until: {
-			gwta: 'until {what} is {value}',
-			action: async ({ what, value }: TStepArgs) => { const key = String(what); while (this.getWorld().shared.get(key) !== value) { await sleep(100); } return OK; },
+		showSteps: {
+			gwta: 'show step results',
+			action: () => {
+				const steps = this.getWorld().runtime.stepResults;
+				this.world?.logger.info(`Steps: ${JSON.stringify(steps, null, 2)}`);
+				return actionOK({ messageContext: { incident: EExecutionMessageType.ACTION, incidentDetails: { steps } } });
+			}
+		},
+		showFeatures: {
+			gwta: 'show features',
+			action: () => {
+				this.world?.logger.info(`Features: ${JSON.stringify(this.resolvedFeature, null, 2)}`);
+				return actionOK({ messageContext: { incident: EExecutionMessageType.ACTION, incidentDetails: { features: this.resolvedFeature } } });
+			}
+		},
+		showBackgrounds: {
+			gwta: 'show backgrounds',
+			action: () => {
+				this.world?.logger.info(`Backgrounds: ${JSON.stringify(this.getWorld().runtime.backgrounds, null, 2)}`);
+				return actionOK({ messageContext: { incident: EExecutionMessageType.ACTION, incidentDetails: { backgrounds: this.getWorld().runtime.backgrounds } } });
+			}
 		},
 		pauseSeconds: {
 			gwta: 'pause for {ms:number}s',
-			action: async ({ ms }: TStepArgs) => { await sleep((ms as number) * 1000); return OK; },
+			action: (async ({ ms }: { ms: number }) => { await sleep(ms * 1000); return OK; }),
 		},
 		showDomains: {
 			gwta: 'show domains',
@@ -107,25 +201,13 @@ class Haibun extends AStepper {
 			action: () => OK,
 		},
 		afterEveryStepper: {
-			gwta: 'after every {stepperName}, {line}',
-			action: () => OK,
-			applyEffect: async ({ stepperName, line }: TStepArgs, currentFeatureStep: TFeatureStep, steppers: AStepper[]) => {
-				const newSteps: TFeatureStep[] = [currentFeatureStep];
-				if (typeof stepperName === 'string' && currentFeatureStep.action.stepperName === stepperName) {
-					const newFeatureStep = await this.newFeatureFromEffect(String(line), currentFeatureStep.seqPath, steppers);
-					newSteps.push(newFeatureStep);
-				}
-				return newSteps;
+			precludes: [`Haibun.prose`],
+			gwta: `after every {stepperName: string}, {statement: ${DOMAIN_STATEMENT}}`,
+			action: ({ stepperName, statement }: { stepperName: string; statement: TFeatureStep[] }) => {
+				this.afterEverySteps[stepperName] = statement;
+				return OK;
 			},
 		},
-	};
-
-	async newFeatureFromEffect(content: string, parentSeqPath: number[], steppers: AStepper[]): Promise<TFeatureStep> {
-		const features = asFeatures([{ path: `resolved from ${content}`, content }]);
-		const expandedFeatures = await expand({ backgrounds: [], features });
-		const featureSteps = await new Resolver(steppers).findFeatureSteps(expandedFeatures[0]);
-		return { ...featureSteps[0], seqPath: [...parentSeqPath, 1] };
-	}
+	} satisfies TStepperSteps;
 }
-
 export default Haibun;

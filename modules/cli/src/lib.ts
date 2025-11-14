@@ -10,7 +10,7 @@ import { Timer } from '@haibun/core/lib/Timer.js';
 import Logger from '@haibun/core/lib/Logger.js';
 import { Runner } from '@haibun/core/runner.js';
 import { getDefaultTag } from '@haibun/core/lib/test/lib.js';
-import { isProcessFeatureResults, IHasOptions } from '@haibun/core/lib/astepper.js';
+import { IHasOptions } from '@haibun/core/lib/astepper.js';
 import { FeatureVariables } from '@haibun/core/lib/feature-variables.js';
 import { Prompter } from '@haibun/core/lib/prompter.js';
 import { getCoreDomains } from '@haibun/core/lib/core-domains.js';
@@ -48,11 +48,19 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 
 	console.info('\n_________________________________ start');
 	const executorResult = await runner.run(specl.steppers, featureFilter);
-	console.info(executorResult.ok ? CHECK_YES : `${CHECK_NO} At ${JSON.stringify(executorResult.failure)}`);
+	if (executorResult.ok) {
+		console.info(`\n${CHECK_YES} All ${executorResult.featureResults.length} features passed.`);
+	} else {
+		const errorMessage = executorResult.failure?.error?.message || (world.runtime.depthLimitExceeded && 'Execution depth limit exceeded') || 'Unknown error';
+		const stage = executorResult.failure?.stage;
 
-	for (const maybeResultProcessor of executorResult.steppers) {
-		if (isProcessFeatureResults(maybeResultProcessor)) {
-			await maybeResultProcessor.processFeatureResult(executorResult);
+		console.error(`\n${CHECK_NO} ${stage ? `${stage} Error: ` : ''}${errorMessage}`);
+
+		if (executorResult.failure?.error?.details) {
+			const { ...otherDetails } = executorResult.failure.error.details;
+			if (Object.keys(otherDetails).length > 0) {
+				console.error('\nAdditional details:', otherDetails);
+			}
 		}
 	}
 
@@ -75,7 +83,7 @@ function getCliWorld(protoOptions: TProtoOptions, bases: TBase): TWorld {
 
 	const world: Partial<TWorld> = {
 		tag,
-		runtime: {},
+		runtime: { stepResults: [] },
 		logger,
 		prompter: new Prompter(),
 		...protoOptions,
@@ -200,13 +208,14 @@ export function processArgs(args: string[]) {
 }
 
 export function getConfigFromBase(bases: TBase, fs: TFileSystem = nodeFS): TSpecl | null {
-	const found = bases?.filter((b) => fs.existsSync(`${b}/config.json`));
+	// accept either full path with exact config filename or a directory that contains config.json
+	const found = bases?.filter((b) => (b.endsWith('json') && fs.existsSync(b)) || fs.existsSync(`${b}/config.json`));
 	if (found?.length > 1) {
 		console.error(`Found multiple config.json files: ${found.join(', ')}. Use --config to specify one.`);
 		return null;
 	}
-	const configDir = (found && found[0]) || '.';
-	const f = `${configDir}/config.json`;
+	const configCandidate = (found && found[0]) || '.';
+	const f = configCandidate.endsWith('json') ? configCandidate : `${configCandidate}/config.json`;
 	console.info(`trying ${f}`);
 	try {
 		const specl = JSON.parse(fs.readFileSync(f, 'utf-8'));
@@ -214,7 +223,7 @@ export function getConfigFromBase(bases: TBase, fs: TFileSystem = nodeFS): TSpec
 			specl.options = { DEST: DEFAULT_DEST };
 		}
 		return specl;
-	} catch (e) {
+	} catch {
 		return null;
 	}
 }

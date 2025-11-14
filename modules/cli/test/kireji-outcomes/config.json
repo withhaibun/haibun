@@ -1,0 +1,7 @@
+{
+	"steppers": [
+		"variables-stepper",
+		"activities-stepper",
+		"haibun"
+	]
+}

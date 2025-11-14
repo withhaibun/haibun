@@ -7,7 +7,7 @@ import { IWebServer, IRequest, IResponse, WEBSERVER } from './defs.js';
 
 import Server from './web-server-stepper.js';
 import { TStepArgs } from '@haibun/core/lib/defs.js';
-import { testWithDefaults } from '@haibun/core/lib/test/lib.js';
+import { passWithDefaults } from '@haibun/core/lib/test/lib.js';
 import WebServerStepper from './web-server-stepper.js';
 import { AStepper } from '@haibun/core/lib/astepper.js';
 import { TEST_PORTS } from './test-constants.js';
@@ -29,7 +29,7 @@ describe('route mount', () => {
 		};
 		const wss = new WebServerStepper();
 		const feature = { path: '/features/test.feature', content: `serve test route to /test\nwebserver is listening\nfetch from http://localhost:${TEST_PORTS.WEB_SERVER_ROUTE}/test is "ok"` };
-		const result = await testWithDefaults([feature], [Server, TestRoute, WebHttp], {
+		const result = await passWithDefaults([feature], [Server, TestRoute, WebHttp], {
 			options: { DEST: DEFAULT_DEST, },
 			moduleOptions: {
 				[getStepperOptionName(wss, 'PORT')]: TEST_PORTS.WEB_SERVER_ROUTE.toString(),

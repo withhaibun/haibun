@@ -221,7 +221,7 @@ class MCPClientStepper extends AStepper implements IHasOptions, IHasCycles {
 		}
 	}
 
-	steps: TStepperSteps = {
+	steps = {
 		checkAndNotifyExistingPrompts: {
 			gwta: `check and notify existing prompts`,
 			action: async () => {
@@ -504,7 +504,7 @@ class MCPClientStepper extends AStepper implements IHasOptions, IHasCycles {
 				}
 			}
 		}
-	}
+	} satisfies TStepperSteps
 }
 
 export default MCPClientStepper;

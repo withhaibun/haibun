@@ -83,7 +83,7 @@ export type TResolvedFeature = {
 	featureSteps: TFeatureStep[];
 };
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// biome-ignore lint/correctness/noUnusedVariables: it's an example
 const example: TResolvedFeature = {
 	path: 'path',
 	base: 'base',
@@ -105,44 +105,40 @@ const example: TResolvedFeature = {
 export type TFeatureStep = {
 	path: string;
 	in: string;
-	seqPath: number[];
+	seqPath: TSeqPath;
 	action: TStepAction;
+	isSubStep?: boolean;
 };
 
+export type TSeqPath = number[];
 export type TStepArgs = Record<string, TStepValueValue>;
 
-export type TAction<Args = TStepArgs> = (args: Args, featureStep: TFeatureStep) => Promise<TActionResult> | TActionResult;
-export type TCheckAction<Args = TStepArgs> = (args: Args, featureStep: TFeatureStep) => Promise<boolean> | boolean;
+export type TAction = (args: TStepArgs, featureStep: TFeatureStep) => Promise<TActionResult> | TActionResult;
 
 export type TStepperStep = {
+	description?: string;
 	precludes?: string[];
+	unique?: boolean;
+	fallback?: boolean;
 	expose?: boolean;
+	virtual?: boolean;
 	match?: RegExp;
 	gwta?: string;
 	exact?: string;
-	action: TAction;
-	checkAction?: TCheckAction;
-	applyEffect?: TApplyEffect;
-};
-
-export type TApplyEffect = (args: TStepArgs, featureStep: TFeatureStep, steppers: AStepper[]) => Promise<TFeatureStep[]>;
+	resolveFeatureLine?(line: string, path: string, stepper: AStepper, backgrounds: TFeatures, allLines?: string[], lineIndex?: number): boolean | void;
+	// FIXME Using method syntax for bivariant parameter checking for action
+	action(args: TStepArgs, featureStep?: TFeatureStep): Promise<TActionResult> | TActionResult;
+}
 
 export interface CStepper {
 	new(): AStepper;
-	prototype: {
-		steps: {
-			[name: string]: TStepperStep;
-		};
-		setWorld(world: TWorld, steppers: AStepper[]): Promise<void>;
-		getWorld(): TWorld;
-	};
 }
 
 export type TSteppers = {
 	[name: string]: AStepper;
 };
 
-export type TEndFeature = { world: TWorld, shouldClose: boolean, isLast: boolean, okSoFar: boolean, continueAfterError: boolean, stayOnFailure: boolean, thisFeatureOK: boolean };
+export type TEndFeature = { shouldClose: boolean, isLast: boolean, okSoFar: boolean, continueAfterError: boolean, stayOnFailure: boolean, thisFeatureOK: boolean };
 export type TStartFeature = { resolvedFeature: TResolvedFeature, index: number };
 export type TStartExecution = TResolvedFeature[]
 export type TStartScenario = { featureVars: FeatureVariables };
@@ -150,18 +146,18 @@ export type TBeforeStep = { featureStep: TFeatureStep };
 export type TAfterStep = { featureStep: TFeatureStep, actionResult: TStepActionResult };
 export type TFailureArgs = { featureResult: TFeatureResult, failedStep: TStepResult };
 
-export type TAfterStepResult = { rerunStep?: boolean, nextStep?: boolean };
+export type TAfterStepResult = { rerunStep?: boolean, nextStep?: boolean, failed: boolean };
 export interface IStepperCycles {
 	getDomains?(): TDomainDefinition[];
 	startExecution?(features: TStartExecution): Promise<void>;
-	startFeature?(startFeature: TStartFeature): Promise<void>;
+	startFeature?(startFeature: TStartFeature): Promise<void> | void;
 	startScenario?(startScenario: TStartScenario): Promise<void>;
 	beforeStep?(beforeStep: TBeforeStep): Promise<void>;
 	afterStep?(afterStep: TAfterStep): Promise<TAfterStepResult>;
 	endScenario?(): Promise<void>;
 	endFeature?(endedWith?: TEndFeature): Promise<void>;
 	onFailure?(result: TFailureArgs): Promise<void | TMessageContext>;
-	endExecution?(): Promise<void>
+	endExecution?(results: TExecutorResult): Promise<void>;
 }
 
 export type TDomainCoercer = (proto: TStepValue, featureStep?: TFeatureStep, steppers?: AStepper[]) => TStepValueValue;
@@ -188,16 +184,19 @@ export enum Origin {
 	var = 'var',
 	env = 'env',
 	quoted = 'quoted',
-	statement = 'statement'
+	statement = 'statement', // DOMAIN_STATEMENT
 }
 
 export type TOrigin = keyof typeof Origin;
 export type TProvenanceIdentifier = { in?: string; seq: number[], when: string };
-export type TStepValueValue = string | number | TFeatureStep[]
+
+// FIXME: set of by domain value types
+export type TStepValueValue = unknown;
+
 export type TStepValue = {
 	term: string;
 	domain: string;
-	value?: TStepValueValue; // value is added in populateActionArgs
+	value?: TStepValueValue;
 	origin: TOrigin;
 	provenance?: TProvenanceIdentifier[]
 };
@@ -207,7 +206,6 @@ export const OK: TOKActionResult = { ok: true };
 export type TExecutorResultError = {
 	details: {
 		[name: string]: TAnyFixme;
-		stack: string[];
 	};
 	message: string;
 };
@@ -289,13 +287,23 @@ export type TStepResult = {
 	stepActionResult: TStepActionResult;
 	in: string;
 	path: string;
-	seqPath: number[];
+	seqPath: TSeqPath;
+};
+
+export type TSatisfiedOutcome = {
+	proofResult: TStepResult;
+	proofSteps: TFeatureStep[];
+	pattern: string; // The pattern template (e.g., "Navigate to {page}")
 };
 
 export type TRuntime = {
 	backgrounds?: TFeature[];
-	stepResults?: TStepResult[];
-	pendingStepResults?: TStepResult[];
+	scenario?: string;
+	feature?: string;
+	stepResults: TStepResult[];
+	depthLimitExceeded?: boolean;
+	// activities-stepper
+	satisfiedOutcomes?: { [outcome: string]: TSatisfiedOutcome };
 	[name: string]: TAnyFixme;
 };
 export const HAIBUN = 'HAIBUN';
@@ -317,10 +325,12 @@ export const MAYBE_CHECK_NO = '✗';
 export const STEP_DELAY = 'STEP_DELAY';
 export const DEFAULT_DEST = 'default';
 export const TEST_BASE = 'test_base';
-export const CONTINUE_AFTER_ERROR = 'CONTINUE_AFTER_ERROR'; export const SCENARIO_START = 'scenario';
+export const CONTINUE_AFTER_ERROR = 'CONTINUE_AFTER_ERROR';
+export const SCENARIO_START = 'scenario';
+export const HAPPENING_START = 'happening';
 
 export enum ExecMode {
-	CYCLES = 'CYCLES',
+	WITH_CYCLES = 'WITH_CYCLES',
 	NO_CYCLES = 'NO_CYCLES',
 	PROMPT = 'PROMPT',
 }

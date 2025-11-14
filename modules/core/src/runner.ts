@@ -1,4 +1,3 @@
-import { applyEffectFeatures } from './applyEffectFeatures.js';
 import { TWorld, TExecutorResult, CStepper } from './lib/defs.js';
 import { TAnyFixme } from './lib/fixme.js';
 import { AStepper } from './lib/astepper.js';
@@ -16,7 +15,7 @@ export class Runner {
 	constructor(private world: TWorld) { }
 
 	private errorBail = (phase: string, error: TAnyFixme, details?: TAnyFixme) => {
-		this.world.logger.error(`errorBail ${phase} ${error} ${details}`, error.stack);
+		// this.world.logger.error(`errorBail ${phase} ${error} ${details}`, error.stack);
 		this.result = {
 			ok: false,
 			shared: this.world.shared,
@@ -31,14 +30,22 @@ export class Runner {
 	async run(steppers: string[], featureFilter = []): Promise<TExecutorResult> {
 		let featuresBackgrounds: TFeaturesBackgrounds = undefined;
 		try {
-			featuresBackgrounds = getFeaturesAndBackgrounds(this.world.bases, featureFilter);
+			featuresBackgrounds = await getFeaturesAndBackgrounds(this.world.bases, featureFilter);
 		} catch (error) {
 			this.errorBail('Collector', error);
 		}
 
 		const csteppers = await getSteppers(steppers).catch((error) => this.errorBail('Steppers', error));
-		await verifyRequiredOptions(csteppers, this.world.moduleOptions).catch((error) => this.errorBail('RequiredOptions', error));
-		await verifyExtraOptions(this.world.moduleOptions, csteppers).catch((error) => this.errorBail('moduleOptions', error));
+		try {
+			verifyRequiredOptions(csteppers, this.world.moduleOptions);
+		} catch (error) {
+			this.errorBail('RequiredOptions', error);
+		}
+		try {
+			verifyExtraOptions(this.world.moduleOptions, csteppers);
+		} catch (error) {
+			this.errorBail('ExtraOptions', error);
+		}
 
 		const featureResults = await this.runFeaturesAndBackgrounds(csteppers, featuresBackgrounds);
 		return featureResults;
@@ -46,19 +53,16 @@ export class Runner {
 
 	async runFeaturesAndBackgrounds(csteppers: CStepper[], featuresBackgrounds: TFeaturesBackgrounds) {
 		try {
-			this.steppers = await createSteppers(csteppers);
+			this.steppers = createSteppers(csteppers);
 			await setStepperWorldsAndDomains(this.steppers, this.world);
 			// Make backgrounds available at runtime for inline `Backgrounds:` expansion
 			this.world.runtime.backgrounds = featuresBackgrounds.backgrounds;
 			const expandedFeatures = await expand(featuresBackgrounds).catch((error) => this.errorBail('Expand', error));
 
-			const resolver = new Resolver(this.steppers);
+			const resolver = new Resolver(this.steppers, featuresBackgrounds.backgrounds);
 			const resolvedFeatures = await resolver.resolveStepsFromFeatures(expandedFeatures).catch((error) => this.errorBail('Resolve', error));
-			const appliedResolvedFeatures = await applyEffectFeatures(this.world, resolvedFeatures, this.steppers);
 
-			this.world.logger.log(`features: ${appliedResolvedFeatures.length} (${appliedResolvedFeatures.map((e) => e.path)}) backgrounds: ${featuresBackgrounds.backgrounds.length}`);
-
-			this.result = await Executor.executeFeatures(this.steppers, this.world, appliedResolvedFeatures).catch((error) =>
+			this.result = await Executor.executeFeatures(this.steppers, this.world, resolvedFeatures).catch((error) =>
 				this.errorBail('Execute', error)
 			);
 		} catch (error) {

@@ -10,7 +10,7 @@ import { Resolver } from './Resolver.js';
 describe('resolve steps', () => {
 	it('resolves steps', async () => {
 		const features = asExpandedFeatures([{ path: 'l1', content: 'Then it passes' }]);
-		const steppers = await createSteppers([TestSteps]);
+		const steppers = createSteppers([TestSteps]);
 		const resolver = new Resolver(steppers);
 		const steps = await resolver.resolveStepsFromFeatures(features);
 		expect(steps.length).toBe(1);
@@ -40,7 +40,7 @@ describe('validate map steps', () => {
 	}
 
 	const getResolvedSteps = async (features: TExpandedFeature[]) => {
-		const steppers = await createSteppers([TestStepper]);
+		const steppers = createSteppers([TestStepper]);
 		const resolver = new Resolver(steppers);
 		return await resolver.resolveStepsFromFeatures(features);
 	};
@@ -90,6 +90,31 @@ describe('validate map steps', () => {
 	});
 });
 
+describe('unique stepper', () => {
+	const astep = 'step';
+	class UniqueStepper extends AStepper {
+		steps = {
+			uniqueStep: {
+				unique: true,
+				gwta: astep,
+				action: async () => Promise.resolve(OK),
+			},
+			normalStep: {
+				gwta: astep,
+				action: async () => Promise.resolve(OK),
+			},
+		};
+	}
+	test('uses unique step when multiple match', async () => {
+		const features = asExpandedFeatures([{ path: 'l1', content: astep }]);
+		const steppers = createSteppers([UniqueStepper]);
+		const resolver = new Resolver(steppers);
+		const steps = await resolver.resolveStepsFromFeatures(features);
+		expect(steps.length).toBe(1);
+		expect(steps[0].featureSteps.length).toBe(1);
+		expect(steps[0].featureSteps[0].action.stepperName).toBe('UniqueStepper');
+	});
+});
 describe('preclude stepper', () => {
 	class PrecludedStepper extends AStepper {
 		steps = {
@@ -110,7 +135,7 @@ describe('preclude stepper', () => {
 	}
 	test('precludes stepper', async () => {
 		const features = asExpandedFeatures([{ path: 'l1', content: 'does something else' }]);
-		const steppers = await createSteppers([PrecludedStepper, PrecluderStepper]);
+		const steppers = createSteppers([PrecludedStepper, PrecluderStepper]);
 		const resolver = new Resolver(steppers);
 		const steps = await resolver.resolveStepsFromFeatures(features);
 		expect(steps.length).toBe(1);

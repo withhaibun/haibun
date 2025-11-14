@@ -1,13 +1,13 @@
-import { TWorld, IStepperCycles, TStepperStep, TOptionValue, TEnvVariables, TExecutorResult } from './defs.js';
+import { TWorld, IStepperCycles, TStepperStep, TOptionValue, TEnvVariables } from './defs.js';
 import { TAnyFixme } from './fixme.js';
 import { constructorName } from './util/index.js';
 
 export abstract class AStepper {
 	world?: TWorld;
-	cycles?: IStepperCycles;
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	async setWorld(world: TWorld, steppers: AStepper[]) {
+	async setWorld(world: TWorld, _steppers: AStepper[]) {
 		this.world = world;
+		// some steppers like to keep a reference to all steppers
+		void _steppers;
 		await Promise.resolve();
 	}
 	abstract steps: TStepperSteps;
@@ -19,8 +19,9 @@ export abstract class AStepper {
 		return this.world;
 	}
 }
-export type TStepperSteps = Record<string, TStepperStep>;
-
+export type TStepperSteps = {
+	[key: string]: TStepperStep;
+};
 export interface IHasOptions {
 	options?: {
 		[name: string]: {
@@ -37,9 +38,3 @@ export interface IHasOptions {
 export interface IHasCycles {
 	cycles: IStepperCycles;
 }
-
-export interface IProcessFeatureResults extends AStepper {
-	processFeatureResult: (executorResult: TExecutorResult) => Promise<void>;
-}
-
-export const isProcessFeatureResults = (s: AStepper): s is IProcessFeatureResults => (<IProcessFeatureResults>s).processFeatureResult !== undefined;

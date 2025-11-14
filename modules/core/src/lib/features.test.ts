@@ -2,7 +2,7 @@ import { describe, it, test, expect } from 'vitest';
 
 import { DEFAULT_DEST } from './defs.js';
 import * as steps from './features.js';
-import { testWithDefaults } from './test/lib.js';
+import { passWithDefaults } from './test/lib.js';
 import { asFeatures } from './resolver-features.js';
 import VariablesStepper from '../steps/variables-stepper.js';
 
@@ -92,7 +92,7 @@ describe('env vars', () => {
 	it('env or var or literal finds env', async () => {
 		const feature = { path: '/features/test.feature', content: `set "what" to "var"\nset x to $what$` };
 		const envVariables = { what: 'env' };
-		const { world } = await testWithDefaults([feature], varsStepper, {
+		const { world } = await passWithDefaults([feature], varsStepper, {
 			options: { DEST: DEFAULT_DEST, envVariables },
 			moduleOptions: {},
 		});
@@ -101,12 +101,12 @@ describe('env vars', () => {
 	});
 	it('env or var or literal finds var', async () => {
 		const feature = { path: '/features/test.feature', content: `set "what" to "var"\nset x to what` };
-		const { world } = await testWithDefaults([feature], varsStepper);
+		const { world } = await passWithDefaults([feature], varsStepper);
 		expect(world.shared.get('x')).toBe('var');
 	});
 	it('env or var or literal finds literal', async () => {
 		const feature = { path: '/features/test.feature', content: `set x to what` };
-		const { world } = await testWithDefaults([feature], varsStepper);
+		const { world } = await passWithDefaults([feature], varsStepper);
 		expect(world.shared.get('x')).toBe('what');
 	});
 });

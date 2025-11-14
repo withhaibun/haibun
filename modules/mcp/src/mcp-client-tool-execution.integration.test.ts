@@ -3,7 +3,6 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 
 import { currentVersion as version } from '@haibun/core/currentVersion.js';
-import { TAnyFixme } from '@haibun/core/lib/fixme.js';
 import { runtimeStdio, TEST_PORTS } from './mcp-test-utils.js';
 
 const toolExecutionServerParameters = runtimeStdio(TEST_PORTS.MCP_TOOL_EXECUTION);
@@ -135,22 +134,23 @@ describe('haibun-mcp tool execution', () => {
 
 	it('can handle tool execution errors gracefully', async () => {
 		// Try to call a tool with invalid parameters
-		try {
-			await client.callTool({
-				name: 'VariablesStepper-set',
-				arguments: {
-					// Missing required 'value' parameter
-					what: 'incompleteVariable'
-				}
-			});
+		const result = await client.callTool({
+			name: 'VariablesStepper-set',
+			arguments: {
+				// Missing required 'value' parameter
+				what: 'incompleteVariable'
+			}
+		});
 
-			// If we get here, the call succeeded when it should have failed
-			expect.fail('Expected tool call to throw an error due to missing required parameter');
-		} catch (error: TAnyFixme) {
-			// This is the expected behavior - the tool should throw/error on invalid parameters
-			expect(error).toBeDefined();
-			expect(error.message).toContain('Invalid arguments');
-		}
+		// The tool should return an error response
+		expect(result.content).toBeDefined();
+		expect(Array.isArray(result.content)).toBe(true);
+		const content = result.content as Array<{ type: string; text?: string }>;
+		expect(content.length).toBeGreaterThan(0);
+		expect(content[0].text).toBeDefined();
+
+		// The error message should contain our validation error
+		expect(content[0].text).toContain('Invalid arguments');
 	});
 
 });

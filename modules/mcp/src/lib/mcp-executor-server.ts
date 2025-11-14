@@ -40,13 +40,11 @@ export class MCPExecutorServer {
 		this.server = new McpServer({
 			name: "haibun-mcp",
 			version,
+		}, {
 			capabilities: {
 				resources: {},
-				tools: {},
-				sampling: {
-					enabled: true
-				}
-			},
+				tools: {}
+			}
 		});
 
 		// Initialize HTTP prompter client for debug prompt access

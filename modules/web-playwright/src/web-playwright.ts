@@ -17,6 +17,9 @@ import { interactionSteps } from './interactionSteps.js';
 import { restSteps, TCapturedResponse } from './rest-playwright.js';
 import { TwinPage } from './twin-page.js';
 
+type TWebPlaywrightSteps = ReturnType<typeof interactionSteps> & ReturnType<typeof restSteps>;
+type TWebPlaywrightTypedSteps = ReturnType<typeof interactionSteps> & ReturnType<typeof restSteps>;
+
 export const WEB_PAGE = 'webpage';
 /**
  * This is the infrastructure for web-playwright.
@@ -89,11 +92,11 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	tab = 0;
 	downloaded: string[] = [];
 	captureVideo: boolean;
-	closers: Array<() => Promise<void>> = [];
+	closers: Array<() => void> = [];
 	monitor: EMonitoringTypes;
 	twin: boolean;
-	static monitorHandler: MonitorHandler;
-	static twinPage: TwinPage;
+	monitorHandler?: MonitorHandler;
+	twinPage?: TwinPage;
 	apiUserAgent: string;
 	extraHTTPHeaders: { [name: string]: string; } = {};
 	expectedDownload: Promise<Download>;
@@ -170,8 +173,8 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	async withPage<TReturn>(f: TAnyFixme): Promise<TReturn> {
 		const containerPageOrFrame = this.inContainer || await this.getPage();
 
-		if (!this.inContainer && WebPlaywright.twinPage) {
-			await WebPlaywright.twinPage.patchPage(<Page>containerPageOrFrame);
+		if (!this.inContainer && this.twinPage) {
+			await this.twinPage.patchPage(<Page>containerPageOrFrame);
 		}
 
 		const res = await f(containerPageOrFrame);
@@ -194,7 +197,12 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		const browserContext = await this.getExistingBrowserContext();
 		return await browserContext?.cookies();
 	}
-	steps = {
+
+	get typedSteps(): TWebPlaywrightTypedSteps {
+		return { ...restSteps(this), ...interactionSteps(this) } as TWebPlaywrightTypedSteps;
+	}
+
+	steps: TWebPlaywrightSteps = {
 		...restSteps(this),
 		...interactionSteps(this),
 	};
@@ -310,28 +318,18 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			for (const closer of this.closers) {
 				await closer();
 			}
+			this.closers = [];
 		}
 	}
 	async createTwin() {
-		WebPlaywright.twinPage = new TwinPage(this, this.storage, this.headless);
-		await WebPlaywright.twinPage.initTwin();
+		this.twinPage = new TwinPage(this, this.storage, this.headless);
+		await this.twinPage.initTwin();
 	}
 	async createMonitor() {
-		if (WebPlaywright.monitorHandler && !WebPlaywright.monitorHandler.monitorPage.isClosed()) {
-			this.getWorld().logger.info('Monitor is already running, bringing existing monitor to front');
-			await WebPlaywright.monitorHandler.monitorPage.bringToFront();
-			return OK;
-		}
-
 		this.getWorld().logger.info('Creating new monitor page');
-		WebPlaywright.monitorHandler = new MonitorHandler(this.getWorld(), this.storage, this.headless)
-		await WebPlaywright.monitorHandler.initMonitor();
-		this.getWorld().logger.addSubscriber(WebPlaywright.monitorHandler.subscriber);
+		this.monitorHandler = new MonitorHandler(this.getWorld(), this.storage, this.headless)
+		await this.monitorHandler.initMonitorContext();
 
-		this.closers.push(async () => {
-			this.getWorld().logger.removeSubscriber(WebPlaywright.monitorHandler.subscriber);
-			return Promise.resolve();
-		});
 		return OK;
 	}
 	getLastResponse(): TCapturedResponse {
