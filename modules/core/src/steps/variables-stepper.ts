@@ -88,6 +88,30 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				return Promise.resolve(OK);
 			}
 		},
+		add: {
+			gwta: 'add {amount:number} to {what}',
+			action: ({ amount }: { amount: number }, featureStep: TFeatureStep) => {
+				const { term, domain } = featureStep.action.stepValuesMap.what;
+				const presentVal = this.getVarValue(term);
+				let newVal: number;
+				if (presentVal === undefined) {
+					newVal = amount;
+				} else {
+					const numVal = Number(presentVal);
+					if (isNaN(numVal)) {
+						return actionNotOK(`cannot add to non-numeric variable ${term} with value "${presentVal}"`);
+					}
+					newVal = numVal + amount;
+				}
+				this.getWorld().shared.set({ term: String(term), value: newVal, domain, origin: Origin.var }, provenanceFromFeatureStep(featureStep));
+				const messageContext = {
+					incident: EExecutionMessageType.ACTION,
+					incidentDetails: { json: { added: { [term]: newVal } } },
+				}
+				this.getWorld().logger.info(`added ${amount} to ${term}, new value is ${newVal}`, messageContext);
+				return Promise.resolve(OK);
+			}
+		},
 		showEnv: {
 			gwta: 'show env',
 			expose: false,

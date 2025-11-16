@@ -93,6 +93,30 @@ export async function generateMermaidGraph(resolvedFeatures: TResolvedFeature[],
 					}
 				}
 
+                // Waypoint and proof linking
+                if (step.action.actionName === 'waypoint') {
+                    const outcome = step.action.stepValuesMap.outcome.value as string;
+                    const proof = step.action.stepValuesMap.proof.value as any[];
+                    const waypointId = `wp_${sanitize(outcome)}`;
+                    graphLines.push(`${indent}subgraph ${waypointId} [${formatLabel('waypoint: ' + outcome)}]`);
+                    let previousProofStepId: string | null = null;
+                    proof.forEach((proofStep, proofStepIdx) => {
+                        const proofStepId = `ps_${sanitize(outcome)}_${proofStepIdx}`;
+                        graphLines.push(`${indent}    ${proofStepId}[${formatLabel(proofStep.in)}]`);
+                        if (previousProofStepId) {
+                            graphLines.push(`${indent}    ${previousProofStepId} --> ${proofStepId}`);
+                        }
+                        previousProofStepId = proofStepId;
+
+                        // Link to background if proof step is from background
+                        if (proofStep.path && backgrounds.has(proofStep.path)) {
+                            graphLines.push(`${indent}    ${proofStepId} -.-> bg_${sanitize(proofStep.path)}`);
+                        }
+                    });
+                    graphLines.push(`${indent}end`);
+                    graphLines.push(`${indent}${newStepId} --> ${waypointId}`);
+                }
+
 				// Inline variable linking logic using new stepValuesMap.source classification
 				if (showVariables && step.action!.stepValuesMap && step.action!.actionName !== 'scenarioStart') {
 					const definedScenarioVarsForStep = new Set<string>();

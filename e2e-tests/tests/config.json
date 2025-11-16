@@ -1,14 +1,8 @@
 {
   "mode": "all",
   "steppers": [
-    "~@haibun/web-playwright/build/web-playwright",
-    "~@haibun/out-junit/build/out-junit",
-    "~@haibun/web-server-express/build/web-server-stepper",
-    "~@haibun/storage-fs/build/storage-fs",
-    "~@haibun/web-accessibility-axe/build/a11y-axe-stepper",
     "variables-stepper",
     "activities-stepper",
-    "haibun",
-    "./build-local/test-server"
+    "haibun"
   ]
 }
