@@ -2,7 +2,7 @@ import { Page, Download, Locator } from 'playwright';
 import { resolve } from 'path';
 import { pathToFileURL } from 'url';
 
-import { TWorld, OK, TStepResult, TFeatureStep, Origin } from '@haibun/core/lib/defs.js';
+import { TWorld, OK, TStepResult, TFeatureStep, Origin, CycleWhen } from '@haibun/core/lib/defs.js';
 import { BrowserFactory, TTaggedBrowserFactoryOptions, TBrowserTypes, BROWSERS } from './BrowserFactory.js';
 import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOption, optionOrError } from '@haibun/core/lib/util/index.js';
 import { AStorage } from '@haibun/domain-storage/AStorage.js';
@@ -43,6 +43,10 @@ type TRequestOptions = {
 
 export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	cycles = cycles(this);
+	cyclesWhen = {
+		startExecution: CycleWhen.FIRST - 1,
+		startFeature: CycleWhen.FIRST - 1,
+	};
 	static STORAGE = 'STORAGE';
 	static PERSISTENT_DIRECTORY = 'PERSISTENT_DIRECTORY';
 	options = {

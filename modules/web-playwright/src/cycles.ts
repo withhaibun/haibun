@@ -2,7 +2,7 @@ import { rmSync } from 'fs';
 import { resolve } from 'path/posix';
 
 import { IStepperCycles, TFailureArgs, TEndFeature, TStartExecution, TResolvedFeature, TStartFeature } from '@haibun/core/lib/defs.js';
-import { EExecutionMessageType, TArtifactVideo, TArtifactResolvedFeatures, TMessageContext } from '@haibun/core/lib/interfaces/logger.js';
+import { EExecutionMessageType, TArtifactVideo, TMessageContext } from '@haibun/core/lib/interfaces/logger.js';
 import { EMediaTypes } from '@haibun/domain-storage/media-types.js';
 import { WebPlaywright, EMonitoringTypes } from './web-playwright.js';
 import { WebPlaywrightDomains } from './domains.js';
@@ -23,7 +23,7 @@ export const cycles = (wp: WebPlaywright): IStepperCycles => ({
 		if (wp.twin) {
 			await wp.createTwin();
 		}
-		await createResolvedFeaturesArtifact(wp, 'features', resolvedFeatures);
+		await writeFeaturesArtifact(wp, 'features', resolvedFeatures);
 	},
 
 	async startFeature({ resolvedFeature, index }: TStartFeature): Promise<void> {
@@ -35,7 +35,7 @@ export const cycles = (wp: WebPlaywright): IStepperCycles => ({
 		if (wp.twinPage) {
 			wp.twinPage.updateWorld(wp.getWorld());
 		}
-		await createResolvedFeaturesArtifact(wp, `feature-${index}`, [resolvedFeature], index);
+		await writeFeaturesArtifact(wp, `feature-${index}`, [resolvedFeature]);
 	},
 	async endFeature({ shouldClose = true }: TEndFeature) {
 		// leave web server running if there was a failure and it's the last feature
@@ -58,19 +58,12 @@ export const cycles = (wp: WebPlaywright): IStepperCycles => ({
 	},
 });
 
-async function createResolvedFeaturesArtifact(wp: WebPlaywright, type: string, resolvedFeatures: TResolvedFeature[], index = undefined) {
+async function writeFeaturesArtifact(wp: WebPlaywright, type: string, resolvedFeatures: TResolvedFeature[]) {
 	const loc = await wp.getCaptureDir('json');
 	const mediaType = EMediaTypes.json;
 	// FIXME shouldn't be fs dependant
 	const path = resolve(wp.storage.fromLocation(mediaType, loc, `${type}.json`));
 	await wp.storage.writeFile(path, JSON.stringify(resolvedFeatures, null, 2), mediaType);
-	const artifact: TArtifactResolvedFeatures = { artifactType: 'resolvedFeatures', resolvedFeatures, index, path };
-	const context: TMessageContext = {
-		incident: EExecutionMessageType.ACTION,
-		artifacts: [artifact],
-		tag: wp.getWorld().tag,
-	};
-	wp.getWorld().logger.info(`resolvedFeatures for ${type}`, context);
 }
 
 async function closeAfterFeature(wp: WebPlaywright) {

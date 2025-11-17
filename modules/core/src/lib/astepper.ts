@@ -1,4 +1,4 @@
-import { TWorld, IStepperCycles, TStepperStep, TOptionValue, TEnvVariables } from './defs.js';
+import { TWorld, IStepperCycles, TStepperStep, TOptionValue, TEnvVariables, IStepperWhen } from './defs.js';
 import { TAnyFixme } from './fixme.js';
 import { constructorName } from './util/index.js';
 
@@ -37,4 +37,5 @@ export interface IHasOptions {
 
 export interface IHasCycles {
 	cycles: IStepperCycles;
+	cyclesWhen?: IStepperWhen;
 }

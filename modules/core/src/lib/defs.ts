@@ -149,7 +149,7 @@ export type TFailureArgs = { featureResult: TFeatureResult, failedStep: TStepRes
 export type TAfterStepResult = { rerunStep?: boolean, nextStep?: boolean, failed: boolean };
 export interface IStepperCycles {
 	getDomains?(): TDomainDefinition[];
-	startExecution?(features: TStartExecution): Promise<void>;
+	startExecution?(features: TStartExecution): Promise<void> | void;
 	startFeature?(startFeature: TStartFeature): Promise<void> | void;
 	startScenario?(startScenario: TStartScenario): Promise<void>;
 	beforeStep?(beforeStep: TBeforeStep): Promise<void>;
@@ -158,6 +158,16 @@ export interface IStepperCycles {
 	endFeature?(endedWith?: TEndFeature): Promise<void>;
 	onFailure?(result: TFailureArgs): Promise<void | TMessageContext>;
 	endExecution?(results: TExecutorResult): Promise<void>;
+}
+
+export interface IStepperWhen {
+	startExecution?: number;
+	startFeature?: number;
+}
+
+export const CycleWhen = {
+	FIRST: -999,
+	LAST: 999
 }
 
 export type TDomainCoercer = (proto: TStepValue, featureStep?: TFeatureStep, steppers?: AStepper[]) => TStepValueValue;
@@ -302,8 +312,6 @@ export type TRuntime = {
 	feature?: string;
 	stepResults: TStepResult[];
 	depthLimitExceeded?: boolean;
-	// activities-stepper
-	satisfiedOutcomes?: { [outcome: string]: TSatisfiedOutcome };
 	[name: string]: TAnyFixme;
 };
 export const HAIBUN = 'HAIBUN';

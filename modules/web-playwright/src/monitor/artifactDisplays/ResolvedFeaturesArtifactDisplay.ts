@@ -1,4 +1,4 @@
-import { TArtifactResolvedFeatures } from "@haibun/core/lib/interfaces/logger.js";
+import { TArtifactResolvedFeatures, TMessageContext, EExecutionMessageType } from "@haibun/core/lib/interfaces/logger.js";
 import { generateMermaidGraphAsMarkdown } from "../graph/generateMermaidGraph.js";
 import { ArtifactDisplay } from "./artifactDisplayBase.js";
 
@@ -25,22 +25,139 @@ export class ResolvedFeaturesArtifactDisplay extends ArtifactDisplay {
 			return;
 		}
 
-		const mermaidGraph = await generateMermaidGraphAsMarkdown(this.artifact.resolvedFeatures, false);
+		// Collect registered outcomes from the captured messages (assume well-formed messageContext structures)
+		let registeredOutcomes: Record<string, { proofStatements?: string[]; proofPath?: string; isBackground?: boolean; activityBlockSteps?: string[] }> | undefined = undefined;
+		const maybeWin = globalThis as unknown as Window & { haibunCapturedMessages?: unknown };
+		const captured = maybeWin.haibunCapturedMessages as unknown;
+		if (Array.isArray(captured) && captured.length) {
+			registeredOutcomes = {};
+			for (const entry of captured as unknown[]) {
+				const e = entry as Record<string, unknown>;
+				const mc = e.messageContext as TMessageContext | undefined;
+				if (!mc) continue;
+
+				// GRAPH_LINK incident entries should carry a structured incidentDetails object
+				if (mc.incident === EExecutionMessageType.GRAPH_LINK && mc.incidentDetails) {
+					const details = mc.incidentDetails as Record<string, unknown>;
+					const outcomeRaw = String(details.outcome || '').trim();
+					if (outcomeRaw) {
+						const key = outcomeRaw.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+						const stripped = outcomeRaw.replace(/\{[^}]+\}/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+						registeredOutcomes[key] = {
+							proofStatements: Array.isArray(details.proofStatements) ? details.proofStatements : undefined,
+							proofPath: typeof details.proofPath === 'string' ? details.proofPath : undefined,
+							isBackground: typeof details.isBackground === 'boolean' ? details.isBackground : undefined,
+							activityBlockSteps: Array.isArray(details.activityBlockSteps) ? details.activityBlockSteps : undefined,
+						};
+						if (stripped && stripped !== key) registeredOutcomes[stripped] = registeredOutcomes[key];
+					}
+				}
+			}
+		}
+
+		const mermaidGraph = await generateMermaidGraphAsMarkdown(this.artifact.resolvedFeatures, false, registeredOutcomes);
 
 		const graphSvgId = `mermaid-graph-svg-${instanceCounter++}-${Date.now()}`;
 
 		container.innerHTML = ''; // Clear placeholder
 
-		try {
-			const { svg, bindFunctions } = await mermaid.render(graphSvgId, mermaidGraph);
-			container.innerHTML = svg;
+		// Create control bar
+		const controls = document.createElement('div');
+		controls.className = 'haibun-mermaid-controls';
+		controls.innerHTML = `
+			<button class="haibun-zoom-in">Zoom +</button>
+			<button class="haibun-zoom-out">Zoom -</button>
+			<button class="haibun-copy-code">Copy code</button>
+			<button class="haibun-toggle-code">Show code</button>
+		`;
+		container.appendChild(controls);
 
-			if (bindFunctions) {
-				bindFunctions(container);
+		const codePre = document.createElement('pre');
+		codePre.className = 'haibun-mermaid-code';
+		codePre.style.display = 'none';
+		codePre.textContent = mermaidGraph;
+		container.appendChild(codePre);
+
+		const svgHolder = document.createElement('div');
+		svgHolder.className = 'haibun-mermaid-svg-holder';
+		container.appendChild(svgHolder);
+
+		// Hook up controls immediately so they work even if mermaid rendering fails
+		const zoomIn = controls.querySelector<HTMLButtonElement>('.haibun-zoom-in')!;
+		const zoomOut = controls.querySelector<HTMLButtonElement>('.haibun-zoom-out')!;
+		const toggleCode = controls.querySelector<HTMLButtonElement>('.haibun-toggle-code')!;
+		const copyCode = controls.querySelector<HTMLButtonElement>('.haibun-copy-code')!;
+
+		let scale = 1;
+		zoomIn.addEventListener('click', () => {
+			// allow unrestricted zooming in small increments
+			scale = scale + 0.2;
+			svgHolder.style.transform = `scale(${scale})`;
+			svgHolder.style.transformOrigin = '0 0';
+		});
+
+		copyCode.addEventListener('click', () => {
+			void navigator.clipboard.writeText(codePre.textContent || '').then(() => {
+				copyCode.textContent = 'Copied!';
+				setTimeout(() => { copyCode.textContent = 'Copy code'; }, 1200);
+			}).catch(() => {
+				copyCode.textContent = 'Copy failed';
+				setTimeout(() => { copyCode.textContent = 'Copy code'; }, 1200);
+			});
+		});
+
+		zoomOut.addEventListener('click', () => {
+			scale = scale - 0.2;
+			svgHolder.style.transform = `scale(${scale})`;
+			svgHolder.style.transformOrigin = '0 0';
+		});
+		toggleCode.addEventListener('click', () => {
+			if (codePre.style.display === 'none') {
+				codePre.style.display = 'block';
+				svgHolder.style.display = 'none';
+				toggleCode.textContent = 'Show graph';
+			} else {
+				codePre.style.display = 'none';
+				svgHolder.style.display = 'block';
+				toggleCode.textContent = 'Show code';
+			}
+		});
+
+		try {
+			const renderMermaid = async () => {
+				try {
+					const { svg, bindFunctions } = await mermaid.render(graphSvgId, mermaidGraph);
+					// svg HTML captured into holder
+					svgHolder.innerHTML = svg;
+					if (bindFunctions) bindFunctions(svgHolder);
+				} catch (err) {
+					console.error('Error rendering Mermaid graph:', err);
+					svgHolder.innerHTML = `<p class="haibun-artifact-error">Error rendering graph: ${(err as Error).message}</p>`;
+				}
+			};
+
+			await renderMermaid();
+
+			// Re-render on container resize to allow Mermaid to re-layout for new width
+			const debounced = (fn: () => void, wait = 180) => {
+				let t: number | null = null;
+				return () => {
+					if (t) window.clearTimeout(t);
+					t = window.setTimeout(() => { fn(); t = null; }, wait);
+				};
+			};
+
+			let ro: ResizeObserver | null = null;
+			if (typeof ResizeObserver !== 'undefined') {
+				ro = new ResizeObserver(debounced(() => {
+					// re-render the full graph so mermaid can recompute layout
+					void renderMermaid();
+				}));
+				ro.observe(svgHolder);
 			}
 		} catch (error) {
 			console.error('Error rendering Mermaid graph:', error);
-			container.innerHTML = `<p class="haibun-artifact-error">Error rendering graph: ${(error as Error).message}</p>`;
+			svgHolder.innerHTML = `<p class="haibun-artifact-error">Error rendering graph: ${(error as Error).message}</p>`;
 		}
 	}
 }

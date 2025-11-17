@@ -1,8 +1,8 @@
-import { OK, TFeatureStep, STEP_DELAY, TWorld, ExecMode, TStepResult, IStepperCycles, TFeatures, TResolvedFeature } from '../lib/defs.js';
+import { OK, TFeatureStep, STEP_DELAY, TWorld, ExecMode, TStepResult, IStepperCycles, TFeatures, TResolvedFeature, TStartExecution, TStartFeature, CycleWhen } from '../lib/defs.js';
 import { AStepper, IHasCycles, TStepperSteps } from '../lib/astepper.js';
 import { actionNotOK, actionOK, formattedSteppers, sleep } from '../lib/util/index.js';
 import { executeSubFeatureSteps, findFeatureStepsFromStatement } from '../lib/util/featureStep-executor.js';
-import { EExecutionMessageType } from '../lib/interfaces/logger.js';
+import { EExecutionMessageType, TArtifactResolvedFeatures, TMessageContext } from '../lib/interfaces/logger.js';
 import { endExecutonContext } from '../phases/Executor.js';
 import { DOMAIN_STATEMENT } from '../lib/domain-types.js';
 import { findFeatures } from '../lib/features.js';
@@ -18,9 +18,13 @@ class Haibun extends AStepper implements IHasCycles {
 		this.steppers = steppers;
 	}
 	cycles: IStepperCycles = {
+		startExecution(resolvedFeatures: TStartExecution) {
+			this.createResolvedFeaturesArtifact('features', resolvedFeatures);
+		},
 		// processes any afterEvery effects after each step
-		startFeature: ({ resolvedFeature }: { resolvedFeature: TResolvedFeature }) => {
+		startFeature({ resolvedFeature, index }: TStartFeature) {
 			this.resolvedFeature = resolvedFeature;
+			this.createResolvedFeaturesArtifact(`feature-${index}`, [resolvedFeature]);
 		},
 		afterStep: async ({ featureStep }: { featureStep: TFeatureStep }) => {
 			const afterEvery = this.afterEverySteps[featureStep.action.stepperName];
@@ -48,6 +52,11 @@ class Haibun extends AStepper implements IHasCycles {
 			return Promise.resolve({ failed });
 		}
 	};
+	cyclesWhen = {
+		startExecution: CycleWhen.LAST,
+		startFeature: CycleWhen.LAST,
+	}
+
 
 	steps = {
 		// --- LOGIC OPERATORS ---		// Represents Logical Negation (~P).
@@ -209,5 +218,15 @@ class Haibun extends AStepper implements IHasCycles {
 			},
 		},
 	} satisfies TStepperSteps;
+
+	createResolvedFeaturesArtifact(type: string, resolvedFeatures: TResolvedFeature[], index = undefined) {
+		const artifact: TArtifactResolvedFeatures = { artifactType: 'resolvedFeatures', resolvedFeatures, index, };
+		const context: TMessageContext = {
+			incident: EExecutionMessageType.ACTION,
+			artifacts: [artifact],
+			tag: this.getWorld().tag,
+		};
+		this.getWorld().logger.info(`resolvedFeatures for ${type}`, context);
+	}
 }
 export default Haibun;

@@ -34,7 +34,7 @@ export enum EExecutionMessageType {
 	EXECUTION_END = 'EXECUTION_END',
 	ON_FAILURE = 'ON_FAILURE',
 	DEBUG = "DEBUG",
-	EXECUTION_DEPTH_LIMIT_EXCEEDED = 'EXECUTION_DEPTH_LIMIT_EXCEEDED',
+	GRAPH_LINK = 'GRAPH_LINK',
 }
 
 export interface ILogger {
@@ -72,11 +72,18 @@ export type TArtifactSpeech = {
 	path: string;
 };
 
+export type RegisteredOutcomeEntry = {
+	proofStatements?: string[];
+	proofPath?: string;
+	isBackground?: boolean;
+	activityBlockSteps?: string[];
+};
+
 export type TArtifactResolvedFeatures = {
 	artifactType: 'resolvedFeatures';
 	resolvedFeatures: TResolvedFeature[];
 	index?: number;
-	path: string;
+	registeredOutcomes?: Record<string, RegisteredOutcomeEntry>;
 };
 
 export type TArtifactVideo = {

@@ -341,16 +341,20 @@ export class FeatureExecutor {
 
 const doStepperCycle = async <K extends keyof IStepperCycles>(steppers: AStepper[], method: K, args: StepperMethodArgs[K], guidance = ''): Promise<Awaited<ReturnType<NonNullable<IStepperCycles[K]>>>[]> => {
 	const results: Awaited<ReturnType<NonNullable<IStepperCycles[K]>>>[] = [];
-	for (const stepper of steppers) {
-		const cycling = (stepper as unknown as IHasCycles);
-		if (cycling.cycles && cycling.cycles[method]) {
-			stepper.getWorld().logger.debug(`♻️ ${method} ${constructorName(stepper)} ${guidance}`);
-			const cycle = cycling.cycles[method]!;
-			const paramsForApply = args === undefined ? [] : [args];
-			// The cast here is to help TypeScript understand '.apply' and 'await' with a specifically typed function
-			const result = await (cycle as (...a: unknown[]) => Promise<unknown>).apply(stepper, paramsForApply);
-			results.push(result as Awaited<ReturnType<NonNullable<IStepperCycles[K]>>>);
-		}
+	const hasCycles = (steppers as unknown[] as (AStepper & IHasCycles)[]).filter(c => c.cycles && c.cycles[method])
+		.sort((a, b) => {
+			const key = method as keyof typeof a.cyclesWhen;
+			const aVal = a.cyclesWhen?.[key];
+			const bVal = b.cyclesWhen?.[key];
+			return (aVal ?? 0) - (bVal ?? 0);
+		});
+	for (const cycling of hasCycles) {
+		cycling.getWorld().logger.debug(`♻️ ${method} ${constructorName(cycling)} ${guidance}`);
+		const cycle = cycling.cycles[method]!;
+		const paramsForApply = args === undefined ? [] : [args];
+		// The cast here is to help TypeScript understand '.apply' and 'await' with a specifically typed function
+		const result = await (cycle as (...a: unknown[]) => Promise<unknown>).apply(cycling, paramsForApply);
+		results.push(result as Awaited<ReturnType<NonNullable<IStepperCycles[K]>>>);
 	}
 	return results;
 };

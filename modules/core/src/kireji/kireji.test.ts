@@ -60,10 +60,10 @@ const steppers = [testStepper, proseStepper, activitiesStepper] as const;
 describe('withAction', () => {
 	const { set, doSomething, registerOutcome, not } = withAction(testStepper);
 	const { prose } = withAction(proseStepper);
-	const { activity, ensure, forget } = withAction(activitiesStepper);
+	const { activity, ensure, } = withAction(activitiesStepper);
 
 	it('should generate curried functions for each step', () => {
-		expect([set, doSomething, registerOutcome, not, prose, activity, ensure, forget].every(a => typeof a === 'function')).toBe(true);
+		expect([set, doSomething, registerOutcome, not, prose, activity, ensure, ].every(a => typeof a === 'function')).toBe(true);
 	});
 
 	it('should throw an error if a required argument is missing', () => {
@@ -239,7 +239,7 @@ describe('fromBdd', () => {
 	it('should convert a complex activities and outcomes feature', async () => {
 		const { set, not, doSomething } = withAction(testStepper);
 		const { prose } = withAction(proseStepper);
-		const { activity, ensure, forget } = withAction(activitiesStepper);
+		const { activity, ensure, } = withAction(activitiesStepper);
 
 		if (false as boolean) {
 			// @ts-expect-error ensure only accepts { outcome }
@@ -251,7 +251,6 @@ describe('fromBdd', () => {
 				set({ what: 'plan', value: 'database migration' }),
 				activity({ activity: 'deploy release v1.2.0' }),
 				ensure({ outcome: 'Activity: deploy release v1.2.0' }),
-				forget({ outcome: 'Activity: deploy release v1.2.0' }),
 				not({ statement: 'Activity: deploy release v1.2.0' }),
 				activity({ activity: 'validate metrics for staging' }),
 				prose({ prose: 'outcomes orchestrate multi-step activities' }),
@@ -264,7 +263,6 @@ describe('fromBdd', () => {
 		  set plan to database migration
 		  Activity: deploy release v1.2.0
 		  ensure Activity: deploy release v1.2.0
-		  forget Activity: deploy release v1.2.0
 		  not Activity: deploy release v1.2.0
 		  Activity: validate metrics for staging
 		  prose: outcomes orchestrate multi-step activities
@@ -279,7 +277,6 @@ describe('fromBdd', () => {
 			{ actionName: 'set', args: { what: 'plan', value: 'database migration' }, gwta: 'set plan to database migration' },
 			{ actionName: 'activity', args: { activity: 'deploy release v1.2.0' }, gwta: 'Activity: deploy release v1.2.0' },
 			{ actionName: 'ensure', args: { outcome: 'Activity: deploy release v1.2.0' }, gwta: 'ensure Activity: deploy release v1.2.0' },
-			{ actionName: 'forget', args: { outcome: 'Activity: deploy release v1.2.0' }, gwta: 'forget Activity: deploy release v1.2.0' },
 			{ actionName: 'not', args: { statement: 'Activity: deploy release v1.2.0' }, gwta: 'not Activity: deploy release v1.2.0' },
 			{ actionName: 'activity', args: { activity: 'validate metrics for staging' }, gwta: 'Activity: validate metrics for staging' },
 			{ actionName: 'prose', args: { prose: 'outcomes orchestrate multi-step activities' }, gwta: 'prose: outcomes orchestrate multi-step activities' },

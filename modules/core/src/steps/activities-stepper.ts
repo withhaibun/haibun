@@ -1,5 +1,6 @@
 import { AStepper, IHasCycles, TStepperSteps } from '../lib/astepper.js';
-import { TActionResult, TStepArgs, TFeatureStep, OK, TWorld, IStepperCycles, TStepperStep, TFeatures } from '../lib/defs.js';
+
+import { TActionResult, TStepArgs, TFeatureStep, OK, TWorld, IStepperCycles, TStepperStep, TFeatures, CycleWhen } from '../lib/defs.js';
 import { executeSubFeatureSteps, findFeatureStepsFromStatement } from '../lib/util/featureStep-executor.js';
 import { ExecMode } from '../lib/defs.js';
 import { actionOK, actionNotOK, getActionable } from '../lib/util/index.js';
@@ -11,7 +12,6 @@ type TActivitiesFixedSteps = {
 	activity: TStepperStep;
 	waypoint: TStepperStep;
 	ensure: TStepperStep;
-	forget: TStepperStep;
 	waypointed: TStepperStep;
 	showWaypoints: TStepperStep;
 };
@@ -23,6 +23,8 @@ type TActivitiesStepperSteps = TStepperSteps & TActivitiesFixedSteps;
  * implements this logic: P ∨ (¬P ∧ [A]P)
  */
 export class ActivitiesStepper extends AStepper implements IHasCycles {
+
+
 	private steppers: AStepper[] = [];
 	// Track which outcome patterns were defined in backgrounds vs features
 	private backgroundOutcomePatterns: Set<string> = new Set();
@@ -35,6 +37,48 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 	private lastFeaturePath: string = '';
 	// Track ensured waypoint instances with their interpolated proofs
 	private ensuredInstances: Map<string, { proof: string[]; valid: boolean }> = new Map();
+	// Track registered outcome metadata for runtime re-emission to the monitor
+	private registeredOutcomeMetadata: Map<string, { proofStatements: string[]; proofPath: string; isBackground: boolean; activityBlockSteps?: string[] }> = new Map();
+
+	cycles: IStepperCycles = {
+		startExecution: () => {
+			this.sendGraphLinkMessages();
+		},
+		startFeature: (startFeature) => {
+			this.getWorld().logger.debug(`ActivitiesStepper.startFeature: starting feature at path "${startFeature.resolvedFeature.path}"`);
+
+			// If we were running a different feature before, clear its outcomes
+			if (this.lastFeaturePath && this.lastFeaturePath !== startFeature.resolvedFeature.path) {
+				this.getWorld().logger.debug(`ActivitiesStepper.startFeature: clearing outcomes from previous feature "${this.lastFeaturePath}"`);
+				const outcomesToClear: string[] = [];
+				for (const [outcome, featurePath] of this.outcomeToFeaturePath.entries()) {
+					if (featurePath === this.lastFeaturePath) {
+						outcomesToClear.push(outcome);
+						delete this.steps[outcome];
+						this.featureOutcomePatterns.delete(outcome);
+					}
+				}
+				for (const outcome of outcomesToClear) {
+					this.outcomeToFeaturePath.delete(outcome);
+				}
+				this.getWorld().logger.debug(`ActivitiesStepper.startFeature: cleared ${outcomesToClear.length} outcomes from previous feature`);
+			}
+
+			this.currentFeaturePath = startFeature.resolvedFeature.path;
+			this.sendGraphLinkMessages();
+		},
+		endFeature: () => {
+			// Track this feature path so we can clean it up when the next feature starts
+			this.lastFeaturePath = this.currentFeaturePath;
+			// Clear ensured instances for next feature
+			this.ensuredInstances.clear();
+			return Promise.resolve();
+		}
+	}
+	cyclesWhen = {
+		startExecution: CycleWhen.FIRST,
+		startFeature: CycleWhen.FIRST,
+	}
 
 	private readonly baseSteps = {
 		activity: {
@@ -72,18 +116,18 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				// Parse the proof statements from the waypoint clause (DOMAIN_STATEMENT)
 				const proofFromRemember = proofRaw.split('\n').map(s => s.trim()).filter(s => s.length > 0);
 
-				// Check if we're in an activity block by scanning backwards through allLines
-				let activityBlockSteps: string[] | undefined;
+			// Check if we're in an activity block by scanning backwards through allLines
+			let activityBlockSteps: string[] | undefined;
 
-				if (allLines && lineIndex !== undefined) {
-					// Scan backwards from current line to find the Activity: marker
-					let activityStartLine = -1;
-					for (let i = lineIndex - 1; i >= 0; i--) {
-						const prevLine = getActionable(allLines[i]);
-						if (prevLine.match(/^Activity:/i)) {
-							activityStartLine = i;
-							break;
-						}
+			if (allLines && lineIndex !== undefined) {
+				// Scan backwards from current line to find the Activity: marker
+				let activityStartLine = -1;
+				for (let i = lineIndex - 1; i >= 0; i--) {
+					const prevLine = getActionable(allLines[i]);
+					if (prevLine.match(/^Activity:/i)) {
+						activityStartLine = i;
+						break;
+					}
 						// Stop if we hit another major section marker
 						if (prevLine.match(/^(Feature|Scenario|Background):/i)) {
 							break;
@@ -103,9 +147,10 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 					}
 				}
 
-				// Register the outcome with its proof from the DOMAIN_STATEMENT
-				activitiesStepper.registerOutcome(outcome, proofFromRemember, path, isBackground, activityBlockSteps);
-				return true; // Skip normal step resolution since we've registered the outcome
+			// Register the outcome with its proof from the DOMAIN_STATEMENT
+			activitiesStepper.registerOutcome(outcome, proofFromRemember, path, isBackground, activityBlockSteps);
+
+			return true; // Skip normal step resolution since we've registered the outcome
 			},
 			action: async ({ proof }: { proof: TFeatureStep[] }, featureStep: TFeatureStep) => {
 				// Execute the proof statements to satisfy this outcome
@@ -142,7 +187,6 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 					return actionNotOK(`ensure: waypoint "${outcomeKey}" (pattern "${pattern}") is not registered`, { messageContext });
 				}
 
-				// Always execute the full waypoint (which includes the proof verification)
 				const result = await executeSubFeatureSteps(featureStep, outcome, this.steppers, this.getWorld(), ExecMode.NO_CYCLES);
 
 				if (!result.ok) {
@@ -171,17 +215,6 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 						proofStatements
 					}
 				};
-				return actionOK({ messageContext });
-			},
-		},
-		forget: {
-			description: 'Deprecated: forget is no longer needed since ensure always re-verifies outcomes',
-			gwta: `forget {outcome:${DOMAIN_STATEMENT}}`,
-			action: ({ outcome }: { outcome: TFeatureStep[] }, featureStep: TFeatureStep) => {
-				const outcomeKey = outcome.map(step => step.in).join(' ');
-				this.getWorld().logger.debug(`forget: deprecated no-op for outcome "${outcomeKey}" (from ${featureStep.in}). Outcomes are no longer cached, so forget is unnecessary.`);
-
-				const messageContext: TMessageContext = { incident: EExecutionMessageType.ACTION, incidentDetails: { outcome: outcomeKey, deprecated: true } };
 				return actionOK({ messageContext });
 			},
 		},
@@ -258,37 +291,6 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 
 	steps: TActivitiesStepperSteps = { ...this.baseSteps };
 
-	cycles: IStepperCycles = {
-		startFeature: (startFeature) => {
-			this.getWorld().logger.debug(`ActivitiesStepper.startFeature: starting feature at path "${startFeature.resolvedFeature.path}"`);
-
-			// If we were running a different feature before, clear its outcomes
-			if (this.lastFeaturePath && this.lastFeaturePath !== startFeature.resolvedFeature.path) {
-				this.getWorld().logger.debug(`ActivitiesStepper.startFeature: clearing outcomes from previous feature "${this.lastFeaturePath}"`);
-				const outcomesToClear: string[] = [];
-				for (const [outcome, featurePath] of this.outcomeToFeaturePath.entries()) {
-					if (featurePath === this.lastFeaturePath) {
-						outcomesToClear.push(outcome);
-						delete this.steps[outcome];
-						this.featureOutcomePatterns.delete(outcome);
-					}
-				}
-				for (const outcome of outcomesToClear) {
-					this.outcomeToFeaturePath.delete(outcome);
-				}
-				this.getWorld().logger.debug(`ActivitiesStepper.startFeature: cleared ${outcomesToClear.length} outcomes from previous feature`);
-			}
-
-			this.currentFeaturePath = startFeature.resolvedFeature.path;
-		},
-		endFeature: async () => {
-			// Track this feature path so we can clean it up when the next feature starts
-			this.lastFeaturePath = this.currentFeaturePath;
-			// Clear ensured instances for next feature
-			this.ensuredInstances.clear();
-			return Promise.resolve();
-		}
-	}
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
 		this.steppers = steppers;
@@ -309,6 +311,14 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		if (this.steps[outcome]) {
 			throw new Error(`Outcome "${outcome}" is already registered. Each outcome can only be defined once.`);
 		}
+
+		// Store metadata for runtime re-emission via TEST_LINKS messages
+		this.registeredOutcomeMetadata.set(outcome, {
+			proofStatements,
+			proofPath,
+			isBackground: isBackground ?? false,
+			activityBlockSteps: activityBlockSteps ?? [],
+		});
 
 		// Track whether this is a background or feature outcome
 		if (isBackground) {
@@ -362,7 +372,6 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				};
 
 				// ALWAYS-VERIFY SEMANTICS: Try proof first
-				// Use NO_CYCLES for proof checking to avoid triggering hooks
 				this.getWorld().logger.debug(`ActivitiesStepper: checking proof for outcome "${outcome}"`);
 				this.getWorld().logger.debug(`ActivitiesStepper: proof statements: ${JSON.stringify(proofStatements)}`);
 				const proofResult = await resolveAndExecute(proofStatements, 0, ExecMode.NO_CYCLES);
@@ -393,7 +402,6 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 					}
 
 					// Step 2: Activity body succeeded - now verify the proof passes
-					// Use NO_CYCLES for proof verification to avoid triggering hooks
 					this.getWorld().logger.debug(`ActivitiesStepper: verifying proof after activity body for outcome "${outcome}"`);
 					const verifyResult = await resolveAndExecute(proofStatements, 200, ExecMode.NO_CYCLES);
 
@@ -417,6 +425,28 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		};
 
 		this.getWorld().logger.debug(`ActivitiesStepper: registered outcome pattern "${outcome}" with ${proofStatements.length} proof steps`);
+	}
+
+	/**
+	 * Send all GRAPH_LINK messages that were emitted during resolution.
+	 * This is needed because MonitorHandler subscribes AFTER resolution happens,
+	 * so it misses the initial GRAPH_LINK messages. We store them during resolution
+	 * and retransmit when requested (e.g., when MonitorHandler first subscribes).
+	 */
+	sendGraphLinkMessages(): void {
+		for (const [outcome, metadata] of this.registeredOutcomeMetadata.entries()) {
+			const messageContext: TMessageContext = {
+				incident: EExecutionMessageType.GRAPH_LINK,
+				incidentDetails: {
+					outcome,
+					proofStatements: metadata.proofStatements,
+					proofPath: metadata.proofPath,
+					isBackground: metadata.isBackground,
+					activityBlockSteps: metadata.activityBlockSteps ?? null,
+				}
+			};
+			this.getWorld().logger.debug(`waypoint registered: "${outcome}"`, messageContext);
+		}
 	}
 }
 
