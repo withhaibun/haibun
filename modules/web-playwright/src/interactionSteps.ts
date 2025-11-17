@@ -75,70 +75,55 @@ export const interactionSteps = (wp: WebPlaywright): TStepperSteps => ({
 		gwta: `wait for {target: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}`,
 		action: async ({ target }: { target: string }, featureStep: TFeatureStep) => {
 			try {
+				// Check if we're being called from within inElement with a shadow DOM context
+				if (wp.inContainerSelector) {
+					try {
+						// Get the actual Page object (not through withPage which might return a Locator)
+						const page = await wp.getPage();
+						// Assume the container is a shadow DOM host - wait for element in shadow root
+						await page.waitForFunction(
+							({ containerSel, innerSel }) => {
+								const host = document.querySelector(containerSel);
+								if (!host?.shadowRoot) return false;
+								
+								const element = host.shadowRoot.querySelector(innerSel);
+								if (!element) return false;
+								
+								// Use getBoundingClientRect to check if element has dimensions
+								const rect = element.getBoundingClientRect();
+								if (rect.width === 0 || rect.height === 0) return false;
+								
+								// Check computed styles for common hiding methods
+								const computed = window.getComputedStyle(element);
+								if (computed.display === 'none' || computed.visibility === 'hidden' || computed.opacity === '0') return false;
+								
+								// Check if element is behind other layers (negative z-index parent)
+								let current = element.parentElement;
+								while (current) {
+									const style = window.getComputedStyle(current);
+									if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return false;
+									const zIndex = parseInt(style.zIndex);
+									if (!isNaN(zIndex) && zIndex < 0) return false;
+									current = current.parentElement;
+								}
+								
+								return true;
+							},
+							{ containerSel: wp.inContainerSelector, innerSel: target },
+							{ timeout: 30000 }
+						);
+						return OK;
+					} catch (e) {
+						// Shadow DOM approach failed, return error
+						return actionNotOK(`Did not find ${target} in shadow DOM: ${e}`);
+					}
+				}
+				
+				// Regular wait (not in shadow DOM)
 				await wp.withPage(async (page: Page) => await locateByDomain(page, featureStep, 'target').waitFor());
 				return OK;
 			} catch (e) {
 				return actionNotOK(`Did not find ${target}`);
-			}
-		},
-	},
-	waitForElementInShadowDom: {
-		precludes: [`${wp.constructor.name}.waitFor`],
-		gwta: `wait for {selector} in shadow DOM of {hostSelector}`,
-		action: async ({ selector, hostSelector }: { selector: string; hostSelector: string }) => {
-			try {
-				await wp.withPage(async (page: Page) => {
-					// Wait for the element to appear in shadow DOM and be actually visible
-					const found = await page.waitForFunction(
-						({ hostSel, innerSel }) => {
-							const host = document.querySelector(hostSel);
-							if (!host?.shadowRoot) return false;
-							
-							const element = host.shadowRoot.querySelector(innerSel);
-							if (!element) return false;
-							
-							// Use getBoundingClientRect to check if element has dimensions
-							// and is actually rendered (not hidden by z-index, display, etc.)
-							const rect = element.getBoundingClientRect();
-							if (rect.width === 0 || rect.height === 0) {
-								return false;
-							}
-							
-							// Check computed styles for common hiding methods
-							const computed = window.getComputedStyle(element);
-							if (computed.display === 'none' || 
-							    computed.visibility === 'hidden' || 
-							    computed.opacity === '0') {
-								return false;
-							}
-							
-							// Check if element is behind other layers (negative z-index parent)
-							let current = element.parentElement;
-							while (current) {
-								const style = window.getComputedStyle(current);
-								if (style.display === 'none' || 
-								    style.visibility === 'hidden' || 
-								    style.opacity === '0') {
-									return false;
-								}
-								// Check for negative z-index which indicates hidden layer
-								const zIndex = parseInt(style.zIndex);
-								if (!isNaN(zIndex) && zIndex < 0) {
-									return false;
-								}
-								current = current.parentElement;
-							}
-							
-							return true;
-						},
-						{ hostSel: hostSelector, innerSel: selector },
-						{ timeout: 30000 }
-					);
-					return found ? OK : actionNotOK(`Element ${selector} not found or not visible in shadow DOM`);
-				});
-				return OK;
-			} catch (e) {
-				return actionNotOK(`Failed to find ${selector} in shadow DOM of ${hostSelector}: ${e.message}`);
 			}
 		},
 	},
@@ -279,30 +264,16 @@ export const interactionSteps = (wp: WebPlaywright): TStepperSteps => ({
 			return OK;
 		},
 	},
-	clickButton: {
-		precludes: [`${wp.constructor.name}.click`],
-		gwta: `click {buttonName} button`,
-		action: async ({ buttonName }: { buttonName: string }) => {
-			try {
-				await wp.withPage(async (page: Page) => {
-					// Click button by its accessible name (aria-label or text content)
-					// Works even when text is hidden (e.g., on hover)
-					await page.getByRole('button', { name: buttonName }).click();
-				});
-				return OK;
-			} catch (e) {
-				return actionNotOK(`Failed to click button "${buttonName}": ${e.message}`);
-			}
-		},
-	},
 	inElement: {
 		gwta: `in {container: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}, {what: ${DOMAIN_STATEMENT}}`,
-		action: async ({ what }: { container: string; what: TFeatureStep[] }, featureStep: TFeatureStep) => {
+		action: async ({ container, what }: { container: string; what: TFeatureStep[] }, featureStep: TFeatureStep) => {
 			return await wp.withPage(async (page: Page) => {
 				const containerLocator = locateByDomain(page, featureStep, 'container');
 				wp.inContainer = containerLocator;
+				wp.inContainerSelector = container; // Store the selector string for shadow DOM detection
 				const whenResult = await doExecuteFeatureSteps(what, [wp], wp.getWorld(), ExecMode.CYCLES);
 				wp.inContainer = undefined;
+				wp.inContainerSelector = undefined;
 				return whenResult;
 			});
 		},
