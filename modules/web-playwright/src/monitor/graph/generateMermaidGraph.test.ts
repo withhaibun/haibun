@@ -55,9 +55,9 @@ describe('generateMermaidGraph', () => {
     expect(joined).toContain('subgraph WAYPOINTS');
     expect(joined).toContain('subgraph PROOFS');
 
-    // Ensure step should link to waypoint
-    expect(joined).toMatch(/s_0_ensure_\d+\s*==>\s*wp_registered_/);
-    // Waypoint should link to proof
+    // Ensure step should link to waypoint with dotted arrow
+    expect(joined).toMatch(/s_0_ensure_\d+\s*-\.->.*wp_registered_/);
+    // Waypoint should link to proof with dotted arrow
     expect(joined).toMatch(/wp_registered_\d+\s*-\.->.*proof_/);
     expect(joined).toContain('Task completed');
   });
@@ -114,7 +114,7 @@ describe('generateMermaidGraph', () => {
     // The generator should now find the pattern-to-instance match and emit Waypoint/Proof chains
     expect(joined).toContain('subgraph WAYPOINTS');
     expect(joined).toContain('Waypoints');
-    expect(joined).toMatch(/==>\s*wp_/);
+    expect(joined).toMatch(/-\.->.*wp_/);
     expect(joined).toContain('Is logged in as user');
   });
 
@@ -153,10 +153,10 @@ describe('generateMermaidGraph', () => {
     expect(joined).toContain('subgraph WAYPOINTS');
     expect(joined).toContain('subgraph PROOFS');
 
-    // Ensure step should link directly to waypoint: s_0_ensure_0 ==> wp_registered_...
-    expect(joined).toMatch(/s_0_ensure_0\s*==>\s*wp_registered_/);
+    // Ensure step should link directly to waypoint with dotted arrow: s_0_ensure_0 -.-> wp_registered_...
+    expect(joined).toMatch(/s_0_ensure_0\s*-\.->.*wp_registered_/);
 
-    // Waypoint should link to proof: wp_registered_... -.-> proof_...
+    // Waypoint should link to proof with dotted arrow: wp_registered_... -.-> proof_...
     expect(joined).toMatch(/wp_registered_\d+\s*-\.->.*proof_/);
 
     // Proof node should include the file path where waypoint was defined
@@ -166,7 +166,7 @@ describe('generateMermaidGraph', () => {
     expect(joined).toMatch(/wp_registered_\d+\["is logged in as user/);
 
     // VERIFY ACTUAL MERMAID LINKING LINES EXIST
-    const ensureToWpLine = joined.match(/s_0_ensure_0\s*==>\s*wp_registered_\d+/);
+    const ensureToWpLine = joined.match(/s_0_ensure_0\s*-\.->.*wp_registered_\d+/);
     expect(ensureToWpLine).toBeTruthy();
     console.log('✓ Ensure to waypoint link found:', ensureToWpLine?.[0]);
 
@@ -235,7 +235,7 @@ describe('generateMermaidGraph', () => {
     // Verify the graph contains the linked outcomes
     expect(joined).toContain('subgraph WAYPOINTS');
     expect(joined).toContain('subgraph PROOFS');
-    expect(joined).toMatch(/s_0_ensure_0\s*==>\s*wp_registered_/);
+    expect(joined).toMatch(/s_0_ensure_0\s*-\.->.*wp_registered_/);
     expect(joined).toMatch(/wp_registered_\d+\s*-\.->.*proof_/);
     expect(joined).toContain('features/wikipedia.feature');
   });

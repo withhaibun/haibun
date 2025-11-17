@@ -19,13 +19,11 @@ export class ResolvedFeaturesArtifactDisplay extends ArtifactDisplay {
 	}
 
 	public async render(container: HTMLElement): Promise<void> {
-		// The artifact is already typed as TArtifactResolvedFeatures due to the constructor
 		if (!this.artifact.resolvedFeatures || this.artifact.resolvedFeatures.length === 0) {
 			container.innerHTML = '<p>No resolved features to display.</p>';
 			return;
 		}
 
-		// Collect registered outcomes from the captured messages (assume well-formed messageContext structures)
 		let registeredOutcomes: Record<string, { proofStatements?: string[]; proofPath?: string; isBackground?: boolean; activityBlockSteps?: string[] }> | undefined = undefined;
 		const maybeWin = globalThis as unknown as Window & { haibunCapturedMessages?: unknown };
 		const captured = maybeWin.haibunCapturedMessages as unknown;
@@ -36,8 +34,7 @@ export class ResolvedFeaturesArtifactDisplay extends ArtifactDisplay {
 				const mc = e.messageContext as TMessageContext | undefined;
 				if (!mc) continue;
 
-				// GRAPH_LINK incident entries should carry a structured incidentDetails object
-				if (mc.incident === EExecutionMessageType.GRAPH_LINK && mc.incidentDetails) {
+				if (mc.incident === EExecutionMessageType.GRAPH_LINK) {
 					const details = mc.incidentDetails as Record<string, unknown>;
 					const outcomeRaw = String(details.outcome || '').trim();
 					if (outcomeRaw) {
@@ -59,9 +56,8 @@ export class ResolvedFeaturesArtifactDisplay extends ArtifactDisplay {
 
 		const graphSvgId = `mermaid-graph-svg-${instanceCounter++}-${Date.now()}`;
 
-		container.innerHTML = ''; // Clear placeholder
+		container.innerHTML = '';
 
-		// Create control bar
 		const controls = document.createElement('div');
 		controls.className = 'haibun-mermaid-controls';
 		controls.innerHTML = `
@@ -82,7 +78,6 @@ export class ResolvedFeaturesArtifactDisplay extends ArtifactDisplay {
 		svgHolder.className = 'haibun-mermaid-svg-holder';
 		container.appendChild(svgHolder);
 
-		// Hook up controls immediately so they work even if mermaid rendering fails
 		const zoomIn = controls.querySelector<HTMLButtonElement>('.haibun-zoom-in')!;
 		const zoomOut = controls.querySelector<HTMLButtonElement>('.haibun-zoom-out')!;
 		const toggleCode = controls.querySelector<HTMLButtonElement>('.haibun-toggle-code')!;
@@ -90,7 +85,6 @@ export class ResolvedFeaturesArtifactDisplay extends ArtifactDisplay {
 
 		let scale = 1;
 		zoomIn.addEventListener('click', () => {
-			// allow unrestricted zooming in small increments
 			scale = scale + 0.2;
 			svgHolder.style.transform = `scale(${scale})`;
 			svgHolder.style.transformOrigin = '0 0';
@@ -127,7 +121,6 @@ export class ResolvedFeaturesArtifactDisplay extends ArtifactDisplay {
 			const renderMermaid = async () => {
 				try {
 					const { svg, bindFunctions } = await mermaid.render(graphSvgId, mermaidGraph);
-					// svg HTML captured into holder
 					svgHolder.innerHTML = svg;
 					if (bindFunctions) bindFunctions(svgHolder);
 				} catch (err) {
@@ -138,7 +131,6 @@ export class ResolvedFeaturesArtifactDisplay extends ArtifactDisplay {
 
 			await renderMermaid();
 
-			// Re-render on container resize to allow Mermaid to re-layout for new width
 			const debounced = (fn: () => void, wait = 180) => {
 				let t: number | null = null;
 				return () => {
@@ -150,7 +142,6 @@ export class ResolvedFeaturesArtifactDisplay extends ArtifactDisplay {
 			let ro: ResizeObserver | null = null;
 			if (typeof ResizeObserver !== 'undefined') {
 				ro = new ResizeObserver(debounced(() => {
-					// re-render the full graph so mermaid can recompute layout
 					void renderMermaid();
 				}));
 				ro.observe(svgHolder);
