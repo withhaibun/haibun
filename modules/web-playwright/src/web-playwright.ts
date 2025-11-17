@@ -101,6 +101,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	expectedDownload: Promise<Download>;
 	headless: boolean;
 	inContainer: Locator;
+	inContainerSelector: string;
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
