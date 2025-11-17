@@ -75,6 +75,51 @@ export const interactionSteps = (wp: WebPlaywright): TStepperSteps => ({
 		gwta: `wait for {target: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}`,
 		action: async ({ target }: { target: string }, featureStep: TFeatureStep) => {
 			try {
+				// Check if we're being called from within inElement with a shadow DOM context
+				if (wp.inContainerSelector) {
+					try {
+						// Get the actual Page object (not through withPage which might return a Locator)
+						const page = await wp.getPage();
+						// Assume the container is a shadow DOM host - wait for element in shadow root
+						await page.waitForFunction(
+							({ containerSel, innerSel }) => {
+								const host = document.querySelector(containerSel);
+								if (!host?.shadowRoot) return false;
+								
+								const element = host.shadowRoot.querySelector(innerSel);
+								if (!element) return false;
+								
+								// Use getBoundingClientRect to check if element has dimensions
+								const rect = element.getBoundingClientRect();
+								if (rect.width === 0 || rect.height === 0) return false;
+								
+								// Check computed styles for common hiding methods
+								const computed = window.getComputedStyle(element);
+								if (computed.display === 'none' || computed.visibility === 'hidden' || computed.opacity === '0') return false;
+								
+								// Check if element is behind other layers (negative z-index parent)
+								let current = element.parentElement;
+								while (current) {
+									const style = window.getComputedStyle(current);
+									if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return false;
+									const zIndex = parseInt(style.zIndex);
+									if (!isNaN(zIndex) && zIndex < 0) return false;
+									current = current.parentElement;
+								}
+								
+								return true;
+							},
+							{ containerSel: wp.inContainerSelector, innerSel: target },
+							{ timeout: 30000 }
+						);
+						return OK;
+					} catch (e) {
+						// Shadow DOM approach failed, return error
+						return actionNotOK(`Did not find ${target} in shadow DOM: ${e}`);
+					}
+				}
+				
+				// Regular wait (not in shadow DOM)
 				await wp.withPage(async (page: Page) => await locateByDomain(page, featureStep, 'target').waitFor());
 				return OK;
 			} catch (e) {
@@ -221,12 +266,14 @@ export const interactionSteps = (wp: WebPlaywright): TStepperSteps => ({
 	},
 	inElement: {
 		gwta: `in {container: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}, {what: ${DOMAIN_STATEMENT}}`,
-		action: async ({ what }: { container: string; what: TFeatureStep[] }, featureStep: TFeatureStep) => {
+		action: async ({ container, what }: { container: string; what: TFeatureStep[] }, featureStep: TFeatureStep) => {
 			return await wp.withPage(async (page: Page) => {
 				const containerLocator = locateByDomain(page, featureStep, 'container');
 				wp.inContainer = containerLocator;
+				wp.inContainerSelector = container; // Store the selector string for shadow DOM detection
 				const whenResult = await doExecuteFeatureSteps(what, [wp], wp.getWorld(), ExecMode.CYCLES);
 				wp.inContainer = undefined;
+				wp.inContainerSelector = undefined;
 				return whenResult;
 			});
 		},
