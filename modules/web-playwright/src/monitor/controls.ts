@@ -1,4 +1,5 @@
 import { TPrompt } from "@haibun/core/lib/prompter.js";
+import { LOG_LEVELS } from '@haibun/core/lib/interfaces/logger.js';
 
 declare global {
 	interface Window {
@@ -15,12 +16,22 @@ let userScrolledManually = false;
 
 export function setupControls() {
 	const levelSelect = document.getElementById('haibun-debug-level-select') as HTMLSelectElement;
-	const levels = ['debug', 'log', 'info', 'error'];
+
+	// Populate the select options from LOG_LEVELS
+	LOG_LEVELS.forEach((level) => {
+		const option = document.createElement('option');
+		option.value = level;
+		option.textContent = level.charAt(0).toUpperCase() + level.slice(1);
+		if (level === 'log') {
+			option.selected = true;
+		}
+		levelSelect.appendChild(option);
+	});
 
 	const updateStyles = (selectedLevel: string) => {
-		const selectedIndex = levels.indexOf(selectedLevel);
+		const selectedIndex = LOG_LEVELS.indexOf(selectedLevel as typeof LOG_LEVELS[number]);
 		let css = '';
-		levels.forEach((level, index) => {
+		LOG_LEVELS.forEach((level, index) => {
 			if (index < selectedIndex) {
 				css += `div.haibun-log-entry.haibun-level-${level}:not(.disappeared) { display: none; }\n`;
 			} else {

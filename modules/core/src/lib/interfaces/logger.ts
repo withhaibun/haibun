@@ -2,7 +2,10 @@ import { TResolvedFeature } from '../defs.js';
 import { TAnyFixme } from '../fixme.js';
 import { TTag } from '../ttag.js';
 
-export type TLogLevel = 'none' | 'debug' | 'trace' | 'log' | 'info' | 'warn' | 'error';
+// Ordered list of log levels for filtering
+export const LOG_LEVELS = ['debug', 'trace', 'log', 'info', 'warn', 'error'] as const;
+
+export type TLogLevel = 'none' | typeof LOG_LEVELS[number];
 export type TLogArgs = string;
 
 export type TMessageContext = {
