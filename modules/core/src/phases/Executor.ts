@@ -169,6 +169,8 @@ export class FeatureExecutor {
 				if (currentScenario) {
 					this.logit(`end scenario ${currentScenario}`, { incident: EExecutionMessageType.SCENARIO_END, incidentDetails: { currentScenario } }, 'debug');
 					await doStepperCycle(this.steppers, 'endScenario', undefined);
+					// Save variables after scenario ends so they persist to next scenario
+					featureVars = new FeatureVariables(world, world.shared.all());
 				}
 				currentScenario = currentScenario + 1;
 				this.logit(`start scenario ${currentScenario}`, { incident: EExecutionMessageType.SCENARIO_START, incidentDetails: { currentScenario } }, 'debug');
@@ -176,11 +178,7 @@ export class FeatureExecutor {
 			}
 
 			// Prepend feature number and scenario number to seqPath
-			// Use 1-based scenario numbering in seqPath (currentScenario 0 becomes 1, etc.)
-			const augmentedStep = {
-				...step,
-				seqPath: [world.tag.featureNum, currentScenario + 1, ...step.seqPath]
-			};
+			const augmentedStep = { ...step, seqPath: [world.tag.featureNum, currentScenario + 1, ...step.seqPath] };
 
 			const result = await FeatureExecutor.doFeatureStep(this.steppers, augmentedStep, world);
 			ok = ok && result.ok;
@@ -191,7 +189,7 @@ export class FeatureExecutor {
 			if (world.options[STEP_DELAY]) {
 				await sleep(world.options[STEP_DELAY] as number);
 			}
-			// Stash feature variables
+			// Stash feature variables (for feature-level steps before any scenario)
 			if (!currentScenario) {
 				featureVars = new FeatureVariables(world, world.shared.all());
 			}
@@ -200,11 +198,7 @@ export class FeatureExecutor {
 			this.logit(`end scenario ${currentScenario}`, { incident: EExecutionMessageType.SCENARIO_END, incidentDetails: { currentScenario } }, 'debug');
 			await doStepperCycle(this.steppers, 'endScenario', undefined);
 		}
-		this.logit(`end feature ${currentScenario}`, {
-			incident: EExecutionMessageType.FEATURE_END, incidentDetails: {
-				totalTime: Timer.since() - this.startOffset,
-			}
-		}, 'debug');
+		this.logit(`end feature ${currentScenario}`, { incident: EExecutionMessageType.FEATURE_END, incidentDetails: { totalTime: Timer.since() - this.startOffset, } }, 'debug');
 		const featureResult: TFeatureResult = { path: feature.path, ok, stepResults: world.runtime.stepResults };
 
 		return featureResult;

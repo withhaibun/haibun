@@ -75,7 +75,7 @@ describe('variable name literal handling', () => {
 
 
 describe('vars between scenarios', () => {
-	it('clears variables between scenarios', async () => {
+	it('persists variables between scenarios', async () => {
 		const features = [{
 			path: '/features/test.feature',
 			content: `
@@ -83,7 +83,7 @@ Scenario: Scenario 1
 set "a" to 1
 variable "a" is "1"
 Scenario: Scenario 2
-not variable "a" is set
+variable "a" is "1"
 `}];
 		const res = await passWithDefaults(features, steppers);
 		expect(res.ok).toBe(true);
@@ -112,15 +112,15 @@ describe('feature variables', () => {
 		const res = await passWithDefaults([feature], steppers);
 		expect(res.ok).toBe(true);
 	});
-	it('does not overwrite feature variables', async () => {
-		const feature = { path: '/features/test.feature', content: 'set "x" to "y"\nScenario: Sets x\nvariable "x" is "y"\nset "x" to "z"\nScenario: Checks x\nvariable "x" is "y"' };
+	it('persists scenario variable changes to next scenario', async () => {
+		const feature = { path: '/features/test.feature', content: 'set "x" to "y"\nScenario: Sets x\nvariable "x" is "y"\nset "x" to "z"\nScenario: Checks x\nvariable "x" is "z"' };
 		const res = await passWithDefaults([feature], steppers);
 		expect(res.ok).toBe(true);
 	});
 });
 
 describe('vars between scenarios', () => {
-	it('should encapsulate variables to each scenario', async () => {
+	it('should persist variables across scenarios', async () => {
 		const feature = {
 			path: 'test.feature',
 			content: `
@@ -133,9 +133,9 @@ variable "feature variable" is "something"
 
 set "feature variable" to "something else"
 
-Scenario: Make sure it is still the feature variable value
+Scenario: Make sure it persisted from previous scenario
 
-variable "feature variable" is "something"
+variable "feature variable" is "something else"
 ` }
 		const res = await passWithDefaults([feature], steppers);
 		expect(res.ok).toBe(true);
