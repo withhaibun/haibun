@@ -33,8 +33,10 @@ export function setupControls() {
 		let css = '';
 		LOG_LEVELS.forEach((level, index) => {
 			if (index < selectedIndex) {
-				css += `div.haibun-log-entry.haibun-level-${level}:not(.disappeared) { display: none; }\n`;
+				// Hide entries below selected level, but NOT step-start entries (they're always visible)
+				css += `div.haibun-log-entry.haibun-level-${level}:not(.disappeared):not(.haibun-step-start) { display: none; }\n`;
 			} else {
+				// Show entries at or above selected level
 				css += `div.haibun-log-entry.haibun-level-${level}:not(.disappeared) { display: flex; }\n`;
 			}
 		});
