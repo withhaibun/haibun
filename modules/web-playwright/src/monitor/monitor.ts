@@ -67,14 +67,40 @@ export function renderLogEntry(logEntryData: TLogEntry) {
 
 	container.appendChild(logEntryElement);
 
-	// On STEP_END, find the last active STEP_START entry and hide it
+	// On STEP_END, find the last active STEP_START entry and handle it
 	if (messageContext?.incident === EExecutionMessageType.STEP_END) {
 		const activeStepStartEntries = container.querySelectorAll('.haibun-step-start:not(.disappeared)');
 		if (activeStepStartEntries.length > 0) {
 			const lastActiveEntry = activeStepStartEntries[activeStepStartEntries.length - 1];
+
+			// Just mark as disappeared - don't add failed class to STEP_START
+			// The STEP_END entry itself will have the failed class if needed
 			lastActiveEntry.classList.add('disappeared');
 		} else {
 			console.warn('Received STEP_END but found no active STEP_START log entry to hide.');
+		}
+	}
+
+	// On ENSURE_END, find the last active ENSURE_START entry and handle it
+	if (messageContext?.incident === EExecutionMessageType.ENSURE_END) {
+		const activeEnsureStartEntries = container.querySelectorAll('.haibun-ensure-start:not(.disappeared)');
+		if (activeEnsureStartEntries.length > 0) {
+			const lastActiveEntry = activeEnsureStartEntries[activeEnsureStartEntries.length - 1];
+
+			// Check if this ensure failed
+			const incidentDetails = messageContext.incidentDetails as Record<string, unknown> | undefined;
+			const actionResult = incidentDetails?.actionResult as { ok?: boolean } | undefined;
+			const ensureFailed = actionResult?.ok === false;
+
+			if (ensureFailed) {
+				// Mark as failed so it stays visible regardless of log level
+				lastActiveEntry.classList.add('haibun-ensure-failed');
+			}
+
+			// Hide the ensure-start marker (but failed ensures will remain visible via CSS)
+			lastActiveEntry.classList.add('disappeared');
+		} else {
+			console.warn('Received ENSURE_END but found no active ENSURE_START log entry to hide.');
 		}
 	}
 

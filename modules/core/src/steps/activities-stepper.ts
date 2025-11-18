@@ -152,6 +152,14 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			gwta: `ensure {outcome:${DOMAIN_STATEMENT}}`,
 			action: async ({ outcome }: { outcome: TFeatureStep[] }, featureStep: TFeatureStep) => {
 				const outcomeKey = outcome.map(step => step.in).join(' ');
+
+				// Log ENSURE_START
+				const startMessageContext: TMessageContext = {
+					incident: EExecutionMessageType.ENSURE_START,
+					incidentDetails: { waypoint: outcomeKey, step: featureStep }
+				};
+				this.getWorld().logger.log(`⏳ Ensuring ${outcomeKey}`, startMessageContext);
+
 				this.getWorld().logger.debug(`ensure: verifying waypoint "${outcomeKey}"`);
 
 				const pattern = outcome[0]?.action?.actionName || outcomeKey;
@@ -168,11 +176,18 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				const result = await executeSubFeatureSteps(featureStep, outcome, this.steppers, this.getWorld(), ExecMode.NO_CYCLES);
 
 				if (!result.ok) {
+					// Log ENSURE_END for failure
+					const endMessageContext: TMessageContext = {
+						incident: EExecutionMessageType.ENSURE_END,
+						incidentDetails: { waypoint: outcomeKey, satisfied: false, error: result, actionResult: { ok: false } }
+					};
+					this.getWorld().logger.log(`❌ Failed ensuring ${outcomeKey}`, endMessageContext);
+
 					const messageContext: TMessageContext = {
 						incident: EExecutionMessageType.ACTION,
 						incidentDetails: { waypoint: outcomeKey, satisfied: false, error: result }
 					};
-					return actionNotOK(`ensure: waypoint "${outcomeKey}" could not be satisfied`, { messageContext });
+					return actionNotOK(`ensure: waypoint "${outcomeKey}" proof failed`, { messageContext });
 				}
 
 				const proofStatements = (result.stepActionResult?.messageContext?.incidentDetails as { proofStatements?: string[] })?.proofStatements;
@@ -182,6 +197,13 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				}
 
 				this.getWorld().logger.debug(`ensure: waypoint "${outcomeKey}" verified and satisfied`);
+
+				// Log ENSURE_END for success at trace level (just to hide the ENSURE_START)
+				const endMessageContext: TMessageContext = {
+					incident: EExecutionMessageType.ENSURE_END,
+					incidentDetails: { waypoint: outcomeKey, satisfied: true, proofStatements, actionResult: { ok: true } }
+				};
+				this.getWorld().logger.trace(`✓ Ensured ${outcomeKey}`, endMessageContext);
 
 				const messageContext: TMessageContext = {
 					incident: EExecutionMessageType.ACTION,

@@ -17,29 +17,53 @@ let userScrolledManually = false;
 export function setupControls() {
 	const levelSelect = document.getElementById('haibun-debug-level-select') as HTMLSelectElement;
 
-	// Populate the select options from LOG_LEVELS
-	LOG_LEVELS.forEach((level) => {
-		const option = document.createElement('option');
-		option.value = level;
-		option.textContent = level.charAt(0).toUpperCase() + level.slice(1);
-		if (level === 'log') {
-			option.selected = true;
-		}
-		levelSelect.appendChild(option);
-	});
+	// Populate the select options from LOG_LEVELS (only if empty)
+	if (levelSelect.options.length === 0) {
+		LOG_LEVELS.forEach((level) => {
+			const option = document.createElement('option');
+			option.value = level;
+			option.textContent = level.charAt(0).toUpperCase() + level.slice(1);
+			if (level === 'log') {
+				option.selected = true;
+			}
+			levelSelect.appendChild(option);
+		});
+	}
 
 	const updateStyles = (selectedLevel: string) => {
 		const selectedIndex = LOG_LEVELS.indexOf(selectedLevel as typeof LOG_LEVELS[number]);
 		let css = '';
 		LOG_LEVELS.forEach((level, index) => {
 			if (index < selectedIndex) {
-				// Hide entries below selected level, but NOT step-start entries (they're always visible)
-				css += `div.haibun-log-entry.haibun-level-${level}:not(.disappeared):not(.haibun-step-start) { display: none; }\n`;
+				// Hide entries below selected level, but NOT active step-start/ensure-start entries or failed steps/ensures
+				css += `div.haibun-log-entry.haibun-level-${level}:not(.haibun-step-start):not(.haibun-ensure-start):not(.haibun-step-failed):not(.haibun-ensure-failed) { display: none; }\n`;
+				// Also hide step-start entries that have disappeared (completed) unless they're failed
+				css += `div.haibun-log-entry.haibun-level-${level}.haibun-step-start.disappeared:not(.haibun-step-failed) { display: none; }\n`;
+				// Also hide ensure-start entries that have disappeared (completed) unless they're failed
+				css += `div.haibun-log-entry.haibun-level-${level}.haibun-ensure-start.disappeared:not(.haibun-ensure-failed) { display: none; }\n`;
 			} else {
-				// Show entries at or above selected level
+				// Show entries at or above selected level that haven't disappeared
 				css += `div.haibun-log-entry.haibun-level-${level}:not(.disappeared) { display: flex; }\n`;
+				// Also show active step-starts even if they would normally be hidden
+				css += `div.haibun-log-entry.haibun-level-${level}.haibun-step-start:not(.disappeared) { display: flex; }\n`;
+				// Also show active ensure-starts even if they would normally be hidden
+				css += `div.haibun-log-entry.haibun-level-${level}.haibun-ensure-start:not(.disappeared) { display: flex; }\n`;
 			}
 		});
+
+		// Show all active (not disappeared) step-start entries regardless of level
+		css += `div.haibun-log-entry.haibun-step-start:not(.disappeared) { display: flex !important; }\n`;
+		// Show all active (not disappeared) ensure-start entries regardless of level
+		css += `div.haibun-log-entry.haibun-ensure-start:not(.disappeared) { display: flex !important; }\n`;
+		// Hide all disappeared entries UNLESS they're failed
+		css += `div.haibun-log-entry.disappeared:not(.haibun-step-failed):not(.haibun-ensure-failed) { display: none !important; }\n`;
+		// Always show failed steps regardless of disappeared state or log level
+		css += `div.haibun-log-entry.haibun-step-failed { display: flex !important; }\n`;
+		// Always show failed ensures regardless of disappeared state or log level
+		css += `div.haibun-log-entry.haibun-ensure-failed { display: flex !important; }\n`;
+		// Hide successful ENSURE_END entries (they're just for signaling, not display)
+		css += `div.haibun-log-entry.haibun-ensure-end:not(.haibun-ensure-failed) { display: none !important; }\n`;
+
 		let styleElement = document.getElementById('haibun-dynamic-styles');
 		if (!styleElement) {
 			styleElement = document.createElement('style');

@@ -300,7 +300,7 @@ export type TStepResult = {
 	seqPath: TSeqPath;
 };
 
-export type TSatisfiedOutcome = {
+export type TProvenOutcome = {
 	proofResult: TStepResult;
 	proofSteps: TFeatureStep[];
 	pattern: string; // The pattern template (e.g., "Navigate to {page}")

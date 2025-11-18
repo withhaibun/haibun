@@ -22,6 +22,30 @@ export class LogEntry extends LogComponent {
 		if (messageContext?.incident === EExecutionMessageType.STEP_START) {
 			this.addClass('haibun-step-start');
 		}
+
+		if (messageContext?.incident === EExecutionMessageType.ENSURE_START) {
+			this.addClass('haibun-ensure-start');
+		}
+
+		// Check if this step ended with failure
+		if (messageContext?.incident === EExecutionMessageType.STEP_END) {
+			const incidentDetails = messageContext.incidentDetails as Record<string, unknown> | undefined;
+			const actionResult = incidentDetails?.actionResult as { ok?: boolean } | undefined;
+			if (actionResult?.ok === false) {
+				this.addClass('haibun-step-failed');
+			}
+		}
+
+		// Check if ensure ended with failure
+		if (messageContext?.incident === EExecutionMessageType.ENSURE_END) {
+			this.addClass('haibun-ensure-end');
+			const incidentDetails = messageContext.incidentDetails as Record<string, unknown> | undefined;
+			const actionResult = incidentDetails?.actionResult as { ok?: boolean } | undefined;
+			if (actionResult?.ok === false) {
+				this.addClass('haibun-ensure-failed');
+			}
+		}
+
 		this.setData('time', `${timestamp}`);
 
 		this.detailsSummary = new LogDetailsSummary(level, timestamp);
@@ -78,6 +102,7 @@ export class LogMessageContent extends LogComponent {
 			if (incident === EExecutionMessageType.STEP_START) {
 				const loader = document.createElement('div');
 				loader.className = 'haibun-loader';
+				loader.title = 'Executing...';
 				messageSummary.element.prepend(loader);
 			}
 			detailsElement.appendChild(messageSummary.element);
