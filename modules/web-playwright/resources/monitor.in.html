@@ -49,8 +49,92 @@
 		}
 
 		.haibun-header h1 {
-			margin-right: auto;
+			margin-right: 20px;
 			font-size: 1.5em;
+			display: flex;
+			align-items: baseline;
+			gap: 15px;
+		}
+
+		#haibun-current-context {
+			font-size: 0.6em;
+			font-weight: normal;
+			color: #666;
+			font-family: 'Roboto Mono', monospace;
+		}
+
+		#haibun-time-controls {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			flex-grow: 1;
+			margin-right: 20px;
+			position: relative;
+		}
+
+		#haibun-time-slider-container {
+			flex-grow: 1;
+			position: relative;
+			height: 20px;
+			display: flex;
+			align-items: center;
+		}
+
+		#haibun-time-slider {
+			width: 100%;
+			cursor: pointer;
+			z-index: 2;
+			margin: 0;
+		}
+
+		#haibun-timeline-markers {
+			position: absolute;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			pointer-events: none;
+			z-index: 1;
+		}
+
+		.timeline-marker {
+			position: absolute;
+			width: 3px;
+			height: 60%;
+			top: 20%;
+			background-color: rgba(0, 123, 255, 0.6);
+			pointer-events: none;
+		}
+
+		.timeline-marker.ensure {
+			background-color: rgba(255, 140, 0, 0.8);
+			height: 80%;
+			top: 10%;
+			width: 4px;
+			z-index: 1;
+		}
+
+		.timeline-marker.error {
+			background-color: #ff0000;
+			width: 4px;
+			height: 100%;
+			top: 0;
+			z-index: 2;
+		}
+
+		#haibun-play-pause {
+			background: none;
+			border: none;
+			cursor: pointer;
+			font-size: 1.2em;
+		}
+
+		#haibun-playback-speed {
+			font-size: 0.8em;
+			padding: 2px;
+			border: 1px solid #ccc;
+			border-radius: 4px;
+			background: white;
 		}
 
 		.haibun-controls {
@@ -64,9 +148,43 @@
 			flex: 1 1 auto;
 			overflow-y: scroll;
 			box-sizing: border-box;
-			padding: 10px;
+			padding: 20px 40px; /* Relaxed padding */
 			padding-bottom: 50px;
 		}
+
+		/* View Modes */
+		.view-documentation .haibun-log-details-summary,
+		.view-documentation .details-type,
+		.view-documentation .haibun-message-details-json {
+			display: none;
+		}
+
+		.view-documentation .haibun-message-content details > summary {
+			list-style: none;
+		}
+
+		.view-documentation .haibun-message-content details > summary::-webkit-details-marker {
+			display: none;
+		}
+
+		.view-documentation .haibun-log-entry {
+			border-bottom: none;
+			padding: 10px 0;
+			font-size: 1.1em;
+		}
+
+		.view-documentation .haibun-seqpath {
+			display: none;
+		}
+
+		/* Hide seqPath in review mode (assuming it's part of the message text or handled via JS) */
+		/* Since seqPath is often part of the text content in current implementation, we might need JS to wrap it or regex replace it.
+		   Looking at the screenshot, seqPath is `[1.1.1]`.
+		   Let's check how it's rendered. It seems to be part of the message string passed to LogEntry.
+		   If it's just text, CSS can't hide it easily unless it's wrapped.
+		   I will need to modify messages.ts to wrap seqPath in a span.
+		*/
+
 
 		.haibun-log-entry {
 			display: flex;
@@ -76,7 +194,18 @@
 			align-items: flex-start;
 			border-bottom: 1px solid #eee;
 			box-sizing: border-box;
+			transition: opacity 0.2s;
 		}
+
+		.haibun-log-entry-current {
+			background-color: #e6f7ff; /* Light blue highlight */
+			border-left: 4px solid #1890ff;
+		}
+
+		.invisible-future {
+			display: none !important;
+		}
+
 
 		.haibun-log-entry>.haibun-log-details-summary {
 			flex: 0 0 120px;
@@ -176,14 +305,15 @@
 		}
 
 		#haibun-prompt-controls-container {
-			display: none;
+			display: none; /* Managed by JS */
 			align-items: center;
-			padding: 10px;
-			background-color: white;
+			padding: 15px;
+			background-color: #f0f8ff;
 			gap: 5px;
-			margin-right: 15px;
-			position: relative;
-			border-radius: 4px;
+			margin: 10px 0;
+			border-radius: 8px;
+			border: 1px solid #d0e0f0;
+			width: fit-content;
 		}
 
 		#haibun-prompt-controls-container.paused-program-glow {
@@ -415,17 +545,28 @@
 
 <body>
 	<div class="haibun-header">
-		<h1>Haibun Monitor</h1>
-		<div id="haibun-prompt-controls-container">
-			<input type="text" id="haibun-statement-input" placeholder="🌲Enter statement..." style="display: none; margin-right: 10px; padding: 4px; border: 1px; font-family: 'Roboto', sans-serif; font-size: 1em; width: 300px">
-			<button id="haibun-retry-button" title="retry" disabled>♻️ retry</button>
-			<button id="haibun-next-button" title="next" disabled>➡️ next</button>
-			<button id="haibun-fail-button" title="Fail" disabled>❌ fail</button>
-			<button id="haibun-step-button" title="Step" disabled>👣 step</button>
-			<button id="haibun-continue-button" title="Continue" disabled>▶️ continue</button>
-			<div id="haibun-prompt-message"></div>
+		<h1>
+			Haibun Monitor
+			<span id="haibun-current-context"></span>
+			<div id="haibun-seq-path" style="font-size: 0.5em; color: #888; font-family: monospace;"></div>
+		</h1>
+		<div id="haibun-time-controls">
+			<button id="haibun-play-pause" title="Pause">⏸️</button>
+			<select id="haibun-playback-speed" title="Playback Speed">
+				<option value="0.25">0.25x</option>
+				<option value="0.5">0.5x</option>
+				<option value="1" selected>1x</option>
+				<option value="2">2x</option>
+				<option value="5">5x</option>
+			</select>
+			<div id="haibun-time-slider-container">
+				<div id="haibun-timeline-markers"></div>
+				<input type="range" id="haibun-time-slider" min="0" value="0">
+			</div>
+			<span id="haibun-time-display" class="time-small">0.000s</span>
 		</div>
 		<div class="haibun-controls">
+			<label><input type="checkbox" id="haibun-view-toggle"> Document View</label>
 			<label for="haibun-debug-level-select">Log level</label>
 			<select id="haibun-debug-level-select">
 			</select>
@@ -437,6 +578,16 @@
 		</div>
 	</div>
 	<div id="haibun-log-display-area">
+	</div>
+
+	<div id="haibun-prompt-controls-container">
+		<input type="text" id="haibun-statement-input" placeholder="🌲Enter statement..." style="display: none; margin-right: 10px; padding: 4px; border: 1px; font-family: 'Roboto', sans-serif; font-size: 1em; width: 300px">
+		<button id="haibun-retry-button" title="retry" disabled>♻️ retry</button>
+		<button id="haibun-next-button" title="next" disabled>➡️ next</button>
+		<button id="haibun-fail-button" title="Fail" disabled>❌ fail</button>
+		<button id="haibun-step-button" title="Step" disabled>👣 step</button>
+		<button id="haibun-continue-button" title="Continue" disabled>▶️ continue</button>
+		<div id="haibun-prompt-message"></div>
 	</div>
 
 	<script src="../src/monitor/monitor.ts" type="module"></script>

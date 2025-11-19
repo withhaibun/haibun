@@ -48,6 +48,15 @@ export class LogEntry extends LogComponent {
 
 		this.setData('time', `${timestamp}`);
 
+		// Indentation based on seqPath
+		const incidentDetails = messageContext?.incidentDetails as Record<string, unknown> | undefined;
+		const featureStep = incidentDetails?.featureStep as { seqPath?: unknown[] } | undefined;
+		if (featureStep?.seqPath && Array.isArray(featureStep.seqPath)) {
+			const depth = featureStep.seqPath.length;
+			// Indent by 5px per depth level
+			this.element.style.marginLeft = `${depth * 5}px`;
+		}
+
 		this.detailsSummary = new LogDetailsSummary(level, timestamp);
 		this.messageContent = new LogMessageContent(message, messageContext);
 
@@ -98,6 +107,18 @@ export class LogMessageContent extends LogComponent {
 			const detailsElement = document.createElement('details');
 			detailsElement.classList.add('haibun-context-details');
 
+			// Check if we should auto-open based on artifacts
+			const shouldAutoOpen = artifacts && artifacts.some(a =>
+				['html', 'image', 'video', 'video/start', 'resolvedFeatures'].includes(a.artifactType)
+			);
+
+			// Only auto-open if we are in documentation view
+			const isDocView = document.body.classList.contains('view-documentation');
+
+			if (shouldAutoOpen && isDocView) {
+				detailsElement.open = true;
+			}
+
 			const messageSummary = new LogMessageSummary(summaryMessageToDisplay, labelForSummary);
 			if (incident === EExecutionMessageType.STEP_START) {
 				const loader = document.createElement('div');
@@ -107,6 +128,44 @@ export class LogMessageContent extends LogComponent {
 			}
 			detailsElement.appendChild(messageSummary.element);
 
+			if (this.artifactDisplays.length > 0) {
+				for (const artifactDisplay of this.artifactDisplays) {
+					const placement = artifactDisplay.placementTarget;
+					if (!placement || placement === 'details') {
+						const artifactContainer = document.createElement('div');
+						artifactContainer.className = `haibun-artifact-container haibun-artifact-${artifactDisplay.artifactType.replace(/\//g, '-')}`;
+						artifactContainer.textContent = 'Artifact is rendering...';
+						// Append artifacts directly to detailsElement
+						detailsElement.appendChild(artifactContainer);
+						this.artifactContainers.push(artifactContainer);
+
+						// Render immediately if open, or wait for toggle
+						const renderArtifact = async () => {
+							try {
+								await artifactDisplay.render(artifactContainer);
+							} catch (error) {
+								console.error(`[LogMessageContent] Error rendering artifact ${artifactDisplay.label}:`, error);
+								artifactContainer.innerHTML = `<p class="haibun-artifact-error">Error loading artifact: ${(error as Error).message}</p>`;
+							}
+						};
+
+						if (detailsElement.open) {
+							void renderArtifact();
+						} else {
+							const onToggle = () => {
+								if (detailsElement.open) {
+									void renderArtifact();
+									detailsElement.removeEventListener('toggle', onToggle);
+								}
+							};
+							detailsElement.addEventListener('toggle', onToggle);
+						}
+					} else {
+						void this.renderSpecialPlacementArtifact(artifactDisplay, placement);
+					}
+				}
+			}
+
 			if (incidentDetails) {
 				const pre = document.createElement('div');
 				pre.classList.add('haibun-message-details-json');
@@ -114,35 +173,6 @@ export class LogMessageContent extends LogComponent {
 				detailsElement.appendChild(pre);
 			}
 
-			if (this.artifactDisplays.length > 0) {
-				for (const [i, artifactDisplay] of this.artifactDisplays.entries()) {
-					const placement = artifactDisplay.placementTarget;
-					if (!placement || placement === 'details') {
-						const artifactContainer = document.createElement('div');
-						artifactContainer.className = `haibun-artifact-container haibun-artifact-${artifactDisplay.artifactType.replace(/\//g, '-')}`;
-						artifactContainer.textContent = 'Artifact is rendering...';
-						detailsElement.appendChild(artifactContainer);
-						this.artifactContainers.push(artifactContainer);
-
-						// Attach a handler for this artifact container only
-						const onToggle = async () => {
-							if (detailsElement.open) {
-								try {
-									await artifactDisplay.render(artifactContainer);
-								} catch (error) {
-									console.error(`[LogMessageContent] Error rendering artifact ${artifactDisplay.label}:`, error);
-									artifactContainer.innerHTML = `<p class="haibun-artifact-error">Error loading artifact: ${(error as Error).message}</p>`;
-								}
-							} else {
-								artifactContainer.innerHTML = 'Artifact is rendering...';
-							}
-						};
-						detailsElement.addEventListener('toggle', onToggle);
-					} else {
-						void this.renderSpecialPlacementArtifact(artifactDisplay, placement);
-					}
-				}
-			}
 			this.append(detailsElement);
 		} else {
 			this.addClass('haibun-simple-message');
@@ -188,7 +218,20 @@ class LogMessageSummary extends LogComponent<HTMLElement> {
 		this.labelSpan = document.createElement('span');
 		this.labelSpan.className = 'details-type';
 		this.updateLabel(initialLabel);
-		this.setText(summaryMessage);
+
+		// Check for seqPath at the start of the message, possibly preceded by emojis or other characters
+		// Matches: (optional non-word chars like emojis)(spaces)([digits.digits])(rest)
+		const seqPathMatch = summaryMessage.match(/^([^\w\s]*\s*\[[\d.]+\])(.*)/);
+		if (seqPathMatch) {
+			const seqPathSpan = document.createElement('span');
+			seqPathSpan.className = 'haibun-seqpath';
+			seqPathSpan.textContent = seqPathMatch[1];
+			this.element.appendChild(seqPathSpan);
+			this.element.appendChild(document.createTextNode(seqPathMatch[2]));
+		} else {
+			this.setText(summaryMessage);
+		}
+
 		this.append(this.labelSpan);
 	}
 

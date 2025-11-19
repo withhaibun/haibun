@@ -25,6 +25,9 @@ export class FeatureVariables {
 	setForStepper(stepper: string, sv: TStepValue, provenance: TProvenanceIdentifier) {
 		return this._set({ ...sv, term: `${stepper}.${sv.term}` }, provenance);
 	}
+	unset(name: string) {
+		delete this.values[name];
+	}
 	set(sv: TStepValue, provenance: TProvenanceIdentifier) {
 		if (sv.term.match(/.*\..*/)) {
 			throw Error('non-stepper variables cannot use dots');

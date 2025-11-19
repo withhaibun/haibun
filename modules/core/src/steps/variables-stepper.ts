@@ -134,6 +134,14 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				return Promise.resolve(OK);
 			}
 		},
+		unset: {
+			gwta: 'unset {what: string}',
+			action: ({ what }: TStepArgs, featureStep: TFeatureStep) => {
+				const { term } = featureStep.action.stepValuesMap.what;
+				this.getWorld().shared.unset(term);
+				return Promise.resolve(OK);
+			}
+		},
 		setRandom: {
 			precludes: [`${VariablesStepper.name}.set`],
 			gwta: `set( empty)? {what: string} to {length: number} random characters`,

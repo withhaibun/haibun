@@ -107,13 +107,22 @@ export class MonitorHandler {
 			headless: this.headless,
 			args: ['--start-maximized']
 		});
-		this.context = await browser.newContext({viewport: null});
+		this.context = await browser.newContext({ viewport: null });
 	}
+	firstPage = true;
 	createMonitorPage = async (wp: WebPlaywright) => {
 		// Reset captured messages for each new monitor page
 		this.capturedMessages = [];
 
 		this.monitorPage = await this.context.newPage();
+
+		// Pass the view mode preference to the page context
+		const viewMode = this.firstPage ? 'document' : 'timeline';
+		await this.monitorPage.addInitScript((mode) => {
+			(window as TAnyFixme).HAIBUN_VIEW_MODE = mode;
+		}, viewMode);
+
+		this.firstPage = false;
 		this.buttonPrompter = new ButtonPrompter(this);
 		await this.monitorPage.exposeFunction('haibunResolvePrompt', (id: string, response: TPromptResponse) => {
 			this.buttonPrompter.resolve(id, response);

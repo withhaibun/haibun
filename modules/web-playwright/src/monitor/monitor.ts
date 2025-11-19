@@ -17,6 +17,7 @@ declare global {
 		showStatementInput: () => void;
 		hideStatementInput: () => void;
 		submitStatement: (statement: string) => void;
+		HAIBUN_VIEW_MODE?: 'document' | 'timeline';
 	}
 }
 
@@ -30,6 +31,17 @@ let renderedMessageCount = 0;
 window.receiveLogData = (logEntry) => {
 	console.info(`[receiveLogData] Received log entry:`, logEntry.level, logEntry.message.substring(0, 50));
 	window.haibunCapturedMessages.push(logEntry);
+
+	// Update start time if this is the first message or earlier than current start
+	if (window.haibunCapturedMessages.length === 1 || logEntry.timestamp < monitorState.startTime) {
+		monitorState.startTime = logEntry.timestamp;
+		// Sync display time base
+		document.body.dataset.startTime = `${monitorState.startTime}`;
+		// Force visibility update since start time changed
+		recalcVisibility(monitorState.currentTime);
+		updateTimelineMarkers();
+	}
+
 	renderedMessageCount++;
 	renderLogEntry(logEntry);
 };
@@ -67,25 +79,59 @@ export function renderLogEntry(logEntryData: TLogEntry) {
 
 	container.appendChild(logEntryElement);
 
+	// Update context header
+	if (typeof message === 'string') {
+		if (message.startsWith('Feature: ')) {
+			const contextEl = document.getElementById('haibun-current-context');
+			if (contextEl) contextEl.textContent = message;
+		} else if (message.startsWith('Scenario: ')) {
+			const contextEl = document.getElementById('haibun-current-context');
+			if (contextEl) {
+				const current = contextEl.textContent || '';
+				if (current.startsWith('Feature: ')) {
+					contextEl.textContent = `${current.split(' > ')[0]} > ${message}`;
+				} else {
+					contextEl.textContent = message;
+				}
+			}
+		}
+	}
+
 	// On STEP_END, find the last active STEP_START entry and handle it
 	if (messageContext?.incident === EExecutionMessageType.STEP_END) {
 		const activeStepStartEntries = container.querySelectorAll('.haibun-step-start:not(.disappeared)');
 		if (activeStepStartEntries.length > 0) {
-			const lastActiveEntry = activeStepStartEntries[activeStepStartEntries.length - 1];
+			const lastActiveEntry = activeStepStartEntries[activeStepStartEntries.length - 1] as HTMLElement;
 
 			// Just mark as disappeared - don't add failed class to STEP_START
 			// The STEP_END entry itself will have the failed class if needed
 			lastActiveEntry.classList.add('disappeared');
+			lastActiveEntry.dataset.endTime = `${timestamp}`;
+
+			// Check failure
+			const incidentDetails = messageContext.incidentDetails as Record<string, unknown> | undefined;
+			const actionResult = incidentDetails?.actionResult as { ok?: boolean } | undefined;
+			if (actionResult?.ok === false) {
+				markTimelineError(lastActiveEntry.dataset.time);
+			}
 		} else {
 			console.warn('Received STEP_END but found no active STEP_START log entry to hide.');
 		}
+	}
+
+	// Store seqPath if available
+	const incidentDetails = messageContext?.incidentDetails as Record<string, unknown> | undefined;
+	const featureStep = incidentDetails?.featureStep as { seqPath?: string | unknown[] } | undefined;
+	if (featureStep?.seqPath) {
+		const val = Array.isArray(featureStep.seqPath) ? featureStep.seqPath.join('.') : featureStep.seqPath;
+		logEntryElement.dataset.seqPath = val;
 	}
 
 	// On ENSURE_END, find the last active ENSURE_START entry and handle it
 	if (messageContext?.incident === EExecutionMessageType.ENSURE_END) {
 		const activeEnsureStartEntries = container.querySelectorAll('.haibun-ensure-start:not(.disappeared)');
 		if (activeEnsureStartEntries.length > 0) {
-			const lastActiveEntry = activeEnsureStartEntries[activeEnsureStartEntries.length - 1];
+			const lastActiveEntry = activeEnsureStartEntries[activeEnsureStartEntries.length - 1] as HTMLElement;
 
 			// Check if this ensure failed
 			const incidentDetails = messageContext.incidentDetails as Record<string, unknown> | undefined;
@@ -95,22 +141,327 @@ export function renderLogEntry(logEntryData: TLogEntry) {
 			if (ensureFailed) {
 				// Mark as failed so it stays visible regardless of log level
 				lastActiveEntry.classList.add('haibun-ensure-failed');
+				markTimelineError(lastActiveEntry.dataset.time);
 			}
 
 			// Hide the ensure-start marker (but failed ensures will remain visible via CSS)
 			lastActiveEntry.classList.add('disappeared');
+			lastActiveEntry.dataset.endTime = `${timestamp}`;
 		} else {
 			console.warn('Received ENSURE_END but found no active ENSURE_START log entry to hide.');
 		}
 	}
 
+	// Add timeline marker
+	if (messageContext?.incident === EExecutionMessageType.STEP_START || messageContext?.incident === EExecutionMessageType.ENSURE_START) {
+		addTimelineMarker(timestamp, messageContext.incident);
+	}
+
+	// Move prompt controls to the end
+	const promptControls = document.getElementById('haibun-prompt-controls-container');
+	if (promptControls) {
+		container.appendChild(promptControls);
+	}
+
 	// Ensure scrolling happens after DOM update
-	setTimeout(() => {
-		container.scrollTop = container.scrollHeight;
-	}, 0);
+	// if (monitorState.autoScroll) {
+	// 	setTimeout(() => {
+	// 		container.scrollTop = container.scrollHeight;
+	// 	}, 0);
+	// }
 }
 
-// ...existing code...
+// --- Monitor State & Time Control ---
+
+const monitorState = {
+	isPlaying: true,
+	autoScroll: true,
+	startTime: 0,
+	maxTime: 0,
+	currentTime: 0,
+	playbackSpeed: 1,
+	lastFrameTime: 0,
+	lastScrolled: null as HTMLElement | null
+};
+
+function markTimelineError(timestamp: string | undefined) {
+	if (!timestamp) return;
+	const markersContainer = document.getElementById('haibun-timeline-markers');
+	if (!markersContainer) return;
+	const marker = markersContainer.querySelector(`.timeline-marker[data-time="${timestamp}"]`);
+	if (marker) {
+		marker.classList.add('error');
+	}
+}
+
+function addTimelineMarker(timestamp: number, type: EExecutionMessageType) {
+	const markersContainer = document.getElementById('haibun-timeline-markers');
+	if (!markersContainer) return;
+
+	const marker = document.createElement('div');
+	marker.className = 'timeline-marker';
+	if (type === EExecutionMessageType.ENSURE_START) {
+		marker.classList.add('ensure');
+	}
+	// Store absolute timestamp
+	marker.dataset.time = `${timestamp}`;
+	markersContainer.appendChild(marker);
+	updateTimelineMarkers();
+}
+
+function updateTimelineMarkers() {
+	const markersContainer = document.getElementById('haibun-timeline-markers');
+	if (!markersContainer || monitorState.maxTime === 0) return;
+
+	const markers = markersContainer.children;
+	for (let i = 0; i < markers.length; i++) {
+		const marker = markers[i] as HTMLElement;
+		const timestamp = parseInt(marker.dataset.time || '0', 10);
+		const relativeTime = timestamp - monitorState.startTime;
+		const percent = (relativeTime / monitorState.maxTime) * 100;
+		marker.style.left = `${percent}%`;
+	}
+}
+
+function updatePlayPauseButton() {
+	const btn = document.getElementById('haibun-play-pause');
+	if (!btn) return;
+
+	if (monitorState.isPlaying) {
+		if (monitorState.autoScroll) {
+			btn.textContent = '⏸️'; // Pause
+			btn.title = "Pause";
+		} else {
+			btn.textContent = '🔦'; // Resume AutoScroll (Guided)
+			btn.title = "Resume Auto-Scroll";
+		}
+	} else {
+		btn.textContent = '▶️'; // Play
+		btn.title = "Play";
+	}
+}
+
+function setupTimeControls() {
+	const slider = document.getElementById('haibun-time-slider') as HTMLInputElement;
+	const playPauseBtn = document.getElementById('haibun-play-pause') as HTMLButtonElement;
+	const timeDisplay = document.getElementById('haibun-time-display') as HTMLSpanElement;
+	const viewToggle = document.getElementById('haibun-view-toggle') as HTMLInputElement;
+	const speedSelect = document.getElementById('haibun-playback-speed') as HTMLSelectElement;
+	const container = document.getElementById('haibun-log-display-area');
+
+	// Use the first log entry's timestamp as start time if available, otherwise fallback to body dataset or Date.now()
+	if (window.haibunCapturedMessages && window.haibunCapturedMessages.length > 0) {
+		monitorState.startTime = window.haibunCapturedMessages.reduce((min, m) => Math.min(min, m.timestamp), window.haibunCapturedMessages[0].timestamp);
+	} else {
+		monitorState.startTime = parseInt(document.body.dataset.startTime || `${Date.now()}`, 10);
+	}
+	// Sync display time base
+	document.body.dataset.startTime = `${monitorState.startTime}`;
+
+	monitorState.lastFrameTime = Date.now();
+
+	if (container) {
+		const stopAutoScroll = () => {
+			if (monitorState.isPlaying && monitorState.autoScroll) {
+				monitorState.autoScroll = false;
+				updatePlayPauseButton();
+			}
+		};
+
+		// Rely on explicit user interaction to stop auto-scroll, rather than the generic 'scroll' event
+		// which can be triggered by layout shifts or programmatic scrolling in some environments (like Playwright).
+		container.addEventListener('wheel', stopAutoScroll, { passive: true });
+		container.addEventListener('touchmove', stopAutoScroll, { passive: true });
+		container.addEventListener('mousedown', stopAutoScroll);
+		container.addEventListener('keydown', stopAutoScroll);
+	}
+
+	playPauseBtn.addEventListener('click', () => {
+		if (monitorState.isPlaying && !monitorState.autoScroll) {
+			// Resume AutoScroll
+			monitorState.autoScroll = true;
+			updatePlayPauseButton();
+			// Force scroll immediately
+			recalcVisibility(monitorState.currentTime, true);
+			return;
+		}
+
+		monitorState.isPlaying = !monitorState.isPlaying;
+		if (monitorState.isPlaying) {
+			monitorState.autoScroll = true;
+			monitorState.lastFrameTime = Date.now();
+			updateTimeLoop();
+		}
+		updatePlayPauseButton();
+	});
+
+	if (speedSelect) {
+		speedSelect.addEventListener('change', (e) => {
+			monitorState.playbackSpeed = parseFloat((e.target as HTMLSelectElement).value);
+		});
+	}
+
+	slider.addEventListener('input', (e) => {
+		monitorState.isPlaying = false;
+		monitorState.autoScroll = false;
+		updatePlayPauseButton();
+		const val = parseInt((e.target as HTMLInputElement).value, 10);
+		monitorState.currentTime = val;
+		recalcVisibility(val, true);
+		timeDisplay.textContent = `${(val / 1000).toFixed(3)}s`;
+	});
+
+	if (viewToggle) {
+		const initialMode = window.HAIBUN_VIEW_MODE || 'timeline';
+		const timeControls = document.getElementById('haibun-time-controls');
+
+		if (initialMode === 'document') {
+			document.body.classList.add('view-documentation');
+			viewToggle.checked = true;
+			if (timeControls) timeControls.style.visibility = 'hidden';
+		} else {
+			document.body.classList.remove('view-documentation');
+			viewToggle.checked = false;
+			if (timeControls) timeControls.style.visibility = 'visible';
+		}
+
+		viewToggle.addEventListener('change', (e) => {
+			if ((e.target as HTMLInputElement).checked) {
+				document.body.classList.add('view-documentation');
+				if (timeControls) timeControls.style.visibility = 'hidden';
+			} else {
+				document.body.classList.remove('view-documentation');
+				if (timeControls) timeControls.style.visibility = 'visible';
+			}
+		});
+	}
+
+	const statementInput = document.getElementById('haibun-statement-input');
+	if (statementInput) {
+		statementInput.addEventListener('input', () => {
+			monitorState.currentTime = monitorState.maxTime;
+			monitorState.autoScroll = true;
+			recalcVisibility(monitorState.currentTime);
+
+			const slider = document.getElementById('haibun-time-slider') as HTMLInputElement;
+			if (slider) slider.value = `${monitorState.currentTime}`;
+
+			const timeDisplay = document.getElementById('haibun-time-display') as HTMLSpanElement;
+			if (timeDisplay) timeDisplay.textContent = `${(monitorState.currentTime / 1000).toFixed(3)}s`;
+		});
+	}
+
+	updateTimeLoop();
+}
+
+function updateTimeLoop() {
+	if (!monitorState.isPlaying) return;
+
+	const now = Date.now();
+	const delta = now - monitorState.lastFrameTime;
+	monitorState.lastFrameTime = now;
+
+	// If we are "live" (maxTime is increasing), we just follow real time
+	// But if we are replaying, we use speed.
+	// Actually, simpler: always use speed for currentTime advancement.
+	// But we need to know if we are at the "head" (live).
+
+	// Calculate "live" elapsed time
+	const liveElapsed = now - monitorState.startTime;
+
+	// If we are close to live edge, just sync to live (unless speed != 1)
+	// But user asked for slowdown control for replaying.
+
+	if (monitorState.playbackSpeed !== 1 || monitorState.currentTime < monitorState.maxTime - 100) {
+		monitorState.currentTime += delta * monitorState.playbackSpeed;
+	} else {
+		// Live mode (speed 1, at head)
+		monitorState.currentTime = liveElapsed;
+	}
+
+	// Update maxTime to be at least liveElapsed (if we are receiving new data)
+	// But if we are just viewing a static file, maxTime is fixed?
+	// In this monitor, we assume we might be receiving data.
+	if (liveElapsed > monitorState.maxTime) {
+		monitorState.maxTime = liveElapsed;
+	}
+
+	// Cap currentTime at maxTime
+	if (monitorState.currentTime > monitorState.maxTime) {
+		monitorState.currentTime = monitorState.maxTime;
+	}
+
+	const slider = document.getElementById('haibun-time-slider') as HTMLInputElement;
+	const timeDisplay = document.getElementById('haibun-time-display') as HTMLSpanElement;
+
+	if (slider) {
+		slider.max = `${monitorState.maxTime}`;
+		slider.value = `${monitorState.currentTime}`;
+	}
+	if (timeDisplay) {
+		timeDisplay.textContent = `${(monitorState.currentTime / 1000).toFixed(3)}s`;
+	}
+
+	recalcVisibility(monitorState.currentTime);
+	updateTimelineMarkers();
+
+	requestAnimationFrame(updateTimeLoop);
+}
+
+function recalcVisibility(timeMs: number, forceScroll = false) {
+	const container = document.getElementById('haibun-log-display-area');
+	if (!container) return;
+
+	const entries = container.querySelectorAll('.haibun-log-entry');
+	let lastVisible: HTMLElement | null = null;
+
+	// Reset highlights
+	entries.forEach(e => e.classList.remove('haibun-log-entry-current'));
+
+	for (let i = 0; i < entries.length; i++) {
+		const el = entries[i] as HTMLElement;
+		const entryTime = parseInt(el.dataset.time || '0', 10) - monitorState.startTime;
+
+		if (entryTime > timeMs) {
+			el.classList.add('invisible-future');
+			continue;
+		}
+
+		el.classList.remove('invisible-future');
+
+		if (el.dataset.endTime) {
+			const endTime = parseInt(el.dataset.endTime, 10) - monitorState.startTime;
+			if (endTime <= timeMs) {
+				el.classList.add('disappeared');
+				continue;
+			} else {
+				el.classList.remove('disappeared');
+			}
+		}
+
+		lastVisible = el;
+	}
+
+	const videos = document.querySelectorAll('video');
+	videos.forEach(v => {
+		v.currentTime = timeMs / 1000;
+		v.pause();
+	});
+
+	if (lastVisible) {
+		lastVisible.classList.add('haibun-log-entry-current');
+
+		const seqPathDisplay = document.getElementById('haibun-seq-path');
+		if (seqPathDisplay) {
+			seqPathDisplay.textContent = lastVisible.dataset.seqPath || '';
+		}
+
+		if (forceScroll || (monitorState.autoScroll && lastVisible !== monitorState.lastScrolled)) {
+			lastVisible.scrollIntoView({ block: 'end', behavior: 'auto' });
+			monitorState.lastScrolled = lastVisible;
+		}
+	}
+}
 
 function renderAllLogs() {
 	const container = document.getElementById('haibun-log-display-area');
@@ -130,6 +481,7 @@ document.addEventListener('DOMContentLoaded', () => {
 		document.body.dataset.startTime = `${Date.now()}`;
 	}
 
+	setupTimeControls();
 	renderAllLogs();
 	setupControls();
 	console.info("Initial logs rendered.");
