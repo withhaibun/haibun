@@ -12,7 +12,6 @@ type TActivitiesFixedSteps = {
 	activity: TStepperStep;
 	waypoint: TStepperStep;
 	ensure: TStepperStep;
-	waypointed: TStepperStep;
 	showWaypoints: TStepperStep;
 };
 
@@ -216,18 +215,6 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				return actionOK({ messageContext });
 			},
 		},
-		waypointed: {
-			description: 'Deprecated: waypointed is no longer meaningful since outcomes are not cached',
-			gwta: `waypointed {outcome:${DOMAIN_STATEMENT}}`,
-			action: ({ outcome }: { outcome: TFeatureStep[] }) => {
-				const outcomeKey = outcome.map(step => step.in).join(' ');
-				this.getWorld().logger.debug(`waypointed: deprecated for outcome "${outcomeKey}". Outcomes are verified on each ensure, not cached.`);
-
-				const messageContext: TMessageContext = { incident: EExecutionMessageType.ACTION, incidentDetails: { outcome: outcomeKey, deprecated: true } };
-				return actionOK({ messageContext });
-			},
-		},
-
 		showWaypoints: {
 			exact: 'show waypoints',
 			action: async (_args, featureStep: TFeatureStep) => {
