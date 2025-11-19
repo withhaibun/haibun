@@ -1,6 +1,6 @@
 import { TWorld } from './defs.js';
 import { TAnyFixme } from './fixme.js';
-import { ILogger, ILogOutput, TLogArgs, TLogLevel, TOutputEnv, EExecutionMessageType, TMessageContext, TArtifact } from './interfaces/logger.js';
+import { ILogger, ILogOutput, TLogArgs, TLogLevel, TOutputEnv, EExecutionMessageType, TMessageContext, TArtifact, LOG_LEVEL_TRACE } from './interfaces/logger.js';
 import { Timer } from './Timer.js';
 import { descTag, isFirstTag } from './util/index.js';
 
@@ -70,7 +70,7 @@ export default class Logger implements ILogger, ILogOutput {
 		const tag = messageContext?.tag ? (isFirstTag(messageContext.tag) ? '' : descTag(messageContext.tag)) : '';
 		const [proggy, line /*, col*/] = caller.split(':');
 		// Map trace to log for console output (console.trace prints stack traces)
-		const consoleLevel = level === 'trace' ? 'log' : level;
+	const consoleLevel = level === LOG_LEVEL_TRACE ? 'log' : level;
 		console[consoleLevel]((showLevel.padStart(6) + ` █ ${Timer.since()/1000}:${proggy}:${line}${tag}`).padEnd(38) + ` ｜ `, args);
 	}
 	debug = (args: TLogArgs, mctx?: TMessageContext) => this.out('debug', args, mctx);

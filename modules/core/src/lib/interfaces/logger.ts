@@ -2,8 +2,15 @@ import { TResolvedFeature } from '../defs.js';
 import { TAnyFixme } from '../fixme.js';
 import { TTag } from '../ttag.js';
 
-// Ordered list of log levels for filtering
-export const LOG_LEVELS = ['debug', 'trace', 'log', 'info', 'warn', 'error'] as const;
+export const LOG_LEVEL_NONE = 'none' as const;
+export const LOG_LEVEL_DEBUG = 'debug' as const;
+export const LOG_LEVEL_TRACE = 'trace' as const;
+export const LOG_LEVEL_LOG = 'log' as const;
+export const LOG_LEVEL_INFO = 'info' as const;
+export const LOG_LEVEL_WARN = 'warn' as const;
+export const LOG_LEVEL_ERROR = 'error' as const;
+
+export const LOG_LEVELS = [LOG_LEVEL_DEBUG, LOG_LEVEL_TRACE, LOG_LEVEL_LOG, LOG_LEVEL_INFO, LOG_LEVEL_WARN, LOG_LEVEL_ERROR] as const;
 
 export type TLogLevel = 'none' | typeof LOG_LEVELS[number];
 export type TLogArgs = string;

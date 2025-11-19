@@ -103,16 +103,17 @@ export class MonitorHandler {
 	}
 
 	async initMonitorContext() {
-		const browser = await chromium.launch({ headless: this.headless });
-		this.context = await browser.newContext();
+		const browser = await chromium.launch({
+			headless: this.headless,
+			args: ['--start-maximized']
+		});
+		this.context = await browser.newContext({viewport: null});
 	}
 	createMonitorPage = async (wp: WebPlaywright) => {
 		// Reset captured messages for each new monitor page
 		this.capturedMessages = [];
 
-		// Create a new tab in the current context
 		this.monitorPage = await this.context.newPage();
-
 		this.buttonPrompter = new ButtonPrompter(this);
 		await this.monitorPage.exposeFunction('haibunResolvePrompt', (id: string, response: TPromptResponse) => {
 			this.buttonPrompter.resolve(id, response);

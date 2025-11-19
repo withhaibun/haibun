@@ -1,5 +1,5 @@
 import { TPrompt } from "@haibun/core/lib/prompter.js";
-import { LOG_LEVELS } from '@haibun/core/lib/interfaces/logger.js';
+import { LOG_LEVELS, LOG_LEVEL_TRACE } from '@haibun/core/lib/interfaces/logger.js';
 
 declare global {
 	interface Window {
@@ -23,7 +23,7 @@ export function setupControls() {
 			const option = document.createElement('option');
 			option.value = level;
 			option.textContent = level.charAt(0).toUpperCase() + level.slice(1);
-			if (level === 'log') {
+			if (level === LOG_LEVEL_TRACE) {
 				option.selected = true;
 			}
 			levelSelect.appendChild(option);
