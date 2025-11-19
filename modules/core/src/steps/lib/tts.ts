@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, readdirSync, cpSync, unlinkSync } from 'fs';
 import * as nodePath from 'path';
 import { createRequire } from 'module';
 
-import { TResolvedFeature } from "../../lib/defs.js";
+import { FEATURE_START, TResolvedFeature } from "../../lib/defs.js";
 import { ILogger } from "../../lib/interfaces/logger.js";
 import { SCENARIO_START } from '../../lib/defs.js';
 import { TAnyFixme } from "../../lib/fixme.js";
@@ -14,7 +14,7 @@ export type TRenderedAudioMap = { [hash: string]: TCachedAudio };
 
 const CACHE_DIR = nodePath.resolve('capture/.said');
 
-const SPOKEN_STEPS = ['prose', SCENARIO_START, 'feature'];
+const SPOKEN_STEPS = ['prose', SCENARIO_START, FEATURE_START];
 
 export async function preRenderFeatureProse(feature: TResolvedFeature, logger: ILogger): Promise<TRenderedAudioMap> {
 	const proseTexts = new Set<string>();

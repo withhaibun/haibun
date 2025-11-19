@@ -335,6 +335,7 @@ export const DEFAULT_DEST = 'default';
 export const TEST_BASE = 'test_base';
 export const CONTINUE_AFTER_ERROR = 'CONTINUE_AFTER_ERROR';
 export const SCENARIO_START = 'scenario';
+export const FEATURE_START = 'feature';
 export const HAPPENING_START = 'happening';
 
 export enum ExecMode {

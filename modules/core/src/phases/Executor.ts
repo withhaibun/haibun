@@ -1,4 +1,4 @@
-import { TFeatureStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, TStepAction, STAY, STAY_FAILURE, CHECK_NO, CHECK_YES, CHECK_YIELD, STEP_DELAY, TNotOKActionResult, CONTINUE_AFTER_ERROR, TEndFeature, StepperMethodArgs, TBeforeStep, TAfterStep, IStepperCycles, ExecMode, TStepArgs, TAfterStepResult, MAYBE_CHECK_YES, MAYBE_CHECK_NO, TSeqPath } from '../lib/defs.js';
+import { TFeatureStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, TStepAction, STAY, STAY_FAILURE, CHECK_NO, CHECK_YES, CHECK_YIELD, STEP_DELAY, TNotOKActionResult, CONTINUE_AFTER_ERROR, TEndFeature, StepperMethodArgs, TBeforeStep, TAfterStep, IStepperCycles, ExecMode, TStepArgs, TAfterStepResult, MAYBE_CHECK_YES, MAYBE_CHECK_NO, TSeqPath, FEATURE_START } from '../lib/defs.js';
 import { TAnyFixme } from '../lib/fixme.js';
 import { AStepper, IHasCycles } from '../lib/astepper.js';
 import { EExecutionMessageType, TMessageContext } from '../lib/interfaces/logger.js';
@@ -163,8 +163,21 @@ export class FeatureExecutor {
 		this.logit(`start feature ${currentScenario}`, { incident: EExecutionMessageType.FEATURE_START, incidentDetails: { startTime: Timer.START_TIME, feature } }, 'debug');
 
 		let featureVars: FeatureVariables = new FeatureVariables(world, {});
+		let baseVars: FeatureVariables = new FeatureVariables(world, {});
 
 		for (const step of feature.featureSteps) {
+			if (step.action.actionName === FEATURE_START) {
+				if (currentScenario) {
+					this.logit(`end scenario ${currentScenario}`, { incident: EExecutionMessageType.SCENARIO_END, incidentDetails: { currentScenario } }, 'debug');
+					await doStepperCycle(this.steppers, 'endScenario', undefined);
+
+					// Reset to base state (discarding scenario changes)
+					world.shared = new FeatureVariables(world, baseVars.all());
+					featureVars = new FeatureVariables(world, world.shared.all());
+					currentScenario = 0;
+				}
+			}
+
 			if (step.action.actionName === SCENARIO_START) {
 				if (currentScenario) {
 					this.logit(`end scenario ${currentScenario}`, { incident: EExecutionMessageType.SCENARIO_END, incidentDetails: { currentScenario } }, 'debug');
@@ -192,6 +205,7 @@ export class FeatureExecutor {
 			// Stash feature variables (for feature-level steps before any scenario)
 			if (!currentScenario) {
 				featureVars = new FeatureVariables(world, world.shared.all());
+				baseVars = new FeatureVariables(world, world.shared.all());
 			}
 		}
 		if (currentScenario) {
