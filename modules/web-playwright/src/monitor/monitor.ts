@@ -538,10 +538,16 @@ function recalcVisibility(timeMs: number, forceScroll = false) {
 	});
 
 	const videos = document.querySelectorAll('video');
-	videos.forEach(v => {
-		v.currentTime = timeMs / 1000;
-		v.pause();
-	});
+	if (videos.length > 0) {
+		videos.forEach(v => {
+			try {
+				v.currentTime = timeMs / 1000;
+				v.pause();
+			} catch (e) {
+				console.error('Error updating video time:', e);
+			}
+		});
+	}
 
 	const contextEl = document.getElementById('haibun-current-context');
 	if (contextEl) {

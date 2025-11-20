@@ -268,7 +268,6 @@ function setupStatementInput() {
 
 export function setupVideoPlayback() {
 	const sequenceDiagram = document.getElementById('sequence-diagram');
-	const logDisplayArea = document.getElementById('haibun-log-display-area') as HTMLElement;
 
 	const diagramObserver = new MutationObserver((mutations) => {
 		mutations.forEach((mutation) => {
@@ -292,63 +291,6 @@ export function setupVideoPlayback() {
 			}
 		}, 0);
 	});
-
-	// Robust auto-scroll for monitor.html and live playback
-	function scrollToCurrentLogEntry() {
-		const logDisplayArea = document.getElementById('haibun-log-display-area');
-		if (!logDisplayArea) return;
-
-		let entry = logDisplayArea.querySelector('.haibun-log-entry-current');
-
-		if (!entry) {
-			// Try to find the first not-played entry
-			entry = logDisplayArea.querySelector('.haibun-log-entry.haibun-stepper-notplayed');
-			// If all are played, scroll to the last played
-			if (!entry) {
-				const played = logDisplayArea.querySelectorAll('.haibun-log-entry.haibun-stepper-played');
-				if (played.length) entry = played[played.length - 1];
-			}
-		}
-		
-		// If we found an entry, but it's hidden, try to find a visible one nearby
-		if (entry) {
-			let el = entry as HTMLElement;
-			
-			// If it's the current entry, we force it visible via CSS, so we can scroll to it directly
-			if (el.classList.contains('haibun-log-entry-current')) {
-				el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-				return;
-			}
-
-			// Check if hidden by depth or level
-			while (el && (el.classList.contains('haibun-log-depth-hidden') || el.style.display === 'none' || !isVisibleByLevel(el))) {
-				// Try previous sibling if we are at the end (played), or next sibling if we are at start (not played)
-				// Actually, simpler heuristic: just find the closest visible sibling
-				const prev = el.previousElementSibling as HTMLElement;
-				if (prev && prev.classList.contains('haibun-log-entry')) {
-					el = prev;
-				} else {
-					break; // Can't find visible predecessor
-				}
-			}
-			
-			if (el && !el.classList.contains('haibun-log-depth-hidden') && el.style.display !== 'none') {
-				el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-			}
-		}
-	}
-
-	if (logDisplayArea) {
-		const scrollObserver = new MutationObserver(() => {
-			scrollToCurrentLogEntry();
-		});
-		scrollObserver.observe(logDisplayArea, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
-
-		// Also scroll periodically to handle layout shifts or delayed rendering
-		setInterval(() => {
-			scrollToCurrentLogEntry();
-		}, 1000);
-	}
 
 	const promptContainer = document.getElementById('haibun-prompt-controls-container');
 	const rerunButton = <HTMLButtonElement>document.getElementById('haibun-retry-button');
