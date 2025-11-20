@@ -163,24 +163,24 @@ export function setupControls() {
 				css += `div.haibun-log-entry.haibun-level-${level}.haibun-ensure-start.disappeared:not(.haibun-ensure-failed) { display: none; }\n`;
 			} else {
 				// Show entries at or above selected level that haven't disappeared
-				css += `div.haibun-log-entry.haibun-level-${level}:not(.disappeared) { display: flex; }\n`;
+				css += `div.haibun-log-entry.haibun-level-${level}:not(.disappeared):not(.invisible-future) { display: flex; }\n`;
 				// Also show active step-starts even if they would normally be hidden
-				css += `div.haibun-log-entry.haibun-level-${level}.haibun-step-start:not(.disappeared) { display: flex; }\n`;
+				css += `div.haibun-log-entry.haibun-level-${level}.haibun-step-start:not(.disappeared):not(.invisible-future) { display: flex; }\n`;
 				// Also show active ensure-starts even if they would normally be hidden
-				css += `div.haibun-log-entry.haibun-level-${level}.haibun-ensure-start:not(.disappeared) { display: flex; }\n`;
+				css += `div.haibun-log-entry.haibun-level-${level}.haibun-ensure-start:not(.disappeared):not(.invisible-future) { display: flex; }\n`;
 			}
 		});
 
 		// Show all active (not disappeared) step-start entries regardless of level
-		css += `div.haibun-log-entry.haibun-step-start:not(.disappeared) { display: flex !important; }\n`;
+		css += `div.haibun-log-entry.haibun-step-start:not(.disappeared):not(.invisible-future) { display: flex !important; }\n`;
 		// Show all active (not disappeared) ensure-start entries regardless of level
-		css += `div.haibun-log-entry.haibun-ensure-start:not(.disappeared) { display: flex !important; }\n`;
+		css += `div.haibun-log-entry.haibun-ensure-start:not(.disappeared):not(.invisible-future) { display: flex !important; }\n`;
 		// Hide all disappeared entries UNLESS they're failed or current
 		css += `div.haibun-log-entry.disappeared:not(.haibun-step-failed):not(.haibun-ensure-failed):not(.haibun-log-entry-current) { display: none !important; }\n`;
 		// Always show failed steps regardless of disappeared state or log level
-		css += `div.haibun-log-entry.haibun-step-failed { display: flex !important; }\n`;
+		css += `div.haibun-log-entry.haibun-step-failed:not(.invisible-future) { display: flex !important; }\n`;
 		// Always show failed ensures regardless of disappeared state or log level
-		css += `div.haibun-log-entry.haibun-ensure-failed { display: flex !important; }\n`;
+		css += `div.haibun-log-entry.haibun-ensure-failed:not(.invisible-future) { display: flex !important; }\n`;
 		// Hide successful ENSURE_END entries (they're just for signaling, not display), unless current
 		css += `div.haibun-log-entry.haibun-ensure-end:not(.haibun-ensure-failed):not(.haibun-log-entry-current) { display: none !important; }\n`;
 
