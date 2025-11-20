@@ -12,7 +12,7 @@ export class VideoArtifactDisplay extends ArtifactDisplay {
 	}
 	public render(container: HTMLElement): void {
 		const videoElement = document.createElement('video');
-		videoElement.controls = true;
+		videoElement.controls = false;
 		videoElement.style.width = '320px';
 		videoElement.src = this.artifact.path;
 		container.replaceChildren(videoElement);

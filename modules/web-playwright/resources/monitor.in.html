@@ -35,7 +35,8 @@
 
 		.haibun-header {
 			flex-shrink: 0;
-			height: 5vh;
+			height: auto;
+			min-height: 5vh;
 			top: 0;
 			left: 0;
 			width: 100%;
@@ -43,33 +44,76 @@
 			z-index: 1000;
 			display: flex;
 			align-items: center;
-			padding: 0 20px;
+			justify-content: space-between;
+			padding: 15px 30px;
 			border-bottom: 1px solid #ccc;
 			box-sizing: border-box;
+			gap: 20px;
+		}
+
+		.haibun-header-title {
+			display: flex;
+			flex-direction: column;
+			align-items: flex-start;
 		}
 
 		.haibun-header h1 {
-			margin-right: 20px;
+			margin: 0;
 			font-size: 1.5em;
-			display: flex;
-			align-items: baseline;
-			gap: 15px;
+			white-space: nowrap;
+			line-height: 1.2;
+		}
+
+		#haibun-date {
+			font-size: 0.7em;
+			color: #666;
+			font-weight: normal;
 		}
 
 		#haibun-current-context {
-			font-size: 0.6em;
+			font-size: 0.7em;
 			font-weight: normal;
-			color: #666;
+			color: #555;
 			font-family: 'Roboto Mono', monospace;
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			text-align: center;
+			justify-self: center;
+			max-width: 100%;
 		}
 
 		#haibun-time-controls {
 			display: flex;
-			align-items: center;
-			gap: 10px;
+			flex-direction: column;
+			gap: 5px;
 			flex-grow: 1;
-			margin-right: 20px;
+			margin-right: 0;
 			position: relative;
+			max-width: 1200px;
+			margin: 0 auto;
+		}
+
+		#haibun-controls-row {
+			display: grid;
+			grid-template-columns: 1fr auto 1fr;
+			align-items: center;
+			width: 100%;
+		}
+
+		.left-controls {
+			justify-self: start;
+			display: flex;
+			gap: 10px;
+			align-items: center;
+			padding-left: 0;
+			margin-left: 0;
+		}
+
+		.right-controls {
+			justify-self: end;
+			display: flex;
+			align-items: center;
 		}
 
 		#haibun-time-slider-container {
@@ -78,6 +122,7 @@
 			height: 20px;
 			display: flex;
 			align-items: center;
+			width: 100%;
 		}
 
 		#haibun-time-slider {
@@ -127,6 +172,9 @@
 			border: none;
 			cursor: pointer;
 			font-size: 1.2em;
+			padding: 0;
+			margin: 0;
+			line-height: 1;
 		}
 
 		#haibun-playback-speed {
@@ -137,11 +185,30 @@
 			background: white;
 		}
 
+		select {
+			border: 1px solid #ccc;
+			border-radius: 4px;
+			background: white;
+			padding: 2px;
+		}
+
 		.haibun-controls {
 			display: flex;
 			align-items: center;
-			gap: 15px;
-			padding: 15px;
+			gap: 20px;
+		}
+
+		.haibun-seqpath {
+			font-size: 0.8em;
+			color: #888;
+			font-family: 'Roboto Mono', monospace;
+			grid-column: 3 / -1; /* Default: Align with text (col 3) */
+			margin-top: 0;
+		}
+
+		/* Step Start SeqPath alignment (Col 4) */
+		.haibun-step-start .haibun-seqpath {
+			grid-column: 4 / -1;
 		}
 
 		#haibun-log-display-area {
@@ -177,20 +244,15 @@
 			display: none;
 		}
 
-		/* Hide seqPath in review mode (assuming it's part of the message text or handled via JS) */
-		/* Since seqPath is often part of the text content in current implementation, we might need JS to wrap it or regex replace it.
-		   Looking at the screenshot, seqPath is `[1.1.1]`.
-		   Let's check how it's rendered. It seems to be part of the message string passed to LogEntry.
-		   If it's just text, CSS can't hide it easily unless it's wrapped.
-		   I will need to modify messages.ts to wrap seqPath in a span.
-		*/
-
+		.view-documentation .haibun-log-marker {
+			display: none;
+		}
 
 		.haibun-log-entry {
 			display: flex;
-			padding: 5px 10px;
+			padding: 2px 10px; /* Reduced padding */
 			flex-direction: row;
-			width: 100%;
+			/* width: 100%; Removed to allow margin-left to shrink width instead of overflowing */
 			align-items: flex-start;
 			border-bottom: 1px solid #eee;
 			box-sizing: border-box;
@@ -223,14 +285,49 @@
 			display: block;
 		}
 
-		.haibun-message-content details summary {
-			display: list-item;
+		/* Custom Summary Layout for Emoji/Marker switching */
+		.haibun-message-content details > summary {
+			display: grid;
+			grid-template-columns: auto auto 1fr auto;
+			align-items: baseline;
+			gap: 5px;
+			list-style: none;
+			cursor: pointer;
+		}
+
+		/* Handle Step Start with Loader (5 columns) */
+		.haibun-step-start .haibun-message-content details > summary {
+			grid-template-columns: auto auto auto 1fr auto;
+		}
+
+		.haibun-message-content details > summary::-webkit-details-marker {
+			display: none;
+		}
+
+		.haibun-log-marker {
+			display: inline-block;
+			transition: transform 0.2s;
+			font-size: 0.8em;
+			color: #666;
+		}
+
+		.haibun-context-details[open] > summary > .haibun-log-marker {
+			transform: rotate(90deg);
+		}
+
+		.haibun-log-emoji {
+			font-size: 1em;
+		}
+
+		.haibun-log-message-text {
+			min-width: 0;
+			overflow-wrap: break-word;
 		}
 
 		.haibun-log-message-summary {
-			width: 100%;
+			/* Removed width: 100% to play nice with grid */
+			/* width: 100%; */
 			position: relative;
-			cursor: pointer;
 		}
 
 		.haibun-artifact-div details {
@@ -296,7 +393,7 @@
 		.details-type {
 			background-color: #f5deb3;
 			border-radius: 5px;
-			float: right;
+			justify-self: end;
 			margin-left: 10px;
 			padding: 1px 5px;
 			text-transform: lowercase;
@@ -540,35 +637,70 @@
 			display: flex;
 			align-items: baseline;
 		}
+
+		.haibun-log-depth-hidden {
+			display: none !important;
+		}
+
+		.haibun-log-depth-placeholder {
+			font-size: 0.7em;
+			color: #999;
+			padding: 2px 0;
+			font-family: 'Roboto Mono', monospace;
+			white-space: nowrap;
+		}
 	</style>
 </head>
 
 <body>
 	<div class="haibun-header">
-		<h1>
-			Haibun Monitor
-			<span id="haibun-current-context"></span>
-			<div id="haibun-seq-path" style="font-size: 0.5em; color: #888; font-family: monospace;"></div>
-		</h1>
+		<div class="haibun-header-title">
+			<h1>Haibun Monitor</h1>
+			<div id="haibun-date"></div>
+		</div>
 		<div id="haibun-time-controls">
-			<button id="haibun-play-pause" title="Pause">⏸️</button>
-			<select id="haibun-playback-speed" title="Playback Speed">
-				<option value="0.25">0.25x</option>
-				<option value="0.5">0.5x</option>
-				<option value="1" selected>1x</option>
-				<option value="2">2x</option>
-				<option value="5">5x</option>
-			</select>
 			<div id="haibun-time-slider-container">
 				<div id="haibun-timeline-markers"></div>
 				<input type="range" id="haibun-time-slider" min="0" value="0">
 			</div>
-			<span id="haibun-time-display" class="time-small">0.000s</span>
+			<div id="haibun-controls-row">
+				<div class="left-controls">
+					<button id="haibun-play-pause" title="Pause">⏸️</button>
+					<select id="haibun-playback-speed" title="Playback Speed">
+						<option value="0.25">0.25x</option>
+						<option value="0.5">0.5x</option>
+						<option value="1" selected>1x</option>
+						<option value="2">2x</option>
+						<option value="5">5x</option>
+					</select>
+				</div>
+				<span id="haibun-current-context"></span>
+				<div class="right-controls">
+					<span id="haibun-time-display" class="time-small">0.000s</span>
+				</div>
+			</div>
 		</div>
 		<div class="haibun-controls">
 			<label><input type="checkbox" id="haibun-view-toggle"> Document View</label>
+			<label for="haibun-log-depth">Depth</label>
+			<select id="haibun-log-depth" style="width: 50px;">
+				<option value="2">2</option>
+				<option value="3">3</option>
+				<option value="4">4</option>
+				<option value="5">5</option>
+				<option value="6" selected>6</option>
+				<option value="7">7</option>
+				<option value="8">8</option>
+				<option value="9">9</option>
+				<option value="10">10</option>
+				<option value="11">11</option>
+				<option value="12">12</option>
+				<option value="13">13</option>
+				<option value="14">14</option>
+				<option value="15">15</option>
+			</select>
 			<label for="haibun-debug-level-select">Log level</label>
-			<select id="haibun-debug-level-select">
+			<select id="haibun-debug-level-select" autocomplete="off">
 			</select>
 		</div>
 	</div>

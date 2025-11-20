@@ -55,6 +55,7 @@ export class LogEntry extends LogComponent {
 			const depth = featureStep.seqPath.length;
 			// Indent by 5px per depth level
 			this.element.style.marginLeft = `${depth * 5}px`;
+			this.setData('depth', `${depth}`);
 		}
 
 		this.detailsSummary = new LogDetailsSummary(level, timestamp);
@@ -221,18 +222,59 @@ class LogMessageSummary extends LogComponent<HTMLElement> {
 
 		// Check for seqPath at the start of the message, possibly preceded by emojis or other characters
 		// Matches: (optional non-word chars like emojis)(spaces)([digits.digits])(rest)
-		const seqPathMatch = summaryMessage.match(/^([^\w\s]*\s*\[[\d.]+\])(.*)/);
+		const seqPathMatch = summaryMessage.match(/^([^\w\s]*\s*\[[\d.-]+\])(.*)/);
+		let messageText = summaryMessage;
+		let seqPathText = '';
+
 		if (seqPathMatch) {
-			const seqPathSpan = document.createElement('span');
-			seqPathSpan.className = 'haibun-seqpath';
-			seqPathSpan.textContent = seqPathMatch[1];
-			this.element.appendChild(seqPathSpan);
-			this.element.appendChild(document.createTextNode(seqPathMatch[2]));
-		} else {
-			this.setText(summaryMessage);
+			seqPathText = seqPathMatch[1];
+			messageText = seqPathMatch[2];
 		}
 
+		// Extract leading emoji from messageText
+		// Matches: (leading non-word chars like emojis)(rest)
+		// Be careful not to match just spaces.
+		const emojiMatch = messageText.match(/^([^\w\s]+)\s+(.*)/);
+		let emojiText = '';
+		let mainText = messageText;
+
+		if (emojiMatch) {
+			emojiText = emojiMatch[1];
+			mainText = emojiMatch[2];
+		}
+
+		// Construct Grid Layout: [Emoji] [Marker] [Text]
+		//                        [SeqPath (col 2-3)]
+
+		if (emojiText) {
+			const emojiSpan = document.createElement('span');
+			emojiSpan.className = 'haibun-log-emoji';
+			emojiSpan.textContent = emojiText;
+			this.element.appendChild(emojiSpan);
+		} else {
+			// Empty span to keep grid alignment
+			const emptySpan = document.createElement('span');
+			this.element.appendChild(emptySpan);
+		}
+
+		const markerSpan = document.createElement('span');
+		markerSpan.className = 'haibun-log-marker';
+		markerSpan.textContent = '▶';
+		this.element.appendChild(markerSpan);
+
+		const textSpan = document.createElement('span');
+		textSpan.className = 'haibun-log-message-text';
+		textSpan.textContent = mainText;
+		this.element.appendChild(textSpan);
+
 		this.append(this.labelSpan);
+
+		if (seqPathText) {
+			const seqPathSpan = document.createElement('span');
+			seqPathSpan.className = 'haibun-seqpath';
+			seqPathSpan.textContent = seqPathText;
+			this.element.appendChild(seqPathSpan);
+		}
 	}
 
 	updateLabel(newLabel: string): void {

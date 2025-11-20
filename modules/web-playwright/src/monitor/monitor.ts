@@ -29,6 +29,7 @@ let renderedMessageCount = 0;
 
 // Function exposed to Playwright to receive new logs
 window.receiveLogData = (logEntry) => {
+	monitorState.isLive = true;
 	console.info(`[receiveLogData] Received log entry:`, logEntry.level, logEntry.message.substring(0, 50));
 	window.haibunCapturedMessages.push(logEntry);
 
@@ -40,6 +41,10 @@ window.receiveLogData = (logEntry) => {
 		// Force visibility update since start time changed
 		recalcVisibility(monitorState.currentTime);
 		updateTimelineMarkers();
+	}
+
+	if (logEntry.timestamp - monitorState.startTime > monitorState.maxTime) {
+		monitorState.maxTime = logEntry.timestamp - monitorState.startTime;
 	}
 
 	renderedMessageCount++;
@@ -77,10 +82,32 @@ export function renderLogEntry(logEntryData: TLogEntry) {
 	const logEntry = new LogEntry(level, timestamp, message, messageContext);
 	const logEntryElement = logEntry.element;
 
+	if (messageContext?.incident) {
+		logEntryElement.dataset.incident = messageContext.incident;
+	}
+
 	container.appendChild(logEntryElement);
 
 	// Update context header
-	if (typeof message === 'string') {
+	if (messageContext?.incident === EExecutionMessageType.FEATURE_START) {
+		const feature = messageContext.incidentDetails.feature as { name?: string, path?: string };
+		const text = `Feature: ${feature.name || feature.path}`;
+		logEntryElement.dataset.contextText = text;
+		const contextEl = document.getElementById('haibun-current-context');
+		if (contextEl) contextEl.textContent = text;
+	} else if (messageContext?.incident === EExecutionMessageType.SCENARIO_START) {
+		const contextEl = document.getElementById('haibun-current-context');
+		const scenarioTitle = messageContext.incidentDetails.scenarioTitle || `Scenario ${messageContext.incidentDetails.currentScenario}`;
+		logEntryElement.dataset.contextText = scenarioTitle;
+		if (contextEl) {
+			const current = contextEl.textContent || '';
+			if (current.startsWith('Feature: ')) {
+				contextEl.textContent = `${current.split(' > ')[0]} > ${scenarioTitle}`;
+			} else {
+				contextEl.textContent = scenarioTitle;
+			}
+		}
+	} else if (typeof message === 'string') {
 		if (message.startsWith('Feature: ')) {
 			const contextEl = document.getElementById('haibun-current-context');
 			if (contextEl) contextEl.textContent = message;
@@ -181,7 +208,8 @@ const monitorState = {
 	currentTime: 0,
 	playbackSpeed: 1,
 	lastFrameTime: 0,
-	lastScrolled: null as HTMLElement | null
+	lastScrolled: null as HTMLElement | null,
+	isLive: false
 };
 
 function markTimelineError(timestamp: string | undefined) {
@@ -252,11 +280,21 @@ function setupTimeControls() {
 	// Use the first log entry's timestamp as start time if available, otherwise fallback to body dataset or Date.now()
 	if (window.haibunCapturedMessages && window.haibunCapturedMessages.length > 0) {
 		monitorState.startTime = window.haibunCapturedMessages.reduce((min, m) => Math.min(min, m.timestamp), window.haibunCapturedMessages[0].timestamp);
+		const lastTimestamp = window.haibunCapturedMessages.reduce((max, m) => Math.max(max, m.timestamp), window.haibunCapturedMessages[0].timestamp);
+		monitorState.maxTime = lastTimestamp - monitorState.startTime;
+		// If we have captured messages, we are likely in replay mode, so start paused
+		monitorState.isPlaying = false;
+		monitorState.autoScroll = false;
 	} else {
 		monitorState.startTime = parseInt(document.body.dataset.startTime || `${Date.now()}`, 10);
 	}
 	// Sync display time base
 	document.body.dataset.startTime = `${monitorState.startTime}`;
+
+	const dateEl = document.getElementById('haibun-date');
+	if (dateEl) {
+		dateEl.textContent = new Date(monitorState.startTime).toISOString();
+	}
 
 	monitorState.lastFrameTime = Date.now();
 
@@ -275,6 +313,8 @@ function setupTimeControls() {
 		container.addEventListener('mousedown', stopAutoScroll);
 		container.addEventListener('keydown', stopAutoScroll);
 	}
+
+	updatePlayPauseButton();
 
 	playPauseBtn.addEventListener('click', () => {
 		if (monitorState.isPlaying && !monitorState.autoScroll) {
@@ -382,7 +422,7 @@ function updateTimeLoop() {
 	// Update maxTime to be at least liveElapsed (if we are receiving new data)
 	// But if we are just viewing a static file, maxTime is fixed?
 	// In this monitor, we assume we might be receiving data.
-	if (liveElapsed > monitorState.maxTime) {
+	if (monitorState.isLive && liveElapsed > monitorState.maxTime) {
 		monitorState.maxTime = liveElapsed;
 	}
 
@@ -414,6 +454,8 @@ function recalcVisibility(timeMs: number, forceScroll = false) {
 
 	const entries = container.querySelectorAll('.haibun-log-entry');
 	let lastVisible: HTMLElement | null = null;
+	let currentFeatureText = '';
+	let currentScenarioText = '';
 
 	// Reset highlights
 	entries.forEach(e => e.classList.remove('haibun-log-entry-current'));
@@ -425,6 +467,13 @@ function recalcVisibility(timeMs: number, forceScroll = false) {
 		if (entryTime > timeMs) {
 			el.classList.add('invisible-future');
 			continue;
+		}
+
+		if (el.dataset.incident === 'FEATURE_START') {
+			currentFeatureText = el.dataset.contextText || '';
+			currentScenarioText = '';
+		} else if (el.dataset.incident === 'SCENARIO_START') {
+			currentScenarioText = el.dataset.contextText || '';
 		}
 
 		el.classList.remove('invisible-future');
@@ -448,16 +497,22 @@ function recalcVisibility(timeMs: number, forceScroll = false) {
 		v.pause();
 	});
 
+	const contextEl = document.getElementById('haibun-current-context');
+	if (contextEl) {
+		if (currentFeatureText && currentScenarioText) {
+			contextEl.textContent = `${currentFeatureText} > ${currentScenarioText}`;
+		} else if (currentFeatureText) {
+			contextEl.textContent = currentFeatureText;
+		} else if (currentScenarioText) {
+			contextEl.textContent = currentScenarioText;
+		}
+	}
+
 	if (lastVisible) {
 		lastVisible.classList.add('haibun-log-entry-current');
 
-		const seqPathDisplay = document.getElementById('haibun-seq-path');
-		if (seqPathDisplay) {
-			seqPathDisplay.textContent = lastVisible.dataset.seqPath || '';
-		}
-
 		if (forceScroll || (monitorState.autoScroll && lastVisible !== monitorState.lastScrolled)) {
-			lastVisible.scrollIntoView({ block: 'end', behavior: 'auto' });
+			lastVisible.scrollIntoView({ block: 'center', behavior: 'auto' });
 			monitorState.lastScrolled = lastVisible;
 		}
 	}

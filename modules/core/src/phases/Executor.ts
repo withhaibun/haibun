@@ -186,7 +186,7 @@ export class FeatureExecutor {
 					featureVars = new FeatureVariables(world, world.shared.all());
 				}
 				currentScenario = currentScenario + 1;
-				this.logit(`start scenario ${currentScenario}`, { incident: EExecutionMessageType.SCENARIO_START, incidentDetails: { currentScenario } }, 'debug');
+				this.logit(`start scenario ${currentScenario}`, { incident: EExecutionMessageType.SCENARIO_START, incidentDetails: { currentScenario, scenarioTitle: step.in } }, 'debug');
 				await doStepperCycle(this.steppers, 'startScenario', { featureVars });
 			}
 
