@@ -285,10 +285,10 @@ function setupTimeControls() {
 		// If we have captured messages, we are likely in replay mode, so start paused
 		monitorState.isPlaying = false;
 		monitorState.autoScroll = false;
-		
+
 		// Set current time to end
 		monitorState.currentTime = monitorState.maxTime;
-		
+
 		// Update slider and display immediately
 		if (slider) {
 			slider.max = `${monitorState.maxTime}`;
@@ -297,7 +297,7 @@ function setupTimeControls() {
 		if (timeDisplay) {
 			timeDisplay.textContent = `${(monitorState.currentTime / 1000).toFixed(3)}s`;
 		}
-		
+
 		// Force visibility update for the end state
 		setTimeout(() => {
 			recalcVisibility(monitorState.currentTime, true);
@@ -341,6 +341,15 @@ function setupTimeControls() {
 			// Force scroll immediately
 			recalcVisibility(monitorState.currentTime, true);
 			return;
+		}
+
+		// Restart if at end and not live
+		if (!monitorState.isPlaying && monitorState.currentTime >= monitorState.maxTime && !monitorState.isLive) {
+			monitorState.currentTime = 0;
+			// Reset slider and display
+			if (slider) slider.value = '0';
+			if (timeDisplay) timeDisplay.textContent = '0.000s';
+			recalcVisibility(0, true);
 		}
 
 		monitorState.isPlaying = !monitorState.isPlaying;
@@ -433,7 +442,8 @@ function updateTimeLoop() {
 		monitorState.currentTime += delta * monitorState.playbackSpeed;
 	} else {
 		// Live mode (speed 1, at head)
-		monitorState.currentTime = liveElapsed;
+		// Ensure we are at least at maxTime to show latest messages immediately (handles client clock lag)
+		// monitorState.currentTime = Math.max(liveElapsed, monitorState.maxTime);
 	}
 
 	// Update maxTime to be at least liveElapsed (if we are receiving new data)
@@ -446,6 +456,12 @@ function updateTimeLoop() {
 	// Cap currentTime at maxTime
 	if (monitorState.currentTime > monitorState.maxTime) {
 		monitorState.currentTime = monitorState.maxTime;
+
+		// Stop if at end and not live (replay finished)
+		if (monitorState.isPlaying && !monitorState.isLive) {
+			monitorState.isPlaying = false;
+			updatePlayPauseButton();
+		}
 	}
 
 	const slider = document.getElementById('haibun-time-slider') as HTMLInputElement;
@@ -481,7 +497,7 @@ function recalcVisibility(timeMs: number, forceScroll = false) {
 		const el = entries[i] as HTMLElement;
 		const entryTime = parseInt(el.dataset.time || '0', 10) - monitorState.startTime;
 
-		if (entryTime > timeMs) {
+		if (entryTime > timeMs + 250) {
 			el.classList.add('invisible-future');
 			continue;
 		}
@@ -507,6 +523,19 @@ function recalcVisibility(timeMs: number, forceScroll = false) {
 
 		lastVisible = el;
 	}
+
+	// Handle placeholders visibility: hide them if the content they represent is in the future
+	const placeholders = container.querySelectorAll('.haibun-log-depth-placeholder');
+	placeholders.forEach(p => {
+		const el = p as HTMLElement;
+		const next = el.nextElementSibling as HTMLElement;
+		// If the next element (the first hidden log entry) is future, hide the placeholder
+		if (next && next.classList.contains('invisible-future')) {
+			el.classList.add('invisible-future');
+		} else {
+			el.classList.remove('invisible-future');
+		}
+	});
 
 	const videos = document.querySelectorAll('video');
 	videos.forEach(v => {
