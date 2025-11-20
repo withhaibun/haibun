@@ -198,6 +198,12 @@
 			gap: 20px;
 		}
 
+		.haibun-control-group {
+			display: flex;
+			align-items: center;
+			gap: 5px;
+		}
+
 		.haibun-seqpath {
 			font-size: 0.8em;
 			color: #888;
@@ -259,17 +265,21 @@
 			transition: opacity 0.2s;
 		}
 
+		.haibun-log-depth-hidden {
+			display: none !important;
+		}
+
 		.haibun-log-entry-current {
 			background-color: #e6f7ff; /* Light blue highlight */
 			border-left: 4px solid #1890ff;
+			display: flex !important;
 		}
 
 		.invisible-future {
 			display: none !important;
 		}
 
-
-		.haibun-log-entry>.haibun-log-details-summary {
+		.haibun-log-details-summary {
 			flex: 0 0 120px;
 			padding-right: 15px;
 			font-size: 0.9em;
@@ -638,10 +648,6 @@
 			align-items: baseline;
 		}
 
-		.haibun-log-depth-hidden {
-			display: none !important;
-		}
-
 		.haibun-log-depth-placeholder {
 			font-size: 0.7em;
 			color: #999;
@@ -682,26 +688,30 @@
 		</div>
 		<div class="haibun-controls">
 			<label><input type="checkbox" id="haibun-view-toggle"> Document View</label>
-			<label for="haibun-log-depth">Depth</label>
-			<select id="haibun-log-depth" style="width: 50px;">
-				<option value="2">2</option>
-				<option value="3">3</option>
-				<option value="4">4</option>
-				<option value="5">5</option>
-				<option value="6" selected>6</option>
-				<option value="7">7</option>
-				<option value="8">8</option>
-				<option value="9">9</option>
-				<option value="10">10</option>
-				<option value="11">11</option>
-				<option value="12">12</option>
-				<option value="13">13</option>
-				<option value="14">14</option>
-				<option value="15">15</option>
-			</select>
-			<label for="haibun-debug-level-select">Log level</label>
-			<select id="haibun-debug-level-select" autocomplete="off">
-			</select>
+			<div class="haibun-control-group">
+				<label for="haibun-log-depth">Depth</label>
+				<select id="haibun-log-depth" style="width: 50px;">
+					<option value="2">2</option>
+					<option value="3">3</option>
+					<option value="4">4</option>
+					<option value="5">5</option>
+					<option value="6" selected>6</option>
+					<option value="7">7</option>
+					<option value="8">8</option>
+					<option value="9">9</option>
+					<option value="10">10</option>
+					<option value="11">11</option>
+					<option value="12">12</option>
+					<option value="13">13</option>
+					<option value="14">14</option>
+					<option value="15">15</option>
+				</select>
+			</div>
+			<div class="haibun-control-group">
+				<label for="haibun-debug-level-select">Log level</label>
+				<select id="haibun-debug-level-select" autocomplete="off">
+				</select>
+			</div>
 		</div>
 	</div>
 

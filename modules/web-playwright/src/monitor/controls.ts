@@ -16,8 +16,8 @@ let currentMaxDepth = 6;
 let currentLogLevel: string = LOG_LEVEL_TRACE;
 
 function isVisibleByLevel(entry: HTMLElement): boolean {
-	if (entry.classList.contains('disappeared') && 
-		!entry.classList.contains('haibun-step-failed') && 
+	if (entry.classList.contains('disappeared') &&
+		!entry.classList.contains('haibun-step-failed') &&
 		!entry.classList.contains('haibun-ensure-failed')) {
 		return false;
 	}
@@ -32,8 +32,13 @@ function isVisibleByLevel(entry: HTMLElement): boolean {
 		return true;
 	}
 
+	// Always show the current executing line
+	if (entry.classList.contains('haibun-log-entry-current')) {
+		return true;
+	}
+
 	// Always show active step/ensure starts
-	if ((entry.classList.contains('haibun-step-start') || entry.classList.contains('haibun-ensure-start')) && 
+	if ((entry.classList.contains('haibun-step-start') || entry.classList.contains('haibun-ensure-start')) &&
 		!entry.classList.contains('disappeared')) {
 		return true;
 	}
@@ -41,7 +46,7 @@ function isVisibleByLevel(entry: HTMLElement): boolean {
 	// Check log level
 	const selectedIndex = LOG_LEVELS.indexOf(currentLogLevel as typeof LOG_LEVELS[number]);
 	let entryLevelIndex = -1;
-	
+
 	for (let i = 0; i < LOG_LEVELS.length; i++) {
 		if (entry.classList.contains(`haibun-level-${LOG_LEVELS[i]}`)) {
 			entryLevelIndex = i;
@@ -81,7 +86,7 @@ function applyDepthFilter() {
 
 		const depth = parseInt(entry.dataset.depth || '0', 10);
 
-		if (depth > currentMaxDepth) {
+		if (depth > currentMaxDepth && !entry.classList.contains('haibun-log-entry-current')) {
 			entry.classList.add('haibun-log-depth-hidden');
 			if (hiddenCount === 0) {
 				hiddenGroupStart = entry;
@@ -131,7 +136,7 @@ function insertPlaceholder(container: HTMLElement, refNode: HTMLElement, count: 
 				option.textContent = maxDepth.toString();
 				depthInput.appendChild(option);
 			}
-			
+
 			depthInput.value = maxDepth.toString();
 			depthInput.dispatchEvent(new Event('change'));
 		}
@@ -170,14 +175,14 @@ export function setupControls() {
 		css += `div.haibun-log-entry.haibun-step-start:not(.disappeared) { display: flex !important; }\n`;
 		// Show all active (not disappeared) ensure-start entries regardless of level
 		css += `div.haibun-log-entry.haibun-ensure-start:not(.disappeared) { display: flex !important; }\n`;
-		// Hide all disappeared entries UNLESS they're failed
-		css += `div.haibun-log-entry.disappeared:not(.haibun-step-failed):not(.haibun-ensure-failed) { display: none !important; }\n`;
+		// Hide all disappeared entries UNLESS they're failed or current
+		css += `div.haibun-log-entry.disappeared:not(.haibun-step-failed):not(.haibun-ensure-failed):not(.haibun-log-entry-current) { display: none !important; }\n`;
 		// Always show failed steps regardless of disappeared state or log level
 		css += `div.haibun-log-entry.haibun-step-failed { display: flex !important; }\n`;
 		// Always show failed ensures regardless of disappeared state or log level
 		css += `div.haibun-log-entry.haibun-ensure-failed { display: flex !important; }\n`;
-		// Hide successful ENSURE_END entries (they're just for signaling, not display)
-		css += `div.haibun-log-entry.haibun-ensure-end:not(.haibun-ensure-failed) { display: none !important; }\n`;
+		// Hide successful ENSURE_END entries (they're just for signaling, not display), unless current
+		css += `div.haibun-log-entry.haibun-ensure-end:not(.haibun-ensure-failed):not(.haibun-log-entry-current) { display: none !important; }\n`;
 
 		let styleElement = document.getElementById('haibun-dynamic-styles');
 		if (!styleElement) {
@@ -186,7 +191,7 @@ export function setupControls() {
 			document.head.appendChild(styleElement);
 		}
 		styleElement.textContent = css;
-		
+
 		applyDepthFilter();
 	};
 
@@ -292,15 +297,44 @@ export function setupVideoPlayback() {
 	function scrollToCurrentLogEntry() {
 		const logDisplayArea = document.getElementById('haibun-log-display-area');
 		if (!logDisplayArea) return;
-		// Try to find the first not-played entry
-		let entry = logDisplayArea.querySelector('.haibun-log-entry.haibun-stepper-notplayed');
-		// If all are played, scroll to the last played
+
+		let entry = logDisplayArea.querySelector('.haibun-log-entry-current');
+
 		if (!entry) {
-			const played = logDisplayArea.querySelectorAll('.haibun-log-entry.haibun-stepper-played');
-			if (played.length) entry = played[played.length - 1];
+			// Try to find the first not-played entry
+			entry = logDisplayArea.querySelector('.haibun-log-entry.haibun-stepper-notplayed');
+			// If all are played, scroll to the last played
+			if (!entry) {
+				const played = logDisplayArea.querySelectorAll('.haibun-log-entry.haibun-stepper-played');
+				if (played.length) entry = played[played.length - 1];
+			}
 		}
+		
+		// If we found an entry, but it's hidden, try to find a visible one nearby
 		if (entry) {
-			(entry as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'center' });
+			let el = entry as HTMLElement;
+			
+			// If it's the current entry, we force it visible via CSS, so we can scroll to it directly
+			if (el.classList.contains('haibun-log-entry-current')) {
+				el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+				return;
+			}
+
+			// Check if hidden by depth or level
+			while (el && (el.classList.contains('haibun-log-depth-hidden') || el.style.display === 'none' || !isVisibleByLevel(el))) {
+				// Try previous sibling if we are at the end (played), or next sibling if we are at start (not played)
+				// Actually, simpler heuristic: just find the closest visible sibling
+				const prev = el.previousElementSibling as HTMLElement;
+				if (prev && prev.classList.contains('haibun-log-entry')) {
+					el = prev;
+				} else {
+					break; // Can't find visible predecessor
+				}
+			}
+			
+			if (el && !el.classList.contains('haibun-log-depth-hidden') && el.style.display !== 'none') {
+				el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+			}
 		}
 	}
 
@@ -309,6 +343,11 @@ export function setupVideoPlayback() {
 			scrollToCurrentLogEntry();
 		});
 		scrollObserver.observe(logDisplayArea, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+
+		// Also scroll periodically to handle layout shifts or delayed rendering
+		setInterval(() => {
+			scrollToCurrentLogEntry();
+		}, 1000);
 	}
 
 	const promptContainer = document.getElementById('haibun-prompt-controls-container');

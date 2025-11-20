@@ -285,6 +285,23 @@ function setupTimeControls() {
 		// If we have captured messages, we are likely in replay mode, so start paused
 		monitorState.isPlaying = false;
 		monitorState.autoScroll = false;
+		
+		// Set current time to end
+		monitorState.currentTime = monitorState.maxTime;
+		
+		// Update slider and display immediately
+		if (slider) {
+			slider.max = `${monitorState.maxTime}`;
+			slider.value = `${monitorState.currentTime}`;
+		}
+		if (timeDisplay) {
+			timeDisplay.textContent = `${(monitorState.currentTime / 1000).toFixed(3)}s`;
+		}
+		
+		// Force visibility update for the end state
+		setTimeout(() => {
+			recalcVisibility(monitorState.currentTime, true);
+		}, 100);
 	} else {
 		monitorState.startTime = parseInt(document.body.dataset.startTime || `${Date.now()}`, 10);
 	}
