@@ -15,6 +15,7 @@ type TEtc = {
 }
 
 export class PlaywrightEvents {
+	navigateCount= 0;
 	constructor(private world: TWorld, private page: Page, private tag: TTag) {
 	}
 	async init() {
@@ -58,6 +59,7 @@ export class PlaywrightEvents {
 	private framenavigated(frame) {
 		if (frame === this.page.mainFrame()) {
 			this.world.shared.setForStepper('WebPlaywright', { term: 'currentURI', value: frame.url(), domain: DOMAIN_STRING, origin: 'fallthrough' }, { in: 'PlaywrightEvents.framenavigated', seq: [], when: 'framenavigated' });
+			this.world.shared.setForStepper('WebPlaywright', { term: 'navigateCount', value: this.navigateCount++, domain: DOMAIN_STRING, origin: 'fallthrough' }, { in: 'PlaywrightEvents.framenavigated', seq: [], when: 'framenavigated' });
 		}
 	}
 	public close(): void {
