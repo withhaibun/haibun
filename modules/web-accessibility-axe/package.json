@@ -1,0 +1,40 @@
+{
+  "name": "@haibun/web-accessibility-axe",
+  "type": "module",
+  "version": "3.0.3",
+  "description": "",
+  "main": "build/web-playwright.js",
+  "exports": {
+    ".": "./build/web-playwright.js",
+    "./*": "./build/*"
+  },
+  "files": [
+    "build/",
+    "web/monitor.html"
+  ],
+  "scripts": {
+    "build": "tsc -b .",
+    "build-watch": "tsc -b . --watch",
+    "prepublishOnly": "tsc -b .",
+    "lint": "eslint -c .eslintrc.json --ext .ts,.js src",
+    "preversion": "npm run lint",
+    "test": "vitest run",
+    "test-watch": "vitest"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@haibun/core": "3.0.3",
+    "@haibun/domain-storage": "3.0.3",
+    "axe-html-reporter": "^2.2.11",
+    "playwright": "^1.56.1"
+  },
+  "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5",
+  "devDependencies": {
+    "@haibun/storage-mem": "3.0.3",
+    "@types/jsdom": "^27.0.0",
+    "isomorphic-dompurify": "^2.25.0",
+    "jsdom": "^26.1.0"
+  }
+}

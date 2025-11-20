@@ -8,6 +8,7 @@
         { "path": "web-http" },
         { "path": "parse-md" },
         { "path": "web-playwright" },
+        { "path": "web-accessibility-axe" },
         { "path": "storage-mem" },
         { "path": "domain-storage" },
         { "path": "storage-fs" },
