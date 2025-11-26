@@ -3,10 +3,10 @@ import { resolve } from 'path';
 import { IStepperCycles, TFailureArgs, TEndFeature, TStepResult } from '@haibun/core/lib/defs.js';
 import { EExecutionMessageType, TArtifactImage, TMessageContext } from '@haibun/core/lib/interfaces/logger.js';
 import { EMediaTypes } from '@haibun/domain-storage/media-types.js';
-import type HaibunMobileStepper from './haibun-mobile-stepper.js';
+import type Mobile from './haibun-mobile-stepper.js';
 import { MobileDomains } from './domains.js';
 
-export const cycles = (mobile: HaibunMobileStepper): IStepperCycles => ({
+export const cycles = (mobile: Mobile): IStepperCycles => ({
 	getDomains: () => MobileDomains,
 
 	async onFailure({ failedStep }: TFailureArgs): Promise<void> {
@@ -49,7 +49,7 @@ export const cycles = (mobile: HaibunMobileStepper): IStepperCycles => ({
 	},
 });
 
-export async function captureScreenshot(mobile: HaibunMobileStepper, event: EExecutionMessageType, details: { seq?: number; step?: TStepResult }): Promise<{ context: TMessageContext; path: string }> {
+export async function captureScreenshot(mobile: Mobile, event: EExecutionMessageType, details: { seq?: number; step?: TStepResult }): Promise<{ context: TMessageContext; path: string }> {
 	const loc = await mobile.getCaptureDir('image');
 	const path = resolve(mobile.storage!.fromLocation(EMediaTypes.image, loc, `${event}-${Date.now()}.png`));
 
