@@ -12,7 +12,7 @@ import { DriverFactory, TDriverFactoryOptions, TPlatformName, TAutomationName, T
 import { cycles, captureScreenshot } from './cycles.js';
 import { mobileSteps } from './mobileSteps.js';
 
-export default class HaibunMobileStepper extends AStepper implements IHasOptions, IHasCycles {
+export default class Mobile extends AStepper implements IHasOptions, IHasCycles {
 	cycles = cycles(this);
 	static STORAGE = 'STORAGE';
 
@@ -30,7 +30,7 @@ export default class HaibunMobileStepper extends AStepper implements IHasOptions
 			desc: 'Android: Package name of an already-installed app (e.g., com.example.app)',
 			parse: (input: string) => stringOrError(input),
 		},
-		APP_ACTIVITY: {
+		ACTIVITY: {
 			desc: 'Android: Activity name to launch (e.g., .MainActivity). Used with APP_PACKAGE.',
 			parse: (input: string) => stringOrError(input),
 		},
@@ -38,7 +38,7 @@ export default class HaibunMobileStepper extends AStepper implements IHasOptions
 			desc: 'iOS: Bundle identifier of an already-installed app (e.g., com.example.app)',
 			parse: (input: string) => stringOrError(input),
 		},
-		[HaibunMobileStepper.STORAGE]: {
+		[Mobile.STORAGE]: {
 			desc: 'Storage for screenshots and artifacts',
 			parse: (input: string) => stringOrError(input),
 			required: true,
@@ -126,7 +126,7 @@ export default class HaibunMobileStepper extends AStepper implements IHasOptions
 		const useBrowserStack = getStepperOption(this, 'USE_BROWSERSTACK', world.moduleOptions) === 'true';
 		const logLevel = (getStepperOption(this, 'LOG_LEVEL', world.moduleOptions) || 'info') as 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'silent';
 
-		this.storage = findStepperFromOption(steppers, this, world.moduleOptions, HaibunMobileStepper.STORAGE);
+		this.storage = findStepperFromOption(steppers, this, world.moduleOptions, Mobile.STORAGE);
 		this.timeout = parseInt(getStepperOption(this, 'TIMEOUT', world.moduleOptions) || '15000');
 		this.resetBehavior = (getStepperOption(this, 'RESET_BEHAVIOR', world.moduleOptions) || 'reset') as 'none' | 'reset' | 'relaunch';
 

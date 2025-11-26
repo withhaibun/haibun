@@ -2,7 +2,7 @@ import { OK, TFeatureStep } from '@haibun/core/lib/defs.js';
 import { actionNotOK } from '@haibun/core/lib/util/index.js';
 import { TStepperSteps } from '@haibun/core/lib/astepper.js';
 import { EExecutionMessageType } from '@haibun/core/lib/interfaces/logger.js';
-import type HaibunMobileStepper from './haibun-mobile-stepper.js';
+import type Mobile from './haibun-mobile-stepper.js';
 import { MOBILE_TESTID, MOBILE_ACCESSIBILITY, MOBILE_XPATH } from './domains.js';
 import { DOMAIN_STRING } from '@haibun/core/lib/domain-types.js';
 import { getAccessibilityTree } from './lib/lib.js';
@@ -27,7 +27,7 @@ async function withStaleRetry<T>(action: () => Promise<T>, maxRetries = 2): Prom
 	throw lastError || new Error('Failed after retries');
 }
 
-async function locateByDomain(mobile: HaibunMobileStepper, featureStep: TFeatureStep, where: string) {
+async function locateByDomain(mobile: Mobile, featureStep: TFeatureStep, where: string) {
 	const stepValue = featureStep.action.stepValuesMap[where];
 	const value = stepValue.value as string;
 	const domain = stepValue.domain;
@@ -39,7 +39,8 @@ async function locateByDomain(mobile: HaibunMobileStepper, featureStep: TFeature
 		if (platformName === 'android') {
 			return await driver.$(`android=new UiSelector().resourceId("${value}")`);
 		} else {
-			return await driver.$(`~${value}`);
+			const cleanValue = value.startsWith('~') ? value.slice(1) : value;
+			return await driver.$(`~${cleanValue}`);
 		}
 	} else if (domain === MOBILE_ACCESSIBILITY) {
 		return await driver.$(`~${value}`);
@@ -59,7 +60,29 @@ async function locateByDomain(mobile: HaibunMobileStepper, featureStep: TFeature
 	}
 }
 
-export const mobileSteps = (mobile: HaibunMobileStepper): TStepperSteps => ({
+export const mobileSteps = (mobile: Mobile): TStepperSteps => ({
+	injectCameraImage: {
+		gwta: 'inject camera image {file}',
+		action: async ({ file }: { file: string }) => {
+			const { execSync } = await import('child_process');
+			try {
+				execSync(`adb emu camera inject-image ${file}`);
+				return OK;
+			} catch (error: unknown) {
+				const errorMessage = error instanceof Error ? error.message : String(error);
+				return actionNotOK(`Failed to inject camera image: ${errorMessage}`);
+			}
+		},
+	},
+			sendFingerprint: {
+				gwta: 'send fingerprint',
+				action: async () => {
+					const platform = (await (await mobile.getDriver()).capabilities).platformName?.toLowerCase();
+					if (platform === 'android') return (await mobile.getDriver()).fingerPrint(0), OK;
+					if (platform === 'ios') return (await mobile.getDriver()).touchId(true), OK;
+					return OK;
+				},
+			},
 
 	tap: {
 		gwta: `tap {target: ${MOBILE_ELEMENT}}`,

@@ -12,6 +12,11 @@ Mobile testing stepper for Haibun.
 - Xcode with Command Line Tools
 - iOS Simulator or device
 
+### Appium drivers
+
+`npx appium driver install uiautomator2`
+`npx appium driver install xcuitest`
+
 ## Overview
 
 Tests mobile apps using Appium/WebDriverIO. Elements are located using domain-based selectors (e.g., `mobile-testid`, `mobile-xpath`, `mobile-accessibility`) defined in background files.
