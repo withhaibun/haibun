@@ -30,7 +30,7 @@ ensure Infinite loop
 		// Should fail due to depth limit
 		expect(result.ok).toBe(false);
 
-		// Check that world runtime has the depth limit flag set
-		expect(result.world.runtime.depthLimitExceeded).toBe(true);
+		// Check that world runtime has an exhaustion error set
+		expect(typeof result.world.runtime.exhaustionError).toBe('string');
 	});
 });

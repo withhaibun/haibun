@@ -55,7 +55,7 @@ export default class HttpExecutorStepper extends AStepper implements IHasOptions
 		webserver.addRoute('post', '/execute-step', (req: IRequest, res: IResponse) => {
 			(async () => {
 				try {
-					console.log(`📥 HTTP Executor: Received request for statement: "${req.body?.statement}"`);
+					console.info(`📥 HTTP Executor: Received request for statement: "${req.body?.statement}"`);
 
 					if (!this.checkAuth(req, res)) {
 						return;
@@ -68,12 +68,12 @@ export default class HttpExecutorStepper extends AStepper implements IHasOptions
 					}
 					const { statement, source } = req.body;
 
-					console.log(`🔄 HTTP Executor: Starting execution of "${statement}" from ${source}`);
+					console.debug(`🔄 HTTP Executor: Starting execution of "${statement}" from ${source}`);
 					const world = this.getWorld();
 					const steppers = this.steppers;
 
 					const result: TStepResult = await resolveAndExecuteStatement(statement, source, steppers, world, ExecMode.NO_CYCLES, [0]);
-					console.log(`✅ HTTP Executor: Execution completed`, result);
+					console.debug(`✅ HTTP Executor: Execution completed`, result);
 
 					res.json(result);
 

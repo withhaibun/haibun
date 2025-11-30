@@ -24,7 +24,6 @@ set z to 3`
 		};
 
 		const bdd = toBdd(testBackground);
-		console.log('Generated BDD:', bdd);
 
 		// The BDD should have the waypoint statement with the full proof
 		expect(bdd).toContain('waypoint Variables are set with');

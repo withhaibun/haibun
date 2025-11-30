@@ -43,22 +43,6 @@ variable loginType is "user"
 			[multipleOutcomes]
 		);
 
-		if (!result.ok) {
-			console.log('=== TEST FAILED ===');
-			if (result.failure) {
-				console.log('Failure:', result.failure.stage, result.failure.error.message);
-			}
-			if (result.featureResults?.[0]) {
-				const fr = result.featureResults[0];
-				const failed = fr.stepResults?.filter(s => !s.ok) || [];
-				console.log(`Failed steps (${failed.length}):`);
-				failed.forEach((s, i) => {
-					// @ts-expect-error - accessing internal message
-					console.log(`  ${i}: "${s.in}" - ${s.stepActionResult?.message || JSON.stringify(s.stepActionResult)}`);
-				});
-			}
-		}
-
 		expect(result.ok).toBe(true);
 	});
 

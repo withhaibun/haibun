@@ -168,11 +168,9 @@ describe('generateMermaidGraph', () => {
     // VERIFY ACTUAL MERMAID LINKING LINES EXIST
     const ensureToWpLine = joined.match(/s_0_ensure_0\s*-\.->.*wp_registered_\d+/);
     expect(ensureToWpLine).toBeTruthy();
-    console.log('✓ Ensure to waypoint link found:', ensureToWpLine?.[0]);
 
     const wpToProofLine = joined.match(/wp_registered_\d+\s*-\.->.*proof_/);
     expect(wpToProofLine).toBeTruthy();
-    console.log('✓ Waypoint to proof link found:', wpToProofLine?.[0]);
   });
 
   it('verifies GRAPH_LINK messages are properly collected and rendered in mermaid', async () => {

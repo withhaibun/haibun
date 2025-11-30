@@ -3,7 +3,7 @@ import { TAnyFixme } from '../lib/fixme.js';
 import { AStepper, IHasCycles, TStepperSteps } from '../lib/astepper.js';
 import { actionNotOK, actionOK } from '../lib/util/index.js';
 import { FeatureVariables } from '../lib/feature-variables.js';
-import { DOMAIN_STRING } from '../lib/domain-types.js';
+import { DOMAIN_STATEMENT, DOMAIN_STRING, normalizeDomainKey, createEnumDomainDefinition, registerDomains } from '../lib/domain-types.js';
 import { EExecutionMessageType } from '../lib/interfaces/logger.js';
 
 const clearVars = (vars) => () => {
@@ -46,6 +46,20 @@ class VariablesStepper extends AStepper implements IHasCycles {
 	}
 
 	steps = {
+		defineOrderedSet: {
+			precludes: [`${VariablesStepper.name}.defineSet`],
+			gwta: `ordered set of {domain: string} is {values:${DOMAIN_STATEMENT}}`,
+			action: ({ domain, values }: { domain: string, values: TFeatureStep[] }, featureStep: TFeatureStep) => this.registerDomainFromStatement(domain, values, featureStep, { ordered: true, label: 'ordered set' })
+		},
+		defineSet: {
+			gwta: `set of {domain: string} is {values:${DOMAIN_STATEMENT}}`,
+			action: ({ domain, values }: { domain: string, values: TFeatureStep[] }, featureStep: TFeatureStep) => this.registerDomainFromStatement(domain, values, featureStep, { ordered: false, label: 'set' })
+		},
+		statementSetValues: {
+			expose: false,
+			gwta: '\\[{items: string}\\]',
+			action: () => OK,
+		},
 		combineAs: {
 			gwta: 'combine {p1} and {p2} as {domain} to {what}',
 			precludes: [`${VariablesStepper.name}.combine`],
@@ -69,22 +83,56 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				void what; // used for type checking
 				const { term, domain } = featureStep.action.stepValuesMap.what;
 				const presentVal = this.getVarValue(term);
-				let newVal: number;
-				if (presentVal === undefined) {
-					newVal = 0;
-				} else {
-					const numVal = Number(presentVal);
-					if (isNaN(numVal)) {
-						return actionNotOK(`cannot increment non-numeric variable ${term} with value "${presentVal}"`);
+				// If no domain supplied by the step, try to infer it from stored variable metadata.
+				let effectiveDomain = domain;
+				if (!effectiveDomain) {
+					const stored = this.getWorld().shared.all[term];
+					if (stored && stored.domain) {
+						effectiveDomain = stored.domain;
 					}
-					newVal = numVal + 1;
 				}
-				this.getWorld().shared.set({ term: String(term), value: newVal, domain, origin: Origin.var }, provenanceFromFeatureStep(featureStep));
+				// If the domain is an ordered enum, advance to the next enum value.
+				const domainKey = normalizeDomainKey(effectiveDomain);
+				const registered = this.getWorld().domains[domainKey];
+				if (registered && registered.comparator) {
+					// Prefer explicit values array on the registered domain if available.
+					const enumValues = Array.isArray(registered.values) && registered.values.length ? registered.values : undefined;
+					if (enumValues && enumValues.length > 0) {
+						// If not set yet, do not silently initialize — treat increment on unset as an error.
+						if (presentVal === undefined) {
+							return actionNotOK(`${term} not set`);
+						}
+						const idx = enumValues.indexOf(String(presentVal));
+						if (idx === -1) {
+							return actionNotOK(`${term} has value "${presentVal}" which is not in domain values`);
+						}
+						const nextIdx = Math.min(enumValues.length - 1, idx + 1);
+						const newVal = enumValues[nextIdx];
+						this.getWorld().shared.set({ term: String(term), value: newVal, domain: effectiveDomain, origin: Origin.var }, provenanceFromFeatureStep(featureStep));
+						const messageContext = {
+							incident: EExecutionMessageType.ACTION,
+							incidentDetails: { json: { incremented: { [term]: newVal } } },
+						}
+						this.getWorld().logger.info(`incremented ${term} to ${newVal}`, messageContext);
+						return Promise.resolve(OK);
+					}
+				}
+				// Fallback: numeric increment behavior
+				// For numeric fallback, do not initialize on unset — incrementing an unset variable should fail.
+				if (presentVal === undefined) {
+					return actionNotOK(`${term} not set`);
+				}
+				const numVal = Number(presentVal);
+				if (isNaN(numVal)) {
+					return actionNotOK(`cannot increment non-numeric variable ${term} with value "${presentVal}"`);
+				}
+				const newNum = numVal + 1;
+				this.getWorld().shared.set({ term: String(term), value: newNum, domain: effectiveDomain, origin: Origin.var }, provenanceFromFeatureStep(featureStep));
 				const messageContext = {
 					incident: EExecutionMessageType.ACTION,
-					incidentDetails: { json: { incremented: { [term]: newVal } } },
+					incidentDetails: { json: { incremented: { [term]: newNum } } },
 				}
-				this.getWorld().logger.info(`incremented ${term} to ${newVal}`, messageContext);
+				this.getWorld().logger.info(`incremented ${term} to ${newNum}`, messageContext);
 				return Promise.resolve(OK);
 			}
 		},
@@ -167,12 +215,47 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		},
 		is: {
 			gwta: 'variable {what} is {value}',
+			match: /^variable\s+.+?\s+is\s+(?!less\s+than\b).+/,
 			action: ({ what, value }: { what: string, value: string }, featureStep: TFeatureStep) => {
 				void what; // used for type checking
 				const { term, domain } = featureStep.action.stepValuesMap.what;
 				const val = this.getVarValue(term);
-				const asDomain = this.getWorld().domains[domain].coerce({ domain, value, term, origin: 'quoted' })
+				const normalized = normalizeDomainKey(domain);
+				const domainEntry = this.getWorld().domains[normalized];
+				if (!domainEntry) {
+					return actionNotOK(`No domain coercer found for domain "${domain}"`);
+				}
+				const asDomain = domainEntry.coerce({ domain: normalized, value, term, origin: 'quoted' })
 				return JSON.stringify(val) === JSON.stringify(asDomain) ? OK : actionNotOK(`${term} is ${JSON.stringify(val)}, not ${JSON.stringify(value)}`);
+			}
+		},
+		isLessThan: {
+			gwta: 'variable {what} is less than {value}',
+			precludes: ['VariablesStepper.is'],
+			match: /^variable\s+.+?\s+is\s+less\s+than\s+.+/,
+			action: ({ what, value }: { what: string, value: string }, featureStep: TFeatureStep) => {
+				void what;
+				const term = featureStep?.action?.stepValuesMap?.what?.term ?? what;
+				const stored = this.getWorld().shared.all()[term];
+				if (!stored) {
+					return actionNotOK(`${term} is not set`);
+				}
+				try {
+					const domainKey = normalizeDomainKey(stored.domain);
+					const domainEntry = this.getWorld().domains[domainKey];
+					if (!domainEntry) {
+						throw new Error(`No domain coercer found for domain "${domainKey}"`);
+					}
+					const left = domainEntry.coerce({ ...stored, domain: domainKey }, featureStep, this.steppers);
+					const right = domainEntry.coerce({ term: `${term}__comparison`, value, domain: domainKey, origin: Origin.quoted }, featureStep, this.steppers);
+					const comparison = compareDomainValues(domainEntry, left, right);
+					if (comparison < 0) {
+						return OK;
+					}
+					return actionNotOK(`${term} (${renderComparable(left)}) is not less than ${renderComparable(right)}`);
+				} catch (error) {
+					return actionNotOK(error instanceof Error ? error.message : String(error));
+				}
 			}
 		},
 		isSet: {
@@ -198,6 +281,21 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			}
 		},
 	} satisfies TStepperSteps;
+
+	private registerDomainFromStatement(domain: string, valueFragments: TFeatureStep[] | undefined, featureStep: TFeatureStep, options?: { ordered?: boolean; label?: string; description?: string }) {
+		try {
+			const values = extractValuesFromFragments(valueFragments, featureStep.action.stepValuesMap.values?.term ?? featureStep.in);
+			const domainKey = normalizeDomainKey(domain);
+			if (this.getWorld().domains[domainKey]) {
+				return actionNotOK(`Domain "${domainKey}" already exists`);
+			}
+			const definition = createEnumDomainDefinition({ name: domainKey, values, description: options?.description, ordered: options?.ordered });
+			registerDomains(this.getWorld(), [[definition]]);
+			return OK;
+		} catch (error) {
+			return actionNotOK(error instanceof Error ? error.message : String(error));
+		}
+	}
 }
 
 export default VariablesStepper;
@@ -213,4 +311,67 @@ export function provenanceFromFeatureStep(featureStep: TFeatureStep): TProvenanc
 		when: `${featureStep.action.stepperName}.steps.${featureStep.action.actionName}`
 	};
 }
+
+const QUOTED_STRING = /"([^"]+)"/g;
+
+const extractValuesFromFragments = (valueFragments?: TFeatureStep[], fallback?: string) => {
+	if (valueFragments?.length) {
+		const innerChunks = valueFragments.map(fragment => {
+			const raw = fragment.in ?? fragment.action?.stepValuesMap?.items?.term ?? '';
+			const trimmed = raw.trim();
+			if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+				return trimmed.slice(1, -1).trim();
+			}
+			return trimmed;
+		}).filter(Boolean);
+		const inner = innerChunks.join(' ').trim();
+		if (!inner) {
+			throw new Error('Set values cannot be empty');
+		}
+		return parseQuotedOrWordList(inner);
+	}
+	if (fallback) {
+		return parseBracketedValues(fallback);
+	}
+	throw new Error('Set statement missing values');
+};
+
+const parseBracketedValues = (raw: string) => {
+	const trimmed = raw.trim();
+	const start = trimmed.indexOf('[');
+	const end = trimmed.lastIndexOf(']');
+	if (start === -1 || end === -1 || end <= start) {
+		throw new Error('Set values must include [ ]');
+	}
+	const inner = trimmed.substring(start + 1, end).trim();
+	return parseQuotedOrWordList(inner);
+};
+
+const parseQuotedOrWordList = (value: string): string[] => {
+	const quoted = [...value.matchAll(QUOTED_STRING)].map(match => match[1].trim()).filter(Boolean);
+	if (quoted.length) {
+		return quoted;
+	}
+	return value.split(/\s+/).map(token => token.trim()).filter(Boolean);
+};
+
+const compareDomainValues = (domain: { comparator?: (a: unknown, b: unknown) => number }, left: unknown, right: unknown): number => {
+	if (domain.comparator) {
+		return domain.comparator(left, right);
+	}
+	if (typeof left === 'number' && typeof right === 'number') {
+		return left - right;
+	}
+	if (left instanceof Date && right instanceof Date) {
+		return left.getTime() - right.getTime();
+	}
+	throw new Error('Domain does not support magnitude comparison');
+};
+
+const renderComparable = (value: unknown) => {
+	if (value instanceof Date) {
+		return value.toISOString();
+	}
+	return JSON.stringify(value);
+};
 

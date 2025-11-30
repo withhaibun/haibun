@@ -28,6 +28,7 @@ declare global {
 	}
 }
 
+let shownError = false;
 const monitorLocation = join(getPackageLocation(import.meta), '..', '..', 'web', 'monitor.html');
 
 class ButtonPrompter extends BasePromptManager {
@@ -195,7 +196,12 @@ document.getElementById('haibun-log-display-area').innerHTML = '';
 		await this.storage.writeFile(outMessages, JSON.stringify(this.capturedMessages, null, 2), EMediaTypes.html);
 	}
 	async inMonitor<T>(toRun: (p: T) => void, context?: TAnyFixme) {
-		await this.monitorPage.evaluate(toRun, context);
+		await this.monitorPage.evaluate(toRun, context).catch(e => {
+			if (!shownError) {
+				console.error(e)
+				shownError = true;
+			}
+		});
 	}
 
 	async waitForMonitorPage() {

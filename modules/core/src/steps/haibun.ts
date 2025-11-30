@@ -71,7 +71,7 @@ class Haibun extends AStepper implements IHasCycles {
 		},
 
 		// Represents Logical Implication (P => Q).
-		if: {
+		iif: {
 			gwta: `if {ifStatements:${DOMAIN_STATEMENT}}, {thenStatements:${DOMAIN_STATEMENT}}`,
 			action: async ({ ifStatements, thenStatements }: { ifStatements: TFeatureStep[], thenStatements: TFeatureStep[] }, featureStep: TFeatureStep) => {				// 1. Evaluate Antecedent (WHEN) - use dir=-1 for condition evaluation
 				const ifResult = await executeSubFeatureSteps(featureStep, ifStatements, this.steppers, this.getWorld(), ExecMode.NO_CYCLES, -1);
@@ -96,6 +96,12 @@ class Haibun extends AStepper implements IHasCycles {
 				let result: TStepResult;
 				do {
 					result = await executeSubFeatureSteps(featureStep, statements, this.steppers, this.getWorld(), ExecMode.WITH_CYCLES);
+					// If the action returned a messageContext with terminal=true, bail out
+					const terminal = result.stepActionResult?.messageContext?.incidentDetails?.terminal ?? false;
+					if (terminal) {
+						this.getWorld().logger.warn(`until: received terminal error, aborting loop`);
+						return actionNotOK('until: aborted due to terminal error');
+					}
 					await sleep(200);
 				} while (!result.ok);
 				return OK;

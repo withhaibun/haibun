@@ -51,9 +51,6 @@ The bug would cause myVariable to change to "fromActivity".
 
         const result = await passWithDefaults(feature, [ActivitiesStepper, VariablesStepper, Haibun]);
 
-        if (!result.ok) {
-            console.log('Test 2 failed:', result.failure);
-        }
         expect(result.ok).toBe(true);
     });
     it('should prevent recursion when activity body contains waypoint', async () => {

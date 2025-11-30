@@ -33,10 +33,6 @@ describe('Monitor Graph Verification', () => {
 
     const mermaidCode = mermaidMatch![1].trim();
 
-    console.log('\n=== EXTRACTED MERMAID CODE ===');
-    console.log(mermaidCode);
-    console.log('=== END MERMAID CODE ===\n');
-
     // Verify WAYPOINTS subgraph exists
     expect(mermaidCode).toContain('subgraph WAYPOINTS');
 
@@ -47,28 +43,22 @@ describe('Monitor Graph Verification', () => {
     const waypointNodes = mermaidCode.match(/wp_registered_\d+/g);
     expect(waypointNodes).toBeTruthy();
     expect(waypointNodes!.length).toBeGreaterThan(0);
-    console.log(`Found ${waypointNodes!.length} waypoint nodes:`, waypointNodes);
 
     // Verify proof nodes exist (proof_X format)
     const proofNodes = mermaidCode.match(/proof_\d+/g);
     expect(proofNodes).toBeTruthy();
     expect(proofNodes!.length).toBeGreaterThan(0);
-    console.log(`Found ${proofNodes!.length} proof nodes:`, proofNodes);
 
     // Verify ensure steps link to waypoints with dotted arrows (s_X_ensure_Y -.-> wp_registered_Z)
     const ensureToWaypointLinks = mermaidCode.match(/s_\d+_ensure_\d+\s*-\.->.*wp_registered_\d+/g);
     expect(ensureToWaypointLinks).toBeTruthy();
     expect(ensureToWaypointLinks!.length).toBeGreaterThan(0);
-    console.log(`Found ${ensureToWaypointLinks!.length} ensure->waypoint links:`, ensureToWaypointLinks);
 
     // Verify waypoints link to proofs with dotted arrows (wp_registered_X -.-> proof_Y)
     const waypointToProofLinks = mermaidCode.match(/wp_registered_\d+\s*-\.->.*proof_\d+/g);
     expect(waypointToProofLinks).toBeTruthy();
     expect(waypointToProofLinks!.length).toBeGreaterThan(0);
-    console.log(`Found ${waypointToProofLinks!.length} waypoint->proof links:`, waypointToProofLinks);
 
-    // Success
-    console.log('\n✓ All linking verified in generated monitor.html');
   });
 
   it('should verify GRAPH_LINK messages were captured in monitor', () => {
@@ -93,13 +83,6 @@ describe('Monitor Graph Verification', () => {
     const graphLinkMessages = messages.filter((msg: any) =>
       msg.messageContext?.incident === 'GRAPH_LINK'
     );
-
-    console.log(`\nFound ${graphLinkMessages.length} GRAPH_LINK messages in captured data`);
-
-    if (graphLinkMessages.length > 0) {
-      console.log('\nSample GRAPH_LINK message:');
-      console.log(JSON.stringify(graphLinkMessages[0].messageContext.incidentDetails, null, 2));
-    }
 
     expect(graphLinkMessages.length).toBeGreaterThan(0);
   });

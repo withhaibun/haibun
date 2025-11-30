@@ -1,6 +1,6 @@
 import { AStepper } from './astepper.js';
 import { TFeatureStep, TStepArgs, TWorld, Origin } from './defs.js';
-import { asDomainKey, DOMAIN_STRING } from './domain-types.js';
+import { DOMAIN_STRING, normalizeDomainKey } from './domain-types.js';
 
 // Given a feature step and the current world, populate the action args. This will update the existing stepValuesMap as actionVal
 export async function populateActionArgs(featureStep: TFeatureStep, world: TWorld, steppers: AStepper[]): Promise<TStepArgs> {
@@ -41,11 +41,12 @@ export async function populateActionArgs(featureStep: TFeatureStep, world: TWorl
 			continue;
 		}
 
-		const actionDomainKey = asDomainKey(actionVal.domain.split('|').map(d => d.trim()));
+		const actionDomainKey = normalizeDomainKey(actionVal.domain || DOMAIN_STRING);
 		if (!world.domains[actionDomainKey]) {
 			throw new Error(`No domain coercer found for domain "${actionDomainKey}"`);
 		}
 
+		actionVal.domain = actionDomainKey;
 		actionVal.value = await Promise.resolve(world.domains[actionDomainKey].coerce(actionVal, featureStep, steppers));
 
 		// actionVal has been updated, update the actionVal in place for downstream processing

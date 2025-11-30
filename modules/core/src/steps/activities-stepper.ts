@@ -29,6 +29,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 	private currentFeaturePath: string = '';
 	private lastFeaturePath: string = '';
 	private ensuredInstances: Map<string, { proof: string[]; valid: boolean }> = new Map();
+	private ensureAttempts: Map<string, number> = new Map();
 	private registeredOutcomeMetadata: Map<string, { proofStatements: string[]; proofPath: string; isBackground: boolean; activityBlockSteps?: string[] }> = new Map();
 
 	cycles: IStepperCycles = {
@@ -136,13 +137,17 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			action: async ({ proof }: { proof: TFeatureStep[] }, featureStep: TFeatureStep) => {
 				this.getWorld().logger.debug(`waypoint action: executing ${proof?.length || 0} proof steps`);
 
-				const result = await executeSubFeatureSteps(featureStep, proof, this.steppers, this.getWorld(), ExecMode.NO_CYCLES);
-
-				if (!result.ok) {
-					return actionNotOK(`waypoint: failed to execute proof steps`);
+				try {
+					const result = await executeSubFeatureSteps(featureStep, proof, this.steppers, this.getWorld(), ExecMode.NO_CYCLES);
+					if (!result.ok) {
+						return actionNotOK(`waypoint: failed to execute proof steps`);
+					}
+					return actionOK();
+				} catch (err) {
+					const msg = err instanceof Error ? err.message : String(err);
+					this.getWorld().logger.debug(`waypoint action: exception executing proof steps: ${msg}`);
+					return actionNotOK(`waypoint: failed to execute proof steps: ${msg}`);
 				}
-
-				return actionOK();
 			},
 		},
 
@@ -151,6 +156,23 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			gwta: `ensure {outcome:${DOMAIN_STATEMENT}}`,
 			action: async ({ outcome }: { outcome: TFeatureStep[] }, featureStep: TFeatureStep) => {
 				const outcomeKey = outcome.map(step => step.in).join(' ');
+
+				// Guard: prevent infinite ensure retry loops by counting attempts per outcome+seq
+				const attemptKey = outcomeKey; // key by outcome only to avoid differing seqPaths
+				const prevAttempts = this.ensureAttempts.get(attemptKey) ?? 0;
+				const MAX_ENSURE_ATTEMPTS = 10;
+				this.ensureAttempts.set(attemptKey, prevAttempts + 1);
+				if (prevAttempts + 1 > MAX_ENSURE_ATTEMPTS) {
+					this.getWorld().logger.warn(`ensure: exceeded max attempts (${MAX_ENSURE_ATTEMPTS}) for ${outcomeKey}`);
+					if (this.getWorld().runtime) {
+						this.getWorld().runtime.exhaustionError = 'ensure max attempts exceeded';
+					}
+					const messageContext: TMessageContext = {
+						incident: EExecutionMessageType.ACTION,
+						incidentDetails: { waypoint: outcomeKey, satisfied: false, error: 'max ensure attempts exceeded', terminal: true }
+					};
+					return actionNotOK(`ensure: max attempts exceeded for waypoint "${outcomeKey}"`, { messageContext });
+				}
 
 				// Log ENSURE_START
 				const startMessageContext: TMessageContext = {
@@ -172,21 +194,31 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 					return actionNotOK(`ensure: waypoint "${outcomeKey}" (pattern "${pattern}") is not registered`, { messageContext });
 				}
 
-				const result = await executeSubFeatureSteps(featureStep, outcome, this.steppers, this.getWorld(), ExecMode.NO_CYCLES);
+				let result;
+				try {
+					result = await executeSubFeatureSteps(featureStep, outcome, this.steppers, this.getWorld(), ExecMode.NO_CYCLES);
+					if (!result.ok) {
+						// Log ENSURE_END for failure
+						const endMessageContext: TMessageContext = {
+							incident: EExecutionMessageType.ENSURE_END,
+							incidentDetails: { waypoint: outcomeKey, satisfied: false, error: result, actionResult: { ok: false } }
+						};
+						this.getWorld().logger.log(`❌ Failed ensuring ${outcomeKey}`, endMessageContext);
 
-				if (!result.ok) {
-					// Log ENSURE_END for failure
-					const endMessageContext: TMessageContext = {
-						incident: EExecutionMessageType.ENSURE_END,
-						incidentDetails: { waypoint: outcomeKey, satisfied: false, error: result, actionResult: { ok: false } }
-					};
-					this.getWorld().logger.log(`❌ Failed ensuring ${outcomeKey}`, endMessageContext);
-
+						const messageContext: TMessageContext = {
+							incident: EExecutionMessageType.ACTION,
+							incidentDetails: { waypoint: outcomeKey, satisfied: false, error: result }
+						};
+						return actionNotOK(`ensure: waypoint "${outcomeKey}" proof failed`, { messageContext });
+					}
+				} catch (err) {
+					const msg = err instanceof Error ? err.message : String(err);
+					this.getWorld().logger.debug(`ensure: exception while executing proof for ${outcomeKey}: ${msg}`);
 					const messageContext: TMessageContext = {
 						incident: EExecutionMessageType.ACTION,
-						incidentDetails: { waypoint: outcomeKey, satisfied: false, error: result }
+						incidentDetails: { waypoint: outcomeKey, satisfied: false, error: msg }
 					};
-					return actionNotOK(`ensure: waypoint "${outcomeKey}" proof failed`, { messageContext });
+					return actionNotOK(`ensure: waypoint "${outcomeKey}" proof execution error: ${msg}`, { messageContext });
 				}
 
 				const proofStatements = (result.stepActionResult?.messageContext?.incidentDetails as { proofStatements?: string[] })?.proofStatements;
@@ -194,6 +226,9 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				if (proofStatements) {
 					this.ensuredInstances.set(outcomeKey, { proof: proofStatements, valid: true });
 				}
+
+				// On success or after one ensure action completes, reset attempt counter for this outcome
+				this.ensureAttempts.delete(attemptKey);
 
 				this.getWorld().logger.debug(`ensure: waypoint "${outcomeKey}" verified and satisfied`);
 
@@ -326,7 +361,9 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				const expandStatements = (statements: string[]) => statements.map(statement => {
 					let expanded = statement;
 					for (const [key, value] of Object.entries(args)) {
-						expanded = expanded.replace(new RegExp(`\\{${key}\\}`, 'g'), String(value));
+						const escKey = String(key).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+						const regex = new RegExp(`\\{\\s*${escKey}\\s*\\}`, 'g');
+						expanded = expanded.replace(regex, String(value));
 					}
 					return expanded;
 				});
@@ -351,19 +388,23 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				};
 
 				// ALWAYS-VERIFY: Try proof first (P ∨ (¬P ∧ [A]P) semantics)
-				this.getWorld().logger.debug(`ActivitiesStepper: checking proof for outcome "${outcome}"`);
-				this.getWorld().logger.debug(`ActivitiesStepper: proof statements: ${JSON.stringify(proofStatements)}`);
-				const proofResult = await resolveAndExecute(proofStatements, 0, ExecMode.NO_CYCLES);
-
-				if (proofResult.ok) {
-					this.getWorld().logger.debug(`ActivitiesStepper: proof passed for outcome "${outcome}", skipping activity body`);
-					const interpolatedProof = expandStatements(outcomeProofStatements);
-					return actionOK({
-						messageContext: {
-							incident: EExecutionMessageType.ACTION,
-							incidentDetails: { proofStatements: interpolatedProof, proofSatisfied: true }
-						}
-					});
+				let proofResult;
+				try {
+					proofResult = await resolveAndExecute(proofStatements, 0, ExecMode.NO_CYCLES);
+					if (proofResult.ok) {
+						this.getWorld().logger.debug(`ActivitiesStepper: proof passed for outcome "${outcome}", skipping activity body`);
+						const interpolatedProof = expandStatements(outcomeProofStatements);
+						return actionOK({
+							messageContext: {
+								incident: EExecutionMessageType.ACTION,
+								incidentDetails: { proofStatements: interpolatedProof, proofSatisfied: true }
+							}
+						});
+					}
+				} catch (err) {
+					const msg = err instanceof Error ? err.message : String(err);
+					this.getWorld().logger.debug(`ActivitiesStepper: exception while executing proof for outcome "${outcome}": ${msg}`);
+					return actionNotOK(`ActivitiesStepper: proof execution error: ${msg}`);
 				}
 
 				// Proof failed - run activity body, then verify proof passes
@@ -371,18 +412,30 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 					this.getWorld().logger.debug(`ActivitiesStepper: proof failed for outcome "${outcome}", running activity body`);
 
 					// Execute activity steps (WITH_CYCLES to allow hooks)
-					const activityResult = await resolveAndExecute(activityBlockSteps, 100, ExecMode.WITH_CYCLES);
-
-					if (!activityResult.ok) {
-						return actionNotOK(`ActivitiesStepper: activity body failed for outcome "${outcome}"`);
+					let activityResult;
+					try {
+						activityResult = await resolveAndExecute(activityBlockSteps, 100, ExecMode.WITH_CYCLES);
+						if (!activityResult.ok) {
+							return actionNotOK(`ActivitiesStepper: activity body failed for outcome "${outcome}"`);
+						}
+					} catch (err) {
+						const msg = err instanceof Error ? err.message : String(err);
+						this.getWorld().logger.debug(`ActivitiesStepper: exception while executing activity for outcome "${outcome}": ${msg}`);
+						return actionNotOK(`ActivitiesStepper: activity execution error: ${msg}`);
 					}
 
 					// Verify proof now passes after running activity
 					this.getWorld().logger.debug(`ActivitiesStepper: verifying proof after activity body for outcome "${outcome}"`);
-					const verifyResult = await resolveAndExecute(proofStatements, 200, ExecMode.NO_CYCLES);
-
-					if (!verifyResult.ok) {
-						return actionNotOK(`ActivitiesStepper: proof verification failed after activity body for outcome "${outcome}"`);
+					let verifyResult;
+					try {
+						verifyResult = await resolveAndExecute(proofStatements, 200, ExecMode.NO_CYCLES);
+						if (!verifyResult.ok) {
+							return actionNotOK(`ActivitiesStepper: proof verification failed after activity body for outcome "${outcome}"`);
+						}
+					} catch (err) {
+						const msg = err instanceof Error ? err.message : String(err);
+						this.getWorld().logger.debug(`ActivitiesStepper: exception while verifying proof after activity for outcome "${outcome}": ${msg}`);
+						return actionNotOK(`ActivitiesStepper: proof verification error after activity: ${msg}`);
 					}
 
 					const interpolatedProof = expandStatements(outcomeProofStatements);

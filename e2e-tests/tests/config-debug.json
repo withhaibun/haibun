@@ -8,6 +8,7 @@
     "~@haibun/storage-fs/build/storage-fs",
     "~@haibun/web-accessibility-axe/build/a11y-axe-stepper",
     "variables-stepper",
+    "logic-stepper",
     "debugger-stepper",
     "activities-stepper",
     "haibun",

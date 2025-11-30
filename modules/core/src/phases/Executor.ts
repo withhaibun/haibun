@@ -83,15 +83,18 @@ export class Executor {
 			featureNum++;
 			const isLast = featureNum === features.length;
 
-			world.runtime.depthLimitExceeded = undefined;
+			world.runtime.exhaustionError = undefined;
 			const newWorld = { ...world, tag: { ...world.tag, ...{ featureNum: 0 + featureNum } } };
 
 			const featureExecutor = new FeatureExecutor(steppers, newWorld);
 			await setStepperWorldsAndDomains(steppers, newWorld);
 			await doStepperCycle(steppers, 'startFeature', { resolvedFeature: feature, index: featureNum });
-			world.logger.log(`███ feature ${featureNum}/${features.length}: ${feature.path}`);
+			world.logger.log(`📝 feature ${featureNum}/${features.length}: ${feature.path}`);
 
 			const featureResult = await featureExecutor.doFeature(feature);
+			if (newWorld.runtime && newWorld.runtime.exhaustionError) {
+				world.runtime.exhaustionError = newWorld.runtime.exhaustionError;
+			}
 			const thisFeatureOK = featureResult.ok;
 			if (!thisFeatureOK) {
 				const failedStep = featureResult.stepResults.find((s) => !s.ok);
@@ -222,7 +225,6 @@ export class FeatureExecutor {
 		const { action } = featureStep;
 		const currentTime = Timer.since();
 
-		// Helper to create a failed step result
 		const createFailedStepResult = (message: string): TStepResult => {
 			return stepResultFromActionResult(
 				actionNotOK(message),
@@ -234,20 +236,17 @@ export class FeatureExecutor {
 			);
 		};
 
-		// Check depth limit flag first - if already exceeded, immediately return failure to stop recursion
-		if (world.runtime.depthLimitExceeded) {
-			return createFailedStepResult('Execution halted due to depth limit exceeded');
+		if (world.runtime.exhaustionError) {
+			return createFailedStepResult(`Execution halted: ${world.runtime.exhaustionError}`);
 		}
 
-		// Check for excessive recursion depth
 		if (featureStep.seqPath.length > MAX_EXECUTE_SEQPATH) {
 			const errorMessage = `Execution depth limit exceeded (${featureStep.seqPath.length} > ${MAX_EXECUTE_SEQPATH}). Possible infinite recursion in step: ${featureStep.in}`;
 			console.error('\n' + errorMessage);
 			console.error('SeqPath:', formatCurrentSeqPath(featureStep.seqPath));
 			console.error('This indicates a bug in the test definition or framework.');
 
-			// Set flag to stop all further execution
-			world.runtime.depthLimitExceeded = true;
+			world.runtime.exhaustionError = errorMessage;
 
 			return createFailedStepResult(errorMessage);
 		}

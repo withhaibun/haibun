@@ -5,6 +5,7 @@ import { Timer } from './Timer.js';
 import { TTag } from './ttag.js';
 import { FeatureVariables } from './feature-variables.js';
 import { Prompter } from './prompter.js';
+import type { ZodTypeAny } from 'zod';
 
 export type TSpecl = {
 	steppers: string[];
@@ -51,7 +52,7 @@ export type TWorld = {
 	moduleOptions: TModuleOptions;
 	timer: Timer;
 	bases: TBase;
-	domains: Record<string, { coerce: TDomainCoercer }>;
+	domains: Record<string, TRegisteredDomain>;
 };
 
 export type TFeatureMeta = {
@@ -172,9 +173,24 @@ export const CycleWhen = {
 
 export type TDomainCoercer = (proto: TStepValue, featureStep?: TFeatureStep, steppers?: AStepper[]) => TStepValueValue;
 
+export type TDomainComparator = (value: TStepValueValue, baseline: TStepValueValue) => number;
+
 export type TDomainDefinition = {
 	selectors: string[];
-	coerce: TDomainCoercer
+	schema: ZodTypeAny;
+	coerce?: TDomainCoercer;
+	comparator?: TDomainComparator;
+	values?: string[];
+	description?: string;
+};
+
+export type TRegisteredDomain = {
+	selectors: string[];
+	schema: ZodTypeAny;
+	coerce: TDomainCoercer;
+	comparator?: TDomainComparator;
+	values?: string[];
+	description?: string;
 };
 
 export type StepperMethodArgs = {
@@ -311,7 +327,8 @@ export type TRuntime = {
 	scenario?: string;
 	feature?: string;
 	stepResults: TStepResult[];
-	depthLimitExceeded?: boolean;
+	/** If non-empty, execution was aborted due to exhaustion (description explains why). */
+	exhaustionError?: string;
 	[name: string]: TAnyFixme;
 };
 export const HAIBUN = 'HAIBUN';

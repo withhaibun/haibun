@@ -1,6 +1,6 @@
 import { it, expect, describe } from 'vitest';
 
-import { passWithDefaults } from '../lib/test/lib.js';
+import { failWithDefaults, passWithDefaults } from '../lib/test/lib.js';
 import VariablesStepper from './variables-stepper.js';
 import { DEFAULT_DEST } from '../lib/defs.js';
 import Haibun from './haibun.js';
@@ -139,5 +139,100 @@ variable "feature variable" is "something else"
 ` }
 		const res = await passWithDefaults([feature], steppers);
 		expect(res.ok).toBe(true);
+	});
+});
+
+describe('value comparisons', () => {
+	it('compares numeric variables', async () => {
+		const feature = {
+			path: '/features/numbers.feature',
+			content: `
+set "counter" as number to 5
+variable counter is less than 7
+not variable counter is less than 5
+`
+		};
+		const res = await passWithDefaults([feature], steppers);
+		expect(res.ok).toBe(true);
+	});
+	it('fails for invalid numeric comparisons', async () => {
+		const feature = {
+			path: '/features/invalid-numbers.feature',
+			content: `
+set "counter" to 10
+variable counter is less than 5
+`
+		};
+		const res = await failWithDefaults([feature], steppers);
+		expect(res.ok).toBe(false);
+	});
+	it('does not compare string variables lexically', async () => {
+		const feature = {
+
+			path: '/features/strings.feature',
+			content: `
+set "name" to "Alice"
+variable name is less than "Bob"
+`
+		};
+		const res = await failWithDefaults([feature], steppers);
+		expect(res.ok).toBe(false);
+	});
+});
+
+describe('magnitude domains and comparisons', () => {
+	it('supports defining magnitude phases and comparing values', async () => {
+		const feature = {
+			path: '/features/magnitude.feature',
+			content: `
+ordered set of priority is ["low" "medium" "high"]
+set priority as priority to low
+variable priority is less than high
+not variable point is less than "required"
+`
+		};
+		const res = await passWithDefaults([feature], steppers);
+		expect(res.ok).toBe(true);
+	});
+	it('fails for invalid magnitude comparisons', async () => {
+		const feature = {
+			path: '/features/invalid-magnitude.feature',
+			content: `
+ordered set of phase is ["required" "started" "finished"]
+set point as phase to "finished"
+variable point is less than "finished"
+`
+		};
+		const res = await passWithDefaults([feature], steppers);
+		expect(res.ok).toBe(false);
+	});
+
+});
+
+describe('enum domains', () => {
+	it('registers enum domains and coerces values', async () => {
+		const feature = {
+			path: '/features/enum.feature',
+			content: `
+set of traffic is ["red" "yellow" "green"]
+set light as traffic to "red"
+variable light is "red"
+`
+		};
+		const res = await passWithDefaults([feature], steppers);
+		expect(res.ok).toBe(true);
+	});
+
+	it('prevents less than comparisons on unordered enums', async () => {
+		const feature = {
+			path: '/features/enum-compare.feature',
+			content: `
+set of decision is [yes no]
+set choice as decision to yes
+variable choice is less than no
+`
+		};
+		const res = await failWithDefaults([feature], steppers);
+		expect(res.ok).toBe(false);
 	});
 });

@@ -128,20 +128,7 @@ ensure Knows about Wikipedia
 		};
 
 		const result = await passWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
-
-		// If the waypoint line WAS in activityBlockSteps, this would create infinite recursion:
-		// 1. ensure → check proof → fails
-		// 2. Execute activity body including waypoint line
-		// 3. Waypoint checks its own proof → fails
-		// 4. Executes activity body again → infinite loop
-		//
-		// With the fix (waypoint line NOT in activityBlockSteps):
-		// 1. ensure → check proof → fails
-		// 2. Execute activity body (just the set statements)
-		// 3. Check proof again → passes
-		// 4. Done
-
 		expect(result.ok).toBe(true);
-		expect(result.world.runtime.depthLimitExceeded).toBeUndefined(); // No depth limit hit
+		expect(result.world.runtime.exhaustionError).toBeUndefined(); // No exhaustion hit
 	});
 });

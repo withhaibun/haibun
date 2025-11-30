@@ -1,5 +1,5 @@
 import { TFeatureStep, TOrigin, TProvenanceIdentifier, TStepValue, TWorld } from "./defs.js";
-import { DOMAIN_JSON } from "./domain-types.js";
+import { DOMAIN_JSON, normalizeDomainKey } from "./domain-types.js";
 
 export class FeatureVariables {
 	private values: { [name: string]: TStepValue; };
@@ -35,22 +35,29 @@ export class FeatureVariables {
 		return this._set(sv, provenance);
 	}
 	_set(sv: TStepValue, provenance: TProvenanceIdentifier) {
-		const domain = this.world.domains[sv.domain]
+		const domainKey = normalizeDomainKey(sv.domain);
+		const domain = this.world.domains[domainKey]
 		if (domain === undefined) {
 			throw Error(`Cannot set variable "${sv.term}": unknown domain "${sv.domain}"`);
 		}
-		this.world.domains[sv.domain].coerce(sv);
+		const normalized = { ...sv, domain: domainKey };
+		domain.coerce(normalized);
 		const existingProvenance: TProvenanceIdentifier[] = this.values[sv.term]?.provenance;
 		const provenances = existingProvenance ? [...existingProvenance, provenance] : [provenance];
 		this.values[sv.term] = {
-			...sv,
+			...normalized,
 			provenance: provenances
 		};
-		this.world.logger.debug(`Set variable "${sv.term}" to "${sv.value}" (domain ${sv.domain}, origin ${sv.origin})`);
+		this.world.logger.debug(`Set variable "${normalized.term}" to "${normalized.value}" (domain ${normalized.domain}, origin ${normalized.origin})`);
 	}
 	get<T>(name: string): T | undefined {
 		if (!this.values[name]) return undefined;
-		const ret = <T>this.world.domains[this.values[name].domain].coerce(this.values[name]);
+		const domainKey = normalizeDomainKey(this.values[name].domain);
+		const domain = this.world.domains[domainKey];
+		if (!domain) {
+			throw Error(`Cannot read variable "${name}": unknown domain "${this.values[name].domain}"`);
+		}
+		const ret = <T>domain.coerce({ ...this.values[name], domain: domainKey });
 		return ret;
 	}
 	getJSON<T>(name: string): T | undefined {
