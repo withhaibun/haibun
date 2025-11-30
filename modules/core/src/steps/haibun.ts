@@ -1,21 +1,24 @@
 import { OK, TFeatureStep, STEP_DELAY, TWorld, ExecMode, TStepResult, IStepperCycles, TFeatures, TResolvedFeature, TStartExecution, TStartFeature, CycleWhen } from '../lib/defs.js';
 import { AStepper, IHasCycles, TStepperSteps } from '../lib/astepper.js';
 import { actionNotOK, actionOK, formattedSteppers, sleep } from '../lib/util/index.js';
-import { executeSubFeatureSteps, findFeatureStepsFromStatement } from '../lib/util/featureStep-executor.js';
+import { findFeatureStepsFromStatement } from '../phases/Resolver.js';
 import { EExecutionMessageType, TArtifactResolvedFeatures, TMessageContext } from '../lib/interfaces/logger.js';
 import { endExecutonContext } from '../phases/Executor.js';
 import { DOMAIN_STATEMENT } from '../lib/domain-types.js';
 import { findFeatures } from '../lib/features.js';
+import { FlowRunner } from '../lib/core/flow-runner.js';
 
 class Haibun extends AStepper implements IHasCycles {
 	afterEverySteps: { [stepperName: string]: TFeatureStep[] } = {};
 	steppers: AStepper[] = [];
 	resolvedFeature: TResolvedFeature;
+	private runner: FlowRunner;
 
 	// biome-disable-next-line @typescript-eslint/require-await
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
 		this.steppers = steppers;
+		this.runner = new FlowRunner(world, steppers);
 	}
 	cycles: IStepperCycles = {
 		startExecution(resolvedFeatures: TStartExecution) {
@@ -30,22 +33,12 @@ class Haibun extends AStepper implements IHasCycles {
 			const afterEvery = this.afterEverySteps[featureStep.action.stepperName];
 			let failed = false;
 			if (afterEvery) {
-				for (const aeStep of afterEvery) {
-					// Skip if the afterEvery step is the same as the current step (prevent infinite recursion)
-					if (aeStep.action.actionName === featureStep.action.actionName) {
-						continue;
-					}
+				const stepsToRun = afterEvery.filter(aeStep => aeStep.action.actionName !== featureStep.action.actionName);
 
-					// Map the seqPath to extend from the current featureStep
-					const mappedStep: TFeatureStep = {
-						...aeStep,
-						seqPath: [...featureStep.seqPath, ...(aeStep.seqPath.slice(1))],
-					};
-					// After every steps are substeps (triggered by parent step)
-					const res = await executeSubFeatureSteps(featureStep, [mappedStep], this.steppers, this.getWorld(), ExecMode.NO_CYCLES, 1, true);
-					if (!res.ok) {
+				if (stepsToRun.length > 0) {
+					const res = await this.runner.runSteps(stepsToRun, { intent: { mode: 'authoritative' }, parentStep: featureStep });
+					if (res.kind !== 'ok') {
 						failed = true;
-						break;
 					}
 				}
 			}
@@ -59,51 +52,21 @@ class Haibun extends AStepper implements IHasCycles {
 
 
 	steps = {
-		// --- LOGIC OPERATORS ---		// Represents Logical Negation (~P).
-		not: {
-			gwta: `not {statements:${DOMAIN_STATEMENT}}`,
-			action: async ({ statements }: { statements: TFeatureStep[] }, featureStep: TFeatureStep) => {
-				const lastResult = await executeSubFeatureSteps(featureStep, statements, this.steppers, this.getWorld(), ExecMode.NO_CYCLES, -1);
-
-				// Negation: action is OK if the inner statement failed (was NOT true)
-				return lastResult.ok ? actionNotOK('not statement was true (failed negation)') : OK;
-			},
-		},
-
-		// Represents Logical Implication (P => Q).
-		iif: {
-			gwta: `if {ifStatements:${DOMAIN_STATEMENT}}, {thenStatements:${DOMAIN_STATEMENT}}`,
-			action: async ({ ifStatements, thenStatements }: { ifStatements: TFeatureStep[], thenStatements: TFeatureStep[] }, featureStep: TFeatureStep) => {				// 1. Evaluate Antecedent (WHEN) - use dir=-1 for condition evaluation
-				const ifResult = await executeSubFeatureSteps(featureStep, ifStatements, this.steppers, this.getWorld(), ExecMode.NO_CYCLES, -1);
-
-				// If antecedent fails, the implication is true (vacuously true: F => T/F), so we return OK.
-				if (!ifResult.ok) {
-					return OK;
-				}
-
-				// 2. Evaluate Consequent (THEN) - use dir=1 for body execution
-				const ifThenResult = await executeSubFeatureSteps(featureStep, thenStatements, this.steppers, this.getWorld(), ExecMode.WITH_CYCLES, 1);
-
-				// Consequent must succeed to prove the implication is true (T => T)
-				return ifThenResult.ok ? OK : actionNotOK('if antecedent was TRUE, but consequent failed');
-			},
-		},
-
 		// --- META & UTILITIES ---
 		until: {
 			gwta: `until {statements:${DOMAIN_STATEMENT}}`,
 			action: async ({ statements }: { statements: TFeatureStep[] }, featureStep: TFeatureStep) => {
-				let result: TStepResult;
+				let signal;
 				do {
-					result = await executeSubFeatureSteps(featureStep, statements, this.steppers, this.getWorld(), ExecMode.WITH_CYCLES);
-					// If the action returned a messageContext with terminal=true, bail out
-					const terminal = result.stepActionResult?.messageContext?.incidentDetails?.terminal ?? false;
-					if (terminal) {
+					signal = await this.runner.runSteps(statements, { intent: { mode: 'authoritative', usage: 'polling' }, parentStep: featureStep });
+					if (signal.fatal) {
 						this.getWorld().logger.warn(`until: received terminal error, aborting loop`);
 						return actionNotOK('until: aborted due to terminal error');
 					}
-					await sleep(200);
-				} while (!result.ok);
+					if (signal.kind !== 'ok') {
+						await sleep(200);
+					}
+				} while (signal.kind !== 'ok');
 				return OK;
 			},
 		},
@@ -130,8 +93,8 @@ class Haibun extends AStepper implements IHasCycles {
 				// Expand backgrounds at runtime using world.runtime.backgrounds
 				const world = this.getWorld();
 				const expanded = findFeatureStepsFromStatement(names, this.steppers, world, featureStep.path, featureStep.seqPath, 1);
-				const result = await executeSubFeatureSteps(featureStep, expanded, this.steppers, world, ExecMode.WITH_CYCLES);
-				return result.ok ? OK : actionNotOK('backgrounds failed');
+				const result = await this.runner.runSteps(expanded, { intent: { mode: 'authoritative' }, parentStep: featureStep });
+				return result.kind === 'ok' ? OK : actionNotOK(`backgrounds failed: ${result.message}`);
 			},
 		},
 		nothing: {

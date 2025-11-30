@@ -42,9 +42,14 @@ export const namedInterpolation = (inp: string): { regexPattern: string; stepVal
 
 		// Look ahead to see what comes after this placeholder
 		const nextCharAfterBrace = inp.substring(be + 1, be + 2);
-		// Only use negative lookahead for specific separators (comma, colon) that won't appear in values
+		const nextChunk = inp.substring(be + 1);
+
+		// Only use negative lookahead for specific separators that won't appear in values
 		let placeholderRegex = '.+';
-		if (nextCharAfterBrace === ',' || nextCharAfterBrace === ':') {
+
+		if (nextChunk.startsWith(' is ')) {
+			placeholderRegex = '.+?(?= is )';
+		} else if (nextCharAfterBrace === ',' || nextCharAfterBrace === ':') {
 			// Use negative lookahead to prevent matching these separators
 			placeholderRegex = `.+?(?=${nextCharAfterBrace.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`;
 		}

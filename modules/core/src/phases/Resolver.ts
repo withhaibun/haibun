@@ -1,7 +1,8 @@
-import { TStepAction, TResolvedFeature, OK, TExpandedFeature, TStepperStep, TFeatureStep, TExpandedLine, TStepValue, TFeatures } from '../lib/defs.js';
+import { TStepAction, TResolvedFeature, OK, TExpandedFeature, TStepperStep, TFeatureStep, TExpandedLine, TStepValue, TFeatures, TWorld, TFeature } from '../lib/defs.js';
 import { AStepper } from '../lib/astepper.js';
-import { matchGwtaToAction, getMatch } from '../lib/namedVars.js';
+import { matchGwtaToAction, getMatch, namedInterpolation } from '../lib/namedVars.js';
 import { getActionable, dePolite, constructorName } from '../lib/util/index.js';
+import { expandLine } from '../lib/features.js';
 
 export class Resolver {
 	constructor(private steppers: AStepper[], private backgrounds: TFeatures = []) {
@@ -160,4 +161,26 @@ export function getActionableStatement(steppers: AStepper[], statement: string, 
 	};
 
 	return { featureStep, steppers };
+}
+
+export function findFeatureStepsFromStatement(statement: string, steppers: AStepper[], world: TWorld, base: string, seqStart: number[], inc = 1): TFeatureStep[] {
+	const featureSteps: TFeatureStep[] = [];
+	if (!world.runtime.backgrounds) {
+		throw new Error('runtime.backgrounds is undefined; cannot expand inline Backgrounds');
+	}
+	// For expandLine, we need to provide a feature context. If the statement is a Backgrounds: directive,
+	// expandLine will ignore this feature and use the actual background files. If it's a regular statement,
+	// expandLine will use this feature's path. So we pass the base (feature path) here.
+	const contextFeature: TFeature = { path: base, base, name: 'statement-context', content: statement };
+	const expanded = expandLine(statement, world.runtime.backgrounds, contextFeature);
+	// Increment the last segment of seqStart by inc for each expanded step
+	const prefix = seqStart.slice(0, -1);
+	let latest = seqStart[seqStart.length - 1];
+	for (const x of expanded) {
+		const seqPath = [...prefix, latest];
+		const { featureStep } = getActionableStatement(steppers, x.line, x.feature.path, seqPath);
+		latest += inc;
+		featureSteps.push(featureStep);
+	}
+	return featureSteps;
 }

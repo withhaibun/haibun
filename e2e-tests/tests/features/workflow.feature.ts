@@ -4,7 +4,7 @@ import ActivitiesStepper from '@haibun/core/steps/activities-stepper.js';
 import VariablesStepper from '@haibun/core/steps/variables-stepper.js';
 import Haibun from '@haibun/core/steps/haibun.js';
 
-import { effort, Release_at, Release_domain } from '../backgrounds/statements-bg.feature.ts';
+import { effort, Release_at, Release_domain } from '../backgrounds/workflow-bg.feature.ts';
 
 const { ensure } = withAction(new ActivitiesStepper());
 const { defineOrderedSet, setAs, is } = withAction(new VariablesStepper());

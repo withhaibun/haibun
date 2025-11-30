@@ -1,6 +1,6 @@
 import { AStepper, IHasCycles, IHasOptions } from '@haibun/core/lib/astepper.js';
 import { TStepResult, TWorld, ExecMode } from '@haibun/core/lib/defs.js';
-import { resolveAndExecuteStatement } from "@haibun/core/lib/util/featureStep-executor.js";
+import { FlowRunner } from "@haibun/core/lib/core/flow-runner.js";
 import { getFromRuntime, getStepperOption, getStepperOptionName, intOrError, stringOrError } from '@haibun/core/lib/util/index.js';
 import { IRequest, IResponse, IWebServer, WEBSERVER } from './defs.js';
 import { HttpPrompter } from './http-prompter.js';
@@ -30,9 +30,11 @@ export default class HttpExecutorStepper extends AStepper implements IHasOptions
 	protected httpPrompter?: HttpPrompter;
 	configuredToken: string;
 	port: number;
+	private runner: FlowRunner;
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
+		this.runner = new FlowRunner(world, steppers);
 
 		this.port = intOrError(getStepperOption(this, 'LISTEN_PORT', world.moduleOptions) || '').result || NaN;
 		this.configuredToken = getStepperOption(this, 'ACCESS_TOKEN', this.getWorld().moduleOptions);
@@ -72,7 +74,19 @@ export default class HttpExecutorStepper extends AStepper implements IHasOptions
 					const world = this.getWorld();
 					const steppers = this.steppers;
 
-					const result: TStepResult = await resolveAndExecuteStatement(statement, source, steppers, world, ExecMode.NO_CYCLES, [0]);
+					const result: TStepResult = await (async () => {
+						const res = await this.runner.runStatement(statement, {
+							intent: { mode: 'authoritative' },
+							seqPath: [0]
+						});
+						return {
+							ok: res.kind === 'ok',
+							in: statement,
+							path: source,
+							seqPath: [0],
+							stepActionResult: res.payload
+						};
+					})();
 					console.debug(`✅ HTTP Executor: Execution completed`, result);
 
 					res.json(result);

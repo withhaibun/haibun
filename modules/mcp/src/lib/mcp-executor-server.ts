@@ -8,7 +8,7 @@ import { namedInterpolation } from "@haibun/core/lib/namedVars.js";
 import { currentVersion as version } from '@haibun/core/currentVersion.js';
 import { TWorld, TStepperStep, TStepResult, ExecMode } from "@haibun/core/lib/defs.js";
 import { constructorName } from "@haibun/core/lib/util/index.js";
-import { resolveAndExecuteStatement } from "@haibun/core/lib/util/featureStep-executor.js";
+import { FlowRunner } from "@haibun/core/lib/core/flow-runner.js";
 import { HttpPrompterClient } from './http-prompter-client.js';
 
 type ToolHandlerResponse = { content?: TextContent[] };
@@ -22,16 +22,17 @@ export class MCPExecutorServer {
 	server: McpServer;
 	httpPrompterClient?: HttpPrompterClient;
 	private _isRunning: boolean = false;
+	private runner: FlowRunner;
 
 	get isRunning(): boolean {
 		return this._isRunning;
 	}
 
 	constructor(private steppers: AStepper[], private world: TWorld, private remoteConfig?: IRemoteExecutorConfig) {
+		this.runner = new FlowRunner(world, steppers);
 		if (remoteConfig) {
 			this.world.logger.log(`🔗 MCPExecutorServer: Remote execution mode - connecting to ${remoteConfig.url}`);
 		} else {
-			this.world.logger.log(`🏠 MCPExecutorServer: Local execution mode`);
 		}
 	}
 
@@ -184,6 +185,7 @@ export class MCPExecutorServer {
 			}
 		});
 	}
+
 	private createToolHandler(stepperName: string, stepName: string, stepDef: TStepperStep) {
 		return async (input: Record<string, string | number | boolean | string[]>): Promise<ToolHandlerResponse> => {
 			try {
@@ -201,9 +203,22 @@ export class MCPExecutorServer {
 					}
 				}
 
-				const stepResult: TStepResult = this.remoteConfig
-					? await this.executeViaRemoteApi(statement, `/mcp/${stepperName}-${stepName}`)
-					: await resolveAndExecuteStatement(statement, `/mcp/${stepperName}-${stepName}`, this.steppers, this.world, ExecMode.NO_CYCLES, [0]);
+				let stepResult: TStepResult;
+				if (this.remoteConfig) {
+					stepResult = await this.executeViaRemoteApi(statement, `/mcp/${stepperName}-${stepName}`);
+				} else {
+					const res = await this.runner.runStatement(statement, {
+						intent: { mode: 'authoritative' },
+						seqPath: [0]
+					});
+					stepResult = {
+						ok: res.kind === 'ok',
+						in: statement,
+						path: `/mcp/${stepperName}-${stepName}`,
+						seqPath: [0],
+						stepActionResult: res.payload
+					};
+				}
 
 				return {
 					content: [{

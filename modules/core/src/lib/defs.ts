@@ -6,6 +6,7 @@ import { TTag } from './ttag.js';
 import { FeatureVariables } from './feature-variables.js';
 import { Prompter } from './prompter.js';
 import type { ZodTypeAny } from 'zod';
+import { SystemMessage, ExecutionIntent } from './core/protocol.js';
 
 export type TSpecl = {
 	steppers: string[];
@@ -109,6 +110,7 @@ export type TFeatureStep = {
 	seqPath: TSeqPath;
 	action: TStepAction;
 	isSubStep?: boolean;
+	intent?: ExecutionIntent;
 };
 
 export type TSeqPath = number[];
@@ -252,6 +254,7 @@ export type TOKActionResult = {
 	ok: true;
 	messageContext?: TMessageContext;
 	artifact?: TArtifact;
+	protocol?: SystemMessage;
 };
 
 export type TNotOKActionResult = {
@@ -259,6 +262,7 @@ export type TNotOKActionResult = {
 	message: string;
 	messageContext?: TMessageContext;
 	artifact?: TArtifact;
+	protocol?: SystemMessage;
 };
 
 export type TTrace = {
