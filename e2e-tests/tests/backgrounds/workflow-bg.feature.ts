@@ -25,6 +25,6 @@ export const features: TKirejiExport = {
 		`whenever not variable ${effort} is set, set ${effort} as number to 0`,
 		`increment ${effort}`,
 		`increment ${phase}`,
-		`waypoint Do work with variable never is set`,
+		`waypoint Do work`,
 	],
 };

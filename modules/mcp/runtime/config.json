@@ -1,10 +1,10 @@
 {
 	"steppers": [
-		"./modules/mcp/build/mcp-server-stepper",
-		"./modules/web-playwright/build/web-playwright",
-		"./modules/storage-mem/build/storage-mem",
-		"./modules/web-server-express/build/web-server-stepper",
-		"./modules/web-server-express/build/http-executor-stepper",
+		"../../../modules/mcp/build/mcp-server-stepper",
+		"../../../modules/web-playwright/build/web-playwright",
+		"../../../modules/storage-mem/build/storage-mem",
+		"../../../modules/web-server-express/build/web-server-stepper",
+		"../../../modules/web-server-express/build/http-executor-stepper",
 		"variables-stepper",
 		"debugger-stepper",
 		"haibun"

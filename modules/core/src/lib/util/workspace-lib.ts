@@ -31,11 +31,33 @@ export const getFilename = (meta: TImportMeta) => fileURLToPath(meta.url);
 export const getDirname = (meta: TImportMeta) => fileURLToPath(new URL('.', meta.url));
 
 function getWorkspaceRoot() {
-	return process.cwd().replace(/haibun\/modules\/[^/]*$/, 'haibun');
+	let currentDir = path.resolve(process.cwd());
+	const root = '/';
+
+	while (currentDir !== root) {
+		const packageJsonPath = path.resolve(currentDir, 'package.json');
+
+		if (nodeFS.existsSync(packageJsonPath)) {
+			try {
+				const packageJson = JSON.parse(nodeFS.readFileSync(packageJsonPath, 'utf-8'));
+				if (packageJson.name === 'haibun') {
+					return currentDir;
+				}
+			} catch (error) {
+				// Ignore JSON parse errors and continue searching
+			}
+		}
+
+		currentDir = dirname(currentDir);
+	}
+
+	throw new Error('Could not find haibun project root (no package.json with "name": "haibun" found)');
 }
 
 export function getModuleLocation(name: string) {
-	if (name.startsWith('~')) {
+	if (name.startsWith('.')) {
+		return path.resolve(process.cwd(), name);
+	} else if (name.startsWith('~')) {
 		return [workspaceRoot, 'node_modules', name.substring(1)].join('/');
 	} else if (name.startsWith('@')) {
 		const parts = name.split('/');

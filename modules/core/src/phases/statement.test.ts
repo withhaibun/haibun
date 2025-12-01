@@ -3,7 +3,7 @@ import { AStepper } from '../lib/astepper.js';
 import { OK, TFeatureStep, TStepArgs, ExecMode } from '../lib/defs.js';
 import { passWithDefaults, DEF_PROTO_OPTIONS, failWithDefaults } from '../lib/test/lib.js';
 import { actionNotOK } from '../lib/util/index.js';
-import { executeFeatureSteps } from '../lib/util/featureStep-executor.js';
+import { FlowRunner } from '../lib/core/flow-runner.js';
 import { DOMAIN_STATEMENT } from '../lib/domain-types.js';
 
 class StatementTestStepper extends AStepper {
@@ -18,14 +18,16 @@ class StatementTestStepper extends AStepper {
     },
     do: {
       gwta: `do {steps:${DOMAIN_STATEMENT}}`,
-      action: async (args: TStepArgs) => {
+      action: async (args: TStepArgs, featureStep: TFeatureStep) => {
         try {
           const steps = args.steps as unknown;
-            if (!Array.isArray(steps)) throw new Error('steps must be feature steps');
-          const last = await executeFeatureSteps(steps as TFeatureStep[], [this as unknown as AStepper], this.getWorld(), ExecMode.NO_CYCLES);
-          if (!last || !last.ok) {
-            const msg = (last?.stepActionResult as { message?: string })?.message || 'inline statement failed';
-            return actionNotOK(`statement failed: ${msg}`);
+          if (!Array.isArray(steps)) throw new Error('steps must be feature steps');
+
+          const runner = new FlowRunner(this.getWorld(), [this as unknown as AStepper]);
+          const result = await runner.runSteps(steps as TFeatureStep[], { intent: { mode: 'authoritative' }, parentStep: featureStep });
+
+          if (result.kind !== 'ok') {
+            return actionNotOK(`statement failed: ${result.message}`);
           }
           return OK;
         } catch (e) {
@@ -38,7 +40,7 @@ class StatementTestStepper extends AStepper {
 
 describe('statement type', () => {
   it('executes single known statement', async () => {
-  const feature = { path: '/features/test.feature', content: 'do alpha' };
+    const feature = { path: '/features/test.feature', content: 'do alpha' };
     const result = await passWithDefaults([feature], [StatementTestStepper], DEF_PROTO_OPTIONS, []);
     expect(result.ok).toBe(true);
   });
@@ -49,7 +51,7 @@ describe('statement type', () => {
   });
   it('executes multi-line backgrounds via statement list', async () => {
     // Compose statement referencing beta after alpha
-  const feature = { path: '/features/test.feature', content: 'do alpha\nalpha\nbeta' };
+    const feature = { path: '/features/test.feature', content: 'do alpha\nalpha\nbeta' };
     const result = await passWithDefaults([feature], [StatementTestStepper], DEF_PROTO_OPTIONS, []);
     expect(result.ok).toBe(true);
   });

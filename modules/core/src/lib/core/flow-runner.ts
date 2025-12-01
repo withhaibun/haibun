@@ -41,7 +41,8 @@ export class FlowRunner {
       in: interpolated,
       seqPath,
       action,
-      intent
+      intent,
+      isSubStep: !!options.parentStep
     };
 
     const result = await FeatureExecutor.doFeatureStep(this.steppers, featureStep, this.world);
@@ -77,8 +78,9 @@ export class FlowRunner {
         // For nested steps, we append to the parent's seqPath.
         // We use incSeqPath to ensure we get a unique path based on what has already executed.
         // This handles loops and repeated calls correctly.
-        const baseSeqPath = [...parentStep.seqPath, 0];
-        const seqPath = incSeqPath(this.world.runtime.stepResults, baseSeqPath, 1);
+        const baseSeqPath = [...parentStep.seqPath, 1];
+        const dir = intent.mode === 'speculative' ? -1 : 1;
+        const seqPath = incSeqPath(this.world.runtime.stepResults, baseSeqPath, dir);
         mappedStep = { ...mappedStep, seqPath, isSubStep: true };
       }
 

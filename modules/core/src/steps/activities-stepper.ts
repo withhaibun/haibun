@@ -10,6 +10,7 @@ import { FlowRunner } from '../lib/core/flow-runner.js';
 type TActivitiesFixedSteps = {
 	activity: TStepperStep;
 	waypoint: TStepperStep;
+	waypointLabel: TStepperStep;
 	ensure: TStepperStep;
 	showWaypoints: TStepperStep;
 };
@@ -76,62 +77,9 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 
 		waypoint: {
 			gwta: `waypoint {outcome} with {proof:${DOMAIN_STATEMENT}}`,
-			resolveFeatureLine: (line: string, path: string, stepper: AStepper, _backgrounds: TFeatures, allLines?: string[], lineIndex?: number) => {
-				if (!line.match(/^waypoint\s+.+?\s+with\s+/i)) {
-					return false;
-				}
-
-				const activitiesStepper = stepper as ActivitiesStepper;
-
-				const match = line.match(/^waypoint\s+(.+?)\s+with\s+(.+?)$/i);
-				if (!match) {
-					return false;
-				}
-
-				const outcome = match[1].trim();
-
-				// Skip if already registered (prevents infinite loops)
-				if (activitiesStepper.backgroundOutcomePatterns.has(outcome) || activitiesStepper.featureOutcomePatterns.has(outcome)) {
-					return true;
-				}
-
-				const isBackground = path.includes('backgrounds/');
-				const proofRaw = match[2].trim();
-
-				const proofFromRemember = proofRaw.split('\n').map(s => s.trim()).filter(s => s.length > 0);
-
-				// Scan backwards to find containing Activity block
-				let activityBlockSteps: string[] | undefined;
-
-				if (allLines && lineIndex !== undefined) {
-					let activityStartLine = -1;
-					for (let i = lineIndex - 1; i >= 0; i--) {
-						const prevLine = getActionable(allLines[i]);
-						if (prevLine.match(/^Activity:/i)) {
-							activityStartLine = i;
-							break;
-						}
-						if (prevLine.match(/^(Feature|Scenario|Background):/i)) {
-							break;
-						}
-					}
-
-					if (activityStartLine !== -1) {
-						// Collect steps between Activity: and waypoint (excluding waypoint itself)
-						const blockLines: string[] = [];
-						for (let i = activityStartLine + 1; i < lineIndex; i++) {
-							const stepLine = getActionable(allLines[i]);
-							if (stepLine) {
-								blockLines.push(stepLine);
-							}
-						}
-						activityBlockSteps = blockLines;
-					}
-				}
-
-				activitiesStepper.registerOutcome(outcome, proofFromRemember, path, isBackground, activityBlockSteps);
-
-				return true;
+			precludes: ['ActivitiesStepper.waypointLabel'],
+			resolveFeatureLine: (line: string, path: string, _stepper: AStepper, _backgrounds: TFeatures, allLines?: string[], lineIndex?: number) => {
+				return this.resolveWaypointCommon(line, path, allLines, lineIndex, true);
 			},
 			action: async ({ proof }: { proof: TFeatureStep[] }, featureStep: TFeatureStep) => {
 				this.getWorld().logger.debug(`waypoint action: executing ${proof?.length || 0} proof steps`);
@@ -150,8 +98,16 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			},
 		},
 
+		waypointLabel: {
+			gwta: `waypoint {outcome}`,
+			resolveFeatureLine: (line: string, path: string, _stepper: AStepper, _backgrounds: TFeatures, allLines?: string[], lineIndex?: number) => {
+				return this.resolveWaypointCommon(line, path, allLines, lineIndex, false);
+			},
+			action: async () => actionOK(),
+		},
+
 		ensure: {
-			description: 'Ensure a waypoint condition by always running the proof. If proof passes, waypoint is already satisfied. If proof fails, run the full activity to satisfy it.',
+			description: 'Ensure a waypoint condition by always running the proof. If proof passes, waypoint is already satisfied. If proof fails, run the full activity, then try the proof again',
 			gwta: `ensure {outcome:${DOMAIN_STATEMENT}}`,
 			action: async ({ outcome }: { outcome: TFeatureStep[] }, featureStep: TFeatureStep) => {
 				const outcomeKey = outcome.map(step => step.in).join(' ');
@@ -193,11 +149,16 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 					return actionNotOK(`ensure: waypoint "${outcomeKey}" (pattern "${pattern}") is not registered`, { messageContext });
 				}
 
+				const metadata = this.registeredOutcomeMetadata.get(pattern);
+				if (metadata && metadata.proofStatements.length === 0) {
+					return actionNotOK(`ensure: waypoint "${outcomeKey}" has no proof and cannot be ensured.`);
+				}
+
 				let proofStatements: string[] | undefined;
 
 				try {
 					// Use FlowRunner for the proof execution
-					const flowResult = await this.runner.runSteps(outcome, { intent: { mode: 'authoritative' }, parentStep: featureStep });
+					const flowResult = await this.runner.runSteps(outcome, { intent: { mode: 'authoritative', usage: featureStep.intent?.usage, isEnsure: true }, parentStep: featureStep });
 
 					if (flowResult.kind !== 'ok') {
 						// Log ENSURE_END for failure
@@ -348,35 +309,48 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				this.getWorld().logger.debug(`ActivitiesStepper: executing recipe for outcome "${outcome}" with args ${JSON.stringify(args)}`);
 
 				// 1. Speculative Proof
-				const proof = await this.runner.runStatements(proofStatements, { args: args as Record<string, string>, intent: { mode: 'speculative' }, parentStep: featureStep });
-				if (proof.kind === 'ok') {
-					this.getWorld().logger.debug(`ActivitiesStepper: proof passed for outcome "${outcome}", skipping activity body`);
-					// FlowRunner interpolates internally but doesn't return the interpolated strings.
-					// For now we pass original statements.
-					return actionOK({
-						messageContext: {
-							incident: EExecutionMessageType.ACTION,
-							incidentDetails: { proofStatements, proofSatisfied: true }
-						}
-					});
+				if (proofStatements.length > 0) {
+					const proof = await this.runner.runStatements(proofStatements, { args: args as Record<string, string>, intent: { mode: 'speculative' }, parentStep: featureStep });
+					if (proof.kind === 'ok') {
+						this.getWorld().logger.debug(`ActivitiesStepper: proof passed for outcome "${outcome}", skipping activity body`);
+						// FlowRunner interpolates internally but doesn't return the interpolated strings.
+						// For now we pass original statements.
+						return actionOK({
+							messageContext: {
+								incident: EExecutionMessageType.ACTION,
+								incidentDetails: { proofStatements, proofSatisfied: true }
+							}
+						});
+					}
 				}
 
 				if (featureStep.intent?.mode === 'speculative') {
+					if (proofStatements.length === 0) {
+						return actionNotOK(`ActivitiesStepper: speculative proof failed for outcome "${outcome}" (no proof)`);
+					}
 					return actionNotOK(`ActivitiesStepper: speculative proof failed for outcome "${outcome}"`);
 				}
 
 				if (activityBlockSteps && activityBlockSteps.length > 0) {
 					this.getWorld().logger.debug(`ActivitiesStepper: proof failed for outcome "${outcome}", running activity body`);
 
-					const act = await this.runner.runStatements(activityBlockSteps, { args: args as Record<string, string>, intent: { mode: 'authoritative' }, parentStep: featureStep });
+					const act = await this.runner.runStatements(activityBlockSteps, { args: args as Record<string, string>, intent: { mode: 'authoritative', usage: featureStep.intent?.usage }, parentStep: featureStep });
 					if (act.kind !== 'ok') {
 						return actionNotOK(`ActivitiesStepper: activity body failed for outcome "${outcome}": ${act.message}`);
 					}
 
 					this.getWorld().logger.debug(`ActivitiesStepper: verifying proof after activity body for outcome "${outcome}"`);
-					const verify = await this.runner.runStatements(proofStatements, { args: args as Record<string, string>, intent: { mode: 'authoritative' }, parentStep: featureStep });
-					if (verify.kind !== 'ok') {
-						return actionNotOK(`ActivitiesStepper: proof verification failed after activity body for outcome "${outcome}": ${verify.message}`);
+					if (proofStatements.length > 0) {
+						if (featureStep.intent?.isEnsure) {
+							const verify = await this.runner.runStatements(proofStatements, { args: args as Record<string, string>, intent: { mode: 'authoritative', usage: featureStep.intent?.usage }, parentStep: featureStep });
+							if (verify.kind !== 'ok') {
+								return actionNotOK(`ActivitiesStepper: proof verification failed after activity body for outcome "${outcome}": ${verify.message}`);
+							}
+						} else {
+							return actionNotOK(`ActivitiesStepper: waypoint "${outcome}" has a proof but was called without ensure. This is unsafe.`);
+						}
+					} else {
+						this.getWorld().logger.debug(`ActivitiesStepper: skipping proof verification for outcome "${outcome}" (no proof)`);
 					}
 
 					return actionOK({
@@ -412,6 +386,72 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			};
 			this.getWorld().logger.debug(`waypoint registered: "${outcome}"`, messageContext);
 		}
+	}
+
+	private resolveWaypointCommon(line: string, path: string, allLines: string[] | undefined, lineIndex: number | undefined, requireProof: boolean): boolean {
+		if (!line.match(/^waypoint\s+/i)) {
+			return false;
+		}
+
+		let outcome: string;
+		let proofStatements: string[] = [];
+
+		if (requireProof) {
+			if (!line.match(/^waypoint\s+.+?\s+with\s+/i)) {
+				return false;
+			}
+			const match = line.match(/^waypoint\s+(.+?)\s+with\s+(.+?)$/i);
+			if (!match) return false;
+			outcome = match[1].trim();
+			const proofRaw = match[2].trim();
+			proofStatements = proofRaw.split('\n').map(s => s.trim()).filter(s => s.length > 0);
+		} else {
+			if (line.match(/^waypoint\s+.+?\s+with\s+/i)) {
+				return false;
+			}
+			const match = line.match(/^waypoint\s+(.+?)$/i);
+			if (!match) return false;
+			outcome = match[1].trim();
+		}
+
+		// Skip if already registered (prevents infinite loops)
+		if (this.backgroundOutcomePatterns.has(outcome) || this.featureOutcomePatterns.has(outcome)) {
+			return true;
+		}
+
+		const isBackground = path.includes('backgrounds/');
+
+		// Scan backwards to find containing Activity block
+		let activityBlockSteps: string[] | undefined;
+
+		if (allLines && lineIndex !== undefined) {
+			let activityStartLine = -1;
+			for (let i = lineIndex - 1; i >= 0; i--) {
+				const prevLine = getActionable(allLines[i]);
+				if (prevLine.match(/^Activity:/i)) {
+					activityStartLine = i;
+					break;
+				}
+				if (prevLine.match(/^(Feature|Scenario|Background):/i)) {
+					break;
+				}
+			}
+
+			if (activityStartLine !== -1) {
+				// Collect steps between Activity: and waypoint (excluding waypoint itself)
+				const blockLines: string[] = [];
+				for (let i = activityStartLine + 1; i < lineIndex; i++) {
+					const stepLine = getActionable(allLines[i]);
+					if (stepLine) {
+						blockLines.push(stepLine);
+					}
+				}
+				activityBlockSteps = blockLines;
+			}
+		}
+
+		this.registerOutcome(outcome, proofStatements, path, isBackground, activityBlockSteps);
+		return true;
 	}
 }
 

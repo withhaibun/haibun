@@ -92,7 +92,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 			return OK;
 		},
 	},
-	waitForTabX: {
+	currentTabIs: {
 		gwta: `current tab is {tab}`,
 		action: async ({ tab }: { tab: string }) => {
 			const waitForTab = parseInt(tab, 10);

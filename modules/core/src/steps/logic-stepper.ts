@@ -26,16 +26,17 @@ export default class LogicStepper extends AStepper {
         let loopCount = 0;
         const MAX_LOOPS = 1000;
         const mode = featureStep.intent?.mode === 'speculative' ? 'speculative' : 'authoritative';
+        const usage = featureStep.intent?.usage;
 
         // eslint-disable-next-line no-constant-condition
         while (true) {
           if (loopCount++ > MAX_LOOPS) return actionNotOK('whenever: infinite loop detected');
 
-          const check = await this.runner.runSteps(condition, { intent: { mode: 'speculative' }, parentStep: featureStep });
+          const check = await this.runner.runSteps(condition, { intent: { mode: 'speculative', usage }, parentStep: featureStep });
 
           if (check.kind !== 'ok') break;
 
-          const result = await this.runner.runSteps(action, { intent: { mode }, parentStep: featureStep });
+          const result = await this.runner.runSteps(action, { intent: { mode, usage }, parentStep: featureStep });
 
           if (result.kind !== 'ok') {
             return actionNotOK(`whenever: action failed: ${result.message}`);
@@ -50,13 +51,14 @@ export default class LogicStepper extends AStepper {
     where: {
       gwta: 'where {condition:statement}, {action:statement}',
       action: async ({ condition, action }: { condition: TFeatureStep[], action: TFeatureStep[] }, featureStep: TFeatureStep): Promise<TActionResult> => {
-        const check = await this.runner.runSteps(condition, { intent: { mode: 'speculative' }, parentStep: featureStep });
+        const usage = featureStep.intent?.usage;
+        const check = await this.runner.runSteps(condition, { intent: { mode: 'speculative', usage }, parentStep: featureStep });
 
         // Vacuously true if condition is false
         if (check.kind !== 'ok') return OK;
 
         const mode = featureStep.intent?.mode === 'speculative' ? 'speculative' : 'authoritative';
-        const result = await this.runner.runSteps(action, { intent: { mode }, parentStep: featureStep });
+        const result = await this.runner.runSteps(action, { intent: { mode, usage }, parentStep: featureStep });
 
         return result.kind === 'ok' ? OK : actionNotOK(`Constraint failed: Condition was true, but Action failed: ${result.message}`);
       }

@@ -4,7 +4,8 @@ import { failWithDefaults, passWithDefaults } from '../lib/test/lib.js';
 import VariablesStepper from './variables-stepper.js';
 import { DEFAULT_DEST } from '../lib/defs.js';
 import Haibun from './haibun.js';
-const steppers = [VariablesStepper, Haibun];
+import LogicStepper from './logic-stepper.js';
+const steppers = [VariablesStepper, Haibun, LogicStepper];
 
 describe('vars', () => {
 	it('assigns', async () => {
@@ -61,7 +62,8 @@ describe('variable name literal handling', () => {
 	it('set uses literal name even if env collides', async () => {
 		const feature = { path: '/f.feature', content: 'set what to "value"' };
 		const envVariables = { what: 'ENV' };
-		const { world } = await passWithDefaults([feature], steppers, { options: { DEST: DEFAULT_DEST, envVariables }, moduleOptions: {} });
+		const { ok, world } = await passWithDefaults([feature], steppers, { options: { DEST: DEFAULT_DEST, envVariables }, moduleOptions: {} });
+		expect(ok).toBe(true);
 		expect(world.shared.get('what')).toBe('value');
 	});
 	it('combine uses literal name even if env collides', async () => {
@@ -203,7 +205,7 @@ set point as phase to "finished"
 variable point is less than "finished"
 `
 		};
-		const res = await passWithDefaults([feature], steppers);
+		const res = await failWithDefaults([feature], steppers);
 		expect(res.ok).toBe(false);
 	});
 

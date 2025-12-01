@@ -30,6 +30,9 @@ class Haibun extends AStepper implements IHasCycles {
 			this.createResolvedFeaturesArtifact(`feature-${index}`, [resolvedFeature]);
 		},
 		afterStep: async ({ featureStep }: { featureStep: TFeatureStep }) => {
+			if (featureStep.isSubStep) {
+				return Promise.resolve({ failed: false });
+			}
 			const afterEvery = this.afterEverySteps[featureStep.action.stepperName];
 			let failed = false;
 			if (afterEvery) {

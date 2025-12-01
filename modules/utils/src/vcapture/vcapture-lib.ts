@@ -5,6 +5,7 @@ import { tmpdir } from 'os';
 
 import { getPackageLocation } from '@haibun/core/lib/util/workspace-lib.js';
 import { HOST_PROJECT_DIR } from '@haibun/core/lib/util/actualURI.js';
+import { findProjectRoot } from '@haibun/core/lib/util/find-project-root.js';
 
 export type TCaptureOptions = {
 	recreate: boolean;
@@ -65,7 +66,7 @@ ${(asYamlOptions(composeEnvironment))}
 
 export function getContainerSetup(thisRunOptions: TCaptureOptions, includeDirs: string[], testToRun: string) {
 	const utilDir = resolve(getPackageLocation(import.meta), '..', '..', 'vcapture');
-	const projectDir = process.cwd();
+	const projectDir = findProjectRoot();
 	const tmpFile = resolve(tmpdir(), `docker-compose.override-${Date.now()}.yml`);
 
 	const envs = existsSync(`${projectDir}/.env`) ? readFileSync(`${projectDir}/.env`, 'utf8').split('\n').filter(l => l.length > 0) : [];

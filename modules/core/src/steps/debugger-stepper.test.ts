@@ -89,4 +89,40 @@ describe('DebuggerStepper sequence integration', () => {
 		const seqs = res.featureResults![0].stepResults.map(r => r.seqPath);
 		expect(seqs).toEqual([[1, 1, 1], [1, 1, 1, 1], [1, 1, 1, 2], [1, 1, 1, 3]]);
 	});
+
+	it('does not trigger debugger for speculative failures', async () => {
+		const TestSteps = (await import('../lib/test/TestSteps.js')).default;
+		const LogicStepper = (await import('./logic-stepper.js')).default;
+
+		class LimitedPrompter implements IPrompter {
+			callCount = 0;
+			prompt = async () => {
+				this.callCount++;
+				// Allow the first prompt (for 'not fails')
+				// but any additional prompts (like for speculative 'fails') should not happen
+				if (this.callCount > 1) {
+					throw new Error('Debugger should not be triggered for speculative failures');
+				}
+				return Promise.resolve('step');
+			};
+			cancel = () => { };
+			resolve: (_id: string, _value: unknown) => void = () => { };
+		}
+
+		const world = getTestWorldWithOptions(DEF_PROTO_OPTIONS);
+		world.prompter.unsubscribe(new ReadlinePrompter());
+		const testPrompter = new LimitedPrompter();
+		vi.spyOn(testPrompter, 'prompt');
+		world.prompter.subscribe(testPrompter);
+
+		// Use 'not fails' - the inner 'fails' step runs speculatively and fails, but 'not' succeeds
+		const feature = { path: '/features/test.feature', content: 'debug step by step\nnot fails' };
+		const res = await testWithWorld(world, [feature], [DebuggerStepper, TestSteps, LogicStepper, Haibun]);
+
+		// Should succeed with exactly 1 debugger prompt (for 'not fails')
+		// but NOT for the inner speculative 'fails' step
+		// ('debug step by step' doesn't trigger a prompt, it just sets the mode)
+		expect(res.ok).toBe(true);
+		expect(testPrompter.prompt).toHaveBeenCalledTimes(1);
+	});
 });

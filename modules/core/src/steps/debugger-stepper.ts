@@ -12,6 +12,16 @@ export enum TDebuggingType {
 
 const cycles = (debuggerStepper: DebuggerStepper): IStepperCycles => ({
 	async beforeStep({ featureStep }: TBeforeStep) {
+		// Skip debugging for debug commands themselves to avoid infinite recursion
+		if (featureStep.intent?.usage === 'debugging') {
+			return { featureStep };
+		}
+
+		// Skip debugging for speculative and polling steps (expected to possibly fail)
+		if (featureStep.intent?.mode === 'speculative' || featureStep.intent?.usage === 'polling') {
+			return { featureStep };
+		}
+
 		const { action } = featureStep;
 		if (debuggerStepper.debuggingType === TDebuggingType.StepByStep || debuggerStepper.debugSteppers.includes(action.stepperName)) {
 			const prompt = (debuggerStepper.debugSteppers.includes(action.stepperName)) ? `Debugging ${action.stepperName}` : 'Debug';
@@ -19,10 +29,19 @@ const cycles = (debuggerStepper: DebuggerStepper): IStepperCycles => ({
 		}
 	},
 	async afterStep({ featureStep, actionResult }: TAfterStep): Promise<TAfterStepResult> {
+		// Skip debugging for debug commands themselves to avoid infinite recursion
+		if (featureStep.intent?.usage === 'debugging') {
+			return;
+		}
+
+		debuggerStepper.getWorld().logger.info(`DEBUG: afterStep ${featureStep.in} ok=${actionResult.ok} intent=${JSON.stringify(featureStep.intent)}`);
+
 		if (!actionResult.ok && (featureStep.intent?.mode === 'speculative' || featureStep.intent?.usage === 'polling')) {
+			debuggerStepper.getWorld().logger.info(`DEBUG: Skipping debugger for speculative/polling failure: ${featureStep.in} intent=${JSON.stringify(featureStep.intent)}`);
 			return;
 		}
 		if (!actionResult.ok) {
+			debuggerStepper.getWorld().logger.info(`DEBUG: Debugger triggering for failure: ${featureStep.in} intent=${JSON.stringify(featureStep.intent)}`);
 			return await debuggerStepper.debugLoop(`[Failure]`, ['*', 'retry', 'next', 'fail'], featureStep, 1);
 		}
 	}
