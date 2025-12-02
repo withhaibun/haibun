@@ -66,10 +66,11 @@ export default class LogicStepper extends AStepper {
 
     // DISJUNCTION: A or B or C
     anyOf: {
-      gwta: 'any of {statements:${DOMAIN_STATEMENT}}',
-      action: async ({ statements }: { statements: TFeatureStep[] }, featureStep: TFeatureStep): Promise<TActionResult> => {
-        for (const statement of statements) {
-          const res = await this.runner.runSteps([statement], { intent: { mode: 'speculative' }, parentStep: featureStep });
+      gwta: 'any of {statements}',
+      action: async ({ statements }: { statements: string }, featureStep: TFeatureStep): Promise<TActionResult> => {
+        const statementList = statements.split(',').map(s => s.trim());
+        for (const statement of statementList) {
+          const res = await this.runner.runStatements([statement], { intent: { mode: 'speculative' }, parentStep: featureStep });
           if (res.kind === 'ok') return OK;
         }
         return actionNotOK('No conditions in the list were satisfied');

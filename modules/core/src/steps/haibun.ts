@@ -105,7 +105,7 @@ class Haibun extends AStepper implements IHasCycles {
 			action: () => OK,
 		},
 		prose: {
-			match: /.+[.!?]$/,
+			match: /^[^a-z].*[.!?:\;]$/,
 			fallback: true,
 			action: () => OK,
 		},

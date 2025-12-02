@@ -41,7 +41,7 @@ describe('domains', () => {
 	});
 
 	it('Set number', async () => {
-		const feature = { path: '/features/d.feature', content: 'Set Value as number to 4' };
+		const feature = { path: '/features/d.feature', content: 'set Value as number to 4' };
 		const res = await passWithDefaults([feature], steppers);
 		expect(res.ok).toBe(true);
 

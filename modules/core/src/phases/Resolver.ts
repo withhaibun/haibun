@@ -140,6 +140,14 @@ export class Resolver {
 	private stepApplies(step: TStepperStep, actionable: string, actionName: string, stepperName: string) {
 		const curt = dePolite(actionable);
 		if (step.gwta) {
+			// Enforce that if the input starts with Uppercase, the GWTA must also start with Uppercase.
+			// This distinguishes "Prose" (Uppercase) from "steps" (Lowercase).
+			const startsWithUpper = /^[A-Z]/.test(curt);
+			const gwtaStartsUpper = /^[A-Z]/.test(step.gwta);
+
+			if (startsWithUpper && !gwtaStartsUpper) {
+				return undefined;
+			}
 			return matchGwtaToAction(step.gwta, curt, actionName, stepperName, step);
 		} else if (step.match) {
 			return getMatch(actionable, step.match, actionName, stepperName, step);

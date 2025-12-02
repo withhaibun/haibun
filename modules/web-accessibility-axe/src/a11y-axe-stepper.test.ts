@@ -29,7 +29,7 @@ describe('a11y test from uri', () => {
 	it('passes', async () => {
 		const features = [{
 			path: '/features/test.feature', content: `
-Go to the ${PASSES_URI} webpage
+go to the ${PASSES_URI} webpage
 page is accessible accepting serious 99 and moderate 90
 `}];
 
@@ -40,7 +40,7 @@ page is accessible accepting serious 99 and moderate 90
 	it('fails', async () => {
 		const features = [{
 			path: '/features/test.feature', content: `
-Go to the ${FAILS_URI} webpage
+go to the ${FAILS_URI} webpage
 page is accessible accepting serious 0 and moderate 0
 `}];
 

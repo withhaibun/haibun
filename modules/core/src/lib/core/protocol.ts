@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const ExecutionIntentSchema = z.object({
   mode: z.enum(['authoritative', 'speculative']).default('authoritative'),
   usage: z.enum(['testing', 'debugging', 'background', 'polling']).optional(),
-  isEnsure: z.boolean().optional(),
+  stepperOptions: z.record(z.any()).optional(),
 });
 
 export type ExecutionIntent = z.infer<typeof ExecutionIntentSchema>;

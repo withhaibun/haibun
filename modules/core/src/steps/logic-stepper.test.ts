@@ -204,3 +204,16 @@ describe('backgrounds', () => {
     expect(result.failure?.error.message).toMatch(/can't find single "nonexistent.feature"/);
   });
 });
+describe('any of', () => {
+  it('any of passes if one passes', async () => {
+    const feature = { path: '/features/test.feature', content: 'any of passes, fails' };
+    const result = await passWithDefaults([feature], [LogicStepper, TestSteps]);
+    expect(result.ok).toBe(true);
+  });
+
+  it('any of fails if all fail', async () => {
+    const feature = { path: '/features/test.feature', content: 'any of fails, fails' };
+    const result = await failWithDefaults([feature], [LogicStepper, TestSteps]);
+    expect(result.ok).toBe(false);
+  });
+});

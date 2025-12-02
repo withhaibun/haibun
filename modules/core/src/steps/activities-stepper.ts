@@ -142,23 +142,19 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 
 				const registeredWaypoint = this.steps[pattern];
 				if (!registeredWaypoint) {
-					const messageContext: TMessageContext = {
-						incident: EExecutionMessageType.ACTION,
-						incidentDetails: { waypoint: outcomeKey, error: 'waypoint not registered' }
-					};
-					return actionNotOK(`ensure: waypoint "${outcomeKey}" (pattern "${pattern}") is not registered`, { messageContext });
+					return actionNotOK(`ensure: "${outcomeKey}" is not a registered waypoint. ensure can only be used with waypoints.`);
 				}
 
 				const metadata = this.registeredOutcomeMetadata.get(pattern);
-				if (metadata && metadata.proofStatements.length === 0) {
-					return actionNotOK(`ensure: waypoint "${outcomeKey}" has no proof and cannot be ensured.`);
+				if (!metadata || metadata.proofStatements.length === 0) {
+					return actionNotOK(`ensure: waypoint "${outcomeKey}" has no proof. ensure can only be used with waypoints that have a proof.`);
 				}
 
 				let proofStatements: string[] | undefined;
 
 				try {
 					// Use FlowRunner for the proof execution
-					const flowResult = await this.runner.runSteps(outcome, { intent: { mode: 'authoritative', usage: featureStep.intent?.usage, isEnsure: true }, parentStep: featureStep });
+					const flowResult = await this.runner.runSteps(outcome, { intent: { mode: 'authoritative', usage: featureStep.intent?.usage, stepperOptions: { isEnsure: true } }, parentStep: featureStep });
 
 					if (flowResult.kind !== 'ok') {
 						// Log ENSURE_END for failure
@@ -172,7 +168,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 							incident: EExecutionMessageType.ACTION,
 							incidentDetails: { waypoint: outcomeKey, satisfied: false, error: flowResult.message }
 						};
-						return actionNotOK(`ensure: waypoint "${outcomeKey}" proof failed`, { messageContext });
+						return actionNotOK(`ensure: waypoint "${outcomeKey}" proof failed: ${flowResult.message}`, { messageContext });
 					}
 
 					proofStatements = flowResult.payload?.messageContext?.incidentDetails?.proofStatements;
@@ -308,13 +304,12 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			action: async (args: TStepArgs, featureStep: TFeatureStep): Promise<TActionResult> => {
 				this.getWorld().logger.debug(`ActivitiesStepper: executing recipe for outcome "${outcome}" with args ${JSON.stringify(args)}`);
 
-				// 1. Speculative Proof
+				// 1. Check Proof (Speculative)
 				if (proofStatements.length > 0) {
 					const proof = await this.runner.runStatements(proofStatements, { args: args as Record<string, string>, intent: { mode: 'speculative' }, parentStep: featureStep });
+
 					if (proof.kind === 'ok') {
 						this.getWorld().logger.debug(`ActivitiesStepper: proof passed for outcome "${outcome}", skipping activity body`);
-						// FlowRunner interpolates internally but doesn't return the interpolated strings.
-						// For now we pass original statements.
 						return actionOK({
 							messageContext: {
 								incident: EExecutionMessageType.ACTION,
@@ -324,13 +319,16 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 					}
 				}
 
-				if (featureStep.intent?.mode === 'speculative') {
-					if (proofStatements.length === 0) {
-						return actionNotOK(`ActivitiesStepper: speculative proof failed for outcome "${outcome}" (no proof)`);
+				// 2. Proof Failed or Missing
+				if (!featureStep.intent?.stepperOptions?.isEnsure) {
+					if (proofStatements.length > 0) {
+						return actionNotOK(`ActivitiesStepper: proof failed for outcome "${outcome}"`);
 					}
-					return actionNotOK(`ActivitiesStepper: speculative proof failed for outcome "${outcome}"`);
+					// No proof (waypointLabel) and not ensure: do nothing.
+					return actionOK();
 				}
 
+				// 3. Ensure Mode: Run Activity Body
 				if (activityBlockSteps && activityBlockSteps.length > 0) {
 					this.getWorld().logger.debug(`ActivitiesStepper: proof failed for outcome "${outcome}", running activity body`);
 
@@ -339,18 +337,13 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 						return actionNotOK(`ActivitiesStepper: activity body failed for outcome "${outcome}": ${act.message}`);
 					}
 
+					// 4. Verify Proof After Activity
 					this.getWorld().logger.debug(`ActivitiesStepper: verifying proof after activity body for outcome "${outcome}"`);
 					if (proofStatements.length > 0) {
-						if (featureStep.intent?.isEnsure) {
-							const verify = await this.runner.runStatements(proofStatements, { args: args as Record<string, string>, intent: { mode: 'authoritative', usage: featureStep.intent?.usage }, parentStep: featureStep });
-							if (verify.kind !== 'ok') {
-								return actionNotOK(`ActivitiesStepper: proof verification failed after activity body for outcome "${outcome}": ${verify.message}`);
-							}
-						} else {
-							return actionNotOK(`ActivitiesStepper: waypoint "${outcome}" has a proof but was called without ensure. This is unsafe.`);
+						const verify = await this.runner.runStatements(proofStatements, { args: args as Record<string, string>, intent: { mode: 'authoritative', usage: featureStep.intent?.usage }, parentStep: featureStep });
+						if (verify.kind !== 'ok') {
+							return actionNotOK(`ActivitiesStepper: proof verification failed after activity body for outcome "${outcome}": ${verify.message}`);
 						}
-					} else {
-						this.getWorld().logger.debug(`ActivitiesStepper: skipping proof verification for outcome "${outcome}" (no proof)`);
 					}
 
 					return actionOK({

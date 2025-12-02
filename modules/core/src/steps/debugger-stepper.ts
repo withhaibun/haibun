@@ -34,14 +34,14 @@ const cycles = (debuggerStepper: DebuggerStepper): IStepperCycles => ({
 			return;
 		}
 
-		debuggerStepper.getWorld().logger.info(`DEBUG: afterStep ${featureStep.in} ok=${actionResult.ok} intent=${JSON.stringify(featureStep.intent)}`);
+		debuggerStepper.getWorld().logger.debug(`afterStep ${featureStep.in} ok=${actionResult.ok} intent=${JSON.stringify(featureStep.intent)}`);
 
 		if (!actionResult.ok && (featureStep.intent?.mode === 'speculative' || featureStep.intent?.usage === 'polling')) {
-			debuggerStepper.getWorld().logger.info(`DEBUG: Skipping debugger for speculative/polling failure: ${featureStep.in} intent=${JSON.stringify(featureStep.intent)}`);
+			debuggerStepper.getWorld().logger.debug(`Skipping debugger for speculative/polling failure: ${featureStep.in} intent=${JSON.stringify(featureStep.intent)}`);
 			return;
 		}
 		if (!actionResult.ok) {
-			debuggerStepper.getWorld().logger.info(`DEBUG: Debugger triggering for failure: ${featureStep.in} intent=${JSON.stringify(featureStep.intent)}`);
+			debuggerStepper.getWorld().logger.debug(`Debugger triggering for failure: ${featureStep.in} intent=${JSON.stringify(featureStep.intent)}`);
 			return await debuggerStepper.debugLoop(`[Failure]`, ['*', 'retry', 'next', 'fail'], featureStep, 1);
 		}
 	}
