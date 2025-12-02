@@ -9,12 +9,12 @@ import Haibun from '../steps/haibun.js';
 describe('kireji activities', () => {
 	it('should convert multi-line proof template strings to BDD format correctly', () => {
 		const activitiesStepper = new ActivitiesStepper();
-		const { activity, waypoint } = withAction(activitiesStepper);
+		const { activity, waypointWithProof } = withAction(activitiesStepper);
 
 		const testBackground = {
 			'Test Background': [
 				activity({ activity: 'Setup variables' }),
-				waypoint({
+				waypointWithProof({
 					outcome: 'Variables are set',
 					proof: `set x to 1
 set y to 2
