@@ -65,6 +65,8 @@ where variable x is "1", set y to "2" ;; where accepts condition and action stat
 
 Activities and waypoints enable reusable goal-oriented, self-healing tests.
 
+NB The ensure pattern guarantees prerequisites, not outcomes. Use self-healing to establish the starting state required for a test (e.g. database setup). Avoid using ensure to verify the primary behavior under test, as it may obscure failure logic by "correcting" it.
+
 ### Defining activities
 
 Activities represent high-level goals or workflows.
