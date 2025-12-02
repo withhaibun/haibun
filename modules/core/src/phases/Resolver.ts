@@ -11,7 +11,13 @@ export class Resolver {
 			const lines = background.content.trim().split('\n');
 			for (let i = 0; i < lines.length; i++) {
 				const actionable = getActionable(lines[i]);
-				this.callResolveFeatureLine(actionable, background.path, lines, i);
+				if (!this.callResolveFeatureLine(actionable, background.path, lines, i)) {
+					try {
+						this.findSingleStepAction(actionable);
+					} catch (e) {
+						throw Error(`Background resolution error for "${lines[i]}" in ${background.path}: ${e.message}`);
+					}
+				}
 			}
 		}
 	}
