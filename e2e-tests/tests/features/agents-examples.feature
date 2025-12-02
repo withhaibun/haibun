@@ -1,25 +1,21 @@
-# Haibun Agents Guide
+# Haibun agents guide
 
 ## What is Haibun?
 
-Haibun is a declarative, logic-based, literate framework designed to unify specification, testing, and documentation in a single executable format.
+Haibun is a declarative, logic-based, literate framework designed to unify specification, verification, and documentation in a single executable format.
 
 The same file serves three purposes: defining expected behavior, verifying systems against that specification, and explaining the system to readers.
 
 > This document is executable; lines starting with lowercase letters are steps. Run `npm test -- agents` to execute all examples.
 > The ecosystem evolves. Rely on runtime discovery rather than static documentation.
 
-## Core Philosophy
+## Core philosophy
 
-### Literate Programming
+### Literate programming
 
 Documentation becomes the test. Prose provides context. Executable steps verify behavior.
 
-### Specification = Test = Documentation
-
-Three purposes, one source document.
-
-### Waypoints Over Variables
+### Waypoints over variables
 
 Waypoints verify system states and behaviors.
 
@@ -34,9 +30,9 @@ Variables track configuration and test state, not primary system verification.
 
 Steppers are modules that provide testing capabilities.
 
-Web applications, custom systems, any domain you extend.
+Web applications, custom systems, and extended domains can be tested.
 
-## Case Sensitivity Rule
+## Case sensitivity rule
 
 **Steps** start with **lowercase** letters.
 **Prose** (documentation) starts with uppercase or symbols.
@@ -44,31 +40,32 @@ Web applications, custom systems, any domain you extend.
 set example to "test"
 variable example is "test"
 
-## Part 1: Compound Statements
+## Part 1: Compound statements
 
 Compound statements combine multiple steps or introduce control flow.
 
-### The Statement Domain
+### The statement domain
 
-Many steps accept a `{statement}` parameter—a domain representing single-line executable text.
+Many steps accept a `{statement}` parameter—a domain representing executable statments.
 
 Compound statements use the statement domain to compose logic:
 
 set x to "1"
 where variable x is "1", set y to "2" ;; where accepts condition and action statements
 
-### Examples of Compound Steps
+### Examples of compound steps
 
 - `where {condition}, {action}` - Conditional
 - `whenever {condition}, {action}` - Loop
 - `any of {stmt}, {stmt}, ...` - Disjunction
 - `until {statements}` - Repeat until success
+- `not {statement}` - Negation
 
-## Part 2: Activities & Waypoints
+## Part 2: Activities & waypoints
 
-Activities and waypoints enable goal-oriented, self-healing tests.
+Activities and waypoints enable reusable goal-oriented, self-healing tests.
 
-### Defining Activities
+### Defining activities
 
 Activities represent high-level goals or workflows.
 
@@ -77,9 +74,7 @@ set system_ready to "false"
 set system_ready to "true"
 waypoint System is ready with variable system_ready is "true"
 
-Activity steps are NOT indented—they follow the Activity line at the same level.
-
-### Waypoints as Goals
+### Waypoints as goals
 
 Waypoints define verifiable goals with proof steps.
 
@@ -100,23 +95,27 @@ ensure Database is initialized
 
 show waypoints ;; see all verified waypoints
 
-### Self-Healing Pattern
+### Self-healing pattern
 
 Makes tests idempotent and resilient.
 
+set count as number to 0
+
 Activity: Create Admin
 set admin_exists to "false"
+increment count
 set admin_exists to "true"
 waypoint Admin exists with variable admin_exists is "true"
 
 ensure Admin exists ;; runs activity if needed
 ensure Admin exists ;; skips activity (already satisfied)
+variable count is 1
 
 ## Part 3: Variables
 
-Variables enable parameterization and reusable test configurations.
+Variables enable parameterization and reusable test configurations between environments.
 
-### Purpose of Variables
+### Purpose of variables
 
 Use variables for:
 - Configuration (URLs, credentials)
@@ -124,15 +123,15 @@ Use variables for:
 - Cross-environment reusability
 - Test efficiency (eg track expected entity state)
 
-Avoid using variables to track system state—use waypoints instead.
+Avoid using variables to track live system state — use waypoints instead.
 
-### Setting Variables
+### Setting variables
 
 set base_url to "https://example.com"
 set timeout as number to 30
 set user_email to "test@example.com"
 
-### Checking Variables
+### Checking variables
 
 variable base_url is "https://example.com"
 variable timeout is 30
@@ -143,30 +142,30 @@ show vars ;; inspect all variables with domains and values
 
 Domains provide type safety and enable ordered comparisons.
 
-### Unordered Sets
+### Unordered sets
 
 set of roles is ["admin", "editor", "viewer"]
 set user_role as roles to "admin"
 
-### Ordered Sets
+### Ordered sets
 
 ordered set of priorities is ["low", "medium", "high", "critical"]
 set task_priority as priorities to "low"
 
 show domains ;; see all registered domains
 
-### Built-in Domains
+### Built-in domains
 
-Three built-in domains: `string`, `number`, `json`.
+`string`, `number`, `json`, `date`, and `page-locator`.
 
 set count as number to 0
 set config as json to {"enabled": true}
 
-## Part 5: Ordered Sets & Comparisons
+## Part 5: Ordered sets & comparisons
 
 Ordered sets enable state machines and efficient waypoint checks.
 
-### Defining Order
+### Defining order
 
 ordered set of statuses is ["draft", "review", "published"]
 set doc_status as statuses to "draft"
@@ -180,25 +179,25 @@ variable doc_status is less than "published" ;; true
 increment doc_status
 variable doc_status is "review"
 
-### Efficient Waypoint Checks
+### Efficient waypoint checks
 
 Comparisons enable reusable waypoints that check minimum state.
 
-ordered set of deployment_stages is ["created", "configured", "deployed", "verified"]
-set stage as deployment_stages to "created"
+ordered set of order_stages is ["placed", "packed", "shipped", "delivered"]
+set order_status as order_stages to "placed"
 
-Activity: Deploy Application
-whenever variable stage is less than "deployed", increment stage
-waypoint Application is at least deployed with not variable stage is less than "deployed"
+Activity: Process order
+whenever variable order_status is less than "shipped", increment order_status
+waypoint Order is at least shipped with not variable order_status is less than "shipped"
 
-The proof "not less than deployed" succeeds for "deployed" or "verified".
+The proof "not less than shipped" succeeds for "shipped" or "delivered".
 
-This allows efficient tests: check if state is AT LEAST deployed, not exactly deployed.
+This allows efficient tests: check if state is AT LEAST shipped, not exactly shipped.
 
-ensure Application is at least deployed
-variable stage is "deployed"
+ensure Order is at least shipped
+variable order_status is "shipped"
 
-## Part 6: Logic & Control Flow
+## Part 6: Logic & control flow
 
 Logic steps enable complex workflows and conditional behavior.
 
@@ -223,97 +222,82 @@ set counter as number to 0
 whenever variable counter is less than 3, increment counter
 variable counter is 3
 
-### State Machine Example
+### State machine example
 
 ordered set of workflow_states is ["start", "process", "validate", "complete"]
 set workflow as workflow_states to "start"
 whenever variable workflow is less than "complete", increment workflow
 variable workflow is "complete"
 
-## Part 7: Advanced Patterns
+## Part 7: Advanced patterns
 
-### Domain-Driven Workflows
+### Domain-driven workflows
 
 ordered set of ticket_states is ["open", "assigned", "resolved", "closed"]
 set ticket as ticket_states to "open"
 
-Activity: Process Ticket
+Activity: Process ticket
 whenever variable ticket is less than "closed", increment ticket
 waypoint Ticket is closed with variable ticket is "closed"
 
 ensure Ticket is closed
 
-### Parameterized Tests
+### Parameterized tests
 
 set api_endpoint to "api.staging.example.com"
 set api_timeout as number to 5000
 
-Activity: API Health Check
-set api_healthy to "false"
+Activity: API health check
+set api_healthy to "false" 
 set api_healthy to "true"
 waypoint API responds with variable api_healthy is "true"
 
-ensure API responds
+ensure API responds 
 
 ## Part 8: Comments
 
-Use `;;` for inline explanations.
+Inline explanations use `;;`.
 
 set max_retries to "5" ;; allows robust retry logic
 show vars ;; inspect current state
 
-## The Interactive Debugger
+## Common patterns
 
-Runtime introspection reveals available capabilities and current state.
+### Pattern 1: Self-healing setup
 
-show steppers ;; all available steps
-show vars ;; variable state  
-show domains ;; type domains
-show waypoints ;; verified goals
-
-These steps guide development and debugging.
-
-## Common Patterns
-
-### Pattern 1: Self-Healing Setup
-
-Activity: Environment Setup
+Activity: Environment setup
 set env_configured to "false"
 set env_configured to "true"
 waypoint Environment is configured with variable env_configured is "true"
 
 ensure Environment is configured
 
-### Pattern 2: Efficient State Checks
+### Pattern 2: Efficient state checks
 
-ordered set of phases is ["init", "ready", "active"]
-set phase as phases to "init"
+ordered set of approval_stages is ["draft", "reviewed", "approved"]
+set doc_stage as approval_stages to "draft"
 
-Activity: Activate System
-whenever variable phase is less than "active", increment phase
-waypoint System is at least ready with not variable phase is less than "ready"
+Activity: Approve document
+whenever variable doc_stage is less than "approved", increment doc_stage
+waypoint Document is at least reviewed with not variable doc_stage is less than "reviewed"
 
-Check for minimum required state (at least "ready"), not exact state.
+Check for minimum required state (at least "reviewed"), not exact state.
 
-ensure System is at least ready ;; activity increments to "active", proof passes
-variable phase is "active" ;; verify the activity ran to completion
+ensure Document is at least reviewed ;; activity increments to "approved", proof passes
+variable doc_stage is "approved" ;; verify the activity ran to completion
 
-### Pattern 3: Parameterized Workflows
+### Pattern 3: Parameterized workflows
 
-set target_env to "production"
+Activity: Publish article
+set published to {article}
+waypoint Article {article} is published with variable published is {article}
 
-Activity: Deploy to Environment
-set deployed to "false"
-set deployed to "true"
-waypoint Deployed to target with variable deployed is "true"
+ensure Article "Writing haibuns" is published
 
-ensure Deployed to target
+## Next steps
 
-## Next Steps
-
-Explore real examples in `e2e-tests/tests/features/`:
+Real examples are available in `e2e-tests/tests/features/`:
 - Web automation
 - Complex workflows
 - Self-healing patterns
 - Domain-driven testing
-
