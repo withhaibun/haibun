@@ -1,30 +1,30 @@
 Feature: Form-based Authentication
 
-    Set Resource Server to http://localhost:8123
-    Combine Resource Server and "/static/rest.html" to REST Home
+    set Resource Server to http://localhost:8123
+    combine Resource Server and "/static/rest.html" to REST Home
 
-    Start auth login route at /login
+    start auth login route at /login
 
-    Set OK to 200
-    Set Unauthorized to 401
+    set OK to 200
+    set Unauthorized to 401
 
-    Serve files at /static from "rest"
-    Make auth scheme basic
+    serve files at /static from "rest"
+    make auth scheme basic
 
     Scenario: Fail login with wrong credentials
-        Go to the REST Home webpage
-        Click username by placeholder
+        go to the REST Home webpage
+        click username by placeholder
         type "wrong" 
-        Click password by placeholder
+        click password by placeholder
         type "wrong"
         click "Login"
-        See "Invalid credentials"
+        see "Invalid credentials"
 
     Scenario: Pass login with correct credentials
-        Go to the REST Home webpage
-        Click username by placeholder
+        go to the REST Home webpage
+        click username by placeholder
         type "foo"
-        Click password by placeholder
+        click password by placeholder
         type "bar"
         click "Login"
-        See "Login successful"
+        see "Login successful"

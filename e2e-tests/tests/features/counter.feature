@@ -8,7 +8,7 @@ Scenario: A form and counter
     Then serve files at /static from "counter"
     And start tally route at /count
     
-    Go to the counter webpage
+    go to the counter webpage
 
     When I input username for user name
     And I click Submit

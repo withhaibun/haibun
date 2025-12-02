@@ -11,8 +11,8 @@ Backgrounds: service/counter, int/counter
     start tally route at /count
     using timeout of 2000ms
     
-    After every WebPlaywright, Page is accessible accepting serious 9 and moderate 9
-    Go to the counter webpage
+    after every WebPlaywright, page is accessible accepting serious 9 and moderate 9
+    go to the counter webpage
     input username for user name
     click Submit
 

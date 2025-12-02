@@ -5,7 +5,7 @@ Scenario: Generate and clear a QR code
 
   serve files at /static from "qrcode"
   
-  Go to the qrcode URI webpage
+  go to the qrcode URI webpage
   wait for "QR Code Generator"
 
   canvas "canvas" is empty
