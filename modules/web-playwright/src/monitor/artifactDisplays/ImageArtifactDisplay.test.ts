@@ -40,7 +40,7 @@ describe('ImageArtifactDisplay', () => {
 		const messageSummary = details?.querySelector('.haibun-log-message-summary');
 		expect(messageSummary).not.toBeNull();
 		expect(messageSummary?.textContent).toContain('Image Artifact');
-		expect(messageSummary?.querySelector('.details-type')?.textContent).toBe('image');
+		expect(messageSummary?.querySelector('.haibun-log-label')?.textContent).toBe('image');
 
 		const artifactContainer = details?.querySelector('.haibun-artifact-container.haibun-artifact-image') as HTMLElement;
 		expect(artifactContainer).not.toBeNull();

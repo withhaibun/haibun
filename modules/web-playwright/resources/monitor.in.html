@@ -208,7 +208,8 @@
 			font-size: 0.8em;
 			color: #888;
 			font-family: 'Roboto Mono', monospace;
-			grid-column: 3 / -1; /* Default: Align with text (col 3) */
+			grid-column: 3 / -1;
+			/* Default: Align with text (col 3) */
 			margin-top: 0;
 		}
 
@@ -221,7 +222,8 @@
 			flex: 1 1 auto;
 			overflow-y: scroll;
 			box-sizing: border-box;
-			padding: 20px 40px; /* Relaxed padding */
+			padding: 20px 40px;
+			/* Relaxed padding */
 			padding-bottom: 50px;
 		}
 
@@ -232,31 +234,84 @@
 			display: none;
 		}
 
-		.view-documentation .haibun-message-content details > summary {
+		.view-documentation .haibun-message-content details>summary {
 			list-style: none;
 		}
 
-		.view-documentation .haibun-message-content details > summary::-webkit-details-marker {
+		.view-documentation .haibun-message-content details>summary::-webkit-details-marker {
+			display: none;
+		}
+
+		.view-documentation .haibun-log-label,
+		.view-documentation .haibun-log-emoji,
+		.view-documentation .haibun-log-marker,
+		.view-documentation .haibun-seqpath {
 			display: none;
 		}
 
 		.view-documentation .haibun-log-entry {
 			border-bottom: none;
-			padding: 10px 0;
+			padding: 4px 0;
 			font-size: 1.1em;
-		}
-
-		.view-documentation .haibun-seqpath {
-			display: none;
 		}
 
 		.view-documentation .haibun-log-marker {
 			display: none;
 		}
 
+		/* Prose rendering modes */
+		.haibun-prose-plain {
+			display: block;
+		}
+
+		.haibun-prose-markdown {
+			display: none;
+		}
+
+		.view-documentation .haibun-prose-plain {
+			display: none !important;
+		}
+
+		.view-documentation .haibun-prose-markdown {
+			display: block !important;
+		}
+
+		.view-documentation .haibun-prose-markdown p {
+			margin: 0.5em 0;
+		}
+
+		.view-documentation .haibun-prose-markdown pre {
+			font-size: 0.85em;
+			overflow-x: auto;
+			background-color: #f5f5f5;
+			padding: 10px;
+			border-radius: 4px;
+			max-width: 100%;
+			margin: 0.5em 0;
+		}
+
+		.view-documentation .haibun-prose-markdown code {
+			font-family: 'Roboto Mono', monospace;
+			background-color: rgba(0, 0, 0, 0.05);
+			padding: 2px 4px;
+			border-radius: 3px;
+		}
+
+		.view-documentation .haibun-prose-markdown pre code {
+			background-color: transparent;
+			padding: 0;
+		}
+
+		.view-documentation .haibun-log-step {
+			font-style: italic;
+			margin-left: 20px;
+			color: #555;
+		}
+
 		.haibun-log-entry {
 			display: flex;
-			padding: 2px 10px; /* Reduced padding */
+			padding: 2px 10px;
+			/* Reduced padding */
 			flex-direction: row;
 			/* width: 100%; Removed to allow margin-left to shrink width instead of overflowing */
 			align-items: flex-start;
@@ -270,7 +325,8 @@
 		}
 
 		.haibun-log-entry-current {
-			background-color: #e6f7ff; /* Light blue highlight */
+			background-color: #e6f7ff;
+			/* Light blue highlight */
 			border-left: 4px solid #1890ff;
 			display: flex !important;
 		}
@@ -296,7 +352,7 @@
 		}
 
 		/* Custom Summary Layout for Emoji/Marker switching */
-		.haibun-message-content details > summary {
+		.haibun-message-content details>summary {
 			display: grid;
 			grid-template-columns: auto auto 1fr auto;
 			align-items: baseline;
@@ -306,11 +362,11 @@
 		}
 
 		/* Handle Step Start with Loader (5 columns) */
-		.haibun-step-start .haibun-message-content details > summary {
+		.haibun-step-start .haibun-message-content details>summary {
 			grid-template-columns: auto auto auto 1fr auto;
 		}
 
-		.haibun-message-content details > summary::-webkit-details-marker {
+		.haibun-message-content details>summary::-webkit-details-marker {
 			display: none;
 		}
 
@@ -321,7 +377,7 @@
 			color: #666;
 		}
 
-		.haibun-context-details[open] > summary > .haibun-log-marker {
+		.haibun-context-details[open]>summary>.haibun-log-marker {
 			transform: rotate(90deg);
 		}
 
@@ -412,7 +468,8 @@
 		}
 
 		#haibun-prompt-controls-container {
-			display: none; /* Managed by JS */
+			display: none;
+			/* Managed by JS */
 			align-items: center;
 			padding: 15px;
 			background-color: #f0f8ff;
@@ -723,7 +780,8 @@
 	</div>
 
 	<div id="haibun-prompt-controls-container">
-		<input type="text" id="haibun-statement-input" placeholder="🌲Enter statement..." style="display: none; margin-right: 10px; padding: 4px; border: 1px; font-family: 'Roboto', sans-serif; font-size: 1em; width: 300px">
+		<input type="text" id="haibun-statement-input" placeholder="🌲Enter statement..."
+			style="display: none; margin-right: 10px; padding: 4px; border: 1px; font-family: 'Roboto', sans-serif; font-size: 1em; width: 300px">
 		<button id="haibun-retry-button" title="retry" disabled>♻️ retry</button>
 		<button id="haibun-next-button" title="next" disabled>➡️ next</button>
 		<button id="haibun-fail-button" title="Fail" disabled>❌ fail</button>

@@ -43,42 +43,93 @@ describe('Monitor Messages Logic (messages.ts)', () => {
 			const messageContent = element.querySelector('.haibun-message-content') as HTMLElement;
 			expect(messageContent).not.toBeNull();
 			expect(messageContent.classList.contains('haibun-simple-message')).toBe(true);
-			expect(messageContent.textContent).toBe(message);
+
+			const plainContent = messageContent.querySelector('.haibun-prose-plain');
+			expect(plainContent).not.toBeNull();
+			expect(plainContent?.textContent).toBe(message);
+
+			const markdownContent = messageContent.querySelector('.haibun-prose-markdown');
+			expect(markdownContent).not.toBeNull();
 		});
 
-		it('should display a modified summary message when context provides it', () => {
-			const level = 'debug';
-			// In reality, the message from Executor already contains featureStep.in
-			const message = '✅ [1] Given something';
-			const mockTag: TTag = createMockTag();
-			const mockStepAction: TStepAction = { actionName: 'testAction', stepperName: 'testStepper', step: { action: async () => Promise.resolve(OK) } };
-			const mockFeatureStep: TFeatureStep = { path: 'test.feature', in: 'Given something', seqPath: [1], action: mockStepAction };
-			const mockActionResult: TStepActionResult = { ok: true, name: 'testAction' };
-			const mockStepResult: TStepResult = { ok: true, stepActionResult: mockActionResult, in: 'Given something', path: 'test.feature', seqPath: [1] };
+		it('should render simple message as code block', () => {
+			const level = 'info';
+			const message = 'Some log message';
+			const logEntry = new LogEntry(level, BASE_TIMESTAMP, message);
+			const element = logEntry.element;
 
+			const content = element.querySelector('.haibun-message-content');
+			expect(content).not.toBeNull();
+			expect(content?.classList.contains('haibun-simple-message')).toBe(true);
+
+			const markdownContent = content?.querySelector('.haibun-prose-markdown');
+			expect(markdownContent?.innerHTML).toContain('<pre><code');
+			expect(markdownContent?.textContent).toContain('Some log message');
+		});
+
+		it('should render prose message as blockquote', () => {
+			const level = 'info';
+			const message = '> Some prose message';
+			const logEntry = new LogEntry(level, BASE_TIMESTAMP, message);
+			const element = logEntry.element;
+
+			const content = element.querySelector('.haibun-message-content');
+			expect(content).not.toBeNull();
+
+			const markdownContent = content?.querySelector('.haibun-prose-markdown');
+			expect(markdownContent?.innerHTML).toContain('<blockquote>');
+			expect(markdownContent?.textContent).toContain('Some prose message');
+		});
+
+
+
+		it('should display a modified summary message when context provides it', () => {
+			const level = 'info';
+			const message = 'Given something';
+			const mockTag: TTag = createMockTag();
 			const context: TMessageContext = {
 				incident: EExecutionMessageType.STEP_END,
 				tag: mockTag,
 				incidentDetails: {
-					featureStep: mockFeatureStep,
-					actionResult: mockStepResult
+					featureStep: { path: 'test.feature', in: message, seqPath: [1], action: { actionName: 'test', stepperName: 'test', step: { action: async () => Promise.resolve(OK) } } },
+					actionResult: { ok: true, name: 'test' }
 				}
 			};
-			const logEntry = new LogEntry(level, BASE_TIMESTAMP + 100, message, context);
+			const logEntry = new LogEntry(level, BASE_TIMESTAMP, message, context);
 			const element = logEntry.element;
 
-			const messageContent = element.querySelector('.haibun-message-content') as HTMLElement;
-			expect(messageContent).not.toBeNull();
-			const details = element.querySelector('.haibun-context-details');
-			expect(details).not.toBeNull();
-			const summary = details?.querySelector('.haibun-log-message-summary');
-			// The summary should show the message as-is (which already contains the step text)
-			expect(summary?.textContent).toContain('Given something');
-			expect(summary?.querySelector('.details-type')?.textContent).toBe('STEP END');
-			expect(messageContent?.classList.contains('haibun-simple-message')).toBe(false);
+			const summary = element.querySelector('.haibun-log-message-summary');
+			const messageContent = element.querySelector('.haibun-message-content');
 
-			expect(details?.querySelector('.haibun-message-details-json')).not.toBeNull();
-			expect(details?.querySelector('.haibun-incident-type')).toBeNull();
+			// The summary should show the message as-is
+			expect(summary?.textContent).toContain('Given something');
+			expect(summary?.querySelector('.haibun-log-label')?.textContent).toBe('test.feature:1');
+			expect(messageContent?.classList.contains('haibun-simple-message')).toBe(false);
+		});
+		it('should render markdown in summary message', () => {
+			const level = 'info';
+			const message = '### Heading 3';
+			const mockTag: TTag = createMockTag();
+			const context: TMessageContext = {
+				incident: EExecutionMessageType.STEP_END,
+				tag: mockTag,
+				incidentDetails: {
+					featureStep: { path: 'test.feature', in: '### Heading 3', seqPath: [1], action: { actionName: 'test', stepperName: 'test', step: { action: async () => Promise.resolve(OK) } } },
+					actionResult: { ok: true, name: 'test' }
+				}
+			};
+			const logEntry = new LogEntry(level, BASE_TIMESTAMP, message, context);
+			const element = logEntry.element;
+
+			const summary = element.querySelector('.haibun-log-message-summary');
+			const textContainer = summary?.querySelector('.haibun-log-message-text');
+
+			expect(textContainer).not.toBeNull();
+			const markdownContent = textContainer?.querySelector('.haibun-prose-markdown');
+			expect(markdownContent?.innerHTML).toContain('<h3>Heading 3</h3>');
+
+			const plainContent = textContainer?.querySelector('.haibun-prose-plain');
+			expect(plainContent?.textContent).toBe('### Heading 3');
 		}); it('should throw if artifact type is not recognized', () => {
 			const artifact = <TArtifact>(<unknown>{ artifactType: 'notAThing' });
 			const mockTagGeneric: TTag = createMockTag();
@@ -89,6 +140,46 @@ describe('Monitor Messages Logic (messages.ts)', () => {
 			};
 			expect(() => new LogEntry('warn', BASE_TIMESTAMP, 'Generic JSON', context)).toThrow();
 		});
+		it('should add haibun-log-step class to lowercase steps', () => {
+			const level = 'info';
+			const message = '✅ [1] given a step';
+			const mockTag: TTag = createMockTag();
+			const context: TMessageContext = {
+				incident: EExecutionMessageType.STEP_END,
+				tag: mockTag,
+				incidentDetails: {
+					featureStep: { path: 'test.feature', in: 'given a step', seqPath: [1], action: { actionName: 'test', stepperName: 'test', step: { action: async () => Promise.resolve(OK) } } },
+					actionResult: { ok: true, name: 'test' }
+				}
+			};
+			const logEntry = new LogEntry(level, BASE_TIMESTAMP, message, context);
+			const element = logEntry.element;
+
+			const summary = element.querySelector('.haibun-log-message-summary');
+			const textContainer = summary?.querySelector('.haibun-log-message-text');
+
+			expect(textContainer?.classList.contains('haibun-log-step')).toBe(true);
+		});
+
+		it('should NOT add haibun-log-step class to uppercase prose', () => {
+			const level = 'info';
+			const message = '✅ [1] Prose line';
+			const mockTag: TTag = createMockTag();
+			const context: TMessageContext = {
+				incident: EExecutionMessageType.STEP_END,
+				tag: mockTag,
+				incidentDetails: {
+					featureStep: { path: 'test.feature', in: 'Prose line', seqPath: [1], action: { actionName: 'test', stepperName: 'test', step: { action: async () => Promise.resolve(OK) } } },
+					actionResult: { ok: true, name: 'test' }
+				}
+			};
+			const logEntry = new LogEntry(level, BASE_TIMESTAMP, message, context);
+			const element = logEntry.element;
+
+			const summary = element.querySelector('.haibun-log-message-summary');
+			const textContainer = summary?.querySelector('.haibun-log-message-text');
+
+			expect(textContainer?.classList.contains('haibun-log-step')).toBe(false);
+		});
 	});
 });
-

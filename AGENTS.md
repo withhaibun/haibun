@@ -2,7 +2,7 @@
 
 ## What is Haibun?
 
-Haibun is a declarative, logic-based, literate programming framework. It unifies specification, testing, and documentation in a single executable format.
+Haibun is a declarative, logic-based, literate framework that unifies specification, testing, and documentation in a single executable format.
 
 The same file serves three purposes: defining expected behavior, verifying systems against that specification, and explaining the system to readers.
 
@@ -38,8 +38,6 @@ Variables track configuration and test state, not primary system verification.
 Steppers are modules that provide testing capabilities.
 
 Web applications, custom systems, any domain you extend.
-
-show steppers ;; all loaded steppers with their syntax
 
 ## The Interactive Debugger
 
@@ -312,47 +310,6 @@ set deployed to "true"
 waypoint Deployed to target with variable deployed is "true"
 
 ensure Deployed to target
-
-## Reference: Step Categories
-
-### Activities (`ActivitiesStepper`)
-- `Activity: {name}` - Define an activity block
-- `waypoint {outcome} with {proof}` - Define waypoint with verification
-- `waypoint {outcome}` - Define waypoint label
-- `ensure {outcome}` - Verify and establish goal
-- `show waypoints` - List verified waypoints
-
-### Variables (`VariablesStepper`)
-- `set {name} to {value}` - Set a variable
-- `set {name} as {domain} to {value}` - Set with type
-- `variable {name} is {value}` - Check variable value
-- `variable {name} is less than {value}` - Compare in ordered domain
-- `increment {name}` - Increment number or ordered set
-- `show vars` - Display all variables
-
-### Domains
-- `set of {domain} is [values]` - Define unordered set
-- `ordered set of {domain} is [values]` - Define ordered set with magnitude
-- `show domains` - List all domains
-
-### Logic (`LogicStepper`)
-- `where {condition}, {action}` - Conditional execution
-- `whenever {condition}, {action}` - Loop while true
-- `until {statements}` - Repeat until success
-- `any of {stmt}, {stmt}, ...` - Disjunction (OR)
-- `not {statement}` - Negation
-
-### Introspection (`Haibun`)
-- `show steppers` - List all steppers and steps
-- `show steps` - Show executed results
-- `show features` - Display feature structure
-- `show backgrounds` - Show loaded backgrounds
-- `show vars` - Display variables
-- `show domains` - Display domains
-- `show waypoints` - Display verified waypoints
-
-### Comments
-- `;;{text}` - Inline comment
 
 ## Next Steps
 

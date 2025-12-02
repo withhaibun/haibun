@@ -1,5 +1,6 @@
 import { TArtifact, TArtifactSpeech, TArtifactVideo, TArtifactVideoStart, TArtifactImage, TArtifactHTML, TArtifactJSON, TArtifactHTTPTrace, TMessageContext, TArtifactResolvedFeatures } from '@haibun/core/lib/interfaces/logger.js';
 import { EExecutionMessageType } from '@haibun/core/lib/interfaces/logger.js';
+import MarkdownIt from 'markdown-it';
 
 import { disclosureJson } from './disclosureJson.js';
 import { LogComponent, ArtifactDisplay } from './artifactDisplays/artifactDisplayBase.js';
@@ -90,6 +91,13 @@ export class LogMessageContent extends LogComponent {
 			const summaryMessageToDisplay = getSummaryMessage(message);
 			let labelForSummary = EExecutionMessageType[incident] || 'Context';
 
+			if (incidentDetails && typeof incidentDetails === 'object' && 'featureStep' in incidentDetails) {
+				const { featureStep } = incidentDetails as any;
+				if (featureStep?.path && featureStep?.seqPath) {
+					labelForSummary = `${featureStep.path}:${featureStep.seqPath}`;
+				}
+			}
+
 			// Create artifact displays for all artifacts
 			if (artifacts && artifacts.length > 0) {
 				for (const artifact of artifacts) {
@@ -177,7 +185,38 @@ export class LogMessageContent extends LogComponent {
 			this.append(detailsElement);
 		} else {
 			this.addClass('haibun-simple-message');
-			this.setText(message);
+			// Store both plain text and markdown-rendered versions
+
+			let markdownHtml = '';
+			try {
+				const md = new MarkdownIt({
+					html: true,
+					linkify: true,
+					typographer: true
+				});
+
+				// Heuristic: If it starts with '>', treat as prose (blockquote).
+				// Otherwise, treat as technical output and wrap in code block.
+				if (message.trim().startsWith('>')) {
+					markdownHtml = md.render(message);
+				} else {
+					markdownHtml = md.render('```\n' + message + '\n```');
+				}
+			} catch (e) {
+				console.error('Error rendering markdown:', e);
+				markdownHtml = `<div class="haibun-error">Error rendering markdown: ${e}</div>`;
+			}
+
+			const plainDiv = document.createElement('div');
+			plainDiv.className = 'haibun-prose-plain';
+			plainDiv.textContent = message;
+
+			const markdownDiv = document.createElement('div');
+			markdownDiv.className = 'haibun-prose-markdown';
+			markdownDiv.innerHTML = markdownHtml;
+
+			this.element.appendChild(plainDiv);
+			this.element.appendChild(markdownDiv);
 		}
 	}
 
@@ -217,36 +256,19 @@ class LogMessageSummary extends LogComponent<HTMLElement> {
 	constructor(summaryMessage: string, initialLabel: string) {
 		super('summary', 'haibun-log-message-summary');
 		this.labelSpan = document.createElement('span');
-		this.labelSpan.className = 'details-type';
-		this.updateLabel(initialLabel);
+		this.labelSpan.className = 'haibun-log-label';
+		this.labelSpan.textContent = initialLabel;
 
-		// Check for seqPath at the start of the message, possibly preceded by emojis or other characters
-		// Matches: (optional non-word chars like emojis)(spaces)([digits.digits])(rest)
-		const seqPathMatch = summaryMessage.match(/^([^\w\s]*\s*\[[\d.-]+\])(.*)/);
-		let messageText = summaryMessage;
+		let mainText = summaryMessage;
 		let seqPathText = '';
 
-		if (seqPathMatch) {
-			seqPathText = seqPathMatch[1];
-			messageText = seqPathMatch[2];
-		}
-
-		// Extract leading emoji from messageText
-		// Matches: (leading non-word chars like emojis)(rest)
-		// Be careful not to match just spaces.
-		const emojiMatch = messageText.match(/^([^\w\s]+)\s+(.*)/);
-		let emojiText = '';
-		let mainText = messageText;
-
+		// Handle emojis first
+		// Use non-ASCII characters as a heuristic for emojis to avoid matching markdown like ###
+		const emojiMatch = mainText.match(/^([^\x00-\x7F]+)\s*(.*)/);
 		if (emojiMatch) {
-			emojiText = emojiMatch[1];
+			const emojiText = emojiMatch[1];
 			mainText = emojiMatch[2];
-		}
 
-		// Construct Grid Layout: [Emoji] [Marker] [Text]
-		//                        [SeqPath (col 2-3)]
-
-		if (emojiText) {
 			const emojiSpan = document.createElement('span');
 			emojiSpan.className = 'haibun-log-emoji';
 			emojiSpan.textContent = emojiText;
@@ -262,10 +284,53 @@ class LogMessageSummary extends LogComponent<HTMLElement> {
 		markerSpan.textContent = '▶';
 		this.element.appendChild(markerSpan);
 
-		const textSpan = document.createElement('span');
-		textSpan.className = 'haibun-log-message-text';
-		textSpan.textContent = mainText;
-		this.element.appendChild(textSpan);
+		// Extract sequence path if present (format: "text (seqPath)" or "[seqPath] text")
+		const seqPathMatchSuffix = mainText.match(/(.*)\s\((.*)\)$/);
+		const seqPathMatchPrefix = mainText.match(/^\s*\[(.*)\]\s+(.*)$/);
+
+		if (seqPathMatchSuffix) {
+			mainText = seqPathMatchSuffix[1];
+			seqPathText = seqPathMatchSuffix[2];
+		} else if (seqPathMatchPrefix) {
+			seqPathText = seqPathMatchPrefix[1];
+			mainText = seqPathMatchPrefix[2];
+		}
+
+		const textContainer = document.createElement('div');
+		textContainer.className = 'haibun-log-message-text';
+
+		// Heuristic: If it starts with a lowercase letter, it's likely an executable step
+		if (/^\s*[a-z]/.test(mainText)) {
+			textContainer.classList.add('haibun-log-step');
+		}
+
+		// Store both plain text and markdown-rendered versions
+		let markdownHtml = '';
+		try {
+			const md = new MarkdownIt({
+				html: true,
+				linkify: true,
+				typographer: true
+			});
+			markdownHtml = md.render(mainText);
+		} catch (e) {
+			console.error('Error rendering markdown:', e);
+			markdownHtml = `<div class="haibun-error">Error rendering markdown: ${e}</div>`;
+		}
+
+		// Create container for plain text
+		const plainSpan = document.createElement('span');
+		plainSpan.className = 'haibun-prose-plain';
+		plainSpan.textContent = mainText;
+
+		// Create container for markdown
+		const markdownDiv = document.createElement('div');
+		markdownDiv.className = 'haibun-prose-markdown';
+		markdownDiv.innerHTML = markdownHtml;
+
+		textContainer.appendChild(plainSpan);
+		textContainer.appendChild(markdownDiv);
+		this.element.appendChild(textContainer);
 
 		this.append(this.labelSpan);
 

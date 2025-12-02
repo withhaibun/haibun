@@ -40,7 +40,7 @@ describe('HtmlArtifactDisplay', () => {
 		const messageSummary = details?.querySelector('.haibun-log-message-summary');
 		expect(messageSummary).not.toBeNull();
 		expect(messageSummary?.textContent).toContain('HTML Artifact');
-		expect(messageSummary?.querySelector('.details-type')?.textContent).toBe('html');
+		expect(messageSummary?.querySelector('.haibun-log-label')?.textContent).toBe('html');
 
 		const artifactContainer = details?.querySelector('.haibun-artifact-container.haibun-artifact-html') as HTMLElement;
 		expect(artifactContainer).not.toBeNull();
