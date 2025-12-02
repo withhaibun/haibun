@@ -9,7 +9,7 @@ import { FlowRunner } from '../lib/core/flow-runner.js';
 // need this type because some steps are virtual
 type TActivitiesFixedSteps = {
 	activity: TStepperStep;
-	waypoint: TStepperStep;
+	waypointWithProof: TStepperStep;
 	waypointLabel: TStepperStep;
 	ensure: TStepperStep;
 	showWaypoints: TStepperStep;
@@ -75,7 +75,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			action: () => OK
 		},
 
-		waypoint: {
+		waypointWithProof: {
 			gwta: `waypoint {outcome} with {proof:${DOMAIN_STATEMENT}}`,
 			precludes: ['ActivitiesStepper.waypointLabel'],
 			resolveFeatureLine: (line: string, path: string, _stepper: AStepper, _backgrounds: TFeatures, allLines?: string[], lineIndex?: number) => {
@@ -319,8 +319,17 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 					}
 				}
 
-				// 2. Proof Failed or Missing
+				// 2. Proof Failed or not present
 				if (!featureStep.intent?.stepperOptions?.isEnsure) {
+					if (activityBlockSteps && activityBlockSteps.length > 0) {
+						this.getWorld().logger.debug(`ActivitiesStepper: running activity body for outcome "${outcome}" (no ensure)`);
+						const act = await this.runner.runStatements(activityBlockSteps, { args: args as Record<string, string>, intent: { mode: 'authoritative', usage: featureStep.intent?.usage }, parentStep: featureStep });
+						if (act.kind !== 'ok') {
+							return actionNotOK(`ActivitiesStepper: activity body failed for outcome "${outcome}": ${act.message}`);
+						}
+						return actionOK();
+					}
+
 					if (proofStatements.length > 0) {
 						return actionNotOK(`ActivitiesStepper: proof failed for outcome "${outcome}"`);
 					}
