@@ -5,7 +5,7 @@ import VariablesStepper from '@haibun/core/steps/variables-stepper.js';
 const activitiesStepper = new ActivitiesStepper();
 const variablesStepper = new VariablesStepper();
 
-const { waypoint } = withAction(activitiesStepper);
+const { waypointWithProof } = withAction(activitiesStepper);
 const { set } = withAction(variablesStepper);
 
 export const loggedIn = 'User is logged in';
@@ -16,7 +16,7 @@ export const backgrounds = {
     'Define reusable outcomes for testing.',
     set({ what: 'username', value: 'testuser' }),
     set({ what: 'loggedIn', value: 'true' }),
-    waypoint({ outcome: loggedIn, proof: 'set loggedIn to true' }),
-    waypoint({ outcome: dataLoaded, proof: 'set dataReady to yes' }),
+    waypointWithProof({ outcome: loggedIn, proof: 'set loggedIn to true' }),
+    waypointWithProof({ outcome: dataLoaded, proof: 'set dataReady to yes' }),
   ],
 };

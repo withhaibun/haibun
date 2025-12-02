@@ -66,7 +66,7 @@ variable xy is "12"`
 		const result = await failWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesStepper]);
 
 		expect(result.ok).toBe(false);
-		expect(result.failure?.stage).toBe('Resolve');
+		expect(result.failure?.stage).toBe('Execute');
 		expect(result.failure?.error.message).toMatch(/Nonexistent outcome|no step found/);
 	});
 

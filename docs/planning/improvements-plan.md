@@ -23,7 +23,7 @@ Instead of hardcoded "Developer" or "User" logs, views are projections based on 
 ### 2.1. MCP/JSON-RPC as the Core Interface
 **Goal:** Simplify the codebase by making the `Executor` natively speak a standard protocol.
 -   **Standard Interface:** The `Executor` implements a JSON-RPC / MCP interface.
--   **Simplification:** CLI, Test Runner, and Agents use this same API.
+-   **Simplification:** CLI/Test Runner and Agents use this same API.
 -   **Rationalized State:** Executor flags are refactored into a typed configuration object passed via RPC.
 
 ### 2.2. Static Resolution (Resolve Time)
@@ -98,3 +98,15 @@ We define types using Haibun compound statements and sets, rather than raw JSON.
 -   **Mermaid Diagrams:** Generated from the *resolved* static tree, accurately reflecting all paths.
     -   **Animation:** The diagram view should support animation to visualize the execution flow step-by-step.
 -   **Terminology:** Avoid overly generalized terms. Use specific terms like `executionScope`, `schemaDefinition`, and `subject`.
+
+## 6. Support Markdown
+**Goal:** Enable "Literate Testing" by allowing feature files to be written in Markdown (`.md`).
+-   **Mechanism:** The feature collector should accept `.md` files in addition to `.feature` files.
+-   **Parsing:**
+    -   Extract Gherkin content from fenced code blocks (e.g., ```gherkin or ```feature).
+    -   Optionally, treat the entire file as a feature if it follows a specific structure (e.g., starts with `# Feature:`).
+-   **Benefits:**
+    -   Allows rich documentation alongside tests.
+    -   Enables "executable specifications" that are easy to read and maintain.
+-   **Compatibility:** Existing `.feature` files must continue to work without modification.
+-   **User Experience:** The process should be transparent to the user. `haibun-cli` should automatically detect and process `.md` files in the feature directory.
