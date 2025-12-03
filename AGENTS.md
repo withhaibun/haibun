@@ -1,10 +1,10 @@
 # Haibun agents guide
 
-This document is verified and generated from [e2e-tests](e2e-tests/tests/features/agents-examples.feature).
+This document is designed for human and AI developers. It can be verified from [e2e-tests](e2e-tests/tests/features/agents-examples.feature).
 
 ## What is Haibun?
 
-Haibun is a declarative, logic-based, literate framework designed to unify specification, verification, and documentation in a single "executable" format.
+Haibun is a declarative, logic-grounded, literate orchestrator designed to unify specification, verification, and documentation in a single "executable" format.
 
 The same file serves three purposes: defining expected behavior, verifying systems against that specification, and explaining the system to readers. All statements are reusable, built on a tested core and steppers.
 
@@ -14,7 +14,7 @@ The same file serves three purposes: defining expected behavior, verifying syste
 
 ### Literate programming
 
-Documentation becomes the test; prose provides context, and executable statements verify behavior.
+Documentation becomes the test; prose provides context, and executable statements verify behavior. All statements are strictly validated.
 
 ## What can be tested?
 
@@ -58,6 +58,16 @@ Compound statements use the statement domain to compose logic:
 Activities and waypoints enable reusable goal-oriented, idempotent tests.
 
 NB The ensure pattern guarantees prerequisites, not outcomes. Use ensure to establish the starting state required for a test (e.g. auth or database setup). Avoid using ensure to enforce the primary behavior under test, as it may obscure failure logic by "correcting" it.
+
+```mermaid
+graph TD
+    A[Start 'ensure Goal'] --> B{Check Goal Proof}
+    B -- Pass --> C[Skip Activity \n(Idempotent)]
+    B -- Fail --> D[Run 'Activity' Steps]
+    D --> E{Check Goal Proof Again}
+    E -- Pass --> F[Success]
+    E -- Fail --> G[Fail Test]
+```
 
 ### Defining activities
 
