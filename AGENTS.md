@@ -162,7 +162,7 @@ Logic steps enable complex workflows and limited conditional behavior.
 
 ## File organization
 
-Backgrounds are stored in the backgrounds folder at the same level as features.
+Backgrounds are stored in the backgrounds folder at the same level as features. See [examples used by feature tests](e2e-tests/tests/backgrounds/).
 
 ### Backgrounds
 
@@ -287,4 +287,4 @@ NB these tests use variables for proofs, in a "live" system they might rely on A
 
 ## Next steps
 
-Examples are available in [e2e-tests](e2e-tests/tests/features/agents-examples.feature).
+Examples are available in [e2e-tests](e2e-tests/tests/features/).
