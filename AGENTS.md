@@ -265,7 +265,7 @@ NB these tests use variables for proofs, in a "live" system they might rely on A
     Activity: Initialize entities for {name}
     every entity in entities is ordered set of {name}/{entity} is ["void", "created"]
     every entity in entities is set status_{name}/{entity} as {name}/{entity} to "void"
-    waypoint Entities initialized for {name} with every entity in entities is variable status_{name}/{entity} is "void"
+    waypoint Entities initialized for {name} with every entity in entities is variable status_{name}/{entity} is set
 
     ensure Entities initialized for test
 
