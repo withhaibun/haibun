@@ -95,7 +95,7 @@ Makes tests idempotent and resilient.
 
     set count as number to 0
 
-Activity: Create Admin
+    Activity: Create Admin
     set admin_exists to "false"
     increment count
     set admin_exists to "true"
@@ -140,7 +140,7 @@ These variables are updated by steppers when they are active.
 
 ## Part 4: Domains
 
-Domains act as **Types** (or Sets) in a formal system, defining the universe of valid values. Variables are **Terms** that must belong to a specific Domain ($x \in D$).
+Domains act as **Types** (or Sets) in a formal system, defining a universe of valid values. Variables are **Terms** that must belong to a specific Domain ($x \in D$).
 
 ### Unordered sets
 
@@ -151,7 +151,7 @@ Domains act as **Types** (or Sets) in a formal system, defining the universe of 
 
 Haibun enforces **soundness** by preventing invalid states. A variable cannot hold a value outside its domain.
 
-    not set user_role as roles to "guest" ;; without not, this would fail because "guest" is not in roles
+    not set user_role as roles to "guest" ;; without `not`, this would fail because "guest" is not in roles
 
 ### Ordered sets
 
@@ -195,7 +195,7 @@ Comparisons enable reusable waypoints that check minimum state.
     ordered set of order_stages is ["placed", "packed", "shipped", "delivered"]
     set order_status as order_stages to "placed"
 
-Activity: Process order
+    Activity: Process order
     whenever variable order_status is less than "shipped", increment order_status
     waypoint Order is at least shipped with not variable order_status is less than "shipped"
 
@@ -247,7 +247,7 @@ NB these tests use variables for proofs, in a "live" system they might rely on A
     ordered set of Ticket states is ["open", "assigned", "resolved", "closed"]
     set ticket as Ticket states to "open"
 
-Activity: Process ticket
+    Activity: Process ticket
     whenever variable ticket is less than "closed", increment ticket
     waypoint Ticket is closed with variable ticket is "closed"
 
@@ -258,7 +258,7 @@ Activity: Process ticket
     set API Endpoint to "api.staging.example.com"
     set API Timeout as number to 5000
 
-Activity: API health check
+    Activity: API health check
     set API Status to "false" 
     set API Status to "true"
     waypoint API responds with variable API Status is "true"
@@ -276,7 +276,7 @@ Inline explanations use `;;`.
 
 ### Pattern 1: Idempotent setup
 
-Activity: Environment setup
+    Activity: Environment setup
     set Environment configured to "false"
     set Environment configured to "true"
     waypoint Environment is configured with variable Environment configured is "true"
@@ -288,18 +288,18 @@ Activity: Environment setup
     ordered set of Approval stages is ["draft", "reviewed", "approved"]
     set Document stage as Approval stages to "draft"
 
-Activity: Approve document
+    Activity: Approve document
     whenever variable Document stage is less than "approved", increment Document stage
     waypoint Document is at least reviewed with not variable Document stage is less than "reviewed"
 
-Checks for minimum required state (at least "reviewed"), not exact state.
+    Checks for minimum required state (at least "reviewed"), not exact state.
 
     ensure Document is at least reviewed ;; activity increments to "approved", proof passes
     variable Document stage is "approved" ;; verify the activity ran to completion
 
 ### Pattern 3: Parameterized workflows
 
-Activity: Publish article
+    Activity: Publish article
     set published to {article}
     waypoint Article {article} is published with variable published is {article}
 
@@ -309,7 +309,7 @@ Activity: Publish article
 
     set of entities is ["a", "b"]
 
-Activity: Initialize entities for {name}
+    Activity: Initialize entities for {name}
     every entity in entities is ordered set of {name}/{entity} is ["void", "created"]
     every entity in entities is set status_{name}/{entity} as {name}/{entity} to "void"
     waypoint Entities initialized for {name} with every entity in entities is variable status_{name}/{entity} is "void"
