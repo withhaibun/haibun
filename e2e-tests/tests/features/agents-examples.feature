@@ -1,48 +1,39 @@
 # Haibun agents guide
 
+This document is tested and generated from [e2e-tests](e2e-tests/tests/features/agents-examples.feature).
 ## What is Haibun?
 
-Haibun is a declarative, logic-based, literate framework designed to unify specification, verification, and documentation in a single executable format.
+Haibun is a declarative, logic-based, literate framework designed to unify specification, verification, and documentation in a single "executable" format.
 
 The same file serves three purposes: defining expected behavior, verifying systems against that specification, and explaining the system to readers.
 
-> This document is executable; lines starting with lowercase letters are steps. Run `npm test -- agents` to execute all examples.
-> The ecosystem evolves. Rely on runtime discovery rather than static documentation.
+> This document is executable; lines starting with lowercase letters are steps. Run `npm test -- agents` in the e2e-tests directory to execute all examples.
 
 ## Core philosophy
 
 ### Literate programming
 
-Documentation becomes the test. Prose provides context. Executable steps verify behavior.
-
-### Waypoints over variables
-
-Waypoints verify system states and behaviors.
-
-Variables serve three purposes:
-- Parameterization across environments
-- Reusability of test logic
-- Lightweight state tracking for test efficiency
-
-Variables track configuration and test state, not primary system verification.
+Documentation becomes the test; prose provides context, and executable statements verify behavior.
 
 ## What can be tested?
 
-Steppers are modules that provide testing capabilities.
+Web applications, custom systems, and extended domains can be tested via steppers that execute steps.
 
-Web applications, custom systems, and extended domains can be tested.
+Steppers are modules that provide testing capabilities. They are configured via a config.json file, and each may have their own runtime options. Use `--help` with haibun-cli and a config.json (typically, `npm test -- --help`to see current options.
 
 ## Case sensitivity rule
 
-**Steps** start with **lowercase** letters.
-**Prose** (documentation) starts with uppercase or symbols.
+**Prose** (description) lines start with **uppercase or symbols**, analogous to the objective prose of Haibun.
+**Steps** statements start with **lowercase** letters, analogous to the haikus of Haibun.
 
 set example to "test"
 variable example is "test"
 
+Steps can also be written as Typescript modules, analogous to kireji, identified with .feature.ts. They can be mixed with text form and are displayed in text form during execution. Kireji provides syntax checking and navigation. See [examples in e2e-tests](e2e-tests/tests/features/).
+
 ## Part 1: Compound statements
 
-Compound statements combine multiple steps or introduce control flow.
+Compound statements combine multiple steps in one line. 
 
 ### The statement domain
 
@@ -63,9 +54,9 @@ where variable x is "1", set y to "2" ;; where accepts condition and action stat
 
 ## Part 2: Activities & waypoints
 
-Activities and waypoints enable reusable goal-oriented, self-healing tests.
+Activities and waypoints enable reusable goal-oriented, idempotent tests.
 
-NB The ensure pattern guarantees prerequisites, not outcomes. Use self-healing to establish the starting state required for a test (e.g. database setup). Avoid using ensure to verify the primary behavior under test, as it may obscure failure logic by "correcting" it.
+NB The ensure pattern guarantees prerequisites, not outcomes. Use ensure to establish the starting state required for a test (e.g. auth or database setup). Avoid using ensure to enforce the primary behavior under test, as it may obscure failure logic by "correcting" it.
 
 ### Defining activities
 
@@ -97,7 +88,7 @@ ensure Database is initialized
 
 show waypoints ;; see all verified waypoints
 
-### Self-healing pattern
+### Idempotent pattern
 
 Makes tests idempotent and resilient.
 
@@ -121,11 +112,11 @@ Variables enable parameterization and reusable test configurations between envir
 
 Use variables for:
 - Configuration (URLs, credentials)
-- Test data parameterization
-- Cross-environment reusability
+- Test data parameterization including for waypoints
 - Test efficiency (eg track expected entity state)
+- Cross-environment reusability
 
-Avoid using variables to track live system state — use waypoints instead.
+Avoid using variables to track live system state, use waypoints instead.
 
 ### Setting variables
 
@@ -139,6 +130,12 @@ variable base_url is "https://example.com"
 variable timeout is 30
 
 show vars ;; inspect all variables with domains and values
+
+### Built-in variables
+
+These variables are updated by steppers when they are active.
+
+`WebPlaywright.currentURI` and `WebPlaywright.navigationCount` during page navigation.
 
 ## Part 4: Domains
 
@@ -231,12 +228,14 @@ set workflow as workflow_states to "start"
 whenever variable workflow is less than "complete", increment workflow
 variable workflow is "complete"
 
-## Part 7: Advanced patterns
+## Part 7: Usage patterns
+
+NB these tests use variables for proofs, in a "live" system they might rely on API endpoints or browser elements.
 
 ### Domain-driven workflows
 
-ordered set of ticket_states is ["open", "assigned", "resolved", "closed"]
-set ticket as ticket_states to "open"
+ordered set of Ticket states is ["open", "assigned", "resolved", "closed"]
+set ticket as Ticket states to "open"
 
 Activity: Process ticket
 whenever variable ticket is less than "closed", increment ticket
@@ -246,13 +245,13 @@ ensure Ticket is closed
 
 ### Parameterized tests
 
-set api_endpoint to "api.staging.example.com"
-set api_timeout as number to 5000
+set API Endpoint to "api.staging.example.com"
+set API Timeout as number to 5000
 
 Activity: API health check
-set api_healthy to "false" 
-set api_healthy to "true"
-waypoint API responds with variable api_healthy is "true"
+set API Status to "false" 
+set API Status to "true"
+waypoint API responds with variable API Status is "true"
 
 ensure API responds 
 
@@ -265,28 +264,28 @@ show vars ;; inspect current state
 
 ## Common patterns
 
-### Pattern 1: Self-healing setup
+### Pattern 1: Idempotent setup
 
 Activity: Environment setup
-set env_configured to "false"
-set env_configured to "true"
-waypoint Environment is configured with variable env_configured is "true"
+set Environment configured to "false"
+set Environment configured to "true"
+waypoint Environment is configured with variable Environment configured is "true"
 
 ensure Environment is configured
 
 ### Pattern 2: Efficient state checks
 
-ordered set of approval_stages is ["draft", "reviewed", "approved"]
-set doc_stage as approval_stages to "draft"
+ordered set of Approval stages is ["draft", "reviewed", "approved"]
+set Document stage as Approval stages to "draft"
 
 Activity: Approve document
-whenever variable doc_stage is less than "approved", increment doc_stage
-waypoint Document is at least reviewed with not variable doc_stage is less than "reviewed"
+whenever variable Document stage is less than "approved", increment Document stage
+waypoint Document is at least reviewed with not variable Document stage is less than "reviewed"
 
-Check for minimum required state (at least "reviewed"), not exact state.
+Checks for minimum required state (at least "reviewed"), not exact state.
 
 ensure Document is at least reviewed ;; activity increments to "approved", proof passes
-variable doc_stage is "approved" ;; verify the activity ran to completion
+variable Document stage is "approved" ;; verify the activity ran to completion
 
 ### Pattern 3: Parameterized workflows
 
@@ -298,8 +297,4 @@ ensure Article "Writing haibuns" is published
 
 ## Next steps
 
-Real examples are available in `e2e-tests/tests/features/`:
-- Web automation
-- Complex workflows
-- Self-healing patterns
-- Domain-driven testing
+Examples are available in `e2e-tests/tests/features/.
