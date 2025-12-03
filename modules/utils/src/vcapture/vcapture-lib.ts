@@ -3,9 +3,8 @@ import { resolve } from 'path';
 import { writeFileSync, unlinkSync, readFileSync, mkdirSync, existsSync } from 'fs';
 import { tmpdir } from 'os';
 
-import { getPackageLocation } from '@haibun/core/lib/util/workspace-lib.js';
+import { getPackageLocation, workspaceRoot } from '@haibun/core/lib/util/workspace-lib.js';
 import { HOST_PROJECT_DIR } from '@haibun/core/lib/util/actualURI.js';
-import { findProjectRoot } from '@haibun/core/lib/util/find-project-root.js';
 
 export type TCaptureOptions = {
 	recreate: boolean;
@@ -66,7 +65,7 @@ ${(asYamlOptions(composeEnvironment))}
 
 export function getContainerSetup(thisRunOptions: TCaptureOptions, includeDirs: string[], testToRun: string) {
 	const utilDir = resolve(getPackageLocation(import.meta), '..', '..', 'vcapture');
-	const projectDir = findProjectRoot();
+	const projectDir = workspaceRoot;
 	const tmpFile = resolve(tmpdir(), `docker-compose.override-${Date.now()}.yml`);
 
 	const envs = existsSync(`${projectDir}/.env`) ? readFileSync(`${projectDir}/.env`, 'utf8').split('\n').filter(l => l.length > 0) : [];

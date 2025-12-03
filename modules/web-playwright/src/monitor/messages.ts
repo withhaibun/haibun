@@ -318,11 +318,7 @@ class LogMessageSummary extends LogComponent<HTMLElement> {
 
 		const isProse = stepperName === 'Haibun' && actionName === 'prose';
 		const isAction = incident === EExecutionMessageType.ACTION;
-		const isStep = !isProse && !isAction && (
-			incident === EExecutionMessageType.STEP_START ||
-			incident === EExecutionMessageType.STEP_END ||
-			/^\s*[a-z]/.test(mainText)
-		);
+		const isStep = !isProse && !isAction && /^\s*[a-z]/.test(mainText);
 
 		if (isStep) {
 			textContainer.classList.add('haibun-log-step');

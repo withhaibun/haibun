@@ -103,7 +103,7 @@ describe('Monitor Messages Logic (messages.ts)', () => {
 
 			// The summary should show the message as-is
 			expect(summary?.textContent).toContain('Given something');
-			expect(summary?.querySelector('.haibun-log-label')?.textContent).toBe('test.feature:1');
+			expect(summary?.querySelector('.haibun-log-label')?.textContent).toBe('test.feature');
 			expect(messageContent?.classList.contains('haibun-simple-message')).toBe(false);
 		});
 		it('should render markdown in summary message', () => {
