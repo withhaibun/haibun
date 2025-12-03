@@ -93,8 +93,8 @@ export class LogMessageContent extends LogComponent {
 
 			if (incidentDetails && typeof incidentDetails === 'object' && 'featureStep' in incidentDetails) {
 				const { featureStep } = incidentDetails as any;
-				if (featureStep?.path && featureStep?.seqPath) {
-					labelForSummary = `${featureStep.path}:${featureStep.seqPath}`;
+				if (featureStep?.path) {
+					labelForSummary = featureStep.path;
 				}
 			}
 
@@ -128,7 +128,9 @@ export class LogMessageContent extends LogComponent {
 				detailsElement.open = true;
 			}
 
-			const messageSummary = new LogMessageSummary(summaryMessageToDisplay, labelForSummary);
+			const { stepperName, actionName } = (incidentDetails as any)?.featureStep?.action || {};
+			const hasArtifacts = artifacts && artifacts.length > 0;
+			const messageSummary = new LogMessageSummary(summaryMessageToDisplay, labelForSummary, incident, stepperName, actionName, hasArtifacts);
 			if (incident === EExecutionMessageType.STEP_START) {
 				const loader = document.createElement('div');
 				loader.className = 'haibun-loader';
@@ -185,7 +187,6 @@ export class LogMessageContent extends LogComponent {
 			this.append(detailsElement);
 		} else {
 			this.addClass('haibun-simple-message');
-			// Store both plain text and markdown-rendered versions
 
 			let markdownHtml = '';
 			try {
@@ -195,8 +196,6 @@ export class LogMessageContent extends LogComponent {
 					typographer: true
 				});
 
-				// Heuristic: If it starts with '>', treat as prose (blockquote).
-				// Otherwise, treat as technical output and wrap in code block.
 				if (message.trim().startsWith('>')) {
 					markdownHtml = md.render(message);
 				} else {
@@ -252,41 +251,39 @@ export class LogMessageContent extends LogComponent {
 
 class LogMessageSummary extends LogComponent<HTMLElement> {
 	private labelSpan: HTMLSpanElement;
+	private emoji: string | undefined;
 
-	constructor(summaryMessage: string, initialLabel: string) {
+	constructor(summaryMessage: string, initialLabel: string, incident?: EExecutionMessageType, stepperName?: string, actionName?: string, hasArtifacts: boolean = false) {
 		super('summary', 'haibun-log-message-summary');
 		this.labelSpan = document.createElement('span');
 		this.labelSpan.className = 'haibun-log-label';
+		if (hasArtifacts) {
+			this.labelSpan.classList.add('haibun-log-artifact-label');
+		}
 		this.labelSpan.textContent = initialLabel;
 
 		let mainText = summaryMessage;
 		let seqPathText = '';
 
-		// Handle emojis first
-		// Use non-ASCII characters as a heuristic for emojis to avoid matching markdown like ###
-		const emojiMatch = mainText.match(/^([^\x00-\x7F]+)\s*(.*)/);
+		// Extract and strip Emoji
+		const emojiMatch = mainText.match(/^(\p{Extended_Pictographic}|\p{Emoji_Presentation})\s+(.*)$/u);
 		if (emojiMatch) {
-			const emojiText = emojiMatch[1];
+			this.emoji = emojiMatch[1];
 			mainText = emojiMatch[2];
+		}
 
+		if (this.emoji) {
 			const emojiSpan = document.createElement('span');
 			emojiSpan.className = 'haibun-log-emoji';
-			emojiSpan.textContent = emojiText;
+			emojiSpan.textContent = this.emoji;
 			this.element.appendChild(emojiSpan);
 		} else {
-			// Empty span to keep grid alignment
 			const emptySpan = document.createElement('span');
 			this.element.appendChild(emptySpan);
 		}
 
-		const markerSpan = document.createElement('span');
-		markerSpan.className = 'haibun-log-marker';
-		markerSpan.textContent = '▶';
-		this.element.appendChild(markerSpan);
-
-		// Extract sequence path if present (format: "text (seqPath)" or "[seqPath] text")
-		const seqPathMatchSuffix = mainText.match(/(.*)\s\((.*)\)$/);
-		const seqPathMatchPrefix = mainText.match(/^\s*\[(.*)\]\s+(.*)$/);
+		const seqPathMatchSuffix = mainText.match(/^(.*)\s\(([\d.,-]+)\)$/);
+		const seqPathMatchPrefix = mainText.match(/^\s*\[([\d.,-]+)\]\s*(.*)$/);
 
 		if (seqPathMatchSuffix) {
 			mainText = seqPathMatchSuffix[1];
@@ -296,12 +293,41 @@ class LogMessageSummary extends LogComponent<HTMLElement> {
 			mainText = seqPathMatchPrefix[2];
 		}
 
+		const pathSuffixMatch = mainText.match(/^(.*)\s+([^\s]+:([\d.,-]+))$/);
+		const wholePathMatch = mainText.match(/^([^\s]+:([\d.,-]+))$/);
+
+		if (pathSuffixMatch) {
+			mainText = pathSuffixMatch[1];
+			if (!seqPathText) {
+				seqPathText = pathSuffixMatch[3].replace(/,/g, '.');
+			}
+		} else if (wholePathMatch) {
+			if (!seqPathText) {
+				seqPathText = wholePathMatch[2].replace(/,/g, '.');
+			}
+			mainText = '';
+		}
+
+		// Sanitize seqPathText to remove confusing prefixes like "1-" or ".."
+		if (seqPathText) {
+			seqPathText = seqPathText.replace(/^1-/, '').replace(/^\.+/, '');
+		}
+
 		const textContainer = document.createElement('div');
 		textContainer.className = 'haibun-log-message-text';
 
-		// Heuristic: If it starts with a lowercase letter, it's likely an executable step
-		if (/^\s*[a-z]/.test(mainText)) {
+		const isProse = stepperName === 'Haibun' && actionName === 'prose';
+		const isAction = incident === EExecutionMessageType.ACTION;
+		const isStep = !isProse && !isAction && (
+			incident === EExecutionMessageType.STEP_START ||
+			incident === EExecutionMessageType.STEP_END ||
+			/^\s*[a-z]/.test(mainText)
+		);
+
+		if (isStep) {
 			textContainer.classList.add('haibun-log-step');
+		} else if (isAction) {
+			textContainer.classList.add('haibun-log-action');
 		}
 
 		// Store both plain text and markdown-rendered versions

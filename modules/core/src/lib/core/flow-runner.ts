@@ -30,14 +30,14 @@ export class FlowRunner {
     let seqPath = options.seqPath;
     if (!seqPath) {
       if (options.parentStep) {
-        seqPath = incSeqPath(this.world.runtime.stepResults, [...options.parentStep.seqPath, 0], 1);
+        seqPath = incSeqPath(this.world.runtime.stepResults, [...options.parentStep.seqPath, 1], 1);
       } else {
         throw new Error(`runStatement requires seqPath or parentStep. Statement: ${statement}`);
       }
     }
 
     const featureStep: TFeatureStep = {
-      path: this.world.runtime.feature || 'unknown',
+      path: options.parentStep?.path || this.world.runtime.feature || 'unknown',
       in: interpolated,
       seqPath,
       action,

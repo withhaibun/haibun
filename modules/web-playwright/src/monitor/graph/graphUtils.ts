@@ -18,7 +18,7 @@ export const sanitize = (text: string): string => {
 
 export const formatLabel = (text: string): string => {
     const raw = normalizeForDisplay(text === undefined || text === null ? ' ' : String(text));
-    const escaped = raw.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const escaped = raw.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/`/g, '#96;');
     const finalLabel = escaped === '' ? ' ' : escaped;
     return `"${finalLabel}"`;
 };

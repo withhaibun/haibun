@@ -205,17 +205,22 @@
 		}
 
 		.haibun-seqpath {
-			font-size: 0.8em;
+			font-size: 0.65em;
 			color: #888;
 			font-family: 'Roboto Mono', monospace;
-			grid-column: 3 / -1;
-			/* Default: Align with text (col 3) */
+			grid-column: 4;
+			justify-self: stretch;
+			text-align: left;
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			padding-left: 5px;
 			margin-top: 0;
 		}
 
-		/* Step Start SeqPath alignment (Col 4) */
+		/* Step Start SeqPath alignment (Col 5) */
 		.haibun-step-start .haibun-seqpath {
-			grid-column: 4 / -1;
+			grid-column: 5;
 		}
 
 		#haibun-log-display-area {
@@ -242,10 +247,63 @@
 			display: none;
 		}
 
-		.view-documentation .haibun-log-label,
-		.view-documentation .haibun-log-emoji,
-		.view-documentation .haibun-log-marker,
-		.view-documentation .haibun-seqpath {
+		.haibun-log-entry .haibun-log-label {
+			font-size: 0.7em;
+			color: #555;
+			background-color: #eee;
+			border-radius: 12px;
+			padding: 2px 8px;
+			justify-self: end;
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			max-width: 200px;
+			font-weight: bold;
+			line-height: 1.4;
+		}
+
+		.haibun-log-artifact-label {
+			background-color: #e6e6fa !important;
+			/* Lavender */
+			color: #4b0082 !important;
+			/* Indigo */
+			border: 1px solid #d8bfd8;
+		}
+
+		.haibun-log-artifact-label::before {
+			content: '📦 ';
+			font-size: 0.9em;
+		}
+
+		.haibun-log-action {
+			font-family: 'Roboto Mono', monospace;
+			white-space: pre-wrap;
+			color: #000080;
+			/* Navy blue for actions */
+		}
+
+		/* Info level styling */
+		.haibun-level-info .haibun-prose-plain {
+			font-family: 'Roboto Mono', monospace;
+			white-space: pre-wrap;
+			color: #000080;
+			font-size: 0.8em;
+		}
+
+		.view-documentation .haibun-level-info .haibun-prose-plain {
+			display: block !important;
+			margin-left: 60px;
+			/* Indent more than steps (20px) */
+		}
+
+		.view-documentation .haibun-level-info .haibun-prose-markdown {
+			display: none !important;
+		}
+
+		.view-documentation .haibun-log-entry .haibun-log-label,
+		.view-documentation .haibun-log-entry .haibun-log-emoji,
+		.view-documentation .haibun-log-entry .haibun-log-marker,
+		.view-documentation .haibun-log-entry .haibun-seqpath {
 			display: none;
 		}
 
@@ -354,7 +412,7 @@
 		/* Custom Summary Layout for Emoji/Marker switching */
 		.haibun-message-content details>summary {
 			display: grid;
-			grid-template-columns: auto auto 1fr auto;
+			grid-template-columns: auto 1fr auto 100px;
 			align-items: baseline;
 			gap: 5px;
 			list-style: none;
@@ -363,7 +421,7 @@
 
 		/* Handle Step Start with Loader (5 columns) */
 		.haibun-step-start .haibun-message-content details>summary {
-			grid-template-columns: auto auto auto 1fr auto;
+			grid-template-columns: auto auto 1fr auto 100px;
 		}
 
 		.haibun-message-content details>summary::-webkit-details-marker {
