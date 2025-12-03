@@ -46,7 +46,17 @@ Variables enable parameterization and reusable test configurations between envir
 
 ### Scoping
 
-Variables and domains have Feature scope. They are maintained between activities and scenarios, and cleared between features.
+Variables and domains have Feature scope. They are maintained between activities and scenarios, and cleared between features. NB currently there is no mitigation for variable collisions and side effects.
+
+    set v to 1
+
+    Activity: Demonstrate scoping
+    set v to 2
+    waypoint Variable changed by waypoint
+
+    Variable changed by waypoint
+
+    variable v is 2
 
 ### Variables
 
