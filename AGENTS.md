@@ -44,12 +44,20 @@ Inline explanations use `;;`.
 
 Variables enable parameterization and reusable test configurations between environments. Domains act as **Types** (or Sets) in a formal system, defining a universe of valid values. Variables are **Terms** that must belong to a specific Domain ($x \in D$).
 
+### Scoping
+
+Variables and domains have Feature scope. They are maintained between activities and scenarios, and cleared between features.
+
 ### Variables
 
 Use variables for configuration, test data, and efficiency.
 
     set base_url to "https://example.com"
     set timeout as number to 30
+
+#### Stepper variables
+
+Some steppers provide variables that are updated when steps execute. For example, `WebPlaywright.currentURI` and `WebPlaywright.navigationCount`.
 
 ### Domains (Unordered sets)
 
@@ -152,9 +160,17 @@ Logic steps enable complex workflows and limited conditional behavior.
     whenever variable counter is less than 3, increment counter
     variable counter is 3
 
+## File organization
+
+Backgrounds are stored in the backgrounds folder at the same level as features.
+
+### Backgrounds
+
+Backgrounds are reusable steps that can be explicitly invoked with `Backgrounds: flows/login, flows/portal`, etc. It can become unweildy to manage many backgrounds, so using activities and waypoints may be preferred.
+
 ## Activities & waypoints
 
-Activities and waypoints enable reusable goal-oriented, idempotent tests.
+Activities and waypoints enable reusable goal-oriented, idempotent tests.  They are best stored in backgrounds, where they will be discovered without explicit imports (missing waypoints or duplicate naming results in errors).
 
 NB The ensure pattern guarantees prerequisites, not outcomes. Use ensure to establish the starting state required for a test (e.g. auth or database setup). Avoid using ensure to enforce the primary behavior under test, as it may obscure failure logic by "correcting" it.
 
