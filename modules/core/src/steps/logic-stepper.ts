@@ -1,5 +1,5 @@
 import { AStepper, TStepperSteps } from '../lib/astepper.js';
-import { OK, TFeatureStep, TWorld, ExecMode, Origin, TProvenanceIdentifier, TActionResult } from '../lib/defs.js';
+import { OK, TFeatureStep, TWorld, TActionResult } from '../lib/defs.js';
 import { actionNotOK, sleep } from '../lib/util/index.js';
 import { FlowRunner } from '../lib/core/flow-runner.js';
 import { DOMAIN_STATEMENT, normalizeDomainKey } from '../lib/domain-types.js';
@@ -109,11 +109,12 @@ export default class LogicStepper extends AStepper {
 
         let found = false;
         const statements = check.map(s => s.in);
+        const mode = featureStep.intent?.mode === 'speculative' ? 'speculative' : 'authoritative';
 
         for (const val of domainDef.values) {
           // Quote the value if it's a string to prevent variable resolution collision
           const argVal = typeof val === 'string' ? `"${val}"` : String(val);
-          const res = await this.runner.runStatements(statements, { args: { [variable]: argVal }, intent: { mode: 'speculative' }, parentStep: featureStep });
+          const res = await this.runner.runStatements(statements, { args: { [variable]: argVal }, intent: { mode }, parentStep: featureStep });
           if (res.kind === 'ok') {
             found = true;
             break;
@@ -136,11 +137,12 @@ export default class LogicStepper extends AStepper {
         }
 
         const statements = check.map(s => s.in);
+        const mode = featureStep.intent?.mode === 'speculative' ? 'speculative' : 'authoritative';
 
         for (const val of domainDef.values) {
-          // Quote the value if it's a string to prevent variable resolution collision
-          const argVal = typeof val === 'string' ? `"${val}"` : String(val);
-          const res = await this.runner.runStatements(statements, { args: { [variable]: argVal }, intent: { mode: 'speculative' }, parentStep: featureStep });
+          // Do not quote the value to allow flexible interpolation
+          const argVal = String(val);
+          const res = await this.runner.runStatements(statements, { args: { [variable]: argVal }, intent: { mode }, parentStep: featureStep });
           if (res.kind !== 'ok') {
             return actionNotOK(`Universal check failed for value "${val}": ${res.message}`);
           }

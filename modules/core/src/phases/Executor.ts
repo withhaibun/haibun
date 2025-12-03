@@ -61,14 +61,18 @@ export class Executor {
 	static async action(steppers: AStepper[], featureStep: TFeatureStep, found: TStepAction, args: TStepArgs, world: TWorld) {
 		const stepper = findStepper<AStepper>(steppers, found.stepperName);
 		const action = stepper.steps[found.actionName].action;
-		return await Promise.resolve(action(args, featureStep)).catch((caught: TAnyFixme) => {
-			world.logger.error(caught.stack);
+		try {
+			return await action(args, featureStep);
+		} catch (caught: TAnyFixme) {
+			if (featureStep.intent?.mode !== 'speculative') {
+				world.logger.error(caught.stack);
+			}
 			const messageContext = {
 				incident: EExecutionMessageType.ACTION,
 				incidentDetails: { caught: (caught?.stack || caught).toString() },
 			}
 			return actionNotOK(`in ${featureStep.in}: ${caught.message}`, { messageContext });
-		});
+		}
 	}
 	static async executeFeatures(steppers: AStepper[], world: TWorld, features: TResolvedFeature[]): Promise<TExecutorResult> {
 		await addStepperDomains(world, steppers);

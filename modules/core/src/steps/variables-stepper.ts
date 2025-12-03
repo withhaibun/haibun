@@ -280,6 +280,58 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				return actionOK({ artifact: { artifactType: 'json', json: { json: stepValue } } });
 			}
 		},
+		showDomains: {
+			gwta: 'show domains',
+			action: () => {
+				const domains = this.getWorld().domains;
+				const allVars = this.getWorld().shared.all();
+				const summary: Record<string, any> = {};
+
+				for (const [name, def] of Object.entries(domains)) {
+					// Count variables in this domain
+					let members = 0;
+					for (const variable of Object.values(allVars)) {
+						if (variable.domain && normalizeDomainKey(variable.domain) === name) {
+							members++;
+						}
+					}
+
+					// Determine type from schema or values
+					let type: string | string[] = JSON.stringify(def);
+					if ((def as any).values) {
+						type = (def as any).values;
+					} else if ((def as any).schema && (def as any).schema._def) {
+						type = (def as any).schema._def.typeName;
+					}
+
+					summary[name] = {
+						type,
+						members,
+						ordered: !!(def as any).comparator
+					};
+				}
+				this.getWorld().logger.info(`Domains: ${JSON.stringify(summary, null, 2)}`);
+				return OK;
+			}
+		},
+		showDomain: {
+			gwta: 'show domain {name}',
+			action: ({ name }: { name: string }) => {
+				const domain = this.getWorld().domains[name];
+				if (!domain) {
+					return actionNotOK(`Domain "${name}" not found`);
+				}
+				const allVars = this.getWorld().shared.all();
+				const members: Record<string, any> = {};
+				for (const [key, variable] of Object.entries(allVars)) {
+					if (variable.domain && normalizeDomainKey(variable.domain) === name) {
+						members[key] = variable.value;
+					}
+				}
+				this.getWorld().logger.info(`Domain "${name}": ${JSON.stringify({ ...domain, members }, null, 2)}`);
+				return OK;
+			}
+		},
 	} satisfies TStepperSteps;
 
 	private registerDomainFromStatement(domain: string, valueFragments: TFeatureStep[] | undefined, featureStep: TFeatureStep, options?: { ordered?: boolean; label?: string; description?: string }) {

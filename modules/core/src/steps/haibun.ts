@@ -170,13 +170,6 @@ class Haibun extends AStepper implements IHasCycles {
 			gwta: 'pause for {ms:number}s',
 			action: (async ({ ms }: { ms: number }) => { await sleep(ms * 1000); return OK; }),
 		},
-		showDomains: {
-			gwta: 'show domains',
-			action: () => {
-				this.getWorld().logger.info(`Domains: ${JSON.stringify(this.getWorld().domains, null, 2)}`);
-				return OK;
-			}
-		},
 		comment: {
 			gwta: ';;{comment}',
 			action: () => OK,
