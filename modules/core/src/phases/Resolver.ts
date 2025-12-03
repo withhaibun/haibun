@@ -52,8 +52,18 @@ export class Resolver {
 		const featureSteps: TFeatureStep[] = [];
 		const allLines = feature.expanded.map(fl => fl.line);
 		let seq = 0;
+		let inCodeBlock = false;
 		for (let i = 0; i < feature.expanded.length; i++) {
 			const featureLine = feature.expanded[i];
+			const line = featureLine.line.trim();
+			if (line.startsWith('```')) {
+				inCodeBlock = !inCodeBlock;
+				continue;
+			}
+			if (inCodeBlock) {
+				continue;
+			}
+
 			seq++;
 
 			const actionable = getActionable(featureLine.line);
