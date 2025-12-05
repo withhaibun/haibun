@@ -175,16 +175,15 @@ Logic steps enable complex workflows and limited conditional behavior.
 
 ### Quantifiers
 
-    set of numbers is ["1", "2", "3"]
+    set of numbers is [1, 2, 3]
 
 #### Existential (some)
 
-    some n in numbers is where set temp to {n}, variable temp is "2"
-		show var temp
+    some n in numbers is where set temp to {n}, variable temp is 2
 
 #### Universal (every)
 
-    every n in numbers is where set temp to {n}, variable temp is less than "4"
+    every n in numbers is where set temp as number to {n}, variable temp is less than 4
 
 ## File organization
 

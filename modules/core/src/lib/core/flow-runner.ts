@@ -1,6 +1,6 @@
 import { TWorld, TFeatureStep, TActionResult, TSeqPath, ExecMode, TStepResult, TNotOKActionResult } from '../defs.js';
 import { AStepper } from '../astepper.js';
-import { interpolate } from './context.js';
+import { interpolate } from '../util/variables.js';
 import { Resolver } from '../../phases/Resolver.js';
 import { FeatureExecutor, incSeqPath } from '../../phases/Executor.js';
 import { ExecutionIntent, FlowSignal, SystemMessage } from './protocol.js';

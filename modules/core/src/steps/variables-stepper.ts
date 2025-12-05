@@ -5,7 +5,7 @@ import { actionNotOK, actionOK } from '../lib/util/index.js';
 import { FeatureVariables } from '../lib/feature-variables.js';
 import { DOMAIN_STATEMENT, DOMAIN_STRING, normalizeDomainKey, createEnumDomainDefinition, registerDomains } from '../lib/domain-types.js';
 import { EExecutionMessageType } from '../lib/interfaces/logger.js';
-import { interpolate } from '../lib/core/context.js';
+import { interpolate, resolveVariable } from '../lib/util/variables.js';
 
 const clearVars = (vars) => () => {
 	vars.getWorld().shared.clear();
@@ -81,13 +81,10 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		increment: {
 			gwta: 'increment {what}',
 			action: ({ what }: { what: string }, featureStep: TFeatureStep) => {
-				let { term, domain } = featureStep.action.stepValuesMap.what;
-				const globalVars = Object.entries(this.getWorld().shared.all()).reduce((acc, [k, v]) => {
-					acc[k] = String(v.value);
-					return acc;
-				}, {} as Record<string, string>);
-				term = interpolate(term, globalVars, this.getWorld());
-				const presentVal = this.getVarValue(term);
+				let { term, domain, origin } = featureStep.action.stepValuesMap.what;
+				term = interpolate(term, {}, this.getWorld());
+				const resolved = resolveVariable({ term, origin, domain }, this.getWorld());
+				const presentVal = resolved.value;
 				
 				const stored = this.getWorld().shared.all()[term];
 
@@ -284,11 +281,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			gwta: 'show var {what}',
 			action: (args: TStepArgs, featureStep: TFeatureStep) => {
 				let { term } = featureStep.action.stepValuesMap.what;
-				const globalVars = Object.entries(this.getWorld().shared.all()).reduce((acc, [k, v]) => {
-					acc[k] = String(v.value);
-					return acc;
-				}, {} as Record<string, string>);
-				term = interpolate(term, globalVars, this.getWorld());
+				term = interpolate(term, {}, this.getWorld());
 				const stepValue = this.getWorld().shared.all()[term];
 				if (!stepValue) {
 					this.getWorld().logger.info(`is undefined`);
@@ -422,7 +415,7 @@ const parseQuotedOrWordList = (value: string): string[] => {
 	if (quoted.length) {
 		return quoted;
 	}
-	return value.split(/\s+/).map(token => token.trim()).filter(Boolean);
+	return value.split(/[\s,]+/).map(token => token.trim()).filter(Boolean);
 };
 
 const compareDomainValues = (domain: { comparator?: (a: unknown, b: unknown) => number }, left: unknown, right: unknown): number => {
