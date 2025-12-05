@@ -32,9 +32,10 @@ export const getDirname = (meta: TImportMeta) => fileURLToPath(new URL('.', meta
 
 function getWorkspaceRoot() {
 	let currentDir = path.resolve(process.cwd());
-	const root = '/';
+	const tried: string[] = [];
 
-	while (currentDir !== root) {
+	while (true) {
+		tried.push(currentDir);
 		const packageJsonPath = path.resolve(currentDir, 'package.json');
 
 		if (nodeFS.existsSync(packageJsonPath)) {
@@ -48,10 +49,15 @@ function getWorkspaceRoot() {
 			}
 		}
 
-		currentDir = dirname(currentDir);
+		const parentDir = dirname(currentDir);
+		if (parentDir === currentDir) {
+			break;
+		}
+		currentDir = parentDir;
 	}
 
-	throw new Error('Could not find haibun project root (no package.json with "name": "haibun" found)');
+	// Fallback to process.cwd() for external projects, matching previous behavior.
+	return process.cwd();
 }
 
 export function getModuleLocation(name: string) {
