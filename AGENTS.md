@@ -197,7 +197,7 @@ graph TD
     E -- Fail --> G[Fail Test]
 ```
 
-NB Activities in a feature will run inline, without being called by a waypoint. Generally, activities should be stored in backgrounds.
+NB Activities in a feature are definitions and do not run inline. They are only executed when called by a waypoint. Generally, activities should be stored in backgrounds. They are included here to make examples clearer.
 
 ### Defining activities
 
@@ -294,8 +294,6 @@ NB these tests use variables for proofs, in a "live" system they might rely on A
 A talent agency can have different types of clients, including artists and venues. Each client has different considerations, such as if they are signed or advertised. The artist has to agree to each of these states.
 
     set of offer is ["signed", "advertised", "popular"]
-    set name to "Example"
-    set concern to "signed"
 
     Activity: Engage a client
     every state in offer is ordered set of {name}/{state} is ["negotiating", "agreed"]
@@ -305,12 +303,12 @@ A talent agency can have different types of clients, including artists and venue
     Activity: Foster a client
     increment {name}/{concern}
     show var {name}/{concern}
-    waypoint {name} agreed with {concern} with not variable {name}/{concern} is less than "agreed"
+    waypoint {name} has {concern} with not variable {name}/{concern} is less than "agreed"
 
 show waypoints
     ensure Engaged "Theatre Z"
     ensure Engaged Le Artiste
-    ensure "Le Artiste" agreed with signed
+    ensure "Le Artiste" has signed
 
     variable Theatre Z/signed is "negotiating"
     variable Le Artiste/signed is "agreed"
