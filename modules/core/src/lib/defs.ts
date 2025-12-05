@@ -318,6 +318,7 @@ export type TStepResult = {
 	in: string;
 	path: string;
 	seqPath: TSeqPath;
+	intent?: ExecutionIntent;
 };
 
 export type TProvenOutcome = {

@@ -6,6 +6,10 @@ export function interpolate(text: string, localArgs: Record<string, string>, wor
     if (localArgs && Object.prototype.hasOwnProperty.call(localArgs, key)) {
       return localArgs[key];
     }
+    const val = world.shared.get(key);
+    if (val !== undefined) {
+      return String(val);
+    }
     return match;
   });
 

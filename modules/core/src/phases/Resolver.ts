@@ -164,10 +164,12 @@ export class Resolver {
 		if (step.gwta) {
 			// Enforce that if the input starts with Uppercase, the GWTA must also start with Uppercase.
 			// This distinguishes "Prose" (Uppercase) from "steps" (Lowercase).
+			// Exception: patterns starting with {variable} placeholders can match any input.
 			const startsWithUpper = /^[A-Z]/.test(curt);
 			const gwtaStartsUpper = /^[A-Z]/.test(step.gwta);
+			const gwtaStartsWithPlaceholder = step.gwta.startsWith('{');
 
-			if (startsWithUpper && !gwtaStartsUpper) {
+			if (startsWithUpper && !gwtaStartsUpper && !gwtaStartsWithPlaceholder) {
 				return undefined;
 			}
 			return matchGwtaToAction(step.gwta, curt, actionName, stepperName, step);

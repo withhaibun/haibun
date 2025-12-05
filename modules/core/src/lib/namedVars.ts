@@ -92,7 +92,8 @@ export const matchGwtaToAction = (gwta: string, actionable: string, actionName: 
 	// anchor the pattern so the whole actionable matches
 	// use case-insensitive matching to be consistent with dePolite handling
 	const r = new RegExp(`^${regexPattern}$`, 'i');
-	return getMatch(actionable, r, actionName, stepperName, step, stepValuesMap);
+	const match = getMatch(actionable, r, actionName, stepperName, step, stepValuesMap);
+	return match;
 };
 
 // no-op

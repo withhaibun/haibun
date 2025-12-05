@@ -9,8 +9,8 @@ describe('ActivitiesStepper with after every hook', () => {
 		const feature = {
 			path: '/features/test.feature',
 			content: `
-Activity: Setup test
 set counter as number to 0
+Activity: Setup test
 set verifyCount as number to 0
 waypoint Test is ready with set verifyCount as number to 1
 

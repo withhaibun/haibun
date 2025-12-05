@@ -52,6 +52,8 @@ export async function populateActionArgs(featureStep: TFeatureStep, world: TWorl
 		// actionVal has been updated, update the actionVal in place for downstream processing
 		stepArgs[name] = actionVal.value;
 	}
-
+	if (Object.keys(featureStep.action.stepValuesMap).length > 0 && Object.keys(stepArgs).length === 0) {
+		console.log('DEBUG populateActionArgs: empty args but map has keys', featureStep.action.stepValuesMap);
+	}
 	return stepArgs;
 }

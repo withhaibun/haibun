@@ -5,6 +5,7 @@ import { actionNotOK, actionOK } from '../lib/util/index.js';
 import { FeatureVariables } from '../lib/feature-variables.js';
 import { DOMAIN_STATEMENT, DOMAIN_STRING, normalizeDomainKey, createEnumDomainDefinition, registerDomains } from '../lib/domain-types.js';
 import { EExecutionMessageType } from '../lib/interfaces/logger.js';
+import { interpolate } from '../lib/core/context.js';
 
 const clearVars = (vars) => () => {
 	vars.getWorld().shared.clear();
@@ -80,20 +81,26 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		increment: {
 			gwta: 'increment {what}',
 			action: ({ what }: { what: string }, featureStep: TFeatureStep) => {
-				void what; // used for type checking
-				const { term, domain } = featureStep.action.stepValuesMap.what;
+				let { term, domain } = featureStep.action.stepValuesMap.what;
+				const globalVars = Object.entries(this.getWorld().shared.all()).reduce((acc, [k, v]) => {
+					acc[k] = String(v.value);
+					return acc;
+				}, {} as Record<string, string>);
+				term = interpolate(term, globalVars, this.getWorld());
 				const presentVal = this.getVarValue(term);
+				
+				const stored = this.getWorld().shared.all()[term];
+
 				// If no domain supplied by the step, try to infer it from stored variable metadata.
 				let effectiveDomain = domain;
-				if (!effectiveDomain) {
-					const stored = this.getWorld().shared.all[term];
-					if (stored && stored.domain) {
-						effectiveDomain = stored.domain;
-					}
+				if ((!effectiveDomain || effectiveDomain === 'string') && stored && stored.domain) {
+					effectiveDomain = stored.domain;
 				}
+
 				// If the domain is an ordered enum, advance to the next enum value.
 				const domainKey = normalizeDomainKey(effectiveDomain);
 				const registered = this.getWorld().domains[domainKey];
+
 				if (registered && registered.comparator) {
 					// Prefer explicit values array on the registered domain if available.
 					const enumValues = Array.isArray(registered.values) && registered.values.length ? registered.values : undefined;
@@ -107,13 +114,11 @@ class VariablesStepper extends AStepper implements IHasCycles {
 							return actionNotOK(`${term} has value "${presentVal}" which is not in domain values`);
 						}
 						const nextIdx = Math.min(enumValues.length - 1, idx + 1);
-						const newVal = enumValues[nextIdx];
-						this.getWorld().shared.set({ term: String(term), value: newVal, domain: effectiveDomain, origin: Origin.var }, provenanceFromFeatureStep(featureStep));
-						const messageContext = {
-							incident: EExecutionMessageType.ACTION,
-							incidentDetails: { json: { incremented: { [term]: newVal } } },
+						const nextVal = enumValues[nextIdx];
+						if (nextVal === presentVal) {
+							return Promise.resolve(OK);
 						}
-						this.getWorld().logger.info(`incremented ${term} to ${newVal}`, messageContext);
+						this.getWorld().shared.set({ term: String(term), value: nextVal, domain, origin: Origin.var }, provenanceFromFeatureStep(featureStep));
 						return Promise.resolve(OK);
 					}
 				}
@@ -163,8 +168,12 @@ class VariablesStepper extends AStepper implements IHasCycles {
 					return OK;
 				}
 
-				this.getWorld().shared.set({ term: String(term), value: args.value, domain, origin }, provenanceFromFeatureStep(featureStep));
-				return Promise.resolve(OK);
+				try {
+					this.getWorld().shared.set({ term: String(term), value: args.value, domain, origin }, provenanceFromFeatureStep(featureStep));
+					return Promise.resolve(OK);
+				} catch (e) {
+					return actionNotOK(e instanceof Error ? e.message : String(e));
+				}
 			}
 		},
 		setAs: {
@@ -178,8 +187,12 @@ class VariablesStepper extends AStepper implements IHasCycles {
 					return OK;
 				}
 
-				this.getWorld().shared.set({ term: String(term), value: value, domain, origin }, provenanceFromFeatureStep(featureStep));
-				return Promise.resolve(OK);
+				try {
+					this.getWorld().shared.set({ term: String(term), value: value, domain, origin }, provenanceFromFeatureStep(featureStep));
+					return Promise.resolve(OK);
+				} catch (e) {
+					return actionNotOK(e instanceof Error ? e.message : String(e));
+				}
 			}
 		},
 		unset: {
@@ -270,7 +283,12 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		showVar: {
 			gwta: 'show var {what}',
 			action: (args: TStepArgs, featureStep: TFeatureStep) => {
-				const { term } = featureStep.action.stepValuesMap.what;
+				let { term } = featureStep.action.stepValuesMap.what;
+				const globalVars = Object.entries(this.getWorld().shared.all()).reduce((acc, [k, v]) => {
+					acc[k] = String(v.value);
+					return acc;
+				}, {} as Record<string, string>);
+				term = interpolate(term, globalVars, this.getWorld());
 				const stepValue = this.getWorld().shared.all()[term];
 				if (!stepValue) {
 					this.getWorld().logger.info(`is undefined`);

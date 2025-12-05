@@ -36,7 +36,11 @@ export class Executor {
 			return undefined;
 		}
 
-		const failedStep = firstFailedFeature.stepResults.find(sr => !sr.ok);
+		// Filter out speculative failures - these are intentional failures inside compound
+		// statements like `not` that shouldn't be reported as the main error
+		const failedStep = firstFailedFeature.stepResults.find(sr =>
+			!sr.ok && sr.intent?.mode !== 'speculative'
+		);
 		if (!failedStep) {
 			return undefined;
 		}
@@ -378,7 +382,7 @@ const addStepperDomains = async (world, steppers: AStepper[]) => {
 function stepResultFromActionResult(actionResult: TActionResult, action: TStepAction, start: number, end: number, featureStep: TFeatureStep, ok: boolean) {
 	const stepActionResult: TStepActionResult = { ...actionResult, name: action.actionName, start, end } as TStepActionResult;
 	const seqPath = featureStep.seqPath;
-	const stepResult: TStepResult = { in: featureStep.in, path: featureStep.path, ok, stepActionResult, seqPath };
+	const stepResult: TStepResult = { in: featureStep.in, path: featureStep.path, ok, stepActionResult, seqPath, intent: featureStep.intent };
 	return stepResult;
 }
 

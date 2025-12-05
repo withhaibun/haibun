@@ -307,9 +307,10 @@ A talent agency can have different types of clients, including artists and venue
     show var {name}/{concern}
     waypoint {name} agreed with {concern} with not variable {name}/{concern} is less than "agreed"
 
+show waypoints
     ensure Engaged "Theatre Z"
     ensure Engaged Le Artiste
-    ensure Le Artiste agreed with signed
+    ensure "Le Artiste" agreed with signed
 
     variable Theatre Z/signed is "negotiating"
     variable Le Artiste/signed is "agreed"

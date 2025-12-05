@@ -31,6 +31,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 	private ensuredInstances: Map<string, { proof: string[]; valid: boolean }> = new Map();
 	private ensureAttempts: Map<string, number> = new Map();
 	private registeredOutcomeMetadata: Map<string, { proofStatements: string[]; proofPath: string; isBackground: boolean; activityBlockSteps?: string[] }> = new Map();
+	private inActivityBlock = false;
 
 	cycles: IStepperCycles = {
 		startExecution: () => {
@@ -69,18 +70,59 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		startFeature: CycleWhen.FIRST,
 	}
 
-	private readonly baseSteps = {
+	readonly baseSteps = {
 		activity: {
 			gwta: 'Activity: {activity}',
-			action: () => OK
+			action: () => OK,
+			resolveFeatureLine: (line: string, path: string, _stepper: AStepper, _backgrounds: TFeatures, allLines?: string[], lineIndex?: number) => {
+				if (line.match(/^Activity:/i)) {
+					this.inActivityBlock = true;
+					return true; // Skip the Activity definition line itself
+				}
+
+				if (this.inActivityBlock) {
+					// Check for block terminators
+					if (line.match(/^(Feature|Scenario|Background|Activity):/i)) {
+						this.inActivityBlock = false;
+						return false; // Process this line normally
+					}
+
+					if (line.match(/^waypoint\s+/i)) {
+						this.resolveWaypointCommon(line, path, allLines, lineIndex, line.includes(' with '));
+
+						// Check if this is the last waypoint in the block
+						let hasMoreWaypoints = false;
+						if (allLines && lineIndex !== undefined) {
+							for (let i = lineIndex + 1; i < allLines.length; i++) {
+								const nextLine = allLines[i].trim();
+								if (nextLine.match(/^(Feature|Scenario|Background|Activity):/i)) {
+									break;
+								}
+								if (nextLine.match(/^waypoint\s+/i)) {
+									hasMoreWaypoints = true;
+									break;
+								}
+							}
+						}
+
+						if (!hasMoreWaypoints) {
+							this.inActivityBlock = false;
+						}
+
+						return true; // Skip the waypoint definition line
+					}
+
+					// Inside block
+					return true; // Skip lines inside the block
+				}
+
+				return false;
+			}
 		},
 
 		waypointWithProof: {
 			gwta: `waypoint {outcome} with {proof:${DOMAIN_STATEMENT}}`,
 			precludes: ['ActivitiesStepper.waypointLabel'],
-			resolveFeatureLine: (line: string, path: string, _stepper: AStepper, _backgrounds: TFeatures, allLines?: string[], lineIndex?: number) => {
-				return this.resolveWaypointCommon(line, path, allLines, lineIndex, true);
-			},
 			action: async ({ proof }: { proof: TFeatureStep[] }, featureStep: TFeatureStep) => {
 				this.getWorld().logger.debug(`waypoint action: executing ${proof?.length || 0} proof steps`);
 
@@ -93,22 +135,24 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				} catch (err) {
 					const msg = err instanceof Error ? err.message : String(err);
 					this.getWorld().logger.debug(`waypoint action: exception executing proof steps: ${msg}`);
-					return actionNotOK(`waypoint: failed to execute proof steps: ${msg}`);
+					const messageContext: TMessageContext = {
+						incident: EExecutionMessageType.ACTION,
+						incidentDetails: { error: msg }
+					};
+					return actionNotOK(`waypoint: failed to execute proof steps: ${msg}`, { messageContext });
 				}
 			},
 		},
 
 		waypointLabel: {
 			gwta: `waypoint {outcome}`,
-			resolveFeatureLine: (line: string, path: string, _stepper: AStepper, _backgrounds: TFeatures, allLines?: string[], lineIndex?: number) => {
-				return this.resolveWaypointCommon(line, path, allLines, lineIndex, false);
-			},
 			action: async () => actionOK(),
 		},
 
 		ensure: {
 			description: 'Ensure a waypoint condition by always running the proof. If proof passes, waypoint is already satisfied. If proof fails, run the full activity, then try the proof again',
 			gwta: `ensure {outcome:${DOMAIN_STATEMENT}}`,
+			unique: true,  // Ensure takes priority over dynamically registered outcomes
 			action: async ({ outcome }: { outcome: TFeatureStep[] }, featureStep: TFeatureStep) => {
 				const outcomeKey = outcome.map(step => step.in).join(' ');
 
@@ -402,10 +446,14 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			if (!line.match(/^waypoint\s+.+?\s+with\s+/i)) {
 				return false;
 			}
-			const match = line.match(/^waypoint\s+(.+?)\s+with\s+(.+?)$/i);
-			if (!match) return false;
-			outcome = match[1].trim();
-			const proofRaw = match[2].trim();
+			// Find the LAST occurrence of ' with ' to separate outcome from proof
+			// This allows 'with' to appear in outcome names (e.g., "{name} agreed with {concern}")
+			const withoutPrefix = line.replace(/^waypoint\s+/i, '');
+			const lastWithIndex = withoutPrefix.lastIndexOf(' with ');
+			if (lastWithIndex === -1) return false;
+
+			outcome = withoutPrefix.substring(0, lastWithIndex).trim();
+			const proofRaw = withoutPrefix.substring(lastWithIndex + 6).trim(); // ' with ' is 6 chars
 			proofStatements = proofRaw.split('\n').map(s => s.trim()).filter(s => s.length > 0);
 		} else {
 			if (line.match(/^waypoint\s+.+?\s+with\s+/i)) {
@@ -444,7 +492,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				const blockLines: string[] = [];
 				for (let i = activityStartLine + 1; i < lineIndex; i++) {
 					const stepLine = getActionable(allLines[i]);
-					if (stepLine) {
+					if (stepLine && !stepLine.match(/^waypoint\s+/i)) {
 						blockLines.push(stepLine);
 					}
 				}
