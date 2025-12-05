@@ -8,7 +8,7 @@ Haibun is a declarative, logic-grounded, literate orchestrator designed to unify
 
 The same file serves three purposes: defining expected behavior, verifying systems against that specification, and explaining the system to readers. All statements are reusable, built on a tested core and array of specialized steppers. Provided steppers usually wrap a widely used testing tool, such as Playwright.
 
-> This document can be verified; lines starting with lowercase letters are steps. Run `npm test -- agents` in the e2e-tests directory to execute all examples.
+> 👉 This document can be verified; lines starting with lowercase letters are steps. Run `npm test -- agents` in the e2e-tests directory to execute all examples.
 
 ## Core philosophy
 
@@ -46,7 +46,7 @@ Variables enable parameterization and reusable test configurations between envir
 
 ### Scoping
 
-Variables and domains have Feature scope. They are maintained between activities and scenarios, and cleared between features. NB currently there is no mitigation for variable collisions and side effects.
+Variables and domains have Feature scope. They are maintained between activities and scenarios, and cleared between features. NB currently there is no mitigation for variable collisions and side effects. Use meaningful and specific variable names.
 
     set v to 1
 
@@ -99,6 +99,7 @@ The core verbs for manipulating state.
 
     variable example is "test"
     show vars ;; inspect all variables with domains and values
+    show var example ;; inspect a single variable
 
 ### Incrementing (Ordered sets)
 
@@ -126,7 +127,7 @@ In Steps: `set published to {article}` injects the value of the variable `articl
 
 ## Compound statements
 
-Compound statements combine multiple steps in one line. 
+Compound statements combine multiple steps in one line.
 
 ### The statement domain
 
@@ -172,6 +173,8 @@ Logic steps enable complex workflows and limited conditional behavior.
 
 ## File organization
 
+A tests folder will have a features and backgrounds subfolder, and usually one or more config.json files (config.json can be specified by cli's -c). Tests are stored in features. Test filters (by folder/filename) can be passed comma-separated as a cli argument.
+
 Backgrounds are stored in the backgrounds folder at the same level as features. See [examples used by feature tests](e2e-tests/tests/backgrounds/).
 
 ### Backgrounds
@@ -180,7 +183,7 @@ Backgrounds are reusable steps that can be explicitly invoked with `Backgrounds:
 
 ## Activities & waypoints
 
-Activities and waypoints enable reusable goal-oriented, idempotent tests.  They are best stored in backgrounds, where they will be discovered without explicit imports (missing waypoints or duplicate naming results in errors).
+Activities and waypoints enable reusable goal-oriented, idempotent tests. They are best stored in backgrounds, where they will be discovered without explicit imports (missing waypoints or duplicate naming results in errors).
 
 NB The ensure pattern guarantees prerequisites, not outcomes. Use ensure to establish the starting state required for a test (e.g. auth or database setup). Avoid using ensure to enforce the primary behavior under test, as it may obscure failure logic by "correcting" it.
 
@@ -193,6 +196,8 @@ graph TD
     E -- Pass --> F[Success]
     E -- Fail --> G[Fail Test]
 ```
+
+NB Activities in a feature will run inline, without being called by a waypoint. Generally, activities should be stored in backgrounds.
 
 ### Defining activities
 
@@ -245,11 +250,11 @@ NB these tests use variables for proofs, in a "live" system they might rely on A
     set API Timeout as number to 5000
 
     Activity: API health check
-    set API Status to "false" 
+    set API Status to "false"
     set API Status to "true"
     waypoint API responds with variable API Status is "true"
 
-    ensure API responds 
+    ensure API responds
 
 ## Common patterns
 
@@ -286,14 +291,29 @@ NB these tests use variables for proofs, in a "live" system they might rely on A
 
 ### Pattern 4: Dynamic domains
 
-    set of entities is ["a", "b"]
+A talent agency can have different types of clients, including artists and venues. Each client has different considerations, such as if they are signed or advertised. The artist has to agree to each of these states.
 
-    Activity: Initialize entities for {name}
-    every entity in entities is ordered set of {name}/{entity} is ["void", "created"]
-    every entity in entities is set status_{name}/{entity} as {name}/{entity} to "void"
-    waypoint Entities initialized for {name} with every entity in entities is variable status_{name}/{entity} is set
+    set of offer is ["signed", "advertised", "popular"]
+    set name to "Example"
+    set concern to "signed"
 
-    ensure Entities initialized for test
+    Activity: Engage a client
+    every state in offer is ordered set of {name}/{state} is ["negotiating", "agreed"]
+    every state in offer is set {name}/{state} as {name}/{state} to "negotiating"
+    waypoint Engaged {name} with every state in offer is variable {name}/{state} is set
+
+    Activity: Foster a client
+    increment {name}/{concern}
+    show var {name}/{concern}
+    waypoint {name} agreed with {concern} with not variable {name}/{concern} is less than "agreed"
+
+    ensure Engaged "Theatre Z"
+    ensure Engaged Le Artiste
+    ensure Le Artiste agreed with signed
+
+    variable Theatre Z/signed is "negotiating"
+    variable Le Artiste/signed is "agreed"
+    variable Le Artiste/popular is "negotiating"
 
 ## Next steps
 
