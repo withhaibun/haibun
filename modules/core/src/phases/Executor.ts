@@ -250,9 +250,6 @@ export class FeatureExecutor {
 
 		if (featureStep.seqPath.length > MAX_EXECUTE_SEQPATH) {
 			const errorMessage = `Execution depth limit exceeded (${featureStep.seqPath.length} > ${MAX_EXECUTE_SEQPATH}). Possible infinite recursion in step: ${featureStep.in}`;
-			console.error('\n' + errorMessage);
-			console.error('SeqPath:', formatCurrentSeqPath(featureStep.seqPath));
-			console.error('This indicates a bug in the test definition or framework.');
 
 			world.runtime.exhaustionError = errorMessage;
 

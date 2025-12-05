@@ -1,19 +1,15 @@
-import { TWorld, Origin, TOrigin } from '../defs.js';
-import { DOMAIN_STRING, normalizeDomainKey } from '../domain-types.js';
+import { TWorld, Origin, TOrigin, TStepValue, TProvenanceIdentifier } from '../defs.js';
+import { DOMAIN_STATEMENT, DOMAIN_STRING, normalizeDomainKey } from '../domain-types.js';
 
 export function interpolate(text: string, localArgs: Record<string, string>, world: TWorld): string {
   // Priority 1: Local Args {key}
-  let result = text.replace(/\{([^}]+)\}/g, (match, key) => {
+  const result = text.replace(/\{([^}]+)\}/g, (match, key) => {
     if (localArgs && Object.prototype.hasOwnProperty.call(localArgs, key)) {
       return localArgs[key];
     }
-    const env = resolveVariable({ term: key, origin: Origin.env }, world);
-    if (env.value !== undefined) {
-      return String(env.value);
-    }
-    const val = resolveVariable({ term: key, origin: Origin.var }, world);
-    if (val.value !== undefined) {
-      return String(val.value);
+    const resolved = resolveVariable({ term: key, origin: Origin.fallthrough }, world);
+    if (resolved.origin !== Origin.fallthrough && resolved.value !== undefined) {
+      return String(resolved.value);
     }
     return match;
   });
@@ -21,12 +17,13 @@ export function interpolate(text: string, localArgs: Record<string, string>, wor
   return result;
 }
 
-export function resolveVariable(actionVal: { term: string, origin: TOrigin, value?: any, domain?: string, provenance?: any }, world: TWorld) {
+export function resolveVariable(actionVal: Partial<TStepValue> & { term: string, origin: TOrigin }, world: TWorld) {
     const { term, origin } = actionVal;
     const storedEntry = world.shared.all()[term];
 
     if (origin === Origin.statement) {
         actionVal.value = term;
+        actionVal.domain = DOMAIN_STATEMENT;
     } else if (origin === Origin.env) {
         actionVal.value = world.options.envVariables[term];
         actionVal.domain = DOMAIN_STRING;
@@ -37,7 +34,7 @@ export function resolveVariable(actionVal: { term: string, origin: TOrigin, valu
             actionVal.provenance = storedEntry.provenance;
         }
     } else if (origin === Origin.fallthrough) {
-        if (world.options.envVariables[term]) {
+        if (world.options.envVariables[term] !== undefined) {
             actionVal.value = world.options.envVariables[term];
             actionVal.domain = DOMAIN_STRING;
             actionVal.origin = Origin.env;

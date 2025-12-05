@@ -26,8 +26,10 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 	private backgroundOutcomePatterns: Set<string> = new Set();
 	private featureOutcomePatterns: Set<string> = new Set();
 	private outcomeToFeaturePath: Map<string, string> = new Map();
+	private featureSteps: Map<string, Record<string, TStepperStep>> = new Map();
 	private currentFeaturePath: string = '';
 	private lastFeaturePath: string = '';
+	private lastResolutionPath: string = '';
 	private ensuredInstances: Map<string, { proof: string[]; valid: boolean }> = new Map();
 	private ensureAttempts: Map<string, number> = new Map();
 	private registeredOutcomeMetadata: Map<string, { proofStatements: string[]; proofPath: string; isBackground: boolean; activityBlockSteps?: string[] }> = new Map();
@@ -42,18 +44,19 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 
 			if (this.lastFeaturePath && this.lastFeaturePath !== startFeature.resolvedFeature.path) {
 				this.getWorld().logger.debug(`ActivitiesStepper.startFeature: clearing outcomes from previous feature "${this.lastFeaturePath}"`);
-				const outcomesToClear: string[] = [];
-				for (const [outcome, featurePath] of this.outcomeToFeaturePath.entries()) {
-					if (featurePath === this.lastFeaturePath) {
-						outcomesToClear.push(outcome);
+				const previousSteps = this.featureSteps.get(this.lastFeaturePath);
+				if (previousSteps) {
+					for (const outcome of Object.keys(previousSteps)) {
 						delete this.steps[outcome];
-						this.featureOutcomePatterns.delete(outcome);
 					}
 				}
-				for (const outcome of outcomesToClear) {
-					this.outcomeToFeaturePath.delete(outcome);
+			}
+
+			const currentSteps = this.featureSteps.get(startFeature.resolvedFeature.path);
+			if (currentSteps) {
+				for (const [outcome, step] of Object.entries(currentSteps)) {
+					this.steps[outcome] = step;
 				}
-				this.getWorld().logger.debug(`ActivitiesStepper.startFeature: cleared ${outcomesToClear.length} outcomes from previous feature`);
 			}
 
 			this.currentFeaturePath = startFeature.resolvedFeature.path;
@@ -75,6 +78,16 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			gwta: 'Activity: {activity}',
 			action: () => OK,
 			resolveFeatureLine: (line: string, path: string, _stepper: AStepper, _backgrounds: TFeatures, allLines?: string[], lineIndex?: number) => {
+				if (this.lastResolutionPath && this.lastResolutionPath !== path) {
+					const previousSteps = this.featureSteps.get(this.lastResolutionPath);
+					if (previousSteps) {
+						for (const outcome of Object.keys(previousSteps)) {
+							delete this.steps[outcome];
+						}
+					}
+				}
+				this.lastResolutionPath = path;
+
 				if (line.match(/^Activity:/i)) {
 					this.inActivityBlock = true;
 					return true; // Skip the Activity definition line itself
@@ -341,7 +354,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		// Store proofStatements for later retrieval
 		const outcomeProofStatements = proofStatements;
 
-		this.steps[outcome] = {
+		const step: TStepperStep = {
 			gwta: outcome,
 			virtual: true,  // Dynamically registered outcomes are virtual
 			description: `Outcome: ${outcome}. Proof: ${proofStatements.join('; ')}`,
@@ -400,18 +413,26 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 							return actionNotOK(`ActivitiesStepper: proof verification failed after activity body for outcome "${outcome}": ${verify.message}`);
 						}
 					}
-
 					return actionOK({
 						messageContext: {
 							incident: EExecutionMessageType.ACTION,
-							incidentDetails: { proofStatements }
+							incidentDetails: { proofStatements, proofSatisfied: true }
 						}
 					});
-				} else {
-					return actionNotOK(`ActivitiesStepper: proof failed and no activity body available for outcome "${outcome}"`);
 				}
+
+				return actionNotOK(`ActivitiesStepper: no activity body for outcome "${outcome}"`);
 			}
 		};
+
+		this.steps[outcome] = step;
+
+		if (!isBackground) {
+			if (!this.featureSteps.has(proofPath)) {
+				this.featureSteps.set(proofPath, {});
+			}
+			this.featureSteps.get(proofPath)![outcome] = step;
+		}
 
 		this.getWorld().logger.debug(`ActivitiesStepper: registered outcome pattern "${outcome}" with ${proofStatements.length} proof steps`);
 	}
