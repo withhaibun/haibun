@@ -145,6 +145,8 @@ Compound statements use the statement domain to compose logic:
 - `any of {stmt}, {stmt}, ...` - Disjunction
 - `until {statements}` - Repeat until success
 - `not {statement}` - Negation
+- `some {variable} in {domain} is {check}` - Existential quantifier
+- `every {variable} in {domain} is {check}` - Universal quantifier
 
 ## Logic & control flow
 
@@ -170,6 +172,19 @@ Logic steps enable complex workflows and limited conditional behavior.
     set counter as number to 0
     whenever variable counter is less than 3, increment counter
     variable counter is 3
+
+### Quantifiers
+
+    set of numbers is ["1", "2", "3"]
+
+#### Existential (some)
+
+    some n in numbers is where set temp to {n}, variable temp is "2"
+		show var temp
+
+#### Universal (every)
+
+    every n in numbers is where set temp to {n}, variable temp is less than "4"
 
 ## File organization
 
