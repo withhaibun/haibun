@@ -109,7 +109,8 @@ export default class LogicStepper extends AStepper {
 
         let found = false;
         const statements = check.map(s => s.in);
-        const mode = featureStep.intent?.mode === 'speculative' ? 'speculative' : 'authoritative';
+        // Always run checks speculatively to avoid debugger breaks on non-matching values
+        const mode = 'speculative';
 
         for (const val of domainDef.values) {
           // Quote the value if it's a string to prevent variable resolution collision

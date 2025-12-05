@@ -210,9 +210,24 @@ export function findFeatureStepsFromStatement(statement: string, steppers: AStep
 	let latest = seqStart[seqStart.length - 1];
 	for (const x of expanded) {
 		const seqPath = [...prefix, latest];
-		const { featureStep } = getActionableStatement(steppers, x.line, x.feature.path, seqPath);
-		latest += inc;
-		featureSteps.push(featureStep);
+		try {
+			const { featureStep } = getActionableStatement(steppers, x.line, x.feature.path, seqPath);
+			latest += inc;
+			featureSteps.push(featureStep);
+		} catch (e) {
+			featureSteps.push({
+				path: x.feature.path,
+				in: x.line,
+				seqPath,
+				action: {
+					actionName: 'error',
+					stepperName: 'Resolver',
+					step: {
+						action: async () => ({ ok: false, message: e.message })
+					}
+				}
+			});
+		}
 	}
 	return featureSteps;
 }

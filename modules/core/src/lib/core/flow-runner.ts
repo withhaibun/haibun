@@ -1,9 +1,9 @@
-import { TWorld, TFeatureStep, TActionResult, TSeqPath, ExecMode, TStepResult, TNotOKActionResult } from '../defs.js';
+import { TWorld, TFeatureStep,  TSeqPath,  TNotOKActionResult } from '../defs.js';
 import { AStepper } from '../astepper.js';
 import { interpolate } from '../util/variables.js';
 import { Resolver } from '../../phases/Resolver.js';
 import { FeatureExecutor, incSeqPath } from '../../phases/Executor.js';
-import { ExecutionIntent, FlowSignal, SystemMessage } from './protocol.js';
+import { ExecutionIntent, FlowSignal } from './protocol.js';
 
 export class FlowRunner {
   private resolver: Resolver;
@@ -45,7 +45,15 @@ export class FlowRunner {
       isSubStep: !!options.parentStep
     };
 
-    const result = await FeatureExecutor.doFeatureStep(this.steppers, featureStep, this.world);
+    let result;
+    try {
+      result = await FeatureExecutor.doFeatureStep(this.steppers, featureStep, this.world);
+    } catch (e) {
+      if (intent.mode === 'speculative') {
+        return { kind: 'fail', message: e.message };
+      }
+      throw e;
+    }
 
     if (result.ok) {
       return { kind: 'ok', payload: result.stepActionResult };
@@ -84,12 +92,20 @@ export class FlowRunner {
         mappedStep = { ...mappedStep, seqPath, isSubStep: true };
       }
 
-      const result = await FeatureExecutor.doFeatureStep(this.steppers, mappedStep, this.world);
+      let result;
+      try {
+        result = await FeatureExecutor.doFeatureStep(this.steppers, mappedStep, this.world);
+      } catch (e) {
+        if (intent.mode === 'speculative') {
+          return { kind: 'fail', message: e.message };
+        }
+        throw e;
+      }
 
       // If not using cycles (which doFeatureStep defaults to WITH_CYCLES), we might need to push results.
       // But doFeatureStep pushes results if WITH_CYCLES.
       // If we are in speculative mode, doFeatureStep might still push results if we don't change execMode.
-      // However, FlowRunner doesn't currently control execMode passed to doFeatureStep directly, 
+      // However, FlowRunner doesn't currently control execMode passed to doFeatureStep directly,
       // it relies on FeatureExecutor defaults.
       // If we want to avoid polluting stepResults in speculative mode, we might need to adjust FeatureExecutor or pass a flag.
       // But for now, to ensure incSeqPath works, we NEED results in stepResults.

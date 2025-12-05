@@ -1,5 +1,5 @@
 import { AStepper } from './astepper.js';
-import { TFeatureStep, TStepArgs, TWorld } from './defs.js';
+import { Origin, TFeatureStep, TStepArgs, TWorld } from './defs.js';
 import { DOMAIN_STRING, normalizeDomainKey } from './domain-types.js';
 import { resolveVariable } from './util/variables.js';
 
@@ -9,7 +9,11 @@ export async function populateActionArgs(featureStep: TFeatureStep, world: TWorl
 	if (!featureStep?.action?.stepValuesMap) return stepArgs; // no variables for this step
 
 	for (const [name, actionVal] of Object.entries(featureStep.action.stepValuesMap)) {
+        const expectedDomain = actionVal.domain;
 		resolveVariable(actionVal, world);
+        if (expectedDomain) {
+            actionVal.domain = expectedDomain;
+        }
 		if (actionVal.value === undefined) {
 			continue;
 		}
@@ -20,7 +24,9 @@ export async function populateActionArgs(featureStep: TFeatureStep, world: TWorl
 		}
 
 		actionVal.domain = actionDomainKey;
-		actionVal.value = await Promise.resolve(world.domains[actionDomainKey].coerce(actionVal, featureStep, steppers));
+        if (actionVal.origin !== Origin.var) {
+          actionVal.value = await Promise.resolve(world.domains[actionDomainKey].coerce(actionVal, featureStep, steppers));
+        }
 
 		// actionVal has been updated, update the actionVal in place for downstream processing
 		stepArgs[name] = actionVal.value;

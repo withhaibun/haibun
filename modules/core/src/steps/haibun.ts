@@ -39,7 +39,8 @@ class Haibun extends AStepper implements IHasCycles {
 				const stepsToRun = afterEvery.filter(aeStep => aeStep.action.actionName !== featureStep.action.actionName);
 
 				if (stepsToRun.length > 0) {
-					const res = await this.runner.runSteps(stepsToRun, { intent: { mode: 'authoritative' }, parentStep: featureStep });
+					const mode = featureStep.intent?.mode === 'speculative' ? 'speculative' : 'authoritative';
+					const res = await this.runner.runSteps(stepsToRun, { intent: { mode }, parentStep: featureStep });
 					if (res.kind !== 'ok') {
 						failed = true;
 					}
@@ -60,8 +61,9 @@ class Haibun extends AStepper implements IHasCycles {
 			gwta: `until {statements:${DOMAIN_STATEMENT}}`,
 			action: async ({ statements }: { statements: TFeatureStep[] }, featureStep: TFeatureStep) => {
 				let signal;
+				const mode = featureStep.intent?.mode === 'speculative' ? 'speculative' : 'authoritative';
 				do {
-					signal = await this.runner.runSteps(statements, { intent: { mode: 'authoritative', usage: 'polling' }, parentStep: featureStep });
+					signal = await this.runner.runSteps(statements, { intent: { mode, usage: 'polling' }, parentStep: featureStep });
 					if (signal.fatal) {
 						this.getWorld().logger.warn(`until: received terminal error, aborting loop`);
 						return actionNotOK('until: aborted due to terminal error');
@@ -96,7 +98,8 @@ class Haibun extends AStepper implements IHasCycles {
 				// Expand backgrounds at runtime using world.runtime.backgrounds
 				const world = this.getWorld();
 				const expanded = findFeatureStepsFromStatement(names, this.steppers, world, featureStep.path, featureStep.seqPath, 1);
-				const result = await this.runner.runSteps(expanded, { intent: { mode: 'authoritative' }, parentStep: featureStep });
+				const mode = featureStep.intent?.mode === 'speculative' ? 'speculative' : 'authoritative';
+				const result = await this.runner.runSteps(expanded, { intent: { mode }, parentStep: featureStep });
 				return result.kind === 'ok' ? OK : actionNotOK(`backgrounds failed: ${result.message}`);
 			},
 		},

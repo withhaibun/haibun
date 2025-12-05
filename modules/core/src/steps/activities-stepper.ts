@@ -367,7 +367,8 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				if (!featureStep.intent?.stepperOptions?.isEnsure) {
 					if (activityBlockSteps && activityBlockSteps.length > 0) {
 						this.getWorld().logger.debug(`ActivitiesStepper: running activity body for outcome "${outcome}" (no ensure)`);
-						const act = await this.runner.runStatements(activityBlockSteps, { args: args as Record<string, string>, intent: { mode: 'authoritative', usage: featureStep.intent?.usage }, parentStep: featureStep });
+						const mode = featureStep.intent?.mode === 'speculative' ? 'speculative' : 'authoritative';
+						const act = await this.runner.runStatements(activityBlockSteps, { args: args as Record<string, string>, intent: { mode, usage: featureStep.intent?.usage }, parentStep: featureStep });
 						if (act.kind !== 'ok') {
 							return actionNotOK(`ActivitiesStepper: activity body failed for outcome "${outcome}": ${act.message}`);
 						}
@@ -385,7 +386,8 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				if (activityBlockSteps && activityBlockSteps.length > 0) {
 					this.getWorld().logger.debug(`ActivitiesStepper: proof failed for outcome "${outcome}", running activity body`);
 
-					const act = await this.runner.runStatements(activityBlockSteps, { args: args as Record<string, string>, intent: { mode: 'authoritative', usage: featureStep.intent?.usage }, parentStep: featureStep });
+					const mode = featureStep.intent?.mode === 'speculative' ? 'speculative' : 'authoritative';
+					const act = await this.runner.runStatements(activityBlockSteps, { args: args as Record<string, string>, intent: { mode, usage: featureStep.intent?.usage }, parentStep: featureStep });
 					if (act.kind !== 'ok') {
 						return actionNotOK(`ActivitiesStepper: activity body failed for outcome "${outcome}": ${act.message}`);
 					}
@@ -393,7 +395,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 					// 4. Verify Proof After Activity
 					this.getWorld().logger.debug(`ActivitiesStepper: verifying proof after activity body for outcome "${outcome}"`);
 					if (proofStatements.length > 0) {
-						const verify = await this.runner.runStatements(proofStatements, { args: args as Record<string, string>, intent: { mode: 'authoritative', usage: featureStep.intent?.usage }, parentStep: featureStep });
+						const verify = await this.runner.runStatements(proofStatements, { args: args as Record<string, string>, intent: { mode, usage: featureStep.intent?.usage }, parentStep: featureStep });
 						if (verify.kind !== 'ok') {
 							return actionNotOK(`ActivitiesStepper: proof verification failed after activity body for outcome "${outcome}": ${verify.message}`);
 						}

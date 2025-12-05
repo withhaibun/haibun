@@ -1,5 +1,5 @@
 import { TWorld, Origin, TOrigin } from '../defs.js';
-import { DOMAIN_STRING } from '../domain-types.js';
+import { DOMAIN_STRING, normalizeDomainKey } from '../domain-types.js';
 
 export function interpolate(text: string, localArgs: Record<string, string>, world: TWorld): string {
   // Priority 1: Local Args {key}
@@ -7,18 +7,13 @@ export function interpolate(text: string, localArgs: Record<string, string>, wor
     if (localArgs && Object.prototype.hasOwnProperty.call(localArgs, key)) {
       return localArgs[key];
     }
-    const val = world.shared.get(key);
-    if (val !== undefined) {
-      return String(val);
+    const env = resolveVariable({ term: key, origin: Origin.env }, world);
+    if (env.value !== undefined) {
+      return String(env.value);
     }
-    return match;
-  });
-
-  // Priority 2: Global Vars ${key}
-  result = result.replace(/\$\{([^}]+)\}/g, (match, key) => {
-    const val = world.shared.get(key);
-    if (val !== undefined) {
-      return String(val);
+    const val = resolveVariable({ term: key, origin: Origin.var }, world);
+    if (val.value !== undefined) {
+      return String(val.value);
     }
     return match;
   });
@@ -38,16 +33,19 @@ export function resolveVariable(actionVal: { term: string, origin: TOrigin, valu
     } else if (origin === Origin.var) {
         if (storedEntry) {
             actionVal.domain = storedEntry.domain;
-            actionVal.value = storedEntry.value;
+            actionVal.value = world.shared.get(term);
             actionVal.provenance = storedEntry.provenance;
         }
     } else if (origin === Origin.fallthrough) {
         if (world.options.envVariables[term]) {
             actionVal.value = world.options.envVariables[term];
+            actionVal.domain = DOMAIN_STRING;
+            actionVal.origin = Origin.env;
         } else if (storedEntry) {
-            actionVal.value = storedEntry.value;
+            actionVal.value = world.shared.get(term);
             actionVal.domain = storedEntry.domain;
             actionVal.provenance = storedEntry.provenance;
+            actionVal.origin = Origin.var;
         } else {
             actionVal.value = term;
             actionVal.domain = DOMAIN_STRING;

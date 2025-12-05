@@ -1,4 +1,4 @@
-import { OK, TStepArgs, TFeatureStep, TWorld, IStepperCycles, TStartScenario, Origin, TProvenanceIdentifier } from '../lib/defs.js';
+import { OK, TStepArgs, TFeatureStep, TWorld, IStepperCycles, TStartScenario, Origin, TProvenanceIdentifier, TRegisteredDomain } from '../lib/defs.js';
 import { TAnyFixme } from '../lib/fixme.js';
 import { AStepper, IHasCycles, TStepperSteps } from '../lib/astepper.js';
 import { actionNotOK, actionOK } from '../lib/util/index.js';
@@ -33,11 +33,12 @@ class VariablesStepper extends AStepper implements IHasCycles {
 	}
 	// FIXME provide explicit mapping to more carefully handle env, etc.
 	private getVarValue(what: string): TAnyFixme {
-		const envVal = this.getWorld().options.envVariables[what];
-		if (envVal !== undefined) {
-			return envVal;
+		const env = resolveVariable({ term: what, origin: Origin.env }, this.getWorld());
+		if (env.value !== undefined) {
+			return env.value;
 		}
-		return this.getWorld().shared.get(what);
+		const val = resolveVariable({ term: what, origin: Origin.var }, this.getWorld());
+		return val.value;
 	}
 	isSet(what: string) {
 		if (this.checkIsSet(what)) {
@@ -85,7 +86,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				term = interpolate(term, {}, this.getWorld());
 				const resolved = resolveVariable({ term, origin, domain }, this.getWorld());
 				const presentVal = resolved.value;
-				
+
 				const stored = this.getWorld().shared.all()[term];
 
 				// If no domain supplied by the step, try to infer it from stored variable metadata.
@@ -115,7 +116,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 						if (nextVal === presentVal) {
 							return Promise.resolve(OK);
 						}
-						this.getWorld().shared.set({ term: String(term), value: nextVal, domain, origin: Origin.var }, provenanceFromFeatureStep(featureStep));
+						this.getWorld().shared.set({ term: String(term), value: nextVal, domain: effectiveDomain, origin: Origin.var }, provenanceFromFeatureStep(featureStep));
 						return Promise.resolve(OK);
 					}
 				}
@@ -228,8 +229,15 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			match: /^variable\s+.+?\s+is\s+(?!less\s+than\b).+/,
 			action: ({ what, value }: { what: string, value: string }, featureStep: TFeatureStep) => {
 				void what; // used for type checking
-				const { term, domain } = featureStep.action.stepValuesMap.what;
+				let { term, domain } = featureStep.action.stepValuesMap.what;
+				term = interpolate(term, {}, this.getWorld());
 				const val = this.getVarValue(term);
+
+                const stored = this.getWorld().shared.all()[term];
+                if (stored && stored.domain) {
+                    domain = stored.domain;
+                }
+
 				const normalized = normalizeDomainKey(domain);
 				const domainEntry = this.getWorld().domains[normalized];
 				if (!domainEntry) {
@@ -273,7 +281,8 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			gwta: 'variable {what: string} is set',
 			action: ({ what }: TStepArgs, featureStep: TFeatureStep) => {
 				// Use term from stepValuesMap when available (normal execution), fall back to what for kireji
-				const term = featureStep?.action?.stepValuesMap?.what?.term ?? what;
+				let term = featureStep?.action?.stepValuesMap?.what?.term ?? what;
+				term = interpolate(term as string, {}, this.getWorld());
 				return this.isSet(term as string);
 			}
 		},
@@ -296,7 +305,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			action: () => {
 				const domains = this.getWorld().domains;
 				const allVars = this.getWorld().shared.all();
-				const summary: Record<string, any> = {};
+				const summary: Record<string, TAnyFixme> = {};
 
 				for (const [name, def] of Object.entries(domains)) {
 					// Count variables in this domain
@@ -309,16 +318,16 @@ class VariablesStepper extends AStepper implements IHasCycles {
 
 					// Determine type from schema or values
 					let type: string | string[] = JSON.stringify(def);
-					if ((def as any).values) {
-						type = (def as any).values;
-					} else if ((def as any).schema && (def as any).schema._def) {
-						type = (def as any).schema._def.typeName;
+					if (def.values) {
+						type = def.values;
+					} else if (def.schema && (def as TRegisteredDomain).schema._def) {
+						type = def.schema._def.typeName;
 					}
 
 					summary[name] = {
 						type,
 						members,
-						ordered: !!(def as any).comparator
+						ordered: !!def.comparator
 					};
 				}
 				this.getWorld().logger.info(`Domains: ${JSON.stringify(summary, null, 2)}`);
@@ -333,7 +342,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 					return actionNotOK(`Domain "${name}" not found`);
 				}
 				const allVars = this.getWorld().shared.all();
-				const members: Record<string, any> = {};
+				const members: Record<string, TAnyFixme> = {};
 				for (const [key, variable] of Object.entries(allVars)) {
 					if (variable.domain && normalizeDomainKey(variable.domain) === name) {
 						members[key] = variable.value;
