@@ -173,7 +173,7 @@ export class FeatureExecutor {
 
 		this.logit(`start feature ${currentScenario}`, { incident: EExecutionMessageType.FEATURE_START, incidentDetails: { startTime: Timer.START_TIME, feature } }, 'debug');
 
-		let featureVars: FeatureVariables = new FeatureVariables(world, {});
+		let scopedVars: FeatureVariables = new FeatureVariables(world, {});
 		let baseVars: FeatureVariables = new FeatureVariables(world, {});
 
 		for (const step of feature.featureSteps) {
@@ -184,7 +184,7 @@ export class FeatureExecutor {
 
 					// Reset to base state (discarding scenario changes)
 					world.shared = new FeatureVariables(world, baseVars.all());
-					featureVars = new FeatureVariables(world, world.shared.all());
+					scopedVars = new FeatureVariables(world, world.shared.all());
 					currentScenario = 0;
 				}
 			}
@@ -194,11 +194,11 @@ export class FeatureExecutor {
 					this.logit(`end scenario ${currentScenario}`, { incident: EExecutionMessageType.SCENARIO_END, incidentDetails: { currentScenario } }, 'debug');
 					await doStepperCycle(this.steppers, 'endScenario', undefined);
 					// Save variables after scenario ends so they persist to next scenario
-					featureVars = new FeatureVariables(world, world.shared.all());
+					scopedVars = new FeatureVariables(world, world.shared.all());
 				}
 				currentScenario = currentScenario + 1;
 				this.logit(`start scenario ${currentScenario}`, { incident: EExecutionMessageType.SCENARIO_START, incidentDetails: { currentScenario, scenarioTitle: step.in } }, 'debug');
-				await doStepperCycle(this.steppers, 'startScenario', { featureVars });
+				await doStepperCycle(this.steppers, 'startScenario', { scopedVars });
 			}
 
 			// Prepend feature number and scenario number to seqPath
@@ -215,7 +215,7 @@ export class FeatureExecutor {
 			}
 			// Stash feature variables (for feature-level steps before any scenario)
 			if (!currentScenario) {
-				featureVars = new FeatureVariables(world, world.shared.all());
+				scopedVars = new FeatureVariables(world, world.shared.all());
 				baseVars = new FeatureVariables(world, world.shared.all());
 			}
 		}

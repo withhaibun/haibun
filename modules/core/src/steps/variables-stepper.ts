@@ -1,10 +1,10 @@
 import { z } from 'zod';
-import { OK, TStepArgs, TFeatureStep, TWorld, IStepperCycles, TStartScenario, Origin, TOrigin, TProvenanceIdentifier, TRegisteredDomain, TStepValue } from '../lib/defs.js';
+import { OK, TStepArgs, TFeatureStep, TWorld, IStepperCycles, TStartScenario, Origin, TProvenanceIdentifier, TRegisteredDomain, TDomainDefinition } from '../lib/defs.js';
 import { TAnyFixme } from '../lib/fixme.js';
 import { AStepper, IHasCycles, TStepperSteps } from '../lib/astepper.js';
 import { actionNotOK, actionOK } from '../lib/util/index.js';
 import { FeatureVariables } from '../lib/feature-variables.js';
-import { DOMAIN_STATEMENT, DOMAIN_STRING, normalizeDomainKey, createEnumDomainDefinition, registerDomains, TDomainDefinition } from '../lib/domain-types.js';
+import { DOMAIN_STATEMENT, DOMAIN_STRING, normalizeDomainKey, createEnumDomainDefinition, registerDomains } from '../lib/domain-types.js';
 import { EExecutionMessageType } from '../lib/interfaces/logger.js';
 import { resolveVariable } from '../lib/util/variables.js';
 
@@ -15,8 +15,8 @@ const clearVars = (vars) => () => {
 
 const cycles = (variablesStepper: VariablesStepper): IStepperCycles => ({
 	startFeature: clearVars(variablesStepper),
-	startScenario: ({ featureVars }: TStartScenario) => {
-		variablesStepper.getWorld().shared = new FeatureVariables(variablesStepper.getWorld(), { ...featureVars.all() });
+	startScenario: ({ scopedVars }: TStartScenario) => {
+		variablesStepper.getWorld().shared = new FeatureVariables(variablesStepper.getWorld(), { ...scopedVars.all() });
 		return Promise.resolve();
 	},
 });
