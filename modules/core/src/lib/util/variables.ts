@@ -1,21 +1,6 @@
 import { TWorld, Origin, TOrigin, TStepValue } from '../defs.js';
 import { DOMAIN_STRING } from '../domain-types.js';
 
-export function interpolate(text: string, world: TWorld): string {
-	const result = text.replace(/\{([^}]+)\}/g, (match, key) => {
-		const resolved = resolveVariable({ term: key, origin: Origin.fallthrough }, world);
-		if (resolved.origin === Origin.fallthrough) {
-			console.log('\nyDEBUG: ', match, key, '333', String(resolved.value));
-			return match;
-		} else {
-			console.log('\nnDEBUG: ', match, key, '444', String(resolved.value));
-		}
-		return String(resolved.value);
-	});
-
-	return result;
-}
-
 export function resolveVariable(actionVal: Partial<TStepValue> & { term: string, origin: TOrigin }, world: TWorld) {
 	const storedEntry = world.shared.all()[actionVal.term];
 	if (actionVal.origin === Origin.statement) {

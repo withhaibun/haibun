@@ -45,7 +45,7 @@ function getWorkspaceRoot() {
 				if (packageJson.name === 'haibun') {
 					return currentDir;
 				}
-			} catch (error) {
+			} catch {
 				// Ignore JSON parse errors and continue searching
 			}
 		}

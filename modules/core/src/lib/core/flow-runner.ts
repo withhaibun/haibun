@@ -1,6 +1,5 @@
 import { TWorld, TFeatureStep, TSeqPath, TNotOKActionResult } from '../defs.js';
 import { AStepper } from '../astepper.js';
-import { interpolate } from '../util/variables.js';
 import { Resolver } from '../../phases/Resolver.js';
 import { FeatureExecutor, incSeqPath } from '../../phases/Executor.js';
 import { ExecutionIntent, FlowSignal } from './protocol.js';
@@ -22,13 +21,9 @@ export class FlowRunner {
 			}
 		}
 
-		const interpolated = interpolate(statementWithArgs, this.world);
-
 		let action;
 		try {
-			// console.log('\nDEBUG: interpolated:', interpolated, '×',statementWithArgs);
 			action = this.resolver.findSingleStepAction(statementWithArgs);
-			// action = this.resolver.findSingleStepAction(interpolated);
 		} catch (e) {
 			if (intent.mode === 'speculative') {
 				return { kind: 'fail', message: e.message };
@@ -47,7 +42,7 @@ export class FlowRunner {
 
 		const featureStep: TFeatureStep = {
 			path: options.parentStep?.path || this.world.runtime.feature || 'unknown',
-			in: interpolated,
+			in: statementWithArgs,
 			seqPath,
 			action,
 			intent,

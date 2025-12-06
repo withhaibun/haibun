@@ -65,6 +65,20 @@ Use variables for configuration, test data, and efficiency.
     set base_url to "https://example.com"
     set timeout as number to 30
 
+#### Stepper sources
+
+Steppers variables can be specifically "quoted," {variables} or from the `environment`. If a bare value is used, an environment, variable or the literal value.
+
+    set quoted to "isquoted"
+		set env to $fromenv$ ;; passed via HAIBUN_ENV
+		set fallthrough to env
+		set varred to `quoted`
+
+		variable quoted is "isquoted"
+		variable fallthrough is "passed"
+		variable env is "passed"
+		variable varred is "isquoted"
+
 #### Stepper variables
 
 Some steppers provide variables that are updated when steps execute. For example, `WebPlaywright.currentURI` and `WebPlaywright.navigationCount`.
@@ -319,7 +333,6 @@ A talent agency can have different types of clients, including artists and venue
     show var {name}/{concern}
     waypoint {name} has {concern} with not variable {name}/{concern} is less than "agreed"
 
-show waypoints
     ensure Engaged "Theatre Z"
     ensure Engaged Le Artiste
     ensure "Le Artiste" has signed

@@ -5,7 +5,7 @@ import { actionNotOK, actionOK } from '../lib/util/index.js';
 import { FeatureVariables } from '../lib/feature-variables.js';
 import { DOMAIN_STATEMENT, DOMAIN_STRING, normalizeDomainKey, createEnumDomainDefinition, registerDomains } from '../lib/domain-types.js';
 import { EExecutionMessageType } from '../lib/interfaces/logger.js';
-import { interpolate, resolveVariable } from '../lib/util/variables.js';
+import {  resolveVariable } from '../lib/util/variables.js';
 
 const clearVars = (vars) => () => {
 	vars.getWorld().shared.clear();
@@ -78,7 +78,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				if (!origin) {
 					origin = Origin.fallthrough;
 				}
-				term = interpolate(term,  this.getWorld());
+				// term = interpolate(term,  this.getWorld());
 				const resolved = resolveVariable({ term, origin, domain }, this.getWorld());
 				const presentVal = resolved.value;
 
@@ -225,8 +225,8 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			action: ({ what, value }: { what: string, value: string }, featureStep: TFeatureStep) => {
 				void what; // used for type checking
 				let { term, domain, origin } = featureStep.action.stepValuesMap.what;
-				term = interpolate(term,  this.getWorld());
-				
+				// term = interpolate(term,  this.getWorld());
+
 				const effectiveOrigin = origin === Origin.quoted ? Origin.fallthrough : origin;
 				const resolved = resolveVariable({ term, origin: effectiveOrigin }, this.getWorld());
 				let val = resolved.origin === Origin.fallthrough ? undefined : resolved.value;
@@ -240,7 +240,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				if (!domainEntry) {
 					return actionNotOK(`No domain coercer found for domain "${domain}"`);
 				}
-				
+
 				if (val !== undefined) {
 					val = domainEntry.coerce({ domain: normalized, value: val, term, origin: resolved.origin });
 				}
@@ -283,17 +283,17 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			gwta: 'variable {what: string} is set',
 			action: ({ what }: TStepArgs, featureStep: TFeatureStep) => {
 				// Use term from stepValuesMap when available (normal execution), fall back to what for kireji
-				let term = featureStep?.action?.stepValuesMap?.what?.term ?? what;
+				const term = featureStep?.action?.stepValuesMap?.what?.term ?? what;
 				const origin = featureStep?.action?.stepValuesMap?.what?.origin ?? Origin.fallthrough;
-				term = interpolate(term as string,  this.getWorld());
+				// term = interpolate(term as string,  this.getWorld());
 				return this.isSet(term as string, origin);
 			}
 		},
 		showVar: {
 			gwta: 'show var {what}',
 			action: (args: TStepArgs, featureStep: TFeatureStep) => {
-				let { term } = featureStep.action.stepValuesMap.what;
-				term = interpolate(term, this.getWorld());
+				const { term } = featureStep.action.stepValuesMap.what;
+				// term = interpolate(term, this.getWorld());
 				const stepValue = this.getWorld().shared.all()[term];
 				if (!stepValue) {
 					this.getWorld().logger.info(`is undefined`);
