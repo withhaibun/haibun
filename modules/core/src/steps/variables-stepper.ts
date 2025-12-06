@@ -1,11 +1,11 @@
-import { OK, TStepArgs, TFeatureStep, TWorld, IStepperCycles, TStartScenario, Origin, TOrigin, TProvenanceIdentifier, TRegisteredDomain } from '../lib/defs.js';
+import { OK, TStepArgs, TFeatureStep, TWorld, IStepperCycles, TStartScenario, Origin, TOrigin, TProvenanceIdentifier, TRegisteredDomain, TStepValue } from '../lib/defs.js';
 import { TAnyFixme } from '../lib/fixme.js';
 import { AStepper, IHasCycles, TStepperSteps } from '../lib/astepper.js';
 import { actionNotOK, actionOK } from '../lib/util/index.js';
 import { FeatureVariables } from '../lib/feature-variables.js';
 import { DOMAIN_STATEMENT, DOMAIN_STRING, normalizeDomainKey, createEnumDomainDefinition, registerDomains } from '../lib/domain-types.js';
 import { EExecutionMessageType } from '../lib/interfaces/logger.js';
-import {  resolveVariable } from '../lib/util/variables.js';
+import { resolveVariable } from '../lib/util/variables.js';
 
 const clearVars = (vars) => () => {
 	vars.getWorld().shared.clear();
@@ -28,15 +28,6 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		this.steppers = steppers;
 		await Promise.resolve();
 	}
-	isSet(what: string, origin: TOrigin = Origin.fallthrough) {
-		const effectiveOrigin = origin === Origin.quoted ? Origin.fallthrough : origin;
-		const resolved = resolveVariable({ term: what, origin: effectiveOrigin }, this.getWorld());
-		if (resolved.origin !== Origin.fallthrough) {
-			return OK;
-		}
-		return actionNotOK(`${what} not set`);
-	}
-
 	steps = {
 		defineOrderedSet: {
 			precludes: [`${VariablesStepper.name}.defineSet`],
@@ -78,7 +69,6 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				if (!origin) {
 					origin = Origin.fallthrough;
 				}
-				// term = interpolate(term,  this.getWorld());
 				const resolved = resolveVariable({ term, origin, domain }, this.getWorld());
 				const presentVal = resolved.value;
 
@@ -225,7 +215,6 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			action: ({ what, value }: { what: string, value: string }, featureStep: TFeatureStep) => {
 				void what; // used for type checking
 				let { term, domain, origin } = featureStep.action.stepValuesMap.what;
-				// term = interpolate(term,  this.getWorld());
 
 				const effectiveOrigin = origin === Origin.quoted ? Origin.fallthrough : origin;
 				const resolved = resolveVariable({ term, origin: effectiveOrigin }, this.getWorld());
@@ -282,18 +271,15 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			precludes: ['VariablesStepper.is'],
 			gwta: 'variable {what: string} is set',
 			action: ({ what }: TStepArgs, featureStep: TFeatureStep) => {
-				// Use term from stepValuesMap when available (normal execution), fall back to what for kireji
-				const term = featureStep?.action?.stepValuesMap?.what?.term ?? what;
-				const origin = featureStep?.action?.stepValuesMap?.what?.origin ?? Origin.fallthrough;
-				// term = interpolate(term as string,  this.getWorld());
-				return this.isSet(term as string, origin);
+				const term = featureStep.action.stepValuesMap.what?.term;
+				const exists = term !== undefined && this.getWorld().shared.all()[term]
+				return exists ? OK : actionNotOK(`${what} not set`);
 			}
 		},
 		showVar: {
 			gwta: 'show var {what}',
 			action: (args: TStepArgs, featureStep: TFeatureStep) => {
 				const { term } = featureStep.action.stepValuesMap.what;
-				// term = interpolate(term, this.getWorld());
 				const stepValue = this.getWorld().shared.all()[term];
 				if (!stepValue) {
 					this.getWorld().logger.info(`is undefined`);

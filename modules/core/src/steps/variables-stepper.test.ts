@@ -238,3 +238,27 @@ variable choice is less than no
 		expect(res.ok).toBe(false);
 	});
 });
+
+describe('isSet', () => {
+	it('passes when variable is set', async () => {
+		const feature = {
+			path: '/features/isSet.feature',
+			content: `
+set "setVar" to "value"
+variable "setVar" is set
+`
+		};
+		const res = await passWithDefaults([feature], steppers);
+		expect(res.ok).toBe(true);
+	});
+	it('fails when variable is not set', async () => {
+		const feature = {
+			path: '/features/isSet.feature',
+			content: `
+variable "unsetVar" is set
+`
+		};
+		const res = await failWithDefaults([feature], steppers);
+		expect(res.ok).toBe(false);
+	});
+});
