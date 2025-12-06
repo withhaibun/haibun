@@ -34,7 +34,7 @@ describe('variables integration', () => {
         expect(res.ok).toBe(true);
         const world = res.world;
 
-        const result = interpolate('Hello {name}', {}, world);
+        const result = interpolate('Hello {name}',  world);
         expect(result).toBe('Hello World');
     });
 
@@ -44,17 +44,7 @@ describe('variables integration', () => {
         expect(res.ok).toBe(true);
         const world = res.world;
 
-        const result = interpolate('Hello {NAME}', {}, world);
+        const result = interpolate('Hello {NAME}',  world);
         expect(result).toBe('Hello Env');
-    });
-
-    it('prioritizes local args', async () => {
-        const feature = { path: '/features/test.feature', content: 'set name to "World"' };
-        const res = await passWithDefaults([feature], steppers);
-        expect(res.ok).toBe(true);
-        const world = res.world;
-
-        const result = interpolate('Hello {name}', { name: 'Local' }, world);
-        expect(result).toBe('Hello Local');
     });
 });

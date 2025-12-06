@@ -28,13 +28,10 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		this.steppers = steppers;
 		await Promise.resolve();
 	}
-	private getVarValue(what: string, origin: TOrigin): TAnyFixme {
+	isSet(what: string, origin: TOrigin = Origin.fallthrough) {
 		const effectiveOrigin = origin === Origin.quoted ? Origin.fallthrough : origin;
 		const resolved = resolveVariable({ term: what, origin: effectiveOrigin }, this.getWorld());
-		return resolved.origin === Origin.fallthrough ? undefined : resolved.value;
-	}
-	isSet(what: string, origin: TOrigin = Origin.fallthrough) {
-		if (this.getVarValue(what, origin) !== undefined) {
+		if (resolved.origin !== Origin.fallthrough) {
 			return OK;
 		}
 		return actionNotOK(`${what} not set`);
@@ -74,12 +71,14 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		},
 		increment: {
 			gwta: 'increment {what}',
-			action: ({ what }: { what: string }, featureStep: TFeatureStep) => {
+			action: (args: TStepArgs, featureStep: TFeatureStep) => {
 				let { term, domain, origin } = featureStep.action.stepValuesMap.what;
-				if (origin === Origin.quoted) {
+				// If origin is missing or fallthrough, we might need to resolve it properly.
+				// But resolveVariable handles fallthrough.
+				if (!origin) {
 					origin = Origin.fallthrough;
 				}
-				term = interpolate(term, {}, this.getWorld());
+				term = interpolate(term,  this.getWorld());
 				const resolved = resolveVariable({ term, origin, domain }, this.getWorld());
 				const presentVal = resolved.value;
 
@@ -226,12 +225,14 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			action: ({ what, value }: { what: string, value: string }, featureStep: TFeatureStep) => {
 				void what; // used for type checking
 				let { term, domain, origin } = featureStep.action.stepValuesMap.what;
-				term = interpolate(term, {}, this.getWorld());
-				const val = this.getVarValue(term, origin);
+				term = interpolate(term,  this.getWorld());
+				
+				const effectiveOrigin = origin === Origin.quoted ? Origin.fallthrough : origin;
+				const resolved = resolveVariable({ term, origin: effectiveOrigin }, this.getWorld());
+				let val = resolved.origin === Origin.fallthrough ? undefined : resolved.value;
 
-				const stored = this.getWorld().shared.all()[term];
-				if (stored && stored.domain) {
-					domain = stored.domain;
+				if (resolved.domain) {
+					domain = resolved.domain;
 				}
 
 				const normalized = normalizeDomainKey(domain);
@@ -239,6 +240,11 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				if (!domainEntry) {
 					return actionNotOK(`No domain coercer found for domain "${domain}"`);
 				}
+				
+				if (val !== undefined) {
+					val = domainEntry.coerce({ domain: normalized, value: val, term, origin: resolved.origin });
+				}
+
 				const asDomain = domainEntry.coerce({ domain: normalized, value, term, origin: 'quoted' })
 				return JSON.stringify(val) === JSON.stringify(asDomain) ? OK : actionNotOK(`${term} is ${JSON.stringify(val)}, not ${JSON.stringify(value)}`);
 			}
@@ -279,7 +285,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				// Use term from stepValuesMap when available (normal execution), fall back to what for kireji
 				let term = featureStep?.action?.stepValuesMap?.what?.term ?? what;
 				const origin = featureStep?.action?.stepValuesMap?.what?.origin ?? Origin.fallthrough;
-				term = interpolate(term as string, {}, this.getWorld());
+				term = interpolate(term as string,  this.getWorld());
 				return this.isSet(term as string, origin);
 			}
 		},
@@ -287,7 +293,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			gwta: 'show var {what}',
 			action: (args: TStepArgs, featureStep: TFeatureStep) => {
 				let { term } = featureStep.action.stepValuesMap.what;
-				term = interpolate(term, {}, this.getWorld());
+				term = interpolate(term, this.getWorld());
 				const stepValue = this.getWorld().shared.all()[term];
 				if (!stepValue) {
 					this.getWorld().logger.info(`is undefined`);

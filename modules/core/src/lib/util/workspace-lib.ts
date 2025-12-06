@@ -34,6 +34,7 @@ function getWorkspaceRoot() {
 	let currentDir = path.resolve(process.cwd());
 	const tried: string[] = [];
 
+	// eslint-disable-next-line no-constant-condition
 	while (true) {
 		tried.push(currentDir);
 		const packageJsonPath = path.resolve(currentDir, 'package.json');

@@ -67,7 +67,7 @@ export class Executor {
 		const action = stepper.steps[found.actionName].action;
 		try {
 			return await action(args, featureStep);
-		} catch (caught: TAnyFixme) {
+		} catch (caught) {
 			if (featureStep.intent?.mode !== 'speculative') {
 				world.logger.error(caught.stack);
 			}

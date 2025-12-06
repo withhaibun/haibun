@@ -1,7 +1,7 @@
 import { Download, Page, Response } from "playwright";
 type ClickResult = import('playwright').Locator;
 
-import { OK, Origin, TFeatureStep } from "@haibun/core/lib/defs.js";
+import { OK, Origin, TActionResult, TFeatureStep } from "@haibun/core/lib/defs.js";
 import { DOMAIN_STATEMENT, DOMAIN_STRING } from "@haibun/core/lib/domain-types.js";
 import { actionNotOK, sleep } from "@haibun/core/lib/util/index.js";
 import { DOMAIN_PAGE_LOCATOR } from "./domains.js";
@@ -219,7 +219,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 				wp.inContainer = undefined;
 
 				if (result.kind === 'ok') {
-					return result.payload as any; // Cast to TActionResult
+					return result.payload as TActionResult;
 				} else {
 					return actionNotOK(result.message);
 				}
