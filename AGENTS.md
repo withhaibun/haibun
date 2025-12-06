@@ -18,9 +18,9 @@ Documentation becomes the test; prose provides context, and executable statement
 
 ## What can be tested?
 
-Web applications, custom systems, and other domains can be tested via a mix of reusable steppers that execute steps.
-
 Steppers are modules that provide testing capabilities. They are configured via a config.json file, and each may have their own runtime options. Use `--help` with haibun-cli and a config.json (typically, `npm test -- --help`to see configured options).
+
+The main focus is Web applications, however Haibun provides steppers for other environments including APIs and file systems, and new stepper definitions are straightforward to create.
 
 ## Core syntax
 
@@ -65,9 +65,6 @@ Use variables for configuration, test data, and efficiency.
     set base_url to "https://example.com"
     set timeout as number to 30
 
-#### Stepper sources
-
-
 Stepper variable resolution supports explicit quoting, environment variable substitution, and fallthrough logic.
 Quoted variables are treated as literals.
 Environment variables are referenced using `$name$`, which resolves from the HAIBUN_ENV context.
@@ -101,34 +98,20 @@ Some steppers provide variables that are updated when steps execute. For example
     set of roles is ["admin", "editor", "viewer"]
     set user_role as roles to "admin"
 
-### Soundness and Validation
+#### Soundness and Validation
 
 Haibun enforces **soundness** by preventing invalid states. A variable cannot hold a value outside its domain.
 
     not set user_role as roles to "guest" ;; without `not`, this would fail because "guest" is not in roles
 
-### Built-in domains
+#### Built-in domains
 
 `string`, `number`, `json`, `date`, and `page-locator`.
 
     set count as number to 0
     set config as json to {"enabled": true}
 
-## Basic steps
-
-The core verbs for manipulating state.
-
-### Setting values
-
-    set example to "test"
-
-### Checking values
-
-    variable example is "test"
-    show vars ;; inspect all variables with domains and values
-    show var example ;; inspect a single variable
-
-### Incrementing (Ordered sets)
+#### Incrementing (Ordered sets)
 
 Ordered sets enable state machines and efficient waypoint checks.
 
@@ -137,9 +120,26 @@ Ordered sets enable state machines and efficient waypoint checks.
     increment doc_status
     variable doc_status is "review"
 
-### Comparisons
+##### Comparisons
 
     variable doc_status is less than "published" ;; true
+
+		show domains ;; show all domains
+		show domain statuses
+    show vars ;; inspect all variables with domains and values
+    show var doc_status ;; inspect a single variable
+
+#### Super and subdomains
+
+		set of berries is [strawberry cucumber cherry]
+		set of seasonal as [berries]
+		set in-hand as seasonal to cucumber
+
+Currently, sets can contain values and open-ended values like strings, but this might change.
+
+		set of smoothie as [berries string]
+		set Tuesday as smoothie to [cucumber potato]
+		show var Tuesday
 
 ## Step Arguments & Interpolation
 

@@ -1,9 +1,10 @@
+import { z } from 'zod';
 import { OK, TStepArgs, TFeatureStep, TWorld, IStepperCycles, TStartScenario, Origin, TOrigin, TProvenanceIdentifier, TRegisteredDomain, TStepValue } from '../lib/defs.js';
 import { TAnyFixme } from '../lib/fixme.js';
 import { AStepper, IHasCycles, TStepperSteps } from '../lib/astepper.js';
 import { actionNotOK, actionOK } from '../lib/util/index.js';
 import { FeatureVariables } from '../lib/feature-variables.js';
-import { DOMAIN_STATEMENT, DOMAIN_STRING, normalizeDomainKey, createEnumDomainDefinition, registerDomains } from '../lib/domain-types.js';
+import { DOMAIN_STATEMENT, DOMAIN_STRING, normalizeDomainKey, createEnumDomainDefinition, registerDomains, TDomainDefinition } from '../lib/domain-types.js';
 import { EExecutionMessageType } from '../lib/interfaces/logger.js';
 import { resolveVariable } from '../lib/util/variables.js';
 
@@ -29,14 +30,18 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		await Promise.resolve();
 	}
 	steps = {
-		defineOrderedSet: {
-			precludes: [`${VariablesStepper.name}.defineSet`],
-			gwta: `ordered set of {domain: string} is {values:${DOMAIN_STATEMENT}}`,
-			action: ({ domain, values }: { domain: string, values: TFeatureStep[] }, featureStep: TFeatureStep) => this.registerDomainFromStatement(domain, values, featureStep, { ordered: true, label: 'ordered set' })
+		defineOpenSet: {
+			gwta: `set of {domain: string} as {superdomains: ${DOMAIN_STATEMENT}}`,
+			action: ({ domain, superdomains }: { domain: string, superdomains: TFeatureStep[] }, featureStep: TFeatureStep) => this.registerSubdomainFromStatement(domain, superdomains, featureStep)
 		},
-		defineSet: {
+		defineOrderedSet: {
+			precludes: [`${VariablesStepper.name}.defineValuesSet`, `${VariablesStepper.name}.defineSet`],
+			gwta: `ordered set of {domain: string} is {values:${DOMAIN_STATEMENT}}`,
+			action: ({ domain, values }: { domain: string, values: TFeatureStep[] }, featureStep: TFeatureStep) => this.registerValuesDomainFromStatement(domain, values, featureStep, { ordered: true, label: 'ordered set' })
+		},
+		defineValuesSet: {
 			gwta: `set of {domain: string} is {values:${DOMAIN_STATEMENT}}`,
-			action: ({ domain, values }: { domain: string, values: TFeatureStep[] }, featureStep: TFeatureStep) => this.registerDomainFromStatement(domain, values, featureStep, { ordered: false, label: 'set' })
+			action: ({ domain, values }: { domain: string, values: TFeatureStep[] }, featureStep: TFeatureStep) => this.registerValuesDomainFromStatement(domain, values, featureStep, { ordered: false, label: 'set' })
 		},
 		statementSetValues: {
 			expose: false,
@@ -343,7 +348,57 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		},
 	} satisfies TStepperSteps;
 
-	private registerDomainFromStatement(domain: string, valueFragments: TFeatureStep[] | undefined, featureStep: TFeatureStep, options?: { ordered?: boolean; label?: string; description?: string }) {
+
+	private registerSubdomainFromStatement(domain: string, superdomains: TFeatureStep[] | undefined, featureStep: TFeatureStep) {
+		try {
+			const fallback = featureStep.action.stepValuesMap.superdomains?.term ?? featureStep.in;
+			const superdomainNames = extractValuesFromFragments(superdomains, fallback);
+			if (!superdomainNames.length) {
+				throw new Error('Superdomain set must specify at least one superdomain');
+			}
+			const uniqueNames = Array.from(new Set(superdomainNames));
+			const domainKey = normalizeDomainKey(domain);
+			if (this.getWorld().domains[domainKey]) {
+				return actionNotOK(`Domain "${domainKey}" already exists`);
+			}
+			const superdomainDefs: TRegisteredDomain[] = uniqueNames.map((name) => {
+				const normalized = normalizeDomainKey(name);
+				const registered = this.getWorld().domains[normalized];
+				if (!registered) {
+					throw new Error(`Superdomain "${name}" not registered`);
+				}
+				return registered;
+			});
+			const enumSources = superdomainDefs.filter((entry) => Array.isArray(entry.values) && entry.values.length);
+			const uniqueValues = Array.from(new Set(enumSources.flatMap((entry) => entry.values!)));
+			const description = `Values inherited from ${uniqueNames.join(', ')}`;
+			if (enumSources.length === superdomainDefs.length && uniqueValues.length) {
+				const definition = createEnumDomainDefinition({ name: domainKey, values: uniqueValues, description });
+				registerDomains(this.getWorld(), [[definition]]);
+				return OK;
+			}
+			const schemaList = superdomainDefs.map((entry) => entry.schema);
+			if (!schemaList.length) {
+				throw new Error('Superdomains did not expose any schema to derive from');
+			}
+			let mergedSchema = schemaList[0];
+			for (let i = 1; i < schemaList.length; i++) {
+				mergedSchema = z.union([mergedSchema, schemaList[i]]);
+			}
+			const definition: TDomainDefinition = {
+				selectors: [domainKey],
+				schema: mergedSchema,
+				coerce: (proto) => mergedSchema.parse(proto.value),
+				description,
+			};
+			registerDomains(this.getWorld(), [[definition]]);
+			return OK;
+		} catch (error) {
+			return actionNotOK(error instanceof Error ? error.message : String(error));
+		}
+	}
+
+	private registerValuesDomainFromStatement(domain: string, valueFragments: TFeatureStep[] | undefined, featureStep: TFeatureStep, options?: { ordered?: boolean; label?: string; description?: string }) {
 		try {
 			const values = extractValuesFromFragments(valueFragments, featureStep.action.stepValuesMap.values?.term ?? featureStep.in);
 			const domainKey = normalizeDomainKey(domain);

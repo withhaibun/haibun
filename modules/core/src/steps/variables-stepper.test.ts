@@ -239,6 +239,66 @@ variable choice is less than no
 	});
 });
 
+describe('enum superdomains', () => {
+	it('inherits values from referenced superdomains', async () => {
+		const feature = {
+			path: '/features/enum-superdomains.feature',
+			content: `
+set of baseColors is ["red" "green"]
+set of accentColors is ["green" "blue"]
+set of derivedColors as [baseColors accentColors]
+set color as derivedColors to "red"
+set color as derivedColors to "blue"
+variable color is "blue"
+`
+		};
+		const res = await passWithDefaults([feature], steppers);
+		expect(res.ok).toBe(true);
+	});
+
+	it('fails when a superdomain is missing', async () => {
+		const feature = {
+			path: '/features/enum-superdomains-missing.feature',
+			content: `
+set of derived as [missingSuperdomain]
+`
+		};
+		const res = await failWithDefaults([feature], steppers);
+		expect(res.ok).toBe(false);
+	});
+});
+
+describe('superdomain base and mixed types', () => {
+	it('supports derived domains from base types', async () => {
+		const feature = {
+			path: '/features/base-typed-superdomains.feature',
+			content: `
+set of textValues as [string]
+set headline as textValues to "Hello"
+variable headline is "Hello"
+`
+		};
+		const res = await passWithDefaults([feature], steppers);
+		expect(res.ok).toBe(true);
+	});
+
+	it('supports mixing enums with base domain schemas', async () => {
+		const feature = {
+			path: '/features/mixed-superdomains.feature',
+			content: `
+set of palette is ["sun" "moon"]
+set of blendedSuper as [palette string]
+set shade as blendedSuper to "anything"
+variable shade is "anything"
+set shade as blendedSuper to "sun"
+variable shade is "sun"
+`
+		};
+		const res = await passWithDefaults([feature], steppers);
+		expect(res.ok).toBe(true);
+	});
+});
+
 describe('isSet', () => {
 	it('passes when variable is set', async () => {
 		const feature = {
