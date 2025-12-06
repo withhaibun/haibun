@@ -67,17 +67,30 @@ Use variables for configuration, test data, and efficiency.
 
 #### Stepper sources
 
-Steppers variables can be specifically "quoted," {variables} or from the `environment`. If a bare value is used, an environment, variable or the literal value.
 
-    set quoted to "isquoted"
-		set env to $fromenv$ ;; passed via HAIBUN_ENV
-		set fallthrough to env
-		set varred to `quoted`
+Stepper variable resolution supports explicit quoting, environment variable substitution, and fallthrough logic.
+Quoted variables are treated as literals.
+Environment variables are referenced using `$name$`, which resolves from the HAIBUN_ENV context.
+If a bare value is used, resolution happens in the following order: environment variable, stored variable, or literal value.
 
+		set quoted to "isquoted"
 		variable quoted is "isquoted"
-		variable fallthrough is "passed"
-		variable env is "passed"
+
+		set env to $fromenv$ ;; resolves from HAIBUN_ENV
+		variable env is "envvalue"
+
+		set fallthrough to env
+		variable fallthrough is "envvalue"
+
+		set fromenv to "fequote" ;; name collision with env
+		set fellthrough to fromenv ;; fallthrough prefers env
+    variable fellthrough is "envvalue"
+
+		set varred to `quoted` ;; explicit literal
 		variable varred is "isquoted"
+
+		set literal to Literal
+		variable literal is "Literal"
 
 #### Stepper variables
 
