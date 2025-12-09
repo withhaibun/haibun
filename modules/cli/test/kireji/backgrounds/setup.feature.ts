@@ -11,7 +11,7 @@ export const varsAreSetup = 'Variables are setup';
 export const backgrounds = {
   'Setup for Tests': [
     'Define reusable outcomes for testing.',
-    waypointWithProof({ outcome: varsAreSetup, proof: 'set greeting to Hello' }),
-    waypointWithProof({ outcome: dataIsReady, proof: 'set dataStatus to ready' }),
+    waypointWithProof({ outcome: varsAreSetup, proof: 'set greeting to "Hello"' }),
+    waypointWithProof({ outcome: dataIsReady, proof: 'set dataStatus to "ready"' }),
   ],
 };

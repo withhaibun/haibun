@@ -7,7 +7,7 @@ import WebPlaywright from './web-playwright.js';
 
 describe('click', () => {
 	it('click', async () => {
-		const features = asExpandedFeatures([{ path: 'l1', content: 'click Foo' }]);
+		const features = asExpandedFeatures([{ path: 'l1', content: 'click "Foo"' }]);
 		const steppers = createSteppers([WebPlaywright]);
 		const resolver = new Resolver(steppers);
 		const steps = await resolver.resolveStepsFromFeatures(features);
@@ -16,7 +16,7 @@ describe('click', () => {
 });
 describe('clickBy', () => {
 	it('clickBy placeholder', async () => {
-		const features = asExpandedFeatures([{ path: 'l1', content: 'click Search authorities by placeholder' }]);
+		const features = asExpandedFeatures([{ path: 'l1', content: 'click "Search authorities" by "placeholder"' }]);
 		const steppers = createSteppers([WebPlaywright]);
 		const resolver = new Resolver(steppers);
 		const steps = await resolver.resolveStepsFromFeatures(features);

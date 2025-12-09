@@ -29,7 +29,7 @@ describe('seqPath ordering', () => {
 	});
 
 	it('not statement', async () => {
-		const feature = { path: '/features/test.feature', content: 'passes\nnot fails\nends with OK' };
+		const feature = { path: '/features/test.feature', content: 'passes\nnot fails\nends with "OK"' };
 		const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps]);
 		expect(result.ok).toBe(true);
 		const seqs = result.featureResults![0].stepResults.map(r => r.seqPath);
@@ -37,7 +37,7 @@ describe('seqPath ordering', () => {
 	});
 
 	it('not not statement', async () => {
-		const feature = { path: '/features/test.feature', content: 'passes\nnot not passes\nends with OK' };
+		const feature = { path: '/features/test.feature', content: 'passes\nnot not passes\nends with "OK"' };
 		const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps]);
 		expect(result.ok).toBe(true);
 		const seqs = result.featureResults![0].stepResults.map(r => r.seqPath);
@@ -47,15 +47,15 @@ describe('seqPath ordering', () => {
 
 describe('afterEvery', () => {
 	it('afterEvery effect injects step', async () => {
-		const feature = { path: '/features/test.feature', content: 'have a test\nafter every TestSteps, Noodles, man.\npasses\npasses' };
+		const feature = { path: '/features/test.feature', content: 'have a test\nafter every "TestSteps", Noodles, man.\npasses\npasses' };
 		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(true);
 		const ins = result.featureResults![0].stepResults.map(r => r.in);
-		expect(ins).toEqual(['have a test', 'after every TestSteps, Noodles, man.', 'passes', 'Noodles, man.', 'passes', 'Noodles, man.']);
+		expect(ins).toEqual(['have a test', 'after every "TestSteps", Noodles, man.', 'passes', 'Noodles, man.', 'passes', 'Noodles, man.']);
 	});
 
 	it('afterEvery effect injects hierarchical step with parent seqPath extended', async () => {
-		const feature = { path: '/features/test.feature', content: 'have a test\nafter every TestSteps, passes\nhave a test\npasses' };
+		const feature = { path: '/features/test.feature', content: 'have a test\nafter every "TestSteps", passes\nhave a test\npasses' };
 		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(true);
 		const seqs = result.featureResults![0].stepResults.map(r => r.seqPath);
@@ -81,14 +81,14 @@ Prose sections are indicated by the presence of punctuation at the end of paragr
 	});
 
 	it('process effect callback', async () => {
-		const feature = { path: '/features/test.feature', content: 'have a test\nafter every TestSteps, passes' };
+		const feature = { path: '/features/test.feature', content: 'have a test\nafter every "TestSteps", passes' };
 		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(true);
 		expect(result.featureResults && result.featureResults[0].stepResults.length).toBe(2);
 	});
 
 	it('process multiple effect callbacks', async () => {
-		const feature = { path: '/features/test.feature', content: 'have a test\nafter every TestSteps, passes\nhave a test' };
+		const feature = { path: '/features/test.feature', content: 'have a test\nafter every "TestSteps", passes\nhave a test' };
 		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(true);
 		const rfzs = result.featureResults && result.featureResults[0].stepResults;
@@ -113,14 +113,14 @@ describe('nothing', () => {
 
 describe('ends with', () => {
 	it('ends with ok', async () => {
-		const feature = { path: '/features/test.feature', content: 'ends with OK\nIs not reached.' };
+		const feature = { path: '/features/test.feature', content: 'ends with "OK"\nIs not reached.' };
 		const result = await passWithDefaults([feature], [Haibun]);
 		expect(result.ok).toBe(true);
 		expect(result.featureResults?.length).toBe(1);
 	});
 
 	it('ends with not ok', async () => {
-		const feature = { path: '/features/test.feature', content: 'ends with not OK\nIs not reached.' };
+		const feature = { path: '/features/test.feature', content: 'ends with "not OK"\nIs not reached.' };
 		const result = await failWithDefaults([feature], [Haibun]);
 		expect(result.ok).toBe(false);
 		expect(result.featureResults?.length).toBe(1);
@@ -130,7 +130,7 @@ describe('ends with', () => {
 describe('backgrounds', () => {
 	it('where with Backgrounds shows condition, directive, background steps, then parent', async () => {
 		const feature = { path: '/features/test.feature', content: 'where passes, Backgrounds: bg' };
-		const background = { path: '/backgrounds/bg.feature', content: 'set ran to true\nends with ok' };
+		const background = { path: '/backgrounds/bg.feature', content: 'set ran to "true"\nends with "ok"' };
 		const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 		expect(result.ok).toBe(true);
 		const seqs = result.featureResults![0].stepResults.map(r => r.seqPath);
@@ -170,7 +170,7 @@ describe('backgrounds', () => {
 
 	it('background steps have correct file path', async () => {
 		const feature = { path: '/features/test.feature', content: 'set ran to "false"\nwhere variable "ran" is "false", Backgrounds: bg' };
-		const background = { path: '/backgrounds/bg.feature', content: 'set ran to "true"\nends with ok' };
+		const background = { path: '/backgrounds/bg.feature', content: 'set ran to "true"\nends with "ok"' };
 		const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 		expect(result.ok).toBe(true);
 

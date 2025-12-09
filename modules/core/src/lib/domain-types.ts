@@ -31,9 +31,9 @@ export const registerDomains = (world: TWorld, results: TDomainDefinition[][]) =
 
 export const asDomainKey = (domains: string[]) => domains.sort().join(' | ');
 
-export const normalizeDomainKey = (rawDomain: string) => {
-	const selectors = rawDomain.split('|').map((selector) => selector.trim()).filter(Boolean);
-	return asDomainKey(selectors);
+export const normalizeDomainKey = (domain: string) => {
+	const parts = domain.split(/[\\/]/).map((selector) => selector.trim()).filter(Boolean);
+	return asDomainKey(parts);
 };
 
 const sanitizeToken = (value: string) => value.trim();

@@ -207,10 +207,27 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 					return actionNotOK(`ensure: waypoint "${outcomeKey}" has no proof. ensure can only be used with waypoints that have a proof.`);
 				}
 
+				// Extract args from the outcome step(s) to pass to the activity
+				// This ensures that variables (e.g. {name}) defined in the waypoint are available in the activity
+				const activityArgs: Record<string, string> = {};
+				for (const step of outcome) {
+					if (step.action.stepValuesMap) {
+						for (const [key, val] of Object.entries(step.action.stepValuesMap)) {
+							// Use the value if available (it should be resolved), otherwise term
+							const value = val.value !== undefined ? String(val.value) : val.term;
+
+							if (value !== undefined) {
+								activityArgs[key] = value;
+							}
+						}
+					}
+				}
+
 				let proofStatements: string[] | undefined;
 
 				try {
 					// Use FlowRunner for the proof execution
+					// Pass activityArgs so they are available to the Outcome Action
 					const flowResult = await this.runner.runSteps(outcome, { intent: { mode: 'authoritative', usage: featureStep.intent?.usage, stepperOptions: { isEnsure: true } }, parentStep: featureStep });
 
 					if (flowResult.kind !== 'ok') {
@@ -359,11 +376,20 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			virtual: true,  // Dynamically registered outcomes are virtual
 			description: `Outcome: ${outcome}. Proof: ${proofStatements.join('; ')}`,
 			action: async (args: TStepArgs, featureStep: TFeatureStep): Promise<TActionResult> => {
-				this.getWorld().logger.debug(`ActivitiesStepper: executing recipe for outcome "${outcome}" with args ${JSON.stringify(args)}`);
+				// Reconstruct args to include unresolved terms (skipped by strict populateActionArgs)
+				const robustArgs: Record<string, string> = { ...(args as Record<string, string>) };
+				if (featureStep.action.stepValuesMap) {
+					for (const [key, val] of Object.entries(featureStep.action.stepValuesMap)) {
+						if (robustArgs[key] === undefined && val.term !== undefined) {
+							robustArgs[key] = val.term;
+						}
+					}
+				}
+				this.getWorld().logger.debug(`ActivitiesStepper: executing recipe for outcome "${outcome}" with args ${JSON.stringify(robustArgs)}`);
 
 				// 1. Check Proof (Speculative)
 				if (proofStatements.length > 0) {
-					const proof = await this.runner.runStatements(proofStatements, { args: args as Record<string, string>, intent: { mode: 'speculative' }, parentStep: featureStep });
+					const proof = await this.runner.runStatements(proofStatements, { args: robustArgs, intent: { mode: 'speculative' }, parentStep: featureStep });
 
 					if (proof.kind === 'ok') {
 						this.getWorld().logger.debug(`ActivitiesStepper: proof passed for outcome "${outcome}", skipping activity body`);
@@ -381,7 +407,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 					if (activityBlockSteps && activityBlockSteps.length > 0) {
 						this.getWorld().logger.debug(`ActivitiesStepper: running activity body for outcome "${outcome}" (no ensure)`);
 						const mode = featureStep.intent?.mode === 'speculative' ? 'speculative' : 'authoritative';
-						const act = await this.runner.runStatements(activityBlockSteps, { args: args as Record<string, string>, intent: { mode, usage: featureStep.intent?.usage }, parentStep: featureStep });
+						const act = await this.runner.runStatements(activityBlockSteps, { args: robustArgs, intent: { mode, usage: featureStep.intent?.usage }, parentStep: featureStep });
 						if (act.kind !== 'ok') {
 							return actionNotOK(`ActivitiesStepper: activity body failed for outcome "${outcome}": ${act.message}`);
 						}
@@ -400,7 +426,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 					this.getWorld().logger.debug(`ActivitiesStepper: proof failed for outcome "${outcome}", running activity body`);
 
 					const mode = featureStep.intent?.mode === 'speculative' ? 'speculative' : 'authoritative';
-					const act = await this.runner.runStatements(activityBlockSteps, { args: args as Record<string, string>, intent: { mode, usage: featureStep.intent?.usage }, parentStep: featureStep });
+					const act = await this.runner.runStatements(activityBlockSteps, { args: robustArgs, intent: { mode, usage: featureStep.intent?.usage }, parentStep: featureStep });
 					if (act.kind !== 'ok') {
 						return actionNotOK(`ActivitiesStepper: activity body failed for outcome "${outcome}": ${act.message}`);
 					}
@@ -408,7 +434,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 					// 4. Verify Proof After Activity
 					this.getWorld().logger.debug(`ActivitiesStepper: verifying proof after activity body for outcome "${outcome}"`);
 					if (proofStatements.length > 0) {
-						const verify = await this.runner.runStatements(proofStatements, { args: args as Record<string, string>, intent: { mode, usage: featureStep.intent?.usage }, parentStep: featureStep });
+						const verify = await this.runner.runStatements(proofStatements, { args: robustArgs, intent: { mode, usage: featureStep.intent?.usage }, parentStep: featureStep });
 						if (verify.kind !== 'ok') {
 							return actionNotOK(`ActivitiesStepper: proof verification failed after activity body for outcome "${outcome}": ${verify.message}`);
 						}

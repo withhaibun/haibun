@@ -61,7 +61,7 @@ describe('domains', () => {
 	});
 
 	it('fails on invalid json domain', async () => {
-		const feature = { path: '/features/d.feature', content: 'set bad as json to "{\\"a\\":1"' }; // missing closing quote / brace
+		const feature = { path: '/features/d.feature', content: 'set bad as json to "{"a":1"' }; // missing closing quote / brace
 		const res = await failWithDefaults([feature], steppers);
 		expect(res.ok).toBe(false);
 	});

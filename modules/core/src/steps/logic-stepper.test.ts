@@ -183,7 +183,7 @@ describe('variable composition', () => {
 describe('backgrounds', () => {
   it('where condition with backgrounds', async () => {
     const feature = { path: '/features/test.feature', content: 'where passes, Backgrounds: bg' };
-    const background = { path: '/backgrounds/bg.feature', content: 'set ran to true\nends with ok' };
+    const background = { path: '/backgrounds/bg.feature', content: 'set ran to "true"\nends with "ok"' };
     const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
     expect(result.ok).toBe(true);
 
@@ -206,14 +206,14 @@ describe('backgrounds', () => {
 });
 describe('any of', () => {
   it('any of passes if one passes', async () => {
-    const feature = { path: '/features/test.feature', content: 'any of passes, fails' };
-    const result = await passWithDefaults([feature], [LogicStepper, TestSteps]);
+    const feature = { path: '/features/test.feature', content: 'any of "passes, fails"' };
+    const result = await passWithDefaults([feature], [LogicStepper, TestSteps, VariablesSteppers]);
     expect(result.ok).toBe(true);
   });
 
   it('any of fails if all fail', async () => {
-    const feature = { path: '/features/test.feature', content: 'any of fails, fails' };
-    const result = await failWithDefaults([feature], [LogicStepper, TestSteps]);
+    const feature = { path: '/features/test.feature', content: 'any of "fails, fails"' };
+    const result = await failWithDefaults([feature], [LogicStepper, TestSteps, VariablesSteppers]);
     expect(result.ok).toBe(false);
   });
 });

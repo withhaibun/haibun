@@ -65,35 +65,56 @@ Use variables for configuration, test data, and efficiency.
     set base_url to "https://example.com"
     set timeout as number to 30
 
-Stepper variable resolution supports explicit quoting, environment variable substitution, and fallthrough logic.
-Quoted variables are treated as literals.
-Environment variables are referenced using `$name$`, which resolves from the HAIBUN_ENV context.
-If a bare value is used, resolution happens in the following order: environment variable, stored variable, or literal value.
+1. **Quoted values** (`"value"`) are treated as **exact text**.
+2. **Environment variables** (`$NAME$`) resolve from the `HAIBUN_ENV` context.
+3. **Unquoted values** are resolved dynamically:
+   - First, from any existing **Environment Variable** 
+   - Second, from any existing **Defined Variable**.
+   - If neither exists, the step fails.
 
-		set quoted to "isquoted"
-		variable quoted is "isquoted"
+#### Examples
 
-		set env to $fromenv$ ;; resolves from HAIBUN_ENV
-		variable env is "envvalue"
+**1. Setting exact text**
 
-		set fallthrough to env
-		variable fallthrough is "envvalue"
+    set preferred language to "English"
+    variable preferred language is "English"
 
-		set fromenv to "fequote" ;; name collision with env
-		set fellthrough to fromenv ;; fallthrough prefers env
-    variable fellthrough is "envvalue"
+**2. Variable referencing (Unquoted)**
 
-		set varred to `quoted` ;; explicit literal
-		variable varred is "isquoted"
+    set interface language to preferred language
+    variable interface language is "English"
 
-		set literal to Literal
-		variable literal is "Literal"
+**3. Environment Variable**
+
+Resolves from `HAIBUN_ENV` (set in `package.json` for these tests).
+
+    set system override to $fromenv$
+    variable system override is "envvalue"
+
+**4. Environmental Fallthrough**
+
+If an unquoted variable exists in the environment, it takes precedence.
+
+    set external setting to fromenv
+    variable external setting is "envvalue"
+
+**5. Read-only Variables**
+
+Environment variables cannot be overwritten.
+
+    not set fromenv to "compromised"
+
+**6. Strictness**
+
+Referring to an undefined variable causes an error.
+
+    not set missing setting to UndefinedVar
 
 #### Stepper variables
 
 Some steppers provide variables that are updated when steps execute. For example, `WebPlaywright.currentURI` and `WebPlaywright.navigationCount`.
 
-### Domains (Unordered sets)
+### Domains
 
     set of roles is ["admin", "editor", "viewer"]
     set user_role as roles to "admin"
@@ -111,7 +132,7 @@ Haibun enforces **soundness** by preventing invalid states. A variable cannot ho
     set count as number to 0
     set config as json to {"enabled": true}
 
-#### Incrementing (Ordered sets)
+#### Incrementing 
 
 Ordered sets enable state machines and efficient waypoint checks.
 
@@ -124,22 +145,12 @@ Ordered sets enable state machines and efficient waypoint checks.
 
     variable doc_status is less than "published" ;; true
 
-		show domains ;; show all domains
-		show domain statuses
+    show domains ;; show all domains
+    show domain statuses
     show vars ;; inspect all variables with domains and values
     show var doc_status ;; inspect a single variable
 
-#### Super and subdomains
 
-		set of berries is [strawberry cucumber cherry]
-		set of seasonal as [berries]
-		set in-hand as seasonal to cucumber
-
-Currently, sets can contain values and open-ended values like strings, but this might change.
-
-		set of smoothie as [berries string]
-		set Tuesday as smoothie to [cucumber potato]
-		show var Tuesday
 
 ## Step Arguments & Interpolation
 
@@ -185,10 +196,7 @@ Logic steps enable complex workflows and limited conditional behavior.
     where variable env is "staging", set debug to "true"
     variable debug is "true"
 
-### Disjunction
 
-    set status to "Success"
-    any of variable status is "Success", variable status is "Completed"
 
 ### Negation
 
@@ -211,6 +219,38 @@ Logic steps enable complex workflows and limited conditional behavior.
 #### Universal (every)
 
     every n in numbers is where set temp as number to {n}, variable temp is less than 4
+
+#### Disjunction (any of, some)
+
+`any of` and `some` both function as logical disjunctions (OR). `any of` evaluates a provided list of statements, returning true if *at least one statement* succeeds. It is suitable for checking a few specific, distinct conditions (e.g. "Admin" OR "Superuser"). Use `some` to check against *every value* in a defined set (e.g. any value in "Citrus").
+
+Individual verification is performed with `any of`:
+
+    set Snack to "Lemon"
+    any of variable Snack is "Lemon", variable Snack is "Lime", variable Snack is "Orange"
+
+`some` quantifies over a domain:
+
+    set of Citrus is [Lemon Lime Orange]
+    some fruit in Citrus is variable Snack is {fruit}
+
+This combines membership checks across multiple groups:
+
+    set of Berries is [Strawberry Raspberry]
+    set Snack to "Strawberry"
+    any of some fruit in Citrus is variable Snack is {fruit}, some fruit in Berries is variable Snack is {fruit}
+
+#### Super and subdomains
+
+    set of berries is [strawberry cucumber cherry]
+    set of seasonal as [berries]
+    set in-hand as seasonal to "cucumber"
+
+Currently, sets can contain defined values and open-ended values like strings, but this might change.
+
+    set of smoothie as [berries string]
+    set Tuesday as smoothie to [cucumber potato]
+    show var Tuesday
 
 ## File organization
 
@@ -325,8 +365,8 @@ NB these tests use variables for proofs, in a "live" system they might rely on A
 ### Pattern 3: Parameterized workflows
 
     Activity: Publish article
-    set published to {article}
-    waypoint Article {article} is published with variable published is {article}
+    set published to "{article}"
+    waypoint Article {article} is published with variable published is "{article}"
 
     ensure Article "Writing haibuns" is published
 
@@ -334,7 +374,7 @@ NB these tests use variables for proofs, in a "live" system they might rely on A
 
 A talent agency can have different types of clients, including artists and venues. Each client has different considerations, such as if they are signed or advertised. The artist has to agree to each of these states.
 
-    set of offer is ["signed", "advertised", "popular"]
+    set of offer is ["signed", "popular"]
 
     Activity: Engage a client
     every state in offer is ordered set of {name}/{state} is ["negotiating", "agreed"]
@@ -343,11 +383,10 @@ A talent agency can have different types of clients, including artists and venue
 
     Activity: Foster a client
     increment {name}/{concern}
-    show var {name}/{concern}
     waypoint {name} has {concern} with not variable {name}/{concern} is less than "agreed"
 
     ensure Engaged "Theatre Z"
-    ensure Engaged Le Artiste
+    ensure Engaged "Le Artiste"
     ensure "Le Artiste" has signed
 
     variable Theatre Z/signed is "negotiating"

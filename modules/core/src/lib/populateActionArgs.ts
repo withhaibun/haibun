@@ -1,38 +1,23 @@
 import { AStepper } from './astepper.js';
 import { Origin, TFeatureStep, TStepArgs, TWorld } from './defs.js';
-import { DOMAIN_STRING, normalizeDomainKey } from './domain-types.js';
-import { resolveVariable } from './util/variables.js';
 
-// Given a feature step and the current world, populate the action args. This will update the existing stepValuesMap as actionVal
+// Given a feature step and the current world, populate the action args.
+// Uses resolveVariable which handles resolution and coercion.
 export async function populateActionArgs(featureStep: TFeatureStep, world: TWorld, steppers: AStepper[]): Promise<TStepArgs> {
 	const stepArgs: TStepArgs = {};
-	if (!featureStep?.action?.stepValuesMap) return stepArgs; // no variables for this step
+	if (!featureStep?.action?.stepValuesMap) return stepArgs;
 
 	for (const [name, actionVal] of Object.entries(featureStep.action.stepValuesMap)) {
-		const expectedDomain = actionVal.domain;
-		resolveVariable(actionVal, world);
-		if (expectedDomain) {
-			const expectedDomains = expectedDomain.split('|').map((d) => d.trim());
-			if (!expectedDomains.includes(actionVal.domain)) {
-				actionVal.domain = expectedDomain;
-			}
-		}
-		if (actionVal.value === undefined) {
-			continue;
-		}
+		const resolved = world.shared.resolveVariable(
+			{ term: actionVal.term, origin: actionVal.origin, domain: actionVal.domain },
+			featureStep,
+			steppers
+		);
 
-		const actionDomainKey = normalizeDomainKey(actionVal.domain || DOMAIN_STRING);
-		if (!world.domains[actionDomainKey]) {
-			throw new Error(`No domain coercer found for domain "${actionDomainKey}"`);
+		if (resolved.value !== undefined) {
+			stepArgs[name] = resolved.value;
 		}
-
-		actionVal.domain = actionDomainKey;
-		if (actionVal.origin !== Origin.var) {
-			actionVal.value = await Promise.resolve(world.domains[actionDomainKey].coerce(actionVal, featureStep, steppers));
-		}
-
-		// actionVal has been updated, update the actionVal in place for downstream processing
-		stepArgs[name] = actionVal.value;
 	}
 	return stepArgs;
 }
+

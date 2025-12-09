@@ -1,5 +1,5 @@
 import { AStepper, TStepperSteps } from '../lib/astepper.js';
-import { OK, TFeatureStep, TWorld, TActionResult } from '../lib/defs.js';
+import { OK, TFeatureStep, TWorld, TActionResult, TStepValue } from '../lib/defs.js';
 import { actionNotOK, sleep } from '../lib/util/index.js';
 import { FlowRunner } from '../lib/core/flow-runner.js';
 import { DOMAIN_STATEMENT, normalizeDomainKey } from '../lib/domain-types.js';
@@ -66,12 +66,17 @@ export default class LogicStepper extends AStepper {
 
     // DISJUNCTION: A or B or C
     anyOf: {
-      gwta: 'any of {statements}',
-      action: async ({ statements }: { statements: string }, featureStep: TFeatureStep): Promise<TActionResult> => {
+      match: /^any of (.*)/,
+      action: async (_: TStepValue, featureStep: TFeatureStep): Promise<TActionResult> => {
+        let statements = featureStep.in.replace(/^any of /i, '').trim();
+        if ((statements.startsWith('"') && statements.endsWith('"')) || (statements.startsWith('`') && statements.endsWith('`'))) {
+          statements = statements.slice(1, -1);
+        }
         const statementList = statements.split(',').map(s => s.trim());
         for (const statement of statementList) {
           const res = await this.runner.runStatements([statement], { intent: { mode: 'speculative' }, parentStep: featureStep });
           if (res.kind === 'ok') return OK;
+          this.getWorld().logger.debug(`any of: statement "${statement}" failed: ${res.message}`);
         }
         return actionNotOK('No conditions in the list were satisfied');
       }
@@ -97,9 +102,17 @@ export default class LogicStepper extends AStepper {
     // -------------------------------------------------------------------------
 
     // EXISTENTIAL: Exists x in D such that P(x)
+    // EXISTENTIAL: Exists x in D such that P(x)
     some: {
-      gwta: `some {variable} in {domain} is {check:${DOMAIN_STATEMENT}}`,
-      action: async ({ variable, domain, check }: { variable: string, domain: string, check: TFeatureStep[] }, featureStep: TFeatureStep): Promise<TActionResult> => {
+      match: /^some (.*) in (.*?) is (.*)/,
+      action: async (_: TStepValue, featureStep: TFeatureStep): Promise<TActionResult> => {
+        const match = featureStep.in.match(/^some (.*) in (.*?) is (.*)/);
+        if (!match) return actionNotOK('some: invalid syntax');
+        const [, variable, domain, checkStr] = match;
+
+        if (!domain) {
+          return actionNotOK('Missing domain in some step');
+        }
         const domainKey = normalizeDomainKey(domain);
         const domainDef = this.getWorld().domains[domainKey];
 
@@ -108,14 +121,15 @@ export default class LogicStepper extends AStepper {
         }
 
         let found = false;
-        const statements = check.map(s => s.in);
-        // Always run checks speculatively to avoid debugger breaks on non-matching values
+        // Check needs to be parsed as a statement/step
+        // We can just pass the string to runStatements? No, runStatements expects string or step.
+        // runStatements([checkStr]) works.
         const mode = 'speculative';
 
         for (const val of domainDef.values) {
           // Quote the value if it's a string to prevent variable resolution collision
           const argVal = typeof val === 'string' ? `"${val}"` : String(val);
-          const res = await this.runner.runStatements(statements, { args: { [variable]: argVal }, intent: { mode }, parentStep: featureStep });
+          const res = await this.runner.runStatements([checkStr], { args: { [variable]: argVal }, intent: { mode }, parentStep: featureStep });
           if (res.kind === 'ok') {
             found = true;
             break;
@@ -128,8 +142,15 @@ export default class LogicStepper extends AStepper {
 
     // UNIVERSAL: For All x in D, P(x)
     every: {
-      gwta: `every {variable} in {domain} is {check:${DOMAIN_STATEMENT}}`,
-      action: async ({ variable, domain, check }: { variable: string, domain: string, check: TFeatureStep[] }, featureStep: TFeatureStep): Promise<TActionResult> => {
+      match: /^every (.*) in (.*) is (.*)/,
+      action: async (_: TStepValue, featureStep: TFeatureStep): Promise<TActionResult> => {
+        const match = featureStep.in.match(/^every (.*) in (.*?) is (.*)/);
+        if (!match) return actionNotOK('every: invalid syntax');
+        const [, variable, domain, checkStr] = match;
+
+        if (!domain) {
+          return actionNotOK('Missing domain in every step');
+        }
         const domainKey = normalizeDomainKey(domain);
         const domainDef = this.getWorld().domains[domainKey];
 
@@ -137,13 +158,12 @@ export default class LogicStepper extends AStepper {
           return actionNotOK(`Domain "${domain}" is not an enumerable set`);
         }
 
-        const statements = check.map(s => s.in);
         const mode = featureStep.intent?.mode === 'speculative' ? 'speculative' : 'authoritative';
 
         for (const val of domainDef.values) {
           // Do not quote the value to allow flexible interpolation
           const argVal = String(val);
-          const res = await this.runner.runStatements(statements, { args: { [variable]: argVal }, intent: { mode }, parentStep: featureStep });
+          const res = await this.runner.runStatements([checkStr], { args: { [variable]: argVal }, intent: { mode }, parentStep: featureStep });
           if (res.kind !== 'ok') {
             return actionNotOK(`Universal check failed for value "${val}": ${res.message}`);
           }

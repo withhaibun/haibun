@@ -12,11 +12,13 @@
     "noEmit": true,
     "preserveSymlinks": true,
     "paths": {
-      "@haibun/*": ["../modules/*/build", "../modules/*"]
+      "@haibun/*": [
+        "../modules/*/build",
+        "../modules/*"
+      ]
     },
     "types": [
-      "node",
-      "@playwright/test"
+      "node"
     ],
     "lib": [
       "ES2022",

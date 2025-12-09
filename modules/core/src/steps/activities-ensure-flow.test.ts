@@ -11,8 +11,8 @@ describe('Activities ensure flow', () => {
 			path: '/backgrounds/test.feature',
 			content: `
 Activity: Set up Wikipedia
-set "enWikipedia" to "https://en.wikipedia.org/wiki/"
-set "haibunUrl" to "https://en.wikipedia.org/wiki/Haibun"
+set enWikipedia to "https://en.wikipedia.org/wiki/"
+set haibunUrl to "https://en.wikipedia.org/wiki/Haibun"
 waypoint Knows about Wikipedia with variable "enWikipedia" is set
 `
 		};
@@ -57,8 +57,8 @@ variable haibunUrl is "https://en.wikipedia.org/wiki/Haibun"
 			path: '/backgrounds/test.feature',
 			content: `
 Activity: Set up Wikipedia
-set enWikipedia to https://en.wikipedia.org/wiki/
-set counter to 0
+set enWikipedia to "https://en.wikipedia.org/wiki/"
+set counter to "0"
 waypoint Knows about Wikipedia with variable enWikipedia is set
 `
 		};
@@ -68,7 +68,7 @@ waypoint Knows about Wikipedia with variable enWikipedia is set
 			content: `
 Feature: Test ensure flow
 Scenario: Ensure skips activity when proof passes
-set enWikipedia to https://already-set.com/
+set enWikipedia to "https://already-set.com/"
 ensure Knows about Wikipedia
 `
 		};
@@ -85,7 +85,7 @@ ensure Knows about Wikipedia
 			path: '/backgrounds/test.feature',
 			content: `
 Activity: Broken setup
-set wrongVariable to something
+set wrongVariable to "something"
 waypoint Needs correct variable with variable correctVariable is set
 `
 		};
@@ -112,8 +112,8 @@ ensure Needs correct variable
 			path: '/backgrounds/test.feature',
 			content: `
 Activity: Knows about Wikipedia
-set enWikipedia to https://en.wikipedia.org/wiki/
-set haibunUrl to https://en.wikipedia.org/wiki/Haibun
+set enWikipedia to "https://en.wikipedia.org/wiki/"
+set haibunUrl to "https://en.wikipedia.org/wiki/Haibun"
 waypoint Knows about Wikipedia with variable enWikipedia is set
 `
 		};

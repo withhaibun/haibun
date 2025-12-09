@@ -98,9 +98,9 @@ export const matchGwtaToAction = (gwta: string, actionable: string, actionName: 
 
 // no-op
 
-function pairToVar(pair: string): { name: string; domain: string } {
+function pairToVar(pair: string): { name: string; domain?: string } {
 	const [name, domainRaw] = pair.split(':').map((i) => i.trim());
-	const domain = domainRaw || DOMAIN_STRING;
+	const domain = domainRaw;
 	return { name, domain };
 }
 
@@ -143,12 +143,14 @@ export const getMatch = (actionable: string, r: RegExp, actionName: string, step
 					if (envMatch) {
 						ph.term = envMatch[1];
 						ph.origin = Origin.env;
+						ph.origin = Origin.env;
 					} else {
-						ph.origin = Origin.fallthrough;
-						// If the bare literal looks like JSON, treat it as fallthrough.
 						const tTrim = String(t).trim();
-						if (tTrim.startsWith('{') || tTrim.startsWith('[')) {
+						if (tTrim.startsWith('{') || tTrim.startsWith('[') || /^-?\d+(\.\d+)?$/.test(tTrim)) {
 							ph.term = tTrim;
+							ph.origin = Origin.quoted;
+						} else {
+							ph.origin = Origin.defined;
 						}
 					}
 				}
@@ -170,6 +172,6 @@ const inferOrigin = (char: string): TOrigin => {
 		case '"':
 			return Origin.quoted;
 		default:
-			return Origin.fallthrough;
+			return Origin.defined;
 	}
 };

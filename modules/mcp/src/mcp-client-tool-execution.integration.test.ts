@@ -45,7 +45,7 @@ describe('haibun-mcp tool execution', () => {
 			name: 'VariablesStepper-set',
 			arguments: {
 				what: 'testVariable',
-				value: 'Hello from MCP'
+				value: '"Hello from MCP"'
 			}
 		});
 
@@ -81,8 +81,8 @@ describe('haibun-mcp tool execution', () => {
 		const combineResult = await client.callTool({
 			name: 'VariablesStepper-combine',
 			arguments: {
-				p1: 'wombat',
-				p2: 'eucalyptus',
+				p1: '"wombat"',
+				p2: '"eucalyptus"',
 				what: 'yum'
 			}
 		});

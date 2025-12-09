@@ -13,7 +13,7 @@ const CAPTURE_FILENAME = 'vcapture.webm';
 
 const cycles = (narrator: Narrator): IStepperCycles => ({
 	async startFeature({ resolvedFeature }: TStartFeature) {
-			narrator.renderedAudio = await preRenderFeatureProse(resolvedFeature, narrator.world.logger);
+		narrator.renderedAudio = await preRenderFeatureProse(resolvedFeature, narrator.world.logger);
 		if (narrator.captureStart) {
 			narrator.getWorld().logger.debug(`Spawning screen capture using ${narrator.captureStart}`);
 			doSpawn(narrator.captureStart);
@@ -52,7 +52,7 @@ class Narrator extends AStepper implements IHasOptions, IHasCycles {
 	}
 
 	private rememberAndSay(key: string, value: string, featureStep: TFeatureStep) {
-		this.getWorld().shared.set({ term: key, value, domain: 'string', origin: Origin.fallthrough }, { in: featureStep.in, seq: featureStep.seqPath, when: `${featureStep.action.stepperName}.${featureStep.action.actionName}` });
+		this.getWorld().shared.set({ term: key, value, domain: 'string', origin: Origin.defined }, { in: featureStep.in, seq: featureStep.seqPath, when: `${featureStep.action.stepperName}.${featureStep.action.actionName}` });
 		// Use featureStep.in for audio playback since that's what was pre-rendered
 		return this.maybeSay(featureStep.in);
 	}

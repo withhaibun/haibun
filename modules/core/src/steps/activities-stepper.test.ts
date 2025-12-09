@@ -12,7 +12,7 @@ describe('ActivitiesStepper', () => {
 
 			stepper.registerOutcome(
 				'Is logged in as {user}',
-				['set "loggedIn" to "true"'],
+				['set loggedIn to "true"'],
 				'/test.feature'
 			);
 
@@ -30,14 +30,14 @@ describe('ActivitiesStepper', () => {
 
 			stepper.registerOutcome(
 				'Is logged in as {user}',
-				['set "loggedIn" to "true"'],
+				['set loggedIn to "true"'],
 				'/test.feature'
 			);
 
 			expect(() => {
 				stepper.registerOutcome(
 					'Is logged in as {user}',
-					['set "loggedIn" to "false"'],
+					['set loggedIn to "false"'],
 					'/test.feature'
 				);
 			}).toThrow(/already registered/);
@@ -59,7 +59,7 @@ describe('ActivitiesStepper', () => {
 		it('should store proof statements and path in the action closure', async () => {
 			const stepper = new ActivitiesStepper();
 			await stepper.setWorld(getDefaultWorld(0), []);
-			const proofStatements = ['set "x" to "1"', 'set "y" to "2"'];
+			const proofStatements = ['set x to "1"', 'set y to "2"'];
 			const proofPath = '/backgrounds/test.feature';
 
 			stepper.registerOutcome('Test outcome', proofStatements, proofPath);
@@ -75,8 +75,8 @@ describe('ActivitiesStepper', () => {
 			await stepper.setWorld(getDefaultWorld(0), []);
 
 			const multiLineProof = [
-				'set "url" to "https://example.com"',
-				'set "page" to "home"',
+				'set url to "https://example.com"',
+				'set page to "home"',
 				'combine url and page to fullUrl',
 				'go to the fullUrl webpage'
 			];
@@ -109,14 +109,14 @@ describe('ActivitiesStepper', () => {
 			const background = {
 				path: '/backgrounds/test.feature',
 				content: `Activity: Test
-waypoint Task completed with set "result" to "done"`
+waypoint Task completed with set result to "done"`
 			};
 
 			const feature = {
 				path: '/features/test.feature',
-				content: `set "result" to "initial"
+				content: `set result to "initial"
 ensure Task completed
-variable "result" is "done"`
+variable result is "done"`
 			};
 
 			const result = await passWithDefaults([feature], steppers, undefined, [background]);

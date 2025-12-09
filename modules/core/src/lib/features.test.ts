@@ -2,7 +2,7 @@ import { describe, it, test, expect } from 'vitest';
 
 import { DEFAULT_DEST } from './defs.js';
 import * as steps from './features.js';
-import { passWithDefaults } from './test/lib.js';
+import { passWithDefaults, failWithDefaults } from './test/lib.js';
 import { asFeatures } from './resolver-features.js';
 import VariablesStepper from '../steps/variables-stepper.js';
 
@@ -90,24 +90,23 @@ describe('expand features', () => {
 
 describe('env vars', () => {
 	it('env or var or literal finds env', async () => {
-		const feature = { path: '/features/test.feature', content: `set "what" to "var"\nset x to $what$` };
+		const feature = { path: '/features/test.feature', content: `set x to $what$` };
 		const envVariables = { what: 'env' };
 		const { world } = await passWithDefaults([feature], varsStepper, {
 			options: { DEST: DEFAULT_DEST, envVariables },
 			moduleOptions: {},
 		});
-		expect(world.shared.get('what')).toBe('var');
 		expect(world.shared.get('x')).toBe('env');
 	});
 	it('env or var or literal finds var', async () => {
-		const feature = { path: '/features/test.feature', content: `set "what" to "var"\nset x to what` };
+		const feature = { path: '/features/test.feature', content: `set what to "var"\nset x to what` };
 		const { world } = await passWithDefaults([feature], varsStepper);
 		expect(world.shared.get('x')).toBe('var');
 	});
-	it('env or var or literal finds literal', async () => {
+	it('env or var or literal does not fallthrough to literal', async () => {
 		const feature = { path: '/features/test.feature', content: `set x to what` };
-		const { world } = await passWithDefaults([feature], varsStepper);
-		expect(world.shared.get('x')).toBe('what');
+		const { world } = await failWithDefaults([feature], varsStepper);
+		expect(world.shared.get('x')).toBeUndefined();
 	});
 });
 

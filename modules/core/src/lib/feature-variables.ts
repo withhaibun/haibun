@@ -1,5 +1,6 @@
-import { TFeatureStep, TOrigin, TProvenanceIdentifier, TStepValue, TWorld } from "./defs.js";
-import { DOMAIN_JSON, normalizeDomainKey } from "./domain-types.js";
+import { AStepper } from "./astepper.js";
+import { Origin, TFeatureStep, TOrigin, TProvenanceIdentifier, TStepValue, TWorld } from "./defs.js";
+import { DOMAIN_JSON, DOMAIN_STRING, normalizeDomainKey } from "./domain-types.js";
 
 export class FeatureVariables {
 	private values: { [name: string]: TStepValue; };
@@ -28,10 +29,20 @@ export class FeatureVariables {
 	unset(name: string) {
 		delete this.values[name];
 	}
+
 	set(sv: TStepValue, provenance: TProvenanceIdentifier) {
 		if (sv.term.match(/.*\..*/)) {
 			throw Error('non-stepper variables cannot use dots');
 		}
+
+		if (this.world.options.envVariables[sv.term]) {
+			throw Error(`Cannot overwrite environment variable "${sv.term}"`);
+		}
+
+		if (this.values[sv.term]?.readonly) {
+			throw Error(`Cannot overwrite read-only variable "${sv.term}"`);
+		}
+
 		return this._set(sv, provenance);
 	}
 	_set(sv: TStepValue, provenance: TProvenanceIdentifier) {
@@ -65,5 +76,63 @@ export class FeatureVariables {
 
 		if (this.values[name].domain !== DOMAIN_JSON) throw Error(`${name} is ${this.values[name].domain}, not json`);
 		return JSON.parse(this.values[name].value as string);
+	}
+
+	resolveVariable(
+		input: { term: string; origin: TOrigin; domain?: string },
+		featureStep?: TFeatureStep,
+		steppers?: AStepper[]
+	): TStepValue {
+		// Clone input to avoid mutation - create a fresh TStepValue
+		const resolved: TStepValue = {
+			term: input.term,
+			origin: input.origin,
+			domain: input.domain,
+			value: undefined,
+		};
+
+		const storedEntry = this.values[input.term];
+
+		if (!input.origin || input.origin === Origin.statement) {
+			resolved.value = input.term;
+		} else if (input.origin === Origin.env) {
+			resolved.value = this.world.options.envVariables[input.term]; // might be undefined
+			resolved.domain = DOMAIN_STRING;
+		} else if (input.origin === Origin.var) {
+			if (storedEntry) {
+				resolved.domain = storedEntry.domain;
+				resolved.value = storedEntry.value;
+				resolved.provenance = storedEntry.provenance;
+			}
+		} else if (input.origin === Origin.defined) {
+			if (this.world.options.envVariables[input.term]) {
+				resolved.value = this.world.options.envVariables[input.term];
+				resolved.origin = Origin.env;
+			} else if (storedEntry) {
+				resolved.value = storedEntry.value;
+				resolved.domain = storedEntry.domain;
+				resolved.provenance = storedEntry.provenance;
+				resolved.origin = Origin.var;
+			}
+			// If neither env nor stored variable, resolved.value stays undefined
+		} else if (input.origin === Origin.quoted) {
+			resolved.value = input.term.replace(/^"|"$/g, '');
+			resolved.domain = DOMAIN_STRING;
+		} else {
+			throw new Error(`Unsupported origin type: ${input.origin}`);
+		}
+
+		// Coerce the value if needed (skip for Origin.var - already coerced when stored)
+		if (resolved.value !== undefined && resolved.origin !== Origin.var) {
+			const domainKey = normalizeDomainKey(resolved.domain || DOMAIN_STRING);
+			const domain = this.world.domains[domainKey];
+			if (!domain) {
+				throw new Error(`No domain coercer found for domain "${domainKey}"`);
+			}
+			resolved.domain = domainKey;
+			resolved.value = domain.coerce(resolved, featureStep, steppers);
+		}
+
+		return resolved;
 	}
 }

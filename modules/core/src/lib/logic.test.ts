@@ -53,7 +53,7 @@ variable loginType is "user"
 			path: '/backgrounds/login-recipe.feature',
 			content: `
 Activity: Login
-set "loggedIn" to "true"
+set loggedIn to "true"
 waypoint Is logged in as {user} with variable loggedIn is "true"
 `
 		};
@@ -62,7 +62,7 @@ waypoint Is logged in as {user} with variable loggedIn is "true"
 			path: '/backgrounds/create-widget-recipe.feature',
 			content: `
 Activity: Create widget
-set "widgetCreated" to "true"
+set widgetCreated to "true"
 waypoint Created widget {widgetName} that is {width} by {height} with variable widgetCreated is "true"
 `
 		};
@@ -105,8 +105,8 @@ variable widgetDeleted is "true"
 		const loginRecipe = {
 			path: '/backgrounds/login-recipe.feature',
 			content: `Activity: Login tracking
-set lastUser to {user}
-waypoint Is logged in as {user} with variable lastUser is {user}`
+set lastUser to "{user}"
+waypoint Is logged in as {user} with variable lastUser is "{user}"`
 		};
 
 		const mainFeature = {

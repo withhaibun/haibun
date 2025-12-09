@@ -29,8 +29,8 @@ describe('a11y test from uri', () => {
 	it('passes', async () => {
 		const features = [{
 			path: '/features/test.feature', content: `
-go to the ${PASSES_URI} webpage
-page is accessible accepting serious 99 and moderate 90
+go to the "${PASSES_URI}" webpage
+page is accessible accepting serious "99" and moderate "90"
 `}];
 
 		const res = await passWithDefaults(features, [A11yAxe, WebPlaywright, StorageMem], { options, moduleOptions });
@@ -40,8 +40,8 @@ page is accessible accepting serious 99 and moderate 90
 	it('fails', async () => {
 		const features = [{
 			path: '/features/test.feature', content: `
-go to the ${FAILS_URI} webpage
-page is accessible accepting serious 0 and moderate 0
+go to the "${FAILS_URI}" webpage
+page is accessible accepting serious "0" and moderate "0"
 `}];
 
 		const res = await failWithDefaults(features, [A11yAxe, WebPlaywright, StorageMem], { options, moduleOptions });

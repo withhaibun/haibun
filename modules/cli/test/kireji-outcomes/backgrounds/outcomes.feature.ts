@@ -16,7 +16,7 @@ export const backgrounds = {
     'Define reusable outcomes for testing.',
     set({ what: 'username', value: 'testuser' }),
     set({ what: 'loggedIn', value: 'true' }),
-    waypointWithProof({ outcome: loggedIn, proof: 'set loggedIn to true' }),
-    waypointWithProof({ outcome: dataLoaded, proof: 'set dataReady to yes' }),
+    waypointWithProof({ outcome: loggedIn, proof: 'set loggedIn to "true"' }),
+    waypointWithProof({ outcome: dataLoaded, proof: 'set dataReady to "yes"' }),
   ],
 };

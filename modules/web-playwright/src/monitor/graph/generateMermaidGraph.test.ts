@@ -68,7 +68,7 @@ describe('generateMermaidGraph', () => {
       base: 'features',
       featureSteps: [
         makeStep('Activity: User login flow', 'comment'),
-        makeStep('waypoint Is logged in as user {who} with set "loginType" to "user"', 'waypoint'),
+        makeStep('waypoint Is logged in as user {who} with set loginType to "user"', 'waypoint'),
         makeStep('proof Token is valid', 'proof'),
         makeStep('ensure Is logged in as user admin', 'ensure'),
       ] as unknown as TResolvedFeature['featureSteps'],
@@ -78,7 +78,7 @@ describe('generateMermaidGraph', () => {
     const capturedMessages = buildCapturedMessages([
       {
         outcome: 'Is logged in as user {who}',
-        proofStatements: ['set "loginType" to "user"'],
+        proofStatements: ['set loginType to "user"'],
         proofPath: 'features/activities.feature',
         isBackground: false,
         activityBlockSteps: ['User login flow'],
@@ -132,14 +132,14 @@ describe('generateMermaidGraph', () => {
     // Outcomes registered via ActivitiesStepper (with placeholders that need to match concrete ensure)
     const registeredOutcomes: Record<string, RegisteredOutcomeEntry> = {
       'is logged in as user who': {
-        proofStatements: ['set "loginType" to "user"'],
+        proofStatements: ['set loginType to "user"'],
         proofPath: 'features/activities.feature',  // Where the waypoint was defined
         isBackground: false,
         activityBlockSteps: [],
       },
       // Also include the placeholder-stripped variant for matching
       'is logged in as user': {
-        proofStatements: ['set "loginType" to "user"'],
+        proofStatements: ['set loginType to "user"'],
         proofPath: 'features/activities.feature',
         isBackground: false,
         activityBlockSteps: [],
@@ -187,7 +187,7 @@ describe('generateMermaidGraph', () => {
     const capturedMessages = buildCapturedMessages([
       {
         outcome: 'Navigate to {page}',
-        proofStatements: ['set "currentPage" to "{page}"'],
+        proofStatements: ['set currentPage to "{page}"'],
         proofPath: 'features/wikipedia.feature',
         isBackground: true,
         activityBlockSteps: [],

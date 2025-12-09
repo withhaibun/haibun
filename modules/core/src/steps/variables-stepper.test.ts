@@ -9,31 +9,38 @@ const steppers = [VariablesStepper, Haibun, LogicStepper];
 
 describe('vars', () => {
 	it('assigns', async () => {
-		const feature = { path: '/features/test.feature', content: 'set "x" to "1"\nshow var "x"\nvariable "x" is "1"' };
+		const feature = { path: '/features/test.feature', content: 'set x to "1"\nshow var x\nvariable x is "1"' };
 		const res = await passWithDefaults([feature], steppers);
 
 		expect(res.ok).toBe(true);
 	});
 	it('tracks provenance', async () => {
-		const feature = { path: '/features/test.feature', content: 'set x to "1"\nset x to 2' };
+		const feature = { path: '/features/test.feature', content: 'set x to "1"\nset x to "2"' };
 		const res = await passWithDefaults([feature], steppers);
 		expect(res.ok).toBe(true);
 		expect(res.world.shared.all()['x']?.provenance?.length).toBe(2);
-		expect(res.world.shared.all()['x']?.provenance?.map(p => p.in)).toEqual(['set x to "1"', 'set x to 2']);
+		expect(res.world.shared.all()['x']?.provenance?.map(p => p.in)).toEqual(['set x to "1"', 'set x to "2"']);
 	});
 	it('empty does not overwrite', async () => {
-		const feature = { path: '/features/test.feature', content: 'set empty "x" to y\nset empty "x" to z\nvariable "x" is "y"' };
+		const feature = { path: '/features/test.feature', content: 'set empty x to "y"\nset empty x to "z"\nvariable x is "y"' };
 		const res = await passWithDefaults([feature], steppers);
 		expect(res.ok).toBe(true);
 	});
 	it('is set', async () => {
-		const feature = { path: '/features/test.feature', content: 'set "x" to y\nvariable "x" is set' };
+		const feature = { path: '/features/test.feature', content: 'set x to "y"\nvariable x is set' };
 		const res = await passWithDefaults([feature], steppers);
 		expect(res.ok).toBe(true);
 	});
 });
 
 describe('random vars', () => {
+	it('cannot overwrite read-only variable', async () => {
+		const feature = { path: '/features/test.feature', content: 'set x as read-only string to "1"\nset x to "2"' };
+		const result = await failWithDefaults([feature], [VariablesStepper]);
+		expect(result.ok).toBe(false);
+		expect(result.failure?.error?.message).toContain('Cannot overwrite read-only variable "x"');
+	});
+
 	it('assigns random', async () => {
 		const feature = { path: '/features/test.feature', content: 'set r to 70 random characters' };
 		const res = await passWithDefaults([feature], steppers);
@@ -59,19 +66,17 @@ describe('random vars', () => {
 });
 
 describe('variable name literal handling', () => {
-	it('set uses literal name even if env collides', async () => {
+	it('set fails if literal name collides with env', async () => {
 		const feature = { path: '/f.feature', content: 'set what to "value"' };
 		const envVariables = { what: 'ENV' };
-		const { ok, world } = await passWithDefaults([feature], steppers, { options: { DEST: DEFAULT_DEST, envVariables }, moduleOptions: {} });
-		expect(ok).toBe(true);
-		expect(world.shared.get('what')).toBe('value');
+		const { ok, world } = await failWithDefaults([feature], steppers, { options: { DEST: DEFAULT_DEST, envVariables }, moduleOptions: {} });
+		expect(ok).toBe(false);
 	});
-	it('combine uses literal name even if env collides', async () => {
+	it('combine fails if literal name collides with env', async () => {
 		const feature = { path: '/f.feature', content: 'set a to "A"\nset b to "B"\ncombine a and b to what' };
 		const envVariables = { what: 'ENV' };
-		const { ok, world } = await passWithDefaults([feature], steppers, { options: { DEST: DEFAULT_DEST, envVariables }, moduleOptions: {} });
-		expect(ok).toBe(true);
-		expect(world.shared.get('what')).toBe('AB');
+		const { ok, world } = await failWithDefaults([feature], steppers, { options: { DEST: DEFAULT_DEST, envVariables }, moduleOptions: {} });
+		expect(ok).toBe(false);
 	});
 });
 
@@ -82,10 +87,10 @@ describe('vars between scenarios', () => {
 			path: '/features/test.feature',
 			content: `
 Scenario: Scenario 1
-set "a" to 1
-variable "a" is "1"
+set a to 1
+variable a is "1"
 Scenario: Scenario 2
-variable "a" is "1"
+variable a is "1"
 `}];
 		const res = await passWithDefaults(features, steppers);
 		expect(res.ok).toBe(true);
@@ -94,14 +99,14 @@ variable "a" is "1"
 
 describe('vars between features', () => {
 	it('clears variables between features', async () => {
-		const feature = { path: '/features/test.feature', content: 'set "x" to y' };
-		const anotherFeature = { path: '/features/verify.feature', content: 'not variable "x" is set' };
+		const feature = { path: '/features/test.feature', content: 'set x to "y"' };
+		const anotherFeature = { path: '/features/verify.feature', content: 'not variable x is set' };
 		const res = await passWithDefaults([feature, anotherFeature], steppers);
 		expect(res.ok).toBe(true);
 	});
 	it('sees env vars between features', async () => {
-		const feature = { path: '/features/test.feature', content: 'variable "b" is "1"' };
-		const anotherFeature = { path: '/features/verify.feature', content: 'variable "b" is "1"' };
+		const feature = { path: '/features/test.feature', content: 'variable b is "1"' };
+		const anotherFeature = { path: '/features/verify.feature', content: 'variable b is "1"' };
 		const envVariables = { b: '1' };
 		const res = await passWithDefaults([feature, anotherFeature], steppers, { options: { envVariables, DEST: DEFAULT_DEST }, moduleOptions: {} })
 		expect(res.ok).toBe(true);
@@ -110,12 +115,12 @@ describe('vars between features', () => {
 
 describe('feature variables', () => {
 	it('keeps pre-scenario feature variables', async () => {
-		const feature = { path: '/features/test.feature', content: 'set "x" to "y"\nScenario: Checks x\nvariable "x" is "y"' };
+		const feature = { path: '/features/test.feature', content: 'set x to "y"\nScenario: Checks x\nvariable x is "y"' };
 		const res = await passWithDefaults([feature], steppers);
 		expect(res.ok).toBe(true);
 	});
 	it('persists scenario variable changes to next scenario', async () => {
-		const feature = { path: '/features/test.feature', content: 'set "x" to "y"\nScenario: Sets x\nvariable "x" is "y"\nset "x" to "z"\nScenario: Checks x\nvariable "x" is "z"' };
+		const feature = { path: '/features/test.feature', content: 'set x to "y"\nScenario: Sets x\nvariable x is "y"\nset x to "z"\nScenario: Checks x\nvariable x is "z"' };
 		const res = await passWithDefaults([feature], steppers);
 		expect(res.ok).toBe(true);
 	});
@@ -127,17 +132,17 @@ describe('vars between scenarios', () => {
 			path: 'test.feature',
 			content: `
 
-set "feature variable" to "something"
+set feature variable to "something"
 
 Scenario: Check the variable and set it
 
-variable "feature variable" is "something"
+variable feature variable is "something"
 
-set "feature variable" to "something else"
+set feature variable to "something else"
 
 Scenario: Make sure it persisted from previous scenario
 
-variable "feature variable" is "something else"
+variable feature variable is "something else"
 ` }
 		const res = await passWithDefaults([feature], steppers);
 		expect(res.ok).toBe(true);
@@ -149,7 +154,7 @@ describe('value comparisons', () => {
 		const feature = {
 			path: '/features/numbers.feature',
 			content: `
-set "counter" as number to 5
+set counter as number to 5
 variable counter is less than 7
 not variable counter is less than 5
 `
@@ -161,7 +166,7 @@ not variable counter is less than 5
 		const feature = {
 			path: '/features/invalid-numbers.feature',
 			content: `
-set "counter" to 10
+set counter to 10
 variable counter is less than 5
 `
 		};
@@ -173,7 +178,7 @@ variable counter is less than 5
 
 			path: '/features/strings.feature',
 			content: `
-set "name" to "Alice"
+set name to "Alice"
 variable name is less than "Bob"
 `
 		};
@@ -188,8 +193,8 @@ describe('magnitude domains and comparisons', () => {
 			path: '/features/magnitude.feature',
 			content: `
 ordered set of priority is ["low" "medium" "high"]
-set priority as priority to low
-variable priority is less than high
+set priority as priority to "low"
+variable priority is less than "high"
 not variable point is less than "required"
 `
 		};
@@ -304,8 +309,8 @@ describe('isSet', () => {
 		const feature = {
 			path: '/features/isSet.feature',
 			content: `
-set "setVar" to "value"
-variable "setVar" is set
+set setVar to "value"
+variable setVar is set
 `
 		};
 		const res = await passWithDefaults([feature], steppers);
@@ -315,10 +320,35 @@ variable "setVar" is set
 		const feature = {
 			path: '/features/isSet.feature',
 			content: `
-variable "unsetVar" is set
+variable unsetVar is set
 `
 		};
 		const res = await failWithDefaults([feature], steppers);
 		expect(res.ok).toBe(false);
 	});
+	it('passes when variable is in env', async () => {
+		const feature = {
+			path: '/features/isSet.feature',
+			content: `
+variable "fromenv" is set
+`
+		};
+		const envVariables = { fromenv: '1' };
+		const res = await passWithDefaults([feature], steppers, { options: { DEST: DEFAULT_DEST, envVariables }, moduleOptions: {} });
+		expect(res.ok).toBe(true);
+	});
+	it('set uses env variable value when available', async () => {
+		const feature = {
+			path: '/features/setEnv.feature',
+			content: `
+set x to fromenv
+variable x is "1"
+`
+		};
+		const envVariables = { fromenv: '1' };
+		const res = await passWithDefaults([feature], steppers, { options: { DEST: DEFAULT_DEST, envVariables }, moduleOptions: {} });
+		expect(res.ok).toBe(true);
+	});
 });
+
+

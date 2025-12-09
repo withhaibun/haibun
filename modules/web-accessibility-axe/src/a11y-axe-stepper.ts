@@ -36,15 +36,15 @@ class A11yStepper extends AStepper implements IHasOptions {
   steps = {
     checkA11yRuntime: {
       gwta: `page is accessible accepting serious {serious:number} and moderate {moderate:number}`,
-      action: async ({ serious, moderate }: { serious: number, moderate: number }, { seqPath }: TFeatureStep) => {
+      action: async ({ serious, moderate }: { serious: string, moderate: string }, { seqPath }: TFeatureStep) => {
         const page = await this.pageGetter?.getPage();
         if (!page) {
           return actionNotOK(`no page in runtime`);
         }
-        return await this.checkA11y(page, serious, moderate, `a11y-check-${seqPath}`);
+        return await this.checkA11y(page, parseInt(serious, 10), parseInt(moderate, 10), `a11y-check-${seqPath}`);
       },
     },
-   } satisfies TStepperSteps;
+  } satisfies TStepperSteps;
   async checkA11y(page: Page, serious: number, moderate: number, filename: string) {
     try {
       const axeReport = await getAxeBrowserResult(page);

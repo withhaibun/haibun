@@ -208,7 +208,7 @@ export type TStepAction = {
 };
 
 export enum Origin {
-	fallthrough = 'fallthrough',
+	defined = 'defined',
 	var = 'var',
 	env = 'env',
 	quoted = 'quoted',
@@ -227,6 +227,7 @@ export type TStepValue = {
 	value?: TStepValueValue;
 	origin: TOrigin;
 	provenance?: TProvenanceIdentifier[]
+	readonly?: boolean;
 };
 
 export const OK: TOKActionResult = { ok: true };
