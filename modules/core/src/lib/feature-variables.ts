@@ -126,10 +126,7 @@ export class FeatureVariables {
 
 		// Apply coercion using the resolved domain
 		if (resolved.value !== undefined) {
-			const domainKey = normalizeDomainKey(resolved.domain);
-			console.log('🤑', JSON.stringify({ domainKey, domain: resolved.domain }, null, 2));
-			resolved.value = this.world.domains[domainKey].coerce({ ...resolved as TStepValue, domain: domainKey }, featureStep, steppers);
-			resolved.domain = domainKey;
+			resolved.value = this.world.domains[resolved.domain].coerce({ ...resolved as TStepValue }, featureStep, steppers);
 		}
 
 		return resolved as TStepValue;
