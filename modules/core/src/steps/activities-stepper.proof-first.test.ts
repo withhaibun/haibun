@@ -32,6 +32,10 @@ The activity body should have run and set the variable.
     it('should NOT execute activity body when proof already passes', async () => {
         const feature = `Feature: Proof already passes
 
+    Activity: Knows about data
+        set myVariable to "fromActivity"
+        waypoint Knows about data with variable myVariable is "initialValue"
+
 Scenario: Proof passes so activity body should not run
 
 We set the variable to match the proof value.
@@ -43,10 +47,6 @@ The bug would cause myVariable to change to "fromActivity".
 
     ensure Knows about data
     variable myVariable is "initialValue"
-
-    Activity: Knows about data
-        set myVariable to "fromActivity"
-        waypoint Knows about data with variable myVariable is "initialValue"
 `;
 
         const result = await passWithDefaults(feature, [ActivitiesStepper, VariablesStepper, Haibun]);
