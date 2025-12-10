@@ -538,6 +538,22 @@ export const interactionSteps = (wp: WebPlaywright): TStepperSteps => ({
 			return OK;
 		},
 	},
+	saveTextFrom: {
+		gwta: `save text from {element: ${DOMAIN_PAGE_LOCATOR}} to {where}`,
+		action: async ({ element, where }: { element: string; where: string }, featureStep) => {
+			const text = await wp.withPage<string>(async (page: Page) => {
+				const locator = page.locator(element);
+				// Try textContent first, fall back to inputValue for input elements
+				const content = await locator.textContent();
+				if (content !== null && content.trim() !== '') {
+					return content.trim();
+				}
+				return await locator.inputValue();
+			});
+			wp.getWorld().shared.set({ term: where, value: text, domain: 'string', origin: Origin.fallthrough }, provenanceFromFeatureStep(featureStep));
+			return OK;
+		},
+	},
 	resizeWindow: {
 		gwta: 'resize window to {width}x{height}',
 		action: async ({ width, height }: { width: string; height: string }) => {
