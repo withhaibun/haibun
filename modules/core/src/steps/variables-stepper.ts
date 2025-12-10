@@ -225,36 +225,16 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			gwta: 'variable {what} is less than {value}',
 			precludes: ['VariablesStepper.is'],
 			action: ({ what, value }: { what: string, value: string }, featureStep: TFeatureStep) => {
-				void what;
 				const term = getStepTerm(featureStep, 'what') ?? what;
-				const stored = this.getWorld().shared.all()[term];
-				if (!stored) {
-					return actionNotOK(`${term} is not set`);
-				}
-				try {
-					const domainKey = normalizeDomainKey(stored.domain);
-					const domainEntry = this.getWorld().domains[domainKey];
-					if (!domainEntry) {
-						throw new Error(`No domain coercer found for domain "${domainKey}"`);
-					}
-					const left = domainEntry.coerce({ ...stored, domain: domainKey }, featureStep, this.steppers);
-
-					let rightValue = value ?? getStepTerm(featureStep, 'value');
-
-					if (typeof rightValue === 'string' && rightValue.startsWith('"') && rightValue.endsWith('"')) {
-						rightValue = rightValue.slice(1, -1);
-					}
-
-					const right = domainEntry.coerce({ term: `${term}__comparison`, value: rightValue, domain: domainKey, origin: Origin.quoted }, featureStep, this.steppers);
-					const comparison = compareDomainValues(domainEntry, left, right);
-
-					if (comparison < 0) {
-						return OK;
-					}
-					return actionNotOK(`${term} (${renderComparable(left)}) is not less than ${renderComparable(right)}`);
-				} catch (error) {
-					return actionNotOK(error instanceof Error ? error.message : String(error));
-				}
+				return this.compareValues(featureStep, term, value, '<');
+			}
+		},
+		isMoreThan: {
+			gwta: 'variable {what} is more than {value}',
+			precludes: ['VariablesStepper.is'],
+			action: ({ what, value }: { what: string, value: string }, featureStep: TFeatureStep) => {
+				const term = getStepTerm(featureStep, 'what') ?? what;
+				return this.compareValues(featureStep, term, value, '>');
 			}
 		},
 		exists: {
@@ -334,6 +314,35 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			}
 		},
 	} satisfies TStepperSteps;
+
+	compareValues(featureStep: TFeatureStep, term: string, value: string, operator: string) {
+		const stored = this.getWorld().shared.all()[term];
+		if (!stored) {
+			return actionNotOK(`${term} is not set`);
+		}
+		const domainKey = normalizeDomainKey(stored.domain);
+		const domainEntry = this.getWorld().domains[domainKey];
+		if (!domainEntry) {
+			throw new Error(`No domain coercer found for domain "${domainKey}"`);
+		}
+		const left = domainEntry.coerce({ ...stored, domain: domainKey }, featureStep, this.steppers);
+
+		let rightValue = value ?? getStepTerm(featureStep, 'value');
+
+		if (typeof rightValue === 'string' && rightValue.startsWith('"') && rightValue.endsWith('"')) {
+			rightValue = rightValue.slice(1, -1);
+		}
+
+		const right = domainEntry.coerce({ term: `${term}__comparison`, value: rightValue, domain: domainKey, origin: Origin.quoted }, featureStep, this.steppers);
+		const comparison = compareDomainValues(domainEntry, left, right, stored.domain);
+		if (operator === '>') {
+			return comparison > 0 ? OK : actionNotOK(`${term} is ${JSON.stringify(left)}, not ${JSON.stringify(right)}`);
+		}
+		if (operator === '<') {
+			return comparison < 0 ? OK : actionNotOK(`${term} is ${JSON.stringify(left)}, not ${JSON.stringify(right)}`);
+		}
+		return actionNotOK(`Unsupported operator: ${operator}`);
+	}
 
 
 	private registerSubdomainFromStatement(domain: string, superdomains: TFeatureStep[] | undefined, featureStep: TFeatureStep) {
@@ -462,7 +471,7 @@ const parseQuotedOrWordList = (value: string): string[] => {
 	return value.split(/[\s,]+/).map(token => token.trim()).filter(Boolean);
 };
 
-const compareDomainValues = (domain: { comparator?: (a: unknown, b: unknown) => number }, left: unknown, right: unknown): number => {
+const compareDomainValues = (domain: { comparator?: (a: unknown, b: unknown) => number }, left: unknown, right: unknown, domainName: string): number => {
 	if (domain.comparator) {
 		return domain.comparator(left, right);
 	}
@@ -472,7 +481,7 @@ const compareDomainValues = (domain: { comparator?: (a: unknown, b: unknown) => 
 	if (left instanceof Date && right instanceof Date) {
 		return left.getTime() - right.getTime();
 	}
-	throw new Error('Domain does not support magnitude comparison');
+	throw new Error(`Domain ${domainName} does not support magnitude comparison`);
 };
 
 const renderComparable = (value: unknown) => {
