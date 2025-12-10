@@ -371,8 +371,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		this.getWorld().logger.debug(`ActivitiesStepper: registerOutcome called with ${proofStatements.length} proof steps for "${outcome}"`);
 		this.getWorld().logger.debug(`ActivitiesStepper: outcome is background=${isBackground}, will be added to ${isBackground ? 'backgroundOutcomePatterns' : 'featureOutcomePatterns'}`);
 
-		// Store proofStatements for later retrieval
-		const outcomeProofStatements = proofStatements;
+		// FIXME: maybe we don't care if normalizedActivitySteps is empty
 
 		const step: TStepperStep = {
 			gwta: outcome,

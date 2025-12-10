@@ -124,7 +124,6 @@ export class FeatureVariables {
 			throw new Error(`Unsupported origin type: ${input.origin}`);
 		}
 
-		// Apply coercion using the resolved domain
 		if (resolved.value !== undefined) {
 			resolved.value = this.world.domains[resolved.domain].coerce({ ...resolved as TStepValue }, featureStep, steppers);
 		}
