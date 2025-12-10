@@ -9,22 +9,23 @@ Feature: Form-based Authentication
     set Unauthorized to 401
 
     serve files at /static from "rest"
-    make auth scheme basic
+    make auth scheme "basic"
+    using timeout of 1500ms
 
     Scenario: Fail login with wrong credentials
         go to the REST Home webpage
-        click username by placeholder
+        click "username" by placeholder
         type "wrong" 
-        click password by placeholder
+        click "password" by placeholder
         type "wrong"
         click "Login"
         see "Invalid credentials"
 
     Scenario: Pass login with correct credentials
         go to the REST Home webpage
-        click username by placeholder
+        click "username" by placeholder
         type "foo"
-        click password by placeholder
+        click "password" by placeholder
         type "bar"
         click "Login"
         see "Login successful"

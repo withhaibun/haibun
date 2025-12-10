@@ -1,8 +1,22 @@
-import { TNotOKActionResult, TOKActionResult, TSpecl, TWorld, TRuntime, TModuleOptions, CStepper, OK, TSeqPath } from '../defs.js';
+import { TNotOKActionResult, TOKActionResult, TSpecl, TWorld, TRuntime, TModuleOptions, CStepper, OK, TSeqPath, TFeatureStep } from '../defs.js';
 import { TAnyFixme } from '../fixme.js';
 import { IHasOptions, AStepper } from '../astepper.js';
 import { TTag } from '../ttag.js';
 import { TArtifact, TMessageContext } from '../interfaces/logger.js';
+
+// Helper to get term from stepValuesMap with null safety
+export function getStepTerm(featureStep: TFeatureStep, key: string): string | undefined {
+	return featureStep?.action?.stepValuesMap?.[key]?.term;
+}
+
+// Checks if an unquoted term should be treated as a string literal
+// A term is literal if it:
+// - doesn't start with [a-zA-Z_], OR
+// - contains characters outside [a-zA-Z0-9_ ], OR
+// - contains / (paths like /count, MIME types like application/json)
+export function isLiteralValue(term: string): boolean {
+	return !/^[a-zA-Z_]/.test(term) || /[^a-zA-Z0-9_ ]/.test(term);
+}
 
 type TClass = { new <T>(...args: unknown[]): T };
 

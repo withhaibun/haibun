@@ -1,4 +1,4 @@
-import { actionNotOK, actionOK } from '@haibun/core/lib/util/index.js';
+import { actionNotOK, actionOK, getStepTerm } from '@haibun/core/lib/util/index.js';
 import WebPlaywright from './web-playwright.js';
 import { OK } from '@haibun/core/lib/defs.js';
 import { EExecutionMessageType, TMessageContext } from '@haibun/core/lib/interfaces/logger.js';
@@ -60,8 +60,8 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 
 	acceptEndpointRequest: {
 		gwta: `accept {accept} using ${HTTP} {method} to {endpoint}`,
-		action: async ({ accept, method, endpoint }: { accept: string; method: string; endpoint: string }, featureStep) => {
-			method = method.toLowerCase();
+		action: async ({ accept, endpoint }: { accept: string; method: string; endpoint: string }, featureStep) => {
+			const method = getStepTerm(featureStep, 'method')!.toLowerCase();
 			if (!NO_PAYLOAD_METHODS.includes(method)) {
 				return actionNotOK(`Method ${method} not supported`);
 			}
@@ -72,8 +72,8 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 	},
 	restEndpointRequest: {
 		gwta: `make an ${HTTP} {method} to {endpoint}`,
-		action: async ({ method, endpoint }: { method: string; endpoint: string }, featureStep) => {
-			method = method.toLowerCase();
+		action: async ({ endpoint }: { method: string; endpoint: string }, featureStep) => {
+			const method = getStepTerm(featureStep, 'method')!.toLowerCase();
 			if (!NO_PAYLOAD_METHODS.includes(method)) {
 				return actionNotOK(`Method ${method} not supported`);
 			}
@@ -142,8 +142,8 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 	},
 	restEndpointFilteredPropertyRequest: {
 		gwta: `for each filtered {property}, make REST {method} to {endpoint} yielding status {status}`,
-		action: async ({ property, method, endpoint, status }: { property: string; method: string; endpoint: string; status: string }) => {
-			method = method.toLowerCase();
+		action: async ({ property, endpoint, status }: { property: string; endpoint: string; status: string }, featureStep) => {
+			const method = getStepTerm(featureStep, 'method')!.toLowerCase();
 			if (!NO_PAYLOAD_METHODS.includes(method)) {
 				return actionNotOK(`Method ${method} not supported`);
 			}
@@ -167,8 +167,8 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 	},
 	restEndpointRequestWithPayload: {
 		gwta: `make an ${'HTTP'} {method} to {endpoint} with {payload}`,
-		action: async ({ method, endpoint, payload }: { method: string; endpoint: string; payload: string }, featureStep) => {
-			method = method.toLowerCase();
+		action: async ({ endpoint, payload }: { endpoint: string; payload: string }, featureStep) => {
+			const method = getStepTerm(featureStep, 'method')!.toLowerCase();
 			if (!PAYLOAD_METHODS.includes(method)) {
 				return actionNotOK(`Method ${method} (${method}) does not support payload`);
 			}

@@ -31,7 +31,7 @@ variable verifyCount is 1
 			path: '/features/test.feature',
 			content: `Activity: Setup
 set counter as number to 0
-waypoint Is ready with variable counter is set
+waypoint Is ready with variable counter exists
 
 set hookCount as number to 0
 after every VariablesStepper, increment hookCount

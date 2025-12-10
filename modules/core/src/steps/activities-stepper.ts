@@ -348,12 +348,15 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			throw new Error(`Outcome "${outcome}" is already registered. Each outcome can only be defined once.`);
 		}
 
+		// Normalize activity steps (split multiline strings)
+		const normalizedActivitySteps = activityBlockSteps?.flatMap(s => s.split('\n')).map(s => s.trim()).filter(s => s.length > 0) ?? [];
+
 		// Store metadata for runtime re-emission via TEST_LINKS messages
 		this.registeredOutcomeMetadata.set(outcome, {
 			proofStatements,
 			proofPath,
 			isBackground: isBackground ?? false,
-			activityBlockSteps: activityBlockSteps ?? [],
+			activityBlockSteps: normalizedActivitySteps,
 		});
 
 		// Track whether this is a background or feature outcome
@@ -404,10 +407,10 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 
 				// 2. Proof Failed or not present
 				if (!featureStep.intent?.stepperOptions?.isEnsure) {
-					if (activityBlockSteps && activityBlockSteps.length > 0) {
+					if (normalizedActivitySteps && normalizedActivitySteps.length > 0) {
 						this.getWorld().logger.debug(`ActivitiesStepper: running activity body for outcome "${outcome}" (no ensure)`);
 						const mode = featureStep.intent?.mode === 'speculative' ? 'speculative' : 'authoritative';
-						const act = await this.runner.runStatements(activityBlockSteps, { args: robustArgs, intent: { mode, usage: featureStep.intent?.usage }, parentStep: featureStep });
+						const act = await this.runner.runStatements(normalizedActivitySteps, { args: robustArgs, intent: { mode, usage: featureStep.intent?.usage }, parentStep: featureStep });
 						if (act.kind !== 'ok') {
 							return actionNotOK(`ActivitiesStepper: activity body failed for outcome "${outcome}": ${act.message}`);
 						}
@@ -422,11 +425,11 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				}
 
 				// 3. Ensure Mode: Run Activity Body
-				if (activityBlockSteps && activityBlockSteps.length > 0) {
+				if (normalizedActivitySteps && normalizedActivitySteps.length > 0) {
 					this.getWorld().logger.debug(`ActivitiesStepper: proof failed for outcome "${outcome}", running activity body`);
 
 					const mode = featureStep.intent?.mode === 'speculative' ? 'speculative' : 'authoritative';
-					const act = await this.runner.runStatements(activityBlockSteps, { args: robustArgs, intent: { mode, usage: featureStep.intent?.usage }, parentStep: featureStep });
+					const act = await this.runner.runStatements(normalizedActivitySteps, { args: robustArgs, intent: { mode, usage: featureStep.intent?.usage }, parentStep: featureStep });
 					if (act.kind !== 'ok') {
 						return actionNotOK(`ActivitiesStepper: activity body failed for outcome "${outcome}": ${act.message}`);
 					}

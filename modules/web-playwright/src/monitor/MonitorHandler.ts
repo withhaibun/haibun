@@ -106,7 +106,7 @@ export class MonitorHandler {
 	async initMonitorContext() {
 		const browser = await chromium.launch({
 			headless: this.headless,
-			args: ['--start-maximized']
+			// args: ['--start-maximized']
 		});
 		this.context = await browser.newContext({ viewport: null });
 	}

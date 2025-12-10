@@ -17,10 +17,10 @@ export const backgrounds: TKirejiExport = {
 
 		activity({ activity: knowsAboutWikipedia }),
 		set({ what: enWikipedia, value: 'https://en.wikipedia.org/wiki/' }),
-		combine({ p1: enWikipedia, p2: 'Haibun', what: 'haibunUrl' }),
-		combine({ p1: enWikipedia, p2: 'Main_Page', what: 'mainUrl' }),
+		combine({ p1: enWikipedia, p2: '"Haibun"', what: 'haibunUrl' }),
+		combine({ p1: enWikipedia, p2: '"Main_Page"', what: 'mainUrl' }),
 		set({ what: pagesVisited, value: '0' }),
-		`waypoint ${knowsAboutWikipedia} with variable enWikipedia is set`,
+		`waypoint ${knowsAboutWikipedia} with variable enWikipedia exists`,
 
 		activity({ activity: 'Navigate to any Wikipedia page' }),
 		ensure({ outcome: knowsAboutWikipedia }),

@@ -2,8 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { failWithDefaults, passWithDefaults } from './test/lib.js';
 import VariablesStepper from '../steps/variables-stepper.js';
 import Haibun from '../steps/haibun.js';
+import LogicStepper from '../steps/logic-stepper.js';
 
-const steppers = [VariablesStepper, Haibun];
+const steppers = [VariablesStepper, Haibun, LogicStepper];
 
 describe('domains', () => {
 	it('sets variable with explicit domain', async () => {
@@ -52,6 +53,18 @@ describe('domains', () => {
 		const value = res.world.shared.get('Value');
 		expect(typeof value).toBe('number');
 		expect(value).toBe(4);
+	});
+
+	it('increment number and compare with is', async () => {
+		const feature = { path: '/features/d.feature', content: 'set counter as number to 0\nincrement counter\nvariable counter is 1' };
+		const res = await passWithDefaults([feature], steppers);
+		expect(res.ok).toBe(true);
+	});
+
+	it('whenever loop increment and compare with is', async () => {
+		const feature = { path: '/features/d.feature', content: 'set counter as number to 0\nwhenever variable counter is less than 3, increment counter\nvariable counter is 3' };
+		const res = await passWithDefaults([feature], steppers);
+		expect(res.ok).toBe(true);
 	});
 
 	it('treats single {braces} as literal text', async () => {

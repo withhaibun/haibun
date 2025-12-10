@@ -160,7 +160,7 @@ export const getMatch = (actionable: string, r: RegExp, actionName: string, step
 			i++;
 		}
 	}
-	return { actionName, stepperName, step, stepValuesMap } as TStepAction;
+	return { actionName, stepperName, step, stepValuesMap: stepValuesMap || {} } as TStepAction;
 };
 
 const inferOrigin = (char: string): TOrigin => {

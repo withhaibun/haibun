@@ -16,8 +16,8 @@ Backgrounds: service/counter, int/counter
     input username for user name
     click Submit
 
-    URI query parameter username is username
-    save URI query parameter username to username parameter
+    URI query parameter "username" is username
+    save URI query parameter "username" to "username parameter"
     URI starts with counter URI
     should see username
-    cookie userid is username
+    cookie "userid" is username

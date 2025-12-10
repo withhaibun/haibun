@@ -108,6 +108,7 @@ class Haibun extends AStepper implements IHasCycles {
 			action: () => OK,
 		},
 		prose: {
+			// FIXME a line starts with a capital letter and ends with punctuation, or starts with punctuation
 			match: /^[^a-z].*/,
 			fallback: true,
 			action: () => OK,

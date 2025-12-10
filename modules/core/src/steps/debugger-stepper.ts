@@ -1,5 +1,5 @@
 import { AStepper, IHasCycles, IHasOptions, TStepperSteps } from '../lib/astepper.js';
-import { IStepperCycles, TActionResult, OK, TWorld, TBeforeStep, TAfterStep, TStepResult, ExecMode, TAfterStepResult, TFeatureStep } from '../lib/defs.js';
+import { IStepperCycles, TActionResult, OK, TWorld, TBeforeStep, TAfterStep, TStepResult, ExecMode, TAfterStepResult, TFeatureStep, TNotOKActionResult } from '../lib/defs.js';
 import { TMessageContext, EExecutionMessageType } from '../lib/interfaces/logger.js';
 import { makePrompt } from '../lib/prompter.js';
 import { actionNotOK, actionOK, formatCurrentSeqPath, getStepperOption, stringOrError } from '../lib/util/index.js';
@@ -41,6 +41,7 @@ const cycles = (debuggerStepper: DebuggerStepper): IStepperCycles => ({
 			return;
 		}
 		if (!actionResult.ok) {
+			debuggerStepper.getWorld().logger.error(`Step failed: ${(actionResult as TNotOKActionResult).message}`);
 			debuggerStepper.getWorld().logger.debug(`Debugger triggering for failure: ${featureStep.in} intent=${JSON.stringify(featureStep.intent)}`);
 			return await debuggerStepper.debugLoop(`[Failure]`, ['*', 'retry', 'next', 'fail'], featureStep, 1);
 		}

@@ -19,14 +19,14 @@ Feature: Auth-bearer Authentication
     combine Resource Server and Profile Path to Profile API
     combine Resource Server and Resources Path to Resources API
     combine Resource Server and Resource Path to Resource API
-    combine Resource Server and Resource Delete Path to Resource Delete API
+    combine Resource Server and Resource Delete Route to Resource Delete API
     combine Resource Server and "/logout?post_logout_redirect_uri=http://localhost:8123/static/loggedOut" to Logout
 
     set OK to 200
     set Unauthorized to 401
 
     serve files at /static from "rest"
-    make auth scheme bearer
+    make auth scheme "bearer"
     API user agent is "curl/8.5.0"
 
     Scenario: Fail authentication 
@@ -76,6 +76,6 @@ Feature: Auth-bearer Authentication
         JSON response length is 3
         filter JSON response by "name" matching "Include"
         filtered response length is 2
-        for each filtered id, make REST DELETE to Resource API yielding status 204
+        for each filtered "id", make REST DELETE to Resource API yielding status 204
         accept application/json using HTTP GET to Resources API
         JSON response length is 1

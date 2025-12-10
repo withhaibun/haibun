@@ -81,52 +81,52 @@ describe('compound', () => {
 });
 
 describe('variable composition', () => {
-  it('not variable set is set fails', async () => {
-    const feature = { path: '/features/test.feature', content: 'set wtw to 5\nnot variable "wtw" is set' };
+  it('not variable set exists fails', async () => {
+    const feature = { path: '/features/test.feature', content: 'set wtw to 5\nnot variable "wtw" exists' };
     const result = await failWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers]);
     expect(result.ok).toBe(false); // inner isSet passes so not fails
   });
 
   it('whenever not variable unset executes body', async () => {
-    const feature = { path: '/features/test.feature', content: 'whenever not variable "fresh" is set, set fresh to 1\nvariable "fresh" is "1"' };
+    const feature = { path: '/features/test.feature', content: 'whenever not variable "fresh" exists, set fresh to 1\nvariable "fresh" is "1"' };
     const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers]);
     expect(result.ok).toBe(true);
     expect(result.world.shared.get('fresh')).toBe('1');
   });
 
   it('whenever not variable set skips body', async () => {
-    const feature = { path: '/features/test.feature', content: 'set existing to 2\nwhenever not variable "existing" is set, set existing to 3\nvariable "existing" is "2"' };
+    const feature = { path: '/features/test.feature', content: 'set existing to 2\nwhenever not variable "existing" exists, set existing to 3\nvariable "existing" is "2"' };
     const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers]);
     expect(result.ok).toBe(true);
     expect(result.world.shared.get('existing')).toBe('2');
   });
 
   it('whenever not variable set skips failing body', async () => {
-    const feature = { path: '/features/test.feature', content: 'set existing to 2\nwhenever not variable "existing" is set, fails' };
+    const feature = { path: '/features/test.feature', content: 'set existing to 2\nwhenever not variable "existing" exists, fails' };
     const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers]);
     expect(result.ok).toBe(true); // condition false, body skipped
   });
 
   it('not where variable set, passes (body passes so not fails)', async () => {
-    const feature = { path: '/features/test.feature', content: 'set a to 1\nnot where variable "a" is set, passes' };
+    const feature = { path: '/features/test.feature', content: 'set a to 1\nnot where variable "a" exists, passes' };
     const result = await failWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers]);
     expect(result.ok).toBe(false); // inner where ok -> not fails
   });
 
   it('not where variable unset, passes (condition false so where ok then not fails)', async () => {
-    const feature = { path: '/features/test.feature', content: 'not where variable "ghost" is set, passes' };
+    const feature = { path: '/features/test.feature', content: 'not where variable "ghost" exists, passes' };
     const result = await failWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers]);
     expect(result.ok).toBe(false); // inner where ok (skipped) -> not fails
   });
 
   it('not where variable set, failing body (where body fails so not passes)', async () => {
-    const feature = { path: '/features/test.feature', content: 'set a to 1\nnot where variable "a" is set, fails' };
+    const feature = { path: '/features/test.feature', content: 'set a to 1\nnot where variable "a" exists, fails' };
     const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers]);
     expect(result.ok).toBe(true); // inner where fails -> not passes
   });
 
-  it('not variable unset is set passes', async () => {
-    const feature = { path: '/features/test.feature', content: 'not variable "unset" is set' };
+  it('not variable unset exists passes', async () => {
+    const feature = { path: '/features/test.feature', content: 'not variable "unset" exists' };
     const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers]);
     expect(result.ok).toBe(true);
     const seqs = result.featureResults![0].stepResults.map(r => r.seqPath);

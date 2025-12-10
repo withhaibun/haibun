@@ -13,7 +13,7 @@ describe('Activities ensure flow', () => {
 Activity: Set up Wikipedia
 set enWikipedia to "https://en.wikipedia.org/wiki/"
 set haibunUrl to "https://en.wikipedia.org/wiki/Haibun"
-waypoint Knows about Wikipedia with variable "enWikipedia" is set
+waypoint Knows about Wikipedia with variable "enWikipedia" exists
 `
 		};
 
@@ -30,12 +30,12 @@ This test demonstrates the ensure flow.
 
 Expected flow.
 - ensure Knows about Wikipedia.
-- Check proof: variable enWikipedia is set → FAILS (not set yet).
+- Check proof: variable enWikipedia exists → FAILS (not set yet).
 - Execute activity body.
   - set enWikipedia to https://en.wikipedia.org/wiki/.
   - set haibunUrl to https://en.wikipedia.org/wiki/Haibun.
   - Note: waypoint line is NOT in activity body to avoid recursion.
-- Execute proof: variable enWikipedia is set → PASSES (now set).
+- Execute proof: variable enWikipedia exists → PASSES (now set).
 - Success.
 
 Scenario: Ensure executes activity body when proof fails
@@ -59,7 +59,7 @@ variable haibunUrl is "https://en.wikipedia.org/wiki/Haibun"
 Activity: Set up Wikipedia
 set enWikipedia to "https://en.wikipedia.org/wiki/"
 set counter to "0"
-waypoint Knows about Wikipedia with variable enWikipedia is set
+waypoint Knows about Wikipedia with variable enWikipedia exists
 `
 		};
 
@@ -86,7 +86,7 @@ ensure Knows about Wikipedia
 			content: `
 Activity: Broken setup
 set wrongVariable to "something"
-waypoint Needs correct variable with variable correctVariable is set
+waypoint Needs correct variable with variable correctVariable exists
 `
 		};
 
@@ -114,7 +114,7 @@ ensure Needs correct variable
 Activity: Knows about Wikipedia
 set enWikipedia to "https://en.wikipedia.org/wiki/"
 set haibunUrl to "https://en.wikipedia.org/wiki/Haibun"
-waypoint Knows about Wikipedia with variable enWikipedia is set
+waypoint Knows about Wikipedia with variable enWikipedia exists
 `
 		};
 

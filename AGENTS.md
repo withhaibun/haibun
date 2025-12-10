@@ -146,7 +146,7 @@ Ordered sets enable state machines and efficient waypoint checks.
     variable doc_status is less than "published" ;; true
 
     show domains ;; show all domains
-    show domain statuses
+    show domain "statuses"
     show vars ;; inspect all variables with domains and values
     show var doc_status ;; inspect a single variable
 
@@ -379,7 +379,7 @@ A talent agency can have different types of clients, including artists and venue
     Activity: Engage a client
     every state in offer is ordered set of {name}/{state} is ["negotiating", "agreed"]
     every state in offer is set {name}/{state} as {name}/{state} to "negotiating"
-    waypoint Engaged {name} with every state in offer is variable {name}/{state} is set
+    waypoint Engaged {name} with every state in offer is variable {name}/{state} exists
 
     Activity: Foster a client
     increment {name}/{concern}

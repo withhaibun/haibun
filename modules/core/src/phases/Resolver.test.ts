@@ -49,6 +49,7 @@ describe('validate map steps', () => {
 			const features = asExpandedFeatures([{ path: 'l1', content: `exact1` }]);
 			const res = await getResolvedSteps(features);
 			const { featureSteps } = res[0];
+			// exact steps don't have stepValuesMap
 			expect(featureSteps[0].action.stepValuesMap).toBeUndefined();
 		});
 	});
@@ -57,8 +58,8 @@ describe('validate map steps', () => {
 			const features = asExpandedFeatures([{ path: 'l1', content: `match1` }]);
 			const res = await getResolvedSteps(features);
 			const { featureSteps } = res[0];
-			// regex style match still exposes no stepValuesMap for legacy direct regex usage
-			expect(featureSteps[0].action.stepValuesMap).toBeUndefined();
+			// regex style match still exposes no stepValuesMap entries for legacy direct regex usage
+			expect(featureSteps[0].action.stepValuesMap).toEqual({});
 		});
 	});
 	describe('gwta regex', () => {
@@ -68,8 +69,8 @@ describe('validate map steps', () => {
 			]);
 			const res = await getResolvedSteps(features);
 			const { featureSteps } = res[0] as TResolvedFeature;
-			// gwta pattern using regex groups directly still not using stepValuesMap
-			featureSteps.forEach(fs => expect(fs.action.stepValuesMap).toBeUndefined());
+			// gwta pattern using regex groups directly uses empty stepValuesMap
+			featureSteps.forEach(fs => expect(fs.action.stepValuesMap).toEqual({}));
 		});
 	});
 	describe('gwta interpolated', () => {

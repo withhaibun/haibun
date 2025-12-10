@@ -24,6 +24,6 @@ export const features: TKirejiExport = {
 		saveURIQueryParameter({ what: 'username', where: 'username parameter' }),
 		URIStartsWith({ start: 'counter URI' }),
 		seeText({ text: 'username' }),
-		cookieIs({ name: 'userid', value: 'username' })
+		cookieIs({ name: '"userid"', value: 'username' })
 	]
 }

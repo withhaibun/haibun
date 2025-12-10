@@ -1,2 +1,2 @@
-set empty a-browser to chromium
+set empty a-browser to "chromium"
 Given I'm using `a-browser` browser

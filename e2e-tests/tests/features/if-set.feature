@@ -1,7 +1,7 @@
 show vars
-not variable "wtw" is set
+not variable "wtw" exists
 
-where not variable "wtw" is set, Backgrounds: if/set-true
+where not variable "wtw" exists, Backgrounds: if/set-true
 
 variable "wtw" is "true"
 

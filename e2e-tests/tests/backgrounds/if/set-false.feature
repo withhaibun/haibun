@@ -1,1 +1,1 @@
-set wtw to false
+set wtw to "false"

@@ -33,6 +33,9 @@ export const asDomainKey = (domains: string[]) => domains.sort().join(' | ');
 
 export const normalizeDomainKey = (domain: string) => {
 	const parts = domain.split(/[\\/]/).map((selector) => selector.trim()).filter(Boolean);
+	if (domain !== asDomainKey(parts)) {
+		throw Error(`domain key "${domain}", expected "${asDomainKey(parts)}"`);
+	}
 	return asDomainKey(parts);
 };
 

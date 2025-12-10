@@ -33,5 +33,5 @@ We are in a new feature, verify that all variables are reset to outside, feature
 
 variable outsideVariable is "outsideValue"
 variable featureVariable is "f1value"
-not variable scenarioVariable is set
+not variable scenarioVariable exists
 

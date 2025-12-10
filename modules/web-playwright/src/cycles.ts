@@ -27,6 +27,7 @@ export const cycles = (wp: WebPlaywright): IStepperCycles => ({
 	},
 
 	async startFeature({ resolvedFeature, index }: TStartFeature): Promise<void> {
+		wp.tab = 0;
 		if (wp.monitor === EMonitoringTypes.MONITOR_EACH) {
 			await wp.callClosers(); // first tab
 			await wp.monitorHandler.createMonitorPage(wp);

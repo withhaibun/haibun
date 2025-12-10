@@ -16,27 +16,28 @@ export const features: TKirejiExport = {
 		`Demonstrate ordered domains, waypoints (proofs) and activities. The background Do work activity increments an effort counter and advances the release phase by one step. ensure() will attempt the proof first and run the activity body only when the proof fails.`,
 
 		defineOrderedSet({ domain: Release_domain, values: '["concept" "plan" "dev" "prod"]' }),
-		setAs({ what: 'phase', domain: Release_domain, value: 'concept' }),
+		setAs({ what: 'phase', domain: Release_domain, value: '"concept"' }),
 
 		"Reach 'dev' by ensuring release is at dev.",
 		scenario({ scenario: 'Promote to dev using Do work' }),
-		ensure({ outcome: `${Release_at} dev` }),
+
+		ensure({ outcome: `${Release_at} "dev"` }),
 		"After promoting from concept -> plan -> dev we expect two effort increments.",
-		is({ what: effort, value: '2' }),
+		is({ what: effort, value: '"2"' }),
 
 		`Check a previous phase, which should result in no new effort.`,
 		scenario({ scenario: 'Went through plan using Do work' }),
-		ensure({ outcome: `${Release_at} plan` }),
+		ensure({ outcome: `${Release_at} "plan"` }),
 		`After checking plan we expect an unchanged work effort.`,
-		is({ what: effort, value: '2' }),
+		is({ what: effort, value: '"2"' }),
 
 		"Reach 'prod' by ensuring release is at prod.",
 		scenario({ scenario: 'Promote to prod using Do work' }),
-		ensure({ outcome: `${Release_at} prod` }),
+		ensure({ outcome: `${Release_at} "prod"` }),
 		"After promoting to prod we expect effort of 3.",
-		is({ what: effort, value: '3' }),
+		is({ what: effort, value: '"3"' }),
 
 		scenario({ scenario: 'Check final phase variable' }),
-		is({ what: 'phase', value: 'prod' }),
+		is({ what: 'phase', value: '"prod"' }),
 	],
 };

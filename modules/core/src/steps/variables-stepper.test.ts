@@ -26,8 +26,8 @@ describe('vars', () => {
 		const res = await passWithDefaults([feature], steppers);
 		expect(res.ok).toBe(true);
 	});
-	it('is set', async () => {
-		const feature = { path: '/features/test.feature', content: 'set x to "y"\nvariable x is set' };
+	it('exists', async () => {
+		const feature = { path: '/features/test.feature', content: 'set x to "y"\nvariable x exists' };
 		const res = await passWithDefaults([feature], steppers);
 		expect(res.ok).toBe(true);
 	});
@@ -100,7 +100,7 @@ variable a is "1"
 describe('vars between features', () => {
 	it('clears variables between features', async () => {
 		const feature = { path: '/features/test.feature', content: 'set x to "y"' };
-		const anotherFeature = { path: '/features/verify.feature', content: 'not variable x is set' };
+		const anotherFeature = { path: '/features/verify.feature', content: 'not variable x exists' };
 		const res = await passWithDefaults([feature, anotherFeature], steppers);
 		expect(res.ok).toBe(true);
 	});
@@ -305,12 +305,12 @@ variable shade is "sun"
 });
 
 describe('isSet', () => {
-	it('passes when variable is set', async () => {
+	it('passes when variable exists', async () => {
 		const feature = {
 			path: '/features/isSet.feature',
 			content: `
 set setVar to "value"
-variable setVar is set
+variable setVar exists
 `
 		};
 		const res = await passWithDefaults([feature], steppers);
@@ -320,7 +320,7 @@ variable setVar is set
 		const feature = {
 			path: '/features/isSet.feature',
 			content: `
-variable unsetVar is set
+variable unsetVar exists
 `
 		};
 		const res = await failWithDefaults([feature], steppers);
@@ -330,7 +330,7 @@ variable unsetVar is set
 		const feature = {
 			path: '/features/isSet.feature',
 			content: `
-variable "fromenv" is set
+variable "fromenv" exists
 `
 		};
 		const envVariables = { fromenv: '1' };

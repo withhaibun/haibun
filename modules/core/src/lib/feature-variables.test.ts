@@ -334,4 +334,28 @@ describe('FeatureVariables', () => {
 			expect(variables.getJSON('emptyArray')).toEqual([]);
 		});
 	});
+
+	describe('literal fallback', () => {
+		it('should fallback to literal value for unquoted literals', () => {
+			const fv = new FeatureVariables(world);
+			const result = fv.resolveVariable({ term: '/path/to/resource', origin: Origin.defined });
+			expect(result.value).toBe('/path/to/resource');
+		});
+
+		it('should not fallback to literal for variable-like terms', () => {
+			const fv = new FeatureVariables(world);
+			const result = fv.resolveVariable({ term: 'undefinedVar', origin: Origin.defined });
+			expect(result.value).toBeUndefined();
+		});
+
+		it('should prioritize defined variables over literal fallback', () => {
+			const fv = new FeatureVariables(world);
+			fv.set(
+				{ term: '/path', value: 'defined value', domain: DOMAIN_STRING, origin: Origin.statement },
+				{ in: 'test', seq: [0], when: 'now' }
+			);
+			const result = fv.resolveVariable({ term: '/path', origin: Origin.defined });
+			expect(result.value).toBe('defined value');
+		});
+	});
 });

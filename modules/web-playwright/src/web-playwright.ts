@@ -16,6 +16,7 @@ import { cycles } from './cycles.js';
 import { interactionSteps } from './interactionSteps.js';
 import { restSteps, TCapturedResponse } from './rest-playwright.js';
 import { TwinPage } from './twin-page.js';
+import { DOMAIN_STRING } from '@haibun/core/lib/domain-types.js';
 
 type TWebPlaywrightSteps = ReturnType<typeof interactionSteps> & ReturnType<typeof restSteps>;
 type TWebPlaywrightTypedSteps = ReturnType<typeof interactionSteps> & ReturnType<typeof restSteps>;
@@ -106,8 +107,10 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	expectedDownload: Promise<Download>;
 	headless: boolean;
 	inContainer: Locator;
+	steppers: AStepper[];
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
+		this.steppers = steppers;
 		await super.setWorld(world, steppers);
 
 		const args = [...(getStepperOption(this, 'ARGS', world.moduleOptions)?.split(';') || ''),]; //'--disable-gpu'
@@ -341,6 +344,11 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	}
 	setLastResponse(serialized: TCapturedResponse, featureStep: TFeatureStep) {
 		this.getWorld().shared.setJSON(LAST_REST_RESPONSE, serialized, Origin.var, featureStep);
+	}
+	locateByDomain(page: Page, featureStep: TFeatureStep, where: string) {
+		const { value, domain } = this.getWorld().shared.resolveVariable(featureStep.action.stepValuesMap[where], featureStep);
+		const located = domain === DOMAIN_STRING ? page.getByText(<string>value, { exact: true }) : page.locator(<string>value);
+		return located;
 	}
 }
 

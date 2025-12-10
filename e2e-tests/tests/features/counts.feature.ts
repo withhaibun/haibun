@@ -7,6 +7,7 @@ export const features: TKirejiExport = {
 The activity 'counts' increments a counter variable and uses a waypoint to check if it has reached a target number.`,
 
 		`
+Background:
 set counter as number to 0
 Activity: Increment count
 increment counter

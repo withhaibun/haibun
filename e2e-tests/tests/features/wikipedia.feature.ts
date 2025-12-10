@@ -21,7 +21,7 @@ export const features: TKirejiExport = {
 		'after every ActivitiesStepper, show waypoints',
 
 		scenario({ scenario: 'Visit pages with parameterized waypoints' }),
-		`↑ Ensures that Wikipedia base URL is set up.`,
+		`↑ Ensures that Wikipedia base URL exists up.`,
 
 		ensure({ outcome: 'Navigate to mainUrl' }),
 

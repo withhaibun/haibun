@@ -1,4 +1,5 @@
 import { AStepper } from "./astepper.js";
+import { isLiteralValue } from "./util/index.js";
 import { Origin, TFeatureStep, TOrigin, TProvenanceIdentifier, TStepValue, TWorld } from "./defs.js";
 import { DOMAIN_JSON, DOMAIN_STRING, normalizeDomainKey } from "./domain-types.js";
 
@@ -78,16 +79,12 @@ export class FeatureVariables {
 		return JSON.parse(this.values[name].value as string);
 	}
 
-	resolveVariable(
-		input: { term: string; origin: TOrigin; domain?: string },
-		featureStep?: TFeatureStep,
-		steppers?: AStepper[]
-	): TStepValue {
-		// Clone input to avoid mutation - create a fresh TStepValue
-		const resolved: TStepValue = {
+	/**
+	 * Resolves a variable and its domain based on its actual origin. 
+	 */
+	resolveVariable(input: { term: string; origin: TOrigin; domain?: string }, featureStep?: TFeatureStep, steppers?: AStepper[]): TStepValue {
+		const resolved: Partial<TStepValue> = {
 			term: input.term,
-			origin: input.origin,
-			domain: input.domain,
 			value: undefined,
 		};
 
@@ -95,6 +92,7 @@ export class FeatureVariables {
 
 		if (!input.origin || input.origin === Origin.statement) {
 			resolved.value = input.term;
+			resolved.domain = input.domain;
 		} else if (input.origin === Origin.env) {
 			resolved.value = this.world.options.envVariables[input.term]; // might be undefined
 			resolved.domain = DOMAIN_STRING;
@@ -107,14 +105,18 @@ export class FeatureVariables {
 		} else if (input.origin === Origin.defined) {
 			if (this.world.options.envVariables[input.term]) {
 				resolved.value = this.world.options.envVariables[input.term];
+				resolved.domain = DOMAIN_STRING;
 				resolved.origin = Origin.env;
 			} else if (storedEntry) {
 				resolved.value = storedEntry.value;
 				resolved.domain = storedEntry.domain;
 				resolved.provenance = storedEntry.provenance;
 				resolved.origin = Origin.var;
+			} else if (isLiteralValue(input.term)) {
+				// Fallback: treat unquoted terms that look like literals as string values
+				resolved.value = input.term;
+				resolved.domain = DOMAIN_STRING;
 			}
-			// If neither env nor stored variable, resolved.value stays undefined
 		} else if (input.origin === Origin.quoted) {
 			resolved.value = input.term.replace(/^"|"$/g, '');
 			resolved.domain = DOMAIN_STRING;
@@ -122,17 +124,14 @@ export class FeatureVariables {
 			throw new Error(`Unsupported origin type: ${input.origin}`);
 		}
 
-		// Coerce the value if needed (skip for Origin.var - already coerced when stored)
-		if (resolved.value !== undefined && resolved.origin !== Origin.var) {
-			const domainKey = normalizeDomainKey(resolved.domain || DOMAIN_STRING);
-			const domain = this.world.domains[domainKey];
-			if (!domain) {
-				throw new Error(`No domain coercer found for domain "${domainKey}"`);
-			}
+		// Apply coercion using the resolved domain
+		if (resolved.value !== undefined) {
+			const domainKey = normalizeDomainKey(resolved.domain);
+			console.log('🤑', JSON.stringify({ domainKey, domain: resolved.domain }, null, 2));
+			resolved.value = this.world.domains[domainKey].coerce({ ...resolved as TStepValue, domain: domainKey }, featureStep, steppers);
 			resolved.domain = domainKey;
-			resolved.value = domain.coerce(resolved, featureStep, steppers);
 		}
 
-		return resolved;
+		return resolved as TStepValue;
 	}
 }

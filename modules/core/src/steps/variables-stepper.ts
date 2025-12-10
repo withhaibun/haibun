@@ -1,12 +1,11 @@
 import { z } from 'zod';
-import { OK, TStepArgs, TFeatureStep, TWorld, IStepperCycles, TStartScenario, Origin, TProvenanceIdentifier, TRegisteredDomain, TDomainDefinition } from '../lib/defs.js';
+import { OK, TStepArgs, TFeatureStep, TWorld, IStepperCycles, TStartScenario, Origin, TProvenanceIdentifier, TRegisteredDomain, TDomainDefinition, TOrigin, TActionResult } from '../lib/defs.js';
 import { TAnyFixme } from '../lib/fixme.js';
 import { AStepper, IHasCycles, TStepperSteps } from '../lib/astepper.js';
-import { actionNotOK, actionOK } from '../lib/util/index.js';
+import { actionOK, actionNotOK, getStepTerm, isLiteralValue } from '../lib/util/index.js';
 import { FeatureVariables } from '../lib/feature-variables.js';
 import { DOMAIN_STATEMENT, DOMAIN_STRING, normalizeDomainKey, createEnumDomainDefinition, registerDomains } from '../lib/domain-types.js';
 import { EExecutionMessageType } from '../lib/interfaces/logger.js';
-
 
 const clearVars = (vars) => () => {
 	vars.getWorld().shared.clear();
@@ -71,63 +70,46 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		},
 		increment: {
 			gwta: 'increment {what}',
-			action: (args: TStepArgs, featureStep: TFeatureStep) => {
-				let { term, domain, origin } = featureStep.action.stepValuesMap.what;
+			action: (_: TStepArgs, featureStep: TFeatureStep) => {
+				const { term, domain } = featureStep.action.stepValuesMap.what;
+				const resolved = this.getWorld().shared.resolveVariable({ term, origin: Origin.var, domain });
+				const presentVal = resolved.value;
+				const effectiveDomain = resolved.domain;
 
-				const stored = this.getWorld().shared.all()[term];
-				const presentVal = stored?.value;
-
-				// If no domain supplied by the step, try to infer it from stored variable metadata.
-				let effectiveDomain = domain;
-
-				if ((!effectiveDomain || effectiveDomain === 'string') && stored && stored.domain) {
-					effectiveDomain = stored.domain;
-				}
-
-				// If the domain is an ordered enum, advance to the next enum value.
-				if (effectiveDomain) {
-					const domainKey = normalizeDomainKey(effectiveDomain);
-					const registered = this.getWorld().domains[domainKey]; // Continue...
-
-					if (registered && registered.comparator) {
-						// Prefer explicit values array on the registered domain if available.
-						const enumValues = Array.isArray(registered.values) && registered.values.length ? registered.values : undefined;
-						if (enumValues && enumValues.length > 0) {
-							// If not set yet, do not silently initialize — treat increment on unset as an error.
-							if (presentVal === undefined) {
-								return actionNotOK(`${term} not set`);
-							}
-							const idx = enumValues.indexOf(String(presentVal));
-							if (idx === -1) {
-								return actionNotOK(`${term} has value "${presentVal}" which is not in domain values`);
-							}
-							const nextIdx = Math.min(enumValues.length - 1, idx + 1);
-							const nextVal = enumValues[nextIdx];
-							if (nextVal === presentVal) {
-								return Promise.resolve(OK);
-							}
-							this.getWorld().shared.set({ term: String(term), value: nextVal, domain: effectiveDomain, origin: Origin.var }, provenanceFromFeatureStep(featureStep));
-							return Promise.resolve(OK);
-						}
-					}
-				}
-				// Fallback: numeric increment behavior
-				// For numeric fallback, do not initialize on unset — incrementing an unset variable should fail.
 				if (presentVal === undefined) {
 					return actionNotOK(`${term} not set`);
 				}
+
+				// If domain is an ordered enum, advance to the next enum value
+				const domainKey = effectiveDomain ? normalizeDomainKey(effectiveDomain) : undefined;
+				const registered = domainKey ? this.getWorld().domains[domainKey] : undefined;
+				if (registered?.comparator && Array.isArray(registered.values) && registered.values.length) {
+					const enumValues = registered.values;
+					const idx = enumValues.indexOf(String(presentVal));
+					if (idx === -1) {
+						return actionNotOK(`${term} has value "${presentVal}" which is not in domain values`);
+					}
+					const nextIdx = Math.min(enumValues.length - 1, idx + 1);
+					const nextVal = enumValues[nextIdx];
+					if (nextVal === presentVal) {
+						return OK;
+					}
+					this.getWorld().shared.set({ term: String(term), value: nextVal, domain: effectiveDomain!, origin: Origin.var }, provenanceFromFeatureStep(featureStep));
+					return OK;
+				}
+
+				// Fallback: numeric increment
 				const numVal = Number(presentVal);
 				if (isNaN(numVal)) {
 					return actionNotOK(`cannot increment non-numeric variable ${term} with value "${presentVal}"`);
 				}
 				const newNum = numVal + 1;
-				this.getWorld().shared.set({ term: String(term), value: newNum, domain: effectiveDomain, origin: Origin.var }, provenanceFromFeatureStep(featureStep));
-				const messageContext = {
+				this.getWorld().shared.set({ term: String(term), value: String(newNum), domain: effectiveDomain, origin: Origin.var }, provenanceFromFeatureStep(featureStep));
+				this.getWorld().logger.info(`incremented ${term} to ${newNum}`, {
 					incident: EExecutionMessageType.ACTION,
 					incidentDetails: { json: { incremented: { [term]: newNum } } },
-				}
-				this.getWorld().logger.info(`incremented ${term} to ${newNum}`, messageContext);
-				return Promise.resolve(OK);
+				});
+				return OK;
 			}
 		},
 		showEnv: {
@@ -150,49 +132,48 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			gwta: 'set( empty)? {what: string} to {value: string}',
 			precludes: ['Haibun.prose'],
 			action: (args: TStepArgs, featureStep: TFeatureStep) => {
-				const emptyOnly = !!featureStep.in.match(/set empty /);
 				const { term, domain, origin } = featureStep.action.stepValuesMap.what;
 				const valMap = featureStep.action.stepValuesMap.value;
-				if (valMap && valMap.origin === Origin.defined && args.value === undefined) {
-					return actionNotOK(`Variable ${valMap.term} is not defined`);
-				}
 
-				if (emptyOnly && this.getWorld().shared.get(term) !== undefined) {
-					return OK;
-				}
+				const resolved = resolveValueOrLiteral(valMap, args.value as string | undefined);
+				if (resolved.error) return actionNotOK(resolved.error);
 
-				try {
-					this.getWorld().shared.set({ term: String(term), value: args.value, domain: domain || DOMAIN_STRING, origin }, provenanceFromFeatureStep(featureStep));
-					return OK;
-				} catch (e: unknown) {
-					return actionNotOK((e as Error).message);
-				}
+				const skip = shouldSkipEmpty(featureStep, term, this.getWorld().shared);
+				if (skip) return skip;
+
+				return trySetVariable(this.getWorld().shared, { term, value: resolved.value, domain: domain || DOMAIN_STRING, origin }, provenanceFromFeatureStep(featureStep));
 			}
 		},
 		setAs: {
-			gwta: 'set( empty)? {what: string} as( read-only)? {domain: string} to {value: string}',
+			gwta: 'set( empty)? {what} as {domain} to {value}',
 			precludes: [`${VariablesStepper.name}.set`],
 			action: ({ value, domain }: { value: string, domain: string }, featureStep: TFeatureStep) => {
-				const emptyOnly = !!featureStep.in.match(/set empty /);
 				const readonly = !!featureStep.in.match(/ as read-only /);
 				const { term, origin } = featureStep.action.stepValuesMap.what;
 				const valMap = featureStep.action.stepValuesMap.value;
-				if (valMap && valMap.origin === Origin.defined && value === undefined) {
-					return actionNotOK(`Variable ${valMap.term} is not defined`);
-				}
-				if (emptyOnly && this.getWorld().shared.get(term) !== undefined) {
-					return OK;
-				}
+
+				const resolved = resolveValueOrLiteral(valMap, value);
+				if (resolved.error) return actionNotOK(resolved.error);
+
+				const skip = shouldSkipEmpty(featureStep, term, this.getWorld().shared);
+				if (skip) return skip;
 
 				// Fallback for unquoted domain names (e.g. 'as number') that resolve to undefined
-				const effectiveDomain = domain ?? featureStep.action.stepValuesMap.domain?.term;
-
-				try {
-					this.getWorld().shared.set({ term: String(term), value, domain: effectiveDomain, origin, readonly }, provenanceFromFeatureStep(featureStep));
-					return OK;
-				} catch (e: unknown) {
-					return actionNotOK((e as Error).message);
+				let effectiveDomain = domain ?? getStepTerm(featureStep, 'domain');
+				if (effectiveDomain) {
+					if (effectiveDomain.startsWith('read-only ')) {
+						effectiveDomain = effectiveDomain.replace('read-only ', '');
+					}
+					if (effectiveDomain.startsWith('"') && effectiveDomain.endsWith('"')) {
+						effectiveDomain = effectiveDomain.slice(1, -1);
+					}
 				}
+
+				let finalValue = resolved.value;
+				if (typeof finalValue === 'string' && finalValue.startsWith('"') && finalValue.endsWith('"')) {
+					finalValue = finalValue.slice(1, -1);
+				}
+				return trySetVariable(this.getWorld().shared, { term, value: finalValue, domain: effectiveDomain, origin, readonly }, provenanceFromFeatureStep(featureStep));
 			}
 		},
 		unset: {
@@ -207,61 +188,45 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			precludes: [`${VariablesStepper.name}.set`],
 			gwta: `set( empty)? {what: string} to {length: number} random characters`,
 			action: ({ length }: { length: number }, featureStep: TFeatureStep) => {
-				const emptyOnly = !!featureStep.in.match(/set empty /);
 				const { term } = featureStep.action.stepValuesMap.what;
 
 				if (length < 1 || length > 100) {
 					return actionNotOK(`length ${length} must be between 1 and 100`);
 				}
-				if (emptyOnly && this.getWorld().shared.get(term) !== undefined) {
-					return OK;
-				}
+
+				const skip = shouldSkipEmpty(featureStep, term, this.getWorld().shared);
+				if (skip) return skip;
 
 				let rand = '';
 				while (rand.length < length) {
 					rand += Math.random().toString(36).substring(2, 2 + length);
 				}
 				rand = rand.substring(0, length);
-				this.getWorld().shared.set({ term: String(term), value: rand, domain: DOMAIN_STRING, origin: Origin.var }, provenanceFromFeatureStep(featureStep));
-				return Promise.resolve(OK);
+				return trySetVariable(this.getWorld().shared, { term, value: rand, domain: DOMAIN_STRING, origin: Origin.var }, provenanceFromFeatureStep(featureStep));
 			}
 		},
+
 		is: {
 			gwta: 'variable {what} is {value}',
-			match: /^variable\s+.+?\s+is\s+(?!less\s+than\b).+/,
 			action: ({ what, value }: { what: string, value: string }, featureStep: TFeatureStep) => {
-				void what; // used for type checking
-				let { term, domain, origin } = featureStep.action.stepValuesMap.what;
+				void what;
+				let { term } = featureStep.action.stepValuesMap.what;
+				const resolved = this.getWorld().shared.resolveVariable({ term, origin: Origin.defined });
+				const storedVal = resolved.value; // Already coerced by resolveVariable
 
-				const effectiveOrigin = (!origin || origin === Origin.quoted) ? Origin.defined : origin;
-				const resolved = this.getWorld().shared.resolveVariable({ term, origin: effectiveOrigin });
-				let val = resolved.origin === Origin.defined ? undefined : resolved.value;
+				// Coerce comparison value using the same domain
+				const domainKey = normalizeDomainKey(resolved.domain);
+				const compareVal = this.getWorld().domains[domainKey].coerce({ term: '_cmp', value, domain: domainKey, origin: Origin.quoted });
 
-				if (resolved.domain) {
-					domain = resolved.domain;
-				}
-
-				const normalized = normalizeDomainKey(domain);
-				const domainEntry = this.getWorld().domains[normalized];
-				if (!domainEntry) {
-					return actionNotOK(`No domain coercer found for domain "${domain}"`);
-				}
-
-				if (val !== undefined) {
-					val = domainEntry.coerce({ domain: normalized, value: val, term, origin: resolved.origin });
-				}
-
-				const asDomain = domainEntry.coerce({ domain: normalized, value, term, origin: 'quoted' })
-				return JSON.stringify(val) === JSON.stringify(asDomain) ? OK : actionNotOK(`${term} is ${JSON.stringify(val)}, not ${JSON.stringify(value)}`);
+				return JSON.stringify(storedVal) === JSON.stringify(compareVal) ? OK : actionNotOK(`${term} is ${JSON.stringify(storedVal)}, not ${JSON.stringify(compareVal)}`);
 			}
 		},
 		isLessThan: {
 			gwta: 'variable {what} is less than {value}',
 			precludes: ['VariablesStepper.is'],
-			match: /^variable\s+.+?\s+is\s+less\s+than\s+.+/,
 			action: ({ what, value }: { what: string, value: string }, featureStep: TFeatureStep) => {
 				void what;
-				const term = featureStep?.action?.stepValuesMap?.what?.term ?? what;
+				const term = getStepTerm(featureStep, 'what') ?? what;
 				const stored = this.getWorld().shared.all()[term];
 				if (!stored) {
 					return actionNotOK(`${term} is not set`);
@@ -273,8 +238,16 @@ class VariablesStepper extends AStepper implements IHasCycles {
 						throw new Error(`No domain coercer found for domain "${domainKey}"`);
 					}
 					const left = domainEntry.coerce({ ...stored, domain: domainKey }, featureStep, this.steppers);
-					const right = domainEntry.coerce({ term: `${term}__comparison`, value, domain: domainKey, origin: Origin.quoted }, featureStep, this.steppers);
+
+					let rightValue = value ?? getStepTerm(featureStep, 'value');
+
+					if (typeof rightValue === 'string' && rightValue.startsWith('"') && rightValue.endsWith('"')) {
+						rightValue = rightValue.slice(1, -1);
+					}
+
+					const right = domainEntry.coerce({ term: `${term}__comparison`, value: rightValue, domain: domainKey, origin: Origin.quoted }, featureStep, this.steppers);
 					const comparison = compareDomainValues(domainEntry, left, right);
+
 					if (comparison < 0) {
 						return OK;
 					}
@@ -284,11 +257,10 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				}
 			}
 		},
-		isSet: {
-			precludes: ['VariablesStepper.is'],
-			gwta: 'variable {what: string} is set',
+		exists: {
+			gwta: 'variable {what: string} exists',
 			action: ({ what }: TStepArgs, featureStep: TFeatureStep) => {
-				const term = featureStep.action.stepValuesMap.what?.term;
+				const term = getStepTerm(featureStep, 'what');
 				const resolved = this.getWorld().shared.resolveVariable({ term, origin: Origin.defined });
 
 				return resolved && (resolved.origin === Origin.var || resolved.origin === Origin.env) ? OK : actionNotOK(`${what} not set`);
@@ -296,13 +268,15 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		},
 		showVar: {
 			gwta: 'show var {what}',
-			action: (args: TStepArgs, featureStep: TFeatureStep) => {
-				const { term } = featureStep.action.stepValuesMap.what;
-				const stepValue = this.getWorld().shared.all()[term];
+			action: (_: TStepArgs, featureStep: TFeatureStep) => {
+				const term = getStepTerm(featureStep, 'what');
+				const stepValue = this.getWorld().shared.resolveVariable({ term, origin: Origin.defined });
+
 				if (!stepValue) {
 					this.getWorld().logger.info(`is undefined`);
 				} else {
-					this.getWorld().logger.info(`is ${JSON.stringify({ ...stepValue, provenance: stepValue.provenance.map((p, i) => ({ [i]: { in: p.in, seq: p.seq.join(','), when: p.when } })) }, null, 2)}`);
+					const provenance = featureStep.action.stepValuesMap.what.provenance?.map((p, i) => ({ [i]: { in: p.in, seq: p.seq.join(','), when: p.when } }));
+					this.getWorld().logger.info(`is ${JSON.stringify({ ...stepValue, provenance }, null, 2)}`);
 				}
 				return actionOK({ artifact: { artifactType: 'json', json: { json: stepValue } } });
 			}
@@ -364,13 +338,13 @@ class VariablesStepper extends AStepper implements IHasCycles {
 
 	private registerSubdomainFromStatement(domain: string, superdomains: TFeatureStep[] | undefined, featureStep: TFeatureStep) {
 		try {
-			const fallback = featureStep.action.stepValuesMap.superdomains?.term ?? featureStep.in;
+			const fallback = getStepTerm(featureStep, 'superdomains') ?? featureStep.in;
 			const superdomainNames = extractValuesFromFragments(superdomains, fallback);
 			if (!superdomainNames.length) {
 				throw new Error('Superdomain set must specify at least one superdomain');
 			}
 			const uniqueNames = Array.from(new Set(superdomainNames));
-			const effectiveDomain = domain ?? featureStep.action.stepValuesMap.domain?.term;
+			const effectiveDomain = domain ?? getStepTerm(featureStep, 'domain');
 			if (!effectiveDomain) return actionNotOK('Domain name must be provided');
 			const domainKey = normalizeDomainKey(effectiveDomain);
 			if (this.getWorld().domains[domainKey]) {
@@ -415,8 +389,8 @@ class VariablesStepper extends AStepper implements IHasCycles {
 
 	private registerValuesDomainFromStatement(domain: string, valueFragments: TFeatureStep[] | undefined, featureStep: TFeatureStep, options?: { ordered?: boolean; label?: string; description?: string }) {
 		try {
-			const values = extractValuesFromFragments(valueFragments, featureStep.action.stepValuesMap.values?.term ?? featureStep.in);
-			const effectiveDomain = domain ?? featureStep.action.stepValuesMap.domain?.term;
+			const values = extractValuesFromFragments(valueFragments, getStepTerm(featureStep, 'values') ?? featureStep.in);
+			const effectiveDomain = domain ?? getStepTerm(featureStep, 'domain');
 			if (!effectiveDomain) return actionNotOK('Domain name must be provided');
 			const domainKey = normalizeDomainKey(effectiveDomain);
 			if (this.getWorld().domains[domainKey]) {
@@ -508,3 +482,29 @@ const renderComparable = (value: unknown) => {
 	return JSON.stringify(value);
 };
 
+// ======== Helpers ========
+
+// Resolves undefined value to literal if it looks like a string
+function resolveValueOrLiteral(valMap: { term: string; origin: TOrigin } | undefined, value: string | undefined): { value: string | undefined; error?: string } {
+	if (valMap && valMap.origin === Origin.defined && value === undefined) {
+		return isLiteralValue(valMap.term)
+			? { value: String(valMap.term) }
+			: { value: undefined, error: `Variable ${valMap.term} is not defined` };
+	}
+	return { value };
+}
+
+// Returns OK if "set empty" and variable exists
+function shouldSkipEmpty(featureStep: TFeatureStep, term: string, shared: FeatureVariables): typeof OK | undefined {
+	return (featureStep.in.includes('set empty ') && shared.get(term) !== undefined) ? OK : undefined;
+}
+
+// Wraps shared.set in try/catch
+function trySetVariable(shared: FeatureVariables, opts: { term: string; value: TAnyFixme; domain: string; origin: TOrigin; readonly?: boolean }, provenance: TProvenanceIdentifier): TActionResult {
+	try {
+		shared.set({ term: String(opts.term), value: opts.value, domain: opts.domain, origin: opts.origin, readonly: opts.readonly }, provenance);
+		return OK;
+	} catch (e: unknown) {
+		return actionNotOK((e as Error).message);
+	}
+}

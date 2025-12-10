@@ -4,4 +4,4 @@ Scenario: Elements
   go to the http://localhost:8123/static/elements.html webpage
 
   set dialog as page-locator to [role="alertdialog"]
-  in dialog, click Hello
+  in dialog, click "Hello"
