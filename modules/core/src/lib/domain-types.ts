@@ -32,11 +32,13 @@ export const registerDomains = (world: TWorld, results: TDomainDefinition[][]) =
 export const asDomainKey = (domains: string[]) => domains.sort().join(' | ');
 
 export const normalizeDomainKey = (domain: string) => {
-	const parts = domain.split(/[\\/]/).map((selector) => selector.trim()).filter(Boolean);
-	if (domain !== asDomainKey(parts)) {
-		throw Error(`domain key "${domain}", expected "${asDomainKey(parts)}"`);
+	// Split on ' | ' (union separator), not on '/' which is used in variable names
+	const parts = domain.split(' | ').map((selector) => selector.trim()).filter(Boolean);
+	const normalized = asDomainKey(parts);
+	if (domain !== normalized) {
+		throw Error(`domain key "${domain}", expected "${normalized}"`);
 	}
-	return asDomainKey(parts);
+	return normalized;
 };
 
 const sanitizeToken = (value: string) => value.trim();
