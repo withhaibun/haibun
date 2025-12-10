@@ -88,7 +88,9 @@ export class Executor {
 		const continueAfterError = !!(world.options[CONTINUE_AFTER_ERROR]);
 
 		for (const feature of features) {
-			console.log("\n");
+			if (process.env.NODE_ENV !== 'test') {
+				console.log("\n");
+			}
 			featureNum++;
 			const isLast = featureNum === features.length;
 
