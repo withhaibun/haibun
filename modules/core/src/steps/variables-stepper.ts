@@ -141,7 +141,11 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				const skip = shouldSkipEmpty(featureStep, term, this.getWorld().shared);
 				if (skip) return skip;
 
-				return trySetVariable(this.getWorld().shared, { term, value: resolved.value, domain: domain || DOMAIN_STRING, origin }, provenanceFromFeatureStep(featureStep));
+				// Inherit domain from existing variable if not explicitly specified
+				const existing = this.getWorld().shared.resolveVariable({ term, origin: Origin.var });
+				const effectiveDomain = (domain === DOMAIN_STRING && existing?.domain) ? existing.domain : (domain || DOMAIN_STRING);
+
+				return trySetVariable(this.getWorld().shared, { term, value: resolved.value, domain: effectiveDomain, origin }, provenanceFromFeatureStep(featureStep));
 			}
 		},
 		setAs: {
