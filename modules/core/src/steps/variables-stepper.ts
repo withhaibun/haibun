@@ -301,7 +301,8 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		},
 		showDomain: {
 			gwta: 'show domain {name}',
-			action: ({ name }: { name: string }) => {
+			action: (_: TStepArgs, featureStep: TFeatureStep) => {
+				const name = getStepTerm(featureStep, 'name');
 				const domain = this.getWorld().domains[name];
 				if (!domain) {
 					return actionNotOK(`Domain "${name}" not found`);
