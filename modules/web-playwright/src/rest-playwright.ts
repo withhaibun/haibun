@@ -3,6 +3,7 @@ import WebPlaywright from './web-playwright.js';
 import { OK } from '@haibun/core/lib/defs.js';
 import { EExecutionMessageType, TMessageContext } from '@haibun/core/lib/interfaces/logger.js';
 import { TAnyFixme } from '@haibun/core/lib/fixme.js';
+import { TStepperSteps } from '@haibun/core/lib/astepper.js';
 
 const PAYLOAD_METHODS = ['post', 'put', 'patch'];
 const NO_PAYLOAD_METHODS = ['get', 'delete', 'head'];
@@ -15,7 +16,7 @@ const HTTP = 'HTTP';
 export const base64Encode = ({ username, password }: { username: string; password: string }) =>
 	Buffer.from(`${username}:${password}`).toString('base64');
 
-export const restSteps = (webPlaywright: WebPlaywright) => ({
+export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps => ({
 	setApiUserAgent: {
 		gwta: `API user agent is {agent}`,
 		action: ({ agent }: { agent: string }) => {

@@ -3,6 +3,7 @@ import { OK, Origin, TFeatureStep } from '@haibun/core/lib/defs.js';
 import { DOMAIN_STRING } from '@haibun/core/lib/domain-types.js';
 import WebPlaywright from './web-playwright.js';
 import { TAnyFixme } from '@haibun/core/lib/fixme.js';
+import { TStepperSteps } from '@haibun/core/lib/astepper.js';
 
 const getTargetFromResponse = (json: TAnyFixme, index: number): TAnyFixme => {
 	return Array.isArray(json) ? json[index] : json;
@@ -37,7 +38,7 @@ const valueToString = (value: TAnyFixme): string => {
 	return JSON.stringify(value);
 };
 
-export const jsonExtractSteps = (webPlaywright: WebPlaywright) => ({
+export const jsonExtractSteps = (webPlaywright: WebPlaywright): TStepperSteps => ({
 	extractPropertyFromResponseJson: {
 		gwta: `extract property {property} from {ordinal} item in JSON response into {variable}`,
 		action: ({ property, ordinal = '1st', variable }: { property: string; ordinal?: string; variable: string }, featureStep: TFeatureStep) => {
