@@ -77,7 +77,7 @@ describe('ActivitiesStepper', () => {
 			const multiLineProof = [
 				'set url to "https://example.com"',
 				'set page to "home"',
-				'combine url and page to fullUrl',
+				'compose fullUrl with {url}{page}',
 				'go to the fullUrl webpage'
 			];
 

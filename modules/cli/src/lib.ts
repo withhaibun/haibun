@@ -46,7 +46,6 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 
 	const runner = new Runner(world);
 
-	console.info('\n_________________________________ start');
 	const executorResult = await runner.run(specl.steppers, featureFilter);
 	if (executorResult.ok) {
 		console.info(`\n${CHECK_YES} All ${executorResult.featureResults.length} features passed.`);
@@ -216,7 +215,6 @@ export function getConfigFromBase(bases: TBase, fs: TFileSystem = nodeFS): TSpec
 	}
 	const configCandidate = (found && found[0]) || '.';
 	const f = configCandidate.endsWith('json') ? configCandidate : `${configCandidate}/config.json`;
-	console.info(`trying ${f}`);
 	try {
 		const specl = JSON.parse(fs.readFileSync(f, 'utf-8'));
 		if (!specl.options) {

@@ -150,7 +150,19 @@ Ordered sets enable state machines and efficient waypoint checks.
     show vars ;; inspect all variables with domains and values
     show var doc_status ;; inspect a single variable
 
+#### Composing values
 
+Use `compose` to build values from variables and literal text. Variable references use `{curly_braces}`.
+
+    set api_base to "https://api.example.com"
+    set version to "v2"
+    compose api_endpoint with {api_base}/{version}/users
+    variable api_endpoint is "https://api.example.com/v2/users"
+
+For explicit domain assignment:
+
+    set username to "admin@example.com"
+    compose login_selector as page-locator with button:has-text("{username}")
 
 ## Step Arguments & Interpolation
 

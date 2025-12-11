@@ -18,6 +18,7 @@ export default class HttpExecutorStepper extends AStepper implements IHasOptions
 	};
 	cycles = {
 		async startFeature() {
+			this.httpPrompter = new HttpPrompter(this.getWorld());
 			await this.addRemoteExecutorRoute();
 		},
 		async endFeature() {

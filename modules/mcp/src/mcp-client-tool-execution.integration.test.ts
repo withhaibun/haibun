@@ -77,24 +77,39 @@ describe('haibun-mcp tool execution', () => {
 		expect(displayResponse.result.ok).toBe(true);
 	});
 
-	it('call combine and showVars variables', async () => {
-		const combineResult = await client.callTool({
-			name: 'VariablesStepper-combine',
+	it('call compose and showVars variables', async () => {
+		// First set two variables to compose
+		await client.callTool({
+			name: 'VariablesStepper-set',
 			arguments: {
-				p1: '"wombat"',
-				p2: '"eucalyptus"',
-				what: 'yum'
+				what: 'prefix',
+				value: '"wombat"'
+			}
+		});
+		await client.callTool({
+			name: 'VariablesStepper-set',
+			arguments: {
+				what: 'suffix',
+				value: '"eucalyptus"'
 			}
 		});
 
-		expect(combineResult.content).toBeDefined();
-		expect(Array.isArray(combineResult.content)).toBe(true);
-		const combineContent = combineResult.content as Array<{ type: string; text: string }>;
-		expect(combineContent[0].type).toBe('text');
-		const combineResponse = JSON.parse(combineContent[0].text);
-		expect(combineResponse.stepName).toBe('combine');
-		expect(combineResponse.stepperName).toBe('VariablesStepper');
-		expect(combineResponse.success).toBe(true);
+		const composeResult = await client.callTool({
+			name: 'VariablesStepper-compose',
+			arguments: {
+				what: 'yum',
+				template: '{prefix}{suffix}'
+			}
+		});
+
+		expect(composeResult.content).toBeDefined();
+		expect(Array.isArray(composeResult.content)).toBe(true);
+		const composeContent = composeResult.content as Array<{ type: string; text: string }>;
+		expect(composeContent[0].type).toBe('text');
+		const composeResponse = JSON.parse(composeContent[0].text);
+		expect(composeResponse.stepName).toBe('compose');
+		expect(composeResponse.stepperName).toBe('VariablesStepper');
+		expect(composeResponse.success).toBe(true);
 
 		const showVarsResult = await client.callTool({
 			name: 'VariablesStepper-showVars',

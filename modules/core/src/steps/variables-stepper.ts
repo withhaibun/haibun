@@ -47,25 +47,31 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			gwta: '\\[{items: string}\\]',
 			action: () => OK,
 		},
-		combineAs: {
-			gwta: 'combine {p1} and {p2} as {domain} to {what}',
-			precludes: [`${VariablesStepper.name}.combine`],
-			action: ({ p1, p2, domain }: { p1: string, p2: string, domain: string }, featureStep: TFeatureStep) => {
-				if (p1 === undefined) return actionNotOK(`p1 not set`);
-				if (p2 === undefined) return actionNotOK(`p2 not set`);
+		composeAs: {
+			gwta: 'compose {what} as {domain} with {template}',
+			precludes: [`${VariablesStepper.name}.compose`],
+			action: ({ domain }: { domain: string }, featureStep: TFeatureStep) => {
 				const { term } = featureStep.action.stepValuesMap.what;
-				this.getWorld().shared.set({ term: String(term), value: `${p1}${p2}`, domain, origin: Origin.var }, provenanceFromFeatureStep(featureStep));
-				return Promise.resolve(OK);
+				const templateVal = featureStep.action.stepValuesMap.template;
+				if (!templateVal?.term) return actionNotOK('template not provided');
+
+				const result = this.interpolateTemplate(templateVal.term);
+				if (result.error) return actionNotOK(result.error);
+
+				return trySetVariable(this.getWorld().shared, { term: String(term), value: result.value, domain, origin: Origin.var }, provenanceFromFeatureStep(featureStep));
 			}
 		},
-		combine: {
-			gwta: 'combine {p1} and {p2} to {what}',
-			action: ({ p1, p2 }: TStepArgs, featureStep: TFeatureStep) => {
-				if (p1 === undefined) return actionNotOK(`p1 not set`);
-				if (p2 === undefined) return actionNotOK(`p2 not set`);
+		compose: {
+			gwta: 'compose {what} with {template}',
+			action: (_: TStepArgs, featureStep: TFeatureStep) => {
 				const { term } = featureStep.action.stepValuesMap.what;
-				this.getWorld().shared.set({ term: String(term), value: `${p1}${p2}`, domain: DOMAIN_STRING, origin: Origin.var }, provenanceFromFeatureStep(featureStep));
-				return Promise.resolve(OK);
+				const templateVal = featureStep.action.stepValuesMap.template;
+				if (!templateVal?.term) return actionNotOK('template not provided');
+
+				const result = this.interpolateTemplate(templateVal.term);
+				if (result.error) return actionNotOK(result.error);
+
+				return trySetVariable(this.getWorld().shared, { term: String(term), value: result.value, domain: DOMAIN_STRING, origin: Origin.var }, provenanceFromFeatureStep(featureStep));
 			}
 		},
 		increment: {
@@ -347,6 +353,33 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			return comparison < 0 ? OK : actionNotOK(`${term} is ${JSON.stringify(left)}, not ${JSON.stringify(right)}`);
 		}
 		return actionNotOK(`Unsupported operator: ${operator}`);
+	}
+
+	/**
+	 * Interpolates a template string by replacing {varName} placeholders with variable values.
+	 * Returns the interpolated string or an error if a variable is not found.
+	 */
+	private interpolateTemplate(template: string): { value?: string; error?: string } {
+		const placeholderRegex = /\{([^}]+)\}/g;
+		let result = template;
+		let match: RegExpExecArray | null;
+		const errors: string[] = [];
+
+		while ((match = placeholderRegex.exec(template)) !== null) {
+			const varName = match[1];
+			const resolved = this.getWorld().shared.resolveVariable({ term: varName, origin: Origin.defined });
+
+			if (resolved.value === undefined) {
+				errors.push(`Variable "${varName}" not found`);
+			} else {
+				result = result.replace(match[0], String(resolved.value));
+			}
+		}
+
+		if (errors.length) {
+			return { error: errors.join(', ') };
+		}
+		return { value: result };
 	}
 
 

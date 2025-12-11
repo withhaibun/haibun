@@ -4,7 +4,7 @@ import ActivitiesStepper from '@haibun/core/steps/activities-stepper.js';
 import VariablesStepper from '@haibun/core/steps/variables-stepper.js';
 
 const { activity, ensure } = withAction(new ActivitiesStepper());
-const { set, combine, increment } = withAction(new VariablesStepper());
+const { set, compose, increment } = withAction(new VariablesStepper());
 
 export const knowsAboutWikipedia = 'Knows about Wikipedia';
 const enWikipedia = 'enWikipedia';
@@ -17,8 +17,8 @@ export const backgrounds: TKirejiExport = {
 
 		activity({ activity: knowsAboutWikipedia }),
 		set({ what: enWikipedia, value: 'https://en.wikipedia.org/wiki/' }),
-		combine({ p1: enWikipedia, p2: '"Haibun"', what: 'haibunUrl' }),
-		combine({ p1: enWikipedia, p2: '"Main_Page"', what: 'mainUrl' }),
+		compose({ what: 'haibunUrl', template: '{enWikipedia}Haibun' }),
+		compose({ what: 'mainUrl', template: '{enWikipedia}Main_Page' }),
 		set({ what: pagesVisited, value: '0' }),
 		`waypoint ${knowsAboutWikipedia} with variable enWikipedia exists`,
 

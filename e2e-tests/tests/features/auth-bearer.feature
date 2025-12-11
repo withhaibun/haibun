@@ -4,8 +4,8 @@ Feature: Auth-bearer Authentication
     set Token Path to "/token"
     set Resources Path to "/api/resources"
     set Resource Path to "/api/resource/"
-    combine Resource Path and "/:id" to Resource Delete Route
-    combine Resource Server and "/static/rest.html" to REST Home
+    compose Resource Delete Route with {Resource Path}/:id
+    compose REST Home with {Resource Server}/static/rest.html
     set Logout Path to "/logout"
 
     start check auth route at Profile Path
@@ -15,12 +15,12 @@ Feature: Auth-bearer Authentication
     start auth resource get route at Resource Path
     start auth resource delete route at Resource Delete Route
 
-    combine Resource Server and Token Path to Authorization Server
-    combine Resource Server and Profile Path to Profile API
-    combine Resource Server and Resources Path to Resources API
-    combine Resource Server and Resource Path to Resource API
-    combine Resource Server and Resource Delete Route to Resource Delete API
-    combine Resource Server and "/logout?post_logout_redirect_uri=http://localhost:8123/static/loggedOut" to Logout
+    compose Authorization Server with {Resource Server}{Token Path}
+    compose Profile API with {Resource Server}{Profile Path}
+    compose Resources API with {Resource Server}{Resources Path}
+    compose Resource API with {Resource Server}{Resource Path}
+    compose Resource Delete API with {Resource Server}{Resource Delete Route}
+    compose Logout with {Resource Server}/logout?post_logout_redirect_uri=http://localhost:8123/static/loggedOut
 
     set OK to 200
     set Unauthorized to 401

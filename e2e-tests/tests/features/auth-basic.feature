@@ -3,18 +3,18 @@ Feature: Auth-basic Authentication
     set Resource Server to http://localhost:8123
     set Resources Path to "/api/resources"
     set Resource Path to "/api/resource"
-    combine Resource Server and Resources Path to Resources API
+    compose Resources API with {Resource Server}{Resources Path}
     set Profile Path to "/me"
-    combine Resource Path and "/:id" to Resource Delete Route
-    combine Resource Server and "/static/rest.html" to REST Home
+    compose Resource Delete Route with {Resource Path}/:id
+    compose REST Home with {Resource Server}/static/rest.html
 
     start check auth route at Profile Path
     start auth resources get route at Resources Path
     start auth resource get route at Resource Path
     start auth resource delete route at Resource Delete Route
 
-    combine Resource Server and Profile Path to Profile API
-    combine Resource Server and Resource Path to Resource API
+    compose Profile API with {Resource Server}{Profile Path}
+    compose Resource API with {Resource Server}{Resource Path}
 
     set OK to 200
     set Unauthorized to 401
