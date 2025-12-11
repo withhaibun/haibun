@@ -192,13 +192,13 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 			return uri.match(matcher) ? OK : actionNotOK(`current URI ${uri} does not match ${what}`);
 		},
 	},
-
 	//                  CLICK
 	click: {
-		gwta: `click {target: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}`,
+		gwta: `click( invisible)? {target: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}( with force)?`,
 		action: async ({ target }: { target: string }, featureStep) => {
+			const forced = (featureStep.in.match(/ with force$/) || featureStep.in.match(/^click invisible/)) ? { force: true } : {};
 			await wp.withPage(async (page: Page) => {
-				return await wp.locateByDomain(page, featureStep, 'target').click();
+				return await wp.locateByDomain(page, featureStep, 'target').click(forced);
 			});
 			return OK;
 		},
