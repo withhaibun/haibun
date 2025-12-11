@@ -184,8 +184,10 @@ export class MonitorHandler {
 		const content = (await this.monitorPage.content()) + `
 <script>
 window.haibunStaticPage = true;
-window.haibunCapturedMessages = ${JSON.stringify(this.capturedMessages, null, 2)};
 document.getElementById('haibun-log-display-area').innerHTML = '';
+</script>
+<script id="haibun-log-data" type="application/json">
+${JSON.stringify(this.capturedMessages)}
 </script>
 `;
 		const outHtmlFile = join(await this.getMonitorLoc(), 'monitor.html');

@@ -3,6 +3,7 @@
 This document is designed for human and AI developers. It can be verified from [e2e-tests](e2e-tests/tests/features/agents-examples.feature).
 
 ## What is Haibun?
+pause for 2s
 
 Haibun is a declarative, logic-grounded, literate orchestrator designed to unify specification, verification, and documentation in a single "executable" format.
 

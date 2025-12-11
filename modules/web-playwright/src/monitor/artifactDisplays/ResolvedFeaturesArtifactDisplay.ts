@@ -84,10 +84,17 @@ export class ResolvedFeaturesArtifactDisplay extends ArtifactDisplay {
 		const copyCode = controls.querySelector<HTMLButtonElement>('.haibun-copy-code')!;
 
 		let scale = 1;
+		const applyZoom = () => {
+			const svg = svgHolder.querySelector('svg');
+			if (svg) {
+				svg.style.transform = `scale(${scale})`;
+				svg.style.transformOrigin = '0 0';
+			}
+		};
+
 		zoomIn.addEventListener('click', () => {
 			scale = scale + 0.2;
-			svgHolder.style.transform = `scale(${scale})`;
-			svgHolder.style.transformOrigin = '0 0';
+			applyZoom();
 		});
 
 		copyCode.addEventListener('click', () => {
@@ -101,9 +108,8 @@ export class ResolvedFeaturesArtifactDisplay extends ArtifactDisplay {
 		});
 
 		zoomOut.addEventListener('click', () => {
-			scale = scale - 0.2;
-			svgHolder.style.transform = `scale(${scale})`;
-			svgHolder.style.transformOrigin = '0 0';
+			scale = Math.max(0.2, scale - 0.2);
+			applyZoom();
 		});
 		toggleCode.addEventListener('click', () => {
 			if (codePre.style.display === 'none') {

@@ -570,16 +570,100 @@ function recalcVisibility(timeMs: number, forceScroll = false) {
 	}
 }
 
-function renderAllLogs() {
+/**
+ * Parses the JSON island and feeds data into the monitor in digestible chunks.
+ */
+function startLazyIngestion() {
+	const dataScript = document.getElementById('haibun-log-data');
+
+	// 1. If we are in "Live" mode (no data script), set up controls and return
+	if (!dataScript) {
+		setupControls(); // Initialize controls for live mode
+		if (window.haibunCapturedMessages && window.haibunCapturedMessages.length > 0) {
+			renderAllLogsSynchronously(); // Fallback for legacy format
+		}
+		return;
+	}
+
+	// 2. Parse the JSON.
+	// This is the only heavy synchronous operation, but it is much faster than JS compilation.
+	let allLogs: TLogEntry[] = [];
+	try {
+		allLogs = JSON.parse(dataScript.textContent || '[]');
+	} catch (e) {
+		console.error("Failed to parse log data:", e);
+		return;
+	}
+
+	// Populate the global array so other tools can access it
+	window.haibunCapturedMessages = allLogs;
+
+	// Initialize start times based on the full dataset
+	if (allLogs.length > 0) {
+		monitorState.startTime = allLogs.reduce((min, m) => Math.min(min, m.timestamp), allLogs[0].timestamp);
+		const lastTimestamp = allLogs.reduce((max, m) => Math.max(max, m.timestamp), allLogs[0].timestamp);
+		monitorState.maxTime = lastTimestamp - monitorState.startTime;
+		monitorState.currentTime = monitorState.maxTime;
+
+		// Update UI initial state
+		const slider = document.getElementById('haibun-time-slider') as HTMLInputElement;
+		if (slider) {
+			slider.max = `${monitorState.maxTime}`;
+			slider.value = `${monitorState.currentTime}`;
+		}
+
+		const dateEl = document.getElementById('haibun-date');
+		if (dateEl) {
+			dateEl.textContent = new Date(monitorState.startTime).toISOString();
+		}
+	}
+
+	// Initialize controls before rendering (sets up log level filter)
+	setupControls();
+
+	// 3. The Chunking Loop
+	let currentIndex = 0;
+	const CHUNK_SIZE = 100; // Adjust this: Lower = smoother UI, Higher = faster loading
+
+	function processNextChunk() {
+		const end = Math.min(currentIndex + CHUNK_SIZE, allLogs.length);
+
+		for (let i = currentIndex; i < end; i++) {
+			// We call renderLogEntry directly instead of receiveLogData
+			// to avoid re-pushing to the window.haibunCapturedMessages array
+			renderLogEntry(allLogs[i]);
+			renderedMessageCount++;
+		}
+
+		currentIndex += CHUNK_SIZE;
+
+		if (currentIndex < allLogs.length) {
+			// Yield control to the browser to keep the UI responsive
+			requestAnimationFrame(processNextChunk);
+		} else {
+			console.info(`Finished ingesting ${allLogs.length} logs.`);
+			// Finalize UI state
+			recalcVisibility(monitorState.currentTime, true);
+		}
+	}
+
+	console.info("Starting lazy log ingestion...");
+	processNextChunk();
+}
+
+/**
+ * Fallback for legacy format (window.haibunCapturedMessages already populated)
+ */
+function renderAllLogsSynchronously() {
 	const container = document.getElementById('haibun-log-display-area');
 	if (container) {
-		// Only render messages that haven't been rendered yet
 		const messagesToRender = window.haibunCapturedMessages.slice(renderedMessageCount);
-		console.info(`Rendering ${messagesToRender.length} new log entries (already had ${renderedMessageCount})...`);
+		console.info(`Rendering ${messagesToRender.length} new log entries (legacy mode)...`);
 		messagesToRender.forEach(logEntry => {
 			renderLogEntry(logEntry);
 			renderedMessageCount++;
 		});
+		setupControls();
 	}
 }
 
@@ -589,8 +673,9 @@ document.addEventListener('DOMContentLoaded', () => {
 	}
 
 	setupTimeControls();
-	renderAllLogs();
-	setupControls();
-	console.info("Initial logs rendered.");
 
+	// Replace the old renderAllLogs call with the lazy loader
+	startLazyIngestion();
+
+	console.info("Monitor initialized.");
 });

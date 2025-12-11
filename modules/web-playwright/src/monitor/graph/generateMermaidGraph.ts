@@ -156,66 +156,74 @@ export async function generateMermaidGraph(resolvedFeatures: TResolvedFeature[],
 					}
 					previousStepActualId = newStepId;
 
-				if (step.path !== feature.path) {
-					if (backgrounds.has(step.path)) {
-						graphLines.push(`${indent}${newStepId} -.-> bg_${sanitize(step.path)}`);
-					} else {
-						console.warn(`Background step path "${step.path}" not found in backgrounds set.`);
-					}
-				}
-
-				if (actionLower === 'ensure' || actionLower.includes('ensure')) {
-					let outcomeKey: string | undefined = undefined;
-					try {
-						const sa = step.action as unknown as { stepValuesMap?: Record<string, { term?: string }> };
-						const ov = sa.stepValuesMap?.outcome;
-						if (ov && (typeof ov.term === 'string' && ov.term.trim().length > 0)) {
-							outcomeKey = ov.term.trim();
+					if (step.path !== feature.path) {
+						if (backgrounds.has(step.path)) {
+							graphLines.push(`${indent}${newStepId} -.-> bg_${sanitize(step.path)}`);
+						} else {
+							console.warn(`Background step path "${step.path}" not found in backgrounds set.`);
 						}
-					} catch {
-						// ignore
 					}
-					// Fallback: parse the ensure line to extract the inner statement (e.g., 'ensure Task completed' -> 'Task completed')
-					if (!outcomeKey) {
-						const m = step.in.match(/^ensure\s+(.+)$/i);
-						if (m) outcomeKey = m[1].trim();
+
+					if (actionLower === 'ensure' || actionLower.includes('ensure') || step.in.toLowerCase().includes('ensure')) {
+						let outcomeKey: string | undefined = undefined;
+						try {
+							const sa = step.action as unknown as { stepValuesMap?: Record<string, { term?: string }> };
+							const ov = sa.stepValuesMap?.outcome;
+							if (ov && (typeof ov.term === 'string' && ov.term.trim().length > 0)) {
+								outcomeKey = ov.term.trim();
+							}
+						} catch {
+							// ignore
+						}
+						// Fallback: parse the ensure line to extract the inner statement (e.g., 'ensure Task completed' -> 'Task completed')
+						// Also handle compound statements like 'every X in Y is ensure Z'
+						if (!outcomeKey) {
+							// Try direct ensure pattern
+							let m = step.in.match(/^ensure\s+(.+)$/i);
+							if (m) {
+								outcomeKey = m[1].trim();
+							} else {
+								// Try compound pattern: 'every ... is ensure OutcomeName'
+								m = step.in.match(/\sis\s+ensure\s+(.+)$/i);
+								if (m) outcomeKey = m[1].trim();
+							}
+						}
+						ensureSteps.push({ sourceId: newStepId, label, outcomeKey });
 					}
-					ensureSteps.push({ sourceId: newStepId, label, outcomeKey });
-				}
 
-				if (actionLower.includes('waypoint') || actionLower.includes('waypointed') || actionLower === 'waypoint') {
-					const match = step.in.match(/^waypoint\s+(.+?)\s+with\s+(.+)$/i);
-					const outcome = match ? match[1].trim() : step.in;
-					const proof = match ? match[2].trim() : undefined;
-					const wpKey = outcome.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-					waypointMap.set(wpKey, { id: newStepId, label: outcome, parentActivityKey: currentActivityKey ?? undefined, proof, sourcePath: step.path });
-				}
-				if (actionLower.includes('proof') || actionLower === 'proof') {
-					const pfKey = normalized;
-					proofMap.set(pfKey, { id: newStepId, label });
-				}
+					if (actionLower.includes('waypoint') || actionLower.includes('waypointed') || actionLower === 'waypoint') {
+						const match = step.in.match(/^waypoint\s+(.+?)\s+with\s+(.+)$/i);
+						const outcome = match ? match[1].trim() : step.in;
+						const proof = match ? match[2].trim() : undefined;
+						const wpKey = outcome.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+						waypointMap.set(wpKey, { id: newStepId, label: outcome, parentActivityKey: currentActivityKey ?? undefined, proof, sourcePath: step.path });
+					}
+					if (actionLower.includes('proof') || actionLower === 'proof') {
+						const pfKey = normalized;
+						proofMap.set(pfKey, { id: newStepId, label });
+					}
 
-				if (showVariables && step.action!.stepValuesMap && step.action!.actionName !== 'scenarioStart') {
-					const definedScenarioVarsForStep = new Set<string>();
-					Object.entries(step.action.stepValuesMap).forEach(([name, sv]) => {
-						const { origin: source, value } = sv;
-						if (value == null) return;
-						if (source === 'env' && typeof value === 'string') {
-							graphLines.push(`${indent}${newStepId} -.-> env_${sanitize(value)}`);
-							return;
-						}
-						if (Array.isArray(value)) return;
-						const displayVal = typeof value === 'number' ? String(value) : value;
-						const scenarioVarNodeId = `sv_${featureIdx}_${actionNamePart}_${stepIdx}_${sanitize(name)}`;
-						if (!definedScenarioVarsForStep.has(scenarioVarNodeId)) {
-							graphLines.push(`${indent}${scenarioVarNodeId}([${formatLabel(name + ' = ' + displayVal)}])`);
-							definedScenarioVarsForStep.add(scenarioVarNodeId);
-						}
-						graphLines.push(`${indent}${newStepId} -.-> ${scenarioVarNodeId}`);
-					});
+					if (showVariables && step.action!.stepValuesMap && step.action!.actionName !== 'scenarioStart') {
+						const definedScenarioVarsForStep = new Set<string>();
+						Object.entries(step.action.stepValuesMap).forEach(([name, sv]) => {
+							const { origin: source, value } = sv;
+							if (value == null) return;
+							if (source === 'env' && typeof value === 'string') {
+								graphLines.push(`${indent}${newStepId} -.-> env_${sanitize(value)}`);
+								return;
+							}
+							if (Array.isArray(value)) return;
+							const displayVal = typeof value === 'number' ? String(value) : value;
+							const scenarioVarNodeId = `sv_${featureIdx}_${actionNamePart}_${stepIdx}_${sanitize(name)}`;
+							if (!definedScenarioVarsForStep.has(scenarioVarNodeId)) {
+								graphLines.push(`${indent}${scenarioVarNodeId}([${formatLabel(name + ' = ' + displayVal)}])`);
+								definedScenarioVarsForStep.add(scenarioVarNodeId);
+							}
+							graphLines.push(`${indent}${newStepId} -.-> ${scenarioVarNodeId}`);
+						});
+					}
 				}
 			}
-		}
 			previousStepIsInScenario = currentStepIsInCurrentScenario;
 		});
 		if (currentScenarioId) graphLines.push('        end');
