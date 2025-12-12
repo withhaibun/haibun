@@ -233,7 +233,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				void what;
 				let { term } = featureStep.action.stepValuesMap.what;
 				const resolved = this.getWorld().shared.resolveVariable({ term, origin: Origin.defined });
-				if (!resolved.value) {
+				if (resolved.value === undefined) {
 					return actionNotOK(`${term} is not set`);
 				}
 				const storedVal = resolved.value; // Already coerced by resolveVariable
@@ -280,7 +280,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				const term = getStepTerm(featureStep, 'what');
 				const stepValue = this.getWorld().shared.resolveVariable({ term, origin: Origin.defined });
 
-				if (!stepValue.value) {
+				if (stepValue.value === undefined) {
 					this.getWorld().logger.info(`is undefined`);
 				} else {
 					const provenance = featureStep.action.stepValuesMap.what.provenance?.map((p, i) => ({ [i]: { in: p.in, seq: p.seq.join(','), when: p.when } }));
