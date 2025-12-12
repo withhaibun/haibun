@@ -178,6 +178,7 @@ class Haibun extends AStepper implements IHasCycles {
 		},
 		comment: {
 			gwta: ';;{comment}',
+			handlesUndefined: ['comment'],
 			action: () => OK,
 		},
 		afterEveryStepper: {
