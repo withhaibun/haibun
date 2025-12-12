@@ -36,7 +36,7 @@ Steps can also be written as Typescript modules, analogous to kireji, identified
 
 ### Comments
 
-Inline explanations use `;;`.
+Inline explanations use.
 
     set max_retries to "5" ;; allows robust retry logic
 

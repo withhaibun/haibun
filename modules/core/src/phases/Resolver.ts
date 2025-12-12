@@ -95,12 +95,6 @@ export class Resolver {
 				const featureStep = this.getFeatureStep(featureLine, seq, stepAction);
 				featureSteps.push(featureStep);
 			} catch (e) {
-				// If the original line starts with Uppercase, treat it as Prose and ignore the error
-				// This handles cases where "The ensure..." is matched as "ensure" but fails nested validation
-				const originalLine = featureLine.line.trim();
-				if (/^[A-Z]/.test(originalLine) && (e.message.startsWith('no step found') || e.message.startsWith('statement'))) {
-					continue;
-				}
 				throw Error(`findFeatureStep for "${featureLine.line}": ${e.message} in ${feature.path}\nUse --show-steppers for more details`);
 			}
 		} return Promise.resolve(featureSteps);
