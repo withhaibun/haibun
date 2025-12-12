@@ -116,6 +116,7 @@ class Haibun extends AStepper implements IHasCycles {
 
 		feature: {
 			gwta: 'Feature: {feature}',
+			handlesUndefined: ['feature'],
 			action: ({ feature }: { feature: string }) => {
 				this.getWorld().runtime.feature = feature;
 				return OK;
@@ -123,6 +124,7 @@ class Haibun extends AStepper implements IHasCycles {
 		},
 		scenario: {
 			gwta: 'Scenario: {scenario}',
+			handlesUndefined: ['scenario'],
 			action: ({ scenario }: { scenario: string }) => {
 				this.getWorld().runtime.scenario = scenario;
 				return OK;
@@ -181,6 +183,7 @@ class Haibun extends AStepper implements IHasCycles {
 		afterEveryStepper: {
 			precludes: [`Haibun.prose`],
 			gwta: `after every {stepperName: string}, {statement: ${DOMAIN_STATEMENT}}`,
+			handlesUndefined: ['stepperName'],
 			action: ({ stepperName, statement }: { stepperName: string; statement: TFeatureStep[] }) => {
 				this.afterEverySteps[stepperName] = statement;
 				return OK;

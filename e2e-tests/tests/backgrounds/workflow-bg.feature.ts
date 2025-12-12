@@ -22,6 +22,7 @@ export const features: TKirejiExport = {
 		`waypoint ${Release_at} {phase} with not variable ${phase} is less than {phase}`,
 
 		'Activity: Do work',
+		showVar({ what: 'effort' }),
 		`whenever not variable ${effort} exists, set ${effort} as number to 0`,
 		`increment ${effort}`,
 		`increment ${phase}`,

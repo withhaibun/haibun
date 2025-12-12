@@ -376,6 +376,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		const step: TStepperStep = {
 			gwta: outcome,
 			virtual: true,  // Dynamically registered outcomes are virtual
+			handlesUndefined: true, // FIXME they should not need to handle undefined at the virtual stepper level
 			description: `Outcome: ${outcome}. Proof: ${proofStatements.join('; ')}`,
 			action: async (args: TStepArgs, featureStep: TFeatureStep): Promise<TActionResult> => {
 				// Reconstruct args to include unresolved terms (skipped by strict populateActionArgs)

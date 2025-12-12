@@ -60,6 +60,7 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 
 	acceptEndpointRequest: {
 		gwta: `accept {accept} using ${HTTP} {method} to {endpoint}`,
+		handlesUndefined: ['method'],
 		action: async ({ accept, endpoint }: { accept: string; method: string; endpoint: string }, featureStep) => {
 			const method = getStepTerm(featureStep, 'method')!.toLowerCase();
 			if (!NO_PAYLOAD_METHODS.includes(method)) {
@@ -72,6 +73,7 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 	},
 	restEndpointRequest: {
 		gwta: `make an ${HTTP} {method} to {endpoint}`,
+		handlesUndefined: ['method'],
 		action: async ({ endpoint }: { method: string; endpoint: string }, featureStep) => {
 			const method = getStepTerm(featureStep, 'method')!.toLowerCase();
 			if (!NO_PAYLOAD_METHODS.includes(method)) {
@@ -142,6 +144,7 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 	},
 	restEndpointFilteredPropertyRequest: {
 		gwta: `for each filtered {property}, make REST {method} to {endpoint} yielding status {status}`,
+		handlesUndefined: ['method'],
 		action: async ({ property, endpoint, status }: { property: string; endpoint: string; status: string }, featureStep) => {
 			const method = getStepTerm(featureStep, 'method')!.toLowerCase();
 			if (!NO_PAYLOAD_METHODS.includes(method)) {
@@ -167,6 +170,7 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 	},
 	restEndpointRequestWithPayload: {
 		gwta: `make an ${'HTTP'} {method} to {endpoint} with {payload}`,
+		handlesUndefined: ['method'],
 		action: async ({ endpoint, payload }: { endpoint: string; payload: string }, featureStep) => {
 			const method = getStepTerm(featureStep, 'method')!.toLowerCase();
 			if (!PAYLOAD_METHODS.includes(method)) {

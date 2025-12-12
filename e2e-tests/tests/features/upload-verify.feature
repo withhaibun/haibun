@@ -15,8 +15,8 @@ Backgrounds: int/upload-form
     see "Uploaded file"
     expect a download
     click "Uploaded file" by text
-    create directory at tmp
-    list files from tmp
+    create directory at "tmp"
+    list files from "tmp"
     receive download as "tmp/test-downloaded.jpg"
     Then "files/picture.jpg" is the same as "tmp/test-downloaded.jpg"
-    list files from tmp
+    list files from "tmp"

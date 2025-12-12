@@ -4,10 +4,10 @@ Scenario: Check against URI xss exploit
     Backgrounds: service/xss
 
     serve files from "xss"
-    accept next dialog to clicked
+    accept next dialog to "clicked"
     go to the xss webpage
     pause for 1s
-    dialog "clicked" message not set
+    dialog "clicked" "messag" not set
 
     compose exploit with {xss}?;alert('hi')
     go to the exploit webpage

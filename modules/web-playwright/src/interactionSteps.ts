@@ -226,6 +226,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 	clickBy: {
 		precludes: [`${wp.constructor.name}.click`],
 		gwta: `click {target: ${DOMAIN_STRING_OR_PAGE_LOCATOR}} by {method}`,
+		handlesUndefined: ['method'],
 		action: async ({ target }: { target: string; method: string }, featureStep: TFeatureStep) => {
 			const method = getStepTerm(featureStep, 'method')!;
 			let withModifier: Record<string, unknown> = {};
@@ -385,6 +386,10 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 					};
 					await dialog.accept();
 					console.log('DEBUG: captureDialog handler triggered', { where, res });
+					if (!where) {
+						console.error('Error: captureDialog called with empty "where" argument');
+						return;
+					}
 					wp.getWorld().shared.setJSON(where, res, Origin.var, featureStep);
 				});
 			});
@@ -479,6 +484,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 	},
 	saveURIQueryParameter: {
 		gwta: 'save URI query parameter {what} to {where}',
+		handlesUndefined: ['what', 'where'],
 		action: async ({ }, featureStep) => {
 			const what = getStepTerm(featureStep, 'what')!;
 			const where = getStepTerm(featureStep, 'where')!;
