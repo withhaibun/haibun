@@ -41,12 +41,11 @@ describe('populateActionArgs integration', () => {
 		expect(args.foo).toBe('envval');
 	});
 
-	it('missing env variable', () => {
+	it('throws on missing env variable', () => {
 		const step = makeStep('foo', 'NOPE', 'string', Origin.env);
 		const world = getTestWorldWithOptions();
 		const steppers: AStepper[] = [];
-		const args = populateActionArgs(step, world, steppers);
-		expect(args.foo).toBe(undefined);
+		expect(() => populateActionArgs(step, world, steppers)).toThrow();
 	});
 
 	it('throws on missing domain coercer', () => {
