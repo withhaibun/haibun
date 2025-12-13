@@ -19,55 +19,82 @@ export function DocumentView({ events }: DocumentViewProps) {
         let md = '';
         let lastType: 'none' | 'prose' | 'technical' = 'none';
 
-        events.forEach(e => {
+        // We need to track the previous *rendered* event to determine relative depth changes for the symbol
+        let previousRenderedDepth = 0;
+        let previousRenderedId = '';
+
+        for (let i = 0; i < events.length; i++) {
+            const e = events[i];
+            
             if (e.kind === 'lifecycle') {
                 if (e.type === 'feature' && e.stage === 'start') {
                     if (lastType === 'technical') md += '\n<div class="h-3"></div>\n';
                     md += `\n\n# ${e.label}\n\n`;
                     lastType = 'prose';
-                    return;
+                    continue;
                 }
                 if (e.type === 'scenario' && e.stage === 'start') {
                     if (lastType === 'technical') md += '\n<div class="h-3"></div>\n';
                     md += `\n\n## ${e.label}\n\n`;
                     lastType = 'prose';
-                    return;
+                    continue;
                 }
-                if (e.type === 'step' && e.stage === 'end') {
+                // SWITCH TO START to fix ordering (Parents before Children)
+                if (e.type === 'step' && e.stage === 'start') {
                      // Heuristic: Technical steps (imperative actions) usually start with lowercase.
-                     // Prose/Markdown (Headers, descriptions, Gherkin) usually start with Uppercase or special chars.
-                     const isTechnical = /^[a-z]/.test(e.label);
+                     const isTechnical = /^[a-z]/.test(e.label || '');
                      
                      if (isTechnical) {
-                        // Add spacer if entering a technical block from prose (and not start)
+                        // Add spacer if entering a technical block from prose
                         if (lastType !== 'technical' && md.length > 0) {
                             md += '\n<div class="h-3"></div>\n';
                         }
 
                         const depth = e.id ? e.id.split('.').length : 0;
-                        const indent = Math.max(0, depth - 1) * 0.75;
                         const isNested = depth > 3;
-                        const nestedStyle = isNested ? 'border-l-2 border-indigo-200 bg-indigo-50/50 py-1 pr-1' : '';
                         
-                        // Using text-xs for smaller code font
-                        md += `<div class="font-mono text-xs text-slate-600 my-0.5 leading-tight ${nestedStyle}" style="padding-left: ${indent}rem">${e.label}</div>\n`;
+                        // Check for instigator (look ahead for next step that starts with this ID)
+                        // Note: This is an approximation since we don't know for sure which next event will be rendered,
+                        // but checking the raw event list for immediate children is a good enough heuristic for "does this have children".
+                        let isInstigator = false;
+                        for(let j=i+1; j<events.length; j++) {
+                           const next = events[j];
+                           if (next.id && next.id.startsWith(e.id + '.')) {
+                               isInstigator = true;
+                               break;
+                           }
+                           // If we hit a sibling or higher up, stop looking
+                           if (next.id && !next.id.startsWith(e.id)) break; 
+                        }
+
+                        // Determine if we show the symbol (first child logic)
+                        // Horizontal bar appears if we just went deeper than the previous rendered step.
+                        const showSymbol = previousRenderedId && previousRenderedDepth < depth;
+
+                        // Serialize visual state into data attributes
+                        // using 'log-row' class to trigger specific parser
+                        md += `<div class="log-row font-mono text-xs text-slate-600 my-0.5 leading-tight" 
+                                    data-depth="${depth}" 
+                                    data-nested="${isNested}" 
+                                    data-instigator="${isInstigator}" 
+                                    data-show-symbol="${showSymbol}">${e.label}</div>\n`;
                         
                         lastType = 'technical';
+                        previousRenderedDepth = depth;
+                        previousRenderedId = e.id || '';
                      } else {
-                        // Add spacer if exiting technical block to prose
+                        // Prose Step
                         if (lastType === 'technical') {
                             md += '\n<div class="h-3"></div>\n';
                         }
-                        
-                        // Render as standard Markdown (Prose)
                         md += `\n\n${e.label}\n\n`;
                         lastType = 'prose';
                      }
-                     return;
+                     continue;
                 }
             }
-            // Logs disabled
-        });
+            // Logs disabled in doc view
+        }
         return md;
     }, [events]);
 
@@ -75,16 +102,58 @@ export function DocumentView({ events }: DocumentViewProps) {
         // 1. Render Markdown to HTML string
         const rawHtml = md.render(content);
         
-        // 2. Sanitize HTML (allow style for indentation)
-        const sanitizedHtml = DOMPurify.sanitize(rawHtml, { ADD_ATTR: ['style'] });
+        // 2. Sanitize HTML (allow data-* attributes and style)
+        const sanitizedHtml = DOMPurify.sanitize(rawHtml, { 
+            ADD_ATTR: ['style', 'data-depth', 'data-nested', 'data-instigator', 'data-show-symbol'],
+            ADD_TAGS: ['div'] // Ensure div is allowed
+        });
     
         // 3. Parse HTML string to React Components
         return parse(sanitizedHtml, {
           replace: (domNode) => {
             if (domNode instanceof Element && domNode.attribs) {
               
-              // Custom log styling (font-mono div)
-              if (domNode.name === 'div' && domNode.attribs.class?.includes('font-mono')) {
+              // Custom log row rendering with Rail System (Replicates App.tsx visuals)
+              if (domNode.name === 'div' && domNode.attribs.class?.includes('log-row')) {
+                  const depth = parseInt(domNode.attribs['data-depth'] || '0');
+                  const isNested = domNode.attribs['data-nested'] === 'true';
+                  const isInstigator = domNode.attribs['data-instigator'] === 'true';
+                  const showSymbol = domNode.attribs['data-show-symbol'] === 'true';
+
+                  return (
+                      <div className={domNode.attribs.class + " flex items-stretch break-all"}>
+                           {/* Indentation Spacer */}
+                           <div style={{ width: `${Math.max(0, depth - 4) * 0.75}rem` }} className="shrink-0" />
+                            
+                           {/* Rail Container */}
+                           {(isNested || isInstigator) && (
+                                <div className="relative w-4 shrink-0 mr-1">
+                                    {/* Full Line for Nested Steps */}
+                                    {isNested && (
+                                        <div className="absolute top-0 -bottom-[1px] right-[3px] w-px bg-indigo-500" />
+                                    )}
+                                    
+                                    {/* Start Marker Line for Top-Level Instigators */}
+                                    {isInstigator && !isNested && (
+                                        <div className="absolute top-[6px] -bottom-[1px] right-[3px] w-px bg-indigo-500" />
+                                    )}
+
+                                    {/* Horizontal Bar Symbol (First Child) */}
+                                    {isNested && showSymbol && (
+                                        <div className="absolute top-0 right-[3px] w-2.5 h-px bg-indigo-500" />
+                                    )}
+                                </div>
+                            )}
+
+                          <div className="flex-1">
+                              {domToReact(domNode.children as DOMNode[])}
+                          </div>
+                      </div>
+                  );
+              }
+              
+              // Old generic mono handler (fallback or for other elements)
+              if (domNode.name === 'div' && domNode.attribs.class?.includes('font-mono') && !domNode.attribs.class?.includes('log-row')) {
                   return (
                       <div 
                         className={domNode.attribs.class}

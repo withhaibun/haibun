@@ -205,8 +205,13 @@ function App() {
 
                     return (
                         <div key={i} className={`flex whitespace-pre items-stretch leading-tight transition-colors ${bgClass}`}>
-                            <div className="w-12 flex flex-col items-end shrink-0 text-[10px] text-slate-700 dark:text-slate-400 font-medium leading-tight mr-2 self-stretch py-1">
+                            <div className="w-16 flex flex-col items-end shrink-0 text-[10px] text-slate-700 dark:text-slate-400 font-medium leading-tight mr-2 self-stretch py-1">
                                 <span>{time}s</span>
+                                <span className={`text-[9px] uppercase opacity-70 ${
+                                    formatted.level === 'error' ? 'text-red-500' : 
+                                    formatted.level === 'warn' ? 'text-yellow-500' :
+                                    'text-slate-500'
+                                }`}>{formatted.level}</span>
                             </div>
                             <span className="mx-1 text-slate-800 dark:text-slate-600 self-start mt-1">｜</span>
                             
@@ -240,9 +245,14 @@ function App() {
                                 </div>
                             </div>
 
-                            {/* Right Column: SeqPath */}
-                            <div className="w-24 shrink-0 text-[10px] text-slate-500 font-mono text-right ml-2 py-1 select-all hover:text-slate-300">
-                                {showLevel}
+                            {/* Right Column: SeqPath + Significant Info */}
+                            <div className="w-24 shrink-0 text-[10px] text-slate-500 font-mono text-right ml-2 py-1 select-all hover:text-slate-300 flex flex-col items-end justify-start">
+                                <div>{showLevel}</div>
+                                <div className="text-[9px] opacity-70 truncate max-w-full" title={isLifecycle && e.type === 'step' ? ((e as any).actionName || e.label) : (e.kind === 'lifecycle' ? e.type : e.kind)}>
+                                    {isLifecycle && e.type === 'step' 
+                                        ? ((e as any).actionName || 'step') 
+                                        : (e.kind === 'lifecycle' ? e.type : e.kind)}
+                                </div>
                             </div>
                         </div>
                     );
