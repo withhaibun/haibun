@@ -3,6 +3,7 @@ import { TAnyFixme } from '../fixme.js';
 import { IHasOptions, AStepper } from '../astepper.js';
 import { TTag } from '../ttag.js';
 import { TArtifact, TMessageContext } from '../interfaces/logger.js';
+export * from './actualURI.js';
 
 // Helper to get term from stepValuesMap with null safety
 export function getStepTerm(featureStep: TFeatureStep, key: string): string | undefined {

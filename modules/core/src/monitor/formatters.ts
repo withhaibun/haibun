@@ -48,7 +48,7 @@ export class EventFormatter {
     return 'neutral';
   }
 
-  static formatLine(event: THaibunEvent, lastLevel?: string): string {
+  static formatLineElements(event: THaibunEvent, lastLevel?: string) {
     const time = (Timer.since() / 1000).toFixed(3);
     const emitter = (event as any).emitter || 'unknown';
     const level = this.getDisplayLevel(event);
@@ -77,7 +77,11 @@ export class EventFormatter {
       id = event.id;
       message = event.message;
     }
+    return { time, emitter, level, showLevel, icon, id, message };
+  }
 
+  static formatLine(event: THaibunEvent, lastLevel?: string): string {
+    const { time, emitter, level, showLevel, icon, id, message } = this.formatLineElements(event, lastLevel);
     const prefix = showLevel.padStart(6) + ` █ ${time}:${emitter}`.padEnd(32) + ` ｜ `;
     return prefix + `${icon}${id} ${message}`;
   }

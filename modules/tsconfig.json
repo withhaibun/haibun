@@ -42,6 +42,9 @@
         },
         {
             "path": "monitor-tui"
+        },
+        {
+            "path": "monitor-browser"
         }
     ]
 }

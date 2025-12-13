@@ -36,7 +36,7 @@ Steps can also be written as Typescript modules, analogous to kireji, identified
 
 ### Comments
 
-Inline explanations use.
+Code comments are supported like this:
 
     set max_retries to "5" ;; allows robust retry logic
 
@@ -200,7 +200,7 @@ Compound statements use the statement domain to compose logic:
 
 ## Logic & control flow
 
-Logic steps enable complex workflows and limited conditional behavior.
+Logic steps enable dependent workflows and limited conditional behavior.
 
 ### Conditionals
 
