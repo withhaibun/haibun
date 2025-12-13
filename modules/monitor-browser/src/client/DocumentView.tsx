@@ -67,17 +67,22 @@ export function DocumentView({ events }: DocumentViewProps) {
                            if (next.id && !next.id.startsWith(e.id)) break; 
                         }
 
-                        // Determine if we show the symbol (first child logic)
-                        // Horizontal bar appears if we just went deeper than the previous rendered step.
-                        const showSymbol = previousRenderedId && previousRenderedDepth < depth;
-
                         // Serialize visual state into data attributes
                         // using 'log-row' class to trigger specific parser
+                        const time = ((e.timestamp - (events[0]?.timestamp || 0))/1000).toFixed(3);
+                        const actionName = (e as any).actionName || 'step'; // simplification
+
+                        // Determine if we show the symbol (first child logic)
+                        const showSymbol = previousRenderedId && previousRenderedDepth < depth;
+
                         md += `<div class="log-row font-mono text-xs text-slate-600 my-0.5 leading-tight" 
                                     data-depth="${depth}" 
                                     data-nested="${isNested}" 
                                     data-instigator="${isInstigator}" 
-                                    data-show-symbol="${showSymbol}">${e.label}</div>\n`;
+                                    data-show-symbol="${showSymbol}"
+                                    data-id="${e.id}"
+                                    data-time="${time}"
+                                    data-action="${actionName}">${e.label}</div>\n`;
                         
                         lastType = 'technical';
                         previousRenderedDepth = depth;
@@ -104,7 +109,7 @@ export function DocumentView({ events }: DocumentViewProps) {
         
         // 2. Sanitize HTML (allow data-* attributes and style)
         const sanitizedHtml = DOMPurify.sanitize(rawHtml, { 
-            ADD_ATTR: ['style', 'data-depth', 'data-nested', 'data-instigator', 'data-show-symbol'],
+            ADD_ATTR: ['style', 'data-depth', 'data-nested', 'data-instigator', 'data-show-symbol', 'data-id', 'data-time', 'data-action'],
             ADD_TAGS: ['div'] // Ensure div is allowed
         });
     
@@ -119,35 +124,53 @@ export function DocumentView({ events }: DocumentViewProps) {
                   const isNested = domNode.attribs['data-nested'] === 'true';
                   const isInstigator = domNode.attribs['data-instigator'] === 'true';
                   const showSymbol = domNode.attribs['data-show-symbol'] === 'true';
+                  const id = domNode.attribs['data-id'] || '';
+                  const time = domNode.attribs['data-time'] || '';
+                  const action = domNode.attribs['data-action'] || '';
 
                   return (
                       <div className={domNode.attribs.class + " flex items-stretch break-all"}>
-                           {/* Indentation Spacer */}
-                           <div style={{ width: `${Math.max(0, depth - 4) * 0.75}rem` }} className="shrink-0" />
-                            
-                           {/* Rail Container */}
-                           {(isNested || isInstigator) && (
-                                <div className="relative w-4 shrink-0 mr-1">
-                                    {/* Full Line for Nested Steps */}
-                                    {isNested && (
-                                        <div className="absolute top-0 -bottom-[1px] right-[3px] w-px bg-indigo-500" />
-                                    )}
-                                    
-                                    {/* Start Marker Line for Top-Level Instigators */}
-                                    {isInstigator && !isNested && (
-                                        <div className="absolute top-[6px] -bottom-[1px] right-[3px] w-px bg-indigo-500" />
-                                    )}
+                           {/* Left Column: Time & Level */}
+                           <div className="w-16 flex flex-col items-end shrink-0 text-[10px] text-slate-700 dark:text-slate-400 font-medium leading-tight mr-2 self-stretch py-1">
+                                <span>{time}s</span>
+                                <span className="text-[9px] opacity-70 text-slate-500">step</span>
+                           </div>
+                           <span className="mx-1 text-slate-800 dark:text-slate-600 self-start mt-1">｜</span>
 
-                                    {/* Horizontal Bar Symbol (First Child) */}
-                                    {isNested && showSymbol && (
-                                        <div className="absolute top-0 right-[3px] w-2.5 h-px bg-indigo-500" />
-                                    )}
-                                </div>
-                            )}
+                           {/* Middle: Content + Rail */}
+                           <div className="flex-1 flex items-stretch">
+                               {/* Indentation Spacer */}
+                               <div style={{ width: `${Math.max(0, depth - 4) * 0.75}rem` }} className="shrink-0" />
+                                
+                               {/* Rail Container */}
+                               {(isNested || isInstigator) && (
+                                    <div className="relative w-4 shrink-0 mr-1">
+                                        {/* Full Line for Nested Steps */}
+                                        {isNested && (
+                                            <div className="absolute top-0 -bottom-[1px] right-[3px] w-px bg-indigo-500" />
+                                        )}
+                                        
+                                        {/* Start Marker Line for Top-Level Instigators */}
+                                        {isInstigator && !isNested && (
+                                            <div className="absolute top-[6px] -bottom-[1px] right-[3px] w-px bg-indigo-500" />
+                                        )}
 
-                          <div className="flex-1">
-                              {domToReact(domNode.children as DOMNode[])}
-                          </div>
+                                        {/* Horizontal Bar Symbol (First Child) */}
+                                        {isNested && showSymbol && (
+                                            <div className="absolute top-0 right-[3px] w-2.5 h-px bg-indigo-500" />
+                                        )}
+                                    </div>
+                                )}
+
+                              <div className="flex-1 py-1">
+                                  {domToReact(domNode.children as DOMNode[])}
+                              </div>
+                           </div>
+
+                             {/* Right Column: ID */}
+                            <div className="w-24 shrink-0 text-[10px] text-slate-500 font-mono text-right ml-2 py-1 select-all hover:text-slate-300">
+                                <div title={id}>{id}</div>
+                            </div>
                       </div>
                   );
               }

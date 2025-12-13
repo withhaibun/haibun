@@ -200,15 +200,13 @@ Compound statements use the statement domain to compose logic:
 
 ## Logic & control flow
 
-Logic steps enable dependent workflows and limited conditional behavior.
+Logic steps enable dependant workflows and limited conditional behavior.
 
 ### Conditionals
 
     set env to "staging"
     where variable env is "staging", set debug to "true"
     variable debug is "true"
-
-
 
 ### Negation
 
@@ -367,7 +365,7 @@ NB these tests use variables for proofs, in a "live" system they might rely on A
 
     Activity: Approve document
     whenever variable Document stage is less than "approved", increment Document stage
-    waypoint Document is at least reviewed with not variable Document stage is less than "reviewed"
+    waypoint Document is at least reviewed with variable Document stage is more than "draft"
 
     Checks for minimum required state (at least "reviewed"), not exact state.
 
@@ -395,7 +393,7 @@ A talent agency can have different types of clients, including artists and venue
 
     Activity: Foster a client
     increment {name}/{concern}
-    waypoint {name} has {concern} with not variable {name}/{concern} is less than "agreed"
+    waypoint {name} has {concern} with variable {name}/{concern} is more than "negotiating"
 
     ensure Engaged "Theatre Z"
     ensure Engaged "Le Artiste"
