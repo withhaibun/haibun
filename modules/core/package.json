@@ -24,7 +24,6 @@
   },
   "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5",
   "dependencies": {
-    "zod": "^3.25.76",
-    "zod-to-json-schema": "^3.25.0"
+    "zod": "^4.1.13"
   }
 }

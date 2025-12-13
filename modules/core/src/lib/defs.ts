@@ -7,6 +7,7 @@ import { FeatureVariables } from './feature-variables.js';
 import { Prompter } from './prompter.js';
 import type { ZodTypeAny } from 'zod';
 import { SystemMessage, ExecutionIntent } from './core/protocol.js';
+import { IEventLogger, THaibunEvent } from '../lib/EventLogger.js';
 
 export type TSpecl = {
 	steppers: string[];
@@ -54,6 +55,7 @@ export type TWorld = {
 	timer: Timer;
 	bases: TBase;
 	domains: Record<string, TRegisteredDomain>;
+	eventLogger: IEventLogger;
 };
 
 export type TFeatureMeta = {
@@ -119,6 +121,7 @@ export type TStepArgs = Record<string, TStepValueValue>;
 export type TAction = (args: TStepArgs, featureStep: TFeatureStep) => Promise<TActionResult> | TActionResult;
 
 export type TStepperStep = {
+	handlesUndefined?: true | string[];
 	description?: string;
 	precludes?: string[];
 	unique?: boolean;
@@ -161,6 +164,7 @@ export interface IStepperCycles {
 	endFeature?(endedWith?: TEndFeature): Promise<void>;
 	onFailure?(result: TFailureArgs): Promise<void | TMessageContext>;
 	endExecution?(results: TExecutorResult): Promise<void>;
+	onEvent?(event: THaibunEvent): Promise<void> | void;
 }
 
 export interface IStepperWhen {

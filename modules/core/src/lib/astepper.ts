@@ -2,8 +2,12 @@ import { TWorld, IStepperCycles, TStepperStep, TOptionValue, TEnvVariables, ISte
 import { TAnyFixme } from './fixme.js';
 import { constructorName } from './util/index.js';
 
+export type TStepperKind = 'monitor' | 'storage' | 'browser' | 'server' | 'test';
+
 export abstract class AStepper {
 	world?: TWorld;
+	kind?: TStepperKind;
+	
 	async setWorld(world: TWorld, _steppers: AStepper[]) {
 		this.world = world;
 		// some steppers like to keep a reference to all steppers

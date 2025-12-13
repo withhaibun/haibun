@@ -1,4 +1,6 @@
 import { TFeatureStep, TResolvedFeature, TExecutorResult, TStepResult, TFeatureResult, TActionResult, TWorld, TStepActionResult, TStepAction, STAY, STAY_FAILURE, CHECK_NO, CHECK_YES, CHECK_YIELD, STEP_DELAY, TNotOKActionResult, CONTINUE_AFTER_ERROR, TEndFeature, StepperMethodArgs, TBeforeStep, TAfterStep, IStepperCycles, ExecMode, TStepArgs, TAfterStepResult, MAYBE_CHECK_YES, MAYBE_CHECK_NO, TSeqPath, FEATURE_START } from '../lib/defs.js';
+import { EventLogger } from '../lib/EventLogger.js';
+import { LifecycleEvent, LogEvent } from '../schema/events.js';
 import { TAnyFixme } from '../lib/fixme.js';
 import { AStepper, IHasCycles } from '../lib/astepper.js';
 import { EExecutionMessageType, TMessageContext } from '../lib/interfaces/logger.js';
@@ -80,6 +82,11 @@ export class Executor {
 	}
 	static async executeFeatures(steppers: AStepper[], world: TWorld, features: TResolvedFeature[]): Promise<TExecutorResult> {
 		await addStepperDomains(world, steppers);
+
+		world.eventLogger.setStepperCallback((event) => {
+			doStepperCycleSync(steppers, 'onEvent', event);
+		});
+
 		await doStepperCycle(steppers, 'startExecution', features);
 		let okSoFar = true;
 		const stayOnFailure = world.options[STAY] === STAY_FAILURE;
@@ -190,6 +197,15 @@ export class FeatureExecutor {
 					scopedVars = new FeatureVariables(world, world.shared.all());
 					currentScenario = 0;
 				}
+				world.eventLogger.emit(LifecycleEvent.parse({
+					id: world.tag.sequence.toString(),
+					timestamp: Date.now(),
+					kind: 'lifecycle',
+					type: 'feature',
+					stage: 'start',
+					label: feature.path,
+					status: 'running',
+				}));
 			}
 
 			if (step.action.actionName === SCENARIO_START) {
@@ -201,6 +217,15 @@ export class FeatureExecutor {
 				}
 				currentScenario = currentScenario + 1;
 				this.logit(`start scenario ${currentScenario}`, { incident: EExecutionMessageType.SCENARIO_START, incidentDetails: { currentScenario, scenarioTitle: step.in } }, 'debug');
+				world.eventLogger.emit(LifecycleEvent.parse({
+					id: world.tag.sequence.toString(),
+					timestamp: Date.now(),
+					kind: 'lifecycle',
+					type: 'scenario',
+					stage: 'start',
+					label: step.in,
+					status: 'running',
+				}));
 				await doStepperCycle(this.steppers, 'startScenario', { scopedVars });
 			}
 
@@ -284,6 +309,14 @@ export class FeatureExecutor {
 				} else {
 					world.logger.log(startMessage, startContext);
 				}
+				if (isSubStep) {
+					world.logger.trace(startMessage, startContext);
+				} else {
+					world.logger.log(startMessage, startContext);
+				}
+			}
+			if (action.actionName !== FEATURE_START && action.actionName !== SCENARIO_START) {
+				world.eventLogger.stepStart(featureStep, action.stepperName, action.actionName);
 			}
 			let doAction = true;
 			while (doAction) {
@@ -295,6 +328,10 @@ export class FeatureExecutor {
 					incidentDetails: { actionResult, featureStep }
 				};
 				const messageContext: TMessageContext = { ...baseContext, incident: EExecutionMessageType.STEP_END };
+
+				if (action.actionName !== FEATURE_START && action.actionName !== SCENARIO_START) {
+					world.eventLogger.stepEnd(featureStep, action.stepperName, action.actionName, actionResult.ok, actionResult.ok ? undefined : (actionResult as any).message);
+				}
 
 				// Format the log message
 				const logMessage = FeatureExecutor.formatStepLogMessage(featureStep, actionResult, isSubStep);
@@ -374,6 +411,15 @@ const doStepperCycle = async <K extends keyof IStepperCycles>(steppers: AStepper
 	return results;
 };
 
+// Synchronous version for event dispatch (onEvent doesn't need await)
+const doStepperCycleSync = <K extends keyof IStepperCycles>(steppers: AStepper[], method: K, args: StepperMethodArgs[K]): void => {
+	const hasCycles = (steppers as unknown[] as (AStepper & IHasCycles)[]).filter(c => c.cycles && c.cycles[method]);
+	for (const cycling of hasCycles) {
+		const cycle = cycling.cycles[method]!;
+		const paramsForApply = args === undefined ? [] : [args];
+		(cycle as (...a: unknown[]) => void).apply(cycling, paramsForApply);
+	}
+};
 // Register domains from stepper cycles after setWorld
 const addStepperDomains = async (world, steppers: AStepper[]) => {
 	const results = await doStepperCycle(steppers, 'getDomains', undefined);

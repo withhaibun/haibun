@@ -125,7 +125,14 @@ export class FeatureVariables {
 		}
 
 		if (resolved.value !== undefined) {
-			resolved.value = this.world.domains[resolved.domain].coerce({ ...resolved as TStepValue }, featureStep, steppers);
+			// Ensure domain is defined before coercion, fallback to string if undefined
+			const domainKey = resolved.domain ?? DOMAIN_STRING;
+			const domain = this.world.domains[domainKey];
+			if (!domain) {
+				throw new Error(`Cannot resolve variable "${input.term}": unknown domain "${domainKey}"`);
+			}
+			resolved.value = domain.coerce({ ...resolved as TStepValue, domain: domainKey }, featureStep, steppers);
+			resolved.domain = domainKey;
 		}
 
 		return resolved as TStepValue;

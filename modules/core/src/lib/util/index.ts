@@ -22,16 +22,49 @@ type TClass = { new <T>(...args: unknown[]): T };
 
 export const basesFrom = (s): string[] => s?.split(',').map((b) => b.trim());
 
-// FIXME tired of wrestling with ts/import issues
+import nodeFS from 'fs';
+import path from 'path';
+
+/**
+ * Resolve and import a stepper module.
+ * Supports:
+ * - Package names: @haibun/monitor-tui → resolves main from package.json
+ * - Explicit paths: @haibun/monitor-tui/build/index → imports directly
+ * - Relative paths: ./build-local/test-server → imports from cwd
+ */
 export async function use(module: string): Promise<TClass> {
 	try {
-		const re: object = (await import(`${module}.js`)).default;
+		const resolvedPath = resolveModulePath(module);
+		const re: object = (await import(resolvedPath)).default;
 		checkModuleIsClass(re, module);
 		return <TClass>re;
 	} catch (e) {
 		console.error('failed including', module);
 		throw e;
 	}
+}
+
+function resolveModulePath(module: string): string {
+	// Check if this is a directory with package.json (package reference)
+	if (nodeFS.existsSync(module)) {
+		const pkgPath = path.join(module, 'package.json');
+		if (nodeFS.existsSync(pkgPath)) {
+			const pkg = JSON.parse(nodeFS.readFileSync(pkgPath, 'utf-8'));
+			const main = pkg.main || 'index.js';
+			return path.join(module, main);
+		}
+		// Directory exists but no package.json, try as file
+		if (nodeFS.existsSync(`${module}.js`)) {
+			return `${module}.js`;
+		}
+		// Maybe it's a directory with index.js
+		const indexPath = path.join(module, 'index.js');
+		if (nodeFS.existsSync(indexPath)) {
+			return indexPath;
+		}
+	}
+	// Default: append .js extension
+	return `${module}.js`;
 }
 
 export function checkModuleIsClass(re: object, module: string) {

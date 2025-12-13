@@ -55,6 +55,12 @@ export class Runner {
 		try {
 			this.steppers = createSteppers(csteppers);
 			await setStepperWorldsAndDomains(this.steppers, this.world);
+
+			// Auto-suppress NDJSON output if any monitor stepper is configured
+			if (this.steppers.some(s => s.kind === 'monitor') && this.world.eventLogger) {
+				this.world.eventLogger.suppressConsole = true;
+			}
+
 			// Make backgrounds available at runtime for inline `Backgrounds:` expansion
 			this.world.runtime.backgrounds = featuresBackgrounds.backgrounds;
 			const expandedFeatures = await expand(featuresBackgrounds).catch((error) => this.errorBail('Expand', error));

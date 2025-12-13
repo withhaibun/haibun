@@ -4,12 +4,12 @@ import { TDomainDefinition, TFeatureStep, TStepValue, TWorld } from "./defs.js";
 import { DOMAIN_DATE, DOMAIN_JSON, DOMAIN_NUMBER, DOMAIN_STATEMENT, DOMAIN_STRING, mapDefinitionsToDomains } from './domain-types.js';
 import { findFeatureStepsFromStatement } from "../phases/Resolver.js";
 
-const numberSchema = z.coerce.number({ invalid_type_error: 'invalid number' })
+const numberSchema = z.coerce.number({ error: 'invalid number' })
 	.refine((value) => Number.isFinite(value), 'invalid number');
-const stringSchema = z.coerce.string({ required_error: 'value is required' });
-const jsonStringSchema = z.string({ required_error: 'json value is required' });
-const statementSchema = z.string({ required_error: 'statement label is required' }).min(1, 'statement cannot be empty');
-const dateSchema = z.coerce.date({ invalid_type_error: 'invalid date' });
+const stringSchema = z.coerce.string({ error: 'value is required' });
+const jsonStringSchema = z.string({ error: 'json value is required' });
+const statementSchema = z.string({ error: 'statement label is required' }).min(1, 'statement cannot be empty');
+const dateSchema = z.coerce.date({ error: 'invalid date' });
 
 const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => ([
 	{

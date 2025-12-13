@@ -10,6 +10,7 @@ import { FeatureVariables } from '../feature-variables.js';
 import { Prompter } from '../prompter.js';
 import { getCoreDomains } from '../core-domains.js';
 import assert from 'assert';
+import { EventLogger } from '../EventLogger.js';
 
 const DEF_PROTO_DEFAULT_OPTIONS = { DEST: DEFAULT_DEST };
 export const DEF_PROTO_OPTIONS = { options: DEF_PROTO_DEFAULT_OPTIONS, moduleOptions: {} };
@@ -70,6 +71,7 @@ export function getDefaultWorld(sequence: number, env = process.env): TWorld {
 		timer: new Timer(),
 		tag: getRunTag(sequence, 0),
 		logger: new Logger(env.HAIBUN_LOG_LEVEL ? { level: env.HAIBUN_LOG_LEVEL } : LOGGER_LOG),
+		eventLogger: new EventLogger(),
 		prompter: new Prompter(),
 		runtime: { stepResults: [] },
 		options: { DEST: DEFAULT_DEST, envVariables: env },

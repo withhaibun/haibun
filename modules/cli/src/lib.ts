@@ -14,15 +14,17 @@ import { IHasOptions } from '@haibun/core/lib/astepper.js';
 import { FeatureVariables } from '@haibun/core/lib/feature-variables.js';
 import { Prompter } from '@haibun/core/lib/prompter.js';
 import { getCoreDomains } from '@haibun/core/lib/core-domains.js';
+import { EventLogger } from '@haibun/core/lib/EventLogger.js';
 
 const OPTION_CONFIG = '--config';
 const OPTION_HELP = '--help';
 const OPTION_SHOW_STEPPERS = '--show-steppers';
+const OPTION_WITH_STEPPERS = '--with-steppers';
 
 type TEnv = { [name: string]: string | undefined };
 
 export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
-	const { params, configLoc, showHelp, showSteppers } = processArgs(args);
+	const { params, configLoc, showHelp, showSteppers, withSteppers } = processArgs(args);
 	const bases = basesFrom(params[0]?.replace(/\/$/, ''));
 	const specl = await getSpeclOrExit(configLoc ? [configLoc] : bases);
 
@@ -46,9 +48,16 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 
 	const runner = new Runner(world);
 
-	const executorResult = await runner.run(specl.steppers, featureFilter);
+	// Merge CLI steppers with config steppers
+	const allSteppers = [...specl.steppers, ...withSteppers];
+	const executorResult = await runner.run(allSteppers, featureFilter);
+
+	const showSummary = world.eventLogger.suppressConsole;
+
 	if (executorResult.ok) {
-		console.info(`\n${CHECK_YES} All ${executorResult.featureResults.length} features passed.`);
+		if (showSummary) {
+			console.info(`\n${CHECK_YES} All ${executorResult.featureResults.length} features passed.`);
+		}
 	} else {
 		const errorMessage = executorResult.failure?.error?.message || (world.runtime.exhaustionError && `Execution aborted: ${world.runtime.exhaustionError}`) || 'Unknown error';
 		const stage = executorResult.failure?.stage;
@@ -76,6 +85,7 @@ function getCliWorld(protoOptions: TProtoOptions, bases: TBase): TWorld {
 	const { KEY: keyIn, LOG_LEVEL: logLevel, LOG_FOLLOW: logFollow } = protoOptions.options;
 	const tag = getDefaultTag(0);
 	const logger = new Logger({ level: logLevel || 'log', follow: logFollow });
+	const eventLogger = new EventLogger();
 	const timer = new Timer();
 
 	Timer.key = keyIn || Timer.key;
@@ -84,6 +94,7 @@ function getCliWorld(protoOptions: TProtoOptions, bases: TBase): TWorld {
 		tag,
 		runtime: { stepResults: [] },
 		logger,
+		eventLogger,
 		prompter: new Prompter(),
 		...protoOptions,
 		timer,
@@ -130,7 +141,7 @@ export async function usage(specl: TSpecl, message?: string) {
 
 	const ret = [
 		'',
-		`usage: ${process.argv[1]} [${OPTION_CONFIG} path/to/specific/config.json] [--cwd working_directory] [${OPTION_HELP}] [${OPTION_SHOW_STEPPERS}] <project base[,project base]> <[filter,filter]>`,
+		`usage: ${process.argv[1]} [${OPTION_CONFIG} path/to/specific/config.json] [--cwd working_directory] [${OPTION_HELP}] [${OPTION_SHOW_STEPPERS}] [${OPTION_WITH_STEPPERS} stepper[,stepper]] <project base[,project base]> <[filter,filter]>`,
 		message || '',
 		'If config.json is not found in project bases, the root directory will be used.\n',
 		'Set these environmental variables to control options:\n',
@@ -186,6 +197,7 @@ export function processBaseEnvToOptionsAndErrors(env: TEnv) {
 export function processArgs(args: string[]) {
 	let showHelp = false;
 	let showSteppers = false;
+	let withSteppers: string[] = [];
 	const params = [];
 	let configLoc;
 	while (args.length > 0) {
@@ -199,11 +211,22 @@ export function processArgs(args: string[]) {
 			showHelp = true;
 		} else if (cur === OPTION_SHOW_STEPPERS) {
 			showSteppers = true;
+		} else if (cur === OPTION_WITH_STEPPERS || cur?.startsWith(OPTION_WITH_STEPPERS + '=')) {
+			// Support both --with-steppers value and --with-steppers=value
+			let stepperList: string | undefined;
+			if (cur?.includes('=')) {
+				stepperList = cur.split('=')[1];
+			} else {
+				stepperList = args.shift();
+			}
+			if (stepperList) {
+				withSteppers = stepperList.split(',');
+			}
 		} else {
 			params.push(cur);
 		}
 	}
-	return { params, configLoc, showHelp, showSteppers };
+	return { params, configLoc, showHelp, showSteppers, withSteppers };
 }
 
 export function getConfigFromBase(bases: TBase, fs: TFileSystem = nodeFS): TSpecl | null {

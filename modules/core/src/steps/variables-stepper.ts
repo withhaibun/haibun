@@ -6,6 +6,9 @@ import { actionOK, actionNotOK, getStepTerm, isLiteralValue } from '../lib/util/
 import { FeatureVariables } from '../lib/feature-variables.js';
 import { DOMAIN_STATEMENT, DOMAIN_STRING, normalizeDomainKey, createEnumDomainDefinition, registerDomains } from '../lib/domain-types.js';
 import { EExecutionMessageType } from '../lib/interfaces/logger.js';
+import { EventLogger } from '../lib/EventLogger.js';
+import { LogEvent } from '../schema/events.js';
+import { formatCurrentSeqPath } from '../lib/util/index.js';
 
 const clearVars = (vars) => () => {
 	vars.getWorld().shared.clear();
@@ -121,6 +124,12 @@ class VariablesStepper extends AStepper implements IHasCycles {
 					incidentDetails: { json: { incremented: { [term]: newNum } } },
 				});
 
+				this.getWorld().eventLogger.log(featureStep, 'info', `incremented ${term} to ${newNum}`, {
+					variable: term,
+					oldValue: presentVal,
+					newValue: newNum,
+					operation: 'increment'
+				});
 				return OK;
 			}
 		},
@@ -136,8 +145,9 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		showVars: {
 			gwta: 'show vars',
 			action: () => {
-				console.info('vars', this.getWorld().shared.all());
-				return Promise.resolve(actionOK({ artifact: { artifactType: 'json', json: { vars: this.getWorld().shared.all() } } }));
+				const displayVars = Object.fromEntries(Object.entries(this.getWorld().shared.all()).map(([k, v]) => [k, v.value]));
+				console.info('vars', displayVars);
+				return actionOK({ artifact: { artifactType: 'json', json: { vars: displayVars } } });
 			},
 		},
 		set: {
@@ -159,6 +169,14 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				const effectiveDomain = (domain === DOMAIN_STRING && existing?.domain) ? existing.domain : (domain || DOMAIN_STRING);
 
 				const result = trySetVariable(this.getWorld().shared, { term, value: resolved.value, domain: effectiveDomain, origin }, provenanceFromFeatureStep(featureStep));
+				if (result.ok) {
+					this.getWorld().eventLogger.log(featureStep, 'info', `set ${term} to ${resolved.value}`, {
+						variable: term,
+						newValue: resolved.value,
+						domain: effectiveDomain,
+						operation: 'set'
+					});
+				}
 				return result;
 			}
 		},
@@ -306,11 +324,11 @@ class VariablesStepper extends AStepper implements IHasCycles {
 					}
 
 					// Determine type from schema or values
-					let type: string | string[] = JSON.stringify(def);
+					let type: string | string[] = 'schema';
 					if (def.values) {
 						type = def.values;
-					} else if (def.schema && (def as TRegisteredDomain).schema._def) {
-						type = def.schema._def.typeName;
+					} else if (def.description) {
+						type = def.description;
 					}
 
 					summary[name] = {
