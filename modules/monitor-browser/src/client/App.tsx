@@ -196,13 +196,16 @@ function App() {
                     
                     // Check if this event initiates a nested block
                     const nextEvent = visibleEvents[i + 1];
-                    // Strict check: Next event must be a direct child (share current ID prefix)
                     const isInstigator = nextEvent && nextEvent.id.startsWith(id + '.');
+                    
+                    const prevDepth = prevE ? (prevE.id ? prevE.id.split('.').length : 0) : 0;
+                    // Only show symbol if this row "goes deeper" than the previous one (i.e. is the first child).
+                    // Sibilings (prevDepth === depth) will not have the line.
+                    const showSymbol = prevE && prevDepth < depth;
 
                     return (
                         <div key={i} className={`flex whitespace-pre items-stretch leading-tight transition-colors ${bgClass}`}>
-                            <div className="w-16 flex flex-col items-end shrink-0 text-[10px] text-slate-700 dark:text-slate-400 font-medium leading-tight mr-2 self-stretch py-1">
-                                <span className="">{showLevel}</span>
+                            <div className="w-12 flex flex-col items-end shrink-0 text-[10px] text-slate-700 dark:text-slate-400 font-medium leading-tight mr-2 self-stretch py-1">
                                 <span>{time}s</span>
                             </div>
                             <span className="mx-1 text-slate-800 dark:text-slate-600 self-start mt-1">｜</span>
@@ -216,30 +219,30 @@ function App() {
                                     <div className="relative w-4 shrink-0 mr-1">
                                         {/* Full Line for Nested Steps */}
                                         {isNested && (
-                                            <div className="absolute top-0 -bottom-[1px] right-[3px] w-0.5 bg-indigo-500" />
+                                            <div className="absolute top-0 -bottom-[1px] right-[3px] w-px bg-indigo-500" />
                                         )}
                                         
                                         {/* Start Marker Line for Top-Level Instigators (starts from top marker down) */}
                                         {isInstigator && !isNested && (
-                                            <div className="absolute top-[5px] -bottom-[1px] right-[3px] w-0.5 bg-indigo-500" />
+                                            <div className="absolute top-[6px] -bottom-[1px] right-[3px] w-px bg-indigo-500" />
                                         )}
 
-                                        {/* Junction Markers */}
-                                        {isInstigator ? (
-                                            /* Chevron Arrow Pointing Down (Start of Flow) - At Top Right */
-                                            <div className="absolute top-[1px] right-0 w-2 h-2 border-b-2 border-r-2 border-indigo-500 rotate-45 z-10 bg-black" />
-                                        ) : isNested ? (
-                                            /* Small Dot for Successive Junctions - Top Aligned */
-                                            <div className="absolute top-[4px] right-[1px] w-1.5 h-1.5 bg-indigo-500 rounded-full z-10" />
-                                        ) : null}
+                                        {/* Horizontal Bar Symbol (Only to the Left, Top Aligned) */}
+                                        {isNested && showSymbol && (
+                                            <div className="absolute top-0 right-[3px] w-2.5 h-px bg-indigo-500" />
+                                        )}
                                     </div>
                                 )}
 
                                 <div className="flex items-start gap-2 flex-1 py-1">
                                     <span className={`inline-block w-4 text-center shrink-0 ${icon === '⟳' ? 'animate-spin' : ''}`}>{icon}</span>
-                                    <span className="opacity-50 text-xs mt-0.5 shrink-0 select-all">{id}</span>
                                     <span>{message}</span>
                                 </div>
+                            </div>
+
+                            {/* Right Column: SeqPath */}
+                            <div className="w-24 shrink-0 text-[10px] text-slate-500 font-mono text-right ml-2 py-1 select-all hover:text-slate-300">
+                                {showLevel}
                             </div>
                         </div>
                     );
