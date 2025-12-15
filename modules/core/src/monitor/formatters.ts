@@ -1,10 +1,11 @@
 /**
  * EventFormatter - Shared formatting for Haibun events.
+ * This module is browser-safe and uses only local imports.
  */
 
-import { Timer } from '../lib/Timer.js';
-import { CHECK_YES, CHECK_NO, MAYBE_CHECK_YES, MAYBE_CHECK_NO } from '../lib/defs.js';
-import { THaibunEvent } from '../lib/EventLogger.js';
+import { Timer } from './timer.js';
+import { CHECK_YES, CHECK_NO, MAYBE_CHECK_YES, MAYBE_CHECK_NO } from './constants.js';
+import { THaibunEvent } from '../schema/events.js';
 
 export type TIndication = 'success' | 'failure' | 'speculative-failure' | 'pending' | 'neutral';
 

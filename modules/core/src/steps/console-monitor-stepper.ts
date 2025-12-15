@@ -1,4 +1,4 @@
-import { AStepper, IHasCycles } from '../lib/astepper.js';
+import { AStepper, IHasCycles, StepperKinds } from '../lib/astepper.js';
 import { THaibunEvent } from '../lib/EventLogger.js';
 import { Timer } from '../lib/Timer.js';
 import { CHECK_YES, CHECK_NO } from '../lib/defs.js';
@@ -7,7 +7,7 @@ import { CHECK_YES, CHECK_NO } from '../lib/defs.js';
  * ConsoleMonitorStepper - Console monitor using the onEvent pattern.
  */
 export default class ConsoleMonitorStepper extends AStepper implements IHasCycles {
-  kind = 'monitor' as const;
+  kind = StepperKinds.MONITOR;
   steps = {};
 
   options = {

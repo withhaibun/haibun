@@ -1,7 +1,7 @@
 import { Page } from "playwright";
 
 import { TWorld, TFeatureStep } from "@haibun/core/lib/defs.js";
-import { AStepper, IHasOptions, TStepperSteps } from "@haibun/core/lib/astepper.js";
+import { AStepper, IHasOptions, StepperKinds, TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { TAnyFixme } from "@haibun/core/lib/fixme.js";
 import { TArtifactHTML } from "@haibun/core/lib/interfaces/logger.js";
 import { stringOrError, findStepper, actionNotOK, actionOK, findStepperFromOption } from "@haibun/core/lib/util/index.js";
@@ -14,9 +14,8 @@ import { resolve } from "path";
 type TGetsPage = { getPage: () => Promise<Page> };
 
 class A11yStepper extends AStepper implements IHasOptions {
-  static STORAGE = 'STORAGE';
   options = {
-    [A11yStepper.STORAGE]: {
+    [StepperKinds.STORAGE]: {
       desc: 'Storage for results',
       parse: (input: string) => stringOrError(input),
     },
@@ -28,8 +27,7 @@ class A11yStepper extends AStepper implements IHasOptions {
     await super.setWorld(world, steppers);
     this.pageGetter = findStepper<TGetsPage>(steppers, 'WebPlaywright');
     this.steppers = steppers;
-    this.storage = findStepperFromOption(steppers, this, world.moduleOptions, A11yStepper.STORAGE);
-
+    this.storage = findStepperFromOption(steppers, this, world.moduleOptions, StepperKinds.STORAGE);
   }
 
   asNumber = (value: string) => value.match(/[^\d+]/) ? NaN : parseInt(value);

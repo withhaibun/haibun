@@ -5,6 +5,7 @@ import { shortenURI } from '@haibun/core/lib/util/index.js';
 import { TTag } from '@haibun/core/lib/ttag.js';
 import { Origin, TWorld } from '@haibun/core/lib/defs.js';
 import { DOMAIN_STRING } from '@haibun/core/lib/domain-types.js';
+import { VISITED_PAGES } from './web-playwright.js';
 
 type TEtc = {
 	headers: Record<string, string>;
@@ -58,8 +59,17 @@ export class PlaywrightEvents {
 	}
 	private framenavigated(frame) {
 		if (frame === this.page.mainFrame()) {
-			this.world.shared.setForStepper('WebPlaywright', { term: 'currentURI', value: frame.url(), domain: DOMAIN_STRING, origin: Origin.var }, { in: 'PlaywrightEvents.framenavigated', seq: [], when: 'framenavigated' });
-			this.world.shared.setForStepper('WebPlaywright', { term: 'navigateCount', value: this.navigateCount++, domain: DOMAIN_STRING, origin: Origin.var }, { in: 'PlaywrightEvents.framenavigated', seq: [], when: 'framenavigated' });
+			const url = frame.url();
+			const provenance = { in: 'PlaywrightEvents.framenavigated', seq: [], when: 'framenavigated' };
+
+			this.world.shared.setForStepper('WebPlaywright', { term: 'currentURI', value: url, domain: DOMAIN_STRING, origin: Origin.var }, provenance);
+			this.world.shared.setForStepper('WebPlaywright', { term: 'navigateCount', value: this.navigateCount, domain: DOMAIN_STRING, origin: Origin.var }, provenance);
+
+			// Add to Visited pages domain for verification with 'every url in Visited pages is ...'
+			const visitedKey = `visited/${this.navigateCount}`;
+			this.world.shared.setForStepper('WebPlaywright', { term: visitedKey, value: url, domain: VISITED_PAGES, origin: Origin.var }, provenance);
+
+			this.navigateCount++;
 		}
 	}
 	public close(): void {

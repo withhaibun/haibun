@@ -1,8 +1,9 @@
 import { Page, Download, Locator } from 'playwright';
 import { resolve } from 'path';
 import { pathToFileURL } from 'url';
+import { z } from 'zod';
 
-import { TWorld, OK, TStepResult, TFeatureStep, Origin, CycleWhen } from '@haibun/core/lib/defs.js';
+import { TWorld, OK, TStepResult, TFeatureStep, Origin, CycleWhen, TDomainDefinition } from '@haibun/core/lib/defs.js';
 import { BrowserFactory, TTaggedBrowserFactoryOptions, TBrowserTypes, BROWSERS } from './BrowserFactory.js';
 import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOption, optionOrError } from '@haibun/core/lib/util/index.js';
 import { AStorage } from '@haibun/domain-storage/AStorage.js';
@@ -11,12 +12,12 @@ import { EMediaTypes } from '@haibun/domain-storage/media-types.js';
 
 import { MonitorHandler } from './monitor/MonitorHandler.js';
 import { TAnyFixme } from '@haibun/core/lib/fixme.js';
-import { AStepper, IHasCycles, IHasOptions } from '@haibun/core/lib/astepper.js';
+import { AStepper, IHasCycles, IHasOptions, StepperKinds } from '@haibun/core/lib/astepper.js';
 import { cycles } from './cycles.js';
 import { interactionSteps } from './interactionSteps.js';
 import { restSteps, TCapturedResponse } from './rest-playwright.js';
 import { TwinPage } from './twin-page.js';
-import { DOMAIN_STRING } from '@haibun/core/lib/domain-types.js';
+import { DOMAIN_STRING, registerDomains } from '@haibun/core/lib/domain-types.js';
 
 type TWebPlaywrightSteps = ReturnType<typeof interactionSteps> & ReturnType<typeof restSteps>;
 type TWebPlaywrightTypedSteps = ReturnType<typeof interactionSteps> & ReturnType<typeof restSteps>;
@@ -31,6 +32,7 @@ export const WEB_PAGE = 'webpage';
 
 
 export const LAST_REST_RESPONSE = 'LAST_REST_RESPONSE';
+export const VISITED_PAGES = 'Visited pages';
 export enum EMonitoringTypes {
 	MONITOR_ALL = 'all',
 	MONITOR_EACH = 'each',
@@ -48,7 +50,6 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		startExecution: CycleWhen.FIRST - 1,
 		startFeature: CycleWhen.FIRST - 1,
 	};
-	static STORAGE = 'STORAGE';
 	static PERSISTENT_DIRECTORY = 'PERSISTENT_DIRECTORY';
 	options = {
 		TWIN: {
@@ -78,13 +79,13 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		CAPTURE_VIDEO: {
 			desc: 'capture video for every agent',
 			parse: (input: string) => boolOrError(input),
-			dependsOn: ['STORAGE'],
+			dependsOn: [StepperKinds.STORAGE],
 		},
 		TIMEOUT: {
 			desc: 'browser timeout for each step',
 			parse: (input: string) => intOrError(input),
 		},
-		[WebPlaywright.STORAGE]: {
+		[StepperKinds.STORAGE]: {
 			desc: 'Storage for output',
 			parse: (input: string) => stringOrError(input),
 			required: true
@@ -114,7 +115,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		await super.setWorld(world, steppers);
 
 		const args = [...(getStepperOption(this, 'ARGS', world.moduleOptions)?.split(';') || ''),]; //'--disable-gpu'
-		this.storage = findStepperFromOption(steppers, this, world.moduleOptions, WebPlaywright.STORAGE);
+		this.storage = findStepperFromOption(steppers, this, world.moduleOptions, StepperKinds.STORAGE);
 		this.headless = getStepperOption(this, 'HEADLESS', world.moduleOptions) === 'true' || !!process.env.CI;
 		const devtools = getStepperOption(this, 'DEVTOOLS', world.moduleOptions) === 'true';
 		if (devtools) {
@@ -144,6 +145,19 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			defaultTimeout,
 			persistentDirectory,
 		};
+
+		// Register visited-pages domain for tracking navigated URLs
+		// This is an open domain (inherits from string) - visited URLs are added as members
+		// Only register if not already registered (other tests may share the world)
+		if (!world.domains[VISITED_PAGES]) {
+			const visitedPagesDef: TDomainDefinition = {
+				selectors: [VISITED_PAGES],
+				schema: z.string(),
+				coerce: (proto) => String(proto.value),
+				description: 'Pages visited during test execution (auto-tracked by WebPlaywright)',
+			};
+			registerDomains(world, [[visitedPagesDef]]);
+		}
 	}
 	async getCaptureDir(type = '') {
 		const loc = { ...this.world, mediaType: EMediaTypes.video };

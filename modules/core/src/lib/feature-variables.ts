@@ -88,13 +88,19 @@ export class FeatureVariables {
 			value: undefined,
 		};
 
-		const storedEntry = this.values[input.term];
+		// Handle {varName} syntax - extract variable name from braces
+		let lookupTerm = input.term;
+		if (lookupTerm.startsWith('{') && lookupTerm.endsWith('}')) {
+			lookupTerm = lookupTerm.slice(1, -1);
+		}
+
+		const storedEntry = this.values[lookupTerm];
 
 		if (!input.origin || input.origin === Origin.statement) {
 			resolved.value = input.term;
 			resolved.domain = input.domain;
 		} else if (input.origin === Origin.env) {
-			resolved.value = this.world.options.envVariables[input.term]; // might be undefined
+			resolved.value = this.world.options.envVariables[lookupTerm]; // might be undefined
 			resolved.domain = DOMAIN_STRING;
 		} else if (input.origin === Origin.var) {
 			if (storedEntry) {
@@ -103,8 +109,12 @@ export class FeatureVariables {
 				resolved.provenance = storedEntry.provenance;
 			}
 		} else if (input.origin === Origin.defined) {
-			if (this.world.options.envVariables[input.term]) {
-				resolved.value = this.world.options.envVariables[input.term];
+			if (featureStep?.runtimeArgs?.[lookupTerm] !== undefined) {
+				resolved.value = featureStep.runtimeArgs[lookupTerm];
+				resolved.domain = DOMAIN_STRING;
+				resolved.origin = Origin.var;
+			} else if (this.world.options.envVariables[lookupTerm]) {
+				resolved.value = this.world.options.envVariables[lookupTerm];
 				resolved.domain = DOMAIN_STRING;
 				resolved.origin = Origin.env;
 			} else if (storedEntry) {
@@ -117,9 +127,25 @@ export class FeatureVariables {
 				resolved.value = input.term;
 				resolved.domain = DOMAIN_STRING;
 			}
+			// Note: for {varName} syntax, storedEntry is looked up using lookupTerm (without braces)
+			// so this naturally resolves quantifier-bound variables
 		} else if (input.origin === Origin.quoted) {
-			resolved.value = input.term.replace(/^"|"$/g, '');
-			resolved.domain = DOMAIN_STRING;
+			// Check if this is {varName} syntax - if so, resolve as variable
+			if (input.term.startsWith('{') && input.term.endsWith('}') && !input.term.includes(':')) {
+				if (featureStep?.runtimeArgs?.[lookupTerm] !== undefined) {
+					resolved.value = featureStep.runtimeArgs[lookupTerm];
+					resolved.domain = DOMAIN_STRING;
+					resolved.origin = Origin.var;
+				} else if (storedEntry) {
+					resolved.value = storedEntry.value;
+					resolved.domain = storedEntry.domain;
+					resolved.provenance = storedEntry.provenance;
+					resolved.origin = Origin.var;
+				}
+			} else {
+				resolved.value = input.term.replace(/^"|"$/g, '');
+				resolved.domain = DOMAIN_STRING;
+			}
 		} else {
 			throw new Error(`Unsupported origin type: ${input.origin}`);
 		}
@@ -136,5 +162,24 @@ export class FeatureVariables {
 		}
 
 		return resolved as TStepValue;
+	}
+	getDomainValues(domainName: string): { values: unknown[], error?: string } {
+		const domainKey = normalizeDomainKey(domainName);
+		const domainDef = this.world.domains[domainKey];
+
+		if (!domainDef) {
+			return { values: [], error: `Domain "${domainName}" is not defined` };
+		}
+
+		if (Array.isArray(domainDef.values) && domainDef.values.length > 0) {
+			return { values: domainDef.values };
+		}
+
+		const allVars = this.all();
+		const memberValues = Object.values(allVars)
+			.filter(v => v.domain && normalizeDomainKey(v.domain) === domainKey)
+			.map(v => v.value);
+
+		return { values: memberValues };
 	}
 }

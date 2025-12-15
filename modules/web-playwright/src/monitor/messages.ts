@@ -1,6 +1,6 @@
-import { TArtifact, TArtifactSpeech, TArtifactVideo, TArtifactVideoStart, TArtifactImage, TArtifactHTML, TArtifactJSON, TArtifactHTTPTrace, TMessageContext, TArtifactResolvedFeatures } from '@haibun/core/lib/interfaces/logger.js';
-import { EExecutionMessageType } from '@haibun/core/lib/interfaces/logger.js';
+import { TArtifact, TArtifactSpeech, TArtifactVideo, TArtifactVideoStart, TArtifactImage, TArtifactHTML, TArtifactJSON, TArtifactHTTPTrace, TMessageContext, TArtifactResolvedFeatures, EExecutionMessageType } from '@haibun/core/monitor';
 import MarkdownIt from 'markdown-it';
+
 
 import { disclosureJson } from './disclosureJson.js';
 import { LogComponent, ArtifactDisplay } from './artifactDisplays/artifactDisplayBase.js';
@@ -384,7 +384,7 @@ function createArtifactDisplay(artifact: TArtifact): ArtifactDisplay | null {
 		case 'json/http/trace':
 			return new JsonArtifactHTTPTrace(<TArtifactHTTPTrace>artifact);
 		case 'resolvedFeatures': {
-			return new ResolvedFeaturesArtifactDisplay(artifact as TArtifactResolvedFeatures);
+			return new ResolvedFeaturesArtifactDisplay(artifact as any);
 		}
 		default: {
 			throw Error(`Unsupported artifact type "${(<TArtifact>artifact).artifactType}" for display from ${artifactType}`);

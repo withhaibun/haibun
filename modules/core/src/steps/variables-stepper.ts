@@ -55,14 +55,14 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		},
 		composeAs: {
 			gwta: 'compose {what} as {domain} with {template}',
-			handlesUndefined: ['what'],
+			handlesUndefined: ['what', 'template'],
 			precludes: [`${VariablesStepper.name}.compose`],
 			action: ({ domain }: { domain: string }, featureStep: TFeatureStep) => {
 				const { term } = featureStep.action.stepValuesMap.what;
 				const templateVal = featureStep.action.stepValuesMap.template;
 				if (!templateVal?.term) return actionNotOK('template not provided');
 
-				const result = this.interpolateTemplate(templateVal.term);
+				const result = this.interpolateTemplate(templateVal.term, featureStep);
 				if (result.error) return actionNotOK(result.error);
 
 				return trySetVariable(this.getWorld().shared, { term: String(term), value: result.value, domain, origin: Origin.var }, provenanceFromFeatureStep(featureStep));
@@ -70,13 +70,13 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		},
 		compose: {
 			gwta: 'compose {what} with {template}',
-			handlesUndefined: ['what'],
+			handlesUndefined: ['what', 'template'],
 			action: (_: TStepArgs, featureStep: TFeatureStep) => {
 				const { term } = featureStep.action.stepValuesMap.what;
 				const templateVal = featureStep.action.stepValuesMap.template;
 				if (!templateVal?.term) return actionNotOK('template not provided');
 
-				const result = this.interpolateTemplate(templateVal.term);
+				const result = this.interpolateTemplate(templateVal.term, featureStep);
 				if (result.error) return actionNotOK(result.error);
 
 				return trySetVariable(this.getWorld().shared, { term: String(term), value: result.value, domain: DOMAIN_STRING, origin: Origin.var }, provenanceFromFeatureStep(featureStep));
@@ -84,9 +84,13 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		},
 		increment: {
 			gwta: 'increment {what}',
+			handlesUndefined: ['what'],
 			action: (_: TStepArgs, featureStep: TFeatureStep) => {
-				const { term, domain } = featureStep.action.stepValuesMap.what;
-				const resolved = this.getWorld().shared.resolveVariable({ term, origin: Origin.var, domain });
+				const { term: rawTerm, domain } = featureStep.action.stepValuesMap.what;
+				const interpolated = this.interpolateTemplate(rawTerm, featureStep);
+				if (interpolated.error) return actionNotOK(interpolated.error);
+				const term = interpolated.value!;
+				const resolved = this.getWorld().shared.resolveVariable({ term, origin: Origin.var, domain }, featureStep);
 				const presentVal = resolved.value;
 				const effectiveDomain = resolved.domain;
 
@@ -152,20 +156,23 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		},
 		set: {
 			gwta: 'set( empty)? {what: string} to {value: string}',
-			handlesUndefined: ['what'],
+			handlesUndefined: ['what', 'value'],
 			precludes: ['Haibun.prose'],
 			action: (args: TStepArgs, featureStep: TFeatureStep) => {
-				const { term, domain, origin } = featureStep.action.stepValuesMap.what;
-				const valMap = featureStep.action.stepValuesMap.value;
+				const { term: rawTerm, domain, origin } = featureStep.action.stepValuesMap.what;
+				const parsedValue = this.getWorld().shared.resolveVariable(featureStep.action.stepValuesMap.value, featureStep);
+				if (parsedValue.value === undefined) return actionNotOK(`Variable ${featureStep.action.stepValuesMap.value.term} not found`);
+				const resolved = { value: String(parsedValue.value) };
 
-				const resolved = resolveValueOrLiteral(valMap, args.value as string | undefined);
-				if (resolved.error) return actionNotOK(resolved.error);
+				const interpolated = this.interpolateTemplate(rawTerm, featureStep);
+				if (interpolated.error) return actionNotOK(interpolated.error);
+				const term = interpolated.value!;
 
 				const skip = shouldSkipEmpty(featureStep, term, this.getWorld().shared);
 				if (skip) return skip;
 
 				// Inherit domain from existing variable if not explicitly specified
-				const existing = this.getWorld().shared.resolveVariable({ term, origin: Origin.var });
+				const existing = this.getWorld().shared.resolveVariable({ term, origin: Origin.var }, featureStep);
 				const effectiveDomain = (domain === DOMAIN_STRING && existing?.domain) ? existing.domain : (domain || DOMAIN_STRING);
 
 				const result = trySetVariable(this.getWorld().shared, { term, value: resolved.value, domain: effectiveDomain, origin }, provenanceFromFeatureStep(featureStep));
@@ -182,15 +189,18 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		},
 		setAs: {
 			gwta: 'set( empty)? {what} as {domain} to {value}',
-			handlesUndefined: ['what', 'domain'],
+			handlesUndefined: ['what', 'domain', 'value'],
 			precludes: [`${VariablesStepper.name}.set`],
 			action: ({ value, domain }: { value: string, domain: string }, featureStep: TFeatureStep) => {
 				const readonly = !!featureStep.in.match(/ as read-only /);
-				const { term, origin } = featureStep.action.stepValuesMap.what;
-				const valMap = featureStep.action.stepValuesMap.value;
+				const { term: rawTerm, origin } = featureStep.action.stepValuesMap.what;
+				const parsedValue = this.getWorld().shared.resolveVariable(featureStep.action.stepValuesMap.value, featureStep);
+				if (parsedValue.value === undefined) return actionNotOK(`Variable ${featureStep.action.stepValuesMap.value.term} not found`);
+				const resolved = { value: String(parsedValue.value) };
 
-				const resolved = resolveValueOrLiteral(valMap, value);
-				if (resolved.error) return actionNotOK(resolved.error);
+				const interpolated = this.interpolateTemplate(rawTerm, featureStep);
+				if (interpolated.error) return actionNotOK(interpolated.error);
+				const term = interpolated.value!;
 
 				const skip = shouldSkipEmpty(featureStep, term, this.getWorld().shared);
 				if (skip) return skip;
@@ -246,19 +256,25 @@ class VariablesStepper extends AStepper implements IHasCycles {
 
 		is: {
 			gwta: 'variable {what} is {value}',
-			handlesUndefined: ['what'],
-			action: ({ what, value }: { what: string, value: string }, featureStep: TFeatureStep) => {
-				void what;
-				let { term } = featureStep.action.stepValuesMap.what;
-				const resolved = this.getWorld().shared.resolveVariable({ term, origin: Origin.defined });
+			handlesUndefined: ['what', 'value'],
+			action: (args: TStepArgs, featureStep: TFeatureStep) => {
+				const { term: rawTerm } = featureStep.action.stepValuesMap.what;
+				const interpolated = this.interpolateTemplate(rawTerm, featureStep);
+				if (interpolated.error) return actionNotOK(interpolated.error);
+				const term = interpolated.value!;
+
+				const resolved = this.getWorld().shared.resolveVariable({ term, origin: Origin.defined }, featureStep);
 				if (resolved.value === undefined) {
 					return actionNotOK(`${term} is not set`);
 				}
-				const storedVal = resolved.value; // Already coerced by resolveVariable
+				const storedVal = resolved.value;
 
-				// Coerce comparison value using the same domain
+				const parsedValue = this.getWorld().shared.resolveVariable(featureStep.action.stepValuesMap.value, featureStep);
+				if (parsedValue.value === undefined) return actionNotOK(`Variable ${featureStep.action.stepValuesMap.value.term} not found`);
+				const value = String(parsedValue.value);
+
 				const domainKey = normalizeDomainKey(resolved.domain);
-				const compareVal = this.getWorld().domains[domainKey].coerce({ term: '_cmp', value, domain: domainKey, origin: Origin.quoted });
+				const compareVal = this.getWorld().domains[domainKey].coerce({ term: '_cmp', value, domain: domainKey, origin: Origin.quoted }, featureStep, this.steppers);
 
 				return JSON.stringify(storedVal) === JSON.stringify(compareVal) ? OK : actionNotOK(`${term} is ${JSON.stringify(storedVal)}, not ${JSON.stringify(compareVal)}`);
 			}
@@ -285,9 +301,8 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			gwta: 'variable {what} exists',
 			handlesUndefined: ['what'],
 			action: ({ what }: TStepArgs, featureStep: TFeatureStep) => {
-				const term = getStepTerm(featureStep, 'what');
-				const resolved = this.getWorld().shared.resolveVariable({ term, origin: Origin.defined });
-
+				const term = (getStepTerm(featureStep, 'what') ?? what) as string;
+				const resolved = this.getWorld().shared.resolveVariable({ term, origin: Origin.defined }, featureStep);
 				return resolved && (resolved.origin === Origin.var || resolved.origin === Origin.env) ? OK : actionNotOK(`${what} not set`);
 			}
 		},
@@ -295,8 +310,13 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			gwta: 'show var {what}',
 			handlesUndefined: ['what'],
 			action: (_: TStepArgs, featureStep: TFeatureStep) => {
-				const term = getStepTerm(featureStep, 'what');
-				const stepValue = this.getWorld().shared.resolveVariable({ term, origin: Origin.defined });
+				const rawTerm = getStepTerm(featureStep, 'what');
+				if (rawTerm === undefined) return actionNotOK('variable not provided');
+				const interpolated = this.interpolateTemplate(rawTerm, featureStep);
+				if (interpolated.error) return actionNotOK(interpolated.error);
+				const term = interpolated.value!;
+
+				const stepValue = this.getWorld().shared.resolveVariable({ term, origin: Origin.defined }, featureStep);
 
 				if (stepValue.value === undefined) {
 					this.getWorld().logger.info(`is undefined`);
@@ -361,10 +381,78 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				return OK;
 			}
 		},
+		// Membership check: value is in domain (enum or member values)
+		// Handles quoted ("value"), braced ({var}), or bare (value) forms
+		// fallback: true lets quantifiers take precedence when both match
+		isIn: {
+			match: /^(.+) is in ([a-zA-Z][a-zA-Z0-9 ]*)$/,
+			fallback: true,
+			action: (_: unknown, featureStep: TFeatureStep) => {
+				const matchResult = featureStep.in.match(/^(.+) is in ([a-zA-Z][a-zA-Z0-9 ]*)$/);
+				if (!matchResult) {
+					return actionNotOK('Invalid "is in" syntax');
+				}
+
+				let valueTerm = matchResult[1].trim();
+				// Strip quotes if present
+				if ((valueTerm.startsWith('"') && valueTerm.endsWith('"')) ||
+					(valueTerm.startsWith('`') && valueTerm.endsWith('`'))) {
+					valueTerm = valueTerm.slice(1, -1);
+				}
+				// Strip braces if present and resolve variable
+				if (valueTerm.startsWith('{') && valueTerm.endsWith('}')) {
+					valueTerm = valueTerm.slice(1, -1);
+				}
+				// Try to resolve as variable, fall back to literal
+				const resolved = this.getWorld().shared.resolveVariable({ term: valueTerm, origin: Origin.defined });
+				const actualValue = resolved?.value !== undefined ? String(resolved.value) : valueTerm;
+
+				const domainName = matchResult[2].trim();
+				const domainKey = normalizeDomainKey(domainName);
+				const domainDef = this.getWorld().domains[domainKey];
+
+				if (!domainDef) {
+					return actionNotOK(`Domain "${domainName}" is not defined`);
+				}
+
+				// Check enum values first
+				if (Array.isArray(domainDef.values) && domainDef.values.includes(actualValue)) {
+					return OK;
+				}
+
+				// Check member values
+				const allVars = this.getWorld().shared.all();
+				const memberValues = Object.values(allVars)
+					.filter(v => v.domain && normalizeDomainKey(v.domain) === domainKey)
+					.map(v => String(v.value));
+
+				return memberValues.includes(actualValue)
+					? OK
+					: actionNotOK(`"${actualValue}" is not in ${domainName}`);
+			}
+		},
+		// Starts with: predicate for prefix checking
+		// Starts with literal 'that' for unambiguous parsing in compositions
+		// Usage: that {page} starts with {prefix}
+		startsWith: {
+			gwta: 'that {value} starts with {prefix}',
+			action: ({ value, prefix }: { value: string; prefix: string }) => {
+				const actualValue = String(value);
+				const actualPrefix = String(prefix);
+
+				return actualValue.startsWith(actualPrefix)
+					? OK
+					: actionNotOK(`"${actualValue}" does not start with "${actualPrefix}"`);
+			}
+		},
 	} satisfies TStepperSteps;
 
-	compareValues(featureStep: TFeatureStep, term: string, value: string, operator: string) {
-		const stored = this.getWorld().shared.all()[term];
+	compareValues(featureStep: TFeatureStep, rawTerm: string, value: string, operator: string) {
+		const interpolated = this.interpolateTemplate(rawTerm, featureStep);
+		if (interpolated.error) return actionNotOK(interpolated.error);
+		const term = interpolated.value!;
+
+		const stored = this.getWorld().shared.resolveVariable({ term, origin: Origin.var }, featureStep);
 		if (!stored) {
 			return actionNotOK(`${term} is not set`);
 		}
@@ -375,7 +463,12 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		}
 		const left = domainEntry.coerce({ ...stored, domain: domainKey }, featureStep, this.steppers);
 
-		let rightValue = value ?? getStepTerm(featureStep, 'value');
+		let rightValue = value;
+		if (rightValue === undefined) {
+			const parsed = this.getWorld().shared.resolveVariable(featureStep.action.stepValuesMap.value, featureStep);
+			if (parsed.value === undefined) return actionNotOK(`Variable ${featureStep.action.stepValuesMap.value.term} not found`);
+			rightValue = String(parsed.value);
+		}
 
 		if (typeof rightValue === 'string' && rightValue.startsWith('"') && rightValue.endsWith('"')) {
 			rightValue = rightValue.slice(1, -1);
@@ -396,26 +489,28 @@ class VariablesStepper extends AStepper implements IHasCycles {
 	 * Interpolates a template string by replacing {varName} placeholders with variable values.
 	 * Returns the interpolated string or an error if a variable is not found.
 	 */
-	private interpolateTemplate(template: string): { value?: string; error?: string } {
+	private interpolateTemplate(template: string, featureStep?: TFeatureStep): { value?: string; error?: string } {
 		const placeholderRegex = /\{([^}]+)\}/g;
 		let result = template;
 		let match: RegExpExecArray | null;
-		const errors: string[] = [];
 
 		while ((match = placeholderRegex.exec(template)) !== null) {
 			const varName = match[1];
-			const resolved = this.getWorld().shared.resolveVariable({ term: varName, origin: Origin.defined });
+			// Origin.defined checks runtimeArgs -> env -> literal fallback?
+			// We want strict. If resolves to literal, that's fine if user quoted it?
+			// But {unknown} resolves to undefined if not found?
+			// In feature-variables.ts, resolveVariable defaults to input.term if isLiteralValue.
+			// {unknown} is NOT literal value (braces).
+			// So resolveVariable returns undefined.
+
+			const resolved = this.getWorld().shared.resolveVariable({ term: varName, origin: Origin.defined }, featureStep);
 
 			if (resolved.value === undefined) {
-				errors.push(`Variable "${varName}" not found`);
-			} else {
-				result = result.replace(match[0], String(resolved.value));
+				return { error: `Variable ${varName} not found` };
 			}
+			result = result.replace(match[0], String(resolved.value));
 		}
 
-		if (errors.length) {
-			return { error: errors.join(', ') };
-		}
 		return { value: result };
 	}
 

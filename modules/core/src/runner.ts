@@ -1,6 +1,6 @@
 import { TWorld, TExecutorResult, CStepper } from './lib/defs.js';
 import { TAnyFixme } from './lib/fixme.js';
-import { AStepper } from './lib/astepper.js';
+import { AStepper, StepperKinds } from './lib/astepper.js';
 import { expand } from './lib/features.js';
 import { verifyRequiredOptions, verifyExtraOptions, createSteppers, setStepperWorldsAndDomains } from './lib/util/index.js';
 import { getSteppers } from './lib/util/workspace-lib.js';
@@ -57,7 +57,7 @@ export class Runner {
 			await setStepperWorldsAndDomains(this.steppers, this.world);
 
 			// Auto-suppress NDJSON output if any monitor stepper is configured
-			if (this.steppers.some(s => s.kind === 'monitor') && this.world.eventLogger) {
+			if (this.steppers.some(s => s.kind === StepperKinds.MONITOR) && this.world.eventLogger) {
 				this.world.eventLogger.suppressConsole = true;
 			}
 

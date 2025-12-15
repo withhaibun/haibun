@@ -206,13 +206,13 @@ describe('backgrounds', () => {
 });
 describe('any of', () => {
   it('any of passes if one passes', async () => {
-    const feature = { path: '/features/test.feature', content: 'any of "passes, fails"' };
+    const feature = { path: '/features/test.feature', content: 'any of fails, passes' };
     const result = await passWithDefaults([feature], [LogicStepper, TestSteps, VariablesSteppers]);
     expect(result.ok).toBe(true);
   });
 
   it('any of fails if all fail', async () => {
-    const feature = { path: '/features/test.feature', content: 'any of "fails, fails"' };
+    const feature = { path: '/features/test.feature', content: 'any of fails, fails' };
     const result = await failWithDefaults([feature], [LogicStepper, TestSteps, VariablesSteppers]);
     expect(result.ok).toBe(false);
   });

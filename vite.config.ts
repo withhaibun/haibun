@@ -12,6 +12,19 @@ interface Config extends ViteUserConfig {
 const config: Config = {
 	base: './',
 	publicDir: false,
+	// Suppress some warnings from legacy monitor that is being deprecated
+	logLevel: 'warn',
+	resolve: {
+		alias: {
+			// Redirect core imports to browser-safe monitor sources during browser build
+			'@haibun/core/lib/interfaces/logger.js': path.resolve(__dirname, 'modules/core/src/monitor/monitor-types.ts'),
+			'@haibun/core/lib/prompter.js': path.resolve(__dirname, 'modules/core/src/monitor/monitor-types.ts'),
+			'@haibun/core/lib/fixme.js': path.resolve(__dirname, 'modules/core/src/monitor/browser-stubs.ts'),
+			'@haibun/core/lib/defs.js': path.resolve(__dirname, 'modules/core/src/monitor/browser-stubs.ts'),
+			'@haibun/core/lib/util/index.js': path.resolve(__dirname, 'modules/core/src/monitor/browser-stubs.ts'),
+			'@haibun/core/monitor': path.resolve(__dirname, 'modules/core/src/monitor/index.ts'),
+		},
+	},
 	build: {
 		outDir: 'modules/web-playwright/web/',
 		// sourcemap: true,
@@ -20,6 +33,7 @@ const config: Config = {
 			input: ['modules/web-playwright/resources/monitor.in.html'],
 		},
 	},
+
 	plugins: [
 		viteSingleFile({
 			useRecommendedBuildConfig: true,

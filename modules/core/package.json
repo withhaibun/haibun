@@ -5,7 +5,17 @@
   "description": "",
   "author": "",
   "exports": {
-    "./*": "./build/*"
+    ".": "./build/index.js",
+    "./*": "./build/*",
+    "./monitor": {
+      "browser": "./build/monitor/index.js",
+      "default": "./build/monitor/index.js"
+    },
+    "./monitor/*": {
+      "browser": "./build/monitor/*",
+      "default": "./build/monitor/*"
+    },
+    "./schema/*": "./build/schema/*"
   },
   "main": "./build/index.js",
   "files": [

@@ -14,12 +14,18 @@ export class FlowRunner {
 	async runStatement(statement: string, options: { args?: Record<string, string>, intent?: ExecutionIntent, parentStep?: TFeatureStep, seqPath?: TSeqPath } = {}): Promise<FlowSignal> {
 		const { intent = { mode: 'authoritative' } } = options;
 
+		// Merge parent runtimeArgs with current args (current takes precedence)
+		// This enables nested quantifiers: outer vars are visible to inner statements
+		const allArgs = { ...options.parentStep?.runtimeArgs, ...options.args };
+
+		// Interpolate {varName} patterns using merged args
 		let statementWithArgs = statement;
-		if (options.args) {
-			for (const [key, value] of Object.entries(options.args)) {
-				statementWithArgs = statementWithArgs.replace(new RegExp(`{${key}}`, 'g'), value);
+		if (Object.keys(allArgs).length > 0) {
+			for (const [key, value] of Object.entries(allArgs)) {
+				statementWithArgs = statementWithArgs.replace(new RegExp(`\\{${key}\\}`, 'g'), value);
 			}
 		}
+
 
 		let action;
 		try {
@@ -40,13 +46,17 @@ export class FlowRunner {
 			}
 		}
 
+		// Merge parent args with current args (current takes precedence)
+		const mergedArgs = { ...options.parentStep?.runtimeArgs, ...options.args };
+
 		const featureStep: TFeatureStep = {
 			path: options.parentStep?.path || this.world.runtime.feature || 'unknown',
 			in: statementWithArgs,
 			seqPath,
 			action,
 			intent,
-			isSubStep: !!options.parentStep
+			isSubStep: !!options.parentStep,
+			runtimeArgs: Object.keys(mergedArgs).length > 0 ? mergedArgs : undefined
 		};
 
 		let result;
@@ -85,7 +95,11 @@ export class FlowRunner {
 		let lastResult: FlowSignal | undefined;
 
 		for (const step of steps) {
-			let mappedStep: TFeatureStep = { ...step, intent };
+			let mappedStep: TFeatureStep = { 
+				...step, 
+				intent,
+				runtimeArgs: { ...parentStep?.runtimeArgs, ...step.runtimeArgs }
+			};
 			if (parentStep) {
 				// For nested steps, we append to the parent's seqPath.
 				// We use incSeqPath to ensure we get a unique path based on what has already executed.

@@ -1,9 +1,8 @@
 import { AStepper, TStepperSteps } from '../lib/astepper.js';
-import { OK, TFeatureStep, TWorld, TActionResult } from '../lib/defs.js';
+import { OK, TFeatureStep, TWorld, TActionResult, Origin } from '../lib/defs.js';
 import { actionNotOK, sleep } from '../lib/util/index.js';
 import { FlowRunner } from '../lib/core/flow-runner.js';
-import { DOMAIN_STATEMENT, normalizeDomainKey } from '../lib/domain-types.js';
-
+import { DOMAIN_STATEMENT } from '../lib/domain-types.js';
 
 export default class LogicStepper extends AStepper {
   steppers: AStepper[] = [];
@@ -104,61 +103,58 @@ export default class LogicStepper extends AStepper {
 
     // EXISTENTIAL: Exists x in D such that P(x)
     some: {
-      match: /^some (.*) in (.*?) is (.*)/,
+      match: /^some (.*?) in (.*?) is (.*)/,
       action: async (_: unknown, featureStep: TFeatureStep): Promise<TActionResult> => {
-        const match = featureStep.in.match(/^some (.*) in (.*?) is (.*)/);
+        const match = featureStep.in.match(/^some (.*?) in (.*?) is (.*)/);
         if (!match) return actionNotOK('some: invalid syntax');
-        const [, variable, domain, checkStr] = match;
+        const [, what, domain, statementStr] = match;
 
-        if (!domain) {
-          return actionNotOK('Missing domain in some step');
-        }
-        const domainKey = normalizeDomainKey(domain);
-        const domainDef = this.getWorld().domains[domainKey];
+        const { values, error } = this.getWorld().shared.getDomainValues(domain);
+        if (error) return actionNotOK(error);
 
-        if (!domainDef || !Array.isArray(domainDef.values)) {
-          return actionNotOK(`Domain "${domain}" is not an enumerable set`);
-        }
+        if (values.length === 0) return actionNotOK(`No members in domain "${domain}" to check`);
 
-        let found = false;
         const mode = 'speculative';
+        let found = false;
 
-        for (const val of domainDef.values) {
-          const argVal = typeof val === 'string' ? `"${val}"` : String(val);
-          const res = await this.runner.runStatements([checkStr], { args: { [variable]: argVal }, intent: { mode }, parentStep: featureStep });
+        for (const val of values) {
+          this.getWorld().shared.set(
+            { term: what, value: String(val), domain: 'string', origin: Origin.var },
+            { in: featureStep.in, seq: featureStep.seqPath, when: 'quantifier' }
+          );
+
+          const res = await this.runner.runStatements([statementStr], { intent: { mode }, parentStep: featureStep });
           if (res.kind === 'ok') {
             found = true;
             break;
           }
         }
-
-        return found ? OK : actionNotOK(`No ${variable} in ${domain} satisfied the condition`);
+        return found ? OK : actionNotOK(`No ${what} in ${domain} satisfied the condition`);
       }
     },
 
     // UNIVERSAL: For All x in D, P(x)
     every: {
-      match: /^every (.*) in (.*?) is (.*)/,
+      match: /^every (.*?) in (.*?) is (.*)/,
       action: async (_: unknown, featureStep: TFeatureStep): Promise<TActionResult> => {
-        const match = featureStep.in.match(/^every (.*) in (.*?) is (.*)/);
+        const match = featureStep.in.match(/^every (.*?) in (.*?) is (.*)/);
         if (!match) return actionNotOK('every: invalid syntax');
-        const [, variable, domain, checkStr] = match;
+        const [, what, domain, statementStr] = match;
 
-        if (!domain) {
-          return actionNotOK('Missing domain in every step');
-        }
-        const domainKey = normalizeDomainKey(domain);
-        const domainDef = this.getWorld().domains[domainKey];
+        const { values, error } = this.getWorld().shared.getDomainValues(domain);
+        if (error) return actionNotOK(error);
 
-        if (!domainDef || !Array.isArray(domainDef.values)) {
-          return actionNotOK(`Domain "${domain}" is not an enumerable set`);
-        }
+        if (values.length === 0) return OK;
 
         const mode = featureStep.intent?.mode === 'speculative' ? 'speculative' : 'authoritative';
 
-        for (const val of domainDef.values) {
-          const argVal = String(val);
-          const res = await this.runner.runStatements([checkStr], { args: { [variable]: argVal }, intent: { mode }, parentStep: featureStep });
+        for (const val of values) {
+          this.getWorld().shared.set(
+            { term: what, value: String(val), domain: 'string', origin: Origin.var },
+            { in: featureStep.in, seq: featureStep.seqPath, when: 'quantifier' }
+          );
+
+          const res = await this.runner.runStatements([statementStr], { intent: { mode }, parentStep: featureStep });
           if (res.kind !== 'ok') {
             return actionNotOK(`Universal check failed for value "${val}": ${res.message}`);
           }
@@ -167,4 +163,5 @@ export default class LogicStepper extends AStepper {
       }
     },
   } satisfies TStepperSteps;
+
 }

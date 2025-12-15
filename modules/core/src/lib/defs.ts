@@ -113,6 +113,8 @@ export type TFeatureStep = {
 	action: TStepAction;
 	isSubStep?: boolean;
 	intent?: ExecutionIntent;
+	/** Runtime args for variable binding in nested quantifier calls */
+	runtimeArgs?: Record<string, string>;
 };
 
 export type TSeqPath = number[];

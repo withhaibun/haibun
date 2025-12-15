@@ -4,7 +4,7 @@
 
 import React from 'react';
 import { render, Text, Box, Static } from 'ink';
-import { AStepper, IHasCycles } from '@haibun/core/lib/astepper.js';
+import { AStepper, IHasCycles, StepperKinds } from '@haibun/core/lib/astepper.js';
 import { THaibunEvent } from '@haibun/core/lib/EventLogger.js';
 import { EventFormatter } from '@haibun/core/monitor/index.js';
 
@@ -36,7 +36,7 @@ const MonitorApp = ({ lines, running, finished }: {
 );
 
 export default class TuiMonitorStepper extends AStepper implements IHasCycles {
-  kind = 'monitor' as const;
+  kind = StepperKinds.MONITOR;
   steps = {};
   
   private lines: string[] = [];

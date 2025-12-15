@@ -13,10 +13,10 @@ type ViewMode = 'log' | 'raw' | 'document';
 function App() {
 
   const initialState = getInitialState();
-  const [events, setEvents] = useState<THaibunEvent[]>(() => initialState || []);
+  const [events, setEvents] = useState<THaibunEvent[]>(() => initialState?.events as THaibunEvent[] || []);
   const [connected, setConnected] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [startTime, setStartTime] = useState<number | null>(null);
+  const [startTime, setStartTime] = useState<number | null>(() => initialState?.startTime ?? null);
   const [maxTime, setMaxTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   
@@ -265,7 +265,14 @@ function App() {
     <div className="min-h-screen bg-background text-foreground pb-20">
       <header className="fixed top-0 left-0 right-0 h-14 border-b bg-background/95 backdrop-blur z-40 flex items-center justify-between px-4">
         <div className="flex items-center gap-2">
-            <h1 className="font-bold hidden md:block">Haibun Monitor</h1>
+            <div className="flex flex-col">
+                <h1 className="font-bold hidden md:block">Haibun Monitor</h1>
+                {startTime && (
+                    <span className="text-[10px] text-muted-foreground hidden md:block">
+                        {new Date(startTime).toISOString()}
+                    </span>
+                )}
+            </div>
             <Badge variant={connected ? "default" : "destructive"}>
                 {connected ? 'Live' : 'Offline'}
             </Badge>

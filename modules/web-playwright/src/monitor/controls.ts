@@ -1,5 +1,7 @@
-import { TPrompt } from "@haibun/core/lib/prompter.js";
-import { LOG_LEVELS, LOG_LEVEL_TRACE } from '@haibun/core/lib/interfaces/logger.js';
+// Browser-safe TPrompt type (mirrors @haibun/core/lib/prompter.ts without Node.js deps)
+type TPrompt = { id: string; message: string; context?: unknown, options?: string[] };
+import { LOG_LEVELS, LOG_LEVEL_TRACE } from '@haibun/core/monitor';
+
 
 declare global {
 	interface Window {

@@ -15,4 +15,6 @@ page is accessible accepting serious 9 and moderate 9
 
 The settings allow for this number of issues without failing the test. The test should pass because the axe tool identified nine or fewer serious accessibility issues.
 
+take a screenshot
+
 This threshold ensures that while some accessibility issues may be present, they are within an acceptable limit.

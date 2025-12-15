@@ -1,6 +1,7 @@
-import { TLogLevel, TLogArgs, EExecutionMessageType, TMessageContext } from '@haibun/core/lib/interfaces/logger.js';
+import { TLogLevel, TLogArgs, EExecutionMessageType, TMessageContext } from '@haibun/core/monitor';
 import { LogEntry } from './messages.js';
 import { setupControls } from './controls.js';
+
 
 export type TLogEntry = {
 	level: TLogLevel;
@@ -90,14 +91,14 @@ export function renderLogEntry(logEntryData: TLogEntry) {
 
 	// Update context header
 	if (messageContext?.incident === EExecutionMessageType.FEATURE_START) {
-		const feature = messageContext.incidentDetails.feature as { name?: string, path?: string };
+		const feature = (messageContext.incidentDetails as any).feature as { name?: string, path?: string };
 		const text = `Feature: ${feature.name || feature.path}`;
 		logEntryElement.dataset.contextText = text;
 		const contextEl = document.getElementById('haibun-current-context');
 		if (contextEl) contextEl.textContent = text;
 	} else if (messageContext?.incident === EExecutionMessageType.SCENARIO_START) {
 		const contextEl = document.getElementById('haibun-current-context');
-		const scenarioTitle = messageContext.incidentDetails.scenarioTitle || `Scenario ${messageContext.incidentDetails.currentScenario}`;
+		const scenarioTitle = (messageContext.incidentDetails as any).scenarioTitle || `Scenario ${(messageContext.incidentDetails as any).currentScenario}`;
 		logEntryElement.dataset.contextText = scenarioTitle;
 		if (contextEl) {
 			const current = contextEl.textContent || '';

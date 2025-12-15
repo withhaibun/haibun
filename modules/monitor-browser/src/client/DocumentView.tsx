@@ -98,7 +98,6 @@ export function DocumentView({ events }: DocumentViewProps) {
                      continue;
                 }
             }
-            // Logs disabled in doc view
         }
         return md;
     }, [events]);
@@ -124,20 +123,12 @@ export function DocumentView({ events }: DocumentViewProps) {
                   const isNested = domNode.attribs['data-nested'] === 'true';
                   const isInstigator = domNode.attribs['data-instigator'] === 'true';
                   const showSymbol = domNode.attribs['data-show-symbol'] === 'true';
-                  const id = domNode.attribs['data-id'] || '';
-                  const time = domNode.attribs['data-time'] || '';
-                  const action = domNode.attribs['data-action'] || '';
 
                   return (
                       <div className={domNode.attribs.class + " flex items-stretch break-all"}>
-                           {/* Left Column: Time & Level */}
-                           <div className="w-16 flex flex-col items-end shrink-0 text-[10px] text-slate-700 dark:text-slate-400 font-medium leading-tight mr-2 self-stretch py-1">
-                                <span>{time}s</span>
-                                <span className="text-[9px] opacity-70 text-slate-500">step</span>
-                           </div>
                            <span className="mx-1 text-slate-800 dark:text-slate-600 self-start mt-1">｜</span>
 
-                           {/* Middle: Content + Rail */}
+                           {/* Content + Rail */}
                            <div className="flex-1 flex items-stretch">
                                {/* Indentation Spacer */}
                                <div style={{ width: `${Math.max(0, depth - 4) * 0.75}rem` }} className="shrink-0" />
@@ -166,11 +157,6 @@ export function DocumentView({ events }: DocumentViewProps) {
                                   {domToReact(domNode.children as DOMNode[])}
                               </div>
                            </div>
-
-                             {/* Right Column: ID */}
-                            <div className="w-24 shrink-0 text-[10px] text-slate-500 font-mono text-right ml-2 py-1 select-all hover:text-slate-300">
-                                <div title={id}>{id}</div>
-                            </div>
                       </div>
                   );
               }
