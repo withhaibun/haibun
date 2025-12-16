@@ -1,7 +1,7 @@
 {
   "name": "@haibun/core",
   "type": "module",
-  "version": "3.0.5",
+  "version": "3.1.0",
   "description": "",
   "author": "",
   "exports": {
@@ -18,9 +18,7 @@
     "./schema/*": "./build/schema/*"
   },
   "main": "./build/index.js",
-  "files": [
-    "build/**"
-  ],
+  "files": ["build/**"],
   "scripts": {
     "format": "prettier --write \"src/**/*.ts\" \"src/**/*.js\"",
     "lint": "eslint -c .eslintrc.json --ext .ts,.js src",
@@ -33,7 +31,5 @@
     "preversion": "npm run lint"
   },
   "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5",
-  "dependencies": {
-    "zod": "^4.1.13"
-  }
+  "dependencies": { "zod": "^4.1.13" }
 }

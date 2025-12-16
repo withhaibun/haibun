@@ -1,7 +1,7 @@
 {
   "name": "@haibun/web-accessibility-axe",
   "type": "module",
-  "version": "3.0.5",
+  "version": "3.1.0",
   "description": "",
   "main": "./build/a11y-axe-stepper.js",
   "exports": { ".": "./build/a11y-axe-stepper.js", "./*": "./build/*" },
@@ -18,14 +18,14 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@haibun/core": "3.0.5",
-    "@haibun/domain-storage": "3.0.5",
+    "@haibun/core": "3.1.0",
+    "@haibun/domain-storage": "3.1.0",
     "axe-html-reporter": "^2.2.11",
     "playwright": "^1.56.1"
   },
   "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5",
   "devDependencies": {
-    "@haibun/storage-mem": "3.0.5",
+    "@haibun/storage-mem": "3.1.0",
     "@types/jsdom": "^27.0.0",
     "jsdom": "^26.1.0"
   }
