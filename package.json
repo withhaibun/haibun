@@ -38,5 +38,5 @@
     "depcruise": "depcruise -c .dependency-cruiser.cjs -T dot modules | dot -T svg | depcruise-wrap-stream-in-html > dependency-graph.html",
     "preversion": "npm run test"
   },
-  "version": "3.1.1"
+  "version": "3.1.3"
 }
