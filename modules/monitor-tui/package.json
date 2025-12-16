@@ -1,6 +1,6 @@
 {
   "name": "@haibun/monitor-tui",
-  "version": "3.1.0",
+  "version": "3.1.1",
   "description": "Ink-based TUI monitor stepper for Haibun",
   "main": "build/index.js",
   "type": "module",
@@ -10,7 +10,7 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@haibun/core": "3.1.0",
+    "@haibun/core": "3.1.1",
     "ink": "^6.5.1",
     "react": "^19.0.0",
     "zod": "^4.1.13"
