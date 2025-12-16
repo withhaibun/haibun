@@ -1,6 +1,6 @@
 {
   "name": "@haibun/monitor-browser",
-  "version": "3.1.0",
+  "version": "3.1.1",
   "description": "React-based browser monitor for Haibun with shadcn/ui",
   "main": "build/index.js",
   "type": "module",
@@ -11,8 +11,8 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@haibun/core": "3.1.0",
-    "@haibun/domain-storage": "3.1.0",
+    "@haibun/core": "3.1.1",
+    "@haibun/domain-storage": "3.1.1",
     "@radix-ui/react-label": "^2.1.8",
     "@radix-ui/react-select": "^2.2.6",
     "@radix-ui/react-slider": "^1.1.2",
