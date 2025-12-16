@@ -52,19 +52,19 @@ export function MermaidArtifact({ artifact }: MermaidArtifactProps) {
       <div className="flex gap-1 mb-2">
         <button
           onClick={zoomOut}
-          className="px-2 py-0.5 text-xs border border-gray-300 rounded bg-gray-50 hover:bg-gray-100"
+          className="px-2 py-0.5 text-xs border border-slate-300 rounded bg-white text-slate-700 hover:bg-slate-100 font-medium"
         >
           −
         </button>
         <button
           onClick={resetZoom}
-          className="px-2 py-0.5 text-xs border border-gray-300 rounded bg-gray-50 hover:bg-gray-100"
+          className="px-2 py-0.5 text-xs border border-slate-300 rounded bg-white text-slate-700 hover:bg-slate-100 font-medium"
         >
           {Math.round(scale * 100)}%
         </button>
         <button
           onClick={zoomIn}
-          className="px-2 py-0.5 text-xs border border-gray-300 rounded bg-gray-50 hover:bg-gray-100"
+          className="px-2 py-0.5 text-xs border border-slate-300 rounded bg-white text-slate-700 hover:bg-slate-100 font-medium"
         >
           +
         </button>

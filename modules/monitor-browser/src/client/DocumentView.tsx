@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import MarkdownIt from 'markdown-it';
 import DOMPurify from 'dompurify';
 import parse, { DOMNode, Element, domToReact } from 'html-react-parser';
@@ -189,10 +189,7 @@ export function DocumentView({ events }: DocumentViewProps) {
                    return (
                        <div className="my-4 p-4 border rounded bg-slate-50">
                            {stepArtifacts.map((artifact, idx) => (
-                               <div key={`${stepId}-artifact-${idx}`} className="mb-4 last:mb-0">
-                                   <div className="text-xs text-slate-500 mb-1">📎 {artifact.artifactType}</div>
-                                   <ArtifactRenderer artifact={artifact} />
-                               </div>
+                               <CollapsibleArtifactWrapper key={`${stepId}-artifact-${idx}`} artifact={artifact} />
                            ))}
                        </div>
                    );
@@ -248,10 +245,7 @@ export function DocumentView({ events }: DocumentViewProps) {
                           {stepArtifacts.length > 0 && (
                               <div className="ml-8 my-2 space-y-2">
                                   {stepArtifacts.map((artifact, idx) => (
-                                      <div key={`${stepId}-artifact-${idx}`} className="border border-slate-200 rounded p-2 bg-slate-50">
-                                          <div className="text-xs text-slate-500 mb-1">📎 {artifact.artifactType}</div>
-                                          <ArtifactRenderer artifact={artifact} />
-                                      </div>
+                                      <CollapsibleArtifactWrapper key={`${stepId}-artifact-${idx}`} artifact={artifact} />
                                   ))}
                               </div>
                           )}
@@ -355,3 +349,34 @@ export function DocumentView({ events }: DocumentViewProps) {
 }
 
 
+
+
+function CollapsibleArtifactWrapper({ artifact }: { artifact: TArtifactEvent }) {
+    const [isOpen, setIsOpen] = useState(true);
+    const label = artifact.artifactType || 'artifact';
+    const path = (artifact as any).path || artifact.id;
+
+    return (
+        <div className="mb-4 last:mb-0 border border-slate-200 rounded bg-white overflow-hidden shadow-sm">
+            <div 
+                className="flex items-center justify-between p-2 bg-slate-50 cursor-pointer hover:bg-slate-100 select-none border-b border-slate-100 transition-colors"
+                onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsOpen(!isOpen);
+                }}
+            >
+                <div className="text-xs font-semibold text-slate-700 flex items-center gap-2 truncate">
+                    <span className="text-slate-400 text-[10px] w-3">{isOpen ? '▼' : '▶'}</span>
+                    <span className="font-mono text-[10px] text-slate-600 border border-slate-200 px-1.5 rounded bg-slate-50">{label}</span>
+                    <span className="font-normal text-slate-400 text-[10px] truncate ml-1 font-mono" title={path}>{path}</span>
+                </div>
+            </div>
+            {isOpen && (
+                <div className="p-2 bg-white">
+                    <ArtifactRenderer artifact={artifact} />
+                </div>
+            )}
+        </div>
+    );
+}

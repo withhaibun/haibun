@@ -220,7 +220,7 @@ export function processArgs(args: string[]) {
 				stepperList = args.shift();
 			}
 			if (stepperList) {
-				withSteppers = stepperList.split(',');
+				withSteppers = withSteppers.concat(stepperList.split(',').map((s) => s.trim()));
 			}
 		} else {
 			params.push(cur);

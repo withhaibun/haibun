@@ -13,6 +13,7 @@ async function format(contents: object) {
 class Versioner {
 	localAndExtraModules: { [name: string]: string } = {};
 	private noTest = false;
+	private noInstall = true;
 	noPublish = false;
 
 	haibunPackageVersions: { [dep: string]: string } = {};
@@ -25,6 +26,9 @@ class Versioner {
 		extra.forEach((e, i) => {
 			if (e === '--notest') {
 				this.noTest = true;
+				extra.splice(i, 1);
+			} else if (e === '--noinstall') {
+				this.noInstall = true;
 				extra.splice(i, 1);
 			} else if (e === '--nopublish') {
 				this.noPublish = true;
@@ -163,6 +167,9 @@ class Versioner {
 	}
 
 	async npmInstall(name: string, location: string) {
+		if (this.noInstall) {
+			return;
+		}
 		await spawnCommand(['npm', 'install'], location).catch((e) => {
 			console.error(`npm install failed for ${name}: ${e}`);
 		});
