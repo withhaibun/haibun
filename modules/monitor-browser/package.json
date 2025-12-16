@@ -1,9 +1,13 @@
 {
   "name": "@haibun/monitor-browser",
-  "version": "3.1.1",
+  "version": "3.1.2",
   "description": "React-based browser monitor for Haibun with shadcn/ui",
   "main": "build/index.js",
   "type": "module",
+  "files": [
+    "build",
+    "dist"
+  ],
   "scripts": {
     "build": "tsc -b",
     "build:client": "vite build",
