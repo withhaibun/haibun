@@ -1,7 +1,7 @@
 {
   "name": "@haibun/domain-storage",
   "type": "module",
-  "version": "3.1.1",
+  "version": "3.1.3",
   "description": "",
   "author": "",
   "main": "index.js",
@@ -22,6 +22,6 @@
     "preversion": "npm run lint",
     "xversion": "npm run format && git add -A src"
   },
-  "dependencies": { "@haibun/core": "3.1.1" },
+  "dependencies": { "@haibun/core": "3.1.3" },
   "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5"
 }
