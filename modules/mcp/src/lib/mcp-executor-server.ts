@@ -11,7 +11,7 @@ import { constructorName } from "@haibun/core/lib/util/index.js";
 import { FlowRunner } from "@haibun/core/lib/core/flow-runner.js";
 import { HttpPrompterClient } from './http-prompter-client.js';
 
-type ToolHandlerResponse = { content?: TextContent[] };
+type ToolHandlerResponse = { content: TextContent[] };
 
 type IRemoteExecutorConfig = {
 	url: string;
@@ -70,7 +70,7 @@ export class MCPExecutorServer {
 				if (stepDef.expose === false) {
 					continue;
 				}
-				const variables: ZodRawShape = {};
+				const variables: Record<string, ReturnType<typeof z.string> | ReturnType<typeof z.number>> = {};
 				if (stepDef.gwta) {
 					const { stepValuesMap } = namedInterpolation(stepDef.gwta);
 					if (stepValuesMap) {
@@ -90,7 +90,7 @@ export class MCPExecutorServer {
 					title: (stepDef.gwta || stepDef.match?.toString() || stepDef.exact || stepName),
 				}
 				if (Object.keys(variables).length > 0) {
-					toolDescription.inputSchema = variables;
+					toolDescription.inputSchema = variables as ZodRawShape;
 				}
 
 				const toolName = `${stepperName}-${stepName}`;
