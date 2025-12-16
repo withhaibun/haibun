@@ -1,6 +1,6 @@
 {
   "name": "@haibun/monitor-otel",
-  "version": "3.1.0",
+  "version": "3.1.1",
   "description": "OpenTelemetry monitor for Haibun - exports traces and logs via OTLP",
   "main": "build/index.js",
   "type": "module",
@@ -12,7 +12,7 @@
     "docker:down": "docker-compose down"
   },
   "dependencies": {
-    "@haibun/core": "3.1.0",
+    "@haibun/core": "3.1.1",
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/exporter-logs-otlp-http": "^0.208.0",
     "@opentelemetry/exporter-trace-otlp-http": "^0.208.0",
