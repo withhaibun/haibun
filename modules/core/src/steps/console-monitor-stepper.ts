@@ -94,7 +94,8 @@ export default class ConsoleMonitorStepper extends AStepper implements IHasCycle
   }
 
   private handleArtifactEvent(event: THaibunEvent & { kind: 'artifact' }): void {
-    this.logLine('artifact', event, `📎 ${event.id} ${event.artifactType}${event.path ? ` (${event.path})` : ''}`);
+    const path = 'path' in event ? ` (${event.path})` : '';
+    this.logLine('artifact', event, `📎 ${event.id} ${event.artifactType}${path}`);
   }
 
   private handleControlEvent(event: THaibunEvent & { kind: 'control' }): void {

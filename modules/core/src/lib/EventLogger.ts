@@ -1,9 +1,24 @@
-import { THaibunEvent, LogEvent, LifecycleEvent } from '../schema/events.js';
+import { THaibunEvent, LogEvent, LifecycleEvent, TArtifactEvent, ImageArtifact, VideoArtifact, HtmlArtifact, SpeechArtifact, JsonArtifact, MermaidArtifact, HttpTraceArtifact, ResolvedFeaturesArtifact, FileArtifact } from '../schema/events.js';
 import { TFeatureStep } from './defs.js';
 import { formatCurrentSeqPath } from './util/index.js';
 
 // Re-export THaibunEvent for use in defs.ts
 export type { THaibunEvent } from '../schema/events.js';
+
+// Re-export artifact schemas for use by artifact producers
+export {
+  ImageArtifact,
+  VideoArtifact,
+  HtmlArtifact,
+  SpeechArtifact,
+  JsonArtifact,
+  MermaidArtifact,
+  HttpTraceArtifact,
+  ResolvedFeaturesArtifact,
+  FileArtifact,
+} from '../schema/events.js';
+
+export type { TArtifactEvent } from '../schema/events.js';
 
 export interface IEventLogger {
   suppressConsole?: boolean;
@@ -12,6 +27,7 @@ export interface IEventLogger {
   log(featureStep: TFeatureStep, level: 'info' | 'debug' | 'trace' | 'warn' | 'error', message: string, payload?: Record<string, unknown>): void;
   stepStart(featureStep: TFeatureStep, stepperName: string, actionName: string): void;
   stepEnd(featureStep: TFeatureStep, stepperName: string, actionName: string, ok: boolean, error?: string): void;
+  artifact(featureStep: TFeatureStep, artifact: TArtifactEvent): void;
 }
 
 /**
@@ -110,4 +126,19 @@ export class EventLogger implements IEventLogger {
       actionName
     }));
   }
+
+  /**
+   * Emit an artifact event. The artifact should already be a valid TArtifactEvent
+   * (parsed via the appropriate Zod schema like ImageArtifact.parse()).
+   */
+  artifact(featureStep: TFeatureStep, artifact: TArtifactEvent): void {
+    // Ensure the event has proper id and timestamp
+    const event: TArtifactEvent = {
+      ...artifact,
+      id: artifact.id || `${formatCurrentSeqPath(featureStep.seqPath)}.artifact`,
+      timestamp: artifact.timestamp || Date.now(),
+    };
+    this.emit(event);
+  }
 }
+

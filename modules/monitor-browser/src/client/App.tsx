@@ -5,8 +5,9 @@ import useWebSocket, { ReadyState } from 'react-use-websocket';
 import { Debugger } from './Debugger';
 import { getInitialState } from './serialize';
 import { Button } from './components/ui/button';
-import { THaibunEvent } from './types';
+import { THaibunEvent, TArtifactEvent } from './types';
 import { DocumentView } from './DocumentView';
+import { ArtifactRenderer } from './artifacts';
 
 type ViewMode = 'log' | 'raw' | 'document';
 
@@ -24,6 +25,23 @@ function App() {
   const [viewMode, setViewMode] = useState<ViewMode>('log');
   const [minLogLevel, setMinLogLevel] = useState<string>('info');
   const [maxDepth, setMaxDepth] = useState<number>(10);
+  const [expandedArtifacts, setExpandedArtifacts] = useState<Set<string>>(new Set());
+
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+
+  
+  const toggleArtifact = (id: string) => {
+    setExpandedArtifacts(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
 
   // Debugger state
   const [activePrompt, setActivePrompt] = useState<any | null>(null);
@@ -110,7 +128,7 @@ function App() {
           // Log Level Filter
           // Use refined level logic
           const rawLevel = e.kind === 'log' ? e.level : 'info'; // Treat lifecycle as info by default
-          const normalizedLevel = rawLevel === 'log' ? 'info' : rawLevel; // Handle 'log' alias
+          const normalizedLevel = (rawLevel as string) === 'log' ? 'info' : rawLevel; // Handle 'log' alias
           
           const levelIndex = levels.indexOf(normalizedLevel);
           // If level is unknown (e.g. custom), assume it's verbose/low-level? Or show it?
@@ -129,9 +147,16 @@ function App() {
       });
   }, [events, currentTime, connected, startTime, minLogLevel, maxDepth]);
 
+  // Auto-scroll when new events arrive
+  useEffect(() => {
+     if (scrollRef.current && visibleEvents.length > 0) {
+         scrollRef.current.scrollIntoView({ behavior: 'auto', block: 'center' });
+     }
+  }, [visibleEvents.length]);
+
   // Re-use logic for log format
   const renderLogView = () => (
-        <div className="font-mono text-xs max-w-6xl mx-auto bg-black p-4 rounded-lg shadow-xl overflow-x-auto">
+        <div className="font-mono text-xs w-full bg-black p-4 rounded-lg shadow-xl overflow-hidden">
             {visibleEvents
                 .reduce((acc, e) => {
                      // Filter out single-component IDs if needed
@@ -204,7 +229,8 @@ function App() {
                     const showSymbol = prevE && prevDepth < depth;
 
                     return (
-                        <div key={i} className={`flex whitespace-pre items-stretch leading-tight transition-colors ${bgClass}`}>
+                        <React.Fragment key={i}>
+                        <div className={`flex whitespace-pre items-stretch leading-tight transition-colors ${bgClass}`}>
                             <div className="w-16 flex flex-col items-end shrink-0 text-[10px] text-slate-700 dark:text-slate-400 font-medium leading-tight mr-2 self-stretch py-1">
                                 <span>{time}s</span>
                                 <span className={`text-[9px] opacity-70 ${
@@ -239,9 +265,36 @@ function App() {
                                     </div>
                                 )}
 
-                                <div className="flex items-start gap-2 flex-1 py-1">
-                                    <span className={`inline-block w-4 text-center shrink-0 ${icon === '⟳' ? 'animate-spin' : ''}`}>{icon}</span>
-                                    <span>{message}</span>
+                                <div className="flex items-start gap-2 flex-1 py-1 min-w-0">
+                                    {e.kind === 'artifact' ? (() => {
+                                        const artifactId = e.id;
+                                        const isExpanded = expandedArtifacts.has(artifactId);
+                                        return (
+                                            <div className="w-full max-w-full">
+                                                <button 
+                                                    onClick={(ev) => {
+                                                        ev.stopPropagation();
+                                                        toggleArtifact(artifactId);
+                                                    }}
+                                                    className="w-full text-left py-0.5 text-xs text-slate-400 hover:text-slate-200 flex items-center gap-2"
+                                                >
+                                                    <span className="text-[10px] w-4 text-center">{isExpanded ? '▼' : '▶'}</span>
+                                                    <span className="font-mono">📎 {(e as TArtifactEvent).artifactType}</span>
+                                                    {'path' in e && <span className="text-slate-500 truncate">- {(e as any).path}</span>}
+                                                </button>
+                                                {isExpanded && (
+                                                    <div className="p-2 mt-1 border border-slate-700 rounded bg-slate-900/50">
+                                                        <ArtifactRenderer artifact={e as TArtifactEvent} />
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })() : (
+                                        <>
+                                            <span className={`inline-block w-4 text-center shrink-0 ${icon === '⟳' ? 'animate-spin' : ''}`}>{icon}</span>
+                                            <span className="whitespace-pre-wrap break-words">{message}</span>
+                                        </>
+                                    )}
                                 </div>
                             </div>
 
@@ -250,14 +303,58 @@ function App() {
                                 <div title={e.id}>{e.id}</div>
                             </div>
                         </div>
+                        
+                        {/* Inline Artifacts - each artifact has its own toggle */}
+                        {(() => {
+                            const eventAny = e as any;
+                            const embeddedArtifacts = eventAny.payload?.artifacts || eventAny.incidentDetails?.artifacts;
+                            if (embeddedArtifacts && Array.isArray(embeddedArtifacts) && embeddedArtifacts.length > 0) {
+                                return (
+                                    <div className="ml-20 my-1 space-y-1">
+                                        {embeddedArtifacts.map((artifact: any, idx: number) => {
+                                            const artifactId = `${e.id}.artifact.${idx}`;
+                                            const isExpanded = expandedArtifacts.has(artifactId);
+                                            const artifactEvent: TArtifactEvent = {
+                                                id: artifactId,
+                                                timestamp: e.timestamp,
+                                                source: 'haibun',
+                                                kind: 'artifact',
+                                                artifactType: artifact.artifactType,
+                                                mimetype: artifact.mimetype || 'application/octet-stream',
+                                                ...('path' in artifact && { path: artifact.path }),
+                                                ...('json' in artifact && { json: artifact.json }),
+                                                ...('transcript' in artifact && { transcript: artifact.transcript }),
+                                                ...('resolvedFeatures' in artifact && { resolvedFeatures: artifact.resolvedFeatures }),
+                                            } as TArtifactEvent;
+                                            return (
+                                                <div key={artifactId} className="border border-slate-700 rounded bg-slate-900/50">
+                                                    <button 
+                                                        onClick={() => toggleArtifact(artifactId)}
+                                                        className="w-full text-left px-2 py-1 text-xs text-slate-400 hover:bg-slate-800/50 flex items-center gap-1"
+                                                    >
+                                                        <span>{isExpanded ? '▼' : '▶'}</span>
+                                                        <span>📎 {artifact.artifactType}</span>
+                                                        {'path' in artifact && <span className="text-slate-500 truncate">- {artifact.path}</span>}
+                                                    </button>
+                                                    {isExpanded && (
+                                                        <div className="p-2 border-t border-slate-700">
+                                                            <ArtifactRenderer artifact={artifactEvent} />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                );
+                            }
+
+                            return null;
+                        })()}
+                        </React.Fragment>
                     );
                 })}
-                 {/* Auto-scroll */}
-                <div ref={(el) => {
-                    if (el && visibleEvents.length > 0) {
-                        el.scrollIntoView({ behavior: 'auto', block: 'center' });
-                    }
-                }} />
+                 {/* Auto-scroll anchor */}
+                 <div ref={scrollRef} />
         </div>
   );
 
@@ -317,7 +414,7 @@ function App() {
         </div>
       </header>
 
-      <main className="container mx-auto pt-20 px-4">
+      <main className="w-full pt-20 px-2">
         <Debugger 
             prompt={activePrompt}
             onSubmit={handleDebugAction}

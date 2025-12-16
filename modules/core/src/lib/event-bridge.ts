@@ -6,8 +6,8 @@
  * THaibunEvent Zod-validated event system.
  */
 
-import { THaibunEvent, TLifecycleEvent, TLogEvent, TControlEvent } from '../schema/events.js';
-import { TMessageContext, EExecutionMessageType, TLogLevel } from './interfaces/logger.js';
+import { THaibunEvent, TLifecycleEvent, TLogEvent, TControlEvent, TArtifactEvent } from '../schema/events.js';
+import { TMessageContext, EExecutionMessageType, TLogLevel, TArtifact } from './interfaces/logger.js';
 
 /**
  * Maps EExecutionMessageType to THaibunEvent lifecycle types
@@ -29,6 +29,128 @@ const INCIDENT_TO_LIFECYCLE: Partial<Record<EExecutionMessageType, LifecycleType
   [EExecutionMessageType.ENSURE_START]: { type: 'ensure', stage: 'start' },
   [EExecutionMessageType.ENSURE_END]: { type: 'ensure', stage: 'end' },
 };
+
+/**
+ * Convert a legacy TArtifact to a THaibunEvent artifact event.
+ */
+export function legacyArtifactToEvent(
+  artifact: TArtifact,
+  seqPath: string,
+  index: number
+): TArtifactEvent | null {
+  const baseEvent = {
+    id: `${seqPath}.artifact.${index}`,
+    timestamp: Date.now(),
+    source: 'haibun',
+    kind: 'artifact' as const,
+  };
+
+  switch (artifact.artifactType) {
+    case 'image':
+      return {
+        ...baseEvent,
+        artifactType: 'image',
+        path: artifact.path,
+        mimetype: 'image/png',
+      } as TArtifactEvent;
+
+    case 'video':
+      return {
+        ...baseEvent,
+        artifactType: 'video',
+        path: artifact.path,
+        mimetype: 'video/webm',
+        isTimeLined: true,
+      } as TArtifactEvent;
+
+    case 'html':
+      const htmlPath = 'path' in artifact ? artifact.path : undefined;
+      if (htmlPath) {
+        return {
+          ...baseEvent,
+          artifactType: 'html',
+          path: htmlPath,
+          mimetype: 'text/html',
+        } as TArtifactEvent;
+      }
+      return null; // Inline HTML not supported in new schema
+
+    case 'speech':
+      return {
+        ...baseEvent,
+        artifactType: 'speech',
+        path: artifact.path,
+        mimetype: 'audio/mpeg',
+        transcript: artifact.transcript,
+        durationS: artifact.durationS,
+      } as TArtifactEvent;
+
+    case 'json':
+      return {
+        ...baseEvent,
+        artifactType: 'json',
+        json: artifact.json as Record<string, unknown>,
+        mimetype: 'application/json',
+      } as TArtifactEvent;
+
+    case 'resolvedFeatures':
+      return {
+        ...baseEvent,
+        artifactType: 'resolvedFeatures',
+        resolvedFeatures: artifact.resolvedFeatures,
+        index: artifact.index,
+        mimetype: 'application/json',
+      } as TArtifactEvent;
+
+    case 'json/http/trace':
+      return {
+        ...baseEvent,
+        artifactType: 'http-trace',
+        httpEvent: artifact.httpEvent,
+        trace: artifact.trace,
+        mimetype: 'application/json',
+      } as TArtifactEvent;
+
+    default:
+      return null;
+  }
+}
+
+/**
+ * Convert a TMessageContext to THaibunEvents (may return multiple if artifacts present).
+ * 
+ * @param message - The log message
+ * @param level - The log level
+ * @param context - The legacy TMessageContext
+ * @param seqPath - Optional seqPath for event ID
+ * @returns Array of THaibunEvent (main event + artifact events)
+ */
+export function messageContextToEvents(
+  message: string,
+  level: TLogLevel,
+  context?: TMessageContext,
+  seqPath: string = '0'
+): THaibunEvent[] {
+  const events: THaibunEvent[] = [];
+
+  // Get the main event
+  const mainEvent = messageContextToEvent(message, level, context, seqPath);
+  if (mainEvent) {
+    events.push(mainEvent);
+  }
+
+  // Convert artifacts to separate events
+  if (context?.artifacts) {
+    context.artifacts.forEach((artifact, index) => {
+      const artifactEvent = legacyArtifactToEvent(artifact, seqPath, index);
+      if (artifactEvent) {
+        events.push(artifactEvent);
+      }
+    });
+  }
+
+  return events;
+}
 
 /**
  * Convert a TMessageContext to a THaibunEvent.
@@ -133,3 +255,4 @@ export function isControlContext(context?: TMessageContext): boolean {
   return context.incident === EExecutionMessageType.DEBUG ||
     context.incident === EExecutionMessageType.GRAPH_LINK;
 }
+

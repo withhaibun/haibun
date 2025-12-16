@@ -22,6 +22,13 @@ export default defineConfig({
   build: {
     outDir: "dist/client",
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        inlineDynamicImports: true,
+        entryFileNames: 'assets/index.js',
+        assetFileNames: 'assets/[name].[ext]',
+      }
+    }
   },
   // Force vite to use client config
   esbuild: {

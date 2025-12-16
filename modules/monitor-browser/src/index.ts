@@ -33,6 +33,8 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
     }
   };
 
+  captureRoot: string | undefined;
+
   async setWorld(world: TWorld, steppers: AStepper[]) {
     super.setWorld(world, steppers);
     this.storage = maybeFindStepperFromOption(steppers, this, world.moduleOptions, StepperKinds.STORAGE);
@@ -40,7 +42,11 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
     // Start singleton transport if not exists
     if (!MonitorBrowserStepper.transport) {
       const port = parseInt(getStepperOption(this, 'PORT', world.moduleOptions) || '8080', 10);
-      MonitorBrowserStepper.transport = new WebSocketTransport(port);
+      if (this.storage) {
+        const loc = { ...world, mediaType: EMediaTypes.html };
+        this.captureRoot = await this.storage.getCaptureLocation(loc);
+      }
+      MonitorBrowserStepper.transport = new WebSocketTransport(port, this.captureRoot);
     }
 
     // Setup debugger bridge
@@ -54,14 +60,69 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
 
   cycles: IStepperCycles = {
     onEvent: async (event: THaibunEvent) => {
-      MonitorBrowserStepper.transport.send({ type: 'event', event });
+      // Transform for live mode (similar to endFeature serialization logic)
+      let transportEvent = event;
+      if (this.captureRoot && event.kind === 'artifact' && 'path' in event && typeof (event as any).path === 'string') {
+        const artifactPath = (event as any).path as string;
+        let absPath = artifactPath;
+        if (artifactPath.startsWith('file://')) {
+          absPath = fileURLToPath(artifactPath);
+        }
+
+        // If path is absolute, try to make it relative to captureRoot
+        // This handles cases where artifacts are deep in subdirectories
+        if (path.isAbsolute(absPath)) {
+          const relPath = path.relative(this.captureRoot, absPath);
+          // If it is inside captureRoot (doesn't start with ..)
+          if (!relPath.startsWith('..') && !path.isAbsolute(relPath)) {
+            // Normalize to URL slashes
+            const urlPath = relPath.split(path.sep).join('/');
+            if (urlPath && urlPath !== '.') {
+              transportEvent = { ...event, path: urlPath };
+            }
+          }
+        }
+      }
+      MonitorBrowserStepper.transport.send({ type: 'event', event: transportEvent });
     },
     endFeature: async () => {
       MonitorBrowserStepper.transport.send({ type: 'finalize' });
 
-      // Serialize and save report
+      // Transform artifact paths to be relative to capture directory
+      // Paths should already be relative like ./image/screenshot.png
+      const transformedEvents = this.events.map(e => {
+        if (e.kind === 'artifact' && 'path' in e && typeof (e as any).path === 'string') {
+          const artifactPath = (e as any).path as string;
+          let absPath = artifactPath;
+
+          if (artifactPath.startsWith('file://')) {
+            absPath = fileURLToPath(artifactPath);
+          }
+
+          // If we have captureRoot and path is absolute, make it relative
+          if (this.captureRoot && path.isAbsolute(absPath)) {
+            const relPath = path.relative(this.captureRoot, absPath);
+            if (!relPath.startsWith('..')) {
+              // Normalize for URL usage in HTML
+              const urlPath = relPath.split(path.sep).join('/');
+              if (urlPath && urlPath !== '.') {
+                return { ...e, path: urlPath };
+              }
+            }
+          }
+
+          // Fallback: if still absolute or outside captureRoot, try to use filename 
+          // (Legacy behavior, but risky if name collision)
+          if (path.isAbsolute(absPath)) {
+            return { ...e, path: path.basename(absPath) };
+          }
+        }
+        return e;
+      });
+
+      // Serialize and save report  
       const serializer = new JITSerializer();
-      const jitData = serializer.serialize(this.events);
+      const jitData = serializer.serialize(transformedEvents);
 
       const featureStart = this.events.find(e => e.kind === 'lifecycle' && e.type === 'feature' && e.stage === 'start');
       const topic = featureStart && (featureStart as any).label ? (featureStart as any).label.replace(/[^a-zA-Z0-9-_]/g, '_') : 'feature';
@@ -129,27 +190,17 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
     }
 
     const loc = { ...this.getWorld(), mediaType: EMediaTypes.html };
-    const dir = await this.storage.ensureCaptureLocation(loc, 'monitor');
+    // Write directly to capture base directory (not a subdirectory)
+    const dir = await this.storage.getCaptureLocation(loc);
+    await this.storage.ensureDirExists(dir);
     // Use topic (feature name) for filename if available, otherwise fallback
     const filename = topic ? `${topic}-${Date.now()}` : `haibun-report-${Date.now()}`;
     const savePath = path.join(dir, filename + '.html');
     await this.storage.writeFile(savePath, html, EMediaTypes.html);
 
-    // Emit ArtifactEvent
-    const actualPath = actualURI(savePath).toString();
-    const artifactEvent = ArtifactEvent.parse({
-      id: 'monitor-report-' + Date.now(),
-      timestamp: Date.now(),
-      kind: 'artifact',
-      artifactType: 'html',
-      mimetype: 'text/html',
-      path: actualPath,
-      source: 'monitor-browser'
-    });
-    this.getWorld().eventLogger.emit(artifactEvent);
-    // Console log for immediate feedback
+    // Console log for immediate feedback (report saved locally, not emitted as artifact)
     console.log(seq);
-    console.log(`${seq} ${topic} ${actualPath}`);
+    console.log(`${seq} ${topic} ${actualURI(savePath)}`);
   }
 
   steps = {
@@ -165,7 +216,20 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
   onEvent(event: THaibunEvent) {
     this.events.push(event);
     if (MonitorBrowserStepper.transport) {
-      MonitorBrowserStepper.transport.send({ type: 'event', event });
+      // Call cycle logic if simplified? No, directly call transport logic here or rely on cycles.onEvent?
+      // MonitorBrowserStepper routes through cycles.onEvent via world.eventLogger callback?
+      // No, setStepperCallback calls this.onEvent(event) which is defined at end of class.
+      // But this.cycles.onEvent is ALSO defined?
+      // The class structure is a bit mapped.
+      // The setWorld callback calls `this.onEvent`.
+      // `this.onEvent` is defined at line 175.
+      // `this.cycles.onEvent` is defined at line 61.
+
+      // I should update `this.onEvent` (at bottom) OR `this.cycles.onEvent`?
+      // Usually `stepper.onEvent` is not a standard lifecycle method, `cycles.onEvent` is.
+      // But lines 50-52: `world.eventLogger.setStepperCallback((e) => this.onEvent(e))` calls the method at line 175.
+
+      this.cycles.onEvent(event);
     }
   }
 }

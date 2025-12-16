@@ -2,7 +2,8 @@ import React, { useMemo } from 'react';
 import MarkdownIt from 'markdown-it';
 import DOMPurify from 'dompurify';
 import parse, { DOMNode, Element, domToReact } from 'html-react-parser';
-import { THaibunEvent } from './types';
+import { THaibunEvent, TArtifactEvent } from './types';
+import { ArtifactRenderer } from './artifacts';
 
 const md = new MarkdownIt({
     html: true,
@@ -15,6 +16,57 @@ interface DocumentViewProps {
 }
 
 export function DocumentView({ events }: DocumentViewProps) {
+    // Group artifact events by their parent step ID
+    // Also extract embedded artifacts from log events (legacy format)
+    const artifactsByStep = useMemo(() => {
+        const map = new Map<string, TArtifactEvent[]>();
+        
+        for (const e of events) {
+            // Handle new-style artifact events
+            if (e.kind === 'artifact') {
+                // Extract parent step ID from artifact ID (e.g., "1.2.3.artifact.0" -> "1.2.3")
+                const parts = e.id.split('.');
+                const artifactIdx = parts.findIndex(p => p === 'artifact');
+                let parentId = artifactIdx > 0 ? parts.slice(0, artifactIdx).join('.') : parts.slice(0, -1).join('.');
+                // Normalize ID: remove brackets
+                parentId = parentId.replace(/^\[|\]$/g, '');
+
+                if (!map.has(parentId)) {
+                    map.set(parentId, []);
+                }
+                map.get(parentId)!.push(e as TArtifactEvent);
+            }
+            
+            // Handle legacy embedded artifacts (from payload or incidentDetails)
+            const eventAny = e as any;
+            const embeddedArtifacts = eventAny.payload?.artifacts || eventAny.incidentDetails?.artifacts;
+            if (embeddedArtifacts && Array.isArray(embeddedArtifacts)) {
+                const parentId = e.id;
+                if (!map.has(parentId)) {
+                    map.set(parentId, []);
+                }
+                // Convert legacy artifacts to TArtifactEvent format
+                embeddedArtifacts.forEach((artifact: any, idx: number) => {
+                    const artifactEvent: TArtifactEvent = {
+                        id: `${parentId}.artifact.${idx}`,
+                        timestamp: e.timestamp,
+                        source: 'haibun',
+                        kind: 'artifact',
+                        artifactType: artifact.artifactType,
+                        mimetype: artifact.mimetype || 'application/octet-stream',
+                        ...('path' in artifact && { path: artifact.path }),
+                        ...('json' in artifact && { json: artifact.json }),
+                        ...('transcript' in artifact && { transcript: artifact.transcript }),
+                        ...('durationS' in artifact && { durationS: artifact.durationS }),
+                        ...('resolvedFeatures' in artifact && { resolvedFeatures: artifact.resolvedFeatures }),
+                    } as TArtifactEvent;
+                    map.get(parentId)!.push(artifactEvent);
+                });
+            }
+        }
+        return map;
+    }, [events]);
+
     const content = useMemo(() => {
         let md = '';
         let lastType: 'none' | 'prose' | 'technical' = 'none';
@@ -30,12 +82,22 @@ export function DocumentView({ events }: DocumentViewProps) {
                 if (e.type === 'feature' && e.stage === 'start') {
                     if (lastType === 'technical') md += '\n<div class="h-3"></div>\n';
                     md += `\n\n# ${e.label}\n\n`;
+                    const normalizedId = e.id.replace(/^\[|\]$/g, '');
+                    const artifacts = artifactsByStep.get(normalizedId);
+                    if (artifacts && artifacts.length > 0) {
+                        md += `\n<div class="feature-artifacts" data-id="${normalizedId}"></div>\n`;
+                    }
                     lastType = 'prose';
                     continue;
                 }
                 if (e.type === 'scenario' && e.stage === 'start') {
                     if (lastType === 'technical') md += '\n<div class="h-3"></div>\n';
                     md += `\n\n## ${e.label}\n\n`;
+                    const normalizedId = e.id.replace(/^\[|\]$/g, '');
+                    const artifacts = artifactsByStep.get(normalizedId);
+                    if (artifacts && artifacts.length > 0) {
+                        md += `\n<div class="feature-artifacts" data-id="${normalizedId}"></div>\n`;
+                    }
                     lastType = 'prose';
                     continue;
                 }
@@ -49,13 +111,8 @@ export function DocumentView({ events }: DocumentViewProps) {
                         if (lastType !== 'technical' && md.length > 0) {
                             md += '\n<div class="h-3"></div>\n';
                         }
-
-                        const depth = e.id ? e.id.split('.').length : 0;
-                        const isNested = depth > 3;
                         
                         // Check for instigator (look ahead for next step that starts with this ID)
-                        // Note: This is an approximation since we don't know for sure which next event will be rendered,
-                        // but checking the raw event list for immediate children is a good enough heuristic for "does this have children".
                         let isInstigator = false;
                         for(let j=i+1; j<events.length; j++) {
                            const next = events[j];
@@ -67,6 +124,9 @@ export function DocumentView({ events }: DocumentViewProps) {
                            if (next.id && !next.id.startsWith(e.id)) break; 
                         }
 
+                        const depth = e.id ? e.id.split('.').length : 0;
+                        const isNested = depth > 3;
+
                         // Serialize visual state into data attributes
                         // using 'log-row' class to trigger specific parser
                         const time = ((e.timestamp - (events[0]?.timestamp || 0))/1000).toFixed(3);
@@ -75,14 +135,19 @@ export function DocumentView({ events }: DocumentViewProps) {
                         // Determine if we show the symbol (first child logic)
                         const showSymbol = previousRenderedId && previousRenderedDepth < depth;
 
+                        // Check if this step has artifacts
+                        const normalizedId = e.id.replace(/^\[|\]$/g, '');
+                        const hasArtifacts = artifactsByStep.has(normalizedId);
+
                         md += `<div class="log-row font-mono text-xs text-slate-600 my-0.5 leading-tight" 
                                     data-depth="${depth}" 
                                     data-nested="${isNested}" 
                                     data-instigator="${isInstigator}" 
                                     data-show-symbol="${showSymbol}"
-                                    data-id="${e.id}"
+                                    data-id="${normalizedId}"
                                     data-time="${time}"
-                                    data-action="${actionName}">${e.label}</div>\n`;
+                                    data-action="${actionName}"
+                                    data-has-artifacts="${hasArtifacts}">${e.label}</div>\n`;
                         
                         lastType = 'technical';
                         previousRenderedDepth = depth;
@@ -100,7 +165,7 @@ export function DocumentView({ events }: DocumentViewProps) {
             }
         }
         return md;
-    }, [events]);
+    }, [events, artifactsByStep]);
 
     const reactContent = useMemo(() => {
         // 1. Render Markdown to HTML string
@@ -108,7 +173,7 @@ export function DocumentView({ events }: DocumentViewProps) {
         
         // 2. Sanitize HTML (allow data-* attributes and style)
         const sanitizedHtml = DOMPurify.sanitize(rawHtml, { 
-            ADD_ATTR: ['style', 'data-depth', 'data-nested', 'data-instigator', 'data-show-symbol', 'data-id', 'data-time', 'data-action'],
+            ADD_ATTR: ['style', 'data-depth', 'data-nested', 'data-instigator', 'data-show-symbol', 'data-id', 'data-time', 'data-action', 'data-has-artifacts'],
             ADD_TAGS: ['div'] // Ensure div is allowed
         });
     
@@ -117,46 +182,79 @@ export function DocumentView({ events }: DocumentViewProps) {
           replace: (domNode) => {
             if (domNode instanceof Element && domNode.attribs) {
               
+              // Feature/Scenario Artifacts
+              if (domNode.name === 'div' && domNode.attribs.class === 'feature-artifacts') {
+                   const stepId = domNode.attribs['data-id'];
+                   const stepArtifacts = artifactsByStep.get(stepId) || [];
+                   return (
+                       <div className="my-4 p-4 border rounded bg-slate-50">
+                           {stepArtifacts.map((artifact, idx) => (
+                               <div key={`${stepId}-artifact-${idx}`} className="mb-4 last:mb-0">
+                                   <div className="text-xs text-slate-500 mb-1">📎 {artifact.artifactType}</div>
+                                   <ArtifactRenderer artifact={artifact} />
+                               </div>
+                           ))}
+                       </div>
+                   );
+              }
+
               // Custom log row rendering with Rail System (Replicates App.tsx visuals)
               if (domNode.name === 'div' && domNode.attribs.class?.includes('log-row')) {
                   const depth = parseInt(domNode.attribs['data-depth'] || '0');
                   const isNested = domNode.attribs['data-nested'] === 'true';
                   const isInstigator = domNode.attribs['data-instigator'] === 'true';
                   const showSymbol = domNode.attribs['data-show-symbol'] === 'true';
+                  const stepId = domNode.attribs['data-id'];
+                  const hasArtifacts = domNode.attribs['data-has-artifacts'] === 'true';
+                  const stepArtifacts = hasArtifacts && stepId ? artifactsByStep.get(stepId) || [] : [];
 
                   return (
-                      <div className={domNode.attribs.class + " flex items-stretch break-all"}>
-                           <span className="mx-1 text-slate-800 dark:text-slate-600 self-start mt-1">｜</span>
+                      <div className={domNode.attribs.class + " flex flex-col"}>
+                          <div className="flex items-stretch break-all">
+                               <span className="mx-1 text-slate-800 dark:text-slate-600 self-start mt-1">｜</span>
 
-                           {/* Content + Rail */}
-                           <div className="flex-1 flex items-stretch">
-                               {/* Indentation Spacer */}
-                               <div style={{ width: `${Math.max(0, depth - 4) * 0.75}rem` }} className="shrink-0" />
-                                
-                               {/* Rail Container */}
-                               {(isNested || isInstigator) && (
-                                    <div className="relative w-4 shrink-0 mr-1">
-                                        {/* Full Line for Nested Steps */}
-                                        {isNested && (
-                                            <div className="absolute top-0 -bottom-[1px] right-[3px] w-px bg-indigo-500" />
-                                        )}
-                                        
-                                        {/* Start Marker Line for Top-Level Instigators */}
-                                        {isInstigator && !isNested && (
-                                            <div className="absolute top-[6px] -bottom-[1px] right-[3px] w-px bg-indigo-500" />
-                                        )}
+                               {/* Content + Rail */}
+                               <div className="flex-1 flex items-stretch">
+                                   {/* Indentation Spacer */}
+                                   <div style={{ width: `${Math.max(0, depth - 4) * 0.75}rem` }} className="shrink-0" />
+                                    
+                                   {/* Rail Container */}
+                                   {(isNested || isInstigator) && (
+                                        <div className="relative w-4 shrink-0 mr-1">
+                                            {/* Full Line for Nested Steps */}
+                                            {isNested && (
+                                                <div className="absolute top-0 -bottom-[1px] right-[3px] w-px bg-indigo-500" />
+                                            )}
+                                            
+                                            {/* Start Marker Line for Top-Level Instigators */}
+                                            {isInstigator && !isNested && (
+                                                <div className="absolute top-[6px] -bottom-[1px] right-[3px] w-px bg-indigo-500" />
+                                            )}
 
-                                        {/* Horizontal Bar Symbol (First Child) */}
-                                        {isNested && showSymbol && (
-                                            <div className="absolute top-0 right-[3px] w-2.5 h-px bg-indigo-500" />
-                                        )}
-                                    </div>
-                                )}
+                                            {/* Horizontal Bar Symbol (First Child) */}
+                                            {isNested && showSymbol && (
+                                                <div className="absolute top-0 right-[3px] w-2.5 h-px bg-indigo-500" />
+                                            )}
+                                        </div>
+                                   )}
 
-                              <div className="flex-1 py-1">
-                                  {domToReact(domNode.children as DOMNode[])}
+                                 <div className="flex-1 py-1">
+                                     {domToReact(domNode.children as DOMNode[])}
+                                 </div>
                               </div>
-                           </div>
+                          </div>
+                          
+                          {/* Inline Artifacts */}
+                          {stepArtifacts.length > 0 && (
+                              <div className="ml-8 my-2 space-y-2">
+                                  {stepArtifacts.map((artifact, idx) => (
+                                      <div key={`${stepId}-artifact-${idx}`} className="border border-slate-200 rounded p-2 bg-slate-50">
+                                          <div className="text-xs text-slate-500 mb-1">📎 {artifact.artifactType}</div>
+                                          <ArtifactRenderer artifact={artifact} />
+                                      </div>
+                                  ))}
+                              </div>
+                          )}
                       </div>
                   );
               }
@@ -235,11 +333,11 @@ export function DocumentView({ events }: DocumentViewProps) {
             }
           },
         });
-      }, [content]);
+      }, [content, artifactsByStep]);
 
     return (
-        <div className="w-full bg-white text-slate-900 min-h-screen p-8 md:p-12">
-            <div className="max-w-3xl mx-auto">
+        <div className="w-full bg-white text-slate-900 min-h-screen p-4 md:p-8">
+            <div className="w-full">
                 <div className="prose prose-slate max-w-none font-serif leading-relaxed text-slate-900 
                     prose-headings:font-bold prose-headings:text-slate-900 
                     prose-h1:text-3xl prose-h1:mb-6 prose-h1:border-b prose-h1:border-slate-200 prose-h1:pb-2
@@ -255,3 +353,5 @@ export function DocumentView({ events }: DocumentViewProps) {
         </div>
     );
 }
+
+

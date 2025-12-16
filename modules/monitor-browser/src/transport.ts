@@ -8,19 +8,78 @@ export interface ITransport {
   onMessage(handler: (data: unknown) => void): void;
 }
 
+import http from 'http';
+import fs from 'fs';
+import path from 'path';
+
 export class WebSocketTransport implements ITransport {
   private wss: WebSocketServer;
   private clients: Set<WebSocket> = new Set();
+  private server: http.Server;
 
-  constructor(port: number) {
-    this.wss = new WebSocketServer({ port });
-    this.wss.on('error', (e: any) => {
+  constructor(port: number, captureRoot?: string) {
+    this.server = http.createServer((req, res) => {
+      // Enable CORS
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+      if (req.method === 'OPTIONS') {
+        res.statusCode = 200;
+        res.end();
+        return;
+      }
+
+      if (req.method === 'GET' && captureRoot) {
+        try {
+          const urlPath = req.url?.split('?')[0] || '/';
+          // Sanitize path prevents directory traversal
+          const safePath = path.normalize(urlPath).replace(/^(\.\.[\/\\])+/, '');
+          const filePath = path.join(captureRoot, safePath);
+
+          if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+            const ext = path.extname(filePath).toLowerCase();
+            const mimeTypes: { [key: string]: string } = {
+              '.html': 'text/html',
+              '.js': 'text/javascript',
+              '.css': 'text/css',
+              '.png': 'image/png',
+              '.jpg': 'image/jpeg',
+              '.jpeg': 'image/jpeg',
+              '.gif': 'image/gif',
+              '.svg': 'image/svg+xml',
+              '.json': 'application/json',
+              '.webp': 'image/webp'
+            };
+
+            const contentType = mimeTypes[ext] || 'application/octet-stream';
+            res.setHeader('Content-Type', contentType);
+            fs.createReadStream(filePath).pipe(res);
+            return;
+          }
+        } catch (e) {
+          console.error('Error serving file:', e);
+          res.statusCode = 500;
+          res.end('Internal Server Error');
+          return;
+        }
+      }
+
+      res.statusCode = 404;
+      res.end('Not Found');
+    });
+
+    this.server.on('error', (e: any) => {
       if (e.code === 'EADDRINUSE') {
         console.warn(`\n[MonitorBrowser] Warning: Port ${port} is already in use. Monitor server could not start.`);
         console.warn(`[MonitorBrowser] Events will not be streamed to browser.`);
       } else {
-        console.error('[MonitorBrowser] WebSocket Server Error:', e);
+        console.error('[MonitorBrowser] Server Error:', e);
       }
+    });
+
+    this.wss = new WebSocketServer({ server: this.server });
+
+    this.server.listen(port, () => {
+      console.log(`[MonitorBrowser] Server started on port ${port} serving ${captureRoot || 'nothing'}`);
     });
 
     this.wss.on('connection', (ws) => {
@@ -32,7 +91,6 @@ export class WebSocketTransport implements ITransport {
       ws.on('close', () => this.clients.delete(ws));
       ws.on('message', (data) => this.handleMessage(data));
     });
-    console.log(`WebSocket server started on port ${port}`);
   }
 
   private history: string[] = [];

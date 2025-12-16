@@ -7,7 +7,19 @@ export { EventFormatter, type TIndication } from './formatters.js';
 export { JITSerializer } from './jit-serialization.js';
 export { Timer } from './timer.js';
 export { CHECK_YES, CHECK_NO, MAYBE_CHECK_YES, MAYBE_CHECK_NO } from './constants.js';
-export { type THaibunEvent } from '../schema/events.js';
+export {
+  type THaibunEvent,
+  type TArtifactEvent,
+  type TImageArtifact,
+  type TVideoArtifact,
+  type THtmlArtifact,
+  type TSpeechArtifact,
+  type TJsonArtifact,
+  type TMermaidArtifact,
+  type THttpTraceArtifact,
+  type TResolvedFeaturesArtifact,
+  type TFileArtifact,
+} from '../schema/events.js';
 
 // Re-export browser-safe types from monitor-types
 export {

@@ -186,6 +186,28 @@ export class FeatureExecutor {
 		let scopedVars: FeatureVariables = new FeatureVariables(world, {});
 		let baseVars: FeatureVariables = new FeatureVariables(world, {});
 
+		// Emit resolved features artifact for mermaid diagram
+		// We do this at feature start so it's available immediately
+		try {
+			const { ResolvedFeaturesArtifact } = await import('../lib/EventLogger.js');
+			// Use a synthetic ID or sequence for this artifact
+			const resolvedFeaturesEvent = ResolvedFeaturesArtifact.parse({
+				id: `${world.tag.sequence}.artifact.resolvedFeatures`,
+				timestamp: Date.now(),
+				kind: 'artifact',
+				artifactType: 'resolvedFeatures',
+				resolvedFeatures: [feature],
+				mimetype: 'application/json',
+			});
+			// Pass the first step if available, or just emit directly?
+			// eventLogger.artifact requires TFeatureStep OR we can use emit directly.
+			// Since we supply ID, step is optional for ID generation, but required for type signature of .artifact().
+			// But we can use .emit() directly since we constructed the event completely.
+			world.eventLogger.emit(resolvedFeaturesEvent);
+		} catch (e) {
+			console.error('Failed to emit resolved features artifact', e);
+		}
+
 		for (const step of feature.featureSteps) {
 			if (step.action.actionName === FEATURE_START) {
 				if (currentScenario) {

@@ -194,7 +194,39 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
           'haibun.event.kind': 'log',
         }
       });
+    } else if (event.kind === 'artifact') {
+      // Create artifact span as child of current step span or feature span
+      const parentSpan = this.getParentSpanForId(event.id) || this.featureSpan;
+      const parentContext = parentSpan
+        ? trace.setSpan(context.active(), parentSpan)
+        : context.active();
+
+      const artifactPath = 'path' in event ? event.path : undefined;
+      const artifactSpan = this.tracer.startSpan(`artifact: ${event.artifactType}`, {
+        attributes: {
+          'haibun.event.type': 'artifact',
+          'haibun.event.id': event.id,
+          'haibun.artifact.type': event.artifactType,
+          'haibun.artifact.mimetype': event.mimetype,
+          ...(artifactPath && { 'haibun.artifact.path': artifactPath }),
+        }
+      }, parentContext);
+
+      // End immediately - artifacts are point-in-time events
+      artifactSpan.end();
     }
+  }
+
+  private getParentSpanForId(id: string): Span | undefined {
+    // Try to find the parent step span by matching the ID prefix
+    // e.g., for artifact ID "1.2.3.artifact", find step "1.2.3"
+    const parts = id.split('.');
+    for (let i = parts.length - 1; i >= 0; i--) {
+      const possibleStepId = parts.slice(0, i).join('.');
+      const stepSpan = this.stepSpans.get(possibleStepId);
+      if (stepSpan) return stepSpan;
+    }
+    return undefined;
   }
 
   private async shutdown() {

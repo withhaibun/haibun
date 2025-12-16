@@ -252,13 +252,37 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		// FIXME shouldn't be fs dependant
 		const path = resolve(this.storage.fromLocation(EMediaTypes.image, loc, `${event}-${Date.now()}.png`));
 		await this.withPage(async (page: Page) => await page.screenshot({ path }));
-		const artifact: TArtifactImage = { artifactType: 'image', path: await this.storage.getRelativePath(path) };
+		const relativePath = await this.storage.getRelativePath(path);
+		const artifact: TArtifactImage = { artifactType: 'image', path: relativePath };
 		const context: TMessageContext = {
 			incident: EExecutionMessageType.ACTION,
 			artifacts: [artifact],
 			tag: this.getWorld().tag,
 			incidentDetails: { ...details, event }
 		};
+
+		// Emit new-style artifact event (if eventLogger is available)
+		const world = this.getWorld();
+		if (world.eventLogger && details.step?.seqPath) {
+			const { ImageArtifact } = await import('@haibun/core/lib/EventLogger.js');
+			const artifactEvent = ImageArtifact.parse({
+				id: `${details.step.seqPath.join('.')}.artifact.0`,
+				timestamp: Date.now(),
+				kind: 'artifact',
+				artifactType: 'image',
+				path: relativePath,
+				mimetype: 'image/png',
+			});
+			// Create a minimal featureStep for the artifact method
+			const featureStep = {
+				seqPath: details.step.seqPath,
+				path: details.step.path,
+				in: details.step.in,
+				action: {} as any,
+			};
+			world.eventLogger.artifact(featureStep, artifactEvent);
+		}
+
 		return { context, path };
 	}
 
