@@ -331,11 +331,6 @@ export class FeatureExecutor {
 				} else {
 					world.logger.log(startMessage, startContext);
 				}
-				if (isSubStep) {
-					world.logger.trace(startMessage, startContext);
-				} else {
-					world.logger.log(startMessage, startContext);
-				}
 			}
 			if (action.actionName !== FEATURE_START && action.actionName !== SCENARIO_START) {
 				world.eventLogger.stepStart(featureStep, action.stepperName, action.actionName);

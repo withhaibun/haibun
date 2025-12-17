@@ -179,19 +179,6 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
   onEvent(event: THaibunEvent) {
     this.events.push(event);
     if (MonitorBrowserStepper.transport) {
-      // Call cycle logic if simplified? No, directly call transport logic here or rely on cycles.onEvent?
-      // MonitorBrowserStepper routes through cycles.onEvent via world.eventLogger callback?
-      // No, setStepperCallback calls this.onEvent(event) which is defined at end of class.
-      // But this.cycles.onEvent is ALSO defined?
-      // The class structure is a bit mapped.
-      // The setWorld callback calls `this.onEvent`.
-      // `this.onEvent` is defined at line 175.
-      // `this.cycles.onEvent` is defined at line 61.
-
-      // I should update `this.onEvent` (at bottom) OR `this.cycles.onEvent`?
-      // Usually `stepper.onEvent` is not a standard lifecycle method, `cycles.onEvent` is.
-      // But lines 50-52: `world.eventLogger.setStepperCallback((e) => this.onEvent(e))` calls the method at line 175.
-
       this.cycles.onEvent(event);
     }
   }

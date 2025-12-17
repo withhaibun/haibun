@@ -82,13 +82,7 @@ export class JITSerializer {
       }
     }
 
-    // distinct schema names based on kind/type for readability (optional but nice)
-    const baseName = event.kind + (event.id ? '-v1' : '-simple-v1');
-    // We need unique IDs in the map. The map key is the ID.
-    // But here we need to find if the *fields* exist.
-    // My map logic above is reversed. Map should be ID -> Fields.
-    // But I need Signature -> ID for lookup.
-
+    // Create new schema for unseen field signature
     const newId = `${event.kind}-${this.nextSchemaId++}`;
     this.schemas.set(newId, keys);
     return newId;

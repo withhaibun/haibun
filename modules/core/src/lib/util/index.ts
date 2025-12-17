@@ -69,7 +69,6 @@ function resolveModulePath(module: string): string {
 }
 
 export function checkModuleIsClass(re: object, module: string) {
-	// this is early morning code
 	const type = re?.toString().replace(/^ /g, '').split('\n')[0].replace(/\s.*/, '');
 
 	if (type !== 'class') {

@@ -133,13 +133,11 @@ export function messageContextToEvents(
 ): THaibunEvent[] {
   const events: THaibunEvent[] = [];
 
-  // Get the main event
   const mainEvent = messageContextToEvent(message, level, context, seqPath);
   if (mainEvent) {
     events.push(mainEvent);
   }
 
-  // Convert artifacts to separate events
   if (context?.artifacts) {
     context.artifacts.forEach((artifact, index) => {
       const artifactEvent = legacyArtifactToEvent(artifact, seqPath, index);
@@ -168,7 +166,6 @@ export function messageContextToEvent(
   seqPath: string = '0'
 ): THaibunEvent | null {
   if (!context) {
-    // No context means a simple log message
     return {
       id: seqPath,
       timestamp: Date.now(),
@@ -181,7 +178,6 @@ export function messageContextToEvent(
 
   const { incident, incidentDetails } = context;
 
-  // Check if this is a lifecycle event
   const lifecycleMapping = INCIDENT_TO_LIFECYCLE[incident];
   if (lifecycleMapping) {
     const lifecycleEvent: TLifecycleEvent = {
@@ -201,7 +197,6 @@ export function messageContextToEvent(
     return lifecycleEvent;
   }
 
-  // Check if this is a control event (DEBUG, GRAPH_LINK)
   if (incident === EExecutionMessageType.DEBUG) {
     const controlEvent: TControlEvent = {
       id: seqPath,
@@ -227,7 +222,6 @@ export function messageContextToEvent(
     return controlEvent;
   }
 
-  // Default: treat as log event
   return {
     id: seqPath,
     timestamp: Date.now(),
