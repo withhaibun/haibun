@@ -11,7 +11,6 @@ import { WebSocketTransport, ITransport } from './transport.js';
 import { WebSocketPrompter } from './prompter.js';
 import { AStorage } from '@haibun/domain-storage/AStorage.js';
 import { JITSerializer } from '@haibun/core/monitor/index.js';
-import { ArtifactEvent } from '@haibun/core/schema/events.js';
 import { EMediaTypes } from '@haibun/domain-storage/media-types.js';
 
 export default class MonitorBrowserStepper extends AStepper implements IHasCycles, IHasOptions {
@@ -29,7 +28,6 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
     [StepperKinds.STORAGE]: {
       desc: 'Storage for output',
       parse: stringOrError,
-      required: true
     }
   };
 

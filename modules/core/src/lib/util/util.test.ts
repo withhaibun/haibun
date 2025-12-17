@@ -7,7 +7,7 @@ import TestStepsWithOptions from '../test/TestStepsWithOptions.js';
 import { withNameType } from '../features.js';
 import { OK, TEST_BASE } from '../defs.js';
 import { TAnyFixme } from '../fixme.js';
-import { IHasOptions } from '../astepper.js';
+import { IHasOptions, StepperKinds } from '../astepper.js';
 import { AStepper } from '../astepper.js';
 import { constructorName } from './index.js';
 
@@ -70,6 +70,85 @@ describe('findStepperFromOptions', () => {
 		const steppers = await getCreateSteppers([], [TestOptionsStepper]);
 		const options = {};
 		expect(() => util.findStepperFromOption(steppers, ts, options, 'S')).toThrow;
+	});
+});
+
+describe('findStepperFromOptionOrKind', () => {
+	const StorageStepper = class StorageStepper extends AStepper {
+		kind = StepperKinds.STORAGE;
+		steps = {
+			test: {
+				exact: 'storage step',
+				action: async () => await Promise.resolve(OK),
+			},
+		};
+	};
+
+	const AlternativeStorageStepper = class AlternativeStorageStepper extends AStepper {
+		kind = StepperKinds.STORAGE;
+		steps = {
+			test: {
+				exact: 'alt storage step',
+				action: async () => await Promise.resolve(OK),
+			},
+		};
+	};
+
+	const ConsumerStepper = class ConsumerStepper extends AStepper implements IHasOptions {
+		options = {
+			[StepperKinds.STORAGE]: {
+				desc: 'Storage stepper to use',
+				parse: (input: string) => util.stringOrError(input),
+			},
+		};
+		steps = {
+			test: {
+				exact: 'consumer step',
+				action: async () => await Promise.resolve(OK),
+			},
+		};
+	};
+
+	it('finds single stepper by kind when no option specified', async () => {
+		const consumer = new ConsumerStepper();
+		const steppers = await getCreateSteppers([], [StorageStepper, ConsumerStepper]);
+		const moduleOptions = {};
+
+		const found = util.findStepperFromOptionOrKind(steppers, consumer, moduleOptions, StepperKinds.STORAGE);
+
+		expect(found).toBeDefined();
+		expect(constructorName(<AStepper>found)).toBe('StorageStepper');
+	});
+
+	it('finds stepper by option when specified', async () => {
+		const consumer = new ConsumerStepper();
+		const steppers = await getCreateSteppers([], [StorageStepper, AlternativeStorageStepper, ConsumerStepper]);
+		const moduleOptions = {
+			[util.getStepperOptionName(consumer, StepperKinds.STORAGE)]: 'AlternativeStorageStepper'
+		};
+
+		const found = util.findStepperFromOptionOrKind(steppers, consumer, moduleOptions, StepperKinds.STORAGE);
+
+		expect(found).toBeDefined();
+		expect(constructorName(<AStepper>found)).toBe('AlternativeStorageStepper');
+	});
+
+	it('throws when multiple steppers of kind exist and no option specified', async () => {
+		const consumer = new ConsumerStepper();
+		const steppers = await getCreateSteppers([], [StorageStepper, AlternativeStorageStepper, ConsumerStepper]);
+		const moduleOptions = {};
+
+		expect(() => util.findStepperFromOptionOrKind(steppers, consumer, moduleOptions, StepperKinds.STORAGE))
+			.toThrow(/Multiple steppers of kind STORAGE found/);
+	});
+
+	it('throws when no stepper of kind exists', async () => {
+		const consumer = new ConsumerStepper();
+		const steppers = await getCreateSteppers([], [ConsumerStepper]); // No storage stepper
+		const moduleOptions = {};
+
+		expect(() => util.findStepperFromOptionOrKind(steppers, consumer, moduleOptions, StepperKinds.STORAGE))
+			.toThrow(/no stepper of kind STORAGE found/);
 	});
 });
 

@@ -272,7 +272,7 @@ function doFindStepperFromOption<Type>(
 }
 
 function stepperOptionNotFoundError(stepper: AStepper, optionNames: string[], moduleOptions: TModuleOptions): string {
-	return `Cannot find ${optionNames.map((o) => getStepperOptionName(stepper, o)).join(' or ')} in your ${constructorName(
+	return `Cannot find single ${optionNames.map((o) => getStepperOptionName(stepper, o)).join(' or ')} in your ${constructorName(
 		stepper
 	)} options ${JSON.stringify(Object.keys(moduleOptions).filter((k) => k.startsWith(getPre(stepper))))}`;
 }
@@ -299,7 +299,7 @@ export function findStepperFromOptionOrKind<Type>(
 	}
 
 	// Fall back: find any single stepper of the given kind
-	const kind = optionNames[0]; // Use first optionName as the kind
+	const kind = optionNames[0];
 	const matchingSteppers = steppers.filter((s) => s.kind === kind);
 
 	if (matchingSteppers.length === 0) {

@@ -6,7 +6,7 @@ import { captureLocator } from '@haibun/core/lib/capture-locator.js';
 import { actionNotOK } from '@haibun/core/lib/util/index.js';
 import { guessMediaType, IFile, TLocationOptions } from './domain-storage.js';
 import { EMediaTypes, TMediaType } from './media-types.js';
-import { AStepper } from '@haibun/core/lib/astepper.js';
+import { AStepper, StepperKinds, } from "@haibun/core/lib/astepper.js";
 import { TAnyFixme } from '@haibun/core/lib/fixme.js';
 
 export type TTree = Array<IFile | IFileWithEntries>;
@@ -15,6 +15,7 @@ interface IFileWithEntries extends IFile {
 	entries: TTree;
 }
 export abstract class AStorage extends AStepper {
+	kind = StepperKinds.STORAGE;
 	abstract readFile(path: string, coding?: string): TAnyFixme;
 	abstract rm(path: string);
 	abstract readdir(dir: string): Promise<string[]>;
