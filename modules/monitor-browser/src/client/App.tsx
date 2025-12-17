@@ -14,6 +14,9 @@ type ViewMode = 'log' | 'raw' | 'document';
 function App() {
 
   const initialState = getInitialState();
+  // If we have initial state with events, we're in serialized (offline) mode
+  const isSerializedMode = !!(initialState?.events && initialState.events.length > 0);
+  
   const [events, setEvents] = useState<THaibunEvent[]>(() => initialState?.events as THaibunEvent[] || []);
   const [connected, setConnected] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -48,54 +51,67 @@ function App() {
 
   const ws = useRef<WebSocket | null>(null);
   
-  const { sendJsonMessage, readyState } = useWebSocket(`ws://localhost:8080`, {
-      onOpen: () => {
-          console.log('WS Connected');
-          sendJsonMessage({ type: 'ready' });
-      },
-      onMessage: (msg) => {
-           try {
-              const data = JSON.parse(msg.data);
-              if (data.type === 'event') {
-                  const event = data.event;
-                  setEvents(prev => {
-                      const newEvents = [...prev, event];
-                      return newEvents;
-                  });
-              } else if (data.type === 'prompt') {
-                  setActivePrompt(data.prompt);
-                  setIsPlaying(false);
-              } else if (data.type === 'finalize') {
-                  // Finalize handled by server now
-                  console.log('Finalize received');
+  // Only use WebSocket in live mode (not serialized)
+  const { sendJsonMessage, readyState } = useWebSocket(
+      isSerializedMode ? null : `ws://localhost:8080`, // null URL disables connection
+      {
+          onOpen: () => {
+              console.log('WS Connected');
+              sendJsonMessage({ type: 'ready' });
+          },
+          onMessage: (e) => {
+              try {
+                  const msg = JSON.parse(e.data);
+                  if (msg.type === 'event' && msg.event) {
+                      setEvents(prev => [...prev, msg.event]);
+                  } else if (msg.type === 'prompt') {
+                      console.log('Prompt received', msg);
+                      setActivePrompt(msg);
+                      setIsPlaying(false); // Pause on prompt
+                  } else if (msg.type === 'finalize') {
+                      console.log('Finalize received');
+                  }
+              } catch (e) {
+                  console.error('WS Parse Error', e);
               }
-          } catch (e) {
-              console.error('WS Parse Error', e);
-          }
-      },
-      shouldReconnect: () => true,
-  });
+          },
+          shouldReconnect: () => !isSerializedMode, // Don't reconnect in serialized mode
+      }
+  );
 
   useEffect(() => {
-    setConnected(readyState === ReadyState.OPEN);
-  }, [readyState]);
+    // In serialized mode, never set connected to true
+    if (isSerializedMode) {
+      setConnected(false);
+      console.log('[App] Serialized mode - connected set to false');
+    } else {
+      setConnected(readyState === ReadyState.OPEN);
+    }
+  }, [readyState, isSerializedMode]);
 
   // Handle Time Logic - Anchor to first event
   useEffect(() => {
     if (events.length > 0) {
+        const firstEvent = events[0];
+        const lastEvent = events[events.length - 1];
+        
+        if (!firstEvent?.timestamp || !lastEvent?.timestamp) return;
+        
         if (startTime === null) {
-            setStartTime(events[0].timestamp);
+            setStartTime(firstEvent.timestamp);
         }
         
         // Update max time
-        const first = startTime || events[0].timestamp;
-        const last = events[events.length - 1].timestamp;
+        const first = startTime || firstEvent.timestamp;
+        const last = lastEvent.timestamp;
         const newMax = last - first;
         setMaxTime(newMax);
         
-        // Auto-advance time if live/connected and not specifically paused/scrubbing? 
-        // Simple logic: if connected, always show latest.
+        // In live mode, auto-advance to show latest
         if (connected) {
+            setCurrentTime(newMax);
+        } else if (currentTime === 0 && newMax > 0) {
+            // Initialize to end for serialized reports
             setCurrentTime(newMax);
         }
     }
@@ -113,7 +129,39 @@ function App() {
     }
   };
 
-  const togglePlay = () => setIsPlaying(!isPlaying);
+  const togglePlay = () => {
+    console.log('[Timeline] togglePlay - isPlaying:', isPlaying, 'currentTime:', currentTime, 'maxTime:', maxTime);
+    // If at the end and trying to play, restart from beginning
+    if (!isPlaying && currentTime >= maxTime && maxTime > 0) {
+      console.log('[Timeline] Restarting from beginning');
+      setCurrentTime(0);
+    }
+    setIsPlaying(!isPlaying);
+  };
+
+  // Playback timer - advance time when playing (works in both live and replay mode)
+  useEffect(() => {
+    if (!isPlaying) return;
+    if (maxTime <= 0) return; // No events to play
+    
+    console.log('[Timeline] Starting playback interval');
+    const interval = setInterval(() => {
+      setCurrentTime(prev => {
+        const next = prev + 50; // 50ms increments for smooth playback
+        if (next >= maxTime) {
+          console.log('[Timeline] Reached end, stopping playback');
+          setIsPlaying(false); // Stop at end
+          return maxTime;
+        }
+        return next;
+      });
+    }, 50); // 50ms interval for smooth animation
+    
+    return () => {
+      console.log('[Timeline] Clearing playback interval');
+      clearInterval(interval);
+    };
+  }, [isPlaying, maxTime]);
 
   // Filter events based on time and controls
   const visibleEvents = useMemo(() => {
@@ -122,8 +170,11 @@ function App() {
       const minLevelIndex = levels.indexOf(minLogLevel);
 
       return events.filter(e => {
-          // Time filter
-          if (!connected && (e.timestamp - effectiveStart) > currentTime) return false;
+          // Skip null/undefined events or events without timestamp
+          if (!e || e.timestamp === undefined) return true;
+          
+          // Time filter - always apply (works in both live and replay mode)
+          if ((e.timestamp - effectiveStart) > currentTime) return false;
           
           // Log Level Filter
           // Use refined level logic
@@ -145,7 +196,7 @@ function App() {
 
           return true;
       });
-  }, [events, currentTime, connected, startTime, minLogLevel, maxDepth]);
+  }, [events, currentTime, startTime, minLogLevel, maxDepth]);
 
   // Auto-scroll when new events arrive
   useEffect(() => {
@@ -159,6 +210,9 @@ function App() {
         <div className="font-mono text-xs w-full bg-black p-4 rounded-lg shadow-xl overflow-hidden">
             {visibleEvents
                 .reduce((acc, e) => {
+                     // Skip null/undefined events
+                     if (!e) return acc;
+                     
                      // Filter out single-component IDs if needed
                      if (e.id && /^\[\d+\]$/.test(e.id)) {
                         return acc;
@@ -177,6 +231,9 @@ function App() {
                     return [...acc, e];
                 }, [] as any[])
                 .map((e, i, arr) => {
+                    // Skip null/undefined events
+                    if (!e) return null;
+                    
                     const isLast = i === arr.length - 1;
                     const prevE = i > 0 ? arr[i-1] : undefined;
                     const prevLevel = prevE ? EventFormatter.getDisplayLevel(prevE) : undefined;
@@ -441,6 +498,8 @@ function App() {
         onChange={setCurrentTime}
         isPlaying={isPlaying}
         onPlayPause={togglePlay}
+        events={events}
+        startTime={startTime || 0}
       />
     </div>
   )

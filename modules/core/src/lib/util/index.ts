@@ -266,13 +266,57 @@ function doFindStepperFromOption<Type>(
 		return undefined;
 	}
 	if (!val) {
-		throw Error(
-			`Cannot find ${optionNames.map((o) => getStepperOptionName(stepper, o)).join(' or ')} in your ${constructorName(
-				stepper
-			)} options ${JSON.stringify(Object.keys(moduleOptions).filter((k) => k.startsWith(getPre(stepper))))}`
-		);
+		throw Error(stepperOptionNotFoundError(stepper, optionNames, moduleOptions));
 	}
 	return findStepper(steppers, val);
+}
+
+function stepperOptionNotFoundError(stepper: AStepper, optionNames: string[], moduleOptions: TModuleOptions): string {
+	return `Cannot find ${optionNames.map((o) => getStepperOptionName(stepper, o)).join(' or ')} in your ${constructorName(
+		stepper
+	)} options ${JSON.stringify(Object.keys(moduleOptions).filter((k) => k.startsWith(getPre(stepper))))}`;
+}
+
+/**
+ * Find a stepper by option value, or fall back to finding a single stepper of the given kind.
+ * If no stepper-level option is defined, returns any single stepper matching the first optionName as kind.
+ * Throws if multiple steppers match the kind and no option is specified.
+ */
+export function findStepperFromOptionOrKind<Type>(
+	steppers: AStepper[],
+	stepper: AStepper,
+	moduleOptions: TModuleOptions,
+	...optionNames: string[]
+): Type {
+	// First, try to find via option
+	const val = optionNames.reduce<string | undefined>((v, n) => {
+		const r = getStepperOption(stepper, n, moduleOptions);
+		return v || r;
+	}, undefined);
+
+	if (val) {
+		return findStepper(steppers, val);
+	}
+
+	// Fall back: find any single stepper of the given kind
+	const kind = optionNames[0]; // Use first optionName as the kind
+	const matchingSteppers = steppers.filter((s) => s.kind === kind);
+
+	if (matchingSteppers.length === 0) {
+		throw Error(
+			stepperOptionNotFoundError(stepper, optionNames, moduleOptions) +
+			` and no stepper of kind ${kind} found`
+		);
+	}
+
+	if (matchingSteppers.length > 1) {
+		throw Error(
+			`Multiple steppers of kind ${kind} found: ${matchingSteppers.map((s) => constructorName(s)).join(', ')}. ` +
+			`Please specify which one to use via ${getStepperOptionName(stepper, optionNames[0])}`
+		);
+	}
+
+	return matchingSteppers[0] as Type;
 }
 
 export function findStepper<Type>(steppers: AStepper[], name: string): Type {

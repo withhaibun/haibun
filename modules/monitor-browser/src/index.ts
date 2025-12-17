@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 import { AStepper, IHasCycles, IHasOptions, StepperKinds } from '@haibun/core/lib/astepper.js';
 import { IStepperCycles, TWorld, OK, } from '@haibun/core/lib/defs.js';
 import { THaibunEvent, } from '@haibun/core/lib/EventLogger.js';
-import { stringOrError, getStepperOption, actualURI, maybeFindStepperFromOption } from '@haibun/core/lib/util/index.js';
+import { stringOrError, getStepperOption, actualURI, findStepperFromOptionOrKind } from '@haibun/core/lib/util/index.js';
 import { WebSocketTransport, ITransport } from './transport.js';
 import { WebSocketPrompter } from './prompter.js';
 import { AStorage } from '@haibun/domain-storage/AStorage.js';
@@ -18,7 +18,7 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
   kind = StepperKinds.MONITOR;
   static transport: ITransport;
   prompter: WebSocketPrompter | undefined;
-  storage: AStorage | undefined;
+  storage!: AStorage;
   events: THaibunEvent[] = [];
 
   options = {
@@ -37,15 +37,13 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
 
   async setWorld(world: TWorld, steppers: AStepper[]) {
     super.setWorld(world, steppers);
-    this.storage = maybeFindStepperFromOption(steppers, this, world.moduleOptions, StepperKinds.STORAGE);
+    this.storage = findStepperFromOptionOrKind(steppers, this, world.moduleOptions, StepperKinds.STORAGE);
 
     // Start singleton transport if not exists
     if (!MonitorBrowserStepper.transport) {
       const port = parseInt(getStepperOption(this, 'PORT', world.moduleOptions) || '8080', 10);
-      if (this.storage) {
-        const loc = { ...world, mediaType: EMediaTypes.html };
-        this.captureRoot = await this.storage.getCaptureLocation(loc);
-      }
+      const loc = { ...world, mediaType: EMediaTypes.html };
+      this.captureRoot = await this.storage.getCaptureLocation(loc);
       MonitorBrowserStepper.transport = new WebSocketTransport(port, this.captureRoot);
     }
 
@@ -137,10 +135,6 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
   };
 
   private async saveSerializedReport(jitData: string, topic: string, seq: string) {
-    if (!this.storage) {
-      console.warn('[MonitorBrowser] No storage defined, skipping report save.');
-      return;
-    }
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = dirname(__filename);
     const distDir = path.join(__dirname, '..', 'dist', 'client');

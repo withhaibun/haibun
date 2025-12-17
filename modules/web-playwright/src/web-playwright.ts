@@ -5,19 +5,20 @@ import { z } from 'zod';
 
 import { TWorld, OK, TStepResult, TFeatureStep, Origin, CycleWhen, TDomainDefinition } from '@haibun/core/lib/defs.js';
 import { BrowserFactory, TTaggedBrowserFactoryOptions, TBrowserTypes, BROWSERS } from './BrowserFactory.js';
-import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOption, optionOrError } from '@haibun/core/lib/util/index.js';
+import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOptionOrKind, optionOrError } from '@haibun/core/lib/util/index.js';
 import { AStorage } from '@haibun/domain-storage/AStorage.js';
 import { EExecutionMessageType, TArtifactImage, TMessageContext } from '@haibun/core/lib/interfaces/logger.js';
 import { EMediaTypes } from '@haibun/domain-storage/media-types.js';
-
-import { MonitorHandler } from './monitor/MonitorHandler.js';
+import { DOMAIN_STRING, registerDomains } from '@haibun/core/lib/domain-types.js';
+import { ImageArtifact } from '@haibun/core/lib/EventLogger.js';
 import { TAnyFixme } from '@haibun/core/lib/fixme.js';
 import { AStepper, IHasCycles, IHasOptions, StepperKinds } from '@haibun/core/lib/astepper.js';
+
+import { MonitorHandler } from './monitor/MonitorHandler.js';
 import { cycles } from './cycles.js';
 import { interactionSteps } from './interactionSteps.js';
 import { restSteps, TCapturedResponse } from './rest-playwright.js';
 import { TwinPage } from './twin-page.js';
-import { DOMAIN_STRING, registerDomains } from '@haibun/core/lib/domain-types.js';
 
 type TWebPlaywrightSteps = ReturnType<typeof interactionSteps> & ReturnType<typeof restSteps>;
 type TWebPlaywrightTypedSteps = ReturnType<typeof interactionSteps> & ReturnType<typeof restSteps>;
@@ -115,7 +116,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		await super.setWorld(world, steppers);
 
 		const args = [...(getStepperOption(this, 'ARGS', world.moduleOptions)?.split(';') || ''),]; //'--disable-gpu'
-		this.storage = findStepperFromOption(steppers, this, world.moduleOptions, StepperKinds.STORAGE);
+		this.storage = findStepperFromOptionOrKind(steppers, this, world.moduleOptions, StepperKinds.STORAGE);
 		this.headless = getStepperOption(this, 'HEADLESS', world.moduleOptions) === 'true' || !!process.env.CI;
 		const devtools = getStepperOption(this, 'DEVTOOLS', world.moduleOptions) === 'true';
 		if (devtools) {
@@ -263,25 +264,21 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 
 		// Emit new-style artifact event (if eventLogger is available)
 		const world = this.getWorld();
-		if (world.eventLogger && details.step?.seqPath) {
-			const { ImageArtifact } = await import('@haibun/core/lib/EventLogger.js');
-			const artifactEvent = ImageArtifact.parse({
-				id: `${details.step.seqPath.join('.')}.artifact.0`,
-				timestamp: Date.now(),
-				kind: 'artifact',
-				artifactType: 'image',
-				path: relativePath,
-				mimetype: 'image/png',
-			});
-			// Create a minimal featureStep for the artifact method
-			const featureStep = {
-				seqPath: details.step.seqPath,
-				path: details.step.path,
-				in: details.step.in,
-				action: {} as any,
-			};
-			world.eventLogger.artifact(featureStep, artifactEvent);
-		}
+		const artifactEvent = ImageArtifact.parse({
+			id: `${details.step.seqPath.join('.')}.artifact.0`,
+			timestamp: Date.now(),
+			kind: 'artifact',
+			artifactType: 'image',
+			path: relativePath,
+			mimetype: 'image/png',
+		});
+		const featureStep = {
+			seqPath: details.step.seqPath,
+			path: details.step.path,
+			in: details.step.in,
+			action: {} as any,
+		};
+		world.eventLogger.artifact(featureStep, artifactEvent);
 
 		return { context, path };
 	}

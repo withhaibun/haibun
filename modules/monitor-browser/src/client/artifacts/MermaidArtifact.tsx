@@ -21,10 +21,19 @@ export function MermaidArtifact({ artifact }: MermaidArtifactProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const zoomIn = useCallback(() => setScale(s => Math.min(s + 0.25, 3)), []);
   const zoomOut = useCallback(() => setScale(s => Math.max(s - 0.25, 0.25)), []);
   const resetZoom = useCallback(() => setScale(1), []);
+  
+  const copyToClipboard = useCallback(async () => {
+    if (artifact.source) {
+      await navigator.clipboard.writeText(artifact.source);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  }, [artifact.source]);
 
   useEffect(() => {
     if (!containerRef.current || !artifact.source) return;
@@ -67,6 +76,12 @@ export function MermaidArtifact({ artifact }: MermaidArtifactProps) {
           className="px-2 py-0.5 text-xs border border-slate-300 rounded bg-white text-slate-700 hover:bg-slate-100 font-medium"
         >
           +
+        </button>
+        <button
+          onClick={copyToClipboard}
+          className="px-2 py-0.5 text-xs border border-slate-300 rounded bg-white text-slate-700 hover:bg-slate-100 font-medium ml-2"
+        >
+          {copied ? '✓ Copied' : 'Copy'}
         </button>
       </div>
 

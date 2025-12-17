@@ -4,7 +4,7 @@ import { TWorld, TFeatureStep } from "@haibun/core/lib/defs.js";
 import { AStepper, IHasOptions, StepperKinds, TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { TAnyFixme } from "@haibun/core/lib/fixme.js";
 import { TArtifactHTML } from "@haibun/core/lib/interfaces/logger.js";
-import { stringOrError, findStepper, actionNotOK, actionOK, findStepperFromOption } from "@haibun/core/lib/util/index.js";
+import { stringOrError, findStepper, actionNotOK, actionOK, findStepperFromOptionOrKind } from "@haibun/core/lib/util/index.js";
 import { getAxeBrowserResult, evalSeverity } from "./lib/a11y-axe.js";
 import { generateHTMLAxeReportFromBrowserResult } from "./lib/report.js";
 import { AStorage } from "@haibun/domain-storage/AStorage.js";
@@ -27,7 +27,7 @@ class A11yStepper extends AStepper implements IHasOptions {
     await super.setWorld(world, steppers);
     this.pageGetter = findStepper<TGetsPage>(steppers, 'WebPlaywright');
     this.steppers = steppers;
-    this.storage = findStepperFromOption(steppers, this, world.moduleOptions, StepperKinds.STORAGE);
+    this.storage = findStepperFromOptionOrKind(steppers, this, world.moduleOptions, StepperKinds.STORAGE);
   }
 
   asNumber = (value: string) => value.match(/[^\d+]/) ? NaN : parseInt(value);
