@@ -28,3 +28,55 @@ describe('fs getCaptureLocation', () => {
 		expect(dir).toEqual(`./${CAPTURE}/${DEFAULT_DEST}/${key}/seq-0/featn-0/test`);
 	});
 });
+
+describe('getArtifactBasePath', () => {
+	it('returns base path without seq/featn', () => {
+		const storageFS = new StorageFS();
+		storageFS.world = getDefaultWorld(0);
+		const basePath = storageFS.getArtifactBasePath();
+		expect(basePath).toEqual(`./${CAPTURE}/default/${key}`);
+		// Verify no seq/featn in path
+		expect(basePath).not.toContain('seq-');
+		expect(basePath).not.toContain('featn-');
+	});
+});
+
+describe('saveArtifact', () => {
+	it('with subpath returns correct paths', async () => {
+		const storageFS = new StorageFS();
+		storageFS.world = getDefaultWorld(0);
+
+		const saved = await storageFS.saveArtifact('test.png', Buffer.from('fake-image'), EMediaTypes.image, 'image');
+
+		// Feature-relative for serialized HTML
+		expect(saved.featureRelativePath).toEqual('./image/test.png');
+
+		// Base-relative for live server (includes seq/featn)
+		expect(saved.baseRelativePath).toMatch(/^seq-0\/featn-0\/image\/test\.png$/);
+
+		// Absolute path exists
+		expect(storageFS.exists(saved.absolutePath)).toBe(true);
+
+		// Cleanup
+		storageFS.rm(saved.absolutePath);
+	});
+
+	it('without subpath returns correct paths', async () => {
+		const storageFS = new StorageFS();
+		storageFS.world = getDefaultWorld(0);
+
+		const saved = await storageFS.saveArtifact('report.html', '<html></html>', EMediaTypes.html);
+
+		// Feature-relative for serialized HTML (no subpath)
+		expect(saved.featureRelativePath).toEqual('./report.html');
+
+		// Base-relative for live server
+		expect(saved.baseRelativePath).toMatch(/^seq-0\/featn-0\/report\.html$/);
+
+		// Absolute path exists
+		expect(storageFS.exists(saved.absolutePath)).toBe(true);
+
+		// Cleanup
+		storageFS.rm(saved.absolutePath);
+	});
+});

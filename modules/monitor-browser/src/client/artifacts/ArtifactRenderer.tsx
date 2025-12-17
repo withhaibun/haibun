@@ -8,6 +8,7 @@ import { JsonArtifact } from './JsonArtifact';
 import { MermaidArtifact } from './MermaidArtifact';
 
 import { getMermaidFromResolvedFeatures } from '../lib/mermaid';
+import { getArtifactUrl } from '../lib/artifactUrl';
 
 interface ArtifactRendererProps {
   artifact: TArtifactEvent;
@@ -35,7 +36,7 @@ export function ArtifactRenderer({ artifact, currentTime, onTimeSync }: Artifact
       return <JsonArtifact artifact={{ ...artifact, artifactType: 'json', json: artifact.trace } as any} />;
     case 'file':
       return (
-        <a href={artifact.path} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">
+        <a href={getArtifactUrl(artifact.path)} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">
           📎 {artifact.path}
         </a>
       );

@@ -11,6 +11,25 @@ const tsconfigRaw = JSON.parse(readFileSync(path.join(__dirname, 'tsconfig.clien
 
 export default defineConfig({
   plugins: [react() as any],
+  server: {
+    host: '0.0.0.0',
+    port: 3458,
+    proxy: {
+      // Proxy WebSocket connections to the Haibun monitor server
+      '/ws': {
+        target: 'ws://localhost:8080',
+        ws: true,
+        changeOrigin: true,
+        rewriteWsOrigin: true,
+      },
+      // Proxy artifact requests (screenshots, videos, etc.) to the monitor server
+      '/artifacts': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/artifacts/, ''),
+      }
+    }
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src/client"),

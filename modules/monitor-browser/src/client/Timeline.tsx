@@ -34,16 +34,16 @@ const getNotchStyle = (event: THaibunEvent): { color: string, icon: string } => 
         return { color: '#94a3b8', icon: '•' };
     }
     if (event.kind === 'artifact') return { color: '#10b981', icon: '📎' }; // Emerald
-    
+
     return { color: '#94a3b8', icon: '•' };
 };
 
 // Speed options: 0.02 (labeled -50x), 0.05 (labeled -20x), 1, 2
 const SPEED_OPTIONS = [0.02, 0.05, 1, 2];
 
-export function Timeline({ 
-    min, max, current, onChange, isPlaying, onPlayPause, 
-    events = [], startTime = 0, playbackSpeed, onSpeedChange 
+export function Timeline({
+    min, max, current, onChange, isPlaying, onPlayPause,
+    events = [], startTime = 0, playbackSpeed, onSpeedChange
 }: TimelineProps) {
     const [localValue, setLocalValue] = useState(current);
     const [isDragging, setIsDragging] = useState(false);
@@ -57,7 +57,7 @@ export function Timeline({
     // Calculate notch positions for all step events
     const notches = useMemo(() => {
         if (max === 0 || events.length === 0) return [];
-        
+
         return events
             .filter(e => {
                 // Always show High Priority items
@@ -65,7 +65,7 @@ export function Timeline({
                 const isWarn = e.kind === 'log' && e.level === 'warn';
                 const isArtifact = e.kind === 'artifact';
                 const isStructure = e.kind === 'lifecycle' && (e.type === 'feature' || e.type === 'scenario');
-                
+
                 if (isError || isWarn || isArtifact || isStructure) return true;
 
                 // For normal steps, show COMPLETED (end) events instead of start events to show ✅ instead of ⏳
@@ -73,19 +73,19 @@ export function Timeline({
                     // Filter out technical steps if needed, though 'end' events might not always have labels populated identically? 
                     // Usually they do.
                     const isTechnical = /^[a-z]/.test(e.label || '');
-                    return !isTechnical; 
+                    return !isTechnical;
                 }
-                
+
                 return false;
             })
             .map(e => {
                 const relativeTime = e.timestamp - startTime;
                 const percentage = max > 0 ? (relativeTime / max) * 100 : 0;
                 const style = getNotchStyle(e);
-                
-                return { 
-                    id: e.id, 
-                    time: relativeTime, 
+
+                return {
+                    id: e.id,
+                    time: relativeTime,
                     percentage: Math.max(0, Math.min(100, percentage)),
                     color: style.color,
                     icon: style.icon,
@@ -106,7 +106,7 @@ export function Timeline({
     const handleRestart = () => onChange(min);
 
     const formatTime = (ms: number) => (ms / 1000).toFixed(2) + 's';
-    
+
     const formatSpeed = (speed: number) => {
         if (speed === 0.02) return '-50×';
         if (speed === 0.05) return '-20×';
@@ -155,7 +155,7 @@ export function Timeline({
                         <div
                             key={`${notch.id}-${idx}`}
                             title={`${notch.label} (${formatTime(notch.time)})`}
-                            className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 text-sm leading-none select-none"
+                            className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 text-sm leading-none select-none opacity-50"
                             style={{
                                 left: `${notch.percentage}%`,
                                 color: notch.color,

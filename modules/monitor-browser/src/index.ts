@@ -33,17 +33,25 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
 
   captureRoot: string | undefined;
 
+  // Static base path for transport (capture/DEST/key/ without seq/featn)
+  static transportRoot: string | undefined;
+
   async setWorld(world: TWorld, steppers: AStepper[]) {
     super.setWorld(world, steppers);
     this.storage = findStepperFromOptionOrKind(steppers, this, world.moduleOptions, StepperKinds.STORAGE);
 
+    // Get the current feature's capture location
+    const loc = { ...world, mediaType: EMediaTypes.html };
+    this.captureRoot = await this.storage.getCaptureLocation(loc);
+
     // Start singleton transport if not exists
+    // Use base path (capture/DEST/key/) without seq-N/featn-N so all features' artifacts are served
     if (!MonitorBrowserStepper.transport) {
       const port = parseInt(getStepperOption(this, 'PORT', world.moduleOptions) || '8080', 10);
-      const loc = { ...world, mediaType: EMediaTypes.html };
-      this.captureRoot = await this.storage.getCaptureLocation(loc);
-      MonitorBrowserStepper.transport = new WebSocketTransport(port, this.captureRoot);
+      MonitorBrowserStepper.transportRoot = this.storage.getArtifactBasePath();
+      MonitorBrowserStepper.transport = new WebSocketTransport(port, MonitorBrowserStepper.transportRoot);
     }
+
 
     // Setup debugger bridge
     this.prompter = new WebSocketPrompter(MonitorBrowserStepper.transport);
@@ -56,62 +64,30 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
 
   cycles: IStepperCycles = {
     onEvent: async (event: THaibunEvent) => {
-      // Transform for live mode (similar to endFeature serialization logic)
-      let transportEvent = event;
-      if (this.captureRoot && event.kind === 'artifact' && 'path' in event && typeof (event as any).path === 'string') {
-        const artifactPath = (event as any).path as string;
-        let absPath = artifactPath;
-        if (artifactPath.startsWith('file://')) {
-          absPath = fileURLToPath(artifactPath);
-        }
-
-        // If path is absolute, try to make it relative to captureRoot
-        // This handles cases where artifacts are deep in subdirectories
-        if (path.isAbsolute(absPath)) {
-          const relPath = path.relative(this.captureRoot, absPath);
-          // If it is inside captureRoot (doesn't start with ..)
-          if (!relPath.startsWith('..') && !path.isAbsolute(relPath)) {
-            // Normalize to URL slashes
-            const urlPath = relPath.split(path.sep).join('/');
-            if (urlPath && urlPath !== '.') {
-              transportEvent = { ...event, path: urlPath };
-            }
-          }
-        }
-      }
-      MonitorBrowserStepper.transport.send({ type: 'event', event: transportEvent });
+      // Events from saveArtifact already have baseRelativePath as path
+      // Just forward them to the transport for live streaming
+      MonitorBrowserStepper.transport.send({ type: 'event', event });
     },
     endFeature: async () => {
       MonitorBrowserStepper.transport.send({ type: 'finalize' });
 
-      // Transform artifact paths to be relative to capture directory
-      // Paths should already be relative like ./image/screenshot.png
+      // For serialized HTML, transform baseRelativePaths (seq-0/featn-1/image/file.png)
+      // to featureRelativePaths (./image/file.png) since HTML will be in feature dir
       const transformedEvents = this.events.map(e => {
         if (e.kind === 'artifact' && 'path' in e && typeof (e as any).path === 'string') {
           const artifactPath = (e as any).path as string;
-          let absPath = artifactPath;
-
-          if (artifactPath.startsWith('file://')) {
-            absPath = fileURLToPath(artifactPath);
+          // baseRelativePath format: seq-N/featn-N/subpath/file.ext
+          // Need to strip seq-N/featn-N/ prefix for serialized HTML
+          const match = artifactPath.match(/^seq-\d+\/featn-\d+\/(.*)$/);
+          if (match) {
+            return { ...e, path: './' + match[1] };
           }
-
-          // If we have captureRoot and path is absolute, make it relative
-          if (this.captureRoot && path.isAbsolute(absPath)) {
-            const relPath = path.relative(this.captureRoot, absPath);
-            if (!relPath.startsWith('..')) {
-              // Normalize for URL usage in HTML
-              const urlPath = relPath.split(path.sep).join('/');
-              if (urlPath && urlPath !== '.') {
-                return { ...e, path: urlPath };
-              }
-            }
+          // If already a relative path like ./subpath/file.ext, keep it
+          if (artifactPath.startsWith('./')) {
+            return e;
           }
-
-          // Fallback: if still absolute or outside captureRoot, try to use filename 
-          // (Legacy behavior, but risky if name collision)
-          if (path.isAbsolute(absPath)) {
-            return { ...e, path: path.basename(absPath) };
-          }
+          // Otherwise prepend ./ for relative path
+          return { ...e, path: './' + artifactPath };
         }
         return e;
       });
@@ -181,18 +157,13 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
       html += injection;
     }
 
-    const loc = { ...this.getWorld(), mediaType: EMediaTypes.html };
-    // Write directly to capture base directory (not a subdirectory)
-    const dir = await this.storage.getCaptureLocation(loc);
-    await this.storage.ensureDirExists(dir);
     // Use topic (feature name) for filename if available, otherwise fallback
     const filename = topic ? `${topic}-${Date.now()}` : `haibun-report-${Date.now()}`;
-    const savePath = path.join(dir, filename + '.html');
-    await this.storage.writeFile(savePath, html, EMediaTypes.html);
+    const saved = await this.storage.saveArtifact(filename + '.html', html, EMediaTypes.html);
 
     // Console log for immediate feedback (report saved locally, not emitted as artifact)
     console.log(seq);
-    console.log(`${seq} ${topic} ${actualURI(savePath)}`);
+    console.log(`${seq} ${topic} ${actualURI(saved.absolutePath)}`);
   }
 
   steps = {

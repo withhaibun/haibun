@@ -1,19 +1,25 @@
-import { resolve } from 'path';
-import { pathToFileURL } from 'url';
+import { resolve, relative } from 'path';
 
-import { CAPTURE, OK, TStepArgs, TWorld } from '@haibun/core/lib/defs.js';
+import { CAPTURE, OK, TStepArgs } from '@haibun/core/lib/defs.js';
 import { captureLocator } from '@haibun/core/lib/capture-locator.js';
 import { actionNotOK } from '@haibun/core/lib/util/index.js';
-import { guessMediaType, IFile, TLocationOptions } from './domain-storage.js';
+import { IFile, TLocationOptions } from './domain-storage.js';
 import { EMediaTypes, TMediaType } from './media-types.js';
 import { AStepper, StepperKinds, } from "@haibun/core/lib/astepper.js";
 import { TAnyFixme } from '@haibun/core/lib/fixme.js';
 
-export type TTree = Array<IFile | IFileWithEntries>;
-
-interface IFileWithEntries extends IFile {
-	entries: TTree;
+/**
+ * Result from saveArtifact with paths for different consumption contexts.
+ */
+export interface TSavedArtifact {
+	/** Absolute path where file was saved */
+	absolutePath: string;
+	/** Path relative to feature dir for serialized HTML: ./subpath/file.png or ./file.html */
+	featureRelativePath: string;
+	/** Path relative to base capture dir for live server: seq-0/featn-1/subpath/file.png */
+	baseRelativePath: string;
 }
+
 export abstract class AStorage extends AStepper {
 	kind = StepperKinds.STORAGE;
 	abstract readFile(path: string, coding?: string): TAnyFixme;
@@ -21,34 +27,6 @@ export abstract class AStorage extends AStepper {
 	abstract readdir(dir: string): Promise<string[]>;
 	abstract lstatToIFile(file: string): Promise<IFile>;
 	abstract writeFileBuffer(file: string, contents: Buffer, mediaType: TMediaType): void;
-
-	async readFlat(dir: string, filter?: string): Promise<IFile[]> {
-		const entries = await this.readdirStat(dir);
-		const tree: IFile[] = [];
-		for (const e of entries) {
-			if (e.isDirectory) {
-				const sub = await this.readFlat(e.name.replace(/^\/\//, '/'), filter);
-				tree.push(...sub);
-			} else if (!filter || e.name.match(filter)) {
-				tree.push(e);
-			}
-		}
-		return tree;
-	}
-
-	async readTree(dir: string, filter?: string): Promise<TTree> {
-		const entries = await this.readdirStat(dir);
-		const tree: TTree = [];
-		for (const e of entries) {
-			if (e.isDirectory) {
-				const sub = await this.readTree(e.name.replace(/^\/\//, '/'), filter);
-				tree.push({ ...e, entries: sub });
-			} else if (!filter || e.name.match(filter)) {
-				tree.push(e);
-			}
-		}
-		return tree;
-	}
 
 	async readdirStat(dir: string): Promise<IFile[]> {
 		const files = await this.readdir(dir);
@@ -71,10 +49,6 @@ export abstract class AStorage extends AStepper {
 	abstract mkdirp(dir: string);
 	abstract exists(ntt: string);
 
-	fromCaptureLocation(mediaType: TMediaType, ...where: string[]) {
-		return this.fromLocation(mediaType, ...[`./${CAPTURE}`, ...where]);
-	}
-
 	/**
 	 * Returns a storage specific resolved path for a given media type.
 	 * Overload this where slash directory conventions aren't used.
@@ -85,32 +59,58 @@ export abstract class AStorage extends AStepper {
 
 	locator = captureLocator;
 
-	async getRelativePath(pathIn: string | undefined) {
-		if (!pathIn) {
-			return undefined;
-		}
-		const mediaType = guessMediaType(pathIn);
-		const loc = resolve(await this.getCaptureLocation({ ...this.world, mediaType }));
-		return pathIn.replace(loc, '.');
-	}
-
 	// biome-ignore lint/suspicious/useAwait: may be async in some implementations
 	async getCaptureLocation(loc: TLocationOptions, app?: string) {
 		const { tag } = loc;
 		const location = this.locator(loc.options, tag, app);
 		return Promise.resolve(location);
 	}
-	async runtimePath(world?: TWorld): Promise<string> {
-		return pathToFileURL(await this.getCaptureLocation({ ...(world || this.world), mediaType: EMediaTypes.html })).pathname;
+
+	/**
+	 * Get base artifact path (capture/DEST/key) without seq/featn.
+	 * Used for HTTP servers that serve artifacts from all features.
+	 */
+	getArtifactBasePath(): string {
+		const { tag, options } = this.world;
+		return `./capture/${options.DEST || 'default'}/${tag.key}`;
+	}
+
+	/**
+	 * Save an artifact and return paths for different consumption contexts.
+	 * Uses this.world for tag/options - caller must ensure storage world is in sync.
+	 * @param filename - The filename to save as
+	 * @param contents - File contents (Buffer or string)
+	 * @param mediaType - Media type for proper handling
+	 * @param subpath - Optional subdirectory (e.g., 'image', 'video')
+	 */
+	async saveArtifact(
+		filename: string,
+		contents: string | Buffer,
+		mediaType: TMediaType,
+		subpath?: string
+	): Promise<TSavedArtifact> {
+		const loc = { ...this.world, mediaType };
+		const dir = await this.ensureCaptureLocation(loc, subpath);
+		const absolutePath = resolve(dir, filename);
+		await this.writeFile(absolutePath, contents, mediaType);
+
+		// Feature-relative path for serialized HTML
+		const featureRelativePath = subpath ? `./${subpath}/${filename}` : `./${filename}`;
+
+		// Base-relative path for live server (includes seq-N/featn-N)
+		const basePath = this.getArtifactBasePath();
+		const baseRelativePath = relative(resolve(basePath), absolutePath);
+
+		return { absolutePath, featureRelativePath, baseRelativePath };
 	}
 
 	async ensureCaptureLocation(loc: TLocationOptions, app?: string | undefined, fn = '') {
 		if (loc.tag.sequence < 0) {
-			return;
+			return '';
 		}
 		const dir = await this.getCaptureLocation(loc, app);
 		await this.ensureDirExists(dir);
-		return `${dir}/${fn}`;
+		return fn ? `${dir}/${fn}` : dir;
 	}
 	// biome-ignore lint/suspicious/useAwait: may be async in some implementations
 	async ensureDirExists(dir: string) {

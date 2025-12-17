@@ -85,6 +85,9 @@ export class BrowserFactory {
 	}
 
 	private captureVideoStart(sequence: number) {
+		if (!this.contextStats[sequence]) {
+			return;
+		}
 		this.contextStats[sequence].end = Timer.since();
 		this.contextStats[sequence].duration = this.contextStats[sequence].end - this.contextStats[sequence].start;
 		const vs: TMessageContext = {

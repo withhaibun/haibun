@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { TVideoArtifact } from '../types';
+import { getArtifactUrl } from '../lib/artifactUrl';
 
 interface VideoArtifactProps {
   artifact: TVideoArtifact;
@@ -31,7 +32,7 @@ export function VideoArtifact({ artifact, currentTime, onTimeSync }: VideoArtifa
     <div className="haibun-artifact-video fixed top-4 right-6 z-50 pointer-events-none">
       <video
         ref={videoRef}
-        src={artifact.path}
+        src={getArtifactUrl(artifact.path)}
         className="max-w-[320px] h-auto block transition-all duration-300 ease-in-out
                    origin-top-right pointer-events-auto shadow-lg bg-white opacity-70
                    hover:scale-[2] hover:opacity-100 hover:shadow-2xl"

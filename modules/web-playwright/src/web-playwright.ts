@@ -249,12 +249,12 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	}
 
 	async captureScreenshot(event: EExecutionMessageType, details: { seq?: number; step?: TStepResult }) {
-		const loc = await this.getCaptureDir('image');
-		// FIXME shouldn't be fs dependant
-		const path = resolve(this.storage.fromLocation(EMediaTypes.image, loc, `${event}-${Date.now()}.png`));
-		await this.withPage(async (page: Page) => await page.screenshot({ path }));
-		const relativePath = await this.storage.getRelativePath(path);
-		const artifact: TArtifactImage = { artifactType: 'image', path: relativePath };
+		const filename = `${event}-${Date.now()}.png`;
+		// Take screenshot to buffer first, then save via unified saveArtifact
+		const buffer = await this.withPage(async (page: Page) => await page.screenshot()) as Buffer;
+		const saved = await this.storage.saveArtifact(filename, buffer, EMediaTypes.image, 'image');
+
+		const artifact: TArtifactImage = { artifactType: 'image', path: saved.featureRelativePath };
 		const context: TMessageContext = {
 			incident: EExecutionMessageType.ACTION,
 			artifacts: [artifact],
@@ -262,14 +262,14 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			incidentDetails: { ...details, event }
 		};
 
-		// Emit new-style artifact event (if eventLogger is available)
+		// Emit new-style artifact event with baseRelativePath for live serving
 		const world = this.getWorld();
 		const artifactEvent = ImageArtifact.parse({
 			id: `${details.step.seqPath.join('.')}.artifact.0`,
 			timestamp: Date.now(),
 			kind: 'artifact',
 			artifactType: 'image',
-			path: relativePath,
+			path: saved.baseRelativePath,
 			mimetype: 'image/png',
 		});
 		const featureStep = {
@@ -280,7 +280,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		};
 		world.eventLogger.artifact(featureStep, artifactEvent);
 
-		return { context, path };
+		return { context, path: saved.absolutePath };
 	}
 
 	async captureAccessibilitySnapshot() {

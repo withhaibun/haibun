@@ -9,7 +9,6 @@ import { getAxeBrowserResult, evalSeverity } from "./lib/a11y-axe.js";
 import { generateHTMLAxeReportFromBrowserResult } from "./lib/report.js";
 import { AStorage } from "@haibun/domain-storage/AStorage.js";
 import { EMediaTypes } from "@haibun/domain-storage/media-types.js";
-import { resolve } from "path";
 
 type TGetsPage = { getPage: () => Promise<Page> };
 
@@ -68,12 +67,8 @@ class A11yStepper extends AStepper implements IHasOptions {
   private async generateArtifact(axeReport: TAnyFixme, filename: string, featureStep?: TFeatureStep) {
     const html = generateHTMLAxeReportFromBrowserResult(axeReport);
     if (this.storage) {
-      const loc = { ...this.getWorld(), mediaType: EMediaTypes.html };
-      const dir = await this.storage.ensureCaptureLocation(loc, '');
-      const path = resolve(dir, filename + '.html');
-      await this.storage.writeFile(path, html, EMediaTypes.html);
-      const relativePath = await this.storage.getRelativePath(path);
-      const artifact: TArtifactHTML = { artifactType: 'html', path: relativePath || path };
+      const saved = await this.storage.saveArtifact(filename + '.html', html, EMediaTypes.html);
+      const artifact: TArtifactHTML = { artifactType: 'html', path: saved.featureRelativePath };
 
       // Emit artifact event for new-style monitors
       if (featureStep && this.getWorld().eventLogger) {
@@ -83,7 +78,7 @@ class A11yStepper extends AStepper implements IHasOptions {
           timestamp: Date.now(),
           kind: 'artifact',
           artifactType: 'html',
-          path: path, // Use absolute path so consumers can resolve relative to their root
+          path: saved.baseRelativePath,
           mimetype: 'text/html',
         });
         this.getWorld().eventLogger.artifact(featureStep, artifactEvent);

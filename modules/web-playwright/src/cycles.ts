@@ -1,5 +1,5 @@
-import { rmSync } from 'fs';
-import { resolve } from 'path/posix';
+import { rmSync, readFileSync } from 'fs';
+import { relative, resolve } from 'path';
 
 import { IStepperCycles, TFailureArgs, TEndFeature, TStartExecution, TResolvedFeature, TStartFeature } from '@haibun/core/lib/defs.js';
 import { EExecutionMessageType, TArtifactVideo, TMessageContext } from '@haibun/core/lib/interfaces/logger.js';
@@ -60,11 +60,9 @@ export const cycles = (wp: WebPlaywright): IStepperCycles => ({
 });
 
 async function writeFeaturesArtifact(wp: WebPlaywright, type: string, resolvedFeatures: TResolvedFeature[]) {
-	const loc = await wp.getCaptureDir('json');
-	const mediaType = EMediaTypes.json;
-	// FIXME shouldn't be fs dependant
-	const path = resolve(wp.storage.fromLocation(mediaType, loc, `${type}.json`));
-	await wp.storage.writeFile(path, JSON.stringify(resolvedFeatures, null, 2), mediaType);
+	const filename = `${type}.json`;
+	const contents = JSON.stringify(resolvedFeatures, null, 2);
+	await wp.storage.saveArtifact(filename, contents, EMediaTypes.json, 'json');
 }
 
 async function closeAfterFeature(wp: WebPlaywright) {
@@ -76,7 +74,14 @@ async function closeAfterFeature(wp: WebPlaywright) {
 	if (wp.hasFactory) {
 		if (wp.captureVideo) {
 			const page = await wp.getPage();
-			const path = await wp.storage.getRelativePath(await page.video().path());
+			const videoPath = await page.video().path();
+			// Compute path relative to feature capture dir for serialized HTML
+			const basePath = wp.storage.getArtifactBasePath();
+			const featureRelPath = relative(resolve(basePath), videoPath);
+			// For artifact, use feature-relative path (strip seq-N/featn-N prefix)
+			const match = featureRelPath.match(/^seq-\d+\/featn-\d+\/(.*)$/);
+			const path = match ? './' + match[1] : './' + featureRelPath;
+
 			const artifact: TArtifactVideo = { artifactType: 'video', path };
 			const context: TMessageContext = {
 				incident: EExecutionMessageType.FEATURE_END,
@@ -94,3 +99,4 @@ async function closeAfterFeature(wp: WebPlaywright) {
 		wp.hasFactory = false;
 	}
 }
+
