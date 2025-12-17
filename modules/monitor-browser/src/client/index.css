@@ -60,3 +60,36 @@
     @apply bg-background text-foreground dark;
   }
 }
+
+/* Timeline slider - pseudo-elements can't be styled with Tailwind */
+#haibun-time-slider {
+  -webkit-appearance: none;
+  width: 100%;
+  background: transparent;
+}
+
+#haibun-time-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  height: 40px;
+  width: 3px;
+  background: hsl(var(--muted-foreground));
+  cursor: pointer;
+  margin-top: 0px;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+  border: none;
+  border-radius: 0;
+}
+
+#haibun-time-slider::-moz-range-thumb {
+  height: 40px;
+  width: 3px;
+  background: hsl(var(--muted-foreground));
+  cursor: pointer;
+  border: none;
+  border-radius: 0;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+}
+
+#haibun-time-slider:focus {
+  outline: none;
+}

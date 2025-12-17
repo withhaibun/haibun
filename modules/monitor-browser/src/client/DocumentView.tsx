@@ -338,11 +338,17 @@ export function DocumentView({ events }: DocumentViewProps) {
                     prose-h2:text-2xl prose-h2:mt-8 prose-h2:mb-4
                     prose-p:mb-4 prose-p:text-base md:prose-p:text-lg
                     prose-code:text-slate-800 prose-code:bg-slate-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded-sm prose-code:font-mono prose-code:text-sm
-                    prose-pre:bg-slate-50 prose-pre:border prose-pre:border-slate-200 prose-pre:text-slate-800
-                    prose-blockquote:border-l-4 prose-blockquote:border-slate-300 prose-blockquote:pl-4 prose-blockquote:italic prose-blockquote:text-slate-600
                 ">
                     {reactContent}
                 </div>
+                <style>{`
+                    .prose blockquote p:first-of-type::before {
+                        content: none;
+                    }
+                    .prose blockquote p:last-of-type::after {
+                        content: none;
+                    }
+                `}</style>
             </div>
         </div>
     );

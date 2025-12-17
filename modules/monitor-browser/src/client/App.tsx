@@ -23,6 +23,7 @@ function App() {
   const [startTime, setStartTime] = useState<number | null>(() => initialState?.startTime ?? null);
   const [maxTime, setMaxTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
   
   // View Control State
   const [viewMode, setViewMode] = useState<ViewMode>('log');
@@ -51,33 +52,42 @@ function App() {
 
   const ws = useRef<WebSocket | null>(null);
   
+  // Memoize WS options to prevent re-connection on render
+  const wsOptions = useMemo(() => ({
+      onOpen: () => {
+          console.log('WS Connected');
+          sendJsonMessageRef.current?.({ type: 'ready' });
+      },
+      onMessage: (e: MessageEvent) => {
+          try {
+              const msg = JSON.parse(e.data);
+              if (msg.type === 'event' && msg.event) {
+                  setEvents(prev => [...prev, msg.event]);
+              } else if (msg.type === 'prompt') {
+                  console.log('Prompt received', msg);
+                  setActivePrompt(msg);
+                  setIsPlaying(false); // Pause on prompt
+              } else if (msg.type === 'finalize') {
+                  console.log('Finalize received');
+              }
+          } catch (e) {
+              console.error('WS Parse Error', e);
+          }
+      },
+      shouldReconnect: () => !isSerializedMode,
+  }), [isSerializedMode]); // Only re-create if mode changes
+
+  // Use a ref to access sendJsonMessage inside the memoized callback
+  const sendJsonMessageRef = useRef<any>(null);
+
   // Only use WebSocket in live mode (not serialized)
   const { sendJsonMessage, readyState } = useWebSocket(
-      isSerializedMode ? null : `ws://localhost:8080`, // null URL disables connection
-      {
-          onOpen: () => {
-              console.log('WS Connected');
-              sendJsonMessage({ type: 'ready' });
-          },
-          onMessage: (e) => {
-              try {
-                  const msg = JSON.parse(e.data);
-                  if (msg.type === 'event' && msg.event) {
-                      setEvents(prev => [...prev, msg.event]);
-                  } else if (msg.type === 'prompt') {
-                      console.log('Prompt received', msg);
-                      setActivePrompt(msg);
-                      setIsPlaying(false); // Pause on prompt
-                  } else if (msg.type === 'finalize') {
-                      console.log('Finalize received');
-                  }
-              } catch (e) {
-                  console.error('WS Parse Error', e);
-              }
-          },
-          shouldReconnect: () => !isSerializedMode, // Don't reconnect in serialized mode
-      }
+      isSerializedMode ? null : `ws://localhost:8080`,
+      wsOptions
   );
+  
+  // Keep ref updated
+  sendJsonMessageRef.current = sendJsonMessage;
 
   useEffect(() => {
     // In serialized mode, never set connected to true
@@ -129,39 +139,62 @@ function App() {
     }
   };
 
-  const togglePlay = () => {
+  const togglePlay = React.useCallback(() => {
     console.log('[Timeline] togglePlay - isPlaying:', isPlaying, 'currentTime:', currentTime, 'maxTime:', maxTime);
-    // If at the end and trying to play, restart from beginning
-    if (!isPlaying && currentTime >= maxTime && maxTime > 0) {
-      console.log('[Timeline] Restarting from beginning');
-      setCurrentTime(0);
+    // If starting play...
+    if (!isPlaying && maxTime > 0) {
+        // Forward loop logic
+        // If at end, restart
+        if (currentTime >= maxTime - 100) {
+            setCurrentTime(0);
+        }
     }
-    setIsPlaying(!isPlaying);
-  };
+    // Toggle
+    setIsPlaying(prev => !prev);
+  }, [isPlaying, currentTime, maxTime, playbackSpeed]);
 
   // Playback timer - advance time when playing (works in both live and replay mode)
   useEffect(() => {
     if (!isPlaying) return;
     if (maxTime <= 0) return; // No events to play
     
-    console.log('[Timeline] Starting playback interval');
-    const interval = setInterval(() => {
+    let lastTime = performance.now();
+    let animationFrameId: number;
+
+    const tick = (now: number) => {
+      // Ensure elapsed is never negative (RAF timestamp vs performance.now safety)
+      const elapsed = Math.max(0, now - lastTime);
+      lastTime = now;
+
       setCurrentTime(prev => {
-        const next = prev + 50; // 50ms increments for smooth playback
-        if (next >= maxTime) {
-          console.log('[Timeline] Reached end, stopping playback');
-          setIsPlaying(false); // Stop at end
+        // Delta depends on real elapsed time and playback speed
+        const delta = elapsed * playbackSpeed;
+        const next = prev + delta;
+        
+        // Helper to check boundaries based on direction
+        const isForward = playbackSpeed > 0;
+        
+        // Handle bounds (stop only if crossing limit in direction of travel)
+        if (isForward && next >= maxTime) {
+          setIsPlaying(false);
           return maxTime;
         }
-        return next;
+        if (!isForward && next <= 0) {
+          setIsPlaying(false);
+          return 0;
+        }
+        
+        // Clamp result to valid range
+        return Math.max(0, Math.min(next, maxTime));
       });
-    }, 50); // 50ms interval for smooth animation
-    
-    return () => {
-      console.log('[Timeline] Clearing playback interval');
-      clearInterval(interval);
+
+      animationFrameId = requestAnimationFrame(tick);
     };
-  }, [isPlaying, maxTime]);
+
+    animationFrameId = requestAnimationFrame(tick);
+    
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [isPlaying, maxTime, playbackSpeed]);
 
   // Filter events based on time and controls
   const visibleEvents = useMemo(() => {
@@ -415,8 +448,33 @@ function App() {
         </div>
   );
 
+  const handleTimeChange = (val: number) => {
+      setIsPlaying(false);
+      setCurrentTime(val);
+  };
+
   return (
-    <div className="min-h-screen bg-background text-foreground pb-20">
+    <div 
+        className="h-screen w-full bg-background text-foreground pb-20 overflow-y-auto"
+        style={{ scrollbarGutter: 'stable' }}
+    >
+      <style>{`
+        ::-webkit-scrollbar {
+            width: 14px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background-color: #334155;
+            border-radius: 7px;
+            border: 4px solid transparent;
+            background-clip: content-box;
+        }
+        ::-webkit-scrollbar-corner {
+            background: transparent;
+        }
+      `}</style>
       <header className="fixed top-0 left-0 right-0 h-14 border-b bg-background/95 backdrop-blur z-40 flex items-center justify-between px-4">
         <div className="flex items-center gap-2">
             <div className="flex flex-col">
@@ -495,11 +553,13 @@ function App() {
         min={0} 
         max={maxTime} 
         current={currentTime} 
-        onChange={setCurrentTime}
+        onChange={handleTimeChange}
         isPlaying={isPlaying}
         onPlayPause={togglePlay}
         events={events}
         startTime={startTime || 0}
+        playbackSpeed={playbackSpeed}
+        onSpeedChange={setPlaybackSpeed}
       />
     </div>
   )

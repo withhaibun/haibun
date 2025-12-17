@@ -7,7 +7,7 @@ export function getMermaidFromResolvedFeatures(features: any[]): string {
 
   features.forEach((feature, fIndex) => {
     const fNode = `f${fIndex}`;
-    mermaid += `  ${fNode}[Feature: ${escape(feature.path)}]\n`;
+    mermaid += `  ${fNode}["Feature: ${escape(feature.path)}"]\n`;
 
     let lastNode = fNode;
     let scenarioCount = 0;
@@ -29,7 +29,7 @@ export function getMermaidFromResolvedFeatures(features: any[]): string {
         if (label.length > 40) label = label.substring(0, 37) + '...';
       }
 
-      mermaid += `  ${sNode}[${escape(label)}]\n`;
+      mermaid += `  ${sNode}["${escape(label)}"]\n`;
       if (lastNode) {
         mermaid += `  ${lastNode} --> ${sNode}\n`;
       }
@@ -46,5 +46,8 @@ export function getMermaidFromResolvedFeatures(features: any[]): string {
 }
 
 function escape(str: string) {
-  return str.replace(/["[\]]/g, '');
+  return str
+    .replace(/"/g, "'")
+    .replace(/`/g, "'")
+    .replace(/\n/g, ' ');
 }
