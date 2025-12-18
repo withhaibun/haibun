@@ -97,7 +97,7 @@ export function DocumentView({ events }: DocumentViewProps) {
             if (e.kind === 'lifecycle') {
                 if (e.type === 'feature' && e.stage === 'start') {
                     if (lastType === 'technical') md += '\n<div class="h-1"></div>\n';
-                    md += `\n\n# ${e.label}\n\n`;
+                    md += `\n\n# ${e.featurePath || 'Feature'}\n\n`;
                     const unclaimedIds = claimArtifacts(e.id, ['video']);
                     if (unclaimedIds) {
                         md += `\n<div class="feature-artifacts" data-ids="${unclaimedIds}"></div>\n`;
@@ -107,7 +107,7 @@ export function DocumentView({ events }: DocumentViewProps) {
                 }
                 if (e.type === 'scenario' && e.stage === 'start') {
                     if (lastType === 'technical') md += '\n<div class="h-1"></div>\n';
-                    md += `\n\n## ${e.label}\n\n`;
+                    md += `\n\n## ${e.scenarioName || 'Scenario'}\n\n`;
                     const unclaimedIds = claimArtifacts(e.id, ['video']);
                     if (unclaimedIds) {
                         md += `\n<div class="feature-artifacts" data-ids="${unclaimedIds}"></div>\n`;
@@ -116,7 +116,7 @@ export function DocumentView({ events }: DocumentViewProps) {
                     continue;
                 }
                 if (e.type === 'step' && e.stage === 'start') {
-                     const isTechnical = /^[a-z]/.test(e.label || '');
+                     const isTechnical = /^[a-z]/.test(e.in || '');
                      
                      if (isTechnical) {
                         if (lastType !== 'technical' && md.length > 0) md += '\n<div class="h-1"></div>\n';
@@ -148,14 +148,14 @@ export function DocumentView({ events }: DocumentViewProps) {
                                     data-ids="${unclaimedIds}"
                                     data-time="${time}"
                                     data-action="${actionName}"
-                                    data-has-artifacts="${!!unclaimedIds}">${e.label}</div>\n`;
+                                    data-has-artifacts="${!!unclaimedIds}">${e.in}</div>\n`;
                         
                         lastType = 'technical';
                         previousRenderedDepth = depth;
                         previousRenderedId = e.id || '';
                      } else {
                         if (lastType === 'technical') md += '\n<div class="h-1"></div>\n';
-                        md += `\n\n${e.label}\n\n`;
+                        md += `\n\n${e.in}\n\n`;
                         const unclaimedIds = claimArtifacts(e.id, ['video']);
                         if (unclaimedIds) {
                             md += `\n<div class="feature-artifacts" data-ids="${unclaimedIds}"></div>\n`;

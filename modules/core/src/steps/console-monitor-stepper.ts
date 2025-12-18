@@ -72,13 +72,13 @@ export default class ConsoleMonitorStepper extends AStepper implements IHasCycle
     if (event.type === 'step') {
       if (event.stage === 'end' || this.verbose) {
         const error = event.error ? ` (${event.error})` : '';
-        this.logLine('log', event, `${status} ${event.id} ${event.label}${error}`);
+        this.logLine('log', event, `${status} ${event.id} ${event.in}${error}`);
       }
     } else if (event.type === 'feature' && event.stage === 'start') {
       console.log('');
-      this.logLine('feature', event, `📄 ${event.label}`);
+      this.logLine('feature', event, `📄 ${event.featurePath || 'Feature'}`);
     } else if (event.type === 'scenario' && event.stage === 'start') {
-      this.logLine('scenario', event, `📋 ${event.label}`);
+      this.logLine('scenario', event, `📋 ${event.scenarioName || 'Scenario'}`);
     }
   }
 

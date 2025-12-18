@@ -13,10 +13,15 @@ export const LifecycleEvent = BaseEvent.extend({
   type: z.enum(['feature', 'scenario', 'step', 'activity', 'waypoint', 'ensure', 'execution']),
   stage: z.enum(['start', 'end']),
 
-  // Reference info
+  // Step reference info (for type='step')
   stepperName: z.string().optional(),
   actionName: z.string().optional(),
-  label: z.string().optional(),
+  in: z.string().optional().describe('Step text - what the user typed'),
+  stepArgs: z.record(z.string(), z.unknown()).optional(),
+
+  // Feature/Scenario reference info (for type='feature' or 'scenario')
+  featurePath: z.string().optional().describe('Feature file path'),
+  scenarioName: z.string().optional().describe('Scenario name'),
 
   // Execution Context
   status: z.enum(['running', 'completed', 'failed', 'skipped']).optional(),

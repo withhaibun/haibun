@@ -62,14 +62,14 @@ export class EventFormatter {
     if (event.kind === 'lifecycle') {
       if (event.type === 'feature') {
         icon = '📄';
-        message = event.label || '';
+        message = event.featurePath || '';
       } else if (event.type === 'scenario') {
         icon = '📋';
-        message = event.label || '';
+        message = event.scenarioName || '';
       } else {
         icon = this.getStatusIcon(event);
         id = event.id;
-        message = event.label || '';
+        message = event.in || '';
         if (event.error) message += ` (${event.error})`;
       }
     } else if (event.kind === 'log') {

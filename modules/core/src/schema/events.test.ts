@@ -9,7 +9,7 @@ describe('Haibun Event Schemas', () => {
       kind: 'lifecycle',
       type: 'step',
       stage: 'start',
-      label: 'Given I am testing',
+      in: 'Given I am testing',
       status: 'running',
     };
     const parsed = HaibunEvent.parse(raw);

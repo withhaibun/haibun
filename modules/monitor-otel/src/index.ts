@@ -123,7 +123,7 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
     if (event.kind === 'lifecycle') {
       if (event.type === 'feature' && event.stage === 'start') {
         // Start root span for feature
-        this.featureSpan = this.tracer.startSpan(`feature: ${event.label || 'unknown'}`, {
+        this.featureSpan = this.tracer.startSpan(`feature: ${event.featurePath || 'unknown'}`, {
           attributes: {
             'haibun.event.type': 'feature',
             'haibun.event.id': event.id,
@@ -146,7 +146,7 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
             ? trace.setSpan(context.active(), this.featureSpan)
             : context.active();
 
-          const stepSpan = this.tracer.startSpan(`step: ${event.label || event.id}`, {
+          const stepSpan = this.tracer.startSpan(`step: ${event.in || event.id}`, {
             attributes: {
               'haibun.event.type': 'step',
               'haibun.event.id': event.id,
@@ -202,12 +202,13 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
         : context.active();
 
       const artifactPath = 'path' in event ? event.path : undefined;
+      const artifactMimetype = 'mimetype' in event ? event.mimetype : undefined;
       const artifactSpan = this.tracer.startSpan(`artifact: ${event.artifactType}`, {
         attributes: {
           'haibun.event.type': 'artifact',
           'haibun.event.id': event.id,
           'haibun.artifact.type': event.artifactType,
-          'haibun.artifact.mimetype': event.mimetype,
+          ...(artifactMimetype && { 'haibun.artifact.mimetype': artifactMimetype }),
           ...(artifactPath && { 'haibun.artifact.path': artifactPath }),
         }
       }, parentContext);

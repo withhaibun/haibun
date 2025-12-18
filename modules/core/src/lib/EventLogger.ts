@@ -26,8 +26,8 @@ export interface IEventLogger {
   setStepperCallback?(callback: (event: THaibunEvent) => void): void;
   emit(event: THaibunEvent): void;
   log(featureStep: TFeatureStep, level: 'info' | 'debug' | 'trace' | 'warn' | 'error', message: string, payload?: Record<string, unknown>): void;
-  stepStart(featureStep: TFeatureStep, stepperName: string, actionName: string): void;
-  stepEnd(featureStep: TFeatureStep, stepperName: string, actionName: string, ok: boolean, error?: string): void;
+  stepStart(featureStep: TFeatureStep, stepperName: string, actionName: string, stepArgs?: Record<string, unknown>): void;
+  stepEnd(featureStep: TFeatureStep, stepperName: string, actionName: string, ok: boolean, error?: string | Error): void;
   artifact(featureStep: TFeatureStep, artifact: TArtifactEvent): void;
 }
 
@@ -97,31 +97,33 @@ export class EventLogger implements IEventLogger {
     }));
   }
 
-  stepStart(featureStep: TFeatureStep, stepperName: string, actionName: string): void {
+  stepStart(featureStep: TFeatureStep, stepperName: string, actionName: string, stepArgs?: Record<string, unknown>): void {
     this.emit(LifecycleEvent.parse({
       id: formatCurrentSeqPath(featureStep.seqPath),
       timestamp: Date.now(),
       kind: 'lifecycle',
       type: 'step',
       stage: 'start',
-      label: featureStep.in,
+      in: featureStep.in,
       status: 'running',
       intent: featureStep.intent ? { mode: featureStep.intent.mode } : undefined,
       stepperName,
-      actionName
+      actionName,
+      stepArgs
     }));
   }
 
-  stepEnd(featureStep: TFeatureStep, stepperName: string, actionName: string, ok: boolean, error?: string): void {
+  stepEnd(featureStep: TFeatureStep, stepperName: string, actionName: string, ok: boolean, error?: string | Error): void {
+    const errorMessage = error instanceof Error ? error.message : error;
     this.emit(LifecycleEvent.parse({
       id: formatCurrentSeqPath(featureStep.seqPath),
       timestamp: Date.now(),
       kind: 'lifecycle',
       type: 'step',
       stage: 'end',
-      label: featureStep.in,
+      in: featureStep.in,
       status: ok ? 'completed' : 'failed',
-      error,
+      error: errorMessage,
       intent: featureStep.intent ? { mode: featureStep.intent.mode } : undefined,
       stepperName,
       actionName

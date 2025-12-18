@@ -72,7 +72,7 @@ export function Timeline({
                 if (e.kind === 'lifecycle' && e.type === 'step' && e.stage === 'end') {
                     // Filter out technical steps if needed, though 'end' events might not always have labels populated identically? 
                     // Usually they do.
-                    const isTechnical = /^[a-z]/.test(e.label || '');
+                    const isTechnical = /^[a-z]/.test(e.in || '');
                     return !isTechnical;
                 }
 
@@ -89,7 +89,7 @@ export function Timeline({
                     percentage: Math.max(0, Math.min(100, percentage)),
                     color: style.color,
                     icon: style.icon,
-                    label: e.kind === 'lifecycle' ? (e as any).label : e.kind
+                    label: e.kind === 'lifecycle' ? (e as any).in : e.kind
                 };
             });
     }, [events, startTime, max]);

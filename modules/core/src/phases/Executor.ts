@@ -225,7 +225,7 @@ export class FeatureExecutor {
 					kind: 'lifecycle',
 					type: 'feature',
 					stage: 'start',
-					label: feature.path,
+					featurePath: feature.path,
 					status: 'running',
 				}));
 			}
@@ -245,7 +245,7 @@ export class FeatureExecutor {
 					kind: 'lifecycle',
 					type: 'scenario',
 					stage: 'start',
-					label: step.in,
+					scenarioName: step.in,
 					status: 'running',
 				}));
 				await doStepperCycle(this.steppers, 'startScenario', { scopedVars });
@@ -333,7 +333,7 @@ export class FeatureExecutor {
 				}
 			}
 			if (action.actionName !== FEATURE_START && action.actionName !== SCENARIO_START) {
-				world.eventLogger.stepStart(featureStep, action.stepperName, action.actionName);
+				world.eventLogger.stepStart(featureStep, action.stepperName, action.actionName, args);
 			}
 			let doAction = true;
 			while (doAction) {
