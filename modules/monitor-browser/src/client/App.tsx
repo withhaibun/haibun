@@ -8,6 +8,7 @@ import { Button } from './components/ui/button';
 import { THaibunEvent, TArtifactEvent } from './types';
 import { DocumentView } from './DocumentView';
 import { ArtifactRenderer } from './artifacts';
+import { FloatingVideoPlayer, formatVideoMetadata } from './artifacts/FloatingVideoPlayer';
 
 type ViewMode = 'log' | 'raw' | 'document';
 
@@ -16,7 +17,6 @@ function App() {
     const initialState = getInitialState();
     // If we have initial state with events, we're in serialized (offline) mode
     const isSerializedMode = !!(initialState?.events && initialState.events.length > 0);
-
     const [events, setEvents] = useState<THaibunEvent[]>(() => initialState?.events as THaibunEvent[] || []);
     const [connected, setConnected] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
@@ -30,6 +30,13 @@ function App() {
     const [minLogLevel, setMinLogLevel] = useState<string>('info');
     const [maxDepth, setMaxDepth] = useState<number>(10);
     const [expandedArtifacts, setExpandedArtifacts] = useState<Set<string>>(new Set());
+    
+    // Video metadata extracted from loadedmetadata event
+    const [videoMetadata, setVideoMetadata] = useState<{
+        duration: number;
+        width: number;
+        height: number;
+    } | null>(null);
 
     const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -130,6 +137,27 @@ function App() {
             }
         }
     }, [events, startTime, connected]);
+
+
+    // Compute video info from both video-start and video events
+    // This allows us to show the video at the correct timeline position
+    const videoInfo = useMemo(() => {
+        const videoStartEvent = events.find(e => 
+            e.kind === 'artifact' && (e as any).artifactType === 'video-start'
+        );
+        const videoArtifactEvent = events.find(e => 
+            e.kind === 'artifact' && (e as any).artifactType === 'video'
+        ) as any;
+        
+        if (!videoStartEvent) return null;
+        
+        return {
+            startTimestamp: videoStartEvent.timestamp,
+            path: videoArtifactEvent?.path ?? null,
+        };
+    }, [events]);
+
+    const videoStartTimestamp = videoInfo?.startTimestamp ?? null;
 
     const handleDebugAction = (response: string) => {
         if (connected && activePrompt) {
@@ -377,7 +405,7 @@ function App() {
                                                     </button>
                                                     {isExpanded && (
                                                         <div className="p-2 mt-1 border border-slate-700 rounded bg-slate-900/50">
-                                                            <ArtifactRenderer artifact={e as TArtifactEvent} />
+                                                            <ArtifactRenderer artifact={e as TArtifactEvent} currentTime={currentTime} videoStartTimestamp={videoStartTimestamp} videoMetadata={videoMetadata} />
                                                         </div>
                                                     )}
                                                 </div>
@@ -431,7 +459,7 @@ function App() {
                                                         </button>
                                                         {isExpanded && (
                                                             <div className="p-2 border-t border-slate-700">
-                                                                <ArtifactRenderer artifact={artifactEvent} />
+                                                                <ArtifactRenderer artifact={artifactEvent} currentTime={currentTime} videoStartTimestamp={videoStartTimestamp} videoMetadata={videoMetadata} />
                                                             </div>
                                                         )}
                                                     </div>
@@ -548,6 +576,17 @@ function App() {
 
                 {viewMode === 'document' && (
                     <DocumentView events={visibleEvents} />
+                )}
+
+                {/* Floating video player - shows when timeline reaches video-start and NOT in document mode */}
+                {videoInfo?.path && startTime && viewMode !== 'document' && (
+                    <FloatingVideoPlayer
+                        path={videoInfo.path}
+                        startTimestamp={videoInfo.startTimestamp}
+                        appStartTime={startTime}
+                        currentTime={currentTime}
+                        onMetadataLoaded={(meta) => setVideoMetadata(meta)}
+                    />
                 )}
 
             </main>

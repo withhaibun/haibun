@@ -1,4 +1,4 @@
-import { THaibunEvent, LogEvent, LifecycleEvent, TArtifactEvent, ImageArtifact, VideoArtifact, HtmlArtifact, SpeechArtifact, JsonArtifact, MermaidArtifact, HttpTraceArtifact, ResolvedFeaturesArtifact, FileArtifact } from '../schema/events.js';
+import { THaibunEvent, LogEvent, LifecycleEvent, TArtifactEvent, ImageArtifact, VideoArtifact, VideoStartArtifact, HtmlArtifact, SpeechArtifact, JsonArtifact, MermaidArtifact, HttpTraceArtifact, ResolvedFeaturesArtifact, FileArtifact } from '../schema/events.js';
 import { TFeatureStep } from './defs.js';
 import { formatCurrentSeqPath } from './util/index.js';
 
@@ -9,6 +9,7 @@ export type { THaibunEvent } from '../schema/events.js';
 export {
   ImageArtifact,
   VideoArtifact,
+  VideoStartArtifact,
   HtmlArtifact,
   SpeechArtifact,
   JsonArtifact,

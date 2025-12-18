@@ -18,101 +18,109 @@ interface DocumentViewProps {
 export function DocumentView({ events }: DocumentViewProps) {
     // Group artifact events by their parent step ID
     // Also extract embedded artifacts from log events (legacy format)
-    const artifactsByStep = useMemo(() => {
+    // Group artifact events by their parent step ID
+    const { artifactsByStep, allArtifactIds } = useMemo(() => {
         const map = new Map<string, TArtifactEvent[]>();
+        const allIds = new Set<string>();
         
         for (const e of events) {
-            // Handle new-style artifact events
             if (e.kind === 'artifact') {
-                // Extract parent step ID from artifact ID (e.g., "1.2.3.artifact.0" -> "1.2.3")
-                const parts = e.id.split('.');
-                const artifactIdx = parts.findIndex(p => p === 'artifact');
-                let parentId = artifactIdx > 0 ? parts.slice(0, artifactIdx).join('.') : parts.slice(0, -1).join('.');
-                // Normalize ID: remove brackets
+                allIds.add(e.id);
+                // Extract parent step ID: handle both "id.artifact.N" and raw paths
+                let parentId = '';
+                if (e.id.includes('.artifact.')) {
+                    parentId = e.id.split('.artifact.')[0];
+                } else {
+                    // Fallback: try to find a parent by removing the last parts
+                    const parts = e.id.split('.');
+                    parentId = parts.length > 1 ? parts.slice(0, -1).join('.') : e.id;
+                }
                 parentId = parentId.replace(/^\[|\]$/g, '');
 
-                if (!map.has(parentId)) {
-                    map.set(parentId, []);
-                }
+                if (!map.has(parentId)) map.set(parentId, []);
                 map.get(parentId)!.push(e as TArtifactEvent);
             }
             
-            // Handle legacy embedded artifacts (from payload or incidentDetails)
+            // Handle legacy embedded artifacts
             const eventAny = e as any;
             const embeddedArtifacts = eventAny.payload?.artifacts || eventAny.incidentDetails?.artifacts;
             if (embeddedArtifacts && Array.isArray(embeddedArtifacts)) {
-                const parentId = e.id;
-                if (!map.has(parentId)) {
-                    map.set(parentId, []);
-                }
-                // Convert legacy artifacts to TArtifactEvent format
+                const parentId = e.id.replace(/^\[|\]$/g, '');
+                if (!map.has(parentId)) map.set(parentId, []);
                 embeddedArtifacts.forEach((artifact: any, idx: number) => {
-                    const artifactEvent: TArtifactEvent = {
-                        id: `${parentId}.artifact.${idx}`,
+                    const id = `${parentId}.artifact.${idx}`;
+                    allIds.add(id);
+                    map.get(parentId)!.push({
+                        id,
                         timestamp: e.timestamp,
                         source: 'haibun',
                         kind: 'artifact',
                         artifactType: artifact.artifactType,
                         mimetype: artifact.mimetype || 'application/octet-stream',
-                        ...('path' in artifact && { path: artifact.path }),
-                        ...('json' in artifact && { json: artifact.json }),
-                        ...('transcript' in artifact && { transcript: artifact.transcript }),
-                        ...('durationS' in artifact && { durationS: artifact.durationS }),
-                        ...('resolvedFeatures' in artifact && { resolvedFeatures: artifact.resolvedFeatures }),
-                    } as TArtifactEvent;
-                    map.get(parentId)!.push(artifactEvent);
+                        ...artifact
+                    } as TArtifactEvent);
                 });
             }
         }
-        return map;
+        return { artifactsByStep: map, allArtifactIds: allIds };
     }, [events]);
 
     const content = useMemo(() => {
         let md = '';
         let lastType: 'none' | 'prose' | 'technical' = 'none';
-
-        // We need to track the previous *rendered* event to determine relative depth changes for the symbol
         let previousRenderedDepth = 0;
         let previousRenderedId = '';
+        const claimedArtifactIds = new Set<string>();
+
+        const claimArtifacts = (id: string, excludeTypes: string[] = []) => {
+            const normalizedId = id.replace(/^\[|\]$/g, '');
+            const artifacts = artifactsByStep.get(normalizedId) || [];
+            const unclaimed = artifacts.filter(a => !claimedArtifactIds.has(a.id) && !excludeTypes.includes(a.artifactType));
+            if (unclaimed.length > 0) {
+                unclaimed.forEach(a => claimedArtifactIds.add(a.id));
+                return unclaimed.map(a => a.id).join(',');
+            }
+            return '';
+        };
 
         for (let i = 0; i < events.length; i++) {
             const e = events[i];
             
+            if (e.kind === 'artifact') {
+                if (!claimedArtifactIds.has(e.id)) {
+                    claimedArtifactIds.add(e.id);
+                    md += `<div class="standalone-artifact" data-id="${e.id}"></div>\n`;
+                }
+                continue;
+            }
+
             if (e.kind === 'lifecycle') {
                 if (e.type === 'feature' && e.stage === 'start') {
-                    if (lastType === 'technical') md += '\n<div class="h-3"></div>\n';
+                    if (lastType === 'technical') md += '\n<div class="h-1"></div>\n';
                     md += `\n\n# ${e.label}\n\n`;
-                    const normalizedId = e.id.replace(/^\[|\]$/g, '');
-                    const artifacts = artifactsByStep.get(normalizedId);
-                    if (artifacts && artifacts.length > 0) {
-                        md += `\n<div class="feature-artifacts" data-id="${normalizedId}"></div>\n`;
+                    const unclaimedIds = claimArtifacts(e.id, ['video']);
+                    if (unclaimedIds) {
+                        md += `\n<div class="feature-artifacts" data-ids="${unclaimedIds}"></div>\n`;
                     }
                     lastType = 'prose';
                     continue;
                 }
                 if (e.type === 'scenario' && e.stage === 'start') {
-                    if (lastType === 'technical') md += '\n<div class="h-3"></div>\n';
+                    if (lastType === 'technical') md += '\n<div class="h-1"></div>\n';
                     md += `\n\n## ${e.label}\n\n`;
-                    const normalizedId = e.id.replace(/^\[|\]$/g, '');
-                    const artifacts = artifactsByStep.get(normalizedId);
-                    if (artifacts && artifacts.length > 0) {
-                        md += `\n<div class="feature-artifacts" data-id="${normalizedId}"></div>\n`;
+                    const unclaimedIds = claimArtifacts(e.id, ['video']);
+                    if (unclaimedIds) {
+                        md += `\n<div class="feature-artifacts" data-ids="${unclaimedIds}"></div>\n`;
                     }
                     lastType = 'prose';
                     continue;
                 }
-                // SWITCH TO START to fix ordering (Parents before Children)
                 if (e.type === 'step' && e.stage === 'start') {
-                     // Heuristic: Technical steps (imperative actions) usually start with lowercase.
                      const isTechnical = /^[a-z]/.test(e.label || '');
                      
                      if (isTechnical) {
-                        // Add spacer if entering a technical block from prose
-                        if (lastType !== 'technical' && md.length > 0) {
-                            md += '\n<div class="h-3"></div>\n';
-                        }
+                        if (lastType !== 'technical' && md.length > 0) md += '\n<div class="h-1"></div>\n';
                         
-                        // Check for instigator (look ahead for next step that starts with this ID)
                         let isInstigator = false;
                         for(let j=i+1; j<events.length; j++) {
                            const next = events[j];
@@ -120,52 +128,47 @@ export function DocumentView({ events }: DocumentViewProps) {
                                isInstigator = true;
                                break;
                            }
-                           // If we hit a sibling or higher up, stop looking
                            if (next.id && !next.id.startsWith(e.id)) break; 
                         }
 
                         const depth = e.id ? e.id.split('.').length : 0;
                         const isNested = depth > 3;
-
-                        // Serialize visual state into data attributes
-                        // using 'log-row' class to trigger specific parser
                         const time = ((e.timestamp - (events[0]?.timestamp || 0))/1000).toFixed(3);
-                        const actionName = (e as any).actionName || 'step'; // simplification
-
-                        // Determine if we show the symbol (first child logic)
+                        const actionName = (e as any).actionName || 'step';
                         const showSymbol = previousRenderedId && previousRenderedDepth < depth;
-
-                        // Check if this step has artifacts
                         const normalizedId = e.id.replace(/^\[|\]$/g, '');
-                        const hasArtifacts = artifactsByStep.has(normalizedId);
+                        const unclaimedIds = claimArtifacts(normalizedId, ['video']);
 
-                        md += `<div class="log-row font-mono text-xs text-slate-600 my-0.5 leading-tight" 
+                        md += `<div class="log-row font-mono text-[11px] text-slate-500 my-0 leading-tight" 
                                     data-depth="${depth}" 
                                     data-nested="${isNested}" 
                                     data-instigator="${isInstigator}" 
                                     data-show-symbol="${showSymbol}"
                                     data-id="${normalizedId}"
+                                    data-ids="${unclaimedIds}"
                                     data-time="${time}"
                                     data-action="${actionName}"
-                                    data-has-artifacts="${hasArtifacts}">${e.label}</div>\n`;
+                                    data-has-artifacts="${!!unclaimedIds}">${e.label}</div>\n`;
                         
                         lastType = 'technical';
                         previousRenderedDepth = depth;
                         previousRenderedId = e.id || '';
                      } else {
-                        // Prose Step
-                        if (lastType === 'technical') {
-                            md += '\n<div class="h-3"></div>\n';
-                        }
+                        if (lastType === 'technical') md += '\n<div class="h-1"></div>\n';
                         md += `\n\n${e.label}\n\n`;
+                        const unclaimedIds = claimArtifacts(e.id, ['video']);
+                        if (unclaimedIds) {
+                            md += `\n<div class="feature-artifacts" data-ids="${unclaimedIds}"></div>\n`;
+                        }
                         lastType = 'prose';
                      }
                      continue;
                 }
             }
         }
+
         return md;
-    }, [events, artifactsByStep]);
+    }, [events, artifactsByStep, allArtifactIds]);
 
     const reactContent = useMemo(() => {
         // 1. Render Markdown to HTML string
@@ -182,17 +185,32 @@ export function DocumentView({ events }: DocumentViewProps) {
           replace: (domNode) => {
             if (domNode instanceof Element && domNode.attribs) {
               
-              // Feature/Scenario Artifacts
+              // Feature/Scenario/Step Artifacts
               if (domNode.name === 'div' && domNode.attribs.class === 'feature-artifacts') {
-                   const stepId = domNode.attribs['data-id'];
-                   const stepArtifacts = artifactsByStep.get(stepId) || [];
+                   const stepId = domNode.attribs['data-id']; // keep for keys
+                   const idString = domNode.attribs['data-ids'];
+                   if (!idString) return null;
+                   
+                   const artifactIds = idString.split(',');
+                   const stepArtifacts = artifactIds.map(id => events.find(e => e.id === id)).filter(Boolean) as TArtifactEvent[];
+                   
+                   if (stepArtifacts.length === 0) return null;
+
                    return (
-                       <div className="my-4 p-4 border rounded bg-slate-50">
+                       <div className="my-2 space-y-1">
                            {stepArtifacts.map((artifact, idx) => (
-                               <CollapsibleArtifactWrapper key={`${stepId}-artifact-${idx}`} artifact={artifact} />
+                               <ArtifactCaption key={`${stepId}-artifact-${idx}`} artifact={artifact} />
                            ))}
                        </div>
                    );
+              }
+
+              // Standalone Artifacts (at end of document)
+              if (domNode.name === 'div' && domNode.attribs.class === 'standalone-artifact') {
+                  const id = domNode.attribs['data-id'];
+                  const artifact = events.find(ev => ev.id === id) as TArtifactEvent;
+                  if (!artifact) return null;
+                  return <ArtifactCaption key={`standalone-${id}`} artifact={artifact} />;
               }
 
               // Custom log row rendering with Rail System (Replicates App.tsx visuals)
@@ -202,13 +220,14 @@ export function DocumentView({ events }: DocumentViewProps) {
                   const isInstigator = domNode.attribs['data-instigator'] === 'true';
                   const showSymbol = domNode.attribs['data-show-symbol'] === 'true';
                   const stepId = domNode.attribs['data-id'];
-                  const hasArtifacts = domNode.attribs['data-has-artifacts'] === 'true';
-                  const stepArtifacts = hasArtifacts && stepId ? artifactsByStep.get(stepId) || [] : [];
+                  const idString = domNode.attribs['data-ids'];
+                  
+                  const stepArtifacts = idString ? idString.split(',').map(id => events.find(e => e.id === id)).filter(Boolean) as TArtifactEvent[] : [];
 
                   return (
                       <div className={domNode.attribs.class + " flex flex-col"}>
                           <div className="flex items-stretch break-all">
-                               <span className="mx-1 text-slate-800 dark:text-slate-600 self-start mt-1">｜</span>
+                               <span className="mx-1 text-slate-400 self-start mt-1">｜</span>
 
                                {/* Content + Rail */}
                                <div className="flex-1 flex items-stretch">
@@ -220,22 +239,22 @@ export function DocumentView({ events }: DocumentViewProps) {
                                         <div className="relative w-4 shrink-0 mr-1">
                                             {/* Full Line for Nested Steps */}
                                             {isNested && (
-                                                <div className="absolute top-0 -bottom-[1px] right-[3px] w-px bg-indigo-500" />
+                                                <div className="absolute top-0 -bottom-[1px] right-[3px] w-px bg-slate-200" />
                                             )}
                                             
                                             {/* Start Marker Line for Top-Level Instigators */}
                                             {isInstigator && !isNested && (
-                                                <div className="absolute top-[6px] -bottom-[1px] right-[3px] w-px bg-indigo-500" />
+                                                <div className="absolute top-[6px] -bottom-[1px] right-[3px] w-px bg-slate-200" />
                                             )}
 
                                             {/* Horizontal Bar Symbol (First Child) */}
                                             {isNested && showSymbol && (
-                                                <div className="absolute top-0 right-[3px] w-2.5 h-px bg-indigo-500" />
+                                                <div className="absolute top-0 right-[3px] w-2.5 h-px bg-slate-200" />
                                             )}
                                         </div>
                                    )}
 
-                                 <div className="flex-1 py-1">
+                                 <div className="flex-1 py-0.5 text-slate-600">
                                      {domToReact(domNode.children as DOMNode[])}
                                  </div>
                               </div>
@@ -243,9 +262,9 @@ export function DocumentView({ events }: DocumentViewProps) {
                           
                           {/* Inline Artifacts */}
                           {stepArtifacts.length > 0 && (
-                              <div className="ml-8 my-2 space-y-2">
+                              <div className="ml-8 my-1 space-y-3">
                                   {stepArtifacts.map((artifact, idx) => (
-                                      <CollapsibleArtifactWrapper key={`${stepId}-artifact-${idx}`} artifact={artifact} />
+                                      <ArtifactCaption key={`${stepId}-artifact-${idx}`} artifact={artifact} />
                                   ))}
                               </div>
                           )}
@@ -357,32 +376,35 @@ export function DocumentView({ events }: DocumentViewProps) {
 
 
 
-function CollapsibleArtifactWrapper({ artifact }: { artifact: TArtifactEvent }) {
-    const [isOpen, setIsOpen] = useState(true);
+function ArtifactCaption({ artifact }: { artifact: TArtifactEvent }) {
     const label = artifact.artifactType || 'artifact';
+    const isHiddenByDefault = label === 'mermaid' || label === 'resolvedFeatures' || label === 'video-start' || label === 'video';
+    const [isOpen, setIsOpen] = useState(!isHiddenByDefault);
+    
     const path = (artifact as any).path || artifact.id;
+    const filename = path.split('/').pop();
 
     return (
-        <div className="mb-4 last:mb-0 border border-slate-200 rounded bg-white overflow-hidden shadow-sm">
-            <div 
-                className="flex items-center justify-between p-2 bg-slate-50 cursor-pointer hover:bg-slate-100 select-none border-b border-slate-100 transition-colors"
-                onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setIsOpen(!isOpen);
-                }}
-            >
-                <div className="text-xs font-semibold text-slate-700 flex items-center gap-2 truncate">
-                    <span className="text-slate-400 text-[10px] w-3">{isOpen ? '▼' : '▶'}</span>
-                    <span className="font-mono text-[10px] text-slate-600 border border-slate-200 px-1.5 rounded bg-slate-50">{label}</span>
-                    <span className="font-normal text-slate-400 text-[10px] truncate ml-1 font-mono" title={path}>{path}</span>
+        <div className="my-4 first:mt-2 last:mb-2 font-sans">
+            <div className={`transition-all duration-200 border-l-2 ${isOpen ? 'border-slate-300 bg-slate-50/50' : 'border-slate-200 hover:border-slate-300 bg-transparent'} p-3`}>
+                <div 
+                    className="flex items-center gap-2 cursor-pointer select-none group"
+                    onClick={() => setIsOpen(!isOpen)}
+                >
+                    <span className="text-[10px] w-3 text-slate-400 group-hover:text-slate-600 transition-colors flex items-center justify-center">
+                        {isOpen ? '▼' : '▶'}
+                    </span>
+                    <span className="text-[11px] text-slate-500">
+                        <span className="font-mono text-slate-600 font-medium">{label}:</span> <span className="text-slate-400 ml-1">{filename}</span>
+                    </span>
                 </div>
+                
+                {isOpen && (
+                    <div className="mt-3 animate-in fade-in slide-in-from-top-1 duration-200 font-sans">
+                        <ArtifactRenderer artifact={artifact} displayMode="document" />
+                    </div>
+                )}
             </div>
-            {isOpen && (
-                <div className="p-2 bg-white">
-                    <ArtifactRenderer artifact={artifact} />
-                </div>
-            )}
         </div>
     );
 }

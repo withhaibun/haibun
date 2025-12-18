@@ -1,6 +1,7 @@
 import { Browser, BrowserContext, Page, chromium, firefox, webkit, BrowserType, devices, BrowserContextOptions, LaunchOptions } from 'playwright';
 
 import { EExecutionMessageType, TMessageContext } from '@haibun/core/lib/interfaces/logger.js';
+import { VideoStartArtifact } from '@haibun/core/lib/EventLogger.js';
 import { PlaywrightEvents } from './PlaywrightEvents.js';
 import { TWorld } from '@haibun/core/lib/defs.js';
 import { TTagValue, TTag } from '@haibun/core/lib/ttag.js';

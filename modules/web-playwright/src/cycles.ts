@@ -2,7 +2,8 @@ import { rmSync, readFileSync } from 'fs';
 import { relative, resolve } from 'path';
 
 import { IStepperCycles, TFailureArgs, TEndFeature, TStartExecution, TResolvedFeature, TStartFeature } from '@haibun/core/lib/defs.js';
-import { EExecutionMessageType, TArtifactVideo, TMessageContext } from '@haibun/core/lib/interfaces/logger.js';
+import { EExecutionMessageType } from '@haibun/core/lib/interfaces/logger.js';
+import { VideoArtifact } from '@haibun/core/lib/EventLogger.js';
 import { EMediaTypes } from '@haibun/domain-storage/media-types.js';
 import { WebPlaywright, EMonitoringTypes } from './web-playwright.js';
 import { WebPlaywrightDomains } from './domains.js';
@@ -28,6 +29,7 @@ export const cycles = (wp: WebPlaywright): IStepperCycles => ({
 
 	async startFeature({ resolvedFeature, index }: TStartFeature): Promise<void> {
 		wp.tab = 0;
+		wp.resetVideoStartEmitted(); // Reset for new feature's video recording
 		if (wp.monitor === EMonitoringTypes.MONITOR_EACH) {
 			await wp.callClosers(); // first tab
 			await wp.monitorHandler.createMonitorPage(wp);
@@ -75,6 +77,7 @@ async function closeAfterFeature(wp: WebPlaywright) {
 		if (wp.captureVideo) {
 			const page = await wp.getPage();
 			const videoPath = await page.video().path();
+			const world = wp.getWorld();
 			// Compute path relative to feature capture dir for serialized HTML
 			const basePath = wp.storage.getArtifactBasePath();
 			const featureRelPath = relative(resolve(basePath), videoPath);
@@ -82,13 +85,25 @@ async function closeAfterFeature(wp: WebPlaywright) {
 			const match = featureRelPath.match(/^seq-\d+\/featn-\d+\/(.*)$/);
 			const path = match ? './' + match[1] : './' + featureRelPath;
 
-			const artifact: TArtifactVideo = { artifactType: 'video', path };
-			const context: TMessageContext = {
-				incident: EExecutionMessageType.FEATURE_END,
-				artifacts: [artifact],
-				tag: wp.getWorld().tag
+			// Emit video artifact event (with isTimeLined for timeline sync)
+			// VideoStartArtifact is emitted in getPage() when recording actually starts
+			const featureStep = {
+				seqPath: [world.tag.featureNum, 0, 0],
+				path: world.runtime.feature || 'feature',
+				in: 'feature video',
+				action: {} as any,
 			};
-			wp.getWorld().logger.log('feature video', context);
+
+			const videoEvent = VideoArtifact.parse({
+				id: `${world.tag.sequence}.video`,
+				timestamp: Date.now(),
+				kind: 'artifact',
+				artifactType: 'video',
+				path: featureRelPath, // Use base-relative for live, transformed for serialized
+				mimetype: 'video/webm',
+				isTimeLined: true,
+			});
+			world.eventLogger.artifact(featureStep, videoEvent);
 		}
 		// close the context, which closes any pages
 		if (wp.hasFactory) {

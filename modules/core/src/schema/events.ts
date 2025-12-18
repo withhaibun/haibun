@@ -53,7 +53,13 @@ export const VideoArtifact = BaseArtifact.extend({
   path: z.string(),
   mimetype: z.string().default('video/webm'),
   isTimeLined: z.boolean().default(true),
+  startTime: z.number().optional().describe('Epoch timestamp when video recording started'),
   duration: z.number().optional(),
+});
+
+export const VideoStartArtifact = BaseArtifact.extend({
+  artifactType: z.literal('video-start'),
+  startTime: z.number().describe('Relative start time of video in milliseconds'),
 });
 
 export const HtmlArtifact = BaseArtifact.extend({
@@ -112,10 +118,10 @@ export const FileArtifact = BaseArtifact.extend({
   mimetype: z.string(),
 });
 
-// Artifact discriminated union
 export const ArtifactEvent = z.discriminatedUnion('artifactType', [
   ImageArtifact,
   VideoArtifact,
+  VideoStartArtifact,
   HtmlArtifact,
   SpeechArtifact,
   JsonArtifact,
@@ -146,6 +152,7 @@ export type TLogEvent = z.infer<typeof LogEvent>;
 export type TArtifactEvent = z.infer<typeof ArtifactEvent>;
 export type TImageArtifact = z.infer<typeof ImageArtifact>;
 export type TVideoArtifact = z.infer<typeof VideoArtifact>;
+export type TVideoStartArtifact = z.infer<typeof VideoStartArtifact>;
 export type THtmlArtifact = z.infer<typeof HtmlArtifact>;
 export type TSpeechArtifact = z.infer<typeof SpeechArtifact>;
 export type TJsonArtifact = z.infer<typeof JsonArtifact>;

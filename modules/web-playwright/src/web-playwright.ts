@@ -10,7 +10,7 @@ import { AStorage } from '@haibun/domain-storage/AStorage.js';
 import { EExecutionMessageType, TArtifactImage, TMessageContext } from '@haibun/core/lib/interfaces/logger.js';
 import { EMediaTypes } from '@haibun/domain-storage/media-types.js';
 import { DOMAIN_STRING, registerDomains } from '@haibun/core/lib/domain-types.js';
-import { ImageArtifact } from '@haibun/core/lib/EventLogger.js';
+import { ImageArtifact, VideoStartArtifact } from '@haibun/core/lib/EventLogger.js';
 import { TAnyFixme } from '@haibun/core/lib/fixme.js';
 import { AStepper, IHasCycles, IHasOptions, StepperKinds } from '@haibun/core/lib/astepper.js';
 
@@ -110,6 +110,11 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	headless: boolean;
 	inContainer: Locator;
 	steppers: AStepper[];
+	private videoStartEmitted = false;
+
+	resetVideoStartEmitted() {
+		this.videoStartEmitted = false;
+	}
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		this.steppers = steppers;
@@ -180,8 +185,30 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	}
 
 	async getPage() {
-		const { tag } = this.getWorld();
+		const world = this.getWorld();
+		const { tag } = world;
+		const isFirstPage = !this.bf?.hasPage(tag, this.tab);
 		const page = await (await this.getBrowserFactory()).getBrowserContextPage(tag, this.tab);
+
+		// Emit VideoStartArtifact when video capture starts (first page creation)
+		if (this.captureVideo && isFirstPage && !this.videoStartEmitted) {
+			this.videoStartEmitted = true;
+			const videoStartEvent = VideoStartArtifact.parse({
+				id: `${tag.sequence}.video-start`,
+				timestamp: Date.now(),
+				kind: 'artifact',
+				artifactType: 'video-start',
+				startTime: 0, // Relative offset from this moment
+			});
+			const featureStep = {
+				seqPath: [tag.featureNum, 0, 0],
+				path: world.runtime.feature || 'feature',
+				in: 'video recording started',
+				action: {} as any,
+			};
+			world.eventLogger.artifact(featureStep, videoStartEvent);
+		}
+
 		page.on('popup', async (popup: Page) => {
 			await popup.waitForLoadState();
 			// const title = await popup.title();

@@ -1,44 +1,44 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { TVideoArtifact } from '../types';
 import { getArtifactUrl } from '../lib/artifactUrl';
 
 interface VideoArtifactProps {
   artifact: TVideoArtifact;
   currentTime?: number;
-  onTimeSync?: (time: number) => void;
+  videoStartTimestamp?: number | null;
+  sync?: boolean;
 }
 
 /**
- * Timeline-bound video artifact.
- * - Displays translucent in top-right corner
- * - Expands on hover (scale 2x)
- * - Syncs with global timeline (no individual controls)
+ * Standard video artifact display.
+ * - Used inline in the log/document
+ * - Can sync with timeline or be interactive with subtle controls
  */
-export function VideoArtifact({ artifact, currentTime, onTimeSync }: VideoArtifactProps) {
+export function VideoArtifact({ artifact, currentTime, videoStartTimestamp, sync = false }: VideoArtifactProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  // Sync video with global timeline
+  // Sync video with global timeline if enabled
   useEffect(() => {
-    if (videoRef.current && currentTime !== undefined && artifact.isTimeLined) {
-      // Calculate video time based on artifact start and current timeline position
-      const videoTime = currentTime / 1000; // Convert ms to seconds
-      if (Math.abs(videoRef.current.currentTime - videoTime) > 0.5) {
-        videoRef.current.currentTime = videoTime;
+    if (sync && videoRef.current && currentTime !== undefined && videoStartTimestamp !== null) {
+      const videoTime = currentTime / 1000;
+      if (videoTime >= 0 && Math.abs(videoRef.current.currentTime - videoTime) > 0.5) {
+        videoRef.current.currentTime = Math.max(0, videoTime);
       }
     }
-  }, [currentTime, artifact.isTimeLined]);
+  }, [currentTime, sync, videoStartTimestamp]);
 
   return (
-    <div className="haibun-artifact-video fixed top-4 right-6 z-50 pointer-events-none">
+    <div className="haibun-artifact-video w-full max-w-2xl my-2 group relative">
       <video
         ref={videoRef}
         src={getArtifactUrl(artifact.path)}
-        className="max-w-[320px] h-auto block transition-all duration-300 ease-in-out
-                   origin-top-right pointer-events-auto shadow-lg bg-white opacity-70
-                   hover:scale-[2] hover:opacity-100 hover:shadow-2xl"
-        muted
+        className="w-full h-auto rounded border border-slate-200 shadow-sm block"
+        controls={!sync}
+        muted={sync}
         playsInline
       />
     </div>
   );
 }
+
+

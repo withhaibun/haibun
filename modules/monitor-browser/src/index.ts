@@ -97,8 +97,11 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
       const jitData = serializer.serialize(transformedEvents);
 
       const featureStart = this.events.find(e => e.kind === 'lifecycle' && e.type === 'feature' && e.stage === 'start');
-      const topic = featureStart && (featureStart as any).label ? (featureStart as any).label.replace(/[^a-zA-Z0-9-_]/g, '_') : 'feature';
-      const seq = featureStart ? featureStart.id : 'unknown';
+      const world = this.getWorld();
+      const featureLabel = (featureStart as any)?.label || world.runtime.feature || 'report';
+      const topic = featureLabel.replace(/.*\//, '').replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9-_]/g, '_');
+      const seq = `seq-${world.tag.sequence}`;
+
 
       await this.saveSerializedReport(jitData, topic, seq);
       this.events = [];
@@ -161,9 +164,7 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
     const filename = topic ? `${topic}-${Date.now()}` : `haibun-report-${Date.now()}`;
     const saved = await this.storage.saveArtifact(filename + '.html', html, EMediaTypes.html);
 
-    // Console log for immediate feedback (report saved locally, not emitted as artifact)
-    console.log(seq);
-    console.log(`${seq} ${topic} ${actualURI(saved.absolutePath)}`);
+    console.log(`[MonitorBrowser] Report saved: ${actualURI(saved.absolutePath)}`);
   }
 
   steps = {
