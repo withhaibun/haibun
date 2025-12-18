@@ -6,7 +6,8 @@
  */
 
 import { AStepper, IHasCycles, IHasOptions, StepperKinds } from '@haibun/core/lib/astepper.js';
-import { IStepperCycles, TWorld, OK } from '@haibun/core/lib/defs.js';
+import { IStepperCycles, TWorld } from '@haibun/core/lib/defs.js';
+import { OK } from '@haibun/core/schema/protocol.js';
 import { THaibunEvent, EventFormatter } from '@haibun/core/monitor/index.js';
 import { stringOrError, getStepperOption } from '@haibun/core/lib/util/index.js';
 
@@ -85,7 +86,7 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
     this.loggerProvider = new LoggerProvider({ resource, logRecordProcessor: logProcessor } as any);
     logs.setGlobalLoggerProvider(this.loggerProvider);
 
-    this.getWorld().logger.info(`[monitor-otel] Initialized with endpoint: ${endpoint}, service: ${serviceName}`);
+    this.getWorld().eventLogger.info(`[monitor-otel] Initialized with endpoint: ${endpoint}, service: ${serviceName}`);
   }
 
   cycles: IStepperCycles = {
@@ -250,7 +251,7 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
       await this.loggerProvider.shutdown();
       this.loggerProvider = undefined;
     }
-    this.getWorld().logger.info('[monitor-otel] Shutdown complete');
+    this.getWorld().eventLogger.info('[monitor-otel] Shutdown complete');
   }
 
   steps = {

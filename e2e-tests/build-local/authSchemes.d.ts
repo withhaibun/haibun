@@ -10,3 +10,4 @@ export type TAuthScheme = {
 };
 export declare const authSchemes: TAuthScheme;
 export {};
+//# sourceMappingURL=authSchemes.d.ts.map

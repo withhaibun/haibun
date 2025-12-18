@@ -3,18 +3,19 @@ import { resolve } from 'path';
 import { pathToFileURL } from 'url';
 import { z } from 'zod';
 
-import { TWorld, OK, TStepResult, TFeatureStep, Origin, CycleWhen, TDomainDefinition } from '@haibun/core/lib/defs.js';
+import { TWorld, TFeatureStep, CycleWhen, TDomainDefinition } from '@haibun/core/lib/defs.js';
+import { OK, TStepResult, Origin } from '@haibun/core/schema/protocol.js';
 import { BrowserFactory, TTaggedBrowserFactoryOptions, TBrowserTypes, BROWSERS } from './BrowserFactory.js';
 import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOptionOrKind, optionOrError } from '@haibun/core/lib/util/index.js';
 import { AStorage } from '@haibun/domain-storage/AStorage.js';
-import { EExecutionMessageType, TArtifactImage, TMessageContext } from '@haibun/core/lib/interfaces/logger.js';
+import { ImageArtifact, VideoStartArtifact } from '@haibun/core/schema/protocol.js';
 import { EMediaTypes } from '@haibun/domain-storage/media-types.js';
 import { DOMAIN_STRING, registerDomains } from '@haibun/core/lib/domain-types.js';
-import { ImageArtifact, VideoStartArtifact } from '@haibun/core/lib/EventLogger.js';
+
 import { TAnyFixme } from '@haibun/core/lib/fixme.js';
 import { AStepper, IHasCycles, IHasOptions, StepperKinds } from '@haibun/core/lib/astepper.js';
 
-import { MonitorHandler } from './monitor/MonitorHandler.js';
+
 import { cycles } from './cycles.js';
 import { interactionSteps } from './interactionSteps.js';
 import { restSteps, TCapturedResponse } from './rest-playwright.js';
@@ -34,10 +35,7 @@ export const WEB_PAGE = 'webpage';
 
 export const LAST_REST_RESPONSE = 'LAST_REST_RESPONSE';
 export const VISITED_PAGES = 'Visited pages';
-export enum EMonitoringTypes {
-	MONITOR_ALL = 'all',
-	MONITOR_EACH = 'each',
-}
+
 
 type TRequestOptions = {
 	headers?: Record<string, string>;
@@ -57,10 +55,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			desc: `twin page elements based on interactions)`,
 			parse: (input: string) => boolOrError(input),
 		},
-		MONITOR: {
-			desc: `display a monitor with ongoing results (${EMonitoringTypes.MONITOR_ALL} or ${EMonitoringTypes.MONITOR_EACH})`,
-			parse: (input: string) => optionOrError(input, [EMonitoringTypes.MONITOR_ALL, EMonitoringTypes.MONITOR_EACH]),
-		},
+
 		HEADLESS: {
 			desc: 'run browsers without a window (true, false)',
 			parse: (input: string) => boolOrError(input),
@@ -100,9 +95,8 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	downloaded: string[] = [];
 	captureVideo: boolean;
 	closers: Array<() => void> = [];
-	monitor: EMonitoringTypes;
+
 	twin: boolean;
-	monitorHandler?: MonitorHandler;
 	twinPage?: TwinPage;
 	apiUserAgent: string;
 	extraHTTPHeaders: { [name: string]: string; } = {};
@@ -127,7 +121,6 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		if (devtools) {
 			args.concat(['--auto-open-devtools-for-tabs', '--devtools-flags=panel-network', '--remote-debugging-port=9223']);
 		}
-		this.monitor = <EMonitoringTypes>getStepperOption(this, 'MONITOR', world.moduleOptions);
 		this.twin = getStepperOption(this, 'TWIN', world.moduleOptions) === 'true';
 		const persistentDirectory = getStepperOption(this, WebPlaywright.PERSISTENT_DIRECTORY, world.moduleOptions);
 		const defaultTimeout = parseInt(getStepperOption(this, 'TIMEOUT', world.moduleOptions)) || 30000;
@@ -199,6 +192,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 				kind: 'artifact',
 				artifactType: 'video-start',
 				startTime: 0, // Relative offset from this moment
+				level: 'debug',
 			});
 			const featureStep = {
 				seqPath: [tag.featureNum, 0, 0],
@@ -239,8 +233,8 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 				return OK;
 			}
 		}
-		const messageContext = { incident: EExecutionMessageType.ON_FAILURE, incidentDetails: { summary: `in ${textContent?.length} characters`, details: textContent } };
-		return actionNotOK(`Did not find text "${text}" in ${selector}`, { messageContext });
+		const topics = { summary: `in ${textContent?.length} characters`, details: textContent };
+		return actionNotOK(`Did not find text "${text}" in ${selector}`, { topics });
 	}
 	async getCookies() {
 		const browserContext = await this.getExistingBrowserContext();
@@ -262,32 +256,24 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	newTab() {
 		this.tab = this.tab + 1;
 	}
-	async captureFailureScreenshot(event: EExecutionMessageType, step: TStepResult) {
+	async captureFailureScreenshot(event: string, step: TStepResult) {
 		try {
 			return await this.captureScreenshotAndLog(event, { step });
 		} catch (e) {
-			this.getWorld().logger.debug(`captureFailureScreenshot error ${e}`);
+			this.getWorld().eventLogger.debug(`captureFailureScreenshot error ${e}`);
 		}
 	}
 
-	async captureScreenshotAndLog(event: EExecutionMessageType, details: { seq?: number; step?: TStepResult }) {
-		const { context, path } = await this.captureScreenshot(event, details,);
-		this.getWorld().logger.log(`${event} screenshot to ${pathToFileURL(path)}`, context);
+	async captureScreenshotAndLog(event: string, details: { seq?: number; step?: TStepResult }) {
+		const { path } = await this.captureScreenshot(event, details,);
+		this.getWorld().eventLogger.debug(`${event} screenshot to ${pathToFileURL(path)}`);
 	}
 
-	async captureScreenshot(event: EExecutionMessageType, details: { seq?: number; step?: TStepResult }) {
+	async captureScreenshot(event: string, details: { seq?: number; step?: TStepResult }) {
 		const filename = `${event}-${Date.now()}.png`;
 		// Take screenshot to buffer first, then save via unified saveArtifact
 		const buffer = await this.withPage(async (page: Page) => await page.screenshot()) as Buffer;
 		const saved = await this.storage.saveArtifact(filename, buffer, EMediaTypes.image, 'image');
-
-		const artifact: TArtifactImage = { artifactType: 'image', path: saved.featureRelativePath };
-		const context: TMessageContext = {
-			incident: EExecutionMessageType.ACTION,
-			artifacts: [artifact],
-			tag: this.getWorld().tag,
-			incidentDetails: { ...details, event }
-		};
 
 		// Emit new-style artifact event with baseRelativePath for live serving
 		const world = this.getWorld();
@@ -307,7 +293,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		};
 		world.eventLogger.artifact(featureStep, artifactEvent);
 
-		return { context, path: saved.absolutePath };
+		return { path: saved.absolutePath };
 	}
 
 	async captureAccessibilitySnapshot() {
@@ -394,13 +380,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		this.twinPage = new TwinPage(this, this.storage, this.headless);
 		await this.twinPage.initTwin();
 	}
-	async createMonitor() {
-		this.getWorld().logger.info('Creating new monitor page');
-		this.monitorHandler = new MonitorHandler(this.getWorld(), this.storage, this.headless)
-		await this.monitorHandler.initMonitorContext();
 
-		return OK;
-	}
 	getLastResponse(): TCapturedResponse {
 		return this.getWorld().shared.getJSON(LAST_REST_RESPONSE) as TCapturedResponse;
 	}

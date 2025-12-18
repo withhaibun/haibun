@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { THaibunEvent } from './types';
+import { THaibunEvent, ICON_FEATURE, ICON_SCENARIO, ICON_STEP_RUNNING, ICON_STEP_FAILED, ICON_STEP_COMPLETED, ICON_LOG_INFO, ICON_LOG_WARN, ICON_LOG_ERROR, ICON_DEFAULT, ICON_ARTIFACT } from '@haibun/core/schema/protocol.js';
 
 interface TimelineProps {
     min: number;
@@ -18,24 +18,24 @@ interface TimelineProps {
 // Helper to get symbol and color for event
 const getNotchStyle = (event: THaibunEvent): { color: string, icon: string } => {
     if (event.kind === 'lifecycle') {
-        if (event.type === 'feature') return { color: '#c084fc', icon: '📄' }; // Purple
-        if (event.type === 'scenario') return { color: '#60a5fa', icon: '📋' }; // Blue
+        if (event.type === 'feature') return { color: '#c084fc', icon: ICON_FEATURE }; // Purple
+        if (event.type === 'scenario') return { color: '#60a5fa', icon: ICON_SCENARIO }; // Blue
         if (event.type === 'step') {
-            if (event.status === 'running') return { color: '#eab308', icon: '⏳' }; // Yellow
-            if (event.status === 'failed') return { color: '#ef4444', icon: '❌' }; // Red - CHECK_NO
-            if (event.status === 'completed') return { color: '#22c55e', icon: '✅' }; // Green - CHECK_YES
-            return { color: '#94a3b8', icon: '•' }; // Slate dot
+            if (event.status === 'running') return { color: '#eab308', icon: ICON_STEP_RUNNING }; // Yellow
+            if (event.status === 'failed') return { color: '#ef4444', icon: ICON_STEP_FAILED }; // Red
+            if (event.status === 'completed') return { color: '#22c55e', icon: ICON_STEP_COMPLETED }; // Green
+            return { color: '#94a3b8', icon: ICON_DEFAULT }; // Slate dot
         }
     }
     if (event.kind === 'log') {
-        if (event.level === 'error') return { color: '#ef4444', icon: '🚨' };
-        if (event.level === 'warn') return { color: '#eab308', icon: '⚠️' };
-        if (event.level === 'info') return { color: '#3b82f6', icon: 'ℹ️' };
-        return { color: '#94a3b8', icon: '•' };
+        if (event.level === 'error') return { color: '#ef4444', icon: ICON_LOG_ERROR };
+        if (event.level === 'warn') return { color: '#eab308', icon: ICON_LOG_WARN };
+        if (event.level === 'info') return { color: '#3b82f6', icon: ICON_LOG_INFO };
+        return { color: '#94a3b8', icon: ICON_DEFAULT };
     }
-    if (event.kind === 'artifact') return { color: '#10b981', icon: '📎' }; // Emerald
+    if (event.kind === 'artifact') return { color: '#10b981', icon: ICON_ARTIFACT }; // Emerald
 
-    return { color: '#94a3b8', icon: '•' };
+    return { color: '#94a3b8', icon: ICON_DEFAULT };
 };
 
 // Speed options: 0.02 (labeled -50x), 0.05 (labeled -20x), 1, 2

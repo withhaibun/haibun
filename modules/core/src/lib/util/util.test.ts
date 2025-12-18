@@ -5,7 +5,7 @@ import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, getCreateSteppers } from '../test
 import TestSteps from '../test/TestSteps.js';
 import TestStepsWithOptions from '../test/TestStepsWithOptions.js';
 import { withNameType } from '../features.js';
-import { OK, TEST_BASE } from '../defs.js';
+import { OK, TEST_BASE } from '../../schema/protocol.js';
 import { TAnyFixme } from '../fixme.js';
 import { IHasOptions, StepperKinds } from '../astepper.js';
 import { AStepper } from '../astepper.js';

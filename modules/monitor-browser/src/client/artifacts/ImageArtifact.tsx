@@ -1,5 +1,5 @@
 import React from 'react';
-import { TImageArtifact } from '../types';
+import { TImageArtifact } from '@haibun/core/schema/protocol.js';
 import { getArtifactUrl } from '../lib/utils';
 
 interface ImageArtifactProps {

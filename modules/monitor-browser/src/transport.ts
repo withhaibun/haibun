@@ -1,6 +1,6 @@
 
 import { TPrompt, TPromptResponse } from '@haibun/core/lib/prompter.js';
-import { THaibunEvent } from '@haibun/core/lib/EventLogger.js';
+import { THaibunEvent } from '@haibun/core/schema/protocol.js';
 import { RawData, WebSocket, WebSocketServer } from 'ws';
 
 export interface ITransport {

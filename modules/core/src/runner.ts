@@ -1,4 +1,5 @@
-import { TWorld, TExecutorResult, CStepper } from './lib/defs.js';
+import { TWorld, CStepper } from './lib/defs.js';
+import { TExecutorResult } from './schema/protocol.js';
 import { TAnyFixme } from './lib/fixme.js';
 import { AStepper, StepperKinds } from './lib/astepper.js';
 import { expand } from './lib/features.js';
@@ -15,7 +16,6 @@ export class Runner {
 	constructor(private world: TWorld) { }
 
 	private errorBail = (phase: string, error: TAnyFixme, details?: TAnyFixme) => {
-		// this.world.logger.error(`errorBail ${phase} ${error} ${details}`, error.stack);
 		this.result = {
 			ok: false,
 			shared: this.world.shared,

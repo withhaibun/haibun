@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { viteSingleFile } from 'vite-plugin-singlefile';
 import { visualizer } from 'rollup-plugin-visualizer';
+import react from '@vitejs/plugin-react';
 
 interface Config extends ViteUserConfig {
 	test?: VitestUserConfig['test'];
@@ -23,6 +24,8 @@ const config: Config = {
 			'@haibun/core/lib/defs.js': path.resolve(__dirname, 'modules/core/src/monitor/browser-stubs.ts'),
 			'@haibun/core/lib/util/index.js': path.resolve(__dirname, 'modules/core/src/monitor/browser-stubs.ts'),
 			'@haibun/core/monitor': path.resolve(__dirname, 'modules/core/src/monitor/index.ts'),
+			'react': path.resolve(__dirname, 'node_modules/react'),
+			'react-dom': path.resolve(__dirname, 'node_modules/react-dom'),
 		},
 	},
 	build: {
@@ -35,6 +38,7 @@ const config: Config = {
 	},
 
 	plugins: [
+		react() as any,
 		viteSingleFile({
 			useRecommendedBuildConfig: true,
 			removeViteModuleLoader: true,
@@ -86,7 +90,8 @@ const config: Config = {
 	test: {
 		globals: true,
 		environment: 'node',
-		include: ['**/*.{test}.ts'],
+		include: ['**/*.{test}.{ts,tsx}'],
+		setupFiles: ['./vitest.setup.ts'],
 		exclude: [
 			'**/node_modules/**',
 			'**/dist/**',

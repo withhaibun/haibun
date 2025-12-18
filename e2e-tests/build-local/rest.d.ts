@@ -9,3 +9,4 @@ export declare const restRoutes: (testServer: TestServer) => {
     resources(req: IRequest, res: IResponse): Promise<void>;
     logIn(req: IRequest, res: IResponse): Promise<void>;
 };
+//# sourceMappingURL=rest.d.ts.map

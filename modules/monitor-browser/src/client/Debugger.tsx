@@ -15,6 +15,7 @@ interface DebuggerProps {
 
 export function Debugger({ prompt, onSubmit }: DebuggerProps) {
     const inputRef = useRef<HTMLInputElement>(null);
+    const SendIcon = Send as any;
 
     // Auto-focus input when prompt changes and input is present
     useEffect(() => {
@@ -35,22 +36,32 @@ export function Debugger({ prompt, onSubmit }: DebuggerProps) {
         // Skip specialized options if handled elsewhere (like *)
         if (opt === '*') return null;
 
-        let icon = <ArrowRight className="h-3 w-3 mr-1" />;
+        const ArrowRightIcon = ArrowRight as any;
+        const PlayIcon = Play as any;
+        const XCircleIcon = XCircle as any;
+        const RefreshCwIcon = RefreshCw as any;
+        const SkipForwardIcon = SkipForward as any;
+
+        let icon = <ArrowRightIcon className="h-3 w-3 mr-1" />;
         let variant: "secondary" | "default" | "destructive" | "outline" | "ghost" | "link" = "secondary";
         let className = "h-7 px-2 text-xs"; // Dense "New York" style
 
         if (lower.includes('continue')) {
-            icon = <Play className="h-3 w-3 mr-1" />;
+            icon = <PlayIcon className="h-3 w-3 mr-1" />;
             variant = "default";
             className += " bg-green-600 hover:bg-green-700 text-white";
         } else if (lower.includes('fail')) {
-            icon = <XCircle className="h-3 w-3 mr-1" />;
+            icon = <XCircleIcon className="h-3 w-3 mr-1" />;
             variant = "destructive";
         } else if (lower.includes('retry')) {
-            icon = <RefreshCw className="h-3 w-3 mr-1" />;
+            icon = <RefreshCwIcon className="h-3 w-3 mr-1" />;
             variant = "outline";
         } else if (lower.includes('next')) {
-            icon = <SkipForward className="h-3 w-3 mr-1" />;
+            icon = <SkipForwardIcon className="h-3 w-3 mr-1" />;
+        } else if (lower.includes('step')) {
+            icon = <ArrowRightIcon className="h-3 w-3 mr-1" />;
+            variant = "secondary";
+            className += " border-cyan-500/50 text-cyan-500 hover:bg-cyan-950/30";
         }
 
         return (
@@ -106,7 +117,7 @@ export function Debugger({ prompt, onSubmit }: DebuggerProps) {
                             }
                         }}
                     >
-                        <Send className="h-3 w-3" />
+                        <SendIcon className="h-3 w-3" />
                     </Button>
                 </div>
             )}

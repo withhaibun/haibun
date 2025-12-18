@@ -5,7 +5,7 @@ import serveIndex from 'serve-index';
 import cookieParser from 'cookie-parser';
 
 import { IWebServer, ROUTE_TYPES, TRequestHandler, TRouteMap, TRouteTypes, TStaticFolderOptions } from './defs.js';
-import { ILogger } from '@haibun/core/lib/interfaces/logger.js';
+import { IEventLogger } from '@haibun/core/lib/EventLogger.js';
 
 export const DEFAULT_PORT = 8123;
 const defaultMounted = () => ROUTE_TYPES.reduce((acc, type) => ({ ...acc, [type]: {} }), <TRouteMap>{});
@@ -15,7 +15,7 @@ export class ServerExpress implements IWebServer {
 	listener?: http.Server;
 	app = express();
 	mounted = defaultMounted();
-	constructor(private logger: ILogger, private base: string, private port: number = DEFAULT_PORT) {
+	constructor(private logger: IEventLogger, private base: string, private port: number = DEFAULT_PORT) {
 		this.app.use(cookieParser());
 		this.app.use(express.json({ limit: '150mb' }));
 		this.app.use(express.urlencoded({ extended: true }));

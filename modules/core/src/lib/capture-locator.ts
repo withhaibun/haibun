@@ -1,5 +1,6 @@
 import { join } from "path";
-import { TBaseOptions, CAPTURE, DEFAULT_DEST } from "./defs.js";
+import { TBaseOptions } from './defs.js';
+import { CAPTURE, DEFAULT_DEST } from '../schema/protocol.js';
 import { TTag } from "./ttag.js";
 import { containerHostPath } from "./util/actualURI.js";
 

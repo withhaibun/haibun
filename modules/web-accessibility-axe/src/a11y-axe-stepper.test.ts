@@ -2,7 +2,7 @@ import { describe, it, expect, afterAll } from 'vitest';
 
 import { failWithDefaults, passWithDefaults } from '@haibun/core/lib/test/lib.js';
 import A11yAxe from './a11y-axe-stepper.js';
-import { DEFAULT_DEST, TOKActionResult } from '@haibun/core/lib/defs.js';
+import { DEFAULT_DEST, TOKActionResult } from '@haibun/core/schema/protocol.js';
 import { getStepperOptionName } from '@haibun/core/lib/util/index.js';
 import { BrowserFactory } from '@haibun/web-playwright/BrowserFactory.js';
 

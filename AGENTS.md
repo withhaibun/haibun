@@ -422,7 +422,6 @@ A talent agency can have different types of clients, including artists and venue
     variable Le Artiste/signed is "agreed"
     variable Le Artiste/popular is "negotiating"
 
-
 ## Next steps
 
 Examples are available in [e2e-tests](e2e-tests/tests/features/).

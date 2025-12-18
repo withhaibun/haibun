@@ -1,5 +1,6 @@
 import { AStepper, IHasCycles, IHasOptions } from '@haibun/core/lib/astepper.js';
-import { TStepResult, TWorld, ExecMode } from '@haibun/core/lib/defs.js';
+import { TWorld, ExecMode } from '@haibun/core/lib/defs.js';
+import { TStepResult } from '@haibun/core/schema/protocol.js';
 import { FlowRunner } from "@haibun/core/lib/core/flow-runner.js";
 import { getFromRuntime, getStepperOption, getStepperOptionName, intOrError, stringOrError } from '@haibun/core/lib/util/index.js';
 import { IRequest, IResponse, IWebServer, WEBSERVER } from './defs.js';
@@ -64,8 +65,9 @@ export default class HttpExecutorStepper extends AStepper implements IHasOptions
 						return;
 					}
 
+
 					if (!['statement', 'source'].every(key => typeof req.body[key] === 'string')) {
-						this.getWorld().logger.warn(`missing or invalid body parameters: ${JSON.stringify(req.body)}`);
+						this.getWorld().eventLogger.warn(`missing or invalid body parameters: ${JSON.stringify(req.body)}`);
 						res.status(400).json({ error: 'statement and source are required' });
 						return;
 					}
@@ -85,7 +87,7 @@ export default class HttpExecutorStepper extends AStepper implements IHasOptions
 							in: statement,
 							path: source,
 							seqPath: [0],
-							stepActionResult: res.payload
+							stepActionResult: res.topics
 						};
 					})();
 					console.debug(`✅ HTTP Executor: Execution completed`, result);
@@ -150,14 +152,14 @@ export default class HttpExecutorStepper extends AStepper implements IHasOptions
 		});
 
 		this.routeAdded = true;
-		this.getWorld().logger.warn(`⚠️  Remote executor route added with ACCESS_TOKEN on port ${this.port}.`);
+		this.getWorld().eventLogger.warn(`⚠️  Remote executor route added with ACCESS_TOKEN on port ${this.port}.`);
 	}
 	checkAuth(req: IRequest, res: IResponse): boolean {
 		const authHeader = req.headers.authorization;
 		const providedToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
 
 		if (!providedToken || providedToken !== this.configuredToken) {
-			this.getWorld().logger.warn(`Unauthorized access attempt with token: "${providedToken}"`);
+			this.getWorld().eventLogger.warn(`Unauthorized access attempt with token: "${providedToken}"`);
 			res.status(401).json({ error: 'Invalid or missing access token' });
 			return false;
 		}

@@ -1,12 +1,11 @@
 import { rmSync } from 'fs';
 import fileUpload from 'express-fileupload';
-import { actionNotOK, actionOK, getFromRuntime, sleep, asError } from '@haibun/core/lib/util/index.js';
+import { actionNotOK, actionOK, getFromRuntime, sleep } from '@haibun/core/lib/util/index.js';
 import { DOMAIN_STRING } from "@haibun/core/lib/domain-types.js";
-import { OK, Origin } from '@haibun/core/lib/defs.js';
+import { OK, Origin } from '@haibun/core/schema/protocol.js';
 import { WEBSERVER } from '@haibun/web-server-express/defs.js';
 import { restRoutes } from './rest.js';
 import { authSchemes } from './authSchemes.js';
-import { EExecutionMessageType } from '@haibun/core/lib/interfaces/logger.js';
 import { AStepper } from '@haibun/core/lib/astepper.js';
 const TALLY = 'tally';
 const setTally = (value) => ({ term: TALLY, value: String(value), domain: DOMAIN_STRING, origin: Origin.var });
@@ -42,7 +41,7 @@ class TestServer extends AStepper {
     resources = [];
     async endedFeatures() {
         if (Object.keys(this.toDelete).length > 0) {
-            this.getWorld().logger.log(`removing ${JSON.stringify(this.toDelete)}`);
+            this.getWorld().eventLogger.info(`removing ${JSON.stringify(this.toDelete)}`);
             for (const td of Object.values(this.toDelete)) {
                 rmSync(td);
             }
@@ -56,9 +55,9 @@ class TestServer extends AStepper {
                 webserver.addRoute(method, loc, route);
             }
             catch (error) {
-                console.error(error);
-                const messageContext = { incident: EExecutionMessageType.ACTION, incidentDetails: asError(error) };
-                return actionNotOK(vstep.in, { messageContext });
+                const err = error instanceof Error ? error : new Error(String(error));
+                this.getWorld().eventLogger.error(`addRoute failed: ${err.message}`);
+                return actionNotOK(`${vstep.in}: ${err.message}`);
             }
             return actionOK();
         };
@@ -66,7 +65,7 @@ class TestServer extends AStepper {
     tally = async (req, res) => {
         const cur = (parseInt(this.getWorld().shared.get(TALLY), 10) || 0) + 1;
         this.getWorld().shared.set(setTally(cur), { when: 'tally', seq: [cur] });
-        this.getWorld().logger.log(`tally ${cur}`);
+        this.getWorld().eventLogger.info(`tally ${cur}`);
         const { username } = req.query;
         await sleep(Math.random() * 2000);
         res
@@ -112,14 +111,13 @@ class TestServer extends AStepper {
                 const { loc } = args;
                 try {
                     const webserver = getFromRuntime(this.getWorld().runtime, WEBSERVER);
-                    // Register route directly with method, location, middleware (cast to any), and handler
                     webserver.addRoute('post', loc, fileUpload(), this.upload);
                     return actionOK();
                 }
                 catch (error) {
-                    this.getWorld().logger.error(`Error adding upload route ${loc}: ${error}`);
-                    const messageContext = { incident: EExecutionMessageType.ACTION, incidentDetails: asError(error) };
-                    return actionNotOK(vstep.in, { messageContext });
+                    const err = error instanceof Error ? error : new Error(String(error));
+                    this.getWorld().eventLogger.error(`Error adding upload route ${loc}: ${err.message}`);
+                    return actionNotOK(`${vstep.in}: ${err.message}`);
                 }
             },
         },

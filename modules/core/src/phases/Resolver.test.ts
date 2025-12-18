@@ -1,6 +1,7 @@
 import { describe, it, test, expect } from 'vitest';
 
-import { OK, TExpandedFeature, TResolvedFeature } from '../lib/defs.js';
+import { TExpandedFeature, TResolvedFeature } from '../lib/defs.js';
+import { OK } from '../schema/protocol.js';
 import { AStepper } from '../lib/astepper.js';
 import { asExpandedFeatures } from '../lib/resolver-features.js';
 import TestSteps from '../lib/test/TestSteps.js';
@@ -58,7 +59,6 @@ describe('validate map steps', () => {
 			const features = asExpandedFeatures([{ path: 'l1', content: `match1` }]);
 			const res = await getResolvedSteps(features);
 			const { featureSteps } = res[0];
-			// regex style match still exposes no stepValuesMap entries for legacy direct regex usage
 			expect(featureSteps[0].action.stepValuesMap).toEqual({});
 		});
 	});

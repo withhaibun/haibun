@@ -1,8 +1,9 @@
-import { TNotOKActionResult, TOKActionResult, TSpecl, TWorld, TRuntime, TModuleOptions, CStepper, OK, TSeqPath, TFeatureStep } from '../defs.js';
+import { TSpecl, TWorld, TRuntime, TModuleOptions, CStepper, TFeatureStep } from '../defs.js';
+import { TNotOKActionResult, TOKActionResult, OK, TSeqPath, TDebugSignal } from '../../schema/protocol.js';
 import { TAnyFixme } from '../fixme.js';
 import { IHasOptions, AStepper } from '../astepper.js';
 import { TTag } from '../ttag.js';
-import { TArtifact, TMessageContext } from '../interfaces/logger.js';
+import { TArtifactEvent } from '../../schema/protocol.js';
 export * from './actualURI.js';
 
 // Helper to get term from stepValuesMap with null safety
@@ -76,22 +77,23 @@ export function checkModuleIsClass(re: object, module: string) {
 	}
 }
 
-export function actionNotOK(message: string, w?: { messageContext?: TMessageContext, artifact?: TArtifact }): TNotOKActionResult {
-	const { messageContext, artifact } = w || {};
+export function actionNotOK(message: string, w?: { artifact?: TArtifactEvent, controlSignal?: TDebugSignal, topics?: Record<string, unknown> }): TNotOKActionResult {
+	const { artifact, controlSignal, topics } = w || {};
 	return {
 		ok: false,
 		message,
-		messageContext,
-		artifact
+		artifact,
+		controlSignal,
+		topics
 	};
 }
 export function randomString() {
 	return ['rnd', Math.floor(Date.now() / 1000).toString(36), Math.floor(Math.random() * 1e8).toString(36)].join('_');
 }
 
-export function actionOK(w?: { messageContext?: TMessageContext, artifact?: TArtifact }): TOKActionResult {
-	const { messageContext, artifact } = w || {};
-	return { ...OK, messageContext, artifact };
+export function actionOK(w?: { artifact?: TArtifactEvent, controlSignal?: TDebugSignal, topics?: Record<string, unknown> }): TOKActionResult {
+	const { artifact, controlSignal, topics } = w || {};
+	return { ...OK, artifact, controlSignal, topics };
 }
 
 export function createSteppers(steppers: CStepper[]): AStepper[] {

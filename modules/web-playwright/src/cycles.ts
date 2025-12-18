@@ -2,10 +2,10 @@ import { rmSync, readFileSync } from 'fs';
 import { relative, resolve } from 'path';
 
 import { IStepperCycles, TFailureArgs, TEndFeature, TStartExecution, TResolvedFeature, TStartFeature } from '@haibun/core/lib/defs.js';
-import { EExecutionMessageType } from '@haibun/core/lib/interfaces/logger.js';
-import { VideoArtifact } from '@haibun/core/lib/EventLogger.js';
+
+import { VideoArtifact } from '@haibun/core/schema/protocol.js';
 import { EMediaTypes } from '@haibun/domain-storage/media-types.js';
-import { WebPlaywright, EMonitoringTypes } from './web-playwright.js';
+import { WebPlaywright } from './web-playwright.js';
 import { WebPlaywrightDomains } from './domains.js';
 
 export const cycles = (wp: WebPlaywright): IStepperCycles => ({
@@ -13,14 +13,11 @@ export const cycles = (wp: WebPlaywright): IStepperCycles => ({
 	// biome-disable-next-line @typescript-eslint/no-unused-vars
 	async onFailure({ failedStep }: TFailureArgs): Promise<void> {
 		if (wp.bf?.hasPage(wp.getWorld().tag, wp.tab)) {
-			await wp.captureFailureScreenshot(EExecutionMessageType.ON_FAILURE, failedStep);
+			await wp.captureFailureScreenshot('failure', failedStep);
 		}
 	},
 	async startExecution(resolvedFeatures: TStartExecution): Promise<void> {
-		if (wp.monitor) {
-			await wp.createMonitor();
-			await wp.monitorHandler.createMonitorPage(wp);
-		}
+
 		if (wp.twin) {
 			await wp.createTwin();
 		}
@@ -30,11 +27,7 @@ export const cycles = (wp: WebPlaywright): IStepperCycles => ({
 	async startFeature({ resolvedFeature, index }: TStartFeature): Promise<void> {
 		wp.tab = 0;
 		wp.resetVideoStartEmitted(); // Reset for new feature's video recording
-		if (wp.monitor === EMonitoringTypes.MONITOR_EACH) {
-			await wp.callClosers(); // first tab
-			await wp.monitorHandler.createMonitorPage(wp);
-			await wp.monitorHandler.updateWorld(wp.getWorld());
-		}
+
 		if (wp.twinPage) {
 			wp.twinPage.updateWorld(wp.getWorld());
 		}
@@ -48,16 +41,8 @@ export const cycles = (wp: WebPlaywright): IStepperCycles => ({
 		if (wp.twin) {
 			await wp.twinPage.writePage();
 		}
-		if (wp.monitor === EMonitoringTypes.MONITOR_EACH) {
-			await wp.callClosers();
-			await wp.monitorHandler.writeMonitor();
-		}
 	},
 	async endExecution() {
-		if (wp.monitor === EMonitoringTypes.MONITOR_ALL) {
-			await wp.callClosers();
-			await wp.monitorHandler.writeMonitor();
-		}
 	},
 });
 
@@ -69,7 +54,7 @@ async function writeFeaturesArtifact(wp: WebPlaywright, type: string, resolvedFe
 
 async function closeAfterFeature(wp: WebPlaywright) {
 	for (const file of wp.downloaded) {
-		wp.getWorld().logger.debug(`removing ${JSON.stringify(file)}`);
+		wp.getWorld().eventLogger.debug(`removing ${JSON.stringify(file)}`);
 		rmSync(file);
 		wp.downloaded = [];
 	}

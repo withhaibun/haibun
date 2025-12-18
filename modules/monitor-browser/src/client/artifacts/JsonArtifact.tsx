@@ -1,5 +1,5 @@
+import { TJsonArtifact } from '@haibun/core/schema/protocol.js';
 import React, { useState, useCallback } from 'react';
-import { TJsonArtifact } from '../types';
 
 interface JsonArtifactProps {
   artifact: TJsonArtifact;
@@ -31,7 +31,9 @@ function JsonNode({ keyName, value, depth, isArrayIndex }: JsonNodeProps) {
   const isComplex = typeof value === 'object' && value !== null;
   const marginLeft = depth * 16;
 
-  const toggle = useCallback(() => setIsOpen(!isOpen), [isOpen]);
+  const onToggle = useCallback((e: React.SyntheticEvent<HTMLDetailsElement>) => {
+    setIsOpen(e.currentTarget.open);
+  }, []);
 
   if (!isComplex) {
     return (
@@ -46,12 +48,12 @@ function JsonNode({ keyName, value, depth, isArrayIndex }: JsonNodeProps) {
   }
 
   const isArray = Array.isArray(value);
-  const entries = isArray ? value.map((v, i) => [i, v] as const) : Object.entries(value as object);
+  const entries = isArray ? (value as any[]).map((v, i) => [i, v] as const) : Object.entries(value as object);
   const preview = isArray ? `[${entries.length}]` : `{${entries.length}}`;
 
   return (
-    <details open={isOpen} className="json-expandable" style={{ marginLeft }}>
-      <summary onClick={toggle} className="cursor-pointer py-0.5 font-mono text-xs hover:bg-gray-100 list-none">
+    <details open={isOpen} onToggle={onToggle} className="json-expandable" style={{ marginLeft }}>
+      <summary className="cursor-pointer py-0.5 font-mono text-xs hover:bg-gray-100 list-none">
         <span className="inline-block w-4 text-gray-500">{isOpen ? '▼' : '▶'}</span>
         <span className={`px-1 rounded ${isArrayIndex ? 'bg-blue-600 text-white' : 'bg-purple-800 text-white'}`}>
           {isArrayIndex ? `[${keyName}]` : `"${keyName}"`}

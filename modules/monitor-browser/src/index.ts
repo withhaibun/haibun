@@ -4,8 +4,9 @@ import { dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 import { AStepper, IHasCycles, IHasOptions, StepperKinds } from '@haibun/core/lib/astepper.js';
-import { IStepperCycles, TWorld, OK, } from '@haibun/core/lib/defs.js';
-import { THaibunEvent, } from '@haibun/core/lib/EventLogger.js';
+import { IStepperCycles, TWorld } from '@haibun/core/lib/defs.js';
+import { OK } from '@haibun/core/schema/protocol.js';
+import { THaibunEvent } from '@haibun/core/schema/protocol.js';
 import { stringOrError, getStepperOption, actualURI, findStepperFromOptionOrKind } from '@haibun/core/lib/util/index.js';
 import { WebSocketTransport, ITransport } from './transport.js';
 import { WebSocketPrompter } from './prompter.js';
@@ -56,17 +57,14 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
     // Setup debugger bridge
     this.prompter = new WebSocketPrompter(MonitorBrowserStepper.transport);
     world.prompter.subscribe(this.prompter);
-
-    world.eventLogger.setStepperCallback((event: THaibunEvent) => {
-      this.onEvent(event);
-    });
   }
 
   cycles: IStepperCycles = {
     onEvent: async (event: THaibunEvent) => {
-      // Events from saveArtifact already have baseRelativePath as path
-      // Just forward them to the transport for live streaming
-      MonitorBrowserStepper.transport.send({ type: 'event', event });
+      this.events.push(event);
+      if (MonitorBrowserStepper.transport) {
+        MonitorBrowserStepper.transport.send({ type: 'event', event });
+      }
     },
     endFeature: async () => {
       MonitorBrowserStepper.transport.send({ type: 'finalize' });
@@ -177,10 +175,5 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
     }
   };
 
-  onEvent(event: THaibunEvent) {
-    this.events.push(event);
-    if (MonitorBrowserStepper.transport) {
-      this.cycles.onEvent(event);
-    }
-  }
+
 }

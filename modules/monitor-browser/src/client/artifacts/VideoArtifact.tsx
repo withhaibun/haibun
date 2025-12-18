@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { TVideoArtifact } from '../types';
+import { TVideoArtifact } from '@haibun/core/schema/protocol.js';
 import { getArtifactUrl } from '../lib/utils';
 
 interface VideoArtifactProps {

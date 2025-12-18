@@ -6,7 +6,8 @@ import type { TextContent } from '@modelcontextprotocol/sdk/types.js';
 import { AStepper } from "@haibun/core/lib/astepper.js";
 import { namedInterpolation } from "@haibun/core/lib/namedVars.js";
 import { currentVersion as version } from '@haibun/core/currentVersion.js';
-import { TWorld, TStepperStep, TStepResult, ExecMode } from "@haibun/core/lib/defs.js";
+import { TWorld, TStepperStep, ExecMode } from '@haibun/core/lib/defs.js';
+import { TStepResult } from '@haibun/core/schema/protocol.js';
 import { constructorName } from "@haibun/core/lib/util/index.js";
 import { FlowRunner } from "@haibun/core/lib/core/flow-runner.js";
 import { HttpPrompterClient } from './http-prompter-client.js';
@@ -31,7 +32,7 @@ export class MCPExecutorServer {
 	constructor(private steppers: AStepper[], private world: TWorld, private remoteConfig?: IRemoteExecutorConfig) {
 		this.runner = new FlowRunner(world, steppers);
 		if (remoteConfig) {
-			this.world.logger.log(`🔗 MCPExecutorServer: Remote execution mode - connecting to ${remoteConfig.url}`);
+			this.world.eventLogger.info(`🔗 MCPExecutorServer: Remote execution mode - connecting to ${remoteConfig.url}`);
 		} else {
 		}
 	}
@@ -50,11 +51,11 @@ export class MCPExecutorServer {
 
 		// Initialize HTTP prompter client for debug prompt access
 		if (!this.remoteConfig?.url) {
-			this.world.logger.warn(`⚠️  MCPExecutorServer: No remote config URL provided - debug prompt tools will not be available`);
+			this.world.eventLogger.warn(`⚠️  MCPExecutorServer: No remote config URL provided - debug prompt tools will not be available`);
 			this.httpPrompterClient = undefined;
 		} else {
 			this.httpPrompterClient = new HttpPrompterClient(this.remoteConfig.url, this.remoteConfig.accessToken);
-			this.world.logger.log(`🤖 MCPExecutorServer: HTTP prompter client initialized for debugging with URL ${this.remoteConfig.url}`);
+			this.world.eventLogger.info(`🤖 MCPExecutorServer: HTTP prompter client initialized for debugging with URL ${this.remoteConfig.url}`);
 		}
 
 		this.registerSteppers();
@@ -216,7 +217,7 @@ export class MCPExecutorServer {
 						in: statement,
 						path: `/mcp/${stepperName}-${stepName}`,
 						seqPath: [0],
-						stepActionResult: res.payload
+						stepActionResult: res.topics
 					};
 				}
 
@@ -258,9 +259,9 @@ export class MCPExecutorServer {
 
 		if (this.remoteConfig!.accessToken) {
 			headers.Authorization = `Bearer ${this.remoteConfig!.accessToken}`;
-			this.world.logger.log(`🔐 MCPExecutorServer: Using access token for authentication`);
+			this.world.eventLogger.info(`🔐 MCPExecutorServer: Using access token for authentication`);
 		} else {
-			this.world.logger.warn(`⚠️  MCPExecutorServer: No access token available for remote API call`);
+			this.world.eventLogger.warn(`⚠️  MCPExecutorServer: No access token available for remote API call`);
 		}
 
 		const maxRetries = 3;
@@ -290,7 +291,7 @@ export class MCPExecutorServer {
 				}
 
 				// Log retry attempt and wait before retrying
-				this.world.logger.warn(`Remote execution attempt ${attempt} failed: ${errorMessage}. Retrying in ${retryDelay}ms...`);
+				this.world.eventLogger.warn(`Remote execution attempt ${attempt} failed: ${errorMessage}. Retrying in ${retryDelay}ms...`);
 				await new Promise(resolve => setTimeout(resolve, retryDelay));
 			}
 		}

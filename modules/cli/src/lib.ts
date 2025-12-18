@@ -1,16 +1,13 @@
 import nodeFS from 'fs';
 
-import { BASE_PREFIX, CHECK_NO, CHECK_YES, DEFAULT_DEST, STAY, STAY_ALWAYS, TBase, TProtoOptions, TSpecl, TWorld } from '@haibun/core/lib/defs.js';
-import { getCreateSteppers } from '@haibun/core/lib/test/lib.js';
-import { formattedSteppers, getPre } from '@haibun/core/lib/util/index.js';
+import { TBase, TProtoOptions, TSpecl, TWorld } from '@haibun/core/lib/defs.js';
+import { BASE_PREFIX, CHECK_NO, CHECK_YES, DEFAULT_DEST, STAY, STAY_ALWAYS, Timer } from '@haibun/core/schema/protocol.js';
+import { IHasOptions } from '@haibun/core/lib/astepper.js';
+import { getCreateSteppers, getDefaultTag } from '@haibun/core/lib/test/lib.js';
+import { formattedSteppers, getPre, getDefaultOptions, basesFrom } from '@haibun/core/lib/util/index.js';
 import { BaseOptions } from './BaseOptions.js';
 import { TFileSystem } from '@haibun/core/lib/util/workspace-lib.js';
-import { getDefaultOptions, basesFrom } from '@haibun/core/lib/util/index.js';
-import { Timer } from '@haibun/core/lib/Timer.js';
-import Logger from '@haibun/core/lib/Logger.js';
 import { Runner } from '@haibun/core/runner.js';
-import { getDefaultTag } from '@haibun/core/lib/test/lib.js';
-import { IHasOptions } from '@haibun/core/lib/astepper.js';
 import { FeatureVariables } from '@haibun/core/lib/feature-variables.js';
 import { Prompter } from '@haibun/core/lib/prompter.js';
 import { getCoreDomains } from '@haibun/core/lib/core-domains.js';
@@ -82,9 +79,8 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 }
 
 function getCliWorld(protoOptions: TProtoOptions, bases: TBase): TWorld {
-	const { KEY: keyIn, LOG_LEVEL: logLevel, LOG_FOLLOW: logFollow } = protoOptions.options;
+	const { KEY: keyIn } = protoOptions.options;
 	const tag = getDefaultTag(0);
-	const logger = new Logger({ level: logLevel || 'log', follow: logFollow });
 	const eventLogger = new EventLogger();
 	const timer = new Timer();
 
@@ -93,7 +89,6 @@ function getCliWorld(protoOptions: TProtoOptions, bases: TBase): TWorld {
 	const world: Partial<TWorld> = {
 		tag,
 		runtime: { stepResults: [] },
-		logger,
 		eventLogger,
 		prompter: new Prompter(),
 		...protoOptions,

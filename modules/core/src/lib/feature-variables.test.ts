@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { FeatureVariables } from './feature-variables.js';
-import { TWorld, TStepValue, Origin, TFeatureStep } from './defs.js';
+import { TWorld, TFeatureStep } from './defs.js';
+import { TStepValue, Origin } from '../schema/protocol.js';
 import { getDefaultWorld } from './test/lib.js';
 import { DOMAIN_JSON, DOMAIN_STRING } from './domain-types.js';
 

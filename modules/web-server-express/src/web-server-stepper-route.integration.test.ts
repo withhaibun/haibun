@@ -2,11 +2,11 @@ import { describe, it, expect } from 'vitest';
 
 import WebHttp from '@haibun/web-http/web-http.js';
 import { actionOK, getFromRuntime, getStepperOptionName } from '@haibun/core/lib/util/index.js';
-import { DEFAULT_DEST } from '@haibun/core/lib/defs.js';
+import { DEFAULT_DEST } from '@haibun/core/schema/protocol.js';
 import { IWebServer, IRequest, IResponse, WEBSERVER } from './defs.js';
 
 import Server from './web-server-stepper.js';
-import { TStepArgs } from '@haibun/core/lib/defs.js';
+import { TStepArgs } from '@haibun/core/schema/protocol.js';
 import { passWithDefaults } from '@haibun/core/lib/test/lib.js';
 import WebServerStepper from './web-server-stepper.js';
 import { AStepper } from '@haibun/core/lib/astepper.js';

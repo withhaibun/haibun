@@ -1,4 +1,4 @@
-import { OK } from '@haibun/core/lib/defs.js';
+import { OK } from '@haibun/core/schema/protocol.js';
 import { actionNotOK } from '@haibun/core/lib/util/index.js';
 import { parseMatches } from './parse.js';
 import { AStepper } from '@haibun/core/lib/astepper.js';

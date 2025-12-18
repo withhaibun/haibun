@@ -1,14 +1,11 @@
 import { z } from 'zod';
-import { OK, TStepArgs, TFeatureStep, TWorld, IStepperCycles, TStartScenario, Origin, TProvenanceIdentifier, TRegisteredDomain, TDomainDefinition, TOrigin, TActionResult } from '../lib/defs.js';
+import { TFeatureStep, TWorld, IStepperCycles, TStartScenario, TRegisteredDomain, TDomainDefinition } from '../lib/defs.js';
+import { OK, TStepArgs, Origin, TProvenanceIdentifier, TOrigin, TActionResult } from '../schema/protocol.js';
 import { TAnyFixme } from '../lib/fixme.js';
 import { AStepper, IHasCycles, TStepperSteps } from '../lib/astepper.js';
-import { actionOK, actionNotOK, getStepTerm, isLiteralValue } from '../lib/util/index.js';
+import { actionOK, actionNotOK, getStepTerm, isLiteralValue, formatCurrentSeqPath } from '../lib/util/index.js';
 import { FeatureVariables } from '../lib/feature-variables.js';
 import { DOMAIN_STATEMENT, DOMAIN_STRING, normalizeDomainKey, createEnumDomainDefinition, registerDomains } from '../lib/domain-types.js';
-import { EExecutionMessageType } from '../lib/interfaces/logger.js';
-import { EventLogger } from '../lib/EventLogger.js';
-import { LogEvent } from '../schema/events.js';
-import { formatCurrentSeqPath } from '../lib/util/index.js';
 
 const clearVars = (vars) => () => {
 	vars.getWorld().shared.clear();
@@ -31,7 +28,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		this.steppers = steppers;
 		await Promise.resolve();
 	}
-	steps: TStepperSteps = {
+	steps = {
 		defineOpenSet: {
 			gwta: `set of {domain: string} as {superdomains: ${DOMAIN_STATEMENT}}`,
 			handlesUndefined: ['domain'],
@@ -123,11 +120,6 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				}
 				const newNum = numVal + 1;
 				this.getWorld().shared.set({ term: String(term), value: String(newNum), domain: effectiveDomain, origin: Origin.var }, provenanceFromFeatureStep(featureStep));
-				this.getWorld().logger.info(`incremented ${term} to ${newNum}`, {
-					incident: EExecutionMessageType.ACTION,
-					incidentDetails: { json: { incremented: { [term]: newNum } } },
-				});
-
 				this.getWorld().eventLogger.log(featureStep, 'info', `incremented ${term} to ${newNum}`, {
 					variable: term,
 					oldValue: presentVal,
@@ -150,8 +142,8 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			gwta: 'show vars',
 			action: () => {
 				const displayVars = Object.fromEntries(Object.entries(this.getWorld().shared.all()).map(([k, v]) => [k, v.value]));
-				console.info('vars', displayVars);
-				return actionOK({ artifact: { artifactType: 'json', json: { vars: displayVars } } });
+				this.getWorld().eventLogger.debug(`vars: ${JSON.stringify(displayVars, null, 2)}`, { vars: displayVars });
+				return actionOK();
 			},
 		},
 		set: {
@@ -319,12 +311,12 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				const stepValue = this.getWorld().shared.resolveVariable({ term, origin: Origin.defined }, featureStep);
 
 				if (stepValue.value === undefined) {
-					this.getWorld().logger.info(`is undefined`);
+					this.getWorld().eventLogger.info(`${term} is undefined`);
 				} else {
 					const provenance = featureStep.action.stepValuesMap.what.provenance?.map((p, i) => ({ [i]: { in: p.in, seq: p.seq.join(','), when: p.when } }));
-					this.getWorld().logger.info(`is ${JSON.stringify({ ...stepValue, provenance }, null, 2)}`);
+					this.getWorld().eventLogger.info(`${term} is ${JSON.stringify({ ...stepValue, provenance }, null, 2)}`, { variable: term, value: stepValue });
 				}
-				return actionOK({ artifact: { artifactType: 'json', json: { json: stepValue } } });
+				return actionOK();
 			}
 		},
 		showDomains: {
@@ -335,7 +327,6 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				const summary: Record<string, TAnyFixme> = {};
 
 				for (const [name, def] of Object.entries(domains)) {
-					// Count variables in this domain
 					let members = 0;
 					for (const variable of Object.values(allVars)) {
 						if (variable.domain && normalizeDomainKey(variable.domain) === name) {
@@ -343,7 +334,6 @@ class VariablesStepper extends AStepper implements IHasCycles {
 						}
 					}
 
-					// Determine type from schema or values
 					let type: string | string[] = 'schema';
 					if (def.values) {
 						type = def.values;
@@ -357,7 +347,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 						ordered: !!def.comparator
 					};
 				}
-				this.getWorld().logger.info(`Domains: ${JSON.stringify(summary, null, 2)}`);
+				this.getWorld().eventLogger.info(`Domains: ${JSON.stringify(summary, null, 2)}`, { domains: summary });
 				return OK;
 			}
 		},
@@ -377,7 +367,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 						members[key] = variable.value;
 					}
 				}
-				this.getWorld().logger.info(`Domain "${name}": ${JSON.stringify({ ...domain, members }, null, 2)}`);
+				this.getWorld().eventLogger.info(`Domain "${name}": ${JSON.stringify({ ...domain, members }, null, 2)}`, { domain: name, ...domain, members });
 				return OK;
 			}
 		},
@@ -447,6 +437,8 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		},
 	} satisfies TStepperSteps;
 
+	readonly typedSteps = this.steps;
+
 	compareValues(featureStep: TFeatureStep, rawTerm: string, value: string, operator: string) {
 		const interpolated = this.interpolateTemplate(rawTerm, featureStep);
 		if (interpolated.error) return actionNotOK(interpolated.error);
@@ -496,13 +488,6 @@ class VariablesStepper extends AStepper implements IHasCycles {
 
 		while ((match = placeholderRegex.exec(template)) !== null) {
 			const varName = match[1];
-			// Origin.defined checks runtimeArgs -> env -> literal fallback?
-			// We want strict. If resolves to literal, that's fine if user quoted it?
-			// But {unknown} resolves to undefined if not found?
-			// In feature-variables.ts, resolveVariable defaults to input.term if isLiteralValue.
-			// {unknown} is NOT literal value (braces).
-			// So resolveVariable returns undefined.
-
 			const resolved = this.getWorld().shared.resolveVariable({ term: varName, origin: Origin.defined }, featureStep);
 
 			if (resolved.value === undefined) {
@@ -654,24 +639,7 @@ const compareDomainValues = (domain: { comparator?: (a: unknown, b: unknown) => 
 	throw new Error(`Domain ${domainName} does not support magnitude comparison`);
 };
 
-const renderComparable = (value: unknown) => {
-	if (value instanceof Date) {
-		return value.toISOString();
-	}
-	return JSON.stringify(value);
-};
-
 // ======== Helpers ========
-
-// Resolves undefined value to literal if it looks like a string
-function resolveValueOrLiteral(valMap: { term: string; origin: TOrigin } | undefined, value: string | undefined): { value: string | undefined; error?: string } {
-	if (valMap && valMap.origin === Origin.defined && value === undefined) {
-		return isLiteralValue(valMap.term)
-			? { value: String(valMap.term) }
-			: { value: undefined, error: `Variable ${valMap.term} is not defined` };
-	}
-	return { value };
-}
 
 // Returns OK if "set empty" and variable exists
 function shouldSkipEmpty(featureStep: TFeatureStep, term: string, shared: FeatureVariables): typeof OK | undefined {

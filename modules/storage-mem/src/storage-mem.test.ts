@@ -2,10 +2,9 @@ import { vitest, describe, it, expect, vi } from 'vitest';
 import { afterEach } from 'node:test';
 
 vitest.useFakeTimers();
-import { CAPTURE, DEFAULT_DEST } from '@haibun/core/lib/defs.js';
+import { Timer, CAPTURE, DEFAULT_DEST } from '@haibun/core/schema/protocol.js';
 import { getDefaultWorld, getTestWorldWithOptions } from '@haibun/core/lib/test/lib.js';
 import StorageMem from './storage-mem.js';
-import { Timer } from '@haibun/core/lib/Timer.js';
 import { EMediaTypes } from '@haibun/domain-storage/media-types.js';
 import { TAnyFixme } from '@haibun/core/lib/fixme.js';
 

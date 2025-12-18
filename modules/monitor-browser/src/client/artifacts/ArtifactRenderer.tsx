@@ -1,5 +1,5 @@
 import React from 'react';
-import { TArtifactEvent } from '../types';
+import { TArtifactEvent } from '@haibun/core/schema/protocol.js';
 import { ImageArtifact } from './ImageArtifact';
 import { VideoArtifact } from './VideoArtifact';
 import { HtmlArtifact } from './HtmlArtifact';

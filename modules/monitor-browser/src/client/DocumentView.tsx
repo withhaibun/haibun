@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import MarkdownIt from 'markdown-it';
 import DOMPurify from 'dompurify';
 import parse, { DOMNode, Element, domToReact } from 'html-react-parser';
-import { THaibunEvent, TArtifactEvent } from './types';
+import { THaibunEvent, TArtifactEvent } from '@haibun/core/schema/protocol.js';
 import { ArtifactRenderer } from './artifacts';
 
 const md = new MarkdownIt({
@@ -16,8 +16,6 @@ interface DocumentViewProps {
 }
 
 export function DocumentView({ events }: DocumentViewProps) {
-    // Group artifact events by their parent step ID
-    // Also extract embedded artifacts from log events (legacy format)
     // Group artifact events by their parent step ID
     const { artifactsByStep, allArtifactIds } = useMemo(() => {
         const map = new Map<string, TArtifactEvent[]>();
@@ -41,9 +39,13 @@ export function DocumentView({ events }: DocumentViewProps) {
                 map.get(parentId)!.push(e as TArtifactEvent);
             }
             
-            // Handle legacy embedded artifacts
-            const eventAny = e as any;
-            const embeddedArtifacts = eventAny.payload?.artifacts || eventAny.incidentDetails?.artifacts;
+            let embeddedArtifacts: any[] | undefined = undefined;
+            if (e.kind === 'log') {
+                embeddedArtifacts = e.attributes?.artifacts as any[];
+            } else if (e.kind === 'lifecycle') {
+                embeddedArtifacts = e.topics?.artifacts as any[];
+            }
+
             if (embeddedArtifacts && Array.isArray(embeddedArtifacts)) {
                 const parentId = e.id.replace(/^\[|\]$/g, '');
                 if (!map.has(parentId)) map.set(parentId, []);
@@ -115,7 +117,7 @@ export function DocumentView({ events }: DocumentViewProps) {
                     lastType = 'prose';
                     continue;
                 }
-                if (e.type === 'step' && e.stage === 'start') {
+                if (e.type === 'step') {
                      const isTechnical = /^[a-z]/.test(e.in || '');
                      
                      if (isTechnical) {

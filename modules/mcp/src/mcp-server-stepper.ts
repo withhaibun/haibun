@@ -1,5 +1,6 @@
 import { AStepper, IHasOptions } from '@haibun/core/lib/astepper.js';
-import { OK, TWorld } from '@haibun/core/lib/defs.js';
+import { TWorld } from '@haibun/core/lib/defs.js';
+import { OK } from '@haibun/core/schema/protocol.js';
 import { actionNotOK, getStepperOption, getStepperOptionName, intOrError, stringOrError } from '@haibun/core/lib/util/index.js';
 import { MCPExecutorServer } from './lib/mcp-executor-server.js';
 
@@ -33,9 +34,9 @@ class MCPServerStepper extends AStepper implements IHasOptions {
 
 		// Log the remote configuration
 		if (!isNaN(this.remotePort)) {
-			this.getWorld().logger.warn(`🔗 MCP Server configured for remote execution on http://localhost:${this.remotePort}`);
+			this.getWorld().eventLogger.warn(`🔗 MCP Server configured for remote execution on http://localhost:${this.remotePort}`);
 		} else {
-			this.getWorld().logger.info(`🏠 MCP Server configured for local execution`);
+			this.getWorld().eventLogger.info(`🏠 MCP Server configured for local execution`);
 		}
 	}
 
@@ -45,7 +46,7 @@ class MCPServerStepper extends AStepper implements IHasOptions {
 				url: `http://localhost:${this.remotePort}`,
 				accessToken: this.accessToken
 			};
-			this.world.logger.log(`🔗 MCP Server configured for remote execution on ${config.url} with token: ${config.accessToken ? '[PRESENT]' : '[MISSING]'}`);
+			this.world.eventLogger.info(`🔗 MCP Server configured for remote execution on ${config.url} with token: ${config.accessToken ? '[PRESENT]' : '[MISSING]'}`);
 			return config;
 		}
 

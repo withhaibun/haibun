@@ -1,9 +1,9 @@
-import { TWorld, TProtoOptions, CStepper, DEFAULT_DEST, TExecutorResult, TEST_BASE } from '../defs.js';
+import { TWorld, TProtoOptions, CStepper } from '../defs.js';
+import { DEFAULT_DEST, TExecutorResult, TEST_BASE } from '../../schema/protocol.js';
 import { createSteppers } from './../util/index.js';
 import { getRunTag } from '../ttag.js';
 import { getSteppers } from '../util/workspace-lib.js';
-import Logger, { LOGGER_LOG } from '../Logger.js';
-import { Timer } from '../Timer.js';
+import { Timer } from '../../schema/protocol.js';
 import { asFeatures } from '../resolver-features.js';
 import { Runner } from '../../runner.js';
 import { FeatureVariables } from '../feature-variables.js';
@@ -67,11 +67,12 @@ export function getTestWorldWithOptions(protoOptions: TProtoOptions = DEF_PROTO_
 }
 
 export function getDefaultWorld(sequence: number, env = process.env): TWorld {
+	const eventLogger = new EventLogger();
+	eventLogger.suppressConsole = true; // Suppress NDJSON in tests
 	const world: Partial<TWorld> = {
 		timer: new Timer(),
 		tag: getRunTag(sequence, 0),
-		logger: new Logger(env.HAIBUN_LOG_LEVEL ? { level: env.HAIBUN_LOG_LEVEL } : LOGGER_LOG),
-		eventLogger: new EventLogger(),
+		eventLogger,
 		prompter: new Prompter(),
 		runtime: { stepResults: [] },
 		options: { DEST: DEFAULT_DEST, envVariables: env },

@@ -3,12 +3,14 @@ import { Page } from "playwright";
 import { TWorld, TFeatureStep } from "@haibun/core/lib/defs.js";
 import { AStepper, IHasOptions, StepperKinds, TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { TAnyFixme } from "@haibun/core/lib/fixme.js";
-import { TArtifactHTML } from "@haibun/core/lib/interfaces/logger.js";
+// import { TArtifactHTML } from "@haibun/core/lib/interfaces/logger.js";
 import { stringOrError, findStepper, actionNotOK, actionOK, findStepperFromOptionOrKind } from "@haibun/core/lib/util/index.js";
 import { getAxeBrowserResult, evalSeverity } from "./lib/a11y-axe.js";
 import { generateHTMLAxeReportFromBrowserResult } from "./lib/report.js";
 import { AStorage } from "@haibun/domain-storage/AStorage.js";
 import { EMediaTypes } from "@haibun/domain-storage/media-types.js";
+
+import { JsonArtifact, HtmlArtifact } from "@haibun/core/schema/protocol.js";
 
 type TGetsPage = { getPage: () => Promise<Page> };
 
@@ -60,7 +62,15 @@ class A11yStepper extends AStepper implements IHasOptions {
     } catch (e) {
       console.error(e);
       const { message } = { message: 'test' };
-      return actionNotOK(message, { artifact: { artifactType: 'json', json: { exception: { summary: message, details: e } } } });
+      const artifact = JsonArtifact.parse({
+        id: `error.artifact.json`,
+        timestamp: Date.now(),
+        kind: 'artifact',
+        artifactType: 'json',
+        json: { exception: { summary: message, details: e } },
+        mimetype: 'application/json'
+      });
+      return actionNotOK(message, { artifact });
     }
   }
 
@@ -68,11 +78,8 @@ class A11yStepper extends AStepper implements IHasOptions {
     const html = generateHTMLAxeReportFromBrowserResult(axeReport);
     if (this.storage) {
       const saved = await this.storage.saveArtifact(filename + '.html', html, EMediaTypes.html);
-      const artifact: TArtifactHTML = { artifactType: 'html', path: saved.featureRelativePath };
 
-      // Emit artifact event for new-style monitors
       if (featureStep && this.getWorld().eventLogger) {
-        const { HtmlArtifact } = await import('@haibun/core/lib/EventLogger.js');
         const artifactEvent = HtmlArtifact.parse({
           id: `${featureStep.seqPath.join('.')}.artifact.a11y`,
           timestamp: Date.now(),
@@ -82,13 +89,12 @@ class A11yStepper extends AStepper implements IHasOptions {
           mimetype: 'text/html',
         });
         this.getWorld().eventLogger.artifact(featureStep, artifactEvent);
+        return artifactEvent;
       }
-
-      return artifact;
     }
-    this.getWorld().logger?.warn(`no storage defined, including report inline`);
-    const artifact: TArtifactHTML = { artifactType: 'html', html };
-    return artifact;
+
+    this.getWorld().eventLogger.warn(`no storage defined, including report inline - skipping artifact`);
+    return undefined;
   }
 }
 

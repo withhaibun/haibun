@@ -1,6 +1,6 @@
 import { describe, it, test, expect } from 'vitest';
 
-import { DEFAULT_DEST } from './defs.js';
+import { DEFAULT_DEST } from '../schema/protocol.js';
 import * as steps from './features.js';
 import { passWithDefaults, failWithDefaults } from './test/lib.js';
 import { asFeatures } from './resolver-features.js';

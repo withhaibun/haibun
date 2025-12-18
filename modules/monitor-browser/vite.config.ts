@@ -50,5 +50,10 @@ export default defineConfig({
   // Force vite to use client config
   esbuild: {
     tsconfigRaw
+  },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: [path.resolve(__dirname, '../../vitest.setup.ts')],
   }
 })

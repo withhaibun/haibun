@@ -1,5 +1,5 @@
 import React from 'react';
-import { TSpeechArtifact } from '../types';
+import { TSpeechArtifact } from '@haibun/core/schema/protocol.js';
 
 interface SpeechArtifactProps {
   artifact: TSpeechArtifact;

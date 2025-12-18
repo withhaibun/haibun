@@ -1,6 +1,7 @@
 import { AStepper } from "./astepper.js";
 import { isLiteralValue } from "./util/index.js";
-import { Origin, TFeatureStep, TOrigin, TProvenanceIdentifier, TStepValue, TWorld } from "./defs.js";
+import { TFeatureStep, TWorld } from './defs.js';
+import { Origin, TOrigin, TProvenanceIdentifier, TStepValue } from '../schema/protocol.js';
 import { DOMAIN_JSON, DOMAIN_STRING, normalizeDomainKey } from "./domain-types.js";
 
 export class FeatureVariables {
@@ -60,7 +61,6 @@ export class FeatureVariables {
 			...normalized,
 			provenance: provenances
 		};
-		this.world.logger.debug(`Set variable "${normalized.term}" to "${normalized.value}" (domain ${normalized.domain}, origin ${normalized.origin})`);
 	}
 	get<T>(name: string): T | undefined {
 		if (!this.values[name]) return undefined;

@@ -1,18 +1,20 @@
 import { Download, Page, Response } from "playwright";
 type ClickResult = import('playwright').Locator;
 
-import { OK, Origin, TActionResult, TFeatureStep } from "@haibun/core/lib/defs.js";
+import { TFeatureStep } from '@haibun/core/lib/defs.js';
+import { OK, Origin, TActionResult } from '@haibun/core/schema/protocol.js';
 import { DOMAIN_STATEMENT, DOMAIN_STRING } from "@haibun/core/lib/domain-types.js";
 import { actionNotOK, sleep, getStepTerm } from "@haibun/core/lib/util/index.js";
 import { DOMAIN_PAGE_LOCATOR } from "./domains.js";
 import { WEB_PAGE, WebPlaywright } from "./web-playwright.js";
 import { BROWSERS } from "./BrowserFactory.js";
-import { EExecutionMessageType } from "@haibun/core/lib/interfaces/logger.js";
+
 import { actionOK } from "@haibun/core/lib/util/index.js";
 import { pathToFileURL } from 'node:url';
 import { TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { provenanceFromFeatureStep } from "@haibun/core/steps/variables-stepper.js";
 import { FlowRunner } from "@haibun/core/lib/core/flow-runner.js";
+import { JsonArtifact } from '@haibun/core/schema/protocol.js';
 
 const DOMAIN_STRING_OR_PAGE_LOCATOR = `${DOMAIN_STRING} | ${DOMAIN_PAGE_LOCATOR}`;
 
@@ -216,7 +218,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 				wp.inContainer = undefined;
 
 				if (result.kind === 'ok') {
-					return result.payload as TActionResult;
+					return (result as any).topics as TActionResult;
 				} else {
 					return actionNotOK(result.message);
 				}
@@ -265,11 +267,8 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 			const response = await wp.withPage<Response | null>(async (page: Page) => {
 				return await page.goto(name);
 			});
-			const messageContext = {
-				incident: EExecutionMessageType.ACTION,
-				incidentDetails: { ...(response?.allHeaders || {}), summary: response?.statusText() }
-			};
-			return response?.ok() ? OK : actionNotOK(`response not ok`, { messageContext });
+			const topics = { ...(response?.allHeaders() || {}), summary: response?.statusText() };
+			return response?.ok() ? OK : actionNotOK(`response not ok`, { topics });
 		},
 	},
 	reloadPage: {
@@ -385,7 +384,6 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 						type: dialog.type(),
 					};
 					await dialog.accept();
-					console.log('DEBUG: captureDialog handler triggered', { where, res });
 					if (!where) {
 						console.error('Error: captureDialog called with empty "where" argument');
 						return;
@@ -436,7 +434,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 						throw Error(`no single ${what} from ${locator} `);
 					}
 					await locator.screenshot({ path: where });
-					wp.getWorld().logger.info(`screenshot of ${what} saved to ${pathToFileURL(where)} `);
+					wp.getWorld().eventLogger.info(`screenshot of ${what} saved to ${pathToFileURL(where)} `);
 				});
 				return OK;
 			} catch (e) {
@@ -449,7 +447,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 		action: async (_args, featureStep: TFeatureStep) => {
 			// Create a minimal step result for artifact tracking
 			const stepResult = featureStep ? { seqPath: featureStep.seqPath, path: featureStep.path, in: featureStep.in } : undefined;
-			await wp.captureScreenshotAndLog(EExecutionMessageType.ACTION, { step: stepResult as any });
+			await wp.captureScreenshotAndLog('action', { step: stepResult as any });
 			return OK;
 		},
 	},
@@ -457,30 +455,33 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 		gwta: 'get page contents',
 		action: async () => {
 			const contents = await wp.withPage<string>(async (page: Page) => await page.content());
-			const messageContext = {
-				incident: EExecutionMessageType.ACTION,
-				artifact: {
-					artifactType: 'html' as const,
-					html: contents || ''
-				}
-			};
-			return actionOK(messageContext);
+			// Use topics to return content
+			return actionOK({ topics: { html: contents || '' } });
 		},
 	},
 	takeAccessibilitySnapshot: {
 		gwta: 'take an accessibility snapshot',
 		action: async () => {
 			const snapshot = await wp.captureAccessibilitySnapshot();
-			const artifact = {
-				artifactType: 'json' as const,
-				json: (snapshot as object) || {}
-			};
-			const messageContext = {
-				incident: EExecutionMessageType.ACTION,
-				tag: wp.getWorld().tag,
-				artifact
-			};
-			wp.getWorld().logger.info('Accessibility snapshot captured', messageContext);
+
+			// Emit JsonArtifact
+			if (wp.getWorld().eventLogger) {
+				const artifactEvent = JsonArtifact.parse({
+					id: `a11y-snapshot-${Date.now()}`,
+					timestamp: Date.now(),
+					kind: 'artifact',
+					artifactType: 'json',
+					json: (snapshot as Record<string, unknown>) || {},
+					mimetype: 'application/json'
+				});
+				// We don't have featureStep here? 
+				// The action has featureStep in signature if we added it.
+				// But we can use emit() directly or ignore featureStep association if not critical. 
+				// Better: add featureStep to action signature. But typings?
+				wp.getWorld().eventLogger.emit(artifactEvent);
+			}
+
+			wp.getWorld().eventLogger.info('Accessibility snapshot captured');
 			return OK;
 		},
 	},

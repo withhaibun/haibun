@@ -7,9 +7,9 @@ import { IPrompter } from '../lib/prompter.js';
 import { ReadlinePrompter } from '../lib/readline-prompter.js';
 
 class TestPrompter implements IPrompter {
-	prompt = async () => Promise.resolve('continue');
+	prompt = async (_p: any) => Promise.resolve('continue' as any);
 	cancel = () => {/* */ };
-	resolve: (_id: string, _value: unknown) => void = () => { /* */ };
+	resolve: (id: string, value: any) => void = () => { /* */ };
 }
 
 describe('DebuggerStepper', () => {
@@ -23,6 +23,21 @@ describe('DebuggerStepper', () => {
 		const res = await testWithWorld(world, [feature], [DebuggerStepper, Haibun]);
 		expect(res.ok).toBe(true);
 		expect(testPrompter.prompt).toHaveBeenCalledTimes(1);
+	});
+
+	it('passes correct options to prompter for debug step by step', async () => {
+		const feature = { path: '/features/test.feature', content: 'debug step by step\nThis should be prompted.' };
+		const world = getTestWorldWithOptions(DEF_PROTO_OPTIONS);
+		world.prompter.unsubscribe(new ReadlinePrompter());
+		const testPrompter = new TestPrompter();
+		const spy = vi.spyOn(testPrompter, 'prompt');
+		world.prompter.subscribe(testPrompter);
+
+		await testWithWorld(world, [feature], [DebuggerStepper, Haibun]);
+
+		expect(spy).toHaveBeenCalledTimes(1);
+		const promptCall = spy.mock.calls[0][0];
+		expect(promptCall.options).toEqual(['*', 'step', 'continue']);
 	});
 
 	it('continues', async () => {

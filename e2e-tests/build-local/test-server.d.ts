@@ -1,4 +1,5 @@
-import { TFeatureStep, IStepperCycles, TStepArgs } from '@haibun/core/lib/defs.js';
+import { TFeatureStep, IStepperCycles } from '@haibun/core/lib/defs.js';
+import { TStepArgs } from '@haibun/core/schema/protocol.js';
 import { TRequestHandler } from '@haibun/web-server-express/defs.js';
 import { AStepper, TStepperSteps } from '@haibun/core/lib/astepper.js';
 declare class TestServer extends AStepper {
@@ -17,10 +18,11 @@ declare class TestServer extends AStepper {
         name: string;
     }[];
     endedFeatures(): Promise<void>;
-    addRoute: (route: TRequestHandler, method?: "get" | "post" | "delete") => (args: TStepArgs, vstep: TFeatureStep) => Promise<import("@haibun/core/lib/defs.js").TOKActionResult | import("@haibun/core/lib/defs.js").TNotOKActionResult>;
+    addRoute: (route: TRequestHandler, method?: "get" | "post" | "delete") => (args: TStepArgs, vstep: TFeatureStep) => Promise<import("@haibun/core/schema/protocol.js").TOKActionResult | import("@haibun/core/schema/protocol.js").TNotOKActionResult>;
     tally: TRequestHandler;
     download: TRequestHandler;
     upload: TRequestHandler;
     steps: TStepperSteps;
 }
 export default TestServer;
+//# sourceMappingURL=test-server.d.ts.map

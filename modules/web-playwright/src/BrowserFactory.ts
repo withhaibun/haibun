@@ -1,11 +1,11 @@
 import { Browser, BrowserContext, Page, chromium, firefox, webkit, BrowserType, devices, BrowserContextOptions, LaunchOptions } from 'playwright';
 
-import { EExecutionMessageType, TMessageContext } from '@haibun/core/lib/interfaces/logger.js';
-import { VideoStartArtifact } from '@haibun/core/lib/EventLogger.js';
+
+import { VideoStartArtifact } from '@haibun/core/schema/protocol.js';
 import { PlaywrightEvents } from './PlaywrightEvents.js';
 import { TWorld } from '@haibun/core/lib/defs.js';
+import { Timer } from '@haibun/core/schema/protocol.js';
 import { TTagValue, TTag } from '@haibun/core/lib/ttag.js';
-import { Timer } from '@haibun/core/lib/Timer.js';
 
 export const BROWSERS: { [name: string]: BrowserType } = {
 	firefox,
@@ -67,14 +67,14 @@ export class BrowserFactory {
 	}
 
 	public async closeContext({ sequence }: { sequence: TTagValue }) {
-		this.world.logger.debug(`closed browser context ${sequence}`);
+		this.world.eventLogger.debug(`closed browser context ${sequence}`);
 		if (this.browserContexts[sequence] !== undefined) {
 			const p = this.pages[sequence];
 			if (p) {
 				try {
 					await p.close();
 				} catch (error) {
-					this.world.logger.error(`Error closing page: ${error}`);
+					this.world.eventLogger.error(`Error closing page: ${error}`);
 				}
 			}
 		}
@@ -91,15 +91,7 @@ export class BrowserFactory {
 		}
 		this.contextStats[sequence].end = Timer.since();
 		this.contextStats[sequence].duration = this.contextStats[sequence].end - this.contextStats[sequence].start;
-		const vs: TMessageContext = {
-			incident: EExecutionMessageType.ACTION,
-			artifacts: [{
-				start: Timer.since() - this.contextStats[sequence].duration,
-				artifactType: 'video/start'
-			}],
-			tag: this.world.tag
-		};
-		this.world.logger.debug(`video start`, vs);
+		this.world.eventLogger.debug(`video stats for ${sequence}: duration ${this.contextStats[sequence].duration}`);
 	}
 
 	static async closeBrowsers() {
@@ -129,7 +121,7 @@ export class BrowserFactory {
 			// await page.bringToFront();
 			return page;
 		}
-		this.world.logger.debug(`creating new page for ${sequence}`);
+		this.world.eventLogger.debug(`creating new page for ${sequence}`);
 
 		const context = await this.getBrowserContextWithSequence(sequence);
 		page = await context.newPage();
@@ -159,7 +151,7 @@ export class BrowserFactory {
 				};
 			const launchConfig = { ...deviceContext, ...config.options, ...config.launchOptions }
 			if (config.persistentDirectory) {
-				this.world.logger.debug(
+				this.world.eventLogger.debug(
 					`creating new persistent context ${sequence} ${config.type}, ${config.persistentDirectory
 					} with ${JSON.stringify(BrowserFactory.configs)}`
 				);
@@ -168,7 +160,7 @@ export class BrowserFactory {
 					launchConfig
 				);
 			} else {
-				this.world.logger.debug(`creating new context ${sequence} ${config.type}`);
+				this.world.eventLogger.debug(`creating new context ${sequence} ${config.type}`);
 				const browser = await this.getBrowser(config.type);
 				browserContext = await browser.newContext(launchConfig);
 			}

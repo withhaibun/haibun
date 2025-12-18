@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { TSeqPath } from "../lib/defs";
+import { TSeqPath } from '../schema/protocol.js';
 import { incSeqPath } from "./Executor";
 
 describe('incSeqPath', () => {

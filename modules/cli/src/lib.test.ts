@@ -1,6 +1,6 @@
 import { vitest, describe, it, expect } from 'vitest';
 
-import { CONTINUE_AFTER_ERROR, DEFAULT_DEST, STEP_DELAY } from '@haibun/core/lib/defs.js';
+import { CONTINUE_AFTER_ERROR, DEFAULT_DEST, STEP_DELAY } from '@haibun/core/schema/protocol.js';
 import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, passWithDefaults } from '@haibun/core/lib/test/lib.js';
 import TestStepsWithOptions from '@haibun/core/lib/test/TestStepsWithOptions.js';
 import { getDefaultOptions } from '@haibun/core/lib/util/index.js';
@@ -35,7 +35,7 @@ describe('options', () => {
 		const result = await passWithDefaults([feature], [TestStepsWithOptions], protoConfig);
 		expect(result.ok).toBe(true);
 		expect(result.featureResults?.length).toBe(1);
-		expect(result.featureResults?.[0].stepResults[0].stepActionResult.messageContext?.incidentDetails?.summary).toEqual('options');
+		expect(result.featureResults?.[0].stepResults[0].stepActionResult.topics?.summary).toEqual('options');
 	});
 });
 

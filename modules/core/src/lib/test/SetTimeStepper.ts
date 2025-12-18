@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import { TStepArgs, OK } from '../defs.js';
+import { TStepArgs, OK } from '../../schema/protocol.js';
 import { AStepper } from '../astepper.js';
 
 const checkedInt = (p: string, v: string) => {

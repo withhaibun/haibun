@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { TMermaidArtifact } from '../types';
+import { TMermaidArtifact } from '@haibun/core/schema/protocol.js';
 import mermaid from 'mermaid';
 
 interface MermaidArtifactProps {
@@ -12,6 +12,7 @@ mermaid.initialize({
   securityLevel: 'loose',
   theme: 'neutral',
   maxTextSize: 100000,
+  maxEdges: 2000,
 });
 
 /**

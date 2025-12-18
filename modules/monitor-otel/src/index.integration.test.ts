@@ -152,7 +152,8 @@ describe('MonitorOtelStepper Integration', () => {
       kind: 'lifecycle',
       type: 'step',
       stage: 'start',
-      label: 'test step passes',
+      in: 'test step passes',
+      level: 'info',
       status: 'running',
       stepperName: 'TestStepper',
       actionName: 'testAction'
@@ -172,7 +173,8 @@ describe('MonitorOtelStepper Integration', () => {
       kind: 'lifecycle',
       type: 'step',
       stage: 'end',
-      label: 'test step passes',
+      in: 'test step passes',
+      level: 'info',
       status: 'completed',
       stepperName: 'TestStepper',
       actionName: 'testAction'
@@ -180,7 +182,11 @@ describe('MonitorOtelStepper Integration', () => {
 
     await stepper.cycles.onEvent!(stepEndEvent);
     await stepper.cycles.endFeature!();
-    await stepper.cycles.endExecution!();
+    await stepper.cycles.endExecution!({
+      featureResults: [],
+      ok: true,
+      failure: undefined,
+    } as any);
 
     // If we get here without throwing, test passes
     expect(true).toBe(true);

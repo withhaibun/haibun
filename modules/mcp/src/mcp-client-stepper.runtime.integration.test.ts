@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import VariablesStepper from '@haibun/core/steps/variables-stepper.js';
 import { runtimeStdio, TEST_PORTS } from './mcp-test-utils.js';
 import { passWithDefaults } from '@haibun/core/lib/test/lib.js';
-import { DEFAULT_DEST } from '@haibun/core/lib/defs.js';
+import { DEFAULT_DEST } from '@haibun/core/schema/protocol.js';
 import { getStepperOptionName } from '@haibun/core/lib/util/index.js';
 
 import MCPClientStepper from './mcp-client-stepper.js';

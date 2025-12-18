@@ -2,7 +2,7 @@ import { it, expect, describe } from 'vitest';
 
 import { failWithDefaults, passWithDefaults } from '../lib/test/lib.js';
 import VariablesStepper from './variables-stepper.js';
-import { DEFAULT_DEST } from '../lib/defs.js';
+import { DEFAULT_DEST } from '../schema/protocol.js';
 import Haibun from './haibun.js';
 import LogicStepper from './logic-stepper.js';
 const steppers = [VariablesStepper, Haibun, LogicStepper];

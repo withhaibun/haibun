@@ -1,4 +1,4 @@
-import { Timer } from "./Timer.js";
+import { Timer } from '../schema/protocol.js';
 
 export type TTagValue = number;
 export type TTag = {

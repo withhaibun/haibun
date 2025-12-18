@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { HaibunEvent, LifecycleEvent, LogEvent, ArtifactEvent, ControlEvent } from './events.js';
+import { HaibunEvent, LifecycleEvent, LogEvent, ArtifactEvent, ControlEvent } from './protocol.js';
 
 describe('Haibun Event Schemas', () => {
   it('validates a correct LifecycleEvent', () => {
@@ -17,18 +17,18 @@ describe('Haibun Event Schemas', () => {
     expect(parsed.kind).toBe('lifecycle');
   });
 
-  it('validates a correct LogEvent with payload', () => {
+  it('validates a correct LogEvent with attributes', () => {
     const raw = {
       id: '1.2.3',
       timestamp: 1234567890,
       kind: 'log',
       level: 'info',
       message: 'Processing started',
-      payload: { variable: 'foo', value: 123 },
+      attributes: { variable: 'foo', value: 123 },
     };
     const parsed = HaibunEvent.parse(raw);
     expect(parsed).toEqual(expect.objectContaining(raw));
-    expect((parsed as any).payload).toEqual({ variable: 'foo', value: 123 });
+    expect((parsed as any).attributes).toEqual({ variable: 'foo', value: 123 });
   });
 
   it('validates a Time-Lined ArtifactEvent', () => {

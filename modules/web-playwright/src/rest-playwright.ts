@@ -1,7 +1,7 @@
 import { actionNotOK, actionOK, getStepTerm } from '@haibun/core/lib/util/index.js';
 import WebPlaywright from './web-playwright.js';
-import { OK } from '@haibun/core/lib/defs.js';
-import { EExecutionMessageType, TMessageContext } from '@haibun/core/lib/interfaces/logger.js';
+import { OK } from '@haibun/core/schema/protocol.js';
+
 import { TAnyFixme } from '@haibun/core/lib/fixme.js';
 import { TStepperSteps } from '@haibun/core/lib/astepper.js';
 
@@ -114,9 +114,9 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 				console.debug(lastResponse);
 				return actionNotOK(`No last response to count`);
 			}
-			webPlaywright.getWorld().logger.info(`lastResponse JSON count is ${lastResponse.json.length}`)
-			const messageContext: TMessageContext = { incident: EExecutionMessageType.ACTION, incidentDetails: { summary: 'options', details: { count: lastResponse.json.length } } }
-			return actionOK({ messageContext });
+			webPlaywright.getWorld().eventLogger.info(`lastResponse JSON count is ${lastResponse.json.length}`)
+			const topics = { summary: 'options', details: { count: lastResponse.json.length } };
+			return actionOK({ topics });
 		},
 	},
 	showFilteredLength: {
@@ -127,9 +127,9 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 				console.debug(lastResponse);
 				return actionNotOK(`No filtered response to count`);
 			}
-			webPlaywright.getWorld().logger.info(`lastResponse filtered count is ${lastResponse.filtered.length}`)
-			const messageContext: TMessageContext = { incident: EExecutionMessageType.ACTION, incidentDetails: { summary: 'options', count: lastResponse.filtered.length } };
-			return actionOK({ messageContext });
+			webPlaywright.getWorld().eventLogger.info(`lastResponse filtered count is ${lastResponse.filtered.length}`)
+			const topics = { summary: 'options', count: lastResponse.filtered.length };
+			return actionOK({ topics });
 		},
 	},
 	responseJsonLengthIs: {

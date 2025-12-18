@@ -1,14 +1,14 @@
-import { OK, TWorld, TEndFeature, IStepperCycles, TStepArgs } from '@haibun/core/lib/defs.js';
+import { TWorld, TEndFeature, IStepperCycles } from '@haibun/core/lib/defs.js';
+import { OK, TStepArgs } from '@haibun/core/schema/protocol.js';
 import { actionNotOK, getFromRuntime, getStepperOption, intOrError } from '@haibun/core/lib/util/index.js';
 import { IWebServer, WEBSERVER } from './defs.js';
 import { ServerExpress, DEFAULT_PORT } from './server-express.js';
 import path from 'path';
-import { EExecutionMessageType } from '@haibun/core/lib/interfaces/logger.js';
 import { AStepper, IHasCycles, IHasOptions } from '@haibun/core/lib/astepper.js';
 
 const cycles = (wss: WebServerStepper): IStepperCycles => ({
 	async startFeature() {
-		wss.webserver = new ServerExpress(wss.world.logger, path.join([process.cwd(), 'files'].join('/')), wss.port);
+		wss.webserver = new ServerExpress(wss.world.eventLogger, path.join([process.cwd(), 'files'].join('/')), wss.port);
 		wss.getWorld().runtime[WEBSERVER] = wss.webserver;
 		await Promise.resolve()
 	},
@@ -52,7 +52,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 			action: async () => {
 				const webserver = <IWebServer>getFromRuntime(this.getWorld().runtime, WEBSERVER);
 				const mounts = webserver.mounted;
-				this.getWorld().logger.info(`mounts: ${JSON.stringify(mounts, null, 2)}`);
+				this.getWorld().eventLogger.info(`mounts: ${JSON.stringify(mounts, null, 2)}`, { mounts });
 				return Promise.resolve(OK);
 			},
 		},
@@ -87,7 +87,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 			gwta: 'show routes',
 			action: async () => {
 				const routes = this.webserver?.mounted;
-				this.getWorld().logger.info(`routes: ${JSON.stringify(routes, null, 2)}`);
+				this.getWorld().eventLogger.info(`routes: ${JSON.stringify(routes, null, 2)}`, { routes });
 				return Promise.resolve(OK);
 			},
 		}
@@ -105,8 +105,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 		const ws: IWebServer = getFromRuntime(this.getWorld().runtime, WEBSERVER);
 		const res = ws.checkAddStaticFolder(loc, where);
 		if (res) {
-			const messageContext = { incident: EExecutionMessageType.ON_FAILURE, incidentDetails: { summary: res, } };
-			return actionNotOK(`failed to add static folder ${loc} at ${where}: ${res}`, { messageContext });
+			return actionNotOK(`failed to add static folder ${loc} at ${where}: ${res}`);
 		}
 		await this.listen();
 		return OK;

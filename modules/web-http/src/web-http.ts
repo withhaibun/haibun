@@ -1,6 +1,5 @@
 import { AStepper, TStepperSteps } from '@haibun/core/lib/astepper.js';
-import { OK } from '@haibun/core/lib/defs.js';
-import { EExecutionMessageType } from '@haibun/core/lib/interfaces/logger.js';
+import { OK } from '@haibun/core/schema/protocol.js';
 import { actionNotOK } from '@haibun/core/lib/util/index.js';
 
 const WebHttp = class WebHttp extends AStepper {
@@ -12,8 +11,7 @@ const WebHttp = class WebHttp extends AStepper {
 					await fetch(url);
 					return OK;
 				} catch (e) {
-					const messageContext = { incident: EExecutionMessageType.ACTION, incidentDetails: { result: { summary: 'error', details: e } } }
-					return actionNotOK(`${url} is not listening`, { messageContext });
+					return actionNotOK(`${url} is not listening`, { topics: { error: e } });
 				}
 			},
 		},
@@ -22,7 +20,7 @@ const WebHttp = class WebHttp extends AStepper {
 			action: async ({ url }: { url: string }) => {
 				const response = await fetch(`${url}/.well-known/openid-configuration`);
 				const json = await response.json();
-				return json.authorization_endpoint ? OK : actionNotOK(`${json} has no endpoint`, { messageContext: { incident: EExecutionMessageType.ACTION, incidentDetails: { result: { summary: 'json', details: json } } } });
+				return json.authorization_endpoint ? OK : actionNotOK(`${json} has no endpoint`, { topics: { json } });
 			},
 		},
 		statusIs: {

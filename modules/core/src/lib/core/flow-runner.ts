@@ -1,8 +1,9 @@
-import { TWorld, TFeatureStep, TSeqPath, TNotOKActionResult } from '../defs.js';
+import { TWorld, TFeatureStep } from '../defs.js';
+import { TSeqPath, TNotOKActionResult } from '../../schema/protocol.js';
 import { AStepper } from '../astepper.js';
 import { Resolver } from '../../phases/Resolver.js';
 import { FeatureExecutor, incSeqPath } from '../../phases/Executor.js';
-import { ExecutionIntent, FlowSignal } from './protocol.js';
+import { ExecutionIntent, FlowSignal } from '../../schema/protocol.js';
 
 export class FlowRunner {
 	private resolver: Resolver;
@@ -70,10 +71,10 @@ export class FlowRunner {
 		}
 
 		if (result.ok) {
-			return { kind: 'ok', payload: result.stepActionResult };
+			return { kind: 'ok', topics: result.stepActionResult };
 		} else {
 			const msg = (result.stepActionResult as TNotOKActionResult).message;
-			return { kind: 'fail', message: msg, payload: result.stepActionResult };
+			return { kind: 'fail', message: msg, topics: result.stepActionResult };
 		}
 	}
 
@@ -86,7 +87,7 @@ export class FlowRunner {
 			}
 			lastResult = result;
 		}
-		return { kind: 'ok', payload: lastResult?.payload };
+		return { kind: 'ok', topics: lastResult?.topics };
 	}
 
 	async runSteps(steps: TFeatureStep[], options: { intent?: ExecutionIntent, parentStep?: TFeatureStep } = {}): Promise<FlowSignal> {
@@ -95,8 +96,8 @@ export class FlowRunner {
 		let lastResult: FlowSignal | undefined;
 
 		for (const step of steps) {
-			let mappedStep: TFeatureStep = { 
-				...step, 
+			let mappedStep: TFeatureStep = {
+				...step,
 				intent,
 				runtimeArgs: { ...parentStep?.runtimeArgs, ...step.runtimeArgs }
 			};
@@ -131,10 +132,10 @@ export class FlowRunner {
 
 			if (!result.ok) {
 				const msg = (result.stepActionResult as TNotOKActionResult).message;
-				return { kind: 'fail', message: msg, payload: result.stepActionResult };
+				return { kind: 'fail', message: msg, topics: result.stepActionResult };
 			}
-			lastResult = { kind: 'ok', payload: result.stepActionResult };
+			lastResult = { kind: 'ok', topics: result.stepActionResult };
 		}
-		return { kind: 'ok', payload: lastResult?.payload };
+		return { kind: 'ok', topics: lastResult?.topics };
 	}
 }

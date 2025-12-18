@@ -1,6 +1,6 @@
 import { resolve, relative } from 'path';
 
-import { CAPTURE, OK, TStepArgs } from '@haibun/core/lib/defs.js';
+import { CAPTURE, OK, TStepArgs } from '@haibun/core/schema/protocol.js';
 import { captureLocator } from '@haibun/core/lib/capture-locator.js';
 import { actionNotOK } from '@haibun/core/lib/util/index.js';
 import { IFile, TLocationOptions } from './domain-storage.js';
@@ -171,7 +171,7 @@ export abstract class AStorage extends AStepper {
 			gwta: `read text from {where}`,
 			action: async ({ where }: TStepArgs) => {
 				const text = await this.readFile(String(where), 'utf-8');
-				this.getWorld().logger.info(text);
+				this.getWorld().eventLogger.info(text);
 				return OK;
 			},
 		},
@@ -179,7 +179,7 @@ export abstract class AStorage extends AStepper {
 			gwta: `list files from {where}`,
 			action: async ({ where }: TStepArgs) => {
 				const files = await this.readdir(String(where));
-				this.getWorld().logger.info(`files from ${where}: ${files.join(', ')}`);
+				this.getWorld().eventLogger.info(`files from ${where}: ${files.join(', ')}`);
 				return OK;
 			},
 		},

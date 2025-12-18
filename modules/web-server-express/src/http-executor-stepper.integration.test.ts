@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { passWithDefaults } from '@haibun/core/lib/test/lib.js';
-import { DEFAULT_DEST } from '@haibun/core/lib/defs.js';
+import { DEFAULT_DEST } from '@haibun/core/schema/protocol.js';
 import { getStepperOptionName } from '@haibun/core/lib/util/index.js';
 
 import WebServerStepper from './web-server-stepper.js';

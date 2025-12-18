@@ -1,5 +1,6 @@
 import { AStepper, TStepperSteps } from '../lib/astepper.js';
-import { OK, TFeatureStep, TWorld, TActionResult, Origin } from '../lib/defs.js';
+import { TFeatureStep, TWorld } from '../lib/defs.js';
+import { OK, TActionResult, Origin } from '../schema/protocol.js';
 import { actionNotOK, sleep } from '../lib/util/index.js';
 import { FlowRunner } from '../lib/core/flow-runner.js';
 import { DOMAIN_STATEMENT } from '../lib/domain-types.js';
@@ -76,7 +77,7 @@ export default class LogicStepper extends AStepper {
         for (const statement of statementList) {
           const res = await this.runner.runStatements([statement], { intent: { mode: 'speculative' }, parentStep: featureStep });
           if (res.kind === 'ok') return OK;
-          this.getWorld().logger.debug(`any of: statement "${statement}" failed: ${res.message}`);
+          this.getWorld().eventLogger.debug(`any of: statement "${statement}" failed: ${res.message}`);
         }
         return actionNotOK('No conditions in the list were satisfied');
       }

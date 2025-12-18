@@ -4,9 +4,9 @@ import { existsSync, mkdirSync, readdirSync, cpSync, unlinkSync } from 'fs';
 import * as nodePath from 'path';
 import { createRequire } from 'module';
 
-import { FEATURE_START, TResolvedFeature } from "../../lib/defs.js";
-import { ILogger } from "../../lib/interfaces/logger.js";
-import { SCENARIO_START } from '../../lib/defs.js';
+import { TResolvedFeature } from '../../lib/defs.js';
+import { FEATURE_START } from '../../schema/protocol.js';
+import { SCENARIO_START } from '../../schema/protocol.js';
 import { TAnyFixme } from "../../lib/fixme.js";
 
 export type TCachedAudio = { transcript: string, durationS: number, cachedPath: string };
@@ -16,7 +16,7 @@ const CACHE_DIR = nodePath.resolve('capture/.said');
 
 const SPOKEN_STEPS = ['prose', SCENARIO_START, FEATURE_START];
 
-export async function preRenderFeatureProse(feature: TResolvedFeature, logger: ILogger): Promise<TRenderedAudioMap> {
+export async function preRenderFeatureProse(feature: TResolvedFeature): Promise<TRenderedAudioMap> {
 	const proseTexts = new Set<string>();
 	for (const step of feature.featureSteps) {
 		if (SPOKEN_STEPS.includes(step.action.actionName)) {
@@ -28,8 +28,6 @@ export async function preRenderFeatureProse(feature: TResolvedFeature, logger: I
 	if (proseTexts.size === 0) {
 		return {};
 	}
-
-	logger.debug(`${proseTexts.size} unique prose statements may need to be pre-rendered`);
 
 	const renderedAudio: TRenderedAudioMap = {};
 	mkdirSync(CACHE_DIR, { recursive: true });
@@ -44,7 +42,6 @@ export async function preRenderFeatureProse(feature: TResolvedFeature, logger: I
 			const cachedPath = nodePath.join(CACHE_DIR, existing);
 			renderedAudio[hash] = { transcript, durationS, cachedPath };
 		} else {
-			logger.info(`Rendering audio for transcript "${transcript}"`);
 			const audioInfo = await renderAudio(hash, transcript, CACHE_DIR);
 			renderedAudio[hash] = audioInfo;
 		}

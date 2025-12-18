@@ -1,5 +1,5 @@
 import React from 'react';
-import { THtmlArtifact } from '../types';
+import { THtmlArtifact } from '@haibun/core/schema/protocol.js';
 import { getArtifactUrl } from '../lib/utils';
 
 interface HtmlArtifactProps {

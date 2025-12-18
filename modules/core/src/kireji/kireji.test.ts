@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { withAction, TActionExecutor } from './withAction.js';
 import { toBdd, fromBdd } from './converter.js';
 import { AStepper, TStepperSteps } from '../lib/astepper.js';
-import { OK } from '../lib/defs.js';
+import { OK } from '../schema/protocol.js';
 import { ActivitiesStepper } from '../steps/activities-stepper.js';
 
 // A mock stepper for testing purposes

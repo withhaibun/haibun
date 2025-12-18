@@ -1,4 +1,5 @@
-import { TStepAction, TResolvedFeature, OK, TExpandedFeature, TStepperStep, TFeatureStep, TExpandedLine, TStepValue, TFeatures, TWorld, TFeature } from '../lib/defs.js';
+import { TStepAction, TResolvedFeature, TExpandedFeature, TStepperStep, TFeatureStep, TExpandedLine, TFeatures, TWorld, TFeature } from '../lib/defs.js';
+import { OK, TStepValue } from '../schema/protocol.js';
 import { AStepper } from '../lib/astepper.js';
 import { matchGwtaToAction, getMatch, namedInterpolation } from '../lib/namedVars.js';
 import { getActionable, dePolite, constructorName } from '../lib/util/index.js';
