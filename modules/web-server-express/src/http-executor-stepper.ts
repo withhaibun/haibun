@@ -141,7 +141,7 @@ export default class HttpExecutorStepper extends AStepper implements IHasOptions
 				const { promptId, response } = req.body;
 
 				this.httpPrompter.resolve(promptId, response);
-				res.json({ success: true, promptId, fixme: "This should actually test if it passed" });
+				res.json({ success: true, promptId, fixme: "This should test if it passed" });
 
 			} catch (error) {
 				const errorMessage = error instanceof Error ? error.message : String(error);

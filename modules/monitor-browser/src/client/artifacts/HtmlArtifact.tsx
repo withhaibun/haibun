@@ -1,6 +1,6 @@
 import React from 'react';
 import { THtmlArtifact } from '../types';
-import { getArtifactUrl } from '../lib/artifactUrl';
+import { getArtifactUrl } from '../lib/utils';
 
 interface HtmlArtifactProps {
   artifact: THtmlArtifact;

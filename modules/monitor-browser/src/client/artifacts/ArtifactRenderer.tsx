@@ -8,8 +8,8 @@ import { JsonArtifact } from './JsonArtifact';
 import { MermaidArtifact } from './MermaidArtifact';
 
 import { getMermaidFromResolvedFeatures } from '../lib/mermaid';
-import { getArtifactUrl } from '../lib/artifactUrl';
 import { formatVideoMetadata } from './FloatingVideoPlayer';
+import { getArtifactUrl } from '../lib/utils';
 
 interface ArtifactRendererProps {
   artifact: TArtifactEvent;

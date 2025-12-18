@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { TVideoArtifact } from '../types';
-import { getArtifactUrl } from '../lib/artifactUrl';
+import { getArtifactUrl } from '../lib/utils';
 
 interface VideoArtifactProps {
   artifact: TVideoArtifact;
@@ -12,7 +12,7 @@ interface VideoArtifactProps {
 /**
  * Standard video artifact display.
  * - Used inline in the log/document
- * - Can sync with timeline or be interactive with subtle controls
+ * - Can sync with timeline or be interactive
  */
 export function VideoArtifact({ artifact, currentTime, videoStartTimestamp, sync = false }: VideoArtifactProps) {
   const videoRef = useRef<HTMLVideoElement>(null);

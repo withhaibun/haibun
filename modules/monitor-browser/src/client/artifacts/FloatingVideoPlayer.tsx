@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { getArtifactUrl } from '../lib/artifactUrl';
+import { getArtifactUrl } from '../lib/utils';
 
 interface VideoMetadata {
     duration: number;
