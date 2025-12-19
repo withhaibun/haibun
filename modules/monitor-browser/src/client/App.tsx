@@ -6,10 +6,15 @@ import { EventFormatter } from '@haibun/core/monitor/index.js'
 import { Timeline } from './Timeline'
 import { Debugger } from './Debugger';
 import { getInitialState } from './serialize';
-import { THaibunEvent, TArtifactEvent, TVideoArtifact, TResolvedFeaturesArtifact, TLifecycleEvent, TStepEvent } from '@haibun/core/schema/protocol.js';
+import { THaibunEvent, TArtifactEvent, TVideoArtifact, TResolvedFeaturesArtifact } from '@haibun/core/schema/protocol.js';
 import { DocumentView } from './DocumentView';
 import { ArtifactRenderer } from './artifacts';
 import { FloatingVideoPlayer } from './artifacts/FloatingVideoPlayer';
+import { ArtifactRow } from './components/ArtifactRow';
+import { StepMessage } from './components/StepMessage';
+import { SourceLinks } from './components/SourceLinks';
+import { EventIdDisplay } from './components/EventIdDisplay';
+import { InlineArtifacts } from './components/InlineArtifacts';
 
 type ViewMode = 'log' | 'raw' | 'document';
 
@@ -34,7 +39,7 @@ function App() {
     const [scrollTargetId, setScrollTargetId] = useState<string | null>(null);
     const [selectedEvent, setSelectedEvent] = useState<THaibunEvent | null>(null);
     const [cwd, setCwd] = useState<string | null>(null);
-    
+
     // Video metadata extracted from loadedmetadata event
     const [videoMetadata, setVideoMetadata] = useState<{
         duration: number;
@@ -60,7 +65,7 @@ function App() {
     const [activePrompt, setActivePrompt] = useState<any | null>(null);
 
     const ws = useRef<WebSocket | null>(null);
-    
+
     // Event batching using refs to avoid re-render issues
     const pendingEventsRef = useRef<THaibunEvent[]>([]);
     const flushTimerRef = useRef<number | null>(null);
@@ -133,7 +138,7 @@ function App() {
     const eventsLength = events.length;
     const firstEventTimestamp = events[0]?.timestamp;
     const lastEventTimestamp = events[eventsLength - 1]?.timestamp;
-    
+
     useEffect(() => {
         if (eventsLength > 0 && firstEventTimestamp && lastEventTimestamp) {
             if (startTime === null) {
@@ -159,15 +164,15 @@ function App() {
     // Compute video info from both video-start and video events
     // This allows us to show the video at the correct timeline position
     const videoInfo = useMemo(() => {
-        const videoStartEvent = events.find(e => 
+        const videoStartEvent = events.find(e =>
             e.kind === 'artifact' && e.artifactType === 'video-start'
         );
-        const videoArtifactEvent = events.find(e => 
+        const videoArtifactEvent = events.find(e =>
             e.kind === 'artifact' && e.artifactType === 'video'
         ) as TVideoArtifact | undefined;
-        
+
         if (!videoStartEvent) return null;
-        
+
         return {
             startTimestamp: videoStartEvent.timestamp,
             path: videoArtifactEvent?.path ?? null,
@@ -281,7 +286,7 @@ function App() {
     // Unified Event Processing Pipeline
     const visibleEvents = useMemo(() => {
         const effectiveStart = startTime || 0;
-        
+
         // Stage 1: Time Filter
         const timeFiltered = events.filter(e => {
             if (!e || e.timestamp === undefined) return false;
@@ -304,9 +309,9 @@ function App() {
                     }
                     // If it's the same stage, just keep the latest
                     if (existing.stage === e.stage) {
-                         const newAcc = [...acc];
-                         newAcc[existingIndex] = e;
-                         return newAcc;
+                        const newAcc = [...acc];
+                        newAcc[existingIndex] = e;
+                        return newAcc;
                     }
                 }
                 return [...acc, e];
@@ -318,12 +323,12 @@ function App() {
         const levels = ['trace', 'debug', 'info', 'warn', 'error'];
         const normalizedMinLevel = minLogLevel === 'log' ? 'info' : minLogLevel;
         const minLevelIndex = levels.indexOf(normalizedMinLevel);
-        
+
         const finalEvents: any[] = [];
         let hiddenBuffer: any[] = [];
 
         const flushHiddenBuffer = () => {
-             if (hiddenBuffer.length > 0) {
+            if (hiddenBuffer.length > 0) {
                 const bufferLevels = new Set(hiddenBuffer.map(e => e.level || 'info'));
                 const sortedBufferLevels = Array.from(bufferLevels).sort((a: any, b: any) => levels.indexOf(b) - levels.indexOf(a));
                 const primaryHiddenLevel = sortedBufferLevels[0] || 'info';
@@ -348,16 +353,16 @@ function App() {
 
         mergedEvents.forEach((e: THaibunEvent) => {
             let isVisible = true;
-            
+
             // Log Level Check
             const rawLevel = e.level || 'info';
             // Treat 'log' and 'info' as the same level for filtering purposes
             const normalizedLevel = rawLevel === 'log' ? 'info' : rawLevel;
-            
+
             const levelIndex = levels.indexOf(normalizedLevel);
-            
+
             if (levelIndex !== -1 && minLevelIndex !== -1 && levelIndex < minLevelIndex) {
-               isVisible = false;
+                isVisible = false;
             }
 
             // Depth Check
@@ -373,7 +378,7 @@ function App() {
                 hiddenBuffer.push(e);
             }
         });
-        
+
         flushHiddenBuffer();
         return finalEvents;
     }, [events, currentTime, startTime, minLogLevel, maxDepth]);
@@ -393,323 +398,197 @@ function App() {
         }
     }, [visibleEvents.length, scrollTargetId, connected]);
 
-    // Re-use logic for log format
-    // Re-use logic for log format
     const renderLogView = () => (
         <div className="font-mono text-xs w-full bg-black p-4 rounded-lg shadow-xl overflow-hidden pb-12">
-            {visibleEvents
-                .map((e: THaibunEvent, i, arr) => {
-                    // Handle Hidden Block
-                    // e is explicitly any here because of our custom hidden-block type injection
-                    if ((e as any).kind === 'hidden-block') {
-                        const block = e as any;
-                        const typesStr = block.types.join(', ');
-                         return (
-                            <div key={block.id} className="flex justify-start my-1 px-2">
-                                <button
-                                    onClick={() => {
-                                        setMinLogLevel(block.level);
-                                        setScrollTargetId(block.firstEventId);
-                                    }}
-                                    className="text-[10px] text-slate-400 hover:text-slate-200 cursor-pointer transition-colors flex items-center gap-1 italic font-light tracking-wide"
-                                >
-                                    <span>~~~ {block.count} {typesStr} hidden at {block.level.toUpperCase()} ~~~</span>
-                                </button>
-                            </div>
-                        );
-                    }
-
-                    // Skip null/undefined events
-                    if (!e) return null;
-
-                    const isLast = i === arr.length - 1;
-                    const prevE = i > 0 ? arr[i - 1] : undefined;
-                     // Ensure prevE is a standard event for formatting check (skip hidden blocks)
-                    const validPrevE = prevE && (prevE as any).kind !== 'hidden-block' ? prevE : undefined;
-                    const prevLevel = validPrevE ? EventFormatter.getDisplayLevel(validPrevE) : undefined;
-
-                    const formatted = EventFormatter.formatLineElements(e, prevLevel);
-
-                    const effectiveStart = startTime || e.timestamp;
-                    const time = ((e.timestamp - effectiveStart) / 1000).toFixed(3);
-
-                    let { showLevel, message, icon, id } = formatted;
-                    // const isLifecycle = e.kind === 'lifecycle'; // unwarn
-                    const depth = e.id ? e.id.split('.').length : 0;
-                    const isNested = depth > 3;
-
-                    let textClass = 'text-gray-300';
-                    let bgClass = isLast ? 'bg-primary/20 border-l-2 border-primary' : 'hover:bg-gray-900 border-l-2 border-transparent';
-
-                    // Indentation style for nested views
-                    // const indentStyle = isNested ? { paddingLeft: `${(depth - 3) * 1}rem` } : {}; // unwarn
-
-                    if (e.kind === 'lifecycle') {
-                        if (e.type === 'feature') {
-                            textClass = 'text-purple-400 font-bold';
-                        } else if (e.type === 'scenario') {
-                            textClass = 'text-blue-400 font-bold';
-                        } else {
-                            if (e.error) {
-                                textClass = 'text-red-400';
-                            } else if (e.status === 'running') {
-                                textClass = 'text-yellow-500';
-                                icon = '⟳';
-                            }
-                        }
-                        if (!message) {
-                            message = e.error || ('topics' in e ? JSON.stringify(e.topics) : '');
-                        }
-                    } else if (e.kind === 'log') {
-                        if (e.level === 'error') textClass = 'text-red-500 font-bold';
-                        if (e.level === 'warn') textClass = 'text-yellow-400';
-                        if (!message) {
-                            message = e.message || (e.attributes as Record<string, any>)?.message || JSON.stringify(e.attributes);
-                        }
-                    } else if (e.kind === 'control') {
-                        if (!message) {
-                            message = JSON.stringify(e.args);
-                        }
-                    }
-
-                    // Check if this event initiates a nested block
-                     // Identify next *visible* event that is not a hidden block
-                     let nextEvent = undefined;
-                     for(let j = i + 1; j < arr.length; j++) {
-                         if ((arr[j] as any).kind !== 'hidden-block') {
-                             nextEvent = arr[j];
-                             break;
-                         }
-                     }
-                    const isInstigator = nextEvent && nextEvent.id.startsWith(id + '.');
-
-                    const prevDepth = validPrevE ? (validPrevE.id ? validPrevE.id.split('.').length : 0) : 0;
-                    // Only show symbol if this row "goes deeper" than the previous one (i.e. is the first child).
-                    // Sibilings (prevDepth === depth) will not have the line.
-                    const showSymbol = validPrevE && prevDepth < depth;
-
+            {visibleEvents.map((e, i, arr) => {
+                // Hidden blocks are synthetic events injected by visibility filtering
+                if (e.kind === 'hidden-block') {
+                    const block = e as { id: string; count: number; types: string[]; level: string; firstEventId: string };
+                    const typesStr = block.types.join(', ');
                     return (
-                        <React.Fragment key={i}>
-                            <div 
-                                id={`event-${e.id}`} 
-                                className={`flex whitespace-pre items-start leading-tight transition-colors ${bgClass} cursor-pointer hover:bg-slate-800 ${selectedEvent?.id === e.id ? 'bg-slate-800 ring-1 ring-blue-500' : ''}`}
+                        <div key={block.id} className="flex justify-start my-1 px-2">
+                            <button
                                 onClick={() => {
-                                    setSelectedEvent(e);
-                                    // Scroll the event into view after the details panel renders
-                                    setTimeout(() => {
-                                        const el = document.getElementById(`event-${e.id}`);
-                                        el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                    }, 50);
+                                    setMinLogLevel(block.level);
+                                    setScrollTargetId(block.firstEventId);
                                 }}
+                                className="text-[10px] text-slate-400 hover:text-slate-200 cursor-pointer transition-colors flex items-center gap-1 italic font-light tracking-wide"
                             >
-                                <div className="w-16 flex flex-col items-end shrink-0 text-[10px] text-slate-700 dark:text-slate-400 font-medium leading-tight mr-2 self-stretch py-1">
-                                    <span>{time}s</span>
-                                    <span className={`text-[9px] opacity-70 ${formatted.level === 'error' ? 'text-red-500' :
-                                        formatted.level === 'warn' ? 'text-yellow-500' :
-                                            'text-slate-500'
-                                        }`}>{formatted.level}</span>
-                                </div>
-                                <span className="mx-1 text-slate-800 dark:text-slate-600 self-start mt-1">｜</span>
+                                <span>~~~ {block.count} {typesStr} hidden at {block.level.toUpperCase()} ~~~</span>
+                            </button>
+                        </div>
+                    );
+                }
 
-                                <div className={`flex-1 ${textClass} break-all flex items-stretch`}>
-                                    {/* Indentation Spacer */}
-                                    <div style={{ width: `${Math.max(0, depth - 4) * 0.75}rem` }} className="shrink-0" />
+                const isLast = i === arr.length - 1;
+                const prevE = i > 0 ? arr[i - 1] : undefined;
+                // Ensure prevE is a standard event for formatting check (skip hidden blocks)
+                const validPrevE = prevE && (prevE as any).kind !== 'hidden-block' ? prevE : undefined;
+                const prevLevel = validPrevE ? EventFormatter.getDisplayLevel(validPrevE) : undefined;
 
-                                    {/* Rail Container */}
-                                    {(isNested || isInstigator) && (
-                                        <div className="relative w-4 shrink-0 mr-1">
-                                            {/* Full Line for Nested Steps */}
-                                            {isNested && (
-                                                <div className="absolute top-0 -bottom-[1px] right-[3px] w-px bg-indigo-500" />
-                                            )}
+                const formatted = EventFormatter.formatLineElements(e, prevLevel);
 
-                                            {/* Start Marker Line for Top-Level Instigators (starts from top marker down) */}
-                                            {isInstigator && !isNested && (
-                                                <div className="absolute top-[6px] -bottom-[1px] right-[3px] w-px bg-indigo-500" />
-                                            )}
+                const effectiveStart = startTime || e.timestamp;
+                const time = ((e.timestamp - effectiveStart) / 1000).toFixed(3);
 
-                                            {/* Horizontal Bar Symbol (Only to the Left, Top Aligned) */}
-                                            {isNested && showSymbol && (
-                                                <div className="absolute top-0 right-[3px] w-2.5 h-px bg-indigo-500" />
-                                            )}
-                                        </div>
-                                    )}
+                let { showLevel, message, icon, id } = formatted;
+                // const isLifecycle = e.kind === 'lifecycle'; // unwarn
+                const depth = e.id ? e.id.split('.').length : 0;
+                const isNested = depth > 3;
 
-                                    <div className="flex items-start gap-2 flex-1 py-1 min-w-0">
-                                        {e.kind === 'artifact' ? (() => {
-                                            const artifactId = e.id;
-                                            const isExpanded = expandedArtifacts.has(artifactId);
-                                            return (
-                                                <div className="w-full max-w-full">
-                                                    <button
-                                                        onClick={(ev) => {
-                                                            ev.stopPropagation();
-                                                            toggleArtifact(artifactId);
-                                                        }}
-                                                        className="w-full text-left py-0.5 text-xs text-slate-400 hover:text-slate-200 flex items-center gap-2"
-                                                    >
-                                                        <span className="text-[10px] w-4 text-center">{isExpanded ? '▼' : '▶'}</span>
-                                                        <span className="font-mono">📎 {e.artifactType}</span>
-                                                        {'path' in e && <span className="text-slate-500 truncate">- {e.path}</span>}
-                                                        {(() => {
-                                                            const [short, full] = (e.emitter || '').split('|');
-                                                            const display = short || e.emitter;
-                                                            if (!display) return null;
-                                                            return (
-                                                                <span className="ml-auto text-[9px] text-slate-400 px-2 shrink-0 italic">
-                                                                    {!isSerializedMode && full ? <a href={`vscode://file/${full.replace(/^file:\/\//, '')}`} className="hover:text-cyan-400 decoration-dotted underline-offset-2">{display}</a> : display}
-                                                                </span>
-                                                            );
-                                                        })()}
-                                                    </button>
-                                                    {isExpanded && (
-                                                        <div className="p-2 mt-1 border border-slate-700 rounded bg-slate-900/50">
-                                                            <ArtifactRenderer artifact={e as TArtifactEvent} currentTime={currentTime} videoStartTimestamp={videoStartTimestamp} videoMetadata={videoMetadata} />
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            );
-                                        })() : (
-                                            <>
-                                                <span className={`inline-block w-4 text-center shrink-0 ${icon === '⟳' ? 'animate-spin' : ''}`}>{icon}</span>
-                                                {(() => {
-                                                    // For lifecycle step events, make the message a VSCode link
-                                                    const lifecycle = e.kind === 'lifecycle' ? e : null;
-                                                    const featurePath = lifecycle && 'featurePath' in lifecycle ? lifecycle.featurePath : undefined;
-                                                    const lineNumber = lifecycle && 'lineNumber' in lifecycle ? lifecycle.lineNumber : undefined;
-                                                    const canLink = !isSerializedMode && e.kind === 'lifecycle' && e.type === 'step' && featurePath && lineNumber && cwd;
-                                                    
-                                                    if (canLink) {
-                                                        // Combine cwd with featurePath for absolute path
-                                                        const absolutePath = featurePath.startsWith('/') ? `${cwd}${featurePath}` : `${cwd}/${featurePath}`;
-                                                        return (
-                                                            <a 
-                                                                href={`vscode://file/${absolutePath}:${lineNumber}`}
-                                                                className="whitespace-pre-wrap break-words hover:text-cyan-400 hover:underline decoration-dotted underline-offset-2"
-                                                                onClick={(ev) => ev.stopPropagation()}
-                                                            >
-                                                                {message}
-                                                            </a>
-                                                        );
-                                                    }
-                                                    return <span className="whitespace-pre-wrap break-words">{message}</span>;
-                                                })()}
-                                                {(() => {
-                                                    const lifecycle = e.kind === 'lifecycle' ? e : null;
-                                                    const featurePath = lifecycle && 'featurePath' in lifecycle ? lifecycle.featurePath : undefined;
-                                                    const lineNumber = lifecycle && 'lineNumber' in lifecycle ? lifecycle.lineNumber : undefined;
-                                                    const [short, full] = (e.emitter || '').split('|');
-                                                    const emitterDisplay = short || e.emitter;
-                                                    
-                                                    // Extract filename from featurePath and determine source type
-                                                    const featureFile = featurePath ? featurePath.split('/').pop() : null;
-                                                    const isBackground = featurePath?.includes('/backgrounds/');
-                                                    const isWaypoint = e.kind === 'lifecycle' && (e.type === 'ensure' || e.type === 'activity');
-                                                    const sourcePrefix = isBackground ? '⬚ ' : isWaypoint ? '◈ ' : '';
-                                                    const hasFeatureLink = !isSerializedMode && featurePath && lineNumber && cwd;
-                                                    const hasEmitter = !!emitterDisplay;
-                                                    
-                                                    if (!hasFeatureLink && !hasEmitter) return null;
-                                                    
-                                                    return (
-                                                        <span className="ml-auto text-[9px] text-slate-400 px-2 shrink-0 italic flex flex-col items-end">
-                                                            {hasFeatureLink && (
-                                                                <a 
-                                                                    href={`vscode://file/${featurePath.startsWith('/') ? `${cwd}${featurePath}` : `${cwd}/${featurePath}`}:${lineNumber}`}
-                                                                    className="hover:text-cyan-400 decoration-dotted underline-offset-2"
-                                                                    onClick={(ev) => ev.stopPropagation()}
-                                                                >
-                                                                    {sourcePrefix}{featureFile}:{lineNumber}
-                                                                </a>
-                                                            )}
-                                                            {hasEmitter && (
-                                                                !isSerializedMode && full 
-                                                                    ? <a href={`vscode://file/${full.replace(/^file:\/\//, '')}`} className="hover:text-cyan-400 decoration-dotted underline-offset-2">{emitterDisplay}</a> 
-                                                                    : <span>{emitterDisplay}</span>
-                                                            )}
-                                                        </span>
-                                                    );
-                                                })()}
-                                            </>
+                let textClass = 'text-gray-300';
+                let bgClass = isLast ? 'bg-primary/20 border-l-2 border-primary' : 'hover:bg-gray-900 border-l-2 border-transparent';
+
+                // Indentation style for nested views
+                // const indentStyle = isNested ? { paddingLeft: `${(depth - 3) * 1}rem` } : {}; // unwarn
+
+                if (e.kind === 'lifecycle') {
+                    if (e.type === 'feature') {
+                        textClass = 'text-purple-400 font-bold';
+                    } else if (e.type === 'scenario') {
+                        textClass = 'text-blue-400 font-bold';
+                    } else {
+                        if (e.error) {
+                            textClass = 'text-red-400';
+                        } else if (e.status === 'running') {
+                            textClass = 'text-yellow-500';
+                            icon = '⟳';
+                        }
+                    }
+                    if (!message) {
+                        message = e.error || ('topics' in e ? JSON.stringify(e.topics) : '');
+                    }
+                } else if (e.kind === 'log') {
+                    if (e.level === 'error') textClass = 'text-red-500 font-bold';
+                    if (e.level === 'warn') textClass = 'text-yellow-400';
+                    if (!message) {
+                        message = e.message || (e.attributes as Record<string, any>)?.message || JSON.stringify(e.attributes);
+                    }
+                } else if (e.kind === 'control') {
+                    if (!message) {
+                        message = JSON.stringify(e.args);
+                    }
+                }
+
+                // Check if this event initiates a nested block
+                // Identify next *visible* event that is not a hidden block
+                let nextEvent = undefined;
+                for (let j = i + 1; j < arr.length; j++) {
+                    if ((arr[j] as any).kind !== 'hidden-block') {
+                        nextEvent = arr[j];
+                        break;
+                    }
+                }
+                const isInstigator = nextEvent && nextEvent.id.startsWith(id + '.');
+
+                const prevDepth = validPrevE ? (validPrevE.id ? validPrevE.id.split('.').length : 0) : 0;
+                // Only show symbol if this row "goes deeper" than the previous one (i.e. is the first child).
+                // Sibilings (prevDepth === depth) will not have the line.
+                const showSymbol = validPrevE && prevDepth < depth;
+
+                return (
+                    <React.Fragment key={i}>
+                        <div
+                            id={`event-${e.id}`}
+                            className={`flex whitespace-pre items-start leading-tight transition-colors ${bgClass} cursor-pointer hover:bg-slate-800 ${selectedEvent?.id === e.id ? 'bg-slate-800 ring-1 ring-blue-500' : ''}`}
+                            onClick={() => {
+                                setSelectedEvent(e);
+                                // Scroll the event into view after the details panel renders
+                                setTimeout(() => {
+                                    const el = document.getElementById(`event-${e.id}`);
+                                    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                }, 50);
+                            }}
+                        >
+                            <div className="w-16 flex flex-col items-end shrink-0 text-[10px] text-slate-700 dark:text-slate-400 font-medium leading-tight mr-2 self-stretch py-1">
+                                <span>{time}s</span>
+                                <span className={`text-[9px] opacity-70 ${formatted.level === 'error' ? 'text-red-500' :
+                                    formatted.level === 'warn' ? 'text-yellow-500' :
+                                        'text-slate-500'
+                                    }`}>{formatted.level}</span>
+                            </div>
+                            <span className="mx-1 text-slate-800 dark:text-slate-600 self-start mt-1">｜</span>
+
+                            <div className={`flex-1 ${textClass} break-all flex items-stretch`}>
+                                {/* Indentation Spacer */}
+                                <div style={{ width: `${Math.max(0, depth - 4) * 0.75}rem` }} className="shrink-0" />
+
+                                {/* Rail Container */}
+                                {(isNested || isInstigator) && (
+                                    <div className="relative w-4 shrink-0 mr-1">
+                                        {/* Full Line for Nested Steps */}
+                                        {isNested && (
+                                            <div className="absolute top-0 -bottom-[1px] right-[3px] w-px bg-indigo-500" />
+                                        )}
+
+                                        {/* Start Marker Line for Top-Level Instigators (starts from top marker down) */}
+                                        {isInstigator && !isNested && (
+                                            <div className="absolute top-[6px] -bottom-[1px] right-[3px] w-px bg-indigo-500" />
+                                        )}
+
+                                        {/* Horizontal Bar Symbol (Only to the Left, Top Aligned) */}
+                                        {isNested && showSymbol && (
+                                            <div className="absolute top-0 right-[3px] w-2.5 h-px bg-indigo-500" />
                                         )}
                                     </div>
-                                </div>
+                                )}
 
-                                {/* Right Column: SeqPath */}
-                                <div className="w-24 text-[10px] text-slate-500 font-mono text-right ml-2 py-1 select-all hover:text-slate-300 break-words">
-                                    <div title={e.id}>
-                                        {(() => {
-                                            const segments = e.id?.split('.') || [];
-                                            const isProper = segments.length > 0 && segments.every((s: string) => /^\d+$/.test(s));
-                                            let type = e.kind as string;
-                                            if (e.kind === 'lifecycle') {
-                                                type = e.type;
-                                                if (e.type === 'step') {
-                                                    const actionName = 'actionName' in e ? e.actionName : '';
-                                                    return <div>{e.id}<br />{actionName}</div>;
-                                                }
-                                            } else if (e.kind === 'artifact') {
-                                                type = e.artifactType;
-                                            }
-                                            if (isProper && segments.length >= 2) return `${e.id} ${type}`;
-                                            return type;
-                                        })()}
-                                    </div>
+                                <div className="flex items-start gap-2 flex-1 py-1 min-w-0">
+                                    {e.kind === 'artifact' ? (
+                                        <ArtifactRow
+                                            e={e as TArtifactEvent}
+                                            isExpanded={expandedArtifacts.has(e.id)}
+                                            onToggle={() => toggleArtifact(e.id)}
+                                            isSerializedMode={isSerializedMode}
+                                            currentTime={currentTime}
+                                            videoStartTimestamp={videoStartTimestamp}
+                                            videoMetadata={videoMetadata}
+                                        />
+                                    ) : (
+                                        <>
+                                            <span className={`inline-block w-4 text-center shrink-0 ${icon === '⟳' ? 'animate-spin' : ''}`}>{icon}</span>
+                                            <StepMessage
+                                                message={message}
+                                                canLink={!isSerializedMode && e.kind === 'lifecycle' && e.type === 'step' && !!(e.kind === 'lifecycle' && 'featurePath' in e && e.featurePath && 'lineNumber' in e && e.lineNumber && cwd)}
+                                                absolutePath={e.kind === 'lifecycle' && 'featurePath' in e && e.featurePath && cwd
+                                                    ? (e.featurePath.startsWith('/') ? `${cwd}${e.featurePath}` : `${cwd}/${e.featurePath}`)
+                                                    : undefined}
+                                                lineNumber={e.kind === 'lifecycle' && 'lineNumber' in e ? e.lineNumber : undefined}
+                                            />
+                                            <SourceLinks
+                                                featurePath={e.kind === 'lifecycle' && 'featurePath' in e ? e.featurePath : undefined}
+                                                lineNumber={e.kind === 'lifecycle' && 'lineNumber' in e ? e.lineNumber : undefined}
+                                                emitter={e.emitter}
+                                                cwd={cwd}
+                                                isSerializedMode={isSerializedMode}
+                                                isBackground={!!(e.kind === 'lifecycle' && 'featurePath' in e && e.featurePath?.includes('/backgrounds/'))}
+                                                isWaypoint={e.kind === 'lifecycle' && (e.type === 'ensure' || e.type === 'activity')}
+                                            />
+                                        </>
+                                    )}
                                 </div>
                             </div>
 
-                            {/* Inline Artifacts - each artifact has its own toggle */}
-                            {(() => {
-                                let embeddedArtifacts: any[] | undefined = undefined;
-                                if (e.kind === 'log') {
-                                    embeddedArtifacts = e.attributes?.artifacts as any[];
-                                } else if (e.kind === 'lifecycle') {
-                                    embeddedArtifacts = ('topics' in e && e.topics) ? (e.topics as Record<string, unknown>).artifacts as TArtifactEvent[] : undefined;
-                                }
-                                if (embeddedArtifacts && Array.isArray(embeddedArtifacts) && embeddedArtifacts.length > 0) {
-                                    return (
-                                        <div className="ml-20 my-1 space-y-1">
-                                            {embeddedArtifacts.map((artifact: any, idx: number) => {
-                                                const artifactId = `${e.id}.artifact.${idx}`;
-                                                const isExpanded = expandedArtifacts.has(artifactId);
-                                                const artifactEvent: TArtifactEvent = {
-                                                    id: artifactId,
-                                                    timestamp: e.timestamp,
-                                                    source: 'haibun',
-                                                    kind: 'artifact',
-                                                    artifactType: artifact.artifactType,
-                                                    mimetype: artifact.mimetype || 'application/octet-stream',
-                                                    ...('path' in artifact && { path: artifact.path }),
-                                                    ...('json' in artifact && { json: artifact.json }),
-                                                    ...('transcript' in artifact && { transcript: artifact.transcript }),
-                                                    ...('resolvedFeatures' in artifact && { resolvedFeatures: artifact.resolvedFeatures }),
-                                                } as TArtifactEvent;
-                                                return (
-                                                    <div key={artifactId} className="border border-slate-700 rounded bg-slate-900/50">
-                                                        <button
-                                                            onClick={() => toggleArtifact(artifactId)}
-                                                            className="w-full text-left px-2 py-1 text-xs text-slate-400 hover:bg-slate-800/50 flex items-center gap-1"
-                                                        >
-                                                            <span>{isExpanded ? '▼' : '▶'}</span>
-                                                            <span>📎 {artifact.artifactType}</span>
-                                                            {'path' in artifact && <span className="text-slate-500 truncate">- {artifact.path}</span>}
-                                                        </button>
-                                                        {isExpanded && (
-                                                            <div className="p-2 border-t border-slate-700">
-                                                                <ArtifactRenderer artifact={artifactEvent} currentTime={currentTime} videoStartTimestamp={videoStartTimestamp} videoMetadata={videoMetadata} />
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    );
-                                }
-                                return null;
-                            })()}
-                        </React.Fragment>
-                    );
-                })}
+                            {/* Right Column: SeqPath */}
+                            <div className="w-24 text-[10px] text-slate-500 font-mono text-right ml-2 py-1 select-all hover:text-slate-300 break-words">
+                                <div title={e.id}>
+                                    <EventIdDisplay e={e} />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Inline Artifacts */}
+                        <InlineArtifacts
+                            e={e}
+                            expandedArtifacts={expandedArtifacts}
+                            toggleArtifact={toggleArtifact}
+                            currentTime={currentTime}
+                            videoStartTimestamp={videoStartTimestamp}
+                            videoMetadata={videoMetadata}
+                        />
+                    </React.Fragment>
+                );
+            })}
             {/* Auto-scroll anchor */}
             <div ref={scrollRef} />
         </div>
@@ -724,15 +603,15 @@ function App() {
     const renderFloatingUI = () => {
         // Debugger takes priority if active
         if (connected && activePrompt) {
-             return (
-                 <div className="w-80 shrink-0 sticky top-20 self-start z-50">
+            return (
+                <div className="w-80 shrink-0 sticky top-20 self-start z-50">
                     <div className="bg-black/90 rounded-lg shadow-2xl border border-slate-700 overflow-hidden">
                         <div className="p-2 bg-slate-800 border-b border-slate-700 font-bold text-xs text-cyan-400 flex items-center gap-2">
-                             <span>⚡ Debugger Active</span>
+                            <span>⚡ Debugger Active</span>
                         </div>
-                        <Debugger 
+                        <Debugger
                             prompt={activePrompt}
-                            onSubmit={handleDebugAction} 
+                            onSubmit={handleDebugAction}
                         />
                     </div>
                 </div>
@@ -743,7 +622,7 @@ function App() {
         if (videoInfo && videoInfo.path) {
             return (
                 <div className="w-80 shrink-0 sticky top-20 self-start">
-                     <FloatingVideoPlayer
+                    <FloatingVideoPlayer
                         path={videoInfo.path}
                         startTimestamp={videoInfo.startTimestamp}
                         appStartTime={startTime || 0}
@@ -846,17 +725,17 @@ function App() {
 
                         {viewMode === 'document' && (
                             <div className="bg-black rounded-lg shadow-xl overflow-hidden min-h-[500px]">
-                                 <DocumentView events={visibleEvents} />
+                                <DocumentView events={visibleEvents} />
                             </div>
                         )}
                     </div>
-                    
+
                     {/* The shared slot for timely component  */}
                     {renderFloatingUI()}
                 </div>
             </main>
-            
-            <Timeline 
+
+            <Timeline
                 min={0}
                 max={maxTime}
                 current={currentTime}
