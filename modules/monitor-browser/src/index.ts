@@ -112,8 +112,7 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
   private async saveSerializedReport(jitData: string, topic: string, seq: string) {
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = dirname(__filename);
-    const distDir = path.join(__dirname, '..', 'dist', 'client');
-    const indexPath = path.join(distDir, 'index.html');
+    const indexPath = path.join(__dirname, '..', 'dist', 'client', 'index.html');
 
     if (!fs.existsSync(indexPath)) {
       console.error('[MonitorBrowser] Could not find client build artifacts at', indexPath);
@@ -122,35 +121,8 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
 
     let html = fs.readFileSync(indexPath, 'utf-8');
 
-    // Inline CSS
-    // <link rel="stylesheet" crossorigin href="/assets/index-8Q2E4qDt.css">
-    html = html.replace(/<link rel="stylesheet"[^>]*href="\/assets\/([^"]+)"[^>]*>/g, (match, filename) => {
-      const assetPath = path.join(distDir, 'assets', filename);
-      if (fs.existsSync(assetPath)) {
-        const css = fs.readFileSync(assetPath, 'utf-8');
-        return `<style>${css}</style>`;
-      }
-      return match;
-    });
-
-    // Inline JS
-    // <script type="module" crossorigin src="/assets/index-DeEStOg1.js"></script>
-    html = html.replace(/<script type="module"[^>]*src="\/assets\/([^"]+)"[^>]*><\/script>/g, (match, filename) => {
-      const assetPath = path.join(distDir, 'assets', filename);
-      if (fs.existsSync(assetPath)) {
-        const js = fs.readFileSync(assetPath, 'utf-8');
-        // remove module type allows it to run as standard script if logical, 
-        // but Vite modules usually need type="module". 
-        // Embedding module script inline works in modern browsers.
-        return `<script type="module">${js}</script>`;
-      }
-      return match;
-    });
-
     // Inject JIT Data
-    // Place it before the closing body tag or scripts
     const injection = `<script id="haibun-data" type="application/json">${jitData}</script>`;
-    // Use lastIndexOf to avoid matching inside minified JS strings
     const bodyEndIndex = html.lastIndexOf('</body>');
     if (bodyEndIndex !== -1) {
       html = html.substring(0, bodyEndIndex) + injection + html.substring(bodyEndIndex);

@@ -2,7 +2,43 @@
 import React from 'react';
 import { useRef, useEffect } from 'react';
 import { Button } from './components/ui/button';
-import { Play, SkipForward, ArrowRight, XCircle, RefreshCw, Send } from 'lucide-react';
+
+// Minimal SVG Icons to replace lucide-react (saving ~400KB)
+const Icon = ({ children, className }: { children: React.ReactNode, className?: string }) => (
+    <svg 
+        xmlns="http://www.w3.org/2000/svg" 
+        width="24" 
+        height="24" 
+        viewBox="0 0 24 24" 
+        fill="none" 
+        stroke="currentColor" 
+        strokeWidth="2" 
+        strokeLinecap="round" 
+        strokeLinejoin="round" 
+        className={className}
+    >
+        {children}
+    </svg>
+);
+
+const PlayIcon = (props: { className?: string }) => (
+    <Icon {...props}><polygon points="5 3 19 12 5 21 5 3"></polygon></Icon>
+);
+const SkipForwardIcon = (props: { className?: string }) => (
+    <Icon {...props}><polygon points="5 4 15 12 5 20 5 4"></polygon><line x1="19" y1="5" x2="19" y2="19"></line></Icon>
+);
+const ArrowRightIcon = (props: { className?: string }) => (
+    <Icon {...props}><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></Icon>
+);
+const XCircleIcon = (props: { className?: string }) => (
+    <Icon {...props}><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></Icon>
+);
+const RefreshCwIcon = (props: { className?: string }) => (
+    <Icon {...props}><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path><path d="M3 22v-6h6"></path><path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path></Icon>
+);
+const SendIcon = (props: { className?: string }) => (
+    <Icon {...props}><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></Icon>
+);
 
 interface DebuggerProps {
     prompt: {
@@ -15,7 +51,6 @@ interface DebuggerProps {
 
 export function Debugger({ prompt, onSubmit }: DebuggerProps) {
     const inputRef = useRef<HTMLInputElement>(null);
-    const SendIcon = Send as any;
 
     // Auto-focus input when prompt changes and input is present
     useEffect(() => {
@@ -35,12 +70,6 @@ export function Debugger({ prompt, onSubmit }: DebuggerProps) {
         
         // Skip specialized options if handled elsewhere (like *)
         if (opt === '*') return null;
-
-        const ArrowRightIcon = ArrowRight as any;
-        const PlayIcon = Play as any;
-        const XCircleIcon = XCircle as any;
-        const RefreshCwIcon = RefreshCw as any;
-        const SkipForwardIcon = SkipForward as any;
 
         let icon = <ArrowRightIcon className="h-3 w-3 mr-1" />;
         let variant: "secondary" | "default" | "destructive" | "outline" | "ghost" | "link" = "secondary";
