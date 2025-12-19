@@ -6,7 +6,7 @@ import { EventFormatter } from '@haibun/core/monitor/index.js'
 import { Timeline } from './Timeline'
 import { Debugger } from './Debugger';
 import { getInitialState } from './serialize';
-import { THaibunEvent, TArtifactEvent } from '@haibun/core/schema/protocol.js';
+import { THaibunEvent, TArtifactEvent, TVideoArtifact, TResolvedFeaturesArtifact, TLifecycleEvent, TStepEvent } from '@haibun/core/schema/protocol.js';
 import { DocumentView } from './DocumentView';
 import { ArtifactRenderer } from './artifacts';
 import { FloatingVideoPlayer } from './artifacts/FloatingVideoPlayer';
@@ -33,6 +33,7 @@ function App() {
     const [expandedArtifacts, setExpandedArtifacts] = useState<Set<string>>(new Set());
     const [scrollTargetId, setScrollTargetId] = useState<string | null>(null);
     const [selectedEvent, setSelectedEvent] = useState<THaibunEvent | null>(null);
+    const [cwd, setCwd] = useState<string | null>(null);
     
     // Video metadata extracted from loadedmetadata event
     const [videoMetadata, setVideoMetadata] = useState<{
@@ -91,6 +92,8 @@ function App() {
                     console.log('Prompt received', msg);
                     setActivePrompt(msg.prompt);
                     setIsPlaying(false); // Pause on prompt
+                } else if (msg.type === 'init' && msg.cwd) {
+                    setCwd(msg.cwd);
                 } else if (msg.type === 'finalize') {
                     console.log('Finalize received');
                 }
@@ -157,11 +160,11 @@ function App() {
     // This allows us to show the video at the correct timeline position
     const videoInfo = useMemo(() => {
         const videoStartEvent = events.find(e => 
-            e.kind === 'artifact' && (e as any).artifactType === 'video-start'
+            e.kind === 'artifact' && e.artifactType === 'video-start'
         );
         const videoArtifactEvent = events.find(e => 
-            e.kind === 'artifact' && (e as any).artifactType === 'video'
-        ) as any;
+            e.kind === 'artifact' && e.artifactType === 'video'
+        ) as TVideoArtifact | undefined;
         
         if (!videoStartEvent) return null;
         
@@ -242,6 +245,39 @@ function App() {
         return () => cancelAnimationFrame(animationFrameId);
     }, [isPlaying, maxTime, playbackSpeed]);
 
+    // Format ID helper (replicates server-side formatCurrentSeqPath)
+    const formatSeqPath = (seqPath: number[]) => '[' + seqPath.join('.') + ']';
+
+    // Index ResolvedFeatures
+    type TStepIndex = Record<string, { in: string; seqPath: number[]; source?: { path?: string; lineNumber?: number }; action?: { actionName?: string; stepperName?: string } }>;
+    const stepIndex = useMemo((): TStepIndex => {
+        const artifact = events.find((e): e is TResolvedFeaturesArtifact => e.kind === 'artifact' && e.artifactType === 'resolvedFeatures');
+        if (!artifact) return {};
+        const index: TStepIndex = {};
+
+        // Index Features and Steps
+        artifact.resolvedFeatures?.forEach((rf) => {
+            // Index Feature
+            // rf.path is absolute, but maybe we shouldn't index feature start/end by path?
+            // Events have ID like feat-N. 
+            // We can't easily map feat-N to path without the map provided in Executor runtime tags.
+            // But here we care about STEPS.
+            const resolvedFeature = rf as { featureSteps?: Array<{ seqPath?: number[]; in?: string; source?: { path?: string; lineNumber?: number }; action?: { actionName?: string; stepperName?: string } }> };
+            resolvedFeature.featureSteps?.forEach((step) => {
+                if (step.seqPath) {
+                    const id = formatSeqPath(step.seqPath);
+                    index[id] = {
+                        in: step.in || '',
+                        seqPath: step.seqPath,
+                        source: step.source,
+                        action: step.action,
+                    };
+                }
+            });
+        });
+        return index;
+    }, [events]);
+
     // Unified Event Processing Pipeline
     const visibleEvents = useMemo(() => {
         const effectiveStart = startTime || 0;
@@ -266,13 +302,14 @@ function App() {
                         newAcc[existingIndex] = e;
                         return newAcc;
                     }
-                    // If it's the same stage, just keep the latest (shouldn't happen with seqPath)
+                    // If it's the same stage, just keep the latest
                     if (existing.stage === e.stage) {
                          const newAcc = [...acc];
                          newAcc[existingIndex] = e;
                          return newAcc;
                     }
                 }
+                return [...acc, e];
             }
             return [...acc, e];
         }, [] as any[]);
@@ -421,7 +458,7 @@ function App() {
                             }
                         }
                         if (!message) {
-                            message = e.error || JSON.stringify(e.topics);
+                            message = e.error || ('topics' in e ? JSON.stringify(e.topics) : '');
                         }
                     } else if (e.kind === 'log') {
                         if (e.level === 'error') textClass = 'text-red-500 font-bold';
@@ -455,12 +492,14 @@ function App() {
                         <React.Fragment key={i}>
                             <div 
                                 id={`event-${e.id}`} 
-                                className={`flex whitespace-pre items-stretch leading-tight transition-colors ${bgClass} cursor-pointer hover:bg-slate-800 ${selectedEvent?.id === e.id ? 'bg-slate-800 ring-1 ring-blue-500' : ''}`}
+                                className={`flex whitespace-pre items-start leading-tight transition-colors ${bgClass} cursor-pointer hover:bg-slate-800 ${selectedEvent?.id === e.id ? 'bg-slate-800 ring-1 ring-blue-500' : ''}`}
                                 onClick={() => {
                                     setSelectedEvent(e);
-                                    // Scroll the event into view
-                                    const el = document.getElementById(`event-${e.id}`);
-                                    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                    // Scroll the event into view after the details panel renders
+                                    setTimeout(() => {
+                                        const el = document.getElementById(`event-${e.id}`);
+                                        el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                    }, 50);
                                 }}
                             >
                                 <div className="w-16 flex flex-col items-end shrink-0 text-[10px] text-slate-700 dark:text-slate-400 font-medium leading-tight mr-2 self-stretch py-1">
@@ -510,11 +549,11 @@ function App() {
                                                         className="w-full text-left py-0.5 text-xs text-slate-400 hover:text-slate-200 flex items-center gap-2"
                                                     >
                                                         <span className="text-[10px] w-4 text-center">{isExpanded ? '▼' : '▶'}</span>
-                                                        <span className="font-mono">📎 {(e as TArtifactEvent).artifactType}</span>
-                                                        {'path' in e && <span className="text-slate-500 truncate">- {(e as any).path}</span>}
+                                                        <span className="font-mono">📎 {e.artifactType}</span>
+                                                        {'path' in e && <span className="text-slate-500 truncate">- {e.path}</span>}
                                                         {(() => {
-                                                            const [short, full] = ((e as any).emitter || '').split('|');
-                                                            const display = short || (e as any).emitter;
+                                                            const [short, full] = (e.emitter || '').split('|');
+                                                            const display = short || e.emitter;
                                                             if (!display) return null;
                                                             return (
                                                                 <span className="ml-auto text-[9px] text-slate-400 px-2 shrink-0 italic">
@@ -533,14 +572,61 @@ function App() {
                                         })() : (
                                             <>
                                                 <span className={`inline-block w-4 text-center shrink-0 ${icon === '⟳' ? 'animate-spin' : ''}`}>{icon}</span>
-                                                <span className="whitespace-pre-wrap break-words">{message}</span>
                                                 {(() => {
-                                                    const [short, full] = ((e as any).emitter || '').split('|');
-                                                    const display = short || (e as any).emitter;
-                                                    if (!display) return null;
+                                                    // For lifecycle step events, make the message a VSCode link
+                                                    const lifecycle = e.kind === 'lifecycle' ? e : null;
+                                                    const featurePath = lifecycle && 'featurePath' in lifecycle ? lifecycle.featurePath : undefined;
+                                                    const lineNumber = lifecycle && 'lineNumber' in lifecycle ? lifecycle.lineNumber : undefined;
+                                                    const canLink = !isSerializedMode && e.kind === 'lifecycle' && e.type === 'step' && featurePath && lineNumber && cwd;
+                                                    
+                                                    if (canLink) {
+                                                        // Combine cwd with featurePath for absolute path
+                                                        const absolutePath = featurePath.startsWith('/') ? `${cwd}${featurePath}` : `${cwd}/${featurePath}`;
+                                                        return (
+                                                            <a 
+                                                                href={`vscode://file/${absolutePath}:${lineNumber}`}
+                                                                className="whitespace-pre-wrap break-words hover:text-cyan-400 hover:underline decoration-dotted underline-offset-2"
+                                                                onClick={(ev) => ev.stopPropagation()}
+                                                            >
+                                                                {message}
+                                                            </a>
+                                                        );
+                                                    }
+                                                    return <span className="whitespace-pre-wrap break-words">{message}</span>;
+                                                })()}
+                                                {(() => {
+                                                    const lifecycle = e.kind === 'lifecycle' ? e : null;
+                                                    const featurePath = lifecycle && 'featurePath' in lifecycle ? lifecycle.featurePath : undefined;
+                                                    const lineNumber = lifecycle && 'lineNumber' in lifecycle ? lifecycle.lineNumber : undefined;
+                                                    const [short, full] = (e.emitter || '').split('|');
+                                                    const emitterDisplay = short || e.emitter;
+                                                    
+                                                    // Extract filename from featurePath and determine source type
+                                                    const featureFile = featurePath ? featurePath.split('/').pop() : null;
+                                                    const isBackground = featurePath?.includes('/backgrounds/');
+                                                    const isWaypoint = e.kind === 'lifecycle' && (e.type === 'ensure' || e.type === 'activity');
+                                                    const sourcePrefix = isBackground ? '⬚ ' : isWaypoint ? '◈ ' : '';
+                                                    const hasFeatureLink = !isSerializedMode && featurePath && lineNumber && cwd;
+                                                    const hasEmitter = !!emitterDisplay;
+                                                    
+                                                    if (!hasFeatureLink && !hasEmitter) return null;
+                                                    
                                                     return (
-                                                        <span className="ml-auto text-[9px] text-slate-400 px-2 shrink-0 italic">
-                                                            {!isSerializedMode && full ? <a href={`vscode://file/${full.replace(/^file:\/\//, '')}`} className="hover:text-cyan-400 decoration-dotted underline-offset-2">{display}</a> : display}
+                                                        <span className="ml-auto text-[9px] text-slate-400 px-2 shrink-0 italic flex flex-col items-end">
+                                                            {hasFeatureLink && (
+                                                                <a 
+                                                                    href={`vscode://file/${featurePath.startsWith('/') ? `${cwd}${featurePath}` : `${cwd}/${featurePath}`}:${lineNumber}`}
+                                                                    className="hover:text-cyan-400 decoration-dotted underline-offset-2"
+                                                                    onClick={(ev) => ev.stopPropagation()}
+                                                                >
+                                                                    {sourcePrefix}{featureFile}:{lineNumber}
+                                                                </a>
+                                                            )}
+                                                            {hasEmitter && (
+                                                                !isSerializedMode && full 
+                                                                    ? <a href={`vscode://file/${full.replace(/^file:\/\//, '')}`} className="hover:text-cyan-400 decoration-dotted underline-offset-2">{emitterDisplay}</a> 
+                                                                    : <span>{emitterDisplay}</span>
+                                                            )}
                                                         </span>
                                                     );
                                                 })()}
@@ -559,7 +645,7 @@ function App() {
                                             if (e.kind === 'lifecycle') {
                                                 type = e.type;
                                                 if (e.type === 'step') {
-                                                    const actionName = e.actionName;
+                                                    const actionName = 'actionName' in e ? e.actionName : '';
                                                     return <div>{e.id}<br />{actionName}</div>;
                                                 }
                                             } else if (e.kind === 'artifact') {
@@ -578,7 +664,7 @@ function App() {
                                 if (e.kind === 'log') {
                                     embeddedArtifacts = e.attributes?.artifacts as any[];
                                 } else if (e.kind === 'lifecycle') {
-                                    embeddedArtifacts = e.topics?.artifacts as any[];
+                                    embeddedArtifacts = ('topics' in e && e.topics) ? (e.topics as Record<string, unknown>).artifacts as TArtifactEvent[] : undefined;
                                 }
                                 if (embeddedArtifacts && Array.isArray(embeddedArtifacts) && embeddedArtifacts.length > 0) {
                                     return (
@@ -654,7 +740,7 @@ function App() {
         }
 
         // Otherwise show video if available
-        if (videoInfo) {
+        if (videoInfo && videoInfo.path) {
             return (
                 <div className="w-80 shrink-0 sticky top-20 self-start">
                      <FloatingVideoPlayer

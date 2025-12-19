@@ -60,6 +60,12 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
   }
 
   cycles: IStepperCycles = {
+    startExecution: async () => {
+      // Send cwd to client for constructing absolute paths (e.g., VSCode links)
+      if (MonitorBrowserStepper.transport) {
+        MonitorBrowserStepper.transport.send({ type: 'init', cwd: process.cwd() });
+      }
+    },
     onEvent: async (event: THaibunEvent) => {
       this.events.push(event);
       if (MonitorBrowserStepper.transport) {

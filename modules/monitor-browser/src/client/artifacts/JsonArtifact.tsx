@@ -37,7 +37,7 @@ function JsonNode({ keyName, value, depth, isArrayIndex }: JsonNodeProps) {
 
   if (!isComplex) {
     return (
-      <div className="json-line py-0.5 font-mono text-xs" style={{ marginLeft }}>
+      <div className="json-line py-0.5 font-mono text-[10px]" style={{ marginLeft }}>
         <span className={`px-1 rounded ${isArrayIndex ? 'bg-blue-600 text-white' : 'bg-amber-700 text-white'}`}>
           {isArrayIndex ? `[${keyName}]` : `"${keyName}"`}
         </span>
@@ -53,7 +53,7 @@ function JsonNode({ keyName, value, depth, isArrayIndex }: JsonNodeProps) {
 
   return (
     <details open={isOpen} onToggle={onToggle} className="json-expandable" style={{ marginLeft }}>
-      <summary className="cursor-pointer py-0.5 font-mono text-xs hover:bg-gray-100 list-none">
+      <summary className="cursor-pointer py-0.5 font-mono text-[10px] hover:bg-gray-100 list-none">
         <span className="inline-block w-4 text-gray-500">{isOpen ? '▼' : '▶'}</span>
         <span className={`px-1 rounded ${isArrayIndex ? 'bg-blue-600 text-white' : 'bg-purple-800 text-white'}`}>
           {isArrayIndex ? `[${keyName}]` : `"${keyName}"`}

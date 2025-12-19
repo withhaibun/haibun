@@ -214,7 +214,7 @@ export class EventFormatter {
 
   static formatLineElements(event: THaibunEvent, lastLevel?: string) {
     const time = (Timer.since() / 1000).toFixed(3);
-    const emitter = (event as any).source || 'unknown';
+    const emitter = event.source;
     const level = this.getDisplayLevel(event);
     const showLevel = lastLevel === level ? level.charAt(0) : level;
 
@@ -225,15 +225,23 @@ export class EventFormatter {
     if (event.kind === 'lifecycle') {
       if (event.type === 'feature') {
         icon = ICON_FEATURE;
-        message = event.featurePath || '';
+        message = event.featurePath;
       } else if (event.type === 'scenario') {
         icon = ICON_SCENARIO;
-        message = event.scenarioName || '';
+        message = event.scenarioName;
       } else {
         icon = this.getStatusIcon(event);
-        const actionName = event.actionName || '';
         id = event.id ? `[${event.id}]` : '';
-        message = event.in || ''; // Show full step text, actionName is in right column
+        // Step always has 'in', other events (activity, etc) may not
+        if (event.type === 'step') {
+          message = event.in;
+        } else {
+          // Other lifecycle events (activity, ensure, etc)
+          if (event.in) {
+            message = event.in;
+          }
+        }
+
         if (event.error) message += ` (${event.error})`;
       }
     } else if (event.kind === 'log') {
@@ -260,7 +268,7 @@ export class EventFormatter {
 export const ExecutionIntentSchema = z.object({
   mode: z.enum(['authoritative', 'speculative', 'prose']).default('authoritative'),
   usage: z.enum(['testing', 'debugging', 'background', 'polling']).optional(),
-  stepperOptions: z.record(z.string(), z.any()).optional(),
+  stepperOptions: z.record(z.string(), z.unknown()).optional(),
 });
 export type ExecutionIntent = z.infer<typeof ExecutionIntentSchema>;
 
@@ -268,7 +276,7 @@ export const FlowSignalSchema = z.object({
   kind: z.enum(['ok', 'fail', 'retry', 'skip']),
   message: z.string().optional(),
   fatal: z.boolean().optional(),
-  topics: z.any().optional(),
+  topics: z.unknown().optional(),
 });
 export type FlowSignal = z.infer<typeof FlowSignalSchema>;
 
@@ -345,6 +353,7 @@ export type TStepResult = {
   stepActionResult: TStepActionResult;
   in: string;
   path: string;
+  lineNumber?: number;
   seqPath: TSeqPath;
   intent?: ExecutionIntent;
 };
@@ -397,26 +406,15 @@ export const BaseEvent = z.object({
   id: z.string().describe('Unique identifier for the event, typically the seqPath'),
   timestamp: z.number().int().describe('Absolute epoch timestamp in milliseconds'),
   source: z.string().default('haibun').describe('Source of the event'),
+  emitter: z.string().optional().describe('Code location that emitted the event (e.g. Executor:238)'),
   level: HaibunLogLevel.default('info').describe('Log level for filtering'),
 });
 
 // Lifecycle Events
-export const LifecycleEvent = BaseEvent.extend({
+// Lifecycle Events
+export const LifecycleEventCommon = BaseEvent.extend({
   kind: z.literal('lifecycle'),
-  type: z.enum(['feature', 'scenario', 'step', 'activity', 'waypoint', 'ensure', 'execution']),
   stage: z.enum(['start', 'end']),
-
-  // Step reference info (for type='step')
-  stepperName: z.string().optional(),
-  actionName: z.string().optional(),
-  in: z.string().optional().describe('Step text - what the user typed'),
-  stepArgs: z.union([z.record(z.string(), z.unknown()), z.array(z.unknown())]).optional(),
-  stepValuesMap: z.record(z.string(), z.any()).optional().describe('Metadata about parsed step values'),
-  topics: z.record(z.string(), z.any()).optional().describe('Result data from step execution'),
-
-  // Feature/Scenario reference info (for type='feature' or 'scenario')
-  featurePath: z.string().optional().describe('Feature file path'),
-  scenarioName: z.string().optional().describe('Scenario name'),
 
   // Execution Context
   status: z.enum(['running', 'completed', 'failed', 'skipped']).optional(),
@@ -427,6 +425,46 @@ export const LifecycleEvent = BaseEvent.extend({
     mode: z.enum(['speculative', 'authoritative']).optional()
   }).optional(),
 });
+
+// Specific Events
+export const FeatureEvent = LifecycleEventCommon.extend({
+  type: z.literal('feature'),
+  featurePath: z.string().describe('Feature file path'),
+});
+
+export const ScenarioEvent = LifecycleEventCommon.extend({
+  type: z.literal('scenario'),
+  scenarioName: z.string().describe('Scenario name'),
+  featurePath: z.string().optional(),
+});
+
+export const StepEvent = LifecycleEventCommon.extend({
+  type: z.literal('step'),
+  in: z.string().describe('Step text'),
+  lineNumber: z.number().optional(),
+  stepperName: z.string().optional(),
+  actionName: z.string().optional(),
+  stepArgs: z.union([z.record(z.string(), z.unknown()), z.array(z.unknown())]).optional(),
+  stepValuesMap: z.record(z.string(), z.unknown()).optional(),
+  topics: z.record(z.string(), z.unknown()).optional(),
+  featurePath: z.string().optional(),
+});
+
+// For other types (activity, waypoint, ensure, execution)
+export const GenericLifecycleEvent = LifecycleEventCommon.extend({
+  type: z.enum(['activity', 'waypoint', 'ensure', 'execution']),
+  in: z.string().optional(),
+  topics: z.record(z.string(), z.unknown()).optional(),
+  lineNumber: z.number().optional(),
+  featurePath: z.string().optional(),
+});
+
+export const LifecycleEvent = z.union([
+  FeatureEvent,
+  ScenarioEvent,
+  StepEvent,
+  GenericLifecycleEvent
+]);
 
 // Log Events
 export const LogEvent = BaseEvent.extend({
@@ -560,7 +598,7 @@ export const ControlEvent = BaseEvent.extend({
 });
 
 // Union Type
-export const HaibunEvent = z.discriminatedUnion('kind', [
+export const HaibunEvent = z.union([
   LifecycleEvent,
   LogEvent,
   ArtifactEvent,
@@ -569,6 +607,11 @@ export const HaibunEvent = z.discriminatedUnion('kind', [
 
 export type TBaseEvent = z.infer<typeof BaseEvent>;
 export type TLifecycleEvent = z.infer<typeof LifecycleEvent>;
+export type TFeatureEvent = z.infer<typeof FeatureEvent>;
+export type TScenarioEvent = z.infer<typeof ScenarioEvent>;
+export type TStepEvent = z.infer<typeof StepEvent>;
+export type TGenericLifecycleEvent = z.infer<typeof GenericLifecycleEvent>;
+
 export type TLogEvent = z.infer<typeof LogEvent>;
 export type TArtifactEvent = z.infer<typeof ArtifactEvent>;
 export type TImageArtifact = z.infer<typeof ImageArtifact>;

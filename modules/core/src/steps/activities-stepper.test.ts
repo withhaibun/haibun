@@ -38,7 +38,7 @@ describe('ActivitiesStepper', () => {
 				stepper.registerOutcome(
 					'Is logged in as {user}',
 					['set loggedIn to "false"'],
-					'/test.feature'
+					'/another.feature'
 				);
 			}).toThrow(/already registered/);
 		});
@@ -91,6 +91,25 @@ describe('ActivitiesStepper', () => {
 			multiLineProof.forEach(proofStep => {
 				expect(step.description).toContain(proofStep);
 			});
+		});
+
+		it('should store sourceLineNumber and sourcePath on virtual step', async () => {
+			const stepper = new ActivitiesStepper();
+			await stepper.setWorld(getDefaultWorld(0), []);
+
+			stepper.registerOutcome(
+				'Test outcome with variable x is "1"',
+				['variable x is "1"'],
+				'/test/backgrounds/setup.feature',
+				false,
+				['set x to "1"'],
+				7 // lineNumber
+			);
+
+			const step = stepper.steps['Test outcome with variable x is "1"'];
+			expect(step).toBeDefined();
+			expect(step.source?.lineNumber).toBe(7);
+			expect(step.source?.path).toBe('/test/backgrounds/setup.feature');
 		});
 	});
 

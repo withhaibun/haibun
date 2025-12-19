@@ -1,13 +1,13 @@
 import { AStepper, IHasCycles, TStepperSteps } from '../lib/astepper.js';
 
-import { TFeatureStep, TWorld, IStepperCycles, TStepperStep, TFeatures, CycleWhen } from '../lib/defs.js';
+import { TFeatureStep, TWorld, IStepperCycles, TStepperStep, TFeatures, CycleWhen, TStepInput } from '../lib/defs.js';
 import { TActionResult, TStepArgs, OK, TOKStepActionResult } from '../schema/protocol.js';
 import { actionOK, actionNotOK, getActionable, formatCurrentSeqPath } from '../lib/util/index.js';
 import { DOMAIN_STATEMENT } from '../lib/domain-types.js';
 import { FlowRunner } from '../lib/core/flow-runner.js';
 import { ControlEvent, LifecycleEvent } from '../schema/protocol.js';
 
-// need this type because some steps are virtual
+// need this type because some steps are dynamically generated (e.g. waypoints)
 type TActivitiesFixedSteps = {
 	activity: TStepperStep;
 	waypointWithProof: TStepperStep;
@@ -33,7 +33,8 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 	private lastResolutionPath: string = '';
 	private ensuredInstances: Map<string, { proof: string[]; valid: boolean }> = new Map();
 	private ensureAttempts: Map<string, number> = new Map();
-	private registeredOutcomeMetadata: Map<string, { proofStatements: string[]; proofPath: string; isBackground: boolean; activityBlockSteps?: string[] }> = new Map();
+	private registeredOutcomeMetadata: Map<string, { proofStatements: string[]; proofPath: string; isBackground: boolean; activityBlockSteps?: TStepInput[]; lineNumber?: number }> = new Map();
+	private backgroundSteps: Record<string, TStepperStep> = {};
 	private inActivityBlock = false;
 
 	cycles: IStepperCycles = {
@@ -56,8 +57,13 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 					this.steps[outcome] = step;
 				}
 			}
+			// Always reload background steps
+			for (const [outcome, step] of Object.entries(this.backgroundSteps)) {
+				this.steps[outcome] = step;
+			}
 
 			this.currentFeaturePath = startFeature.resolvedFeature.path;
+			this.inActivityBlock = false;
 		},
 		endFeature: () => {
 			this.lastFeaturePath = this.currentFeaturePath;
@@ -74,15 +80,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		activity: {
 			gwta: 'Activity: {activity}',
 			action: () => OK,
-			resolveFeatureLine: (line: string, path: string, _stepper: AStepper, _backgrounds: TFeatures, allLines?: string[], lineIndex?: number) => {
-				if (this.lastResolutionPath && this.lastResolutionPath !== path) {
-					const previousSteps = this.featureSteps.get(this.lastResolutionPath);
-					if (previousSteps) {
-						for (const outcome of Object.keys(previousSteps)) {
-							delete this.steps[outcome];
-						}
-					}
-				}
+			resolveFeatureLine: (line: string, path: string, _stepper: AStepper, _backgrounds: TFeatures, allLines?: string[], lineIndex?: number, actualSourcePath?: string) => {
 				this.lastResolutionPath = path;
 
 				if (line.match(/^Activity:/i)) {
@@ -97,12 +95,13 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 					}
 
 					if (line.match(/^waypoint\s+/i)) {
-						this.resolveWaypointCommon(line, path, allLines, lineIndex, line.includes(' with '));
+						// Use actualSourcePath for VSCode linking, path for registration
+						this.resolveWaypointCommon(line, path, allLines, lineIndex, line.includes(' with '), actualSourcePath);
 
 						let hasMoreWaypoints = false;
 						if (allLines && lineIndex !== undefined) {
 							for (let i = lineIndex + 1; i < allLines.length; i++) {
-								const nextLine = allLines[i].trim();
+								const nextLine = (allLines[i] || '').trim();
 								if (nextLine.match(/^(Feature|Scenario|Background|Activity):/i)) {
 									break;
 								}
@@ -124,7 +123,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				}
 
 				return false;
-			}
+			},
 		},
 
 		waypointWithProof: {
@@ -172,9 +171,12 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 					id: formatCurrentSeqPath(featureStep.seqPath) + '.ensure',
 					timestamp: Date.now(),
 					kind: 'lifecycle',
+					completeness: 'full',
 					type: 'ensure',
 					stage: 'start',
 					in: outcomeKey,
+					lineNumber: featureStep.source.lineNumber,
+					featurePath: featureStep.source.path,
 					status: 'running',
 				}));
 
@@ -279,27 +281,46 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			id: formatCurrentSeqPath(featureStep.seqPath) + '.ensure',
 			timestamp: Date.now(),
 			kind: 'lifecycle',
+			completeness: 'full',
 			type: 'ensure',
 			stage: 'end',
 			in: outcomeKey,
+			lineNumber: featureStep.source.lineNumber,
+			featurePath: featureStep.source.path,
 			status: ok ? 'completed' : 'failed',
 			error,
 		}));
 	}
 
-	registerOutcome(outcome: string, proofStatements: string[], proofPath: string, isBackground?: boolean, activityBlockSteps?: string[]) {
+	registerOutcome(outcome: string, proofStatements: string[], proofPath: string, isBackground?: boolean, activityBlockSteps?: (string | TStepInput)[], lineNumber?: number, actualSourcePath?: string) {
 		if (this.steps[outcome]) {
-			throw new Error(`Outcome "${outcome}" is already registered. Each outcome can only be defined once.`);
+			const existing = this.steps[outcome];
+			if (existing.source?.path === (actualSourcePath || proofPath) && existing.source?.lineNumber === lineNumber) {
+				return;
+			}
+			throw new Error(`Outcome "${outcome}" is already registered. Each outcome can only be defined once. (Existing: ${existing.source?.path}:${existing.source?.lineNumber}, New: ${actualSourcePath || proofPath}:${lineNumber})`);
 		}
 
-		const normalizedActivitySteps = activityBlockSteps?.flatMap(s => s.split('\n')).map(s => s.trim()).filter(s => s.length > 0) ?? [];
+		// Normalize activity steps and proofs to ensure they carry source location
+		const sourcePath = actualSourcePath || proofPath;
+		const normalizedActivitySteps: TStepInput[] = activityBlockSteps?.map(s => {
+			return typeof s === 'string' ? { in: s, source: { path: sourcePath } } : s;
+		}) ?? [];
+
+		const normalizedProofSteps: TStepInput[] = proofStatements.map(s => ({
+			in: s,
+			source: { path: sourcePath }
+		}));
 
 		this.registeredOutcomeMetadata.set(outcome, {
 			proofStatements,
 			proofPath,
 			isBackground: isBackground ?? false,
 			activityBlockSteps: normalizedActivitySteps,
+			lineNumber,
 		});
+
+
 
 		if (isBackground) {
 			this.backgroundOutcomePatterns.add(outcome);
@@ -312,6 +333,10 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			gwta: outcome,
 			virtual: true,
 			handlesUndefined: true,
+			source: {
+				lineNumber,
+				path: actualSourcePath || proofPath,
+			},
 			description: `Outcome: ${outcome}. Proof: ${proofStatements.join('; ')}`,
 			action: async (args: TStepArgs, featureStep: TFeatureStep): Promise<TActionResult> => {
 				const robustArgs: Record<string, string> = { ...(args as Record<string, string>) };
@@ -323,11 +348,9 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 					}
 				}
 
-				// 1. Check Proof (Authoritative)
-				if (proofStatements.length > 0) {
-					this.getWorld().eventLogger.debug(`Checked proof for ${outcome}: ${proofStatements.join('; ')}`);
-					const proof = await this.runner.runStatements(proofStatements, { args: robustArgs, intent: { mode: 'authoritative' }, parentStep: featureStep });
-					this.getWorld().eventLogger.debug(`Proof result: ${proof.kind} ${proof.message || ''}`);
+				// 1. Check Proof (Speculative)
+				if (normalizedProofSteps.length > 0) {
+					const proof = await this.runner.runStatements(normalizedProofSteps, { args: robustArgs, intent: { mode: 'speculative' }, parentStep: featureStep });
 
 					if (proof.kind === 'ok') {
 						return actionOK({ topics: { proofStatements } });
@@ -360,8 +383,8 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 					}
 
 					// 4. Verify Proof After Activity
-					if (proofStatements.length > 0) {
-						const verify = await this.runner.runStatements(proofStatements, { args: robustArgs, intent: { mode, usage: featureStep.intent?.usage }, parentStep: featureStep });
+					if (normalizedProofSteps.length > 0) {
+						const verify = await this.runner.runStatements(normalizedProofSteps, { args: robustArgs, intent: { mode, usage: featureStep.intent?.usage }, parentStep: featureStep });
 						if (verify.kind !== 'ok') {
 							return actionNotOK(`ActivitiesStepper: proof verification failed after activity body for outcome "${outcome}": ${verify.message}`);
 						}
@@ -374,12 +397,13 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		};
 
 		this.steps[outcome] = step;
-
 		if (!isBackground) {
 			if (!this.featureSteps.has(proofPath)) {
 				this.featureSteps.set(proofPath, {});
 			}
 			this.featureSteps.get(proofPath)![outcome] = step;
+		} else {
+			this.backgroundSteps[outcome] = step;
 		}
 	}
 
@@ -397,12 +421,13 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 					proofPath: metadata.proofPath,
 					isBackground: metadata.isBackground,
 					activityBlockSteps: metadata.activityBlockSteps ?? null,
+					lineNumber: metadata.lineNumber,
 				}
 			}));
 		}
 	}
 
-	private resolveWaypointCommon(line: string, path: string, allLines: string[] | undefined, lineIndex: number | undefined, requireProof: boolean): boolean {
+	private resolveWaypointCommon(line: string, path: string, allLines: string[] | undefined, lineIndex: number | undefined, requireProof: boolean, actualSourcePath?: string): boolean {
 		if (!line.match(/^waypoint\s+/i)) {
 			return false;
 		}
@@ -436,7 +461,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 
 		const isBackground = path.includes('backgrounds/');
 
-		let activityBlockSteps: string[] | undefined;
+		let activityBlockSteps: TStepInput[] | undefined;
 
 		if (allLines && lineIndex !== undefined) {
 			let activityStartLine = -1;
@@ -452,18 +477,23 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			}
 
 			if (activityStartLine !== -1) {
-				const blockLines: string[] = [];
+				const blockLines: TStepInput[] = [];
 				for (let i = activityStartLine + 1; i < lineIndex; i++) {
 					const stepLine = getActionable(allLines[i]);
 					if (stepLine && !stepLine.match(/^waypoint\s+/i)) {
-						blockLines.push(stepLine);
+						blockLines.push({
+							in: stepLine,
+							source: {
+								lineNumber: i + 1,
+								path: actualSourcePath || path
+							}
+						});
 					}
 				}
 				activityBlockSteps = blockLines;
 			}
 		}
-
-		this.registerOutcome(outcome, proofStatements, path, isBackground, activityBlockSteps);
+		this.registerOutcome(outcome, proofStatements, path, isBackground, activityBlockSteps, lineIndex !== undefined ? lineIndex + 1 : undefined, actualSourcePath);
 		return true;
 	}
 }

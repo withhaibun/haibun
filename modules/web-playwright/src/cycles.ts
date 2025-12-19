@@ -72,7 +72,7 @@ async function closeAfterFeature(wp: WebPlaywright) {
 			// VideoStartArtifact is emitted in getPage() when recording starts
 			const featureStep = {
 				seqPath: [world.tag.featureNum, 0, 0],
-				path: world.runtime.feature || 'feature',
+				source: { path: world.runtime.feature || 'feature' },
 				in: 'feature video',
 				action: {} as any,
 			};

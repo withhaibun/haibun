@@ -93,6 +93,8 @@ export type TFeatureMeta = {
 
 export type TFeature = TFeatureMeta & {
 	content: string;
+	/** For kireji files: maps BDD line number (1-indexed) to TypeScript step index (0-indexed) */
+	kirejiLineMap?: Map<number, number>;
 };
 
 export type TFeatures = TFeature[];
@@ -103,7 +105,24 @@ export type TExpandedFeature = TFeatureMeta & {
 
 export type TExpandedLine = {
 	line: string;
+	rawLine?: string;
+	lineNumber?: number;
 	feature: TFeature;
+};
+
+
+export interface TSourceLocation {
+	source: {
+		/** Absolute path to the source file */
+		path: string;
+		/** 1-indexed line number in the source file */
+		lineNumber?: number;
+	};
+}
+
+/** A statement with its source location */
+export type TStepInput = TSourceLocation & {
+	in: string;
 };
 
 export type TResolvedFeature = {
@@ -113,8 +132,8 @@ export type TResolvedFeature = {
 	featureSteps: TFeatureStep[];
 };
 
-export type TFeatureStep = {
-	path: string;
+
+export type TFeatureStep = TSourceLocation & {
 	in: string;
 	seqPath: TSeqPath;
 	action: TStepAction;
@@ -145,10 +164,15 @@ export type TStepperStep = {
 	fallback?: boolean;
 	expose?: boolean;
 	virtual?: boolean;
+	/** For dynamically generated steps (like waypoints): source location metadata */
+	source?: {
+		path: string;
+		lineNumber?: number;
+	};
 	match?: RegExp;
 	gwta?: string;
 	exact?: string;
-	resolveFeatureLine?(line: string, path: string, stepper: AStepper, backgrounds: TFeatures, allLines?: string[], lineIndex?: number): boolean | void;
+	resolveFeatureLine?(line: string, path: string, stepper: AStepper, backgrounds: TFeatures, allLines?: string[], lineIndex?: number, actualSourcePath?: string): boolean | void;
 	action(args: TStepArgs, featureStep?: TFeatureStep): Promise<TActionResult> | TActionResult;
 }
 

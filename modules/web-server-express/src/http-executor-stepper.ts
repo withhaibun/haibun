@@ -1,6 +1,6 @@
 import { AStepper, IHasCycles, IHasOptions } from '@haibun/core/lib/astepper.js';
 import { TWorld, ExecMode } from '@haibun/core/lib/defs.js';
-import { TStepResult } from '@haibun/core/schema/protocol.js';
+import { TStepResult, TStepActionResult } from '@haibun/core/schema/protocol.js';
 import { FlowRunner } from "@haibun/core/lib/core/flow-runner.js";
 import { getFromRuntime, getStepperOption, getStepperOptionName, intOrError, stringOrError } from '@haibun/core/lib/util/index.js';
 import { IRequest, IResponse, IWebServer, WEBSERVER } from './defs.js';
@@ -78,7 +78,8 @@ export default class HttpExecutorStepper extends AStepper implements IHasOptions
 					const steppers = this.steppers;
 
 					const result: TStepResult = await (async () => {
-						const res = await this.runner.runStatement(statement, {
+						const stepInput = { in: statement, source: { path: source } };
+						const res = await this.runner.runStatement(stepInput, {
 							intent: { mode: 'authoritative' },
 							seqPath: [0]
 						});
@@ -87,7 +88,7 @@ export default class HttpExecutorStepper extends AStepper implements IHasOptions
 							in: statement,
 							path: source,
 							seqPath: [0],
-							stepActionResult: res.topics
+							stepActionResult: res.topics as TStepActionResult
 						};
 					})();
 					console.debug(`✅ HTTP Executor: Execution completed`, result);

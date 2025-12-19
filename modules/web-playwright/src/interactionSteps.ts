@@ -446,7 +446,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 		gwta: 'take a screenshot',
 		action: async (_args, featureStep: TFeatureStep) => {
 			// Create a minimal step result for artifact tracking
-			const stepResult = featureStep ? { seqPath: featureStep.seqPath, path: featureStep.path, in: featureStep.in } : undefined;
+			const stepResult = featureStep ? { seqPath: featureStep.seqPath, path: featureStep.source.path, in: featureStep.in } : undefined;
 			await wp.captureScreenshotAndLog('action', { step: stepResult as any });
 			return OK;
 		},

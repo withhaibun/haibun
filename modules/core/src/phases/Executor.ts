@@ -100,7 +100,7 @@ export class Executor {
 		const continueAfterError = !!(world.options[CONTINUE_AFTER_ERROR]);
 
 		// Create a synthetic featureStep for logging outside of step context
-		const syntheticStep: TFeatureStep = { path: '', in: '', seqPath: [0], action: { actionName: 'runner', stepperName: 'Executor', step: { action: async () => ({ ok: true }) } } };
+		const syntheticStep: TFeatureStep = { source: { path: '' }, in: '', seqPath: [0], action: { actionName: 'runner', stepperName: 'Executor', step: { action: async () => ({ ok: true }) } } };
 
 		for (const feature of features) {
 			featureNum++;
@@ -174,6 +174,7 @@ export class FeatureExecutor {
 					id: `feat-${world.tag.featureNum}`,
 					timestamp: Date.now(),
 					kind: 'lifecycle',
+					completeness: 'full',
 					type: 'feature',
 					stage: 'start',
 					featurePath: feature.path,
@@ -191,6 +192,7 @@ export class FeatureExecutor {
 					id: `feat-${world.tag.featureNum}.scen-${currentScenario + 1}`,
 					timestamp: Date.now(),
 					kind: 'lifecycle',
+					completeness: 'full',
 					type: 'scenario',
 					stage: 'start',
 					scenarioName: step.in,
@@ -330,7 +332,7 @@ const addStepperDomains = async (world, steppers: AStepper[]) => {
 function stepResultFromActionResult(actionResult: TActionResult, action: TStepAction, start: number, end: number, featureStep: TFeatureStep, ok: boolean) {
 	const stepActionResult: TStepActionResult = { ...actionResult, name: action.actionName, start, end } as TStepActionResult;
 	const seqPath = featureStep.seqPath;
-	const stepResult: TStepResult = { in: featureStep.in, path: featureStep.path, ok, stepActionResult, seqPath, intent: featureStep.intent };
+	const stepResult: TStepResult = { in: featureStep.in, path: featureStep.source.path, lineNumber: featureStep.source.lineNumber, ok, stepActionResult, seqPath, intent: featureStep.intent };
 	return stepResult;
 }
 

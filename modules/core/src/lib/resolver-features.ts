@@ -9,7 +9,7 @@ export const asFeatures = (w: TProtoFeature) => w.map((i) => withNameType(i.base
 
 // FIXME can't really do this without reproducing resolve
 export const asExpandedFeatures = (w: { base?: string; path: string; content: string; }[]): TExpandedFeature[] => asFeatures(w).map((i) => {
-	const expanded: TExpandedLine[] = featureSplit(i.content).map((a) => ({ line: a, feature: i }));
+	const expanded: TExpandedLine[] = featureSplit(i.content).map((a, idx) => ({ line: a, lineNumber: idx + 1, feature: i }));
 	const a: TAnyFixme = { ...i, expanded };
 	delete a.content;
 	// a.featureLine = asFeatureLine()

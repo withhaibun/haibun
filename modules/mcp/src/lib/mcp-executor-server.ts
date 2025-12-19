@@ -7,7 +7,7 @@ import { AStepper } from "@haibun/core/lib/astepper.js";
 import { namedInterpolation } from "@haibun/core/lib/namedVars.js";
 import { currentVersion as version } from '@haibun/core/currentVersion.js';
 import { TWorld, TStepperStep, ExecMode } from '@haibun/core/lib/defs.js';
-import { TStepResult } from '@haibun/core/schema/protocol.js';
+import { TStepResult, TStepActionResult } from '@haibun/core/schema/protocol.js';
 import { constructorName } from "@haibun/core/lib/util/index.js";
 import { FlowRunner } from "@haibun/core/lib/core/flow-runner.js";
 import { HttpPrompterClient } from './http-prompter-client.js';
@@ -217,7 +217,7 @@ export class MCPExecutorServer {
 						in: statement,
 						path: `/mcp/${stepperName}-${stepName}`,
 						seqPath: [0],
-						stepActionResult: res.topics
+						stepActionResult: res.topics as TStepActionResult
 					};
 				}
 

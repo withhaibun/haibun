@@ -91,7 +91,7 @@ describe('ActivitiesStepper - Skipped Steps Reproduction', () => {
             ['variable manual_ran is "yes"'],
             '/manual.feature',
             false,
-            ['set manual_ran to "yes"\nset other to "value"']
+            ['set manual_ran to "yes"', 'set other to "value"']
           );
         }
       }

@@ -63,7 +63,7 @@ describe('withAction', () => {
 	const { activity, ensure, } = withAction(activitiesStepper);
 
 	it('should generate curried functions for each step', () => {
-		expect([set, doSomething, registerOutcome, not, prose, activity, ensure, ].every(a => typeof a === 'function')).toBe(true);
+		expect([set, doSomething, registerOutcome, not, prose, activity, ensure,].every(a => typeof a === 'function')).toBe(true);
 	});
 
 	it('should throw an error if a required argument is missing', () => {
@@ -114,7 +114,7 @@ describe('withAction', () => {
 		const action = executor();
 		expect(action.actionName).toBe('ensure');
 		expect(action.gwta).toBe('ensure Activity: deploy release v1.2.0');
-	});	it('should handle the "prose" step generically', () => {
+	}); it('should handle the "prose" step generically', () => {
 		const executor = prose({ prose: 'this is a test' });
 		const action = executor();
 		expect(action.actionName).toBe('prose');
@@ -184,7 +184,7 @@ describe('toBdd', () => {
   set sound to moo
   do something
 `;
-		expect(toBdd(feature)).toBe(expectedBdd);
+		expect(toBdd(feature).content).toBe(expectedBdd);
 	});
 
 	it('should convert a kireji feature with prose strings to BDD', () => {
@@ -204,7 +204,7 @@ describe('toBdd', () => {
   do something
   Final prose step.
 `;
-		expect(toBdd(feature)).toBe(expectedBdd);
+		expect(toBdd(feature).content).toBe(expectedBdd);
 	});
 });
 
@@ -233,7 +233,7 @@ describe('fromBdd', () => {
 
 			{ actionName: 'prose', args: { prose: 'this is a test' }, gwta: 'prose: this is a test' },
 		]);
-		expect(lineTrimmed(toBdd(feature))).toBe(lineTrimmed(bdd));
+		expect(lineTrimmed(toBdd(feature).content)).toBe(lineTrimmed(bdd));
 	});
 
 	it('should convert a complex activities and outcomes feature', async () => {
@@ -258,7 +258,7 @@ describe('fromBdd', () => {
 			],
 		};
 		const bdd = toBdd(feature);
-		expect(lineTrimmed(bdd)).toBe(lineTrimmed(`Feature: Complex activities and outcomes
+		expect(lineTrimmed(bdd.content)).toBe(lineTrimmed(`Feature: Complex activities and outcomes
 		  Activity: prepare environment for staging
 		  set plan to database migration
 		  Activity: deploy release v1.2.0
@@ -268,7 +268,7 @@ describe('fromBdd', () => {
 		  prose: outcomes orchestrate multi-step activities
 		  do something
 		`));
-		const featureFromBdd = await fromBdd(bdd, [...steppers]);
+		const featureFromBdd = await fromBdd(bdd.content, [...steppers]);
 		const results = featureFromBdd['Complex activities and outcomes']
 			.filter((step): step is TActionExecutor<string> => typeof step !== 'string')
 			.map(executor => executor());
@@ -282,7 +282,7 @@ describe('fromBdd', () => {
 			{ actionName: 'prose', args: { prose: 'outcomes orchestrate multi-step activities' }, gwta: 'prose: outcomes orchestrate multi-step activities' },
 			{ actionName: 'doSomething', args: {}, gwta: 'do something' },
 		]);
-		expect(lineTrimmed(toBdd(featureFromBdd))).toBe(lineTrimmed(bdd));
+		expect(lineTrimmed(toBdd(featureFromBdd).content)).toBe(lineTrimmed(bdd.content));
 	});
 });
 

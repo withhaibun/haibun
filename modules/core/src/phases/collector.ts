@@ -45,6 +45,7 @@ async function recurse(base: string, dir: string, type: string, featureFilter: s
       all = all.concat(await recurse(base, `${dir}/${file}`, type, featureFilter, fs));
     } else if (shouldProcess(here, type, featureFilter)) {
       let contents;
+      let kirejiLineMap: Map<number, number> | undefined;
       if (here.endsWith('.feature.ts')) {
         const module = await import(path.resolve(here));
         let kirejiContent;
@@ -63,25 +64,27 @@ async function recurse(base: string, dir: string, type: string, featureFilter: s
           }
         }
 
-        contents = toBdd(kirejiContent);
+        const bddResult = toBdd(kirejiContent);
+        contents = bddResult.content;
+        kirejiLineMap = bddResult.lineMap;
       } else {
         contents = fs.readFileSync(here, 'utf-8');
       }
-      all.push(withNameType(base, here, contents));
+      all.push(withNameType(base, here, contents, kirejiLineMap));
     }
   }
   return all;
 }
 
 export function shouldProcess(file: string, type: undefined | string, featureFilter: string[] | undefined) {
-    const iskireji = file.endsWith('.feature.ts');
-    // For kireji files, always process regardless of type
-    // For .feature files, check if type matches or is undefined
-    // Note: both 'feature' and 'background' types use .feature extension
-    const isType = iskireji || !type || file.endsWith(`.${type}`) || (type === 'background' && file.endsWith('.feature'));
-    const matchesFilter = (featureFilter === undefined || featureFilter.every(f => f === '')) || featureFilter.length < 1 ? true : !!featureFilter.find((f) => file.replace(/\/.*?\/([^.*?/])/, '$1').match(f));
+  const iskireji = file.endsWith('.feature.ts');
+  // For kireji files, always process regardless of type
+  // For .feature files, check if type matches or is undefined
+  // Note: both 'feature' and 'background' types use .feature extension
+  const isType = iskireji || !type || file.endsWith(`.${type}`) || (type === 'background' && file.endsWith('.feature'));
+  const matchesFilter = (featureFilter === undefined || featureFilter.every(f => f === '')) || featureFilter.length < 1 ? true : !!featureFilter.find((f) => file.replace(/\/.*?\/([^.*?/])/, '$1').match(f));
 
-    return isType && matchesFilter;
+  return isType && matchesFilter;
 }
 
 export function debase(abase: string, features: TFeature[]) {

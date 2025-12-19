@@ -196,7 +196,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			});
 			const featureStep = {
 				seqPath: [tag.featureNum, 0, 0],
-				path: world.runtime.feature || 'feature',
+				source: { path: world.runtime.feature || 'feature' },
 				in: 'video recording started',
 				action: {} as any,
 			};
@@ -287,7 +287,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		});
 		const featureStep = {
 			seqPath: details.step.seqPath,
-			path: details.step.path,
+			source: { path: details.step.path },
 			in: details.step.in,
 			action: {} as any,
 		};

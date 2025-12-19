@@ -53,7 +53,7 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => ([
 			}
 			const label = statementSchema.parse(proto.value);
 			const seqStart = featureStep.seqPath;
-			return findFeatureStepsFromStatement(label, steppers, world, featureStep.path, [...seqStart, 0], -1);
+			return findFeatureStepsFromStatement(label, steppers, world, featureStep.source.path, [...seqStart, 0], -1);
 		}
 	},
 ]);
