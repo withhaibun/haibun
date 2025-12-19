@@ -7,6 +7,7 @@ import { SCENARIO_START } from '../schema/protocol.js';
 import { FeatureVariables } from '../lib/feature-variables.js';
 import { populateActionArgs } from '../lib/populateActionArgs.js';
 import { registerDomains } from '../lib/domain-types.js';
+import { basename } from 'path';
 
 function calculateShouldClose({ thisFeatureOK, isLast, stayOnFailure, continueAfterError }) {
 	if (thisFeatureOK) {
@@ -79,7 +80,7 @@ export class Executor {
 		try {
 			const { ResolvedFeaturesArtifact } = await import('../schema/protocol.js');
 			const resolvedFeaturesEvent = ResolvedFeaturesArtifact.parse({
-				id: `${world.tag.sequence}.artifact.resolvedFeatures`,
+				id: `artifact.resolvedFeatures`,
 				timestamp: Date.now(),
 				kind: 'artifact',
 				artifactType: 'resolvedFeatures',
@@ -106,7 +107,8 @@ export class Executor {
 			const isLast = featureNum === features.length;
 
 			world.runtime.exhaustionError = undefined;
-			const newWorld = { ...world, tag: { ...world.tag, ...{ featureNum: 0 + featureNum } } };
+			const featureName = basename(feature.path).replace(/\..*$/, '');
+			const newWorld = { ...world, tag: { ...world.tag, featureNum: featureNum, featureName } };
 
 			const featureExecutor = new FeatureExecutor(steppers, newWorld);
 			await setStepperWorldsAndDomains(steppers, newWorld);
@@ -169,7 +171,7 @@ export class FeatureExecutor {
 					currentScenario = 0;
 				}
 				world.eventLogger.emit(LifecycleEvent.parse({
-					id: world.tag.sequence.toString(),
+					id: `feat-${world.tag.featureNum}`,
 					timestamp: Date.now(),
 					kind: 'lifecycle',
 					type: 'feature',
@@ -186,7 +188,7 @@ export class FeatureExecutor {
 				}
 				currentScenario = currentScenario + 1;
 				world.eventLogger.emit(LifecycleEvent.parse({
-					id: world.tag.sequence.toString(),
+					id: `feat-${world.tag.featureNum}.scen-${currentScenario + 1}`,
 					timestamp: Date.now(),
 					kind: 'lifecycle',
 					type: 'scenario',

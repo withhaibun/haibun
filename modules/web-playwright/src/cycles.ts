@@ -17,11 +17,9 @@ export const cycles = (wp: WebPlaywright): IStepperCycles => ({
 		}
 	},
 	async startExecution(resolvedFeatures: TStartExecution): Promise<void> {
-
 		if (wp.twin) {
 			await wp.createTwin();
 		}
-		await writeFeaturesArtifact(wp, 'features', resolvedFeatures);
 	},
 
 	async startFeature({ resolvedFeature, index }: TStartFeature): Promise<void> {
@@ -66,8 +64,8 @@ async function closeAfterFeature(wp: WebPlaywright) {
 			// Compute path relative to feature capture dir for serialized HTML
 			const basePath = wp.storage.getArtifactBasePath();
 			const featureRelPath = relative(resolve(basePath), videoPath);
-			// For artifact, use feature-relative path (strip seq-N/featn-N prefix)
-			const match = featureRelPath.match(/^seq-\d+\/featn-\d+\/(.*)$/);
+			// For artifact, use feature-relative path (strip featn-N prefix)
+			const match = featureRelPath.match(/^featn-\d+(?:-.*)?\/(.*)$/);
 			const path = match ? './' + match[1] : './' + featureRelPath;
 
 			// Emit video artifact event (with isTimeLined for timeline sync)
@@ -80,7 +78,7 @@ async function closeAfterFeature(wp: WebPlaywright) {
 			};
 
 			const videoEvent = VideoArtifact.parse({
-				id: `${world.tag.sequence}.video`,
+				id: `feat-${world.tag.featureNum}.video`,
 				timestamp: Date.now(),
 				kind: 'artifact',
 				artifactType: 'video',

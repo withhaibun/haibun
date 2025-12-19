@@ -1,7 +1,5 @@
 import { Browser, BrowserContext, Page, chromium, firefox, webkit, BrowserType, devices, BrowserContextOptions, LaunchOptions } from 'playwright';
 
-
-import { VideoStartArtifact } from '@haibun/core/schema/protocol.js';
 import { PlaywrightEvents } from './PlaywrightEvents.js';
 import { TWorld } from '@haibun/core/lib/defs.js';
 import { Timer } from '@haibun/core/schema/protocol.js';
@@ -37,7 +35,7 @@ export class BrowserFactory {
 	tracers: { [name: string]: PlaywrightEvents } = {};
 	browserContexts: { [name: string]: BrowserContext } = {};
 	pages: { [name: string]: Page | undefined } = {};
-	contextStats: { [sequence: string]: { start: number, end?: number, duration?: number } } = {};
+	contextStats: { [featureNum: string]: { start: number, end?: number, duration?: number } } = {};
 	static tracer?: PlaywrightEvents = undefined;
 	static configs: { [name: string]: TTaggedBrowserFactoryOptions } = {};
 
@@ -60,16 +58,16 @@ export class BrowserFactory {
 		}
 	}
 
-	public getExistingBrowserContextWithTag({ sequence }: { sequence: TTagValue }) {
-		if (this.browserContexts[sequence]) {
-			return this.browserContexts[sequence];
+	public getExistingBrowserContextWithTag({ featureNum }: { featureNum: number }) {
+		if (this.browserContexts[featureNum]) {
+			return this.browserContexts[featureNum];
 		}
 	}
 
-	public async closeContext({ sequence }: { sequence: TTagValue }) {
-		this.world.eventLogger.debug(`closed browser context ${sequence}`);
-		if (this.browserContexts[sequence] !== undefined) {
-			const p = this.pages[sequence];
+	public async closeContext({ featureNum }: { featureNum: number }) {
+		this.world.eventLogger.debug(`closed browser context ${featureNum}`);
+		if (this.browserContexts[featureNum] !== undefined) {
+			const p = this.pages[featureNum];
 			if (p) {
 				try {
 					await p.close();
@@ -78,20 +76,20 @@ export class BrowserFactory {
 				}
 			}
 		}
-		await this.browserContexts[sequence]?.close();
-		this.captureVideoStart(sequence);
-		this.tracers[sequence]?.close();
-		delete this.pages[sequence];
-		delete this.browserContexts[sequence];
+		await this.browserContexts[featureNum]?.close();
+		this.captureVideoStart(featureNum);
+		this.tracers[featureNum]?.close();
+		delete this.pages[featureNum];
+		delete this.browserContexts[featureNum];
 	}
 
-	private captureVideoStart(sequence: number) {
-		if (!this.contextStats[sequence]) {
+	private captureVideoStart(featureNum: number) {
+		if (!this.contextStats[featureNum]) {
 			return;
 		}
-		this.contextStats[sequence].end = Timer.since();
-		this.contextStats[sequence].duration = this.contextStats[sequence].end - this.contextStats[sequence].start;
-		this.world.eventLogger.debug(`video stats for ${sequence}: duration ${this.contextStats[sequence].duration}`);
+		this.contextStats[featureNum].end = Timer.since();
+		this.contextStats[featureNum].duration = this.contextStats[featureNum].end - this.contextStats[featureNum].start;
+		this.world.eventLogger.debug(`video stats for ${featureNum}: duration ${this.contextStats[featureNum].duration}`);
 	}
 
 	static async closeBrowsers() {
@@ -104,41 +102,41 @@ export class BrowserFactory {
 		await BrowserFactory.closeBrowsers();
 	}
 
-	public hasPage({ sequence }: { sequence: TTagValue }, tab?: number) {
-		return !!this.pages[this.pageKey(sequence, tab)];
+	public hasPage({ featureNum }: { featureNum: number }, tab?: number) {
+		return !!this.pages[this.pageKey(featureNum, tab)];
 	}
 
-	public registerPopup({ sequence }: { sequence: TTagValue }, tab: number, popup: Page) {
-		const tt = this.pageKey(sequence, tab);
+	public registerPopup({ featureNum }: { featureNum: number }, tab: number, popup: Page) {
+		const tt = this.pageKey(featureNum, tab);
 		this.pages[tt] = popup;
 	}
 
 	public async getBrowserContextPage(tag: TTag, tab: number): Promise<Page> {
-		const { sequence } = tag;
-		const pageKey = this.pageKey(sequence, tab);
+		const { featureNum } = tag;
+		const pageKey = this.pageKey(featureNum, tab);
 		let page = this.pages[pageKey];
 		if (page) {
 			// await page.bringToFront();
 			return page;
 		}
-		this.world.eventLogger.debug(`creating new page for ${sequence}`);
+		this.world.eventLogger.debug(`creating new page for ${featureNum}`);
 
-		const context = await this.getBrowserContextWithSequence(sequence);
+		const context = await this.getBrowserContextWithFeatureNum(featureNum);
 		page = await context.newPage();
 
 		const tracer = await (new PlaywrightEvents(this.world, page, tag)).init();
 
 		this.pages[pageKey] = page;
-		this.tracers[sequence] = tracer;
+		this.tracers[featureNum] = tracer;
 		return page;
 	}
 
-	private pageKey(sequence: number, tab?: number) {
-		return `${sequence}-${tab}`;
+	private pageKey(featureNum: number, tab?: number) {
+		return `${featureNum}-${tab}`;
 	}
 
-	private async getBrowserContextWithSequence(sequence: TTagValue, tag = DEFAULT_CONFIG_TAG): Promise<BrowserContext> {
-		if (!this.browserContexts[sequence]) {
+	private async getBrowserContextWithFeatureNum(featureNum: number, tag = DEFAULT_CONFIG_TAG): Promise<BrowserContext> {
+		if (!this.browserContexts[featureNum]) {
 			let browserContext: BrowserContext;
 			const config = BrowserFactory.configs[tag];
 			const deviceContext = config.device
@@ -152,7 +150,7 @@ export class BrowserFactory {
 			const launchConfig = { ...deviceContext, ...config.options, ...config.launchOptions }
 			if (config.persistentDirectory) {
 				this.world.eventLogger.debug(
-					`creating new persistent context ${sequence} ${config.type}, ${config.persistentDirectory
+					`creating new persistent context ${featureNum} ${config.type}, ${config.persistentDirectory
 					} with ${JSON.stringify(BrowserFactory.configs)}`
 				);
 				browserContext = await BrowserFactory.configs[tag].browserType.launchPersistentContext(
@@ -160,16 +158,16 @@ export class BrowserFactory {
 					launchConfig
 				);
 			} else {
-				this.world.eventLogger.debug(`creating new context ${sequence} ${config.type}`);
+				this.world.eventLogger.debug(`creating new context ${featureNum} ${config.type}`);
 				const browser = await this.getBrowser(config.type);
 				browserContext = await browser.newContext(launchConfig);
 			}
-			this.browserContexts[sequence] = browserContext;
-			this.contextStats[sequence] = { start: Timer.since() };
+			this.browserContexts[featureNum] = browserContext;
+			this.contextStats[featureNum] = { start: Timer.since() };
 			if (BrowserFactory.configs.defaultTimeout) {
-				this.browserContexts[sequence].setDefaultTimeout(config.defaultTimeout);
+				this.browserContexts[featureNum].setDefaultTimeout(config.defaultTimeout);
 			}
 		}
-		return this.browserContexts[sequence];
+		return this.browserContexts[featureNum];
 	}
 }

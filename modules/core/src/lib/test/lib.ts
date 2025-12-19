@@ -57,7 +57,7 @@ export async function testWithWorld(world: TWorld, featuresIn: TTestFeatures | s
 }
 
 export function getTestWorldWithOptions(protoOptions: TProtoOptions = DEF_PROTO_OPTIONS, env = { HAIBUN_LOG_LEVEL: 'none' }) {
-	const world = getDefaultWorld(0, env);
+	const world = getDefaultWorld(env);
 	if (protoOptions) {
 		world.options = { ...protoOptions.options, envVariables: protoOptions.options.envVariables || {} };
 		world.moduleOptions = protoOptions.moduleOptions;
@@ -66,12 +66,12 @@ export function getTestWorldWithOptions(protoOptions: TProtoOptions = DEF_PROTO_
 	return world;
 }
 
-export function getDefaultWorld(sequence: number, env = process.env): TWorld {
+export function getDefaultWorld(env = process.env): TWorld {
 	const eventLogger = new EventLogger();
 	eventLogger.suppressConsole = true; // Suppress NDJSON in tests
 	const world: Partial<TWorld> = {
 		timer: new Timer(),
-		tag: getRunTag(sequence, 0),
+		tag: getRunTag(0),
 		eventLogger,
 		prompter: new Prompter(),
 		runtime: { stepResults: [] },
@@ -84,6 +84,6 @@ export function getDefaultWorld(sequence: number, env = process.env): TWorld {
 	return world as TWorld;
 }
 
-export function getDefaultTag(sequence: number, desc: string | undefined = undefined) {
-	return getRunTag(sequence, -1, desc ? { desc } : undefined, false);
+export function getDefaultTag(desc: string | undefined = undefined) {
+	return getRunTag(0, undefined, desc ? { desc } : undefined, false);
 }

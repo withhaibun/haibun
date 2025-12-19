@@ -40,17 +40,14 @@ class A11yStepper extends AStepper implements IHasOptions {
         if (!page) {
           return actionNotOK(`no page in runtime`);
         }
-        return await this.checkA11y(page, parseInt(serious, 10), parseInt(moderate, 10), `a11y-check-${featureStep.seqPath}`, featureStep);
+        return await this.checkA11y(page, parseInt(serious, 10), parseInt(moderate, 10), `a11y-check-${featureStep.seqPath.join('.')}`, featureStep);
       },
     },
   } satisfies TStepperSteps;
   async checkA11y(page: Page, serious: number, moderate: number, filename: string, featureStep?: TFeatureStep) {
     try {
       const axeReport = await getAxeBrowserResult(page);
-      const evaluation = evalSeverity(axeReport, {
-        serious,
-        moderate,
-      });
+      const evaluation = evalSeverity(axeReport, { serious, moderate });
       if (evaluation.ok) {
         const artifact = await this.generateArtifact(axeReport, filename, featureStep);
         return Promise.resolve(actionOK({ artifact }));

@@ -80,7 +80,7 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 
 function getCliWorld(protoOptions: TProtoOptions, bases: TBase): TWorld {
 	const { KEY: keyIn } = protoOptions.options;
-	const tag = getDefaultTag(0);
+	const tag = getDefaultTag();
 	const eventLogger = new EventLogger();
 	const timer = new Timer();
 

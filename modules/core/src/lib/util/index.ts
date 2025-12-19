@@ -339,9 +339,14 @@ export function getFromRuntime<Type>(runtime: TRuntime, name: string): Type {
 	return runtime[name] as Type;
 }
 
-export const descTag = (tag: TTag) => ` @${tag.sequence}`;
-export const isFirstTag = (tag: TTag) => tag.sequence === 0;
+export const shortenURI = (uri: string) => {
+	const shortURI = uri.startsWith('https://') ? uri.replace('https://', '') : uri;
+	return shortURI.length < 32 ? shortURI : shortURI.substring(0, 26) + '...' + shortURI.substring(uri.length - 6);
+}
 
+export function slugify(s: string) {
+	return s.replace(/[^a-zA-Z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+}
 export const intOrError = (val: string) => {
 	if (val.match(/[^\d+]/)) {
 		return { parseError: `${val} is not an integer` };
@@ -392,10 +397,6 @@ export function dePolite(s: string) {
 	return s.replace(/^((given|when|then|and|should|the|it|I'm|I|am|an|a) )*/i, '');
 }
 
-export function shortenURI(uri: string) {
-	const shortURI = uri.startsWith('https://') ? uri.replace('https://', '') : uri;
-	return shortURI.length < 32 ? shortURI : shortURI.substring(0, 26) + '...' + shortURI.substring(uri.length - 6);
-}
 
 export function formattedSteppers(steppers: AStepper[]) {
 	const a = steppers.reduce((acc, o) => {

@@ -83,12 +83,7 @@ export abstract class AStorage extends AStepper {
 	 * @param mediaType - Media type for proper handling
 	 * @param subpath - Optional subdirectory (e.g., 'image', 'video')
 	 */
-	async saveArtifact(
-		filename: string,
-		contents: string | Buffer,
-		mediaType: TMediaType,
-		subpath?: string
-	): Promise<TSavedArtifact> {
+	async saveArtifact(filename: string, contents: string | Buffer, mediaType: TMediaType, subpath?: string): Promise<TSavedArtifact> {
 		const loc = { ...this.world, mediaType };
 		const dir = await this.ensureCaptureLocation(loc, subpath);
 		const absolutePath = resolve(dir, filename);
@@ -97,7 +92,7 @@ export abstract class AStorage extends AStepper {
 		// Feature-relative path for serialized HTML
 		const featureRelativePath = subpath ? `./${subpath}/${filename}` : `./${filename}`;
 
-		// Base-relative path for live server (includes seq-N/featn-N)
+		// Base-relative path for live server (includes featn-N)
 		const basePath = this.getArtifactBasePath();
 		const baseRelativePath = relative(resolve(basePath), absolutePath);
 
@@ -105,9 +100,6 @@ export abstract class AStorage extends AStepper {
 	}
 
 	async ensureCaptureLocation(loc: TLocationOptions, app?: string | undefined, fn = '') {
-		if (loc.tag.sequence < 0) {
-			return '';
-		}
 		const dir = await this.getCaptureLocation(loc, app);
 		await this.ensureDirExists(dir);
 		return fn ? `${dir}/${fn}` : dir;

@@ -187,7 +187,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		if (this.captureVideo && isFirstPage && !this.videoStartEmitted) {
 			this.videoStartEmitted = true;
 			const videoStartEvent = VideoStartArtifact.parse({
-				id: `${tag.sequence}.video-start`,
+				id: `feat-${tag.featureNum}.video-start`,
 				timestamp: Date.now(),
 				kind: 'artifact',
 				artifactType: 'video-start',
@@ -270,7 +270,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	}
 
 	async captureScreenshot(event: string, details: { seq?: number; step?: TStepResult }) {
-		const filename = `${event}-${Date.now()}.png`;
+		const filename = `event-${details.step?.seqPath.join('.')}.png`;
 		// Take screenshot to buffer first, then save via unified saveArtifact
 		const buffer = await this.withPage(async (page: Page) => await page.screenshot()) as Buffer;
 		const saved = await this.storage.saveArtifact(filename, buffer, EMediaTypes.image, 'image');

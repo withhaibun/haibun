@@ -31,25 +31,25 @@ describe('BASE_FS', () => {
 describe('mem getCaptureLocation', () => {
 	it('gets capture location', async () => {
 		const storageMem = new StorageMem();
-		const world = getDefaultWorld(0);
+		const world = getDefaultWorld();
 		const dir = await storageMem.getCaptureLocation({ ...world, mediaType: EMediaTypes.json }, 'test');
-		expect(dir).toEqual(`./${CAPTURE}/default/${key}/seq-0/featn-0/test`);
+		expect(dir).toEqual(`./${CAPTURE}/default/${key}/featn-0/test`);
 	});
 	it('gets options capture location', async () => {
 		const storageMem = new StorageMem();
 		const world = getTestWorldWithOptions();
 		const dir = await storageMem.getCaptureLocation({ ...world, mediaType: EMediaTypes.json }, 'test');
-		expect(dir).toEqual(`./${CAPTURE}/${DEFAULT_DEST}/${key}/seq-0/featn-0/test`);
+		expect(dir).toEqual(`./${CAPTURE}/${DEFAULT_DEST}/${key}/featn-0/test`);
 	});
 	it('gets relative capture location', async () => {
 		const storageMem = new StorageMem();
 		const world = getTestWorldWithOptions();
 		const dir = await storageMem.getCaptureLocation({ ...world, mediaType: EMediaTypes.json }, 'test');
-		expect(dir).toEqual(`./${CAPTURE}/${DEFAULT_DEST}/${key}/seq-0/featn-0/test`);
+		expect(dir).toEqual(`./${CAPTURE}/${DEFAULT_DEST}/${key}/featn-0/test`);
 	});
 	it('ensures capture location', async () => {
 		const storageMem = new StorageMem();
-		const world = getDefaultWorld(0);
+		const world = getDefaultWorld();
 		const loc = await storageMem.getCaptureLocation({ ...world, mediaType: EMediaTypes.json }, 'test');
 		await storageMem.ensureCaptureLocation({ ...world, mediaType: EMediaTypes.json }, 'test');
 		expect(storageMem.exists(loc)).toBe(true);

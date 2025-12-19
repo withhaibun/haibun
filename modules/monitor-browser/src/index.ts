@@ -74,9 +74,9 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
       const transformedEvents = this.events.map(e => {
         if (e.kind === 'artifact' && 'path' in e && typeof (e as any).path === 'string') {
           const artifactPath = (e as any).path as string;
-          // baseRelativePath format: seq-N/featn-N/subpath/file.ext
-          // Need to strip seq-N/featn-N/ prefix for serialized HTML
-          const match = artifactPath.match(/^seq-\d+\/featn-\d+\/(.*)$/);
+          // baseRelativePath format: featn-N[-name]/subpath/file.ext
+          // Need to strip featn-N[-name]/ prefix for serialized HTML
+          const match = artifactPath.match(/^featn-\d+(?:-.*)?\/(.*)$/);
           if (match) {
             return { ...e, path: './' + match[1] };
           }
@@ -98,10 +98,9 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
       const world = this.getWorld();
       const featureLabel = (featureStart as any)?.label || world.runtime.feature || 'report';
       const topic = featureLabel.replace(/.*\//, '').replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9-_]/g, '_');
-      const seq = `seq-${world.tag.sequence}`;
 
 
-      await this.saveSerializedReport(jitData, topic, seq);
+      await this.saveSerializedReport(jitData, topic);
       this.events = [];
     },
     endExecution: async () => {
@@ -109,7 +108,7 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
     }
   };
 
-  private async saveSerializedReport(jitData: string, topic: string, seq: string) {
+  private async saveSerializedReport(jitData: string, topic: string) {
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = dirname(__filename);
     const indexPath = path.join(__dirname, '..', 'dist', 'client', 'index.html');
@@ -130,9 +129,7 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
       html += injection;
     }
 
-    // Use topic (feature name) for filename if available, otherwise fallback
-    const filename = topic ? `${topic}-${Date.now()}` : `haibun-report-${Date.now()}`;
-    const saved = await this.storage.saveArtifact(filename + '.html', html, EMediaTypes.html);
+    const saved = await this.storage.saveArtifact('monitor.html', html, EMediaTypes.html);
 
     console.log(`[MonitorBrowser] Report saved: ${actualURI(saved.absolutePath)}`);
   }
@@ -146,6 +143,4 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
       }
     }
   };
-
-
 }
