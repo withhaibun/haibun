@@ -34,7 +34,7 @@ function App() {
     // View Control State
     const [viewMode, setViewMode] = useState<ViewMode>('log');
     const [minLogLevel, setMinLogLevel] = useState<string>('info');
-    const [maxDepth, setMaxDepth] = useState<number>(10);
+    const [maxDepth, setMaxDepth] = useState<number>(6);
     const [expandedArtifacts, setExpandedArtifacts] = useState<Set<string>>(new Set());
     const [scrollTargetId, setScrollTargetId] = useState<string | null>(null);
     const [selectedEvent, setSelectedEvent] = useState<THaibunEvent | null>(null);
@@ -325,19 +325,23 @@ function App() {
         const minLevelIndex = levels.indexOf(normalizedMinLevel);
 
         const finalEvents: any[] = [];
-        let hiddenBuffer: any[] = [];
+        let hiddenBuffer: { event: THaibunEvent; reason: 'level' | 'depth' }[] = [];
 
         const flushHiddenBuffer = () => {
             if (hiddenBuffer.length > 0) {
-                const bufferLevels = new Set(hiddenBuffer.map(e => e.level || 'info'));
+                const bufferLevels = new Set(hiddenBuffer.map(h => h.event.level || 'info'));
                 const sortedBufferLevels = Array.from(bufferLevels).sort((a: any, b: any) => levels.indexOf(b) - levels.indexOf(a));
                 const primaryHiddenLevel = sortedBufferLevels[0] || 'info';
 
-                const types = new Set(hiddenBuffer.map(e => {
+                const types = new Set(hiddenBuffer.map(h => {
+                    const e = h.event;
                     if (e.kind === 'artifact') return e.artifactType;
                     if (e.kind === 'lifecycle') return e.type;
                     return e.kind;
                 }));
+
+                const depthCount = hiddenBuffer.filter(h => h.reason === 'depth').length;
+                const levelCount = hiddenBuffer.filter(h => h.reason === 'level').length;
 
                 finalEvents.push({
                     kind: 'hidden-block',
@@ -345,7 +349,9 @@ function App() {
                     level: primaryHiddenLevel,
                     types: Array.from(types),
                     id: `hidden-${Date.now()}-${finalEvents.length}`,
-                    firstEventId: hiddenBuffer[0].id
+                    firstEventId: hiddenBuffer[0].event.id,
+                    depthCount,
+                    levelCount,
                 });
                 hiddenBuffer = [];
             }
@@ -353,29 +359,32 @@ function App() {
 
         mergedEvents.forEach((e: THaibunEvent) => {
             let isVisible = true;
+            let hideReason: 'level' | 'depth' = 'level';
 
             // Log Level Check
             const rawLevel = e.level || 'info';
-            // Treat 'log' and 'info' as the same level for filtering purposes
             const normalizedLevel = rawLevel === 'log' ? 'info' : rawLevel;
-
             const levelIndex = levels.indexOf(normalizedLevel);
 
             if (levelIndex !== -1 && minLevelIndex !== -1 && levelIndex < minLevelIndex) {
                 isVisible = false;
+                hideReason = 'level';
             }
 
             // Depth Check
             if (isVisible && e.id) {
                 const depth = e.id.split('.').length;
-                if (depth > maxDepth) isVisible = false;
+                if (depth > maxDepth) {
+                    isVisible = false;
+                    hideReason = 'depth';
+                }
             }
 
             if (isVisible) {
                 flushHiddenBuffer();
                 finalEvents.push(e);
             } else {
-                hiddenBuffer.push(e);
+                hiddenBuffer.push({ event: e, reason: hideReason });
             }
         });
 
@@ -403,18 +412,26 @@ function App() {
             {visibleEvents.map((e, i, arr) => {
                 // Hidden blocks are synthetic events injected by visibility filtering
                 if (e.kind === 'hidden-block') {
-                    const block = e as { id: string; count: number; types: string[]; level: string; firstEventId: string };
+                    const block = e as { id: string; count: number; types: string[]; level: string; firstEventId: string; depthCount: number; levelCount: number };
                     const typesStr = block.types.join(', ');
+                    const reasonParts = [];
+                    if (block.levelCount > 0) reasonParts.push(`${block.levelCount} by ${block.level.toUpperCase()}`);
+                    if (block.depthCount > 0) reasonParts.push(`${block.depthCount} by depth`);
+                    const reasonStr = reasonParts.join(', ');
                     return (
                         <div key={block.id} className="flex justify-start my-1 px-2">
                             <button
                                 onClick={() => {
-                                    setMinLogLevel(block.level);
+                                    if (block.depthCount > 0 && block.depthCount >= block.levelCount) {
+                                        setMaxDepth(prev => prev + 2);
+                                    } else {
+                                        setMinLogLevel(block.level);
+                                    }
                                     setScrollTargetId(block.firstEventId);
                                 }}
                                 className="text-[10px] text-slate-400 hover:text-slate-200 cursor-pointer transition-colors flex items-center gap-1 italic font-light tracking-wide"
                             >
-                                <span>~~~ {block.count} {typesStr} hidden at {block.level.toUpperCase()} ~~~</span>
+                                <span>~~~ {block.count} {typesStr} hidden ({reasonStr}) ~~~</span>
                             </button>
                         </div>
                     );
@@ -466,7 +483,8 @@ function App() {
                     }
                 } else if (e.kind === 'control') {
                     if (!message) {
-                        message = JSON.stringify(e.args);
+                        const data = e.args || ('topics' in e ? e.topics : null);
+                        message = data ? `[${e.signal}] ${JSON.stringify(data)}` : `[${e.signal}]`;
                     }
                 }
 
