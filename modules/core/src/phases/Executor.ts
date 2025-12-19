@@ -113,7 +113,7 @@ export class Executor {
 			const featureExecutor = new FeatureExecutor(steppers, newWorld);
 			await setStepperWorldsAndDomains(steppers, newWorld);
 			await doStepperCycle(steppers, 'startFeature', { resolvedFeature: feature, index: featureNum });
-			world.eventLogger.log(syntheticStep, 'info', `📝 feature ${featureNum}/${features.length}: ${feature.path}`);
+			world.eventLogger.log(syntheticStep, 'info', `feature ${featureNum}/${features.length}: ${feature.path}`);
 
 			const featureResult = await featureExecutor.doFeature(feature);
 			if (newWorld.runtime && newWorld.runtime.exhaustionError) {

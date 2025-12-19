@@ -27,7 +27,7 @@ function formatPrimitive(value: unknown): string {
 }
 
 function JsonNode({ keyName, value, depth, isArrayIndex }: JsonNodeProps) {
-  const [isOpen, setIsOpen] = useState(depth < 2);
+  const [isOpen, setIsOpen] = useState(depth < 4);
   const isComplex = typeof value === 'object' && value !== null;
   const marginLeft = depth * 16;
 
@@ -80,7 +80,7 @@ export function JsonArtifact({ artifact }: JsonArtifactProps) {
   const entries = isArray ? json.map((v, i) => [i, v] as const) : Object.entries(json);
 
   return (
-    <div className="haibun-artifact-json bg-gray-50 border border-gray-200 rounded p-2 overflow-auto max-h-96">
+    <div className="haibun-artifact-json bg-gray-50 border border-gray-200 rounded p-2">
       {entries.map(([k, v]) => (
         <JsonNode key={String(k)} keyName={k} value={v} depth={0} isArrayIndex={isArray} />
       ))}

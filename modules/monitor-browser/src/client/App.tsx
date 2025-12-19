@@ -442,7 +442,12 @@ function App() {
                             <div 
                                 id={`event-${e.id}`} 
                                 className={`flex whitespace-pre items-stretch leading-tight transition-colors ${bgClass} cursor-pointer hover:bg-slate-800 ${selectedEvent?.id === e.id ? 'bg-slate-800 ring-1 ring-blue-500' : ''}`}
-                                onClick={() => setSelectedEvent(e)}
+                                onClick={() => {
+                                    setSelectedEvent(e);
+                                    // Scroll the event into view
+                                    const el = document.getElementById(`event-${e.id}`);
+                                    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                }}
                             >
                                 <div className="w-16 flex flex-col items-end shrink-0 text-[10px] text-slate-700 dark:text-slate-400 font-medium leading-tight mr-2 self-stretch py-1">
                                     <span>{time}s</span>
