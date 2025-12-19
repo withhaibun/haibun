@@ -59,6 +59,10 @@ function App() {
     const [activePrompt, setActivePrompt] = useState<any | null>(null);
 
     const ws = useRef<WebSocket | null>(null);
+    
+    // Event batching using refs to avoid re-render issues
+    const pendingEventsRef = useRef<THaibunEvent[]>([]);
+    const flushTimerRef = useRef<number | null>(null);
 
     // Memoize WS options to prevent re-connection on render
     const wsOptions = useMemo(() => ({
@@ -70,7 +74,19 @@ function App() {
             try {
                 const msg = JSON.parse(e.data);
                 if (msg.type === 'event' && msg.event) {
-                    setEvents(prev => [...prev, msg.event]);
+                    // Buffer event in ref (doesn't cause re-render)
+                    pendingEventsRef.current.push(msg.event);
+                    // Schedule a flush with 200ms delay to batch more events on initial load
+                    if (flushTimerRef.current === null) {
+                        flushTimerRef.current = window.setTimeout(() => {
+                            if (pendingEventsRef.current.length > 0) {
+                                const newEvents = [...pendingEventsRef.current];
+                                pendingEventsRef.current = [];
+                                setEvents(prev => [...prev, ...newEvents]);
+                            }
+                            flushTimerRef.current = null;
+                        }, 1000);
+                    }
                 } else if (msg.type === 'prompt') {
                     console.log('Prompt received', msg);
                     setActivePrompt(msg.prompt);
@@ -78,8 +94,8 @@ function App() {
                 } else if (msg.type === 'finalize') {
                     console.log('Finalize received');
                 }
-            } catch (e) {
-                console.error('WS Parse Error', e);
+            } catch (err) {
+                console.error('WS Parse Error', err);
             }
         },
         shouldReconnect: () => !isSerializedMode,
@@ -111,21 +127,19 @@ function App() {
     }, [readyState, isSerializedMode]);
 
     // Handle Time Logic - Anchor to first event
+    const eventsLength = events.length;
+    const firstEventTimestamp = events[0]?.timestamp;
+    const lastEventTimestamp = events[eventsLength - 1]?.timestamp;
+    
     useEffect(() => {
-        if (events.length > 0) {
-            const firstEvent = events[0];
-            const lastEvent = events[events.length - 1];
-
-            if (!firstEvent?.timestamp || !lastEvent?.timestamp) return;
-
+        if (eventsLength > 0 && firstEventTimestamp && lastEventTimestamp) {
             if (startTime === null) {
-                setStartTime(firstEvent.timestamp);
+                setStartTime(firstEventTimestamp);
             }
 
             // Update max time
-            const first = startTime || firstEvent.timestamp;
-            const last = lastEvent.timestamp;
-            const newMax = last - first;
+            const first = startTime || firstEventTimestamp;
+            const newMax = lastEventTimestamp - first;
             setMaxTime(newMax);
 
             // In live mode, auto-advance to show latest
@@ -136,7 +150,7 @@ function App() {
                 setCurrentTime(newMax);
             }
         }
-    }, [events, startTime, connected]);
+    }, [eventsLength, firstEventTimestamp, lastEventTimestamp, startTime, connected]);
 
 
     // Compute video info from both video-start and video events
