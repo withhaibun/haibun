@@ -56,9 +56,9 @@ const PromptView = ({ prompt, resolve }: { prompt: TPrompt; resolve: (val: strin
   );
 }
 
-const MonitorApp = ({ lines, running, finished, prompt, onResolve }: { 
-  lines: string[]; 
-  running: Map<string, string>; 
+const MonitorApp = ({ lines, running, finished, prompt, onResolve }: {
+  lines: string[];
+  running: Map<string, string>;
   finished: boolean;
   prompt?: TPrompt;
   onResolve?: (val: string) => void;
@@ -75,7 +75,7 @@ const MonitorApp = ({ lines, running, finished, prompt, onResolve }: {
 export default class TuiMonitorStepper extends AStepper implements IHasCycles, IPrompter {
   kind = StepperKinds.MONITOR;
   steps = {};
-  
+
   private lines: string[] = [];
   private lastLevel: string = '';
   private running = new Map<string, string>();
@@ -94,60 +94,61 @@ export default class TuiMonitorStepper extends AStepper implements IHasCycles, I
     this.currentPrompt = prompt;
     this.updateRender();
     return new Promise((resolve) => {
-        this.promptResolver = resolve;
+      this.promptResolver = resolve;
     });
   }
 
   cancel(id: string) {
-      if (this.currentPrompt?.id === id) {
-          this.currentPrompt = undefined;
-          this.promptResolver = null;
-          this.updateRender();
-      }
+    if (this.currentPrompt?.id === id) {
+      this.currentPrompt = undefined;
+      this.promptResolver = null;
+      this.updateRender();
+    }
   }
 
   resolve(id: string, value: TPromptResponse) {
-      if (this.currentPrompt?.id === id && this.promptResolver) {
-          this.promptResolver(value);
-          this.currentPrompt = undefined;
-          this.promptResolver = null;
-          this.updateRender();
-      }
+    if (this.currentPrompt?.id === id && this.promptResolver) {
+      this.promptResolver(value);
+      this.currentPrompt = undefined;
+      this.promptResolver = null;
+      this.updateRender();
+    }
   }
 
   private updateRender() {
     if (this.rerender) {
-        this.rerender(this.lines, this.running, this.finished, this.currentPrompt);
+      this.rerender(this.lines, this.running, this.finished, this.currentPrompt);
     }
   }
 
   cycles = {
     startExecution: async () => {
       const onResolve = (val: string) => {
-          if (this.promptResolver) {
-              this.promptResolver(val);
-              this.currentPrompt = undefined;
-              this.promptResolver = null;
-              this.updateRender();
-          }
+        if (this.promptResolver) {
+          this.promptResolver(val);
+          this.currentPrompt = undefined;
+          this.promptResolver = null;
+          this.updateRender();
+        }
       };
 
       const { rerender } = render(
         <MonitorApp lines={[]} running={new Map()} finished={false} />
       );
-      
+
       this.rerender = (lines, running, finished, prompt) => rerender(
         <MonitorApp lines={lines} running={running} finished={finished} prompt={prompt} onResolve={onResolve} />
       );
     },
 
     onEvent: (event: THaibunEvent): void => {
-      if (EventFormatter.shouldDisplay(event)) {
+      const minLevel = (process.env.HAIBUN_LOG_LEVEL as any) || 'info';
+      if (EventFormatter.shouldDisplay(event, minLevel)) {
         const line = EventFormatter.formatLine(event, this.lastLevel);
         this.lines = [...this.lines, line];
         this.lastLevel = EventFormatter.getDisplayLevel(event);
       }
-      
+
       if (event.kind === 'lifecycle' && event.type === 'step') {
         if (event.stage === 'start') {
           this.running = new Map(this.running).set(event.id, event.in || '');
@@ -156,7 +157,7 @@ export default class TuiMonitorStepper extends AStepper implements IHasCycles, I
           this.running.delete(event.id);
         }
       }
-      
+
       this.updateRender();
     },
 

@@ -3,8 +3,8 @@ import type { TKirejiExport } from '@haibun/core/kireji/withAction.js';
 
 export const features: TKirejiExport = {
 	'Counts feature': [
-		`Demonstrate counting with waypoints and variables.
-The activity 'counts' increments a counter variable and uses a waypoint to check if it has reached a target number.`,
+		`Demonstrate counting with waypoints and variables.`,
+		`The activity 'counts' increments a counter variable and uses a waypoint to check if it has reached a target number.`,
 
 		`
 Background:

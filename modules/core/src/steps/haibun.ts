@@ -90,7 +90,8 @@ class Haibun extends AStepper implements IHasCycles {
 			},
 			action: async ({ names }: { names: string }, featureStep: TFeatureStep) => {
 				const world = this.getWorld();
-				const expanded = findFeatureStepsFromStatement(names, this.steppers, world, featureStep.source.path, featureStep.seqPath, 1);
+				// Prepend 'Backgrounds: ' so expandLine correctly recognizes this as a background directive
+				const expanded = findFeatureStepsFromStatement(`Backgrounds: ${names}`, this.steppers, world, featureStep.source.path, featureStep.seqPath, 1);
 				const mode = featureStep.intent?.mode === 'speculative' ? 'speculative' : 'authoritative';
 				const result = await this.runner.runSteps(expanded, { intent: { mode }, parentStep: featureStep });
 				return result.kind === 'ok' ? OK : actionNotOK(`backgrounds failed: ${result.message}`);

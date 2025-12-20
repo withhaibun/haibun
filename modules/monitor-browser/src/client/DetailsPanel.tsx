@@ -55,10 +55,21 @@ export function DetailsPanel({ event, onClose, width, onWidthChange, currentTime
   // Check if this is a synthetic event with all traces attached
   const allTraces = (event as any)._allTraces as THttpTraceArtifact[] | undefined;
 
+  // Format timestamp as full date and time
+  const formattedDateTime = new Date(event.timestamp).toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    fractionalSecondDigits: 3
+  });
+
   // Determine header text
   const headerText = isHttpTrace && allTraces
     ? `HTTP Traces (${allTraces.length})`
-    : event.id;
+    : formattedDateTime;
 
   return (
     <div
@@ -82,7 +93,7 @@ export function DetailsPanel({ event, onClose, width, onWidthChange, currentTime
             el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
           }}
           className="font-mono text-xs text-cyan-400 hover:text-cyan-300 cursor-pointer hover:underline truncate"
-          title={event.id}
+          title={`Go to event ${event.id}`}
         >
           {headerText}
         </button>

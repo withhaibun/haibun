@@ -217,3 +217,34 @@ describe('any of', () => {
     expect(result.ok).toBe(false);
   });
 });
+
+describe('observed in (runtime metrics)', () => {
+  it('some step observed in step usage finds a matching step', async () => {
+    const feature = {
+      path: '/features/test.feature',
+      content: `passes
+some step observed in step usage is variable {step}/count is more than 0`
+    };
+    const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers]);
+    expect(result.ok).toBe(true);
+  });
+
+  it('every stepper observed in stepper usage checks all steppers', async () => {
+    const feature = {
+      path: '/features/test.feature',
+      content: `passes
+every stepper observed in stepper usage is variable {stepper}/count is more than 0`
+    };
+    const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers]);
+    expect(result.ok).toBe(true);
+  });
+
+  it('unknown observation source fails gracefully', async () => {
+    const feature = {
+      path: '/features/test.feature',
+      content: `every x observed in unknown source is passes`
+    };
+    const result = await failWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers]);
+    expect(result.ok).toBe(false);
+  });
+});

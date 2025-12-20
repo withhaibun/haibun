@@ -130,26 +130,26 @@ describe('every/some with member values', () => {
     });
   });
 
-  describe('that ... starts with (predicate)', () => {
-    // Unambiguous syntax: that {value} starts with {prefix}
-    // Starts with literal 'that' to avoid parsing conflicts with quantifiers
+  describe('that ... matches (predicate)', () => {
+    // Glob pattern matching: that {value} matches {pattern}
+    // Uses * as wildcard for any characters
 
-    it('passes with literal prefix', async () => {
+    it('passes with glob pattern', async () => {
       const feature = {
         path: '/features/test.feature',
         content: `
-          that "https://test.com/login" starts with "https://test.com/"
+          that "https://test.com/login" matches "https://test.com/*"
         `
       };
       const result = await passWithDefaults([feature], [LogicStepper, VariablesStepper]);
       expect(result.ok).toBe(true);
     });
 
-    it('fails when value does not start with prefix', async () => {
+    it('fails when value does not match pattern', async () => {
       const feature = {
         path: '/features/test.feature',
         content: `
-          not that "https://other.com/page" starts with "https://test.com/"
+          not that "https://other.com/page" matches "https://test.com/*"
         `
       };
       const result = await passWithDefaults([feature], [LogicStepper, VariablesStepper]);
@@ -164,14 +164,14 @@ describe('every/some with member values', () => {
           set url1 as urls to "https://test.com/login"
           set url2 as urls to "https://test.com/dashboard"
           
-          every u in urls is that {u} starts with "https://test.com/"
+          every u in urls is that {u} matches "https://test.com/*"
         `
       };
       const result = await passWithDefaults([feature], [LogicStepper, VariablesStepper]);
       expect(result.ok).toBe(true);
     });
 
-    it('fails when some members do not start with prefix', async () => {
+    it('fails when some members do not match pattern', async () => {
       const feature = {
         path: '/features/test.feature',
         content: `
@@ -179,7 +179,7 @@ describe('every/some with member values', () => {
           set url1 as urls to "https://test.com/login"
           set url2 as urls to "https://other.com/page"
           
-          not every u in urls is that {u} starts with "https://test.com/"
+          not every u in urls is that {u} matches "https://test.com/*"
         `
       };
       const result = await passWithDefaults([feature], [LogicStepper, VariablesStepper]);
@@ -188,10 +188,10 @@ describe('every/some with member values', () => {
   });
 
   describe('nested quantifier composition (every + some)', () => {
-    // Proper composition: ∀ page ∈ urls: ∃ prefix ∈ Allowed: page.startsWith(prefix)
-    // Uses orthogonal building blocks: every, some, starts with
+    // Proper composition: ∀ page ∈ urls: ∃ pattern ∈ Allowed: page.matches(pattern)
+    // Uses orthogonal building blocks: every, some, matches
 
-    it('passes: every page starts with some allowed prefix', async () => {
+    it('passes: every page matches some allowed pattern', async () => {
       const feature = {
         path: '/features/test.feature',
         content: `
@@ -199,16 +199,16 @@ describe('every/some with member values', () => {
           set url1 as urls to "https://test.com/login"
           set url2 as urls to "https://staging.com/dashboard"
           
-          set of Allowed prefixes is ["https://test.com/" "https://staging.com/"]
+          set of Allowed patterns is ["https://test.com/*" "https://staging.com/*"]
           
-          every page in urls is some prefix in Allowed prefixes is that {page} starts with {prefix}
+          every page in urls is some pattern in Allowed patterns is that {page} matches {pattern}
         `
       };
       const result = await passWithDefaults([feature], [LogicStepper, VariablesStepper]);
       expect(result.ok).toBe(true);
     });
 
-    it('fails: page does not match any allowed prefix', async () => {
+    it('fails: page does not match any allowed pattern', async () => {
       const feature = {
         path: '/features/test.feature',
         content: `
@@ -216,20 +216,20 @@ describe('every/some with member values', () => {
           set url1 as urls to "https://test.com/login"
           set url2 as urls to "https://unknown.com/page"
           
-          set of Allowed prefixes is ["https://test.com/" "https://staging.com/"]
+          set of Allowed patterns is ["https://test.com/*" "https://staging.com/*"]
           
-          not every page in urls is some prefix in Allowed prefixes is that {page} starts with {prefix}
+          not every page in urls is some pattern in Allowed patterns is that {page} matches {pattern}
         `
       };
       const result = await passWithDefaults([feature], [LogicStepper, VariablesStepper]);
       expect(result.ok).toBe(true);
     });
 
-    it('uses simple two-arg starts with predicate', async () => {
+    it('uses simple two-arg matches predicate', async () => {
       const feature = {
         path: '/features/test.feature',
         content: `
-          that "https://test.com/login" starts with "https://test.com/"
+          that "https://test.com/login" matches "https://test.com/*"
         `
       };
       const result = await passWithDefaults([feature], [LogicStepper, VariablesStepper]);

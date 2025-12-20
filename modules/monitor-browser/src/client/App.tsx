@@ -6,7 +6,7 @@ import { EventFormatter } from '@haibun/core/monitor/index.js'
 import { Timeline } from './Timeline'
 import { Debugger } from './Debugger';
 import { getInitialState } from './serialize';
-import { THaibunEvent, TArtifactEvent, TVideoArtifact, TResolvedFeaturesArtifact, THttpTraceArtifact } from '@haibun/core/schema/protocol.js';
+import { THaibunEvent, TArtifactEvent, TVideoArtifact, TResolvedFeaturesArtifact, THttpTraceArtifact, HAIBUN_LOG_LEVELS, THaibunLogLevel } from '@haibun/core/schema/protocol.js';
 import { DocumentView } from './DocumentView';
 import { ArtifactRenderer } from './artifacts';
 import { ArtifactRow } from './components/ArtifactRow';
@@ -32,7 +32,7 @@ function App() {
 
     // View Control State
     const [viewMode, setViewMode] = useState<ViewMode>('log');
-    const [minLogLevel, setMinLogLevel] = useState<string>('info');
+    const [minLogLevel, setMinLogLevel] = useState<THaibunLogLevel>('info');
     const [maxDepth, setMaxDepth] = useState<number>(6);
     const [scrollTargetId, setScrollTargetId] = useState<string | null>(null);
     const [selectedEvent, setSelectedEvent] = useState<THaibunEvent | null>(null);
@@ -310,9 +310,8 @@ function App() {
         }, [] as any[]);
 
         // Stage 3: Visibility Filter & Hidden Log Aggregation
-        const levels = ['trace', 'debug', 'info', 'warn', 'error'];
-        const normalizedMinLevel = minLogLevel === 'log' ? 'info' : minLogLevel;
-        const minLevelIndex = levels.indexOf(normalizedMinLevel);
+        const levels = [...HAIBUN_LOG_LEVELS];
+        const minLevelIndex = levels.indexOf(minLogLevel);
 
         const finalEvents: any[] = [];
         let hiddenBuffer: { event: THaibunEvent; reason: 'level' | 'depth' }[] = [];
@@ -353,8 +352,7 @@ function App() {
 
             // Log Level Check
             const rawLevel = e.level || 'info';
-            const normalizedLevel = rawLevel === 'log' ? 'info' : rawLevel;
-            const levelIndex = levels.indexOf(normalizedLevel);
+            const levelIndex = levels.indexOf(rawLevel);
 
             if (levelIndex !== -1 && minLevelIndex !== -1 && levelIndex < minLevelIndex) {
                 isVisible = false;
@@ -415,9 +413,11 @@ function App() {
                                     if (block.depthCount > 0 && block.depthCount >= block.levelCount) {
                                         setMaxDepth(prev => prev + 2);
                                     } else {
-                                        setMinLogLevel(block.level);
+                                        setMinLogLevel(block.level as THaibunLogLevel);
                                     }
-                                    setScrollTargetId(block.firstEventId);
+                                    // Scroll to the previous event (the line above) so the expanded content is prominent
+                                    const prevEvent = i > 0 ? arr[i - 1] : undefined;
+                                    setScrollTargetId(prevEvent ? prevEvent.id : block.firstEventId);
                                 }}
                                 className="text-[10px] text-slate-400 hover:text-slate-200 cursor-pointer transition-colors flex items-center gap-1 italic font-light tracking-wide"
                             >
@@ -722,13 +722,11 @@ function App() {
                         <select
                             className="bg-background text-foreground text-xs border rounded px-1"
                             value={minLogLevel}
-                            onChange={e => setMinLogLevel(e.target.value)}
+                            onChange={e => setMinLogLevel(e.target.value as THaibunLogLevel)}
                         >
-                            <option value="trace">Trace</option>
-                            <option value="debug">Debug</option>
-                            <option value="info">Info</option>
-                            <option value="warn">Warn</option>
-                            <option value="error">Error</option>
+                            {HAIBUN_LOG_LEVELS.map(level => (
+                                <option key={level} value={level}>{level.charAt(0).toUpperCase() + level.slice(1)}</option>
+                            ))}
                         </select>
                     </div>
                     <div className="hidden md:flex items-center gap-2">

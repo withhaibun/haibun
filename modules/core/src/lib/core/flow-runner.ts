@@ -15,11 +15,7 @@ export class FlowRunner {
 	async runStatement(statement: string | TStepInput, options: { args?: Record<string, string>, intent?: ExecutionIntent, parentStep?: TFeatureStep, seqPath?: TSeqPath } = {}): Promise<FlowSignal> {
 		const { intent = { mode: 'authoritative' } } = options;
 
-		if (typeof statement === 'string' && !this.world.runtime.feature) {
-			throw new Error(`FlowRunner: cannot execute statement "${statement}" without a defined feature source in runtime`);
-		}
-		const stmt: TStepInput = typeof statement === 'string' ? { in: statement, source: { path: this.world.runtime.feature! } } : statement;
-		const { in: stmtText, source: { path: stmtSourcePath, lineNumber: stmtLineNumber } } = stmt;
+		const stmtText = typeof statement === 'string' ? statement : statement.in;
 
 		// Merge parent runtimeArgs with current args (current takes precedence)
 		// This enables nested quantifiers: outer vars are visible to inner statements
@@ -33,7 +29,7 @@ export class FlowRunner {
 			}
 		}
 
-
+		// Resolve the action first - this gives us access to step metadata including source
 		let action;
 		try {
 			action = this.resolver.findSingleStepAction(statementWithArgs);
@@ -44,6 +40,32 @@ export class FlowRunner {
 			throw e;
 		}
 
+		// Derive source path: prefer resolved step's source, then parentStep, then input statement
+		const step = action.step;
+		let resolvedPath: string;
+		let resolvedLineNumber: number | undefined;
+
+		if (step?.source?.path) {
+			// Step definition has its own source (e.g., activity, waypoint)
+			resolvedPath = step.source.path;
+			resolvedLineNumber = step.source.lineNumber;
+		} else if (options.parentStep?.source?.path) {
+			// Fall back to parent step's source (e.g., quantifier calling nested statement)
+			resolvedPath = options.parentStep.source.path;
+			resolvedLineNumber = options.parentStep.source.lineNumber;
+		} else if (typeof statement !== 'string' && statement.source?.path) {
+			// Use input statement's source if provided
+			resolvedPath = statement.source.path;
+			resolvedLineNumber = statement.source.lineNumber;
+		} else if (this.world.runtime.currentFeaturePath) {
+			// Fall back to current feature path (e.g., debugger executing ad-hoc statements)
+			resolvedPath = this.world.runtime.currentFeaturePath;
+		} else {
+			// No source available - use placeholder for dynamic/ad-hoc statements (debugger, REPL, etc.)
+			resolvedPath = '<dynamic>';
+		}
+
+		// Compute seqPath for this statement
 		let seqPath = options.seqPath;
 		if (!seqPath) {
 			if (options.parentStep) {
@@ -55,23 +77,6 @@ export class FlowRunner {
 
 		// Merge parent args with current args (current takes precedence)
 		const mergedArgs = { ...options.parentStep?.runtimeArgs, ...options.args };
-
-		// For dynamically generated steps (like waypoints), use the step's source location if available
-		// For sub-steps (like proof steps), fall back to parentStep's location
-		const step = action.step;
-
-		let resolvedPath = stmtSourcePath;
-		let resolvedLineNumber = stmtLineNumber;
-
-		if (step?.source) {
-			resolvedPath = step.source.path;
-			resolvedLineNumber = step.source.lineNumber;
-		} else if (options.parentStep) {
-			resolvedPath = options.parentStep.source.path;
-			resolvedLineNumber = options.parentStep.source.lineNumber;
-		}
-
-
 
 		const featureStep: TFeatureStep = {
 			source: {

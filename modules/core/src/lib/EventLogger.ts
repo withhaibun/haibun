@@ -33,8 +33,8 @@ function getEmitter(): string {
     if (match) {
       const [, func, path, row, col] = match;
       const shortFunc = func ? func.split('.').pop() : 'at';
-      const file = path.split('/').pop();
-      return `${shortFunc}:${row}|${path}:${row}:${col}`;
+      const file = path.split('/').pop()?.replace(/\.[^/.]+$/, '');
+      return `${file}.${shortFunc}:${row}`;
     }
   }
   return 'unknown';
@@ -123,6 +123,7 @@ export class EventLogger implements IEventLogger {
       lineNumber: featureStep.source.lineNumber,
       featurePath: featureStep.source.path,
       status: 'running',
+      level: featureStep.isSubStep ? 'trace' : 'info',
       intent: featureStep.intent ? { mode: featureStep.intent.mode } : undefined,
       stepperName,
       actionName,
@@ -143,6 +144,7 @@ export class EventLogger implements IEventLogger {
       lineNumber: featureStep.source.lineNumber,
       featurePath: featureStep.source.path,
       status: ok ? 'completed' : 'failed',
+      level: featureStep.isSubStep ? 'trace' : 'info',
       error: errorMessage,
       intent: featureStep.intent ? { mode: featureStep.intent.mode } : undefined,
       stepperName,

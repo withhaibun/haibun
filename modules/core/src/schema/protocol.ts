@@ -4,7 +4,7 @@ import { z } from 'zod';
 // Constants
 // ============================================================================
 
-export const HAIBUN_LOG_LEVELS = ['trace', 'debug', 'log', 'info', 'warn', 'error'] as const;
+export const HAIBUN_LOG_LEVELS = ['debug', 'trace', 'log', 'info', 'warn', 'error'] as const;
 export const HaibunLogLevel = z.enum(HAIBUN_LOG_LEVELS);
 export type THaibunLogLevel = z.infer<typeof HaibunLogLevel>;
 
@@ -174,14 +174,21 @@ export class JITSerializer {
 export type TIndication = 'success' | 'failure' | 'speculative-failure' | 'pending' | 'neutral';
 
 export class EventFormatter {
-  static shouldDisplay(event: THaibunEvent): boolean {
+  static shouldDisplay(event: THaibunEvent, minLevel: THaibunLogLevel = 'info'): boolean {
+    const minLevelIndex = HAIBUN_LOG_LEVELS.indexOf(minLevel);
+    const eventLevelIndex = HAIBUN_LOG_LEVELS.indexOf(event.level);
+
+    if (eventLevelIndex < minLevelIndex) {
+      return false;
+    }
+
     if (event.kind === 'lifecycle') {
       if (event.type === 'step') return event.stage === 'end';
       if (event.type === 'feature' || event.type === 'scenario') return event.stage === 'start';
       return false;
     }
     if (event.kind === 'log') {
-      return ['info', 'warn', 'error'].includes(event.level);
+      return true;
     }
     return false;
   }
@@ -214,7 +221,7 @@ export class EventFormatter {
 
   static formatLineElements(event: THaibunEvent, lastLevel?: string) {
     const time = (Timer.since() / 1000).toFixed(3);
-    const emitter = event.source;
+    const emitter = event.emitter || event.source;
     const level = this.getDisplayLevel(event);
     const showLevel = lastLevel === level ? level.charAt(0) : level;
 
@@ -231,7 +238,7 @@ export class EventFormatter {
         message = event.scenarioName;
       } else {
         icon = this.getStatusIcon(event);
-        id = event.id ? `[${event.id}]` : '';
+        id = event.id ? `${event.id}` : '';
         // Step always has 'in', other events (activity, etc) may not
         if (event.type === 'step') {
           message = event.in;
@@ -247,7 +254,7 @@ export class EventFormatter {
     } else if (event.kind === 'log') {
       const levelIcons: Record<string, string> = { info: ICON_LOG_INFO, warn: ICON_LOG_WARN, error: ICON_LOG_ERROR };
       icon = levelIcons[event.level] || ICON_DEFAULT;
-      id = event.id ? `[${event.id}]` : '';
+      id = event.id ? `${event.id}` : '';
       message = event.message;
     }
     return { time, emitter, level, showLevel, icon, id, message };
@@ -255,8 +262,8 @@ export class EventFormatter {
 
   static formatLine(event: THaibunEvent, lastLevel?: string): string {
     const { time, emitter, level, showLevel, icon, id, message } = this.formatLineElements(event, lastLevel);
-    const prefix = showLevel.padStart(6) + ` █ ${time}:${emitter}`.padEnd(32) + ` ｜ `;
-    return prefix + `${icon} ${message} ${id}`;
+    const prefix = showLevel.padStart(8) + ` █ ${time}:${emitter}`.padEnd(32) + ` ｜ `;
+    return prefix + `${icon} ${id} ${message}`;
   }
 }
 

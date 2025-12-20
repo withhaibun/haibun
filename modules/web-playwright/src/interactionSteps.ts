@@ -178,22 +178,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 			return actionNotOK(`URI query ${term} contains "${found}", not "${value}"`);
 		},
 	},
-	URIStartsWith: {
-		gwta: 'URI starts with {start}',
-		action: async ({ start }: { start: string }) => {
-			const uri = await wp.withPage<string>(async (page: Page) => await page.url());
-			return uri.startsWith(start) ? OK : actionNotOK(`current URI ${uri} does not start with ${start}`);
-		},
-	},
-	URIMatches: {
-		gwta: 'URI(case insensitively)? matches {what}',
-		action: async ({ what }: { what: string }, featureStep) => {
-			const modifier = featureStep.in.match(/ case insensitively /) ? 'i' : '';
-			const uri = await wp.withPage<string>(async (page: Page) => await page.url());
-			const matcher = new RegExp(what, modifier);
-			return uri.match(matcher) ? OK : actionNotOK(`current URI ${uri} does not match ${what}`);
-		},
-	},
+
 	//                  CLICK
 	click: {
 		gwta: `click( invisible)? {target: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}( with force)?`,

@@ -60,6 +60,19 @@ export class Executor {
 	static async action(steppers: AStepper[], featureStep: TFeatureStep, found: TStepAction, args: TStepArgs, world: TWorld) {
 		const stepper = findStepper<AStepper>(steppers, found.stepperName);
 		const action = stepper.steps[found.actionName].action;
+
+		// Track step usage for observation pattern
+		const usageKey = `${found.stepperName}.${found.actionName}`;
+		// Ensure observations map exists (it should be initialized in executeFeatures)
+		if (!world.runtime.observations) {
+			world.runtime.observations = new Map();
+		}
+		const stepUsage = world.runtime.observations.get('stepUsage') || new Map<string, number>();
+		stepUsage.set(usageKey, (stepUsage.get(usageKey) || 0) + 1);
+		world.runtime.observations.set('stepUsage', stepUsage);
+
+
+
 		try {
 			return await action(args, featureStep);
 		} catch (caught) {
@@ -70,7 +83,11 @@ export class Executor {
 		}
 	}
 	static async executeFeatures(steppers: AStepper[], world: TWorld, features: TResolvedFeature[]): Promise<TExecutorResult> {
-		await addStepperDomains(world, steppers);
+
+		if (!world.runtime.observations) {
+			world.runtime.observations = new Map();
+		}
+		await addStepperConcerns(world, steppers);
 
 		world.eventLogger.setStepperCallback((event) => {
 			doStepperCycleSync(steppers, 'onEvent', event);
@@ -111,6 +128,13 @@ export class Executor {
 			const newWorld = { ...world, tag: { ...world.tag, featureNum: featureNum, featureName } };
 
 			const featureExecutor = new FeatureExecutor(steppers, newWorld);
+
+			// Reset observations for the new feature
+			if (newWorld.runtime) {
+				newWorld.runtime.observations = new Map();
+
+			}
+
 			await setStepperWorldsAndDomains(steppers, newWorld);
 			await doStepperCycle(steppers, 'startFeature', { resolvedFeature: feature, index: featureNum });
 			world.eventLogger.log(syntheticStep, 'info', `feature ${featureNum}/${features.length}: ${feature.path}`);
@@ -170,6 +194,8 @@ export class FeatureExecutor {
 					scopedVars = new FeatureVariables(world, world.shared.all());
 					currentScenario = 0;
 				}
+				// Set current feature path for dynamic statement execution (debugger, quantifiers, etc.)
+				world.runtime.currentFeaturePath = feature.path;
 				world.eventLogger.emit(LifecycleEvent.parse({
 					id: `feat-${world.tag.featureNum}`,
 					timestamp: Date.now(),
@@ -324,9 +350,12 @@ const doStepperCycleSync = <K extends keyof IStepperCycles>(steppers: AStepper[]
 	}
 };
 
-const addStepperDomains = async (world, steppers: AStepper[]) => {
-	const results = await doStepperCycle(steppers, 'getDomains', undefined);
-	registerDomains(world, results);
+const addStepperConcerns = async (world, steppers: AStepper[]) => {
+	const results = await doStepperCycle(steppers, 'getConcerns', undefined);
+	// Extract and register domains from concerns
+	const domains = results.filter(r => r?.domains).flatMap(r => r.domains);
+	registerDomains(world, [domains]);
+	// Sources are registered separately (looked up by name when needed)
 }
 
 function stepResultFromActionResult(actionResult: TActionResult, action: TStepAction, start: number, end: number, featureStep: TFeatureStep, ok: boolean) {

@@ -1,15 +1,46 @@
-import { rmSync, readFileSync } from 'fs';
+import { rmSync } from 'fs';
 import { relative, resolve } from 'path';
 
-import { IStepperCycles, TFailureArgs, TEndFeature, TStartExecution, TResolvedFeature, TStartFeature } from '@haibun/core/lib/defs.js';
+import { IObservationSource, IStepperCycles, TFailureArgs, TEndFeature, TStartExecution, TResolvedFeature, TStartFeature } from '@haibun/core/lib/defs.js';
 
 import { VideoArtifact } from '@haibun/core/schema/protocol.js';
 import { EMediaTypes } from '@haibun/domain-storage/media-types.js';
 import { WebPlaywright } from './web-playwright.js';
 import { WebPlaywrightDomains } from './domains.js';
+import { THttpRequestObservation } from './PlaywrightEvents.js';
+
+// HTTP trace observation sources
+const httpTraceSources: IObservationSource[] = [
+	{
+		name: 'http-trace hosts',
+		observe: (world) => {
+			const httpHosts = (world.runtime.observations?.get('httpHosts') as Map<string, number> | undefined);
+			if (!httpHosts) return { items: [], metrics: {} };
+			const items = [...httpHosts.keys()];
+			const metrics: Record<string, Record<string, any>> = {};
+			for (const [host, count] of httpHosts.entries()) {
+				metrics[host] = { count };
+			}
+			return { items, metrics };
+		}
+	},
+	{
+		name: 'http-trace',
+		observe: (world) => {
+			const requests = (world.runtime.observations?.get('httpRequests') as Map<string, THttpRequestObservation> | undefined);
+			if (!requests) return { items: [], metrics: {} };
+			const items = [...requests.keys()];
+			const metrics: Record<string, Record<string, any>> = {};
+			for (const [id, data] of requests.entries()) {
+				metrics[id] = data;
+			}
+			return { items, metrics };
+		}
+	}
+];
 
 export const cycles = (wp: WebPlaywright): IStepperCycles => ({
-	getDomains: () => WebPlaywrightDomains,
+	getConcerns: () => ({ domains: WebPlaywrightDomains, sources: httpTraceSources }),
 	// biome-disable-next-line @typescript-eslint/no-unused-vars
 	async onFailure({ failedStep }: TFailureArgs): Promise<void> {
 		if (wp.bf?.hasPage(wp.getWorld().tag, wp.tab)) {

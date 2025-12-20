@@ -230,23 +230,23 @@ Logic steps enable dependant workflows and limited conditional behavior.
 
 Quantifiers compose naturally. Because `is` accepts any statement, nested quantifiers form compound logical expressions.
 
-For example, to verify that every visited page starts with some allowed prefix:
+For example, to verify that every visited page matches some allowed pattern:
 
     set of urls as [string]
     set url1 as urls to "https://test.com/login"
     set url2 as urls to "https://staging.com/dashboard"
     
-    set of prefixes as [string]
-    set p1 as prefixes to "https://test.com/"
-    set p2 as prefixes to "https://staging.com/"
+    set of patterns as [string]
+    set p1 as patterns to "https://test.com/*"
+    set p2 as patterns to "https://staging.com/*"
     
-    every page in urls is some prefix in prefixes is that {page} starts with {prefix}
+    every page in urls is some pattern in patterns is that {page} matches {pattern}
 
-This expresses: for every page in urls, there exists some prefix in prefixes such that the page starts with that prefix.
+This expresses: for every page in urls, there exists some pattern in patterns such that the page matches that pattern.
 
 Variables bound in outer quantifiers (`{page}`) flow through to inner predicates. The `that` prefix disambiguates the predicate from other step patterns.
 
-The Playwright stepper provides a `Visited pages` domain that tracks all URLs accessed during a browser session. This enables verification like `every page in Visited pages is some prefix in Allowed prefixes is that {page} starts with {prefix}` to ensure no unexpected domains were accessed.
+The Playwright stepper provides a `Visited pages` domain that tracks all URLs accessed during a browser session. This enables verification like `every page in Visited pages is some pattern in Allowed patterns is that {page} matches {pattern}` to ensure no unexpected domains were accessed.
 
 
 #### Disjunction (any of, some)

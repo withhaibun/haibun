@@ -74,7 +74,7 @@ export function getDefaultWorld(env = process.env): TWorld {
 		tag: getRunTag(0),
 		eventLogger,
 		prompter: new Prompter(),
-		runtime: { stepResults: [], feature: 'test-feature' },
+		runtime: { stepResults: [], feature: 'test-feature', stepUsage: new Map(), observations: new Map() },
 		options: { DEST: DEFAULT_DEST, envVariables: env },
 		moduleOptions: {},
 		bases: ['/features/'],

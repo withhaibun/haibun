@@ -45,12 +45,26 @@ export class Resolver {
 
 		const steps: TResolvedFeature[] = [];
 		for (const feature of features) {
+			// Notify steppers to clear feature-scoped steps before resolving each feature
+			this.startFeatureResolution(feature.path);
 			const featureSteps = await this.findFeatureSteps(feature);
 			const e = { ...feature, ...{ featureSteps } };
 			delete e.expanded;
 			steps.push(e);
 		}
 		return steps;
+	}
+
+	/**
+	 * Notify steppers that we're starting to resolve a new feature.
+	 * This allows steppers to clear feature-scoped steps that shouldn't leak between features.
+	 */
+	private startFeatureResolution(path: string) {
+		for (const stepper of this.steppers) {
+			if (typeof stepper.startFeatureResolution === 'function') {
+				stepper.startFeatureResolution(path);
+			}
+		}
 	}
 
 	public async findFeatureSteps(feature: TExpandedFeature): Promise<TFeatureStep[]> {

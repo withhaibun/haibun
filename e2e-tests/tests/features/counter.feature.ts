@@ -6,8 +6,8 @@ import WebPlaywright from '@haibun/web-playwright';
 import VariablesStepper from '@haibun/core/steps/variables-stepper.js';
 
 const { scenario } = withAction(new Haibun());
-const { setRandom } = withAction(new VariablesStepper());
-const { inputVariable, click, URIQueryParameterIs, saveURIQueryParameter, URIStartsWith, seeText, cookieIs } = withAction(new WebPlaywright());
+const { setRandom, matches } = withAction(new VariablesStepper());
+const { inputVariable, click, URIQueryParameterIs, saveURIQueryParameter, seeText, cookieIs } = withAction(new WebPlaywright());
 
 export const features: TKirejiExport = {
 	'Counts feature': [
@@ -22,7 +22,7 @@ export const features: TKirejiExport = {
 		click({ target: 'Submit' }),
 		URIQueryParameterIs({ what: 'username', value: 'username' }),
 		saveURIQueryParameter({ what: 'username', where: 'username parameter' }),
-		URIStartsWith({ start: 'counter URI' }),
+		matches({ value: 'WebPlaywright.currentURI', pattern: '"{counter URI}*"' }),
 		seeText({ text: 'username' }),
 		cookieIs({ name: '"userid"', value: 'username' })
 	]

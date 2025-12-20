@@ -16,10 +16,20 @@ type TEtc = {
 	statusText?: string;
 }
 
+export type THttpRequestObservation = {
+	url: string;
+	status: number;
+	time: number;
+	method: string;
+}
+
 export class PlaywrightEvents {
 	navigateCount = 0;
+	private pendingRequests = new Map<Request, number>();
+
 	constructor(private world: TWorld, private page: Page, private tag: TTag) {
 	}
+
 	async init() {
 		this.world.eventLogger.debug(`setPage ${JSON.stringify(this.tag)}`);
 		this.page.on('request', this.logRequest.bind(this));
@@ -30,6 +40,7 @@ export class PlaywrightEvents {
 		return this;
 	}
 	private logRequest(request: Request, type = 'request') {
+		this.pendingRequests.set(request, Date.now());
 		const frameURL = request.frame().url();
 		const etc = {
 			method: request.method(),
@@ -48,7 +59,14 @@ export class PlaywrightEvents {
 	}
 
 	private logResponse(response: Response) {
-		const frameURL = response.request().frame().url();
+		const request = response.request();
+		const startTime = this.pendingRequests.get(request);
+		const duration = startTime ? Date.now() - startTime : 0;
+		if (startTime) {
+			this.pendingRequests.delete(request);
+		}
+
+		const frameURL = request.frame().url();
 		const etc = {
 			status: response.status(),
 			statusText: response.statusText(),
@@ -56,6 +74,22 @@ export class PlaywrightEvents {
 		}
 
 		this.log(`response ${etc.status}`, 'response', frameURL, response.url(), etc);
+
+		// Track detailed request metrics
+		if (!this.world.runtime.observations) {
+			this.world.runtime.observations = new Map();
+		}
+		const requests = this.world.runtime.observations.get('httpRequests') || new Map<string, THttpRequestObservation>();
+		const count = requests.size;
+		const id = `req-${count + 1}`;
+		requests.set(id, {
+			url: response.url(),
+			status: response.status(),
+			time: duration,
+			method: request.method()
+		});
+		this.world.runtime.observations.set('httpRequests', requests);
+
 		return;
 	}
 	private framenavigated(frame) {
@@ -88,6 +122,21 @@ export class PlaywrightEvents {
 			requestingURL,
 			...etc
 		};
+
+		// Track HTTP hosts for observation pattern
+		try {
+			const url = new URL(targetURL);
+			const host = url.hostname;
+			if (!this.world.runtime.observations) {
+				this.world.runtime.observations = new Map();
+			}
+			const httpHosts = this.world.runtime.observations.get('httpHosts') || new Map<string, number>();
+			httpHosts.set(host, (httpHosts.get(host) || 0) + 1);
+			this.world.runtime.observations.set('httpHosts', httpHosts);
+		} catch {
+			// Invalid URL, skip tracking
+		}
+
 		// Emit HTTP trace artifact
 		const artifact = HttpTraceArtifact.parse({
 			id: `http-trace-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,

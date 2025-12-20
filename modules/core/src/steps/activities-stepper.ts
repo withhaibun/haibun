@@ -76,6 +76,37 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		startFeature: CycleWhen.FIRST,
 	}
 
+	/**
+	 * Called during resolution phase to clear feature-scoped steps.
+	 * This prevents activity patterns from leaking between features during resolution.
+	 */
+	startFeatureResolution(path: string): void {
+		// Clear steps from previous feature (resolution phase)
+		if (this.lastResolutionPath && this.lastResolutionPath !== path) {
+			const previousSteps = this.featureSteps.get(this.lastResolutionPath);
+			if (previousSteps) {
+				for (const outcome of Object.keys(previousSteps)) {
+					delete this.steps[outcome];
+				}
+			}
+		}
+
+		// Reload current feature's steps if already registered
+		const currentSteps = this.featureSteps.get(path);
+		if (currentSteps) {
+			for (const [outcome, step] of Object.entries(currentSteps)) {
+				this.steps[outcome] = step;
+			}
+		}
+
+		// Always reload background steps
+		for (const [outcome, step] of Object.entries(this.backgroundSteps)) {
+			this.steps[outcome] = step;
+		}
+
+		this.lastResolutionPath = path;
+	}
+
 	readonly baseSteps = {
 		activity: {
 			gwta: 'Activity: {activity}',

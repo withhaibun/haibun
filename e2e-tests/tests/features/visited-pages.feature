@@ -7,8 +7,8 @@ Scenario: All visited pages start with allowed prefix
     
     serve files at /static from "visited-pages"
     
-    set of Allowed prefixes as [string]
-    set localhost as Allowed prefixes to "http://localhost:8123/static/"
+    set of Allowed patterns as [string]
+    set localhost as Allowed patterns to "http://localhost:8123/static/*"
     
     go to the http://localhost:8123/static/page1.html webpage
     wait for "Page 1"
@@ -17,11 +17,11 @@ Scenario: All visited pages start with allowed prefix
     click "Go to Page 3"
     wait for "Page 3"
     
-    every page in Visited pages is some prefix in Allowed prefixes is that {page} starts with {prefix}
+    every page in Visited pages is some pattern in Allowed patterns is that {page} matches {pattern}
     
     We also verify that no external domains were accessed.
     
-    set of External prefixes as [string]
-    set external as External prefixes to "https://external.com/"
+    set of External patterns as [string]
+    set external as External patterns to "https://external.com/*"
     
-    not some page in Visited pages is some prefix in External prefixes is that {page} starts with {prefix}
+    not some page in Visited pages is some pattern in External patterns is that {page} matches {pattern}

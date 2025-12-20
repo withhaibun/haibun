@@ -42,7 +42,12 @@ export type TRuntime = {
 	backgrounds?: TFeature[];
 	scenario?: string;
 	feature?: string;
+	/** Current feature file path (for dynamic statement execution) */
+	currentFeaturePath?: string;
 	stepResults: TStepResult[];
+
+	/** Generic storage for observation data, cleared between features */
+	observations: Map<string, TAnyFixme>;
 	/** If non-empty, execution was aborted due to exhaustion (description explains why). */
 	exhaustionError?: string;
 	[name: string]: TAnyFixme;
@@ -185,8 +190,25 @@ export interface IStepperWhen {
 	startFeature?: number;
 }
 
+/**
+ * Observation source for the 'observed in' quantifier pattern.
+ * Provides ephemeral iteration over runtime metrics.
+ */
+export interface IObservationSource {
+	name: string;
+	observe(world: TWorld): {
+		items: string[];
+		metrics: Record<string, Record<string, any>>;
+	};
+}
+
+export interface IStepperConcerns {
+	domains?: TDomainDefinition[];
+	sources?: IObservationSource[];
+}
+
 export interface IStepperCycles {
-	getDomains?(): TDomainDefinition[];
+	getConcerns?(): IStepperConcerns;
 	startExecution?(features: TStartExecution): Promise<void> | void;
 	startFeature?(startFeature: TStartFeature): Promise<void> | void;
 	startScenario?(startScenario: TStartScenario): Promise<void>;

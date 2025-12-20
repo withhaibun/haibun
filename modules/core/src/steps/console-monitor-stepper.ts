@@ -2,6 +2,7 @@ import { AStepper, IHasCycles, StepperKinds } from '../lib/astepper.js';
 import { THaibunEvent } from '../schema/protocol.js';
 import { Timer } from '../schema/protocol.js';
 import { CHECK_YES, CHECK_NO } from '../schema/protocol.js';
+import { EventFormatter } from '../monitor/index.js';
 
 /**
  * ConsoleMonitorStepper - Console monitor using the onEvent pattern.
@@ -29,6 +30,7 @@ export default class ConsoleMonitorStepper extends AStepper implements IHasCycle
   private showLogEvents: boolean = true;
   private showLifecycleEvents: boolean = true;
   private lastLevel: string = '';
+  private minLevel: string = 'info';
 
   cycles = {
     startExecution: () => {
@@ -36,6 +38,7 @@ export default class ConsoleMonitorStepper extends AStepper implements IHasCycle
       this.verbose = options['HAIBUN_O_CONSOLEMONITORSTEPPER_CONSOLE_MONITOR_VERBOSE'] === 'true';
       this.showLogEvents = options['HAIBUN_O_CONSOLEMONITORSTEPPER_CONSOLE_MONITOR_LOGS'] !== 'false';
       this.showLifecycleEvents = options['HAIBUN_O_CONSOLEMONITORSTEPPER_CONSOLE_MONITOR_LIFECYCLE'] !== 'false';
+      this.minLevel = (process.env.HAIBUN_LOG_LEVEL as string) || (options['HAIBUN_LOG_LEVEL'] as string) || 'info';
     },
 
     onEvent: (event: THaibunEvent): void => {
@@ -44,74 +47,31 @@ export default class ConsoleMonitorStepper extends AStepper implements IHasCycle
   };
 
   private handleEvent(event: THaibunEvent): void {
-    if (event.kind === 'lifecycle' && this.showLifecycleEvents) {
-      this.handleLifecycleEvent(event);
-    } else if (event.kind === 'log' && this.showLogEvents) {
-      this.handleLogEvent(event);
-    } else if (event.kind === 'artifact') {
-      this.handleArtifactEvent(event);
-    } else if (event.kind === 'control' && this.verbose) {
-      this.handleControlEvent(event);
-    }
-  }
+    // Determine visibility
+    let visible = EventFormatter.shouldDisplay(event, this.minLevel as any);
 
-  private handleLifecycleEvent(event: THaibunEvent & { kind: 'lifecycle' }): void {
-    const isSpeculative = event.intent?.mode === 'speculative';
-
-    let status: string;
-    if (event.status === 'completed') {
-      status = isSpeculative ? ' ✓' : CHECK_YES;
-    } else if (event.status === 'failed') {
-      status = isSpeculative ? ' ✗' : CHECK_NO;
-    } else if (event.status === 'running') {
-      status = '⏳';
-    } else {
-      status = ' •';
+    // allow verbose to override hidden start steps
+    if (this.verbose && event.kind === 'lifecycle' && !visible) {
+      visible = true;
     }
 
-    if (event.type === 'step') {
-      if (event.stage === 'end' || this.verbose) {
-        const error = event.error ? ` (${event.error})` : '';
-        const text = 'in' in event ? event.in : '';
-        this.logLine('log', event, `${status} ${event.id} ${text}${error}`);
+    if (!visible) return;
+
+    if (event.kind === 'lifecycle' && !this.showLifecycleEvents) return;
+    if (event.kind === 'log' && !this.showLogEvents) return;
+
+    // Handle extra newlines for structure
+    if (event.kind === 'lifecycle' && event.stage === 'start') {
+      if (event.type === 'feature' || event.type === 'scenario') {
+        console.log('');
       }
-    } else if (event.type === 'feature' && event.stage === 'start') {
-      console.log('');
-      const featurePath = 'featurePath' in event ? event.featurePath : 'Feature';
-      this.logLine('feature', event, `📄 ${featurePath}`);
-    } else if (event.type === 'scenario' && event.stage === 'start') {
-      const scenarioName = 'scenarioName' in event ? event.scenarioName : 'Scenario';
-      this.logLine('scenario', event, `📋 ${scenarioName}`);
     }
+
+    // Format and log
+    const line = EventFormatter.formatLine(event, this.lastLevel);
+    this.lastLevel = EventFormatter.getDisplayLevel(event);
+    console.log(line);
   }
 
-  private handleLogEvent(event: THaibunEvent & { kind: 'log' }): void {
-    const levelIcon: Record<string, string> = {
-      trace: '🔬', debug: '🐛', info: 'ℹ️', warn: '⚠️', error: '🚨'
-    };
-    const icon = levelIcon[event.level] || '•';
 
-    if (this.verbose || ['info', 'warn', 'error'].includes(event.level)) {
-      this.logLine(event.level, event, `${icon}${event.id} ${event.message}`);
-    }
-  }
-
-  private handleArtifactEvent(event: THaibunEvent & { kind: 'artifact' }): void {
-    const path = 'path' in event ? ` (${event.path})` : '';
-    this.logLine('artifact', event, `📎 ${event.id} ${event.artifactType}${path}`);
-  }
-
-  private handleControlEvent(event: THaibunEvent & { kind: 'control' }): void {
-    this.logLine('control', event, `⚙️ ${event.id} ${event.signal}`);
-  }
-
-  private logLine(level: string, event: THaibunEvent, message: string): void {
-    const time = (Timer.since() / 1000).toFixed(3);
-    const emitter = (event as any).emitter || 'unknown';
-    const showLevel = this.lastLevel === level ? level.charAt(0) : level;
-    this.lastLevel = level;
-
-    const prefix = showLevel.padStart(8) + ` █ ${time}:${emitter}`.padEnd(32) + ` ｜ `;
-    console.log(prefix + message);
-  }
 }

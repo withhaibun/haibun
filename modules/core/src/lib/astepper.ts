@@ -30,6 +30,12 @@ export abstract class AStepper {
 
 		return this.world;
 	}
+
+	/**
+	 * Called by Resolver before resolving each feature.
+	 * Steppers can override to clear feature-scoped steps that shouldn't leak between features.
+	 */
+	startFeatureResolution?(_path: string): void;
 }
 export type TStepperSteps = {
 	[key: string]: TStepperStep;

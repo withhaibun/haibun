@@ -142,7 +142,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			gwta: 'show vars',
 			action: () => {
 				const displayVars = Object.fromEntries(Object.entries(this.getWorld().shared.all()).map(([k, v]) => [k, v.value]));
-				this.getWorld().eventLogger.debug(`vars: ${JSON.stringify(displayVars, null, 2)}`, { vars: displayVars });
+				this.getWorld().eventLogger.info(`vars: ${JSON.stringify(displayVars, null, 2)}`, { vars: displayVars });
 				return actionOK();
 			},
 		},
@@ -421,18 +421,40 @@ class VariablesStepper extends AStepper implements IHasCycles {
 					: actionNotOK(`"${actualValue}" is not in ${domainName}`);
 			}
 		},
-		// Starts with: predicate for prefix checking
-		// Starts with literal 'that' for unambiguous parsing in compositions
-		// Usage: that {page} starts with {prefix}
-		startsWith: {
-			gwta: 'that {value} starts with {prefix}',
-			action: ({ value, prefix }: { value: string; prefix: string }) => {
-				const actualValue = String(value);
-				const actualPrefix = String(prefix);
+		// Pattern matching: glob-style patterns for human-readable matching
+		// Usage: that {host} matches "*.wikipedia.org"
+		//        that {path} matches "/api/*"
+		//        that {name} matches "*test*"
+		// Supports * as wildcard (matches any characters)
+		// Variables in pattern are interpolated: "{counter URI}*" resolves to actual value
+		matches: {
+			gwta: 'that {value} matches {pattern}',
+			action: ({ value, pattern }: { value: string; pattern: string }, featureStep: TFeatureStep) => {
+				// Interpolate value (e.g. "{request}/url" -> "req-1/url")
+				const interpolatedValue = this.interpolateTemplate(value, featureStep);
+				if (interpolatedValue.error) return actionNotOK(interpolatedValue.error);
+				const term = interpolatedValue.value!;
 
-				return actualValue.startsWith(actualPrefix)
+				// Resolve value as a variable (e.g., "WebPlaywright/currentURI" -> actual URL)
+				const resolved = this.getWorld().shared.resolveVariable({ term, origin: Origin.defined }, featureStep);
+				const actualValue = resolved.value !== undefined ? String(resolved.value) : String(term);
+
+				// Interpolate variables in pattern (e.g., "{counter URI}*" -> "http://localhost:8123/*")
+				const interpolated = this.interpolateTemplate(pattern, featureStep);
+				if (interpolated.error) return actionNotOK(interpolated.error);
+				const actualPattern = interpolated.value!;
+
+				// Convert glob pattern to regex
+				// Escape regex special chars except *, then replace * with .*
+				const escaped = actualPattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
+				const regexPattern = escaped.replace(/\*/g, '.*');
+				const regex = new RegExp(`^${regexPattern}$`);
+
+				const isMatch = regex.test(actualValue);
+
+				return isMatch
 					? OK
-					: actionNotOK(`"${actualValue}" does not start with "${actualPrefix}"`);
+					: actionNotOK(`"${actualValue}" does not match pattern "${actualPattern}"`);
 			}
 		},
 	} satisfies TStepperSteps;

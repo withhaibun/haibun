@@ -96,7 +96,8 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 			try {
 				promptResult = await this.runner.runStatement(responseStr, {
 					intent: { mode: 'authoritative', usage: 'debugging' },
-					seqPath: seqStart
+					seqPath: seqStart,
+					parentStep: featureStep
 				});
 
 				// Check for controlSignal (new pattern)
