@@ -271,7 +271,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 
 	async captureScreenshot(event: string, details: { seq?: number; step?: TStepResult }) {
 		const filename = `event-${details.step?.seqPath.join('.')}.png`;
-		// Take screenshot to buffer first, then save via unified saveArtifact
+		// Take screenshot to buffer first, then save 
 		const buffer = await this.withPage(async (page: Page) => await page.screenshot()) as Buffer;
 		const saved = await this.storage.saveArtifact(filename, buffer, EMediaTypes.image, 'image');
 

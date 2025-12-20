@@ -4,6 +4,10 @@
 [x] should show raw json when it finds no message (currently blank for graph-link)
 [x] max depth should default to 6
 [x] ~~~ hidden should handle hidden by depth
+
+[x] it should be possible to horiz size detail view. if the screen is too narrow they should appear below
+[x] artifacts should open in that view intsead of below  (traces already do)
+
 [ ] waypoints + proofs are missing in mermaid graph
 [ ] display stepArgs in monitor-browser log view
 [ ] writeFeaturesArtifact should write json-schema with version from version.ts

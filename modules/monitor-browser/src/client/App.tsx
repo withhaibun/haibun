@@ -6,10 +6,9 @@ import { EventFormatter } from '@haibun/core/monitor/index.js'
 import { Timeline } from './Timeline'
 import { Debugger } from './Debugger';
 import { getInitialState } from './serialize';
-import { THaibunEvent, TArtifactEvent, TVideoArtifact, TResolvedFeaturesArtifact } from '@haibun/core/schema/protocol.js';
+import { THaibunEvent, TArtifactEvent, TVideoArtifact, TResolvedFeaturesArtifact, THttpTraceArtifact } from '@haibun/core/schema/protocol.js';
 import { DocumentView } from './DocumentView';
 import { ArtifactRenderer } from './artifacts';
-import { FloatingVideoPlayer } from './artifacts/FloatingVideoPlayer';
 import { ArtifactRow } from './components/ArtifactRow';
 import { StepMessage } from './components/StepMessage';
 import { SourceLinks } from './components/SourceLinks';
@@ -35,10 +34,13 @@ function App() {
     const [viewMode, setViewMode] = useState<ViewMode>('log');
     const [minLogLevel, setMinLogLevel] = useState<string>('info');
     const [maxDepth, setMaxDepth] = useState<number>(6);
-    const [expandedArtifacts, setExpandedArtifacts] = useState<Set<string>>(new Set());
     const [scrollTargetId, setScrollTargetId] = useState<string | null>(null);
     const [selectedEvent, setSelectedEvent] = useState<THaibunEvent | null>(null);
     const [cwd, setCwd] = useState<string | null>(null);
+    const [detailsPanelWidth, setDetailsPanelWidth] = useState<number>(() => {
+        const saved = localStorage.getItem('detailsPanelWidth');
+        return saved ? parseInt(saved, 10) : 400;
+    });
 
     // Video metadata extracted from loadedmetadata event
     const [videoMetadata, setVideoMetadata] = useState<{
@@ -48,18 +50,6 @@ function App() {
     } | null>(null);
 
     const scrollRef = useRef<HTMLDivElement>(null);
-
-    const toggleArtifact = (id: string) => {
-        setExpandedArtifacts(prev => {
-            const next = new Set(prev);
-            if (next.has(id)) {
-                next.delete(id);
-            } else {
-                next.add(id);
-            }
-            return next;
-        });
-    };
 
     // Debugger state
     const [activePrompt, setActivePrompt] = useState<any | null>(null);
@@ -508,7 +498,7 @@ function App() {
                     <React.Fragment key={i}>
                         <div
                             id={`event-${e.id}`}
-                            className={`flex whitespace-pre items-start leading-tight transition-colors ${bgClass} cursor-pointer hover:bg-slate-800 ${selectedEvent?.id === e.id ? 'bg-slate-800 ring-1 ring-blue-500' : ''}`}
+                            className={`flex whitespace-pre items-start leading-tight transition-colors ${bgClass} cursor-pointer hover:bg-slate-800 ${selectedEvent?.id === e.id ? 'bg-cyan-900/30 border-l-4 border-l-cyan-500 -ml-1 pl-1 border-r-4 border-r-cyan-500' : ''}`}
                             onClick={() => {
                                 setSelectedEvent(e);
                                 // Scroll the event into view after the details panel renders
@@ -555,12 +545,15 @@ function App() {
                                     {e.kind === 'artifact' ? (
                                         <ArtifactRow
                                             e={e as TArtifactEvent}
-                                            isExpanded={expandedArtifacts.has(e.id)}
-                                            onToggle={() => toggleArtifact(e.id)}
+                                            onSelect={() => {
+                                                setSelectedEvent(e);
+                                                setTimeout(() => {
+                                                    const el = document.getElementById(`event-${e.id}`);
+                                                    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                                }, 50);
+                                            }}
                                             isSerializedMode={isSerializedMode}
-                                            currentTime={currentTime}
-                                            videoStartTimestamp={videoStartTimestamp}
-                                            videoMetadata={videoMetadata}
+                                            isSelected={selectedEvent?.id === e.id}
                                         />
                                     ) : (
                                         <>
@@ -598,11 +591,14 @@ function App() {
                         {/* Inline Artifacts */}
                         <InlineArtifacts
                             e={e}
-                            expandedArtifacts={expandedArtifacts}
-                            toggleArtifact={toggleArtifact}
-                            currentTime={currentTime}
-                            videoStartTimestamp={videoStartTimestamp}
-                            videoMetadata={videoMetadata}
+                            onSelectArtifact={(artifact) => {
+                                setSelectedEvent(artifact);
+                                setTimeout(() => {
+                                    const el = document.getElementById(`event-${artifact.id}`);
+                                    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                }, 50);
+                            }}
+                            selectedArtifactId={selectedEvent?.id}
                         />
                     </React.Fragment>
                 );
@@ -636,28 +632,15 @@ function App() {
             );
         }
 
-        // Otherwise show video if available
-        if (videoInfo && videoInfo.path) {
-            return (
-                <div className="w-80 shrink-0 sticky top-20 self-start">
-                    <FloatingVideoPlayer
-                        path={videoInfo.path}
-                        startTimestamp={videoInfo.startTimestamp}
-                        appStartTime={startTime || 0}
-                        currentTime={currentTime}
-                        onMetadataLoaded={(meta) => setVideoMetadata(meta)}
-                    />
-                </div>
-            );
-        }
-        return null; // or empty placeholder if you want to reserve space
+        // Video is now shown in details panel when its event is selected
+        return null;
     };
 
 
     return (
         <div
-            className={`h-screen w-full bg-background text-foreground pb-20 overflow-y-auto transition-all duration-300 ${selectedEvent ? 'pr-[400px]' : ''}`}
-            style={{ scrollbarGutter: 'stable' }}
+            className={`h-screen w-full bg-background text-foreground pb-20 overflow-y-auto transition-all duration-300`}
+            style={{ scrollbarGutter: 'stable', paddingRight: selectedEvent ? `${detailsPanelWidth}px` : undefined }}
         >
             <style>{`
         ::-webkit-scrollbar {
@@ -693,12 +676,44 @@ function App() {
                         {(['log', 'raw', 'document'] as ViewMode[]).map(mode => (
                             <button
                                 key={mode}
-                                onClick={() => setViewMode(mode)}
+                                onClick={() => { setViewMode(mode); setSelectedEvent(null); }}
                                 className={`px-3 py-1 text-xs rounded-sm capitalize ${viewMode === mode ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
                             >
                                 {mode}
                             </button>
                         ))}
+                    </div>
+
+                    {/* Timeline Artifact Icons */}
+                    <div className="ml-2 flex items-center gap-1">
+                        {videoInfo?.path && (
+                            <button
+                                onClick={() => {
+                                    const videoArtifact = events.find(e => e.kind === 'artifact' && e.artifactType === 'video') as TVideoArtifact | undefined;
+                                    if (videoArtifact) setSelectedEvent(videoArtifact);
+                                }}
+                                className={`p-1.5 hover:bg-slate-700 rounded transition-colors ${selectedEvent?.kind === 'artifact' && (selectedEvent as any).artifactType === 'video' ? 'text-cyan-400' : 'text-slate-500 hover:text-slate-300 grayscale'}`}
+                                title="View Video"
+                            >
+                                ▶
+                            </button>
+                        )}
+                        {events.some(e => e.kind === 'artifact' && e.artifactType === 'http-trace') && (
+                            <button
+                                onClick={() => {
+                                    // Create a synthetic event to display http-trace sequence
+                                    const httpTraces = events.filter(e => e.kind === 'artifact' && e.artifactType === 'http-trace') as THttpTraceArtifact[];
+                                    if (httpTraces.length > 0) {
+                                        // Select first trace to trigger display, DetailsPanel will show all
+                                        setSelectedEvent({ ...httpTraces[0], _allTraces: httpTraces } as any);
+                                    }
+                                }}
+                                className={`p-1.5 hover:bg-slate-700 rounded transition-colors ${selectedEvent?.kind === 'artifact' && (selectedEvent as any).artifactType === 'http-trace' ? 'text-cyan-400' : 'text-slate-500 hover:text-slate-300 grayscale'}`}
+                                title={`View HTTP Traces (${events.filter(e => e.kind === 'artifact' && e.artifactType === 'http-trace').length})`}
+                            >
+                                ⇄
+                            </button>
+                        )}
                     </div>
                 </div>
                 <div className="flex gap-4 items-center">
@@ -766,7 +781,20 @@ function App() {
                 onSpeedChange={setPlaybackSpeed}
             />
             {selectedEvent && (
-                <DetailsPanel event={selectedEvent} onClose={() => setSelectedEvent(null)} />
+                <DetailsPanel
+                    event={selectedEvent}
+                    onClose={() => setSelectedEvent(null)}
+                    width={detailsPanelWidth}
+                    onWidthChange={(w) => {
+                        setDetailsPanelWidth(w);
+                        localStorage.setItem('detailsPanelWidth', String(w));
+                    }}
+                    currentTime={currentTime}
+                    videoStartTimestamp={videoStartTimestamp}
+                    videoMetadata={videoMetadata}
+                    isPlaying={isPlaying}
+                    startTime={startTime || 0}
+                />
             )}
         </div>
     );

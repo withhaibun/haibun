@@ -75,14 +75,10 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
     endFeature: async () => {
       MonitorBrowserStepper.transport.send({ type: 'finalize' });
 
-      // For serialized HTML, transform baseRelativePaths (seq-0/featn-1/image/file.png)
-      // to featureRelativePaths (./image/file.png) since HTML will be in feature dir
       const transformedEvents = this.events.map(e => {
         if (e.kind === 'artifact' && 'path' in e && typeof (e as any).path === 'string') {
           const artifactPath = (e as any).path as string;
-          // baseRelativePath format: featn-N[-name]/subpath/file.ext
-          // Need to strip featn-N[-name]/ prefix for serialized HTML
-          const match = artifactPath.match(/^featn-\d+(?:-.*)?\/(.*)$/);
+          const match = artifactPath.match(/^featn-\d+(?:-[^/]*)?\/(.*)/);
           if (match) {
             return { ...e, path: './' + match[1] };
           }

@@ -9,7 +9,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc -b",
+    "build": "tsc -b && vite build",
     "build:client": "vite build",
     "dev": "vite",
     "test": "vitest"

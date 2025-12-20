@@ -74,7 +74,7 @@ class A11yStepper extends AStepper implements IHasOptions {
   private async generateArtifact(axeReport: TAnyFixme, filename: string, featureStep?: TFeatureStep) {
     const html = generateHTMLAxeReportFromBrowserResult(axeReport);
     if (this.storage) {
-      const saved = await this.storage.saveArtifact(filename + '.html', html, EMediaTypes.html);
+      const saved = await this.storage.saveArtifact(filename + '.html', html, EMediaTypes.html, 'html');
 
       if (featureStep && this.getWorld().eventLogger) {
         const artifactEvent = HtmlArtifact.parse({

@@ -8,7 +8,6 @@ import { JsonArtifact } from './JsonArtifact';
 import { MermaidArtifact } from './MermaidArtifact';
 
 import { getMermaidFromResolvedFeatures } from '../lib/mermaid';
-import { formatVideoMetadata } from './FloatingVideoPlayer';
 import { getArtifactUrl } from '../lib/utils';
 
 interface ArtifactRendererProps {
@@ -18,29 +17,21 @@ interface ArtifactRendererProps {
   videoMetadata?: { duration: number; width: number; height: number } | null;
   displayMode?: 'log' | 'document';
   onTimeSync?: (time: number) => void;
+  startTime?: number;
 }
 
-export function ArtifactRenderer({ artifact, currentTime, videoStartTimestamp, videoMetadata, displayMode = 'log', onTimeSync }: ArtifactRendererProps) {
+export function ArtifactRenderer({ artifact, currentTime, videoStartTimestamp, videoMetadata, displayMode = 'log', onTimeSync, startTime }: ArtifactRendererProps) {
   switch (artifact.artifactType) {
     case 'image':
       return <ImageArtifact artifact={artifact} />;
     case 'video':
-      // In document mode, show the video inline with controls
+      // In document mode, show the video inline with controls (no sync)
       if (displayMode === 'document') {
         return <VideoArtifact artifact={artifact} />;
       }
-      
-      // In log mode, video is rendered by the floating player when videoStartTimestamp is set
-      // Show just metadata inline
-      if (videoStartTimestamp !== null && videoStartTimestamp !== undefined) {
-        const metadataStr = formatVideoMetadata(videoMetadata || null);
-        return (
-          <div className="text-slate-600 text-xs italic">
-            {metadataStr ? <span>{metadataStr}</span> : <span>Synced to timeline</span>}
-          </div>
-        );
-      }
-      return <VideoArtifact artifact={artifact} currentTime={currentTime} videoStartTimestamp={videoStartTimestamp} sync={true} />;
+
+      // In log/details mode, always show synced video with timeline controls
+      return <VideoArtifact artifact={artifact} currentTime={currentTime} videoStartTimestamp={videoStartTimestamp} startTime={startTime} sync={true} />;
     case 'html':
       return <HtmlArtifact artifact={artifact} />;
     case 'speech':

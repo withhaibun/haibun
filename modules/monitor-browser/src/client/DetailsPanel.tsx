@@ -1,43 +1,128 @@
-import React from 'react';
-import { THaibunEvent, LifecycleEvent } from '@haibun/core/schema/protocol.js';
+import React, { useState, useEffect, useRef } from 'react';
+import { THaibunEvent, TArtifactEvent, THttpTraceArtifact } from '@haibun/core/schema/protocol.js';
 import { JsonArtifact } from './artifacts/JsonArtifact';
+import { ArtifactRenderer } from './artifacts';
+import { HttpTraceSequenceDiagram } from './artifacts/HttpTraceSequenceDiagram';
 
 interface DetailsPanelProps {
   event: THaibunEvent | null;
   onClose: () => void;
+  width: number;
+  onWidthChange: (width: number) => void;
+  currentTime?: number;
+  videoStartTimestamp?: number | null;
+  videoMetadata?: { duration: number; width: number; height: number } | null;
+  isPlaying?: boolean;
+  startTime?: number;
 }
 
-export function DetailsPanel({ event, onClose }: DetailsPanelProps) {
+export function DetailsPanel({ event, onClose, width, onWidthChange, currentTime, videoStartTimestamp, videoMetadata, isPlaying, startTime }: DetailsPanelProps) {
+  const [isResizing, setIsResizing] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isResizing) return;
+
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'ew-resize';
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const newWidth = window.innerWidth - e.clientX;
+      onWidthChange(Math.max(250, Math.min(800, newWidth)));
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+    };
+  }, [isResizing, onWidthChange]);
+
   if (!event) return null;
 
+  const isArtifact = event.kind === 'artifact';
+  const isHttpTrace = isArtifact && (event as TArtifactEvent).artifactType === 'http-trace';
+
+  // Check if this is a synthetic event with all traces attached
+  const allTraces = (event as any)._allTraces as THttpTraceArtifact[] | undefined;
+
+  // Determine header text
+  const headerText = isHttpTrace && allTraces
+    ? `HTTP Traces (${allTraces.length})`
+    : event.id;
+
   return (
-    <div className="w-[400px] border-l border-slate-700 bg-slate-900 flex flex-col fixed right-0 top-12 bottom-0 shadow-xl z-50">
-      <div className="flex items-center justify-between p-4 border-b border-slate-700 bg-slate-800 shrink-0">
-        <h2 className="text-sm font-bold text-slate-200 uppercase tracking-wide">Event Details</h2>
-        <button 
+    <div
+      ref={panelRef}
+      style={{ width: `${width}px` }}
+      className="border-l-4 border-l-cyan-500 bg-slate-900 flex flex-col fixed right-0 top-14 bottom-12 shadow-xl z-40"
+    >
+      {/* Resize handle */}
+      <div
+        className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-cyan-500/50 active:bg-cyan-500 group"
+        onMouseDown={() => setIsResizing(true)}
+      >
+        <div className="absolute left-0 top-0 bottom-0 w-1 bg-slate-600 group-hover:bg-cyan-500" />
+      </div>
+
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-2 border-b border-cyan-700 bg-cyan-900/30 shrink-0">
+        <button
+          onClick={() => {
+            const el = document.getElementById(`event-${event.id}`);
+            el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }}
+          className="font-mono text-xs text-cyan-400 hover:text-cyan-300 cursor-pointer hover:underline truncate"
+          title={event.id}
+        >
+          {headerText}
+        </button>
+        <button
           onClick={onClose}
-          className="text-slate-400 hover:text-white transition-colors text-xl leading-none p-1"
+          className="text-slate-500 hover:text-white transition-colors text-sm leading-none px-2 py-1 hover:bg-slate-700 rounded"
         >
           ✕
         </button>
       </div>
-      
-      <div className="flex-1 p-4 space-y-4 overflow-y-auto">
-        <div>
-          <label className="text-[10px] uppercase text-slate-500 font-bold block mb-1">ID</label>
-          <button 
-            onClick={() => {
-              const el = document.getElementById(`event-${event.id}`);
-              el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }}
-            className="font-mono text-xs text-blue-400 hover:text-blue-300 cursor-pointer underline"
-          >
-            {event.id}
-          </button>
-        </div>
 
-        <div className="flex-1">
-          <JsonArtifact artifact={{ artifactType: 'json', json: event } as any} />
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto">
+        {/* HTTP Trace Sequence Diagram */}
+        {isHttpTrace && allTraces && (
+          <div className="border-b border-slate-700 p-4">
+            <HttpTraceSequenceDiagram
+              traces={allTraces}
+              currentTime={currentTime}
+              startTime={startTime}
+            />
+          </div>
+        )}
+
+        {/* Regular artifact renderer (non-http-trace or single http-trace) */}
+        {isArtifact && !allTraces && (
+          <div className="border-b border-slate-700 p-4">
+            <ArtifactRenderer
+              artifact={event as TArtifactEvent}
+              currentTime={currentTime}
+              videoStartTimestamp={videoStartTimestamp}
+              videoMetadata={videoMetadata}
+              startTime={startTime}
+            />
+          </div>
+        )}
+
+        {/* JSON view */}
+        <div className="p-4 pb-8">
+          <JsonArtifact artifact={{ artifactType: 'json', json: allTraces ? { traceCount: allTraces.length, firstTrace: allTraces[0] } : event } as any} />
         </div>
       </div>
     </div>
