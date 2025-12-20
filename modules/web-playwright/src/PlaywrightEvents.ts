@@ -1,7 +1,6 @@
 import { Page, Request, Route, Response } from 'playwright';
 
 import { HttpTraceArtifact } from '@haibun/core/schema/protocol.js';
-import { shortenURI } from '@haibun/core/lib/util/index.js';
 import { TTag } from '@haibun/core/lib/ttag.js';
 import { TWorld } from '@haibun/core/lib/defs.js';
 import { Origin } from '@haibun/core/schema/protocol.js';

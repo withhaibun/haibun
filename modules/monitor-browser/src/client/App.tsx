@@ -8,7 +8,6 @@ import { Debugger } from './Debugger';
 import { getInitialState } from './serialize';
 import { THaibunEvent, TArtifactEvent, TVideoArtifact, TResolvedFeaturesArtifact, THttpTraceArtifact, HAIBUN_LOG_LEVELS, THaibunLogLevel } from '@haibun/core/schema/protocol.js';
 import { DocumentView } from './DocumentView';
-import { ArtifactRenderer } from './artifacts';
 import { ArtifactRow } from './components/ArtifactRow';
 import { StepMessage } from './components/StepMessage';
 import { SourceLinks } from './components/SourceLinks';
