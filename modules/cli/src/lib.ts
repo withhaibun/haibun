@@ -12,6 +12,7 @@ import { FeatureVariables } from '@haibun/core/lib/feature-variables.js';
 import { Prompter } from '@haibun/core/lib/prompter.js';
 import { getCoreDomains } from '@haibun/core/lib/core-domains.js';
 import { EventLogger } from '@haibun/core/lib/EventLogger.js';
+import { TAnyFixme } from '@haibun/core/lib/fixme.js';
 
 const OPTION_CONFIG = '--config';
 const OPTION_HELP = '--help';
@@ -88,7 +89,7 @@ function getCliWorld(protoOptions: TProtoOptions, bases: TBase): TWorld {
 
 	const world: Partial<TWorld> = {
 		tag,
-		runtime: { stepResults: [] },
+		runtime: { stepResults: [], observations: new Map<string,TAnyFixme>()  },
 		eventLogger,
 		prompter: new Prompter(),
 		...protoOptions,

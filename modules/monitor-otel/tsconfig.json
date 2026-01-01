@@ -1,16 +1,8 @@
 {
+  "extends": "../tsconfig.settings.json",
   "compilerOptions": {
     "outDir": "./build",
-    "rootDir": "./src",
-    "types": [
-      "node"
-    ],
-    "target": "ES2022",
-    "module": "Node16",
-    "moduleResolution": "Node16",
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true
+    "rootDir": "./src"
   },
   "include": [
     "src/**/*"

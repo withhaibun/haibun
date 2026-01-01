@@ -4,8 +4,15 @@
   "description": "Ink-based TUI monitor stepper for Haibun",
   "main": "build/index.js",
   "type": "module",
+  "files": [
+    "build/"
+  ],
+  "exports": {
+    ".": "./build/index.js",
+    "./*": "./build/*"
+  },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc -b .",
     "start": "node build/index.js",
     "test": "vitest"
   },

@@ -1,5 +1,5 @@
 import { AStepper, IHasCycles, IHasOptions } from '@haibun/core/lib/astepper.js';
-import { TWorld, ExecMode } from '@haibun/core/lib/defs.js';
+import { TWorld } from '@haibun/core/lib/defs.js';
 import { TStepResult, TStepActionResult } from '@haibun/core/schema/protocol.js';
 import { FlowRunner } from "@haibun/core/lib/core/flow-runner.js";
 import { getFromRuntime, getStepperOption, getStepperOptionName, intOrError, stringOrError } from '@haibun/core/lib/util/index.js';

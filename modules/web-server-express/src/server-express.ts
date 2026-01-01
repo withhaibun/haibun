@@ -15,7 +15,7 @@ export class ServerExpress implements IWebServer {
 	listener?: http.Server;
 	app = express();
 	mounted = defaultMounted();
-	constructor(private logger: IEventLogger, private base: string, private port: number = DEFAULT_PORT) {
+	constructor(private eventLogger: IEventLogger, private base: string, private port: number = DEFAULT_PORT) {
 		this.app.use(cookieParser());
 		this.app.use(express.json({ limit: '150mb' }));
 		this.app.use(express.urlencoded({ extended: true }));
@@ -32,16 +32,16 @@ export class ServerExpress implements IWebServer {
 			if (!ServerExpress.listening.includes(port)) {
 				try {
 					this.listener = this.app.listen(port, () => {
-						this.logger.debug(`Server listening on port: ${port}`);
+						this.eventLogger.debug?.(`Server listening on port: ${port}`);
 						ServerExpress.listening.push(port);
-						this.logger.debug(`express listening on ports ${ServerExpress.listening}`);
+						this.eventLogger.debug?.(`express listening on ports ${ServerExpress.listening}`);
 						resolve('started');
 					});
 				} catch (e) {
 					reject(e);
 				}
 			} else {
-				this.logger.info('express already listening');
+				this.eventLogger.info?.('express already listening');
 				resolve('already listening');
 			}
 		});
@@ -56,14 +56,14 @@ export class ServerExpress implements IWebServer {
 			throw Error(bad);
 		}
 
-		this.logger.debug(`adding ${type} route from ${path}`);
+		this.eventLogger.debug?.(`adding ${type} route from ${path}`);
 		this.app[type](path, ...routes);
 
 		this.addMounted(type, path, routes.toString());
 	}
 
 	addKnownRoute(type: TRouteTypes, path: string, ...routes: TRequestHandler[]) {
-		this.logger.debug(`adding known ${type} route from ${path}`);
+		this.eventLogger.debug?.(`adding known ${type} route from ${path}`);
 		this.app[type](path, ...routes);
 		this.addMounted(type, path, routes.toString());
 	}
@@ -85,7 +85,7 @@ export class ServerExpress implements IWebServer {
 		if (bad) {
 			return bad;
 		}
-		this.logger.debug(`serving index from ${folder} at ${mountAt}`);
+		this.eventLogger.debug?.(`serving index from ${folder} at ${mountAt}`);
 		this.app.use(mountAt, serveIndex(folder), express.static(folder, options));
 		return;
 	}
@@ -110,7 +110,7 @@ export class ServerExpress implements IWebServer {
 
 		this.app.use(mountAt, express.static(folder, options));
 		this.addMounted('get', mountAt, folder);
-		this.logger.debug(`serving files from ${folder} at ${mountAt}`);
+		this.eventLogger.debug?.(`serving files from ${folder} at ${mountAt}`);
 		return;
 	}
 
@@ -129,7 +129,7 @@ export class ServerExpress implements IWebServer {
 	}
 
 	async close(port = this.port) {
-		this.logger.debug(`closing server ${port}`);
+		this.eventLogger.debug?.(`closing server ${port}`);
 		await this.listener?.close();
 		this.mounted = defaultMounted();
 		ServerExpress.listening = ServerExpress.listening.filter(p => p !== port);
