@@ -14,7 +14,14 @@ if (!fileArg) {
 }
 
 const port = portArg ? parseInt(portArg.split('=')[1], 10) : 8080;
-const transport = new WebSocketTransport(port);
+const transport = new WebSocketTransport(port, {
+  info: console.log,
+  error: console.error,
+  warn: console.warn,
+  debug: console.debug,
+  log: () => { },
+  emit: () => { },
+} as any);
 
 const filePath = resolve(process.cwd(), fileArg);
 console.log(`Loading events from ${filePath}...`);

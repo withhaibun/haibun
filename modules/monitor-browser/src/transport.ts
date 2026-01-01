@@ -1,23 +1,22 @@
-
-import { TPrompt, TPromptResponse } from '@haibun/core/lib/prompter.js';
-import { THaibunEvent } from '@haibun/core/schema/protocol.js';
+import http from 'http';
+import fs from 'fs';
+import path from 'path';
 import { RawData, WebSocket, WebSocketServer } from 'ws';
+
+import { IEventLogger } from '@haibun/core/lib/EventLogger.js';
 
 export interface ITransport {
   send(data: unknown): void;
   onMessage(handler: (data: unknown) => void): void;
 }
 
-import http from 'http';
-import fs from 'fs';
-import path from 'path';
 
 export class WebSocketTransport implements ITransport {
   private wss: WebSocketServer;
   private clients: Set<WebSocket> = new Set();
   private server: http.Server;
 
-  constructor(port: number, captureRoot?: string) {
+  constructor(port: number, private logger: IEventLogger, captureRoot?: string) {
     this.server = http.createServer((req, res) => {
       // Enable CORS
       res.setHeader('Access-Control-Allow-Origin', '*');
@@ -56,7 +55,8 @@ export class WebSocketTransport implements ITransport {
             return;
           }
         } catch (e) {
-          console.error('Error serving file:', e);
+          const msg = `[MonitorBrowser] Error serving file: ${e}`;
+          this.logger.error(msg);
           res.statusCode = 500;
           res.end('Internal Server Error');
           return;
@@ -69,17 +69,19 @@ export class WebSocketTransport implements ITransport {
 
     this.server.on('error', (e: any) => {
       if (e.code === 'EADDRINUSE') {
-        console.warn(`\n[MonitorBrowser] Warning: Port ${port} is already in use. Monitor server could not start.`);
-        console.warn(`[MonitorBrowser] Events will not be streamed to browser.`);
+        const msg = `[MonitorBrowser] Warning: Port ${port} is already in use. Monitor server could not start. Events will not be streamed.`;
+        this.logger.warn(msg);
       } else {
-        console.error('[MonitorBrowser] Server Error:', e);
+        const msg = `[MonitorBrowser] Server Error: ${e}`;
+        this.logger.error(msg);
       }
     });
 
     this.wss = new WebSocketServer({ server: this.server });
 
     this.server.listen(port, () => {
-      console.log(`[MonitorBrowser] Server started on port ${port} serving ${captureRoot || 'nothing'}`);
+      const msg = `[MonitorBrowser] Server started on port ${port} serving ${captureRoot || 'nothing'}`;
+      this.logger.info(msg);
     });
 
     this.wss.on('connection', (ws) => {

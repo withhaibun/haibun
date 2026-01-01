@@ -50,7 +50,7 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
     if (!MonitorBrowserStepper.transport) {
       const port = parseInt(getStepperOption(this, 'PORT', world.moduleOptions) || '8080', 10);
       MonitorBrowserStepper.transportRoot = this.storage.getArtifactBasePath();
-      MonitorBrowserStepper.transport = new WebSocketTransport(port, MonitorBrowserStepper.transportRoot);
+      MonitorBrowserStepper.transport = new WebSocketTransport(port, world.eventLogger, MonitorBrowserStepper.transportRoot);
     }
 
 
@@ -116,7 +116,7 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
     const indexPath = path.join(__dirname, '..', 'dist', 'client', 'index.html');
 
     if (!fs.existsSync(indexPath)) {
-      console.error('[MonitorBrowser] Could not find client build artifacts at', indexPath);
+      this.getWorld().eventLogger.error(`[MonitorBrowser] Could not find client build artifacts at ${indexPath}`);
       return;
     }
 
@@ -133,7 +133,7 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
 
     const saved = await this.storage.saveArtifact('monitor.html', html, EMediaTypes.html);
 
-    console.log(`[MonitorBrowser] Report saved: ${actualURI(saved.absolutePath)}`);
+    this.getWorld().eventLogger.info(`[MonitorBrowser] Report saved: ${actualURI(saved.absolutePath)}`);
   }
 
   steps = {
