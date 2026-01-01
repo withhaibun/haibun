@@ -19,9 +19,6 @@
         "../modules/*"
       ]
     },
-    "types": [
-      "node"
-    ],
     "lib": [
       "ES2022"
     ]
