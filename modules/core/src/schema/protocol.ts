@@ -262,7 +262,7 @@ export class EventFormatter {
 
   static formatLine(event: THaibunEvent, lastLevel?: string): string {
     const { time, emitter, level, showLevel, icon, id, message } = this.formatLineElements(event, lastLevel);
-    const prefix = showLevel.padStart(8) + ` █ ${time}:${emitter}`.padEnd(32) + ` ｜ `;
+    const prefix = showLevel.padStart(8) + ` █ ${time}:${emitter}`.padEnd(40) + ` ｜ `;
     return prefix + `${icon} ${id} ${message}`;
   }
 }
