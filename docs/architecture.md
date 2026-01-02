@@ -43,7 +43,7 @@ Scenario: Login and verify domain compliance
 
     Now verify all requests stayed within allowed domains and performed well.
     
-    every host observed in http-trace hosts is some domain in Allowed domains is that {host} matches "*{domain}"
+    every host observed in http-trace hosts is some domain in Allowed domains is matches {host} with "*{domain}"
     
     every request observed in http-trace is variable {request}/status is less than 400
     
@@ -209,10 +209,10 @@ every request observed in http-trace is variable {request}/status is less than 4
 This reads: "for every request captured in http-trace, verify that its status is less than 400."
 
 Quantifiers, like other Haibun steps, are compasable. The nested form `every
-... is some ... is that ...` expresses "for all X, there exists Y such that
+... is some ... is ...` expresses "for all X, there exists Y such that
 predicate(X, Y)":
 ```
-every host observed in http-trace hosts is some domain in Allowed domains is that {host} matches "*{domain}"
+every host observed in http-trace hosts is some domain in Allowed domains is matches {host} with "*{domain}"
 ```
 
 ## Domains
@@ -272,7 +272,7 @@ ensure Navigate to haibunUrl
 | Stepper | Example Steps |
 |---------|---------------|
 | Haibun | `Backgrounds: name`, `Feature:`, `Scenario:`, `until statement`, `after every StepperName, statement` |
-| VariablesStepper | `set var to "value"`, `variable var is "value"`, `set of domain is [values]`, `that {x} matches "pattern"`, `increment var` |
+| VariablesStepper | `set var to "value"`, `variable var is "value"`, `set of domain is [values]`, `matches {var} with "pattern"`, `increment var` |
 | ActivitiesStepper | `Activity: name`, `waypoint Label with proof`, `ensure outcome` |
 | LogicStepper | `not statement`, `if condition, action`, `every x in domain is statement`, `some x in domain is statement` |
 | DebuggerStepper | `debug step by step`, `debug stepper StepperName`, `continue stepper StepperName`; debugger commands: `step`, `continue`, `retry`, `next`, `fail` |

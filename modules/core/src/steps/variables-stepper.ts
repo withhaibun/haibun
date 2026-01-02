@@ -422,13 +422,13 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			}
 		},
 		// Pattern matching: glob-style patterns for human-readable matching
-		// Usage: that {host} matches "*.wikipedia.org"
-		//        that {path} matches "/api/*"
-		//        that {name} matches "*test*"
+		// Usage: matches {host} with "*.wikipedia.org"
+		//        matches {path} with "/api/*"
+		//        matches {name} with "*test*"
 		// Supports * as wildcard (matches any characters)
 		// Variables in pattern are interpolated: "{counter URI}*" resolves to actual value
 		matches: {
-			gwta: 'that {value} matches {pattern}',
+			gwta: 'matches {value} with {pattern}',
 			action: ({ value, pattern }: { value: string; pattern: string }, featureStep: TFeatureStep) => {
 				// Interpolate value (e.g. "{request}/url" -> "req-1/url")
 				const interpolatedValue = this.interpolateTemplate(value, featureStep);

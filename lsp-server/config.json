@@ -15,5 +15,8 @@
   "unused": [
     "@haibun/monitor-tui/build/index",
     "console-monitor-stepper"
-  ]
+  ],
+  "options": {
+    "STAY": "always"
+  }
 }

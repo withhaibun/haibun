@@ -89,7 +89,7 @@ function getCliWorld(protoOptions: TProtoOptions, bases: TBase): TWorld {
 
 	const world: Partial<TWorld> = {
 		tag,
-		runtime: { stepResults: [], observations: new Map<string,TAnyFixme>()  },
+		runtime: { stepResults: [], observations: new Map<string, TAnyFixme>() },
 		eventLogger,
 		prompter: new Prompter(),
 		...protoOptions,
@@ -218,6 +218,8 @@ export function processArgs(args: string[]) {
 			if (stepperList) {
 				withSteppers = withSteppers.concat(stepperList.split(',').map((s) => s.trim()));
 			}
+		} else if (cur === '--stdio' || cur === '--node-ipc' || cur?.startsWith('--socket=')) {
+			// Ignore LSP transport arguments (added by vscode-languageclient)
 		} else {
 			params.push(cur);
 		}

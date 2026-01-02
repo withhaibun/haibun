@@ -18,6 +18,6 @@ Backgrounds: service/counter, int/counter
 
     URI query parameter "username" is username
     save URI query parameter "username" to "username parameter"
-    that WebPlaywright.currentURI matches "{counter URI}*"
+    matches WebPlaywright.currentURI with "{counter URI}*"
     should see username
     cookie "userid" is username

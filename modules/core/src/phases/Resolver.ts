@@ -1,11 +1,13 @@
 import { TStepAction, TResolvedFeature, TExpandedFeature, TStepperStep, TFeatureStep, TExpandedLine, TFeatures, TWorld, TFeature } from '../lib/defs.js';
-import { OK, TStepValue } from '../schema/protocol.js';
+import { TStepValue } from '../schema/protocol.js';
 import { AStepper } from '../lib/astepper.js';
-import { matchGwtaToAction, getMatch, namedInterpolation } from '../lib/namedVars.js';
+import { matchGwtaToAction, getMatch } from '../lib/namedVars.js';
 import { getActionable, dePolite, constructorName } from '../lib/util/index.js';
 import { expandLine } from '../lib/features.js';
 
 export class Resolver {
+	public backgroundWarnings: { path: string; line: string; error: string }[] = [];
+
 	constructor(private steppers: AStepper[], private backgrounds: TFeatures = []) {
 		// Process backgrounds to allow steppers to register metadata (e.g., waypoint statements)
 		for (const background of backgrounds) {
@@ -20,7 +22,12 @@ export class Resolver {
 					try {
 						this.findSingleStepAction(actionable);
 					} catch (e) {
-						throw Error(`Background resolution error for "${lines[i]}" in ${background.path}: ${e.message}`);
+						// Instead of throwing, collect warnings for LSP tolerance
+						this.backgroundWarnings.push({
+							path: background.path,
+							line: lines[i],
+							error: e.message
+						});
 					}
 				}
 			}
@@ -68,7 +75,17 @@ export class Resolver {
 	}
 
 	public async findFeatureSteps(feature: TExpandedFeature): Promise<TFeatureStep[]> {
-		const featureSteps: TFeatureStep[] = [];
+		const { steps, errors } = await this.findFeatureStepsTolerant(feature);
+		if (errors.length > 0) {
+			const firstError = errors[0];
+			throw Error(`findFeatureStep for "${firstError.featureLine.line}": ${firstError.error.message} in ${feature.path}\nUse --show-steppers for more details`);
+		}
+		return steps.filter(s => s.action.stepperName !== 'Directive');
+	}
+
+	public async findFeatureStepsTolerant(feature: TExpandedFeature): Promise<{ steps: TFeatureStep[], errors: { featureLine: TExpandedLine, error: Error }[] }> {
+		const steps: TFeatureStep[] = [];
+		const errors: { featureLine: TExpandedLine, error: Error }[] = [];
 		const allLines = feature.expanded.map(fl => fl.line);
 		let seq = 0;
 		let inCodeBlock = false;
@@ -84,13 +101,24 @@ export class Resolver {
 			}
 
 			const actionable = getActionable(featureLine.line);
-
-			// Give steppers a chance to handle special resolution logic
-			// Pass actual source path for line number tracking (may differ from feature.path for backgrounds)
 			const actualSourcePath = featureLine.feature?.base && featureLine.feature?.path
 				? featureLine.feature.base + featureLine.feature.path
 				: undefined;
+
 			if (this.callResolveFeatureLine(actionable, feature.path, allLines, i, actualSourcePath)) {
+				steps.push({
+					source: {
+						path: actualSourcePath || feature.path,
+						lineNumber: featureLine.lineNumber,
+					},
+					in: featureLine.line,
+					seqPath: [seq],
+					action: {
+						stepperName: 'Directive',
+						actionName: 'directive',
+						step: { exact: actionable, action: async () => ({ ok: true, message: 'Directive' }) }
+					}
+				});
 				continue;
 			}
 
@@ -103,14 +131,11 @@ export class Resolver {
 			try {
 				const stepAction = this.findSingleStepAction(actionable);
 
-				// stepValuesMap is attached to stepAction for downstream processing
-				// Early validation for statement-typed placeholders using their label value
 				if (stepAction.stepValuesMap) {
 					const statements = Object.values(stepAction.stepValuesMap).filter((v: TStepValue & { label?: string }) => v.domain === 'statement' && v.term);
 					for (const ph of statements) {
 						const rawVal = ph.term!;
 						try {
-							// Also give steppers a chance to validate nested statements
 							this.callResolveFeatureLine(rawVal, feature.path);
 							this.findSingleStepAction(rawVal);
 						} catch (e) {
@@ -120,11 +145,12 @@ export class Resolver {
 				}
 
 				const featureStep = this.getFeatureStep(featureLine, seq, stepAction);
-				featureSteps.push(featureStep);
+				steps.push(featureStep);
 			} catch (e) {
-				throw Error(`findFeatureStep for "${featureLine.line}": ${e.message} in ${feature.path}\nUse --show-steppers for more details`);
+				errors.push({ featureLine, error: e });
 			}
-		} return Promise.resolve(featureSteps);
+		}
+		return { steps, errors };
 	}
 	findSingleStepAction(line: string): TStepAction {
 		let stepActions = this.findActionableSteps(line);

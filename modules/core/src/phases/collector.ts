@@ -19,7 +19,8 @@ export async function getFeaturesAndBackgrounds(bases: TBase, featureFilter: str
     const rawFeaturesAndBackgrounds = { features: [], backgrounds: [] };
     for (const t of ['feature', 'background']) {
       const p = `${t}s`;
-      if (fs.existsSync(`${abase}/${p}`)) {
+      const checkPath = `${abase}/${p}`;
+      if (fs.existsSync(checkPath)) {
         const more = debase(abase, await recurse(abase, `/${p}`, t, ff[t], fs));
         rawFeaturesAndBackgrounds[p] = rawFeaturesAndBackgrounds[p].concat(more);
       }

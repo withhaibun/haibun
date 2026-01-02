@@ -2,7 +2,7 @@
   "name": "haibun-lsp",
   "displayName": "Haibun Language Support",
   "description": "Autocomplete and hover documentation for Haibun .feature files",
-  "version": "0.1.1",
+  "version": "0.1.6",
   "publisher": "haibun",
   "repository": {
     "type": "git",
@@ -20,6 +20,13 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "commands": [
+      {
+        "command": "haibun.configure",
+        "title": "Haibun: Configure Workspace",
+        "category": "Haibun"
+      }
+    ],
     "languages": [
       {
         "id": "haibun",
@@ -31,7 +38,36 @@
           "Haibun Feature"
         ]
       }
-    ]
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "Haibun",
+      "properties": {
+        "haibun.bases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Base directories containing Haibun features and backgrounds"
+        },
+        "haibun.configFile": {
+          "type": "string",
+          "default": "",
+          "description": "Path to Haibun configuration file (config.json)"
+        },
+        "haibun.cwd": {
+          "type": "string",
+          "default": "",
+          "description": "Working directory for the Haibun LSP server process"
+        },
+        "haibun.cliPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the Haibun CLI entry point (cli.js). Leave empty to auto-detect."
+        }
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",

@@ -17,11 +17,11 @@ Scenario: All visited pages start with allowed prefix
     click "Go to Page 3"
     wait for "Page 3"
     
-    every page in Visited pages is some pattern in Allowed patterns is that {page} matches {pattern}
+    every page in Visited pages is some pattern in Allowed patterns is matches {page} with {pattern}
     
     We also verify that no external domains were accessed.
     
     set of External patterns as [string]
     set external as External patterns to "https://external.com/*"
     
-    not some page in Visited pages is some pattern in External patterns is that {page} matches {pattern}
+    not some page in Visited pages is some pattern in External patterns is matches {page} with {pattern}

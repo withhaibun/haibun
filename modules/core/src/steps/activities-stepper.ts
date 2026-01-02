@@ -107,6 +107,11 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		this.lastResolutionPath = path;
 	}
 
+	clearAllBackgroundSteps(): void {
+		this.backgroundSteps = {};
+		this.backgroundOutcomePatterns.clear();
+	}
+
 	readonly baseSteps = {
 		activity: {
 			gwta: 'Activity: {activity}',

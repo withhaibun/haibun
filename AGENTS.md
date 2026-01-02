@@ -240,13 +240,13 @@ For example, to verify that every visited page matches some allowed pattern:
     set p1 as patterns to "https://test.com/*"
     set p2 as patterns to "https://staging.com/*"
     
-    every page in urls is some pattern in patterns is that {page} matches {pattern}
+    every page in urls is some pattern in patterns is matches {page} with {pattern}
 
 This expresses: for every page in urls, there exists some pattern in patterns such that the page matches that pattern.
 
 Variables bound in outer quantifiers (`{page}`) flow through to inner predicates. The `that` prefix disambiguates the predicate from other step patterns.
 
-The Playwright stepper provides a `Visited pages` domain that tracks all URLs accessed during a browser session. This enables verification like `every page in Visited pages is some pattern in Allowed patterns is that {page} matches {pattern}` to ensure no unexpected domains were accessed.
+The Playwright stepper provides a `Visited pages` domain that tracks all URLs accessed during a browser session. This enables verification like `every page in Visited pages is some pattern in Allowed patterns is matches {page} with {pattern}` to ensure no unexpected domains were accessed.
 
 
 #### Disjunction (any of, some)
