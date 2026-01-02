@@ -4,6 +4,7 @@ lerna-debug.log
 npm-debug.log
 packages/*/lib
 build/
+build-local/
 dist/
 coverage/
 *.tsbuildinfo

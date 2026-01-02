@@ -1,0 +1,44 @@
+{
+  "name": "haibun-lsp",
+  "displayName": "Haibun Language Support",
+  "description": "Autocomplete and hover documentation for Haibun .feature files",
+  "version": "0.1.1",
+  "publisher": "haibun",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "activationEvents": [
+    "onLanguage:feature",
+    "workspaceContains:**/*.feature"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "feature",
+        "extensions": [
+          ".feature"
+        ],
+        "aliases": [
+          "Feature",
+          "Haibun Feature"
+        ]
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.75.0",
+    "typescript": "^5.0.0"
+  }
+}

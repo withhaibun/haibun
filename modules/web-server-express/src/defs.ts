@@ -1,7 +1,7 @@
 export const WEBSERVER = 'webserver';
 import * as express from 'express';
 
-export interface IWebServer {
+export interface IWebServerExpress {
 	checkAddStaticFolder(subdir: string, loc: string, options?: TStaticFolderOptions): undefined | string;
 	checkAddIndexFolder(subdir: string, loc: string): undefined | string;
 	addKnownStaticFolder(subdir: string, mountAt?: string): undefined | string;

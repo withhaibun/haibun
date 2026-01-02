@@ -4,13 +4,13 @@ import express, { RequestHandler } from 'express';
 import serveIndex from 'serve-index';
 import cookieParser from 'cookie-parser';
 
-import { IWebServer, ROUTE_TYPES, TRequestHandler, TRouteMap, TRouteTypes, TStaticFolderOptions } from './defs.js';
+import { IWebServerExpress, ROUTE_TYPES, TRequestHandler, TRouteMap, TRouteTypes, TStaticFolderOptions } from './defs.js';
 import { IEventLogger } from '@haibun/core/lib/EventLogger.js';
 
 export const DEFAULT_PORT = 8123;
 const defaultMounted = () => ROUTE_TYPES.reduce((acc, type) => ({ ...acc, [type]: {} }), <TRouteMap>{});
 
-export class ServerExpress implements IWebServer {
+export class ServerExpress implements IWebServerExpress {
 	static listening: number[] = [];
 	listener?: http.Server;
 	app = express();

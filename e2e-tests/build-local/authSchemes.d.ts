@@ -1,13 +1,13 @@
-import { IRequest, IResponse } from '@haibun/web-server-express/defs.js';
-import TestServer from './test-server.js';
+import type { MiddlewareHandler } from '@haibun/web-server-hono/defs.js';
+import type TestServer from './test-server.js';
 export type TSchemeType = 'basic' | 'bearer';
-type TSchemeMethods = (testServer: TestServer) => {
-    check: (req: IRequest, res: IResponse) => boolean;
+export declare const createAuthMiddleware: {
+    basic: (ts: TestServer) => MiddlewareHandler;
+    bearer: (ts: TestServer) => MiddlewareHandler;
+};
+export declare const createDynamicAuthMiddleware: (ts: TestServer) => MiddlewareHandler;
+export interface AuthSchemeLogout {
     logout: () => void;
-};
-export type TAuthScheme = {
-    [K in TSchemeType]: TSchemeMethods;
-};
-export declare const authSchemes: TAuthScheme;
-export {};
+}
+export declare const authSchemes: Record<TSchemeType, (ts: TestServer) => AuthSchemeLogout>;
 //# sourceMappingURL=authSchemes.d.ts.map

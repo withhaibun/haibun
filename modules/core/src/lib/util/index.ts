@@ -2,7 +2,6 @@ import { TSpecl, TWorld, TRuntime, TModuleOptions, CStepper, TFeatureStep } from
 import { TNotOKActionResult, TOKActionResult, OK, TSeqPath, TDebugSignal } from '../../schema/protocol.js';
 import { TAnyFixme } from '../fixme.js';
 import { IHasOptions, AStepper } from '../astepper.js';
-import { TTag } from '../ttag.js';
 import { TArtifactEvent } from '../../schema/protocol.js';
 export * from './actualURI.js';
 
@@ -283,12 +282,7 @@ function stepperOptionNotFoundError(stepper: AStepper, optionNames: string[], mo
  * If no stepper-level option is defined, returns any single stepper matching the first optionName as kind.
  * Throws if multiple steppers match the kind and no option is specified.
  */
-export function findStepperFromOptionOrKind<Type>(
-	steppers: AStepper[],
-	stepper: AStepper,
-	moduleOptions: TModuleOptions,
-	...optionNames: string[]
-): Type {
+export function findStepperFromOptionOrKind<Type>(steppers: AStepper[], stepper: AStepper, moduleOptions: TModuleOptions, ...optionNames: string[]): Type {
 	// First, try to find via option
 	const val = optionNames.reduce<string | undefined>((v, n) => {
 		const r = getStepperOption(stepper, n, moduleOptions);

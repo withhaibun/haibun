@@ -43,7 +43,7 @@
     "@haibun/web-accessibility-axe": "file:../modules/web-accessibility-axe",
     "@haibun/web-http": "file:../modules/web-http",
     "@haibun/web-playwright": "file:../modules/web-playwright",
-    "@haibun/web-server-express": "file:../modules/web-server-express",
+    "@haibun/web-server-hono": "file:../modules/web-server-hono",
     "@types/express-fileupload": "^1.4.1",
     "express-fileupload": "^1.4.0",
     "typescript": "~5.8"

@@ -58,7 +58,7 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 		this.steppers = steppers;
 		this.world = world;
 		this.runner = new FlowRunner(world, steppers);
-		const debugSteppersStart = getStepperOption(this, 'DEBUG_STEPPERS', world.moduleOptions);
+		const debugSteppersStart = getStepperOption(this, 'DEBUG_STEPPERS', world.moduleOptions) as string | undefined;
 		if (debugSteppersStart) {
 			for (const stepper of debugSteppersStart.split(',').map(name => name.trim())) {
 				if (!this.steppers.some(s => s.constructor.name === stepper)) {

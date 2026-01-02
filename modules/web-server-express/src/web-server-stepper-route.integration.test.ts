@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import WebHttp from '@haibun/web-http/web-http.js';
 import { actionOK, getFromRuntime, getStepperOptionName } from '@haibun/core/lib/util/index.js';
 import { DEFAULT_DEST } from '@haibun/core/schema/protocol.js';
-import { IWebServer, IRequest, IResponse, WEBSERVER } from './defs.js';
+import { IWebServerExpress, IRequest, IResponse, WEBSERVER } from './defs.js';
 
 import Server from './web-server-stepper.js';
 import { TStepArgs } from '@haibun/core/schema/protocol.js';
@@ -20,7 +20,7 @@ describe('route mount', () => {
 					gwta: 'serve test route to {loc}',
 					action: async ({ loc }: TStepArgs) => {
 						const route = (req: IRequest, res: IResponse) => res.status(200).send('ok');
-						const webserver: IWebServer = await getFromRuntime(this.getWorld().runtime, WEBSERVER);
+						const webserver: IWebServerExpress = await getFromRuntime(this.getWorld().runtime, WEBSERVER);
 						await webserver.addRoute('get', loc as string, route);
 						return actionOK();
 					},

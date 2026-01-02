@@ -48,6 +48,9 @@
         },
         {
             "path": "monitor-otel"
+        },
+        {
+            "path": "web-server-hono"
         }
     ]
 }

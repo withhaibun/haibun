@@ -56,6 +56,9 @@ export const cycles = (wp: WebPlaywright): IStepperCycles => ({
 	async startFeature({ resolvedFeature, index }: TStartFeature): Promise<void> {
 		wp.tab = 0;
 		wp.resetVideoStartEmitted(); // Reset for new feature's video recording
+		// Reset API state to prevent header leakage between features
+		wp.extraHTTPHeaders = {};
+		wp.apiUserAgent = undefined;
 
 		if (wp.twinPage) {
 			wp.twinPage.updateWorld(wp.getWorld());

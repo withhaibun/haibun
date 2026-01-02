@@ -18,3 +18,4 @@ Scenario: A form and counter
     Then that WebPlaywright.currentURI matches "{counter URI}*"
     And I should see username
     And the cookie "userid" is username
+

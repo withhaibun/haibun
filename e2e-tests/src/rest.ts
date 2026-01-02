@@ -1,15 +1,21 @@
-import { IRequest, IResponse } from '@haibun/web-server-express/defs.js';
-
-import TestServer from './test-server.js';
+import type { Context } from '@haibun/web-server-hono/defs.js';
+import { setCookie } from '@haibun/web-server-hono/cookie.js';
+import type TestServer from './test-server.js';
 
 const newToken = 'newToken';
 
-export const restRoutes = (testServer: TestServer) => {
+type TRouteHandler = (c: Context) => Response | Promise<Response>;
+
+/**
+ * REST route handlers for test server.
+ * These don't include auth checks - auth is applied via middleware at route registration.
+ */
+export const restRoutes = (testServer: TestServer): Record<string, TRouteHandler> => {
 	return {
-		async createAuthToken(req: IRequest, res: IResponse) {
+		async createAuthToken(c: Context): Promise<Response> {
 			testServer.authToken = newToken;
 
-			res.json({
+			return c.json({
 				token_type: 'Bearer',
 				scope: 'openid profile User.Read email',
 				expires_in: 5251,
@@ -21,58 +27,63 @@ export const restRoutes = (testServer: TestServer) => {
 			});
 		},
 
-		async checkAuth(req: IRequest, res: IResponse) {
-			if (!testServer.authScheme.check(req, res)) return;
-			res.status(200).json({ type: 'profile' });
+		async checkAuth(c: Context): Promise<Response> {
+			// Auth is checked by middleware before this runs
+			return c.json({ type: 'profile' });
 		},
 
-		async logOut(req: IRequest, res: IResponse) {
-			testServer.authScheme.logout();
-			const redirectTo = req.query?.post_logout_redirect_uri;
+		async logOut(c: Context): Promise<Response> {
+			testServer.authSchemeHandler?.logout();
+			const redirectTo = c.req.query('post_logout_redirect_uri');
 			if (redirectTo) {
-				res.redirect(redirectTo!?.toString());
+				return c.redirect(redirectTo);
 			}
+			return c.body(null, 204);
 		},
 
-		async resourceGet(req: IRequest, res: IResponse) {
-			if (!testServer.authScheme.check(req, res)) return;
-			const id = parseInt(req.params.id ?? '', 10);
+		async resourceGet(c: Context): Promise<Response> {
+			// Auth is checked by middleware before this runs
+			const id = parseInt(c.req.param('id') ?? '', 10);
 			const resource = testServer.resources.find((r) => r.id === id);
 			if (resource) {
-				res.json(resource);
-			} else {
-				res.status(404).end('Not Found');
+				return c.json(resource);
 			}
+			return c.notFound();
 		},
-		async resourceDelete(req: IRequest, res: IResponse) {
-			if (!testServer.authScheme.check(req, res)) return;
-			const id = parseInt(req.params.id ?? '', 10);
+
+		async resourceDelete(c: Context): Promise<Response> {
+			// Auth is checked by middleware before this runs
+			const id = parseInt(c.req.param('id') ?? '', 10);
 			const resource = testServer.resources.find((r) => r.id === id);
 			if (resource) {
 				testServer.resources = testServer.resources.filter((r) => r.id !== id);
-				res.status(204).end();
-			} else {
-				res.status(404).end('Not Found');
+				return c.body(null, 204);
 			}
+			return c.notFound();
 		},
-		async resources(req: IRequest, res: IResponse) {
-			if (!testServer.authScheme.check(req, res)) return;
-			if (req.headers['accept'] !== 'application/json') {
-				res.status(401).end(`Must use application/json, not ${req.headers['accept']}`);
-				return;
+
+		async resources(c: Context): Promise<Response> {
+			// Auth is checked by middleware before this runs
+			if (c.req.header('accept') !== 'application/json') {
+				return c.text(`Must use application/json, not ${c.req.header('accept')}`, 401);
 			}
 
-			res.json(testServer.resources);
+			return c.json(testServer.resources);
 		},
-		async logIn(req: IRequest, res: IResponse) {
-			const { username, password } = req.body;
-			if ( testServer.basicAuthCreds && username === testServer.basicAuthCreds.username && password === testServer.basicAuthCreds.password) {
+
+		async logIn(c: Context): Promise<Response> {
+			const body = await c.req.parseBody<{ username: string; password: string }>();
+			const { username, password } = body;
+			if (
+				testServer.basicAuthCreds &&
+				username === testServer.basicAuthCreds.username &&
+				password === testServer.basicAuthCreds.password
+			) {
 				testServer.authToken = newToken;
-				res.cookie('token', newToken, { httpOnly: true });
-				res.status(200).send('<h2>Login successful</h2>');
-			} else {
-				res.status(401).send('<h2>Invalid credentials</h2>');
+				setCookie(c, 'token', newToken, { httpOnly: true });
+				return c.html('<h2>Login successful</h2>');
 			}
+			return c.html('<h2>Invalid credentials</h2>', 401);
 		},
 	};
 };

@@ -24,14 +24,16 @@ Feature: Auth-bearer Authentication
 
     set OK to 200
     set Unauthorized to 401
+    set Bad Request to 400
 
     serve files at /static from "rest"
     make auth scheme "bearer"
     API user agent is "curl/8.5.0"
 
-    Scenario: Fail authentication 
+    Scenario: Fail authentication with no auth header
         go to the REST Home webpage
         make an HTTP GET to Profile API
+        # RFC 6750: missing Authorization header -> 401 Unauthorized
         HTTP status is Unauthorized
         pause for 1s
 

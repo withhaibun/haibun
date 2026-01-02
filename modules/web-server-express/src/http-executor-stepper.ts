@@ -3,7 +3,7 @@ import { TWorld } from '@haibun/core/lib/defs.js';
 import { TStepResult, TStepActionResult } from '@haibun/core/schema/protocol.js';
 import { FlowRunner } from "@haibun/core/lib/core/flow-runner.js";
 import { getFromRuntime, getStepperOption, getStepperOptionName, intOrError, stringOrError } from '@haibun/core/lib/util/index.js';
-import { IRequest, IResponse, IWebServer, WEBSERVER } from './defs.js';
+import { IRequest, IResponse, IWebServerExpress, WEBSERVER } from './defs.js';
 import { HttpPrompter } from './http-prompter.js';
 
 export default class HttpExecutorStepper extends AStepper implements IHasOptions, IHasCycles {
@@ -50,7 +50,7 @@ export default class HttpExecutorStepper extends AStepper implements IHasOptions
 			return;
 		}
 
-		const webserver = getFromRuntime(this.getWorld().runtime, WEBSERVER) as IWebServer;
+		const webserver = getFromRuntime(this.getWorld().runtime, WEBSERVER) as IWebServerExpress;
 		if (!webserver) {
 			throw new Error('WebServer not available - ensure web-server-stepper is loaded');
 		}

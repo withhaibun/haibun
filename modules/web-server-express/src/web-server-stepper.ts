@@ -1,7 +1,7 @@
 import { TWorld, TEndFeature, IStepperCycles } from '@haibun/core/lib/defs.js';
 import { OK, TStepArgs } from '@haibun/core/schema/protocol.js';
 import { actionNotOK, getFromRuntime, getStepperOption, intOrError } from '@haibun/core/lib/util/index.js';
-import { IWebServer, WEBSERVER } from './defs.js';
+import { IWebServerExpress, WEBSERVER } from './defs.js';
 import { ServerExpress, DEFAULT_PORT } from './server-express.js';
 import path from 'path';
 import { AStepper, IHasCycles, IHasOptions } from '@haibun/core/lib/astepper.js';
@@ -50,7 +50,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 		showMounts: {
 			gwta: 'show mounts',
 			action: async () => {
-				const webserver = <IWebServer>getFromRuntime(this.getWorld().runtime, WEBSERVER);
+				const webserver = <IWebServerExpress>getFromRuntime(this.getWorld().runtime, WEBSERVER);
 				const mounts = webserver.mounted;
 				this.getWorld().eventLogger.info(`mounts: ${JSON.stringify(mounts, null, 2)}`, { mounts });
 				return Promise.resolve(OK);
@@ -93,7 +93,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 		}
 	};
 	async doServeIndex(where, loc) {
-		const ws: IWebServer = getFromRuntime(this.getWorld().runtime, WEBSERVER);
+		const ws: IWebServerExpress = getFromRuntime(this.getWorld().runtime, WEBSERVER);
 		const res = ws.checkAddIndexFolder(loc, where);
 		if (res) {
 			return actionNotOK(`failed to add index folder ${loc} at ${where}: ${res}`);
@@ -102,7 +102,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 		return OK;
 	}
 	async doServeFiles(where, loc) {
-		const ws: IWebServer = getFromRuntime(this.getWorld().runtime, WEBSERVER);
+		const ws: IWebServerExpress = getFromRuntime(this.getWorld().runtime, WEBSERVER);
 		const res = ws.checkAddStaticFolder(loc, where);
 		if (res) {
 			return actionNotOK(`failed to add static folder ${loc} at ${where}: ${res}`);
@@ -118,6 +118,6 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 export default WebServerStepper;
 
 export interface IWebServerStepper {
-	webserver: IWebServer;
+	webserver: IWebServerExpress;
 	close: () => void;
 }

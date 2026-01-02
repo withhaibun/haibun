@@ -1,5 +1,4 @@
 import { Page, Download, Locator } from 'playwright';
-import { resolve } from 'path';
 import { pathToFileURL } from 'url';
 import { z } from 'zod';
 
@@ -84,7 +83,6 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		[StepperKinds.STORAGE]: {
 			desc: 'Storage for output',
 			parse: (input: string) => stringOrError(input),
-			required: true
 		},
 	};
 	hasFactory = false;
@@ -298,6 +296,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 
 	async captureAccessibilitySnapshot() {
 		return await this.withPage(async (page: Page) => {
+			// @ts-ignore - accessibility API deprecated in newer Playwright
 			const snapshot = await page.accessibility.snapshot({
 				interestingOnly: false,
 			});

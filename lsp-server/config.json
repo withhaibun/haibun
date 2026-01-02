@@ -1,0 +1,8 @@
+{
+  "steppers": [
+    "../modules/web-playwright/build/web-playwright.js",
+    "../modules/storage-fs/build/storage-fs.js",
+    "../modules/core/build/steps/variables-stepper.js",
+    "../modules/core/build/steps/haibun.js"
+  ]
+}

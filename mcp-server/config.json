@@ -1,0 +1,9 @@
+{
+  "steppers": [
+    "@haibun/web-server-hono/build/web-server-stepper",
+    "@haibun/web-playwright/build/web-playwright",
+    "@haibun/storage-fs/build/storage-fs",
+    "haibun",
+    "@haibun/web-server-hono/build/mcp-stepper"
+  ]
+}

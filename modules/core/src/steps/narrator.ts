@@ -52,8 +52,8 @@ class Narrator extends AStepper implements IHasOptions, IHasCycles {
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
-		this.captureStart = getStepperOption(this, 'CAPTURE_START', world.moduleOptions);
-		this.captureStop = getStepperOption(this, 'CAPTURE_STOP', world.moduleOptions);
+		this.captureStart = getStepperOption(this, 'CAPTURE_START', world.moduleOptions) as string | undefined;
+		this.captureStop = getStepperOption(this, 'CAPTURE_STOP', world.moduleOptions) as string | undefined;
 	}
 
 	private rememberAndSay(key: string, value: string, featureStep: TFeatureStep) {

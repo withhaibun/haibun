@@ -142,7 +142,7 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 			return OK;
 		},
 	},
-	restEndpointFilteredPropertyRequest: {
+	restFilterPropertyRequest: {
 		gwta: `for each filtered {property}, make REST {method} to {endpoint} yielding status {status}`,
 		handlesUndefined: ['method'],
 		action: async ({ property, endpoint, status }: { property: string; endpoint: string; status: string }, featureStep) => {
