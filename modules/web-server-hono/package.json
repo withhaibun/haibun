@@ -1,16 +1,11 @@
 {
   "name": "@haibun/web-server-hono",
   "type": "module",
-  "version": "3.1.3",
+  "version": "3.2.0",
   "description": "Hono-based web server for haibun with MCP support",
   "main": "build/web-server-stepper.js",
-  "files": [
-    "build/**"
-  ],
-  "exports": {
-    ".": "./build/web-server-stepper.js",
-    "./*": "./build/*"
-  },
+  "files": ["build/**"],
+  "exports": { ".": "./build/web-server-stepper.js", "./*": "./build/*" },
   "scripts": {
     "prepublishOnly": "tsc -b .",
     "build": "tsc -b .",
@@ -21,16 +16,11 @@
     "test:integration": "vitest run **/*.integration.test.ts",
     "test-watch": "vitest"
   },
-  "keywords": [
-    "haibun",
-    "hono",
-    "mcp",
-    "web-server"
-  ],
+  "keywords": ["haibun", "hono", "mcp", "web-server"],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@haibun/core": "3.1.3",
+    "@haibun/core": "3.2.0",
     "@hono/mcp": "^0.2.3",
     "@hono/node-server": "^1.19.7",
     "@modelcontextprotocol/sdk": "^1.25.1",
@@ -38,7 +28,7 @@
     "zod": "^3.24.0"
   },
   "devDependencies": {
-    "@haibun/web-http": "3.1.3",
+    "@haibun/web-http": "3.2.0",
     "@types/node": "^24.10.0",
     "typescript": "^5.8.2",
     "vitest": "^3.1.1",
