@@ -1,38 +1,28 @@
 # Haibun VS Code Extension
 
-Autocomplete and hover for `.feature` files based on your project's steppers.
+Provides autocomplete and hover documentation for `.feature` files by dynamically loading your project's steppers.
 
-## Quick Start
+## How It Works
 
-```bash
-# 1. Build the LSP server
-npm run build:tsc
+The extension launches a Language Server that reads a `lsp-server/config.json` file in your workspace root. This configuration tells the server exactly which steppers (whether npm packages or local files) to load, ensuring that the features you see match your specific project environment.
 
-# 2. Install extension deps
-cd vscode-extension && npm install && npm run compile
+## How To Use It
 
-# 3. Press F5 to launch
-```
-
-## Configuration
-
-The extension reads `lsp-server/config.json` to know which steppers provide autocomplete:
+### 1. Configuration
+Create a file at `lsp-server/config.json` in your workspace root to register your steppers:
 
 ```json
 {
   "steppers": [
     "@haibun/web-playwright/build/web-playwright",
-    "@haibun/storage-fs/build/storage-fs",  
-    "variables-stepper",
-    "haibun"
+    "../modules/my-local-stepper"
   ]
 }
 ```
 
-**This is the same format as your haibun config files.** Add your project's steppers here.
+### 2. Running
+Currently, run the extension from the source:
 
-## How It Works
-
-1. `lsp-server.ts` loads the steppers listed in config
-2. `StepperRegistry.getMetadata()` extracts available steps
-3. VS Code sends completion requests → LSP returns matching steps
+1.  **Build Monorepo**: Run `npm run build:tsc` in the root `haibun` directory.
+2.  **Install Deps**: Run `npm install` in the `vscode-extension` directory.
+3.  **Launch**: Open the `vscode-extension` folder in VS Code and press **F5**.

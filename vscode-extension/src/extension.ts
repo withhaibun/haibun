@@ -10,39 +10,36 @@ import {
 let client: LanguageClient;
 
 export function activate(context: ExtensionContext): void {
-  // Path to the LSP server
-  const serverModule = path.join(
-    context.extensionPath,
-    '..',
-    'modules',
-    'lsp',
-    'build',
-    'lsp-server.js'
-  );
+  console.log('[Haibun LSP] Extension activating...');
 
-  // Get config path from settings or use default
+  // Get workspace root
   const workspaceRoot = workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
-  const configPath = path.join(workspaceRoot, 'lsp-server', 'config.json');
+  console.log('[Haibun LSP] Workspace root:', workspaceRoot);
 
-  // Server options - run the LSP server via Node.js with config
+  // Build absolute path to lsp-server
+  const lspServerPath = path.join(workspaceRoot, 'lsp-server');
+  console.log('[Haibun LSP] LSP server path:', lspServerPath);
+
+  // Server options - run haibun-cli via npx
   const serverOptions: ServerOptions = {
     run: {
-      module: serverModule,
+      command: 'npx',
+      args: ['@haibun/cli', lspServerPath, '--with-steppers=@haibun/monitor-browser'],
       transport: TransportKind.stdio,
-      args: ['--config', configPath],
+      options: { cwd: workspaceRoot }
     },
     debug: {
-      module: serverModule,
+      command: 'npx',
+      args: ['@haibun/cli', lspServerPath, '--with-steppers=@haibun/monitor-browser'],
       transport: TransportKind.stdio,
-      args: ['--config', configPath],
-      options: { execArgv: ['--nolazy', '--inspect=6009'] },
+      options: { cwd: workspaceRoot, execArgv: ['--nolazy', '--inspect=6009'] }
     },
   };
 
   // Client options - activate for .feature files
   const clientOptions: LanguageClientOptions = {
     documentSelector: [
-      { scheme: 'file', language: 'feature' },
+      { scheme: 'file', language: 'haibun' },
     ],
   };
 
@@ -54,7 +51,12 @@ export function activate(context: ExtensionContext): void {
     clientOptions
   );
 
-  client.start();
+  console.log('[Haibun LSP] Starting client...');
+  client.start().then(() => {
+    console.log('[Haibun LSP] Client started successfully');
+  }).catch((error) => {
+    console.error('[Haibun LSP] Client failed to start:', error);
+  });
 }
 
 export function deactivate(): Thenable<void> | undefined {

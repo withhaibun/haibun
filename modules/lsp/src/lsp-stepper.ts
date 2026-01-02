@@ -1,14 +1,4 @@
-import {
-  createConnection,
-  TextDocuments,
-  ProposedFeatures,
-  CompletionItem,
-  CompletionItemKind,
-  TextDocumentSyncKind,
-  InitializeResult,
-  Hover,
-  MarkupKind,
-} from 'vscode-languageserver/node.js';
+import { createConnection, TextDocuments, ProposedFeatures, CompletionItem, CompletionItemKind, TextDocumentSyncKind, InitializeResult, Hover, MarkupKind } from 'vscode-languageserver/node.js';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { AStepper } from '@haibun/core/lib/astepper.js';
 import type { TWorld } from '@haibun/core/lib/defs.js';
@@ -19,13 +9,20 @@ import { StepperRegistry, StepMetadata } from '@haibun/core/lib/stepper-registry
  * Provides autocomplete and hover documentation using the shared StepperRegistry.
  */
 export default class LspStepper extends AStepper {
-  private connection = createConnection(ProposedFeatures.all);
+  private connection: ReturnType<typeof createConnection> | null = null;
   private documents = new TextDocuments(TextDocument);
   private steppers: AStepper[] = [];
 
   async setWorld(world: TWorld, steppers: AStepper[]) {
     await super.setWorld(world, steppers);
     this.steppers = steppers;
+
+    // Create connection here, after haibun-cli has set up stdio
+    // Guard against setWorld being called multiple times
+    if (this.connection) {
+      return;
+    }
+    this.connection = createConnection(process.stdin, process.stdout);
 
     this.connection.onInitialize((): InitializeResult => ({
       capabilities: {
@@ -107,5 +104,14 @@ export default class LspStepper extends AStepper {
     });
   }
 
-  steps = {};
+  steps = {
+    lspIsReady: {
+      gwta: 'lsp is ready',
+      action: async () => {
+        // LSP connection is already listening from setWorld()
+        // This step just exists to be a no-op confirmation in the feature file
+        return { ok: true, message: 'LSP server is ready' };
+      }
+    }
+  };
 }

@@ -5,17 +5,7 @@
  *
  * The config.json should have the same format as haibun configs.
  */
-import {
-  createConnection,
-  TextDocuments,
-  ProposedFeatures,
-  CompletionItem,
-  CompletionItemKind,
-  TextDocumentSyncKind,
-  InitializeResult,
-  Hover,
-  MarkupKind,
-} from 'vscode-languageserver/node.js';
+import { createConnection, TextDocuments, CompletionItem, CompletionItemKind, TextDocumentSyncKind, InitializeResult, Hover, MarkupKind } from 'vscode-languageserver/node.js';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { AStepper } from '@haibun/core/lib/astepper.js';
 import { StepperRegistry, StepMetadata } from '@haibun/core/lib/stepper-registry.js';
