@@ -1,28 +1,38 @@
 # Haibun VS Code Extension
 
-Provides autocomplete and hover documentation for `.feature` files by dynamically loading your project's steppers.
+Provides autocomplete, hover documentation, and navigation for Haibun `.feature` files.
 
-## How It Works
+## Architecture
 
-The extension launches a Language Server that reads a `lsp-server/config.json` file in your workspace root. This configuration tells the server exactly which steppers (whether npm packages or local files) to load, ensuring that the features you see match your specific project environment.
+The extension launches a Haibun stepper configured with `./lsp-server/config.json` to load steppers that host the language server. Once loaded, a sidebar panel allows you to configure the extension for a specific working directory, base, and configuration.
 
-## How To Use It
+## Development
 
-### 1. Configuration
-Create a file at `lsp-server/config.json` in your workspace root to register your steppers:
+### Prerequisites
 
-```json
-{
-  "steppers": [
-    "@haibun/web-playwright/build/web-playwright",
-    "../modules/my-local-stepper"
-  ]
-}
-```
+1. **Build Monorepo**: Run `npm run build:tsc` in the root `haibun` directory.
+2. **Install Dependencies**: Run `npm install` in the `vscode-extension` directory.
 
-### 2. Running
-Currently, run the extension from the source:
+### Running in Debug Mode
 
-1.  **Build Monorepo**: Run `npm run build:tsc` in the root `haibun` directory.
-2.  **Install Deps**: Run `npm install` in the `vscode-extension` directory.
-3.  **Launch**: Open the `vscode-extension` folder in VS Code and press **F5**.
+Open the `vscode-extension` folder in your IDE and press **F5**.
+
+### Packaging and Installation
+
+To test the extension is a local instance of VS Code, VSCodium, Antigravity etc (replace `IDE` with `code`, `codium`, `antigravity` etc):
+
+1. **Package the extension**:
+   ```bash
+   cd vscode-extension
+   npx vsce package
+   ```
+
+2. **Uninstall existing version**:
+   ```bash
+   IDE --uninstall-extension haibun.haibun-lsp
+   ```
+
+3. **Install new version**:
+   ```bash
+   IDE --install-extension haibun-lsp-0.1.xx.vsix
+   ```

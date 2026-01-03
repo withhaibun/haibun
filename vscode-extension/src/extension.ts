@@ -2,9 +2,9 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { ExtensionContext, workspace, window, StatusBarAlignment, StatusBarItem, OutputChannel, commands, ConfigurationChangeEvent } from 'vscode';
 import { LanguageClient, LanguageClientOptions, ServerOptions, TransportKind, State } from 'vscode-languageclient/node';
-import { HaibunConfigurationTreeProvider, HaibunConfig, registerConfigCommands } from './HaibunConfigurationPanel';
+import { HaibunConfigurationTreeProvider, HaibunConfig, registerConfigCommands, WorkspaceInfo } from './HaibunConfigurationPanel';
 
-const VERSION = '0.1.47';
+const VERSION = '0.1.48';
 
 let client: LanguageClient | undefined;
 let statusBarItem: StatusBarItem;
@@ -19,26 +19,37 @@ export function activate(context: ExtensionContext): void {
   // Register the native TreeDataProvider for sidebar
   configProvider = new HaibunConfigurationTreeProvider();
   configProvider.setExtensionPath(context.extensionPath);
+  // Initial refresh to populate caches immediately
+  configProvider.refresh();
+
   const treeView = window.createTreeView('haibun.configurationView', {
     treeDataProvider: configProvider,
     showCollapseAll: false
   });
   context.subscriptions.push(treeView);
 
+  // Helper to reveal current file
+  const revealCurrentFile = () => {
+    const editor = window.activeTextEditor;
+    if (!editor) return;
+
+    const filePath = editor.document.uri.fsPath;
+    if (!filePath.endsWith('.feature')) return;
+
+    // Find and reveal the file in the tree
+    const node = configProvider.findNodeByPath(filePath);
+    if (node) {
+      treeView.reveal(node, { select: true, expand: true });
+    }
+  };
+
   // Auto-reveal feature file in tree when active editor changes
   context.subscriptions.push(
-    window.onDidChangeActiveTextEditor((editor) => {
-      if (!editor) return;
-      const filePath = editor.document.uri.fsPath;
-      if (!filePath.endsWith('.feature')) return;
-
-      // Find and reveal the file in the tree
-      const node = configProvider.findNodeByPath(filePath);
-      if (node) {
-        treeView.reveal(node, { select: true, expand: true });
-      }
-    })
+    window.onDidChangeActiveTextEditor(() => revealCurrentFile())
   );
+
+  // Attempt to reveal immediately in case a feature file is already open
+  revealCurrentFile();
 
   // Register edit commands for inline editing
   registerConfigCommands(context, configProvider);
@@ -56,6 +67,8 @@ export function activate(context: ExtensionContext): void {
       commands.executeCommand('haibun.configurationView.focus');
       // Refresh it with current config
       configProvider.refresh();
+      // Try revealing after refresh
+      revealCurrentFile();
     })
   );
 
@@ -70,7 +83,7 @@ export function activate(context: ExtensionContext): void {
   );
 
   // Start Client
-  startClient(context);
+  startClient(context, revealCurrentFile);
 
   // Config Listener
   context.subscriptions.push(workspace.onDidChangeConfiguration(async (e: ConfigurationChangeEvent) => {
@@ -78,7 +91,7 @@ export function activate(context: ExtensionContext): void {
       outputChannel.appendLine('[Haibun] Config changed, restarting...');
       useFallback = false;
       await stopClient();
-      startClient(context);
+      startClient(context, revealCurrentFile);
     }
   }));
 }
@@ -98,7 +111,7 @@ async function stopClient() {
   }
 }
 
-async function startClient(context: ExtensionContext) {
+async function startClient(context: ExtensionContext, onVerifyReveal: () => void) {
   const workspaceRoot = workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
   // Safe base bundled with extension
   const safeBase = path.join(context.extensionPath, 'lsp-server');
@@ -225,13 +238,16 @@ async function startClient(context: ExtensionContext) {
     }
 
     // Handle haibun/workspaceInfo notification for the status panel
-    client.onNotification('haibun/workspaceInfo', (info: any) => {
-      const baseName = info.base === 'Default' ? 'Default' : path.basename(info.base);
+    client.onNotification('haibun/workspaceInfo', (info: WorkspaceInfo) => {
+      const baseName = info.base === 'Default' ? 'Default' : path.basename(info.base || 'Default');
       statusBarItem.text = `$(file-code) ${baseName}`;
-      statusBarItem.tooltip = `Base: ${info.base}\nSteppers: ${info.stepperCount}`;
+      statusBarItem.tooltip = `Base: ${info.base || 'Default'}\nSteppers: ${info.stepperCount || 0}`;
 
       // Update the sidebar view with workspace info
       configProvider.updateWorkspaceInfo(info);
+
+      // Try revealing again, now that we have fresh workspace info
+      onVerifyReveal();
     });
 
     // Handle unexpected stops
@@ -240,7 +256,7 @@ async function startClient(context: ExtensionContext) {
         outputChannel.appendLine('[Haibun] Server crashed. Retrying with fallback...');
         useFallback = true;
         await stopClient();
-        startClient(context);
+        startClient(context, onVerifyReveal);
       }
     });
 
@@ -286,4 +302,3 @@ function resolveCliPath(root: string): string | null {
 
   return null;
 }
-

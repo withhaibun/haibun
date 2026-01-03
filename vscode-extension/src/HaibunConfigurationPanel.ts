@@ -24,11 +24,18 @@ interface BaseEntry {
   backgrounds: DirNode | null;
 }
 
+export interface WorkspaceInfo {
+  backgroundCount?: number;
+  featureCount?: number;
+  stepperCount?: number;
+  base?: string;
+}
+
 export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<TreeNode> {
   private _onDidChangeTreeData: vscode.EventEmitter<TreeNode | undefined | null | void> = new vscode.EventEmitter<TreeNode | undefined | null | void>();
   readonly onDidChangeTreeData: vscode.Event<TreeNode | undefined | null | void> = this._onDidChangeTreeData.event;
 
-  private _workspaceInfo: { backgroundCount?: number; featureCount?: number; stepperCount?: number; base?: string } = {};
+  private _workspaceInfo: WorkspaceInfo = {};
   private _bases: BaseEntry[] = [];
   private _bundledSteppers: string[] = [];
   private _userSteppers: string[] = [];
@@ -39,6 +46,12 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
   // For reveal support - cache nodes by file path
   private _nodesByPath: Map<string, TreeNode> = new Map();
   private _parentMap: Map<TreeNode, TreeNode | undefined> = new Map();
+  // Cache TreeNodes by DirNode path to ensure stable instances
+  private _treeNodeCache: Map<string, TreeNode> = new Map();
+  // Cache section nodes (features, backgrounds) by base + type
+  private _sectionNodeCache: Map<string, TreeNode> = new Map();
+  // Cache base nodes by name
+  private _baseNodeCache: Map<string, TreeNode> = new Map();
 
   setExtensionPath(extensionPath: string): void {
     this._extensionPath = extensionPath;
@@ -58,41 +71,133 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
 
   refresh(): void {
     this._discoverFiles();
-    this.preCacheNodes();
+    this._rebuildNodeCaches();
     this._onDidChangeTreeData.fire();
   }
 
-  updateWorkspaceInfo(info: any): void {
+  updateWorkspaceInfo(info: WorkspaceInfo): void {
     this._workspaceInfo = info;
     this._discoverFiles();
-    this.preCacheNodes();
+    this._rebuildNodeCaches();
     this._onDidChangeTreeData.fire();
   }
 
   /**
-   * Pre-cache all file nodes so reveal works without manual expansion
+   * Rebuild all caches after file discovery to ensure stable TreeNode instances
    */
-  preCacheNodes(): void {
-    // Clear existing cache
+  private _rebuildNodeCaches(): void {
+    // Clear all caches
     this._nodesByPath.clear();
     this._parentMap.clear();
+    this._treeNodeCache.clear();
+    this._sectionNodeCache.clear();
+    this._baseNodeCache.clear();
 
-    // Walk all bases and cache all file nodes
+    // Pre-build all nodes for each base
     for (const baseEntry of this._bases) {
+      // Create base node
+      const featureCount = baseEntry.features ? this._countNodes(baseEntry.features) : 0;
+      const bgCount = baseEntry.backgrounds ? this._countNodes(baseEntry.backgrounds) : 0;
+      const baseNode = new TreeNode(
+        'base',
+        baseEntry.name,
+        `${featureCount}f / ${bgCount}b`,
+        vscode.TreeItemCollapsibleState.Collapsed
+      );
+      baseNode.baseEntry = baseEntry;
+      this._baseNodeCache.set(baseEntry.name, baseNode);
+
+      // Create section nodes and cache file nodes
       if (baseEntry.features) {
-        this._preCacheDirNode(baseEntry.features, undefined);
+        const sectionKey = `${baseEntry.name}:features`;
+        const sectionNode = new TreeNode(
+          'section',
+          'features',
+          `${this._countNodes(baseEntry.features)}`,
+          vscode.TreeItemCollapsibleState.Collapsed
+        );
+        sectionNode.dirNode = baseEntry.features;
+        this._sectionNodeCache.set(sectionKey, sectionNode);
+        this._parentMap.set(sectionNode, baseNode);
+        this._preCacheDirNode(baseEntry.features, sectionNode);
       }
       if (baseEntry.backgrounds) {
-        this._preCacheDirNode(baseEntry.backgrounds, undefined);
+        const sectionKey = `${baseEntry.name}:backgrounds`;
+        const sectionNode = new TreeNode(
+          'section',
+          'backgrounds',
+          `${this._countNodes(baseEntry.backgrounds)}`,
+          vscode.TreeItemCollapsibleState.Collapsed
+        );
+        sectionNode.dirNode = baseEntry.backgrounds;
+        this._sectionNodeCache.set(sectionKey, sectionNode);
+        this._parentMap.set(sectionNode, baseNode);
+        this._preCacheDirNode(baseEntry.backgrounds, sectionNode);
       }
     }
   }
 
   private _preCacheDirNode(dirNode: DirNode, parent: TreeNode | undefined): void {
-    const treeNode = this._nodeToTreeNode(dirNode, parent);
+    const treeNode = this._getOrCreateTreeNode(dirNode, parent);
     for (const child of dirNode.children) {
       this._preCacheDirNode(child, treeNode);
     }
+  }
+
+  /**
+   * Get or create a stable TreeNode for a DirNode
+   * Uses caching to ensure the same instance is returned for reveal() to work
+   */
+  private _getOrCreateTreeNode(node: DirNode, parent?: TreeNode): TreeNode {
+    // Check cache first
+    const cached = this._treeNodeCache.get(node.path);
+    if (cached) {
+      // Update parent mapping in case it changed
+      if (parent) {
+        this._parentMap.set(cached, parent);
+      }
+      return cached;
+    }
+
+    // Create new node
+    let treeNode: TreeNode;
+    if (node.isDir) {
+      treeNode = new TreeNode(
+        'folder',
+        node.name,
+        '',
+        vscode.TreeItemCollapsibleState.Collapsed
+      );
+      treeNode.dirNode = node;
+    } else {
+      // Check if file is dirty (has unsaved changes)
+      const uri = vscode.Uri.file(node.path);
+      const isDirty = vscode.workspace.textDocuments.some(
+        doc => doc.uri.fsPath === node.path && doc.isDirty
+      );
+
+      treeNode = new TreeNode(
+        'file',
+        isDirty ? `● ${node.name}` : node.name,
+        '',
+        vscode.TreeItemCollapsibleState.None,
+        { command: 'vscode.open', title: 'Open File', arguments: [uri] }
+      );
+      treeNode.resourceUri = uri;
+      treeNode.filePath = node.path;
+
+      // Cache file nodes by path for reveal functionality
+      this._nodesByPath.set(node.path, treeNode);
+    }
+
+    // Cache by DirNode path
+    this._treeNodeCache.set(node.path, treeNode);
+
+    if (parent) {
+      this._parentMap.set(treeNode, parent);
+    }
+
+    return treeNode;
   }
 
   private _discoverFiles(): void {
@@ -245,33 +350,27 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
     if (element) {
       // Return children of expandable nodes
       if (element.baseEntry) {
-        // Show features and backgrounds under base
+        // Show features and backgrounds under base - use cached section nodes
         const items: TreeNode[] = [];
         if (element.baseEntry.features) {
-          const node = new TreeNode(
-            'section',
-            'features',
-            `${this._countNodes(element.baseEntry.features)}`,
-            vscode.TreeItemCollapsibleState.Collapsed
-          );
-          node.dirNode = element.baseEntry.features;
-          items.push(node);
+          const sectionKey = `${element.baseEntry.name}:features`;
+          const sectionNode = this._sectionNodeCache.get(sectionKey);
+          if (sectionNode) {
+            items.push(sectionNode);
+          }
         }
         if (element.baseEntry.backgrounds) {
-          const node = new TreeNode(
-            'section',
-            'backgrounds',
-            `${this._countNodes(element.baseEntry.backgrounds)}`,
-            vscode.TreeItemCollapsibleState.Collapsed
-          );
-          node.dirNode = element.baseEntry.backgrounds;
-          items.push(node);
+          const sectionKey = `${element.baseEntry.name}:backgrounds`;
+          const sectionNode = this._sectionNodeCache.get(sectionKey);
+          if (sectionNode) {
+            items.push(sectionNode);
+          }
         }
         return Promise.resolve(items);
       }
       if (element.dirNode) {
         return Promise.resolve(
-          element.dirNode.children.map(child => this._nodeToTreeNode(child, element))
+          element.dirNode.children.map(child => this._getOrCreateTreeNode(child, element))
         );
       }
       if (element.steppersList) {
@@ -317,18 +416,12 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
       )
     ];
 
-    // Add each base as expandable section
+    // Add each base as expandable section - use cached base nodes
     for (const baseEntry of this._bases) {
-      const featureCount = baseEntry.features ? this._countNodes(baseEntry.features) : 0;
-      const bgCount = baseEntry.backgrounds ? this._countNodes(baseEntry.backgrounds) : 0;
-      const node = new TreeNode(
-        'base',
-        baseEntry.name,
-        `${featureCount}f / ${bgCount}b`,
-        vscode.TreeItemCollapsibleState.Collapsed
-      );
-      node.baseEntry = baseEntry;
-      items.push(node);
+      const baseNode = this._baseNodeCache.get(baseEntry.name);
+      if (baseNode) {
+        items.push(baseNode);
+      }
     }
 
     // Bundled steppers (expandable)
@@ -370,54 +463,16 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
     return count;
   }
 
-  private _nodeToTreeNode(node: DirNode, parent?: TreeNode): TreeNode {
-    if (node.isDir) {
-      const treeNode = new TreeNode(
-        'folder',
-        node.name,
-        '',
-        vscode.TreeItemCollapsibleState.Collapsed
-      );
-      treeNode.dirNode = node;
-      if (parent) {
-        this._parentMap.set(treeNode, parent);
-      }
-      return treeNode;
-    } else {
-      // Check if file is dirty (has unsaved changes)
-      const uri = vscode.Uri.file(node.path);
-      const isDirty = vscode.workspace.textDocuments.some(
-        doc => doc.uri.fsPath === node.path && doc.isDirty
-      );
-
-      const treeNode = new TreeNode(
-        'file',
-        isDirty ? `● ${node.name}` : node.name,
-        '',
-        vscode.TreeItemCollapsibleState.None,
-        { command: 'vscode.open', title: 'Open File', arguments: [uri] }
-      );
-      treeNode.resourceUri = uri;
-
-      // Cache file nodes for reveal functionality
-      this._nodesByPath.set(node.path, treeNode);
-      if (parent) {
-        this._parentMap.set(treeNode, parent);
-      }
-      return treeNode;
-    }
-  }
-
   /**
    * Find a TreeNode by file path (for reveal functionality)
-   * Uses cached nodes if available
+   * Uses cached nodes - all nodes are pre-cached so this should always work
    */
   findNodeByPath(filePath: string): TreeNode | null {
-    // Check cache first
+    // Check cache
     const cached = this._nodesByPath.get(filePath);
     if (cached) return cached;
 
-    // Not in cache - might not have been expanded yet
+    // Not in cache - might be a file we don't know about
     return null;
   }
 }
@@ -428,6 +483,7 @@ class TreeNode extends vscode.TreeItem {
   public dirNode?: DirNode;
   public baseEntry?: BaseEntry;
   public steppersList?: string[];
+  public filePath?: string;
 
   constructor(
     public readonly nodeType: NodeType,
