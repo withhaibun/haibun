@@ -19,8 +19,6 @@ export function activate(context: ExtensionContext): void {
   // Register the native TreeDataProvider for sidebar
   configProvider = new HaibunConfigurationTreeProvider();
   configProvider.setExtensionPath(context.extensionPath);
-  // Initial refresh to populate caches immediately
-  configProvider.refresh();
 
   const treeView = window.createTreeView('haibun.configurationView', {
     treeDataProvider: configProvider,
@@ -34,22 +32,36 @@ export function activate(context: ExtensionContext): void {
     if (!editor) return;
 
     const filePath = editor.document.uri.fsPath;
-    if (!filePath.endsWith('.feature')) return;
+    if (!filePath.endsWith('.feature') && !filePath.endsWith('.feature.ts')) return;
 
     // Find and reveal the file in the tree
     const node = configProvider.findNodeByPath(filePath);
     if (node) {
+      // outputChannel.appendLine(`[Reveal] Found node for ${path.basename(filePath)}, revealing...`);
       treeView.reveal(node, { select: true, expand: true });
+    } else {
+      // outputChannel.appendLine(`[Reveal] Node not found for ${filePath}`);
     }
   };
+
+  // Listen for tree updates to re-sync selection (fixes 'visit twice' bug)
+  configProvider.onDidChangeTreeData(() => {
+    // outputChannel.appendLine('[Tree] Data changed, attempting reveal...');
+    revealCurrentFile();
+  });
 
   // Auto-reveal feature file in tree when active editor changes
   context.subscriptions.push(
     window.onDidChangeActiveTextEditor(() => revealCurrentFile())
   );
 
+  // Initial refresh to populate caches immediately
+  configProvider.refresh();
+
   // Attempt to reveal immediately in case a feature file is already open
   revealCurrentFile();
+  // Retry after a short delay to handle startup timing issues
+  setTimeout(() => revealCurrentFile(), 1000);
 
   // Register edit commands for inline editing
   registerConfigCommands(context, configProvider);

@@ -278,7 +278,7 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
     try {
       const entries = fs.readdirSync(dir, { withFileTypes: true });
       for (const entry of entries) {
-        if (entry.isFile() && entry.name.endsWith('.feature')) {
+        if (entry.isFile() && (entry.name.endsWith('.feature') || entry.name.endsWith('.feature.ts'))) {
           nodes.push({
             name: entry.name,
             path: path.join(dir, entry.name),
@@ -310,7 +310,7 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
         const fullPath = path.join(dir, entry.name);
         if (entry.isDirectory()) {
           node.children.push(this._buildTree(fullPath, isBackground, baseName));
-        } else if (entry.name.endsWith('.feature')) {
+        } else if (entry.name.endsWith('.feature') || entry.name.endsWith('.feature.ts')) {
           node.children.push({
             name: entry.name,
             path: fullPath,
@@ -587,4 +587,12 @@ export function registerConfigCommands(context: vscode.ExtensionContext, treePro
     vscode.workspace.onDidChangeTextDocument(() => treeProvider.refresh()),
     vscode.workspace.onDidSaveTextDocument(() => treeProvider.refresh())
   );
+
+  // Watch for file system changes to update tree structure
+  const watcher = vscode.workspace.createFileSystemWatcher('**/*.{feature,feature.ts}');
+  context.subscriptions.push(watcher);
+  watcher.onDidCreate(() => treeProvider.refresh());
+  watcher.onDidDelete(() => treeProvider.refresh());
+  // onDidChange is handled by onDidSaveTextDocument/onDidChangeTextDocument for active files,
+  // but we can add it for external changes if needed. For now, Create/Delete covers the "missing file" issue.
 }
