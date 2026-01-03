@@ -11,9 +11,6 @@
             "path": "core"
         },
         {
-            "path": "web-server-express"
-        },
-        {
             "path": "web-http"
         },
         {
@@ -36,9 +33,6 @@
         },
         {
             "path": "out-junit"
-        },
-        {
-            "path": "mcp"
         },
         {
             "path": "monitor-tui"
