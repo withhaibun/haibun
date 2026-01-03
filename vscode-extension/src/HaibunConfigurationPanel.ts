@@ -1,219 +1,534 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
+import * as fs from 'fs';
 
-export class HaibunConfigurationPanel {
-  public static currentPanel: HaibunConfigurationPanel | undefined;
-  private readonly _panel: vscode.WebviewPanel;
-  private readonly _extensionUri: vscode.Uri;
-  private _disposables: vscode.Disposable[] = [];
-  private _config: { bases: string[]; configFile: string; cwd: string };
+// Shared config interface
+export interface HaibunConfig {
+  bases: string[];
+  configFile: string;
+  cwd: string;
+}
 
-  private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri) {
-    this._panel = panel;
-    this._extensionUri = extensionUri;
-    this._config = { bases: [], configFile: '', cwd: '' };
+interface DirNode {
+  name: string;
+  path: string;
+  isDir: boolean;
+  isBackground: boolean;
+  baseName?: string;  // Which base this belongs to
+  children: DirNode[];
+}
 
-    // Listen for when the panel is disposed
-    // This happens when the user closes the panel or when the panel is closed programmatically
-    this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
+interface BaseEntry {
+  name: string;
+  features: DirNode | null;
+  backgrounds: DirNode | null;
+}
 
-    // Handle messages from the webview
-    this._panel.webview.onDidReceiveMessage(
-      message => {
-        switch (message.command) {
-          case 'apply':
-            this._applyConfiguration(message.bases, message.configFile, message.cwd);
-            return;
-        }
-      },
-      null,
-      this._disposables
-    );
+export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<TreeNode> {
+  private _onDidChangeTreeData: vscode.EventEmitter<TreeNode | undefined | null | void> = new vscode.EventEmitter<TreeNode | undefined | null | void>();
+  readonly onDidChangeTreeData: vscode.Event<TreeNode | undefined | null | void> = this._onDidChangeTreeData.event;
+
+  private _workspaceInfo: { backgroundCount?: number; featureCount?: number; stepperCount?: number; base?: string } = {};
+  private _bases: BaseEntry[] = [];
+  private _bundledSteppers: string[] = [];
+  private _userSteppers: string[] = [];
+  private _featureCount = 0;
+  private _backgroundCount = 0;
+  private _extensionPath: string = '';
+
+  // For reveal support - cache nodes by file path
+  private _nodesByPath: Map<string, TreeNode> = new Map();
+  private _parentMap: Map<TreeNode, TreeNode | undefined> = new Map();
+
+  setExtensionPath(extensionPath: string): void {
+    this._extensionPath = extensionPath;
+    this._loadBundledSteppers();
   }
 
-  public static createOrShow(extensionUri: vscode.Uri, currentConfig: { bases: string[]; configFile: string; cwd: string }) {
-    const column = vscode.window.activeTextEditor
-      ? vscode.window.activeTextEditor.viewColumn
-      : vscode.ViewColumn.One;
-
-    // If we have a panel but it's disposed (zombie state), clear it upfront
-    if (HaibunConfigurationPanel.currentPanel && HaibunConfigurationPanel.currentPanel._panel.visible === false) {
-      HaibunConfigurationPanel.currentPanel = undefined;
-    }
-
-    // If we already have a valid panel, reveal and update it
-    if (HaibunConfigurationPanel.currentPanel) {
+  private _loadBundledSteppers(): void {
+    if (!this._extensionPath) return;
+    const bundledConfigPath = path.join(this._extensionPath, 'lsp-server', 'config.json');
+    if (fs.existsSync(bundledConfigPath)) {
       try {
-        HaibunConfigurationPanel.currentPanel._panel.reveal(column);
-        HaibunConfigurationPanel.currentPanel._update(currentConfig);
-        return;
-      } catch (e) {
-        // Panel was disposed, clear the reference
-        HaibunConfigurationPanel.currentPanel = undefined;
+        const config = JSON.parse(fs.readFileSync(bundledConfigPath, 'utf-8'));
+        this._bundledSteppers = config.steppers || [];
+      } catch (e) { /* ignore */ }
+    }
+  }
+
+  refresh(): void {
+    this._discoverFiles();
+    this.preCacheNodes();
+    this._onDidChangeTreeData.fire();
+  }
+
+  updateWorkspaceInfo(info: any): void {
+    this._workspaceInfo = info;
+    this._discoverFiles();
+    this.preCacheNodes();
+    this._onDidChangeTreeData.fire();
+  }
+
+  /**
+   * Pre-cache all file nodes so reveal works without manual expansion
+   */
+  preCacheNodes(): void {
+    // Clear existing cache
+    this._nodesByPath.clear();
+    this._parentMap.clear();
+
+    // Walk all bases and cache all file nodes
+    for (const baseEntry of this._bases) {
+      if (baseEntry.features) {
+        this._preCacheDirNode(baseEntry.features, undefined);
+      }
+      if (baseEntry.backgrounds) {
+        this._preCacheDirNode(baseEntry.backgrounds, undefined);
+      }
+    }
+  }
+
+  private _preCacheDirNode(dirNode: DirNode, parent: TreeNode | undefined): void {
+    const treeNode = this._nodeToTreeNode(dirNode, parent);
+    for (const child of dirNode.children) {
+      this._preCacheDirNode(child, treeNode);
+    }
+  }
+
+  private _discoverFiles(): void {
+    const config = vscode.workspace.getConfiguration('haibun');
+    const userBases = config.get<string[]>('bases') || [];
+    const userCwd = config.get<string>('cwd') || '';
+    const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '';
+
+    const effectiveCwd = userCwd
+      ? (path.isAbsolute(userCwd) ? userCwd : path.resolve(workspaceRoot, userCwd))
+      : workspaceRoot;
+
+    this._bases = [];
+    this._userSteppers = [];
+    this._featureCount = 0;
+    this._backgroundCount = 0;
+
+    // Load user steppers from config
+    const userConfigFile = config.get<string>('configFile') || '';
+    if (userConfigFile) {
+      const configPath = path.isAbsolute(userConfigFile)
+        ? userConfigFile
+        : path.resolve(effectiveCwd, userConfigFile);
+      if (fs.existsSync(configPath)) {
+        try {
+          const userConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+          this._userSteppers = userConfig.steppers || [];
+        } catch (e) { /* ignore */ }
       }
     }
 
-    // Otherwise, create a new panel.
-    try {
-      const panel = vscode.window.createWebviewPanel(
-        'haibunConfiguration',
-        'Haibun Configuration',
-        column || vscode.ViewColumn.One,
-        {
-          enableScripts: true,
-          localResourceRoots: [extensionUri],
-          retainContextWhenHidden: true // Keep state
+    for (const base of userBases) {
+      const baseDir = path.isAbsolute(base) ? base : path.resolve(effectiveCwd, base);
+      const baseName = path.basename(base);
+
+      const entry: BaseEntry = {
+        name: baseName,
+        features: null,
+        backgrounds: null
+      };
+
+      // Look for features/ and backgrounds/ subdirectories
+      const featuresDir = path.join(baseDir, 'features');
+      const backgroundsDir = path.join(baseDir, 'backgrounds');
+
+      if (fs.existsSync(featuresDir)) {
+        entry.features = this._buildTree(featuresDir, false, baseName);
+      }
+      if (fs.existsSync(backgroundsDir)) {
+        entry.backgrounds = this._buildTree(backgroundsDir, true, baseName);
+      }
+
+      // Also scan root for .feature files
+      if (fs.existsSync(baseDir)) {
+        const rootFeatures = this._scanRootFeatures(baseDir, baseName);
+        if (rootFeatures.length > 0 && !entry.features) {
+          entry.features = {
+            name: 'features',
+            path: baseDir,
+            isDir: true,
+            isBackground: false,
+            baseName,
+            children: rootFeatures
+          };
+        } else if (rootFeatures.length > 0 && entry.features) {
+          entry.features.children.push(...rootFeatures);
         }
+      }
+
+      if (entry.features || entry.backgrounds) {
+        this._bases.push(entry);
+      }
+    }
+  }
+
+  private _scanRootFeatures(dir: string, baseName: string): DirNode[] {
+    const nodes: DirNode[] = [];
+    try {
+      const entries = fs.readdirSync(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (entry.isFile() && entry.name.endsWith('.feature')) {
+          nodes.push({
+            name: entry.name,
+            path: path.join(dir, entry.name),
+            isDir: false,
+            isBackground: false,
+            baseName,
+            children: []
+          });
+          this._featureCount++;
+        }
+      }
+    } catch (e) { /* ignore */ }
+    return nodes;
+  }
+
+  private _buildTree(dir: string, isBackground: boolean, baseName: string): DirNode {
+    const node: DirNode = {
+      name: path.basename(dir),
+      path: dir,
+      isDir: true,
+      isBackground,
+      baseName,
+      children: []
+    };
+
+    try {
+      const entries = fs.readdirSync(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          node.children.push(this._buildTree(fullPath, isBackground, baseName));
+        } else if (entry.name.endsWith('.feature')) {
+          node.children.push({
+            name: entry.name,
+            path: fullPath,
+            isDir: false,
+            isBackground,
+            baseName,
+            children: []
+          });
+          if (isBackground) {
+            this._backgroundCount++;
+          } else {
+            this._featureCount++;
+          }
+        }
+      }
+    } catch (e) { /* ignore permission errors */ }
+
+    // Sort: directories first, then files
+    node.children.sort((a, b) => {
+      if (a.isDir && !b.isDir) return -1;
+      if (!a.isDir && b.isDir) return 1;
+      return a.name.localeCompare(b.name);
+    });
+
+    return node;
+  }
+
+  getTreeItem(element: TreeNode): vscode.TreeItem {
+    return element;
+  }
+
+  getParent(element: TreeNode): TreeNode | undefined {
+    return this._parentMap.get(element);
+  }
+
+  getChildren(element?: TreeNode): Thenable<TreeNode[]> {
+    if (element) {
+      // Return children of expandable nodes
+      if (element.baseEntry) {
+        // Show features and backgrounds under base
+        const items: TreeNode[] = [];
+        if (element.baseEntry.features) {
+          const node = new TreeNode(
+            'section',
+            'features',
+            `${this._countNodes(element.baseEntry.features)}`,
+            vscode.TreeItemCollapsibleState.Collapsed
+          );
+          node.dirNode = element.baseEntry.features;
+          items.push(node);
+        }
+        if (element.baseEntry.backgrounds) {
+          const node = new TreeNode(
+            'section',
+            'backgrounds',
+            `${this._countNodes(element.baseEntry.backgrounds)}`,
+            vscode.TreeItemCollapsibleState.Collapsed
+          );
+          node.dirNode = element.baseEntry.backgrounds;
+          items.push(node);
+        }
+        return Promise.resolve(items);
+      }
+      if (element.dirNode) {
+        return Promise.resolve(
+          element.dirNode.children.map(child => this._nodeToTreeNode(child, element))
+        );
+      }
+      if (element.steppersList) {
+        return Promise.resolve(
+          element.steppersList.map(stepper => new TreeNode(
+            'stepper',
+            path.basename(stepper),
+            stepper,
+            vscode.TreeItemCollapsibleState.None
+          ))
+        );
+      }
+      return Promise.resolve([]);
+    }
+
+    // Root level items
+    const config = vscode.workspace.getConfiguration('haibun');
+    const cwd = config.get<string>('cwd') || '';
+    const bases = config.get<string[]>('bases') || [];
+    const configFile = config.get<string>('configFile') || '';
+
+    const items: TreeNode[] = [
+      new TreeNode(
+        'config',
+        'Working Directory',
+        cwd || '(workspace root)',
+        vscode.TreeItemCollapsibleState.None,
+        { command: 'haibun.editCwd', title: 'Edit CWD' }
+      ),
+      new TreeNode(
+        'config',
+        'Base Directories',
+        bases.length > 0 ? bases.join(', ') : '(none)',
+        vscode.TreeItemCollapsibleState.None,
+        { command: 'haibun.editBases', title: 'Edit Bases' }
+      ),
+      new TreeNode(
+        'config',
+        'Config File',
+        configFile || '(none)',
+        vscode.TreeItemCollapsibleState.None,
+        { command: 'haibun.editConfigFile', title: 'Edit Config File' }
+      )
+    ];
+
+    // Add each base as expandable section
+    for (const baseEntry of this._bases) {
+      const featureCount = baseEntry.features ? this._countNodes(baseEntry.features) : 0;
+      const bgCount = baseEntry.backgrounds ? this._countNodes(baseEntry.backgrounds) : 0;
+      const node = new TreeNode(
+        'base',
+        baseEntry.name,
+        `${featureCount}f / ${bgCount}b`,
+        vscode.TreeItemCollapsibleState.Collapsed
+      );
+      node.baseEntry = baseEntry;
+      items.push(node);
+    }
+
+    // Bundled steppers (expandable)
+    if (this._bundledSteppers.length > 0) {
+      const node = new TreeNode(
+        'steppers-section',
+        'Bundled Steppers',
+        `${this._bundledSteppers.length}`,
+        vscode.TreeItemCollapsibleState.Collapsed
+      );
+      node.steppersList = this._bundledSteppers;
+      items.push(node);
+    }
+
+    // Configured steppers (expandable)
+    if (this._userSteppers.length > 0) {
+      const node = new TreeNode(
+        'steppers-section',
+        'Configured Steppers',
+        `${this._userSteppers.length}`,
+        vscode.TreeItemCollapsibleState.Collapsed
+      );
+      node.steppersList = this._userSteppers;
+      items.push(node);
+    }
+
+    return Promise.resolve(items);
+  }
+
+  private _countNodes(node: DirNode): number {
+    let count = 0;
+    for (const child of node.children) {
+      if (child.isDir) {
+        count += this._countNodes(child);
+      } else {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  private _nodeToTreeNode(node: DirNode, parent?: TreeNode): TreeNode {
+    if (node.isDir) {
+      const treeNode = new TreeNode(
+        'folder',
+        node.name,
+        '',
+        vscode.TreeItemCollapsibleState.Collapsed
+      );
+      treeNode.dirNode = node;
+      if (parent) {
+        this._parentMap.set(treeNode, parent);
+      }
+      return treeNode;
+    } else {
+      // Check if file is dirty (has unsaved changes)
+      const uri = vscode.Uri.file(node.path);
+      const isDirty = vscode.workspace.textDocuments.some(
+        doc => doc.uri.fsPath === node.path && doc.isDirty
       );
 
-      HaibunConfigurationPanel.currentPanel = new HaibunConfigurationPanel(panel, extensionUri);
+      const treeNode = new TreeNode(
+        'file',
+        isDirty ? `● ${node.name}` : node.name,
+        '',
+        vscode.TreeItemCollapsibleState.None,
+        { command: 'vscode.open', title: 'Open File', arguments: [uri] }
+      );
+      treeNode.resourceUri = uri;
 
-      // DELAY handling to avoid InvalidStateError in some environments
-      setTimeout(() => {
-        if (HaibunConfigurationPanel.currentPanel) {
-          HaibunConfigurationPanel.currentPanel._update(currentConfig);
-        }
-      }, 100);
-    } catch (e: any) {
-      // Handle ServiceWorker/tunnel errors for VS Code Remote users
-      if (e.message?.includes('ServiceWorker') || e.message?.includes('InvalidStateError')) {
-        vscode.window.showErrorMessage(
-          'Haibun: Remote connection error. Run "Remote-SSH: Kill VS Code Server on Host" to fix the webview tunnel.',
-          'OK'
-        );
-      } else {
-        vscode.window.showErrorMessage(`Haibun: Failed to create configuration panel: ${e.message}`);
+      // Cache file nodes for reveal functionality
+      this._nodesByPath.set(node.path, treeNode);
+      if (parent) {
+        this._parentMap.set(treeNode, parent);
       }
+      return treeNode;
     }
   }
 
-  public dispose() {
-    HaibunConfigurationPanel.currentPanel = undefined;
+  /**
+   * Find a TreeNode by file path (for reveal functionality)
+   * Uses cached nodes if available
+   */
+  findNodeByPath(filePath: string): TreeNode | null {
+    // Check cache first
+    const cached = this._nodesByPath.get(filePath);
+    if (cached) return cached;
 
-    // Clean up our resources
-    this._panel.dispose();
-
-    while (this._disposables.length) {
-      const x = this._disposables.pop();
-      if (x) {
-        x.dispose();
-      }
-    }
-  }
-
-  public _update(config: { bases: string[]; configFile: string; cwd: string }) {
-    this._config = config;
-    this._panel.webview.html = this._getHtmlForWebview(this._panel.webview);
-  }
-
-  private _applyConfiguration(bases: string[], configFile: string, cwd: string) {
-    vscode.commands.executeCommand('haibun.applyConfiguration', { bases, configFile, cwd });
-    vscode.window.showInformationMessage(`Haibun configuration applied.`);
-  }
-
-  public _updateWorkspaceInfo(info: any) {
-    this._panel.webview.postMessage({ command: 'workspaceInfo', info });
-  }
-
-  private _getHtmlForWebview(webview: vscode.Webview) {
-    // Generate a nonce
-    const nonce = getNonce();
-
-    return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Haibun Configuration</title>
-  <style>
-    body { padding: 20px; font-family: var(--vscode-font-family); color: var(--vscode-foreground); background-color: var(--vscode-editor-background); }
-    h2 { margin-top: 0; }
-    .form-group { margin-bottom: 20px; }
-    label { display: block; margin-bottom: 5px; font-weight: bold; }
-    input[type="text"] { width: 100%; padding: 8px; box-sizing: border-box; background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border); }
-    button { padding: 10px 20px; background: var(--vscode-button-background); color: var(--vscode-button-foreground); border: none; cursor: pointer; }
-    button:hover { background: var(--vscode-button-hoverBackground); }
-    .help { font-size: 0.9em; color: var(--vscode-descriptionForeground); margin-top: 5px; opacity: 0.8; }
-    code { font-family: monospace; background: var(--vscode-textCodeBlock-background); padding: 2px 4px; border-radius: 3px; }
-    .info-box { background: var(--vscode-textBlockQuote-background); padding: 10px; border-left: 4px solid var(--vscode-textBlockQuote-border); margin-bottom: 5px; }
-    .status-line { margin: 5px 0; font-size: 0.9em; }
-  </style>
-</head>
-<body>
-  <h2>Haibun Workspace Configuration</h2>
-
-  <div class="form-group">
-    <label for="cwd">Working Directory (CWD)</label>
-    <div id="cwd-info" class="info-box" style="display:none"></div>
-    <input type="text" id="cwd" value="${this._config.cwd}" placeholder="${vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || ''}">
-    <div class="help">
-        The process will run from this directory. 
-        Use <code>e2e-tests</code> if your config.json is there and uses relative paths like <code>./build-local</code>.
-        Leave empty for Workspace Root.
-    </div>
-  </div>
-
-  <div class="form-group">
-    <label for="bases">Base Directories</label>
-    <div id="bases-info" class="info-box" style="display:none"></div>
-    <input type="text" id="bases" value="${this._config.bases.join(', ')}" placeholder="features, ../shared">
-    <div class="help">Comma-separated paths containing <code>features/</code> and <code>backgrounds/</code>. Relative to Workspace Root (usually).</div>
-  </div>
-
-  <div class="form-group">
-    <label for="configFile">Config File</label>
-    <div id="config-info" class="info-box" style="display:none"></div>
-    <input type="text" id="configFile" value="${this._config.configFile}" placeholder="config.json">
-    <div class="help">Path to <code>config.json</code> defining steppers.</div>
-  </div>
-
-  <button id="apply">Apply Configuration</button>
-
-  <script nonce="${nonce}">
-    const vscode = acquireVsCodeApi();
-    
-    document.getElementById('apply').addEventListener('click', () => {
-      const bases = document.getElementById('bases').value.split(',').map(s => s.trim()).filter(s => s.length > 0);
-      const configFile = document.getElementById('configFile').value.trim();
-      const cwd = document.getElementById('cwd').value.trim();
-      
-      vscode.postMessage({
-        command: 'apply',
-        bases: bases,
-        configFile: configFile,
-        cwd: cwd
-      });
-    });
-
-    window.addEventListener('message', event => {
-        const message = event.data;
-        if (message.command === 'workspaceInfo') {
-            const info = message.info;
-            
-            const basesInfo = document.getElementById('bases-info');
-            if (info.backgroundCount !== undefined) {
-                basesInfo.style.display = 'block';
-                basesInfo.innerHTML = \`Found <strong>\${info.backgroundCount}</strong> backgrounds in resolved workspace.\`;
-            }
-
-            const configInfo = document.getElementById('config-info');
-            if (info.stepperCount !== undefined) {
-                configInfo.style.display = 'block';
-                configInfo.innerHTML = \`Loaded <strong>\${info.stepperCount}</strong> steppers from config.\`;
-            }
-        }
-    });
-  </script>
-</body>
-</html>`;
+    // Not in cache - might not have been expanded yet
+    return null;
   }
 }
 
-function getNonce() {
-  let text = '';
-  const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  for (let i = 0; i < 32; i++) {
-    text += possible.charAt(Math.floor(Math.random() * possible.length));
+type NodeType = 'config' | 'base' | 'section' | 'folder' | 'file' | 'info' | 'steppers-section' | 'stepper';
+
+class TreeNode extends vscode.TreeItem {
+  public dirNode?: DirNode;
+  public baseEntry?: BaseEntry;
+  public steppersList?: string[];
+
+  constructor(
+    public readonly nodeType: NodeType,
+    public readonly label: string,
+    public readonly value: string,
+    public readonly collapsibleState: vscode.TreeItemCollapsibleState,
+    public readonly command?: vscode.Command
+  ) {
+    super(label, collapsibleState);
+    if (value) {
+      this.description = value;
+    }
+    this.tooltip = nodeType === 'file' ? this.label : `${label}${value ? ': ' + value : ''}`;
+
+    switch (nodeType) {
+      case 'config':
+        this.iconPath = new vscode.ThemeIcon('settings-gear');
+        this.contextValue = 'configItem';
+        break;
+      case 'base':
+        this.iconPath = new vscode.ThemeIcon('root-folder');
+        this.contextValue = 'base';
+        break;
+      case 'section':
+        this.iconPath = new vscode.ThemeIcon('folder-library');
+        this.contextValue = 'section';
+        break;
+      case 'folder':
+        this.iconPath = new vscode.ThemeIcon('folder');
+        this.contextValue = 'folder';
+        break;
+      case 'file':
+        this.iconPath = new vscode.ThemeIcon('file');
+        this.contextValue = 'featureFile';
+        break;
+      case 'info':
+        this.iconPath = new vscode.ThemeIcon('info');
+        this.contextValue = 'info';
+        break;
+      case 'steppers-section':
+        this.iconPath = new vscode.ThemeIcon('extensions');
+        this.contextValue = 'steppersSection';
+        break;
+      case 'stepper':
+        this.iconPath = new vscode.ThemeIcon('symbol-method');
+        this.contextValue = 'stepper';
+        break;
+    }
   }
-  return text;
+}
+
+// Helper to register edit commands
+export function registerConfigCommands(context: vscode.ExtensionContext, treeProvider: HaibunConfigurationTreeProvider) {
+  context.subscriptions.push(
+    vscode.commands.registerCommand('haibun.editCwd', async () => {
+      const config = vscode.workspace.getConfiguration('haibun');
+      const current = config.get<string>('cwd') || '';
+      const result = await vscode.window.showInputBox({
+        prompt: 'Working Directory (relative to workspace root)',
+        value: current,
+        placeHolder: 'e.g., e2e-tests'
+      });
+      if (result !== undefined) {
+        await config.update('cwd', result, false);
+        treeProvider.refresh();
+      }
+    }),
+
+    vscode.commands.registerCommand('haibun.editBases', async () => {
+      const config = vscode.workspace.getConfiguration('haibun');
+      const current = config.get<string[]>('bases') || [];
+      const result = await vscode.window.showInputBox({
+        prompt: 'Base Directories (comma-separated, relative to CWD)',
+        value: current.join(', '),
+        placeHolder: 'e.g., tests, ../shared'
+      });
+      if (result !== undefined) {
+        const bases = result.split(',').map(s => s.trim()).filter(s => s.length > 0);
+        await config.update('bases', bases, false);
+        treeProvider.refresh();
+      }
+    }),
+
+    vscode.commands.registerCommand('haibun.editConfigFile', async () => {
+      const config = vscode.workspace.getConfiguration('haibun');
+      const current = config.get<string>('configFile') || '';
+      const result = await vscode.window.showInputBox({
+        prompt: 'Config File (relative to CWD)',
+        value: current,
+        placeHolder: 'e.g., config.json or tests/config.json'
+      });
+      if (result !== undefined) {
+        await config.update('configFile', result, false);
+        treeProvider.refresh();
+      }
+    })
+  );
+
+  // Watch for document changes to update dirty indicators
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeTextDocument(() => treeProvider.refresh()),
+    vscode.workspace.onDidSaveTextDocument(() => treeProvider.refresh())
+  );
 }

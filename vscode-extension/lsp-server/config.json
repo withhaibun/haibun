@@ -1,0 +1,6 @@
+{
+  "steppers": [
+    "@haibun/lsp",
+    "haibun"
+  ]
+}

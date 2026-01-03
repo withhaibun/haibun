@@ -4,9 +4,6 @@
   "version": "3.2.0",
   "description": "Language Server Protocol stepper for Haibun IDE integration",
   "main": "build/lsp-stepper.js",
-  "bin": {
-    "haibun-lsp": "build/lsp-server.js"
-  },
   "files": [
     "build/"
   ],

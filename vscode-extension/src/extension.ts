@@ -2,18 +2,46 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { ExtensionContext, workspace, window, StatusBarAlignment, StatusBarItem, OutputChannel, commands, ConfigurationChangeEvent } from 'vscode';
 import { LanguageClient, LanguageClientOptions, ServerOptions, TransportKind, State } from 'vscode-languageclient/node';
-import { HaibunConfigurationPanel } from './HaibunConfigurationPanel';
+import { HaibunConfigurationTreeProvider, HaibunConfig, registerConfigCommands } from './HaibunConfigurationPanel';
 
-const VERSION = '2026-01-02T18:50';
+const VERSION = '0.1.47';
 
 let client: LanguageClient | undefined;
 let statusBarItem: StatusBarItem;
 let outputChannel: OutputChannel;
 let useFallback = false;
+let configProvider: HaibunConfigurationTreeProvider;
 
 export function activate(context: ExtensionContext): void {
   outputChannel = window.createOutputChannel('Haibun LSP');
   outputChannel.appendLine(`[Haibun] Extension v${VERSION} activating...`);
+
+  // Register the native TreeDataProvider for sidebar
+  configProvider = new HaibunConfigurationTreeProvider();
+  configProvider.setExtensionPath(context.extensionPath);
+  const treeView = window.createTreeView('haibun.configurationView', {
+    treeDataProvider: configProvider,
+    showCollapseAll: false
+  });
+  context.subscriptions.push(treeView);
+
+  // Auto-reveal feature file in tree when active editor changes
+  context.subscriptions.push(
+    window.onDidChangeActiveTextEditor((editor) => {
+      if (!editor) return;
+      const filePath = editor.document.uri.fsPath;
+      if (!filePath.endsWith('.feature')) return;
+
+      // Find and reveal the file in the tree
+      const node = configProvider.findNodeByPath(filePath);
+      if (node) {
+        treeView.reveal(node, { select: true, expand: true });
+      }
+    })
+  );
+
+  // Register edit commands for inline editing
+  registerConfigCommands(context, configProvider);
 
   statusBarItem = window.createStatusBarItem(StatusBarAlignment.Right, 100);
   statusBarItem.text = '$(loading~spin) Haibun';
@@ -24,21 +52,20 @@ export function activate(context: ExtensionContext): void {
   // Register Commands
   context.subscriptions.push(
     commands.registerCommand('haibun.configure', () => {
-      const config = workspace.getConfiguration('haibun');
-      HaibunConfigurationPanel.createOrShow(context.extensionUri, {
-        bases: config.get<string[]>('bases') || [],
-        configFile: config.get<string>('configFile') || '',
-        cwd: config.get<string>('cwd') || ''
-      });
+      // Focus the sidebar view
+      commands.executeCommand('haibun.configurationView.focus');
+      // Refresh it with current config
+      configProvider.refresh();
     })
   );
 
   context.subscriptions.push(
-    commands.registerCommand('haibun.applyConfiguration', async (data: { bases: string[]; configFile: string; cwd: string }) => {
+    commands.registerCommand('haibun.applyConfiguration', async (data: HaibunConfig) => {
       const config = workspace.getConfiguration('haibun');
       await config.update('bases', data.bases, false);
       await config.update('configFile', data.configFile, false);
       await config.update('cwd', data.cwd, false);
+      window.showInformationMessage('Haibun Configuration Saved');
     })
   );
 
@@ -72,118 +99,139 @@ async function stopClient() {
 }
 
 async function startClient(context: ExtensionContext) {
-  let workspaceRoot = workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
-
-  // Fix for remote workspaces (SSH/WSL)
-  if (workspaceRoot.startsWith('/ssh-remote+')) {
-    const match = workspaceRoot.match(/\/ssh-remote\+[^\/]+(\/.*)/);
-    if (match) workspaceRoot = match[1];
-  }
+  const workspaceRoot = workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
+  // Safe base bundled with extension
+  const safeBase = path.join(context.extensionPath, 'lsp-server');
 
   outputChannel.appendLine(`[Haibun] Workspace: ${workspaceRoot}`);
-  outputChannel.appendLine(`[Haibun] Fallback mode: ${useFallback}`);
+  outputChannel.appendLine(`[Haibun] Safe Base: ${safeBase}`);
 
   // 1. RESOLVE CLI PATH
-  const cliPath = resolveCliPath(workspaceRoot);
-
+  let cliPath = resolveCliPath(workspaceRoot);
   if (!cliPath) {
-    outputChannel.appendLine('[Haibun] FATAL: Could not find haibun cli.js in node_modules or workspace.');
+    // Fallback to bundled CLI or error
+    // For now error, but ideally we bundle CLI too or finding it is critical
+    outputChannel.appendLine('[Haibun] FATAL: Could not find haibun cli.js');
     statusBarItem.text = '$(error) Haibun: No CLI';
-    statusBarItem.tooltip = 'Could not find modules/cli/build/cli.js';
     return;
   }
-
   outputChannel.appendLine(`[Haibun] Using CLI: ${cliPath}`);
 
+  // 2. DIAGNOSE CONFIG (User info only, not used for execution)
   const config = workspace.getConfiguration('haibun');
   const userBases = config.get<string[]>('bases') || [];
   const userConfigFile = config.get<string>('configFile') || '';
-  const fallbackBase = path.join(workspaceRoot, 'lsp-server');
+  const userCwd = config.get<string>('cwd') || '';
 
-  let bases: string[];
-  let cwd: string;
-  let configArg: string | null = null;
+  // Calculate effective CWD for context
+  const effectiveCwd = userCwd
+    ? (path.isAbsolute(userCwd) ? userCwd : path.resolve(workspaceRoot, userCwd))
+    : workspaceRoot;
 
-  // 2. DETERMINE CONFIG
-  if (useFallback) {
-    outputChannel.appendLine('[Haibun] === FALLBACK MODE ===');
-    bases = [fallbackBase];
-    cwd = workspaceRoot;
-    statusBarItem.text = '$(warning) Haibun: Fallback';
-  } else {
-    outputChannel.appendLine('[Haibun] === PREFLIGHT CHECK ===');
-    outputChannel.appendLine(`[Haibun] User bases: ${JSON.stringify(userBases)}`);
-    outputChannel.appendLine(`[Haibun] User configFile: ${userConfigFile || '(none)'}`);
+  outputChannel.appendLine(`[Haibun] User CWD: ${effectiveCwd}`);
+  outputChannel.appendLine(`[Haibun] User Config: ${userConfigFile}`);
+  outputChannel.appendLine(`[Haibun] User Bases: ${JSON.stringify(userBases)}`);
 
-    bases = userBases.length > 0
-      ? userBases.map(b => path.resolve(workspaceRoot, b))
-      : [fallbackBase];
+  // 3. PREPARE SERVER
+  // We use the safe base's feature (which includes @haibun/lsp)
+  // LSP discovers user's features/backgrounds from opened documents, not from CLI args
+  const args = [cliPath, safeBase, 'serve-lsp'];
 
-    cwd = (bases.length > 0 && bases[0] !== fallbackBase)
-      ? path.dirname(bases[0])
-      : workspaceRoot;
+  // Read user's config.json to extract their steppers, then pass via --with-steppers
+  // This avoids duplication since CLI merges them
+  if (userConfigFile) {
+    const configPath = path.isAbsolute(userConfigFile)
+      ? userConfigFile
+      : path.resolve(effectiveCwd, userConfigFile);
 
-    if (userConfigFile) configArg = path.resolve(workspaceRoot, userConfigFile);
+    if (fs.existsSync(configPath)) {
+      try {
+        // Read bundled config to get steppers we already have (DRY - don't hardcode)
+        const bundledConfigPath = path.join(safeBase, 'config.json');
+        let bundledSteppers: Set<string> = new Set();
+        if (fs.existsSync(bundledConfigPath)) {
+          try {
+            const bundledConfig = JSON.parse(fs.readFileSync(bundledConfigPath, 'utf-8'));
+            if (bundledConfig.steppers && Array.isArray(bundledConfig.steppers)) {
+              bundledSteppers = new Set(bundledConfig.steppers);
+            }
+          } catch (e) {
+            outputChannel.appendLine(`[Haibun] Warning: Could not read bundled config: ${e}`);
+          }
+        } else {
+          outputChannel.appendLine(`[Haibun] Error: Bundled config not found at ${bundledConfigPath}`);
+        }
 
-    outputChannel.appendLine(`[Haibun] Resolved bases: ${JSON.stringify(bases)}`);
-    outputChannel.appendLine(`[Haibun] Resolved CWD: ${cwd}`);
+        const userConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+        if (userConfig.steppers && Array.isArray(userConfig.steppers)) {
+          // Resolve relative paths and filter out duplicates
+          const resolvedSteppers = userConfig.steppers
+            .filter((s: string) => !bundledSteppers.has(s))
+            .map((s: string) => {
+              if (s.startsWith('./') || s.startsWith('../')) {
+                return path.resolve(effectiveCwd, s);
+              }
+              return s;
+            });
 
-    // Preflight - check against workspace root (where Haibun resolves paths)
-    const preflightError = runPreflight(bases, workspaceRoot, configArg);
-    if (preflightError) {
-      outputChannel.appendLine(`[Haibun] PREFLIGHT FAILED: ${preflightError}`);
-      outputChannel.appendLine('[Haibun] Switching to fallback...');
-      useFallback = true;
-      // RECURSION SAFEGUARD: Return immediately and call startClient again
-      return startClient(context);
+          if (resolvedSteppers.length > 0) {
+            const steppersArg = resolvedSteppers.join(',');
+            args.push('--with-steppers', steppersArg);
+            outputChannel.appendLine(`[Haibun] Adding ${resolvedSteppers.length} steppers (filtered from ${userConfig.steppers.length})`);
+          }
+        }
+      } catch (e) {
+        outputChannel.appendLine(`[Haibun] Warning: Could not parse user config: ${e}`);
+      }
+    } else {
+      outputChannel.appendLine(`[Haibun] Warning: User config not found at ${configPath}`);
     }
-    outputChannel.appendLine('[Haibun] Preflight PASSED');
   }
-
-  // 3. FINAL VALIDATION
-  if (!fs.existsSync(bases[0])) {
-    outputChannel.appendLine(`[Haibun] Base directory missing: ${bases[0]}`);
-    statusBarItem.text = '$(error) Haibun: No Base';
-    return;
-  }
-
-  // 4. PREPARE SERVER
-  const args = [cliPath, ...bases];
-  if (configArg) args.push('--config', configArg);
 
   outputChannel.appendLine(`[Haibun] Starting: node ${args.join(' ')}`);
-  outputChannel.appendLine(`[Haibun] CWD: ${cwd}`);
+
+  // No special env vars needed - we only load LspStepper
+  const env = { ...process.env };
 
   const serverOptions: ServerOptions = {
-    run: { command: 'node', args, transport: TransportKind.stdio, options: { cwd } },
-    debug: { command: 'node', args, transport: TransportKind.stdio, options: { cwd, execArgv: ['--nolazy', '--inspect=6009'] } }
+    run: { command: 'node', args, transport: TransportKind.stdio, options: { cwd: workspaceRoot, env } },
+    debug: { command: 'node', args, transport: TransportKind.stdio, options: { cwd: workspaceRoot, env, execArgv: ['--nolazy', '--inspect=6009'] } }
   };
 
   const clientOptions: LanguageClientOptions = {
     documentSelector: [{ scheme: 'file', language: 'haibun' }],
-    connectionOptions: { maxRestartCount: 0 }
+    synchronize: {
+      fileEvents: workspace.createFileSystemWatcher('**/config.json')
+    }
   };
 
-  client = new LanguageClient('haibunLsp', 'Haibun Language Server', serverOptions, clientOptions);
+  // Create the language client and start the client.
+  client = new LanguageClient(
+    'haibun',
+    'Haibun Language Server',
+    serverOptions,
+    clientOptions
+  );
 
   // 5. START AND HANDLE EVENTS
   try {
+    // Start the client. This will also launch the server
     await client.start();
 
     outputChannel.appendLine('[Haibun] Client started successfully.');
     if (!useFallback) {
       statusBarItem.text = '$(check) Haibun: Ready';
-      statusBarItem.tooltip = `Base: ${bases[0]}`;
+      statusBarItem.tooltip = `Base: ${userBases[0]}`;
     }
 
+    // Handle haibun/workspaceInfo notification for the status panel
     client.onNotification('haibun/workspaceInfo', (info: any) => {
-      const baseName = path.basename(info.base);
-      statusBarItem.text = useFallback ? `$(warning) ${baseName}` : `$(file-code) ${baseName}`;
+      const baseName = info.base === 'Default' ? 'Default' : path.basename(info.base);
+      statusBarItem.text = `$(file-code) ${baseName}`;
       statusBarItem.tooltip = `Base: ${info.base}\nSteppers: ${info.stepperCount}`;
 
-      if (HaibunConfigurationPanel.currentPanel) {
-        HaibunConfigurationPanel.currentPanel._updateWorkspaceInfo(info);
-      }
+      // Update the sidebar view with workspace info
+      configProvider.updateWorkspaceInfo(info);
     });
 
     // Handle unexpected stops
@@ -198,13 +246,7 @@ async function startClient(context: ExtensionContext) {
 
   } catch (error) {
     outputChannel.appendLine(`[Haibun] STARTUP ERROR: ${error}`);
-    if (!useFallback) {
-      useFallback = true;
-      await stopClient();
-      startClient(context);
-    } else {
-      statusBarItem.text = '$(error) Haibun: Failed';
-    }
+    statusBarItem.text = '$(error) Haibun: Failed';
   }
 }
 
@@ -245,48 +287,3 @@ function resolveCliPath(root: string): string | null {
   return null;
 }
 
-function runPreflight(bases: string[], cwd: string, configFile: string | null): string | null {
-  if (configFile && fs.existsSync(configFile)) {
-    const err = checkConfig(configFile, cwd);
-    if (err) return err;
-  }
-  for (const base of bases) {
-    const baseConfig = path.join(base, 'config.json');
-    if (fs.existsSync(baseConfig)) {
-      const err = checkConfig(baseConfig, cwd);
-      if (err) return err;
-    }
-  }
-  return null;
-}
-
-function checkConfig(configPath: string, cwd: string): string | null {
-  outputChannel.appendLine(`[Preflight] Checking config: ${configPath}`);
-  outputChannel.appendLine(`[Preflight] CWD for stepper resolution: ${cwd}`);
-
-  try {
-    const content = fs.readFileSync(configPath, 'utf-8');
-    const config = JSON.parse(content);
-    if (!Array.isArray(config.steppers)) return null;
-
-    for (const stepper of config.steppers) {
-      if (typeof stepper === 'string' && stepper.startsWith('./')) {
-        const fullPath = path.resolve(cwd, stepper);
-        outputChannel.appendLine(`[Preflight] Checking: ${stepper} -> ${fullPath}`);
-
-        const exists = fs.existsSync(fullPath) ||
-          fs.existsSync(fullPath + '.js') ||
-          fs.existsSync(path.join(fullPath, 'index.js'));
-
-        if (!exists) {
-          outputChannel.appendLine(`[Preflight] NOT FOUND: ${stepper}`);
-          return `Stepper not found: ${stepper}`;
-        }
-        outputChannel.appendLine(`[Preflight] OK: ${stepper}`);
-      }
-    }
-    return null;
-  } catch (e) {
-    return `Config error: ${e}`;
-  }
-}

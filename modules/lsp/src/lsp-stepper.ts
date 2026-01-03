@@ -6,7 +6,7 @@ import { StepperRegistry, StepMetadata } from '@haibun/core/lib/stepper-registry
 import { Resolver } from '@haibun/core/phases/Resolver.js';
 import { expand } from '@haibun/core/lib/features.js';
 import { TStepValue } from '@haibun/core/schema/protocol.js';
-import { findHaibunWorkspace, loadBackgroundsFromPath } from '@haibun/core/lib/workspace-discovery.js';
+import { findHaibunWorkspace, loadBackgroundsFromPath, countFeatures } from '@haibun/core/lib/workspace-discovery.js';
 
 // Semantic token types - indices matter for the legend
 const tokenTypes = ['keyword', 'function', 'parameter', 'string', 'number', 'comment'];
@@ -26,7 +26,7 @@ export default class LspStepper extends AStepper {
   // Cache of workspace-specific backgrounds: base path -> backgrounds
   private workspaceBackgrounds: Map<string, TFeature[]> = new Map();
   // Track current workspace info for VS Code status panel
-  private currentWorkspace: { base: string; config: string | null; backgroundCount: number } | null = null;
+  private currentWorkspace: { base: string; config: string | null; backgroundCount: number; featureCount?: number } | null = null;
 
   constructor(connection?: Connection, steppers?: AStepper[], backgrounds?: TFeatures) {
     super();
@@ -353,9 +353,10 @@ export default class LspStepper extends AStepper {
 
     // If no backgrounds path, just return default backgrounds but keep workspace info
     if (!workspace.backgroundsPath) {
-      this.currentWorkspace.backgroundCount = this.backgrounds.length; // Or should this be 0? 
-      // Actually if we fell back to defaults, might be confusing to show that in status.
-      // But for now let's report what we found.
+      this.currentWorkspace.backgroundCount = this.backgrounds.length;
+      try {
+        this.currentWorkspace.featureCount = await countFeatures(workspace.base);
+      } catch (e) { console.error('Error counting features', e); }
       this.sendWorkspaceInfo();
       return this.backgrounds;
     }
@@ -364,6 +365,9 @@ export default class LspStepper extends AStepper {
     if (this.workspaceBackgrounds.has(workspace.base)) {
       const bgs = this.workspaceBackgrounds.get(workspace.base)!;
       this.currentWorkspace.backgroundCount = bgs.length;
+      try {
+        this.currentWorkspace.featureCount = await countFeatures(workspace.base);
+      } catch (e) { console.error('Error counting features', e); }
       this.sendWorkspaceInfo();
       return bgs;
     }
@@ -381,6 +385,10 @@ export default class LspStepper extends AStepper {
 
       // Update info with actual count
       this.currentWorkspace.backgroundCount = backgrounds.length;
+
+      // Count features (new)
+      this.currentWorkspace.featureCount = await countFeatures(workspace.base);
+
       this.sendWorkspaceInfo();
 
       return backgrounds;
@@ -392,6 +400,8 @@ export default class LspStepper extends AStepper {
     }
   }
 
+
+
   /**
    * Send workspace info to VS Code client for status display
    */
@@ -402,6 +412,7 @@ export default class LspStepper extends AStepper {
       base: this.currentWorkspace.base,
       config: this.currentWorkspace.config,
       backgroundCount: this.currentWorkspace.backgroundCount,
+      featureCount: this.currentWorkspace.featureCount,
       stepperCount: this.steppers.length,
     });
   }

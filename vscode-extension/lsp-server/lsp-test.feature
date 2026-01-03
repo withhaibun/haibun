@@ -1,7 +1,7 @@
 ## Semantic Highlighting Overview
 ;; This file demonstrates how Haibun steps are mapped to VS Code semantic tokens.
 
-lsp is ready
+set x to 1
 ;; Basic Step: Mapped to 'function' color. tokens: function
 
 click x by placeholder

@@ -61,6 +61,39 @@ export function findHaibunWorkspace(
 }
 
 /**
+ * Recursively find all .feature files in a directory
+ */
+export async function findFeatureFiles(dir: string, fs: TFileSystem = nodeFS): Promise<string[]> {
+  const results: string[] = [];
+  if (!fs.existsSync(dir)) return results;
+
+  async function recurse(currentDir: string) {
+    const entries = fs.readdirSync(currentDir);
+    for (const entry of entries) {
+      const fullPath = path.join(currentDir, entry);
+      const stat = fs.statSync(fullPath);
+      if (stat.isDirectory()) {
+        await recurse(fullPath);
+      } else if (entry.endsWith('.feature')) {
+        results.push(fullPath);
+      }
+    }
+  }
+
+  await recurse(dir);
+  return results;
+}
+
+/**
+ * Count features in the workspace (base/features)
+ */
+export async function countFeatures(base: string, fs: TFileSystem = nodeFS): Promise<number> {
+  const featuresPath = path.join(base, 'features');
+  const files = await findFeatureFiles(featuresPath, fs);
+  return files.length;
+}
+
+/**
  * Load all background files from a backgrounds directory
  */
 export async function loadBackgroundsFromPath(
@@ -74,28 +107,19 @@ export async function loadBackgroundsFromPath(
   }
 
   const base = path.dirname(backgroundsPath);
+  const files = await findFeatureFiles(backgroundsPath, fs);
 
-  async function recurse(dir: string): Promise<void> {
-    const entries = fs.readdirSync(dir);
-    for (const entry of entries) {
-      const fullPath = path.join(dir, entry);
-      const stat = fs.statSync(fullPath);
-      if (stat.isDirectory()) {
-        await recurse(fullPath);
-      } else if (entry.endsWith('.feature')) {
-        const content = fs.readFileSync(fullPath, 'utf-8');
-        const relativePath = fullPath.replace(base, '');
-        const name = path.basename(fullPath, '.feature');
-        backgrounds.push({
-          path: relativePath,
-          content,
-          name,
-          base,
-        });
-      }
-    }
+  for (const fullPath of files) {
+    const content = fs.readFileSync(fullPath, 'utf-8');
+    const relativePath = fullPath.replace(base, '');
+    const name = path.basename(fullPath, '.feature');
+    backgrounds.push({
+      path: relativePath,
+      content,
+      name,
+      base,
+    });
   }
 
-  await recurse(backgroundsPath);
   return backgrounds;
 }
