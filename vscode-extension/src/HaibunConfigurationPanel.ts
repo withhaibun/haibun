@@ -33,35 +33,57 @@ export class HaibunConfigurationPanel {
   public static createOrShow(extensionUri: vscode.Uri, currentConfig: { bases: string[]; configFile: string; cwd: string }) {
     const column = vscode.window.activeTextEditor
       ? vscode.window.activeTextEditor.viewColumn
-      : undefined;
+      : vscode.ViewColumn.One;
 
-    // If we already have a panel, show it.
+    // If we have a panel but it's disposed (zombie state), clear it upfront
+    if (HaibunConfigurationPanel.currentPanel && HaibunConfigurationPanel.currentPanel._panel.visible === false) {
+      HaibunConfigurationPanel.currentPanel = undefined;
+    }
+
+    // If we already have a valid panel, reveal and update it
     if (HaibunConfigurationPanel.currentPanel) {
-      HaibunConfigurationPanel.currentPanel._panel.reveal(column);
-      HaibunConfigurationPanel.currentPanel._update(currentConfig);
-      return;
+      try {
+        HaibunConfigurationPanel.currentPanel._panel.reveal(column);
+        HaibunConfigurationPanel.currentPanel._update(currentConfig);
+        return;
+      } catch (e) {
+        // Panel was disposed, clear the reference
+        HaibunConfigurationPanel.currentPanel = undefined;
+      }
     }
 
     // Otherwise, create a new panel.
-    const panel = vscode.window.createWebviewPanel(
-      'haibunConfiguration',
-      'Haibun Configuration',
-      column || vscode.ViewColumn.One,
-      {
-        enableScripts: true,
-        localResourceRoots: [extensionUri],
-        retainContextWhenHidden: true // Keep state
-      }
-    );
+    try {
+      const panel = vscode.window.createWebviewPanel(
+        'haibunConfiguration',
+        'Haibun Configuration',
+        column || vscode.ViewColumn.One,
+        {
+          enableScripts: true,
+          localResourceRoots: [extensionUri],
+          retainContextWhenHidden: true // Keep state
+        }
+      );
 
-    HaibunConfigurationPanel.currentPanel = new HaibunConfigurationPanel(panel, extensionUri);
+      HaibunConfigurationPanel.currentPanel = new HaibunConfigurationPanel(panel, extensionUri);
 
-    // DELAY handling to avoid InvalidStateError in some environments?
-    setTimeout(() => {
-      if (HaibunConfigurationPanel.currentPanel) {
-        HaibunConfigurationPanel.currentPanel._update(currentConfig);
+      // DELAY handling to avoid InvalidStateError in some environments
+      setTimeout(() => {
+        if (HaibunConfigurationPanel.currentPanel) {
+          HaibunConfigurationPanel.currentPanel._update(currentConfig);
+        }
+      }, 100);
+    } catch (e: any) {
+      // Handle ServiceWorker/tunnel errors for VS Code Remote users
+      if (e.message?.includes('ServiceWorker') || e.message?.includes('InvalidStateError')) {
+        vscode.window.showErrorMessage(
+          'Haibun: Remote connection error. Run "Remote-SSH: Kill VS Code Server on Host" to fix the webview tunnel.',
+          'OK'
+        );
+      } else {
+        vscode.window.showErrorMessage(`Haibun: Failed to create configuration panel: ${e.message}`);
       }
-    }, 100);
+    }
   }
 
   public dispose() {
