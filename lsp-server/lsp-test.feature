@@ -1,38 +1,45 @@
+## Semantic Highlighting Overview
+;; This file demonstrates how Haibun steps are mapped to VS Code semantic tokens.
+
 lsp is ready
-;; good, available statement
+;; Basic Step: Mapped to 'function' color. tokens: function
 
 click x by placeholder
-;; correct
+;; Parameterized Step: Step words are 'function', arguments are 'parameter'. tokens: function (click, by placeholder), parameter (x)
+
 click {target: string | page-locator} by method 
-;; correct; click and by are steps, target and method are parameters
+;; Type Hints: Parameters with type definitions are also mapped as 'parameter'. tokens: function (click, by method), parameter ({target...})
 
 variable x exists
+;; Compound Step: 'variable' and 'exists' are recognized. tokens: function (variable, exists), parameter (x)
+
 not variable x exists 
-;; compound second statement highlighted same as single
+;; Recursive Highlighting: 'not' is a step. Inner 'variable x exists' is colored as a step. tokens: function (not), function (variable exists), parameter (x)
 
 not variable what 
-;; second element of compound statement is not a step so should be an error
+;; Resolution Fallback: 'not' is a step, 'variable what' is INVALID so it falls back to 'parameter' color. tokens: function (not), parameter (variable what)
 
 aosdfisodfda
-;; good; shows as error and is in problems
+;; Error: Unresolved line. Marked with a red squiggly. no tokens => Diagnostic Error
 
 ## Waypoint testing
-;; this is prose (semantically a comment)
+;; Markdown Header: prose, not highlighted as code. no tokens
 
 Feature: mesbit
-;; this is feature (semantically a comment)
+;; Keyword: 'Feature' is a Gherkin keyword. token: comment (Prose/Keyword)
 
 This is prose.
-;; this is prose (semantically a comment)
+;; Prose: Unrecognized text starting with Uppercase is treated as comment/prose. token: comment
 
 Did foobar
-;; this calls a waypoint, semantically a function or method.
+;; Waypoint: dynamic step resolving to an Activity. Mapped to 'function'. token: function
 
 ensure Ensured foobar
-;; ensure is  step but Ensured foobar is sematically a function or method.
+;; Assertion: 'ensure' is a step. 'Ensured foobar' is the valid inner step being checked. tokens: function (ensure), function (Ensured foobar - recursive)
+
 ensure Did foobar
-;; This is an error because Did foobar does not have a proof.
+;; Logical Error: 'Did foobar' is a valid step but has no proof/result to ensure. Shows as error. tokens: function (ensure), parameter (Did foobar - failed verification) => Diagnostic Error
 
 ensure Does not exist
-;; an error because the waypoint does not exist
+;; Missing Reference: 'Does not exist' is not a known step. Shows as error. tokens: function (ensure), parameter (Does not exist - fallback) => Diagnostic Error
 
