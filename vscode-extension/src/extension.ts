@@ -212,7 +212,10 @@ async function startClient(context: ExtensionContext, onVerifyReveal: () => void
   };
 
   const clientOptions: LanguageClientOptions = {
-    documentSelector: [{ scheme: 'file', language: 'haibun' }],
+    documentSelector: [
+      { scheme: 'file', language: 'haibun' },
+      { scheme: 'file', pattern: '**/*.feature.ts' }
+    ],
     synchronize: {
       fileEvents: workspace.createFileSystemWatcher('**/config.json')
     }

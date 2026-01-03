@@ -6,12 +6,19 @@ import { StepperRegistry, StepMetadata } from '@haibun/core/lib/stepper-registry
 import { Resolver } from '@haibun/core/phases/Resolver.js';
 import { expand } from '@haibun/core/lib/features.js';
 import { TStepValue } from '@haibun/core/schema/protocol.js';
+import * as ts from 'typescript';
 import { findHaibunWorkspace, loadBackgroundsFromPath, countFeatures } from '@haibun/core/lib/workspace-discovery.js';
 
 // Semantic token types - indices matter for the legend
 const tokenTypes = ['keyword', 'function', 'parameter', 'string', 'number', 'comment'];
 const tokenModifiers: string[] = [];
 const legend: SemanticTokensLegend = { tokenTypes, tokenModifiers };
+
+interface LCachedStep {
+  step: TFeatureStep;
+  startOffset?: number;
+  length?: number;
+}
 
 /**
  * Language Server Protocol stepper for Haibun IDE integration.
@@ -91,12 +98,29 @@ export default class LspStepper extends AStepper {
       if (!cached) return null;
 
       const lineNum = params.position.line;
-      const step = cached.featureSteps.find(s => s.source.lineNumber === lineNum + 1);
+      // Use s.step to access the TFeatureStep
+      // For .feature.ts files, we might need to check column range too?
+      // For now, if multiple steps on line, picking first match for line is consistent with .feature behavior
+      // But for better UX we should check column.
+      const stepItem = cached.featureSteps.find(s => {
+        if (s.step.source.lineNumber !== lineNum + 1) return false;
+        // Optimistic: if we have range info, check it
+        if (s.startOffset !== undefined && s.length !== undefined) {
+          const char = params.position.character;
+          return char >= s.startOffset && char <= s.startOffset + s.length;
+        }
+        return true; // Fallback for whole-line steps
+      });
 
-      if (step) {
+      if (stepItem) {
+        const step = stepItem.step;
         const stepValuesMap = step.action.stepValuesMap || {};
         const paramInfo = Object.entries(stepValuesMap)
-          .map(([name, val]) => `- **${name}**: \`${val.term}\``)
+          .map(([name, val]) => {
+            // Safe access to val and val.term
+            const term = (val && typeof val === 'object' && 'term' in val) ? (val as any).term : val;
+            return `- **${name}**: \`${term}\``;
+          })
           .join('\n') || 'None';
         return {
           contents: {
@@ -119,14 +143,16 @@ export default class LspStepper extends AStepper {
       const builder = new SemanticTokensBuilder();
       const lines = doc.getText().split('\n');
 
-      // Build a map of lineNumber -> featureStep for quick lookup
-      const stepsByLine = new Map<number, TFeatureStep>();
+      // Build a map of lineNumber -> list of steps for quick lookup
+      const stepsByLine = new Map<number, LCachedStep[]>();
       const errorsByLine = new Map<number, string>();
 
       if (cached) {
-        for (const step of cached.featureSteps) {
-          if (step.source.lineNumber) {
-            stepsByLine.set(step.source.lineNumber, step);
+        for (const item of cached.featureSteps) {
+          if (item.step.source.lineNumber) {
+            const list = stepsByLine.get(item.step.source.lineNumber) || [];
+            list.push(item);
+            stepsByLine.set(item.step.source.lineNumber, list);
           }
         }
         for (const error of cached.errors) {
@@ -153,15 +179,23 @@ export default class LspStepper extends AStepper {
         const trimmed = line.trim();
         if (!trimmed) continue;
 
-        const startChar = line.indexOf(trimmed);
-        const featureStep = stepsByLine.get(lineNum + 1); // lineNumber is 1-indexed
+        const cachedSteps = stepsByLine.get(lineNum + 1); // lineNumber is 1-indexed
 
-        if (featureStep) {
-          this.highlightStep(builder, lineNum, line, startChar, featureStep.action, resolver, trimmed.length);
-        } else {
-          // Not a resolved step - check if prose
+        if (cachedSteps && cachedSteps.length > 0) {
+          // Sort by start position to process in order
+          cachedSteps.sort((a, b) => (a.startOffset || 0) - (b.startOffset || 0));
+
+          for (const cachedStep of cachedSteps) {
+            const startChar = cachedStep.startOffset !== undefined ? cachedStep.startOffset : line.indexOf(trimmed);
+            const len = cachedStep.length !== undefined ? cachedStep.length : trimmed.length;
+
+            this.highlightStep(builder, lineNum, line, startChar, cachedStep.step.action, resolver, len);
+          }
+        } else if (uri.endsWith('.feature')) {
+          // Not a resolved step - check if prose (only for .feature files)
           const isProse = /^[A-Z]/.test(trimmed);
           if (isProse) {
+            const startChar = line.indexOf(trimmed);
             builder.push(lineNum, startChar, trimmed.length, tokenTypes.indexOf('comment'), 0);
           }
         }
@@ -237,7 +271,7 @@ export default class LspStepper extends AStepper {
 
   // Cache for resolved feature steps per document
   private documentCache = new Map<string, {
-    featureSteps: TFeatureStep[];
+    featureSteps: LCachedStep[];
     errors: { lineNumber: number; message: string }[];
   }>();
 
@@ -425,6 +459,18 @@ export default class LspStepper extends AStepper {
     // Use normalizePath for consistency
     const uri = this.normalizePath(doc.uri);
 
+    // Aggressively identify TypeScript/Kireji files
+    const isTs =
+      doc.languageId === 'typescript' ||
+      doc.languageId === 'typescriptreact' ||
+      uri.toLowerCase().endsWith('.ts') ||
+      content.includes('TKirejiExport');
+
+    if (isTs) {
+      await this.processTypeScriptDocument(doc, uri);
+      return;
+    }
+
     // Check if this is a background file update
     const isBg = await this.updateBackgrounds(doc, uri);
     if (isBg) {
@@ -536,9 +582,9 @@ export default class LspStepper extends AStepper {
     });
 
     // Cache valid steps for highlighting/hover
-    // We map errors to a simpler format for the cache if needed, currently unused
+    // Wrap in LCachedStep
     this.documentCache.set(uri, {
-      featureSteps: steps,
+      featureSteps: steps.map(s => ({ step: s })),
       errors: errors.map(e => ({ lineNumber: e.featureLine.lineNumber || 0, message: e.error.message }))
     });
 
@@ -546,6 +592,121 @@ export default class LspStepper extends AStepper {
 
     // Publish diagnostics (including any expansion errors like missing backgrounds)
     this.connection?.sendDiagnostics({ uri: doc.uri, diagnostics: [...expansionErrors, ...diagnostics] });
+  }
+
+  private async processTypeScriptDocument(doc: TextDocument, uri: string): Promise<void> {
+    const fullText = doc.getText();
+    // Quick check to avoid parsing irrelevant files
+    if (!fullText.includes('TKirejiExport')) {
+      this.connection?.sendDiagnostics({ uri: doc.uri, diagnostics: [] });
+      return;
+    }
+
+    const featureSteps: LCachedStep[] = [];
+    const diagnostics: Diagnostic[] = [];
+    this.ensureStepperContext(uri);
+    const resolver = new Resolver(this.steppers, []);
+
+    // Parse AST using TypeScript
+    const sourceFile = ts.createSourceFile(
+      uri,
+      fullText,
+      ts.ScriptTarget.Latest,
+      true
+    );
+
+    const processString = (node: ts.StringLiteral | ts.NoSubstitutionTemplateLiteral) => {
+      const start = node.getStart(sourceFile);
+      const text = node.getText(sourceFile);
+      if (text.length < 2) return;
+
+      // Content inside quotes
+      const rawContent = text.slice(1, -1);
+      const contentStartOffset = start + 1;
+
+      // Split logic for multiline steps
+      const lines = rawContent.split(/\r?\n/);
+      let currentOffsetInString = 0;
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        const leadingSpaces = line.indexOf(trimmed);
+
+        if (trimmed.length > 0 && !trimmed.startsWith('#')) {
+          const stepStartAbs = contentStartOffset + currentOffsetInString + (leadingSpaces >= 0 ? leadingSpaces : 0);
+          const pos = doc.positionAt(stepStartAbs);
+          const endPos = doc.positionAt(stepStartAbs + trimmed.length);
+
+          try {
+            const action = resolver.findSingleStepAction(trimmed);
+            if (action) {
+              const step: TFeatureStep = {
+                action,
+                source: { lineNumber: pos.line + 1, path: uri },
+                in: trimmed,
+                seqPath: [0]
+              };
+              featureSteps.push({ step, startOffset: pos.character, length: trimmed.length });
+            } else {
+              // Should not happen if throw happens on no match
+            }
+          } catch (e) {
+            // Collect diagnostic/error
+            diagnostics.push({
+              severity: DiagnosticSeverity.Error,
+              range: { start: pos, end: endPos },
+              message: `Step '${trimmed}' is not defined`,
+              source: 'haibun'
+            });
+          }
+        }
+
+        // Advance offset including newline
+        currentOffsetInString += line.length;
+        if (currentOffsetInString < rawContent.length) {
+          if (rawContent.slice(currentOffsetInString, currentOffsetInString + 2) === '\r\n') {
+            currentOffsetInString += 2;
+          } else if (['\n', '\r'].includes(rawContent.slice(currentOffsetInString, currentOffsetInString + 1))) {
+            currentOffsetInString += 1;
+          }
+        }
+      }
+    };
+
+    const processObject = (node: ts.ObjectLiteralExpression) => {
+      for (const prop of node.properties) {
+        if (ts.isPropertyAssignment(prop) && ts.isArrayLiteralExpression(prop.initializer)) {
+          for (const el of prop.initializer.elements) {
+            if (ts.isStringLiteral(el) || ts.isNoSubstitutionTemplateLiteral(el)) {
+              processString(el);
+            }
+          }
+        }
+      }
+    };
+
+    const visit = (node: ts.Node) => {
+      if (ts.isVariableDeclaration(node) && node.type && ts.isTypeReferenceNode(node.type)) {
+        const typeName = node.type.typeName.getText(sourceFile);
+        if (typeName.endsWith('TKirejiExport')) {
+          if (node.initializer && ts.isObjectLiteralExpression(node.initializer)) {
+            processObject(node.initializer);
+          }
+        }
+      }
+      ts.forEachChild(node, visit);
+    };
+
+    visit(sourceFile);
+
+    // Cache the found steps and errors
+    this.documentCache.set(uri, {
+      featureSteps,
+      errors: diagnostics.map(e => ({ lineNumber: e.range.start.line + 1, message: e.message }))
+    });
+
+    // Send diagnostics
+    this.connection?.sendDiagnostics({ uri: doc.uri, diagnostics });
   }
 
   private metadataToCompletionItem(meta: StepMetadata): CompletionItem {

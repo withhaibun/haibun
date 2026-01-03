@@ -291,4 +291,79 @@ waypoint Ensured foobar with variable x exists
     // Should be either warning (2) or error (1) depending on the failure path
     expect([1, 2]).toContain(bgWarning.severity);
   });
+
+  it('generates semantic tokens for steps in .feature.ts strings', async () => {
+    let didOpenHandler: any;
+    mockConnection.onDidOpenTextDocument.mockImplementation((handler: any) => { didOpenHandler = handler; });
+
+    const lsp = new LspStepper(mockConnection, steppers, backgrounds);
+    const uri = 'file:///tmp/kireji.feature.ts';
+    // TypeScript content with steps in strings
+    const content = `
+      import { TKirejiExport } from '@haibun/core/kireji';
+
+      // This should NOT be highlighted because it is outside the TKirejiExport block
+      ensure({ outcome: 'Activity: Outside' });
+      
+      export const features: TKirejiExport = {
+          'My Feature': [
+              // Array of steps pattern (multiline string)
+              \`Activity: MyActivity
+               set x to "value"\`
+          ]
+      };
+    `;
+    const doc = TextDocument.create(uri, 'typescript', 1, content);
+
+    // Simulate didOpen
+    if (didOpenHandler) didOpenHandler({ textDocument: { uri, languageId: 'typescript', version: 1, text: content } });
+
+    // Explicitly process (LspStepper logic checks extension .feature.ts)
+    await (lsp as any).processDocument(doc);
+
+    // Request tokens
+    const handler = mockConnection._tokenHandler;
+    const tokens = await handler({ textDocument: { uri } });
+
+    expect(tokens.data.length).toBeGreaterThan(0);
+
+    // Check reasonable assumption: at least 2 steps highlighted
+    // 'Activity: MyActivity' -> 'Activity' (token)
+    // 'set x to "value"' -> 'set', 'value' (tokens)
+    // "not a step" -> no tokens
+  });
+
+  it('ignores imports and non-step lines in Kireji files (no diagnostics)', async () => {
+    let didOpenHandler: any;
+    mockConnection.onDidOpenTextDocument.mockImplementation((handler: any) => { didOpenHandler = handler; });
+
+    const lsp = new LspStepper(mockConnection, steppers, backgrounds);
+    const uri = 'file:///tmp/imports.feature.ts';
+    const content = `import { withAction } from '@haibun/core/kireji/withAction.js';
+export const features: TKirejiExport = {
+    'My Feature': [
+        'set x to "value"'
+    ]
+};`;
+    // Use 'haibun' languageId to simulate the problematic fallback case
+    const doc = TextDocument.create(uri, 'haibun', 1, content); // Changed from 'typescript' to test robust detection
+
+    if (didOpenHandler) didOpenHandler({ textDocument: { uri, languageId: 'haibun', version: 1, text: content } });
+
+    await (lsp as any).processDocument(doc);
+
+    // Should generate tokens for the valid step
+    const handler = mockConnection._tokenHandler;
+    const tokens = await handler({ textDocument: { uri } });
+    expect(tokens.data.length).toBeGreaterThan(0);
+
+    // Should NOT send diagnostics for the import line
+    // If it fell back to expand(), it would report "no step found for import..."
+    if (mockConnection.sendDiagnostics.mock.calls.length > 0) {
+      const callArgs = mockConnection.sendDiagnostics.mock.calls[0][0];
+      // Expect NO error diagnostics
+      const errorDiags = callArgs.diagnostics.filter((d: any) => d.severity === 1);
+      expect(errorDiags.length).toBe(0);
+    }
+  });
 });

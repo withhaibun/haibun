@@ -2,7 +2,7 @@
   "name": "haibun-lsp",
   "displayName": "Haibun Language Support",
   "description": "Autocomplete and hover documentation for Haibun .feature files",
-  "version": "0.1.48",
+  "version": "0.1.49",
   "publisher": "haibun",
   "repository": {
     "type": "git",
@@ -16,7 +16,8 @@
   ],
   "activationEvents": [
     "onLanguage:haibun",
-    "workspaceContains:**/*.feature"
+    "workspaceContains:**/*.feature",
+    "workspaceContains:**/*.feature.ts"
   ],
   "main": "./out/extension.js",
   "contributes": {

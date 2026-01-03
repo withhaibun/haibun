@@ -51,6 +51,9 @@
         },
         {
             "path": "web-server-hono"
+        },
+        {
+            "path": "lsp"
         }
     ]
 }

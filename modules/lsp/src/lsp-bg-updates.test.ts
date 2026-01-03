@@ -115,7 +115,7 @@ waypoint Did foobar
     console.log('Background test - featureSteps:', cached?.featureSteps?.length);
     if (cached?.featureSteps) {
       cached.featureSteps.forEach((step: any, i: number) => {
-        console.log(`  Step ${i}: line=${step.source.lineNumber}, in="${step.in.trim()}"`);
+        console.log(`  Step ${i}: line=${step.step.source.lineNumber}, in="${step.step.in.trim()}"`);
       });
     }
 
