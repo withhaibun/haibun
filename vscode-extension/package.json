@@ -2,7 +2,7 @@
   "name": "haibun-lsp",
   "displayName": "Haibun Language Support",
   "description": "Autocomplete and hover documentation for Haibun .feature files",
-  "version": "0.1.49",
+  "version": "0.1.50",
   "publisher": "haibun",
   "repository": {
     "type": "git",
@@ -43,6 +43,11 @@
       {
         "command": "haibun.configure",
         "title": "Haibun: Configure Workspace",
+        "category": "Haibun"
+      },
+      {
+        "command": "haibun.restart",
+        "title": "Haibun: Restart LSP",
         "category": "Haibun"
       }
     ],

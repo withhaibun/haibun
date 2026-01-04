@@ -42,6 +42,8 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
   private _featureCount = 0;
   private _backgroundCount = 0;
   private _extensionPath: string = '';
+  private _errorMessage: string = '';
+  private _errorAction: string = '';
 
   // For reveal support - cache nodes by file path
   private _nodesByPath: Map<string, TreeNode> = new Map();
@@ -77,8 +79,22 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
 
   updateWorkspaceInfo(info: WorkspaceInfo): void {
     this._workspaceInfo = info;
+    this._errorMessage = '';  // Clear error on successful connection
+    this._errorAction = '';
     this._discoverFiles();
     this._rebuildNodeCaches();
+    this._onDidChangeTreeData.fire();
+  }
+
+  setError(message: string, action: string): void {
+    this._errorMessage = message;
+    this._errorAction = action;
+    this._onDidChangeTreeData.fire();
+  }
+
+  clearError(): void {
+    this._errorMessage = '';
+    this._errorAction = '';
     this._onDidChangeTreeData.fire();
   }
 
@@ -392,7 +408,21 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
     const bases = config.get<string[]>('bases') || [];
     const configFile = config.get<string>('configFile') || '';
 
-    const items: TreeNode[] = [
+    const items: TreeNode[] = [];
+
+    // Show error prominently at top if present - single line with link to Output
+    if (this._errorMessage) {
+      const errorNode = new TreeNode(
+        'error',
+        'LSP config error',
+        'check Output',
+        vscode.TreeItemCollapsibleState.None,
+        { command: 'workbench.panel.output.focus', title: 'Show Output' }
+      );
+      items.push(errorNode);
+    }
+
+    items.push(
       new TreeNode(
         'config',
         'Working Directory',
@@ -414,7 +444,7 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
         vscode.TreeItemCollapsibleState.None,
         { command: 'haibun.editConfigFile', title: 'Edit Config File' }
       )
-    ];
+    );
 
     // Add each base as expandable section - use cached base nodes
     for (const baseEntry of this._bases) {
@@ -477,7 +507,7 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
   }
 }
 
-type NodeType = 'config' | 'base' | 'section' | 'folder' | 'file' | 'info' | 'steppers-section' | 'stepper';
+type NodeType = 'config' | 'base' | 'section' | 'folder' | 'file' | 'info' | 'steppers-section' | 'stepper' | 'error' | 'error-action';
 
 class TreeNode extends vscode.TreeItem {
   public dirNode?: DirNode;
@@ -530,6 +560,14 @@ class TreeNode extends vscode.TreeItem {
       case 'stepper':
         this.iconPath = new vscode.ThemeIcon('symbol-method');
         this.contextValue = 'stepper';
+        break;
+      case 'error':
+        this.iconPath = new vscode.ThemeIcon('error', new vscode.ThemeColor('errorForeground'));
+        this.contextValue = 'error';
+        break;
+      case 'error-action':
+        this.iconPath = new vscode.ThemeIcon('lightbulb');
+        this.contextValue = 'errorAction';
         break;
     }
   }

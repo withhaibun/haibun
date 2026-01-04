@@ -1,15 +1,11 @@
 #!/usr/bin/env node
 
 import { existsSync, readFileSync, writeFileSync } from 'fs';
-import prettier from 'prettier';
 import { spawnCommand } from './util/index.js';
 import { createVitest } from 'vitest/node';
 
 const [, me, version, ...extra] = process.argv;
 
-async function format(contents: object) {
-	return await prettier.format(JSON.stringify(contents), { parser: 'json' });
-}
 class Versioner {
 	localAndExtraModules: { [name: string]: string } = {};
 	private noTest = false;
@@ -42,7 +38,7 @@ class Versioner {
 	async doVersion() {
 		const haibunPackageJson = this.updateHaibunPackageVersions();
 		haibunPackageJson.version = this.version;
-		writeFileSync('./package.json', await format(haibunPackageJson));
+		writeFileSync('./package.json', JSON.stringify(haibunPackageJson, null, 2));
 
 		this.setLocalAndExtraModules();
 
@@ -123,7 +119,7 @@ class Versioner {
 		this.updateDependencies(pkg.dependencies);
 		this.updateDependencies(pkg.devDependencies);
 
-		writeFileSync(pkgFile, await format(pkg));
+		writeFileSync(pkgFile, JSON.stringify(pkg, null, 2));
 		return;
 	}
 

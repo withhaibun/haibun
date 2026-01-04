@@ -5,10 +5,14 @@
   "description": "",
   "author": "",
   "main": "index.js",
-  "files": ["build/**"],
-  "exports": { ".": "./build/domain-storage.js", "./*": "./build/*" },
+  "files": [
+    "build/**"
+  ],
+  "exports": {
+    ".": "./build/domain-storage.js",
+    "./*": "./build/*"
+  },
   "scripts": {
-    "format": "prettier --write \"src/**/*.ts\" \"src/**/*.js\"",
     "lint": "eslint -c .eslintrc.json --ext .ts,.js src",
     "test": "vitest run",
     "coverage": "vitest --coverage",
@@ -19,9 +23,10 @@
     "tsc": "tsc",
     "xprepare": "npm run build",
     "prepublishOnly": "tsc -b .",
-    "preversion": "npm run lint",
-    "xversion": "npm run format && git add -A src"
+    "preversion": "npm run lint"
   },
-  "dependencies": { "@haibun/core": "3.2.0" },
+  "dependencies": {
+    "@haibun/core": "3.2.0"
+  },
   "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5"
 }

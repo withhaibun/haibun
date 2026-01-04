@@ -4,12 +4,13 @@ import { ExtensionContext, workspace, window, StatusBarAlignment, StatusBarItem,
 import { LanguageClient, LanguageClientOptions, ServerOptions, TransportKind, State } from 'vscode-languageclient/node';
 import { HaibunConfigurationTreeProvider, HaibunConfig, registerConfigCommands, WorkspaceInfo } from './HaibunConfigurationPanel';
 
-const VERSION = '0.1.48';
+const VERSION = '0.1.50';
 
 let client: LanguageClient | undefined;
 let statusBarItem: StatusBarItem;
 let outputChannel: OutputChannel;
-let useFallback = false;
+let retryCount = 0;
+const MAX_RETRIES = 2;
 let configProvider: HaibunConfigurationTreeProvider;
 
 export function activate(context: ExtensionContext): void {
@@ -94,6 +95,17 @@ export function activate(context: ExtensionContext): void {
     })
   );
 
+  // Manual LSP restart command
+  context.subscriptions.push(
+    commands.registerCommand('haibun.restart', async () => {
+      outputChannel.appendLine('[Haibun] Manual restart requested...');
+      retryCount = 0;
+      await stopClient();
+      startClient(context, revealCurrentFile);
+      window.showInformationMessage('Haibun LSP restarting...');
+    })
+  );
+
   // Start Client
   startClient(context, revealCurrentFile);
 
@@ -101,7 +113,7 @@ export function activate(context: ExtensionContext): void {
   context.subscriptions.push(workspace.onDidChangeConfiguration(async (e: ConfigurationChangeEvent) => {
     if (e.affectsConfiguration('haibun')) {
       outputChannel.appendLine('[Haibun] Config changed, restarting...');
-      useFallback = false;
+      retryCount = 0;
       await stopClient();
       startClient(context, revealCurrentFile);
     }
@@ -121,6 +133,47 @@ async function stopClient() {
   } catch (e) {
     // Ignore errors during stop
   }
+}
+
+/**
+ * Parses server errors into user-friendly messages with actionable suggestions
+ */
+function parseServerError(error: unknown): { type: string; message: string; action: string } {
+  const errorStr = String(error);
+
+  if (errorStr.includes('EADDRINUSE')) {
+    const portMatch = errorStr.match(/::(\d+)/) || errorStr.match(/:(\d+)/);
+    const port = portMatch ? portMatch[1] : 'unknown';
+    return {
+      type: 'port-conflict',
+      message: `Port ${port} is already in use`,
+      action: `Kill the process using port ${port} or remove monitor-browser from your config`
+    };
+  }
+
+  if (errorStr.includes('ERR_MODULE_NOT_FOUND') || errorStr.includes('Cannot find')) {
+    const moduleMatch = errorStr.match(/Cannot find (?:package|module) '([^']+)'/) ||
+      errorStr.match(/ERR_MODULE_NOT_FOUND.*'([^']+)'/);
+    return {
+      type: 'missing-module',
+      message: `Missing module: ${moduleMatch?.[1] || 'unknown'}`,
+      action: 'Run npm install in your workspace or check stepper paths in config.json'
+    };
+  }
+
+  if (errorStr.includes('connection got disposed') || errorStr.includes('Server crashed')) {
+    return {
+      type: 'server-crash',
+      message: 'LSP server crashed during startup',
+      action: 'Check the Haibun LSP output for details'
+    };
+  }
+
+  return {
+    type: 'unknown',
+    message: errorStr.substring(0, 200),
+    action: 'Check the Haibun LSP output channel for details'
+  };
 }
 
 async function startClient(context: ExtensionContext, onVerifyReveal: () => void) {
@@ -247,10 +300,10 @@ async function startClient(context: ExtensionContext, onVerifyReveal: () => void
     await client.start();
 
     outputChannel.appendLine('[Haibun] Client started successfully.');
-    if (!useFallback) {
-      statusBarItem.text = '$(check) Haibun: Ready';
-      statusBarItem.tooltip = `Base: ${userBases[0]}`;
-    }
+    retryCount = 0;  // Reset retry count on successful start
+    configProvider.clearError();  // Clear any previous errors from sidebar
+    statusBarItem.text = '$(check) Haibun: Ready';
+    statusBarItem.tooltip = `Base: ${userBases[0]}`;
 
     // Handle haibun/workspaceInfo notification for the status panel
     client.onNotification('haibun/workspaceInfo', (info: WorkspaceInfo) => {
@@ -265,19 +318,56 @@ async function startClient(context: ExtensionContext, onVerifyReveal: () => void
       onVerifyReveal();
     });
 
-    // Handle unexpected stops
+    // Handle unexpected stops with retry logic
     client.onDidChangeState(async (e) => {
-      if (e.newState === State.Stopped && !useFallback) {
-        outputChannel.appendLine('[Haibun] Server crashed. Retrying with fallback...');
-        useFallback = true;
-        await stopClient();
-        startClient(context, onVerifyReveal);
+      if (e.newState === State.Stopped) {
+        retryCount++;
+        if (retryCount <= MAX_RETRIES) {
+          outputChannel.appendLine(`[Haibun] Server stopped unexpectedly. Retry ${retryCount}/${MAX_RETRIES}...`);
+          statusBarItem.text = `$(loading~spin) Haibun: Retry ${retryCount}`;
+          await stopClient();
+          startClient(context, onVerifyReveal);
+        } else {
+          outputChannel.appendLine('[Haibun] Max retries reached. LSP disabled.');
+          statusBarItem.text = '$(error) Haibun: Stopped';
+          statusBarItem.tooltip = 'LSP stopped after multiple failures. Click to restart.';
+          configProvider.setError('Server crashed after multiple retries', 'Click the error above to restart, or check config.json for bad steppers');
+          window.showWarningMessage(
+            'Haibun LSP stopped after multiple failures. Check the output for details.',
+            'Show Output',
+            'Restart'
+          ).then(selection => {
+            if (selection === 'Show Output') outputChannel.show();
+            if (selection === 'Restart') {
+              retryCount = 0;
+              startClient(context, onVerifyReveal);
+            }
+          });
+        }
       }
     });
 
   } catch (error) {
-    outputChannel.appendLine(`[Haibun] STARTUP ERROR: ${error}`);
+    const parsed = parseServerError(error);
+    outputChannel.appendLine(`[Haibun] STARTUP ERROR (${parsed.type}): ${parsed.message}`);
+    outputChannel.appendLine(`[Haibun] Suggested action: ${parsed.action}`);
     statusBarItem.text = '$(error) Haibun: Failed';
+    statusBarItem.tooltip = `${parsed.message}\n\nClick to see details`;
+    configProvider.setError(parsed.message, parsed.action);
+
+    // Show actionable notification to user
+    window.showErrorMessage(
+      `Haibun LSP: ${parsed.message}`,
+      'Show Output',
+      'Retry'
+    ).then(selection => {
+      if (selection === 'Show Output') {
+        outputChannel.show();
+      } else if (selection === 'Retry') {
+        retryCount = 0;
+        startClient(context, onVerifyReveal);
+      }
+    });
   }
 }
 

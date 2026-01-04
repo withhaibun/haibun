@@ -111,14 +111,6 @@ waypoint Did foobar
     const uri = bgPath; // normalizePath strips file://
     const cached = (lsp as any).documentCache.get(uri);
 
-    console.log('Background test - cached:', cached);
-    console.log('Background test - featureSteps:', cached?.featureSteps?.length);
-    if (cached?.featureSteps) {
-      cached.featureSteps.forEach((step: any, i: number) => {
-        console.log(`  Step ${i}: line=${step.step.source.lineNumber}, in="${step.step.in.trim()}"`);
-      });
-    }
-
     expect(cached).toBeDefined();
     expect(cached.featureSteps.length).toBeGreaterThan(0);
   });

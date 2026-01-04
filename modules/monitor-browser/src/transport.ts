@@ -15,6 +15,7 @@ export class WebSocketTransport implements ITransport {
   private wss: WebSocketServer;
   private clients: Set<WebSocket> = new Set();
   private server: http.Server;
+  private disabled = false;  // Set when port is unavailable, enables graceful degradation
 
   constructor(port: number, private logger: IEventLogger, captureRoot?: string) {
     this.server = http.createServer((req, res) => {
@@ -69,11 +70,13 @@ export class WebSocketTransport implements ITransport {
 
     this.server.on('error', (e: any) => {
       if (e.code === 'EADDRINUSE') {
-        const msg = `[MonitorBrowser] Warning: Port ${port} is already in use. Monitor server could not start. Events will not be streamed.`;
+        const msg = `[MonitorBrowser] Warning: Port ${port} is already in use. Monitor disabled (graceful degradation).`;
         this.logger.warn(msg);
+        this.disabled = true;  // Non-fatal: monitor just won't stream
       } else {
         const msg = `[MonitorBrowser] Server Error: ${e}`;
         this.logger.error(msg);
+        throw e;  // Re-throw unexpected errors
       }
     });
 
@@ -98,6 +101,7 @@ export class WebSocketTransport implements ITransport {
   private history: string[] = [];
 
   send(data: unknown) {
+    if (this.disabled) return;  // Silently skip when port was unavailable
     const payload = JSON.stringify(data);
     this.history.push(payload);
     for (const client of this.clients) {
