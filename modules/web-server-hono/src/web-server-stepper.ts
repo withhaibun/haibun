@@ -24,6 +24,8 @@ const cycles = (wss: WebServerStepper): IStepperCycles => ({
 });
 
 class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
+  description = 'Serve static files, create directory indexes, and host web content';
+
   webserver: ServerHono | undefined;
   cycles: IStepperCycles = cycles(this);
 
@@ -133,7 +135,6 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
       throw new Error('WebServerStepper: webserver not initialized - ensure startFeature cycle ran');
     }
     await this.webserver.listen(this.port);
-    console.warn(`WebServerStepper listening on ${this.port}`);
   }
 }
 

@@ -13,6 +13,7 @@ export const StepperKinds = {
 export type TStepperKind = keyof typeof StepperKinds;
 
 export abstract class AStepper {
+	description?: string;
 	world?: TWorld;
 	kind?: TStepperKind;
 

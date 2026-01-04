@@ -6,6 +6,8 @@ import { AStepper } from '@haibun/core/lib/astepper.js';
 const conformance = /(?!\n|. )\b([A-Z].*? must .*?\.)/;
 
 const ParseMD = class ParseMD extends AStepper {
+	description = 'Parse markdown files for annotated conformance';
+
 	steps = {
 		conformance: {
 			gwta: `has annotated conformance doc from {where: string}`,

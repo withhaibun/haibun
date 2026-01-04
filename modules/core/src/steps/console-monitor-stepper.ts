@@ -8,6 +8,8 @@ import { EventFormatter } from '../monitor/index.js';
  * ConsoleMonitorStepper - Console monitor using the onEvent pattern.
  */
 export default class ConsoleMonitorStepper extends AStepper implements IHasCycles {
+  description = 'Display lifecycle and log events to console';
+
   kind = StepperKinds.MONITOR;
   steps = {};
 

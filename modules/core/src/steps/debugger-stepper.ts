@@ -40,6 +40,8 @@ const cycles = (debuggerStepper: DebuggerStepper): IStepperCycles => ({
 	}
 });
 export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions {
+	description = 'Interactive debugging with step, continue, retry, and fail commands';
+
 	debuggingType: TDebuggingType = TDebuggingType.Continue;
 	cycles: IStepperCycles = cycles(this);
 	steppers: AStepper[];

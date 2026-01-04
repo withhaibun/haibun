@@ -1,11 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 
-import {
-  RouteTypeSchema,
-  StaticFolderOptionsSchema,
-  ROUTE_TYPES,
-} from './defs.js';
+import { RouteTypeSchema, StaticFolderOptionsSchema, ROUTE_TYPES } from './defs.js';
 
 describe('JSON Schema / OpenAPI exports', () => {
   describe('RouteTypeSchema', () => {

@@ -3,6 +3,8 @@ import { OK } from '../schema/protocol.js';
 import { AStepper } from '../lib/astepper.js';
 
 const Parse = class Parse extends AStepper {
+	description = 'Parse conformance docs and fulfillment annotations';
+
 	steps = {
 		must: {
 			match: /(?!\n|. )\b([A-Z].*? must .*?\.)/,

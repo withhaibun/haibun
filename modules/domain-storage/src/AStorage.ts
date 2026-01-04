@@ -21,6 +21,8 @@ export interface TSavedArtifact {
 }
 
 export abstract class AStorage extends AStepper {
+	description = 'Create files, directories, and manage test artifacts';
+
 	kind = StepperKinds.STORAGE;
 	abstract readFile(path: string, coding?: string): TAnyFixme;
 	abstract rm(path: string);

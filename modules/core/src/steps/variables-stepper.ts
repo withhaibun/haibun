@@ -21,6 +21,8 @@ const cycles = (variablesStepper: VariablesStepper): IStepperCycles => ({
 });
 
 class VariablesStepper extends AStepper implements IHasCycles {
+	description = 'Set, get, and compare variables; define domains and check membership';
+
 	cycles = cycles(this);
 	steppers: AStepper[];
 	async setWorld(world: TWorld, steppers: AStepper[]) {

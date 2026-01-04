@@ -9,6 +9,8 @@ import { FlowRunner } from '../lib/core/flow-runner.js';
 
 
 class Haibun extends AStepper implements IHasCycles {
+	description = 'Core steps for features, scenarios, backgrounds, and prose';
+
 	afterEverySteps: { [stepperName: string]: TFeatureStep[] } = {};
 	steppers: AStepper[] = [];
 	resolvedFeature: TResolvedFeature;

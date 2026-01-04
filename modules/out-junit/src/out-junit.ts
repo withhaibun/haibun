@@ -26,6 +26,8 @@ type TFailResult = {
 };
 
 export default class OutJUnit extends AStepper implements IHasOptions, IHasCycles {
+	description = 'Generate JUnit XML reports from test results';
+
 	cycles: IStepperCycles = {
 		endExecution: async (results: TExecutorResult) => {
 			const junit = await this.featureResultAsJunit(results);

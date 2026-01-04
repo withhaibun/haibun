@@ -15,6 +15,8 @@ import { JITSerializer } from '@haibun/core/monitor/index.js';
 import { EMediaTypes } from '@haibun/domain-storage/media-types.js';
 
 export default class MonitorBrowserStepper extends AStepper implements IHasCycles, IHasOptions {
+  description = 'Real-time browser dashboard with WebSocket events and debugging';
+
   kind = StepperKinds.MONITOR;
   static transport: ITransport;
   prompter: WebSocketPrompter | undefined;

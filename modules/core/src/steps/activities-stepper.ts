@@ -23,6 +23,8 @@ type TActivitiesStepperSteps = TStepperSteps & TActivitiesFixedSteps;
  * implements this logic: P ∨ (¬P ∧ [A]P)
  */
 export class ActivitiesStepper extends AStepper implements IHasCycles {
+	description = 'Define and reuse activities with waypoints and proofs';
+
 	private runner: FlowRunner;
 	private backgroundOutcomePatterns: Set<string> = new Set();
 	private featureOutcomePatterns: Set<string> = new Set();

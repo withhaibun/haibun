@@ -394,13 +394,18 @@ export function dePolite(s: string) {
 
 export function formattedSteppers(steppers: AStepper[]) {
 	const a = steppers.reduce((acc, o) => {
+		const name = constructorName(o);
+		const description = o.description || name;
 		return {
 			...acc,
-			[(o as TAnyFixme).constructor.name]: Object.entries(o.steps).map(
-				([stepperName, stepperMatch]) => stepperName + ': ' + (stepperMatch.gwta || stepperMatch.exact || stepperMatch.match)
-			),
+			[name]: {
+				description,
+				steps: Object.entries(o.steps).map(
+					([stepperName, stepperMatch]) => stepperName + ': ' + (stepperMatch.gwta || stepperMatch.exact || stepperMatch.match)
+				),
+			},
 		};
-	}, {} as { [name: string]: { desc: string } });
+	}, {} as { [name: string]: { description: string; steps: string[] } });
 	return a;
 }
 

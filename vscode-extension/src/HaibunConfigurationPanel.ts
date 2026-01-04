@@ -37,13 +37,103 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
 
   private _workspaceInfo: WorkspaceInfo = {};
   private _bases: BaseEntry[] = [];
+  private _configuredSteppers: string[] = [];
   private _bundledSteppers: string[] = [];
-  private _userSteppers: string[] = [];
   private _featureCount = 0;
+  private _treeView?: vscode.TreeView<TreeNode>;
+
+  setTreeView(view: vscode.TreeView<TreeNode>): void {
+    this._treeView = view;
+  }
+
+  setSteppers(bundled: string[], configured: string[]): void {
+    this._bundledSteppers = bundled;
+    this._configuredSteppers = configured;
+    this.refresh();
+  }
   private _backgroundCount = 0;
   private _extensionPath: string = '';
+  private _version: string = '';
   private _errorMessage: string = '';
   private _errorAction: string = '';
+
+  // Server status tracking
+  private _lspStatus: 'starting' | 'running' | 'stopped' | 'error' = 'starting';
+  private _lspStatusMessage: string = 'Starting...';
+  private _mcpStatus: 'disabled' | 'starting' | 'running' | 'stopped' | 'error' = 'disabled';
+  private _mcpStatusMessage: string = '';
+  private _checkInterval: NodeJS.Timeout | undefined;
+
+  constructor() {
+    this._checkInterval = setInterval(() => this.checkMcpHealth(), 5000);
+  }
+
+  dispose() {
+    if (this._checkInterval) clearInterval(this._checkInterval);
+  }
+
+  async checkMcpHealth() {
+    if (this._mcpStatus === 'disabled') return;
+    const config = this._readConfig();
+    if (!config?.mcpEnabled) return;
+    const port = config.mcpPort || 8128; // Default if missing
+    const token = config.mcpToken;
+
+    if (!token) {
+      this.setMcpStatus('error', 'Missing Token');
+      return;
+    }
+
+    try {
+      const url = `http://localhost:${port}/mcp`;
+      // Manual JSON-RPC 2.0 Initialize
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json, text/event-stream'
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0", id: 1, method: "initialize",
+          params: {
+            protocolVersion: "2024-11-05",
+            capabilities: {},
+            clientInfo: { name: "vscode-check", version: "1.0" }
+          }
+        })
+      });
+
+      if (!response.ok) {
+        // Only update if we were expecting running, or to show error
+        if (this._mcpStatus !== 'starting')
+          this.setMcpStatus('error', `HTTP ${response.status}`);
+        return;
+      }
+
+      const json = await response.json() as any;
+      const version = json.result?.serverInfo?.version;
+      if (version) {
+        this.setMcpStatus('running', `v${version} on port ${port}`);
+      } else {
+        this.setMcpStatus('running', `active on ${port}`);
+      }
+    } catch (e) {
+      // connection refused etc
+      // If we are already 'error' or 'starting', leave it?
+      // Let's set to starting or stopped?
+      if (this._mcpStatus === 'running') this.setMcpStatus('error', 'Connection lost');
+    }
+  }
+
+  private _readConfig(): { mcpEnabled: boolean; mcpPort: number; mcpToken: string } | undefined {
+    const config = vscode.workspace.getConfiguration('haibun');
+    return {
+      mcpEnabled: config.get<boolean>('mcpEnabled') ?? false,
+      mcpPort: config.get<number>('mcpPort') ?? 8765,
+      mcpToken: config.get<string>('mcpAccessToken') || ''
+    };
+  }
 
   // For reveal support - cache nodes by file path
   private _nodesByPath: Map<string, TreeNode> = new Map();
@@ -55,8 +145,9 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
   // Cache base nodes by name
   private _baseNodeCache: Map<string, TreeNode> = new Map();
 
-  setExtensionPath(extensionPath: string): void {
+  setExtensionPath(extensionPath: string, version: string): void {
     this._extensionPath = extensionPath;
+    this._version = version;
     this._loadBundledSteppers();
   }
 
@@ -98,6 +189,29 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
     this._onDidChangeTreeData.fire();
   }
 
+  setLspStatus(status: 'starting' | 'running' | 'stopped' | 'error', message?: string): void {
+    this._lspStatus = status;
+    this._lspStatusMessage = message || this._getDefaultStatusMessage(status);
+    this._onDidChangeTreeData.fire();
+  }
+
+  setMcpStatus(status: 'disabled' | 'starting' | 'running' | 'stopped' | 'error', message?: string): void {
+    this._mcpStatus = status;
+    this._mcpStatusMessage = message || this._getDefaultStatusMessage(status);
+    this._onDidChangeTreeData.fire();
+  }
+
+  private _getDefaultStatusMessage(status: string): string {
+    switch (status) {
+      case 'starting': return 'Starting...';
+      case 'running': return 'Running';
+      case 'stopped': return 'Stopped';
+      case 'error': return 'Error';
+      case 'disabled': return 'Disabled';
+      default: return '';
+    }
+  }
+
   /**
    * Rebuild all caches after file discovery to ensure stable TreeNode instances
    */
@@ -128,7 +242,7 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
         const sectionKey = `${baseEntry.name}:features`;
         const sectionNode = new TreeNode(
           'section',
-          'features',
+          'Features',
           `${this._countNodes(baseEntry.features)}`,
           vscode.TreeItemCollapsibleState.Collapsed
         );
@@ -141,7 +255,7 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
         const sectionKey = `${baseEntry.name}:backgrounds`;
         const sectionNode = new TreeNode(
           'section',
-          'backgrounds',
+          'Backgrounds',
           `${this._countNodes(baseEntry.backgrounds)}`,
           vscode.TreeItemCollapsibleState.Collapsed
         );
@@ -216,6 +330,15 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
     return treeNode;
   }
 
+  revealFile(filePath: string): boolean {
+    const node = this._nodesByPath.get(filePath);
+    if (node && this._treeView) {
+      this._treeView.reveal(node, { select: true, focus: false, expand: true });
+      return true;
+    }
+    return false;
+  }
+
   private _discoverFiles(): void {
     const config = vscode.workspace.getConfiguration('haibun');
     const userBases = config.get<string[]>('bases') || [];
@@ -227,23 +350,11 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
       : workspaceRoot;
 
     this._bases = [];
-    this._userSteppers = [];
     this._featureCount = 0;
     this._backgroundCount = 0;
 
-    // Load user steppers from config
-    const userConfigFile = config.get<string>('configFile') || '';
-    if (userConfigFile) {
-      const configPath = path.isAbsolute(userConfigFile)
-        ? userConfigFile
-        : path.resolve(effectiveCwd, userConfigFile);
-      if (fs.existsSync(configPath)) {
-        try {
-          const userConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-          this._userSteppers = userConfig.steppers || [];
-        } catch (e) { /* ignore */ }
-      }
-    }
+    // User steppers are now set via setSteppers() from extension.ts
+    // We don't load them here anymore.
 
     for (const base of userBases) {
       const baseDir = path.isAbsolute(base) ? base : path.resolve(effectiveCwd, base);
@@ -364,6 +475,34 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
 
   getChildren(element?: TreeNode): Thenable<TreeNode[]> {
     if (element) {
+      // Specifications Root Children
+      if (element.isSpecificationsRoot) {
+        if (this._bases.length === 1) {
+          // Single base: show features/backgrounds directly
+          const baseEntry = this._bases[0];
+          const items: TreeNode[] = [];
+          if (baseEntry.features) {
+            const sectionKey = `${baseEntry.name}:features`;
+            const node = this._sectionNodeCache.get(sectionKey);
+            if (node) items.push(node);
+          }
+          if (baseEntry.backgrounds) {
+            const sectionKey = `${baseEntry.name}:backgrounds`;
+            const node = this._sectionNodeCache.get(sectionKey);
+            if (node) items.push(node);
+          }
+          return Promise.resolve(items);
+        } else {
+          // Multiple bases: show base nodes
+          const items: TreeNode[] = [];
+          for (const baseEntry of this._bases) {
+            const baseNode = this._baseNodeCache.get(baseEntry.name);
+            if (baseNode) items.push(baseNode);
+          }
+          return Promise.resolve(items);
+        }
+      }
+
       // Return children of expandable nodes
       if (element.baseEntry) {
         // Show features and backgrounds under base - use cached section nodes
@@ -399,6 +538,65 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
           ))
         );
       }
+      // Common config section children
+      if (element.commonConfig) {
+        const { cwd, bases, configFile } = element.commonConfig;
+        return Promise.resolve([
+          new TreeNode(
+            'config',
+            'Working Directory',
+            cwd || '(workspace root)',
+            vscode.TreeItemCollapsibleState.None,
+            { command: 'haibun.editCwd', title: 'Edit CWD' }
+          ),
+          new TreeNode(
+            'config',
+            'Base Directories',
+            bases.length > 0 ? bases.join(', ') : '(none)',
+            vscode.TreeItemCollapsibleState.None,
+            { command: 'haibun.editBases', title: 'Edit Bases' }
+          ),
+          new TreeNode(
+            'config',
+            'Config File',
+            configFile || '(none)',
+            vscode.TreeItemCollapsibleState.None,
+            { command: 'haibun.editConfigFile', title: 'Edit Config File' }
+          )
+        ]);
+      }
+      // MCP config section children
+      if (element.mcpConfig) {
+        const { mcpEnabled, mcpPort, mcpAccessToken } = element.mcpConfig;
+        const items: TreeNode[] = [
+          new TreeNode(
+            'config',
+            'Enabled',
+            mcpEnabled ? 'Yes' : 'No',
+            vscode.TreeItemCollapsibleState.None,
+            { command: 'haibun.toggleMcp', title: 'Toggle MCP' }
+          )
+        ];
+        if (mcpEnabled) {
+          items.push(
+            new TreeNode(
+              'config',
+              'Port',
+              String(mcpPort),
+              vscode.TreeItemCollapsibleState.None,
+              { command: 'haibun.editMcpPort', title: 'Edit MCP Port' }
+            ),
+            new TreeNode(
+              'config',
+              'Access Token',
+              mcpAccessToken ? '••••••••' : '(none - required)',
+              vscode.TreeItemCollapsibleState.None,
+              { command: 'haibun.editMcpAccessToken', title: 'Edit MCP Access Token' }
+            )
+          );
+        }
+        return Promise.resolve(items);
+      }
       return Promise.resolve([]);
     }
 
@@ -410,51 +608,85 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
 
     const items: TreeNode[] = [];
 
-    // Show error prominently at top if present - single line with link to Output
+    // 1. Show Version info
+    if (this._version) {
+      items.push(new TreeNode(
+        'info',
+        'Haibun Extension',
+        `v${this._version}`,
+        vscode.TreeItemCollapsibleState.None
+      ));
+    }
+
+    // 2. Show error prominently if present
     if (this._errorMessage) {
       const errorNode = new TreeNode(
         'error',
-        'LSP config error',
-        'check Output',
+        this._errorMessage,
+        this._errorAction,
         vscode.TreeItemCollapsibleState.None,
         { command: 'workbench.panel.output.focus', title: 'Show Output' }
       );
       items.push(errorNode);
     }
 
-    items.push(
-      new TreeNode(
-        'config',
-        'Working Directory',
-        cwd || '(workspace root)',
-        vscode.TreeItemCollapsibleState.None,
-        { command: 'haibun.editCwd', title: 'Edit CWD' }
-      ),
-      new TreeNode(
-        'config',
-        'Base Directories',
-        bases.length > 0 ? bases.join(', ') : '(none)',
-        vscode.TreeItemCollapsibleState.None,
-        { command: 'haibun.editBases', title: 'Edit Bases' }
-      ),
-      new TreeNode(
-        'config',
-        'Config File',
-        configFile || '(none)',
-        vscode.TreeItemCollapsibleState.None,
-        { command: 'haibun.editConfigFile', title: 'Edit Config File' }
-      )
+    // 3. Configuration Section (expanded by default)
+    const configNode = new TreeNode(
+      'section',
+      'Configuration',
+      '',
+      vscode.TreeItemCollapsibleState.Expanded
     );
+    configNode.commonConfig = { cwd, bases, configFile };
+    items.push(configNode);
 
-    // Add each base as expandable section - use cached base nodes
-    for (const baseEntry of this._bases) {
-      const baseNode = this._baseNodeCache.get(baseEntry.name);
-      if (baseNode) {
-        items.push(baseNode);
-      }
-    }
+    // 4. LSP Section (no children)
+    const lspStatusIcon = this._lspStatus === 'running' ? '●' :
+      this._lspStatus === 'starting' ? '○' :
+        this._lspStatus === 'error' ? '✕' : '○';
+    const lspNode = new TreeNode(
+      'section',
+      'LSP',
+      `${lspStatusIcon} ${this._lspStatusMessage}`,
+      vscode.TreeItemCollapsibleState.None
+    );
+    items.push(lspNode);
 
-    // Bundled steppers (expandable)
+    // 5. MCP Section (collapsible)
+    const mcpEnabled = config.get<boolean>('mcpEnabled') ?? false;
+    const mcpPort = config.get<number>('mcpPort') ?? 8765;
+    const mcpAccessToken = config.get<string>('mcpAccessToken') || '';
+
+    const mcpStatusIcon = this._mcpStatus === 'running' ? '●' :
+      this._mcpStatus === 'starting' ? '○' :
+        this._mcpStatus === 'error' ? '✕' :
+          this._mcpStatus === 'disabled' ? '○' : '○';
+    const mcpStatusDisplay = mcpEnabled
+      ? `${mcpStatusIcon} ${this._mcpStatusMessage || 'port ' + mcpPort}`
+      : '○ Disabled';
+    const mcpNode = new TreeNode(
+      'section',
+      'MCP',
+      mcpStatusDisplay,
+      vscode.TreeItemCollapsibleState.Collapsed
+    );
+    mcpNode.mcpConfig = { mcpEnabled, mcpPort, mcpAccessToken };
+    items.push(mcpNode);
+
+    // 6. Specifications Root
+    const totalFeatures = this._featureCount;
+    const totalBackgrounds = this._backgroundCount;
+
+    const specsNode = new TreeNode(
+      'section',
+      'Specifications',
+      `${totalFeatures}f / ${totalBackgrounds}b`,
+      vscode.TreeItemCollapsibleState.Expanded
+    );
+    specsNode.isSpecificationsRoot = true;
+    items.push(specsNode);
+
+    // 7. Steppers
     if (this._bundledSteppers.length > 0) {
       const node = new TreeNode(
         'steppers-section',
@@ -466,15 +698,14 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
       items.push(node);
     }
 
-    // Configured steppers (expandable)
-    if (this._userSteppers.length > 0) {
+    if (this._configuredSteppers.length > 0) {
       const node = new TreeNode(
         'steppers-section',
         'Configured Steppers',
-        `${this._userSteppers.length}`,
+        `${this._configuredSteppers.length}`,
         vscode.TreeItemCollapsibleState.Collapsed
       );
-      node.steppersList = this._userSteppers;
+      node.steppersList = this._configuredSteppers;
       items.push(node);
     }
 
@@ -514,6 +745,9 @@ class TreeNode extends vscode.TreeItem {
   public baseEntry?: BaseEntry;
   public steppersList?: string[];
   public filePath?: string;
+  public commonConfig?: { cwd: string; bases: string[]; configFile: string };
+  public mcpConfig?: { mcpEnabled: boolean; mcpPort: number; mcpAccessToken: string };
+  public isSpecificationsRoot?: boolean;
 
   constructor(
     public readonly nodeType: NodeType,
@@ -615,6 +849,44 @@ export function registerConfigCommands(context: vscode.ExtensionContext, treePro
       });
       if (result !== undefined) {
         await config.update('configFile', result, false);
+        treeProvider.refresh();
+      }
+    }),
+
+    vscode.commands.registerCommand('haibun.toggleMcp', async () => {
+      const config = vscode.workspace.getConfiguration('haibun');
+      const current = config.get<boolean>('mcpEnabled') ?? false;
+      await config.update('mcpEnabled', !current, false);
+      treeProvider.refresh();
+      vscode.window.showInformationMessage(`MCP Server ${!current ? 'enabled' : 'disabled'}`);
+    }),
+
+    vscode.commands.registerCommand('haibun.editMcpPort', async () => {
+      const config = vscode.workspace.getConfiguration('haibun');
+      const current = config.get<number>('mcpPort') ?? 8765;
+      const result = await vscode.window.showInputBox({
+        prompt: 'MCP Server Port',
+        value: String(current),
+        placeHolder: 'e.g., 8765',
+        validateInput: (v) => /^\d+$/.test(v) && parseInt(v) > 0 ? undefined : 'Enter a valid port number'
+      });
+      if (result !== undefined) {
+        await config.update('mcpPort', parseInt(result), false);
+        treeProvider.refresh();
+      }
+    }),
+
+    vscode.commands.registerCommand('haibun.editMcpAccessToken', async () => {
+      const config = vscode.workspace.getConfiguration('haibun');
+      const current = config.get<string>('mcpAccessToken') || '';
+      const result = await vscode.window.showInputBox({
+        prompt: 'MCP Access Token (required for security)',
+        value: current,
+        placeHolder: 'Enter an access token',
+        password: true
+      });
+      if (result !== undefined) {
+        await config.update('mcpAccessToken', result, false);
         treeProvider.refresh();
       }
     })

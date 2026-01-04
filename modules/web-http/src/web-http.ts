@@ -3,6 +3,8 @@ import { OK } from '@haibun/core/schema/protocol.js';
 import { actionNotOK } from '@haibun/core/lib/util/index.js';
 
 const WebHttp = class WebHttp extends AStepper {
+	description = 'HTTP requests with status, content-type, and body validation';
+
 	steps = {
 		listening: {
 			gwta: 'http {url} is listening',

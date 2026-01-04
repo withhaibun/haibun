@@ -43,6 +43,8 @@ type TRequestOptions = {
 };
 
 export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
+	description = 'Navigate pages, click elements, fill forms, capture screenshots, and make REST API calls';
+
 	cycles = cycles(this);
 	cyclesWhen = {
 		startExecution: CycleWhen.FIRST - 1,

@@ -43,6 +43,8 @@ const builtInSources: IObservationSource[] = [
 ];
 
 export default class LogicStepper extends AStepper implements IHasCycles {
+  description = 'Control flow with conditionals, loops, negation, and quantifiers';
+
   steppers: AStepper[] = [];
   private runner: FlowRunner;
   private sources: IObservationSource[] = [...builtInSources];

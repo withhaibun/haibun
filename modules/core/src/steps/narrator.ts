@@ -39,6 +39,8 @@ const cycles = (narrator: Narrator): IStepperCycles => ({
 });
 
 class Narrator extends AStepper implements IHasOptions, IHasCycles {
+	description = 'Text-to-speech narration and screen capture for demos';
+
 	renderedAudio: TRenderedAudioMap = {};
 	options = {
 		CAPTURE_START: { desc: 'Shell command to start screen capture', parse: (input: string) => stringOrError(input), required: false },

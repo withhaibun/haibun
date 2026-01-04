@@ -2,7 +2,7 @@
   "name": "haibun-lsp",
   "displayName": "Haibun Language Support",
   "description": "Autocomplete and hover documentation for Haibun .feature files",
-  "version": "0.1.57",
+  "version": "0.1.83",
   "publisher": "haibun",
   "repository": {
     "type": "git",
@@ -89,6 +89,21 @@
           "type": "string",
           "default": "",
           "description": "Path to the Haibun CLI entry point (cli.js). Leave empty to auto-detect."
+        },
+        "haibun.mcpEnabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable the MCP server for LLM agent tool access"
+        },
+        "haibun.mcpPort": {
+          "type": "number",
+          "default": 8765,
+          "description": "Port for the MCP server"
+        },
+        "haibun.mcpAccessToken": {
+          "type": "string",
+          "default": "",
+          "description": "Access token for MCP authentication (optional)"
         }
       }
     }

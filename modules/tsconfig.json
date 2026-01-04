@@ -48,6 +48,9 @@
         },
         {
             "path": "lsp"
+        },
+        {
+            "path": "credentials"
         }
     ]
 }

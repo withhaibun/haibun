@@ -25,6 +25,8 @@ interface LCachedStep {
  * Provides autocomplete, hover, diagnostics, and semantic highlighting.
  */
 export default class LspStepper extends AStepper {
+  description = 'IDE integration with autocomplete, hover, diagnostics, and semantic highlighting';
+
   private connection: ReturnType<typeof createConnection> | null = null;
   private documents = new TextDocuments(TextDocument);
   private steppers: AStepper[] = [];
