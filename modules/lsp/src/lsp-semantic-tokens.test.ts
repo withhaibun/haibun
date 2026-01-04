@@ -31,7 +31,13 @@ describe('LspStepper Semantic Tokens', () => {
       onDidSaveTextDocument: vi.fn(),
       listen: vi.fn(),
       sendDiagnostics: vi.fn(),
-      sendNotification: vi.fn()
+      sendNotification: vi.fn(),
+      console: {
+        log: vi.fn(),
+        info: vi.fn(),
+        warn: vi.fn(),
+        error: vi.fn()
+      }
     };
 
     // Correctly handle the overload for semanticTokens.on

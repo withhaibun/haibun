@@ -464,6 +464,7 @@ export default class LspStepper extends AStepper {
       doc.languageId === 'typescript' ||
       doc.languageId === 'typescriptreact' ||
       uri.toLowerCase().endsWith('.ts') ||
+      content.includes('TKirejiStep') ||
       content.includes('TKirejiExport');
 
     if (isTs) {
@@ -597,7 +598,7 @@ export default class LspStepper extends AStepper {
   private async processTypeScriptDocument(doc: TextDocument, uri: string): Promise<void> {
     const fullText = doc.getText();
     // Quick check to avoid parsing irrelevant files
-    if (!fullText.includes('TKirejiExport')) {
+    if (!fullText.includes('TKirejiStep') && !fullText.includes('TKirejiExport')) {
       this.connection?.sendDiagnostics({ uri: doc.uri, diagnostics: [] });
       return;
     }
@@ -615,7 +616,7 @@ export default class LspStepper extends AStepper {
       true
     );
 
-    const processString = (node: ts.StringLiteral | ts.NoSubstitutionTemplateLiteral) => {
+    const processString = (node: ts.StringLiteral | ts.NoSubstitutionTemplateLiteral | ts.TemplateExpression) => {
       const start = node.getStart(sourceFile);
       const text = node.getText(sourceFile);
       if (text.length < 2) return;
@@ -633,15 +634,21 @@ export default class LspStepper extends AStepper {
         const leadingSpaces = line.indexOf(trimmed);
 
         if (trimmed.length > 0 && !trimmed.startsWith('#')) {
+          this.connection?.console.log(`[LSP] Processing string line: "${trimmed}"`);
           const stepStartAbs = contentStartOffset + currentOffsetInString + (leadingSpaces >= 0 ? leadingSpaces : 0);
           const pos = doc.positionAt(stepStartAbs);
           const endPos = doc.positionAt(stepStartAbs + trimmed.length);
 
           try {
-            const action = resolver.findSingleStepAction(trimmed);
-            if (action) {
+            const match = resolver.findSingleStepAction(trimmed);
+            if (!match) {
+              this.connection?.console.log(`[LSP] No match found for step: "${trimmed}"`);
+            } else {
+              this.connection?.console.log(`[LSP] Match found: ${match.actionName}`);
+            }
+            if (match && match.actionName) {
               const step: TFeatureStep = {
-                action,
+                action: match,
                 source: { lineNumber: pos.line + 1, path: uri },
                 in: trimmed,
                 seqPath: [0]
@@ -673,27 +680,54 @@ export default class LspStepper extends AStepper {
       }
     };
 
+    const processArray = (node: ts.ArrayLiteralExpression) => {
+      for (const el of node.elements) {
+        if (ts.isStringLiteral(el) || ts.isNoSubstitutionTemplateLiteral(el) || ts.isTemplateExpression(el)) {
+          processString(el);
+        }
+      }
+    };
+
+    const tryProcessStep = (node: ts.Node) => {
+      if (ts.isArrayLiteralExpression(node)) {
+        processArray(node);
+      } else if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node) || ts.isTemplateExpression(node)) {
+        processString(node);
+      }
+    };
+
     const processObject = (node: ts.ObjectLiteralExpression) => {
       for (const prop of node.properties) {
-        if (ts.isPropertyAssignment(prop) && ts.isArrayLiteralExpression(prop.initializer)) {
-          for (const el of prop.initializer.elements) {
-            if (ts.isStringLiteral(el) || ts.isNoSubstitutionTemplateLiteral(el)) {
-              processString(el);
-            }
-          }
+        if (ts.isPropertyAssignment(prop)) {
+          tryProcessStep(prop.initializer);
         }
       }
     };
 
     const visit = (node: ts.Node) => {
-      if (ts.isVariableDeclaration(node) && node.type && ts.isTypeReferenceNode(node.type)) {
+      // Check for variables typed as TKirejiStep, TKirejiStep[] or TKirejiExport
+      if (ts.isVariableDeclaration(node) && node.type && ts.isTypeReferenceNode(node.type) && node.initializer) {
         const typeName = node.type.typeName.getText(sourceFile);
-        if (typeName.endsWith('TKirejiExport')) {
-          if (node.initializer && ts.isObjectLiteralExpression(node.initializer)) {
+        this.connection?.console.log(`[LSP] Found variable ${node.name.getText(sourceFile)} of type ${typeName}`);
+
+        if (typeName.includes('TKirejiStep')) {
+          tryProcessStep(node.initializer);
+        } else if (typeName.endsWith('TKirejiExport')) {
+          if (ts.isObjectLiteralExpression(node.initializer)) {
             processObject(node.initializer);
           }
         }
       }
+
+      // Check for casts: ... as TKirejiStep or ... as TKirejiStep[]
+      if (ts.isAsExpression(node) && node.type) {
+        const typeText = node.type.getText(sourceFile);
+        if (typeText.includes('TKirejiStep')) {
+          this.connection?.console.log(`[LSP] Found cast to ${typeText}`);
+          tryProcessStep(node.expression);
+        }
+      }
+
       ts.forEachChild(node, visit);
     };
 

@@ -4,7 +4,7 @@ import { ExtensionContext, workspace, window, StatusBarAlignment, StatusBarItem,
 import { LanguageClient, LanguageClientOptions, ServerOptions, TransportKind, State } from 'vscode-languageclient/node';
 import { HaibunConfigurationTreeProvider, HaibunConfig, registerConfigCommands, WorkspaceInfo } from './HaibunConfigurationPanel';
 
-const VERSION = '0.1.50';
+const VERSION = '0.1.57';
 
 let client: LanguageClient | undefined;
 let statusBarItem: StatusBarItem;
@@ -38,22 +38,39 @@ export function activate(context: ExtensionContext): void {
     // Find and reveal the file in the tree
     const node = configProvider.findNodeByPath(filePath);
     if (node) {
-      // outputChannel.appendLine(`[Reveal] Found node for ${path.basename(filePath)}, revealing...`);
-      treeView.reveal(node, { select: true, expand: true });
+      outputChannel.appendLine(`[Reveal] Found node for ${path.basename(filePath)}, revealing...`);
+      treeView.reveal(node, { select: true, expand: true }).then(
+        () => outputChannel.appendLine(`[Reveal] Success for ${path.basename(filePath)}`),
+        (e) => outputChannel.appendLine(`[Reveal] Error revealing ${path.basename(filePath)}: ${e}`)
+      );
     } else {
-      // outputChannel.appendLine(`[Reveal] Node not found for ${filePath}`);
+      outputChannel.appendLine(`[Reveal] Node not found for ${filePath}. Refreshing and retrying...`);
+      configProvider.refresh();
+      // Retry once after refresh lookup
+      setTimeout(() => {
+        const retryNode = configProvider.findNodeByPath(filePath);
+        if (retryNode) {
+          outputChannel.appendLine(`[Reveal] Retry successful for ${path.basename(filePath)}`);
+          treeView.reveal(retryNode, { select: true, expand: true });
+        } else {
+          outputChannel.appendLine(`[Reveal] Retry failed for ${filePath}`);
+        }
+      }, 500);
     }
   };
 
   // Listen for tree updates to re-sync selection (fixes 'visit twice' bug)
   configProvider.onDidChangeTreeData(() => {
-    // outputChannel.appendLine('[Tree] Data changed, attempting reveal...');
+    outputChannel.appendLine('[Tree] Data changed, attempting reveal...');
     revealCurrentFile();
   });
 
   // Auto-reveal feature file in tree when active editor changes
   context.subscriptions.push(
-    window.onDidChangeActiveTextEditor(() => revealCurrentFile())
+    window.onDidChangeActiveTextEditor(() => {
+      // Small delay to allow tree view state to settle
+      setTimeout(() => revealCurrentFile(), 100);
+    })
   );
 
   // Initial refresh to populate caches immediately
@@ -62,7 +79,7 @@ export function activate(context: ExtensionContext): void {
   // Attempt to reveal immediately in case a feature file is already open
   revealCurrentFile();
   // Retry after a short delay to handle startup timing issues
-  setTimeout(() => revealCurrentFile(), 1000);
+  setTimeout(() => revealCurrentFile(), 2000);
 
   // Register edit commands for inline editing
   registerConfigCommands(context, configProvider);
