@@ -229,7 +229,7 @@ async function startClient(context: ExtensionContext) {
   // PREPARE STEPPERS
   const steppersToAdd: Set<string> = new Set();
 
-  steppersToAdd.add('@haibun/lsp/build/MonitorJsonRpc');
+  steppersToAdd.add('@haibun/lsp/build/monitor-json-rpc');
 
   if (mcpEnabled) {
     steppersToAdd.add('@haibun/web-server-hono/build/web-server-stepper');
