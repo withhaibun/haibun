@@ -1,8 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AStepper } from '@haibun/core/lib/astepper.js';
-import { TWorld, TFeature, TStepAction } from '@haibun/core/lib/defs.js';
+import { TFeature } from '@haibun/core/lib/defs.js';
 import LspStepper from './lsp-stepper.js';
-import { Connection, SemanticTokensParams, TextDocumentSyncKind, InitializeResult, InitializedParams } from 'vscode-languageserver/node.js';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 
 describe('LspStepper Semantic Tokens', () => {

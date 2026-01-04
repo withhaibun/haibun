@@ -1,13 +1,15 @@
+import * as ts from 'typescript';
 import { createConnection, TextDocuments, CompletionItem, CompletionItemKind, TextDocumentSyncKind, InitializeResult, Hover, MarkupKind, SemanticTokensBuilder, SemanticTokensLegend, SemanticTokensParams, SemanticTokens, Diagnostic, DiagnosticSeverity, Connection } from 'vscode-languageserver/node.js';
 import { TextDocument } from 'vscode-languageserver-textdocument';
+
 import { AStepper } from '@haibun/core/lib/astepper.js';
 import type { TWorld, TFeatureStep, TFeature, TStepAction, TFeatures } from '@haibun/core/lib/defs.js';
 import { StepperRegistry, StepMetadata } from '@haibun/core/lib/stepper-registry.js';
 import { Resolver } from '@haibun/core/phases/Resolver.js';
 import { expand } from '@haibun/core/lib/features.js';
 import { TStepValue } from '@haibun/core/schema/protocol.js';
-import * as ts from 'typescript';
 import { findHaibunWorkspace, loadBackgroundsFromPath, countFeatures } from '@haibun/core/lib/workspace-discovery.js';
+import { constructorName } from '@haibun/core/lib/util/index.js';
 
 // Semantic token types - indices matter for the legend
 const tokenTypes = ['keyword', 'function', 'parameter', 'string', 'number', 'comment'];
@@ -24,6 +26,16 @@ interface LCachedStep {
  * Language Server Protocol stepper for Haibun IDE integration.
  * Provides autocomplete, hover, diagnostics, and semantic highlighting.
  */
+interface ExecuteToolParams {
+  name: string;
+  arguments: Record<string, unknown>;
+}
+
+interface IMcpStepper {
+  getTools?(): any[];
+  executeTool?(name: string, args: Record<string, unknown>): Promise<any>;
+}
+
 export default class LspStepper extends AStepper {
   description = 'IDE integration with autocomplete, hover, diagnostics, and semantic highlighting';
 
@@ -438,11 +450,11 @@ export default class LspStepper extends AStepper {
 
 
 
-  /**
-   * Send workspace info to VS Code client for status display
-   */
   private sendWorkspaceInfo(): void {
     if (!this.connection || !this.currentWorkspace) return;
+
+    const mcpStepper = this.steppers.find(s => constructorName(s) === 'McpStepper') as IMcpStepper | undefined;
+    const mcpTools = mcpStepper?.getTools?.() || [];
 
     this.connection.sendNotification('haibun/workspaceInfo', {
       base: this.currentWorkspace.base,
@@ -450,7 +462,17 @@ export default class LspStepper extends AStepper {
       backgroundCount: this.currentWorkspace.backgroundCount,
       featureCount: this.currentWorkspace.featureCount,
       stepperCount: this.steppers.length,
+      mcpTools
     });
+
+    if (this.connection.onRequest) {
+      this.connection.onRequest('haibun/executeTool', async (params: ExecuteToolParams) => {
+        if (!mcpStepper || !mcpStepper.executeTool) {
+          throw new Error('MCP Stepper not found or tools execution not supported');
+        }
+        return await mcpStepper.executeTool(params.name, params.arguments);
+      });
+    }
   }
 
   /**

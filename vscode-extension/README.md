@@ -24,7 +24,7 @@ To test the extension is a local instance of VS Code, VSCodium, Antigravity etc 
 1. **Package the extension**:
    ```bash
    cd vscode-extension
-   npx vsce package
+   npx vsce package # do not use --no-dependencies
    ```
 
 2. **Uninstall existing version**:

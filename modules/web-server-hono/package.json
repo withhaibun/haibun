@@ -35,14 +35,14 @@
     "@hono/node-server": "^1.19.7",
     "@modelcontextprotocol/sdk": "^1.25.1",
     "hono": "^4.11.3",
-    "zod": "^3.24.0"
+    "zod": "^3.24.0",
+    "zod-to-json-schema": "^3.25.1"
   },
   "devDependencies": {
     "@haibun/web-http": "3.2.0",
     "@types/node": "^24.10.0",
     "eventsource": "^3.0.7",
     "typescript": "^5.8.2",
-    "vitest": "^3.1.1",
-    "zod-to-json-schema": "^3.25.1"
+    "vitest": "^3.1.1"
   }
 }

@@ -176,3 +176,14 @@ const inferOrigin = (char: string): TOrigin => {
 			return Origin.defined;
 	}
 };
+
+export function mapInputToStepValues(input: Record<string, unknown>, gwta: string) {
+	const { stepValuesMap } = namedInterpolation(gwta || '');
+	const updatedMap = { ...stepValuesMap };
+	for (const [key, val] of Object.entries(input)) {
+		if (key in updatedMap) {
+			updatedMap[key] = { ...updatedMap[key], term: String(val), origin: Origin.quoted };
+		}
+	}
+	return updatedMap;
+}

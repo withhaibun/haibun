@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import { AStepper } from '@haibun/core/lib/astepper.js';
 import { StepperRegistry, StepMetadata } from '@haibun/core/lib/stepper-registry.js';
 import { OK } from '@haibun/core/schema/protocol.js';

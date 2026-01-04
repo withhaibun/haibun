@@ -1,5 +1,4 @@
 import { describe, it, expect, vi } from 'vitest';
-import { AStepper } from '@haibun/core/lib/astepper.js';
 import ActivitiesStepper from '@haibun/core/steps/activities-stepper.js';
 import LspStepper from './lsp-stepper.js';
 import { TextDocument } from 'vscode-languageserver-textdocument';

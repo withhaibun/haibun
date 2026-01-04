@@ -8,7 +8,7 @@ import { AStepper, type IHasCycles, type IHasOptions } from '@haibun/core/lib/as
 import type { TWorld, TStepperStep, TFeatureStep } from '@haibun/core/lib/defs.js';
 import { OK, Origin } from '@haibun/core/schema/protocol.js';
 import { getFromRuntime, getStepperOption, constructorName, stringOrError } from '@haibun/core/lib/util/index.js';
-import { namedInterpolation } from '@haibun/core/lib/namedVars.js';
+import { namedInterpolation, mapInputToStepValues } from '@haibun/core/lib/namedVars.js';
 import { currentVersion as version } from '@haibun/core/currentVersion.js';
 import { FeatureExecutor } from '@haibun/core/phases/Executor.js';
 import { DOMAIN_STRING, normalizeDomainKey } from '@haibun/core/lib/domain-types.js';
@@ -51,14 +51,31 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
   private globalToolRegistry = new Map<string, StoredTool>();
   private stepperToolRegistry = new Map<string, StoredTool[]>();
   private indexTools: Tool[] = [];
-  // Switched to Map instead of WeakMap to support string SessionIDs (from headers)
-  private sessionScopes = new Map<any, string>();
+  // Sessions are identified by string (token/id) or connection object
+  private sessionScopes = new Map<string | ConnectionId, string>();
 
   async setWorld(world: TWorld, steppers: AStepper[]) {
     await super.setWorld(world, steppers);
     this.steppers = steppers;
     this.mcpPath = (getStepperOption(this, 'MCP_PATH', world.moduleOptions) as string) || '/mcp';
     this.accessToken = (getStepperOption(this, 'ACCESS_TOKEN', world.moduleOptions) as string) || '';
+    this.populateToolRegistries();
+  }
+
+  public getTools(): Tool[] {
+    return Array.from(this.globalToolRegistry.values()).map(t => ({
+      name: t.name,
+      description: t.description,
+      inputSchema: t.inputSchema
+    }));
+  }
+
+  public async executeTool(name: string, args: any): Promise<CallToolResult> {
+    const toolDef = this.globalToolRegistry.get(name);
+    if (!toolDef) {
+      throw new McpError(ErrorCode.MethodNotFound, `Tool ${name} not found.`);
+    }
+    return await toolDef.handler(args);
   }
 
   private async setupMcp() {
@@ -75,14 +92,14 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
     this.transport = new StreamableHTTPTransport({ enableJsonResponse: true });
 
     this.indexTools = this.buildIndexTools();
-    this.populateToolRegistries();
+    // Registry is now populated in setWorld
 
     // --- HANDLER 1: LIST TOOLS ---
     this.mcpServer.server.setRequestHandler(ListToolsRequestSchema, async (_request, extra) => {
       const connection = (extra as { connection?: ConnectionId })?.connection;
       const sessionId = this.getSessionId(connection, extra);
 
-      const activeStepper = this.sessionScopes.get(sessionId);
+      const activeStepper = sessionId ? this.sessionScopes.get(sessionId) : undefined;
 
       if (!activeStepper) {
         return { tools: this.indexTools };
@@ -205,18 +222,19 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
   }
 
   // --- Session ID Helper ---
-  private getSessionId(connection: any, extra: any): any {
+  private getSessionId(connection: ConnectionId | undefined, extra: { requestInfo?: { headers?: Record<string, string | string[] | undefined> } }): string | ConnectionId {
     // Try to get X-Session-ID header from request info
     const headers = extra?.requestInfo?.headers;
-    if (headers && headers['x-session-id']) {
-      return headers['x-session-id'];
+    const sessionId = headers?.['x-session-id'];
+    if (typeof sessionId === 'string') {
+      return sessionId;
     }
     // Fallback to connection object if available and stable (it isn't usually for HTTP)
     if (connection) return connection;
     return 'default-session';
   }
 
-  private updateSessionFocus(sessionId: any, stepperName: string | undefined) {
+  private updateSessionFocus(sessionId: string | ConnectionId, stepperName: string | undefined) {
     if (stepperName === undefined) {
       this.sessionScopes.delete(sessionId);
     } else {
@@ -225,7 +243,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
     this.notifyToolListChanged(sessionId);
   }
 
-  private async notifyToolListChanged(sessionId: any) {
+  private async notifyToolListChanged(sessionId: string | ConnectionId) {
     // Basic check if we can notify
     if (sessionId && typeof sessionId !== 'string' && 'send' in sessionId && typeof (sessionId as any).send === 'function') {
       await this.mcpServer!.server.notification({ method: 'notifications/tools/list_changed' });
@@ -267,7 +285,24 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
         }
 
         const zodShape = z.object(variables);
-        const jsonSchema = (zodToJsonSchema as (schema: unknown) => unknown)(zodShape);
+        const jsonSchema = zodToJsonSchema(zodShape, { $refStrategy: 'none' }) as any;
+
+        // Ensure properties are populated even if zod-to-json-schema returns empty for some reason
+        if (jsonSchema.type === 'object' && Object.keys(jsonSchema.properties || {}).length === 0 && Object.keys(variables).length > 0) {
+          jsonSchema.properties = {};
+          for (const [key, schema] of Object.entries(variables)) {
+            // Very basic mapping for fallback
+            const typeName = schema.constructor.name.toLowerCase().replace('zod', '');
+            jsonSchema.properties[key] = { type: ['string', 'number', 'boolean'].includes(typeName) ? typeName : 'string' };
+          }
+          jsonSchema.required = Object.keys(variables);
+        }
+
+        // Strip top-level metadata that can confuse some MCP clients
+        if (typeof jsonSchema === 'object' && jsonSchema !== null) {
+          delete jsonSchema['$schema'];
+          delete jsonSchema['additionalProperties'];
+        }
         const inputSchema = jsonSchema as Tool['inputSchema'];
         const fullToolName = `${stepperName}-${stepName}`;
 
@@ -307,14 +342,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
   }
 
   private mapInputToValues(input: Record<string, unknown>, stepDef: TStepperStep) {
-    const { stepValuesMap } = namedInterpolation(stepDef.gwta || '');
-    const updatedMap = { ...stepValuesMap };
-    for (const [key, val] of Object.entries(input)) {
-      if (key in updatedMap) {
-        updatedMap[key] = { ...updatedMap[key], term: String(val), origin: Origin.quoted };
-      }
-    }
-    return updatedMap;
+    return mapInputToStepValues(input, stepDef.gwta || '');
   }
 
   private setupMiddleware(webserver: IWebServer) {

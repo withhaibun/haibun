@@ -24,11 +24,25 @@ interface BaseEntry {
   backgrounds: DirNode | null;
 }
 
+export interface McpTool {
+  name: string;
+  description: string;
+  inputSchema: {
+    type: string;
+    properties?: Record<string, {
+      type: string;
+      description?: string;
+    }>;
+    required?: string[];
+  };
+}
+
 export interface WorkspaceInfo {
   backgroundCount?: number;
   featureCount?: number;
   stepperCount?: number;
   base?: string;
+  mcpTools?: McpTool[];
 }
 
 export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<TreeNode> {
@@ -39,8 +53,11 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
   private _bases: BaseEntry[] = [];
   private _configuredSteppers: string[] = [];
   private _bundledSteppers: string[] = [];
+  private _mcpTools: McpTool[] = [];
   private _featureCount = 0;
   private _treeView?: vscode.TreeView<TreeNode>;
+  private _mcpParamValues: Map<string, string> = new Map();
+  private _toolOutputs: Map<string, { content: string; timestamp: Date; isError: boolean; isRunning?: boolean }> = new Map();
 
   setTreeView(view: vscode.TreeView<TreeNode>): void {
     this._treeView = view;
@@ -70,6 +87,34 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
 
   dispose() {
     if (this._checkInterval) clearInterval(this._checkInterval);
+  }
+
+  setMcpParamValue(toolName: string, paramName: string, value: string) {
+    this._mcpParamValues.set(`${toolName}:${paramName}`, value);
+    this.refresh();
+  }
+
+  getMcpParamValue(toolName: string, paramName: string): string | undefined {
+    return this._mcpParamValues.get(`${toolName}:${paramName}`);
+  }
+
+  setToolOutput(toolName: string, content: string, isError: boolean): void {
+    this._toolOutputs.set(toolName, { content, timestamp: new Date(), isError, isRunning: false });
+    this.refresh();
+  }
+
+  setToolRunning(toolName: string): void {
+    this._toolOutputs.set(toolName, { content: 'Running...', timestamp: new Date(), isError: false, isRunning: true });
+    this.refresh();
+  }
+
+  clearToolOutput(toolName: string): void {
+    this._toolOutputs.delete(toolName);
+    this.refresh();
+  }
+
+  getToolOutput(toolName: string): { content: string; timestamp: Date; isError: boolean; isRunning?: boolean } | undefined {
+    return this._toolOutputs.get(toolName);
   }
 
   async checkMcpHealth() {
@@ -144,6 +189,8 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
   private _sectionNodeCache: Map<string, TreeNode> = new Map();
   // Cache base nodes by name
   private _baseNodeCache: Map<string, TreeNode> = new Map();
+  // Cache for tool nodes 
+  private _toolNodeCache: Map<string, TreeNode> = new Map();
 
   setExtensionPath(extensionPath: string, version: string): void {
     this._extensionPath = extensionPath;
@@ -170,6 +217,7 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
 
   updateWorkspaceInfo(info: WorkspaceInfo): void {
     this._workspaceInfo = info;
+    this._mcpTools = info.mcpTools || [];
     this._errorMessage = '';  // Clear error on successful connection
     this._errorAction = '';
     this._discoverFiles();
@@ -222,6 +270,7 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
     this._treeNodeCache.clear();
     this._sectionNodeCache.clear();
     this._baseNodeCache.clear();
+    this._toolNodeCache.clear();
 
     // Pre-build all nodes for each base
     for (const baseEntry of this._bases) {
@@ -538,6 +587,84 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
           ))
         );
       }
+      // Group tools by stepper prefix
+      if (element.isMcpToolsRoot) {
+        const groups = new Map<string, McpTool[]>();
+        for (const tool of this._mcpTools) {
+          const stepperName = tool.name.split('-')[0];
+          const list = groups.get(stepperName) || [];
+          list.push(tool);
+          groups.set(stepperName, list);
+        }
+        return Promise.resolve(
+          Array.from(groups.keys()).sort().map(stepperName => {
+            const node = new TreeNode(
+              'stepper-tools-group',
+              stepperName,
+              `${groups.get(stepperName)!.length} tools`,
+              vscode.TreeItemCollapsibleState.Collapsed
+            );
+            node.toolsList = groups.get(stepperName);
+            return node;
+          })
+        );
+      }
+      if (element.toolsList) {
+        return Promise.resolve(
+          element.toolsList.map(tool => {
+            const hasParams = Object.keys(tool.inputSchema?.properties || {}).length > 0;
+            const node = new TreeNode(
+              'mcp-tool',
+              tool.name.split('-').slice(1).join('-'),
+              tool.description,
+              hasParams ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None,
+              { command: 'haibun.executeMcpTool', title: 'Execute Tool', arguments: [tool] }
+            );
+            node.toolData = tool;
+            return node;
+          })
+        );
+      }
+      if (element.nodeType === 'mcp-tool' && element.toolData) {
+        const tool = element.toolData;
+        const properties = tool.inputSchema?.properties || {};
+        const children: TreeNode[] = [];
+
+        // Add parameter nodes
+        for (const [name, def] of Object.entries(properties)) {
+          const value = this.getMcpParamValue(tool.name, name) || '';
+          const node = new TreeNode(
+            'mcp-tool-param',
+            name,
+            value,
+            vscode.TreeItemCollapsibleState.None,
+            { command: 'haibun.setMcpToolParam', title: 'Set Parameter', arguments: [tool.name, name] }
+          );
+          node.toolData = tool;
+          node.mcpToolParam = { name, description: def.description };
+          children.push(node);
+        }
+
+        // Add output node if there's a stored output
+        const output = this.getToolOutput(tool.name);
+        if (output) {
+          const truncatedContent = output.content.length > 60
+            ? output.content.substring(0, 60) + '...'
+            : output.content;
+          const label = output.isRunning ? 'Running...' : (output.isError ? 'Error' : 'Output');
+          const node = new TreeNode(
+            'mcp-tool-output',
+            label,
+            output.isRunning ? '' : truncatedContent.replace(/\n/g, ' '),
+            vscode.TreeItemCollapsibleState.None
+          );
+          node.toolOutput = { content: output.content, isError: output.isError, isRunning: output.isRunning };
+          node.tooltip = output.isRunning ? 'Executing...' : output.content;
+          children.push(node);
+        }
+
+        return Promise.resolve(children);
+      }
       // Common config section children
       if (element.commonConfig) {
         const { cwd, bases, configFile } = element.commonConfig;
@@ -686,6 +813,18 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
     specsNode.isSpecificationsRoot = true;
     items.push(specsNode);
 
+    // 8. MCP Tools (if running)
+    if (this._mcpTools.length > 0) {
+      const toolsNode = new TreeNode(
+        'section',
+        'MCP Tools',
+        `${this._mcpTools.length}`,
+        vscode.TreeItemCollapsibleState.Collapsed
+      );
+      toolsNode.isMcpToolsRoot = true;
+      items.push(toolsNode);
+    }
+
     // 7. Steppers
     if (this._bundledSteppers.length > 0) {
       const node = new TreeNode(
@@ -738,7 +877,7 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
   }
 }
 
-type NodeType = 'config' | 'base' | 'section' | 'folder' | 'file' | 'info' | 'steppers-section' | 'stepper' | 'error' | 'error-action';
+type NodeType = 'config' | 'base' | 'section' | 'folder' | 'file' | 'info' | 'steppers-section' | 'stepper' | 'error' | 'error-action' | 'stepper-tools-group' | 'mcp-tool' | 'mcp-tool-param' | 'mcp-tool-output';
 
 class TreeNode extends vscode.TreeItem {
   public dirNode?: DirNode;
@@ -748,6 +887,11 @@ class TreeNode extends vscode.TreeItem {
   public commonConfig?: { cwd: string; bases: string[]; configFile: string };
   public mcpConfig?: { mcpEnabled: boolean; mcpPort: number; mcpAccessToken: string };
   public isSpecificationsRoot?: boolean;
+  public isMcpToolsRoot?: boolean;
+  public toolsList?: McpTool[];
+  public toolData?: McpTool;
+  public mcpToolParam?: { name: string; description?: string };
+  public toolOutput?: { content: string; isError: boolean; isRunning?: boolean };
 
   constructor(
     public readonly nodeType: NodeType,
@@ -794,6 +938,26 @@ class TreeNode extends vscode.TreeItem {
       case 'stepper':
         this.iconPath = new vscode.ThemeIcon('symbol-method');
         this.contextValue = 'stepper';
+        break;
+      case 'stepper-tools-group':
+        this.iconPath = new vscode.ThemeIcon('symbol-namespace');
+        this.contextValue = 'stepperToolsGroup';
+        break;
+      case 'mcp-tool':
+        this.iconPath = new vscode.ThemeIcon('play');
+        this.contextValue = 'mcpTool';
+        break;
+      case 'mcp-tool-param':
+        this.iconPath = new vscode.ThemeIcon('symbol-parameter');
+        this.contextValue = 'mcpToolParam';
+        break;
+      case 'mcp-tool-output':
+        this.iconPath = new vscode.ThemeIcon(
+          this.toolOutput?.isRunning ? 'sync~spin' :
+            (this.toolOutput?.isError ? 'error' : 'output'),
+          this.toolOutput?.isError ? new vscode.ThemeColor('errorForeground') : undefined
+        );
+        this.contextValue = 'mcpToolOutput';
         break;
       case 'error':
         this.iconPath = new vscode.ThemeIcon('error', new vscode.ThemeColor('errorForeground'));
@@ -888,6 +1052,17 @@ export function registerConfigCommands(context: vscode.ExtensionContext, treePro
       if (result !== undefined) {
         await config.update('mcpAccessToken', result, false);
         treeProvider.refresh();
+      }
+    }),
+    vscode.commands.registerCommand('haibun.setMcpToolParam', async (toolName: string, paramName: string) => {
+      const current = treeProvider.getMcpParamValue(toolName, paramName) || '';
+      const result = await vscode.window.showInputBox({
+        prompt: `Set value for ${paramName}`,
+        value: current,
+        placeHolder: 'Enter parameter value'
+      });
+      if (result !== undefined) {
+        treeProvider.setMcpParamValue(toolName, paramName, result);
       }
     })
   );

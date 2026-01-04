@@ -2,9 +2,9 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { ExtensionContext, workspace, window, commands, StatusBarItem, StatusBarAlignment, OutputChannel, ConfigurationChangeEvent } from 'vscode';
 import { LanguageClient, LanguageClientOptions, ServerOptions, TransportKind, State } from 'vscode-languageclient/node';
-import { HaibunConfigurationTreeProvider, HaibunConfig, registerConfigCommands, WorkspaceInfo } from './HaibunConfigurationPanel';
+import { HaibunConfigurationTreeProvider, McpTool, HaibunConfig, registerConfigCommands, WorkspaceInfo } from './HaibunConfigurationPanel';
 
-const VERSION = '0.1.78';
+const VERSION = '0.1.85';
 
 let client: LanguageClient | undefined;
 let statusBarItem: StatusBarItem;
@@ -98,6 +98,51 @@ export function activate(context: ExtensionContext) {
   setTimeout(() => revealCurrentFile(), 2000);
 
   registerConfigCommands(context, configProvider);
+
+  context.subscriptions.push(
+    commands.registerCommand('haibun.executeMcpTool', async (tool: McpTool) => {
+      if (!client) return;
+
+      const args: Record<string, string | number> = {};
+      const properties = tool.inputSchema?.properties || {};
+      const required = tool.inputSchema?.required || [];
+
+      for (const [propName, propDef] of Object.entries(properties)) {
+        const isRequired = required.includes(propName);
+        const storedValue = configProvider.getMcpParamValue(tool.name, propName);
+
+        let value: string | undefined = storedValue;
+        if (value === undefined || value === '') {
+          value = await window.showInputBox({
+            prompt: `${propName}${isRequired ? ' (required)' : ''}: ${propDef.description || ''}`,
+            placeHolder: propDef.type,
+            validateInput: (input) => {
+              if (isRequired && !input) return `${propName} is required`;
+              return null;
+            }
+          });
+        }
+
+        if (value === undefined) return; // User cancelled
+        if (value !== '') {
+          args[propName] = propDef.type === 'number' ? Number(value) : value;
+        }
+      }
+
+      outputChannel.appendLine(`[Haibun] Executing tool ${tool.name} with args: ${JSON.stringify(args)}`);
+      configProvider.setToolRunning(tool.name);
+      try {
+        const result = await client.sendRequest('haibun/executeTool', { name: tool.name, arguments: args });
+        const resultStr = typeof result === 'string' ? result : JSON.stringify(result, null, 2);
+        outputChannel.appendLine(`[Haibun] Execution Result: ${resultStr}`);
+        configProvider.setToolOutput(tool.name, resultStr, false);
+      } catch (e) {
+        const errorStr = String(e);
+        outputChannel.appendLine(`[Haibun] Execution Error: ${errorStr}`);
+        configProvider.setToolOutput(tool.name, errorStr, true);
+      }
+    })
+  );
 }
 
 export function deactivate(): Thenable<void> | undefined {

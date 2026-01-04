@@ -341,6 +341,11 @@ export const shortenURI = (uri: string) => {
 export function slugify(s: string) {
 	return s.replace(/[^a-zA-Z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
 }
+import { namedInterpolation } from '../namedVars.js';
+import { Origin } from '../../schema/protocol.js';
+
+
+
 export const intOrError = (val: string) => {
 	if (val.match(/[^\d+]/)) {
 		return { parseError: `${val} is not an integer` };

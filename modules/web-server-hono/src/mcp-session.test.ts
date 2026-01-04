@@ -124,6 +124,18 @@ class TestStepper extends AStepper {
             throw Error(`Missing Haibun MCP Server Info resource. Found: ${resources.resources.map(r => r.name).join(', ')}`);
           }
 
+          // 6. Verify Tool Parameters
+          const toolA = tools1After.tools.find(t => t.name === 'TestStepper-testA');
+          if (!toolA) throw Error('Could not find toolA');
+
+          // Verify verifySessions tool exists and has schema
+          const verifyTool = tools1After.tools.find(t => t.name === 'TestStepper-verifySessions');
+          if (!verifyTool) throw Error('Could not find verifySessions tool');
+          const schema = verifyTool.inputSchema as any;
+          if (!schema.properties?.port) {
+            throw Error(`verifySessions tool missing 'port' property in schema: ${JSON.stringify(schema)}`);
+          }
+
           // Cleanup
           await client1.close();
           await client2.close();

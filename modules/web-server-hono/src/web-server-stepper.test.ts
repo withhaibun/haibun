@@ -70,7 +70,7 @@ fetch from http://localhost:${port}/pub/hello.txt includes "Hello World"
       console.error(JSON.stringify(result.featureResults?.[0].stepResults, null, 2));
     }
     expect(result.ok).toBe(true);
-  }, 10000);
+  });
 
   it('serves directory index', async () => {
     const port = 8133;
@@ -92,7 +92,7 @@ fetch from http://localhost:${port}/idx/ includes "hello.txt"
       console.error(JSON.stringify(result.featureResults?.[0].stepResults, null, 2));
     }
     expect(result.ok).toBe(true);
-  }, 10000);
+  });
 });
 
 
