@@ -13,10 +13,6 @@ The extension launches a Haibun stepper configured with `./lsp-server/config.jso
 1. **Build Monorepo**: Run `npm run build:tsc` in the root `haibun` directory.
 2. **Install Dependencies**: Run `npm install` in the `vscode-extension` directory.
 
-### Running in Debug Mode
-
-Open the `vscode-extension` folder in your IDE and press **F5**.
-
 ### Packaging and Installation
 
 To test the extension is a local instance of VS Code, VSCodium, Antigravity etc (replace `IDE` with `code`, `codium`, `antigravity` etc):
@@ -36,3 +32,9 @@ To test the extension is a local instance of VS Code, VSCodium, Antigravity etc 
    ```bash
    IDE --install-extension haibun-lsp-0.1.xx.vsix
    ```
+
+After re-installation, restart your IDE. A triangle icon on the left provides or a status bar on the lower right provides access to Haibun language server and MCP features.
+
+### Running in Debug Mode
+
+Open the `vscode-extension` folder in your IDE and press **F5**.
