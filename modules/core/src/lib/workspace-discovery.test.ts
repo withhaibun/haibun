@@ -14,7 +14,7 @@ describe('workspace-discovery', () => {
   afterEach(() => {
     try {
       fs.rmSync(tmpDir, { recursive: true, force: true });
-    } catch (e) {
+    } catch {
       // ignore
     }
   });
@@ -45,9 +45,9 @@ describe('workspace-discovery', () => {
       const result = findHaibunWorkspace(featurePath, fs);
 
       expect(result).not.toBeNull();
-      expect(result!.base).toBe(path.join(tmpDir, 'project'));
-      expect(result!.configPath).toBe(path.join(tmpDir, 'project/config.json'));
-      expect(result!.backgroundsPath).toBe(path.join(tmpDir, 'project/backgrounds'));
+      expect(result?.base).toBe(path.join(tmpDir, 'project'));
+      expect(result?.configPath).toBe(path.join(tmpDir, 'project/config.json'));
+      expect(result?.backgroundsPath).toBe(path.join(tmpDir, 'project/backgrounds'));
     });
 
     it('finds workspace from nested features/ subfolder', () => {
@@ -58,8 +58,8 @@ describe('workspace-discovery', () => {
       const result = findHaibunWorkspace(featurePath, fs);
 
       expect(result).not.toBeNull();
-      expect(result!.base).toBe(path.join(tmpDir, 'project'));
-      expect(result!.backgroundsPath).toBe(path.join(tmpDir, 'project/backgrounds'));
+      expect(result?.base).toBe(path.join(tmpDir, 'project'));
+      expect(result?.backgroundsPath).toBe(path.join(tmpDir, 'project/backgrounds'));
     });
 
     it('returns null when no features/ parent found', () => {
@@ -78,8 +78,8 @@ describe('workspace-discovery', () => {
       const result = findHaibunWorkspace(featurePath, fs);
 
       expect(result).not.toBeNull();
-      expect(result!.configPath).toBeNull();
-      expect(result!.backgroundsPath).toBe(path.join(tmpDir, 'project/backgrounds'));
+      expect(result?.configPath).toBeNull();
+      expect(result?.backgroundsPath).toBe(path.join(tmpDir, 'project/backgrounds'));
     });
 
     it('handles missing backgrounds folder', () => {
@@ -90,8 +90,8 @@ describe('workspace-discovery', () => {
       const result = findHaibunWorkspace(featurePath, fs);
 
       expect(result).not.toBeNull();
-      expect(result!.configPath).toBe(path.join(tmpDir, 'project/config.json'));
-      expect(result!.backgroundsPath).toBeNull();
+      expect(result?.configPath).toBe(path.join(tmpDir, 'project/config.json'));
+      expect(result?.backgroundsPath).toBeNull();
     });
 
     it('finds workspace from background file', () => {
@@ -103,7 +103,7 @@ describe('workspace-discovery', () => {
       const result = findHaibunWorkspace(bgPath, fs);
 
       expect(result).not.toBeNull();
-      expect(result!.base).toBe(path.join(tmpDir, 'project'));
+      expect(result?.base).toBe(path.join(tmpDir, 'project'));
     });
   });
 

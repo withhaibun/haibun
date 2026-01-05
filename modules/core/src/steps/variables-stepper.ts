@@ -7,7 +7,7 @@ import { actionOK, actionNotOK, getStepTerm, isLiteralValue, formatCurrentSeqPat
 import { FeatureVariables } from '../lib/feature-variables.js';
 import { DOMAIN_STATEMENT, DOMAIN_STRING, normalizeDomainKey, createEnumDomainDefinition, registerDomains } from '../lib/domain-types.js';
 
-const clearVars = (vars) => () => {
+const clearVars = (vars: VariablesStepper) => () => {
 	vars.getWorld().shared.clear();
 	return;
 };
@@ -88,7 +88,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				const { term: rawTerm, domain } = featureStep.action.stepValuesMap.what;
 				const interpolated = this.interpolateTemplate(rawTerm, featureStep);
 				if (interpolated.error) return actionNotOK(interpolated.error);
-				const term = interpolated.value!;
+				const term = interpolated?.value;
 				const resolved = this.getWorld().shared.resolveVariable({ term, origin: Origin.var, domain }, featureStep);
 				const presentVal = resolved.value;
 				const effectiveDomain = resolved.domain;
@@ -111,7 +111,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 					if (nextVal === presentVal) {
 						return OK;
 					}
-					this.getWorld().shared.set({ term: String(term), value: nextVal, domain: effectiveDomain!, origin: Origin.var }, provenanceFromFeatureStep(featureStep));
+					this.getWorld().shared.set({ term: String(term), value: nextVal, domain: effectiveDomain, origin: Origin.var }, provenanceFromFeatureStep(featureStep));
 					return OK;
 				}
 
@@ -160,7 +160,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 
 				const interpolated = this.interpolateTemplate(rawTerm, featureStep);
 				if (interpolated.error) return actionNotOK(interpolated.error);
-				const term = interpolated.value!;
+				const term = interpolated?.value;
 
 				const skip = shouldSkipEmpty(featureStep, term, this.getWorld().shared);
 				if (skip) return skip;
@@ -194,7 +194,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 
 				const interpolated = this.interpolateTemplate(rawTerm, featureStep);
 				if (interpolated.error) return actionNotOK(interpolated.error);
-				const term = interpolated.value!;
+				const term = interpolated.value;
 
 				const skip = shouldSkipEmpty(featureStep, term, this.getWorld().shared);
 				if (skip) return skip;
@@ -255,7 +255,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				const { term: rawTerm } = featureStep.action.stepValuesMap.what;
 				const interpolated = this.interpolateTemplate(rawTerm, featureStep);
 				if (interpolated.error) return actionNotOK(interpolated.error);
-				const term = interpolated.value!;
+				const term = interpolated.value;
 
 				const resolved = this.getWorld().shared.resolveVariable({ term, origin: Origin.defined }, featureStep);
 				if (resolved.value === undefined) {
@@ -308,7 +308,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				if (rawTerm === undefined) return actionNotOK('variable not provided');
 				const interpolated = this.interpolateTemplate(rawTerm, featureStep);
 				if (interpolated.error) return actionNotOK(interpolated.error);
-				const term = interpolated.value!;
+				const term = interpolated.value || '';
 
 				const stepValue = this.getWorld().shared.resolveVariable({ term, origin: Origin.defined }, featureStep);
 
@@ -435,7 +435,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				// Interpolate value (e.g. "{request}/url" -> "req-1/url")
 				const interpolatedValue = this.interpolateTemplate(value, featureStep);
 				if (interpolatedValue.error) return actionNotOK(interpolatedValue.error);
-				const term = interpolatedValue.value!;
+				const term = interpolatedValue.value;
 
 				// Resolve value as a variable (e.g., "WebPlaywright/currentURI" -> actual URL)
 				const resolved = this.getWorld().shared.resolveVariable({ term, origin: Origin.defined }, featureStep);
@@ -444,7 +444,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				// Interpolate variables in pattern (e.g., "{counter URI}*" -> "http://localhost:8123/*")
 				const interpolated = this.interpolateTemplate(pattern, featureStep);
 				if (interpolated.error) return actionNotOK(interpolated.error);
-				const actualPattern = interpolated.value!;
+				const actualPattern = interpolated.value;
 
 				// Convert glob pattern to regex
 				// Escape regex special chars except *, then replace * with .*
@@ -466,7 +466,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 	compareValues(featureStep: TFeatureStep, rawTerm: string, value: string, operator: string) {
 		const interpolated = this.interpolateTemplate(rawTerm, featureStep);
 		if (interpolated.error) return actionNotOK(interpolated.error);
-		const term = interpolated.value!;
+		const term = interpolated.value;
 
 		const stored = this.getWorld().shared.resolveVariable({ term, origin: Origin.var }, featureStep);
 		if (!stored) {
@@ -547,7 +547,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				return registered;
 			});
 			const enumSources = superdomainDefs.filter((entry) => Array.isArray(entry.values) && entry.values.length);
-			const uniqueValues = Array.from(new Set(enumSources.flatMap((entry) => entry.values!)));
+			const uniqueValues = Array.from(new Set(enumSources.flatMap((entry) => entry.values)));
 			const description = `Values inherited from ${uniqueNames.join(', ')}`;
 			if (enumSources.length === superdomainDefs.length && uniqueValues.length) {
 				const definition = createEnumDomainDefinition({ name: domainKey, values: uniqueValues, description });

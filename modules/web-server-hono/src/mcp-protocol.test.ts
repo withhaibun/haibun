@@ -8,11 +8,11 @@ import { AStepper } from '@haibun/core/lib/astepper.js';
 import { OK } from '@haibun/core/schema/protocol.js';
 import { getStepperOptionName, actionNotOK } from '@haibun/core/lib/util/index.js';
 
-interface ListToolsResult {
+interface _ListToolsResult {
   tools: { name: string; description?: string }[];
 }
 
-interface CallToolResult {
+interface _CallToolResult {
   content: { type: string; text: string }[];
 }
 
@@ -20,13 +20,13 @@ class TestStepper extends AStepper {
   steps = {
     testStep: {
       exact: 'test mcp action',
-      action: async () => {
+      action: () => {
         return OK;
       }
     },
     testStepWithSpaces: {
       gwta: 'test mcp action with { arg }',
-      action: async ({ arg }: { arg: string }) => {
+      action: ({ arg }: { arg: string }) => {
         if (arg !== 'spaced') throw Error(`expected spaced, got ${arg}`);
         return OK;
       }
@@ -64,6 +64,7 @@ class TestStepper extends AStepper {
 
         const json = await response.json(); // as any
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        // biome-ignore lint/suspicious/noExplicitAny: json response
         const result = (json as any).result;
 
         if (!result || !result.serverInfo) {

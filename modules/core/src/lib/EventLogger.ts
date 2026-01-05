@@ -31,7 +31,7 @@ function getEmitter(): string {
     // Example: at Executor.doFeatureStep (/home/.../Executor.ts:287:11)
     const match = line.match(/at\s+(?:(\S+)\s+)?\(?(.+?):(\d+):(\d+)\)?$/);
     if (match) {
-      const [, func, path, row, col] = match;
+      const [, func, path, row] = match;
       const shortFunc = func ? func.split('.').pop() : 'at';
       const file = path.split('/').pop()?.replace(/\.[^/.]+$/, '');
       return `${file}.${shortFunc}:${row}`;
@@ -59,7 +59,7 @@ export class EventLogger implements IEventLogger {
     // Add emitter info if not already present
     const eventWithEmitter = {
       ...event,
-      emitter: (event as any).emitter || getEmitter(),
+      emitter: event.emitter || getEmitter(),
     };
 
     // Route through stepper callback for in-process monitors
@@ -149,7 +149,7 @@ export class EventLogger implements IEventLogger {
       intent: featureStep.intent ? { mode: featureStep.intent.mode } : undefined,
       stepperName,
       actionName,
-      stepArgs: stepArgs as any, // Cast to match Zod union type if needed
+      stepArgs: stepArgs as Record<string, unknown> | unknown[], // Match Zod union type
       stepValuesMap,
       topics
     }));

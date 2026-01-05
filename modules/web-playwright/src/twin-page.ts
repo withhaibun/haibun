@@ -80,8 +80,8 @@ export class TwinPage {
 		await this.storage.writeFile(outHtmlFile, content, EMediaTypes.html);
 		void this.twinPage.evaluate(() => document.body.innerHTML = '');
 	}
-	duplicateTwinElement = async (locator) => {
-		const elementData = await locator.evaluate(element => {
+	duplicateTwinElement = async (locator: import('playwright').Locator) => {
+		const elementData = await locator.evaluate((element: Element) => {
 			if (!element) {
 				return null;
 			}

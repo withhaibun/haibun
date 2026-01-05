@@ -3,11 +3,15 @@ import { ServerHono } from './server-hono.js';
 import type { IEventLogger } from '@haibun/core/lib/EventLogger.js';
 
 const mockLogger: IEventLogger = {
-  info: () => { },
-  warn: () => { },
-  error: () => { },
-  debug: () => { },
-  artifact: () => { },
+  info: () => { /* noop */ },
+  warn: () => { /* noop */ },
+  error: () => { /* noop */ },
+  debug: () => { /* noop */ },
+  artifact: () => { /* noop */ },
+  emit: () => { /* noop */ },
+  log: () => { /* noop */ },
+  stepStart: () => { /* noop */ },
+  stepEnd: () => { /* noop */ },
 };
 
 describe('ServerHono', () => {
@@ -56,9 +60,9 @@ describe('ServerHono', () => {
   });
 
   describe('listen/close', () => {
-    it('throws on invalid port', async () => {
-      await expect(server.listen(-1)).rejects.toThrow('invalid port');
-      await expect(server.listen(NaN)).rejects.toThrow('invalid port');
+    it('throws on invalid port', () => {
+      expect(() => server.listen(-1)).toThrow('invalid port');
+      expect(() => server.listen(NaN)).toThrow('invalid port');
     });
 
     it('listens on dynamic port and closes', async () => {

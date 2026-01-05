@@ -230,16 +230,16 @@ describe('asError', () => {
 		expect(util.asError(true)).toEqual(new Error('true'));
 	});
 	it('should pass an object', () => {
-		expect(util.asError({ a: 1 })).toEqual(new Error({ a: 1 } as TAnyFixme));
+		expect(util.asError({ a: 1 }).message).toEqual(String({ a: 1 }));
 	});
 	it('should pass an array', () => {
-		expect(util.asError([1, 2])).toEqual(new Error([1, 2] as TAnyFixme));
+		expect(util.asError([1, 2]).message).toEqual(String([1, 2]));
 	});
 	it('should pass null', () => {
 		expect(util.asError(null)).toEqual(new Error('null'));
 	});
 	it('should pass undefined', () => {
-		expect(util.asError(undefined)).toEqual(new Error());
+		expect(util.asError(undefined)).toEqual(new Error('undefined'));
 	});
 });
 
@@ -322,6 +322,7 @@ describe('stringOrError', () => {
 		expect(util.stringOrError('a')).toEqual({ result: 'a' });
 	});
 	it('returns error', () => {
-		expect(() => util.stringOrError(undefined as unknown as TAnyFixme).parseError).toBeDefined();
+		// biome-ignore lint/suspicious/noExplicitAny: testing invalid input
+		expect(() => util.stringOrError(undefined as any).parseError).toBeDefined();
 	});
 });

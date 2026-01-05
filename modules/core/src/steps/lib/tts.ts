@@ -96,7 +96,8 @@ export async function renderSpeech(transcript: string): Promise<string> {
 
 	try {
 		const model_id = "onnx-community/Kokoro-82M-v1.0-ONNX";
-		const tts = await KokoroTTS.from_pretrained(model_id, {
+		// biome-ignore lint/suspicious/noExplicitAny: library needs strict typing
+		const tts = await (KokoroTTS as any).from_pretrained(model_id, {
 			dtype: "q8", // Options: "fp32", "fp16", "q8", "q4", "q4f16"
 			device: "cpu", // Options: "wasm", "webgpu" (web) or "cpu" (node)
 		});

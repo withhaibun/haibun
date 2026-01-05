@@ -89,7 +89,7 @@ export function Timeline({
                     percentage: Math.max(0, Math.min(100, percentage)),
                     color: style.color,
                     icon: style.icon,
-                    label: e.kind === 'lifecycle' ? (e as any).in : e.kind
+                    label: e.kind === 'lifecycle' ? (e as { in: string }).in : e.kind
                 };
             });
     }, [events, startTime, max]);

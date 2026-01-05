@@ -58,7 +58,7 @@ export const TEND_FEATURE_DEFAULTS = { shouldClose: true, isLast: true, okSoFar:
 // Environment Stubs & Utilities
 // ============================================================================
 
-export type TAnyFixme = any;
+export type TAnyFixme = unknown;
 
 export class Timer {
   static startTime = new Date();
@@ -91,7 +91,7 @@ interface JITSchema {
 
 interface JITData {
   s: string;
-  d: any[];
+  d: unknown[];
 }
 
 export class JITSerializer {
@@ -105,7 +105,7 @@ export class JITSerializer {
 
     for (const event of events) {
       const schemaId = this.getSchemaId(event);
-      const schemaFields = this.schemas.get(schemaId)!;
+      const schemaFields = this.schemas.get(schemaId);
 
       // If first use of this schema, emit definition
       if (!lines.some(l => l.includes(`"_meta":"schema","id":"${schemaId}"`))) {
@@ -117,7 +117,7 @@ export class JITSerializer {
       }
 
       // Emit data
-      const validFields = schemaFields.map(f => (event as any)[f]);
+      const validFields = schemaFields.map(f => (event as Record<string, unknown>)[f]);
       lines.push(JSON.stringify({ s: schemaId, d: validFields }));
     }
 
@@ -137,11 +137,11 @@ export class JITSerializer {
         } else if ('s' in obj && 'd' in obj) {
           const fields = schemas.get(obj.s);
           if (fields) {
-            const event: any = {};
+            const event: Record<string, unknown> = {};
             fields.forEach((field, i) => {
               event[field] = obj.d[i];
             });
-            events.push(event);
+            events.push(event as THaibunEvent);
           }
         }
       } catch (e) {
@@ -261,7 +261,7 @@ export class EventFormatter {
   }
 
   static formatLine(event: THaibunEvent, lastLevel?: string): string {
-    const { time, emitter, level, showLevel, icon, id, message } = this.formatLineElements(event, lastLevel);
+    const { time, emitter, showLevel, icon, id, message } = this.formatLineElements(event, lastLevel);
     const prefix = showLevel.padStart(8) + ` █ ${time}:${emitter}`.padEnd(40) + ` ｜ `;
     return prefix + `${icon} ${id} ${message}`;
   }
@@ -379,8 +379,8 @@ export type TFeatureResult = {
 
 export type TExecutorResult = {
   ok: boolean;
-  tag: any;
-  shared: any;
+  tag: unknown;
+  shared: unknown;
   featureResults?: TFeatureResult[];
   failure?: {
     stage: string;
@@ -389,7 +389,7 @@ export type TExecutorResult = {
       message: string;
     };
   };
-  steppers?: any[];
+  steppers?: unknown[];
 };
 
 

@@ -28,7 +28,11 @@ describe('Haibun Event Schemas', () => {
     };
     const parsed = HaibunEvent.parse(raw);
     expect(parsed).toEqual(expect.objectContaining(raw));
-    expect((parsed as any).attributes).toEqual({ variable: 'foo', value: 123 });
+    if (parsed.kind === 'log') {
+      expect(parsed.attributes).toEqual({ variable: 'foo', value: 123 });
+    } else {
+      throw new Error('Expected log event');
+    }
   });
 
   it('validates a Time-Lined ArtifactEvent', () => {

@@ -32,8 +32,8 @@ interface ExecuteToolParams {
 }
 
 interface IMcpStepper {
-  getTools?(): any[];
-  executeTool?(name: string, args: Record<string, unknown>): Promise<any>;
+  getTools?(): unknown[];
+  executeTool?(name: string, args: Record<string, unknown>): Promise<unknown>;
 }
 
 export default class LspStepper extends AStepper {
@@ -62,8 +62,8 @@ export default class LspStepper extends AStepper {
   steps = {
     lspIsReady: {
       gwta: 'lsp is ready',
-      action: async () => {
-        return { ok: true, message: 'LSP server is ready' };
+      action: () => {
+        return Promise.resolve({ ok: true, message: 'LSP server is ready' });
       }
     }
   };
@@ -132,7 +132,7 @@ export default class LspStepper extends AStepper {
         const paramInfo = Object.entries(stepValuesMap)
           .map(([name, val]) => {
             // Safe access to val and val.term
-            const term = (val && typeof val === 'object' && 'term' in val) ? (val as any).term : val;
+            const term = (val && typeof val === 'object' && 'term' in val) ? (val as TStepValue).term : val;
             return `- **${name}**: \`${term}\``;
           })
           .join('\n') || 'None';
@@ -309,7 +309,7 @@ export default class LspStepper extends AStepper {
     // minimal decoding for header specific encoding
     try {
       path = decodeURIComponent(path);
-    } catch (e) {
+    } catch (_e) {
       // ignore
     }
     return path;
@@ -339,7 +339,7 @@ export default class LspStepper extends AStepper {
         name,
         path: normUri,
         content
-      } as any);
+      } as TFeature);
 
       // Wholesale update: clear ALL background steps and re-register ALL backgrounds
       interface IActivitiesStepper extends AStepper {
@@ -411,7 +411,7 @@ export default class LspStepper extends AStepper {
 
     // Check cache first
     if (this.workspaceBackgrounds.has(workspace.base)) {
-      const bgs = this.workspaceBackgrounds.get(workspace.base)!;
+      const bgs = this.workspaceBackgrounds.get(workspace.base) || [];
       this.currentWorkspace.backgroundCount = bgs.length;
       try {
         this.currentWorkspace.featureCount = await countFeatures(workspace.base);
@@ -504,7 +504,7 @@ export default class LspStepper extends AStepper {
       setTimeout(() => {
         this.documents.all().forEach(d => {
           if (this.normalizePath(d.uri) !== uri) {
-            this.processDocument(d);
+            void this.processDocument(d);
           }
         });
       }, 0);
@@ -619,12 +619,12 @@ export default class LspStepper extends AStepper {
     this.connection?.sendDiagnostics({ uri: doc.uri, diagnostics: [...expansionErrors, ...diagnostics] });
   }
 
-  private async processTypeScriptDocument(doc: TextDocument, uri: string): Promise<void> {
+  private processTypeScriptDocument(doc: TextDocument, uri: string): Promise<void> {
     const fullText = doc.getText();
     // Quick check to avoid parsing irrelevant files
     if (!fullText.includes('TKirejiStep') && !fullText.includes('TKirejiExport')) {
       this.connection?.sendDiagnostics({ uri: doc.uri, diagnostics: [] });
-      return;
+      return Promise.resolve();
     }
 
     const featureSteps: LCachedStep[] = [];
@@ -681,7 +681,7 @@ export default class LspStepper extends AStepper {
             } else {
               // Should not happen if throw happens on no match
             }
-          } catch (e) {
+          } catch (_e) {
             // Collect diagnostic/error
             diagnostics.push({
               severity: DiagnosticSeverity.Error,

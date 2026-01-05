@@ -6,8 +6,6 @@ import WebPlaywright from './web-playwright.js';
 import { getPackageLocation } from '@haibun/core/lib/util/workspace-lib.js';
 
 import { getCreateSteppers, getDefaultWorld } from '@haibun/core/lib/test/lib.js';
-import { AStepper } from '@haibun/core/lib/astepper.js';
-import { TAnyFixme } from '@haibun/core/lib/fixme.js';
 
 const me = path.join(getPackageLocation(import.meta).replace(/\/src$/, '/build'), 'web-playwright');
 
@@ -39,10 +37,7 @@ describe.skip('handles cycles', () => {
 	it('closes browser', async () => {
 		const wp = new WebPlaywright();
 		wp.storage = new StorageMem();
-		// minimal world so capture directory logic has context
-		// cast to satisfy AStepper array without redefining full type expectations in test
-		// Provide wp in steppers array with correct structural type
-		await wp.setWorld(getDefaultWorld(0), [wp as unknown as AStepper as TAnyFixme]);
+		await wp.setWorld(getDefaultWorld(), [wp]);
 		// await wp.steps.takeScreenshot.action();
 		expect(async () => {
 			if (wp.cycles && wp.cycles.endFeature) {

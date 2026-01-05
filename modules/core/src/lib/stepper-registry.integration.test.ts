@@ -40,21 +40,23 @@ describe('StepperRegistry Integration', () => {
 
     it('produces tool-name compatible format: StepperName-stepName', () => {
       const step = metadata.find(m => m.stepName === 'setTestVar');
-      expect(step).toBeDefined();
-      const toolName = `${step!.stepperName}-${step!.stepName}`;
+      if (!step) throw new Error('step not found');
+      const toolName = `${step.stepperName}-${step.stepName}`;
       expect(toolName).toBe('IntegrationTestStepper-setTestVar');
     });
 
     it('extracts all parameters for tool schema', () => {
       const step = metadata.find(m => m.stepName === 'setTestVar');
-      expect(Object.keys(step!.params)).toHaveLength(2);
-      expect(step!.params.name).toBe('string');
-      expect(step!.params.value).toBe('string');
+      if (!step) throw new Error('step not found');
+      expect(Object.keys(step.params)).toHaveLength(2);
+      expect(step.params.name).toBe('string');
+      expect(step.params.value).toBe('string');
     });
 
     it('pattern is usable as tool description', () => {
       const step = metadata.find(m => m.stepName === 'setTestVar');
-      expect(step!.pattern).toBe('set {name} to {value}');
+      if (!step) throw new Error('step not found');
+      expect(step.pattern).toBe('set {name} to {value}');
     });
 
     it('excludes hidden steps from tool registration', () => {
@@ -64,7 +66,8 @@ describe('StepperRegistry Integration', () => {
 
     it('detects number type from domain annotation', () => {
       const step = metadata.find(m => m.stepName === 'withNumberParam');
-      expect(step!.params.seconds).toBe('number');
+      if (!step) throw new Error('step not found');
+      expect(step.params.seconds).toBe('number');
     });
   });
 

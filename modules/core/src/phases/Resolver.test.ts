@@ -78,15 +78,15 @@ describe('validate map steps', () => {
 			const features = asExpandedFeatures([{ path: 'l1', content: 'is "string"' }]);
 			const res = await getResolvedSteps(features);
 			const { featureSteps } = res[0] as TResolvedFeature;
-			const sv = featureSteps[0].action.stepValuesMap!['what'];
-			expect(sv.term).toEqual('string');
+			const sv = featureSteps[0].action.stepValuesMap?.['what'];
+			expect(sv?.term).toEqual('string');
 		});
 		test('gets uri', async () => {
 			const features = asExpandedFeatures([{ path: 'l1', content: 'is http://url' }]);
 			const res = await getResolvedSteps(features);
 			const { featureSteps } = res[0] as TResolvedFeature;
-			const sv = featureSteps[0].action.stepValuesMap!['what'];
-			expect(sv.term).toEqual('http://url');
+			const sv = featureSteps[0].action.stepValuesMap?.['what'];
+			expect(sv?.term).toEqual('http://url');
 		});
 	});
 });

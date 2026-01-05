@@ -3,13 +3,13 @@ import { it, expect, describe, vi } from 'vitest';
 import { DEF_PROTO_OPTIONS, getTestWorldWithOptions, testWithWorld } from '../lib/test/lib.js';
 import DebuggerStepper, { TDebuggingType } from './debugger-stepper.js';
 import Haibun from './haibun.js';
-import { IPrompter } from '../lib/prompter.js';
+import { IPrompter, TPrompt, TPromptResponse } from '../lib/prompter.js';
 import { ReadlinePrompter } from '../lib/readline-prompter.js';
 
 class TestPrompter implements IPrompter {
-	prompt = async (_p: any) => Promise.resolve('continue' as any);
-	cancel = () => {/* */ };
-	resolve: (id: string, value: any) => void = () => { /* */ };
+	prompt = (_p: TPrompt) => Promise.resolve('continue');
+	cancel = () => {/* empty */ };
+	resolve: (id: string, value: TPromptResponse) => void = () => { /* empty */ };
 }
 
 describe('DebuggerStepper', () => {
@@ -64,12 +64,12 @@ describe('DebuggerStepper sequence integration', () => {
 		class SequenceTestPrompter implements IPrompter {
 			responses = [';;comment 1', ';;comment 2', 'step', 'step', 'continue'];
 			idx = 0;
-			prompt = async () => {
+			prompt = () => {
 				const response = this.responses[this.idx++];
 				return Promise.resolve(response);
 			};
-			cancel = () => { };
-			resolve: (_id: string, _value: unknown) => void = () => { };
+			cancel = () => { /* empty */ };
+			resolve: (_id: string, _value: unknown) => void = () => { /* empty */ };
 		}
 		const world = getTestWorldWithOptions(DEF_PROTO_OPTIONS);
 		world.prompter.unsubscribe(new ReadlinePrompter());
@@ -79,7 +79,7 @@ describe('DebuggerStepper sequence integration', () => {
 		const res = await testWithWorld(world, [feature], [DebuggerStepper, Haibun]);
 		expect(res.ok).toBe(true);
 		// [1,1,1] debug step by step, [1,1,2,-1] comment 1, [1,1,2,-2] comment 2, [1,1,2,-3] step (exits loop), [1,1,2] step 2, [1,1,3,-1] step (exits loop), [1,1,3] step 3
-		const seqs = res.featureResults![0].stepResults.map(r => r.seqPath);
+		const seqs = res.featureResults?.[0].stepResults.map(r => r.seqPath);
 		expect(seqs).toEqual([[1, 1, 1], [1, 1, 2, -1], [1, 1, 2, -2], [1, 1, 2, -3], [1, 1, 2], [1, 1, 3, -1], [1, 1, 3]]);
 	});
 
@@ -88,9 +88,9 @@ describe('DebuggerStepper sequence integration', () => {
 		class FailurePrompter implements IPrompter {
 			responses = [';;comment 1', ';;comment 2', 'next'];
 			idx = 0;
-			prompt = async () => Promise.resolve(this.responses[this.idx++]);
-			cancel = () => { };
-			resolve: (_id: string, _value: unknown) => void = () => { };
+			prompt = () => Promise.resolve(this.responses[this.idx++]);
+			cancel = () => { /* empty */ };
+			resolve: (_id: string, _value: unknown) => void = () => { /* empty */ };
 		}
 		const world = getTestWorldWithOptions(DEF_PROTO_OPTIONS);
 		world.prompter.unsubscribe(new ReadlinePrompter());
@@ -101,7 +101,7 @@ describe('DebuggerStepper sequence integration', () => {
 		const res = await testWithWorld(world, [feature], [DebuggerStepper, TestSteps, Haibun]);
 		expect(res.ok).toBe(true); // 'next' allows continuation
 		// [1,1,1] failed step, [1,1,1,1] comment 1, [1,1,1,2] comment 2, [1,1,1,3] next (exits loop)
-		const seqs = res.featureResults![0].stepResults.map(r => r.seqPath);
+		const seqs = res.featureResults?.[0].stepResults.map(r => r.seqPath);
 		expect(seqs).toEqual([[1, 1, 1], [1, 1, 1, 1], [1, 1, 1, 2], [1, 1, 1, 3]]);
 	});
 
@@ -111,7 +111,7 @@ describe('DebuggerStepper sequence integration', () => {
 
 		class LimitedPrompter implements IPrompter {
 			callCount = 0;
-			prompt = async () => {
+			prompt = () => {
 				this.callCount++;
 				// Allow the first prompt (for 'not fails')
 				// but any additional prompts (like for speculative 'fails') should not happen
@@ -120,8 +120,8 @@ describe('DebuggerStepper sequence integration', () => {
 				}
 				return Promise.resolve('step');
 			};
-			cancel = () => { };
-			resolve: (_id: string, _value: unknown) => void = () => { };
+			cancel = () => { /* empty */ };
+			resolve: (_id: string, _value: unknown) => void = () => { /* empty */ };
 		}
 
 		const world = getTestWorldWithOptions(DEF_PROTO_OPTIONS);

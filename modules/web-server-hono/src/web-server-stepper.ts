@@ -40,10 +40,10 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
   async setWorld(world: TWorld, steppers: AStepper[]) {
     await super.setWorld(world, steppers);
     const sname = this.constructor.name;
-    const fromModule = world.moduleOptions?.[sname]?.['PORT'];
+    const fromModule = (world.moduleOptions as unknown as Record<string, Record<string, unknown> | undefined>)?.[sname]?.['PORT'];
     const portOption = fromModule || getStepperOption(this, 'PORT', world.moduleOptions);
     if (portOption) {
-      const parsed = parseInt(portOption, 10);
+      const parsed = parseInt(String(portOption), 10);
       if (Number.isNaN(parsed) || parsed <= 0) {
         throw new Error(`WebServerStepper: PORT option "${portOption}" must be a positive integer`);
       }
@@ -61,7 +61,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
     },
     showMounts: {
       gwta: 'show mounts',
-      action: async () => {
+      action: () => {
         const webserver = getFromRuntime(this.getWorld().runtime, WEBSERVER) as IWebServer;
         const mounts = webserver.mounted;
         this.getWorld().eventLogger.info(`mounts: ${JSON.stringify(mounts, null, 2)}`, { mounts });
@@ -122,7 +122,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
     },
     showRoutes: {
       gwta: 'show routes',
-      action: async () => {
+      action: () => {
         const routes = this.webserver?.mounted;
         this.getWorld().eventLogger.info(`routes: ${JSON.stringify(routes, null, 2)}`, { routes });
         return Promise.resolve(OK);

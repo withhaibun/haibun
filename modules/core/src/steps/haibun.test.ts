@@ -25,7 +25,7 @@ describe('seqPath ordering', () => {
 		const feature = { path: '/features/test.feature', content: 'passes\npasses\npasses' };
 		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(true);
-		const seqs = result.featureResults![0].stepResults.map(r => r.seqPath);
+		const seqs = result.featureResults?.[0].stepResults.map(r => r.seqPath);
 		expect(seqs).toEqual([[1, 1, 1], [1, 1, 2], [1, 1, 3]]);
 	});
 
@@ -33,7 +33,7 @@ describe('seqPath ordering', () => {
 		const feature = { path: '/features/test.feature', content: 'passes\nnot fails\nends with "OK"' };
 		const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps]);
 		expect(result.ok).toBe(true);
-		const seqs = result.featureResults![0].stepResults.map(r => r.seqPath);
+		const seqs = result.featureResults?.[0].stepResults.map(r => r.seqPath);
 		expect(seqs).toEqual([[1, 1, 1], [1, 1, 2, -1], [1, 1, 2], [1, 1, 3]]);
 	});
 
@@ -41,7 +41,7 @@ describe('seqPath ordering', () => {
 		const feature = { path: '/features/test.feature', content: 'passes\nnot not passes\nends with "OK"' };
 		const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps]);
 		expect(result.ok).toBe(true);
-		const seqs = result.featureResults![0].stepResults.map(r => r.seqPath);
+		const seqs = result.featureResults?.[0].stepResults.map(r => r.seqPath);
 		expect(seqs).toEqual([[1, 1, 1], [1, 1, 2, -1, -1], [1, 1, 2, -1], [1, 1, 2], [1, 1, 3]]);
 	});
 });
@@ -51,7 +51,7 @@ describe('afterEvery', () => {
 		const feature = { path: '/features/test.feature', content: 'have a test\nafter every "TestSteps", Noodles, man.\npasses\npasses' };
 		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(true);
-		const ins = result.featureResults![0].stepResults.map(r => r.in);
+		const ins = result.featureResults?.[0].stepResults.map(r => r.in);
 		expect(ins).toEqual(['have a test', 'after every "TestSteps", Noodles, man.', 'passes', 'Noodles, man.', 'passes', 'Noodles, man.']);
 	});
 
@@ -59,7 +59,7 @@ describe('afterEvery', () => {
 		const feature = { path: '/features/test.feature', content: 'have a test\nafter every "TestSteps", passes\nhave a test\npasses' };
 		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(true);
-		const seqs = result.featureResults![0].stepResults.map(r => r.seqPath);
+		const seqs = result.featureResults?.[0].stepResults.map(r => r.seqPath);
 		// Step [1,1,4] "passes" does not trigger afterEvery because it's the same action (prevents infinite recursion)
 		expect(seqs).toEqual([[1, 1, 1], [1, 1, 2], [1, 1, 3], [1, 1, 3, 1], [1, 1, 4]]);
 	});
@@ -134,7 +134,7 @@ describe('backgrounds', () => {
 		const background = { path: '/backgrounds/bg.feature', content: 'set ran to "true"\nends with "ok"' };
 		const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 		expect(result.ok).toBe(true);
-		const seqs = result.featureResults![0].stepResults.map(r => r.seqPath);
+		const seqs = result.featureResults?.[0].stepResults.map(r => r.seqPath);
 		// Condition uses dir=-1, body uses dir=1: condition [1,1,1,-1], background steps [1,1,1,1] and [1,1,1,2], parent [1,1,1]
 		expect(seqs).toEqual([[1, 1, 1, -1], [1, 1, 1, 1], [1, 1, 1, 2], [1, 1, 1]]);
 	});
@@ -175,7 +175,7 @@ describe('backgrounds', () => {
 		const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 		expect(result.ok).toBe(true);
 
-		const paths = result.featureResults![0].stepResults.map(r => r.path);
+		const paths = result.featureResults?.[0].stepResults.map(r => r.path);
 		expect(paths).toEqual([
 			'test_base/features/test.feature',  // set ran
 			'test_base/features/test.feature',  // condition
@@ -190,7 +190,7 @@ describe('backgrounds', () => {
 		const result = await passWithDefaults([feature], [VariablesSteppers]);
 		expect(result.ok).toBe(true);
 
-		const lineNumbers = result.featureResults![0].stepResults.map(r => r.lineNumber);
+		const lineNumbers = result.featureResults?.[0].stepResults.map(r => r.lineNumber);
 		expect(lineNumbers).toEqual([1, 2, 3]);
 	});
 
@@ -200,7 +200,7 @@ describe('backgrounds', () => {
 		const result = await passWithDefaults([feature], [Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 		expect(result.ok).toBe(true);
 
-		const bgSteps = result.featureResults![0].stepResults.filter(r => r.path?.includes('backgrounds/'));
+		const bgSteps = result.featureResults?.[0].stepResults.filter(r => r.path?.includes('backgrounds/')) || [];
 		expect(bgSteps.length).toBe(2);
 
 		// Background steps should have lineNumbers 1 and 2
@@ -222,13 +222,13 @@ describe('backgrounds', () => {
 		expect(result.ok).toBe(true);
 
 		// The "set x to 1" step should have lineNumber 2 (in bg.feature) and path backgrounds/bg.feature
-		const activityStep = result.featureResults![0].stepResults.find(r => r.in === 'set x to "1"');
+		const activityStep = result.featureResults?.[0].stepResults.find(r => r.in === 'set x to "1"');
 		expect(activityStep).toBeDefined();
 		expect(activityStep?.lineNumber).toBe(3);
 		expect(activityStep?.path).toBe('test_base/backgrounds/bg.feature');
 
 		// The waypoint itself should also have its source location
-		const waypointStep = result.featureResults![0].stepResults.find(r => r.in === 'Test Activity');
+		const waypointStep = result.featureResults?.[0].stepResults.find(r => r.in === 'Test Activity');
 		expect(waypointStep).toBeDefined();
 		expect(waypointStep?.lineNumber).toBe(3);
 		expect(waypointStep?.path).toBe('test_base/backgrounds/bg.feature');

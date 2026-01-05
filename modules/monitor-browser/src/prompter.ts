@@ -8,18 +8,19 @@ export class WebSocketPrompter implements IPrompter {
 
   constructor(transport: ITransport) {
     this.transport = transport;
-    this.transport.onMessage((data: any) => {
-      if (data.type === 'response' && data.id) {
-        const resolve = this.resolveMap.get(data.id);
+    this.transport.onMessage((data: unknown) => {
+      const msg = data as { type?: string; id?: string; value?: TPromptResponse };
+      if (msg.type === 'response' && msg.id) {
+        const resolve = this.resolveMap.get(msg.id);
         if (resolve) {
-          resolve(data.value);
-          this.resolveMap.delete(data.id);
+          resolve(msg.value);
+          this.resolveMap.delete(msg.id);
         }
       }
     });
   }
 
-  async prompt(prompt: TPrompt): Promise<TPromptResponse> {
+  prompt(prompt: TPrompt): Promise<TPromptResponse> {
     this.transport.send({ type: 'prompt', prompt });
     return new Promise((resolve) => {
       this.resolveMap.set(prompt.id, resolve);

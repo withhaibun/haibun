@@ -244,9 +244,28 @@ For example, to verify that every visited page matches some allowed pattern:
 
 This expresses: for every page in urls, there exists some pattern in patterns such that the page matches that pattern.
 
-Variables bound in outer quantifiers (`{page}`) flow through to inner predicates. The `that` prefix disambiguates the predicate from other step patterns.
+Variables bound in outer quantifiers (`{page}`) flow through to inner predicates.
 
-The Playwright stepper provides a `Visited pages` domain that tracks all URLs accessed during a browser session. This enables verification like `every page in Visited pages is some pattern in Allowed patterns is matches {page} with {pattern}` to ensure no unexpected domains were accessed.
+#### Observations
+
+Observations capture runtime data that isn't explicitly set via `set` statements. They enable verification of emergent behaviors like network traffic, visited pages, and step execution patterns.
+
+Use `observed in` to iterate over observation sources:
+
+    every host observed in http-trace hosts is some domain in Allowed domains is matches {host} with "*{domain}"
+    every page observed in visited pages is some pattern in Allowed patterns is matches {page} with {pattern}
+
+Available observation sources:
+
+| Source | Items | Used for |
+|--------|-------|----------|
+| `visited pages` | URLs navigated during browser session | Verifying no unexpected domains accessed |
+| `http-trace hosts` | Hostnames from all HTTP requests | Allowlist/blocklist verification |
+| `http-trace` | Individual HTTP request IDs | Checking status codes, timing |
+| `step usage` | Step names | Coverage reporting |
+| `stepper usage` | Stepper names | Integration verification |
+
+Observations are automatically collected by steppers and cleared between features.
 
 
 #### Disjunction (any of, some)

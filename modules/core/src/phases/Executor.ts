@@ -9,7 +9,7 @@ import { populateActionArgs } from '../lib/populateActionArgs.js';
 import { registerDomains } from '../lib/domain-types.js';
 import { basename } from 'path';
 
-function calculateShouldClose({ thisFeatureOK, isLast, stayOnFailure, continueAfterError }) {
+function calculateShouldClose({ thisFeatureOK, isLast, stayOnFailure, continueAfterError }: { thisFeatureOK: boolean; isLast: boolean; stayOnFailure: boolean; continueAfterError: boolean }) {
 	if (thisFeatureOK) {
 		return true;
 	}
@@ -67,7 +67,7 @@ export class Executor {
 		if (!world.runtime.observations) {
 			world.runtime.observations = new Map();
 		}
-		const stepUsage = world.runtime.observations.get('stepUsage') || new Map<string, number>();
+		const stepUsage = (world.runtime.observations.get('stepUsage') as Map<string, number>) || new Map<string, number>();
 		stepUsage.set(usageKey, (stepUsage.get(usageKey) || 0) + 1);
 		world.runtime.observations.set('stepUsage', stepUsage);
 
@@ -105,7 +105,7 @@ export class Executor {
 				mimetype: 'application/json',
 			});
 			world.eventLogger.emit(resolvedFeaturesEvent);
-		} catch (e) {
+		} catch {
 			// Silently continue if artifact emission fails
 		}
 
@@ -160,7 +160,7 @@ export class Executor {
 			}
 		}
 
-		const results = { ok: okSoFar, featureResults: featureResults, tag: world.tag, shared: world.shared, steppers, failure: undefined };
+		const results: TExecutorResult = { ok: okSoFar, featureResults: featureResults, tag: world.tag, shared: world.shared, steppers, failure: undefined };
 		if (!okSoFar) {
 			const failure = this.createExecutionFailure(featureResults);
 			if (failure) {
@@ -282,7 +282,6 @@ export class FeatureExecutor {
 		const args = await populateActionArgs(featureStep, world, steppers);
 
 		const isFullCycles = execMode === ExecMode.WITH_CYCLES;
-		const isSubStep = featureStep.isSubStep || false;
 
 		let actionResult: TActionResult;
 		if (isFullCycles) {
@@ -333,10 +332,12 @@ const doStepperCycle = async <K extends keyof IStepperCycles>(steppers: AStepper
 			return (aVal ?? 0) - (bVal ?? 0);
 		});
 	for (const cycling of hasCycles) {
-		const cycle = cycling.cycles[method]!;
-		const paramsForApply = args === undefined ? [] : [args];
-		const result = await (cycle as (...a: unknown[]) => Promise<unknown>).apply(cycling, paramsForApply);
-		results.push(result as Awaited<ReturnType<NonNullable<IStepperCycles[K]>>>);
+		const cycle = cycling.cycles[method];
+		if (cycle) {
+			const paramsForApply = args === undefined ? [] : [args];
+			const result = await (cycle as (...a: unknown[]) => Promise<unknown>).apply(cycling, paramsForApply);
+			results.push(result as Awaited<ReturnType<NonNullable<IStepperCycles[K]>>>);
+		}
 	}
 	return results;
 };
@@ -344,13 +345,15 @@ const doStepperCycle = async <K extends keyof IStepperCycles>(steppers: AStepper
 const doStepperCycleSync = <K extends keyof IStepperCycles>(steppers: AStepper[], method: K, args: StepperMethodArgs[K]): void => {
 	const hasCycles = (steppers as unknown[] as (AStepper & IHasCycles)[]).filter(c => c.cycles && c.cycles[method]);
 	for (const cycling of hasCycles) {
-		const cycle = cycling.cycles[method]!;
-		const paramsForApply = args === undefined ? [] : [args];
-		(cycle as (...a: unknown[]) => void).apply(cycling, paramsForApply);
+		const cycle = cycling.cycles[method];
+		if (cycle) {
+			const paramsForApply = args === undefined ? [] : [args];
+			(cycle as (...a: unknown[]) => void).apply(cycling, paramsForApply);
+		}
 	}
 };
 
-const addStepperConcerns = async (world, steppers: AStepper[]) => {
+const addStepperConcerns = async (world: TWorld, steppers: AStepper[]) => {
 	const results = await doStepperCycle(steppers, 'getConcerns', undefined);
 	// Extract and register domains from concerns
 	const domains = results.filter(r => r?.domains).flatMap(r => r.domains);

@@ -25,7 +25,7 @@ export abstract class AStorage extends AStepper {
 
 	kind = StepperKinds.STORAGE;
 	abstract readFile(path: string, coding?: string): TAnyFixme;
-	abstract rm(path: string);
+	abstract rm(path: string): void;
 	abstract readdir(dir: string): Promise<string[]>;
 	abstract lstatToIFile(file: string): Promise<IFile>;
 	abstract writeFileBuffer(file: string, contents: Buffer, mediaType: TMediaType): void;
@@ -47,9 +47,9 @@ export abstract class AStorage extends AStepper {
 		}
 	}
 
-	abstract mkdir(dir: string);
-	abstract mkdirp(dir: string);
-	abstract exists(ntt: string);
+	abstract mkdir(dir: string): void;
+	abstract mkdirp(dir: string): void;
+	abstract exists(ntt: string): boolean;
 
 	/**
 	 * Returns a storage specific resolved path for a given media type.

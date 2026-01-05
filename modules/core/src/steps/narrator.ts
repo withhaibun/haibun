@@ -21,7 +21,7 @@ const cycles = (narrator: Narrator): IStepperCycles => ({
 	},
 	async endFeature() {
 		if (narrator.captureStop) {
-			const uri = actualURI(CAPTURE_FILENAME);
+			actualURI(CAPTURE_FILENAME);
 			await sleep(2000);
 			await doExec(narrator.captureStop, false);
 			const path = captureLocator(narrator.world.options, narrator.world.tag);

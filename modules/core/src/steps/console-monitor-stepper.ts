@@ -1,5 +1,5 @@
 import { AStepper, IHasCycles, StepperKinds } from '../lib/astepper.js';
-import { THaibunEvent } from '../schema/protocol.js';
+import { THaibunEvent, THaibunLogLevel } from '../schema/protocol.js';
 import { Timer } from '../schema/protocol.js';
 import { CHECK_YES, CHECK_NO } from '../schema/protocol.js';
 import { EventFormatter } from '../monitor/index.js';
@@ -50,7 +50,7 @@ export default class ConsoleMonitorStepper extends AStepper implements IHasCycle
 
   private handleEvent(event: THaibunEvent): void {
     // Determine visibility
-    let visible = EventFormatter.shouldDisplay(event, this.minLevel as any);
+    let visible = EventFormatter.shouldDisplay(event, this.minLevel as THaibunLogLevel);
 
     // allow verbose to override hidden start steps
     if (this.verbose && event.kind === 'lifecycle' && !visible) {

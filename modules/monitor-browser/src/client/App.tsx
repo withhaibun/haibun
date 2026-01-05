@@ -42,7 +42,7 @@ function App() {
     });
 
     // Video metadata extracted from loadedmetadata event
-    const [videoMetadata, setVideoMetadata] = useState<{
+    const [videoMetadata, _setVideoMetadata] = useState<{
         duration: number;
         width: number;
         height: number;
@@ -51,9 +51,10 @@ function App() {
     const scrollRef = useRef<HTMLDivElement>(null);
 
     // Debugger state
+    // biome-ignore lint/suspicious/noExplicitAny: debug state
     const [activePrompt, setActivePrompt] = useState<any | null>(null);
 
-    const ws = useRef<WebSocket | null>(null);
+    const _ws = useRef<WebSocket | null>(null);
 
     // Event batching using refs to avoid re-render issues
     const pendingEventsRef = useRef<THaibunEvent[]>([]);
@@ -99,6 +100,7 @@ function App() {
     }), [isSerializedMode]); // Only re-create if mode changes
 
     // Use a ref to access sendJsonMessage inside the memoized callback
+    // biome-ignore lint/suspicious/noExplicitAny: websocket ref
     const sendJsonMessageRef = useRef<any>(null);
 
     // Only use WebSocket in live mode (not serialized)
@@ -244,7 +246,7 @@ function App() {
 
     // Index ResolvedFeatures
     type TStepIndex = Record<string, { in: string; seqPath: number[]; source?: { path?: string; lineNumber?: number }; action?: { actionName?: string; stepperName?: string } }>;
-    const stepIndex = useMemo((): TStepIndex => {
+    const _stepIndex = useMemo((): TStepIndex => {
         const artifact = events.find((e): e is TResolvedFeaturesArtifact => e.kind === 'artifact' && e.artifactType === 'resolvedFeatures');
         if (!artifact) return {};
         const index: TStepIndex = {};
@@ -306,18 +308,21 @@ function App() {
                 return [...acc, e];
             }
             return [...acc, e];
+            // biome-ignore lint/suspicious/noExplicitAny: complex reduce
         }, [] as any[]);
 
         // Stage 3: Visibility Filter & Hidden Log Aggregation
         const levels = [...HAIBUN_LOG_LEVELS];
         const minLevelIndex = levels.indexOf(minLogLevel);
 
+        // biome-ignore lint/suspicious/noExplicitAny: complex merge
         const finalEvents: any[] = [];
         let hiddenBuffer: { event: THaibunEvent; reason: 'level' | 'depth' }[] = [];
 
         const flushHiddenBuffer = () => {
             if (hiddenBuffer.length > 0) {
                 const bufferLevels = new Set(hiddenBuffer.map(h => h.event.level || 'info'));
+                // biome-ignore lint/suspicious/noExplicitAny: sort comparison
                 const sortedBufferLevels = Array.from(bufferLevels).sort((a: any, b: any) => levels.indexOf(b) - levels.indexOf(a));
                 const primaryHiddenLevel = sortedBufferLevels[0] || 'info';
 
@@ -429,6 +434,7 @@ function App() {
                 const isLast = i === arr.length - 1;
                 const prevE = i > 0 ? arr[i - 1] : undefined;
                 // Ensure prevE is a standard event for formatting check (skip hidden blocks)
+                // biome-ignore lint/suspicious/noExplicitAny: loose event type
                 const validPrevE = prevE && (prevE as any).kind !== 'hidden-block' ? prevE : undefined;
                 const prevLevel = validPrevE ? EventFormatter.getDisplayLevel(validPrevE) : undefined;
 
@@ -437,13 +443,13 @@ function App() {
                 const effectiveStart = startTime || e.timestamp;
                 const time = ((e.timestamp - effectiveStart) / 1000).toFixed(3);
 
-                let { showLevel, message, icon, id } = formatted;
+                let { showLevel: _showLevel, message, icon, id } = formatted;
                 // const isLifecycle = e.kind === 'lifecycle'; // unwarn
                 const depth = e.id ? e.id.split('.').length : 0;
                 const isNested = depth > 3;
 
                 let textClass = 'text-gray-300';
-                let bgClass = isLast ? 'bg-primary/20 border-l-2 border-primary' : 'hover:bg-gray-900 border-l-2 border-transparent';
+                const bgClass = isLast ? 'bg-primary/20 border-l-2 border-primary' : 'hover:bg-gray-900 border-l-2 border-transparent';
 
                 // Indentation style for nested views
                 // const indentStyle = isNested ? { paddingLeft: `${(depth - 3) * 1}rem` } : {}; // unwarn
@@ -468,6 +474,7 @@ function App() {
                     if (e.level === 'error') textClass = 'text-red-500 font-bold';
                     if (e.level === 'warn') textClass = 'text-yellow-400';
                     if (!message) {
+                        // biome-ignore lint/suspicious/noExplicitAny: loose attributes
                         message = e.message || (e.attributes as Record<string, any>)?.message || JSON.stringify(e.attributes);
                     }
                 } else if (e.kind === 'control') {
@@ -481,6 +488,7 @@ function App() {
                 // Identify next *visible* event that is not a hidden block
                 let nextEvent = undefined;
                 for (let j = i + 1; j < arr.length; j++) {
+                    // biome-ignore lint/suspicious/noExplicitAny: loose event type
                     if ((arr[j] as any).kind !== 'hidden-block') {
                         nextEvent = arr[j];
                         break;
@@ -691,6 +699,7 @@ function App() {
                                     const videoArtifact = events.find(e => e.kind === 'artifact' && e.artifactType === 'video') as TVideoArtifact | undefined;
                                     if (videoArtifact) setSelectedEvent(videoArtifact);
                                 }}
+                                // biome-ignore lint/suspicious/noExplicitAny: loose event type
                                 className={`p-1.5 hover:bg-slate-700 rounded transition-colors ${selectedEvent?.kind === 'artifact' && (selectedEvent as any).artifactType === 'video' ? 'text-cyan-400' : 'text-slate-500 hover:text-slate-300 grayscale'}`}
                                 title="View Video"
                             >
@@ -704,9 +713,11 @@ function App() {
                                     const httpTraces = events.filter(e => e.kind === 'artifact' && e.artifactType === 'http-trace') as THttpTraceArtifact[];
                                     if (httpTraces.length > 0) {
                                         // Select first trace to trigger display, DetailsPanel will show all
+                                        // biome-ignore lint/suspicious/noExplicitAny: synthetic event
                                         setSelectedEvent({ ...httpTraces[0], _allTraces: httpTraces } as any);
                                     }
                                 }}
+                                // biome-ignore lint/suspicious/noExplicitAny: loose event type
                                 className={`p-1.5 hover:bg-slate-700 rounded transition-colors ${selectedEvent?.kind === 'artifact' && (selectedEvent as any).artifactType === 'http-trace' ? 'text-cyan-400' : 'text-slate-500 hover:text-slate-300 grayscale'}`}
                                 title={`View HTTP Traces (${events.filter(e => e.kind === 'artifact' && e.artifactType === 'http-trace').length})`}
                             >
@@ -797,6 +808,7 @@ function App() {
     );
 }
 
+// biome-ignore lint/suspicious/noExplicitAny: simple component props
 const Badge = ({ children, variant }: any) => {
     return (
         <span className={`px-2 py-0.5 rounded text-xs font-semibold ${variant === 'default' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100' :

@@ -198,7 +198,7 @@ export interface IObservationSource {
 	name: string;
 	observe(world: TWorld): {
 		items: string[];
-		metrics: Record<string, Record<string, any>>;
+		metrics: Record<string, Record<string, unknown>>;
 	};
 }
 

@@ -159,7 +159,7 @@ export function processBaseEnvToOptionsAndErrors(env: TEnv) {
 	let nenv = {};
 
 	const baseOptions = BaseOptions as IHasOptions;
-	baseOptions.options && Object.entries(baseOptions.options).forEach(([k, v]) => (protoOptions.options[k] = v.default));
+	baseOptions.options && Object.entries(baseOptions.options).forEach(([k, v]) => ((protoOptions.options as Record<string, unknown>)[k] = v.default));
 
 	Object.entries(env)
 		.filter(([k]) => k.startsWith(BASE_PREFIX))
@@ -177,7 +177,7 @@ export function processBaseEnvToOptionsAndErrors(env: TEnv) {
 				} else if (!res.result) {
 					errors.push(`no option for ${opt} from ${JSON.stringify(res.result)}`);
 				} else {
-					protoOptions.options[opt] = res.result;
+					(protoOptions.options as Record<string, unknown>)[opt] = res.result;
 				}
 			} else if (opt.startsWith(`O_`)) {
 				protoOptions.moduleOptions[k] = value;

@@ -35,7 +35,7 @@ page is accessible accepting serious "99" and moderate "90"
 
 		const res = await passWithDefaults(features, [A11yAxe, WebPlaywright, StorageMem], { options, moduleOptions });
 		expect(res.ok).toBe(true);
-		expect((<TOKActionResult>res.featureResults![0]!.stepResults![0]?.stepActionResult)?.artifact).toBeUndefined();
+		expect((<TOKActionResult>res.featureResults?.[0]?.stepResults?.[0]?.stepActionResult)?.artifact).toBeUndefined();
 	});
 	it('fails', async () => {
 		const features = [{
@@ -46,6 +46,6 @@ page is accessible accepting serious "0" and moderate "0"
 
 		const res = await failWithDefaults(features, [A11yAxe, WebPlaywright, StorageMem], { options, moduleOptions });
 		expect(res.ok).toBe(false);
-		expect((<TOKActionResult>res.featureResults![0]!.stepResults![1]?.stepActionResult)?.artifact).toBeDefined();
+		expect((<TOKActionResult>res.featureResults?.[0]?.stepResults?.[1]?.stepActionResult)?.artifact).toBeDefined();
 	});
 });

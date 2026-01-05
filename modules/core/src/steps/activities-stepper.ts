@@ -439,7 +439,10 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			if (!this.featureSteps.has(proofPath)) {
 				this.featureSteps.set(proofPath, {});
 			}
-			this.featureSteps.get(proofPath)![outcome] = step;
+			const steps = this.featureSteps.get(proofPath);
+			if (steps) {
+				steps[outcome] = step;
+			}
 		} else {
 			this.backgroundSteps[outcome] = step;
 		}

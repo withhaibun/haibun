@@ -2,8 +2,10 @@ import { describe, it, expect, vi } from 'vitest';
 import ActivitiesStepper from '@haibun/core/steps/activities-stepper.js';
 import LspStepper from './lsp-stepper.js';
 import { TextDocument } from 'vscode-languageserver-textdocument';
+import { TFeature } from '@haibun/core/lib/defs.js';
 
 // Mock connection
+// biome-ignore lint/suspicious/noExplicitAny: mock connection
 const mockConnection: any = {
   onInitialize: vi.fn(),
   onDidChangeContent: vi.fn(), // If used directly
@@ -34,7 +36,7 @@ const mockConnection: any = {
 
 // Mock World for stepper
 const mockWorld = {
-  eventLogger: { info: () => { }, warn: () => { }, error: () => { } }
+  eventLogger: { info: () => { /* empty */ }, warn: () => { /* empty */ }, error: () => { /* empty */ } }
 };
 
 describe('LspStepper Background Updates', () => {
@@ -49,14 +51,18 @@ describe('LspStepper Background Updates', () => {
     // Setup LspStepper with ActivitiesStepper
     const activitiesStepper = new ActivitiesStepper();
     // Manually initialize steps from baseSteps (simulating loader or constructor behavior?)
-    (activitiesStepper as any).steps = (activitiesStepper as any).baseSteps;
+    // biome-ignore lint/suspicious/noExplicitAny: access private
+    const base = (activitiesStepper as any).baseSteps;
+    // biome-ignore lint/suspicious/noExplicitAny: access private
+    (activitiesStepper as any).steps = base;
     const steppers = [activitiesStepper];
+    // biome-ignore lint/suspicious/noExplicitAny: access private
     (activitiesStepper as any).setWorld(mockWorld, steppers);
 
     // Pass empty backgrounds initially (as if loading from scratch)
     // or pass one if we simulate startup. 
     // LspStepper should detect it regardless due to our fixes.
-    const backgrounds: any[] = [];
+    const backgrounds: TFeature[] = [];
 
     const lsp = new LspStepper(mockConnection, steppers, backgrounds);
 
@@ -64,9 +70,11 @@ describe('LspStepper Background Updates', () => {
     const doc1 = TextDocument.create(bgUri, 'haibun', 1, bgContent1);
 
     // We can access private `processDocument` using casting
+    // biome-ignore lint/suspicious/noExplicitAny: access private
     await (lsp as any).processDocument(doc1);
 
     // Assert: "Foo" should be in backgroundSteps
+    // biome-ignore lint/suspicious/noExplicitAny: access private
     const stepsAfter1 = (activitiesStepper as any).backgroundSteps;
     expect(stepsAfter1['Foo']).toBeDefined();
     expect(stepsAfter1['Bar']).toBeUndefined();
@@ -74,9 +82,11 @@ describe('LspStepper Background Updates', () => {
     // 2. Process updated background
     // Same URI, new content
     const doc2 = TextDocument.create(bgUri, 'haibun', 2, bgContent2);
+    // biome-ignore lint/suspicious/noExplicitAny: access private
     await (lsp as any).processDocument(doc2);
 
     // Assert: "Foo" should be GONE. "Bar" should be present.
+    // biome-ignore lint/suspicious/noExplicitAny: access private
     const stepsAfter2 = (activitiesStepper as any).backgroundSteps;
 
     expect(stepsAfter2['Foo']).toBeUndefined();
@@ -96,18 +106,24 @@ waypoint Did foobar
 `;
 
     const activitiesStepper = new ActivitiesStepper();
-    (activitiesStepper as any).steps = (activitiesStepper as any).baseSteps;
+    // biome-ignore lint/suspicious/noExplicitAny: access private
+    const base = (activitiesStepper as any).baseSteps;
+    // biome-ignore lint/suspicious/noExplicitAny: access private
+    (activitiesStepper as any).steps = base;
     const steppers = [activitiesStepper];
+    // biome-ignore lint/suspicious/noExplicitAny: access private
     (activitiesStepper as any).setWorld(mockWorld, steppers);
 
-    const backgrounds: any[] = [];
+    const backgrounds: TFeature[] = [];
     const lsp = new LspStepper(mockConnection, steppers, backgrounds);
 
     const doc = TextDocument.create(bgUri, 'haibun', 1, bgContent);
+    // biome-ignore lint/suspicious/noExplicitAny: access private
     await (lsp as any).processDocument(doc);
 
     // Now check what's in the cache
     const uri = bgPath; // normalizePath strips file://
+    // biome-ignore lint/suspicious/noExplicitAny: access private
     const cached = (lsp as any).documentCache.get(uri);
 
     expect(cached).toBeDefined();

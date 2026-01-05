@@ -56,7 +56,7 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 		},
 	};
 
-	async setWorld(world: TWorld, steppers: AStepper[]): Promise<void> {
+	setWorld(world: TWorld, steppers: AStepper[]): Promise<void> {
 		this.steppers = steppers;
 		this.world = world;
 		this.runner = new FlowRunner(world, steppers);
@@ -71,13 +71,13 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 		}
 		return Promise.resolve();
 	}
-	async fail(): Promise<TActionResult> {
+	fail(): Promise<TActionResult> {
 		return Promise.resolve(actionOK({ controlSignal: 'fail' }));
 	}
-	async step(): Promise<TActionResult> {
+	step(): Promise<TActionResult> {
 		return Promise.resolve(actionOK({ controlSignal: 'step' }));
 	}
-	async continue(): Promise<TActionResult> {
+	continue(): Promise<TActionResult> {
 		this.debuggingType = TDebuggingType.Continue;
 		return Promise.resolve(actionOK({ controlSignal: 'continue' }));
 	}
@@ -85,7 +85,7 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 	async debugLoop(prompt: string, prompts: string[], featureStep: TFeatureStep, inc: number): Promise<TAfterStepResult | undefined> {
 		const prefix = featureStep.seqPath;
 		let seqStart = [...prefix, inc > 0 ? 1 : -1];
-		let promptResult: any; // FlowSignal
+		let promptResult: { topics?: { controlSignal?: TDebugSignal } } | undefined;
 		let continueLoop = true;
 		let controlSignal: TDebugSignal | undefined;
 
@@ -200,7 +200,7 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 		},
 		debugStepper: {
 			gwta: `debug stepper { stepperName }`,
-			action: async ({ stepperName }) => {
+			action: ({ stepperName }) => {
 				if (Array.isArray(stepperName)) throw new Error('stepperName must be string');
 				const stepperNames = (stepperName as string).split(',').map(name => name.trim());
 				for (const name of stepperNames) {
@@ -215,7 +215,7 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 		},
 		continueStepper: {
 			gwta: `continue stepper { stepperName } `,
-			action: async ({ stepperName }) => {
+			action: ({ stepperName }) => {
 				if (Array.isArray(stepperName)) throw new Error('stepperName must be string');
 				const stepperNames = (stepperName as string).split(',').map(name => name.trim());
 				for (const name of stepperNames) {
@@ -230,10 +230,10 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 		}
 	} satisfies TStepperSteps;
 
-	async retry(): Promise<TActionResult> {
+	retry(): Promise<TActionResult> {
 		return Promise.resolve(actionOK({ controlSignal: 'retry' }));
 	}
-	async next(): Promise<TActionResult> {
+	next(): Promise<TActionResult> {
 		return Promise.resolve(actionOK({ controlSignal: 'next' }));
 	}
 

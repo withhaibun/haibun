@@ -5,7 +5,7 @@ import { TTag } from '@haibun/core/lib/ttag.js';
 import { TWorld } from '@haibun/core/lib/defs.js';
 import { Origin } from '@haibun/core/schema/protocol.js';
 import { DOMAIN_STRING } from '@haibun/core/lib/domain-types.js';
-import { VISITED_PAGES } from './web-playwright.js';
+import { trackHttpHost, trackHttpRequest, THttpRequestObservation } from '@haibun/core/lib/http-observations.js';
 
 type TEtc = {
 	headers: Record<string, string>;
@@ -15,12 +15,6 @@ type TEtc = {
 	statusText?: string;
 }
 
-export type THttpRequestObservation = {
-	url: string;
-	status: number;
-	time: number;
-	method: string;
-}
 
 export class PlaywrightEvents {
 	navigateCount = 0;
@@ -47,7 +41,7 @@ export class PlaywrightEvents {
 			postData: request.postData(),
 		}
 
-		this.log(`${type} ${etc.method}`, <'request' | 'route'>type, frameURL, request.url(), etc);
+		void this.log(`${type} ${etc.method}`, <'request' | 'route'>type, frameURL, request.url(), etc);
 		return;
 	}
 
@@ -72,36 +66,33 @@ export class PlaywrightEvents {
 			headers: response.headers()
 		}
 
-		this.log(`response ${etc.status}`, 'response', frameURL, response.url(), etc);
+		void this.log(`response ${etc.status}`, 'response', frameURL, response.url(), etc);
 
-		// Track detailed request metrics
-		if (!this.world.runtime.observations) {
-			this.world.runtime.observations = new Map();
-		}
-		const requests = this.world.runtime.observations.get('httpRequests') || new Map<string, THttpRequestObservation>();
-		const count = requests.size;
-		const id = `req-${count + 1}`;
-		requests.set(id, {
+		// Track request using shared helper
+		trackHttpRequest(this.world, {
 			url: response.url(),
 			status: response.status(),
 			time: duration,
 			method: request.method()
 		});
-		this.world.runtime.observations.set('httpRequests', requests);
 
 		return;
 	}
-	private framenavigated(frame) {
+	private framenavigated(frame: import('playwright').Frame) {
 		if (frame === this.page.mainFrame()) {
 			const url = frame.url();
-			const provenance = { in: 'PlaywrightEvents.framenavigated', seq: [], when: 'framenavigated' };
+			const provenance = { in: 'PlaywrightEvents.framenavigated', seq: [] as number[], when: 'framenavigated' };
 
 			this.world.shared.setForStepper('WebPlaywright', { term: 'currentURI', value: url, domain: DOMAIN_STRING, origin: Origin.var }, provenance);
 			this.world.shared.setForStepper('WebPlaywright', { term: 'navigateCount', value: this.navigateCount, domain: DOMAIN_STRING, origin: Origin.var }, provenance);
 
-			// Add to Visited pages domain for verification with 'every url in Visited pages is ...'
-			const visitedKey = `visited/${this.navigateCount}`;
-			this.world.shared.setForStepper('WebPlaywright', { term: visitedKey, value: url, domain: VISITED_PAGES, origin: Origin.var }, provenance);
+			// Store visited pages in observations for 'every url observed in visited pages is ...'
+			if (!this.world.runtime.observations) {
+				this.world.runtime.observations = new Map();
+			}
+			const visitedPages = (this.world.runtime.observations.get('visitedPages') as string[]) || [];
+			visitedPages.push(url);
+			this.world.runtime.observations.set('visitedPages', visitedPages);
 
 			this.navigateCount++;
 		}
@@ -111,7 +102,7 @@ export class PlaywrightEvents {
 		// Note: Playwright doesn't provide a direct way to remove a specific route handler
 		this.page.off('response', this.logResponse.bind(this));
 	}
-	async log(label: string, httpEvent: 'request' | 'response' | 'route', maybeFrameURL: string, targetURL: string, etc: TEtc) {
+	log(label: string, httpEvent: 'request' | 'response' | 'route', maybeFrameURL: string, targetURL: string, etc: TEtc) {
 		const requestingPage = this.page.url();
 		const frameURL = maybeFrameURL === requestingPage ? undefined : maybeFrameURL;
 		const requestingURL = frameURL ? `frame ${frameURL} on ${requestingPage}` : requestingPage;
@@ -122,19 +113,8 @@ export class PlaywrightEvents {
 			...etc
 		};
 
-		// Track HTTP hosts for observation pattern
-		try {
-			const url = new URL(targetURL);
-			const host = url.hostname;
-			if (!this.world.runtime.observations) {
-				this.world.runtime.observations = new Map();
-			}
-			const httpHosts = this.world.runtime.observations.get('httpHosts') || new Map<string, number>();
-			httpHosts.set(host, (httpHosts.get(host) || 0) + 1);
-			this.world.runtime.observations.set('httpHosts', httpHosts);
-		} catch {
-			// Invalid URL, skip tracking
-		}
+		// Track HTTP hosts using shared helper
+		trackHttpHost(this.world, targetURL);
 
 		// Emit HTTP trace artifact
 		const artifact = HttpTraceArtifact.parse({

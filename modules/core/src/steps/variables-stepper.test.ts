@@ -69,13 +69,13 @@ describe('variable name literal handling', () => {
 	it('set fails if literal name collides with env', async () => {
 		const content = 'set what to "value"'
 		const envVariables = { what: 'ENV' };
-		const { ok, world } = await failWithDefaults(content, steppers, { options: { DEST: DEFAULT_DEST, envVariables }, moduleOptions: {} });
+		const { ok } = await failWithDefaults(content, steppers, { options: { DEST: DEFAULT_DEST, envVariables }, moduleOptions: {} });
 		expect(ok).toBe(false);
 	});
 	it('compose fails if literal name collides with env', async () => {
 		const content = 'set a to "A"\nset b to "B"\ncompose what with {a}{b}'
 		const envVariables = { what: 'ENV' };
-		const { ok, world } = await failWithDefaults(content, steppers, { options: { DEST: DEFAULT_DEST, envVariables }, moduleOptions: {} });
+		const { ok } = await failWithDefaults(content, steppers, { options: { DEST: DEFAULT_DEST, envVariables }, moduleOptions: {} });
 		expect(ok).toBe(false);
 	});
 });

@@ -16,7 +16,7 @@ export type TCaptureOptions = {
 	featureFilter: string | undefined;
 }
 
-export const runContainer = (testToRun, includeDirs = [], thisCaptureOptions: TCaptureOptions) => {
+export const runContainer = (testToRun: string, includeDirs: string[] = [], thisCaptureOptions: TCaptureOptions) => {
 	try {
 		const { tmpFile, composeEnvironment, utilDir, composeVolumes, projectDir, buildContextDir } = getContainerSetup(thisCaptureOptions, includeDirs, testToRun);
 		const captureDir = resolve(projectDir, 'capture');

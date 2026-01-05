@@ -16,9 +16,11 @@ export function getInitialState(): SerializedState | null {
       // JITSerializer format: NDJSON with schema definitions
       const events = serializer.deserialize(text);
       console.log('[Serialize] Loaded events via JIT deserialization:', events.length);
+      const firstEvent = events[0] as Record<string, unknown> | undefined;
+      const startTime = firstEvent && typeof firstEvent.timestamp === 'number' ? firstEvent.timestamp : null;
       return {
         events,
-        startTime: events.length > 0 ? (events[0] as any).timestamp : null
+        startTime
       };
     } catch (e) {
       console.error("Failed to parse embedded data", e);

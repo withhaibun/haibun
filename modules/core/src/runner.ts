@@ -20,14 +20,14 @@ export class Runner {
 			ok: false,
 			shared: this.world.shared,
 			tag: this.world.tag,
-			failure: { stage: phase, error: { message: error.message, details: { stack: error.stack, details } } },
+			failure: { stage: phase, error: { message: (error as Error).message, details: { stack: (error as Error).stack, details } } },
 			steppers: this.steppers
 		};
 		// console.error(error.stack);
-		throw Error(error);
+		throw Error(error as string);
 	};
 
-	async run(steppers: string[], featureFilter = []): Promise<TExecutorResult> {
+	async run(steppers: string[], featureFilter: string[] = []): Promise<TExecutorResult> {
 		let featuresBackgrounds: TFeaturesBackgrounds = undefined;
 		try {
 			featuresBackgrounds = await getFeaturesAndBackgrounds(this.world.bases, featureFilter);

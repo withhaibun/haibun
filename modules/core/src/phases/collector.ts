@@ -11,14 +11,14 @@ export type TFeaturesBackgrounds = {
 };
 
 export async function getFeaturesAndBackgrounds(bases: TBase, featureFilter: string[], fs: TFileSystem = nodeFS): Promise<TFeaturesBackgrounds> {
-  const ret = { features: [], backgrounds: [] };
+  const ret: TFeaturesBackgrounds = { features: [], backgrounds: [] };
   for (const abase of bases) {
     // Only filter features, not backgrounds - backgrounds should always be loaded
-    const ff = { feature: featureFilter, background: [] };
+    const ff: Record<string, string[]> = { feature: featureFilter, background: [] };
 
-    const rawFeaturesAndBackgrounds = { features: [], backgrounds: [] };
-    for (const t of ['feature', 'background']) {
-      const p = `${t}s`;
+    const rawFeaturesAndBackgrounds: TFeaturesBackgrounds = { features: [], backgrounds: [] };
+    for (const t of ['feature', 'background'] as const) {
+      const p = `${t}s` as keyof TFeaturesBackgrounds;
       const checkPath = `${abase}/${p}`;
       if (fs.existsSync(checkPath)) {
         const more = debase(abase, await recurse(abase, `/${p}`, t, ff[t], fs));

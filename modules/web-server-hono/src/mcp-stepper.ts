@@ -6,7 +6,7 @@ import { zodToJsonSchema } from 'zod-to-json-schema';
 
 import { AStepper, type IHasCycles, type IHasOptions } from '@haibun/core/lib/astepper.js';
 import type { TWorld, TStepperStep, TFeatureStep } from '@haibun/core/lib/defs.js';
-import { OK, Origin } from '@haibun/core/schema/protocol.js';
+import { OK } from '@haibun/core/schema/protocol.js';
 import { getFromRuntime, getStepperOption, constructorName, stringOrError } from '@haibun/core/lib/util/index.js';
 import { namedInterpolation, mapInputToStepValues } from '@haibun/core/lib/namedVars.js';
 import { currentVersion as version } from '@haibun/core/currentVersion.js';
@@ -17,10 +17,18 @@ import { WEBSERVER } from './defs.js';
 
 // --- Type Definitions ---
 
+// Simple JSON schema type to avoid TS2589 from Tool['inputSchema'] deep recursion
+type ToolInputSchema = {
+  type: 'object';
+  properties?: Record<string, { type?: string; description?: string;[key: string]: unknown }>;
+  required?: string[];
+  [key: string]: unknown;
+};
+
 type StoredTool = {
   name: string;
   description: string;
-  inputSchema: Tool['inputSchema'];
+  inputSchema: ToolInputSchema;
   stepperName: string; // The Stepper (group) this tool belongs to
   handler: (input: Record<string, unknown>) => Promise<CallToolResult>;
 };
@@ -70,7 +78,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
     }));
   }
 
-  public async executeTool(name: string, args: any): Promise<CallToolResult> {
+  public async executeTool(name: string, args: Record<string, unknown>): Promise<CallToolResult> {
     const toolDef = this.globalToolRegistry.get(name);
     if (!toolDef) {
       throw new McpError(ErrorCode.MethodNotFound, `Tool ${name} not found.`);
@@ -95,7 +103,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
     // Registry is now populated in setWorld
 
     // --- HANDLER 1: LIST TOOLS ---
-    this.mcpServer.server.setRequestHandler(ListToolsRequestSchema, async (_request, extra) => {
+    this.mcpServer.server.setRequestHandler(ListToolsRequestSchema, (_request, extra) => {
       const connection = (extra as { connection?: ConnectionId })?.connection;
       const sessionId = this.getSessionId(connection, extra);
 
@@ -133,13 +141,13 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
       if (toolName.startsWith('access_stepper_')) {
         const targetStepper = toolName.replace('access_stepper_', '');
         if (this.stepperToolRegistry.has(targetStepper)) {
-          this.updateSessionFocus(sessionId, targetStepper);
+          await this.updateSessionFocus(sessionId, targetStepper);
           return { content: [{ type: 'text', text: `Loaded tools for stepper: ${targetStepper}.` }] };
         }
       }
 
       if (toolName === 'return_to_index') {
-        this.updateSessionFocus(sessionId, undefined);
+        await this.updateSessionFocus(sessionId, undefined);
         return { content: [{ type: 'text', text: `Returned to index.` }] };
       }
 
@@ -151,7 +159,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
       const currentFocus = this.sessionScopes.get(sessionId);
       if (toolDef.stepperName !== currentFocus) {
         this.getWorld().eventLogger.info(`[MCP] Auto-switching focus: ${currentFocus || 'Index'} -> ${toolDef.stepperName}`);
-        this.updateSessionFocus(sessionId, toolDef.stepperName);
+        await this.updateSessionFocus(sessionId, toolDef.stepperName);
       }
 
       try {
@@ -163,7 +171,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
     });
 
     // --- HANDLER 3: LIST RESOURCES ---
-    this.mcpServer.server.setRequestHandler(ListResourcesRequestSchema, async (_request, _extra) => {
+    this.mcpServer.server.setRequestHandler(ListResourcesRequestSchema, (_request, _extra) => {
       return {
         resources: [
           {
@@ -177,7 +185,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
     });
 
     // --- HANDLER 4: READ RESOURCE ---
-    this.mcpServer.server.setRequestHandler(ReadResourceRequestSchema, async (request, _extra) => {
+    this.mcpServer.server.setRequestHandler(ReadResourceRequestSchema, (request, _extra) => {
       if (request.params.uri === `mcp://${this.mcpPath}/info`) {
         return {
           contents: [{
@@ -199,7 +207,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
     // 1. Check McpStepper options (highest priority)
     const myPortOpt = getStepperOption(this, 'PORT', this.getWorld().moduleOptions);
     // 2. Check WebServerStepper options
-    const wsPortOpt = this.getWorld().moduleOptions?.['WebServerStepper']?.['PORT'];
+    const wsPortOpt = (this.getWorld().moduleOptions as unknown as Record<string, Record<string, unknown> | undefined>)?.['WebServerStepper']?.['PORT'];
     // 3. Check Environment variable
     const envPort = process.env['HAIBUN_O_WEBSERVERSTEPPER_PORT'];
 
@@ -234,19 +242,21 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
     return 'default-session';
   }
 
-  private updateSessionFocus(sessionId: string | ConnectionId, stepperName: string | undefined) {
+  private async updateSessionFocus(sessionId: string | ConnectionId, stepperName: string | undefined) {
     if (stepperName === undefined) {
       this.sessionScopes.delete(sessionId);
     } else {
       this.sessionScopes.set(sessionId, stepperName);
     }
-    this.notifyToolListChanged(sessionId);
+    await this.notifyToolListChanged(sessionId);
   }
 
   private async notifyToolListChanged(sessionId: string | ConnectionId) {
     // Basic check if we can notify
-    if (sessionId && typeof sessionId !== 'string' && 'send' in sessionId && typeof (sessionId as any).send === 'function') {
-      await this.mcpServer!.server.notification({ method: 'notifications/tools/list_changed' });
+    if (sessionId && typeof sessionId !== 'string' && 'send' in sessionId && typeof (sessionId as { send?: unknown }).send === 'function') {
+      if (this.mcpServer) {
+        await this.mcpServer.server.notification({ method: 'notifications/tools/list_changed' });
+      }
     }
   }
 
@@ -284,8 +294,9 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
           }
         }
 
-        const zodShape = z.object(variables);
-        const jsonSchema = zodToJsonSchema(zodShape, { $refStrategy: 'none' }) as any;
+        // Use Function wrapper to break TS2589 deep type instantiation
+        const zodShape: z.ZodType<unknown> = z.object(variables);
+        const jsonSchema = (zodToJsonSchema as (...args: unknown[]) => unknown)(zodShape, { $refStrategy: 'none' }) as ToolInputSchema;
 
         // Ensure properties are populated even if zod-to-json-schema returns empty for some reason
         if (jsonSchema.type === 'object' && Object.keys(jsonSchema.properties || {}).length === 0 && Object.keys(variables).length > 0) {
@@ -303,7 +314,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
           delete jsonSchema['$schema'];
           delete jsonSchema['additionalProperties'];
         }
-        const inputSchema = jsonSchema as Tool['inputSchema'];
+        const inputSchema = jsonSchema;
         const fullToolName = `${stepperName}-${stepName}`;
 
         const tool: StoredTool = {
@@ -422,16 +433,18 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 
                 // C. Pass through everything else, binding functions to avoid private member issues
                 const val = Reflect.get(reqTarget, reqProp);
-                return typeof val === 'function' ? (val as Function).bind(reqTarget) : val;
+                return typeof val === 'function' ? (val as (...args: unknown[]) => unknown).bind(reqTarget) : val;
               }
             });
           }
           const val = Reflect.get(target, prop);
-          return typeof val === 'function' ? (val as Function).bind(target) : val;
+          return typeof val === 'function' ? (val as (...args: unknown[]) => unknown).bind(target) : val;
         }
       });
 
-      const response = await this.transport!.handleRequest(proxyContext);
+      const transport = this.transport;
+      if (!transport) throw new Error('Transport not initialized');
+      const response = await transport.handleRequest(proxyContext);
 
       if (!response) {
         this.getWorld().eventLogger.warn('[MCP] No response generated by transport');

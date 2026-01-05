@@ -8,7 +8,7 @@ import { AStepper, IHasCycles, StepperKinds } from '@haibun/core/lib/astepper.js
 import { TWorld } from '@haibun/core/lib/defs.js';
 import { THaibunEvent } from '@haibun/core/schema/protocol.js';
 import { IEventLogger } from '@haibun/core/lib/EventLogger.js';
-import { EventFormatter } from '@haibun/core/monitor/index.js';
+import { EventFormatter, THaibunLogLevel } from '@haibun/core/monitor/index.js';
 import { IPrompter, TPrompt, TPromptResponse } from '@haibun/core/lib/prompter.js';
 
 const EventLine = ({ line }: { line: string }) => <Text>{line}</Text>;
@@ -83,6 +83,7 @@ export default class TuiMonitorStepper extends AStepper implements IHasCycles, I
   private currentPrompt?: TPrompt;
   private rerender: ((lines: string[], running: Map<string, string>, finished: boolean, prompt?: TPrompt) => void) | null = null;
   private promptResolver: ((value: TPromptResponse) => void) | null = null;
+  private promptRejecter: ((reason?: unknown) => void) | null = null;
 
   async setWorld(world: TWorld, steppers: AStepper[]) {
     await super.setWorld(world, steppers);
@@ -93,15 +94,20 @@ export default class TuiMonitorStepper extends AStepper implements IHasCycles, I
   async prompt(prompt: TPrompt): Promise<TPromptResponse> {
     this.currentPrompt = prompt;
     this.updateRender();
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       this.promptResolver = resolve;
+      this.promptRejecter = reject;
     });
   }
 
   cancel(id: string) {
     if (this.currentPrompt?.id === id) {
+      if (this.promptRejecter) {
+        this.promptRejecter(new Error('Cancelled'));
+      }
       this.currentPrompt = undefined;
       this.promptResolver = null;
+      this.promptRejecter = null;
       this.updateRender();
     }
   }
@@ -111,6 +117,7 @@ export default class TuiMonitorStepper extends AStepper implements IHasCycles, I
       this.promptResolver(value);
       this.currentPrompt = undefined;
       this.promptResolver = null;
+      this.promptRejecter = null;
       this.updateRender();
     }
   }
@@ -128,6 +135,7 @@ export default class TuiMonitorStepper extends AStepper implements IHasCycles, I
           this.promptResolver(val);
           this.currentPrompt = undefined;
           this.promptResolver = null;
+          this.promptRejecter = null;
           this.updateRender();
         }
       };
@@ -142,7 +150,7 @@ export default class TuiMonitorStepper extends AStepper implements IHasCycles, I
     },
 
     onEvent: (event: THaibunEvent): void => {
-      const minLevel = (process.env.HAIBUN_LOG_LEVEL as any) || 'info';
+      const minLevel = (process.env.HAIBUN_LOG_LEVEL as unknown as THaibunLogLevel) || 'info';
       if (EventFormatter.shouldDisplay(event, minLevel)) {
         const line = EventFormatter.formatLine(event, this.lastLevel);
         this.lines = [...this.lines, line];

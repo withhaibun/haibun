@@ -1,9 +1,16 @@
 import { AStepper, TStepperSteps } from '@haibun/core/lib/astepper.js';
 import { OK } from '@haibun/core/schema/protocol.js';
 import { actionNotOK } from '@haibun/core/lib/util/index.js';
+import { NodeHttpEvents } from '@haibun/core/lib/node-http-events.js';
+import { TWorld } from '@haibun/core/lib/defs.js';
 
 const WebHttp = class WebHttp extends AStepper {
 	description = 'HTTP requests with status, content-type, and body validation';
+
+	async setWorld(world: TWorld, steppers: AStepper[]) {
+		await super.setWorld(world, steppers);
+		NodeHttpEvents.init();
+	}
 
 	steps = {
 		listening: {
@@ -93,7 +100,7 @@ const WebHttp = class WebHttp extends AStepper {
 				const response = await fetch(url, { method: method.toUpperCase() });
 				const headers = response.headers;
 				console.log('headers', headers);
-				return headers[header.toLowerCase()] === contents ? OK : actionNotOK(`${method} ${url} does not contain ${header} with ${contents}, it contains ${JSON.stringify(headers)}`)
+				return headers.get(header.toLowerCase()) === contents ? OK : actionNotOK(`${method} ${url} does not contain ${header} with ${contents}, it contains ${JSON.stringify(Object.fromEntries(headers.entries()))}`)
 			},
 		},
 	} satisfies TStepperSteps;

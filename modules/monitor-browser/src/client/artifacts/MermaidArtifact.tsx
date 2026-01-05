@@ -27,7 +27,7 @@ export function MermaidArtifact({ artifact }: MermaidArtifactProps) {
   const zoomIn = useCallback(() => setScale(s => Math.min(s + 0.25, 3)), []);
   const zoomOut = useCallback(() => setScale(s => Math.max(s - 0.25, 0.25)), []);
   const resetZoom = useCallback(() => setScale(1), []);
-  
+
   const copyToClipboard = useCallback(async () => {
     if (artifact.source) {
       await navigator.clipboard.writeText(artifact.source);
@@ -53,7 +53,7 @@ export function MermaidArtifact({ artifact }: MermaidArtifactProps) {
       }
     };
 
-    render();
+    void render();
   }, [artifact.source]);
 
   return (

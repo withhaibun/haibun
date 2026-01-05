@@ -23,6 +23,7 @@ class Haibun extends AStepper implements IHasCycles {
 	}
 	cycles: IStepperCycles = {
 		startExecution(resolvedFeatures: TStartExecution) {
+			// empty
 		},
 		startFeature({ resolvedFeature, index }: TStartFeature) {
 			this.resolvedFeature = resolvedFeature;
@@ -141,6 +142,7 @@ class Haibun extends AStepper implements IHasCycles {
 			exact: 'show steppers',
 			action: () => {
 				const allSteppers = formattedSteppers(this.steppers);
+				this.getWorld().eventLogger.info(JSON.stringify(allSteppers, null, 2));
 				return actionOK();
 			},
 		},
@@ -148,6 +150,7 @@ class Haibun extends AStepper implements IHasCycles {
 			gwta: 'show step results',
 			action: () => {
 				const steps = this.getWorld().runtime.stepResults;
+				this.getWorld().eventLogger.info(JSON.stringify(steps));
 				return actionOK();
 			}
 		},
@@ -160,6 +163,65 @@ class Haibun extends AStepper implements IHasCycles {
 		showBackgrounds: {
 			gwta: 'show backgrounds',
 			action: () => {
+				return actionOK();
+			}
+		},
+		showObservations: {
+			gwta: 'show observations',
+			action: () => {
+				const observations = this.getWorld().runtime.observations;
+				if (!observations) {
+					this.getWorld().eventLogger.info(`observations: none`);
+					return actionOK();
+				}
+
+				// Correlate observations with their providers
+				const providers: Record<string, string> = {};
+				for (const stepper of this.steppers) {
+					if ('cycles' in stepper) {
+						const concerns = (stepper as unknown as IHasCycles).cycles.getConcerns?.();
+						if (concerns?.sources) {
+							for (const source of concerns.sources) {
+								providers[source.name] = stepper.constructor.name;
+							}
+						}
+					}
+				}
+
+				const systemProviders: Record<string, string> = {
+					stepUsage: 'Executor'
+				};
+
+				const summary: Record<string, { provider: string, items: unknown }> = {};
+				for (const [name, items] of observations.entries()) {
+					// Handle Maps (like httpRequests/httpHosts) by converting to object/array
+					let displayItems = items;
+					if (items instanceof Map) {
+						displayItems = Object.fromEntries(items);
+					}
+
+					summary[name] = {
+						provider: providers[name] || systemProviders[name] || 'unknown',
+						items: displayItems
+					};
+				}
+
+				this.getWorld().eventLogger.info(JSON.stringify(summary, null, 2));
+				return actionOK();
+			}
+		},
+		showShows: {
+			gwta: 'show shows',
+			action: () => {
+				const shows: string[] = [];
+				for (const stepper of this.steppers) {
+					for (const step of Object.values(stepper.steps)) {
+						if (step.gwta?.startsWith('show ') || step.exact?.startsWith('show ')) {
+							shows.push(step.gwta || step.exact || '');
+						}
+					}
+				}
+				this.getWorld().eventLogger.info(JSON.stringify(shows.sort(), null, 2));
 				return actionOK();
 			}
 		},

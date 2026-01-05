@@ -6,7 +6,7 @@ import { ITransport } from './transport.js';
 describe('WebSocketPrompter', () => {
   let prompter: WebSocketPrompter;
   let mockTransport: ITransport;
-  let messageHandler: (data: any) => void;
+  let messageHandler: (data: unknown) => void;
 
   beforeEach(() => {
     mockTransport = {
@@ -22,7 +22,7 @@ describe('WebSocketPrompter', () => {
     expect(mockTransport.onMessage).toHaveBeenCalled();
   });
 
-  it('sends prompt message on prompt()', async () => {
+  it('sends prompt message on prompt()', () => {
     const prompt = { id: 'p1', message: 'test' };
     prompter.prompt(prompt);
     expect(mockTransport.send).toHaveBeenCalledWith({ type: 'prompt', prompt });

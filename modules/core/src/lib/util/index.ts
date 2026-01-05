@@ -21,7 +21,7 @@ export function isLiteralValue(term: string): boolean {
 
 type TClass = { new <T>(...args: unknown[]): T };
 
-export const basesFrom = (s): string[] => s?.split(',').map((b) => b.trim());
+export const basesFrom = (s: string | undefined): string[] => s?.split(',').map((b: string) => b.trim());
 
 import nodeFS from 'fs';
 import path from 'path';
@@ -135,7 +135,7 @@ export function describeSteppers(steppers: AStepper[]) {
 
 // from https://stackoverflow.com/questions/1027224/how-can-i-test-if-a-letter-in-a-string-is-uppercase-or-lowercase-using-javascrip
 export function isLowerCase(str: string) {
-	return str.toLowerCase() && str != str.toUpperCase();
+	return str.toLowerCase() && str !== str.toUpperCase();
 }
 
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -389,7 +389,7 @@ export function trying<TResult>(fun: () => void): Promise<Error | TResult> {
 export function asError(e: unknown): Error {
 	return typeof e === 'object' && e !== null && 'message' in e && typeof (e as Record<string, unknown>).message === 'string'
 		? (e as Error)
-		: new Error(e as TAnyFixme);
+		: new Error(String(e));
 }
 
 export function dePolite(s: string) {

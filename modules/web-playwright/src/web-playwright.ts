@@ -1,17 +1,17 @@
 import { Page, Download, Locator } from 'playwright';
 import { pathToFileURL } from 'url';
-import { z } from 'zod';
 
-import { TWorld, TFeatureStep, CycleWhen, TDomainDefinition } from '@haibun/core/lib/defs.js';
+
+import { TWorld, TFeatureStep, CycleWhen, TStepAction } from '@haibun/core/lib/defs.js';
 import { OK, TStepResult, Origin } from '@haibun/core/schema/protocol.js';
 import { BrowserFactory, TTaggedBrowserFactoryOptions, TBrowserTypes, BROWSERS } from './BrowserFactory.js';
 import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOptionOrKind, optionOrError } from '@haibun/core/lib/util/index.js';
 import { AStorage } from '@haibun/domain-storage/AStorage.js';
 import { ImageArtifact, VideoStartArtifact } from '@haibun/core/schema/protocol.js';
 import { EMediaTypes } from '@haibun/domain-storage/media-types.js';
-import { DOMAIN_STRING, registerDomains } from '@haibun/core/lib/domain-types.js';
+import { DOMAIN_STRING } from '@haibun/core/lib/domain-types.js';
 
-import { TAnyFixme } from '@haibun/core/lib/fixme.js';
+
 import { AStepper, IHasCycles, IHasOptions, StepperKinds } from '@haibun/core/lib/astepper.js';
 
 
@@ -20,8 +20,7 @@ import { interactionSteps } from './interactionSteps.js';
 import { restSteps, TCapturedResponse } from './rest-playwright.js';
 import { TwinPage } from './twin-page.js';
 
-type TWebPlaywrightSteps = ReturnType<typeof interactionSteps> & ReturnType<typeof restSteps>;
-type TWebPlaywrightTypedSteps = ReturnType<typeof interactionSteps> & ReturnType<typeof restSteps>;
+import { TStepperSteps } from '@haibun/core/lib/astepper.js';
 
 export const WEB_PAGE = 'webpage';
 /**
@@ -33,7 +32,6 @@ export const WEB_PAGE = 'webpage';
 
 
 export const LAST_REST_RESPONSE = 'LAST_REST_RESPONSE';
-export const VISITED_PAGES = 'Visited pages';
 
 
 type TRequestOptions = {
@@ -41,6 +39,9 @@ type TRequestOptions = {
 	postData?: string | URLSearchParams | FormData | Blob | ArrayBuffer | ArrayBufferView;
 	userAgent?: string
 };
+
+/** Callback function type for withPage - takes Page or Locator and returns TReturn */
+export type TWithPageCallback<TReturn> = (pageOrLocator: Page | Locator) => TReturn | Promise<TReturn>;
 
 export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	description = 'Navigate pages, click elements, fill forms, capture screenshots, and make REST API calls';
@@ -144,19 +145,6 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			defaultTimeout,
 			persistentDirectory,
 		};
-
-		// Register visited-pages domain for tracking navigated URLs
-		// This is an open domain (inherits from string) - visited URLs are added as members
-		// Only register if not already registered (other tests may share the world)
-		if (!world.domains[VISITED_PAGES]) {
-			const visitedPagesDef: TDomainDefinition = {
-				selectors: [VISITED_PAGES],
-				schema: z.string(),
-				coerce: (proto) => String(proto.value),
-				description: 'Pages visited during test execution (auto-tracked by WebPlaywright)',
-			};
-			registerDomains(world, [[visitedPagesDef]]);
-		}
 	}
 	async getCaptureDir(type = '') {
 		const loc = { ...this.world, mediaType: EMediaTypes.video };
@@ -198,7 +186,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 				seqPath: [tag.featureNum, 0, 0],
 				source: { path: world.runtime.feature || 'feature' },
 				in: 'video recording started',
-				action: {} as any,
+				action: {} as TStepAction,
 			};
 			world.eventLogger.artifact(featureStep, videoStartEvent);
 		}
@@ -213,7 +201,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		return page;
 	}
 
-	async withPage<TReturn>(f: TAnyFixme): Promise<TReturn> {
+	async withPage<TReturn>(f: TWithPageCallback<TReturn>): Promise<TReturn> {
 		const containerPageOrFrame = this.inContainer || await this.getPage();
 
 		if (!this.inContainer && this.twinPage) {
@@ -241,11 +229,11 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		return await browserContext?.cookies();
 	}
 
-	get typedSteps(): TWebPlaywrightTypedSteps {
-		return { ...restSteps(this), ...interactionSteps(this) } as TWebPlaywrightTypedSteps;
+	get typedSteps(): TStepperSteps {
+		return { ...restSteps(this), ...interactionSteps(this) };
 	}
 
-	steps: TWebPlaywrightSteps = {
+	steps: TStepperSteps = {
 		...restSteps(this),
 		...interactionSteps(this),
 	};
@@ -289,7 +277,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			seqPath: details.step.seqPath,
 			source: { path: details.step.path },
 			in: details.step.in,
-			action: {} as any,
+			action: {} as TStepAction,
 		};
 		world.eventLogger.artifact(featureStep, artifactEvent);
 
@@ -347,8 +335,8 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 						statusText: response.statusText,
 						headers: Object.fromEntries(response.headers.entries()),
 						url: response.url,
-						json: await response.json().catch(() => null),
-						text: await response.text().catch(() => null),
+						json: await response.json().catch((): null => null),
+						text: await response.text().catch((): null => null),
 					};
 
 					return capturedResponse;

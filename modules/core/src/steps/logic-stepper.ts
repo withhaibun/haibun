@@ -16,7 +16,7 @@ const builtInSources: IObservationSource[] = [
     observe: (world: TWorld) => {
       const usage = (world.runtime.observations?.get('stepUsage') as Map<string, number>) || new Map();
       const items = [...usage.keys()].map(sanitizeKey);
-      const metrics: Record<string, Record<string, any>> = {};
+      const metrics: Record<string, Record<string, unknown>> = {};
       for (const [key, count] of usage.entries()) {
         metrics[sanitizeKey(key)] = { count };
       }
@@ -33,7 +33,7 @@ const builtInSources: IObservationSource[] = [
         stepperCounts.set(stepperName, (stepperCounts.get(stepperName) || 0) + count);
       }
       const items = [...stepperCounts.keys()];
-      const metrics: Record<string, Record<string, any>> = {};
+      const metrics: Record<string, Record<string, unknown>> = {};
       for (const [stepper, count] of stepperCounts.entries()) {
         metrics[stepper] = { count };
       }
@@ -50,8 +50,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
   private sources: IObservationSource[] = [...builtInSources];
 
   async setWorld(world: TWorld, steppers: AStepper[]) {
-    this.world = world;
-    this.steppers = steppers;
+    await super.setWorld(world, steppers);
     this.runner = new FlowRunner(world, steppers);
 
     // Collect observation sources from other steppers
@@ -88,7 +87,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
    * Get values and metrics for iteration - handles both domains and observation sources.
    * Syntax: "in {domain}" or "observed in {source}"
    */
-  private getIterationValues(phrase: string): { values: string[], metrics?: Record<string, Record<string, any>>, error?: string } {
+  private getIterationValues(phrase: string): { values: string[], metrics?: Record<string, Record<string, unknown>>, error?: string } {
     // Check for "observed in {source}" pattern
     const observedMatch = phrase.match(/^observed in (.+)$/i);
     if (observedMatch) {

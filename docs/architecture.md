@@ -297,12 +297,13 @@ ensure Navigate to haibunUrl
 
 Observation sources provide runtime metrics for quantifier iteration via `observed in`:
 
-| Source | Metrics | Provider |
-|--------|---------|----------|
-| `step usage` | `count` | Core |
-| `stepper usage` | `count` | Core |
-| `http-trace` | `url`, `status`, `time`, `method` | WebPlaywright |
-| `http-trace hosts` | `count` | WebPlaywright |
+| Source | Items | Provider |
+|--------|-------|----------|
+| `step usage` | Step names executed | Core |
+| `stepper usage` | Stepper names active | Core |
+| `http-trace` | HTTP request IDs | WebPlaywright |
+| `http-trace hosts` | Hostnames contacted | Core (shared) |
+| `visited pages` | URLs navigated | WebPlaywright |
 
 Steppers register sources via `getConcerns()` in their cycles.
 

@@ -24,8 +24,8 @@ export class HttpPrompter extends BasePromptManager {
     }
   }
 
-  protected showPrompt(_: unknown): void { }
-  protected hidePrompt(_: string): void { }
+  protected showPrompt(_: unknown): void { /* noop */ }
+  protected hidePrompt(_: string): void { /* noop */ }
 
   /**
    * Get all pending prompts for HTTP API
@@ -34,7 +34,7 @@ export class HttpPrompter extends BasePromptManager {
     return Array.from(this.outstandingPrompts.entries()).map(([id, data]) => ({
       id,
       message: data.prompt?.message,
-      context: data.prompt?.context,
+      context: data.prompt?.context as Record<string, unknown> | undefined,
       options: data.prompt?.options,
       timestamp: data.timestamp,
       age: Date.now() - (data.timestamp ?? 0),

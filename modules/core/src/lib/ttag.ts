@@ -11,8 +11,8 @@ export type TTag = {
 	const key = Timer.key;
 	const res: TTag = { key, featureNum, featureName, params, trace };
 	['featureNum'].forEach((w) => {
-		const val = (res as unknown)[w];
-		if (parseInt(val) !== val) {
+		const val = (res as Record<string, unknown>)[w];
+		if (parseInt(String(val)) !== val) {
 			throw Error(`non - numeric ${w} from ${JSON.stringify(res)} `);
 		}
 	});

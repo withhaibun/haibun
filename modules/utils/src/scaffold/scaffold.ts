@@ -40,7 +40,7 @@ export async function scaffoldHaibun(dest: string, opts?: { out?: typeof console
         const localPackage = readFileSync(localPackageJson, 'utf-8');
         localDest = JSON.parse(localPackage);
         pName = localDest.name.replace(/.*\//, '').replace(/[@]/, '_', 'g').replace(/-./g, (x: string) => x[1].toUpperCase());
-    } catch (e) {
+    } catch (_e) {
         if (!noPrompt) {
             pName = await readPackageName();
             localDest = { name: pName };
@@ -90,7 +90,7 @@ export async function scaffoldHaibun(dest: string, opts?: { out?: typeof console
         }
     }
 
-    const cName = pName.replace(/-./g, (x) => x[1].toUpperCase());
+    const cName = pName.replace(/-./g, (x: string) => x[1].toUpperCase());
     for (const f of ['stepper.ts', 'stepper.test.ts']) {
         writeIfMissing(`src/${f}`, `src/${cName}-${f}`, 'WTW', cName);
     }

@@ -24,7 +24,7 @@ export function getArtifactUrl(path: string | undefined): string {
   // Check if we're in dev mode by looking for Vite's dev flag
   // or checking if the page was loaded from the Vite dev server
   const isDev = typeof window !== 'undefined' &&
-    ((import.meta as any).env?.DEV || window.location.port === '3458');
+    ((import.meta as { env?: { DEV?: boolean } }).env?.DEV || window.location.port === '3458');
 
   if (isDev) {
     // Strip leading ./ or /

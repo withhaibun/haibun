@@ -71,7 +71,7 @@ describe('LSP Integration - Completion Provider', () => {
   describe('LSP snippet format', () => {
     it('converts patterns to valid LSP snippet syntax', () => {
       const navStep = metadata.find(m => m.stepName === 'navigateTo');
-      const snippet = StepperRegistry.patternToSnippet(navStep!.pattern);
+      const snippet = StepperRegistry.patternToSnippet(navStep?.pattern || '');
 
       // Valid LSP snippet: ${1:url}
       expect(snippet).toBe('navigate to ${1:url}');
@@ -79,14 +79,14 @@ describe('LSP Integration - Completion Provider', () => {
 
     it('handles multiple placeholders with sequential tab-stops', () => {
       const setStep = metadata.find(m => m.stepName === 'setVariable');
-      const snippet = StepperRegistry.patternToSnippet(setStep!.pattern);
+      const snippet = StepperRegistry.patternToSnippet(setStep?.pattern || '');
 
       expect(snippet).toBe('set ${1:name} to ${2:value}');
     });
 
     it('handles typed placeholders with domain annotation', () => {
       const waitStep = metadata.find(m => m.stepName === 'waitSeconds');
-      const snippet = StepperRegistry.patternToSnippet(waitStep!.pattern);
+      const snippet = StepperRegistry.patternToSnippet(waitStep?.pattern || '');
 
       // Should strip domain annotation for snippet display
       expect(snippet).toBe('wait ${1:seconds} seconds');
@@ -95,7 +95,7 @@ describe('LSP Integration - Completion Provider', () => {
     it('snippet format is compatible with VS Code', () => {
       // VS Code expects: ${n:placeholder} or $n format
       const fillStep = metadata.find(m => m.stepName === 'fillForm');
-      const snippet = StepperRegistry.patternToSnippet(fillStep!.pattern);
+      const snippet = StepperRegistry.patternToSnippet(fillStep?.pattern || '');
 
       // Regex for valid VS Code snippet placeholders
       const vsCodeSnippetPattern = /\$\{\d+:\w+\}/g;
@@ -130,11 +130,11 @@ describe('LSP Integration - Hover Provider', () => {
     const step = metadata.find(m => m.stepName === 'setVariable');
 
     // Generate markdown like LspStepper.onHover would
-    const paramList = Object.entries(step!.params)
+    const paramList = Object.entries(step?.params || {})
       .map(([name, type]) => `- **${name}**: \`${type}\``)
       .join('\n');
 
-    const markdown = `### ${step!.stepperName}\n\`${step!.pattern}\`\n\n**Parameters:**\n${paramList}`;
+    const markdown = `### ${step?.stepperName}\n\`${step?.pattern}\`\n\n**Parameters:**\n${paramList}`;
 
     expect(markdown).toContain('### ProductionLikeStepper');
     expect(markdown).toContain('`set {name} to {value}`');

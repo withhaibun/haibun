@@ -9,7 +9,7 @@ describe('FeatureVariables', () => {
 	let world: TWorld;
 	let variables: FeatureVariables;
 	const mockFeatureStep: TFeatureStep = {
-		path: '/test/feature.ts',
+		source: { path: '/test/feature.ts' },
 		in: 'test step',
 		seqPath: [1, 2, 3],
 		action: {
@@ -23,7 +23,7 @@ describe('FeatureVariables', () => {
 	};
 
 	beforeEach(() => {
-		world = getDefaultWorld(0);
+		world = getDefaultWorld();
 		variables = new FeatureVariables(world);
 	});
 
@@ -253,8 +253,8 @@ describe('FeatureVariables', () => {
 
 			const all = variables.all();
 			expect(all.myJson.provenance).toHaveLength(1);
-			expect(all.myJson.provenance![0].in).toBe('test step');
-			expect(all.myJson.provenance![0].when).toBe('TestStepper.testAction');
+			expect(all.myJson.provenance?.[0].in).toBe('test step');
+			expect(all.myJson.provenance?.[0].when).toBe('TestStepper.testAction');
 		});
 	});
 

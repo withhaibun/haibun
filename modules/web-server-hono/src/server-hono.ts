@@ -30,13 +30,13 @@ export class ServerHono implements IWebServer {
 
   use(middleware: MiddlewareHandler): void { this._app.use(middleware); }
 
-  async listen(port: number): Promise<void> {
+  listen(port: number): Promise<void> {
     if (typeof port !== 'number' || Number.isNaN(port) || port <= 0) {
       throw new Error(`ServerHono.listen: invalid port "${port}"`);
     }
     if (ServerHono.listeningPorts.includes(port)) {
       this.eventLogger.info(`ServerHono already listening on port ${port}`);
-      return;
+      return Promise.resolve();
     }
     return new Promise((resolve, reject) => {
       try {
@@ -52,7 +52,7 @@ export class ServerHono implements IWebServer {
     });
   }
 
-  async close(): Promise<void> {
+  close(): Promise<void> {
     if (this.server) {
       this.eventLogger.debug?.(`ServerHono closing on port ${this._port}`);
       this.server.close();
@@ -62,6 +62,7 @@ export class ServerHono implements IWebServer {
       this.server = undefined;
       this._mounted = DEFAULT_MOUNTED();
     }
+    return Promise.resolve();
   }
 
   addRoute(type: TRouteTypes, path: string, ...handlers: TRequestHandler[]): void {
@@ -111,7 +112,7 @@ export class ServerHono implements IWebServer {
         return c.html(this.generateDirectoryListing(requestPath || '/', files, mountAt));
       }
       let notFoundCalled = false;
-      const response = await serveStatic({ root: folder })(c, async () => { notFoundCalled = true; });
+      const response = await serveStatic({ root: folder })(c, () => { notFoundCalled = true; return Promise.resolve(); });
       return notFoundCalled || !response ? c.notFound() : response;
     });
     this.markMounted('get', mountAt, folder);
@@ -149,7 +150,7 @@ export class ServerHono implements IWebServer {
   }
 
   private registerRoute(type: TRouteTypes, path: string, handlers: TRequestHandler[]): void {
-    this._app[type](path, ...handlers);
+    ((this._app as unknown as Record<string, (...args: unknown[]) => unknown>)[type])(path, ...handlers);
   }
 
   private markMounted(type: TRouteTypes, path: string, what: string): void {

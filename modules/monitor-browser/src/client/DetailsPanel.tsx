@@ -53,7 +53,7 @@ export function DetailsPanel({ event, onClose, width, onWidthChange, currentTime
   const isHttpTrace = isArtifact && (event as TArtifactEvent).artifactType === 'http-trace';
 
   // Check if this is a synthetic event with all traces attached
-  const allTraces = (event as any)._allTraces as THttpTraceArtifact[] | undefined;
+  const allTraces = (event as unknown as { _allTraces?: THttpTraceArtifact[] })._allTraces;
 
   // Format timestamp as full date and time
   const formattedDateTime = new Date(event.timestamp).toLocaleString(undefined, {
@@ -70,6 +70,9 @@ export function DetailsPanel({ event, onClose, width, onWidthChange, currentTime
   const headerText = isHttpTrace && allTraces
     ? `HTTP Traces (${allTraces.length})`
     : formattedDateTime;
+
+  // biome-ignore lint/suspicious/noExplicitAny: complex object construction
+  const jsonArtifact = { artifactType: 'json', json: allTraces ? { traceCount: allTraces.length, firstTrace: allTraces[0] } : event } as any;
 
   return (
     <div
@@ -133,7 +136,7 @@ export function DetailsPanel({ event, onClose, width, onWidthChange, currentTime
 
         {/* JSON view */}
         <div className="p-4 pb-8">
-          <JsonArtifact artifact={{ artifactType: 'json', json: allTraces ? { traceCount: allTraces.length, firstTrace: allTraces[0] } : event } as any} />
+          <JsonArtifact artifact={jsonArtifact} />
         </div>
       </div>
     </div>

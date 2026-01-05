@@ -98,7 +98,7 @@ export const featureSplit = (content: string) =>
 		.split('\n')
 		.map((a) => a.trim());
 
-export function withNameType(base, path: string, content: string, kirejiLineMap?: Map<number, number>) {
+export function withNameType(base: string, path: string, content: string, kirejiLineMap?: Map<number, number>) {
 	const s = path.split('.');
 	const name = s[0];
 	const type = s.length === 3 ? s[1] : 'feature';

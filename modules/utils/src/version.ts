@@ -82,7 +82,7 @@ class Versioner {
 
 	setLocalAndExtraModules() {
 		const modules = JSON.parse(readFileSync(`./modules/tsconfig.json`, 'utf-8'))
-			.references.map((f) => `./modules/${f.path}`)
+			.references.map((f: { path: string }) => `./modules/${f.path}`)
 			.concat(extra);
 		for (const module of modules) {
 			const name = module.replace(/\/$/, '').replace(/.*\//, '');
@@ -105,7 +105,7 @@ class Versioner {
 		});
 	}
 
-	async updateModule(name: string, location: string): Promise<void> {
+	updateModule(name: string, location: string): Promise<void> {
 		const pkgFile = `${location}/package.json`;
 		const pkg = JSON.parse(readFileSync(pkgFile, 'utf-8'));
 		if (!pkg.publish && pkg.publish !== undefined) {
@@ -120,7 +120,7 @@ class Versioner {
 		this.updateDependencies(pkg.devDependencies);
 
 		writeFileSync(pkgFile, JSON.stringify(pkg, null, 2));
-		return;
+		return Promise.resolve();
 	}
 
 	updateDependencies(dependencies: { [key: string]: string }) {
@@ -136,7 +136,7 @@ class Versioner {
 		}
 	}
 
-	async gitCommit(name: string, location: string, extraPackages = []) {
+	async gitCommit(name: string, location: string, extraPackages: string[] = []) {
 		const packages = [...extraPackages, 'package.json'];
 		await spawnCommand(['git', 'commit', '-m', `'update ${name} to version ${this.version}'`, ...packages], location).catch((e) => {
 			console.error(`git commit failed for ${name}: ${e}`);

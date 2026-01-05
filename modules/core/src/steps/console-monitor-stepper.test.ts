@@ -8,13 +8,13 @@ import { asFeatures } from '../lib/resolver-features.js';
 
 describe('ConsoleMonitorStepper', () => {
   it('receives events via onEvent hook', async () => {
-    const world = getDefaultWorld(0, { HAIBUN_LOG_LEVEL: 'none' });
+    const world = getDefaultWorld({ HAIBUN_LOG_LEVEL: 'none' });
     const runner = new Runner(world);
 
     // Mock console.log to capture output
     const consoleLogs: string[] = [];
     const originalLog = console.log;
-    console.log = (...args: any[]) => {
+    console.log = (...args: unknown[]) => {
       consoleLogs.push(args.join(' '));
     };
 
@@ -45,13 +45,13 @@ describe('ConsoleMonitorStepper', () => {
   });
 
   it('handles verbose mode', async () => {
-    const world = getDefaultWorld(0, { HAIBUN_LOG_LEVEL: 'none' });
+    const world = getDefaultWorld({ HAIBUN_LOG_LEVEL: 'none' });
     world.moduleOptions = { ...world.moduleOptions, CONSOLE_MONITOR_VERBOSE: 'true' };
     const runner = new Runner(world);
 
     const consoleLogs: string[] = [];
     const originalLog = console.log;
-    console.log = (...args: any[]) => {
+    console.log = (...args: unknown[]) => {
       consoleLogs.push(args.join(' '));
     };
 

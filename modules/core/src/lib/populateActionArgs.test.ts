@@ -7,14 +7,14 @@ import { AStepper } from './astepper.js';
 
 function makeStep(name: string, label: string, domain: string, origin: Origin): TFeatureStep {
 	return {
-		path: 'test',
+		source: { path: 'test' },
 		in: '',
 		seqPath: [0],
 		action: {
 			actionName: 'test',
 			stepperName: 'test',
 			step: {
-				action: async () => {
+				action: () => {
 					return Promise.resolve({ ok: true });
 				}
 			},

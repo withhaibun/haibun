@@ -62,13 +62,13 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
   }
 
   cycles: IStepperCycles = {
-    startExecution: async () => {
+    startExecution: () => {
       // Send cwd to client for constructing absolute paths (e.g., VSCode links)
       if (MonitorBrowserStepper.transport) {
         MonitorBrowserStepper.transport.send({ type: 'init', cwd: process.cwd() });
       }
     },
-    onEvent: async (event: THaibunEvent) => {
+    onEvent: (event: THaibunEvent) => {
       this.events.push(event);
       if (MonitorBrowserStepper.transport) {
         MonitorBrowserStepper.transport.send({ type: 'event', event });
@@ -78,8 +78,10 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
       MonitorBrowserStepper.transport.send({ type: 'finalize' });
 
       const transformedEvents = this.events.map(e => {
-        if (e.kind === 'artifact' && 'path' in e && typeof (e as any).path === 'string') {
-          const artifactPath = (e as any).path as string;
+        // Type guard for artifact events with path property
+        if (e.kind === 'artifact' && 'path' in e) {
+          const artifactEvent = e as typeof e & { path: string };
+          const artifactPath = artifactEvent.path;
           const match = artifactPath.match(/^featn-\d+(?:-[^/]*)?\/(.*)/);
           if (match) {
             return { ...e, path: './' + match[1] };
@@ -100,15 +102,16 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
 
       const featureStart = this.events.find(e => e.kind === 'lifecycle' && e.type === 'feature' && e.stage === 'start');
       const world = this.getWorld();
-      const featureLabel = (featureStart as any)?.label || world.runtime.feature || 'report';
+      const featureLabel = (featureStart && 'label' in featureStart ? featureStart.label as string : undefined) || world.runtime.feature || 'report';
       const topic = featureLabel.replace(/.*\//, '').replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9-_]/g, '_');
 
 
       await this.saveSerializedReport(jitData, topic);
       this.events = [];
     },
-    endExecution: async () => {
+    endExecution: () => {
       MonitorBrowserStepper.transport.send({ type: 'finalize' });
+      return Promise.resolve();
     }
   };
 
@@ -141,7 +144,7 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
   steps = {
     pause: {
       gwta: 'pause browser monitor',
-      action: async () => {
+      action: () => {
         // Implement pause logic if needed
         return OK;
       }

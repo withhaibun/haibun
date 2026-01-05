@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } from 'vitest';
 import { AStepper } from '@haibun/core/lib/astepper.js';
 import ActivitiesStepper from '@haibun/core/steps/activities-stepper.js';
 import LspStepper from './lsp-stepper.js';
@@ -45,7 +45,7 @@ const createMockConnection = () => ({
 });
 
 const mockWorld = {
-  eventLogger: { info: () => { }, warn: () => { }, error: () => { } }
+  eventLogger: { info: () => { /* empty */ }, warn: () => { /* empty */ }, error: () => { /* empty */ } }
 };
 
 class TestStepper extends AStepper {
@@ -58,10 +58,8 @@ class TestStepper extends AStepper {
 }
 
 describe('LSP stdout cleanliness', () => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let stdoutSpy: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any  
-  let stderrSpy: any;
+  let stdoutSpy: MockInstance;
+  let stderrSpy: MockInstance;
 
   beforeEach(() => {
     // Spy on process.stdout.write to catch any raw output
@@ -77,6 +75,7 @@ describe('LSP stdout cleanliness', () => {
   it('does not write to stdout when processing documents', async () => {
     const mockConnection = createMockConnection();
     const steppers = [new TestStepper()];
+    // biome-ignore lint/suspicious/noExplicitAny: mock
     const lsp = new LspStepper(mockConnection as any, steppers, []);
 
     const doc = TextDocument.create(
@@ -86,6 +85,7 @@ describe('LSP stdout cleanliness', () => {
       'test step with "hello"\ninvalid step that will error'
     );
 
+    // biome-ignore lint/suspicious/noExplicitAny: private
     await (lsp as any).processDocument(doc);
 
     // Check no raw output went to stdout
@@ -93,17 +93,19 @@ describe('LSP stdout cleanliness', () => {
     expect(stdoutCalls.length).toBe(0);
   });
 
-  it('does not write to stdout when generating semantic tokens', async () => {
+  it('does not write to stdout when generating semantic tokens', () => {
     const mockConnection = createMockConnection();
     const activitiesStepper = new ActivitiesStepper();
-    (activitiesStepper as any).steps = (activitiesStepper as any).baseSteps;
+    const base = (activitiesStepper as unknown as { baseSteps: unknown }).baseSteps;
+    (activitiesStepper as unknown as { steps: unknown }).steps = base;
     const steppers = [activitiesStepper];
-    (activitiesStepper as any).setWorld(mockWorld, steppers);
+    (activitiesStepper as unknown as { setWorld: (w: unknown, s: unknown[]) => void }).setWorld(mockWorld, steppers);
 
+    // biome-ignore lint/suspicious/noExplicitAny: mock
     const lsp = new LspStepper(mockConnection as any, steppers, []);
 
     // Get the semantic tokens handler
-    const semanticTokensHandler = mockConnection.languages.semanticTokens.on.mock.calls[0]?.[0];
+    const semanticTokensHandler = (mockConnection.languages.semanticTokens.on as unknown as MockInstance).mock.calls[0]?.[0];
     if (!semanticTokensHandler) {
       throw new Error('Semantic tokens handler not registered');
     }
@@ -116,10 +118,7 @@ describe('LSP stdout cleanliness', () => {
     );
 
     // Process document first to populate cache
-    await (lsp as any).processDocument(doc);
-
-    // Access documents map directly to simulate LSP flow
-    (lsp as any).documents = {
+    (lsp as unknown as { processDocument: (d: TextDocument) => Promise<void>; documents: unknown }).documents = {
       get: () => doc
     };
 
@@ -138,10 +137,12 @@ describe('LSP stdout cleanliness', () => {
   it('does not write to stdout when processing background files', async () => {
     const mockConnection = createMockConnection();
     const activitiesStepper = new ActivitiesStepper();
-    (activitiesStepper as any).steps = (activitiesStepper as any).baseSteps;
+    const base = (activitiesStepper as unknown as { baseSteps: unknown }).baseSteps;
+    (activitiesStepper as unknown as { steps: unknown }).steps = base;
     const steppers = [activitiesStepper];
-    (activitiesStepper as any).setWorld(mockWorld, steppers);
+    (activitiesStepper as unknown as { setWorld: (w: unknown, s: unknown[]) => void }).setWorld(mockWorld, steppers);
 
+    // biome-ignore lint/suspicious/noExplicitAny: mock
     const lsp = new LspStepper(mockConnection as any, steppers, []);
 
     const bgDoc = TextDocument.create(
@@ -151,7 +152,7 @@ describe('LSP stdout cleanliness', () => {
       'Activity: TestActivity\nwaypoint TestWaypoint'
     );
 
-    await (lsp as any).processDocument(bgDoc);
+    await (lsp as unknown as { processDocument: (d: TextDocument) => Promise<void> }).processDocument(bgDoc);
 
     // Check no raw output went to stdout
     const stdoutCalls = stdoutSpy.mock.calls;

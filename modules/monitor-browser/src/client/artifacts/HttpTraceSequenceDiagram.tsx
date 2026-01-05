@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useEffect } from 'react';
-import { THttpTraceArtifact } from '@haibun/core/schema/protocol.js';
+import { THttpTraceArtifact, TArtifactEvent } from '@haibun/core/schema/protocol.js';
 import { MermaidArtifact } from './MermaidArtifact';
 
 interface HttpTraceSequenceDiagramProps {
@@ -146,6 +146,7 @@ export function HttpTraceSequenceDiagram({ traces, currentTime, startTime = 0 }:
           timestamp: Date.now(),
           kind: 'artifact',
           mimetype: 'text/x-mermaid'
+          // biome-ignore lint/suspicious/noExplicitAny: complex union type
         } as any}
       />
       <div className="text-xs text-slate-400 mt-2 font-mono">

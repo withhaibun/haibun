@@ -32,7 +32,7 @@ export class WebSocketTransport implements ITransport {
         try {
           const urlPath = req.url?.split('?')[0] || '/';
           // Sanitize path prevents directory traversal
-          const safePath = path.normalize(urlPath).replace(/^(\.\.[\/\\])+/, '');
+          const safePath = path.normalize(urlPath).replace(/^(\.\.[/\\])+/, '');
           const filePath = path.join(captureRoot, safePath);
 
           if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
@@ -68,7 +68,7 @@ export class WebSocketTransport implements ITransport {
       res.end('Not Found');
     });
 
-    this.server.on('error', (e: any) => {
+    this.server.on('error', (e: NodeJS.ErrnoException) => {
       if (e.code === 'EADDRINUSE') {
         const msg = `[MonitorBrowser] Warning: Port ${port} is already in use. Monitor disabled (graceful degradation).`;
         this.logger.warn(msg);

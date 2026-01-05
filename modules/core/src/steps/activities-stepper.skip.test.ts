@@ -3,6 +3,8 @@ import { passWithDefaults } from '../lib/test/lib.js';
 import { ActivitiesStepper } from './activities-stepper.js';
 import VariablesStepper from './variables-stepper.js';
 import Haibun from './haibun.js';
+import { TWorld } from '../lib/defs.js';
+import { AStepper } from '../lib/astepper.js';
 
 describe('ActivitiesStepper - Skipped Steps Reproduction', () => {
   const steppers = [Haibun, VariablesStepper, ActivitiesStepper];
@@ -83,7 +85,7 @@ describe('ActivitiesStepper - Skipped Steps Reproduction', () => {
     };
 
     class ManualRegStepper extends ActivitiesStepper {
-      async setWorld(world: any, steppers: any) {
+      async setWorld(world: TWorld, steppers: AStepper[]) {
         await super.setWorld(world, steppers);
         if (!this.steps['Manual Outcome']) {
           this.registerOutcome(

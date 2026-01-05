@@ -42,6 +42,7 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
   };
 
   async setWorld(world: TWorld, steppers: AStepper[]) {
+    await Promise.resolve();
     super.setWorld(world, steppers);
 
     // Subscribe to events using same pattern as monitor-browser
@@ -82,8 +83,8 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
       url: `${endpoint}/v1/logs`,
     });
     const logProcessor = new BatchLogRecordProcessor(logExporter);
-    // Type assertion needed due to SDK types not matching runtime API
-    this.loggerProvider = new LoggerProvider({ resource, logRecordProcessor: logProcessor } as any);
+    // Use 'processors' array as per LoggerProviderConfig interface
+    this.loggerProvider = new LoggerProvider({ resource, processors: [logProcessor] });
     logs.setGlobalLoggerProvider(this.loggerProvider);
 
     this.getWorld().eventLogger.info(`[monitor-otel] Initialized with endpoint: ${endpoint}, service: ${serviceName}`);
@@ -92,12 +93,15 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
   cycles: IStepperCycles = {
     startExecution: async () => {
       // Initialize OTel provider at start of execution
+      await Promise.resolve();
       this.initializeIfNeeded();
     },
     onEvent: async (event: THaibunEvent) => {
+      await Promise.resolve();
       this.processEvent(event);
     },
     endFeature: async () => {
+      await Promise.resolve();
       // End feature span
       if (this.featureSpan) {
         this.featureSpan.end();
@@ -107,6 +111,7 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
       this.stepSpans.clear();
     },
     endExecution: async () => {
+      await Promise.resolve();
       // Flush and shutdown
       await this.shutdown();
     }
@@ -259,6 +264,7 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
     startSpan: {
       gwta: 'start otel span {name}',
       action: async ({ name }: { name: string }) => {
+        await Promise.resolve();
         if (this.tracer && this.featureSpan) {
           const parentContext = trace.setSpan(context.active(), this.featureSpan);
           const span = this.tracer.startSpan(`custom: ${name}`, {}, parentContext);
@@ -270,6 +276,7 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
     endSpan: {
       gwta: 'end otel span {name}',
       action: async ({ name }: { name: string }) => {
+        await Promise.resolve();
         const span = this.stepSpans.get(`custom-${name}`);
         if (span) {
           span.end();

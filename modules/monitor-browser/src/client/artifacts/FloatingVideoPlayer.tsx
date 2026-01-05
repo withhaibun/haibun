@@ -29,7 +29,7 @@ export function FloatingVideoPlayer({
     onMetadataLoaded,
 }: FloatingVideoPlayerProps) {
     const videoRef = useRef<HTMLVideoElement>(null);
-    const [metadata, setMetadata] = useState<VideoMetadata | null>(null);
+    const [, setMetadata] = useState<VideoMetadata | null>(null);
 
     // Calculate if we should show the video
     const videoOffset = startTimestamp - appStartTime;

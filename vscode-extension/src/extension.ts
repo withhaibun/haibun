@@ -69,13 +69,13 @@ export function activate(context: ExtensionContext) {
       outputChannel.appendLine('[Haibun] Manual restart requested...');
       retryCount = 0;
       await stopClient();
-      startClient(context);
+      void startClient(context);
       window.showInformationMessage('Haibun Restarting...');
     })
   );
 
   // Start Client
-  startClient(context);
+  void startClient(context);
 
   // Config Listener
   context.subscriptions.push(workspace.onDidChangeConfiguration(async (e: ConfigurationChangeEvent) => {
@@ -83,7 +83,7 @@ export function activate(context: ExtensionContext) {
       outputChannel.appendLine('[Haibun] Config changed, restarting...');
       retryCount = 0;
       await stopClient();
-      startClient(context);
+      void startClient(context);
     }
   }));
 
@@ -157,7 +157,7 @@ async function stopClient() {
     await c.stop();
     configProvider.setLspStatus('stopped');
     configProvider.setMcpStatus('stopped');
-  } catch (e) {
+  } catch {
     // Ignore error
   }
 }
@@ -232,7 +232,7 @@ async function startClient(context: ExtensionContext) {
   outputChannel.appendLine(`[Haibun] Workspace: ${workspaceRoot}`);
   outputChannel.appendLine(`[Haibun] Safe Base: ${safeBase}`);
 
-  let cliPath = resolveCliPath(workspaceRoot);
+  const cliPath = resolveCliPath(workspaceRoot);
   if (!cliPath) {
     outputChannel.appendLine('[Haibun] FATAL: Could not find haibun cli.js');
     statusBarItem.text = '$(error) Haibun: No CLI';
@@ -304,7 +304,7 @@ async function startClient(context: ExtensionContext) {
     try {
       const bundledConfig = JSON.parse(fs.readFileSync(bundledConfigPath, 'utf-8'));
       if (bundledConfig.steppers) bundledSteppers = new Set(bundledConfig.steppers);
-    } catch (e) { /* ignore */ }
+    } catch { /* ignore */ }
   }
 
   for (const s of bundledSteppers) {
@@ -377,7 +377,7 @@ async function startClient(context: ExtensionContext) {
           outputChannel.appendLine(`[Haibun] Server stopped. Retry ${retryCount}/${MAX_RETRIES} in ${timeout}ms...`);
           configProvider.setLspStatus('starting', `Restarting (${retryCount})...`);
           setTimeout(async () => {
-            try { await client?.start(); } catch (err) { /* ignore */ }
+            try { await client?.start(); } catch { /* ignore */ }
           }, timeout);
         } else {
           outputChannel.appendLine('[Haibun] Max retries reached.');

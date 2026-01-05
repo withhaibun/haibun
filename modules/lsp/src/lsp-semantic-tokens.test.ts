@@ -5,6 +5,7 @@ import LspStepper from './lsp-stepper.js';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 
 describe('LspStepper Semantic Tokens', () => {
+  // biome-ignore lint/suspicious/noExplicitAny: mock connection
   let mockConnection: any;
   let steppers: AStepper[];
   let backgrounds: TFeature[];
@@ -41,7 +42,7 @@ describe('LspStepper Semantic Tokens', () => {
 
     // Correctly handle the overload for semanticTokens.on
     // It can be called with (handler) or (options, handler)
-    mockConnection.languages.semanticTokens.on.mockImplementation((arg1: any, arg2: any) => {
+    mockConnection.languages.semanticTokens.on.mockImplementation((arg1: unknown, arg2: unknown) => {
       if (typeof arg1 === 'function') {
         mockConnection._tokenHandler = arg1;
       } else if (typeof arg2 === 'function') {
@@ -54,6 +55,7 @@ describe('LspStepper Semantic Tokens', () => {
       steps = {
         myActivity: {
           gwta: 'Activity: {activity}',
+          // biome-ignore lint/suspicious/noExplicitAny: mock action return
           action: async () => ({ ok: true } as any)
         }
       };
@@ -64,6 +66,7 @@ describe('LspStepper Semantic Tokens', () => {
       steps = {
         activity: {
           gwta: 'Activity: {activity}',
+          // biome-ignore lint/suspicious/noExplicitAny: mock action return
           action: async () => ({ ok: true } as any),
           resolveFeatureLine: (line: string) => {
             if (line.match(/^Activity:/i)) return true;
@@ -79,6 +82,7 @@ describe('LspStepper Semantic Tokens', () => {
       steps = {
         set: {
           gwta: 'set {name} to {value}',
+          // biome-ignore lint/suspicious/noExplicitAny: mock action return
           action: async () => ({ ok: true } as any)
         }
       };
@@ -90,8 +94,9 @@ describe('LspStepper Semantic Tokens', () => {
 
   it('generates tokens for known steps', async () => {
     // Capture handlers registered by TextDocuments
+    // biome-ignore lint/suspicious/noExplicitAny: mock handler
     let didOpenHandler: any;
-    mockConnection.onDidOpenTextDocument.mockImplementation((handler: any) => { didOpenHandler = handler; });
+    mockConnection.onDidOpenTextDocument.mockImplementation((handler: unknown) => { didOpenHandler = handler; });
 
     const lsp = new LspStepper(mockConnection, steppers, backgrounds);
 
@@ -106,6 +111,7 @@ describe('LspStepper Semantic Tokens', () => {
     }
 
     // 1. Process document to populate cache
+    // biome-ignore lint/suspicious/noExplicitAny: private method access
     await (lsp as any).processDocument(doc);
 
     // 2. Validate tokens
@@ -122,8 +128,9 @@ describe('LspStepper Semantic Tokens', () => {
   });
 
   it('generates no tokens for invalid lowercase steps (errors)', async () => {
+    // biome-ignore lint/suspicious/noExplicitAny: mock handler
     let didOpenHandler: any;
-    mockConnection.onDidOpenTextDocument.mockImplementation((handler: any) => { didOpenHandler = handler; });
+    mockConnection.onDidOpenTextDocument.mockImplementation((handler: unknown) => { didOpenHandler = handler; });
 
     const lsp = new LspStepper(mockConnection, steppers, backgrounds);
     const uri = 'file:///tmp/unknown.feature';
@@ -131,6 +138,7 @@ describe('LspStepper Semantic Tokens', () => {
     const doc = TextDocument.create(uri, 'haibun', 1, content);
 
     if (didOpenHandler) didOpenHandler({ textDocument: { uri, languageId: 'haibun', version: 1, text: content } });
+    // biome-ignore lint/suspicious/noExplicitAny: private method access
     await (lsp as any).processDocument(doc);
 
     const handler = mockConnection._tokenHandler;
@@ -140,8 +148,9 @@ describe('LspStepper Semantic Tokens', () => {
   });
 
   it('generates comment token for capitalized unknown steps (prose)', async () => {
+    // biome-ignore lint/suspicious/noExplicitAny: mock handler
     let didOpenHandler: any;
-    mockConnection.onDidOpenTextDocument.mockImplementation((handler: any) => { didOpenHandler = handler; });
+    mockConnection.onDidOpenTextDocument.mockImplementation((handler: unknown) => { didOpenHandler = handler; });
 
     const lsp = new LspStepper(mockConnection, steppers, backgrounds);
     const uri = 'file:///tmp/prose.feature';
@@ -149,6 +158,7 @@ describe('LspStepper Semantic Tokens', () => {
     const doc = TextDocument.create(uri, 'haibun', 1, content);
 
     if (didOpenHandler) didOpenHandler({ textDocument: { uri, languageId: 'haibun', version: 1, text: content } });
+    // biome-ignore lint/suspicious/noExplicitAny: private method access
     await (lsp as any).processDocument(doc);
 
     const handler = mockConnection._tokenHandler;
@@ -158,8 +168,9 @@ describe('LspStepper Semantic Tokens', () => {
   });
 
   it('sends diagnostics for invalid steps', async () => {
+    // biome-ignore lint/suspicious/noExplicitAny: mock handler
     let didOpenHandler: any;
-    mockConnection.onDidOpenTextDocument.mockImplementation((handler: any) => { didOpenHandler = handler; });
+    mockConnection.onDidOpenTextDocument.mockImplementation((handler: unknown) => { didOpenHandler = handler; });
 
     const lsp = new LspStepper(mockConnection, steppers, backgrounds);
     const uri = 'file:///tmp/diag.feature';
@@ -167,6 +178,7 @@ describe('LspStepper Semantic Tokens', () => {
     const doc = TextDocument.create(uri, 'haibun', 1, content);
 
     if (didOpenHandler) didOpenHandler({ textDocument: { uri, languageId: 'haibun', version: 1, text: content } });
+    // biome-ignore lint/suspicious/noExplicitAny: private method access
     await (lsp as any).processDocument(doc);
 
     // Expect diagnostics to be sent
@@ -183,8 +195,9 @@ describe('LspStepper Semantic Tokens', () => {
   });
 
   it('generates tokens for background files with activities and waypoints', async () => {
+    // biome-ignore lint/suspicious/noExplicitAny: mock handler
     let didOpenHandler: any;
-    mockConnection.onDidOpenTextDocument.mockImplementation((handler: any) => { didOpenHandler = handler; });
+    mockConnection.onDidOpenTextDocument.mockImplementation((handler: unknown) => { didOpenHandler = handler; });
 
     const lsp = new LspStepper(mockConnection, steppers, backgrounds);
     // Use a path that triggers background detection logic
@@ -198,6 +211,7 @@ waypoint Ensured foobar with variable x exists
     const doc = TextDocument.create(uri, 'haibun', 1, content);
 
     if (didOpenHandler) didOpenHandler({ textDocument: { uri, languageId: 'haibun', version: 1, text: content } });
+    // biome-ignore lint/suspicious/noExplicitAny: private method access
     await (lsp as any).processDocument(doc);
 
     const handler = mockConnection._tokenHandler;
@@ -210,8 +224,9 @@ waypoint Ensured foobar with variable x exists
     // Import the actual HaibunStepper
     const { default: HaibunStepper } = await import('@haibun/core/steps/haibun.js');
 
+    // biome-ignore lint/suspicious/noExplicitAny: mock handler
     let didOpenHandler: any;
-    mockConnection.onDidOpenTextDocument.mockImplementation((handler: any) => { didOpenHandler = handler; });
+    mockConnection.onDidOpenTextDocument.mockImplementation((handler: unknown) => { didOpenHandler = handler; });
 
     // Use the real HaibunStepper which has 'pause for {ms:number}s'
     const actualSteppers = [new HaibunStepper()];
@@ -222,6 +237,7 @@ waypoint Ensured foobar with variable x exists
     const doc = TextDocument.create(uri, 'haibun', 1, content);
 
     if (didOpenHandler) didOpenHandler({ textDocument: { uri, languageId: 'haibun', version: 1, text: content } });
+    // biome-ignore lint/suspicious/noExplicitAny: private method access
     await (lsp as any).processDocument(doc);
 
     // Check that the step was resolved (no errors)
@@ -241,8 +257,9 @@ waypoint Ensured foobar with variable x exists
     // Import the actual WebServerStepper
     const WebServerStepper = (await import('@haibun/web-server-hono')).default;
 
+    // biome-ignore lint/suspicious/noExplicitAny: mock handler
     let didOpenHandler: any;
-    mockConnection.onDidOpenTextDocument.mockImplementation((handler: any) => { didOpenHandler = handler; });
+    mockConnection.onDidOpenTextDocument.mockImplementation((handler: unknown) => { didOpenHandler = handler; });
 
     const actualSteppers = [new WebServerStepper()];
     const lsp = new LspStepper(mockConnection, actualSteppers, []);
@@ -252,6 +269,7 @@ waypoint Ensured foobar with variable x exists
     const doc = TextDocument.create(uri, 'haibun', 1, content);
 
     if (didOpenHandler) didOpenHandler({ textDocument: { uri, languageId: 'haibun', version: 1, text: content } });
+    // biome-ignore lint/suspicious/noExplicitAny: private method access
     await (lsp as any).processDocument(doc);
 
     expect(mockConnection.sendDiagnostics).toHaveBeenCalled();
@@ -262,8 +280,9 @@ waypoint Ensured foobar with variable x exists
   });
 
   it('emits warning diagnostic when Backgrounds: cannot be resolved', async () => {
+    // biome-ignore lint/suspicious/noExplicitAny: mock handler
     let didOpenHandler: any;
-    mockConnection.onDidOpenTextDocument.mockImplementation((handler: any) => { didOpenHandler = handler; });
+    mockConnection.onDidOpenTextDocument.mockImplementation((handler: unknown) => { didOpenHandler = handler; });
 
     // We need to use real steppers to trigger real expand() behavior
     const { default: HaibunStepper } = await import('@haibun/core/steps/haibun.js');
@@ -280,6 +299,7 @@ waypoint Ensured foobar with variable x exists
     const doc = TextDocument.create(uri, 'haibun', 1, content);
 
     if (didOpenHandler) didOpenHandler({ textDocument: { uri, languageId: 'haibun', version: 1, text: content } });
+    // biome-ignore lint/suspicious/noExplicitAny: private method access
     await (lsp as any).processDocument(doc);
 
     expect(mockConnection.sendDiagnostics).toHaveBeenCalled();
@@ -289,7 +309,7 @@ waypoint Ensured foobar with variable x exists
     expect(callArgs.diagnostics.length).toBeGreaterThan(0);
 
     // Find the warning about background not found
-    const bgWarning = callArgs.diagnostics.find((d: any) =>
+    const bgWarning = callArgs.diagnostics.find((d: { message: string; severity: number }) =>
       d.message.includes('Background not found') || d.message.includes("can't find")
     );
     expect(bgWarning).toBeDefined();
@@ -298,8 +318,9 @@ waypoint Ensured foobar with variable x exists
   });
 
   it('generates semantic tokens for steps in .feature.ts strings', async () => {
+    // biome-ignore lint/suspicious/noExplicitAny: mock handler
     let didOpenHandler: any;
-    mockConnection.onDidOpenTextDocument.mockImplementation((handler: any) => { didOpenHandler = handler; });
+    mockConnection.onDidOpenTextDocument.mockImplementation((handler: unknown) => { didOpenHandler = handler; });
 
     const lsp = new LspStepper(mockConnection, steppers, backgrounds);
     const uri = 'file:///tmp/kireji.feature.ts';
@@ -324,6 +345,7 @@ waypoint Ensured foobar with variable x exists
     if (didOpenHandler) didOpenHandler({ textDocument: { uri, languageId: 'typescript', version: 1, text: content } });
 
     // Explicitly process (LspStepper logic checks extension .feature.ts)
+    // biome-ignore lint/suspicious/noExplicitAny: private method access
     await (lsp as any).processDocument(doc);
 
     // Request tokens
@@ -339,8 +361,9 @@ waypoint Ensured foobar with variable x exists
   });
 
   it('ignores imports and non-step lines in Kireji files (no diagnostics)', async () => {
+    // biome-ignore lint/suspicious/noExplicitAny: mock handler
     let didOpenHandler: any;
-    mockConnection.onDidOpenTextDocument.mockImplementation((handler: any) => { didOpenHandler = handler; });
+    mockConnection.onDidOpenTextDocument.mockImplementation((handler: unknown) => { didOpenHandler = handler; });
 
     const lsp = new LspStepper(mockConnection, steppers, backgrounds);
     const uri = 'file:///tmp/imports.feature.ts';
@@ -355,6 +378,7 @@ export const features: TKirejiExport = {
 
     if (didOpenHandler) didOpenHandler({ textDocument: { uri, languageId: 'haibun', version: 1, text: content } });
 
+    // biome-ignore lint/suspicious/noExplicitAny: private method access
     await (lsp as any).processDocument(doc);
 
     // Should generate tokens for the valid step
@@ -367,7 +391,7 @@ export const features: TKirejiExport = {
     if (mockConnection.sendDiagnostics.mock.calls.length > 0) {
       const callArgs = mockConnection.sendDiagnostics.mock.calls[0][0];
       // Expect NO error diagnostics
-      const errorDiags = callArgs.diagnostics.filter((d: any) => d.severity === 1);
+      const errorDiags = callArgs.diagnostics.filter((d: { message: string; severity: number }) => d.severity === 1);
       expect(errorDiags.length).toBe(0);
     }
   });

@@ -62,11 +62,12 @@ export default class OutJUnit extends AStepper implements IHasOptions, IHasCycle
 		await Promise.resolve();
 	}
 
-	async featureResultAsJunit(result: TExecutorResult) {
+	featureResultAsJunit(result: TExecutorResult) {
 		const failures = result.featureResults?.filter((t) => !t.ok)?.length || 0;
 		const skipped = result.featureResults?.filter((t) => t.skip)?.length || 0;
 		const count = result.featureResults?.length || 0;
-		const forXML: TAnyFixme = {
+		// biome-ignore lint/suspicious/noExplicitAny: xml builder
+		const forXML: any = {
 			testsuites: {
 				'@tests': count,
 				'@name': this.name,

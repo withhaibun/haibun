@@ -2,7 +2,7 @@ import { Download, Page, Response } from "playwright";
 type ClickResult = import('playwright').Locator;
 
 import { TFeatureStep } from '@haibun/core/lib/defs.js';
-import { OK, Origin, TActionResult } from '@haibun/core/schema/protocol.js';
+import { OK, Origin, TActionResult, TStepResult } from '@haibun/core/schema/protocol.js';
 import { DOMAIN_STATEMENT, DOMAIN_STRING } from "@haibun/core/lib/domain-types.js";
 import { actionNotOK, sleep, getStepTerm } from "@haibun/core/lib/util/index.js";
 import { DOMAIN_PAGE_LOCATOR } from "./domains.js";
@@ -51,14 +51,14 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 	dialogIs: {
 		gwta: 'dialog {what} {type} says {value}',
 		action: ({ what, type, value }: { what: string; type: string; value: string }) => {
-			const cur = wp.getWorld().shared.get(what)?.[type];
+			const cur = (wp.getWorld().shared.get(what) as Record<string, unknown> | undefined)?.[type];
 			return cur === value ? OK : actionNotOK(`${what} is ${cur}`);
 		},
 	},
 	dialogIsUnset: {
 		gwta: 'dialog {what} {type} not set',
 		action: ({ what, type }: { what: string; type: string }) => {
-			const cur = wp.getWorld().shared.get(what)?.[type];
+			const cur = (wp.getWorld().shared.get(what) as Record<string, unknown> | undefined)?.[type];
 			return !cur ? OK : actionNotOK(`${what} is ${cur}`);
 		},
 	},
@@ -169,7 +169,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 	URIQueryParameterIs: {
 		gwta: 'URI query parameter {what} is {value}',
 		action: async ({ value }: { value: string }, featureStep) => {
-			const term = getStepTerm(featureStep, 'what')!;
+			const term = getStepTerm(featureStep, 'what') ?? '';
 			const uri = await wp.withPage<string>(async (page: Page) => await page.url());
 			const found = new URL(uri).searchParams.get(term);
 			if (found === value) {
@@ -203,7 +203,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 				wp.inContainer = undefined;
 
 				if (result.kind === 'ok') {
-					return (result as any).topics as TActionResult;
+					return ((result as Record<string, unknown>).topics as TActionResult);
 				} else {
 					return actionNotOK(result.message);
 				}
@@ -215,7 +215,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 		gwta: `click {target: ${DOMAIN_STRING_OR_PAGE_LOCATOR}} by {method}`,
 		handlesUndefined: ['method'],
 		action: async ({ target }: { target: string; method: string }, featureStep: TFeatureStep) => {
-			const method = getStepTerm(featureStep, 'method')!;
+			const method = getStepTerm(featureStep, 'method') ?? '';
 			let withModifier: Record<string, unknown> = {};
 
 			const bys: Record<string, (page: Page) => ClickResult | Promise<void>> = {
@@ -432,7 +432,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 		action: async (_args, featureStep: TFeatureStep) => {
 			// Create a minimal step result for artifact tracking
 			const stepResult = featureStep ? { seqPath: featureStep.seqPath, path: featureStep.source.path, in: featureStep.in } : undefined;
-			await wp.captureScreenshotAndLog('action', { step: stepResult as any });
+			await wp.captureScreenshotAndLog('action', { step: stepResult as unknown as TStepResult | undefined });
 			return OK;
 		},
 	},
@@ -473,9 +473,9 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 	saveURIQueryParameter: {
 		gwta: 'save URI query parameter {what} to {where}',
 		handlesUndefined: ['what', 'where'],
-		action: async ({ }, featureStep) => {
-			const what = getStepTerm(featureStep, 'what')!;
-			const where = getStepTerm(featureStep, 'where')!;
+		action: async (_args: Record<string, unknown>, featureStep) => {
+			const what = getStepTerm(featureStep, 'what') ?? '';
+			const where = getStepTerm(featureStep, 'where') ?? '';
 			const uri = await wp.withPage<string>(async (page: Page) => await page.url());
 			const found = new URL(uri).searchParams.get(what);
 			wp.getWorld().shared.set({ term: where, value: found, domain: 'string', origin: Origin.var }, provenanceFromFeatureStep(featureStep));

@@ -48,7 +48,7 @@ function JsonNode({ keyName, value, depth, isArrayIndex }: JsonNodeProps) {
   }
 
   const isArray = Array.isArray(value);
-  const entries = isArray ? (value as any[]).map((v, i) => [i, v] as const) : Object.entries(value as object);
+  const entries = isArray ? (value as unknown[]).map((v, i) => [i, v] as const) : Object.entries(value as object);
   const preview = isArray ? `[${entries.length}]` : `{${entries.length}}`;
 
   return (

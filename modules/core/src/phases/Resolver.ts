@@ -83,7 +83,11 @@ export class Resolver {
 		return steps.filter(s => s.action.stepperName !== 'Directive');
 	}
 
-	public async findFeatureStepsTolerant(feature: TExpandedFeature): Promise<{ steps: TFeatureStep[], errors: { featureLine: TExpandedLine, error: Error }[] }> {
+	public findFeatureStepsTolerant(feature: TExpandedFeature): Promise<{ steps: TFeatureStep[], errors: { featureLine: TExpandedLine, error: Error }[] }> {
+		return Promise.resolve(this.findFeatureStepsTolerantSync(feature));
+	}
+
+	public findFeatureStepsTolerantSync(feature: TExpandedFeature): { steps: TFeatureStep[], errors: { featureLine: TExpandedLine, error: Error }[] } {
 		const steps: TFeatureStep[] = [];
 		const errors: { featureLine: TExpandedLine, error: Error }[] = [];
 		const allLines = feature.expanded.map(fl => fl.line);
@@ -134,7 +138,7 @@ export class Resolver {
 				if (stepAction.stepValuesMap) {
 					const statements = Object.values(stepAction.stepValuesMap).filter((v: TStepValue & { label?: string }) => v.domain === 'statement' && v.term);
 					for (const ph of statements) {
-						const rawVal = ph.term!;
+						const rawVal = ph.term as string;
 						try {
 							this.callResolveFeatureLine(rawVal, feature.path);
 							this.findSingleStepAction(rawVal);

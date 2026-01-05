@@ -12,6 +12,7 @@ const tsconfigRaw = JSON.parse(readFileSync(path.join(__dirname, 'tsconfig.clien
 
 export default defineConfig({
   plugins: [
+    // biome-ignore lint/suspicious/noExplicitAny: vite plugin types
     react() as any,
     viteSingleFile({
       useRecommendedBuildConfig: true,

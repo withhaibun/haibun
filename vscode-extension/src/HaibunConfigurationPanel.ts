@@ -156,14 +156,14 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
         return;
       }
 
-      const json = await response.json() as any;
+      const json = await response.json() as { result?: { serverInfo?: { version?: string } } };
       const version = json.result?.serverInfo?.version;
       if (version) {
         this.setMcpStatus('running', `v${version} on port ${port}`);
       } else {
         this.setMcpStatus('running', `active on ${port}`);
       }
-    } catch (e) {
+    } catch (_e) {
       // connection refused etc
       // If we are already 'error' or 'starting', leave it?
       // Let's set to starting or stopped?
@@ -205,7 +205,7 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
       try {
         const config = JSON.parse(fs.readFileSync(bundledConfigPath, 'utf-8'));
         this._bundledSteppers = config.steppers || [];
-      } catch (e) { /* ignore */ }
+      } catch { /* ignore */ }
     }
   }
 
@@ -466,7 +466,7 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
           this._featureCount++;
         }
       }
-    } catch (e) { /* ignore */ }
+    } catch { /* ignore */ }
     return nodes;
   }
 
@@ -502,7 +502,7 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
           }
         }
       }
-    } catch (e) { /* ignore permission errors */ }
+    } catch { /* ignore permission errors */ }
 
     // Sort: directories first, then files
     node.children.sort((a, b) => {
@@ -601,7 +601,7 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
             const node = new TreeNode(
               'stepper-tools-group',
               stepperName,
-              `${groups.get(stepperName)!.length} tools`,
+              `${(groups.get(stepperName) || []).length} tools`,
               vscode.TreeItemCollapsibleState.Collapsed
             );
             node.toolsList = groups.get(stepperName);
