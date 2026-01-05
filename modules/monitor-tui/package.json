@@ -1,18 +1,23 @@
 {
   "name": "@haibun/monitor-tui",
-  "version": "3.2.0",
+  "version": "3.3.0",
   "description": "Ink-based TUI monitor stepper for Haibun",
   "main": "build/index.js",
   "type": "module",
-  "files": ["build/"],
-  "exports": { ".": "./build/index.js", "./*": "./build/*" },
+  "files": [
+    "build/"
+  ],
+  "exports": {
+    ".": "./build/index.js",
+    "./*": "./build/*"
+  },
   "scripts": {
     "build": "tsc -b .",
     "start": "node build/index.js",
     "test": "vitest"
   },
   "dependencies": {
-    "@haibun/core": "3.2.0",
+    "@haibun/core": "3.3.0",
     "ink": "^6.5.1",
     "react": "^19.0.0",
     "zod": "^4.1.13"
