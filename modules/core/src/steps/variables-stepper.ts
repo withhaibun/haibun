@@ -3,7 +3,7 @@ import { TFeatureStep, TWorld, IStepperCycles, TStartScenario, TRegisteredDomain
 import { OK, TStepArgs, Origin, TProvenanceIdentifier, TOrigin, TActionResult } from '../schema/protocol.js';
 import { TAnyFixme } from '../lib/fixme.js';
 import { AStepper, IHasCycles, TStepperSteps } from '../lib/astepper.js';
-import { actionOK, actionNotOK, getStepTerm, isLiteralValue, formatCurrentSeqPath } from '../lib/util/index.js';
+import { actionOK, actionNotOK, getStepTerm } from '../lib/util/index.js';
 import { FeatureVariables } from '../lib/feature-variables.js';
 import { DOMAIN_STATEMENT, DOMAIN_STRING, normalizeDomainKey, createEnumDomainDefinition, registerDomains } from '../lib/domain-types.js';
 

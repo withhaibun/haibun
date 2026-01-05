@@ -7,7 +7,6 @@ import { EMediaTypes } from "@haibun/domain-storage/media-types.js";
 import { join } from "path";
 import { actualURI } from "@haibun/core/lib/util/actualURI.js";
 
-
 type TElementData = {
 	tagName: string;
 	attributes: { name: string; value: string }[];

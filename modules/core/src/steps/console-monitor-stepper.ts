@@ -1,7 +1,5 @@
 import { AStepper, IHasCycles, StepperKinds } from '../lib/astepper.js';
 import { THaibunEvent, THaibunLogLevel } from '../schema/protocol.js';
-import { Timer } from '../schema/protocol.js';
-import { CHECK_YES, CHECK_NO } from '../schema/protocol.js';
 import { EventFormatter } from '../monitor/index.js';
 
 /**

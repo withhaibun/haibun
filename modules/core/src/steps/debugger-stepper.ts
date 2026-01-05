@@ -1,6 +1,6 @@
 import { AStepper, IHasCycles, IHasOptions, TStepperSteps } from '../lib/astepper.js';
-import { IStepperCycles, TWorld, TBeforeStep, TAfterStep, ExecMode, TAfterStepResult, TFeatureStep } from '../lib/defs.js';
-import { TActionResult, OK, TStepResult, TNotOKActionResult, TDebugSignal } from '../schema/protocol.js';
+import { IStepperCycles, TWorld, TBeforeStep, TAfterStep, TAfterStepResult, TFeatureStep } from '../lib/defs.js';
+import { TActionResult, OK, TDebugSignal } from '../schema/protocol.js';
 import { makePrompt } from '../lib/prompter.js';
 import { actionNotOK, actionOK, formatCurrentSeqPath, getStepperOption, stringOrError } from '../lib/util/index.js';
 import { FlowRunner } from '../lib/core/flow-runner.js';

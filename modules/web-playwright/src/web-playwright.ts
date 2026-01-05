@@ -1,11 +1,10 @@
 import { Page, Download, Locator } from 'playwright';
 import { pathToFileURL } from 'url';
 
-
 import { TWorld, TFeatureStep, CycleWhen, TStepAction } from '@haibun/core/lib/defs.js';
 import { OK, TStepResult, Origin } from '@haibun/core/schema/protocol.js';
 import { BrowserFactory, TTaggedBrowserFactoryOptions, TBrowserTypes, BROWSERS } from './BrowserFactory.js';
-import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOptionOrKind, optionOrError } from '@haibun/core/lib/util/index.js';
+import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOptionOrKind } from '@haibun/core/lib/util/index.js';
 import { AStorage } from '@haibun/domain-storage/AStorage.js';
 import { ImageArtifact, VideoStartArtifact } from '@haibun/core/schema/protocol.js';
 import { EMediaTypes } from '@haibun/domain-storage/media-types.js';

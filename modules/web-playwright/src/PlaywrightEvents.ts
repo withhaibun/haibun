@@ -5,7 +5,7 @@ import { TTag } from '@haibun/core/lib/ttag.js';
 import { TWorld } from '@haibun/core/lib/defs.js';
 import { Origin } from '@haibun/core/schema/protocol.js';
 import { DOMAIN_STRING } from '@haibun/core/lib/domain-types.js';
-import { trackHttpHost, trackHttpRequest, THttpRequestObservation } from '@haibun/core/lib/http-observations.js';
+import { trackHttpHost, trackHttpRequest } from '@haibun/core/lib/http-observations.js';
 
 type TEtc = {
 	headers: Record<string, string>;

@@ -3,7 +3,7 @@ import { Browser, BrowserContext, Page, chromium, firefox, webkit, BrowserType, 
 import { PlaywrightEvents } from './PlaywrightEvents.js';
 import { TWorld } from '@haibun/core/lib/defs.js';
 import { Timer } from '@haibun/core/schema/protocol.js';
-import { TTagValue, TTag } from '@haibun/core/lib/ttag.js';
+import { TTag } from '@haibun/core/lib/ttag.js';
 
 export const BROWSERS: { [name: string]: BrowserType } = {
 	firefox,

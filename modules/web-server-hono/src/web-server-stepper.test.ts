@@ -1,11 +1,12 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import * as fs from 'fs';
+import * as path from 'path';
+
 import { passWithDefaults, DEF_PROTO_OPTIONS } from '@haibun/core/lib/test/lib.js';
 import { AStepper } from '@haibun/core/lib/astepper.js';
 import { OK, type TStepArgs } from '@haibun/core/schema/protocol.js';
 import { getStepperOptionName, actionNotOK } from '@haibun/core/lib/util/index.js';
 import WebServerStepper from './web-server-stepper.js';
-import * as fs from 'fs';
-import * as path from 'path';
 
 // WebServerStepper expects a 'files' directory in cwd
 const FILES_DIR = path.join(process.cwd(), 'files');

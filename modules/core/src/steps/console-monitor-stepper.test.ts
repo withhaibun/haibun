@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { testWithWorld, getDefaultWorld } from '../lib/test/lib.js';
+import { getDefaultWorld } from '../lib/test/lib.js';
 import VariablesStepper from './variables-stepper.js';
 import Haibun from './haibun.js';
 import ConsoleMonitorStepper from './console-monitor-stepper.js';

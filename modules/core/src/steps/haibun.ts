@@ -7,7 +7,6 @@ import { DOMAIN_STATEMENT } from '../lib/domain-types.js';
 import { findFeatures } from '../lib/features.js';
 import { FlowRunner } from '../lib/core/flow-runner.js';
 
-
 class Haibun extends AStepper implements IHasCycles {
 	description = 'Core steps for features, scenarios, backgrounds, and prose';
 
