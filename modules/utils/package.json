@@ -1,10 +1,15 @@
 {
   "name": "@haibun/utils",
   "type": "module",
-  "version": "3.2.0",
+  "version": "3.3.0",
   "description": "",
   "main": "index.js",
-  "files": ["ref.package.json", "build/**", "scaffold/**", "vcapture/**"],
+  "files": [
+    "ref.package.json",
+    "build/**",
+    "scaffold/**",
+    "vcapture/**"
+  ],
   "bin": {
     "scaffold": "build/scaffold/index.js",
     "version": "build/version.js",
@@ -22,5 +27,8 @@
   "author": "",
   "license": "ISC",
   "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5",
-  "dependencies": { "@haibun/cli": "3.2.0", "@haibun/core": "3.2.0" }
+  "dependencies": {
+    "@haibun/cli": "3.3.0",
+    "@haibun/core": "3.3.0"
+  }
 }
