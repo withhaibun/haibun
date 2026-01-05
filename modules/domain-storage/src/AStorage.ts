@@ -165,7 +165,7 @@ export abstract class AStorage extends AStepper {
 			gwta: `read text from {where}`,
 			action: async ({ where }: TStepArgs) => {
 				const text = await this.readFile(String(where), 'utf-8');
-				this.getWorld().eventLogger.info(text);
+				this.getWorld().eventLogger.info(String(text));
 				return OK;
 			},
 		},
@@ -189,7 +189,7 @@ export abstract class AStorage extends AStepper {
 			action: ({ what, where }: TStepArgs) => {
 				const c1 = this.readFile(String(what), 'binary');
 				const c2 = this.readFile(String(where), 'binary');
-				return Buffer.from(c1)?.equals(Buffer.from(c2)) ? OK : actionNotOK(`contents are not the same ${what} ${where}`);
+				return Buffer.from(c1 as string)?.equals(Buffer.from(c2 as string)) ? OK : actionNotOK(`contents are not the same ${what} ${where}`);
 			},
 		},
 	};
