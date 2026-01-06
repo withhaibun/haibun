@@ -724,6 +724,31 @@ function App() {
                                 ⇄
                             </button>
                         )}
+                        {events.some(e => e.kind === 'artifact' && e.artifactType === 'json' && (e as any).json?.quadObservation) && (
+                            <button
+                                onClick={() => {
+                                    // Collect all quadObservation artifacts and create synthetic event
+                                    // biome-ignore lint/suspicious/noExplicitAny: json artifact type
+                                    const quadObservations = events.filter(e => e.kind === 'artifact' && e.artifactType === 'json' && (e as any).json?.quadObservation);
+                                    if (quadObservations.length > 0) {
+                                        // Create a synthetic event for the QuadGraphDiagram
+                                        // biome-ignore lint/suspicious/noExplicitAny: synthetic quad event
+                                        const quads = quadObservations.map((e: any) => e.json.quadObservation);
+                                        // biome-ignore lint/suspicious/noExplicitAny: synthetic event
+                                        setSelectedEvent({
+                                            ...quadObservations[0],
+                                            json: { quadstore: quads },
+                                            _isQuadGraph: true,
+                                        } as any);
+                                    }
+                                }}
+                                // biome-ignore lint/suspicious/noExplicitAny: loose event type
+                                className={`p-1.5 hover:bg-slate-700 rounded transition-colors ${selectedEvent?.kind === 'artifact' && (selectedEvent as any)._isQuadGraph ? 'text-cyan-400' : 'text-slate-500 hover:text-slate-300 grayscale'}`}
+                                title={`View QuadStore Graph (${events.filter(e => e.kind === 'artifact' && e.artifactType === 'json' && (e as any).json?.quadObservation).length} observations)`}
+                            >
+                                ◈
+                            </button>
+                        )}
                     </div>
                 </div>
                 <div className="flex gap-4 items-center">

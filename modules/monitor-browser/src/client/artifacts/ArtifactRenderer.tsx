@@ -6,6 +6,7 @@ import { HtmlArtifact } from './HtmlArtifact';
 import { SpeechArtifact } from './SpeechArtifact';
 import { JsonArtifact } from './JsonArtifact';
 import { MermaidArtifact } from './MermaidArtifact';
+import { QuadGraphDiagram } from './QuadGraphDiagram';
 
 import { getMermaidFromResolvedFeatures } from '../lib/mermaid';
 import { getArtifactUrl } from '../lib/utils';
@@ -37,6 +38,14 @@ export function ArtifactRenderer({ artifact, currentTime, videoStartTimestamp, v
     case 'speech':
       return <SpeechArtifact artifact={artifact} />;
     case 'json':
+      // Check if this is a quadstore artifact
+      if (artifact.json && typeof artifact.json === 'object' && 'quadstore' in artifact.json) {
+        // biome-ignore lint/suspicious/noExplicitAny: quadstore data shape
+        const quads = (artifact.json as any).quadstore;
+        if (Array.isArray(quads)) {
+          return <QuadGraphDiagram quads={quads} currentTime={currentTime} startTime={startTime} />;
+        }
+      }
       return <JsonArtifact artifact={artifact} />;
     case 'mermaid':
       return <MermaidArtifact artifact={artifact} />;

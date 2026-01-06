@@ -78,9 +78,39 @@ export function JsonArtifact({ artifact }: JsonArtifactProps) {
   const json = artifact.json;
   const isArray = Array.isArray(json);
   const entries = isArray ? json.map((v, i) => [i, v] as const) : Object.entries(json);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = useCallback(() => {
+    const text = JSON.stringify(json, null, 2);
+    // Fallback for non-HTTPS contexts
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    try {
+      document.execCommand('copy');
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+    document.body.removeChild(textarea);
+  }, [json]);
 
   return (
     <div className="haibun-artifact-json bg-gray-50 border border-gray-200 rounded p-2">
+      <div className="flex justify-end mb-1">
+        <button
+          type="button"
+          onClick={handleCopy}
+          className="px-2 py-0.5 text-xs border border-slate-300 rounded bg-white text-slate-700 hover:bg-slate-100 font-medium"
+          title="Copy JSON to clipboard"
+        >
+          {copied ? '✓ Copied' : 'Copy'}
+        </button>
+      </div>
       {entries.map(([k, v]) => (
         <JsonNode key={String(k)} keyName={k} value={v} depth={0} isArrayIndex={isArray} />
       ))}

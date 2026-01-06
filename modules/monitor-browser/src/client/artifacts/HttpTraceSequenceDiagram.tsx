@@ -1,6 +1,7 @@
 import React, { useMemo, useRef, useEffect } from 'react';
 import { THttpTraceArtifact, TArtifactEvent } from '@haibun/core/schema/protocol.js';
 import { MermaidArtifact } from './MermaidArtifact';
+import { escapeLabel } from './mermaid-utils';
 
 interface HttpTraceSequenceDiagramProps {
   traces: THttpTraceArtifact[];
@@ -188,10 +189,7 @@ function getPath(url: string | undefined): string {
   }
 }
 
-function escapeLabel(label: string): string {
-  // Escape characters that could break mermaid syntax
-  return label.replace(/["\n\r]/g, ' ').substring(0, 50);
-}
+
 
 /**
  * Generate mermaid sequence diagram source from http-trace artifacts

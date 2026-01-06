@@ -27,6 +27,8 @@ Feature: Patient Rights and Hospital Journey
 
   Scenario: The Journey of a Patient
   
+  after every VariablesStepper, ensure Right to Privacy is upheld
+
   A patient arrives at the hospital and moves through various departments, expecting their rights to be honoured.
 
   Admission to Emergency.
@@ -40,7 +42,7 @@ Feature: Patient Rights and Hospital Journey
   whenever variable Privacy status is "Pending", set Privacy status to "Respected"
   
   Verify Privacy is respected.
-  ensure Right to "Privacy" is upheld
+  ensure Right to Privacy is upheld
 
   Right to a Clean Environment (whenever).
   The patient has a right to a clean room. If it is not clean, staff must rectify it.
@@ -56,7 +58,7 @@ Feature: Patient Rights and Hospital Journey
   where variable Surgery status is "Active", set Informed Consent status to "Respected"
   
   Verify Consent.
-  ensure Right to "Informed Consent" is upheld
+  ensure Right to Informed Consent is upheld
 
   Recovery and Staffing (anyOf).
   During recovery, the patient must not be left alone; either a nurse or an advocate must be present.
@@ -64,7 +66,7 @@ Feature: Patient Rights and Hospital Journey
   set Nurse Rached status to "Present"
   any of variable Nurse Rached status is "Present", variable Patient Advocate status is "Present"
 
-  Dignity Assurance (not).
+  Dignity Assurance.
   The patient's dignity must never be violated.
   set Dignity status to "Respected"
   not variable Dignity status is "Violated"

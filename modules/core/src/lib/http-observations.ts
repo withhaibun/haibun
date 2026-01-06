@@ -48,4 +48,24 @@ export function trackHttpRequest(world: TWorld, observation: THttpRequestObserva
   const id = `req-${count + 1}`;
   requests.set(id, observation);
   world.runtime.observations.set('httpRequests', requests);
+
+  // Emit quadObservation with hierarchical context for graph visualization
+  const timestamp = Date.now();
+  world.eventLogger?.emit({
+    id: `quad-http-${timestamp}-${id}`,
+    timestamp,
+    source: 'haibun',
+    level: 'debug' as const,
+    kind: 'artifact' as const,
+    artifactType: 'json' as const,
+    mimetype: 'application/json',
+    json: {
+      quadObservation: {
+        subject: id,
+        predicate: 'time',
+        object: observation.time,
+        context: 'observation/http',
+      }
+    },
+  });
 }

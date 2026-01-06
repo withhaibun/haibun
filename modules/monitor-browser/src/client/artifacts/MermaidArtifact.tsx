@@ -29,10 +29,27 @@ export function MermaidArtifact({ artifact }: MermaidArtifactProps) {
   const resetZoom = useCallback(() => setScale(1), []);
 
   const copyToClipboard = useCallback(async () => {
-    if (artifact.source) {
-      await navigator.clipboard.writeText(artifact.source);
+    if (!artifact.source) return;
+
+    try {
+      // Try modern clipboard API first
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(artifact.source);
+      } else {
+        // Fallback for file:// protocol or older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = artifact.source;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-9999px';
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Copy failed:', err);
     }
   }, [artifact.source]);
 

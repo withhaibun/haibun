@@ -1,17 +1,49 @@
+/**
+ * FeatureVariables - QuadStore-backed variable storage
+ * 
+ * Domain IS the predicate: (varName, domainType, value, shared)
+ * Example: (user_role, roles, "admin", shared)
+ * 
+ * This enables semantic queries: queryQuads({ predicate: 'roles' })
+ */
+
 import { AStepper } from "./astepper.js";
 import { isLiteralValue } from "./util/index.js";
 import { TFeatureStep, TWorld } from './defs.js';
 import { Origin, TOrigin, TProvenanceIdentifier, TStepValue } from '../schema/protocol.js';
 import { DOMAIN_JSON, DOMAIN_STRING, normalizeDomainKey } from "./domain-types.js";
+import { QuadStore } from "./quad-store.js";
+import { IQuadStore, TQuad } from "./quad-types.js";
+
+export const SHARED_CONTEXT = 'shared';
+export const META_CONTEXT = 'meta';
+export const OBSERVATION_CONTEXT = 'observation';
 
 export class FeatureVariables {
+	private store: IQuadStore;
+	// Keep the in-memory values map for backward compatibility
 	private values: { [name: string]: TStepValue; };
 
 	constructor(private world: TWorld, initial?: { [name: string]: TStepValue; }) {
-		this.values = initial || {};
+		this.store = new QuadStore();
+		this.values = initial ? { ...initial } : {};
+
+		// Also store initial values as quads
+		if (initial) {
+			for (const [name, sv] of Object.entries(initial)) {
+				this.storeAsQuad(name, sv);
+			}
+		}
 	}
+
+	/** Get the underlying QuadStore for direct queries */
+	getStore(): IQuadStore {
+		return this.store;
+	}
+
 	clear() {
 		this.values = {};
+		this.store.clear(SHARED_CONTEXT);
 	}
 
 	all() {
@@ -19,15 +51,17 @@ export class FeatureVariables {
 	}
 
 	toString() {
-		return `context ${this.world.tag} values ${this.values}`;
+		return `context ${this.world.tag} values ${Object.keys(this.values).length}`;
 	}
 
 	setJSON(label: string, value: object, origin: TOrigin, source: TFeatureStep) {
 		this.set({ term: label, value: JSON.stringify(value), domain: DOMAIN_JSON, origin }, { in: source.in, seq: source.seqPath, when: `${source.action.stepperName}.${source.action.actionName}` });
 	}
+
 	setForStepper(stepper: string, sv: TStepValue, provenance: TProvenanceIdentifier) {
 		return this._set({ ...sv, term: `${stepper}.${sv.term}` }, provenance);
 	}
+
 	unset(name: string) {
 		delete this.values[name];
 	}
@@ -47,6 +81,7 @@ export class FeatureVariables {
 
 		return this._set(sv, provenance);
 	}
+
 	_set(sv: TStepValue, provenance: TProvenanceIdentifier) {
 		const domainKey = normalizeDomainKey(sv.domain);
 		const domain = this.world.domains[domainKey]
@@ -57,11 +92,38 @@ export class FeatureVariables {
 		domain.coerce(normalized);
 		const existingProvenance: TProvenanceIdentifier[] = this.values[sv.term]?.provenance;
 		const provenances = existingProvenance ? [...existingProvenance, provenance] : [provenance];
+
+		// Store in values map (keeps existing behavior)
 		this.values[sv.term] = {
 			...normalized,
 			provenance: provenances
 		};
+
+		// Store as quad with domain as predicate
+		this.storeAsQuad(sv.term, { ...normalized, provenance: provenances });
+
+		// Emit quad observation event for real-time graph building
+		const timestamp = Date.now();
+		this.world.eventLogger?.emit({
+			id: `quad-${timestamp}`,
+			timestamp,
+			source: 'haibun',
+			level: 'debug' as const,
+			kind: 'artifact' as const,
+			artifactType: 'json' as const,
+			mimetype: 'application/json',
+			json: {
+				quadObservation: {
+					subject: sv.term,
+					predicate: domainKey,  // Domain IS the predicate
+					object: normalized.value,
+					context: SHARED_CONTEXT,
+					// Move provenance to separate quads in meta context, don't embed
+				}
+			},
+		});
 	}
+
 	get<T>(name: string): T | undefined {
 		if (!this.values[name]) return undefined;
 		const domainKey = normalizeDomainKey(this.values[name].domain);
@@ -72,6 +134,7 @@ export class FeatureVariables {
 		const ret = <T>domain.coerce({ ...this.values[name], domain: domainKey });
 		return ret;
 	}
+
 	getJSON<T>(name: string): T | undefined {
 		if (!this.values[name]) return undefined;
 
@@ -163,6 +226,7 @@ export class FeatureVariables {
 
 		return resolved as TStepValue;
 	}
+
 	getDomainValues(domainName: string): { values: unknown[], error?: string } {
 		const domainKey = normalizeDomainKey(domainName);
 		const domainDef = this.world.domains[domainKey];
@@ -181,5 +245,58 @@ export class FeatureVariables {
 			.map(v => v.value);
 
 		return { values: memberValues };
+	}
+
+	// =========================================================================
+	// QuadStore-specific methods for first-order logic integration
+	// =========================================================================
+
+	/**
+	 * Query quads. The predicate IS the domain type.
+	 * Example: queryQuads({ predicate: 'roles' }) to find all role-typed values.
+	 */
+	queryQuads(pattern: { subject?: string; predicate?: string; object?: unknown; context?: string }): TQuad[] {
+		return this.store.query(pattern);
+	}
+
+	/** Check existence of a quad */
+	existsQuad(pattern: { subject?: string; predicate?: string; object?: unknown; context?: string }): boolean {
+		return this.store.query(pattern).length > 0;
+	}
+
+	/** Count quads matching pattern */
+	countQuads(pattern: { subject?: string; predicate?: string; object?: unknown; context?: string }): number {
+		return this.store.query(pattern).length;
+	}
+
+	/** Add a quad directly (for non-variable observations like HTTP traces) */
+	addQuad(quad: Omit<TQuad, 'timestamp'>): void {
+		this.store.add(quad);
+	}
+
+	/** Get all quads */
+	allQuads(): TQuad[] {
+		return this.store.all();
+	}
+
+	// =========================================================================
+	// Private helpers
+	// =========================================================================
+
+	private storeAsQuad(name: string, sv: TStepValue): void {
+		const domainKey = normalizeDomainKey(sv.domain);
+		// Domain IS the predicate: (name, domainType, value, shared)
+		this.store.add({ subject: name, predicate: domainKey, object: sv.value, context: SHARED_CONTEXT });
+
+		// Store metadata as separate quads in META context
+		if (sv.origin) {
+			this.store.add({ subject: name, predicate: 'origin', object: sv.origin, context: META_CONTEXT });
+		}
+		if (sv.provenance) {
+			this.store.add({ subject: name, predicate: 'provenance', object: sv.provenance, context: META_CONTEXT });
+		}
+		if (sv.readonly) {
+			this.store.add({ subject: name, predicate: 'readonly', object: true, context: META_CONTEXT });
+		}
 	}
 }
