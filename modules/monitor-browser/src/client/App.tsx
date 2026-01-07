@@ -783,11 +783,11 @@ function App() {
                                 ⇄
                             </button>
                         )}
-                        {events.some(e => e.kind === 'artifact' && e.artifactType === 'json' && (e as any).json?.quadObservation) && (
+                        {events.some(e => e.kind === 'artifact' && e.artifactType === 'json' && 'json' in e && (e.json as Record<string, unknown>)?.quadObservation) && (
                             <button
                                 onClick={() => setViewOrder(prev => prev.includes('quad') ? prev.filter(v => v !== 'quad') : [...prev, 'quad'])}
                                 className={`p-1.5 hover:bg-slate-700 rounded transition-colors ${showQuadGraph ? 'text-cyan-400 bg-slate-800' : 'text-slate-500 hover:text-slate-300'}`}
-                                title={`Toggle QuadStore Graph (${events.filter(e => e.kind === 'artifact' && e.artifactType === 'json' && (e as any).json?.quadObservation).length} observations)`}
+                                title={`Toggle QuadStore Graph (${events.filter(e => e.kind === 'artifact' && e.artifactType === 'json' && 'json' in e && (e.json as Record<string, unknown>)?.quadObservation).length} observations)`}
                             >
                                 ◈
                             </button>

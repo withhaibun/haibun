@@ -124,7 +124,7 @@ export function QuadGraphDiagram({
   }, [quads, namedGraphFilter, selectedContexts.size, Array.from(selectedContexts).sort().join(',')]);
 
   // 2. Calculate Graph Source (Stable unless Universe or Layout changes)
-  const { mermaidSource, nodes, edges, totalQuads } = useMemo(() => {
+  const { mermaidSource, nodes, edges } = useMemo(() => {
     const total = universeQuads.length;
     if (total === 0) {
       return { mermaidSource: '', nodes: new Map(), edges: [], totalQuads: 0 };
@@ -156,7 +156,7 @@ export function QuadGraphDiagram({
       if (!nodes.has(subjectId)) {
         const hasLabel = labels.has(quad.subject);
         nodes.set(subjectId, {
-          label: hasLabel ? labels.get(quad.subject)! : truncate(quad.subject, 25),
+          label: labels.get(quad.subject) ?? truncate(quad.subject, 25),
           type: 'subject',
           namedGraph: quad.namedGraph,
           hasLabel: !!hasLabel,
@@ -168,7 +168,7 @@ export function QuadGraphDiagram({
         const objStr = stringifyObject(quad.object);
         const hasLabel = labels.has(objStr);
         nodes.set(objectId, {
-          label: hasLabel ? labels.get(objStr)! : truncate(objStr, 25),
+          label: labels.get(objStr) ?? truncate(objStr, 25),
           type: 'object',
           namedGraph: quad.namedGraph,
           hasLabel: !!hasLabel,
@@ -215,15 +215,10 @@ export function QuadGraphDiagram({
     // Add context-based styling (calls helper from strict scope)
     source += generateContextStyles(universeQuads, nodes);
 
-    return { mermaidSource: source, nodes, edges, totalQuads: total };
+    return { mermaidSource: source, nodes, edges };
   }, [universeQuads, layout]);
 
-  // 3. Calculate Active Quads (Depends on Time)
-  const filteredQuads = useMemo(() => {
-    const currentAbsoluteTime = currentTime !== undefined ? startTime + currentTime : undefined;
-    if (currentAbsoluteTime === undefined) return universeQuads;
-    return universeQuads.filter(q => (q.timestamp ?? 0) <= currentAbsoluteTime);
-  }, [universeQuads, currentTime, startTime]);
+  // Active quads count calculated inline where needed (currently unused)
 
   const [svgContainer, setSvgContainer] = React.useState<HTMLDivElement | null>(null);
 
@@ -317,7 +312,7 @@ export function QuadGraphDiagram({
     });
 
     nodeElements.forEach((node) => {
-      const id = node.id; // Mermaid sets ID on the g element: e.g. "n_subject"?
+      // const id = node.id; // (Unused, logic uses different lookup)
       // Mermaid IDs usually start with "flowchart-" + id + "-..."
       // But we know our IDs are "n_..."
       // Let's try to match the known ID from our map

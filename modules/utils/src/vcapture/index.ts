@@ -3,9 +3,9 @@
 import { TAnyFixme } from "@haibun/core/lib/fixme.js";
 import { parseVCaptureArgs, runContainer } from "./vcapture-lib.js";
 
-process.on('unhandledRejection', (err: any) => {
+process.on('unhandledRejection', (err: unknown) => {
 	console.error('cli Unhandled Rejection:', err);
-	if (err && err.stack) {
+	if (err instanceof Error && err.stack) {
 		console.error(err.stack);
 	} else {
 		console.error(err);

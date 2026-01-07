@@ -283,7 +283,8 @@ export function generateSequenceDiagramFromTraces(traces: THttpTraceArtifact[]):
       source += `  Browser->>${sanitizedHost}: ${method} ${path}\n`;
     } else if (trace.httpEvent === 'response') {
       const status = trace.trace.status || 200;
-      source += `  ${sanitizedHost}-->>Browser: ${status}\n`;
+      const statusText = trace.trace.statusText || '';
+      source += `  ${sanitizedHost}-->>Browser: ${status}${statusText ? ' ' + statusText : ''}\n`;
     }
   });
 
