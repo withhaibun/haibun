@@ -41,6 +41,11 @@ function App() {
         return saved ? parseInt(saved, 10) : 400;
     });
 
+    // New persistent view states
+    const [viewOrder, setViewOrder] = useState<('sequence' | 'quad')[]>([]);
+    const showQuadGraph = viewOrder.includes('quad');
+    const showSequence = viewOrder.includes('sequence');
+
     // Video metadata extracted from loadedmetadata event
     const [videoMetadata, _setVideoMetadata] = useState<{
         duration: number;
@@ -573,21 +578,24 @@ function App() {
                                                     : undefined}
                                                 lineNumber={e.kind === 'lifecycle' && 'lineNumber' in e ? e.lineNumber : undefined}
                                             />
-                                            <SourceLinks
-                                                featurePath={e.kind === 'lifecycle' && 'featurePath' in e ? e.featurePath : undefined}
-                                                lineNumber={e.kind === 'lifecycle' && 'lineNumber' in e ? e.lineNumber : undefined}
-                                                emitter={e.emitter}
-                                                cwd={cwd}
-                                                isSerializedMode={isSerializedMode}
-                                                isBackground={!!(e.kind === 'lifecycle' && 'featurePath' in e && e.featurePath?.includes('/backgrounds/'))}
-                                                isWaypoint={e.kind === 'lifecycle' && (e.type === 'ensure' || e.type === 'activity')}
-                                            />
+                                            {/* Column 3: SourceLinks (Race Info) - Hide when details panel is open */}
+                                            {!selectedEvent && (
+                                                <SourceLinks
+                                                    featurePath={e.kind === 'lifecycle' && 'featurePath' in e ? e.featurePath : undefined}
+                                                    lineNumber={e.kind === 'lifecycle' && 'lineNumber' in e ? e.lineNumber : undefined}
+                                                    emitter={e.emitter}
+                                                    cwd={cwd}
+                                                    isSerializedMode={isSerializedMode}
+                                                    isBackground={!!(e.kind === 'lifecycle' && 'featurePath' in e && e.featurePath?.includes('/backgrounds/'))}
+                                                    isWaypoint={e.kind === 'lifecycle' && (e.type === 'ensure' || e.type === 'activity')}
+                                                />
+                                            )}
                                         </>
                                     )}
                                 </div>
                             </div>
 
-                            {/* Right Column: SeqPath */}
+                            {/* Right Column: SeqPath - Always show (revert hide) */}
                             <div className="w-24 text-[10px] text-slate-500 font-mono text-right ml-2 py-1 select-all hover:text-slate-300 break-words">
                                 <div title={e.id}>
                                     <EventIdDisplay e={e} />
@@ -644,10 +652,70 @@ function App() {
     };
 
 
+    // Collect data for synthetic props passed to DetailsPanel if views are active
+    // We compute this on the fly: if showSequence is true, we need 'allTraces' etc.
+    // If showQuadGraph is true, we need 'quads'. 
+    // We attach these to the 'selectedEvent' via synthetic props, OR we just pass them to DetailsPanel?
+    // The previous implementation used synthetic events for selectedEvent. 
+    // Now we want non-exclusive. 
+    // If we have a selectedEvent, we enrich it.
+    // If we have NO selectedEvent but views are ON, we need a dummy event to render the panel??
+    // Yes, if showQuadGraph is true, panel must be visible.
+    // So if !selectedEvent && (showQuadGraph || showSequence), we create a dummy event.
+
+    const enrichedSelectedEvent = useMemo(() => {
+        // Base event is selectedEvent OR a dummy holder
+        // biome-ignore lint/suspicious/noExplicitAny: synthetic construction
+        let base: any = selectedEvent;
+
+        if (!base && (showQuadGraph || showSequence)) {
+            // Find a valid timestamp anchor (e.g. current time or last event)
+            const anchorEvent = events.find(e => e.kind === 'lifecycle') || events[0];
+            base = {
+                id: 'synthetic-view-anchor',
+                kind: 'control',
+                signal: 'view-anchor',
+                timestamp: startTime || anchorEvent?.timestamp || Date.now(),
+                _isSynthetic: true
+            };
+        }
+
+        if (!base) return null;
+
+        // Spread base to avoid mutating state
+        const enriched = { ...base };
+
+        // Attach Sequence Data if needed
+        if (showSequence) {
+            const httpTraces = events.filter(e => e.kind === 'artifact' && e.artifactType === 'http-trace') as THttpTraceArtifact[];
+            if (httpTraces.length > 0) {
+                enriched._allTraces = httpTraces;
+            }
+        }
+
+        // Attach Quad Data if needed
+        if (showQuadGraph) {
+            // biome-ignore lint/suspicious/noExplicitAny: quad check
+            const quadObservations = events.filter(e => e.kind === 'artifact' && e.artifactType === 'json' && (e as any).json?.quadObservation);
+            if (quadObservations.length > 0) {
+                // biome-ignore lint/suspicious/noExplicitAny: quad map
+                const quads = quadObservations.map((e: any) => ({
+                    ...e.json.quadObservation,
+                    timestamp: e.json.quadObservation.timestamp ?? e.timestamp,
+                }));
+                enriched._quads = quads;
+            }
+        }
+
+        return enriched as THaibunEvent;
+
+    }, [selectedEvent, showQuadGraph, showSequence, events, startTime]);
+
+
     return (
         <div
             className={`h-screen w-full bg-background text-foreground pb-20 overflow-y-auto transition-all duration-300`}
-            style={{ scrollbarGutter: 'stable', paddingRight: selectedEvent ? `${detailsPanelWidth}px` : undefined }}
+            style={{ scrollbarGutter: 'stable', paddingRight: (selectedEvent || showQuadGraph || showSequence) ? `${detailsPanelWidth}px` : undefined }}
         >
             <style>{`
         ::-webkit-scrollbar {
@@ -708,43 +776,18 @@ function App() {
                         )}
                         {events.some(e => e.kind === 'artifact' && e.artifactType === 'http-trace') && (
                             <button
-                                onClick={() => {
-                                    // Create a synthetic event to display http-trace sequence
-                                    const httpTraces = events.filter(e => e.kind === 'artifact' && e.artifactType === 'http-trace') as THttpTraceArtifact[];
-                                    if (httpTraces.length > 0) {
-                                        // Select first trace to trigger display, DetailsPanel will show all
-                                        // biome-ignore lint/suspicious/noExplicitAny: synthetic event
-                                        setSelectedEvent({ ...httpTraces[0], _allTraces: httpTraces } as any);
-                                    }
-                                }}
-                                // biome-ignore lint/suspicious/noExplicitAny: loose event type
-                                className={`p-1.5 hover:bg-slate-700 rounded transition-colors ${selectedEvent?.kind === 'artifact' && (selectedEvent as any).artifactType === 'http-trace' ? 'text-cyan-400' : 'text-slate-500 hover:text-slate-300 grayscale'}`}
-                                title={`View HTTP Traces (${events.filter(e => e.kind === 'artifact' && e.artifactType === 'http-trace').length})`}
+                                onClick={() => setViewOrder(prev => prev.includes('sequence') ? prev.filter(v => v !== 'sequence') : [...prev, 'sequence'])}
+                                className={`p-1.5 hover:bg-slate-700 rounded transition-colors ${showSequence ? 'text-cyan-400 bg-slate-800' : 'text-slate-500 hover:text-slate-300'}`}
+                                title={`Toggle HTTP Sequence Diagram (${events.filter(e => e.kind === 'artifact' && e.artifactType === 'http-trace').length})`}
                             >
                                 ⇄
                             </button>
                         )}
                         {events.some(e => e.kind === 'artifact' && e.artifactType === 'json' && (e as any).json?.quadObservation) && (
                             <button
-                                onClick={() => {
-                                    // Collect all quadObservation artifacts and create synthetic event
-                                    // biome-ignore lint/suspicious/noExplicitAny: json artifact type
-                                    const quadObservations = events.filter(e => e.kind === 'artifact' && e.artifactType === 'json' && (e as any).json?.quadObservation);
-                                    if (quadObservations.length > 0) {
-                                        // Create a synthetic event for the QuadGraphDiagram
-                                        // biome-ignore lint/suspicious/noExplicitAny: synthetic quad event
-                                        const quads = quadObservations.map((e: any) => e.json.quadObservation);
-                                        // biome-ignore lint/suspicious/noExplicitAny: synthetic event
-                                        setSelectedEvent({
-                                            ...quadObservations[0],
-                                            json: { quadstore: quads },
-                                            _isQuadGraph: true,
-                                        } as any);
-                                    }
-                                }}
-                                // biome-ignore lint/suspicious/noExplicitAny: loose event type
-                                className={`p-1.5 hover:bg-slate-700 rounded transition-colors ${selectedEvent?.kind === 'artifact' && (selectedEvent as any)._isQuadGraph ? 'text-cyan-400' : 'text-slate-500 hover:text-slate-300 grayscale'}`}
-                                title={`View QuadStore Graph (${events.filter(e => e.kind === 'artifact' && e.artifactType === 'json' && (e as any).json?.quadObservation).length} observations)`}
+                                onClick={() => setViewOrder(prev => prev.includes('quad') ? prev.filter(v => v !== 'quad') : [...prev, 'quad'])}
+                                className={`p-1.5 hover:bg-slate-700 rounded transition-colors ${showQuadGraph ? 'text-cyan-400 bg-slate-800' : 'text-slate-500 hover:text-slate-300'}`}
+                                title={`Toggle QuadStore Graph (${events.filter(e => e.kind === 'artifact' && e.artifactType === 'json' && (e as any).json?.quadObservation).length} observations)`}
                             >
                                 ◈
                             </button>
@@ -813,10 +856,13 @@ function App() {
                 playbackSpeed={playbackSpeed}
                 onSpeedChange={setPlaybackSpeed}
             />
-            {selectedEvent && (
+            {enrichedSelectedEvent && (
                 <DetailsPanel
-                    event={selectedEvent}
-                    onClose={() => setSelectedEvent(null)}
+                    event={enrichedSelectedEvent}
+                    onClose={() => {
+                        setSelectedEvent(null);
+                        setViewOrder([]);
+                    }}
                     width={detailsPanelWidth}
                     onWidthChange={(w) => {
                         setDetailsPanelWidth(w);
@@ -827,6 +873,9 @@ function App() {
                     videoMetadata={videoMetadata}
                     isPlaying={isPlaying}
                     startTime={startTime || 0}
+                    cwd={cwd}
+                    isSerializedMode={isSerializedMode}
+                    viewOrder={viewOrder}
                 />
             )}
         </div>

@@ -1,5 +1,5 @@
-import React, { useMemo, useRef, useEffect } from 'react';
-import { THttpTraceArtifact, TArtifactEvent } from '@haibun/core/schema/protocol.js';
+import React, { useMemo, useRef, useLayoutEffect } from 'react';
+import { THttpTraceArtifact } from '@haibun/core/schema/protocol.js';
 import { MermaidArtifact } from './MermaidArtifact';
 import { escapeLabel } from './mermaid-utils';
 
@@ -12,16 +12,16 @@ interface HttpTraceSequenceDiagramProps {
 /**
  * Generates a mermaid sequence diagram from http-trace artifacts.
  * Shows request/response flow between browser and servers.
- * Highlights the current request based on timeline position.
+ * Highlights the current request based on timeline position via DOM manipulation.
  */
 export function HttpTraceSequenceDiagram({ traces, currentTime, startTime = 0 }: HttpTraceSequenceDiagramProps) {
-  const { mermaidSource, currentTraceIndex } = useMemo(() => {
+  // Generate stable Mermaid source (independent of time)
+  const mermaidSource = useMemo(() => {
     if (traces.length === 0) {
-      return { mermaidSource: '', currentTraceIndex: -1 };
+      return '';
     }
 
     // Group traces by request/response pairs
-    // Each request should be followed by its response
     const participants = new Set<string>();
     participants.add('Browser');
 
@@ -48,22 +48,8 @@ export function HttpTraceSequenceDiagram({ traces, currentTime, startTime = 0 }:
       }
     });
 
-    // Find current trace based on timeline position
-    let currentIdx = -1;
-    if (currentTime !== undefined) {
-      const currentAbsoluteTime = startTime + currentTime;
-      for (let i = traces.length - 1; i >= 0; i--) {
-        if (traces[i].timestamp <= currentAbsoluteTime) {
-          currentIdx = i;
-          break;
-        }
-      }
-    }
-
-    // Add messages for each trace
-    traces.forEach((trace, idx) => {
-      const isActive = idx <= currentIdx;
-      const isCurrent = idx === currentIdx;
+    // Add messages for each trace (Render ALL as active/solid arrows)
+    traces.forEach((trace) => {
       const host = getHost(trace.trace.requestingURL || trace.trace.requestingPage);
       const sanitizedHost = sanitizeParticipant(host);
 
@@ -71,99 +57,187 @@ export function HttpTraceSequenceDiagram({ traces, currentTime, startTime = 0 }:
         const method = trace.trace.method || 'GET';
         const path = getPath(trace.trace.requestingURL);
         const label = `${method} ${path}`;
+        const escapedLabel = escapeLabel(label);
 
-        if (isCurrent) {
-          source += `  rect rgb(14, 116, 144)\n`;
-        }
+        // Always use solid arrows (->>) for requests
+        source += `  Browser->>${sanitizedHost}: ${escapedLabel}\n`;
 
-        if (isActive) {
-          source += `  Browser->>${sanitizedHost}: ${escapeLabel(label)}\n`;
-        } else {
-          source += `  Browser-->>${sanitizedHost}: ${escapeLabel(label)}\n`;
-        }
-
-        if (isCurrent) {
-          source += `  end\n`;
-        }
       } else if (trace.httpEvent === 'response') {
         const status = trace.trace.status || 200;
         const label = `${status} ${trace.trace.statusText || ''}`;
+        const escapedLabel = escapeLabel(label);
 
-        if (isCurrent) {
-          source += `  rect rgb(14, 116, 144)\n`;
-        }
-
-        if (isActive) {
-          source += `  ${sanitizedHost}-->>Browser: ${escapeLabel(label)}\n`;
-        } else {
-          source += `  ${sanitizedHost}-->Browser: ${escapeLabel(label)}\n`;
-        }
-
-        if (isCurrent) {
-          source += `  end\n`;
-        }
+        // Always use dotted arrows (-->>) for responses
+        source += `  ${sanitizedHost}-->>Browser: ${escapedLabel}\n`;
       }
     });
 
-    return { mermaidSource: source, currentTraceIndex: currentIdx };
+    return source;
+  }, [traces]);
+
+  // key memoization for artifact to minimize re-renders
+  const artifactObject = useMemo(() => ({
+    artifactType: 'mermaid',
+    source: mermaidSource,
+    id: 'http-trace-sequence',
+    kind: 'artifact',
+    mimetype: 'text/x-mermaid',
+    // biome-ignore lint/suspicious/noExplicitAny: complex union type
+  } as any), [mermaidSource]);
+
+  // Calculate current index
+  const currentTraceIndex = useMemo(() => {
+    if (currentTime === undefined || traces.length === 0) return -1;
+    const currentAbsoluteTime = startTime + currentTime;
+    let idx = -1;
+    for (let i = traces.length - 1; i >= 0; i--) {
+      if (traces[i].timestamp <= currentAbsoluteTime) {
+        idx = i;
+        break;
+      }
+    }
+    return idx;
   }, [traces, currentTime, startTime]);
 
   if (!mermaidSource || traces.length === 0) {
     return <div className="text-slate-500 text-sm">No HTTP traces available</div>;
   }
 
-  const containerRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [zoom, setZoom] = React.useState(100);
+  const [isFullscreen, setIsFullscreen] = React.useState(false);
 
-  // Scroll the highlighted rect into view when currentTraceIndex changes
-  useEffect(() => {
-    if (currentTraceIndex < 0 || !containerRef.current) return;
+  // DOM Effect: Highlight current trace and fade future ones
+  useLayoutEffect(() => {
+    if (!scrollRef.current) return;
+    const container = scrollRef.current;
 
-    // Small delay to allow mermaid to render
-    const timer = setTimeout(() => {
-      if (!containerRef.current) return;
+    // Mermaid sequence diagram v10 usually puts text in <text class="messageText">
+    // or sometimes just <text> inside <g class="messageText">
+    // We try querying .messageText (class on text element)
+    const messageTexts = container.querySelectorAll('.messageText');
 
-      // Find the rect element with the highlight color (rgb(14, 116, 144) = teal/cyan)
-      const rects = containerRef.current.querySelectorAll('rect');
-      for (const rect of rects) {
-        const fill = rect.getAttribute('fill');
-        // Mermaid may render as rgb() or hex
-        if (fill && (fill.includes('14, 116, 144') || fill === '#0e7490' || fill.toLowerCase() === 'rgb(14,116,144)' || fill.toLowerCase() === 'rgb(14, 116, 144)')) {
-          rect.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
-          break;
-        }
+    if (messageTexts.length === 0) {
+      // Fallback or debug?
+      // Maybe mermaid hasn't rendered yet?
+      // onRender callback handles scroll initial, but updates happen here.
+      return;
+    }
+
+    // Iterate all traces to set state
+    traces.forEach((_, idx) => {
+      if (idx >= messageTexts.length) return; // Mismatch safety
+
+      const el = messageTexts[idx] as SVGElement;
+
+      if (idx === currentTraceIndex) {
+        // Highlight
+        el.style.fontWeight = 'bold';
+        el.style.fill = '#e87a5d'; // Highlight color
+        el.style.opacity = '1';
+        el.style.fontSize = '14px'; // Pop
+
+        // Highlight the LINE?
+        // Lines are usually siblings. Hard to target reliably by index without digging into Mermaid guts.
+        // Focusing on text is usually enough.
+
+        // Scroll
+        el.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'center' });
+
+      } else if (currentTraceIndex !== -1 && idx > currentTraceIndex) {
+        // Future
+        el.style.fontWeight = 'normal';
+        el.style.fill = '#888';
+        el.style.opacity = '0.4';
+        el.style.fontSize = '';
+      } else {
+        // Past / Active
+        el.style.fontWeight = 'normal';
+        el.style.fill = 'black';
+        el.style.opacity = '1';
+        el.style.fontSize = '';
       }
-    }, 100);
+    });
 
-    return () => clearTimeout(timer);
-  }, [currentTraceIndex, mermaidSource]);
+  }, [currentTraceIndex, traces.length]);
+
+  const handleCopy = async () => {
+    if (!mermaidSource) return;
+    try {
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(mermaidSource);
+      } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = mermaidSource;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-9999px'; // Hide the textarea
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+    } catch (err) {
+      console.error('Failed to copy', err);
+    }
+  };
 
   return (
-    <div className="http-trace-sequence" ref={containerRef}>
-      <MermaidArtifact
-        artifact={{
-          artifactType: 'mermaid',
-          source: mermaidSource,
-          id: 'http-trace-sequence',
-          timestamp: Date.now(),
-          kind: 'artifact',
-          mimetype: 'text/x-mermaid'
-          // biome-ignore lint/suspicious/noExplicitAny: complex union type
-        } as any}
-      />
-      <div className="text-xs text-slate-400 mt-2 font-mono">
-        {currentTraceIndex >= 0 ? (
-          <span>Showing {currentTraceIndex + 1} of {traces.length} HTTP events</span>
-        ) : (
-          <span>{traces.length} HTTP events</span>
-        )}
+    <div className={`http-trace-sequence flex flex-col h-full bg-slate-900 ${isFullscreen ? 'fixed inset-0 z-50 p-4' : ''}`}>
+      <div className="flex justify-between items-center p-2 bg-white border-b border-slate-300 shrink-0 gap-4 h-10">
+        <div className="font-bold text-sm text-slate-700 shrink-0">Sequence Diagram</div>
+
+        <div className="flex items-center gap-4 h-full">
+          {/* Controls: Zoom */}
+          <div className="flex items-center gap-1 border-r border-slate-200 pr-4 h-full">
+            <button onClick={() => setZoom(z => Math.max(10, z - 10))} className="p-1 hover:bg-slate-100 rounded text-slate-600 font-bold w-6 h-6 flex items-center justify-center transform scale-y-110" title="Zoom Out">-</button>
+            <span className="text-xs text-slate-500 w-8 text-center select-none">{zoom}%</span>
+            <button onClick={() => setZoom(z => Math.min(200, z + 10))} className="p-1 hover:bg-slate-100 rounded text-slate-600 font-bold w-6 h-6 flex items-center justify-center" title="Zoom In">+</button>
+          </div>
+
+          {/* [Copy] */}
+          <button
+            onClick={handleCopy}
+            className="px-2 py-0.5 text-xs bg-slate-100 hover:bg-slate-200 rounded border border-slate-300 font-medium text-slate-600 transition-colors"
+            title="Copy Mermaid source"
+          >
+            Copy
+          </button>
+
+          {/* [Info] */}
+          <div className="text-xs text-slate-500 font-mono px-2 whitespace-nowrap">
+            {currentTraceIndex >= 0 ? `${currentTraceIndex + 1}/${traces.length}` : traces.length} events
+          </div>
+
+          {/* [Size] (Fullscreen) */}
+          <button
+            onClick={() => setIsFullscreen(f => !f)}
+            className="p-1 hover:bg-slate-100 rounded text-slate-600 transition-colors flex items-center justify-center w-6 h-6"
+            title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6" /><path d="M9 21H3v-6" /><path d="M21 3l-7 7" /><path d="M3 21l7-7" /></svg>
+          </button>
+        </div>
+      </div>
+
+      <div
+        ref={scrollRef}
+        className={`overflow-auto flex-1 bg-white relative ${isFullscreen ? '' : 'max-h-full'}`}
+      >
+        <div style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top left', minWidth: '100%', minHeight: '100%' }}>
+          <MermaidArtifact
+            artifact={artifactObject}
+            containerClassName="min-h-full"
+            unstyled={true}
+          />
+        </div>
       </div>
     </div>
   );
 }
 
-// Helper functions
+// Helper functions (kept)
 function sanitizeParticipant(name: string): string {
-  // Mermaid participant names must be alphanumeric
   return name.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 20);
 }
 
@@ -182,48 +256,34 @@ function getPath(url: string | undefined): string {
   try {
     const parsed = new URL(url);
     const path = parsed.pathname || '/';
-    // Truncate long paths
     return path.length > 30 ? path.substring(0, 27) + '...' : path;
   } catch {
     return '/';
   }
 }
 
-
-
-/**
- * Generate mermaid sequence diagram source from http-trace artifacts
- */
 export function generateSequenceDiagramFromTraces(traces: THttpTraceArtifact[]): string {
   if (traces.length === 0) return '';
-
   const participants = new Set<string>();
   participants.add('Browser');
-
-  traces.forEach(trace => {
-    const host = getHost(trace.trace.requestingURL || trace.trace.requestingPage);
-    participants.add(host);
-  });
+  traces.forEach(trace => participants.add(getHost(trace.trace.requestingURL || trace.trace.requestingPage)));
 
   let source = 'sequenceDiagram\n';
   source += '  participant Browser\n';
   participants.forEach(p => {
-    if (p !== 'Browser') {
-      source += `  participant ${sanitizeParticipant(p)}\n`;
-    }
+    if (p !== 'Browser') source += `  participant ${sanitizeParticipant(p)}\n`;
   });
 
   traces.forEach(trace => {
     const host = getHost(trace.trace.requestingURL || trace.trace.requestingPage);
     const sanitizedHost = sanitizeParticipant(host);
-
     if (trace.httpEvent === 'request' || trace.httpEvent === 'route') {
       const method = trace.trace.method || 'GET';
       const path = getPath(trace.trace.requestingURL);
-      source += `  Browser->>${sanitizedHost}: ${escapeLabel(`${method} ${path}`)}\n`;
+      source += `  Browser->>${sanitizedHost}: ${method} ${path}\n`;
     } else if (trace.httpEvent === 'response') {
       const status = trace.trace.status || 200;
-      source += `  ${sanitizedHost}-->>Browser: ${escapeLabel(`${status} ${trace.trace.statusText || ''}`)}\n`;
+      source += `  ${sanitizedHost}-->>Browser: ${status}\n`;
     }
   });
 

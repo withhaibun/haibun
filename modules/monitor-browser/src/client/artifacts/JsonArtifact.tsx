@@ -3,6 +3,7 @@ import React, { useState, useCallback } from 'react';
 
 interface JsonArtifactProps {
   artifact: TJsonArtifact;
+  collapsed?: boolean;
 }
 
 interface JsonNodeProps {
@@ -10,6 +11,7 @@ interface JsonNodeProps {
   value: unknown;
   depth: number;
   isArrayIndex?: boolean;
+  collapsed?: boolean;
 }
 
 function getPrimitiveClassName(value: unknown): string {
@@ -26,8 +28,8 @@ function formatPrimitive(value: unknown): string {
   return String(value);
 }
 
-function JsonNode({ keyName, value, depth, isArrayIndex }: JsonNodeProps) {
-  const [isOpen, setIsOpen] = useState(depth < 4);
+function JsonNode({ keyName, value, depth, isArrayIndex, collapsed }: JsonNodeProps) {
+  const [isOpen, setIsOpen] = useState(collapsed ? false : depth < 4);
   const isComplex = typeof value === 'object' && value !== null;
   const marginLeft = depth * 16;
 
@@ -63,7 +65,7 @@ function JsonNode({ keyName, value, depth, isArrayIndex }: JsonNodeProps) {
       {isOpen && (
         <div className="border-l border-dashed border-gray-300">
           {entries.map(([k, v]) => (
-            <JsonNode key={String(k)} keyName={k} value={v} depth={depth + 1} isArrayIndex={isArray} />
+            <JsonNode key={String(k)} keyName={k} value={v} depth={depth + 1} isArrayIndex={isArray} collapsed={false} />
           ))}
         </div>
       )}
@@ -74,7 +76,7 @@ function JsonNode({ keyName, value, depth, isArrayIndex }: JsonNodeProps) {
 /**
  * JSON artifact with collapsible disclosure tree (disclosureJson pattern).
  */
-export function JsonArtifact({ artifact }: JsonArtifactProps) {
+export function JsonArtifact({ artifact, collapsed }: JsonArtifactProps) {
   const json = artifact.json;
   const isArray = Array.isArray(json);
   const entries = isArray ? json.map((v, i) => [i, v] as const) : Object.entries(json);
@@ -112,7 +114,7 @@ export function JsonArtifact({ artifact }: JsonArtifactProps) {
         </button>
       </div>
       {entries.map(([k, v]) => (
-        <JsonNode key={String(k)} keyName={k} value={v} depth={0} isArrayIndex={isArray} />
+        <JsonNode key={String(k)} keyName={k} value={v} depth={0} isArrayIndex={isArray} collapsed={collapsed} />
       ))}
     </div>
   );

@@ -22,7 +22,7 @@ export class QuadStore implements IQuadStore {
       if (pattern.subject !== undefined && q.subject !== pattern.subject) return false;
       if (pattern.predicate !== undefined && q.predicate !== pattern.predicate) return false;
       if (pattern.object !== undefined && q.object !== pattern.object) return false;
-      if (pattern.context !== undefined && q.context !== pattern.context) return false;
+      if (pattern.namedGraph !== undefined && q.namedGraph !== pattern.namedGraph) return false;
       return true;
     });
   }
@@ -34,9 +34,9 @@ export class QuadStore implements IQuadStore {
     return matches[matches.length - 1].object;
   }
 
-  clear(context?: string): void {
-    if (context) {
-      this.quads = this.quads.filter(q => q.context !== context);
+  clear(namedGraph?: string): void {
+    if (namedGraph) {
+      this.quads = this.quads.filter(q => q.namedGraph !== namedGraph);
     } else {
       this.quads = [];
     }

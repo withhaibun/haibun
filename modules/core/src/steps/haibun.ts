@@ -170,7 +170,7 @@ class Haibun extends AStepper implements IHasCycles {
 			action: () => {
 				const quads = this.getWorld().shared.allQuads();
 				const output = quads.map(q =>
-					`(${q.subject}, ${q.predicate}, ${JSON.stringify(q.object)}, ${q.context || 'default'})`
+					`(${q.subject}, ${q.predicate}, ${JSON.stringify(q.object)}, ${q.namedGraph || 'default'})`
 				).join('\n');
 				this.getWorld().eventLogger.info(`\n=== QuadStore Dump (${quads.length} quads) ===\n${output}\n==========================\n`);
 				return OK;

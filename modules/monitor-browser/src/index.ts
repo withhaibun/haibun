@@ -25,7 +25,7 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
 
   options = {
     PORT: {
-      desc: 'Port for the browser monitor WebSocket server (default: 8080)',
+      desc: 'Port for the browser monitor WebSocket server (default: 3459)',
       parse: stringOrError
     },
     [StepperKinds.STORAGE]: {
@@ -50,7 +50,7 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
     // Start singleton transport if not exists
     // Use base path (capture/DEST/key/) without seq-N/featn-N so all features' artifacts are served
     if (!MonitorBrowserStepper.transport) {
-      const port = parseInt(getStepperOption(this, 'PORT', world.moduleOptions) || '8080', 10);
+      const port = parseInt(getStepperOption(this, 'PORT', world.moduleOptions) || '3459', 10);
       MonitorBrowserStepper.transportRoot = this.storage.getArtifactBasePath();
       MonitorBrowserStepper.transport = new WebSocketTransport(port, world.eventLogger, MonitorBrowserStepper.transportRoot);
     }

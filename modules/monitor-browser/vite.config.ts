@@ -29,13 +29,13 @@ export default defineConfig({
     port: 3458,
     proxy: {
       '/ws': {
-        target: 'ws://localhost:8080',
+        target: 'ws://localhost:3459',
         ws: true,
         changeOrigin: true,
         rewriteWsOrigin: true,
       },
       '/artifacts': {
-        target: 'http://localhost:8080',
+        target: 'http://localhost:3459',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/artifacts/, ''),
       }

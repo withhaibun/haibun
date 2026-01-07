@@ -3,6 +3,8 @@ import { THaibunEvent, TArtifactEvent, THttpTraceArtifact } from '@haibun/core/s
 import { JsonArtifact } from './artifacts/JsonArtifact';
 import { ArtifactRenderer } from './artifacts';
 import { HttpTraceSequenceDiagram } from './artifacts/HttpTraceSequenceDiagram';
+import { QuadGraphDiagram } from './artifacts/QuadGraphDiagram';
+import { SourceLinks } from './components/SourceLinks';
 
 interface DetailsPanelProps {
   event: THaibunEvent | null;
@@ -14,9 +16,12 @@ interface DetailsPanelProps {
   videoMetadata?: { duration: number; width: number; height: number } | null;
   isPlaying?: boolean;
   startTime?: number;
+  cwd: string | null;
+  isSerializedMode: boolean;
+  viewOrder?: ('sequence' | 'quad')[];
 }
 
-export function DetailsPanel({ event, onClose, width, onWidthChange, currentTime, videoStartTimestamp, videoMetadata, isPlaying, startTime }: DetailsPanelProps) {
+export function DetailsPanel({ event, onClose, width, onWidthChange, currentTime, videoStartTimestamp, videoMetadata, isPlaying, startTime, cwd, isSerializedMode, viewOrder = [] }: DetailsPanelProps) {
   const [isResizing, setIsResizing] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -28,7 +33,8 @@ export function DetailsPanel({ event, onClose, width, onWidthChange, currentTime
 
     const handleMouseMove = (e: MouseEvent) => {
       const newWidth = window.innerWidth - e.clientX;
-      onWidthChange(Math.max(250, Math.min(800, newWidth)));
+      const maxWidth = window.innerWidth * 0.85;
+      onWidthChange(Math.max(250, Math.min(maxWidth, newWidth)));
     };
 
     const handleMouseUp = () => {
@@ -47,13 +53,36 @@ export function DetailsPanel({ event, onClose, width, onWidthChange, currentTime
     };
   }, [isResizing, onWidthChange]);
 
+  // Enforce max width constraint on mount and window resize
+  useEffect(() => {
+    const checkWidth = () => {
+      const maxWidth = window.innerWidth * 0.85;
+      if (width > maxWidth) {
+        onWidthChange(maxWidth);
+      }
+    };
+
+    // Check immediately
+    checkWidth();
+
+    // Check on resize
+    window.addEventListener('resize', checkWidth);
+    return () => window.removeEventListener('resize', checkWidth);
+  }, [width, onWidthChange]);
+
   if (!event) return null;
 
   const isArtifact = event.kind === 'artifact';
-  const isHttpTrace = isArtifact && (event as TArtifactEvent).artifactType === 'http-trace';
 
-  // Check if this is a synthetic event with all traces attached
-  const allTraces = (event as unknown as { _allTraces?: THttpTraceArtifact[] })._allTraces;
+
+  // Check if this is a synthetic event (e.g. created for graph views)
+  // biome-ignore lint/suspicious/noExplicitAny: synthetic event props
+  const allTraces = (event as any)._allTraces;
+  // biome-ignore lint/suspicious/noExplicitAny: synthetic event props
+  const isQuadGraphEvent = (event as any)._isQuadGraph;
+  // biome-ignore lint/suspicious/noExplicitAny: synthetic event props
+  const quadJson = (event as any).json?.quadstore;
+
 
   // Format timestamp as full date and time
   const formattedDateTime = new Date(event.timestamp).toLocaleString(undefined, {
@@ -66,13 +95,23 @@ export function DetailsPanel({ event, onClose, width, onWidthChange, currentTime
     fractionalSecondDigits: 3
   });
 
-  // Determine header text
-  const headerText = isHttpTrace && allTraces
-    ? `HTTP Traces (${allTraces.length})`
-    : formattedDateTime;
+  // Determine header text - Always use formatted date/time as requested
+  const headerText = formattedDateTime;
+
+  // Prepare JSON View Data
+  const jsonViewData = allTraces ? { traceCount: allTraces.length, traces: allTraces } :
+    quadJson ? { quadCount: quadJson.length, quads: quadJson } :
+      event;
 
   // biome-ignore lint/suspicious/noExplicitAny: complex object construction
-  const jsonArtifact = { artifactType: 'json', json: allTraces ? { traceCount: allTraces.length, firstTrace: allTraces[0] } : event } as any;
+  const jsonArtifact = { artifactType: 'json', json: jsonViewData } as any;
+
+  // biome-ignore lint/suspicious/noExplicitAny: synthetic properties
+  const tracesData = (event as any)._allTraces as THttpTraceArtifact[] | undefined;
+  // biome-ignore lint/suspicious/noExplicitAny: synthetic properties
+  const quadsData = (event as any).json?.quadstore ?? (event as any)._quads; // support both _quads or json.quadstore
+
+  const hasViews = (viewOrder.includes('sequence') && tracesData) || (viewOrder.includes('quad') && quadsData);
 
   return (
     <div
@@ -82,7 +121,7 @@ export function DetailsPanel({ event, onClose, width, onWidthChange, currentTime
     >
       {/* Resize handle */}
       <div
-        className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-cyan-500/50 active:bg-cyan-500 group"
+        className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-cyan-500/50 active:bg-cyan-500 group z-50"
         onMouseDown={() => setIsResizing(true)}
       >
         <div className="absolute left-0 top-0 bottom-0 w-1 bg-slate-600 group-hover:bg-cyan-500" />
@@ -100,6 +139,17 @@ export function DetailsPanel({ event, onClose, width, onWidthChange, currentTime
         >
           {headerText}
         </button>
+        <div className="flex-1 flex justify-end mr-4">
+          <SourceLinks
+            featurePath={event.kind === 'lifecycle' && 'featurePath' in event ? event.featurePath : undefined}
+            lineNumber={event.kind === 'lifecycle' && 'lineNumber' in event ? event.lineNumber : undefined}
+            emitter={event.emitter}
+            cwd={cwd}
+            isSerializedMode={isSerializedMode}
+            isBackground={!!(event.kind === 'lifecycle' && 'featurePath' in event && event.featurePath?.includes('/backgrounds/'))}
+            isWaypoint={event.kind === 'lifecycle' && (event.type === 'ensure' || event.type === 'activity')}
+          />
+        </div>
         <button
           onClick={onClose}
           className="text-slate-500 hover:text-white transition-colors text-sm leading-none px-2 py-1 hover:bg-slate-700 rounded"
@@ -108,22 +158,18 @@ export function DetailsPanel({ event, onClose, width, onWidthChange, currentTime
         </button>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto">
-        {/* HTTP Trace Sequence Diagram */}
-        {isHttpTrace && allTraces && (
-          <div className="border-b border-slate-700 p-4">
-            <HttpTraceSequenceDiagram
-              traces={allTraces}
-              currentTime={currentTime}
-              startTime={startTime}
-            />
-          </div>
-        )}
+      {/* Content Main Container - No global scroll, sections scroll independently */}
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-slate-900">
 
-        {/* Regular artifact renderer (non-http-trace or single http-trace) */}
-        {isArtifact && !allTraces && (
-          <div className="border-b border-slate-700 p-4">
+        {/* 1. Raw Source (JSON) - Always First */}
+        <div className="shrink-0 p-4 border-b border-slate-700 max-h-[40%] overflow-auto">
+          <div className="text-xs font-bold text-slate-500 mb-1 opacity-50">Event Source</div>
+          <JsonArtifact artifact={jsonArtifact} collapsed={true} />
+        </div>
+
+        {/* 2. Standard Artifact Renderer (Images, Videos etc) - If applicable */}
+        {isArtifact && !allTraces && !isQuadGraphEvent && (
+          <div className="shrink-0 border-b border-slate-700 p-4 max-h-[30%] overflow-auto">
             <ArtifactRenderer
               artifact={event as TArtifactEvent}
               currentTime={currentTime}
@@ -134,10 +180,52 @@ export function DetailsPanel({ event, onClose, width, onWidthChange, currentTime
           </div>
         )}
 
-        {/* JSON view */}
-        <div className="p-4 pb-8">
-          <JsonArtifact artifact={jsonArtifact} />
-        </div>
+        {/* 3. Graph Views - Take Remaining Height */}
+        {hasViews && (
+          <div className={`flex-1 min-h-0 flex ${width > 900 ? 'flex-row' : 'flex-col'} gap-0`}>
+            {viewOrder.map(view => {
+              const isSideBySide = width > 900 && viewOrder.includes('sequence') && viewOrder.includes('quad');
+
+              if (view === 'sequence' && tracesData) {
+                return (
+                  <div
+                    key="sequence"
+                    className={`flex flex-col ${width > 900
+                      ? isSideBySide ? 'w-[30%] min-w-[300px]' : 'flex-1'
+                      : 'h-1/2' /* Split vertical height if stacked? Or flex-1? User asked for 100% remaining. If stacked, they share it. */
+                      } border-r border-slate-700 last:border-r-0`}
+                  >
+                    <div className="flex-1 overflow-hidden relative">
+                      <HttpTraceSequenceDiagram
+                        traces={tracesData}
+                        currentTime={currentTime}
+                        startTime={startTime}
+                      />
+                    </div>
+                  </div>
+                );
+              }
+              if (view === 'quad' && quadsData) {
+                return (
+                  <div
+                    key="quad"
+                    className={`flex flex-col ${width > 900 ? 'flex-1 min-w-0' : 'h-1/2'
+                      }`}
+                  >
+                    <div className="flex-1 overflow-hidden relative">
+                      <QuadGraphDiagram
+                        quads={quadsData}
+                        currentTime={currentTime}
+                        startTime={startTime || 0}
+                      />
+                    </div>
+                  </div>
+                );
+              }
+              return null;
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

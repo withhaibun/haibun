@@ -29,10 +29,10 @@ export function getArtifactUrl(path: string | undefined): string {
   if (isDev) {
     // Strip leading ./ or /
     const cleanPath = path.replace(/^\.?\//, '');
-    // Connect directly to the monitor server on port 8080 at the same host
+    // Connect directly to the monitor server on port 3459 at the same host
     // The Vite proxy only works when accessing from localhost
     const pageHost = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-    return `http://${pageHost}:8080/${cleanPath}`;
+    return `http://${pageHost}:3459/${cleanPath}`;
   }
 
   // In production/serialized mode, use the path as-is (relative to HTML)

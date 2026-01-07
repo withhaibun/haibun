@@ -1,15 +1,15 @@
 import React, { useMemo, useRef, useEffect } from 'react';
 import { MermaidArtifact } from './MermaidArtifact';
-import { escapeLabel, sanitizeId, truncate } from './mermaid-utils';
+import { escapeLabel, sanitizeId, truncate, HIGHLIGHT_COLOR } from './mermaid-utils';
 
 /**
- * Quad data structure mirroring @haibun/v4 TQuad
+ * Quad data structure visualization
  */
 interface TQuad {
   subject: string;
   predicate: string;
   object: unknown;
-  context?: string;
+  namedGraph?: string;
   timestamp?: number;
 }
 
@@ -17,29 +17,31 @@ interface QuadGraphDiagramProps {
   quads: TQuad[];
   currentTime?: number;
   startTime?: number;
-  /** Filter by context (e.g., 'credential', 'trust-registry', 'presentation') */
-  contextFilter?: string[];
+  /** Filter by namedGraph */
+  namedGraphFilter?: string[];
 }
 
 /**
  * Generates a mermaid flowchart from QuadStore quads.
- * Shows credential issuance chains, trust relationships, and data flows.
+ * Shows operational data flows and relationships.
  * Highlights the current operation based on timeline position.
  */
 export function QuadGraphDiagram({
   quads,
   currentTime,
   startTime = 0,
-  contextFilter
+  namedGraphFilter
 }: QuadGraphDiagramProps) {
-  const [selectedContexts, setSelectedContexts] = React.useState<Set<string>>(new Set(['shared']));
+  /* Initialize selection with ALL discovered contexts by default, or empty if none found */
+  const [selectedContexts, setSelectedContexts] = React.useState<Set<string>>(new Set());
   const [layout, setLayout] = React.useState<'TD' | 'LR'>('TD');
+  const [zoom, setZoom] = React.useState(100);
 
   // Extract unique contexts from quads, organized hierarchically
   const { availableContexts, contextTree } = useMemo(() => {
     const contexts = new Set<string>();
     quads.forEach(q => {
-      contexts.add(q.context || 'default');
+      contexts.add(q.namedGraph || 'default');
     });
     const sorted = Array.from(contexts).sort();
 
@@ -57,6 +59,15 @@ export function QuadGraphDiagram({
 
     return { availableContexts: sorted, contextTree: tree };
   }, [quads]);
+
+  // Initial population of selected contexts (auto-select all discovered contexts)
+  useEffect(() => {
+    // Only auto-select if we haven't selected anything yet and we have contexts available
+    if (selectedContexts.size === 0 && availableContexts.length > 0) {
+      // By default, select everything found in the data
+      setSelectedContexts(new Set(availableContexts));
+    }
+  }, [availableContexts]); // Run when available contexts change (e.g. data load)
 
   // Toggle a context (with parent/child handling)
   const toggleContext = (ctx: string) => {
@@ -80,8 +91,8 @@ export function QuadGraphDiagram({
   };
 
   // Check if context matches selection (supports hierarchical matching)
-  const matchesSelection = (quadContext: string | undefined): boolean => {
-    const ctx = quadContext || 'default';
+  const matchesSelection = (quadNamedGraph: string | undefined): boolean => {
+    const ctx = quadNamedGraph || 'default';
     if (selectedContexts.has('all')) return true;
     if (selectedContexts.has(ctx)) return true;
     // Check parent match (e.g., 'observation' matches 'observation/http')
@@ -92,101 +103,99 @@ export function QuadGraphDiagram({
     return false;
   };
 
-  const { mermaidSource, currentQuadIndex } = useMemo(() => {
-    let filteredQuads = quads;
+  // 1. Calculate Universe (Stable unless data/filter changes)
+  const universeQuads = useMemo(() => {
+    let u = quads;
 
-    // Apply prop-based context filter if provided
-    if (contextFilter && contextFilter.length > 0) {
-      filteredQuads = quads.filter(q =>
-        !q.context || contextFilter.includes(q.context)
+    if (namedGraphFilter && namedGraphFilter.length > 0) {
+      u = quads.filter(q =>
+        !q.namedGraph || namedGraphFilter.includes(q.namedGraph)
       );
     }
 
-    // Apply UI-based multi-context selection
-    // If no contexts selected, show all (treat empty same as 'all')
     if (!selectedContexts.has('all') && selectedContexts.size > 0) {
-      filteredQuads = filteredQuads.filter(q => matchesSelection(q.context));
+      u = u.filter(q => matchesSelection(q.namedGraph));
     }
 
-    // Filter out meta quads unless specifically selected
     if (!selectedContexts.has('meta') && !selectedContexts.has('all')) {
-      filteredQuads = filteredQuads.filter(q => q.context !== 'meta');
+      u = u.filter(q => q.namedGraph !== 'meta');
+    }
+    return u;
+  }, [quads, namedGraphFilter, selectedContexts.size, Array.from(selectedContexts).sort().join(',')]);
+
+  // 2. Calculate Graph Source (Stable unless Universe or Layout changes)
+  const { mermaidSource, nodes, edges, totalQuads } = useMemo(() => {
+    const total = universeQuads.length;
+    if (total === 0) {
+      return { mermaidSource: '', nodes: new Map(), edges: [], totalQuads: 0 };
     }
 
-    if (filteredQuads.length === 0) {
-      return { mermaidSource: '', currentQuadIndex: -1 };
-    }
-
-    // Find current quad based on timeline position
-    let currentIdx = -1;
-    if (currentTime !== undefined) {
-      const currentAbsoluteTime = startTime + currentTime;
-      for (let i = filteredQuads.length - 1; i >= 0; i--) {
-        const quadTime = filteredQuads[i].timestamp;
-        if (quadTime && quadTime <= currentAbsoluteTime) {
-          currentIdx = i;
-          break;
-        }
-      }
-    }
-
-    // Build flowchart diagram with configurable layout
     let source = `graph ${layout}\n`;
 
-    // Track unique nodes and their styles
-    const nodes = new Map<string, { label: string; type: 'subject' | 'object' | 'predicate'; context?: string }>();
+    // Track nodes
+    const nodes = new Map<string, { label: string; type: 'subject' | 'object' | 'predicate'; namedGraph?: string; hasLabel?: boolean; firstSeenIndex: number }>();
     const edges: { from: string; to: string; label: string; index: number }[] = [];
 
-    // Process quads into graph structure
-    filteredQuads.forEach((quad, idx) => {
-      // Prefix node IDs with 'n_' to avoid collision with subgraph (context) names
+    // Collect labels
+    const labels = new Map<string, string>();
+    const RDFS_LABEL = 'http://www.w3.org/2000/01/rdf-schema#label';
+    universeQuads.forEach(q => {
+      if (q.predicate === RDFS_LABEL) {
+        const labelText = typeof q.object === 'string' ? q.object : String(q.object);
+        labels.set(q.subject, labelText);
+      }
+    });
+
+    // Process all quads
+    universeQuads.forEach((quad, idx) => {
+      if (quad.predicate === RDFS_LABEL) return;
+
       const subjectId = 'n_' + sanitizeId(quad.subject);
       const objectId = 'n_' + sanitizeId(stringifyObject(quad.object));
 
-      // Add nodes with context tracking
       if (!nodes.has(subjectId)) {
+        const hasLabel = labels.has(quad.subject);
         nodes.set(subjectId, {
-          label: truncate(quad.subject, 25),
+          label: hasLabel ? labels.get(quad.subject)! : truncate(quad.subject, 25),
           type: 'subject',
-          context: quad.context
-        });
-      }
-      if (!nodes.has(objectId)) {
-        nodes.set(objectId, {
-          label: truncate(stringifyObject(quad.object), 25),
-          type: 'object',
-          // Object inherits context if not set (for grouping)
-          context: quad.context
+          namedGraph: quad.namedGraph,
+          hasLabel: !!hasLabel,
+          firstSeenIndex: idx
         });
       }
 
-      // Add edge
+      if (!nodes.has(objectId)) {
+        const objStr = stringifyObject(quad.object);
+        const hasLabel = labels.has(objStr);
+        nodes.set(objectId, {
+          label: hasLabel ? labels.get(objStr)! : truncate(objStr, 25),
+          type: 'object',
+          namedGraph: quad.namedGraph,
+          hasLabel: !!hasLabel,
+          firstSeenIndex: idx
+        });
+      }
+
       edges.push({
         from: subjectId,
         to: objectId,
         label: quad.predicate,
-        index: idx,
+        index: idx
       });
     });
 
-    // Group nodes by context for subgraphs
+    // Generate Subgraphs
     const nodesByContext = new Map<string, string[]>();
     nodes.forEach((_, id) => {
       const node = nodes.get(id);
-      const ctx = node?.context || 'default';
+      const ctx = node?.namedGraph || 'default';
       if (!nodesByContext.has(ctx)) nodesByContext.set(ctx, []);
       nodesByContext.get(ctx)?.push(id);
     });
 
-    // Generate subgraphs
     nodesByContext.forEach((nodeIds, context) => {
-      // Clean context name for mermaid ID
-      // Clean context name for mermaid ID
       const safeContext = sanitizeId(context);
-      // Always use subgraph for clarity if requested, or at least for named contexts
-      // User requested "use subgraph for different contexts" - optimizing visibility
       source += `  subgraph ${safeContext} [${context}]\n`;
-
       nodeIds.forEach(id => {
         const node = nodes.get(id);
         if (node) {
@@ -194,32 +203,208 @@ export function QuadGraphDiagram({
           source += `    ${id}${shape.open}${escapeLabel(node.label)}${shape.close}\n`;
         }
       });
-
       source += '  end\n';
     });
 
-    // Generate edges
+    // Generate Edges
     edges.forEach((edge) => {
-      const isActive = edge.index <= currentIdx;
-      const isCurrent = edge.index === currentIdx;
+      source += `  ${edge.from} -->|${escapeLabel(edge.label)}| ${edge.to}\n`;
+      source += `  linkStyle ${edges.indexOf(edge)} stroke:#333,stroke-width:1px;\n`;
+    });
+
+    // Add context-based styling (calls helper from strict scope)
+    source += generateContextStyles(universeQuads, nodes);
+
+    return { mermaidSource: source, nodes, edges, totalQuads: total };
+  }, [universeQuads, layout]);
+
+  // 3. Calculate Active Quads (Depends on Time)
+  const filteredQuads = useMemo(() => {
+    const currentAbsoluteTime = currentTime !== undefined ? startTime + currentTime : undefined;
+    if (currentAbsoluteTime === undefined) return universeQuads;
+    return universeQuads.filter(q => (q.timestamp ?? 0) <= currentAbsoluteTime);
+  }, [universeQuads, currentTime, startTime]);
+
+  const [svgContainer, setSvgContainer] = React.useState<HTMLDivElement | null>(null);
+
+  // Effect to update styles via DOM manipulation when time changes
+  React.useLayoutEffect(() => {
+    if (!svgContainer || currentTime === undefined || !universeQuads) return;
+
+    // Calculate time state
+    const currentAbsoluteTime = startTime + currentTime;
+    let lastActiveIndex = -1;
+    let latestTimestamp: number | undefined = undefined;
+
+    // Find active cutoff
+    for (let i = universeQuads.length - 1; i >= 0; i--) {
+      const quadTime = universeQuads[i].timestamp ?? 0;
+      if (quadTime <= currentAbsoluteTime) {
+        lastActiveIndex = i;
+        latestTimestamp = quadTime;
+        break;
+      }
+    }
+
+    // Determine nodes and edges status
+    // Edges correspond to universeQuads index? 
+    // Wait, edges array in useMemo is built from universeQuads.
+    // Index in edges array corresponds to render order.
+    // We need to map edges to their original quad index to check timestamp.
+    // In useMemo, we pushed edges with `index: idx` (where idx is index in universeQuads).
+
+    const edgePaths = svgContainer.querySelectorAll('.edgePaths path'); // Typical mermaid edge selector
+    const nodeElements = svgContainer.querySelectorAll('.nodes .node'); // Typical mermaid node selector
+
+    // 1. Update Edges
+    // Assumption: Mermaid renders edges in the same order as defined in source.
+    // This is generally true for `graph TD`.
+    if (edgePaths.length === edges.length) {
+      edgePaths.forEach((path, i) => {
+        const edge = edges[i];
+        const elem = path as SVGPathElement;
+
+        const isFuture = edge.index > lastActiveIndex;
+        // Using `==` equality for loose match if needed, but strict is fine
+        const isCurrent = !isFuture && latestTimestamp !== undefined && universeQuads[edge.index].timestamp === latestTimestamp;
+
+        let stroke = '#333';
+        let strokeWidth = '1px';
+        let strokeDasharray = 'none';
+
+        if (isCurrent) {
+          stroke = HIGHLIGHT_COLOR;
+          strokeWidth = '3px';
+        } else if (isFuture) {
+          stroke = '#D1D5DB';
+          strokeWidth = '1px';
+          strokeDasharray = '4, 4';
+        }
+
+        elem.style.stroke = stroke;
+        elem.style.strokeWidth = strokeWidth;
+        elem.style.strokeDasharray = strokeDasharray;
+
+        // Also update arrowheads? hard to target.
+      });
+    }
+
+    // 2. Update Nodes
+    // Map: NodeID -> is it active?
+    // A node is active if it participates in any non-future edge.
+    // Current highlight: if participates in current edge.
+
+    const nodeStatus = new Map<string, 'future' | 'active' | 'current'>();
+
+    // Default all to future
+    nodes.forEach((_, id) => nodeStatus.set(id, 'future'));
+
+    edges.forEach((edge) => {
+      const isFuture = edge.index > lastActiveIndex;
+      const isCurrent = !isFuture && latestTimestamp !== undefined && universeQuads[edge.index].timestamp === latestTimestamp;
+
+      if (!isFuture) {
+        // If node was future, upgrade to active
+        if (nodeStatus.get(edge.from) === 'future') nodeStatus.set(edge.from, 'active');
+        if (nodeStatus.get(edge.to) === 'future') nodeStatus.set(edge.to, 'active');
+      }
 
       if (isCurrent) {
-        source += `  ${edge.from} -->|${escapeLabel(edge.label)}| ${edge.to}\n`;
-        source += `  style ${edge.from} fill:#0e7490\n`;
-        source += `  style ${edge.to} fill:#0e7490\n`;
-      } else if (isActive) {
-        source += `  ${edge.from} -->|${escapeLabel(edge.label)}| ${edge.to}\n`;
-      } else {
-        source += `  ${edge.from} -.->|${escapeLabel(edge.label)}| ${edge.to}\n`;
+        // Upgrade to current
+        nodeStatus.set(edge.from, 'current');
+        nodeStatus.set(edge.to, 'current');
       }
     });
 
-    // Add context-based styling
-    source += generateContextStyles(filteredQuads, nodes);
+    nodeElements.forEach((node) => {
+      const id = node.id; // Mermaid sets ID on the g element: e.g. "n_subject"?
+      // Mermaid IDs usually start with "flowchart-" + id + "-..."
+      // But we know our IDs are "n_..."
+      // Let's try to match the known ID from our map
 
-    return { mermaidSource: source, currentQuadIndex: currentIdx };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quads, currentTime, startTime, contextFilter, selectedContexts.size, layout, ...Array.from(selectedContexts)]);
+      // Optimization: Iterate our map and find element by ID?
+      // Mermaid: <g class="node" id="n_foo" ...> if securityLevel=loose
+      // Our config has securityLevel='loose'.
+
+      // Check if node has an ID we recognize
+      // Sometimes mermaid prefixes IDs.
+      // Let's loop through our known nodes and `getElementById` inside the container?
+      // `container.querySelector('#' + id)`
+    });
+
+    // Better: Iterate our nodes map, find element, update style.
+    nodes.forEach((_, id) => {
+      const status = nodeStatus.get(id);
+      // Selector: ID attribute
+      let elem = svgContainer.querySelector(`[id^="${id}"]`); // Prefix match just in case?
+      // Actually exact match if possible.
+      if (!elem) {
+        // Try finding by generic class + id attribute
+        elem = svgContainer.querySelector(`#${id}`);
+      }
+
+      if (elem) {
+        // The visual shape is usually a rect/polygon/circle inside the group
+        const shape = elem.querySelector('rect, polygon, circle, ellipse') as SVGElement;
+
+        if (shape) {
+          if (status === 'future') {
+            shape.style.stroke = '#D1D5DB';
+            shape.style.strokeDasharray = '4, 4';
+            shape.style.fill = '#fff';
+            // shape.style.color = '#9CA3AF'; // Label color harder to change, usually separate <g> with <text>
+          } else if (status === 'current') {
+            shape.style.stroke = HIGHLIGHT_COLOR;
+            shape.style.strokeWidth = '3px';
+            shape.style.strokeDasharray = 'none';
+            // Keep fill default (white or context color)
+          } else {
+            // Active (default)
+            // We need to revert to "default" style which might be context-colored
+            // Since we don't store the original context color easily here...
+            // Actually `generateContextStyles` set the stroke color in the SVG attribute `style`.
+            // If we overwrite `elem.style.stroke`, we separate from attribute.
+            // To revert, we can set `elem.style.stroke = ''`.
+            shape.style.stroke = '';
+            shape.style.strokeWidth = '';
+            shape.style.strokeDasharray = '';
+            shape.style.fill = '';
+          }
+        }
+
+        // Labels?
+        // Future labels -> gray.
+        // <g class="label">...<text>...
+        // const label = elem.querySelector('.label span') as HTMLElement; 
+
+        if (status === 'future') {
+          // Dim the whole node opacity?
+          (elem as SVGElement).style.opacity = '0.4';
+        } else {
+          (elem as SVGElement).style.opacity = '1';
+        }
+      }
+    });
+
+    // Scroll current nodes into view ?
+    // Only if current changed? 
+    // The previous logic used `currentQuadIndex` prop change to trigger scroll.
+    // Now we do it here.
+    if (latestTimestamp !== undefined) {
+      // Find any current node and scroll
+      const currentNodeId = Array.from(nodeStatus.entries()).find(([k, v]) => v === 'current')?.[0];
+      if (currentNodeId) {
+        const elem = svgContainer.querySelector(`#${currentNodeId}`);
+        if (elem) {
+          // Debounce/Throttle? 
+          // Just do it.
+          // elem.scrollIntoView(...)
+          // Logic exists in `useLayoutEffect` below, we can reuse or trigger it.
+        }
+      }
+    }
+
+  }, [currentTime, svgContainer, universeQuads, edges, nodes, startTime]);
 
   if (!mermaidSource || quads.length === 0) {
     return <div className="text-slate-500 text-sm">No data operations to display</div>;
@@ -228,19 +413,20 @@ export function QuadGraphDiagram({
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Scroll highlighted node into view
-  useEffect(() => {
-    if (currentQuadIndex < 0 || !containerRef.current) return;
+  React.useLayoutEffect(() => {
+    if (!svgContainer || currentTime === undefined) return; // Only scroll if timeline is active
 
     const timer = setTimeout(() => {
-      if (!containerRef.current) return;
+      if (!svgContainer) return;
 
-      // Find highlighted nodes
-      const nodes = containerRef.current.querySelectorAll('.node');
+      // Find highlighted nodes (current nodes)
+      const nodes = svgContainer.querySelectorAll('.node');
       for (const node of nodes) {
-        const rect = node.querySelector('rect, polygon');
+        const rect = node.querySelector('rect, polygon, circle, ellipse');
         if (rect) {
-          const fill = rect.getAttribute('fill') || rect.getAttribute('style');
-          if (fill && (fill.includes('0e7490') || fill.includes('14, 116, 144'))) {
+          const stroke = rect.getAttribute('stroke') || (rect as SVGElement).style.stroke;
+          // Check for current highlight color (loose match)
+          if (stroke && stroke.toLowerCase() === HIGHLIGHT_COLOR.toLowerCase()) {
             node.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
             break;
           }
@@ -249,88 +435,138 @@ export function QuadGraphDiagram({
     }, 100);
 
     return () => clearTimeout(timer);
-  }, [currentQuadIndex, mermaidSource]);
+  }, [currentTime, svgContainer]); // Depend on currentTime and svgContainer
+
+  const handleCopy = async () => {
+    if (!mermaidSource) return;
+    try {
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(mermaidSource);
+      } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = mermaidSource;
+        textArea.style.position = 'fixed'; // Avoid scrolling to bottom
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+    } catch (err) {
+      console.error('Failed to copy', err);
+    }
+  };
+
+  const [isFullscreen, setIsFullscreen] = React.useState(false);
 
   return (
-    <div className="quad-graph-diagram" ref={containerRef}>
-      <div className="flex gap-2 items-start mb-2 px-2 py-1 bg-slate-100 rounded border border-slate-200">
-        <div className="flex flex-wrap gap-2 items-center">
-          <label className="text-xs font-semibold text-slate-600">Contexts:</label>
+    <div className={`quad-graph-diagram flex flex-col h-full bg-slate-900 ${isFullscreen ? 'fixed inset-0 z-50 p-4' : ''}`} ref={containerRef}>
+      <div className="flex justify-between items-center p-2 bg-white border-b border-slate-300 shrink-0 gap-4 h-10">
+        <div className="font-bold text-sm text-slate-700 shrink-0">Quad Graph</div>
 
-          {/* Layout toggle */}
-          <button
-            onClick={() => setLayout(l => l === 'TD' ? 'LR' : 'TD')}
-            className="px-2 py-0.5 text-xs border border-slate-300 rounded bg-white text-slate-700 hover:bg-slate-100 font-medium"
-            title="Toggle layout direction"
-          >
-            {layout === 'TD' ? '↓ TD' : '→ LR'}
-          </button>
+        <div className="flex items-center gap-4 overflow-x-auto no-scrollbar h-full">
+          {/* Controls Group: Layout + Contexts + Zoom */}
+          <div className="flex items-center gap-4 h-full">
+            {/* Layout & Contexts */}
+            <div className="flex items-center gap-2 text-xs border-r border-slate-200 pr-4 h-full">
+              <button
+                onClick={() => setLayout(l => l === 'TD' ? 'LR' : 'TD')}
+                className="p-1 hover:bg-slate-100 rounded text-slate-600 font-mono flex items-center justify-center w-6 h-6"
+                title="Toggle layout"
+              >
+                {layout === 'TD' ? '↓' : '→'}
+              </button>
+              <span className="text-slate-400">|</span>
 
-          {/* All toggle */}
-          <label className="flex items-center gap-1 text-xs cursor-pointer">
-            <input
-              type="checkbox"
-              checked={selectedContexts.has('all')}
-              onChange={() => {
-                if (selectedContexts.has('all')) {
-                  setSelectedContexts(new Set(['shared']));
-                } else {
-                  setSelectedContexts(new Set(['all']));
-                }
-              }}
-              className="w-3 h-3"
-            />
-            <span style={{ color: 'black' }}>All</span>
-          </label>
-
-          {/* Context checkboxes grouped by parent */}
-          {Object.keys(contextTree).map(parent => (
-            <div key={parent} className="flex items-center gap-1">
-              <label className="flex items-center gap-1 text-xs cursor-pointer">
+              <label className="flex items-center gap-1 cursor-pointer select-none">
                 <input
                   type="checkbox"
-                  checked={selectedContexts.has(parent)}
-                  onChange={() => toggleContext(parent)}
-                  className="w-3 h-3"
+                  checked={selectedContexts.has('all')}
+                  onChange={() => {
+                    if (selectedContexts.has('all')) {
+                      setSelectedContexts(new Set());
+                    } else {
+                      const allContexts = new Set(availableContexts);
+                      allContexts.add('all');
+                      setSelectedContexts(allContexts);
+                    }
+                  }}
+                  className="w-3 h-3 rounded border-slate-300 text-cyan-600 focus:ring-cyan-500"
                 />
-                <span style={{ color: 'black' }}>{parent}</span>
+                <span className="text-slate-600">All</span>
               </label>
-              {/* Children (if any) */}
-              {contextTree[parent].length > 0 && (
-                <span className="text-slate-400 text-[10px]">({contextTree[parent].length})</span>
-              )}
-            </div>
-          ))}
-        </div>
 
-        <div className="flex-grow"></div>
-        <div className="text-xs text-slate-400 font-mono">
-          {currentQuadIndex >= 0 ? (
-            <span>Op {currentQuadIndex + 1}/{quads.length}</span>
-          ) : (
-            <span>{quads.length} ops</span>
-          )}
+              {Object.keys(contextTree).map(parent => (
+                <label key={parent} className="flex items-center gap-1 cursor-pointer select-none whitespace-nowrap">
+                  <input
+                    type="checkbox"
+                    checked={selectedContexts.has('all') || selectedContexts.has(parent)}
+                    onChange={() => toggleContext(parent)}
+                    disabled={selectedContexts.has('all')}
+                    className="w-3 h-3 rounded border-slate-300 text-cyan-600 focus:ring-cyan-500 disabled:opacity-50"
+                  />
+                  <span className="text-slate-600">{sanitizeId(parent)}</span>
+                  {contextTree[parent].length > 0 && (
+                    <span className="text-slate-400 text-[10px]">({contextTree[parent].length})</span>
+                  )}
+                </label>
+              ))}
+            </div>
+
+            {/* Zoom Controls */}
+            <div className="flex items-center gap-1 border-r border-slate-200 pr-4 h-full">
+              <button onClick={() => setZoom(z => Math.max(10, z - 10))} className="p-1 hover:bg-slate-100 rounded text-slate-600 font-bold w-6 h-6 flex items-center justify-center" title="Zoom Out">-</button>
+              <span className="text-xs text-slate-500 w-8 text-center select-none">{zoom}%</span>
+              <button onClick={() => setZoom(z => Math.min(200, z + 10))} className="p-1 hover:bg-slate-100 rounded text-slate-600 font-bold w-6 h-6 flex items-center justify-center" title="Zoom In">+</button>
+            </div>
+          </div>
+
+          {/* [Copy] */}
+          <button
+            onClick={handleCopy}
+            className="px-2 py-0.5 text-xs bg-slate-100 hover:bg-slate-200 rounded border border-slate-300 font-medium text-slate-600 transition-colors"
+            title="Copy Mermaid source"
+          >
+            Copy
+          </button>
+
+          {/* [Info] - Plain text, no outline */}
+          <div className="text-xs text-slate-500 font-mono px-2 whitespace-nowrap">
+            {nodes ? nodes.size : 0} nodes, {edges ? edges.length : 0} edges
+          </div>
+
+          {/* [Size] (Fullscreen) */}
+          <button
+            onClick={() => setIsFullscreen(f => !f)}
+            className="p-1 hover:bg-slate-100 rounded text-slate-600 transition-colors flex items-center justify-center w-6 h-6"
+            title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6" /><path d="M9 21H3v-6" /><path d="M21 3l-7 7" /><path d="M3 21l7-7" /></svg>
+          </button>
         </div>
       </div>
 
-      <MermaidArtifact
-        artifact={{
-          artifactType: 'mermaid',
-          source: mermaidSource,
-          id: 'quad-graph',
-          timestamp: Date.now(),
-          kind: 'artifact',
-          mimetype: 'text/x-mermaid'
-          // biome-ignore lint/suspicious/noExplicitAny: complex union type
-        } as any}
-      />
-    </div >
+      <div className="flex-1 overflow-auto bg-white relative">
+        <div style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top left', minWidth: '100%', minHeight: '100%' }}>
+          <MermaidArtifact
+            artifact={{
+              artifactType: 'mermaid',
+              source: mermaidSource,
+              id: 'quad-graph',
+              timestamp: Date.now(),
+              kind: 'artifact',
+              mimetype: 'text/x-mermaid'
+              // biome-ignore lint/suspicious/noExplicitAny: complex union type
+            } as any}
+            containerClassName="min-h-full"
+            unstyled={true}
+            onRender={(el) => setSvgContainer(el)}
+          />
+        </div>
+      </div>
+    </div>
   );
 }
-
-// ============================================================================
-// Helper Functions
-// ============================================================================
 
 // ============================================================================
 // Helper Functions
@@ -365,38 +601,36 @@ function truncateValue(val: unknown): string {
   return String(val);
 }
 
-function getNodeShape(type: 'subject' | 'object' | 'predicate', id: string): { open: string; close: string } {
-  // DIDs get hexagon shape
-  if (id.startsWith('did_')) {
-    return { open: '{{', close: '}}' };
-  }
-  // Credentials get rounded rectangle
-  if (id.startsWith('cred_') || id.startsWith('pres_')) {
-    return { open: '(', close: ')' };
-  }
-  // Status values get stadium shape
-  if (id === 'active' || id === 'revoked') {
+function getNodeShape(_type: string, id: string): { open: string; close: string } {
+  // Items with IDs using separators often imply specific entities
+  if (id.includes('_') || id.includes('-')) {
     return { open: '([', close: '])' };
   }
   // Default rectangle
   return { open: '[', close: ']' };
 }
 
+const COLORS = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ef4444', '#ec4899', '#6366f1'];
+
+function getClassColor(className: string): string {
+  let hash = 0;
+  for (let i = 0; i < className.length; i++) {
+    hash = className.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash) % COLORS.length;
+  return COLORS[index];
+}
+
 function generateContextStyles(quads: TQuad[], nodes: Map<string, unknown>): string {
   let styles = '';
-  const contextColors: Record<string, string> = {
-    'credential': '#3b82f6',      // Blue
-    'trust-registry': '#10b981',  // Green
-    'presentation': '#8b5cf6',    // Purple
-  };
 
   // Group subjects by context
   const subjectContexts = new Map<string, string>();
   quads.forEach(q => {
-    if (q.context && contextColors[q.context]) {
+    if (q.namedGraph) {
       const subjectId = sanitizeId(q.subject);
       if (!subjectContexts.has(subjectId)) {
-        subjectContexts.set(subjectId, q.context);
+        subjectContexts.set(subjectId, q.namedGraph);
       }
     }
   });
@@ -404,23 +638,24 @@ function generateContextStyles(quads: TQuad[], nodes: Map<string, unknown>): str
   // Apply context-based styling
   subjectContexts.forEach((context, id) => {
     if (nodes.has(id)) {
-      const color = contextColors[context];
+      const color = getClassColor(context);
       styles += `  style ${id} stroke:${color},stroke-width:2px\n`;
     }
   });
-
   return styles;
 }
+
+
 
 /**
  * Generate mermaid flowchart source from quads (standalone helper)
  */
-export function generateGraphFromQuads(quads: TQuad[], contextFilter?: string[]): string {
+export function generateGraphFromQuads(quads: TQuad[], namedGraphFilter?: string[]): string {
   let filteredQuads = quads.filter(q => q.subject !== 'meta');
 
-  if (contextFilter && contextFilter.length > 0) {
+  if (namedGraphFilter && namedGraphFilter.length > 0) {
     filteredQuads = filteredQuads.filter(q =>
-      !q.context || contextFilter.includes(q.context)
+      !q.namedGraph || namedGraphFilter.includes(q.namedGraph)
     );
   }
 

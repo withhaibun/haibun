@@ -10,11 +10,11 @@ const fileArg = args.find(a => !a.startsWith('--'));
 const portArg = args.find(a => a.startsWith('--port='));
 
 if (!fileArg) {
-  console.error('Usage: haibun-replay <events.ndjson> [--port=8080]');
+  console.error('Usage: haibun-replay <events.ndjson> [--port=3459]');
   process.exit(1);
 }
 
-const port = portArg ? parseInt(portArg.split('=')[1], 10) : 8080;
+const port = portArg ? parseInt(portArg.split('=')[1], 10) : 3459;
 const transport = new WebSocketTransport(port, {
   info: console.log,
   error: console.error,

@@ -8,7 +8,7 @@ export interface TQuad {
   subject: string;
   predicate: string;
   object: unknown;
-  context: string;
+  namedGraph: string;
   timestamp: number;
 }
 
@@ -16,7 +16,7 @@ export interface TQuadPattern {
   subject?: string;
   predicate?: string;
   object?: unknown;
-  context?: string;
+  namedGraph?: string;
 }
 
 export interface IQuadStore {

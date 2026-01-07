@@ -10,14 +10,14 @@
 import { AStepper } from "./astepper.js";
 import { isLiteralValue } from "./util/index.js";
 import { TFeatureStep, TWorld } from './defs.js';
-import { Origin, TOrigin, TProvenanceIdentifier, TStepValue } from '../schema/protocol.js';
+import { Origin, TOrigin, TProvenanceIdentifier, TStepValue, THaibunEvent } from '../schema/protocol.js';
 import { DOMAIN_JSON, DOMAIN_STRING, normalizeDomainKey } from "./domain-types.js";
 import { QuadStore } from "./quad-store.js";
 import { IQuadStore, TQuad } from "./quad-types.js";
 
-export const SHARED_CONTEXT = 'shared';
-export const META_CONTEXT = 'meta';
-export const OBSERVATION_CONTEXT = 'observation';
+export const SHARED_GRAPH = 'variables';
+export const META_GRAPH = 'meta';
+export const OBSERVATION_GRAPH = 'observation';
 
 export class FeatureVariables {
 	private store: IQuadStore;
@@ -43,7 +43,7 @@ export class FeatureVariables {
 
 	clear() {
 		this.values = {};
-		this.store.clear(SHARED_CONTEXT);
+		this.store.clear(SHARED_GRAPH);
 	}
 
 	all() {
@@ -117,7 +117,7 @@ export class FeatureVariables {
 					subject: sv.term,
 					predicate: domainKey,  // Domain IS the predicate
 					object: normalized.value,
-					context: SHARED_CONTEXT,
+					namedGraph: SHARED_GRAPH,
 					// Move provenance to separate quads in meta context, don't embed
 				}
 			},
@@ -272,6 +272,22 @@ export class FeatureVariables {
 	/** Add a quad directly (for non-variable observations like HTTP traces) */
 	addQuad(quad: Omit<TQuad, 'timestamp'>): void {
 		this.store.add(quad);
+
+		// Emit event for graph visualization
+		const timestamp = Date.now();
+		this.world.eventLogger?.emit({
+			id: `quad-${timestamp}-${quad.subject}-${quad.predicate}`,
+			timestamp,
+			source: 'haibun',
+			level: 'debug' as const,
+			kind: 'artifact' as const,
+			artifactType: 'json' as const,
+			mimetype: 'application/json',
+			json: {
+				quadObservation: quad
+			},
+
+		} as THaibunEvent);
 	}
 
 	/** Get all quads */
@@ -286,17 +302,17 @@ export class FeatureVariables {
 	private storeAsQuad(name: string, sv: TStepValue): void {
 		const domainKey = normalizeDomainKey(sv.domain);
 		// Domain IS the predicate: (name, domainType, value, shared)
-		this.store.add({ subject: name, predicate: domainKey, object: sv.value, context: SHARED_CONTEXT });
+		this.store.add({ subject: name, predicate: domainKey, object: sv.value, namedGraph: SHARED_GRAPH });
 
 		// Store metadata as separate quads in META context
 		if (sv.origin) {
-			this.store.add({ subject: name, predicate: 'origin', object: sv.origin, context: META_CONTEXT });
+			this.store.add({ subject: name, predicate: 'origin', object: sv.origin, namedGraph: META_GRAPH });
 		}
 		if (sv.provenance) {
-			this.store.add({ subject: name, predicate: 'provenance', object: sv.provenance, context: META_CONTEXT });
+			this.store.add({ subject: name, predicate: 'provenance', object: sv.provenance, namedGraph: META_GRAPH });
 		}
 		if (sv.readonly) {
-			this.store.add({ subject: name, predicate: 'readonly', object: true, context: META_CONTEXT });
+			this.store.add({ subject: name, predicate: 'readonly', object: true, namedGraph: META_GRAPH });
 		}
 	}
 }

@@ -1,111 +1,62 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { TMermaidArtifact } from '@haibun/core/schema/protocol.js';
+import React, { useEffect, useRef, useState } from 'react';
 import mermaid from 'mermaid';
+import { TArtifactEvent } from '@haibun/core/schema/protocol.js';
 
 interface MermaidArtifactProps {
-  artifact: TMermaidArtifact;
+  artifact: TArtifactEvent;
+  containerClassName?: string;
+  onRender?: (svgContainer: HTMLDivElement) => void;
+  // unstyled prop to opt-out of default container styles
+  unstyled?: boolean;
 }
 
-// Initialize mermaid globally
-mermaid.initialize({
-  startOnLoad: false,
-  securityLevel: 'loose',
-  theme: 'neutral',
-  maxTextSize: 100000,
-  maxEdges: 2000,
-});
-
-/**
- * Mermaid diagram artifact with zoom controls.
- */
-export function MermaidArtifact({ artifact }: MermaidArtifactProps) {
+export function MermaidArtifact({ artifact, containerClassName, onRender, unstyled }: MermaidArtifactProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(1);
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
 
-  const zoomIn = useCallback(() => setScale(s => Math.min(s + 0.25, 3)), []);
-  const zoomOut = useCallback(() => setScale(s => Math.max(s - 0.25, 0.25)), []);
-  const resetZoom = useCallback(() => setScale(1), []);
-
-  const copyToClipboard = useCallback(async () => {
-    if (!artifact.source) return;
-
-    try {
-      // Try modern clipboard API first
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(artifact.source);
-      } else {
-        // Fallback for file:// protocol or older browsers
-        const textArea = document.createElement('textarea');
-        textArea.value = artifact.source;
-        textArea.style.position = 'fixed';
-        textArea.style.left = '-9999px';
-        document.body.appendChild(textArea);
-        textArea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textArea);
-      }
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error('Copy failed:', err);
-    }
-  }, [artifact.source]);
+  // Initialize mermaid configuration
+  useEffect(() => {
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'default',
+      securityLevel: 'loose',
+      fontFamily: 'ui-sans-serif, system-ui, sans-serif',
+      maxTextSize: 90000, // Increase max text size limit
+      htmlLabels: true,
+    });
+  }, []);
 
   useEffect(() => {
-    if (!containerRef.current || !artifact.source) return;
-
-    const render = async () => {
-      try {
-        const id = `mermaid-${Math.random().toString(36).slice(2, 11)}`;
-        const { svg } = await mermaid.render(id, artifact.source);
-        if (containerRef.current) {
-          containerRef.current.innerHTML = svg;
-        }
-        setError(null);
-      } catch (err) {
-        console.error('Mermaid render error:', err);
-        setError(err instanceof Error ? err.message : String(err));
-      }
-    };
-
-    void render();
-  }, [artifact.source]);
+    if (containerRef.current && artifact.source) {
+      setError(null);
+      mermaid.render(`mermaid-${artifact.id}-${Date.now()}`, artifact.source)
+        .then(({ svg }) => {
+          if (containerRef.current) {
+            containerRef.current.innerHTML = svg;
+            // Ensure SVG scales correctly
+            const svgElement = containerRef.current.querySelector('svg');
+            if (svgElement) {
+              svgElement.style.maxWidth = '100%';
+              svgElement.style.height = 'auto';
+            }
+            if (onRender) {
+              onRender(containerRef.current);
+            }
+          }
+        })
+        .catch((err) => {
+          console.error('Mermaid render error:', err);
+          setError(err instanceof Error ? err.message : String(err));
+          if (containerRef.current) containerRef.current.innerHTML = '';
+        });
+    }
+  }, [artifact.source, artifact.id]);
 
   return (
-    <div className="haibun-artifact-mermaid">
-      {/* Zoom Controls */}
-      <div className="flex gap-1 mb-2">
-        <button
-          onClick={zoomOut}
-          className="px-2 py-0.5 text-xs border border-slate-300 rounded bg-white text-slate-700 hover:bg-slate-100 font-medium"
-        >
-          −
-        </button>
-        <button
-          onClick={resetZoom}
-          className="px-2 py-0.5 text-xs border border-slate-300 rounded bg-white text-slate-700 hover:bg-slate-100 font-medium"
-        >
-          {Math.round(scale * 100)}%
-        </button>
-        <button
-          onClick={zoomIn}
-          className="px-2 py-0.5 text-xs border border-slate-300 rounded bg-white text-slate-700 hover:bg-slate-100 font-medium"
-        >
-          +
-        </button>
-        <button
-          onClick={copyToClipboard}
-          className="px-2 py-0.5 text-xs border border-slate-300 rounded bg-white text-slate-700 hover:bg-slate-100 font-medium ml-2"
-        >
-          {copied ? '✓ Copied' : 'Copy'}
-        </button>
-      </div>
-
+    <div className={`flex flex-col ${unstyled ? 'h-full w-full' : 'haibun-artifact-mermaid'}`}>
       {/* SVG Container */}
       <div
-        className="overflow-auto max-h-[600px] border border-gray-200 rounded p-2 bg-white"
+        className={`${unstyled ? '' : 'overflow-auto border border-gray-200 rounded p-2 bg-white'} ${containerClassName || ''} ${unstyled ? '' : 'max-h-[600px]'}`}
         style={{ maxWidth: '100%' }}
       >
         {error ? (
@@ -119,7 +70,6 @@ export function MermaidArtifact({ artifact }: MermaidArtifactProps) {
           <div
             ref={containerRef}
             style={{
-              transform: `scale(${scale})`,
               transformOrigin: '0 0',
             }}
           />
