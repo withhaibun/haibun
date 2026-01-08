@@ -2,8 +2,9 @@ import React, { useMemo, useState } from 'react';
 import MarkdownIt from 'markdown-it';
 import DOMPurify from 'dompurify';
 import parse, { DOMNode, Element, domToReact } from 'html-react-parser';
-import { THaibunEvent, TArtifactEvent } from '@haibun/core/schema/protocol.js';
+import { THaibunEvent, TArtifactEvent, THaibunLogLevel, HAIBUN_LOG_LEVELS, TStepEvent, TLifecycleEvent, TLogEvent, TJsonArtifact } from '@haibun/core/schema/protocol.js';
 import { ArtifactRenderer } from './artifacts';
+import { TEST_IDS } from '../test-ids';
 
 const md = new MarkdownIt({
     html: true,
@@ -13,9 +14,14 @@ const md = new MarkdownIt({
 
 interface DocumentViewProps {
     events: THaibunEvent[];
+    currentTime: number;
+    startTime: number | null;
+    onTimeChange: (time: number) => void;
+    minLogLevel?: THaibunLogLevel;
+    onSelectEvent?: (event: THaibunEvent) => void;
 }
 
-export function DocumentView({ events }: DocumentViewProps) {
+export function DocumentView({ events, currentTime, startTime, onTimeChange, minLogLevel = 'info', onSelectEvent }: DocumentViewProps) {
     // Group artifact events by their parent step ID
     const { artifactsByStep, allArtifactIds } = useMemo(() => {
         const map = new Map<string, TArtifactEvent[]>();
@@ -89,8 +95,26 @@ export function DocumentView({ events }: DocumentViewProps) {
             return '';
         };
 
+        const renderedHeaders = new Set<string>();
+        const minLevelIndex = HAIBUN_LOG_LEVELS.indexOf(minLogLevel);
+
         for (let i = 0; i < events.length; i++) {
             const e = events[i];
+
+            // Level Filtering
+            const level = e.level || 'info';
+            const levelIndex = HAIBUN_LOG_LEVELS.indexOf(level);
+            if (levelIndex !== -1 && minLevelIndex !== -1 && levelIndex < minLevelIndex) {
+                continue;
+            }
+
+            // Specific Exclusion: quadObservation artifacts
+            if (e.kind === 'artifact' && e.artifactType === 'json') {
+                const ja = e as TJsonArtifact;
+                if (ja.json?.quadObservation) {
+                    continue;
+                }
+            }
 
             if (e.kind === 'artifact') {
                 if (!claimedArtifactIds.has(e.id)) {
@@ -100,29 +124,31 @@ export function DocumentView({ events }: DocumentViewProps) {
                 continue;
             }
 
-            if (e.kind === 'lifecycle') {
-                if (e.type === 'feature' && e.stage === 'start') {
+            if (e.kind === 'lifecycle' && e.stage === 'start') {
+                const le = e as TLifecycleEvent;
+                if (le.type === 'feature' || le.type === 'scenario' || (le.type as string) === 'background') {
+                    const headerKey = `${le.type}:${('featurePath' in le ? le.featurePath : '') || ('scenarioName' in le ? le.scenarioName : '') || le.id}`;
+                    if (renderedHeaders.has(headerKey)) continue;
+                    renderedHeaders.add(headerKey);
+
                     if (lastType === 'technical') md += '\n<div class="h-1"></div>\n';
-                    md += `\n\n# ${e.featurePath || 'Feature'}\n\n`;
-                    const unclaimedIds = claimArtifacts(e.id, ['video']);
+                    const rawTime = le.timestamp - (events[0]?.timestamp || 0);
+                    const level = le.type === 'feature' ? 1 : (le.type === 'scenario' ? 2 : 3);
+                    const title = le.type === 'feature' ? (le.featurePath || 'Feature') : (le.type === 'scenario' ? (le.scenarioName || 'Scenario') : 'Background');
+
+                    const normalizedId = le.id.replace(/^\[|\]$/g, '');
+                    md += `\n<div class="header-block" data-raw-time="${rawTime}" data-id="${normalizedId}">\n\n${'#'.repeat(level)} ${title}\n\n</div>\n`;
+                    const unclaimedIds = claimArtifacts(le.id, ['video']);
                     if (unclaimedIds) {
-                        md += `\n<div class="feature-artifacts" data-ids="${unclaimedIds}"></div>\n`;
+                        md += `\n<div class="feature-artifacts" data-ids="${unclaimedIds}" data-id="${normalizedId}"></div>\n`;
                     }
                     lastType = 'prose';
                     continue;
                 }
-                if (e.type === 'scenario' && e.stage === 'start') {
-                    if (lastType === 'technical') md += '\n<div class="h-1"></div>\n';
-                    md += `\n\n## ${e.scenarioName || 'Scenario'}\n\n`;
-                    const unclaimedIds = claimArtifacts(e.id, ['video']);
-                    if (unclaimedIds) {
-                        md += `\n<div class="feature-artifacts" data-ids="${unclaimedIds}"></div>\n`;
-                    }
-                    lastType = 'prose';
-                    continue;
-                }
-                if (e.type === 'step') {
-                    const isTechnical = /^[a-z]/.test(e.in || '');
+
+                if (le.type === 'step') {
+                    const step = le as TStepEvent;
+                    const isTechnical = /^[a-z]/.test(step.in || '');
 
                     if (isTechnical) {
                         if (lastType !== 'technical' && md.length > 0) md += '\n<div class="h-1"></div>\n';
@@ -130,20 +156,21 @@ export function DocumentView({ events }: DocumentViewProps) {
                         let isInstigator = false;
                         for (let j = i + 1; j < events.length; j++) {
                             const next = events[j];
-                            if (next.id && next.id.startsWith(e.id + '.')) {
+                            if (next.id && next.id.startsWith(le.id + '.') && next.kind === 'lifecycle' && (next as TLifecycleEvent).stage === 'start') {
                                 isInstigator = true;
                                 break;
                             }
-                            if (next.id && !next.id.startsWith(e.id)) break;
+                            if (next.id === le.id) continue;
+                            if (next.id && !next.id.startsWith(le.id)) break;
                         }
 
-                        const depth = e.id ? e.id.split('.').length : 0;
+                        const depth = step.id ? step.id.split('.').length : 0;
                         const isNested = depth > 3;
-                        const time = ((e.timestamp - (events[0]?.timestamp || 0)) / 1000).toFixed(3);
-                        // biome-ignore lint/suspicious/noExplicitAny: loose action type
-                        const actionName = (e as any).actionName || 'step';
+                        const time = ((step.timestamp - (events[0]?.timestamp || 0)) / 1000).toFixed(3);
+                        const rawTime = step.timestamp - (events[0]?.timestamp || 0);
+                        const actionName = step.actionName || 'step';
                         const showSymbol = previousRenderedId && previousRenderedDepth < depth;
-                        const normalizedId = e.id.replace(/^\[|\]$/g, '');
+                        const normalizedId = le.id.replace(/^\[|\]$/g, '');
                         const unclaimedIds = claimArtifacts(normalizedId, ['video']);
 
                         md += `<div class="log-row font-mono text-[11px] text-slate-500 my-0 leading-tight" 
@@ -154,215 +181,293 @@ export function DocumentView({ events }: DocumentViewProps) {
                                     data-id="${normalizedId}"
                                     data-ids="${unclaimedIds}"
                                     data-time="${time}"
+                                    data-raw-time="${rawTime}"
                                     data-action="${actionName}"
-                                    data-has-artifacts="${!!unclaimedIds}">${e.in}</div>\n`;
+                                    data-has-artifacts="${!!unclaimedIds}">${step.in}</div>\n`;
 
                         lastType = 'technical';
                         previousRenderedDepth = depth;
-                        previousRenderedId = e.id || '';
+                        previousRenderedId = le.id || '';
                     } else {
                         if (lastType === 'technical') md += '\n<div class="h-1"></div>\n';
-                        md += `\n\n${e.in}\n\n`;
-                        const unclaimedIds = claimArtifacts(e.id, ['video']);
+                        const rawTime = step.timestamp - (events[0]?.timestamp || 0);
+                        const normalizedId = step.id.replace(/^\[|\]$/g, '');
+                        md += `\n<div class="prose-block" data-raw-time="${rawTime}" data-id="${normalizedId}">\n\n${step.in}\n\n</div>\n`;
+                        const unclaimedIds = claimArtifacts(le.id, ['video']);
                         if (unclaimedIds) {
-                            md += `\n<div class="feature-artifacts" data-ids="${unclaimedIds}"></div>\n`;
+                            md += `\n<div class="feature-artifacts" data-ids="${unclaimedIds}" data-id="${normalizedId}"></div>\n`;
                         }
                         lastType = 'prose';
                     }
                     continue;
                 }
+            } else if (e.kind === 'log') {
+                if (lastType !== 'technical' && md.length > 0) md += '\n<div class="h-1"></div>\n';
+                const logEv = e as TLogEvent;
+                const rawTime = logEv.timestamp - (events[0]?.timestamp || 0);
+                const time = (rawTime / 1000).toFixed(3);
+                const normalizedId = logEv.id.replace(/^\[|\]$/g, '');
+
+                md += `<div class="log-row font-mono text-[11px] text-slate-500 my-0 leading-tight" 
+                            data-id="${normalizedId}"
+                            data-raw-time="${rawTime}"
+                            data-time="${time}">${logEv.message}</div>\n`;
+                lastType = 'technical';
+                continue;
             }
+
         }
 
         return md;
     }, [events, artifactsByStep, allArtifactIds]);
 
+    // Helper to find original event by ID
+    const findEvent = (id: string | undefined): THaibunEvent | undefined => {
+        if (!id) return undefined;
+        const normalizedTarget = id.replace(/^\[|\]$/g, '');
+        return events.find(e => (e.id || '').replace(/^\[|\]$/g, '') === normalizedTarget);
+    };
+
+    const activeEventId = useMemo(() => {
+        const effectiveCurrentTime = (startTime || 0) + currentTime + 0.0001;
+        for (let i = events.length - 1; i >= 0; i--) {
+            const e = events[i];
+            if (e.timestamp !== undefined && e.timestamp <= effectiveCurrentTime) {
+                if (e.id && (e.kind === 'log' || (e.kind === 'lifecycle' && e.stage === 'start'))) {
+                    return e.id.replace(/^\[|\]$/g, '');
+                }
+            }
+        }
+        return null;
+    }, [events, currentTime, startTime]);
+
     const reactContent = useMemo(() => {
-        // 1. Render Markdown to HTML string
         const rawHtml = md.render(content);
 
-        // 2. Sanitize HTML (allow data-* attributes and style)
         const sanitizedHtml = DOMPurify.sanitize(rawHtml, {
-            ADD_ATTR: ['style', 'data-depth', 'data-nested', 'data-instigator', 'data-show-symbol', 'data-id', 'data-time', 'data-action', 'data-has-artifacts'],
-            ADD_TAGS: ['div'] // Ensure div is allowed
+            ADD_ATTR: ['style', 'data-depth', 'data-nested', 'data-instigator', 'data-show-symbol', 'data-id', 'data-time', 'data-raw-time', 'data-action', 'data-has-artifacts'],
+            ADD_TAGS: ['div']
         });
 
-        // 3. Parse HTML string to React Components
-        return parse(sanitizedHtml, {
-            replace: (domNode) => {
-                if (domNode instanceof Element && domNode.attribs) {
+        const RowWithGutter = ({
+            children,
+            dataId,
+            onClick,
+            className = ""
+        }: {
+            children: React.ReactNode,
+            dataId: string | undefined,
+            onClick?: (e: React.MouseEvent) => void,
+            className?: string
+        }) => (
+            <div
+                className={`group flex items-start -mx-4 px-4 py-2 transition-colors cursor-pointer hover:bg-slate-50 relative document-row ${className}`}
+                onClick={onClick}
+                data-id={dataId}
+            >
+                {/* Fixed Gutter for Marker */}
+                <div className="w-8 shrink-0 flex items-start justify-center pt-[15px] select-none absolute left-0 top-0 bottom-0 pointer-events-none">
+                    <div className="active-dot w-2.5 h-2.5 bg-cyan-500 rounded-full shadow-sm ring-2 ring-cyan-100 opacity-0 transition-opacity duration-200" />
+                </div>
 
-                    // Feature/Scenario/Step Artifacts
-                    if (domNode.name === 'div' && domNode.attribs.class === 'feature-artifacts') {
-                        const stepId = domNode.attribs['data-id']; // keep for keys
-                        const idString = domNode.attribs['data-ids'];
-                        if (!idString) return null;
+                {/* Content Container with offset for gutter */}
+                <div className="flex-1 min-w-0 pl-6">
+                    {children}
+                </div>
+            </div>
+        );
 
-                        const artifactIds = idString.split(',');
-                        const stepArtifacts = artifactIds.map(id => events.find(e => e.id === id)).filter(Boolean) as TArtifactEvent[];
+        // biome-ignore lint/suspicious/noExplicitAny: domToReact replace callback requires flexible return type
+        const handleNode = (domNode: DOMNode): any => {
+            if (domNode instanceof Element && domNode.attribs) {
+                if (domNode.name === 'div' && domNode.attribs.class === 'feature-artifacts') {
+                    const stepId = domNode.attribs['data-id'];
+                    const idString = domNode.attribs['data-ids'];
+                    if (!idString) return null;
 
-                        if (stepArtifacts.length === 0) return null;
+                    const artifactIds = idString.split(',');
+                    const stepArtifacts = artifactIds.map(id => events.find(e => e.id === id)).filter(Boolean) as TArtifactEvent[];
 
-                        return (
-                            <div className="my-2 space-y-1">
-                                {stepArtifacts.map((artifact, idx) => (
-                                    <ArtifactCaption key={`${stepId}-artifact-${idx}`} artifact={artifact} />
-                                ))}
-                            </div>
-                        );
-                    }
+                    if (stepArtifacts.length === 0) return null;
 
-                    // Standalone Artifacts (at end of document)
-                    if (domNode.name === 'div' && domNode.attribs.class === 'standalone-artifact') {
-                        const id = domNode.attribs['data-id'];
-                        const artifact = events.find(ev => ev.id === id) as TArtifactEvent;
-                        if (!artifact) return null;
-                        return <ArtifactCaption key={`standalone-${id}`} artifact={artifact} />;
-                    }
+                    return (
+                        <div className="my-2 space-y-1 pl-6">
+                            {stepArtifacts.map((artifact, idx) => (
+                                <ArtifactCaption key={`${stepId}-artifact-${idx}`} artifact={artifact} />
+                            ))}
+                        </div>
+                    );
+                }
 
-                    // Custom log row rendering with Rail System (Replicates App.tsx visuals)
-                    if (domNode.name === 'div' && domNode.attribs.class?.includes('log-row')) {
-                        const depth = parseInt(domNode.attribs['data-depth'] || '0');
-                        const isNested = domNode.attribs['data-nested'] === 'true';
-                        const isInstigator = domNode.attribs['data-instigator'] === 'true';
-                        const showSymbol = domNode.attribs['data-show-symbol'] === 'true';
-                        const stepId = domNode.attribs['data-id'];
-                        const idString = domNode.attribs['data-ids'];
+                if (domNode.name === 'div' && domNode.attribs.class === 'standalone-artifact') {
+                    const id = domNode.attribs['data-id'];
+                    const artifact = events.find(ev => ev.id === id) as TArtifactEvent;
+                    if (!artifact) return null;
 
-                        const stepArtifacts = idString ? idString.split(',').map(id => events.find(e => e.id === id)).filter(Boolean) as TArtifactEvent[] : [];
+                    return (
+                        <RowWithGutter
+                            dataId={id}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                const event = findEvent(id);
+                                if (event && onSelectEvent) onSelectEvent(event);
+                            }}
+                        >
+                            <ArtifactCaption key={`standalone-${id}`} artifact={artifact} />
+                        </RowWithGutter>
+                    );
+                }
 
-                        return (
-                            <div className={domNode.attribs.class + " flex flex-col"}>
-                                <div className="flex items-stretch break-all">
-                                    <span className="mx-1 text-slate-400 self-start mt-1">｜</span>
+                if (domNode.name === 'div' && domNode.attribs.class?.includes('log-row')) {
+                    const depth = parseInt(domNode.attribs['data-depth'] || '0');
+                    const isNested = domNode.attribs['data-nested'] === 'true';
+                    const isInstigator = domNode.attribs['data-instigator'] === 'true';
+                    const showSymbol = domNode.attribs['data-show-symbol'] === 'true';
+                    const stepId = domNode.attribs['data-id'];
+                    const idString = domNode.attribs['data-ids'];
+                    // const rawTime = parseFloat(domNode.attribs['data-raw-time'] || '0'); // Unused as we select by ID now
 
-                                    {/* Content + Rail */}
-                                    <div className="flex-1 flex items-stretch">
-                                        {/* Indentation Spacer */}
-                                        <div style={{ width: `${Math.max(0, depth - 4) * 0.75}rem` }} className="shrink-0" />
+                    const stepArtifacts = idString ? idString.split(',').map(id => events.find(e => e.id === id)).filter(Boolean) as TArtifactEvent[] : [];
 
-                                        {/* Rail Container */}
-                                        {(isNested || isInstigator) && (
-                                            <div className="relative w-4 shrink-0 mr-1">
-                                                {/* Full Line for Nested Steps */}
-                                                {isNested && (
-                                                    <div className="absolute top-0 -bottom-[1px] right-[3px] w-px bg-slate-200" />
-                                                )}
+                    return (
+                        <RowWithGutter
+                            dataId={stepId}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                const event = findEvent(stepId);
+                                if (event && onSelectEvent) onSelectEvent(event);
+                            }}
+                        >
+                            <div className="flex items-stretch break-all">
+                                <span className="mx-1 text-slate-400 self-start mt-1">｜</span>
 
-                                                {/* Start Marker Line for Top-Level Instigators */}
-                                                {isInstigator && !isNested && (
-                                                    <div className="absolute top-[6px] -bottom-[1px] right-[3px] w-px bg-slate-200" />
-                                                )}
+                                <div className="flex-1 flex items-stretch">
 
-                                                {/* Horizontal Bar Symbol (First Child) */}
-                                                {isNested && showSymbol && (
-                                                    <div className="absolute top-0 right-[3px] w-2.5 h-px bg-slate-200" />
-                                                )}
-                                            </div>
-                                        )}
+                                    <div style={{ width: `${Math.max(0, depth - 4) * 0.75}rem` }} className="shrink-0" />
 
-                                        <div className="flex-1 py-0.5 text-slate-600">
-                                            {domToReact(domNode.children as DOMNode[])}
+                                    {(isNested || isInstigator) && (
+                                        <div className="relative w-4 shrink-0 mr-1">
+                                            {isNested && (
+                                                <div className="absolute top-0 -bottom-[1px] right-[3px] w-px bg-slate-200" />
+                                            )}
+                                            {isInstigator && !isNested && (
+                                                <div className="absolute top-[6px] -bottom-[1px] right-[3px] w-px bg-slate-200" />
+                                            )}
+                                            {isNested && showSymbol && (
+                                                <div className="absolute top-0 right-[3px] w-2.5 h-px bg-slate-200" />
+                                            )}
                                         </div>
+                                    )}
+
+                                    <div className="flex-1 py-0.5 text-slate-600">
+                                        {domToReact(domNode.children as DOMNode[], { replace: handleNode })}
                                     </div>
                                 </div>
-
-                                {/* Inline Artifacts */}
-                                {stepArtifacts.length > 0 && (
-                                    <div className="ml-8 my-1 space-y-3">
-                                        {stepArtifacts.map((artifact, idx) => (
-                                            <ArtifactCaption key={`${stepId}-artifact-${idx}`} artifact={artifact} />
-                                        ))}
-                                    </div>
-                                )}
                             </div>
-                        );
-                    }
 
-                    // Old generic mono handler (fallback or for other elements)
-                    if (domNode.name === 'div' && domNode.attribs.class?.includes('font-mono') && !domNode.attribs.class?.includes('log-row')) {
-                        return (
-                            <div
-                                className={domNode.attribs.class}
-                                style={domNode.attribs.style ? { paddingLeft: domNode.attribs.style.split(':')[1] } : undefined}
-                            >
-                                {domToReact(domNode.children as DOMNode[])}
-                            </div>
-                        );
-                    }
+                            {stepArtifacts.length > 0 && (
+                                <div className="ml-8 my-1 space-y-3">
+                                    {stepArtifacts.map((artifact, idx) => (
+                                        <ArtifactCaption key={`${stepId}-artifact-${idx}`} artifact={artifact} />
+                                    ))}
+                                </div>
+                            )}
+                        </RowWithGutter>
+                    );
+                }
 
-                    if (domNode.name === 'a') {
-                        return (
-                            <a
-                                href={domNode.attribs.href}
-                                className="text-blue-600 hover:text-blue-800 hover:underline underline-offset-4"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                            >
-                                {domToReact(domNode.children as DOMNode[])}
-                            </a>
-                        );
-                    }
+                const isProse = (domNode instanceof Element) && domNode.name === 'div' && domNode.attribs.class?.includes('prose-block');
+                const isHeader = (domNode instanceof Element) && domNode.name === 'div' && domNode.attribs.class?.includes('header-block');
 
-                    if (domNode.name === 'h1') {
-                        return <h1 className="text-3xl font-bold mt-6 mb-4 pb-2 border-b border-border">{domToReact(domNode.children as DOMNode[])}</h1>;
-                    }
-                    if (domNode.name === 'h2') {
-                        // Fixed text color to slate-900 (black in light mode) instead of primary
-                        return <h2 className="text-2xl font-semibold mt-6 mb-3 text-slate-900">{domToReact(domNode.children as DOMNode[])}</h2>;
-                    }
-                    if (domNode.name === 'h3') {
-                        return <h3 className="text-xl font-semibold mt-4 mb-2">{domToReact(domNode.children as DOMNode[])}</h3>;
-                    }
-                    if (domNode.name === 'h4') {
-                        return <h4 className="text-lg font-bold mt-4 mb-1">{domToReact(domNode.children as DOMNode[])}</h4>;
-                    }
-                    if (domNode.name === 'ul') {
-                        return <ul className="list-disc pl-6 mb-4 space-y-1">{domToReact(domNode.children as DOMNode[])}</ul>;
-                    }
-                    if (domNode.name === 'ol') {
-                        return <ol className="list-decimal pl-6 mb-4 space-y-1">{domToReact(domNode.children as DOMNode[])}</ol>;
-                    }
-                    if (domNode.name === 'li') {
-                        return <li className="leading-relaxed">{domToReact(domNode.children as DOMNode[])}</li>;
-                    }
-                    if (domNode.name === 'blockquote') {
-                        return <blockquote className="border-l-4 border-muted-foreground/30 pl-4 italic text-muted-foreground my-4">{domToReact(domNode.children as DOMNode[])}</blockquote>;
-                    }
-                    if (domNode.name === 'code') {
-                        // Check if parent is pre? specialized handling if needed, or just style inline code
-                        // Simple inline code style
-                        const isBlock = domNode.parent && (domNode.parent as Element).name === 'pre';
-                        if (!isBlock) {
-                            return <code className="bg-slate-100 px-1 py-0.5 rounded-sm text-xs font-mono text-slate-800 border border-slate-200">{domToReact(domNode.children as DOMNode[])}</code>;
-                        }
-                    }
-                    if (domNode.name === 'pre') {
-                        return <pre className="bg-muted/50 p-4 rounded-lg overflow-x-auto my-4 text-sm font-mono">{domToReact(domNode.children as DOMNode[])}</pre>;
-                    }
+                if (isProse || isHeader) {
+                    const stepId = (domNode as Element).attribs['data-id'];
 
-                    if (domNode.name === 'table') {
-                        return (
-                            <div className="overflow-x-auto my-4 border rounded-lg">
-                                <table className="w-full text-sm text-left">
-                                    {domToReact(domNode.children as DOMNode[])}
-                                </table>
-                            </div>
-                        );
+                    return (
+                        <RowWithGutter
+                            dataId={stepId}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                const event = findEvent(stepId);
+                                if (event && onSelectEvent) onSelectEvent(event);
+                            }}
+                        >
+                            {domToReact((domNode as Element).children as DOMNode[], { replace: handleNode })}
+                        </RowWithGutter>
+                    );
+                }
+
+                if (domNode.name === 'div' && domNode.attribs.class?.includes('font-mono') && !domNode.attribs.class?.includes('log-row')) {
+                    return (
+                        <div
+                            className={domNode.attribs.class}
+                            style={domNode.attribs.style ? { paddingLeft: domNode.attribs.style.split(':')[1] } : undefined}
+                        >
+                            {domToReact(domNode.children as DOMNode[], { replace: handleNode })}
+                        </div>
+                    );
+                }
+
+                // Simple passthrough for standard elements
+                if (domNode.name === 'a') {
+                    return <a {...domNode.attribs} className="text-blue-600 hover:underline">{domToReact(domNode.children as DOMNode[], { replace: handleNode })}</a>;
+                }
+                if (domNode.name === 'h1') {
+                    return <h1 className="text-3xl font-bold mt-6 mb-4 pb-2 border-b border-border">{domToReact(domNode.children as DOMNode[], { replace: handleNode })}</h1>;
+                }
+                if (domNode.name === 'h2') {
+                    return <h2 className="text-2xl font-semibold mt-6 mb-3 text-slate-900">{domToReact(domNode.children as DOMNode[], { replace: handleNode })}</h2>;
+                }
+                if (domNode.name === 'h3') {
+                    return <h3 className="text-xl font-semibold mt-4 mb-2">{domToReact(domNode.children as DOMNode[], { replace: handleNode })}</h3>;
+                }
+                if (domNode.name === 'h4') {
+                    return <h4 className="text-lg font-bold mt-4 mb-1">{domToReact(domNode.children as DOMNode[], { replace: handleNode })}</h4>;
+                }
+                if (domNode.name === 'ul') {
+                    return <ul className="list-disc pl-6 mb-1 space-y-0.5">{domToReact(domNode.children as DOMNode[], { replace: handleNode })}</ul>;
+                }
+                if (domNode.name === 'ol') {
+                    return <ol className="list-decimal pl-6 mb-1 space-y-0.5">{domToReact(domNode.children as DOMNode[], { replace: handleNode })}</ol>;
+                }
+                if (domNode.name === 'li') {
+                    return <li className="leading-relaxed">{domToReact(domNode.children as DOMNode[], { replace: handleNode })}</li>;
+                }
+                if (domNode.name === 'blockquote') {
+                    return <blockquote className="border-l-4 border-muted-foreground/30 pl-4 italic text-muted-foreground my-4">{domToReact(domNode.children as DOMNode[], { replace: handleNode })}</blockquote>;
+                }
+                if (domNode.name === 'code') {
+                    const isBlock = domNode.parent && (domNode.parent as Element).name === 'pre';
+                    if (!isBlock) {
+                        return <code className="bg-slate-100 px-1 py-0.5 rounded-sm text-xs font-mono text-slate-800 border border-slate-200">{domToReact(domNode.children as DOMNode[], { replace: handleNode })}</code>;
                     }
                 }
-            },
-        });
-    }, [content, artifactsByStep]);
+                if (domNode.name === 'pre') {
+                    return <pre className="bg-muted/50 p-4 rounded-lg overflow-x-auto my-4 text-sm font-mono">{domToReact(domNode.children as DOMNode[], { replace: handleNode })}</pre>;
+                }
+                if (domNode.name === 'table') {
+                    return (
+                        <div className="overflow-x-auto my-4 border rounded-lg">
+                            <table className="w-full text-sm text-left">
+                                {domToReact(domNode.children as DOMNode[], { replace: handleNode })}
+                            </table>
+                        </div>
+                    );
+                }
+            }
+        };
+
+        return parse(sanitizedHtml, { replace: handleNode });
+    }, [content, artifactsByStep, events, onSelectEvent]);
 
     return (
-        <div className="w-full bg-white text-slate-900 min-h-screen p-4 md:p-8">
-            <div className="w-full">
+        <div className="w-full bg-white text-slate-900 min-h-screen p-4 md:p-8" data-active-id={activeEventId} data-testid={TEST_IDS.VIEWS.DOCUMENT}>
+            <div className="w-full max-w-5xl mx-auto">
                 <div className="prose prose-slate max-w-none font-serif leading-relaxed text-slate-900 
-                    prose-headings:font-bold prose-headings:text-slate-900 
-                    prose-h1:text-3xl prose-h1:mb-6 prose-h1:border-b prose-h1:border-slate-200 prose-h1:pb-2
-                    prose-h2:text-2xl prose-h2:mt-8 prose-h2:mb-4
-                    prose-p:mb-4 prose-p:text-base md:prose-p:text-lg
+                    prose-headings:font-bold prose-headings:text-slate-900 prose-headings:my-2 prose-headings:mt-0
+                    prose-h1:text-3xl prose-h1:border-b prose-h1:border-slate-200 prose-h1:pb-2
+                    prose-h2:text-2xl 
+                    prose-p:my-1 prose-p:mt-0 prose-p:text-base md:prose-p:text-lg
+                    prose-ul:mt-0 prose-ol:mt-0
                     prose-code:text-slate-800 prose-code:bg-slate-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded-sm prose-code:font-mono prose-code:text-sm
                 ">
                     {reactContent}
@@ -374,12 +479,43 @@ export function DocumentView({ events }: DocumentViewProps) {
                     .prose blockquote p:last-of-type::after {
                         content: none;
                     }
+                    /* Highlighting logic based on active ID */
+                    /* Exact match highlighting */
+                    [data-active-id] .document-row[data-id] {
+                        transition: background-color 0.3s ease;
+                    }
+                    /* Show dot for exact match OR if active ID starts with this row's ID (hierarchical) */
+                    [data-active-id] .document-row .active-dot {
+                        opacity: 0;
+                        transform: scale(0.8);
+                        transition: opacity 0.2s ease, transform 0.2s ease;
+                    }
+                    /* Simple exact match for now - can be expanded for hierarchy if needed */
+                    [data-active-id] .document-row .active-dot {
+                        display: block;
+                    }
+                    
+                    /* Generate selectors for matching IDs. Typically steps are 1.2, 1.2.3 etc. */
+                    /* We can use a trick with CSS variables or just exact match if we normalize well */
+                    [data-active-id] .document-row {
+                        /* default state */
+                    }
                 `}</style>
+                {/* Dynamically injected CSS for exact and hierarchical highlighting */}
+                {activeEventId && (
+                    <style>{`
+                        .document-row[data-id="${activeEventId}"] .active-dot,
+                        .document-row[data-id="${activeEventId.split('.').slice(0, -1).join('.')}"] .active-dot,
+                        .document-row[data-id="${activeEventId.split('.').slice(0, -2).join('.')}"] .active-dot {
+                            opacity: 1 !important;
+                            transform: scale(1) !important;
+                        }
+                    `}</style>
+                )}
             </div>
         </div>
     );
 }
-
 
 
 

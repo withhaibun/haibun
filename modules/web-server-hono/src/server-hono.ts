@@ -30,24 +30,25 @@ export class ServerHono implements IWebServer {
 
   use(middleware: MiddlewareHandler): void { this._app.use(middleware); }
 
-  listen(port: number): Promise<void> {
+  listen(port: number, hostname?: string): Promise<void> {
     if (typeof port !== 'number' || Number.isNaN(port) || port <= 0) {
       throw new Error(`ServerHono.listen: invalid port "${port}"`);
     }
+    const host = hostname || '127.0.0.1';
     if (ServerHono.listeningPorts.includes(port)) {
-      this.eventLogger.info(`ServerHono already listening on port ${port}`);
+      this.eventLogger.info(`ServerHono already listening on port ${port} (${host})`);
       return Promise.resolve();
     }
     return new Promise((resolve, reject) => {
       try {
-        this.server = serve({ fetch: this._app.fetch, port }, () => {
+        this.server = serve({ fetch: this._app.fetch, port, hostname: host }, () => {
           this._port = port;
           ServerHono.listeningPorts.push(port);
-          this.eventLogger.debug?.(`ServerHono listening on port ${port}`);
+          this.eventLogger.debug?.(`ServerHono listening on port ${port} (${host})`);
           resolve();
         });
       } catch (e) {
-        reject(new Error(`ServerHono.listen: failed on port ${port}: ${e instanceof Error ? e.message : e}`));
+        reject(new Error(`ServerHono.listen: failed on port ${port} (${host}): ${e instanceof Error ? e.message : e}`));
       }
     });
   }

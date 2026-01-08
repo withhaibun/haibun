@@ -247,7 +247,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 	//                          NAVIGATION
 
 	gotoPage: {
-		gwta: `go to the { name } ${WEB_PAGE}`,
+		gwta: `go to the {name} ${WEB_PAGE}`,
 		action: async ({ name }: { name: string }) => {
 			const response = await wp.withPage<Response | null>(async (page: Page) => {
 				return await page.goto(name);

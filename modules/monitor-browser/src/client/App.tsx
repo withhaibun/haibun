@@ -1,10 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { DetailsPanel } from './DetailsPanel';
-import useWebSocket, { ReadyState } from 'react-use-websocket';
 
 import { EventFormatter } from '@haibun/core/monitor/index.js'
 import { Timeline } from './Timeline'
-import { Debugger } from './Debugger';
 import { getInitialState } from './serialize';
 import { THaibunEvent, TArtifactEvent, TVideoArtifact, TResolvedFeaturesArtifact, THttpTraceArtifact, HAIBUN_LOG_LEVELS, THaibunLogLevel } from '@haibun/core/schema/protocol.js';
 import { DocumentView } from './DocumentView';
@@ -13,6 +11,7 @@ import { StepMessage } from './components/StepMessage';
 import { SourceLinks } from './components/SourceLinks';
 import { EventIdDisplay } from './components/EventIdDisplay';
 import { InlineArtifacts } from './components/InlineArtifacts';
+import { TEST_IDS } from '../test-ids';
 
 type ViewMode = 'log' | 'raw' | 'document';
 
@@ -59,76 +58,128 @@ function App() {
     // biome-ignore lint/suspicious/noExplicitAny: debug state
     const [activePrompt, setActivePrompt] = useState<any | null>(null);
 
-    const _ws = useRef<WebSocket | null>(null);
+
+
+    // Memoize WS options to prevent re-connection on render
+    // Memoize WS options to prevent re-connection on render
+    const sendMessage = useRef<((msg: any) => void) | null>(null);
 
     // Event batching using refs to avoid re-render issues
     const pendingEventsRef = useRef<THaibunEvent[]>([]);
     const flushTimerRef = useRef<number | null>(null);
 
-    // Memoize WS options to prevent re-connection on render
-    const wsOptions = useMemo(() => ({
-        onOpen: () => {
-            console.log('WS Connected');
-            sendJsonMessageRef.current?.({ type: 'ready' });
-        },
-        onMessage: (e: MessageEvent) => {
-            try {
-                const msg = JSON.parse(e.data);
-                if (msg.type === 'event' && msg.event) {
-                    // Buffer event in ref (doesn't cause re-render)
-                    pendingEventsRef.current.push(msg.event);
-                    // Schedule a flush with 200ms delay to batch more events on initial load
-                    if (flushTimerRef.current === null) {
-                        flushTimerRef.current = window.setTimeout(() => {
-                            if (pendingEventsRef.current.length > 0) {
-                                const newEvents = [...pendingEventsRef.current];
-                                pendingEventsRef.current = [];
-                                setEvents(prev => [...prev, ...newEvents]);
-                            }
-                            flushTimerRef.current = null;
-                        }, 1000);
-                    }
-                } else if (msg.type === 'prompt') {
-                    console.log('Prompt received', msg);
-                    setActivePrompt(msg.prompt);
-                    setIsPlaying(false); // Pause on prompt
-                } else if (msg.type === 'init' && msg.cwd) {
-                    setCwd(msg.cwd);
-                } else if (msg.type === 'finalize') {
-                    console.log('Finalize received');
-                }
-            } catch (err) {
-                console.error('WS Parse Error', err);
-            }
-        },
-        shouldReconnect: () => !isSerializedMode,
-    }), [isSerializedMode]); // Only re-create if mode changes
-
-    // Use a ref to access sendJsonMessage inside the memoized callback
-    // biome-ignore lint/suspicious/noExplicitAny: websocket ref
-    const sendJsonMessageRef = useRef<any>(null);
-
-    // Only use WebSocket in live mode (not serialized)
-    // Use current page host for WebSocket connection via /ws proxy path
-    const wsUrl = typeof window !== 'undefined'
-        ? `ws://${window.location.host}/ws`
-        : null;
-    const { sendJsonMessage, readyState } = useWebSocket(
-        isSerializedMode ? null : wsUrl,
-        wsOptions
-    );
-
-    // Keep ref updated
-    sendJsonMessageRef.current = sendJsonMessage;
+    const eventSourceRef = useRef<EventSource | null>(null);
 
     useEffect(() => {
-        // In serialized mode, never set connected to true
-        if (isSerializedMode) {
-            setConnected(false);
-        } else {
-            setConnected(readyState === ReadyState.OPEN);
-        }
-    }, [readyState, isSerializedMode]);
+        // Define sendMessage
+        sendMessage.current = async (message: any) => {
+            try {
+                await fetch('/sse/message', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(message)
+                });
+            } catch (e) {
+                console.error('Failed to send message', e);
+            }
+        };
+
+        if (isSerializedMode) return;
+
+        const connect = () => {
+            const es = new EventSource('/sse');
+            eventSourceRef.current = es;
+
+            es.onopen = () => {
+                console.log('SSE Open');
+                setConnected(true);
+                // Send ready message via POST
+                sendMessage.current?.({ type: 'ready' });
+            };
+
+            es.onmessage = (e) => {
+                try {
+                    const msg = JSON.parse(e.data);
+                    if (msg.type === 'event' && msg.event) {
+                        pendingEventsRef.current.push(msg.event);
+                        if (flushTimerRef.current === null) {
+                            flushTimerRef.current = window.setTimeout(() => {
+                                if (pendingEventsRef.current.length > 0) {
+                                    const newEvents = [...pendingEventsRef.current];
+                                    pendingEventsRef.current = [];
+                                    setEvents(prev => {
+                                        if (prev.length === 0 && newEvents.length > 0 && !startTime) {
+                                            setStartTime(Date.now());
+                                        }
+                                        return [...prev, ...newEvents];
+                                    });
+                                }
+                                flushTimerRef.current = null;
+                            }, 100);
+                        }
+                    } else if (msg.type === 'prompt') {
+                        console.log('Prompt received', msg);
+                        setActivePrompt(msg.prompt);
+                        setIsPlaying(false);
+                    } else if (msg.type === 'init' && msg.cwd) {
+                        setCwd(msg.cwd);
+                        // Note: Cwd state setter not visible in context, check if declared
+                    } else if (msg.type === 'finalize') {
+                        console.log('Finalize received');
+                        setIsPlaying(false);
+                    }
+                } catch (err) {
+                    console.error('SSE Parse Error', err);
+                }
+            };
+
+            es.onerror = (e) => {
+                console.log('SSE Error', e);
+                setConnected(false);
+                es.close();
+                setTimeout(connect, 3000);
+            };
+        };
+
+        connect();
+
+        return () => {
+            eventSourceRef.current?.close();
+        };
+
+    }, [isSerializedMode]);
+
+    useEffect(() => {
+        const logError = (type: string, error: any) => {
+            fetch('/sse/message', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'log', message: `CLIENT_ERROR: ${type} - ${error?.message || error}` })
+            }).catch(e => console.error(e));
+        };
+
+        window.onerror = (msg, source, lineno, colno, error) => {
+            logError('onerror', `${msg} at ${source}:${lineno}:${colno}`);
+        };
+        window.onunhandledrejection = (event) => {
+            logError('unhandledrejection', event.reason);
+        };
+
+        console.log('App mounted [Verified]');
+        fetch('/sse/message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'log', message: 'CLIENT_MOUNTED' })
+        }).catch(err => console.error('Failed to log mount:', err));
+
+        return () => {
+            fetch('/sse/message', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'log', message: 'CLIENT_UNMOUNTED' })
+            }).catch(e => console.error(e));
+        };
+    }, []);
 
     // Handle Time Logic - Anchor to first event
     const eventsLength = events.length;
@@ -179,7 +230,7 @@ function App() {
 
     const handleDebugAction = (response: string) => {
         if (connected && activePrompt) {
-            sendJsonMessage({
+            sendMessage.current?.({
                 type: 'response',
                 id: activePrompt.id,
                 value: response
@@ -283,20 +334,33 @@ function App() {
     const visibleEvents = useMemo(() => {
         const effectiveStart = startTime || 0;
 
-        // Stage 1: Time Filter
-        const timeFiltered = events.filter(e => {
-            if (!e || e.timestamp === undefined) return false;
-            return (e.timestamp - effectiveStart) <= currentTime;
-        });
+        // Stage 1: No Time Filter (we want to see future events)
+        const timeFiltered = events;
+
+        const isFuture = (e: THaibunEvent) => {
+            if (e.timestamp === undefined) return false;
+            return (e.timestamp - effectiveStart) > currentTime;
+        }
 
         // Stage 2: Lifecycle Merging (Deduplication/Update-in-place)
         // We merge start/end events so only one row shows per step,
         // but we keep the start events if we have no end yet to show progress.
+        // NEW: We do NOT merge a future event into a past event, to preserve the "current state" vs "future state" view.
         const mergedEvents = timeFiltered.reduce((acc, e) => {
             if (e.kind === 'lifecycle' && e.id) {
                 const existingIndex = acc.findIndex((existing: THaibunEvent) => existing.id === e.id);
                 if (existingIndex !== -1) {
                     const existing = acc[existingIndex];
+
+                    // Check if we are crossing the timeline boundary
+                    const existingFuture = isFuture(existing);
+                    const newFuture = isFuture(e);
+
+                    // If one is past and one is future, keep both (don't merge)
+                    if (existingFuture !== newFuture) {
+                        return [...acc, e];
+                    }
+
                     // If we have an 'end' stage, it should overwrite 'start'
                     if (existing.stage === 'start' && e.stage === 'end') {
                         const newAcc = [...acc];
@@ -424,7 +488,7 @@ function App() {
                                     } else {
                                         setMinLogLevel(block.level as THaibunLogLevel);
                                     }
-                                    // Scroll to the previous event (the line above) so the expanded content is prominent
+                                    // Scroll the event into view after the details panel renders
                                     const prevEvent = i > 0 ? arr[i - 1] : undefined;
                                     setScrollTargetId(prevEvent ? prevEvent.id : block.firstEventId);
                                 }}
@@ -447,6 +511,10 @@ function App() {
 
                 const effectiveStart = startTime || e.timestamp;
                 const time = ((e.timestamp - effectiveStart) / 1000).toFixed(3);
+
+                // Future check
+                const isFuture = (e.timestamp - effectiveStart) > currentTime;
+                const opacityClass = isFuture ? 'opacity-60 grayscale blur-[0.2px]' : '';
 
                 let { showLevel: _showLevel, message, icon, id } = formatted;
                 // const isLifecycle = e.kind === 'lifecycle'; // unwarn
@@ -510,14 +578,14 @@ function App() {
                     <React.Fragment key={i}>
                         <div
                             id={`event-${e.id}`}
-                            className={`flex whitespace-pre items-start leading-tight transition-colors ${bgClass} cursor-pointer hover:bg-slate-800 ${selectedEvent?.id === e.id ? 'bg-cyan-900/30 border-l-4 border-l-cyan-500 -ml-1 pl-1 border-r-4 border-r-cyan-500' : ''}`}
+                            className={`flex whitespace-pre items-start leading-tight transition-colors ${bgClass} cursor-pointer hover:bg-slate-800 ${selectedEvent === e ? 'bg-cyan-900/30 border-l-4 border-l-cyan-500 -ml-1 pl-1 border-r-4 border-r-cyan-500' : ''} ${opacityClass}`}
                             onClick={() => {
                                 setSelectedEvent(e);
-                                // Scroll the event into view after the details panel renders
-                                setTimeout(() => {
-                                    const el = document.getElementById(`event-${e.id}`);
-                                    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                }, 50);
+                                setIsPlaying(false);
+                                if (e.timestamp && startTime !== null) {
+                                    setCurrentTime(Math.max(0, e.timestamp - startTime));
+                                }
+                                // No auto-scroll on manual select
                             }}
                         >
                             <div className="w-16 flex flex-col items-end shrink-0 text-[10px] text-slate-700 dark:text-slate-400 font-medium leading-tight mr-2 self-stretch py-1">
@@ -559,13 +627,17 @@ function App() {
                                             e={e as TArtifactEvent}
                                             onSelect={() => {
                                                 setSelectedEvent(e);
+                                                setIsPlaying(false);
+                                                if (e.timestamp && startTime !== null) {
+                                                    setCurrentTime(Math.max(0, e.timestamp - startTime));
+                                                }
                                                 setTimeout(() => {
                                                     const el = document.getElementById(`event-${e.id}`);
                                                     el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                                                 }, 50);
                                             }}
                                             isSerializedMode={isSerializedMode}
-                                            isSelected={selectedEvent?.id === e.id}
+                                            isSelected={selectedEvent === e}
                                         />
                                     ) : (
                                         <>
@@ -608,6 +680,10 @@ function App() {
                             e={e}
                             onSelectArtifact={(artifact) => {
                                 setSelectedEvent(artifact);
+                                setIsPlaying(false);
+                                if (artifact.timestamp && startTime !== null) {
+                                    setCurrentTime(Math.max(0, artifact.timestamp - startTime));
+                                }
                                 setTimeout(() => {
                                     const el = document.getElementById(`event-${artifact.id}`);
                                     el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -628,25 +704,8 @@ function App() {
         setCurrentTime(val);
     };
 
-    // Shared "Floating UI" container for Debugger or Video
+    // Shared "Floating UI" container for Video (Debugger moved to DetailsPanel)
     const renderFloatingUI = () => {
-        // Debugger takes priority if active
-        if (connected && activePrompt) {
-            return (
-                <div className="w-80 shrink-0 sticky top-20 self-start z-50">
-                    <div className="bg-black/90 rounded-lg shadow-2xl border border-slate-700 overflow-hidden">
-                        <div className="p-2 bg-slate-800 border-b border-slate-700 font-bold text-xs text-cyan-400 flex items-center gap-2">
-                            <span>⚡ Debugger Active</span>
-                        </div>
-                        <Debugger
-                            prompt={activePrompt}
-                            onSubmit={handleDebugAction}
-                        />
-                    </div>
-                </div>
-            );
-        }
-
         // Video is now shown in details panel when its event is selected
         return null;
     };
@@ -654,21 +713,15 @@ function App() {
 
     // Collect data for synthetic props passed to DetailsPanel if views are active
     // We compute this on the fly: if showSequence is true, we need 'allTraces' etc.
-    // If showQuadGraph is true, we need 'quads'. 
-    // We attach these to the 'selectedEvent' via synthetic props, OR we just pass them to DetailsPanel?
-    // The previous implementation used synthetic events for selectedEvent. 
-    // Now we want non-exclusive. 
-    // If we have a selectedEvent, we enrich it.
-    // If we have NO selectedEvent but views are ON, we need a dummy event to render the panel??
-    // Yes, if showQuadGraph is true, panel must be visible.
-    // So if !selectedEvent && (showQuadGraph || showSequence), we create a dummy event.
+    // If showQuadGraph is true, we need 'quads'.
 
     const enrichedSelectedEvent = useMemo(() => {
         // Base event is selectedEvent OR a dummy holder
         // biome-ignore lint/suspicious/noExplicitAny: synthetic construction
         let base: any = selectedEvent;
 
-        if (!base && (showQuadGraph || showSequence)) {
+        // Force panel open if Debugger is active or Views are active
+        if (!base && (showQuadGraph || showSequence || (connected && activePrompt))) {
             // Find a valid timestamp anchor (e.g. current time or last event)
             const anchorEvent = events.find(e => e.kind === 'lifecycle') || events[0];
             base = {
@@ -709,13 +762,14 @@ function App() {
 
         return enriched as THaibunEvent;
 
-    }, [selectedEvent, showQuadGraph, showSequence, events, startTime]);
+    }, [selectedEvent, showQuadGraph, showSequence, connected, activePrompt, events, startTime]);
 
 
     return (
         <div
             className={`h-screen w-full bg-background text-foreground pb-20 overflow-y-auto transition-all duration-300`}
-            style={{ scrollbarGutter: 'stable', paddingRight: (selectedEvent || showQuadGraph || showSequence) ? `${detailsPanelWidth}px` : undefined }}
+            style={{ scrollbarGutter: 'stable', paddingRight: (enrichedSelectedEvent) ? `${detailsPanelWidth}px` : undefined }}
+            data-testid="app-root"
         >
             <style>{`
         ::-webkit-scrollbar {
@@ -734,20 +788,20 @@ function App() {
             background: transparent;
         }
       `}</style>
-            <header className="fixed top-0 left-0 right-0 h-14 border-b bg-background/95 backdrop-blur z-40 flex items-center justify-between px-4">
+            <header className="fixed top-0 left-0 right-0 h-14 border-b bg-background/95 backdrop-blur z-40 flex items-center justify-between px-4" data-testid={TEST_IDS.APP.HEADER}>
                 <div className="flex items-center gap-2">
                     <div className="flex flex-col">
-                        <h1 className="font-bold hidden md:block">Haibun Monitor</h1>
+                        <h1 className="font-bold hidden md:block" data-testid={TEST_IDS.HEADER.TITLE}>Haibun Monitor</h1>
                         {startTime && (
                             <span className="text-[10px] text-muted-foreground hidden md:block">
                                 {new Date(startTime).toISOString()}
                             </span>
                         )}
                     </div>
-                    <Badge variant={connected ? "default" : "destructive"}>
+                    <Badge variant={connected ? "default" : "destructive"} data-testid={TEST_IDS.HEADER.STATUS_BADGE}>
                         {connected ? 'Live' : 'Offline'}
                     </Badge>
-                    <div className="ml-4 flex rounded-md bg-secondary p-1">
+                    <div className="ml-4 flex rounded-md bg-secondary p-1" data-testid={TEST_IDS.HEADER.VIEW_MODES}>
                         {(['log', 'raw', 'document'] as ViewMode[]).map(mode => (
                             <button
                                 key={mode}
@@ -760,7 +814,7 @@ function App() {
                     </div>
 
                     {/* Timeline Artifact Icons */}
-                    <div className="ml-2 flex items-center gap-1">
+                    <div className="ml-2 flex items-center gap-1" data-testid={TEST_IDS.HEADER.ARTIFACT_ICONS}>
                         {videoInfo?.path && (
                             <button
                                 onClick={() => {
@@ -795,7 +849,7 @@ function App() {
                     </div>
                 </div>
                 <div className="flex gap-4 items-center">
-                    <div className="hidden md:flex items-center gap-2">
+                    <div className="hidden md:flex items-center gap-2" data-testid={TEST_IDS.HEADER.LOG_LEVEL}>
                         <span className="text-xs text-muted-foreground">Log Level:</span>
                         <select
                             className="bg-background text-foreground text-xs border rounded px-1"
@@ -807,7 +861,7 @@ function App() {
                             ))}
                         </select>
                     </div>
-                    <div className="hidden md:flex items-center gap-2">
+                    <div className="hidden md:flex items-center gap-2" data-testid={TEST_IDS.HEADER.MAX_DEPTH}>
                         <span className="text-xs text-muted-foreground">Max Depth:</span>
                         <input
                             type="number"
@@ -821,20 +875,26 @@ function App() {
                 </div>
             </header>
 
-            <main className="w-full pt-20 px-4 max-w-[1800px] mx-auto">
+            <main className="w-full pt-20 px-4 max-w-[1800px] mx-auto" data-testid={TEST_IDS.APP.MAIN}>
                 <div className="flex gap-4">
                     <div className="flex-1 min-w-0">
-                        {viewMode === 'log' && renderLogView()}
-
-                        {viewMode === 'raw' && (
-                            <pre className="text-xs font-mono bg-black p-4 rounded-lg shadow-xl overflow-x-auto text-green-400">
-                                {JSON.stringify(visibleEvents, null, 2)}
-                            </pre>
-                        )}
-
+                        {viewMode === 'log' && <div data-testid={TEST_IDS.VIEWS.LOG}>{renderLogView()}</div>}
+                        {viewMode === 'raw' && <pre data-testid={TEST_IDS.VIEWS.RAW} className="text-xs p-4 overflow-auto">{JSON.stringify(events, null, 2)}</pre>}
                         {viewMode === 'document' && (
-                            <div className="bg-black rounded-lg shadow-xl overflow-hidden min-h-[500px]">
-                                <DocumentView events={visibleEvents} />
+                            <div data-testid={TEST_IDS.VIEWS.DOCUMENT}>
+                                <DocumentView
+                                    events={events}
+                                    currentTime={currentTime}
+                                    onTimeChange={handleTimeChange}
+                                    startTime={startTime}
+                                    minLogLevel={minLogLevel}
+                                    onSelectEvent={(e) => {
+                                        setIsPlaying(false);
+                                        if (e.timestamp && startTime !== null) {
+                                            setCurrentTime(Math.max(0, e.timestamp - startTime));
+                                        }
+                                    }}
+                                />
                             </div>
                         )}
                     </div>
@@ -876,6 +936,8 @@ function App() {
                     cwd={cwd}
                     isSerializedMode={isSerializedMode}
                     viewOrder={viewOrder}
+                    activePrompt={activePrompt}
+                    onDebugSubmit={handleDebugAction}
                 />
             )}
         </div>
@@ -883,11 +945,11 @@ function App() {
 }
 
 // biome-ignore lint/suspicious/noExplicitAny: simple component props
-const Badge = ({ children, variant }: any) => {
+const Badge = ({ children, variant, ...props }: any) => {
     return (
         <span className={`px-2 py-0.5 rounded text-xs font-semibold ${variant === 'default' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100' :
             'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100'
-            }`}>
+            }`} {...props}>
             {children}
         </span>
     );

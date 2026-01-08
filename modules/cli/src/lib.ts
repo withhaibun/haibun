@@ -70,11 +70,10 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 		}
 	}
 
-	if (executorResult.ok) {
-		if (protoOptions.options[STAY] !== STAY_ALWAYS) {
-			process.exit(0);
-		}
-	} else if (!protoOptions.options[STAY]) {
+	if (protoOptions.options[STAY] === STAY_ALWAYS) {
+		await new Promise((resolve) => setTimeout(resolve, 1e9));
+	}
+	if (!executorResult.ok && !protoOptions.options[STAY]) {
 		process.exit(1);
 	}
 }

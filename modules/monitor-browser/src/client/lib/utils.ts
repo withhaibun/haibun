@@ -22,17 +22,14 @@ export function getArtifactUrl(path: string | undefined): string {
   }
 
   // Check if we're in dev mode by looking for Vite's dev flag
-  // or checking if the page was loaded from the Vite dev server
   const isDev = typeof window !== 'undefined' &&
-    ((import.meta as { env?: { DEV?: boolean } }).env?.DEV || window.location.port === '3458');
+    (import.meta as { env?: { DEV?: boolean } }).env?.DEV;
 
   if (isDev) {
     // Strip leading ./ or /
     const cleanPath = path.replace(/^\.?\//, '');
-    // Connect directly to the monitor server on port 3459 at the same host
-    // The Vite proxy only works when accessing from localhost
-    const pageHost = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-    return `http://${pageHost}:3459/${cleanPath}`;
+    // Use the Vite proxy (configured in vite.config.ts) to reach the artifact server
+    return `/artifacts/${cleanPath}`;
   }
 
   // In production/serialized mode, use the path as-is (relative to HTML)

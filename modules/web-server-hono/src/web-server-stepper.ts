@@ -34,8 +34,13 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
       desc: `Change web server port from ${DEFAULT_PORT}`,
       parse: (port: string) => intOrError(port),
     },
+    INTERFACE: {
+      desc: 'Change web server interface from default (127.0.0.1). e.g. 0.0.0.0',
+      parse: (input: string) => ({ result: input }),
+    },
   };
   port: number = DEFAULT_PORT;
+  hostname?: string;
 
   async setWorld(world: TWorld, steppers: AStepper[]) {
     await super.setWorld(world, steppers);
@@ -48,6 +53,10 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
         throw new Error(`WebServerStepper: PORT option "${portOption}" must be a positive integer`);
       }
       this.port = parsed;
+    }
+    const interfaceOption = getStepperOption(this, 'INTERFACE', world.moduleOptions);
+    if (interfaceOption) {
+      this.hostname = String(interfaceOption);
     }
   }
 
@@ -134,7 +143,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
     if (!this.webserver) {
       throw new Error('WebServerStepper: webserver not initialized - ensure startFeature cycle ran');
     }
-    await this.webserver.listen(this.port);
+    await this.webserver.listen(this.port, this.hostname);
   }
 }
 

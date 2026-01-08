@@ -1,10 +1,10 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { WebSocketPrompter } from './prompter.js';
-import { ITransport } from './transport.js';
+import { SSEPrompter } from './prompter.js';
+import { ITransport } from './sse-transport.js';
 
-describe('WebSocketPrompter', () => {
-  let prompter: WebSocketPrompter;
+describe('SSEPrompter', () => {
+  let prompter: SSEPrompter;
   let mockTransport: ITransport;
   let messageHandler: (data: unknown) => void;
 
@@ -15,7 +15,7 @@ describe('WebSocketPrompter', () => {
         messageHandler = handler;
       })
     };
-    prompter = new WebSocketPrompter(mockTransport);
+    prompter = new SSEPrompter(mockTransport);
   });
 
   it('subscribes to transport messages', () => {
