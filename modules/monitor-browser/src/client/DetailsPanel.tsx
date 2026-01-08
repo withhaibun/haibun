@@ -5,6 +5,9 @@ import { ArtifactRenderer } from './artifacts';
 import { HttpTraceSequenceDiagram } from './artifacts/HttpTraceSequenceDiagram';
 import { QuadGraphDiagram } from './artifacts/QuadGraphDiagram';
 import { SourceLinks } from './components/SourceLinks';
+import { TEST_IDS } from '../test-ids';
+
+import { Debugger } from './Debugger';
 
 interface DetailsPanelProps {
   event: THaibunEvent | null;
@@ -19,9 +22,12 @@ interface DetailsPanelProps {
   cwd: string | null;
   isSerializedMode: boolean;
   viewOrder?: ('sequence' | 'quad')[];
+  // biome-ignore lint/suspicious/noExplicitAny: prompt type
+  activePrompt?: any;
+  onDebugSubmit?: (value: string) => void;
 }
 
-export function DetailsPanel({ event, onClose, width, onWidthChange, currentTime, videoStartTimestamp, videoMetadata, isPlaying, startTime, cwd, isSerializedMode, viewOrder = [] }: DetailsPanelProps) {
+export function DetailsPanel({ event, onClose, width, onWidthChange, currentTime, videoStartTimestamp, videoMetadata, isPlaying, startTime, cwd, isSerializedMode, viewOrder = [], activePrompt, onDebugSubmit }: DetailsPanelProps) {
   const [isResizing, setIsResizing] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -118,17 +124,19 @@ export function DetailsPanel({ event, onClose, width, onWidthChange, currentTime
       ref={panelRef}
       style={{ width: `${width}px` }}
       className="border-l-4 border-l-cyan-500 bg-slate-900 flex flex-col fixed right-0 top-14 bottom-12 shadow-xl z-40"
+      data-testid={TEST_IDS.APP.DETAILS_PANEL}
     >
       {/* Resize handle */}
       <div
         className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-cyan-500/50 active:bg-cyan-500 group z-50"
         onMouseDown={() => setIsResizing(true)}
+        data-testid={TEST_IDS.DETAILS.RESIZE_HANDLE}
       >
         <div className="absolute left-0 top-0 bottom-0 w-1 bg-slate-600 group-hover:bg-cyan-500" />
       </div>
 
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-cyan-700 bg-cyan-900/30 shrink-0">
+      <div className="flex items-center justify-between px-4 py-2 border-b border-cyan-700 bg-cyan-900/30 shrink-0" data-testid={TEST_IDS.DETAILS.HEADER}>
         <button
           onClick={() => {
             const el = document.getElementById(`event-${event.id}`);
@@ -153,6 +161,7 @@ export function DetailsPanel({ event, onClose, width, onWidthChange, currentTime
         <button
           onClick={onClose}
           className="text-slate-500 hover:text-white transition-colors text-sm leading-none px-2 py-1 hover:bg-slate-700 rounded"
+          data-testid={TEST_IDS.DETAILS.CLOSE_BUTTON}
         >
           ✕
         </button>
@@ -161,15 +170,27 @@ export function DetailsPanel({ event, onClose, width, onWidthChange, currentTime
       {/* Content Main Container - No global scroll, sections scroll independently */}
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-slate-900">
 
+        {/* 0. Debugger - Has Priority if active */}
+        {activePrompt && onDebugSubmit && (
+          <div className="shrink-0 border-b border-slate-700 p-4 bg-slate-800/30 min-h-[200px]" data-testid={TEST_IDS.DEBUGGER.ROOT}>
+            <div className="text-xs font-bold text-cyan-400 mb-2 flex items-center gap-2">
+              <span className="animate-pulse">●</span> Debugger Active
+            </div>
+            <div className="relative h-full">
+              <Debugger prompt={activePrompt} onSubmit={onDebugSubmit} className="border-0 shadow-none bg-transparent p-0 w-full static" />
+            </div>
+          </div>
+        )}
+
         {/* 1. Raw Source (JSON) - Always First */}
-        <div className="shrink-0 p-4 border-b border-slate-700 max-h-[40%] overflow-auto">
+        <div className="shrink-0 p-4 border-b border-slate-700 max-h-[40%] overflow-auto" data-testid={TEST_IDS.DETAILS.RAW_SOURCE}>
           <div className="text-xs font-bold text-slate-500 mb-1 opacity-50">Event Source</div>
           <JsonArtifact artifact={jsonArtifact} collapsed={true} />
         </div>
 
         {/* 2. Standard Artifact Renderer (Images, Videos etc) - If applicable */}
         {isArtifact && !allTraces && !isQuadGraphEvent && (
-          <div className="shrink-0 border-b border-slate-700 p-4 max-h-[30%] overflow-auto">
+          <div className="shrink-0 border-b border-slate-700 p-4 max-h-[30%] overflow-auto" data-testid={TEST_IDS.DETAILS.ARTIFACT_RENDERER}>
             <ArtifactRenderer
               artifact={event as TArtifactEvent}
               currentTime={currentTime}
@@ -182,7 +203,7 @@ export function DetailsPanel({ event, onClose, width, onWidthChange, currentTime
 
         {/* 3. Graph Views - Take Remaining Height */}
         {hasViews && (
-          <div className={`flex-1 min-h-0 flex ${width > 900 ? 'flex-row' : 'flex-col'} gap-0`}>
+          <div className={`flex-1 min-h-0 flex ${width > 900 ? 'flex-row' : 'flex-col'} gap-0`} data-testid={TEST_IDS.DETAILS.GRAPH_VIEWS}>
             {viewOrder.map(view => {
               const isSideBySide = width > 900 && viewOrder.includes('sequence') && viewOrder.includes('quad');
 
@@ -194,6 +215,7 @@ export function DetailsPanel({ event, onClose, width, onWidthChange, currentTime
                       ? isSideBySide ? 'w-[30%] min-w-[300px]' : 'flex-1'
                       : 'h-1/2' /* Split vertical height if stacked? Or flex-1? User asked for 100% remaining. If stacked, they share it. */
                       } border-r border-slate-700 last:border-r-0`}
+                    data-testid={TEST_IDS.DETAILS.SEQUENCE_VIEW}
                   >
                     <div className="flex-1 overflow-hidden relative">
                       <HttpTraceSequenceDiagram
@@ -211,6 +233,7 @@ export function DetailsPanel({ event, onClose, width, onWidthChange, currentTime
                     key="quad"
                     className={`flex flex-col ${width > 900 ? 'flex-1 min-w-0' : 'h-1/2'
                       }`}
+                    data-testid={TEST_IDS.DETAILS.QUAD_VIEW}
                   >
                     <div className="flex-1 overflow-hidden relative">
                       <QuadGraphDiagram

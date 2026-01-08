@@ -9,6 +9,7 @@ import { AStorage } from '@haibun/domain-storage/AStorage.js';
 import { ImageArtifact, VideoStartArtifact } from '@haibun/core/schema/protocol.js';
 import { EMediaTypes } from '@haibun/domain-storage/media-types.js';
 import { DOMAIN_STRING } from '@haibun/core/lib/domain-types.js';
+import { DOMAIN_PAGE_TEST_ID, DOMAIN_PAGE_LABEL, DOMAIN_PAGE_PLACEHOLDER, DOMAIN_PAGE_ROLE, DOMAIN_PAGE_TITLE, DOMAIN_PAGE_ALT_TEXT } from './domains.js';
 
 
 import { AStepper, IHasCycles, IHasOptions, StepperKinds } from '@haibun/core/lib/astepper.js';
@@ -377,8 +378,27 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	}
 	locateByDomain(page: Page, featureStep: TFeatureStep, where: string) {
 		const { value, domain } = this.getWorld().shared.resolveVariable(featureStep.action.stepValuesMap[where], featureStep);
-		const located = domain === DOMAIN_STRING ? page.getByText(<string>value, { exact: true }) : page.locator(<string>value);
-		return located;
+		const strValue = <string>value;
+
+		switch (domain) {
+			case DOMAIN_STRING:
+				return page.getByText(strValue, { exact: true });
+			case DOMAIN_PAGE_TEST_ID:
+				return page.getByTestId(strValue);
+			case DOMAIN_PAGE_LABEL:
+				return page.getByLabel(strValue);
+			case DOMAIN_PAGE_PLACEHOLDER:
+				return page.getByPlaceholder(strValue);
+			case DOMAIN_PAGE_ROLE:
+				return page.getByRole(strValue as Parameters<Page['getByRole']>[0]);
+			case DOMAIN_PAGE_TITLE:
+				return page.getByTitle(strValue);
+			case DOMAIN_PAGE_ALT_TEXT:
+				return page.getByAltText(strValue);
+			default:
+				// Default to CSS/XPath locator
+				return page.locator(strValue);
+		}
 	}
 }
 

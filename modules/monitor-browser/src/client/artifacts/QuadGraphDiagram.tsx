@@ -41,7 +41,7 @@ export function QuadGraphDiagram({
   const { availableContexts, contextTree } = useMemo(() => {
     const contexts = new Set<string>();
     quads.forEach(q => {
-      contexts.add(q.namedGraph || 'default');
+      contexts.add(q.namedGraph || 'ungrouped');
     });
     const sorted = Array.from(contexts).sort();
 
@@ -92,7 +92,7 @@ export function QuadGraphDiagram({
 
   // Check if context matches selection (supports hierarchical matching)
   const matchesSelection = (quadNamedGraph: string | undefined): boolean => {
-    const ctx = quadNamedGraph || 'default';
+    const ctx = quadNamedGraph || 'ungrouped';
     if (selectedContexts.has('all')) return true;
     if (selectedContexts.has(ctx)) return true;
     // Check parent match (e.g., 'observation' matches 'observation/http')
@@ -188,7 +188,7 @@ export function QuadGraphDiagram({
     const nodesByContext = new Map<string, string[]>();
     nodes.forEach((_, id) => {
       const node = nodes.get(id);
-      const ctx = node?.namedGraph || 'default';
+      const ctx = node?.namedGraph || 'ungrouped';
       if (!nodesByContext.has(ctx)) nodesByContext.set(ctx, []);
       nodesByContext.get(ctx)?.push(id);
     });

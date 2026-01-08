@@ -1,0 +1,17 @@
+{
+  "mode": "all",
+  "steppers": [
+    "@haibun/storage-fs/build/storage-fs",
+    "@haibun/web-server-hono/build/web-server-stepper",
+    "@haibun/web-playwright/build/web-playwright",
+    "@haibun/monitor-browser",
+    "variables-stepper",
+    "logic-stepper",
+    "debugger-stepper",
+    "activities-stepper",
+    "haibun"
+  ],
+  "WebServerStepper": {
+    "PORT": "3458"
+  }
+}

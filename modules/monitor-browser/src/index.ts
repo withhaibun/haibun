@@ -7,27 +7,24 @@ import { AStepper, IHasCycles, IHasOptions, StepperKinds } from '@haibun/core/li
 import { IStepperCycles, TWorld } from '@haibun/core/lib/defs.js';
 import { OK } from '@haibun/core/schema/protocol.js';
 import { THaibunEvent } from '@haibun/core/schema/protocol.js';
-import { stringOrError, getStepperOption, actualURI, findStepperFromOptionOrKind } from '@haibun/core/lib/util/index.js';
-import { WebSocketTransport, ITransport } from './transport.js';
-import { WebSocketPrompter } from './prompter.js';
+import { getFromRuntime, stringOrError, actualURI, findStepperFromOptionOrKind } from '@haibun/core/lib/util/index.js';
+import { WEBSERVER, type IWebServer } from '@haibun/web-server-hono/defs.js';
+import { SSETransport, type ITransport } from './sse-transport.js';
+import { SSEPrompter } from './prompter.js';
 import { AStorage } from '@haibun/domain-storage/AStorage.js';
 import { JITSerializer } from '@haibun/core/monitor/index.js';
 import { EMediaTypes } from '@haibun/domain-storage/media-types.js';
 
 export default class MonitorBrowserStepper extends AStepper implements IHasCycles, IHasOptions {
-  description = 'Real-time browser dashboard with WebSocket events and debugging';
+  description = 'Real-time browser dashboard with SSE events and debugging';
 
   kind = StepperKinds.MONITOR;
   static transport: ITransport;
-  prompter: WebSocketPrompter | undefined;
+  prompter: SSEPrompter | undefined;
   storage!: AStorage;
   events: THaibunEvent[] = [];
 
   options = {
-    PORT: {
-      desc: 'Port for the browser monitor WebSocket server (default: 3459)',
-      parse: stringOrError
-    },
     [StepperKinds.STORAGE]: {
       desc: 'Storage for output',
       parse: stringOrError,
@@ -47,26 +44,30 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
     const loc = { ...world, mediaType: EMediaTypes.html };
     this.captureRoot = await this.storage.getCaptureLocation(loc);
 
-    // Start singleton transport if not exists
-    // Use base path (capture/DEST/key/) without seq-N/featn-N so all features' artifacts are served
-    if (!MonitorBrowserStepper.transport) {
-      const port = parseInt(getStepperOption(this, 'PORT', world.moduleOptions) || '3459', 10);
-      MonitorBrowserStepper.transportRoot = this.storage.getArtifactBasePath();
-      MonitorBrowserStepper.transport = new WebSocketTransport(port, world.eventLogger, MonitorBrowserStepper.transportRoot);
-    }
-
-
-    // Setup debugger bridge
-    this.prompter = new WebSocketPrompter(MonitorBrowserStepper.transport);
+    // Setup debugger bridge with placeholder transport
+    const dummy: ITransport = { send: () => void 0, onMessage: () => void 0 };
+    this.prompter = new SSEPrompter(dummy);
     world.prompter.subscribe(this.prompter);
   }
 
   cycles: IStepperCycles = {
-    startExecution: () => {
-      // Send cwd to client for constructing absolute paths (e.g., VSCode links)
-      if (MonitorBrowserStepper.transport) {
-        MonitorBrowserStepper.transport.send({ type: 'init', cwd: process.cwd() });
+    startFeature: () => {
+      // Initialize transport with WebServer from runtime
+      const webserver = getFromRuntime(this.getWorld().runtime, WEBSERVER) as IWebServer;
+      if (!webserver) {
+        throw new Error('MonitorBrowserStepper: No WebServer found in runtime. Ensure WebServerStepper is configured.');
       }
+      MonitorBrowserStepper.transportRoot = this.storage.getArtifactBasePath();
+      MonitorBrowserStepper.transport = new SSETransport(webserver, this.getWorld().eventLogger);
+
+      // Update prompter transport
+      this.prompter?.setTransport(MonitorBrowserStepper.transport);
+
+      // Send cwd to client
+      MonitorBrowserStepper.transport.send({ type: 'init', cwd: process.cwd() });
+    },
+    startExecution: () => {
+      // startExecution logic moved to startFeature as transport is created there
     },
     onEvent: (event: THaibunEvent) => {
       this.events.push(event);

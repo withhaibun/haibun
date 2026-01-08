@@ -137,21 +137,17 @@ export function HttpTraceSequenceDiagram({ traces, currentTime, startTime = 0 }:
         el.style.opacity = '1';
         el.style.fontSize = '14px'; // Pop
 
-        // Highlight the LINE?
-        // Lines are usually siblings. Hard to target reliably by index without digging into Mermaid guts.
-        // Focusing on text is usually enough.
-
         // Scroll
         el.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'center' });
 
-      } else if (currentTraceIndex !== -1 && idx > currentTraceIndex) {
+      } else if (idx > currentTraceIndex) {
         // Future
         el.style.fontWeight = 'normal';
         el.style.fill = '#888';
         el.style.opacity = '0.4';
         el.style.fontSize = '';
       } else {
-        // Past / Active
+        // Past
         el.style.fontWeight = 'normal';
         el.style.fill = 'black';
         el.style.opacity = '1';

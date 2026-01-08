@@ -2,19 +2,20 @@
 import React from 'react';
 import { useRef, useEffect } from 'react';
 import { Button } from './components/ui/button';
+import { TEST_IDS } from '../test-ids';
 
 // Minimal SVG Icons to replace lucide-react (saving ~400KB)
 const Icon = ({ children, className }: { children: React.ReactNode, className?: string }) => (
-    <svg 
-        xmlns="http://www.w3.org/2000/svg" 
-        width="24" 
-        height="24" 
-        viewBox="0 0 24 24" 
-        fill="none" 
-        stroke="currentColor" 
-        strokeWidth="2" 
-        strokeLinecap="round" 
-        strokeLinejoin="round" 
+    <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
         className={className}
     >
         {children}
@@ -49,7 +50,7 @@ interface DebuggerProps {
     onSubmit: (value: string) => void;
 }
 
-export function Debugger({ prompt, onSubmit }: DebuggerProps) {
+export function Debugger({ prompt, onSubmit, className }: DebuggerProps & { className?: string }) {
     const inputRef = useRef<HTMLInputElement>(null);
 
     // Auto-focus input when prompt changes and input is present
@@ -67,18 +68,18 @@ export function Debugger({ prompt, onSubmit }: DebuggerProps) {
     // Helper to render button based on option string
     const renderButton = (opt: string) => {
         const lower = opt.toLowerCase();
-        
+
         // Skip specialized options if handled elsewhere (like *)
         if (opt === '*') return null;
 
         let icon = <ArrowRightIcon className="h-3 w-3 mr-1" />;
         let variant: "secondary" | "default" | "destructive" | "outline" | "ghost" | "link" = "secondary";
-        let className = "h-7 px-2 text-xs"; // Dense "New York" style
+        let subClassName = "h-7 px-2 text-xs"; // Dense "New York" style
 
         if (lower.includes('continue')) {
             icon = <PlayIcon className="h-3 w-3 mr-1" />;
             variant = "default";
-            className += " bg-green-600 hover:bg-green-700 text-white";
+            subClassName += " bg-green-600 hover:bg-green-700 text-white";
         } else if (lower.includes('fail')) {
             icon = <XCircleIcon className="h-3 w-3 mr-1" />;
             variant = "destructive";
@@ -90,15 +91,15 @@ export function Debugger({ prompt, onSubmit }: DebuggerProps) {
         } else if (lower.includes('step')) {
             icon = <ArrowRightIcon className="h-3 w-3 mr-1" />;
             variant = "secondary";
-            className += " border-cyan-500/50 text-cyan-500 hover:bg-cyan-950/30";
+            subClassName += " border-cyan-500/50 text-cyan-500 hover:bg-cyan-950/30";
         }
 
         return (
-            <Button 
+            <Button
                 key={opt}
-                variant={variant} 
-                className={className}
-                onClick={() => onSubmit(opt)} 
+                variant={variant}
+                className={subClassName}
+                onClick={() => onSubmit(opt)}
                 title={opt}
             >
                 {icon}
@@ -108,21 +109,21 @@ export function Debugger({ prompt, onSubmit }: DebuggerProps) {
     };
 
     return (
-        <div className="fixed top-4 right-4 bg-popover text-popover-foreground border border-border/40 rounded-sm shadow-md p-3 z-50 w-80 animate-in fade-in slide-in-from-top-2">
+        <div className={`bg-popover text-popover-foreground border border-border/40 rounded-sm shadow-md p-3 w-full h-full flex flex-col ${className}`} data-testid={TEST_IDS.DEBUGGER.ROOT}>
             <div className="flex items-center justify-between mb-2">
                 <h3 className="font-medium text-xs uppercase tracking-wider text-muted-foreground">Debugger Active</h3>
                 <div className="h-1.5 w-1.5 bg-yellow-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(234,179,8,0.5)]" />
             </div>
-            
+
             <div className="bg-muted/50 p-2 rounded-sm text-xs font-mono mb-3 break-all border border-border/20">
                 {prompt.message}
             </div>
 
             {hasInput && (
                 <div className="flex gap-2 mb-3">
-                    <input 
+                    <input
                         ref={inputRef}
-                        type="text" 
+                        type="text"
                         onKeyDown={(e) => {
                             if (e.key === 'Enter') {
                                 const val = (e.target as HTMLInputElement).value;
@@ -135,9 +136,9 @@ export function Debugger({ prompt, onSubmit }: DebuggerProps) {
                         className="flex-1 px-2 py-1 text-xs border rounded-sm bg-background/50 focus:outline-none focus:ring-1 focus:ring-ring"
                         placeholder="Enter command..."
                     />
-                     <Button 
-                        variant="ghost" 
-                        size="sm" 
+                    <Button
+                        variant="ghost"
+                        size="sm"
                         className="h-7 w-7 p-0"
                         onClick={() => {
                             if (inputRef.current?.value) {

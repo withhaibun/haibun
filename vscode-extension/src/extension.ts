@@ -281,14 +281,13 @@ async function startClient(context: ExtensionContext) {
     steppersToAdd.add('@haibun/web-server-hono/build/mcp-stepper');
   }
 
-  let userConfigSteppers: string[] = [];
+  const userConfigSteppers: string[] = [];
   if (userConfigFile) {
     const configPath = path.isAbsolute(userConfigFile) ? userConfigFile : path.resolve(effectiveCwd, userConfigFile);
     if (fs.existsSync(configPath)) {
       try {
         const userConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
         if (userConfig.steppers && Array.isArray(userConfig.steppers)) {
-          userConfigSteppers = userConfig.steppers;
           userConfig.steppers.forEach((s: string) => steppersToAdd.add(s));
         }
       } catch (e) {
@@ -311,9 +310,10 @@ async function startClient(context: ExtensionContext) {
     steppersToAdd.delete(s);
   }
 
+  const withSteppers = Array.from(steppersToAdd).filter((s: string) => !s.trim().startsWith('@haibun/monitor-'));
   const args = [cliPath, safeBase, 'serve-lsp'];
   if (steppersToAdd.size > 0) {
-    args.push('--with-steppers', Array.from(steppersToAdd).join(','));
+    args.push('--with-steppers', withSteppers.join(','));
     outputChannel.appendLine(`[Haibun] Adding steppers: ${Array.from(steppersToAdd).join(', ')}`);
   }
 

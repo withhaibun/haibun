@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { THaibunEvent, ICON_FEATURE, ICON_SCENARIO, ICON_STEP_RUNNING, ICON_STEP_FAILED, ICON_STEP_COMPLETED, ICON_LOG_INFO, ICON_LOG_WARN, ICON_LOG_ERROR, ICON_DEFAULT, ICON_ARTIFACT } from '@haibun/core/schema/protocol.js';
+import { TEST_IDS } from '../test-ids';
 
 interface TimelineProps {
     min: number;
@@ -114,12 +115,13 @@ export function Timeline({
     };
 
     return (
-        <div className="fixed bottom-0 left-0 right-0 border-t border-border px-4 py-2 flex items-center gap-3 z-50 bg-background">
+        <div className="fixed bottom-0 left-0 right-0 border-t border-border px-4 py-2 flex items-center gap-3 z-50 bg-background" data-testid={TEST_IDS.APP.TIMELINE}>
             {/* Restart button */}
             <button
                 onClick={handleRestart}
                 title="Restart"
                 className="bg-transparent border-none cursor-pointer text-lg px-1.5 py-0.5 text-muted-foreground hover:text-foreground"
+                data-testid={TEST_IDS.TIMELINE.RESTART}
             >
                 ⏮
             </button>
@@ -129,6 +131,7 @@ export function Timeline({
                 onClick={onPlayPause}
                 title={isPlaying ? 'Pause' : 'Play'}
                 className="bg-transparent border-none cursor-pointer text-lg px-1.5 py-0.5 text-muted-foreground hover:text-foreground"
+                data-testid={TEST_IDS.TIMELINE.PLAY_PAUSE}
             >
                 {isPlaying ? '⏸️' : '▶️'}
             </button>
@@ -139,6 +142,7 @@ export function Timeline({
                 onChange={(e) => onSpeedChange(parseFloat(e.target.value))}
                 title="Playback Speed"
                 className="bg-background text-foreground text-xs border border-border rounded px-1"
+                data-testid={TEST_IDS.TIMELINE.SPEED}
             >
                 {SPEED_OPTIONS.map(speed => (
                     <option key={speed} value={speed}>
@@ -180,11 +184,12 @@ export function Timeline({
                     onTouchStart={handleMouseDown}
                     onTouchEnd={handleMouseUp}
                     className="w-full cursor-pointer relative z-[2] m-0 h-full bg-transparent opacity-80"
+                    data-testid={TEST_IDS.TIMELINE.SLIDER}
                 />
             </div>
 
             {/* Time display */}
-            <span className="font-mono text-sm font-semibold text-muted-foreground min-w-[130px] text-right">
+            <span className="font-mono text-sm font-semibold text-muted-foreground min-w-[130px] text-right" data-testid={TEST_IDS.TIMELINE.TIME_DISPLAY}>
                 {formatTime(localValue)} / {formatTime(max)}
             </span>
 
@@ -193,6 +198,7 @@ export function Timeline({
                 onClick={() => onChange(max)}
                 title="Go to end"
                 className="bg-transparent border-none cursor-pointer text-lg px-1.5 py-0.5 text-muted-foreground hover:text-foreground"
+                data-testid={TEST_IDS.TIMELINE.END}
             >
                 ⏭
             </button>

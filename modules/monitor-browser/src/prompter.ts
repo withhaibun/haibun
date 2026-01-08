@@ -1,24 +1,31 @@
 
 import { IPrompter, TPrompt, TPromptResponse } from '@haibun/core/lib/prompter.js';
-import { ITransport } from './transport.js';
+import { ITransport } from './sse-transport.js';
 
-export class WebSocketPrompter implements IPrompter {
+export class SSEPrompter implements IPrompter {
   private transport: ITransport;
   private resolveMap = new Map<string, (value: TPromptResponse) => void>();
 
   constructor(transport: ITransport) {
     this.transport = transport;
-    this.transport.onMessage((data: unknown) => {
-      const msg = data as { type?: string; id?: string; value?: TPromptResponse };
-      if (msg.type === 'response' && msg.id) {
-        const resolve = this.resolveMap.get(msg.id);
-        if (resolve) {
-          resolve(msg.value);
-          this.resolveMap.delete(msg.id);
-        }
-      }
-    });
+    this.transport.onMessage(this.handleMessage);
   }
+
+  setTransport(transport: ITransport) {
+    this.transport = transport;
+    this.transport.onMessage(this.handleMessage);
+  }
+
+  private handleMessage = (data: unknown) => {
+    const msg = data as { type?: string; id?: string; value?: TPromptResponse };
+    if (msg.type === 'response' && msg.id) {
+      const resolve = this.resolveMap.get(msg.id);
+      if (resolve) {
+        resolve(msg.value);
+        this.resolveMap.delete(msg.id);
+      }
+    }
+  };
 
   prompt(prompt: TPrompt): Promise<TPromptResponse> {
     this.transport.send({ type: 'prompt', prompt });

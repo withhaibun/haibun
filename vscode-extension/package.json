@@ -2,7 +2,7 @@
   "name": "haibun-lsp",
   "displayName": "Haibun Language Support",
   "description": "Autocomplete and hover documentation for Haibun .feature files",
-  "version": "0.1.85",
+  "version": "0.1.89",
   "publisher": "haibun",
   "repository": {
     "type": "git",
@@ -109,8 +109,8 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
+    "vscode:prepublish": "npm run build",
+    "build": "tsc -p ./",
     "watch": "tsc -watch -p ./"
   },
   "dependencies": {

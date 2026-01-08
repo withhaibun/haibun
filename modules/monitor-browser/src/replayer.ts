@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
-import { WebSocketTransport } from './transport.js';
+import { SSETransport } from './sse-transport.js';
+import { ServerHono } from '@haibun/web-server-hono/server-hono.js';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { IEventLogger } from '@haibun/core/lib/EventLogger.js';
@@ -15,14 +16,20 @@ if (!fileArg) {
 }
 
 const port = portArg ? parseInt(portArg.split('=')[1], 10) : 3459;
-const transport = new WebSocketTransport(port, {
+const logger = {
   info: console.log,
   error: console.error,
   warn: console.warn,
   debug: console.debug,
   log: () => { /* noop */ },
   emit: () => { /* noop */ },
-} as unknown as IEventLogger);
+} as unknown as IEventLogger;
+
+const webserver = new ServerHono(logger, process.cwd());
+await webserver.listen(port);
+
+
+const transport = new SSETransport(webserver, logger);
 
 const filePath = resolve(process.cwd(), fileArg);
 console.log(`Loading events from ${filePath}...`);
