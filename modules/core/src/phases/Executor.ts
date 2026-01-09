@@ -1,5 +1,5 @@
 import { TFeatureStep, TResolvedFeature, TWorld, TStepAction, TEndFeature, StepperMethodArgs, TBeforeStep, TAfterStep, IStepperCycles, ExecMode, TAfterStepResult } from '../lib/defs.js';
-import { TExecutorResult, TStepResult, TFeatureResult, TActionResult, TStepActionResult, STAY, STAY_FAILURE, CHECK_NO, CHECK_YES, CHECK_YIELD, STEP_DELAY, TNotOKActionResult, CONTINUE_AFTER_ERROR, TStepArgs, MAYBE_CHECK_YES, MAYBE_CHECK_NO, TSeqPath, FEATURE_START, Timer } from '../schema/protocol.js';
+import { TExecutorResult, TStepResult, TFeatureResult, TActionResult, TStepActionResult, STAY, STAY_FAILURE, CHECK_NO, CHECK_YES, CHECK_YIELD, STEP_DELAY, TNotOKActionResult, CONTINUE_AFTER_ERROR, TStepArgs, MAYBE_CHECK_YES, MAYBE_CHECK_NO, TSeqPath, FEATURE_START, Timer, STAY_ALWAYS } from '../schema/protocol.js';
 import { LifecycleEvent } from '../schema/protocol.js';
 import { AStepper, IHasCycles } from '../lib/astepper.js';
 import { actionNotOK, sleep, findStepper, setStepperWorldsAndDomains, } from '../lib/util/index.js';
@@ -9,7 +9,10 @@ import { populateActionArgs } from '../lib/populateActionArgs.js';
 import { registerDomains } from '../lib/domain-types.js';
 import { basename } from 'path';
 
-function calculateShouldClose({ thisFeatureOK, isLast, stayOnFailure, continueAfterError }: { thisFeatureOK: boolean; isLast: boolean; stayOnFailure: boolean; continueAfterError: boolean }) {
+function calculateShouldClose({ thisFeatureOK, isLast, stayOnFailure, continueAfterError, stayAlways }: { thisFeatureOK: boolean; isLast: boolean; stayOnFailure: boolean; continueAfterError: boolean, stayAlways: boolean }) {
+	if (stayAlways) {
+		return false;
+	}
 	if (thisFeatureOK) {
 		return true;
 	}
@@ -112,6 +115,7 @@ export class Executor {
 		await doStepperCycle(steppers, 'startExecution', features);
 		let okSoFar = true;
 		const stayOnFailure = world.options[STAY] === STAY_FAILURE;
+		const stayAlways = world.options[STAY] === STAY_ALWAYS;
 		const featureResults: TFeatureResult[] = [];
 		let featureNum = 0;
 		const continueAfterError = !!(world.options[CONTINUE_AFTER_ERROR]);
@@ -150,7 +154,7 @@ export class Executor {
 			}
 			okSoFar = okSoFar && thisFeatureOK;
 			featureResults.push(featureResult);
-			const shouldCloseFactors = { thisFeatureOK: featureResult.ok, okSoFar, isLast, continueAfterError, stayOnFailure }
+			const shouldCloseFactors = { thisFeatureOK: featureResult.ok, okSoFar, isLast, continueAfterError, stayOnFailure, stayAlways }
 			const shouldClose = calculateShouldClose(shouldCloseFactors);
 			await doStepperCycle(steppers, 'endFeature', <TEndFeature>{ world: newWorld, shouldClose, isLast, okSoFar, continueAfterError, stayOnFailure, thisFeatureOK: featureResult.ok });
 			if (!okSoFar) {
@@ -167,6 +171,15 @@ export class Executor {
 				results.failure = failure;
 			}
 		}
+		world.eventLogger.emit(LifecycleEvent.parse({
+			id: `execution-end`,
+			timestamp: Date.now(),
+			kind: 'lifecycle',
+			type: 'execution',
+			stage: 'end',
+			status: okSoFar ? 'completed' : 'failed',
+		}));
+
 		await doStepperCycle(steppers, 'endExecution', results);
 		return results;
 	}

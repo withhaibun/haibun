@@ -1,6 +1,7 @@
 import React, { useMemo, useRef, useEffect } from 'react';
 import { MermaidArtifact } from './MermaidArtifact';
-import { escapeLabel, sanitizeId, truncate, HIGHLIGHT_COLOR } from './mermaid-utils';
+import { escapeLabel, sanitizeId, truncate } from './mermaid-utils';
+import { HIGHLIGHT_COLOUR, DIMMED_OPACITY } from '../lib/timeline';
 
 /**
  * Quad data structure visualization
@@ -268,7 +269,7 @@ export function QuadGraphDiagram({
         let strokeDasharray = 'none';
 
         if (isCurrent) {
-          stroke = HIGHLIGHT_COLOR;
+          stroke = HIGHLIGHT_COLOUR;
           strokeWidth = '3px';
         } else if (isFuture) {
           stroke = '#D1D5DB';
@@ -349,7 +350,7 @@ export function QuadGraphDiagram({
             shape.style.fill = '#fff';
             // shape.style.color = '#9CA3AF'; // Label color harder to change, usually separate <g> with <text>
           } else if (status === 'current') {
-            shape.style.stroke = HIGHLIGHT_COLOR;
+            shape.style.stroke = HIGHLIGHT_COLOUR;
             shape.style.strokeWidth = '3px';
             shape.style.strokeDasharray = 'none';
             // Keep fill default (white or context color)
@@ -373,8 +374,8 @@ export function QuadGraphDiagram({
         // const label = elem.querySelector('.label span') as HTMLElement; 
 
         if (status === 'future') {
-          // Dim the whole node opacity?
-          (elem as SVGElement).style.opacity = '0.4';
+          // Dim the whole node opacity using shared constant
+          (elem as SVGElement).style.opacity = String(DIMMED_OPACITY);
         } else {
           (elem as SVGElement).style.opacity = '1';
         }
@@ -421,7 +422,7 @@ export function QuadGraphDiagram({
         if (rect) {
           const stroke = rect.getAttribute('stroke') || (rect as SVGElement).style.stroke;
           // Check for current highlight color (loose match)
-          if (stroke && stroke.toLowerCase() === HIGHLIGHT_COLOR.toLowerCase()) {
+          if (stroke && stroke.toLowerCase() === HIGHLIGHT_COLOUR.toLowerCase()) {
             node.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
             break;
           }
@@ -459,7 +460,7 @@ export function QuadGraphDiagram({
       <div className="flex justify-between items-center p-2 bg-white border-b border-slate-300 shrink-0 gap-4 h-10">
         <div className="font-bold text-sm text-slate-700 shrink-0">Quad Graph</div>
 
-        <div className="flex items-center gap-4 overflow-x-auto no-scrollbar h-full">
+        <div className="flex items-center gap-4 h-full">
           {/* Controls Group: Layout + Contexts + Zoom */}
           <div className="flex items-center gap-4 h-full">
             {/* Layout & Contexts */}

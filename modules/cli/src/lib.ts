@@ -72,10 +72,10 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 
 	if (protoOptions.options[STAY] === STAY_ALWAYS) {
 		await new Promise((resolve) => setTimeout(resolve, 1e9));
-	}
-	if (!executorResult.ok && !protoOptions.options[STAY]) {
+	} else if (!executorResult.ok && !protoOptions.options[STAY]) {
 		process.exit(1);
 	}
+	process.exit(0);
 }
 
 function getCliWorld(protoOptions: TProtoOptions, bases: TBase): TWorld {

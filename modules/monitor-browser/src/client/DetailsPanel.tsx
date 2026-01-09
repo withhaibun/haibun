@@ -183,10 +183,10 @@ export function DetailsPanel({ event, onClose, width, onWidthChange, currentTime
         )}
 
         {/* 1. Raw Source (JSON) - Always First */}
-        <div className="shrink-0 p-4 border-b border-slate-700 max-h-[40%] overflow-auto" data-testid={TEST_IDS.DETAILS.RAW_SOURCE}>
+        {!hasViews && <div className="shrink-0 p-4 border-b border-slate-700 max-h-[40%] overflow-auto" data-testid={TEST_IDS.DETAILS.RAW_SOURCE}>
           <div className="text-xs font-bold text-slate-500 mb-1 opacity-50">Event Source</div>
           <JsonArtifact artifact={jsonArtifact} collapsed={true} />
-        </div>
+        </div>}
 
         {/* 2. Standard Artifact Renderer (Images, Videos etc) - If applicable */}
         {isArtifact && !allTraces && !isQuadGraphEvent && (

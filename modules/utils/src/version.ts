@@ -46,7 +46,6 @@ class Versioner {
 		this.updateSourceCurrentVersion();
 		await this.gitCommit('haibun', '.', ['./modules/core/src/currentVersion.ts']);
 		await this.forLocalAndExtraModules(this.npmInstall);
-		// biome-disable-next-line @typescript-eslint/no-misused-promises
 		await this.forLocalAndExtraModules(this.runTest);
 		await this.forLocalAndExtraModules(this.gitCommit);
 		await this.forLocalAndExtraModules(this.npmPublish);

@@ -2,6 +2,8 @@ import React, { useMemo, useRef, useLayoutEffect } from 'react';
 import { THttpTraceArtifact } from '@haibun/core/schema/protocol.js';
 import { MermaidArtifact } from './MermaidArtifact';
 import { escapeLabel } from './mermaid-utils';
+import { DIMMED_OPACITY, DIMMED_COLOUR } from '../lib/timeline';
+import { scrollIntoViewIfNeeded } from '../lib/dom-utils';
 
 interface HttpTraceSequenceDiagramProps {
   traces: THttpTraceArtifact[];
@@ -85,7 +87,7 @@ export function HttpTraceSequenceDiagram({ traces, currentTime, startTime = 0 }:
     // biome-ignore lint/suspicious/noExplicitAny: complex union type
   } as any), [mermaidSource]);
 
-  // Calculate current index
+  // Calculate current index - which trace is "current" based on timeline position
   const currentTraceIndex = useMemo(() => {
     if (currentTime === undefined || traces.length === 0) return -1;
     const currentAbsoluteTime = startTime + currentTime;
@@ -96,8 +98,13 @@ export function HttpTraceSequenceDiagram({ traces, currentTime, startTime = 0 }:
         break;
       }
     }
+    // If no trace has occurred yet (timeline at very start), show none as current
+    // but don't dim everything - the first trace should be next
     return idx;
   }, [traces, currentTime, startTime]);
+
+  // Track if we've done initial render to avoid scrolling on first paint
+  const hasRenderedRef = useRef(false);
 
   if (!mermaidSource || traces.length === 0) {
     return <div className="text-slate-500 text-sm">No HTTP traces available</div>;
@@ -130,21 +137,29 @@ export function HttpTraceSequenceDiagram({ traces, currentTime, startTime = 0 }:
 
       const el = messageTexts[idx] as SVGElement;
 
-      if (idx === currentTraceIndex) {
-        // Highlight
+      if (currentTraceIndex === -1) {
+        // Timeline before any traces - show all as "future" (dimmed)
+        el.style.fontWeight = 'normal';
+        el.style.fill = DIMMED_COLOUR;
+        el.style.opacity = String(DIMMED_OPACITY);
+        el.style.fontSize = '';
+      } else if (idx === currentTraceIndex) {
+        // Highlight current trace
         el.style.fontWeight = 'bold';
         el.style.fill = '#e87a5d'; // Highlight color
         el.style.opacity = '1';
         el.style.fontSize = '14px'; // Pop
 
-        // Scroll
-        el.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'center' });
+        // Only scroll after initial render and only if not already visible
+        if (hasRenderedRef.current) {
+          scrollIntoViewIfNeeded(el, scrollRef.current, { behavior: 'auto', block: 'center', inline: 'center' });
+        }
 
       } else if (idx > currentTraceIndex) {
-        // Future
+        // Future - dimmed using shared constants
         el.style.fontWeight = 'normal';
-        el.style.fill = '#888';
-        el.style.opacity = '0.4';
+        el.style.fill = DIMMED_COLOUR;
+        el.style.opacity = String(DIMMED_OPACITY);
         el.style.fontSize = '';
       } else {
         // Past
@@ -154,6 +169,9 @@ export function HttpTraceSequenceDiagram({ traces, currentTime, startTime = 0 }:
         el.style.fontSize = '';
       }
     });
+
+    // Mark that we've rendered once
+    hasRenderedRef.current = true;
 
   }, [currentTraceIndex, traces.length]);
 

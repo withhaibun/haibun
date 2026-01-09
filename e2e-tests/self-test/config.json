@@ -10,8 +10,5 @@
     "debugger-stepper",
     "activities-stepper",
     "haibun"
-  ],
-  "WebServerStepper": {
-    "PORT": "3458"
-  }
+  ]
 }
