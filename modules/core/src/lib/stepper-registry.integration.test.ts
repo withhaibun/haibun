@@ -85,11 +85,11 @@ describe('StepperRegistry Integration', () => {
     });
   });
 
-  describe('MCP tool schema compatibility', () => {
+  describe('tool schema compatibility', () => {
     const steppers = [new IntegrationTestStepper()];
     const metadata = StepperRegistry.getMetadata(steppers);
 
-    it('metadata can be used to build MCP tool definitions', () => {
+    it('metadata can be used to build tool definitions', () => {
       // Simulate how mcp-stepper.ts uses metadata to create tools
       for (const step of metadata) {
         const toolName = `${step.stepperName}-${step.stepName}`;
