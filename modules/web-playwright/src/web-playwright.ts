@@ -124,7 +124,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		}
 		this.twin = getStepperOption(this, 'TWIN', world.moduleOptions) === 'true';
 		const persistentDirectory = getStepperOption(this, WebPlaywright.PERSISTENT_DIRECTORY, world.moduleOptions);
-		const defaultTimeout = parseInt(getStepperOption(this, 'TIMEOUT', world.moduleOptions)) || 30000;
+		const defaultTimeout = parseInt(getStepperOption(this, 'TIMEOUT', world.moduleOptions)) || 10000;
 		this.captureVideo = getStepperOption(this, 'CAPTURE_VIDEO', world.moduleOptions) === 'true';
 		let recordVideo;
 		if (this.captureVideo) {

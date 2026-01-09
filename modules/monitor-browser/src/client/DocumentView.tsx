@@ -1,10 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import MarkdownIt from 'markdown-it';
 import DOMPurify from 'dompurify';
-import parse, { DOMNode, Element, domToReact } from 'html-react-parser';
+import parse, { DOMNode, Element as ReactParserElement, domToReact } from 'html-react-parser';
 import { THaibunEvent, TArtifactEvent, THaibunLogLevel, HAIBUN_LOG_LEVELS, TStepEvent, TLifecycleEvent, TLogEvent, TJsonArtifact } from '@haibun/core/schema/protocol.js';
 import { ArtifactRenderer } from './artifacts';
 import { TEST_IDS } from '../test-ids';
+import { scrollIntoViewIfNeeded } from './lib/dom-utils';
+import { FUTURE_EVENT_CLASS } from './lib/timeline';
 
 const md = new MarkdownIt({
     html: true,
@@ -83,6 +85,7 @@ export function DocumentView({ events, currentTime, startTime, onTimeChange, min
         let previousRenderedDepth = 0;
         let previousRenderedId = '';
         const claimedArtifactIds = new Set<string>();
+        const visibleIds = new Set<string>();
 
         const claimArtifacts = (id: string, excludeTypes: string[] = []) => {
             const normalizedId = id.replace(/^\[|\]$/g, '');
@@ -119,6 +122,7 @@ export function DocumentView({ events, currentTime, startTime, onTimeChange, min
             if (e.kind === 'artifact') {
                 if (!claimedArtifactIds.has(e.id)) {
                     claimedArtifactIds.add(e.id);
+                    visibleIds.add(e.id);
                     md += `<div class="standalone-artifact" data-id="${e.id}"></div>\n`;
                 }
                 continue;
@@ -137,6 +141,7 @@ export function DocumentView({ events, currentTime, startTime, onTimeChange, min
                     const title = le.type === 'feature' ? (le.featurePath || 'Feature') : (le.type === 'scenario' ? (le.scenarioName || 'Scenario') : 'Background');
 
                     const normalizedId = le.id.replace(/^\[|\]$/g, '');
+                    visibleIds.add(normalizedId);
                     md += `\n<div class="header-block" data-raw-time="${rawTime}" data-id="${normalizedId}">\n\n${'#'.repeat(level)} ${title}\n\n</div>\n`;
                     const unclaimedIds = claimArtifacts(le.id, ['video']);
                     if (unclaimedIds) {
@@ -171,6 +176,7 @@ export function DocumentView({ events, currentTime, startTime, onTimeChange, min
                         const actionName = step.actionName || 'step';
                         const showSymbol = previousRenderedId && previousRenderedDepth < depth;
                         const normalizedId = le.id.replace(/^\[|\]$/g, '');
+                        visibleIds.add(normalizedId);
                         const unclaimedIds = claimArtifacts(normalizedId, ['video']);
 
                         md += `<div class="log-row font-mono text-[11px] text-slate-500 my-0 leading-tight" 
@@ -192,6 +198,7 @@ export function DocumentView({ events, currentTime, startTime, onTimeChange, min
                         if (lastType === 'technical') md += '\n<div class="h-1"></div>\n';
                         const rawTime = step.timestamp - (events[0]?.timestamp || 0);
                         const normalizedId = step.id.replace(/^\[|\]$/g, '');
+                        visibleIds.add(normalizedId);
                         md += `\n<div class="prose-block" data-raw-time="${rawTime}" data-id="${normalizedId}">\n\n${step.in}\n\n</div>\n`;
                         const unclaimedIds = claimArtifacts(le.id, ['video']);
                         if (unclaimedIds) {
@@ -207,6 +214,7 @@ export function DocumentView({ events, currentTime, startTime, onTimeChange, min
                 const rawTime = logEv.timestamp - (events[0]?.timestamp || 0);
                 const time = (rawTime / 1000).toFixed(3);
                 const normalizedId = logEv.id.replace(/^\[|\]$/g, '');
+                visibleIds.add(normalizedId);
 
                 md += `<div class="log-row font-mono text-[11px] text-slate-500 my-0 leading-tight" 
                             data-id="${normalizedId}"
@@ -218,7 +226,7 @@ export function DocumentView({ events, currentTime, startTime, onTimeChange, min
 
         }
 
-        return md;
+        return { md, visibleIds };
     }, [events, artifactsByStep, allArtifactIds]);
 
     // Helper to find original event by ID
@@ -229,20 +237,30 @@ export function DocumentView({ events, currentTime, startTime, onTimeChange, min
     };
 
     const activeEventId = useMemo(() => {
+        const { visibleIds } = content;
         const effectiveCurrentTime = (startTime || 0) + currentTime + 0.0001;
         for (let i = events.length - 1; i >= 0; i--) {
             const e = events[i];
             if (e.timestamp !== undefined && e.timestamp <= effectiveCurrentTime) {
+                // Only selecting steps and logs for "dot" tracking. Ignoring structural headers.
+                if (e.kind === 'lifecycle' && (e.stage === 'start')) {
+                    const le = e as TLifecycleEvent;
+                    if (le.type === 'feature' || le.type === 'scenario' || (le.type as string) === 'background') {
+                        continue;
+                    }
+                }
+
                 if (e.id && (e.kind === 'log' || (e.kind === 'lifecycle' && e.stage === 'start'))) {
-                    return e.id.replace(/^\[|\]$/g, '');
+                    const normalized = e.id.replace(/^\[|\]$/g, '');
+                    if (visibleIds.has(normalized)) return normalized;
                 }
             }
         }
         return null;
-    }, [events, currentTime, startTime]);
+    }, [events, currentTime, startTime, content]);
 
     const reactContent = useMemo(() => {
-        const rawHtml = md.render(content);
+        const rawHtml = md.render(content.md);
 
         const sanitizedHtml = DOMPurify.sanitize(rawHtml, {
             ADD_ATTR: ['style', 'data-depth', 'data-nested', 'data-instigator', 'data-show-symbol', 'data-id', 'data-time', 'data-raw-time', 'data-action', 'data-has-artifacts'],
@@ -252,34 +270,48 @@ export function DocumentView({ events, currentTime, startTime, onTimeChange, min
         const RowWithGutter = ({
             children,
             dataId,
+            rawTime,
             onClick,
             className = ""
         }: {
             children: React.ReactNode,
             dataId: string | undefined,
+            rawTime?: number,
             onClick?: (e: React.MouseEvent) => void,
             className?: string
-        }) => (
-            <div
-                className={`group flex items-start -mx-4 px-4 py-2 transition-colors cursor-pointer hover:bg-slate-50 relative document-row ${className}`}
-                onClick={onClick}
-                data-id={dataId}
-            >
-                {/* Fixed Gutter for Marker */}
-                <div className="w-8 shrink-0 flex items-start justify-center pt-[15px] select-none absolute left-0 top-0 bottom-0 pointer-events-none">
-                    <div className="active-dot w-2.5 h-2.5 bg-cyan-500 rounded-full shadow-sm ring-2 ring-cyan-100 opacity-0 transition-opacity duration-200" />
-                </div>
+        }) => {
+            // Check if this row is in the future relative to current time
+            const isFuture = rawTime !== undefined && (rawTime > currentTime);
+            const futureClass = isFuture ? FUTURE_EVENT_CLASS : '';
 
-                {/* Content Container with offset for gutter */}
-                <div className="flex-1 min-w-0 pl-6">
-                    {children}
-                </div>
-            </div>
-        );
+            return (
+                <div
+                    className={`group flex items-start -mx-4 px-4 py-2 transition-colors cursor-pointer hover:bg-slate-50 relative document-row ${className} ${futureClass}`}
+                    onClick={(e) => {
+                        // When clicking a row, also update the timeline position
+                        if (rawTime !== undefined) {
+                            onTimeChange(rawTime);
+                        }
+                        onClick?.(e);
+                    }}
+                    data-id={dataId}
+                    data-testid={dataId ? `${TEST_IDS.TIMELINE_SELECTION.DOCUMENT_ROW_PREFIX}${dataId}` : undefined}
+                >
+                    {/* Fixed Gutter for Marker */}
+                    <div className="w-8 shrink-0 flex items-start justify-center pt-[15px] select-none absolute left-0 top-0 bottom-0 pointer-events-none">
+                        <div className="active-dot w-2.5 h-2.5 bg-cyan-500 rounded-full shadow-sm ring-2 ring-cyan-100 opacity-0 transition-opacity duration-200" />
+                    </div>
 
-        // biome-ignore lint/suspicious/noExplicitAny: domToReact replace callback requires flexible return type
+                    {/* Content Container with offset for gutter */}
+                    <div className="flex-1 min-w-0 pl-6">
+                        {children}
+                    </div>
+                </div>
+            );
+        };
+
         const handleNode = (domNode: DOMNode): any => {
-            if (domNode instanceof Element && domNode.attribs) {
+            if (domNode instanceof ReactParserElement && domNode.attribs) {
                 if (domNode.name === 'div' && domNode.attribs.class === 'feature-artifacts') {
                     const stepId = domNode.attribs['data-id'];
                     const idString = domNode.attribs['data-ids'];
@@ -325,13 +357,14 @@ export function DocumentView({ events, currentTime, startTime, onTimeChange, min
                     const showSymbol = domNode.attribs['data-show-symbol'] === 'true';
                     const stepId = domNode.attribs['data-id'];
                     const idString = domNode.attribs['data-ids'];
-                    // const rawTime = parseFloat(domNode.attribs['data-raw-time'] || '0'); // Unused as we select by ID now
+                    const rawTime = parseFloat(domNode.attribs['data-raw-time'] || '0');
 
                     const stepArtifacts = idString ? idString.split(',').map(id => events.find(e => e.id === id)).filter(Boolean) as TArtifactEvent[] : [];
 
                     return (
                         <RowWithGutter
                             dataId={stepId}
+                            rawTime={rawTime}
                             onClick={(e) => {
                                 e.stopPropagation();
                                 const event = findEvent(stepId);
@@ -376,22 +409,24 @@ export function DocumentView({ events, currentTime, startTime, onTimeChange, min
                     );
                 }
 
-                const isProse = (domNode instanceof Element) && domNode.name === 'div' && domNode.attribs.class?.includes('prose-block');
-                const isHeader = (domNode instanceof Element) && domNode.name === 'div' && domNode.attribs.class?.includes('header-block');
+                const isProse = (domNode instanceof ReactParserElement) && domNode.name === 'div' && domNode.attribs.class?.includes('prose-block');
+                const isHeader = (domNode instanceof ReactParserElement) && domNode.name === 'div' && domNode.attribs.class?.includes('header-block');
 
                 if (isProse || isHeader) {
-                    const stepId = (domNode as Element).attribs['data-id'];
+                    const stepId = (domNode as ReactParserElement).attribs['data-id'];
+                    const rawTime = parseFloat((domNode as ReactParserElement).attribs['data-raw-time'] || '0');
 
                     return (
                         <RowWithGutter
                             dataId={stepId}
+                            rawTime={rawTime}
                             onClick={(e) => {
                                 e.stopPropagation();
                                 const event = findEvent(stepId);
                                 if (event && onSelectEvent) onSelectEvent(event);
                             }}
                         >
-                            {domToReact((domNode as Element).children as DOMNode[], { replace: handleNode })}
+                            {domToReact((domNode as ReactParserElement).children as DOMNode[], { replace: handleNode })}
                         </RowWithGutter>
                     );
                 }
@@ -436,7 +471,7 @@ export function DocumentView({ events, currentTime, startTime, onTimeChange, min
                     return <blockquote className="border-l-4 border-muted-foreground/30 pl-4 italic text-muted-foreground my-4">{domToReact(domNode.children as DOMNode[], { replace: handleNode })}</blockquote>;
                 }
                 if (domNode.name === 'code') {
-                    const isBlock = domNode.parent && (domNode.parent as Element).name === 'pre';
+                    const isBlock = domNode.parent && (domNode.parent as ReactParserElement).name === 'pre';
                     if (!isBlock) {
                         return <code className="bg-slate-100 px-1 py-0.5 rounded-sm text-xs font-mono text-slate-800 border border-slate-200">{domToReact(domNode.children as DOMNode[], { replace: handleNode })}</code>;
                     }
@@ -457,10 +492,60 @@ export function DocumentView({ events, currentTime, startTime, onTimeChange, min
         };
 
         return parse(sanitizedHtml, { replace: handleNode });
-    }, [content, artifactsByStep, events, onSelectEvent]);
+    }, [content.md, artifactsByStep, events, onSelectEvent]);
+
+    // Manage Active State (Highlight + Scroll)
+    const containerRef = React.useRef<HTMLDivElement>(null);
+    React.useLayoutEffect(() => {
+        if (!containerRef.current || !activeEventId) return;
+
+        // 1. Identify Target Elements (Leaf + Parents)
+        const targets: HTMLElement[] = [];
+        let id = activeEventId;
+        while (id) {
+            const el = containerRef.current.querySelector(`.document-row[data-id="${id}"]`) as HTMLElement | null;
+            if (el) targets.push(el);
+            if (id.includes('.')) {
+                id = id.substring(0, id.lastIndexOf('.'));
+            } else {
+                break;
+            }
+        }
+
+        // Safeguard: If active ID exists but no DOM elements found, 
+        // abort update to preserve previous highlight (prevents flickering/missing dot)
+        if (targets.length === 0) return;
+
+        // 2. Add class to ALL targets FIRST (preserves transition if already active)
+        targets.forEach(el => el.classList.add('active-row'));
+
+        // 3. Remove class from any element that is NOT a target
+        const currentActiveInfo = containerRef.current.querySelectorAll('.active-row');
+        currentActiveInfo.forEach(el => {
+            // Check if this element is in our target list
+            // (Comparing DOM node references works)
+            let isTarget = false;
+            for (const t of targets) {
+                if (t === el) {
+                    isTarget = true;
+                    break;
+                }
+            }
+            if (!isTarget) el.classList.remove('active-row');
+        });
+
+        // 4. Scroll to leaf
+        const leaf = targets[0];
+        if (leaf) {
+            scrollIntoViewIfNeeded(leaf, null, { behavior: 'smooth', block: 'nearest' });
+        }
+
+
+
+    }, [activeEventId, events]);
 
     return (
-        <div className="w-full bg-white text-slate-900 min-h-screen p-4 md:p-8" data-active-id={activeEventId} data-testid={TEST_IDS.VIEWS.DOCUMENT}>
+        <div ref={containerRef} className="w-full bg-white text-slate-900 min-h-screen p-4 md:p-8" data-active-id={activeEventId} data-testid={TEST_IDS.VIEWS.DOCUMENT}>
             <div className="w-full max-w-5xl mx-auto">
                 <div className="prose prose-slate max-w-none font-serif leading-relaxed text-slate-900 
                     prose-headings:font-bold prose-headings:text-slate-900 prose-headings:my-2 prose-headings:mt-0
@@ -479,42 +564,25 @@ export function DocumentView({ events, currentTime, startTime, onTimeChange, min
                     .prose blockquote p:last-of-type::after {
                         content: none;
                     }
-                    /* Highlighting logic based on active ID */
-                    /* Exact match highlighting */
-                    [data-active-id] .document-row[data-id] {
+                    /* Highlighting logic based on class */
+                    .document-row {
                         transition: background-color 0.3s ease;
                     }
-                    /* Show dot for exact match OR if active ID starts with this row's ID (hierarchical) */
-                    [data-active-id] .document-row .active-dot {
+                    .document-row .active-dot {
                         opacity: 0;
                         transform: scale(0.8);
                         transition: opacity 0.2s ease, transform 0.2s ease;
-                    }
-                    /* Simple exact match for now - can be expanded for hierarchy if needed */
-                    [data-active-id] .document-row .active-dot {
                         display: block;
                     }
-                    
-                    /* Generate selectors for matching IDs. Typically steps are 1.2, 1.2.3 etc. */
-                    /* We can use a trick with CSS variables or just exact match if we normalize well */
-                    [data-active-id] .document-row {
-                        /* default state */
+                    .document-row.active-row .active-dot {
+                        opacity: 1 !important;
+                        transform: scale(1) !important;
                     }
                 `}</style>
-                {/* Dynamically injected CSS for exact and hierarchical highlighting */}
-                {activeEventId && (
-                    <style>{`
-                        .document-row[data-id="${activeEventId}"] .active-dot,
-                        .document-row[data-id="${activeEventId.split('.').slice(0, -1).join('.')}"] .active-dot,
-                        .document-row[data-id="${activeEventId.split('.').slice(0, -2).join('.')}"] .active-dot {
-                            opacity: 1 !important;
-                            transform: scale(1) !important;
-                        }
-                    `}</style>
-                )}
             </div>
         </div>
     );
+
 }
 
 
@@ -524,7 +592,6 @@ function ArtifactCaption({ artifact }: { artifact: TArtifactEvent }) {
     const isHiddenByDefault = label === 'mermaid' || label === 'resolvedFeatures' || label === 'video-start' || label === 'video';
     const [isOpen, setIsOpen] = useState(!isHiddenByDefault);
 
-    // biome-ignore lint/suspicious/noExplicitAny: loose artifact type
     const path = (artifact as any).path || artifact.id;
     const filename = path.split('/').pop();
 

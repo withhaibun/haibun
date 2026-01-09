@@ -15,8 +15,8 @@ const cycles = (wss: WebServerStepper): IStepperCycles => ({
     wss.getWorld().runtime[WEBSERVER] = wss.webserver;
     await Promise.resolve();
   },
-  async endFeature({ shouldClose = true }: TEndFeature) {
-    if (shouldClose) {
+  async endFeature(wtw: TEndFeature) {
+    if (wtw.shouldClose) {
       await wss.webserver?.close();
       wss.webserver = undefined;
     }
@@ -61,10 +61,18 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
   }
 
   steps = {
+    showPorts: {
+      gwta: 'show ports',
+      action: () => {
+        const ports = Object.fromEntries(ServerHono.listeningPorts);
+        this.getWorld().eventLogger.info(`ports: ${JSON.stringify(ports, null, 2)}`, { ports });
+        return OK;
+      }
+    },
     isListening: {
-      gwta: 'webserver is listening',
-      action: async () => {
-        await this.listen();
+      gwta: 'webserver is listening for {why}',
+      action: async ({ why }: TStepArgs) => {
+        await this.listen(String(why));
         return OK;
       },
     },
@@ -77,12 +85,12 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
         return Promise.resolve(OK);
       },
     },
-    serveFilesAt: {
-      gwta: 'serve files at {where} from {loc}',
-      action: async ({ where, loc }: TStepArgs) => {
+    serveFiles: {
+      gwta: 'serve files from {loc}',
+      action: async ({ loc, why }: TStepArgs) => {
         try {
-          this.webserver?.checkAddStaticFolder(String(loc), String(where));
-          await this.listen();
+          this.webserver?.checkAddStaticFolder(String(loc), '/');
+          await this.listen(String(loc));
           return OK;
         } catch (e) {
           const message = e instanceof Error ? e.message : String(e);
@@ -90,12 +98,13 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
         }
       },
     },
-    serveFiles: {
-      gwta: 'serve files from {loc}',
-      action: async ({ loc }: TStepArgs) => {
+    serveFilesFor: {
+      gwta: 'serve files from {loc} for {why}',
+      precludes: [`${WebServerStepper.name}.serveFiles`],
+      action: async ({ loc, why }: TStepArgs) => {
         try {
           this.webserver?.checkAddStaticFolder(String(loc), '/');
-          await this.listen();
+          await this.listen(String(why));
           return OK;
         } catch (e) {
           const message = e instanceof Error ? e.message : String(e);
@@ -104,11 +113,11 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
       },
     },
     indexFiles: {
-      gwta: 'index files from {loc}',
-      action: async ({ loc }: TStepArgs) => {
+      gwta: 'index files from {loc} for {why}',
+      action: async ({ loc, why }: TStepArgs) => {
         try {
           this.webserver?.checkAddIndexFolder(String(loc), '/');
-          await this.listen();
+          await this.listen(String(why));
           return OK;
         } catch (e) {
           const message = e instanceof Error ? e.message : String(e);
@@ -117,11 +126,11 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
       },
     },
     indexFilesAt: {
-      gwta: 'index files at {where} from {loc}',
-      action: async ({ where, loc }: TStepArgs) => {
+      gwta: 'index files at {where} from {loc} for {why}',
+      action: async ({ where, loc, why }: TStepArgs) => {
         try {
           this.webserver?.checkAddIndexFolder(String(loc), String(where));
-          await this.listen();
+          await this.listen(String(why));
           return OK;
         } catch (e) {
           const message = e instanceof Error ? e.message : String(e);
@@ -139,11 +148,14 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
     },
   };
 
-  async listen() {
+  async listen(why: string) {
     if (!this.webserver) {
       throw new Error('WebServerStepper: webserver not initialized - ensure startFeature cycle ran');
     }
-    await this.webserver.listen(this.port, this.hostname);
+    if (ServerHono.listeningPorts.has(this.port)) {
+      return;
+    }
+    await this.webserver.listen(why, this.port, this.hostname);
   }
 }
 

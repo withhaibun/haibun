@@ -25,9 +25,17 @@ function flattenTestIds(obj: Record<string, unknown>, prefix = ''): string[] {
 
 const allTestIds = flattenTestIds(TEST_IDS);
 
-// Categorize IDs
-const alwaysVisibleGroups = ['APP', 'HEADER', 'VIEWS', 'TIMELINE', 'DEBUGGER'];
-const detailsGroups = ['DETAILS'];
+// Categorize IDs - DEBUGGER is now tested in debugger scenario
+const testableGroups = ['APP', 'HEADER', 'VIEWS', 'TIMELINE', 'DETAILS', 'DEBUGGER'];
+
+// IDs that require specific conditions to be visible (can't be tested in automated self-test)
+const conditionalIds = [
+  TEST_IDS.DETAILS.ARTIFACT_RENDERER, // Requires artifact event type
+  TEST_IDS.HEADER.TOGGLE_DEBUG, // Only appears during debug mode
+  TEST_IDS.DEBUGGER.ROOT, // Only appears during debug mode
+  TEST_IDS.DEBUGGER.INPUT, // Only appears during debug mode
+  TEST_IDS.DEBUGGER.BUTTON_CONTINUE, // Only appears during debug mode
+];
 
 const filterIds = (groups: string[]) => {
   return flattenTestIds(
@@ -35,17 +43,15 @@ const filterIds = (groups: string[]) => {
   );
 };
 
-const alwaysVisibleIds = filterIds(alwaysVisibleGroups);
-const detailsPanelIds = filterIds(detailsGroups);
+const testableIds = filterIds(testableGroups).filter(id => !(conditionalIds as string[]).includes(id));
 
 // Create domains
 const defineDomain = (name: string, ids: string[]) =>
   `set of ${name} is [${ids.map(id => `"${id}"`).join(' ')}]`;
 
 const domainDefinitions = [
-  defineDomain('MonitorTestIds', allTestIds),
-  defineDomain('AlwaysVisibleIds', alwaysVisibleIds),
-  defineDomain('DetailsPanelIds', detailsPanelIds),
+  defineDomain('MonitorTestIds', testableIds), // Excludes conditional IDs
+  defineDomain('AllTestIds', allTestIds),
 ];
 
 // Generate set statements for all test-ids

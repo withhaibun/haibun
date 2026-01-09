@@ -11,10 +11,17 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const tsconfigRaw = JSON.parse(readFileSync(path.join(__dirname, 'tsconfig.client.json'), 'utf-8'));
 
 
-export default defineConfig(({ mode }) => {
+// Helper to get ports (usable by backend)
+export const getPorts = (mode: string = process.env.NODE_ENV || 'development') => {
   const env = loadEnv(mode, process.cwd(), '');
-  const clientPort = parseInt(env.HAIBUN_O_MONITOR_CLIENT_PORT || '3458', 10);
-  const serverPort = parseInt(env.HAIBUN_O_MONITOR_SERVER_PORT || '3459', 10);
+  return {
+    clientPort: parseInt(env.HAIBUN_O_MONITOR_CLIENT_PORT || '3465', 10),
+    proxiedPort: parseInt(env.HAIBUN_O_MONITOR_SERVER_PORT || '3459', 10)
+  };
+};
+
+export default defineConfig(({ mode }) => {
+  const { clientPort, proxiedPort: serverPort } = getPorts(mode);
 
   return {
     plugins: [

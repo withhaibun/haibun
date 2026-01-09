@@ -216,7 +216,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
     const port = parseInt(String(rawPort), 10);
 
     try {
-      await webserver.listen(port);
+      await webserver.listen('mcp', port);
       this.getWorld().eventLogger.info(`[MCP] WebServer started on port ${port}`);
     } catch (e) {
       if ((e as { code?: string })?.code !== 'EADDRINUSE') {

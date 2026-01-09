@@ -101,6 +101,7 @@ export function Debugger({ prompt, onSubmit, className }: DebuggerProps & { clas
                 className={subClassName}
                 onClick={() => onSubmit(opt)}
                 title={opt}
+                data-testid={lower.includes('continue') ? TEST_IDS.DEBUGGER.BUTTON_CONTINUE : undefined}
             >
                 {icon}
                 {opt}
@@ -135,6 +136,7 @@ export function Debugger({ prompt, onSubmit, className }: DebuggerProps & { clas
                         }}
                         className="flex-1 px-2 py-1 text-xs border rounded-sm bg-background/50 focus:outline-none focus:ring-1 focus:ring-ring"
                         placeholder="Enter command..."
+                        data-testid={TEST_IDS.DEBUGGER.INPUT}
                     />
                     <Button
                         variant="ghost"

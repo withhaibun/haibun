@@ -53,7 +53,6 @@ const httpTraceSources: IObservationSource[] = [
 
 export const cycles = (wp: WebPlaywright): IStepperCycles => ({
 	getConcerns: () => ({ domains: WebPlaywrightDomains, sources: httpTraceSources }),
-	// biome-disable-next-line @typescript-eslint/no-unused-vars
 	async onFailure({ failedStep }: TFailureArgs): Promise<void> {
 		if (wp.bf?.hasPage(wp.getWorld().tag, wp.tab)) {
 			await wp.captureFailureScreenshot('failure', failedStep);

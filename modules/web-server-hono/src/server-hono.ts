@@ -5,16 +5,13 @@ import { existsSync, statSync, readdirSync } from 'fs';
 import { join } from 'path';
 import type { MiddlewareHandler } from 'hono';
 import type { IEventLogger } from '@haibun/core/lib/EventLogger.js';
-import {
-  type IWebServer, type TRouteMap, type TRouteTypes,
-  type TRequestHandler, type TStaticFolderOptions, ROUTE_TYPES,
-} from './defs.js';
+import { type IWebServer, type TRouteMap, type TRouteTypes, type TRequestHandler, type TStaticFolderOptions, ROUTE_TYPES } from './defs.js';
 
 const DEFAULT_MOUNTED = (): TRouteMap =>
   ROUTE_TYPES.reduce((acc, type) => ({ ...acc, [type]: {} }), {} as TRouteMap);
 
 export class ServerHono implements IWebServer {
-  private static listeningPorts: number[] = [];
+  static listeningPorts: Map<number, string> = new Map();
   private server?: ServerType;
   private readonly _app: Hono;
   private _mounted: TRouteMap = DEFAULT_MOUNTED();
@@ -30,21 +27,20 @@ export class ServerHono implements IWebServer {
 
   use(middleware: MiddlewareHandler): void { this._app.use(middleware); }
 
-  listen(port: number, hostname?: string): Promise<void> {
+  listen(why: string, port: number, hostname?: string): Promise<void> {
     if (typeof port !== 'number' || Number.isNaN(port) || port <= 0) {
       throw new Error(`ServerHono.listen: invalid port "${port}"`);
     }
     const host = hostname || '127.0.0.1';
-    if (ServerHono.listeningPorts.includes(port)) {
-      this.eventLogger.info(`ServerHono already listening on port ${port} (${host})`);
-      return Promise.resolve();
+    if (ServerHono.listeningPorts.has(port)) {
+      return Promise.reject(`ServerHono.listen for ${why}: port ${port} (${host}) already in use for ${ServerHono.listeningPorts.get(port)}`);
     }
     return new Promise((resolve, reject) => {
       try {
         this.server = serve({ fetch: this._app.fetch, port, hostname: host }, () => {
           this._port = port;
-          ServerHono.listeningPorts.push(port);
-          this.eventLogger.debug?.(`ServerHono listening on port ${port} (${host})`);
+          ServerHono.listeningPorts.set(port, why);
+          this.eventLogger.debug(`ServerHono listening on port ${port} (${host})`);
           resolve();
         });
       } catch (e) {
@@ -55,10 +51,10 @@ export class ServerHono implements IWebServer {
 
   close(): Promise<void> {
     if (this.server) {
-      this.eventLogger.debug?.(`ServerHono closing on port ${this._port}`);
+      this.eventLogger.debug(`ServerHono closing on port ${this._port}`);
       this.server.close();
       if (this._port !== undefined) {
-        ServerHono.listeningPorts = ServerHono.listeningPorts.filter(p => p !== this._port);
+        ServerHono.listeningPorts.delete(this._port);
       }
       this.server = undefined;
       this._mounted = DEFAULT_MOUNTED();
@@ -70,14 +66,14 @@ export class ServerHono implements IWebServer {
     this.validateRouteType(type);
     this.validatePath(path);
     this.ensureNotMounted(type, path);
-    this.eventLogger.debug?.(`ServerHono: adding ${type} route at ${path}`);
+    this.eventLogger.debug(`ServerHono: adding ${type} route at ${path}`);
     this.registerRoute(type, path, handlers);
     this.markMounted(type, path, handlers.toString());
   }
 
   addKnownRoute(type: TRouteTypes, path: string, ...handlers: TRequestHandler[]): void {
     this.validateRouteType(type);
-    this.eventLogger.debug?.(`ServerHono: adding known ${type} route at ${path}`);
+    this.eventLogger.debug(`ServerHono: adding known ${type} route at ${path}`);
     this.registerRoute(type, path, handlers);
     this.markMounted(type, path, handlers.toString());
   }
@@ -100,7 +96,7 @@ export class ServerHono implements IWebServer {
     const folder = join(this.base, relativeFolder);
     this.ensureNotMounted('get', mountAt);
     this.validateFolderExists(folder);
-    this.eventLogger.debug?.(`ServerHono: serving index from ${folder} at ${mountAt}`);
+    this.eventLogger.debug(`ServerHono: serving index from ${folder} at ${mountAt}`);
 
     const indexPath = mountAt.endsWith('/') ? `${mountAt}*` : `${mountAt}/*`;
     this._app.get(indexPath, async (c) => {
@@ -123,7 +119,7 @@ export class ServerHono implements IWebServer {
     this.validatePath(mountAt);
     this.ensureNotMounted('get', mountAt);
     this.validateFolderExists(folder);
-    this.eventLogger.debug?.(`ServerHono: serving static files from ${folder} at ${mountAt}`);
+    this.eventLogger.debug(`ServerHono: serving static files from ${folder} at ${mountAt}`);
     const staticPath = mountAt.endsWith('/') ? `${mountAt}*` : `${mountAt}/*`;
     this._app.get(staticPath, serveStatic({ root: folder, rewriteRequestPath: path => path.replace(mountAt, '') }));
     this._app.get(mountAt, serveStatic({ root: folder, rewriteRequestPath: () => '/index.html' }));

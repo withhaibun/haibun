@@ -12,6 +12,8 @@ import { SourceLinks } from './components/SourceLinks';
 import { EventIdDisplay } from './components/EventIdDisplay';
 import { InlineArtifacts } from './components/InlineArtifacts';
 import { TEST_IDS } from '../test-ids';
+import { FUTURE_EVENT_CLASS, isEventInFuture, formatRelativeTime } from './lib/timeline';
+import { scrollIntoViewIfNeeded } from './lib/dom-utils';
 
 type ViewMode = 'log' | 'raw' | 'document';
 
@@ -27,6 +29,8 @@ function App() {
     const [maxTime, setMaxTime] = useState(0);
     const [isPlaying, setIsPlaying] = useState(false);
     const [playbackSpeed, setPlaybackSpeed] = useState(1);
+    // Error state for timeline data inconsistencies
+    const [timelineError, setTimelineError] = useState<string | null>(null);
 
     // View Control State
     const [viewMode, setViewMode] = useState<ViewMode>('log');
@@ -58,9 +62,6 @@ function App() {
     // biome-ignore lint/suspicious/noExplicitAny: debug state
     const [activePrompt, setActivePrompt] = useState<any | null>(null);
 
-
-
-    // Memoize WS options to prevent re-connection on render
     // Memoize WS options to prevent re-connection on render
     const sendMessage = useRef<((msg: any) => void) | null>(null);
 
@@ -181,31 +182,82 @@ function App() {
         };
     }, []);
 
-    // Handle Time Logic - Anchor to first event
+    // Handle Time Logic - Calculate actual min/max timestamps from events
+    // Events may not be sorted by timestamp, so we find actual bounds
     const eventsLength = events.length;
-    const firstEventTimestamp = events[0]?.timestamp;
-    const lastEventTimestamp = events[eventsLength - 1]?.timestamp;
+
+    const { minTimestamp, maxTimestamp } = useMemo(() => {
+        if (events.length === 0) {
+            return { minTimestamp: null, maxTimestamp: null };
+        }
+        let min = Infinity;
+        let max = -Infinity;
+        for (const e of events) {
+            // Exclude events that shouldn't affect timeline bounds:
+            // - 'control' events are heartbeats/keepalives
+            // - Events from 'sse-transport' are internal transport messages
+            // Both have current timestamps that inflate the timeline in STAY_ALWAYS mode
+            if (e.kind === 'control') continue;
+            if (e.emitter?.includes('sse-transport')) continue;
+
+            if (e.timestamp !== undefined && e.timestamp !== null) {
+                if (e.timestamp < min) min = e.timestamp;
+                if (e.timestamp > max) max = e.timestamp;
+            }
+        }
+        if (min === Infinity || max === -Infinity) {
+            return { minTimestamp: null, maxTimestamp: null };
+        }
+        return { minTimestamp: min, maxTimestamp: max };
+    }, [events]);
 
     useEffect(() => {
-        if (eventsLength > 0 && firstEventTimestamp && lastEventTimestamp) {
-            if (startTime === null) {
-                setStartTime(firstEventTimestamp);
+        if (eventsLength > 0 && minTimestamp !== null && maxTimestamp !== null) {
+            // Validate serialized startTime if present
+            // If initialState had startTime that doesn't match actual minTimestamp, this is a data error
+            if (isSerializedMode && initialState?.startTime !== undefined && initialState.startTime !== null) {
+                if (initialState.startTime !== minTimestamp) {
+                    const errorMsg = `[Timeline] CRITICAL: Serialized startTime (${initialState.startTime}) does not match actual minTimestamp (${minTimestamp}). Data corruption or serialization error.`;
+                    console.error(errorMsg, {
+                        serializedStartTime: initialState.startTime,
+                        actualMinTimestamp: minTimestamp,
+                        maxTimestamp,
+                        eventCount: eventsLength
+                    });
+                    setTimelineError(errorMsg);
+                    return; // Don't proceed with invalid data
+                }
             }
 
-            // Update max time
-            const first = startTime || firstEventTimestamp;
-            const newMax = lastEventTimestamp - first;
-            setMaxTime(newMax);
+            // Set startTime to minTimestamp
+            if (startTime === null || startTime !== minTimestamp) {
+                setStartTime(minTimestamp);
+            }
+
+            // Duration is always maxTimestamp - minTimestamp
+            const duration = maxTimestamp - minTimestamp;
+
+            // Validate: duration should never be negative
+            if (duration < 0) {
+                const errorMsg = `[Timeline] CRITICAL: Duration is negative (${duration}). max=${maxTimestamp}, min=${minTimestamp}`;
+                console.error(errorMsg);
+                setTimelineError(errorMsg);
+                return;
+            }
+
+            // Clear any previous errors
+            setTimelineError(null);
+            setMaxTime(duration);
 
             // In live mode, auto-advance to show latest
             if (connected) {
-                setCurrentTime(newMax);
-            } else if (currentTime === 0 && newMax > 0) {
+                setCurrentTime(duration);
+            } else if (currentTime === 0 && duration > 0) {
                 // Initialize to end for serialized reports
-                setCurrentTime(newMax);
+                setCurrentTime(duration);
             }
         }
-    }, [eventsLength, firstEventTimestamp, lastEventTimestamp, startTime, connected]);
+    }, [eventsLength, minTimestamp, maxTimestamp, startTime, connected, isSerializedMode, initialState?.startTime]);
 
 
     // Compute video info from both video-start and video events
@@ -410,7 +462,7 @@ function App() {
                     count: hiddenBuffer.length,
                     level: primaryHiddenLevel,
                     types: Array.from(types),
-                    id: `hidden-${Date.now()}-${finalEvents.length}`,
+                    id: `hidden-${finalEvents.length}-${hiddenBuffer[0].event.id}`,
                     firstEventId: hiddenBuffer[0].event.id,
                     depthCount,
                     levelCount,
@@ -453,20 +505,34 @@ function App() {
         return finalEvents;
     }, [events, currentTime, startTime, minLogLevel, maxDepth]);
 
-    // Auto-scroll logic
+    // Auto-scroll logic - only scroll if element is not already visible
     useEffect(() => {
         if (scrollTargetId) {
             const el = document.getElementById(`event-${scrollTargetId}`);
             if (el) {
-                el.scrollIntoView({ behavior: 'auto', block: 'start' });
-                // We keep it for one more tick to be safe or just clear
+                // Only scroll if the element is not currently visible
+                scrollIntoViewIfNeeded(el, null, { behavior: 'auto', block: 'start' });
                 setScrollTargetId(null);
             }
+        } else if (isPlaying && visibleEvents.length > 0 && startTime !== null) {
+            // Auto-scroll logic for playback
+            // Find event closest to current time (from bottom up)
+            const relativeTime = currentTime;
+            const currentEvent = [...visibleEvents].reverse().find(e =>
+                e.timestamp !== undefined && (e.timestamp - startTime) <= relativeTime
+            );
+
+            if (currentEvent) {
+                const el = document.getElementById(`event-${currentEvent.id}`);
+                if (el) {
+                    scrollIntoViewIfNeeded(el, null, { behavior: 'auto', block: 'nearest' });
+                }
+            }
         } else if (scrollRef.current && visibleEvents.length > 0 && connected && !scrollTargetId) {
-            // Only auto-scroll to bottom in live mode if no specific target
-            scrollRef.current.scrollIntoView({ behavior: 'auto', block: 'center' });
+            // Only auto-scroll to bottom in live mode if not already visible
+            scrollIntoViewIfNeeded(scrollRef.current, null, { behavior: 'auto', block: 'center' });
         }
-    }, [visibleEvents.length, scrollTargetId, connected]);
+    }, [visibleEvents.length, scrollTargetId, connected, isPlaying, currentTime, startTime]);
 
     const renderLogView = () => (
         <div className="font-mono text-xs w-full bg-black p-4 rounded-lg shadow-xl overflow-hidden pb-12">
@@ -509,12 +575,22 @@ function App() {
 
                 const formatted = EventFormatter.formatLineElements(e, prevLevel);
 
-                const effectiveStart = startTime || e.timestamp;
-                const time = ((e.timestamp - effectiveStart) / 1000).toFixed(3);
+                // Calculate display time and future status
+                // If startTime is null, we don't have timeline data yet - don't dim anything
+                let time = '0.000';
+                let isFuture = false;
 
-                // Future check
-                const isFuture = (e.timestamp - effectiveStart) > currentTime;
-                const opacityClass = isFuture ? 'opacity-60 grayscale blur-[0.2px]' : '';
+                if (startTime !== null) {
+                    try {
+                        const relativeTime = e.timestamp - startTime;
+                        time = formatRelativeTime(relativeTime);
+                        isFuture = isEventInFuture(e.timestamp, startTime, currentTime);
+                    } catch (err) {
+                        // Log but don't crash on invalid timestamp
+                        console.error('[App] Timeline calculation error:', err);
+                    }
+                }
+                const futureClass = isFuture ? FUTURE_EVENT_CLASS : '';
 
                 let { showLevel: _showLevel, message, icon, id } = formatted;
                 // const isLifecycle = e.kind === 'lifecycle'; // unwarn
@@ -578,7 +654,8 @@ function App() {
                     <React.Fragment key={i}>
                         <div
                             id={`event-${e.id}`}
-                            className={`flex whitespace-pre items-start leading-tight transition-colors ${bgClass} cursor-pointer hover:bg-slate-800 ${selectedEvent === e ? 'bg-cyan-900/30 border-l-4 border-l-cyan-500 -ml-1 pl-1 border-r-4 border-r-cyan-500' : ''} ${opacityClass}`}
+                            data-testid={isLast ? TEST_IDS.VIEWS.LATEST_EVENT : `${TEST_IDS.TIMELINE_SELECTION.LOG_ROW_PREFIX}${e.id}`}
+                            className={`flex whitespace-pre items-start leading-tight transition-colors ${bgClass} cursor-pointer hover:bg-slate-800 ${selectedEvent === e ? 'bg-cyan-900/30 border-l-4 border-l-cyan-500 -ml-1 pl-1 border-r-4 border-r-cyan-500' : ''} ${futureClass}`}
                             onClick={() => {
                                 setSelectedEvent(e);
                                 setIsPlaying(false);
@@ -764,6 +841,18 @@ function App() {
 
     }, [selectedEvent, showQuadGraph, showSequence, connected, activePrompt, events, startTime]);
 
+    // Render error if timeline data is corrupt
+    if (timelineError) {
+        return (
+            <div className="h-screen w-full bg-red-900 text-white p-8 flex flex-col items-center justify-center">
+                <h1 className="text-3xl font-bold mb-4">⚠️ Timeline Data Error</h1>
+                <div className="bg-red-950 p-6 rounded-lg max-w-3xl">
+                    <p className="font-mono text-sm whitespace-pre-wrap break-all">{timelineError}</p>
+                </div>
+                <p className="mt-6 text-lg">The serialized data is corrupt. Check console for details.</p>
+            </div>
+        );
+    }
 
     return (
         <div
@@ -807,6 +896,7 @@ function App() {
                                 key={mode}
                                 onClick={() => { setViewMode(mode); setSelectedEvent(null); }}
                                 className={`px-3 py-1 text-xs rounded-sm capitalize ${viewMode === mode ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                                data-testid={`button-view-${mode}`}
                             >
                                 {mode}
                             </button>
@@ -831,8 +921,9 @@ function App() {
                         {events.some(e => e.kind === 'artifact' && e.artifactType === 'http-trace') && (
                             <button
                                 onClick={() => setViewOrder(prev => prev.includes('sequence') ? prev.filter(v => v !== 'sequence') : [...prev, 'sequence'])}
-                                className={`p-1.5 hover:bg-slate-700 rounded transition-colors ${showSequence ? 'text-cyan-400 bg-slate-800' : 'text-slate-500 hover:text-slate-300'}`}
+                                className={`p-1.5 hover:bg-slate-700 rounded transition-colors ${showSequence ? 'bg-slate-800' : 'grayscale opacity-60 hover:opacity-80'}`}
                                 title={`Toggle HTTP Sequence Diagram (${events.filter(e => e.kind === 'artifact' && e.artifactType === 'http-trace').length})`}
+                                data-testid={TEST_IDS.HEADER.TOGGLE_SEQUENCE}
                             >
                                 ⇄
                             </button>
@@ -840,10 +931,27 @@ function App() {
                         {events.some(e => e.kind === 'artifact' && e.artifactType === 'json' && 'json' in e && (e.json as Record<string, unknown>)?.quadObservation) && (
                             <button
                                 onClick={() => setViewOrder(prev => prev.includes('quad') ? prev.filter(v => v !== 'quad') : [...prev, 'quad'])}
-                                className={`p-1.5 hover:bg-slate-700 rounded transition-colors ${showQuadGraph ? 'text-cyan-400 bg-slate-800' : 'text-slate-500 hover:text-slate-300'}`}
+                                className={`p-1.5 hover:bg-slate-700 rounded transition-colors ${showQuadGraph ? 'bg-slate-800' : 'grayscale opacity-60 hover:opacity-80'}`}
                                 title={`Toggle QuadStore Graph (${events.filter(e => e.kind === 'artifact' && e.artifactType === 'json' && 'json' in e && (e.json as Record<string, unknown>)?.quadObservation).length} observations)`}
+                                data-testid={TEST_IDS.HEADER.TOGGLE_QUAD}
                             >
-                                ◈
+                                📐
+                            </button>
+                        )}
+                        {activePrompt && (
+                            <button
+                                onClick={() => {
+                                    // Force panel open by selecting a synthetic event
+                                    if (!selectedEvent) {
+                                        const anchorEvent = events.find(e => e.kind === 'lifecycle') || events[0];
+                                        if (anchorEvent) setSelectedEvent(anchorEvent);
+                                    }
+                                }}
+                                className="p-1.5 hover:bg-slate-700 rounded transition-colors bg-slate-800"
+                                title="Debug prompt active"
+                                data-testid={TEST_IDS.HEADER.TOGGLE_DEBUG}
+                            >
+                                🐞
                             </button>
                         )}
                     </div>
@@ -881,21 +989,19 @@ function App() {
                         {viewMode === 'log' && <div data-testid={TEST_IDS.VIEWS.LOG}>{renderLogView()}</div>}
                         {viewMode === 'raw' && <pre data-testid={TEST_IDS.VIEWS.RAW} className="text-xs p-4 overflow-auto">{JSON.stringify(events, null, 2)}</pre>}
                         {viewMode === 'document' && (
-                            <div data-testid={TEST_IDS.VIEWS.DOCUMENT}>
-                                <DocumentView
-                                    events={events}
-                                    currentTime={currentTime}
-                                    onTimeChange={handleTimeChange}
-                                    startTime={startTime}
-                                    minLogLevel={minLogLevel}
-                                    onSelectEvent={(e) => {
-                                        setIsPlaying(false);
-                                        if (e.timestamp && startTime !== null) {
-                                            setCurrentTime(Math.max(0, e.timestamp - startTime));
-                                        }
-                                    }}
-                                />
-                            </div>
+                            <DocumentView
+                                events={events}
+                                currentTime={currentTime}
+                                onTimeChange={handleTimeChange}
+                                startTime={startTime}
+                                minLogLevel={minLogLevel}
+                                onSelectEvent={(e) => {
+                                    setIsPlaying(false);
+                                    if (e.timestamp && startTime !== null) {
+                                        setCurrentTime(Math.max(0, e.timestamp - startTime));
+                                    }
+                                }}
+                            />
                         )}
                     </div>
 

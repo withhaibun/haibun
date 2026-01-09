@@ -26,7 +26,7 @@ const logger = {
 } as unknown as IEventLogger;
 
 const webserver = new ServerHono(logger, process.cwd());
-await webserver.listen(port);
+await webserver.listen('replayer', port);
 
 
 const transport = new SSETransport(webserver, logger);
