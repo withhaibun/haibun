@@ -48,9 +48,6 @@ export class BaseOptions implements IHasOptions {
 					if (cur[k] || env[k]) {
 						return { error: `ENV ${k} already defined` };
 					}
-					if (v.match(/{random}/)) {
-						v.replace(/{random}/g, randomString());
-					}
 					env[k] = v;
 				}
 				return { env };
