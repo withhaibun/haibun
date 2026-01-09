@@ -4,7 +4,7 @@ import McpStepper from './mcp-stepper.js';
 import WebServerStepper from './web-server-stepper.js';
 import { AStepper } from '@haibun/core/lib/astepper.js';
 import { OK } from '@haibun/core/schema/protocol.js';
-import { getStepperOptionName, actionNotOK } from '@haibun/core/lib/util/index.js';
+import { getStepperOptionName } from '@haibun/core/lib/util/index.js';
 
 interface _ListToolsResult {
   tools: { name: string; description?: string }[];
