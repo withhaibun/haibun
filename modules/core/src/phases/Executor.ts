@@ -9,21 +9,21 @@ import { populateActionArgs } from '../lib/populateActionArgs.js';
 import { registerDomains } from '../lib/domain-types.js';
 import { basename } from 'path';
 
-function calculateShouldClose({ thisFeatureOK, isLast, stayOnFailure, continueAfterError, stayAlways }: { thisFeatureOK: boolean; isLast: boolean; stayOnFailure: boolean; continueAfterError: boolean, stayAlways: boolean }) {
+export function calculateShouldClose({ thisFeatureOK, isLast, stayOnFailure, continueAfterError, stayAlways }: { thisFeatureOK: boolean; isLast: boolean; stayOnFailure: boolean; continueAfterError: boolean, stayAlways: boolean }) {
+	// Determine if this is effectively the "last" feature
+	// Either: actually last, OR failed and not continuing after error
+	const effectivelyLast = isLast || (!thisFeatureOK && !continueAfterError);
+
+	// For non-last features, always close to start fresh for next feature
+	if (!effectivelyLast) {
+		return true;
+	}
+	// From here, we're on the last feature - apply stay logic
 	if (stayAlways) {
 		return false;
 	}
-	if (thisFeatureOK) {
-		return true;
-	}
-	if (isLast && stayOnFailure) {
+	if (!thisFeatureOK && stayOnFailure) {
 		return false;
-	}
-	if (!thisFeatureOK && !isLast && continueAfterError) {
-		return true;
-	}
-	if (!thisFeatureOK) {
-		return true;
 	}
 	return true;
 }

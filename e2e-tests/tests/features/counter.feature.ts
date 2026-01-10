@@ -16,6 +16,7 @@ export const features: TKirejiExport = {
 		'This should pause eh.',
 		setRandom({ what: 'username', length: 10 }),
 		'serve files at /static from "counter"',
+		'webserver is listening for "counter-ts"',
 		'start tally route at /count',
 		'go to the counter webpage',
 		inputVariable({ what: 'username', field: 'user name' }),

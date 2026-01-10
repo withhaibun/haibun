@@ -4,7 +4,7 @@ import { ExtensionContext, workspace, window, commands, StatusBarItem, StatusBar
 import { LanguageClient, LanguageClientOptions, ServerOptions, TransportKind, State } from 'vscode-languageclient/node';
 import { HaibunConfigurationTreeProvider, McpTool, HaibunConfig, registerConfigCommands, WorkspaceInfo } from './HaibunConfigurationPanel';
 
-const VERSION = '0.1.85';
+const VERSION = '0.1.90';
 
 let client: LanguageClient | undefined;
 let statusBarItem: StatusBarItem;
@@ -288,7 +288,14 @@ async function startClient(context: ExtensionContext) {
       try {
         const userConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
         if (userConfig.steppers && Array.isArray(userConfig.steppers)) {
-          userConfig.steppers.forEach((s: string) => steppersToAdd.add(s));
+          userConfig.steppers.forEach((s: string) => {
+            // Filter out monitor steppers immediately - they use console.log which corrupts LSP stdio protocol
+            if (!s.trim().startsWith('@haibun/monitor-')) {
+              steppersToAdd.add(s);
+            } else {
+              outputChannel.appendLine(`[Haibun] Filtering out monitor stepper from LSP: ${s}`);
+            }
+          });
         }
       } catch (e) {
         outputChannel.appendLine(`[Haibun] Warning: Failed to read user config: ${e}`);
@@ -310,18 +317,22 @@ async function startClient(context: ExtensionContext) {
     steppersToAdd.delete(s);
   }
 
+  // Final filter to ensure no monitor steppers slip through (defensive)
   const withSteppers = Array.from(steppersToAdd).filter((s: string) => !s.trim().startsWith('@haibun/monitor-'));
   const args = [cliPath, safeBase, 'serve-lsp'];
-  if (steppersToAdd.size > 0) {
+  if (withSteppers.length > 0) {
     args.push('--with-steppers', withSteppers.join(','));
-    outputChannel.appendLine(`[Haibun] Adding steppers: ${Array.from(steppersToAdd).join(', ')}`);
+    outputChannel.appendLine(`[Haibun] Adding steppers: ${withSteppers.join(', ')}`);
   }
 
-  // Calculate explicit lists for UI
-  const bundledList = Array.from(new Set([...bundledSteppers, ...steppersToAdd])).sort();
+  // Calculate explicit lists for UI (also filter monitors for display)
+  const bundledList = Array.from(new Set([...bundledSteppers, ...steppersToAdd]))
+    .filter((s: string) => !s.startsWith('@haibun/monitor-'))
+    .sort();
   const configuredList = userConfigSteppers.sort();
 
   configProvider.setSteppers(bundledList, configuredList);
+
 
   outputChannel.appendLine(`[Haibun] Starting: node ${args.join(' ')}`);
 

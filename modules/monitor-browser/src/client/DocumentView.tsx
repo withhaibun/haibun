@@ -310,6 +310,7 @@ export function DocumentView({ events, currentTime, startTime, onTimeChange, min
             );
         };
 
+        // biome-ignore lint/suspicious/noExplicitAny: html-react-parser replace function signature requires this
         const handleNode = (domNode: DOMNode): any => {
             if (domNode instanceof ReactParserElement && domNode.attribs) {
                 if (domNode.name === 'div' && domNode.attribs.class === 'feature-artifacts') {
@@ -539,9 +540,6 @@ export function DocumentView({ events, currentTime, startTime, onTimeChange, min
         if (leaf) {
             scrollIntoViewIfNeeded(leaf, null, { behavior: 'smooth', block: 'nearest' });
         }
-
-
-
     }, [activeEventId, events]);
 
     return (
@@ -585,14 +583,12 @@ export function DocumentView({ events, currentTime, startTime, onTimeChange, min
 
 }
 
-
-
 function ArtifactCaption({ artifact }: { artifact: TArtifactEvent }) {
     const label = artifact.artifactType || 'artifact';
     const isHiddenByDefault = label === 'mermaid' || label === 'resolvedFeatures' || label === 'video-start' || label === 'video';
     const [isOpen, setIsOpen] = useState(!isHiddenByDefault);
 
-    const path = (artifact as any).path || artifact.id;
+    const path = (artifact as TArtifactEvent & { path?: string }).path || artifact.id;
     const filename = path.split('/').pop();
 
     return (

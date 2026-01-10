@@ -63,6 +63,7 @@ function App() {
     const [activePrompt, setActivePrompt] = useState<any | null>(null);
 
     // Memoize WS options to prevent re-connection on render
+    // biome-ignore lint/suspicious/noExplicitAny: heterogeneous message type
     const sendMessage = useRef<((msg: any) => void) | null>(null);
 
     // Event batching using refs to avoid re-render issues
@@ -73,6 +74,7 @@ function App() {
 
     useEffect(() => {
         // Define sendMessage
+        // biome-ignore lint/suspicious/noExplicitAny: heterogeneous message type
         sendMessage.current = async (message: any) => {
             try {
                 await fetch('/sse/message', {
@@ -151,6 +153,7 @@ function App() {
     }, [isSerializedMode]);
 
     useEffect(() => {
+        // biome-ignore lint/suspicious/noExplicitAny: error can be any type
         const logError = (type: string, error: any) => {
             fetch('/sse/message', {
                 method: 'POST',
@@ -981,7 +984,7 @@ function App() {
                         />
                     </div>
                 </div>
-            </header>
+            </header >
 
             <main className="w-full pt-20 px-4 max-w-[1800px] mx-auto" data-testid={TEST_IDS.APP.MAIN}>
                 <div className="flex gap-4">
@@ -1022,31 +1025,33 @@ function App() {
                 playbackSpeed={playbackSpeed}
                 onSpeedChange={setPlaybackSpeed}
             />
-            {enrichedSelectedEvent && (
-                <DetailsPanel
-                    event={enrichedSelectedEvent}
-                    onClose={() => {
-                        setSelectedEvent(null);
-                        setViewOrder([]);
-                    }}
-                    width={detailsPanelWidth}
-                    onWidthChange={(w) => {
-                        setDetailsPanelWidth(w);
-                        localStorage.setItem('detailsPanelWidth', String(w));
-                    }}
-                    currentTime={currentTime}
-                    videoStartTimestamp={videoStartTimestamp}
-                    videoMetadata={videoMetadata}
-                    isPlaying={isPlaying}
-                    startTime={startTime || 0}
-                    cwd={cwd}
-                    isSerializedMode={isSerializedMode}
-                    viewOrder={viewOrder}
-                    activePrompt={activePrompt}
-                    onDebugSubmit={handleDebugAction}
-                />
-            )}
-        </div>
+            {
+                enrichedSelectedEvent && (
+                    <DetailsPanel
+                        event={enrichedSelectedEvent}
+                        onClose={() => {
+                            setSelectedEvent(null);
+                            setViewOrder([]);
+                        }}
+                        width={detailsPanelWidth}
+                        onWidthChange={(w) => {
+                            setDetailsPanelWidth(w);
+                            localStorage.setItem('detailsPanelWidth', String(w));
+                        }}
+                        currentTime={currentTime}
+                        videoStartTimestamp={videoStartTimestamp}
+                        videoMetadata={videoMetadata}
+                        isPlaying={isPlaying}
+                        startTime={startTime || 0}
+                        cwd={cwd}
+                        isSerializedMode={isSerializedMode}
+                        viewOrder={viewOrder}
+                        activePrompt={activePrompt}
+                        onDebugSubmit={handleDebugAction}
+                    />
+                )
+            }
+        </div >
     );
 }
 

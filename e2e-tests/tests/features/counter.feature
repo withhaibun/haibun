@@ -6,6 +6,7 @@ Scenario: A form and counter
     set username to 10 random characters
 
     Then serve files at /static from "counter"
+    webserver is listening for "counter"
     And start tally route at /count
     
     go to the counter webpage

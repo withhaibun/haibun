@@ -56,7 +56,7 @@ describe('WebServerStepper Integration', () => {
     const feature = {
       path: '/features/test.feature',
       content: `
-webserver is listening "webserverstepper serves files"
+webserver is listening for "webserverstepper serves files"
 serve files at /pub from test-content
 fetch from http://localhost:${port}/pub/hello.txt includes "Hello World"
 `
@@ -78,9 +78,9 @@ fetch from http://localhost:${port}/pub/hello.txt includes "Hello World"
     const feature = {
       path: '/features/index.feature',
       content: `
-webserver is listening for "webseverstepper serves index"
-index files at /idx from test-content
-fetch from http://localhost:${port}/idx/ includes "hello.txt"
+webserver is listening for "webserverstepper serves index"
+index files from test-content
+fetch from http://localhost:${port}/ includes "hello.txt"
 `
     };
 

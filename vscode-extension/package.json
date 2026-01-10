@@ -2,7 +2,7 @@
   "name": "haibun-lsp",
   "displayName": "Haibun Language Support",
   "description": "Autocomplete and hover documentation for Haibun .feature files",
-  "version": "0.1.89",
+  "version": "0.1.90",
   "publisher": "haibun",
   "repository": {
     "type": "git",

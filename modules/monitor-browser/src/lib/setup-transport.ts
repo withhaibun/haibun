@@ -48,7 +48,7 @@ async function tryExisting(monitorBrowser: MonitorBrowserStepper, configuredPort
 }
 
 async function setupNew(monitorBrowser: MonitorBrowserStepper, configuredPort: number, clientPort: number) {
-  console.log(`${LOG_HOST_STARTED} ${configuredPort} (PID: ${process.pid})`);
+  console.error(`${LOG_HOST_STARTED} ${configuredPort} (PID: ${process.pid})`);
   monitorBrowser.getWorld().eventLogger.debug(`${LOG_HOST_STARTED} ${configuredPort} (PID: ${process.pid})`);
 
   const filesBase = path.join(process.cwd(), 'files');
@@ -80,7 +80,7 @@ async function setupNew(monitorBrowser: MonitorBrowserStepper, configuredPort: n
   server.addRoute('get', '/api/health', (c) => c.text(`OK ${process.pid}`));
   server.addRoute('post', '/api/ingest', async (c) => {
     const event = await c.req.json();
-    console.log(`${LOG_INGESTED}: ${event.kind}`);
+    console.error(`${LOG_INGESTED}: ${event.kind}`);
     monitorBrowser.getWorld().eventLogger.debug(`${LOG_INGESTED}: ${event.kind}`);
     MonitorBrowserStepper.transport?.send({ type: 'event', event });
     return c.text('OK');

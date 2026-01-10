@@ -5,6 +5,7 @@ Backgrounds: int/a11y
 Files for accessibility checks are served for the automated testing process.
 
 serve files from "a11y"
+webserver is listening for "a11y fail"
 
 go to the test webpage
 click "description" by placeholder

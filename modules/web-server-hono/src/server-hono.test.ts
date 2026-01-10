@@ -61,14 +61,14 @@ describe('ServerHono', () => {
 
   describe('listen/close', () => {
     it('throws on invalid port', () => {
-      expect(() => server.listen(-1)).toThrow('invalid port');
-      expect(() => server.listen(NaN)).toThrow('invalid port');
+      expect(() => server.listen('test', -1)).toThrow('invalid port');
+      expect(() => server.listen('test', NaN)).toThrow('invalid port');
     });
 
     it('listens on dynamic port and closes', async () => {
       // Use a high port to avoid conflicts
       const dynamicPort = 10000 + Math.floor(Math.random() * 50000);
-      await server.listen(dynamicPort);
+      await server.listen('test', dynamicPort);
       expect(server.port).toBe(dynamicPort);
       await server.close();
     });

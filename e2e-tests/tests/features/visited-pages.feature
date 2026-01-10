@@ -6,6 +6,7 @@ Scenario: All visited pages start with allowed prefix
     This test ensures that during a browsing session, all visited pages belong to known, trusted domains.
     
     serve files at /static from "visited-pages"
+    webserver is listening for "visited-pages"
     
     set of Allowed patterns as [string]
     set localhost as Allowed patterns to "http://localhost:8123/static/*"
