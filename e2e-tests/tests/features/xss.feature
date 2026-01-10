@@ -4,6 +4,7 @@ Scenario: Check against URI xss exploit
     Backgrounds: service/xss
 
     serve files from "xss"
+    webserver is listening for "xss"
     accept next dialog to "clicked"
     go to the xss webpage
     pause for 1s

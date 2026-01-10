@@ -87,10 +87,9 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
     },
     serveFiles: {
       gwta: 'serve files from {loc}',
-      action: async ({ loc, why }: TStepArgs) => {
+      action: ({ loc, why }: TStepArgs) => {
         try {
           this.webserver?.checkAddStaticFolder(String(loc), '/');
-          await this.listen(String(loc));
           return OK;
         } catch (e) {
           const message = e instanceof Error ? e.message : String(e);
@@ -98,13 +97,11 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
         }
       },
     },
-    serveFilesFor: {
-      gwta: 'serve files from {loc} for {why}',
-      precludes: [`${WebServerStepper.name}.serveFiles`],
-      action: async ({ loc, why }: TStepArgs) => {
+    serveFilesAt: {
+      gwta: 'serve files at {where} from {loc}',
+      action: ({ where, loc }: TStepArgs) => {
         try {
-          this.webserver?.checkAddStaticFolder(String(loc), '/');
-          await this.listen(String(why));
+          this.webserver?.checkAddStaticFolder(String(loc), String(where));
           return OK;
         } catch (e) {
           const message = e instanceof Error ? e.message : String(e);
@@ -113,24 +110,10 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
       },
     },
     indexFiles: {
-      gwta: 'index files from {loc} for {why}',
-      action: async ({ loc, why }: TStepArgs) => {
+      gwta: 'index files from {loc}',
+      action: ({ loc }: TStepArgs) => {
         try {
           this.webserver?.checkAddIndexFolder(String(loc), '/');
-          await this.listen(String(why));
-          return OK;
-        } catch (e) {
-          const message = e instanceof Error ? e.message : String(e);
-          return actionNotOK(message);
-        }
-      },
-    },
-    indexFilesAt: {
-      gwta: 'index files at {where} from {loc} for {why}',
-      action: async ({ where, loc, why }: TStepArgs) => {
-        try {
-          this.webserver?.checkAddIndexFolder(String(loc), String(where));
-          await this.listen(String(why));
           return OK;
         } catch (e) {
           const message = e instanceof Error ? e.message : String(e);

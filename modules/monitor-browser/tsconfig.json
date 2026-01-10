@@ -8,6 +8,9 @@
   "include": [
     "src/**/*"
   ],
+  "files": [
+    "src/client/lib/timeline.ts"
+  ],
   "exclude": [
     "node_modules",
     "src/client/**/*",

@@ -27,6 +27,7 @@ Feature: Auth-bearer Authentication
     set Bad Request to 400
 
     serve files at /static from "rest"
+    webserver is listening for "auth-bearer"
     make auth scheme "bearer"
     API user agent is "curl/8.5.0"
 

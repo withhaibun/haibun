@@ -6,6 +6,7 @@ Tests accessibility after browser action.
 using timeout of 1000ms
 Backgrounds: service/counter, int/counter
     serve files at /static from "counter"
+    webserver is listening for "after-every"
     set username to 10 random characters
 
     start tally route at /count

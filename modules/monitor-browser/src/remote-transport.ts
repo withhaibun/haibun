@@ -7,10 +7,11 @@ import type { ITransport } from './sse-transport.js';
 export class RemoteTransport implements ITransport {
   constructor(private ingestUrl: string, private logger: IEventLogger) { }
 
+  // biome-ignore lint/suspicious/noExplicitAny: generic message handler
   send(message: any): void {
     // Only send events, not init/finalize control messages for now unless ingest supports them
     if (message.type === 'event') {
-      this.post(message.event);
+      void this.post(message.event);
     }
   }
 

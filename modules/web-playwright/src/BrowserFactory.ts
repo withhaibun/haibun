@@ -52,10 +52,8 @@ export class BrowserFactory {
 		const browserOptions: LaunchOptions = { ...config.options, ...config.launchOptions }
 		if (!BrowserFactory.browsers[type]) {
 			BrowserFactory.browsers[type] = await config.browserType.launch(browserOptions);
-			const browser = BrowserFactory.browsers[type];
-
-			return browser;
 		}
+		return BrowserFactory.browsers[type];
 	}
 
 	public getExistingBrowserContextWithTag({ featureNum }: { featureNum: number }) {

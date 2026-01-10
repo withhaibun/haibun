@@ -9,6 +9,7 @@ Feature: Form-based Authentication
     set Unauthorized to 401
 
     serve files at /static from "rest"
+    webserver is listening for "auth-form"
     make auth scheme "basic"
     using timeout of 1500ms
 

@@ -17,7 +17,7 @@ export const getPorts = (mode: string = process.env.NODE_ENV || 'development') =
         return acc;
       }, {} as Record<string, string>);
       env = { ...env, ...parsed };
-    } catch (e) {
+    } catch (_e) {
       // Ignore error reading .env
     }
   }
