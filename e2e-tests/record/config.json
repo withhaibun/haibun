@@ -1,0 +1,13 @@
+{
+  "steppers": [
+    "@haibun/web-playwright",
+    "@haibun/storage-fs/build/storage-fs",
+    "@haibun/recorder",
+    "@haibun/monitor-browser",
+    "@haibun/monitor-tui",
+    "haibun",
+    "debugger-stepper",
+    "logic-stepper",
+    "variables-stepper"
+  ]
+}
