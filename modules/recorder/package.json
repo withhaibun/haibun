@@ -1,0 +1,23 @@
+{
+  "name": "@haibun/recorder",
+  "version": "3.3.0",
+  "description": "Record browser interactions and generate Haibun .feature files",
+  "main": "build/index.js",
+  "type": "module",
+  "files": [
+    "build"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "@haibun/core": "3.3.0",
+    "@haibun/web-playwright": "3.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "typescript": "^5.8.2",
+    "vitest": "^3.1.1"
+  }
+}
