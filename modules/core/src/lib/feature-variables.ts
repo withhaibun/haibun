@@ -51,7 +51,7 @@ export class FeatureVariables {
 	}
 
 	toString() {
-		return `context ${this.world.tag} values ${Object.keys(this.values).length}`;
+		return `tag ${this.world.tag} values ${Object.keys(this.values).length}`;
 	}
 
 	setJSON(label: string, value: object, origin: TOrigin, source: TFeatureStep) {
@@ -118,7 +118,7 @@ export class FeatureVariables {
 					predicate: domainKey,  // Domain IS the predicate
 					object: normalized.value,
 					namedGraph: SHARED_GRAPH,
-					// Move provenance to separate quads in meta context, don't embed
+					// Move provenance to separate quads in meta namedGraph, don't embed
 				}
 			},
 		});
@@ -255,18 +255,19 @@ export class FeatureVariables {
 	 * Query quads. The predicate IS the domain type.
 	 * Example: queryQuads({ predicate: 'roles' }) to find all role-typed values.
 	 */
-	queryQuads(pattern: { subject?: string; predicate?: string; object?: unknown; context?: string }): TQuad[] {
-		return this.store.query(pattern);
+	queryQuads(pattern: { subject?: string; predicate?: string; object?: unknown; namedGraph?: string }): TQuad[] {
+		const queryPattern: Record<string, unknown> = { ...pattern, namedGraph: pattern.namedGraph };
+		return this.store.query(queryPattern);
 	}
 
 	/** Check existence of a quad */
-	existsQuad(pattern: { subject?: string; predicate?: string; object?: unknown; context?: string }): boolean {
-		return this.store.query(pattern).length > 0;
+	existsQuad(pattern: { subject?: string; predicate?: string; object?: unknown; namedGraph?: string }): boolean {
+		return this.queryQuads(pattern).length > 0;
 	}
 
 	/** Count quads matching pattern */
-	countQuads(pattern: { subject?: string; predicate?: string; object?: unknown; context?: string }): number {
-		return this.store.query(pattern).length;
+	countQuads(pattern: { subject?: string; predicate?: string; object?: unknown; namedGraph?: string }): number {
+		return this.queryQuads(pattern).length;
 	}
 
 	/** Add a quad directly (for non-variable observations like HTTP traces) */
@@ -290,6 +291,11 @@ export class FeatureVariables {
 		} as THaibunEvent);
 	}
 
+	/** Remove quads matching a pattern */
+	removeQuad(pattern: { subject?: string; predicate?: string; object?: unknown; namedGraph?: string }): void {
+		this.store.remove(pattern);
+	}
+
 	/** Get all quads */
 	allQuads(): TQuad[] {
 		return this.store.all();
@@ -304,7 +310,7 @@ export class FeatureVariables {
 		// Domain IS the predicate: (name, domainType, value, shared)
 		this.store.add({ subject: name, predicate: domainKey, object: sv.value, namedGraph: SHARED_GRAPH });
 
-		// Store metadata as separate quads in META context
+		// Store metadata as separate quads in META namedGraph
 		if (sv.origin) {
 			this.store.add({ subject: name, predicate: 'origin', object: sv.origin, namedGraph: META_GRAPH });
 		}

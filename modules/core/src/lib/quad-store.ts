@@ -1,7 +1,7 @@
 /**
  * QuadStore - In-memory quad store for observations
  * 
- * Stores observations as Subject-Predicate-Object-Context quads with timestamps.
+ * Stores observations as Subject-Predicate-Object-namedGraph quads with timestamps.
  * This is the unified data model for all shared state in Haibun.
  */
 
@@ -40,6 +40,16 @@ export class QuadStore implements IQuadStore {
     } else {
       this.quads = [];
     }
+  }
+
+  remove(pattern: TQuadPattern): void {
+    this.quads = this.quads.filter(q => {
+      if (pattern.subject !== undefined && q.subject !== pattern.subject) return true;
+      if (pattern.predicate !== undefined && q.predicate !== pattern.predicate) return true;
+      if (pattern.object !== undefined && q.object !== pattern.object) return true;
+      if (pattern.namedGraph !== undefined && q.namedGraph !== pattern.namedGraph) return true;
+      return false; // Match found, filter it out
+    });
   }
 
   all(): TQuad[] {
