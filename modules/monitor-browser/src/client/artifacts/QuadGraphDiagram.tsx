@@ -134,7 +134,7 @@ export function QuadGraphDiagram({
     let source = `graph ${layout}\n`;
 
     // Track nodes
-    const nodes = new Map<string, { label: string; type: 'subject' | 'object' | 'predicate'; namedGraph?: string; hasLabel?: boolean; firstSeenIndex: number }>();
+    const nodes = new Map<string, { id: string; label: string; type: 'subject' | 'object' | 'predicate'; namedGraph?: string; hasLabel?: boolean; firstSeenIndex: number }>();
     const edges: { from: string; to: string; label: string; index: number }[] = [];
 
     // Collect labels
@@ -151,13 +151,15 @@ export function QuadGraphDiagram({
     universeQuads.forEach((quad, idx) => {
       if (quad.predicate === RDFS_LABEL) return;
 
-      const subjectId = 'n_' + sanitizeId(quad.subject);
-      const objectId = 'n_' + sanitizeId(stringifyObject(quad.object));
+      const subjectRaw = quad.subject;
+      const objectRaw = stringifyObject(quad.object);
 
-      if (!nodes.has(subjectId)) {
-        const hasLabel = labels.has(quad.subject);
-        nodes.set(subjectId, {
-          label: labels.get(quad.subject) ?? truncate(quad.subject, 25),
+      if (!nodes.has(subjectRaw)) {
+        const id = `n${nodes.size + 1}`;
+        const hasLabel = labels.has(subjectRaw);
+        nodes.set(subjectRaw, {
+          id,
+          label: labels.get(subjectRaw) ?? subjectRaw,
           type: 'subject',
           namedGraph: quad.namedGraph,
           hasLabel: !!hasLabel,
@@ -165,11 +167,12 @@ export function QuadGraphDiagram({
         });
       }
 
-      if (!nodes.has(objectId)) {
-        const objStr = stringifyObject(quad.object);
-        const hasLabel = labels.has(objStr);
-        nodes.set(objectId, {
-          label: labels.get(objStr) ?? truncate(objStr, 25),
+      if (!nodes.has(objectRaw)) {
+        const id = `n${nodes.size + 1}`;
+        const hasLabel = labels.has(objectRaw);
+        nodes.set(objectRaw, {
+          id,
+          label: labels.get(objectRaw) ?? objectRaw,
           type: 'object',
           namedGraph: quad.namedGraph,
           hasLabel: !!hasLabel,
@@ -177,12 +180,17 @@ export function QuadGraphDiagram({
         });
       }
 
-      edges.push({
-        from: subjectId,
-        to: objectId,
-        label: quad.predicate,
-        index: idx
-      });
+      const subjectNode = nodes.get(subjectRaw);
+      const objectNode = nodes.get(objectRaw);
+
+      if (subjectNode && objectNode) {
+        edges.push({
+          from: subjectNode.id,
+          to: objectNode.id,
+          label: quad.predicate,
+          index: idx
+        });
+      }
     });
 
     // Generate Subgraphs
@@ -196,12 +204,13 @@ export function QuadGraphDiagram({
 
     nodesByContext.forEach((nodeIds, context) => {
       const safeContext = sanitizeId(context);
-      source += `  subgraph ${safeContext} [${context}]\n`;
+      source += `  subgraph ${safeContext} ["${context}"]\n`;
       nodeIds.forEach(id => {
+        // nodeIds contains the raw subject/object strings
         const node = nodes.get(id);
         if (node) {
-          const shape = getNodeShape(node.type, id);
-          source += `    ${id}${shape.open}${escapeLabel(node.label)}${shape.close}\n`;
+          const shape = getNodeShape(node.type, node.id);
+          source += `    ${node.id}${shape.open}${escapeLabel(node.label)}${shape.close}\n`;
         }
       });
       source += '  end\n';
@@ -210,13 +219,15 @@ export function QuadGraphDiagram({
     // Generate Edges
     edges.forEach((edge) => {
       source += `  ${edge.from} -->|${escapeLabel(edge.label)}| ${edge.to}\n`;
-      source += `  linkStyle ${edges.indexOf(edge)} stroke:#333,stroke-width:1px;\n`;
     });
 
-    // Add context-based styling (calls helper from strict scope)
+    // Add context-based styling
     source += generateContextStyles(universeQuads, nodes);
 
-    return { mermaidSource: source, nodes, edges };
+    const nodesById = new Map<string, { id: string; label: string; type: 'subject' | 'object' | 'predicate'; namedGraph?: string; hasLabel?: boolean; firstSeenIndex: number }>();
+    nodes.forEach(n => nodesById.set(n.id, n));
+
+    return { mermaidSource: source, nodes: nodesById, edges };
   }, [universeQuads, layout]);
 
   // Active quads count calculated inline where needed (currently unused)
@@ -617,25 +628,25 @@ function getClassColor(className: string): string {
   return COLORS[index];
 }
 
-function generateContextStyles(quads: TQuad[], nodes: Map<string, unknown>): string {
+function generateContextStyles(quads: TQuad[], nodes: Map<string, { id: string }>): string {
   let styles = '';
 
   // Group subjects by context
   const subjectContexts = new Map<string, string>();
   quads.forEach(q => {
     if (q.namedGraph) {
-      const subjectId = sanitizeId(q.subject);
-      if (!subjectContexts.has(subjectId)) {
-        subjectContexts.set(subjectId, q.namedGraph);
+      if (!subjectContexts.has(q.subject)) {
+        subjectContexts.set(q.subject, q.namedGraph);
       }
     }
   });
 
   // Apply context-based styling
-  subjectContexts.forEach((context, id) => {
-    if (nodes.has(id)) {
+  subjectContexts.forEach((context, rawSubject) => {
+    const node = nodes.get(rawSubject);
+    if (node) {
       const color = getClassColor(context);
-      styles += `  style ${id} stroke:${color},stroke-width:2px\n`;
+      styles += `  style ${node.id} stroke:${color},stroke-width:2px\n`;
     }
   });
   return styles;
@@ -658,24 +669,30 @@ export function generateGraphFromQuads(quads: TQuad[], namedGraphFilter?: string
   if (filteredQuads.length === 0) return '';
 
   let source = 'graph TD\n';
-  const nodes = new Map<string, string>();
+  const nodes = new Map<string, { id: string; label: string }>();
 
   filteredQuads.forEach((quad, idx) => {
-    const subjectId = sanitizeId(quad.subject);
-    const objectId = sanitizeId(stringifyObject(quad.object));
+    const subjectRaw = quad.subject;
+    const objectRaw = stringifyObject(quad.object);
 
-    if (!nodes.has(subjectId)) {
-      const shape = getNodeShape('subject', subjectId);
-      source += `  ${subjectId}${shape.open}${escapeLabel(truncate(quad.subject, 25))}${shape.close}\n`;
-      nodes.set(subjectId, quad.subject);
+    if (!nodes.has(subjectRaw)) {
+      const id = `n${nodes.size + 1}`;
+      const shape = getNodeShape('subject', id);
+      source += `  ${id}${shape.open}${escapeLabel(subjectRaw)}${shape.close}\n`;
+      nodes.set(subjectRaw, { id, label: subjectRaw });
     }
-    if (!nodes.has(objectId)) {
-      const shape = getNodeShape('object', objectId);
-      source += `  ${objectId}${shape.open}${escapeLabel(truncate(stringifyObject(quad.object), 25))}${shape.close}\n`;
-      nodes.set(objectId, stringifyObject(quad.object));
+    if (!nodes.has(objectRaw)) {
+      const id = `n${nodes.size + 1}`;
+      const shape = getNodeShape('object', id);
+      source += `  ${id}${shape.open}${escapeLabel(objectRaw)}${shape.close}\n`;
+      nodes.set(objectRaw, { id, label: objectRaw });
     }
 
-    source += `  ${subjectId} -->|${escapeLabel(quad.predicate)}| ${objectId}\n`;
+    const sNode = nodes.get(subjectRaw);
+    const oNode = nodes.get(objectRaw);
+    if (sNode && oNode) {
+      source += `  ${sNode.id} -->|${escapeLabel(quad.predicate)}| ${oNode.id}\n`;
+    }
   });
 
   return source;

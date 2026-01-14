@@ -15,8 +15,7 @@ export function escapeLabel(label: string): string {
     .replace(/\|/g, '')
     .replace(/\n/g, ' ')
     .replace(/[[\]{}()<>]/g, '')
-    .replace(/[#;&]/g, '')
-    .substring(0, 40);
+    .replace(/[#;&]/g, '');
 }
 
 /**
