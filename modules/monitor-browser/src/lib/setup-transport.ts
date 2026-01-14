@@ -59,9 +59,9 @@ async function setupNew(monitorBrowser: MonitorBrowserStepper, configuredPort: n
   const captureRoot = monitorBrowser.storage.getArtifactBasePath();
   if (captureRoot) {
     server.app.use('/featn-*', serveStatic({
-      root: path.dirname(captureRoot), // Parent of captureRoot since /featn-N is included in the path
+      root: captureRoot, // Files are at captureRoot/featn-N/..., requests come as /featn-N/...
       rewriteRequestPath: (reqPath) => {
-        // Keep the /featn-N/... path as-is relative to the capture directory's parent
+        // Keep the /featn-N/... path as-is relative to captureRoot
         return reqPath;
       }
     }));
