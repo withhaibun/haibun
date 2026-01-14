@@ -250,7 +250,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 		gwta: `go to the {name} ${WEB_PAGE}`,
 		action: async ({ name }: { name: string }) => {
 			const response = await wp.withPage<Response | null>(async (page: Page) => {
-				const res = await page.goto(name, { waitUntil: 'domcontentloaded' });
+				const res = await page.goto(name);
 				await wp.waitForLoaded(page);
 				return res;
 			});
@@ -258,7 +258,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 			return response?.ok() ? OK : actionNotOK(`response not ok`, { topics });
 		},
 	},
-	waitForNetworkIdle: {
+	pageHasSettled: {
 		gwta: 'page has settled',
 		action: async () => {
 			await wp.withPage(async (page: Page) => {
