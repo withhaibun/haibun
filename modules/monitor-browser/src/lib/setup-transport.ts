@@ -54,6 +54,19 @@ async function setupNew(monitorBrowser: MonitorBrowserStepper, configuredPort: n
   const filesBase = path.join(process.cwd(), 'files');
   const server = new ServerHono(monitorBrowser.getWorld().eventLogger, filesBase);
 
+  // Serve capture artifacts (images, videos, etc.) from the storage location
+  // Must be registered before wildcard static routes
+  const captureRoot = monitorBrowser.storage.getArtifactBasePath();
+  if (captureRoot) {
+    server.app.use('/featn-*', serveStatic({
+      root: path.dirname(captureRoot), // Parent of captureRoot since /featn-N is included in the path
+      rewriteRequestPath: (reqPath) => {
+        // Keep the /featn-N/... path as-is relative to the capture directory's parent
+        return reqPath;
+      }
+    }));
+  }
+
   // Asset Serving (Dev vs Prod)
   let checkDev: Response | null = null;
   try {
