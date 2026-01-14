@@ -44,6 +44,17 @@ type TRequestOptions = {
 export type TWithPageCallback<TReturn> = (pageOrLocator: Page | Locator) => TReturn | Promise<TReturn>;
 
 export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
+	async waitForLoaded(page: Page) {
+		const now = Date.now();
+		try {
+			await page.waitForLoadState('domcontentloaded', { timeout: 1900 });
+			await page.waitForTimeout(500);
+			await page.waitForLoadState('networkidle', { timeout: 1900 });
+		} catch (e) {
+			this.getWorld().eventLogger.warn(`waitForLoaded had error ${e.message} after ${Date.now() - now}ms, continuing...`);
+			return e
+		}
+	}
 	description = 'Navigate pages, click elements, fill forms, capture screenshots, and make REST API calls';
 
 	cycles = cycles(this);

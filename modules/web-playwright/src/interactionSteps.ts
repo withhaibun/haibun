@@ -249,29 +249,20 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 	gotoPage: {
 		gwta: `go to the {name} ${WEB_PAGE}`,
 		action: async ({ name }: { name: string }) => {
-			let networkIdleTimeout: Error | undefined = undefined;
 			const response = await wp.withPage<Response | null>(async (page: Page) => {
 				const res = await page.goto(name, { waitUntil: 'domcontentloaded' });
-				await page.waitForTimeout(500);
-				try {
-					await page.waitForLoadState('networkidle', { timeout: wp.factoryOptions.defaultTimeout });
-				} catch (e) {
-					networkIdleTimeout = e;
-				}
+				await wp.waitForLoaded(page);
 				return res;
 			});
-			if (networkIdleTimeout) {
-				wp.getWorld().eventLogger.warn(`Network had error ${networkIdleTimeout.message} after ${wp.factoryOptions.defaultTimeout}ms, continuing...`);
-			}
-			const topics = { ...(response?.allHeaders() || {}), summary: response?.statusText(), networkIdleTimeout };
+			const topics = { ...(response?.allHeaders() || {}), summary: response?.statusText() };
 			return response?.ok() ? OK : actionNotOK(`response not ok`, { topics });
 		},
 	},
 	waitForNetworkIdle: {
-		gwta: 'wait for network idle',
+		gwta: 'page has settled',
 		action: async () => {
 			await wp.withPage(async (page: Page) => {
-				await page.waitForLoadState('networkidle');
+				await wp.waitForLoaded(page);
 			});
 			return OK;
 		},
