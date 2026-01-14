@@ -251,7 +251,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		is: {
 			gwta: 'variable {what} is {value}',
 			handlesUndefined: ['what', 'value'],
-			action: (args: TStepArgs, featureStep: TFeatureStep) => {
+			action: (_: TStepArgs, featureStep: TFeatureStep) => {
 				const { term: rawTerm } = featureStep.action.stepValuesMap.what;
 				const interpolated = this.interpolateTemplate(rawTerm, featureStep);
 				if (interpolated.error) return actionNotOK(interpolated.error);

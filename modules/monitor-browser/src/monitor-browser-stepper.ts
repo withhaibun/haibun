@@ -1,5 +1,6 @@
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import path from 'path';
 
 import { AStepper, IHasCycles, IHasOptions, StepperKinds } from '@haibun/core/lib/astepper.js';
 import { IStepperCycles, TWorld } from '@haibun/core/lib/defs.js';
@@ -12,7 +13,6 @@ import { JITSerializer } from '@haibun/core/monitor/index.js';
 import { EMediaTypes } from '@haibun/domain-storage/media-types.js';
 import { ITransport } from './sse-transport.js';
 import { setupTransport } from './lib/setup-transport.js';
-import path from 'path';
 
 export const LOG_HOST_STARTED = 'MonitorBrowser: Starting as Host on port';
 export const LOG_CLIENT_PIGGYBACKING = 'MonitorBrowser: Found running monitor on port';
