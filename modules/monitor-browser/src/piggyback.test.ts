@@ -53,7 +53,7 @@ describe('MonitorBrowserStepper Piggybacking', () => {
       HAIBUN_STAY: 'always'
     };
 
-    const projectPath = path.join(ROOT, 'e2e-tests/piggyback-test');
+    const projectPath = path.join(require('os').tmpdir(), 'haibun-piggyback-test');
     fs.mkdirSync(projectPath, { recursive: true });
 
     const config = {
