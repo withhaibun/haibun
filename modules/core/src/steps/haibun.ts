@@ -1,7 +1,7 @@
 import { TFeatureStep, TWorld, IStepperCycles, TFeatures, TResolvedFeature, TStartExecution, TStartFeature, CycleWhen } from '../lib/defs.js';
 import { OK, STEP_DELAY } from '../schema/protocol.js';
 import { AStepper, IHasCycles, TStepperSteps } from '../lib/astepper.js';
-import { actionNotOK, actionOK, formattedSteppers, sleep } from '../lib/util/index.js';
+import { actionNotOK, actionOK, constructorName, formattedSteppers, sleep } from '../lib/util/index.js';
 import { findFeatureStepsFromStatement } from '../phases/Resolver.js';
 import { DOMAIN_STATEMENT } from '../lib/domain-types.js';
 import { findFeatures } from '../lib/features.js';
@@ -21,14 +21,12 @@ class Haibun extends AStepper implements IHasCycles {
 		this.runner = new FlowRunner(world, steppers);
 	}
 	cycles: IStepperCycles = {
-		startExecution(resolvedFeatures: TStartExecution) {
-			// empty
-		},
 		startFeature({ resolvedFeature, index }: TStartFeature) {
 			this.resolvedFeature = resolvedFeature;
+			this.afterEverySteps = {};
 		},
 		afterStep: async ({ featureStep }: { featureStep: TFeatureStep }) => {
-			if (featureStep.isSubStep) {
+			if (featureStep.isAfterEveryStep) {
 				return Promise.resolve({ failed: false });
 			}
 			const afterEvery = this.afterEverySteps[featureStep.action.stepperName];
@@ -38,7 +36,9 @@ class Haibun extends AStepper implements IHasCycles {
 
 				if (stepsToRun.length > 0) {
 					const mode = featureStep.intent?.mode === 'speculative' ? 'speculative' : 'authoritative';
-					const res = await this.runner.runSteps(stepsToRun, { intent: { mode }, parentStep: featureStep });
+					// Mark these steps as afterEvery steps to prevent recursion
+					const markedSteps = stepsToRun.map(s => ({ ...s, isAfterEveryStep: true }));
+					const res = await this.runner.runSteps(markedSteps, { intent: { mode }, parentStep: featureStep });
 					if (res.kind !== 'ok') {
 						failed = true;
 					}
@@ -47,6 +47,7 @@ class Haibun extends AStepper implements IHasCycles {
 			return Promise.resolve({ failed });
 		}
 	};
+
 	cyclesWhen = {
 		startExecution: CycleWhen.LAST,
 		startFeature: CycleWhen.LAST,
@@ -250,10 +251,12 @@ class Haibun extends AStepper implements IHasCycles {
 			handlesUndefined: ['stepperName'],
 			action: ({ statement }: { stepperName: string; statement: TFeatureStep[] }, featureStep: TFeatureStep) => {
 				const { term: stepperName } = featureStep.action.stepValuesMap.stepperName;
-				if (!this.steppers.find(s => s.constructor.name === stepperName)) {
-					return actionNotOK(`Didn't find ${stepperName} from ${this.steppers.map(s => s.constructor.name)}`);
+				const matchedStepper = this.steppers.find(s => constructorName(s) === stepperName);
+				if (!matchedStepper) {
+					return actionNotOK(`Didn't find stepper "${stepperName}" from [${this.steppers.map(s => constructorName(s)).join(', ')}]`);
 				}
-				this.afterEverySteps[stepperName] = statement;
+				// Use constructorName for consistent key (handles vitest naming)
+				this.afterEverySteps[constructorName(matchedStepper)] = statement;
 				return OK;
 			},
 		},

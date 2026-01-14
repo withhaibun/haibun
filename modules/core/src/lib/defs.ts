@@ -143,6 +143,8 @@ export type TFeatureStep = TSourceLocation & {
 	seqPath: TSeqPath;
 	action: TStepAction;
 	isSubStep?: boolean;
+	/** True if this step was triggered by an afterEvery hook (prevents recursive afterEvery) */
+	isAfterEveryStep?: boolean;
 	intent?: ExecutionIntent;
 	/** Runtime args for variable binding in nested quantifier calls */
 	runtimeArgs?: Record<string, string>;

@@ -88,6 +88,8 @@ export class FlowRunner {
 			action,
 			intent,
 			isSubStep: !!options.parentStep,
+			// Propagate isAfterEveryStep from parent to prevent afterEvery recursion
+			isAfterEveryStep: options.parentStep?.isAfterEveryStep,
 			runtimeArgs: Object.keys(mergedArgs).length > 0 ? mergedArgs : undefined
 		};
 
@@ -139,7 +141,7 @@ export class FlowRunner {
 				const baseSeqPath = [...parentStep.seqPath, 1];
 				const dir = intent.mode === 'speculative' ? -1 : 1;
 				const seqPath = incSeqPath(this.world.runtime.stepResults, baseSeqPath, dir);
-				mappedStep = { ...mappedStep, seqPath, isSubStep: true };
+				mappedStep = { ...mappedStep, seqPath, isSubStep: true, isAfterEveryStep: parentStep.isAfterEveryStep || mappedStep.isAfterEveryStep };
 			}
 
 			let result;
