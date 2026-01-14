@@ -48,8 +48,8 @@
     "@haibun/web-playwright": "file:../modules/web-playwright",
     "@haibun/recorder": "file:../modules/recorder",
     "@haibun/web-server-hono": "file:../modules/web-server-hono",
-    "@types/express-fileupload": "^1.4.1",
-    "express-fileupload": "^1.4.0",
-    "typescript": "~5.8"
+    "@types/express-fileupload": "^1.5.1",
+    "express-fileupload": "^1.5.2",
+    "typescript": "~5.9"
   }
 }
