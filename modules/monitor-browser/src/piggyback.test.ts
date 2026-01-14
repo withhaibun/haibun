@@ -113,7 +113,7 @@ describe('MonitorBrowserStepper Piggybacking', () => {
         ingested = true;
       }
     };
-    hostProcess.stdout?.on('data', checkIngest);
+    hostProcess.stderr?.on('data', checkIngest);
 
     const result = await passWithDefaults(
       [{ path: '/f.feature', content: 'Piggy.' }],
@@ -129,7 +129,7 @@ describe('MonitorBrowserStepper Piggybacking', () => {
 
     // Give it a moment to process the async fetch
     await new Promise(resolve => setTimeout(resolve, 2000));
-    hostProcess.stdout?.off('data', checkIngest);
+    hostProcess.stderr?.off('data', checkIngest);
 
     expect(ingested, 'Host should have ingested events from the piggybacker').toBe(true);
   });
