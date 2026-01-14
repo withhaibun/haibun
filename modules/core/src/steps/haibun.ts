@@ -250,6 +250,9 @@ class Haibun extends AStepper implements IHasCycles {
 			handlesUndefined: ['stepperName'],
 			action: ({ statement }: { stepperName: string; statement: TFeatureStep[] }, featureStep: TFeatureStep) => {
 				const { term: stepperName } = featureStep.action.stepValuesMap.stepperName;
+				if (!this.steppers.find(s => s.constructor.name === stepperName)) {
+					return actionNotOK(`Didn't find ${stepperName} from ${this.steppers.map(s => s.constructor.name)}`);
+				}
 				this.afterEverySteps[stepperName] = statement;
 				return OK;
 			},
