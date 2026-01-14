@@ -248,7 +248,8 @@ class Haibun extends AStepper implements IHasCycles {
 			precludes: [`Haibun.prose`],
 			gwta: `after every {stepperName: string}, {statement: ${DOMAIN_STATEMENT}}`,
 			handlesUndefined: ['stepperName'],
-			action: ({ stepperName, statement }: { stepperName: string; statement: TFeatureStep[] }) => {
+			action: ({ statement }: { stepperName: string; statement: TFeatureStep[] }, featureStep: TFeatureStep) => {
+				const { term: stepperName } = featureStep.action.stepValuesMap.stepperName;
 				this.afterEverySteps[stepperName] = statement;
 				return OK;
 			},

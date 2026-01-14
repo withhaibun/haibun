@@ -1,7 +1,7 @@
 import { TEnvVariables } from '@haibun/core/lib/defs.js';
 import { CONTINUE_AFTER_ERROR, STAY_ALWAYS, STAY_FAILURE, STEP_DELAY } from '@haibun/core/schema/protocol.js';
 import { IHasOptions } from '@haibun/core/lib/astepper.js';
-import { boolOrError, intOrError, optionOrError, randomString, stringOrError } from '@haibun/core/lib/util/index.js';
+import { boolOrError, intOrError, optionOrError, stringOrError } from '@haibun/core/lib/util/index.js';
 
 const LOGGER_LEVELS = { debug: 0, trace: 1, log: 2, info: 3, warn: 4, error: 5, none: 6 };
 

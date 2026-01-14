@@ -1,24 +1,9 @@
 
 Scenario: After-every
 
-Tests accessibility after browser action.
-
-using timeout of 1000ms
-Backgrounds: service/counter, int/counter
-    serve files at /static from "counter"
-    webserver is listening for "after-every"
-    set username to 10 random characters
-
-    start tally route at /count
-    using timeout of 2000ms
-    
-    after every WebPlaywright, page is accessible accepting serious 9 and moderate 9
-    go to the counter webpage
-    input username for user name
-    click Submit
-
-    URI query parameter "username" is username
-    save URI query parameter "username" to "username parameter"
-    matches WebPlaywright.currentURI with "{counter URI}*"
-    should see username
-    cookie "userid" is username
+set counter as number to 0
+after every Haibun, increment counter
+variable counter is 1
+It's already at 1 because of Haibun after every, but after this prose it will be 2.
+This should also increment counter.
+variable counter is 3.
