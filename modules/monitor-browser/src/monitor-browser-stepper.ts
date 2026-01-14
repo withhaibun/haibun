@@ -20,7 +20,7 @@ export const LOG_INGESTED = 'MonitorBrowser: Ingested event from piggybacker';
 
 export default class MonitorBrowserStepper extends AStepper implements IHasCycles, IHasOptions {
   description = 'Real-time browser dashboard with SSE events and debugging';
-  port = 0;
+  port = 3459;
 
   kind = StepperKinds.MONITOR;
   static transport: ITransport;
