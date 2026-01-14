@@ -32,17 +32,17 @@
   "dependencies": {
     "@haibun/core": "3.3.0",
     "@hono/mcp": "^0.2.3",
-    "@hono/node-server": "^1.19.7",
-    "@modelcontextprotocol/sdk": "^1.25.1",
-    "hono": "^4.11.3",
-    "zod": "^3.24.0",
+    "@hono/node-server": "^1.19.9",
+    "@modelcontextprotocol/sdk": "^1.25.2",
+    "hono": "^4.11.4",
+    "zod": "^3.25.76",
     "zod-to-json-schema": "^3.25.1"
   },
   "devDependencies": {
     "@haibun/web-http": "3.3.0",
-    "@types/node": "^24.10.0",
+    "@types/node": "^24.10.8",
     "eventsource": "^3.0.7",
-    "typescript": "^5.8.2",
-    "vitest": "^3.1.1"
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
   }
 }
