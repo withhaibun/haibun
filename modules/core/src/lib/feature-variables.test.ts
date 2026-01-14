@@ -90,7 +90,7 @@ describe('FeatureVariables', () => {
 	describe('toString', () => {
 		it('should return string representation', () => {
 			const str = variables.toString();
-			expect(str).toContain('context');
+			expect(str).toContain('tag');
 			expect(str).toContain(world.tag);
 		});
 	});

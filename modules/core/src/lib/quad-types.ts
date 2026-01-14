@@ -29,8 +29,11 @@ export interface IQuadStore {
   /** Select the most recent value for a subject-predicate pair */
   select(subject: string, predicate: string): unknown | undefined;
 
-  /** Clear quads, optionally filtered by context */
-  clear(context?: string): void;
+  /** Clear quads, optionally filtered by namedGraph */
+  clear(namedGraph?: string): void;
+
+  /** Remove quads matching a pattern */
+  remove(pattern: TQuadPattern): void;
 
   /** Get all quads */
   all(): TQuad[];
