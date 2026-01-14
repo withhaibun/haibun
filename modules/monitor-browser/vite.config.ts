@@ -40,6 +40,12 @@ export default defineConfig(({ mode }) => {
     server: {
       host: '0.0.0.0',
       port: clientPort,
+      watch: {
+        ignored: [path.resolve(__dirname, 'capture/**')],
+      },
+      fs: {
+        deny: [path.resolve(__dirname, 'capture')],
+      },
       proxy: {
         '/sse': {
           target: `http://localhost:${serverPort}`,
@@ -51,6 +57,9 @@ export default defineConfig(({ mode }) => {
           rewrite: (path) => path.replace(/^\/artifacts/, ''),
         }
       }
+    },
+    optimizeDeps: {
+      entries: ['index.html'],
     },
     resolve: {
       alias: {
