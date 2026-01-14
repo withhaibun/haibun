@@ -1,8 +1,0 @@
-{
-  "steppers": [
-    "/workspace/modules/monitor-browser/build/monitor-browser-stepper",
-    "/workspace/modules/storage-fs/build/storage-fs",
-    "/workspace/modules/core/build/steps/haibun"
-  ],
-  "options": {}
-}
