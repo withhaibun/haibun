@@ -21,8 +21,10 @@ export function MermaidArtifact({ artifact, containerClassName, onRender, unstyl
       theme: 'default',
       securityLevel: 'loose',
       fontFamily: 'ui-sans-serif, system-ui, sans-serif',
-      maxTextSize: 90000, // Increase max text size limit
+      maxTextSize: 10000000,
+      maxEdges: 50000,
       htmlLabels: true,
+      layout: 'elk',
     });
   }, []);
 
