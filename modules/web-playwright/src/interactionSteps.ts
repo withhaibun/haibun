@@ -249,9 +249,10 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 	gotoPage: {
 		gwta: `go to the {name} ${WEB_PAGE}`,
 		action: async ({ name }: { name: string }) => {
-			let networkIdleTimeout = false;
+			let networkIdleTimeout: Error | undefined = undefined;
 			const response = await wp.withPage<Response | null>(async (page: Page) => {
 				const res = await page.goto(name, { waitUntil: 'domcontentloaded' });
+				await page.waitForTimeout(500);
 				try {
 					await page.waitForLoadState('networkidle', { timeout: wp.factoryOptions.defaultTimeout });
 				} catch (e) {
@@ -260,7 +261,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 				return res;
 			});
 			if (networkIdleTimeout) {
-				wp.getWorld().eventLogger.warn(`Network had error ${networkIdleTimeout} after ${wp.factoryOptions.defaultTimeout}ms, continuing...`);
+				wp.getWorld().eventLogger.warn(`Network had error ${networkIdleTimeout.message} after ${wp.factoryOptions.defaultTimeout}ms, continuing...`);
 			}
 			const topics = { ...(response?.allHeaders() || {}), summary: response?.statusText(), networkIdleTimeout };
 			return response?.ok() ? OK : actionNotOK(`response not ok`, { topics });
