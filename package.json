@@ -42,7 +42,7 @@
     "depcruise": "depcruise -c .dependency-cruiser.cjs -T dot modules | dot -T svg | depcruise-wrap-stream-in-html > dependency-graph.html",
     "preversion": "npm run test"
   },
-  "version": "3.4.0",
+  "version": "3.5.0",
   "overrides": {
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
