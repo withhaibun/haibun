@@ -1,1 +1,1 @@
-export const currentVersion = '--with-tag=v2';
+export const currentVersion = '--with-tasadfds';
