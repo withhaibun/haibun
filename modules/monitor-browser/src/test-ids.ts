@@ -25,6 +25,7 @@ export const TEST_IDS = {
     RAW: 'view-raw',
     DOCUMENT: 'view-document',
     LATEST_EVENT: 'view-latest-event',
+    FIRST_ROW: 'view-first-row',
   },
   DETAILS: {
     RESIZE_HANDLE: 'details-resize-handle',

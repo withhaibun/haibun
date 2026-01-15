@@ -170,14 +170,6 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				const effectiveDomain = (domain === DOMAIN_STRING && existing?.domain) ? existing.domain : (domain || DOMAIN_STRING);
 
 				const result = trySetVariable(this.getWorld().shared, { term, value: resolved.value, domain: effectiveDomain, origin }, provenanceFromFeatureStep(featureStep));
-				if (result.ok) {
-					this.getWorld().eventLogger.log(featureStep, 'info', `set ${term} to ${resolved.value}`, {
-						variable: term,
-						newValue: resolved.value,
-						domain: effectiveDomain,
-						operation: 'set'
-					});
-				}
 				return result;
 			}
 		},
