@@ -1,1 +1,1 @@
-export const currentVersion = '--with-tasadfds';
+export const currentVersion = '2.2.2';
