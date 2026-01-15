@@ -1,32 +1,46 @@
-
-import path from "path"
-import { fileURLToPath } from "url"
-import react from "@vitejs/plugin-react"
-import { defineConfig, loadEnv } from "vite"
-import { readFileSync } from 'fs';
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { readFileSync } from 'node:fs';
+import react from "@vitejs/plugin-react";
+import { defineConfig, loadEnv, createLogger, type PluginOption } from "vite";
 import { viteSingleFile } from 'vite-plugin-singlefile';
 import { visualizer } from 'rollup-plugin-visualizer';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const tsconfigRaw = JSON.parse(readFileSync(path.join(__dirname, 'tsconfig.client.json'), 'utf-8'));
 
+// 1. Setup Custom Logger with a "one-time" warning
+const logger = createLogger();
+const originalError = logger.error;
+let hasWarned = false;
 
-// Helper to get ports (usable by backend)
+logger.error = (msg, options) => {
+  if (msg.includes("http proxy error") || msg.includes("ECONNREFUSED")) {
+    if (!hasWarned) {
+      console.warn("\x1b[33m%s\x1b[0m", " [vite] Proxy targets not found (ECONNREFUSED). Silencing further proxy errors...");
+      hasWarned = true;
+    }
+    return;
+  }
+  originalError(msg, options);
+};
+
+// 2. Helper to get ports
 export const getPorts = (mode: string = process.env.NODE_ENV || 'development') => {
   const env = loadEnv(mode, process.cwd(), '');
   return {
-    clientPort: parseInt(env.HAIBUN_O_MONITOR_CLIENT_PORT || '3465', 10),
-    proxiedPort: parseInt(env.HAIBUN_O_MONITOR_SERVER_PORT || '3459', 10)
+    clientPort: Number.parseInt(env.HAIBUN_O_MONITOR_CLIENT_PORT || '3465', 10),
+    proxiedPort: Number.parseInt(env.HAIBUN_O_MONITOR_SERVER_PORT || '3459', 10)
   };
 };
 
 export default defineConfig(({ mode }) => {
   const { clientPort, proxiedPort: serverPort } = getPorts(mode);
+  const tsconfigContent = readFileSync(path.join(__dirname, 'tsconfig.client.json'), 'utf-8');
 
   return {
+    customLogger: logger,
     plugins: [
-      // biome-ignore lint/suspicious/noExplicitAny: vite plugin types
-      react() as any,
+      react() as PluginOption,
       viteSingleFile({
         useRecommendedBuildConfig: true,
         removeViteModuleLoader: true,
@@ -35,7 +49,7 @@ export default defineConfig(({ mode }) => {
         filename: 'dist/client/stats.html',
         gzipSize: true,
         brotliSize: true,
-      }),
+      }) as unknown as PluginOption,
     ],
     server: {
       host: '0.0.0.0',
@@ -50,16 +64,14 @@ export default defineConfig(({ mode }) => {
         '/sse': {
           target: `http://localhost:${serverPort}`,
           changeOrigin: true,
+          ws: true,
         },
         '/artifacts': {
           target: `http://localhost:${serverPort}`,
           changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/artifacts/, ''),
+          rewrite: (p) => p.replace(/^\/artifacts/, ''),
         }
       }
-    },
-    optimizeDeps: {
-      entries: ['index.html'],
     },
     resolve: {
       alias: {
@@ -86,12 +98,12 @@ export default defineConfig(({ mode }) => {
       }
     },
     esbuild: {
-      tsconfigRaw
+      tsconfigRaw: JSON.parse(tsconfigContent)
     },
     test: {
       globals: true,
       environment: 'jsdom',
       setupFiles: [path.resolve(__dirname, '../../vitest.setup.ts')],
     }
-  }
-})
+  };
+});

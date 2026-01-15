@@ -22,6 +22,7 @@ export const features: TKirejiExport = {
     Test_IDs_setup,
 
     'Scenario: A user opens the Haibun Monitor to review execution data.',
+    `after every WebPlaywright, take a screenshot`,
     'serve files from "../../modules/monitor-browser/dist/client" for "self-test assets"',
     'webserver is listening for "self-test"',
     'after every WebPlaywright, take a screenshot',

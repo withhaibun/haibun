@@ -6,7 +6,7 @@ import React, { useState } from 'react';
 import { render, Text, Box, Static, useInput } from 'ink';
 import { AStepper, IHasCycles, StepperKinds } from '@haibun/core/lib/astepper.js';
 import { TWorld } from '@haibun/core/lib/defs.js';
-import { THaibunEvent } from '@haibun/core/schema/protocol.js';
+import type { THaibunEvent } from '@haibun/core/schema/protocol.js';
 import { EventFormatter, THaibunLogLevel } from '@haibun/core/monitor/index.js';
 import { IPrompter, TPrompt, TPromptResponse } from '@haibun/core/lib/prompter.js';
 

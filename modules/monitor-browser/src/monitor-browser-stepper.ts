@@ -5,7 +5,7 @@ import path from 'path';
 import { AStepper, IHasCycles, IHasOptions, StepperKinds } from '@haibun/core/lib/astepper.js';
 import { IStepperCycles, TWorld } from '@haibun/core/lib/defs.js';
 import { OK } from '@haibun/core/schema/protocol.js';
-import { THaibunEvent } from '@haibun/core/schema/protocol.js';
+import type { THaibunEvent } from '@haibun/core/schema/protocol.js';
 import { stringOrError, actualURI, findStepperFromOptionOrKind, intOrError, getStepperOption } from '@haibun/core/lib/util/index.js';
 import { SSEPrompter } from './prompter.js';
 import { AStorage } from '@haibun/domain-storage/AStorage.js';
@@ -23,7 +23,7 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
   port = 3459;
 
   kind = StepperKinds.MONITOR;
-  static transport: ITransport;
+  static transport: ITransport | undefined;
   prompter: SSEPrompter | undefined;
   storage!: AStorage;
   events: THaibunEvent[] = [];
