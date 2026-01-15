@@ -51,7 +51,7 @@ export function trackHttpRequest(world: TWorld, observation: THttpRequestObserva
 
   // Emit quadObservation with hierarchical context for graph visualization
   const timestamp = Date.now();
-  world.eventLogger?.emit({
+  world.eventLogger.emit({
     id: `quad-http-${timestamp}-${id}`,
     timestamp,
     source: 'haibun',
@@ -64,7 +64,7 @@ export function trackHttpRequest(world: TWorld, observation: THttpRequestObserva
         subject: id,
         predicate: 'time',
         object: observation.time,
-        context: 'observation/http',
+        namedGraph: 'observation/http',
       }
     },
   });

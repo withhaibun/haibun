@@ -4,7 +4,7 @@ import { HttpTraceArtifact } from '@haibun/core/schema/protocol.js';
 import { TTag } from '@haibun/core/lib/ttag.js';
 import { TWorld } from '@haibun/core/lib/defs.js';
 import { Origin } from '@haibun/core/schema/protocol.js';
-import { DOMAIN_STRING } from '@haibun/core/lib/domain-types.js';
+import { DOMAIN_LINK, DOMAIN_NUMBER, DOMAIN_STRING } from '@haibun/core/lib/domain-types.js';
 import { trackHttpHost, trackHttpRequest } from '@haibun/core/lib/http-observations.js';
 
 type TEtc = {
@@ -83,8 +83,8 @@ export class PlaywrightEvents {
 			const url = frame.url();
 			const provenance = { in: 'PlaywrightEvents.framenavigated', seq: [] as number[], when: 'framenavigated' };
 
-			this.world.shared.setForStepper('WebPlaywright', { term: 'currentURI', value: url, domain: DOMAIN_STRING, origin: Origin.var }, provenance);
-			this.world.shared.setForStepper('WebPlaywright', { term: 'navigateCount', value: this.navigateCount, domain: DOMAIN_STRING, origin: Origin.var }, provenance);
+			this.world.shared.setForStepper('WebPlaywright', { term: 'currentURI', value: url, domain: DOMAIN_LINK, origin: Origin.var }, provenance, 'observation/playwright');
+			this.world.shared.setForStepper('WebPlaywright', { term: 'navigateCount', value: this.navigateCount, domain: DOMAIN_NUMBER, origin: Origin.var }, provenance, 'observation/playwright');
 
 			// Store visited pages in observations for 'every url observed in visited pages is ...'
 			if (!this.world.runtime.observations) {

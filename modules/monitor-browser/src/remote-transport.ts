@@ -12,6 +12,8 @@ export class RemoteTransport implements ITransport {
     // Only send events, not init/finalize control messages for now unless ingest supports them
     if (message.type === 'event') {
       void this.post(message.event);
+    } else if (message.type === 'init') {
+      void this.post(message);
     }
   }
 

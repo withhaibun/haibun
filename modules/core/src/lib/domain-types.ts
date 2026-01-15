@@ -3,10 +3,11 @@ import { TDomainDefinition, TRegisteredDomain, TWorld } from "./defs.js";
 
 export const DOMAIN_STATEMENT = 'statement';
 export const DOMAIN_STRING = 'string';
+export const DOMAIN_LINK = 'link';
 export const DOMAIN_NUMBER = 'number';
 export const DOMAIN_JSON = 'json';
 export const DOMAIN_DATE = 'date';
-export const BASE_TYPES = [DOMAIN_STRING, DOMAIN_NUMBER, DOMAIN_DATE, DOMAIN_STATEMENT, DOMAIN_JSON];
+export const BASE_TYPES = [DOMAIN_STRING, DOMAIN_LINK, DOMAIN_NUMBER, DOMAIN_DATE, DOMAIN_STATEMENT, DOMAIN_JSON];
 
 export type TEnumDomainInput = {
 	name: string;

@@ -58,15 +58,15 @@ export class FeatureVariables {
 		this.set({ term: label, value: JSON.stringify(value), domain: DOMAIN_JSON, origin }, { in: source.in, seq: source.seqPath, when: `${source.action.stepperName}.${source.action.actionName}` });
 	}
 
-	setForStepper(stepper: string, sv: TStepValue, provenance: TProvenanceIdentifier) {
-		return this._set({ ...sv, term: `${stepper}.${sv.term}` }, provenance);
+	setForStepper(stepper: string, sv: TStepValue, provenance: TProvenanceIdentifier, namedGraph?: string) {
+		return this._set({ ...sv, term: `${stepper}.${sv.term}` }, provenance, namedGraph);
 	}
 
 	unset(name: string) {
 		delete this.values[name];
 	}
 
-	set(sv: TStepValue, provenance: TProvenanceIdentifier) {
+	set(sv: TStepValue, provenance: TProvenanceIdentifier, namedGraph?: string) {
 		if (sv.term.match(/.*\..*/)) {
 			throw Error('non-stepper variables cannot use dots');
 		}
@@ -79,10 +79,10 @@ export class FeatureVariables {
 			throw Error(`Cannot overwrite read-only variable "${sv.term}"`);
 		}
 
-		return this._set(sv, provenance);
+		return this._set(sv, provenance, namedGraph);
 	}
 
-	_set(sv: TStepValue, provenance: TProvenanceIdentifier) {
+	_set(sv: TStepValue, provenance: TProvenanceIdentifier, namedGraph: string = SHARED_GRAPH) {
 		const domainKey = normalizeDomainKey(sv.domain);
 		const domain = this.world.domains[domainKey]
 		if (domain === undefined) {
@@ -100,7 +100,7 @@ export class FeatureVariables {
 		};
 
 		// Store as quad with domain as predicate
-		this.storeAsQuad(sv.term, { ...normalized, provenance: provenances });
+		this.storeAsQuad(sv.term, { ...normalized, provenance: provenances }, namedGraph);
 
 		// Emit quad observation event for real-time graph building
 		const timestamp = Date.now();
@@ -117,11 +117,32 @@ export class FeatureVariables {
 					subject: sv.term,
 					predicate: domainKey,  // Domain IS the predicate
 					object: normalized.value,
-					namedGraph: SHARED_GRAPH,
+					namedGraph,
 					// Move provenance to separate quads in meta namedGraph, don't embed
 				}
 			},
 		});
+
+		// Emit meta quads for origin/provenance/readonly if present
+		if (sv.origin) {
+			this.world.eventLogger?.emit({
+				id: `quad-meta-origin-${timestamp}`,
+				timestamp,
+				source: 'haibun',
+				level: 'debug' as const,
+				kind: 'artifact' as const,
+				artifactType: 'json' as const,
+				mimetype: 'application/json',
+				json: {
+					quadObservation: {
+						subject: sv.term,
+						predicate: 'origin',
+						object: sv.origin,
+						namedGraph: META_GRAPH,
+					}
+				},
+			});
+		}
 	}
 
 	get<T>(name: string): T | undefined {
@@ -305,10 +326,10 @@ export class FeatureVariables {
 	// Private helpers
 	// =========================================================================
 
-	private storeAsQuad(name: string, sv: TStepValue): void {
+	private storeAsQuad(name: string, sv: TStepValue, namedGraph: string = SHARED_GRAPH): void {
 		const domainKey = normalizeDomainKey(sv.domain);
 		// Domain IS the predicate: (name, domainType, value, shared)
-		this.store.add({ subject: name, predicate: domainKey, object: sv.value, namedGraph: SHARED_GRAPH });
+		this.store.add({ subject: name, predicate: domainKey, object: sv.value, namedGraph });
 
 		// Store metadata as separate quads in META namedGraph
 		if (sv.origin) {

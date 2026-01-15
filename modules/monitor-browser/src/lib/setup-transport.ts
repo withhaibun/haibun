@@ -92,7 +92,19 @@ async function setupNew(monitorBrowser: MonitorBrowserStepper, configuredPort: n
   // Add health/ingest endpoints for piggybackers
   server.addRoute('get', '/api/health', (c) => c.text(`OK ${process.pid}`));
   server.addRoute('post', '/api/ingest', async (c) => {
-    const event = await c.req.json();
+    const payload = await c.req.json();
+
+    // Handle control messages (init)
+    // Init messages have type='init' but NO kind (unlike Haibun events)
+    if (payload.type === 'init' && !payload.kind) {
+      monitorBrowser.getWorld().eventLogger.debug(`${LOG_INGESTED}: init`);
+      // console.error(`${LOG_INGESTED}: init`); // Optional: Log init to stderr if needed for tests
+      MonitorBrowserStepper.transport?.send(payload);
+      return c.text('OK');
+    }
+
+    // Default: Handle events
+    const event = payload;
     console.error(`${LOG_INGESTED}: ${event.kind}`);
     monitorBrowser.getWorld().eventLogger.debug(`${LOG_INGESTED}: ${event.kind}`);
     MonitorBrowserStepper.transport?.send({ type: 'event', event });

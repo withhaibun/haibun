@@ -127,9 +127,17 @@ function App() {
                         console.log('Prompt received', msg);
                         setActivePrompt(msg.prompt);
                         setIsPlaying(false);
-                    } else if (msg.type === 'init' && msg.cwd) {
-                        setCwd(msg.cwd);
-                        // Note: Cwd state setter not visible in context, check if declared
+                    } else if (msg.type === 'init') {
+                        if (msg.cwd) setCwd(msg.cwd);
+                        // Reset state on new server connection/init
+                        // CRITICAL: Clear pending buffer so pre-init events don't leak into next render cycle
+                        pendingEventsRef.current = [];
+
+                        setEvents([]);
+                        setStartTime(null);
+                        setCurrentTime(0);
+                        setTimelineError(null);
+                        console.log('[App] Received init, resetting state');
                     } else if (msg.type === 'finalize') {
                         console.log('Finalize received');
                         setIsPlaying(false);
