@@ -23,7 +23,7 @@ interface VideoArtifactProps {
  * Video position = currentTime - (videoStartTimestamp - startTime)
  *                = how far into the video we should be
  */
-export function VideoArtifact({ artifact, currentTime, videoStartTimestamp, startTime, sync = false }: VideoArtifactProps) {
+export function VideoArtifact({ artifact, currentTime, videoStartTimestamp, startTime, sync = false, className }: VideoArtifactProps & { className?: string }) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   // Calculate video time relative to when recording started
@@ -65,7 +65,7 @@ export function VideoArtifact({ artifact, currentTime, videoStartTimestamp, star
   };
 
   return (
-    <div className="haibun-artifact-video w-full max-w-2xl my-2">
+    <div className={className || "haibun-artifact-video w-full max-w-2xl my-2"}>
       <video
         ref={videoRef}
         src={getArtifactUrl(artifact.path)}

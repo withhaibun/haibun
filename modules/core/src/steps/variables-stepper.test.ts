@@ -41,6 +41,35 @@ describe('random vars', () => {
 		expect(result.failure?.error?.message).toContain('Cannot overwrite read-only variable "x"');
 	});
 
+	it('marks variable as secret with explicit syntax', async () => {
+		const content = 'set password as secret string to "hunter2"'
+		const res = await passWithDefaults(content, steppers);
+		expect(res.ok).toBe(true);
+		expect(res.world.shared.isSecret('password')).toBe(true);
+		expect(res.world.shared.get('password')).toBe('hunter2');
+	});
+
+	it('handles mixed secret and non-secret variables', async () => {
+		const content = `set username to "testuser"
+set apiPassword as secret string to "secret-key-123"
+set count to "42"
+variable username is "testuser"
+variable apiPassword is "secret-key-123"
+variable count is "42"`
+		const res = await passWithDefaults(content, steppers);
+		expect(res.ok).toBe(true);
+		expect(res.world.shared.isSecret('username')).toBe(false);
+		expect(res.world.shared.isSecret('apiPassword')).toBe(true);
+		expect(res.world.shared.isSecret('count')).toBe(false);
+	});
+
+	it('auto-detects password in variable name as secret', async () => {
+		const content = 'set dbPassword to "pg-pass-456"'
+		const res = await passWithDefaults(content, steppers);
+		expect(res.ok).toBe(true);
+		expect(res.world.shared.isSecret('dbPassword')).toBe(true);
+	});
+
 	it('assigns random', async () => {
 		const content = 'set r to 70 random characters'
 		const res = await passWithDefaults(content, steppers);

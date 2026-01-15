@@ -73,12 +73,6 @@ export const features: TKirejiExport = {
     'They click end to jump to the most recent event.',
     ...clicks(TEST_IDS.TIMELINE.END),
 
-    'Scenario: The user enables the sequence and quad graph views.',
-    'They click the sequence button to see HTTP request traces.',
-    ...clicks(TEST_IDS.HEADER.TOGGLE_SEQUENCE),
-    'They click the quad button to see knowledge graph data.',
-    ...clicks(TEST_IDS.HEADER.TOGGLE_QUAD),
-
     'Scenario: The user inspects a specific event in detail.',
     'They click on an event in the log to open the details panel.',
     ...clicks(TEST_IDS.VIEWS.LATEST_EVENT),
@@ -86,6 +80,12 @@ export const features: TKirejiExport = {
     ...waitsFor(TEST_IDS.APP.DETAILS_PANEL),
     'The panel header displays the event timestamp and type.',
     ...waitsFor(TEST_IDS.DETAILS.HEADER),
+
+    'Scenario: The user enables the sequence and quad graph views.',
+    'They click the sequence button to see HTTP request traces.',
+    ...clicks(TEST_IDS.HEADER.TOGGLE_SEQUENCE),
+    'They click the quad button to see knowledge graph data.',
+    ...clicks(TEST_IDS.HEADER.TOGGLE_QUAD),
 
     'Scenario: Verify timeline seeking dims future events in log view.',
     'The user is in log view and sees events with timestamps.',
@@ -167,5 +167,57 @@ export const features: TKirejiExport = {
     'Scenario: All testable IDs have been verified.',
     'every id in MonitorTestIds is variable used-{id} is "true"',
     */
+
+    `
+    Scenario: Secret variables are auto-detected by password pattern.
+    set userPassword to "my-secret-password"
+    variable userPassword is "my-secret-password"
+    show var userPassword
+    pause for 1s
+    see "value": "***""
+    not see ""value": "my-secret-password""
+
+    Scenario: Secret variables can be explicitly marked with as secret.
+    set apiKey as secret string to "key-123-abc"
+    variable apiKey is "key-123-abc"
+    show var apiKey
+    pause for 1s
+    see "value": "***""
+    not see ""value": "key-123-abc""
+
+    Scenario: Show vars obscures secrets but shows non-secrets.
+    set publicUsername to "testuser"
+    set dbPassword to "db-secret-pass"
+    show vars
+    pause for 1s
+    see ""publicUsername": "testuser""
+    see ""dbPassword": "***""
+    not see ""dbPassword": "db-secret-pass""
+
+    Scenario: Mixed explicit and auto-detected secrets in show vars.
+    set configApiToken as secret string to "token-xyz"
+    set normalConfig to "visible-config"
+    set adminPassword to "admin-secret"
+    show vars
+    pause for 1s
+    see ""normalConfig": "visible-config""
+    see ""configApiToken": "***""
+    see ""adminPassword": "***""
+    not see ""configApiToken": "token-xyz""
+    not see ""adminPassword": "admin-secret""
+
+    Scenario: Password variations are detected as secret.
+    set PASSWORD_DB to "all-caps-pass"
+    set MyPassword123 to "camel-case-pass"
+    set user_password_hash to "snake-case-pass"
+    show vars
+    pause for 1s
+    see ""PASSWORD_DB": "***""
+    see ""MyPassword123": "***""
+    see ""user_password_hash": "***""
+    not see ""PASSWORD_DB": "all-caps-pass""
+    not see ""MyPassword123": "camel-case-pass""
+    not see ""user_password_hash": "snake-case-pass""
+`,
   ]
 }

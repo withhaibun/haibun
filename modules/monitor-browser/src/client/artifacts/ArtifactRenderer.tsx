@@ -21,7 +21,7 @@ interface ArtifactRendererProps {
   startTime?: number;
 }
 
-export function ArtifactRenderer({ artifact, currentTime, videoStartTimestamp, videoMetadata, displayMode = 'log', onTimeSync, startTime }: ArtifactRendererProps) {
+export function ArtifactRenderer({ artifact, currentTime, videoStartTimestamp, videoMetadata, displayMode = 'log', onTimeSync, startTime, className }: ArtifactRendererProps & { className?: string }) {
   switch (artifact.artifactType) {
     case 'image':
       return <ImageArtifact artifact={artifact} />;
@@ -32,7 +32,7 @@ export function ArtifactRenderer({ artifact, currentTime, videoStartTimestamp, v
       }
 
       // In log/details mode, always show synced video with timeline controls
-      return <VideoArtifact artifact={artifact} currentTime={currentTime} videoStartTimestamp={videoStartTimestamp} startTime={startTime} sync={true} />;
+      return <VideoArtifact artifact={artifact} currentTime={currentTime} videoStartTimestamp={videoStartTimestamp} startTime={startTime} sync={true} className={className} />;
     case 'html':
       return <HtmlArtifact artifact={artifact} />;
     case 'speech':

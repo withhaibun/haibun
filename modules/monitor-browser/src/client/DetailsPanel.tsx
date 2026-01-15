@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { THaibunEvent, TArtifactEvent, THttpTraceArtifact } from '@haibun/core/schema/protocol.js';
+import { ArtifactFrame } from './components/ArtifactFrame';
 import { JsonArtifact } from './artifacts/JsonArtifact';
 import { ArtifactRenderer } from './artifacts';
 import { HttpTraceSequenceDiagram } from './artifacts/HttpTraceSequenceDiagram';
@@ -39,8 +40,7 @@ export function DetailsPanel({ event, onClose, width, onWidthChange, currentTime
 
     const handleMouseMove = (e: MouseEvent) => {
       const newWidth = window.innerWidth - e.clientX;
-      const maxWidth = window.innerWidth * 0.85;
-      onWidthChange(Math.max(250, Math.min(maxWidth, newWidth)));
+      onWidthChange(Math.max(250, newWidth));
     };
 
     const handleMouseUp = () => {
@@ -60,6 +60,8 @@ export function DetailsPanel({ event, onClose, width, onWidthChange, currentTime
   }, [isResizing, onWidthChange]);
 
   // Enforce max width constraint on mount and window resize
+  // REMOVED as per user request (no limit)
+  /*
   useEffect(() => {
     const checkWidth = () => {
       const maxWidth = window.innerWidth * 0.85;
@@ -75,6 +77,7 @@ export function DetailsPanel({ event, onClose, width, onWidthChange, currentTime
     window.addEventListener('resize', checkWidth);
     return () => window.removeEventListener('resize', checkWidth);
   }, [width, onWidthChange]);
+  */
 
   if (!event) return null;
 
@@ -190,15 +193,32 @@ export function DetailsPanel({ event, onClose, width, onWidthChange, currentTime
 
         {/* 2. Standard Artifact Renderer (Images, Videos etc) - If applicable */}
         {isArtifact && !allTraces && !isQuadGraphEvent && (
-          <div className="shrink-0 border-b border-slate-700 p-4 max-h-[30%] overflow-auto" data-testid={TEST_IDS.DETAILS.ARTIFACT_RENDERER}>
-            <ArtifactRenderer
-              artifact={event as TArtifactEvent}
-              currentTime={currentTime}
-              videoStartTimestamp={videoStartTimestamp}
-              videoMetadata={videoMetadata}
-              startTime={startTime}
-            />
-          </div>
+          (event as TArtifactEvent).artifactType === 'video' ? (
+            <ArtifactFrame
+              title="Video"
+              className="flex-1 min-h-0 border-b border-slate-700"
+              contentClassName="bg-black flex items-center justify-center p-0"
+            >
+              <ArtifactRenderer
+                artifact={event as TArtifactEvent}
+                currentTime={currentTime}
+                videoStartTimestamp={videoStartTimestamp}
+                videoMetadata={videoMetadata}
+                startTime={startTime}
+                className="w-full h-full max-w-none my-0"
+              />
+            </ArtifactFrame>
+          ) : (
+            <div className="shrink-0 border-b border-slate-700 p-4 max-h-[30%] overflow-auto" data-testid={TEST_IDS.DETAILS.ARTIFACT_RENDERER}>
+              <ArtifactRenderer
+                artifact={event as TArtifactEvent}
+                currentTime={currentTime}
+                videoStartTimestamp={videoStartTimestamp}
+                videoMetadata={videoMetadata}
+                startTime={startTime}
+              />
+            </div>
+          )
         )}
 
         {/* 3. Graph Views - Take Remaining Height */}
