@@ -77,7 +77,7 @@ export const cycles = (wp: WebPlaywright): IStepperCycles => ({
 		await writeFeaturesArtifact(wp, `feature-${index}`, [resolvedFeature]);
 	},
 	async endFeature({ shouldClose = true }: TEndFeature) {
-		// leave web server running if there was a failure and it's the last feature
+		// leave web server running if there was a failure or it's the last feature
 		if (shouldClose) {
 			await closeAfterFeature(wp);
 		}
