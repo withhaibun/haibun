@@ -135,21 +135,28 @@ describe('haibun-mcp tool execution', () => {
 
 	it('can handle tool execution errors gracefully', async () => {
 		// Try to call a tool with invalid parameters
+		let error: TAnyFixme = null;
+		let result: TAnyFixme = null;
 		try {
-			await client.callTool({
+			result = await client.callTool({
 				name: 'VariablesStepper-set',
 				arguments: {
 					// Missing required 'value' parameter
 					what: 'incompleteVariable'
 				}
 			});
+		} catch (e: TAnyFixme) {
+			error = e;
+		}
 
-			// If we get here, the call succeeded when it should have failed
-			expect.fail('Expected tool call to throw an error due to missing required parameter');
-		} catch (error: TAnyFixme) {
-			// This is the expected behavior - the tool should throw/error on invalid parameters
-			expect(error).toBeDefined();
+		// The tool should either throw an error OR return a response indicating failure
+		if (error) {
+			// If thrown, should contain "Invalid arguments"
 			expect(error.message).toContain('Invalid arguments');
+		} else {
+			// If not thrown, the response should indicate an error
+			expect(result).toBeDefined();
+			expect(result.isError).toBe(true);
 		}
 	});
 

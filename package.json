@@ -2,7 +2,9 @@
   "name": "haibun",
   "type": "module",
   "private": false,
-  "workspaces": ["modules/*"],
+  "workspaces": [
+    "modules/*"
+  ],
   "devDependencies": {
     "@types/node": "^22.14.0",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
@@ -21,7 +23,7 @@
     "playwright": "^1.56.1",
     "prettier": "^3.5.3",
     "rollup-plugin-visualizer": "^5.14.0",
-    "ts-node": "^10.9.2",
+    "ts-node": "^1.7.1",
     "typescript": "^5.8.2",
     "vite": "^6.2.5",
     "vite-plugin-singlefile": "^2.2.0",

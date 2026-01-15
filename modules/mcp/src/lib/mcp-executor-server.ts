@@ -11,7 +11,7 @@ import { constructorName } from "@haibun/core/lib/util/index.js";
 import { resolveAndExecuteStatement } from "@haibun/core/lib/util/featureStep-executor.js";
 import { HttpPrompterClient } from './http-prompter-client.js';
 
-type ToolHandlerResponse = { content?: TextContent[] };
+type ToolHandlerResponse = { content: TextContent[], isError?: boolean };
 
 type IRemoteExecutorConfig = {
 	url: string;
@@ -40,13 +40,6 @@ export class MCPExecutorServer {
 		this.server = new McpServer({
 			name: "haibun-mcp",
 			version,
-			capabilities: {
-				resources: {},
-				tools: {},
-				sampling: {
-					enabled: true
-				}
-			},
 		});
 
 		// Initialize HTTP prompter client for debug prompt access
@@ -95,17 +88,19 @@ export class MCPExecutorServer {
 				}
 
 				const toolName = `${stepperName}-${stepName}`;
-				this.server.registerTool(toolName, toolDescription, this.createToolHandler(stepperName, stepName, stepDef));
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				this.server.registerTool(toolName, toolDescription as any, this.createToolHandler(stepperName, stepName, stepDef) as any);
 			}
 		}
 	}
 
 	registerPromptTools() {
 		// Tool to list pending debug prompts
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		this.server.registerTool('listDebugPrompts', {
 			description: 'List all pending debug prompts',
 			title: 'List Debug Prompts'
-		}, async (): Promise<ToolHandlerResponse> => {
+		}, (async (): Promise<ToolHandlerResponse> => {
 			if (!this.httpPrompterClient) {
 				return {
 					content: [{
@@ -133,9 +128,10 @@ export class MCPExecutorServer {
 					}, null, 2)
 				}]
 			};
-		});
+		}) as any);
 
 		// Tool to respond to debug prompts
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		this.server.registerTool('respondToDebugPrompt', {
 			description: 'Respond to a debug prompt to continue execution',
 			title: 'Respond to Debug Prompt',
@@ -143,7 +139,7 @@ export class MCPExecutorServer {
 				promptId: z.string(),
 				response: z.string()
 			}
-		}, async (input: { promptId: string, response: string }): Promise<ToolHandlerResponse> => {
+		} as any, (async (input: { promptId: string, response: string }): Promise<ToolHandlerResponse> => {
 			if (!this.httpPrompterClient) {
 				return {
 					content: [{
@@ -184,7 +180,7 @@ export class MCPExecutorServer {
 					}]
 				};
 			}
-		});
+		}) as any);
 	}
 	private createToolHandler(stepperName: string, stepName: string, stepDef: TStepperStep) {
 		return async (input: Record<string, string | number | boolean | string[]>): Promise<ToolHandlerResponse> => {
