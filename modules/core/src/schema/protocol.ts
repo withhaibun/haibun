@@ -333,6 +333,7 @@ export type TStepValue = {
   origin: TOrigin;
   provenance?: TProvenanceIdentifier[];
   readonly?: boolean;
+  secret?: boolean;
 };
 
 export type TProvenanceIdentifier = { in?: string; seq: number[]; when: string };

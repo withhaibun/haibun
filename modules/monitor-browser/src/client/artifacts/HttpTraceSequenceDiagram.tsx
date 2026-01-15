@@ -1,4 +1,10 @@
 import React, { useMemo, useRef, useLayoutEffect } from 'react';
+import { ArtifactFrame } from '../components/ArtifactFrame';
+
+// ... (other imports)
+
+// ...
+
 import { THttpTraceArtifact } from '@haibun/core/schema/protocol.js';
 import { MermaidArtifact } from './MermaidArtifact';
 import { escapeLabel } from './mermaid-utils';
@@ -112,12 +118,12 @@ export function HttpTraceSequenceDiagram({ traces, currentTime, startTime = 0 }:
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = React.useState(100);
-  const [isFullscreen, setIsFullscreen] = React.useState(false);
 
   // DOM Effect: Highlight current trace and fade future ones
   useLayoutEffect(() => {
     if (!scrollRef.current) return;
     const container = scrollRef.current;
+
 
     // Mermaid sequence diagram v10 usually puts text in <text class="messageText">
     // or sometimes just <text> inside <g class="messageText">
@@ -196,47 +202,33 @@ export function HttpTraceSequenceDiagram({ traces, currentTime, startTime = 0 }:
     }
   };
 
-  return (
-    <div className={`http-trace-sequence flex flex-col h-full bg-slate-900 ${isFullscreen ? 'fixed inset-0 z-50 p-4' : ''}`}>
-      <div className="flex justify-between items-center p-2 bg-white border-b border-slate-300 shrink-0 gap-4 h-10">
-        <div className="font-bold text-sm text-slate-700 shrink-0">Sequence Diagram</div>
-
-        <div className="flex items-center gap-4 h-full">
-          {/* Controls: Zoom */}
-          <div className="flex items-center gap-1 border-r border-slate-200 pr-4 h-full">
-            <button onClick={() => setZoom(z => Math.max(10, z - 10))} className="p-1 hover:bg-slate-100 rounded text-slate-600 font-bold w-6 h-6 flex items-center justify-center transform scale-y-110" title="Zoom Out">-</button>
-            <span className="text-xs text-slate-500 w-8 text-center select-none">{zoom}%</span>
-            <button onClick={() => setZoom(z => Math.min(200, z + 10))} className="p-1 hover:bg-slate-100 rounded text-slate-600 font-bold w-6 h-6 flex items-center justify-center" title="Zoom In">+</button>
-          </div>
-
-          {/* [Copy] */}
-          <button
-            onClick={handleCopy}
-            className="px-2 py-0.5 text-xs bg-slate-100 hover:bg-slate-200 rounded border border-slate-300 font-medium text-slate-600 transition-colors"
-            title="Copy Mermaid source"
-          >
-            Copy
-          </button>
-
-          {/* [Info] */}
-          <div className="text-xs text-slate-500 font-mono px-2 whitespace-nowrap">
-            {currentTraceIndex >= 0 ? `${currentTraceIndex + 1}/${traces.length}` : traces.length} events
-          </div>
-
-          {/* [Size] (Fullscreen) */}
-          <button
-            onClick={() => setIsFullscreen(f => !f)}
-            className="p-1 hover:bg-slate-100 rounded text-slate-600 transition-colors flex items-center justify-center w-6 h-6"
-            title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6" /><path d="M9 21H3v-6" /><path d="M21 3l-7 7" /><path d="M3 21l7-7" /></svg>
-          </button>
-        </div>
+  /* Controls */
+  const toolbar = (
+    <div className="flex items-center gap-4 h-full">
+      {/* Controls: Zoom */}
+      <div className="flex items-center gap-1 border-r border-slate-200 pr-4 h-full">
+        <button onClick={() => setZoom(z => Math.max(10, z - 10))} className="p-1 hover:bg-slate-100 rounded text-slate-600 font-bold w-6 h-6 flex items-center justify-center transform scale-y-110" title="Zoom Out">-</button>
+        <span className="text-xs text-slate-500 w-8 text-center select-none">{zoom}%</span>
+        <button onClick={() => setZoom(z => Math.min(200, z + 10))} className="p-1 hover:bg-slate-100 rounded text-slate-600 font-bold w-6 h-6 flex items-center justify-center" title="Zoom In">+</button>
       </div>
 
+      {/* [Info] */}
+      <div className="text-xs text-slate-500 font-mono px-2 whitespace-nowrap">
+        {currentTraceIndex >= 0 ? `${currentTraceIndex + 1}/${traces.length}` : traces.length} events
+      </div>
+    </div>
+  );
+
+  return (
+    <ArtifactFrame
+      title="Sequence Diagram"
+      toolbar={toolbar}
+      onCopy={handleCopy}
+      className="http-trace-sequence"
+    >
       <div
         ref={scrollRef}
-        className={`overflow-auto flex-1 bg-white relative ${isFullscreen ? '' : 'max-h-full'}`}
+        className="overflow-auto flex-1 bg-white relative max-h-full"
       >
         <div style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top left', minWidth: '100%', minHeight: '100%' }}>
           <MermaidArtifact
@@ -246,7 +238,7 @@ export function HttpTraceSequenceDiagram({ traces, currentTime, startTime = 0 }:
           />
         </div>
       </div>
-    </div>
+    </ArtifactFrame>
   );
 }
 

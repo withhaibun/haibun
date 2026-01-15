@@ -1,4 +1,13 @@
 import React, { useMemo, useRef, useEffect } from 'react';
+import { ArtifactFrame } from '../components/ArtifactFrame';
+
+// ... (other imports)
+// ...
+
+// const containerRef = useRef<HTMLDivElement>(null); (Removed)
+
+// setIsFullscreen removed
+
 import { MermaidArtifact } from './MermaidArtifact';
 import { escapeLabel, sanitizeId, truncate } from './mermaid-utils';
 import { HIGHLIGHT_COLOUR, DIMMED_OPACITY } from '../lib/timeline';
@@ -438,8 +447,6 @@ export function QuadGraphDiagram({
     return <div className="text-slate-500 text-sm">No data operations to display</div>;
   }
 
-  const containerRef = useRef<HTMLDivElement>(null);
-
   // Scroll highlighted node into view
   React.useLayoutEffect(() => {
     if (!svgContainer || currentTime === undefined) return; // Only scroll if timeline is active
@@ -485,114 +492,94 @@ export function QuadGraphDiagram({
     }
   };
 
-  const [isFullscreen, setIsFullscreen] = React.useState(false);
+  const toolbar = (
+    <>
+      <div className="flex items-center gap-4 h-full">
+        {/* Layout & Contexts */}
+        <div className="flex items-center gap-2 text-xs border-r border-slate-200 pr-4 h-full">
+          <button
+            onClick={() => setLayout(l => l === 'TD' ? 'LR' : 'TD')}
+            className="p-1 hover:bg-slate-100 rounded text-slate-600 font-mono flex items-center justify-center w-6 h-6"
+            title="Toggle layout"
+          >
+            {layout === 'TD' ? '↓' : '→'}
+          </button>
+          <span className="text-slate-400">|</span>
+
+          <label className="flex items-center gap-1 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={selectedContexts.has('all')}
+              onChange={() => {
+                if (selectedContexts.has('all')) {
+                  setSelectedContexts(new Set());
+                } else {
+                  const allContexts = new Set(availableContexts);
+                  allContexts.add('all');
+                  setSelectedContexts(allContexts);
+                }
+              }}
+              className="w-3 h-3 rounded border-slate-300 text-cyan-600 focus:ring-cyan-500"
+            />
+            <span className="text-slate-600">All</span>
+          </label>
+
+          {Object.keys(contextTree).map(parent => (
+            <label key={parent} className="flex items-center gap-1 cursor-pointer select-none whitespace-nowrap">
+              <input
+                type="checkbox"
+                checked={selectedContexts.has('all') || selectedContexts.has(parent)}
+                onChange={() => toggleContext(parent)}
+                disabled={selectedContexts.has('all')}
+                className="w-3 h-3 rounded border-slate-300 text-cyan-600 focus:ring-cyan-500 disabled:opacity-50"
+              />
+              <span className="text-slate-600">{sanitizeId(parent)}</span>
+              {contextTree[parent].length > 0 && (
+                <span className="text-slate-400 text-[10px]">({contextTree[parent].length})</span>
+              )}
+            </label>
+          ))}
+        </div>
+
+        {/* Zoom Controls */}
+        <div className="flex items-center gap-1 border-r border-slate-200 pr-4 h-full">
+          <button onClick={() => setZoom(z => Math.max(10, z - 10))} className="p-1 hover:bg-slate-100 rounded text-slate-600 font-bold w-6 h-6 flex items-center justify-center" title="Zoom Out">-</button>
+          <span className="text-xs text-slate-500 w-8 text-center select-none">{zoom}%</span>
+          <button onClick={() => setZoom(z => Math.min(200, z + 10))} className="p-1 hover:bg-slate-100 rounded text-slate-600 font-bold w-6 h-6 flex items-center justify-center" title="Zoom In">+</button>
+        </div>
+      </div>
+
+      {/* [Info] - Plain text, no outline */}
+      <div className="text-xs text-slate-500 font-mono px-2 whitespace-nowrap">
+        {nodes ? nodes.size : 0} nodes, {edges ? edges.length : 0} edges
+      </div>
+    </>
+  );
 
   return (
-    <div className={`quad-graph-diagram flex flex-col h-full bg-slate-900 ${isFullscreen ? 'fixed inset-0 z-50 p-4' : ''}`} ref={containerRef}>
-      <div className="flex justify-between items-center p-2 bg-white border-b border-slate-300 shrink-0 gap-4 h-10">
-        <div className="font-bold text-sm text-slate-700 shrink-0">Quad Graph</div>
-
-        <div className="flex items-center gap-4 h-full">
-          {/* Controls Group: Layout + Contexts + Zoom */}
-          <div className="flex items-center gap-4 h-full">
-            {/* Layout & Contexts */}
-            <div className="flex items-center gap-2 text-xs border-r border-slate-200 pr-4 h-full">
-              <button
-                onClick={() => setLayout(l => l === 'TD' ? 'LR' : 'TD')}
-                className="p-1 hover:bg-slate-100 rounded text-slate-600 font-mono flex items-center justify-center w-6 h-6"
-                title="Toggle layout"
-              >
-                {layout === 'TD' ? '↓' : '→'}
-              </button>
-              <span className="text-slate-400">|</span>
-
-              <label className="flex items-center gap-1 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={selectedContexts.has('all')}
-                  onChange={() => {
-                    if (selectedContexts.has('all')) {
-                      setSelectedContexts(new Set());
-                    } else {
-                      const allContexts = new Set(availableContexts);
-                      allContexts.add('all');
-                      setSelectedContexts(allContexts);
-                    }
-                  }}
-                  className="w-3 h-3 rounded border-slate-300 text-cyan-600 focus:ring-cyan-500"
-                />
-                <span className="text-slate-600">All</span>
-              </label>
-
-              {Object.keys(contextTree).map(parent => (
-                <label key={parent} className="flex items-center gap-1 cursor-pointer select-none whitespace-nowrap">
-                  <input
-                    type="checkbox"
-                    checked={selectedContexts.has('all') || selectedContexts.has(parent)}
-                    onChange={() => toggleContext(parent)}
-                    disabled={selectedContexts.has('all')}
-                    className="w-3 h-3 rounded border-slate-300 text-cyan-600 focus:ring-cyan-500 disabled:opacity-50"
-                  />
-                  <span className="text-slate-600">{sanitizeId(parent)}</span>
-                  {contextTree[parent].length > 0 && (
-                    <span className="text-slate-400 text-[10px]">({contextTree[parent].length})</span>
-                  )}
-                </label>
-              ))}
-            </div>
-
-            {/* Zoom Controls */}
-            <div className="flex items-center gap-1 border-r border-slate-200 pr-4 h-full">
-              <button onClick={() => setZoom(z => Math.max(10, z - 10))} className="p-1 hover:bg-slate-100 rounded text-slate-600 font-bold w-6 h-6 flex items-center justify-center" title="Zoom Out">-</button>
-              <span className="text-xs text-slate-500 w-8 text-center select-none">{zoom}%</span>
-              <button onClick={() => setZoom(z => Math.min(200, z + 10))} className="p-1 hover:bg-slate-100 rounded text-slate-600 font-bold w-6 h-6 flex items-center justify-center" title="Zoom In">+</button>
-            </div>
-          </div>
-
-          {/* [Copy] */}
-          <button
-            onClick={handleCopy}
-            className="px-2 py-0.5 text-xs bg-slate-100 hover:bg-slate-200 rounded border border-slate-300 font-medium text-slate-600 transition-colors"
-            title="Copy Mermaid source"
-          >
-            Copy
-          </button>
-
-          {/* [Info] - Plain text, no outline */}
-          <div className="text-xs text-slate-500 font-mono px-2 whitespace-nowrap">
-            {nodes ? nodes.size : 0} nodes, {edges ? edges.length : 0} edges
-          </div>
-
-          {/* [Size] (Fullscreen) */}
-          <button
-            onClick={() => setIsFullscreen(f => !f)}
-            className="p-1 hover:bg-slate-100 rounded text-slate-600 transition-colors flex items-center justify-center w-6 h-6"
-            title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6" /><path d="M9 21H3v-6" /><path d="M21 3l-7 7" /><path d="M3 21l7-7" /></svg>
-          </button>
-        </div>
+    <ArtifactFrame
+      title="Quad Graph"
+      toolbar={toolbar}
+      onCopy={handleCopy}
+      className="quad-graph-diagram"
+    >
+      <div style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top left', minWidth: '100%', minHeight: '100%' }}>
+        <MermaidArtifact
+          artifact={{
+            artifactType: 'mermaid',
+            source: mermaidSource,
+            id: 'quad-graph',
+            timestamp: Date.now(),
+            kind: 'artifact',
+            mimetype: 'text/x-mermaid'
+            // biome-ignore lint/suspicious/noExplicitAny: complex union type
+          } as any}
+          containerClassName="min-h-full"
+          unstyled={true}
+          onRender={(el) => setSvgContainer(el)}
+        />
       </div>
-
-      <div className="flex-1 overflow-auto bg-white relative">
-        <div style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top left', minWidth: '100%', minHeight: '100%' }}>
-          <MermaidArtifact
-            artifact={{
-              artifactType: 'mermaid',
-              source: mermaidSource,
-              id: 'quad-graph',
-              timestamp: Date.now(),
-              kind: 'artifact',
-              mimetype: 'text/x-mermaid'
-              // biome-ignore lint/suspicious/noExplicitAny: complex union type
-            } as any}
-            containerClassName="min-h-full"
-            unstyled={true}
-            onRender={(el) => setSvgContainer(el)}
-          />
-        </div>
-      </div>
-    </div>
+    </ArtifactFrame>
   );
 }
 

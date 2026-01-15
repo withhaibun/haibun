@@ -6,6 +6,7 @@ import { AStepper, IHasCycles, TStepperSteps } from '../lib/astepper.js';
 import { actionOK, actionNotOK, getStepTerm } from '../lib/util/index.js';
 import { FeatureVariables } from '../lib/feature-variables.js';
 import { DOMAIN_STATEMENT, DOMAIN_STRING, normalizeDomainKey, createEnumDomainDefinition, registerDomains } from '../lib/domain-types.js';
+import { OBSCURED_VALUE } from '../lib/EventLogger.js';
 
 const clearVars = (vars: VariablesStepper) => () => {
 	vars.getWorld().shared.clear();
@@ -135,15 +136,25 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			gwta: 'show env',
 			expose: false,
 			action: () => {
-				// only available locally since it might contain sensitive info.
-				console.info('env', this.world.options.envVariables);
+				// Obscure secret environment variables (matching /password/i)
+				const envVars = this.world.options.envVariables || {};
+				const displayEnv: Record<string, string> = {};
+				for (const [key, value] of Object.entries(envVars)) {
+					displayEnv[key] = /password/i.test(key) ? OBSCURED_VALUE : String(value ?? '');
+				}
+				console.info('env', displayEnv);
 				return Promise.resolve(OK);
 			}
 		},
 		showVars: {
 			gwta: 'show vars',
 			action: () => {
-				const displayVars = Object.fromEntries(Object.entries(this.getWorld().shared.all()).map(([k, v]) => [k, v.value]));
+				const shared = this.getWorld().shared;
+				const displayVars = Object.fromEntries(
+					Object.entries(shared.all()).map(([k, v]) =>
+						[k, shared.isSecret(k) ? OBSCURED_VALUE : v.value]
+					)
+				);
 				this.getWorld().eventLogger.info(`vars: ${JSON.stringify(displayVars, null, 2)}`, { vars: displayVars });
 				return actionOK();
 			},
@@ -179,6 +190,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			precludes: [`${VariablesStepper.name}.set`],
 			action: ({ value, domain }: { value: string, domain: string }, featureStep: TFeatureStep) => {
 				const readonly = !!featureStep.in.match(/ as read-only /);
+				const secret = !!featureStep.in.match(/ as secret /);
 				const { term: rawTerm, origin } = featureStep.action.stepValuesMap.what;
 				const parsedValue = this.getWorld().shared.resolveVariable(featureStep.action.stepValuesMap.value, featureStep);
 				if (parsedValue.value === undefined) return actionNotOK(`Variable ${featureStep.action.stepValuesMap.value.term} not found`);
@@ -197,6 +209,9 @@ class VariablesStepper extends AStepper implements IHasCycles {
 					if (effectiveDomain.startsWith('read-only ')) {
 						effectiveDomain = effectiveDomain.replace('read-only ', '');
 					}
+					if (effectiveDomain.startsWith('secret ')) {
+						effectiveDomain = effectiveDomain.replace('secret ', '');
+					}
 					if (effectiveDomain.startsWith('"') && effectiveDomain.endsWith('"')) {
 						effectiveDomain = effectiveDomain.slice(1, -1);
 					}
@@ -206,7 +221,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				if (typeof finalValue === 'string' && finalValue.startsWith('"') && finalValue.endsWith('"')) {
 					finalValue = finalValue.slice(1, -1);
 				}
-				return trySetVariable(this.getWorld().shared, { term, value: finalValue, domain: effectiveDomain, origin, readonly }, provenanceFromFeatureStep(featureStep));
+				return trySetVariable(this.getWorld().shared, { term, value: finalValue, domain: effectiveDomain, origin, readonly, secret }, provenanceFromFeatureStep(featureStep));
 			}
 		},
 		unset: {
@@ -303,12 +318,14 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				const term = interpolated.value || '';
 
 				const stepValue = this.getWorld().shared.resolveVariable({ term, origin: Origin.defined }, featureStep);
+				const isSecret = this.getWorld().shared.isSecret(term);
 
 				if (stepValue.value === undefined) {
 					this.getWorld().eventLogger.info(`${term} is undefined`);
 				} else {
+					const displayValue = isSecret ? { ...stepValue, value: OBSCURED_VALUE } : stepValue;
 					const provenance = featureStep.action.stepValuesMap.what.provenance?.map((p, i) => ({ [i]: { in: p.in, seq: p.seq.join(','), when: p.when } }));
-					this.getWorld().eventLogger.info(`${term} is ${JSON.stringify({ ...stepValue, provenance }, null, 2)}`, { variable: term, value: stepValue });
+					this.getWorld().eventLogger.info(`${term} is ${JSON.stringify({ ...displayValue, provenance }, null, 2)}`, { variable: term, value: displayValue });
 				}
 				return actionOK();
 			}
@@ -354,11 +371,12 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				if (!domain) {
 					return actionNotOK(`Domain "${name}" not found`);
 				}
-				const allVars = this.getWorld().shared.all();
+				const shared = this.getWorld().shared;
+				const allVars = shared.all();
 				const members: Record<string, TAnyFixme> = {};
 				for (const [key, variable] of Object.entries(allVars)) {
 					if (variable.domain && normalizeDomainKey(variable.domain) === name) {
-						members[key] = variable.value;
+						members[key] = shared.isSecret(key) ? OBSCURED_VALUE : variable.value;
 					}
 				}
 				this.getWorld().eventLogger.info(`Domain "${name}": ${JSON.stringify({ ...domain, members }, null, 2)}`, { domain: name, ...domain, members });
@@ -663,9 +681,9 @@ function shouldSkipEmpty(featureStep: TFeatureStep, term: string, shared: Featur
 }
 
 // Wraps shared.set in try/catch
-function trySetVariable(shared: FeatureVariables, opts: { term: string; value: TAnyFixme; domain: string; origin: TOrigin; readonly?: boolean }, provenance: TProvenanceIdentifier): TActionResult {
+function trySetVariable(shared: FeatureVariables, opts: { term: string; value: TAnyFixme; domain: string; origin: TOrigin; readonly?: boolean; secret?: boolean }, provenance: TProvenanceIdentifier): TActionResult {
 	try {
-		shared.set({ term: String(opts.term), value: opts.value, domain: opts.domain, origin: opts.origin, readonly: opts.readonly }, provenance);
+		shared.set({ term: String(opts.term), value: opts.value, domain: opts.domain, origin: opts.origin, readonly: opts.readonly, secret: opts.secret }, provenance);
 		return OK;
 	} catch (e: unknown) {
 		return actionNotOK((e as Error).message);

@@ -601,11 +601,11 @@ function ArtifactCaption({ artifact }: { artifact: TArtifactEvent }) {
                 onClick={() => setIsOpen(!isOpen)}
             >
                 <span className="text-[10px] text-slate-400 w-3 text-center">{isOpen ? '▼' : '▶'}</span>
-                <span className="font-mono text-slate-600 font-medium">{label}:</span>
-                <span className="text-slate-400">{filename}</span>
+                <span className="font-mono text-slate-600 font-medium">{label}</span>
+                {label === 'file' && <span className="text-slate-400">:{filename}</span>}
             </div>
             {isOpen && (
-                <div className="mt-1" style={{ marginTop: '-20px' }}>
+                <div className="mt-1">
                     <ArtifactRenderer artifact={artifact} displayMode="document" />
                 </div>
             )}
