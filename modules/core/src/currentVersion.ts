@@ -1,1 +1,1 @@
-export const currentVersion = '2.2.1';
+export const currentVersion = '--with-tag=version-2';
