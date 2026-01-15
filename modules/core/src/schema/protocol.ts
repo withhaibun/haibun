@@ -8,23 +8,31 @@ export const HAIBUN_LOG_LEVELS = ['debug', 'trace', 'log', 'info', 'warn', 'erro
 export const HaibunLogLevel = z.enum(HAIBUN_LOG_LEVELS);
 export type THaibunLogLevel = z.infer<typeof HaibunLogLevel>;
 
+// Validation Marks (The "Clear Check/No Marks")
 export const CHECK_YES = '✅';
 export const CHECK_NO = '❌';
-export const CHECK_YIELD = '🔀'
+export const CHECK_YIELD = '🔀';
 export const MAYBE_CHECK_YES = '✓';
 export const MAYBE_CHECK_NO = '✗';
 
-export const ICON_FEATURE = '📄';
-export const ICON_SCENARIO = '📋';
-export const ICON_STEP_RUNNING = '⏳';
-export const ICON_STEP_FAILED = '❌';
-export const ICON_STEP_COMPLETED = '✅';
-export const ICON_LOG_INFO = 'ℹ️';
-export const ICON_LOG_WARN = '⚠️';
-export const ICON_LOG_ERROR = '🚨';
-export const ICON_DEFAULT = '•';
-export const ICON_ARTIFACT = '📎';
+// BDD Structure (Geometric Containers)
+export const ICON_FEATURE = '⧇';      // Root container (High visibility)
+export const ICON_SCENARIO = '⬢';     // Concrete logic node (Solid Hex)
 
+// Step Execution Status
+export const ICON_STEP_RUNNING = '⫸';   // Active flow (Clear direction)
+export const ICON_STEP_FAILED = '❌';    // Explicit failure (Standard mark)
+export const ICON_STEP_COMPLETED = '✅'; // Explicit success (Standard mark)
+
+// Log Levels & Logic
+export const ICON_LOG_INFO = '⊳';      // Data signal/pointer
+export const ICON_LOG_WARN = '⚠️';      // Standard caution
+export const ICON_LOG_ERROR = '⊦';     // Logical contradiction (Assertion failed)
+
+export const ICON_DEFAULT = '•';
+
+// Structured Output
+export const ICON_ARTIFACT = '⌬';     // Benzene Ring (Your preferred technical symbol)
 export enum Origin {
   defined = 'defined',
   var = 'var',

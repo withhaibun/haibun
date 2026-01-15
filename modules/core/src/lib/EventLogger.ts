@@ -1,4 +1,5 @@
-import { THaibunEvent, LogEvent, LifecycleEvent, TArtifactEvent, THaibunLogLevel } from '../schema/protocol.js';
+import { LogEvent, LifecycleEvent } from '../schema/protocol.js';
+import type { THaibunEvent, TArtifactEvent, THaibunLogLevel } from '../schema/protocol.js';
 import { TFeatureStep } from './defs.js';
 import { formatCurrentSeqPath } from './util/index.js';
 

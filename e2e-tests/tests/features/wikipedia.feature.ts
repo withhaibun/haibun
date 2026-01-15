@@ -14,6 +14,7 @@ export const features: TKirejiExport = {
 	'Visit pages': [
 		feature({ feature: 'Visit pages' }),
 		`Navigate Wikipedia and explore articles using Activities and Waypoints.
+		after every WebPlaywright, take a screenshot
 		This demonstrates using waypoint statements with interpolated parameters.
 		The pattern 'Navigate to {page}' is defined once in the background.
 		Each ensure call with a different page value (mainUrl, haibunUrl) always checks the current state.`,

@@ -1,7 +1,7 @@
 import { AStepper, TStepperSteps, IHasCycles } from '../lib/astepper.js';
 import { TFeatureStep, TWorld, IObservationSource, IStepperCycles } from '../lib/defs.js';
 import { OK, TActionResult, Origin } from '../schema/protocol.js';
-import { actionNotOK, sleep } from '../lib/util/index.js';
+import { actionNotOK, actionOK, sleep } from '../lib/util/index.js';
 import { FlowRunner } from '../lib/core/flow-runner.js';
 import { DOMAIN_STATEMENT } from '../lib/domain-types.js';
 
@@ -112,6 +112,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
     // RECURRENCE: While(Condition) { Action }
     whenever: {
       gwta: 'whenever {condition:statement}, {action:statement}',
+      description: 'Executes the statements repeatedtly as long as the condition holds true.',
       action: async ({ condition, action }: { condition: TFeatureStep[], action: TFeatureStep[] }, featureStep: TFeatureStep): Promise<TActionResult> => {
         let loopCount = 0;
         const MAX_LOOPS = 1000;
@@ -140,6 +141,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
     // IMPLICATION: If P then Q
     where: {
       gwta: 'where {condition:statement}, {action:statement}',
+      description: 'Executes the statements only if the condition is met.',
       action: async ({ condition, action }: { condition: TFeatureStep[], action: TFeatureStep[] }, featureStep: TFeatureStep): Promise<TActionResult> => {
         const usage = featureStep.intent?.usage;
         const check = await this.runner.runSteps(condition, { intent: { mode: 'speculative', usage }, parentStep: featureStep });
@@ -157,6 +159,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
     // DISJUNCTION: A or B or C
     anyOf: {
       match: /^any of (.*)/,
+      description: 'Succeeds if at least one of the listed conditions is true.',
       action: async (_: unknown, featureStep: TFeatureStep): Promise<TActionResult> => {
         let statements = featureStep.in.replace(/^any of /i, '').trim();
         statements = this.stripQuotes(statements);
@@ -173,8 +176,8 @@ export default class LogicStepper extends AStepper implements IHasCycles {
     // NEGATION: Not P
     not: {
       gwta: `not {statements:${DOMAIN_STATEMENT}}`,
+      description: 'Succeeds if the statement is false (negation).',
       action: async ({ statements }: { statements: TFeatureStep[] }, featureStep: TFeatureStep): Promise<TActionResult> => {
-        // Speculative mode catches recursion depth errors
         const res = await this.runner.runSteps(statements, { intent: { mode: 'speculative' }, parentStep: featureStep });
 
         if (res.kind === 'fail') {
@@ -182,6 +185,17 @@ export default class LogicStepper extends AStepper implements IHasCycles {
         } else {
           return actionNotOK('not statement was true (failed negation)');
         }
+      },
+    },
+
+    // MAYBE: It's possible that P is true
+    maybe: {
+      gwta: `maybe {statements:${DOMAIN_STATEMENT}}`,
+      description: 'Executes the statement but suppresses failure if it fails.',
+      action: async ({ statements }: { statements: TFeatureStep[] }, featureStep: TFeatureStep): Promise<TActionResult> => {
+        const res = await this.runner.runSteps(statements, { intent: { mode: 'speculative' }, parentStep: featureStep });
+
+        return actionOK({ topics: { outcome: res } });
       },
     },
 
@@ -195,6 +209,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
     // some x observed in step usage is ...
     some: {
       match: /^some (.*?) (in|observed in) (.*?) is (.*)/,
+      description: 'Succeeds if at least one item in the collection satisfies the condition.',
       action: async (_: unknown, featureStep: TFeatureStep): Promise<TActionResult> => {
         const match = featureStep.in.match(/^some (.*?) (in|observed in) (.*?) is (.*)/);
         if (!match) return actionNotOK('some: invalid syntax');
@@ -241,6 +256,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
     // every x observed in step usage is ...
     every: {
       match: /^every (.*?) (in|observed in) (.*?) is (.*)/,
+      description: 'Succeeds only if all items in the collection satisfy the condition.',
       action: async (_: unknown, featureStep: TFeatureStep): Promise<TActionResult> => {
         const match = featureStep.in.match(/^every (.*?) (in|observed in) (.*?) is (.*)/);
         if (!match) return actionNotOK('every: invalid syntax');
