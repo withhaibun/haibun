@@ -72,6 +72,9 @@ function App() {
 
     const eventSourceRef = useRef<EventSource | null>(null);
 
+    // Track manual row selection to prevent auto-scroll interference
+    const manualSelectRef = useRef<boolean>(false);
+
     useEffect(() => {
         // Define sendMessage
         // biome-ignore lint/suspicious/noExplicitAny: heterogeneous message type
@@ -510,6 +513,12 @@ function App() {
 
     // Auto-scroll logic - only scroll if element is not already visible
     useEffect(() => {
+        // Skip auto-scroll if user manually selected a row
+        if (manualSelectRef.current) {
+            manualSelectRef.current = false;
+            return;
+        }
+
         if (scrollTargetId) {
             const el = document.getElementById(`event-${scrollTargetId}`);
             if (el) {
@@ -657,9 +666,10 @@ function App() {
                     <React.Fragment key={i}>
                         <div
                             id={`event-${e.id}`}
-                            data-testid={isLast ? TEST_IDS.VIEWS.LATEST_EVENT : `${TEST_IDS.TIMELINE_SELECTION.LOG_ROW_PREFIX}${e.id}`}
+                            data-testid={isLast ? TEST_IDS.VIEWS.LATEST_EVENT : (i === 0 ? TEST_IDS.VIEWS.FIRST_ROW : `${TEST_IDS.TIMELINE_SELECTION.LOG_ROW_PREFIX}${e.id}`)}
                             className={`flex whitespace-pre items-start leading-tight transition-colors ${bgClass} cursor-pointer hover:bg-slate-800 ${selectedEvent === e ? 'bg-cyan-900/30 border-l-4 border-l-cyan-500 -ml-1 pl-1 border-r-4 border-r-cyan-500' : ''} ${futureClass}`}
                             onClick={() => {
+                                manualSelectRef.current = true;
                                 setSelectedEvent(e);
                                 setIsPlaying(false);
                                 if (e.timestamp && startTime !== null) {

@@ -272,13 +272,15 @@ export function DocumentView({ events, currentTime, startTime, onTimeChange, min
             dataId,
             rawTime,
             onClick,
-            className = ""
+            className = "",
+            noPadding = false
         }: {
             children: React.ReactNode,
             dataId: string | undefined,
             rawTime?: number,
             onClick?: (e: React.MouseEvent) => void,
-            className?: string
+            className?: string,
+            noPadding?: boolean
         }) => {
             // Check if this row is in the future relative to current time
             const isFuture = rawTime !== undefined && (rawTime > currentTime);
@@ -286,7 +288,7 @@ export function DocumentView({ events, currentTime, startTime, onTimeChange, min
 
             return (
                 <div
-                    className={`group flex items-start -mx-4 px-4 py-2 transition-colors cursor-pointer hover:bg-slate-50 relative document-row ${className} ${futureClass}`}
+                    className={`group flex items-start -mx-4 px-4 ${noPadding ? '' : 'py-1'} transition-colors cursor-pointer hover:bg-slate-50 relative document-row ${className} ${futureClass}`}
                     onClick={(e) => {
                         // When clicking a row, also update the timeline position
                         if (rawTime !== undefined) {
@@ -324,7 +326,7 @@ export function DocumentView({ events, currentTime, startTime, onTimeChange, min
                     if (stepArtifacts.length === 0) return null;
 
                     return (
-                        <div className="my-2 space-y-1 pl-6">
+                        <div className="space-y-1 pl-6">
                             {stepArtifacts.map((artifact, idx) => (
                                 <ArtifactCaption key={`${stepId}-artifact-${idx}`} artifact={artifact} />
                             ))}
@@ -340,6 +342,7 @@ export function DocumentView({ events, currentTime, startTime, onTimeChange, min
                     return (
                         <RowWithGutter
                             dataId={id}
+                            noPadding={true}
                             onClick={(e) => {
                                 e.stopPropagation();
                                 const event = findEvent(id);
@@ -400,7 +403,7 @@ export function DocumentView({ events, currentTime, startTime, onTimeChange, min
                             </div>
 
                             {stepArtifacts.length > 0 && (
-                                <div className="ml-8 my-1 space-y-3">
+                                <div className="ml-8 space-y-1">
                                     {stepArtifacts.map((artifact, idx) => (
                                         <ArtifactCaption key={`${stepId}-artifact-${idx}`} artifact={artifact} />
                                     ))}
@@ -592,26 +595,20 @@ function ArtifactCaption({ artifact }: { artifact: TArtifactEvent }) {
     const filename = path.split('/').pop();
 
     return (
-        <div className="my-4 first:mt-2 last:mb-2 font-sans">
-            <div className={`transition-all duration-200 border-l-2 ${isOpen ? 'border-slate-300 bg-slate-50/50' : 'border-slate-200 hover:border-slate-300 bg-transparent'} p-3`}>
-                <div
-                    className="flex items-center gap-2 cursor-pointer select-none group"
-                    onClick={() => setIsOpen(!isOpen)}
-                >
-                    <span className="text-[10px] w-3 text-slate-400 group-hover:text-slate-600 transition-colors flex items-center justify-center">
-                        {isOpen ? '▼' : '▶'}
-                    </span>
-                    <span className="text-[11px] text-slate-500">
-                        <span className="font-mono text-slate-600 font-medium">{label}:</span> <span className="text-slate-400 ml-1">{filename}</span>
-                    </span>
-                </div>
-
-                {isOpen && (
-                    <div className="mt-3 animate-in fade-in slide-in-from-top-1 duration-200 font-sans">
-                        <ArtifactRenderer artifact={artifact} displayMode="document" />
-                    </div>
-                )}
+        <div className="mt-2 pl-2 border-l-2 border-slate-300">
+            <div
+                className="flex items-center gap-1 cursor-pointer select-none text-[11px] text-slate-500"
+                onClick={() => setIsOpen(!isOpen)}
+            >
+                <span className="text-[10px] text-slate-400 w-3 text-center">{isOpen ? '▼' : '▶'}</span>
+                <span className="font-mono text-slate-600 font-medium">{label}:</span>
+                <span className="text-slate-400">{filename}</span>
             </div>
+            {isOpen && (
+                <div className="mt-1" style={{ marginTop: '-20px' }}>
+                    <ArtifactRenderer artifact={artifact} displayMode="document" />
+                </div>
+            )}
         </div>
     );
 }

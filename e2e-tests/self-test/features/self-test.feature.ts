@@ -3,7 +3,6 @@ import WebPlaywright from '@haibun/web-playwright';
 import VariablesStepper from '@haibun/core/steps/variables-stepper.js';
 import { TEST_IDS } from '@haibun/monitor-browser/build/test-ids.js';
 import { Test_IDs_setup } from '../backgrounds/test-ids.feature.ts';
-import { HIGHLIGHT_COLOUR } from '@haibun/monitor-browser/src/client/lib/timeline.ts';
 
 const web = withAction(new WebPlaywright());
 const vars = withAction(new VariablesStepper());
@@ -23,9 +22,6 @@ export const features: TKirejiExport = {
 
     'Scenario: A user opens the Haibun Monitor to review execution data.',
     `after every WebPlaywright, take a screenshot`,
-    'serve files from "../../modules/monitor-browser/dist/client" for "self-test assets"',
-    'webserver is listening for "self-test"',
-    'after every WebPlaywright, take a screenshot',
     gotoPage({ name: host }),
     'see "Haibun Monitor"',
 
@@ -144,6 +140,12 @@ export const features: TKirejiExport = {
     'The user returns to log view to continue testing.',
     ...clicks(TEST_IDS.HEADER.BUTTON_VIEW_LOG),
     ...waitsFor(TEST_IDS.VIEWS.LOG),
+
+    'Scenario: Verify clicking an early row does not jump the view.',
+    'The user clicks on the first visible row.',
+    ...clicks(TEST_IDS.VIEWS.FIRST_ROW),
+    'The first row should still be visible after selection.',
+    ...waitsFor(TEST_IDS.VIEWS.FIRST_ROW),
 
     /* fix these after 
     'The raw JSON source is shown for debugging purposes.',
