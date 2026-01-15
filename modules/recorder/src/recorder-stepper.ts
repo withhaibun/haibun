@@ -154,7 +154,7 @@ export class RecorderStepper extends AStepper implements IHasOptions, IHasCycles
 
     stopRecording: {
       gwta: 'stop recording',
-      action: async (): Promise<TActionResult> => {
+      action: (): Promise<TActionResult> => {
         this.recording = false;
 
         const count = this.recordedSteps.length;
@@ -162,7 +162,7 @@ export class RecorderStepper extends AStepper implements IHasOptions, IHasCycles
           `RecorderStepper: Stopped recording. ${count} steps captured.`
         );
 
-        return OK;
+        return Promise.resolve(OK);
       },
     },
   };

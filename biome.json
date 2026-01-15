@@ -1,5 +1,5 @@
 {
-	"$schema": "https://biomejs.dev/schemas/2.3.10/schema.json",
+	"$schema": "https://biomejs.dev/schemas/2.3.11/schema.json",
 	"vcs": {
 		"enabled": true,
 		"clientKind": "git",
@@ -92,11 +92,7 @@
 				"useGetterReturn": "error"
 			}
 		},
-		"includes": [
-			"**",
-			"**/build/**",
-			"**/.eslintrc.cjs"
-		]
+		"includes": ["**", "**/build/**", "**/.eslintrc.cjs"]
 	},
 	"javascript": {
 		"formatter": {
@@ -105,9 +101,7 @@
 	},
 	"overrides": [
 		{
-			"includes": [
-				"modules/**/*.ts"
-			],
+			"includes": ["modules/**/*.ts"],
 			"linter": {
 				"rules": {
 					"correctness": {
@@ -120,12 +114,7 @@
 			}
 		},
 		{
-			"includes": [
-				"*.js",
-				"*.ts",
-				"*.cjs",
-				"!modules/**/*"
-			],
+			"includes": ["*.js", "*.ts", "*.cjs", "!modules/**/*"],
 			"linter": {
 				"rules": {}
 			}

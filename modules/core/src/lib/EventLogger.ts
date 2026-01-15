@@ -3,6 +3,8 @@ import type { THaibunEvent, TArtifactEvent, THaibunLogLevel } from '../schema/pr
 import { TFeatureStep } from './defs.js';
 import { formatCurrentSeqPath } from './util/index.js';
 
+export type TIsSecretFn = (name: string) => boolean;
+
 export interface IEventLogger {
   suppressConsole?: boolean;
   setStepperCallback?(callback: (event: THaibunEvent) => void): void;
@@ -13,8 +15,8 @@ export interface IEventLogger {
   debug(message: string, attributes?: Record<string, unknown>): void;
   warn(message: string, attributes?: Record<string, unknown>): void;
   error(message: string, attributes?: Record<string, unknown>): void;
-  stepStart(featureStep: TFeatureStep, stepperName: string, actionName: string, stepArgs?: Record<string, unknown>, stepValuesMap?: Record<string, unknown>): void;
-  stepEnd(featureStep: TFeatureStep, stepperName: string, actionName: string, ok: boolean, error?: string | Error, stepArgs?: Record<string, unknown> | unknown[], stepValuesMap?: Record<string, unknown>, topics?: Record<string, unknown>): void;
+  stepStart(featureStep: TFeatureStep, stepperName: string, actionName: string, stepArgs: Record<string, unknown>, stepValuesMap: Record<string, unknown> | undefined, isSecretFn: TIsSecretFn): void;
+  stepEnd(featureStep: TFeatureStep, stepperName: string, actionName: string, ok: boolean, error: string | Error | undefined, stepArgs: Record<string, unknown> | unknown[], stepValuesMap: Record<string, unknown> | undefined, topics: Record<string, unknown> | undefined, isSecretFn: TIsSecretFn): void;
   artifact(featureStep: TFeatureStep, artifact: TArtifactEvent): void;
 }
 
@@ -39,6 +41,34 @@ function getEmitter(): string {
     }
   }
   return 'unknown';
+}
+
+/** Value used to replace secret values in event emissions */
+export const OBSCURED_VALUE = '***';
+
+/**
+ * Obscure secret values in stepValuesMap for safe emission.
+ * Secret values have their value replaced with OBSCURED_VALUE.
+ */
+function obscureSecretValues(
+  stepValuesMap: Record<string, unknown> | undefined,
+  isSecretFn: TIsSecretFn
+): Record<string, unknown> | undefined {
+  if (!stepValuesMap) return undefined;
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(stepValuesMap)) {
+    if (isSecretFn(key)) {
+      // Obscure the value while preserving structure
+      if (typeof value === 'object' && value !== null && 'value' in value) {
+        result[key] = { ...value, value: OBSCURED_VALUE };
+      } else {
+        result[key] = OBSCURED_VALUE;
+      }
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
 }
 
 export class EventLogger implements IEventLogger {
@@ -113,7 +143,8 @@ export class EventLogger implements IEventLogger {
   }
 
 
-  stepStart(featureStep: TFeatureStep, stepperName: string, actionName: string, stepArgs?: Record<string, unknown>, stepValuesMap?: Record<string, unknown>): void {
+  stepStart(featureStep: TFeatureStep, stepperName: string, actionName: string, stepArgs: Record<string, unknown>, stepValuesMap: Record<string, unknown> | undefined, isSecretFn: TIsSecretFn): void {
+    const safeStepValuesMap = obscureSecretValues(stepValuesMap, isSecretFn);
     this.emit(LifecycleEvent.parse({
       id: formatCurrentSeqPath(featureStep.seqPath),
       timestamp: Date.now(),
@@ -129,12 +160,13 @@ export class EventLogger implements IEventLogger {
       stepperName,
       actionName,
       stepArgs,
-      stepValuesMap
+      stepValuesMap: safeStepValuesMap
     }));
   }
 
-  stepEnd(featureStep: TFeatureStep, stepperName: string, actionName: string, ok: boolean, error?: string | Error, stepArgs?: Record<string, unknown> | unknown[], stepValuesMap?: Record<string, unknown>, topics?: Record<string, unknown>): void {
+  stepEnd(featureStep: TFeatureStep, stepperName: string, actionName: string, ok: boolean, error: string | Error | undefined, stepArgs: Record<string, unknown> | unknown[], stepValuesMap: Record<string, unknown> | undefined, topics: Record<string, unknown> | undefined, isSecretFn: TIsSecretFn): void {
     const errorMessage = error instanceof Error ? error.message : error;
+    const safeStepValuesMap = obscureSecretValues(stepValuesMap, isSecretFn);
     this.emit(LifecycleEvent.parse({
       id: formatCurrentSeqPath(featureStep.seqPath),
       timestamp: Date.now(),
@@ -151,7 +183,7 @@ export class EventLogger implements IEventLogger {
       stepperName,
       actionName,
       stepArgs: stepArgs as Record<string, unknown> | unknown[], // Match Zod union type
-      stepValuesMap,
+      stepValuesMap: safeStepValuesMap,
       topics
     }));
   }

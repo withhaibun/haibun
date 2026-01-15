@@ -88,7 +88,9 @@ export class FeatureVariables {
 		if (domain === undefined) {
 			throw Error(`Cannot set variable "${sv.term}": unknown domain "${sv.domain}"`);
 		}
-		const normalized = { ...sv, domain: domainKey };
+		// Auto-detect secret variables: if term contains "password" (case-insensitive), mark as secret
+		const autoSecret = /password/i.test(sv.term);
+		const normalized = { ...sv, domain: domainKey, secret: sv.secret || autoSecret };
 		domain.coerce(normalized);
 		const existingProvenance: TProvenanceIdentifier[] = this.values[sv.term]?.provenance;
 		const provenances = existingProvenance ? [...existingProvenance, provenance] : [provenance];
@@ -322,6 +324,11 @@ export class FeatureVariables {
 		return this.store.all();
 	}
 
+	/** Check if a variable is marked as secret */
+	isSecret(name: string): boolean {
+		return this.values[name]?.secret === true;
+	}
+
 	// =========================================================================
 	// Private helpers
 	// =========================================================================
@@ -340,6 +347,9 @@ export class FeatureVariables {
 		}
 		if (sv.readonly) {
 			this.store.add({ subject: name, predicate: 'readonly', object: true, namedGraph: META_GRAPH });
+		}
+		if (sv.secret) {
+			this.store.add({ subject: name, predicate: 'secret', object: true, namedGraph: META_GRAPH });
 		}
 	}
 }
