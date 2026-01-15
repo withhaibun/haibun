@@ -67,6 +67,10 @@ export class SSETransport implements ITransport {
 
   // biome-ignore lint/suspicious/noExplicitAny: event payload
   public send(data: any) {
+    // Clear history on init to prevent stale data across runs
+    if (data?.type === 'init') {
+      this.history = [];
+    }
     const payload = JSON.stringify(data);
     this.history.push(payload);
     this.hub.emit('event', payload);

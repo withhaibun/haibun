@@ -236,7 +236,8 @@ export default class LogicStepper extends AStepper implements IHasCycles {
               const domain = typeof metricValue === 'number' ? 'number' : 'string';
               this.getWorld().shared.set(
                 { term: `${sanitizeKey(val)}/${metricKey}`, value: String(metricValue), domain, origin: Origin.var },
-                { in: featureStep.in, seq: featureStep.seqPath, when: 'observation' }
+                { in: featureStep.in, seq: featureStep.seqPath, when: 'observation' },
+                'observation'
               );
             }
           }
@@ -282,7 +283,8 @@ export default class LogicStepper extends AStepper implements IHasCycles {
               const domain = typeof metricValue === 'number' ? 'number' : 'string';
               this.getWorld().shared.set(
                 { term: `${sanitizeKey(val)}/${metricKey}`, value: String(metricValue), domain, origin: Origin.var },
-                { in: featureStep.in, seq: featureStep.seqPath, when: 'observation' }
+                { in: featureStep.in, seq: featureStep.seqPath, when: 'observation' },
+                'observation'
               );
             }
           }

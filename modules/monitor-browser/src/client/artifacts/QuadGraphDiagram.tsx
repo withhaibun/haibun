@@ -33,10 +33,26 @@ export function QuadGraphDiagram({
   startTime = 0,
   namedGraphFilter
 }: QuadGraphDiagramProps) {
-  /* Initialize selection with ALL discovered contexts by default, or empty if none found */
-  const [selectedContexts, setSelectedContexts] = React.useState<Set<string>>(new Set());
+  // Compute initial contexts from quads - excludes 'observation' and 'meta' by default
+  const initialContexts = useMemo(() => {
+    const contexts = new Set<string>();
+    quads.forEach(q => {
+      const ctx = q.namedGraph || 'ungrouped';
+      // Exclude observation and meta contexts from initial selection
+      if (!ctx.startsWith('observation') && ctx !== 'meta') {
+        contexts.add(ctx);
+      }
+    });
+    return contexts;
+  }, [quads]);
+
+  /* Initialize selection with computed contexts (excluding observations by default) */
+  const [selectedContexts, setSelectedContexts] = React.useState<Set<string>>(() => new Set());
   const [layout, setLayout] = React.useState<'TD' | 'LR'>('TD');
   const [zoom, setZoom] = React.useState(100);
+
+  // Track if we've initialized selection (to handle quads changing)
+  const hasInitialized = useRef(false);
 
   // Extract unique contexts from quads, organized hierarchically
   const { availableContexts, contextTree } = useMemo(() => {
@@ -61,14 +77,14 @@ export function QuadGraphDiagram({
     return { availableContexts: sorted, contextTree: tree };
   }, [quads]);
 
-  // Initial population of selected contexts (auto-select all discovered contexts)
+  // Initial population of selected contexts (sync with initialContexts)
   useEffect(() => {
-    // Only auto-select if we haven't selected anything yet and we have contexts available
-    if (selectedContexts.size === 0 && availableContexts.length > 0) {
-      // By default, select everything found in the data
-      setSelectedContexts(new Set(availableContexts));
+    // Only initialize once when we have contexts to select
+    if (!hasInitialized.current && initialContexts.size > 0) {
+      hasInitialized.current = true;
+      setSelectedContexts(initialContexts);
     }
-  }, [availableContexts]); // Run when available contexts change (e.g. data load)
+  }, [initialContexts]);
 
   // Toggle a context (with parent/child handling)
   const toggleContext = (ctx: string) => {
@@ -114,13 +130,17 @@ export function QuadGraphDiagram({
       );
     }
 
-    if (!selectedContexts.has('all') && selectedContexts.size > 0) {
+    // When selection is empty (uninitialized), filter out observations and meta by default
+    // Otherwise, apply the user's selection
+    if (selectedContexts.size === 0) {
+      u = u.filter(q => {
+        const ctx = q.namedGraph || 'ungrouped';
+        return !ctx.startsWith('observation') && ctx !== 'meta';
+      });
+    } else if (!selectedContexts.has('all')) {
       u = u.filter(q => matchesSelection(q.namedGraph));
     }
 
-    if (!selectedContexts.has('meta') && !selectedContexts.has('all')) {
-      u = u.filter(q => q.namedGraph !== 'meta');
-    }
     return u;
   }, [quads, namedGraphFilter, selectedContexts.size, Array.from(selectedContexts).sort().join(',')]);
 
@@ -210,7 +230,8 @@ export function QuadGraphDiagram({
         const node = nodes.get(id);
         if (node) {
           const shape = getNodeShape(node.type, node.id);
-          source += `    ${node.id}${shape.open}${escapeLabel(node.label)}${shape.close}\n`;
+          const displayLabel = truncate(escapeLabel(node.label), 60);
+          source += `    ${node.id}${shape.open}${displayLabel}${shape.close}\n`;
         }
       });
       source += '  end\n';
