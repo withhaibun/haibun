@@ -359,4 +359,69 @@ describe('FeatureVariables', () => {
 			expect(result.value).toBe('defined value');
 		});
 	});
+
+	describe('secret variables', () => {
+		it('should auto-detect password variables as secret', () => {
+			variables.set(
+				{ term: 'userPassword', value: 'secret123', domain: DOMAIN_STRING, origin: Origin.var },
+				{ in: 'test', seq: [1], when: 'test.action' }
+			);
+			expect(variables.isSecret('userPassword')).toBe(true);
+		});
+
+		it('should auto-detect PASSWORD (uppercase) as secret', () => {
+			variables.set(
+				{ term: 'DATABASE_PASSWORD', value: 'db-secret', domain: DOMAIN_STRING, origin: Origin.var },
+				{ in: 'test', seq: [1], when: 'test.action' }
+			);
+			expect(variables.isSecret('DATABASE_PASSWORD')).toBe(true);
+		});
+
+		it('should auto-detect password in middle of name as secret', () => {
+			variables.set(
+				{ term: 'my_password_field', value: 'pwd123', domain: DOMAIN_STRING, origin: Origin.var },
+				{ in: 'test', seq: [1], when: 'test.action' }
+			);
+			expect(variables.isSecret('my_password_field')).toBe(true);
+		});
+
+		it('should allow explicit secret flag', () => {
+			variables.set(
+				{ term: 'apiKey', value: 'key-12345', domain: DOMAIN_STRING, origin: Origin.var, secret: true },
+				{ in: 'test', seq: [1], when: 'test.action' }
+			);
+			expect(variables.isSecret('apiKey')).toBe(true);
+		});
+
+		it('should not mark non-password variables as secret', () => {
+			variables.set(
+				{ term: 'username', value: 'john', domain: DOMAIN_STRING, origin: Origin.var },
+				{ in: 'test', seq: [1], when: 'test.action' }
+			);
+			expect(variables.isSecret('username')).toBe(false);
+		});
+
+		it('should return false for isSecret on non-existent variable', () => {
+			expect(variables.isSecret('nonExistent')).toBe(false);
+		});
+
+		it('should store secret flag as meta quad', () => {
+			variables.set(
+				{ term: 'thePassword', value: 'pwd', domain: DOMAIN_STRING, origin: Origin.var },
+				{ in: 'test', seq: [1], when: 'test.action' }
+			);
+			const secretQuads = variables.queryQuads({ subject: 'thePassword', predicate: 'secret' });
+			expect(secretQuads.length).toBe(1);
+			expect(secretQuads[0].object).toBe(true);
+		});
+
+		it('should preserve secret flag in all()', () => {
+			variables.set(
+				{ term: 'secretPassword', value: 'hidden', domain: DOMAIN_STRING, origin: Origin.var },
+				{ in: 'test', seq: [1], when: 'test.action' }
+			);
+			const all = variables.all();
+			expect(all.secretPassword.secret).toBe(true);
+		});
+	});
 });

@@ -88,7 +88,7 @@ export const instrumentPage = async (
 /**
  * Instruments a browser context to capture interactions on all pages
  */
-export const instrumentContext = async (
+export const instrumentContext = (
   context: BrowserContext,
   onInteraction: TInteractionCallback
 ): Promise<void> => {
@@ -105,4 +105,5 @@ export const instrumentContext = async (
       }
     });
   });
+  return Promise.resolve();
 };

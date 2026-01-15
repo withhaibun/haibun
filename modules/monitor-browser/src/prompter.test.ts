@@ -24,7 +24,7 @@ describe('SSEPrompter', () => {
 
   it('sends prompt message on prompt()', () => {
     const prompt = { id: 'p1', message: 'test' };
-    prompter.prompt(prompt);
+    void prompter.prompt(prompt);
     expect(mockTransport.send).toHaveBeenCalledWith({ type: 'prompt', prompt });
   });
 
@@ -51,7 +51,7 @@ describe('SSEPrompter', () => {
   });
 
   it('sends cancel message on cancel()', () => {
-    prompter.prompt({ id: 'p1', message: 'test' });
+    void prompter.prompt({ id: 'p1', message: 'test' });
     prompter.cancel('p1', 'reason');
     expect(mockTransport.send).toHaveBeenCalledWith({ type: 'cancel', id: 'p1', reason: 'reason' });
   });
