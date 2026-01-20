@@ -1,12 +1,19 @@
 {
   "name": "@haibun/cli",
   "type": "module",
-  "version": "3.0.5",
+  "version": "3.5.0",
   "description": "command line execution for @haibun",
-  "bin": { "haibun-cli": "build/cli.js" },
+  "bin": {
+    "haibun-cli": "build/cli.js"
+  },
   "main": "build/cli.js",
-  "files": ["build/**"],
-  "exports": { ".": "./build/cli.js", "./*": "./build/*" },
+  "files": [
+    "build/**"
+  ],
+  "exports": {
+    ".": "./build/cli.js",
+    "./*": "./build/*"
+  },
   "scripts": {
     "prepublishOnly": "tsc -b .",
     "build": "tsc -b .",
@@ -20,9 +27,12 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@haibun/core": "3.0.5",
-    "@haibun/domain-storage": "3.0.5",
+    "@haibun/core": "3.5.0",
+    "@haibun/domain-storage": "3.5.0",
     "source-map-support": "^0.5.21"
   },
-  "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5"
+  "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5",
+  "devDependencies": {
+    "@types/source-map-support": "^0.5.10"
+  }
 }

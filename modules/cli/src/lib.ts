@@ -1,28 +1,28 @@
 import nodeFS from 'fs';
 
-import { BASE_PREFIX, CHECK_NO, CHECK_YES, DEFAULT_DEST, STAY, STAY_ALWAYS, TBase, TProtoOptions, TSpecl, TWorld } from '@haibun/core/lib/defs.js';
-import { getCreateSteppers } from '@haibun/core/lib/test/lib.js';
-import { formattedSteppers, getPre } from '@haibun/core/lib/util/index.js';
+import { TBase, TProtoOptions, TSpecl, TWorld } from '@haibun/core/lib/defs.js';
+import { BASE_PREFIX, CHECK_NO, CHECK_YES, DEFAULT_DEST, STAY, STAY_ALWAYS, Timer } from '@haibun/core/schema/protocol.js';
+import { IHasOptions } from '@haibun/core/lib/astepper.js';
+import { getCreateSteppers, getDefaultTag } from '@haibun/core/lib/test/lib.js';
+import { formattedSteppers, getPre, getDefaultOptions, basesFrom } from '@haibun/core/lib/util/index.js';
 import { BaseOptions } from './BaseOptions.js';
 import { TFileSystem } from '@haibun/core/lib/util/workspace-lib.js';
-import { getDefaultOptions, basesFrom } from '@haibun/core/lib/util/index.js';
-import { Timer } from '@haibun/core/lib/Timer.js';
-import Logger from '@haibun/core/lib/Logger.js';
 import { Runner } from '@haibun/core/runner.js';
-import { getDefaultTag } from '@haibun/core/lib/test/lib.js';
-import { IHasOptions } from '@haibun/core/lib/astepper.js';
 import { FeatureVariables } from '@haibun/core/lib/feature-variables.js';
 import { Prompter } from '@haibun/core/lib/prompter.js';
 import { getCoreDomains } from '@haibun/core/lib/core-domains.js';
+import { EventLogger } from '@haibun/core/lib/EventLogger.js';
+import { TAnyFixme } from '@haibun/core/lib/fixme.js';
 
 const OPTION_CONFIG = '--config';
 const OPTION_HELP = '--help';
 const OPTION_SHOW_STEPPERS = '--show-steppers';
+const OPTION_WITH_STEPPERS = '--with-steppers';
 
 type TEnv = { [name: string]: string | undefined };
 
 export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
-	const { params, configLoc, showHelp, showSteppers } = processArgs(args);
+	const { params, configLoc, showHelp, showSteppers, withSteppers } = processArgs(args);
 	const bases = basesFrom(params[0]?.replace(/\/$/, ''));
 	const specl = await getSpeclOrExit(configLoc ? [configLoc] : bases);
 
@@ -46,9 +46,16 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 
 	const runner = new Runner(world);
 
-	const executorResult = await runner.run(specl.steppers, featureFilter);
+	// Merge CLI steppers with config steppers
+	const allSteppers = [...specl.steppers, ...withSteppers];
+	const executorResult = await runner.run(allSteppers, featureFilter);
+
+	const showSummary = world.eventLogger.suppressConsole;
+
 	if (executorResult.ok) {
-		console.info(`\n${CHECK_YES} All ${executorResult.featureResults.length} features passed.`);
+		if (showSummary) {
+			console.info(`\n${CHECK_YES} All ${executorResult.featureResults.length} features passed.`);
+		}
 	} else {
 		const errorMessage = executorResult.failure?.error?.message || (world.runtime.exhaustionError && `Execution aborted: ${world.runtime.exhaustionError}`) || 'Unknown error';
 		const stage = executorResult.failure?.stage;
@@ -63,27 +70,26 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 		}
 	}
 
-	if (executorResult.ok) {
-		if (protoOptions.options[STAY] !== STAY_ALWAYS) {
-			process.exit(0);
-		}
-	} else if (!protoOptions.options[STAY]) {
+	if (protoOptions.options[STAY] === STAY_ALWAYS) {
+		await new Promise((resolve) => setTimeout(resolve, 1e9));
+	} else if (!executorResult.ok && !protoOptions.options[STAY]) {
 		process.exit(1);
 	}
+	process.exit(0);
 }
 
 function getCliWorld(protoOptions: TProtoOptions, bases: TBase): TWorld {
-	const { KEY: keyIn, LOG_LEVEL: logLevel, LOG_FOLLOW: logFollow } = protoOptions.options;
-	const tag = getDefaultTag(0);
-	const logger = new Logger({ level: logLevel || 'log', follow: logFollow });
+	const { KEY: keyIn } = protoOptions.options;
+	const tag = getDefaultTag();
+	const eventLogger = new EventLogger();
 	const timer = new Timer();
 
 	Timer.key = keyIn || Timer.key;
 
 	const world: Partial<TWorld> = {
 		tag,
-		runtime: { stepResults: [] },
-		logger,
+		runtime: { stepResults: [], observations: new Map<string, TAnyFixme>() },
+		eventLogger,
 		prompter: new Prompter(),
 		...protoOptions,
 		timer,
@@ -130,7 +136,7 @@ export async function usage(specl: TSpecl, message?: string) {
 
 	const ret = [
 		'',
-		`usage: ${process.argv[1]} [${OPTION_CONFIG} path/to/specific/config.json] [--cwd working_directory] [${OPTION_HELP}] [${OPTION_SHOW_STEPPERS}] <project base[,project base]> <[filter,filter]>`,
+		`usage: ${process.argv[1]} [${OPTION_CONFIG} path/to/specific/config.json] [--cwd working_directory] [${OPTION_HELP}] [${OPTION_SHOW_STEPPERS}] [${OPTION_WITH_STEPPERS} stepper[,stepper]] <project base[,project base]> <[filter,filter]>`,
 		message || '',
 		'If config.json is not found in project bases, the root directory will be used.\n',
 		'Set these environmental variables to control options:\n',
@@ -152,7 +158,7 @@ export function processBaseEnvToOptionsAndErrors(env: TEnv) {
 	let nenv = {};
 
 	const baseOptions = BaseOptions as IHasOptions;
-	baseOptions.options && Object.entries(baseOptions.options).forEach(([k, v]) => (protoOptions.options[k] = v.default));
+	baseOptions.options && Object.entries(baseOptions.options).forEach(([k, v]) => ((protoOptions.options as Record<string, unknown>)[k] = v.default));
 
 	Object.entries(env)
 		.filter(([k]) => k.startsWith(BASE_PREFIX))
@@ -170,7 +176,7 @@ export function processBaseEnvToOptionsAndErrors(env: TEnv) {
 				} else if (!res.result) {
 					errors.push(`no option for ${opt} from ${JSON.stringify(res.result)}`);
 				} else {
-					protoOptions.options[opt] = res.result;
+					(protoOptions.options as Record<string, unknown>)[opt] = res.result;
 				}
 			} else if (opt.startsWith(`O_`)) {
 				protoOptions.moduleOptions[k] = value;
@@ -186,6 +192,7 @@ export function processBaseEnvToOptionsAndErrors(env: TEnv) {
 export function processArgs(args: string[]) {
 	let showHelp = false;
 	let showSteppers = false;
+	let withSteppers: string[] = [];
 	const params = [];
 	let configLoc;
 	while (args.length > 0) {
@@ -199,11 +206,24 @@ export function processArgs(args: string[]) {
 			showHelp = true;
 		} else if (cur === OPTION_SHOW_STEPPERS) {
 			showSteppers = true;
+		} else if (cur === OPTION_WITH_STEPPERS || cur?.startsWith(OPTION_WITH_STEPPERS + '=')) {
+			// Support both --with-steppers value and --with-steppers=value
+			let stepperList: string | undefined;
+			if (cur?.includes('=')) {
+				stepperList = cur.split('=')[1];
+			} else {
+				stepperList = args.shift();
+			}
+			if (stepperList) {
+				withSteppers = withSteppers.concat(stepperList.split(',').map((s) => s.trim()));
+			}
+		} else if (cur === '--stdio' || cur === '--node-ipc' || cur?.startsWith('--socket=')) {
+			// Ignore LSP transport arguments (added by vscode-languageclient)
 		} else {
 			params.push(cur);
 		}
 	}
-	return { params, configLoc, showHelp, showSteppers };
+	return { params, configLoc, showHelp, showSteppers, withSteppers };
 }
 
 export function getConfigFromBase(bases: TBase, fs: TFileSystem = nodeFS): TSpecl | null {

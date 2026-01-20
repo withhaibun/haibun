@@ -20,6 +20,7 @@ Feature: Auth-basic Authentication
     set Unauthorized to 401
 
     serve files at /static from "rest"
+    webserver is listening for "auth-basic"
     make auth scheme "basic"
     API user agent is "curl/8.5.0"
 

@@ -4,6 +4,7 @@ Scenario: Handle popup window
     Backgrounds: int/popup
 
     serve files from "popup"
+    webserver is listening for "popup"
     go to the test webpage
     click "Open popup"
 

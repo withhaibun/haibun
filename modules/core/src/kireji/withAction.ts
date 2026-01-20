@@ -84,9 +84,9 @@ export type TCurriedAction<S extends string> = (args: TActionArgsInput<S>) => TA
 // Kireji step: either a string (prose/step) or an action executor function
 export type TKirejiStep = string | TActionExecutor<string>;
 
-// Kireji export structure: keys are feature/background names, values are arrays of steps
+// Kireji export structure: keys are feature/background names, values are arrays of steps or a multi-line string
 export type TKirejiExport = {
-	[featureName: string]: TKirejiStep[];
+	[featureName: string]: TKirejiStep[] | string;
 };
 
 type TActionsFromStepper<S extends TStepperSteps> = {

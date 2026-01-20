@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
 import { AStepper } from '../lib/astepper.js';
-import { OK } from '../lib/defs.js';
+import { OK } from '../schema/protocol.js';
 import { asExpandedFeatures } from '../lib/resolver-features.js';
 import { Resolver } from './Resolver.js';
 import { createSteppers } from '../lib/util/index.js';

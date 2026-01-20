@@ -4,10 +4,10 @@ import { makePrompt } from './prompter.js';
 import { ReadlinePrompter } from './readline-prompter.js';
 
 class TestPrompter implements IPrompter {
-	constructor(private answer: TPromptResponse) { }
-	prompt = async () => Promise.resolve(this.answer);
-	cancel(_id: string, _reason?: string) { }
-	resolve(_id: string, _value: TPromptResponse) { }
+	constructor(private answer: TPromptResponse) { /* empty */ }
+	prompt = () => Promise.resolve(this.answer);
+	cancel(_id: string, _reason?: string) { /* empty */ }
+	resolve(_id: string, _value: TPromptResponse) { /* empty */ }
 }
 
 describe('Prompter', () => {
@@ -15,12 +15,12 @@ describe('Prompter', () => {
 		const prompter = new Prompter();
 		class CallsPrompter implements IPrompter {
 			static calls = 0;
-			prompt = async () => {
+			prompt = () => {
 				CallsPrompter.calls++;
 				return Promise.resolve(undefined);
 			}
-			cancel(_id: string, _reason?: string) { }
-			resolve(_id: string, _value: TPromptResponse) { }
+			cancel(_id: string, _reason?: string) { /* empty */ }
+			resolve(_id: string, _value: TPromptResponse) { /* empty */ }
 		}
 		prompter.subscribe(new CallsPrompter());
 		prompter.subscribe(new CallsPrompter());

@@ -1,5 +1,5 @@
 
-import { TStepArgs } from '../defs.js';
+import { TStepArgs } from '../../schema/protocol.js';
 import { AStepper } from '../astepper.js';
 import { actionNotOK, actionOK } from '../util/index.js';
 

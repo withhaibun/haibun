@@ -14,6 +14,7 @@ export const features: TKirejiExport = {
 	'Visit pages': [
 		feature({ feature: 'Visit pages' }),
 		`Navigate Wikipedia and explore articles using Activities and Waypoints.
+		after every WebPlaywright, take a screenshot
 		This demonstrates using waypoint statements with interpolated parameters.
 		The pattern 'Navigate to {page}' is defined once in the background.
 		Each ensure call with a different page value (mainUrl, haibunUrl) always checks the current state.`,
@@ -32,5 +33,14 @@ export const features: TKirejiExport = {
 
 		is({ what: pagesVisited, value: '2' }),
 		`↑ Verify three actual page visits (fourth ensure was already satisfied).`,
+
+		`Verify all HTTP requests went to Wikipedia/Wikimedia domains.`,
+		`set of "Allowed domains" is ["wikipedia.org", "wikimedia.org"]`,
+		`every host observed in http-trace hosts is some allowed in "Allowed domains" is matches {host} with "*{allowed}"`,
+		`↑ All network traffic stayed within allowed domains.`,
+
+		`every request observed in http-trace is variable {request}/status is less than 400`,
+		`every request observed in http-trace is variable {request}/time is less than 5000`,
+		`some request observed in http-trace is matches {request}/url with "*Haibun*"`
 	]
 }

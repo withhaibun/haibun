@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { z } from 'zod';
 import { getDefaultWorld } from './test/lib.js';
 import { DOMAIN_STRING, DOMAIN_NUMBER, DOMAIN_JSON, DOMAIN_DATE, registerDomains, asDomainKey, createEnumDomainDefinition } from './domain-types.js';
-import { Origin, TDomainDefinition, TStepValue } from './defs.js';
+import { TDomainDefinition } from './defs.js';
+import { Origin, TStepValue } from '../schema/protocol.js';
 
 const p = (value: string, domain = DOMAIN_STRING): TStepValue => ({ term: String(value), value, domain, origin: Origin.var });
 

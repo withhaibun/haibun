@@ -57,6 +57,7 @@ use this command to see available options:
 
 # Further Documentation
 
+* [Architecture overview](docs/architecture.md]
 * [Guide for humans and LLMs](AGENTS.md)
 * [Dependency graph](dependency-graph.html)
 * [Feature structure](docs/feature_structure.md)

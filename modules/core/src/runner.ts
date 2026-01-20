@@ -1,6 +1,7 @@
-import { TWorld, TExecutorResult, CStepper } from './lib/defs.js';
+import { TWorld, CStepper } from './lib/defs.js';
+import { TExecutorResult } from './schema/protocol.js';
 import { TAnyFixme } from './lib/fixme.js';
-import { AStepper } from './lib/astepper.js';
+import { AStepper, StepperKinds } from './lib/astepper.js';
 import { expand } from './lib/features.js';
 import { verifyRequiredOptions, verifyExtraOptions, createSteppers, setStepperWorldsAndDomains } from './lib/util/index.js';
 import { getSteppers } from './lib/util/workspace-lib.js';
@@ -15,19 +16,18 @@ export class Runner {
 	constructor(private world: TWorld) { }
 
 	private errorBail = (phase: string, error: TAnyFixme, details?: TAnyFixme) => {
-		// this.world.logger.error(`errorBail ${phase} ${error} ${details}`, error.stack);
 		this.result = {
 			ok: false,
 			shared: this.world.shared,
 			tag: this.world.tag,
-			failure: { stage: phase, error: { message: error.message, details: { stack: error.stack, details } } },
+			failure: { stage: phase, error: { message: (error as Error).message, details: { stack: (error as Error).stack, details } } },
 			steppers: this.steppers
 		};
 		// console.error(error.stack);
-		throw Error(error);
+		throw Error(error as string);
 	};
 
-	async run(steppers: string[], featureFilter = []): Promise<TExecutorResult> {
+	async run(steppers: string[], featureFilter: string[] = []): Promise<TExecutorResult> {
 		let featuresBackgrounds: TFeaturesBackgrounds = undefined;
 		try {
 			featuresBackgrounds = await getFeaturesAndBackgrounds(this.world.bases, featureFilter);
@@ -55,6 +55,12 @@ export class Runner {
 		try {
 			this.steppers = createSteppers(csteppers);
 			await setStepperWorldsAndDomains(this.steppers, this.world);
+
+			// Auto-suppress NDJSON output if any monitor stepper is configured
+			if (this.steppers.some(s => s.kind === StepperKinds.MONITOR) && this.world.eventLogger) {
+				this.world.eventLogger.suppressConsole = true;
+			}
+
 			// Make backgrounds available at runtime for inline `Backgrounds:` expansion
 			this.world.runtime.backgrounds = featuresBackgrounds.backgrounds;
 			const expandedFeatures = await expand(featuresBackgrounds).catch((error) => this.errorBail('Expand', error));

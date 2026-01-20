@@ -2,13 +2,13 @@ import { create } from 'xmlbuilder2';
 import { EOL } from 'os';
 
 import { AStorage } from '@haibun/domain-storage/AStorage.js';
-import { findStepperFromOption, getStepperOption, stringOrError } from '@haibun/core/lib/util/index.js';
-import { TWorld, TExecutorResult, TNotOkStepActionResult, IStepperCycles } from '@haibun/core/lib/defs.js';
-import { AStepper, IHasCycles, IHasOptions } from '@haibun/core/lib/astepper.js';
+import { findStepperFromOptionOrKind, getStepperOption, stringOrError } from '@haibun/core/lib/util/index.js';
+import { TWorld, IStepperCycles } from '@haibun/core/lib/defs.js';
+import { TExecutorResult, TNotOkStepActionResult } from '@haibun/core/schema/protocol.js';
+import { AStepper, IHasCycles, IHasOptions, StepperKinds } from '@haibun/core/lib/astepper.js';
 import { TAnyFixme } from '@haibun/core/lib/fixme.js';
 import { MEDIA_TYPES, TMediaType } from '@haibun/domain-storage/media-types.js';
 
-const STORAGE = 'STORAGE';
 
 type TTestCase = {
 	'@name': string;
@@ -26,7 +26,9 @@ type TFailResult = {
 };
 
 export default class OutJUnit extends AStepper implements IHasOptions, IHasCycles {
-	cycles:IStepperCycles = {
+	description = 'Generate JUnit XML reports from test results';
+
+	cycles: IStepperCycles = {
 		endExecution: async (results: TExecutorResult) => {
 			const junit = await this.featureResultAsJunit(results);
 			if (this.storage && this.outputFile) {
@@ -41,7 +43,7 @@ export default class OutJUnit extends AStepper implements IHasOptions, IHasCycle
 			desc: `output file (default junit.xml)`,
 			parse: (port: string) => stringOrError(port),
 		},
-		[STORAGE]: {
+		[StepperKinds.STORAGE]: {
 			desc: 'Storage for output (default stdout)',
 			parse: (input: string) => stringOrError(input),
 		},
@@ -56,15 +58,16 @@ export default class OutJUnit extends AStepper implements IHasOptions, IHasCycle
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
 		this.outputFile = getStepperOption(this, 'OUTPUT_FILE', world.moduleOptions) || 'junit.xml';
-		this.storage = findStepperFromOption(steppers, this, world.moduleOptions, STORAGE);
+		this.storage = findStepperFromOptionOrKind(steppers, this, world.moduleOptions, StepperKinds.STORAGE);
 		await Promise.resolve();
 	}
 
-	async featureResultAsJunit(result: TExecutorResult) {
+	featureResultAsJunit(result: TExecutorResult) {
 		const failures = result.featureResults?.filter((t) => !t.ok)?.length || 0;
 		const skipped = result.featureResults?.filter((t) => t.skip)?.length || 0;
 		const count = result.featureResults?.length || 0;
-		const forXML: TAnyFixme = {
+		// biome-ignore lint/suspicious/noExplicitAny: xml builder
+		const forXML: any = {
 			testsuites: {
 				'@tests': count,
 				'@name': this.name,

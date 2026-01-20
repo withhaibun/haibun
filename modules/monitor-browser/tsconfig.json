@@ -1,0 +1,22 @@
+{
+  "extends": "../tsconfig.settings.json",
+  "compilerOptions": {
+    "outDir": "./build",
+    "rootDir": "./src",
+    "jsx": "react-jsx"
+  },
+  "include": [
+    "src/**/*"
+  ],
+  "files": [
+    "src/client/lib/timeline.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "src/client/**/*",
+    "vite.config.ts",
+    "tailwind.config.js",
+    "postcss.config.js",
+    "**/*.test.ts"
+  ]
+}

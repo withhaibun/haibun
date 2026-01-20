@@ -16,10 +16,11 @@ export const features: TKirejiExport = {
 		activity({ activity: 'works on the phase' }),
 		"Advance the release phase by one step when it is before the requested phase.",
 		showVar({ what: 'phase' }),
+
 		'Activity: works on the phase',
 		'Calling a waypoint without ensure will always run the activity body once.',
-		`until whenever variable ${phase} is less than {phase}, Do work`,
-		`waypoint ${Release_at} {phase} with not variable ${phase} is less than {phase}`,
+		`until whenever variable ${phase} is less than requested, Do work`,
+		`waypoint ${Release_at} {requested} with not variable ${phase} is less than requested`,
 
 		'Activity: Do work',
 		showVar({ what: 'effort' }),

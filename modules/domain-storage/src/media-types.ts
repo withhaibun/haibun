@@ -1,4 +1,4 @@
-export const MAPPED_MEDIA_TYPES = {
+export const MAPPED_MEDIA_TYPES: Record<string, string> = {
   js: 'text/javascript',
   javascript: 'text/javascript',
   css: 'text/css',
@@ -21,7 +21,7 @@ export const MAPPED_MEDIA_TYPES = {
   woff2: 'font/woff2',
   ttf: 'font/ttf',
   otf: 'font/otf',
-	xml: 'text/xml',
+  xml: 'text/xml',
   '': 'inode/directory'
 };
 

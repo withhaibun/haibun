@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { AStepper } from '../lib/astepper.js';
-import { OK, TFeatureStep, TStepArgs, ExecMode } from '../lib/defs.js';
+import { TFeatureStep, ExecMode } from '../lib/defs.js';
+import { OK, TStepArgs } from '../schema/protocol.js';
 import { passWithDefaults, DEF_PROTO_OPTIONS, failWithDefaults } from '../lib/test/lib.js';
 import { actionNotOK } from '../lib/util/index.js';
 import { FlowRunner } from '../lib/core/flow-runner.js';

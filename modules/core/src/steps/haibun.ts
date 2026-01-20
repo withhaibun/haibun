@@ -1,36 +1,32 @@
-import { OK, TFeatureStep, STEP_DELAY, TWorld, IStepperCycles, TFeatures, TResolvedFeature, TStartExecution, TStartFeature, CycleWhen } from '../lib/defs.js';
+import { TFeatureStep, TWorld, IStepperCycles, TFeatures, TResolvedFeature, TStartExecution, TStartFeature, CycleWhen } from '../lib/defs.js';
+import { OK, STEP_DELAY } from '../schema/protocol.js';
 import { AStepper, IHasCycles, TStepperSteps } from '../lib/astepper.js';
-import { actionNotOK, actionOK, formattedSteppers, sleep } from '../lib/util/index.js';
+import { actionNotOK, actionOK, constructorName, formattedSteppers, sleep } from '../lib/util/index.js';
 import { findFeatureStepsFromStatement } from '../phases/Resolver.js';
-import { EExecutionMessageType, TArtifactResolvedFeatures, TMessageContext } from '../lib/interfaces/logger.js';
-import { endExecutonContext } from '../phases/Executor.js';
 import { DOMAIN_STATEMENT } from '../lib/domain-types.js';
 import { findFeatures } from '../lib/features.js';
 import { FlowRunner } from '../lib/core/flow-runner.js';
 
 class Haibun extends AStepper implements IHasCycles {
+	description = 'Core steps for features, scenarios, backgrounds, and prose';
+
 	afterEverySteps: { [stepperName: string]: TFeatureStep[] } = {};
 	steppers: AStepper[] = [];
 	resolvedFeature: TResolvedFeature;
 	private runner: FlowRunner;
 
-	// biome-disable-next-line @typescript-eslint/require-await
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
 		this.steppers = steppers;
 		this.runner = new FlowRunner(world, steppers);
 	}
 	cycles: IStepperCycles = {
-		startExecution(resolvedFeatures: TStartExecution) {
-			this.createResolvedFeaturesArtifact('features', resolvedFeatures);
-		},
-		// processes any afterEvery effects after each step
 		startFeature({ resolvedFeature, index }: TStartFeature) {
 			this.resolvedFeature = resolvedFeature;
-			this.createResolvedFeaturesArtifact(`feature-${index}`, [resolvedFeature]);
+			this.afterEverySteps = {};
 		},
 		afterStep: async ({ featureStep }: { featureStep: TFeatureStep }) => {
-			if (featureStep.isSubStep) {
+			if (featureStep.isAfterEveryStep) {
 				return Promise.resolve({ failed: false });
 			}
 			const afterEvery = this.afterEverySteps[featureStep.action.stepperName];
@@ -40,7 +36,9 @@ class Haibun extends AStepper implements IHasCycles {
 
 				if (stepsToRun.length > 0) {
 					const mode = featureStep.intent?.mode === 'speculative' ? 'speculative' : 'authoritative';
-					const res = await this.runner.runSteps(stepsToRun, { intent: { mode }, parentStep: featureStep });
+					// Mark these steps as afterEvery steps to prevent recursion
+					const markedSteps = stepsToRun.map(s => ({ ...s, isAfterEveryStep: true }));
+					const res = await this.runner.runSteps(markedSteps, { intent: { mode }, parentStep: featureStep });
 					if (res.kind !== 'ok') {
 						failed = true;
 					}
@@ -49,6 +47,7 @@ class Haibun extends AStepper implements IHasCycles {
 			return Promise.resolve({ failed });
 		}
 	};
+
 	cyclesWhen = {
 		startExecution: CycleWhen.LAST,
 		startFeature: CycleWhen.LAST,
@@ -56,7 +55,6 @@ class Haibun extends AStepper implements IHasCycles {
 
 
 	steps = {
-		// --- META & UTILITIES ---
 		until: {
 			gwta: `until {statements:${DOMAIN_STATEMENT}}`,
 			action: async ({ statements }: { statements: TFeatureStep[] }, featureStep: TFeatureStep) => {
@@ -65,7 +63,6 @@ class Haibun extends AStepper implements IHasCycles {
 				do {
 					signal = await this.runner.runSteps(statements, { intent: { mode, usage: 'polling' }, parentStep: featureStep });
 					if (signal.fatal) {
-						this.getWorld().logger.warn(`until: received terminal error, aborting loop`);
 						return actionNotOK('until: aborted due to terminal error');
 					}
 					if (signal.kind !== 'ok') {
@@ -92,12 +89,12 @@ class Haibun extends AStepper implements IHasCycles {
 						throw new Error(`can't find single "${bgName}.feature" from ${backgrounds.map((b) => b.path).join(', ')}`);
 					}
 				}
-				return false; // Don't skip - still needs to execute normally
+				return false;
 			},
 			action: async ({ names }: { names: string }, featureStep: TFeatureStep) => {
-				// Expand backgrounds at runtime using world.runtime.backgrounds
 				const world = this.getWorld();
-				const expanded = findFeatureStepsFromStatement(names, this.steppers, world, featureStep.path, featureStep.seqPath, 1);
+				// Prepend 'Backgrounds: ' so expandLine correctly recognizes this as a background directive
+				const expanded = findFeatureStepsFromStatement(`Backgrounds: ${names}`, this.steppers, world, featureStep.source.path, featureStep.seqPath, 1);
 				const mode = featureStep.intent?.mode === 'speculative' ? 'speculative' : 'authoritative';
 				const result = await this.runner.runSteps(expanded, { intent: { mode }, parentStep: featureStep });
 				return result.kind === 'ok' ? OK : actionNotOK(`backgrounds failed: ${result.message}`);
@@ -108,7 +105,6 @@ class Haibun extends AStepper implements IHasCycles {
 			action: () => OK,
 		},
 		prose: {
-			// prose starts with a capital letter and ends with punctuation, or starts with punctuation
 			match: /^([A-Z].*[.!?:;]|[^a-zA-Z].*)$/,
 			fallback: true,
 			action: () => OK,
@@ -140,36 +136,104 @@ class Haibun extends AStepper implements IHasCycles {
 		},
 		endsWith: {
 			gwta: 'ends with {result}',
-			action: (({ result }: { result: string }) => (result.toUpperCase() === 'OK' ? actionOK({ messageContext: endExecutonContext }) : actionNotOK('ends with not ok'))),
+			action: (({ result }: { result: string }) => (result.toUpperCase() === 'OK' ? actionOK() : actionNotOK('ends with not ok'))),
 		},
 		showSteppers: {
 			exact: 'show steppers',
 			action: () => {
 				const allSteppers = formattedSteppers(this.steppers);
-				this.world?.logger.info(`Steppers: ${JSON.stringify(allSteppers, null, 2)}`);
-				return actionOK({ messageContext: { incident: EExecutionMessageType.ACTION, incidentDetails: { steppers: allSteppers } } });
+				this.getWorld().eventLogger.info(JSON.stringify(allSteppers, null, 2));
+				return actionOK();
 			},
 		},
 		showSteps: {
 			gwta: 'show step results',
 			action: () => {
 				const steps = this.getWorld().runtime.stepResults;
-				this.world?.logger.info(`Steps: ${JSON.stringify(steps, null, 2)}`);
-				return actionOK({ messageContext: { incident: EExecutionMessageType.ACTION, incidentDetails: { steps } } });
+				this.getWorld().eventLogger.info(JSON.stringify(steps));
+				return actionOK();
 			}
 		},
 		showFeatures: {
 			gwta: 'show features',
 			action: () => {
-				this.world?.logger.info(`Features: ${JSON.stringify(this.resolvedFeature, null, 2)}`);
-				return actionOK({ messageContext: { incident: EExecutionMessageType.ACTION, incidentDetails: { features: this.resolvedFeature } } });
+				return actionOK();
 			}
 		},
 		showBackgrounds: {
 			gwta: 'show backgrounds',
 			action: () => {
-				this.world?.logger.info(`Backgrounds: ${JSON.stringify(this.getWorld().runtime.backgrounds, null, 2)}`);
-				return actionOK({ messageContext: { incident: EExecutionMessageType.ACTION, incidentDetails: { backgrounds: this.getWorld().runtime.backgrounds } } });
+				return actionOK();
+			}
+		},
+		showQuadStore: {
+			exact: 'show quadstore',
+			action: () => {
+				const quads = this.getWorld().shared.allQuads();
+				const output = quads.map(q =>
+					`(${q.subject}, ${q.predicate}, ${JSON.stringify(q.object)}, ${q.namedGraph || 'default'})`
+				).join('\n');
+				this.getWorld().eventLogger.info(`\n=== QuadStore Dump (${quads.length} quads) ===\n${output}\n==========================\n`);
+				return OK;
+			},
+		},
+		showObservations: {
+			gwta: 'show observations',
+			action: () => {
+				const observations = this.getWorld().runtime.observations;
+				if (!observations) {
+					this.getWorld().eventLogger.info(`observations: none`);
+					return actionOK();
+				}
+
+				// Correlate observations with their providers
+				const providers: Record<string, string> = {};
+				for (const stepper of this.steppers) {
+					if ('cycles' in stepper) {
+						const concerns = (stepper as unknown as IHasCycles).cycles.getConcerns?.();
+						if (concerns?.sources) {
+							for (const source of concerns.sources) {
+								providers[source.name] = stepper.constructor.name;
+							}
+						}
+					}
+				}
+
+				const systemProviders: Record<string, string> = {
+					stepUsage: 'Executor'
+				};
+
+				const summary: Record<string, { provider: string, items: unknown }> = {};
+				for (const [name, items] of observations.entries()) {
+					// Handle Maps (like httpRequests/httpHosts) by converting to object/array
+					let displayItems = items;
+					if (items instanceof Map) {
+						displayItems = Object.fromEntries(items);
+					}
+
+					summary[name] = {
+						provider: providers[name] || systemProviders[name] || 'unknown',
+						items: displayItems
+					};
+				}
+
+				this.getWorld().eventLogger.info(JSON.stringify(summary, null, 2));
+				return actionOK();
+			}
+		},
+		showShows: {
+			gwta: 'show shows',
+			action: () => {
+				const shows: string[] = [];
+				for (const stepper of this.steppers) {
+					for (const step of Object.values(stepper.steps)) {
+						if (step.gwta?.startsWith('show ') || step.exact?.startsWith('show ')) {
+							shows.push(step.gwta || step.exact || '');
+						}
+					}
+				}
+				this.getWorld().eventLogger.info(JSON.stringify(shows.sort(), null, 2));
+				return actionOK();
 			}
 		},
 		pauseSeconds: {
@@ -185,21 +249,18 @@ class Haibun extends AStepper implements IHasCycles {
 			precludes: [`Haibun.prose`],
 			gwta: `after every {stepperName: string}, {statement: ${DOMAIN_STATEMENT}}`,
 			handlesUndefined: ['stepperName'],
-			action: ({ stepperName, statement }: { stepperName: string; statement: TFeatureStep[] }) => {
-				this.afterEverySteps[stepperName] = statement;
+			action: ({ statement }: { stepperName: string; statement: TFeatureStep[] }, featureStep: TFeatureStep) => {
+				const { term: stepperName } = featureStep.action.stepValuesMap.stepperName;
+				const matchedStepper = this.steppers.find(s => constructorName(s) === stepperName);
+				if (!matchedStepper) {
+					return actionNotOK(`Didn't find stepper "${stepperName}" from [${this.steppers.map(s => constructorName(s)).join(', ')}]`);
+				}
+				// Use constructorName for consistent key (handles vitest naming)
+				this.afterEverySteps[constructorName(matchedStepper)] = statement;
 				return OK;
 			},
 		},
 	} satisfies TStepperSteps;
 
-	createResolvedFeaturesArtifact(type: string, resolvedFeatures: TResolvedFeature[], index = undefined) {
-		const artifact: TArtifactResolvedFeatures = { artifactType: 'resolvedFeatures', resolvedFeatures, index, };
-		const context: TMessageContext = {
-			incident: EExecutionMessageType.ACTION,
-			artifacts: [artifact],
-			tag: this.getWorld().tag,
-		};
-		this.getWorld().logger.info(`resolvedFeatures for ${type}`, context);
-	}
 }
 export default Haibun;

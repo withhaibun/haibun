@@ -20,7 +20,7 @@ export default class StorageMem extends AStorage {
 	writeFileBuffer = (fn: string, contents: Buffer) => {
 		this.volume.writeFileSync(fn, contents);
 	};
-	async lstatToIFile(file: string) {
+	lstatToIFile(file: string) {
 		const l = this.volume.lstatSync(file);
 		const ifile = {
 			name: file,
@@ -33,7 +33,7 @@ export default class StorageMem extends AStorage {
 	debug(where: string) {
 		console.debug(toTreeSync(this.volume, { dir: where || process.cwd() }));
 	}
-	readdir = async (dir: string) => {
+	readdir = (dir: string) => {
 		try {
 			const ret = this.volume.readdirSync(dir).map((i) => i.toString());
 			return Promise.resolve(ret);

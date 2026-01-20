@@ -1,18 +1,20 @@
 import { Download, Page, Response } from "playwright";
 type ClickResult = import('playwright').Locator;
 
-import { OK, Origin, TActionResult, TFeatureStep } from "@haibun/core/lib/defs.js";
+import { TFeatureStep } from '@haibun/core/lib/defs.js';
+import { OK, Origin, TActionResult, TStepResult } from '@haibun/core/schema/protocol.js';
 import { DOMAIN_STATEMENT, DOMAIN_STRING } from "@haibun/core/lib/domain-types.js";
 import { actionNotOK, sleep, getStepTerm } from "@haibun/core/lib/util/index.js";
 import { DOMAIN_PAGE_LOCATOR } from "./domains.js";
 import { WEB_PAGE, WebPlaywright } from "./web-playwright.js";
 import { BROWSERS } from "./BrowserFactory.js";
-import { EExecutionMessageType } from "@haibun/core/lib/interfaces/logger.js";
+
 import { actionOK } from "@haibun/core/lib/util/index.js";
 import { pathToFileURL } from 'node:url';
 import { TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { provenanceFromFeatureStep } from "@haibun/core/steps/variables-stepper.js";
 import { FlowRunner } from "@haibun/core/lib/core/flow-runner.js";
+import { JsonArtifact } from '@haibun/core/schema/protocol.js';
 
 const DOMAIN_STRING_OR_PAGE_LOCATOR = `${DOMAIN_STRING} | ${DOMAIN_PAGE_LOCATOR}`;
 
@@ -49,14 +51,14 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 	dialogIs: {
 		gwta: 'dialog {what} {type} says {value}',
 		action: ({ what, type, value }: { what: string; type: string; value: string }) => {
-			const cur = wp.getWorld().shared.get(what)?.[type];
+			const cur = (wp.getWorld().shared.get(what) as Record<string, unknown> | undefined)?.[type];
 			return cur === value ? OK : actionNotOK(`${what} is ${cur}`);
 		},
 	},
 	dialogIsUnset: {
 		gwta: 'dialog {what} {type} not set',
 		action: ({ what, type }: { what: string; type: string }) => {
-			const cur = wp.getWorld().shared.get(what)?.[type];
+			const cur = (wp.getWorld().shared.get(what) as Record<string, unknown> | undefined)?.[type];
 			return !cur ? OK : actionNotOK(`${what} is ${cur}`);
 		},
 	},
@@ -167,7 +169,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 	URIQueryParameterIs: {
 		gwta: 'URI query parameter {what} is {value}',
 		action: async ({ value }: { value: string }, featureStep) => {
-			const term = getStepTerm(featureStep, 'what')!;
+			const term = getStepTerm(featureStep, 'what') ?? '';
 			const uri = await wp.withPage<string>(async (page: Page) => await page.url());
 			const found = new URL(uri).searchParams.get(term);
 			if (found === value) {
@@ -176,22 +178,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 			return actionNotOK(`URI query ${term} contains "${found}", not "${value}"`);
 		},
 	},
-	URIStartsWith: {
-		gwta: 'URI starts with {start}',
-		action: async ({ start }: { start: string }) => {
-			const uri = await wp.withPage<string>(async (page: Page) => await page.url());
-			return uri.startsWith(start) ? OK : actionNotOK(`current URI ${uri} does not start with ${start}`);
-		},
-	},
-	URIMatches: {
-		gwta: 'URI(case insensitively)? matches {what}',
-		action: async ({ what }: { what: string }, featureStep) => {
-			const modifier = featureStep.in.match(/ case insensitively /) ? 'i' : '';
-			const uri = await wp.withPage<string>(async (page: Page) => await page.url());
-			const matcher = new RegExp(what, modifier);
-			return uri.match(matcher) ? OK : actionNotOK(`current URI ${uri} does not match ${what}`);
-		},
-	},
+
 	//                  CLICK
 	click: {
 		gwta: `click( invisible)? {target: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}( with force)?`,
@@ -216,7 +203,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 				wp.inContainer = undefined;
 
 				if (result.kind === 'ok') {
-					return result.payload as TActionResult;
+					return ((result as Record<string, unknown>).topics as TActionResult);
 				} else {
 					return actionNotOK(result.message);
 				}
@@ -228,7 +215,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 		gwta: `click {target: ${DOMAIN_STRING_OR_PAGE_LOCATOR}} by {method}`,
 		handlesUndefined: ['method'],
 		action: async ({ target }: { target: string; method: string }, featureStep: TFeatureStep) => {
-			const method = getStepTerm(featureStep, 'method')!;
+			const method = getStepTerm(featureStep, 'method') ?? '';
 			let withModifier: Record<string, unknown> = {};
 
 			const bys: Record<string, (page: Page) => ClickResult | Promise<void>> = {
@@ -260,16 +247,24 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 	//                          NAVIGATION
 
 	gotoPage: {
-		gwta: `go to the { name } ${WEB_PAGE}`,
+		gwta: `go to the {name} ${WEB_PAGE}`,
 		action: async ({ name }: { name: string }) => {
 			const response = await wp.withPage<Response | null>(async (page: Page) => {
-				return await page.goto(name);
+				const res = await page.goto(name);
+				await wp.waitForLoaded(page);
+				return res;
 			});
-			const messageContext = {
-				incident: EExecutionMessageType.ACTION,
-				incidentDetails: { ...(response?.allHeaders || {}), summary: response?.statusText() }
-			};
-			return response?.ok() ? OK : actionNotOK(`response not ok`, { messageContext });
+			const topics = { ...(response?.allHeaders() || {}), summary: response?.statusText() };
+			return response?.ok() ? OK : actionNotOK(`response not ok`, { topics });
+		},
+	},
+	pageHasSettled: {
+		gwta: 'page has settled',
+		action: async () => {
+			await wp.withPage(async (page: Page) => {
+				await wp.waitForLoaded(page);
+			});
+			return OK;
 		},
 	},
 	reloadPage: {
@@ -385,7 +380,6 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 						type: dialog.type(),
 					};
 					await dialog.accept();
-					console.log('DEBUG: captureDialog handler triggered', { where, res });
 					if (!where) {
 						console.error('Error: captureDialog called with empty "where" argument');
 						return;
@@ -436,7 +430,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 						throw Error(`no single ${what} from ${locator} `);
 					}
 					await locator.screenshot({ path: where });
-					wp.getWorld().logger.info(`screenshot of ${what} saved to ${pathToFileURL(where)} `);
+					wp.getWorld().eventLogger.info(`screenshot of ${what} saved to ${pathToFileURL(where)} `);
 				});
 				return OK;
 			} catch (e) {
@@ -446,8 +440,10 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 	},
 	takeScreenshot: {
 		gwta: 'take a screenshot',
-		action: async () => {
-			await wp.captureScreenshotAndLog(EExecutionMessageType.ACTION, {});
+		action: async (_args, featureStep: TFeatureStep) => {
+			// Create a minimal step result for artifact tracking
+			const stepResult = featureStep ? { seqPath: featureStep.seqPath, path: featureStep.source.path, in: featureStep.in } : undefined;
+			await wp.captureScreenshotAndLog('action', { step: stepResult as unknown as TStepResult | undefined });
 			return OK;
 		},
 	},
@@ -455,39 +451,42 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 		gwta: 'get page contents',
 		action: async () => {
 			const contents = await wp.withPage<string>(async (page: Page) => await page.content());
-			const messageContext = {
-				incident: EExecutionMessageType.ACTION,
-				artifact: {
-					artifactType: 'html' as const,
-					html: contents || ''
-				}
-			};
-			return actionOK(messageContext);
+			// Use topics to return content
+			return actionOK({ topics: { html: contents || '' } });
 		},
 	},
 	takeAccessibilitySnapshot: {
 		gwta: 'take an accessibility snapshot',
 		action: async () => {
 			const snapshot = await wp.captureAccessibilitySnapshot();
-			const artifact = {
-				artifactType: 'json' as const,
-				json: (snapshot as object) || {}
-			};
-			const messageContext = {
-				incident: EExecutionMessageType.ACTION,
-				tag: wp.getWorld().tag,
-				artifact
-			};
-			wp.getWorld().logger.info('Accessibility snapshot captured', messageContext);
+
+			// Emit JsonArtifact
+			if (wp.getWorld().eventLogger) {
+				const artifactEvent = JsonArtifact.parse({
+					id: `a11y-snapshot-${Date.now()}`,
+					timestamp: Date.now(),
+					kind: 'artifact',
+					artifactType: 'json',
+					json: (snapshot as Record<string, unknown>) || {},
+					mimetype: 'application/json'
+				});
+				// We don't have featureStep here? 
+				// The action has featureStep in signature if we added it.
+				// But we can use emit() directly or ignore featureStep association if not critical. 
+				// Better: add featureStep to action signature. But typings?
+				wp.getWorld().eventLogger.emit(artifactEvent);
+			}
+
+			wp.getWorld().eventLogger.info('Accessibility snapshot captured');
 			return OK;
 		},
 	},
 	saveURIQueryParameter: {
 		gwta: 'save URI query parameter {what} to {where}',
 		handlesUndefined: ['what', 'where'],
-		action: async ({ }, featureStep) => {
-			const what = getStepTerm(featureStep, 'what')!;
-			const where = getStepTerm(featureStep, 'where')!;
+		action: async (_args: Record<string, unknown>, featureStep) => {
+			const what = getStepTerm(featureStep, 'what') ?? '';
+			const where = getStepTerm(featureStep, 'where') ?? '';
 			const uri = await wp.withPage<string>(async (page: Page) => await page.url());
 			const found = new URL(uri).searchParams.get(what);
 			wp.getWorld().shared.set({ term: where, value: found, domain: 'string', origin: Origin.var }, provenanceFromFeatureStep(featureStep));
