@@ -2,8 +2,21 @@ import { TWorld, IStepperCycles, TStepperStep, TOptionValue, TEnvVariables, ISte
 import { TAnyFixme } from './fixme.js';
 import { constructorName } from './util/index.js';
 
+export const StepperKinds = {
+	MONITOR: 'MONITOR',
+	STORAGE: 'STORAGE',
+	BROWSER: 'BROWSER',
+	SERVER: 'SERVER',
+	TEST: 'TEST',
+} as const;
+
+export type TStepperKind = keyof typeof StepperKinds;
+
 export abstract class AStepper {
+	description?: string;
 	world?: TWorld;
+	kind?: TStepperKind;
+
 	async setWorld(world: TWorld, _steppers: AStepper[]) {
 		this.world = world;
 		// some steppers like to keep a reference to all steppers
@@ -18,6 +31,12 @@ export abstract class AStepper {
 
 		return this.world;
 	}
+
+	/**
+	 * Called by Resolver before resolving each feature.
+	 * Steppers can override to clear feature-scoped steps that shouldn't leak between features.
+	 */
+	startFeatureResolution?(_path: string): void;
 }
 export type TStepperSteps = {
 	[key: string]: TStepperStep;

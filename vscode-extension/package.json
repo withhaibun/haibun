@@ -1,0 +1,123 @@
+{
+  "name": "haibun-lsp",
+  "displayName": "Haibun Language Support",
+  "description": "Autocomplete and hover documentation for Haibun .feature files",
+  "version": "0.1.90",
+  "publisher": "haibun",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/withhaibun/haibun.git"
+  },
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "activationEvents": [
+    "onLanguage:haibun",
+    "workspaceContains:**/*.feature",
+    "workspaceContains:**/*.feature.ts"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "haibun",
+          "title": "Haibun",
+          "icon": "media/haibun-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "haibun": [
+        {
+          "id": "haibun.configurationView",
+          "name": "Configuration",
+          "icon": "media/haibun-icon.svg"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "haibun.configure",
+        "title": "Haibun: Configure Workspace",
+        "category": "Haibun"
+      },
+      {
+        "command": "haibun.restart",
+        "title": "Haibun: Restart LSP",
+        "category": "Haibun"
+      }
+    ],
+    "languages": [
+      {
+        "id": "haibun",
+        "extensions": [
+          ".feature"
+        ],
+        "aliases": [
+          "Haibun",
+          "Haibun Feature"
+        ]
+      }
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "Haibun",
+      "properties": {
+        "haibun.bases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Base directories containing Haibun features and backgrounds"
+        },
+        "haibun.configFile": {
+          "type": "string",
+          "default": "",
+          "description": "Path to Haibun configuration file (config.json)"
+        },
+        "haibun.cwd": {
+          "type": "string",
+          "default": "",
+          "description": "Working directory for the Haibun LSP server process"
+        },
+        "haibun.cliPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the Haibun CLI entry point (cli.js). Leave empty to auto-detect."
+        },
+        "haibun.mcpEnabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable the MCP server for LLM agent tool access"
+        },
+        "haibun.mcpPort": {
+          "type": "number",
+          "default": 8765,
+          "description": "Port for the MCP server"
+        },
+        "haibun.mcpAccessToken": {
+          "type": "string",
+          "default": "",
+          "description": "Access token for MCP authentication (optional)"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.108.1",
+    "typescript": "^5.9.3"
+  }
+}

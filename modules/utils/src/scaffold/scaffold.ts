@@ -22,15 +22,11 @@ export async function scaffoldHaibun(dest: string, opts?: { out?: typeof console
             '@haibun/core': currentVersion,
             '@haibun/cli': currentVersion,
         },
-        devDependencies: ["@types/node", "@typescript-eslint/eslint-plugin", "@typescript-eslint/parser", "eslint", "eslint-config-airbnb-typescript"
-            , "eslint-config-prettier", "eslint-plugin-import", "eslint-plugin-prefer-arrow", "eslint-plugin-prettier", "vitest"
-            , "prettier", "typescript"]
-            .reduce((a, i) => ({ ...a, [i]: refPackage.devDependencies[i] }), {} as Tkv),
+        devDependencies: ["@types/node", "vitest", "typescript"].reduce((a, i) => ({ ...a, [i]: refPackage.devDependencies[i] }), {} as Tkv),
         scripts: {
             test: 'vitest run',
             "test-watch": 'vitest',
-            "build": "tsc",
-            lint: 'lint --ext .ts ./src/',
+            "build": "tsc"
         },
         dirs: [
             'src',
@@ -44,7 +40,7 @@ export async function scaffoldHaibun(dest: string, opts?: { out?: typeof console
         const localPackage = readFileSync(localPackageJson, 'utf-8');
         localDest = JSON.parse(localPackage);
         pName = localDest.name.replace(/.*\//, '').replace(/[@]/, '_', 'g').replace(/-./g, (x: string) => x[1].toUpperCase());
-    } catch (e) {
+    } catch (_e) {
         if (!noPrompt) {
             pName = await readPackageName();
             localDest = { name: pName };
@@ -81,7 +77,7 @@ export async function scaffoldHaibun(dest: string, opts?: { out?: typeof console
 
     writeFileSync(localPackageJson, JSON.stringify(localDest, null, 2));
 
-    for (const f of ['tsconfig.json', 'jest.config.js', '.eslintrc', '.prettierrc']) {
+    for (const f of ['tsconfig.json']) {
         writeIfMissing(f);
     }
 
@@ -94,7 +90,7 @@ export async function scaffoldHaibun(dest: string, opts?: { out?: typeof console
         }
     }
 
-    const cName = pName.replace(/-./g, (x) => x[1].toUpperCase());
+    const cName = pName.replace(/-./g, (x: string) => x[1].toUpperCase());
     for (const f of ['stepper.ts', 'stepper.test.ts']) {
         writeIfMissing(`src/${f}`, `src/${cName}-${f}`, 'WTW', cName);
     }

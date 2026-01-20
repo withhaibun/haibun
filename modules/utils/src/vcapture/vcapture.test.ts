@@ -5,29 +5,29 @@ import { getContainerSetup, parseVCaptureArgs, TCaptureOptions } from './vcaptur
 describe('parseArgs', () => {
 	it('does not parse pass-env using next arg', () => {
 		const args = ['--pass-env', 'M1=1,M2=2'];
-		const { captureOptions } = parseVCaptureArgs(args, () => { });
+		const { captureOptions } = parseVCaptureArgs(args, () => { /* noop */ });
 		expect(captureOptions.passEnv).toEqual([""]);
 	});
 	it('should parse pass-env using =', () => {
 		const args = ['--pass-env=M1=1,M2=2'];
-		const { captureOptions } = parseVCaptureArgs(args, () => { });
+		const { captureOptions } = parseVCaptureArgs(args, () => { /* noop */ });
 		expect(captureOptions.passEnv).toEqual(['M1=1,M2=2']);
 	});
 
 	it('should parse res using =', () => {
 		const args = ['--res=1280x720'];
-		const { captureOptions } = parseVCaptureArgs(args, () => { });
+		const { captureOptions } = parseVCaptureArgs(args, () => { /* noop */ });
 		expect(captureOptions.res).toBe('1280x720');
 	});
 	it('should get test to run and includeDirs', () => {
 		const args = ['testToRun', 'dir1', 'dir2'];
-		const { testToRun, includeDirs } = parseVCaptureArgs(args, () => { });
+		const { testToRun, includeDirs } = parseVCaptureArgs(args, () => { /* noop */ });
 		expect(testToRun).toBe('testToRun');
 		expect(includeDirs).toEqual(['dir1', 'dir2']);
 	});
 	it('handles flags and args', () => {
 		const args = ['--recreate', '--no-capture', 'testToRun', 'dir1', 'dir2'];
-		const { testToRun, includeDirs, captureOptions } = parseVCaptureArgs(args, () => { });
+		const { testToRun, includeDirs, captureOptions } = parseVCaptureArgs(args, () => { /* noop */ });
 		expect(testToRun).toBe('testToRun');
 		expect(includeDirs).toEqual(['dir1', 'dir2']);
 		expect(captureOptions.recreate).toBe(true);
@@ -37,7 +37,7 @@ describe('parseArgs', () => {
 	});
 	it('handles flags at the end', () => {
 		const args = ['testToRun', 'dir1', '--recreate', '--pass-env=HAIBUN_STAY=failure'];
-		const { testToRun, includeDirs, captureOptions } = parseVCaptureArgs(args, () => { });
+		const { testToRun, includeDirs, captureOptions } = parseVCaptureArgs(args, () => { /* noop */ });
 		expect(testToRun).toBe('testToRun');
 		expect(includeDirs).toEqual(['dir1']);
 		expect(captureOptions.recreate).toBe(true);
@@ -46,7 +46,7 @@ describe('parseArgs', () => {
 	});
 	it('handles mixed flags', () => {
 		const args = ['--tts', 'testToRun', 'dir1', '--recreate', '--pass-env=HAIBUN_STAY=failure'];
-		const { testToRun, includeDirs, captureOptions } = parseVCaptureArgs(args, () => { });
+		const { testToRun, includeDirs, captureOptions } = parseVCaptureArgs(args, () => { /* noop */ });
 		expect(testToRun).toBe('testToRun');
 		expect(includeDirs).toEqual(['dir1']);
 		expect(captureOptions.recreate).toBe(true);
@@ -55,12 +55,12 @@ describe('parseArgs', () => {
 	});
 	it('handles multiple passEnv', () => {
 		const args = ['--pass-env=HAIBUN_STAY=failure', '--pass-env=HAIBUN_ENV=foo=bar,wut=wow', 'testToRun', 'dir1'];
-		const { captureOptions } = parseVCaptureArgs(args, () => { });
+		const { captureOptions } = parseVCaptureArgs(args, () => { /* noop */ });
 		expect(captureOptions.passEnv).toEqual(['HAIBUN_STAY=failure', 'HAIBUN_ENV=foo=bar,wut=wow']);
 	});
 	it('handles cli-env', () => {
 		const args = ['--cli-env=foo=bar,wut=wow', 'testToRun', 'dir1'];
-		const { captureOptions } = parseVCaptureArgs(args, () => { });
+		const { captureOptions } = parseVCaptureArgs(args, () => { /* noop */ });
 		expect(captureOptions.cliEnv).toEqual(['foo=bar,wut=wow']);
 	})
 });

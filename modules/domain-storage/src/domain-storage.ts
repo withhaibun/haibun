@@ -16,6 +16,8 @@ export interface IFile {
 }
 
 const DomainStorage = class DomainStorage extends AStepper implements IHasOptions {
+	description = 'Storage domain types and file operations base';
+
 	locator = (location: string) => `./${location}`;
 	options = {
 		BASE_DIRECTORY: {

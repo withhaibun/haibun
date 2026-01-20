@@ -1,7 +1,7 @@
 import { Resolver } from "../../phases/Resolver.js";
 import Haibun from "../../steps/haibun.js";
 import { AStepper } from "../astepper.js";
-import { OK } from "../defs.js";
+import { OK } from '../../schema/protocol.js';
 import { expand } from "../features.js";
 import { TProtoFeature, asFeatures } from "../resolver-features.js";
 import { createSteppers } from "../util/index.js";

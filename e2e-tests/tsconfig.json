@@ -4,12 +4,14 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "esModuleInterop": true,
-    "baseUrl": ".",
     "skipLibCheck": true,
     "strict": true,
     "resolveJsonModule": true,
-    "allowImportingTsExtensions": true,
-    "noEmit": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "build-local",
+    "rootDir": "src",
     "preserveSymlinks": true,
     "paths": {
       "@haibun/*": [
@@ -17,15 +19,14 @@
         "../modules/*"
       ]
     },
-    "types": [
-      "node"
-    ],
     "lib": [
-      "ES2022",
-      "DOM"
+      "ES2022"
     ]
   },
+  "include": [
+    "src"
+  ],
   "exclude": [
-    "node_modules",
+    "node_modules"
   ]
 }

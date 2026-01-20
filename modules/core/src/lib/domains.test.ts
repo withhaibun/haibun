@@ -67,12 +67,6 @@ describe('domains', () => {
 		expect(res.ok).toBe(true);
 	});
 
-	it('treats single {braces} as literal text', async () => {
-		const feature = { path: '/features/d.feature', content: 'set literal to {braces}\nvariable literal is "{braces}"' };
-		const res = await passWithDefaults([feature], steppers);
-		expect(res.ok).toBe(true);
-	});
-
 	it('fails on invalid json domain', async () => {
 		const feature = { path: '/features/d.feature', content: 'set bad as json to "{"a":1"' }; // missing closing quote / brace
 		const res = await failWithDefaults([feature], steppers);

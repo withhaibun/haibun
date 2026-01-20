@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { FeatureVariables } from './feature-variables.js';
-import { TWorld, TStepValue, Origin, TFeatureStep } from './defs.js';
+import { TWorld, TFeatureStep } from './defs.js';
+import { TStepValue, Origin } from '../schema/protocol.js';
 import { getDefaultWorld } from './test/lib.js';
 import { DOMAIN_JSON, DOMAIN_STRING } from './domain-types.js';
 
@@ -8,7 +9,7 @@ describe('FeatureVariables', () => {
 	let world: TWorld;
 	let variables: FeatureVariables;
 	const mockFeatureStep: TFeatureStep = {
-		path: '/test/feature.ts',
+		source: { path: '/test/feature.ts' },
 		in: 'test step',
 		seqPath: [1, 2, 3],
 		action: {
@@ -22,7 +23,7 @@ describe('FeatureVariables', () => {
 	};
 
 	beforeEach(() => {
-		world = getDefaultWorld(0);
+		world = getDefaultWorld();
 		variables = new FeatureVariables(world);
 	});
 
@@ -89,7 +90,7 @@ describe('FeatureVariables', () => {
 	describe('toString', () => {
 		it('should return string representation', () => {
 			const str = variables.toString();
-			expect(str).toContain('context');
+			expect(str).toContain('tag');
 			expect(str).toContain(world.tag);
 		});
 	});
@@ -252,8 +253,8 @@ describe('FeatureVariables', () => {
 
 			const all = variables.all();
 			expect(all.myJson.provenance).toHaveLength(1);
-			expect(all.myJson.provenance![0].in).toBe('test step');
-			expect(all.myJson.provenance![0].when).toBe('TestStepper.testAction');
+			expect(all.myJson.provenance?.[0].in).toBe('test step');
+			expect(all.myJson.provenance?.[0].when).toBe('TestStepper.testAction');
 		});
 	});
 
@@ -356,6 +357,71 @@ describe('FeatureVariables', () => {
 			);
 			const result = fv.resolveVariable({ term: '/path', origin: Origin.defined });
 			expect(result.value).toBe('defined value');
+		});
+	});
+
+	describe('secret variables', () => {
+		it('should auto-detect password variables as secret', () => {
+			variables.set(
+				{ term: 'userPassword', value: 'secret123', domain: DOMAIN_STRING, origin: Origin.var },
+				{ in: 'test', seq: [1], when: 'test.action' }
+			);
+			expect(variables.isSecret('userPassword')).toBe(true);
+		});
+
+		it('should auto-detect PASSWORD (uppercase) as secret', () => {
+			variables.set(
+				{ term: 'DATABASE_PASSWORD', value: 'db-secret', domain: DOMAIN_STRING, origin: Origin.var },
+				{ in: 'test', seq: [1], when: 'test.action' }
+			);
+			expect(variables.isSecret('DATABASE_PASSWORD')).toBe(true);
+		});
+
+		it('should auto-detect password in middle of name as secret', () => {
+			variables.set(
+				{ term: 'my_password_field', value: 'pwd123', domain: DOMAIN_STRING, origin: Origin.var },
+				{ in: 'test', seq: [1], when: 'test.action' }
+			);
+			expect(variables.isSecret('my_password_field')).toBe(true);
+		});
+
+		it('should allow explicit secret flag', () => {
+			variables.set(
+				{ term: 'apiKey', value: 'key-12345', domain: DOMAIN_STRING, origin: Origin.var, secret: true },
+				{ in: 'test', seq: [1], when: 'test.action' }
+			);
+			expect(variables.isSecret('apiKey')).toBe(true);
+		});
+
+		it('should not mark non-password variables as secret', () => {
+			variables.set(
+				{ term: 'username', value: 'john', domain: DOMAIN_STRING, origin: Origin.var },
+				{ in: 'test', seq: [1], when: 'test.action' }
+			);
+			expect(variables.isSecret('username')).toBe(false);
+		});
+
+		it('should return false for isSecret on non-existent variable', () => {
+			expect(variables.isSecret('nonExistent')).toBe(false);
+		});
+
+		it('should store secret flag as meta quad', () => {
+			variables.set(
+				{ term: 'thePassword', value: 'pwd', domain: DOMAIN_STRING, origin: Origin.var },
+				{ in: 'test', seq: [1], when: 'test.action' }
+			);
+			const secretQuads = variables.queryQuads({ subject: 'thePassword', predicate: 'secret' });
+			expect(secretQuads.length).toBe(1);
+			expect(secretQuads[0].object).toBe(true);
+		});
+
+		it('should preserve secret flag in all()', () => {
+			variables.set(
+				{ term: 'secretPassword', value: 'hidden', domain: DOMAIN_STRING, origin: Origin.var },
+				{ in: 'test', seq: [1], when: 'test.action' }
+			);
+			const all = variables.all();
+			expect(all.secretPassword.secret).toBe(true);
 		});
 	});
 });

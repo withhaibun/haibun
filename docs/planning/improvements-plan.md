@@ -25,6 +25,7 @@ Instead of hardcoded "Developer" or "User" logs, views are projections based on 
 -   **Standard Interface:** The `Executor` implements a JSON-RPC / MCP interface.
 -   **Simplification:** CLI/Test Runner and Agents use this same API.
 -   **Rationalized State:** Executor flags are refactored into a typed configuration object passed via RPC.
+-   **Support LSP interface** (for code completion, etc.)
 
 ### 2.2. Static Resolution (Resolve Time)
 **Goal:** All steps, including compound statements and activities, must be fully resolved *before* execution begins.

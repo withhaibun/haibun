@@ -10,9 +10,9 @@ export abstract class BasePromptManager implements IPrompter {
         return this.outstandingPrompts;
     }
 
-    async prompt(prompt: TPrompt): Promise<TPromptResponse> {
+    prompt(prompt: TPrompt): Promise<TPromptResponse> {
         if (this.outstandingPrompts.has(prompt.id)) {
-            return undefined;
+            return Promise.resolve(undefined);
         }
         this.showPrompt(prompt);
         return new Promise<TPromptResponse>((resolve, reject) => {

@@ -1,7 +1,7 @@
 {
   "name": "@haibun/web-playwright",
   "type": "module",
-  "version": "3.0.5",
+  "version": "3.5.0",
   "description": "",
   "main": "build/web-playwright.js",
   "exports": {
@@ -9,8 +9,7 @@
     "./*": "./build/*"
   },
   "files": [
-    "build/",
-    "web/monitor.html"
+    "build/"
   ],
   "scripts": {
     "build": "tsc -b .",
@@ -25,19 +24,19 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@haibun/core": "3.0.5",
-    "@haibun/domain-storage": "3.0.5",
-    "@haibun/storage-mem": "3.0.5",
+    "@haibun/core": "3.5.0",
+    "@haibun/domain-storage": "3.5.0",
+    "@haibun/storage-mem": "3.5.0",
     "markdown-it": "^14.1.0",
-    "mermaid": "^11.6.0",
-    "playwright": "^1.56.1",
-    "zod": "^3.25.76"
+    "mermaid": "^11.12.2",
+    "playwright": "^1.57.0",
+    "zod": "^4.3.5"
   },
   "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5",
   "devDependencies": {
     "@types/jsdom": "^27.0.0",
     "@types/markdown-it": "^14.1.2",
-    "isomorphic-dompurify": "^2.25.0",
+    "isomorphic-dompurify": "^2.35.0",
     "jsdom": "^26.1.0"
   }
 }

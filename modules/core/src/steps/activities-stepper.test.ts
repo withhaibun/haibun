@@ -8,7 +8,7 @@ describe('ActivitiesStepper', () => {
 	describe('registerOutcome', () => {
 		it('should register an outcome and create a gwta step', async () => {
 			const stepper = new ActivitiesStepper();
-			await stepper.setWorld(getDefaultWorld(0), []);
+			await stepper.setWorld(getDefaultWorld(), []);
 
 			stepper.registerOutcome(
 				'Is logged in as {user}',
@@ -26,7 +26,7 @@ describe('ActivitiesStepper', () => {
 
 		it('should prevent duplicate outcome registration', async () => {
 			const stepper = new ActivitiesStepper();
-			await stepper.setWorld(getDefaultWorld(0), []);
+			await stepper.setWorld(getDefaultWorld(), []);
 
 			stepper.registerOutcome(
 				'Is logged in as {user}',
@@ -38,14 +38,14 @@ describe('ActivitiesStepper', () => {
 				stepper.registerOutcome(
 					'Is logged in as {user}',
 					['set loggedIn to "false"'],
-					'/test.feature'
+					'/another.feature'
 				);
 			}).toThrow(/already registered/);
 		});
 
 		it('should register multiple different outcomes', async () => {
 			const stepper = new ActivitiesStepper();
-			await stepper.setWorld(getDefaultWorld(0), []);
+			await stepper.setWorld(getDefaultWorld(), []);
 
 			stepper.registerOutcome('Outcome A', ['step 1'], '/test.feature');
 			stepper.registerOutcome('Outcome B', ['step 2'], '/test.feature');
@@ -58,7 +58,7 @@ describe('ActivitiesStepper', () => {
 
 		it('should store proof statements and path in the action closure', async () => {
 			const stepper = new ActivitiesStepper();
-			await stepper.setWorld(getDefaultWorld(0), []);
+			await stepper.setWorld(getDefaultWorld(), []);
 			const proofStatements = ['set x to "1"', 'set y to "2"'];
 			const proofPath = '/backgrounds/test.feature';
 
@@ -72,7 +72,7 @@ describe('ActivitiesStepper', () => {
 
 		it('should support multi-line proof statements', async () => {
 			const stepper = new ActivitiesStepper();
-			await stepper.setWorld(getDefaultWorld(0), []);
+			await stepper.setWorld(getDefaultWorld(), []);
 
 			const multiLineProof = [
 				'set url to "https://example.com"',
@@ -91,6 +91,25 @@ describe('ActivitiesStepper', () => {
 			multiLineProof.forEach(proofStep => {
 				expect(step.description).toContain(proofStep);
 			});
+		});
+
+		it('should store sourceLineNumber and sourcePath on virtual step', async () => {
+			const stepper = new ActivitiesStepper();
+			await stepper.setWorld(getDefaultWorld(), []);
+
+			stepper.registerOutcome(
+				'Test outcome with variable x is "1"',
+				['variable x is "1"'],
+				'/test/backgrounds/setup.feature',
+				false,
+				['set x to "1"'],
+				7 // lineNumber
+			);
+
+			const step = stepper.steps['Test outcome with variable x is "1"'];
+			expect(step).toBeDefined();
+			expect(step.source?.lineNumber).toBe(7);
+			expect(step.source?.path).toBe('/test/backgrounds/setup.feature');
 		});
 	});
 

@@ -4,21 +4,15 @@ This document is designed for human and AI developers. It can be verified from [
 
 ## What is Haibun?
 
-Haibun is a declarative, logic-grounded, literate orchestrator designed to unify specification, verification, and documentation in a single "executable" format.
+Haibun is an orchestrator that extends behaviour-driven developmen with literary programming and simple logic approaches. It is designed to combine description, verification and proof in a single readable "executable" format.
 
-The same file serves three purposes: defining expected behavior, verifying systems against that specification, and explaining the system to readers. All statements are reusable, built on a tested core and array of specialized steppers. Provided steppers usually wrap a widely used testing tool, such as Playwright.
+The same file serves three purposes: defining expected behavior, verifying systems to that specification, and explaining the system to readers with up to date proof and artifacts such as screenshots and videos. All statements are reusable, built on a tested core and array of specialized steppers. Provided steppers usually wrap a widely used testing tool, such as Playwright.
 
 > 👉 This document can be verified; lines starting with lowercase letters are steps. Run `npm test -- agents` in the e2e-tests directory to execute all examples.
 
-## Core philosophy
-
-### Literate programming
-
-Documentation becomes the test; prose provides context, and executable statements verify behavior. All statements are strictly validated.
-
 ## What can be tested?
 
-Steppers are modules that provide testing capabilities. They are configured via a config.json file, and each may have their own runtime options. Use `--help` with haibun-cli and a config.json (typically, `npm test -- --help`to see configured options).
+Steppers are modules that provide testing capabilities. They are configured via a command line or config.json file, and each may have their own runtime options. Use `--help` with haibun-cli and a config.json (typically, `npm test -- --help`to see configured options).
 
 The main focus is Web applications, however Haibun provides steppers for other environments including APIs and file systems, and new stepper definitions are straightforward to create.
 
@@ -27,16 +21,18 @@ The main focus is Web applications, however Haibun provides steppers for other e
 ### Case sensitivity rule
 
 **Prose** (description) lines start with **uppercase or symbols**, analogous to the objective prose of Haibun.
-**Steps** statements start with **lowercase** letters, analogous to the haikus of Haibun.
+**Steps** statements start with **lowercase** letters, analogous to the haikus of Haibun. Exceptions are Feature, Scenario and defined Activities.
 
     set example to "test"
     variable example is "test"
 
-Steps can also be written as Typescript modules, analogous to kireji, identified with .feature.ts. They can be mixed with text form and are displayed in text form during execution. Kireji provides syntax checking and navigation. See [examples in e2e-tests](e2e-tests/tests/features/).
+Stop (ignored) words can be used at the start of statements and include given, when, then, and, should, then, I'm, I, am, an, a.
+
+Steps can also be written as Typescript modules, analogous to kireji, identified with .feature.ts. They can be mixed with text form and are displayed in text form during execution. Kireji provides syntax checking and code-based navigation. See [examples in e2e-tests](e2e-tests/tests/features/).
 
 ### Comments
 
-Inline explanations use.
+Code comments are supported like this:
 
     set max_retries to "5" ;; allows robust retry logic
 
@@ -162,18 +158,18 @@ Use `compose` to build values from variables and literal text. Variable referenc
 For explicit domain assignment:
 
     set username to "admin@example.com"
-    compose login_selector as page-locator with button:has-text("{username}")
+    compose login_selector as page-locator with button:has-text(username)
 
 ## Step Arguments & Interpolation
 
-Steps can accept arguments using `{curly_braces}`.
+Steps can accept arguments using `{curly_braces}` in definitions. Inside activities, bound variables are accessible by name.
 
 In Definitions: `waypoint Initialize entities for {name}` creates a variable `name` available inside the activity.
 
-In Steps: `set published to {article}` injects the value of the variable `article`.
+In Steps: `set published to article` uses the value of the variable `article`.
 
     set article to "Haibun Guide"
-    set published to {article} ;; sets 'published' to "Haibun Guide"
+    set published to article ;; sets 'published' to "Haibun Guide"
 
 ## Compound statements
 
@@ -200,15 +196,13 @@ Compound statements use the statement domain to compose logic:
 
 ## Logic & control flow
 
-Logic steps enable complex workflows and limited conditional behavior.
+Logic steps enable dependant workflows and limited conditional behavior.
 
 ### Conditionals
 
     set env to "staging"
     where variable env is "staging", set debug to "true"
     variable debug is "true"
-
-
 
 ### Negation
 
@@ -232,6 +226,48 @@ Logic steps enable complex workflows and limited conditional behavior.
 
     every n in numbers is where set temp as number to {n}, variable temp is less than 4
 
+#### Composition
+
+Quantifiers compose naturally. Because `is` accepts any statement, nested quantifiers form compound logical expressions.
+
+For example, to verify that every visited page matches some allowed pattern:
+
+    set of urls as [string]
+    set url1 as urls to "https://test.com/login"
+    set url2 as urls to "https://staging.com/dashboard"
+    
+    set of patterns as [string]
+    set p1 as patterns to "https://test.com/*"
+    set p2 as patterns to "https://staging.com/*"
+    
+    every page in urls is some pattern in patterns is matches {page} with {pattern}
+
+This expresses: for every page in urls, there exists some pattern in patterns such that the page matches that pattern.
+
+Variables bound in outer quantifiers (`{page}`) flow through to inner predicates.
+
+#### Observations
+
+Observations capture runtime data that isn't explicitly set via `set` statements. They enable verification of emergent behaviors like network traffic, visited pages, and step execution patterns.
+
+Use `observed in` to iterate over observation sources:
+
+    every host observed in http-trace hosts is some domain in Allowed domains is matches {host} with "*{domain}"
+    every page observed in visited pages is some pattern in Allowed patterns is matches {page} with {pattern}
+
+Available observation sources:
+
+| Source | Items | Used for |
+|--------|-------|----------|
+| `visited pages` | URLs navigated during browser session | Verifying no unexpected domains accessed |
+| `http-trace hosts` | Hostnames from all HTTP requests | Allowlist/blocklist verification |
+| `http-trace` | Individual HTTP request IDs | Checking status codes, timing |
+| `step usage` | Step names | Coverage reporting |
+| `stepper usage` | Stepper names | Integration verification |
+
+Observations are automatically collected by steppers and cleared between features.
+
+
 #### Disjunction (any of, some)
 
 `any of` and `some` both function as logical disjunctions (OR). `any of` evaluates a provided list of statements, returning true if *at least one statement* succeeds. It is suitable for checking a few specific, distinct conditions (e.g. "Admin" OR "Superuser"). Use `some` to check against *every value* in a defined set (e.g. any value in "Citrus").
@@ -244,13 +280,13 @@ Individual verification is performed with `any of`:
 `some` quantifies over a domain:
 
     set of Citrus is [Lemon Lime Orange]
-    some fruit in Citrus is variable Snack is {fruit}
+    some fruit in Citrus is variable Snack is fruit
 
 This combines membership checks across multiple groups:
 
     set of Berries is [Strawberry Raspberry]
     set Snack to "Strawberry"
-    any of some fruit in Citrus is variable Snack is {fruit}, some fruit in Berries is variable Snack is {fruit}
+    any of some fruit in Citrus is variable Snack is fruit, some fruit in Berries is variable Snack is fruit
 
 #### Super and subdomains
 
@@ -367,7 +403,7 @@ NB these tests use variables for proofs, in a "live" system they might rely on A
 
     Activity: Approve document
     whenever variable Document stage is less than "approved", increment Document stage
-    waypoint Document is at least reviewed with not variable Document stage is less than "reviewed"
+    waypoint Document is at least reviewed with variable Document stage is more than "draft"
 
     Checks for minimum required state (at least "reviewed"), not exact state.
 
@@ -377,8 +413,8 @@ NB these tests use variables for proofs, in a "live" system they might rely on A
 ### Pattern 3: Parameterized workflows
 
     Activity: Publish article
-    set published to "{article}"
-    waypoint Article {article} is published with variable published is "{article}"
+    set published to article
+    waypoint Article {article} is published with variable published is article
 
     ensure Article "Writing haibuns" is published
 
@@ -386,21 +422,21 @@ NB these tests use variables for proofs, in a "live" system they might rely on A
 
 A talent agency can have different types of clients, including artists and venues. Each client has different considerations, such as if they are signed or advertised. The artist has to agree to each of these states.
 
-    set of offer is ["signed", "popular"]
-
+    ordered set of client status is ["negotiating", "agreed"]
+    
     Activity: Engage a client
-    every state in offer is ordered set of {name}/{state} is ["negotiating", "agreed"]
-    every state in offer is set {name}/{state} as {name}/{state} to "negotiating"
-    waypoint Engaged {name} with every state in offer is variable {name}/{state} exists
-
+    set {name}/signed as client status to "negotiating"
+    set {name}/popular as client status to "negotiating"
+    waypoint Engaged {name} with variable {name}/signed exists
+    
     Activity: Foster a client
     increment {name}/{concern}
-    waypoint {name} has {concern} with not variable {name}/{concern} is less than "agreed"
-
+    waypoint {name} has {concern} with variable {name}/{concern} is more than "negotiating"
+    
     ensure Engaged "Theatre Z"
     ensure Engaged "Le Artiste"
     ensure "Le Artiste" has signed
-
+    
     variable Theatre Z/signed is "negotiating"
     variable Le Artiste/signed is "agreed"
     variable Le Artiste/popular is "negotiating"

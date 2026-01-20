@@ -1,12 +1,31 @@
 {
-	"$schema": "https://biomejs.dev/schemas/2.3.5/schema.json",
-	"vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
-	"files": { "includes": ["**", "!!**/dist"] },
-	"formatter": { "enabled": true, "indentStyle": "tab" },
+	"$schema": "https://biomejs.dev/schemas/2.3.11/schema.json",
+	"vcs": {
+		"enabled": true,
+		"clientKind": "git",
+		"useIgnoreFile": true
+	},
+	"files": {
+		"includes": [
+			"**",
+			"!!**/dist",
+			"!**/mcp-session.test.ts",
+			"!**/twin-page.ts",
+			"!**/monitor-browser/src/client/index.css",
+			"!**/*.html"
+		]
+	},
+	"formatter": {
+		"enabled": true,
+		"indentStyle": "tab"
+	},
 	"linter": {
 		"enabled": true,
 		"rules": {
 			"recommended": false,
+			"nursery": {
+				"noFloatingPromises": "error"
+			},
 			"complexity": {
 				"noAdjacentSpacesInRegex": "error",
 				"noExtraBooleanCast": "error",
@@ -38,8 +57,13 @@
 				"useValidTypeof": "error",
 				"useYield": "error"
 			},
-			"style": { "useConst": "warn" },
+			"style": {
+				"useConst": "warn",
+				"noNonNullAssertion": "error"
+			},
 			"suspicious": {
+				"noExplicitAny": "error",
+				"noDoubleEquals": "error",
 				"noAsyncPromiseExecutor": "error",
 				"noCatchAssign": "error",
 				"noClassAssign": "error",
@@ -68,26 +92,40 @@
 				"useGetterReturn": "error"
 			}
 		},
-		"includes": ["**", "**/build/**", "node_modules/**", "**/.eslintrc.cjs"]
+		"includes": ["**", "**/build/**", "**/.eslintrc.cjs"]
 	},
-	"javascript": { "formatter": { "quoteStyle": "double" } },
+	"javascript": {
+		"formatter": {
+			"quoteStyle": "double"
+		}
+	},
 	"overrides": [
 		{
 			"includes": ["modules/**/*.ts"],
 			"linter": {
 				"rules": {
-					"correctness": { "noUnusedVariables": "warn" },
-					"suspicious": { "useAwait": "warn" }
+					"correctness": {
+						"noUnusedVariables": "warn"
+					},
+					"suspicious": {
+						"useAwait": "warn"
+					}
 				}
 			}
 		},
 		{
 			"includes": ["*.js", "*.ts", "*.cjs", "!modules/**/*"],
-			"linter": { "rules": {} }
+			"linter": {
+				"rules": {}
+			}
 		}
 	],
 	"assist": {
 		"enabled": true,
-		"actions": { "source": { "organizeImports": "off" } }
+		"actions": {
+			"source": {
+				"organizeImports": "off"
+			}
+		}
 	}
 }

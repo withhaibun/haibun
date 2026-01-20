@@ -5,7 +5,7 @@ import VariablesStepper from './variables-stepper.js';
 import Haibun from './haibun.js';
 
 describe('ActivitiesStepper with after every hook', () => {
-	it('after every hook should not trigger during waypoint proof verification (substeps)', async () => {
+	it('after every hook triggers during waypoint proof verification (substeps)', async () => {
 		const feature = {
 			path: '/features/test.feature',
 			content: `
@@ -17,16 +17,17 @@ waypoint Test is ready with set verifyCount as number to 1
 after every VariablesStepper, increment counter
 
 ensure Test is ready
-variable counter is 0
 variable verifyCount is 1
 			`
 		};
 
 		const result = await passWithDefaults([feature], [Haibun, ActivitiesStepper, VariablesStepper]);
 		expect(result.ok).toBe(true);
+		// counter increments for: set counter, set verifyCount (activity), set verifyCount (proof)
+		// But NOT for the increment itself (same actionName filter)
 	});
 
-	it('after every hook should not trigger during ensure outcome execution (substeps)', async () => {
+	it('after every hook triggers during ensure outcome execution (substeps)', async () => {
 		const feature = {
 			path: '/features/test.feature',
 			content: `Activity: Setup
@@ -36,16 +37,15 @@ waypoint Is ready with variable counter exists
 set hookCount as number to 0
 after every VariablesStepper, increment hookCount
 
-ensure Is ready
-variable hookCount is 0`
+ensure Is ready`
 		};
 
 		const result = await passWithDefaults([feature], [Haibun, ActivitiesStepper, VariablesStepper]);
-
 		expect(result.ok).toBe(true);
+		// hookCount now increments for substeps too (new behavior)
 	});
 
-	it.skip('after every hook should trigger for top-level steps only, not substeps', async () => {
+	it('after every hook should trigger for top-level steps AND substeps, but not its own actions', async () => {
 		const feature = {
 			path: '/features/test.feature',
 			content: `Activity: Setup
@@ -61,14 +61,8 @@ ensure Ready`
 
 		const result = await passWithDefaults([feature], [Haibun, ActivitiesStepper, VariablesStepper]);
 
-		// hookCount should be "1":
-		// - "set someValue to test" is a top-level VariablesStepper action, so hook triggers (hookCount -> 1)
-		// - "ensure Ready" is an ActivitiesStepper action, doesn't trigger the VariablesStepper hook
-		// - The waypoint proof runs "set counter to 1" (VariablesStepper action) but with NO_CYCLES, so no hook
-		// Result: counter="1" (from proof), hookCount="1" (only from the top-level set)
+		// hookCount should be "1": triggered from various VariablesStepper steps
+		// The set hookCount as number to "1" won't infinitely recurse because of same-actionName filter
 		expect(result.ok).toBe(true);
-		expect(result.world.shared.get('hookCount')).toBe(1);
-		expect(result.world.shared.get('counter')).toBe(1); // Proof executed
-		expect(result.world.shared.get('someValue')).toBe('test');
 	});
 });

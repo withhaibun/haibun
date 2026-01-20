@@ -1,12 +1,13 @@
 import { AStepper, IHasCycles, TStepperSteps } from '../lib/astepper.js';
 
-import { TActionResult, TStepArgs, TFeatureStep, OK, TWorld, IStepperCycles, TStepperStep, TFeatures, CycleWhen } from '../lib/defs.js';
-import { actionOK, actionNotOK, getActionable } from '../lib/util/index.js';
+import { TFeatureStep, TWorld, IStepperCycles, TStepperStep, TFeatures, CycleWhen, TStepInput } from '../lib/defs.js';
+import { TActionResult, TStepArgs, OK, TOKStepActionResult } from '../schema/protocol.js';
+import { actionOK, actionNotOK, getActionable, formatCurrentSeqPath } from '../lib/util/index.js';
 import { DOMAIN_STATEMENT } from '../lib/domain-types.js';
-import { EExecutionMessageType, TMessageContext } from '../lib/interfaces/logger.js';
 import { FlowRunner } from '../lib/core/flow-runner.js';
+import { ControlEvent, LifecycleEvent } from '../schema/protocol.js';
 
-// need this type because some steps are virtual
+// need this type because some steps are dynamically generated (e.g. waypoints)
 type TActivitiesFixedSteps = {
 	activity: TStepperStep;
 	waypointWithProof: TStepperStep;
@@ -22,6 +23,8 @@ type TActivitiesStepperSteps = TStepperSteps & TActivitiesFixedSteps;
  * implements this logic: P ∨ (¬P ∧ [A]P)
  */
 export class ActivitiesStepper extends AStepper implements IHasCycles {
+	description = 'Define and reuse activities with waypoints and proofs';
+
 	private runner: FlowRunner;
 	private backgroundOutcomePatterns: Set<string> = new Set();
 	private featureOutcomePatterns: Set<string> = new Set();
@@ -32,7 +35,8 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 	private lastResolutionPath: string = '';
 	private ensuredInstances: Map<string, { proof: string[]; valid: boolean }> = new Map();
 	private ensureAttempts: Map<string, number> = new Map();
-	private registeredOutcomeMetadata: Map<string, { proofStatements: string[]; proofPath: string; isBackground: boolean; activityBlockSteps?: string[] }> = new Map();
+	private registeredOutcomeMetadata: Map<string, { proofStatements: string[]; proofPath: string; isBackground: boolean; activityBlockSteps?: TStepInput[]; lineNumber?: number }> = new Map();
+	private backgroundSteps: Record<string, TStepperStep> = {};
 	private inActivityBlock = false;
 
 	cycles: IStepperCycles = {
@@ -40,10 +44,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			this.sendGraphLinkMessages();
 		},
 		startFeature: (startFeature) => {
-			this.getWorld().logger.debug(`ActivitiesStepper.startFeature: starting feature at path "${startFeature.resolvedFeature.path}"`);
-
 			if (this.lastFeaturePath && this.lastFeaturePath !== startFeature.resolvedFeature.path) {
-				this.getWorld().logger.debug(`ActivitiesStepper.startFeature: clearing outcomes from previous feature "${this.lastFeaturePath}"`);
 				const previousSteps = this.featureSteps.get(this.lastFeaturePath);
 				if (previousSteps) {
 					for (const outcome of Object.keys(previousSteps)) {
@@ -58,9 +59,13 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 					this.steps[outcome] = step;
 				}
 			}
+			// Always reload background steps
+			for (const [outcome, step] of Object.entries(this.backgroundSteps)) {
+				this.steps[outcome] = step;
+			}
 
 			this.currentFeaturePath = startFeature.resolvedFeature.path;
-			this.sendGraphLinkMessages();
+			this.inActivityBlock = false;
 		},
 		endFeature: () => {
 			this.lastFeaturePath = this.currentFeaturePath;
@@ -73,41 +78,68 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		startFeature: CycleWhen.FIRST,
 	}
 
+	/**
+	 * Called during resolution phase to clear feature-scoped steps.
+	 * This prevents activity patterns from leaking between features during resolution.
+	 */
+	startFeatureResolution(path: string): void {
+		// Clear steps from previous feature (resolution phase)
+		if (this.lastResolutionPath && this.lastResolutionPath !== path) {
+			const previousSteps = this.featureSteps.get(this.lastResolutionPath);
+			if (previousSteps) {
+				for (const outcome of Object.keys(previousSteps)) {
+					delete this.steps[outcome];
+				}
+			}
+		}
+
+		// Reload current feature's steps if already registered
+		const currentSteps = this.featureSteps.get(path);
+		if (currentSteps) {
+			for (const [outcome, step] of Object.entries(currentSteps)) {
+				this.steps[outcome] = step;
+			}
+		}
+
+		// Always reload background steps
+		for (const [outcome, step] of Object.entries(this.backgroundSteps)) {
+			this.steps[outcome] = step;
+		}
+
+		this.lastResolutionPath = path;
+	}
+
+	clearAllBackgroundSteps(): void {
+		this.backgroundSteps = {};
+		this.backgroundOutcomePatterns.clear();
+	}
+
 	readonly baseSteps = {
 		activity: {
 			gwta: 'Activity: {activity}',
 			action: () => OK,
-			resolveFeatureLine: (line: string, path: string, _stepper: AStepper, _backgrounds: TFeatures, allLines?: string[], lineIndex?: number) => {
-				if (this.lastResolutionPath && this.lastResolutionPath !== path) {
-					const previousSteps = this.featureSteps.get(this.lastResolutionPath);
-					if (previousSteps) {
-						for (const outcome of Object.keys(previousSteps)) {
-							delete this.steps[outcome];
-						}
-					}
-				}
+			resolveFeatureLine: (line: string, path: string, _stepper: AStepper, _backgrounds: TFeatures, allLines?: string[], lineIndex?: number, actualSourcePath?: string) => {
 				this.lastResolutionPath = path;
 
 				if (line.match(/^Activity:/i)) {
 					this.inActivityBlock = true;
-					return true; // Skip the Activity definition line itself
+					return true;
 				}
 
 				if (this.inActivityBlock) {
-					// Check for block terminators
 					if (line.match(/^(Feature|Scenario|Background|Activity):/i)) {
 						this.inActivityBlock = false;
-						return false; // Process this line normally
+						return false;
 					}
 
 					if (line.match(/^waypoint\s+/i)) {
-						this.resolveWaypointCommon(line, path, allLines, lineIndex, line.includes(' with '));
+						// Use actualSourcePath for VSCode linking, path for registration
+						this.resolveWaypointCommon(line, path, allLines, lineIndex, line.includes(' with '), actualSourcePath);
 
-						// Check if this is the last waypoint in the block
 						let hasMoreWaypoints = false;
 						if (allLines && lineIndex !== undefined) {
 							for (let i = lineIndex + 1; i < allLines.length; i++) {
-								const nextLine = allLines[i].trim();
+								const nextLine = (allLines[i] || '').trim();
 								if (nextLine.match(/^(Feature|Scenario|Background|Activity):/i)) {
 									break;
 								}
@@ -122,23 +154,20 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 							this.inActivityBlock = false;
 						}
 
-						return true; // Skip the waypoint definition line
+						return true;
 					}
 
-					// Inside block
-					return true; // Skip lines inside the block
+					return true;
 				}
 
 				return false;
-			}
+			},
 		},
 
 		waypointWithProof: {
 			gwta: `waypoint {outcome} with {proof:${DOMAIN_STATEMENT}}`,
 			precludes: ['ActivitiesStepper.waypointLabel'],
 			action: async ({ proof }: { proof: TFeatureStep[] }, featureStep: TFeatureStep) => {
-				this.getWorld().logger.debug(`waypoint action: executing ${proof?.length || 0} proof steps`);
-
 				try {
 					const result = await this.runner.runSteps(proof, { intent: { mode: 'authoritative' }, parentStep: featureStep });
 					if (result.kind !== 'ok') {
@@ -147,12 +176,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 					return actionOK();
 				} catch (err) {
 					const msg = err instanceof Error ? err.message : String(err);
-					this.getWorld().logger.debug(`waypoint action: exception executing proof steps: ${msg}`);
-					const messageContext: TMessageContext = {
-						incident: EExecutionMessageType.ACTION,
-						incidentDetails: { error: msg }
-					};
-					return actionNotOK(`waypoint: failed to execute proof steps: ${msg}`, { messageContext });
+					return actionNotOK(`waypoint: failed to execute proof steps: ${msg}`);
 				}
 			},
 		},
@@ -165,57 +189,54 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		ensure: {
 			description: 'Ensure a waypoint condition by always running the proof. If proof passes, waypoint is already satisfied. If proof fails, run the full activity, then try the proof again',
 			gwta: `ensure {outcome:${DOMAIN_STATEMENT}}`,
-			unique: true,  // Ensure takes priority over dynamically registered outcomes
+			unique: true,
 			action: async ({ outcome }: { outcome: TFeatureStep[] }, featureStep: TFeatureStep) => {
 				const outcomeKey = outcome.map(step => step.in).join(' ');
 
-				// Guard: prevent infinite ensure retry loops by counting attempts per outcome+seq
-				const attemptKey = outcomeKey; // key by outcome only to avoid differing seqPaths
+				const attemptKey = outcomeKey;
 				const prevAttempts = this.ensureAttempts.get(attemptKey) ?? 0;
 				const MAX_ENSURE_ATTEMPTS = 10;
 				this.ensureAttempts.set(attemptKey, prevAttempts + 1);
 				if (prevAttempts + 1 > MAX_ENSURE_ATTEMPTS) {
-					this.getWorld().logger.warn(`ensure: exceeded max attempts (${MAX_ENSURE_ATTEMPTS}) for ${outcomeKey}`);
 					if (this.getWorld().runtime) {
 						this.getWorld().runtime.exhaustionError = 'ensure max attempts exceeded';
 					}
-					const messageContext: TMessageContext = {
-						incident: EExecutionMessageType.ACTION,
-						incidentDetails: { waypoint: outcomeKey, satisfied: false, error: 'max ensure attempts exceeded', terminal: true }
-					};
-					return actionNotOK(`ensure: max attempts exceeded for waypoint "${outcomeKey}"`, { messageContext });
+					return actionNotOK(`ensure: max attempts exceeded for waypoint "${outcomeKey}"`);
 				}
 
-				// Log ENSURE_START
-				const startMessageContext: TMessageContext = {
-					incident: EExecutionMessageType.ENSURE_START,
-					incidentDetails: { waypoint: outcomeKey, step: featureStep }
-				};
-				this.getWorld().logger.log(`⏳ Ensuring ${outcomeKey}`, startMessageContext);
-
-				this.getWorld().logger.debug(`ensure: verifying waypoint "${outcomeKey}"`);
+				// Emit ensure start for monitors
+				this.getWorld().eventLogger.emit(LifecycleEvent.parse({
+					id: formatCurrentSeqPath(featureStep.seqPath) + '.ensure',
+					timestamp: Date.now(),
+					kind: 'lifecycle',
+					completeness: 'full',
+					type: 'ensure',
+					stage: 'start',
+					in: outcomeKey,
+					lineNumber: featureStep.source.lineNumber,
+					featurePath: featureStep.source.path,
+					status: 'running',
+				}));
 
 				const pattern = outcome[0]?.action?.actionName || outcomeKey;
 
 				const registeredWaypoint = this.steps[pattern];
 				if (!registeredWaypoint) {
+					this.emitEnsureEnd(featureStep, outcomeKey, false, `"${outcomeKey}" is not a registered waypoint`);
 					return actionNotOK(`ensure: "${outcomeKey}" is not a registered waypoint. ensure can only be used with waypoints.`);
 				}
 
 				const metadata = this.registeredOutcomeMetadata.get(pattern);
 				if (!metadata || metadata.proofStatements.length === 0) {
+					this.emitEnsureEnd(featureStep, outcomeKey, false, 'no proof defined');
 					return actionNotOK(`ensure: waypoint "${outcomeKey}" has no proof. ensure can only be used with waypoints that have a proof.`);
 				}
 
-				// Extract args from the outcome step(s) to pass to the activity
-				// This ensures that variables (e.g. {name}) defined in the waypoint are available in the activity
 				const activityArgs: Record<string, string> = {};
 				for (const step of outcome) {
 					if (step.action.stepValuesMap) {
 						for (const [key, val] of Object.entries(step.action.stepValuesMap)) {
-							// Use the value if available (it should be resolved), otherwise term
 							const value = val.value !== undefined ? String(val.value) : val.term;
-
 							if (value !== undefined) {
 								activityArgs[key] = value;
 							}
@@ -226,67 +247,31 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				let proofStatements: string[] | undefined;
 
 				try {
-					// Use FlowRunner for the proof execution
-					// Pass activityArgs so they are available to the Outcome Action
 					const flowResult = await this.runner.runSteps(outcome, { intent: { mode: 'authoritative', usage: featureStep.intent?.usage, stepperOptions: { isEnsure: true } }, parentStep: featureStep });
 
 					if (flowResult.kind !== 'ok') {
-						// Log ENSURE_END for failure
-						const endMessageContext: TMessageContext = {
-							incident: EExecutionMessageType.ENSURE_END,
-							incidentDetails: { waypoint: outcomeKey, satisfied: false, error: flowResult.message, actionResult: { ok: false } }
-						};
-						this.getWorld().logger.log(`❌ Failed ensuring ${outcomeKey}`, endMessageContext);
-
-						const messageContext: TMessageContext = {
-							incident: EExecutionMessageType.ACTION,
-							incidentDetails: { waypoint: outcomeKey, satisfied: false, error: flowResult.message }
-						};
-						return actionNotOK(`ensure: waypoint "${outcomeKey}" proof failed: ${flowResult.message}`, { messageContext });
+						this.emitEnsureEnd(featureStep, outcomeKey, false, flowResult.message);
+						return actionNotOK(`ensure: waypoint "${outcomeKey}" proof failed: ${flowResult.message}`);
 					}
 
-					proofStatements = flowResult.payload?.messageContext?.incidentDetails?.proofStatements;
+					proofStatements = (flowResult.topics as TOKStepActionResult)?.topics?.proofStatements as string[] | undefined;
 
 					if (!proofStatements) {
+						this.emitEnsureEnd(featureStep, outcomeKey, false, 'no proofStatements returned');
 						return actionNotOK(`ensure: waypoint "${outcomeKey}" succeeded but returned no proofStatements`);
 					}
 
 				} catch (err) {
 					const msg = err instanceof Error ? err.message : String(err);
-					this.getWorld().logger.debug(`ensure: exception while executing proof for ${outcomeKey}: ${msg}`);
-					const messageContext: TMessageContext = {
-						incident: EExecutionMessageType.ACTION,
-						incidentDetails: { waypoint: outcomeKey, satisfied: false, error: msg }
-					};
-					return actionNotOK(`ensure: waypoint "${outcomeKey}" proof execution error: ${msg}`, { messageContext });
+					this.emitEnsureEnd(featureStep, outcomeKey, false, msg);
+					return actionNotOK(`ensure: waypoint "${outcomeKey}" proof execution error: ${msg}`);
 				}
 
-				// FIXME: We don't have easy access to proofStatements from FlowRunner result yet unless we pass them back
-				// For now, we assume if it passed, it passed.
-
 				this.ensuredInstances.set(outcomeKey, { proof: proofStatements, valid: true });
-
-				// On success or after one ensure action completes, reset attempt counter for this outcome
 				this.ensureAttempts.delete(attemptKey);
 
-				this.getWorld().logger.debug(`ensure: waypoint "${outcomeKey}" verified and satisfied`);
-
-				// Log ENSURE_END for success at trace level (just to hide the ENSURE_START)
-				const endMessageContext: TMessageContext = {
-					incident: EExecutionMessageType.ENSURE_END,
-					incidentDetails: { waypoint: outcomeKey, satisfied: true, proofStatements, actionResult: { ok: true } }
-				};
-				this.getWorld().logger.trace(`✓ Ensured ${outcomeKey}`, endMessageContext);
-
-				const messageContext: TMessageContext = {
-					incident: EExecutionMessageType.ACTION,
-					incidentDetails: {
-						waypoint: outcomeKey,
-						satisfied: true,
-						proofStatements
-					}
-				};
-				return actionOK({ messageContext });
+				this.emitEnsureEnd(featureStep, outcomeKey, true);
+				return actionOK();
 			},
 		},
 		showWaypoints: {
@@ -299,9 +284,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				}> = {};
 
 				for (const [instanceKey, instanceData] of this.ensuredInstances.entries()) {
-					this.getWorld().logger.debug(`show waypoints: verifying "${instanceKey}"`);
 					try {
-						// Use FlowRunner to run the proof statements directly
 						const result = await this.runner.runStatements(instanceData.proof, { intent: { mode: 'speculative' }, parentStep: featureStep });
 
 						waypointResults[instanceKey] = {
@@ -317,8 +300,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 					}
 				}
 
-				this.getWorld().logger.info(`Waypoints (${Object.keys(waypointResults).length} ensured):\n${JSON.stringify(waypointResults, null, 2)}`);
-				return actionOK({ messageContext: { incident: EExecutionMessageType.ACTION, incidentDetails: { waypoints: waypointResults } } });
+				return actionOK();
 			},
 		},
 	} as const satisfies TActivitiesFixedSteps;
@@ -332,54 +314,69 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		this.runner = new FlowRunner(world, steppers);
 	}
 
-	/**
-	 * Register a dynamic outcome step.
-	 * This is called when parsing `waypoint` statements.
-	 *
-	 * @param outcome - The outcome pattern (e.g., "Is logged in as {user}")
-	 * @param proofStatements - Array of statement strings from the DOMAIN_STATEMENT proof
-	 * @param proofPath - The path of the feature containing the proof
-	 * @param isBackground - Whether this outcome is defined in a background (persists across features)
-	 * @param activityBlockSteps - Optional array of all steps in the containing activity block
-	 */
-	registerOutcome(outcome: string, proofStatements: string[], proofPath: string, isBackground?: boolean, activityBlockSteps?: string[]) {
-		// Prevent duplicate outcome registration
+	private emitEnsureEnd(featureStep: TFeatureStep, outcomeKey: string, ok: boolean, error?: string): void {
+		this.getWorld().eventLogger.emit(LifecycleEvent.parse({
+			id: formatCurrentSeqPath(featureStep.seqPath) + '.ensure',
+			timestamp: Date.now(),
+			kind: 'lifecycle',
+			completeness: 'full',
+			type: 'ensure',
+			stage: 'end',
+			in: outcomeKey,
+			lineNumber: featureStep.source.lineNumber,
+			featurePath: featureStep.source.path,
+			status: ok ? 'completed' : 'failed',
+			error,
+		}));
+	}
+
+	registerOutcome(outcome: string, proofStatements: string[], proofPath: string, isBackground?: boolean, activityBlockSteps?: (string | TStepInput)[], lineNumber?: number, actualSourcePath?: string) {
 		if (this.steps[outcome]) {
-			throw new Error(`Outcome "${outcome}" is already registered. Each outcome can only be defined once.`);
+			const existing = this.steps[outcome];
+			if (existing.source?.path === (actualSourcePath || proofPath) && existing.source?.lineNumber === lineNumber) {
+				return;
+			}
+			throw new Error(`Outcome "${outcome}" is already registered. Each outcome can only be defined once. (Existing: ${existing.source?.path}:${existing.source?.lineNumber}, New: ${actualSourcePath || proofPath}:${lineNumber})`);
 		}
 
-		// Normalize activity steps (split multiline strings)
-		const normalizedActivitySteps = activityBlockSteps?.flatMap(s => s.split('\n')).map(s => s.trim()).filter(s => s.length > 0) ?? [];
+		// Normalize activity steps and proofs to ensure they carry source location
+		const sourcePath = actualSourcePath || proofPath;
+		const normalizedActivitySteps: TStepInput[] = activityBlockSteps?.map(s => {
+			return typeof s === 'string' ? { in: s, source: { path: sourcePath } } : s;
+		}) ?? [];
 
-		// Store metadata for runtime re-emission via TEST_LINKS messages
+		const normalizedProofSteps: TStepInput[] = proofStatements.map(s => ({
+			in: s,
+			source: { path: sourcePath }
+		}));
+
 		this.registeredOutcomeMetadata.set(outcome, {
 			proofStatements,
 			proofPath,
 			isBackground: isBackground ?? false,
 			activityBlockSteps: normalizedActivitySteps,
+			lineNumber,
 		});
 
-		// Track whether this is a background or feature outcome
+
+
 		if (isBackground) {
 			this.backgroundOutcomePatterns.add(outcome);
 		} else {
 			this.featureOutcomePatterns.add(outcome);
-			// Track which feature this outcome belongs to
 			this.outcomeToFeaturePath.set(outcome, proofPath);
 		}
 
-		this.getWorld().logger.debug(`ActivitiesStepper: registerOutcome called with ${proofStatements.length} proof steps for "${outcome}"`);
-		this.getWorld().logger.debug(`ActivitiesStepper: outcome is background=${isBackground}, will be added to ${isBackground ? 'backgroundOutcomePatterns' : 'featureOutcomePatterns'}`);
-
-		// FIXME: maybe we don't care if normalizedActivitySteps is empty
-
 		const step: TStepperStep = {
 			gwta: outcome,
-			virtual: true,  // Dynamically registered outcomes are virtual
-			handlesUndefined: true, // FIXME they should not need to handle undefined at the virtual stepper level
+			virtual: true,
+			handlesUndefined: true,
+			source: {
+				lineNumber,
+				path: actualSourcePath || proofPath,
+			},
 			description: `Outcome: ${outcome}. Proof: ${proofStatements.join('; ')}`,
 			action: async (args: TStepArgs, featureStep: TFeatureStep): Promise<TActionResult> => {
-				// Reconstruct args to include unresolved terms (skipped by strict populateActionArgs)
 				const robustArgs: Record<string, string> = { ...(args as Record<string, string>) };
 				if (featureStep.action.stepValuesMap) {
 					for (const [key, val] of Object.entries(featureStep.action.stepValuesMap)) {
@@ -388,46 +385,35 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 						}
 					}
 				}
-				this.getWorld().logger.debug(`ActivitiesStepper: executing recipe for outcome "${outcome}" with args ${JSON.stringify(robustArgs)}`);
 
 				// 1. Check Proof (Speculative)
-				if (proofStatements.length > 0) {
-					const proof = await this.runner.runStatements(proofStatements, { args: robustArgs, intent: { mode: 'speculative' }, parentStep: featureStep });
+				if (normalizedProofSteps.length > 0) {
+					const proof = await this.runner.runStatements(normalizedProofSteps, { args: robustArgs, intent: { mode: 'speculative' }, parentStep: featureStep });
 
 					if (proof.kind === 'ok') {
-						this.getWorld().logger.debug(`ActivitiesStepper: proof passed for outcome "${outcome}", skipping activity body`);
-						return actionOK({
-							messageContext: {
-								incident: EExecutionMessageType.ACTION,
-								incidentDetails: { proofStatements, proofSatisfied: true }
-							}
-						});
+						return actionOK({ topics: { proofStatements } });
 					}
 				}
 
 				// 2. Proof Failed or not present
 				if (!featureStep.intent?.stepperOptions?.isEnsure) {
 					if (normalizedActivitySteps && normalizedActivitySteps.length > 0) {
-						this.getWorld().logger.debug(`ActivitiesStepper: running activity body for outcome "${outcome}" (no ensure)`);
 						const mode = featureStep.intent?.mode === 'speculative' ? 'speculative' : 'authoritative';
 						const act = await this.runner.runStatements(normalizedActivitySteps, { args: robustArgs, intent: { mode, usage: featureStep.intent?.usage }, parentStep: featureStep });
 						if (act.kind !== 'ok') {
 							return actionNotOK(`ActivitiesStepper: activity body failed for outcome "${outcome}": ${act.message}`);
 						}
-						return actionOK();
+						return actionOK({ topics: { proofStatements } });
 					}
 
 					if (proofStatements.length > 0) {
 						return actionNotOK(`ActivitiesStepper: proof failed for outcome "${outcome}"`);
 					}
-					// No proof (waypointLabel) and not ensure: do nothing.
-					return actionOK();
+					return actionOK({ topics: { proofStatements } });
 				}
 
 				// 3. Ensure Mode: Run Activity Body
 				if (normalizedActivitySteps && normalizedActivitySteps.length > 0) {
-					this.getWorld().logger.debug(`ActivitiesStepper: proof failed for outcome "${outcome}", running activity body`);
-
 					const mode = featureStep.intent?.mode === 'speculative' ? 'speculative' : 'authoritative';
 					const act = await this.runner.runStatements(normalizedActivitySteps, { args: robustArgs, intent: { mode, usage: featureStep.intent?.usage }, parentStep: featureStep });
 					if (act.kind !== 'ok') {
@@ -435,19 +421,13 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 					}
 
 					// 4. Verify Proof After Activity
-					this.getWorld().logger.debug(`ActivitiesStepper: verifying proof after activity body for outcome "${outcome}"`);
-					if (proofStatements.length > 0) {
-						const verify = await this.runner.runStatements(proofStatements, { args: robustArgs, intent: { mode, usage: featureStep.intent?.usage }, parentStep: featureStep });
+					if (normalizedProofSteps.length > 0) {
+						const verify = await this.runner.runStatements(normalizedProofSteps, { args: robustArgs, intent: { mode, usage: featureStep.intent?.usage }, parentStep: featureStep });
 						if (verify.kind !== 'ok') {
 							return actionNotOK(`ActivitiesStepper: proof verification failed after activity body for outcome "${outcome}": ${verify.message}`);
 						}
 					}
-					return actionOK({
-						messageContext: {
-							incident: EExecutionMessageType.ACTION,
-							incidentDetails: { proofStatements, proofSatisfied: true }
-						}
-					});
+					return actionOK({ topics: { proofStatements } });
 				}
 
 				return actionNotOK(`ActivitiesStepper: no activity body for outcome "${outcome}"`);
@@ -455,38 +435,40 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		};
 
 		this.steps[outcome] = step;
-
 		if (!isBackground) {
 			if (!this.featureSteps.has(proofPath)) {
 				this.featureSteps.set(proofPath, {});
 			}
-			this.featureSteps.get(proofPath)![outcome] = step;
+			const steps = this.featureSteps.get(proofPath);
+			if (steps) {
+				steps[outcome] = step;
+			}
+		} else {
+			this.backgroundSteps[outcome] = step;
 		}
-
-		this.getWorld().logger.debug(`ActivitiesStepper: registered outcome pattern "${outcome}" with ${proofStatements.length} proof steps`);
 	}
 
-	/**
-	 * Re-emit GRAPH_LINK messages for waypoint metadata.
-	 * MonitorHandler subscribes after resolution, so we retransmit stored metadata.
-	 */
 	sendGraphLinkMessages(): void {
 		for (const [outcome, metadata] of this.registeredOutcomeMetadata.entries()) {
-			const messageContext: TMessageContext = {
-				incident: EExecutionMessageType.GRAPH_LINK,
-				incidentDetails: {
+			this.getWorld().eventLogger.emit(ControlEvent.parse({
+				id: `graph-link-${outcome}`,
+				timestamp: Date.now(),
+				kind: 'control',
+				level: 'debug',
+				signal: 'graph-link',
+				topics: {
 					outcome,
 					proofStatements: metadata.proofStatements,
 					proofPath: metadata.proofPath,
 					isBackground: metadata.isBackground,
 					activityBlockSteps: metadata.activityBlockSteps ?? null,
+					lineNumber: metadata.lineNumber,
 				}
-			};
-			this.getWorld().logger.debug(`waypoint registered: "${outcome}"`, messageContext);
+			}));
 		}
 	}
 
-	private resolveWaypointCommon(line: string, path: string, allLines: string[] | undefined, lineIndex: number | undefined, requireProof: boolean): boolean {
+	private resolveWaypointCommon(line: string, path: string, allLines: string[] | undefined, lineIndex: number | undefined, requireProof: boolean, actualSourcePath?: string): boolean {
 		if (!line.match(/^waypoint\s+/i)) {
 			return false;
 		}
@@ -498,14 +480,12 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			if (!line.match(/^waypoint\s+.+?\s+with\s+/i)) {
 				return false;
 			}
-			// Find the LAST occurrence of ' with ' to separate outcome from proof
-			// This allows 'with' to appear in outcome names (e.g., "{name} agreed with {concern}")
 			const withoutPrefix = line.replace(/^waypoint\s+/i, '');
 			const lastWithIndex = withoutPrefix.lastIndexOf(' with ');
 			if (lastWithIndex === -1) return false;
 
 			outcome = withoutPrefix.substring(0, lastWithIndex).trim();
-			const proofRaw = withoutPrefix.substring(lastWithIndex + 6).trim(); // ' with ' is 6 chars
+			const proofRaw = withoutPrefix.substring(lastWithIndex + 6).trim();
 			proofStatements = proofRaw.split('\n').map(s => s.trim()).filter(s => s.length > 0);
 		} else {
 			if (line.match(/^waypoint\s+.+?\s+with\s+/i)) {
@@ -516,15 +496,13 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			outcome = match[1].trim();
 		}
 
-		// Skip if already registered (prevents infinite loops)
 		if (this.backgroundOutcomePatterns.has(outcome) || this.featureOutcomePatterns.has(outcome)) {
 			return true;
 		}
 
 		const isBackground = path.includes('backgrounds/');
 
-		// Scan backwards to find containing Activity block
-		let activityBlockSteps: string[] | undefined;
+		let activityBlockSteps: TStepInput[] | undefined;
 
 		if (allLines && lineIndex !== undefined) {
 			let activityStartLine = -1;
@@ -540,19 +518,23 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			}
 
 			if (activityStartLine !== -1) {
-				// Collect steps between Activity: and waypoint (excluding waypoint itself)
-				const blockLines: string[] = [];
+				const blockLines: TStepInput[] = [];
 				for (let i = activityStartLine + 1; i < lineIndex; i++) {
 					const stepLine = getActionable(allLines[i]);
 					if (stepLine && !stepLine.match(/^waypoint\s+/i)) {
-						blockLines.push(stepLine);
+						blockLines.push({
+							in: stepLine,
+							source: {
+								lineNumber: i + 1,
+								path: actualSourcePath || path
+							}
+						});
 					}
 				}
 				activityBlockSteps = blockLines;
 			}
 		}
-
-		this.registerOutcome(outcome, proofStatements, path, isBackground, activityBlockSteps);
+		this.registerOutcome(outcome, proofStatements, path, isBackground, activityBlockSteps, lineIndex !== undefined ? lineIndex + 1 : undefined, actualSourcePath);
 		return true;
 	}
 }

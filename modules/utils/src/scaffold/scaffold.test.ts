@@ -26,7 +26,7 @@ describe('scaffold', () => {
 		await scaffoldHaibun(TMPDIR, { out, noPrompt: true });
 		const pkg = JSON.parse(readFileSync(`${TMPDIR}/package.json`, 'utf-8'));
 		expect(readdirSync(TMPDIR).sort()).toEqual(
-			['package.json', 'src', 'tsconfig.json', 'jest.config.js', '.eslintrc', '.prettierrc'].sort()
+			['package.json', 'src', 'tsconfig.json'].sort()
 		);
 		expect(pkg.dependencies['@haibun/core']).toBeDefined();
 		expect(pkg.devDependencies.jest).toEqual(haibunPackage.devDependencies.jest);

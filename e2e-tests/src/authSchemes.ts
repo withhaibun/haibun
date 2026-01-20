@@ -1,63 +1,43 @@
-import { IRequest, IResponse } from '@haibun/web-server-express/defs.js';
-import TestServer from './test-server.js';
+import type { MiddlewareHandler } from '@haibun/web-server-hono/defs.js';
+import { basicAuth, bearerAuth } from '@haibun/web-server-hono/auth.js';
+import type TestServer from './test-server.js';
 
 export type TSchemeType = 'basic' | 'bearer';
-type TSchemeMethods = (testServer: TestServer) => {
-  check: (req: IRequest, res: IResponse) => boolean;
-  logout: () => void
+
+const isBrowser = (c: { req: { header: (name: string) => string | undefined } }): boolean => {
+  const ua = c.req.header('user-agent');
+  return !!ua && /Mozilla|Chrome|Safari|Edge|Opera/.test(ua);
 };
 
-export type TAuthScheme = {
-  [K in TSchemeType]: TSchemeMethods
-};
-
-const isBrowser = (req: IRequest) => {
-  const userAgent = req.headers['user-agent'];
-  if (!userAgent) {
-    return false;
-  }
-  return /Mozilla|Chrome|Safari|Edge|Opera/.test(userAgent);
-};
-
-export const authSchemes: TAuthScheme = {
-  basic: (testServer: TestServer) => ({
-    check: (req: IRequest, res: IResponse) => {
-      if (isBrowser(req)) {
-        res.status(401).end('Unauthorized: Browser access not allowed');
-        return false;
-      }
-      const { authorization } = req.headers;
-      const encodedCredentials = authorization?.replace('Basic ', '');
-      if (testServer.basicAuthCreds === undefined || encodedCredentials === undefined) {
-        res.status(401).end('Unauthorized');
-        return false;
-      }
-      const decodedCredentials = Buffer.from(encodedCredentials, 'base64').toString('utf8');
-      const [username, password] = decodedCredentials.split(':');
-
-      if (username !== testServer.basicAuthCreds.username ||
-        password !== testServer.basicAuthCreds.password) {
-        res.status(401).end('Unauthorized');
-        return false;
-      }
-      return true;
+export const createAuthMiddleware = {
+  basic: (ts: TestServer): MiddlewareHandler => basicAuth({
+    verifyUser: (username, password, c) => {
+      if (isBrowser(c) || !ts.basicAuthCreds) return false;
+      return username === ts.basicAuthCreds.username && password === ts.basicAuthCreds.password;
     },
-    logout: () => (testServer.basicAuthCreds = undefined),
   }),
-  bearer: (testServer: TestServer) => ({
-    check: (req: IRequest, res: IResponse) => {
-      if (isBrowser(req)) {
-        res.status(401).end('Unauthorized: Browser access not allowed');
-        return false;
-      }
-      const { authorization } = req.headers;
-      const token = authorization?.replace('Bearer ', '');
-      if (testServer.authToken === undefined || token !== testServer.authToken) {
-        res.status(401).end('Unauthorized');
-        return false;
-      }
-      return true;
+  bearer: (ts: TestServer): MiddlewareHandler => bearerAuth({
+    verifyToken: (token, c) => {
+      if (isBrowser(c)) return false;
+      return ts.authToken !== undefined && token === ts.authToken;
     },
-    logout: () => (testServer.authToken = undefined),
   }),
+};
+
+export const createDynamicAuthMiddleware = (ts: TestServer): MiddlewareHandler => {
+  const handlers: Record<TSchemeType, MiddlewareHandler> = {
+    basic: createAuthMiddleware.basic(ts),
+    bearer: createAuthMiddleware.bearer(ts),
+  };
+  return async (c, next) => {
+    if (!ts.currentAuthScheme) return c.text('Unauthorized', 401);
+    return handlers[ts.currentAuthScheme](c, next);
+  };
+};
+
+export interface AuthSchemeLogout { logout: () => void; }
+
+export const authSchemes: Record<TSchemeType, (ts: TestServer) => AuthSchemeLogout> = {
+  basic: ts => ({ logout: () => { ts.basicAuthCreds = undefined; } }),
+  bearer: ts => ({ logout: () => { ts.authToken = undefined; } }),
 };

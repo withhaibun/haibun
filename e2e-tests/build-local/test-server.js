@@ -1,39 +1,42 @@
-import { rmSync } from 'fs';
-import fileUpload from 'express-fileupload';
-import { actionNotOK, actionOK, getFromRuntime, sleep, asError } from '@haibun/core/lib/util/index.js';
-import { DOMAIN_STRING } from "@haibun/core/lib/domain-types.js";
-import { OK, Origin } from '@haibun/core/lib/defs.js';
-import { WEBSERVER } from '@haibun/web-server-express/defs.js';
+import { rmSync, writeFileSync, readFileSync } from 'fs';
+import { setCookie } from '@haibun/web-server-hono/cookie.js';
+import { actionNotOK, actionOK, getFromRuntime, sleep } from '@haibun/core/lib/util/index.js';
+import { DOMAIN_STRING } from '@haibun/core/lib/domain-types.js';
+import { OK, Origin } from '@haibun/core/schema/protocol.js';
+import { WEBSERVER } from '@haibun/web-server-hono/defs.js';
 import { restRoutes } from './rest.js';
-import { authSchemes } from './authSchemes.js';
-import { EExecutionMessageType } from '@haibun/core/lib/interfaces/logger.js';
+import { createDynamicAuthMiddleware, authSchemes } from './authSchemes.js';
 import { AStepper } from '@haibun/core/lib/astepper.js';
 const TALLY = 'tally';
-const setTally = (value) => ({ term: TALLY, value: String(value), domain: DOMAIN_STRING, origin: Origin.var });
+const setTally = (value) => ({
+    term: TALLY,
+    value: String(value),
+    domain: DOMAIN_STRING,
+    origin: Origin.var,
+});
 const cycles = (ts) => ({
     startFeature: async () => {
         const p = { when: `${TestServer.name}.cycles.startFeature`, seq: [0] };
         ts.getWorld().shared.set(setTally(0), p);
         ts.resources = [
-            {
-                id: 1,
-                name: 'Ignore 1',
-            },
-            {
-                id: 2,
-                name: 'Include 2',
-            },
-            {
-                id: 3,
-                name: 'Include 3',
-            },
+            { id: 1, name: 'Ignore 1' },
+            { id: 2, name: 'Include 2' },
+            { id: 3, name: 'Include 3' },
         ];
-    }
+        // Reset auth state for each feature
+        ts.currentAuthScheme = undefined;
+        ts.authSchemeHandler = undefined;
+    },
 });
 class TestServer extends AStepper {
     cycles = cycles(this);
     toDelete = {};
-    authScheme;
+    /** Currently active auth scheme type - set at runtime */
+    currentAuthScheme;
+    /** Current auth scheme handler for logout */
+    authSchemeHandler;
+    /** Dynamic auth middleware - created once, checks scheme at request time */
+    dynamicAuthMiddleware;
     authToken;
     basicAuthCreds = {
         username: 'foo',
@@ -42,12 +45,25 @@ class TestServer extends AStepper {
     resources = [];
     async endedFeatures() {
         if (Object.keys(this.toDelete).length > 0) {
-            this.getWorld().logger.log(`removing ${JSON.stringify(this.toDelete)}`);
+            this.getWorld().eventLogger.info(`removing ${JSON.stringify(this.toDelete)}`);
             for (const td of Object.values(this.toDelete)) {
                 rmSync(td);
             }
         }
     }
+    /**
+     * Get or create the dynamic auth middleware.
+     * This middleware checks currentAuthScheme at request time.
+     */
+    getDynamicAuthMiddleware() {
+        if (!this.dynamicAuthMiddleware) {
+            this.dynamicAuthMiddleware = createDynamicAuthMiddleware(this);
+        }
+        return this.dynamicAuthMiddleware;
+    }
+    /**
+     * Add a route without auth middleware
+     */
     addRoute = (route, method = 'get') => {
         return async (args, vstep) => {
             const { loc } = args;
@@ -56,49 +72,69 @@ class TestServer extends AStepper {
                 webserver.addRoute(method, loc, route);
             }
             catch (error) {
-                console.error(error);
-                const messageContext = { incident: EExecutionMessageType.ACTION, incidentDetails: asError(error) };
-                return actionNotOK(vstep.in, { messageContext });
+                const err = error instanceof Error ? error : new Error(String(error));
+                this.getWorld().eventLogger.error(`addRoute failed: ${err.message}`);
+                return actionNotOK(`${vstep.in}: ${err.message}`);
             }
             return actionOK();
         };
     };
-    tally = async (req, res) => {
+    /**
+     * Add a route protected by auth middleware.
+     * Uses dynamic middleware that checks currentAuthScheme at request time.
+     */
+    addAuthRoute = (route, method = 'get') => {
+        return async (args, vstep) => {
+            const { loc } = args;
+            const webserver = getFromRuntime(this.getWorld().runtime, WEBSERVER);
+            try {
+                // Apply dynamic auth middleware that checks scheme at request time
+                webserver.app.use(loc, this.getDynamicAuthMiddleware());
+                webserver.addKnownRoute(method, loc, route);
+            }
+            catch (error) {
+                const err = error instanceof Error ? error : new Error(String(error));
+                this.getWorld().eventLogger.error(`addAuthRoute failed: ${err.message}`);
+                return actionNotOK(`${vstep.in}: ${err.message}`);
+            }
+            return actionOK();
+        };
+    };
+    tally = async (c) => {
         const cur = (parseInt(this.getWorld().shared.get(TALLY), 10) || 0) + 1;
         this.getWorld().shared.set(setTally(cur), { when: 'tally', seq: [cur] });
-        this.getWorld().logger.log(`tally ${cur}`);
-        const { username } = req.query;
+        this.getWorld().eventLogger.info(`tally ${cur}`);
+        const username = c.req.query('username');
         await sleep(Math.random() * 2000);
-        res
-            .status(200)
-            .cookie('userid', username)
-            .send(`<h1>Counter test</h1>tally: ${cur}<br />username ${username} `);
+        setCookie(c, 'userid', String(username));
+        return c.html(`<h1>Counter test</h1>tally: ${cur}<br />username ${username} `);
     };
-    download = async (req, res) => {
+    download = async (c) => {
         if (!this.toDelete.uploaded) {
-            res.sendStatus(404);
-            res.end('no file to download');
-            return;
+            return c.text('no file to download', 404);
         }
         this.toDelete.downloaded = '/tmp/test-downloaded.jpg';
-        res.download(this.toDelete.uploaded);
+        const fileBuffer = readFileSync(this.toDelete.uploaded);
+        const filename = this.toDelete.uploaded.split('/').pop() ?? 'download';
+        return new Response(fileBuffer, {
+            status: 200,
+            headers: {
+                'Content-Type': 'application/octet-stream',
+                'Content-Disposition': `attachment; filename="${filename}"`,
+            },
+        });
     };
-    upload = async (req, res) => {
-        if (!req.files || Object.keys(req.files).length === 0) {
-            return res.status(400).send('No files were uploaded.');
+    upload = async (c) => {
+        const body = await c.req.parseBody();
+        const uploaded = body['upload'];
+        if (!uploaded || !(uploaded instanceof File)) {
+            return c.text('No files were uploaded.', 400);
         }
-        const uploaded = req.files.upload;
-        if (uploaded !== undefined) {
-            const file = uploaded;
-            const uploadPath = `/tmp/upload-${Date.now()}.${file.name}.uploaded`;
-            file.mv(uploadPath, (err) => {
-                if (err) {
-                    return res.status(500).send(err);
-                }
-                this.toDelete.uploaded = uploadPath;
-                res.send('<a id="to-download" href="/download">Uploaded file</a>');
-            });
-        }
+        const uploadPath = `/tmp/upload-${Date.now()}.${uploaded.name}.uploaded`;
+        const buffer = await uploaded.arrayBuffer();
+        writeFileSync(uploadPath, Buffer.from(buffer));
+        this.toDelete.uploaded = uploadPath;
+        return c.html('<a id="to-download" href="/download">Uploaded file</a>');
     };
     steps = {
         addTallyRoute: {
@@ -107,19 +143,17 @@ class TestServer extends AStepper {
         },
         addUploadRoute: {
             gwta: 'start upload route at {loc}',
-            // Define action directly to include middleware, bypassing addRoute helper
             action: async (args, vstep) => {
                 const { loc } = args;
                 try {
                     const webserver = getFromRuntime(this.getWorld().runtime, WEBSERVER);
-                    // Register route directly with method, location, middleware (cast to any), and handler
-                    webserver.addRoute('post', loc, fileUpload(), this.upload);
+                    webserver.addRoute('post', loc, this.upload);
                     return actionOK();
                 }
                 catch (error) {
-                    this.getWorld().logger.error(`Error adding upload route ${loc}: ${error}`);
-                    const messageContext = { incident: EExecutionMessageType.ACTION, incidentDetails: asError(error) };
-                    return actionNotOK(vstep.in, { messageContext });
+                    const err = error instanceof Error ? error : new Error(String(error));
+                    this.getWorld().eventLogger.error(`Error adding upload route ${loc}: ${err.message}`);
+                    return actionNotOK(`${vstep.in}: ${err.message}`);
                 }
             },
         },
@@ -133,15 +167,16 @@ class TestServer extends AStepper {
         },
         changeServerAuthToken: {
             gwta: 'change server auth token to {token}',
-            action: async (args, vstep) => {
+            action: async (args, _vstep) => {
                 const { token } = args;
                 this.authToken = token;
                 return actionOK();
             },
         },
+        // Protected routes - use dynamic auth middleware
         addCheckAuthTokenRoute: {
             gwta: 'start check auth route at {loc}',
-            action: this.addRoute(restRoutes(this).checkAuth),
+            action: this.addAuthRoute(restRoutes(this).checkAuth),
         },
         addLogin: {
             gwta: 'start auth login route at {loc}',
@@ -153,21 +188,23 @@ class TestServer extends AStepper {
         },
         addResources: {
             gwta: 'start auth resources get route at {loc}',
-            action: this.addRoute(restRoutes(this).resources),
+            action: this.addAuthRoute(restRoutes(this).resources),
         },
         addResourceGet: {
             gwta: 'start auth resource get route at {loc}',
-            action: this.addRoute(restRoutes(this).resourceGet),
+            action: this.addAuthRoute(restRoutes(this).resourceGet),
         },
         addResourceDelete: {
             gwta: 'start auth resource delete route at {loc}',
-            action: this.addRoute(restRoutes(this).resourceDelete, 'delete'),
+            action: this.addAuthRoute(restRoutes(this).resourceDelete, 'delete'),
         },
         setAuthScheme: {
             gwta: 'make auth scheme {scheme}',
-            action: async (args, vstep) => {
+            action: async (args, _vstep) => {
                 const { scheme } = args;
-                this.authScheme = authSchemes[scheme](this);
+                // Set the current scheme - this is checked at request time by dynamic middleware
+                this.currentAuthScheme = scheme;
+                this.authSchemeHandler = authSchemes[scheme](this);
                 return OK;
             },
         },

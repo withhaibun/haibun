@@ -5,6 +5,7 @@ import TestSteps from '../lib/test/TestSteps.js';
 import Haibun from './haibun.js';
 import VariablesSteppers from './variables-stepper.js';
 import LogicStepper from './logic-stepper.js';
+import { ActivitiesStepper } from './activities-stepper.js';
 
 describe('until', () => {
 	it('until passes', async () => {
@@ -24,7 +25,7 @@ describe('seqPath ordering', () => {
 		const feature = { path: '/features/test.feature', content: 'passes\npasses\npasses' };
 		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(true);
-		const seqs = result.featureResults![0].stepResults.map(r => r.seqPath);
+		const seqs = result.featureResults?.[0].stepResults.map(r => r.seqPath);
 		expect(seqs).toEqual([[1, 1, 1], [1, 1, 2], [1, 1, 3]]);
 	});
 
@@ -32,7 +33,7 @@ describe('seqPath ordering', () => {
 		const feature = { path: '/features/test.feature', content: 'passes\nnot fails\nends with "OK"' };
 		const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps]);
 		expect(result.ok).toBe(true);
-		const seqs = result.featureResults![0].stepResults.map(r => r.seqPath);
+		const seqs = result.featureResults?.[0].stepResults.map(r => r.seqPath);
 		expect(seqs).toEqual([[1, 1, 1], [1, 1, 2, -1], [1, 1, 2], [1, 1, 3]]);
 	});
 
@@ -40,7 +41,7 @@ describe('seqPath ordering', () => {
 		const feature = { path: '/features/test.feature', content: 'passes\nnot not passes\nends with "OK"' };
 		const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps]);
 		expect(result.ok).toBe(true);
-		const seqs = result.featureResults![0].stepResults.map(r => r.seqPath);
+		const seqs = result.featureResults?.[0].stepResults.map(r => r.seqPath);
 		expect(seqs).toEqual([[1, 1, 1], [1, 1, 2, -1, -1], [1, 1, 2, -1], [1, 1, 2], [1, 1, 3]]);
 	});
 });
@@ -50,7 +51,7 @@ describe('afterEvery', () => {
 		const feature = { path: '/features/test.feature', content: 'have a test\nafter every "TestSteps", Noodles, man.\npasses\npasses' };
 		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(true);
-		const ins = result.featureResults![0].stepResults.map(r => r.in);
+		const ins = result.featureResults?.[0].stepResults.map(r => r.in);
 		expect(ins).toEqual(['have a test', 'after every "TestSteps", Noodles, man.', 'passes', 'Noodles, man.', 'passes', 'Noodles, man.']);
 	});
 
@@ -58,7 +59,7 @@ describe('afterEvery', () => {
 		const feature = { path: '/features/test.feature', content: 'have a test\nafter every "TestSteps", passes\nhave a test\npasses' };
 		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(true);
-		const seqs = result.featureResults![0].stepResults.map(r => r.seqPath);
+		const seqs = result.featureResults?.[0].stepResults.map(r => r.seqPath);
 		// Step [1,1,4] "passes" does not trigger afterEvery because it's the same action (prevents infinite recursion)
 		expect(seqs).toEqual([[1, 1, 1], [1, 1, 2], [1, 1, 3], [1, 1, 3, 1], [1, 1, 4]]);
 	});
@@ -133,7 +134,7 @@ describe('backgrounds', () => {
 		const background = { path: '/backgrounds/bg.feature', content: 'set ran to "true"\nends with "ok"' };
 		const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 		expect(result.ok).toBe(true);
-		const seqs = result.featureResults![0].stepResults.map(r => r.seqPath);
+		const seqs = result.featureResults?.[0].stepResults.map(r => r.seqPath);
 		// Condition uses dir=-1, body uses dir=1: condition [1,1,1,-1], background steps [1,1,1,1] and [1,1,1,2], parent [1,1,1]
 		expect(seqs).toEqual([[1, 1, 1, -1], [1, 1, 1, 1], [1, 1, 1, 2], [1, 1, 1]]);
 	});
@@ -174,13 +175,63 @@ describe('backgrounds', () => {
 		const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 		expect(result.ok).toBe(true);
 
-		const paths = result.featureResults![0].stepResults.map(r => r.path);
+		const paths = result.featureResults?.[0].stepResults.map(r => r.path);
 		expect(paths).toEqual([
-			'/features/test.feature',  // set ran
-			'/features/test.feature',  // condition
-			'/backgrounds/bg.feature',  // background step
-			'/backgrounds/bg.feature',  // background step
-			'/features/test.feature'    // parent where
+			'test_base/features/test.feature',  // set ran
+			'test_base/features/test.feature',  // condition
+			'test_base/backgrounds/bg.feature',  // background step
+			'test_base/backgrounds/bg.feature',  // background step
+			'test_base/features/test.feature'    // parent where
 		]);
 	});
+
+	it('feature steps have correct lineNumber', async () => {
+		const feature = { path: '/features/test.feature', content: 'set x to "1"\nset y to "2"\nset z to "3"' };
+		const result = await passWithDefaults([feature], [VariablesSteppers]);
+		expect(result.ok).toBe(true);
+
+		const lineNumbers = result.featureResults?.[0].stepResults.map(r => r.lineNumber);
+		expect(lineNumbers).toEqual([1, 2, 3]);
+	});
+
+	it('background steps have correct lineNumber from background file', async () => {
+		const feature = { path: '/features/test.feature', content: 'Backgrounds: bg' };
+		const background = { path: '/backgrounds/bg.feature', content: 'set ran to "true"\nset more to "value"' };
+		const result = await passWithDefaults([feature], [Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
+		expect(result.ok).toBe(true);
+
+		const bgSteps = result.featureResults?.[0].stepResults.filter(r => r.path?.includes('backgrounds/')) || [];
+		expect(bgSteps.length).toBe(2);
+
+		// Background steps should have lineNumbers 1 and 2
+		const bgLineNumbers = bgSteps.map(r => r.lineNumber);
+		expect(bgLineNumbers).toEqual([1, 2]);
+	});
+
+	it('activity block steps have correct lineNumber and folder path', async () => {
+		const background = {
+			path: '/backgrounds/bg.feature',
+			content: 'Activity: Test Activity\n    set x to "1"\n    waypoint Test Activity with variable x is "1"'
+		};
+		const feature = {
+			path: '/features/test.feature',
+			content: 'Backgrounds: bg\nScenario: Run Activity\n    ensure Test Activity'
+		};
+
+		const result = await passWithDefaults([feature], [Haibun, ActivitiesStepper, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
+		expect(result.ok).toBe(true);
+
+		// The "set x to 1" step should have lineNumber 2 (in bg.feature) and path backgrounds/bg.feature
+		const activityStep = result.featureResults?.[0].stepResults.find(r => r.in === 'set x to "1"');
+		expect(activityStep).toBeDefined();
+		expect(activityStep?.lineNumber).toBe(3);
+		expect(activityStep?.path).toBe('test_base/backgrounds/bg.feature');
+
+		// The waypoint itself should also have its source location
+		const waypointStep = result.featureResults?.[0].stepResults.find(r => r.in === 'Test Activity');
+		expect(waypointStep).toBeDefined();
+		expect(waypointStep?.lineNumber).toBe(3);
+		expect(waypointStep?.path).toBe('test_base/backgrounds/bg.feature');
+	});
 });
+

@@ -1,4 +1,4 @@
-import { resolve } from 'path/posix';
+import { resolve } from 'path';
 import { pathToFileURL } from 'url';
 
 export const HOST_PROJECT_DIR = 'HOST_PROJECT_DIR';

@@ -1,9 +1,17 @@
 import { AStepper, TStepperSteps } from '@haibun/core/lib/astepper.js';
-import { OK } from '@haibun/core/lib/defs.js';
-import { EExecutionMessageType } from '@haibun/core/lib/interfaces/logger.js';
+import { OK } from '@haibun/core/schema/protocol.js';
 import { actionNotOK } from '@haibun/core/lib/util/index.js';
+import { NodeHttpEvents } from '@haibun/core/lib/node-http-events.js';
+import { TWorld } from '@haibun/core/lib/defs.js';
 
 const WebHttp = class WebHttp extends AStepper {
+	description = 'HTTP requests with status, content-type, and body validation';
+
+	async setWorld(world: TWorld, steppers: AStepper[]) {
+		await super.setWorld(world, steppers);
+		NodeHttpEvents.init();
+	}
+
 	steps = {
 		listening: {
 			gwta: 'http {url} is listening',
@@ -12,8 +20,7 @@ const WebHttp = class WebHttp extends AStepper {
 					await fetch(url);
 					return OK;
 				} catch (e) {
-					const messageContext = { incident: EExecutionMessageType.ACTION, incidentDetails: { result: { summary: 'error', details: e } } }
-					return actionNotOK(`${url} is not listening`, { messageContext });
+					return actionNotOK(`${url} is not listening`, { topics: { error: e } });
 				}
 			},
 		},
@@ -22,7 +29,7 @@ const WebHttp = class WebHttp extends AStepper {
 			action: async ({ url }: { url: string }) => {
 				const response = await fetch(`${url}/.well-known/openid-configuration`);
 				const json = await response.json();
-				return json.authorization_endpoint ? OK : actionNotOK(`${json} has no endpoint`, { messageContext: { incident: EExecutionMessageType.ACTION, incidentDetails: { result: { summary: 'json', details: json } } } });
+				return json.authorization_endpoint ? OK : actionNotOK(`${json} has no endpoint`, { topics: { json } });
 			},
 		},
 		statusIs: {
@@ -93,7 +100,7 @@ const WebHttp = class WebHttp extends AStepper {
 				const response = await fetch(url, { method: method.toUpperCase() });
 				const headers = response.headers;
 				console.log('headers', headers);
-				return headers[header.toLowerCase()] === contents ? OK : actionNotOK(`${method} ${url} does not contain ${header} with ${contents}, it contains ${JSON.stringify(headers)}`)
+				return headers.get(header.toLowerCase()) === contents ? OK : actionNotOK(`${method} ${url} does not contain ${header} with ${contents}, it contains ${JSON.stringify(Object.fromEntries(headers.entries()))}`)
 			},
 		},
 	} satisfies TStepperSteps;

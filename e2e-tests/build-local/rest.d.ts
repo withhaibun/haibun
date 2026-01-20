@@ -1,11 +1,10 @@
-import { IRequest, IResponse } from '@haibun/web-server-express/defs.js';
-import TestServer from './test-server.js';
-export declare const restRoutes: (testServer: TestServer) => {
-    createAuthToken(req: IRequest, res: IResponse): Promise<void>;
-    checkAuth(req: IRequest, res: IResponse): Promise<void>;
-    logOut(req: IRequest, res: IResponse): Promise<void>;
-    resourceGet(req: IRequest, res: IResponse): Promise<void>;
-    resourceDelete(req: IRequest, res: IResponse): Promise<void>;
-    resources(req: IRequest, res: IResponse): Promise<void>;
-    logIn(req: IRequest, res: IResponse): Promise<void>;
-};
+import type { Context } from '@haibun/web-server-hono/defs.js';
+import type TestServer from './test-server.js';
+type TRouteHandler = (c: Context) => Response | Promise<Response>;
+/**
+ * REST route handlers for test server.
+ * These don't include auth checks - auth is applied via middleware at route registration.
+ */
+export declare const restRoutes: (testServer: TestServer) => Record<string, TRouteHandler>;
+export {};
+//# sourceMappingURL=rest.d.ts.map

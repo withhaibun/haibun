@@ -1,4 +1,5 @@
-import { TExpandedLine, TExpandedFeature, TEST_BASE } from './defs.js';
+import { TExpandedLine, TExpandedFeature } from './defs.js';
+import { TEST_BASE } from '../schema/protocol.js';
 import { TAnyFixme } from './fixme.js';
 import { featureSplit, withNameType } from './features.js';
 
@@ -8,9 +9,9 @@ export const asFeatures = (w: TProtoFeature) => w.map((i) => withNameType(i.base
 
 // FIXME can't really do this without reproducing resolve
 export const asExpandedFeatures = (w: { base?: string; path: string; content: string; }[]): TExpandedFeature[] => asFeatures(w).map((i) => {
-	const expanded: TExpandedLine[] = featureSplit(i.content).map((a) => ({ line: a, feature: i }));
+	const expanded: TExpandedLine[] = featureSplit(i.content).map((a, idx) => ({ line: a, lineNumber: idx + 1, feature: i }));
 	const a: TAnyFixme = { ...i, expanded };
-	delete a.content;
+	delete (a as { content?: string }).content;
 	// a.featureLine = asFeatureLine()
-	return a;
+	return a as TExpandedFeature;
 });
