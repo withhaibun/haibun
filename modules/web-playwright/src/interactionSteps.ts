@@ -15,6 +15,7 @@ import { TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { provenanceFromFeatureStep } from "@haibun/core/steps/variables-stepper.js";
 import { FlowRunner } from "@haibun/core/lib/core/flow-runner.js";
 import { JsonArtifact } from '@haibun/core/schema/protocol.js';
+import { lib } from "markdown-it/lib/common/utils.mjs";
 
 const DOMAIN_STRING_OR_PAGE_LOCATOR = `${DOMAIN_STRING} | ${DOMAIN_PAGE_LOCATOR}`;
 
@@ -490,6 +491,22 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 			const uri = await wp.withPage<string>(async (page: Page) => await page.url());
 			const found = new URL(uri).searchParams.get(what);
 			wp.getWorld().shared.set({ term: where, value: found, domain: 'string', origin: Origin.var }, provenanceFromFeatureStep(featureStep));
+			return OK;
+		},
+	},
+	saveTextFrom: {
+		gwta: `save text from {element: ${DOMAIN_PAGE_LOCATOR}} to {where}`,
+		action: async ({ element, where }: { element: string; where: string }, featureStep) => {
+			const text = await wp.withPage<string>(async (page: Page) => {
+				const locator = page.locator(element);
+				// Try textContent first, fall back to inputValue for input elements
+				const content = await locator.textContent();
+				if (content !== null && content.trim() !== '') {
+					return content.trim();
+				}
+				return await locator.inputValue();
+			});
+			wp.getWorld().shared.set({ term: where, value: text, domain: 'string', origin: Origin.var }, provenanceFromFeatureStep(featureStep));
 			return OK;
 		},
 	},
