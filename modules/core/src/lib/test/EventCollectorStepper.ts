@@ -2,17 +2,14 @@ import { AStepper, IHasCycles } from '../astepper.js';
 import { TWorld, IStepperCycles } from '../defs.js';
 import { THaibunEvent } from '../../schema/protocol.js';
 
-/**
- * EventCollectorStepper - Collects events for test inspection.
- * 
- * Usage in tests:
- * ```ts
- * const collector = new EventCollectorStepper();
- * const res = await passWithDefaults(content, [collector, ...steppers]);
- * const events = collector.getEvents();
- * const stepEvents = collector.getStepEvents();
- * ```
- */
+type EventFilterOptions = Partial<{
+  kind: string;
+  type: string;
+  stage: string;
+  in: string;
+  [key: string]: unknown;
+}>;
+
 export class EventCollectorStepper extends AStepper implements IHasCycles {
   description = 'Collects events for test inspection';
 
@@ -20,7 +17,6 @@ export class EventCollectorStepper extends AStepper implements IHasCycles {
 
   cycles: IStepperCycles = {
     startScenario: () => {
-      // Hook into world event logger to collect events
       if (this.world?.eventLogger) {
         const originalCallback = (this.world.eventLogger as { stepperCallback?: (e: THaibunEvent) => void }).stepperCallback;
         this.world.eventLogger.setStepperCallback?.((event: THaibunEvent) => {
@@ -34,7 +30,6 @@ export class EventCollectorStepper extends AStepper implements IHasCycles {
 
   setWorld(world: TWorld, steppers: AStepper[]): Promise<void> {
     this.world = world;
-    // Hook into world event logger immediately
     if (world.eventLogger?.setStepperCallback) {
       world.eventLogger.setStepperCallback((event: THaibunEvent) => {
         this.events.push(event);
@@ -45,24 +40,32 @@ export class EventCollectorStepper extends AStepper implements IHasCycles {
   }
   steps = {};
 
-  /** Get all collected events */
-  getEvents(): THaibunEvent[] {
-    return [...this.events];
+  getEvents(filterOrPredicate?: EventFilterOptions | ((e: THaibunEvent) => boolean)): THaibunEvent[] {
+    const all = [...this.events];
+    if (!filterOrPredicate) return all;
+    if (typeof filterOrPredicate === 'function') return all.filter(filterOrPredicate);
+    return all.filter(e => {
+      for (const [key, value] of Object.entries(filterOrPredicate)) {
+        const eventValue = (e as Record<string, unknown>)[key];
+        if (key === 'in' && typeof eventValue === 'string') {
+          if (!eventValue.includes(String(value))) return false;
+        } else if (eventValue !== value) return false;
+      }
+      return true;
+    });
   }
 
-  /** Get step lifecycle events only */
-  getStepEvents(): THaibunEvent[] {
-    return this.events.filter(e => 'type' in e && e.type === 'step');
+  assertNoSecrets(secretValues: string[]): void {
+    const serialized = JSON.stringify(this.events);
+    for (const secret of secretValues) {
+      if (secret && serialized.includes(secret)) {
+        throw new Error(`Secret value "${secret}" found in events - sanitization failed`);
+      }
+    }
   }
 
-  /** Get events matching a predicate */
-  findEvents(predicate: (e: THaibunEvent) => boolean): THaibunEvent[] {
-    return this.events.filter(predicate);
-  }
-
-  /** Clear collected events */
-  clear(): void {
-    this.events = [];
+  containsValue(value: string): boolean {
+    return JSON.stringify(this.events).includes(value);
   }
 }
 

@@ -14,6 +14,7 @@ import { Origin, TOrigin, TProvenanceIdentifier, TStepValue, THaibunEvent } from
 import { DOMAIN_JSON, DOMAIN_STRING, normalizeDomainKey } from "./domain-types.js";
 import { QuadStore } from "./quad-store.js";
 import { IQuadStore, TQuad } from "./quad-types.js";
+import { HIDDEN_SECRET, isSecretByName } from "./set-modifiers.js";
 
 export const SHARED_GRAPH = 'variables';
 export const META_GRAPH = 'meta';
@@ -55,7 +56,7 @@ export class FeatureVariables {
 	}
 
 	setJSON(label: string, value: object, origin: TOrigin, source: TFeatureStep) {
-		this.set({ term: label, value: JSON.stringify(value), domain: DOMAIN_JSON, origin }, { in: source.in, seq: source.seqPath, when: `${source.action.stepperName}.${source.action.actionName}` });
+		this.set({ term: label, value: JSON.stringify(value), domain: DOMAIN_JSON, origin }, { in: source.in, seq: source.seqPath, when: `${source.action.stepperName}.${source.action.actionName}` }, false);
 	}
 
 	setForStepper(stepper: string, sv: TStepValue, provenance: TProvenanceIdentifier, namedGraph?: string) {
@@ -66,7 +67,7 @@ export class FeatureVariables {
 		delete this.values[name];
 	}
 
-	set(sv: TStepValue, provenance: TProvenanceIdentifier, namedGraph?: string) {
+	set(sv: TStepValue, provenance: TProvenanceIdentifier, callerHandlesSecrets: boolean, namedGraph?: string) {
 		if (sv.term.match(/.*\..*/)) {
 			throw Error('non-stepper variables cannot use dots');
 		}
@@ -79,6 +80,10 @@ export class FeatureVariables {
 			throw Error(`Cannot overwrite read-only variable "${sv.term}"`);
 		}
 
+		if (!callerHandlesSecrets && !sv.secret && isSecretByName(sv.term)) {
+			this.world.eventLogger?.warn?.(`Variable "${sv.term}" looks like a secret but step lacks handlesSecret flag`, { variable: sv.term });
+		}
+
 		return this._set(sv, provenance, namedGraph);
 	}
 
@@ -88,8 +93,7 @@ export class FeatureVariables {
 		if (domain === undefined) {
 			throw Error(`Cannot set variable "${sv.term}": unknown domain "${sv.domain}"`);
 		}
-		// Auto-detect secret variables: if term contains "password" (case-insensitive), mark as secret
-		const autoSecret = /password/i.test(sv.term);
+		const autoSecret = isSecretByName(sv.term);
 		const normalized = { ...sv, domain: domainKey, secret: sv.secret || autoSecret };
 		domain.coerce(normalized);
 		const existingProvenance: TProvenanceIdentifier[] = this.values[sv.term]?.provenance;
@@ -106,7 +110,7 @@ export class FeatureVariables {
 
 		// Emit quad observation event for real-time graph building
 		const timestamp = Date.now();
-		this.world.eventLogger?.emit({
+		this.world.eventLogger.emit({
 			id: `quad-${timestamp}`,
 			timestamp,
 			source: 'haibun',
@@ -118,7 +122,7 @@ export class FeatureVariables {
 				quadObservation: {
 					subject: sv.term,
 					predicate: domainKey,  // Domain IS the predicate
-					object: normalized.value,
+					object: normalized.secret ? HIDDEN_SECRET : normalized.value,
 					namedGraph,
 					// Move provenance to separate quads in meta namedGraph, don't embed
 				}
@@ -127,7 +131,7 @@ export class FeatureVariables {
 
 		// Emit meta quads for origin/provenance/readonly if present
 		if (sv.origin) {
-			this.world.eventLogger?.emit({
+			this.world.eventLogger.emit({
 				id: `quad-meta-origin-${timestamp}`,
 				timestamp,
 				source: 'haibun',
@@ -299,7 +303,7 @@ export class FeatureVariables {
 
 		// Emit event for graph visualization
 		const timestamp = Date.now();
-		this.world.eventLogger?.emit({
+		this.world.eventLogger.emit({
 			id: `quad-${timestamp}-${quad.subject}-${quad.predicate}`,
 			timestamp,
 			source: 'haibun',
@@ -327,6 +331,13 @@ export class FeatureVariables {
 	/** Check if a variable is marked as secret */
 	isSecret(name: string): boolean {
 		return this.values[name]?.secret === true;
+	}
+
+	/** Get all currently stored secret values */
+	getSecretValues(): string[] {
+		return Object.values(this.values)
+			.filter(v => v.secret && v.value !== undefined)
+			.map(v => String(v.value));
 	}
 
 	// =========================================================================

@@ -149,7 +149,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 			console.debug('background', background, browserContext.serviceWorkers());
 
 			const extensionId = background.url().split('/')[2];
-			wp.getWorld().shared.set({ term: 'extensionContext', value: extensionId, domain: 'string', origin: Origin.var }, provenanceFromFeatureStep(featureStep));
+			wp.getWorld().shared.set({ term: 'extensionContext', value: extensionId, domain: 'string', origin: Origin.var }, provenanceFromFeatureStep(featureStep), false);
 			await wp.withPage(async (page: Page) => {
 				const popupURI = `chrome-extension://${extensionId}/popup.html?${tab}`;
 				return await page.goto(popupURI);
@@ -489,7 +489,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 			const where = getStepTerm(featureStep, 'where') ?? '';
 			const uri = await wp.withPage<string>(async (page: Page) => await page.url());
 			const found = new URL(uri).searchParams.get(what);
-			wp.getWorld().shared.set({ term: where, value: found, domain: 'string', origin: Origin.var }, provenanceFromFeatureStep(featureStep));
+			wp.getWorld().shared.set({ term: where, value: found, domain: 'string', origin: Origin.var }, provenanceFromFeatureStep(featureStep), false);
 			return OK;
 		},
 	},

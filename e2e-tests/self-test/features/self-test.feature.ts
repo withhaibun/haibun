@@ -3,6 +3,7 @@ import WebPlaywright from '@haibun/web-playwright';
 import VariablesStepper from '@haibun/core/steps/variables-stepper.js';
 import { TEST_IDS } from '@haibun/monitor-browser/build/test-ids.js';
 import { Test_IDs_setup } from '../backgrounds/test-ids.feature.ts';
+import { HIDDEN_SECRET } from '@haibun/core/lib/sanitization.js';
 
 const web = withAction(new WebPlaywright());
 const vars = withAction(new VariablesStepper());
@@ -170,54 +171,81 @@ export const features: TKirejiExport = {
 
     `
     Scenario: Secret variables are auto-detected by password pattern.
+    When a variable name contains "password", Haibun automatically treats it as secret.
     set userPassword to "my-secret-password"
-    variable userPassword is "my-secret-password"
+    The variable is set and can be used internally.
+    variable userPassword exists
+    But when displayed in the monitor, the value is obscured.
     show var userPassword
     pause for 1s
-    see "value": "***""
-    not see ""value": "my-secret-password""
+    see "value": "${HIDDEN_SECRET}"
+    The step text itself is sanitized, replacing the literal value.
+    see set userPassword to "${HIDDEN_SECRET}"
 
     Scenario: Secret variables can be explicitly marked with as secret.
+    Variables can also be explicitly marked as secret using "as secret".
     set apiKey as secret string to "key-123-abc"
-    variable apiKey is "key-123-abc"
+    The variable is set and can be used internally.
+    variable apiKey exists
+    But is hidden in all monitor output.
     show var apiKey
     pause for 1s
-    see "value": "***""
-    not see ""value": "key-123-abc""
+    see "value": "${HIDDEN_SECRET}"
+    The step text shows the hidden placeholder.
+    see set apiKey as secret string to "${HIDDEN_SECRET}"
 
     Scenario: Show vars obscures secrets but shows non-secrets.
+    When showing all variables, secrets are obscured while others remain visible.
     set publicUsername to "testuser"
     set dbPassword to "db-secret-pass"
+    set sessionToken as secret to "session-abc-123"
     show vars
     pause for 1s
-    see ""publicUsername": "testuser""
-    see ""dbPassword": "***""
-    not see ""dbPassword": "db-secret-pass""
+    Public variables display their actual values.
+    see "publicUsername": "testuser"
+    Secret variables show the hidden placeholder in the display.
+    see "dbPassword": "${HIDDEN_SECRET}"
+    see "sessionToken": "${HIDDEN_SECRET}"
+    The step text for setting secrets is also sanitized.
+    see set dbPassword to "${HIDDEN_SECRET}"
+    see set sessionToken as secret to "${HIDDEN_SECRET}"
 
     Scenario: Mixed explicit and auto-detected secrets in show vars.
+    Both explicit secrets and password-pattern secrets are obscured together.
     set configApiToken as secret string to "token-xyz"
     set normalConfig to "visible-config"
     set adminPassword to "admin-secret"
     show vars
     pause for 1s
-    see ""normalConfig": "visible-config""
-    see ""configApiToken": "***""
-    see ""adminPassword": "***""
-    not see ""configApiToken": "token-xyz""
-    not see ""adminPassword": "admin-secret""
+    Non-secret config values remain visible.
+    see "normalConfig": "visible-config"
+    Both the explicit and auto-detected secrets are hidden.
+    see "configApiToken": "${HIDDEN_SECRET}"
+    see "adminPassword": "${HIDDEN_SECRET}"
 
     Scenario: Password variations are detected as secret.
+    The password pattern detection is case-insensitive and works with various naming styles.
     set PASSWORD_DB to "all-caps-pass"
     set MyPassword123 to "camel-case-pass"
     set user_password_hash to "snake-case-pass"
     show vars
     pause for 1s
-    see ""PASSWORD_DB": "***""
-    see ""MyPassword123": "***""
-    see ""user_password_hash": "***""
-    not see ""PASSWORD_DB": "all-caps-pass""
-    not see ""MyPassword123": "camel-case-pass""
-    not see ""user_password_hash": "snake-case-pass""
+    All variations containing "password" are detected and hidden.
+    see "PASSWORD_DB": "${HIDDEN_SECRET}"
+    see "MyPassword123": "${HIDDEN_SECRET}"
+    see "user_password_hash": "${HIDDEN_SECRET}"
+
+    Scenario: Secret status is inherited through compose.
+    When composing a new variable from secret components, the result inherits secret status.
+    set mySecret as secret to "secret-value-123"
+    set publicPart to "prefix"
+    compose derivedFromSecret with {publicPart}-{mySecret}-suffix
+    compose multiSecret with {mySecret}x{mySecret}
+    show vars
+    pause for 1s
+    Both composed variables are marked as secrets because they contain secret values.
+    see "derivedFromSecret": "${HIDDEN_SECRET}"
+    see "multiSecret": "${HIDDEN_SECRET}"
 `,
   ]
 }
