@@ -22,6 +22,8 @@ export const features: TKirejiExport = {
     Test_IDs_setup,
 
     'Scenario: A user opens the Haibun Monitor to review execution data.',
+    // Set a known output path for the HTML report so z-post can verify it
+    'use "/tmp/self-test-report.html" for monitor html output',
     `after every WebPlaywright, take a screenshot`,
     gotoPage({ name: host }),
     'see "Haibun Monitor"',
