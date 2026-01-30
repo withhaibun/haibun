@@ -1,5 +1,5 @@
 import { TFeatureStep, TResolvedFeature, TWorld, TStepAction, TEndFeature, StepperMethodArgs, TBeforeStep, TAfterStep, IStepperCycles, ExecMode, TAfterStepResult } from '../lib/defs.js';
-import { TExecutorResult, TStepResult, TFeatureResult, TActionResult, TStepActionResult, STAY, STAY_FAILURE, CHECK_NO, CHECK_YES, CHECK_YIELD, STEP_DELAY, TNotOKActionResult, CONTINUE_AFTER_ERROR, TStepArgs, MAYBE_CHECK_YES, MAYBE_CHECK_NO, TSeqPath, FEATURE_START, Timer, STAY_ALWAYS } from '../schema/protocol.js';
+import { TExecutorResult, TStepResult, TFeatureResult, TActionResult, TStepActionResult, STAY, STAY_FAILURE, STEP_DELAY, TNotOKActionResult, CONTINUE_AFTER_ERROR, TStepArgs, TSeqPath, FEATURE_START, Timer, STAY_ALWAYS } from '../schema/protocol.js';
 import { LifecycleEvent } from '../schema/protocol.js';
 import { AStepper, IHasCycles } from '../lib/astepper.js';
 import { actionNotOK, sleep, findStepper, setStepperWorldsAndDomains, } from '../lib/util/index.js';
@@ -8,6 +8,8 @@ import { FeatureVariables } from '../lib/feature-variables.js';
 import { populateActionArgs } from '../lib/populateActionArgs.js';
 import { registerDomains } from '../lib/domain-types.js';
 import { basename } from 'path';
+import { sanitize, obscureInText } from '../lib/sanitization.js';
+import { willBeSecret } from '../lib/set-modifiers.js';
 
 export function calculateShouldClose({ thisFeatureOK, isLast, stayOnFailure, continueAfterError, stayAlways }: { thisFeatureOK: boolean; isLast: boolean; stayOnFailure: boolean; continueAfterError: boolean, stayAlways: boolean }) {
 	// Determine if this is effectively the "last" feature
@@ -298,9 +300,21 @@ export class FeatureExecutor {
 
 		let actionResult: TActionResult;
 		if (isFullCycles) {
+			const isSecretFn = (name: string) => world.shared.isSecret(name);
+			const getSecretValueFn = (name: string) => {
+				const val = world.shared.get(name);
+				return val !== undefined ? String(val) : undefined;
+			}
+			const knownSecrets = world.shared.getSecretValues();
+
+			// Compute sanitization once for Executor's needs (stepResults, error messages)
+			const isSecretStep = willBeSecret(featureStep.action.step, featureStep.action.stepValuesMap);
+			const { sanitizedIn, secretValues } = sanitize(featureStep.action.stepValuesMap, args, featureStep.in, isSecretStep, isSecretFn, getSecretValueFn, knownSecrets);
+			const allSecrets = [...new Set([...knownSecrets, ...secretValues])];
+
 			if (action.actionName !== FEATURE_START && action.actionName !== SCENARIO_START) {
-				const isSecretFn = (name: string) => world.shared.isSecret(name);
-				world.eventLogger.stepStart(featureStep, action.stepperName, action.actionName, args, featureStep.action.stepValuesMap, isSecretFn);
+				// Pass raw data - EventLogger sanitizes internally
+				world.eventLogger.stepStart(featureStep, action.stepperName, action.actionName, args, featureStep.action.stepValuesMap, isSecretFn, getSecretValueFn, knownSecrets);
 			}
 			let doAction = true;
 			while (doAction) {
@@ -309,11 +323,20 @@ export class FeatureExecutor {
 
 				if (action.actionName !== FEATURE_START && action.actionName !== SCENARIO_START) {
 					const errorMessage = !actionResult.ok ? (actionResult as TNotOKActionResult).message : undefined;
-					const isSecretFn = (name: string) => world.shared.isSecret(name);
-					world.eventLogger.stepEnd(featureStep, action.stepperName, action.actionName, actionResult.ok, errorMessage, args, featureStep.action.stepValuesMap, actionResult.topics, isSecretFn);
+					// Pass raw data - EventLogger sanitizes internally
+					world.eventLogger.stepEnd(featureStep, action.stepperName, action.actionName, actionResult.ok, errorMessage, args, featureStep.action.stepValuesMap, actionResult.topics, isSecretFn, getSecretValueFn, knownSecrets);
 				}
 
-				world.runtime.stepResults.push(stepResultFromActionResult(actionResult, action, start, Timer.since(), featureStep, ok && actionResult.ok));
+				// Sanitize error message in actionResult for stepResults
+				if (!actionResult.ok && (actionResult as TNotOKActionResult).message) {
+					let msg = (actionResult as TNotOKActionResult).message;
+					for (const s of allSecrets) {
+						msg = obscureInText(msg, s);
+					}
+					actionResult = { ...actionResult, message: msg } as TActionResult;
+				}
+
+				world.runtime.stepResults.push(stepResultFromActionResult(actionResult, action, start, Timer.since(), { ...featureStep, in: sanitizedIn }, ok && actionResult.ok));
 				const instructions: TAfterStepResult[] = await doStepperCycle(steppers, 'afterStep', <TAfterStep>({ featureStep, actionResult }), action.actionName);
 				doAction = instructions.some(i => i?.rerunStep);
 				const failed = instructions.some(i => i?.failed);

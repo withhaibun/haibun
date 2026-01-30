@@ -46,7 +46,8 @@ describe('FeatureVariables', () => {
 		it('should clear all variables', () => {
 			variables.set(
 				{ term: 'foo', value: 'bar', domain: DOMAIN_STRING, origin: Origin.var },
-				{ in: 'test', seq: [1], when: 'test.action' }
+				{ in: 'test', seq: [1], when: 'test.action' },
+				false
 			);
 			expect(variables.get('foo')).toBe('bar');
 
@@ -60,11 +61,13 @@ describe('FeatureVariables', () => {
 		it('should return a copy of all values', () => {
 			variables.set(
 				{ term: 'var1', value: 'value1', domain: DOMAIN_STRING, origin: Origin.var },
-				{ in: 'test', seq: [1], when: 'test.action' }
+				{ in: 'test', seq: [1], when: 'test.action' },
+				false
 			);
 			variables.set(
 				{ term: 'var2', value: 'value2', domain: DOMAIN_STRING, origin: Origin.var },
-				{ in: 'test', seq: [2], when: 'test.action' }
+				{ in: 'test', seq: [2], when: 'test.action' },
+				false
 			);
 
 			const all = variables.all();
@@ -77,7 +80,8 @@ describe('FeatureVariables', () => {
 		it('should return a copy, not the original', () => {
 			variables.set(
 				{ term: 'foo', value: 'bar', domain: DOMAIN_STRING, origin: Origin.var },
-				{ in: 'test', seq: [1], when: 'test.action' }
+				{ in: 'test', seq: [1], when: 'test.action' },
+				false
 			);
 
 			const all1 = variables.all();
@@ -99,7 +103,8 @@ describe('FeatureVariables', () => {
 		it('should set and get a string variable', () => {
 			variables.set(
 				{ term: 'myVar', value: 'myValue', domain: DOMAIN_STRING, origin: Origin.var },
-				{ in: 'test', seq: [1], when: 'test.action' }
+				{ in: 'test', seq: [1], when: 'test.action' },
+				false
 			);
 
 			expect(variables.get('myVar')).toBe('myValue');
@@ -113,7 +118,8 @@ describe('FeatureVariables', () => {
 			expect(() => {
 				variables.set(
 					{ term: 'invalid.var', value: 'value', domain: DOMAIN_STRING, origin: Origin.var },
-					{ in: 'test', seq: [1], when: 'test.action' }
+					{ in: 'test', seq: [1], when: 'test.action' },
+					false
 				);
 			}).toThrow('non-stepper variables cannot use dots');
 		});
@@ -122,7 +128,8 @@ describe('FeatureVariables', () => {
 			expect(() => {
 				variables.set(
 					{ term: 'myVar', value: 'value', domain: 'unknownDomain', origin: Origin.var },
-					{ in: 'test', seq: [1], when: 'test.action' }
+					{ in: 'test', seq: [1], when: 'test.action' },
+					false
 				);
 			}).toThrow('Cannot set variable "myVar": unknown domain "unknownDomain"');
 		});
@@ -131,7 +138,8 @@ describe('FeatureVariables', () => {
 			const provenance = { in: 'set foo to bar', seq: [1, 2], when: 'Variables.set' };
 			variables.set(
 				{ term: 'foo', value: 'bar', domain: DOMAIN_STRING, origin: Origin.var },
-				provenance
+				provenance,
+				false
 			);
 
 			const all = variables.all();
@@ -144,11 +152,13 @@ describe('FeatureVariables', () => {
 
 			variables.set(
 				{ term: 'foo', value: 'bar', domain: DOMAIN_STRING, origin: Origin.var },
-				provenance1
+				provenance1,
+				false
 			);
 			variables.set(
 				{ term: 'foo', value: 'baz', domain: DOMAIN_STRING, origin: Origin.var },
-				provenance2
+				provenance2,
+				false
 			);
 
 			const all = variables.all();
@@ -160,7 +170,8 @@ describe('FeatureVariables', () => {
 			// The default world has domains that coerce values
 			variables.set(
 				{ term: 'num', value: '42', domain: DOMAIN_STRING, origin: Origin.var },
-				{ in: 'test', seq: [1], when: 'test.action' }
+				{ in: 'test', seq: [1], when: 'test.action' },
+				false
 			);
 
 			expect(variables.get('num')).toBe('42');
@@ -219,7 +230,8 @@ describe('FeatureVariables', () => {
 		it('should throw error when getting non-JSON variable as JSON', () => {
 			variables.set(
 				{ term: 'notJson', value: 'just a string', domain: DOMAIN_STRING, origin: Origin.var },
-				{ in: 'test', seq: [1], when: 'test.action' }
+				{ in: 'test', seq: [1], when: 'test.action' },
+				false
 			);
 
 			expect(() => {
@@ -262,7 +274,8 @@ describe('FeatureVariables', () => {
 		it('should allow typed retrieval', () => {
 			variables.set(
 				{ term: 'count', value: '42', domain: DOMAIN_STRING, origin: Origin.var },
-				{ in: 'test', seq: [1], when: 'test.action' }
+				{ in: 'test', seq: [1], when: 'test.action' },
+				false
 			);
 
 			const count = variables.get<string>('count');
@@ -288,11 +301,13 @@ describe('FeatureVariables', () => {
 		it('should track different origins', () => {
 			variables.set(
 				{ term: 'envVar', value: 'fromEnv', domain: DOMAIN_STRING, origin: Origin.env },
-				{ in: 'test', seq: [1], when: 'test.action' }
+				{ in: 'test', seq: [1], when: 'test.action' },
+				false
 			);
 			variables.set(
 				{ term: 'quotedVar', value: 'fromQuote', domain: DOMAIN_STRING, origin: Origin.quoted },
-				{ in: 'test', seq: [1], when: 'test.action' }
+				{ in: 'test', seq: [1], when: 'test.action' },
+				false
 			);
 
 			const all = variables.all();
@@ -305,7 +320,8 @@ describe('FeatureVariables', () => {
 		it('should handle empty string values', () => {
 			variables.set(
 				{ term: 'empty', value: '', domain: DOMAIN_STRING, origin: Origin.var },
-				{ in: 'test', seq: [1], when: 'test.action' }
+				{ in: 'test', seq: [1], when: 'test.action' },
+				false
 			);
 
 			expect(variables.get('empty')).toBe('');
@@ -314,11 +330,13 @@ describe('FeatureVariables', () => {
 		it('should handle overwriting variables', () => {
 			variables.set(
 				{ term: 'foo', value: 'first', domain: DOMAIN_STRING, origin: Origin.var },
-				{ in: 'test1', seq: [1], when: 'test.action' }
+				{ in: 'test1', seq: [1], when: 'test.action' },
+				false
 			);
 			variables.set(
 				{ term: 'foo', value: 'second', domain: DOMAIN_STRING, origin: Origin.var },
-				{ in: 'test2', seq: [2], when: 'test.action' }
+				{ in: 'test2', seq: [2], when: 'test.action' },
+				false
 			);
 
 			expect(variables.get('foo')).toBe('second');
@@ -353,7 +371,8 @@ describe('FeatureVariables', () => {
 			const fv = new FeatureVariables(world);
 			fv.set(
 				{ term: '/path', value: 'defined value', domain: DOMAIN_STRING, origin: Origin.statement },
-				{ in: 'test', seq: [0], when: 'now' }
+				{ in: 'test', seq: [0], when: 'now' },
+				false
 			);
 			const result = fv.resolveVariable({ term: '/path', origin: Origin.defined });
 			expect(result.value).toBe('defined value');
@@ -364,7 +383,8 @@ describe('FeatureVariables', () => {
 		it('should auto-detect password variables as secret', () => {
 			variables.set(
 				{ term: 'userPassword', value: 'secret123', domain: DOMAIN_STRING, origin: Origin.var },
-				{ in: 'test', seq: [1], when: 'test.action' }
+				{ in: 'test', seq: [1], when: 'test.action' },
+				true
 			);
 			expect(variables.isSecret('userPassword')).toBe(true);
 		});
@@ -372,7 +392,8 @@ describe('FeatureVariables', () => {
 		it('should auto-detect PASSWORD (uppercase) as secret', () => {
 			variables.set(
 				{ term: 'DATABASE_PASSWORD', value: 'db-secret', domain: DOMAIN_STRING, origin: Origin.var },
-				{ in: 'test', seq: [1], when: 'test.action' }
+				{ in: 'test', seq: [1], when: 'test.action' },
+				true
 			);
 			expect(variables.isSecret('DATABASE_PASSWORD')).toBe(true);
 		});
@@ -380,7 +401,8 @@ describe('FeatureVariables', () => {
 		it('should auto-detect password in middle of name as secret', () => {
 			variables.set(
 				{ term: 'my_password_field', value: 'pwd123', domain: DOMAIN_STRING, origin: Origin.var },
-				{ in: 'test', seq: [1], when: 'test.action' }
+				{ in: 'test', seq: [1], when: 'test.action' },
+				true
 			);
 			expect(variables.isSecret('my_password_field')).toBe(true);
 		});
@@ -388,7 +410,8 @@ describe('FeatureVariables', () => {
 		it('should allow explicit secret flag', () => {
 			variables.set(
 				{ term: 'apiKey', value: 'key-12345', domain: DOMAIN_STRING, origin: Origin.var, secret: true },
-				{ in: 'test', seq: [1], when: 'test.action' }
+				{ in: 'test', seq: [1], when: 'test.action' },
+				true
 			);
 			expect(variables.isSecret('apiKey')).toBe(true);
 		});
@@ -396,7 +419,8 @@ describe('FeatureVariables', () => {
 		it('should not mark non-password variables as secret', () => {
 			variables.set(
 				{ term: 'username', value: 'john', domain: DOMAIN_STRING, origin: Origin.var },
-				{ in: 'test', seq: [1], when: 'test.action' }
+				{ in: 'test', seq: [1], when: 'test.action' },
+				false
 			);
 			expect(variables.isSecret('username')).toBe(false);
 		});
@@ -408,7 +432,8 @@ describe('FeatureVariables', () => {
 		it('should store secret flag as meta quad', () => {
 			variables.set(
 				{ term: 'thePassword', value: 'pwd', domain: DOMAIN_STRING, origin: Origin.var },
-				{ in: 'test', seq: [1], when: 'test.action' }
+				{ in: 'test', seq: [1], when: 'test.action' },
+				true
 			);
 			const secretQuads = variables.queryQuads({ subject: 'thePassword', predicate: 'secret' });
 			expect(secretQuads.length).toBe(1);
@@ -418,10 +443,39 @@ describe('FeatureVariables', () => {
 		it('should preserve secret flag in all()', () => {
 			variables.set(
 				{ term: 'secretPassword', value: 'hidden', domain: DOMAIN_STRING, origin: Origin.var },
-				{ in: 'test', seq: [1], when: 'test.action' }
+				{ in: 'test', seq: [1], when: 'test.action' },
+				true
 			);
 			const all = variables.all();
 			expect(all.secretPassword.secret).toBe(true);
+		});
+
+		it('should warn when password variable set without handlesSecret flag', () => {
+			const warnings: string[] = [];
+			world.eventLogger = { warn: (msg: string) => warnings.push(msg), emit: () => {} } as any;
+
+			variables.set(
+				{ term: 'userPassword', value: 'secret', domain: DOMAIN_STRING, origin: Origin.var },
+				{ in: 'test', seq: [1], when: 'test.action' },
+				false // callerHandlesSecrets = false
+			);
+
+			expect(warnings.length).toBe(1);
+			expect(warnings[0]).toContain('userPassword');
+			expect(warnings[0]).toContain('handlesSecret');
+		});
+
+		it('should not warn when password variable set with handlesSecret flag', () => {
+			const warnings: string[] = [];
+			world.eventLogger = { warn: (msg: string) => warnings.push(msg), emit: () => {} } as any;
+
+			variables.set(
+				{ term: 'userPassword', value: 'secret', domain: DOMAIN_STRING, origin: Origin.var },
+				{ in: 'test', seq: [1], when: 'test.action' },
+				true // callerHandlesSecrets = true
+			);
+
+			expect(warnings.length).toBe(0);
 		});
 	});
 });
