@@ -2,7 +2,6 @@ import { Volume, IFs, DirectoryJSON } from 'memfs';
 
 import { AStorage } from '@haibun/domain-storage/AStorage.js';
 import { IFile } from '@haibun/domain-storage/domain-storage.js';
-import { toTreeSync } from 'memfs/lib/print/index.js';
 import { TAnyFixme } from '@haibun/core/lib/fixme.js';
 
 export default class StorageMem extends AStorage {
@@ -31,7 +30,7 @@ export default class StorageMem extends AStorage {
 		return Promise.resolve(<IFile>ifile);
 	}
 	debug(where: string) {
-		console.debug(toTreeSync(this.volume, { dir: where || process.cwd() }));
+		console.debug('StorageMem debug:', where || process.cwd(), JSON.stringify(this.volume.toJSON(), null, 2));
 	}
 	readdir = (dir: string) => {
 		try {
