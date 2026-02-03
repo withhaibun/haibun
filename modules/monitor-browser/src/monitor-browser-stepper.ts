@@ -71,7 +71,6 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
 
   cycles: IStepperCycles = {
     startFeature: async () => {
-      this.customOutputPath = undefined;
       if (!MonitorBrowserStepper.transport) {
         await setupTransport(this);
       }
@@ -144,31 +143,16 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
       html += injection;
     }
 
+    const saved = await this.storage.saveArtifact('monitor.html', html, EMediaTypes.html);
 
-    if (this.customOutputPath) {
-      fs.writeFileSync(this.customOutputPath, html);
-    } else {
-      const saved = await this.storage.saveArtifact('monitor.html', html, EMediaTypes.html);
-      this.customOutputPath = saved.absolutePath;
-    }
-
-    this.getWorld().eventLogger.info(`[MonitorBrowser] Report saved: ${actualURI(this.customOutputPath)}`);
+    this.getWorld().eventLogger.info(`[MonitorBrowser] Report saved: ${actualURI(saved.absolutePath)}`);
   }
-
-  customOutputPath: string | undefined;
 
   steps = {
     pause: {
       gwta: 'pause browser monitor',
       action: () => {
         // Implement pause logic if needed
-        return OK;
-      }
-    },
-    setOutputPath: {
-      gwta: 'use {path} for monitor html output',
-      action: async ({ path: outputPath }: { path: string }) => {
-        this.customOutputPath = String(outputPath);
         return OK;
       }
     }

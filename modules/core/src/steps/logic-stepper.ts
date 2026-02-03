@@ -227,8 +227,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
         for (const val of values) {
           this.getWorld().shared.set(
             { term: what, value: String(val), domain: 'string', origin: Origin.var },
-            { in: featureStep.in, seq: featureStep.seqPath, when: 'quantifier' },
-            false
+            { in: featureStep.in, seq: featureStep.seqPath, when: 'quantifier' }
           );
 
           // Set metric variables if from observation source
@@ -238,7 +237,6 @@ export default class LogicStepper extends AStepper implements IHasCycles {
               this.getWorld().shared.set(
                 { term: `${sanitizeKey(val)}/${metricKey}`, value: String(metricValue), domain, origin: Origin.var },
                 { in: featureStep.in, seq: featureStep.seqPath, when: 'observation' },
-                false,
                 'observation'
               );
             }
@@ -276,8 +274,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
         for (const val of values) {
           this.getWorld().shared.set(
             { term: what, value: String(val), domain: 'string', origin: Origin.var },
-            { in: featureStep.in, seq: featureStep.seqPath, when: 'quantifier' },
-            false
+            { in: featureStep.in, seq: featureStep.seqPath, when: 'quantifier' }
           );
 
           // Set metric variables if from observation source
@@ -287,7 +284,6 @@ export default class LogicStepper extends AStepper implements IHasCycles {
               this.getWorld().shared.set(
                 { term: `${sanitizeKey(val)}/${metricKey}`, value: String(metricValue), domain, origin: Origin.var },
                 { in: featureStep.in, seq: featureStep.seqPath, when: 'observation' },
-                false,
                 'observation'
               );
             }

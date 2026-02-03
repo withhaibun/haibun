@@ -23,7 +23,7 @@ const setTally = (value: number) => ({
 const cycles = (ts: TestServer): IStepperCycles => ({
 	startFeature: async () => {
 		const p: TProvenanceIdentifier = { when: `${TestServer.name}.cycles.startFeature`, seq: [0] };
-		ts.getWorld().shared.set(setTally(0), p, false);
+		ts.getWorld().shared.set(setTally(0), p);
 		ts.resources = [
 			{ id: 1, name: 'Ignore 1' },
 			{ id: 2, name: 'Include 2' },
@@ -118,7 +118,7 @@ class TestServer extends AStepper {
 
 	tally: TRequestHandler = async (c: Context): Promise<Response> => {
 		const cur = (parseInt(this.getWorld().shared.get(TALLY) as string, 10) || 0) + 1;
-		this.getWorld().shared.set(setTally(cur), { when: 'tally', seq: [cur] }, false);
+		this.getWorld().shared.set(setTally(cur), { when: 'tally', seq: [cur] });
 		this.getWorld().eventLogger.info(`tally ${cur}`);
 		const username = c.req.query('username');
 		await sleep(Math.random() * 2000);
