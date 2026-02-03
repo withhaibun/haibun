@@ -165,7 +165,6 @@ export type TStepValuesMap = Record<string, TStepValue>;
 
 export type TStepperStep = {
 	handlesUndefined?: true | string[];
-	handlesSecret?: boolean;
 	description?: string;
 	precludes?: string[];
 	unique?: boolean;

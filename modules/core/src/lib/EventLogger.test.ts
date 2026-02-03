@@ -1,114 +1,119 @@
-import { describe, it, expect } from 'vitest';
-import { passWithDefaults } from './test/lib.js';
-import VariablesStepper from '../steps/variables-stepper.js';
-import { EventCollectorStepper } from './test/EventCollectorStepper.js';
-import { TStepEvent } from '../schema/protocol.js';
-import { HIDDEN_SECRET } from './set-modifiers.js';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { EventLogger, OBSCURED_VALUE } from './EventLogger.js';
+import { TFeatureStep } from './defs.js';
+
+const OK = { ok: true as const };
 
 describe('EventLogger', () => {
+  let logger: EventLogger;
+
+  beforeEach(() => {
+    logger = new EventLogger();
+    logger.suppressConsole = true;
+  });
+
   describe('obscure secret values', () => {
-    it('should obscure values at stepStart when step sets a secret (via name pattern)', async () => {
-      const content = `
-        set userPassword to "secret123"
-      `;
-      const res = await passWithDefaults(content, [VariablesStepper, EventCollectorStepper]);
-      const collector = res.steppers?.find(s => s instanceof EventCollectorStepper) as EventCollectorStepper;
+    // Use 'as TFeatureStep' to bypass full type checking for test mock
+    const mockFeatureStep = {
+      source: { path: '/test/feature.ts', lineNumber: 1 },
+      in: 'set password to "secret123"',
+      seqPath: [1, 1, 1],
+      action: {
+        actionName: 'set',
+        stepperName: 'VariablesStepper',
+        step: {
+          gwta: 'set {what} to {value}',
+          action: async () => OK
+        }
+      }
+    } as unknown as TFeatureStep;
 
-      collector.assertNoSecrets(['secret123']);
-      expect(collector.containsValue(HIDDEN_SECRET)).toBe(true);
+    it('should obscure secret values in stepStart', () => {
+      const emitted: unknown[] = [];
+      logger.setStepperCallback((event) => emitted.push(event));
 
-      const stepStartEvent = collector.getEvents({ kind: 'lifecycle', type: 'step', stage: 'start', in: 'userPassword' })[0] as TStepEvent;
+      const stepValuesMap = {
+        password: { term: 'password', value: 'secret123', domain: 'string', origin: 'var' },
+        username: { term: 'username', value: 'testuser', domain: 'string', origin: 'var' }
+      };
 
-      expect(stepStartEvent).toBeDefined();
-      expect(stepStartEvent.in).toContain(HIDDEN_SECRET);
-      expect(stepStartEvent.in).not.toContain('secret123');
+      const isSecretFn = (name: string) => name === 'password';
+
+      logger.stepStart(mockFeatureStep, 'VariablesStepper', 'set', {}, stepValuesMap, isSecretFn);
+
+      expect(emitted.length).toBe(1);
+      const event = emitted[0] as { stepValuesMap?: Record<string, { value: unknown }> };
+      expect(event.stepValuesMap).toBeDefined();
+      expect(event.stepValuesMap?.password.value).toBe(OBSCURED_VALUE);
+      expect(event.stepValuesMap?.username.value).toBe('testuser');
     });
 
-    it('should obscure values at stepStart when step has explicit secret modifier', async () => {
-      const content = `
-        set apiKey as secret to "abc123"
-      `;
-      const res = await passWithDefaults(content, [VariablesStepper, EventCollectorStepper]);
-      const collector = res.steppers?.find(s => s instanceof EventCollectorStepper) as EventCollectorStepper;
+    it('should obscure secret values in stepEnd', () => {
+      const emitted: unknown[] = [];
+      logger.setStepperCallback((event) => emitted.push(event));
 
-      collector.assertNoSecrets(['abc123']);
-      expect(collector.containsValue(HIDDEN_SECRET)).toBe(true);
+      const stepValuesMap = {
+        apiKey: { term: 'apiKey', value: 'key-abc-123', domain: 'string', origin: 'var' },
+        count: { term: 'count', value: '42', domain: 'string', origin: 'var' }
+      };
 
-      const stepStartEvent = collector.getEvents({ kind: 'lifecycle', type: 'step', stage: 'start', in: 'apiKey' })[0] as TStepEvent;
+      const isSecretFn = (name: string) => name === 'apiKey';
 
-      expect(stepStartEvent).toBeDefined();
-      expect(stepStartEvent.in).toContain(HIDDEN_SECRET);
-      expect(stepStartEvent.in).not.toContain('abc123');
+      logger.stepEnd(mockFeatureStep, 'VariablesStepper', 'set', true, undefined, {}, stepValuesMap, undefined, isSecretFn);
+
+      expect(emitted.length).toBe(1);
+      const event = emitted[0] as { stepValuesMap?: Record<string, { value: unknown }> };
+      expect(event.stepValuesMap).toBeDefined();
+      expect(event.stepValuesMap?.apiKey.value).toBe(OBSCURED_VALUE);
+      expect(event.stepValuesMap?.count.value).toBe('42');
     });
 
-    it('should NOT obscure values at stepStart when step is not setting a secret', async () => {
-      const content = `
-        set count to "42"
-      `;
-      const res = await passWithDefaults(content, [VariablesStepper, EventCollectorStepper]);
-      const collector = res.steppers?.find(s => s instanceof EventCollectorStepper) as EventCollectorStepper;
+    it('should not obscure when isSecretFn returns false for all', () => {
+      const emitted: unknown[] = [];
+      logger.setStepperCallback((event) => emitted.push(event));
 
-      const stepStartEvent = collector.getEvents({ kind: 'lifecycle', type: 'step', stage: 'start', in: 'count' })[0] as TStepEvent;
+      const stepValuesMap = {
+        password: { term: 'password', value: 'secret123', domain: 'string', origin: 'var' }
+      };
 
-      expect(stepStartEvent).toBeDefined();
-      expect(stepStartEvent.in).toContain('42');
-      expect(stepStartEvent.in).not.toContain(HIDDEN_SECRET);
+      const isSecretFn = () => false;
+      logger.stepStart(mockFeatureStep, 'VariablesStepper', 'set', {}, stepValuesMap, isSecretFn);
+
+      expect(emitted.length).toBe(1);
+      const event = emitted[0] as { stepValuesMap?: Record<string, { value: unknown }> };
+      expect(event.stepValuesMap?.password.value).toBe('secret123');
     });
 
-    it('should obscure secret values in stepEnd (selective)', async () => {
-      const content = `
-        set apiKey as secret to "key-abc-123"
-        set count to "42"
-      `;
-      const res = await passWithDefaults(content, [VariablesStepper, EventCollectorStepper]);
-      const collector = res.steppers?.find(s => s instanceof EventCollectorStepper) as EventCollectorStepper;
+    it('should handle null stepValuesMap', () => {
+      const emitted: unknown[] = [];
+      logger.setStepperCallback((event) => emitted.push(event));
 
-      collector.assertNoSecrets(['key-abc-123']);
-      const stepEndEvent = collector.getEvents({ kind: 'lifecycle', type: 'step', stage: 'end', in: 'apiKey' })[0] as TStepEvent;
+      const isSecretFn = (name: string) => name === 'password';
 
-      expect(stepEndEvent).toBeDefined();
-      // Verify the secret is obscured in the event
-      const eventJson = JSON.stringify(stepEndEvent);
-      expect(eventJson).not.toContain('key-abc-123');
-      expect(eventJson).toContain(HIDDEN_SECRET);
+      logger.stepStart(mockFeatureStep, 'VariablesStepper', 'set', {}, undefined, isSecretFn);
+
+      expect(emitted.length).toBe(1);
+      const event = emitted[0] as { stepValuesMap?: Record<string, unknown> };
+      expect(event.stepValuesMap).toBeUndefined();
     });
 
-    it('should not obscure non-secret values in stepEnd', async () => {
-      const content = `
-        set myVar to "visible-value"
-        variable myVar is "visible-value"
-      `;
-      const res = await passWithDefaults(content, [VariablesStepper, EventCollectorStepper]);
-      const collector = res.steppers?.find(s => s instanceof EventCollectorStepper) as EventCollectorStepper;
+    it('should handle primitive values in stepValuesMap', () => {
+      const emitted: unknown[] = [];
+      logger.setStepperCallback((event) => emitted.push(event));
 
-      expect(collector.containsValue('visible-value')).toBe(true);
-    });
+      const stepValuesMap = {
+        password: 'secret123',
+        username: 'testuser'
+      };
 
-    it('should handle null stepValuesMap gracefully', async () => {
-      const content = `
-        set value to "test"
-      `;
-      const res = await passWithDefaults(content, [VariablesStepper, EventCollectorStepper]);
-      const collector = res.steppers?.find(s => s instanceof EventCollectorStepper) as EventCollectorStepper;
+      const isSecretFn = (name: string) => name === 'password';
 
-      expect(collector.getEvents().length).toBeGreaterThan(0);
-      // Should not throw and should handle undefined stepValuesMap
-      expect(res.ok).toBe(true);
-    });
+      logger.stepStart(mockFeatureStep, 'VariablesStepper', 'set', {}, stepValuesMap, isSecretFn);
 
-    it('should obscure secret value in field when step sets secret', async () => {
-      const content = `
-        set userPassword to "mysecretvalue"
-      `;
-      const res = await passWithDefaults(content, [VariablesStepper, EventCollectorStepper]);
-      
-      expect(res.ok).toBe(true);
-      const collector = res.steppers?.find(s => s instanceof EventCollectorStepper) as EventCollectorStepper;
-      const stepStartEvent = collector.getEvents({ kind: 'lifecycle', type: 'step', stage: 'start', in: 'userPassword' })[0] as TStepEvent;
-
-      expect(stepStartEvent).toBeDefined();
-      // The in field should have the HIDDEN_SECRET because userPassword is a secret variable (contains "password")
-      expect(stepStartEvent.in).toContain(HIDDEN_SECRET);
+      expect(emitted.length).toBe(1);
+      const event = emitted[0] as { stepValuesMap?: Record<string, unknown> };
+      expect(event.stepValuesMap?.password).toBe(OBSCURED_VALUE);
+      expect(event.stepValuesMap?.username).toBe('testuser');
     });
   });
 });
