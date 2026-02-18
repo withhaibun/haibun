@@ -1,4 +1,4 @@
-import fs from 'fs';
+import fs, { writeFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import path from 'path';
 
@@ -21,6 +21,7 @@ export const LOG_INGESTED = 'MonitorBrowser: Ingested event from piggybacker';
 export default class MonitorBrowserStepper extends AStepper implements IHasCycles, IHasOptions {
   description = 'Real-time browser dashboard with SSE events and debugging';
   port = 3459;
+  interface: string | undefined;
 
   kind = StepperKinds.MONITOR;
   static transport: ITransport | undefined;
@@ -44,10 +45,6 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
   };
 
   captureRoot: string | undefined;
-
-  // Static base path for transport (capture/DEST/key/ without seq/featn)
-  static transportRoot: string | undefined;
-  interface: string | undefined;
 
   async setWorld(world: TWorld, steppers: AStepper[]) {
     super.setWorld(world, steppers);
@@ -103,7 +100,7 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
         return e;
       });
 
-      // Serialize and save report  
+      // Serialize and save report
       const serializer = new JITSerializer();
       const jitData = serializer.serialize(transformedEvents);
 
@@ -123,6 +120,7 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
   };
 
   private async saveSerializedReport(jitData: string, topic: string) {
+    writeFileSync('jitData.json', JSON.stringify(this.events, null, 2));
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = path.dirname(__filename);
     const indexPath = path.join(__dirname, '..', 'dist', 'client', 'index.html');

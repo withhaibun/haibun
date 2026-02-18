@@ -4,9 +4,8 @@ import { OK, TStepArgs, Origin, TProvenanceIdentifier, TOrigin, TActionResult } 
 import { TAnyFixme } from '../lib/fixme.js';
 import { AStepper, IHasCycles, TStepperSteps } from '../lib/astepper.js';
 import { actionOK, actionNotOK, getStepTerm } from '../lib/util/index.js';
-import { FeatureVariables } from '../lib/feature-variables.js';
+import { FeatureVariables, OBSCURED_VALUE } from '../lib/feature-variables.js';
 import { DOMAIN_STATEMENT, DOMAIN_STRING, normalizeDomainKey, createEnumDomainDefinition, registerDomains } from '../lib/domain-types.js';
-import { OBSCURED_VALUE } from '../lib/EventLogger.js';
 
 const clearVars = (vars: VariablesStepper) => () => {
 	vars.getWorld().shared.clear();

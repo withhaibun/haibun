@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { EventLogger, OBSCURED_VALUE } from './EventLogger.js';
+import { EventLogger, } from './EventLogger.js';
 import { TFeatureStep } from './defs.js';
+import { OBSCURED_VALUE } from './feature-variables.js';
 
 const OK = { ok: true as const };
 

@@ -24,8 +24,6 @@ export const setupTransport = async (monitorBrowser: MonitorBrowserStepper) => {
     throw new Error('MonitorBrowserStepper: Transport initialization failed');
   }
 
-  MonitorBrowserStepper.transportRoot = monitorBrowser.storage.getArtifactBasePath();
-
   // Update prompter transport
   monitorBrowser.prompter?.setTransport(MonitorBrowserStepper.transport);
 

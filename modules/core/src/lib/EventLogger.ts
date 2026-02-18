@@ -1,6 +1,7 @@
 import { LogEvent, LifecycleEvent } from '../schema/protocol.js';
 import type { THaibunEvent, TArtifactEvent, THaibunLogLevel } from '../schema/protocol.js';
 import { TFeatureStep } from './defs.js';
+import { OBSCURED_VALUE } from './feature-variables.js';
 import { formatCurrentSeqPath } from './util/index.js';
 
 export type TIsSecretFn = (name: string) => boolean;
@@ -42,9 +43,6 @@ function getEmitter(): string {
   }
   return 'unknown';
 }
-
-/** Value used to replace secret values in event emissions */
-export const OBSCURED_VALUE = '***';
 
 /**
  * Obscure secret values in stepValuesMap for safe emission.

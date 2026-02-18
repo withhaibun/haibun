@@ -330,7 +330,7 @@ waypoint Ensured foobar with variable x exists
 
       // This should NOT be highlighted because it is outside the TKirejiExport block
       ensure({ outcome: 'Activity: Outside' });
-      
+
       export const features: TKirejiExport = {
           'My Feature': [
               // Array of steps pattern (multiline string)

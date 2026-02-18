@@ -1,12 +1,3 @@
-/**
- * FeatureVariables - QuadStore-backed variable storage
- * 
- * Domain IS the predicate: (varName, domainType, value, shared)
- * Example: (user_role, roles, "admin", shared)
- * 
- * This enables semantic queries: queryQuads({ predicate: 'roles' })
- */
-
 import { AStepper } from "./astepper.js";
 import { isLiteralValue } from "./util/index.js";
 import { TFeatureStep, TWorld } from './defs.js';
@@ -18,6 +9,7 @@ import { IQuadStore, TQuad } from "./quad-types.js";
 export const SHARED_GRAPH = 'variables';
 export const META_GRAPH = 'meta';
 export const OBSERVATION_GRAPH = 'observation';
+export const OBSCURED_VALUE = '[o̴b̵s̵c̷u̶r̸e̵d̵]';
 
 export class FeatureVariables {
 	private store: IQuadStore;
@@ -36,7 +28,6 @@ export class FeatureVariables {
 		}
 	}
 
-	/** Get the underlying QuadStore for direct queries */
 	getStore(): IQuadStore {
 		return this.store;
 	}
@@ -95,16 +86,13 @@ export class FeatureVariables {
 		const existingProvenance: TProvenanceIdentifier[] = this.values[sv.term]?.provenance;
 		const provenances = existingProvenance ? [...existingProvenance, provenance] : [provenance];
 
-		// Store in values map (keeps existing behavior)
 		this.values[sv.term] = {
 			...normalized,
 			provenance: provenances
 		};
 
-		// Store as quad with domain as predicate
 		this.storeAsQuad(sv.term, { ...normalized, provenance: provenances }, namedGraph);
 
-		// Emit quad observation event for real-time graph building
 		const timestamp = Date.now();
 		this.world.eventLogger?.emit({
 			id: `quad-${timestamp}`,
@@ -117,15 +105,13 @@ export class FeatureVariables {
 			json: {
 				quadObservation: {
 					subject: sv.term,
-					predicate: domainKey,  // Domain IS the predicate
+					predicate: domainKey,
 					object: normalized.value,
 					namedGraph,
-					// Move provenance to separate quads in meta namedGraph, don't embed
 				}
 			},
 		});
 
-		// Emit meta quads for origin/provenance/readonly if present
 		if (sv.origin) {
 			this.world.eventLogger?.emit({
 				id: `quad-meta-origin-${timestamp}`,
@@ -166,7 +152,7 @@ export class FeatureVariables {
 	}
 
 	/**
-	 * Resolves a variable and its domain based on its actual origin. 
+	 * Resolves a variable and its domain based on its actual origin.
 	 */
 	resolveVariable(input: { term: string; origin: TOrigin; domain?: string }, featureStep?: TFeatureStep, steppers?: AStepper[]): TStepValue {
 		const resolved: Partial<TStepValue> = {
@@ -174,7 +160,6 @@ export class FeatureVariables {
 			value: undefined,
 		};
 
-		// Handle {varName} syntax - extract variable name from braces
 		let lookupTerm = input.term;
 		if (lookupTerm.startsWith('{') && lookupTerm.endsWith('}')) {
 			lookupTerm = lookupTerm.slice(1, -1);
@@ -186,7 +171,7 @@ export class FeatureVariables {
 			resolved.value = input.term;
 			resolved.domain = input.domain;
 		} else if (input.origin === Origin.env) {
-			resolved.value = this.world.options.envVariables[lookupTerm]; // might be undefined
+			resolved.value = this.world.options.envVariables[lookupTerm];
 			resolved.domain = DOMAIN_STRING;
 		} else if (input.origin === Origin.var) {
 			if (storedEntry) {
@@ -270,30 +255,19 @@ export class FeatureVariables {
 		return { values: memberValues };
 	}
 
-	// =========================================================================
-	// QuadStore-specific methods for first-order logic integration
-	// =========================================================================
-
-	/**
-	 * Query quads. The predicate IS the domain type.
-	 * Example: queryQuads({ predicate: 'roles' }) to find all role-typed values.
-	 */
 	queryQuads(pattern: { subject?: string; predicate?: string; object?: unknown; namedGraph?: string }): TQuad[] {
 		const queryPattern: Record<string, unknown> = { ...pattern, namedGraph: pattern.namedGraph };
 		return this.store.query(queryPattern);
 	}
 
-	/** Check existence of a quad */
 	existsQuad(pattern: { subject?: string; predicate?: string; object?: unknown; namedGraph?: string }): boolean {
 		return this.queryQuads(pattern).length > 0;
 	}
 
-	/** Count quads matching pattern */
 	countQuads(pattern: { subject?: string; predicate?: string; object?: unknown; namedGraph?: string }): number {
 		return this.queryQuads(pattern).length;
 	}
 
-	/** Add a quad directly (for non-variable observations like HTTP traces) */
 	addQuad(quad: Omit<TQuad, 'timestamp'>): void {
 		this.store.add(quad);
 
@@ -314,17 +288,14 @@ export class FeatureVariables {
 		} as THaibunEvent);
 	}
 
-	/** Remove quads matching a pattern */
 	removeQuad(pattern: { subject?: string; predicate?: string; object?: unknown; namedGraph?: string }): void {
 		this.store.remove(pattern);
 	}
 
-	/** Get all quads */
 	allQuads(): TQuad[] {
 		return this.store.all();
 	}
 
-	/** Check if a variable is marked as secret */
 	isSecret(name: string): boolean {
 		return this.values[name]?.secret === true;
 	}
@@ -338,7 +309,6 @@ export class FeatureVariables {
 		// Domain IS the predicate: (name, domainType, value, shared)
 		this.store.add({ subject: name, predicate: domainKey, object: sv.value, namedGraph });
 
-		// Store metadata as separate quads in META namedGraph
 		if (sv.origin) {
 			this.store.add({ subject: name, predicate: 'origin', object: sv.origin, namedGraph: META_GRAPH });
 		}
