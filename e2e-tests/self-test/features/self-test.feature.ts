@@ -3,6 +3,7 @@ import WebPlaywright from '@haibun/web-playwright';
 import VariablesStepper from '@haibun/core/steps/variables-stepper.js';
 import { TEST_IDS } from '@haibun/monitor-browser/build/test-ids.js';
 import { Test_IDs_setup } from '../backgrounds/test-ids.feature.ts';
+import { OBSCURED_VALUE } from '@haibun/core/lib/feature-variables.js';
 
 const web = withAction(new WebPlaywright());
 const vars = withAction(new VariablesStepper());
@@ -14,7 +15,13 @@ const sets = (id: string) => set({ what: `used-${id}`, value: '"true"' });
 const waitsFor = (id: string) => [waitFor({ target: id }), sets(id)];
 const clicks = (id: string) => [click({ target: id }), sets(id)];
 
-const host = `http://192.168.0.200:3459`;
+const host = `http://localhost:3459`;
+
+export const SECRETS = {
+	SNAKE_CASE: 'SNAKE_CASE_PASSWORD',
+	ALL_CAPS: 'ALLCAPSSECRET',
+	USER_PASSWORD: 'user_password',
+};
 
 export const features: TKirejiExport = {
   'Monitor Self-Test Narrative': [
@@ -23,9 +30,10 @@ export const features: TKirejiExport = {
     'Scenario: A user opens the Haibun Monitor to review execution data.',
     `after every WebPlaywright, take a screenshot`,
     gotoPage({ name: host }),
-    'see "Haibun Monitor"',
+    `
+		see "Haibun Monitor"
 
-    'When the page loads, the user sees the main application container.',
+    When the page loads, see the main application container.`,
     ...waitsFor(TEST_IDS.APP.ROOT),
     'At the top, a header bar provides navigation and status information.',
     ...waitsFor(TEST_IDS.APP.HEADER),
@@ -49,32 +57,32 @@ export const features: TKirejiExport = {
     ...waitsFor(TEST_IDS.HEADER.MAX_DEPTH),
 
     'Scenario: The user switches between different view modes.',
-    'The user clicks the raw view button to see the underlying JSON data.',
+    'Click the raw view button to see the underlying JSON data.',
     ...clicks(TEST_IDS.HEADER.BUTTON_VIEW_RAW),
     ...waitsFor(TEST_IDS.VIEWS.RAW),
-    'Then they switch to the document view for a formatted narrative.',
+    'Switch to the document view for a formatted narrative.',
     ...clicks(TEST_IDS.HEADER.BUTTON_VIEW_DOCUMENT),
     ...waitsFor(TEST_IDS.VIEWS.DOCUMENT),
-    'Finally, they return to the log view for detailed event output.',
+    'Return to the log view for detailed event output.',
     ...clicks(TEST_IDS.HEADER.BUTTON_VIEW_LOG),
     ...waitsFor(TEST_IDS.VIEWS.LOG),
 
     'Scenario: The user controls playback with the timeline.',
-    'The time display shows how far into the recording they are.',
+    'The time display shows position in the recording.',
     ...waitsFor(TEST_IDS.TIMELINE.TIME_DISPLAY),
-    'They click play to start automatic playback of events.',
+    'Click play to start automatic playback of events.',
     ...clicks(TEST_IDS.TIMELINE.PLAY_PAUSE),
-    'They drag the slider to jump to a specific moment.',
+    'Drag the slider to jump to a specific moment.',
     ...clicks(TEST_IDS.TIMELINE.SLIDER),
-    'They adjust the playback speed for faster review.',
+    'Adjust the playback speed for faster review.',
     ...clicks(TEST_IDS.TIMELINE.SPEED),
-    'They click restart to go back to the beginning.',
+    'Click restart to go back to the beginning.',
     ...clicks(TEST_IDS.TIMELINE.RESTART),
-    'They click end to jump to the most recent event.',
+    'Click end to jump to the most recent event.',
     ...clicks(TEST_IDS.TIMELINE.END),
 
     'Scenario: The user inspects a specific event in detail.',
-    'They click on an event in the log to open the details panel.',
+    'Click on an event in the log to open the details panel.',
     ...clicks(TEST_IDS.VIEWS.LATEST_EVENT),
     'A side panel slides open showing detailed information.',
     ...waitsFor(TEST_IDS.APP.DETAILS_PANEL),
@@ -82,18 +90,18 @@ export const features: TKirejiExport = {
     ...waitsFor(TEST_IDS.DETAILS.HEADER),
 
     'Scenario: The user enables the sequence and quad graph views.',
-    'They click the sequence button to see HTTP request traces.',
+    'Click the sequence button to see HTTP request traces.',
     ...clicks(TEST_IDS.HEADER.TOGGLE_SEQUENCE),
-    'They click the quad button to see knowledge graph data.',
+    'Click the quad button to see knowledge graph data.',
     ...clicks(TEST_IDS.HEADER.TOGGLE_QUAD),
 
     'Scenario: Verify timeline seeking dims future events in log view.',
     'The user is in log view and sees events with timestamps.',
     ...waitsFor(TEST_IDS.VIEWS.LOG),
-    'They click the restart button to go to the beginning of the timeline.',
+    'Click the restart button to go to the beginning of the timeline.',
     ...clicks(TEST_IDS.TIMELINE.RESTART),
     'At the beginning, future events (after position 0) should have the future-event class.',
-    'They click on the latest event row to jump to that time.',
+    'Click on the latest event row to jump to that time.',
     ...clicks(TEST_IDS.VIEWS.LATEST_EVENT),
     'The timeline slider should reflect the new position.',
     ...waitsFor(TEST_IDS.TIMELINE.SLIDER),
@@ -106,10 +114,10 @@ export const features: TKirejiExport = {
     'The current trace in the sequence diagram should be highlighted with bold styling.',
     'Past traces remain visible but unemphasized.',
     'Future traces should appear dimmed with reduced opacity.',
-    'They click the restart button to go back to the beginning.',
+    'Click the restart button to go back to the beginning.',
     ...clicks(TEST_IDS.TIMELINE.RESTART),
     'Now the first trace should be highlighted and all others dimmed.',
-    'They click end to jump to the most recent event.',
+    'Click end to jump to the most recent event.',
     ...clicks(TEST_IDS.TIMELINE.END),
     'Now all traces should be visible (none dimmed as we are at the end).',
 
@@ -118,36 +126,36 @@ export const features: TKirejiExport = {
     'The quad graph shows knowledge relationships from execution.',
     'Nodes and edges that occurred before the current time are fully visible.',
     'Nodes and edges in the future relative to timeline are dimmed.',
-    'They click restart to go to timeline beginning.',
+    'Click restart to go to timeline beginning.',
     ...clicks(TEST_IDS.TIMELINE.RESTART),
     'Future nodes should have dashed strokes and reduced opacity.',
-    'They click end to see all nodes fully visible.',
+    'Click end to see all nodes fully visible.',
     ...clicks(TEST_IDS.TIMELINE.END),
     'All nodes and edges should now be fully visible (none dimmed).',
 
     'Scenario: Verify document view row selection updates timeline and dims future content.',
-    'The user switches to document view for a narrative display.',
+    'Switch to document view for a narrative display.',
     ...clicks(TEST_IDS.HEADER.BUTTON_VIEW_DOCUMENT),
     ...waitsFor(TEST_IDS.VIEWS.DOCUMENT),
-    'They click the restart button to go to the beginning.',
+    'Click the restart button to go to the beginning.',
     ...clicks(TEST_IDS.TIMELINE.RESTART),
     'Future rows after the timeline position should have the future-event class applied.',
-    'When they click on a document row, the timeline position updates.',
+    'Click on a document row to update the timeline position.',
     'Previous rows remain fully visible while later rows become dimmed.',
-    'They can then click end to jump to the most recent event.',
+    'Click end to jump to the most recent event.',
     ...clicks(TEST_IDS.TIMELINE.END),
     'All rows should now be fully visible (none dimmed).',
-    'The user returns to log view to continue testing.',
+    'Return to log view to continue testing.',
     ...clicks(TEST_IDS.HEADER.BUTTON_VIEW_LOG),
     ...waitsFor(TEST_IDS.VIEWS.LOG),
 
     'Scenario: Verify clicking an early row does not jump the view.',
-    'The user clicks on the first visible row.',
+    'Click on the first visible row.',
     ...clicks(TEST_IDS.VIEWS.FIRST_ROW),
     'The first row should still be visible after selection.',
     ...waitsFor(TEST_IDS.VIEWS.FIRST_ROW),
 
-    /* fix these after 
+    /* fix these after
     'The raw JSON source is shown for debugging purposes.',
     ...waitsFor(TEST_IDS.DETAILS.RAW_SOURCE),
     'Graph visualizations help understand execution flow.',
@@ -174,7 +182,7 @@ export const features: TKirejiExport = {
     variable userPassword is "my-secret-password"
     show var userPassword
     pause for 1s
-    see "value": "***""
+    see ${OBSCURED_VALUE}
     not see ""value": "my-secret-password""
 
     Scenario: Secret variables can be explicitly marked with as secret.
@@ -182,7 +190,7 @@ export const features: TKirejiExport = {
     variable apiKey is "key-123-abc"
     show var apiKey
     pause for 1s
-    see "value": "***""
+    see "value": "${OBSCURED_VALUE}""
     not see ""value": "key-123-abc""
 
     Scenario: Show vars obscures secrets but shows non-secrets.
@@ -191,7 +199,7 @@ export const features: TKirejiExport = {
     show vars
     pause for 1s
     see ""publicUsername": "testuser""
-    see ""dbPassword": "***""
+    see ""dbPassword": "${OBSCURED_VALUE}""
     not see ""dbPassword": "db-secret-pass""
 
     Scenario: Mixed explicit and auto-detected secrets in show vars.
@@ -201,8 +209,8 @@ export const features: TKirejiExport = {
     show vars
     pause for 1s
     see ""normalConfig": "visible-config""
-    see ""configApiToken": "***""
-    see ""adminPassword": "***""
+    see ""configApiToken": "${OBSCURED_VALUE}""
+    see ""adminPassword": "${OBSCURED_VALUE}""
     not see ""configApiToken": "token-xyz""
     not see ""adminPassword": "admin-secret""
 
@@ -212,9 +220,9 @@ export const features: TKirejiExport = {
     set user_password_hash to "snake-case-pass"
     show vars
     pause for 1s
-    see ""PASSWORD_DB": "***""
-    see ""MyPassword123": "***""
-    see ""user_password_hash": "***""
+    see ""PASSWORD_DB": "${OBSCURED_VALUE}""
+    see ""MyPassword123": "${OBSCURED_VALUE}""
+    see ""user_password_hash": "${OBSCURED_VALUE}""
     not see ""PASSWORD_DB": "all-caps-pass""
     not see ""MyPassword123": "camel-case-pass""
     not see ""user_password_hash": "snake-case-pass""
