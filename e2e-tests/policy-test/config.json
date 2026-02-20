@@ -1,0 +1,6 @@
+{
+  "steppers": [
+    "variables-stepper"
+  ],
+  "runPolicy": "policy-test/schemas/permissive.json"
+}

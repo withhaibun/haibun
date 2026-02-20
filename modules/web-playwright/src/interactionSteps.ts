@@ -15,7 +15,6 @@ import { TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { provenanceFromFeatureStep } from "@haibun/core/steps/variables-stepper.js";
 import { FlowRunner } from "@haibun/core/lib/core/flow-runner.js";
 import { JsonArtifact } from '@haibun/core/schema/protocol.js';
-import { lib } from "markdown-it/lib/common/utils.mjs";
 
 const DOMAIN_STRING_OR_PAGE_LOCATOR = `${DOMAIN_STRING} | ${DOMAIN_PAGE_LOCATOR}`;
 
@@ -83,29 +82,29 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 					try {
 						// Get the actual Page object
 						const page = await wp.getPage();
-						
+
 						// Get element handle from the locator
 						const containerHandle = await wp.inContainer.elementHandle();
 						if (!containerHandle) {
 							throw new Error('Container element not found');
 						}
-						
+
 						// Wait for element in shadow root using the element handle
 						await page.waitForFunction(
 							({ containerEl, innerSel }) => {
 								if (!containerEl?.shadowRoot) return false;
-								
+
 								const element = containerEl.shadowRoot.querySelector(innerSel);
 								if (!element) return false;
-								
+
 								// Use getBoundingClientRect to check if element has dimensions
 								const rect = element.getBoundingClientRect();
 								if (rect.width === 0 || rect.height === 0) return false;
-								
+
 								// Check computed styles for common hiding methods
 								const computed = window.getComputedStyle(element);
 								if (computed.display === 'none' || computed.visibility === 'hidden' || computed.opacity === '0') return false;
-								
+
 								// Check if element is behind other layers (negative z-index parent)
 								let current = element.parentElement;
 								while (current) {
@@ -115,7 +114,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 									if (!isNaN(zIndex) && zIndex < 0) return false;
 									current = current.parentElement;
 								}
-								
+
 								return true;
 							},
 							{ containerEl: containerHandle, innerSel: target },
@@ -127,16 +126,16 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 						return actionNotOK(`Did not find ${target} in shadow DOM: ${e}`);
 					}
 				}
-				
+
 				// Regular wait (not in shadow DOM)
 				await wp.withPage(async (page: Page) => await wp.locateByDomain(page, featureStep, 'target').waitFor());
 				return OK;
-			} catch (e) {
+			} catch (_e) {
 				return actionNotOK(`Did not find ${target}`);
 			}
 		},
 	},
-	
+
 
 	onNewTab: {
 		gwta: `on a new tab`,

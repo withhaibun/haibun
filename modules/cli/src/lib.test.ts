@@ -5,6 +5,7 @@ import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, passWithDefaults } from '@haibun/
 import TestStepsWithOptions from '@haibun/core/lib/test/TestStepsWithOptions.js';
 import { getDefaultOptions } from '@haibun/core/lib/util/index.js';
 
+import { OPTION_RUN_POLICY, OPTION_DRY_RUN } from '@haibun/core/run-policy/run-policy-types.js';
 import * as lib from './lib.js';
 
 const s = (s: string) => s.split(' ');
@@ -41,25 +42,22 @@ describe('options', () => {
 
 describe('processEnv', () => {
 	it('assigns boolean true', () => {
-		const { protoOptions } = lib.processBaseEnvToOptionsAndErrors({ [`HAIBUN_${CONTINUE_AFTER_ERROR}`]: 'true' });
+		const protoOptions = lib.processBaseEnvToOptionsAndErrors({ [`HAIBUN_${CONTINUE_AFTER_ERROR}`]: 'true' });
 		expect(protoOptions.options[CONTINUE_AFTER_ERROR]).toBeDefined();
 		expect(protoOptions.options[CONTINUE_AFTER_ERROR]).toBe(true);
 	});
 	it('errors for non-boolean value ', () => {
-		const { errors } = lib.processBaseEnvToOptionsAndErrors({ HAIBUN_TRACE: 'wtw' });
-		expect(errors.length).toBe(1);
+		expect(() => lib.processBaseEnvToOptionsAndErrors({ HAIBUN_TRACE: 'wtw' })).toThrow();
 	});
 	it('assigns int', () => {
-		const { options } = lib.processBaseEnvToOptionsAndErrors({ [`HAIBUN_${STEP_DELAY}`]: '1' }).protoOptions;
+		const { options } = lib.processBaseEnvToOptionsAndErrors({ [`HAIBUN_${STEP_DELAY}`]: '1' });
 		expect(options[STEP_DELAY]).toBe(1);
 	});
 	it('errors for string passed as int', () => {
-		const { errors } = lib.processBaseEnvToOptionsAndErrors({ [`HAIBUN_${STEP_DELAY}`]: 'x.2' });
-		expect(errors.length).toBe(1);
+		expect(() => lib.processBaseEnvToOptionsAndErrors({ [`HAIBUN_${STEP_DELAY}`]: 'x.2' })).toThrow();
 	});
 	it('errors for non option', () => {
-		const { errors } = lib.processBaseEnvToOptionsAndErrors({ HAIBUN_WTW: 'x.2' });
-		expect(errors.length).toBe(1);
+		expect(() => lib.processBaseEnvToOptionsAndErrors({ HAIBUN_WTW: 'x.2' })).toThrow();
 	});
 });
 
@@ -90,6 +88,30 @@ describe('processArgs', () => {
 		expect(params).toEqual(['foo', 'bar']);
 		expect(configLoc).toBe('boo');
 		expect(showHelp).toBe(true);
+	});
+	it('parses --run-policy with two args', () => {
+		const { policyConfig, params } = lib.processArgs(s(`${OPTION_RUN_POLICY} prod smoke:r,api:a foo`));
+		expect(policyConfig).toBeDefined();
+		const config = policyConfig as NonNullable<typeof policyConfig>;
+		expect(config.env).toBe('prod');
+		expect(config.dirFilters).toEqual([
+			{ dir: 'smoke', access: 'r' },
+			{ dir: 'api', access: 'a' },
+		]);
+		expect(params).toEqual(['foo']);
+	});
+	it(`returns undefined policyConfig when ${OPTION_RUN_POLICY} not specified`, () => {
+		const { policyConfig } = lib.processArgs(s('foo'));
+		expect(policyConfig).toBeUndefined();
+	});
+	it('parses --dry-run flag', () => {
+		const { dryRun, policyConfig } = lib.processArgs(s(`${OPTION_DRY_RUN} ${OPTION_RUN_POLICY} prod smoke:r foo`));
+		expect(dryRun).toBe(true);
+		expect(policyConfig).toBeDefined();
+	});
+	it('returns dryRun false by default', () => {
+		const { dryRun } = lib.processArgs(s('foo'));
+		expect(dryRun).toBe(false);
 	});
 });
 

@@ -84,6 +84,7 @@ export type TSpecl = {
 	refs?: {
 		docs: { [name: string]: { src: string } };
 	};
+	runPolicy?: string;
 };
 
 // ============================================================================

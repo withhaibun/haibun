@@ -1,18 +1,22 @@
 import nodeFS from 'fs';
 
 import { TBase, TProtoOptions, TSpecl, TWorld } from '@haibun/core/lib/defs.js';
-import { BASE_PREFIX, CHECK_NO, CHECK_YES, DEFAULT_DEST, STAY, STAY_ALWAYS, Timer } from '@haibun/core/schema/protocol.js';
+import { BASE_PREFIX, CHECK_NO, CHECK_YES, DEFAULT_DEST, STAY, STAY_ALWAYS, Timer, TExecutorResult } from '@haibun/core/schema/protocol.js';
 import { IHasOptions } from '@haibun/core/lib/astepper.js';
 import { getCreateSteppers, getDefaultTag } from '@haibun/core/lib/test/lib.js';
-import { formattedSteppers, getPre, getDefaultOptions, basesFrom } from '@haibun/core/lib/util/index.js';
+import { formattedSteppers, getPre, getDefaultOptions, basesFrom, verifyRequiredOptions, verifyExtraOptions } from '@haibun/core/lib/util/index.js';
 import { BaseOptions } from './BaseOptions.js';
-import { TFileSystem } from '@haibun/core/lib/util/workspace-lib.js';
+import { TFileSystem, getSteppers } from '@haibun/core/lib/util/workspace-lib.js';
 import { Runner } from '@haibun/core/runner.js';
 import { FeatureVariables } from '@haibun/core/lib/feature-variables.js';
 import { Prompter } from '@haibun/core/lib/prompter.js';
 import { getCoreDomains } from '@haibun/core/lib/core-domains.js';
 import { EventLogger } from '@haibun/core/lib/EventLogger.js';
 import { TAnyFixme } from '@haibun/core/lib/fixme.js';
+import { OPTION_RUN_POLICY, OPTION_DRY_RUN, HAIBUN_RUN_POLICY, parseRunPolicyArgs, parseRunPolicyEnv, type TRunPolicyConfig } from '@haibun/core/run-policy/run-policy-types.js';
+import { loadAndValidateRunPolicy } from '@haibun/core/run-policy/run-policy-schema.js';
+import { PhaseRunner, PhaseBailError } from '@haibun/core/lib/PhaseRunner.js';
+import { getFeaturesAndBackgrounds, TFeaturesBackgrounds } from '@haibun/core/phases/collector.js';
 
 const OPTION_CONFIG = '--config';
 const OPTION_HELP = '--help';
@@ -22,34 +26,93 @@ const OPTION_WITH_STEPPERS = '--with-steppers';
 type TEnv = { [name: string]: string | undefined };
 
 export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
-	const { params, configLoc, showHelp, showSteppers, withSteppers } = processArgs(args);
-	const bases = basesFrom(params[0]?.replace(/\/$/, ''));
-	const specl = await getSpeclOrExit(configLoc ? [configLoc] : bases);
+	const parsed = processArgs(args);
+	const bases = basesFrom(parsed.params[0]?.replace(/\/$/, ''));
+	const specl = await getSpeclOrExit(parsed.configLoc ? [parsed.configLoc] : bases);
 
-	if (showHelp) {
-		await usageThenExit(specl);
+	if (parsed.showHelp) return await usageThenExit(specl);
+	if (parsed.showSteppers) return await showSteppersAndExit(specl);
+
+	let world: TWorld | undefined;
+	let protoOptions: TProtoOptions | undefined;
+
+	try {
+		const pr = new PhaseRunner();
+		protoOptions = await pr.tryPhase('processBaseEnvToOptionsAndErrors', () => processBaseEnvToOptionsAndErrors(env));
+
+		world = getCliWorld(protoOptions, bases);
+		pr.world = world;
+		const policyConfig = resolveRunPolicy(parsed.policyConfig, env, specl);
+		const featureFilter = parsed.params[1] ? parsed.params[1].split(',') : undefined;
+
+		const featuresBackgrounds = await pr.tryPhase('Collector', () =>
+			getFeaturesAndBackgrounds(bases, featureFilter, policyConfig)
+		);
+
+		if (parsed.dryRun) return dryRunExit(featuresBackgrounds, policyConfig, featureFilter); // Exits process
+
+		const csteppers = await pr.tryPhase('Steppers', async () => {
+			const s = await getSteppers([...specl.steppers, ...parsed.withSteppers]);
+			verifyRequiredOptions(s, world.moduleOptions);
+			verifyExtraOptions(world.moduleOptions, s);
+			return s;
+		});
+
+		const runner = new Runner(world);
+		const result = await runner.runFeaturesAndBackgrounds(csteppers, featuresBackgrounds);
+
+		await reportAndExit(result, world, protoOptions);
+
+	} catch (error) {
+		// Final Error "Nothing" Branch
+		if (error instanceof PhaseBailError) {
+			return await reportAndExit(error.result, world, protoOptions);
+		}
+
+		const message = PhaseRunner.formatError(error);
+
+		// Vitest mocks process.exit as throwing an error. Let it bubble so tests pass.
+		if (message.startsWith('exit with code ')) throw error;
+
+		console.error(`\n${CHECK_NO} ${message}`);
+		process.exit(1);
 	}
-	if (showSteppers) {
-		const allSteppers = await getAllSteppers(specl);
-		console.info('Steppers:', JSON.stringify(allSteppers, null, 2));
-		console.info('Use the full text version for steps. {vars} should be enclosed in " for literals, or defined by Set or env commands.\nWrite comments using normal sentence punctuation, ending with [.,!?]. ')
-		process.exit(0);
+}
+
+async function showSteppersAndExit(specl: TSpecl) {
+	const allSteppers = await getAllSteppers(specl);
+	console.info('Steppers:', JSON.stringify(allSteppers, null, 2));
+	console.info('Use the full text version for steps. {vars} should be enclosed in " for literals, or defined by Set or env commands.\nWrite comments using normal sentence punctuation, ending with [.,!?]. ')
+	process.exit(0);
+}
+
+function resolveRunPolicy(cliPolicyConfig: TRunPolicyConfig | undefined, env: NodeJS.ProcessEnv, specl: TSpecl): TRunPolicyConfig | undefined {
+	let policyConfig = cliPolicyConfig;
+	if (!policyConfig && env[HAIBUN_RUN_POLICY]) {
+		policyConfig = parseRunPolicyEnv(env[HAIBUN_RUN_POLICY]);
 	}
-	const featureFilter = params[1] ? params[1].split(',') : undefined;
-
-	const { protoOptions, errors } = processBaseEnvToOptionsAndErrors(env);
-	if (errors.length > 0) {
-		await usageThenExit(specl, errors.join('\n'));
+	if (policyConfig) {
+		if (!specl.runPolicy) {
+			throw new Error(`${OPTION_RUN_POLICY} requires "runPolicy" in config.json`);
+		}
+		loadAndValidateRunPolicy(policyConfig, specl.runPolicy);
 	}
+	return policyConfig;
+}
 
-	const world = getCliWorld(protoOptions, bases);
+function dryRunExit(featuresBackgrounds: TFeaturesBackgrounds, policyConfig?: TRunPolicyConfig, featureFilter?: string[]): never {
+	const parts: string[] = [];
+	if (policyConfig) parts.push(`env="${policyConfig.env}" policy=${policyConfig.dirFilters.map(f => `${f.dir}:${f.access}`).join(',')}`);
+	if (featureFilter?.length) parts.push(`filter=${featureFilter.join(',')}`);
+	console.info(`\nDry-run: ${parts.length ? parts.join(' ') : 'all features'}\n`);
+	for (const f of featuresBackgrounds.features) {
+		console.info(`  ✅ ${f.path}`);
+	}
+	console.info(`\n${featuresBackgrounds.features.length} features\n`);
+	process.exit(0);
+}
 
-	const runner = new Runner(world);
-
-	// Merge CLI steppers with config steppers
-	const allSteppers = [...specl.steppers, ...withSteppers];
-	const executorResult = await runner.run(allSteppers, featureFilter);
-
+async function reportAndExit(executorResult: TExecutorResult, world: TWorld, protoOptions: TProtoOptions): Promise<never> {
 	const showSummary = world.eventLogger.suppressConsole;
 
 	if (executorResult.ok) {
@@ -77,6 +140,7 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 	}
 	process.exit(0);
 }
+
 
 function getCliWorld(protoOptions: TProtoOptions, bases: TBase): TWorld {
 	const { KEY: keyIn } = protoOptions.options;
@@ -136,11 +200,12 @@ export async function usage(specl: TSpecl, message?: string) {
 
 	const ret = [
 		'',
-		`usage: ${process.argv[1]} [${OPTION_CONFIG} path/to/specific/config.json] [--cwd working_directory] [${OPTION_HELP}] [${OPTION_SHOW_STEPPERS}] [${OPTION_WITH_STEPPERS} stepper[,stepper]] <project base[,project base]> <[filter,filter]>`,
+		`usage: ${process.argv[1]} [${OPTION_CONFIG} path/to/specific/config.json] [--cwd working_directory] [${OPTION_HELP}] [${OPTION_SHOW_STEPPERS}] [${OPTION_WITH_STEPPERS} stepper[,stepper]] [${OPTION_RUN_POLICY} env dir:access[,dir:access]] [${OPTION_DRY_RUN}] <project base[,project base]> <[filter,filter]>`,
 		message || '',
 		'If config.json is not found in project bases, the root directory will be used.\n',
 		'Set these environmental variables to control options:\n',
 		...Object.entries(BaseOptions.options).map(([k, v]) => `${BASE_PREFIX}${String(k).padEnd(55)} ${v.desc}`),
+		`${HAIBUN_RUN_POLICY.padEnd(63)} run policy: "env dir:access[,dir:access]"`,
 	];
 	if (Object.keys(a).length) {
 		ret.push(
@@ -161,7 +226,7 @@ export function processBaseEnvToOptionsAndErrors(env: TEnv) {
 	baseOptions.options && Object.entries(baseOptions.options).forEach(([k, v]) => ((protoOptions.options as Record<string, unknown>)[k] = v.default));
 
 	Object.entries(env)
-		.filter(([k]) => k.startsWith(BASE_PREFIX))
+		.filter(([k]) => k.startsWith(BASE_PREFIX) && k !== HAIBUN_RUN_POLICY)
 		.map(([k]) => {
 			const value = env[k];
 			const opt = k.replace(BASE_PREFIX, '');
@@ -186,13 +251,19 @@ export function processBaseEnvToOptionsAndErrors(env: TEnv) {
 		});
 	protoOptions.options.envVariables = nenv;
 
-	return { protoOptions, errors };
+	if (errors.length > 0) {
+		throw new Error(errors.join('\n'));
+	}
+
+	return protoOptions;
 }
 
 export function processArgs(args: string[]) {
 	let showHelp = false;
 	let showSteppers = false;
 	let withSteppers: string[] = [];
+	let policyConfig: TRunPolicyConfig | undefined;
+	let dryRun = false;
 	const params = [];
 	let configLoc;
 	while (args.length > 0) {
@@ -217,13 +288,19 @@ export function processArgs(args: string[]) {
 			if (stepperList) {
 				withSteppers = withSteppers.concat(stepperList.split(',').map((s) => s.trim()));
 			}
+		} else if (cur === OPTION_RUN_POLICY) {
+			const env = args.shift();
+			const dirAccess = args.shift();
+			policyConfig = parseRunPolicyArgs(env, dirAccess);
+		} else if (cur === OPTION_DRY_RUN) {
+			dryRun = true;
 		} else if (cur === '--stdio' || cur === '--node-ipc' || cur?.startsWith('--socket=')) {
 			// Ignore LSP transport arguments (added by vscode-languageclient)
 		} else {
 			params.push(cur);
 		}
 	}
-	return { params, configLoc, showHelp, showSteppers, withSteppers };
+	return { params, configLoc, showHelp, showSteppers, withSteppers, policyConfig, dryRun };
 }
 
 export function getConfigFromBase(bases: TBase, fs: TFileSystem = nodeFS): TSpecl | null {
