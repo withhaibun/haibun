@@ -1,7 +1,7 @@
 {
   "name": "@haibun/lsp",
   "type": "module",
-  "version": "3.6.0",
+  "version": "3.7.0",
   "description": "Language Server Protocol stepper for Haibun IDE integration",
   "main": "build/lsp-stepper.js",
   "files": [
@@ -28,7 +28,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@haibun/core": "3.6.0",
+    "@haibun/core": "3.7.0",
     "typescript": "^5.9.3",
     "vscode-languageserver": "^9.0.1",
     "vscode-languageserver-textdocument": "^1.0.12"
