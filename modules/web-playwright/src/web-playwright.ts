@@ -242,10 +242,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		return await browserContext?.cookies();
 	}
 
-	get typedSteps(): TStepperSteps {
-		return { ...restSteps(this), ...interactionSteps(this) };
-	}
-
+	readonly typedSteps = { ...restSteps(this), ...interactionSteps(this) };
 	steps: TStepperSteps = {
 		...restSteps(this),
 		...interactionSteps(this),
