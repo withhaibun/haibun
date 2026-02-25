@@ -10,7 +10,7 @@ export const OPTION_RUN_POLICY = '--run-policy';
 /** CLI option for dry-run mode (preview which features pass/fail the run policy) */
 export const OPTION_DRY_RUN = '--dry-run';
 
-/** Environment variable for run-policy (format: "env dir:access[,dir:access]") */
+/** Environment variable for run-policy (format: "place dir:access[,dir:access]") */
 export const HAIBUN_RUN_POLICY = 'HAIBUN_RUN_POLICY';
 
 /** Valid access levels, forming a strict hierarchy: r ⊂ a ⊂ w */
@@ -34,8 +34,9 @@ export type TDirFilter = {
 };
 
 export type TRunPolicyConfig = {
-  env: string;
+  place: string;
   dirFilters: TDirFilter[];
+  [param: string]: unknown;
 };
 
 /** Parses "smoke:r" → { dir: "smoke", access: "r" } */
@@ -56,21 +57,24 @@ export function parseDirFilters(input: string): TDirFilter[] {
 }
 
 export const RunPolicyConfigSchema = z.object({
-  env: z.string().min(1),
+  place: z.string().min(1),
   dirAccessStr: z.string(),
-}).transform((data): TRunPolicyConfig => {
+}).catchall(z.unknown()).transform((data): TRunPolicyConfig => {
   const dirFilters = parseDirFilters(data.dirAccessStr);
-  return { env: data.env, dirFilters };
+  const result: Record<string, unknown> = { ...data };
+  delete result.dirAccessStr;
+  result.dirFilters = dirFilters;
+  return result as TRunPolicyConfig;
 });
 
 // ============================================================================
 // Parsing — thin wrappers delegating to Zod
 // ============================================================================
 
-/** Parse --run-policy arguments: env dir:access[,dir:access] */
-export function parseRunPolicyArgs(env: string, dirAccessStr: string): TRunPolicyConfig {
+/** Parse --run-policy arguments: place dir:access[,dir:access] */
+export function parseRunPolicyArgs(place: string, dirAccessStr: string): TRunPolicyConfig {
   try {
-    return RunPolicyConfigSchema.parse({ env, dirAccessStr });
+    return RunPolicyConfigSchema.parse({ place, dirAccessStr });
   } catch (e) {
     if (e instanceof z.ZodError) {
       const detail = e.issues.map((i) => `  • ${i.path.join('.')}: ${i.message}`).join('\n');
@@ -80,11 +84,11 @@ export function parseRunPolicyArgs(env: string, dirAccessStr: string): TRunPolic
   }
 }
 
-/** Parse HAIBUN_RUN_POLICY env var: "env dir:access[,dir:access]" */
+/** Parse HAIBUN_RUN_POLICY env var: "place dir:access[,dir:access]" */
 export function parseRunPolicyEnv(envVar: string): TRunPolicyConfig {
   const parts = envVar.trim().split(/\s+/);
   if (parts.length !== 2) {
-    throw new Error(`Invalid format. Expected "env dir:access"`);
+    throw new Error(`Invalid format. Expected "place dir:access"`);
   }
   return parseRunPolicyArgs(parts[0], parts[1]);
 }
@@ -125,7 +129,8 @@ export function featureMatchesFilter(featurePath: string, dirFilters: TDirFilter
   const requiredAccess = getFeatureAccessPrefix(filename);
   if (!requiredAccess) return false;
 
-  const matchingFilter = dirFilters.find((f) => f.dir === featureDir);
+  const matchingFilter = dirFilters.find((f) => f.dir === featureDir)
+    ?? dirFilters.find((f) => f.dir === '*');
   if (!matchingFilter) return false;
 
   return accessLevelIncludes(matchingFilter.access, requiredAccess);

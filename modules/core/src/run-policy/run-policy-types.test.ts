@@ -32,7 +32,7 @@ describe('parseDirFilters', () => {
 describe('parseRunPolicyArgs', () => {
   it('parses valid args', () => {
     const config = parseRunPolicyArgs('prod', 'smoke:r,api:a');
-    expect(config.env).toBe('prod');
+    expect(config.place).toBe('prod');
     expect(config.dirFilters).toHaveLength(2);
   });
   it('throws on missing env', () => {
@@ -46,7 +46,7 @@ describe('parseRunPolicyArgs', () => {
 describe('parseRunPolicyEnv', () => {
   it('parses valid env string', () => {
     const config = parseRunPolicyEnv('local smoke:r,api:w');
-    expect(config.env).toBe('local');
+    expect(config.place).toBe('local');
     expect(config.dirFilters).toHaveLength(2);
   });
   it('throws on wrong number of parts', () => {
@@ -105,5 +105,23 @@ describe('featureMatchesFilter', () => {
   });
   it('skips files with no directory', () => {
     expect(featureMatchesFilter('/r_orphan.feature', filters)).toBe(false);
+  });
+
+  it('allows wildcard dir filter for any directory', () => {
+    const wildcardFilters = [{ dir: '*', access: 'r' as const }];
+    expect(featureMatchesFilter('/api/r_health.feature', wildcardFilters)).toBe(true);
+  });
+
+  it('applies access checks for wildcard dir filter', () => {
+    const wildcardFilters = [{ dir: '*', access: 'r' as const }];
+    expect(featureMatchesFilter('/api/a_auth.feature', wildcardFilters)).toBe(false);
+  });
+
+  it('prefers explicit directory rule over wildcard', () => {
+    const mixedFilters = [
+      { dir: '*', access: 'r' as const },
+      { dir: 'api', access: 'a' as const },
+    ];
+    expect(featureMatchesFilter('/api/a_auth.feature', mixedFilters)).toBe(true);
   });
 });

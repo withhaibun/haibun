@@ -4,7 +4,7 @@ import { TTag } from './ttag.js';
 import { FeatureVariables } from './feature-variables.js';
 import { Prompter } from './prompter.js';
 import { IEventLogger } from './EventLogger.js';
-import type { ZodTypeAny } from 'zod';
+import { z, type ZodTypeAny } from 'zod';
 import {
 	ExecutionIntent,
 	TSeqPath,
@@ -79,13 +79,15 @@ export type TProtoOptions = {
 
 export type TBase = string[];
 
-export type TSpecl = {
-	steppers: string[];
-	refs?: {
-		docs: { [name: string]: { src: string } };
-	};
-	runPolicy?: string;
-};
+export const SpeclSchema = z.object({
+	$schema: z.string().optional(),
+	steppers: z.array(z.string()),
+	runPolicy: z.string().optional(),
+	appParameters: z.record(z.string(), z.record(z.string(), z.unknown())).optional(),
+	options: z.record(z.string(), z.unknown()).optional()
+}).passthrough();
+
+export type TSpecl = z.infer<typeof SpeclSchema>;
 
 // ============================================================================
 // Feature & Step Structures
