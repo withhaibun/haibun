@@ -1,6 +1,6 @@
 import nodeFS from 'fs';
 
-import { TBase, TProtoOptions, TSpecl, TWorld } from '@haibun/core/lib/defs.js';
+import { TBase, TProtoOptions, TSpecl, TWorld, SpeclSchema } from '@haibun/core/lib/defs.js';
 import { BASE_PREFIX, CHECK_NO, CHECK_YES, DEFAULT_DEST, STAY, STAY_ALWAYS, Timer, TExecutorResult } from '@haibun/core/schema/protocol.js';
 import { IHasOptions } from '@haibun/core/lib/astepper.js';
 import { getCreateSteppers, getDefaultTag } from '@haibun/core/lib/test/lib.js';
@@ -42,7 +42,7 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 
 		world = getCliWorld(protoOptions, bases);
 		pr.world = world;
-		const policyConfig = resolveRunPolicy(parsed.policyConfig, env, specl);
+		const policyConfig = resolveRunPolicy(parsed.policyConfig, env, protoOptions, specl);
 		const featureFilter = parsed.params[1] ? parsed.params[1].split(',') : undefined;
 
 		const featuresBackgrounds = await pr.tryPhase('Collector', () =>
@@ -86,7 +86,7 @@ async function showSteppersAndExit(specl: TSpecl) {
 	process.exit(0);
 }
 
-function resolveRunPolicy(cliPolicyConfig: TRunPolicyConfig | undefined, env: NodeJS.ProcessEnv, specl: TSpecl): TRunPolicyConfig | undefined {
+export function resolveRunPolicy(cliPolicyConfig: TRunPolicyConfig | undefined, env: NodeJS.ProcessEnv, protoOptions: TProtoOptions, specl: TSpecl): TRunPolicyConfig | undefined {
 	let policyConfig = cliPolicyConfig;
 	if (!policyConfig && env[HAIBUN_RUN_POLICY]) {
 		policyConfig = parseRunPolicyEnv(env[HAIBUN_RUN_POLICY]);
@@ -95,6 +95,12 @@ function resolveRunPolicy(cliPolicyConfig: TRunPolicyConfig | undefined, env: No
 		if (!specl.runPolicy) {
 			throw new Error(`${OPTION_RUN_POLICY} requires "runPolicy" in config.json`);
 		}
+		if (specl.appParameters && specl.appParameters[policyConfig.place]) {
+			for (const [key, value] of Object.entries(specl.appParameters[policyConfig.place])) {
+				protoOptions.options.envVariables[key] = String(value);
+			}
+		}
+
 		loadAndValidateRunPolicy(policyConfig, specl.runPolicy);
 	}
 	return policyConfig;
@@ -102,7 +108,7 @@ function resolveRunPolicy(cliPolicyConfig: TRunPolicyConfig | undefined, env: No
 
 function dryRunExit(featuresBackgrounds: TFeaturesBackgrounds, policyConfig?: TRunPolicyConfig, featureFilter?: string[]): never {
 	const parts: string[] = [];
-	if (policyConfig) parts.push(`env="${policyConfig.env}" policy=${policyConfig.dirFilters.map(f => `${f.dir}:${f.access}`).join(',')}`);
+	if (policyConfig) parts.push(`place="${policyConfig.place}" policy=${policyConfig.dirFilters.map(f => `${f.dir}:${f.access}`).join(',')}`);
 	if (featureFilter?.length) parts.push(`filter=${featureFilter.join(',')}`);
 	console.info(`\nDry-run: ${parts.length ? parts.join(' ') : 'all features'}\n`);
 	for (const f of featuresBackgrounds.features) {
@@ -145,7 +151,7 @@ async function reportAndExit(executorResult: TExecutorResult, world: TWorld, pro
 function getCliWorld(protoOptions: TProtoOptions, bases: TBase): TWorld {
 	const { KEY: keyIn } = protoOptions.options;
 	const tag = getDefaultTag();
-	const eventLogger = new EventLogger();
+	const eventLogger = new EventLogger((name: string) => world.shared?.isSecret(name) ?? false);
 	const timer = new Timer();
 
 	Timer.key = keyIn || Timer.key;
@@ -200,12 +206,12 @@ export async function usage(specl: TSpecl, message?: string) {
 
 	const ret = [
 		'',
-		`usage: ${process.argv[1]} [${OPTION_CONFIG} path/to/specific/config.json] [--cwd working_directory] [${OPTION_HELP}] [${OPTION_SHOW_STEPPERS}] [${OPTION_WITH_STEPPERS} stepper[,stepper]] [${OPTION_RUN_POLICY} env dir:access[,dir:access]] [${OPTION_DRY_RUN}] <project base[,project base]> <[filter,filter]>`,
+		`usage: ${process.argv[1]} [${OPTION_CONFIG} path/to/specific/config.json] [--cwd working_directory] [${OPTION_HELP}] [${OPTION_SHOW_STEPPERS}] [${OPTION_WITH_STEPPERS} stepper[,stepper]] [${OPTION_RUN_POLICY} place dir:access[,dir:access]] [${OPTION_DRY_RUN}] <project base[,project base]> <[filter,filter]>`,
 		message || '',
 		'If config.json is not found in project bases, the root directory will be used.\n',
 		'Set these environmental variables to control options:\n',
 		...Object.entries(BaseOptions.options).map(([k, v]) => `${BASE_PREFIX}${String(k).padEnd(55)} ${v.desc}`),
-		`${HAIBUN_RUN_POLICY.padEnd(63)} run policy: "env dir:access[,dir:access]"`,
+		`${HAIBUN_RUN_POLICY.padEnd(63)} run policy: "place dir:access[,dir:access]"`,
 	];
 	if (Object.keys(a).length) {
 		ret.push(
@@ -289,9 +295,10 @@ export function processArgs(args: string[]) {
 				withSteppers = withSteppers.concat(stepperList.split(',').map((s) => s.trim()));
 			}
 		} else if (cur === OPTION_RUN_POLICY) {
-			const env = args.shift();
+			const place = args.shift();
 			const dirAccess = args.shift();
-			policyConfig = parseRunPolicyArgs(env, dirAccess);
+			if (!place || !dirAccess) throw new Error(`${OPTION_RUN_POLICY} requires place and dirAccess`);
+			policyConfig = parseRunPolicyArgs(place, dirAccess);
 		} else if (cur === OPTION_DRY_RUN) {
 			dryRun = true;
 		} else if (cur === '--stdio' || cur === '--node-ipc' || cur?.startsWith('--socket=')) {
@@ -313,12 +320,15 @@ export function getConfigFromBase(bases: TBase, fs: TFileSystem = nodeFS): TSpec
 	const configCandidate = (found && found[0]) || '.';
 	const f = configCandidate.endsWith('json') ? configCandidate : `${configCandidate}/config.json`;
 	try {
-		const specl = JSON.parse(fs.readFileSync(f, 'utf-8'));
+		const speclRaw = JSON.parse(fs.readFileSync(f, 'utf-8'));
+		const specl = SpeclSchema.parse(speclRaw);
 		if (!specl.options) {
 			specl.options = { DEST: DEFAULT_DEST };
 		}
 		return specl;
-	} catch {
+	} catch (e: unknown) {
+		const message = e instanceof Error ? e.message : String(e);
+		console.error(`Could not read or parse ${f}: ${message}`);
 		return null;
 	}
 }

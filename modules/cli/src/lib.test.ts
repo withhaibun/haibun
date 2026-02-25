@@ -5,7 +5,8 @@ import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, passWithDefaults } from '@haibun/
 import TestStepsWithOptions from '@haibun/core/lib/test/TestStepsWithOptions.js';
 import { getDefaultOptions } from '@haibun/core/lib/util/index.js';
 
-import { OPTION_RUN_POLICY, OPTION_DRY_RUN } from '@haibun/core/run-policy/run-policy-types.js';
+import { TProtoOptions, TSpecl } from '@haibun/core/lib/defs.js';
+import { OPTION_RUN_POLICY, OPTION_DRY_RUN, type TRunPolicyConfig } from '@haibun/core/run-policy/run-policy-types.js';
 import * as lib from './lib.js';
 
 const s = (s: string) => s.split(' ');
@@ -93,7 +94,7 @@ describe('processArgs', () => {
 		const { policyConfig, params } = lib.processArgs(s(`${OPTION_RUN_POLICY} prod smoke:r,api:a foo`));
 		expect(policyConfig).toBeDefined();
 		const config = policyConfig as NonNullable<typeof policyConfig>;
-		expect(config.env).toBe('prod');
+		expect(config.place).toBe('prod');
 		expect(config.dirFilters).toEqual([
 			{ dir: 'smoke', access: 'r' },
 			{ dir: 'api', access: 'a' },
@@ -136,5 +137,32 @@ describe('runCli', () => {
 	it('runs a kireji test with outcomes', async () => {
 		vitest.spyOn(process, 'exit').mockImplementationOnce(expectExitAndThrow(0));
 		await expect(lib.runCli(s('--config modules/cli/test/kireji-outcomes modules/cli/test/kireji-outcomes'), {})).rejects.toThrow('exit with code 0');
+	});
+});
+
+describe('resolveRunPolicy', () => {
+	it('injects appParameters into protoOptions.options.envVariables', () => {
+		const protoOptions = { options: { envVariables: {} }, moduleOptions: {} } as TProtoOptions;
+		const specl = {
+			steppers: [],
+			runPolicy: 'test-policy.json',
+			appParameters: {
+				prod: {
+					API_KEY: 'secret-123',
+					TIMEOUT: '5000'
+				}
+			}
+		} as TSpecl;
+		const policyConfig = { place: 'prod', dirFilters: [] } as TRunPolicyConfig;
+
+		// Mock loadAndValidateRunPolicy to avoid side effects
+		vitest.mock('@haibun/core/run-policy/run-policy-schema.js', () => ({
+			loadAndValidateRunPolicy: vitest.fn()
+		}));
+
+		lib.resolveRunPolicy(policyConfig, {}, protoOptions, specl);
+
+		expect(protoOptions.options.envVariables?.API_KEY).toBe('secret-123');
+		expect(protoOptions.options.envVariables?.TIMEOUT).toBe('5000');
 	});
 });

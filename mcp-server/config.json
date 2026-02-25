@@ -1,4 +1,5 @@
 {
+  "$schema": "../modules/core/haibun-core-specl.schema.json",
   "steppers": [
     "@haibun/web-server-hono/build/web-server-stepper",
     "@haibun/web-playwright/build/web-playwright",
