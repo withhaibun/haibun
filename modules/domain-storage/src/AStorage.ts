@@ -1,12 +1,14 @@
 import { resolve, relative } from 'path';
 
-import { CAPTURE, OK, TStepArgs } from '@haibun/core/schema/protocol.js';
+import { CAPTURE, OK, TStepArgs, Origin } from '@haibun/core/schema/protocol.js';
+import { DOMAIN_STRING } from '@haibun/core/lib/domain-types.js';
 import { captureLocator } from '@haibun/core/lib/capture-locator.js';
-import { actionNotOK } from '@haibun/core/lib/util/index.js';
 import { IFile, TLocationOptions } from './domain-storage.js';
 import { EMediaTypes, TMediaType } from './media-types.js';
 import { AStepper, StepperKinds, } from "@haibun/core/lib/astepper.js";
 import { TAnyFixme } from '@haibun/core/lib/fixme.js';
+import { actionNotOK } from '@haibun/core/lib/util/index.js';
+import { TFeatureStep } from '@haibun/core/lib/defs.js';
 
 /**
  * Result from saveArtifact with paths for different consumption contexts.
@@ -161,12 +163,11 @@ export abstract class AStorage extends AStepper {
 				return text.toString().indexOf(String(what)) > -1 ? OK : actionNotOK(`text at ${where} does not contain ${what}; it's ${text}`);
 			},
 		},
-		readText: {
-			gwta: `read text from {where}`,
-			action: async ({ where }: TStepArgs) => {
+		testNotContains: {
+			gwta: `text at {where} does not contain {what}`,
+			action: async ({ where, what }: TStepArgs) => {
 				const text = await this.readFile(String(where), 'utf-8');
-				this.getWorld().eventLogger.info(String(text));
-				return OK;
+				return text.toString().indexOf(String(what)) === -1 ? OK : actionNotOK(`text at ${where} contains ${what}`);
 			},
 		},
 		listFiles: {
@@ -190,6 +191,38 @@ export abstract class AStorage extends AStepper {
 				const c1 = this.readFile(String(what), 'binary');
 				const c2 = this.readFile(String(where), 'binary');
 				return Buffer.from(c1 as string)?.equals(Buffer.from(c2 as string)) ? OK : actionNotOK(`contents are not the same ${what} ${where}`);
+			},
+		},
+		readFileInto: {
+			gwta: `read file {where} into {what}`,
+			action: async ({ where, what }: TStepArgs, featureStep: TFeatureStep) => {
+				const contents = await this.readFile(String(where), 'utf-8');
+				const sv = {
+					term: String(what),
+					value: contents,
+					domain: DOMAIN_STRING,
+					origin: Origin.var,
+				};
+				const provenance = {
+					in: featureStep.in,
+					seq: featureStep.seqPath || [0],
+					when: 'step',
+				};
+				this.getWorld().shared._set(sv, provenance);
+				return OK;
+			},
+		},
+		fileIsRecent: {
+			gwta: `file {where} is recent within {minutes} minutes`,
+			action: async ({ where, minutes }: TStepArgs) => {
+				const file = await this.lstatToIFile(String(where));
+				const now = Date.now();
+				const diff = now - file.created;
+				const mins = parseInt(String(minutes));
+				if (diff <= mins * 60 * 1000) {
+					return OK;
+				}
+				return actionNotOK(`file ${where} is not recent within ${minutes} minutes (age: ${Math.round(diff / 1000)}s)`);
 			},
 		},
 	};

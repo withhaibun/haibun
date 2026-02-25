@@ -3,7 +3,6 @@ import { withAction } from '@haibun/core/kireji/withAction.js';
 import ActivitiesStepper from '@haibun/core/steps/activities-stepper.js';
 import VariablesStepper from '@haibun/core/steps/variables-stepper.js';
 import { TEST_IDS } from '@haibun/monitor-browser/build/test-ids.js';
-import { DOMAIN_PAGE_TEST_ID } from '@haibun/web-playwright/domains.js';
 
 const { activity } = withAction(new ActivitiesStepper());
 const { setAs } = withAction(new VariablesStepper());

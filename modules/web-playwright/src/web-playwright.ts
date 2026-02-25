@@ -382,7 +382,9 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	}
 
 	getLastResponse(): TCapturedResponse {
-		return this.getWorld().shared.getJSON(LAST_REST_RESPONSE) as TCapturedResponse;
+		const resolved = this.getWorld().shared.resolveVariable({ term: LAST_REST_RESPONSE, origin: Origin.var }, undefined, undefined, { secure: true });
+		const val = resolved.value;
+		return (typeof val === 'string' ? JSON.parse(val) : val) as TCapturedResponse;
 	}
 	setLastResponse(serialized: TCapturedResponse, featureStep: TFeatureStep) {
 		this.getWorld().shared.setJSON(LAST_REST_RESPONSE, serialized, Origin.var, featureStep);

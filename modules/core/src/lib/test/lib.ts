@@ -67,18 +67,18 @@ export function getTestWorldWithOptions(protoOptions: TProtoOptions = DEF_PROTO_
 }
 
 export function getDefaultWorld(env = process.env): TWorld {
-	const eventLogger = new EventLogger();
-	eventLogger.suppressConsole = true; // Suppress NDJSON in tests
 	const world: Partial<TWorld> = {
 		timer: new Timer(),
 		tag: getRunTag(0),
-		eventLogger,
 		prompter: new Prompter(),
 		runtime: { stepResults: [], feature: 'test-feature', stepUsage: new Map(), observations: new Map() },
 		options: { DEST: DEFAULT_DEST, envVariables: env },
 		moduleOptions: {},
 		bases: ['/features/'],
 	};
+	const eventLogger = new EventLogger((name: string) => world.shared?.isSecret(name) ?? false);
+	eventLogger.suppressConsole = true; // Suppress NDJSON in tests
+	world.eventLogger = eventLogger;
 	world.domains = getCoreDomains(world as TWorld);
 	world.shared = new FeatureVariables(world as TWorld);
 	return world as TWorld;

@@ -7,7 +7,7 @@ export function populateActionArgs(featureStep: TFeatureStep, world: TWorld, ste
 	if (!featureStep?.action?.stepValuesMap) return stepArgs;
 
 	for (const [name, actionVal] of Object.entries(featureStep.action.stepValuesMap)) {
-		const resolved = world.shared.resolveVariable(actionVal, featureStep, steppers);
+		const resolved = world.shared.resolveVariable(actionVal, featureStep, steppers, { secure: true });
 		// FIXME all steps except set steps should fail if a variable is undefined and it's authoritative
 		if (resolved.value === undefined) {
 			const handlesUndefined = (featureStep.action.step.handlesUndefined);

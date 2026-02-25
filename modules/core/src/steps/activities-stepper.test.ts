@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { ActivitiesStepper } from './activities-stepper.js';
 import { getDefaultWorld, passWithDefaults } from '../lib/test/lib.js';
 import VariablesStepper from './variables-stepper.js';
+import Haibun from './haibun.js';
 
 describe('ActivitiesStepper', () => {
 	describe('registerOutcome', () => {
@@ -139,6 +140,34 @@ variable result is "done"`
 			};
 
 			const result = await passWithDefaults([feature], steppers, undefined, [background]);
+			expect(result.ok).toBe(true);
+		});
+
+		it('should support ensure flows with slash-named variables', async () => {
+			const steppersWithHaibun = [VariablesStepper, ActivitiesStepper, Haibun];
+			const feature = {
+				path: '/features/test.feature',
+				content: `ordered set of client status is ["negotiating" "agreed"]
+
+Activity: Engage a client
+set {name}/signed as client status to "negotiating"
+set {name}/popular as client status to "negotiating"
+waypoint Engaged {name} with variable {name}/signed exists
+
+Activity: Foster a client
+increment {name}/{concern}
+waypoint {name} has {concern} with variable {name}/{concern} is more than "negotiating"
+
+Scenario: Dynamic domains
+ensure Engaged "Le Artiste"
+ensure "Le Artiste" has signed
+variable Le Artiste/signed is "agreed"`
+			};
+
+			const result = await passWithDefaults([feature], steppersWithHaibun);
+			if (!result.ok) {
+				throw result.failure?.error ?? new Error('ensure flow failed');
+			}
 			expect(result.ok).toBe(true);
 		});
 	});

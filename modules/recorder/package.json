@@ -1,6 +1,7 @@
 {
   "name": "@haibun/recorder",
   "version": "3.3.0",
+  "publish": false,
   "description": "Record browser interactions and generate Haibun .feature files",
   "main": "build/index.js",
   "type": "module",

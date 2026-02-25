@@ -51,14 +51,16 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 	dialogIs: {
 		gwta: 'dialog {what} {type} says {value}',
 		action: ({ what, type, value }: { what: string; type: string; value: string }) => {
-			const cur = (wp.getWorld().shared.get(what) as Record<string, unknown> | undefined)?.[type];
+			const resolvedValue = wp.getWorld().shared.get(what, true);
+			const cur = (resolvedValue as Record<string, unknown> | undefined)?.[type];
 			return cur === value ? OK : actionNotOK(`${what} is ${cur}`);
 		},
 	},
 	dialogIsUnset: {
 		gwta: 'dialog {what} {type} not set',
 		action: ({ what, type }: { what: string; type: string }) => {
-			const cur = (wp.getWorld().shared.get(what) as Record<string, unknown> | undefined)?.[type];
+			const resolvedValue = wp.getWorld().shared.get(what, true);
+			const cur = (resolvedValue as Record<string, unknown> | undefined)?.[type];
 			return !cur ? OK : actionNotOK(`${what} is ${cur}`);
 		},
 	},
