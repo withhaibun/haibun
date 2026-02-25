@@ -9,7 +9,7 @@ export type TRouteTypes = z.infer<typeof RouteTypeSchema>;
 export const ROUTE_TYPES = RouteTypeSchema.options;
 
 export const StaticFolderOptionsSchema = z.object({
-  headers: z.record(z.string()).optional(),
+  headers: z.record(z.string(), z.string()).optional(),
   index: z.boolean().optional(),
 });
 export type TStaticFolderOptions = z.infer<typeof StaticFolderOptionsSchema>;

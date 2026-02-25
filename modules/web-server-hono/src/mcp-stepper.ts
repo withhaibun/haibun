@@ -2,7 +2,6 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPTransport } from '@hono/mcp';
 import { z } from 'zod';
 import { ListToolsRequestSchema, CallToolRequestSchema, ListResourcesRequestSchema, ReadResourceRequestSchema, ErrorCode, McpError, type Tool, type CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import { zodToJsonSchema } from 'zod-to-json-schema';
 
 import { AStepper, type IHasCycles, type IHasOptions } from '@haibun/core/lib/astepper.js';
 import type { TWorld, TStepperStep, TFeatureStep } from '@haibun/core/lib/defs.js';
@@ -296,9 +295,9 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 
         // Use Function wrapper to break TS2589 deep type instantiation
         const zodShape: z.ZodType<unknown> = z.object(variables);
-        const jsonSchema = (zodToJsonSchema as (...args: unknown[]) => unknown)(zodShape, { $refStrategy: 'none' }) as ToolInputSchema;
+        const jsonSchema = z.toJSONSchema(zodShape, { reused: 'inline' }) as ToolInputSchema;
 
-        // Ensure properties are populated even if zod-to-json-schema returns empty for some reason
+        // Ensure properties are populated even if JSON Schema conversion returns empty for some reason
         if (jsonSchema.type === 'object' && Object.keys(jsonSchema.properties || {}).length === 0 && Object.keys(variables).length > 0) {
           jsonSchema.properties = {};
           for (const [key, schema] of Object.entries(variables)) {

@@ -1,45 +1,39 @@
 import { describe, it, expect } from 'vitest';
-import { zodToJsonSchema } from 'zod-to-json-schema';
+import { z } from 'zod';
 
 import { RouteTypeSchema, StaticFolderOptionsSchema, ROUTE_TYPES } from './defs.js';
 
 describe('JSON Schema / OpenAPI exports', () => {
   describe('RouteTypeSchema', () => {
     it('should convert to valid JSON Schema', () => {
-      const jsonSchema = zodToJsonSchema(RouteTypeSchema, 'RouteType');
+      const jsonSchema = z.toJSONSchema(RouteTypeSchema);
 
       expect(jsonSchema).toBeDefined();
-      expect(jsonSchema.$schema).toBe('http://json-schema.org/draft-07/schema#');
-      expect(jsonSchema.definitions).toBeDefined();
-      expect(jsonSchema.definitions?.RouteType).toBeDefined();
+      expect(jsonSchema.type).toBe('string');
+      expect(jsonSchema.enum).toBeDefined();
     });
 
     it('should define valid enum values for HTTP methods', () => {
-      const jsonSchema = zodToJsonSchema(RouteTypeSchema, 'RouteType');
-      const routeTypeDef = jsonSchema.definitions?.RouteType as { enum?: string[] };
+      const jsonSchema = z.toJSONSchema(RouteTypeSchema) as { enum?: string[] };
 
       // Verify all defined route types are in the enum
       for (const routeType of ROUTE_TYPES) {
-        expect(routeTypeDef.enum).toContain(routeType);
+        expect(jsonSchema.enum).toContain(routeType);
       }
     });
   });
 
   describe('StaticFolderOptionsSchema', () => {
     it('should convert to valid JSON Schema', () => {
-      const jsonSchema = zodToJsonSchema(StaticFolderOptionsSchema, 'StaticFolderOptions');
+      const jsonSchema = z.toJSONSchema(StaticFolderOptionsSchema);
 
       expect(jsonSchema).toBeDefined();
-      expect(jsonSchema.$schema).toBe('http://json-schema.org/draft-07/schema#');
-      expect(jsonSchema.definitions).toBeDefined();
-      expect(jsonSchema.definitions?.StaticFolderOptions).toBeDefined();
+      expect(jsonSchema.type).toBe('object');
+      expect(jsonSchema.properties).toBeDefined();
     });
 
     it('should define index property as optional boolean', () => {
-      // Use $refStrategy: 'none' for simpler output
-      const jsonSchema = zodToJsonSchema(StaticFolderOptionsSchema, {
-        $refStrategy: 'none',
-      });
+      const jsonSchema = z.toJSONSchema(StaticFolderOptionsSchema);
 
       expect(jsonSchema.type).toBe('object');
       expect(jsonSchema.properties).toBeDefined();
@@ -49,9 +43,7 @@ describe('JSON Schema / OpenAPI exports', () => {
 
   describe('OpenAPI compatibility', () => {
     it('RouteTypeSchema should produce OpenAPI-compatible enum', () => {
-      const jsonSchema = zodToJsonSchema(RouteTypeSchema, {
-        $refStrategy: 'none',
-      });
+      const jsonSchema = z.toJSONSchema(RouteTypeSchema);
 
       // OpenAPI uses 'enum' directly on the type
       expect(jsonSchema.type).toBe('string');
@@ -61,9 +53,7 @@ describe('JSON Schema / OpenAPI exports', () => {
     });
 
     it('StaticFolderOptionsSchema should produce OpenAPI-compatible object', () => {
-      const jsonSchema = zodToJsonSchema(StaticFolderOptionsSchema, {
-        $refStrategy: 'none',
-      });
+      const jsonSchema = z.toJSONSchema(StaticFolderOptionsSchema);
 
       expect(jsonSchema.type).toBe('object');
       expect(jsonSchema.properties).toBeDefined();
