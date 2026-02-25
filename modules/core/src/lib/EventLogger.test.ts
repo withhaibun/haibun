@@ -9,7 +9,7 @@ describe('EventLogger', () => {
   let logger: EventLogger;
 
   beforeEach(() => {
-    logger = new EventLogger();
+    logger = new EventLogger((name: string) => name === 'password' || name === 'apiKey');
     logger.suppressConsole = true;
   });
 
@@ -38,9 +38,7 @@ describe('EventLogger', () => {
         username: { term: 'username', value: 'testuser', domain: 'string', origin: 'var' }
       };
 
-      const isSecretFn = (name: string) => name === 'password';
-
-      logger.stepStart(mockFeatureStep, 'VariablesStepper', 'set', {}, stepValuesMap, isSecretFn);
+      logger.stepStart(mockFeatureStep, 'VariablesStepper', 'set', {}, stepValuesMap, []);
 
       expect(emitted.length).toBe(1);
       const event = emitted[0] as { stepValuesMap?: Record<string, { value: unknown }> };
@@ -58,9 +56,7 @@ describe('EventLogger', () => {
         count: { term: 'count', value: '42', domain: 'string', origin: 'var' }
       };
 
-      const isSecretFn = (name: string) => name === 'apiKey';
-
-      logger.stepEnd(mockFeatureStep, 'VariablesStepper', 'set', true, undefined, {}, stepValuesMap, undefined, isSecretFn);
+      logger.stepEnd(mockFeatureStep, 'VariablesStepper', 'set', true, undefined, {}, stepValuesMap, undefined, []);
 
       expect(emitted.length).toBe(1);
       const event = emitted[0] as { stepValuesMap?: Record<string, { value: unknown }> };
@@ -77,8 +73,10 @@ describe('EventLogger', () => {
         password: { term: 'password', value: 'secret123', domain: 'string', origin: 'var' }
       };
 
-      const isSecretFn = () => false;
-      logger.stepStart(mockFeatureStep, 'VariablesStepper', 'set', {}, stepValuesMap, isSecretFn);
+      logger = new EventLogger(() => false);
+      logger.suppressConsole = true;
+      logger.setStepperCallback((event) => emitted.push(event));
+      logger.stepStart(mockFeatureStep, 'VariablesStepper', 'set', {}, stepValuesMap, []);
 
       expect(emitted.length).toBe(1);
       const event = emitted[0] as { stepValuesMap?: Record<string, { value: unknown }> };
@@ -89,9 +87,7 @@ describe('EventLogger', () => {
       const emitted: unknown[] = [];
       logger.setStepperCallback((event) => emitted.push(event));
 
-      const isSecretFn = (name: string) => name === 'password';
-
-      logger.stepStart(mockFeatureStep, 'VariablesStepper', 'set', {}, undefined, isSecretFn);
+      logger.stepStart(mockFeatureStep, 'VariablesStepper', 'set', {}, undefined, []);
 
       expect(emitted.length).toBe(1);
       const event = emitted[0] as { stepValuesMap?: Record<string, unknown> };
@@ -107,9 +103,7 @@ describe('EventLogger', () => {
         username: 'testuser'
       };
 
-      const isSecretFn = (name: string) => name === 'password';
-
-      logger.stepStart(mockFeatureStep, 'VariablesStepper', 'set', {}, stepValuesMap, isSecretFn);
+      logger.stepStart(mockFeatureStep, 'VariablesStepper', 'set', {}, stepValuesMap, []);
 
       expect(emitted.length).toBe(1);
       const event = emitted[0] as { stepValuesMap?: Record<string, unknown> };

@@ -79,9 +79,7 @@ export class FeatureVariables {
 		if (domain === undefined) {
 			throw Error(`Cannot set variable "${sv.term}": unknown domain "${sv.domain}"`);
 		}
-		// Auto-detect secret variables: if term contains "password" (case-insensitive), mark as secret
-		const autoSecret = /password/i.test(sv.term);
-		const normalized = { ...sv, domain: domainKey, secret: sv.secret || autoSecret };
+		const normalized = { ...sv, domain: domainKey };
 		domain.coerce(normalized);
 		const existingProvenance: TProvenanceIdentifier[] = this.values[sv.term]?.provenance;
 		const provenances = existingProvenance ? [...existingProvenance, provenance] : [provenance];
@@ -106,7 +104,7 @@ export class FeatureVariables {
 				quadObservation: {
 					subject: sv.term,
 					predicate: domainKey,
-					object: normalized.value,
+					object: this.isSecret(sv.term) ? OBSCURED_VALUE : normalized.value,
 					namedGraph,
 				}
 			},
@@ -133,28 +131,11 @@ export class FeatureVariables {
 		}
 	}
 
-	get<T>(name: string): T | undefined {
-		if (!this.values[name]) return undefined;
-		const domainKey = normalizeDomainKey(this.values[name].domain);
-		const domain = this.world.domains[domainKey];
-		if (!domain) {
-			throw Error(`Cannot read variable "${name}": unknown domain "${this.values[name].domain}"`);
-		}
-		const ret = <T>domain.coerce({ ...this.values[name], domain: domainKey });
-		return ret;
-	}
-
-	getJSON<T>(name: string): T | undefined {
-		if (!this.values[name]) return undefined;
-
-		if (this.values[name].domain !== DOMAIN_JSON) throw Error(`${name} is ${this.values[name].domain}, not json`);
-		return JSON.parse(this.values[name].value as string);
-	}
-
 	/**
 	 * Resolves a variable and its domain based on its actual origin.
+	 * Requires explicit options.secure to return the real value of a secret.
 	 */
-	resolveVariable(input: { term: string; origin: TOrigin; domain?: string }, featureStep?: TFeatureStep, steppers?: AStepper[]): TStepValue {
+	resolveVariable(input: { term: string; origin: TOrigin; domain?: string }, featureStep?: TFeatureStep, steppers?: AStepper[], options: { secure: boolean } = { secure: false }): TStepValue {
 		const resolved: Partial<TStepValue> = {
 			term: input.term,
 			value: undefined,
@@ -178,6 +159,8 @@ export class FeatureVariables {
 				resolved.domain = storedEntry.domain;
 				resolved.value = storedEntry.value;
 				resolved.provenance = storedEntry.provenance;
+				resolved.readonly = storedEntry.readonly;
+				resolved.secret = storedEntry.secret; // Propagate secret property
 			}
 		} else if (input.origin === Origin.defined) {
 			if (featureStep?.runtimeArgs?.[lookupTerm] !== undefined) {
@@ -192,6 +175,7 @@ export class FeatureVariables {
 				resolved.value = storedEntry.value;
 				resolved.domain = storedEntry.domain;
 				resolved.provenance = storedEntry.provenance;
+				resolved.readonly = storedEntry.readonly;
 				resolved.origin = Origin.var;
 			} else if (isLiteralValue(input.term)) {
 				// Fallback: treat unquoted terms that look like literals as string values
@@ -211,6 +195,7 @@ export class FeatureVariables {
 					resolved.value = storedEntry.value;
 					resolved.domain = storedEntry.domain;
 					resolved.provenance = storedEntry.provenance;
+					resolved.readonly = storedEntry.readonly;
 					resolved.origin = Origin.var;
 				}
 			} else {
@@ -230,6 +215,10 @@ export class FeatureVariables {
 			}
 			resolved.value = domain.coerce({ ...resolved as TStepValue, domain: domainKey }, featureStep, steppers);
 			resolved.domain = domainKey;
+
+			if (!options.secure && this.isSecret(input.term)) {
+				resolved.value = OBSCURED_VALUE;
+			}
 		}
 
 		return resolved as TStepValue;
@@ -253,6 +242,10 @@ export class FeatureVariables {
 			.map(v => v.value);
 
 		return { values: memberValues };
+	}
+
+	get(term: string, secure: boolean = false) {
+		return this.resolveVariable({ term, origin: Origin.defined }, undefined, undefined, { secure }).value;
 	}
 
 	queryQuads(pattern: { subject?: string; predicate?: string; object?: unknown; namedGraph?: string }): TQuad[] {
@@ -297,7 +290,33 @@ export class FeatureVariables {
 	}
 
 	isSecret(name: string): boolean {
-		return this.values[name]?.secret === true;
+		if (this.values[name]?.secret) {
+			return true;
+		}
+		if (this.values[name]?.secret === false) {
+			return false;
+		}
+		return /(password|secret)/i.test(name);
+	}
+
+	getSecrets(): { [name: string]: string } {
+		const secrets: { [name: string]: string } = {};
+		const envVars = this.world.options.envVariables;
+		for (const [key, value] of Object.entries(envVars)) {
+			if (this.isSecret(key)) {
+				secrets[key] = String(value);
+			}
+		}
+		for (const [key, variable] of Object.entries(this.all())) {
+			if (this.isSecret(key)) {
+				secrets[key] = String(variable.value);
+			}
+		}
+		return secrets;
+	}
+
+	getSecretValues(): string[] {
+		return Object.values(this.getSecrets());
 	}
 
 	// =========================================================================
@@ -317,9 +336,6 @@ export class FeatureVariables {
 		}
 		if (sv.readonly) {
 			this.store.add({ subject: name, predicate: 'readonly', object: true, namedGraph: META_GRAPH });
-		}
-		if (sv.secret) {
-			this.store.add({ subject: name, predicate: 'secret', object: true, namedGraph: META_GRAPH });
 		}
 	}
 }

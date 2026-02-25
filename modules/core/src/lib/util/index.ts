@@ -4,6 +4,7 @@ import { TAnyFixme } from '../fixme.js';
 import { IHasOptions, AStepper } from '../astepper.js';
 import { TArtifactEvent } from '../../schema/protocol.js';
 export * from './actualURI.js';
+export * from './secret-utils.js';
 
 // Helper to get term from stepValuesMap with null safety
 export function getStepTerm(featureStep: TFeatureStep, key: string): string | undefined {

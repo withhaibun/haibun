@@ -5,6 +5,7 @@ import { TAnyFixme } from '../lib/fixme.js';
 import { AStepper, IHasCycles, TStepperSteps } from '../lib/astepper.js';
 import { actionOK, actionNotOK, getStepTerm } from '../lib/util/index.js';
 import { FeatureVariables, OBSCURED_VALUE } from '../lib/feature-variables.js';
+import { sanitizeObjectSecrets, hideValueIfSecret } from '../lib/util/secret-utils.js';
 import { DOMAIN_STATEMENT, DOMAIN_STRING, normalizeDomainKey, createEnumDomainDefinition, registerDomains } from '../lib/domain-types.js';
 
 const clearVars = (vars: VariablesStepper) => () => {
@@ -64,7 +65,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				const result = this.interpolateTemplate(templateVal.term, featureStep);
 				if (result.error) return actionNotOK(result.error);
 
-				return trySetVariable(this.getWorld().shared, { term: String(term), value: result.value, domain, origin: Origin.var }, provenanceFromFeatureStep(featureStep));
+				return trySetVariable(this.getWorld().shared, { term: String(term), value: result.value, domain, origin: Origin.var, secret: result.secret }, provenanceFromFeatureStep(featureStep));
 			}
 		},
 		compose: {
@@ -78,18 +79,18 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				const result = this.interpolateTemplate(templateVal.term, featureStep);
 				if (result.error) return actionNotOK(result.error);
 
-				return trySetVariable(this.getWorld().shared, { term: String(term), value: result.value, domain: DOMAIN_STRING, origin: Origin.var }, provenanceFromFeatureStep(featureStep));
-			}
+				return trySetVariable(this.getWorld().shared, { term: String(term), value: result.value, domain: DOMAIN_STRING, origin: Origin.var, secret: result.secret }, provenanceFromFeatureStep(featureStep));
+			},
 		},
 		increment: {
 			gwta: 'increment {what}',
 			handlesUndefined: ['what'],
 			action: (_: TStepArgs, featureStep: TFeatureStep) => {
-				const { term: rawTerm, domain } = featureStep.action.stepValuesMap.what;
+				const { term: rawTerm } = featureStep.action.stepValuesMap.what;
 				const interpolated = this.interpolateTemplate(rawTerm, featureStep);
 				if (interpolated.error) return actionNotOK(interpolated.error);
 				const term = interpolated?.value;
-				const resolved = this.getWorld().shared.resolveVariable({ term, origin: Origin.var, domain }, featureStep);
+				const resolved = this.getWorld().shared.resolveVariable({ term, origin: Origin.var }, featureStep);
 				const presentVal = resolved.value;
 				const effectiveDomain = resolved.domain;
 
@@ -137,11 +138,9 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			action: () => {
 				// Obscure secret environment variables (matching /password/i)
 				const envVars = this.world.options.envVariables || {};
-				const displayEnv: Record<string, string> = {};
-				for (const [key, value] of Object.entries(envVars)) {
-					displayEnv[key] = /password/i.test(key) ? OBSCURED_VALUE : String(value ?? '');
-				}
-				console.info('env', displayEnv);
+				const shared = this.getWorld().shared;
+				const safeEnv = sanitizeObjectSecrets(envVars, (key) => shared.isSecret(key), Object.values(shared.getSecrets()));
+				this.getWorld().eventLogger.info(`env: ${JSON.stringify(safeEnv, null, 2)}`, { env: safeEnv });
 				return Promise.resolve(OK);
 			}
 		},
@@ -150,11 +149,10 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			action: () => {
 				const shared = this.getWorld().shared;
 				const displayVars = Object.fromEntries(
-					Object.entries(shared.all()).map(([k, v]) =>
-						[k, shared.isSecret(k) ? OBSCURED_VALUE : v.value]
-					)
+					Object.entries(shared.all()).map(([key, variable]) => [key, variable.value])
 				);
-				this.getWorld().eventLogger.info(`vars: ${JSON.stringify(displayVars, null, 2)}`, { vars: displayVars });
+				const safeVars = sanitizeObjectSecrets(displayVars, (key) => shared.isSecret(key), Object.values(shared.getSecrets()));
+				this.getWorld().eventLogger.info(`vars: ${JSON.stringify(safeVars, null, 2)}`, { vars: safeVars });
 				return actionOK();
 			},
 		},
@@ -164,7 +162,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			precludes: ['Haibun.prose'],
 			action: (args: TStepArgs, featureStep: TFeatureStep) => {
 				const { term: rawTerm, domain, origin } = featureStep.action.stepValuesMap.what;
-				const parsedValue = this.getWorld().shared.resolveVariable(featureStep.action.stepValuesMap.value, featureStep);
+				const parsedValue = this.getWorld().shared.resolveVariable(featureStep.action.stepValuesMap.value, featureStep, undefined, { secure: true });
 				if (parsedValue.value === undefined) return actionNotOK(`Variable ${featureStep.action.stepValuesMap.value.term} not found`);
 				const resolved = { value: String(parsedValue.value) };
 
@@ -179,7 +177,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				const existing = this.getWorld().shared.resolveVariable({ term, origin: Origin.var }, featureStep);
 				const effectiveDomain = (domain === DOMAIN_STRING && existing?.domain) ? existing.domain : (domain || DOMAIN_STRING);
 
-				const result = trySetVariable(this.getWorld().shared, { term, value: resolved.value, domain: effectiveDomain, origin }, provenanceFromFeatureStep(featureStep));
+				const result = trySetVariable(this.getWorld().shared, { term, value: resolved.value, domain: effectiveDomain, origin, secret: interpolated.secret || parsedValue.secret }, provenanceFromFeatureStep(featureStep));
 				return result;
 			}
 		},
@@ -189,9 +187,8 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			precludes: [`${VariablesStepper.name}.set`],
 			action: ({ value, domain }: { value: string, domain: string }, featureStep: TFeatureStep) => {
 				const readonly = !!featureStep.in.match(/ as read-only /);
-				const secret = !!featureStep.in.match(/ as secret /);
 				const { term: rawTerm, origin } = featureStep.action.stepValuesMap.what;
-				const parsedValue = this.getWorld().shared.resolveVariable(featureStep.action.stepValuesMap.value, featureStep);
+				const parsedValue = this.getWorld().shared.resolveVariable(featureStep.action.stepValuesMap.value, featureStep, undefined, { secure: true });
 				if (parsedValue.value === undefined) return actionNotOK(`Variable ${featureStep.action.stepValuesMap.value.term} not found`);
 				const resolved = { value: String(parsedValue.value) };
 
@@ -208,9 +205,6 @@ class VariablesStepper extends AStepper implements IHasCycles {
 					if (effectiveDomain.startsWith('read-only ')) {
 						effectiveDomain = effectiveDomain.replace('read-only ', '');
 					}
-					if (effectiveDomain.startsWith('secret ')) {
-						effectiveDomain = effectiveDomain.replace('secret ', '');
-					}
 					if (effectiveDomain.startsWith('"') && effectiveDomain.endsWith('"')) {
 						effectiveDomain = effectiveDomain.slice(1, -1);
 					}
@@ -220,7 +214,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				if (typeof finalValue === 'string' && finalValue.startsWith('"') && finalValue.endsWith('"')) {
 					finalValue = finalValue.slice(1, -1);
 				}
-				return trySetVariable(this.getWorld().shared, { term, value: finalValue, domain: effectiveDomain, origin, readonly, secret }, provenanceFromFeatureStep(featureStep));
+				return trySetVariable(this.getWorld().shared, { term, value: finalValue, domain: effectiveDomain, origin, readonly, secret: interpolated.secret || parsedValue.secret }, provenanceFromFeatureStep(featureStep));
 			}
 		},
 		unset: {
@@ -263,20 +257,19 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				if (interpolated.error) return actionNotOK(interpolated.error);
 				const term = interpolated.value;
 
-				const resolved = this.getWorld().shared.resolveVariable({ term, origin: Origin.defined }, featureStep);
-				if (resolved.value === undefined) {
+				const resolved = this.getWorld().shared.resolveVariable({ term, origin: Origin.defined }, featureStep, undefined, { secure: true });
+				if (resolved.value === undefined || (resolved.origin !== Origin.var && resolved.origin !== Origin.env)) {
 					return actionNotOK(`${term} is not set`);
 				}
-				const storedVal = resolved.value;
 
-				const parsedValue = this.getWorld().shared.resolveVariable(featureStep.action.stepValuesMap.value, featureStep);
+				const parsedValue = this.getWorld().shared.resolveVariable(featureStep.action.stepValuesMap.value, featureStep, undefined, { secure: true });
 				if (parsedValue.value === undefined) return actionNotOK(`Variable ${featureStep.action.stepValuesMap.value.term} not found`);
 				const value = String(parsedValue.value);
 
 				const domainKey = normalizeDomainKey(resolved.domain);
 				const compareVal = this.getWorld().domains[domainKey].coerce({ term: '_cmp', value, domain: domainKey, origin: Origin.quoted }, featureStep, this.steppers);
 
-				return JSON.stringify(storedVal) === JSON.stringify(compareVal) ? OK : actionNotOK(`${term} is ${JSON.stringify(storedVal)}, not ${JSON.stringify(compareVal)}`);
+				return JSON.stringify(resolved.value) === JSON.stringify(compareVal) ? OK : actionNotOK(`${term} is ${JSON.stringify(resolved.value)}, not ${JSON.stringify(compareVal)}`);
 			}
 		},
 		isLessThan: {
@@ -302,8 +295,10 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			handlesUndefined: ['what'],
 			action: ({ what }: TStepArgs, featureStep: TFeatureStep) => {
 				const term = (getStepTerm(featureStep, 'what') ?? what) as string;
-				const resolved = this.getWorld().shared.resolveVariable({ term, origin: Origin.defined }, featureStep);
-				return resolved && (resolved.origin === Origin.var || resolved.origin === Origin.env) ? OK : actionNotOK(`${what} not set`);
+				const sharedVars = this.getWorld().shared.all();
+				if (sharedVars[term]) return OK;
+				const envVars = this.getWorld().options.envVariables || {};
+				return envVars[term] !== undefined ? OK : actionNotOK(`${what} not set`);
 			}
 		},
 		showVar: {
@@ -316,13 +311,15 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				if (interpolated.error) return actionNotOK(interpolated.error);
 				const term = interpolated.value || '';
 
-				const stepValue = this.getWorld().shared.resolveVariable({ term, origin: Origin.defined }, featureStep);
-				const isSecret = this.getWorld().shared.isSecret(term);
+				const shared = this.getWorld().shared;
+				const stepValue = shared.resolveVariable({ term, origin: Origin.defined }, featureStep);
+				const isSecret = shared.isSecret(term);
+				const maskedValue = hideValueIfSecret(stepValue.value, Object.values(shared.getSecrets()));
 
 				if (stepValue.value === undefined) {
 					this.getWorld().eventLogger.info(`${term} is undefined`);
 				} else {
-					const displayValue = isSecret ? { ...stepValue, value: OBSCURED_VALUE } : stepValue;
+					const displayValue = (isSecret || maskedValue === OBSCURED_VALUE) ? { ...stepValue, value: OBSCURED_VALUE } : stepValue;
 					const provenance = featureStep.action.stepValuesMap.what.provenance?.map((p, i) => ({ [i]: { in: p.in, seq: p.seq.join(','), when: p.when } }));
 					this.getWorld().eventLogger.info(`${term} is ${JSON.stringify({ ...displayValue, provenance }, null, 2)}`, { variable: term, value: displayValue });
 				}
@@ -405,8 +402,8 @@ class VariablesStepper extends AStepper implements IHasCycles {
 					valueTerm = valueTerm.slice(1, -1);
 				}
 				// Try to resolve as variable, fall back to literal
-				const resolved = this.getWorld().shared.resolveVariable({ term: valueTerm, origin: Origin.defined });
-				const actualValue = resolved?.value !== undefined ? String(resolved.value) : valueTerm;
+				const resolvedValue = this.getWorld().shared.get(valueTerm, true);
+				const actualValue = resolvedValue !== undefined ? String(resolvedValue) : valueTerm;
 
 				const domainName = matchResult[2].trim();
 				const domainKey = normalizeDomainKey(domainName);
@@ -447,8 +444,8 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				const term = interpolatedValue.value;
 
 				// Resolve value as a variable (e.g., "WebPlaywright/currentURI" -> actual URL)
-				const resolved = this.getWorld().shared.resolveVariable({ term, origin: Origin.defined }, featureStep);
-				const actualValue = resolved.value !== undefined ? String(resolved.value) : String(term);
+				const resolvedValue = this.getWorld().shared.get(term, true);
+				const actualValue = resolvedValue !== undefined ? String(resolvedValue) : String(term);
 
 				// Interpolate variables in pattern (e.g., "{counter URI}*" -> "http://localhost:8123/*")
 				const interpolated = this.interpolateTemplate(pattern, featureStep);
@@ -477,7 +474,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		if (interpolated.error) return actionNotOK(interpolated.error);
 		const term = interpolated.value;
 
-		const stored = this.getWorld().shared.resolveVariable({ term, origin: Origin.var }, featureStep);
+		const stored = this.getWorld().shared.resolveVariable({ term, origin: Origin.var }, featureStep, this.steppers, { secure: true });
 		if (!stored) {
 			return actionNotOK(`${term} is not set`);
 		}
@@ -514,14 +511,19 @@ class VariablesStepper extends AStepper implements IHasCycles {
 	 * Interpolates a template string by replacing {varName} placeholders with variable values.
 	 * Returns the interpolated string or an error if a variable is not found.
 	 */
-	private interpolateTemplate(template: string, featureStep?: TFeatureStep): { value?: string; error?: string } {
+	private interpolateTemplate(template: string, featureStep?: TFeatureStep): { value?: string; error?: string; secret?: boolean } {
 		const placeholderRegex = /\{([^}]+)\}/g;
 		let result = template;
 		let match: RegExpExecArray | null;
+		let secret = false;
 
 		while ((match = placeholderRegex.exec(template)) !== null) {
 			const varName = match[1];
-			const resolved = this.getWorld().shared.resolveVariable({ term: varName, origin: Origin.defined }, featureStep);
+			// Check if it's secret BEFORE resolving it securely so we know
+			if (this.getWorld().shared.isSecret(varName)) {
+				secret = true;
+			}
+			const resolved = this.getWorld().shared.resolveVariable({ term: varName, origin: Origin.defined }, featureStep, undefined, { secure: true });
 
 			if (resolved.value === undefined) {
 				return { error: `Variable ${varName} not found` };
@@ -529,7 +531,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			result = result.replace(match[0], String(resolved.value));
 		}
 
-		return { value: result };
+		return { value: result, secret };
 	}
 
 
@@ -676,13 +678,13 @@ const compareDomainValues = (domain: { comparator?: (a: unknown, b: unknown) => 
 
 // Returns OK if "set empty" and variable exists
 function shouldSkipEmpty(featureStep: TFeatureStep, term: string, shared: FeatureVariables): typeof OK | undefined {
-	return (featureStep.in.includes('set empty ') && shared.get(term) !== undefined) ? OK : undefined;
+	return (featureStep.in.includes('set empty ') && shared.resolveVariable({ term, origin: Origin.var }, featureStep, undefined, { secure: true }).value !== undefined) ? OK : undefined;
 }
 
 // Wraps shared.set in try/catch
 function trySetVariable(shared: FeatureVariables, opts: { term: string; value: TAnyFixme; domain: string; origin: TOrigin; readonly?: boolean; secret?: boolean }, provenance: TProvenanceIdentifier): TActionResult {
 	try {
-		shared.set({ term: String(opts.term), value: opts.value, domain: opts.domain, origin: opts.origin, readonly: opts.readonly, secret: opts.secret }, provenance);
+		shared.set({ term: opts.term, value: opts.value, domain: opts.domain, origin: opts.origin, readonly: opts.readonly, secret: opts.secret }, provenance);
 		return OK;
 	} catch (e: unknown) {
 		return actionNotOK((e as Error).message);

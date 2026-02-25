@@ -5,6 +5,9 @@ import VariablesStepper from './variables-stepper.js';
 import { DEFAULT_DEST } from '../schema/protocol.js';
 import Haibun from './haibun.js';
 import LogicStepper from './logic-stepper.js';
+import { OBSCURED_VALUE } from '../lib/feature-variables.js';
+import EventCollectorStepper from '../lib/test/EventCollectorStepper.js';
+
 const steppers = [VariablesStepper, Haibun, LogicStepper];
 
 describe('vars', () => {
@@ -31,6 +34,29 @@ describe('vars', () => {
 		const res = await passWithDefaults(content, steppers);
 		expect(res.ok).toBe(true);
 	});
+
+	it('obscures show var when value matches env secret', async () => {
+		const content = 'set snake value/path to "ISECRET_snake"\nshow var snake value/path';
+		const envVariables = { SNAKE_CASE_PASSWORD: 'ISECRET_snake' };
+		const res = await passWithDefaults(content, [EventCollectorStepper, ...steppers], { options: { DEST: DEFAULT_DEST, envVariables }, moduleOptions: {} });
+		expect(res.ok).toBe(true);
+		const collector = res.steppers?.find((stepper) => stepper instanceof EventCollectorStepper) as EventCollectorStepper | undefined;
+		expect(collector).toBeDefined();
+		const logEvents = collector?.findEvents((event) => event.kind === 'log') ?? [];
+		const logMessage = logEvents
+			.map((event) => ('message' in event ? event.message : ''))
+			.find((message) => typeof message === 'string' && message.includes('snake value/path is'));
+		expect(logMessage).toBeDefined();
+		expect(logMessage).toContain(OBSCURED_VALUE);
+		expect(logMessage).not.toContain('ISECRET_snake');
+	});
+
+	it('does not treat complex names as literals for exists', async () => {
+		const content = 'variable feature/path value-1 exists';
+		const res = await failWithDefaults(content, steppers);
+		expect(res.ok).toBe(false);
+		expect(res.failure?.error?.message).toContain('feature/path value-1 not set');
+	});
 });
 
 describe('random vars', () => {
@@ -41,33 +67,20 @@ describe('random vars', () => {
 		expect(result.failure?.error?.message).toContain('Cannot overwrite read-only variable "x"');
 	});
 
-	it('marks variable as secret with explicit syntax', async () => {
-		const content = 'set password as secret string to "hunter2"'
-		const res = await passWithDefaults(content, steppers);
-		expect(res.ok).toBe(true);
-		expect(res.world.shared.isSecret('password')).toBe(true);
-		expect(res.world.shared.get('password')).toBe('hunter2');
-	});
-
-	it('handles mixed secret and non-secret variables', async () => {
-		const content = `set username to "testuser"
-set apiPassword as secret string to "secret-key-123"
-set count to "42"
-variable username is "testuser"
-variable apiPassword is "secret-key-123"
-variable count is "42"`
-		const res = await passWithDefaults(content, steppers);
-		expect(res.ok).toBe(true);
-		expect(res.world.shared.isSecret('username')).toBe(false);
-		expect(res.world.shared.isSecret('apiPassword')).toBe(true);
-		expect(res.world.shared.isSecret('count')).toBe(false);
-	});
-
 	it('auto-detects password in variable name as secret', async () => {
 		const content = 'set dbPassword to "pg-pass-456"'
 		const res = await passWithDefaults(content, steppers);
 		expect(res.ok).toBe(true);
 		expect(res.world.shared.isSecret('dbPassword')).toBe(true);
+	});
+
+	it('copies secret env values without storing obscured values', async () => {
+		const content = 'set apiPassword to API_PASSWORD\nvariable apiPassword is API_PASSWORD';
+		const envVariables = { API_PASSWORD: 'secret-123' };
+		const res = await passWithDefaults(content, steppers, { options: { DEST: DEFAULT_DEST, envVariables }, moduleOptions: {} });
+		expect(res.ok).toBe(true);
+		expect(res.world.shared.get('apiPassword', true)).toBe('secret-123');
+		expect(res.world.shared.get('apiPassword')).toBe(OBSCURED_VALUE);
 	});
 
 	it('assigns random', async () => {
@@ -107,6 +120,7 @@ describe('variable name literal handling', () => {
 		const { ok } = await failWithDefaults(content, steppers, { options: { DEST: DEFAULT_DEST, envVariables }, moduleOptions: {} });
 		expect(ok).toBe(false);
 	});
+
 });
 
 

@@ -17,7 +17,6 @@ import { setupTransport } from './lib/setup-transport.js';
 export const LOG_HOST_STARTED = 'MonitorBrowser: Starting as Host on port';
 export const LOG_CLIENT_PIGGYBACKING = 'MonitorBrowser: Found running monitor on port';
 export const LOG_INGESTED = 'MonitorBrowser: Ingested event from piggybacker';
-
 export default class MonitorBrowserStepper extends AStepper implements IHasCycles, IHasOptions {
   description = 'Real-time browser dashboard with SSE events and debugging';
   port = 3459;
@@ -45,6 +44,8 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
   };
 
   captureRoot: string | undefined;
+  outputPath: string | undefined;
+  featurePath: string | undefined;
 
   async setWorld(world: TWorld, steppers: AStepper[]) {
     super.setWorld(world, steppers);
@@ -67,7 +68,9 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
   }
 
   cycles: IStepperCycles = {
-    startFeature: async () => {
+    startFeature: async (args) => {
+      this.outputPath = undefined;
+      this.featurePath = args.resolvedFeature.path;
       if (!MonitorBrowserStepper.transport) {
         await setupTransport(this);
       }
@@ -104,13 +107,8 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
       const serializer = new JITSerializer();
       const jitData = serializer.serialize(transformedEvents);
 
-      const featureStart = this.events.find(e => e.kind === 'lifecycle' && e.type === 'feature' && e.stage === 'start');
-      const world = this.getWorld();
-      const featureLabel = (featureStart && 'label' in featureStart ? featureStart.label as string : undefined) || world.runtime.feature || 'report';
-      const topic = featureLabel.replace(/.*\//, '').replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9-_]/g, '_');
 
-
-      await this.saveSerializedReport(jitData, topic);
+      await this.saveSerializedReport(jitData, this.featurePath);
       this.events = [];
     },
     endExecution: () => {
@@ -119,15 +117,14 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
     }
   };
 
-  private async saveSerializedReport(jitData: string, topic: string) {
-    writeFileSync('jitData.json', JSON.stringify(this.events, null, 2));
+  private async saveSerializedReport(jitData: string, featureFile: string) {
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = path.dirname(__filename);
     const indexPath = path.join(__dirname, '..', 'dist', 'client', 'index.html');
 
     if (!fs.existsSync(indexPath)) {
       this.getWorld().eventLogger.error(`[MonitorBrowser] Could not find client build artifacts at ${indexPath}`);
-      return;
+      throw new Error(`[MonitorBrowser] Could not find client build artifacts at ${indexPath}`);
     }
 
     let html = fs.readFileSync(indexPath, 'utf-8');
@@ -141,16 +138,32 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
       html += injection;
     }
 
-    const saved = await this.storage.saveArtifact('monitor.html', html, EMediaTypes.html);
+    let savedPath = this.outputPath;
 
-    this.getWorld().eventLogger.info(`[MonitorBrowser] Report saved: ${actualURI(saved.absolutePath)}`);
+    // check if any world (env) secrets are in the html. If they are, throw an error.
+    const secrets = this.world.shared.getSecrets();
+    for (const [secretName, secretValue] of Object.entries(secrets)) {
+      if (html.includes(secretValue)) {
+        throw new Error(`[MonitorBrowser] World (env) secret "${secretName}" is in the html for ${featureFile}, cannot write monitor.`);
+      }
+    }
+
+    if (savedPath) {
+      writeFileSync(savedPath, html);
+      this.getWorld().eventLogger.info(`[MonitorBrowser] Report saved to explicit output: ${savedPath}`);
+    } else {
+      const saved = await this.storage.saveArtifact('monitor.html', html, EMediaTypes.html);
+      savedPath = saved.absolutePath;
+    }
+
+    this.getWorld().eventLogger.info(`[MonitorBrowser] Report saved: ${actualURI(savedPath)}`);
   }
 
   steps = {
     pause: {
-      gwta: 'pause browser monitor',
-      action: () => {
-        // Implement pause logic if needed
+      gwta: `saves monitor to {where}`,
+      action: ({ where }: { where: string }) => {
+        this.outputPath = where;
         return OK;
       }
     }

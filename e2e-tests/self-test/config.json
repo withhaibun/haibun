@@ -1,13 +1,13 @@
 {
-  "mode": "all",
+  "$schema": "../../modules/core/haibun-core-specl.schema.json",
   "steppers": [
     "@haibun/storage-fs/build/storage-fs",
     "@haibun/web-server-hono/build/web-server-stepper",
     "@haibun/web-playwright/build/web-playwright",
     "@haibun/monitor-browser",
+    "@haibun/monitor-tui",
     "variables-stepper",
     "logic-stepper",
-    "debugger-stepper",
     "activities-stepper",
     "haibun"
   ]

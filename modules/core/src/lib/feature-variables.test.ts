@@ -198,7 +198,7 @@ describe('FeatureVariables', () => {
 
 			variables.setJSON('myJson', obj, Origin.var, mockFeatureStep);
 
-			const retrieved = variables.getJSON<typeof obj>('myJson');
+			const retrieved = (variables.get('myJson') as typeof obj);
 			expect(retrieved).toEqual(obj);
 		});
 
@@ -213,19 +213,10 @@ describe('FeatureVariables', () => {
 		});
 
 		it('should return undefined for non-existent JSON variable', () => {
-			expect(variables.getJSON('nonExistent')).toBeUndefined();
+			expect(variables.get('nonExistent')).toBeUndefined();
 		});
 
-		it('should throw error when getting non-JSON variable as JSON', () => {
-			variables.set(
-				{ term: 'notJson', value: 'just a string', domain: DOMAIN_STRING, origin: Origin.var },
-				{ in: 'test', seq: [1], when: 'test.action' }
-			);
 
-			expect(() => {
-				variables.getJSON('notJson');
-			}).toThrow('notJson is string, not json');
-		});
 
 		it('should handle complex JSON structures', () => {
 			const complex = {
@@ -240,7 +231,7 @@ describe('FeatureVariables', () => {
 			};
 
 			variables.setJSON('complex', complex, Origin.var, mockFeatureStep);
-			const retrieved = variables.getJSON<typeof complex>('complex');
+			const retrieved = (variables.get('complex') as typeof complex);
 
 			expect(retrieved).toEqual(complex);
 			expect(retrieved?.array).toEqual([1, 2, 3]);
@@ -265,7 +256,7 @@ describe('FeatureVariables', () => {
 				{ in: 'test', seq: [1], when: 'test.action' }
 			);
 
-			const count = variables.get<string>('count');
+			const count = variables.get('count');
 			expect(count).toBe('42');
 		});
 
@@ -278,7 +269,7 @@ describe('FeatureVariables', () => {
 			const user: User = { name: 'Alice', age: 30 };
 			variables.setJSON('user', user, Origin.var, mockFeatureStep);
 
-			const retrieved = variables.getJSON<User>('user');
+			const retrieved = (variables.get('user') as User);
 			expect(retrieved?.name).toBe('Alice');
 			expect(retrieved?.age).toBe(30);
 		});
@@ -327,12 +318,12 @@ describe('FeatureVariables', () => {
 
 		it('should handle JSON with empty objects', () => {
 			variables.setJSON('empty', {}, Origin.var, mockFeatureStep);
-			expect(variables.getJSON('empty')).toEqual({});
+			expect(variables.get('empty')).toEqual({});
 		});
 
 		it('should handle JSON with empty arrays', () => {
 			variables.setJSON('emptyArray', [], Origin.var, mockFeatureStep);
-			expect(variables.getJSON('emptyArray')).toEqual([]);
+			expect(variables.get('emptyArray')).toEqual([]);
 		});
 	});
 
@@ -361,41 +352,33 @@ describe('FeatureVariables', () => {
 	});
 
 	describe('secret variables', () => {
-		it('should auto-detect password variables as secret', () => {
+		it('should auto-detect password env variables as secret', () => {
 			variables.set(
-				{ term: 'userPassword', value: 'secret123', domain: DOMAIN_STRING, origin: Origin.var },
+				{ term: 'userPassword', value: 'secret123', domain: DOMAIN_STRING, origin: Origin.env },
 				{ in: 'test', seq: [1], when: 'test.action' }
 			);
 			expect(variables.isSecret('userPassword')).toBe(true);
 		});
 
-		it('should auto-detect PASSWORD (uppercase) as secret', () => {
+		it('should auto-detect PASSWORD (uppercase) env variables as secret', () => {
 			variables.set(
-				{ term: 'DATABASE_PASSWORD', value: 'db-secret', domain: DOMAIN_STRING, origin: Origin.var },
+				{ term: 'DATABASE_PASSWORD', value: 'db-secret', domain: DOMAIN_STRING, origin: Origin.env },
 				{ in: 'test', seq: [1], when: 'test.action' }
 			);
 			expect(variables.isSecret('DATABASE_PASSWORD')).toBe(true);
 		});
 
-		it('should auto-detect password in middle of name as secret', () => {
+		it('should auto-detect secret in middle of env name as secret', () => {
 			variables.set(
-				{ term: 'my_password_field', value: 'pwd123', domain: DOMAIN_STRING, origin: Origin.var },
+				{ term: 'my_secret_field', value: 'pwd123', domain: DOMAIN_STRING, origin: Origin.env },
 				{ in: 'test', seq: [1], when: 'test.action' }
 			);
-			expect(variables.isSecret('my_password_field')).toBe(true);
+			expect(variables.isSecret('my_secret_field')).toBe(true);
 		});
 
-		it('should allow explicit secret flag', () => {
+		it('should not mark non-password/secret env variables as secret', () => {
 			variables.set(
-				{ term: 'apiKey', value: 'key-12345', domain: DOMAIN_STRING, origin: Origin.var, secret: true },
-				{ in: 'test', seq: [1], when: 'test.action' }
-			);
-			expect(variables.isSecret('apiKey')).toBe(true);
-		});
-
-		it('should not mark non-password variables as secret', () => {
-			variables.set(
-				{ term: 'username', value: 'john', domain: DOMAIN_STRING, origin: Origin.var },
+				{ term: 'username', value: 'john', domain: DOMAIN_STRING, origin: Origin.env },
 				{ in: 'test', seq: [1], when: 'test.action' }
 			);
 			expect(variables.isSecret('username')).toBe(false);
@@ -403,25 +386,6 @@ describe('FeatureVariables', () => {
 
 		it('should return false for isSecret on non-existent variable', () => {
 			expect(variables.isSecret('nonExistent')).toBe(false);
-		});
-
-		it('should store secret flag as meta quad', () => {
-			variables.set(
-				{ term: 'thePassword', value: 'pwd', domain: DOMAIN_STRING, origin: Origin.var },
-				{ in: 'test', seq: [1], when: 'test.action' }
-			);
-			const secretQuads = variables.queryQuads({ subject: 'thePassword', predicate: 'secret' });
-			expect(secretQuads.length).toBe(1);
-			expect(secretQuads[0].object).toBe(true);
-		});
-
-		it('should preserve secret flag in all()', () => {
-			variables.set(
-				{ term: 'secretPassword', value: 'hidden', domain: DOMAIN_STRING, origin: Origin.var },
-				{ in: 'test', seq: [1], when: 'test.action' }
-			);
-			const all = variables.all();
-			expect(all.secretPassword.secret).toBe(true);
 		});
 	});
 });

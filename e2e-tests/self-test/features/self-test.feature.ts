@@ -17,10 +17,14 @@ const clicks = (id: string) => [click({ target: id }), sets(id)];
 
 const host = `http://localhost:3459`;
 
+const FRAGMENT = 'ISECRET';
+
+// these must be the same as self-test script in package.json.
 export const SECRETS = {
-	SNAKE_CASE: 'SNAKE_CASE_PASSWORD',
-	ALL_CAPS: 'ALLCAPSSECRET',
-	USER_PASSWORD: 'user_password',
+  FRAGMENT,
+  SNAKE_CASE: `${FRAGMENT}_snake`,
+  ALL_CAPS: `${FRAGMENT}_CAPS`,
+  USER_PASSWORD: `${FRAGMENT}_user`,
 };
 
 export const features: TKirejiExport = {
@@ -28,6 +32,7 @@ export const features: TKirejiExport = {
     Test_IDs_setup,
 
     'Scenario: A user opens the Haibun Monitor to review execution data.',
+    `saves monitor to "/tmp/monitor.html"`,
     `after every WebPlaywright, take a screenshot`,
     gotoPage({ name: host }),
     `
@@ -83,6 +88,7 @@ export const features: TKirejiExport = {
 
     'Scenario: The user inspects a specific event in detail.',
     'Click on an event in the log to open the details panel.',
+    `pause for 1s`,
     ...clicks(TEST_IDS.VIEWS.LATEST_EVENT),
     'A side panel slides open showing detailed information.',
     ...waitsFor(TEST_IDS.APP.DETAILS_PANEL),
@@ -172,60 +178,21 @@ export const features: TKirejiExport = {
     // Note: DEBUGGER and ARTIFACT_RENDERER IDs are excluded from verification
     // because they require specific conditions (debug mode, artifact events)
 
-    'Scenario: All testable IDs have been verified.',
     'every id in MonitorTestIds is variable used-{id} is "true"',
     */
 
     `
-    Scenario: Secret variables are auto-detected by password pattern.
-    set userPassword to "my-secret-password"
-    variable userPassword is "my-secret-password"
-    show var userPassword
-    pause for 1s
-    see ${OBSCURED_VALUE}
-    not see ""value": "my-secret-password""
+    Scenario: Show env obscures secrets and keeps others visible.
+    show env
+    not see "${SECRETS.FRAGMENT}"
 
-    Scenario: Secret variables can be explicitly marked with as secret.
-    set apiKey as secret string to "key-123-abc"
-    variable apiKey is "key-123-abc"
-    show var apiKey
-    pause for 1s
-    see "value": "${OBSCURED_VALUE}""
-    not see ""value": "key-123-abc""
-
-    Scenario: Show vars obscures secrets but shows non-secrets.
-    set publicUsername to "testuser"
-    set dbPassword to "db-secret-pass"
-    show vars
-    pause for 1s
-    see ""publicUsername": "testuser""
-    see ""dbPassword": "${OBSCURED_VALUE}""
-    not see ""dbPassword": "db-secret-pass""
-
-    Scenario: Mixed explicit and auto-detected secrets in show vars.
-    set configApiToken as secret string to "token-xyz"
+    Scenario: Composed variables inherit secret status from environment.
     set normalConfig to "visible-config"
-    set adminPassword to "admin-secret"
+    compose adminPassword with {normalConfig}-{SNAKE_CASE_PASSWORD}
     show vars
     pause for 1s
     see ""normalConfig": "visible-config""
-    see ""configApiToken": "${OBSCURED_VALUE}""
     see ""adminPassword": "${OBSCURED_VALUE}""
-    not see ""configApiToken": "token-xyz""
-    not see ""adminPassword": "admin-secret""
-
-    Scenario: Password variations are detected as secret.
-    set PASSWORD_DB to "all-caps-pass"
-    set MyPassword123 to "camel-case-pass"
-    set user_password_hash to "snake-case-pass"
-    show vars
-    pause for 1s
-    see ""PASSWORD_DB": "${OBSCURED_VALUE}""
-    see ""MyPassword123": "${OBSCURED_VALUE}""
-    see ""user_password_hash": "${OBSCURED_VALUE}""
-    not see ""PASSWORD_DB": "all-caps-pass""
-    not see ""MyPassword123": "camel-case-pass""
-    not see ""user_password_hash": "snake-case-pass""
-`,
+    `
   ]
 }

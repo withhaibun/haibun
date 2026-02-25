@@ -1,20 +1,17 @@
 import { type TKirejiExport } from '@haibun/core/kireji/withAction.js';
 import { OBSCURED_VALUE } from '@haibun/core/lib/feature-variables.js';
-
-import {SECRETS} from './self-test.feature.ts';
+import { SECRETS } from './self-test.feature.ts';
 
 export const features: TKirejiExport = {
   'Verify No Secrets in Monitor Output': [
     `Scenario: Check monitor output for obscured passwords
-    Read the file into a variable for text checking.
-    // read file "/tmp/monitor.html" into monitor source
+		This must be run separately from the main self-test to avoid having secrets in the monitor output.
+    storage entry "/tmp/monitor.html" exists
+    file "/tmp/monitor.html" is recent within 2 minutes
 
-    Make sure raw passwords don't appear.
-    not matches monitor source with *${SECRETS.SNAKE_CASE}*
-    not matches monitor source with *${SECRETS.ALL_CAPS}*
-    not matches monitor source with *${SECRETS.USER_PASSWORD}*
-
-    Make sure obscuration occured.
-    // variable monitor source includes "${OBSCURED_VALUE}"`,
+    Make sure obscuration occured for both environment and composed variables.
+    text at "/tmp/monitor.html" contains "${OBSCURED_VALUE}"
+    not text at "/tmp/monitor.html" contains "${SECRETS.FRAGMENT}_"
+    `,
   ]
 };
