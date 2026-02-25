@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
   "properties": {
-    "env": {
+    "place": {
       "type": "string",
       "enum": [
         "local",
@@ -40,12 +40,12 @@
     }
   },
   "required": [
-    "env",
+    "place",
     "dirFilters"
   ],
   "deny": [
     {
-      "env": "prod",
+      "place": "prod",
       "access": "w"
     }
   ]

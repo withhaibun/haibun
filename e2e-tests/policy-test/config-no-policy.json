@@ -1,4 +1,5 @@
 {
+  "$schema": "schemas/app-params.json",
   "steppers": [
     "variables-stepper"
   ]

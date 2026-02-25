@@ -1,5 +1,5 @@
 {
-  "mode": "all",
+  "$schema": "../../modules/core/haibun-core-specl.schema.json",
   "steppers": [
     "@haibun/web-playwright/build/web-playwright",
     "@haibun/out-junit/build/out-junit",

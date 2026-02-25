@@ -65,6 +65,7 @@ use this command to see available options:
 * [Developing Haibun](docs/develop_haibun.md)
 * [Debugging steppers](docs/stepping.md)
 * [Use in Github Actions](docs/e2e-tests.yml)
+* [Run Policy and Permissions](docs/run-policy.md)
 * [Using MCP](modules/mcp/README.md)
 
 # Development & Debugging help

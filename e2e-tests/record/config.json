@@ -1,4 +1,5 @@
 {
+  "$schema": "../../modules/core/haibun-core-specl.schema.json",
   "steppers": [
     "@haibun/web-playwright",
     "@haibun/storage-fs/build/storage-fs",
