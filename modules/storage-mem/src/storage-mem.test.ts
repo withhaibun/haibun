@@ -5,7 +5,6 @@ vitest.useFakeTimers();
 import { Timer, CAPTURE, DEFAULT_DEST, OK, Origin, TStepArgs } from '@haibun/core/schema/protocol.js';
 import { getDefaultWorld, getTestWorldWithOptions } from '@haibun/core/lib/test/lib.js';
 import { TFeatureStep } from '@haibun/core/lib/defs.js';
-import { DOMAIN_STRING } from '@haibun/core/lib/domain-types.js';
 import StorageMem from './storage-mem.js';
 import { EMediaTypes } from '@haibun/domain-storage/media-types.js';
 import { TAnyFixme } from '@haibun/core/lib/fixme.js';
@@ -101,11 +100,10 @@ describe('mem getCaptureLocation', () => {
 		storageMem.mkdirp(`/${CAPTURE}/wtw`);
 		storageMem.writeFileBuffer(`/${CAPTURE}/wtw/test.txt`, Buffer.from('test'));
 		const files = await storageMem.readdirStat(`/${CAPTURE}`);
-		[
-			{ name: `/${CAPTURE}/wtw`, isDirectory: true, isFile: false, isSymbolicLink: false },
-			{ name: `/${CAPTURE}/wtw/test.txt`, isDirectory: false, isFile: true, isSymbolicLink: false },
-		];
-		expect(files).toEqual(files);
+		expect(files).toHaveLength(1);
+		expect(files[0].name).toEqual(`/${CAPTURE}/wtw`);
+		expect(files[0].isDirectory).toBe(true);
+		expect(files[0].isFile).toBe(false);
 	});
 });
 
@@ -121,7 +119,7 @@ describe('AStorage steppers', () => {
 			action: { stepperName: 'StorageMem', actionName: 'readFileInto' }
 		} as TFeatureStep;
 		const res = await storageMem.steps.readFileInto?.action({ where: '/test.txt', what: 'testVar' }, featureStep);
-		expect(res).toBe(OK);
+		expect(res).toEqual(OK);
 		expect(world.shared.resolveVariable({ term: 'testVar', origin: Origin.var }).value).toEqual('hello world');
 	});
 
@@ -134,7 +132,7 @@ describe('AStorage steppers', () => {
 
 		// Should pass for 1 minute
 		let res = await storageMem.steps.fileIsRecent?.action({ where: '/recent.txt', minutes: '1' } as TStepArgs);
-		expect(res).toBe(OK);
+		expect(res).toEqual(OK);
 
 		// Advance time by 5 minutes
 		const now = Date.now();
@@ -146,7 +144,7 @@ describe('AStorage steppers', () => {
 
 		// Should pass for 10 minutes
 		res = await storageMem.steps.fileIsRecent?.action({ where: '/recent.txt', minutes: '10' } as TStepArgs);
-		expect(res).toBe(OK);
+		expect(res).toEqual(OK);
 	});
 
 	it('testContains and testNotContains verify file content', async () => {
@@ -157,13 +155,13 @@ describe('AStorage steppers', () => {
 		storageMem.volume.writeFileSync('/test.txt', 'hello world');
 
 		let res = await storageMem.steps.testContains?.action({ where: '/test.txt', what: 'hello' } as TStepArgs);
-		expect(res).toBe(OK);
+		expect(res).toEqual(OK);
 
 		res = await storageMem.steps.testContains?.action({ where: '/test.txt', what: 'missing' } as TStepArgs);
 		expect(res.ok).toBe(false);
 
 		res = await storageMem.steps.testNotContains?.action({ where: '/test.txt', what: 'missing' } as TStepArgs);
-		expect(res).toBe(OK);
+		expect(res).toEqual(OK);
 
 		res = await storageMem.steps.testNotContains?.action({ where: '/test.txt', what: 'hello' } as TStepArgs);
 		expect(res.ok).toBe(false);
