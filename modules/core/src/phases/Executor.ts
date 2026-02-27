@@ -297,8 +297,7 @@ export class FeatureExecutor {
 		let actionResult: TActionResult;
 		if (isFullCycles) {
 			if (action.actionName !== FEATURE_START && action.actionName !== SCENARIO_START) {
-				const secretValues = Object.values(world.shared.getSecrets());
-				world.eventLogger.stepStart(featureStep, action.stepperName, action.actionName, args, featureStep.action.stepValuesMap, secretValues);
+				world.eventLogger.stepStart(featureStep, action.stepperName, action.actionName, args, featureStep.action.stepValuesMap);
 			}
 			let doAction = true;
 			while (doAction) {
@@ -307,8 +306,7 @@ export class FeatureExecutor {
 
 				if (action.actionName !== FEATURE_START && action.actionName !== SCENARIO_START) {
 					const errorMessage = !actionResult.ok ? (actionResult as TNotOKActionResult).message : undefined;
-					const secretValues = Object.values(world.shared.getSecrets());
-					world.eventLogger.stepEnd(featureStep, action.stepperName, action.actionName, actionResult.ok, errorMessage, args, featureStep.action.stepValuesMap, actionResult.topics, secretValues);
+					world.eventLogger.stepEnd(featureStep, action.stepperName, action.actionName, actionResult.ok, errorMessage, args, featureStep.action.stepValuesMap, actionResult.topics);
 				}
 
 				world.runtime.stepResults.push(stepResultFromActionResult(actionResult, action, start, Timer.since(), featureStep, ok && actionResult.ok));
