@@ -16,8 +16,8 @@ export interface IEventLogger {
   debug(message: string, attributes?: Record<string, unknown>): void;
   warn(message: string, attributes?: Record<string, unknown>): void;
   error(message: string, attributes?: Record<string, unknown>): void;
-  stepStart(featureStep: TFeatureStep, stepperName: string, actionName: string, stepArgs: Record<string, unknown>, stepValuesMap: Record<string, unknown> | undefined, secretValues: string[]): void;
-  stepEnd(featureStep: TFeatureStep, stepperName: string, actionName: string, ok: boolean, error: string | Error | undefined, stepArgs: Record<string, unknown>, stepValuesMap: Record<string, unknown> | undefined, topics: Record<string, unknown> | undefined, secretValues: string[]): void;
+  stepStart(featureStep: TFeatureStep, stepperName: string, actionName: string, stepArgs: Record<string, unknown>, stepValuesMap: Record<string, unknown> | undefined): void;
+  stepEnd(featureStep: TFeatureStep, stepperName: string, actionName: string, ok: boolean, error: string | Error | undefined, stepArgs: Record<string, unknown>, stepValuesMap: Record<string, unknown> | undefined, topics: Record<string, unknown> | undefined): void;
   artifact(featureStep: TFeatureStep, artifact: TArtifactEvent): void;
 }
 
@@ -119,9 +119,9 @@ export class EventLogger implements IEventLogger {
   }
 
 
-  stepStart(featureStep: TFeatureStep, stepperName: string, actionName: string, stepArgs: Record<string, unknown>, stepValuesMap: Record<string, unknown> | undefined, secretValues: string[]): void {
-    const safeStepValuesMap = stepValuesMap ? sanitizeObjectSecrets(stepValuesMap, this.isSecretFn, secretValues) : undefined;
-    const safeStepArgs = sanitizeObjectSecrets(stepArgs, () => false, secretValues);
+  stepStart(featureStep: TFeatureStep, stepperName: string, actionName: string, stepArgs: Record<string, unknown>, stepValuesMap: Record<string, unknown> | undefined): void {
+    const safeStepValuesMap = stepValuesMap ? sanitizeObjectSecrets(stepValuesMap, this.isSecretFn) : undefined;
+    const safeStepArgs = sanitizeObjectSecrets(stepArgs, () => false);
     this.emit(LifecycleEvent.parse({
       id: formatCurrentSeqPath(featureStep.seqPath),
       timestamp: Date.now(),
@@ -141,10 +141,10 @@ export class EventLogger implements IEventLogger {
     }));
   }
 
-  stepEnd(featureStep: TFeatureStep, stepperName: string, actionName: string, ok: boolean, error: string | Error | undefined, stepArgs: Record<string, unknown>, stepValuesMap: Record<string, unknown> | undefined, topics: Record<string, unknown> | undefined, secretValues: string[]): void {
+  stepEnd(featureStep: TFeatureStep, stepperName: string, actionName: string, ok: boolean, error: string | Error | undefined, stepArgs: Record<string, unknown>, stepValuesMap: Record<string, unknown> | undefined, topics: Record<string, unknown> | undefined): void {
     const errorMessage = error instanceof Error ? error.message : error;
-    const safeStepValuesMap = stepValuesMap ? sanitizeObjectSecrets(stepValuesMap, this.isSecretFn, secretValues) : undefined;
-    const safeStepArgs = sanitizeObjectSecrets(stepArgs, () => false, secretValues);
+    const safeStepValuesMap = stepValuesMap ? sanitizeObjectSecrets(stepValuesMap, this.isSecretFn) : undefined;
+    const safeStepArgs = sanitizeObjectSecrets(stepArgs, () => false);
     this.emit(LifecycleEvent.parse({
       id: formatCurrentSeqPath(featureStep.seqPath),
       timestamp: Date.now(),

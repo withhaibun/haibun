@@ -5,7 +5,7 @@ import { TAnyFixme } from '../lib/fixme.js';
 import { AStepper, IHasCycles, TStepperSteps } from '../lib/astepper.js';
 import { actionOK, actionNotOK, getStepTerm } from '../lib/util/index.js';
 import { FeatureVariables, OBSCURED_VALUE } from '../lib/feature-variables.js';
-import { sanitizeObjectSecrets, hideValueIfSecret } from '../lib/util/secret-utils.js';
+import { sanitizeObjectSecrets } from '../lib/util/secret-utils.js';
 import { DOMAIN_STATEMENT, DOMAIN_STRING, normalizeDomainKey, createEnumDomainDefinition, registerDomains } from '../lib/domain-types.js';
 
 const clearVars = (vars: VariablesStepper) => () => {
@@ -139,7 +139,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				// Obscure secret environment variables (matching /password/i)
 				const envVars = this.world.options.envVariables || {};
 				const shared = this.getWorld().shared;
-				const safeEnv = sanitizeObjectSecrets(envVars, (key) => shared.isSecret(key), Object.values(shared.getSecrets()));
+				const safeEnv = sanitizeObjectSecrets(envVars, (key) => shared.isSecret(key));
 				this.getWorld().eventLogger.info(`env: ${JSON.stringify(safeEnv, null, 2)}`, { env: safeEnv });
 				return Promise.resolve(OK);
 			}
@@ -151,7 +151,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				const displayVars = Object.fromEntries(
 					Object.entries(shared.all()).map(([key, variable]) => [key, variable.value])
 				);
-				const safeVars = sanitizeObjectSecrets(displayVars, (key) => shared.isSecret(key), Object.values(shared.getSecrets()));
+					const safeVars = sanitizeObjectSecrets(displayVars, (key) => shared.isSecret(key));
 				this.getWorld().eventLogger.info(`vars: ${JSON.stringify(safeVars, null, 2)}`, { vars: safeVars });
 				return actionOK();
 			},
@@ -313,13 +313,12 @@ class VariablesStepper extends AStepper implements IHasCycles {
 
 				const shared = this.getWorld().shared;
 				const stepValue = shared.resolveVariable({ term, origin: Origin.defined }, featureStep);
-				const isSecret = shared.isSecret(term);
-				const maskedValue = hideValueIfSecret(stepValue.value, Object.values(shared.getSecrets()));
+				const isSecret = shared.isSecret(term) || stepValue.secret === true;
 
 				if (stepValue.value === undefined) {
 					this.getWorld().eventLogger.info(`${term} is undefined`);
 				} else {
-					const displayValue = (isSecret || maskedValue === OBSCURED_VALUE) ? { ...stepValue, value: OBSCURED_VALUE } : stepValue;
+					const displayValue = isSecret ? { ...stepValue, value: OBSCURED_VALUE } : stepValue;
 					const provenance = featureStep.action.stepValuesMap.what.provenance?.map((p, i) => ({ [i]: { in: p.in, seq: p.seq.join(','), when: p.when } }));
 					this.getWorld().eventLogger.info(`${term} is ${JSON.stringify({ ...displayValue, provenance }, null, 2)}`, { variable: term, value: displayValue });
 				}

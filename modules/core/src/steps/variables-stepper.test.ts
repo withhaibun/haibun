@@ -35,7 +35,7 @@ describe('vars', () => {
 		expect(res.ok).toBe(true);
 	});
 
-	it('obscures show var when value matches env secret', async () => {
+	it('does not obscure variable by name when only its value contains "secret"', async () => {
 		const content = 'set snake value/path to "ISECRET_snake"\nshow var snake value/path';
 		const envVariables = { SNAKE_CASE_PASSWORD: 'ISECRET_snake' };
 		const res = await passWithDefaults(content, [EventCollectorStepper, ...steppers], { options: { DEST: DEFAULT_DEST, envVariables }, moduleOptions: {} });
@@ -47,8 +47,24 @@ describe('vars', () => {
 			.map((event) => ('message' in event ? event.message : ''))
 			.find((message) => typeof message === 'string' && message.includes('snake value/path is'));
 		expect(logMessage).toBeDefined();
-		expect(logMessage).toContain(OBSCURED_VALUE);
-		expect(logMessage).not.toContain('ISECRET_snake');
+		expect(logMessage).toContain('ISECRET_snake');
+		expect(logMessage).not.toContain(OBSCURED_VALUE);
+	});
+
+	it('does not obscure variable when only its value contains "password"', async () => {
+		const content = 'set login hint to "Enter password"\nshow var login hint';
+		const envVariables = { DATABASE_PASSWORD: 'db-secret-123' };
+		const res = await passWithDefaults(content, [EventCollectorStepper, ...steppers], { options: { DEST: DEFAULT_DEST, envVariables }, moduleOptions: {} });
+		expect(res.ok).toBe(true);
+		const collector = res.steppers?.find((stepper) => stepper instanceof EventCollectorStepper) as EventCollectorStepper | undefined;
+		expect(collector).toBeDefined();
+		const logEvents = collector?.findEvents((event) => event.kind === 'log') ?? [];
+		const logMessage = logEvents
+			.map((event) => ('message' in event ? event.message : ''))
+			.find((message) => typeof message === 'string' && message.includes('login hint is'));
+		expect(logMessage).toBeDefined();
+		expect(logMessage).toContain('Enter password');
+		expect(logMessage).not.toContain(OBSCURED_VALUE);
 	});
 
 	it('does not treat complex names as literals for exists', async () => {
@@ -74,13 +90,31 @@ describe('random vars', () => {
 		expect(res.world.shared.isSecret('dbPassword')).toBe(true);
 	});
 
-	it('copies secret env values without storing obscured values', async () => {
+	it('masks stored variable copied from env secret name unless secure flag is used', async () => {
 		const content = 'set apiPassword to API_PASSWORD\nvariable apiPassword is API_PASSWORD';
 		const envVariables = { API_PASSWORD: 'secret-123' };
 		const res = await passWithDefaults(content, steppers, { options: { DEST: DEFAULT_DEST, envVariables }, moduleOptions: {} });
 		expect(res.ok).toBe(true);
 		expect(res.world.shared.get('apiPassword', true)).toBe('secret-123');
 		expect(res.world.shared.get('apiPassword')).toBe(OBSCURED_VALUE);
+	});
+
+	it('propagates secret flag through compose', async () => {
+		const content = 'set apiPassword to API_PASSWORD\ncompose token with {apiPassword}\nshow var token';
+		const envVariables = { API_PASSWORD: 'secret-123' };
+		const res = await passWithDefaults(content, [EventCollectorStepper, ...steppers], { options: { DEST: DEFAULT_DEST, envVariables }, moduleOptions: {} });
+		expect(res.ok).toBe(true);
+		expect(res.world.shared.get('token', true)).toBe('secret-123');
+		expect(res.world.shared.get('token')).toBe(OBSCURED_VALUE);
+		const collector = res.steppers?.find((stepper) => stepper instanceof EventCollectorStepper) as EventCollectorStepper | undefined;
+		expect(collector).toBeDefined();
+		const logEvents = collector?.findEvents((event) => event.kind === 'log') ?? [];
+		const logMessage = logEvents
+			.map((event) => ('message' in event ? event.message : ''))
+			.find((message) => typeof message === 'string' && message.includes('token is'));
+		expect(logMessage).toBeDefined();
+		expect(logMessage).toContain(OBSCURED_VALUE);
+		expect(logMessage).not.toContain('secret-123');
 	});
 
 	it('assigns random', async () => {

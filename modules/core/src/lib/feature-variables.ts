@@ -154,6 +154,8 @@ export class FeatureVariables {
 		} else if (input.origin === Origin.env) {
 			resolved.value = this.world.options.envVariables[lookupTerm];
 			resolved.domain = DOMAIN_STRING;
+			resolved.origin = Origin.env;
+			resolved.secret = this.isSecret(lookupTerm);
 		} else if (input.origin === Origin.var) {
 			if (storedEntry) {
 				resolved.domain = storedEntry.domain;
@@ -161,6 +163,10 @@ export class FeatureVariables {
 				resolved.provenance = storedEntry.provenance;
 				resolved.readonly = storedEntry.readonly;
 				resolved.secret = storedEntry.secret; // Propagate secret property
+				resolved.origin = Origin.var;
+				if (resolved.secret === undefined) {
+					resolved.secret = this.isSecret(lookupTerm);
+				}
 			}
 		} else if (input.origin === Origin.defined) {
 			if (featureStep?.runtimeArgs?.[lookupTerm] !== undefined) {
@@ -171,12 +177,17 @@ export class FeatureVariables {
 				resolved.value = this.world.options.envVariables[lookupTerm];
 				resolved.domain = DOMAIN_STRING;
 				resolved.origin = Origin.env;
+				resolved.secret = this.isSecret(lookupTerm);
 			} else if (storedEntry) {
 				resolved.value = storedEntry.value;
 				resolved.domain = storedEntry.domain;
 				resolved.provenance = storedEntry.provenance;
 				resolved.readonly = storedEntry.readonly;
 				resolved.origin = Origin.var;
+				resolved.secret = storedEntry.secret;
+				if (resolved.secret === undefined) {
+					resolved.secret = this.isSecret(lookupTerm);
+				}
 			} else if (isLiteralValue(input.term)) {
 				// Fallback: treat unquoted terms that look like literals as string values
 				resolved.value = input.term;
@@ -197,6 +208,10 @@ export class FeatureVariables {
 					resolved.provenance = storedEntry.provenance;
 					resolved.readonly = storedEntry.readonly;
 					resolved.origin = Origin.var;
+					resolved.secret = storedEntry.secret;
+					if (resolved.secret === undefined) {
+						resolved.secret = this.isSecret(lookupTerm);
+					}
 				}
 			} else {
 				resolved.value = input.term.replace(/^"|"$/g, '');
@@ -216,7 +231,10 @@ export class FeatureVariables {
 			resolved.value = domain.coerce({ ...resolved as TStepValue, domain: domainKey }, featureStep, steppers);
 			resolved.domain = domainKey;
 
-			if (!options.secure && this.isSecret(input.term)) {
+			const isSecretValue = resolved.secret === true || this.isSecret(lookupTerm);
+			const fromVariableOrEnv = resolved.origin === Origin.env || resolved.origin === Origin.var;
+
+			if (!options.secure && fromVariableOrEnv && isSecretValue) {
 				resolved.value = OBSCURED_VALUE;
 			}
 		}
@@ -313,10 +331,6 @@ export class FeatureVariables {
 			}
 		}
 		return secrets;
-	}
-
-	getSecretValues(): string[] {
-		return Object.values(this.getSecrets());
 	}
 
 	// =========================================================================

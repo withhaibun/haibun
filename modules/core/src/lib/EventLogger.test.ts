@@ -38,7 +38,7 @@ describe('EventLogger', () => {
         username: { term: 'username', value: 'testuser', domain: 'string', origin: 'var' }
       };
 
-      logger.stepStart(mockFeatureStep, 'VariablesStepper', 'set', {}, stepValuesMap, []);
+      logger.stepStart(mockFeatureStep, 'VariablesStepper', 'set', {}, stepValuesMap);
 
       expect(emitted.length).toBe(1);
       const event = emitted[0] as { stepValuesMap?: Record<string, { value: unknown }> };
@@ -56,7 +56,7 @@ describe('EventLogger', () => {
         count: { term: 'count', value: '42', domain: 'string', origin: 'var' }
       };
 
-      logger.stepEnd(mockFeatureStep, 'VariablesStepper', 'set', true, undefined, {}, stepValuesMap, undefined, []);
+      logger.stepEnd(mockFeatureStep, 'VariablesStepper', 'set', true, undefined, {}, stepValuesMap, undefined);
 
       expect(emitted.length).toBe(1);
       const event = emitted[0] as { stepValuesMap?: Record<string, { value: unknown }> };
@@ -76,7 +76,7 @@ describe('EventLogger', () => {
       logger = new EventLogger(() => false);
       logger.suppressConsole = true;
       logger.setStepperCallback((event) => emitted.push(event));
-      logger.stepStart(mockFeatureStep, 'VariablesStepper', 'set', {}, stepValuesMap, []);
+      logger.stepStart(mockFeatureStep, 'VariablesStepper', 'set', {}, stepValuesMap);
 
       expect(emitted.length).toBe(1);
       const event = emitted[0] as { stepValuesMap?: Record<string, { value: unknown }> };
@@ -87,7 +87,7 @@ describe('EventLogger', () => {
       const emitted: unknown[] = [];
       logger.setStepperCallback((event) => emitted.push(event));
 
-      logger.stepStart(mockFeatureStep, 'VariablesStepper', 'set', {}, undefined, []);
+      logger.stepStart(mockFeatureStep, 'VariablesStepper', 'set', {}, undefined);
 
       expect(emitted.length).toBe(1);
       const event = emitted[0] as { stepValuesMap?: Record<string, unknown> };
@@ -103,7 +103,7 @@ describe('EventLogger', () => {
         username: 'testuser'
       };
 
-      logger.stepStart(mockFeatureStep, 'VariablesStepper', 'set', {}, stepValuesMap, []);
+      logger.stepStart(mockFeatureStep, 'VariablesStepper', 'set', {}, stepValuesMap);
 
       expect(emitted.length).toBe(1);
       const event = emitted[0] as { stepValuesMap?: Record<string, unknown> };
