@@ -92,35 +92,34 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 						}
 
 						// Wait for element in shadow root using the element handle
-						await page.waitForFunction(
-							({ containerEl, innerSel }) => {
-								if (!containerEl?.shadowRoot) return false;
+						await page.waitForFunction(({ containerEl, innerSel }) => {
+							if (!containerEl?.shadowRoot) return false;
 
-								const element = containerEl.shadowRoot.querySelector(innerSel);
-								if (!element) return false;
+							const element = containerEl.shadowRoot.querySelector(innerSel);
+							if (!element) return false;
 
-								// Use getBoundingClientRect to check if element has dimensions
-								const rect = element.getBoundingClientRect();
-								if (rect.width === 0 || rect.height === 0) return false;
+							// Use getBoundingClientRect to check if element has dimensions
+							const rect = element.getBoundingClientRect();
+							if (rect.width === 0 || rect.height === 0) return false;
 
-								// Check computed styles for common hiding methods
-								const computed = window.getComputedStyle(element);
-								if (computed.display === 'none' || computed.visibility === 'hidden' || computed.opacity === '0') return false;
+							// Check computed styles for common hiding methods
+							const computed = window.getComputedStyle(element);
+							if (computed.display === 'none' || computed.visibility === 'hidden' || computed.opacity === '0') return false;
 
-								// Check if element is behind other layers (negative z-index parent)
-								let current = element.parentElement;
-								while (current) {
-									const style = window.getComputedStyle(current);
-									if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return false;
-									const zIndex = parseInt(style.zIndex);
-									if (!isNaN(zIndex) && zIndex < 0) return false;
-									current = current.parentElement;
-								}
+							// Check if element is behind other layers (negative z-index parent)
+							let current = element.parentElement;
+							while (current) {
+								const style = window.getComputedStyle(current);
+								if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return false;
+								const zIndex = parseInt(style.zIndex);
+								if (!isNaN(zIndex) && zIndex < 0) return false;
+								current = current.parentElement;
+							}
 
-								return true;
-							},
+							return true;
+						},
 							{ containerEl: containerHandle, innerSel: target },
-							{ timeout: 30000 }
+						{ timeout: 30000 }
 						);
 						return OK;
 					} catch (e) {
