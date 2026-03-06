@@ -83,14 +83,7 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: "dist/client",
       emptyOutDir: true,
-      minify: 'terser',
-      terserOptions: {
-        compress: {
-          drop_console: true,
-          drop_debugger: true,
-        },
-        mangle: true,
-      },
+      minify: 'esbuild',
       rollupOptions: {
         output: {
           inlineDynamicImports: true,
