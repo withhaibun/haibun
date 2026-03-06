@@ -9,18 +9,22 @@ const [, me, version, ...extra] = process.argv;
 class Versioner {
 	localAndExtraModules: { [name: string]: string } = {};
 	private noTest = false;
-	private noInstall = true;
+	private tag = undefined;
 	noPublish = false;
 
 	haibunPackageVersions: { [dep: string]: string } = {};
 
 	constructor(private version: string) {
 		if (!version) {
-			console.error(`usage: ${me}: <version> <extra modules> [--notest]`);
+			console.error(`usage: ${me}: <version> <extra modules> [--notest] [--tag=<tag>] [--nopublish]`);
 			process.exit(1);
 		}
-		extra.forEach((e, i) => {
-			if (e === '--notest') {
+		for (let i = extra.length - 1; i >= 0; i--) {
+			const e = extra[i];
+			if (e.startsWith('--tag=')) {
+				this.tag = e.split('=')[1];
+				extra.splice(i, 1);
+			} else if (e === '--notest') {
 				this.noTest = true;
 				extra.splice(i, 1);
 			} else if (e === '--noinstall') {
@@ -30,9 +34,9 @@ class Versioner {
 				this.noPublish = true;
 				extra.splice(i, 1);
 			} else if (e.startsWith('-')) {
-				throw Error(`unknown option ${e}; use --notest or --nopublish`);
+				throw Error(`unknown option ${e}; use --tag=<tag>, --notest or --nopublish`);
 			}
-		});
+		}
 	}
 
 	async doVersion() {
@@ -90,10 +94,14 @@ class Versioner {
 	}
 
 	async npmPublish(name: string, module: string) {
+		const publish = ['npm', 'publish'];
+		if (this.tag) {
+			publish.push('--tag', this.tag);
+		}
 		if (this.noPublish) {
 			return;
 		}
-		await spawnCommand(['npm', 'publish'], module).catch((e) => {
+		await spawnCommand(publish, module).catch((e) => {
 			console.error(`npm publish failed for ${name}: ${e}`);
 		});
 	}

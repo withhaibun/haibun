@@ -1,7 +1,8 @@
 import { actionNotOK, actionOK, getStepTerm } from '@haibun/core/lib/util/index.js';
 import WebPlaywright from './web-playwright.js';
-import { OK } from '@haibun/core/schema/protocol.js';
-
+import { OK } from '@haibun/core/lib/defs.js';
+import { EExecutionMessageType, TMessageContext } from '@haibun/core/lib/interfaces/logger.js';
+import { TAnyFixme } from '@haibun/core/lib/fixme.js';
 import { TStepperSteps } from '@haibun/core/lib/astepper.js';
 
 const PAYLOAD_METHODS = ['post', 'put', 'patch'];
@@ -15,7 +16,7 @@ const HTTP = 'HTTP';
 export const base64Encode = ({ username, password }: { username: string; password: string }) =>
 	Buffer.from(`${username}:${password}`).toString('base64');
 
-export const restSteps = (webPlaywright: WebPlaywright) => ({
+export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps => ({
 	setApiUserAgent: {
 		gwta: `API user agent is {agent}`,
 		action: ({ agent }: { agent: string }) => {
@@ -169,6 +170,7 @@ export const restSteps = (webPlaywright: WebPlaywright) => ({
 		},
 	},
 	restEndpointRequestWithPayload: {
+		precludes: ["WebPlaywright.restEndpointRequest"],
 		gwta: `make an ${'HTTP'} {method} to {endpoint} with {payload}`,
 		handlesUndefined: ['method'],
 		action: async ({ endpoint, payload }: { endpoint: string; payload: string }, featureStep) => {

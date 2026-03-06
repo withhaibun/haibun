@@ -117,12 +117,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	expectedDownload: Promise<Download>;
 	headless: boolean;
 	inContainer: Locator;
-	steppers: AStepper[];
-	private videoStartEmitted = false;
-
-	resetVideoStartEmitted() {
-		this.videoStartEmitted = false;
-	}
+	inContainerSelector: string;
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		this.steppers = steppers;
@@ -297,8 +292,8 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 
 	async captureAccessibilitySnapshot() {
 		return await this.withPage(async (page: Page) => {
-			// @ts-ignore - accessibility API deprecated in newer Playwright
-			const snapshot = await page.accessibility.snapshot({
+			// Note: page.accessibility is deprecated in Playwright. Consider migrating to @axe-core/playwright
+			const snapshot = await (page as TAnyFixme).accessibility.snapshot({
 				interestingOnly: false,
 			});
 			return snapshot;

@@ -1,10 +1,9 @@
 import { actionNotOK } from '@haibun/core/lib/util/index.js';
-import { TFeatureStep } from '@haibun/core/lib/defs.js';
+import { OK, Origin, TFeatureStep } from '@haibun/core/lib/defs.js';
 import { DOMAIN_STRING } from '@haibun/core/lib/domain-types.js';
 import WebPlaywright from './web-playwright.js';
 import { TAnyFixme } from '@haibun/core/lib/fixme.js';
 import { TStepperSteps } from '@haibun/core/lib/astepper.js';
-import { OK, Origin } from '@haibun/core/schema/protocol.js';
 
 const getTargetFromResponse = (json: TAnyFixme, index: number): TAnyFixme => {
 	return Array.isArray(json) ? json[index] : json;
@@ -41,12 +40,8 @@ const valueToString = (value: TAnyFixme): string => {
 
 export const jsonExtractSteps = (webPlaywright: WebPlaywright): TStepperSteps => ({
 	extractPropertyFromResponseJson: {
-		gwta: `extract property {property} from {ordinal} item in JSON response into {variable: string}`,
-		handlesUndefined: ['variable'],
-		action: ({ property, ordinal = '1st' }: { property: string; ordinal?: string }, featureStep: TFeatureStep) => {
-			// Get variable name from stepValuesMap (don't resolve it)
-			const variable = featureStep.action.stepValuesMap.variable.term;
-			
+		gwta: `extract property {property} from {ordinal} item in JSON response into {variable}`,
+		action: ({ property, ordinal = '1st', variable }: { property: string; ordinal?: string; variable: string }, featureStep: TFeatureStep) => {
 			const lastResponse = webPlaywright.getLastResponse();
 			
 			if (!lastResponse?.json) {
@@ -60,18 +55,15 @@ export const jsonExtractSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 				return actionNotOK(`Response is empty or invalid.`);
 			}
 			
-			const value = (target as Record<string, TAnyFixme>)[property];
-			
-			if (value === undefined) {
-				return actionNotOK(`Property "${property}" not found in response. Available properties: ${Object.keys(target).join(', ')}`);
-			}
-			
+			const value = target[property];
 			const valueStr = valueToString(value);
 			
 			webPlaywright.getWorld().shared.set(
 				{ term: variable, value: valueStr, domain: DOMAIN_STRING, origin: Origin.var },
 				{ in: featureStep.in, seq: featureStep.seqPath, when: `jsonExtractSteps.extractPropertyFromResponseJson` }
 			);
+			
+			webPlaywright.getWorld().logger.info(`Extracted ${property}='${valueStr}' from ${ordinal} item into variable '${variable}'`);
 			
 			return OK;
 		},
