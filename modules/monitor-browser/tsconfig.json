@@ -1,5 +1,22 @@
 {
   "extends": "../tsconfig.settings.json",
+  "references": [
+    {
+      "path": "../core"
+    },
+    {
+      "path": "../domain-storage"
+    },
+    {
+      "path": "../storage-fs"
+    },
+    {
+      "path": "../web-playwright"
+    },
+    {
+      "path": "../web-server-hono"
+    }
+  ],
   "compilerOptions": {
     "outDir": "./build",
     "rootDir": "./src",

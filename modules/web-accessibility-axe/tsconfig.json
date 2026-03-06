@@ -1,5 +1,19 @@
 {
   "extends": "../tsconfig.settings.json",
+  "references": [
+    {
+      "path": "../core"
+    },
+    {
+      "path": "../domain-storage"
+    },
+    {
+      "path": "../storage-mem"
+    },
+    {
+      "path": "../web-playwright"
+    }
+  ],
   "compilerOptions": {
     "outDir": "build",
     "rootDir": "src",
