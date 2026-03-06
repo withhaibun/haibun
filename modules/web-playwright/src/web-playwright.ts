@@ -118,9 +118,9 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	headless: boolean;
 	inContainer: Locator;
 	inContainerSelector: string;
+	private videoStartEmitted = false;
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
-		this.steppers = steppers;
 		await super.setWorld(world, steppers);
 
 		const args = [...(getStepperOption(this, 'ARGS', world.moduleOptions)?.split(';') || ''),]; //'--disable-gpu'
@@ -250,6 +250,9 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	newTab() {
 		this.tab = this.tab + 1;
 	}
+	resetVideoStartEmitted() {
+		this.videoStartEmitted = false;
+	}
 	async captureFailureScreenshot(event: string, step: TStepResult) {
 		try {
 			return await this.captureScreenshotAndLog(event, { step });
@@ -293,7 +296,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	async captureAccessibilitySnapshot() {
 		return await this.withPage(async (page: Page) => {
 			// Note: page.accessibility is deprecated in Playwright. Consider migrating to @axe-core/playwright
-			const snapshot = await (page as TAnyFixme).accessibility.snapshot({
+			const snapshot = await (page as unknown as { accessibility: { snapshot: (opts: Record<string, unknown>) => Promise<unknown> } }).accessibility.snapshot({
 				interestingOnly: false,
 			});
 			return snapshot;

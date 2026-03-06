@@ -124,7 +124,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 				}
 				
 				// Regular wait (not in shadow DOM)
-				await wp.withPage(async (page: Page) => await locateByDomain(page, featureStep, 'target').waitFor());
+				await wp.withPage(async (page: Page) => await wp.locateByDomain(page, featureStep, 'target').waitFor());
 				return OK;
 			} catch (_e) {
 				return actionNotOK(`Did not find ${target}`);
@@ -246,10 +246,14 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 				const containerLocator = page.locator(container);
 				wp.inContainer = containerLocator;
 				wp.inContainerSelector = container; // Store the selector string for shadow DOM detection
-				const whenResult = await doExecuteFeatureSteps(what, [wp], wp.getWorld(), ExecMode.CYCLES);
+				const flowRunner = new FlowRunner(wp.getWorld(), [wp]);
+				const flowResult = await flowRunner.runSteps(what, { parentStep: featureStep });
 				wp.inContainer = undefined;
 				wp.inContainerSelector = undefined;
-				return whenResult;
+				if (flowResult.kind === 'ok') {
+					return OK;
+				}
+				return actionNotOK(flowResult.message || 'inElement flow failed');
 			});
 		},
 	},
@@ -549,22 +553,6 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 				return await locator.inputValue();
 			});
 			wp.getWorld().shared.set({ term: where, value: text, domain: 'string', origin: Origin.var }, provenanceFromFeatureStep(featureStep));
-			return OK;
-		},
-	},
-	saveTextFrom: {
-		gwta: `save text from {element: ${DOMAIN_PAGE_LOCATOR}} to {where}`,
-		action: async ({ element, where }: { element: string; where: string }, featureStep) => {
-			const text = await wp.withPage<string>(async (page: Page) => {
-				const locator = page.locator(element);
-				// Try textContent first, fall back to inputValue for input elements
-				const content = await locator.textContent();
-				if (content !== null && content.trim() !== '') {
-					return content.trim();
-				}
-				return await locator.inputValue();
-			});
-			wp.getWorld().shared.set({ term: where, value: text, domain: 'string', origin: Origin.fallthrough }, provenanceFromFeatureStep(featureStep));
 			return OK;
 		},
 	},

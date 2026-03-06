@@ -9,7 +9,8 @@ const [, me, version, ...extra] = process.argv;
 class Versioner {
 	localAndExtraModules: { [name: string]: string } = {};
 	private noTest = false;
-	private tag = undefined;
+	private noInstall = false;
+	private tag: string | undefined = undefined;
 	noPublish = false;
 
 	haibunPackageVersions: { [dep: string]: string } = {};

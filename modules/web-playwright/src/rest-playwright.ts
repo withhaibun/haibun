@@ -1,8 +1,6 @@
 import { actionNotOK, actionOK, getStepTerm } from '@haibun/core/lib/util/index.js';
 import WebPlaywright from './web-playwright.js';
-import { OK } from '@haibun/core/lib/defs.js';
-import { EExecutionMessageType, TMessageContext } from '@haibun/core/lib/interfaces/logger.js';
-import { TAnyFixme } from '@haibun/core/lib/fixme.js';
+import { OK } from '@haibun/core/schema/protocol.js';
 import { TStepperSteps } from '@haibun/core/lib/astepper.js';
 
 const PAYLOAD_METHODS = ['post', 'put', 'patch'];
