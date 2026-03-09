@@ -33,4 +33,41 @@ describe('finalizer-stepper', () => {
 		expect(result.ok).toBe(true);
 		expect(result.world.shared.all().baseline?.value).toBe('ok');
 	});
+
+	it('runs finalizers at end of each feature', async () => {
+		const result = await passWithDefaults(
+			[
+				{
+					path: '/features/first.feature',
+					content: 'set marker to "first"\nfinalizer variable marker is "first"',
+				},
+				{
+					path: '/features/second.feature',
+					content: 'set marker to "second"',
+				},
+			],
+			[VariablesStepper, LogicStepper, Haibun, FinalizerStepper],
+			{ options: { DEST: 'default' }, moduleOptions: {} }
+		);
+
+		expect(result.ok).toBe(true);
+		expect(result.world.shared.all().marker?.value).toBe('second');
+	});
+
+	it('cleans registered statements by feature after execution', async () => {
+		const result = await passWithDefaults(
+			[
+				{ path: '/features/first.feature', content: 'set marker to "first"' },
+				{ path: '/features/second.feature', content: 'set marker to "second"\nfinalizer variable marker is "second"' },
+			],
+			[VariablesStepper, LogicStepper, Haibun, FinalizerStepper],
+			{ options: { DEST: 'default' }, moduleOptions: {} }
+		);
+
+		const finalizerStepper = result.steppers.find((stepper) => stepper instanceof FinalizerStepper) as FinalizerStepper | undefined;
+
+		expect(result.ok).toBe(true);
+		expect(finalizerStepper).toBeDefined();
+		expect(finalizerStepper?.registeredStatementsByFeature.size).toBe(0);
+	});
 });

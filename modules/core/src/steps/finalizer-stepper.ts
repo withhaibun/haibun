@@ -9,17 +9,13 @@ export default class FinalizerStepper extends AStepper implements IHasCycles {
 	description = 'Runs registered finalizer statements at end of execution';
 
 	flowRunner: FlowRunner;
-	registeredStatements: string[] = [];
-	cycles: IStepperCycles = {
-		startExecution: () => {
-			this.registeredStatements = [];
-		},
-		endExecution: async () => {
-			if (this.registeredStatements.length === 0) {
-				return;
-			}
+	registeredStatementsByFeature: Map<string, string[]> = new Map();
+	activeFeaturePath?: string;
 
-			for (const [index, statement] of this.registeredStatements.entries()) {
+	private async runFinalizersForFeature(featurePath: string) {
+		const statements = this.registeredStatementsByFeature.get(featurePath);
+		if (statements && statements.length > 0) {
+			for (const [index, statement] of statements.entries()) {
 				const result = await this.flowRunner.runStatement(statement, {
 					seqPath: [998, index + 1],
 					intent: { mode: 'authoritative' },
@@ -30,6 +26,33 @@ export default class FinalizerStepper extends AStepper implements IHasCycles {
 						`finalizer-stepper: statement failed: ${statement} :: ${result.message || 'unknown error'}`
 					);
 				}
+			}
+		}
+
+		this.registeredStatementsByFeature.delete(featurePath);
+	}
+
+	cycles: IStepperCycles = {
+		startExecution: () => {
+			this.registeredStatementsByFeature = new Map();
+			this.activeFeaturePath = undefined;
+		},
+		startFeature: ({ resolvedFeature }) => {
+			this.activeFeaturePath = resolvedFeature.path;
+			if (!this.registeredStatementsByFeature.has(resolvedFeature.path)) {
+				this.registeredStatementsByFeature.set(resolvedFeature.path, []);
+			}
+		},
+		endFeature: async () => {
+			if (!this.activeFeaturePath) {
+				return;
+			}
+			await this.runFinalizersForFeature(this.activeFeaturePath);
+			this.activeFeaturePath = undefined;
+		},
+		endExecution: async () => {
+			for (const featurePath of this.registeredStatementsByFeature.keys()) {
+				await this.runFinalizersForFeature(featurePath);
 			}
 		},
 	};
@@ -47,7 +70,10 @@ export default class FinalizerStepper extends AStepper implements IHasCycles {
 				if (!statement) {
 					return actionNotOK('finalizer statement is required');
 				}
-				this.registeredStatements.push(statement);
+				const featurePath = this.getWorld().runtime.currentFeaturePath || featureStep.source.path;
+				const statements = this.registeredStatementsByFeature.get(featurePath) || [];
+				statements.push(statement);
+				this.registeredStatementsByFeature.set(featurePath, statements);
 				return OK;
 			},
 		},
