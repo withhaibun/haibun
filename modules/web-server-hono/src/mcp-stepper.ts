@@ -139,9 +139,29 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 
       if (toolName.startsWith('access_stepper_')) {
         const targetStepper = toolName.replace('access_stepper_', '');
-        if (this.stepperToolRegistry.has(targetStepper)) {
+        const stepperTools = this.stepperToolRegistry.get(targetStepper);
+        if (stepperTools) {
           await this.updateSessionFocus(sessionId, targetStepper);
-          return { content: [{ type: 'text', text: `Loaded tools for stepper: ${targetStepper}.` }] };
+          const toolList = stepperTools.map(t => `- **${t.name}**: ${t.description}\n  Schema: ${JSON.stringify(t.inputSchema)}`).join('\n');
+          return { content: [{ type: 'text', text: `Tools for ${targetStepper}:\n${toolList}` }] };
+        }
+      }
+
+      if (toolName === 'call_step') {
+        const stepName = args['tool'] as string;
+        const stepArgs = (args['arguments'] as Record<string, unknown>) || {};
+        if (!stepName) {
+          throw new McpError(ErrorCode.InvalidParams, 'Missing required "tool" parameter. Use access_stepper_* to list available tools.');
+        }
+        const toolDef = this.globalToolRegistry.get(stepName);
+        if (!toolDef) {
+          throw new McpError(ErrorCode.MethodNotFound, `Tool "${stepName}" not found. Use access_stepper_* to list available tools.`);
+        }
+        try {
+          return await toolDef.handler(stepArgs);
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          return { isError: true, content: [{ type: 'text', text: msg }] };
         }
       }
 
@@ -260,15 +280,28 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
   }
 
   private buildIndexTools(): Tool[] {
-    return this.steppers.map(stepper => {
+    const tools: Tool[] = this.steppers.map(stepper => {
       const name = constructorName(stepper);
-      const desc = stepper.description || `Load the toolset for stepper: ${name}.`;
+      const desc = stepper.description || `List available tools for stepper: ${name}.`;
       return {
         name: `access_stepper_${name}`,
         description: desc,
         inputSchema: { type: 'object', properties: {} }
       };
     });
+    tools.push({
+      name: 'call_step',
+      description: 'Call a Haibun step tool by name. Use access_stepper_* first to discover available tool names and their schemas.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          tool: { type: 'string', description: 'The tool name (e.g. "WebPlaywright-goToPage")' },
+          arguments: { type: 'object', description: 'Arguments for the tool, matching its input schema' }
+        },
+        required: ['tool']
+      }
+    });
+    return tools;
   }
 
   private populateToolRegistries() {
