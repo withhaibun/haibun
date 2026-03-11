@@ -7,12 +7,14 @@ import { AStepper, type IHasCycles, type IHasOptions } from '@haibun/core/lib/as
 
 import { type IWebServer, WEBSERVER } from './defs.js';
 import { ServerHono, DEFAULT_PORT } from './server-hono.js';
+import { SSETransport, TRANSPORT } from './sse-transport.js';
 
 const cycles = (wss: WebServerStepper): IStepperCycles => ({
   async startFeature() {
     const filesBase = path.join(process.cwd(), 'files');
     wss.webserver = new ServerHono(wss.world.eventLogger, filesBase);
     wss.getWorld().runtime[WEBSERVER] = wss.webserver;
+    wss.getWorld().runtime[TRANSPORT] = new SSETransport(wss.webserver, wss.world.eventLogger);
     await Promise.resolve();
   },
   async endFeature(wtw: TEndFeature) {

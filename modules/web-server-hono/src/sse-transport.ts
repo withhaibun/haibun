@@ -1,12 +1,14 @@
 import { EventEmitter } from 'events';
 import { streamSSE } from 'hono/streaming';
-import type { IWebServer } from '@haibun/web-server-hono/defs.js';
+import type { IWebServer } from './defs.js';
 import type { IEventLogger } from '@haibun/core/lib/EventLogger.js';
 
 export interface ITransport {
   send(data: unknown): void;
   onMessage(handler: (data: unknown) => void): void;
 }
+
+export const TRANSPORT = 'transport';
 
 export class SSETransport implements ITransport {
   private hub = new EventEmitter();
@@ -84,10 +86,5 @@ export class SSETransport implements ITransport {
     for (const handler of this.messageHandlers) {
       handler(data);
     }
-  }
-
-  // Legacy publish alias for compatibility
-  public publish(event: unknown) {
-    this.send(event);
   }
 }

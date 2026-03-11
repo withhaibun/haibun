@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { SSETransport } from './sse-transport.js';
+import { SSETransport } from '@haibun/web-server-hono/sse-transport.js';
 import { ServerHono } from '@haibun/web-server-hono/server-hono.js';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
