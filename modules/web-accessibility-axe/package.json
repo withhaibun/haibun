@@ -31,9 +31,7 @@
   "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5",
   "devDependencies": {
     "@haibun/storage-mem": "*",
-    "@types/jsdom": "^27.0.0",
     "@types/node": "^25.3.0",
-    "jsdom": "^28.1.0",
     "typescript": "^5.9.3",
     "vitest": "^4.0.18"
   }
