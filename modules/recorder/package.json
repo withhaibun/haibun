@@ -13,8 +13,8 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@haibun/core": "3.3.0",
-    "@haibun/web-playwright": "3.3.0"
+    "@haibun/core": "3.9.0",
+    "@haibun/web-playwright": "3.8.4"
   },
   "devDependencies": {
     "@types/node": "^25.3.0",

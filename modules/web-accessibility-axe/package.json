@@ -23,7 +23,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@haibun/core": "3.8.4",
+    "@haibun/core": "3.9.0",
     "@haibun/domain-storage": "3.8.4",
     "axe-html-reporter": "^2.2.11",
     "playwright": "^1.58.2"
