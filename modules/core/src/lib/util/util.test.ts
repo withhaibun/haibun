@@ -1,13 +1,13 @@
 import { describe, it, test, expect } from 'vitest';
 
 import * as util from './index.js';
-import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, getCreateSteppers, TEST_BASE } from '../test/lib.js';
+import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, getCreateSteppers } from '../test/lib.js';
 import TestSteps from '../test/TestSteps.js';
 import TestStepsWithOptions from '../test/TestStepsWithOptions.js';
 import { withNameType } from '../features.js';
-import { OK } from '../defs.js';
+import { OK, TEST_BASE } from '../../schema/protocol.js';
 import { TAnyFixme } from '../fixme.js';
-import { IHasOptions } from '../astepper.js';
+import { IHasOptions, StepperKinds } from '../astepper.js';
 import { AStepper } from '../astepper.js';
 import { constructorName } from './index.js';
 
@@ -66,15 +66,94 @@ describe('findStepperFromOptions', () => {
 		expect(constructorName(<AStepper>s)).toBe('TestSteps');
 	});
 	it('throws for not found stepper', async () => {
-		const ts = (await util.createSteppers([TestOptionsStepper]))[0];
+		const ts = util.createSteppers([TestOptionsStepper])[0];
 		const steppers = await getCreateSteppers([], [TestOptionsStepper]);
 		const options = {};
 		expect(() => util.findStepperFromOption(steppers, ts, options, 'S')).toThrow;
 	});
 });
 
+describe('findStepperFromOptionOrKind', () => {
+	const StorageStepper = class StorageStepper extends AStepper {
+		kind = StepperKinds.STORAGE;
+		steps = {
+			test: {
+				exact: 'storage step',
+				action: async () => await Promise.resolve(OK),
+			},
+		};
+	};
+
+	const AlternativeStorageStepper = class AlternativeStorageStepper extends AStepper {
+		kind = StepperKinds.STORAGE;
+		steps = {
+			test: {
+				exact: 'alt storage step',
+				action: async () => await Promise.resolve(OK),
+			},
+		};
+	};
+
+	const ConsumerStepper = class ConsumerStepper extends AStepper implements IHasOptions {
+		options = {
+			[StepperKinds.STORAGE]: {
+				desc: 'Storage stepper to use',
+				parse: (input: string) => util.stringOrError(input),
+			},
+		};
+		steps = {
+			test: {
+				exact: 'consumer step',
+				action: async () => await Promise.resolve(OK),
+			},
+		};
+	};
+
+	it('finds single stepper by kind when no option specified', async () => {
+		const consumer = new ConsumerStepper();
+		const steppers = await getCreateSteppers([], [StorageStepper, ConsumerStepper]);
+		const moduleOptions = {};
+
+		const found = util.findStepperFromOptionOrKind(steppers, consumer, moduleOptions, StepperKinds.STORAGE);
+
+		expect(found).toBeDefined();
+		expect(constructorName(<AStepper>found)).toBe('StorageStepper');
+	});
+
+	it('finds stepper by option when specified', async () => {
+		const consumer = new ConsumerStepper();
+		const steppers = await getCreateSteppers([], [StorageStepper, AlternativeStorageStepper, ConsumerStepper]);
+		const moduleOptions = {
+			[util.getStepperOptionName(consumer, StepperKinds.STORAGE)]: 'AlternativeStorageStepper'
+		};
+
+		const found = util.findStepperFromOptionOrKind(steppers, consumer, moduleOptions, StepperKinds.STORAGE);
+
+		expect(found).toBeDefined();
+		expect(constructorName(<AStepper>found)).toBe('AlternativeStorageStepper');
+	});
+
+	it('throws when multiple steppers of kind exist and no option specified', async () => {
+		const consumer = new ConsumerStepper();
+		const steppers = await getCreateSteppers([], [StorageStepper, AlternativeStorageStepper, ConsumerStepper]);
+		const moduleOptions = {};
+
+		expect(() => util.findStepperFromOptionOrKind(steppers, consumer, moduleOptions, StepperKinds.STORAGE))
+			.toThrow(/Multiple steppers of kind STORAGE found/);
+	});
+
+	it('throws when no stepper of kind exists', async () => {
+		const consumer = new ConsumerStepper();
+		const steppers = await getCreateSteppers([], [ConsumerStepper]); // No storage stepper
+		const moduleOptions = {};
+
+		expect(() => util.findStepperFromOptionOrKind(steppers, consumer, moduleOptions, StepperKinds.STORAGE))
+			.toThrow(/no stepper of kind STORAGE found/);
+	});
+});
+
 describe('verifyRequiredOptions', () => {
-	class TestOptionsStepperWithReauired extends AStepper implements IHasOptions {
+	class TestOptionsStepperWithRequired extends AStepper implements IHasOptions {
 		options = {
 			A: {
 				required: true,
@@ -94,17 +173,17 @@ describe('verifyRequiredOptions', () => {
 			},
 		};
 	}
-	it('has option', async () => {
-		const toswq = new TestOptionsStepperWithReauired();
+	it('has option', () => {
+		const toswq = new TestOptionsStepperWithRequired();
 		const options = { [util.getStepperOptionName(toswq, 'A')]: 'TestSteps' };
-		await expect(util.verifyRequiredOptions([TestOptionsStepperWithReauired], options)).resolves.not.toThrow();
+		expect(() => util.verifyRequiredOptions([TestOptionsStepperWithRequired], options)).not.toThrow();
 	});
-	it('throws for missing option', async () => {
-		await expect(util.verifyRequiredOptions([TestOptionsStepperWithReauired], {})).rejects.toThrow();
+	it('throws for missing option', () => {
+		expect(() => util.verifyRequiredOptions([TestOptionsStepperWithRequired], {})).toThrow();
 	});
-	it('uses altSource', async () => {
-		const options = { [util.getStepperOptionName(new TestOptionsStepperWithReauired(), 'B')]: 'TestSteps' };
-		await expect(util.verifyRequiredOptions([TestOptionsStepperWithReauired], options)).resolves.not.toThrow();
+	it('uses altSource', () => {
+		const options = { [util.getStepperOptionName(new TestOptionsStepperWithRequired(), 'B')]: 'TestSteps' };
+		expect(() => util.verifyRequiredOptions([TestOptionsStepperWithRequired], options)).not.toThrow();
 	});
 });
 
@@ -113,8 +192,8 @@ describe('getStepperOptions', () => {
 		const conc = util.getStepperOptionValue(HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, 'true', [TestStepsWithOptions]);
 		expect(conc).toBeDefined();
 	});
-	it('throws for unfilled extra', async () => {
-		await expect(async () => util.verifyExtraOptions({ HAIBUN_NE: 'true' }, [])).rejects.toThrow();
+	it('throws for unfilled extra', () => {
+		expect(() => util.verifyExtraOptions({ HAIBUN_NE: 'true' }, [])).toThrow();
 	});
 });
 
@@ -132,8 +211,8 @@ describe('check module is class', () => {
 		expect(util.checkModuleIsClass(class a { }, 'a')).toEqual(undefined);
 	});
 	it('should fail a function', () => {
-		// eslint-disable-next-line @typescript-eslint/no-empty-function
-		expect(() => util.checkModuleIsClass(function a() { }, 'a')).toThrow(undefined);
+		// biome-disable-next-line @typescript-eslint/no-empty-function
+		expect(() => util.checkModuleIsClass(function a() {/* */ }, 'a')).toThrow(undefined);
 	});
 });
 
@@ -151,16 +230,16 @@ describe('asError', () => {
 		expect(util.asError(true)).toEqual(new Error('true'));
 	});
 	it('should pass an object', () => {
-		expect(util.asError({ a: 1 })).toEqual(new Error({ a: 1 } as TAnyFixme));
+		expect(util.asError({ a: 1 }).message).toEqual(String({ a: 1 }));
 	});
 	it('should pass an array', () => {
-		expect(util.asError([1, 2])).toEqual(new Error([1, 2] as TAnyFixme));
+		expect(util.asError([1, 2]).message).toEqual(String([1, 2]));
 	});
 	it('should pass null', () => {
 		expect(util.asError(null)).toEqual(new Error('null'));
 	});
 	it('should pass undefined', () => {
-		expect(util.asError(undefined)).toEqual(new Error());
+		expect(util.asError(undefined)).toEqual(new Error('undefined'));
 	});
 });
 
@@ -243,6 +322,7 @@ describe('stringOrError', () => {
 		expect(util.stringOrError('a')).toEqual({ result: 'a' });
 	});
 	it('returns error', () => {
-		expect(() => util.stringOrError(undefined as unknown as TAnyFixme).parseError).toBeDefined();
+		// biome-ignore lint/suspicious/noExplicitAny: testing invalid input
+		expect(() => util.stringOrError(undefined as any).parseError).toBeDefined();
 	});
 });

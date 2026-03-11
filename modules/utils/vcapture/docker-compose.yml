@@ -5,5 +5,36 @@ services:
       dockerfile: Dockerfile
     working_dir: /app
     ports:
-      - "8080:8080"   # noVNC static files
+      - "8080:8080"   # noVNC web interface
       - "9222:9222"   # Chrome DevTools
+      - "2222:22"     # SSH for VS Code Remote
+      - "5930:5930"   # VNC direct (optional, for native VNC clients)
+    volumes:
+      # Mount your SSH public key for authentication
+      # Override with: SSH_PUBKEY_PATH=~/.ssh/id_ed25519.pub docker compose up
+      - ${SSH_PUBKEY_PATH:-~/.ssh/id_rsa.pub}:/home/node/.ssh/authorized_keys:ro,z
+      # Persist output/recordings
+      - ./output:/app/output
+      # Mount your project directory (Usage: WORKSPACE_MOUNT=~/dev/repo docker compose up)
+      - ${WORKSPACE_MOUNT:-../../..}:/workspace:z
+    environment:
+      - DISPLAY=:99
+      - RES=1920x1080
+      - VNC_PASSWORD=${VNC_PASSWORD:-}  # Optional: set password for VNC access
+    shm_size: 1gb
+    # Health check to ensure services are running
+    healthcheck:
+      test: ["CMD-SHELL", "x11vnc -version && pgrep -x Xvfb > /dev/null"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    # Graceful shutdown
+    stop_grace_period: 30s
+    # Resource limits (optional)
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 1G

@@ -1,7 +1,7 @@
 import { Resolver } from "../../phases/Resolver.js";
 import Haibun from "../../steps/haibun.js";
 import { AStepper } from "../astepper.js";
-import { OK } from "../defs.js";
+import { OK } from '../../schema/protocol.js';
 import { expand } from "../features.js";
 import { TProtoFeature, asFeatures } from "../resolver-features.js";
 import { createSteppers } from "../util/index.js";
@@ -34,9 +34,9 @@ class TestStepper extends AStepper {
 export const getResolvedTestFeatures = async (f: TProtoFeature, b: TProtoFeature, steppersIn = [TestStepper, Haibun]) => {
 	const features = asFeatures(f);
 	const backgrounds = asFeatures(b);
-	const steppers = await createSteppers(steppersIn);
+	const steppers = createSteppers(steppersIn);
 	const expandedFeatures = await expand({ backgrounds, features });
-	const resolver = new Resolver(steppers);
+	const resolver = new Resolver(steppers, backgrounds);
 
 	const resolvedFeatures = await resolver.resolveStepsFromFeatures(expandedFeatures);
 	return resolvedFeatures;

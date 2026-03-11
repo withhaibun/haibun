@@ -1,0 +1,42 @@
+import { describe, it, expect } from 'vitest';
+
+import { convert } from 'xmlbuilder2';
+
+import OutJUnit from './out-junit.js';
+import { failWithDefaults, passWithDefaults } from '@haibun/core/lib/test/lib.js';
+import TestSteps from '@haibun/core/lib/test/TestSteps.js';
+import { TAnyFixme } from '@haibun/core/lib/fixme.js';
+
+describe('AsXML transforms', () => {
+	it('transforms single pass result to junit', async () => {
+		const features = [{ path: '/features/fails.feature', content: `When I have a test\nThen passes` }];
+		const result = await passWithDefaults(features, [TestSteps]);
+
+		expect(result.ok).toBe(true);
+		const asJUnit = new OutJUnit();
+		const res = await asJUnit.featureResultAsJunit(result);
+
+		const obj: TAnyFixme = convert(res, { format: 'object' });
+		expect(obj.testsuites.testsuite.testcase['@name']).toBeDefined();
+		expect(obj.testsuites['@tests']).toBe('1');
+		expect(obj.testsuites.testsuite.testcase.failure).toBeUndefined();
+	});
+	it('transforms multi type result to junit', async () => {
+		const features = [
+			{ path: '/features/passes.feature', content: `When I have a test\nThen passes` },
+			{ path: '/features/fails.feature', content: `When I have a test\nThen fails` },
+		];
+		const result = await failWithDefaults(features, [TestSteps]);
+
+		expect(result.ok).toBe(false);
+		const asJUnit = new OutJUnit();
+		const res = await asJUnit.featureResultAsJunit(result);
+		const obj: TAnyFixme = convert(res, { format: 'object' });
+
+		expect(obj.testsuites.testsuite.testcase.length).toBe(2);
+		expect(obj.testsuites['@tests']).toBe('2');
+		expect(obj.testsuites['@failures']).toBe('1');
+		expect(obj.testsuites.testsuite.testcase[0].failure).toBeUndefined();
+		expect(obj.testsuites.testsuite.testcase[1].failure).toBeDefined();
+	});
+});

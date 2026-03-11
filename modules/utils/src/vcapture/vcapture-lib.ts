@@ -3,7 +3,7 @@ import { resolve } from 'path';
 import { writeFileSync, unlinkSync, readFileSync, mkdirSync, existsSync } from 'fs';
 import { tmpdir } from 'os';
 
-import { getPackageLocation } from '@haibun/core/lib/util/workspace-lib.js';
+import { getPackageLocation, workspaceRoot } from '@haibun/core/lib/util/workspace-lib.js';
 import { HOST_PROJECT_DIR } from '@haibun/core/lib/util/actualURI.js';
 
 export type TCaptureOptions = {
@@ -16,7 +16,7 @@ export type TCaptureOptions = {
 	featureFilter: string | undefined;
 }
 
-export const runContainer = (testToRun, includeDirs = [], thisCaptureOptions: TCaptureOptions) => {
+export const runContainer = (testToRun: string, includeDirs: string[] = [], thisCaptureOptions: TCaptureOptions) => {
 	try {
 		const { tmpFile, composeEnvironment, utilDir, composeVolumes, projectDir, buildContextDir } = getContainerSetup(thisCaptureOptions, includeDirs, testToRun);
 		const captureDir = resolve(projectDir, 'capture');
@@ -26,7 +26,7 @@ export const runContainer = (testToRun, includeDirs = [], thisCaptureOptions: TC
 		}
 		mkdirSync(buildContextDir, { recursive: true });
 		execSync(`cp ${projectDir}/*.json ${buildContextDir}/`);
-		execSync(`cp ${utilDir}/*.sh ${utilDir}/kokoro-speak.cjs ${buildContextDir}/`);
+		execSync(`cp ${utilDir}/*.sh ${buildContextDir}/`);
 		const composeFile = `
 services:
   haibun-recorder:
@@ -65,7 +65,7 @@ ${(asYamlOptions(composeEnvironment))}
 
 export function getContainerSetup(thisRunOptions: TCaptureOptions, includeDirs: string[], testToRun: string) {
 	const utilDir = resolve(getPackageLocation(import.meta), '..', '..', 'vcapture');
-	const projectDir = process.cwd();
+	const projectDir = workspaceRoot;
 	const tmpFile = resolve(tmpdir(), `docker-compose.override-${Date.now()}.yml`);
 
 	const envs = existsSync(`${projectDir}/.env`) ? readFileSync(`${projectDir}/.env`, 'utf8').split('\n').filter(l => l.length > 0) : [];
@@ -90,14 +90,14 @@ export function getContainerSetup(thisRunOptions: TCaptureOptions, includeDirs: 
 	];
 	if (thisRunOptions.tts) {
 		composeEnvironment.push(
-			'HAIBUN_O_HAIBUN_TTS_CMD=/app/speak-to-wav.sh @WHAT@',
-			'HAIBUN_O_HAIBUN_TTS_PLAY=aplay @WHAT@'
+			'HAIBUN_O_NARRATOR_TTS_CMD=/app/speak-to-wav.sh @WHAT@',
+			'HAIBUN_O_NARRATOR_TTS_PLAY=aplay @WHAT@'
 		);
 	}
 	if (thisRunOptions.capture) {
 		composeEnvironment.push(
-			'HAIBUN_O_HAIBUN_CAPTURE_START=/app/capture-start.sh',
-			'HAIBUN_O_HAIBUN_CAPTURE_STOP=/app/capture-stop.sh'
+			'HAIBUN_O_NARRATOR_CAPTURE_START=/app/capture-start.sh',
+			'HAIBUN_O_NARRATOR_CAPTURE_STOP=/app/capture-stop.sh'
 		);
 	}
 

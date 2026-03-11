@@ -1,11 +1,12 @@
 import { describe, it, test, expect } from 'vitest';
 
-import { OK, TResolvedFeature, TStepperStep, TStepArgs, Origin } from './defs.js';
+import { TResolvedFeature, TStepperStep } from './defs.js';
+import { OK, TStepArgs, Origin, TEST_BASE } from '../schema/protocol.js';
 import { AStepper } from './astepper.js';
-import { getNamedMatches, namedInterpolation, /*matchGroups */ } from './namedVars.js';
+import { getNamedMatches, namedInterpolation } from './namedVars.js';
 import { Resolver } from '../phases/Resolver.js';
 import { actionNotOK, createSteppers, } from './util/index.js';
-import { getDefaultWorld, TEST_BASE } from './test/lib.js';
+import { getDefaultWorld } from './test/lib.js';
 import { asExpandedFeatures } from './resolver-features.js';
 import { withNameType } from './features.js';
 import { populateActionArgs } from './populateActionArgs.js';
@@ -50,9 +51,9 @@ describe('getNamedWithVars', () => {
 	}
 	const world = getDefaultWorld(0);
 	test('gets var', async () => {
-		const steppers = await createSteppers([TestStepper]);
+		const steppers = createSteppers([TestStepper]);
 		const resolver = new Resolver(steppers);
-		world.shared.set({ term: 'exact', value: 'res', domain: DOMAIN_STRING, origin: Origin.fallthrough }, { seq: [0], when: 'test' });
+		world.shared.set({ term: 'exact', value: 'res', domain: DOMAIN_STRING, origin: Origin.var }, { seq: [0], when: 'test' });
 		const features = asExpandedFeatures([withNameType(TEST_BASE, 'l1', 'is `exact`')]);
 		const steps = await resolver.resolveStepsFromFeatures(features);
 		const { featureSteps } = steps[0] as TResolvedFeature;
