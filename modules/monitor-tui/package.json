@@ -19,8 +19,7 @@
   "dependencies": {
     "@haibun/core": "*",
     "ink": "^6.8.0",
-    "react": "^19.2.4",
-    "zod": "^4.3.6"
+    "react": "^19.2.4"
   },
   "devDependencies": {
     "@types/react": "^19.2.14",

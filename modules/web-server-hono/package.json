@@ -38,7 +38,6 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@haibun/web-http": "*",
     "@types/node": "^25.3.0",
     "eventsource": "^4.1.0",
     "typescript": "^5.9.3",
