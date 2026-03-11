@@ -1,19 +1,16 @@
 #!/usr/bin/env node
 
 import { existsSync, readFileSync, writeFileSync } from 'fs';
-import prettier from 'prettier';
 import { spawnCommand } from './util/index.js';
 import { createVitest } from 'vitest/node';
 
 const [, me, version, ...extra] = process.argv;
 
-async function format(contents: object) {
-	return await prettier.format(JSON.stringify(contents), { parser: 'json' });
-}
 class Versioner {
 	localAndExtraModules: { [name: string]: string } = {};
 	private noTest = false;
-	private tag = undefined;
+	private noInstall = false;
+	private tag: string | undefined = undefined;
 	noPublish = false;
 
 	haibunPackageVersions: { [dep: string]: string } = {};
@@ -31,6 +28,9 @@ class Versioner {
 			} else if (e === '--notest') {
 				this.noTest = true;
 				extra.splice(i, 1);
+			} else if (e === '--noinstall') {
+				this.noInstall = true;
+				extra.splice(i, 1);
 			} else if (e === '--nopublish') {
 				this.noPublish = true;
 				extra.splice(i, 1);
@@ -43,7 +43,7 @@ class Versioner {
 	async doVersion() {
 		const haibunPackageJson = this.updateHaibunPackageVersions();
 		haibunPackageJson.version = this.version;
-		writeFileSync('./package.json', await format(haibunPackageJson));
+		writeFileSync('./package.json', JSON.stringify(haibunPackageJson, null, 2));
 
 		this.setLocalAndExtraModules();
 
@@ -51,7 +51,6 @@ class Versioner {
 		this.updateSourceCurrentVersion();
 		await this.gitCommit('haibun', '.', ['./modules/core/src/currentVersion.ts']);
 		await this.forLocalAndExtraModules(this.npmInstall);
-		// eslint-disable-next-line @typescript-eslint/no-misused-promises
 		await this.forLocalAndExtraModules(this.runTest);
 		await this.forLocalAndExtraModules(this.gitCommit);
 		await this.forLocalAndExtraModules(this.npmPublish);
@@ -87,7 +86,7 @@ class Versioner {
 
 	setLocalAndExtraModules() {
 		const modules = JSON.parse(readFileSync(`./modules/tsconfig.json`, 'utf-8'))
-			.references.map((f) => `./modules/${f.path}`)
+			.references.map((f: { path: string }) => `./modules/${f.path}`)
 			.concat(extra);
 		for (const module of modules) {
 			const name = module.replace(/\/$/, '').replace(/.*\//, '');
@@ -114,7 +113,7 @@ class Versioner {
 		});
 	}
 
-	async updateModule(name: string, location: string): Promise<void> {
+	updateModule(name: string, location: string): Promise<void> {
 		const pkgFile = `${location}/package.json`;
 		const pkg = JSON.parse(readFileSync(pkgFile, 'utf-8'));
 		if (!pkg.publish && pkg.publish !== undefined) {
@@ -128,13 +127,13 @@ class Versioner {
 		this.updateDependencies(pkg.dependencies);
 		this.updateDependencies(pkg.devDependencies);
 
-		writeFileSync(pkgFile, await format(pkg));
-		return;
+		writeFileSync(pkgFile, JSON.stringify(pkg, null, 2));
+		return Promise.resolve();
 	}
 
 	updateDependencies(dependencies: { [key: string]: string }) {
 		for (const d in dependencies) {
-			if (Object.prototype.hasOwnProperty.call(dependencies, d)) {
+			if (Object.hasOwn(dependencies, d)) {
 				if (d.startsWith('@haibun/')) {
 					dependencies[d] = this.version;
 				}
@@ -145,7 +144,7 @@ class Versioner {
 		}
 	}
 
-	async gitCommit(name: string, location: string, extraPackages = []) {
+	async gitCommit(name: string, location: string, extraPackages: string[] = []) {
 		const packages = [...extraPackages, 'package.json'];
 		await spawnCommand(['git', 'commit', '-m', `'update ${name} to version ${this.version}'`, ...packages], location).catch((e) => {
 			console.error(`git commit failed for ${name}: ${e}`);
@@ -172,6 +171,9 @@ class Versioner {
 	}
 
 	async npmInstall(name: string, location: string) {
+		if (this.noInstall) {
+			return;
+		}
 		await spawnCommand(['npm', 'install'], location).catch((e) => {
 			console.error(`npm install failed for ${name}: ${e}`);
 		});

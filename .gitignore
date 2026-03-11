@@ -4,12 +4,12 @@ lerna-debug.log
 npm-debug.log
 packages/*/lib
 build/
+build-local/
 dist/
 coverage/
 *.tsbuildinfo
 out-tsc/
 .env
 modules/web-playwright/web/
-modules/mcp/runtime/capture/
-
+capture
 

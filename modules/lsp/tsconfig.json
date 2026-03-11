@@ -1,0 +1,18 @@
+{
+  "extends": "../tsconfig.settings.json",
+  "references": [
+    {
+      "path": "../core"
+    },
+    {
+      "path": "../web-server-hono"
+    }
+  ],
+  "compilerOptions": {
+    "outDir": "build",
+    "rootDir": "src"
+  },
+  "include": [
+    "src"
+  ]
+}

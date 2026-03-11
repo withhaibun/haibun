@@ -1,11 +1,16 @@
 {
   "name": "@haibun/storage-mem",
   "type": "module",
-  "version": "2.2.2",
+  "version": "3.8.4",
   "description": "",
   "main": "index.js",
-  "files": ["build/"],
-  "exports": { ".": "./build/storage-mem.js", "./*": "./build/*" },
+  "files": [
+    "build/"
+  ],
+  "exports": {
+    ".": "./build/storage-mem.js",
+    "./*": "./build/*"
+  },
   "scripts": {
     "build": "tsc -b .",
     "build-watch": "tsc -b . --watch",
@@ -19,9 +24,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@haibun/core": "2.2.2",
-    "@haibun/domain-storage": "2.2.2",
-    "memfs": "^4.6.0"
+    "@haibun/core": "3.8.4",
+    "@haibun/domain-storage": "3.8.4",
+    "memfs": "^4.56.10"
   },
   "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5"
 }

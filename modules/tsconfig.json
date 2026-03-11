@@ -1,17 +1,50 @@
 {
     "files": [],
     "references": [
-        { "path": "cli" },
-        { "path": "utils" },
-        { "path": "core" },
-        { "path": "web-server-express" },
-        { "path": "web-http" },
-        { "path": "parse-md" },
-        { "path": "web-playwright" },
-        { "path": "storage-mem" },
-        { "path": "domain-storage" },
-        { "path": "storage-fs" },
-        { "path": "out-xunit" },
-	{ "path": "mcp" }
+        {
+            "path": "cli"
+        },
+        {
+            "path": "utils"
+        },
+        {
+            "path": "core"
+        },
+        {
+            "path": "web-http"
+        },
+        {
+            "path": "web-playwright"
+        },
+        {
+            "path": "web-accessibility-axe"
+        },
+        {
+            "path": "storage-mem"
+        },
+        {
+            "path": "domain-storage"
+        },
+        {
+            "path": "storage-fs"
+        },
+        {
+            "path": "out-junit"
+        },
+        {
+            "path": "monitor-tui"
+        },
+        {
+            "path": "monitor-browser"
+        },
+        {
+            "path": "monitor-otel"
+        },
+        {
+            "path": "web-server-hono"
+        },
+        {
+            "path": "lsp"
+        }
     ]
 }

@@ -1,53 +1,36 @@
-import { resolve } from 'path';
-import { pathToFileURL } from 'url';
+import { resolve, relative } from 'path';
 
-import { CAPTURE, OK, TStepArgs, TWorld } from '@haibun/core/lib/defs.js';
+import { CAPTURE, OK, TStepArgs, Origin } from '@haibun/core/schema/protocol.js';
+import { DOMAIN_STRING } from '@haibun/core/lib/domain-types.js';
 import { captureLocator } from '@haibun/core/lib/capture-locator.js';
-import { actionNotOK } from '@haibun/core/lib/util/index.js';
-import { guessMediaType, IFile, TLocationOptions } from './domain-storage.js';
+import { IFile, TLocationOptions } from './domain-storage.js';
 import { EMediaTypes, TMediaType } from './media-types.js';
-import { AStepper } from '@haibun/core/lib/astepper.js';
+import { AStepper, StepperKinds, } from "@haibun/core/lib/astepper.js";
 import { TAnyFixme } from '@haibun/core/lib/fixme.js';
+import { actionNotOK } from '@haibun/core/lib/util/index.js';
+import { TFeatureStep } from '@haibun/core/lib/defs.js';
 
-export type TTree = Array<IFile | IFileWithEntries>;
-
-interface IFileWithEntries extends IFile {
-	entries: TTree;
+/**
+ * Result from saveArtifact with paths for different consumption contexts.
+ */
+export interface TSavedArtifact {
+	/** Absolute path where file was saved */
+	absolutePath: string;
+	/** Path relative to feature dir for serialized HTML: ./subpath/file.png or ./file.html */
+	featureRelativePath: string;
+	/** Path relative to base capture dir for live server: seq-0/featn-1/subpath/file.png */
+	baseRelativePath: string;
 }
+
 export abstract class AStorage extends AStepper {
+	description = 'Create files, directories, and manage test artifacts';
+
+	kind = StepperKinds.STORAGE;
 	abstract readFile(path: string, coding?: string): TAnyFixme;
-	abstract rm(path: string);
+	abstract rm(path: string): void;
 	abstract readdir(dir: string): Promise<string[]>;
 	abstract lstatToIFile(file: string): Promise<IFile>;
 	abstract writeFileBuffer(file: string, contents: Buffer, mediaType: TMediaType): void;
-
-	async readFlat(dir: string, filter?: string): Promise<IFile[]> {
-		const entries = await this.readdirStat(dir);
-		const tree: IFile[] = [];
-		for (const e of entries) {
-			if (e.isDirectory) {
-				const sub = await this.readFlat(e.name.replace(/^\/\//, '/'), filter);
-				tree.push(...sub);
-			} else if (!filter || e.name.match(filter)) {
-				tree.push(e);
-			}
-		}
-		return tree;
-	}
-
-	async readTree(dir: string, filter?: string): Promise<TTree> {
-		const entries = await this.readdirStat(dir);
-		const tree: TTree = [];
-		for (const e of entries) {
-			if (e.isDirectory) {
-				const sub = await this.readTree(e.name.replace(/^\/\//, '/'), filter);
-				tree.push({ ...e, entries: sub });
-			} else if (!filter || e.name.match(filter)) {
-				tree.push(e);
-			}
-		}
-		return tree;
-	}
 
 	async readdirStat(dir: string): Promise<IFile[]> {
 		const files = await this.readdir(dir);
@@ -66,24 +49,9 @@ export abstract class AStorage extends AStepper {
 		}
 	}
 
-	async latestFrom(dir: string) {
-		const orderReccentFiles = async (dir: string) =>
-			(await this.readdirStat(dir)).filter((f) => f.isFile).sort((a, b) => b.created - a.created);
-		return Promise.resolve(orderReccentFiles(dir)[0]);
-	}
-
-	abstract mkdir(dir: string);
-	abstract mkdirp(dir: string);
-	abstract exists(ntt: string);
-
-	// eslint-disable-next-line @typescript-eslint/require-await
-	async rmrf(dir: string) {
-		throw Error(`rmrf not implemented at ${dir}`);
-	}
-
-	fromCaptureLocation(mediaType: TMediaType, ...where: string[]) {
-		return this.fromLocation(mediaType, ...[`./${CAPTURE}`, ...where]);
-	}
+	abstract mkdir(dir: string): void;
+	abstract mkdirp(dir: string): void;
+	abstract exists(ntt: string): boolean;
 
 	/**
 	 * Returns a storage specific resolved path for a given media type.
@@ -95,32 +63,52 @@ export abstract class AStorage extends AStepper {
 
 	locator = captureLocator;
 
-	async getRelativePath(pathIn: string | undefined) {
-		if (!pathIn) {
-			return undefined;
-		}
-		const mediaType = guessMediaType(pathIn);
-		const loc = resolve(await this.getCaptureLocation({ ...this.world, mediaType }));
-		return pathIn.replace(loc, '.');
-	}
-
+	// biome-ignore lint/suspicious/useAwait: may be async in some implementations
 	async getCaptureLocation(loc: TLocationOptions, app?: string) {
 		const { tag } = loc;
 		const location = this.locator(loc.options, tag, app);
 		return Promise.resolve(location);
 	}
-	async runtimePath(world?: TWorld): Promise<string> {
-		return pathToFileURL(await this.getCaptureLocation({ ...(world || this.world), mediaType: EMediaTypes.html })).pathname;
+
+	/**
+	 * Get base artifact path (capture/DEST/key) without seq/featn.
+	 * Used for HTTP servers that serve artifacts from all features.
+	 */
+	getArtifactBasePath(): string {
+		const { tag, options } = this.world;
+		return `./capture/${options.DEST || 'default'}/${tag.key}`;
+	}
+
+	/**
+	 * Save an artifact and return paths for different consumption contexts.
+	 * Uses this.world for tag/options - caller must ensure storage world is in sync.
+	 * @param filename - The filename to save as
+	 * @param contents - File contents (Buffer or string)
+	 * @param mediaType - Media type for proper handling
+	 * @param subpath - Optional subdirectory (e.g., 'image', 'video')
+	 */
+	async saveArtifact(filename: string, contents: string | Buffer, mediaType: TMediaType, subpath?: string): Promise<TSavedArtifact> {
+		const loc = { ...this.world, mediaType };
+		const dir = await this.ensureCaptureLocation(loc, subpath);
+		const absolutePath = resolve(dir, filename);
+		await this.writeFile(absolutePath, contents, mediaType);
+
+		// Feature-relative path for serialized HTML
+		const featureRelativePath = subpath ? `./${subpath}/${filename}` : `./${filename}`;
+
+		// Base-relative path for live server (includes featn-N)
+		const basePath = this.getArtifactBasePath();
+		const baseRelativePath = relative(resolve(basePath), absolutePath);
+
+		return { absolutePath, featureRelativePath, baseRelativePath };
 	}
 
 	async ensureCaptureLocation(loc: TLocationOptions, app?: string | undefined, fn = '') {
-		if (loc.tag.sequence < 0) {
-			return;
-		}
 		const dir = await this.getCaptureLocation(loc, app);
 		await this.ensureDirExists(dir);
-		return `${dir}/${fn}`;
+		return fn ? `${dir}/${fn}` : dir;
 	}
+	// biome-ignore lint/suspicious/useAwait: may be async in some implementations
 	async ensureDirExists(dir: string) {
 		if (!this.exists(dir)) {
 			try {
@@ -135,92 +123,106 @@ export abstract class AStorage extends AStepper {
 	steps = {
 		createSizedFile: {
 			gwta: `create {x}MB file at {where} with {what}`,
-				action: async ({ where, what }: TStepArgs) => {
+			action: async ({ where, what }: TStepArgs) => {
 				await this.writeFile(String(where), String(what), EMediaTypes.html);
 				return OK;
 			},
 		},
 		createFile: {
 			gwta: `create file at {where} with {what}`,
-				action: async ({ where, what }: TStepArgs) => {
+			action: async ({ where, what }: TStepArgs) => {
 				await this.writeFile(String(where), String(what), EMediaTypes.html);
 				return OK;
 			},
 		},
 		createDirectory: {
 			gwta: `create directory at {where}`,
-				action: async ({ where }: TStepArgs) => {
+			action: async ({ where }: TStepArgs) => {
 				await this.mkdirp(String(where));
 				return OK;
 			},
 		},
 		filesCount: {
 			gwta: `directory {where} has {count} files`,
-				action: async ({ where, count }: TStepArgs) => {
+			action: async ({ where, count }: TStepArgs) => {
 				const files = await this.readdir(String(where));
 				return files.length === parseInt(String(count)) ? OK : actionNotOK(`directory ${where} has ${files.length} files`);
 			},
 		},
 		testIs: {
 			gwta: `text at {where} is {what}`,
-				action: async ({ where, what }: TStepArgs) => {
+			action: async ({ where, what }: TStepArgs) => {
 				const text = await this.readFile(String(where), 'utf-8');
 				return text === String(what) ? OK : actionNotOK(`text at ${where} is not ${what}; it's ${text}`);
 			},
 		},
 		testContains: {
 			gwta: `text at {where} contains {what}`,
-				action: async ({ where, what }: TStepArgs) => {
+			action: async ({ where, what }: TStepArgs) => {
 				const text = await this.readFile(String(where), 'utf-8');
 				return text.toString().indexOf(String(what)) > -1 ? OK : actionNotOK(`text at ${where} does not contain ${what}; it's ${text}`);
 			},
 		},
-		readText: {
-			gwta: `read text from {where}`,
-				action: async ({ where }: TStepArgs) => {
+		testNotContains: {
+			gwta: `text at {where} does not contain {what}`,
+			action: async ({ where, what }: TStepArgs) => {
 				const text = await this.readFile(String(where), 'utf-8');
-				this.getWorld().logger.info(text);
-				return OK;
+				return text.toString().indexOf(String(what)) === -1 ? OK : actionNotOK(`text at ${where} contains ${what}`);
 			},
 		},
 		listFiles: {
 			gwta: `list files from {where}`,
-				action: async ({ where }: TStepArgs) => {
+			action: async ({ where }: TStepArgs) => {
 				const files = await this.readdir(String(where));
-				this.getWorld().logger.info(`files from ${where}: ${files.join(', ')}`);
-				return OK;
-			},
-		},
-		clearFiles: {
-			gwta: `clear files matching {where}`,
-				action: async ({ where }: TStepArgs) => {
-				const dirs = String(where).split(',').map((d) => d.trim());
-				for (const dir of dirs) {
-					await this.rmrf(dir);
-				}
+				this.getWorld().eventLogger.info(`files from ${where}: ${files.join(', ')}`);
 				return OK;
 			},
 		},
 		fileExists: {
 			gwta: `storage entry {what} exists`,
-				action: async ({ what }: TStepArgs) => {
+			action: ({ what }: TStepArgs) => {
 				const exists = this.exists(String(what));
 				return Promise.resolve(exists ? OK : actionNotOK(`file ${what} does not exist`));
 			},
 		},
-		clearAllFiles: {
-			exact: `clear files`,
-			action: async () => {
-				await this.rmrf('');
+		isTheSame: {
+			gwta: `{what} is the same as {where}`,
+			action: ({ what, where }: TStepArgs) => {
+				const c1 = this.readFile(String(what), 'binary');
+				const c2 = this.readFile(String(where), 'binary');
+				return Buffer.from(c1 as string)?.equals(Buffer.from(c2 as string)) ? OK : actionNotOK(`contents are not the same ${what} ${where}`);
+			},
+		},
+		readFileInto: {
+			gwta: `read file {where} into {what}`,
+			action: async ({ where, what }: TStepArgs, featureStep: TFeatureStep) => {
+				const contents = await this.readFile(String(where), 'utf-8');
+				const sv = {
+					term: String(what),
+					value: contents,
+					domain: DOMAIN_STRING,
+					origin: Origin.var,
+				};
+				const provenance = {
+					in: featureStep.in,
+					seq: featureStep.seqPath || [0],
+					when: 'step',
+				};
+				this.getWorld().shared._set(sv, provenance);
 				return OK;
 			},
 		},
-		isTheSame: {
-			gwta: `{what} is the same as {where}`,
-				action: async ({ what, where }: TStepArgs) => {
-				const c1 = this.readFile(String(what), 'binary');
-				const c2 = this.readFile(String(where), 'binary');
-				return Promise.resolve(Buffer.from(c1)?.equals(Buffer.from(c2)) ? OK : actionNotOK(`contents are not the same ${what} ${where}`));
+		fileIsRecent: {
+			gwta: `file {where} is recent within {minutes} minutes`,
+			action: async ({ where, minutes }: TStepArgs) => {
+				const file = await this.lstatToIFile(String(where));
+				const now = Date.now();
+				const diff = now - file.created;
+				const mins = parseInt(String(minutes));
+				if (diff <= mins * 60 * 1000) {
+					return OK;
+				}
+				return actionNotOK(`file ${where} is not recent within ${minutes} minutes (age: ${Math.round(diff / 1000)}s)`);
 			},
 		},
 	};

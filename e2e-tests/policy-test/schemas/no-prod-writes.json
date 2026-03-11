@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "place": {
+      "type": "string",
+      "enum": [
+        "local",
+        "dev",
+        "test",
+        "prod"
+      ]
+    },
+    "dirFilters": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "dir": {
+            "type": "string",
+            "enum": [
+              "smoke",
+              "api"
+            ]
+          },
+          "access": {
+            "type": "string",
+            "enum": [
+              "r",
+              "a",
+              "w"
+            ]
+          }
+        },
+        "required": [
+          "dir",
+          "access"
+        ]
+      }
+    }
+  },
+  "required": [
+    "place",
+    "dirFilters"
+  ],
+  "deny": [
+    {
+      "place": "prod",
+      "access": "w"
+    }
+  ]
+}

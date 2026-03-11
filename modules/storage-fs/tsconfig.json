@@ -1,5 +1,13 @@
 {
   "extends": "../tsconfig.settings.json",
+  "references": [
+    {
+      "path": "../core"
+    },
+    {
+      "path": "../domain-storage"
+    }
+  ],
   "compilerOptions": {
     "outDir": "build",
     "rootDir": "src"

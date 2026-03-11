@@ -1,56 +1,23 @@
 import { AStepper } from './astepper.js';
-import { TFeatureStep, TStepArgs, TWorld, Origin } from './defs.js';
-import { asDomainKey, DOMAIN_STRING } from './domain-types.js';
+import { TFeatureStep, TWorld } from './defs.js';
+import { TStepArgs } from '../schema/protocol.js';
 
-// Given a feature step and the current world, populate the action args. This will update the existing stepValuesMap as actionVal
-export async function populateActionArgs(featureStep: TFeatureStep, world: TWorld, steppers: AStepper[]): Promise<TStepArgs> {
+export function populateActionArgs(featureStep: TFeatureStep, world: TWorld, steppers: AStepper[]): TStepArgs {
 	const stepArgs: TStepArgs = {};
-	if (!featureStep.action.stepValuesMap) return stepArgs; // no variables for this step
+	if (!featureStep?.action?.stepValuesMap) return stepArgs;
 
 	for (const [name, actionVal] of Object.entries(featureStep.action.stepValuesMap)) {
-		const storedEntry = world.shared.all()[actionVal.term];
-		if (actionVal.origin === Origin.statement) {
-			actionVal.value = actionVal.term;
-		} else if (actionVal.origin === Origin.env) {
-			actionVal.value = world.options.envVariables[actionVal.term]; // might be undefined
-			actionVal.domain = DOMAIN_STRING;
-		} else if (actionVal.origin === Origin.var) {
-			if (storedEntry) {
-				actionVal.domain = storedEntry.domain;
-				actionVal.value = storedEntry.value;
-				actionVal.provenance = storedEntry.provenance;
+		const resolved = world.shared.resolveVariable(actionVal, featureStep, steppers, { secure: true });
+		// FIXME all steps except set steps should fail if a variable is undefined and it's authoritative
+		if (resolved.value === undefined) {
+			const handlesUndefined = (featureStep.action.step.handlesUndefined);
+			if (handlesUndefined === true || handlesUndefined?.includes(name)) {
+				continue;
 			}
-		} else if (actionVal.origin === Origin.fallthrough) {
-			if (world.options.envVariables[actionVal.term]) {
-				actionVal.value = world.options.envVariables[actionVal.term];
-			} else if (storedEntry) {
-				actionVal.value = storedEntry.value;
-				actionVal.domain = storedEntry.domain;
-				actionVal.provenance = storedEntry.provenance;
-			} else {
-				actionVal.value = actionVal.term;
-				actionVal.domain = DOMAIN_STRING;
-			}
-		} else if (actionVal.origin === Origin.quoted) {
-			actionVal.value = actionVal.term;
-			actionVal.domain = DOMAIN_STRING;
-		} else {
-			throw new Error(`Unsupported origin type: ${actionVal.origin}`);
+			console.error(`undefined ${name} in "${featureStep.in}" for ${featureStep.action.stepperName}.${featureStep.action.actionName}`, name, resolved, featureStep.action.step);
+			throw Error(`undefined ${name} in "${featureStep.in}" for ${featureStep.action.stepperName}.${featureStep.action.actionName}`);
 		}
-		if (actionVal.value === undefined) {
-			continue;
-		}
-
-		const actionDomainKey = asDomainKey(actionVal.domain.split('|').map(d => d.trim()));
-		if (!world.domains[actionDomainKey]) {
-			throw new Error(`No domain coercer found for domain "${actionDomainKey}"`);
-		}
-
-		actionVal.value = await Promise.resolve(world.domains[actionDomainKey].coerce(actionVal, featureStep, steppers));
-
-		// actionVal has been updated, update the actionVal in place for downstream processing
-		stepArgs[name] = actionVal.value;
+		stepArgs[name] = resolved.value;
 	}
-
 	return stepArgs;
 }

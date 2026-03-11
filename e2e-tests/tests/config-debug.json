@@ -1,0 +1,16 @@
+{
+  "$schema": "../../modules/core/haibun-core-specl.schema.json",
+  "steppers": [
+    "@haibun/web-playwright/build/web-playwright",
+    "@haibun/out-junit/build/out-junit",
+    "@haibun/web-server-hono/build/web-server-stepper",
+    "@haibun/storage-fs/build/storage-fs",
+    "@haibun/web-accessibility-axe/build/a11y-axe-stepper",
+    "variables-stepper",
+    "logic-stepper",
+    "debugger-stepper",
+    "activities-stepper",
+    "haibun",
+    "./build-local/test-server"
+  ]
+}

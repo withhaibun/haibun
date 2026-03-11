@@ -1,22 +1,27 @@
 import { Page, Download, Locator } from 'playwright';
-import { resolve } from 'path';
 import { pathToFileURL } from 'url';
 
-import { TWorld, OK, TStepResult, TFeatureStep, Origin } from '@haibun/core/lib/defs.js';
+import { TWorld, TFeatureStep, CycleWhen, TStepAction } from '@haibun/core/lib/defs.js';
+import { OK, TStepResult, Origin } from '@haibun/core/schema/protocol.js';
 import { BrowserFactory, TTaggedBrowserFactoryOptions, TBrowserTypes, BROWSERS } from './BrowserFactory.js';
-import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOption, optionOrError } from '@haibun/core/lib/util/index.js';
+import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOptionOrKind } from '@haibun/core/lib/util/index.js';
 import { AStorage } from '@haibun/domain-storage/AStorage.js';
-import { EExecutionMessageType, TArtifactImage, TMessageContext } from '@haibun/core/lib/interfaces/logger.js';
+import { ImageArtifact, VideoStartArtifact } from '@haibun/core/schema/protocol.js';
 import { EMediaTypes } from '@haibun/domain-storage/media-types.js';
+import { DOMAIN_STRING } from '@haibun/core/lib/domain-types.js';
+import { DOMAIN_PAGE_TEST_ID, DOMAIN_PAGE_LABEL, DOMAIN_PAGE_PLACEHOLDER, DOMAIN_PAGE_ROLE, DOMAIN_PAGE_TITLE, DOMAIN_PAGE_ALT_TEXT } from './domains.js';
 
-import { MonitorHandler } from './monitor/MonitorHandler.js';
-import { TAnyFixme } from '@haibun/core/lib/fixme.js';
-import { AStepper, IHasCycles, IHasOptions } from '@haibun/core/lib/astepper.js';
+
+import { AStepper, IHasCycles, IHasOptions, StepperKinds } from '@haibun/core/lib/astepper.js';
+
+
 import { cycles } from './cycles.js';
 import { interactionSteps } from './interactionSteps.js';
 import { restSteps, TCapturedResponse } from './rest-playwright.js';
 import { jsonExtractSteps } from './jsonExtractSteps.js';
 import { TwinPage } from './twin-page.js';
+
+import { TStepperSteps } from '@haibun/core/lib/astepper.js';
 
 export const WEB_PAGE = 'webpage';
 /**
@@ -29,10 +34,7 @@ export const WEB_PAGE = 'webpage';
 
 
 export const LAST_REST_RESPONSE = 'LAST_REST_RESPONSE';
-export enum EMonitoringTypes {
-	MONITOR_ALL = 'all',
-	MONITOR_EACH = 'each',
-}
+
 
 type TRequestOptions = {
 	headers?: Record<string, string>;
@@ -40,19 +42,35 @@ type TRequestOptions = {
 	userAgent?: string
 };
 
+/** Callback function type for withPage - takes Page or Locator and returns TReturn */
+export type TWithPageCallback<TReturn> = (pageOrLocator: Page | Locator) => TReturn | Promise<TReturn>;
+
 export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
+	async waitForLoaded(page: Page) {
+		const now = Date.now();
+		try {
+			await page.waitForLoadState('domcontentloaded', { timeout: 1900 });
+			await page.waitForTimeout(500);
+			await page.waitForLoadState('networkidle', { timeout: 1900 });
+		} catch (e) {
+			this.getWorld().eventLogger.warn(`waitForLoaded had error ${e.message} after ${Date.now() - now}ms, continuing...`);
+			return e
+		}
+	}
+	description = 'Navigate pages, click elements, fill forms, capture screenshots, and make REST API calls';
+
 	cycles = cycles(this);
-	static STORAGE = 'STORAGE';
+	cyclesWhen = {
+		startExecution: CycleWhen.FIRST - 1,
+		startFeature: CycleWhen.FIRST - 1,
+	};
 	static PERSISTENT_DIRECTORY = 'PERSISTENT_DIRECTORY';
 	options = {
 		TWIN: {
 			desc: `twin page elements based on interactions)`,
 			parse: (input: string) => boolOrError(input),
 		},
-		MONITOR: {
-			desc: `display a monitor with ongoing results (${EMonitoringTypes.MONITOR_ALL} or ${EMonitoringTypes.MONITOR_EACH})`,
-			parse: (input: string) => optionOrError(input, [EMonitoringTypes.MONITOR_ALL, EMonitoringTypes.MONITOR_EACH]),
-		},
+
 		HEADLESS: {
 			desc: 'run browsers without a window (true, false)',
 			parse: (input: string) => boolOrError(input),
@@ -72,16 +90,15 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		CAPTURE_VIDEO: {
 			desc: 'capture video for every agent',
 			parse: (input: string) => boolOrError(input),
-			dependsOn: ['STORAGE'],
+			dependsOn: [StepperKinds.STORAGE],
 		},
 		TIMEOUT: {
 			desc: 'browser timeout for each step',
 			parse: (input: string) => intOrError(input),
 		},
-		[WebPlaywright.STORAGE]: {
+		[StepperKinds.STORAGE]: {
 			desc: 'Storage for output',
 			parse: (input: string) => stringOrError(input),
-			required: true
 		},
 	};
 	hasFactory = false;
@@ -91,29 +108,28 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	tab = 0;
 	downloaded: string[] = [];
 	captureVideo: boolean;
-	closers: Array<() => Promise<void>> = [];
-	monitor: EMonitoringTypes;
+	closers: Array<() => void> = [];
+
 	twin: boolean;
-	static monitorHandler: MonitorHandler;
-	static twinPage: TwinPage;
+	twinPage?: TwinPage;
 	apiUserAgent: string;
 	extraHTTPHeaders: { [name: string]: string; } = {};
 	expectedDownload: Promise<Download>;
 	headless: boolean;
 	inContainer: Locator;
 	inContainerSelector: string;
+	private videoStartEmitted = false;
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
 
 		const args = [...(getStepperOption(this, 'ARGS', world.moduleOptions)?.split(';') || ''),]; //'--disable-gpu'
-		this.storage = findStepperFromOption(steppers, this, world.moduleOptions, WebPlaywright.STORAGE);
-		this.headless = getStepperOption(this, 'HEADLESS', world.moduleOptions) === 'true' || !!process.env.CI;
+		this.storage = findStepperFromOptionOrKind(steppers, this, world.moduleOptions, StepperKinds.STORAGE);
+		this.headless = !!process.env.CI || getStepperOption(this, 'HEADLESS', world.moduleOptions) !== 'false';
 		const devtools = getStepperOption(this, 'DEVTOOLS', world.moduleOptions) === 'true';
 		if (devtools) {
 			args.concat(['--auto-open-devtools-for-tabs', '--devtools-flags=panel-network', '--remote-debugging-port=9223']);
 		}
-		this.monitor = <EMonitoringTypes>getStepperOption(this, 'MONITOR', world.moduleOptions);
 		this.twin = getStepperOption(this, 'TWIN', world.moduleOptions) === 'true';
 		const persistentDirectory = getStepperOption(this, WebPlaywright.PERSISTENT_DIRECTORY, world.moduleOptions);
 		const defaultTimeout = parseInt(getStepperOption(this, 'TIMEOUT', world.moduleOptions)) || 30000;
@@ -158,8 +174,31 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	}
 
 	async getPage() {
-		const { tag } = this.getWorld();
+		const world = this.getWorld();
+		const { tag } = world;
+		const isFirstPage = !this.bf?.hasPage(tag, this.tab);
 		const page = await (await this.getBrowserFactory()).getBrowserContextPage(tag, this.tab);
+
+		// Emit VideoStartArtifact when video capture starts (first page creation)
+		if (this.captureVideo && isFirstPage && !this.videoStartEmitted) {
+			this.videoStartEmitted = true;
+			const videoStartEvent = VideoStartArtifact.parse({
+				id: `feat-${tag.featureNum}.video-start`,
+				timestamp: Date.now(),
+				kind: 'artifact',
+				artifactType: 'video-start',
+				startTime: 0, // Relative offset from this moment
+				level: 'debug',
+			});
+			const featureStep = {
+				seqPath: [tag.featureNum, 0, 0],
+				source: { path: world.runtime.feature || 'feature' },
+				in: 'video recording started',
+				action: {} as TStepAction,
+			};
+			world.eventLogger.artifact(featureStep, videoStartEvent);
+		}
+
 		page.on('popup', async (popup: Page) => {
 			await popup.waitForLoadState();
 			// const title = await popup.title();
@@ -170,11 +209,11 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		return page;
 	}
 
-	async withPage<TReturn>(f: TAnyFixme): Promise<TReturn> {
+	async withPage<TReturn>(f: TWithPageCallback<TReturn>): Promise<TReturn> {
 		const containerPageOrFrame = this.inContainer || await this.getPage();
 
-		if (!this.inContainer && WebPlaywright.twinPage) {
-			await WebPlaywright.twinPage.patchPage(<Page>containerPageOrFrame);
+		if (!this.inContainer && this.twinPage) {
+			await this.twinPage.patchPage(<Page>containerPageOrFrame);
 		}
 
 		const res = await f(containerPageOrFrame);
@@ -190,14 +229,16 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 				return OK;
 			}
 		}
-		const messageContext = { incident: EExecutionMessageType.ON_FAILURE, incidentDetails: { summary: `in ${textContent?.length} characters`, details: textContent } };
-		return actionNotOK(`Did not find text "${text}" in ${selector}`, { messageContext });
+		const topics = { summary: `in ${textContent?.length} characters`, details: textContent };
+		return actionNotOK(`Did not find text "${text}" in ${selector}`, { topics });
 	}
 	async getCookies() {
 		const browserContext = await this.getExistingBrowserContext();
 		return await browserContext?.cookies();
 	}
-	steps = {
+
+	readonly typedSteps = { ...restSteps(this), ...interactionSteps(this) };
+	steps: TStepperSteps = {
 		...restSteps(this),
 		...interactionSteps(this),
 		...jsonExtractSteps(this),
@@ -209,38 +250,53 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	newTab() {
 		this.tab = this.tab + 1;
 	}
-	async captureFailureScreenshot(event: EExecutionMessageType, step: TStepResult) {
+	resetVideoStartEmitted() {
+		this.videoStartEmitted = false;
+	}
+	async captureFailureScreenshot(event: string, step: TStepResult) {
 		try {
 			return await this.captureScreenshotAndLog(event, { step });
 		} catch (e) {
-			this.getWorld().logger.debug(`captureFailureScreenshot error ${e}`);
+			this.getWorld().eventLogger.debug(`captureFailureScreenshot error ${e}`);
 		}
 	}
 
-	async captureScreenshotAndLog(event: EExecutionMessageType, details: { seq?: number; step?: TStepResult }) {
-		const { context, path } = await this.captureScreenshot(event, details,);
-		this.getWorld().logger.log(`${event} screenshot to ${pathToFileURL(path)}`, context);
+	async captureScreenshotAndLog(event: string, details: { seq?: number; step?: TStepResult }) {
+		const { path } = await this.captureScreenshot(event, details,);
+		this.getWorld().eventLogger.debug(`${event} screenshot to ${pathToFileURL(path)}`);
 	}
 
-	async captureScreenshot(event: EExecutionMessageType, details: { seq?: number; step?: TStepResult }) {
-		const loc = await this.getCaptureDir('image');
-		// FIXME shouldn't be fs dependant
-		const path = resolve(this.storage.fromLocation(EMediaTypes.image, loc, `${event}-${Date.now()}.png`));
-		await this.withPage(async (page: Page) => await page.screenshot({ path }));
-		const artifact: TArtifactImage = { artifactType: 'image', path: await this.storage.getRelativePath(path) };
-		const context: TMessageContext = {
-			incident: EExecutionMessageType.ACTION,
-			artifacts: [artifact],
-			tag: this.getWorld().tag,
-			incidentDetails: { ...details, event }
+	async captureScreenshot(event: string, details: { seq?: number; step?: TStepResult }) {
+		const filename = `event-${details.step?.seqPath.join('.')}.png`;
+		// Take screenshot to buffer first, then save 
+		const buffer = await this.withPage(async (page: Page) => await page.screenshot()) as Buffer;
+		const saved = await this.storage.saveArtifact(filename, buffer, EMediaTypes.image, 'image');
+
+		// Emit new-style artifact event with baseRelativePath for live serving
+		const world = this.getWorld();
+		const artifactEvent = ImageArtifact.parse({
+			id: `${details.step.seqPath.join('.')}.artifact.0`,
+			timestamp: Date.now(),
+			kind: 'artifact',
+			artifactType: 'image',
+			path: saved.baseRelativePath,
+			mimetype: 'image/png',
+		});
+		const featureStep = {
+			seqPath: details.step.seqPath,
+			source: { path: details.step.path },
+			in: details.step.in,
+			action: {} as TStepAction,
 		};
-		return { context, path };
+		world.eventLogger.artifact(featureStep, artifactEvent);
+
+		return { path: saved.absolutePath };
 	}
 
 	async captureAccessibilitySnapshot() {
 		return await this.withPage(async (page: Page) => {
 			// Note: page.accessibility is deprecated in Playwright. Consider migrating to @axe-core/playwright
-			const snapshot = await (page as TAnyFixme).accessibility.snapshot({
+			const snapshot = await (page as unknown as { accessibility: { snapshot: (opts: Record<string, unknown>) => Promise<unknown> } }).accessibility.snapshot({
 				interestingOnly: false,
 			});
 			return snapshot;
@@ -288,8 +344,8 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 						statusText: response.statusText,
 						headers: Object.fromEntries(response.headers.entries()),
 						url: response.url,
-						json: await response.json().catch(() => null),
-						text: await response.text().catch(() => null),
+						json: await response.json().catch((): null => null),
+						text: await response.text().catch((): null => null),
 					};
 
 					return capturedResponse;
@@ -315,35 +371,45 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			for (const closer of this.closers) {
 				await closer();
 			}
+			this.closers = [];
 		}
 	}
 	async createTwin() {
-		WebPlaywright.twinPage = new TwinPage(this, this.storage, this.headless);
-		await WebPlaywright.twinPage.initTwin();
+		this.twinPage = new TwinPage(this, this.storage, this.headless);
+		await this.twinPage.initTwin();
 	}
-	async createMonitor() {
-		if (WebPlaywright.monitorHandler && !WebPlaywright.monitorHandler.monitorPage.isClosed()) {
-			this.getWorld().logger.info('Monitor is already running, bringing existing monitor to front');
-			await WebPlaywright.monitorHandler.monitorPage.bringToFront();
-			return OK;
-		}
 
-		this.getWorld().logger.info('Creating new monitor page');
-		WebPlaywright.monitorHandler = new MonitorHandler(this.getWorld(), this.storage, this.headless)
-		await WebPlaywright.monitorHandler.initMonitor();
-		this.getWorld().logger.addSubscriber(WebPlaywright.monitorHandler.subscriber);
-
-		this.closers.push(async () => {
-			this.getWorld().logger.removeSubscriber(WebPlaywright.monitorHandler.subscriber);
-			return Promise.resolve();
-		});
-		return OK;
-	}
 	getLastResponse(): TCapturedResponse {
-		return this.getWorld().shared.getJSON(LAST_REST_RESPONSE) as TCapturedResponse;
+		const resolved = this.getWorld().shared.resolveVariable({ term: LAST_REST_RESPONSE, origin: Origin.var }, undefined, undefined, { secure: true });
+		const val = resolved.value;
+		return (typeof val === 'string' ? JSON.parse(val) : val) as TCapturedResponse;
 	}
 	setLastResponse(serialized: TCapturedResponse, featureStep: TFeatureStep) {
 		this.getWorld().shared.setJSON(LAST_REST_RESPONSE, serialized, Origin.var, featureStep);
+	}
+	locateByDomain(page: Page, featureStep: TFeatureStep, where: string) {
+		const { value, domain } = this.getWorld().shared.resolveVariable(featureStep.action.stepValuesMap[where], featureStep);
+		const strValue = <string>value;
+
+		switch (domain) {
+			case DOMAIN_STRING:
+				return page.getByText(strValue, { exact: true });
+			case DOMAIN_PAGE_TEST_ID:
+				return page.getByTestId(strValue);
+			case DOMAIN_PAGE_LABEL:
+				return page.getByLabel(strValue);
+			case DOMAIN_PAGE_PLACEHOLDER:
+				return page.getByPlaceholder(strValue);
+			case DOMAIN_PAGE_ROLE:
+				return page.getByRole(strValue as Parameters<Page['getByRole']>[0]);
+			case DOMAIN_PAGE_TITLE:
+				return page.getByTitle(strValue);
+			case DOMAIN_PAGE_ALT_TEXT:
+				return page.getByAltText(strValue);
+			default:
+				// Default to CSS/XPath locator
+				return page.locator(strValue);
+		}
 	}
 }
 

@@ -4,12 +4,15 @@
     "module": "NodeNext",
     "moduleResolution": "nodenext",
     "isolatedModules": true,
-    "types": ["node"],
+    "types": [
+      "node"
+    ],
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
     "strict": false,
+    "noImplicitAny": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "experimentalDecorators": true,
@@ -20,8 +23,13 @@
     "declaration": true,
     "declarationMap": true,
     "paths": {
-      "@haibun/*": ["./*"]
+      "@haibun/*": [
+        "./*"
+      ]
     }
   },
-  "exclude": ["**/*.test.ts", "**/build/*"]
+  "exclude": [
+    "**/*.test.ts",
+    "**/build/*"
+  ]
 }

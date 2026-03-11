@@ -1,1 +1,1 @@
-set A to 1
+set A to "1"

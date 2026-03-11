@@ -1,0 +1,15 @@
+{
+  "$schema": "schemas/app-params.json",
+  "steppers": [
+    "variables-stepper",
+    "logic-stepper"
+  ],
+  "runPolicy": "policy-test/schemas/no-prod-writes.json",
+  "appParameters": {
+    "prod": {
+      "BASE_URL": "https://production.com",
+      "TIMEOUT": 5000,
+      "THIS_PLACE": "prod"
+    }
+  }
+}

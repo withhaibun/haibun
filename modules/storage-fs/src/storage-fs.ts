@@ -10,7 +10,7 @@ export default class StorageFS extends AStorage {
 	writeFileBuffer = (fn: string, contents: Buffer) => {
 		fs.writeFileSync(fn, new Uint8Array(contents));
 	}
-	async lstatToIFile(file: string) {
+	lstatToIFile(file: string) {
 		const l = fs.lstatSync(file);
 		const ifile = {
 			name: file,
@@ -21,7 +21,7 @@ export default class StorageFS extends AStorage {
 		}
 		return Promise.resolve(<IFile>ifile);
 	}
-	readdir = async (dir: string) => {
+	readdir = (dir: string) => {
 		try {
 			return Promise.resolve(fs.readdirSync(dir));
 		} catch (e) {

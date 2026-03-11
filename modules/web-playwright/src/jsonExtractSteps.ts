@@ -1,11 +1,12 @@
 import { actionNotOK } from '@haibun/core/lib/util/index.js';
-import { OK, Origin, TFeatureStep } from '@haibun/core/lib/defs.js';
+import { TFeatureStep } from '@haibun/core/lib/defs.js';
+import { OK, Origin } from '@haibun/core/schema/protocol.js';
 import { DOMAIN_STRING } from '@haibun/core/lib/domain-types.js';
 import WebPlaywright from './web-playwright.js';
-import { TAnyFixme } from '@haibun/core/lib/fixme.js';
 import { TStepperSteps } from '@haibun/core/lib/astepper.js';
+import type { TJsonResponse } from './rest-playwright.js';
 
-const getTargetFromResponse = (json: TAnyFixme, index: number): TAnyFixme => {
+const getTargetFromResponse = (json: TJsonResponse, index: number): Record<string, unknown> | undefined => {
 	return Array.isArray(json) ? json[index] : json;
 };
 
@@ -25,7 +26,7 @@ const parseIndex = (indexStr: string): number => {
 	return 0; // Default to first (index 0)
 };
 
-const valueToString = (value: TAnyFixme): string => {
+const valueToString = (value: unknown): string => {
 	if (typeof value === 'string') {
 		return value;
 	}
@@ -41,7 +42,7 @@ const valueToString = (value: TAnyFixme): string => {
 export const jsonExtractSteps = (webPlaywright: WebPlaywright): TStepperSteps => ({
 	extractPropertyFromResponseJson: {
 		gwta: `extract property {property} from {ordinal} item in JSON response into {variable}`,
-		action: ({ property, ordinal = '1st', variable }: { property: string; ordinal?: string; variable: string }, featureStep: TFeatureStep) => {
+			action: ({ property, ordinal = '1st', variable }: { property: string; ordinal?: string; variable: string }, featureStep: TFeatureStep) => {
 			const lastResponse = webPlaywright.getLastResponse();
 			
 			if (!lastResponse?.json) {
@@ -55,7 +56,7 @@ export const jsonExtractSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 				return actionNotOK(`Response is empty or invalid.`);
 			}
 			
-			const value = target[property];
+			const value = (target as Record<string, unknown>)[property];
 			const valueStr = valueToString(value);
 			
 			webPlaywright.getWorld().shared.set(
@@ -63,7 +64,7 @@ export const jsonExtractSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 				{ in: featureStep.in, seq: featureStep.seqPath, when: `jsonExtractSteps.extractPropertyFromResponseJson` }
 			);
 			
-			webPlaywright.getWorld().logger.info(`Extracted ${property}='${valueStr}' from ${ordinal} item into variable '${variable}'`);
+			webPlaywright.getWorld().eventLogger.info(`Extracted ${property}='${valueStr}' from ${ordinal} item into variable '${variable}'`);
 			
 			return OK;
 		},

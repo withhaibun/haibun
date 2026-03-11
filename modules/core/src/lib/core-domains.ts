@@ -1,36 +1,67 @@
+import { z } from 'zod';
 import { AStepper } from "./astepper.js";
-import { TFeatureStep, TStepValue, TStepValueValue, TWorld } from "./defs.js";
-import { DOMAIN_STATEMENT, DOMAIN_STRING, DOMAIN_NUMBER, DOMAIN_JSON } from './domain-types.js';
-import { findFeatureStepsFromStatement } from "./util/featureStep-executor.js";
+import { TDomainDefinition, TFeatureStep, TWorld } from './defs.js';
+import { TStepValue } from '../schema/protocol.js';
+import { DOMAIN_DATE, DOMAIN_JSON, DOMAIN_LINK, DOMAIN_NUMBER, DOMAIN_STATEMENT, DOMAIN_STRING, mapDefinitionsToDomains } from './domain-types.js';
+import { findFeatureStepsFromStatement } from "../phases/Resolver.js";
+
+const numberSchema = z.coerce.number({ error: 'invalid number' })
+	.refine((value) => Number.isFinite(value), 'invalid number');
+const stringSchema = z.coerce.string({ error: 'value is required' });
+const jsonStringSchema = z.string({ error: 'json value is required' });
+const statementSchema = z.string({ error: 'statement label is required' }).min(1, 'statement cannot be empty');
+const dateSchema = z.coerce.date({ error: 'invalid date' });
+
+const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => ([
+	{
+		selectors: [DOMAIN_STRING],
+		schema: stringSchema,
+		description: 'Plain string literal captured from feature text.'
+	},
+	{
+		selectors: [DOMAIN_LINK],
+		schema: stringSchema,
+		description: 'URI string representing a navigable link.'
+	},
+	{
+		selectors: [DOMAIN_NUMBER],
+		schema: numberSchema,
+		description: 'Numeric literal coerced with Number().',
+		comparator: (value, baseline) => (value as number) - (baseline as number),
+	},
+	{
+		selectors: [DOMAIN_DATE],
+		schema: dateSchema,
+		description: 'Date object derived from ISO timestamp, epoch ms, or Date literal.',
+		comparator: (value, baseline) => (value as Date).getTime() - (baseline as Date).getTime(),
+	},
+	{
+		selectors: [DOMAIN_JSON],
+		schema: jsonStringSchema,
+		description: 'JSON string parsed into native JavaScript values.',
+		coerce: (proto: TStepValue) => {
+			const raw = jsonStringSchema.parse(proto.value);
+			try {
+				return JSON.parse(raw);
+			} catch {
+				throw new Error(`invalid json '${raw}'`);
+			}
+		},
+	},
+	{
+		selectors: [DOMAIN_STATEMENT],
+		schema: statementSchema,
+		description: 'Reference to another Haibun statement.',
+		coerce: (proto: TStepValue, featureStep: TFeatureStep, steppers: AStepper[]) => {
+			if (!featureStep || !steppers) {
+				throw new Error('statement domain coercion requires feature context');
+			}
+			const label = statementSchema.parse(proto.value);
+			const seqStart = featureStep.seqPath;
+			return findFeatureStepsFromStatement(label, steppers, world, featureStep.source.path, [...seqStart, 0], -1);
+		}
+	},
+]);
 
 // Core domain registry factory. Returns coercion functions for built-in domains.
-export const getCoreDomains = (world: TWorld) => ({
-	[DOMAIN_STRING]: {
-		coerce: (proto: TStepValue) => String(proto.value),
-	},
-	[DOMAIN_NUMBER]: {
-		coerce: (proto: TStepValue) => {
-			if (typeof proto.value !== 'string' && typeof proto.value !== 'number') throw new Error(`invalid number '${String(proto.value)}'`);
-			const n = Number(proto.value);
-			if (isNaN(n)) throw new Error(`invalid number '${proto.value}'`);
-			return n;
-		}
-	},
-	[DOMAIN_JSON]: {
-		coerce: (proto: TStepValue) => {
-			if (typeof proto.value !== 'string') throw new Error(`invalid json '${String(proto.value)}'`);
-			try {
-				JSON.parse(proto.value);
-				return proto.value;
-			}
-			catch { throw new Error(`invalid json '${proto.value}'`); }
-		}
-	},
-	[DOMAIN_STATEMENT]: {
-		coerce: (proto: TStepValue, featureStep: TFeatureStep, steppers: AStepper[]) => {
-			const lbl = String(proto.value);
-			const seqStart = featureStep.seqPath;
-			return <TStepValueValue>findFeatureStepsFromStatement(lbl, steppers, world, `<${DOMAIN_STATEMENT}.${lbl}>`, [...seqStart, 0], -1);
-		}
-	}
-});
+export const getCoreDomains = (world: TWorld) => mapDefinitionsToDomains(getCoreDomainDefinitions(world));

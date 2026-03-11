@@ -1,0 +1,20 @@
+{
+  "extends": "../tsconfig.settings.json",
+  "references": [
+    {
+      "path": "../core"
+    }
+  ],
+  "compilerOptions": {
+    "outDir": "./build",
+    "rootDir": "./src"
+  },
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "build",
+    "**/*.test.ts"
+  ]
+}

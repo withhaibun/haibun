@@ -1,131 +1,266 @@
-import { OK, TFeatureStep, STEP_DELAY, TStepArgs, TWorld, ExecMode } from '../lib/defs.js';
-import { AStepper } from '../lib/astepper.js';
-import { Resolver } from '../phases/Resolver.js';
-import { actionNotOK, actionOK, formattedSteppers, sleep } from '../lib/util/index.js';
-import { doExecuteFeatureSteps } from '../lib/util/featureStep-executor.js';
-import { expand } from '../lib/features.js';
-import { asFeatures } from '../lib/resolver-features.js';
-import { EExecutionMessageType } from '../lib/interfaces/logger.js';
-import { endExecutonContext } from '../phases/Executor.js';
+import { TFeatureStep, TWorld, IStepperCycles, TFeatures, TResolvedFeature, TStartExecution, TStartFeature, CycleWhen } from '../lib/defs.js';
+import { OK, STEP_DELAY } from '../schema/protocol.js';
+import { AStepper, IHasCycles, TStepperSteps } from '../lib/astepper.js';
+import { actionNotOK, actionOK, constructorName, formattedSteppers, sleep } from '../lib/util/index.js';
+import { findFeatureStepsFromStatement } from '../phases/Resolver.js';
 import { DOMAIN_STATEMENT } from '../lib/domain-types.js';
+import { findFeatures } from '../lib/features.js';
+import { FlowRunner } from '../lib/core/flow-runner.js';
 
-class Haibun extends AStepper {
+class Haibun extends AStepper implements IHasCycles {
+	description = 'Core steps for features, scenarios, backgrounds, and prose';
+
+	afterEverySteps: { [stepperName: string]: TFeatureStep[] } = {};
 	steppers: AStepper[] = [];
-	// eslint-disable-next-line @typescript-eslint/require-await
+	resolvedFeature: TResolvedFeature;
+	private runner: FlowRunner;
+
 	async setWorld(world: TWorld, steppers: AStepper[]) {
-		this.world = world;
+		await super.setWorld(world, steppers);
 		this.steppers = steppers;
+		this.runner = new FlowRunner(world, steppers);
+	}
+	cycles: IStepperCycles = {
+		startFeature({ resolvedFeature, index }: TStartFeature) {
+			this.resolvedFeature = resolvedFeature;
+			this.afterEverySteps = {};
+		},
+		afterStep: async ({ featureStep }: { featureStep: TFeatureStep }) => {
+			if (featureStep.isAfterEveryStep) {
+				return Promise.resolve({ failed: false });
+			}
+			const afterEvery = this.afterEverySteps[featureStep.action.stepperName];
+			let failed = false;
+			if (afterEvery) {
+				const stepsToRun = afterEvery.filter(aeStep => aeStep.action.actionName !== featureStep.action.actionName);
+
+				if (stepsToRun.length > 0) {
+					const mode = featureStep.intent?.mode === 'speculative' ? 'speculative' : 'authoritative';
+					// Mark these steps as afterEvery steps to prevent recursion
+					const markedSteps = stepsToRun.map(s => ({ ...s, isAfterEveryStep: true }));
+					const res = await this.runner.runSteps(markedSteps, { intent: { mode }, parentStep: featureStep });
+					if (res.kind !== 'ok') {
+						failed = true;
+					}
+				}
+			}
+			return Promise.resolve({ failed });
+		}
+	};
+
+	cyclesWhen = {
+		startExecution: CycleWhen.LAST,
+		startFeature: CycleWhen.LAST,
 	}
 
+
 	steps = {
-		prose: {
-			match: /.+[.!?]$/,
-			action: async () => Promise.resolve(OK),
+		until: {
+			gwta: `until {statements:${DOMAIN_STATEMENT}}`,
+			action: async ({ statements }: { statements: TFeatureStep[] }, featureStep: TFeatureStep) => {
+				let signal;
+				const mode = featureStep.intent?.mode === 'speculative' ? 'speculative' : 'authoritative';
+				do {
+					signal = await this.runner.runSteps(statements, { intent: { mode, usage: 'polling' }, parentStep: featureStep });
+					if (signal.fatal) {
+						return actionNotOK('until: aborted due to terminal error');
+					}
+					if (signal.kind !== 'ok') {
+						await sleep(200);
+					}
+				} while (signal.kind !== 'ok');
+				return OK;
+			},
 		},
+
+		backgrounds: {
+			gwta: 'Backgrounds: {names}',
+			resolveFeatureLine: (line: string, _path: string, _stepper: AStepper, backgrounds: TFeatures) => {
+				if (!line.match(/^Backgrounds:\s*/i)) {
+					return false;
+				}
+
+				const names = line.replace(/^Backgrounds:\s*/i, '').trim();
+				const bgNames = names.split(',').map((a) => a.trim());
+
+				for (const bgName of bgNames) {
+					const bg = findFeatures(bgName, backgrounds);
+					if (bg.length !== 1) {
+						throw new Error(`can't find single "${bgName}.feature" from ${backgrounds.map((b) => b.path).join(', ')}`);
+					}
+				}
+				return false;
+			},
+			action: async ({ names }: { names: string }, featureStep: TFeatureStep) => {
+				const world = this.getWorld();
+				// Prepend 'Backgrounds: ' so expandLine correctly recognizes this as a background directive
+				const expanded = findFeatureStepsFromStatement(`Backgrounds: ${names}`, this.steppers, world, featureStep.source.path, featureStep.seqPath, 1);
+				const mode = featureStep.intent?.mode === 'speculative' ? 'speculative' : 'authoritative';
+				const result = await this.runner.runSteps(expanded, { intent: { mode }, parentStep: featureStep });
+				return result.kind === 'ok' ? OK : actionNotOK(`backgrounds failed: ${result.message}`);
+			},
+		},
+		nothing: {
+			exact: '',
+			action: () => OK,
+		},
+		prose: {
+			match: /^([A-Z].*[.!?:;]|[^a-zA-Z].*)$/,
+			fallback: true,
+			action: () => OK,
+		},
+
 		feature: {
 			gwta: 'Feature: {feature}',
-			action: async () => Promise.resolve(OK),
+			handlesUndefined: ['feature'],
+			action: ({ feature }: { feature: string }) => {
+				this.getWorld().runtime.feature = feature;
+				return OK;
+			}
 		},
 		scenario: {
 			gwta: 'Scenario: {scenario}',
-			action: async () => Promise.resolve(OK),
-		},
-		not: {
-			gwta: `not {what:${DOMAIN_STATEMENT}}`,
-			action: async ({ what }: TStepArgs, featureStep: TFeatureStep) => {
+			handlesUndefined: ['scenario'],
+			action: ({ scenario }: { scenario: string }) => {
+				this.getWorld().runtime.scenario = scenario;
+				return OK;
+			}
 
-				const list = <TFeatureStep[]>what;
-				let last;
-				for (let i = 0; i < list.length; i++) {
-					const nested = { ...list[i], seqPath: [...featureStep.seqPath, i + 1] };
-					last = await doExecuteFeatureSteps([nested], this.steppers, this.getWorld(), ExecMode.NO_CYCLES);
-					this.getWorld().runtime.stepResults.push(last);
-					if (!last.ok) break;
-				}
-				if (!last) return actionNotOK('not statement empty');
-				return last.ok ? actionNotOK('not statement was true') : OK;
-			},
-		},
-		if: {
-			gwta: `if {when:${DOMAIN_STATEMENT}}, {what:${DOMAIN_STATEMENT}}`,
-			action: async ({ when, what }: TStepArgs, featureStep: TFeatureStep) => {
-				const whenList = Array.isArray(when) ? when : [];
-				const whenNested = whenList.map((s, i) => ({ ...s, seqPath: [...featureStep.seqPath, i + 1] }));
-				const whenResult = await doExecuteFeatureSteps(whenNested, this.steppers, this.getWorld(), ExecMode.NO_CYCLES);
-				if (!whenResult.ok) return OK;
-				const whatList = Array.isArray(what) ? what : [];
-				const offset = whenNested.length + 1;
-				let accumulatedOK = true;
-				for (let i = 0; i < whatList.length; i++) {
-					const nested = { ...whatList[i], seqPath: [...featureStep.seqPath, offset + i] };
-					const res = await doExecuteFeatureSteps([nested], this.steppers, this.getWorld(), ExecMode.CYCLES);
-					if (!res.ok) { accumulatedOK = false; break; }
-				}
-				return accumulatedOK ? OK : actionNotOK('if body failed');
-			},
 		},
 		startStepDelay: {
 			gwta: 'step delay of {ms:number}ms',
-			action: ({ ms }: TStepArgs) => {
-				this.getWorld().options[STEP_DELAY] = ms as number;
+			action: (({ ms }: { ms: number }) => {
+				this.getWorld().options[STEP_DELAY] = ms;
 				return OK;
-			},
+			}),
 		},
 		endsWith: {
 			gwta: 'ends with {result}',
-			action: ({ result }: TStepArgs) => (String(result).toUpperCase() === 'OK' ? actionOK({ messageContext: endExecutonContext }) : actionNotOK('ends with not ok')),
-			checkAction: ({ result }: TStepArgs) => {
-				if (['OK', 'NOT OK'].includes(((<string>result).toUpperCase()))) return true;
-				throw Error('must be "OK" or "not OK"');
-			}
+			action: (({ result }: { result: string }) => (result.toUpperCase() === 'OK' ? actionOK() : actionNotOK('ends with not ok'))),
 		},
-		showSteps: {
+		showSteppers: {
 			exact: 'show steppers',
 			action: () => {
 				const allSteppers = formattedSteppers(this.steppers);
-				this.world?.logger.info(`Steppers: ${JSON.stringify(allSteppers, null, 2)}`);
-				return actionOK({ messageContext: { incident: EExecutionMessageType.ACTION, incidentDetails: { steppers: allSteppers } } });
+				this.getWorld().eventLogger.info(JSON.stringify(allSteppers, null, 2));
+				return actionOK();
 			},
 		},
-		until: {
-			gwta: 'until {what} is {value}',
-			action: async ({ what, value }: TStepArgs) => { const key = String(what); while (this.getWorld().shared.get(key) !== value) { await sleep(100); } return OK; },
+		showSteps: {
+			gwta: 'show step results',
+			action: () => {
+				const steps = this.getWorld().runtime.stepResults;
+				this.getWorld().eventLogger.info(JSON.stringify(steps));
+				return actionOK();
+			}
+		},
+		showFeatures: {
+			gwta: 'show features',
+			action: () => {
+				return actionOK();
+			}
+		},
+		showBackgrounds: {
+			gwta: 'show backgrounds',
+			action: () => {
+				return actionOK();
+			}
+		},
+		showQuadStore: {
+			exact: 'show quadstore',
+			action: () => {
+				const quads = this.getWorld().shared.allQuads();
+				const output = quads.map(q =>
+					`(${q.subject}, ${q.predicate}, ${JSON.stringify(q.object)}, ${q.namedGraph || 'default'})`
+				).join('\n');
+				this.getWorld().eventLogger.info(`\n=== QuadStore Dump (${quads.length} quads) ===\n${output}\n==========================\n`);
+				return OK;
+			},
+		},
+		showObservations: {
+			gwta: 'show observations',
+			action: () => {
+				const observations = this.getWorld().runtime.observations;
+				if (!observations) {
+					this.getWorld().eventLogger.info(`observations: none`);
+					return actionOK();
+				}
+
+				// Correlate observations with their providers
+				const providers: Record<string, string> = {};
+				for (const stepper of this.steppers) {
+					if ('cycles' in stepper) {
+						const concerns = (stepper as unknown as IHasCycles).cycles.getConcerns?.();
+						if (concerns?.sources) {
+							for (const source of concerns.sources) {
+								providers[source.name] = stepper.constructor.name;
+							}
+						}
+					}
+				}
+
+				const systemProviders: Record<string, string> = {
+					stepUsage: 'Executor'
+				};
+
+				const summary: Record<string, { provider: string, items: unknown }> = {};
+				for (const [name, items] of observations.entries()) {
+					// Handle Maps (like httpRequests/httpHosts) by converting to object/array
+					let displayItems = items;
+					if (items instanceof Map) {
+						displayItems = Object.fromEntries(items);
+					}
+
+					summary[name] = {
+						provider: providers[name] || systemProviders[name] || 'unknown',
+						items: displayItems
+					};
+				}
+
+				this.getWorld().eventLogger.info(JSON.stringify(summary, null, 2));
+				return actionOK();
+			}
+		},
+		showShows: {
+			gwta: 'show shows',
+			action: () => {
+				const shows: string[] = [];
+				for (const stepper of this.steppers) {
+					for (const step of Object.values(stepper.steps)) {
+						if (step.gwta?.startsWith('show ') || step.exact?.startsWith('show ')) {
+							shows.push(step.gwta || step.exact || '');
+						}
+					}
+				}
+				this.getWorld().eventLogger.info(JSON.stringify(shows.sort(), null, 2));
+				return actionOK();
+			}
 		},
 		pauseSeconds: {
 			gwta: 'pause for {ms:number}s',
-			action: async ({ ms }: TStepArgs) => { await sleep((ms as number) * 1000); return OK; },
-		},
-		showDomains: {
-			gwta: 'show domains',
-			action: () => {
-				this.getWorld().logger.info(`Domains: ${JSON.stringify(this.getWorld().domains, null, 2)}`);
-				return OK;
-			}
+			action: (async ({ ms }: { ms: number }) => { await sleep(ms * 1000); return OK; }),
 		},
 		comment: {
 			gwta: ';;{comment}',
+			handlesUndefined: ['comment'],
 			action: () => OK,
 		},
 		afterEveryStepper: {
-			gwta: 'after every {stepperName}, {line}',
-			action: () => OK,
-			applyEffect: async ({ stepperName, line }: TStepArgs, currentFeatureStep: TFeatureStep, steppers: AStepper[]) => {
-				const newSteps: TFeatureStep[] = [currentFeatureStep];
-				if (typeof stepperName === 'string' && currentFeatureStep.action.stepperName === stepperName) {
-					const newFeatureStep = await this.newFeatureFromEffect(String(line), currentFeatureStep.seqPath, steppers);
-					newSteps.push(newFeatureStep);
+			precludes: [`Haibun.prose`],
+			gwta: `after every {stepperName: string}, {statement: ${DOMAIN_STATEMENT}}`,
+			handlesUndefined: ['stepperName'],
+			action: ({ statement }: { stepperName: string; statement: TFeatureStep[] }, featureStep: TFeatureStep) => {
+				const { term: stepperName } = featureStep.action.stepValuesMap.stepperName;
+				const matchedStepper = this.steppers.find(s => constructorName(s) === stepperName);
+				if (!matchedStepper) {
+					return actionNotOK(`Didn't find stepper "${stepperName}" from [${this.steppers.map(s => constructorName(s)).join(', ')}]`);
 				}
-				return newSteps;
+				// Use constructorName for consistent key (handles vitest naming)
+				this.afterEverySteps[constructorName(matchedStepper)] = statement;
+				return OK;
 			},
 		},
-	};
+	} satisfies TStepperSteps;
 
-	async newFeatureFromEffect(content: string, parentSeqPath: number[], steppers: AStepper[]): Promise<TFeatureStep> {
-		const features = asFeatures([{ path: `resolved from ${content}`, content }]);
-		const expandedFeatures = await expand({ backgrounds: [], features });
-		const featureSteps = await new Resolver(steppers).findFeatureSteps(expandedFeatures[0]);
-		return { ...featureSteps[0], seqPath: [...parentSeqPath, 1] };
-	}
 }
-
 export default Haibun;

@@ -1,13 +1,26 @@
-import { TWorld, IStepperCycles, TStepperStep, TOptionValue, TEnvVariables, TExecutorResult } from './defs.js';
+import { TWorld, IStepperCycles, TStepperStep, TOptionValue, TEnvVariables, IStepperWhen } from './defs.js';
 import { TAnyFixme } from './fixme.js';
 import { constructorName } from './util/index.js';
 
+export const StepperKinds = {
+	MONITOR: 'MONITOR',
+	STORAGE: 'STORAGE',
+	BROWSER: 'BROWSER',
+	SERVER: 'SERVER',
+	TEST: 'TEST',
+} as const;
+
+export type TStepperKind = keyof typeof StepperKinds;
+
 export abstract class AStepper {
+	description?: string;
 	world?: TWorld;
-	cycles?: IStepperCycles;
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	async setWorld(world: TWorld, steppers: AStepper[]) {
+	kind?: TStepperKind;
+
+	async setWorld(world: TWorld, _steppers: AStepper[]) {
 		this.world = world;
+		// some steppers like to keep a reference to all steppers
+		void _steppers;
 		await Promise.resolve();
 	}
 	abstract steps: TStepperSteps;
@@ -18,9 +31,16 @@ export abstract class AStepper {
 
 		return this.world;
 	}
-}
-export type TStepperSteps = Record<string, TStepperStep>;
 
+	/**
+	 * Called by Resolver before resolving each feature.
+	 * Steppers can override to clear feature-scoped steps that shouldn't leak between features.
+	 */
+	startFeatureResolution?(_path: string): void;
+}
+export type TStepperSteps = {
+	[key: string]: TStepperStep;
+};
 export interface IHasOptions {
 	options?: {
 		[name: string]: {
@@ -36,10 +56,5 @@ export interface IHasOptions {
 
 export interface IHasCycles {
 	cycles: IStepperCycles;
+	cyclesWhen?: IStepperWhen;
 }
-
-export interface IProcessFeatureResults extends AStepper {
-	processFeatureResult: (executorResult: TExecutorResult) => Promise<void>;
-}
-
-export const isProcessFeatureResults = (s: AStepper): s is IProcessFeatureResults => (<IProcessFeatureResults>s).processFeatureResult !== undefined;

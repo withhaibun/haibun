@@ -9,7 +9,7 @@ const launchOptions = {
 const testWorld = getTestWorldWithOptions();
 describe("types", () => {
 	it("gets type and device", async () => {
-		await BrowserFactory.getBrowserFactory(testWorld, {
+		BrowserFactory.getBrowserFactory(testWorld, {
 			options: {},
 			browserType: BROWSERS.webkit,
 			launchOptions,
