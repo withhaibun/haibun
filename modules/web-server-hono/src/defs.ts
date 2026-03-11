@@ -21,7 +21,7 @@ export interface IWebServer {
   checkAddStaticFolder(relativeFolder: string, mountAt: string, options?: TStaticFolderOptions): void;
   checkAddIndexFolder(relativeFolder: string, mountAt: string): void;
   addKnownStaticFolder(folder: string, mountAt: string, options?: TStaticFolderOptions): void;
-  listen(why: string, port: number): Promise<void>;
+  listen(why: string, port: number, hostname?: string): Promise<void>;
   close(): Promise<void>;
   readonly mounted: TRouteMap;
   addRoute(type: TRouteTypes, path: string, ...handlers: TRequestHandler[]): void;

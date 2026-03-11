@@ -1,6 +1,6 @@
 
 import { IPrompter, TPrompt, TPromptResponse } from '@haibun/core/lib/prompter.js';
-import { ITransport } from './sse-transport.js';
+import type { ITransport } from '@haibun/web-server-hono/sse-transport.js';
 
 export class SSEPrompter implements IPrompter {
   private transport: ITransport;
