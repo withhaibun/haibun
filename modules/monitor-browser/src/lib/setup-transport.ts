@@ -86,15 +86,27 @@ async function setupNew(monitorBrowser: MonitorBrowserStepper, configuredPort: n
   const isDev = !!checkDev?.ok;
 
   if (isDev) {
-    monitorBrowser.getWorld().eventLogger.info(`MonitorBrowser: Dev mode detected; UI is available on port ${clientPort}.`);
-    server.addRoute('get', '/', (c) => c.redirect(`http://127.0.0.1:${clientPort}`));
+    monitorBrowser.getWorld().eventLogger.info(`MonitorBrowser: Dev mode detected; proxying UI from port ${clientPort}`);
+    const devOrigin = `http://127.0.0.1:${clientPort}`;
+    server.app.use('/*', async (c, next) => {
+      await next();
+      if (c.res.status === 404) {
+        const proxied = await fetch(`${devOrigin}${c.req.path}`).catch((): null => null);
+        if (proxied?.ok) {
+          c.res = new Response(proxied.body, {
+            status: proxied.status,
+            headers: proxied.headers,
+          });
+        }
+      }
+    });
   } else {
     // Prod: Serve static files
     const distPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../dist/client');
     if (fs.existsSync(distPath)) {
       server.app.use('/*', serveStatic({ root: distPath }));
     } else {
-      monitorBrowser.getWorld().eventLogger.info(`MonitorBrowser: Serving static assets from ${distPath}`);
+      monitorBrowser.getWorld().eventLogger.info(`MonitorBrowser: no client build at ${distPath}`);
     }
   }
 
