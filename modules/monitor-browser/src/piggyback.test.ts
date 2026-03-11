@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 
 import Haibun from '@haibun/core/steps/haibun.js';
 import { passWithDefaults, DEF_PROTO_OPTIONS } from '@haibun/core/lib/test/lib.js';
-import MonitorBrowserStepper, { LOG_HOST_STARTED, LOG_INGESTED } from './monitor-browser-stepper.js';
+import MonitorBrowserStepper from './monitor-browser-stepper.js';
 import { AStepper, StepperKinds } from '@haibun/core/lib/astepper.js';
 import { RemoteTransport } from './remote-transport.js';
 import { getStepperOptionName } from '@haibun/core/lib/util/index.js';
@@ -19,6 +19,8 @@ const STORAGE_STEPPER_PATH = path.join(ROOT, 'modules/storage-fs/build/storage-f
 const HAIBUN_STEPPER_PATH = path.join(ROOT, 'modules/core/build/steps/haibun.js');
 
 const PORT = 4789;
+const HOST_URL = `http://127.0.0.1:${PORT}`;
+const POLL_INTERVAL_MS = 200;
 
 class MockStorageStepper extends AStepper {
   kind = StepperKinds.STORAGE;
@@ -40,6 +42,16 @@ class MockStorageStepper extends AStepper {
   }
 }
 
+async function waitForHealth(url: string, timeoutMs: number): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const resp = await fetch(url).catch(() => null);
+    if (resp?.ok) return;
+    await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
+  }
+  throw new Error(`Health endpoint ${url} not reachable within ${timeoutMs}ms`);
+}
+
 describe('MonitorBrowserStepper Piggybacking', () => {
   let hostProcess: ChildProcess;
 
@@ -47,10 +59,9 @@ describe('MonitorBrowserStepper Piggybacking', () => {
     const portOption = getStepperOptionName(MonitorBrowserStepper, 'PORT');
     const env = {
       ...process.env,
-      MONITOR_BROWSER_SERVER_PORT: String(PORT),
       [portOption]: String(PORT),
       HAIBUN_LOG_LEVEL: 'info',
-      HAIBUN_STAY: 'always'
+      HAIBUN_STAY: 'always',
     };
 
     const projectPath = path.join(require('os').tmpdir(), 'haibun-piggyback-test');
@@ -71,49 +82,17 @@ describe('MonitorBrowserStepper Piggybacking', () => {
     fs.writeFileSync(featureFile, 'Feature: Host\n\n  Scenario: Wait\n    Waiting for test.');
 
     hostProcess = spawn('node', [CLI_PATH, projectPath], { env, stdio: 'pipe' });
+    hostProcess.on('error', (e) => { throw e; });
 
-    await new Promise<void>((resolve, reject) => {
-      let started = false;
-      let buffer = '';
-
-      hostProcess.stdout?.on('data', (data) => {
-        const chunk = data.toString();
-        buffer += chunk;
-        if (buffer.includes(LOG_HOST_STARTED) || buffer.includes('features passed')) {
-          if (!started) {
-            started = true;
-            resolve();
-          }
-        }
-      });
-      hostProcess.stderr?.on('data', (data) => {
-        console.error('[HOST stderr]:', data.toString());
-      });
-      hostProcess.on('error', reject);
-      hostProcess.on('exit', (code) => {
-        if (!started) reject(new Error(`Host exited with code ${code}\n${buffer}`));
-      });
-      setTimeout(() => {
-        if (!started) reject(new Error(`Host start timeout\n${buffer}`));
-      }, 10000);
-    });
+    await waitForHealth(`${HOST_URL}/api/health`, 10000);
   }, 15000);
 
   afterAll(() => {
     if (hostProcess) hostProcess.kill();
   });
 
-  it('piggybacks on existing monitor and sends events', async () => {
+  it('piggybacks on existing monitor and sends events', { timeout: 15000 }, async () => {
     const portOption = getStepperOptionName(MonitorBrowserStepper, 'PORT');
-
-    let ingested = false;
-    const checkIngest = (data: Buffer) => {
-      const str = data.toString();
-      if (str.includes(LOG_INGESTED)) {
-        ingested = true;
-      }
-    };
-    hostProcess.stderr?.on('data', checkIngest);
 
     const result = await passWithDefaults(
       [{ path: '/f.feature', content: 'Piggy.' }],
@@ -127,10 +106,12 @@ describe('MonitorBrowserStepper Piggybacking', () => {
     expect(result.ok).toBe(true);
     expect(MonitorBrowserStepper.transport).toBeInstanceOf(RemoteTransport);
 
-    // Give it a moment to process the async fetch
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    hostProcess.stderr?.off('data', checkIngest);
+    // Give async fetches a moment to complete
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
-    expect(ingested, 'Host should have ingested events from the piggybacker').toBe(true);
+    // Verify the host received ingested events via its API
+    const countResp = await fetch(`${HOST_URL}/api/ingest-count`);
+    const { count } = await countResp.json() as { count: number };
+    expect(count, 'Host should have ingested events from the piggybacker').toBeGreaterThan(0);
   });
 });
