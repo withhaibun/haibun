@@ -30,7 +30,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@haibun/core": "3.9.0",
+    "@haibun/core": "*",
     "@hono/mcp": "^0.2.3",
     "@hono/node-server": "^1.19.9",
     "@modelcontextprotocol/sdk": "^1.27.0",
@@ -38,7 +38,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@haibun/web-http": "3.8.4",
+    "@haibun/web-http": "*",
     "@types/node": "^25.3.0",
     "eventsource": "^4.1.0",
     "typescript": "^5.9.3",
