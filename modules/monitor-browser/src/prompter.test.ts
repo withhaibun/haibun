@@ -1,7 +1,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { SSEPrompter } from './prompter.js';
-import { ITransport } from './sse-transport.js';
+import type { ITransport } from '@haibun/web-server-hono/sse-transport.js';
 
 describe('SSEPrompter', () => {
   let prompter: SSEPrompter;

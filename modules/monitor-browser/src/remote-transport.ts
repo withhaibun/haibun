@@ -2,7 +2,7 @@
 import { type IEventLogger } from '@haibun/core/lib/EventLogger.js';
 import type { THaibunEvent } from '@haibun/core/schema/protocol.js';
 import { stepTraceStorage } from '@haibun/core/lib/node-http-events.js';
-import type { ITransport } from './sse-transport.js';
+import type { ITransport } from '@haibun/web-server-hono/sse-transport.js';
 
 export class RemoteTransport implements ITransport {
   constructor(private ingestUrl: string, private logger: IEventLogger) { }
