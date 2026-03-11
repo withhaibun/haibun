@@ -23,7 +23,7 @@ export const getPorts = (mode: string = process.env.NODE_ENV || 'development') =
   }
 
   return {
-    clientPort: parseInt(env.MONITOR_BROWSER_CLIENT_PORT || '3458', 10),
-    serverPort: parseInt(env.MONITOR_BROWSER_SERVER_PORT || '3459', 10)
+    clientPort: parseInt(env.HAIBUN_O_MONITOR_CLIENT_PORT || '3465', 10),
+    serverPort: parseInt(env.HAIBUN_O_MONITOR_SERVER_PORT || '3459', 10)
   };
 };

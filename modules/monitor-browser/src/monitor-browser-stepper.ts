@@ -11,12 +11,9 @@ import { SSEPrompter } from './prompter.js';
 import { AStorage } from '@haibun/domain-storage/AStorage.js';
 import { JITSerializer } from '@haibun/core/monitor/index.js';
 import { EMediaTypes } from '@haibun/domain-storage/media-types.js';
-import { ITransport } from './sse-transport.js';
+import type { ITransport } from '@haibun/web-server-hono/sse-transport.js';
 import { setupTransport } from './lib/setup-transport.js';
 
-export const LOG_HOST_STARTED = 'MonitorBrowser: Starting as Host on port';
-export const LOG_CLIENT_PIGGYBACKING = 'MonitorBrowser: Found running monitor on port';
-export const LOG_INGESTED = 'MonitorBrowser: Ingested event from piggybacker';
 export default class MonitorBrowserStepper extends AStepper implements IHasCycles, IHasOptions {
   description = 'Real-time browser dashboard with SSE events and debugging';
   port = 3459;
