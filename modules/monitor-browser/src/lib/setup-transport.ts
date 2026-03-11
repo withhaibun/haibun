@@ -9,7 +9,6 @@ import { RemoteTransport } from '../remote-transport.js';
 import MonitorBrowserStepper, { LOG_CLIENT_PIGGYBACKING, LOG_HOST_STARTED, LOG_INGESTED } from '../monitor-browser-stepper.js';
 import { fileURLToPath } from 'url';
 import { getStepperOption } from '@haibun/core/lib/util/index.js';
-import { SSEPrompter } from '../prompter.js';
 
 export const setupTransport = async (monitorBrowser: MonitorBrowserStepper) => {
   const { clientPort, serverPort } = getPorts(process.env.NODE_ENV);
@@ -115,6 +114,5 @@ async function setupNew(monitorBrowser: MonitorBrowserStepper, configuredPort: n
   monitorBrowser.interface = getStepperOption(monitorBrowser, 'INTERFACE', monitorBrowser.getWorld().moduleOptions);
   await server.listen('monitor-browser SSE', configuredPort, monitorBrowser.interface);
   MonitorBrowserStepper.transport = new SSETransport(server, monitorBrowser.getWorld().eventLogger);
-  monitorBrowser.prompter = new SSEPrompter(MonitorBrowserStepper.transport);
 }
 
