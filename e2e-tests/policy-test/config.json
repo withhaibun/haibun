@@ -1,0 +1,20 @@
+{
+  "$schema": "schemas/app-params.json",
+  "steppers": [
+    "variables-stepper",
+    "logic-stepper"
+  ],
+  "runPolicy": "policy-test/schemas/permissive.json",
+  "appParameters": {
+    "local": {
+      "BASE_URL": "http://localhost:8123",
+      "THIS_PLACE": "local"
+    },
+    "prod": {
+      "BASE_URL": "https://production.com",
+      "MAX_TIMEOUT": 5000,
+      "TIMEOUT": 5000,
+      "THIS_PLACE": "prod"
+    }
+  }
+}

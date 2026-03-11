@@ -8,10 +8,9 @@ const pkg = JSON.parse(fs.readFileSync('./package.json', 'utf-8'));
 const dependencies = Object.keys(pkg.dependencies || {});
 const devDependencies = Object.keys(pkg.devDependencies || {});
 
-const hai = [...dependencies, ...devDependencies]
-  .filter(d => d.startsWith('@haibun'))
-  .join(' ');
-
-console.log(`Linking ${hai}`);
-const res = execSync(`npm link ${hai}`).toString();
+const res = [];
+for (const i of [...dependencies, ...devDependencies]) {
+  console.log(`Linking ${i}`);
+  res.push(execSync(`npm link ${i}`).toString());
+}
 console.log(`>> ${res}`);

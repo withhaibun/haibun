@@ -1,4 +1,5 @@
-import { TStepperStep, TStepAction, TStepValue, TOrigin, Origin } from './defs.js';
+import { TStepperStep, TStepAction } from './defs.js';
+import { TStepValue, TOrigin, Origin } from '../schema/protocol.js';
 import { DOMAIN_STATEMENT, DOMAIN_STRING } from './domain-types.js';
 
 export const TYPE_QUOTED = 'q_';
@@ -17,8 +18,6 @@ export const namedInterpolation = (inp: string): { regexPattern: string; stepVal
 	let be = -1;
 	let bail = 0;
 	let matchIndex = 0;
-
-	const placeholderRegex = '.+';
 
 	while (bs > -1 && bail++ < 400) {
 		regexPattern += inp.substring(last, bs);
@@ -41,6 +40,20 @@ export const namedInterpolation = (inp: string): { regexPattern: string; stepVal
 		}
 
 		stepValuesMap[name] = { term: name, domain, origin };
+
+		// Look ahead to see what comes after this placeholder
+		const nextCharAfterBrace = inp.substring(be + 1, be + 2);
+		const nextChunk = inp.substring(be + 1);
+
+		// Only use negative lookahead for specific separators that won't appear in values
+		let placeholderRegex = '.+';
+
+		if (nextChunk.startsWith(' is ')) {
+			placeholderRegex = '.+?(?= is )';
+		} else if (nextCharAfterBrace === ',' || nextCharAfterBrace === ':') {
+			// Use negative lookahead to prevent matching these separators
+			placeholderRegex = `.+?(?=${nextCharAfterBrace.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`;
+		}
 
 		let matchGroupPattern;
 		if (origin === Origin.env) {
@@ -80,14 +93,15 @@ export const matchGwtaToAction = (gwta: string, actionable: string, actionName: 
 	// anchor the pattern so the whole actionable matches
 	// use case-insensitive matching to be consistent with dePolite handling
 	const r = new RegExp(`^${regexPattern}$`, 'i');
-	return getMatch(actionable, r, actionName, stepperName, step, stepValuesMap);
+	const match = getMatch(actionable, r, actionName, stepperName, step, stepValuesMap);
+	return match;
 };
 
 // no-op
 
-function pairToVar(pair: string): { name: string; domain: string } {
+function pairToVar(pair: string): { name: string; domain?: string } {
 	const [name, domainRaw] = pair.split(':').map((i) => i.trim());
-	const domain = domainRaw || DOMAIN_STRING;
+	const domain = domainRaw;
 	return { name, domain };
 }
 
@@ -130,12 +144,14 @@ export const getMatch = (actionable: string, r: RegExp, actionName: string, step
 					if (envMatch) {
 						ph.term = envMatch[1];
 						ph.origin = Origin.env;
+						ph.origin = Origin.env;
 					} else {
-						ph.origin = Origin.fallthrough;
-						// If the bare literal looks like JSON, treat it as fallthrough.
 						const tTrim = String(t).trim();
-						if (tTrim.startsWith('{') || tTrim.startsWith('[')) {
+						if (tTrim.startsWith('{') || tTrim.startsWith('[') || /^-?\d+(\.\d+)?$/.test(tTrim)) {
 							ph.term = tTrim;
+							ph.origin = Origin.quoted;
+						} else {
+							ph.origin = Origin.defined;
 						}
 					}
 				}
@@ -145,7 +161,7 @@ export const getMatch = (actionable: string, r: RegExp, actionName: string, step
 			i++;
 		}
 	}
-	return { actionName, stepperName, step, stepValuesMap } as TStepAction;
+	return { actionName, stepperName, step, stepValuesMap: stepValuesMap || {} } as TStepAction;
 };
 
 const inferOrigin = (char: string): TOrigin => {
@@ -157,6 +173,17 @@ const inferOrigin = (char: string): TOrigin => {
 		case '"':
 			return Origin.quoted;
 		default:
-			return Origin.fallthrough;
+			return Origin.defined;
 	}
 };
+
+export function mapInputToStepValues(input: Record<string, unknown>, gwta: string) {
+	const { stepValuesMap } = namedInterpolation(gwta || '');
+	const updatedMap = { ...stepValuesMap };
+	for (const [key, val] of Object.entries(input)) {
+		if (key in updatedMap) {
+			updatedMap[key] = { ...updatedMap[key], term: String(val), origin: Origin.quoted };
+		}
+	}
+	return updatedMap;
+}

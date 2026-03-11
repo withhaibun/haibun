@@ -1,8 +1,6 @@
-import { actionNotOK, actionOK } from '@haibun/core/lib/util/index.js';
+import { actionNotOK, actionOK, getStepTerm } from '@haibun/core/lib/util/index.js';
 import WebPlaywright from './web-playwright.js';
-import { OK } from '@haibun/core/lib/defs.js';
-import { EExecutionMessageType, TMessageContext } from '@haibun/core/lib/interfaces/logger.js';
-import { TAnyFixme } from '@haibun/core/lib/fixme.js';
+import { OK } from '@haibun/core/schema/protocol.js';
 import { TStepperSteps } from '@haibun/core/lib/astepper.js';
 
 const PAYLOAD_METHODS = ['post', 'put', 'patch'];
@@ -42,7 +40,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps => ({
 		gwta: `request OAuth 2.0 access token from {endpoint}`,
 		action: async ({ endpoint }: { endpoint: string }, featureStep) => {
 			const serialized = await webPlaywright.withPageFetch(endpoint);
-			const accessToken = serialized.json[ACCESS_TOKEN];
+			const accessToken = !Array.isArray(serialized.json) ? (serialized.json as TJsonRecord)[ACCESS_TOKEN] : undefined;
 			await webPlaywright.setExtraHTTPHeaders({ [AUTHORIZATION]: `Bearer ${accessToken}` });
 			webPlaywright.setLastResponse(serialized, featureStep);
 			return OK;
@@ -60,8 +58,9 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps => ({
 
 	acceptEndpointRequest: {
 		gwta: `accept {accept} using ${HTTP} {method} to {endpoint}`,
-		action: async ({ accept, method, endpoint }: { accept: string; method: string; endpoint: string }, featureStep) => {
-			method = method.toLowerCase();
+		handlesUndefined: ['method'],
+		action: async ({ accept, endpoint }: { accept: string; method: string; endpoint: string }, featureStep) => {
+			const method = getStepTerm(featureStep, 'method')?.toLowerCase() ?? '';
 			if (!NO_PAYLOAD_METHODS.includes(method)) {
 				return actionNotOK(`Method ${method} not supported`);
 			}
@@ -72,12 +71,14 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps => ({
 	},
 	restEndpointRequest: {
 		gwta: `make an ${HTTP} {method} to {endpoint}`,
-		action: async ({ method, endpoint }: { method: string; endpoint: string }, featureStep) => {
-			method = method.toLowerCase();
-			if (!NO_PAYLOAD_METHODS.includes(method)) {
-				return actionNotOK(`Method ${method} not supported`);
-			}
-			const serialized = await webPlaywright.withPageFetch(endpoint, method);
+		handlesUndefined: ['method'],
+		action: async ({ endpoint }: { method: string; endpoint: string }, featureStep) => {
+			const method = getStepTerm(featureStep, 'method')?.toLowerCase() ?? '';
+			// Allow all methods - for payload methods (POST/PUT/PATCH), send without body
+			const requestOptions = PAYLOAD_METHODS.includes(method)
+				? { postData: '', headers: { 'Content-Type': 'application/json' } }
+				: undefined;
+			const serialized = await webPlaywright.withPageFetch(endpoint, method, requestOptions);
 			webPlaywright.setLastResponse(serialized, featureStep);
 			return OK;
 		},
@@ -89,7 +90,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps => ({
 			if (!lastResponse?.json || !Array.isArray(lastResponse.json)) {
 				return actionNotOK(`No JSON or array from ${JSON.stringify(lastResponse)}`);
 			}
-			const filtered = lastResponse.json.filter((item: TAnyFixme) => item[property].match(match));
+			const filtered = lastResponse.json.filter((item: TJsonRecord) => (item[property] as string)?.match?.(match));
 			webPlaywright.setLastResponse({ ...lastResponse, filtered }, featureStep);
 			return OK;
 		},
@@ -112,9 +113,9 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps => ({
 				console.debug(lastResponse);
 				return actionNotOK(`No last response to count`);
 			}
-			webPlaywright.getWorld().logger.info(`lastResponse JSON count is ${lastResponse.json.length}`)
-			const messageContext: TMessageContext = { incident: EExecutionMessageType.ACTION, incidentDetails: { summary: 'options', details: { count: lastResponse.json.length } } }
-			return actionOK({ messageContext });
+			webPlaywright.getWorld().eventLogger.info(`lastResponse JSON count is ${lastResponse.json.length}`)
+			const topics = { summary: 'options', details: { count: lastResponse.json.length } };
+			return actionOK({ topics });
 		},
 	},
 	showFilteredLength: {
@@ -125,9 +126,9 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps => ({
 				console.debug(lastResponse);
 				return actionNotOK(`No filtered response to count`);
 			}
-			webPlaywright.getWorld().logger.info(`lastResponse filtered count is ${lastResponse.filtered.length}`)
-			const messageContext: TMessageContext = { incident: EExecutionMessageType.ACTION, incidentDetails: { summary: 'options', count: lastResponse.filtered.length } };
-			return actionOK({ messageContext });
+			webPlaywright.getWorld().eventLogger.info(`lastResponse filtered count is ${lastResponse.filtered.length}`)
+			const topics = { summary: 'options', count: lastResponse.filtered.length };
+			return actionOK({ topics });
 		},
 	},
 	responseJsonLengthIs: {
@@ -140,10 +141,11 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps => ({
 			return OK;
 		},
 	},
-	restEndpointFilteredPropertyRequest: {
+	restFilterPropertyRequest: {
 		gwta: `for each filtered {property}, make REST {method} to {endpoint} yielding status {status}`,
-		action: async ({ property, method, endpoint, status }: { property: string; method: string; endpoint: string; status: string }) => {
-			method = method.toLowerCase();
+		handlesUndefined: ['method'],
+		action: async ({ property, endpoint, status }: { property: string; endpoint: string; status: string }, featureStep) => {
+			const method = getStepTerm(featureStep, 'method')?.toLowerCase() ?? '';
 			if (!NO_PAYLOAD_METHODS.includes(method)) {
 				return actionNotOK(`Method ${method} not supported`);
 			}
@@ -152,7 +154,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps => ({
 			if (!filtered) {
 				return actionNotOK(`No filtered response in ${lastResponse}`);
 			}
-			if (!filtered.every((item: TAnyFixme) => item[property] !== undefined)) {
+			if (!filtered.every((item: TJsonRecord) => item[property] !== undefined)) {
 				return actionNotOK(`Property ${property} not found in all items`);
 			}
 			for (const item of filtered) {
@@ -168,8 +170,9 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps => ({
 	restEndpointRequestWithPayload: {
 		precludes: ["WebPlaywright.restEndpointRequest"],
 		gwta: `make an ${'HTTP'} {method} to {endpoint} with {payload}`,
-		action: async ({ method, endpoint, payload }: { method: string; endpoint: string; payload: string }, featureStep) => {
-			method = method.toLowerCase();
+		handlesUndefined: ['method'],
+		action: async ({ endpoint, payload }: { endpoint: string; payload: string }, featureStep) => {
+			const method = getStepTerm(featureStep, 'method')?.toLowerCase() ?? '';
 			if (!PAYLOAD_METHODS.includes(method)) {
 				return actionNotOK(`Method ${method} (${method}) does not support payload`);
 			}
@@ -193,10 +196,10 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps => ({
 		gwta: `${HTTP} response property {property} is {value}`,
 		action: ({ property, value }: { property: string; value: string }) => {
 			const lastResponse = webPlaywright.getLastResponse();
-			if (lastResponse && lastResponse.json && lastResponse.json[property] === value) {
+			if (lastResponse && lastResponse.json && !Array.isArray(lastResponse.json) && (lastResponse.json as TJsonRecord)[property] === value) {
 				return OK;
 			}
-			return actionNotOK(`Expected lastResponse.json.${property} to be ${value}, got ${JSON.stringify(lastResponse?.json[property])}`);
+			return actionNotOK(`Expected lastResponse.json.${property} to be ${value}, got ${JSON.stringify(!Array.isArray(lastResponse?.json) ? (lastResponse?.json as TJsonRecord)?.[property] : undefined)}`);
 		},
 	},
 	restResponseIs: {
@@ -209,14 +212,21 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps => ({
 			return actionNotOK(`Expected response to be ${value}, got ${lastResponse?.text}`);
 		},
 	},
-});
+} as const satisfies TStepperSteps);
+
+/** Record with string keys for JSON objects */
+export type TJsonRecord = Record<string, unknown>;
+
+/** JSON response can be an array of records or a single record */
+export type TJsonResponse = TJsonRecord | TJsonRecord[];
 
 export type TCapturedResponse = {
 	status: number;
 	statusText: string;
-	headers: TAnyFixme;
+	headers: Record<string, string>;
 	url: string;
-	json: TAnyFixme;
+	json: TJsonResponse;
 	text: string;
-	filtered?: TAnyFixme
+	filtered?: TJsonRecord[];
 };
+

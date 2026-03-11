@@ -1,10 +1,12 @@
 import { vitest, describe, it, expect } from 'vitest';
 
-import { CONTINUE_AFTER_ERROR, DEFAULT_DEST, STEP_DELAY } from '@haibun/core/lib/defs.js';
-import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, testWithDefaults } from '@haibun/core/lib/test/lib.js';
+import { CONTINUE_AFTER_ERROR, DEFAULT_DEST, STEP_DELAY } from '@haibun/core/schema/protocol.js';
+import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, passWithDefaults } from '@haibun/core/lib/test/lib.js';
 import TestStepsWithOptions from '@haibun/core/lib/test/TestStepsWithOptions.js';
 import { getDefaultOptions } from '@haibun/core/lib/util/index.js';
 
+import { TProtoOptions, TSpecl } from '@haibun/core/lib/defs.js';
+import { OPTION_RUN_POLICY, OPTION_DRY_RUN, type TRunPolicyConfig } from '@haibun/core/run-policy/run-policy-types.js';
 import * as lib from './lib.js';
 
 const s = (s: string) => s.split(' ');
@@ -32,34 +34,31 @@ describe('options', () => {
 			moduleOptions: { [HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]: 'true' },
 			options: { DEST: DEFAULT_DEST },
 		};
-		const result = await testWithDefaults([feature], [TestStepsWithOptions], protoConfig);
+		const result = await passWithDefaults([feature], [TestStepsWithOptions], protoConfig);
 		expect(result.ok).toBe(true);
 		expect(result.featureResults?.length).toBe(1);
-		expect(result.featureResults?.[0].stepResults[0].stepActionResult.messageContext?.incidentDetails?.summary).toEqual('options');
+		expect(result.featureResults?.[0].stepResults[0].stepActionResult.topics?.summary).toEqual('options');
 	});
 });
 
 describe('processEnv', () => {
 	it('assigns boolean true', () => {
-		const { protoOptions } = lib.processBaseEnvToOptionsAndErrors({ [`HAIBUN_${CONTINUE_AFTER_ERROR}`]: 'true' });
+		const protoOptions = lib.processBaseEnvToOptionsAndErrors({ [`HAIBUN_${CONTINUE_AFTER_ERROR}`]: 'true' });
 		expect(protoOptions.options[CONTINUE_AFTER_ERROR]).toBeDefined();
 		expect(protoOptions.options[CONTINUE_AFTER_ERROR]).toBe(true);
 	});
 	it('errors for non-boolean value ', () => {
-		const { errors } = lib.processBaseEnvToOptionsAndErrors({ HAIBUN_TRACE: 'wtw' });
-		expect(errors.length).toBe(1);
+		expect(() => lib.processBaseEnvToOptionsAndErrors({ HAIBUN_TRACE: 'wtw' })).toThrow();
 	});
 	it('assigns int', () => {
-		const { options } = lib.processBaseEnvToOptionsAndErrors({ [`HAIBUN_${STEP_DELAY}`]: '1' }).protoOptions;
+		const { options } = lib.processBaseEnvToOptionsAndErrors({ [`HAIBUN_${STEP_DELAY}`]: '1' });
 		expect(options[STEP_DELAY]).toBe(1);
 	});
 	it('errors for string passed as int', () => {
-		const { errors } = lib.processBaseEnvToOptionsAndErrors({ [`HAIBUN_${STEP_DELAY}`]: 'x.2' });
-		expect(errors.length).toBe(1);
+		expect(() => lib.processBaseEnvToOptionsAndErrors({ [`HAIBUN_${STEP_DELAY}`]: 'x.2' })).toThrow();
 	});
 	it('errors for non option', () => {
-		const { errors } = lib.processBaseEnvToOptionsAndErrors({ HAIBUN_WTW: 'x.2' });
-		expect(errors.length).toBe(1);
+		expect(() => lib.processBaseEnvToOptionsAndErrors({ HAIBUN_WTW: 'x.2' })).toThrow();
 	});
 });
 
@@ -72,7 +71,7 @@ describe('processArgs', () => {
 		const { configLoc } = lib.processArgs(s('--config boo'));
 		expect(configLoc).toBe('boo');
 	});
-	it('get config as path', () => {
+	it('get config as filename', () => {
 		const { configLoc } = lib.processArgs(s('--config boo/config.json'));
 		expect(configLoc).toBe('boo');
 	});
@@ -91,6 +90,30 @@ describe('processArgs', () => {
 		expect(configLoc).toBe('boo');
 		expect(showHelp).toBe(true);
 	});
+	it('parses --run-policy with two args', () => {
+		const { policyConfig, params } = lib.processArgs(s(`${OPTION_RUN_POLICY} prod smoke:r,api:a foo`));
+		expect(policyConfig).toBeDefined();
+		const config = policyConfig as NonNullable<typeof policyConfig>;
+		expect(config.place).toBe('prod');
+		expect(config.dirFilters).toEqual([
+			{ dir: 'smoke', access: 'r' },
+			{ dir: 'api', access: 'a' },
+		]);
+		expect(params).toEqual(['foo']);
+	});
+	it(`returns undefined policyConfig when ${OPTION_RUN_POLICY} not specified`, () => {
+		const { policyConfig } = lib.processArgs(s('foo'));
+		expect(policyConfig).toBeUndefined();
+	});
+	it('parses --dry-run flag', () => {
+		const { dryRun, policyConfig } = lib.processArgs(s(`${OPTION_DRY_RUN} ${OPTION_RUN_POLICY} prod smoke:r foo`));
+		expect(dryRun).toBe(true);
+		expect(policyConfig).toBeDefined();
+	});
+	it('returns dryRun false by default', () => {
+		const { dryRun } = lib.processArgs(s('foo'));
+		expect(dryRun).toBe(false);
+	});
 });
 
 describe('runCli', () => {
@@ -104,7 +127,42 @@ describe('runCli', () => {
 	});
 	it('runs a basic test', async () => {
 		vitest.spyOn(process, 'exit').mockImplementationOnce(expectExitAndThrow(0));
-		// vitest.spyOn(console, 'info').mockImplementation(() => undefined); // Suppress steppers output
-		await expect(lib.runCli(s('--config modules/cli/test modules/cli/test/tests'), {})).rejects.toThrow('exit with code 0');
+		await expect(() => lib.runCli(s('--config modules/cli/test modules/cli/test/tests'), {})).rejects.toThrow('exit with code 0');
+	});
+	it('runs a kireji test with backgrounds and features', async () => {
+		vitest.spyOn(process, 'exit').mockImplementationOnce(expectExitAndThrow(0));
+		await expect(lib.runCli(s('--config modules/cli/test/kireji modules/cli/test/kireji'), {})).rejects.toThrow('exit with code 0');
+	});
+
+	it('runs a kireji test with outcomes', async () => {
+		vitest.spyOn(process, 'exit').mockImplementationOnce(expectExitAndThrow(0));
+		await expect(lib.runCli(s('--config modules/cli/test/kireji-outcomes modules/cli/test/kireji-outcomes'), {})).rejects.toThrow('exit with code 0');
+	});
+});
+
+describe('resolveRunPolicy', () => {
+	it('injects appParameters into protoOptions.options.envVariables', () => {
+		const protoOptions = { options: { envVariables: {} }, moduleOptions: {} } as TProtoOptions;
+		const specl = {
+			steppers: [],
+			runPolicy: 'test-policy.json',
+			appParameters: {
+				prod: {
+					API_KEY: 'secret-123',
+					TIMEOUT: '5000'
+				}
+			}
+		} as TSpecl;
+		const policyConfig = { place: 'prod', dirFilters: [] } as TRunPolicyConfig;
+
+		// Mock loadAndValidateRunPolicy to avoid side effects
+		vitest.mock('@haibun/core/run-policy/run-policy-schema.js', () => ({
+			loadAndValidateRunPolicy: vitest.fn()
+		}));
+
+		lib.resolveRunPolicy(policyConfig, {}, protoOptions, specl);
+
+		expect(protoOptions.options.envVariables?.API_KEY).toBe('secret-123');
+		expect(protoOptions.options.envVariables?.TIMEOUT).toBe('5000');
 	});
 });

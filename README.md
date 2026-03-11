@@ -2,9 +2,11 @@
 
 # haibun
 
-Haibun is inspired by the literary form that combines descriptive and objective prose with haiku.
 
-This package is intended to enable specification driven development, with end to end tests.
+Haibun is inspired by the literary form that combines descriptive and objective prose with haiku.
+The result is a type of literate programming for always up to date specifications, tests, and documentation.
+
+It enables specification driven development, with end to end tests.
 This type of development is often tedious to develop,
 brittle to changing underlying implementations,
 difficult to maintain,
@@ -55,13 +57,16 @@ use this command to see available options:
 
 # Further Documentation
 
+* [Architecture overview](docs/architecture.md]
+* [Guide for humans and LLMs](AGENTS.md)
 * [Dependency graph](dependency-graph.html)
 * [Feature structure](docs/feature_structure.md)
 * [Developing new modules](docs/new_modules.md)
 * [Developing Haibun](docs/develop_haibun.md)
 * [Debugging steppers](docs/stepping.md)
 * [Use in Github Actions](docs/e2e-tests.yml)
-* [Using MCP](modules/mcp/README.md)
+* [Run Policy and Permissions](docs/run-policy.md)
+* [VSCode extension (LSP & MCP)(vscode-extension/README.md)
 
 # Development & Debugging help
 

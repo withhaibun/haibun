@@ -6,7 +6,6 @@ import { TWorld } from "@haibun/core/lib/defs.js";
 import { EMediaTypes } from "@haibun/domain-storage/media-types.js";
 import { join } from "path";
 import { actualURI } from "@haibun/core/lib/util/actualURI.js";
-import { EExecutionMessageType, TArtifactHTML, TArtifactJSON, TMessageContext } from "@haibun/core/lib/interfaces/logger.js";
 
 type TElementData = {
 	tagName: string;
@@ -57,8 +56,8 @@ export class TwinPage {
 			(page[method] as (...args: unknown[]) => unknown) = (...args: unknown[]) => {
 				const patched = originalMethod.apply(page, args);
 				this.duplicateTwinElement(patched).catch(error => {
-					const messageContext: TMessageContext = { artifacts: [<TArtifactJSON>{ artifactType: 'json', json: { error: { message: error.message, stack: error.stack } } }], incident: EExecutionMessageType.ACTION, tag: this.world.tag };
-					this.world.logger.error(`Error duplicating element for ${String(method)} with args: ${JSON.stringify(args)}`, messageContext);
+					this.world.eventLogger.error(`Error duplicating element for ${String(method)} with args: ${JSON.stringify(args)}`);
+					// Could emit error artifact if needed
 				});
 				return patched;
 			};
@@ -75,15 +74,13 @@ export class TwinPage {
 		const content = await this.twinPage.content();
 		const fn = `twinned-${this.sequence}.html`;
 		const outHtmlFile = join(twinLoc, fn);
-		const context: TMessageContext = {
-			incident: EExecutionMessageType.ACTION, artifacts: [<TArtifactHTML>{ artifactType: 'html', path: fn }], tag: this.world.tag
-		};
-		this.world.logger.info(`Writing twin HTML to ${actualURI(outHtmlFile)}`, context);
+
+		this.world.eventLogger.info(`Writing twin HTML to ${actualURI(outHtmlFile)}`);
 		await this.storage.writeFile(outHtmlFile, content, EMediaTypes.html);
 		void this.twinPage.evaluate(() => document.body.innerHTML = '');
 	}
-	duplicateTwinElement = async (locator) => {
-		const elementData = await locator.evaluate(element => {
+	duplicateTwinElement = async (locator: import('playwright').Locator) => {
+		const elementData = await locator.evaluate((element: Element) => {
 			if (!element) {
 				return null;
 			}
