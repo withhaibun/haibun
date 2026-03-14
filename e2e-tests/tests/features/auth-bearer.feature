@@ -3,7 +3,7 @@ Feature: Auth-bearer Authentication
     set Profile Path to "/me"
     set Token Path to "/token"
     set Resources Path to "/api/resources"
-    set Resource Path to "/api/resource/"
+    set Resource Path to "/api/resource"
     compose Resource Delete Route with {Resource Path}/:id
     compose REST Home with {Resource Server}/static/rest.html
     set Logout Path to "/logout"
