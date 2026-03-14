@@ -37,7 +37,20 @@
     "lint": "biome lint .",
     "check": "biome check .",
     "depcruise": "depcruise -c .dependency-cruiser.cjs -T dot modules | dot -T svg | depcruise-wrap-stream-in-html > dependency-graph.html",
-    "preversion": "npm run test"
+    "preversion": "npm run test",
+    "version": "node scripts/sync-versions.mjs",
+    "postversion": "git push && git push --tags",
+    "version-alpha": "npm version prerelease --preid=alpha",
+    "version-alpha:minor": "npm version preminor --preid=alpha",
+    "version-alpha:major": "npm version premajor --preid=alpha",
+    "version-beta": "npm version prerelease --preid=beta",
+    "version-rc": "npm version prerelease --preid=rc",
+    "version-graduate": "npm version patch",
+    "version-patch": "npm version patch",
+    "version-minor": "npm version minor",
+    "version-major": "npm version major",
+    "publish-all": "npm publish --workspaces --access public",
+    "publish-all:tag": "npm publish --workspaces --access public --tag"
   },
   "version": "3.8.4",
   "overrides": {
