@@ -4,7 +4,7 @@ import { TextDocument } from 'vscode-languageserver-textdocument';
 
 import { AStepper } from '@haibun/core/lib/astepper.js';
 import type { TWorld, TFeatureStep, TFeature, TStepAction, TFeatures } from '@haibun/core/lib/defs.js';
-import { StepperRegistry, StepMetadata } from '@haibun/core/lib/stepper-registry.js';
+import { StepperRegistry, StepDescriptor } from '@haibun/core/lib/stepper-registry.js';
 import { Resolver } from '@haibun/core/phases/Resolver.js';
 import { expand } from '@haibun/core/lib/features.js';
 import { TStepValue } from '@haibun/core/schema/protocol.js';
@@ -767,7 +767,7 @@ export default class LspStepper extends AStepper {
     this.connection?.sendDiagnostics({ uri: doc.uri, diagnostics });
   }
 
-  private metadataToCompletionItem(meta: StepMetadata): CompletionItem {
+  private metadataToCompletionItem(meta: StepDescriptor): CompletionItem {
     const snippet = StepperRegistry.patternToSnippet(meta.pattern);
     return {
       label: meta.pattern,

@@ -13,7 +13,7 @@ export default class MonitorJsonRpc extends AStepper {
     // Ensure console is suppressed so we don't pollute stdout with raw JSON
     world.eventLogger.suppressConsole = true;
 
-    world.eventLogger.setStepperCallback((event) => {
+    world.eventLogger.subscribe((event) => {
       // Format as LSP window/logMessage notification
       // type 3 = Info, 1 = Error, 2 = Warning, 4 = Log
       // We'll wrap the whole event JSON in the message for parsing by the client
