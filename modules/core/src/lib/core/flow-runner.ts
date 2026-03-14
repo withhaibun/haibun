@@ -104,10 +104,10 @@ export class FlowRunner {
 		}
 
 		if (result.ok) {
-			return { kind: 'ok', topics: result.stepActionResult };
+			return { kind: 'ok', products: result.stepActionResult };
 		} else {
 			const msg = (result.stepActionResult as TNotOKActionResult).message;
-			return { kind: 'fail', message: msg, topics: result.stepActionResult };
+			return { kind: 'fail', message: msg, products: result.stepActionResult };
 		}
 	}
 
@@ -120,7 +120,7 @@ export class FlowRunner {
 			}
 			lastResult = result;
 		}
-		return { kind: 'ok', topics: lastResult?.topics };
+		return { kind: 'ok', products: lastResult?.products };
 	}
 
 	async runSteps(steps: TFeatureStep[], options: { intent?: ExecutionIntent, parentStep?: TFeatureStep } = {}): Promise<FlowSignal> {
@@ -156,7 +156,7 @@ export class FlowRunner {
 
 			if (!result.ok) {
 				const msg = (result.stepActionResult as TNotOKActionResult).message;
-				return { kind: 'fail', message: msg, topics: result.stepActionResult };
+				return { kind: 'fail', message: msg, products: result.stepActionResult };
 			}
 
 			// If not using cycles (which doFeatureStep defaults to WITH_CYCLES), we might need to push results.
@@ -168,8 +168,8 @@ export class FlowRunner {
 			// But for now, to ensure incSeqPath works, we NEED results in stepResults.
 			// So we accept that speculative steps might be in stepResults (which is probably fine for debugging).
 
-			lastResult = { kind: 'ok', topics: result.stepActionResult };
+			lastResult = { kind: 'ok', products: result.stepActionResult };
 		}
-		return { kind: 'ok', topics: lastResult?.topics };
+		return { kind: 'ok', products: lastResult?.products };
 	}
 }

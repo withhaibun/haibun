@@ -85,7 +85,7 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 	async debugLoop(prompt: string, prompts: string[], featureStep: TFeatureStep, inc: number): Promise<TAfterStepResult | undefined> {
 		const prefix = featureStep.seqPath;
 		let seqStart = [...prefix, inc > 0 ? 1 : -1];
-		let promptResult: { topics?: { controlSignal?: TDebugSignal } } | undefined;
+		let promptResult: { products?: { controlSignal?: TDebugSignal } } | undefined;
 		let continueLoop = true;
 		let controlSignal: TDebugSignal | undefined;
 
@@ -103,7 +103,7 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 				});
 
 				// Check for controlSignal (new pattern)
-				controlSignal = promptResult.topics?.controlSignal;
+				controlSignal = promptResult.products?.controlSignal;
 				if (controlSignal) {
 					continueLoop = false;
 				} else {

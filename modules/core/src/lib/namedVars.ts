@@ -182,7 +182,8 @@ export function mapInputToStepValues(input: Record<string, unknown>, gwta: strin
 	const updatedMap = { ...stepValuesMap };
 	for (const [key, val] of Object.entries(input)) {
 		if (key in updatedMap) {
-			updatedMap[key] = { ...updatedMap[key], term: String(val), origin: Origin.quoted };
+			const term = typeof val === 'object' && val !== null ? JSON.stringify(val) : String(val);
+			updatedMap[key] = { ...updatedMap[key], term, origin: Origin.quoted };
 		}
 	}
 	return updatedMap;

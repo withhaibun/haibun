@@ -1,7 +1,8 @@
 import { AStepper, TStepperSteps, IHasCycles } from '../lib/astepper.js';
 import { TFeatureStep, TWorld, IObservationSource, IStepperCycles } from '../lib/defs.js';
 import { OK, TActionResult, Origin } from '../schema/protocol.js';
-import { actionNotOK, actionOK, sleep } from '../lib/util/index.js';
+import { actionNotOK, actionOKWithProducts, sleep } from '../lib/util/index.js';
+import { z } from 'zod';
 import { FlowRunner } from '../lib/core/flow-runner.js';
 import { DOMAIN_STATEMENT } from '../lib/domain-types.js';
 
@@ -192,10 +193,11 @@ export default class LogicStepper extends AStepper implements IHasCycles {
     maybe: {
       gwta: `maybe {statements:${DOMAIN_STATEMENT}}`,
       description: 'Executes the statement but suppresses failure if it fails.',
-      action: async ({ statements }: { statements: TFeatureStep[] }, featureStep: TFeatureStep): Promise<TActionResult> => {
+      outputSchema: z.object({ outcome: z.unknown() }),
+      action: async ({ statements }: { statements: TFeatureStep[] }, featureStep: TFeatureStep) => {
         const res = await this.runner.runSteps(statements, { intent: { mode: 'speculative' }, parentStep: featureStep });
 
-        return actionOK({ topics: { outcome: res } });
+        return actionOKWithProducts({ outcome: res });
       },
     },
 

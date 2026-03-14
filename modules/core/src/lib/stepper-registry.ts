@@ -6,11 +6,14 @@ import { namedInterpolation } from './namedVars.js';
  * Metadata for a single step, extracted from a stepper definition.
  * Used by both LSP (for autocomplete/hover) and MCP (for tool registration).
  */
-export interface StepMetadata {
+export interface StepDescriptor {
   stepperName: string;
   stepName: string;
+  method: string;
   pattern: string;
   params: Record<string, 'string' | 'number'>;
+  inputSchema?: Record<string, unknown>;
+  outputSchema?: Record<string, unknown>;
 }
 
 /**
@@ -22,7 +25,7 @@ export class StepperRegistry {
    * Extract metadata from all steps in the provided steppers.
    * Filters out steps marked with `expose: false`.
    */
-  static getMetadata(steppers: AStepper[]): StepMetadata[] {
+  static getMetadata(steppers: AStepper[]): StepDescriptor[] {
     return steppers.flatMap(stepper => {
       const stepperName = constructorName(stepper);
       return Object.entries(stepper.steps)
@@ -40,7 +43,8 @@ export class StepperRegistry {
               }
             }
           }
-          return { stepperName, stepName, pattern, params };
+          const method = `${stepperName}-${stepName}`;
+          return { stepperName, stepName, method, pattern, params };
         });
     });
   }

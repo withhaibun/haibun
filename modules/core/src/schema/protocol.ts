@@ -291,7 +291,7 @@ export const FlowSignalSchema = z.object({
   kind: z.enum(['ok', 'fail', 'retry', 'skip']),
   message: z.string().optional(),
   fatal: z.boolean().optional(),
-  topics: z.unknown().optional(),
+  products: z.unknown().optional(),
 });
 export type FlowSignal = z.infer<typeof FlowSignalSchema>;
 
@@ -307,7 +307,14 @@ export type TOKActionResult = {
   controlSignal?: TDebugSignal;
   artifact?: TArtifactEvent;
   protocol?: SystemMessage;
-  topics?: Record<string, unknown>;
+};
+
+export type TActionOKWithProducts = {
+  ok: true;
+  products: Record<string, unknown>;
+  controlSignal?: TDebugSignal;
+  artifact?: TArtifactEvent;
+  protocol?: SystemMessage;
 };
 
 export type TNotOKActionResult = {
@@ -316,10 +323,10 @@ export type TNotOKActionResult = {
   controlSignal?: TDebugSignal;
   artifact?: TArtifactEvent;
   protocol?: SystemMessage;
-  topics?: Record<string, unknown>;
 };
 
 export type TActionResult = TOKActionResult | TNotOKActionResult;
+export type TActionResultWithProducts = TActionOKWithProducts | TNotOKActionResult;
 
 export const OK: TOKActionResult = { ok: true };
 
@@ -462,7 +469,7 @@ export const StepEvent = LifecycleEventCommon.extend({
   actionName: z.string().optional(),
   stepArgs: z.union([z.record(z.string(), z.unknown()), z.array(z.unknown())]).optional(),
   stepValuesMap: z.record(z.string(), z.unknown()).optional(),
-  topics: z.record(z.string(), z.unknown()).optional(),
+  products: z.record(z.string(), z.unknown()).optional(),
   featurePath: z.string().optional(),
 });
 
@@ -470,7 +477,7 @@ export const StepEvent = LifecycleEventCommon.extend({
 export const GenericLifecycleEvent = LifecycleEventCommon.extend({
   type: z.enum(['activity', 'waypoint', 'ensure', 'execution']),
   in: z.string().optional(),
-  topics: z.record(z.string(), z.unknown()).optional(),
+  products: z.record(z.string(), z.unknown()).optional(),
   lineNumber: z.number().optional(),
   featurePath: z.string().optional(),
 });

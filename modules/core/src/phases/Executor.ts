@@ -92,7 +92,7 @@ export class Executor {
 		}
 		await addStepperConcerns(world, steppers);
 
-		world.eventLogger.setStepperCallback((event) => {
+		world.eventLogger.subscribe((event) => {
 			doStepperCycleSync(steppers, 'onEvent', event);
 		});
 
@@ -306,7 +306,8 @@ export class FeatureExecutor {
 
 				if (action.actionName !== FEATURE_START && action.actionName !== SCENARIO_START) {
 					const errorMessage = !actionResult.ok ? (actionResult as TNotOKActionResult).message : undefined;
-					world.eventLogger.stepEnd(featureStep, action.stepperName, action.actionName, actionResult.ok, errorMessage, args, featureStep.action.stepValuesMap, actionResult.topics);
+					const products = 'products' in actionResult ? actionResult.products as Record<string, unknown> : undefined;
+					world.eventLogger.stepEnd(featureStep, action.stepperName, action.actionName, actionResult.ok, errorMessage, args, featureStep.action.stepValuesMap, products);
 				}
 
 				world.runtime.stepResults.push(stepResultFromActionResult(actionResult, action, start, Timer.since(), featureStep, ok && actionResult.ok));
