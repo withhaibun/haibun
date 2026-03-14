@@ -82,7 +82,16 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
     if (!toolDef) {
       throw new McpError(ErrorCode.MethodNotFound, `Tool ${name} not found.`);
     }
-    return await toolDef.handler(args);
+    return await this.callTool(toolDef, args);
+  }
+
+  private async callTool(toolDef: StoredTool, args: Record<string, unknown>): Promise<CallToolResult> {
+    try {
+      return await toolDef.handler(args);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return { isError: true, content: [{ type: 'text', text: msg }] };
+    }
   }
 
   private async setupMcp() {
@@ -157,12 +166,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
         if (!toolDef) {
           throw new McpError(ErrorCode.MethodNotFound, `Tool "${stepName}" not found. Use access_stepper_* to list available tools.`);
         }
-        try {
-          return await toolDef.handler(stepArgs);
-        } catch (err: unknown) {
-          const msg = err instanceof Error ? err.message : String(err);
-          return { isError: true, content: [{ type: 'text', text: msg }] };
-        }
+        return await this.callTool(toolDef, stepArgs);
       }
 
       if (toolName === 'return_to_index') {
@@ -181,12 +185,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
         await this.updateSessionFocus(sessionId, toolDef.stepperName);
       }
 
-      try {
-        return await toolDef.handler(args);
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        return { isError: true, content: [{ type: 'text', text: msg }] };
-      }
+      return await this.callTool(toolDef, args);
     });
 
     // --- HANDLER 3: LIST RESOURCES ---
@@ -440,7 +439,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
         });
 
       // 2. CREATE A ROBUST PROXY FOR THE CONTEXT
-      // We must bind all functions to the original target to avoid 
+      // We must bind all functions to the original target to avoid
       // TypeError: Cannot read private member #cachedBody
       const proxyContext = new Proxy(c, {
         get(target, prop) {

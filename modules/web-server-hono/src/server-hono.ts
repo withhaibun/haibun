@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { LinearRouter } from 'hono/router/linear-router';
 import { serve, type ServerType } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { existsSync, statSync, readdirSync } from 'fs';
@@ -18,7 +19,7 @@ export class ServerHono implements IWebServer {
   private _port?: number;
 
   constructor(private readonly eventLogger: IEventLogger, private readonly base: string) {
-    this._app = new Hono();
+    this._app = new Hono({ router: new LinearRouter() });
   }
 
   get app(): Hono { return this._app; }
@@ -42,6 +43,9 @@ export class ServerHono implements IWebServer {
           ServerHono.listeningPorts.set(port, why);
           this.eventLogger.debug(`ServerHono listening on port ${port} (${host})`);
           resolve();
+        });
+        this.server.on('error', (e: Error) => {
+          reject(new Error(`ServerHono.listen: failed on port ${port} (${host}): ${e.message}`));
         });
       } catch (e) {
         reject(new Error(`ServerHono.listen: failed on port ${port} (${host}): ${e instanceof Error ? e.message : e}`));
