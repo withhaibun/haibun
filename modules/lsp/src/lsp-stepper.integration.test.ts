@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { AStepper } from '@haibun/core/lib/astepper.js';
-import { StepperRegistry, StepMetadata } from '@haibun/core/lib/stepper-registry.js';
+import { StepperRegistry, StepDescriptor } from '@haibun/core/lib/stepper-registry.js';
 import { OK } from '@haibun/core/schema/protocol.js';
 
 /**
@@ -46,7 +46,7 @@ class ProductionLikeStepper extends AStepper {
 }
 
 describe('LSP Integration - Completion Provider', () => {
-  let metadata: StepMetadata[];
+  let metadata: StepDescriptor[];
 
   beforeAll(() => {
     const steppers = [new ProductionLikeStepper()];
@@ -106,7 +106,7 @@ describe('LSP Integration - Completion Provider', () => {
 });
 
 describe('LSP Integration - Hover Provider', () => {
-  let metadata: StepMetadata[];
+  let metadata: StepDescriptor[];
 
   beforeAll(() => {
     const steppers = [new ProductionLikeStepper()];
@@ -144,7 +144,7 @@ describe('LSP Integration - Hover Provider', () => {
 });
 
 describe('LSP Integration - Prefix Matching', () => {
-  let metadata: StepMetadata[];
+  let metadata: StepDescriptor[];
 
   beforeAll(() => {
     const steppers = [new ProductionLikeStepper()];
