@@ -37,7 +37,9 @@ describe('options', () => {
 		const result = await passWithDefaults([feature], [TestStepsWithOptions], protoConfig);
 		expect(result.ok).toBe(true);
 		expect(result.featureResults?.length).toBe(1);
-		expect(result.featureResults?.[0].stepResults[0].stepActionResult.topics?.summary).toEqual('options');
+		const actionResult = result.featureResults?.[0].stepResults[0].stepActionResult;
+		const products = actionResult && 'products' in actionResult ? (actionResult as { products: Record<string, unknown> }).products : undefined;
+		expect(products?.summary).toEqual('options');
 	});
 });
 
