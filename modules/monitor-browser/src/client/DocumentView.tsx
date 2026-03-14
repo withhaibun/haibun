@@ -54,7 +54,7 @@ export function DocumentView({ events, currentTime, startTime, onTimeChange, min
                 embeddedArtifacts = e.attributes?.artifacts as any[];
             } else if (e.kind === 'lifecycle') {
                 // biome-ignore lint/suspicious/noExplicitAny: loose artifact type
-                embeddedArtifacts = (e as any).topics?.artifacts as any[];
+                embeddedArtifacts = (e as any).products?.artifacts as any[];
             }
 
             if (embeddedArtifacts && Array.isArray(embeddedArtifacts)) {

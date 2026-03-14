@@ -22,6 +22,10 @@ export class RemoteTransport implements ITransport {
     // Remote control not yet implemented for piggybacking
   }
 
+  onStreamMessage(): void {
+    // Streaming not supported for remote transport
+  }
+
   private async post(event: THaibunEvent) {
     try {
       await stepTraceStorage.run(undefined, async () => {
