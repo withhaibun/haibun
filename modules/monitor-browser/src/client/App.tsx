@@ -81,7 +81,7 @@ function App() {
         // biome-ignore lint/suspicious/noExplicitAny: heterogeneous message type
         sendMessage.current = async (message: any) => {
             try {
-                await fetch('/sse/message', {
+                await fetch('/rpc/message', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(message)
@@ -167,7 +167,7 @@ function App() {
     useEffect(() => {
         // biome-ignore lint/suspicious/noExplicitAny: error can be any type
         const logError = (type: string, error: any) => {
-            fetch('/sse/message', {
+            fetch('/rpc/message', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ type: 'log', message: `CLIENT_ERROR: ${type} - ${error?.message || error}` })
@@ -182,14 +182,14 @@ function App() {
         };
 
         console.log('App mounted [Verified]');
-        fetch('/sse/message', {
+        fetch('/rpc/message', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ type: 'log', message: 'CLIENT_MOUNTED' })
         }).catch(err => console.error('Failed to log mount:', err));
 
         return () => {
-            fetch('/sse/message', {
+            fetch('/rpc/message', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ type: 'log', message: 'CLIENT_UNMOUNTED' })
@@ -638,7 +638,7 @@ function App() {
                         }
                     }
                     if (!message) {
-                        message = e.error || ('topics' in e ? JSON.stringify(e.topics) : '');
+                        message = e.error || ('products' in e ? JSON.stringify(e.products) : '');
                     }
                 } else if (e.kind === 'log') {
                     if (e.level === 'error') textClass = 'text-red-500 font-bold';
@@ -649,7 +649,7 @@ function App() {
                     }
                 } else if (e.kind === 'control') {
                     if (!message) {
-                        const data = e.args || ('topics' in e ? e.topics : null);
+                        const data = e.args || ('products' in e ? e.products : null);
                         message = data ? `[${e.signal}] ${JSON.stringify(data)}` : `[${e.signal}]`;
                     }
                 }

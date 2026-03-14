@@ -59,7 +59,7 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
 
     // Setup debugger bridge with placeholder transport
     // debugger bridge setup...
-    const dummy: ITransport = { send: () => void 0, onMessage: () => void 0 };
+    const dummy: ITransport = { send: () => void 0, onMessage: () => void 0, onStreamMessage: () => void 0 };
     this.prompter = new SSEPrompter(dummy);
     world.prompter.subscribe(this.prompter);
   }
