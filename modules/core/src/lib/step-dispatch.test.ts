@@ -6,7 +6,7 @@ import { AStepper } from './astepper.js';
 import { OK } from '../schema/protocol.js';
 import { actionOKWithProducts, actionNotOK } from './util/index.js';
 import { getDefaultWorld } from './test/lib.js';
-import type { TWorld } from './defs.js';
+import type { TWorld, TStepperStep } from './defs.js';
 
 // --- Test Steppers ---
 
@@ -192,12 +192,12 @@ describe('step-dispatch', () => {
 			let capturedFeatureStep: unknown;
 			const stepDef = {
 				gwta: 'say hello to {name}',
-				action: async (_args: Record<string, unknown>, featureStep: unknown) => {
+				action: (_args: Record<string, unknown>, featureStep: unknown) => {
 					capturedFeatureStep = featureStep;
 					return OK;
 				},
 			};
-			const handler = createStepHandler('Test', 'greet', stepDef as any);
+			const handler = createStepHandler('Test', 'greet', stepDef as TStepperStep);
 			await handler({ name: 'world' });
 			const fs = capturedFeatureStep as { action: { stepValuesMap?: Record<string, unknown> } };
 			expect(fs.action.stepValuesMap).toBeDefined();
