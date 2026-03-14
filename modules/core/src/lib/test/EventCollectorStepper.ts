@@ -1,10 +1,10 @@
-import { AStepper, IHasCycles } from '../astepper.js';
-import { TWorld, IStepperCycles } from '../defs.js';
+import { AStepper } from '../astepper.js';
+import { TWorld } from '../defs.js';
 import { THaibunEvent } from '../../schema/protocol.js';
 
 /**
  * EventCollectorStepper - Collects events for test inspection.
- * 
+ *
  * Usage in tests:
  * ```ts
  * const collector = new EventCollectorStepper();
@@ -13,36 +13,20 @@ import { THaibunEvent } from '../../schema/protocol.js';
  * const stepEvents = collector.getStepEvents();
  * ```
  */
-export class EventCollectorStepper extends AStepper implements IHasCycles {
+export class EventCollectorStepper extends AStepper {
   description = 'Collects events for test inspection';
 
   private events: THaibunEvent[] = [];
+  private subscriberCallback?: (event: THaibunEvent) => void;
 
-  cycles: IStepperCycles = {
-    startScenario: () => {
-      // Hook into world event logger to collect events
-      if (this.world?.eventLogger) {
-        const originalCallback = (this.world.eventLogger as { stepperCallback?: (e: THaibunEvent) => void }).stepperCallback;
-        this.world.eventLogger.setStepperCallback?.((event: THaibunEvent) => {
-          this.events.push(event);
-          originalCallback?.(event);
-        });
-      }
-      return Promise.resolve();
-    }
-  };
-
-  setWorld(world: TWorld, steppers: AStepper[]): Promise<void> {
-    this.world = world;
-    // Hook into world event logger immediately
-    if (world.eventLogger?.setStepperCallback) {
-      world.eventLogger.setStepperCallback((event: THaibunEvent) => {
-        this.events.push(event);
-      });
-    }
-
-    return Promise.resolve();
+  async setWorld(world: TWorld, steppers: AStepper[]): Promise<void> {
+    await super.setWorld(world, steppers);
+    this.subscriberCallback = (event: THaibunEvent) => {
+      this.events.push(event);
+    };
+    world.eventLogger.subscribe(this.subscriberCallback);
   }
+
   steps = {};
 
   /** Get all collected events */
@@ -63,6 +47,14 @@ export class EventCollectorStepper extends AStepper implements IHasCycles {
   /** Clear collected events */
   clear(): void {
     this.events = [];
+  }
+
+  /** Unsubscribe from event logger */
+  close(): void {
+    if (this.subscriberCallback && this.world?.eventLogger) {
+      this.world.eventLogger.unsubscribe(this.subscriberCallback);
+      this.subscriberCallback = undefined;
+    }
   }
 }
 

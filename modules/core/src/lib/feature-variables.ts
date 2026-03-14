@@ -215,15 +215,20 @@ export class FeatureVariables {
 				}
 			} else {
 				resolved.value = input.term.replace(/^"|"$/g, '');
-				resolved.domain = DOMAIN_STRING;
+				resolved.domain = input.domain ?? DOMAIN_STRING;
 			}
 		} else {
 			throw new Error(`Unsupported origin type: ${input.origin}`);
 		}
 
 		if (resolved.value !== undefined) {
-			// Ensure domain is defined before coercion, fallback to string if undefined
-			const domainKey = resolved.domain ?? DOMAIN_STRING;
+			const rawDomainKey = resolved.domain ?? DOMAIN_STRING;
+			// Normalize union domains (e.g. "string | other" → sorted "other | string") and look up
+			const parts = rawDomainKey.split(' | ').map(s => s.trim()).filter(Boolean).sort();
+			const sortedKey = parts.join(' | ');
+			// For union domains with unregistered parts, fall back to string; for single domains, require registration
+			const isUnion = parts.length > 1;
+			const domainKey = this.world.domains[sortedKey] ? sortedKey : (isUnion ? DOMAIN_STRING : sortedKey);
 			const domain = this.world.domains[domainKey];
 			if (!domain) {
 				throw new Error(`Cannot resolve variable "${input.term}": unknown domain "${domainKey}"`);

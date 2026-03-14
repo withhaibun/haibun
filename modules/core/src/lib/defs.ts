@@ -18,6 +18,8 @@ import {
 	Timer,
 	THaibunEvent,
 	TActionResult,
+	TActionOKWithProducts,
+	TNotOKActionResult,
 	CONTINUE_AFTER_ERROR,
 } from '../schema/protocol.js';
 
@@ -166,7 +168,7 @@ export type TStepValuesMap = Record<string, TStepValue>;
 // Stepper & Lifecycle
 // ============================================================================
 
-export type TStepperStep = {
+type TStepperStepBase = {
 	handlesUndefined?: true | string[];
 	description?: string;
 	precludes?: string[];
@@ -183,8 +185,21 @@ export type TStepperStep = {
 	gwta?: string;
 	exact?: string;
 	resolveFeatureLine?(line: string, path: string, stepper: AStepper, backgrounds: TFeatures, allLines?: string[], lineIndex?: number, actualSourcePath?: string): boolean | void;
+}
+
+/** Step that declares an output schema — action MUST return products on success. */
+type TStepperStepWithProducts = TStepperStepBase & {
+	outputSchema: z.ZodType;
+	action(args: TStepArgs, featureStep?: TFeatureStep): Promise<TActionOKWithProducts | TNotOKActionResult> | (TActionOKWithProducts | TNotOKActionResult);
+}
+
+/** Step without output schema — no products on success. */
+type TStepperStepPlain = TStepperStepBase & {
+	outputSchema?: undefined;
 	action(args: TStepArgs, featureStep?: TFeatureStep): Promise<TActionResult> | TActionResult;
 }
+
+export type TStepperStep = TStepperStepWithProducts | TStepperStepPlain;
 
 export interface CStepper {
 	new(): AStepper;
