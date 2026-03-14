@@ -1,8 +1,8 @@
 import { TSpecl, TWorld, TRuntime, TModuleOptions, CStepper, TFeatureStep } from '../defs.js';
-import { TNotOKActionResult, TOKActionResult, OK, TSeqPath, TDebugSignal } from '../../schema/protocol.js';
+import { TNotOKActionResult, TOKActionResult, TActionOKWithProducts, OK, TSeqPath, TDebugSignal } from '../../schema/protocol.js';
 import { TAnyFixme } from '../fixme.js';
 import { IHasOptions, AStepper } from '../astepper.js';
-import { TArtifactEvent } from '../../schema/protocol.js';
+import { TArtifactEvent, type TJsonArtifact, Timer } from '../../schema/protocol.js';
 export * from './actualURI.js';
 export * from './secret-utils.js';
 
@@ -77,23 +77,42 @@ export function checkModuleIsClass(re: object, module: string) {
 	}
 }
 
-export function actionNotOK(message: string, w?: { artifact?: TArtifactEvent, controlSignal?: TDebugSignal, topics?: Record<string, unknown> }): TNotOKActionResult {
-	const { artifact, controlSignal, topics } = w || {};
+export function actionNotOK(message: string, w?: { artifact?: TArtifactEvent, controlSignal?: TDebugSignal }): TNotOKActionResult {
+	const { artifact, controlSignal } = w || {};
 	return {
 		ok: false,
 		message,
 		artifact,
 		controlSignal,
-		topics
 	};
 }
 export function randomString() {
 	return ['rnd', Math.floor(Date.now() / 1000).toString(36), Math.floor(Math.random() * 1e8).toString(36)].join('_');
 }
 
-export function actionOK(w?: { artifact?: TArtifactEvent, controlSignal?: TDebugSignal, topics?: Record<string, unknown> }): TOKActionResult {
-	const { artifact, controlSignal, topics } = w || {};
-	return { ...OK, artifact, controlSignal, topics };
+export function actionOK(w?: { artifact?: TArtifactEvent, controlSignal?: TDebugSignal }): TOKActionResult {
+	const { artifact, controlSignal } = w || {};
+	return { ...OK, artifact, controlSignal };
+}
+
+export function actionOKWithProducts(products: Record<string, unknown>, w?: { artifact?: TArtifactEvent, controlSignal?: TDebugSignal }): TActionOKWithProducts {
+	const { artifact, controlSignal } = w || {};
+	return { ok: true, products, artifact, controlSignal };
+}
+
+let artifactCounter = 0;
+export function resetArtifactCounter(): void { artifactCounter = 0; }
+export function jsonArtifact(json: Record<string, unknown>): TJsonArtifact {
+	return {
+		kind: 'artifact',
+		artifactType: 'json',
+		id: `json-${++artifactCounter}`,
+		timestamp: Date.now(),
+		source: 'haibun',
+		level: 'info',
+		json,
+		mimetype: 'application/json',
+	};
 }
 
 export function createSteppers(steppers: CStepper[]): AStepper[] {
@@ -418,3 +437,23 @@ export function formattedSteppers(steppers: AStepper[]) {
 export const formatCurrentSection = (runtime: TRuntime) => [runtime.feature, runtime.scenario].filter(s => !!s).join('>');
 
 export const formatCurrentSeqPath = (seqPath: TSeqPath) => '[' + seqPath.join('.') + ']';
+
+const TRUNCATE_AT = 78;
+
+/** Truncate a string for display, showing original length if truncated. */
+export function truncateForDisplay(s: string): string {
+	if (s.length <= TRUNCATE_AT) return s;
+	return `${s.slice(0, TRUNCATE_AT)}...[Truncated from ${s.length} characters]`;
+}
+
+/** Deep-truncate an object for logging: truncates any string values that exceed the limit. */
+export function truncateForLog(obj: unknown): unknown {
+	if (typeof obj === 'string') return truncateForDisplay(obj);
+	if (obj === null || obj === undefined || typeof obj !== 'object') return obj;
+	if (Array.isArray(obj)) return obj.map(truncateForLog);
+	const result: Record<string, unknown> = {};
+	for (const [k, v] of Object.entries(obj)) {
+		result[k] = truncateForLog(v);
+	}
+	return result;
+}
