@@ -57,8 +57,12 @@ describe('MonitorBrowserStepper Piggybacking', () => {
 
   beforeAll(async () => {
     const portOption = getStepperOptionName(MonitorBrowserStepper, 'PORT');
+    // Only pass through essential env vars — stepper-specific HAIBUN_O_ vars
+    // from the user's shell will cause verifyExtraOptions to fail for steppers
+    // not in this test's config
+    const { PATH, HOME, NODE_PATH, TMPDIR, TERM } = process.env;
     const env = {
-      ...process.env,
+      PATH, HOME, NODE_PATH, TMPDIR, TERM,
       [portOption]: String(PORT),
       HAIBUN_LOG_LEVEL: 'info',
       HAIBUN_STAY: 'always',
