@@ -1,6 +1,6 @@
 import { AStepper, TStepperSteps } from '@haibun/core/lib/astepper.js';
 import { OK } from '@haibun/core/schema/protocol.js';
-import { actionNotOK } from '@haibun/core/lib/util/index.js';
+import { actionNotOK, jsonArtifact } from '@haibun/core/lib/util/index.js';
 import { NodeHttpEvents } from '@haibun/core/lib/node-http-events.js';
 import { TWorld } from '@haibun/core/lib/defs.js';
 
@@ -20,7 +20,7 @@ const WebHttp = class WebHttp extends AStepper {
 					await fetch(url);
 					return OK;
 				} catch (e) {
-					return actionNotOK(`${url} is not listening`, { topics: { error: e } });
+					return actionNotOK(`${url} is not listening`, { artifact: jsonArtifact({ error: String(e) }) });
 				}
 			},
 		},
@@ -29,7 +29,7 @@ const WebHttp = class WebHttp extends AStepper {
 			action: async ({ url }: { url: string }) => {
 				const response = await fetch(`${url}/.well-known/openid-configuration`);
 				const json = await response.json();
-				return json.authorization_endpoint ? OK : actionNotOK(`${json} has no endpoint`, { topics: { json } });
+				return json.authorization_endpoint ? OK : actionNotOK(`${json} has no endpoint`, { artifact: jsonArtifact({ json }) });
 			},
 		},
 		statusIs: {
