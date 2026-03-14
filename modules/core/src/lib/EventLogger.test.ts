@@ -31,7 +31,7 @@ describe('EventLogger', () => {
 
     it('should obscure secret values in stepStart', () => {
       const emitted: unknown[] = [];
-      logger.setStepperCallback((event) => emitted.push(event));
+      logger.subscribe((event) => emitted.push(event));
 
       const stepValuesMap = {
         password: { term: 'password', value: 'secret123', domain: 'string', origin: 'var' },
@@ -49,7 +49,7 @@ describe('EventLogger', () => {
 
     it('should obscure secret values in stepEnd', () => {
       const emitted: unknown[] = [];
-      logger.setStepperCallback((event) => emitted.push(event));
+      logger.subscribe((event) => emitted.push(event));
 
       const stepValuesMap = {
         apiKey: { term: 'apiKey', value: 'key-abc-123', domain: 'string', origin: 'var' },
@@ -67,7 +67,7 @@ describe('EventLogger', () => {
 
     it('should not obscure when isSecretFn returns false for all', () => {
       const emitted: unknown[] = [];
-      logger.setStepperCallback((event) => emitted.push(event));
+      logger.subscribe((event) => emitted.push(event));
 
       const stepValuesMap = {
         password: { term: 'password', value: 'secret123', domain: 'string', origin: 'var' }
@@ -75,7 +75,7 @@ describe('EventLogger', () => {
 
       logger = new EventLogger(() => false);
       logger.suppressConsole = true;
-      logger.setStepperCallback((event) => emitted.push(event));
+      logger.subscribe((event) => emitted.push(event));
       logger.stepStart(mockFeatureStep, 'VariablesStepper', 'set', {}, stepValuesMap);
 
       expect(emitted.length).toBe(1);
@@ -85,7 +85,7 @@ describe('EventLogger', () => {
 
     it('should handle null stepValuesMap', () => {
       const emitted: unknown[] = [];
-      logger.setStepperCallback((event) => emitted.push(event));
+      logger.subscribe((event) => emitted.push(event));
 
       logger.stepStart(mockFeatureStep, 'VariablesStepper', 'set', {}, undefined);
 
@@ -96,7 +96,7 @@ describe('EventLogger', () => {
 
     it('should handle primitive values in stepValuesMap', () => {
       const emitted: unknown[] = [];
-      logger.setStepperCallback((event) => emitted.push(event));
+      logger.subscribe((event) => emitted.push(event));
 
       const stepValuesMap = {
         password: 'secret123',
@@ -109,6 +109,38 @@ describe('EventLogger', () => {
       const event = emitted[0] as { stepValuesMap?: Record<string, unknown> };
       expect(event.stepValuesMap?.password).toBe(OBSCURED_VALUE);
       expect(event.stepValuesMap?.username).toBe('testuser');
+    });
+  });
+
+  describe('subscribe/unsubscribe', () => {
+    it('should stop receiving events after unsubscribe', () => {
+      const emitted: unknown[] = [];
+      const callback = (event: unknown) => emitted.push(event);
+      logger.subscribe(callback);
+      logger.info('before');
+      expect(emitted.length).toBe(1);
+
+      logger.unsubscribe(callback);
+      logger.info('after');
+      expect(emitted.length).toBe(1);
+    });
+
+    it('should support multiple subscribers independently', () => {
+      const emittedA: unknown[] = [];
+      const emittedB: unknown[] = [];
+      const callbackA = (event: unknown) => emittedA.push(event);
+      const callbackB = (event: unknown) => emittedB.push(event);
+
+      logger.subscribe(callbackA);
+      logger.subscribe(callbackB);
+      logger.info('both');
+      expect(emittedA.length).toBe(1);
+      expect(emittedB.length).toBe(1);
+
+      logger.unsubscribe(callbackA);
+      logger.info('only B');
+      expect(emittedA.length).toBe(1);
+      expect(emittedB.length).toBe(2);
     });
   });
 });
