@@ -4,12 +4,12 @@ type ClickResult = import('playwright').Locator;
 import { TFeatureStep } from '@haibun/core/lib/defs.js';
 import { OK, Origin, TActionResult, TStepResult } from '@haibun/core/schema/protocol.js';
 import { DOMAIN_STATEMENT, DOMAIN_STRING } from "@haibun/core/lib/domain-types.js";
-import { actionNotOK, sleep, getStepTerm } from "@haibun/core/lib/util/index.js";
+import { actionNotOK, actionOKWithProducts, sleep, getStepTerm, jsonArtifact } from "@haibun/core/lib/util/index.js";
+import { z } from 'zod';
 import { DOMAIN_PAGE_LOCATOR } from "./domains.js";
 import { WEB_PAGE, WebPlaywright } from "./web-playwright.js";
 import { BROWSERS } from "./BrowserFactory.js";
 
-import { actionOK } from "@haibun/core/lib/util/index.js";
 import { pathToFileURL } from 'node:url';
 import { TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { provenanceFromFeatureStep } from "@haibun/core/steps/variables-stepper.js";
@@ -301,8 +301,11 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 				await wp.waitForLoaded(page);
 				return res;
 			});
-			const topics = { ...(response?.allHeaders() || {}), summary: response?.statusText() };
-			return response?.ok() ? OK : actionNotOK(`response not ok`, { topics });
+			if (response?.ok()) return OK;
+			const headers = await response?.allHeaders().catch(() => ({})) || {};
+			return actionNotOK(`response not ok: ${response?.statusText()}`, {
+				artifact: jsonArtifact({ statusText: response?.statusText() || '', headers }),
+			});
 		},
 	},
 	pageHasSettled: {
@@ -496,10 +499,10 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 	},
 	getPageContents: {
 		gwta: 'get page contents',
+		outputSchema: z.object({ html: z.string() }),
 		action: async () => {
 			const contents = await wp.withPage<string>(async (page: Page) => await page.content());
-			// Use topics to return content
-			return actionOK({ topics: { html: contents || '' } });
+			return actionOKWithProducts({ html: contents || '' });
 		},
 	},
 	takeAccessibilitySnapshot: {

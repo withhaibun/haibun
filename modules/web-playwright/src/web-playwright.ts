@@ -9,7 +9,7 @@ import { AStorage } from '@haibun/domain-storage/AStorage.js';
 import { ImageArtifact, VideoStartArtifact } from '@haibun/core/schema/protocol.js';
 import { EMediaTypes } from '@haibun/domain-storage/media-types.js';
 import { DOMAIN_STRING } from '@haibun/core/lib/domain-types.js';
-import { DOMAIN_PAGE_TEST_ID, DOMAIN_PAGE_LABEL, DOMAIN_PAGE_PLACEHOLDER, DOMAIN_PAGE_ROLE, DOMAIN_PAGE_TITLE, DOMAIN_PAGE_ALT_TEXT } from './domains.js';
+import { DOMAIN_PAGE_LOCATOR, DOMAIN_PAGE_TEST_ID, DOMAIN_PAGE_LABEL, DOMAIN_PAGE_PLACEHOLDER, DOMAIN_PAGE_ROLE, DOMAIN_PAGE_TITLE, DOMAIN_PAGE_ALT_TEXT } from './domains.js';
 
 
 import { AStepper, IHasCycles, IHasOptions, StepperKinds } from '@haibun/core/lib/astepper.js';
@@ -229,8 +229,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 				return OK;
 			}
 		}
-		const topics = { summary: `in ${textContent?.length} characters`, details: textContent };
-		return actionNotOK(`Did not find text "${text}" in ${selector}`, { topics });
+		return actionNotOK(`Did not find text "${text}" in ${selector} (${textContent?.length} characters)`);
 	}
 	async getCookies() {
 		const browserContext = await this.getExistingBrowserContext();
@@ -391,7 +390,11 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		const { value, domain } = this.getWorld().shared.resolveVariable(featureStep.action.stepValuesMap[where], featureStep);
 		const strValue = <string>value;
 
-		switch (domain) {
+		// For union domains like "page-locator | string", extract the individual parts
+		const domainParts = domain?.split(' | ').map(d => d.trim()) ?? [];
+		const effectiveDomain = domainParts.length === 1 ? domainParts[0] : pickLocatorDomain(domainParts);
+
+		switch (effectiveDomain) {
 			case DOMAIN_STRING:
 				return page.getByText(strValue, { exact: true });
 			case DOMAIN_PAGE_TEST_ID:
@@ -411,6 +414,19 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 				return page.locator(strValue);
 		}
 	}
+
+}
+
+/** For union domains, prefer string (getByText) over generic page-locator (CSS selector). */
+export function pickLocatorDomain(parts: string[]): string {
+	// Prefer string domain for text-based matching (most common for quoted values)
+	if (parts.includes(DOMAIN_STRING)) return DOMAIN_STRING;
+	// Then try specific locator domains
+	const locatorDomains = [DOMAIN_PAGE_TEST_ID, DOMAIN_PAGE_LABEL, DOMAIN_PAGE_PLACEHOLDER, DOMAIN_PAGE_ROLE, DOMAIN_PAGE_TITLE, DOMAIN_PAGE_ALT_TEXT, DOMAIN_PAGE_LOCATOR];
+	for (const d of locatorDomains) {
+		if (parts.includes(d)) return d;
+	}
+	return parts[0];
 }
 
 export default WebPlaywright;

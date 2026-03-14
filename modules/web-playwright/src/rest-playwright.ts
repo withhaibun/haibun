@@ -1,4 +1,5 @@
-import { actionNotOK, actionOK, getStepTerm } from '@haibun/core/lib/util/index.js';
+import { actionNotOK, actionOKWithProducts, getStepTerm } from '@haibun/core/lib/util/index.js';
+import { z } from 'zod';
 import WebPlaywright from './web-playwright.js';
 import { OK } from '@haibun/core/schema/protocol.js';
 import { TStepperSteps } from '@haibun/core/lib/astepper.js';
@@ -107,6 +108,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps => ({
 	},
 	showResponseLength: {
 		gwta: `show JSON response count`,
+		outputSchema: z.object({ summary: z.string(), details: z.object({ count: z.number() }) }),
 		action: () => {
 			const lastResponse = webPlaywright.getLastResponse();
 			if (!lastResponse?.json || typeof lastResponse.json.length !== 'number') {
@@ -114,12 +116,12 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps => ({
 				return actionNotOK(`No last response to count`);
 			}
 			webPlaywright.getWorld().eventLogger.info(`lastResponse JSON count is ${lastResponse.json.length}`)
-			const topics = { summary: 'options', details: { count: lastResponse.json.length } };
-			return actionOK({ topics });
+			return actionOKWithProducts({ summary: `JSON response contains ${lastResponse.json.length} items`, details: { count: lastResponse.json.length } });
 		},
 	},
 	showFilteredLength: {
 		gwta: `show filtered response count`,
+		outputSchema: z.object({ summary: z.string(), count: z.number() }),
 		action: () => {
 			const lastResponse = webPlaywright.getLastResponse();
 			if (!lastResponse?.filtered || typeof lastResponse.filtered.length !== 'number') {
@@ -127,8 +129,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps => ({
 				return actionNotOK(`No filtered response to count`);
 			}
 			webPlaywright.getWorld().eventLogger.info(`lastResponse filtered count is ${lastResponse.filtered.length}`)
-			const topics = { summary: 'options', count: lastResponse.filtered.length };
-			return actionOK({ topics });
+			return actionOKWithProducts({ summary: `Filtered response contains ${lastResponse.filtered.length} items`, count: lastResponse.filtered.length });
 		},
 	},
 	responseJsonLengthIs: {
