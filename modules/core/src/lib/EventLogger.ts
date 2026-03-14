@@ -75,7 +75,11 @@ export class EventLogger implements IEventLogger {
     };
 
     for (const subscriber of this.subscribers) {
-      subscriber(eventWithEmitter);
+      try {
+        subscriber(eventWithEmitter);
+      } catch (e) {
+        console.error('EventLogger subscriber error:', e);
+      }
     }
     if (!this.suppressConsole) {
       console.log(JSON.stringify(eventWithEmitter));
