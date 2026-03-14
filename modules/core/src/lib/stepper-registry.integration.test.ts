@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { StepperRegistry, StepMetadata } from './stepper-registry.js';
+import { StepperRegistry, StepDescriptor } from './stepper-registry.js';
 import { AStepper } from './astepper.js';
 import { OK } from '../schema/protocol.js';
 

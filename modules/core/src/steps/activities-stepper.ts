@@ -1,8 +1,9 @@
 import { AStepper, IHasCycles, TStepperSteps } from '../lib/astepper.js';
 
 import { TFeatureStep, TWorld, IStepperCycles, TStepperStep, TFeatures, CycleWhen, TStepInput } from '../lib/defs.js';
-import { TActionResult, TStepArgs, OK, TOKStepActionResult } from '../schema/protocol.js';
-import { actionOK, actionNotOK, getActionable, formatCurrentSeqPath } from '../lib/util/index.js';
+import { TStepArgs, OK } from '../schema/protocol.js';
+import { actionOK, actionNotOK, actionOKWithProducts, getActionable, formatCurrentSeqPath } from '../lib/util/index.js';
+import { z } from 'zod';
 import { DOMAIN_STATEMENT } from '../lib/domain-types.js';
 import { FlowRunner } from '../lib/core/flow-runner.js';
 import { ControlEvent, LifecycleEvent } from '../schema/protocol.js';
@@ -253,7 +254,10 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 						return actionNotOK(`ensure: waypoint "${outcomeKey}" proof failed: ${flowResult.message}`);
 					}
 
-					proofStatements = (flowResult.topics as TOKStepActionResult)?.topics?.proofStatements as string[] | undefined;
+					const stepActionResult = flowResult.products as Record<string, unknown> | undefined;
+					proofStatements = stepActionResult && 'products' in stepActionResult
+						? (stepActionResult.products as Record<string, unknown>)?.proofStatements as string[] | undefined
+						: undefined;
 
 					if (!proofStatements) {
 						this.emitEnsureEnd(featureStep, outcomeKey, false, 'no proofStatements returned');
@@ -374,7 +378,8 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				path: actualSourcePath || proofPath,
 			},
 			description: `Outcome: ${outcome}. Proof: ${proofStatements.join('; ')}`,
-			action: async (args: TStepArgs, featureStep: TFeatureStep): Promise<TActionResult> => {
+			outputSchema: z.object({ proofStatements: z.array(z.string()) }),
+			action: async (args: TStepArgs, featureStep: TFeatureStep) => {
 				const robustArgs: Record<string, string> = { ...(args as Record<string, string>) };
 				if (featureStep.action.stepValuesMap) {
 					for (const [key, val] of Object.entries(featureStep.action.stepValuesMap)) {
@@ -389,7 +394,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 					const proof = await this.runner.runStatements(normalizedProofSteps, { args: robustArgs, intent: { mode: 'speculative' }, parentStep: featureStep });
 
 					if (proof.kind === 'ok') {
-						return actionOK({ topics: { proofStatements } });
+						return actionOKWithProducts({ proofStatements });
 					}
 				}
 
@@ -401,13 +406,13 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 						if (act.kind !== 'ok') {
 							return actionNotOK(`ActivitiesStepper: activity body failed for outcome "${outcome}": ${act.message}`);
 						}
-						return actionOK({ topics: { proofStatements } });
+						return actionOKWithProducts({ proofStatements });
 					}
 
 					if (proofStatements.length > 0) {
 						return actionNotOK(`ActivitiesStepper: proof failed for outcome "${outcome}"`);
 					}
-					return actionOK({ topics: { proofStatements } });
+					return actionOKWithProducts({ proofStatements });
 				}
 
 				// 3. Ensure Mode: Run Activity Body
@@ -425,7 +430,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 							return actionNotOK(`ActivitiesStepper: proof verification failed after activity body for outcome "${outcome}": ${verify.message}`);
 						}
 					}
-					return actionOK({ topics: { proofStatements } });
+					return actionOKWithProducts({ proofStatements });
 				}
 
 				return actionNotOK(`ActivitiesStepper: no activity body for outcome "${outcome}"`);
@@ -454,7 +459,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				kind: 'control',
 				level: 'debug',
 				signal: 'graph-link',
-				topics: {
+				args: {
 					outcome,
 					proofStatements: metadata.proofStatements,
 					proofPath: metadata.proofPath,
