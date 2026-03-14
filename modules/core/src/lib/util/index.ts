@@ -446,14 +446,17 @@ export function truncateForDisplay(s: string): string {
 	return `${s.slice(0, TRUNCATE_AT)}...[Truncated from ${s.length} characters]`;
 }
 
+const MAX_TRUNCATE_DEPTH = 10;
+
 /** Deep-truncate an object for logging: truncates any string values that exceed the limit. */
-export function truncateForLog(obj: unknown): unknown {
+export function truncateForLog(obj: unknown, depth = 0): unknown {
+	if (depth > MAX_TRUNCATE_DEPTH) return '[truncated at depth]';
 	if (typeof obj === 'string') return truncateForDisplay(obj);
 	if (obj === null || obj === undefined || typeof obj !== 'object') return obj;
-	if (Array.isArray(obj)) return obj.map(truncateForLog);
+	if (Array.isArray(obj)) return obj.map(item => truncateForLog(item, depth + 1));
 	const result: Record<string, unknown> = {};
 	for (const [k, v] of Object.entries(obj)) {
-		result[k] = truncateForLog(v);
+		result[k] = truncateForLog(v, depth + 1);
 	}
 	return result;
 }
