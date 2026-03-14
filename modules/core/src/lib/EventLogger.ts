@@ -6,9 +6,12 @@ import { formatCurrentSeqPath } from './util/index.js';
 
 export type TIsSecretFn = (name: string) => boolean;
 
+export type TEventSubscriber = (event: THaibunEvent) => void;
+
 export interface IEventLogger {
   suppressConsole?: boolean;
-  setStepperCallback?(callback: (event: THaibunEvent) => void): void;
+  subscribe(callback: TEventSubscriber): void;
+  unsubscribe(callback: TEventSubscriber): void;
   emit(event: THaibunEvent): void;
   log(featureStep: TFeatureStep, level: THaibunLogLevel, message: string, attributes?: Record<string, unknown>): void;
   // Convenience methods for logging without a featureStep
@@ -17,7 +20,7 @@ export interface IEventLogger {
   warn(message: string, attributes?: Record<string, unknown>): void;
   error(message: string, attributes?: Record<string, unknown>): void;
   stepStart(featureStep: TFeatureStep, stepperName: string, actionName: string, stepArgs: Record<string, unknown>, stepValuesMap: Record<string, unknown> | undefined): void;
-  stepEnd(featureStep: TFeatureStep, stepperName: string, actionName: string, ok: boolean, error: string | Error | undefined, stepArgs: Record<string, unknown>, stepValuesMap: Record<string, unknown> | undefined, topics: Record<string, unknown> | undefined): void;
+  stepEnd(featureStep: TFeatureStep, stepperName: string, actionName: string, ok: boolean, error: string | Error | undefined, stepArgs: Record<string, unknown>, stepValuesMap: Record<string, unknown> | undefined, products: Record<string, unknown> | undefined): void;
   artifact(featureStep: TFeatureStep, artifact: TArtifactEvent): void;
 }
 
@@ -46,34 +49,34 @@ function getEmitter(): string {
 
 
 export class EventLogger implements IEventLogger {
-  private stepperCallback?: (event: THaibunEvent) => void;
+  private subscribers: TEventSubscriber[] = [];
   public suppressConsole: boolean = false;
   private isSecretFn: TIsSecretFn;
 
   constructor(isSecretFn: TIsSecretFn = () => false) {
     this.isSecretFn = isSecretFn;
-    // HAIBUN_NDJSON=true forces NDJSON output (for debugging tests)
-    // Otherwise suppress in test environments (VITEST or NODE_ENV=test)
     const forceNdjson = process.env['HAIBUN_NDJSON'] === 'true';
     const isTest = process.env['VITEST'] !== undefined || process.env['NODE_ENV'] === 'test';
     this.suppressConsole = !forceNdjson && isTest;
   }
-  setStepperCallback(callback: (event: THaibunEvent) => void): void {
-    this.stepperCallback = callback;
+
+  subscribe(callback: TEventSubscriber): void {
+    this.subscribers.push(callback);
+  }
+
+  unsubscribe(callback: TEventSubscriber): void {
+    this.subscribers = this.subscribers.filter(s => s !== callback);
   }
 
   emit(event: THaibunEvent): void {
-    // Add emitter info if not already present
     const eventWithEmitter = {
       ...event,
       emitter: event.emitter || getEmitter(),
     };
 
-    // Route through stepper callback for in-process monitors
-    if (this.stepperCallback) {
-      this.stepperCallback(eventWithEmitter);
+    for (const subscriber of this.subscribers) {
+      subscriber(eventWithEmitter);
     }
-    // Output to stdout for CLI piping (unless suppressed)
     if (!this.suppressConsole) {
       console.log(JSON.stringify(eventWithEmitter));
     }
@@ -141,7 +144,7 @@ export class EventLogger implements IEventLogger {
     }));
   }
 
-  stepEnd(featureStep: TFeatureStep, stepperName: string, actionName: string, ok: boolean, error: string | Error | undefined, stepArgs: Record<string, unknown>, stepValuesMap: Record<string, unknown> | undefined, topics: Record<string, unknown> | undefined): void {
+  stepEnd(featureStep: TFeatureStep, stepperName: string, actionName: string, ok: boolean, error: string | Error | undefined, stepArgs: Record<string, unknown>, stepValuesMap: Record<string, unknown> | undefined, products: Record<string, unknown> | undefined): void {
     const errorMessage = error instanceof Error ? error.message : error;
     const safeStepValuesMap = stepValuesMap ? sanitizeObjectSecrets(stepValuesMap, this.isSecretFn) : undefined;
     const safeStepArgs = sanitizeObjectSecrets(stepArgs, () => false);
@@ -162,7 +165,7 @@ export class EventLogger implements IEventLogger {
       actionName,
       stepArgs: safeStepArgs as Record<string, unknown> | unknown[], // Match Zod union type
       stepValuesMap: safeStepValuesMap,
-      topics
+      products
     }));
   }
 

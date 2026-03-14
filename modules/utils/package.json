@@ -12,7 +12,6 @@
   ],
   "bin": {
     "scaffold": "build/scaffold/index.js",
-    "version": "build/version.js",
     "link": "build/npm-link-haibuns.js",
     "run-vcapture": "build/vcapture/index.js"
   },
