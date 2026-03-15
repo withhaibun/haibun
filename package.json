@@ -50,7 +50,9 @@
     "version-minor": "npm version minor",
     "version-major": "npm version major",
     "publish-all": "npm publish --workspaces --access public",
-    "publish-all:tag": "npm publish --workspaces --access public --tag"
+    "publish-all:alpha": "npm publish --workspaces --access public --tag alpha",
+    "publish-all:beta": "npm publish --workspaces --access public --tag beta",
+    "publish-all:rc": "npm publish --workspaces --access public --tag rc"
   },
   "version": "4.0.0-alpha.0",
   "overrides": {

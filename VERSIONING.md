@@ -30,7 +30,7 @@ npm run version-major            # 3.8.4 → 4.0.0
 ```
 
 Each command runs tests, syncs all workspace versions, commits, tags, and pushes.
-Publish separately with `npm run publish-all` (or `publish-all:tag -- alpha` for prereleases).
+Publish separately with `npm run publish-all` (or `publish-all:alpha` for prereleases).
 
 ## How it works
 
@@ -55,7 +55,9 @@ Running any `npm run version-*` script triggers this lifecycle:
 | `npm run version-minor` | Bump minor version (`3.8.4` → `3.9.0`) |
 | `npm run version-major` | Bump major version (`3.8.4` → `4.0.0`) |
 | `npm run publish-all` | Publish all workspace packages to npm |
-| `npm run publish-all:tag -- <tag>` | Publish with a dist-tag (e.g. `alpha`, `beta`, `next`) |
+| `npm run publish-all:alpha` | Publish with `@alpha` dist-tag |
+| `npm run publish-all:beta` | Publish with `@beta` dist-tag |
+| `npm run publish-all:rc` | Publish with `@rc` dist-tag |
 
 ## Typical release flow
 
@@ -63,19 +65,19 @@ Running any `npm run version-*` script triggers this lifecycle:
 
 ```sh
 npm run version-alpha          # 3.8.4 → 3.8.5-alpha.0
-npm run publish-all:tag -- alpha
+npm run publish-all:alpha
 
 # iterate on alpha...
 npm run version-alpha          # 3.8.5-alpha.0 → 3.8.5-alpha.1
-npm run publish-all:tag -- alpha
+npm run publish-all:alpha
 
 # promote to beta
 npm run version-beta           # 3.8.5-alpha.1 → 3.8.5-beta.0
-npm run publish-all:tag -- beta
+npm run publish-all:beta
 
 # promote to release candidate
 npm run version-rc             # 3.8.5-beta.0 → 3.8.5-rc.0
-npm run publish-all:tag -- rc
+npm run publish-all:rc
 
 # graduate to stable release
 npm run version-graduate       # 3.8.5-rc.0 → 3.8.5
