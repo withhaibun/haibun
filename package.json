@@ -52,7 +52,7 @@
     "publish-all": "npm publish --workspaces --access public",
     "publish-all:tag": "npm publish --workspaces --access public --tag"
   },
-  "version": "3.8.4",
+  "version": "4.0.0-alpha.0",
   "overrides": {
     "react": "^19.2.3",
     "react-dom": "^19.2.3",

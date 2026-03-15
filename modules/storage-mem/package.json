@@ -1,7 +1,7 @@
 {
   "name": "@haibun/storage-mem",
   "type": "module",
-  "version": "3.8.4",
+  "version": "4.0.0-alpha.0",
   "description": "",
   "main": "index.js",
   "files": [
