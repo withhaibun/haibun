@@ -207,29 +207,30 @@ function buildInputSchema(stepDef: TStepperStep, world: TWorld): { inputSchema: 
 
 // --- RPC Message Schemas ---
 
-/** Incoming RPC request from client (POST /rpc/:method). */
+/** Incoming JSON-RPC 2.0 request from client (POST /rpc/:method). */
 export const RpcRequestSchema = z.object({
+	jsonrpc: z.literal('2.0'),
 	id: z.string(),
-	type: z.literal('rpc'),
 	method: z.string(),
 	params: z.record(z.string(), z.unknown()).optional().default({}),
 	stream: z.boolean().optional(),
 });
 export type TRpcRequest = z.infer<typeof RpcRequestSchema>;
 
-/** Outgoing RPC response to client (SSE event). */
+/** Outgoing JSON-RPC 2.0 response to client. */
 export const RpcResponseSchema = z.object({
+	jsonrpc: z.literal('2.0'),
 	id: z.string(),
-	type: z.literal('rpc-response'),
 	result: z.unknown().optional(),
 	error: z.string().optional(),
 });
 export type TRpcResponse = z.infer<typeof RpcResponseSchema>;
 
-/** Outgoing RPC stream chunk to client (SSE event). */
+/** Outgoing JSON-RPC 2.0 stream chunk to client. */
 export const RpcStreamSchema = z.object({
+	jsonrpc: z.literal('2.0'),
 	id: z.string(),
-	type: z.literal('rpc-stream'),
+	stream: z.literal(true),
 	data: z.unknown(),
 });
 export type TRpcStream = z.infer<typeof RpcStreamSchema>;
