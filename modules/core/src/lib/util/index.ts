@@ -439,14 +439,13 @@ export const formatCurrentSection = (runtime: TRuntime) => [runtime.feature, run
 export const formatCurrentSeqPath = (seqPath: TSeqPath) => '[' + seqPath.join('.') + ']';
 
 const TRUNCATE_AT = 78;
+const MAX_TRUNCATE_DEPTH = 10;
 
-/** Truncate a string for display, showing original length if truncated. */
+/** Truncate a string for display, showing remaining length if truncated. */
 export function truncateForDisplay(s: string): string {
 	if (s.length <= TRUNCATE_AT) return s;
-	return `${s.slice(0, TRUNCATE_AT)}...[Truncated from ${s.length} characters]`;
+	return `${s.slice(0, TRUNCATE_AT)}[+${s.length - TRUNCATE_AT}c]`;
 }
-
-const MAX_TRUNCATE_DEPTH = 10;
 
 /** Deep-truncate an object for logging: truncates any string values that exceed the limit. */
 export function truncateForLog(obj: unknown, depth = 0): unknown {
