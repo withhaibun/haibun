@@ -4,10 +4,12 @@ import type { TWorld, TEndFeature, IStepperCycles } from '@haibun/core/lib/defs.
 import { OK, type TStepArgs } from '@haibun/core/schema/protocol.js';
 import { actionNotOK, getFromRuntime, getStepperOption, intOrError } from '@haibun/core/lib/util/index.js';
 import { AStepper, type IHasCycles, type IHasOptions } from '@haibun/core/lib/astepper.js';
+import { discoverSteps, validateToolInput, parseRpcRequest } from '@haibun/core/lib/step-dispatch.js';
+import { validateStep } from '@haibun/core/lib/step-validation.js';
 
 import { type IWebServer, WEBSERVER } from './defs.js';
 import { ServerHono, DEFAULT_PORT } from './server-hono.js';
-import { SSETransport, TRANSPORT } from './sse-transport.js';
+import { SSETransport, TRANSPORT, type ITransport } from './sse-transport.js';
 
 const cycles = (wss: WebServerStepper): IStepperCycles => ({
   async startFeature() {
@@ -29,6 +31,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
   description = 'Serve static files, create directory indexes, and host web content';
 
   webserver: ServerHono | undefined;
+  private steppers: AStepper[] = [];
   cycles: IStepperCycles = cycles(this);
 
   options = {
@@ -46,6 +49,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 
   async setWorld(world: TWorld, steppers: AStepper[]) {
     await super.setWorld(world, steppers);
+    this.steppers = steppers;
     const sname = this.constructor.name;
     const fromModule = (world.moduleOptions as unknown as Record<string, Record<string, unknown> | undefined>)?.[sname]?.['PORT'];
     const portOption = fromModule || getStepperOption(this, 'PORT', world.moduleOptions);
@@ -129,6 +133,38 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
         const routes = this.webserver?.mounted;
         this.getWorld().eventLogger.info(`routes: ${JSON.stringify(routes, null, 2)}`, { routes });
         return Promise.resolve(OK);
+      },
+    },
+    enableRpc: {
+      gwta: 'enable rpc',
+      action: async () => {
+        const transport = getFromRuntime(this.getWorld().runtime, TRANSPORT) as ITransport;
+        const { registry, metadata } = discoverSteps(this.steppers, this.getWorld());
+        const logger = this.getWorld().eventLogger;
+
+        transport.onMessage(async (raw: unknown) => {
+          const msg = parseRpcRequest(raw);
+          if (!msg) return;
+          const { method, params } = msg;
+
+          if (method === 'step.list') return metadata;
+          if (method === 'step.validate') return validateStep(String(params.text || ''), this.steppers);
+
+          const tool = registry.get(method);
+          if (!tool) return;
+
+          try {
+            const validatedParams = validateToolInput(tool, params);
+            const hr = await tool.handler(validatedParams);
+            if (hr.ok) return hr.products;
+            return { error: `${method}: ${(hr as { error: string }).error}` };
+          } catch (err) {
+            const detail = err instanceof Error ? err.message : String(err);
+            logger.error(`[RPC] ${method}: ${detail}`);
+            return { error: `${method}: ${detail}` };
+          }
+        });
+        return OK;
       },
     },
   };
