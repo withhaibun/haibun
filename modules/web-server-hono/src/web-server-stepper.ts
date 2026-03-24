@@ -137,7 +137,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
     },
     enableRpc: {
       gwta: 'enable rpc',
-      action: async () => {
+      action: () => {
         const transport = getFromRuntime(this.getWorld().runtime, TRANSPORT) as ITransport;
         const { registry, metadata } = discoverSteps(this.steppers, this.getWorld());
         const logger = this.getWorld().eventLogger;

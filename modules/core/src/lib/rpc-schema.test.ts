@@ -37,8 +37,8 @@ describe('JSON-RPC 2.0 schema compliance', () => {
 	it('parseRpcRequest returns parsed request for valid envelope', () => {
 		const result = parseRpcRequest({ jsonrpc: '2.0', id: '1', method: 'test' });
 		expect(result).not.toBeNull();
-		expect(result!.jsonrpc).toBe('2.0');
-		expect(result!.method).toBe('test');
+		expect(result?.jsonrpc).toBe('2.0');
+		expect(result?.method).toBe('test');
 	});
 
 	it('accepts request with stream flag', () => {
