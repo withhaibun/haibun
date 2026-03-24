@@ -50,6 +50,23 @@ describe('ServerHono', () => {
       server.addRoute('get', '/users/:id', c => c.text('ok'));
       expect(server.mounted.get['/users/:id']).toBeDefined();
     });
+
+    it('allows .well-known paths with single dot', () => {
+      server.addRoute('get', '/.well-known/context.jsonld', c => c.text('ok'));
+      expect(server.mounted.get['/.well-known/context.jsonld']).toBeDefined();
+    });
+
+    it('throws on path traversal with double dots', () => {
+      expect(() => server.addRoute('get', '/../../etc/passwd', c => c.text('ok'))).toThrow('multiple dots');
+    });
+
+    it('throws on double dot in any segment', () => {
+      expect(() => server.addRoute('get', '/safe/../secret', c => c.text('ok'))).toThrow('multiple dots');
+    });
+
+    it('throws on multiple dots in filename', () => {
+      expect(() => server.addRoute('get', '/path/file..ext', c => c.text('ok'))).toThrow('multiple dots');
+    });
   });
 
   describe('addKnownRoute', () => {
