@@ -14,7 +14,7 @@ class PlainStepper extends AStepper {
 	steps = {
 		greet: {
 			gwta: 'say hello to {name}',
-			action: async ({ name }: { name: string }) => {
+			action: ({ name }: { name: string }) => {
 				return OK;
 			},
 		},
@@ -31,19 +31,19 @@ class ProductStepper extends AStepper {
 		getCount: {
 			gwta: 'get the count',
 			outputSchema: z.object({ count: z.number() }),
-			action: async () => {
+			action: () => {
 				return actionOKWithProducts({ count: 42 });
 			},
 		},
 		failStep: {
 			gwta: 'fail on purpose',
-			action: async () => {
+			action: () => {
 				return actionNotOK('intentional failure');
 			},
 		},
 		throwStep: {
 			gwta: 'throw an error',
-			action: async () => {
+			action: () => {
 				throw new Error('boom');
 			},
 		},
