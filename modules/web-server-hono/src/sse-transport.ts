@@ -92,7 +92,9 @@ export class SSETransport implements ITransport {
 
         this.eventLogger.debug(`RPC: ${JSON.stringify(truncateForLog(data))}`);
         const result = await this.handleMessage(data);
-        return c.json((result ?? { ok: true }) as Record<string, unknown>);
+        const response = (result ?? { ok: true }) as Record<string, unknown>;
+        const status = response.error ? 422 : 200;
+        return c.json(response, status);
       } catch (e) {
         this.eventLogger.error(`Error parsing RPC POST message: ${e}`);
         return c.json({ ok: false, error: String(e) }, 400);
