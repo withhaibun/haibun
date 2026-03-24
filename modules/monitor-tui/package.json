@@ -1,6 +1,6 @@
 {
   "name": "@haibun/monitor-tui",
-  "version": "4.0.0-alpha.0",
+  "version": "4.0.0-alpha.1",
   "description": "Ink-based TUI monitor stepper for Haibun",
   "main": "build/index.js",
   "type": "module",
