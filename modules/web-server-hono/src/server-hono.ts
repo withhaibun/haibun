@@ -135,8 +135,9 @@ export class ServerHono implements IWebServer {
   }
 
   private validatePath(path: string): void {
-    const sanitized = path.replace(/[^a-zA-Z0-9/\-:_]/g, '').replace(/:(?![a-zA-Z0-9_-])/g, '');
+    const sanitized = path.replace(/[^a-zA-Z0-9/\-:_.]/g, '').replace(/:(?![a-zA-Z0-9_-])/g, '');
     if (path !== sanitized) throw new Error(`ServerHono: path "${path}" has illegal characters`);
+    if (/\.\./g.test(path)) throw new Error(`ServerHono: path "${path}" has multiple dots`);
   }
 
   private ensureNotMounted(type: TRouteTypes, path: string): void {
