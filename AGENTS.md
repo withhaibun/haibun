@@ -171,6 +171,22 @@ In Steps: `set published to article` uses the value of the variable `article`.
     set article to "Haibun Guide"
     set published to article ;; sets 'published' to "Haibun Guide"
 
+### Structured values and dot-path access
+
+Variables can hold structured (JSON) values. Fields are accessed via dot-path notation.
+
+    set config as json to {"host": "localhost", "port": 8080, "nested": {"enabled": true}}
+    variable config.host is "localhost"
+    variable config.port is 8080
+    variable config.nested.enabled is "true"
+
+Use `set from` to capture a step's output products into a variable. The step's results become a structured value with dot-path access.
+
+    set base_url to "https://example.com"
+    set info from show var base_url
+    variable info.value is "https://example.com"
+    variable info.domain is "string"
+
 ## Compound statements
 
 Compound statements combine multiple steps in one line.
