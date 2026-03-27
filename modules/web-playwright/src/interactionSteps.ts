@@ -544,11 +544,12 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 		},
 	},
 	saveTextFrom: {
-		gwta: `save text from {element: ${DOMAIN_PAGE_LOCATOR}} to {where}`,
-		action: async ({ element, where }: { element: string; where: string }, featureStep) => {
+		gwta: `save text from {element: ${DOMAIN_STRING_OR_PAGE_LOCATOR}} to {where}`,
+		handlesUndefined: ['where'],
+		action: async (_args: Record<string, unknown>, featureStep) => {
+			const where = getStepTerm(featureStep, 'where') ?? '';
 			const text = await wp.withPage<string>(async (page: Page) => {
-				const locator = page.locator(element);
-				// Try textContent first, fall back to inputValue for input elements
+				const locator = wp.locateByDomain(page, featureStep, 'element');
 				const content = await locator.textContent();
 				if (content !== null && content.trim() !== '') {
 					return content.trim();
