@@ -161,12 +161,12 @@ export function DocumentView({ events, currentTime, startTime, onTimeChange, min
                         let isInstigator = false;
                         for (let j = i + 1; j < events.length; j++) {
                             const next = events[j];
-                            if (next.id && next.id.startsWith(le.id + '.') && next.kind === 'lifecycle' && (next as TLifecycleEvent).stage === 'start') {
+                            if (next.id && le.id && next.id.startsWith(le.id + '.') && next.kind === 'lifecycle' && (next as TLifecycleEvent).stage === 'start') {
                                 isInstigator = true;
                                 break;
                             }
                             if (next.id === le.id) continue;
-                            if (next.id && !next.id.startsWith(le.id)) break;
+                            if (next.id && le.id && !next.id.startsWith(le.id)) break;
                         }
 
                         const depth = step.id ? step.id.split('.').length : 0;

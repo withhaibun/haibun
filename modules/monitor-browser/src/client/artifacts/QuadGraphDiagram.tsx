@@ -48,7 +48,7 @@ export function QuadGraphDiagram({
     quads.forEach(q => {
       const ctx = q.namedGraph || 'ungrouped';
       // Exclude observation and meta contexts from initial selection
-      if (!ctx.startsWith('observation') && ctx !== 'meta') {
+      if (ctx && !ctx.startsWith('observation') && ctx !== 'meta') {
         contexts.add(ctx);
       }
     });
@@ -144,7 +144,7 @@ export function QuadGraphDiagram({
     if (selectedContexts.size === 0) {
       u = u.filter(q => {
         const ctx = q.namedGraph || 'ungrouped';
-        return !ctx.startsWith('observation') && ctx !== 'meta';
+        return !!ctx && !ctx.startsWith('observation') && ctx !== 'meta';
       });
     } else if (!selectedContexts.has('all')) {
       u = u.filter(q => matchesSelection(q.namedGraph));
