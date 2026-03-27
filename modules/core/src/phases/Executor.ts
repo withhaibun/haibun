@@ -2,7 +2,7 @@ import { TFeatureStep, TResolvedFeature, TWorld, TStepAction, TEndFeature, Stepp
 import { TExecutorResult, TStepResult, TFeatureResult, TActionResult, TStepActionResult, STAY, STAY_FAILURE, CHECK_NO, CHECK_YES, CHECK_YIELD, STEP_DELAY, TNotOKActionResult, CONTINUE_AFTER_ERROR, TStepArgs, MAYBE_CHECK_YES, MAYBE_CHECK_NO, TSeqPath, FEATURE_START, Timer, STAY_ALWAYS } from '../schema/protocol.js';
 import { LifecycleEvent } from '../schema/protocol.js';
 import { AStepper, IHasCycles } from '../lib/astepper.js';
-import { actionNotOK, sleep, findStepper, setStepperWorldsAndDomains, } from '../lib/util/index.js';
+import { actionNotOK, sleep, findStepper, constructorName, setStepperWorldsAndDomains, } from '../lib/util/index.js';
 import { SCENARIO_START } from '../schema/protocol.js';
 import { FeatureVariables } from '../lib/feature-variables.js';
 import { populateActionArgs } from '../lib/populateActionArgs.js';
@@ -99,12 +99,15 @@ export class Executor {
 		// Emit resolved features artifact once at the start
 		try {
 			const { ResolvedFeaturesArtifact } = await import('../schema/protocol.js');
+			const activitiesStepper = steppers.find(s => constructorName(s) === 'ActivitiesStepper') as { getRegisteredOutcomes?(): Record<string, unknown> } | undefined;
+			const registeredOutcomes = activitiesStepper?.getRegisteredOutcomes?.();
 			const resolvedFeaturesEvent = ResolvedFeaturesArtifact.parse({
 				id: `artifact.resolvedFeatures`,
 				timestamp: Date.now(),
 				kind: 'artifact',
 				artifactType: 'resolvedFeatures',
 				resolvedFeatures: features,
+				...(registeredOutcomes ? { registeredOutcomes } : {}),
 				mimetype: 'application/json',
 			});
 			world.eventLogger.emit(resolvedFeaturesEvent);
