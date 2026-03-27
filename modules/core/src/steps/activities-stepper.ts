@@ -1,7 +1,7 @@
 import { AStepper, IHasCycles, TStepperSteps } from '../lib/astepper.js';
 
 import { TFeatureStep, TWorld, IStepperCycles, TStepperStep, TFeatures, CycleWhen, TStepInput } from '../lib/defs.js';
-import { TStepArgs, OK } from '../schema/protocol.js';
+import { TStepArgs, TRegisteredOutcomeEntry, OK } from '../schema/protocol.js';
 import { actionOK, actionNotOK, actionOKWithProducts, getActionable, formatCurrentSeqPath } from '../lib/util/index.js';
 import { z } from 'zod';
 import { DOMAIN_STATEMENT } from '../lib/domain-types.js';
@@ -449,6 +449,19 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		} else {
 			this.backgroundSteps[outcome] = step;
 		}
+	}
+
+	getRegisteredOutcomes(): Record<string, TRegisteredOutcomeEntry> {
+		const result: Record<string, TRegisteredOutcomeEntry> = {};
+		for (const [outcome, metadata] of this.registeredOutcomeMetadata.entries()) {
+			result[outcome] = {
+				proofStatements: metadata.proofStatements,
+				proofPath: metadata.proofPath,
+				isBackground: metadata.isBackground,
+				activityBlockSteps: metadata.activityBlockSteps?.map(s => typeof s === 'string' ? s : s.in),
+			};
+		}
+		return result;
 	}
 
 	sendGraphLinkMessages(): void {
