@@ -23,7 +23,7 @@ export const SourceLinks = ({ featurePath, lineNumber, emitter, cwd, isSerialize
     if (!hasFeatureLink && !hasEmitter) return null;
     
     const absolutePath = featurePath && cwd 
-        ? (featurePath.startsWith('/') ? `${cwd}${featurePath}` : `${cwd}/${featurePath}`)
+        ? (featurePath?.startsWith('/') ? `${cwd}${featurePath}` : `${cwd}/${featurePath}`)
         : undefined;
     
     return (

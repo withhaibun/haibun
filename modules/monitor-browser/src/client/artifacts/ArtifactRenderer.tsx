@@ -51,7 +51,7 @@ export function ArtifactRenderer({ artifact, currentTime, videoStartTimestamp, v
       return <MermaidArtifact artifact={artifact} />;
     case 'resolvedFeatures':
       // biome-ignore lint/suspicious/noExplicitAny: abstract artifact type mismatch
-      return <MermaidArtifact artifact={{ ...artifact, artifactType: 'mermaid', source: getMermaidFromResolvedFeatures(artifact.resolvedFeatures || []) } as any} />;
+      return <MermaidArtifact artifact={{ ...artifact, artifactType: 'mermaid', source: getMermaidFromResolvedFeatures(artifact.resolvedFeatures || [], artifact.registeredOutcomes) } as any} />;
     case 'http-trace':
       // biome-ignore lint/suspicious/noExplicitAny: abstract artifact type mismatch
       return <JsonArtifact artifact={{ ...artifact, artifactType: 'json', json: artifact.trace } as any} />;
