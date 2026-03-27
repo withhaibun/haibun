@@ -1,5 +1,6 @@
 import { AStepper } from "./astepper.js";
 import { isLiteralValue } from "./util/index.js";
+import { parseDotPath, navigateValue } from "./util/dot-path.js";
 import { TFeatureStep, TWorld } from './defs.js';
 import { Origin, TOrigin, TProvenanceIdentifier, TStepValue, THaibunEvent } from '../schema/protocol.js';
 import { DOMAIN_JSON, DOMAIN_STRING, normalizeDomainKey } from "./domain-types.js";
@@ -167,6 +168,13 @@ export class FeatureVariables {
 				if (resolved.secret === undefined) {
 					resolved.secret = this.isSecret(lookupTerm);
 				}
+			} else if (lookupTerm.includes('.')) {
+				const dotResult = this.resolveDotPath(lookupTerm);
+				if (dotResult.found) {
+					resolved.value = dotResult.value;
+					resolved.domain = DOMAIN_STRING;
+					resolved.origin = Origin.var;
+				}
 			}
 		} else if (input.origin === Origin.defined) {
 			if (featureStep?.runtimeArgs?.[lookupTerm] !== undefined) {
@@ -187,6 +195,17 @@ export class FeatureVariables {
 				resolved.secret = storedEntry.secret;
 				if (resolved.secret === undefined) {
 					resolved.secret = this.isSecret(lookupTerm);
+				}
+			} else if (lookupTerm.includes('.')) {
+				const dotResult = this.resolveDotPath(lookupTerm);
+				if (dotResult.found) {
+					resolved.value = dotResult.value;
+					resolved.domain = DOMAIN_STRING;
+					resolved.origin = Origin.var;
+				} else if (isLiteralValue(input.term)) {
+					// Fallback: treat unquoted terms that look like literals as string values
+					resolved.value = input.term;
+					resolved.domain = DOMAIN_STRING;
 				}
 			} else if (isLiteralValue(input.term)) {
 				// Fallback: treat unquoted terms that look like literals as string values
@@ -245,6 +264,21 @@ export class FeatureVariables {
 		}
 
 		return resolved as TStepValue;
+	}
+
+	/** Try dot-path navigation into a stored structured value. */
+	private resolveDotPath(lookupTerm: string): { value: unknown; domain: string; found: boolean } {
+		const { baseName, pathSegments } = parseDotPath(lookupTerm);
+		if (pathSegments.length === 0) return { value: undefined, domain: DOMAIN_STRING, found: false };
+		const baseEntry = this.values[baseName];
+		if (!baseEntry) return { value: undefined, domain: DOMAIN_STRING, found: false };
+		let baseValue = baseEntry.value;
+		// Parse JSON strings into objects for navigation
+		if (typeof baseValue === 'string') {
+			try { baseValue = JSON.parse(baseValue); } catch { return { value: undefined, domain: DOMAIN_STRING, found: false }; }
+		}
+		const result = navigateValue(baseValue, pathSegments);
+		return { ...result, domain: baseEntry.domain ?? DOMAIN_STRING };
 	}
 
 	getDomainValues(domainName: string): { values: unknown[], error?: string } {
