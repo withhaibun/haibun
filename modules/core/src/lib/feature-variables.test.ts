@@ -388,4 +388,39 @@ describe('FeatureVariables', () => {
 			expect(variables.isSecret('nonExistent')).toBe(false);
 		});
 	});
+
+	describe('dot-path resolution', () => {
+		it('navigates into JSON-stored objects', () => {
+			variables.setJSON('result', { total: 42, vertices: [] }, Origin.var, mockFeatureStep);
+			const resolved = variables.resolveVariable({ term: 'result.total', origin: Origin.defined }, mockFeatureStep);
+			expect(String(resolved.value)).toBe('42');
+			expect(resolved.origin).toBe(Origin.var);
+		});
+
+		it('navigates nested paths', () => {
+			variables.setJSON('data', { vertex: { subject: 'Hello', nested: { flag: true } } }, Origin.var, mockFeatureStep);
+			const resolved = variables.resolveVariable({ term: 'data.vertex.subject', origin: Origin.defined }, mockFeatureStep);
+			expect(String(resolved.value)).toBe('Hello');
+		});
+
+		it('does not resolve invalid paths as variables', () => {
+			variables.setJSON('data', { vertex: { subject: 'Hello' } }, Origin.var, mockFeatureStep);
+			const resolved = variables.resolveVariable({ term: 'data.vertex.missing', origin: Origin.defined }, mockFeatureStep);
+			// Invalid dot-path falls through to literal fallback — origin is not Origin.var
+			expect(resolved.origin).not.toBe(Origin.var);
+		});
+
+		it('prefers full key over dot-path when both exist', () => {
+			// Stepper-scoped variable like "WebPlaywright.currentURI"
+			variables.setForStepper('WebPlaywright', { term: 'currentURI', value: 'http://example.com', domain: DOMAIN_STRING, origin: Origin.var }, { in: 'test', seq: [1], when: 'test' });
+			const resolved = variables.resolveVariable({ term: 'WebPlaywright.currentURI', origin: Origin.defined }, mockFeatureStep);
+			expect(resolved.value).toBe('http://example.com');
+		});
+
+		it('works with Origin.var', () => {
+			variables.setJSON('info', { count: 7 }, Origin.var, mockFeatureStep);
+			const resolved = variables.resolveVariable({ term: 'info.count', origin: Origin.var }, mockFeatureStep);
+			expect(String(resolved.value)).toBe('7');
+		});
+	});
 });
