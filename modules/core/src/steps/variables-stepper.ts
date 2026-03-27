@@ -3,7 +3,8 @@ import { TFeatureStep, TWorld, IStepperCycles, TStartScenario, TRegisteredDomain
 import { OK, TStepArgs, Origin, TProvenanceIdentifier, TOrigin, TActionResult } from '../schema/protocol.js';
 import { TAnyFixme } from '../lib/fixme.js';
 import { AStepper, IHasCycles, TStepperSteps } from '../lib/astepper.js';
-import { actionOK, actionNotOK, getStepTerm } from '../lib/util/index.js';
+import { actionOK, actionNotOK, actionOKWithProducts, getStepTerm } from '../lib/util/index.js';
+import { FlowRunner } from '../lib/core/flow-runner.js';
 import { FeatureVariables, OBSCURED_VALUE } from '../lib/feature-variables.js';
 import { sanitizeObjectSecrets } from '../lib/util/secret-utils.js';
 import { DOMAIN_STATEMENT, DOMAIN_STRING, normalizeDomainKey, createEnumDomainDefinition, registerDomains } from '../lib/domain-types.js';
@@ -26,9 +27,11 @@ class VariablesStepper extends AStepper implements IHasCycles {
 
 	cycles = cycles(this);
 	steppers: AStepper[];
+	private runner!: FlowRunner;
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		this.world = world;
 		this.steppers = steppers;
+		this.runner = new FlowRunner(world, steppers);
 		await Promise.resolve();
 	}
 	steps = {
@@ -80,6 +83,22 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				if (result.error) return actionNotOK(result.error);
 
 				return trySetVariable(this.getWorld().shared, { term: String(term), value: result.value, domain: DOMAIN_STRING, origin: Origin.var, secret: result.secret }, provenanceFromFeatureStep(featureStep));
+			},
+		},
+		setFromStatement: {
+			gwta: `set {what: string} from {statement: ${DOMAIN_STATEMENT}}`,
+			handlesUndefined: ['what'],
+			precludes: [`${VariablesStepper.name}.set`],
+			action: async ({ statement }: { statement: TFeatureStep[] }, featureStep: TFeatureStep) => {
+				const { term } = featureStep.action.stepValuesMap.what;
+				const result = await this.runner.runSteps(statement, { intent: { mode: 'authoritative' }, parentStep: featureStep });
+				if (result.kind !== 'ok') return actionNotOK(`set from statement failed: ${result.message}`);
+				const stepActionResult = result.products as Record<string, unknown> | undefined;
+				const products = stepActionResult && 'products' in stepActionResult
+					? stepActionResult.products as Record<string, unknown>
+					: stepActionResult ?? {};
+				this.getWorld().shared.setJSON(String(term), products, Origin.var, featureStep);
+				return actionOK();
 			},
 		},
 		increment: {
@@ -304,6 +323,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		showVar: {
 			gwta: 'show var {what}',
 			handlesUndefined: ['what'],
+			outputSchema: z.object({ term: z.string(), value: z.unknown(), domain: z.string().optional() }),
 			action: (_: TStepArgs, featureStep: TFeatureStep) => {
 				const rawTerm = getStepTerm(featureStep, 'what');
 				if (rawTerm === undefined) return actionNotOK('variable not provided');
@@ -317,12 +337,12 @@ class VariablesStepper extends AStepper implements IHasCycles {
 
 				if (stepValue.value === undefined) {
 					this.getWorld().eventLogger.info(`${term} is undefined`);
-				} else {
-					const displayValue = isSecret ? { ...stepValue, value: OBSCURED_VALUE } : stepValue;
-					const provenance = featureStep.action.stepValuesMap.what.provenance?.map((p, i) => ({ [i]: { in: p.in, seq: p.seq.join(','), when: p.when } }));
-					this.getWorld().eventLogger.info(`${term} is ${JSON.stringify({ ...displayValue, provenance }, null, 2)}`, { variable: term, value: displayValue });
+					return actionOKWithProducts({ term, value: undefined, domain: stepValue.domain });
 				}
-				return actionOK();
+				const displayValue = isSecret ? { ...stepValue, value: OBSCURED_VALUE } : stepValue;
+				const provenance = featureStep.action.stepValuesMap.what.provenance?.map((p, i) => ({ [i]: { in: p.in, seq: p.seq.join(','), when: p.when } }));
+				this.getWorld().eventLogger.info(`${term} is ${JSON.stringify({ ...displayValue, provenance }, null, 2)}`, { variable: term, value: displayValue });
+				return actionOKWithProducts({ term, value: stepValue.value, domain: stepValue.domain });
 			}
 		},
 		showDomains: {
