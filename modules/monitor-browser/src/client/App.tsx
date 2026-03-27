@@ -664,7 +664,8 @@ function App() {
                         break;
                     }
                 }
-                const isInstigator = nextEvent && nextEvent.id.startsWith(id + '.');
+                const isInstigator = nextEvent && nextEvent.id?.startsWith(id + '.');
+                if (nextEvent && !nextEvent.id) console.warn('[monitor-browser] Event missing id:', nextEvent);
 
                 const prevDepth = validPrevE ? (validPrevE.id ? validPrevE.id.split('.').length : 0) : 0;
                 // Only show symbol if this row "goes deeper" than the previous one (i.e. is the first child).
@@ -745,7 +746,7 @@ function App() {
                                                 message={message}
                                                 canLink={!isSerializedMode && e.kind === 'lifecycle' && e.type === 'step' && !!(e.kind === 'lifecycle' && 'featurePath' in e && e.featurePath && 'lineNumber' in e && e.lineNumber && cwd)}
                                                 absolutePath={e.kind === 'lifecycle' && 'featurePath' in e && e.featurePath && cwd
-                                                    ? (e.featurePath.startsWith('/') ? `${cwd}${e.featurePath}` : `${cwd}/${e.featurePath}`)
+                                                    ? (e.featurePath?.startsWith('/') ? `${cwd}${e.featurePath}` : `${cwd}/${e.featurePath}`)
                                                     : undefined}
                                                 lineNumber={e.kind === 'lifecycle' && 'lineNumber' in e ? e.lineNumber : undefined}
                                             />
