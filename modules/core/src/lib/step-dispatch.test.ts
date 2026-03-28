@@ -151,18 +151,30 @@ describe('step-dispatch', () => {
 			const result = await handler({});
 			expect(result.ok).toBe(true);
 			if (result.ok) {
-				expect(result.products).toEqual({ count: 42 });
+				expect(result.products).toMatchObject({ count: 42 });
+				expect(result.products._seqPath).toEqual([0]);
 			}
 		});
 
-		it('returns ok with empty products for plain step', async () => {
+		it('returns ok with _seqPath in products for plain step', async () => {
 			const stepper = new PlainStepper();
 			const stepDef = stepper.steps.greet;
 			const handler = createStepHandler('PlainStepper', 'greet', stepDef);
 			const result = await handler({ name: 'world' });
 			expect(result.ok).toBe(true);
 			if (result.ok) {
-				expect(result.products).toEqual({});
+				expect(result.products._seqPath).toEqual([0]);
+			}
+		});
+
+		it('uses provided seqPath in products', async () => {
+			const stepper = new ProductStepper();
+			const stepDef = stepper.steps.getCount;
+			const handler = createStepHandler('ProductStepper', 'getCount', stepDef);
+			const result = await handler({}, [2, 3, 4]);
+			expect(result.ok).toBe(true);
+			if (result.ok) {
+				expect(result.products._seqPath).toEqual([2, 3, 4]);
 			}
 		});
 
