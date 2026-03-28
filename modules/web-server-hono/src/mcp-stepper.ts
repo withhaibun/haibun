@@ -16,11 +16,7 @@ import {
 	type IHasCycles,
 	type IHasOptions,
 } from "@haibun/core/lib/astepper.js";
-import type {
-	TWorld,
-	TStepperStep,
-	TFeatureStep,
-} from "@haibun/core/lib/defs.js";
+import type { TWorld } from "@haibun/core/lib/defs.js";
 import { OK } from "@haibun/core/schema/protocol.js";
 import {
 	getFromRuntime,
@@ -28,11 +24,10 @@ import {
 	constructorName,
 	stringOrError,
 } from "@haibun/core/lib/util/index.js";
-import { mapInputToStepValues } from "@haibun/core/lib/namedVars.js";
 import { currentVersion as version } from "@haibun/core/currentVersion.js";
-import { FeatureExecutor } from "@haibun/core/phases/Executor.js";
 import {
 	buildStepRegistry,
+	createStepHandler,
 	type StepRegistry,
 } from "@haibun/core/lib/step-dispatch.js";
 import type { IWebServer, Context } from "./defs.js";
@@ -66,37 +61,9 @@ export default class McpStepper
 	description = "Expose all Haibun steps as callable MCP tools for LLM agents";
 	readonly name = "McpStepper";
 
-	/** IStepTransport: refresh tool registries from the provided registry and set up routes. */
-	attach(registry: StepRegistry, webserver: IWebServer): void {
-		// Refresh using the shared registry if provided, otherwise use current steppers
-		const stepToolRegistry = new Map(registry.list().map((t) => [t.name, t]));
-		this.globalToolRegistry.clear();
-		this.stepperToolRegistry.clear();
-		for (const stepper of this.steppers) {
-			const stepperName = constructorName(stepper);
-			const tools: StoredTool[] = [];
-			for (const [stepName, stepDef] of Object.entries(stepper.steps)) {
-				if (stepDef.expose === false) continue;
-				const fullToolName = `${stepperName}-${stepName}`;
-				const stepTool = stepToolRegistry.get(fullToolName);
-				const inputSchema = stepTool
-					? { ...stepTool.inputSchema }
-					: { type: "object" as const };
-				delete inputSchema["$schema"];
-				delete inputSchema["additionalProperties"];
-				const tool: StoredTool = {
-					name: fullToolName,
-					description: stepDef.gwta || stepName,
-					inputSchema,
-					stepperName,
-					handler: this.createToolHandler(stepperName, stepName, stepDef),
-				};
-				tools.push(tool);
-				this.globalToolRegistry.set(fullToolName, tool);
-			}
-			this.stepperToolRegistry.set(stepperName, tools);
-		}
-		void webserver; // webserver already available via getWorld().runtime[WEBSERVER]
+	/** IStepTransport: refresh tool registries from the shared registry. */
+	attach(registry: StepRegistry, _webserver: IWebServer): void {
+		this.populateToolRegistries(registry);
 	}
 
 	/** IStepTransport: close MCP server on teardown. */
@@ -490,9 +457,14 @@ export default class McpStepper
 		return tools;
 	}
 
-	private populateToolRegistries() {
-		// Use buildStepRegistry for schema generation — single source of truth for input schemas
-		const stepToolRegistry = buildStepRegistry(this.steppers, this.world);
+	private populateToolRegistries(registry?: StepRegistry) {
+		// Build schema map — use provided registry if available (live refresh), otherwise build fresh
+		const schemaMap = registry
+			? new Map(registry.list().map((t) => [t.name, t]))
+			: buildStepRegistry(this.steppers, this.world);
+
+		this.globalToolRegistry.clear();
+		this.stepperToolRegistry.clear();
 
 		for (const stepper of this.steppers) {
 			const stepperName = constructorName(stepper);
@@ -502,7 +474,7 @@ export default class McpStepper
 				if (stepDef.expose === false) continue;
 
 				const fullToolName = `${stepperName}-${stepName}`;
-				const stepTool = stepToolRegistry.get(fullToolName);
+				const stepTool = schemaMap.get(fullToolName);
 
 				// Strip metadata that can confuse some MCP clients
 				const inputSchema = stepTool
@@ -511,58 +483,33 @@ export default class McpStepper
 				delete inputSchema["$schema"];
 				delete inputSchema["additionalProperties"];
 
+				const dispatchHandler = createStepHandler(
+					stepperName,
+					stepName,
+					stepDef,
+				);
 				const tool: StoredTool = {
 					name: fullToolName,
 					description: stepDef.gwta || stepName,
 					inputSchema,
 					stepperName,
-					handler: this.createToolHandler(stepperName, stepName, stepDef),
+					handler: async (
+						input: Record<string, unknown>,
+					): Promise<CallToolResult> => {
+						this.getWorld().eventLogger.info(
+							`[MCP] Tool Execution: ${fullToolName}`,
+						);
+						const hr = await dispatchHandler(input);
+						return {
+							content: [{ type: "text", text: JSON.stringify(hr, null, 2) }],
+						};
+					},
 				};
 				tools.push(tool);
 				this.globalToolRegistry.set(fullToolName, tool);
 			}
 			this.stepperToolRegistry.set(stepperName, tools);
 		}
-	}
-
-	private createToolHandler(
-		stepperName: string,
-		stepName: string,
-		stepDef: TStepperStep,
-	) {
-		return async (input: Record<string, unknown>): Promise<CallToolResult> => {
-			this.getWorld().eventLogger.info(
-				`[MCP] Tool Execution: ${stepperName}-${stepName}`,
-			);
-
-			const featureStep: TFeatureStep = {
-				in: stepDef.gwta || "",
-				action: {
-					stepperName,
-					actionName: stepName,
-					step: stepDef,
-					stepValuesMap: this.mapInputToValues(input, stepDef),
-				},
-				seqPath: [0],
-				source: { path: "mcp" },
-			};
-
-			const result = await FeatureExecutor.doFeatureStep(
-				this.steppers,
-				featureStep,
-				this.world,
-			);
-			return {
-				content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
-			};
-		};
-	}
-
-	private mapInputToValues(
-		input: Record<string, unknown>,
-		stepDef: TStepperStep,
-	) {
-		return mapInputToStepValues(input, stepDef.gwta || "");
 	}
 
 	private setupMiddleware(webserver: IWebServer) {
