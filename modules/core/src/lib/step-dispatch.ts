@@ -70,6 +70,11 @@ export class StepRegistry {
 	has(name: string): boolean {
 		return this.tools.has(name);
 	}
+
+	/** Inject or overwrite a single tool (used by subprocess transport to register child steps). */
+	set(tool: StepTool): void {
+		this.tools.set(tool.name, tool);
+	}
 }
 
 export type StepToolInputSchema = {
