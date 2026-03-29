@@ -2,14 +2,17 @@ import { TWorld, TFeatureStep, TStepInput } from '../defs.js';
 import { TSeqPath, TNotOKActionResult } from '../../schema/protocol.js';
 import { AStepper } from '../astepper.js';
 import { Resolver } from '../../phases/Resolver.js';
-import { FeatureExecutor, incSeqPath } from '../../phases/Executor.js';
+import { executeStep, incSeqPath } from '../../phases/Executor.js';
 import { ExecutionIntent, FlowSignal } from '../../schema/protocol.js';
+import { StepRegistry } from '../step-dispatch.js';
 
 export class FlowRunner {
 	private resolver: Resolver;
+	private registry: StepRegistry;
 
 	constructor(private world: TWorld, private steppers: AStepper[]) {
 		this.resolver = new Resolver(steppers);
+		this.registry = new StepRegistry(steppers, world);
 	}
 
 	async runStatement(statement: string | TStepInput, options: { args?: Record<string, string>, intent?: ExecutionIntent, parentStep?: TFeatureStep, seqPath?: TSeqPath } = {}): Promise<FlowSignal> {
@@ -17,11 +20,7 @@ export class FlowRunner {
 
 		const stmtText = typeof statement === 'string' ? statement : statement.in;
 
-		// Merge parent runtimeArgs with current args (current takes precedence)
-		// This enables nested quantifiers: outer vars are visible to inner statements
 		const allArgs = { ...options.parentStep?.runtimeArgs, ...options.args };
-
-		// Interpolate {varName} patterns using merged args
 		let statementWithArgs = stmtText;
 		if (Object.keys(allArgs).length > 0) {
 			for (const [key, value] of Object.entries(allArgs)) {
@@ -29,7 +28,6 @@ export class FlowRunner {
 			}
 		}
 
-		// Resolve the action first - this gives us access to step metadata including source
 		let action;
 		try {
 			action = this.resolver.findSingleStepAction(statementWithArgs);
@@ -40,32 +38,25 @@ export class FlowRunner {
 			throw e;
 		}
 
-		// Derive source path: prefer resolved step's source, then parentStep, then input statement
 		const step = action.step;
 		let resolvedPath: string;
 		let resolvedLineNumber: number | undefined;
 
 		if (step?.source?.path) {
-			// Step definition has its own source (e.g., activity, waypoint)
 			resolvedPath = step.source.path;
 			resolvedLineNumber = step.source.lineNumber;
 		} else if (options.parentStep?.source?.path) {
-			// Fall back to parent step's source (e.g., quantifier calling nested statement)
 			resolvedPath = options.parentStep.source.path;
 			resolvedLineNumber = options.parentStep.source.lineNumber;
 		} else if (typeof statement !== 'string' && statement.source?.path) {
-			// Use input statement's source if provided
 			resolvedPath = statement.source.path;
 			resolvedLineNumber = statement.source.lineNumber;
 		} else if (this.world.runtime.currentFeaturePath) {
-			// Fall back to current feature path (e.g., debugger executing ad-hoc statements)
 			resolvedPath = this.world.runtime.currentFeaturePath;
 		} else {
-			// No source available - use placeholder for dynamic/ad-hoc statements (debugger, REPL, etc.)
 			resolvedPath = '<dynamic>';
 		}
 
-		// Compute seqPath for this statement
 		let seqPath = options.seqPath;
 		if (!seqPath) {
 			if (options.parentStep) {
@@ -75,27 +66,22 @@ export class FlowRunner {
 			}
 		}
 
-		// Merge parent args with current args (current takes precedence)
 		const mergedArgs = { ...options.parentStep?.runtimeArgs, ...options.args };
 
 		const featureStep: TFeatureStep = {
-			source: {
-				path: resolvedPath,
-				lineNumber: resolvedLineNumber,
-			},
+			source: { path: resolvedPath, lineNumber: resolvedLineNumber },
 			in: statementWithArgs,
 			seqPath,
 			action,
 			intent,
 			isSubStep: !!options.parentStep,
-			// Propagate isAfterEveryStep from parent to prevent afterEvery recursion
 			isAfterEveryStep: options.parentStep?.isAfterEveryStep,
-			runtimeArgs: Object.keys(mergedArgs).length > 0 ? mergedArgs : undefined
+			runtimeArgs: Object.keys(mergedArgs).length > 0 ? mergedArgs : undefined,
 		};
 
 		let result;
 		try {
-			result = await FeatureExecutor.doFeatureStep(this.steppers, featureStep, this.world);
+			result = await executeStep(this.registry, this.steppers, featureStep, this.world);
 		} catch (e: unknown) {
 			if (intent.mode === 'speculative') {
 				return { kind: 'fail', message: e instanceof Error ? e.message : String(e) };
@@ -105,19 +91,16 @@ export class FlowRunner {
 
 		if (result.ok) {
 			return { kind: 'ok', products: result.stepActionResult };
-		} else {
-			const msg = (result.stepActionResult as TNotOKActionResult).message;
-			return { kind: 'fail', message: msg, products: result.stepActionResult };
 		}
+		const msg = (result.stepActionResult as TNotOKActionResult).message;
+		return { kind: 'fail', message: msg, products: result.stepActionResult };
 	}
 
 	async runStatements(statements: (string | TStepInput)[], options: { args?: Record<string, string>, intent?: ExecutionIntent, parentStep?: TFeatureStep } = {}): Promise<FlowSignal> {
 		let lastResult: FlowSignal | undefined;
 		for (const stmt of statements) {
 			const result = await this.runStatement(stmt, options);
-			if (result.kind !== 'ok') {
-				return result;
-			}
+			if (result.kind !== 'ok') return result;
 			lastResult = result;
 		}
 		return { kind: 'ok', products: lastResult?.products };
@@ -125,19 +108,15 @@ export class FlowRunner {
 
 	async runSteps(steps: TFeatureStep[], options: { intent?: ExecutionIntent, parentStep?: TFeatureStep } = {}): Promise<FlowSignal> {
 		const { intent = { mode: 'authoritative' }, parentStep } = options;
-
 		let lastResult: FlowSignal | undefined;
 
 		for (const step of steps) {
 			let mappedStep: TFeatureStep = {
 				...step,
 				intent,
-				runtimeArgs: { ...parentStep?.runtimeArgs, ...step.runtimeArgs }
+				runtimeArgs: { ...parentStep?.runtimeArgs, ...step.runtimeArgs },
 			};
 			if (parentStep) {
-				// For nested steps, we append to the parent's seqPath.
-				// We use incSeqPath to ensure we get a unique path based on what has already executed.
-				// This handles loops and repeated calls correctly.
 				const baseSeqPath = [...parentStep.seqPath, 1];
 				const dir = intent.mode === 'speculative' ? -1 : 1;
 				const seqPath = incSeqPath(this.world.runtime.stepResults, baseSeqPath, dir);
@@ -146,7 +125,7 @@ export class FlowRunner {
 
 			let result;
 			try {
-				result = await FeatureExecutor.doFeatureStep(this.steppers, mappedStep, this.world);
+				result = await executeStep(this.registry, this.steppers, mappedStep, this.world);
 			} catch (e) {
 				if (intent.mode === 'speculative') {
 					return { kind: 'fail', message: e instanceof Error ? e.message : String(e) };
@@ -158,15 +137,6 @@ export class FlowRunner {
 				const msg = (result.stepActionResult as TNotOKActionResult).message;
 				return { kind: 'fail', message: msg, products: result.stepActionResult };
 			}
-
-			// If not using cycles (which doFeatureStep defaults to WITH_CYCLES), we might need to push results.
-			// But doFeatureStep pushes results if WITH_CYCLES.
-			// If we are in speculative mode, doFeatureStep might still push results if we don't change execMode.
-			// However, FlowRunner doesn't currently control execMode passed to doFeatureStep directly,
-			// it relies on FeatureExecutor defaults.
-			// If we want to avoid polluting stepResults in speculative mode, we might need to adjust FeatureExecutor or pass a flag.
-			// But for now, to ensure incSeqPath works, we NEED results in stepResults.
-			// So we accept that speculative steps might be in stepResults (which is probably fine for debugging).
 
 			lastResult = { kind: 'ok', products: result.stepActionResult };
 		}
