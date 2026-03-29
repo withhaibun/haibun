@@ -185,6 +185,18 @@ describe('step-dispatch', () => {
 			expect(discovery.domains['color']).toMatchObject({ description: 'A color', values: ['red', 'green', 'blue'] });
 		});
 
+		it('extracts enum values from z.enum domain schema when values not explicitly set', () => {
+			const w = getDefaultWorld();
+			registerDomains(w, [[{
+				selectors: ['size'],
+				schema: z.enum(['small', 'medium', 'large']),
+				description: 'T-shirt size',
+			}]]);
+			const stepper = new PlainStepper();
+			const discovery = discoverSteps([stepper], w);
+			expect(discovery.domains['size']).toMatchObject({ description: 'T-shirt size', values: ['small', 'medium', 'large'] });
+		});
+
 		it('step.list metadata includes inputSchema', () => {
 			const stepper = new PlainStepper();
 			const discovery = discoverSteps([stepper], world);
