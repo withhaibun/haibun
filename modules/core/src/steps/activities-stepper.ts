@@ -72,6 +72,9 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			this.lastFeaturePath = this.currentFeaturePath;
 			this.ensuredInstances.clear();
 			return Promise.resolve();
+		},
+		getRegisteredOutcomes: () => {
+			return this.getRegisteredOutcomes();
 		}
 	}
 	cyclesWhen = {
