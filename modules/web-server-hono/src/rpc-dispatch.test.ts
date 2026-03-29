@@ -26,7 +26,8 @@ class RpcVerifyStepper extends AStepper {
         });
         if (!res.ok) return actionNotOK(`HTTP ${res.status}`);
         const data = await res.json();
-        const methods = Array.isArray(data) ? data.map((s: { method: string }) => s.method) : [];
+        const steps = Array.isArray(data) ? data : (data as { steps?: { method: string }[] }).steps ?? [];
+        const methods = steps.map((s: { method: string }) => s.method);
         return methods.includes(String(stepName)) ? OK : actionNotOK(`"${stepName}" not in [${methods.join(', ')}]`);
       },
     },

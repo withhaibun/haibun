@@ -206,15 +206,19 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 				transport.onMessage(async (raw: unknown) => {
 					const msg = parseRpcRequest(raw);
 					if (!msg) return;
-					const { method, params, seqPath } = msg;
+					const { method, params } = msg;
+					// Ad-hoc RPC calls get seqPath [0, N] so they're traceable but distinct from feature steps
+					const runtime = this.getWorld().runtime;
+					runtime.adHocSeq = (runtime.adHocSeq ?? 0) + 1;
+					const seqPath = msg.seqPath ?? [0, runtime.adHocSeq];
 
 					if (method === "step.list") {
-						const { metadata } = discoverSteps(
+						const { metadata, domains } = discoverSteps(
 							this.steppers,
 							this.getWorld(),
 							this.stepRegistry,
 						);
-						return metadata;
+						return { steps: metadata, domains };
 					}
 					if (method === "step.validate")
 						return validateStep(String(params.text || ""), this.steppers);
@@ -223,7 +227,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 					if (!tool) return;
 
 					try {
-						const validatedParams = validateToolInput(tool, params);
+						const validatedParams = validateToolInput(tool, params, this.getWorld());
 						const hr = await tool.handler(validatedParams, seqPath);
 						if (hr.ok) return hr.products;
 						return { error: `${method}: ${(hr as { error: string }).error}` };
