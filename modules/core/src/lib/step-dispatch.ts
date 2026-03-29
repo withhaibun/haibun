@@ -403,7 +403,19 @@ export function discoverSteps(
 	}
 	const domains: Record<string, { description?: string; values?: string[] }> = {};
 	for (const [key, domain] of Object.entries(world.domains ?? {})) {
-		domains[key] = { description: domain.description, values: domain.values };
+		// Prefer explicit values; fall back to extracting enum values from z.enum schemas
+		let values = domain.values;
+		if (!values && domain.schema) {
+			try {
+				const jsonSchema = z.toJSONSchema(domain.schema) as Record<string, unknown>;
+				if (Array.isArray(jsonSchema.enum)) {
+					values = jsonSchema.enum as string[];
+				}
+			} catch {
+				// schema not convertible — leave values undefined
+			}
+		}
+		domains[key] = { description: domain.description, values };
 	}
 	return { registry, metadata, domains };
 }
