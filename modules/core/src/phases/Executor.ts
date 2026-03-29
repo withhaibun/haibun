@@ -34,7 +34,6 @@ import {
 	actionNotOK,
 	sleep,
 	findStepper,
-	constructorName,
 	setStepperWorldsAndDomains,
 } from "../lib/util/index.js";
 import { SCENARIO_START } from "../schema/protocol.js";
@@ -174,10 +173,8 @@ export class Executor {
 			const { ResolvedFeaturesArtifact } = await import(
 				"../schema/protocol.js"
 			);
-			const activitiesStepper = steppers.find(
-				(s) => constructorName(s) === "ActivitiesStepper",
-			) as { getRegisteredOutcomes?(): Record<string, unknown> } | undefined;
-			const registeredOutcomes = activitiesStepper?.getRegisteredOutcomes?.();
+			const outcomeResults = await doStepperCycle(steppers, "getRegisteredOutcomes", undefined);
+			const registeredOutcomes = outcomeResults.find(Boolean);
 			const resolvedFeaturesEvent = ResolvedFeaturesArtifact.parse({
 				id: `artifact.resolvedFeatures`,
 				timestamp: Date.now(),

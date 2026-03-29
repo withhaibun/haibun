@@ -26,6 +26,8 @@ export type StepTool = {
 	inputSchema: StepToolInputSchema;
 	/** Zod schemas for each input parameter, keyed by parameter name. Used for runtime validation. */
 	paramSchemas: Map<string, z.ZodType>;
+	/** Domain key for each parameter, keyed by parameter name. Used for domain.coerce() after Zod validation. */
+	paramDomainKeys: Map<string, string>;
 	/** JSON Schema describing the products this step returns. Built from outputSchema on step definition. */
 	outputSchema?: Record<string, unknown>;
 	stepperName: string;
@@ -99,7 +101,7 @@ export function buildStepRegistry(
 		for (const [stepName, stepDef] of Object.entries(stepper.steps)) {
 			if (stepDef.expose === false) continue;
 
-			const { inputSchema, paramSchemas } = buildInputSchema(stepDef, world);
+			const { inputSchema, paramSchemas, paramDomainKeys } = buildInputSchema(stepDef, world);
 			const name = stepMethodName(stepperName, stepName);
 			let outputSchema: Record<string, unknown> | undefined;
 			if (stepDef.outputSchema) {
@@ -118,6 +120,7 @@ export function buildStepRegistry(
 				description: stepDef.gwta || stepName,
 				inputSchema,
 				paramSchemas,
+				paramDomainKeys,
 				outputSchema,
 				stepperName,
 				stepName,
@@ -130,12 +133,14 @@ export function buildStepRegistry(
 }
 
 /**
- * Validate input against a step tool's Zod schemas.
- * Returns validated (parsed) input on success, throws with descriptive errors on failure.
+ * Validate input against a step tool's Zod schemas, then apply domain.coerce() if available.
+ * Returns validated (and coerced) input on success, throws with descriptive errors on failure.
+ * Pass world to enable domain coercion (aligns RPC dispatch with feature-file execution).
  */
 export function validateToolInput(
 	tool: StepTool,
 	input: Record<string, unknown>,
+	world?: TWorld,
 ): Record<string, unknown> {
 	const validated: Record<string, unknown> = { ...input };
 	const errors: string[] = [];
@@ -152,7 +157,18 @@ export function validateToolInput(
 		if (schema) {
 			const result = schema.safeParse(value);
 			if (result.success) {
-				validated[key] = result.data;
+				// Apply domain.coerce() after Zod validation if world is provided
+				if (world) {
+					const domainKey = tool.paramDomainKeys.get(key);
+					const domain = domainKey ? world.domains?.[domainKey] : undefined;
+					if (domain?.coerce) {
+						validated[key] = domain.coerce({ value: result.data, domain: domainKey || "", term: key, origin: "defined" });
+					} else {
+						validated[key] = result.data;
+					}
+				} else {
+					validated[key] = result.data;
+				}
 			} else {
 				const issues = result.error.issues
 					.map((i) =>
@@ -255,13 +271,14 @@ export function createStepHandler(
 function buildInputSchema(
 	stepDef: TStepperStep,
 	world: TWorld,
-): { inputSchema: StepToolInputSchema; paramSchemas: Map<string, z.ZodType> } {
+): { inputSchema: StepToolInputSchema; paramSchemas: Map<string, z.ZodType>; paramDomainKeys: Map<string, string> } {
 	const properties: Record<
 		string,
 		{ type?: string; description?: string; [key: string]: unknown }
 	> = {};
 	const required: string[] = [];
 	const paramSchemas = new Map<string, z.ZodType>();
+	const paramDomainKeys = new Map<string, string>();
 
 	if (stepDef.gwta) {
 		const { stepValuesMap } = namedInterpolation(stepDef.gwta);
@@ -271,6 +288,8 @@ function buildInputSchema(
 				const parts = rawDomain.split(" | ").sort();
 				const domainKey = normalizeDomainKey(parts.join(" | "));
 				const domain = world.domains?.[domainKey];
+
+				paramDomainKeys.set(v.term, domainKey);
 
 				if (domain?.schema) {
 					paramSchemas.set(v.term, domain.schema);
@@ -301,6 +320,7 @@ function buildInputSchema(
 	return {
 		inputSchema: { type: "object" as const, properties, required },
 		paramSchemas,
+		paramDomainKeys,
 	};
 }
 
@@ -348,6 +368,8 @@ export function parseRpcRequest(raw: unknown): TRpcRequest | null {
 export type StepDiscovery = {
 	registry: Map<string, StepTool>;
 	metadata: StepDescriptor[];
+	/** Domain definitions from world.domains, serializable for SPA autocomplete. */
+	domains: Record<string, { description?: string; values?: string[] }>;
 };
 
 /**
@@ -374,5 +396,9 @@ export function discoverSteps(
 			meta.outputSchema = tool.outputSchema;
 		}
 	}
-	return { registry, metadata };
+	const domains: Record<string, { description?: string; values?: string[] }> = {};
+	for (const [key, domain] of Object.entries(world.domains ?? {})) {
+		domains[key] = { description: domain.description, values: domain.values };
+	}
+	return { registry, metadata, domains };
 }

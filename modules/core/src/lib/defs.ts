@@ -52,6 +52,8 @@ export type TRuntime = {
 	observations: Map<string, TAnyFixme>;
 	/** If non-empty, execution was aborted due to exhaustion (description explains why). */
 	exhaustionError?: string;
+	/** Monotonic counter for ad-hoc RPC calls (not part of feature execution). Gives seqPath [0, N]. */
+	adHocSeq?: number;
 	[name: string]: TAnyFixme;
 };
 
@@ -229,6 +231,8 @@ export interface IStepperConcerns {
 
 export interface IStepperCycles {
 	getConcerns?(): IStepperConcerns;
+	/** Return registered outcome definitions for artifact emission. Used by ActivitiesStepper. */
+	getRegisteredOutcomes?(): Record<string, unknown>;
 	startExecution?(features: TStartExecution): Promise<void> | void;
 	startFeature?(startFeature: TStartFeature): Promise<void> | void;
 	startScenario?(startScenario: TStartScenario): Promise<void>;
