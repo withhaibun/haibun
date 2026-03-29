@@ -1,11 +1,12 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { z } from 'zod';
 
-import { buildStepRegistry, validateToolInput, stepMethodName, createStepHandler, type StepTool } from './step-dispatch.js';
+import { buildStepRegistry, validateToolInput, stepMethodName, createStepHandler, discoverSteps, type StepTool } from './step-dispatch.js';
 import { AStepper } from './astepper.js';
 import { OK } from '../schema/protocol.js';
 import { actionOKWithProducts, actionNotOK } from './util/index.js';
 import { getDefaultWorld } from './test/lib.js';
+import { registerDomains } from './domain-types.js';
 import type { TWorld, TStepperStep } from './defs.js';
 
 // --- Test Steppers ---
@@ -102,44 +103,94 @@ describe('step-dispatch', () => {
 	});
 
 	describe('validateToolInput', () => {
+		const makeTool = (overrides: Partial<StepTool> & { paramSchemas: StepTool['paramSchemas'] }): StepTool => ({
+			name: 'test',
+			description: 'test',
+			inputSchema: { type: 'object', properties: { x: { type: 'string' } }, required: ['x'] },
+			paramSchemas: overrides.paramSchemas,
+			paramDomainKeys: new Map(),
+			stepperName: 'Test',
+			stepName: 'test',
+			handler: async () => ({ ok: true, products: {} }),
+			...overrides,
+		});
+
 		it('passes valid input', () => {
-			const tool: StepTool = {
-				name: 'test',
-				description: 'test',
-				inputSchema: { type: 'object', properties: { x: { type: 'string' } }, required: ['x'] },
-				paramSchemas: new Map([['x', z.string()]]),
-				stepperName: 'Test',
-				stepName: 'test',
-				handler: async () => ({ ok: true, products: {} }),
-			};
+			const tool = makeTool({ paramSchemas: new Map([['x', z.string()]]) });
 			const result = validateToolInput(tool, { x: 'hello' });
 			expect(result.x).toBe('hello');
 		});
 
 		it('throws on missing required input', () => {
-			const tool: StepTool = {
-				name: 'test',
-				description: 'test',
-				inputSchema: { type: 'object', properties: { x: { type: 'string' } }, required: ['x'] },
-				paramSchemas: new Map([['x', z.string()]]),
-				stepperName: 'Test',
-				stepName: 'test',
-				handler: async () => ({ ok: true, products: {} }),
-			};
+			const tool = makeTool({ paramSchemas: new Map([['x', z.string()]]) });
 			expect(() => validateToolInput(tool, {})).toThrow(/validation failed.*"x": required/);
 		});
 
 		it('throws on invalid type', () => {
-			const tool: StepTool = {
-				name: 'test',
-				description: 'test',
+			const tool = makeTool({
 				inputSchema: { type: 'object', properties: { x: { type: 'number' } }, required: ['x'] },
 				paramSchemas: new Map([['x', z.number()]]),
-				stepperName: 'Test',
-				stepName: 'test',
-				handler: async () => ({ ok: true, products: {} }),
-			};
+			});
 			expect(() => validateToolInput(tool, { x: 'not-a-number' })).toThrow(/validation failed/);
+		});
+
+		it('applies domain.coerce() when world is provided', () => {
+			const w = getDefaultWorld();
+			registerDomains(w, [[{
+				selectors: ['myDomain'],
+				schema: z.string(),
+				coerce: (proto) => String(proto.value).toUpperCase(),
+			}]]);
+			const stepper = new class extends AStepper {
+				steps = { doIt: { gwta: 'do it with {val: myDomain}', action: async () => OK } };
+			}();
+			const registry = buildStepRegistry([stepper], w);
+			const tool = registry.get(`${stepper.constructor.name}-doIt`)!;
+			const result = validateToolInput(tool, { val: 'hello' }, w);
+			expect(result.val).toBe('HELLO');
+		});
+
+		it('skips coerce when world is not provided', () => {
+			const w = getDefaultWorld();
+			registerDomains(w, [[{
+				selectors: ['myDomain'],
+				schema: z.string(),
+				coerce: (proto) => String(proto.value).toUpperCase(),
+			}]]);
+			const stepper = new class extends AStepper {
+				steps = { doIt: { gwta: 'do it with {val: myDomain}', action: async () => OK } };
+			}();
+			const registry = buildStepRegistry([stepper], w);
+			const tool = registry.get(`${stepper.constructor.name}-doIt`)!;
+			// Without world, no coercion — returns Zod-parsed value as-is
+			const result = validateToolInput(tool, { val: 'hello' });
+			expect(result.val).toBe('hello');
+		});
+	});
+
+	describe('discoverSteps', () => {
+		it('returns steps and domains', () => {
+			const w = getDefaultWorld();
+			registerDomains(w, [[{
+				selectors: ['color'],
+				schema: z.enum(['red', 'green', 'blue']),
+				values: ['red', 'green', 'blue'],
+				description: 'A color',
+			}]]);
+			const stepper = new PlainStepper();
+			const discovery = discoverSteps([stepper], w);
+			expect(Array.isArray(discovery.metadata)).toBe(true);
+			expect(discovery.metadata.some(m => m.method === 'PlainStepper-greet')).toBe(true);
+			expect(discovery.domains).toBeDefined();
+			expect(discovery.domains['color']).toMatchObject({ description: 'A color', values: ['red', 'green', 'blue'] });
+		});
+
+		it('step.list metadata includes inputSchema', () => {
+			const stepper = new PlainStepper();
+			const discovery = discoverSteps([stepper], world);
+			const greet = discovery.metadata.find(m => m.method === 'PlainStepper-greet');
+			expect(greet?.inputSchema).toBeDefined();
+			expect(greet?.inputSchema?.required).toContain('name');
 		});
 	});
 

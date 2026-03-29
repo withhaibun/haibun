@@ -114,4 +114,91 @@ rpc old format to "http://localhost:${port}/rpc/step.list" is not dispatched
     const result = await passWithDefaults([feature], steppers, makeOptions(port));
     expect(result.ok).toBe(true);
   });
+
+  it('step.list returns { steps, domains } shape', async () => {
+    const port = 8237;
+    const feature = {
+      path: '/features/test.feature',
+      content: `
+enable rpc
+webserver is listening for "rpc-step-list-shape"
+rpc step list at "http://localhost:${port}/rpc/step.list" includes "PingStepper-ping"
+`,
+    };
+
+    // Intercept the raw step.list response to verify shape
+    let capturedStepList: unknown;
+    class StepListCaptureStepper extends AStepper {
+      steps = {
+        captureStepList: {
+          gwta: 'capture step list at {url}',
+          action: async ({ url }: { url: string }) => {
+            const res = await fetch(String(url), {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ jsonrpc: '2.0', id: '1', method: 'step.list', params: {} }),
+            });
+            capturedStepList = await res.json();
+            return OK;
+          },
+        },
+      };
+    }
+
+    const captureFeature = {
+      path: '/features/shape-test.feature',
+      content: `
+enable rpc
+webserver is listening for "rpc-shape-test"
+capture step list at "http://localhost:${port + 10}/rpc/step.list"
+`,
+    };
+    const shapeSteppers = [WebServerStepper, PingStepper, StepListCaptureStepper];
+    await passWithDefaults([captureFeature], shapeSteppers, makeOptions(port + 10));
+
+    expect(capturedStepList).toHaveProperty('steps');
+    expect(capturedStepList).toHaveProperty('domains');
+    expect(Array.isArray((capturedStepList as { steps: unknown }).steps)).toBe(true);
+  });
+
+  it('ad-hoc RPC calls get distinct seqPath [0, N]', async () => {
+    const port = 8238;
+    const seqPaths: number[][] = [];
+
+    class SeqCaptureStepper extends AStepper {
+      steps = {
+        captureSeq: {
+          gwta: 'capture rpc seq at {url}',
+          action: async ({ url }: { url: string }) => {
+            for (let i = 0; i < 2; i++) {
+              const res = await fetch(String(url), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ jsonrpc: '2.0', id: `seq-${i}`, method: 'PingStepper-ping', params: {} }),
+              });
+              const data = await res.json() as Record<string, unknown>;
+              if (Array.isArray(data._seqPath)) seqPaths.push(data._seqPath as number[]);
+            }
+            return OK;
+          },
+        },
+      };
+    }
+
+    const feature = {
+      path: '/features/seq-test.feature',
+      content: `
+enable rpc
+webserver is listening for "rpc-seq-test"
+capture rpc seq at "http://localhost:${port}/rpc/PingStepper-ping"
+`,
+    };
+    const r = await passWithDefaults([feature], [WebServerStepper, PingStepper, SeqCaptureStepper], makeOptions(port));
+    expect(r.ok).toBe(true);
+    // Both calls should have seqPath starting with 0 and distinct N values
+    expect(seqPaths.length).toBe(2);
+    expect(seqPaths[0][0]).toBe(0);
+    expect(seqPaths[1][0]).toBe(0);
+    expect(seqPaths[0][1]).not.toBe(seqPaths[1][1]);
+  });
 });
