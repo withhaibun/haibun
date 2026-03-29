@@ -1,120 +1,70 @@
 /**
  * subprocess-transport.ts
  *
- * Parent-side subprocess transport (Phase 6).
- * Spawns a child process running runSubprocess(), reads its step list,
- * and injects proxy StepTools into the parent's StepRegistry that dispatch
- * calls to the child via stdin/stdout JSON-RPC.
+ * Parent-side subprocess transport. Forks a child process running runSubprocess(),
+ * reads its step list via IPC, and injects proxy StepTools into the parent's StepRegistry.
+ *
+ * Uses Node.js fork() IPC (structured-clone messages) — no framing, no seq IDs, no readline.
+ * The child signals readiness with { type: "ready", steps }, then serves
+ * { type: "call", method, params, seqPath } → { type: "result", ok, products|error }.
  *
  * seqPath threading: every call includes the caller's seqPath so the child
  * can append its own step numbers, preserving the full [feature.scenario.step...] hierarchy.
- *
- * Usage:
- *   const transport = await SubprocessTransport.spawn('/path/to/child-entry.js', world);
- *   transport.injectInto(registry);
- *   // ... run tests ...
- *   transport.kill();
  */
 
-import { spawn, type ChildProcess } from "child_process";
-import { createInterface } from "readline";
+import { fork, type ChildProcess } from "child_process";
 import type { TWorld } from "./defs.js";
 import { type StepTool, type StepRegistry } from "./step-dispatch.js";
 import type { StepDescriptor } from "./stepper-registry.js";
-import type { SubprocessReadyMessage } from "./subprocess-runner.js";
-
-type PendingCall = {
-	resolve: (value: { ok: true; products: Record<string, unknown> } | { ok: false; error: string }) => void;
-	reject: (err: Error) => void;
-};
+import type { SubprocessMessage, SubprocessResultMessage } from "./subprocess-runner.js";
 
 export class SubprocessTransport {
-	private child: ChildProcess;
-	private pending = new Map<string, PendingCall>();
-	private seq = 0;
-	private stepDescriptors: StepDescriptor[] = [];
+	private constructor(
+		private child: ChildProcess,
+		private stepDescriptors: StepDescriptor[],
+	) {
+		child.on("exit", (code) => {
+			if (this.pending) {
+				this.pending({ type: "result", ok: false, error: `subprocess exited with code ${code}` });
+				this.pending = null;
+			}
+		});
+	}
 
-	private constructor(child: ChildProcess, stepDescriptors: StepDescriptor[]) {
-		this.child = child;
-		this.stepDescriptors = stepDescriptors;
+	// At most one in-flight call at a time (subprocess steps execute sequentially).
+	private pending: ((r: SubprocessResultMessage) => void) | null = null;
+
+	static async spawn(entryPath: string, _world: TWorld): Promise<SubprocessTransport> {
+		const child = fork(entryPath, [], { silent: true });
 
 		child.stderr?.on("data", (data: Buffer) => {
 			process.stderr.write(`[subprocess] ${data.toString()}`);
 		});
 
-		child.on("exit", (code) => {
-			for (const [id, p] of this.pending) {
-				p.reject(new Error(`subprocess exited with code ${code} (pending: ${id})`));
-			}
-			this.pending.clear();
-		});
-	}
-
-	/**
-	 * Spawn a child subprocess, wait for its ready message, then attach the response listener.
-	 * Uses a single readline interface for the entire lifetime of the child process.
-	 */
-	static async spawn(entryPath: string, _world: TWorld): Promise<SubprocessTransport> {
-		const child = spawn(process.execPath, [entryPath], {
-			stdio: ["pipe", "pipe", "pipe"],
-		});
-
-		// Single readline — handles both the ready message and all subsequent RPC responses.
-		const rl = createInterface({ input: child.stdout!, crlfDelay: Infinity });
-
 		const stepDescriptors = await new Promise<StepDescriptor[]>((resolve, reject) => {
-			const timeout = setTimeout(() => {
-				reject(new Error(`subprocess at ${entryPath} did not send ready message within 10s`));
-			}, 10_000);
+			const timeout = setTimeout(
+				() => reject(new Error(`subprocess at ${entryPath} did not send ready message within 10s`)),
+				10_000,
+			);
 
-			rl.once("line", (line) => {
+			child.once("message", (msg: SubprocessMessage) => {
 				clearTimeout(timeout);
-				try {
-					const msg = JSON.parse(line) as SubprocessReadyMessage;
-					if (msg.type !== "ready") {
-						reject(new Error(`subprocess first message was not "ready": ${line}`));
-						return;
-					}
-					resolve(msg.steps);
-				} catch (e) {
-					reject(new Error(`subprocess ready parse failed: ${e}`));
+				if (msg.type !== "ready") {
+					reject(new Error(`subprocess first message was not "ready": ${JSON.stringify(msg)}`));
+					return;
 				}
+				resolve(msg.steps);
 			});
 
-			child.on("exit", (code) => {
+			child.once("exit", (code) => {
 				clearTimeout(timeout);
 				reject(new Error(`subprocess exited before ready (code ${code})`));
 			});
 		});
 
-		const transport = new SubprocessTransport(child, stepDescriptors);
-
-		// Attach RPC response handler on the same readline instance
-		rl.on("line", (line) => {
-			if (!line.trim()) return;
-			let msg: { jsonrpc: string; id: string; result?: Record<string, unknown>; error?: string };
-			try {
-				msg = JSON.parse(line);
-			} catch {
-				return;
-			}
-			const pending = transport.pending.get(msg.id);
-			if (!pending) return;
-			transport.pending.delete(msg.id);
-			if (msg.error !== undefined) {
-				pending.resolve({ ok: false, error: msg.error });
-			} else {
-				pending.resolve({ ok: true, products: msg.result ?? {} });
-			}
-		});
-
-		return transport;
+		return new SubprocessTransport(child, stepDescriptors);
 	}
 
-	/**
-	 * Inject proxy StepTools for each child step into the parent registry.
-	 * Each tool's handler pipes the call to the child and returns its response.
-	 */
 	injectInto(registry: StepRegistry): void {
 		for (const descriptor of this.stepDescriptors) {
 			const tool: StepTool = {
@@ -125,41 +75,42 @@ export class SubprocessTransport {
 				paramDomainKeys: new Map(),
 				stepperName: descriptor.stepperName,
 				stepName: descriptor.stepName,
-				handler: async (input, seqPath) => {
-					return this.call(descriptor.method, input, seqPath);
-				},
+				handler: (input, seqPath) => this.call(descriptor.method, input, seqPath),
 			};
 			registry.set(tool);
 		}
 	}
 
-	/**
-	 * Send a JSON-RPC call to the child and await the response.
-	 */
 	call(
 		method: string,
 		params: Record<string, unknown>,
 		seqPath?: number[],
 	): Promise<{ ok: true; products: Record<string, unknown> } | { ok: false; error: string }> {
 		return new Promise((resolve, reject) => {
-			const id = `sp-${++this.seq}`;
-			this.pending.set(id, { resolve, reject });
-			const req = {
-				jsonrpc: "2.0" as const,
-				id,
-				method,
-				params,
-				seqPath: seqPath ?? [0],
+			if (this.pending) {
+				reject(new Error("SubprocessTransport: concurrent calls not supported"));
+				return;
+			}
+			this.pending = (result) => {
+				this.pending = null;
+				if (result.ok) {
+					resolve({ ok: true, products: result.products });
+				} else {
+					resolve({ ok: false, error: (result as { type: "result"; ok: false; error: string }).error });
+				}
 			};
-			this.child.stdin!.write(JSON.stringify(req) + "\n");
+			this.child.on("message", this.handleMessage);
+			this.child.send({ type: "call", method, params, seqPath: seqPath ?? [0] });
 		});
 	}
 
-	/**
-	 * Kill the child process and clean up.
-	 */
+	private handleMessage = (msg: SubprocessMessage) => {
+		if (msg.type !== "result") return;
+		this.child.off("message", this.handleMessage);
+		if (this.pending) this.pending(msg);
+	};
+
 	kill(): void {
-		this.child.stdin?.end();
 		this.child.kill();
 	}
 
