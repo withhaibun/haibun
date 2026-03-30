@@ -22,7 +22,7 @@ class SampleStepper extends AStepper {
     },
     hiddenStep: {
       gwta: 'internal action',
-      expose: false,
+      exposeMCP: false,
       action: async () => OK,
     },
   };

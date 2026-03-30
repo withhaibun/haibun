@@ -1,9 +1,9 @@
-import { AStepper, IHasCycles, TStepperSteps } from '../lib/astepper.js';
+import { z } from 'zod';
 
+import { AStepper, IHasCycles, TStepperSteps } from '../lib/astepper.js';
 import { TFeatureStep, TWorld, IStepperCycles, TStepperStep, TFeatures, CycleWhen, TStepInput } from '../lib/defs.js';
 import { TStepArgs, TRegisteredOutcomeEntry, OK } from '../schema/protocol.js';
 import { actionOK, actionNotOK, actionOKWithProducts, getActionable, formatCurrentSeqPath } from '../lib/util/index.js';
-import { z } from 'zod';
 import { DOMAIN_STATEMENT } from '../lib/domain-types.js';
 import { FlowRunner } from '../lib/core/flow-runner.js';
 import { ControlEvent, LifecycleEvent } from '../schema/protocol.js';
@@ -87,6 +87,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 	 * This prevents activity patterns from leaking between features during resolution.
 	 */
 	startFeatureResolution(path: string): void {
+		this.inActivityBlock = false;
 		// Clear steps from previous feature (resolution phase)
 		if (this.lastResolutionPath && this.lastResolutionPath !== path) {
 			const previousSteps = this.featureSteps.get(this.lastResolutionPath);
@@ -174,8 +175,8 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			action: async ({ proof }: { proof: TFeatureStep[] }, featureStep: TFeatureStep) => {
 				try {
 					const result = await this.runner.runSteps(proof, { intent: { mode: 'authoritative' }, parentStep: featureStep });
-					if (result.kind !== 'ok') {
-						return actionNotOK(`waypoint: failed to execute proof steps: ${result.message}`);
+					if (!result.ok) {
+						return actionNotOK(`waypoint: failed to execute proof steps: ${result.errorMessage}`);
 					}
 					return actionOK();
 				} catch (err) {
@@ -252,15 +253,12 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				try {
 					const flowResult = await this.runner.runSteps(outcome, { intent: { mode: 'authoritative', usage: featureStep.intent?.usage, stepperOptions: { isEnsure: true } }, parentStep: featureStep });
 
-					if (flowResult.kind !== 'ok') {
-						this.emitEnsureEnd(featureStep, outcomeKey, false, flowResult.message);
-						return actionNotOK(`ensure: waypoint "${outcomeKey}" proof failed: ${flowResult.message}`);
+					if (!flowResult.ok) {
+						this.emitEnsureEnd(featureStep, outcomeKey, false, flowResult.errorMessage);
+						return actionNotOK(`ensure: waypoint "${outcomeKey}" proof failed: ${flowResult.errorMessage}`);
 					}
 
-					const stepActionResult = flowResult.products as Record<string, unknown> | undefined;
-					proofStatements = stepActionResult && 'products' in stepActionResult
-						? (stepActionResult.products as Record<string, unknown>)?.proofStatements as string[] | undefined
-						: undefined;
+					proofStatements = (flowResult.products as Record<string, unknown>)?.proofStatements as string[] | undefined;
 
 					if (!proofStatements) {
 						this.emitEnsureEnd(featureStep, outcomeKey, false, 'no proofStatements returned');
@@ -295,7 +293,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 
 						waypointResults[instanceKey] = {
 							proof: instanceData.proof.join('; '),
-							currentlyValid: result.kind === 'ok'
+							currentlyValid: result.ok
 						};
 					} catch (error) {
 						waypointResults[instanceKey] = {
@@ -396,7 +394,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				if (normalizedProofSteps.length > 0) {
 					const proof = await this.runner.runStatements(normalizedProofSteps, { args: robustArgs, intent: { mode: 'speculative' }, parentStep: featureStep });
 
-					if (proof.kind === 'ok') {
+					if (proof.ok) {
 						return actionOKWithProducts({ proofStatements });
 					}
 				}
@@ -406,8 +404,8 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 					if (normalizedActivitySteps && normalizedActivitySteps.length > 0) {
 						const mode = featureStep.intent?.mode === 'speculative' ? 'speculative' : 'authoritative';
 						const act = await this.runner.runStatements(normalizedActivitySteps, { args: robustArgs, intent: { mode, usage: featureStep.intent?.usage }, parentStep: featureStep });
-						if (act.kind !== 'ok') {
-							return actionNotOK(`ActivitiesStepper: activity body failed for outcome "${outcome}": ${act.message}`);
+						if (!act.ok) {
+							return actionNotOK(`ActivitiesStepper: activity body failed for outcome "${outcome}": ${act.errorMessage}`);
 						}
 						return actionOKWithProducts({ proofStatements });
 					}
@@ -422,15 +420,15 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				if (normalizedActivitySteps && normalizedActivitySteps.length > 0) {
 					const mode = featureStep.intent?.mode === 'speculative' ? 'speculative' : 'authoritative';
 					const act = await this.runner.runStatements(normalizedActivitySteps, { args: robustArgs, intent: { mode, usage: featureStep.intent?.usage }, parentStep: featureStep });
-					if (act.kind !== 'ok') {
-						return actionNotOK(`ActivitiesStepper: activity body failed for outcome "${outcome}": ${act.message}`);
+					if (!act.ok) {
+						return actionNotOK(`ActivitiesStepper: activity body failed for outcome "${outcome}": ${act.errorMessage}`);
 					}
 
 					// 4. Verify Proof After Activity
 					if (normalizedProofSteps.length > 0) {
 						const verify = await this.runner.runStatements(normalizedProofSteps, { args: robustArgs, intent: { mode, usage: featureStep.intent?.usage }, parentStep: featureStep });
-						if (verify.kind !== 'ok') {
-							return actionNotOK(`ActivitiesStepper: proof verification failed after activity body for outcome "${outcome}": ${verify.message}`);
+						if (!verify.ok) {
+							return actionNotOK(`ActivitiesStepper: proof verification failed after activity body for outcome "${outcome}": ${verify.errorMessage}`);
 						}
 					}
 					return actionOKWithProducts({ proofStatements });

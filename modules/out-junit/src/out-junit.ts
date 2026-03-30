@@ -4,7 +4,7 @@ import { EOL } from 'os';
 import { AStorage } from '@haibun/domain-storage/AStorage.js';
 import { findStepperFromOptionOrKind, getStepperOption, stringOrError } from '@haibun/core/lib/util/index.js';
 import { TWorld, IStepperCycles } from '@haibun/core/lib/defs.js';
-import { TExecutorResult, TNotOkStepActionResult } from '@haibun/core/schema/protocol.js';
+import { TExecutorResult, TStepResult } from '@haibun/core/schema/protocol.js';
 import { AStepper, IHasCycles, IHasOptions, StepperKinds } from '@haibun/core/lib/astepper.js';
 import { TAnyFixme } from '@haibun/core/lib/fixme.js';
 import { MEDIA_TYPES, TMediaType } from '@haibun/domain-storage/media-types.js';
@@ -88,7 +88,7 @@ export default class OutJUnit extends AStepper implements IHasOptions, IHasCycle
 			};
 
 			if (!t.ok) {
-				testCase.failure = this.getFailResult(t.stepResults.find((r) => !r.ok)?.stepActionResult as TNotOkStepActionResult);
+				testCase.failure = this.getFailResult(t.stepResults.find((r) => !r.ok));
 			}
 
 			forXML.testsuites.testsuite.testcase.push(testCase);
@@ -97,9 +97,9 @@ export default class OutJUnit extends AStepper implements IHasOptions, IHasCycle
 		return Promise.resolve(junit);
 	}
 
-	getFailResult(failure: TNotOkStepActionResult) {
+	getFailResult(failure: TStepResult | undefined) {
 		const failResult: TFailResult = {
-			'@message': `${failure?.name || 'nofeaturename'}: ${failure?.message || failure?.toString()}`,
+			'@message': `${failure?.name || 'nofeaturename'}: ${failure?.errorMessage || failure?.toString()}`,
 			'@type': 'fail',
 		};
 

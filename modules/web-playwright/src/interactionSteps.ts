@@ -177,7 +177,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 		},
 	},
 	extensionContext: {
-		expose: false,
+		exposeMCP: false,
 		gwta: `open extension popup for tab {tab}`,
 		action: async ({ tab }: { tab: string }, featureStep) => {
 			if (!wp.factoryOptions?.persistentDirectory || wp.factoryOptions?.launchOptions.headless) {
@@ -250,10 +250,10 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 				const flowResult = await flowRunner.runSteps(what, { parentStep: featureStep });
 				wp.inContainer = undefined;
 				wp.inContainerSelector = undefined;
-				if (flowResult.kind === 'ok') {
+				if (flowResult.ok) {
 					return OK;
 				}
-				return actionNotOK(flowResult.message || 'inElement flow failed');
+				return actionNotOK(flowResult.errorMessage || 'inElement flow failed');
 			});
 		},
 	},
