@@ -18,7 +18,7 @@ import {
 	type IHasCycles,
 	type IHasOptions,
 } from "@haibun/core/lib/astepper.js";
-import { discoverSteps, validateToolInput, parseRpcRequest, StepRegistry, buildSyntheticFeatureStep, authorizeToolCapability } from "@haibun/core/lib/step-dispatch.js";
+import { discoverSteps, dispatchRemoteToolCall, parseRpcRequest, StepRegistry } from "@haibun/core/lib/step-dispatch.js";
 import { validateStep } from "@haibun/core/lib/step-validation.js";
 
 import { type IWebServer, WEBSERVER } from "./defs.js";
@@ -267,10 +267,13 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 								accessCapability: this.rpcAccessCapability,
 							},
 						);
-						authorizeToolCapability(tool, grantedCapability);
-						const validatedParams = validateToolInput(tool, params, this.getWorld());
-						const featureStep = buildSyntheticFeatureStep(tool, validatedParams, seqPath);
-						const hr = await tool.handler(featureStep, this.getWorld());
+						const hr = await dispatchRemoteToolCall({
+							tool,
+							input: params,
+							world: this.getWorld(),
+							seqPath,
+							grantedCapability,
+						});
 						if (hr.ok) return hr.products;
 						return { error: `${method}: ${hr.errorMessage}` };
 					} catch (err) {
