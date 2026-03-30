@@ -12,6 +12,8 @@ export interface StepDescriptor {
   method: string;
   pattern: string;
   params: Record<string, 'string' | 'number'>;
+  /** Domain key for each parameter (e.g., { data: 'muskeg-email', id: 'string' }) */
+  paramDomains?: Record<string, string>;
   capability?: string;
   inputSchema?: Record<string, unknown>;
   outputSchema?: Record<string, unknown>;
@@ -35,17 +37,18 @@ export class StepperRegistry {
           const params: Record<string, 'string' | 'number'> = {};
           const pattern = stepDef.gwta || stepDef.exact || stepDef.match?.toString() || stepName;
 
+          const paramDomains: Record<string, string> = {};
           if (stepDef.gwta) {
             const { stepValuesMap } = namedInterpolation(stepDef.gwta);
             if (stepValuesMap) {
               for (const v of Object.values(stepValuesMap)) {
-                // Treat 'number' domain as number type, everything else as string
                 params[v.term] = v.domain === 'number' ? 'number' : 'string';
+                paramDomains[v.term] = v.domain || 'string';
               }
             }
           }
           const method = `${stepperName}-${stepName}`;
-          return { stepperName, stepName, method, pattern, params, capability: stepDef.capability };
+          return { stepperName, stepName, method, pattern, params, paramDomains, capability: stepDef.capability };
         });
     });
   }
