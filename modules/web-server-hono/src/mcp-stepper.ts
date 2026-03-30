@@ -27,9 +27,7 @@ import {
 import { currentVersion as version } from "@haibun/core/currentVersion.js";
 import {
 	buildStepRegistry,
-	buildSyntheticFeatureStep,
-	validateToolInput,
-	authorizeToolCapability,
+	dispatchRemoteToolCall,
 	type StepRegistry,
 	type StepTool,
 } from "@haibun/core/lib/step-dispatch.js";
@@ -58,7 +56,7 @@ type StoredTool = {
 	stepperName: string;
 	capability?: string;
 	stepTool: StepTool;
-	handler: (input: Record<string, unknown>) => Promise<CallToolResult>;
+	handler: (input: Record<string, unknown>, grantedCapability?: string | string[]) => Promise<CallToolResult>;
 };
 
 type ConnectionId = object;
@@ -166,8 +164,7 @@ export default class McpStepper
 		grantedCapability?: string | string[],
 	): Promise<CallToolResult> {
 		try {
-			authorizeToolCapability(toolDef, grantedCapability);
-			return await toolDef.handler(args);
+			return await toolDef.handler(args, grantedCapability);
 		} catch (err: unknown) {
 			const msg = err instanceof Error ? err.message : String(err);
 			return { isError: true, content: [{ type: "text", text: msg }] };
@@ -515,13 +512,17 @@ export default class McpStepper
 					stepperName,
 					capability: stepTool.capability,
 					stepTool,
-					handler: async (input: Record<string, unknown>): Promise<CallToolResult> => {
+					handler: async (input: Record<string, unknown>, grantedCapability?: string | string[]): Promise<CallToolResult> => {
 						this.getWorld().eventLogger.info(`[MCP] Tool Execution: ${fullToolName}`);
 						const world = this.getWorld();
-						const validatedInput = validateToolInput(stepTool, input, world);
 						const seqPath: number[] = [0, (world.runtime.adHocSeq = (world.runtime.adHocSeq ?? 0) + 1)];
-						const featureStep = buildSyntheticFeatureStep(stepTool, validatedInput, seqPath);
-						const hr = await stepTool.handler(featureStep, world);
+						const hr = await dispatchRemoteToolCall({
+							tool: stepTool,
+							input,
+							world,
+							seqPath,
+							grantedCapability,
+						});
 						if (!hr.ok) {
 							return {
 								isError: true,
