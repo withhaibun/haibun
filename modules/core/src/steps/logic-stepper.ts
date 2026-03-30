@@ -126,12 +126,12 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 
           const check = await this.runner.runSteps(condition, { intent: { mode: 'speculative', usage }, parentStep: featureStep });
 
-          if (check.kind !== 'ok') break;
+          if (!check.ok) break;
 
           const result = await this.runner.runSteps(action, { intent: { mode, usage }, parentStep: featureStep });
 
-          if (result.kind !== 'ok') {
-            return actionNotOK(`whenever: action failed: ${result.message}`);
+          if (!result.ok) {
+            return actionNotOK(`whenever: action failed: ${result.errorMessage}`);
           }
           await sleep(0);
         }
@@ -148,12 +148,12 @@ export default class LogicStepper extends AStepper implements IHasCycles {
         const check = await this.runner.runSteps(condition, { intent: { mode: 'speculative', usage }, parentStep: featureStep });
 
         // Vacuously true if condition is false
-        if (check.kind !== 'ok') return OK;
+        if (!check.ok) return OK;
 
         const mode = featureStep.intent?.mode === 'speculative' ? 'speculative' : 'authoritative';
         const result = await this.runner.runSteps(action, { intent: { mode, usage }, parentStep: featureStep });
 
-        return result.kind === 'ok' ? OK : actionNotOK(`Constraint failed: Condition was true, but Action failed: ${result.message}`);
+        return result.ok ? OK : actionNotOK(`Constraint failed: Condition was true, but Action failed: ${result.errorMessage}`);
       }
     },
 
@@ -167,8 +167,8 @@ export default class LogicStepper extends AStepper implements IHasCycles {
         const statementList = statements.split(',').map(s => s.trim());
         for (const statement of statementList) {
           const res = await this.runner.runStatements([statement], { intent: { mode: 'speculative' }, parentStep: featureStep });
-          if (res.kind === 'ok') return OK;
-          this.getWorld().eventLogger.debug(`any of: statement "${statement}" failed: ${res.message}`);
+          if (res.ok) return OK;
+          this.getWorld().eventLogger.debug(`any of: statement "${statement}" failed: ${res.errorMessage}`);
         }
         return actionNotOK('No conditions in the list were satisfied');
       }
@@ -181,7 +181,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
       action: async ({ statements }: { statements: TFeatureStep[] }, featureStep: TFeatureStep): Promise<TActionResult> => {
         const res = await this.runner.runSteps(statements, { intent: { mode: 'speculative' }, parentStep: featureStep });
 
-        if (res.kind === 'fail') {
+        if (!res.ok) {
           return OK;
         } else {
           return actionNotOK('not statement was true (failed negation)');
@@ -245,7 +245,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
           }
 
           const res = await this.runner.runStatements([statementStr], { intent: { mode }, parentStep: featureStep });
-          if (res.kind === 'ok') {
+          if (res.ok) {
             found = true;
             break;
           }
@@ -292,8 +292,8 @@ export default class LogicStepper extends AStepper implements IHasCycles {
           }
 
           const res = await this.runner.runStatements([statementStr], { intent: { mode }, parentStep: featureStep });
-          if (res.kind !== 'ok') {
-            return actionNotOK(`Universal check failed for value "${val}": ${res.message}`);
+          if (!res.ok) {
+            return actionNotOK(`Universal check failed for value "${val}": ${res.errorMessage}`);
           }
         }
         return OK;

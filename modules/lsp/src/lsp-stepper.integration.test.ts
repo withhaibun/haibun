@@ -39,7 +39,7 @@ class ProductionLikeStepper extends AStepper {
     },
     privateStep: {
       gwta: 'internal cleanup',
-      expose: false,
+      exposeMCP: false,
       action: async () => OK,
     },
   };

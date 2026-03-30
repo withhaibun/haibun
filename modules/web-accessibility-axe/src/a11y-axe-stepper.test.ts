@@ -2,7 +2,7 @@ import { describe, it, expect, afterAll } from 'vitest';
 
 import { failWithDefaults, passWithDefaults } from '@haibun/core/lib/test/lib.js';
 import A11yAxe from './a11y-axe-stepper.js';
-import { DEFAULT_DEST, TOKActionResult } from '@haibun/core/schema/protocol.js';
+import { DEFAULT_DEST } from '@haibun/core/schema/protocol.js';
 import { getStepperOptionName } from '@haibun/core/lib/util/index.js';
 import { BrowserFactory } from '@haibun/web-playwright/BrowserFactory.js';
 
@@ -35,7 +35,7 @@ page is accessible accepting serious "99" and moderate "90"
 
 		const res = await passWithDefaults(features, [A11yAxe, WebPlaywright, StorageMem], { options, moduleOptions });
 		expect(res.ok).toBe(true);
-		expect((<TOKActionResult>res.featureResults?.[0]?.stepResults?.[0]?.stepActionResult)?.artifact).toBeUndefined();
+		expect(res.featureResults?.[0]?.stepResults?.[0]?.artifact).toBeUndefined();
 	});
 	it('fails', async () => {
 		const features = [{
@@ -46,6 +46,6 @@ page is accessible accepting serious "0" and moderate "0"
 
 		const res = await failWithDefaults(features, [A11yAxe, WebPlaywright, StorageMem], { options, moduleOptions });
 		expect(res.ok).toBe(false);
-		expect((<TOKActionResult>res.featureResults?.[0]?.stepResults?.[1]?.stepActionResult)?.artifact).toBeDefined();
+		expect(res.featureResults?.[0]?.stepResults?.[1]?.artifact).toBeDefined();
 	});
 });

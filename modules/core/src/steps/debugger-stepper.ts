@@ -4,6 +4,7 @@ import { TActionResult, OK, TDebugSignal } from '../schema/protocol.js';
 import { makePrompt } from '../lib/prompter.js';
 import { actionNotOK, actionOK, formatCurrentSeqPath, getStepperOption, stringOrError } from '../lib/util/index.js';
 import { FlowRunner } from '../lib/core/flow-runner.js';
+import { advanceSyntheticSeqPath, syntheticBranchSeqPath, syntheticSeqPathDirection } from '../phases/Executor.js';
 
 export enum TDebuggingType {
 	StepByStep = 'stepByStep',
@@ -84,8 +85,9 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 
 	async debugLoop(prompt: string, prompts: string[], featureStep: TFeatureStep, inc: number): Promise<TAfterStepResult | undefined> {
 		const prefix = featureStep.seqPath;
-		let seqStart = [...prefix, inc > 0 ? 1 : -1];
-		let promptResult: { products?: { controlSignal?: TDebugSignal } } | undefined;
+		const dir = syntheticSeqPathDirection(inc < 0);
+		let seqStart = syntheticBranchSeqPath(prefix, dir);
+		let promptResult: { controlSignal?: TDebugSignal } | undefined;
 		let continueLoop = true;
 		let controlSignal: TDebugSignal | undefined;
 
@@ -102,13 +104,12 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 					parentStep: featureStep
 				});
 
-				// Check for controlSignal (new pattern)
-				controlSignal = promptResult.products?.controlSignal;
+				// Check for controlSignal from TActionResult
+				controlSignal = promptResult.controlSignal;
 				if (controlSignal) {
 					continueLoop = false;
 				} else {
-					const nextLast = seqStart[seqStart.length - 1] + (inc > 0 ? 1 : -1);
-					seqStart = [...seqStart.slice(0, -1), nextLast];
+					seqStart = advanceSyntheticSeqPath(seqStart, dir);
 				}
 			} catch (e) {
 				// Debug command failed - continue loop but show error
@@ -126,7 +127,7 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 	}
 	steps = {
 		f: {
-			expose: false,
+			exposeMCP: false,
 			exact: 'f',
 			action: async (): Promise<TActionResult> => {
 				return await this.fail();
@@ -139,7 +140,7 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 			}
 		},
 		n: {
-			expose: false,
+			exposeMCP: false,
 			exact: 'n',
 			action: async (): Promise<TActionResult> => {
 				return await this.next();
@@ -152,7 +153,7 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 			}
 		},
 		r: {
-			expose: false,
+			exposeMCP: false,
 			exact: 'r',
 			action: async (): Promise<TActionResult> => {
 				return await this.retry();
@@ -166,7 +167,7 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 		},
 
 		s: {
-			expose: false,
+			exposeMCP: false,
 			exact: 's',
 			action: async (): Promise<TActionResult> => {
 				return await this.step();
@@ -179,7 +180,7 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 			}
 		},
 		c: {
-			expose: false,
+			exposeMCP: false,
 			exact: 'c',
 			action: async (): Promise<TActionResult> => {
 				return await this.continue();

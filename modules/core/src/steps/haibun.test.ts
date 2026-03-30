@@ -60,8 +60,9 @@ describe('afterEvery', () => {
 		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(true);
 		const seqs = result.featureResults?.[0].stepResults.map(r => r.seqPath);
+		// afterEvery substep gets negative index (side-effect, not primary flow)
 		// Step [1,1,4] "passes" does not trigger afterEvery because it's the same action (prevents infinite recursion)
-		expect(seqs).toEqual([[1, 1, 1], [1, 1, 2], [1, 1, 3], [1, 1, 3, 1], [1, 1, 4]]);
+		expect(seqs).toEqual([[1, 1, 1], [1, 1, 2], [1, 1, 3], [1, 1, 3, -1], [1, 1, 4]]);
 	});
 });
 
@@ -99,8 +100,8 @@ Prose sections are indicated by the presence of punctuation at the end of paragr
 		if (rfzs === undefined) {
 			return;
 		}
-		expect(rfzs[n++].stepActionResult).toBeDefined(); // sanity
-		expect(rfzs[0].stepActionResult).toBeDefined();
+		expect(rfzs[n++]).toBeDefined(); // sanity
+		expect(rfzs[0]).toBeDefined();
 	});
 });
 

@@ -1,6 +1,7 @@
 import { AStepper, IHasCycles, TStepperSteps } from '../lib/astepper.js';
-import { IStepperCycles, TFeatureStep, TWorld } from '../lib/defs.js';
+import { IStepperCycles, TEndFeature, TFeatureStep, TWorld } from '../lib/defs.js';
 import { FlowRunner } from '../lib/core/flow-runner.js';
+import { featureSyntheticSeqPath } from '../phases/Executor.js';
 import { OK } from '../schema/protocol.js';
 import { DOMAIN_STATEMENT } from '../lib/domain-types.js';
 import { actionNotOK } from '../lib/util/index.js';
@@ -10,20 +11,20 @@ export default class FinalizerStepper extends AStepper implements IHasCycles {
 
 	flowRunner: FlowRunner;
 	registeredStatementsByFeature: Map<string, string[]> = new Map();
-	activeFeaturePath?: string;
 
 	private async runFinalizersForFeature(featurePath: string) {
 		const statements = this.registeredStatementsByFeature.get(featurePath);
 		if (statements && statements.length > 0) {
+			const featureNum = this.getWorld().tag.featureNum;
 			for (const [index, statement] of statements.entries()) {
 				const result = await this.flowRunner.runStatement(statement, {
-					seqPath: [998, index + 1],
+					seqPath: featureSyntheticSeqPath(featureNum, index + 1),
 					intent: { mode: 'authoritative' },
 				});
 
-				if (result.kind !== 'ok') {
+				if (!result.ok) {
 					this.getWorld().eventLogger.warn(
-						`finalizer-stepper: statement failed: ${statement} :: ${result.message || 'unknown error'}`
+						`finalizer-stepper: statement failed: ${statement} :: ${result.errorMessage || 'unknown error'}`
 					);
 				}
 			}
@@ -35,20 +36,15 @@ export default class FinalizerStepper extends AStepper implements IHasCycles {
 	cycles: IStepperCycles = {
 		startExecution: () => {
 			this.registeredStatementsByFeature = new Map();
-			this.activeFeaturePath = undefined;
 		},
 		startFeature: ({ resolvedFeature }) => {
-			this.activeFeaturePath = resolvedFeature.path;
 			if (!this.registeredStatementsByFeature.has(resolvedFeature.path)) {
 				this.registeredStatementsByFeature.set(resolvedFeature.path, []);
 			}
 		},
-		endFeature: async () => {
-			if (!this.activeFeaturePath) {
-				return;
-			}
-			await this.runFinalizersForFeature(this.activeFeaturePath);
-			this.activeFeaturePath = undefined;
+		endFeature: async (endFeature?: TEndFeature) => {
+			if (!endFeature?.featurePath) return;
+			await this.runFinalizersForFeature(endFeature.featurePath);
 		},
 		endExecution: async () => {
 			for (const featurePath of this.registeredStatementsByFeature.keys()) {
