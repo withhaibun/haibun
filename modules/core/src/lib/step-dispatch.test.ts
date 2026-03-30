@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { z } from 'zod';
 
-import { buildStepRegistry, validateToolInput, stepMethodName, createStepHandler, discoverSteps, buildSyntheticFeatureStep, authorizeToolCapability, capabilityAllows, type StepTool } from './step-dispatch.js';
+import { buildStepRegistry, validateToolInput, stepMethodName, createStepHandler, discoverSteps, buildSyntheticFeatureStep, authorizeToolCapability, capabilityAllows, dispatchRemoteToolCall, type StepTool } from './step-dispatch.js';
 import { AStepper } from './astepper.js';
 import { OK } from '../schema/protocol.js';
 import { actionOKWithProducts, actionNotOK } from './util/index.js';
@@ -309,6 +309,50 @@ describe('step-dispatch', () => {
 			const fs = capturedFeatureStep as { action: { stepValuesMap?: Record<string, unknown> } };
 			expect(fs.action.stepValuesMap).toBeDefined();
 			expect(fs.action.stepValuesMap?.['name']).toBeDefined();
+		});
+	});
+
+	describe('dispatchRemoteToolCall', () => {
+		it('uses the common root to validate, authorize, and preserve seqPath', async () => {
+			const stepper = new class extends AStepper {
+				steps = {
+					protectedEcho: {
+						gwta: 'protected echo {message}',
+						capability: 'Remote:invoke',
+						action: async ({ message }: { message: string }) => actionOKWithProducts({ echoed: message }),
+					},
+				};
+			}();
+			const registry = buildStepRegistry([stepper], world);
+			const tool = registry.get(`${stepper.constructor.name}-protectedEcho`);
+			if (!tool) throw new Error('Expected protected tool to be registered');
+
+			const result = await dispatchRemoteToolCall({
+				tool,
+				input: { message: 'hello' },
+				world,
+				seqPath: [0, 7],
+				grantedCapability: 'Remote:invoke',
+			});
+
+			expect(result.ok).toBe(true);
+			expect(result.products).toMatchObject({ echoed: 'hello', _seqPath: [0, 7] });
+		});
+
+		it('denies missing capability at the common root', async () => {
+			const stepper = new CapabilityStepper();
+			const registry = buildStepRegistry([stepper], world);
+			const tool = registry.get('CapabilityStepper-protectedPing');
+			if (!tool) throw new Error('Expected protected tool to be registered');
+
+			await expect(
+				dispatchRemoteToolCall({
+					tool,
+					input: {},
+					world,
+					seqPath: [0, 1],
+				})
+			).rejects.toThrow(/capability CapabilityStepper:protected required/);
 		});
 	});
 });
