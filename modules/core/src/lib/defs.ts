@@ -268,6 +268,27 @@ export const CycleWhen = {
 export type TDomainCoercer = (proto: TStepValue, featureStep?: TFeatureStep, steppers?: AStepper[]) => TStepValueValue;
 export type TDomainComparator = (value: TStepValueValue, baseline: TStepValueValue) => number;
 
+/** Link relation for hypermedia navigation: how a property participates in UI. */
+export type TLinkRel = "item" | "filter" | "select" | "describedby";
+
+/** A JSON-LD property entry — either a URI string or a typed content descriptor. */
+export type TPropertyEntry = string | { "@id": string; "as:mediaType": string };
+
+/** Hypermedia metadata for a vertex domain. Describes how the type is rendered, queried, and linked. */
+export type TVertexMeta = {
+	vertexLabel: string;
+	idField: string;
+	rels?: Record<string, TLinkRel>;
+	summary?: string[];
+	searchable?: string[];
+	contentFields?: Record<string, string>;
+	propertyIndexes?: string[];
+	sortColumns?: Record<string, string>;
+	jsonLdType?: string;
+	jsonLdProperties?: Record<string, TPropertyEntry>;
+	edgeMappings?: Record<string, { target: string; predicate?: string }>;
+};
+
 export type TDomainDefinition = {
 	selectors: string[];
 	schema: ZodTypeAny;
@@ -277,8 +298,8 @@ export type TDomainDefinition = {
 	description?: string;
 	/** Stepper that registered this domain (set automatically by registerDomains) */
 	stepperName?: string;
-	/** Arbitrary metadata for consumers (e.g., idField, rels, summary for vertex domains) */
-	meta?: Record<string, unknown>;
+	/** Hypermedia metadata for vertex domains. Undefined for non-vertex domains. */
+	meta?: TVertexMeta;
 };
 
 export type TRegisteredDomain = {
@@ -289,7 +310,7 @@ export type TRegisteredDomain = {
 	values?: string[];
 	description?: string;
 	stepperName?: string;
-	meta?: Record<string, unknown>;
+	meta?: TVertexMeta;
 };
 
 // ============================================================================
