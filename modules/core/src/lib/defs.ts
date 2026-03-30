@@ -275,6 +275,10 @@ export type TDomainDefinition = {
 	comparator?: TDomainComparator;
 	values?: string[];
 	description?: string;
+	/** Stepper that registered this domain (set automatically by registerDomains) */
+	stepperName?: string;
+	/** Arbitrary metadata for consumers (e.g., idField, rels, summary for vertex domains) */
+	meta?: Record<string, unknown>;
 };
 
 export type TRegisteredDomain = {
@@ -284,6 +288,8 @@ export type TRegisteredDomain = {
 	comparator?: TDomainComparator;
 	values?: string[];
 	description?: string;
+	stepperName?: string;
+	meta?: Record<string, unknown>;
 };
 
 // ============================================================================

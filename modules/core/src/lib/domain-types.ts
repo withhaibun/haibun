@@ -86,6 +86,8 @@ export const toRegisteredDomain = (definition: TDomainDefinition): TRegisteredDo
 	comparator: definition.comparator,
 	values: definition.values,
 	description: definition.description,
+	stepperName: definition.stepperName,
+	meta: definition.meta,
 });
 
 export const mapDefinitionsToDomains = (definitions: TDomainDefinition[]) => {

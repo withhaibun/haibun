@@ -2,7 +2,7 @@ import { TFeatureStep, TResolvedFeature, TWorld, TStepAction, TEndFeature, Stepp
 import { TExecutorResult, TStepResult, TFeatureResult, TActionResult, THaibunEvent, STAY, STAY_FAILURE, STEP_DELAY, CONTINUE_AFTER_ERROR, TSeqPath, FEATURE_START, Timer, STAY_ALWAYS } from "../schema/protocol.js";
 import { LifecycleEvent } from "../schema/protocol.js";
 import { AStepper, IHasCycles } from "../lib/astepper.js";
-import { actionNotOK, sleep, setStepperWorldsAndDomains, } from "../lib/util/index.js";
+import { actionNotOK, sleep, setStepperWorldsAndDomains, constructorName } from "../lib/util/index.js";
 import { StepRegistry, stepMethodName } from "../lib/step-dispatch.js";
 import { SCENARIO_START } from "../schema/protocol.js";
 import { FeatureVariables } from "../lib/feature-variables.js";
@@ -298,9 +298,19 @@ const doStepperCycleSync = <K extends keyof IStepperCycles>(steppers: AStepper[]
 };
 
 export const addStepperConcerns = async (world: TWorld, steppers: AStepper[]) => {
-	const results = await doStepperCycle(steppers, "getConcerns", undefined);
-	const domains = results.filter((r) => r?.domains).flatMap((r) => r.domains);
-	registerDomains(world, [domains]);
+	const allDomains: import("../lib/defs.js").TDomainDefinition[] = [];
+	for (const stepper of steppers) {
+		const hasCycles = stepper as unknown as { cycles?: { getConcerns?: () => import("../lib/defs.js").IStepperConcerns } };
+		if (!hasCycles.cycles?.getConcerns) continue;
+		const concerns = hasCycles.cycles.getConcerns();
+		if (concerns?.domains) {
+			const name = constructorName(stepper);
+			for (const domain of concerns.domains) {
+				allDomains.push({ ...domain, stepperName: domain.stepperName ?? name });
+			}
+		}
+	}
+	registerDomains(world, [allDomains]);
 };
 
 function stepResultFromActionResult(actionResult: TActionResult, action: TStepAction, start: number, end: number, featureStep: TFeatureStep, ok: boolean): TStepResult {
