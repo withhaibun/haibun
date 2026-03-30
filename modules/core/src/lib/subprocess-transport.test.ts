@@ -3,7 +3,7 @@ import { fileURLToPath } from "url";
 import { join, dirname } from "path";
 import { getDefaultWorld } from "./test/lib.js";
 import { SubprocessTransport } from "./subprocess-transport.js";
-import { StepRegistry } from "./step-dispatch.js";
+import { StepRegistry, buildSyntheticFeatureStep } from "./step-dispatch.js";
 import { AStepper } from "./astepper.js";
 import { OK } from "../schema/protocol.js";
 
@@ -27,6 +27,10 @@ describe("SubprocessTransport", () => {
 		const methods = transport.descriptors.map((d) => d.method);
 		expect(methods).toContain("EchoStepper-echo");
 		expect(methods).toContain("EchoStepper-pong");
+		expect(
+			transport.descriptors.find((d) => d.method === "EchoStepper-pong")
+				?.capability,
+		).toBe("EchoStepper:protected");
 	});
 
 	it("injects proxy tools into StepRegistry", async () => {
@@ -39,6 +43,9 @@ describe("SubprocessTransport", () => {
 
 		expect(registry.has("EchoStepper-echo")).toBe(true);
 		expect(registry.has("EchoStepper-pong")).toBe(true);
+		expect(registry.get("EchoStepper-pong")?.capability).toBe(
+			"EchoStepper:protected",
+		);
 	});
 
 	it("dispatches a call and gets products back", async () => {
@@ -60,22 +67,20 @@ describe("SubprocessTransport", () => {
 
 		const result = await transport.call("NonExistent-step", {}, [0]);
 		expect(result.ok).toBe(false);
-		if (!result.ok) {
-			expect(result.error).toContain("Method not found");
-		}
+		expect(result.errorMessage).toContain("Method not found");
 	});
 
 	it("seqPath [0,N] threading preserved for ad-hoc calls via registry", async () => {
 		const world = getDefaultWorld();
 		transport = await SubprocessTransport.spawn(FIXTURE_PATH, world);
 
-		// Two sequential calls — seqPath should pass through
-		const r1 = await transport.call("EchoStepper-pong", {}, [0, 1]);
-		const r2 = await transport.call("EchoStepper-pong", {}, [0, 2]);
+		// Two sequential calls — seqPath should pass through via _seqPath in products
+		const r1 = await transport.call("EchoStepper-echo", { message: "a" }, [0, 1]);
+		const r2 = await transport.call("EchoStepper-echo", { message: "b" }, [0, 2]);
 		expect(r1.ok).toBe(true);
 		expect(r2.ok).toBe(true);
-		if (r1.ok) expect(r1.products._seqPath).toEqual([0, 1]);
-		if (r2.ok) expect(r2.products._seqPath).toEqual([0, 2]);
+		expect(r1.products?._seqPath).toEqual([0, 1]);
+		expect(r2.products?._seqPath).toEqual([0, 2]);
 	});
 
 	it("proxy handler in registry calls through to child", async () => {
@@ -92,9 +97,11 @@ describe("SubprocessTransport", () => {
 		expect(registry.has("LocalStepper-local")).toBe(true);
 		expect(registry.has("EchoStepper-echo")).toBe(true);
 
-		const tool = registry.get("EchoStepper-echo")!;
-		const result = await tool.handler({ message: "from-registry" }, [5]);
+		const tool = registry.get("EchoStepper-echo");
+		if (!tool) throw new Error("Expected subprocess tool to be injected");
+		const featureStep = buildSyntheticFeatureStep(tool, { message: "from-registry" }, [5]);
+		const result = await tool.handler(featureStep, world);
 		expect(result.ok).toBe(true);
-		if (result.ok) expect(result.products.echoed).toBe("from-registry");
+		expect(result.products?.echoed).toBe("from-registry");
 	});
 });

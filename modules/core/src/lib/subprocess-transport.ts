@@ -14,6 +14,8 @@
 
 import { fork, type ChildProcess } from "child_process";
 import type { TWorld } from "./defs.js";
+import type { TActionResult } from "../schema/protocol.js";
+import { actionNotOK } from "./util/index.js";
 import { type StepTool, type StepRegistry } from "./step-dispatch.js";
 import type { StepDescriptor } from "./stepper-registry.js";
 import type { SubprocessMessage, SubprocessResultMessage } from "./subprocess-runner.js";
@@ -75,17 +77,14 @@ export class SubprocessTransport {
 				paramDomainKeys: new Map(),
 				stepperName: descriptor.stepperName,
 				stepName: descriptor.stepName,
-				handler: (input, seqPath) => this.call(descriptor.method, input, seqPath),
+				capability: descriptor.capability,
+				handler: (featureStep, _world) => this.call(descriptor.method, featureStep.action?.stepValuesMap ? Object.fromEntries(Object.entries(featureStep.action.stepValuesMap).map(([k, v]) => [k, v.term])) : {}, featureStep.seqPath),
 			};
 			registry.set(tool);
 		}
 	}
 
-	call(
-		method: string,
-		params: Record<string, unknown>,
-		seqPath?: number[],
-	): Promise<{ ok: true; products: Record<string, unknown> } | { ok: false; error: string }> {
+	call(method: string, params: Record<string, unknown>, seqPath?: number[]): Promise<TActionResult> {
 		return new Promise((resolve, reject) => {
 			if (this.pending) {
 				reject(new Error("SubprocessTransport: concurrent calls not supported"));
@@ -96,7 +95,7 @@ export class SubprocessTransport {
 				if (result.ok) {
 					resolve({ ok: true, products: result.products });
 				} else {
-					resolve({ ok: false, error: (result as { type: "result"; ok: false; error: string }).error });
+					resolve(actionNotOK((result as { type: "result"; ok: false; error: string }).error));
 				}
 			};
 			this.child.on("message", this.handleMessage);

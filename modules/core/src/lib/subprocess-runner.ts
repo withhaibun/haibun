@@ -11,7 +11,7 @@
  */
 
 import type { CStepper, TWorld } from "./defs.js";
-import { StepRegistry, validateToolInput } from "./step-dispatch.js";
+import { StepRegistry, validateToolInput, buildSyntheticFeatureStep } from "./step-dispatch.js";
 import { createSteppers, setStepperWorldsAndDomains } from "./util/index.js";
 import { addStepperConcerns } from "../phases/Executor.js";
 import { StepperRegistry, type StepDescriptor } from "./stepper-registry.js";
@@ -28,31 +28,33 @@ export async function runSubprocess(csteppers: CStepper[], world: TWorld): Promi
 	const steppers = await createSteppers(csteppers);
 	await setStepperWorldsAndDomains(steppers, world);
 	await addStepperConcerns(world, steppers);
+	world.runtime.steppers = steppers;
 
 	const registry = new StepRegistry(steppers, world);
 	const steps = StepperRegistry.getMetadata(steppers);
 
-	process.send!({ type: "ready", steps } satisfies SubprocessReadyMessage);
+	process.send?.({ type: "ready", steps } satisfies SubprocessReadyMessage);
 
 	process.on("message", async (msg: SubprocessMessage) => {
 		if (msg.type !== "call") return;
 
 		const tool = registry.get(msg.method);
 		if (!tool) {
-			process.send!({ type: "result", ok: false, error: `Method not found: ${msg.method}` } satisfies SubprocessResultMessage);
+			process.send?.({ type: "result", ok: false, error: `Method not found: ${msg.method}` } satisfies SubprocessResultMessage);
 			return;
 		}
 
 		try {
 			const validated = validateToolInput(tool, msg.params ?? {}, world);
-			const hr = await tool.handler(validated, msg.seqPath);
+			const featureStep = buildSyntheticFeatureStep(tool, validated, msg.seqPath ?? [0]);
+			const hr = await tool.handler(featureStep, world);
 			if (hr.ok) {
-				process.send!({ type: "result", ok: true, products: hr.products } satisfies SubprocessResultMessage);
+				process.send?.({ type: "result", ok: true, products: hr.products ?? {} } satisfies SubprocessResultMessage);
 			} else {
-				process.send!({ type: "result", ok: false, error: (hr as { ok: false; error: string }).error } satisfies SubprocessResultMessage);
+				process.send?.({ type: "result", ok: false, error: hr.errorMessage ?? "Step failed" } satisfies SubprocessResultMessage);
 			}
 		} catch (err) {
-			process.send!({ type: "result", ok: false, error: err instanceof Error ? err.message : String(err) } satisfies SubprocessResultMessage);
+			process.send?.({ type: "result", ok: false, error: err instanceof Error ? err.message : String(err) } satisfies SubprocessResultMessage);
 		}
 	});
 }
