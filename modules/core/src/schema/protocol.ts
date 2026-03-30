@@ -334,33 +334,24 @@ export const SystemMessageSchema = z.object({
 });
 export type SystemMessage = z.infer<typeof SystemMessageSchema>;
 
-/**
- * Hypermedia conventions for products.
- * Steps MAY include these fields alongside their domain data:
- *
- * _type:    domain label for this result (e.g. "Email", "Contact")
- * _seqPath: [featureNum, scenarioNum, stepNum, ...] of the producing step
- * _links:   HATEOAS affordances — what can be done next, keyed by rel
- *           each value: { method: StepTool.name, params?: object, schema?: object }
- * _undo:    for destructive operations — how to reverse this action
- *           condition: step name to check if undo is possible
- *           apply: step name to execute the undo
- *
- * Clients that understand _links use them; clients that don't, ignore them.
- * These fields are transport-agnostic: same shape over HTTP, SSE, MCP, stdio.
- */
+/** Execution trace field on products. */
+export const TRACE_SEQ_PATH = '_seqPath';
+
+/** Hypermedia product field keys. Use these constants instead of string literals. */
+export const HYPERMEDIA = {
+	/** Domain label for this result (e.g. "Email", "Contact") */
+	TYPE: '_type',
+	/** HATEOAS affordances — what can be done next, keyed by rel */
+	LINKS: '_links',
+	/** For destructive operations: condition to check reversibility, apply to execute undo */
+	UNDO: '_undo',
+} as const;
+
 export type THypermediaProducts = {
-	_type?: string;
-	_seqPath?: TSeqPath;
-	_links?: Record<
-		string,
-		{
-			method: string;
-			params?: Record<string, unknown>;
-			schema?: Record<string, unknown>;
-		}
-	>;
-	_undo?: { condition: string; apply: string };
+	[TRACE_SEQ_PATH]?: TSeqPath;
+	[HYPERMEDIA.TYPE]?: string;
+	[HYPERMEDIA.LINKS]?: Record<string, { method: string; params?: Record<string, unknown>; schema?: Record<string, unknown> }>;
+	[HYPERMEDIA.UNDO]?: { condition: string; apply: string };
 	[key: string]: unknown;
 };
 

@@ -2,6 +2,7 @@ import { z } from "zod";
 import { AStepper } from "./astepper.js";
 import type { TWorld, TStepperStep, TFeatureStep } from "./defs.js";
 import type { TActionResult, TSeqPath } from "../schema/protocol.js";
+import { TRACE_SEQ_PATH } from "../schema/protocol.js";
 import { namedInterpolation, mapInputToStepValues } from "./namedVars.js";
 import { constructorName, actionNotOK } from "./util/index.js";
 import { populateActionArgs } from "./populateActionArgs.js";
@@ -201,7 +202,7 @@ export function createStepHandler(stepperName: string, stepName: string, stepDef
 			const args = populateActionArgs(featureStep, world, world.runtime?.steppers ?? []);
 			const result = await stepDef.action(args, featureStep);
 			if (result.ok && result.products) {
-				return { ...result, products: { ...result.products, _seqPath: featureStep.seqPath } };
+				return { ...result, products: { ...result.products, [TRACE_SEQ_PATH]: featureStep.seqPath } };
 			}
 			return result;
 		} catch (caught) {
