@@ -20,6 +20,7 @@ class EchoStepper extends AStepper {
 		},
 		pong: {
 			gwta: "pong",
+			capability: "EchoStepper:protected",
 			action: async () => OK,
 		},
 	};

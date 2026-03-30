@@ -1,9 +1,9 @@
 import { TWorld, TFeatureStep, TStepInput } from '../defs.js';
-import { TSeqPath, TNotOKActionResult } from '../../schema/protocol.js';
+import { TSeqPath, TActionResult, TStepResult, ExecutionIntent } from '../../schema/protocol.js';
 import { AStepper } from '../astepper.js';
+import { actionNotOK } from '../util/index.js';
 import { Resolver } from '../../phases/Resolver.js';
-import { executeStep, incSeqPath } from '../../phases/Executor.js';
-import { ExecutionIntent, FlowSignal } from '../../schema/protocol.js';
+import { executeStep, incSeqPath, syntheticSeqPathDirection } from '../../phases/Executor.js';
 import { StepRegistry } from '../step-dispatch.js';
 
 export class FlowRunner {
@@ -12,10 +12,10 @@ export class FlowRunner {
 
 	constructor(private world: TWorld, private steppers: AStepper[]) {
 		this.resolver = new Resolver(steppers);
-		this.registry = new StepRegistry(steppers, world);
+		this.registry = (world.runtime?.stepRegistry as StepRegistry) ?? new StepRegistry(steppers, world);
 	}
 
-	async runStatement(statement: string | TStepInput, options: { args?: Record<string, string>, intent?: ExecutionIntent, parentStep?: TFeatureStep, seqPath?: TSeqPath } = {}): Promise<FlowSignal> {
+	async runStatement(statement: string | TStepInput, options: { args?: Record<string, string>, intent?: ExecutionIntent, parentStep?: TFeatureStep, seqPath?: TSeqPath } = {}): Promise<TActionResult> {
 		const { intent = { mode: 'authoritative' } } = options;
 
 		const stmtText = typeof statement === 'string' ? statement : statement.in;
@@ -33,7 +33,7 @@ export class FlowRunner {
 			action = this.resolver.findSingleStepAction(statementWithArgs);
 		} catch (e: unknown) {
 			if (intent.mode === 'speculative') {
-				return { kind: 'fail', message: e instanceof Error ? e.message : String(e) };
+				return actionNotOK(e instanceof Error ? e.message : String(e));
 			}
 			throw e;
 		}
@@ -79,36 +79,29 @@ export class FlowRunner {
 			runtimeArgs: Object.keys(mergedArgs).length > 0 ? mergedArgs : undefined,
 		};
 
-		let result;
 		try {
-			result = await executeStep(this.registry, this.steppers, featureStep, this.world);
+			const result: TStepResult = await executeStep(this.registry, this.steppers, featureStep, this.world);
+			return result;
 		} catch (e: unknown) {
 			if (intent.mode === 'speculative') {
-				return { kind: 'fail', message: e instanceof Error ? e.message : String(e) };
+				return actionNotOK(e instanceof Error ? e.message : String(e));
 			}
 			throw e;
 		}
-
-		if (result.ok) {
-			return { kind: 'ok', products: result.stepActionResult };
-		}
-		const msg = (result.stepActionResult as TNotOKActionResult).message;
-		return { kind: 'fail', message: msg, products: result.stepActionResult };
 	}
 
-	async runStatements(statements: (string | TStepInput)[], options: { args?: Record<string, string>, intent?: ExecutionIntent, parentStep?: TFeatureStep } = {}): Promise<FlowSignal> {
-		let lastResult: FlowSignal | undefined;
+	async runStatements(statements: (string | TStepInput)[], options: { args?: Record<string, string>, intent?: ExecutionIntent, parentStep?: TFeatureStep } = {}): Promise<TActionResult> {
+		let lastResult: TActionResult = { ok: true };
 		for (const stmt of statements) {
-			const result = await this.runStatement(stmt, options);
-			if (result.kind !== 'ok') return result;
-			lastResult = result;
+			lastResult = await this.runStatement(stmt, options);
+			if (!lastResult.ok) return lastResult;
 		}
-		return { kind: 'ok', products: lastResult?.products };
+		return lastResult;
 	}
 
-	async runSteps(steps: TFeatureStep[], options: { intent?: ExecutionIntent, parentStep?: TFeatureStep } = {}): Promise<FlowSignal> {
+	async runSteps(steps: TFeatureStep[], options: { intent?: ExecutionIntent, parentStep?: TFeatureStep } = {}): Promise<TActionResult> {
 		const { intent = { mode: 'authoritative' }, parentStep } = options;
-		let lastResult: FlowSignal | undefined;
+		let lastResult: TActionResult = { ok: true };
 
 		for (const step of steps) {
 			let mappedStep: TFeatureStep = {
@@ -118,28 +111,22 @@ export class FlowRunner {
 			};
 			if (parentStep) {
 				const baseSeqPath = [...parentStep.seqPath, 1];
-				const dir = intent.mode === 'speculative' ? -1 : 1;
+				const isAfterEvery = parentStep.isAfterEveryStep || mappedStep.isAfterEveryStep;
+				const dir = syntheticSeqPathDirection(intent.mode === 'speculative' || isAfterEvery);
 				const seqPath = incSeqPath(this.world.runtime.stepResults, baseSeqPath, dir);
-				mappedStep = { ...mappedStep, seqPath, isSubStep: true, isAfterEveryStep: parentStep.isAfterEveryStep || mappedStep.isAfterEveryStep };
+				mappedStep = { ...mappedStep, seqPath, isSubStep: true, isAfterEveryStep: isAfterEvery };
 			}
 
-			let result;
 			try {
-				result = await executeStep(this.registry, this.steppers, mappedStep, this.world);
+				lastResult = await executeStep(this.registry, this.steppers, mappedStep, this.world);
+				if (!lastResult.ok) return lastResult;
 			} catch (e) {
 				if (intent.mode === 'speculative') {
-					return { kind: 'fail', message: e instanceof Error ? e.message : String(e) };
+					return actionNotOK(e instanceof Error ? e.message : String(e));
 				}
 				throw e;
 			}
-
-			if (!result.ok) {
-				const msg = (result.stepActionResult as TNotOKActionResult).message;
-				return { kind: 'fail', message: msg, products: result.stepActionResult };
-			}
-
-			lastResult = { kind: 'ok', products: result.stepActionResult };
 		}
-		return { kind: 'ok', products: lastResult?.products };
+		return lastResult;
 	}
 }

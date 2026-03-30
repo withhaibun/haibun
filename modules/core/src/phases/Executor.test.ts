@@ -1,7 +1,47 @@
 import { describe, expect, it } from "vitest";
 
 import { TSeqPath } from '../schema/protocol.js';
-import { incSeqPath, calculateShouldClose } from "./Executor.js";
+import { advanceSyntheticSeqPath, featureSyntheticSeqPath, incSeqPath, calculateShouldClose, syntheticBranchSeqPath, syntheticSeqPathDirection } from "./Executor.js";
+
+describe('syntheticSeqPathDirection', () => {
+	it('uses positive direction for authoritative branches', () => {
+		expect(syntheticSeqPathDirection(false)).toBe(1);
+	});
+
+	it('uses negative direction for speculative branches', () => {
+		expect(syntheticSeqPathDirection(true)).toBe(-1);
+	});
+});
+
+describe('featureSyntheticSeqPath', () => {
+	it('creates a feature-scoped synthetic branch', () => {
+		expect(featureSyntheticSeqPath(3, 2)).toEqual([3, 0, 2]);
+	});
+
+	it('allows a non-default synthetic branch when needed', () => {
+		expect(featureSyntheticSeqPath(3, 2, -1)).toEqual([3, -1, 2]);
+	});
+});
+
+describe('syntheticBranchSeqPath', () => {
+	it('creates an authoritative branch under a parent step', () => {
+		expect(syntheticBranchSeqPath([1, 1, 2])).toEqual([1, 1, 2, 1]);
+	});
+
+	it('creates a speculative branch under a parent step', () => {
+		expect(syntheticBranchSeqPath([1, 1, 2], -1)).toEqual([1, 1, 2, -1]);
+	});
+});
+
+describe('advanceSyntheticSeqPath', () => {
+	it('advances an authoritative synthetic branch', () => {
+		expect(advanceSyntheticSeqPath([1, 1, 2, 1])).toEqual([1, 1, 2, 2]);
+	});
+
+	it('advances a speculative synthetic branch', () => {
+		expect(advanceSyntheticSeqPath([1, 1, 2, -1], -1)).toEqual([1, 1, 2, -2]);
+	});
+});
 
 describe('incSeqPath', () => {
 	it('increments single depth seqPath', () => {
