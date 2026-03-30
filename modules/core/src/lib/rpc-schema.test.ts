@@ -52,6 +52,17 @@ describe('JSON-RPC 2.0 schema compliance', () => {
 		if (result.success) expect(result.data.stream).toBe(true);
 	});
 
+	it('accepts request with capability', () => {
+		const result = RpcRequestSchema.safeParse({
+			jsonrpc: '2.0',
+			id: '1',
+			method: 'test',
+			capability: 'Test:*',
+		});
+		expect(result.success).toBe(true);
+		if (result.success) expect(result.data.capability).toBe('Test:*');
+	});
+
 	it('defaults params to empty object', () => {
 		const result = RpcRequestSchema.safeParse({
 			jsonrpc: '2.0',

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { z } from 'zod';
 
-import { buildStepRegistry, validateToolInput, stepMethodName, createStepHandler, discoverSteps, type StepTool } from './step-dispatch.js';
+import { buildStepRegistry, validateToolInput, stepMethodName, createStepHandler, discoverSteps, buildSyntheticFeatureStep, authorizeToolCapability, capabilityAllows, type StepTool } from './step-dispatch.js';
 import { AStepper } from './astepper.js';
 import { OK } from '../schema/protocol.js';
 import { actionOKWithProducts, actionNotOK } from './util/index.js';
@@ -21,7 +21,7 @@ class PlainStepper extends AStepper {
 		},
 		hidden: {
 			gwta: 'do secret thing',
-			expose: false,
+			exposeMCP: false,
 			action: async () => OK,
 		},
 	};
@@ -47,6 +47,16 @@ class ProductStepper extends AStepper {
 			action: () => {
 				throw new Error('boom');
 			},
+		},
+	};
+}
+
+class CapabilityStepper extends AStepper {
+	steps = {
+		protectedPing: {
+			gwta: 'protected ping',
+			capability: 'CapabilityStepper:protected',
+			action: () => OK,
 		},
 	};
 }
@@ -80,10 +90,10 @@ describe('step-dispatch', () => {
 			expect(registry.has('PlainStepper-greet')).toBe(true);
 		});
 
-		it('excludes expose:false steps', () => {
+		it('includes exposeMCP:false steps in registry (MCP filters separately)', () => {
 			const stepper = new PlainStepper();
 			const registry = buildStepRegistry([stepper], world);
-			expect(registry.has('PlainStepper-hidden')).toBe(false);
+			expect(registry.has('PlainStepper-hidden')).toBe(true);
 		});
 
 		it('includes outputSchema when defined', () => {
@@ -100,6 +110,37 @@ describe('step-dispatch', () => {
 			expect(tool?.inputSchema.required).toContain('name');
 			expect(tool?.inputSchema.properties?.['name']).toBeDefined();
 		});
+
+		it('propagates step capability metadata', () => {
+			const stepper = new CapabilityStepper();
+			const registry = buildStepRegistry([stepper], world);
+			expect(registry.get('CapabilityStepper-protectedPing')?.capability).toBe('CapabilityStepper:protected');
+		});
+	});
+
+	describe('authorizeToolCapability', () => {
+		it('allows exact capability match', () => {
+			expect(capabilityAllows('CapabilityStepper:protected', 'CapabilityStepper:protected')).toBe(true);
+		});
+
+		it('allows wildcard capability prefix', () => {
+			expect(capabilityAllows('CapabilityStepper:*', 'CapabilityStepper:protected')).toBe(true);
+		});
+
+		it('allows a required capability from a zcap-like grant set', () => {
+			expect(
+				capabilityAllows(
+					['Other:*', 'CapabilityStepper:protected'],
+					'CapabilityStepper:protected',
+				),
+			).toBe(true);
+		});
+
+		it('rejects missing or wrong capability', () => {
+			const tool = { name: 'CapabilityStepper-protectedPing', capability: 'CapabilityStepper:protected' };
+			expect(() => authorizeToolCapability(tool, undefined)).toThrow(/capability CapabilityStepper:protected required/);
+			expect(() => authorizeToolCapability(tool, 'Other:*')).toThrow(/capability CapabilityStepper:protected required/);
+		});
 	});
 
 	describe('validateToolInput', () => {
@@ -107,11 +148,10 @@ describe('step-dispatch', () => {
 			name: 'test',
 			description: 'test',
 			inputSchema: { type: 'object', properties: { x: { type: 'string' } }, required: ['x'] },
-			paramSchemas: overrides.paramSchemas,
 			paramDomainKeys: new Map(),
 			stepperName: 'Test',
 			stepName: 'test',
-			handler: async () => ({ ok: true, products: {} }),
+			handler: async () => ({ ok: true }),
 			...overrides,
 		});
 
@@ -145,7 +185,8 @@ describe('step-dispatch', () => {
 				steps = { doIt: { gwta: 'do it with {val: myDomain}', action: async () => OK } };
 			}();
 			const registry = buildStepRegistry([stepper], w);
-			const tool = registry.get(`${stepper.constructor.name}-doIt`)!;
+			const tool = registry.get(`${stepper.constructor.name}-doIt`);
+			if (!tool) throw new Error('Expected tool to be registered');
 			const result = validateToolInput(tool, { val: 'hello' }, w);
 			expect(result.val).toBe('HELLO');
 		});
@@ -161,7 +202,8 @@ describe('step-dispatch', () => {
 				steps = { doIt: { gwta: 'do it with {val: myDomain}', action: async () => OK } };
 			}();
 			const registry = buildStepRegistry([stepper], w);
-			const tool = registry.get(`${stepper.constructor.name}-doIt`)!;
+			const tool = registry.get(`${stepper.constructor.name}-doIt`);
+			if (!tool) throw new Error('Expected tool to be registered');
 			// Without world, no coercion — returns Zod-parsed value as-is
 			const result = validateToolInput(tool, { val: 'hello' });
 			expect(result.val).toBe('hello');
@@ -204,76 +246,66 @@ describe('step-dispatch', () => {
 			expect(greet?.inputSchema).toBeDefined();
 			expect(greet?.inputSchema?.required).toContain('name');
 		});
+
+		it('step.list metadata includes capability', () => {
+			const stepper = new CapabilityStepper();
+			const discovery = discoverSteps([stepper], world);
+			expect(discovery.metadata.find(m => m.method === 'CapabilityStepper-protectedPing')?.capability).toBe('CapabilityStepper:protected');
+		});
 	});
 
 	describe('createStepHandler', () => {
+		const synth = (tool: { stepperName: string; stepName: string; description: string }, input: Record<string, unknown>, seqPath: number[] = [0]) =>
+			buildSyntheticFeatureStep(tool as StepTool, input, seqPath);
+
 		it('returns ok with products for successful step with products', async () => {
 			const stepper = new ProductStepper();
-			const stepDef = stepper.steps.getCount;
-			const handler = createStepHandler('ProductStepper', 'getCount', stepDef);
-			const result = await handler({});
+			const handler = createStepHandler('ProductStepper', 'getCount', stepper.steps.getCount);
+			const result = await handler(synth({ stepperName: 'ProductStepper', stepName: 'getCount', description: '' }, {}), world);
 			expect(result.ok).toBe(true);
-			if (result.ok) {
-				expect(result.products).toMatchObject({ count: 42 });
-				expect(result.products._seqPath).toEqual([0]);
-			}
+			expect(result.products).toMatchObject({ count: 42 });
+			expect(result.products?._seqPath).toEqual([0]);
 		});
 
-		it('returns ok with _seqPath in products for plain step', async () => {
+		it('returns ok for plain step', async () => {
 			const stepper = new PlainStepper();
-			const stepDef = stepper.steps.greet;
-			const handler = createStepHandler('PlainStepper', 'greet', stepDef);
-			const result = await handler({ name: 'world' });
+			const handler = createStepHandler('PlainStepper', 'greet', stepper.steps.greet);
+			const result = await handler(synth({ stepperName: 'PlainStepper', stepName: 'greet', description: 'greet {name}' }, { name: 'world' }), world);
 			expect(result.ok).toBe(true);
-			if (result.ok) {
-				expect(result.products._seqPath).toEqual([0]);
-			}
 		});
 
 		it('uses provided seqPath in products', async () => {
 			const stepper = new ProductStepper();
-			const stepDef = stepper.steps.getCount;
-			const handler = createStepHandler('ProductStepper', 'getCount', stepDef);
-			const result = await handler({}, [2, 3, 4]);
+			const handler = createStepHandler('ProductStepper', 'getCount', stepper.steps.getCount);
+			const result = await handler(synth({ stepperName: 'ProductStepper', stepName: 'getCount', description: '' }, {}, [2, 3, 4]), world);
 			expect(result.ok).toBe(true);
-			if (result.ok) {
-				expect(result.products._seqPath).toEqual([2, 3, 4]);
-			}
+			expect(result.products?._seqPath).toEqual([2, 3, 4]);
 		});
 
-		it('returns error for failed step', async () => {
+		it('returns errorMessage for failed step', async () => {
 			const stepper = new ProductStepper();
-			const stepDef = stepper.steps.failStep;
-			const handler = createStepHandler('ProductStepper', 'failStep', stepDef);
-			const result = await handler({});
+			const handler = createStepHandler('ProductStepper', 'failStep', stepper.steps.failStep);
+			const result = await handler(synth({ stepperName: 'ProductStepper', stepName: 'failStep', description: '' }, {}), world);
 			expect(result.ok).toBe(false);
-			if (!result.ok) {
-				expect(result.error).toBe('intentional failure');
-			}
+			expect(result.errorMessage).toBe('intentional failure');
 		});
 
 		it('catches thrown errors', async () => {
 			const stepper = new ProductStepper();
-			const stepDef = stepper.steps.throwStep;
-			const handler = createStepHandler('ProductStepper', 'throwStep', stepDef);
-			const result = await handler({});
+			const handler = createStepHandler('ProductStepper', 'throwStep', stepper.steps.throwStep);
+			const result = await handler(synth({ stepperName: 'ProductStepper', stepName: 'throwStep', description: '' }, {}), world);
 			expect(result.ok).toBe(false);
-			if (!result.ok) {
-				expect(result.error).toContain('boom');
-			}
+			expect(result.errorMessage).toContain('boom');
 		});
 
 		it('populates stepValuesMap from input', async () => {
 			let capturedFeatureStep: unknown;
 			const stepDef = {
 				gwta: 'say hello to {name}',
-				action: (_args: Record<string, unknown>, featureStep: unknown) => {
-					capturedFeatureStep = featureStep;
-					return OK;
-				},
+				action: (_args: Record<string, unknown>, featureStep: unknown) => { capturedFeatureStep = featureStep; return OK; },
 			};
 			const handler = createStepHandler('Test', 'greet', stepDef as TStepperStep);
-			await handler({ name: 'world' });
+			await handler(synth({ stepperName: 'Test', stepName: 'greet', description: 'say hello to {name}' }, { name: 'world' }), world);
 			const fs = capturedFeatureStep as { action: { stepValuesMap?: Record<string, unknown> } };
 			expect(fs.action.stepValuesMap).toBeDefined();
 			expect(fs.action.stepValuesMap?.['name']).toBeDefined();

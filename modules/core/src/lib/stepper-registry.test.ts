@@ -19,7 +19,7 @@ class TestStepper extends AStepper {
     },
     hiddenStep: {
       exact: 'hidden action',
-      expose: false,
+      exposeMCP: false,
       action: async () => OK,
     },
     matchStep: {
@@ -38,7 +38,7 @@ describe('StepperRegistry', () => {
       expect(metadata.length).toBe(4); // 5 steps - 1 hidden
     });
 
-    it('filters out steps with expose: false', () => {
+    it('filters out steps with exposeMCP: false', () => {
       const hidden = metadata.find(m => m.stepName === 'hiddenStep');
       expect(hidden).toBeUndefined();
     });

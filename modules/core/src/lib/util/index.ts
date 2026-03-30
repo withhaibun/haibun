@@ -1,5 +1,5 @@
 import { TSpecl, TWorld, TRuntime, TModuleOptions, CStepper, TFeatureStep } from '../defs.js';
-import { TNotOKActionResult, TOKActionResult, TActionOKWithProducts, OK, TSeqPath, TDebugSignal } from '../../schema/protocol.js';
+import { TActionResult, OK, TSeqPath, TDebugSignal } from '../../schema/protocol.js';
 import { TAnyFixme } from '../fixme.js';
 import { IHasOptions, AStepper } from '../astepper.js';
 import { TArtifactEvent, type TJsonArtifact, Timer } from '../../schema/protocol.js';
@@ -77,25 +77,20 @@ export function checkModuleIsClass(re: object, module: string) {
 	}
 }
 
-export function actionNotOK(message: string, w?: { artifact?: TArtifactEvent, controlSignal?: TDebugSignal }): TNotOKActionResult {
+export function actionNotOK(errorMessage: string, w?: { artifact?: TArtifactEvent, controlSignal?: TDebugSignal }): TActionResult {
 	const { artifact, controlSignal } = w || {};
-	return {
-		ok: false,
-		message,
-		artifact,
-		controlSignal,
-	};
+	return { ok: false, errorMessage, artifact, controlSignal };
 }
 export function randomString() {
 	return ['rnd', Math.floor(Date.now() / 1000).toString(36), Math.floor(Math.random() * 1e8).toString(36)].join('_');
 }
 
-export function actionOK(w?: { artifact?: TArtifactEvent, controlSignal?: TDebugSignal }): TOKActionResult {
+export function actionOK(w?: { artifact?: TArtifactEvent, controlSignal?: TDebugSignal }): TActionResult {
 	const { artifact, controlSignal } = w || {};
 	return { ...OK, artifact, controlSignal };
 }
 
-export function actionOKWithProducts(products: Record<string, unknown>, w?: { artifact?: TArtifactEvent, controlSignal?: TDebugSignal }): TActionOKWithProducts {
+export function actionOKWithProducts(products: Record<string, unknown>, w?: { artifact?: TArtifactEvent, controlSignal?: TDebugSignal }): TActionResult {
 	const { artifact, controlSignal } = w || {};
 	return { ok: true, products, artifact, controlSignal };
 }
