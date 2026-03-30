@@ -7,7 +7,14 @@ import { truncateForLog } from "@haibun/core/lib/util/index.js";
 import type { StepRegistry } from "@haibun/core/lib/step-dispatch.js";
 import type { IStepTransport } from "./step-transport.js";
 
-type TMessageHandler = (data: unknown) => unknown | Promise<unknown>;
+export type TTransportRequestInfo = {
+	headers?: Record<string, string | undefined>;
+};
+
+type TMessageHandler = (
+	data: unknown,
+	requestInfo?: TTransportRequestInfo,
+) => unknown | Promise<unknown>;
 
 /** Writer for streaming NDJSON chunks back over an HTTP response. */
 export type TStreamWriter = (chunk: unknown) => Promise<void>;
@@ -76,6 +83,7 @@ export class SSETransport implements ITransport, IStepTransport {
 		this.webserver.addRoute("post", "/rpc/:_method", async (c) => {
 			try {
 				const data = await c.req.json();
+				const requestInfo: TTransportRequestInfo = { headers: c.req.header() };
 				const isStream = (data as Record<string, unknown>).stream === true;
 
 				if (isStream) {
@@ -100,7 +108,7 @@ export class SSETransport implements ITransport, IStepTransport {
 				}
 
 				this.eventLogger.debug(`RPC: ${JSON.stringify(truncateForLog(data))}`);
-				const result = await this.handleMessage(data);
+				const result = await this.handleMessage(data, requestInfo);
 				const response = (result ?? { ok: true }) as Record<string, unknown>;
 				const status = response.error ? 422 : 200;
 				return c.json(response, status);
@@ -141,9 +149,12 @@ export class SSETransport implements ITransport, IStepTransport {
 		this.streamHandlers = [];
 	}
 
-	private async handleMessage(data: unknown): Promise<unknown> {
+	private async handleMessage(
+		data: unknown,
+		requestInfo?: TTransportRequestInfo,
+	): Promise<unknown> {
 		for (const handler of this.messageHandlers) {
-			const result = await handler(data);
+			const result = await handler(data, requestInfo);
 			if (result !== undefined) return result;
 		}
 		return undefined;

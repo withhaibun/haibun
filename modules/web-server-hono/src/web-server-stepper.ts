@@ -11,23 +11,27 @@ import {
 	getFromRuntime,
 	getStepperOption,
 	intOrError,
+	stringOrError,
 } from "@haibun/core/lib/util/index.js";
 import {
 	AStepper,
 	type IHasCycles,
 	type IHasOptions,
 } from "@haibun/core/lib/astepper.js";
-import {
-	discoverSteps,
-	validateToolInput,
-	parseRpcRequest,
-	StepRegistry,
-} from "@haibun/core/lib/step-dispatch.js";
+import { discoverSteps, validateToolInput, parseRpcRequest, StepRegistry, buildSyntheticFeatureStep, authorizeToolCapability } from "@haibun/core/lib/step-dispatch.js";
 import { validateStep } from "@haibun/core/lib/step-validation.js";
 
 import { type IWebServer, WEBSERVER } from "./defs.js";
+import {
+	getGrantedCapabilityFromHeaders,
+	validateCapabilityAuthConfig,
+} from "./capability-auth.js";
 import { ServerHono, DEFAULT_PORT } from "./server-hono.js";
-import { SSETransport, TRANSPORT, type ITransport } from "./sse-transport.js";
+import {
+	SSETransport,
+	TRANSPORT,
+	type ITransport,
+} from "./sse-transport.js";
 import type { IStepTransport } from "./step-transport.js";
 
 function isStepTransport(s: unknown): s is IStepTransport {
@@ -75,9 +79,19 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 			desc: "Change web server interface from default (127.0.0.1). e.g. 0.0.0.0",
 			parse: (input: string) => ({ result: input }),
 		},
+		RPC_ACCESS_TOKEN: {
+			desc: "Bearer token used to authorize protected RPC steps",
+			parse: (input: string) => stringOrError(input),
+		},
+		RPC_ACCESS_CAPABILITY: {
+			desc: "Capability granted to callers authenticated with RPC_ACCESS_TOKEN",
+			parse: (input: string) => stringOrError(input),
+		},
 	};
 	port: number = DEFAULT_PORT;
 	hostname?: string;
+	rpcAccessToken?: string;
+	rpcAccessCapability?: string;
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
@@ -108,6 +122,20 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 		if (interfaceOption) {
 			this.hostname = String(interfaceOption);
 		}
+		this.rpcAccessToken = getStepperOption(
+			this,
+			"RPC_ACCESS_TOKEN",
+			world.moduleOptions,
+		) as string | undefined;
+		this.rpcAccessCapability = getStepperOption(
+			this,
+			"RPC_ACCESS_CAPABILITY",
+			world.moduleOptions,
+		) as string | undefined;
+		validateCapabilityAuthConfig("WebServerStepper RPC", {
+			accessToken: this.rpcAccessToken,
+			accessCapability: this.rpcAccessCapability,
+		});
 	}
 
 	steps = {
@@ -203,7 +231,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 				) as ITransport;
 				const logger = this.getWorld().eventLogger;
 
-				transport.onMessage(async (raw: unknown) => {
+				transport.onMessage(async (raw: unknown, requestInfo) => {
 					const msg = parseRpcRequest(raw);
 					if (!msg) return;
 					const { method, params } = msg;
@@ -223,14 +251,28 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 					if (method === "step.validate")
 						return validateStep(String(params.text || ""), this.steppers);
 
-					const tool = this.stepRegistry!.get(method);
+					const registry = this.stepRegistry;
+					if (!registry) {
+						return { error: `${method}: RPC step registry is not initialized` };
+					}
+					const tool = registry.get(method);
 					if (!tool) return;
 
 					try {
+						const grantedCapability = getGrantedCapabilityFromHeaders(
+							requestInfo?.headers,
+							this.getWorld().runtime,
+							{
+								accessToken: this.rpcAccessToken,
+								accessCapability: this.rpcAccessCapability,
+							},
+						);
+						authorizeToolCapability(tool, grantedCapability);
 						const validatedParams = validateToolInput(tool, params, this.getWorld());
-						const hr = await tool.handler(validatedParams, seqPath);
+						const featureStep = buildSyntheticFeatureStep(tool, validatedParams, seqPath);
+						const hr = await tool.handler(featureStep, this.getWorld());
 						if (hr.ok) return hr.products;
-						return { error: `${method}: ${(hr as { error: string }).error}` };
+						return { error: `${method}: ${hr.errorMessage}` };
 					} catch (err) {
 						const detail = err instanceof Error ? err.message : String(err);
 						logger.error(`[RPC] ${method}: ${detail}`);
@@ -242,7 +284,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 		},
 		refreshSteppers: {
 			gwta: "refresh steppers",
-			expose: false,
+			exposeMCP: false,
 			action: () => {
 				if (!this.stepRegistry) return OK;
 				this.stepRegistry.refresh(this.steppers, this.getWorld());

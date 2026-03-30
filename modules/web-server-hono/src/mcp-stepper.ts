@@ -27,12 +27,19 @@ import {
 import { currentVersion as version } from "@haibun/core/currentVersion.js";
 import {
 	buildStepRegistry,
-	createStepHandler,
+	buildSyntheticFeatureStep,
+	validateToolInput,
+	authorizeToolCapability,
 	type StepRegistry,
+	type StepTool,
 } from "@haibun/core/lib/step-dispatch.js";
 import type { IWebServer, Context } from "./defs.js";
 import { WEBSERVER } from "./defs.js";
 import type { IStepTransport } from "./step-transport.js";
+import {
+	getGrantedCapabilityFromHeaders,
+	validateCapabilityAuthConfig,
+} from "./capability-auth.js";
 
 // --- Type Definitions ---
 
@@ -49,6 +56,8 @@ type StoredTool = {
 		[key: string]: unknown;
 	};
 	stepperName: string;
+	capability?: string;
+	stepTool: StepTool;
 	handler: (input: Record<string, unknown>) => Promise<CallToolResult>;
 };
 
@@ -80,6 +89,10 @@ export default class McpStepper
 			desc: "Access token for MCP auth",
 			parse: (t: string) => stringOrError(t),
 		},
+		ACCESS_CAPABILITY: {
+			desc: "Capability granted to callers authenticated with ACCESS_TOKEN",
+			parse: (t: string) => stringOrError(t),
+		},
 		PORT: {
 			desc: "Port to listen on (overrides WebServer default)",
 			parse: (p: string) => stringOrError(p),
@@ -101,6 +114,7 @@ export default class McpStepper
 
 	private mcpPath = "/mcp";
 	private accessToken = "";
+	private accessCapability = "";
 
 	private globalToolRegistry = new Map<string, StoredTool>();
 	private stepperToolRegistry = new Map<string, StoredTool[]>();
@@ -117,6 +131,13 @@ export default class McpStepper
 		this.accessToken =
 			(getStepperOption(this, "ACCESS_TOKEN", world.moduleOptions) as string) ||
 			"";
+		this.accessCapability =
+			(getStepperOption(this, "ACCESS_CAPABILITY", world.moduleOptions) as string) ||
+			"";
+		validateCapabilityAuthConfig("McpStepper", {
+			accessToken: this.accessToken || undefined,
+			accessCapability: this.accessCapability || undefined,
+		});
 		this.populateToolRegistries();
 	}
 
@@ -142,8 +163,10 @@ export default class McpStepper
 	private async callTool(
 		toolDef: StoredTool,
 		args: Record<string, unknown>,
+		grantedCapability?: string | string[],
 	): Promise<CallToolResult> {
 		try {
+			authorizeToolCapability(toolDef, grantedCapability);
 			return await toolDef.handler(args);
 		} catch (err: unknown) {
 			const msg = err instanceof Error ? err.message : String(err);
@@ -214,6 +237,7 @@ export default class McpStepper
 		this.mcpServer.server.setRequestHandler(
 			CallToolRequestSchema,
 			async (request, extra) => {
+				const grantedCapability = this.getGrantedCapability(extra);
 				const connection =
 					(extra as { connection?: ConnectionId })?.connection ||
 					defaultConnection;
@@ -261,7 +285,7 @@ export default class McpStepper
 							`Tool "${stepName}" not found. Use access_stepper_* to list available tools.`,
 						);
 					}
-					return await this.callTool(toolDef, stepArgs);
+					return await this.callTool(toolDef, stepArgs, grantedCapability);
 				}
 
 				if (toolName === "return_to_index") {
@@ -285,7 +309,7 @@ export default class McpStepper
 					await this.updateSessionFocus(sessionId, toolDef.stepperName);
 				}
 
-				return await this.callTool(toolDef, args);
+				return await this.callTool(toolDef, args, grantedCapability);
 			},
 		);
 
@@ -438,7 +462,7 @@ export default class McpStepper
 		tools.push({
 			name: "call_step",
 			description:
-				"Call a Haibun step tool by name. Use access_stepper_* first to discover available tool names and their schemas.",
+				"Call a Haibun step tool by name. Use access_stepper_* first to discover available tool names and their schemas. Protected tools are authorized from the MCP bearer token, not from tool arguments.",
 			inputSchema: {
 				type: "object",
 				properties: {
@@ -471,37 +495,43 @@ export default class McpStepper
 			const tools: StoredTool[] = [];
 
 			for (const [stepName, stepDef] of Object.entries(stepper.steps)) {
-				if (stepDef.expose === false) continue;
+				if (stepDef.exposeMCP === false) continue;
 
 				const fullToolName = `${stepperName}-${stepName}`;
 				const stepTool = schemaMap.get(fullToolName);
+				if (!stepTool) continue;
 
 				// Strip metadata that can confuse some MCP clients
-				const inputSchema = stepTool
-					? { ...stepTool.inputSchema }
-					: { type: "object" as const };
+				const inputSchema = { ...stepTool.inputSchema };
 				delete inputSchema["$schema"];
 				delete inputSchema["additionalProperties"];
-
-				const dispatchHandler = createStepHandler(
-					stepperName,
-					stepName,
-					stepDef,
-				);
+				const toolDescription = stepTool.description;
 				const tool: StoredTool = {
 					name: fullToolName,
-					description: stepDef.gwta || stepName,
+					description: stepTool.capability
+						? `${toolDescription} Requires capability: ${stepTool.capability}.`
+						: toolDescription,
 					inputSchema,
 					stepperName,
-					handler: async (
-						input: Record<string, unknown>,
-					): Promise<CallToolResult> => {
-						this.getWorld().eventLogger.info(
-							`[MCP] Tool Execution: ${fullToolName}`,
-						);
-						const hr = await dispatchHandler(input);
+					capability: stepTool.capability,
+					stepTool,
+					handler: async (input: Record<string, unknown>): Promise<CallToolResult> => {
+						this.getWorld().eventLogger.info(`[MCP] Tool Execution: ${fullToolName}`);
+						const world = this.getWorld();
+						const validatedInput = validateToolInput(stepTool, input, world);
+						const seqPath: number[] = [0, (world.runtime.adHocSeq = (world.runtime.adHocSeq ?? 0) + 1)];
+						const featureStep = buildSyntheticFeatureStep(stepTool, validatedInput, seqPath);
+						const hr = await stepTool.handler(featureStep, world);
+						if (!hr.ok) {
+							return {
+								isError: true,
+								content: [{ type: "text", text: hr.errorMessage ?? "Step failed" }],
+							};
+						}
 						return {
-							content: [{ type: "text", text: JSON.stringify(hr, null, 2) }],
+							content: [
+								{ type: "text", text: JSON.stringify(hr.products ?? {}, null, 2) },
+							],
 						};
 					},
 				};
@@ -510,6 +540,23 @@ export default class McpStepper
 			}
 			this.stepperToolRegistry.set(stepperName, tools);
 		}
+	}
+
+	private getGrantedCapability(extra: {
+		requestInfo?: { headers?: Record<string, string | string[] | undefined> };
+	}): string[] | undefined {
+		const headers = extra.requestInfo?.headers;
+		if (!headers) return undefined;
+		const normalizedHeaders = Object.fromEntries(
+			Object.entries(headers).map(([key, value]) => [
+				key,
+				Array.isArray(value) ? value[0] : value,
+			]),
+		);
+		return getGrantedCapabilityFromHeaders(normalizedHeaders, this.getWorld().runtime, {
+			accessToken: this.accessToken || undefined,
+			accessCapability: this.accessCapability || undefined,
+		});
 	}
 
 	private setupMiddleware(webserver: IWebServer) {
