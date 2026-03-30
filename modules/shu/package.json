@@ -5,11 +5,18 @@
   "description": "Haibun hypermedia SPA — renders any domain-driven application from stepper concerns",
   "main": "build/app.js",
   "types": "build/app.d.ts",
+  "exports": {
+    ".": "./build/app.js",
+    "./bundle": "./build/shu-bundle.js"
+  },
   "scripts": {
-    "build": "tsc -b ."
+    "build": "tsc -b . && esbuild src/app.ts --bundle --outfile=build/shu-bundle.js --format=iife --platform=browser"
   },
   "dependencies": {
     "markdown-it": "^14.0.0",
     "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.27.3"
   }
 }
