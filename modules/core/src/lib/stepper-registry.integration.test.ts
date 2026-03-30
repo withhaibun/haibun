@@ -27,7 +27,7 @@ class IntegrationTestStepper extends AStepper {
     },
     hiddenAction: {
       gwta: 'hidden step',
-      expose: false,
+      exposeMCP: false,
       action: async () => OK,
     },
   };

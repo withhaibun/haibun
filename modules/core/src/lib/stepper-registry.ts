@@ -12,6 +12,7 @@ export interface StepDescriptor {
   method: string;
   pattern: string;
   params: Record<string, 'string' | 'number'>;
+  capability?: string;
   inputSchema?: Record<string, unknown>;
   outputSchema?: Record<string, unknown>;
 }
@@ -23,13 +24,13 @@ export interface StepDescriptor {
 export class StepperRegistry {
   /**
    * Extract metadata from all steps in the provided steppers.
-   * Filters out steps marked with `expose: false`.
+   * Filters out steps marked with `exposeMCP: false`.
    */
   static getMetadata(steppers: AStepper[]): StepDescriptor[] {
     return steppers.flatMap(stepper => {
       const stepperName = constructorName(stepper);
       return Object.entries(stepper.steps)
-        .filter(([, def]) => def.expose !== false)
+        .filter(([, def]) => def.exposeMCP !== false)
         .map(([stepName, stepDef]) => {
           const params: Record<string, 'string' | 'number'> = {};
           const pattern = stepDef.gwta || stepDef.exact || stepDef.match?.toString() || stepName;
@@ -44,7 +45,7 @@ export class StepperRegistry {
             }
           }
           const method = `${stepperName}-${stepName}`;
-          return { stepperName, stepName, method, pattern, params };
+          return { stepperName, stepName, method, pattern, params, capability: stepDef.capability };
         });
     });
   }

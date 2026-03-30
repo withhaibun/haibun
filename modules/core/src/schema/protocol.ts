@@ -328,30 +328,14 @@ export const ExecutionIntentSchema = z.object({
 });
 export type ExecutionIntent = z.infer<typeof ExecutionIntentSchema>;
 
-export const FlowSignalSchema = z.object({
-	kind: z.enum(["ok", "fail", "retry", "skip"]),
-	message: z.string().optional(),
-	fatal: z.boolean().optional(),
-	products: z.unknown().optional(),
-});
-export type FlowSignal = z.infer<typeof FlowSignalSchema>;
-
 export const SystemMessageSchema = z.object({
 	topic: z.string().optional(),
-	signal: FlowSignalSchema,
 	intent: ExecutionIntentSchema,
 });
 export type SystemMessage = z.infer<typeof SystemMessageSchema>;
 
-export type TOKActionResult = {
-	ok: true;
-	controlSignal?: TDebugSignal;
-	artifact?: TArtifactEvent;
-	protocol?: SystemMessage;
-};
-
 /**
- * Hypermedia conventions for products returned by actionOKWithProducts().
+ * Hypermedia conventions for products.
  * Steps MAY include these fields alongside their domain data:
  *
  * _type:    domain label for this result (e.g. "Email", "Contact")
@@ -380,28 +364,20 @@ export type THypermediaProducts = {
 	[key: string]: unknown;
 };
 
-export type TActionOKWithProducts = {
-	ok: true;
-	products: THypermediaProducts;
+/**
+ * The single result type for step execution. Used everywhere:
+ * step actions, FlowRunner, feature loop, RPC transports.
+ */
+export type TActionResult = {
+	ok: boolean;
+	errorMessage?: string;
+	products?: THypermediaProducts;
 	controlSignal?: TDebugSignal;
 	artifact?: TArtifactEvent;
 	protocol?: SystemMessage;
 };
 
-export type TNotOKActionResult = {
-	ok: false;
-	message: string;
-	controlSignal?: TDebugSignal;
-	artifact?: TArtifactEvent;
-	protocol?: SystemMessage;
-};
-
-export type TActionResult = TOKActionResult | TNotOKActionResult;
-export type TActionResultWithProducts =
-	| TActionOKWithProducts
-	| TNotOKActionResult;
-
-export const OK: TOKActionResult = { ok: true };
+export const OK: TActionResult = { ok: true };
 
 export type TStepValueValue = unknown;
 export type TStepArgs = Record<string, TStepValueValue>;
@@ -431,33 +407,22 @@ export type TTrace = {
 	};
 };
 
-export type TTraces = {
-	start?: number;
-	end?: number;
-	traces?: TTrace[];
-};
-
-export type TStepActionResult = (TNotOkStepActionResult | TOKStepActionResult) &
-	TTraces;
-
-type TNamedStepActionResult = {
-	name: string;
-};
-
-export type TNotOkStepActionResult = TNotOKActionResult &
-	TNamedStepActionResult;
-export type TOKStepActionResult = TOKActionResult & TNamedStepActionResult;
-
 export type TSeqPath = number[];
 
-export type TStepResult = {
-	ok: boolean;
-	stepActionResult: TStepActionResult;
+/**
+ * Step result with execution trace metadata.
+ * Extends TActionResult with context about where/when the step ran.
+ */
+export type TStepResult = TActionResult & {
+	name: string;
 	in: string;
 	path: string;
 	lineNumber?: number;
 	seqPath: TSeqPath;
 	intent?: ExecutionIntent;
+	start?: number;
+	end?: number;
+	traces?: TTrace[];
 };
 
 export type TFeatureResult = {

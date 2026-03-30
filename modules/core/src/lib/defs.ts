@@ -11,15 +11,12 @@ import {
 	TStepResult,
 	TFeatureResult,
 	TExecutorResult,
-	TStepActionResult,
 	TStepArgs,
 	TStepValueValue,
 	TStepValue,
 	Timer,
 	THaibunEvent,
 	TActionResult,
-	TActionOKWithProducts,
-	TNotOKActionResult,
 	CONTINUE_AFTER_ERROR,
 } from '../schema/protocol.js';
 
@@ -47,7 +44,10 @@ export type TRuntime = {
 	/** Current feature file path (for dynamic statement execution) */
 	currentFeaturePath?: string;
 	stepResults: TStepResult[];
-
+	/** Active steppers for this execution. Set by Executor, used by populateActionArgs / domain coercion. */
+	steppers?: AStepper[];
+	/** Shared step registry. Set by Executor, used for dynamic step registration. */
+	stepRegistry?: import('../lib/step-dispatch.js').StepRegistry;
 	/** Generic storage for observation data, cleared between features */
 	observations: Map<string, TAnyFixme>;
 	/** If non-empty, execution was aborted due to exhaustion (description explains why). */
@@ -176,7 +176,9 @@ type TStepperStepBase = {
 	precludes?: string[];
 	unique?: boolean;
 	fallback?: boolean;
-	expose?: boolean;
+	exposeMCP?: boolean;
+	/** Optional capability label required for external dispatch. */
+	capability?: string;
 	virtual?: boolean;
 	/** For dynamically generated steps (like waypoints): source location metadata */
 	source?: {
@@ -192,7 +194,7 @@ type TStepperStepBase = {
 /** Step that declares an output schema — action MUST return products on success. */
 type TStepperStepWithProducts = TStepperStepBase & {
 	outputSchema: z.ZodType;
-	action(args: TStepArgs, featureStep?: TFeatureStep): Promise<TActionOKWithProducts | TNotOKActionResult> | (TActionOKWithProducts | TNotOKActionResult);
+	action(args: TStepArgs, featureStep?: TFeatureStep): Promise<TActionResult> | TActionResult;
 }
 
 /** Step without output schema — no products on success. */
@@ -246,11 +248,11 @@ export interface IStepperCycles {
 }
 
 export type TStartExecution = TResolvedFeature[];
-export type TEndFeature = { shouldClose: boolean, isLast: boolean, okSoFar: boolean, continueAfterError: boolean, stayOnFailure: boolean, thisFeatureOK: boolean };
+export type TEndFeature = { featurePath: string, shouldClose: boolean, isLast: boolean, okSoFar: boolean, continueAfterError: boolean, stayOnFailure: boolean, thisFeatureOK: boolean };
 export type TStartFeature = { resolvedFeature: TResolvedFeature, index: number };
 export type TStartScenario = { scopedVars: FeatureVariables };
 export type TBeforeStep = { featureStep: TFeatureStep };
-export type TAfterStep = { featureStep: TFeatureStep, actionResult: TStepActionResult };
+export type TAfterStep = { featureStep: TFeatureStep, actionResult: TActionResult };
 export type TFailureArgs = { featureResult: TFeatureResult, failedStep: TStepResult };
 export type TAfterStepResult = { rerunStep?: boolean, nextStep?: boolean, failed: boolean };
 
@@ -287,12 +289,6 @@ export type TRegisteredDomain = {
 // ============================================================================
 // Misc
 // ============================================================================
-
-export enum ExecMode {
-	WITH_CYCLES = 'WITH_CYCLES',
-	NO_CYCLES = 'NO_CYCLES',
-	PROMPT = 'PROMPT',
-}
 
 export type TOptionValue = TAnyFixme;
 export type StepperMethodArgs = {
