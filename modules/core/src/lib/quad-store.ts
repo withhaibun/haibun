@@ -55,4 +55,76 @@ export class QuadStore implements IQuadStore {
   all(): TQuad[] {
     return [...this.quads];
   }
+
+  // --- Vertex operations: convenience over quads ---
+  // namedGraph = vertex label, subject = vertex id
+
+  private idFields: Record<string, string> = {};
+  private schemas: Record<string, import('zod').ZodType> = {};
+
+  /** Register a vertex type for schema validation and identity resolution. */
+  registerVertexType(label: string, schema: import('zod').ZodType, idField: string): void {
+    this.schemas[label] = schema;
+    this.idFields[label] = idField;
+  }
+
+  async upsertVertex(label: string, data: unknown): Promise<string> {
+    const schema = this.schemas[label];
+    const validated = (schema ? schema.parse(data) : data) as Record<string, unknown>;
+    const idField = this.idFields[label] ?? 'id';
+    const id = String(validated[idField]);
+    if (!id) throw new Error(`Missing identity field "${idField}" for ${label}`);
+    this.remove({ subject: id, namedGraph: label });
+    for (const [key, value] of Object.entries(validated)) {
+      if (value !== undefined && value !== null) {
+        this.add({ subject: id, predicate: key, object: value, namedGraph: label });
+      }
+    }
+    return id;
+  }
+
+  async getVertex<T = Record<string, unknown>>(label: string, id: string): Promise<T | undefined> {
+    const quads = this.query({ subject: id, namedGraph: label });
+    if (quads.length === 0) return undefined;
+    const result: Record<string, unknown> = {};
+    for (const q of quads) result[q.predicate] = q.object;
+    return result as T;
+  }
+
+  async deleteVertex(label: string, id: string): Promise<void> {
+    this.remove({ subject: id, namedGraph: label });
+  }
+
+  async queryVertices<T = Record<string, unknown>>(label: string, filters?: Record<string, unknown>, options?: { limit?: number; offset?: number }): Promise<T[]> {
+    const allQuads = this.query({ namedGraph: label });
+    const subjects = [...new Set(allQuads.map(q => q.subject))];
+    let vertices: Record<string, unknown>[] = [];
+    for (const subject of subjects) {
+      const vertex = await this.getVertex(label, subject);
+      if (vertex) vertices.push(vertex);
+    }
+    if (filters) {
+      for (const [key, value] of Object.entries(filters)) {
+        vertices = vertices.filter(v => v[key] === value);
+      }
+    }
+    const offset = options?.offset ?? 0;
+    const limit = options?.limit ?? vertices.length;
+    return vertices.slice(offset, offset + limit) as T[];
+  }
+
+  async distinctPropertyValues(label: string, property: string): Promise<string[]> {
+    const quads = this.query({ predicate: property, namedGraph: label });
+    return [...new Set(quads.map(q => String(q.object)))].sort();
+  }
+
+  /** Build vertex type registrations from world.domains. */
+  static registerVertexTypesFromDomains(store: QuadStore, domains: Record<string, { schema: import('zod').ZodType; meta?: Record<string, unknown> }>): void {
+    for (const [, domain] of Object.entries(domains)) {
+      const meta = domain.meta as { vertexLabel?: string; idField?: string } | undefined;
+      if (meta?.vertexLabel) {
+        store.registerVertexType(meta.vertexLabel, domain.schema, meta.idField ?? 'id');
+      }
+    }
+  }
 }

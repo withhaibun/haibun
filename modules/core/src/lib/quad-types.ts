@@ -37,4 +37,11 @@ export interface IQuadStore {
 
   /** Get all quads */
   all(): TQuad[];
+
+  /** Vertex operations — convenience over quads. namedGraph = vertex label. */
+  upsertVertex(label: string, data: unknown): Promise<string>;
+  getVertex<T = Record<string, unknown>>(label: string, id: string): Promise<T | undefined>;
+  deleteVertex(label: string, id: string): Promise<void>;
+  queryVertices<T = Record<string, unknown>>(label: string, filters?: Record<string, unknown>, options?: { limit?: number; offset?: number }): Promise<T[]>;
+  distinctPropertyValues(label: string, property: string): Promise<string[]>;
 }
