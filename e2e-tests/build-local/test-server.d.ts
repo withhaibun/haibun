@@ -32,12 +32,12 @@ declare class TestServer extends AStepper {
     /**
      * Add a route without auth middleware
      */
-    addRoute: (route: TRequestHandler, method?: "get" | "post" | "delete") => (args: TStepArgs, vstep: TFeatureStep) => Promise<import("@haibun/core/schema/protocol.js").TOKActionResult | import("@haibun/core/schema/protocol.js").TNotOKActionResult>;
+    addRoute: (route: TRequestHandler, method?: "get" | "post" | "delete") => (args: TStepArgs, vstep: TFeatureStep) => Promise<import("@haibun/core/schema/protocol.js").TActionResult>;
     /**
      * Add a route protected by auth middleware.
      * Uses dynamic middleware that checks currentAuthScheme at request time.
      */
-    addAuthRoute: (route: TRequestHandler, method?: "get" | "post" | "delete") => (args: TStepArgs, vstep: TFeatureStep) => Promise<import("@haibun/core/schema/protocol.js").TOKActionResult | import("@haibun/core/schema/protocol.js").TNotOKActionResult>;
+    addAuthRoute: (route: TRequestHandler, method?: "get" | "post" | "delete") => (args: TStepArgs, vstep: TFeatureStep) => Promise<import("@haibun/core/schema/protocol.js").TActionResult>;
     tally: TRequestHandler;
     download: TRequestHandler;
     upload: TRequestHandler;

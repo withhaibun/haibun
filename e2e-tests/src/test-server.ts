@@ -2,7 +2,7 @@ import { rmSync, writeFileSync, readFileSync } from 'fs';
 import type { Context } from '@haibun/web-server-hono/defs.js';
 import { setCookie } from '@haibun/web-server-hono/cookie.js';
 
-import { actionNotOK, actionOK, getFromRuntime, sleep } from '@haibun/core/lib/util/index.js';
+import { actionNotOK, actionOK, actionOKWithProducts, getFromRuntime, sleep } from '@haibun/core/lib/util/index.js';
 import { DOMAIN_STRING } from '@haibun/core/lib/domain-types.js';
 import type { TFeatureStep, IStepperCycles } from '@haibun/core/lib/defs.js';
 import { OK, Origin, type TStepArgs, type TProvenanceIdentifier } from '@haibun/core/schema/protocol.js';
@@ -160,6 +160,79 @@ class TestServer extends AStepper {
 	};
 
 	steps: TStepperSteps = {
+		protectedRpcPing: {
+			gwta: 'protected rpc ping',
+			capability: 'TestServer:protected',
+			action: async () => actionOKWithProducts({ protected: true }),
+		},
+		rpcProtectedDenied: {
+			gwta: 'rpc call to {url} with method {method} is denied without capability',
+			action: async ({ url, method }: TStepArgs) => {
+				const response = await fetch(String(url), {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						jsonrpc: '2.0',
+						id: 'rpc-denied',
+						method: String(method),
+						params: {},
+					}),
+				});
+				const data = await response.json() as Record<string, unknown>;
+				if (response.status !== 422) return actionNotOK(`Expected HTTP 422, got ${response.status}`);
+				if (typeof data.error !== 'string' || !data.error.includes('capability TestServer:protected required')) {
+					return actionNotOK(`Expected capability denial, got ${JSON.stringify(data)}`);
+				}
+				return actionOK();
+			},
+		},
+		rpcProtectedAllowed: {
+			gwta: 'rpc call to {url} with method {method} succeeds when bearer token is {token}',
+			action: async ({ url, method, token }: TStepArgs) => {
+				const response = await fetch(String(url), {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						Authorization: `Bearer ${String(token)}`,
+					},
+					body: JSON.stringify({
+						jsonrpc: '2.0',
+						id: 'rpc-allowed',
+						method: String(method),
+						params: {},
+					}),
+				});
+				if (!response.ok) return actionNotOK(`HTTP ${response.status}`);
+				const data = await response.json() as Record<string, unknown>;
+				if (data.error) return actionNotOK(String(data.error));
+				if (data.protected !== true) return actionNotOK(`Expected protected=true, got ${JSON.stringify(data)}`);
+				return actionOK();
+			},
+		},
+		rpcProtectedDeniedWithBearerToken: {
+			gwta: 'rpc call to {url} with method {method} is denied when bearer token is {token}',
+			action: async ({ url, method, token }: TStepArgs) => {
+				const response = await fetch(String(url), {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						Authorization: `Bearer ${String(token)}`,
+					},
+					body: JSON.stringify({
+						jsonrpc: '2.0',
+						id: 'rpc-denied-token',
+						method: String(method),
+						params: {},
+					}),
+				});
+				const data = await response.json() as Record<string, unknown>;
+				if (response.status !== 422) return actionNotOK(`Expected HTTP 422, got ${response.status}`);
+				if (typeof data.error !== 'string' || !data.error.includes('capability TestServer:protected required')) {
+					return actionNotOK(`Expected capability denial, got ${JSON.stringify(data)}`);
+				}
+				return actionOK();
+			},
+		},
 		addTallyRoute: {
 			gwta: 'start tally route at {loc}',
 			action: this.addRoute(this.tally),

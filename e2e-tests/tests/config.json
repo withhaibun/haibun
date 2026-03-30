@@ -11,6 +11,7 @@
     "variables-stepper",
     "logic-stepper",
     "activities-stepper",
+    "@haibun/core/build/steps/zcap-like-stepper",
     "haibun",
     "./build-local/test-server"
   ],
