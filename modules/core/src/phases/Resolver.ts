@@ -1,8 +1,8 @@
 import { TStepAction, TResolvedFeature, TExpandedFeature, TStepperStep, TFeatureStep, TExpandedLine, TFeatures, TWorld, TFeature } from '../lib/defs.js';
-import { TStepValue } from '../schema/protocol.js';
+import { TStepValue, FEATURE_START, SCENARIO_START } from '../schema/protocol.js';
 import { AStepper } from '../lib/astepper.js';
 import { matchGwtaToAction, getMatch } from '../lib/namedVars.js';
-import { getActionable, dePolite, constructorName } from '../lib/util/index.js';
+import { getActionable, dePolite, constructorName, actionNotOK } from '../lib/util/index.js';
 import { expandLine } from '../lib/features.js';
 
 export class Resolver {
@@ -120,7 +120,7 @@ export class Resolver {
 					action: {
 						stepperName: 'Directive',
 						actionName: 'directive',
-						step: { exact: actionable, action: async () => ({ ok: true, message: 'Directive' }) }
+						step: { exact: actionable, action: async () => ({ ok: true }) }
 					}
 				});
 				continue;
@@ -134,6 +134,10 @@ export class Resolver {
 
 			try {
 				const stepAction = this.findSingleStepAction(actionable);
+
+				if (stepAction.actionName === FEATURE_START || stepAction.actionName === SCENARIO_START) {
+					seq = 0;
+				}
 
 				if (stepAction.stepValuesMap) {
 					const statements = Object.values(stepAction.stepValuesMap).filter((v: TStepValue & { label?: string }) => v.domain === 'statement' && v.term);
@@ -290,7 +294,7 @@ export function findFeatureStepsFromStatement(statement: string, steppers: AStep
 					actionName: 'error',
 					stepperName: 'Resolver',
 					step: {
-						action: async () => ({ ok: false, message: e.message })
+						action: async () => actionNotOK(e.message)
 					}
 				}
 			});
