@@ -3,6 +3,7 @@ import { passWithDefaults, DEF_PROTO_OPTIONS } from '@haibun/core/lib/test/lib.j
 import { AStepper } from '@haibun/core/lib/astepper.js';
 import { OK, type TStepArgs } from '@haibun/core/schema/protocol.js';
 import { actionNotOK, actionOKWithProducts, getStepperOptionName } from '@haibun/core/lib/util/index.js';
+import ZcapLikeStepper from '@haibun/core/steps/zcap-like-stepper.js';
 import WebServerStepper from './web-server-stepper.js';
 
 class PingStepper extends AStepper {
@@ -10,6 +11,11 @@ class PingStepper extends AStepper {
     ping: {
       gwta: 'ping',
       action: async () => actionOKWithProducts({ pong: true }),
+    },
+    protectedPing: {
+      gwta: 'protected ping',
+      capability: 'PingStepper:protected',
+      action: async () => actionOKWithProducts({ protected: true }),
     },
   };
 }
@@ -42,6 +48,66 @@ class RpcVerifyStepper extends AStepper {
         if (!res.ok) return actionNotOK(`HTTP ${res.status}`);
         const data = await res.json();
         if (data.error) return actionNotOK(data.error);
+        return OK;
+      },
+    },
+    rpcCallDeniedWithoutCapability: {
+      gwta: 'rpc call to {url} with method {method} is denied without capability',
+      action: async ({ url, method }: TStepArgs) => {
+        const res = await fetch(String(url), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ jsonrpc: '2.0', id: '1', method: String(method), params: {} }),
+        });
+        const data = await res.json();
+        if (res.status !== 422) return actionNotOK(`Expected HTTP 422, got ${res.status}`);
+        if (typeof data.error !== 'string' || !data.error.includes('capability PingStepper:protected required')) {
+          return actionNotOK(`Expected capability error, got ${JSON.stringify(data)}`);
+        }
+        return OK;
+      },
+    },
+    rpcCallSucceedsWithBearerToken: {
+      gwta: 'rpc call to {url} with method {method} succeeds when bearer token is {token}',
+      action: async ({ url, method, token }: TStepArgs) => {
+        const res = await fetch(String(url), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${String(token)}`,
+          },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            id: '1',
+            method: String(method),
+            params: {},
+          }),
+        });
+        if (!res.ok) return actionNotOK(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data.error) return actionNotOK(data.error);
+        if (data.protected !== true) {
+          return actionNotOK(`Expected protected=true, got ${JSON.stringify(data)}`);
+        }
+        return OK;
+      },
+    },
+    rpcCallDeniedWithBearerToken: {
+      gwta: 'rpc call to {url} with method {method} is denied when bearer token is {token}',
+      action: async ({ url, method, token }: TStepArgs) => {
+        const res = await fetch(String(url), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${String(token)}`,
+          },
+          body: JSON.stringify({ jsonrpc: '2.0', id: '1', method: String(method), params: {} }),
+        });
+        const data = await res.json();
+        if (res.status !== 422) return actionNotOK(`Expected HTTP 422, got ${res.status}`);
+        if (typeof data.error !== 'string' || !data.error.includes('capability PingStepper:protected required')) {
+          return actionNotOK(`Expected capability error, got ${JSON.stringify(data)}`);
+        }
         return OK;
       },
     },
@@ -117,15 +183,6 @@ rpc old format to "http://localhost:${port}/rpc/step.list" is not dispatched
 
   it('step.list returns { steps, domains } shape', async () => {
     const port = 8237;
-    const feature = {
-      path: '/features/test.feature',
-      content: `
-enable rpc
-webserver is listening for "rpc-step-list-shape"
-rpc step list at "http://localhost:${port}/rpc/step.list" includes "PingStepper-ping"
-`,
-    };
-
     // Intercept the raw step.list response to verify shape
     let capturedStepList: unknown;
     class StepListCaptureStepper extends AStepper {
@@ -200,5 +257,48 @@ capture rpc seq at "http://localhost:${port}/rpc/PingStepper-ping"
     expect(seqPaths[0][0]).toBe(0);
     expect(seqPaths[1][0]).toBe(0);
     expect(seqPaths[0][1]).not.toBe(seqPaths[1][1]);
+  });
+
+  it('denies protected RPC steps without capability and allows them with capability', async () => {
+    const port = 8239;
+    const feature = {
+      path: '/features/protected-rpc.feature',
+      content: `
+enable rpc
+webserver is listening for "rpc-protected-step"
+rpc call to "http://localhost:${port}/rpc/PingStepper-protectedPing" with method "PingStepper-protectedPing" is denied without capability
+rpc call to "http://localhost:${port}/rpc/PingStepper-protectedPing" with method "PingStepper-protectedPing" succeeds when bearer token is "rpc-protected-token"
+`,
+    };
+    const result = await passWithDefaults(
+    [feature],
+    steppers,
+    {
+    ...DEF_PROTO_OPTIONS,
+    moduleOptions: {
+      [getStepperOptionName(WebServerStepper, 'PORT')]: String(port),
+      [getStepperOptionName(WebServerStepper, 'RPC_ACCESS_TOKEN')]: 'rpc-protected-token',
+      [getStepperOptionName(WebServerStepper, 'RPC_ACCESS_CAPABILITY')]: 'PingStepper:protected',
+    },
+    },
+  );
+    expect(result.ok).toBe(true);
+  });
+
+  it('authorizes protected RPC steps through zcap-like bearer grants and revokes them cleanly', async () => {
+    const port = 8240;
+    const feature = {
+      path: '/features/zcap-like-protected-rpc.feature',
+      content: `
+enable rpc
+webserver is listening for "rpc-zcap-like-step"
+issue zcap-like bearer grant for token "zcap-like-token" with capability "PingStepper:protected"
+rpc call to "http://localhost:${port}/rpc/PingStepper-protectedPing" with method "PingStepper-protectedPing" succeeds when bearer token is "zcap-like-token"
+revoke zcap-like bearer grant for token "zcap-like-token"
+rpc call to "http://localhost:${port}/rpc/PingStepper-protectedPing" with method "PingStepper-protectedPing" is denied when bearer token is "zcap-like-token"
+`,
+    };
+    const result = await passWithDefaults([feature], [ZcapLikeStepper, ...steppers], makeOptions(port));
+    expect(result.ok).toBe(true);
   });
 });
