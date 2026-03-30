@@ -1,0 +1,175 @@
+/**
+ * SPA-side schemas for graph query results and shared UI components.
+ * Faithful translation of the old web/schemas.ts for graph fundamentals.
+ */
+import { z } from "zod";
+
+// --- Access levels ---
+
+export const AccessLevelSchema = z.enum(["private", "public", "opened"]);
+export type TAccessLevel = z.infer<typeof AccessLevelSchema>;
+
+// --- Combobox ---
+
+export const ComboboxOptionSchema = z.object({
+	value: z.string(),
+	label: z.string(),
+});
+export type TComboboxOption = z.infer<typeof ComboboxOptionSchema>;
+
+export const ComboboxSchema = z.object({
+	value: z.string().default(""),
+	options: z.array(ComboboxOptionSchema).default([]),
+	placeholder: z.string().default(""),
+	filterText: z.string().default(""),
+	open: z.boolean().default(false),
+});
+export type TComboboxState = z.infer<typeof ComboboxSchema>;
+
+// --- Search conditions ---
+
+export const SearchOperatorSchema = z.enum(["eq", "contains", "gt", "lt", "gte", "lte", "between"]);
+export type TSearchOperator = z.infer<typeof SearchOperatorSchema>;
+
+export const SEARCH_OPERATORS: ReadonlyArray<{ value: TSearchOperator; label: string }> = [
+	{ value: "eq", label: "equals" },
+	{ value: "contains", label: "contains" },
+	{ value: "gt", label: "greater than" },
+	{ value: "lt", label: "less than" },
+	{ value: "gte", label: "at least" },
+	{ value: "lte", label: "at most" },
+	{ value: "between", label: "between" },
+];
+
+export const SearchConditionSchema = z.object({
+	property: z.string().min(1),
+	operator: SearchOperatorSchema,
+	value: z.string(),
+	value2: z.string().optional(),
+});
+export type TSearchCondition = z.infer<typeof SearchConditionSchema>;
+
+// --- Graph query ---
+
+export const GraphQuerySchema = z.object({
+	label: z.string().optional(),
+	account: z.string().optional(),
+	filters: z.array(SearchConditionSchema).default([]),
+	textQuery: z.string().optional(),
+	sortBy: z.string().optional(),
+	sortOrder: z.enum(["asc", "desc"]).default("desc"),
+	limit: z.number().int().positive().default(50),
+	offset: z.number().int().nonnegative().default(0),
+	accessLevel: z.enum(["private", "public", "opened", "all"]).default("private"),
+	fields: z.array(z.string()).optional(),
+	explain: z.boolean().default(false),
+});
+export type GraphQuery = z.infer<typeof GraphQuerySchema>;
+
+/** Graph query result. */
+export const GraphQueryResultSchema = z.object({
+	vertices: z.array(z.record(z.string(), z.unknown())),
+	total: z.number(),
+	limit: z.number(),
+	offset: z.number(),
+});
+export type GraphQueryResult = z.infer<typeof GraphQueryResultSchema>;
+
+/** Edge result from getVertexWithEdges. */
+export const EdgeResultSchema = z.object({
+	type: z.string(),
+	target: z.record(z.string(), z.unknown()),
+});
+export type EdgeResult = z.infer<typeof EdgeResultSchema>;
+
+// --- Query view schema (for shu-graph-query component state) ---
+
+export const QueryViewSchema = z.object({
+	label: z.string().optional(),
+	textQuery: z.string().optional(),
+	sortBy: z.string().optional(),
+	sortOrder: z.enum(["asc", "desc"]).default("desc"),
+});
+
+// --- Context patterns (for LLM / actions bar) ---
+
+// --- Column pane ---
+
+export const ColumnPaneSchema = z.object({
+	label: z.string().default(""),
+	active: z.boolean().default(false),
+	width: z.number().optional(),
+	closable: z.boolean().default(true),
+	columnType: z.enum(["query", "entity", "filter", "property"]).default("query"),
+});
+
+// --- Entity column ---
+
+export const EntityColumnSchema = z.object({
+	vertexId: z.string().default(""),
+	vertexLabel: z.string().default("Email"),
+	loading: z.boolean().default(false),
+	error: z.string().optional(),
+});
+
+// --- Filter column ---
+
+export const FilterColumnSchema = z.object({
+	vertexLabel: z.string().optional(),
+	property: z.string().optional(),
+	value: z.string().optional(),
+	loading: z.boolean().default(false),
+	error: z.string().optional(),
+});
+
+// --- Breadcrumb ---
+
+export const BreadcrumbSchema = z.object({
+	queryLabel: z.string().default("All"),
+	columns: z.array(z.string()).default([]),
+	activeIndex: z.number().default(0),
+	hasSync: z.boolean().default(false),
+});
+
+// --- Spinner ---
+
+export const SpinnerSchema = z.object({
+	status: z.string().default(""),
+	visible: z.boolean().default(false),
+	spinning: z.boolean().default(true),
+});
+
+// --- Column strip ---
+
+export const ColumnStripSchema = z.object({
+	activeIndex: z.number().default(-1),
+});
+
+// --- Result table ---
+
+export const ResultTableSchema = z.object({
+	sortBy: z.string().optional(),
+	sortOrder: z.enum(["asc", "desc"]).default("desc"),
+	selectable: z.boolean().default(true),
+	displayMode: z.enum(["full", "objects", "pairs"]).default("full"),
+	fixedProperty: z.string().optional(),
+	total: z.number().default(0),
+	limit: z.number().default(100),
+	offset: z.number().default(0),
+	paginated: z.boolean().default(false),
+});
+
+// --- Context patterns (for LLM / actions bar) ---
+
+export const ContextPatternSchema = z.object({
+	s: z.string().optional(),
+	p: z.string().optional(),
+	o: z.string().optional(),
+});
+export type TContextPattern = z.infer<typeof ContextPatternSchema>;
+
+// --- Actions bar ---
+
+export const ActionsBarSchema = z.object({
+	askExpanded: z.boolean().default(false),
+});
