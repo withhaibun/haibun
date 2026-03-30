@@ -52,7 +52,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			action: ({ domain, values }: { domain: string, values: TFeatureStep[] }, featureStep: TFeatureStep) => this.registerValuesDomainFromStatement(domain, values, featureStep, { ordered: false, label: 'set' })
 		},
 		statementSetValues: {
-			expose: false,
+			exposeMCP: false,
 			gwta: '\\[{items: string}\\]',
 			action: () => OK,
 		},
@@ -92,12 +92,8 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			action: async ({ statement }: { statement: TFeatureStep[] }, featureStep: TFeatureStep) => {
 				const { term } = featureStep.action.stepValuesMap.what;
 				const result = await this.runner.runSteps(statement, { intent: { mode: 'authoritative' }, parentStep: featureStep });
-				if (result.kind !== 'ok') return actionNotOK(`set from statement failed: ${result.message}`);
-				const stepActionResult = result.products as Record<string, unknown> | undefined;
-				const products = stepActionResult && 'products' in stepActionResult
-					? stepActionResult.products as Record<string, unknown>
-					: stepActionResult ?? {};
-				this.getWorld().shared.setJSON(String(term), products, Origin.var, featureStep);
+				if (!result.ok) return actionNotOK(`set from statement failed: ${result.errorMessage}`);
+				this.getWorld().shared.setJSON(String(term), result.products ?? {}, Origin.var, featureStep);
 				return actionOK();
 			},
 		},
@@ -153,7 +149,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		},
 		showEnv: {
 			gwta: 'show env',
-			expose: false,
+			exposeMCP: false,
 			action: () => {
 				// Obscure secret environment variables (matching /password/i)
 				const envVars = this.world.options.envVariables || {};

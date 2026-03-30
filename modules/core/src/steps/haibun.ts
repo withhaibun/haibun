@@ -39,7 +39,7 @@ class Haibun extends AStepper implements IHasCycles {
 					// Mark these steps as afterEvery steps to prevent recursion
 					const markedSteps = stepsToRun.map(s => ({ ...s, isAfterEveryStep: true }));
 					const res = await this.runner.runSteps(markedSteps, { intent: { mode }, parentStep: featureStep });
-					if (res.kind !== 'ok') {
+					if (!res.ok) {
 						failed = true;
 					}
 				}
@@ -62,13 +62,10 @@ class Haibun extends AStepper implements IHasCycles {
 				const mode = featureStep.intent?.mode === 'speculative' ? 'speculative' : 'authoritative';
 				do {
 					signal = await this.runner.runSteps(statements, { intent: { mode, usage: 'polling' }, parentStep: featureStep });
-					if (signal.fatal) {
-						return actionNotOK('until: aborted due to terminal error');
-					}
-					if (signal.kind !== 'ok') {
+					if (!signal.ok) {
 						await sleep(200);
 					}
-				} while (signal.kind !== 'ok');
+				} while (!signal.ok);
 				return OK;
 			},
 		},
@@ -97,7 +94,7 @@ class Haibun extends AStepper implements IHasCycles {
 				const expanded = findFeatureStepsFromStatement(`Backgrounds: ${names}`, this.steppers, world, featureStep.source.path, featureStep.seqPath, 1);
 				const mode = featureStep.intent?.mode === 'speculative' ? 'speculative' : 'authoritative';
 				const result = await this.runner.runSteps(expanded, { intent: { mode }, parentStep: featureStep });
-				return result.kind === 'ok' ? OK : actionNotOK(`backgrounds failed: ${result.message}`);
+				return result.ok ? OK : actionNotOK(`backgrounds failed: ${result.errorMessage}`);
 			},
 		},
 		nothing: {
