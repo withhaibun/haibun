@@ -17,6 +17,11 @@ class PingStepper extends AStepper {
       capability: 'PingStepper:protected',
       action: async () => actionOKWithProducts({ protected: true }),
     },
+    adminPing: {
+      gwta: 'admin ping',
+      capability: 'PingStepper:admin',
+      action: async () => actionOKWithProducts({ admin: true }),
+    },
   };
 }
 
@@ -106,6 +111,25 @@ class RpcVerifyStepper extends AStepper {
         const data = await res.json();
         if (res.status !== 422) return actionNotOK(`Expected HTTP 422, got ${res.status}`);
         if (typeof data.error !== 'string' || !data.error.includes('capability PingStepper:protected required')) {
+          return actionNotOK(`Expected capability error, got ${JSON.stringify(data)}`);
+        }
+        return OK;
+      },
+    },
+    rpcCallDeniedForCapability: {
+      gwta: 'rpc call to {url} with method {method} is denied for capability {capability} when bearer token is {token}',
+      action: async ({ url, method, capability, token }: TStepArgs) => {
+        const res = await fetch(String(url), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${String(token)}`,
+          },
+          body: JSON.stringify({ jsonrpc: '2.0', id: '1', method: String(method), params: {} }),
+        });
+        const data = await res.json();
+        if (res.status !== 422) return actionNotOK(`Expected HTTP 422, got ${res.status}`);
+        if (typeof data.error !== 'string' || !data.error.includes(`capability ${String(capability)} required`)) {
           return actionNotOK(`Expected capability error, got ${JSON.stringify(data)}`);
         }
         return OK;
@@ -299,6 +323,32 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-protectedPing" with method
 `,
     };
     const result = await passWithDefaults([feature], [ZcapLikeStepper, ...steppers], makeOptions(port));
+    expect(result.ok).toBe(true);
+  });
+
+  it('keeps RPC bearer capability mappings least-privilege', async () => {
+    const port = 8241;
+    const feature = {
+      path: '/features/rpc-least-privilege.feature',
+      content: `
+enable rpc
+webserver is listening for "rpc-least-privilege"
+rpc call to "http://localhost:${port}/rpc/PingStepper-protectedPing" with method "PingStepper-protectedPing" succeeds when bearer token is "rpc-protected-token"
+rpc call to "http://localhost:${port}/rpc/PingStepper-adminPing" with method "PingStepper-adminPing" is denied for capability "PingStepper:admin" when bearer token is "rpc-protected-token"
+`,
+    };
+    const result = await passWithDefaults(
+      [feature],
+      steppers,
+      {
+        ...DEF_PROTO_OPTIONS,
+        moduleOptions: {
+          [getStepperOptionName(WebServerStepper, 'PORT')]: String(port),
+          [getStepperOptionName(WebServerStepper, 'RPC_ACCESS_TOKEN')]: 'rpc-protected-token',
+          [getStepperOptionName(WebServerStepper, 'RPC_ACCESS_CAPABILITY')]: 'PingStepper:protected',
+        },
+      },
+    );
     expect(result.ok).toBe(true);
   });
 });
