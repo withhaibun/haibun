@@ -1,0 +1,15 @@
+{
+  "name": "@haibun/shu",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Haibun hypermedia SPA — renders any domain-driven application from stepper concerns",
+  "main": "build/app.js",
+  "types": "build/app.d.ts",
+  "scripts": {
+    "build": "tsc -b ."
+  },
+  "dependencies": {
+    "markdown-it": "^14.0.0",
+    "zod": "^3.24.0"
+  }
+}
