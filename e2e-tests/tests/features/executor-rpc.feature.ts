@@ -24,7 +24,7 @@ export const features: TKirejiExport = {
 	"Executor RPC dispatch": [
 		feature({ feature: "Executor dispatches steps via StepRegistry" }),
 		`Steps produce products that are accessible as variables.
-		seqPath is preserved across scenarios. All dispatch goes through StepRegistry.`,
+		Since seqPath is preserved across scenarios, all dispatch goes through StepRegistry.`,
 
 		scenario({ scenario: "Steps produce products accessible as variables" }),
 		set({ what: "greeting", value: '"hello"' }),

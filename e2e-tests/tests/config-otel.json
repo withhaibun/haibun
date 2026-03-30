@@ -1,0 +1,12 @@
+{
+  "$schema": "../../modules/core/haibun-core-specl.schema.json",
+  "steppers": [
+    "@haibun/monitor-otel/build/index",
+    "@haibun/web-playwright/build/web-playwright",
+    "@haibun/storage-fs/build/storage-fs",
+    "variables-stepper",
+    "logic-stepper",
+    "activities-stepper",
+    "haibun"
+  ]
+}
