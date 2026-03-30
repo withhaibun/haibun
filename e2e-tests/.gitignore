@@ -2,3 +2,4 @@ node_modules
 build
 capture
 junit.xml
+e2e-tests/test-output.log
