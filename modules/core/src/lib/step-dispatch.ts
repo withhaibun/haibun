@@ -225,6 +225,30 @@ export function buildSyntheticFeatureStep(tool: StepTool, input: Record<string, 
 	};
 }
 
+/**
+ * Shared external-dispatch root for transport adapters.
+ * RPC, MCP, and future remote transports should all enter execution here
+ * once they have parsed their wire envelopes and derived granted capabilities.
+ */
+export async function dispatchRemoteToolCall({
+	tool,
+	input,
+	world,
+	seqPath,
+	grantedCapability,
+}: {
+	tool: StepTool;
+	input: Record<string, unknown>;
+	world: TWorld;
+	seqPath: TSeqPath;
+	grantedCapability?: string | string[];
+}): Promise<TActionResult> {
+	authorizeToolCapability(tool, grantedCapability);
+	const validatedParams = validateToolInput(tool, input, world);
+	const featureStep = buildSyntheticFeatureStep(tool, validatedParams, seqPath);
+	return await tool.handler(featureStep, world);
+}
+
 export function capabilityAllows(granted: string | string[] | undefined, required: string): boolean {
 	if (!granted) return false;
 	const grantedValues = Array.isArray(granted) ? granted : [granted];
