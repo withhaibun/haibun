@@ -72,9 +72,10 @@ export default class ShuStepper extends AStepper {
 				if (!webserver) return actionNotOK("webserver not available — load web-server-stepper before shu");
 				const pathError = validateMountPath(path);
 				if (pathError) return actionNotOK(pathError);
+				if (this.mountedPath === path) return actionOK();
 				if (this.mountedPath)
 					return actionNotOK(
-						`shu app already mounted at "${this.mountedPath}"; only one mount is supported per ShuStepper instance`,
+						`shu app already mounted at "${this.mountedPath}"; cannot mount at different path "${path}"`,
 					);
 				const bundle = loadBundle();
 				webserver.addRoute("get", path, createSpaHandler(path, bundle));

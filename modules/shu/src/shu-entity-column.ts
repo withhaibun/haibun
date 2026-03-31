@@ -43,6 +43,10 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			this.edges = data.edges ?? [];
 			this.incomingCount = data.incomingCount ?? 0;
 			this.setState({ loading: false });
+			this.dispatchEvent(new CustomEvent("context-change", {
+				detail: { patterns: [{ s: id }], accessLevel: "private", label },
+				bubbles: true, composed: true,
+			}));
 		} catch (err) {
 			console.error(`[entity-column] open ${id} failed:`, err);
 			this.setState({ loading: false, error: errMsg(err) });
