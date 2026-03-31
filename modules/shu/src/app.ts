@@ -10,6 +10,8 @@ import type { ShuColumnStrip } from "./shu-column-strip.js";
 import type { ShuColumnPane } from "./shu-column-pane.js";
 import type { ShuEntityColumn } from "./shu-entity-column.js";
 import type { ShuFilterColumn } from "./shu-filter-column.js";
+import type { ShuActionsBar } from "./actions-bar.js";
+import type { ShuGraphQuery } from "./graph-query.js";
 
 const LAYOUT_STYLE = `
   .app-container {
@@ -57,20 +59,6 @@ const LAYOUT_STYLE = `
   @keyframes sync-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
 `;
 
-type ActionsBarEl = HTMLElement & {
-	setColumns?: (cols: string[]) => void;
-	setActiveView?: (index: number) => void;
-	setContext?: (patterns: unknown[], accessLevel: string, extra?: Record<string, unknown>) => void;
-	notifyQueryCompleted?: () => void;
-};
-
-type QueryEl = HTMLElement & {
-	loadMetadata?: () => Promise<void>;
-	executeQuery?: () => Promise<void>;
-	setFilters?: (filters: Record<string, unknown>) => void;
-	deselectAll?: () => void;
-};
-
 /** Remove blank/default params from URLSearchParams to keep hash clean. */
 function cleanParams(params: URLSearchParams): void {
 	const defaults = new Set(["0", "", "desc", "private"]);
@@ -111,7 +99,7 @@ const main = async (): Promise<void> => {
 	}
 
 	const getStrip = () => appRoot.querySelector("shu-column-strip") as ShuColumnStrip | null;
-	const getActionsBar = () => appRoot.querySelector(".app-container > shu-actions-bar") as ActionsBarEl | null;
+	const getActionsBar = () => appRoot.querySelector(".app-container > shu-actions-bar") as ShuActionsBar | null;
 
 	let notifyTimer: ReturnType<typeof setTimeout> | null = null;
 	const showNotification = (message: string, duration = 5000) => {
@@ -317,7 +305,7 @@ const main = async (): Promise<void> => {
 	appRoot.addEventListener(
 		"sync-request",
 		(() => {
-			const query = appRoot.querySelector("shu-graph-query") as QueryEl;
+			const query = appRoot.querySelector("shu-graph-query") as ShuGraphQuery;
 			if (query) {
 				void query.loadMetadata?.();
 				void query.executeQuery?.();
@@ -332,7 +320,7 @@ const main = async (): Promise<void> => {
 	appRoot.addEventListener(
 		"filter-change",
 		((e: CustomEvent) => {
-			const query = appRoot.querySelector("shu-graph-query") as QueryEl;
+			const query = appRoot.querySelector("shu-graph-query") as ShuGraphQuery;
 			query?.setFilters?.(e.detail || {});
 		}) as EventListener,
 		{ signal },
@@ -345,7 +333,7 @@ const main = async (): Promise<void> => {
 			const { index } = e.detail || {};
 			const strip = getStrip();
 			if (index === 0) {
-				const query = appRoot.querySelector("shu-graph-query") as QueryEl;
+				const query = appRoot.querySelector("shu-graph-query") as ShuGraphQuery;
 				query?.deselectAll?.();
 				strip?.activatePane(0);
 				getActionsBar()?.setActiveView?.(0);
