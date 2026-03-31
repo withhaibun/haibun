@@ -243,8 +243,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			siteMetadata = await client.rpc<import("./rels-cache.js").SiteMetadata>(requireStep("getSiteMetadata"));
 			setSiteMetadata(siteMetadata);
 		}
-		const { options } = buildDomainOptions(domains, siteMetadata?.types ?? []);
-		this._domainOptions = options;
+		this._domainOptions = buildDomainOptions(domains, siteMetadata?.types ?? []);
 		this.syncSelectedDomainKey();
 		this.render();
 	}

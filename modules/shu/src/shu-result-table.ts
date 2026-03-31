@@ -19,7 +19,6 @@ type VertexRow = Record<string, unknown>;
 
 /** Preferred column display order. Properties not listed appear after these, sorted alphabetically. */
 const PREFERRED_ORDER = [
-	"",
 	"dateModified",
 	"subject",
 	"title",
@@ -174,12 +173,10 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 			return this.allProperties.filter((p) => p !== fixedProperty).slice(0, 1);
 		}
 		if (displayMode === "pairs") {
-			// Show vertex identity + the fixed property
 			const label = vertexLabel(this.results[0]);
 			const idProp = label ? this.allProperties.find((p) => getRelSync(label, p) === "item") : undefined;
 			if (!idProp) return fixedProperty ? [fixedProperty] : this.allProperties.slice(0, 2);
-			if (fixedProperty && idProp) return [idProp, fixedProperty];
-			return fixedProperty ? [fixedProperty] : this.allProperties.slice(0, 2);
+			return fixedProperty ? [idProp, fixedProperty] : this.allProperties.slice(0, 2);
 		}
 		// Full mode — show all properties, hide the fixed one (redundant in filtered results)
 		return fixedProperty ? this.allProperties.filter((p) => p !== fixedProperty) : this.allProperties;
