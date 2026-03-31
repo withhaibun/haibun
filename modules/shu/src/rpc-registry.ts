@@ -1,12 +1,16 @@
 import { SseClient } from "./sse-client.js";
-
+import { getConcernCatalog, setConcernCatalog } from "./rels-cache.js";
+import { ConcernCatalogSchema, type TConcernCatalog } from "@haibun/core/lib/hypermedia.js";
+import { z } from "zod";
 
 export type StepDescriptor = {
 	method: string;
 	stepperName: string;
 	stepName: string;
 	pattern: string;
+	params: Record<string, "string" | "number">;
 	paramDomains?: Record<string, string>;
+	capability?: string;
 	inputSchema?: Record<string, unknown>;
 	outputSchema?: Record<string, unknown>;
 };
@@ -24,7 +28,39 @@ export type DomainOption = {
 export type StepListResponse = {
 	steps: StepDescriptor[];
 	domains: Record<string, DomainInfo>;
+	concerns: TConcernCatalog;
 };
+
+const StepDescriptorSchema = z
+	.object({
+		method: z.string().min(1),
+		stepperName: z.string().min(1),
+		stepName: z.string().min(1),
+		pattern: z.string().min(1),
+		params: z.record(z.string(), z.union([z.literal("string"), z.literal("number")])),
+		paramDomains: z.record(z.string(), z.string()).optional(),
+		capability: z.string().optional(),
+		inputSchema: z.record(z.string(), z.unknown()).optional(),
+		outputSchema: z.record(z.string(), z.unknown()).optional(),
+	})
+	.strict();
+
+const DomainInfoSchema = z
+	.object({
+		description: z.string().optional(),
+		values: z.array(z.string()).optional(),
+		stepperName: z.string().optional(),
+		vertexLabel: z.string().optional(),
+	})
+	.strict();
+
+const StepListResponseSchema = z
+	.object({
+		steps: z.array(StepDescriptorSchema),
+		domains: z.record(z.string(), DomainInfoSchema),
+		concerns: ConcernCatalogSchema,
+	})
+	.strict();
 
 let cachedSteps: StepDescriptor[] | null = null;
 let cachedDomains: Record<string, DomainInfo> | null = null;
@@ -45,24 +81,25 @@ export async function getAvailableDomains(): Promise<Record<string, DomainInfo>>
 
 /** Build selectable domain options. Vertex domains (those with vertexLabel) are selectable. */
 export function buildDomainOptions(domains: Record<string, DomainInfo>): DomainOption[] {
-	const options: DomainOption[] = [];
+	const concerns = getConcernCatalog();
 
-	for (const [key, info] of Object.entries(domains)) {
-		if (info.vertexLabel) {
-			options.push({ key, queryLabel: info.vertexLabel, description: info.description, stepperName: info.stepperName, selectable: true });
-		} else {
-			options.push({ key, description: info.description, stepperName: info.stepperName, selectable: false });
-		}
-	}
-
-	return options.sort((a, b) => {
-		if (a.selectable !== b.selectable) return a.selectable ? -1 : 1;
-		return (a.queryLabel ?? a.key).localeCompare(b.queryLabel ?? b.key);
+	return Object.values(concerns.vertices).map((vertex) => {
+		if (typeof vertex.label !== "string") throw new Error(`Concern label for domain ${vertex.domainKey} must be a string`);
+		if (/^\s*\[.*\]\s*$/.test(vertex.label)) throw new Error(`Concern label for domain ${vertex.domainKey} looks like a stringified array: ${vertex.label}`);
+		const info = domains[vertex.domainKey];
+		if (!info) throw new Error(`step.list domain missing for concern domainKey: ${vertex.domainKey}`);
+		return {
+			key: vertex.domainKey,
+			queryLabel: vertex.label,
+			description: info.description,
+			stepperName: info.stepperName,
+			selectable: true,
+		};
 	});
 }
 
 async function getStepList(): Promise<StepListResponse> {
-	if (cachedSteps && cachedDomains) return { steps: cachedSteps, domains: cachedDomains };
+	if (cachedSteps && cachedDomains) return { steps: cachedSteps, domains: cachedDomains, concerns: getConcernCatalog() };
 	if (pendingDiscovery) return pendingDiscovery;
 	pendingDiscovery = discover();
 	try {
@@ -74,13 +111,16 @@ async function getStepList(): Promise<StepListResponse> {
 
 async function discover(): Promise<StepListResponse> {
 	const client = SseClient.for("");
-	const result = await client.rpc<StepListResponse>("step.list");
-	if (!result || !Array.isArray(result.steps))
-		throw new Error(`step.list returned unexpected shape — is "enable rpc" step configured before "webserver is listening"?`);
-	const { steps, domains } = result;
+	const result = await client.rpc<unknown>("step.list");
+	const parsed: StepListResponse = StepListResponseSchema.parse(result);
+	const { steps, domains, concerns } = parsed;
+	setConcernCatalog(concerns);
+	for (const [label, vertex] of Object.entries(concerns.vertices)) {
+		if (/^\s*\[.*\]\s*$/.test(vertex.label)) throw new Error(`step.list concern ${label} has stringified-array label: ${vertex.label}`);
+	}
 	cachedSteps = steps;
 	cachedDomains = domains;
-	return { steps, domains };
+	return { steps, domains, concerns };
 }
 
 export function findStep(name: string): StepDescriptor | undefined {
