@@ -42,8 +42,12 @@ export function getEdgeRanges(label: string): Record<string, string> {
 	return metadata?.edgeRanges[label] ?? {};
 }
 
-/** Sync lookup — returns target label for an edge type. O(1). */
-export function getEdgeTargetLabel(edgeType: string): string | undefined {
+/** Sync lookup — returns target label for an edge type from a source vertex label. Falls back to global index. */
+export function getEdgeTargetLabel(edgeType: string, sourceLabel?: string): string | undefined {
+	if (sourceLabel) {
+		const target = metadata?.edgeRanges[sourceLabel]?.[edgeType];
+		if (target) return target;
+	}
 	return edgeTypeIndex.get(edgeType);
 }
 
