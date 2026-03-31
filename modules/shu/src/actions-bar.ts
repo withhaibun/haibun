@@ -246,7 +246,14 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		const domains = await getAvailableDomains();
 		this._domainOptions = buildDomainOptions(domains);
 		if (this._domainOptions.length === 0) throw new Error("No domain options were produced from concern catalog");
+		// Restore label from URL hash before defaulting to first domain
+		if (!this._selectedLabel && location.hash.startsWith("#?")) {
+			const hashLabel = new URLSearchParams(location.hash.slice(2)).get("label");
+			if (hashLabel) this._selectedLabel = hashLabel;
+		}
 		this.syncSelectedDomainKey();
+		this.loadProperties(this._selectedLabel);
+		void this.loadSelectValues(this._selectedLabel);
 		this.render();
 		this.dispatchFilterChange();
 	}
