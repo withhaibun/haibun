@@ -11,7 +11,7 @@ import { esc, errMsg, setIdFields } from "./util.js";
 import { setSiteMetadata } from "./rels-cache.js";
 import type { ShuResultTable } from "./shu-result-table.js";
 import { SseClient } from "./sse-client.js";
-import { getAvailableSteps, getAvailableDomains, requireStep, getVertexLabelDomainKey } from "./rpc-registry.js";
+import { getAvailableSteps, getAvailableDomains, requireStep } from "./rpc-registry.js";
 
 interface ConditionRow {
 	property: string;
@@ -216,10 +216,9 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 				getAvailableDomains(),
 			]);
 			setSiteMetadata(meta);
-			// Prefer domain-driven labels (from step.list getConcerns), fall back to getSiteMetadata
-			const vlk = getVertexLabelDomainKey();
-			const domainLabels = vlk ? domains[vlk]?.values : undefined;
-			this.labels = domainLabels ?? meta.types ?? this.labels;
+			// Derive labels from vertex domains (domains with vertexLabel)
+			const vertexLabels = Object.values(domains).filter((d) => d.vertexLabel).map((d) => d.vertexLabel!);
+			this.labels = vertexLabels.length > 0 ? vertexLabels : (meta.types ?? this.labels);
 			if (meta.idFields) setIdFields(meta.idFields);
 			this.render();
 		} catch {

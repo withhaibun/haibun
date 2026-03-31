@@ -9,7 +9,6 @@ import { populateActionArgs } from "./populateActionArgs.js";
 import { DOMAIN_STRING, normalizeDomainKey } from "./domain-types.js";
 import { StepperRegistry, type StepDescriptor } from "./stepper-registry.js";
 
-
 /**
  * A registered step tool — the unit of dispatch for any transport (MCP, SSE, etc.).
  */
@@ -69,10 +68,7 @@ export class StepRegistry {
 
 export type StepToolInputSchema = {
 	type: "object";
-	properties?: Record<
-		string,
-		{ type?: string; description?: string;[key: string]: unknown }
-	>;
+	properties?: Record<string, { type?: string; description?: string; [key: string]: unknown }>;
 	required?: string[];
 	[key: string]: unknown;
 };
@@ -82,44 +78,45 @@ export type StepToolInputSchema = {
  * Each key is `${stepperName}-${stepName}` (e.g. `MuskegStepper-getTypes`).
  * All steps are included. MCP filters `exposeMCP: false` separately.
  */
-export function buildStepRegistry(steppers: AStepper[], world: TWorld,): Map<string, StepTool> {
+export function buildStepRegistry(steppers: AStepper[], world: TWorld): Map<string, StepTool> {
 	const registry = new Map<string, StepTool>();
 
 	for (const stepper of steppers) {
 		const stepperName = constructorName(stepper);
 
 		for (const [stepName, stepDef] of Object.entries(stepper.steps)) {
-
-			const { inputSchema, paramSchemas, paramDomainKeys } = buildInputSchema(stepDef, world);
-			const name = stepMethodName(stepperName, stepName);
-			let outputSchema: Record<string, unknown> | undefined;
-			if (stepDef.outputSchema) {
-				try {
-					outputSchema = z.toJSONSchema(stepDef.outputSchema) as Record<
-						string,
-						unknown
-					>;
-				} catch {
-					/* skip if schema can't be converted */
-				}
-			}
-
-			registry.set(name, {
-				name,
-				description: stepDef.gwta || stepName,
-				inputSchema,
-				paramSchemas,
-				paramDomainKeys,
-				outputSchema,
-				stepperName,
-				stepName,
-				capability: stepDef.capability,
-				handler: createStepHandler(stepperName, stepName, stepDef),
-			});
+			const tool = createStepTool(stepperName, stepName, stepDef, world);
+			registry.set(tool.name, tool);
 		}
 	}
 
 	return registry;
+}
+
+export function createStepTool(stepperName: string, stepName: string, stepDef: TStepperStep, world: TWorld): StepTool {
+	const { inputSchema, paramSchemas, paramDomainKeys } = buildInputSchema(stepDef, world);
+	const name = stepMethodName(stepperName, stepName);
+	let outputSchema: Record<string, unknown> | undefined;
+	if (stepDef.outputSchema) {
+		try {
+			outputSchema = z.toJSONSchema(stepDef.outputSchema) as Record<string, unknown>;
+		} catch {
+			/* skip if schema can't be converted */
+		}
+	}
+
+	return {
+		name,
+		description: stepDef.gwta || stepName,
+		inputSchema,
+		paramSchemas,
+		paramDomainKeys,
+		outputSchema,
+		stepperName,
+		stepName,
+		capability: stepDef.capability,
+		handler: createStepHandler(stepperName, stepName, stepDef),
+	};
 }
 
 /**
@@ -127,7 +124,7 @@ export function buildStepRegistry(steppers: AStepper[], world: TWorld,): Map<str
  * Returns validated (and coerced) input on success, throws with descriptive errors on failure.
  * Pass world to enable domain coercion (aligns RPC dispatch with feature-file execution).
  */
-export function validateToolInput(tool: StepTool, input: Record<string, unknown>, world?: TWorld,): Record<string, unknown> {
+export function validateToolInput(tool: StepTool, input: Record<string, unknown>, world?: TWorld): Record<string, unknown> {
 	const validated: Record<string, unknown> = { ...input };
 	const errors: string[] = [];
 
@@ -156,11 +153,7 @@ export function validateToolInput(tool: StepTool, input: Record<string, unknown>
 					validated[key] = result.data;
 				}
 			} else {
-				const issues = result.error.issues
-					.map((i) =>
-						i.path.length ? `${i.path.join(".")}: ${i.message}` : i.message,
-					)
-					.join("; ");
+				const issues = result.error.issues.map((i) => (i.path.length ? `${i.path.join(".")}: ${i.message}` : i.message)).join("; ");
 				errors.push(`"${key}": ${issues}`);
 			}
 		}
@@ -179,7 +172,7 @@ export function validateToolInput(tool: StepTool, input: Record<string, unknown>
  *
  * Accepts either a stepper class/instance or a stepper name string.
  */
-export function stepMethodName(stepperOrName: string | AStepper | { name: string }, stepName: string,): string {
+export function stepMethodName(stepperOrName: string | AStepper | { name: string }, stepName: string): string {
 	const name =
 		typeof stepperOrName === "string"
 			? stepperOrName
@@ -196,7 +189,11 @@ export function stepMethodName(stepperOrName: string | AStepper | { name: string
  * All callers (feature loop, FlowRunner, RPC, MCP, subprocess) use the same signature.
  * External transports build a synthetic featureStep before calling.
  */
-export function createStepHandler(stepperName: string, stepName: string, stepDef: TStepperStep): (featureStep: TFeatureStep, world: TWorld) => Promise<TActionResult> {
+export function createStepHandler(
+	stepperName: string,
+	stepName: string,
+	stepDef: TStepperStep,
+): (featureStep: TFeatureStep, world: TWorld) => Promise<TActionResult> {
 	return async (featureStep: TFeatureStep, world: TWorld): Promise<TActionResult> => {
 		try {
 			const args = populateActionArgs(featureStep, world, world.runtime?.steppers ?? []);
@@ -219,7 +216,12 @@ export function createStepHandler(stepperName: string, stepName: string, stepDef
 export function buildSyntheticFeatureStep(tool: StepTool, input: Record<string, unknown>, seqPath: TSeqPath): TFeatureStep {
 	return {
 		in: tool.description,
-		action: { stepperName: tool.stepperName, actionName: tool.stepName, step: { gwta: tool.description, action: () => actionNotOK('synthetic step — dispatch through handler') } as TStepperStep, stepValuesMap: mapInputToStepValues(input, tool.description) },
+		action: {
+			stepperName: tool.stepperName,
+			actionName: tool.stepName,
+			step: { gwta: tool.description, action: () => actionNotOK("synthetic step — dispatch through handler") } as TStepperStep,
+			stepValuesMap: mapInputToStepValues(input, tool.description),
+		},
 		seqPath,
 		source: { path: "rpc" },
 	};
@@ -253,14 +255,14 @@ export function capabilityAllows(granted: string | string[] | undefined, require
 	if (!granted) return false;
 	const grantedValues = Array.isArray(granted) ? granted : [granted];
 	return grantedValues.some((entry) => {
-		if (entry === '*' || entry === required) return true;
-		if (!entry.endsWith('*')) return false;
+		if (entry === "*" || entry === required) return true;
+		if (!entry.endsWith("*")) return false;
 		const prefix = entry.slice(0, -1);
 		return required.startsWith(prefix);
 	});
 }
 
-export function authorizeToolCapability(tool: Pick<StepTool, 'name' | 'capability'>, granted?: string | string[]): void {
+export function authorizeToolCapability(tool: Pick<StepTool, "name" | "capability">, granted?: string | string[]): void {
 	if (!tool.capability) return;
 	if (capabilityAllows(granted, tool.capability)) return;
 	throw new Error(`${tool.name}: capability ${tool.capability} required`);
@@ -272,8 +274,11 @@ export function authorizeToolCapability(tool: Pick<StepTool, 'name' | 'capabilit
  * (enums, object structures, descriptions, etc.) for MCP and SSE consumers.
  * Returns both the JSON Schema (for documentation/discovery) and the Zod schemas (for runtime validation).
  */
-function buildInputSchema(stepDef: TStepperStep, world: TWorld,): { inputSchema: StepToolInputSchema; paramSchemas: Map<string, z.ZodType>; paramDomainKeys: Map<string, string> } {
-	const properties: Record<string, { type?: string; description?: string;[key: string]: unknown }> = {};
+function buildInputSchema(
+	stepDef: TStepperStep,
+	world: TWorld,
+): { inputSchema: StepToolInputSchema; paramSchemas: Map<string, z.ZodType>; paramDomainKeys: Map<string, string> } {
+	const properties: Record<string, { type?: string; description?: string; [key: string]: unknown }> = {};
 	const required: string[] = [];
 	const paramSchemas = new Map<string, z.ZodType>();
 	const paramDomainKeys = new Map<string, string>();
@@ -292,10 +297,7 @@ function buildInputSchema(stepDef: TStepperStep, world: TWorld,): { inputSchema:
 				if (domain?.schema) {
 					paramSchemas.set(v.term, domain.schema);
 					try {
-						const jsonSchema = z.toJSONSchema(domain.schema) as Record<
-							string,
-							unknown
-						>;
+						const jsonSchema = z.toJSONSchema(domain.schema) as Record<string, unknown>;
 						const prop: Record<string, unknown> = { ...jsonSchema };
 						if (domain.description && !prop.description) {
 							prop.description = domain.description;
@@ -364,10 +366,17 @@ export function parseRpcRequest(raw: unknown): TRpcRequest | null {
 	return result.success ? result.data : null;
 }
 
+export type DomainDiscoveryInfo = {
+	description?: string;
+	values?: string[];
+	stepperName?: string;
+	vertexLabel?: string;
+};
+
 export type StepDiscovery = {
 	metadata: StepDescriptor[];
-	/** Domain definitions from world.domains, serializable for SPA autocomplete. */
-	domains: Record<string, { description?: string; values?: string[] }>;
+	/** Domain definitions from world.domains, serializable for SPA/RPC consumers. */
+	domains: Record<string, DomainDiscoveryInfo>;
 };
 
 /**
@@ -375,7 +384,7 @@ export type StepDiscovery = {
  * Single entry point for both SSE and MCP transports.
  * Accepts an existing StepRegistry instance to update in-place (for live refresh).
  */
-export function discoverSteps(steppers: AStepper[], world: TWorld, stepRegistry?: StepRegistry,): StepDiscovery {
+export function discoverSteps(steppers: AStepper[], world: TWorld, stepRegistry?: StepRegistry): StepDiscovery {
 	if (stepRegistry) {
 		stepRegistry.refresh(steppers, world);
 	}
@@ -388,7 +397,7 @@ export function discoverSteps(steppers: AStepper[], world: TWorld, stepRegistry?
 			meta.outputSchema = tool.outputSchema;
 		}
 	}
-	const domains: Record<string, { description?: string; values?: string[] }> = {};
+	const domains: Record<string, DomainDiscoveryInfo> = {};
 	for (const [key, domain] of Object.entries(world.domains ?? {})) {
 		// Prefer explicit values; fall back to extracting enum values from z.enum schemas
 		let values = domain.values;
@@ -402,7 +411,12 @@ export function discoverSteps(steppers: AStepper[], world: TWorld, stepRegistry?
 				// schema not convertible — leave values undefined
 			}
 		}
-		domains[key] = { description: domain.description, values };
+		domains[key] = {
+			description: domain.description,
+			values,
+			stepperName: domain.stepperName,
+			vertexLabel: domain.meta?.vertexLabel,
+		};
 	}
 	return { metadata, domains };
 }
