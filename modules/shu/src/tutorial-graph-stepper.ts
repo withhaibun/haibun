@@ -1,7 +1,9 @@
 import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
-import { actionOK, actionNotOK, actionOKWithProducts } from "@haibun/core/lib/util/index.js";
+import { actionNotOK, actionOKWithProducts } from "@haibun/core/lib/util/index.js";
 import type { IStepperCycles, IStepperConcerns } from "@haibun/core/lib/defs.js";
 import { z } from "zod";
+
+const DOMAIN_TUTORIAL_QUERY = "tutorial-graph-query";
 
 // ============= SCHEMAS =============
 
@@ -39,15 +41,13 @@ const FilterSchema = z.object({
 });
 
 const GraphQuerySchema = z.object({
-  query: z.object({
-    label: z.string().optional(),
-    filters: z.array(FilterSchema).optional(),
-    textQuery: z.string().optional(),
-    sortBy: z.string().optional(),
-    sortOrder: z.enum(["asc", "desc"]).optional(),
-    limit: z.number().optional(),
-    offset: z.number().optional(),
-  }),
+  label: z.string().optional(),
+  filters: z.array(FilterSchema).default([]),
+  textQuery: z.string().optional(),
+  sortBy: z.string().optional(),
+  sortOrder: z.enum(["asc", "desc"]).default("desc"),
+  limit: z.number().int().positive().default(100),
+  offset: z.number().int().nonnegative().default(0),
 });
 
 // ============= IN-MEMORY STORE =============
@@ -259,6 +259,15 @@ export default class TutorialGraphStepper extends AStepper {
     getConcerns: (): IStepperConcerns => ({
       domains: [
         {
+          selectors: [DOMAIN_TUTORIAL_QUERY],
+          schema: GraphQuerySchema,
+          coerce: (proto: { value?: unknown }) => {
+            const value = typeof proto.value === "string" ? JSON.parse(proto.value) : proto.value;
+            return GraphQuerySchema.parse(value);
+          },
+          description: "Tutorial graph query",
+        },
+        {
           selectors: ["tutorial-researcher"],
           schema: VertexSchema,
           meta: {
@@ -309,27 +318,15 @@ export default class TutorialGraphStepper extends AStepper {
 
   steps: TStepperSteps = {
     graphQuery: {
-      gwta: 'query for {label: string} vertices with text {textQuery}',
+      gwta: `graph query {query: ${DOMAIN_TUTORIAL_QUERY}}`,
       outputSchema: QueryResultSchema,
-      action: async ({
-        label,
-        textQuery,
-        limit = 100,
-        offset = 0,
-      }: {
-        label?: string;
-        textQuery?: string;
-        limit?: number;
-        offset?: number;
-      }) => {
+      action: async ({ query }: { query: z.infer<typeof GraphQuerySchema> }) => {
         try {
+          const { label, textQuery, limit, offset } = query;
           const results = this.store.query(label, textQuery);
           const paginated = results.slice(offset, offset + limit);
           return actionOKWithProducts({
-            vertices: paginated.map((v) => ({
-              ...v,
-              label: v.vertexLabel,
-            })),
+            vertices: paginated.map((v) => ({ ...v.properties, _label: v.vertexLabel })),
             total: results.length,
             cypher: `MATCH (n:${label || "*"}) RETURN n LIMIT ${limit}`,
           });
@@ -346,12 +343,13 @@ export default class TutorialGraphStepper extends AStepper {
         try {
           const result = this.store.getVertexWithEdges(label, id);
           if (!result) return actionNotOK(`Vertex ${label}/${id} not found`);
+          const edges = result.edges.map((e) => {
+            const targetVertex = this.store.getVertexWithEdges(e.toLabel, e.toId);
+            return { type: e.rel, target: targetVertex ? { ...targetVertex.vertex.properties, _label: e.toLabel } : { id: e.toId, _label: e.toLabel } };
+          });
           return actionOKWithProducts({
-            vertex: {
-              ...result.vertex,
-              label: result.vertex.vertexLabel,
-            },
-            edges: result.edges,
+            vertex: { ...result.vertex.properties, _label: result.vertex.vertexLabel },
+            edges,
             incomingCount: result.incomingCount,
           });
         } catch (err) {

@@ -111,3 +111,38 @@ export function getConcernCatalog(): TConcernCatalog {
 	}
 	return concernCatalog;
 }
+
+/** Derive SiteMetadata from the concern catalog. Covers any stepper that declares vertex concerns. */
+export function siteMetadataFromConcerns(catalog: TConcernCatalog): SiteMetadata {
+	const types: string[] = [];
+	const idFields: Record<string, string> = {};
+	const rels: Record<string, Record<string, string>> = {};
+	const edgeRanges: Record<string, Record<string, string>> = {};
+	const properties: Record<string, string[]> = {};
+	const summary: Record<string, string[]> = {};
+	const contentFields: Record<string, Record<string, string>> = {};
+	for (const [label, vertex] of Object.entries(catalog.vertices)) {
+		types.push(label);
+		idFields[label] = vertex.idField;
+		const labelRels: Record<string, string> = {};
+		const labelProps: string[] = [];
+		const labelSummary: string[] = [];
+		const labelContent: Record<string, string> = {};
+		for (const [field, prop] of Object.entries(vertex.properties)) {
+			labelRels[field] = prop.rel;
+			labelProps.push(field);
+			if (prop.rel === "name" || prop.rel === "context") labelSummary.push(field);
+			if (prop.mediaType) labelContent[field] = prop.mediaType;
+		}
+		rels[label] = labelRels;
+		properties[label] = labelProps;
+		if (labelSummary.length > 0) summary[label] = labelSummary;
+		if (Object.keys(labelContent).length > 0) contentFields[label] = labelContent;
+		const labelEdges: Record<string, string> = {};
+		for (const [, edge] of Object.entries(vertex.edges)) {
+			labelEdges[edge.rel] = edge.target;
+		}
+		if (Object.keys(labelEdges).length > 0) edgeRanges[label] = labelEdges;
+	}
+	return { types, idFields, rels, edgeRanges, properties, summary, contentFields };
+}
