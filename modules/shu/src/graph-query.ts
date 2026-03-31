@@ -14,7 +14,7 @@ import { SseClient } from "./sse-client.js";
 import { getAvailableSteps, getAvailableDomains, findStep, requireStep } from "./rpc-registry.js";
 
 interface ConditionRow {
-	property: string;
+	predicate: string;
 	operator: string;
 	value: string;
 	value2: string;
@@ -80,7 +80,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		accessLevel?: string;
 		label?: string;
 		textQuery?: string;
-		conditions?: Array<{ property: string; operator: string; value: string; value2?: string }>;
+		conditions?: Array<{ predicate: string; operator: string; value: string; value2?: string }>;
 	}): void {
 		if (filters.accessLevel !== undefined) this.accessLevel = filters.accessLevel;
 		if (filters.label !== undefined) this.state = { ...this.state, label: filters.label || undefined };
@@ -113,7 +113,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 					label: this.state.label,
 					textQuery: this.state.textQuery,
 					labels: this.labels,
-					conditions: this.conditions.filter((c) => c.property && c.value),
+					conditions: this.conditions.filter((c) => c.predicate && c.value),
 				},
 				bubbles: true,
 				composed: true,
@@ -126,8 +126,8 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		const { label } = this.state;
 		if (label) patterns.push({ p: "label", o: label });
 		for (const c of this.conditions) {
-			if (c.property && c.value) {
-				patterns.push({ p: c.property, o: c.value });
+			if (c.predicate && c.value) {
+				patterns.push({ p: c.predicate, o: c.value });
 			}
 		}
 		if (patterns.length === 0) patterns.push({});
@@ -156,7 +156,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		// Filter conditions use | delimiter to avoid conflict with colons in property names
 		this.conditions = params.getAll("f").map((f) => {
 			const parts = f.split("|");
-			return { property: parts[0] || "", operator: parts[1] || "eq", value: parts[2] || "", value2: parts[3] || "" };
+			return { predicate: parts[0] || "", operator: parts[1] || "eq", value: parts[2] || "", value2: parts[3] || "" };
 		});
 
 		const result = this.safeValidate({ label, textQuery, sortBy, sortOrder });
@@ -179,8 +179,8 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		params.set("offset", String(this.offset));
 
 		for (const c of this.conditions) {
-			if (c.property && c.value) {
-				const parts = [c.property, c.operator, c.value];
+			if (c.predicate && c.value) {
+				const parts = [c.predicate, c.operator, c.value];
 				if (c.operator === "between" && c.value2) parts.push(c.value2);
 				params.append("f", parts.join("|"));
 			}
@@ -230,9 +230,9 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		const { label, textQuery, sortBy, sortOrder } = this.state;
 
 		const validConditions = this.conditions
-			.filter((c) => c.property && c.value)
+			.filter((c) => c.predicate && c.value)
 			.map((c) => ({
-				property: c.property,
+				predicate: c.predicate,
 				operator: c.operator,
 				value: c.value,
 				...(c.operator === "between" && c.value2 ? { value2: c.value2 } : {}),
