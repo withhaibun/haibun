@@ -8,7 +8,7 @@ import { ShuElement } from "./shu-element.js";
 import { QueryViewSchema } from "./schemas.js";
 import { SHARED_STYLES } from "./styles.js";
 import { esc, errMsg, setIdFields } from "./util.js";
-import { setSiteMetadata, getConcernCatalog, siteMetadataFromConcerns } from "./rels-cache.js";
+import { setSiteMetadata, getConcernDerivedMetadata } from "./rels-cache.js";
 import type { ShuResultTable } from "./shu-result-table.js";
 import { SseClient } from "./sse-client.js";
 import { getAvailableSteps, getAvailableDomains, findStep, requireStep } from "./rpc-registry.js";
@@ -210,8 +210,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 	async loadMetadata(): Promise<void> {
 		await getAvailableSteps();
 		const domains = await getAvailableDomains();
-		const catalog = getConcernCatalog();
-		const derivedMeta = siteMetadataFromConcerns(catalog);
+		const derivedMeta = getConcernDerivedMetadata();
 		const step = findStep("getSiteMetadata");
 		if (step) {
 			const client = SseClient.for("");
