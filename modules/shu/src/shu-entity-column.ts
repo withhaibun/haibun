@@ -13,7 +13,7 @@ import { esc, escAttr, truncate, errMsg, vertexId, HIDDEN_PROPS, renderContentHt
 import { renderValue } from "./value-renderers.js";
 import { SseClient } from "./sse-client.js";
 import { getAvailableSteps, requireStep } from "./rpc-registry.js";
-import { getRelSync, getEdgeTargetLabel, getEdgeTypesForLabel, getSummaryFields, getContentFields } from "./rels-cache.js";
+import { getRelSync, getEdgeTargetLabel, getSummaryFields, getContentFields } from "./rels-cache.js";
 
 type VertexData = Record<string, unknown>;
 type EdgeData = { type: string; target: VertexData; direction?: "out" | "in" };
@@ -26,7 +26,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	private edgeTargetCount = 0;
 
 	constructor() {
-		super(EntityColumnSchema, { vertexId: "", vertexLabel: "Email", loading: false });
+		super(EntityColumnSchema, { vertexId: "", vertexLabel: "", loading: false });
 	}
 
 	/** Open a vertex by ID. Fetches data and renders. */
@@ -161,9 +161,9 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	}
 
 	private renderReferences(): string {
-		// Separate address edges (shown in summary) from graph edges (shown here)
-		const addressEdgeTypes = getEdgeTypesForLabel("Contact");
-		const outgoing = this.edges.filter((e) => !addressEdgeTypes.has(e.type));
+		// Exclude edges already shown in the summary section
+		const summaryFields = getSummaryFields(this.state.vertexLabel);
+		const outgoing = this.edges.filter((e) => !summaryFields.has(e.type));
 
 		if (outgoing.length === 0 && this.incomingCount === 0) return "";
 
