@@ -1,11 +1,5 @@
 import { SseClient } from "./sse-client.js";
 
-/** Vertex label domain key — discovered from step.list domains that have vertex label values. */
-let vertexLabelDomainKey = "";
-
-export function getVertexLabelDomainKey(): string {
-	return vertexLabelDomainKey;
-}
 
 export type StepDescriptor = {
 	method: string;
@@ -17,12 +11,13 @@ export type StepDescriptor = {
 	outputSchema?: Record<string, unknown>;
 };
 
-export type DomainInfo = { description?: string; values?: string[] };
+export type DomainInfo = { description?: string; values?: string[]; stepperName?: string; vertexLabel?: string };
 
 export type DomainOption = {
 	key: string;
 	queryLabel?: string;
 	description?: string;
+	stepperName?: string;
 	selectable: boolean;
 };
 
@@ -48,27 +43,22 @@ export async function getAvailableDomains(): Promise<Record<string, DomainInfo>>
 	return domains;
 }
 
-/** Build selectable domain options. Also detects the vertex label domain key (readable via getVertexLabelDomainKey()). */
-export function buildDomainOptions(domains: Record<string, DomainInfo>, queryLabels: string[]): DomainOption[] {
-	const queryLabelSet = new Set(queryLabels);
+/** Build selectable domain options. Vertex domains (those with vertexLabel) are selectable. */
+export function buildDomainOptions(domains: Record<string, DomainInfo>): DomainOption[] {
 	const options: DomainOption[] = [];
 
 	for (const [key, info] of Object.entries(domains)) {
-		if (info.values?.length && info.values.every((v) => queryLabelSet.has(v))) {
-			vertexLabelDomainKey = key;
-			for (const label of info.values) {
-				options.push({ key, queryLabel: label, description: `${label} vertex`, selectable: true });
-			}
-			continue;
+		if (info.vertexLabel) {
+			options.push({ key, queryLabel: info.vertexLabel, description: info.description, stepperName: info.stepperName, selectable: true });
+		} else {
+			options.push({ key, description: info.description, stepperName: info.stepperName, selectable: false });
 		}
-		if (queryLabelSet.has(key)) {
-			options.push({ key, queryLabel: key, description: info.description, selectable: true });
-			continue;
-		}
-		options.push({ key, description: info.description, selectable: false });
 	}
 
-	return options.sort((a, b) => (a.queryLabel ?? a.key).localeCompare(b.queryLabel ?? b.key));
+	return options.sort((a, b) => {
+		if (a.selectable !== b.selectable) return a.selectable ? -1 : 1;
+		return (a.queryLabel ?? a.key).localeCompare(b.queryLabel ?? b.key);
+	});
 }
 
 async function getStepList(): Promise<StepListResponse> {
@@ -111,13 +101,12 @@ export function requireStep(name: string): string {
 export function stepsForContext(label: string): StepDescriptor[] {
 	if (!cachedSteps || !cachedDomains) return [];
 	const lc = label.toLowerCase();
-	// Find domain keys that relate to this label (domain whose values include it, or key contains the label)
+	// Find domain keys that relate to this label
 	const contextDomains = new Set<string>();
 	for (const [key, info] of Object.entries(cachedDomains)) {
-		if (info.values?.includes(label)) contextDomains.add(key);
+		if (info.vertexLabel === label) contextDomains.add(key);
 		if (key.toLowerCase().includes(lc)) contextDomains.add(key);
 	}
-	if (vertexLabelDomainKey) contextDomains.add(vertexLabelDomainKey);
 	return cachedSteps.filter((step) => {
 		// Match by param domain
 		if (step.paramDomains && Object.values(step.paramDomains).some((domain) => contextDomains.has(domain))) return true;
