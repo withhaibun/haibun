@@ -6,7 +6,8 @@
   "main": "build/app.js",
   "types": "build/app.d.ts",
   "exports": {
-    ".": "./build/app.js",
+    ".": "./build/index.js",
+    "./build/*": "./build/*",
     "./bundle": "./build/shu-bundle.js"
   },
   "scripts": {
