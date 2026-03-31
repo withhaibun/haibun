@@ -11,6 +11,7 @@ import { queryUriToPayload } from "./query-uri.js";
 import { SseClient } from "./sse-client.js";
 import { getAvailableSteps, requireStep, findStep } from "./rpc-registry.js";
 import { getRels, getRelSync, getContentFields, getSummaryFields } from "./rels-cache.js";
+import { defaultLabel } from "./util.js";
 
 type VertexData = Record<string, unknown>;
 type EdgeData = { type: string; target: VertexData };
@@ -55,7 +56,7 @@ export class ShuColumnBrowser extends HTMLElement {
 	/** Open a vertex entity column by ID. Fetches vertex + edges. */
 	/** Open a vertex entity column by ID. The caller must ensure id is a valid vertex identity. */
 	async openColumn(id: string, afterIndex?: number, label?: string): Promise<void> {
-		const vertexLabel = label || "Email";
+		const vertexLabel = label || defaultLabel();
 		const query: ColumnQuery = { vertexId: id, label: vertexLabel };
 		this.pushColumn(id, afterIndex, query, true);
 		const colIndex = this.columns.length - 1;
@@ -118,7 +119,7 @@ export class ShuColumnBrowser extends HTMLElement {
 				query: {
 					label,
 					filters: [{ property, operator: "eq", value }],
-					sortBy: "dateSent",
+					sortBy: "",
 					sortOrder: "desc",
 					limit: 50,
 					offset: 0,
@@ -162,8 +163,8 @@ export class ShuColumnBrowser extends HTMLElement {
 		return this.columns.map((col) => {
 			const q = col.query;
 			if (!q) return col.label;
-			if (q.property && q.value) return `f:${q.label || "Email"}:${q.property}=${q.value}`;
-			if (q.property) return `p:${q.label || "Email"}:${q.property}`;
+			if (q.property && q.value) return `f:${q.label || defaultLabel()}:${q.property}=${q.value}`;
+			if (q.property) return `p:${q.label || defaultLabel()}:${q.property}`;
 			return q.vertexId || col.label;
 		});
 	}
@@ -433,7 +434,7 @@ export class ShuColumnBrowser extends HTMLElement {
 		// For value links, check server rels to determine correct rel
 		if (rel === "filter" && propertyName) {
 			const col = this.columns[colIndex];
-			const serverRel = getRelSync(col?.vertexLabel || "Email", propertyName);
+			const serverRel = getRelSync(col?.vertexLabel || defaultLabel(), propertyName);
 			if (serverRel === "item") rel = "item";
 		}
 		if (rel === "filter" || rel === "item") {
@@ -505,7 +506,7 @@ export class ShuColumnBrowser extends HTMLElement {
 				if (!value) return;
 
 				const col = this.columns[colIndex];
-				const currentLabel = col?.vertexLabel || "Email";
+				const currentLabel = col?.vertexLabel || defaultLabel();
 
 				switch (rel) {
 					case "item":

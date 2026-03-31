@@ -251,7 +251,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 				label,
 				filters: validConditions,
 				textQuery: textQuery || undefined,
-				sortBy: sortBy || "dateSent",
+				sortBy: sortBy || "",
 				sortOrder,
 				limit: this.limit,
 				offset: this.offset,

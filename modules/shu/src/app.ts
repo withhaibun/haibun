@@ -161,7 +161,7 @@ const main = async (): Promise<void> => {
 					<div class="results-target" style="height:100%;overflow:hidden;"></div>
 				</shu-column-pane>
 			</shu-column-strip>
-			<shu-graph-query api-base="${apiBase}" label="Email" sort-by="dateSent" sort-order="desc" results-target=".results-target"></shu-graph-query>
+			<shu-graph-query api-base="${apiBase}" label="${defaultLabel()}" sort-order="desc" results-target=".results-target"></shu-graph-query>
 		</div>
 	`;
 

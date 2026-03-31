@@ -30,7 +30,7 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 		await this.fetchResults({
 			label,
 			filters: [{ property, operator: "eq", value }],
-			sortBy: "dateSent",
+			sortBy: "",
 			sortOrder: "desc",
 			limit: 50,
 			offset: 0,
