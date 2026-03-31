@@ -48,14 +48,14 @@ export async function getAvailableDomains(): Promise<Record<string, DomainInfo>>
 	return domains;
 }
 
-export function buildDomainOptions(domains: Record<string, DomainInfo>, queryLabels: string[]): { options: DomainOption[]; vertexLabelDomainKey: string } {
+/** Build selectable domain options. Also detects the vertex label domain key (readable via getVertexLabelDomainKey()). */
+export function buildDomainOptions(domains: Record<string, DomainInfo>, queryLabels: string[]): DomainOption[] {
 	const queryLabelSet = new Set(queryLabels);
 	const options: DomainOption[] = [];
-	let detectedVertexLabelKey = "";
 
 	for (const [key, info] of Object.entries(domains)) {
 		if (info.values?.length && info.values.every((v) => queryLabelSet.has(v))) {
-			detectedVertexLabelKey = key;
+			vertexLabelDomainKey = key;
 			for (const label of info.values) {
 				options.push({ key, queryLabel: label, description: `${label} vertex`, selectable: true });
 			}
@@ -68,8 +68,7 @@ export function buildDomainOptions(domains: Record<string, DomainInfo>, queryLab
 		options.push({ key, description: info.description, selectable: false });
 	}
 
-	vertexLabelDomainKey = detectedVertexLabelKey;
-	return { options: options.sort((a, b) => (a.queryLabel ?? a.key).localeCompare(b.queryLabel ?? b.key)), vertexLabelDomainKey: detectedVertexLabelKey };
+	return options.sort((a, b) => (a.queryLabel ?? a.key).localeCompare(b.queryLabel ?? b.key));
 }
 
 async function getStepList(): Promise<StepListResponse> {
