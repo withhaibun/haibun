@@ -7,7 +7,7 @@ import { registerValueRenderer } from "./value-renderers.js";
 import { esc, escAttr } from "./util.js";
 
 interface QueryContext {
-	conditions: Array<{ property: string; operator: string; value: string; value2?: string }>;
+	conditions: Array<{ predicate: string; operator: string; value: string; value2?: string }>;
 	label?: string;
 	textQuery?: string;
 	accessLevel?: string;
@@ -28,8 +28,8 @@ export function queryContextToUri(ctx: QueryContext): string {
 	if (ctx.accessLevel && ctx.accessLevel !== "private") params.set("access", ctx.accessLevel);
 	if (ctx.textQuery) params.set("q", ctx.textQuery);
 	for (const c of ctx.conditions) {
-		if (c.property && c.value) {
-			const parts = [c.property, c.operator, c.value];
+		if (c.predicate && c.value) {
+			const parts = [c.predicate, c.operator, c.value];
 			if (c.operator === "between" && c.value2) parts.push(c.value2);
 			params.append("f", parts.join("|"));
 		}
@@ -83,7 +83,7 @@ export function queryUriToPayload(uri: string): Record<string, unknown> {
 		payload.conditions = filters.map((f) => {
 			const parts = f.split("|");
 			return {
-				property: parts[0] || "",
+				predicate: parts[0] || "",
 				operator: parts[1] || "eq",
 				value: parts[2] || "",
 				...(parts[3] ? { value2: parts[3] } : {}),

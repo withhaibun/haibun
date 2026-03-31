@@ -117,7 +117,8 @@ function readHydratedConcerns(): TConcernCatalog | null {
 	try {
 		const data = JSON.parse(el.textContent);
 		return ConcernCatalogSchema.parse(data.concerns);
-	} catch {
+	} catch (err) {
+		console.warn("[shu] Failed to parse hydration data:", err);
 		return null;
 	}
 }
