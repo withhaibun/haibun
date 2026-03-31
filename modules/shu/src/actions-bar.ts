@@ -7,12 +7,12 @@
  */
 import MarkdownIt from "markdown-it";
 import { ShuElement } from "./shu-element.js";
-import { ActionsBarSchema, SEARCH_OPERATORS } from "./schemas.js";
+import { ActionsBarSchema, SEARCH_OPERATORS, type TSearchCondition } from "./schemas.js";
 import { SHARED_STYLES } from "./styles.js";
 import { errMsg } from "./util.js";
 import { SseClient } from "./sse-client.js";
 import { buildDomainOptions, getAvailableDomains, getAvailableSteps, requireStep, stepsForContext, type DomainOption, type StepDescriptor } from "./rpc-registry.js";
-import { getSiteMetadataSync, getProperties, getSelectValues, setSelectValues, setSiteMetadata } from "./rels-cache.js";
+import { getProperties, getSelectValues, hasSelectValues, setSelectValues } from "./rels-cache.js";
 import type { ShuSpinner } from "./shu-spinner.js";
 import type { ShuCombobox } from "./shu-combobox.js";
 import type { TContextPattern } from "./schemas.js";
@@ -47,7 +47,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	private _unsubscribeSync?: () => void;
 	private _syncEventSeq = 0;
 	private _queriedSyncSeq = 0;
-	private _filterConditions: Array<{ property: string; operator: string; value: string; value2?: string }> = [];
+	private _filterConditions: TSearchCondition[] = [];
 	private _filterProperties: string[] = [];
 	private _domainOptions: DomainOption[] = [];
 	private _selectedDomainKey = "";
@@ -90,7 +90,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			total?: number;
 			label?: string;
 			textQuery?: string;
-			conditions?: Array<{ property: string; operator: string; value: string }>;
+			conditions?: TSearchCondition[];
 		},
 	): void {
 		this._contextPatterns = patterns;
@@ -104,10 +104,10 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		if (extra?.textQuery !== undefined) this._textSearch = extra.textQuery || "";
 		// Populate select filters from conditions
 		if (extra?.conditions) {
-			const selectFields = getSelectValues(this._selectedLabel);
-			for (const c of extra.conditions) {
-				if (c.operator === "eq" && c.property in selectFields) {
-					this._selectFilters[c.property] = c.value;
+			if (this._selectedLabel && hasSelectValues(this._selectedLabel)) {
+				const selectFields = getSelectValues(this._selectedLabel);
+				for (const c of extra.conditions) {
+					if (c.operator === "eq" && c.predicate in selectFields) this._selectFilters[c.predicate] = c.value;
 				}
 			}
 		}
@@ -180,7 +180,14 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	connectedCallback(): void {
 		super.connectedCallback();
 		this.loadProperties();
-		void Promise.all([this.loadDomainOptions(), this.loadModels(), this.loadSteps(), this.loadSelectValues()]);
+		void Promise.all([this.loadDomainOptions(), this.loadModels(), this.loadSteps(), this.loadSelectValues()]).catch((err) => {
+			const message = `ShuActionsBar initialization failed: ${errMsg(err)}`;
+			this.setStatus(message);
+			// Fail fast: malformed discovery data must stop execution, not degrade silently.
+			queueMicrotask(() => {
+				throw new Error(message);
+			});
+		});
 
 		const client = SseClient.for("");
 		this._unsubscribeSync = client.onEvent(
@@ -235,17 +242,13 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	}
 
 	private async loadDomainOptions(): Promise<void> {
+		await getAvailableSteps();  // populates concern catalog via step.list
 		const domains = await getAvailableDomains();
-		let siteMetadata = getSiteMetadataSync();
-		if (!siteMetadata?.types?.length) {
-			await getAvailableSteps();
-			const client = SseClient.for("");
-			siteMetadata = await client.rpc<import("./rels-cache.js").SiteMetadata>(requireStep("getSiteMetadata"));
-			setSiteMetadata(siteMetadata);
-		}
 		this._domainOptions = buildDomainOptions(domains);
+		if (this._domainOptions.length === 0) throw new Error("No domain options were produced from concern catalog");
 		this.syncSelectedDomainKey();
 		this.render();
+		this.dispatchFilterChange();
 	}
 
 	private syncSelectedDomainKey(): void {
@@ -255,10 +258,13 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 				this._selectedDomainKey = matchingOption.key;
 				return;
 			}
+			throw new Error(`Selected label is not present in discovered concerns: ${this._selectedLabel}`);
 		}
-		const fallbackOption = this._domainOptions.find((option) => option.selectable) ?? this._domainOptions[0];
-		this._selectedDomainKey = fallbackOption?.key ?? "";
-		if (!this._selectedLabel && fallbackOption?.queryLabel) this._selectedLabel = fallbackOption.queryLabel;
+		const firstOption = this._domainOptions[0];
+		if (!firstOption) throw new Error("No selectable domain options discovered from concerns");
+		this._selectedDomainKey = firstOption.key;
+		this._selectedLabel = firstOption.queryLabel ?? "";
+		if (!this._selectedLabel) throw new Error(`Concern option ${firstOption.key} is missing queryLabel`);
 	}
 
 	private loadProperties(label?: string): void {
@@ -269,16 +275,12 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	private async loadSelectValues(label?: string): Promise<void> {
 		const target = label || this._selectedLabel;
 		if (!target) return;
-		if (getSelectValues(target) && Object.keys(getSelectValues(target)).length > 0) return;
-		try {
-			await getAvailableSteps();
-			const client = SseClient.for("");
-			const data = await client.rpc<{ values: Record<string, string[]> }>(requireStep("getSelectValues"), { label: target });
-			if (data.values) setSelectValues(target, data.values);
-			this.render();
-		} catch {
-			/* use empty */
-		}
+		if (hasSelectValues(target)) return;
+		await getAvailableSteps();
+		const client = SseClient.for("");
+		const data = await client.rpc<{ values: Record<string, string[]> }>(requireStep("getSelectValues"), { label: target });
+		if (data.values) setSelectValues(target, data.values);
+		this.render();
 	}
 
 	private activeChatContext(): TContextPattern[] {
@@ -302,7 +304,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		// Merge select filters into conditions
 		const selectConditions = Object.entries(this._selectFilters)
 			.filter(([, v]) => v)
-			.map(([property, value]) => ({ property, operator: "eq" as const, value }));
+			.map(([predicate, value]) => ({ predicate, operator: "eq" as const, value }));
 		const allConditions = [...selectConditions, ...this._filterConditions];
 
 		this.dispatchEvent(
@@ -311,7 +313,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 					accessLevel: this._contextAccessLevel,
 					label: this._selectedLabel,
 					textQuery: this._textSearch,
-					conditions: allConditions,
+					conditions: allConditions as TSearchCondition[],
 				},
 				bubbles: true,
 				composed: true,
@@ -349,7 +351,6 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 				? `<shu-combobox class="step-combo" testid="${this.testIdPrefix}step-select" placeholder="type to filter steps..."></shu-combobox>`
 				: "";
 
-		const isQueryView = this._activeViewIndex === 0;
 		const twisty = this.state.askExpanded ? "\u25B6" : "\u25BC";
 
 		const summaryBar = `
@@ -360,8 +361,8 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 				<button class="twisty" ${this.tid("ask-button")}>${twisty}</button>
 			</div>`;
 
-		const labelSelect = `<select class="label-select" ${this.tid("type-select")}>${this._domainOptions.map((option) => `<option value="${option.key}"${option.key === this._selectedDomainKey ? " selected" : ""}${option.selectable ? "" : " disabled"}>${option.selectable && option.queryLabel && option.queryLabel !== option.key ? `${option.key} -> ${option.queryLabel}` : option.selectable ? option.key : `${option.key} (not queryable)`}</option>`).join("")}</select>`;
-		const selectFields = getSelectValues(this._selectedLabel);
+		const labelSelect = `<select class="label-select" ${this.tid("type-select")}>${this._domainOptions.map((option) => `<option value="${option.key}"${option.key === this._selectedDomainKey ? " selected" : ""}${option.selectable ? "" : " disabled"}>${option.selectable ? option.queryLabel || option.key : `${option.key} (not queryable)`}</option>`).join("")}</select>`;
+		const selectFields = this._selectedLabel && hasSelectValues(this._selectedLabel) ? getSelectValues(this._selectedLabel) : {};
 		const selectDropdowns = Object.entries(selectFields)
 			.filter(([, values]) => values.length > 0)
 			.map(([field, values]) => {
@@ -371,7 +372,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			.join("");
 
 		const filterControls =
-			isQueryView && this.state.askExpanded
+			this.state.askExpanded
 				? `<div class="filter-bar">
 					<select class="access-select">${["private", "public", "opened", "all"].map((a) => `<option value="${a}"${a === this._contextAccessLevel ? " selected" : ""}>${a}</option>`).join("")}</select>
 					${labelSelect}
@@ -444,6 +445,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			let dragged = false;
 			let rafPending = false;
 			let moveCleanup: (() => void) | null = null;
+			let startedOnTwisty = false;
 
 			const onMove = (y: number) => {
 				if (!this.state.askExpanded) return;
@@ -462,13 +464,16 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 				moveCleanup?.();
 				moveCleanup = null;
 				if (!dragged) {
-					this.setState({ askExpanded: !this.state.askExpanded });
-					if (this.state.askExpanded) {
+					const nextExpanded = startedOnTwisty ? true : !this.state.askExpanded;
+					startedOnTwisty = false;
+					this.setState({ askExpanded: nextExpanded });
+					if (nextExpanded) {
 						requestAnimationFrame(() => {
 							(this.shadowRoot?.querySelector(".chat-input") as HTMLTextAreaElement | null)?.focus();
 						});
 					}
 				} else {
+					startedOnTwisty = false;
 					this.dispatchEvent(new CustomEvent("resize-end", { bubbles: true, composed: true }));
 				}
 			};
@@ -486,12 +491,15 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			bar.addEventListener("mousedown", (e) => {
 				startY = e.clientY;
 				dragged = false;
+				startedOnTwisty = !!(e.target instanceof HTMLElement && e.target.closest(".twisty"));
 				startListening();
 				e.preventDefault();
 			});
 			bar.addEventListener("touchstart", (e) => {
 				startY = e.touches[0].clientY;
 				dragged = false;
+				const target = e.target;
+				startedOnTwisty = !!(target instanceof HTMLElement && target.closest(".twisty"));
 				startListening();
 				e.preventDefault();
 			});
@@ -565,7 +573,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		});
 
 		this.shadowRoot?.querySelector(".add-filter")?.addEventListener("click", () => {
-			this._filterConditions.push({ property: "", operator: "eq", value: "" });
+			this._filterConditions.push({ predicate: "", operator: "eq", value: "" });
 			this.render();
 		});
 
@@ -574,16 +582,16 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			const combo = el as ShuCombobox;
 			const idx = parseInt((el as HTMLElement).dataset.index || "0", 10);
 			combo.setOptions(propOpts);
-			if (this._filterConditions[idx]?.property) combo.setValue(this._filterConditions[idx].property);
+			if (this._filterConditions[idx]?.predicate) combo.setValue(this._filterConditions[idx].predicate);
 			el.addEventListener("combo-change", ((e: CustomEvent) => {
-				this._filterConditions[idx].property = e.detail?.value || "";
+				this._filterConditions[idx].predicate = e.detail?.value || "";
 			}) as EventListener);
 		});
 		this.shadowRoot?.querySelectorAll(".cond-operator").forEach((el) => {
 			const idx = parseInt((el as HTMLElement).dataset.index || "0", 10);
 			el.addEventListener("change", () => {
 				const prev = this._filterConditions[idx].operator;
-				this._filterConditions[idx].operator = (el as HTMLSelectElement).value;
+				this._filterConditions[idx].operator = (el as HTMLSelectElement).value as import("./schemas.js").TSearchOperator;
 				if ((prev === "between") !== (this._filterConditions[idx].operator === "between")) {
 					this.render();
 				}

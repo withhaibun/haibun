@@ -55,15 +55,18 @@ function createSpaHandler(basePath: string, bundle: string) {
 
 export default class ShuStepper extends AStepper {
 	description = "Serves the @haibun/shu hypermedia SPA at a given path";
+	private mountedPaths = new Set<string>();
 
 	steps: TStepperSteps = {
 		serveShuApp: {
 			gwta: "serve shu app at {path: string}",
-			action: async ({ path }: { path: string }) => {
+			action: ({ path }: { path: string }) => {
 				const webserver = getFromRuntime(this.getWorld().runtime, WEBSERVER) as IWebServer;
 				if (!webserver) return actionNotOK("webserver not available — load web-server-stepper before shu");
+				if (this.mountedPaths.has(path)) return actionOK();
 				const bundle = loadBundle();
 				webserver.addRoute("get", path, createSpaHandler(path, bundle));
+				this.mountedPaths.add(path);
 				return actionOK();
 			},
 		},
