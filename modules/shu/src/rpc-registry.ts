@@ -84,13 +84,14 @@ export function buildDomainOptions(domains: Record<string, DomainInfo>): DomainO
 	const concerns = getConcernCatalog();
 
 	return Object.values(concerns.vertices).map((vertex) => {
-		if (typeof vertex.label !== "string") throw new Error(`Concern label for domain ${vertex.domainKey} must be a string`);
-		if (/^\s*\[.*\]\s*$/.test(vertex.label)) throw new Error(`Concern label for domain ${vertex.domainKey} looks like a stringified array: ${vertex.label}`);
-		const info = domains[vertex.domainKey];
-		if (!info) throw new Error(`step.list domain missing for concern domainKey: ${vertex.domainKey}`);
+		const v = vertex as { label: unknown; domainKey: string };
+		if (typeof v.label !== "string") throw new Error(`Concern label for domain ${v.domainKey} must be a string`);
+		if (/^\s*\[.*\]\s*$/.test(v.label)) throw new Error(`Concern label for domain ${v.domainKey} looks like a stringified array: ${v.label}`);
+		const info = domains[v.domainKey];
+		if (!info) throw new Error(`step.list domain missing for concern domainKey: ${v.domainKey}`);
 		return {
-			key: vertex.domainKey,
-			queryLabel: vertex.label,
+			key: v.domainKey,
+			queryLabel: v.label,
 			description: info.description,
 			stepperName: info.stepperName,
 			selectable: true,

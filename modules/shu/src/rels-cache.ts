@@ -87,3 +87,27 @@ export function getSelectValues(label: string): Record<string, string[]> {
 export function getSiteMetadataSync(): SiteMetadata | null {
 	return metadata;
 }
+
+/** Check if a label has select values cached. */
+export function hasSelectValues(label: string): boolean {
+	return selectCache.has(label);
+}
+
+// --- Concern catalog (for haibun domain discovery) ---
+
+import type { TConcernCatalog } from "@haibun/core/lib/hypermedia.js";
+
+let concernCatalog: TConcernCatalog | null = null;
+
+/** Set the concern catalog from step.list response. */
+export function setConcernCatalog(catalog: TConcernCatalog): void {
+	concernCatalog = catalog;
+}
+
+/** Get the concern catalog (populated from step.list). */
+export function getConcernCatalog(): TConcernCatalog {
+	if (!concernCatalog) {
+		throw new Error("Concern catalog not initialized. Call setConcernCatalog() first.");
+	}
+	return concernCatalog;
+}
