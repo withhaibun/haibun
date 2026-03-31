@@ -110,6 +110,24 @@ async function getStepList(): Promise<StepListResponse> {
 	}
 }
 
+/** Read hydrated concerns from the HTML embedded by shu-stepper. */
+function readHydratedConcerns(): TConcernCatalog | null {
+	const el = document.getElementById("shu-hydration");
+	if (!el?.textContent) return null;
+	try {
+		const data = JSON.parse(el.textContent);
+		return ConcernCatalogSchema.parse(data.concerns);
+	} catch {
+		return null;
+	}
+}
+
+/** Apply hydrated concerns immediately (before any RPC). */
+export function hydrateFromDom(): void {
+	const concerns = readHydratedConcerns();
+	if (concerns) setConcernCatalog(concerns);
+}
+
 async function discover(): Promise<StepListResponse> {
 	const client = SseClient.for("");
 	const result = await client.rpc<unknown>("step.list");
