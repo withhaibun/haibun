@@ -5,7 +5,7 @@ import { defaultLabel } from "./util.js";
  * Renders in light DOM .results-target, hash state, custom scrollbar, sort, multi-select.
  */
 import { ShuElement } from "./shu-element.js";
-import { QueryViewSchema } from "./schemas.js";
+import { QueryViewSchema, type TSearchCondition, parseFilterParam, serializeFilterParam } from "./schemas.js";
 import { SHARED_STYLES } from "./styles.js";
 import { esc, errMsg, setIdFields } from "./util.js";
 import { setSiteMetadata, getConcernDerivedMetadata } from "./rels-cache.js";
@@ -13,12 +13,7 @@ import type { ShuResultTable } from "./shu-result-table.js";
 import { SseClient } from "./sse-client.js";
 import { getAvailableSteps, getAvailableDomains, findStep, requireStep } from "./rpc-registry.js";
 
-interface ConditionRow {
-	predicate: string;
-	operator: string;
-	value: string;
-	value2: string;
-}
+type ConditionRow = TSearchCondition;
 
 /** A vertex row: flat property object. */
 type VertexRow = Record<string, unknown>;
@@ -80,12 +75,12 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		accessLevel?: string;
 		label?: string;
 		textQuery?: string;
-		conditions?: Array<{ predicate: string; operator: string; value: string; value2?: string }>;
+		conditions?: TSearchCondition[];
 	}): void {
 		if (filters.accessLevel !== undefined) this.accessLevel = filters.accessLevel;
 		if (filters.label !== undefined) this.state = { ...this.state, label: filters.label || undefined };
 		if (filters.textQuery !== undefined) this.state = { ...this.state, textQuery: filters.textQuery || undefined };
-		if (filters.conditions) this.conditions = filters.conditions.map((c) => ({ ...c, value2: c.value2 || "" }));
+		if (filters.conditions) this.conditions = filters.conditions;
 		this.offset = 0;
 		void this.executeQuery();
 	}
@@ -153,11 +148,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 
 		if (offsetStr) this.offset = parseInt(offsetStr, 10) || 0;
 
-		// Filter conditions use | delimiter to avoid conflict with colons in property names
-		this.conditions = params.getAll("f").map((f) => {
-			const parts = f.split("|");
-			return { predicate: parts[0] || "", operator: parts[1] || "eq", value: parts[2] || "", value2: parts[3] || "" };
-		});
+		this.conditions = params.getAll("f").map(parseFilterParam);
 
 		const result = this.safeValidate({ label, textQuery, sortBy, sortOrder });
 		if (result.success && result.data) this.state = result.data;
@@ -179,11 +170,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		params.set("offset", String(this.offset));
 
 		for (const c of this.conditions) {
-			if (c.predicate && c.value) {
-				const parts = [c.predicate, c.operator, c.value];
-				if (c.operator === "between" && c.value2) parts.push(c.value2);
-				params.append("f", parts.join("|"));
-			}
+			if (c.predicate && c.value) params.append("f", serializeFilterParam(c));
 		}
 
 		for (const col of colValues) {

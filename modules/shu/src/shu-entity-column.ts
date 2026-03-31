@@ -101,7 +101,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		} else {
 			const summaryFields = getSummaryFields(vertexLabel);
 			const detailRows = Object.entries(fields)
-				.filter(([k]) => !getEdgeTargetLabel(k) && !summaryFields.has(k))
+				.filter(([k]) => !getEdgeTargetLabel(k, vertexLabel) && !summaryFields.has(k))
 				.map(([k, v]) => {
 					const valueHtml = Array.isArray(v)
 						? v.map((item) => this.clickableValue(item, "filter", k)).join(", ")
@@ -157,7 +157,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	/** Render a clickable edge target with label from HATEOAS edge range. */
 	private renderEdgeTarget(target: VertexData, edgeType: string): string {
 		const id = vertexId(target);
-		const label = getEdgeTargetLabel(edgeType) ?? (target._label as string) ?? defaultLabel();
+		const label = getEdgeTargetLabel(edgeType, this.state.vertexLabel) ?? (target._label as string) ?? defaultLabel();
 		const display = String(target.name ?? target.email ?? target.filename ?? target.subject ?? id);
 		const testId = this.edgeTargetCount === 0 ? ' data-testid="edge-target-first"' : "";
 		this.edgeTargetCount++;
@@ -244,7 +244,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			const serverRel = getRelSync(this.state.vertexLabel, propertyName);
 			if (serverRel === "item") {
 				rel = "item";
-				const targetLabel = getEdgeTargetLabel(propertyName);
+				const targetLabel = getEdgeTargetLabel(propertyName, this.state.vertexLabel);
 				if (targetLabel) {
 					labelAttr = ` data-label="${escAttr(targetLabel)}"`;
 					// Resolve entity ID from edge target data — the graph edge

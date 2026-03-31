@@ -97,3 +97,25 @@ export const mapDefinitionsToDomains = (definitions: TDomainDefinition[]) => {
 		return acc;
 	}, {});
 };
+
+/** Coercer: JSON-parses strings, validates with schema. Used by haibun domain coercion for object-typed params. */
+export function objectCoercer<T extends z.ZodType>(schema: T) {
+	return (proto: { value?: unknown }) => {
+		const value = typeof proto.value === "string" ? JSON.parse(proto.value) : proto.value;
+		return schema.parse(value);
+	};
+}
+
+/** Build a Map from vertexLabel → TRegisteredDomain for all vertex domains. */
+export function vertexDomainMap(domains: Record<string, TRegisteredDomain>): Map<string, TRegisteredDomain> {
+	const map = new Map<string, TRegisteredDomain>();
+	for (const domain of Object.values(domains)) {
+		if (domain.meta?.vertexLabel) map.set(domain.meta.vertexLabel, domain);
+	}
+	return map;
+}
+
+/** Get all vertex domains (domains with meta.vertexLabel) as an array. */
+export function getVertexDomains(domains: Record<string, TRegisteredDomain>): TRegisteredDomain[] {
+	return Object.values(domains).filter((d): d is TRegisteredDomain & { meta: NonNullable<TRegisteredDomain['meta']> } => !!d.meta?.vertexLabel);
+}

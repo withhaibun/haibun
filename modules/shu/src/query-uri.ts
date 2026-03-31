@@ -5,13 +5,13 @@
  */
 import { registerValueRenderer } from "./value-renderers.js";
 import { esc, escAttr } from "./util.js";
+import { parseFilterParam, serializeFilterParam, type TSearchCondition } from "./schemas.js";
 
 interface QueryContext {
-	conditions: Array<{ predicate: string; operator: string; value: string; value2?: string }>;
+	conditions: TSearchCondition[];
 	label?: string;
 	textQuery?: string;
 	accessLevel?: string;
-	/** Direct vertex lookup. */
 	vertexId?: string;
 }
 
@@ -28,11 +28,7 @@ export function queryContextToUri(ctx: QueryContext): string {
 	if (ctx.accessLevel && ctx.accessLevel !== "private") params.set("access", ctx.accessLevel);
 	if (ctx.textQuery) params.set("q", ctx.textQuery);
 	for (const c of ctx.conditions) {
-		if (c.predicate && c.value) {
-			const parts = [c.predicate, c.operator, c.value];
-			if (c.operator === "between" && c.value2) parts.push(c.value2);
-			params.append("f", parts.join("|"));
-		}
+		if (c.predicate && c.value) params.append("f", serializeFilterParam(c));
 	}
 	return `${SHU_PREFIX}#?${params.toString()}`;
 }
@@ -57,10 +53,9 @@ export function queryUriToLabel(uri: string): string {
 	if (label) parts.push(label);
 	const q = params.get("q");
 	if (q) parts.push(`"${q}"`);
-	const filters = params.getAll("f");
-	for (const f of filters) {
-		const [prop, op, val] = f.split("|");
-		parts.push(`${prop} ${op} ${val}`);
+	for (const f of params.getAll("f")) {
+		const c = parseFilterParam(f);
+		parts.push(`${c.predicate} ${c.operator} ${c.value}`);
 	}
 	return parts.join(", ") || "query";
 }
@@ -78,18 +73,8 @@ export function queryUriToPayload(uri: string): Record<string, unknown> {
 	payload.accessLevel = access || "private";
 	const q = params.get("q");
 	if (q) payload.textQuery = q;
-	const filters = params.getAll("f");
-	if (filters.length > 0) {
-		payload.conditions = filters.map((f) => {
-			const parts = f.split("|");
-			return {
-				predicate: parts[0] || "",
-				operator: parts[1] || "eq",
-				value: parts[2] || "",
-				...(parts[3] ? { value2: parts[3] } : {}),
-			};
-		});
-	}
+	const filterParams = params.getAll("f");
+	if (filterParams.length > 0) payload.conditions = filterParams.map(parseFilterParam);
 	return payload;
 }
 
