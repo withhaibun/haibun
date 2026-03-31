@@ -23,9 +23,8 @@ function loadBundle(): string {
 	}
 }
 
-function createSpaHandler(basePath: string, bundle: string, getHydrationData: () => string) {
+function createSpaHandler(basePath: string, bundle: string, hydration: string) {
 	return (c: Context) => {
-		const hydration = getHydrationData();
 		const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -81,9 +80,8 @@ export default class ShuStepper extends AStepper {
 						`shu app already mounted at "${this.mountedPath}"; cannot mount at different path "${path}"`,
 					);
 				const bundle = loadBundle();
-				const world = this.getWorld();
-				const getHydrationData = () => JSON.stringify({ concerns: buildConcernCatalog(world.domains) });
-				webserver.addRoute("get", path, createSpaHandler(path, bundle, getHydrationData));
+				const hydrationJson = JSON.stringify({ concerns: buildConcernCatalog(this.getWorld().domains) });
+				webserver.addRoute("get", path, createSpaHandler(path, bundle, hydrationJson));
 				this.mountedPath = path;
 				return actionOK();
 			},

@@ -98,10 +98,18 @@ export function hasSelectValues(label: string): boolean {
 import type { TConcernCatalog } from "@haibun/core/lib/hypermedia.js";
 
 let concernCatalog: TConcernCatalog | null = null;
+let cachedConcernMeta: SiteMetadata | null = null;
 
-/** Set the concern catalog from step.list response. */
+/** Set the concern catalog from step.list response. Caches derived SiteMetadata. */
 export function setConcernCatalog(catalog: TConcernCatalog): void {
 	concernCatalog = catalog;
+	cachedConcernMeta = siteMetadataFromConcerns(catalog);
+}
+
+/** Get cached SiteMetadata derived from concerns. */
+export function getConcernDerivedMetadata(): SiteMetadata {
+	if (!cachedConcernMeta) throw new Error("Concern catalog not initialized.");
+	return cachedConcernMeta;
 }
 
 /** Get the concern catalog (populated from step.list). */
