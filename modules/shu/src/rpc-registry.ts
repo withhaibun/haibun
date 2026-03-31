@@ -50,23 +50,26 @@ export async function getAvailableDomains(): Promise<Record<string, DomainInfo>>
 
 export function buildDomainOptions(domains: Record<string, DomainInfo>, queryLabels: string[]): DomainOption[] {
 	const queryLabelSet = new Set(queryLabels);
-	// A domain is selectable if it has values that match known query labels, or if its key matches directly
-	return Object.entries(domains)
-		.map(([key, info]) => {
-			// Direct match
-			if (queryLabelSet.has(key)) return { key, queryLabel: key, description: info.description, selectable: true };
-			// Domain has values that are query labels (e.g., vertex label domain with values ["Email", "Contact", ...])
-			const matchingValue = info.values?.find((v) => queryLabelSet.has(v));
-			if (matchingValue) {
-				// Auto-detect vertex label domain
-				if (!vertexLabelDomainKey && info.values?.length && info.values.every((v) => queryLabelSet.has(v))) {
-					vertexLabelDomainKey = key;
-				}
-				return { key, queryLabel: matchingValue, description: info.description, selectable: true };
+	const options: DomainOption[] = [];
+
+	for (const [key, info] of Object.entries(domains)) {
+		// Vertex label domain: expand each value into a selectable option
+		if (info.values?.length && info.values.every((v) => queryLabelSet.has(v))) {
+			vertexLabelDomainKey = key;
+			for (const label of info.values) {
+				options.push({ key, queryLabel: label, description: `${label} vertex`, selectable: true });
 			}
-			return { key, description: info.description, selectable: false };
-		})
-		.sort((left, right) => left.key.localeCompare(right.key));
+			continue;
+		}
+		// Direct match
+		if (queryLabelSet.has(key)) {
+			options.push({ key, queryLabel: key, description: info.description, selectable: true });
+			continue;
+		}
+		options.push({ key, description: info.description, selectable: false });
+	}
+
+	return options.sort((a, b) => (a.queryLabel ?? a.key).localeCompare(b.queryLabel ?? b.key));
 }
 
 async function getStepList(): Promise<StepListResponse> {
