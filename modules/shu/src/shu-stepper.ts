@@ -7,6 +7,7 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { actionOK, actionNotOK, getFromRuntime } from "@haibun/core/lib/util/index.js";
+import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
 import type { IWebServer } from "@haibun/web-server-hono/defs.js";
 import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
 import type { Context } from "@haibun/web-server-hono/defs.js";
@@ -22,8 +23,9 @@ function loadBundle(): string {
 	}
 }
 
-function createSpaHandler(basePath: string, bundle: string) {
+function createSpaHandler(basePath: string, bundle: string, getHydrationData: () => string) {
 	return (c: Context) => {
+		const hydration = getHydrationData();
 		const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -46,6 +48,7 @@ function createSpaHandler(basePath: string, bundle: string) {
     <main id="shu-main" data-testid="shu-main" data-api-base="${basePath}" style="height:100%;">
     </main>
   </div>
+  <script type="application/json" id="shu-hydration">${hydration}</script>
   <script>${bundle}</script>
 </body>
 </html>`;
@@ -78,7 +81,9 @@ export default class ShuStepper extends AStepper {
 						`shu app already mounted at "${this.mountedPath}"; cannot mount at different path "${path}"`,
 					);
 				const bundle = loadBundle();
-				webserver.addRoute("get", path, createSpaHandler(path, bundle));
+				const world = this.getWorld();
+				const getHydrationData = () => JSON.stringify({ concerns: buildConcernCatalog(world.domains) });
+				webserver.addRoute("get", path, createSpaHandler(path, bundle, getHydrationData));
 				this.mountedPath = path;
 				return actionOK();
 			},

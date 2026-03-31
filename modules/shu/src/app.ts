@@ -4,6 +4,7 @@ import { defaultLabel } from "./util.js";
  * Query pane is sticky on the left, additional columns scroll right.
  * Each pane is resizable and independently rendered.
  */
+import { hydrateFromDom } from "./rpc-registry.js";
 import { registerComponents } from "./component-registry.js";
 import type { ShuColumnStrip } from "./shu-column-strip.js";
 import type { ShuColumnPane } from "./shu-column-pane.js";
@@ -93,6 +94,7 @@ function seedHashFromQueryString(): void {
 
 const main = async (): Promise<void> => {
 	seedHashFromQueryString();
+	hydrateFromDom();
 	await registerComponents();
 
 	const appRoot = document.getElementById("shu-main");
