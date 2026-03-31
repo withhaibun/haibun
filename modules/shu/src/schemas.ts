@@ -41,6 +41,14 @@ export const SEARCH_OPERATORS: ReadonlyArray<{ value: TSearchOperator; label: st
 	{ value: "between", label: "between" },
 ];
 
+export const SearchConditionSchema = z.object({
+	predicate: z.string(),
+	operator: SearchOperatorSchema,
+	value: z.string(),
+	value2: z.string().optional(),
+});
+export type TSearchCondition = z.infer<typeof SearchConditionSchema>;
+
 
 /** Edge result from getVertexWithEdges. */
 export const EdgeResultSchema = z.object({

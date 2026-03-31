@@ -221,8 +221,8 @@ describe('step-dispatch', () => {
 			}]]);
 			const stepper = new PlainStepper();
 			const discovery = discoverSteps([stepper], w);
-			expect(Array.isArray(discovery.metadata)).toBe(true);
-			expect(discovery.metadata.some(m => m.method === 'PlainStepper-greet')).toBe(true);
+			expect(Array.isArray(discovery.steps)).toBe(true);
+			expect(discovery.steps.some(m => m.method === 'PlainStepper-greet')).toBe(true);
 			expect(discovery.domains).toBeDefined();
 			expect(discovery.domains['color']).toMatchObject({ description: 'A color', values: ['red', 'green', 'blue'] });
 		});
@@ -239,18 +239,18 @@ describe('step-dispatch', () => {
 			expect(discovery.domains['size']).toMatchObject({ description: 'T-shirt size', values: ['small', 'medium', 'large'] });
 		});
 
-		it('step.list metadata includes inputSchema', () => {
+		it('step.list steps includes inputSchema', () => {
 			const stepper = new PlainStepper();
 			const discovery = discoverSteps([stepper], world);
-			const greet = discovery.metadata.find(m => m.method === 'PlainStepper-greet');
+			const greet = discovery.steps.find(m => m.method === 'PlainStepper-greet');
 			expect(greet?.inputSchema).toBeDefined();
 			expect(greet?.inputSchema?.required).toContain('name');
 		});
 
-		it('step.list metadata includes capability', () => {
+		it('step.list steps includes capability', () => {
 			const stepper = new CapabilityStepper();
 			const discovery = discoverSteps([stepper], world);
-			expect(discovery.metadata.find(m => m.method === 'CapabilityStepper-protectedPing')?.capability).toBe('CapabilityStepper:protected');
+			expect(discovery.steps.find(m => m.method === 'CapabilityStepper-protectedPing')?.capability).toBe('CapabilityStepper:protected');
 		});
 	});
 

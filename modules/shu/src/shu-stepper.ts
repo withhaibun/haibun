@@ -53,9 +53,16 @@ function createSpaHandler(basePath: string, bundle: string) {
 	};
 }
 
+function validateMountPath(path: string): string | undefined {
+	if (!path) return 'path is required';
+	if (!path.startsWith('/')) return 'path must start with "/"';
+	if (path.length > 1 && path.endsWith('/')) return 'path must not end with "/"';
+	return undefined;
+}
+
 export default class ShuStepper extends AStepper {
 	description = "Serves the @haibun/shu hypermedia SPA at a given path";
-	private mountedPaths = new Set<string>();
+	private mountedPath?: string;
 
 	steps: TStepperSteps = {
 		serveShuApp: {
@@ -63,10 +70,15 @@ export default class ShuStepper extends AStepper {
 			action: ({ path }: { path: string }) => {
 				const webserver = getFromRuntime(this.getWorld().runtime, WEBSERVER) as IWebServer;
 				if (!webserver) return actionNotOK("webserver not available — load web-server-stepper before shu");
-				if (this.mountedPaths.has(path)) return actionOK();
+				const pathError = validateMountPath(path);
+				if (pathError) return actionNotOK(pathError);
+				if (this.mountedPath)
+					return actionNotOK(
+						`shu app already mounted at "${this.mountedPath}"; only one mount is supported per ShuStepper instance`,
+					);
 				const bundle = loadBundle();
 				webserver.addRoute("get", path, createSpaHandler(path, bundle));
-				this.mountedPaths.add(path);
+				this.mountedPath = path;
 				return actionOK();
 			},
 		},

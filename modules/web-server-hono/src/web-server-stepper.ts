@@ -241,12 +241,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 					const seqPath = msg.seqPath ?? [0, runtime.adHocSeq];
 
 					if (method === "step.list") {
-						const { metadata, domains } = discoverSteps(
-							this.steppers,
-							this.getWorld(),
-							this.stepRegistry,
-						);
-						return { steps: metadata, domains };
+						return discoverSteps(this.steppers, this.getWorld(), this.stepRegistry);
 					}
 					if (method === "step.validate")
 						return validateStep(String(params.text || ""), this.steppers);
