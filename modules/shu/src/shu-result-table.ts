@@ -13,12 +13,13 @@ import { ShuElement } from "./shu-element.js";
 import { z } from "zod";
 import { ResultTableSchema } from "./schemas.js";
 import { esc, escAttr, truncate, formatDate, isDateValue, vertexId, vertexLabel, HIDDEN_PROPS } from "./util.js";
+import { getRelSync } from "./rels-cache.js";
 
 type VertexRow = Record<string, unknown>;
 
 /** Preferred column display order. Properties not listed appear after these, sorted alphabetically. */
 const PREFERRED_ORDER = [
-	"dateSent",
+	"",
 	"dateModified",
 	"subject",
 	"title",
@@ -174,7 +175,9 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 		}
 		if (displayMode === "pairs") {
 			// Show vertex identity + the fixed property
-			const idProp = this.allProperties.find((p) => p === "messageId" || p === "id" || p === "name");
+			const label = vertexLabel(this.results[0]);
+			const idProp = label ? this.allProperties.find((p) => getRelSync(label, p) === "item") : undefined;
+			if (!idProp) return fixedProperty ? [fixedProperty] : this.allProperties.slice(0, 2);
 			if (fixedProperty && idProp) return [idProp, fixedProperty];
 			return fixedProperty ? [fixedProperty] : this.allProperties.slice(0, 2);
 		}

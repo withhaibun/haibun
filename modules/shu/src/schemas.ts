@@ -107,7 +107,7 @@ export const ColumnPaneSchema = z.object({
 
 export const EntityColumnSchema = z.object({
 	vertexId: z.string().default(""),
-	vertexLabel: z.string().default("Email"),
+	vertexLabel: z.string().default(""),
 	loading: z.boolean().default(false),
 	error: z.string().optional(),
 });
