@@ -8,10 +8,10 @@ import { ShuElement } from "./shu-element.js";
 import { QueryViewSchema } from "./schemas.js";
 import { SHARED_STYLES } from "./styles.js";
 import { esc, errMsg, setIdFields } from "./util.js";
-import { setSiteMetadata } from "./rels-cache.js";
+import { setSiteMetadata, getConcernCatalog, siteMetadataFromConcerns } from "./rels-cache.js";
 import type { ShuResultTable } from "./shu-result-table.js";
 import { SseClient } from "./sse-client.js";
-import { getAvailableSteps, getAvailableDomains, requireStep } from "./rpc-registry.js";
+import { getAvailableSteps, getAvailableDomains, findStep, requireStep } from "./rpc-registry.js";
 
 interface ConditionRow {
 	property: string;
@@ -208,22 +208,21 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 	}
 
 	async loadMetadata(): Promise<void> {
-		const client = SseClient.for("");
-		try {
-			await getAvailableSteps();
-			const [meta, domains] = await Promise.all([
-				client.rpc<import("./rels-cache.js").SiteMetadata>(requireStep("getSiteMetadata")),
-				getAvailableDomains(),
-			]);
-			setSiteMetadata(meta);
-			// Derive labels from vertex domains (domains with vertexLabel)
-			const vertexLabels = Object.values(domains).filter((d) => d.vertexLabel).map((d) => d.vertexLabel!);
-			this.labels = vertexLabels.length > 0 ? vertexLabels : (meta.types ?? this.labels);
-			if (meta.idFields) setIdFields(meta.idFields);
-			this.render();
-		} catch {
-			/* use defaults */
+		await getAvailableSteps();
+		const domains = await getAvailableDomains();
+		const catalog = getConcernCatalog();
+		const derivedMeta = siteMetadataFromConcerns(catalog);
+		const step = findStep("getSiteMetadata");
+		if (step) {
+			const client = SseClient.for("");
+			const serverMeta = await client.rpc<import("./rels-cache.js").SiteMetadata>(step.method);
+			Object.assign(derivedMeta, serverMeta);
 		}
+		setSiteMetadata(derivedMeta);
+		const vertexLabels = Object.values(domains).filter((d) => d.vertexLabel).map((d) => d.vertexLabel!);
+		this.labels = vertexLabels.length > 0 ? vertexLabels : derivedMeta.types;
+		if (derivedMeta.idFields) setIdFields(derivedMeta.idFields);
+		this.render();
 	}
 
 	async executeQuery(): Promise<void> {

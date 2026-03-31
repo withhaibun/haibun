@@ -29,6 +29,8 @@ export const features: TKirejiExport = {
 	"Hypermedia Tutorial: Rels, Edges, and HATEOAS": [
 		feature({ feature: "Hypermedia Fundamentals through shu UI" }),
 
+		...testIdSetup,
+
 		"This test explores hypermedia concepts: how rels define semantic meaning.",
 		"How edges enable HATEOAS navigation.",
 		"How JSON-LD exports encode relationships.",
@@ -36,7 +38,7 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "Start shu with tutorial graph stepper" }),
 		"Every stepper declares vertex types and their properties.",
-		graphQuery({ label: '"Researcher"', textQuery: '""' }),
+		graphQuery({ query: JSON.stringify({ label: "Researcher", textQuery: "" }) }),
 		"enable rpc",
 		serveShuApp({ path: '"/spa"' }),
 		'webserver is listening for "shu-hypermedia-tutorial"',
@@ -67,8 +69,8 @@ export const features: TKirejiExport = {
 		"Edges appear: 'authored' rel (attributedTo) links to Papers this researcher wrote.",
 		click({ target: IDS.COLUMN_BROWSER.EDGE_TARGET_FIRST }),
 		"page has settled",
-		waitFor({ target: IDS.COLUMN_BROWSER.ENTITY_STUB }),
-		"Navigating the edge opens the Paper entity in a new column.",
+		waitFor({ target: IDS.COLUMN_BROWSER.ENTITY_DETAILS }),
+		"Navigating the edge opens the Paper entity in a new column with full details.",
 		"The URL hash updates (#?active=2, col=[...]) to preserve navigation state.",
 
 		scenario({ scenario: "Discovering Incoming Relationships via Reverse Edges" }),

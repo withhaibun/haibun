@@ -81,7 +81,18 @@ function cleanParams(params: URLSearchParams): void {
 	}
 }
 
+/** Seed hash state from URL query string on initial load (e.g. ?label=Researcher → #?label=Researcher). */
+function seedHashFromQueryString(): void {
+	if (location.hash && location.hash.length > 2) return;
+	const search = new URLSearchParams(location.search);
+	if (search.size === 0) return;
+	const hashParams = new URLSearchParams();
+	for (const [key, value] of search) hashParams.set(key, value);
+	history.replaceState(null, "", `${location.pathname}#?${hashParams.toString()}`);
+}
+
 const main = async (): Promise<void> => {
+	seedHashFromQueryString();
 	await registerComponents();
 
 	const appRoot = document.getElementById("shu-main");
@@ -388,7 +399,17 @@ const main = async (): Promise<void> => {
 	const hashParams = new URLSearchParams(hash);
 	const colParams = hashParams.getAll("col");
 	const activeParam = hashParams.get("active");
-	if (colParams.length > 0) {
+	const idParam = hashParams.get("id");
+	const labelParam = hashParams.get("label");
+	// Auto-open entity column when id is specified in URL
+	if (idParam && labelParam && colParams.length === 0) {
+		const strip = getStrip();
+		if (strip) {
+			const { pane, entity } = createEntityPane(idParam, labelParam);
+			strip.addPane(pane);
+			void entity.open(idParam, labelParam);
+		}
+	} else if (colParams.length > 0) {
 		const strip = getStrip();
 		if (strip) {
 			void (async () => {
