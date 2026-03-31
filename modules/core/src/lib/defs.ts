@@ -268,26 +268,59 @@ export const CycleWhen = {
 export type TDomainCoercer = (proto: TStepValue, featureStep?: TFeatureStep, steppers?: AStepper[]) => TStepValueValue;
 export type TDomainComparator = (value: TStepValueValue, baseline: TStepValueValue) => number;
 
-/** Link relation for hypermedia navigation: how a property participates in UI. */
-export type TLinkRel = "item" | "filter" | "select" | "describedby";
+/**
+ * Semantic relationship for a vertex property. Standard vocabulary terms
+ * that drive query UI, rendering, column ordering, search, and JSON-LD export.
+ * Maps directly to ActivityStreams / Dublin Core predicates via REL_CONTEXT.
+ */
+export type TRel = 'identifier' | 'name' | 'attributedTo' | 'audience' | 'context'
+	| 'published' | 'updated' | 'content' | 'inReplyTo' | 'attachment' | 'tag';
 
-/** A JSON-LD property entry — either a URI string or a typed content descriptor. */
-export type TPropertyEntry = string | { "@id": string; "as:mediaType": string };
+/** Property definition: either a rel string or a rel with mediaType for content fields. */
+export type TPropertyDef = TRel | { rel: TRel; mediaType?: string };
 
-/** Hypermedia metadata for a vertex domain. Describes how the type is rendered, queried, and linked. */
+/** Edge definition: semantic rel + target vertex type. */
+export type TEdgeDef = { rel: TRel; target: string };
+
+/** JSON-LD context mapping: rel → standard URI. Defined once, used everywhere. */
+export const REL_CONTEXT: Record<TRel, string> = {
+	identifier:   'dcterms:identifier',
+	name:         'as:name',
+	attributedTo: 'as:attributedTo',
+	audience:     'as:to',
+	context:      'as:context',
+	published:    'as:published',
+	updated:      'as:updated',
+	content:      'as:content',
+	inReplyTo:    'as:inReplyTo',
+	attachment:   'as:attachment',
+	tag:          'as:tag',
+};
+
+/** Hypermedia metadata for a vertex domain. One properties map drives everything. */
 export type TVertexMeta = {
 	vertexLabel: string;
-	idField: string;
-	rels?: Record<string, TLinkRel>;
-	summary?: string[];
-	searchable?: string[];
-	contentFields?: Record<string, string>;
+	type?: string;
+	id: string;
+	properties: Record<string, TPropertyDef>;
+	edges?: Record<string, TEdgeDef>;
+	/** DB-specific: which properties to index for fast lookup. */
 	propertyIndexes?: string[];
+	/** DB-specific: default sort columns per property. */
 	sortColumns?: Record<string, string>;
-	jsonLdType?: string;
-	jsonLdProperties?: Record<string, TPropertyEntry>;
-	edgeMappings?: Record<string, { target: string; predicate?: string }>;
 };
+
+// --- Derived helpers for consumers ---
+
+/** Get the rel for a property definition. */
+export function getRel(def: TPropertyDef): TRel {
+	return typeof def === 'string' ? def : def.rel;
+}
+
+/** Get the mediaType for a content property, if any. */
+export function getMediaType(def: TPropertyDef): string | undefined {
+	return typeof def === 'string' ? undefined : def.mediaType;
+}
 
 export type TDomainDefinition = {
 	selectors: string[];
