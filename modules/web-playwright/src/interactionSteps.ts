@@ -89,18 +89,18 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 							({ containerSel, innerSel }) => {
 								const host = document.querySelector(containerSel);
 								if (!host?.shadowRoot) return false;
-								
+
 								const element = host.shadowRoot.querySelector(innerSel);
 								if (!element) return false;
-								
+
 								// Use getBoundingClientRect to check if element has dimensions
 								const rect = element.getBoundingClientRect();
 								if (rect.width === 0 || rect.height === 0) return false;
-								
+
 								// Check computed styles for common hiding methods
 								const computed = window.getComputedStyle(element);
 								if (computed.display === 'none' || computed.visibility === 'hidden' || computed.opacity === '0') return false;
-								
+
 								// Check if element is behind other layers (negative z-index parent)
 								let current = element.parentElement;
 								while (current) {
@@ -110,7 +110,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 									if (!isNaN(zIndex) && zIndex < 0) return false;
 									current = current.parentElement;
 								}
-								
+
 								return true;
 							},
 							{ containerSel: wp.inContainerSelector, innerSel: target },
@@ -122,7 +122,7 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 						return actionNotOK(`Did not find ${target} in shadow DOM: ${e}`);
 					}
 				}
-				
+
 				// Regular wait (not in shadow DOM)
 				await wp.withPage(async (page: Page) => await wp.locateByDomain(page, featureStep, 'target').waitFor());
 				return OK;
@@ -520,9 +520,9 @@ export const interactionSteps = (wp: WebPlaywright) => ({
 					json: (snapshot as Record<string, unknown>) || {},
 					mimetype: 'application/json'
 				});
-				// We don't have featureStep here? 
+				// We don't have featureStep here?
 				// The action has featureStep in signature if we added it.
-				// But we can use emit() directly or ignore featureStep association if not critical. 
+				// But we can use emit() directly or ignore featureStep association if not critical.
 				// Better: add featureStep to action signature. But typings?
 				wp.getWorld().eventLogger.emit(artifactEvent);
 			}

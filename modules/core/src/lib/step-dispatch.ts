@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { AStepper } from "./astepper.js";
 import type { TWorld, TStepperStep, TFeatureStep } from "./defs.js";
+import { buildConcernCatalog, type TConcernCatalog } from "./hypermedia.js";
 import type { TActionResult, TSeqPath } from "../schema/protocol.js";
 import { TRACE_SEQ_PATH } from "../schema/protocol.js";
 import { namedInterpolation, mapInputToStepValues } from "./namedVars.js";
@@ -68,7 +69,7 @@ export class StepRegistry {
 
 export type StepToolInputSchema = {
 	type: "object";
-	properties?: Record<string, { type?: string; description?: string; [key: string]: unknown }>;
+	properties?: Record<string, { type?: string; description?: string;[key: string]: unknown }>;
 	required?: string[];
 	[key: string]: unknown;
 };
@@ -278,7 +279,7 @@ function buildInputSchema(
 	stepDef: TStepperStep,
 	world: TWorld,
 ): { inputSchema: StepToolInputSchema; paramSchemas: Map<string, z.ZodType>; paramDomainKeys: Map<string, string> } {
-	const properties: Record<string, { type?: string; description?: string; [key: string]: unknown }> = {};
+	const properties: Record<string, { type?: string; description?: string;[key: string]: unknown }> = {};
 	const required: string[] = [];
 	const paramSchemas = new Map<string, z.ZodType>();
 	const paramDomainKeys = new Map<string, string>();
@@ -374,9 +375,11 @@ export type DomainDiscoveryInfo = {
 };
 
 export type StepDiscovery = {
-	metadata: StepDescriptor[];
+	steps: StepDescriptor[];
 	/** Domain definitions from world.domains, serializable for SPA/RPC consumers. */
 	domains: Record<string, DomainDiscoveryInfo>;
+	/** Hypermedia concern catalog — vertex types with ActivityStreams/JSON-LD metadata. */
+	concerns: TConcernCatalog;
 };
 
 /**
@@ -389,12 +392,12 @@ export function discoverSteps(steppers: AStepper[], world: TWorld, stepRegistry?
 		stepRegistry.refresh(steppers, world);
 	}
 	const registry = stepRegistry ?? new StepRegistry(steppers, world);
-	const metadata = StepperRegistry.getMetadata(steppers);
-	for (const meta of metadata) {
-		const tool = registry.get(meta.method);
+	const steps = StepperRegistry.getMetadata(steppers);
+	for (const step of steps) {
+		const tool = registry.get(step.method);
 		if (tool) {
-			meta.inputSchema = tool.inputSchema;
-			meta.outputSchema = tool.outputSchema;
+			step.inputSchema = tool.inputSchema;
+			step.outputSchema = tool.outputSchema;
 		}
 	}
 	const domains: Record<string, DomainDiscoveryInfo> = {};
@@ -418,5 +421,6 @@ export function discoverSteps(steppers: AStepper[], world: TWorld, stepRegistry?
 			vertexLabel: domain.meta?.vertexLabel,
 		};
 	}
-	return { metadata, domains };
+	const concerns = buildConcernCatalog(world.domains ?? {});
+	return { steps, domains, concerns };
 }
