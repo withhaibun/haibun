@@ -41,39 +41,6 @@ export const SEARCH_OPERATORS: ReadonlyArray<{ value: TSearchOperator; label: st
 	{ value: "between", label: "between" },
 ];
 
-export const SearchConditionSchema = z.object({
-	property: z.string().min(1),
-	operator: SearchOperatorSchema,
-	value: z.string(),
-	value2: z.string().optional(),
-});
-export type TSearchCondition = z.infer<typeof SearchConditionSchema>;
-
-// --- Graph query ---
-
-export const GraphQuerySchema = z.object({
-	label: z.string().optional(),
-	account: z.string().optional(),
-	filters: z.array(SearchConditionSchema).default([]),
-	textQuery: z.string().optional(),
-	sortBy: z.string().optional(),
-	sortOrder: z.enum(["asc", "desc"]).default("desc"),
-	limit: z.number().int().positive().default(50),
-	offset: z.number().int().nonnegative().default(0),
-	accessLevel: z.enum(["private", "public", "opened", "all"]).default("private"),
-	fields: z.array(z.string()).optional(),
-	explain: z.boolean().default(false),
-});
-export type GraphQuery = z.infer<typeof GraphQuerySchema>;
-
-/** Graph query result. */
-export const GraphQueryResultSchema = z.object({
-	vertices: z.array(z.record(z.string(), z.unknown())),
-	total: z.number(),
-	limit: z.number(),
-	offset: z.number(),
-});
-export type GraphQueryResult = z.infer<typeof GraphQueryResultSchema>;
 
 /** Edge result from getVertexWithEdges. */
 export const EdgeResultSchema = z.object({
