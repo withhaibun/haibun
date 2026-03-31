@@ -7,11 +7,11 @@
  */
 import MarkdownIt from "markdown-it";
 import { ShuElement } from "./shu-element.js";
-import { ActionsBarSchema, SEARCH_OPERATORS, type TSearchCondition } from "./schemas.js";
+import { ActionsBarSchema, SEARCH_OPERATORS, type TSearchCondition, parseFilterParam } from "./schemas.js";
 import { SHARED_STYLES } from "./styles.js";
 import { errMsg } from "./util.js";
 import { SseClient } from "./sse-client.js";
-import { buildDomainOptions, getAvailableDomains, getAvailableSteps, requireStep, stepsForContext, type DomainOption, type StepDescriptor } from "./rpc-registry.js";
+import { buildDomainOptions, findStep, getAvailableDomains, getAvailableSteps, requireStep, stepsForContext, type DomainOption, type StepDescriptor } from "./rpc-registry.js";
 import { getProperties, getSelectValues, hasSelectValues, setSelectValues } from "./rels-cache.js";
 import type { ShuSpinner } from "./shu-spinner.js";
 import type { ShuCombobox } from "./shu-combobox.js";
@@ -254,8 +254,8 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 				if (hashLabel) this._selectedLabel = hashLabel;
 			}
 			for (const f of hashParams.getAll("f")) {
-				const [predicate, op, value] = f.split("|");
-				if (predicate && op === "eq" && value) this._selectFilters[predicate] = value;
+				const c = parseFilterParam(f);
+				if (c.predicate && c.operator === "eq" && c.value) this._selectFilters[c.predicate] = c.value;
 			}
 		}
 		this.syncSelectedDomainKey();
@@ -291,8 +291,10 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		if (!target) return;
 		if (hasSelectValues(target)) return;
 		await getAvailableSteps();
+		const step = findStep("getSelectValues");
+		if (!step) return;
 		const client = SseClient.for("");
-		const data = await client.rpc<{ values: Record<string, string[]> }>(requireStep("getSelectValues"), { label: target });
+		const data = await client.rpc<{ values: Record<string, string[]> }>(step.method, { label: target });
 		if (data.values) setSelectValues(target, data.values);
 		this.render();
 	}

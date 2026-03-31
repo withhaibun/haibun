@@ -49,6 +49,19 @@ export const SearchConditionSchema = z.object({
 });
 export type TSearchCondition = z.infer<typeof SearchConditionSchema>;
 
+/** Parse a pipe-delimited filter string (predicate|operator|value[|value2]) into a SearchCondition. */
+export function parseFilterParam(f: string): TSearchCondition {
+	const parts = f.split("|");
+	return { predicate: parts[0] || "", operator: (parts[1] || "eq") as TSearchOperator, value: parts[2] || "", ...(parts[3] ? { value2: parts[3] } : {}) };
+}
+
+/** Serialize a SearchCondition to a pipe-delimited filter string. */
+export function serializeFilterParam(c: TSearchCondition): string {
+	const parts = [c.predicate, c.operator, c.value];
+	if (c.operator === "between" && c.value2) parts.push(c.value2);
+	return parts.join("|");
+}
+
 
 /** Edge result from getVertexWithEdges. */
 export const EdgeResultSchema = z.object({
