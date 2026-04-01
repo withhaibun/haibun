@@ -1,10 +1,11 @@
 import { withAction, type TKirejiExport, } from "@haibun/core/kireji/withAction.js";
 import WebPlaywright from "@haibun/web-playwright";
-import TutorialGraphStepper from "../../build/tutorial-graph-stepper.js";
-import ShuStepper from "../../build/shu-stepper.js";
-import { SHU_TEST_IDS } from "../../build/test-ids.js";
+import TutorialGraphStepper from "../../src/tutorial-graph-stepper.js";
+import ShuStepper from "../../src/shu-stepper.js";
+import { SHU_TEST_IDS } from "../../src/test-ids.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import Haibun from "@haibun/core/steps/haibun.js";
+import { passesStepExecution, failsStepExecution, stepTestIds } from "../../src/index.js";
 
 function flattenTestIds(obj: Record<string, unknown>): string[] {
 	const result: string[] = [];
@@ -16,9 +17,10 @@ function flattenTestIds(obj: Record<string, unknown>): string[] {
 	return result;
 }
 
+const wp = new WebPlaywright();
 const { getIncomingEdges, exportGraphAsJsonLd } = withAction(new TutorialGraphStepper(),);
 const { serveShuApp } = withAction(new ShuStepper());
-const { waitFor, click, selectionOption, inputVariable, press, gotoPage, reloadPage, } = withAction(new WebPlaywright());
+const { waitFor, click, selectionOption, gotoPage, reloadPage, } = withAction(wp);
 const { setAs } = withAction(new VariablesStepper());
 const { feature, scenario } = withAction(new Haibun());
 const host = "http://localhost:8237";
@@ -28,32 +30,18 @@ const testIdSetup = flattenTestIds(IDS).map((id) =>
 	setAs({ what: id, domain: "page-test-id", value: `"${id}"` }),
 );
 
-
-const currentStepIds = [
-	"current-step-run", "current-step-result", "current-step-error",
-].map((id) => setAs({ what: id, domain: "page-test-id", value: `"${id}"` }));
-
-function currentInputIds(params: string[]) {
-	return params.map((p) => setAs({ what: `current-step-input-${p}`, domain: "page-test-id", value: `"current-step-input-${p}"` }));
-}
+const stepIdSetup = stepTestIds(["label", "id", "data", "fromLabel", "fromId", "rel", "toLabel", "toId"]).map((id) =>
+	setAs({ what: id, domain: "page-test-id", value: `"${id}"` }),
+);
 
 const json = (obj: Record<string, unknown>) => `"${JSON.stringify(obj)}"`;
-
-function selectStep(stepName: string) {
-	return [
-		click({ target: IDS.APP.STEP_SELECT }),
-		inputVariable({ what: `"${stepName}"`, field: IDS.APP.STEP_SELECT }),
-		press({ key: '"Enter"' }),
-	];
-}
 
 export const features: TKirejiExport = {
 	"Hypermedia Tutorial: Rels, Edges, and HATEOAS": [
 		feature({ feature: "Hypermedia Fundamentals through shu UI" }),
 
 		...testIdSetup,
-		...currentStepIds,
-		...currentInputIds(["label", "id", "data", "fromLabel", "fromId", "rel", "toLabel", "toId"]),
+		...stepIdSetup,
 
 		scenario({ scenario: "Start shu with empty graph" }),
 		"enable rpc",
@@ -63,124 +51,76 @@ export const features: TKirejiExport = {
 		scenario({ scenario: "Enter graph data through the Step mode UI" }),
 		gotoPage({ name: `"${host}/spa"` }),
 		"page has settled",
-		click({ target: IDS.APP.TWISTY }),
-		"page has settled",
-		selectionOption({ option: '"Step"', field: IDS.APP.MODE_SELECT }),
-		"page has settled",
-
-		"Select createVertex step.",
-		inputVariable({ what: '"create vertex"', field: IDS.APP.STEP_SELECT }),
-		press({ key: '"Enter"' }),
-		"page has settled",
-		waitFor({ target: `current-step-input-label` }),
 
 		"Create Tim Berners-Lee as a Researcher.",
-		inputVariable({ what: '"Researcher"', field: `current-step-input-label` }),
-		inputVariable({ what: '"berners-lee"', field: `current-step-input-id` }),
-		inputVariable({
-			what: json({
+		...passesStepExecution("create vertex", {
+			label: '"Researcher"',
+			id: '"berners-lee"',
+			data: json({
 				name: "Tim Berners-Lee",
 				context: "World Wide Web Foundation",
 				published: "1989-03-12T00:00:00.000Z",
 			}),
-			field: `current-step-input-data`,
 		}),
-		click({ target: `current-step-run` }),
-		"page has settled",
-		waitFor({ target: `current-step-result` }),
 
 		"Create Manu Sporny as a Researcher.",
-		...selectStep("create vertex"),
-		waitFor({ target: `current-step-input-label` }),
-		inputVariable({ what: '"Researcher"', field: `current-step-input-label` }),
-		inputVariable({ what: '"sporny"', field: `current-step-input-id` }),
-		inputVariable({
-			what: json({
+		...passesStepExecution("create vertex", {
+			label: '"Researcher"',
+			id: '"sporny"',
+			data: json({
 				name: "Manu Sporny",
 				context: "Digital Bazaar / JSON-LD",
 				published: "2010-06-01T00:00:00.000Z",
 			}),
-			field: `current-step-input-data`,
 		}),
-		click({ target: `current-step-run` }),
-		"page has settled",
-		waitFor({ target: `current-step-result` }),
 
 		"Create the Linked Data Platform paper.",
-		...selectStep("create vertex"),
-		waitFor({ target: `current-step-input-label` }),
-		inputVariable({ what: '"Paper"', field: `current-step-input-label` }),
-		inputVariable({ what: '"paper-ldp"', field: `current-step-input-id` }),
-		inputVariable({
-			what: json({
+		...passesStepExecution("create vertex", {
+			label: '"Paper"',
+			id: '"paper-ldp"',
+			data: json({
 				name: "Linked Data Platform",
 				content:
 					"Defines read-write linked data using HTTP and RDF. LDP containers enable CRUD operations over web resources with standard media types and link relations.",
 				published: "2015-02-26T00:00:00.000Z",
 			}),
-			field: `current-step-input-data`,
 		}),
-		click({ target: `current-step-run` }),
-		"page has settled",
-		waitFor({ target: `current-step-result` }),
 
 		"Create the JSON-LD 1.1 specification paper.",
-		...selectStep("create vertex"),
-		waitFor({ target: `current-step-input-label` }),
-		inputVariable({ what: '"Paper"', field: `current-step-input-label` }),
-		inputVariable({ what: '"paper-jsonld"', field: `current-step-input-id` }),
-		inputVariable({
-			what: json({
+		...passesStepExecution("create vertex", {
+			label: '"Paper"',
+			id: '"paper-jsonld"',
+			data: json({
 				name: "JSON-LD 1.1",
 				content:
 					"A JSON-based serialization for linked data. By embedding @context, existing JSON APIs become interoperable with RDF processors and semantic web tooling.",
 				published: "2020-07-16T00:00:00.000Z",
 			}),
-			field: `current-step-input-data`,
 		}),
-		click({ target: `current-step-run` }),
-		"page has settled",
-		waitFor({ target: `current-step-result` }),
 
 		"Link researchers to their papers via edges.",
-		inputVariable({ what: '"create edge"', field: IDS.APP.STEP_SELECT }),
-		press({ key: '"Enter"' }),
-		"page has settled",
-		waitFor({ target: `current-step-input-fromLabel` }),
-
-		inputVariable({
-			what: '"Researcher"',
-			field: `current-step-input-fromLabel`,
+		...passesStepExecution("create edge", {
+			fromLabel: '"Researcher"',
+			fromId: '"berners-lee"',
+			rel: '"attributedTo"',
+			toLabel: '"Paper"',
+			toId: '"paper-ldp"',
 		}),
-		inputVariable({ what: '"berners-lee"', field: `current-step-input-fromId` }),
-		inputVariable({ what: '"attributedTo"', field: `current-step-input-rel` }),
-		inputVariable({ what: '"Paper"', field: `current-step-input-toLabel` }),
-		inputVariable({ what: '"paper-ldp"', field: `current-step-input-toId` }),
-		click({ target: `current-step-run` }),
-		"page has settled",
-		waitFor({ target: `current-step-result` }),
-
-		...selectStep("create edge"),
-		waitFor({ target: `current-step-input-fromLabel` }),
-		inputVariable({ what: '"Researcher"', field: `current-step-input-fromLabel` }),
-		inputVariable({ what: '"sporny"', field: `current-step-input-fromId` }),
-		inputVariable({ what: '"attributedTo"', field: `current-step-input-rel` }),
-		inputVariable({ what: '"Paper"', field: `current-step-input-toLabel` }),
-		inputVariable({ what: '"paper-jsonld"', field: `current-step-input-toId` }),
-		click({ target: `current-step-run` }),
-		"page has settled",
-		waitFor({ target: `current-step-result` }),
+		...passesStepExecution("create edge", {
+			fromLabel: '"Researcher"',
+			fromId: '"sporny"',
+			rel: '"attributedTo"',
+			toLabel: '"Paper"',
+			toId: '"paper-jsonld"',
+		}),
 
 		"Link LDP paper to JSON-LD as a reference.",
-		...selectStep("create edge"),
-		waitFor({ target: `current-step-input-fromLabel` }),
-		inputVariable({ what: '"Paper"', field: `current-step-input-fromLabel` }),
-		inputVariable({ what: '"paper-ldp"', field: `current-step-input-fromId` }),
-		inputVariable({ what: '"inReplyTo"', field: `current-step-input-rel` }),
-		inputVariable({ what: '"paper-jsonld"', field: `current-step-input-toId` }),
-		click({ target: `current-step-run` }),
-		"page has settled",
-		waitFor({ target: `current-step-result` }),
+		...passesStepExecution("create edge", {
+			fromLabel: '"Paper"',
+			fromId: '"paper-ldp"',
+			rel: '"inReplyTo"',
+			toId: '"paper-jsonld"',
+		}),
 
 		scenario({ scenario: "Query renders Researcher vertices" }),
 		gotoPage({ name: `"${host}/spa?label=Researcher"` }),
