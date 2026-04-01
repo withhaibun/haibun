@@ -161,9 +161,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	}
 
 	private updateBreadcrumbDisplay(): void {
-		const bc = this.shadowRoot?.querySelector("shu-breadcrumb") as
-			| (HTMLElement & { update?: (label: string, cols: string[], active: number) => void })
-			| null;
+		const bc = this.shadowRoot?.querySelector("shu-breadcrumb") as (HTMLElement & { update?: (label: string, cols: string[], active: number) => void }) | null;
 		if (!bc?.update) return;
 		bc.update(this._queryLabel, this._columns, this._activeViewIndex);
 	}
@@ -227,8 +225,8 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 					this._selectedModel = match ? match.filename : this._models[0].filename;
 				}
 			}
-		} catch {
-			/* models endpoint may not be available */
+		} catch (e) {
+			console.warn("loadModels:", e instanceof Error ? e.message : e);
 		}
 	}
 
@@ -236,13 +234,13 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		try {
 			const steps = await getAvailableSteps();
 			this._steps = steps.map((s) => ({ method: s.method, pattern: s.pattern, stepName: s.stepName }));
-		} catch {
-			/* step list may not be available yet */
+		} catch (e) {
+			console.warn("loadSteps:", e instanceof Error ? e.message : e);
 		}
 	}
 
 	private async loadDomainOptions(): Promise<void> {
-		await getAvailableSteps();  // populates concern catalog via step.list
+		await getAvailableSteps(); // populates concern catalog via step.list
 		const domains = await getAvailableDomains();
 		this._domainOptions = buildDomainOptions(domains);
 		if (this._domainOptions.length === 0) throw new Error("No domain options were produced from concern catalog");
@@ -350,9 +348,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		if (savedOutput) savedOutput.remove();
 
 		const modelSelect =
-			this._mode === "ask" && this._models.length > 0
-				? `<shu-combobox class="model-select" testid="${this.testIdPrefix}model-select" placeholder="model..."></shu-combobox>`
-				: "";
+			this._mode === "ask" && this._models.length > 0 ? `<shu-combobox class="model-select" testid="${this.testIdPrefix}model-select" placeholder="model..."></shu-combobox>` : "";
 
 		const modeToggle = `<select class="mode-select" ${this.tid("mode-select")}>
 			<option value="ask"${this._mode === "ask" ? " selected" : ""}>Ask</option>
@@ -387,9 +383,8 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			})
 			.join("");
 
-		const filterControls =
-			this.state.askExpanded
-				? `<div class="filter-bar">
+		const filterControls = this.state.askExpanded
+			? `<div class="filter-bar">
 					<select class="access-select">${["private", "public", "opened", "all"].map((a) => `<option value="${a}"${a === this._contextAccessLevel ? " selected" : ""}>${a}</option>`).join("")}</select>
 					${labelSelect}
 					${selectDropdowns}
@@ -398,7 +393,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 					<button class="add-filter" ${this.tid("add-filter")}>+</button>
 					${this._filterConditions.length > 0 ? `<button class="search-go" ${this.tid("search-go")}>Go</button>` : ""}
 				</div>`
-				: "";
+			: "";
 
 		const askInput = `
 			<div class="input-line">
@@ -532,10 +527,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			const contextSteps = this._selectedLabel ? stepsForContext(this._selectedLabel) : [];
 			const contextMethods = new Set(contextSteps.map((s) => s.method));
 			const otherSteps = this._steps.filter((s) => !contextMethods.has(s.method));
-			const options = [
-				...contextSteps.map((s) => ({ value: s.stepName, label: `● ${s.pattern}` })),
-				...otherSteps.map((s) => ({ value: s.stepName, label: s.pattern })),
-			];
+			const options = [...contextSteps.map((s) => ({ value: s.stepName, label: `● ${s.pattern}` })), ...otherSteps.map((s) => ({ value: s.stepName, label: s.pattern }))];
 			stepCombo.setOptions(options);
 		}
 		stepCombo?.addEventListener("combo-change", ((e: CustomEvent) => {
@@ -547,9 +539,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			const output = this.shadowRoot?.querySelector(".chat-output") as HTMLElement | null;
 			if (!output) return;
 
-			const lastCaller = output.querySelector("step-caller:last-of-type") as
-				| (HTMLElement & { executed?: boolean; reset?: (name: string) => void })
-				| null;
+			const lastCaller = output.querySelector("step-caller:last-of-type") as (HTMLElement & { executed?: boolean; reset?: (name: string) => void }) | null;
 			if (lastCaller && !lastCaller.executed && lastCaller.reset) {
 				lastCaller.reset(stepName);
 			} else {
