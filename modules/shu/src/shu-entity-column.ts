@@ -5,11 +5,10 @@
  *
  * Events: column-open (entity nav), column-open-filter (filter nav)
  */
-import { defaultLabel } from "./util.js";
 import { SHARED_STYLES } from "./components/styles.js";
 import { ShuElement } from "./components/shu-element.js";
 import { EntityColumnSchema } from "./schemas.js";
-import { esc, escAttr, truncate, errMsg, vertexId, HIDDEN_PROPS, renderContentHtml, utf8ToBase64 } from "./util.js";
+import { defaultLabel, esc, escAttr, truncate, errMsg, vertexId, HIDDEN_PROPS, renderContentHtml, utf8ToBase64 } from "./util.js";
 import { renderValue } from "./components/value-renderers.js";
 import { SseClient } from "./sse-client.js";
 import { getAvailableSteps, requireStep } from "./rpc-registry.js";
@@ -35,18 +34,18 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		try {
 			await getAvailableSteps();
 			const client = SseClient.for("");
-			const data = await client.rpc<{ vertex: VertexData; edges: EdgeData[]; incomingCount: number }>(
-				requireStep("getVertexWithEdges"),
-				{ label, id },
-			);
+			const data = await client.rpc<{ vertex: VertexData; edges: EdgeData[]; incomingCount: number }>(requireStep("getVertexWithEdges"), { label, id });
 			this.vertex = data.vertex;
 			this.edges = data.edges ?? [];
 			this.incomingCount = data.incomingCount ?? 0;
 			this.setState({ loading: false });
-			this.dispatchEvent(new CustomEvent("context-change", {
-				detail: { patterns: [{ s: id }], accessLevel: "private", label },
-				bubbles: true, composed: true,
-			}));
+			this.dispatchEvent(
+				new CustomEvent("context-change", {
+					detail: { patterns: [{ s: id }], accessLevel: "private", label },
+					bubbles: true,
+					composed: true,
+				}),
+			);
 		} catch (err) {
 			console.error(`[entity-column] open ${id} failed:`, err);
 			this.setState({ loading: false, error: errMsg(err) });
@@ -103,9 +102,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			const detailRows = Object.entries(fields)
 				.filter(([k]) => !getEdgeTargetLabel(k, vertexLabel) && !summaryFields.has(k))
 				.map(([k, v]) => {
-					const valueHtml = Array.isArray(v)
-						? v.map((item) => this.clickableValue(item, "filter", k)).join(", ")
-						: this.clickableValue(v, "filter", k);
+					const valueHtml = Array.isArray(v) ? v.map((item) => this.clickableValue(item, "filter", k)).join(", ") : this.clickableValue(v, "filter", k);
 					return `<tr>
 					<td class="field-name">${this.clickableValue(k, "describedby")}</td>
 					<td data-testid="entity-field-${escAttr(k)}">${valueHtml}</td>
@@ -126,9 +123,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 						.filter((k) => fields[k] && (Array.isArray(fields[k]) ? (fields[k] as string[]).length > 0 : true))
 						.map((k) => {
 							const v = fields[k];
-							const valueHtml = Array.isArray(v)
-								? v.map((item) => this.clickableValue(item, "filter", k)).join(", ")
-								: this.clickableValue(v, "filter", k);
+							const valueHtml = Array.isArray(v) ? v.map((item) => this.clickableValue(item, "filter", k)).join(", ") : this.clickableValue(v, "filter", k);
 							return `<span class="summary-field" data-testid="entity-field-${escAttr(k)}">${this.clickableValue(k, "describedby")} ${valueHtml}</span>`;
 						})
 						.join(" ")}
@@ -193,10 +188,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			)
 			.join("");
 
-		const inHtml =
-			this.incomingCount > 0
-				? `<a class="section-label links-here-link" href="#">What links here <span class="ref-count">(${this.incomingCount})</span></a>`
-				: "";
+		const inHtml = this.incomingCount > 0 ? `<a class="section-label links-here-link" href="#">What links here <span class="ref-count">(${this.incomingCount})</span></a>` : "";
 
 		return `<div class="references" data-testid="ref-section">${outHtml}${inHtml}</div>`;
 	}
@@ -212,11 +204,8 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const switcherHtml =
 			available.length > 1
 				? `<div class="content-switcher">${available
-					.map(
-						([f], i) =>
-							`<button class="content-switch-btn${i === 0 ? " active" : ""}" data-field="${escAttr(f)}">${esc(f)}</button>`,
-					)
-					.join("")}</div>`
+						.map(([f], i) => `<button class="content-switch-btn${i === 0 ? " active" : ""}" data-field="${escAttr(f)}">${esc(f)}</button>`)
+						.join("")}</div>`
 				: "";
 
 		const iframesHtml = available
