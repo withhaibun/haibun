@@ -1,5 +1,5 @@
 {
-	"$schema": "https://biomejs.dev/schemas/2.4.8/schema.json",
+	"$schema": "https://biomejs.dev/schemas/2.4.10/schema.json",
 	"vcs": {
 		"enabled": true,
 		"clientKind": "git",
@@ -17,7 +17,8 @@
 	},
 	"formatter": {
 		"enabled": true,
-		"indentStyle": "tab"
+		"indentStyle": "tab",
+		"lineWidth": 180
 	},
 	"linter": {
 		"enabled": true,
@@ -92,7 +93,11 @@
 				"useGetterReturn": "error"
 			}
 		},
-		"includes": ["**", "**/build/**", "**/.eslintrc.cjs"]
+		"includes": [
+			"**",
+			"**/build/**",
+			"**/.eslintrc.cjs"
+		]
 	},
 	"javascript": {
 		"formatter": {
@@ -101,7 +106,9 @@
 	},
 	"overrides": [
 		{
-			"includes": ["modules/**/*.ts"],
+			"includes": [
+				"modules/**/*.ts"
+			],
 			"linter": {
 				"rules": {
 					"correctness": {
@@ -114,7 +121,12 @@
 			}
 		},
 		{
-			"includes": ["*.js", "*.ts", "*.cjs", "!modules/**/*"],
+			"includes": [
+				"*.js",
+				"*.ts",
+				"*.cjs",
+				"!modules/**/*"
+			],
 			"linter": {
 				"rules": {}
 			}
