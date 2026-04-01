@@ -4,12 +4,12 @@ import { pathToFileURL } from "url";
 import { TWorld, TFeatureStep, CycleWhen, TStepAction } from "@haibun/core/lib/defs.js";
 import { OK, TStepResult, Origin } from "@haibun/core/schema/protocol.js";
 import { BrowserFactory, TTaggedBrowserFactoryOptions, TBrowserTypes, BROWSERS } from "./BrowserFactory.js";
-import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOptionOrKind, } from "@haibun/core/lib/util/index.js";
+import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOptionOrKind } from "@haibun/core/lib/util/index.js";
 import { AStorage } from "@haibun/domain-storage/AStorage.js";
 import { ImageArtifact, VideoStartArtifact } from "@haibun/core/schema/protocol.js";
 import { EMediaTypes } from "@haibun/domain-storage/media-types.js";
 import { DOMAIN_STRING } from "@haibun/core/lib/domain-types.js";
-import { DOMAIN_PAGE_LOCATOR, DOMAIN_PAGE_TEST_ID, DOMAIN_PAGE_LABEL, DOMAIN_PAGE_PLACEHOLDER, DOMAIN_PAGE_ROLE, DOMAIN_PAGE_TITLE, DOMAIN_PAGE_ALT_TEXT, } from "./domains.js";
+import { DOMAIN_PAGE_LOCATOR, DOMAIN_PAGE_TEST_ID, DOMAIN_PAGE_LABEL, DOMAIN_PAGE_PLACEHOLDER, DOMAIN_PAGE_ROLE, DOMAIN_PAGE_TITLE, DOMAIN_PAGE_ALT_TEXT } from "./domains.js";
 
 import { AStepper, IHasCycles, IHasOptions, StepperKinds } from "@haibun/core/lib/astepper.js";
 
@@ -143,7 +143,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		this.headless = !!process.env.CI || getStepperOption(this, "HEADLESS", world.moduleOptions) !== "false";
 		const devtools = getStepperOption(this, "DEVTOOLS", world.moduleOptions) === "true";
 		if (devtools) {
-			args.concat(["--auto-open-devtools-for-tabs", "--devtools-flags=panel-network", "--remote-debugging-port=9223"]);
+			args.push("--auto-open-devtools-for-tabs", "--devtools-flags=panel-network", "--remote-debugging-port=9223");
 		}
 		this.twin = getStepperOption(this, "TWIN", world.moduleOptions) === "true";
 		const persistentDirectory = getStepperOption(this, WebPlaywright.PERSISTENT_DIRECTORY, world.moduleOptions);
@@ -310,9 +310,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	async captureAccessibilitySnapshot() {
 		return await this.withPage(async (page: Page) => {
 			// Note: page.accessibility is deprecated in Playwright. Consider migrating to @axe-core/playwright
-			const snapshot = await (
-				page as unknown as { accessibility: { snapshot: (opts: Record<string, unknown>) => Promise<unknown> } }
-			).accessibility.snapshot({
+			const snapshot = await (page as unknown as { accessibility: { snapshot: (opts: Record<string, unknown>) => Promise<unknown> } }).accessibility.snapshot({
 				interestingOnly: false,
 			});
 			return snapshot;
@@ -368,13 +366,15 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 
 				return ret;
 			} catch (e) {
+				const msg = e instanceof Error ? e.message : String(e);
 				throw new Error(
-					`Evaluate fetch error: ${JSON.stringify({ endpoint, method, headers, ua })} : ${e.message}. Page console messages: ${pageConsoleMessages.map((msg) => `[${msg.type}] ${msg.text}`).join("; ")}`,
+					`Evaluate fetch error: ${JSON.stringify({ endpoint, method, headers, ua })} : ${msg}. Page console messages: ${pageConsoleMessages.map((msg) => `[${msg.type}] ${msg.text}`).join("; ")}`,
 				);
 			}
 		} catch (e) {
 			const ua = userAgent || this.apiUserAgent;
-			throw new Error(`Evaluate fetch error: ${JSON.stringify({ endpoint, method, headers, ua })} : ${e.message}`);
+			const msg = e instanceof Error ? e.message : String(e);
+			throw new Error(`Evaluate fetch error: ${JSON.stringify({ endpoint, method, headers, ua })} : ${msg}`);
 		} finally {
 			// FIXME Part II this could suffer from race conditions
 			if (ua) {
@@ -397,12 +397,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	}
 
 	getLastResponse(): TCapturedResponse {
-		const resolved = this.getWorld().shared.resolveVariable(
-			{ term: LAST_REST_RESPONSE, origin: Origin.var },
-			undefined,
-			undefined,
-			{ secure: true },
-		);
+		const resolved = this.getWorld().shared.resolveVariable({ term: LAST_REST_RESPONSE, origin: Origin.var }, undefined, undefined, { secure: true });
 		const val = resolved.value;
 		return (typeof val === "string" ? JSON.parse(val) : val) as TCapturedResponse;
 	}
@@ -444,15 +439,7 @@ export function pickLocatorDomain(parts: string[]): string {
 	// Prefer string domain for text-based matching (most common for quoted values)
 	if (parts.includes(DOMAIN_STRING)) return DOMAIN_STRING;
 	// Then try specific locator domains
-	const locatorDomains = [
-		DOMAIN_PAGE_TEST_ID,
-		DOMAIN_PAGE_LABEL,
-		DOMAIN_PAGE_PLACEHOLDER,
-		DOMAIN_PAGE_ROLE,
-		DOMAIN_PAGE_TITLE,
-		DOMAIN_PAGE_ALT_TEXT,
-		DOMAIN_PAGE_LOCATOR,
-	];
+	const locatorDomains = [DOMAIN_PAGE_TEST_ID, DOMAIN_PAGE_LABEL, DOMAIN_PAGE_PLACEHOLDER, DOMAIN_PAGE_ROLE, DOMAIN_PAGE_TITLE, DOMAIN_PAGE_ALT_TEXT, DOMAIN_PAGE_LOCATOR];
 	for (const d of locatorDomains) {
 		if (parts.includes(d)) return d;
 	}
