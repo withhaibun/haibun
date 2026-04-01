@@ -40,6 +40,9 @@ const VertexWithEdgesSchema = z.object({
 	incomingCount: z.number(),
 });
 
+const ResolvedEdgeSchema = z.object({ type: z.string(), target: z.record(z.string(), z.unknown()) });
+const IncomingEdgesResultSchema = z.object({ edges: z.array(ResolvedEdgeSchema), total: z.number() });
+
 const FilterSchema = z.object({
 	field: z.string().optional(),
 	value: z.string().optional(),
@@ -96,8 +99,17 @@ class TutorialGraphStore {
 		return results;
 	}
 
+	getVertex(label: string, id: string): InMemoryVertex | undefined {
+		return this.vertices.find((v) => v.vertexLabel === label && v.id === id);
+	}
+
+	resolveEdgeTarget(targetLabel: string, targetId: string): Record<string, unknown> {
+		const v = this.getVertex(targetLabel, targetId);
+		return v ? { ...v.properties, _label: targetLabel } : { id: targetId, _label: targetLabel };
+	}
+
 	getVertexWithEdges(label: string, id: string) {
-		const vertex = this.vertices.find((v) => v.vertexLabel === label && v.id === id);
+		const vertex = this.getVertex(label, id);
 		if (!vertex) return null;
 		const outgoing = this.edges.filter((e) => e.fromId === id && e.fromLabel === label);
 		const incomingCount = this.edges.filter((e) => e.toId === id && e.toLabel === label).length;
@@ -200,8 +212,7 @@ export default class TutorialGraphStepper extends AStepper {
 					const result = this.store.getVertexWithEdges(label, id);
 					if (!result) return actionNotOK(`Vertex ${label}/${id} not found`);
 					const edges = result.edges.map((e) => {
-						const target = this.store.getVertexWithEdges(e.toLabel, e.toId);
-						return { type: e.rel, target: target ? { ...target.vertex.properties, _label: e.toLabel } : { id: e.toId, _label: e.toLabel } };
+						return { type: e.rel, target: this.store.resolveEdgeTarget(e.toLabel, e.toId) };
 					});
 					return actionOKWithProducts({ vertex: { ...result.vertex.properties, _label: result.vertex.vertexLabel }, edges, incomingCount: result.incomingCount });
 				} catch (err) {
@@ -212,13 +223,12 @@ export default class TutorialGraphStepper extends AStepper {
 
 		getIncomingEdges: {
 			gwta: "get incoming edges for {label: string} vertex {id: string} with limit {limit} and offset {offset}",
-			outputSchema: z.object({ edges: z.array(z.object({ type: z.string(), target: z.record(z.string(), z.unknown()) })), total: z.number() }),
+			outputSchema: IncomingEdgesResultSchema,
 			action: ({ label, id, limit = 100, offset = 0 }: { label: string; id: string; limit?: number; offset?: number }) => {
 				try {
 					const raw = this.store.getIncomingEdges(label, id, limit, offset);
 					const edges = raw.edges.map((e) => {
-						const source = this.store.getVertexWithEdges(e.fromLabel, e.fromId);
-						return { type: e.rel, target: source ? { ...source.vertex.properties, _label: e.fromLabel } : { id: e.fromId, _label: e.fromLabel } };
+						return { type: e.rel, target: this.store.resolveEdgeTarget(e.fromLabel, e.fromId) };
 					});
 					return actionOKWithProducts({ edges, total: raw.total });
 				} catch (err) {

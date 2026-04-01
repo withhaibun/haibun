@@ -74,7 +74,6 @@ export const features: TKirejiExport = {
 		waitFor({ target: `${CV}-step-result` }),
 
 		"Create Manu Sporny as a Researcher.",
-		inputVariable({ what: '"berners-lee"', field: `${CV}-step-input-id` }),
 		inputVariable({ what: '"sporny"', field: `${CV}-step-input-id` }),
 		inputVariable({ what: json({ name: "Manu Sporny", context: "Digital Bazaar / JSON-LD", published: "2010-06-01T00:00:00.000Z" }), field: `${CV}-step-input-data` }),
 		click({ target: `${CV}-step-run` }),

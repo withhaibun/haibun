@@ -88,7 +88,7 @@ export class StepCaller extends HTMLElement {
 		for (const [key, value] of Object.entries(formValues)) {
 			const propType = schema?.properties?.[key]?.type;
 			if ((propType === "object" || propType === "array") && value) {
-				try { params[key] = JSON.parse(value); } catch { params[key] = value; }
+				params[key] = JSON.parse(value);
 			} else if (propType === "number" && value) {
 				params[key] = Number(value);
 			} else {
