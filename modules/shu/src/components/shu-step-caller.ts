@@ -167,7 +167,7 @@ export class StepCaller extends HTMLElement {
 		const properties = schema?.properties || {};
 		const currentStepName = this.getAttribute("step") || "";
 		const tid = (suffix: string) =>
-			` data-testid="${escAttr(currentStepName)}-${escAttr(suffix)}"`;
+			this.executed ? "" : ` data-testid="${escAttr(currentStepName)}-${escAttr(suffix)}"`;
 
 		// Parse the gwta pattern into text segments and inline inputs
 		const pattern = desc.pattern || "";

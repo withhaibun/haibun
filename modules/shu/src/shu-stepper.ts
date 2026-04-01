@@ -71,7 +71,7 @@ export default class ShuStepper extends AStepper {
 	description = "Serves the @haibun/shu hypermedia SPA at a given path";
 	private mountedPath?: string;
 
-	steps: TStepperSteps = {
+	steps = {
 		serveShuApp: {
 			gwta: "serve shu app at {path: string}",
 			action: ({ path }: { path: string }) => {
@@ -103,5 +103,5 @@ export default class ShuStepper extends AStepper {
 				return actionOK();
 			},
 		},
-	};
+	} satisfies TStepperSteps;
 }
