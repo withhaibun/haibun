@@ -387,14 +387,15 @@ export default class McpStepper
 				`[MCP] WebServer started on port ${port}`,
 			);
 		} catch (e) {
-			if ((e as { code?: string })?.code !== "EADDRINUSE") {
-				const msg = `[MCP] WebServer listen failure: ${e}`;
-				this.getWorld().eventLogger.error(msg);
-				throw new Error(msg);
-			} else {
+			const estr = String(e);
+			if ((e as { code?: string })?.code === "EADDRINUSE" || estr.includes("already in use")) {
 				this.getWorld().eventLogger.info(
 					`[MCP] WebServer already listening on port ${port} (shared)`,
 				);
+			} else {
+				const msg = `[MCP] WebServer listen failure: ${estr}`;
+				this.getWorld().eventLogger.error(msg);
+				throw new Error(msg);
 			}
 		}
 	}
