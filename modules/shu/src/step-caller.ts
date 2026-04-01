@@ -83,7 +83,18 @@ export class StepCaller extends HTMLElement {
 		this.result = null;
 		this.renderComponent();
 
-		const params = { ...this.fixedParams, ...formValues };
+		const params: Record<string, unknown> = { ...this.fixedParams };
+		const schema = this.descriptor.inputSchema as { properties?: Record<string, { type?: string }> } | undefined;
+		for (const [key, value] of Object.entries(formValues)) {
+			const propType = schema?.properties?.[key]?.type;
+			if ((propType === "object" || propType === "array") && value) {
+				try { params[key] = JSON.parse(value); } catch { params[key] = value; }
+			} else if (propType === "number" && value) {
+				params[key] = Number(value);
+			} else {
+				params[key] = value;
+			}
+		}
 		const client = SseClient.for("");
 
 		try {
