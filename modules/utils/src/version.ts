@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
-import { existsSync, readFileSync, writeFileSync } from 'fs';
-import { spawnCommand } from './util/index.js';
-import { createVitest } from 'vitest/node';
+import { existsSync, readFileSync, writeFileSync } from "fs";
+import { spawnCommand } from "./util/index.js";
+import { createVitest } from "vitest/node";
 
 const [, me, version, ...extra] = process.argv;
 
@@ -22,19 +22,19 @@ class Versioner {
 		}
 		for (let i = extra.length - 1; i >= 0; i--) {
 			const e = extra[i];
-			if (e.startsWith('--tag=')) {
-				this.tag = e.split('=')[1];
+			if (e.startsWith("--tag=")) {
+				this.tag = e.split("=")[1];
 				extra.splice(i, 1);
-			} else if (e === '--notest') {
+			} else if (e === "--notest") {
 				this.noTest = true;
 				extra.splice(i, 1);
-			} else if (e === '--noinstall') {
+			} else if (e === "--noinstall") {
 				this.noInstall = true;
 				extra.splice(i, 1);
-			} else if (e === '--nopublish') {
+			} else if (e === "--nopublish") {
 				this.noPublish = true;
 				extra.splice(i, 1);
-			} else if (e.startsWith('-')) {
+			} else if (e.startsWith("-")) {
 				throw Error(`unknown option ${e}; use --tag=<tag>, --notest or --nopublish`);
 			}
 		}
@@ -43,13 +43,15 @@ class Versioner {
 	async doVersion() {
 		const haibunPackageJson = this.updateHaibunPackageVersions();
 		haibunPackageJson.version = this.version;
-		writeFileSync('./package.json', JSON.stringify(haibunPackageJson, null, 2));
+		writeFileSync("./package.json", JSON.stringify(haibunPackageJson, null, 2));
 
 		this.setLocalAndExtraModules();
 
-		await this.forLocalAndExtraModules(this.updateModule as (name: string, location: string) => Promise<void>);
+		for (const [name, location] of Object.entries(this.localAndExtraModules)) {
+			this.updateModule(name, location);
+		}
 		this.updateSourceCurrentVersion();
-		await this.gitCommit('haibun', '.', ['./modules/core/src/currentVersion.ts']);
+		await this.gitCommit("haibun", ".", ["./modules/core/src/currentVersion.ts"]);
 		await this.forLocalAndExtraModules(this.npmInstall);
 		await this.forLocalAndExtraModules(this.runTest);
 		await this.forLocalAndExtraModules(this.gitCommit);
@@ -57,19 +59,18 @@ class Versioner {
 		await this.forLocalAndExtraModules(this.gitPush);
 	}
 
-
 	async forLocalAndExtraModules(someFunction: (name: string, location: string) => Promise<void>) {
 		console.info(`\n## ${someFunction.name}`);
 		for (const [name, module] of Object.entries(this.localAndExtraModules)) {
-			console.info('running', someFunction.name, 'for', name, module);
+			console.info("running", someFunction.name, "for", name, module);
 			await someFunction.call(this, name, module); // Bind `this` to each action
 		}
 	}
 
 	updateHaibunPackageVersions() {
-		const hpkg = JSON.parse(readFileSync('./package.json', 'utf-8'));
-		if (hpkg.name !== 'haibun') {
-			throw Error('not in haibun root');
+		const hpkg = JSON.parse(readFileSync("./package.json", "utf-8"));
+		if (hpkg.name !== "haibun") {
+			throw Error("not in haibun root");
 		}
 		for (const [dep, version] of Object.entries({ ...hpkg.dependencies, ...hpkg.devDependencies })) {
 			this.haibunPackageVersions[dep] = <string>version;
@@ -78,26 +79,26 @@ class Versioner {
 	}
 
 	private updateSourceCurrentVersion() {
-		for (const [dest, ext] of Object.entries({ src: 'ts', build: 'js' })) {
+		for (const [dest, ext] of Object.entries({ src: "ts", build: "js" })) {
 			writeFileSync(`./modules/core/${dest}/currentVersion.${ext}`, `export const currentVersion = '${this.version}';\n`);
-			console.info('updated currentVersion', dest);
+			console.info("updated currentVersion", dest);
 		}
 	}
 
 	setLocalAndExtraModules() {
-		const modules = JSON.parse(readFileSync(`./modules/tsconfig.json`, 'utf-8'))
+		const modules = JSON.parse(readFileSync(`./modules/tsconfig.json`, "utf-8"))
 			.references.map((f: { path: string }) => `./modules/${f.path}`)
 			.concat(extra);
 		for (const module of modules) {
-			const name = module.replace(/\/$/, '').replace(/.*\//, '');
+			const name = module.replace(/\/$/, "").replace(/.*\//, "");
 			this.localAndExtraModules[name] = module;
 		}
 	}
 
 	async npmPublish(name: string, module: string) {
-		const publish = ['npm', 'publish'];
+		const publish = ["npm", "publish"];
 		if (this.tag) {
-			publish.push('--tag', this.tag);
+			publish.push("--tag", this.tag);
 		}
 		if (this.noPublish) {
 			return;
@@ -108,19 +109,19 @@ class Versioner {
 	}
 
 	async gitPush(name: string, module: string) {
-		await spawnCommand(['git', 'push'], module).catch((e) => {
+		await spawnCommand(["git", "push"], module).catch((e) => {
 			console.error(`git push failed for ${name}: ${e}`);
 		});
 	}
 
-	updateModule(name: string, location: string): Promise<void> {
+	updateModule(name: string, location: string): void {
 		const pkgFile = `${location}/package.json`;
-		const pkg = JSON.parse(readFileSync(pkgFile, 'utf-8'));
+		const pkg = JSON.parse(readFileSync(pkgFile, "utf-8"));
 		if (!pkg.publish && pkg.publish !== undefined) {
 			return;
 		}
 		const { main } = pkg;
-		if (main && !main.includes('*') && !existsSync(`${location}/${main}`)) {
+		if (main && !main.includes("*") && !existsSync(`${location}/${main}`)) {
 			throw Error(`main file ${main} does not exist in ${location}`);
 		}
 		pkg.version = this.version;
@@ -128,13 +129,12 @@ class Versioner {
 		this.updateDependencies(pkg.devDependencies);
 
 		writeFileSync(pkgFile, JSON.stringify(pkg, null, 2));
-		return Promise.resolve();
 	}
 
 	updateDependencies(dependencies: { [key: string]: string }) {
 		for (const d in dependencies) {
 			if (Object.hasOwn(dependencies, d)) {
-				if (d.startsWith('@haibun/')) {
+				if (d.startsWith("@haibun/")) {
 					dependencies[d] = this.version;
 				}
 				if (this.haibunPackageVersions[d]) {
@@ -145,8 +145,8 @@ class Versioner {
 	}
 
 	async gitCommit(name: string, location: string, extraPackages: string[] = []) {
-		const packages = [...extraPackages, 'package.json'];
-		await spawnCommand(['git', 'commit', '-m', `'update ${name} to version ${this.version}'`, ...packages], location).catch((e) => {
+		const packages = [...extraPackages, "package.json"];
+		await spawnCommand(["git", "commit", "-m", `update ${name} to version ${this.version}`, ...packages], location).catch((e) => {
 			console.error(`git commit failed for ${name}: ${e}`);
 		});
 	}
@@ -159,7 +159,7 @@ class Versioner {
 		try {
 			process.chdir(location);
 
-			const vitest = await createVitest('test', { watch: false });
+			const vitest = await createVitest("test", { watch: false });
 			await vitest.start();
 			await vitest?.close();
 		} catch (error) {
@@ -174,7 +174,7 @@ class Versioner {
 		if (this.noInstall) {
 			return;
 		}
-		await spawnCommand(['npm', 'install'], location).catch((e) => {
+		await spawnCommand(["npm", "install"], location).catch((e) => {
 			console.error(`npm install failed for ${name}: ${e}`);
 		});
 	}
