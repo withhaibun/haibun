@@ -132,9 +132,16 @@ export class StepCaller extends HTMLElement {
 		this.loading = false;
 		this._executed = true;
 		this.renderComponent();
-		this.shadowRoot
-			?.querySelector(".success, .error, [data-testid$='-step-result']")
-			?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+		this.dataset.testid = this.error ? "current-step-error" : "current-step-result";
+		this.scrollIntoView({ behavior: "smooth", block: "nearest" });
+	}
+
+	private retireCurrentTestIds(): void {
+		const stepName = this.getAttribute("step") || "";
+		this.shadowRoot?.querySelectorAll('[data-testid^="current-"]').forEach((el) => {
+			const id = (el as HTMLElement).dataset.testid!;
+			(el as HTMLElement).dataset.testid = id.replace("current-", `${stepName}-`);
+		});
 	}
 
 	private renderComponent(): void {
@@ -151,10 +158,10 @@ export class StepCaller extends HTMLElement {
 			<div class="step-caller" data-testid="step-caller-${esc(stepName)}">
 				${dismissBtn}
 				${desc && !this.hasAttribute("auto") ? this.renderForm(desc) : ""}
-				${this.loading ? `<div class="loading" data-testid="${esc(stepName)}-step-loading">loading...</div>` : ""}
-				${this.result !== null ? `<div data-testid="${esc(stepName)}-step-result">${this.renderOutput()}</div>` : ""}
-				${this.error ? `<div class="error" data-testid="${esc(stepName)}-step-error">${esc(this.error)}</div>` : ""}
-				${!this.error && this.result !== null && !desc?.outputSchema ? '<div class="success" data-testid="step-success">done</div>' : ""}
+				${this.loading ? `<div class="loading" data-testid="current-step-loading">loading...</div>` : ""}
+				${this.result !== null ? `<div data-testid="current-step-result">${this.renderOutput()}</div>` : ""}
+				${this.error ? `<div class="error" data-testid="current-step-error">${esc(this.error)}</div>` : ""}
+				${!this.error && this.result !== null && !desc?.outputSchema ? '<div class="success" data-testid="current-step-success">done</div>' : ""}
 			</div>
 		`;
 		this.bindEvents();
@@ -166,8 +173,10 @@ export class StepCaller extends HTMLElement {
 			| undefined;
 		const properties = schema?.properties || {};
 		const currentStepName = this.getAttribute("step") || "";
-		const tid = (suffix: string) =>
-			this.executed ? "" : ` data-testid="${escAttr(currentStepName)}-${escAttr(suffix)}"`;
+		const tid = (suffix: string) => {
+			const named = `${escAttr(currentStepName)}-${escAttr(suffix)}`;
+			return this.executed ? ` data-testid="${named}"` : ` data-testid="current-${escAttr(suffix)}" data-step-testid="${named}"`;
+		};
 
 		// Parse the gwta pattern into text segments and inline inputs
 		const pattern = desc.pattern || "";
