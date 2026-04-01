@@ -5,9 +5,12 @@ import { objectCoercer } from "@haibun/core/lib/domain-types.js";
 import { z } from "zod";
 
 const DOMAIN_TUTORIAL_QUERY = "tutorial-graph-query";
+const DOMAIN_VERTEX_DATA = "tutorial-vertex-data";
 
 export const TutorialLabels = { Researcher: "Researcher", Paper: "Paper" } as const;
 export const TutorialEdges = { authored: "authored", references: "references", author: "author" } as const;
+
+const VertexDataSchema = z.record(z.string(), z.unknown());
 
 const VertexSchema = z.object({
 	id: z.string(),
@@ -142,6 +145,12 @@ export default class TutorialGraphStepper extends AStepper {
 					description: "Tutorial graph query",
 				},
 				{
+					selectors: [DOMAIN_VERTEX_DATA],
+					schema: VertexDataSchema,
+					coerce: objectCoercer(VertexDataSchema),
+					description: "Vertex properties as JSON",
+				},
+				{
 					selectors: ["tutorial-researcher"],
 					schema: VertexSchema,
 					meta: {
@@ -203,10 +212,15 @@ export default class TutorialGraphStepper extends AStepper {
 
 		getIncomingEdges: {
 			gwta: "get incoming edges for {label: string} vertex {id: string} with limit {limit} and offset {offset}",
-			outputSchema: z.object({ edges: z.array(EdgeSchema), total: z.number() }),
+			outputSchema: z.object({ edges: z.array(z.object({ type: z.string(), target: z.record(z.string(), z.unknown()) })), total: z.number() }),
 			action: ({ label, id, limit = 100, offset = 0 }: { label: string; id: string; limit?: number; offset?: number }) => {
 				try {
-					return actionOKWithProducts(this.store.getIncomingEdges(label, id, limit, offset));
+					const raw = this.store.getIncomingEdges(label, id, limit, offset);
+					const edges = raw.edges.map((e) => {
+						const source = this.store.getVertexWithEdges(e.fromLabel, e.fromId);
+						return { type: e.rel, target: source ? { ...source.vertex.properties, _label: e.fromLabel } : { id: e.fromId, _label: e.fromLabel } };
+					});
+					return actionOKWithProducts({ edges, total: raw.total });
 				} catch (err) {
 					return actionNotOK(String(err));
 				}
@@ -214,12 +228,11 @@ export default class TutorialGraphStepper extends AStepper {
 		},
 
 		createVertex: {
-			gwta: "create vertex {label: string} with id {id: string} and properties {data: string}",
+			gwta: `create vertex {label: string} with id {id: string} and properties {data: ${DOMAIN_VERTEX_DATA}}`,
 			outputSchema: VertexSchema,
-			action: ({ label, id, data }: { label: string; id: string; data: string }) => {
+			action: ({ label, id, data }: { label: string; id: string; data: Record<string, unknown> }) => {
 				try {
-					const properties = JSON.parse(data) as Record<string, unknown>;
-					const vertex = this.store.createVertex(label, id, properties);
+					const vertex = this.store.createVertex(label, id, data);
 					return actionOKWithProducts({ ...vertex.properties, _label: vertex.vertexLabel });
 				} catch (err) {
 					return actionNotOK(String(err));
