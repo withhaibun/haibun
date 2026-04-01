@@ -284,17 +284,17 @@ export type TEdgeDef = { rel: TRel; target: string };
 
 /** JSON-LD context mapping: rel → standard URI. Defined once, used everywhere. */
 export const REL_CONTEXT: Record<TRel, string> = {
-	identifier:   'dcterms:identifier',
-	name:         'as:name',
+	identifier: 'dcterms:identifier',
+	name: 'as:name',
 	attributedTo: 'as:attributedTo',
-	audience:     'as:to',
-	context:      'as:context',
-	published:    'as:published',
-	updated:      'as:updated',
-	content:      'as:content',
-	inReplyTo:    'as:inReplyTo',
-	attachment:   'as:attachment',
-	tag:          'as:tag',
+	audience: 'as:to',
+	context: 'as:context',
+	published: 'as:published',
+	updated: 'as:updated',
+	content: 'as:content',
+	inReplyTo: 'as:inReplyTo',
+	attachment: 'as:attachment',
+	tag: 'as:tag',
 };
 
 /** Hypermedia metadata for a vertex domain. One properties map drives everything. */
