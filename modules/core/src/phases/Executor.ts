@@ -195,7 +195,7 @@ export class Executor {
 			if (failure) results.failure = failure;
 		}
 
-		world.eventLogger.emit( LifecycleEvent.parse({ id: `execution-end`, timestamp: Date.now(), kind: "lifecycle", type: "execution", stage: "end", status: okSoFar ? "completed" : "failed", }),);
+		world.eventLogger.emit(LifecycleEvent.parse({ id: `execution-end`, timestamp: Date.now(), kind: "lifecycle", type: "execution", stage: "end", status: okSoFar ? "completed" : "failed", }),);
 
 		await doStepperCycle(steppers, "endExecution", results);
 		world.eventLogger.unsubscribe(onEventHandler);
@@ -204,7 +204,7 @@ export class Executor {
 }
 
 export class FeatureExecutor {
-	constructor( private steppers: AStepper[], private registry: StepRegistry, private world: TWorld, private startOffset = Timer.since(),) { }
+	constructor(private steppers: AStepper[], private registry: StepRegistry, private world: TWorld, private startOffset = Timer.since(),) { }
 
 	async doFeature(feature: TResolvedFeature): Promise<TFeatureResult> {
 		const world = this.world;
@@ -297,7 +297,7 @@ const doStepperCycleSync = <K extends keyof IStepperCycles>(steppers: AStepper[]
 	}
 };
 
-export const addStepperConcerns = async (world: TWorld, steppers: AStepper[]) => {
+export const addStepperConcerns = (world: TWorld, steppers: AStepper[]) => {
 	const allDomains: import("../lib/defs.js").TDomainDefinition[] = [];
 	for (const stepper of steppers) {
 		const hasCycles = stepper as unknown as { cycles?: { getConcerns?: () => import("../lib/defs.js").IStepperConcerns } };
