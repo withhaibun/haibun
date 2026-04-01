@@ -1,24 +1,28 @@
 {
-  "name": "@haibun/shu",
-  "version": "0.1.0",
-  "type": "module",
-  "description": "Haibun hypermedia SPA — renders any domain-driven application from stepper concerns",
-  "main": "build/app.js",
-  "types": "build/app.d.ts",
-  "exports": {
-    ".": "./build/index.js",
-    "./build/*": "./build/*",
-    "./bundle": "./build/shu-bundle.js"
-  },
-  "scripts": {
-    "build": "tsc -b . && esbuild src/app.ts --bundle --outfile=build/shu-bundle.js --format=iife --platform=browser",
-    "test:e2e": "HAIBUN_O_WEBSERVERSTEPPER_PORT=8237 HAIBUN_O_WEBPLAYWRIGHT_STORAGE=StorageFS HAIBUN_O_WEBSERVERSTEPPER_RPC_ACCESS_TOKEN=rpc-protected-token HAIBUN_O_WEBSERVERSTEPPER_RPC_ACCESS_CAPABILITY=TestServer:protected haibun-cli -c ./tests/config.json ./tests"
-  },
-  "dependencies": {
-    "markdown-it": "^14.0.0",
-    "zod": "^3.24.0"
-  },
-  "devDependencies": {
-    "esbuild": "^0.27.3"
-  }
+	"name": "@haibun/shu",
+	"version": "0.1.0",
+	"type": "module",
+	"description": "Haibun hypermedia SPA — renders any domain-driven application from stepper concerns",
+	"main": "build/app.js",
+	"types": "build/app.d.ts",
+	"exports": {
+		".": "./build/index.js",
+		"./build/*": "./build/*",
+		"./bundle": "./build/shu-bundle.js"
+	},
+	"scripts": {
+		"build": "tsc -b . && esbuild src/app.ts --bundle --outfile=build/shu-bundle.js --format=iife --platform=browser",
+		"test:e2e": "HAIBUN_O_WEBSERVERSTEPPER_PORT=8237 HAIBUN_O_WEBPLAYWRIGHT_STORAGE=StorageFS HAIBUN_O_WEBSERVERSTEPPER_RPC_ACCESS_TOKEN=rpc-protected-token HAIBUN_O_WEBSERVERSTEPPER_RPC_ACCESS_CAPABILITY=TestServer:protected haibun-cli -c ./tests/config.json ./tests",
+		"test": "vitest run",
+		"lint": "biome lint .",
+		"format": "biome format --write .",
+		"check": "biome check ."
+	},
+	"dependencies": {
+		"markdown-it": "^14.0.0",
+		"zod": "^3.24.0"
+	},
+	"devDependencies": {
+		"esbuild": "^0.27.3"
+	}
 }
