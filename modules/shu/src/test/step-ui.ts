@@ -1,4 +1,5 @@
-import type { TKirejiStep } from "@haibun/core/kireji/withAction.js";
+import { withAction, type TKirejiStep } from "@haibun/core/kireji/withAction.js";
+import type WebPlaywright from "@haibun/web-playwright";
 import { SHU_TEST_IDS } from "../test-ids.js";
 
 const IDS = SHU_TEST_IDS;
@@ -12,40 +13,41 @@ export function stepTestIds(inputParams: string[]): string[] {
 	return [CURRENT_RUN, CURRENT_RESULT, CURRENT_ERROR, ...inputParams.map(CURRENT_INPUT)];
 }
 
-function buildInputSteps(params: Record<string, string>): string[] {
-	const paramEntries = Object.entries(params);
-	if (paramEntries.length === 0) return [];
-	const steps: string[] = [`waitFor ${CURRENT_INPUT(paramEntries[0][0])}`];
-	for (const [name, value] of paramEntries) {
-		steps.push(`inputVariable ${value} to ${CURRENT_INPUT(name)}`);
-	}
-	return steps;
-}
+export function createStepUI(wp: WebPlaywright) {
+	const { waitFor, click, inputVariable, press, selectionOption } = withAction(wp);
 
-function executeStep(stepName: string, params: Record<string, string> = {}, passes: boolean): TKirejiStep[] {
-	const paramSteps = buildInputSteps(params);
-	const expectedTarget = passes ? CURRENT_RESULT : CURRENT_ERROR;
-	return [
-		`waitFor ${IDS.APP.TWISTY}`,
-		`click ${IDS.APP.TWISTY}`,
+	const enterStepMode: TKirejiStep[] = [
+		waitFor({ target: IDS.APP.TWISTY }),
+		click({ target: IDS.APP.TWISTY }),
 		"page has settled",
-		`selectionOption Step from ${IDS.APP.MODE_SELECT}`,
+		selectionOption({ option: '"Step"', field: IDS.APP.MODE_SELECT }),
 		"page has settled",
-		`waitFor ${IDS.APP.STEP_SELECT}`,
-		`click ${IDS.APP.STEP_SELECT}`,
-		`inputVariable "${stepName}" to ${IDS.APP.STEP_SELECT}`,
-		"press Enter",
-		...paramSteps,
-		`click ${CURRENT_RUN}`,
-		"page has settled",
-		`waitFor ${expectedTarget}`,
+		waitFor({ target: IDS.APP.STEP_SELECT }),
 	];
-}
 
-export function passesStepExecution(stepName: string, params: Record<string, string> = {}): TKirejiStep[] {
-	return executeStep(stepName, params, true);
-}
+	function runStep(stepName: string, passes: boolean, params: Record<string, string> = {}): TKirejiStep[] {
+		const paramEntries = Object.entries(params);
+		const expectedTarget = passes ? CURRENT_RESULT : CURRENT_ERROR;
+		return [
+			click({ target: IDS.APP.STEP_SELECT }),
+			inputVariable({ what: `"${stepName}"`, field: IDS.APP.STEP_SELECT }),
+			press({ key: '"Enter"' }),
+			...(paramEntries.length > 0
+				? [waitFor({ target: CURRENT_INPUT(paramEntries[0][0]) }), ...paramEntries.map(([name, value]) => inputVariable({ what: value, field: CURRENT_INPUT(name) }))]
+				: []),
+			click({ target: CURRENT_RUN }),
+			"page has settled",
+			waitFor({ target: expectedTarget }),
+		];
+	}
 
-export function failsStepExecution(stepName: string, params: Record<string, string> = {}): TKirejiStep[] {
-	return executeStep(stepName, params, false);
+	function passesStepExecution(stepName: string, params: Record<string, string> = {}): TKirejiStep[] {
+		return runStep(stepName, true, params);
+	}
+
+	function failsStepExecution(stepName: string, params: Record<string, string> = {}): TKirejiStep[] {
+		return runStep(stepName, false, params);
+	}
+
+	return { enterStepMode, runStep, passesStepExecution, failsStepExecution };
 }

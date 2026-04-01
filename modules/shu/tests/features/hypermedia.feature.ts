@@ -1,34 +1,32 @@
-import { withAction, type TKirejiExport, } from "@haibun/core/kireji/withAction.js";
+import { withAction, type TKirejiExport } from "@haibun/core/kireji/withAction.js";
 import WebPlaywright from "@haibun/web-playwright";
 import TutorialGraphStepper from "../../src/tutorial-graph-stepper.js";
 import ShuStepper from "../../src/shu-stepper.js";
 import { SHU_TEST_IDS } from "../../src/test-ids.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import Haibun from "@haibun/core/steps/haibun.js";
-import { passesStepExecution, failsStepExecution, stepTestIds } from "../../src/index.js";
+import { createStepUI, stepTestIds } from "../../src/index.js";
 
 function flattenTestIds(obj: Record<string, unknown>): string[] {
 	const result: string[] = [];
 	for (const [, value] of Object.entries(obj)) {
 		if (typeof value === "string") result.push(value);
-		else if (typeof value === "object" && value !== null)
-			result.push(...flattenTestIds(value as Record<string, unknown>));
+		else if (typeof value === "object" && value !== null) result.push(...flattenTestIds(value as Record<string, unknown>));
 	}
 	return result;
 }
 
 const wp = new WebPlaywright();
-const { getIncomingEdges, exportGraphAsJsonLd } = withAction(new TutorialGraphStepper(),);
+const { getIncomingEdges, exportGraphAsJsonLd } = withAction(new TutorialGraphStepper());
 const { serveShuApp } = withAction(new ShuStepper());
-const { waitFor, click, selectionOption, gotoPage, reloadPage, } = withAction(wp);
+const { waitFor, click, selectionOption, gotoPage, reloadPage } = withAction(wp);
 const { setAs } = withAction(new VariablesStepper());
 const { feature, scenario } = withAction(new Haibun());
+const { enterStepMode, passesStepExecution } = createStepUI(wp);
 const host = "http://localhost:8237";
 const IDS = SHU_TEST_IDS;
 
-const testIdSetup = flattenTestIds(IDS).map((id) =>
-	setAs({ what: id, domain: "page-test-id", value: `"${id}"` }),
-);
+const testIdSetup = flattenTestIds(IDS).map((id) => setAs({ what: id, domain: "page-test-id", value: `"${id}"` }));
 
 const stepIdSetup = stepTestIds(["label", "id", "data", "fromLabel", "fromId", "rel", "toLabel", "toId"]).map((id) =>
 	setAs({ what: id, domain: "page-test-id", value: `"${id}"` }),
@@ -52,6 +50,7 @@ export const features: TKirejiExport = {
 		gotoPage({ name: `"${host}/spa"` }),
 		"page has settled",
 
+		...enterStepMode,
 		"Create Tim Berners-Lee as a Researcher.",
 		...passesStepExecution("create vertex", {
 			label: '"Researcher"',
@@ -80,8 +79,7 @@ export const features: TKirejiExport = {
 			id: '"paper-ldp"',
 			data: json({
 				name: "Linked Data Platform",
-				content:
-					"Defines read-write linked data using HTTP and RDF. LDP containers enable CRUD operations over web resources with standard media types and link relations.",
+				content: "Defines read-write linked data using HTTP and RDF. LDP containers enable CRUD operations over web resources with standard media types and link relations.",
 				published: "2015-02-26T00:00:00.000Z",
 			}),
 		}),
@@ -92,8 +90,7 @@ export const features: TKirejiExport = {
 			id: '"paper-jsonld"',
 			data: json({
 				name: "JSON-LD 1.1",
-				content:
-					"A JSON-based serialization for linked data. By embedding @context, existing JSON APIs become interoperable with RDF processors and semantic web tooling.",
+				content: "A JSON-based serialization for linked data. By embedding @context, existing JSON APIs become interoperable with RDF processors and semantic web tooling.",
 				published: "2020-07-16T00:00:00.000Z",
 			}),
 		}),
@@ -119,6 +116,7 @@ export const features: TKirejiExport = {
 			fromLabel: '"Paper"',
 			fromId: '"paper-ldp"',
 			rel: '"inReplyTo"',
+			toLabel: '"Paper"',
 			toId: '"paper-jsonld"',
 		}),
 
