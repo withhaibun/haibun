@@ -7,16 +7,16 @@ import { namedInterpolation } from './namedVars.js';
  * Used by both LSP (for autocomplete/hover) and MCP (for tool registration).
  */
 export interface StepDescriptor {
-  stepperName: string;
-  stepName: string;
-  method: string;
-  pattern: string;
-  params: Record<string, 'string' | 'number'>;
-  /** Domain key for each parameter (e.g., { data: 'muskeg-email', id: 'string' }) */
-  paramDomains?: Record<string, string>;
-  capability?: string;
-  inputSchema?: Record<string, unknown>;
-  outputSchema?: Record<string, unknown>;
+	stepperName: string;
+	stepName: string;
+	method: string;
+	pattern: string;
+	params: Record<string, 'string' | 'number'>;
+	/** Domain key for each parameter (e.g., { data: 'muskeg-email', id: 'string' }) */
+	paramDomains?: Record<string, string>;
+	capability?: string;
+	inputSchema?: Record<string, unknown>;
+	outputSchema?: Record<string, unknown>;
 }
 
 /**
@@ -24,41 +24,41 @@ export interface StepDescriptor {
  * Ensures that LSP and MCP share identical step definitions.
  */
 export class StepperRegistry {
-  /**
-   * Extract metadata from all steps in the provided steppers.
-   * Filters out steps marked with `exposeMCP: false`.
-   */
-  static getMetadata(steppers: AStepper[]): StepDescriptor[] {
-    return steppers.flatMap(stepper => {
-      const stepperName = constructorName(stepper);
-      return Object.entries(stepper.steps)
-        .filter(([, def]) => def.exposeMCP !== false)
-        .map(([stepName, stepDef]) => {
-          const params: Record<string, 'string' | 'number'> = {};
-          const pattern = stepDef.gwta || stepDef.exact || stepDef.match?.toString() || stepName;
+	/**
+	 * Extract metadata from all steps in the provided steppers.
+	 * Filters out steps marked with `exposeMCP: false`.
+	 */
+	static getMetadata(steppers: AStepper[]): StepDescriptor[] {
+		return steppers.flatMap(stepper => {
+			const stepperName = constructorName(stepper);
+			return Object.entries(stepper.steps)
+				.filter(([, def]) => def.exposeMCP !== false)
+				.map(([stepName, stepDef]) => {
+					const params: Record<string, 'string' | 'number'> = {};
+					const pattern = stepDef.gwta || stepDef.exact || stepDef.match?.toString() || stepName;
 
-          const paramDomains: Record<string, string> = {};
-          if (stepDef.gwta) {
-            const { stepValuesMap } = namedInterpolation(stepDef.gwta);
-            if (stepValuesMap) {
-              for (const v of Object.values(stepValuesMap)) {
-                params[v.term] = v.domain === 'number' ? 'number' : 'string';
-                paramDomains[v.term] = v.domain || 'string';
-              }
-            }
-          }
-          const method = `${stepperName}-${stepName}`;
-          return { stepperName, stepName, method, pattern, params, paramDomains, capability: stepDef.capability };
-        });
-    });
-  }
+					const paramDomains: Record<string, string> = {};
+					if (stepDef.gwta) {
+						const { stepValuesMap } = namedInterpolation(stepDef.gwta);
+						if (stepValuesMap) {
+							for (const v of Object.values(stepValuesMap)) {
+								params[v.term] = v.domain === 'number' ? 'number' : 'string';
+								paramDomains[v.term] = v.domain || 'string';
+							}
+						}
+					}
+					const method = `${stepperName}-${stepName}`;
+					return { stepperName, stepName, method, pattern, params, paramDomains, capability: stepDef.capability };
+				});
+		});
+	}
 
-  /**
-   * Convert a gwta pattern to an LSP snippet format.
-   * Transforms `{varName}` to `${1:varName}` for tab-stop support.
-   */
-  static patternToSnippet(pattern: string): string {
-    let i = 1;
-    return pattern.replace(/\{(\w+)(?::\s*\w+)?\}/g, (_, name) => `\${${i++}:${name}}`);
-  }
+	/**
+	 * Convert a gwta pattern to an LSP snippet format.
+	 * Transforms `{varName}` to `${1:varName}` for tab-stop support.
+	 */
+	static patternToSnippet(pattern: string): string {
+		let i = 1;
+		return pattern.replace(/\{(\w+)(?::\s*\w+)?\}/g, (_, name) => `\${${i++}:${name}}`);
+	}
 }
