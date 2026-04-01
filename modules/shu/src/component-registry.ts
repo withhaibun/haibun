@@ -3,18 +3,20 @@
  * Must only be called in browser context.
  */
 export const registerComponents = async (): Promise<void> => {
-	const { ShuGraphQuery } = await import("./graph-query.js");
-	const { ShuResultTable } = await import("./shu-result-table.js");
-	const { ShuColumnPane } = await import("./shu-column-pane.js");
-	const { ShuColumnStrip } = await import("./shu-column-strip.js");
-	const { ShuEntityColumn } = await import("./shu-entity-column.js");
-	const { ShuFilterColumn } = await import("./shu-filter-column.js");
-	const { ShuColumnBrowser } = await import("./shu-column-browser.js");
-	const { ShuActionsBar } = await import("./actions-bar.js");
-	const { ShuBreadcrumb } = await import("./shu-breadcrumb.js");
-	const { ShuCombobox } = await import("./shu-combobox.js");
-	const { ShuSpinner } = await import("./shu-spinner.js");
-	const { StepCaller } = await import("./step-caller.js");
+	const { ShuGraphQuery } = await import("./components/shu-graph-query.js");
+	const { ShuResultTable } = await import("./components/shu-result-table.js");
+	const { ShuColumnPane } = await import("./components/shu-column-pane.js");
+	const { ShuColumnStrip } = await import("./components/shu-column-strip.js");
+	const { ShuEntityColumn } = await import("./components/shu-entity-column.js");
+	const { ShuFilterColumn } = await import("./components/shu-filter-column.js");
+	const { ShuColumnBrowser } = await import(
+		"./components/shu-column-browser.js"
+	);
+	const { ShuActionsBar } = await import("./components/shu-actions-bar.js");
+	const { ShuBreadcrumb } = await import("./components/shu-breadcrumb.js");
+	const { ShuCombobox } = await import("./components/shu-combobox.js");
+	const { ShuSpinner } = await import("./components/shu-spinner.js");
+	const { StepCaller } = await import("./components/shu-step-caller.js");
 	// Self-registering renderers
 	await import("./query-uri.js");
 
@@ -30,7 +32,7 @@ export const registerComponents = async (): Promise<void> => {
 		["shu-breadcrumb", ShuBreadcrumb],
 		["shu-combobox", ShuCombobox],
 		["shu-spinner", ShuSpinner],
-		["step-caller", StepCaller],
+		["shu-step-caller", StepCaller],
 	];
 
 	for (const [tag, component] of components) {

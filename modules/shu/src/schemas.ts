@@ -28,10 +28,21 @@ export type TComboboxState = z.infer<typeof ComboboxSchema>;
 
 // --- Search conditions ---
 
-export const SearchOperatorSchema = z.enum(["eq", "contains", "gt", "lt", "gte", "lte", "between"]);
+export const SearchOperatorSchema = z.enum([
+	"eq",
+	"contains",
+	"gt",
+	"lt",
+	"gte",
+	"lte",
+	"between",
+]);
 export type TSearchOperator = z.infer<typeof SearchOperatorSchema>;
 
-export const SEARCH_OPERATORS: ReadonlyArray<{ value: TSearchOperator; label: string }> = [
+export const SEARCH_OPERATORS: ReadonlyArray<{
+	value: TSearchOperator;
+	label: string;
+}> = [
 	{ value: "eq", label: "equals" },
 	{ value: "contains", label: "contains" },
 	{ value: "gt", label: "greater than" },
@@ -52,7 +63,12 @@ export type TSearchCondition = z.infer<typeof SearchConditionSchema>;
 /** Parse a pipe-delimited filter string (predicate|operator|value[|value2]) into a SearchCondition. */
 export function parseFilterParam(f: string): TSearchCondition {
 	const parts = f.split("|");
-	return { predicate: parts[0] || "", operator: (parts[1] || "eq") as TSearchOperator, value: parts[2] || "", ...(parts[3] ? { value2: parts[3] } : {}) };
+	return {
+		predicate: parts[0] || "",
+		operator: (parts[1] || "eq") as TSearchOperator,
+		value: parts[2] || "",
+		...(parts[3] ? { value2: parts[3] } : {}),
+	};
 }
 
 /** Serialize a SearchCondition to a pipe-delimited filter string. */
@@ -61,7 +77,6 @@ export function serializeFilterParam(c: TSearchCondition): string {
 	if (c.operator === "between" && c.value2) parts.push(c.value2);
 	return parts.join("|");
 }
-
 
 /** Edge result from getVertexWithEdges. */
 export const EdgeResultSchema = z.object({
@@ -88,7 +103,9 @@ export const ColumnPaneSchema = z.object({
 	active: z.boolean().default(false),
 	width: z.number().optional(),
 	closable: z.boolean().default(true),
-	columnType: z.enum(["query", "entity", "filter", "property"]).default("query"),
+	columnType: z
+		.enum(["query", "entity", "filter", "property"])
+		.default("query"),
 });
 
 // --- Entity column ---

@@ -43,7 +43,10 @@ export function getEdgeRanges(label: string): Record<string, string> {
 }
 
 /** Sync lookup — returns target label for an edge type from a source vertex label. Falls back to global index. */
-export function getEdgeTargetLabel(edgeType: string, sourceLabel?: string): string | undefined {
+export function getEdgeTargetLabel(
+	edgeType: string,
+	sourceLabel?: string,
+): string | undefined {
 	if (sourceLabel) {
 		const target = metadata?.edgeRanges[sourceLabel]?.[edgeType];
 		if (target) return target;
@@ -78,7 +81,10 @@ export function getContentFields(label: string): Record<string, string> {
 const selectCache = new Map<string, Record<string, string[]>>();
 
 /** Set cached select values for a label (from getSelectValues RPC). */
-export function setSelectValues(label: string, values: Record<string, string[]>): void {
+export function setSelectValues(
+	label: string,
+	values: Record<string, string[]>,
+): void {
 	selectCache.set(label, values);
 }
 
@@ -119,13 +125,17 @@ export function getConcernDerivedMetadata(): SiteMetadata {
 /** Get the concern catalog (populated from step.list). */
 export function getConcernCatalog(): TConcernCatalog {
 	if (!concernCatalog) {
-		throw new Error("Concern catalog not initialized. Call setConcernCatalog() first.");
+		throw new Error(
+			"Concern catalog not initialized. Call setConcernCatalog() first.",
+		);
 	}
 	return concernCatalog;
 }
 
 /** Derive SiteMetadata from the concern catalog. Covers any stepper that declares vertex concerns. */
-export function siteMetadataFromConcerns(catalog: TConcernCatalog): SiteMetadata {
+export function siteMetadataFromConcerns(
+	catalog: TConcernCatalog,
+): SiteMetadata {
 	const types: string[] = [];
 	const idFields: Record<string, string> = {};
 	const rels: Record<string, Record<string, string>> = {};
@@ -143,18 +153,28 @@ export function siteMetadataFromConcerns(catalog: TConcernCatalog): SiteMetadata
 		for (const [field, prop] of Object.entries(vertex.properties)) {
 			labelRels[field] = prop.rel;
 			labelProps.push(field);
-			if (prop.rel === "name" || prop.rel === "context") labelSummary.push(field);
+			if (prop.rel === "name" || prop.rel === "context")
+				labelSummary.push(field);
 			if (prop.mediaType) labelContent[field] = prop.mediaType;
 		}
 		rels[label] = labelRels;
 		properties[label] = labelProps;
 		if (labelSummary.length > 0) summary[label] = labelSummary;
-		if (Object.keys(labelContent).length > 0) contentFields[label] = labelContent;
+		if (Object.keys(labelContent).length > 0)
+			contentFields[label] = labelContent;
 		const labelEdges: Record<string, string> = {};
 		for (const [, edge] of Object.entries(vertex.edges)) {
 			labelEdges[edge.rel] = edge.target;
 		}
 		if (Object.keys(labelEdges).length > 0) edgeRanges[label] = labelEdges;
 	}
-	return { types, idFields, rels, edgeRanges, properties, summary, contentFields };
+	return {
+		types,
+		idFields,
+		rels,
+		edgeRanges,
+		properties,
+		summary,
+		contentFields,
+	};
 }
