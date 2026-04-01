@@ -76,7 +76,7 @@ async function mcpCallTool(url: string, token: string, toolName: string): Promis
 }
 
 const cycles = (ts: TestServer): IStepperCycles => ({
-	startFeature: async () => {
+	startFeature: () => {
 		const p: TProvenanceIdentifier = { when: `${TestServer.name}.cycles.startFeature`, seq: [0] };
 		ts.getWorld().shared.set(setTally(0), p);
 		ts.resources = [
@@ -110,7 +110,7 @@ class TestServer extends AStepper {
 
 	resources: { id: number; name: string }[] = [];
 
-	async endedFeatures() {
+	endedFeatures() {
 		if (Object.keys(this.toDelete).length > 0) {
 			this.getWorld().eventLogger.info(`removing ${JSON.stringify(this.toDelete)}`);
 			for (const td of Object.values(this.toDelete)) {
@@ -134,7 +134,7 @@ class TestServer extends AStepper {
 	 * Add a route without auth middleware
 	 */
 	addRoute = (route: TRequestHandler, method: 'get' | 'post' | 'delete' = 'get') => {
-		return async (args: TStepArgs, vstep: TFeatureStep) => {
+		return (args: TStepArgs, vstep: TFeatureStep) => {
 			const { loc } = args as { loc: string };
 			const webserver: IWebServer = getFromRuntime(this.getWorld().runtime, WEBSERVER);
 
@@ -154,7 +154,7 @@ class TestServer extends AStepper {
 	 * Uses dynamic middleware that checks currentAuthScheme at request time.
 	 */
 	addAuthRoute = (route: TRequestHandler, method: 'get' | 'post' | 'delete' = 'get') => {
-		return async (args: TStepArgs, vstep: TFeatureStep) => {
+		return (args: TStepArgs, vstep: TFeatureStep) => {
 			const { loc } = args as { loc: string };
 			const webserver: IWebServer = getFromRuntime(this.getWorld().runtime, WEBSERVER);
 
@@ -181,21 +181,21 @@ class TestServer extends AStepper {
 		return c.html(`<h1>Counter test</h1>tally: ${cur}<br />username ${username} `);
 	};
 
-	download: TRequestHandler = async (c: Context): Promise<Response> => {
+	download: TRequestHandler = (c: Context): Promise<Response> => {
 		if (!this.toDelete.uploaded) {
-			return c.text('no file to download', 404);
+			return Promise.resolve(c.text('no file to download', 404));
 		}
 
 		this.toDelete.downloaded = '/tmp/test-downloaded.jpg';
 		const fileBuffer = readFileSync(this.toDelete.uploaded);
 		const filename = this.toDelete.uploaded.split('/').pop() ?? 'download';
-		return new Response(fileBuffer, {
+		return Promise.resolve(new Response(fileBuffer, {
 			status: 200,
 			headers: {
 				'Content-Type': 'application/octet-stream',
 				'Content-Disposition': `attachment; filename="${filename}"`,
 			},
-		});
+		}));
 	};
 
 	upload: TRequestHandler = async (c: Context): Promise<Response> => {
@@ -382,7 +382,7 @@ class TestServer extends AStepper {
 		},
 		addUploadRoute: {
 			gwta: 'start upload route at {loc}',
-			action: async (args: TStepArgs, vstep: TFeatureStep) => {
+			action: (args: TStepArgs, vstep: TFeatureStep) => {
 				const { loc } = args as { loc: string };
 				try {
 					const webserver: IWebServer = getFromRuntime(this.getWorld().runtime, WEBSERVER);
@@ -405,7 +405,7 @@ class TestServer extends AStepper {
 		},
 		changeServerAuthToken: {
 			gwta: 'change server auth token to {token}',
-			action: async (args: TStepArgs, _vstep: TFeatureStep) => {
+			action: (args: TStepArgs, _vstep: TFeatureStep) => {
 				const { token } = args as { token: string };
 				this.authToken = token;
 				return actionOK();
@@ -438,7 +438,7 @@ class TestServer extends AStepper {
 		},
 		setAuthScheme: {
 			gwta: 'make auth scheme {scheme}',
-			action: async (args: TStepArgs, _vstep: TFeatureStep) => {
+			action: (args: TStepArgs, _vstep: TFeatureStep) => {
 				const { scheme } = args as { scheme: string };
 				// Set the current scheme - this is checked at request time by dynamic middleware
 				this.currentAuthScheme = scheme as TSchemeType;
