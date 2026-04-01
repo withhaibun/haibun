@@ -72,44 +72,15 @@ class TutorialGraphStore {
 	private edges: InMemoryEdge[] = [];
 	private idCounter = 0;
 
-	constructor() {
-		this.seedData();
-	}
-
-	private seedData() {
-		const researcherA: InMemoryVertex = {
-			id: "researcher-alice",
-			vertexLabel: TutorialLabels.Researcher,
-			properties: { id: "researcher-alice", name: "Dr. Alice Chen", context: "Knowledge Graph Research at TechCorp", published: new Date("2020-01-15").toISOString() },
-		};
-		const researcherB: InMemoryVertex = {
-			id: "researcher-bob",
-			vertexLabel: TutorialLabels.Researcher,
-			properties: { id: "researcher-bob", name: "Prof. Bob Wilson", context: "Graph Databases at UniState", published: new Date("2018-06-20").toISOString() },
-		};
-		const paperA: InMemoryVertex = {
-			id: "paper-semantic-web",
-			vertexLabel: TutorialLabels.Paper,
-			properties: { id: "paper-semantic-web", name: "Building Semantic Graphs with RDF", content: "This paper explores how to model relationships using RDF quads and hypermedia rels.", published: new Date("2024-03-01").toISOString(), updated: new Date("2024-09-15").toISOString() },
-		};
-		const paperB: InMemoryVertex = {
-			id: "paper-hypermedia",
-			vertexLabel: TutorialLabels.Paper,
-			properties: { id: "paper-hypermedia", name: "HATEOAS: The Heart of Hypermedia APIs", content: "Explains how hypermedia rels enable clients to discover operations at runtime.", published: new Date("2023-11-10").toISOString(), updated: new Date("2024-01-01").toISOString() },
-		};
-		const paperC: InMemoryVertex = {
-			id: "paper-jsonld",
-			vertexLabel: TutorialLabels.Paper,
-			properties: { id: "paper-jsonld", name: "JSON-LD and Semantic Web Integration", content: "How JSON-LD provides a bridge between JSON APIs and semantic web standards.", published: new Date("2024-02-14").toISOString() },
-		};
-		this.vertices = [researcherA, researcherB, paperA, paperB, paperC];
-		this.edges = [
-			{ id: "edge-alice-authored-semantic", fromLabel: TutorialLabels.Researcher, fromId: "researcher-alice", rel: "attributedTo", toLabel: TutorialLabels.Paper, toId: "paper-semantic-web" },
-			{ id: "edge-bob-authored-hypermedia", fromLabel: TutorialLabels.Researcher, fromId: "researcher-bob", rel: "attributedTo", toLabel: TutorialLabels.Paper, toId: "paper-hypermedia" },
-			{ id: "edge-alice-coauthor-jsonld", fromLabel: TutorialLabels.Researcher, fromId: "researcher-alice", rel: "attributedTo", toLabel: TutorialLabels.Paper, toId: "paper-jsonld" },
-			{ id: "edge-semantic-references-hypermedia", fromLabel: TutorialLabels.Paper, fromId: "paper-semantic-web", rel: "inReplyTo", toLabel: TutorialLabels.Paper, toId: "paper-hypermedia" },
-			{ id: "edge-hypermedia-references-jsonld", fromLabel: TutorialLabels.Paper, fromId: "paper-hypermedia", rel: "inReplyTo", toLabel: TutorialLabels.Paper, toId: "paper-jsonld" },
-		];
+	createVertex(label: string, id: string, properties: Record<string, unknown>): InMemoryVertex {
+		const existing = this.vertices.find((v) => v.vertexLabel === label && v.id === id);
+		if (existing) {
+			existing.properties = { ...existing.properties, ...properties };
+			return existing;
+		}
+		const vertex: InMemoryVertex = { id, vertexLabel: label, properties: { id, ...properties } };
+		this.vertices.push(vertex);
+		return vertex;
 	}
 
 	query(label?: string, textFilter?: string): InMemoryVertex[] {
@@ -236,6 +207,20 @@ export default class TutorialGraphStepper extends AStepper {
 			action: ({ label, id, limit = 100, offset = 0 }: { label: string; id: string; limit?: number; offset?: number }) => {
 				try {
 					return actionOKWithProducts(this.store.getIncomingEdges(label, id, limit, offset));
+				} catch (err) {
+					return actionNotOK(String(err));
+				}
+			},
+		},
+
+		createVertex: {
+			gwta: "create vertex {label: string} with id {id: string} and properties {data: string}",
+			outputSchema: VertexSchema,
+			action: ({ label, id, data }: { label: string; id: string; data: string }) => {
+				try {
+					const properties = JSON.parse(data) as Record<string, unknown>;
+					const vertex = this.store.createVertex(label, id, properties);
+					return actionOKWithProducts({ ...vertex.properties, _label: vertex.vertexLabel });
 				} catch (err) {
 					return actionNotOK(String(err));
 				}
