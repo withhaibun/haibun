@@ -1,4 +1,7 @@
-import { withAction, type TKirejiExport } from "@haibun/core/kireji/withAction.js";
+import {
+	withAction,
+	type TKirejiExport,
+} from "@haibun/core/kireji/withAction.js";
 import WebPlaywright from "@haibun/web-playwright";
 import TutorialGraphStepper from "../../build/tutorial-graph-stepper.js";
 import ShuStepper from "../../build/shu-stepper.js";
@@ -10,33 +13,68 @@ function flattenTestIds(obj: Record<string, unknown>): string[] {
 	const result: string[] = [];
 	for (const [, value] of Object.entries(obj)) {
 		if (typeof value === "string") result.push(value);
-		else if (typeof value === "object" && value !== null) result.push(...flattenTestIds(value as Record<string, unknown>));
+		else if (typeof value === "object" && value !== null)
+			result.push(...flattenTestIds(value as Record<string, unknown>));
 	}
 	return result;
 }
 
-const { getIncomingEdges, exportGraphAsJsonLd } = withAction(new TutorialGraphStepper());
+const { getIncomingEdges, exportGraphAsJsonLd } = withAction(
+	new TutorialGraphStepper(),
+);
 const { serveShuApp } = withAction(new ShuStepper());
-const { waitFor, click, selectionOption, inputVariable, press, gotoPage, reloadPage } = withAction(new WebPlaywright());
+const {
+	waitFor,
+	click,
+	selectionOption,
+	inputVariable,
+	press,
+	gotoPage,
+	reloadPage,
+} = withAction(new WebPlaywright());
 const { setAs } = withAction(new VariablesStepper());
 const { feature, scenario } = withAction(new Haibun());
 const host = "http://localhost:8237";
 const IDS = SHU_TEST_IDS;
 
-const testIdSetup = flattenTestIds(IDS).map((id) => setAs({ what: id, domain: "page-test-id", value: `"${id}"` }));
+const testIdSetup = flattenTestIds(IDS).map((id) =>
+	setAs({ what: id, domain: "page-test-id", value: `"${id}"` }),
+);
 
 const CV = "createVertex";
 const CE = "createEdge";
 
 function stepIds(method: string, params: string[]) {
 	return [
-		setAs({ what: `${method}-step-run`, domain: "page-test-id", value: `"${method}-step-run"` }),
-		setAs({ what: `${method}-step-result`, domain: "page-test-id", value: `"${method}-step-result"` }),
-		...params.map((p) => setAs({ what: `${method}-step-input-${p}`, domain: "page-test-id", value: `"${method}-step-input-${p}"` })),
+		setAs({
+			what: `${method}-step-run`,
+			domain: "page-test-id",
+			value: `"${method}-step-run"`,
+		}),
+		setAs({
+			what: `${method}-step-result`,
+			domain: "page-test-id",
+			value: `"${method}-step-result"`,
+		}),
+		...params.map((p) =>
+			setAs({
+				what: `${method}-step-input-${p}`,
+				domain: "page-test-id",
+				value: `"${method}-step-input-${p}"`,
+			}),
+		),
 	];
 }
 
 const json = (obj: Record<string, unknown>) => `"${JSON.stringify(obj)}"`;
+
+function selectStep(stepName: string) {
+	return [
+		click({ target: IDS.APP.STEP_SELECT }),
+		inputVariable({ what: `"${stepName}"`, field: IDS.APP.STEP_SELECT }),
+		press({ key: '"Enter"' }),
+	];
+}
 
 export const features: TKirejiExport = {
 	"Hypermedia Tutorial: Rels, Edges, and HATEOAS": [
@@ -68,29 +106,67 @@ export const features: TKirejiExport = {
 		"Create Tim Berners-Lee as a Researcher.",
 		inputVariable({ what: '"Researcher"', field: `${CV}-step-input-label` }),
 		inputVariable({ what: '"berners-lee"', field: `${CV}-step-input-id` }),
-		inputVariable({ what: json({ name: "Tim Berners-Lee", context: "World Wide Web Foundation", published: "1989-03-12T00:00:00.000Z" }), field: `${CV}-step-input-data` }),
+		inputVariable({
+			what: json({
+				name: "Tim Berners-Lee",
+				context: "World Wide Web Foundation",
+				published: "1989-03-12T00:00:00.000Z",
+			}),
+			field: `${CV}-step-input-data`,
+		}),
 		click({ target: `${CV}-step-run` }),
 		"page has settled",
 		waitFor({ target: `${CV}-step-result` }),
 
 		"Create Manu Sporny as a Researcher.",
+		...selectStep("create vertex"),
+		waitFor({ target: `${CV}-step-input-label` }),
+		inputVariable({ what: '"Researcher"', field: `${CV}-step-input-label` }),
 		inputVariable({ what: '"sporny"', field: `${CV}-step-input-id` }),
-		inputVariable({ what: json({ name: "Manu Sporny", context: "Digital Bazaar / JSON-LD", published: "2010-06-01T00:00:00.000Z" }), field: `${CV}-step-input-data` }),
+		inputVariable({
+			what: json({
+				name: "Manu Sporny",
+				context: "Digital Bazaar / JSON-LD",
+				published: "2010-06-01T00:00:00.000Z",
+			}),
+			field: `${CV}-step-input-data`,
+		}),
 		click({ target: `${CV}-step-run` }),
 		"page has settled",
 		waitFor({ target: `${CV}-step-result` }),
 
 		"Create the Linked Data Platform paper.",
+		...selectStep("create vertex"),
+		waitFor({ target: `${CV}-step-input-label` }),
 		inputVariable({ what: '"Paper"', field: `${CV}-step-input-label` }),
 		inputVariable({ what: '"paper-ldp"', field: `${CV}-step-input-id` }),
-		inputVariable({ what: json({ name: "Linked Data Platform", content: "Defines read-write linked data using HTTP and RDF. LDP containers enable CRUD operations over web resources with standard media types and link relations.", published: "2015-02-26T00:00:00.000Z" }), field: `${CV}-step-input-data` }),
+		inputVariable({
+			what: json({
+				name: "Linked Data Platform",
+				content:
+					"Defines read-write linked data using HTTP and RDF. LDP containers enable CRUD operations over web resources with standard media types and link relations.",
+				published: "2015-02-26T00:00:00.000Z",
+			}),
+			field: `${CV}-step-input-data`,
+		}),
 		click({ target: `${CV}-step-run` }),
 		"page has settled",
 		waitFor({ target: `${CV}-step-result` }),
 
 		"Create the JSON-LD 1.1 specification paper.",
+		...selectStep("create vertex"),
+		waitFor({ target: `${CV}-step-input-label` }),
+		inputVariable({ what: '"Paper"', field: `${CV}-step-input-label` }),
 		inputVariable({ what: '"paper-jsonld"', field: `${CV}-step-input-id` }),
-		inputVariable({ what: json({ name: "JSON-LD 1.1", content: "A JSON-based serialization for linked data. By embedding @context, existing JSON APIs become interoperable with RDF processors and semantic web tooling.", published: "2020-07-16T00:00:00.000Z" }), field: `${CV}-step-input-data` }),
+		inputVariable({
+			what: json({
+				name: "JSON-LD 1.1",
+				content:
+					"A JSON-based serialization for linked data. By embedding @context, existing JSON APIs become interoperable with RDF processors and semantic web tooling.",
+				published: "2020-07-16T00:00:00.000Z",
+			}),
+			field: `${CV}-step-input-data`,
+		}),
 		click({ target: `${CV}-step-run` }),
 		"page has settled",
 		waitFor({ target: `${CV}-step-result` }),
@@ -101,7 +177,10 @@ export const features: TKirejiExport = {
 		"page has settled",
 		waitFor({ target: `${CE}-step-input-fromLabel` }),
 
-		inputVariable({ what: '"Researcher"', field: `${CE}-step-input-fromLabel` }),
+		inputVariable({
+			what: '"Researcher"',
+			field: `${CE}-step-input-fromLabel`,
+		}),
 		inputVariable({ what: '"berners-lee"', field: `${CE}-step-input-fromId` }),
 		inputVariable({ what: '"attributedTo"', field: `${CE}-step-input-rel` }),
 		inputVariable({ what: '"Paper"', field: `${CE}-step-input-toLabel` }),
@@ -110,13 +189,20 @@ export const features: TKirejiExport = {
 		"page has settled",
 		waitFor({ target: `${CE}-step-result` }),
 
+		...selectStep("create edge"),
+		waitFor({ target: `${CE}-step-input-fromLabel` }),
+		inputVariable({ what: '"Researcher"', field: `${CE}-step-input-fromLabel` }),
 		inputVariable({ what: '"sporny"', field: `${CE}-step-input-fromId` }),
+		inputVariable({ what: '"attributedTo"', field: `${CE}-step-input-rel` }),
+		inputVariable({ what: '"Paper"', field: `${CE}-step-input-toLabel` }),
 		inputVariable({ what: '"paper-jsonld"', field: `${CE}-step-input-toId` }),
 		click({ target: `${CE}-step-run` }),
 		"page has settled",
 		waitFor({ target: `${CE}-step-result` }),
 
 		"Link LDP paper to JSON-LD as a reference.",
+		...selectStep("create edge"),
+		waitFor({ target: `${CE}-step-input-fromLabel` }),
 		inputVariable({ what: '"Paper"', field: `${CE}-step-input-fromLabel` }),
 		inputVariable({ what: '"paper-ldp"', field: `${CE}-step-input-fromId` }),
 		inputVariable({ what: '"inReplyTo"', field: `${CE}-step-input-rel` }),
@@ -144,7 +230,12 @@ export const features: TKirejiExport = {
 		waitFor({ target: IDS.COLUMN_BROWSER.REF_SECTION }),
 
 		scenario({ scenario: "Incoming edge discovery" }),
-		getIncomingEdges({ label: '"Paper"', id: '"paper-jsonld"', limit: '100', offset: '0' }),
+		getIncomingEdges({
+			label: '"Paper"',
+			id: '"paper-jsonld"',
+			limit: "100",
+			offset: "0",
+		}),
 
 		scenario({ scenario: "JSON-LD export" }),
 		exportGraphAsJsonLd({}),
