@@ -107,6 +107,7 @@ export class StepCaller extends HTMLElement {
 		this.loading = false;
 		this._executed = true;
 		this.renderComponent();
+		this.shadowRoot?.querySelector(".success, .error, [data-testid$='-step-result']")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
 	}
 
 	private renderComponent(): void {
