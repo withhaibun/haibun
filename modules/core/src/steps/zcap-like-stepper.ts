@@ -59,11 +59,12 @@ class ZcapLikeStepper extends AStepper implements IHasCycles {
 			this.authority = new ZcapLikeAuthority();
 			this.getWorld().runtime[ZCAP_LIKE_AUTHORITY] = this.authority;
 		},
-		endFeature: async (endFeature?: TEndFeature) => {
-			if (!endFeature?.shouldClose) return;
+		endFeature: (endFeature?: TEndFeature) => {
+			if (!endFeature?.shouldClose) return Promise.resolve();
 			this.authority?.clear();
 			delete this.getWorld().runtime[ZCAP_LIKE_AUTHORITY];
 			this.authority = undefined;
+			return Promise.resolve();
 		},
 	};
 
