@@ -7,12 +7,31 @@
  */
 import MarkdownIt from "markdown-it";
 import { ShuElement } from "./shu-element.js";
-import { ActionsBarSchema, SEARCH_OPERATORS, type TSearchCondition, parseFilterParam } from "../schemas.js";
+import {
+	ActionsBarSchema,
+	SEARCH_OPERATORS,
+	type TSearchCondition,
+	parseFilterParam,
+} from "../schemas.js";
 import { SHARED_STYLES } from "./styles.js";
 import { errMsg } from "../util.js";
 import { SseClient } from "../sse-client.js";
-import { buildDomainOptions, findStep, getAvailableDomains, getAvailableSteps, requireStep, stepsForContext, type DomainOption, type StepDescriptor } from "../rpc-registry.js";
-import { getProperties, getSelectValues, hasSelectValues, setSelectValues } from "../rels-cache.js";
+import {
+	buildDomainOptions,
+	findStep,
+	getAvailableDomains,
+	getAvailableSteps,
+	requireStep,
+	stepsForContext,
+	type DomainOption,
+	type StepDescriptor,
+} from "../rpc-registry.js";
+import {
+	getProperties,
+	getSelectValues,
+	hasSelectValues,
+	setSelectValues,
+} from "../rels-cache.js";
 import type { ShuSpinner } from "./shu-spinner.js";
 import type { ShuCombobox } from "./shu-combobox.js";
 import type { TContextPattern } from "../schemas.js";
@@ -54,7 +73,8 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	private _selectFilters: Record<string, string> = {};
 	private _selectedLabel = "";
 	private _textSearch = "";
-	private _steps: Array<{ method: string; pattern: string; stepName: string }> = [];
+	private _steps: Array<{ method: string; pattern: string; stepName: string }> =
+		[];
 	private _models: Array<{ filename: string; contextSize: number }> = [];
 	private _selectedModel = "";
 	private _selectedStep = "";
@@ -101,13 +121,15 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			this.loadProperties(this._selectedLabel);
 			void this.loadSelectValues(this._selectedLabel);
 		}
-		if (extra?.textQuery !== undefined) this._textSearch = extra.textQuery || "";
+		if (extra?.textQuery !== undefined)
+			this._textSearch = extra.textQuery || "";
 		// Populate select filters from conditions
 		if (extra?.conditions) {
 			if (this._selectedLabel && hasSelectValues(this._selectedLabel)) {
 				const selectFields = getSelectValues(this._selectedLabel);
 				for (const c of extra.conditions) {
-					if (c.operator === "eq" && c.predicate in selectFields) this._selectFilters[c.predicate] = c.value;
+					if (c.operator === "eq" && c.predicate in selectFields)
+						this._selectFilters[c.predicate] = c.value;
 				}
 			}
 		}
@@ -117,7 +139,8 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		}
 
 		const searchInput = this.shadowRoot?.querySelector(".text-search");
-		const searchFocused = searchInput && this.shadowRoot?.activeElement === searchInput;
+		const searchFocused =
+			searchInput && this.shadowRoot?.activeElement === searchInput;
 		if (searchFocused) {
 			this.updateBreadcrumbDisplay();
 		} else if (this.state.askExpanded) {
@@ -131,11 +154,16 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		return patterns.length > 0 && patterns.every((p) => p.s && !p.p && !p.o);
 	}
 
-	private contextLabel(patterns: TContextPattern[], extra?: { total?: number; label?: string; folder?: string }): string {
+	private contextLabel(
+		patterns: TContextPattern[],
+		extra?: { total?: number; label?: string; folder?: string },
+	): string {
 		if (patterns.length === 0) return "All";
 		const subjects = patterns.filter((p) => p.s && !p.p && !p.o);
 		if (subjects.length === patterns.length && subjects.length > 0) {
-			return subjects.length === 1 ? subjects[0].s || "" : `${subjects.length} items`;
+			return subjects.length === 1
+				? subjects[0].s || ""
+				: `${subjects.length} items`;
 		}
 		const fieldPat = patterns.find((p) => p.s && p.p);
 		if (fieldPat && patterns.length === 1) return `${fieldPat.p}`;
@@ -162,7 +190,9 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 
 	private updateBreadcrumbDisplay(): void {
 		const bc = this.shadowRoot?.querySelector("shu-breadcrumb") as
-			| (HTMLElement & { update?: (label: string, cols: string[], active: number) => void })
+			| (HTMLElement & {
+					update?: (label: string, cols: string[], active: number) => void;
+			  })
 			| null;
 		if (!bc?.update) return;
 		bc.update(this._queryLabel, this._columns, this._activeViewIndex);
@@ -180,7 +210,12 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	connectedCallback(): void {
 		super.connectedCallback();
 		this.loadProperties();
-		void Promise.all([this.loadDomainOptions(), this.loadModels(), this.loadSteps(), this.loadSelectValues()]).catch((err) => {
+		void Promise.all([
+			this.loadDomainOptions(),
+			this.loadModels(),
+			this.loadSteps(),
+			this.loadSelectValues(),
+		]).catch((err) => {
 			const message = `ShuActionsBar initialization failed: ${errMsg(err)}`;
 			this.setStatus(message);
 			// Fail fast: malformed discovery data must stop execution, not degrade silently.
@@ -193,7 +228,13 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		this._unsubscribeSync = client.onEvent(
 			(event) => {
 				this._syncEventSeq++;
-				this.dispatchEvent(new CustomEvent("sync-available", { detail: event, bubbles: true, composed: true }));
+				this.dispatchEvent(
+					new CustomEvent("sync-available", {
+						detail: event,
+						bubbles: true,
+						composed: true,
+					}),
+				);
 			},
 			(event) => event.kind === "imap-sync",
 		);
@@ -218,13 +259,18 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		try {
 			await getAvailableSteps();
 			const client = SseClient.for("");
-			const data = await client.rpc<{ models: Array<{ filename: string; contextSize: number }> }>(requireStep("showModels"));
+			const data = await client.rpc<{
+				models: Array<{ filename: string; contextSize: number }>;
+			}>(requireStep("showModels"));
 			if (data.models) {
 				this._models = data.models;
 				if (this._models.length > 0 && !this._selectedModel) {
 					const preferred = getCookie(MODEL_COOKIE);
-					const match = preferred && this._models.find((m) => m.filename === preferred);
-					this._selectedModel = match ? match.filename : this._models[0].filename;
+					const match =
+						preferred && this._models.find((m) => m.filename === preferred);
+					this._selectedModel = match
+						? match.filename
+						: this._models[0].filename;
 				}
 			}
 		} catch {
@@ -235,17 +281,22 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	private async loadSteps(): Promise<void> {
 		try {
 			const steps = await getAvailableSteps();
-			this._steps = steps.map((s) => ({ method: s.method, pattern: s.pattern, stepName: s.stepName }));
+			this._steps = steps.map((s) => ({
+				method: s.method,
+				pattern: s.pattern,
+				stepName: s.stepName,
+			}));
 		} catch {
 			/* step list may not be available yet */
 		}
 	}
 
 	private async loadDomainOptions(): Promise<void> {
-		await getAvailableSteps();  // populates concern catalog via step.list
+		await getAvailableSteps(); // populates concern catalog via step.list
 		const domains = await getAvailableDomains();
 		this._domainOptions = buildDomainOptions(domains);
-		if (this._domainOptions.length === 0) throw new Error("No domain options were produced from concern catalog");
+		if (this._domainOptions.length === 0)
+			throw new Error("No domain options were produced from concern catalog");
 		// Restore state from URL hash before defaulting to first domain
 		if (location.hash.startsWith("#?")) {
 			const hashParams = new URLSearchParams(location.hash.slice(2));
@@ -255,7 +306,8 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			}
 			for (const f of hashParams.getAll("f")) {
 				const c = parseFilterParam(f);
-				if (c.predicate && c.operator === "eq" && c.value) this._selectFilters[c.predicate] = c.value;
+				if (c.predicate && c.operator === "eq" && c.value)
+					this._selectFilters[c.predicate] = c.value;
 			}
 		}
 		this.syncSelectedDomainKey();
@@ -267,18 +319,26 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 
 	private syncSelectedDomainKey(): void {
 		if (this._selectedLabel) {
-			const matchingOption = this._domainOptions.find((option) => option.queryLabel === this._selectedLabel);
+			const matchingOption = this._domainOptions.find(
+				(option) => option.queryLabel === this._selectedLabel,
+			);
 			if (matchingOption) {
 				this._selectedDomainKey = matchingOption.key;
 				return;
 			}
-			throw new Error(`Selected label is not present in discovered concerns: ${this._selectedLabel}`);
+			throw new Error(
+				`Selected label is not present in discovered concerns: ${this._selectedLabel}`,
+			);
 		}
 		const firstOption = this._domainOptions[0];
-		if (!firstOption) throw new Error("No selectable domain options discovered from concerns");
+		if (!firstOption)
+			throw new Error("No selectable domain options discovered from concerns");
 		this._selectedDomainKey = firstOption.key;
 		this._selectedLabel = firstOption.queryLabel ?? "";
-		if (!this._selectedLabel) throw new Error(`Concern option ${firstOption.key} is missing queryLabel`);
+		if (!this._selectedLabel)
+			throw new Error(
+				`Concern option ${firstOption.key} is missing queryLabel`,
+			);
 	}
 
 	private loadProperties(label?: string): void {
@@ -294,7 +354,10 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		const step = findStep("getSelectValues");
 		if (!step) return;
 		const client = SseClient.for("");
-		const data = await client.rpc<{ values: Record<string, string[]> }>(step.method, { label: target });
+		const data = await client.rpc<{ values: Record<string, string[]> }>(
+			step.method,
+			{ label: target },
+		);
 		if (data.values) setSelectValues(target, data.values);
 		this.render();
 	}
@@ -320,7 +383,11 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		// Merge select filters into conditions
 		const selectConditions = Object.entries(this._selectFilters)
 			.filter(([, v]) => v)
-			.map(([predicate, value]) => ({ predicate, operator: "eq" as const, value }));
+			.map(([predicate, value]) => ({
+				predicate,
+				operator: "eq" as const,
+				value,
+			}));
 		const allConditions = [...selectConditions, ...this._filterConditions];
 
 		this.dispatchEvent(
@@ -359,7 +426,10 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			<option value="step"${this._mode === "step" ? " selected" : ""}>Step</option>
 		</select>`;
 
-		const placeholder = this._mode === "ask" ? "Ask about this..." : "Enter step (e.g. get types)";
+		const placeholder =
+			this._mode === "ask"
+				? "Ask about this..."
+				: "Enter step (e.g. get types)";
 		const submitLabel = this._mode === "ask" ? "Send" : "Run";
 
 		const stepCombobox =
@@ -378,7 +448,10 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			</div>`;
 
 		const labelSelect = `<select class="label-select" ${this.tid("type-select")}>${this._domainOptions.map((option) => `<option value="${option.key}"${option.key === this._selectedDomainKey ? " selected" : ""}${option.selectable ? "" : " disabled"}>${option.selectable ? option.queryLabel || option.key : `${option.key} (not queryable)`}</option>`).join("")}</select>`;
-		const selectFields = this._selectedLabel && hasSelectValues(this._selectedLabel) ? getSelectValues(this._selectedLabel) : {};
+		const selectFields =
+			this._selectedLabel && hasSelectValues(this._selectedLabel)
+				? getSelectValues(this._selectedLabel)
+				: {};
 		const selectDropdowns = Object.entries(selectFields)
 			.filter(([, values]) => values.length > 0)
 			.map(([field, values]) => {
@@ -387,9 +460,8 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			})
 			.join("");
 
-		const filterControls =
-			this.state.askExpanded
-				? `<div class="filter-bar">
+		const filterControls = this.state.askExpanded
+			? `<div class="filter-bar">
 					<select class="access-select">${["private", "public", "opened", "all"].map((a) => `<option value="${a}"${a === this._contextAccessLevel ? " selected" : ""}>${a}</option>`).join("")}</select>
 					${labelSelect}
 					${selectDropdowns}
@@ -398,7 +470,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 					<button class="add-filter" ${this.tid("add-filter")}>+</button>
 					${this._filterConditions.length > 0 ? `<button class="search-go" ${this.tid("search-go")}>Go</button>` : ""}
 				</div>`
-				: "";
+			: "";
 
 		const askInput = `
 			<div class="input-line">
@@ -455,7 +527,9 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	}
 
 	private bindEvents(): void {
-		const bar = this.shadowRoot?.querySelector(".summary-bar") as HTMLElement | null;
+		const bar = this.shadowRoot?.querySelector(
+			".summary-bar",
+		) as HTMLElement | null;
 		if (bar) {
 			let startY = 0;
 			let dragged = false;
@@ -471,7 +545,13 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 						rafPending = true;
 						requestAnimationFrame(() => {
 							rafPending = false;
-							this.dispatchEvent(new CustomEvent("resize-drag", { bubbles: true, composed: true, detail: { clientY: y } }));
+							this.dispatchEvent(
+								new CustomEvent("resize-drag", {
+									bubbles: true,
+									composed: true,
+									detail: { clientY: y },
+								}),
+							);
 						});
 					}
 				}
@@ -485,12 +565,18 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 					this.setState({ askExpanded: nextExpanded });
 					if (nextExpanded) {
 						requestAnimationFrame(() => {
-							(this.shadowRoot?.querySelector(".chat-input") as HTMLTextAreaElement | null)?.focus();
+							(
+								this.shadowRoot?.querySelector(
+									".chat-input",
+								) as HTMLTextAreaElement | null
+							)?.focus();
 						});
 					}
 				} else {
 					startedOnTwisty = false;
-					this.dispatchEvent(new CustomEvent("resize-end", { bubbles: true, composed: true }));
+					this.dispatchEvent(
+						new CustomEvent("resize-end", { bubbles: true, composed: true }),
+					);
 				}
 			};
 			const startListening = () => {
@@ -499,7 +585,11 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 				const s = { signal: ac.signal };
 				document.addEventListener("mousemove", (e) => onMove(e.clientY), s);
 				document.addEventListener("mouseup", () => onUp(), s);
-				document.addEventListener("touchmove", (e) => onMove(e.touches[0].clientY), s);
+				document.addEventListener(
+					"touchmove",
+					(e) => onMove(e.touches[0].clientY),
+					s,
+				);
 				document.addEventListener("touchend", () => onUp(), s);
 				moveCleanup = () => ac.abort();
 			};
@@ -507,7 +597,9 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			bar.addEventListener("mousedown", (e) => {
 				startY = e.clientY;
 				dragged = false;
-				startedOnTwisty = !!(e.target instanceof HTMLElement && e.target.closest(".twisty"));
+				startedOnTwisty = !!(
+					e.target instanceof HTMLElement && e.target.closest(".twisty")
+				);
 				startListening();
 				e.preventDefault();
 			});
@@ -515,25 +607,38 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 				startY = e.touches[0].clientY;
 				dragged = false;
 				const target = e.target;
-				startedOnTwisty = !!(target instanceof HTMLElement && target.closest(".twisty"));
+				startedOnTwisty = !!(
+					target instanceof HTMLElement && target.closest(".twisty")
+				);
 				startListening();
 				e.preventDefault();
 			});
 		}
 
-		this.shadowRoot?.querySelector(".mode-select")?.addEventListener("change", (e) => {
-			this._mode = (e.target as HTMLSelectElement).value as TMode;
-			setCookie(MODE_COOKIE, this._mode);
-			this.render();
-		});
+		this.shadowRoot
+			?.querySelector(".mode-select")
+			?.addEventListener("change", (e) => {
+				this._mode = (e.target as HTMLSelectElement).value as TMode;
+				setCookie(MODE_COOKIE, this._mode);
+				this.render();
+			});
 
-		const stepCombo = this.shadowRoot?.querySelector(".step-combo") as ShuCombobox | null;
+		const stepCombo = this.shadowRoot?.querySelector(
+			".step-combo",
+		) as ShuCombobox | null;
 		if (stepCombo) {
-			const contextSteps = this._selectedLabel ? stepsForContext(this._selectedLabel) : [];
+			const contextSteps = this._selectedLabel
+				? stepsForContext(this._selectedLabel)
+				: [];
 			const contextMethods = new Set(contextSteps.map((s) => s.method));
-			const otherSteps = this._steps.filter((s) => !contextMethods.has(s.method));
+			const otherSteps = this._steps.filter(
+				(s) => !contextMethods.has(s.method),
+			);
 			const options = [
-				...contextSteps.map((s) => ({ value: s.stepName, label: `● ${s.pattern}` })),
+				...contextSteps.map((s) => ({
+					value: s.stepName,
+					label: `● ${s.pattern}`,
+				})),
 				...otherSteps.map((s) => ({ value: s.stepName, label: s.pattern })),
 			];
 			stepCombo.setOptions(options);
@@ -543,7 +648,9 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			if (!stepName) return;
 			this._selectedStep = stepName;
 
-			const output = this.shadowRoot?.querySelector(".chat-output") as HTMLElement | null;
+			const output = this.shadowRoot?.querySelector(
+				".chat-output",
+			) as HTMLElement | null;
 			if (!output) return;
 
 			const lastCaller = output.querySelector("shu-step-caller:last-of-type") as
@@ -573,31 +680,47 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 				this.dispatchFilterChange();
 			});
 		});
-		this.shadowRoot?.querySelector(".label-select")?.addEventListener("change", (e) => {
-			this._selectedDomainKey = (e.target as HTMLSelectElement).value;
-			const selectedOption = this._domainOptions.find((option) => option.key === this._selectedDomainKey);
-			this._selectedLabel = selectedOption?.queryLabel ?? "";
-			this._selectFilters = {};
-			this.loadProperties(this._selectedLabel);
-			void this.loadSelectValues(this._selectedLabel);
-			this.dispatchFilterChange();
-		});
-		this.shadowRoot?.querySelector(".access-select")?.addEventListener("change", (e) => {
-			this._contextAccessLevel = (e.target as HTMLSelectElement).value;
-			this.dispatchFilterChange();
-		});
+		this.shadowRoot
+			?.querySelector(".label-select")
+			?.addEventListener("change", (e) => {
+				this._selectedDomainKey = (e.target as HTMLSelectElement).value;
+				const selectedOption = this._domainOptions.find(
+					(option) => option.key === this._selectedDomainKey,
+				);
+				this._selectedLabel = selectedOption?.queryLabel ?? "";
+				this._selectFilters = {};
+				this.loadProperties(this._selectedLabel);
+				void this.loadSelectValues(this._selectedLabel);
+				this.dispatchFilterChange();
+			});
+		this.shadowRoot
+			?.querySelector(".access-select")
+			?.addEventListener("change", (e) => {
+				this._contextAccessLevel = (e.target as HTMLSelectElement).value;
+				this.dispatchFilterChange();
+			});
 
-		this.shadowRoot?.querySelector(".add-filter")?.addEventListener("click", () => {
-			this._filterConditions.push({ predicate: "", operator: "eq", value: "" });
-			this.render();
-		});
+		this.shadowRoot
+			?.querySelector(".add-filter")
+			?.addEventListener("click", () => {
+				this._filterConditions.push({
+					predicate: "",
+					operator: "eq",
+					value: "",
+				});
+				this.render();
+			});
 
-		const propOpts = this._filterProperties.map((p) => ({ value: p, label: p }));
+		const propOpts = this._filterProperties.map((p) => ({
+			value: p,
+			label: p,
+		}));
 		this.shadowRoot?.querySelectorAll(".cond-property").forEach((el) => {
 			const combo = el as ShuCombobox;
 			const idx = parseInt((el as HTMLElement).dataset.index || "0", 10);
 			combo.setOptions(propOpts);
-			if (this._filterConditions[idx]?.predicate) combo.setValue(this._filterConditions[idx].predicate);
+			if (this._filterConditions[idx]?.predicate)
+				combo.setValue(this._filterConditions[idx].predicate);
 			el.addEventListener("combo-change", ((e: CustomEvent) => {
 				this._filterConditions[idx].predicate = e.detail?.value || "";
 			}) as EventListener);
@@ -606,8 +729,12 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			const idx = parseInt((el as HTMLElement).dataset.index || "0", 10);
 			el.addEventListener("change", () => {
 				const prev = this._filterConditions[idx].operator;
-				this._filterConditions[idx].operator = (el as HTMLSelectElement).value as import("../schemas.js").TSearchOperator;
-				if ((prev === "between") !== (this._filterConditions[idx].operator === "between")) {
+				this._filterConditions[idx].operator = (el as HTMLSelectElement)
+					.value as import("../schemas.js").TSearchOperator;
+				if (
+					(prev === "between") !==
+					(this._filterConditions[idx].operator === "between")
+				) {
 					this.render();
 				}
 			});
@@ -632,19 +759,30 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 				this.dispatchFilterChange();
 			});
 		});
-		this.shadowRoot?.querySelector(".text-search")?.addEventListener("input", (e) => {
-			this._textSearch = (e.target as HTMLInputElement).value;
-			if (this._searchDebounce) clearTimeout(this._searchDebounce);
-			this._searchDebounce = setTimeout(() => this.dispatchFilterChange(), 300);
-		});
-		this.shadowRoot?.querySelector(".search-go")?.addEventListener("click", () => {
-			if (this._searchDebounce) clearTimeout(this._searchDebounce);
-			this.dispatchFilterChange();
-		});
+		this.shadowRoot
+			?.querySelector(".text-search")
+			?.addEventListener("input", (e) => {
+				this._textSearch = (e.target as HTMLInputElement).value;
+				if (this._searchDebounce) clearTimeout(this._searchDebounce);
+				this._searchDebounce = setTimeout(
+					() => this.dispatchFilterChange(),
+					300,
+				);
+			});
+		this.shadowRoot
+			?.querySelector(".search-go")
+			?.addEventListener("click", () => {
+				if (this._searchDebounce) clearTimeout(this._searchDebounce);
+				this.dispatchFilterChange();
+			});
 
-		const modelCombo = this.shadowRoot?.querySelector(".model-select") as ShuCombobox | null;
+		const modelCombo = this.shadowRoot?.querySelector(
+			".model-select",
+		) as ShuCombobox | null;
 		if (modelCombo) {
-			modelCombo.setOptions(this._models.map((m) => ({ value: m.filename, label: m.filename })));
+			modelCombo.setOptions(
+				this._models.map((m) => ({ value: m.filename, label: m.filename })),
+			);
 			if (this._selectedModel) modelCombo.setValue(this._selectedModel);
 		}
 		modelCombo?.addEventListener("combo-change", ((e: CustomEvent) => {
@@ -652,7 +790,9 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			setCookie(MODEL_COOKIE, this._selectedModel);
 		}) as EventListener);
 
-		const chatInput = this.shadowRoot?.querySelector(".chat-input") as HTMLTextAreaElement | null;
+		const chatInput = this.shadowRoot?.querySelector(
+			".chat-input",
+		) as HTMLTextAreaElement | null;
 		chatInput?.addEventListener("input", () => {
 			if (chatInput) {
 				chatInput.style.height = "auto";
@@ -676,27 +816,39 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			}
 		});
 
-		this.shadowRoot?.querySelector(".send-btn")?.addEventListener("click", submitChat);
-		this.shadowRoot?.querySelector(".stop-btn")?.addEventListener("click", () => {
-			this._abortController?.abort();
-		});
-		this.shadowRoot?.querySelector(".save-btn")?.addEventListener("click", () => {
-			void this.handleSave();
-		});
+		this.shadowRoot
+			?.querySelector(".send-btn")
+			?.addEventListener("click", submitChat);
+		this.shadowRoot
+			?.querySelector(".stop-btn")
+			?.addEventListener("click", () => {
+				this._abortController?.abort();
+			});
+		this.shadowRoot
+			?.querySelector(".save-btn")
+			?.addEventListener("click", () => {
+				void this.handleSave();
+			});
 	}
 
 	private async handleChat(prompt: string): Promise<void> {
 		await getAvailableSteps();
-		const output = this.shadowRoot?.querySelector(".chat-output") as HTMLElement | null;
+		const output = this.shadowRoot?.querySelector(
+			".chat-output",
+		) as HTMLElement | null;
 		if (!output) return;
 
 		this._lastPrompt = prompt;
 		this._fullText = "";
 		this._abortController = new AbortController();
 
-		const saveBtn = this.shadowRoot?.querySelector(".save-btn") as HTMLElement | null;
+		const saveBtn = this.shadowRoot?.querySelector(
+			".save-btn",
+		) as HTMLElement | null;
 		if (saveBtn) saveBtn.style.display = "none";
-		const stopBtn = this.shadowRoot?.querySelector(".stop-btn") as HTMLElement | null;
+		const stopBtn = this.shadowRoot?.querySelector(
+			".stop-btn",
+		) as HTMLElement | null;
 		if (stopBtn) stopBtn.style.display = "";
 
 		const userMsg = document.createElement("div");
@@ -764,7 +916,9 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 				this._abortController.signal,
 			);
 			if (this._fullText) {
-				const sb = this.shadowRoot?.querySelector(".save-btn") as HTMLElement | null;
+				const sb = this.shadowRoot?.querySelector(
+					".save-btn",
+				) as HTMLElement | null;
 				if (sb) sb.style.display = "";
 			}
 		} catch (err) {
@@ -793,7 +947,9 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		if (!this._fullText || !this._lastPrompt) return;
 		await getAvailableSteps();
 
-		const saveBtn = this.shadowRoot?.querySelector(".save-btn") as HTMLButtonElement | null;
+		const saveBtn = this.shadowRoot?.querySelector(
+			".save-btn",
+		) as HTMLButtonElement | null;
 		if (saveBtn) {
 			saveBtn.disabled = true;
 			saveBtn.textContent = "Saving...";
@@ -805,7 +961,11 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 				topic: this._lastPrompt.slice(0, 80),
 				content: this._fullText,
 				prompt: this._lastPrompt,
-				conditions: { conditions: this._filterConditions, label: this._selectedLabel, textQuery: this._textSearch },
+				conditions: {
+					conditions: this._filterConditions,
+					label: this._selectedLabel,
+					textQuery: this._textSearch,
+				},
 				accessLevel: this._contextAccessLevel || "private",
 			});
 
@@ -817,7 +977,9 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 				saveBtn.disabled = false;
 				saveBtn.textContent = "Save";
 			}
-			const output = this.shadowRoot?.querySelector(".chat-output") as HTMLElement | null;
+			const output = this.shadowRoot?.querySelector(
+				".chat-output",
+			) as HTMLElement | null;
 			if (output) {
 				const errEl = document.createElement("div");
 				errEl.className = "chat-error";

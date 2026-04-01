@@ -6,12 +6,12 @@ import { defaultLabel } from "./util.js";
  */
 import { hydrateFromDom } from "./rpc-registry.js";
 import { registerComponents } from "./component-registry.js";
-import type { ShuColumnStrip } from "./shu-column-strip.js";
-import type { ShuColumnPane } from "./shu-column-pane.js";
-import type { ShuEntityColumn } from "./shu-entity-column.js";
-import type { ShuFilterColumn } from "./shu-filter-column.js";
-import type { ShuActionsBar } from "./actions-bar.js";
-import type { ShuGraphQuery } from "./graph-query.js";
+import type { ShuColumnStrip } from "./components/shu-column-strip.js";
+import type { ShuColumnPane } from "./components/shu-column-pane.js";
+import type { ShuEntityColumn } from "./components/shu-entity-column.js";
+import type { ShuFilterColumn } from "./components/shu-filter-column.js";
+import type { ShuActionsBar } from "./components/shu-actions-bar.js";
+import type { ShuGraphQuery } from "./components/shu-graph-query.js";
 
 const LAYOUT_STYLE = `
   .app-container {
@@ -77,7 +77,11 @@ function seedHashFromQueryString(): void {
 	if (search.size === 0) return;
 	const hashParams = new URLSearchParams();
 	for (const [key, value] of search) hashParams.set(key, value);
-	history.replaceState(null, "", `${location.pathname}#?${hashParams.toString()}`);
+	history.replaceState(
+		null,
+		"",
+		`${location.pathname}#?${hashParams.toString()}`,
+	);
 }
 
 const main = async (): Promise<void> => {
@@ -98,12 +102,18 @@ const main = async (): Promise<void> => {
 		document.head.appendChild(style);
 	}
 
-	const getStrip = () => appRoot.querySelector("shu-column-strip") as ShuColumnStrip | null;
-	const getActionsBar = () => appRoot.querySelector(".app-container > shu-actions-bar") as ShuActionsBar | null;
+	const getStrip = () =>
+		appRoot.querySelector("shu-column-strip") as ShuColumnStrip | null;
+	const getActionsBar = () =>
+		appRoot.querySelector(
+			".app-container > shu-actions-bar",
+		) as ShuActionsBar | null;
 
 	let notifyTimer: ReturnType<typeof setTimeout> | null = null;
 	const showNotification = (message: string, duration = 5000) => {
-		const notifyBar = appRoot.querySelector(".notify-bar") as HTMLElement | null;
+		const notifyBar = appRoot.querySelector(
+			".notify-bar",
+		) as HTMLElement | null;
 		if (!notifyBar) return;
 		notifyBar.textContent = message;
 		notifyBar.style.display = "";
@@ -136,18 +146,25 @@ const main = async (): Promise<void> => {
 		pane.setAttribute("label", id);
 		pane.setAttribute("column-type", "entity");
 		pane.dataset.columnKey = `e:${vertexLabel}:${id}`;
-		const entity = document.createElement("shu-entity-column") as ShuEntityColumn;
+		const entity = document.createElement(
+			"shu-entity-column",
+		) as ShuEntityColumn;
 		pane.appendChild(entity);
 		return { pane, entity };
 	};
 
 	/** Create a filter column pane. */
-	const createFilterPane = (colLabel: string, key: string): { pane: ShuColumnPane; filter: ShuFilterColumn } => {
+	const createFilterPane = (
+		colLabel: string,
+		key: string,
+	): { pane: ShuColumnPane; filter: ShuFilterColumn } => {
 		const pane = document.createElement("shu-column-pane") as ShuColumnPane;
 		pane.setAttribute("label", colLabel);
 		pane.setAttribute("column-type", "filter");
 		pane.dataset.columnKey = key;
-		const filter = document.createElement("shu-filter-column") as ShuFilterColumn;
+		const filter = document.createElement(
+			"shu-filter-column",
+		) as ShuFilterColumn;
 		pane.appendChild(filter);
 		return { pane, filter };
 	};
@@ -180,7 +197,11 @@ const main = async (): Promise<void> => {
 			if (!strip) return;
 
 			// Reset columns only when the event originates from the main query table
-			const fromQuery = e.composedPath().some((el) => el instanceof HTMLElement && el.tagName === "SHU-GRAPH-QUERY");
+			const fromQuery = e
+				.composedPath()
+				.some(
+					(el) => el instanceof HTMLElement && el.tagName === "SHU-GRAPH-QUERY",
+				);
 			if (fromQuery) {
 				const panes = strip.panes;
 				for (let i = panes.length - 1; i >= 0; i--) {
@@ -207,7 +228,9 @@ const main = async (): Promise<void> => {
 			const strip = getStrip();
 			if (!strip) return;
 			const colLabel = value ? `${property}=${value}` : property;
-			const key = value ? `f:${label || defaultLabel()}:${property}=${value}` : `p:${label || defaultLabel()}:${property}`;
+			const key = value
+				? `f:${label || defaultLabel()}:${property}=${value}`
+				: `p:${label || defaultLabel()}:${property}`;
 			const { pane, filter } = createFilterPane(colLabel, key);
 			strip.addPane(pane);
 			if (type === "incoming") {
@@ -226,7 +249,8 @@ const main = async (): Promise<void> => {
 		"results-changed",
 		(() => {
 			const h = location.hash;
-			if (h.startsWith("#?") && new URLSearchParams(h.slice(2)).has("col")) return;
+			if (h.startsWith("#?") && new URLSearchParams(h.slice(2)).has("col"))
+				return;
 			const strip = getStrip();
 			if (!strip) return;
 			const panes = strip.panes;
@@ -246,7 +270,11 @@ const main = async (): Promise<void> => {
 			const detail = e.detail || {};
 			const actionsBar = getActionsBar();
 			if (actionsBar?.setContext && detail.patterns) {
-				actionsBar.setContext(detail.patterns, detail.accessLevel || "private", detail);
+				actionsBar.setContext(
+					detail.patterns,
+					detail.accessLevel || "private",
+					detail,
+				);
 			}
 		}) as EventListener,
 		{ signal },
@@ -258,7 +286,9 @@ const main = async (): Promise<void> => {
 	appRoot.addEventListener(
 		"resize-drag",
 		((e: CustomEvent) => {
-			const ab = appRoot.querySelector(".app-container > shu-actions-bar") as HTMLElement | null;
+			const ab = appRoot.querySelector(
+				".app-container > shu-actions-bar",
+			) as HTMLElement | null;
 			if (!ab) return;
 			if (resizeStartH === 0) {
 				resizeStartH = ab.offsetHeight;
@@ -274,7 +304,9 @@ const main = async (): Promise<void> => {
 	appRoot.addEventListener(
 		"resize-end",
 		(() => {
-			const ab = appRoot.querySelector(".app-container > shu-actions-bar") as HTMLElement | null;
+			const ab = appRoot.querySelector(
+				".app-container > shu-actions-bar",
+			) as HTMLElement | null;
 			if (ab && resizeStartH > 0) {
 				const maxH = parseInt(ab.style.maxHeight) || ab.offsetHeight;
 				if (maxH < 50) {
@@ -293,11 +325,17 @@ const main = async (): Promise<void> => {
 	appRoot.addEventListener(
 		"sync-available",
 		((e: CustomEvent) => {
-			const total = appRoot.querySelector(".result-total") as HTMLElement | null;
+			const total = appRoot.querySelector(
+				".result-total",
+			) as HTMLElement | null;
 			if (total) total.classList.add("has-sync");
 			const detail = e.detail || {};
-			const desc = detail.folder ? `${detail.account}/${detail.folder}` : "mail";
-			showNotification(`${detail.indexed || "New"} message${detail.indexed === 1 ? "" : "s"} synced from ${desc}`);
+			const desc = detail.folder
+				? `${detail.account}/${detail.folder}`
+				: "mail";
+			showNotification(
+				`${detail.indexed || "New"} message${detail.indexed === 1 ? "" : "s"} synced from ${desc}`,
+			);
 		}) as EventListener,
 		{ signal },
 	);
