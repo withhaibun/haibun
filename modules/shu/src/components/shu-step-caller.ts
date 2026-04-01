@@ -139,7 +139,8 @@ export class StepCaller extends HTMLElement {
 	private retireCurrentTestIds(): void {
 		const stepName = this.getAttribute("step") || "";
 		this.shadowRoot?.querySelectorAll('[data-testid^="current-"]').forEach((el) => {
-			const id = (el as HTMLElement).dataset.testid!;
+			const id = (el as HTMLElement).dataset.testid;
+			if (!id) return;
 			(el as HTMLElement).dataset.testid = id.replace("current-", `${stepName}-`);
 		});
 	}
