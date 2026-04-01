@@ -15,9 +15,9 @@ function flattenTestIds(obj: Record<string, unknown>): string[] {
 	return result;
 }
 
-const { graphQuery, getVertexWithEdges, getIncomingEdges, createEdge, exportGraphAsJsonLd } = withAction(new TutorialGraphStepper());
+const { getIncomingEdges, exportGraphAsJsonLd } = withAction(new TutorialGraphStepper());
 const { serveShuApp } = withAction(new ShuStepper());
-const { waitFor, click, selectionOption, inputVariable, gotoPage, reloadPage } = withAction(new WebPlaywright());
+const { waitFor, click, selectionOption, inputVariable, press, gotoPage, reloadPage } = withAction(new WebPlaywright());
 const { setAs } = withAction(new VariablesStepper());
 const { feature, scenario } = withAction(new Haibun());
 const host = "http://localhost:8237";
@@ -25,97 +25,108 @@ const IDS = SHU_TEST_IDS;
 
 const testIdSetup = flattenTestIds(IDS).map((id) => setAs({ what: id, domain: "page-test-id", value: `"${id}"` }));
 
+const CV = "createVertex";
+const CE = "createEdge";
+
+/** Register step-caller form test IDs for a given step method. */
+function stepIds(method: string, params: string[]) {
+	return [
+		setAs({ what: `${method}-step-run`, domain: "page-test-id", value: `"${method}-step-run"` }),
+		...params.map((p) => setAs({ what: `${method}-step-input-${p}`, domain: "page-test-id", value: `"${method}-step-input-${p}"` })),
+	];
+}
+
 export const features: TKirejiExport = {
 	"Hypermedia Tutorial: Rels, Edges, and HATEOAS": [
 		feature({ feature: "Hypermedia Fundamentals through shu UI" }),
 
 		...testIdSetup,
+		...stepIds(CV, ["label", "id", "data"]),
+		...stepIds(CE, ["fromLabel", "fromId", "rel", "toLabel", "toId"]),
 
-		"This test explores hypermedia concepts: how rels define semantic meaning.",
-		"How edges enable HATEOAS navigation.",
-		"How JSON-LD exports encode relationships.",
-		"The shu UI discovers and renders these capabilities dynamically.",
-
-		scenario({ scenario: "Start shu with tutorial graph stepper" }),
-		"Every stepper declares vertex types and their properties.",
-		graphQuery({ query: JSON.stringify({ label: "Researcher", textQuery: "" }) }),
+		scenario({ scenario: "Start shu with empty graph" }),
 		"enable rpc",
 		serveShuApp({ path: '"/spa"' }),
 		'webserver is listening for "shu-hypermedia-tutorial"',
 
-		scenario({ scenario: "Understanding Rels: Properties with Semantic Meaning" }),
-		"Rels like 'name', 'context', 'published' tell the UI how to interpret properties.",
-		"The tutorial graph has Researcher vertices with properties that use rels:",
-		"  - 'name' (rel: identifier) → person's full name",
-		"  - 'context' (rel: context) → their research area",
-		"  - 'published' (rel: published) → when their profile was created",
-		"",
+		scenario({ scenario: "Create vertices and edges through the Step mode UI" }),
+		gotoPage({ name: `"${host}/spa"` }),
+		"page has settled",
+		click({ target: IDS.APP.TWISTY }),
+		"page has settled",
+		selectionOption({ option: '"Step"', field: IDS.APP.MODE_SELECT }),
+		"page has settled",
+
+		"Select createVertex and create Dr. Alice Chen.",
+		inputVariable({ what: '"create vertex"', field: IDS.APP.STEP_SELECT }),
+		press({ key: '"Enter"' }),
+		"page has settled",
+		waitFor({ target: `${CV}-step-input-label` }),
+		inputVariable({ what: '"Researcher"', field: `${CV}-step-input-label` }),
+		inputVariable({ what: '"researcher-alice"', field: `${CV}-step-input-id` }),
+		inputVariable({ what: JSON.stringify(JSON.stringify({ name: "Dr. Alice Chen", context: "Knowledge Graphs", published: "2020-01-15T00:00:00.000Z" })), field: `${CV}-step-input-data` }),
+		click({ target: `${CV}-step-run` }),
+		"page has settled",
+
+		"Create a Paper vertex by changing the form values and re-running.",
+		inputVariable({ what: '"Paper"', field: `${CV}-step-input-label` }),
+		inputVariable({ what: '"paper-semantic-web"', field: `${CV}-step-input-id` }),
+		inputVariable({ what: JSON.stringify(JSON.stringify({ name: "Semantic Graphs with RDF", content: "Explores RDF quads and hypermedia rels for modelling relationships.", published: "2024-03-01T00:00:00.000Z" })), field: `${CV}-step-input-data` }),
+		click({ target: `${CV}-step-run` }),
+		"page has settled",
+
+		"Switch to createEdge and link Alice to the paper.",
+		inputVariable({ what: '"create edge"', field: IDS.APP.STEP_SELECT }),
+		press({ key: '"Enter"' }),
+		"page has settled",
+		waitFor({ target: `${CE}-step-input-fromLabel` }),
+		inputVariable({ what: '"Researcher"', field: `${CE}-step-input-fromLabel` }),
+		inputVariable({ what: '"researcher-alice"', field: `${CE}-step-input-fromId` }),
+		inputVariable({ what: '"attributedTo"', field: `${CE}-step-input-rel` }),
+		inputVariable({ what: '"Paper"', field: `${CE}-step-input-toLabel` }),
+		inputVariable({ what: '"paper-semantic-web"', field: `${CE}-step-input-toId` }),
+		click({ target: `${CE}-step-run` }),
+		"page has settled",
+
+		scenario({ scenario: "Query renders created vertices" }),
 		gotoPage({ name: `"${host}/spa?label=Researcher"` }),
 		"page has settled",
 		waitFor({ target: IDS.QUERY.TABLE }),
-		"The query renders Researcher vertices; column headers are derived from rels.",
-		"Each row shows properties labeled by their semantic rels.",
+		waitFor({ target: IDS.QUERY.FIRST_ROW }),
 
-		scenario({ scenario: "Following HATEOAS: Edge Navigation via Rels" }),
-		"HATEOAS means links (edges) are discovered at runtime, not hardcoded.",
-		"The tutorial stepper declares edges with rels: attributedTo, inReplyTo.",
-		"When shu discovers these edges, it renders them as clickable links in entity columns.",
-		"",
+		scenario({ scenario: "Entity column with edges" }),
 		click({ target: IDS.QUERY.FIRST_ROW }),
 		"page has settled",
 		waitFor({ target: IDS.COLUMN_BROWSER.ENTITY_DETAILS }),
-		"The entity column shows 'Dr. Alice Chen' (Researcher) with her properties.",
 		waitFor({ target: IDS.COLUMN_BROWSER.REF_SECTION }),
-		"Edges appear: 'authored' rel (attributedTo) links to Papers this researcher wrote.",
-		"Navigating via URL to a specific Paper entity by id.",
+
+		scenario({ scenario: "Paper entity via URL" }),
 		gotoPage({ name: `"${host}/spa?label=Paper&id=paper-semantic-web"` }),
 		"page has settled",
 		waitFor({ target: IDS.COLUMN_BROWSER.ENTITY_DETAILS }),
-		"The Paper entity opens with its details and references.",
 
-		scenario({ scenario: "Discovering Incoming Relationships via Reverse Edges" }),
-		"Papers have edges linking back via attributedTo; the shu UI queries these reverse edges.",
-		"This implements HATEOAS discovery from the incoming direction.",
+		scenario({ scenario: "Incoming edges" }),
 		getIncomingEdges({ label: '"Paper"', id: '"paper-semantic-web"', limit: '100', offset: '0' }),
-		"The Paper column shows incomingCount; clicking reveals incoming references.",
 
-		scenario({ scenario: "JSON-LD Export: Rels Become Semantic URIs" }),
-		"When exported as JSON-LD, rels map to standard semantic web URIs:",
-		"  - 'name' → http://schema.org/name",
-		"  - 'published' → http://purl.org/dc/terms/issued",
-		"  - 'attributedTo' → http://purl.org/dc/terms/creator",
-		"  - 'inReplyTo' → http://www.w3.org/2002/07/owl#sameAs",
+		scenario({ scenario: "JSON-LD export" }),
 		exportGraphAsJsonLd({}),
-		"The export includes @context mapping; the graph is in @graph array.",
-		"External tools (JSON-LD processors, RDF converters) can now understand all relationships.",
 
-		scenario({ scenario: "Reload Preserves Navigation State" }),
-		"URL state persists active pane, column types, and search filters.",
-		"Reloading the page restores the exact navigation position.",
-		"",
+		scenario({ scenario: "Reload preserves state" }),
 		gotoPage({ name: `"${host}/spa"` }),
 		"page has settled",
 		click({ target: IDS.QUERY.FIRST_ROW }),
 		"page has settled",
 		waitFor({ target: IDS.COLUMN_BROWSER.ENTITY_DETAILS }),
-		"Entity column is now active and visible.",
 		reloadPage({}),
 		"page has settled",
 		waitFor({ target: IDS.COLUMN_BROWSER.ENTITY_DETAILS }),
-		"Active pane remains #2 (entity column), not reset to #0 (query).",
-		"Navigation state (the hypermedia state machine) survived the reload.",
 
-		scenario({ scenario: "Creating New Edges: Hypermedia Mutation" }),
-		"APIs are hypermedia when mutations (POST, PUT) are also discoverable via rels.",
-		"The tutorial stepper includes createEdge step.",
-		"The shu UI could present it as an action.",
-		"This demonstrates: Rels enable clients to discover available operations dynamically.",
-		"",
-		createEdge({ fromLabel: '"Paper"', fromId: '"paper-semantic-web"', rel: '"references"', toLabel: '"Paper"', toId: '"paper-jsonld"' }),
-		"New edge created: Paper-semantic-web references Paper-jsonld.",
-		gotoPage({ name: `"${host}/spa?label=Paper&id=paper-semantic-web"` }),
+		scenario({ scenario: "Type dropdown from concerns" }),
+		click({ target: IDS.APP.TWISTY }),
 		"page has settled",
-		waitFor({ target: IDS.COLUMN_BROWSER.ENTITY_DETAILS }),
-		"The new reference now appears in the entity column, proving mutations are reflected.",
+		waitFor({ target: IDS.APP.TYPE_SELECT }),
+		selectionOption({ option: '"Paper"', field: IDS.APP.TYPE_SELECT }),
+		"page has settled",
+		waitFor({ target: IDS.QUERY.TABLE }),
 	],
 };

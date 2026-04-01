@@ -122,9 +122,8 @@ export class StepCaller extends HTMLElement {
 	private renderForm(desc: StepDescriptor): string {
 		const schema = desc.inputSchema as { properties?: Record<string, InputProperty>; required?: string[] } | undefined;
 		const properties = schema?.properties || {};
-		// Test IDs include the step name for uniqueness; only the active (non-executed) form gets them
 		const currentStepName = this.getAttribute("step") || "";
-		const activeTestId = (suffix: string) => (this.executed ? "" : ` data-testid="${escAttr(currentStepName)}-${escAttr(suffix)}"`);
+		const tid = (suffix: string) => ` data-testid="${escAttr(currentStepName)}-${escAttr(suffix)}"`;
 
 		// Parse the gwta pattern into text segments and inline inputs
 		const pattern = desc.pattern || "";
@@ -148,13 +147,13 @@ export class StepCaller extends HTMLElement {
 						.map((v: string) => `<option value="${escAttr(v)}"${v === savedVal ? " selected" : ""}>${esc(v)}</option>`)
 						.join("");
 					parts.push(
-						`<select name="${escAttr(paramName)}" class="inline-select"${activeTestId(`step-select-${paramName}`)}><option value=""${!savedVal ? " selected" : ""}>${esc(paramName)}</option>${options}</select>`,
+						`<select name="${escAttr(paramName)}" class="inline-select"${tid(`step-select-${paramName}`)}><option value=""${!savedVal ? " selected" : ""}>${esc(paramName)}</option>${options}</select>`,
 					);
 				} else {
 					const saved = this.lastFormValues[paramName] || "";
 					const sz = Math.max(saved.length, paramName.length, 4);
 					parts.push(
-						`<input type="text" name="${escAttr(paramName)}" class="inline-input" placeholder="${escAttr(paramName)}" value="${escAttr(saved)}" size="${sz}"${activeTestId(`step-input-${paramName}`)} />`,
+						`<input type="text" name="${escAttr(paramName)}" class="inline-input" placeholder="${escAttr(paramName)}" value="${escAttr(saved)}" size="${sz}"${tid(`step-input-${paramName}`)} />`,
 					);
 				}
 			}
@@ -165,7 +164,7 @@ export class StepCaller extends HTMLElement {
 		}
 
 		const runLabel = this.executed ? "\u27F3\u25B6" : "\u25B6";
-		return `<form class="step-form step-sentence">${parts.join(" ")} <button type="submit" class="run-inline${this.executed ? " rerun" : ""}" title="${this.executed ? "Re-run" : "Run"}"${activeTestId("step-run")}>${runLabel}</button></form>`;
+		return `<form class="step-form step-sentence">${parts.join(" ")} <button type="submit" class="run-inline${this.executed ? " rerun" : ""}" title="${this.executed ? "Re-run" : "Run"}"${tid("step-run")}>${runLabel}</button></form>`;
 	}
 
 	private renderOutput(): string {
