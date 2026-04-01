@@ -274,7 +274,7 @@ export default class TutorialGraphStepper extends AStepper {
 		}),
 	};
 
-	steps: TStepperSteps = {
+	steps = {
 		graphQuery: {
 			gwta: `graph query {query: ${DOMAIN_TUTORIAL_QUERY}}`,
 			outputSchema: QueryResultSchema,
@@ -417,5 +417,5 @@ export default class TutorialGraphStepper extends AStepper {
 				}
 			},
 		},
-	};
+	} satisfies TStepperSteps;
 }
