@@ -11,34 +11,16 @@ import {
 	type CallToolResult,
 } from "@modelcontextprotocol/sdk/types.js";
 
-import {
-	AStepper,
-	type IHasCycles,
-	type IHasOptions,
-} from "@haibun/core/lib/astepper.js";
+import { AStepper, type IHasCycles, type IHasOptions } from "@haibun/core/lib/astepper.js";
 import type { TWorld } from "@haibun/core/lib/defs.js";
 import { OK } from "@haibun/core/schema/protocol.js";
-import {
-	getFromRuntime,
-	getStepperOption,
-	constructorName,
-	stringOrError,
-} from "@haibun/core/lib/util/index.js";
+import { getFromRuntime, getStepperOption, constructorName, stringOrError } from "@haibun/core/lib/util/index.js";
 import { currentVersion as version } from "@haibun/core/currentVersion.js";
-import {
-	buildStepRegistry,
-	dispatchRemoteToolCall,
-	type StepRegistry,
-	type StepTool,
-} from "@haibun/core/lib/step-dispatch.js";
+import { buildStepRegistry, dispatchStep, validateToolInput, buildSyntheticFeatureStep, StepRegistry, type StepTool } from "@haibun/core/lib/step-dispatch.js";
 import type { IWebServer, Context } from "./defs.js";
 import { WEBSERVER } from "./defs.js";
 import type { IStepTransport } from "./step-transport.js";
-import {
-	getGrantedCapabilityFromHeaders,
-	validateCapabilityAuthConfig,
-} from "./capability-auth.js";
-
+import { getGrantedCapabilityFromHeaders, validateCapabilityAuthConfig } from "./capability-auth.js";
 // --- Type Definitions ---
 
 type StoredTool = {
@@ -46,10 +28,7 @@ type StoredTool = {
 	description: string;
 	inputSchema: {
 		type: "object";
-		properties?: Record<
-			string,
-			{ type?: string; description?: string; [key: string]: unknown }
-		>;
+		properties?: Record<string, { type?: string; description?: string; [key: string]: unknown }>;
 		required?: string[];
 		[key: string]: unknown;
 	};
@@ -61,15 +40,13 @@ type StoredTool = {
 
 type ConnectionId = object;
 
-export default class McpStepper
-	extends AStepper
-	implements IHasOptions, IHasCycles, IStepTransport
-{
+export default class McpStepper extends AStepper implements IHasOptions, IHasCycles, IStepTransport {
 	description = "Expose all Haibun steps as callable MCP tools for LLM agents";
 	readonly name = "McpStepper";
 
 	/** IStepTransport: refresh tool registries from the shared registry. */
 	attach(registry: StepRegistry, _webserver: IWebServer): void {
+		this.currentRegistry = registry;
 		this.populateToolRegistries(registry);
 	}
 
@@ -109,6 +86,12 @@ export default class McpStepper
 	private mcpServer?: McpServer;
 	private transport?: StreamableHTTPTransport;
 	private steppers: AStepper[] = [];
+	private currentRegistry?: StepRegistry;
+
+	private getOrCreateRegistry(): StepRegistry {
+		if (!this.currentRegistry) this.currentRegistry = new StepRegistry(this.steppers, this.getWorld());
+		return this.currentRegistry;
+	}
 
 	private mcpPath = "/mcp";
 	private accessToken = "";
@@ -123,15 +106,9 @@ export default class McpStepper
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
 		this.steppers = steppers;
-		this.mcpPath =
-			(getStepperOption(this, "MCP_PATH", world.moduleOptions) as string) ||
-			"/mcp";
-		this.accessToken =
-			(getStepperOption(this, "ACCESS_TOKEN", world.moduleOptions) as string) ||
-			"";
-		this.accessCapability =
-			(getStepperOption(this, "ACCESS_CAPABILITY", world.moduleOptions) as string) ||
-			"";
+		this.mcpPath = (getStepperOption(this, "MCP_PATH", world.moduleOptions) as string) || "/mcp";
+		this.accessToken = (getStepperOption(this, "ACCESS_TOKEN", world.moduleOptions) as string) || "";
+		this.accessCapability = (getStepperOption(this, "ACCESS_CAPABILITY", world.moduleOptions) as string) || "";
 		validateCapabilityAuthConfig("McpStepper", {
 			accessToken: this.accessToken || undefined,
 			accessCapability: this.accessCapability || undefined,
@@ -147,10 +124,7 @@ export default class McpStepper
 		}));
 	}
 
-	public async executeTool(
-		name: string,
-		args: Record<string, unknown>,
-	): Promise<CallToolResult> {
+	public async executeTool(name: string, args: Record<string, unknown>): Promise<CallToolResult> {
 		const toolDef = this.globalToolRegistry.get(name);
 		if (!toolDef) {
 			throw new McpError(ErrorCode.MethodNotFound, `Tool ${name} not found.`);
@@ -158,11 +132,7 @@ export default class McpStepper
 		return await this.callTool(toolDef, args);
 	}
 
-	private async callTool(
-		toolDef: StoredTool,
-		args: Record<string, unknown>,
-		grantedCapability?: string | string[],
-	): Promise<CallToolResult> {
+	private async callTool(toolDef: StoredTool, args: Record<string, unknown>, grantedCapability?: string | string[]): Promise<CallToolResult> {
 		try {
 			return await toolDef.handler(args, grantedCapability);
 		} catch (err: unknown) {
@@ -175,205 +145,148 @@ export default class McpStepper
 		if (this.mcpServer) return;
 
 		if (!this.accessToken) {
-			throw new Error(
-				"McpStepper: ACCESS_TOKEN is required. Configure HAIBUN_O_MCPSTEPPER_ACCESS_TOKEN environment variable.",
-			);
+			throw new Error("McpStepper: ACCESS_TOKEN is required. Configure HAIBUN_O_MCPSTEPPER_ACCESS_TOKEN environment variable.");
 		}
 
-		const webserver = getFromRuntime(
-			this.getWorld().runtime,
-			WEBSERVER,
-		) as IWebServer;
-		if (!webserver)
-			throw new Error("McpStepper: No webserver found in runtime.");
+		const webserver = getFromRuntime(this.getWorld().runtime, WEBSERVER) as IWebServer;
+		if (!webserver) throw new Error("McpStepper: No webserver found in runtime.");
 
-		this.mcpServer = new McpServer(
-			{ name: "haibun-mcp", version },
-			{ capabilities: { tools: {}, resources: {} } },
-		);
+		this.mcpServer = new McpServer({ name: "haibun-mcp", version }, { capabilities: { tools: {}, resources: {} } });
 		this.transport = new StreamableHTTPTransport({ enableJsonResponse: true });
 
 		this.indexTools = this.buildIndexTools();
 		// Registry is now populated in setWorld
 
 		// --- HANDLER 1: LIST TOOLS ---
-		this.mcpServer.server.setRequestHandler(
-			ListToolsRequestSchema,
-			(_request, extra) => {
-				const connection = (extra as { connection?: ConnectionId })?.connection;
-				const sessionId = this.getSessionId(connection, extra);
+		this.mcpServer.server.setRequestHandler(ListToolsRequestSchema, (_request, extra) => {
+			const connection = (extra as { connection?: ConnectionId })?.connection;
+			const sessionId = this.getSessionId(connection, extra);
 
-				const activeStepper = sessionId
-					? this.sessionScopes.get(sessionId)
-					: undefined;
+			const activeStepper = sessionId ? this.sessionScopes.get(sessionId) : undefined;
 
-				if (!activeStepper) {
-					return { tools: this.indexTools };
-				}
+			if (!activeStepper) {
+				return { tools: this.indexTools };
+			}
 
-				const stepperTools = this.stepperToolRegistry.get(activeStepper) || [];
-				const visibleTools: Tool[] = stepperTools.map((t) => ({
-					name: t.name,
-					description: t.description,
-					inputSchema: t.inputSchema,
-				}));
+			const stepperTools = this.stepperToolRegistry.get(activeStepper) || [];
+			const visibleTools: Tool[] = stepperTools.map((t) => ({
+				name: t.name,
+				description: t.description,
+				inputSchema: t.inputSchema,
+			}));
 
-				visibleTools.unshift({
-					name: "return_to_index",
-					description:
-						"Close current stepper tools and return to the main index of available steppers.",
-					inputSchema: { type: "object", properties: {} },
-				});
+			visibleTools.unshift({
+				name: "return_to_index",
+				description: "Close current stepper tools and return to the main index of available steppers.",
+				inputSchema: { type: "object", properties: {} },
+			});
 
-				return { tools: visibleTools };
-			},
-		);
+			return { tools: visibleTools };
+		});
 
 		// --- HANDLER 2: CALL TOOL ---
 		const defaultConnection = {};
-		this.mcpServer.server.setRequestHandler(
-			CallToolRequestSchema,
-			async (request, extra) => {
-				const grantedCapability = this.getGrantedCapability(extra);
-				const connection =
-					(extra as { connection?: ConnectionId })?.connection ||
-					defaultConnection;
-				const sessionId = this.getSessionId(connection, extra);
+		this.mcpServer.server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
+			const grantedCapability = this.getGrantedCapability(extra);
+			const connection = (extra as { connection?: ConnectionId })?.connection || defaultConnection;
+			const sessionId = this.getSessionId(connection, extra);
 
-				const toolName = request.params.name;
-				const args =
-					(request.params.arguments as Record<string, unknown>) || {};
+			const toolName = request.params.name;
+			const args = (request.params.arguments as Record<string, unknown>) || {};
 
-				if (toolName.startsWith("access_stepper_")) {
-					const targetStepper = toolName.replace("access_stepper_", "");
-					const stepperTools = this.stepperToolRegistry.get(targetStepper);
-					if (stepperTools) {
-						await this.updateSessionFocus(sessionId, targetStepper);
-						const toolList = stepperTools
-							.map(
-								(t) =>
-									`- **${t.name}**: ${t.description}\n  Schema: ${JSON.stringify(t.inputSchema)}`,
-							)
-							.join("\n");
-						return {
-							content: [
-								{
-									type: "text",
-									text: `Tools for ${targetStepper}:\n${toolList}`,
-								},
-							],
-						};
-					}
-				}
-
-				if (toolName === "call_step") {
-					const stepName = args["tool"] as string;
-					const stepArgs = (args["arguments"] as Record<string, unknown>) || {};
-					if (!stepName) {
-						throw new McpError(
-							ErrorCode.InvalidParams,
-							'Missing required "tool" parameter. Use access_stepper_* to list available tools.',
-						);
-					}
-					const toolDef = this.globalToolRegistry.get(stepName);
-					if (!toolDef) {
-						throw new McpError(
-							ErrorCode.MethodNotFound,
-							`Tool "${stepName}" not found. Use access_stepper_* to list available tools.`,
-						);
-					}
-					return await this.callTool(toolDef, stepArgs, grantedCapability);
-				}
-
-				if (toolName === "return_to_index") {
-					await this.updateSessionFocus(sessionId, undefined);
-					return { content: [{ type: "text", text: `Returned to index.` }] };
-				}
-
-				const toolDef = this.globalToolRegistry.get(toolName);
-				if (!toolDef) {
-					throw new McpError(
-						ErrorCode.MethodNotFound,
-						`Tool ${toolName} not found.`,
-					);
-				}
-
-				const currentFocus = this.sessionScopes.get(sessionId);
-				if (toolDef.stepperName !== currentFocus) {
-					this.getWorld().eventLogger.info(
-						`[MCP] Auto-switching focus: ${currentFocus || "Index"} -> ${toolDef.stepperName}`,
-					);
-					await this.updateSessionFocus(sessionId, toolDef.stepperName);
-				}
-
-				return await this.callTool(toolDef, args, grantedCapability);
-			},
-		);
-
-		// --- HANDLER 3: LIST RESOURCES ---
-		this.mcpServer.server.setRequestHandler(
-			ListResourcesRequestSchema,
-			(_request, _extra) => {
-				return {
-					resources: [
-						{
-							uri: `mcp://${this.mcpPath}/info`,
-							name: "Haibun MCP Server Info",
-							mimeType: "application/json",
-							description: "Basic information about this MCP server",
-						},
-					],
-				};
-			},
-		);
-
-		// --- HANDLER 4: READ RESOURCE ---
-		this.mcpServer.server.setRequestHandler(
-			ReadResourceRequestSchema,
-			(request, _extra) => {
-				if (request.params.uri === `mcp://${this.mcpPath}/info`) {
+			if (toolName.startsWith("access_stepper_")) {
+				const targetStepper = toolName.replace("access_stepper_", "");
+				const stepperTools = this.stepperToolRegistry.get(targetStepper);
+				if (stepperTools) {
+					await this.updateSessionFocus(sessionId, targetStepper);
+					const toolList = stepperTools.map((t) => `- **${t.name}**: ${t.description}\n  Schema: ${JSON.stringify(t.inputSchema)}`).join("\n");
 					return {
-						contents: [
+						content: [
 							{
-								uri: request.params.uri,
-								mimeType: "application/json",
-								text: JSON.stringify({
-									version,
-									name: "haibun-mcp",
-									status: "running",
-								}),
+								type: "text",
+								text: `Tools for ${targetStepper}:\n${toolList}`,
 							},
 						],
 					};
 				}
-				throw new McpError(
-					ErrorCode.InvalidRequest,
-					`Resource not found: ${request.params.uri}`,
-				);
-			},
-		);
+			}
+
+			if (toolName === "call_step") {
+				const stepName = args["tool"] as string;
+				const stepArgs = (args["arguments"] as Record<string, unknown>) || {};
+				if (!stepName) {
+					throw new McpError(ErrorCode.InvalidParams, 'Missing required "tool" parameter. Use access_stepper_* to list available tools.');
+				}
+				const toolDef = this.globalToolRegistry.get(stepName);
+				if (!toolDef) {
+					throw new McpError(ErrorCode.MethodNotFound, `Tool "${stepName}" not found. Use access_stepper_* to list available tools.`);
+				}
+				return await this.callTool(toolDef, stepArgs, grantedCapability);
+			}
+
+			if (toolName === "return_to_index") {
+				await this.updateSessionFocus(sessionId, undefined);
+				return { content: [{ type: "text", text: `Returned to index.` }] };
+			}
+
+			const toolDef = this.globalToolRegistry.get(toolName);
+			if (!toolDef) {
+				throw new McpError(ErrorCode.MethodNotFound, `Tool ${toolName} not found.`);
+			}
+
+			const currentFocus = this.sessionScopes.get(sessionId);
+			if (toolDef.stepperName !== currentFocus) {
+				this.getWorld().eventLogger.info(`[MCP] Auto-switching focus: ${currentFocus || "Index"} -> ${toolDef.stepperName}`);
+				await this.updateSessionFocus(sessionId, toolDef.stepperName);
+			}
+
+			return await this.callTool(toolDef, args, grantedCapability);
+		});
+
+		// --- HANDLER 3: LIST RESOURCES ---
+		this.mcpServer.server.setRequestHandler(ListResourcesRequestSchema, (_request, _extra) => {
+			return {
+				resources: [
+					{
+						uri: `mcp://${this.mcpPath}/info`,
+						name: "Haibun MCP Server Info",
+						mimeType: "application/json",
+						description: "Basic information about this MCP server",
+					},
+				],
+			};
+		});
+
+		// --- HANDLER 4: READ RESOURCE ---
+		this.mcpServer.server.setRequestHandler(ReadResourceRequestSchema, (request, _extra) => {
+			if (request.params.uri === `mcp://${this.mcpPath}/info`) {
+				return {
+					contents: [
+						{
+							uri: request.params.uri,
+							mimeType: "application/json",
+							text: JSON.stringify({
+								version,
+								name: "haibun-mcp",
+								status: "running",
+							}),
+						},
+					],
+				};
+			}
+			throw new McpError(ErrorCode.InvalidRequest, `Resource not found: ${request.params.uri}`);
+		});
 
 		await this.mcpServer.connect(this.transport);
 		this.setupMiddleware(webserver);
 		this.setupRoutes(webserver);
-		this.getWorld().eventLogger.info(
-			`🔗 MCP endpoint registered at ${this.mcpPath}`,
-		);
+		this.getWorld().eventLogger.info(`🔗 MCP endpoint registered at ${this.mcpPath}`);
 
 		// --- RESOLVE PORT (Fixed Priority) ---
 		// 1. Check McpStepper options (highest priority)
-		const myPortOpt = getStepperOption(
-			this,
-			"PORT",
-			this.getWorld().moduleOptions,
-		);
+		const myPortOpt = getStepperOption(this, "PORT", this.getWorld().moduleOptions);
 		// 2. Check WebServerStepper options
-		const wsPortOpt = (
-			this.getWorld().moduleOptions as unknown as Record<
-				string,
-				Record<string, unknown> | undefined
-			>
-		)?.["WebServerStepper"]?.["PORT"];
+		const wsPortOpt = (this.getWorld().moduleOptions as unknown as Record<string, Record<string, unknown> | undefined>)?.["WebServerStepper"]?.["PORT"];
 		// 3. Check Environment variable
 		const envPort = process.env["HAIBUN_O_WEBSERVERSTEPPER_PORT"];
 
@@ -383,15 +296,11 @@ export default class McpStepper
 
 		try {
 			await webserver.listen("mcp", port);
-			this.getWorld().eventLogger.info(
-				`[MCP] WebServer started on port ${port}`,
-			);
+			this.getWorld().eventLogger.info(`[MCP] WebServer started on port ${port}`);
 		} catch (e) {
 			const estr = String(e);
 			if ((e as { code?: string })?.code === "EADDRINUSE" || estr.includes("already in use")) {
-				this.getWorld().eventLogger.info(
-					`[MCP] WebServer already listening on port ${port} (shared)`,
-				);
+				this.getWorld().eventLogger.info(`[MCP] WebServer already listening on port ${port} (shared)`);
 			} else {
 				const msg = `[MCP] WebServer listen failure: ${estr}`;
 				this.getWorld().eventLogger.error(msg);
@@ -418,10 +327,7 @@ export default class McpStepper
 		return "default-session";
 	}
 
-	private async updateSessionFocus(
-		sessionId: string | ConnectionId,
-		stepperName: string | undefined,
-	) {
+	private async updateSessionFocus(sessionId: string | ConnectionId, stepperName: string | undefined) {
 		if (stepperName === undefined) {
 			this.sessionScopes.delete(sessionId);
 		} else {
@@ -432,12 +338,7 @@ export default class McpStepper
 
 	private async notifyToolListChanged(sessionId: string | ConnectionId) {
 		// Basic check if we can notify
-		if (
-			sessionId &&
-			typeof sessionId !== "string" &&
-			"send" in sessionId &&
-			typeof (sessionId as { send?: unknown }).send === "function"
-		) {
+		if (sessionId && typeof sessionId !== "string" && "send" in sessionId && typeof (sessionId as { send?: unknown }).send === "function") {
 			if (this.mcpServer) {
 				await this.mcpServer.server.notification({
 					method: "notifications/tools/list_changed",
@@ -449,8 +350,7 @@ export default class McpStepper
 	private buildIndexTools(): Tool[] {
 		const tools: Tool[] = this.steppers.map((stepper) => {
 			const name = constructorName(stepper);
-			const desc =
-				stepper.description || `List available tools for stepper: ${name}.`;
+			const desc = stepper.description || `List available tools for stepper: ${name}.`;
 			return {
 				name: `access_stepper_${name}`,
 				description: desc,
@@ -480,10 +380,9 @@ export default class McpStepper
 	}
 
 	private populateToolRegistries(registry?: StepRegistry) {
+		if (registry) this.currentRegistry = registry;
 		// Build schema map — use provided registry if available (live refresh), otherwise build fresh
-		const schemaMap = registry
-			? new Map(registry.list().map((t) => [t.name, t]))
-			: buildStepRegistry(this.steppers, this.world);
+		const schemaMap = this.currentRegistry ? new Map(this.currentRegistry.list().map((t) => [t.name, t])) : buildStepRegistry(this.steppers, this.world);
 
 		this.globalToolRegistry.clear();
 		this.stepperToolRegistry.clear();
@@ -506,9 +405,7 @@ export default class McpStepper
 				const toolDescription = stepTool.description;
 				const tool: StoredTool = {
 					name: fullToolName,
-					description: stepTool.capability
-						? `${toolDescription} Requires capability: ${stepTool.capability}.`
-						: toolDescription,
+					description: stepTool.capability ? `${toolDescription} Requires capability: ${stepTool.capability}.` : toolDescription,
 					inputSchema,
 					stepperName,
 					capability: stepTool.capability,
@@ -517,24 +414,13 @@ export default class McpStepper
 						this.getWorld().eventLogger.info(`[MCP] Tool Execution: ${fullToolName}`);
 						const world = this.getWorld();
 						const seqPath: number[] = [0, (world.runtime.adHocSeq = (world.runtime.adHocSeq ?? 0) + 1)];
-						const hr = await dispatchRemoteToolCall({
-							tool: stepTool,
-							input,
-							world,
-							seqPath,
-							grantedCapability,
-						});
+						const validatedParams = validateToolInput(stepTool, input, world);
+						const featureStep = buildSyntheticFeatureStep(stepTool, validatedParams, seqPath);
+						const hr = await dispatchStep({ registry: this.getOrCreateRegistry(), world, steppers: this.steppers, grantedCapability }, featureStep);
 						if (!hr.ok) {
-							return {
-								isError: true,
-								content: [{ type: "text", text: hr.errorMessage ?? "Step failed" }],
-							};
+							return { isError: true, content: [{ type: "text", text: hr.errorMessage ?? "Step failed" }] };
 						}
-						return {
-							content: [
-								{ type: "text", text: JSON.stringify(hr.products ?? {}, null, 2) },
-							],
-						};
+						return { content: [{ type: "text", text: JSON.stringify(hr.products ?? {}, null, 2) }] };
 					},
 				};
 				tools.push(tool);
@@ -544,17 +430,10 @@ export default class McpStepper
 		}
 	}
 
-	private getGrantedCapability(extra: {
-		requestInfo?: { headers?: Record<string, string | string[] | undefined> };
-	}): string[] | undefined {
+	private getGrantedCapability(extra: { requestInfo?: { headers?: Record<string, string | string[] | undefined> } }): string[] | undefined {
 		const headers = extra.requestInfo?.headers;
 		if (!headers) return undefined;
-		const normalizedHeaders = Object.fromEntries(
-			Object.entries(headers).map(([key, value]) => [
-				key,
-				Array.isArray(value) ? value[0] : value,
-			]),
-		);
+		const normalizedHeaders = Object.fromEntries(Object.entries(headers).map(([key, value]) => [key, Array.isArray(value) ? value[0] : value]));
 		return getGrantedCapabilityFromHeaders(normalizedHeaders, this.getWorld().runtime, {
 			accessToken: this.accessToken || undefined,
 			accessCapability: this.accessCapability || undefined,
@@ -562,27 +441,18 @@ export default class McpStepper
 	}
 
 	private setupMiddleware(webserver: IWebServer) {
-		const applyMcpMiddleware = async (
-			c: Context,
-			next: () => Promise<void>,
-		) => {
+		const applyMcpMiddleware = async (c: Context, next: () => Promise<void>) => {
 			// 1. CORS
 			c.header("Access-Control-Allow-Origin", "*");
 			c.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-			c.header(
-				"Access-Control-Allow-Headers",
-				"Content-Type, Authorization, Accept, X-Custom-Header, X-Session-ID",
-			);
+			c.header("Access-Control-Allow-Headers", "Content-Type, Authorization, Accept, X-Custom-Header, X-Session-ID");
 
 			if (c.req.method === "OPTIONS") return c.body(null, 204);
 
 			// 2. Auth
 			if (this.accessToken) {
 				const auth = c.req.header("authorization");
-				if (
-					!auth?.startsWith("Bearer ") ||
-					auth.slice(7) !== this.accessToken
-				) {
+				if (!auth?.startsWith("Bearer ") || auth.slice(7) !== this.accessToken) {
 					return c.json({ error: "Unauthorized" }, 401);
 				}
 			}
@@ -650,16 +520,12 @@ export default class McpStepper
 
 								// C. Pass through everything else, binding functions to avoid private member issues
 								const val = Reflect.get(reqTarget, reqProp);
-								return typeof val === "function"
-									? (val as (...args: unknown[]) => unknown).bind(reqTarget)
-									: val;
+								return typeof val === "function" ? (val as (...args: unknown[]) => unknown).bind(reqTarget) : val;
 							},
 						});
 					}
 					const val = Reflect.get(target, prop);
-					return typeof val === "function"
-						? (val as (...args: unknown[]) => unknown).bind(target)
-						: val;
+					return typeof val === "function" ? (val as (...args: unknown[]) => unknown).bind(target) : val;
 				},
 			});
 
@@ -668,9 +534,7 @@ export default class McpStepper
 			const response = await transport.handleRequest(proxyContext);
 
 			if (!response) {
-				this.getWorld().eventLogger.warn(
-					"[MCP] No response generated by transport",
-				);
+				this.getWorld().eventLogger.warn("[MCP] No response generated by transport");
 				return c.notFound();
 			}
 			return response;
