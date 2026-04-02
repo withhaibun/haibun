@@ -21,7 +21,7 @@
 	"dependencies": {
 		"markdown-it": "^14.0.0",
 		"mermaid": "^11.14.0",
-		"zod": "^3.24.0"
+		"zod": "^4.3.6"
 	},
 	"devDependencies": {
 		"esbuild": "^0.27.3"

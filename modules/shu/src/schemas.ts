@@ -28,15 +28,7 @@ export type TComboboxState = z.infer<typeof ComboboxSchema>;
 
 // --- Search conditions ---
 
-export const SearchOperatorSchema = z.enum([
-	"eq",
-	"contains",
-	"gt",
-	"lt",
-	"gte",
-	"lte",
-	"between",
-]);
+export const SearchOperatorSchema = z.enum(["eq", "contains", "gt", "lt", "gte", "lte", "between"]);
 export type TSearchOperator = z.infer<typeof SearchOperatorSchema>;
 
 export const SEARCH_OPERATORS: ReadonlyArray<{
@@ -103,9 +95,7 @@ export const ColumnPaneSchema = z.object({
 	active: z.boolean().default(false),
 	width: z.number().optional(),
 	closable: z.boolean().default(true),
-	columnType: z
-		.enum(["query", "entity", "filter", "property"])
-		.default("query"),
+	columnType: z.enum(["query", "entity", "filter", "property", "monitor", "sequence"]).default("query"),
 });
 
 // --- Entity column ---

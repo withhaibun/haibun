@@ -9,6 +9,7 @@
 		"@haibun/web-playwright/build/web-playwright",
 		"@haibun/storage-fs/build/storage-fs",
 		"@haibun/shu/build/shu-stepper",
+		"@haibun/shu/build/monitor-stepper",
 		"@haibun/shu/build/tutorial-graph-stepper",
 		"@haibun/monitor-tui"
 	]

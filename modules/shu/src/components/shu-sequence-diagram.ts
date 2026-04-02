@@ -11,6 +11,8 @@ import mermaid from "mermaid";
 import { ShuElement } from "./shu-element.js";
 import { SseClient } from "../sse-client.js";
 
+let mermaidInitialized = false;
+
 const DispatchTrace = z.object({
 	stepName: z.string(),
 	transport: z.enum(["local", "remote", "subprocess"]),
@@ -24,8 +26,6 @@ const DispatchTrace = z.object({
 type TDispatchTrace = z.infer<typeof DispatchTrace>;
 
 const StateSchema = z.object({ traces: z.array(DispatchTrace).default([]), zoom: z.number().default(100), currentIndex: z.number().default(-1) });
-
-let mermaidInitialized = false;
 
 function escapeLabel(label: string): string {
 	return label
@@ -105,9 +105,25 @@ export class ShuSequenceDiagram extends ShuElement<typeof StateSchema> {
 		super(StateSchema, { traces: [], zoom: 100, currentIndex: -1 });
 	}
 
-	connectedCallback(): void {
+	async connectedCallback(): Promise<void> {
 		super.connectedCallback();
 		const client = SseClient.for("");
+
+		// One-time backfill from stepper
+		try {
+			const data = await client.rpc<{ traces: TDispatchTrace[] }>("MonitorStepper-getDispatchTraces");
+			if (data.traces?.length) {
+				const parsed = data.traces
+					.map((t) => DispatchTrace.safeParse(t))
+					.filter((r) => r.success)
+					.map((r) => r.data);
+				if (parsed.length) this.setState({ traces: parsed });
+			}
+		} catch {
+			/* stepper may not be loaded */
+		}
+
+		// Live updates via SSE — no further RPC calls
 		this.unsubscribe = client.onEvent((event) => {
 			const e = event as { kind?: string; artifactType?: string; trace?: TDispatchTrace };
 			if (e.kind === "artifact" && e.artifactType === "dispatch-trace" && e.trace) {
@@ -135,7 +151,7 @@ export class ShuSequenceDiagram extends ShuElement<typeof StateSchema> {
 		}
 
 		this.shadowRoot.innerHTML = `${this.css(STYLES)}
-			<div class="toolbar">
+			<div class="toolbar" data-testid="monitor-sequence-diagram">
 				<button data-action="zoom-out">−</button>
 				<span class="zoom-label">${zoom}%</span>
 				<button data-action="zoom-in">+</button>
