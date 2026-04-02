@@ -1,14 +1,15 @@
 import { z } from "zod";
 import { AStepper } from "./astepper.js";
-import type { TWorld, TStepperStep, TFeatureStep } from "./defs.js";
+import type { TWorld, TStepperStep, TFeatureStep, TStepAction, TBeforeStep, TAfterStep, TAfterStepResult } from "./defs.js";
 import { buildConcernCatalog, type TConcernCatalog } from "./hypermedia.js";
-import type { TActionResult, TSeqPath } from "../schema/protocol.js";
-import { TRACE_SEQ_PATH } from "../schema/protocol.js";
+import type { TActionResult, TStepResult, TSeqPath } from "../schema/protocol.js";
+import { TRACE_SEQ_PATH, Timer, FEATURE_START, SCENARIO_START, DispatchTraceArtifact } from "../schema/protocol.js";
 import { namedInterpolation, mapInputToStepValues } from "./namedVars.js";
 import { constructorName, actionNotOK } from "./util/index.js";
 import { populateActionArgs } from "./populateActionArgs.js";
 import { DOMAIN_STRING, normalizeDomainKey } from "./domain-types.js";
 import { StepperRegistry, type StepDescriptor } from "./stepper-registry.js";
+import { doStepperCycle } from "./stepper-cycles.js";
 
 /**
  * A registered step tool — the unit of dispatch for any transport (MCP, SSE, etc.).
@@ -30,6 +31,10 @@ export type StepTool = {
 	 * Transports check this before dispatching. e.g. "GraphStepper:read", "LlmStepper:*"
 	 */
 	capability?: string;
+	/** Transport type — set by proxy transports (remote, subprocess). Defaults to "local". */
+	transport?: "local" | "remote" | "subprocess";
+	/** Remote host URL — set by RemoteStepperProxy for dispatch tracing. */
+	remoteHost?: string;
 	handler: (featureStep: TFeatureStep, world: TWorld) => Promise<TActionResult>;
 };
 
@@ -69,7 +74,7 @@ export class StepRegistry {
 
 export type StepToolInputSchema = {
 	type: "object";
-	properties?: Record<string, { type?: string; description?: string;[key: string]: unknown }>;
+	properties?: Record<string, { type?: string; description?: string; [key: string]: unknown }>;
 	required?: string[];
 	[key: string]: unknown;
 };
@@ -174,12 +179,7 @@ export function validateToolInput(tool: StepTool, input: Record<string, unknown>
  * Accepts either a stepper class/instance or a stepper name string.
  */
 export function stepMethodName(stepperOrName: string | AStepper | { name: string }, stepName: string): string {
-	const name =
-		typeof stepperOrName === "string"
-			? stepperOrName
-			: "steps" in stepperOrName
-				? constructorName(stepperOrName as AStepper)
-				: stepperOrName.name;
+	const name = typeof stepperOrName === "string" ? stepperOrName : "steps" in stepperOrName ? constructorName(stepperOrName as AStepper) : stepperOrName.name;
 	return `${name}-${stepName}`;
 }
 
@@ -190,11 +190,7 @@ export function stepMethodName(stepperOrName: string | AStepper | { name: string
  * All callers (feature loop, FlowRunner, RPC, MCP, subprocess) use the same signature.
  * External transports build a synthetic featureStep before calling.
  */
-export function createStepHandler(
-	stepperName: string,
-	stepName: string,
-	stepDef: TStepperStep,
-): (featureStep: TFeatureStep, world: TWorld) => Promise<TActionResult> {
+export function createStepHandler(stepperName: string, stepName: string, stepDef: TStepperStep): (featureStep: TFeatureStep, world: TWorld) => Promise<TActionResult> {
 	return async (featureStep: TFeatureStep, world: TWorld): Promise<TActionResult> => {
 		try {
 			const args = populateActionArgs(featureStep, world, world.runtime?.steppers ?? []);
@@ -228,28 +224,135 @@ export function buildSyntheticFeatureStep(tool: StepTool, input: Record<string, 
 	};
 }
 
+const MAX_DISPATCH_SEQPATH = 50;
+
+export type DispatchContext = { registry: StepRegistry; world: TWorld; steppers: AStepper[]; grantedCapability?: string | string[] };
+
 /**
- * Shared external-dispatch root for transport adapters.
- * RPC, MCP, and future remote transports should all enter execution here
- * once they have parsed their wire envelopes and derived granted capabilities.
+ * Unified step dispatch. Every step invocation — feature execution, FlowRunner,
+ * RPC, MCP, subprocess — enters through here. Applies capability auth, lifecycle
+ * cycles (beforeStep/afterStep), event logging, and result tracking uniformly.
  */
-export async function dispatchRemoteToolCall({
-	tool,
-	input,
-	world,
-	seqPath,
-	grantedCapability,
-}: {
-	tool: StepTool;
-	input: Record<string, unknown>;
-	world: TWorld;
-	seqPath: TSeqPath;
-	grantedCapability?: string | string[];
-}): Promise<TActionResult> {
+export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureStep): Promise<TStepResult> {
+	const { registry, world, steppers, grantedCapability } = ctx;
+	const { action } = featureStep;
+	const start = Timer.since();
+
+	if (!world.runtime.observations) world.runtime.observations = new Map();
+	if (!world.runtime.stepResults) world.runtime.stepResults = [];
+
+	const pushAndReturn = (result: TStepResult): TStepResult => {
+		world.runtime.stepResults.push(result);
+		return result;
+	};
+
+	if (world.runtime.exhaustionError) {
+		return pushAndReturn(stepResultFromActionResult(actionNotOK(`Execution halted: ${world.runtime.exhaustionError}`), action, start, Timer.since(), featureStep, false));
+	}
+	if (featureStep.seqPath.length > MAX_DISPATCH_SEQPATH) {
+		const msg = `Execution depth limit exceeded (${featureStep.seqPath.length} > ${MAX_DISPATCH_SEQPATH}). Possible infinite recursion in step: ${featureStep.in}`;
+		world.runtime.exhaustionError = msg;
+		return pushAndReturn(stepResultFromActionResult(actionNotOK(msg), action, start, Timer.since(), featureStep, false));
+	}
+
+	const isLifecycle = action.actionName === FEATURE_START || action.actionName === SCENARIO_START;
+	if (isLifecycle) {
+		return stepResultFromActionResult({ ok: true }, action, start, Timer.since(), featureStep, true);
+	}
+
+	const method = stepMethodName(action.stepperName, action.actionName);
+	const tool = registry.get(method);
+	if (!tool) {
+		return pushAndReturn(stepResultFromActionResult(actionNotOK(`Step not found in registry: ${method}`), action, start, Timer.since(), featureStep, false));
+	}
+
 	authorizeToolCapability(tool, grantedCapability);
-	const validatedParams = validateToolInput(tool, input, world);
-	const featureStep = buildSyntheticFeatureStep(tool, validatedParams, seqPath);
-	return await tool.handler(featureStep, world);
+
+	const usageKey = `${action.stepperName}.${action.actionName}`;
+	let stepUsage = world.runtime.observations.get("stepUsage") as Map<string, number> | undefined;
+	if (!stepUsage) {
+		stepUsage = new Map();
+		world.runtime.observations.set("stepUsage", stepUsage);
+	}
+	stepUsage.set(usageKey, (stepUsage.get(usageKey) ?? 0) + 1);
+
+	world.eventLogger.stepStart(featureStep, action.stepperName, action.actionName, {}, featureStep.action.stepValuesMap);
+	let actionResult: TActionResult;
+	let ok = true;
+	let lastStepResult: TStepResult;
+	let doAction = true;
+	while (doAction) {
+		await doStepperCycle(steppers, "beforeStep", <TBeforeStep>{ featureStep });
+		actionResult = await tool.handler(featureStep, world);
+		if (!actionResult.ok && actionResult.errorMessage && featureStep.intent?.mode !== "speculative") {
+			world.eventLogger.log(featureStep, "error", actionResult.errorMessage);
+		}
+		lastStepResult = stepResultFromActionResult(actionResult, action, start, Timer.since(), featureStep, ok && actionResult.ok);
+		world.runtime.stepResults.push(lastStepResult);
+		const instructions: TAfterStepResult[] = await doStepperCycle(steppers, "afterStep", <TAfterStep>{ featureStep, actionResult }, action.actionName);
+		doAction = instructions.some((i) => i?.rerunStep);
+		if (instructions.some((i) => i?.failed)) {
+			ok = false;
+		} else if (instructions.some((i) => i?.nextStep)) {
+			actionResult = { ...actionResult, ok: true };
+		}
+	}
+	if (!actionResult || !lastStepResult) {
+		throw new Error(`No action result recorded for ${action.stepperName}.${action.actionName}`);
+	}
+	ok = ok && actionResult.ok;
+	world.eventLogger.stepEnd(
+		featureStep,
+		action.stepperName,
+		action.actionName,
+		ok,
+		!ok ? actionResult.errorMessage : undefined,
+		{},
+		featureStep.action.stepValuesMap,
+		actionResult.products as Record<string, unknown> | undefined,
+	);
+	lastStepResult.ok = ok;
+
+	const end = Timer.since();
+	try {
+		world.eventLogger.emit(
+			DispatchTraceArtifact.parse({
+				id: `dispatch.${featureStep.seqPath.join(".")}`,
+				timestamp: Date.now(),
+				kind: "artifact",
+				artifactType: "dispatch-trace",
+				trace: {
+					stepName: tool.name,
+					transport: tool.transport ?? "local",
+					remoteHost: tool.remoteHost,
+					capabilityRequired: tool.capability,
+					capabilityGranted: Array.isArray(grantedCapability) ? grantedCapability : grantedCapability ? [grantedCapability] : undefined,
+					authorized: ok || !tool.capability,
+					seqPath: featureStep.seqPath,
+					durationMs: end - start,
+				},
+			}),
+		);
+	} catch {
+		/* dispatch trace emission is best-effort */
+	}
+
+	return lastStepResult;
+}
+
+export function stepResultFromActionResult(actionResult: TActionResult, action: TStepAction, start: number, end: number, featureStep: TFeatureStep, ok: boolean): TStepResult {
+	return {
+		...actionResult,
+		ok,
+		name: action.actionName,
+		in: featureStep.in,
+		path: featureStep.source.path,
+		lineNumber: featureStep.source.lineNumber,
+		seqPath: featureStep.seqPath,
+		intent: featureStep.intent,
+		start,
+		end,
+	};
 }
 
 export function capabilityAllows(granted: string | string[] | undefined, required: string): boolean {
@@ -275,11 +378,8 @@ export function authorizeToolCapability(tool: Pick<StepTool, "name" | "capabilit
  * (enums, object structures, descriptions, etc.) for MCP and SSE consumers.
  * Returns both the JSON Schema (for documentation/discovery) and the Zod schemas (for runtime validation).
  */
-function buildInputSchema(
-	stepDef: TStepperStep,
-	world: TWorld,
-): { inputSchema: StepToolInputSchema; paramSchemas: Map<string, z.ZodType>; paramDomainKeys: Map<string, string> } {
-	const properties: Record<string, { type?: string; description?: string;[key: string]: unknown }> = {};
+function buildInputSchema(stepDef: TStepperStep, world: TWorld): { inputSchema: StepToolInputSchema; paramSchemas: Map<string, z.ZodType>; paramDomainKeys: Map<string, string> } {
+	const properties: Record<string, { type?: string; description?: string; [key: string]: unknown }> = {};
 	const required: string[] = [];
 	const paramSchemas = new Map<string, z.ZodType>();
 	const paramDomainKeys = new Map<string, string>();
