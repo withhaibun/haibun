@@ -5,16 +5,7 @@ import ShuStepper from "../../src/shu-stepper.js";
 import { SHU_TEST_IDS } from "../../src/test-ids.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import Haibun from "@haibun/core/steps/haibun.js";
-import { createStepUI, stepTestIds } from "../../src/index.js";
-
-function flattenTestIds(obj: Record<string, unknown>): string[] {
-	const result: string[] = [];
-	for (const [, value] of Object.entries(obj)) {
-		if (typeof value === "string") result.push(value);
-		else if (typeof value === "object" && value !== null) result.push(...flattenTestIds(value as Record<string, unknown>));
-	}
-	return result;
-}
+import { createStepUI, stepTestIds, flattenTestIds } from "../../src/index.js";
 
 const wp = new WebPlaywright();
 const { getIncomingEdges, exportGraphAsJsonLd } = withAction(new TutorialGraphStepper());
