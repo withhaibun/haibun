@@ -9,14 +9,13 @@ export const registerComponents = async (): Promise<void> => {
 	const { ShuColumnStrip } = await import("./components/shu-column-strip.js");
 	const { ShuEntityColumn } = await import("./components/shu-entity-column.js");
 	const { ShuFilterColumn } = await import("./components/shu-filter-column.js");
-	const { ShuColumnBrowser } = await import(
-		"./components/shu-column-browser.js"
-	);
+	const { ShuColumnBrowser } = await import("./components/shu-column-browser.js");
 	const { ShuActionsBar } = await import("./components/shu-actions-bar.js");
 	const { ShuBreadcrumb } = await import("./components/shu-breadcrumb.js");
 	const { ShuCombobox } = await import("./components/shu-combobox.js");
 	const { ShuSpinner } = await import("./components/shu-spinner.js");
 	const { StepCaller } = await import("./components/shu-step-caller.js");
+	const { ShuSequenceDiagram } = await import("./components/shu-sequence-diagram.js");
 	// Self-registering renderers
 	await import("./query-uri.js");
 
@@ -33,6 +32,7 @@ export const registerComponents = async (): Promise<void> => {
 		["shu-combobox", ShuCombobox],
 		["shu-spinner", ShuSpinner],
 		["shu-step-caller", StepCaller],
+		["shu-sequence-diagram", ShuSequenceDiagram],
 	];
 
 	for (const [tag, component] of components) {

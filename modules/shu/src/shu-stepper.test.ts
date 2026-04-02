@@ -23,15 +23,13 @@ describe("ShuStepper", () => {
 		expect(addRoute).not.toHaveBeenCalled();
 	});
 
-	it("allows only one mount per stepper instance", async () => {
+	it("idempotent mount at same path succeeds", async () => {
 		const first = await stepper.steps.serveShuApp.action({ path: "/spa" });
 		expect(first.ok).toBe(true);
 		expect(addRoute).toHaveBeenCalledTimes(1);
 
 		const second = await stepper.steps.serveShuApp.action({ path: "/spa" });
-		expect(second.ok).toBe(false);
-		if (second.ok) throw new Error("expected duplicate mount to fail");
-		expect(second.errorMessage).toContain("only one mount is supported");
+		expect(second.ok).toBe(true);
 		expect(addRoute).toHaveBeenCalledTimes(1);
 	});
 
