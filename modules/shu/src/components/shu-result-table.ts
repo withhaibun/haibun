@@ -12,16 +12,7 @@
 import { ShuElement } from "./shu-element.js";
 import { z } from "zod";
 import { ResultTableSchema } from "../schemas.js";
-import {
-	esc,
-	escAttr,
-	truncate,
-	formatDate,
-	isDateValue,
-	vertexId,
-	vertexLabel,
-	HIDDEN_PROPS,
-} from "../util.js";
+import { esc, escAttr, truncate, formatDate, isDateValue, vertexId, vertexLabel, HIDDEN_PROPS, } from "../util.js";
 import { getRelSync } from "../rels-cache.js";
 
 type VertexRow = Record<string, unknown>;
@@ -138,51 +129,51 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 					<table data-testid="query-table">
 						<thead><tr>
 							${props
-								.map((p) => {
-									const isSorted = sortBy === p;
-									const indicator = isSorted
-										? sortOrder === "asc"
-											? " &#9650;"
-											: " &#9660;"
-										: "";
-									const cls = isSorted ? ' class="sorted"' : "";
-									return `<th${cls} data-field="${escAttr(p)}">${esc(p)}${indicator}</th>`;
-								})
-								.join("")}
+				.map((p) => {
+					const isSorted = sortBy === p;
+					const indicator = isSorted
+						? sortOrder === "asc"
+							? " &#9650;"
+							: " &#9660;"
+						: "";
+					const cls = isSorted ? ' class="sorted"' : "";
+					return `<th${cls} data-field="${escAttr(p)}">${esc(p)}${indicator}</th>`;
+				})
+				.join("")}
 						</tr></thead>
 						<tbody>
 						${(() => {
-							const firstLabel = this.results[0]?._label;
-							const isMultiType = this.results.some(
-								(v) => v._label && v._label !== firstLabel,
-							);
-							let lastLabel: string | undefined;
-							return this.results
-								.map((v, i) => {
-									const vid = vertexId(v);
-									const vlabel = vertexLabel(v);
-									const labelAttr = vlabel
-										? ` data-vertex-label="${escAttr(vlabel)}"`
-										: "";
-									const header =
-										isMultiType && v._label !== lastLabel
-											? `<tr class="group-header"><th colspan="${props.length}">${esc(String(v._label ?? ""))}</th></tr>`
-											: "";
-									lastLabel = v._label as string | undefined;
-									return `${header}<tr class="clickable-row" data-vertex-id="${escAttr(vid)}"${labelAttr} data-testid="${i === 0 ? "query-row-first" : "query-row"}">
+				const firstLabel = this.results[0]?._label;
+				const isMultiType = this.results.some(
+					(v) => v._label && v._label !== firstLabel,
+				);
+				let lastLabel: string | undefined;
+				return this.results
+					.map((v, i) => {
+						const vid = vertexId(v);
+						const vlabel = vertexLabel(v);
+						const labelAttr = vlabel
+							? ` data-vertex-label="${escAttr(vlabel)}"`
+							: "";
+						const header =
+							isMultiType && v._label !== lastLabel
+								? `<tr class="group-header"><th colspan="${props.length}">${esc(String(v._label ?? ""))}</th></tr>`
+								: "";
+						lastLabel = v._label as string | undefined;
+						return `${header}<tr class="clickable-row" data-vertex-id="${escAttr(vid)}"${labelAttr} data-testid="${i === 0 ? "query-row-first" : "query-row"}">
 								${props
-									.map((p) => {
-										const raw = String(v[p] ?? "");
-										const display = isDateValue(raw)
-											? formatDate(raw)
-											: truncate(raw);
-										return `<td title="${esc(raw)}">${esc(display)}</td>`;
-									})
-									.join("")}
-								</tr>`;
+								.map((p) => {
+									const raw = String(v[p] ?? "");
+									const display = isDateValue(raw)
+										? formatDate(raw)
+										: truncate(raw);
+									return `<td title="${esc(raw)}">${esc(display)}</td>`;
 								})
-								.join("");
-						})()}
+								.join("")}
+								</tr>`;
+					})
+					.join("");
+			})()}
 						</tbody>
 					</table>
 				</div>
@@ -327,11 +318,11 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 			const newOffset =
 				scrollRange > 0
 					? Math.round(
-							Math.min(
-								maxOff(),
-								Math.max(0, startOffset + (dy / scrollRange) * maxOff()),
-							),
-						)
+						Math.min(
+							maxOff(),
+							Math.max(0, startOffset + (dy / scrollRange) * maxOff()),
+						),
+					)
 					: 0;
 			track.dataset.offset = String(newOffset);
 			this.positionScrollThumb(track, visibleRows);

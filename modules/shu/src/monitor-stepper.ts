@@ -1,0 +1,66 @@
+/**
+ * MonitorStepper — Buffers execution events in memory and serves them via RPC.
+ * Lightweight replacement for monitor-browser-stepper within the shu SPA.
+ * The shu frontend fetches historical events on connect, then subscribes to SSE for live updates.
+ */
+import { z } from "zod";
+import { AStepper, type IHasCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
+import type { THaibunEvent } from "@haibun/core/schema/protocol.js";
+import { actionOKWithProducts, getFromRuntime } from "@haibun/core/lib/util/index.js";
+import type { IStepperCycles } from "@haibun/core/lib/defs.js";
+
+const MAX_EVENTS = 10000;
+const TRANSPORT = "transport";
+
+export default class MonitorStepper extends AStepper implements IHasCycles {
+	description = "Buffers execution events for the shu monitor view";
+	private events: THaibunEvent[] = [];
+
+	cycles: IStepperCycles = {
+		onEvent: (event: THaibunEvent) => {
+			this.events.push(event);
+			if (this.events.length > MAX_EVENTS) this.events.shift();
+			// Forward to SSE transport so the SPA receives live events
+			try {
+				const transport = this.getWorld().runtime[TRANSPORT] as { send?: (data: unknown) => void } | undefined;
+				transport?.send?.({ type: "event", event });
+			} catch { /* transport may not be initialized yet */ }
+		},
+	};
+
+	steps = {
+		showMonitor: {
+			gwta: "show monitor",
+			action: () => {
+				return actionOKWithProducts({ view: "monitor" });
+			},
+		},
+		showSequenceDiagram: {
+			gwta: "show sequence diagram",
+			action: () => {
+				return actionOKWithProducts({ view: "sequence" });
+			},
+		},
+		getEvents: {
+			gwta: "get monitor events",
+			outputSchema: z.object({ events: z.array(z.unknown()) }),
+			action: async ({ level, kind, since }: { level?: string; kind?: string; since?: number }) => {
+				let filtered: THaibunEvent[] = this.events;
+				if (level) filtered = filtered.filter((e) => e.level === level);
+				if (kind) filtered = filtered.filter((e) => e.kind === kind);
+				if (since) filtered = filtered.filter((e) => e.timestamp >= since);
+				return actionOKWithProducts({ events: filtered });
+			},
+		},
+		getDispatchTraces: {
+			gwta: "get dispatch traces",
+			outputSchema: z.object({ traces: z.array(z.unknown()) }),
+			action: async () => {
+				const traces = this.events
+					.filter((e) => e.kind === "artifact" && (e as Record<string, unknown>).artifactType === "dispatch-trace")
+					.map((e) => (e as Record<string, unknown>).trace);
+				return actionOKWithProducts({ traces });
+			},
+		},
+	} satisfies TStepperSteps;
+}
