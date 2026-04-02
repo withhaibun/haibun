@@ -1,10 +1,10 @@
-import { AStepper } from './astepper.js';
-import { TAnyFixme } from './fixme.js';
-import { TTag } from './ttag.js';
-import { FeatureVariables } from './feature-variables.js';
-import { Prompter } from './prompter.js';
-import { IEventLogger } from './EventLogger.js';
-import { z, type ZodTypeAny } from 'zod';
+import { AStepper } from "./astepper.js";
+import { TAnyFixme } from "./fixme.js";
+import { TTag } from "./ttag.js";
+import { FeatureVariables } from "./feature-variables.js";
+import { Prompter } from "./prompter.js";
+import { IEventLogger } from "./EventLogger.js";
+import { z, type ZodTypeAny } from "zod";
 import {
 	ExecutionIntent,
 	TSeqPath,
@@ -18,7 +18,7 @@ import {
 	THaibunEvent,
 	TActionResult,
 	CONTINUE_AFTER_ERROR,
-} from '../schema/protocol.js';
+} from "../schema/protocol.js";
 
 // ============================================================================
 // Core Execution World
@@ -47,7 +47,7 @@ export type TRuntime = {
 	/** Active steppers for this execution. Set by Executor, used by populateActionArgs / domain coercion. */
 	steppers?: AStepper[];
 	/** Shared step registry. Set by Executor, used for dynamic step registration. */
-	stepRegistry?: import('../lib/step-dispatch.js').StepRegistry;
+	stepRegistry?: import("../lib/step-dispatch.js").StepRegistry;
 	/** Generic storage for observation data, cleared between features */
 	observations: Map<string, TAnyFixme>;
 	/** If non-empty, execution was aborted due to exhaustion (description explains why). */
@@ -67,12 +67,12 @@ export type TBaseOptions = {
 	SETTING?: string;
 	STEP_DELAY?: number;
 	[CONTINUE_AFTER_ERROR]?: boolean;
-	envVariables?: TEnvVariables
+	envVariables?: TEnvVariables;
 };
 
 export type TEnvVariables = {
 	[name: string]: string;
-}
+};
 
 export type TModuleOptions = { [name: string]: string };
 
@@ -83,13 +83,21 @@ export type TProtoOptions = {
 
 export type TBase = string[];
 
-export const SpeclSchema = z.object({
-	$schema: z.string().optional(),
-	steppers: z.array(z.string()),
-	runPolicy: z.string().optional(),
-	appParameters: z.record(z.string(), z.record(z.string(), z.unknown())).optional(),
-	options: z.record(z.string(), z.unknown()).optional()
-}).passthrough();
+export const RemoteStepperSchema = z.object({ remote: z.string(), token: z.string().optional() });
+export type TRemoteStepper = z.infer<typeof RemoteStepperSchema>;
+
+export const StepperEntrySchema = z.union([z.string(), RemoteStepperSchema]);
+export type TStepperEntry = z.infer<typeof StepperEntrySchema>;
+
+export const SpeclSchema = z
+	.object({
+		$schema: z.string().optional(),
+		steppers: z.array(StepperEntrySchema),
+		runPolicy: z.string().optional(),
+		appParameters: z.record(z.string(), z.record(z.string(), z.unknown())).optional(),
+		options: z.record(z.string(), z.unknown()).optional(),
+	})
+	.passthrough();
 
 export type TSpecl = z.infer<typeof SpeclSchema>;
 
@@ -122,7 +130,6 @@ export type TExpandedLine = {
 	feature: TFeature;
 };
 
-
 export interface TSourceLocation {
 	source: {
 		/** Absolute path to the source file */
@@ -143,7 +150,6 @@ export type TResolvedFeature = {
 	name: string;
 	featureSteps: TFeatureStep[];
 };
-
 
 export type TFeatureStep = TSourceLocation & {
 	in: string;
@@ -189,24 +195,24 @@ type TStepperStepBase = {
 	gwta?: string;
 	exact?: string;
 	resolveFeatureLine?(line: string, path: string, stepper: AStepper, backgrounds: TFeatures, allLines?: string[], lineIndex?: number, actualSourcePath?: string): boolean | void;
-}
+};
 
 /** Step that declares an output schema — action MUST return products on success. */
 type TStepperStepWithProducts = TStepperStepBase & {
 	outputSchema: z.ZodType;
 	action(args: TStepArgs, featureStep?: TFeatureStep): Promise<TActionResult> | TActionResult;
-}
+};
 
 /** Step without output schema — no products on success. */
 type TStepperStepPlain = TStepperStepBase & {
 	outputSchema?: undefined;
 	action(args: TStepArgs, featureStep?: TFeatureStep): Promise<TActionResult> | TActionResult;
-}
+};
 
 export type TStepperStep = TStepperStepWithProducts | TStepperStepPlain;
 
 export interface CStepper {
-	new(): AStepper;
+	new (): AStepper;
 }
 
 export interface IStepperWhen {
@@ -248,17 +254,25 @@ export interface IStepperCycles {
 }
 
 export type TStartExecution = TResolvedFeature[];
-export type TEndFeature = { featurePath: string, shouldClose: boolean, isLast: boolean, okSoFar: boolean, continueAfterError: boolean, stayOnFailure: boolean, thisFeatureOK: boolean };
-export type TStartFeature = { resolvedFeature: TResolvedFeature, index: number };
+export type TEndFeature = {
+	featurePath: string;
+	shouldClose: boolean;
+	isLast: boolean;
+	okSoFar: boolean;
+	continueAfterError: boolean;
+	stayOnFailure: boolean;
+	thisFeatureOK: boolean;
+};
+export type TStartFeature = { resolvedFeature: TResolvedFeature; index: number };
 export type TStartScenario = { scopedVars: FeatureVariables };
 export type TBeforeStep = { featureStep: TFeatureStep };
-export type TAfterStep = { featureStep: TFeatureStep, actionResult: TActionResult };
-export type TFailureArgs = { featureResult: TFeatureResult, failedStep: TStepResult };
-export type TAfterStepResult = { rerunStep?: boolean, nextStep?: boolean, failed: boolean };
+export type TAfterStep = { featureStep: TFeatureStep; actionResult: TActionResult };
+export type TFailureArgs = { featureResult: TFeatureResult; failedStep: TStepResult };
+export type TAfterStepResult = { rerunStep?: boolean; nextStep?: boolean; failed: boolean };
 
 export const CycleWhen = {
 	FIRST: -999,
-	LAST: 999
+	LAST: 999,
 };
 
 // ============================================================================
@@ -273,8 +287,7 @@ export type TDomainComparator = (value: TStepValueValue, baseline: TStepValueVal
  * that drive query UI, rendering, column ordering, search, and JSON-LD export.
  * Maps directly to ActivityStreams / Dublin Core predicates via REL_CONTEXT.
  */
-export type TRel = 'identifier' | 'name' | 'attributedTo' | 'audience' | 'context'
-	| 'published' | 'updated' | 'content' | 'inReplyTo' | 'attachment' | 'tag';
+export type TRel = "identifier" | "name" | "attributedTo" | "audience" | "context" | "published" | "updated" | "content" | "inReplyTo" | "attachment" | "tag";
 
 /** Property definition: either a rel string or a rel with mediaType for content fields. */
 export type TPropertyDef = TRel | { rel: TRel; mediaType?: string };
@@ -284,17 +297,17 @@ export type TEdgeDef = { rel: TRel; target: string };
 
 /** JSON-LD context mapping: rel → standard URI. Defined once, used everywhere. */
 export const REL_CONTEXT: Record<TRel, string> = {
-	identifier: 'dcterms:identifier',
-	name: 'as:name',
-	attributedTo: 'as:attributedTo',
-	audience: 'as:to',
-	context: 'as:context',
-	published: 'as:published',
-	updated: 'as:updated',
-	content: 'as:content',
-	inReplyTo: 'as:inReplyTo',
-	attachment: 'as:attachment',
-	tag: 'as:tag',
+	identifier: "dcterms:identifier",
+	name: "as:name",
+	attributedTo: "as:attributedTo",
+	audience: "as:to",
+	context: "as:context",
+	published: "as:published",
+	updated: "as:updated",
+	content: "as:content",
+	inReplyTo: "as:inReplyTo",
+	attachment: "as:attachment",
+	tag: "as:tag",
 };
 
 /** Hypermedia metadata for a vertex domain. One properties map drives everything. */
@@ -314,12 +327,12 @@ export type TVertexMeta = {
 
 /** Get the rel for a property definition. */
 export function getRel(def: TPropertyDef): TRel {
-	return typeof def === 'string' ? def : def.rel;
+	return typeof def === "string" ? def : def.rel;
 }
 
 /** Get the mediaType for a content property, if any. */
 export function getMediaType(def: TPropertyDef): string | undefined {
-	return typeof def === 'string' ? undefined : def.mediaType;
+	return typeof def === "string" ? undefined : def.mediaType;
 }
 
 export type TDomainDefinition = {
