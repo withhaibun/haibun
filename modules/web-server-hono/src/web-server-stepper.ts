@@ -1,37 +1,16 @@
 import path from "path";
 
-import type {
-	TWorld,
-	TEndFeature,
-	IStepperCycles,
-} from "@haibun/core/lib/defs.js";
+import type { TWorld, TEndFeature, IStepperCycles } from "@haibun/core/lib/defs.js";
 import { OK, type TStepArgs } from "@haibun/core/schema/protocol.js";
-import {
-	actionNotOK,
-	getFromRuntime,
-	getStepperOption,
-	intOrError,
-	stringOrError,
-} from "@haibun/core/lib/util/index.js";
-import {
-	AStepper,
-	type IHasCycles,
-	type IHasOptions,
-} from "@haibun/core/lib/astepper.js";
-import { discoverSteps, dispatchRemoteToolCall, parseRpcRequest, StepRegistry } from "@haibun/core/lib/step-dispatch.js";
+import { actionNotOK, getFromRuntime, getStepperOption, intOrError, stringOrError } from "@haibun/core/lib/util/index.js";
+import { AStepper, type IHasCycles, type IHasOptions } from "@haibun/core/lib/astepper.js";
+import { discoverSteps, dispatchStep, validateToolInput, buildSyntheticFeatureStep, parseRpcRequest, StepRegistry } from "@haibun/core/lib/step-dispatch.js";
 import { validateStep } from "@haibun/core/lib/step-validation.js";
 
 import { type IWebServer, WEBSERVER } from "./defs.js";
-import {
-	getGrantedCapabilityFromHeaders,
-	validateCapabilityAuthConfig,
-} from "./capability-auth.js";
+import { getGrantedCapabilityFromHeaders, validateCapabilityAuthConfig } from "./capability-auth.js";
 import { ServerHono, DEFAULT_PORT } from "./server-hono.js";
-import {
-	SSETransport,
-	TRANSPORT,
-	type ITransport,
-} from "./sse-transport.js";
+import { SSETransport, TRANSPORT, type ITransport } from "./sse-transport.js";
 import type { IStepTransport } from "./step-transport.js";
 
 function isStepTransport(s: unknown): s is IStepTransport {
@@ -43,10 +22,7 @@ const cycles = (wss: WebServerStepper): IStepperCycles => ({
 		const filesBase = path.join(process.cwd(), "files");
 		wss.webserver = new ServerHono(wss.world.eventLogger, filesBase);
 		wss.getWorld().runtime[WEBSERVER] = wss.webserver;
-		wss.getWorld().runtime[TRANSPORT] = new SSETransport(
-			wss.webserver,
-			wss.world.eventLogger,
-		);
+		wss.getWorld().runtime[TRANSPORT] = new SSETransport(wss.webserver, wss.world.eventLogger);
 		await Promise.resolve();
 	},
 	async endFeature(wtw: TEndFeature) {
@@ -62,8 +38,7 @@ const cycles = (wss: WebServerStepper): IStepperCycles => ({
 });
 
 class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
-	description =
-		"Serve static files, create directory indexes, and host web content";
+	description = "Serve static files, create directory indexes, and host web content";
 
 	webserver: ServerHono | undefined;
 	steppers: AStepper[] = [];
@@ -97,41 +72,21 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 		await super.setWorld(world, steppers);
 		this.steppers = steppers;
 		const sname = this.constructor.name;
-		const fromModule = (
-			world.moduleOptions as unknown as Record<
-				string,
-				Record<string, unknown> | undefined
-			>
-		)?.[sname]?.["PORT"];
-		const portOption =
-			fromModule || getStepperOption(this, "PORT", world.moduleOptions);
+		const fromModule = (world.moduleOptions as unknown as Record<string, Record<string, unknown> | undefined>)?.[sname]?.["PORT"];
+		const portOption = fromModule || getStepperOption(this, "PORT", world.moduleOptions);
 		if (portOption) {
 			const parsed = parseInt(String(portOption), 10);
 			if (Number.isNaN(parsed) || parsed <= 0) {
-				throw new Error(
-					`WebServerStepper: PORT option "${portOption}" must be a positive integer`,
-				);
+				throw new Error(`WebServerStepper: PORT option "${portOption}" must be a positive integer`);
 			}
 			this.port = parsed;
 		}
-		const interfaceOption = getStepperOption(
-			this,
-			"INTERFACE",
-			world.moduleOptions,
-		);
+		const interfaceOption = getStepperOption(this, "INTERFACE", world.moduleOptions);
 		if (interfaceOption) {
 			this.hostname = String(interfaceOption);
 		}
-		this.rpcAccessToken = getStepperOption(
-			this,
-			"RPC_ACCESS_TOKEN",
-			world.moduleOptions,
-		) as string | undefined;
-		this.rpcAccessCapability = getStepperOption(
-			this,
-			"RPC_ACCESS_CAPABILITY",
-			world.moduleOptions,
-		) as string | undefined;
+		this.rpcAccessToken = getStepperOption(this, "RPC_ACCESS_TOKEN", world.moduleOptions) as string | undefined;
+		this.rpcAccessCapability = getStepperOption(this, "RPC_ACCESS_CAPABILITY", world.moduleOptions) as string | undefined;
 		validateCapabilityAuthConfig("WebServerStepper RPC", {
 			accessToken: this.rpcAccessToken,
 			accessCapability: this.rpcAccessCapability,
@@ -143,10 +98,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 			gwta: "show ports",
 			action: () => {
 				const ports = Object.fromEntries(ServerHono.listeningPorts);
-				this.getWorld().eventLogger.info(
-					`ports: ${JSON.stringify(ports, null, 2)}`,
-					{ ports },
-				);
+				this.getWorld().eventLogger.info(`ports: ${JSON.stringify(ports, null, 2)}`, { ports });
 				return OK;
 			},
 		},
@@ -160,15 +112,9 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 		showMounts: {
 			gwta: "show mounts",
 			action: () => {
-				const webserver = getFromRuntime(
-					this.getWorld().runtime,
-					WEBSERVER,
-				) as IWebServer;
+				const webserver = getFromRuntime(this.getWorld().runtime, WEBSERVER) as IWebServer;
 				const mounts = webserver.mounted;
-				this.getWorld().eventLogger.info(
-					`mounts: ${JSON.stringify(mounts, null, 2)}`,
-					{ mounts },
-				);
+				this.getWorld().eventLogger.info(`mounts: ${JSON.stringify(mounts, null, 2)}`, { mounts });
 				return Promise.resolve(OK);
 			},
 		},
@@ -212,10 +158,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 			gwta: "show routes",
 			action: () => {
 				const routes = this.webserver?.mounted;
-				this.getWorld().eventLogger.info(
-					`routes: ${JSON.stringify(routes, null, 2)}`,
-					{ routes },
-				);
+				this.getWorld().eventLogger.info(`routes: ${JSON.stringify(routes, null, 2)}`, { routes });
 				return Promise.resolve(OK);
 			},
 		},
@@ -225,10 +168,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 				this.stepRegistry = new StepRegistry(this.steppers, this.getWorld());
 				this.attachTransports();
 
-				const transport = getFromRuntime(
-					this.getWorld().runtime,
-					TRANSPORT,
-				) as ITransport;
+				const transport = getFromRuntime(this.getWorld().runtime, TRANSPORT) as ITransport;
 				const logger = this.getWorld().eventLogger;
 
 				transport.onMessage(async (raw: unknown, requestInfo) => {
@@ -243,8 +183,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 					if (method === "step.list") {
 						return discoverSteps(this.steppers, this.getWorld(), this.stepRegistry);
 					}
-					if (method === "step.validate")
-						return validateStep(String(params.text || ""), this.steppers);
+					if (method === "step.validate") return validateStep(String(params.text || ""), this.steppers);
 
 					const registry = this.stepRegistry;
 					if (!registry) {
@@ -254,21 +193,13 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 					if (!tool) return;
 
 					try {
-						const grantedCapability = getGrantedCapabilityFromHeaders(
-							requestInfo?.headers,
-							this.getWorld().runtime,
-							{
-								accessToken: this.rpcAccessToken,
-								accessCapability: this.rpcAccessCapability,
-							},
-						);
-						const hr = await dispatchRemoteToolCall({
-							tool,
-							input: params,
-							world: this.getWorld(),
-							seqPath,
-							grantedCapability,
+						const grantedCapability = getGrantedCapabilityFromHeaders(requestInfo?.headers, this.getWorld().runtime, {
+							accessToken: this.rpcAccessToken,
+							accessCapability: this.rpcAccessCapability,
 						});
+						const validatedParams = validateToolInput(tool, params as Record<string, unknown>, this.getWorld());
+						const featureStep = buildSyntheticFeatureStep(tool, validatedParams, seqPath);
+						const hr = await dispatchStep({ registry, world: this.getWorld(), steppers: this.steppers, grantedCapability }, featureStep);
 						if (hr.ok) return hr.products;
 						return { error: `${method}: ${hr.errorMessage}` };
 					} catch (err) {
@@ -287,9 +218,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 				if (!this.stepRegistry) return OK;
 				this.stepRegistry.refresh(this.steppers, this.getWorld());
 				this.attachTransports();
-				this.getWorld().eventLogger.info(
-					`[RPC] steppers refreshed: ${this.steppers.length} steppers, ${this.stepRegistry.list().length} tools`,
-				);
+				this.getWorld().eventLogger.info(`[RPC] steppers refreshed: ${this.steppers.length} steppers, ${this.stepRegistry.list().length} tools`);
 				return OK;
 			},
 		},
@@ -308,9 +237,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 
 	async listen(why: string) {
 		if (!this.webserver) {
-			throw new Error(
-				"WebServerStepper: webserver not initialized - ensure startFeature cycle ran",
-			);
+			throw new Error("WebServerStepper: webserver not initialized - ensure startFeature cycle ran");
 		}
 		if (ServerHono.listeningPorts.has(this.port)) {
 			return;
