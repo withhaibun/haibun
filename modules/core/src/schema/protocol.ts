@@ -4,14 +4,7 @@ import { z } from "zod";
 // Constants
 // ============================================================================
 
-export const HAIBUN_LOG_LEVELS = [
-	"debug",
-	"trace",
-	"log",
-	"info",
-	"warn",
-	"error",
-] as const;
+export const HAIBUN_LOG_LEVELS = ["debug", "trace", "log", "info", "warn", "error"] as const;
 export const HaibunLogLevel = z.enum(HAIBUN_LOG_LEVELS);
 export type THaibunLogLevel = z.infer<typeof HaibunLogLevel>;
 
@@ -130,9 +123,7 @@ export class JITSerializer {
 			const schemaFields = this.schemas.get(schemaId);
 
 			// If first use of this schema, emit definition
-			if (
-				!lines.some((l) => l.includes(`"_meta":"schema","id":"${schemaId}"`))
-			) {
+			if (!lines.some((l) => l.includes(`"_meta":"schema","id":"${schemaId}"`))) {
 				lines.push(
 					JSON.stringify({
 						_meta: "schema",
@@ -143,9 +134,7 @@ export class JITSerializer {
 			}
 
 			// Emit data
-			const validFields = schemaFields.map(
-				(f) => (event as Record<string, unknown>)[f],
-			);
+			const validFields = schemaFields.map((f) => (event as Record<string, unknown>)[f]);
 			lines.push(JSON.stringify({ s: schemaId, d: validFields }));
 		}
 
@@ -199,18 +188,10 @@ export class JITSerializer {
 // Formatting
 // ============================================================================
 
-export type TIndication =
-	| "success"
-	| "failure"
-	| "speculative-failure"
-	| "pending"
-	| "neutral";
+export type TIndication = "success" | "failure" | "speculative-failure" | "pending" | "neutral";
 
 export class EventFormatter {
-	static shouldDisplay(
-		event: THaibunEvent,
-		minLevel: THaibunLogLevel = "info",
-	): boolean {
+	static shouldDisplay(event: THaibunEvent, minLevel: THaibunLogLevel = "info"): boolean {
 		const minLevelIndex = HAIBUN_LOG_LEVELS.indexOf(minLevel);
 		const eventLevelIndex = HAIBUN_LOG_LEVELS.indexOf(event.level);
 
@@ -220,8 +201,7 @@ export class EventFormatter {
 
 		if (event.kind === "lifecycle") {
 			if (event.type === "step") return event.stage === "end";
-			if (event.type === "feature" || event.type === "scenario")
-				return event.stage === "start";
+			if (event.type === "feature" || event.type === "scenario") return event.stage === "start";
 			return false;
 		}
 		if (event.kind === "log") {
@@ -242,21 +222,16 @@ export class EventFormatter {
 
 	static getStatusIcon(event: THaibunEvent & { kind: "lifecycle" }): string {
 		const isSpeculative = event.intent?.mode === "speculative";
-		if (event.status === "completed")
-			return isSpeculative ? ` ${MAYBE_CHECK_YES}` : ICON_STEP_COMPLETED;
-		if (event.status === "failed")
-			return isSpeculative ? ` ${MAYBE_CHECK_NO}` : ICON_STEP_FAILED;
+		if (event.status === "completed") return isSpeculative ? ` ${MAYBE_CHECK_YES}` : ICON_STEP_COMPLETED;
+		if (event.status === "failed") return isSpeculative ? ` ${MAYBE_CHECK_NO}` : ICON_STEP_FAILED;
 		if (event.status === "running") return ICON_STEP_RUNNING;
 		return ` ${ICON_DEFAULT}`;
 	}
 
-	static getIndication(
-		event: THaibunEvent & { kind: "lifecycle" },
-	): TIndication {
+	static getIndication(event: THaibunEvent & { kind: "lifecycle" }): TIndication {
 		const isSpeculative = event.intent?.mode === "speculative";
 		if (event.status === "completed") return "success";
-		if (event.status === "failed")
-			return isSpeculative ? "speculative-failure" : "failure";
+		if (event.status === "failed") return isSpeculative ? "speculative-failure" : "failure";
 		if (event.status === "running") return "pending";
 		return "neutral";
 	}
@@ -307,10 +282,8 @@ export class EventFormatter {
 	}
 
 	static formatLine(event: THaibunEvent, lastLevel?: string): string {
-		const { time, emitter, showLevel, icon, id, message } =
-			this.formatLineElements(event, lastLevel);
-		const prefix =
-			showLevel.padStart(8) + ` █ ${time}:${emitter}`.padEnd(40) + ` ｜ `;
+		const { time, emitter, showLevel, icon, id, message } = this.formatLineElements(event, lastLevel);
+		const prefix = showLevel.padStart(8) + ` █ ${time}:${emitter}`.padEnd(40) + ` ｜ `;
 		return prefix + `${icon} ${id} ${message}`;
 	}
 }
@@ -320,9 +293,7 @@ export class EventFormatter {
 // ============================================================================
 
 export const ExecutionIntentSchema = z.object({
-	mode: z
-		.enum(["authoritative", "speculative", "prose"])
-		.default("authoritative"),
+	mode: z.enum(["authoritative", "speculative", "prose"]).default("authoritative"),
 	usage: z.enum(["testing", "debugging", "background", "polling"]).optional(),
 	stepperOptions: z.record(z.string(), z.unknown()).optional(),
 });
@@ -335,16 +306,16 @@ export const SystemMessageSchema = z.object({
 export type SystemMessage = z.infer<typeof SystemMessageSchema>;
 
 /** Execution trace field on products. */
-export const TRACE_SEQ_PATH = '_seqPath';
+export const TRACE_SEQ_PATH = "_seqPath";
 
 /** Hypermedia product field keys. Use these constants instead of string literals. */
 export const HYPERMEDIA = {
 	/** Domain label for this result (e.g. "Email", "Contact") */
-	TYPE: '_type',
+	TYPE: "_type",
 	/** HATEOAS affordances — what can be done next, keyed by rel */
-	LINKS: '_links',
+	LINKS: "_links",
 	/** For destructive operations: condition to check reversibility, apply to execute undo */
-	UNDO: '_undo',
+	UNDO: "_undo",
 } as const;
 
 export type THypermediaProducts = {
@@ -460,18 +431,10 @@ export type TPrompt = z.infer<typeof Prompt>;
 // ============================================================================
 
 export const BaseEvent = z.object({
-	id: z
-		.string()
-		.describe("Unique identifier for the event, typically the seqPath"),
-	timestamp: z
-		.number()
-		.int()
-		.describe("Absolute epoch timestamp in milliseconds"),
+	id: z.string().describe("Unique identifier for the event, typically the seqPath"),
+	timestamp: z.number().int().describe("Absolute epoch timestamp in milliseconds"),
 	source: z.string().default("haibun").describe("Source of the event"),
-	emitter: z
-		.string()
-		.optional()
-		.describe("Code location that emitted the event (e.g. Executor:238)"),
+	emitter: z.string().optional().describe("Code location that emitted the event (e.g. Executor:238)"),
 	level: HaibunLogLevel.default("info").describe("Log level for filtering"),
 });
 
@@ -511,9 +474,7 @@ export const StepEvent = LifecycleEventCommon.extend({
 	lineNumber: z.number().optional(),
 	stepperName: z.string().optional(),
 	actionName: z.string().optional(),
-	stepArgs: z
-		.union([z.record(z.string(), z.unknown()), z.array(z.unknown())])
-		.optional(),
+	stepArgs: z.union([z.record(z.string(), z.unknown()), z.array(z.unknown())]).optional(),
 	stepValuesMap: z.record(z.string(), z.unknown()).optional(),
 	products: z.record(z.string(), z.unknown()).optional(),
 	featurePath: z.string().optional(),
@@ -528,12 +489,7 @@ export const GenericLifecycleEvent = LifecycleEventCommon.extend({
 	featurePath: z.string().optional(),
 });
 
-export const LifecycleEvent = z.union([
-	FeatureEvent,
-	ScenarioEvent,
-	StepEvent,
-	GenericLifecycleEvent,
-]);
+export const LifecycleEvent = z.union([FeatureEvent, ScenarioEvent, StepEvent, GenericLifecycleEvent]);
 
 // Log Events
 export const LogEvent = BaseEvent.extend({
@@ -560,18 +516,13 @@ export const VideoArtifact = BaseArtifact.extend({
 	path: z.string(),
 	mimetype: z.string().default("video/webm"),
 	isTimeLined: z.boolean().default(true),
-	startTime: z
-		.number()
-		.optional()
-		.describe("Epoch timestamp when video recording started"),
+	startTime: z.number().optional().describe("Epoch timestamp when video recording started"),
 	duration: z.number().optional(),
 });
 
 export const VideoStartArtifact = BaseArtifact.extend({
 	artifactType: z.literal("video-start"),
-	startTime: z
-		.number()
-		.describe("Relative start time of video in milliseconds"),
+	startTime: z.number().describe("Relative start time of video in milliseconds"),
 });
 
 export const HtmlArtifact = BaseArtifact.extend({
@@ -616,6 +567,22 @@ export const HttpTraceArtifact = BaseArtifact.extend({
 	mimetype: z.string().default("application/json"),
 });
 
+export const DispatchTraceArtifact = BaseArtifact.extend({
+	artifactType: z.literal("dispatch-trace"),
+	trace: z.object({
+		stepName: z.string(),
+		transport: z.enum(["local", "remote", "subprocess"]),
+		remoteHost: z.string().optional(),
+		capabilityRequired: z.string().optional(),
+		capabilityGranted: z.array(z.string()).optional(),
+		authorized: z.boolean(),
+		seqPath: z.array(z.number()),
+		durationMs: z.number().optional(),
+	}),
+	mimetype: z.string().default("application/json"),
+});
+export type TDispatchTraceArtifact = z.infer<typeof DispatchTraceArtifact>;
+
 export const RegisteredOutcomeEntry = z.object({
 	proofStatements: z.array(z.string()).optional(),
 	proofPath: z.string().optional(),
@@ -648,6 +615,7 @@ export const ArtifactEvent = z.discriminatedUnion("artifactType", [
 	JsonArtifact,
 	MermaidArtifact,
 	HttpTraceArtifact,
+	DispatchTraceArtifact,
 	ResolvedFeaturesArtifact,
 	FileArtifact,
 ]);
@@ -672,12 +640,7 @@ export const ControlEvent = BaseEvent.extend({
 });
 
 // Union Type
-export const HaibunEvent = z.union([
-	LifecycleEvent,
-	LogEvent,
-	ArtifactEvent,
-	ControlEvent,
-]);
+export const HaibunEvent = z.union([LifecycleEvent, LogEvent, ArtifactEvent, ControlEvent]);
 
 export type TBaseEvent = z.infer<typeof BaseEvent>;
 export type TLifecycleEvent = z.infer<typeof LifecycleEvent>;
@@ -696,9 +659,7 @@ export type TSpeechArtifact = z.infer<typeof SpeechArtifact>;
 export type TJsonArtifact = z.infer<typeof JsonArtifact>;
 export type TMermaidArtifact = z.infer<typeof MermaidArtifact>;
 export type THttpTraceArtifact = z.infer<typeof HttpTraceArtifact>;
-export type TResolvedFeaturesArtifact = z.infer<
-	typeof ResolvedFeaturesArtifact
->;
+export type TResolvedFeaturesArtifact = z.infer<typeof ResolvedFeaturesArtifact>;
 export type TFileArtifact = z.infer<typeof FileArtifact>;
 export type TControlEvent = z.infer<typeof ControlEvent>;
 export type THaibunEvent = z.infer<typeof HaibunEvent>;
