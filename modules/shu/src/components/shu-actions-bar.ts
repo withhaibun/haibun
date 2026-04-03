@@ -7,31 +7,13 @@
  */
 import MarkdownIt from "markdown-it";
 import { ShuElement } from "./shu-element.js";
-import {
-	ActionsBarSchema,
-	SEARCH_OPERATORS,
-	type TSearchCondition,
-	parseFilterParam,
-} from "../schemas.js";
+import { SHU_EVENT } from "../consts.js";
+import { ActionsBarSchema, SEARCH_OPERATORS, type TSearchCondition, parseFilterParam, } from "../schemas.js";
 import { SHARED_STYLES } from "./styles.js";
 import { errMsg } from "../util.js";
 import { SseClient } from "../sse-client.js";
-import {
-	buildDomainOptions,
-	findStep,
-	getAvailableDomains,
-	getAvailableSteps,
-	requireStep,
-	stepsForContext,
-	type DomainOption,
-	type StepDescriptor,
-} from "../rpc-registry.js";
-import {
-	getProperties,
-	getSelectValues,
-	hasSelectValues,
-	setSelectValues,
-} from "../rels-cache.js";
+import { buildDomainOptions, findStep, getAvailableDomains, getAvailableSteps, requireStep, stepsForContext, type DomainOption, } from "../rpc-registry.js";
+import { getProperties, getSelectValues, hasSelectValues, setSelectValues, } from "../rels-cache.js";
 import type { ShuSpinner } from "./shu-spinner.js";
 import type { ShuCombobox } from "./shu-combobox.js";
 import type { TContextPattern } from "../schemas.js";
@@ -191,8 +173,8 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	private updateBreadcrumbDisplay(): void {
 		const bc = this.shadowRoot?.querySelector("shu-breadcrumb") as
 			| (HTMLElement & {
-					update?: (label: string, cols: string[], active: number) => void;
-			  })
+				update?: (label: string, cols: string[], active: number) => void;
+			})
 			| null;
 		if (!bc?.update) return;
 		bc.update(this._queryLabel, this._columns, this._activeViewIndex);
@@ -229,7 +211,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			(event) => {
 				this._syncEventSeq++;
 				this.dispatchEvent(
-					new CustomEvent("sync-available", {
+					new CustomEvent(SHU_EVENT.SYNC_AVAILABLE, {
 						detail: event,
 						bubbles: true,
 						composed: true,
@@ -391,7 +373,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		const allConditions = [...selectConditions, ...this._filterConditions];
 
 		this.dispatchEvent(
-			new CustomEvent("filter-change", {
+			new CustomEvent(SHU_EVENT.FILTER_CHANGE, {
 				detail: {
 					accessLevel: this._contextAccessLevel,
 					label: this._selectedLabel,
@@ -546,7 +528,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 						requestAnimationFrame(() => {
 							rafPending = false;
 							this.dispatchEvent(
-								new CustomEvent("resize-drag", {
+								new CustomEvent(SHU_EVENT.RESIZE_DRAG, {
 									bubbles: true,
 									composed: true,
 									detail: { clientY: y },
@@ -575,7 +557,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 				} else {
 					startedOnTwisty = false;
 					this.dispatchEvent(
-						new CustomEvent("resize-end", { bubbles: true, composed: true }),
+						new CustomEvent(SHU_EVENT.RESIZE_END, { bubbles: true, composed: true }),
 					);
 				}
 			};
