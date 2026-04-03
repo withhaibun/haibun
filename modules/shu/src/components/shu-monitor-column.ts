@@ -20,17 +20,17 @@ const LEVEL_ICONS: Record<string, string> = { error: "\u274c", warn: "\u26a0\ufe
 const LEVEL_ORDER = ["debug", "trace", "log", "info", "warn", "error"];
 
 const STYLES = `
-:host { display: flex; flex-direction: column; height: 100%; overflow: hidden; font-family: ui-monospace, monospace; font-size: 12px; }
+:host { display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: auto; font-family: ui-monospace, monospace; font-size: 12px; }
 .toolbar { display: flex; gap: 6px; align-items: center; padding: 4px 8px; background: #f5f5f5; border-bottom: 1px solid #ddd; flex: 0 0 auto; }
 .toolbar select { font-size: 11px; padding: 1px 4px; }
 .toolbar .count { margin-left: auto; color: #888; font-size: 11px; }
-.log-rows { flex: 1; overflow-y: auto; }
-.log-row { padding: 2px 8px; border-bottom: 1px solid #f0f0f0; display: flex; gap: 8px; white-space: nowrap; }
+.log-rows { flex: 1; overflow: auto; }
+.log-row { padding: 1px 4px; border-bottom: 1px solid #f0f0f0; white-space: nowrap; font-size: 11px; line-height: 1.4; }
 .log-row:hover { background: #f8f8f8; }
-.log-row .time { color: #888; flex: 0 0 60px; }
-.log-row .icon { flex: 0 0 20px; text-align: center; }
-.log-row .step { color: #333; flex: 0 0 200px; overflow: hidden; text-overflow: ellipsis; }
-.log-row .msg { color: #555; flex: 1; overflow: hidden; text-overflow: ellipsis; }
+.log-row .time { color: #888; }
+.log-row .icon { }
+.log-row .step { color: #333; font-weight: 500; }
+.log-row .msg { color: #555; }
 .log-row.error { background: #fff0f0; }
 .log-row.warn { background: #fffde7; }
 .log-row.speculative { opacity: 0.5; }
@@ -124,7 +124,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		container.innerHTML = filtered
 			.map((r) => {
 				const cls = r.level === "error" ? " error" : r.level === "warn" ? " warn" : "";
-				return `<div class="log-row${cls}"><span class="time">${esc(r.time)}</span><span class="icon">${LEVEL_ICONS[r.level] || ""}</span><span class="step">${esc(r.step)}</span><span class="msg">${esc(r.message)}</span></div>`;
+				return `<div class="log-row${cls}"><span class="time">${esc(r.time)}</span> <span class="icon">${LEVEL_ICONS[r.level] ?? "\u2753"}</span> <span class="step">${esc(r.step)}</span> <span class="msg">${esc(r.message)}</span></div>`;
 			})
 			.join("");
 

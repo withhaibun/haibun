@@ -22,6 +22,7 @@ const DispatchTrace = z.object({
 	authorized: z.boolean(),
 	seqPath: z.array(z.number()),
 	durationMs: z.number().optional(),
+	productKeys: z.array(z.string()).optional(),
 });
 type TDispatchTrace = z.infer<typeof DispatchTrace>;
 
@@ -80,7 +81,8 @@ function buildMermaidSource(traces: TDispatchTrace[]): string {
 				const granted = t.capabilityGranted?.map(escapeLabel).join(", ") ?? "none";
 				src += `  Note right of ${target}: cap-${escapeLabel(t.capabilityRequired)} granted-${granted}\n`;
 			}
-			src += `  ${target}-->>Feature: ok\n`;
+			const products = t.productKeys?.length ? ` {${t.productKeys.map(escapeLabel).join(", ")}}` : "";
+			src += `  ${target}-->>Feature: ok${products}\n`;
 		}
 	}
 	return src;

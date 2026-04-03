@@ -1,4 +1,5 @@
 import { defaultLabel } from "./util.js";
+import { SHU_EVENT, SHU_ATTR } from "./consts.js";
 /**
  * Main SPA entry point — uses shu-column-strip + shu-column-pane layout.
  * Query pane is sticky on the left, additional columns scroll right.
@@ -102,6 +103,16 @@ const main = async (): Promise<void> => {
 	const getStrip = () => appRoot.querySelector("shu-column-strip") as ShuColumnStrip | null;
 	const getActionsBar = () => appRoot.querySelector(".app-container > shu-actions-bar") as ShuActionsBar | null;
 
+	/** Remove all non-query, non-pinned panes from the strip. */
+	const removeTransientPanes = (strip: ShuColumnStrip) => {
+		const panes = strip.panes;
+		for (let i = panes.length - 1; i >= 0; i--) {
+			if (panes[i].getAttribute(SHU_ATTR.COLUMN_TYPE) !== "query" && !panes[i].hasAttribute(SHU_ATTR.PINNED)) {
+				strip.removePane(i);
+			}
+		}
+	};
+
 	let notifyTimer: ReturnType<typeof setTimeout> | null = null;
 	const showNotification = (message: string, duration = 5000) => {
 		const notifyBar = appRoot.querySelector(".notify-bar") as HTMLElement | null;
@@ -132,7 +143,7 @@ const main = async (): Promise<void> => {
 	const createEntityPane = (id: string, vertexLabel: string = defaultLabel()): { pane: ShuColumnPane; entity: ShuEntityColumn } => {
 		const pane = document.createElement("shu-column-pane") as ShuColumnPane;
 		pane.setAttribute("label", id);
-		pane.setAttribute("column-type", "entity");
+		pane.setAttribute(SHU_ATTR.COLUMN_TYPE, "entity");
 		pane.dataset.columnKey = `e:${vertexLabel}:${id}`;
 		const entity = document.createElement("shu-entity-column") as ShuEntityColumn;
 		pane.appendChild(entity);
@@ -143,7 +154,7 @@ const main = async (): Promise<void> => {
 	const createFilterPane = (colLabel: string, key: string): { pane: ShuColumnPane; filter: ShuFilterColumn } => {
 		const pane = document.createElement("shu-column-pane") as ShuColumnPane;
 		pane.setAttribute("label", colLabel);
-		pane.setAttribute("column-type", "filter");
+		pane.setAttribute(SHU_ATTR.COLUMN_TYPE, "filter");
 		pane.dataset.columnKey = key;
 		const filter = document.createElement("shu-filter-column") as ShuFilterColumn;
 		pane.appendChild(filter);
@@ -170,7 +181,7 @@ const main = async (): Promise<void> => {
 
 	// Row click → open entity column. Normal click replaces, ctrl/shift adds.
 	appRoot.addEventListener(
-		"column-open",
+		SHU_EVENT.COLUMN_OPEN,
 		((e: CustomEvent) => {
 			const { subject, label } = e.detail || {};
 			if (!subject) return;
@@ -179,14 +190,7 @@ const main = async (): Promise<void> => {
 
 			// Reset columns only when the event originates from the main query table
 			const fromQuery = e.composedPath().some((el) => el instanceof HTMLElement && el.tagName === "SHU-GRAPH-QUERY");
-			if (fromQuery) {
-				const panes = strip.panes;
-				for (let i = panes.length - 1; i >= 0; i--) {
-					if (panes[i].getAttribute("column-type") !== "query") {
-						strip.removePane(i);
-					}
-				}
-			}
+			if (fromQuery) removeTransientPanes(strip);
 
 			const vertexLabel = label || defaultLabel();
 			const { pane, entity } = createEntityPane(subject, vertexLabel);
@@ -198,7 +202,7 @@ const main = async (): Promise<void> => {
 
 	// Filter/property navigation from entity columns
 	appRoot.addEventListener(
-		"column-open-filter",
+		SHU_EVENT.COLUMN_OPEN_FILTER,
 		((e: CustomEvent) => {
 			const { property, value, label, type } = e.detail || {};
 			if (!property) return;
@@ -220,69 +224,47 @@ const main = async (): Promise<void> => {
 	);
 
 	// Monitor column — open log stream and/or sequence diagram
-	appRoot.addEventListener(
-		"column-open-monitor",
-		(() => {
-			const strip = getStrip();
-			if (!strip) return;
-			// Avoid duplicates
-			if (strip.panes.some((p) => p.getAttribute("column-type") === "monitor")) return;
-			const pane = document.createElement("shu-column-pane") as import("./components/shu-column-pane.js").ShuColumnPane;
-			pane.setAttribute("label", "Monitor");
-			pane.setAttribute("column-type", "monitor");
-			const monitor = document.createElement("shu-monitor-column");
-			pane.appendChild(monitor);
-			strip.addPane(pane);
-		}) as EventListener,
-		{ signal },
-	);
+	/** Open a singleton pinned column. No-op if one of the same type already exists. */
+	const openPinnedColumn = (columnType: string, label: string, childTag: string) => {
+		const strip = getStrip();
+		if (!strip) return;
+		if (strip.panes.some((p) => p.getAttribute(SHU_ATTR.COLUMN_TYPE) === columnType)) return;
+		const pane = document.createElement("shu-column-pane") as ShuColumnPane;
+		pane.setAttribute("label", label);
+		pane.setAttribute(SHU_ATTR.COLUMN_TYPE, columnType);
+		pane.setAttribute(SHU_ATTR.PINNED, "true");
+		pane.appendChild(document.createElement(childTag));
+		strip.addPane(pane);
+	};
 
-	appRoot.addEventListener(
-		"column-open-sequence",
-		(() => {
-			const strip = getStrip();
-			if (!strip) return;
-			if (strip.panes.some((p) => p.getAttribute("column-type") === "sequence")) return;
-			const pane = document.createElement("shu-column-pane") as import("./components/shu-column-pane.js").ShuColumnPane;
-			pane.setAttribute("label", "Sequence");
-			pane.setAttribute("column-type", "sequence");
-			const seq = document.createElement("shu-sequence-diagram");
-			pane.appendChild(seq);
-			strip.addPane(pane);
-		}) as EventListener,
-		{ signal },
-	);
+	appRoot.addEventListener(SHU_EVENT.COLUMN_OPEN_MONITOR, () => openPinnedColumn("monitor", "Monitor", "shu-monitor-column"), { signal });
+	appRoot.addEventListener(SHU_EVENT.COLUMN_OPEN_SEQUENCE, () => openPinnedColumn("sequence", "Sequence", "shu-sequence-diagram"), { signal });
 
 	// SSE listener: open monitor/sequence columns when steps trigger them
 	const sseClient = SseClient.for("");
 	sseClient.onEvent((event) => {
 		const e = event as { kind?: string; type?: string; stage?: string; actionName?: string; status?: string };
 		if (e.kind !== "lifecycle" || e.type !== "step" || e.stage !== "end" || e.status !== "completed") return;
-		if (e.actionName === "showMonitor") appRoot.dispatchEvent(new CustomEvent("column-open-monitor", { bubbles: true }));
-		else if (e.actionName === "showSequenceDiagram") appRoot.dispatchEvent(new CustomEvent("column-open-sequence", { bubbles: true }));
+		if (e.actionName === "showMonitor") appRoot.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN_MONITOR, { bubbles: true }));
+		else if (e.actionName === "showSequenceDiagram") appRoot.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN_SEQUENCE, { bubbles: true }));
 	});
 
 	// Results changed → remove all non-query panes
 	appRoot.addEventListener(
-		"results-changed",
+		SHU_EVENT.RESULTS_CHANGED,
 		(() => {
 			const h = location.hash;
 			if (h.startsWith("#?") && new URLSearchParams(h.slice(2)).has("col")) return;
 			const strip = getStrip();
 			if (!strip) return;
-			const panes = strip.panes;
-			for (let i = panes.length - 1; i >= 0; i--) {
-				if (panes[i].getAttribute("column-type") !== "query") {
-					strip.removePane(i);
-				}
-			}
+			removeTransientPanes(strip);
 		}) as EventListener,
 		{ signal },
 	);
 
 	// Context change → forward to actions bar
 	appRoot.addEventListener(
-		"context-change",
+		SHU_EVENT.CONTEXT_CHANGE,
 		((e: CustomEvent) => {
 			const detail = e.detail || {};
 			const actionsBar = getActionsBar();
@@ -297,7 +279,7 @@ const main = async (): Promise<void> => {
 	let resizeStartH = 0;
 	let resizeStartY = 0;
 	appRoot.addEventListener(
-		"resize-drag",
+		SHU_EVENT.RESIZE_DRAG,
 		((e: CustomEvent) => {
 			const ab = appRoot.querySelector(".app-container > shu-actions-bar") as HTMLElement | null;
 			if (!ab) return;
@@ -313,7 +295,7 @@ const main = async (): Promise<void> => {
 	);
 
 	appRoot.addEventListener(
-		"resize-end",
+		SHU_EVENT.RESIZE_END,
 		(() => {
 			const ab = appRoot.querySelector(".app-container > shu-actions-bar") as HTMLElement | null;
 			if (ab && resizeStartH > 0) {
@@ -332,7 +314,7 @@ const main = async (): Promise<void> => {
 
 	// Sync notifications
 	appRoot.addEventListener(
-		"sync-available",
+		SHU_EVENT.SYNC_AVAILABLE,
 		((e: CustomEvent) => {
 			const total = appRoot.querySelector(".result-total") as HTMLElement | null;
 			if (total) total.classList.add("has-sync");
@@ -359,7 +341,7 @@ const main = async (): Promise<void> => {
 
 	// Filter change from actions bar
 	appRoot.addEventListener(
-		"filter-change",
+		SHU_EVENT.FILTER_CHANGE,
 		((e: CustomEvent) => {
 			const query = appRoot.querySelector("shu-graph-query") as ShuGraphQuery;
 			query?.setFilters?.(e.detail || {});
@@ -388,7 +370,7 @@ const main = async (): Promise<void> => {
 
 	// Column activated (from strip)
 	appRoot.addEventListener(
-		"column-activated",
+		SHU_EVENT.COLUMN_ACTIVATED,
 		((e: CustomEvent) => {
 			const { index } = e.detail || {};
 			if (index !== undefined) {
@@ -401,7 +383,7 @@ const main = async (): Promise<void> => {
 
 	// Columns changed → update breadcrumb and hash
 	appRoot.addEventListener(
-		"columns-changed",
+		SHU_EVENT.COLUMNS_CHANGED,
 		((e: CustomEvent) => {
 			const columns: string[] = e.detail?.columns || [];
 			const keys: string[] = e.detail?.keys || columns;
@@ -444,9 +426,11 @@ const main = async (): Promise<void> => {
 		const strip = getStrip();
 		if (strip) {
 			void (async () => {
-				for (const col of colParams) {
+				for (const rawCol of colParams) {
+					const minimized = rawCol.endsWith("~min");
+					const col = minimized ? rawCol.slice(0, -4) : rawCol;
+					let pane: ShuColumnPane | undefined;
 					if (col.startsWith("f:")) {
-						// f:Email:folder=INBOX
 						const rest = col.slice(2);
 						const colonIdx = rest.indexOf(":");
 						const lbl = rest.slice(0, colonIdx);
@@ -454,27 +438,38 @@ const main = async (): Promise<void> => {
 						const eqIdx = eqPart.indexOf("=");
 						const prop = eqPart.slice(0, eqIdx);
 						const val = eqPart.slice(eqIdx + 1);
-						const { pane, filter } = createFilterPane(`${prop}=${val}`, col);
+						const created = createFilterPane(`${prop}=${val}`, col);
+						pane = created.pane;
 						strip.addPane(pane);
-						await filter.openFiltered(prop, val, lbl);
+						await created.filter.openFiltered(prop, val, lbl);
 					} else if (col.startsWith("p:")) {
-						// p:Email:subject
 						const rest = col.slice(2);
 						const colonIdx = rest.indexOf(":");
 						const lbl = rest.slice(0, colonIdx);
 						const prop = rest.slice(colonIdx + 1);
-						const { pane, filter } = createFilterPane(prop, col);
+						const created = createFilterPane(prop, col);
+						pane = created.pane;
 						strip.addPane(pane);
-						await filter.openProperty(prop, lbl);
+						await created.filter.openProperty(prop, lbl);
 					} else if (col.startsWith("e:")) {
-						// e:Contact:alice@example.com
 						const rest = col.slice(2);
 						const colonIdx = rest.indexOf(":");
 						const lbl = rest.slice(0, colonIdx);
 						const vid = rest.slice(colonIdx + 1);
-						const { pane, entity } = createEntityPane(vid, lbl);
+						const created = createEntityPane(vid, lbl);
+						pane = created.pane;
 						strip.addPane(pane);
-						await entity.open(vid, lbl);
+						await created.entity.open(vid, lbl);
+					} else if (col.startsWith("monitor:") || col === "monitor") {
+						appRoot.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN_MONITOR, { bubbles: true }));
+						pane = strip.panes.find((p) => p.getAttribute(SHU_ATTR.COLUMN_TYPE) === "monitor");
+					} else if (col.startsWith("sequence:") || col === "sequence") {
+						appRoot.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN_SEQUENCE, { bubbles: true }));
+						pane = strip.panes.find((p) => p.getAttribute(SHU_ATTR.COLUMN_TYPE) === "sequence");
+					}
+					if (minimized && pane) {
+						pane.setCollapsed(true);
+						pane.setAttribute(SHU_ATTR.DATA_MINIMIZED, "");
 					}
 				}
 				const activeIdx = activeParam !== null ? parseInt(activeParam, 10) : 0;

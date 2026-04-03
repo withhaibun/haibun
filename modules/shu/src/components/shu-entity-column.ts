@@ -8,26 +8,13 @@
 import { defaultLabel } from "../util.js";
 import { SHARED_STYLES } from "./styles.js";
 import { ShuElement } from "./shu-element.js";
+import { SHU_EVENT } from "../consts.js";
 import { EntityColumnSchema } from "../schemas.js";
-import {
-	esc,
-	escAttr,
-	truncate,
-	errMsg,
-	vertexId,
-	HIDDEN_PROPS,
-	renderContentHtml,
-	utf8ToBase64,
-} from "../util.js";
+import { esc, escAttr, truncate, errMsg, vertexId, HIDDEN_PROPS, renderContentHtml, utf8ToBase64, } from "../util.js";
 import { renderValue } from "./value-renderers.js";
 import { SseClient } from "../sse-client.js";
 import { getAvailableSteps, requireStep } from "../rpc-registry.js";
-import {
-	getRelSync,
-	getEdgeTargetLabel,
-	getSummaryFields,
-	getContentFields,
-} from "../rels-cache.js";
+import { getRelSync, getEdgeTargetLabel, getSummaryFields, getContentFields, } from "../rels-cache.js";
 
 type VertexData = Record<string, unknown>;
 type EdgeData = { type: string; target: VertexData; direction?: "out" | "in" };
@@ -68,7 +55,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			this.incomingCount = data.incomingCount ?? 0;
 			this.setState({ loading: false });
 			this.dispatchEvent(
-				new CustomEvent("context-change", {
+				new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, {
 					detail: { patterns: [{ s: id }], accessLevel: "private", label },
 					bubbles: true,
 					composed: true,
@@ -170,8 +157,8 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 							const v = fields[k];
 							const valueHtml = Array.isArray(v)
 								? v
-										.map((item) => this.clickableValue(item, "filter", k))
-										.join(", ")
+									.map((item) => this.clickableValue(item, "filter", k))
+									.join(", ")
 								: this.clickableValue(v, "filter", k);
 							return `<span class="summary-field" data-testid="entity-field-${escAttr(k)}">${this.clickableValue(k, "describedby")} ${valueHtml}</span>`;
 						})
@@ -265,11 +252,11 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const switcherHtml =
 			available.length > 1
 				? `<div class="content-switcher">${available
-						.map(
-							([f], i) =>
-								`<button class="content-switch-btn${i === 0 ? " active" : ""}" data-field="${escAttr(f)}">${esc(f)}</button>`,
-						)
-						.join("")}</div>`
+					.map(
+						([f], i) =>
+							`<button class="content-switch-btn${i === 0 ? " active" : ""}" data-field="${escAttr(f)}">${esc(f)}</button>`,
+					)
+					.join("")}</div>`
 				: "";
 
 		const iframesHtml = available
@@ -351,7 +338,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 					switch (rel) {
 						case "item":
 							this.dispatchEvent(
-								new CustomEvent("column-open", {
+								new CustomEvent(SHU_EVENT.COLUMN_OPEN, {
 									detail: { subject: value, label: targetLabel },
 									bubbles: true,
 									composed: true,
@@ -360,7 +347,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 							break;
 						case "describedby":
 							this.dispatchEvent(
-								new CustomEvent("column-open-filter", {
+								new CustomEvent(SHU_EVENT.COLUMN_OPEN_FILTER, {
 									detail: {
 										property: value,
 										label: this.state.vertexLabel,
@@ -375,7 +362,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 						default:
 							if (propertyName) {
 								this.dispatchEvent(
-									new CustomEvent("column-open-filter", {
+									new CustomEvent(SHU_EVENT.COLUMN_OPEN_FILTER, {
 										detail: {
 											property: propertyName,
 											value,
@@ -414,7 +401,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			?.addEventListener("click", (e) => {
 				e.preventDefault();
 				this.dispatchEvent(
-					new CustomEvent("column-open-filter", {
+					new CustomEvent(SHU_EVENT.COLUMN_OPEN_FILTER, {
 						detail: {
 							property: "linksTo",
 							value: this.state.vertexId,

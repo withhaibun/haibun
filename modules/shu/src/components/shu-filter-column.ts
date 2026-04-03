@@ -5,6 +5,7 @@ import { defaultLabel } from "../util.js";
  * No innerHTML rewrites — stable DOM, no stale references.
  */
 import { ShuElement } from "./shu-element.js";
+import { SHU_EVENT } from "../consts.js";
 import { FilterColumnSchema } from "../schemas.js";
 import { errMsg } from "../util.js";
 import { SseClient } from "../sse-client.js";
@@ -154,11 +155,11 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 		this.resultTable = table;
 
 		// Forward events
-		table.addEventListener("row-click", ((e: CustomEvent) => {
+		table.addEventListener(SHU_EVENT.ROW_CLICK, ((e: CustomEvent) => {
 			const { vertexId: vid, label: rowLabel } = e.detail;
 			if (vid) {
 				this.dispatchEvent(
-					new CustomEvent("column-open", {
+					new CustomEvent(SHU_EVENT.COLUMN_OPEN, {
 						detail: {
 							subject: vid,
 							label: rowLabel || this.state.vertexLabel || defaultLabel(),
@@ -170,12 +171,12 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 			}
 		}) as EventListener);
 
-		table.addEventListener("sort-change", ((e: CustomEvent) => {
+		table.addEventListener(SHU_EVENT.SORT_CHANGE, ((e: CustomEvent) => {
 			const { field, order } = e.detail;
 			table.updateState({ sortBy: field, sortOrder: order });
 		}) as EventListener);
 
-		table.addEventListener("page-change", ((e: CustomEvent) => {
+		table.addEventListener(SHU_EVENT.PAGE_CHANGE, ((e: CustomEvent) => {
 			const { offset } = e.detail;
 			if (this.state.property === "linksTo" && this.state.value) {
 				void this.fetchIncoming(
@@ -216,6 +217,7 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 				displayMode: "full",
 				fixedProperty: property,
 			});
+			if (this.state.vertexLabel) this.resultTable.vertexLabel = this.state.vertexLabel;
 			this.resultTable.setResults(this.results);
 			this.resultTable.setPagination(this.results.length, 50, 0);
 			this.resultTable.style.display = "";

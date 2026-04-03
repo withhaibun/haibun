@@ -1,31 +1,16 @@
 /**
  * <shu-column-browser> — Miller column browser for exploring graph vertices.
- * Faithful translation of the old quad-based column browser using graph fundamentals.
  * Clicking any property name or value opens a new column to the right.
  * Each column shows either a single vertex (entity) or a list of query results.
  */
 import { SHARED_STYLES } from "./styles.js";
-import {
-	esc,
-	escAttr,
-	truncate,
-	errMsg,
-	vertexId,
-	vertexLabel,
-	HIDDEN_PROPS,
-	renderContentHtml,
-	utf8ToBase64,
-} from "../util.js";
+import { SHU_EVENT } from "../consts.js";
+import { esc, escAttr, truncate, errMsg, vertexId, vertexLabel, HIDDEN_PROPS, renderContentHtml, utf8ToBase64, } from "../util.js";
 import { renderValue } from "./value-renderers.js";
 import { queryUriToPayload } from "../query-uri.js";
 import { SseClient } from "../sse-client.js";
 import { getAvailableSteps, requireStep, findStep } from "../rpc-registry.js";
-import {
-	getRels,
-	getRelSync,
-	getContentFields,
-	getSummaryFields,
-} from "../rels-cache.js";
+import { getRels, getRelSync, getContentFields, getSummaryFields, } from "../rels-cache.js";
 import { defaultLabel } from "../util.js";
 
 type VertexData = Record<string, unknown>;
@@ -294,7 +279,7 @@ export class ShuColumnBrowser extends HTMLElement {
 	private emitColumnActivated(): void {
 		const col = this.columns[this.currentIndex];
 		this.dispatchEvent(
-			new CustomEvent("column-activated", {
+			new CustomEvent(SHU_EVENT.COLUMN_ACTIVATED, {
 				detail: {
 					index: this.currentIndex + 1,
 					subject: col?.label,
@@ -308,7 +293,7 @@ export class ShuColumnBrowser extends HTMLElement {
 
 	private emitColumnsChanged(): void {
 		this.dispatchEvent(
-			new CustomEvent("columns-changed", {
+			new CustomEvent(SHU_EVENT.COLUMNS_CHANGED, {
 				detail: { columns: this.getColumnLabels() },
 				bubbles: true,
 				composed: true,
@@ -380,7 +365,7 @@ export class ShuColumnBrowser extends HTMLElement {
 		const currentCol = this.columns[this.currentIndex];
 		if (currentCol) {
 			this.dispatchEvent(
-				new CustomEvent("context-change", {
+				new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, {
 					detail: {
 						patterns: [{ s: currentCol.label }],
 						accessLevel: "private",
@@ -611,7 +596,7 @@ export class ShuColumnBrowser extends HTMLElement {
 				if (!uri) return;
 				const colIndex = parseInt(
 					(el.closest(".column") as HTMLElement | null)?.dataset.colIndex ||
-						"0",
+					"0",
 					10,
 				);
 				void this.openQueryColumn(uri, colIndex);
