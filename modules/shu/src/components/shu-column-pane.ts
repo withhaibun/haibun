@@ -4,6 +4,7 @@
  * Resize drag handle on right edge. Dispatches column-close, column-resize events.
  */
 import { ShuElement } from "./shu-element.js";
+import { SHU_EVENT, SHU_ATTR } from "../consts.js";
 import { ColumnPaneSchema } from "../schemas.js";
 import { esc } from "../util.js";
 
@@ -13,12 +14,13 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 			label: "",
 			active: false,
 			closable: true,
+			pinned: false,
 			columnType: "query",
 		});
 	}
 
 	static get observedAttributes(): string[] {
-		return ["label", "active", "closable", "column-type"];
+		return ["label", "active", "closable", "pinned", "column-type"];
 	}
 
 	attributeChangedCallback(
@@ -39,11 +41,12 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		if (name === "active") this.state = { ...this.state, active: val !== null };
 		if (name === "closable")
 			this.state = { ...this.state, closable: val !== "false" };
+		if (name === "pinned") this.state = { ...this.state, pinned: val !== null && val !== "false" };
 		if (name === "column-type")
 			this.state = {
 				...this.state,
 				columnType:
-					(val as "query" | "entity" | "filter" | "property") || "query",
+					(val as "query" | "entity" | "filter" | "property" | "monitor" | "sequence") || "query",
 			};
 		this.updateActiveStyle();
 	}
@@ -112,7 +115,9 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 			<style>${STYLES}</style>
 			<div class="pane-header${label || closable ? "" : " empty"}">
 				<span class="pane-label" title="${esc(label)}">${esc(label)}</span>
-				${closable ? '<button class="pane-close">x</button>' : ""}
+				<button class="pane-minimize" title="Minimize">\u2015</button>
+				<button class="pane-pin${this.state.pinned ? " pinned" : ""}" title="${this.state.pinned ? "Unpin" : "Pin"}">\ud83d\udccc</button>
+				${closable ? '<button class="pane-close" title="Close">\u00d7</button>' : ""}
 			</div>
 			<div class="pane-content">
 				<slot></slot>
@@ -120,13 +125,33 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 			<div class="resize-handle"></div>
 		`;
 
+		// Minimize toggle
+		this.shadowRoot.querySelector(".pane-minimize")?.addEventListener("click", (e) => {
+			e.stopPropagation();
+			const minimize = !this.isCollapsed;
+			this.setCollapsed(minimize);
+			if (minimize) { this.setAttribute(SHU_ATTR.DATA_MINIMIZED, ""); } else { this.removeAttribute(SHU_ATTR.DATA_MINIMIZED); }
+			this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_MINIMIZE, { bubbles: true, composed: true }));
+		});
+
+		// Pin toggle
+		this.shadowRoot.querySelector(".pane-pin")?.addEventListener("click", (e) => {
+			e.stopPropagation();
+			const pinned = !this.state.pinned;
+			this.state = { ...this.state, pinned };
+			if (pinned) { this.setAttribute(SHU_ATTR.PINNED, "true"); } else { this.removeAttribute(SHU_ATTR.PINNED); }
+			const btn = e.target as HTMLElement;
+			btn.classList.toggle("pinned", pinned);
+			btn.title = pinned ? "Unpin column" : "Pin column";
+		});
+
 		// Close button
 		this.shadowRoot
 			.querySelector(".pane-close")
 			?.addEventListener("click", (e) => {
 				e.stopPropagation();
 				this.dispatchEvent(
-					new CustomEvent("column-close", { bubbles: true, composed: true }),
+					new CustomEvent(SHU_EVENT.COLUMN_CLOSE, { bubbles: true, composed: true }),
 				);
 			});
 
@@ -149,7 +174,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 				document.removeEventListener("touchmove", touchMove);
 				document.removeEventListener("touchend", onPointerUp);
 				this.dispatchEvent(
-					new CustomEvent("column-resize", {
+					new CustomEvent(SHU_EVENT.COLUMN_RESIZE, {
 						detail: { width: this.state.width },
 						bubbles: true,
 						composed: true,
@@ -191,7 +216,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 			?.addEventListener("click", () => {
 				if (!this.state.active) {
 					this.dispatchEvent(
-						new CustomEvent("column-activate", {
+						new CustomEvent(SHU_EVENT.COLUMN_ACTIVATE, {
 							bubbles: true,
 							composed: true,
 						}),
@@ -205,7 +230,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 			?.addEventListener("click", () => {
 				if (this.isCollapsed) {
 					this.dispatchEvent(
-						new CustomEvent("column-expand", { bubbles: true, composed: true }),
+						new CustomEvent(SHU_EVENT.COLUMN_EXPAND, { bubbles: true, composed: true }),
 					);
 				}
 			});
@@ -244,8 +269,10 @@ const STYLES = `
 		padding: 8px 4px;
 		flex: 1;
 	}
-	:host([collapsed]) .pane-close {
-		display: none;
+	:host([collapsed]) .pane-pin, :host([collapsed]) .pane-close {
+		writing-mode: horizontal-tb;
+		font-size: 0.75em;
+		padding: 2px 0;
 	}
 	:host([column-type="query"]) {
 		position: sticky;
@@ -272,6 +299,29 @@ const STYLES = `
 		white-space: nowrap;
 		flex: 1;
 	}
+	.pane-minimize {
+		background: none;
+		border: none;
+		cursor: pointer;
+		font-size: 0.85em;
+		padding: 0 4px;
+		color: #bbb;
+		flex-shrink: 0;
+	}
+	.pane-minimize:hover { color: #444; }
+	:host([collapsed]) .pane-minimize { display: none; }
+	.pane-pin {
+		background: none;
+		border: none;
+		cursor: pointer;
+		font-size: 0.8em;
+		padding: 0 2px;
+		opacity: 0.3;
+		transition: opacity 0.15s;
+		flex-shrink: 0;
+	}
+	.pane-pin:hover { opacity: 0.7; }
+	.pane-pin.pinned { opacity: 1; transform: rotate(45deg); }
 	.pane-close {
 		background: none;
 		border: none;

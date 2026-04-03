@@ -5,6 +5,7 @@
  * Handles hash serialization via getColumnKeys/restoreColumn.
  */
 import { ShuElement } from "./shu-element.js";
+import { SHU_EVENT, SHU_ATTR } from "../consts.js";
 import { ColumnStripSchema } from "../schemas.js";
 import type { ShuColumnPane } from "./shu-column-pane.js";
 
@@ -17,34 +18,18 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 
 	connectedCallback(): void {
 		super.connectedCallback();
-		this.addEventListener(
-			"column-close",
-			this.handlePaneClose as EventListener,
-		);
-		this.addEventListener(
-			"column-activate",
-			this.handlePaneActivate as EventListener,
-		);
-		this.addEventListener(
-			"column-expand",
-			this.handlePaneExpand as EventListener,
-		);
+		this.addEventListener(SHU_EVENT.COLUMN_CLOSE, this.handlePaneClose as EventListener);
+		this.addEventListener(SHU_EVENT.COLUMN_ACTIVATE, this.handlePaneActivate as EventListener);
+		this.addEventListener(SHU_EVENT.COLUMN_EXPAND, this.handlePaneExpand as EventListener);
+		this.addEventListener(SHU_EVENT.COLUMN_MINIMIZE, this.handlePaneMinimize as EventListener);
 		this.updateQueryAlone();
 	}
 
 	disconnectedCallback(): void {
-		this.removeEventListener(
-			"column-close",
-			this.handlePaneClose as EventListener,
-		);
-		this.removeEventListener(
-			"column-activate",
-			this.handlePaneActivate as EventListener,
-		);
-		this.removeEventListener(
-			"column-expand",
-			this.handlePaneExpand as EventListener,
-		);
+		this.removeEventListener(SHU_EVENT.COLUMN_CLOSE, this.handlePaneClose as EventListener);
+		this.removeEventListener(SHU_EVENT.COLUMN_ACTIVATE, this.handlePaneActivate as EventListener);
+		this.removeEventListener(SHU_EVENT.COLUMN_EXPAND, this.handlePaneExpand as EventListener);
+		this.removeEventListener(SHU_EVENT.COLUMN_MINIMIZE, this.handlePaneMinimize as EventListener);
 	}
 
 	/** Get all child panes. */
@@ -89,7 +74,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 		this.state = { ...this.state, activeIndex: index };
 		this.updateAccordion();
 		this.dispatchEvent(
-			new CustomEvent("column-activated", {
+			new CustomEvent(SHU_EVENT.COLUMN_ACTIVATED, {
 				detail: { index, label: panes[index]?.getAttribute("label") },
 				bubbles: true,
 				composed: true,
@@ -100,19 +85,19 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 	/** Get column labels for breadcrumb. */
 	getColumnLabels(): string[] {
 		return this.panes
-			.filter((p) => p.getAttribute("column-type") !== "query")
+			.filter((p) => p.getAttribute(SHU_ATTR.COLUMN_TYPE) !== "query")
 			.map((p) => p.getAttribute("label") || "");
 	}
 
-	/** Serialize column state for URL hash. */
+	/** Serialize column state for URL hash. Appends ~min suffix for minimized panes. */
 	getColumnKeys(): string[] {
 		return this.panes
-			.filter((p) => p.getAttribute("column-type") !== "query")
+			.filter((p) => p.getAttribute(SHU_ATTR.COLUMN_TYPE) !== "query")
 			.map((p) => {
-				const type = p.getAttribute("column-type") || "";
+				const type = p.getAttribute(SHU_ATTR.COLUMN_TYPE) || "";
 				const label = p.getAttribute("label") || "";
-				const key = p.dataset.columnKey;
-				return key || `${type}:${label}`;
+				const key = p.dataset.columnKey || `${type}:${label}`;
+				return p.hasAttribute(SHU_ATTR.DATA_MINIMIZED) ? `${key}~min` : key;
 			});
 	}
 
@@ -120,7 +105,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 	private updateQueryAlone(): void {
 		const panes = this.panes;
 		const queryPane = panes.find(
-			(p) => p.getAttribute("column-type") === "query",
+			(p) => p.getAttribute(SHU_ATTR.COLUMN_TYPE) === "query",
 		);
 		if (queryPane)
 			queryPane.classList.toggle("query-alone", panes.length === 1);
@@ -141,22 +126,26 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 			return;
 
 		const queryPane = panes.find(
-			(p) => p.getAttribute("column-type") === "query",
+			(p) => p.getAttribute(SHU_ATTR.COLUMN_TYPE) === "query",
 		);
 		const activeIdx = this.state.activeIndex;
 
-		// Expand all panes, then collapse from left until they fit
+		// Expand auto-collapsed panes (skip user-minimized), then collapse from left until they fit
 		const expandedWidth = stripWidth / Math.max(panes.length, 1);
 		let usedWidth = 0;
 
 		for (let i = 0; i < panes.length; i++) {
-			panes[i].setCollapsed(false);
-			usedWidth += Math.max(expandedWidth, MIN_PANE_WIDTH);
+			if (panes[i].hasAttribute(SHU_ATTR.DATA_MINIMIZED)) {
+				usedWidth += COLLAPSED_WIDTH;
+			} else {
+				panes[i].setCollapsed(false);
+				usedWidth += Math.max(expandedWidth, MIN_PANE_WIDTH);
+			}
 		}
 
-		// Collapse from left, skipping query and active panes
+		// Collapse from left, skipping query, active, and user-minimized panes
 		for (let i = 0; i < panes.length && usedWidth > stripWidth; i++) {
-			if (panes[i] === queryPane || i === activeIdx) continue;
+			if (panes[i] === queryPane || i === activeIdx || panes[i].hasAttribute(SHU_ATTR.DATA_MINIMIZED)) continue;
 			panes[i].setCollapsed(true);
 			usedWidth -= Math.max(expandedWidth, MIN_PANE_WIDTH) - COLLAPSED_WIDTH;
 		}
@@ -166,6 +155,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 		const pane = (e as CustomEvent).target as PaneEl;
 		const index = this.panes.indexOf(pane);
 		if (index >= 0) {
+			pane.removeAttribute(SHU_ATTR.DATA_MINIMIZED);
 			this.activatePane(index);
 			this.updateAccordion();
 			requestAnimationFrame(() =>
@@ -180,6 +170,11 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 		if (index >= 0) this.removePane(index);
 	};
 
+	private handlePaneMinimize = (_e: Event): void => {
+		this.updateAccordion();
+		this.emitColumnsChanged();
+	};
+
 	private handlePaneActivate = (e: Event): void => {
 		const pane = (e as CustomEvent).target as PaneEl;
 		const index = this.panes.indexOf(pane);
@@ -188,7 +183,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 
 	private emitColumnsChanged(): void {
 		this.dispatchEvent(
-			new CustomEvent("columns-changed", {
+			new CustomEvent(SHU_EVENT.COLUMNS_CHANGED, {
 				detail: { columns: this.getColumnLabels(), keys: this.getColumnKeys() },
 				bubbles: true,
 				composed: true,

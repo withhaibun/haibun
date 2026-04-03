@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { SHU_EVENT } from "../consts.js";
 
 /**
  * Abstract base class for Shu web components.
@@ -25,7 +26,7 @@ export abstract class ShuElement<T extends z.ZodType> extends HTMLElement {
 		this.state = next;
 		this.render();
 		this.dispatchEvent(
-			new CustomEvent("state-change", {
+			new CustomEvent(SHU_EVENT.STATE_CHANGE, {
 				detail: this.state,
 				bubbles: true,
 				composed: true,

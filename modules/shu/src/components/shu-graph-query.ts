@@ -1,27 +1,17 @@
 import { defaultLabel } from "../util.js";
+import { SHU_EVENT } from "../consts.js";
 /**
  * <shu-graph-query> — Query component for the graph store.
- * Faithful translation of shu-query.ts using graph vertices instead of quads.
  * Renders in light DOM .results-target, hash state, custom scrollbar, sort, multi-select.
  */
 import { ShuElement } from "./shu-element.js";
-import {
-	QueryViewSchema,
-	type TSearchCondition,
-	parseFilterParam,
-	serializeFilterParam,
-} from "../schemas.js";
+import { QueryViewSchema, type TSearchCondition, parseFilterParam, serializeFilterParam, } from "../schemas.js";
 import { SHARED_STYLES } from "./styles.js";
 import { esc, errMsg, setIdFields } from "../util.js";
 import { setSiteMetadata, getConcernDerivedMetadata } from "../rels-cache.js";
 import type { ShuResultTable } from "./shu-result-table.js";
 import { SseClient } from "../sse-client.js";
-import {
-	getAvailableSteps,
-	getAvailableDomains,
-	findStep,
-	requireStep,
-} from "../rpc-registry.js";
+import { getAvailableSteps, getAvailableDomains, findStep, requireStep, } from "../rpc-registry.js";
 
 type ConditionRow = TSearchCondition;
 
@@ -118,7 +108,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 				: this.buildQueryContextPatterns();
 
 		this.dispatchEvent(
-			new CustomEvent("context-change", {
+			new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, {
 				detail: {
 					patterns,
 					accessLevel: this.accessLevel,
@@ -134,11 +124,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		);
 	}
 
-	private buildQueryContextPatterns(): Array<{
-		s?: string;
-		p?: string;
-		o?: string;
-	}> {
+	private buildQueryContextPatterns(): Array<{ s?: string; p?: string; o?: string; }> {
 		const patterns: Array<{ s?: string; p?: string; o?: string }> = [];
 		const { label } = this.state;
 		if (label) patterns.push({ p: "label", o: label });
@@ -301,7 +287,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		if (resultsChanged) {
 			this.selectedIds.clear();
 			this.dispatchEvent(
-				new CustomEvent("results-changed", { bubbles: true, composed: true }),
+				new CustomEvent(SHU_EVENT.RESULTS_CHANGED, { bubbles: true, composed: true }),
 			);
 		}
 		this.dispatchContextChange();
@@ -343,19 +329,19 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 			this.resultTable = table;
 
 			// Listen for result table events
-			table.addEventListener("sort-change", ((e: CustomEvent) => {
+			table.addEventListener(SHU_EVENT.SORT_CHANGE, ((e: CustomEvent) => {
 				const { field, order } = e.detail;
 				this.state = { ...this.state, sortBy: field, sortOrder: order };
 				this.offset = 0;
 				void this.executeQuery();
 			}) as EventListener);
 
-			table.addEventListener("page-change", ((e: CustomEvent) => {
+			table.addEventListener(SHU_EVENT.PAGE_CHANGE, ((e: CustomEvent) => {
 				this.offset = e.detail.offset;
 				void this.executeQuery();
 			}) as EventListener);
 
-			table.addEventListener("row-click", ((e: CustomEvent) => {
+			table.addEventListener(SHU_EVENT.ROW_CLICK, ((e: CustomEvent) => {
 				const { vertexId: vid, deselect, ctrlKey } = e.detail;
 				if (deselect) {
 					this.selectedIds.clear();
@@ -381,7 +367,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 
 				if (this.selectedIds.size > 0) {
 					this.dispatchEvent(
-						new CustomEvent("column-open", {
+						new CustomEvent(SHU_EVENT.COLUMN_OPEN, {
 							detail: {
 								subject: vid,
 								label: this.state.label || defaultLabel(),
@@ -414,6 +400,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 			selectable: true,
 			paginated: this.total > this.limit,
 		});
+		if (this.state.label) table.vertexLabel = this.state.label;
 		table.setResults(this.results);
 		table.setPagination(this.total, this.limit, this.offset);
 	}

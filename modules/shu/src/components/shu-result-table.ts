@@ -10,32 +10,18 @@
  *   page-change: { offset }
  */
 import { ShuElement } from "./shu-element.js";
+import { SHU_EVENT } from "../consts.js";
 import { z } from "zod";
 import { ResultTableSchema } from "../schemas.js";
 import { esc, escAttr, truncate, formatDate, isDateValue, vertexId, vertexLabel, HIDDEN_PROPS, } from "../util.js";
-import { getRelSync } from "../rels-cache.js";
+import { getRelSync, getPropertyOrder } from "../rels-cache.js";
 
 type VertexRow = Record<string, unknown>;
-
-/** Preferred column display order. Properties not listed appear after these, sorted alphabetically. */
-const PREFERRED_ORDER = [
-	"dateModified",
-	"subject",
-	"title",
-	"from",
-	"author",
-	"to",
-	"folder",
-	"collection",
-	"account",
-	"dateReceived",
-	"messageId",
-	"path",
-];
 
 export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 	private results: VertexRow[] = [];
 	private allProperties: string[] = [];
+	vertexLabel = "UNSET_VERTEX_LABEL";
 	private selectedIds = new Set<string>();
 	private resizeObserver: ResizeObserver | null = null;
 	private rafPending = false;
@@ -66,12 +52,10 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 				if (!HIDDEN_PROPS.has(k)) propSet.add(k);
 			}
 		}
-		// Order: preferred first, then remaining alphabetically
-		const ordered = PREFERRED_ORDER.filter((p) => propSet.has(p));
-		const rest = Array.from(propSet)
-			.filter((p) => !PREFERRED_ORDER.includes(p))
-			.sort();
-		this.allProperties = [...ordered, ...rest];
+		// Order by rel priority from concern metadata, then remaining alphabetically
+		const relOrder = getPropertyOrder(this.vertexLabel).filter((p) => propSet.has(p));
+		const rest = Array.from(propSet).filter((p) => !relOrder.includes(p)).sort();
+		this.allProperties = [...relOrder, ...rest];
 		this.render();
 	}
 
@@ -288,7 +272,7 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 
 	private emitPageChange(offset: number): void {
 		this.dispatchEvent(
-			new CustomEvent("page-change", {
+			new CustomEvent(SHU_EVENT.PAGE_CHANGE, {
 				detail: { offset },
 				bubbles: true,
 				composed: true,
@@ -429,7 +413,7 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 				const newOrder =
 					sortBy === field ? (sortOrder === "asc" ? "desc" : "asc") : "asc";
 				this.dispatchEvent(
-					new CustomEvent("sort-change", {
+					new CustomEvent(SHU_EVENT.SORT_CHANGE, {
 						detail: { field, order: newOrder },
 						bubbles: true,
 						composed: true,
@@ -447,7 +431,7 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 					if ((e.target as HTMLElement).closest(".clickable-row")) return;
 					this.deselectAll();
 					this.dispatchEvent(
-						new CustomEvent("row-click", {
+						new CustomEvent(SHU_EVENT.ROW_CLICK, {
 							detail: { vertexId: null, deselect: true },
 							bubbles: true,
 							composed: true,
@@ -484,7 +468,7 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 					}
 
 					this.dispatchEvent(
-						new CustomEvent("row-click", {
+						new CustomEvent(SHU_EVENT.ROW_CLICK, {
 							detail: { vertexId: vid, label: vlabel, ctrlKey: multi },
 							bubbles: true,
 							composed: true,
