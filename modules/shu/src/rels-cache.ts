@@ -73,6 +73,19 @@ export function getSummaryFields(label: string): Set<string> {
 	return new Set(metadata?.summary[label] ?? []);
 }
 
+/** Rel-based property display priority. Drives column ordering in result tables. */
+const REL_PRIORITY: string[] = ["identifier", "name", "attributedTo", "audience", "context", "published", "updated", "content", "inReplyTo", "attachment", "tag"];
+
+/** Get properties for a label ordered by their rel's semantic priority, then alphabetically. */
+export function getPropertyOrder(label: string): string[] {
+	const labelRels = getRels(label);
+	const props = getProperties(label);
+	if (!Object.keys(labelRels).length) return props;
+	const byPriority = REL_PRIORITY.flatMap((rel) => props.filter((p) => labelRels[p] === rel));
+	const rest = props.filter((p) => !byPriority.includes(p)).sort();
+	return [...byPriority, ...rest];
+}
+
 /** Get content fields (in preference order) for a label — rendered in an iframe. Returns field→format map. */
 export function getContentFields(label: string): Record<string, string> {
 	return metadata?.contentFields[label] ?? {};
