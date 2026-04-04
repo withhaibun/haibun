@@ -193,7 +193,7 @@ export function stepMethodName(stepperOrName: string | AStepper | { name: string
 export function createStepHandler(stepperName: string, stepName: string, stepDef: TStepperStep): (featureStep: TFeatureStep, world: TWorld) => Promise<TActionResult> {
 	return async (featureStep: TFeatureStep, world: TWorld): Promise<TActionResult> => {
 		try {
-			const args = populateActionArgs(featureStep, world, world.runtime?.steppers ?? []);
+			const args = populateActionArgs(featureStep, world, world.runtime.steppers);
 			const result = await stepDef.action(args, featureStep);
 			if (result.ok && result.products) {
 				return { ...result, products: { ...result.products, [TRACE_SEQ_PATH]: featureStep.seqPath } };
@@ -502,7 +502,7 @@ export function discoverSteps(steppers: AStepper[], world: TWorld, stepRegistry?
 		}
 	}
 	const domains: Record<string, DomainDiscoveryInfo> = {};
-	for (const [key, domain] of Object.entries(world.domains ?? {})) {
+	for (const [key, domain] of Object.entries(world.domains)) {
 		// Prefer explicit values; fall back to extracting enum values from z.enum schemas
 		let values = domain.values;
 		if (!values && domain.schema) {
@@ -522,6 +522,6 @@ export function discoverSteps(steppers: AStepper[], world: TWorld, stepRegistry?
 			vertexLabel: domain.meta?.vertexLabel,
 		};
 	}
-	const concerns = buildConcernCatalog(world.domains ?? {});
+	const concerns = buildConcernCatalog(world.domains);
 	return { steps, domains, concerns };
 }
