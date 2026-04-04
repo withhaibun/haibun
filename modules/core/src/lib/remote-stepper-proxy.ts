@@ -19,7 +19,6 @@ import type { StepDescriptor } from "./stepper-registry.js";
 
 export class RemoteStepperProxy extends AStepper {
 	readonly name: string;
-	description: string;
 	private stepDescriptors: StepDescriptor[] = [];
 
 	constructor(
