@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { TFeatureStep, TWorld, IStepperCycles, TStartScenario, TRegisteredDomain, TDomainDefinition } from '../lib/defs.js';
+import { TFeatureStep, TWorld, IStepperCycles, TStartScenario, TRegisteredDomain, TDomainDefinition, LinkRelations } from '../lib/defs.js';
 import { OK, TStepArgs, Origin, TProvenanceIdentifier, TOrigin, TActionResult } from '../schema/protocol.js';
 import { TAnyFixme } from '../lib/fixme.js';
 import { AStepper, IHasCycles, TStepperSteps } from '../lib/astepper.js';
@@ -8,6 +8,17 @@ import { FlowRunner } from '../lib/core/flow-runner.js';
 import { FeatureVariables, OBSCURED_VALUE } from '../lib/feature-variables.js';
 import { sanitizeObjectSecrets } from '../lib/util/secret-utils.js';
 import { DOMAIN_STATEMENT, DOMAIN_STRING, normalizeDomainKey, createEnumDomainDefinition, registerDomains } from '../lib/domain-types.js';
+import type { IQuadStore } from '../lib/quad-types.js';
+
+const AnnotationSchema = z.object({ id: z.string(), text: z.string(), author: z.string().optional(), timestamp: z.string() });
+export const ANNOTATION_LABEL = "Annotation";
+const ANNOTATION_DOMAIN = "annotation";
+const QUAD_STORE_KEYS = ["muskeg-graph-store", "quad-store"] as const;
+
+function findStore(runtime: Record<string, unknown>): IQuadStore | undefined {
+	for (const key of QUAD_STORE_KEYS) { if (runtime[key]) return runtime[key] as IQuadStore; }
+	return undefined;
+}
 
 const clearVars = (vars: VariablesStepper) => () => {
 	vars.getWorld().shared.clear();
@@ -15,6 +26,23 @@ const clearVars = (vars: VariablesStepper) => () => {
 };
 
 const cycles = (variablesStepper: VariablesStepper): IStepperCycles => ({
+	getConcerns: () => ({
+		domains: [{
+			selectors: [ANNOTATION_DOMAIN],
+			schema: AnnotationSchema,
+			description: "Annotation",
+			meta: {
+				vertexLabel: ANNOTATION_LABEL, id: "id",
+				properties: {
+					id: LinkRelations.IDENTIFIER.rel,
+					text: { rel: LinkRelations.CONTENT.rel, mediaType: "text/markdown" },
+					author: LinkRelations.ATTRIBUTED_TO.rel,
+					timestamp: LinkRelations.PUBLISHED.rel,
+				},
+				edges: { annotates: { rel: LinkRelations.IN_REPLY_TO.rel, target: "*" } },
+			},
+		} satisfies TDomainDefinition],
+	}),
 	startFeature: clearVars(variablesStepper),
 	startScenario: ({ scopedVars }: TStartScenario) => {
 		variablesStepper.getWorld().shared = new FeatureVariables(variablesStepper.getWorld(), { ...scopedVars.all() });
@@ -479,6 +507,57 @@ class VariablesStepper extends AStepper implements IHasCycles {
 					? OK
 					: actionNotOK(`"${actualValue}" does not match pattern "${actualPattern}"`);
 			}
+		},
+		// --- Annotations & Related ---
+		annotate: {
+			gwta: "annotate {label: string} {id: string} with {text: string}",
+			outputSchema: z.object({ annotationId: z.string() }),
+			action: async ({ label, id, text }: { label: string; id: string; text: string }) => {
+				const store = findStore(this.getWorld().runtime);
+				if (!store) return actionNotOK("No graph store available");
+				const annotationId = crypto.randomUUID();
+				await store.upsertVertex(ANNOTATION_LABEL, { id: annotationId, text, timestamp: new Date().toISOString() });
+				// Determine context: inherit from target if it has one, otherwise target is the root
+				const targetContext = store.query({ subject: id, predicate: LinkRelations.CONTEXT.rel });
+				const contextRoot = targetContext.length > 0 ? String(targetContext[0].object) : id;
+				store.add({ subject: annotationId, predicate: LinkRelations.IN_REPLY_TO.rel, object: id, namedGraph: label });
+				store.add({ subject: annotationId, predicate: LinkRelations.CONTEXT.rel, object: contextRoot, namedGraph: ANNOTATION_LABEL });
+				// Ensure the target also has a context quad (so getRelated finds it)
+				if (targetContext.length === 0) {
+					store.add({ subject: id, predicate: LinkRelations.CONTEXT.rel, object: id, namedGraph: label });
+				}
+				return actionOKWithProducts({ annotationId, contextRoot });
+			},
+		},
+		getRelated: {
+			gwta: "get related for {label: string} {id: string}",
+			outputSchema: z.object({ items: z.array(z.unknown()), contextRoot: z.string() }),
+			action: async ({ label, id }: { label: string; id: string }) => {
+				const store = findStore(this.getWorld().runtime);
+				if (!store) return actionNotOK("No graph store available");
+				// Find context root for this vertex
+				const contextQuads = store.query({ subject: id, predicate: LinkRelations.CONTEXT.rel });
+				const contextRoot = contextQuads.length > 0 ? String(contextQuads[0].object) : id;
+				// Get all items sharing this context
+				const contextMembers = store.query({ predicate: LinkRelations.CONTEXT.rel, object: contextRoot });
+				const ids = new Set([contextRoot, ...contextMembers.map((q) => String(q.subject))]);
+				const items: Record<string, unknown>[] = [];
+				for (const vid of ids) {
+					const vertex = await store.getVertex(label, vid) ?? await store.getVertex(ANNOTATION_LABEL, vid);
+					if (vertex) {
+						const outgoing = store.query({ subject: vid });
+						const edges = outgoing.filter((q) => q.predicate !== LinkRelations.CONTEXT.rel).map((q) => ({ type: q.predicate, targetId: String(q.object) }));
+						const replyTo = edges.find((e) => e.type === LinkRelations.IN_REPLY_TO.rel);
+						items.push({ ...(vertex as Record<string, unknown>), _id: vid, _inReplyTo: replyTo?.targetId, _edges: edges });
+					}
+				}
+				items.sort((a, b) => {
+					const dateA = String(a.timestamp ?? a.dateSent ?? a.published ?? "");
+					const dateB = String(b.timestamp ?? b.dateSent ?? b.published ?? "");
+					return dateA.localeCompare(dateB);
+				});
+				return actionOKWithProducts({ items, contextRoot });
+			},
 		},
 	} satisfies TStepperSteps;
 
