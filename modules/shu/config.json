@@ -4,11 +4,11 @@
 		"variables-stepper",
 		"logic-stepper",
 		"activities-stepper",
-		"@haibun/web-server-hono/build/web-server-stepper",
-		"@haibun/web-playwright/build/web-playwright",
-		"@haibun/storage-fs/build/storage-fs",
-		"@haibun/shu/build/shu-stepper",
-		"@haibun/shu/build/monitor-stepper",
+		"@haibun/web-server-hono/web-server-stepper",
+		"@haibun/web-playwright/web-playwright",
+		"@haibun/storage-fs/storage-fs",
+		"@haibun/shu/shu-stepper",
+		"@haibun/shu/monitor-stepper",
 		"./build/tutorial-graph-stepper"
 	]
 }

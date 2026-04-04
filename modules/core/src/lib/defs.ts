@@ -5,20 +5,7 @@ import { FeatureVariables } from "./feature-variables.js";
 import { Prompter } from "./prompter.js";
 import { IEventLogger } from "./EventLogger.js";
 import { z, type ZodTypeAny } from "zod";
-import {
-	ExecutionIntent,
-	TSeqPath,
-	TStepResult,
-	TFeatureResult,
-	TExecutorResult,
-	TStepArgs,
-	TStepValueValue,
-	TStepValue,
-	Timer,
-	THaibunEvent,
-	TActionResult,
-	CONTINUE_AFTER_ERROR,
-} from "../schema/protocol.js";
+import { ExecutionIntent, TSeqPath, TStepResult, TFeatureResult, TExecutorResult, TStepArgs, TStepValueValue, TStepValue, Timer, THaibunEvent, TActionResult, CONTINUE_AFTER_ERROR, } from "../schema/protocol.js";
 
 // ============================================================================
 // Core Execution World
@@ -212,7 +199,7 @@ type TStepperStepPlain = TStepperStepBase & {
 export type TStepperStep = TStepperStepWithProducts | TStepperStepPlain;
 
 export interface CStepper {
-	new (): AStepper;
+	new(): AStepper;
 }
 
 export interface IStepperWhen {

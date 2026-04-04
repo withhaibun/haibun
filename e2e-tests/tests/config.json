@@ -1,22 +1,22 @@
 {
   "$schema": "../../modules/core/haibun-core-specl.schema.json",
   "steppers": [
-    "@haibun/web-playwright/build/web-playwright",
-    "@haibun/out-junit/build/out-junit",
-    "@haibun/web-server-hono/build/web-server-stepper",
-    "@haibun/storage-fs/build/storage-fs",
-    "@haibun/web-accessibility-axe/build/a11y-axe-stepper",
+    "@haibun/web-playwright/web-playwright",
+    "@haibun/out-junit/out-junit",
+    "@haibun/web-server-hono/web-server-stepper",
+    "@haibun/storage-fs/storage-fs",
+    "@haibun/web-accessibility-axe/a11y-axe-stepper",
     "@haibun/monitor-browser",
     "@haibun/monitor-tui",
     "variables-stepper",
     "logic-stepper",
     "activities-stepper",
-    "@haibun/core/build/steps/zcap-like-stepper",
+    "@haibun/core/steps/zcap-like-stepper",
     "haibun",
     "./build-local/test-server"
   ],
   "unused": [
-    "@haibun/monitor-tui/build/index",
+    "@haibun/monitor-tui/index",
     "console-monitor-stepper"
   ]
 }
