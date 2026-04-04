@@ -3,9 +3,10 @@ import {
 	actionNotOK,
 	actionOKWithProducts,
 } from "@haibun/core/lib/util/index.js";
-import type {
-	IStepperCycles,
-	IStepperConcerns,
+import {
+	LinkRelations,
+	type IStepperCycles,
+	type IStepperConcerns,
 } from "@haibun/core/lib/defs.js";
 import { objectCoercer } from "@haibun/core/lib/domain-types.js";
 import { z } from "zod";
@@ -232,14 +233,14 @@ export default class TutorialGraphStepper extends AStepper {
 						vertexLabel: TutorialLabels.Researcher,
 						id: "id",
 						properties: {
-							id: "identifier",
-							name: "name",
-							context: "context",
-							published: "published",
+							id: LinkRelations.IDENTIFIER.rel,
+							name: LinkRelations.NAME.rel,
+							context: LinkRelations.CONTEXT.rel,
+							published: LinkRelations.PUBLISHED.rel,
 						},
 						edges: {
 							[TutorialEdges.authored]: {
-								rel: "attributedTo",
+								rel: LinkRelations.ATTRIBUTED_TO.rel,
 								target: TutorialLabels.Paper,
 							},
 						},
@@ -252,19 +253,19 @@ export default class TutorialGraphStepper extends AStepper {
 						vertexLabel: TutorialLabels.Paper,
 						id: "id",
 						properties: {
-							id: "identifier",
-							name: "name",
-							content: "content",
-							published: "published",
-							updated: "updated",
+							id: LinkRelations.IDENTIFIER.rel,
+							name: LinkRelations.NAME.rel,
+							content: LinkRelations.CONTENT.rel,
+							published: LinkRelations.PUBLISHED.rel,
+							updated: LinkRelations.UPDATED.rel,
 						},
 						edges: {
 							[TutorialEdges.references]: {
-								rel: "inReplyTo",
+								rel: LinkRelations.IN_REPLY_TO.rel,
 								target: TutorialLabels.Paper,
 							},
 							[TutorialEdges.author]: {
-								rel: "attributedTo",
+								rel: LinkRelations.ATTRIBUTED_TO.rel,
 								target: TutorialLabels.Researcher,
 							},
 						},
