@@ -16,10 +16,6 @@ export interface SiteMetadata {
 let metadata: SiteMetadata | null = null;
 const edgeTypeIndex = new Map<string, string>();
 
-function requireMetadata(): SiteMetadata {
-	if (!metadata) throw new Error("SiteMetadata not initialized — call setSiteMetadata() or setConcernCatalog() first");
-	return metadata;
-}
 
 /** Populate the cache from a getSiteMetadata response. Called once at startup. */
 export function setSiteMetadata(data: SiteMetadata): void {
@@ -32,28 +28,25 @@ export function setSiteMetadata(data: SiteMetadata): void {
 	}
 }
 
-/** Get cached rels for a label. */
-export function getRels(label: string): Record<string, string> {
-	return requireMetadata().rels[label];
+/** Get cached rels for a label. Returns undefined if metadata not initialized or label unknown. */
+export function getRels(label: string): Record<string, string> | undefined {
+	return metadata?.rels[label];
 }
 
 /** Sync lookup — returns cached rel for a property. */
 export function getRelSync(label: string, property: string): string | undefined {
-	return requireMetadata().rels[label]?.[property];
+	return metadata?.rels[label]?.[property];
 }
 
 /** Get cached edge ranges for a label. */
-export function getEdgeRanges(label: string): Record<string, string> {
-	return requireMetadata().edgeRanges[label];
+export function getEdgeRanges(label: string): Record<string, string> | undefined {
+	return metadata?.edgeRanges[label];
 }
 
 /** Sync lookup — returns target label for an edge type from a source vertex label. Falls back to global index. */
-export function getEdgeTargetLabel(
-	edgeType: string,
-	sourceLabel?: string,
-): string | undefined {
+export function getEdgeTargetLabel(edgeType: string, sourceLabel?: string): string | undefined {
 	if (sourceLabel) {
-		const target = requireMetadata().edgeRanges[sourceLabel]?.[edgeType];
+		const target = metadata?.edgeRanges[sourceLabel]?.[edgeType];
 		if (target) return target;
 	}
 	return edgeTypeIndex.get(edgeType);
@@ -69,31 +62,32 @@ export function getEdgeTypesForLabel(targetLabel: string): Set<string> {
 }
 
 /** Get cached properties for a label. */
-export function getProperties(label: string): string[] {
-	return requireMetadata().properties[label];
+export function getProperties(label: string): string[] | undefined {
+	return metadata?.properties[label];
 }
 
-/** Get cached summary fields for a label. Empty set if label has no summary fields. */
+/** Get cached summary fields for a label. */
 export function getSummaryFields(label: string): Set<string> {
-	return new Set(requireMetadata().summary[label]);
+	return new Set(metadata?.summary[label]);
 }
 
-/** Rel-based property display priority. Drives column ordering in result tables. Derived from LinkRelations declaration order. */
+/** Rel-based property display priority. Derived from LinkRelations declaration order. */
 const REL_PRIORITY = Object.values(LinkRelations).map((lr) => lr.rel);
 
 /** Get properties for a label ordered by their rel's semantic priority, then alphabetically. */
 export function getPropertyOrder(label: string): string[] {
 	const labelRels = getRels(label);
 	const props = getProperties(label);
+	if (!labelRels || !props) return [];
 	if (!Object.keys(labelRels).length) return props;
 	const byPriority = REL_PRIORITY.flatMap((rel) => props.filter((p) => labelRels[p] === rel));
 	const rest = props.filter((p) => !byPriority.includes(p)).sort();
 	return [...byPriority, ...rest];
 }
 
-/** Get content fields (in preference order) for a label — rendered in an iframe. Returns field→format map. */
-export function getContentFields(label: string): Record<string, string> {
-	return requireMetadata().contentFields[label];
+/** Get content fields (in preference order) for a label — rendered in an iframe. */
+export function getContentFields(label: string): Record<string, string> | undefined {
+	return metadata?.contentFields[label];
 }
 
 const selectCache = new Map<string, Record<string, string[]>>();
