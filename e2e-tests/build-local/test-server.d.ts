@@ -23,7 +23,7 @@ declare class TestServer extends AStepper {
         id: number;
         name: string;
     }[];
-    endedFeatures(): Promise<void>;
+    endedFeatures(): void;
     /**
      * Get or create the dynamic auth middleware.
      * This middleware checks currentAuthScheme at request time.
@@ -32,12 +32,12 @@ declare class TestServer extends AStepper {
     /**
      * Add a route without auth middleware
      */
-    addRoute: (route: TRequestHandler, method?: "get" | "post" | "delete") => (args: TStepArgs, vstep: TFeatureStep) => Promise<import("@haibun/core/schema/protocol.js").TActionResult>;
+    addRoute: (route: TRequestHandler, method?: "get" | "post" | "delete") => (args: TStepArgs, vstep: TFeatureStep) => import("@haibun/core/schema/protocol.js").TActionResult;
     /**
      * Add a route protected by auth middleware.
      * Uses dynamic middleware that checks currentAuthScheme at request time.
      */
-    addAuthRoute: (route: TRequestHandler, method?: "get" | "post" | "delete") => (args: TStepArgs, vstep: TFeatureStep) => Promise<import("@haibun/core/schema/protocol.js").TActionResult>;
+    addAuthRoute: (route: TRequestHandler, method?: "get" | "post" | "delete") => (args: TStepArgs, vstep: TFeatureStep) => import("@haibun/core/schema/protocol.js").TActionResult;
     tally: TRequestHandler;
     download: TRequestHandler;
     upload: TRequestHandler;

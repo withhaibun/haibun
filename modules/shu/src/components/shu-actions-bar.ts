@@ -325,7 +325,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 
 	private loadProperties(label?: string): void {
 		const target = label || this._selectedLabel;
-		this._filterProperties = target ? getProperties(target) : [];
+		this._filterProperties = target ? getProperties(target) ?? [] : [];
 	}
 
 	private async loadSelectValues(label?: string): Promise<void> {

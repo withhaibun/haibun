@@ -402,7 +402,7 @@ export class ShuColumnBrowser extends HTMLElement {
 		if (!col.vertex) return '<div class="no-results">No data.</div>';
 		const vertex = col.vertex;
 		const lbl = col.vertexLabel ?? vertexLabel(vertex);
-		const contentFieldSet = new Set(Object.keys(getContentFields(lbl)));
+		const contentFieldSet = new Set(Object.keys(getContentFields(lbl) ?? {}));
 		const summaryFieldSet = getSummaryFields(lbl);
 
 		const fields: Record<string, string> = {};
@@ -456,7 +456,7 @@ export class ShuColumnBrowser extends HTMLElement {
 	}
 
 	private renderContentIframe(vertex: VertexData, lbl: string): string {
-		const fieldFormats = getContentFields(lbl);
+		const fieldFormats = getContentFields(lbl) ?? {};
 		const available = Object.entries(fieldFormats).filter(([f]) => vertex[f]);
 		if (available.length === 0) return "";
 
@@ -489,7 +489,7 @@ export class ShuColumnBrowser extends HTMLElement {
 			.map((v) => {
 				const id = vertexId(v);
 				const lbl = col.vertexLabel ?? vertexLabel(v);
-				const contentFieldSet = new Set(Object.keys(getContentFields(lbl)));
+				const contentFieldSet = new Set(Object.keys(getContentFields(lbl) ?? {}));
 				const idField = id;
 				const summary = Object.entries(v)
 					.filter(
