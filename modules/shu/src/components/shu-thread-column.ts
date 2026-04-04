@@ -80,7 +80,7 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 				<button class="mode-btn${mode === "flat" ? " active" : ""}" data-mode="flat">Flat</button>
 				<button class="mode-btn${mode === "tree" ? " active" : ""}" data-mode="tree">Tree</button>
 				<button class="mode-btn${mode === "graph" ? " active" : ""}" data-mode="graph">Graph</button>
-				<span class="count">${this.thread.length} messages</span>
+				<span class="count">${this.thread.length} relations</span>
 			</div>
 			${contentHtml}`;
 		if (mode === "graph") void this.renderGraph();

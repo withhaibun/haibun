@@ -246,7 +246,7 @@ const main = async (): Promise<void> => {
 		const strip = getStrip();
 		if (!strip) return;
 		const pane = document.createElement("shu-column-pane") as ShuColumnPane;
-		pane.setAttribute("label", `Thread: ${subject}`);
+		pane.setAttribute("label", `Relations: ${subject}`);
 		pane.setAttribute(SHU_ATTR.COLUMN_TYPE, "thread");
 		pane.dataset.columnKey = `t:${label}:${subject}`;
 		const thread = document.createElement("shu-thread-column") as import("./components/shu-thread-column.js").ShuThreadColumn;
