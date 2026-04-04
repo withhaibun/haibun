@@ -1,7 +1,7 @@
 import { withAction, type TKirejiExport } from '@haibun/core/kireji/withAction.js';
 import WebPlaywright from '@haibun/web-playwright';
 import VariablesStepper from '@haibun/core/steps/variables-stepper.js';
-import { TEST_IDS } from '@haibun/monitor-browser/build/test-ids.js';
+import { TEST_IDS } from '@haibun/monitor-browser/test-ids.js';
 import { Test_IDs_setup } from '../backgrounds/test-ids.feature.ts';
 import { OBSCURED_VALUE } from '@haibun/core/lib/feature-variables.js';
 
