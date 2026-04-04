@@ -119,13 +119,4 @@ export class QuadStore implements IQuadStore {
 		return Promise.resolve([...new Set(quads.map(q => String(q.object)))].sort());
 	}
 
-	/** Build vertex type registrations from world.domains. */
-	static registerVertexTypesFromDomains(store: QuadStore, domains: Record<string, { schema: import('zod').ZodType; meta?: Record<string, unknown> }>): void {
-		for (const [, domain] of Object.entries(domains)) {
-			const meta = domain.meta as { vertexLabel?: string; idField?: string } | undefined;
-			if (meta?.vertexLabel) {
-				store.registerVertexType(meta.vertexLabel, domain.schema, meta.idField ?? 'id');
-			}
-		}
-	}
 }
