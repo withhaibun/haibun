@@ -330,6 +330,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 					authorized: ok || !tool.capability,
 					seqPath: featureStep.seqPath,
 					durationMs: end - start,
+					productKeys: ok && actionResult.products ? Object.keys(actionResult.products).filter((k) => !k.startsWith("_")) : undefined,
 				},
 			}),
 		);

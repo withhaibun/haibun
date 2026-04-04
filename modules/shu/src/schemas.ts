@@ -20,7 +20,7 @@ export type TComboboxOption = z.infer<typeof ComboboxOptionSchema>;
 export const ComboboxSchema = z.object({
 	value: z.string().default(""),
 	options: z.array(ComboboxOptionSchema).default([]),
-	placeholder: z.string().default(""),
+	placeholder: z.string(),
 	filterText: z.string().default(""),
 	open: z.boolean().default(false),
 });
@@ -35,14 +35,14 @@ export const SEARCH_OPERATORS: ReadonlyArray<{
 	value: TSearchOperator;
 	label: string;
 }> = [
-	{ value: "eq", label: "equals" },
-	{ value: "contains", label: "contains" },
-	{ value: "gt", label: "greater than" },
-	{ value: "lt", label: "less than" },
-	{ value: "gte", label: "at least" },
-	{ value: "lte", label: "at most" },
-	{ value: "between", label: "between" },
-];
+		{ value: "eq", label: "equals" },
+		{ value: "contains", label: "contains" },
+		{ value: "gt", label: "greater than" },
+		{ value: "lt", label: "less than" },
+		{ value: "gte", label: "at least" },
+		{ value: "lte", label: "at most" },
+		{ value: "between", label: "between" },
+	];
 
 export const SearchConditionSchema = z.object({
 	predicate: z.string(),
@@ -91,18 +91,19 @@ export const QueryViewSchema = z.object({
 // --- Column pane ---
 
 export const ColumnPaneSchema = z.object({
-	label: z.string().default(""),
+	label: z.string(),
 	active: z.boolean().default(false),
 	width: z.number().optional(),
 	closable: z.boolean().default(true),
+	pinned: z.boolean().default(false),
 	columnType: z.enum(["query", "entity", "filter", "property", "monitor", "sequence"]).default("query"),
 });
 
 // --- Entity column ---
 
 export const EntityColumnSchema = z.object({
-	vertexId: z.string().default(""),
-	vertexLabel: z.string().default(""),
+	vertexId: z.string(),
+	vertexLabel: z.string(),
 	loading: z.boolean().default(false),
 	error: z.string().optional(),
 });
@@ -129,7 +130,7 @@ export const BreadcrumbSchema = z.object({
 // --- Spinner ---
 
 export const SpinnerSchema = z.object({
-	status: z.string().default(""),
+	status: z.string(),
 	visible: z.boolean().default(false),
 	spinning: z.boolean().default(true),
 });
