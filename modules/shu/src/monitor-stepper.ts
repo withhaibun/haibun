@@ -24,7 +24,9 @@ export default class MonitorStepper extends AStepper implements IHasCycles {
 			try {
 				const transport = this.getWorld().runtime[TRANSPORT] as { send?: (data: unknown) => void } | undefined;
 				transport?.send?.({ type: "event", event });
-			} catch { /* transport may not be initialized yet */ }
+			} catch {
+				/* transport may not be initialized yet */
+			}
 		},
 	};
 
@@ -49,7 +51,22 @@ export default class MonitorStepper extends AStepper implements IHasCycles {
 				if (level) filtered = filtered.filter((e) => e.level === level);
 				if (kind) filtered = filtered.filter((e) => e.kind === kind);
 				if (since) filtered = filtered.filter((e) => e.timestamp >= since);
-				return actionOKWithProducts({ events: filtered });
+				// Shallow-copy events to break circular references (products → events → products)
+				return actionOKWithProducts({
+					events: filtered.map(({ kind, level, timestamp, id, ...rest }) => ({
+						kind,
+						level,
+						timestamp,
+						id,
+						in: (rest as Record<string, unknown>).in,
+						message: (rest as Record<string, unknown>).message,
+						type: (rest as Record<string, unknown>).type,
+						stage: (rest as Record<string, unknown>).stage,
+						status: (rest as Record<string, unknown>).status,
+						actionName: (rest as Record<string, unknown>).actionName,
+						artifactType: (rest as Record<string, unknown>).artifactType,
+					})),
+				});
 			},
 		},
 		getDispatchTraces: {
@@ -58,7 +75,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles {
 			action: async () => {
 				const traces = this.events
 					.filter((e) => e.kind === "artifact" && (e as Record<string, unknown>).artifactType === "dispatch-trace")
-					.map((e) => (e as Record<string, unknown>).trace);
+					.map((e) => { const t = (e as Record<string, unknown>).trace; return typeof t === "object" && t ? { ...t as Record<string, unknown> } : t; });
 				return actionOKWithProducts({ traces });
 			},
 		},

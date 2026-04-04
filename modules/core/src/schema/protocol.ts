@@ -578,6 +578,7 @@ export const DispatchTraceArtifact = BaseArtifact.extend({
 		authorized: z.boolean(),
 		seqPath: z.array(z.number()),
 		durationMs: z.number().optional(),
+		productKeys: z.array(z.string()).optional(),
 	}),
 	mimetype: z.string().default("application/json"),
 });
