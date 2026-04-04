@@ -17,6 +17,7 @@ export const registerComponents = async (): Promise<void> => {
 	const { StepCaller } = await import("./components/shu-step-caller.js");
 	const { ShuSequenceDiagram } = await import("./components/shu-sequence-diagram.js");
 	const { ShuMonitorColumn } = await import("./components/shu-monitor-column.js");
+	const { ShuThreadColumn } = await import("./components/shu-thread-column.js");
 	// Self-registering renderers
 	await import("./query-uri.js");
 
@@ -35,6 +36,7 @@ export const registerComponents = async (): Promise<void> => {
 		["shu-step-caller", StepCaller],
 		["shu-sequence-diagram", ShuSequenceDiagram],
 		["shu-monitor-column", ShuMonitorColumn],
+		["shu-thread-column", ShuThreadColumn],
 	];
 
 	for (const [tag, component] of components) {
