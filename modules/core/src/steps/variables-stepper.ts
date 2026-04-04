@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { TFeatureStep, TWorld, IStepperCycles, TStartScenario, TRegisteredDomain, TDomainDefinition, LinkRelations } from '../lib/defs.js';
+import { TFeatureStep, TWorld, IStepperCycles, TStartScenario, TRegisteredDomain, TDomainDefinition, LinkRelations, DOMAIN_VERTEX_LABEL } from '../lib/defs.js';
 import { OK, TStepArgs, Origin, TProvenanceIdentifier, TOrigin, TActionResult } from '../schema/protocol.js';
 import { TAnyFixme } from '../lib/fixme.js';
 import { AStepper, IHasCycles, TStepperSteps } from '../lib/astepper.js';
@@ -510,7 +510,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		},
 		// --- Annotations & Related ---
 		annotate: {
-			gwta: "annotate {label: string} {id: string} with {text: string}",
+			gwta: `annotate {label: ${DOMAIN_VERTEX_LABEL}} {id: string} with {text: string}`,
 			outputSchema: z.object({ annotationId: z.string() }),
 			action: async ({ label, id, text }: { label: string; id: string; text: string }) => {
 				const store = findStore(this.getWorld().runtime);
@@ -530,7 +530,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			},
 		},
 		getRelated: {
-			gwta: "get related for {label: string} {id: string}",
+			gwta: `get related for {label: ${DOMAIN_VERTEX_LABEL}} {id: string}`,
 			outputSchema: z.object({ items: z.array(z.unknown()), contextRoot: z.string() }),
 			action: async ({ label, id }: { label: string; id: string }) => {
 				const store = findStore(this.getWorld().runtime);
@@ -540,10 +540,12 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				const contextRoot = contextQuads.length > 0 ? String(contextQuads[0].object) : id;
 				// Get all items sharing this context
 				const contextMembers = store.query({ predicate: LinkRelations.CONTEXT.rel, object: contextRoot });
-				const ids = new Set([contextRoot, ...contextMembers.map((q) => String(q.subject))]);
+				const idLabelMap = new Map<string, string>();
+				for (const q of contextMembers) idLabelMap.set(String(q.subject), q.namedGraph);
+				if (!idLabelMap.has(contextRoot)) idLabelMap.set(contextRoot, label);
 				const items: Record<string, unknown>[] = [];
-				for (const vid of ids) {
-					const vertex = await store.getVertex(label, vid) ?? await store.getVertex(ANNOTATION_LABEL, vid);
+				for (const [vid, vlabel] of idLabelMap) {
+					const vertex = await store.getVertex(vlabel, vid) ?? await store.getVertex(ANNOTATION_LABEL, vid) ?? await store.getVertex(label, vid);
 					if (vertex) {
 						const outgoing = store.query({ subject: vid });
 						const edges = outgoing.filter((q) => q.predicate !== LinkRelations.CONTEXT.rel).map((q) => ({ type: q.predicate, targetId: String(q.object) }));
