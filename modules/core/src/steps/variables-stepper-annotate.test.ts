@@ -102,4 +102,50 @@ describe("VariablesStepper annotate + getRelated", () => {
 		expect(items.length).toBe(2);
 		expect(items.some((v) => (v as Record<string, unknown>).text === "My note")).toBe(true);
 	});
+
+	it("getRelated includes nested annotations (a11 → a1 → c1)", async () => {
+		await store.upsertVertex("Contact", { id: "c1", name: "Alice" });
+
+		// a1 annotates c1
+		const r1 = await stepper.steps.annotate.action({ label: "Contact", id: "c1", text: "First note" }, fakeStep);
+		const a1Id = (r1.products as Record<string, unknown>).annotationId as string;
+
+		// a11 annotates a1
+		const r2 = await stepper.steps.annotate.action({ label: "Annotation", id: a1Id, text: "Reply to first note" }, fakeStep);
+		const a11Id = (r2.products as Record<string, unknown>).annotationId as string;
+
+		// getRelated from c1 should find c1, a1, a11
+		const result = await stepper.steps.getRelated.action({ label: "Contact", id: "c1" }, fakeStep);
+		expect(result.ok).toBe(true);
+		const products = result.products as Record<string, unknown>;
+		expect(products.contextRoot).toBe("c1");
+		const items = products.items as Record<string, unknown>[];
+		expect(items.length).toBe(3);
+		expect(items.some((v) => v._id === "c1")).toBe(true);
+		expect(items.some((v) => v._id === a1Id)).toBe(true);
+		expect(items.some((v) => v._id === a11Id)).toBe(true);
+
+		// Each annotation should have _inReplyTo and _edges with targetIds
+		const a1Item = items.find((v) => v._id === a1Id);
+		expect(a1Item?._inReplyTo).toBe("c1");
+		expect((a1Item?._edges as Array<{ type: string; targetId: string }>).some((e) => e.targetId === "c1")).toBe(true);
+
+		const a11Item = items.find((v) => v._id === a11Id);
+		expect(a11Item?._inReplyTo).toBe(a1Id);
+		expect((a11Item?._edges as Array<{ type: string; targetId: string }>).some((e) => e.targetId === a1Id)).toBe(true);
+	});
+
+	it("getRelated from nested annotation walks up to find root", async () => {
+		await store.upsertVertex("Contact", { id: "c1", name: "Alice" });
+
+		const r1 = await stepper.steps.annotate.action({ label: "Contact", id: "c1", text: "First" }, fakeStep);
+		const a1Id = (r1.products as Record<string, unknown>).annotationId as string;
+		await stepper.steps.annotate.action({ label: "Annotation", id: a1Id, text: "Second" }, fakeStep);
+
+		// getRelated from a1 should still find all 3 items (walks up to c1 as root)
+		const result = await stepper.steps.getRelated.action({ label: "Annotation", id: a1Id }, fakeStep);
+		expect(result.ok).toBe(true);
+		const items = (result.products as Record<string, unknown>).items as Record<string, unknown>[];
+		expect(items.length).toBe(3);
+	});
 });
