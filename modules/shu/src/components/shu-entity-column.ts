@@ -9,13 +9,13 @@ import { defaultLabel } from "../util.js";
 import { SHARED_STYLES } from "./styles.js";
 import { ShuElement } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
-import { LinkRelations } from "@haibun/core/lib/defs.js";
+import { isRelationRel } from "@haibun/core/lib/defs.js";
 import { EntityColumnSchema } from "../schemas.js";
 import { esc, escAttr, truncate, errMsg, vertexId, HIDDEN_PROPS, renderContentHtml, utf8ToBase64, } from "../util.js";
 import { renderValue } from "./value-renderers.js";
 import { SseClient } from "../sse-client.js";
 import { getAvailableSteps, requireStep } from "../rpc-registry.js";
-import { getRelSync, getEdgeTargetLabel, getSummaryFields, getContentFields, } from "../rels-cache.js";
+import { getRelSync, getRels, getEdgeRanges, getEdgeTargetLabel, getSummaryFields, getContentFields, } from "../rels-cache.js";
 
 type VertexData = Record<string, unknown>;
 type EdgeData = { type: string; target: VertexData; direction?: "out" | "in" };
@@ -239,10 +239,10 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 				? `<a class="section-label links-here-link" href="#">What links here <span class="ref-count">(${this.incomingCount})</span></a>`
 				: "";
 
-		const hasThread = this.edges.some((e) => e.type === LinkRelations.IN_REPLY_TO.rel || e.type === "references") || this.incomingCount > 0;
-		const threadHtml = hasThread ? `<a class="section-label thread-link" href="#">View thread</a>` : "";
+		const hasRelations = this.edges.some((e) => isRelationRel(e.type)) || this.incomingCount > 0;
+		const relationsHtml = hasRelations ? `<a class="section-label thread-link" href="#">View relations</a>` : "";
 
-		return `<div class="references" data-testid="ref-section">${outHtml}${inHtml}${threadHtml}</div>`;
+		return `<div class="references" data-testid="ref-section">${outHtml}${inHtml}${relationsHtml}</div>`;
 	}
 
 	/** Render content iframe for the first available contentField, with a switcher if multiple exist. */
