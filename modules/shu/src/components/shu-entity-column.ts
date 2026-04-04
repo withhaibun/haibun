@@ -9,6 +9,7 @@ import { defaultLabel } from "../util.js";
 import { SHARED_STYLES } from "./styles.js";
 import { ShuElement } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
+import { LinkRelations } from "@haibun/core/lib/defs.js";
 import { EntityColumnSchema } from "../schemas.js";
 import { esc, escAttr, truncate, errMsg, vertexId, HIDDEN_PROPS, renderContentHtml, utf8ToBase64, } from "../util.js";
 import { renderValue } from "./value-renderers.js";
@@ -94,7 +95,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		}
 
 		// Content fields (e.g. body, bodyHtml, markdown) are rendered in an iframe — exclude from field table
-		const contentFieldSet = new Set(Object.keys(getContentFields(vertexLabel)));
+		const contentFieldSet = new Set(Object.keys(getContentFields(vertexLabel) ?? {}));
 		const fields: Record<string, string | string[]> = {};
 		for (const [k, v] of Object.entries(this.vertex)) {
 			if (k.startsWith("_") || contentFieldSet.has(k) || HIDDEN_PROPS.has(k))
@@ -238,14 +239,17 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 				? `<a class="section-label links-here-link" href="#">What links here <span class="ref-count">(${this.incomingCount})</span></a>`
 				: "";
 
-		return `<div class="references" data-testid="ref-section">${outHtml}${inHtml}</div>`;
+		const hasThread = this.edges.some((e) => e.type === LinkRelations.IN_REPLY_TO.rel || e.type === "references") || this.incomingCount > 0;
+		const threadHtml = hasThread ? `<a class="section-label thread-link" href="#">View thread</a>` : "";
+
+		return `<div class="references" data-testid="ref-section">${outHtml}${inHtml}${threadHtml}</div>`;
 	}
 
 	/** Render content iframe for the first available contentField, with a switcher if multiple exist. */
 	private renderContentIframe(vertexLabel: string): string {
 		const vertex = this.vertex;
 		if (!vertex) return "";
-		const fieldFormats = getContentFields(vertexLabel);
+		const fieldFormats = getContentFields(vertexLabel) ?? {};
 		const available = Object.entries(fieldFormats).filter(([f]) => vertex[f]);
 		if (available.length === 0) return "";
 
@@ -259,17 +263,14 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 					.join("")}</div>`
 				: "";
 
-		const iframesHtml = available
-			.map(([f, format], i) => {
-				const raw = String(vertex[f] ?? "");
-				const content = renderContentHtml(raw, format);
-				const doc = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:sans-serif;font-size:14px;margin:8px;color:#111;}</style></head><body>${content}</body></html>`;
-				const encoded = utf8ToBase64(doc);
-				return `<iframe class="body-iframe${i === 0 ? "" : " hidden"}" data-field="${escAttr(f)}" sandbox="allow-same-origin" src="data:text/html;base64,${encoded}" data-testid="email-body-iframe"></iframe>`;
-			})
-			.join("");
+		const [activeField, activeFormat] = available[0];
+		const raw = String(vertex[activeField] ?? "");
+		const content = renderContentHtml(raw, activeFormat);
+		const doc = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:sans-serif;font-size:14px;margin:8px;color:#111;}</style></head><body>${content}</body></html>`;
+		const encoded = utf8ToBase64(doc);
+		const iframeHtml = `<iframe class="body-iframe" data-field="${escAttr(activeField)}" sandbox="allow-same-origin" src="data:text/html;base64,${encoded}" data-testid="email-body-iframe"></iframe>`;
 
-		return `<div class="body-container">${switcherHtml}${iframesHtml}</div>`;
+		return `<div class="body-container">${switcherHtml}${iframeHtml}</div>`;
 	}
 
 	private clickableValue(
@@ -383,15 +384,20 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		this.shadowRoot?.querySelectorAll(".content-switch-btn").forEach((btn) => {
 			btn.addEventListener("click", () => {
 				const field = (btn as HTMLElement).dataset.field;
-				if (!field) return;
-				this.shadowRoot
-					?.querySelectorAll(".content-switch-btn")
-					.forEach((b) => b.classList.remove("active"));
+				if (!field || !this.vertex) return;
+				this.shadowRoot?.querySelectorAll(".content-switch-btn").forEach((b) => b.classList.remove("active"));
 				btn.classList.add("active");
-				this.shadowRoot?.querySelectorAll(".body-iframe").forEach((iframe) => {
-					const el = iframe as HTMLElement;
-					el.classList.toggle("hidden", el.dataset.field !== field);
-				});
+				const formats = getContentFields(this.state.vertexLabel) ?? {};
+				const format = formats[field];
+				if (!format) return;
+				const raw = String(this.vertex[field] ?? "");
+				const content = renderContentHtml(raw, format);
+				const doc = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:sans-serif;font-size:14px;margin:8px;color:#111;}</style></head><body>${content}</body></html>`;
+				const iframe = this.shadowRoot?.querySelector(".body-iframe") as HTMLIFrameElement | null;
+				if (iframe) {
+					iframe.dataset.field = field;
+					iframe.src = `data:text/html;base64,${utf8ToBase64(doc)}`;
+				}
 			});
 		});
 
@@ -408,6 +414,18 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 							label: this.state.vertexLabel,
 							type: "incoming",
 						},
+						bubbles: true,
+						composed: true,
+					}),
+				);
+			});
+		this.shadowRoot
+			?.querySelector(".thread-link")
+			?.addEventListener("click", (e) => {
+				e.preventDefault();
+				this.dispatchEvent(
+					new CustomEvent(SHU_EVENT.COLUMN_OPEN_RELATED, {
+						detail: { subject: this.state.vertexId, label: this.state.vertexLabel },
 						bubbles: true,
 						composed: true,
 					}),
