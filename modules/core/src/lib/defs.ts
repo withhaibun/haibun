@@ -269,12 +269,22 @@ export const CycleWhen = {
 export type TDomainCoercer = (proto: TStepValue, featureStep?: TFeatureStep, steppers?: AStepper[]) => TStepValueValue;
 export type TDomainComparator = (value: TStepValueValue, baseline: TStepValueValue) => number;
 
-/**
- * Semantic relationship for a vertex property. Standard vocabulary terms
- * that drive query UI, rendering, column ordering, search, and JSON-LD export.
- * Maps directly to ActivityStreams / Dublin Core predicates via REL_CONTEXT.
- */
-export type TRel = "identifier" | "name" | "attributedTo" | "audience" | "context" | "published" | "updated" | "content" | "inReplyTo" | "attachment" | "tag";
+/** Link relation types — the canonical set of semantic rels for vertex properties and edges. Each maps rel name → JSON-LD context URI. */
+export const LinkRelations = {
+	IDENTIFIER: { rel: "identifier", uri: "dcterms:identifier" },
+	NAME: { rel: "name", uri: "as:name" },
+	ATTRIBUTED_TO: { rel: "attributedTo", uri: "as:attributedTo" },
+	AUDIENCE: { rel: "audience", uri: "as:to" },
+	CONTEXT: { rel: "context", uri: "as:context" },
+	PUBLISHED: { rel: "published", uri: "as:published" },
+	UPDATED: { rel: "updated", uri: "as:updated" },
+	CONTENT: { rel: "content", uri: "as:content" },
+	IN_REPLY_TO: { rel: "inReplyTo", uri: "as:inReplyTo" },
+	ATTACHMENT: { rel: "attachment", uri: "as:attachment" },
+	TAG: { rel: "tag", uri: "as:tag" },
+} as const;
+
+export type TRel = (typeof LinkRelations)[keyof typeof LinkRelations]["rel"];
 
 /** Property definition: either a rel string or a rel with mediaType for content fields. */
 export type TPropertyDef = TRel | { rel: TRel; mediaType?: string };
@@ -282,20 +292,8 @@ export type TPropertyDef = TRel | { rel: TRel; mediaType?: string };
 /** Edge definition: semantic rel + target vertex type. */
 export type TEdgeDef = { rel: TRel; target: string };
 
-/** JSON-LD context mapping: rel → standard URI. Defined once, used everywhere. */
-export const REL_CONTEXT: Record<TRel, string> = {
-	identifier: "dcterms:identifier",
-	name: "as:name",
-	attributedTo: "as:attributedTo",
-	audience: "as:to",
-	context: "as:context",
-	published: "as:published",
-	updated: "as:updated",
-	content: "as:content",
-	inReplyTo: "as:inReplyTo",
-	attachment: "as:attachment",
-	tag: "as:tag",
-};
+/** JSON-LD context mapping: rel → standard URI. Derived from LinkRelations. */
+export const REL_CONTEXT: Record<TRel, string> = Object.fromEntries(Object.values(LinkRelations).map(({ rel, uri }) => [rel, uri])) as Record<TRel, string>;
 
 /** Hypermedia metadata for a vertex domain. One properties map drives everything. */
 export type TVertexMeta = {

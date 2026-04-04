@@ -9,22 +9,16 @@
  */
 
 import { z } from 'zod';
-import { getRel, getMediaType, REL_CONTEXT } from './defs.js';
+import { getRel, getMediaType, REL_CONTEXT, LinkRelations, type TRel } from './defs.js';
 import type { TRegisteredDomain } from './defs.js';
 
 // ============================================================================
 // Schemas  (Zod → TypeScript, Zod → JSON Schema — single source of truth)
 // ============================================================================
 
-/**
- * Semantic roles — ActivityStreams / Dublin Core vocabulary.
- * Clients derive all UI behaviour from these values alone.
- */
-export const RelSchema = z.enum([
-  'identifier', 'name', 'attributedTo', 'audience', 'context',
-  'published', 'updated', 'content', 'inReplyTo', 'attachment', 'tag',
-]);
-export type TRel = z.infer<typeof RelSchema>;
+const relValues = Object.values(LinkRelations).map((lr) => lr.rel) as [string, ...string[]];
+export const RelSchema = z.enum(relValues);
+export type { TRel };
 
 /**
  * A single vertex property mapped to its ActivityStreams predicate.
@@ -71,7 +65,8 @@ export type TConcernCatalog = z.infer<typeof ConcernCatalogSchema>;
 
 /**
  * Build a ConcernCatalog from world.domains after getConcerns has run.
- * Non-vertex domains (no meta.vertexLabel) are silently skipped.
+ * Non-vertex domains (no meta.vertexLabel) are skipped.
+ * Vertex domains are validated: id, properties, and valid rels are required.
  */
 export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>): TConcernCatalog {
   const vertices: Record<string, TVertexConcern> = {};
@@ -81,15 +76,23 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
     if (!meta?.vertexLabel) continue;
     const label = meta.vertexLabel;
 
+    if (!meta.id) throw new Error(`Vertex domain "${label}" (${domainKey}) is missing required "id" field`);
+    if (!meta.properties || Object.keys(meta.properties).length === 0) throw new Error(`Vertex domain "${label}" (${domainKey}) has no properties`);
+
+    const hasIdentifier = Object.values(meta.properties).some((p) => getRel(p) === LinkRelations.IDENTIFIER.rel);
+    if (!hasIdentifier) throw new Error(`Vertex domain "${label}" (${domainKey}) has no property with rel "${LinkRelations.IDENTIFIER.rel}"`);
+
     const properties: Record<string, TPropertyConcern> = {};
     for (const [field, propDef] of Object.entries(meta.properties)) {
       const rel = getRel(propDef);
+      if (!REL_CONTEXT[rel]) throw new Error(`Vertex domain "${label}" property "${field}" has unknown rel "${rel}"`);
       const mediaType = getMediaType(propDef);
       properties[field] = { term: REL_CONTEXT[rel], rel, ...(mediaType ? { mediaType } : {}) };
     }
 
     const edges: Record<string, TEdgeConcern> = {};
     for (const [edgeField, edgeDef] of Object.entries(meta.edges ?? {})) {
+      if (!REL_CONTEXT[edgeDef.rel]) throw new Error(`Vertex domain "${label}" edge "${edgeField}" has unknown rel "${edgeDef.rel}"`);
       edges[edgeField] = { term: REL_CONTEXT[edgeDef.rel], rel: edgeDef.rel, target: edgeDef.target };
     }
 

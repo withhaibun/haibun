@@ -16,6 +16,11 @@ export interface SiteMetadata {
 let metadata: SiteMetadata | null = null;
 const edgeTypeIndex = new Map<string, string>();
 
+function requireMetadata(): SiteMetadata {
+	if (!metadata) throw new Error("SiteMetadata not initialized — call setSiteMetadata() or setConcernCatalog() first");
+	return metadata;
+}
+
 /** Populate the cache from a getSiteMetadata response. Called once at startup. */
 export function setSiteMetadata(data: SiteMetadata): void {
 	metadata = data;
@@ -27,19 +32,19 @@ export function setSiteMetadata(data: SiteMetadata): void {
 	}
 }
 
-/** Get cached rels for a label. Must call setSiteMetadata() first. */
+/** Get cached rels for a label. */
 export function getRels(label: string): Record<string, string> {
-	return metadata?.rels[label] ?? {};
+	return requireMetadata().rels[label];
 }
 
-/** Sync lookup — returns cached rel or "filter" default. */
-export function getRelSync(label: string, property: string): string {
-	return metadata?.rels[label]?.[property] ?? "filter";
+/** Sync lookup — returns cached rel for a property. */
+export function getRelSync(label: string, property: string): string | undefined {
+	return requireMetadata().rels[label]?.[property];
 }
 
 /** Get cached edge ranges for a label. */
 export function getEdgeRanges(label: string): Record<string, string> {
-	return metadata?.edgeRanges[label] ?? {};
+	return requireMetadata().edgeRanges[label];
 }
 
 /** Sync lookup — returns target label for an edge type from a source vertex label. Falls back to global index. */
@@ -48,7 +53,7 @@ export function getEdgeTargetLabel(
 	sourceLabel?: string,
 ): string | undefined {
 	if (sourceLabel) {
-		const target = metadata?.edgeRanges[sourceLabel]?.[edgeType];
+		const target = requireMetadata().edgeRanges[sourceLabel]?.[edgeType];
 		if (target) return target;
 	}
 	return edgeTypeIndex.get(edgeType);
@@ -65,16 +70,16 @@ export function getEdgeTypesForLabel(targetLabel: string): Set<string> {
 
 /** Get cached properties for a label. */
 export function getProperties(label: string): string[] {
-	return metadata?.properties[label] ?? [];
+	return requireMetadata().properties[label];
 }
 
-/** Get cached summary fields for a label (shown in summary bar, excluded from Details table). */
+/** Get cached summary fields for a label. Empty set if label has no summary fields. */
 export function getSummaryFields(label: string): Set<string> {
-	return new Set(metadata?.summary[label] ?? []);
+	return new Set(requireMetadata().summary[label]);
 }
 
-/** Rel-based property display priority. Drives column ordering in result tables. */
-const REL_PRIORITY: string[] = ["identifier", "name", "attributedTo", "audience", "context", "published", "updated", "content", "inReplyTo", "attachment", "tag"];
+/** Rel-based property display priority. Drives column ordering in result tables. Derived from LinkRelations declaration order. */
+const REL_PRIORITY = Object.values(LinkRelations).map((lr) => lr.rel);
 
 /** Get properties for a label ordered by their rel's semantic priority, then alphabetically. */
 export function getPropertyOrder(label: string): string[] {
@@ -88,7 +93,7 @@ export function getPropertyOrder(label: string): string[] {
 
 /** Get content fields (in preference order) for a label — rendered in an iframe. Returns field→format map. */
 export function getContentFields(label: string): Record<string, string> {
-	return metadata?.contentFields[label] ?? {};
+	return requireMetadata().contentFields[label];
 }
 
 const selectCache = new Map<string, Record<string, string[]>>();
@@ -119,6 +124,7 @@ export function hasSelectValues(label: string): boolean {
 // --- Concern catalog (for haibun domain discovery) ---
 
 import type { TConcernCatalog } from "@haibun/core/lib/hypermedia.js";
+import { LinkRelations } from "@haibun/core/lib/defs.js";
 
 let concernCatalog: TConcernCatalog | null = null;
 let cachedConcernMeta: SiteMetadata | null = null;
@@ -166,7 +172,7 @@ export function siteMetadataFromConcerns(
 		for (const [field, prop] of Object.entries(vertex.properties)) {
 			labelRels[field] = prop.rel;
 			labelProps.push(field);
-			if (prop.rel === "name" || prop.rel === "context")
+			if (prop.rel === LinkRelations.NAME.rel || prop.rel === LinkRelations.CONTEXT.rel)
 				labelSummary.push(field);
 			if (prop.mediaType) labelContent[field] = prop.mediaType;
 		}
