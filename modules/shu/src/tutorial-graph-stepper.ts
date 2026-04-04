@@ -5,6 +5,7 @@ import {
 } from "@haibun/core/lib/util/index.js";
 import {
 	LinkRelations,
+	DOMAIN_VERTEX_LABEL,
 	type IStepperCycles,
 	type IStepperConcerns,
 } from "@haibun/core/lib/defs.js";
@@ -299,7 +300,7 @@ export default class TutorialGraphStepper extends AStepper {
 		},
 
 		getVertexWithEdges: {
-			gwta: "get vertex {label: string} with id {id: string} and its outgoing edges",
+			gwta: `get vertex {label: ${DOMAIN_VERTEX_LABEL}} with id {id: string} and its outgoing edges`,
 			outputSchema: VertexWithEdgesSchema,
 			action: ({ label, id }: { label: string; id: string }) => {
 				try {
@@ -326,7 +327,7 @@ export default class TutorialGraphStepper extends AStepper {
 		},
 
 		getIncomingEdges: {
-			gwta: "get incoming edges for {label: string} vertex {id: string} with limit {limit} and offset {offset}",
+			gwta: `get incoming edges for {label: ${DOMAIN_VERTEX_LABEL}} vertex {id: string} with limit {limit} and offset {offset}`,
 			outputSchema: IncomingEdgesResultSchema,
 			action: ({
 				label,
@@ -355,7 +356,7 @@ export default class TutorialGraphStepper extends AStepper {
 		},
 
 		createVertex: {
-			gwta: `create vertex {label: string} with id {id: string} and properties {data: ${DOMAIN_VERTEX_DATA}}`,
+			gwta: `create vertex {label: ${DOMAIN_VERTEX_LABEL}} with id {id: string} and properties {data: ${DOMAIN_VERTEX_DATA}}`,
 			outputSchema: VertexSchema,
 			action: ({
 				label,

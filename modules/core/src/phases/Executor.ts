@@ -1,4 +1,5 @@
-import { TResolvedFeature, TWorld, TEndFeature } from "../lib/defs.js";
+import { z } from "zod";
+import { TResolvedFeature, TWorld, TEndFeature, DOMAIN_VERTEX_LABEL } from "../lib/defs.js";
 import {
 	TExecutorResult,
 	TFeatureResult,
@@ -274,6 +275,11 @@ export const addStepperConcerns = (world: TWorld, steppers: AStepper[]) => {
 		}
 	}
 	registerDomains(world, [allDomains]);
+	// Register vertex-label domain from all registered vertex types
+	const vertexLabels = Object.values(world.domains).filter((d) => d.meta?.vertexLabel).map((d) => d.meta?.vertexLabel as string);
+	if (vertexLabels.length > 0) {
+		registerDomains(world, [[{ selectors: [DOMAIN_VERTEX_LABEL], schema: z.enum(vertexLabels as [string, ...string[]]), description: "Vertex type" }]]);
+	}
 };
 
 // SeqPath conventions:
