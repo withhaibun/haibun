@@ -54,7 +54,7 @@ async function mcpCallTool(url, token, toolName) {
     return await mcpRpc(url, 4, 'tools/call', { name: toolName, arguments: {} }, token);
 }
 const cycles = (ts) => ({
-    startFeature: async () => {
+    startFeature: () => {
         const p = { when: `${TestServer.name}.cycles.startFeature`, seq: [0] };
         ts.getWorld().shared.set(setTally(0), p);
         ts.resources = [
@@ -82,7 +82,7 @@ class TestServer extends AStepper {
         password: 'bar',
     };
     resources = [];
-    async endedFeatures() {
+    endedFeatures() {
         if (Object.keys(this.toDelete).length > 0) {
             this.getWorld().eventLogger.info(`removing ${JSON.stringify(this.toDelete)}`);
             for (const td of Object.values(this.toDelete)) {
@@ -104,7 +104,7 @@ class TestServer extends AStepper {
      * Add a route without auth middleware
      */
     addRoute = (route, method = 'get') => {
-        return async (args, vstep) => {
+        return (args, vstep) => {
             const { loc } = args;
             const webserver = getFromRuntime(this.getWorld().runtime, WEBSERVER);
             try {
@@ -123,7 +123,7 @@ class TestServer extends AStepper {
      * Uses dynamic middleware that checks currentAuthScheme at request time.
      */
     addAuthRoute = (route, method = 'get') => {
-        return async (args, vstep) => {
+        return (args, vstep) => {
             const { loc } = args;
             const webserver = getFromRuntime(this.getWorld().runtime, WEBSERVER);
             try {
@@ -148,20 +148,20 @@ class TestServer extends AStepper {
         setCookie(c, 'userid', String(username));
         return c.html(`<h1>Counter test</h1>tally: ${cur}<br />username ${username} `);
     };
-    download = async (c) => {
+    download = (c) => {
         if (!this.toDelete.uploaded) {
-            return c.text('no file to download', 404);
+            return Promise.resolve(c.text('no file to download', 404));
         }
         this.toDelete.downloaded = '/tmp/test-downloaded.jpg';
         const fileBuffer = readFileSync(this.toDelete.uploaded);
         const filename = this.toDelete.uploaded.split('/').pop() ?? 'download';
-        return new Response(fileBuffer, {
+        return Promise.resolve(new Response(fileBuffer, {
             status: 200,
             headers: {
                 'Content-Type': 'application/octet-stream',
                 'Content-Disposition': `attachment; filename="${filename}"`,
             },
-        });
+        }));
     };
     upload = async (c) => {
         const body = await c.req.parseBody();
@@ -352,7 +352,7 @@ class TestServer extends AStepper {
         },
         addUploadRoute: {
             gwta: 'start upload route at {loc}',
-            action: async (args, vstep) => {
+            action: (args, vstep) => {
                 const { loc } = args;
                 try {
                     const webserver = getFromRuntime(this.getWorld().runtime, WEBSERVER);
@@ -376,7 +376,7 @@ class TestServer extends AStepper {
         },
         changeServerAuthToken: {
             gwta: 'change server auth token to {token}',
-            action: async (args, _vstep) => {
+            action: (args, _vstep) => {
                 const { token } = args;
                 this.authToken = token;
                 return actionOK();
@@ -409,7 +409,7 @@ class TestServer extends AStepper {
         },
         setAuthScheme: {
             gwta: 'make auth scheme {scheme}',
-            action: async (args, _vstep) => {
+            action: (args, _vstep) => {
                 const { scheme } = args;
                 // Set the current scheme - this is checked at request time by dynamic middleware
                 this.currentAuthScheme = scheme;
