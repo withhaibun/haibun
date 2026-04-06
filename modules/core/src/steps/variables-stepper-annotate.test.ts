@@ -9,25 +9,38 @@ function createTestStore(): IQuadStore & { vertices: Map<string, Record<string, 
 	const vertices = new Map<string, Record<string, unknown>>();
 	return {
 		vertices,
-		add: (quad) => {
+		set: (subject: string, predicate: string, object: unknown, namedGraph: string) => {
+			const idx = quads.findIndex((q) => q.subject === subject && q.predicate === predicate && q.namedGraph === namedGraph);
+			if (idx >= 0) quads.splice(idx, 1);
+			quads.push({ subject, predicate, object, namedGraph, timestamp: Date.now() });
+			return Promise.resolve();
+		},
+		get: (subject: string, predicate: string) => {
+			for (let i = quads.length - 1; i >= 0; i--) {
+				if (quads[i].subject === subject && quads[i].predicate === predicate) return Promise.resolve(quads[i].object);
+			}
+			return Promise.resolve(undefined);
+		},
+		add: (quad: Omit<TQuad, "timestamp">) => {
 			quads.push({ ...quad, timestamp: Date.now() });
+			return Promise.resolve();
 		},
 		query: (pattern: TQuadPattern) =>
-			quads.filter(
-				(q) =>
-					(!pattern.subject || q.subject === pattern.subject) &&
-					(!pattern.predicate || q.predicate === pattern.predicate) &&
-					(!pattern.object || q.object === pattern.object) &&
-					(!pattern.namedGraph || q.namedGraph === pattern.namedGraph),
+			Promise.resolve(
+				quads.filter(
+					(q) =>
+						(!pattern.subject || q.subject === pattern.subject) &&
+						(!pattern.predicate || q.predicate === pattern.predicate) &&
+						(!pattern.object || q.object === pattern.object) &&
+						(!pattern.namedGraph || q.namedGraph === pattern.namedGraph),
+				),
 			),
-		select: () => undefined,
 		clear: () => {
 			quads.length = 0;
+			return Promise.resolve();
 		},
-		remove: () => {
-			/* no-op */
-		},
-		all: () => quads,
+		remove: () => Promise.resolve(),
+		all: () => Promise.resolve(quads),
 		upsertVertex: (label: string, data: unknown) => {
 			const d = data as Record<string, unknown>;
 			const id = String(d.id);
@@ -68,11 +81,11 @@ describe("VariablesStepper annotate + getRelated", () => {
 		expect(annotation).toBeDefined();
 		expect((annotation as Record<string, unknown>).text).toBe("A note");
 
-		const replyEdges = store.query({ subject: annotationId, predicate: LinkRelations.IN_REPLY_TO.rel });
+		const replyEdges = await store.query({ subject: annotationId, predicate: LinkRelations.IN_REPLY_TO.rel });
 		expect(replyEdges.length).toBe(1);
 		expect(replyEdges[0].object).toBe("email-1");
 
-		const contextEdges = store.query({ subject: annotationId, predicate: LinkRelations.CONTEXT.rel });
+		const contextEdges = await store.query({ subject: annotationId, predicate: LinkRelations.CONTEXT.rel });
 		expect(contextEdges.length).toBe(1);
 		expect(contextEdges[0].object).toBe("email-1");
 	});
@@ -80,22 +93,22 @@ describe("VariablesStepper annotate + getRelated", () => {
 	it("annotate inherits context from target", async () => {
 		await store.upsertVertex("Email", { id: "root", subject: "Root" });
 		await store.upsertVertex("Email", { id: "reply-1", subject: "Reply" });
-		store.add({ subject: "reply-1", predicate: LinkRelations.CONTEXT.rel, object: "root", namedGraph: "Email" });
+		await store.add({ subject: "reply-1", predicate: LinkRelations.CONTEXT.rel, object: "root", namedGraph: "Email" });
 
 		const result = await stepper.steps.annotate.action({ label: "Email", id: "reply-1", text: "Note on reply" }, fakeStep);
 		const annotationId = (result.products as Record<string, unknown>).annotationId as string;
 
-		const contextEdges = store.query({ subject: annotationId, predicate: LinkRelations.CONTEXT.rel });
+		const contextEdges = await store.query({ subject: annotationId, predicate: LinkRelations.CONTEXT.rel });
 		expect(contextEdges[0].object).toBe("root");
 	});
 
 	it("getRelated returns all items sharing a context", async () => {
 		await store.upsertVertex("Email", { id: "root", subject: "Original", dateSent: "2026-01-01" });
-		store.add({ subject: "root", predicate: LinkRelations.CONTEXT.rel, object: "root", namedGraph: "Email" });
+		await store.add({ subject: "root", predicate: LinkRelations.CONTEXT.rel, object: "root", namedGraph: "Email" });
 
 		await store.upsertVertex("Email", { id: "reply-1", subject: "Reply", dateSent: "2026-01-02" });
-		store.add({ subject: "reply-1", predicate: LinkRelations.IN_REPLY_TO.rel, object: "root", namedGraph: "Email" });
-		store.add({ subject: "reply-1", predicate: LinkRelations.CONTEXT.rel, object: "root", namedGraph: "Email" });
+		await store.add({ subject: "reply-1", predicate: LinkRelations.IN_REPLY_TO.rel, object: "root", namedGraph: "Email" });
+		await store.add({ subject: "reply-1", predicate: LinkRelations.CONTEXT.rel, object: "root", namedGraph: "Email" });
 
 		const result = await stepper.steps.getRelated.action({ label: "Email", id: "reply-1" }, fakeStep);
 		expect(result.ok).toBe(true);
