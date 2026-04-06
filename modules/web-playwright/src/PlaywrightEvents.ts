@@ -85,6 +85,7 @@ export class PlaywrightEvents {
 			const url = frame.url();
 			const provenance = { in: "PlaywrightEvents.framenavigated", seq: [] as number[], when: "framenavigated" };
 
+			// fire-and-forget: sync event handler cannot await; in-memory QuadStore resolves synchronously
 			void this.world.shared.setForStepper("WebPlaywright", { term: "currentURI", value: url, domain: DOMAIN_LINK, origin: Origin.var }, provenance);
 			void this.world.shared.setForStepper("WebPlaywright", { term: "navigateCount", value: this.navigateCount, domain: DOMAIN_NUMBER, origin: Origin.var }, provenance);
 

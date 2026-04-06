@@ -1,14 +1,13 @@
 import { resolve, relative } from "path";
 
-import { CAPTURE, OK, TStepArgs, Origin } from "@haibun/core/schema/protocol.js";
-import { DOMAIN_STRING } from "@haibun/core/lib/domain-types.js";
+import { z } from "zod";
+import { OK, TStepArgs } from "@haibun/core/schema/protocol.js";
 import { captureLocator } from "@haibun/core/lib/capture-locator.js";
 import { IFile, TLocationOptions } from "./domain-storage.js";
 import { EMediaTypes, TMediaType } from "./media-types.js";
 import { AStepper, StepperKinds } from "@haibun/core/lib/astepper.js";
 import { TAnyFixme } from "@haibun/core/lib/fixme.js";
-import { actionNotOK } from "@haibun/core/lib/util/index.js";
-import { TFeatureStep } from "@haibun/core/lib/defs.js";
+import { actionNotOK, actionOKWithProducts } from "@haibun/core/lib/util/index.js";
 
 /**
  * Result from saveArtifact with paths for different consumption contexts.
@@ -193,23 +192,12 @@ export abstract class AStorage extends AStepper {
 				return Buffer.from(c1 as string)?.equals(Buffer.from(c2 as string)) ? OK : actionNotOK(`contents are not the same ${what} ${where}`);
 			},
 		},
-		readFileInto: {
-			gwta: `read file {where} into {what}`,
-			action: async ({ where, what }: TStepArgs, featureStep: TFeatureStep) => {
+		readFile: {
+			gwta: `read file {where}`,
+			outputSchema: z.object({ contents: z.string() }),
+			action: async ({ where }: TStepArgs) => {
 				const contents = await this.readFile(String(where), "utf-8");
-				const sv = {
-					term: String(what),
-					value: contents,
-					domain: DOMAIN_STRING,
-					origin: Origin.var,
-				};
-				const provenance = {
-					in: featureStep.in,
-					seq: featureStep.seqPath || [0],
-					when: "step",
-				};
-				this.getWorld().shared._set(sv, provenance);
-				return OK;
+				return actionOKWithProducts({ contents });
 			},
 		},
 		fileIsRecent: {
