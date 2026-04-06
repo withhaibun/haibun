@@ -12,8 +12,7 @@ export const ACCESS_TOKEN = "access_token";
 
 const HTTP = "HTTP";
 
-export const base64Encode = ({ username, password }: { username: string; password: string }) =>
-	Buffer.from(`${username}:${password}`).toString("base64");
+export const base64Encode = ({ username, password }: { username: string; password: string }) => Buffer.from(`${username}:${password}`).toString("base64");
 
 export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 	({
@@ -44,7 +43,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 				const serialized = await webPlaywright.withPageFetch(endpoint);
 				const accessToken = !Array.isArray(serialized.json) ? (serialized.json as TJsonRecord)[ACCESS_TOKEN] : undefined;
 				await webPlaywright.setExtraHTTPHeaders({ [AUTHORIZATION]: `Bearer ${accessToken}` });
-				webPlaywright.setLastResponse(serialized, featureStep);
+				await webPlaywright.setLastResponse(serialized, featureStep);
 				return OK;
 			},
 		},
@@ -53,7 +52,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 			action: async ({ endpoint }: { endpoint: string }, featureStep) => {
 				await webPlaywright.setExtraHTTPHeaders({});
 				const serialized = await webPlaywright.withPageFetch(endpoint);
-				webPlaywright.setLastResponse(serialized, featureStep);
+				await webPlaywright.setLastResponse(serialized, featureStep);
 				return OK;
 			},
 		},
@@ -67,7 +66,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 					return actionNotOK(`Method ${method} not supported`);
 				}
 				const serialized = await webPlaywright.withPageFetch(endpoint, method, { headers: { accept } });
-				webPlaywright.setLastResponse(serialized, featureStep);
+				await webPlaywright.setLastResponse(serialized, featureStep);
 				return OK;
 			},
 		},
@@ -77,30 +76,28 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 			action: async ({ endpoint }: { method: string; endpoint: string }, featureStep) => {
 				const method = getStepTerm(featureStep, "method")?.toLowerCase() ?? "";
 				// Allow all methods - for payload methods (POST/PUT/PATCH), send without body
-				const requestOptions = PAYLOAD_METHODS.includes(method)
-					? { postData: "", headers: { "Content-Type": "application/json" } }
-					: undefined;
+				const requestOptions = PAYLOAD_METHODS.includes(method) ? { postData: "", headers: { "Content-Type": "application/json" } } : undefined;
 				const serialized = await webPlaywright.withPageFetch(endpoint, method, requestOptions);
-				webPlaywright.setLastResponse(serialized, featureStep);
+				await webPlaywright.setLastResponse(serialized, featureStep);
 				return OK;
 			},
 		},
 		filterResponseJson: {
 			gwta: `filter JSON response by {property} matching {match}`,
-			action: ({ property, match }: { property: string; match: string }, featureStep) => {
-				const lastResponse = webPlaywright.getLastResponse();
+			action: async ({ property, match }: { property: string; match: string }, featureStep) => {
+				const lastResponse = await webPlaywright.getLastResponse();
 				if (!lastResponse?.json || !Array.isArray(lastResponse.json)) {
 					return actionNotOK(`No JSON or array from ${JSON.stringify(lastResponse)}`);
 				}
 				const filtered = lastResponse.json.filter((item: TJsonRecord) => (item[property] as string)?.match?.(match));
-				webPlaywright.setLastResponse({ ...lastResponse, filtered }, featureStep);
+				await webPlaywright.setLastResponse({ ...lastResponse, filtered }, featureStep);
 				return OK;
 			},
 		},
 		filteredResponseLengthIs: {
 			gwta: `filtered response length is {length}`,
-			action: ({ length }: { length: string }) => {
-				const lastResponse = webPlaywright.getLastResponse();
+			action: async ({ length }: { length: string }) => {
+				const lastResponse = await webPlaywright.getLastResponse();
 				if (!lastResponse?.filtered || lastResponse.filtered.length !== parseInt(length)) {
 					return actionNotOK(`Expected ${length}, got ${lastResponse?.filtered?.length}`);
 				}
@@ -110,8 +107,8 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 		showResponseLength: {
 			gwta: `show JSON response count`,
 			outputSchema: z.object({ summary: z.string(), details: z.object({ count: z.number() }) }),
-			action: () => {
-				const lastResponse = webPlaywright.getLastResponse();
+			action: async () => {
+				const lastResponse = await webPlaywright.getLastResponse();
 				if (!lastResponse?.json || typeof lastResponse.json.length !== "number") {
 					console.debug(lastResponse);
 					return actionNotOK(`No last response to count`);
@@ -126,8 +123,8 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 		showFilteredLength: {
 			gwta: `show filtered response count`,
 			outputSchema: z.object({ summary: z.string(), count: z.number() }),
-			action: () => {
-				const lastResponse = webPlaywright.getLastResponse();
+			action: async () => {
+				const lastResponse = await webPlaywright.getLastResponse();
 				if (!lastResponse?.filtered || typeof lastResponse.filtered.length !== "number") {
 					console.debug(lastResponse);
 					return actionNotOK(`No filtered response to count`);
@@ -141,8 +138,8 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 		},
 		responseJsonLengthIs: {
 			gwta: `JSON response length is {length}`,
-			action: ({ length }: { length: string }) => {
-				const lastResponse = webPlaywright.getLastResponse();
+			action: async ({ length }: { length: string }) => {
+				const lastResponse = await webPlaywright.getLastResponse();
 				if (!lastResponse?.json || lastResponse.json.length !== parseInt(length)) {
 					return actionNotOK(`Expected ${length}, got ${lastResponse?.json?.length}`);
 				}
@@ -157,7 +154,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 				if (!NO_PAYLOAD_METHODS.includes(method)) {
 					return actionNotOK(`Method ${method} not supported`);
 				}
-				const lastResponse = webPlaywright.getLastResponse();
+				const lastResponse = await webPlaywright.getLastResponse();
 				const { filtered } = lastResponse;
 				if (!filtered) {
 					return actionNotOK(`No filtered response in ${lastResponse}`);
@@ -186,14 +183,14 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 				}
 				const requestOptions = { postData: payload, headers: { "Content-Type": "application/json" } };
 				const serialized = await webPlaywright.withPageFetch(endpoint, method, requestOptions);
-				webPlaywright.setLastResponse(serialized, featureStep);
+				await webPlaywright.setLastResponse(serialized, featureStep);
 				return OK;
 			},
 		},
 		restLastStatusIs: {
 			gwta: `${HTTP} status is {status}`,
-			action: ({ status }: { status: string }) => {
-				const lastResponse = webPlaywright.getLastResponse();
+			action: async ({ status }: { status: string }) => {
+				const lastResponse = await webPlaywright.getLastResponse();
 				if (lastResponse && lastResponse.status === parseInt(status)) {
 					return OK;
 				}
@@ -202,14 +199,9 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 		},
 		restResponsePropertyIs: {
 			gwta: `${HTTP} response property {property} is {value}`,
-			action: ({ property, value }: { property: string; value: string }) => {
-				const lastResponse = webPlaywright.getLastResponse();
-				if (
-					lastResponse &&
-					lastResponse.json &&
-					!Array.isArray(lastResponse.json) &&
-					(lastResponse.json as TJsonRecord)[property] === value
-				) {
+			action: async ({ property, value }: { property: string; value: string }) => {
+				const lastResponse = await webPlaywright.getLastResponse();
+				if (lastResponse && lastResponse.json && !Array.isArray(lastResponse.json) && (lastResponse.json as TJsonRecord)[property] === value) {
 					return OK;
 				}
 				return actionNotOK(
@@ -219,8 +211,8 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 		},
 		restResponseIs: {
 			gwta: `${HTTP} text response is {value}`,
-			action: ({ value }: { value: string }) => {
-				const lastResponse = webPlaywright.getLastResponse();
+			action: async ({ value }: { value: string }) => {
+				const lastResponse = await webPlaywright.getLastResponse();
 				if (lastResponse && lastResponse.text === value) {
 					return OK;
 				}
