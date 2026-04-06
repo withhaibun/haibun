@@ -179,7 +179,12 @@ export function validateToolInput(tool: StepTool, input: Record<string, unknown>
  * Accepts either a stepper class/instance or a stepper name string.
  */
 export function stepMethodName(stepperOrName: string | AStepper | { name: string }, stepName: string): string {
-	const name = typeof stepperOrName === "string" ? stepperOrName : "steps" in stepperOrName ? constructorName(stepperOrName as AStepper) : stepperOrName.name;
+	const name =
+		typeof stepperOrName === "string"
+			? stepperOrName
+			: "steps" in stepperOrName
+				? constructorName(stepperOrName as AStepper)
+				: stepperOrName.name;
 	return `${name}-${stepName}`;
 }
 
@@ -190,7 +195,11 @@ export function stepMethodName(stepperOrName: string | AStepper | { name: string
  * All callers (feature loop, FlowRunner, RPC, MCP, subprocess) use the same signature.
  * External transports build a synthetic featureStep before calling.
  */
-export function createStepHandler(stepperName: string, stepName: string, stepDef: TStepperStep): (featureStep: TFeatureStep, world: TWorld) => Promise<TActionResult> {
+export function createStepHandler(
+	stepperName: string,
+	stepName: string,
+	stepDef: TStepperStep,
+): (featureStep: TFeatureStep, world: TWorld) => Promise<TActionResult> {
 	return async (featureStep: TFeatureStep, world: TWorld): Promise<TActionResult> => {
 		try {
 			const args = populateActionArgs(featureStep, world, world.runtime.steppers);
@@ -226,7 +235,12 @@ export function buildSyntheticFeatureStep(tool: StepTool, input: Record<string, 
 
 const MAX_DISPATCH_SEQPATH = 50;
 
-export type DispatchContext = { registry: StepRegistry; world: TWorld; steppers: AStepper[]; grantedCapability?: string | string[] };
+export type DispatchContext = {
+	registry: StepRegistry;
+	world: TWorld;
+	steppers: AStepper[];
+	grantedCapability?: string | string[];
+};
 
 /**
  * Unified step dispatch. Every step invocation — feature execution, FlowRunner,
@@ -247,7 +261,16 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	};
 
 	if (world.runtime.exhaustionError) {
-		return pushAndReturn(stepResultFromActionResult(actionNotOK(`Execution halted: ${world.runtime.exhaustionError}`), action, start, Timer.since(), featureStep, false));
+		return pushAndReturn(
+			stepResultFromActionResult(
+				actionNotOK(`Execution halted: ${world.runtime.exhaustionError}`),
+				action,
+				start,
+				Timer.since(),
+				featureStep,
+				false,
+			),
+		);
 	}
 	if (featureStep.seqPath.length > MAX_DISPATCH_SEQPATH) {
 		const msg = `Execution depth limit exceeded (${featureStep.seqPath.length} > ${MAX_DISPATCH_SEQPATH}). Possible infinite recursion in step: ${featureStep.in}`;
@@ -263,7 +286,16 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	const method = stepMethodName(action.stepperName, action.actionName);
 	const tool = registry.get(method);
 	if (!tool) {
-		return pushAndReturn(stepResultFromActionResult(actionNotOK(`Step not found in registry: ${method}`), action, start, Timer.since(), featureStep, false));
+		return pushAndReturn(
+			stepResultFromActionResult(
+				actionNotOK(`Step not found in registry: ${method}`),
+				action,
+				start,
+				Timer.since(),
+				featureStep,
+				false,
+			),
+		);
 	}
 
 	authorizeToolCapability(tool, grantedCapability);
@@ -289,7 +321,12 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 		}
 		lastStepResult = stepResultFromActionResult(actionResult, action, start, Timer.since(), featureStep, ok && actionResult.ok);
 		world.runtime.stepResults.push(lastStepResult);
-		const instructions: TAfterStepResult[] = await doStepperCycle(steppers, "afterStep", <TAfterStep>{ featureStep, actionResult }, action.actionName);
+		const instructions: TAfterStepResult[] = await doStepperCycle(
+			steppers,
+			"afterStep",
+			<TAfterStep>{ featureStep, actionResult },
+			action.actionName,
+		);
 		doAction = instructions.some((i) => i?.rerunStep);
 		if (instructions.some((i) => i?.failed)) {
 			ok = false;
@@ -326,11 +363,16 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 					transport: tool.transport ?? "local",
 					remoteHost: tool.remoteHost,
 					capabilityRequired: tool.capability,
-					capabilityGranted: Array.isArray(grantedCapability) ? grantedCapability : grantedCapability ? [grantedCapability] : undefined,
+					capabilityGranted: Array.isArray(grantedCapability)
+						? grantedCapability
+						: grantedCapability
+							? [grantedCapability]
+							: undefined,
 					authorized: ok || !tool.capability,
 					seqPath: featureStep.seqPath,
 					durationMs: end - start,
-					productKeys: ok && actionResult.products ? Object.keys(actionResult.products).filter((k) => !k.startsWith("_")) : undefined,
+					productKeys:
+						ok && actionResult.products ? Object.keys(actionResult.products).filter((k) => !k.startsWith("_")) : undefined,
 				},
 			}),
 		);
@@ -341,7 +383,14 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	return lastStepResult;
 }
 
-export function stepResultFromActionResult(actionResult: TActionResult, action: TStepAction, start: number, end: number, featureStep: TFeatureStep, ok: boolean): TStepResult {
+export function stepResultFromActionResult(
+	actionResult: TActionResult,
+	action: TStepAction,
+	start: number,
+	end: number,
+	featureStep: TFeatureStep,
+	ok: boolean,
+): TStepResult {
 	return {
 		...actionResult,
 		ok,
@@ -379,7 +428,10 @@ export function authorizeToolCapability(tool: Pick<StepTool, "name" | "capabilit
  * (enums, object structures, descriptions, etc.) for MCP and SSE consumers.
  * Returns both the JSON Schema (for documentation/discovery) and the Zod schemas (for runtime validation).
  */
-function buildInputSchema(stepDef: TStepperStep, world: TWorld): { inputSchema: StepToolInputSchema; paramSchemas: Map<string, z.ZodType>; paramDomainKeys: Map<string, string> } {
+function buildInputSchema(
+	stepDef: TStepperStep,
+	world: TWorld,
+): { inputSchema: StepToolInputSchema; paramSchemas: Map<string, z.ZodType>; paramDomainKeys: Map<string, string> } {
 	const properties: Record<string, { type?: string; description?: string; [key: string]: unknown }> = {};
 	const required: string[] = [];
 	const paramSchemas = new Map<string, z.ZodType>();
