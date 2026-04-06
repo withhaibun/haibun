@@ -33,9 +33,6 @@ export interface IQuadStore {
 	/** Query quads matching a pattern */
 	query(pattern: TQuadPattern): Promise<TQuad[]>;
 
-	/** Select the most recent value for a subject-predicate pair */
-	select(subject: string, predicate: string): Promise<unknown | undefined>;
-
 	/** Clear quads, optionally filtered by namedGraph */
 	clear(namedGraph?: string): Promise<void>;
 
