@@ -217,8 +217,8 @@ export class FeatureExecutor {
 			if (step.action.actionName === FEATURE_START) {
 				if (currentScenario) {
 					await doStepperCycle(this.steppers, "endScenario", undefined);
-					world.shared = new FeatureVariables(world, baseVars.all());
-					scopedVars = new FeatureVariables(world, world.shared.all());
+					world.shared = new FeatureVariables(world, await baseVars.all());
+					scopedVars = new FeatureVariables(world, await world.shared.all());
 					currentScenario = 0;
 				}
 				world.runtime.currentFeaturePath = feature.path;
@@ -238,7 +238,7 @@ export class FeatureExecutor {
 			if (step.action.actionName === SCENARIO_START) {
 				if (currentScenario) {
 					await doStepperCycle(this.steppers, "endScenario", undefined);
-					scopedVars = new FeatureVariables(world, world.shared.all());
+					scopedVars = new FeatureVariables(world, await world.shared.all());
 				}
 				currentScenario = currentScenario + 1;
 				world.eventLogger.emit(
@@ -268,8 +268,8 @@ export class FeatureExecutor {
 				await sleep(world.options[STEP_DELAY] as number);
 			}
 			if (!currentScenario) {
-				scopedVars = new FeatureVariables(world, world.shared.all());
-				baseVars = new FeatureVariables(world, world.shared.all());
+				scopedVars = new FeatureVariables(world, await world.shared.all());
+				baseVars = new FeatureVariables(world, await world.shared.all());
 			}
 		}
 
@@ -300,9 +300,7 @@ export const addStepperConcerns = (world: TWorld, steppers: AStepper[]) => {
 		.filter((d) => d.meta?.vertexLabel)
 		.map((d) => d.meta?.vertexLabel as string);
 	if (vertexLabels.length > 0) {
-		registerDomains(world, [
-			[{ selectors: [DOMAIN_VERTEX_LABEL], schema: z.enum(vertexLabels as [string, ...string[]]), description: "Vertex type" }],
-		]);
+		registerDomains(world, [[{ selectors: [DOMAIN_VERTEX_LABEL], schema: z.enum(vertexLabels as [string, ...string[]]), description: "Vertex type" }]]);
 	}
 };
 

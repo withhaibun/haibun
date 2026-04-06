@@ -52,7 +52,7 @@ increment counter
 		const res = await passWithDefaults([feature], steppers);
 		expect(res.ok).toBe(true);
 		// After two increments from 0, counter should be 2
-		expect(Number(res.world.shared.get("counter"))).toBe(2);
+		expect(Number(await res.world.shared.get("counter"))).toBe(2);
 	});
 
 	it("fails when incrementing an unset numeric variable", async () => {

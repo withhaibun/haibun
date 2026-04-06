@@ -24,18 +24,20 @@ function createTestStore(): IQuadStore & { vertices: Map<string, Record<string, 
 		clear: () => {
 			quads.length = 0;
 		},
-		remove: () => {},
+		remove: () => {
+			/* no-op */
+		},
 		all: () => quads,
-		upsertVertex: async (label, data) => {
+		upsertVertex: (label: string, data: unknown) => {
 			const d = data as Record<string, unknown>;
 			const id = String(d.id);
 			vertices.set(`${label}:${id}`, { ...d, _label: label });
-			return id;
+			return Promise.resolve(id);
 		},
-		getVertex: async (label, id) => vertices.get(`${label}:${id}`) as Record<string, unknown> | undefined,
-		deleteVertex: async () => {},
-		queryVertices: async () => [],
-		distinctPropertyValues: async () => [],
+		getVertex: (label: string, id: string) => Promise.resolve(vertices.get(`${label}:${id}`) as Record<string, unknown> | undefined),
+		deleteVertex: () => Promise.resolve(),
+		queryVertices: () => Promise.resolve([]),
+		distinctPropertyValues: () => Promise.resolve([]),
 	};
 }
 
