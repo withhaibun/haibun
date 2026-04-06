@@ -147,7 +147,13 @@ export class Executor {
 			okSoFar = okSoFar && thisFeatureOK;
 			featureResults.push(featureResult);
 
-			const shouldClose = calculateShouldClose({ thisFeatureOK: featureResult.ok, isLast, continueAfterError, stayOnFailure, stayAlways });
+			const shouldClose = calculateShouldClose({
+				thisFeatureOK: featureResult.ok,
+				isLast,
+				continueAfterError,
+				stayOnFailure,
+				stayAlways,
+			});
 			await doStepperCycle(steppers, "endFeature", <TEndFeature>{
 				featurePath: feature.path,
 				shouldClose,
@@ -160,14 +166,28 @@ export class Executor {
 			if (!okSoFar && !continueAfterError && !isLast) break;
 		}
 
-		const results: TExecutorResult = { ok: okSoFar, featureResults, tag: world.tag, shared: world.shared, steppers, failure: undefined };
+		const results: TExecutorResult = {
+			ok: okSoFar,
+			featureResults,
+			tag: world.tag,
+			shared: world.shared,
+			steppers,
+			failure: undefined,
+		};
 		if (!okSoFar) {
 			const failure = this.createExecutionFailure(featureResults);
 			if (failure) results.failure = failure;
 		}
 
 		world.eventLogger.emit(
-			LifecycleEvent.parse({ id: `execution-end`, timestamp: Date.now(), kind: "lifecycle", type: "execution", stage: "end", status: okSoFar ? "completed" : "failed" }),
+			LifecycleEvent.parse({
+				id: `execution-end`,
+				timestamp: Date.now(),
+				kind: "lifecycle",
+				type: "execution",
+				stage: "end",
+				status: okSoFar ? "completed" : "failed",
+			}),
 		);
 
 		await doStepperCycle(steppers, "endExecution", results);
@@ -276,9 +296,13 @@ export const addStepperConcerns = (world: TWorld, steppers: AStepper[]) => {
 	}
 	registerDomains(world, [allDomains]);
 	// Register vertex-label domain from all registered vertex types
-	const vertexLabels = Object.values(world.domains).filter((d) => d.meta?.vertexLabel).map((d) => d.meta?.vertexLabel as string);
+	const vertexLabels = Object.values(world.domains)
+		.filter((d) => d.meta?.vertexLabel)
+		.map((d) => d.meta?.vertexLabel as string);
 	if (vertexLabels.length > 0) {
-		registerDomains(world, [[{ selectors: [DOMAIN_VERTEX_LABEL], schema: z.enum(vertexLabels as [string, ...string[]]), description: "Vertex type" }]]);
+		registerDomains(world, [
+			[{ selectors: [DOMAIN_VERTEX_LABEL], schema: z.enum(vertexLabels as [string, ...string[]]), description: "Vertex type" }],
+		]);
 	}
 };
 
