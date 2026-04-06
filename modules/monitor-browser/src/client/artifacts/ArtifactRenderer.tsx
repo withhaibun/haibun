@@ -41,16 +41,7 @@ export function ArtifactRenderer({
 			}
 
 			// In log/details mode, always show synced video with timeline controls
-			return (
-				<VideoArtifact
-					artifact={artifact}
-					currentTime={currentTime}
-					videoStartTimestamp={videoStartTimestamp}
-					startTime={startTime}
-					sync={true}
-					className={className}
-				/>
-			);
+			return <VideoArtifact artifact={artifact} currentTime={currentTime} videoStartTimestamp={videoStartTimestamp} startTime={startTime} sync={true} className={className} />;
 		case "html":
 			return <HtmlArtifact artifact={artifact} />;
 		case "speech":
@@ -68,7 +59,6 @@ export function ArtifactRenderer({
 		case "mermaid":
 			return <MermaidArtifact artifact={artifact} />;
 		case "resolvedFeatures":
-			// biome-ignore lint/suspicious/noExplicitAny: abstract artifact type mismatch
 			return (
 				<MermaidArtifact
 					artifact={
@@ -76,7 +66,7 @@ export function ArtifactRenderer({
 							...artifact,
 							artifactType: "mermaid",
 							source: getMermaidFromResolvedFeatures(artifact.resolvedFeatures || [], artifact.registeredOutcomes),
-						} as any
+						} as Record<string, unknown>
 					}
 				/>
 			);
