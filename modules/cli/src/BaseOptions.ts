@@ -33,10 +33,7 @@ export class BaseOptions implements IHasOptions {
 		},
 		LOG_LEVEL: {
 			desc: Object.keys(LOGGER_LEVELS).join(", "),
-			parse: (result: string) =>
-				Object.keys(LOGGER_LEVELS).includes(result)
-					? { result }
-					: { error: `${result} not in ${Object.keys(LOGGER_LEVELS).join(", ")}` },
+			parse: (result: string) => (Object.keys(LOGGER_LEVELS).includes(result) ? { result } : { error: `${result} not in ${Object.keys(LOGGER_LEVELS).join(", ")}` }),
 		},
 		ENV: {
 			desc: "pass variables: var=value[,var2=value]",

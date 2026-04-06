@@ -225,9 +225,7 @@ export function HttpTraceSequenceDiagram({ traces, currentTime, startTime = 0 }:
 			</div>
 
 			{/* [Info] */}
-			<div className="text-xs text-slate-500 font-mono px-2 whitespace-nowrap">
-				{currentTraceIndex >= 0 ? `${currentTraceIndex + 1}/${traces.length}` : traces.length} events
-			</div>
+			<div className="text-xs text-slate-500 font-mono px-2 whitespace-nowrap">{currentTraceIndex >= 0 ? `${currentTraceIndex + 1}/${traces.length}` : traces.length} events</div>
 		</div>
 	);
 

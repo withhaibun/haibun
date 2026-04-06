@@ -192,15 +192,7 @@ type TStepperStepBase = {
 	match?: RegExp;
 	gwta?: string;
 	exact?: string;
-	resolveFeatureLine?(
-		line: string,
-		path: string,
-		stepper: AStepper,
-		backgrounds: TFeatures,
-		allLines?: string[],
-		lineIndex?: number,
-		actualSourcePath?: string,
-	): boolean | void;
+	resolveFeatureLine?(line: string, path: string, stepper: AStepper, backgrounds: TFeatures, allLines?: string[], lineIndex?: number, actualSourcePath?: string): boolean | void;
 };
 
 /** Step that declares an output schema — action MUST return products on success. */
@@ -342,9 +334,7 @@ export type TPropertyDef = TRel | { rel: TRel; mediaType?: string };
 export type TEdgeDef = { rel: TRel; range: string };
 
 /** JSON-LD context mapping: rel → standard URI. Derived from LinkRelations. */
-export const REL_CONTEXT: Record<TRel, string> = Object.fromEntries(
-	Object.values(LinkRelations).map(({ rel, uri }) => [rel, uri]),
-) as Record<TRel, string>;
+export const REL_CONTEXT: Record<TRel, string> = Object.fromEntries(Object.values(LinkRelations).map(({ rel, uri }) => [rel, uri])) as Record<TRel, string>;
 
 /** Hypermedia metadata for a vertex domain. One properties map drives everything. */
 export type TVertexMeta = {

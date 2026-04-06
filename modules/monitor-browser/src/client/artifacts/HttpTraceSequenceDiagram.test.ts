@@ -2,11 +2,7 @@ import { describe, it, expect } from "vitest";
 import { generateSequenceDiagramFromTraces } from "./HttpTraceSequenceDiagram";
 import { THttpTraceArtifact } from "@haibun/core/schema/protocol.js";
 
-const createTrace = (
-	httpEvent: "request" | "response" | "route",
-	overrides: Partial<THttpTraceArtifact["trace"]> = {},
-	timestamp = Date.now(),
-): THttpTraceArtifact => ({
+const createTrace = (httpEvent: "request" | "response" | "route", overrides: Partial<THttpTraceArtifact["trace"]> = {}, timestamp = Date.now()): THttpTraceArtifact => ({
 	id: `http-trace-${timestamp}`,
 	timestamp,
 	kind: "artifact",
@@ -54,10 +50,7 @@ describe("generateSequenceDiagramFromTraces", () => {
 	});
 
 	it("handles multiple servers", () => {
-		const traces = [
-			createTrace("request", { requestingURL: "http://api.example.com/data" }),
-			createTrace("request", { requestingURL: "http://cdn.example.com/image.png" }),
-		];
+		const traces = [createTrace("request", { requestingURL: "http://api.example.com/data" }), createTrace("request", { requestingURL: "http://cdn.example.com/image.png" })];
 
 		const result = generateSequenceDiagramFromTraces(traces);
 

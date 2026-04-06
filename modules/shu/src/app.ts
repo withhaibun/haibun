@@ -269,8 +269,7 @@ const main = async (): Promise<void> => {
 		const e = event as { kind?: string; type?: string; stage?: string; actionName?: string; status?: string };
 		if (e.kind !== "lifecycle" || e.type !== "step" || e.stage !== "end" || e.status !== "completed") return;
 		if (e.actionName === "showMonitor") appRoot.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN_MONITOR, { bubbles: true }));
-		else if (e.actionName === "showSequenceDiagram")
-			appRoot.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN_SEQUENCE, { bubbles: true }));
+		else if (e.actionName === "showSequenceDiagram") appRoot.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN_SEQUENCE, { bubbles: true }));
 	});
 
 	// Results changed → remove all non-query panes
@@ -489,9 +488,7 @@ const main = async (): Promise<void> => {
 						const colonIdx = rest.indexOf(":");
 						const lbl = rest.slice(0, colonIdx);
 						const vid = rest.slice(colonIdx + 1);
-						appRoot.dispatchEvent(
-							new CustomEvent(SHU_EVENT.COLUMN_OPEN_RELATED, { detail: { subject: vid, label: lbl }, bubbles: true }),
-						);
+						appRoot.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN_RELATED, { detail: { subject: vid, label: lbl }, bubbles: true }));
 						pane = strip.panes.find((p) => p.getAttribute(SHU_ATTR.COLUMN_TYPE) === "thread");
 					} else if (col.startsWith("monitor:") || col === "monitor") {
 						appRoot.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN_MONITOR, { bubbles: true }));

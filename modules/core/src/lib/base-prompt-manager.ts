@@ -1,10 +1,7 @@
 import { TPrompt, TPromptResponse, IPrompter } from "./prompter.js";
 
 export abstract class BasePromptManager implements IPrompter {
-	protected outstandingPrompts = new Map<
-		string,
-		{ resolve: (value: TPromptResponse) => void; reject: (reason?: unknown) => void; prompt?: TPrompt; timestamp?: number }
-	>();
+	protected outstandingPrompts = new Map<string, { resolve: (value: TPromptResponse) => void; reject: (reason?: unknown) => void; prompt?: TPrompt; timestamp?: number }>();
 
 	protected abstract showPrompt(prompt: TPrompt): void;
 	protected abstract hidePrompt(id: string): void;

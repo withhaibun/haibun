@@ -84,10 +84,7 @@ describe("ActivitiesStepper - Skipped Steps Reproduction", () => {
 			async setWorld(world: TWorld, steppers: AStepper[]) {
 				await super.setWorld(world, steppers);
 				if (!this.steps["Manual Outcome"]) {
-					this.registerOutcome("Manual Outcome", ['variable manual_ran is "yes"'], "/manual.feature", false, [
-						'set manual_ran to "yes"',
-						'set other to "value"',
-					]);
+					this.registerOutcome("Manual Outcome", ['variable manual_ran is "yes"'], "/manual.feature", false, ['set manual_ran to "yes"', 'set other to "value"']);
 				}
 			}
 		}

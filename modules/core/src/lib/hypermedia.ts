@@ -77,12 +77,10 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 		const label = meta.vertexLabel;
 
 		if (!meta.id) throw new Error(`Vertex domain "${label}" (${domainKey}) is missing required "id" field`);
-		if (!meta.properties || Object.keys(meta.properties).length === 0)
-			throw new Error(`Vertex domain "${label}" (${domainKey}) has no properties`);
+		if (!meta.properties || Object.keys(meta.properties).length === 0) throw new Error(`Vertex domain "${label}" (${domainKey}) has no properties`);
 
 		const hasIdentifier = Object.values(meta.properties).some((p) => getRel(p) === LinkRelations.IDENTIFIER.rel);
-		if (!hasIdentifier)
-			throw new Error(`Vertex domain "${label}" (${domainKey}) has no property with rel "${LinkRelations.IDENTIFIER.rel}"`);
+		if (!hasIdentifier) throw new Error(`Vertex domain "${label}" (${domainKey}) has no property with rel "${LinkRelations.IDENTIFIER.rel}"`);
 
 		const properties: Record<string, TPropertyConcern> = {};
 		for (const [field, propDef] of Object.entries(meta.properties)) {
@@ -94,8 +92,7 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 
 		const edges: Record<string, TEdgeConcern> = {};
 		for (const [edgeField, edgeDef] of Object.entries(meta.edges ?? {})) {
-			if (!REL_CONTEXT[edgeDef.rel])
-				throw new Error(`Vertex domain "${label}" edge "${edgeField}" has unknown rel "${edgeDef.rel}"`);
+			if (!REL_CONTEXT[edgeDef.rel]) throw new Error(`Vertex domain "${label}" edge "${edgeField}" has unknown rel "${edgeDef.rel}"`);
 			edges[edgeField] = { term: REL_CONTEXT[edgeDef.rel], rel: edgeDef.rel, target: edgeDef.range };
 		}
 

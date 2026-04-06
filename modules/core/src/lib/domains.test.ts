@@ -42,8 +42,8 @@ describe("domains", () => {
 		const res = await passWithDefaults([feature], steppers);
 		expect(res.ok).toBe(true);
 		// ensure the variable was stored with domain json in world.shared
-		expect(res.world.shared.all().data.domain).toBe("json");
-		const value = res.world.shared.get("data");
+		expect((await res.world.shared.all()).data.domain).toBe("json");
+		const value = await res.world.shared.get("data");
 		expect(typeof value).toBe("object");
 		expect(value).toEqual({ a: 1 });
 	});
@@ -53,11 +53,11 @@ describe("domains", () => {
 		const res = await passWithDefaults([feature], steppers);
 		expect(res.ok).toBe(true);
 
-		const stepVal = res.world.shared.all()["Value"];
+		const stepVal = (await res.world.shared.all())["Value"];
 		expect(stepVal).toBeDefined();
 		expect(stepVal.domain).toBe("number");
 		expect(stepVal.value).toBe("4");
-		const value = res.world.shared.get("Value");
+		const value = await res.world.shared.get("Value");
 		expect(typeof value).toBe("number");
 		expect(value).toBe(4);
 	});
@@ -94,11 +94,10 @@ describe("domains", () => {
 				moduleOptions: {},
 			});
 			expect(res.ok).toBe(true);
-			const check = await passWithDefaults(
-				[{ path: "/features/c.feature", content: 'set fromEnv to $TEST_VALUE$\nvariable "fromEnv" is "ok"' }],
-				steppers,
-				{ options: { DEST: "default", envVariables: { TEST_VALUE: "ok" } }, moduleOptions: {} },
-			);
+			const check = await passWithDefaults([{ path: "/features/c.feature", content: 'set fromEnv to $TEST_VALUE$\nvariable "fromEnv" is "ok"' }], steppers, {
+				options: { DEST: "default", envVariables: { TEST_VALUE: "ok" } },
+				moduleOptions: {},
+			});
 			expect(check.ok).toBe(true);
 		});
 	});

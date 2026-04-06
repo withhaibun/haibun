@@ -75,8 +75,7 @@ export default class ShuStepper extends AStepper {
 				const pathError = validateMountPath(path);
 				if (pathError) return actionNotOK(pathError);
 				if (this.mountedPath === path) return actionOK();
-				if (this.mountedPath)
-					return actionNotOK(`shu app already mounted at "${this.mountedPath}"; cannot mount at different path "${path}"`);
+				if (this.mountedPath) return actionNotOK(`shu app already mounted at "${this.mountedPath}"; cannot mount at different path "${path}"`);
 				const bundle = loadBundle();
 				const hydrationJson = JSON.stringify({
 					concerns: buildConcernCatalog(this.getWorld().domains),

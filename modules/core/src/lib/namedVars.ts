@@ -88,13 +88,7 @@ export const namedInterpolation = (inp: string): { regexPattern: string; stepVal
 	return { stepValuesMap, regexPattern };
 };
 
-export const matchGwtaToAction = (
-	gwta: string,
-	actionable: string,
-	actionName: string,
-	stepperName: string,
-	step: TStepperStep,
-) => {
+export const matchGwtaToAction = (gwta: string, actionable: string, actionName: string, stepperName: string, step: TStepperStep) => {
 	const { regexPattern, stepValuesMap } = namedInterpolation(gwta);
 	// anchor the pattern so the whole actionable matches
 	// use case-insensitive matching to be consistent with dePolite handling
@@ -116,14 +110,7 @@ export function getNamedMatches(regexp: RegExp, what: string) {
 	return named?.groups;
 }
 
-export const getMatch = (
-	actionable: string,
-	r: RegExp,
-	actionName: string,
-	stepperName: string,
-	step: TStepperStep,
-	stepValuesMap?: Record<string, TStepValue>,
-) => {
+export const getMatch = (actionable: string, r: RegExp, actionName: string, stepperName: string, step: TStepperStep, stepValuesMap?: Record<string, TStepValue>) => {
 	if (!r.test(actionable)) {
 		return;
 	}

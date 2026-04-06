@@ -1,15 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
 import { getDefaultWorld } from "./test/lib.js";
-import {
-	DOMAIN_STRING,
-	DOMAIN_NUMBER,
-	DOMAIN_JSON,
-	DOMAIN_DATE,
-	registerDomains,
-	asDomainKey,
-	createEnumDomainDefinition,
-} from "./domain-types.js";
+import { DOMAIN_STRING, DOMAIN_NUMBER, DOMAIN_JSON, DOMAIN_DATE, registerDomains, asDomainKey, createEnumDomainDefinition } from "./domain-types.js";
 import { TDomainDefinition } from "./defs.js";
 import { Origin, TStepValue } from "../schema/protocol.js";
 import { FeatureVariables } from "./feature-variables.js";
@@ -197,9 +189,9 @@ describe("domain coercion", () => {
 			],
 		]);
 
-		it("coerces JSON string through structured domain when declared", () => {
+		it("coerces JSON string through structured domain when declared", async () => {
 			const fv = new FeatureVariables(testWorld);
-			const result = fv.resolveVariable({
+			const result = await fv.resolveVariable({
 				term: JSON.stringify({ items: ["a", "b"] }),
 				origin: Origin.quoted,
 				domain: DOMAIN_STRUCTURED,
@@ -208,15 +200,16 @@ describe("domain coercion", () => {
 			expect(result.domain).toBe(DOMAIN_STRUCTURED);
 		});
 
-		it("throws for unknown single domain", () => {
+		it("throws for unknown single domain", async () => {
 			const fv = new FeatureVariables(testWorld);
-			expect(() =>
-				fv.resolveVariable({
-					term: "hello",
-					origin: Origin.quoted,
-					domain: "nonexistent",
-				}),
-			).toThrow("unknown domain");
+			await expect(
+				async () =>
+					await fv.resolveVariable({
+						term: "hello",
+						origin: Origin.quoted,
+						domain: "nonexistent",
+					}),
+			).rejects.toThrow("unknown domain");
 		});
 	});
 });
