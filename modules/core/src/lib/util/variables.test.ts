@@ -14,7 +14,7 @@ describe("variables integration", () => {
 		expect(res.ok).toBe(true);
 		const world = res.world;
 
-		const resolved = world.shared.resolveVariable({ term: "x", origin: Origin.var });
+		const resolved = await world.shared.resolveVariable({ term: "x", origin: Origin.var });
 		expect(resolved.value).toBe("1");
 	});
 
@@ -27,7 +27,7 @@ describe("variables integration", () => {
 		expect(res.ok).toBe(true);
 		const world = res.world;
 
-		const resolved = world.shared.resolveVariable({ term: "TEST_ENV", origin: Origin.env });
+		const resolved = await world.shared.resolveVariable({ term: "TEST_ENV", origin: Origin.env });
 		expect(resolved.value).toBe("val");
 	});
 
@@ -40,17 +40,17 @@ describe("variables integration", () => {
 		const world = res.world;
 
 		// Prioritizes Env
-		const resolvedEnv = world.shared.resolveVariable({ term: "ENV_VAR", origin: Origin.defined });
+		const resolvedEnv = await world.shared.resolveVariable({ term: "ENV_VAR", origin: Origin.defined });
 		expect(resolvedEnv.value).toBe("env");
 		expect(resolvedEnv.origin).toBe(Origin.env);
 
 		// Falls back to Stored
-		const resolvedStored = world.shared.resolveVariable({ term: "x", origin: Origin.defined });
+		const resolvedStored = await world.shared.resolveVariable({ term: "x", origin: Origin.defined });
 		expect(resolvedStored.value).toBe("stored");
 		expect(resolvedStored.origin).toBe(Origin.var);
 
 		// Returns undefined if neither (no literal fallback)
-		const resolvedMissing = world.shared.resolveVariable({ term: "missing", origin: Origin.defined });
+		const resolvedMissing = await world.shared.resolveVariable({ term: "missing", origin: Origin.defined });
 		expect(resolvedMissing.value).toBeUndefined();
 	});
 });
