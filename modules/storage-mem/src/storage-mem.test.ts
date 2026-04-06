@@ -120,7 +120,7 @@ describe("AStorage steppers", () => {
 		} as TFeatureStep;
 		const res = await storageMem.steps.readFileInto?.action({ where: "/test.txt", what: "testVar" }, featureStep);
 		expect(res).toEqual(OK);
-		expect(world.shared.resolveVariable({ term: "testVar", origin: Origin.var }).value).toEqual("hello world");
+		expect((await world.shared.resolveVariable({ term: "testVar", origin: Origin.var })).value).toEqual("hello world");
 	});
 
 	it("fileIsRecent verifies file age", async () => {
