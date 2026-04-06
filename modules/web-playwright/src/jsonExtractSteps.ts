@@ -59,7 +59,7 @@ export const jsonExtractSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 			const value = (target as Record<string, unknown>)[property];
 			const valueStr = valueToString(value);
 
-			webPlaywright
+			await webPlaywright
 				.getWorld()
 				.shared.set(
 					{ term: variable, value: valueStr, domain: DOMAIN_STRING, origin: Origin.var },
