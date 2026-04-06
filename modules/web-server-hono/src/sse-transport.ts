@@ -11,20 +11,13 @@ export type TTransportRequestInfo = {
 	headers?: Record<string, string | undefined>;
 };
 
-type TMessageHandler = (
-	data: unknown,
-	requestInfo?: TTransportRequestInfo,
-) => unknown | Promise<unknown>;
+type TMessageHandler = (data: unknown, requestInfo?: TTransportRequestInfo) => unknown | Promise<unknown>;
 
 /** Writer for streaming NDJSON chunks back over an HTTP response. */
 export type TStreamWriter = (chunk: unknown) => Promise<void>;
 
 /** Stream handler: receives the parsed request, a writer, and an abort signal. Returns true if it handled the request. */
-type TStreamHandler = (
-	data: unknown,
-	write: TStreamWriter,
-	signal: AbortSignal,
-) => Promise<boolean>;
+type TStreamHandler = (data: unknown, write: TStreamWriter, signal: AbortSignal) => Promise<boolean>;
 
 export interface ITransport {
 	send(data: unknown): void;
@@ -92,9 +85,7 @@ export class SSETransport implements ITransport, IStepTransport {
 						const abortController = new AbortController();
 						s.onAbort(() => abortController.abort());
 						const write: TStreamWriter = async (chunk) => {
-							await s.write(
-								new TextEncoder().encode(JSON.stringify(chunk) + "\n"),
-							);
+							await s.write(new TextEncoder().encode(JSON.stringify(chunk) + "\n"));
 						};
 						let handled = false;
 						for (const handler of this.streamHandlers) {
@@ -120,8 +111,8 @@ export class SSETransport implements ITransport, IStepTransport {
 	}
 
 	// biome-ignore lint/suspicious/noExplicitAny: event payload
+	// biome-ignore lint/suspicious/noExplicitAny: event payload
 	public send(data: any) {
-		// Clear history on init to prevent stale data across runs
 		if (data?.type === "init") {
 			this.history = [];
 		}
@@ -149,10 +140,7 @@ export class SSETransport implements ITransport, IStepTransport {
 		this.streamHandlers = [];
 	}
 
-	private async handleMessage(
-		data: unknown,
-		requestInfo?: TTransportRequestInfo,
-	): Promise<unknown> {
+	private async handleMessage(data: unknown, requestInfo?: TTransportRequestInfo): Promise<unknown> {
 		for (const handler of this.messageHandlers) {
 			const result = await handler(data, requestInfo);
 			if (result !== undefined) return result;
