@@ -42,10 +42,6 @@ export class QuadStore implements IQuadStore {
 		);
 	}
 
-	select(subject: string, predicate: string): Promise<unknown | undefined> {
-		return this.get(subject, predicate);
-	}
-
 	clear(namedGraph?: string): Promise<void> {
 		if (namedGraph) {
 			this.quads = this.quads.filter((q) => q.namedGraph !== namedGraph);
