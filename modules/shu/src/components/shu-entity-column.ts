@@ -9,13 +9,14 @@ import { defaultLabel } from "../util.js";
 import { SHARED_STYLES } from "./styles.js";
 import { ShuElement } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
-import { isRelationRel } from "@haibun/core/lib/defs.js";
+import { isReplyEdge } from "@haibun/core/lib/defs.js";
+import { getEdgeRelMap } from "../rels-cache.js";
 import { EntityColumnSchema } from "../schemas.js";
-import { esc, escAttr, truncate, errMsg, vertexId, HIDDEN_PROPS, renderContentHtml, utf8ToBase64, } from "../util.js";
+import { esc, escAttr, truncate, errMsg, vertexId, HIDDEN_PROPS, renderContentHtml, utf8ToBase64 } from "../util.js";
 import { renderValue } from "./value-renderers.js";
 import { SseClient } from "../sse-client.js";
 import { getAvailableSteps, requireStep } from "../rpc-registry.js";
-import { getRelSync, getRels, getEdgeRanges, getEdgeTargetLabel, getSummaryFields, getContentFields, } from "../rels-cache.js";
+import { getRelSync, getRels, getEdgeRanges, getEdgeTargetLabel, getSummaryFields, getContentFields } from "../rels-cache.js";
 
 type VertexData = Record<string, unknown>;
 type EdgeData = { type: string; target: VertexData; direction?: "out" | "in" };
@@ -85,9 +86,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		}
 		if (!this.vertex) {
 			// Before open() is called: show spinner. After open() completes with no vertex: show error.
-			const msg = this.state.vertexId
-				? `Vertex not found: ${esc(this.state.vertexId)}`
-				: "";
+			const msg = this.state.vertexId ? `Vertex not found: ${esc(this.state.vertexId)}` : "";
 			this.shadowRoot.innerHTML = msg
 				? `<style>${STYLES}</style><div class="error-banner">${msg}</div>`
 				: `<style>${STYLES}</style><shu-spinner status="Waiting..." visible></shu-spinner>`;
@@ -98,17 +97,12 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const contentFieldSet = new Set(Object.keys(getContentFields(vertexLabel) ?? {}));
 		const fields: Record<string, string | string[]> = {};
 		for (const [k, v] of Object.entries(this.vertex)) {
-			if (k.startsWith("_") || contentFieldSet.has(k) || HIDDEN_PROPS.has(k))
-				continue;
-			fields[k] = Array.isArray(v)
-				? (v as string[]).map(String)
-				: String(v ?? "");
+			if (k.startsWith("_") || contentFieldSet.has(k) || HIDDEN_PROPS.has(k)) continue;
+			fields[k] = Array.isArray(v) ? (v as string[]).map(String) : String(v ?? "");
 		}
 
 		// Stub detection: vertex has ≤1 meaningful properties (just the ID field)
-		const isStub =
-			Object.values(fields).filter((v) => (Array.isArray(v) ? v.length > 0 : v))
-				.length <= 1;
+		const isStub = Object.values(fields).filter((v) => (Array.isArray(v) ? v.length > 0 : v)).length <= 1;
 
 		let contentHtml: string;
 		if (isStub) {
@@ -123,9 +117,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		} else {
 			const summaryFields = getSummaryFields(vertexLabel);
 			const detailRows = Object.entries(fields)
-				.filter(
-					([k]) => !getEdgeTargetLabel(k, vertexLabel) && !summaryFields.has(k),
-				)
+				.filter(([k]) => !getEdgeTargetLabel(k, vertexLabel) && !summaryFields.has(k))
 				.map(([k, v]) => {
 					const valueHtml = Array.isArray(v)
 						? v.map((item) => this.clickableValue(item, "filter", k)).join(", ")
@@ -147,19 +139,11 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 				summaryFields.size > 0
 					? `<div class="entity-summary" data-testid="entity-summary">
 					${Array.from(summaryFields)
-						.filter(
-							(k) =>
-								fields[k] &&
-								(Array.isArray(fields[k])
-									? (fields[k] as string[]).length > 0
-									: true),
-						)
+						.filter((k) => fields[k] && (Array.isArray(fields[k]) ? (fields[k] as string[]).length > 0 : true))
 						.map((k) => {
 							const v = fields[k];
 							const valueHtml = Array.isArray(v)
-								? v
-									.map((item) => this.clickableValue(item, "filter", k))
-									.join(", ")
+								? v.map((item) => this.clickableValue(item, "filter", k)).join(", ")
 								: this.clickableValue(v, "filter", k);
 							return `<span class="summary-field" data-testid="entity-field-${escAttr(k)}">${this.clickableValue(k, "describedby")} ${valueHtml}</span>`;
 						})
@@ -189,15 +173,9 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	/** Render a clickable edge target with label from HATEOAS edge range. */
 	private renderEdgeTarget(target: VertexData, edgeType: string): string {
 		const id = vertexId(target);
-		const label =
-			getEdgeTargetLabel(edgeType, this.state.vertexLabel) ??
-			(target._label as string) ??
-			defaultLabel();
-		const display = String(
-			target.name ?? target.email ?? target.filename ?? target.subject ?? id,
-		);
-		const testId =
-			this.edgeTargetCount === 0 ? ' data-testid="edge-target-first"' : "";
+		const label = getEdgeTargetLabel(edgeType, this.state.vertexLabel) ?? (target._label as string) ?? defaultLabel();
+		const display = String(target.name ?? target.email ?? target.filename ?? target.subject ?? id);
+		const testId = this.edgeTargetCount === 0 ? ' data-testid="edge-target-first"' : "";
 		this.edgeTargetCount++;
 		return `<a class="col-link" rel="item" href="#" data-value="${escAttr(id)}" data-label="${escAttr(label)}"${testId}>${esc(truncate(display, 60))}</a>`;
 	}
@@ -211,10 +189,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 
 		// Deduplicate targets for display — inReplyTo takes priority over references
 		const seen = new Set<string>();
-		const grouped = new Map<
-			string,
-			Array<{ target: VertexData; edgeType: string }>
-		>();
+		const grouped = new Map<string, Array<{ target: VertexData; edgeType: string }>>();
 		const sorted = [...outgoing].sort((a) => (a.type === "inReplyTo" ? -1 : 1));
 		for (const e of sorted) {
 			const tid = vertexId(e.target);
@@ -238,11 +213,11 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			this.incomingCount > 0
 				? `<a class="section-label links-here-link" href="#">What links here <span class="ref-count">(${this.incomingCount})</span></a>`
 				: "";
+		const relMap = getEdgeRelMap();
+		const hasReplies = this.edges.some((e) => isReplyEdge(e.type, relMap)) || this.incomingCount > 0;
+		const replyHtml = hasReplies ? `<a class="section-label thread-link" href="#">View replies</a>` : "";
 
-		const hasRelations = this.edges.some((e) => isRelationRel(e.type)) || this.incomingCount > 0;
-		const relationsHtml = hasRelations ? `<a class="section-label thread-link" href="#">View relations</a>` : "";
-
-		return `<div class="references" data-testid="ref-section">${outHtml}${inHtml}${relationsHtml}</div>`;
+		return `<div class="references" data-testid="ref-section">${outHtml}${inHtml}${replyHtml}</div>`;
 	}
 
 	/** Render content iframe for the first available contentField, with a switcher if multiple exist. */
@@ -256,11 +231,11 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const switcherHtml =
 			available.length > 1
 				? `<div class="content-switcher">${available
-					.map(
-						([f], i) =>
-							`<button class="content-switch-btn${i === 0 ? " active" : ""}" data-field="${escAttr(f)}">${esc(f)}</button>`,
-					)
-					.join("")}</div>`
+						.map(
+							([f], i) =>
+								`<button class="content-switch-btn${i === 0 ? " active" : ""}" data-field="${escAttr(f)}">${esc(f)}</button>`,
+						)
+						.join("")}</div>`
 				: "";
 
 		const [activeField, activeFormat] = available[0];
@@ -273,11 +248,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		return `<div class="body-container">${switcherHtml}${iframeHtml}</div>`;
 	}
 
-	private clickableValue(
-		value: string,
-		rel: string,
-		propertyName?: string,
-	): string {
+	private clickableValue(value: string, rel: string, propertyName?: string): string {
 		if (rel === "filter" || rel === "item") {
 			const custom = renderValue(value);
 			if (custom) return custom;
@@ -289,17 +260,12 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			const serverRel = getRelSync(this.state.vertexLabel, propertyName);
 			if (serverRel === "item") {
 				rel = "item";
-				const targetLabel = getEdgeTargetLabel(
-					propertyName,
-					this.state.vertexLabel,
-				);
+				const targetLabel = getEdgeTargetLabel(propertyName, this.state.vertexLabel);
 				if (targetLabel) {
 					labelAttr = ` data-label="${escAttr(targetLabel)}"`;
 					// Resolve entity ID from edge target data — the graph edge
 					// carries the actual target vertex with its ID field, regardless of type
-					const edge = this.edges.find(
-						(e) => e.type === propertyName && e.direction === "out",
-					);
+					const edge = this.edges.find((e) => e.type === propertyName && e.direction === "out");
 					if (edge?.target) resolvedValue = vertexId(edge.target);
 				}
 			}
@@ -307,78 +273,71 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const isPredicate = rel === "describedby";
 		let testId = "";
 		if (isPredicate) {
-			testId =
-				this.predicateLinkCount === 0
-					? ' data-testid="predicate-link-first"'
-					: ' data-testid="predicate-link"';
+			testId = this.predicateLinkCount === 0 ? ' data-testid="predicate-link-first"' : ' data-testid="predicate-link"';
 			this.predicateLinkCount++;
 		}
-		const propAttr = propertyName
-			? ` data-property="${escAttr(propertyName)}"`
-			: "";
+		const propAttr = propertyName ? ` data-property="${escAttr(propertyName)}"` : "";
 		const linkClass = isPredicate ? "pred-link" : "col-link";
 		return `<a class="${linkClass}" rel="${rel}" href="#" data-value="${escAttr(resolvedValue)}"${labelAttr}${propAttr}${testId}>${esc(truncate(value, 80))}</a>`;
 	}
 
 	private bindEvents(): void {
-		this.shadowRoot
-			?.querySelectorAll(".col-link:not(.query-link), .pred-link")
-			.forEach((el) => {
-				el.addEventListener("click", (e) => {
-					e.preventDefault();
-					e.stopPropagation();
-					const target = el as HTMLElement;
-					const value = target.dataset.value;
-					const rel = target.getAttribute("rel");
-					const propertyName = target.dataset.property;
-					if (!value) return;
+		this.shadowRoot?.querySelectorAll(".col-link:not(.query-link), .pred-link").forEach((el) => {
+			el.addEventListener("click", (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				const target = el as HTMLElement;
+				const value = target.dataset.value;
+				const rel = target.getAttribute("rel");
+				const propertyName = target.dataset.property;
+				if (!value) return;
 
-					// Target label comes from data-label (set at render time by HATEOAS rels + edge ranges)
-					const targetLabel = target.dataset.label || this.state.vertexLabel;
+				// Target label comes from data-label (set at render time by HATEOAS rels + edge ranges)
+				const targetLabel = target.dataset.label || this.state.vertexLabel;
 
-					switch (rel) {
-						case "item":
-							this.dispatchEvent(
-								new CustomEvent(SHU_EVENT.COLUMN_OPEN, {
-									detail: { subject: value, label: targetLabel },
-									bubbles: true,
-									composed: true,
-								}),
-							);
-							break;
-						case "describedby":
+				switch (rel) {
+					case "item":
+						this.dispatchEvent(
+							new CustomEvent(SHU_EVENT.COLUMN_OPEN, {
+								detail: { subject: value, label: targetLabel },
+								bubbles: true,
+								composed: true,
+							}),
+						);
+						break;
+					case "describedby":
+						this.dispatchEvent(
+							new CustomEvent(SHU_EVENT.COLUMN_OPEN_FILTER, {
+								detail: {
+									property: value,
+									label: this.state.vertexLabel,
+									type: "property",
+								},
+								bubbles: true,
+								composed: true,
+							}),
+						);
+						break;
+					case "filter":
+					default:
+						if (propertyName) {
 							this.dispatchEvent(
 								new CustomEvent(SHU_EVENT.COLUMN_OPEN_FILTER, {
 									detail: {
-										property: value,
+										property: propertyName,
+										value,
 										label: this.state.vertexLabel,
-										type: "property",
+										type: "filter",
 									},
 									bubbles: true,
 									composed: true,
 								}),
 							);
-							break;
-						case "filter":
-						default:
-							if (propertyName) {
-								this.dispatchEvent(
-									new CustomEvent(SHU_EVENT.COLUMN_OPEN_FILTER, {
-										detail: {
-											property: propertyName,
-											value,
-											label: this.state.vertexLabel,
-											type: "filter",
-										},
-										bubbles: true,
-										composed: true,
-									}),
-								);
-							}
-							break;
-					}
-				});
+						}
+						break;
+				}
 			});
+		});
 
 		// Content field switcher buttons
 		this.shadowRoot?.querySelectorAll(".content-switch-btn").forEach((btn) => {
@@ -402,35 +361,26 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		});
 
 		// "What links here" — clickable to open a filter column
-		this.shadowRoot
-			?.querySelector(".links-here-link")
-			?.addEventListener("click", (e) => {
-				e.preventDefault();
-				this.dispatchEvent(
-					new CustomEvent(SHU_EVENT.COLUMN_OPEN_FILTER, {
-						detail: {
-							property: "linksTo",
-							value: this.state.vertexId,
-							label: this.state.vertexLabel,
-							type: "incoming",
-						},
-						bubbles: true,
-						composed: true,
-					}),
-				);
-			});
-		this.shadowRoot
-			?.querySelector(".thread-link")
-			?.addEventListener("click", (e) => {
-				e.preventDefault();
-				this.dispatchEvent(
-					new CustomEvent(SHU_EVENT.COLUMN_OPEN_RELATED, {
-						detail: { subject: this.state.vertexId, label: this.state.vertexLabel },
-						bubbles: true,
-						composed: true,
-					}),
-				);
-			});
+		this.shadowRoot?.querySelector(".links-here-link")?.addEventListener("click", (e) => {
+			e.preventDefault();
+			this.dispatchEvent(
+				new CustomEvent(SHU_EVENT.COLUMN_OPEN_FILTER, {
+					detail: { property: "linksTo", value: this.state.vertexId, label: this.state.vertexLabel, type: "incoming" },
+					bubbles: true,
+					composed: true,
+				}),
+			);
+		});
+		this.shadowRoot?.querySelector(".thread-link")?.addEventListener("click", (e) => {
+			e.preventDefault();
+			this.dispatchEvent(
+				new CustomEvent(SHU_EVENT.COLUMN_OPEN_RELATED, {
+					detail: { subject: this.state.vertexId, label: this.state.vertexLabel },
+					bubbles: true,
+					composed: true,
+				}),
+			);
+		});
 	}
 }
 

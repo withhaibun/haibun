@@ -16,7 +16,6 @@ export interface SiteMetadata {
 let metadata: SiteMetadata | null = null;
 const edgeTypeIndex = new Map<string, string>();
 
-
 /** Populate the cache from a getSiteMetadata response. Called once at startup. */
 export function setSiteMetadata(data: SiteMetadata): void {
 	metadata = data;
@@ -93,10 +92,7 @@ export function getContentFields(label: string): Record<string, string> | undefi
 const selectCache = new Map<string, Record<string, string[]>>();
 
 /** Set cached select values for a label (from getSelectValues RPC). */
-export function setSelectValues(
-	label: string,
-	values: Record<string, string[]>,
-): void {
+export function setSelectValues(label: string, values: Record<string, string[]>): void {
 	selectCache.set(label, values);
 }
 
@@ -108,6 +104,12 @@ export function getSelectValues(label: string): Record<string, string[]> {
 /** Get all site metadata. */
 export function getSiteMetadataSync(): SiteMetadata | null {
 	return metadata;
+}
+
+/** Get the edge name → rel mapping from concern catalog. Cached; rebuilt on setConcernCatalog. */
+export function getEdgeRelMap(): Record<string, string> {
+	if (!cachedEdgeRelRecord) cachedEdgeRelRecord = Object.fromEntries(edgeRelMap);
+	return cachedEdgeRelRecord;
 }
 
 /** Check if a label has select values cached. */
@@ -123,10 +125,20 @@ import { LinkRelations } from "@haibun/core/lib/defs.js";
 let concernCatalog: TConcernCatalog | null = null;
 let cachedConcernMeta: SiteMetadata | null = null;
 
-/** Set the concern catalog from step.list response. Caches derived SiteMetadata. */
+const edgeRelMap = new Map<string, string>();
+let cachedEdgeRelRecord: Record<string, string> | null = null;
+
+/** Set the concern catalog from step.list response. Caches derived SiteMetadata and edge→rel map. */
 export function setConcernCatalog(catalog: TConcernCatalog): void {
 	concernCatalog = catalog;
 	cachedConcernMeta = siteMetadataFromConcerns(catalog);
+	edgeRelMap.clear();
+	cachedEdgeRelRecord = null;
+	for (const vertex of Object.values(catalog.vertices)) {
+		for (const [edgeName, edge] of Object.entries(vertex.edges)) {
+			edgeRelMap.set(edgeName, edge.rel);
+		}
+	}
 }
 
 /** Get cached SiteMetadata derived from concerns. */
@@ -138,17 +150,13 @@ export function getConcernDerivedMetadata(): SiteMetadata {
 /** Get the concern catalog (populated from step.list). */
 export function getConcernCatalog(): TConcernCatalog {
 	if (!concernCatalog) {
-		throw new Error(
-			"Concern catalog not initialized. Call setConcernCatalog() first.",
-		);
+		throw new Error("Concern catalog not initialized. Call setConcernCatalog() first.");
 	}
 	return concernCatalog;
 }
 
 /** Derive SiteMetadata from the concern catalog. Covers any stepper that declares vertex concerns. */
-export function siteMetadataFromConcerns(
-	catalog: TConcernCatalog,
-): SiteMetadata {
+export function siteMetadataFromConcerns(catalog: TConcernCatalog): SiteMetadata {
 	const types: string[] = [];
 	const idFields: Record<string, string> = {};
 	const rels: Record<string, Record<string, string>> = {};
@@ -166,15 +174,13 @@ export function siteMetadataFromConcerns(
 		for (const [field, prop] of Object.entries(vertex.properties)) {
 			labelRels[field] = prop.rel;
 			labelProps.push(field);
-			if (prop.rel === LinkRelations.NAME.rel || prop.rel === LinkRelations.CONTEXT.rel)
-				labelSummary.push(field);
+			if (prop.rel === LinkRelations.NAME.rel || prop.rel === LinkRelations.CONTEXT.rel) labelSummary.push(field);
 			if (prop.mediaType) labelContent[field] = prop.mediaType;
 		}
 		rels[label] = labelRels;
 		properties[label] = labelProps;
 		if (labelSummary.length > 0) summary[label] = labelSummary;
-		if (Object.keys(labelContent).length > 0)
-			contentFields[label] = labelContent;
+		if (Object.keys(labelContent).length > 0) contentFields[label] = labelContent;
 		const labelEdges: Record<string, string> = {};
 		for (const [, edge] of Object.entries(vertex.edges)) {
 			labelEdges[edge.rel] = edge.target;
