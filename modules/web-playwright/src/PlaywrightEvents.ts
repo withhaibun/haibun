@@ -85,23 +85,9 @@ export class PlaywrightEvents {
 			const url = frame.url();
 			const provenance = { in: "PlaywrightEvents.framenavigated", seq: [] as number[], when: "framenavigated" };
 
-			this.world.shared.setForStepper(
-				"WebPlaywright",
-				{ term: "currentURI", value: url, domain: DOMAIN_LINK, origin: Origin.var },
-				provenance,
-				"observation/playwright",
-			);
-			this.world.shared.setForStepper(
-				"WebPlaywright",
-				{ term: "navigateCount", value: this.navigateCount, domain: DOMAIN_NUMBER, origin: Origin.var },
-				provenance,
-				"observation/playwright",
-			);
+			void this.world.shared.setForStepper("WebPlaywright", { term: "currentURI", value: url, domain: DOMAIN_LINK, origin: Origin.var }, provenance);
+			void this.world.shared.setForStepper("WebPlaywright", { term: "navigateCount", value: this.navigateCount, domain: DOMAIN_NUMBER, origin: Origin.var }, provenance);
 
-			// Store visited pages in observations for 'every url observed in visited pages is ...'
-			if (!this.world.runtime.observations) {
-				this.world.runtime.observations = new Map();
-			}
 			const visitedPages = (this.world.runtime.observations.get("visitedPages") as string[]) || [];
 			visitedPages.push(url);
 			this.world.runtime.observations.set("visitedPages", visitedPages);
