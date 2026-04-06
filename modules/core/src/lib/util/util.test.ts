@@ -1,4 +1,4 @@
-import { describe, it, test, expect } from "vitest";
+import { describe, it, test, expect, vi } from "vitest";
 
 import * as util from "./index.js";
 import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, getCreateSteppers } from "../test/lib.js";
@@ -137,9 +137,7 @@ describe("findStepperFromOptionOrKind", () => {
 		const steppers = await getCreateSteppers([], [StorageStepper, AlternativeStorageStepper, ConsumerStepper]);
 		const moduleOptions = {};
 
-		expect(() => util.findStepperFromOptionOrKind(steppers, consumer, moduleOptions, StepperKinds.STORAGE)).toThrow(
-			/Multiple steppers of kind STORAGE found/,
-		);
+		expect(() => util.findStepperFromOptionOrKind(steppers, consumer, moduleOptions, StepperKinds.STORAGE)).toThrow(/Multiple steppers of kind STORAGE found/);
 	});
 
 	it("throws when no stepper of kind exists", async () => {
@@ -147,9 +145,7 @@ describe("findStepperFromOptionOrKind", () => {
 		const steppers = await getCreateSteppers([], [ConsumerStepper]); // No storage stepper
 		const moduleOptions = {};
 
-		expect(() => util.findStepperFromOptionOrKind(steppers, consumer, moduleOptions, StepperKinds.STORAGE)).toThrow(
-			/no stepper of kind STORAGE found/,
-		);
+		expect(() => util.findStepperFromOptionOrKind(steppers, consumer, moduleOptions, StepperKinds.STORAGE)).toThrow(/no stepper of kind STORAGE found/);
 	});
 });
 
@@ -193,8 +189,13 @@ describe("getStepperOptions", () => {
 		const conc = util.getStepperOptionValue(HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, "true", [TestStepsWithOptions]);
 		expect(conc).toBeDefined();
 	});
-	it("throws for unfilled extra", () => {
-		expect(() => util.verifyExtraOptions({ HAIBUN_NE: "true" }, [])).toThrow();
+	it("warns for unmapped option when stepper not loaded", () => {
+		const spy = vi.spyOn(console, "warn").mockImplementation(() => {
+			/* suppress */
+		});
+		expect(() => util.verifyExtraOptions({ HAIBUN_NE: "true" }, [])).not.toThrow();
+		expect(spy).toHaveBeenCalledWith(expect.stringContaining("HAIBUN_NE"));
+		spy.mockRestore();
 	});
 });
 
