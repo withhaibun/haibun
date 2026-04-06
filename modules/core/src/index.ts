@@ -1,1 +1,1 @@
-export * as defs from './lib/defs.js';
+export * as defs from "./lib/defs.js";

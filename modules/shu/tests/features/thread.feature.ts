@@ -16,7 +16,9 @@ const host = "http://localhost:8237";
 const IDS = SHU_TEST_IDS;
 
 const testIdSetup = flattenTestIds(IDS).map((id) => setAs({ what: id, domain: "page-test-id", value: `"${id}"` }));
-const stepIdSetup = stepTestIds(["label", "id", "data", "text", "fromLabel", "fromId", "rel", "toLabel", "toId"]).map((id) => setAs({ what: id, domain: "page-test-id", value: `"${id}"` }));
+const stepIdSetup = stepTestIds(["label", "id", "data", "text", "fromLabel", "fromId", "rel", "toLabel", "toId"]).map((id) =>
+	setAs({ what: id, domain: "page-test-id", value: `"${id}"` }),
+);
 
 const json = (obj: Record<string, unknown>) => `"${JSON.stringify(obj)}"`;
 
@@ -55,7 +57,11 @@ export const features: TKirejiExport = {
 
 		"Link Bob as a reply to Alice.",
 		...passesStepExecution("create edge", {
-			fromLabel: '"Researcher"', fromId: '"bob"', rel: '"inReplyTo"', toLabel: '"Researcher"', toId: '"alice"',
+			fromLabel: '"Researcher"',
+			fromId: '"bob"',
+			rel: '"inReplyTo"',
+			toLabel: '"Researcher"',
+			toId: '"alice"',
 		}),
 
 		scenario({ scenario: "Annotate a vertex" }),

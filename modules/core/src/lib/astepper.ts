@@ -1,13 +1,13 @@
-import { TWorld, IStepperCycles, TStepperStep, TOptionValue, TEnvVariables, IStepperWhen } from './defs.js';
-import { TAnyFixme } from './fixme.js';
-import { constructorName } from './util/index.js';
+import { TWorld, IStepperCycles, TStepperStep, TOptionValue, TEnvVariables, IStepperWhen } from "./defs.js";
+import { TAnyFixme } from "./fixme.js";
+import { constructorName } from "./util/index.js";
 
 export const StepperKinds = {
-	MONITOR: 'MONITOR',
-	STORAGE: 'STORAGE',
-	BROWSER: 'BROWSER',
-	SERVER: 'SERVER',
-	TEST: 'TEST',
+	MONITOR: "MONITOR",
+	STORAGE: "STORAGE",
+	BROWSER: "BROWSER",
+	SERVER: "SERVER",
+	TEST: "TEST",
 } as const;
 
 export type TStepperKind = keyof typeof StepperKinds;
@@ -49,7 +49,7 @@ export interface IHasOptions {
 			altSource?: string;
 			default?: string;
 			desc: string;
-			parse: (input: string, existing?: TOptionValue) => { parseError?: string; env?: TEnvVariables; result?: TAnyFixme; };
+			parse: (input: string, existing?: TOptionValue) => { parseError?: string; env?: TEnvVariables; result?: TAnyFixme };
 		};
 	};
 }

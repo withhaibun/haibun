@@ -1,15 +1,15 @@
-import * as fs from 'fs';
+import * as fs from "fs";
 
-import { AStorage } from '@haibun/domain-storage/AStorage.js';
-import { IFile } from '@haibun/domain-storage/domain-storage.js';
-import { TAnyFixme } from '@haibun/core/lib/fixme.js';
+import { AStorage } from "@haibun/domain-storage/AStorage.js";
+import { IFile } from "@haibun/domain-storage/domain-storage.js";
+import { TAnyFixme } from "@haibun/core/lib/fixme.js";
 
 export default class StorageFS extends AStorage {
-	readFile = (file: string, coding?: TAnyFixme) => fs.readFileSync(file, coding)
+	readFile = (file: string, coding?: TAnyFixme) => fs.readFileSync(file, coding);
 	exists = fs.existsSync;
 	writeFileBuffer = (fn: string, contents: Buffer) => {
 		fs.writeFileSync(fn, new Uint8Array(contents));
-	}
+	};
 	lstatToIFile(file: string) {
 		const l = fs.lstatSync(file);
 		const ifile = {
@@ -17,8 +17,8 @@ export default class StorageFS extends AStorage {
 			size: l.size,
 			created: l.mtime.getTime(),
 			isDirectory: l.isDirectory(),
-			isFile: l.isFile()
-		}
+			isFile: l.isFile(),
+		};
 		return Promise.resolve(<IFile>ifile);
 	}
 	readdir = (dir: string) => {
@@ -26,14 +26,13 @@ export default class StorageFS extends AStorage {
 			return Promise.resolve(fs.readdirSync(dir));
 		} catch (e) {
 			console.error(`can't read ${dir}`);
-			throw (e);
+			throw e;
 		}
-	}
+	};
 
 	mkdir = fs.mkdirSync;
 	mkdirp = (dir: string) => {
 		fs.mkdirSync(dir, { recursive: true });
-	}
+	};
 	rm = fs.unlinkSync;
 }
-

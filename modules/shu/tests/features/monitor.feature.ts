@@ -36,7 +36,7 @@ export const features: TKirejiExport = {
 		gotoPage({ name: `"${host}/spa"` }),
 		"page has settled",
 		...enterStepMode,
-		'debug step by step',
+		"debug step by step",
 
 		scenario({ scenario: "Open monitor column via step" }),
 		"The show monitor step triggers the SPA to open a monitor log stream column.",

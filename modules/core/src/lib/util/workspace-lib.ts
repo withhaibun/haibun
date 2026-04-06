@@ -94,7 +94,10 @@ export function getModuleLocation(name: string) {
 			if (nodeFS.existsSync(pkgJsonPath)) {
 				try {
 					let pkg = pkgJsonCache.get(pkgJsonPath);
-					if (!pkg) { pkg = JSON.parse(nodeFS.readFileSync(pkgJsonPath, "utf-8")); pkgJsonCache.set(pkgJsonPath, pkg); }
+					if (!pkg) {
+						pkg = JSON.parse(nodeFS.readFileSync(pkgJsonPath, "utf-8"));
+						pkgJsonCache.set(pkgJsonPath, pkg);
+					}
 					const exports = (pkg as Record<string, unknown>).exports as Record<string, string> | undefined;
 					if (exports) {
 						const exact = exports[subpath] || exports[`${subpath}.js`];
@@ -106,7 +109,9 @@ export function getModuleLocation(name: string) {
 							}
 						}
 					}
-				} catch { /* fall through to raw path */ }
+				} catch {
+					/* fall through to raw path */
+				}
 			}
 		}
 		return rawPath;

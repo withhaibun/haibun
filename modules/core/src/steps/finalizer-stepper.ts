@@ -1,13 +1,13 @@
-import { AStepper, IHasCycles, TStepperSteps } from '../lib/astepper.js';
-import { IStepperCycles, TEndFeature, TFeatureStep, TWorld } from '../lib/defs.js';
-import { FlowRunner } from '../lib/core/flow-runner.js';
-import { featureSyntheticSeqPath } from '../phases/Executor.js';
-import { OK } from '../schema/protocol.js';
-import { DOMAIN_STATEMENT } from '../lib/domain-types.js';
-import { actionNotOK } from '../lib/util/index.js';
+import { AStepper, IHasCycles, TStepperSteps } from "../lib/astepper.js";
+import { IStepperCycles, TEndFeature, TFeatureStep, TWorld } from "../lib/defs.js";
+import { FlowRunner } from "../lib/core/flow-runner.js";
+import { featureSyntheticSeqPath } from "../phases/Executor.js";
+import { OK } from "../schema/protocol.js";
+import { DOMAIN_STATEMENT } from "../lib/domain-types.js";
+import { actionNotOK } from "../lib/util/index.js";
 
 export default class FinalizerStepper extends AStepper implements IHasCycles {
-	description = 'Runs registered finalizer statements at end of execution';
+	description = "Runs registered finalizer statements at end of execution";
 
 	flowRunner: FlowRunner;
 	registeredStatementsByFeature: Map<string, string[]> = new Map();
@@ -19,12 +19,12 @@ export default class FinalizerStepper extends AStepper implements IHasCycles {
 			for (const [index, statement] of statements.entries()) {
 				const result = await this.flowRunner.runStatement(statement, {
 					seqPath: featureSyntheticSeqPath(featureNum, index + 1),
-					intent: { mode: 'authoritative' },
+					intent: { mode: "authoritative" },
 				});
 
 				if (!result.ok) {
 					this.getWorld().eventLogger.warn(
-						`finalizer-stepper: statement failed: ${statement} :: ${result.errorMessage || 'unknown error'}`
+						`finalizer-stepper: statement failed: ${statement} :: ${result.errorMessage || "unknown error"}`,
 					);
 				}
 			}
@@ -64,7 +64,7 @@ export default class FinalizerStepper extends AStepper implements IHasCycles {
 			action: (_: unknown, featureStep: TFeatureStep) => {
 				const statement = featureStep.action?.stepValuesMap?.statement?.term?.trim();
 				if (!statement) {
-					return actionNotOK('finalizer statement is required');
+					return actionNotOK("finalizer statement is required");
 				}
 				const featurePath = this.getWorld().runtime.currentFeaturePath || featureStep.source.path;
 				const statements = this.registeredStatementsByFeature.get(featurePath) || [];

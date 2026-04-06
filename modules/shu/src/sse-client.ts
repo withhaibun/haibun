@@ -37,9 +37,7 @@ function dispatchSseEvent(event: Record<string, unknown>): void {
 
 function connectSSE(): void {
 	if (sseSource) {
-		console.warn(
-			`[sse:${clientId}] duplicate connectSSE() call — already connected (readyState=${sseSource.readyState})`,
-		);
+		console.warn(`[sse:${clientId}] duplicate connectSSE() call — already connected (readyState=${sseSource.readyState})`);
 		return;
 	}
 
@@ -98,10 +96,7 @@ export class SseClient {
 	}
 
 	/** Single request/response RPC call — result comes directly in HTTP response. */
-	async rpc<T = unknown>(
-		method: string,
-		params: Record<string, unknown> = {},
-	): Promise<T> {
+	async rpc<T = unknown>(method: string, params: Record<string, unknown> = {}): Promise<T> {
 		const id = nextId();
 		const res = await fetch(`${this.basePath}/rpc/${method}`, {
 			method: "POST",
@@ -109,8 +104,7 @@ export class SseClient {
 			body: JSON.stringify({ jsonrpc: "2.0", id, method, params }),
 		});
 		const data = await res.json();
-		if (!res.ok || data.error)
-			throw new Error(data.error || `RPC failed: ${res.status}`);
+		if (!res.ok || data.error) throw new Error(data.error || `RPC failed: ${res.status}`);
 		return data as T;
 	}
 

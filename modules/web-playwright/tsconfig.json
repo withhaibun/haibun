@@ -1,22 +1,20 @@
 {
-  "extends": "../tsconfig.settings.json",
-  "references": [
-    {
-      "path": "../core"
-    },
-    {
-      "path": "../domain-storage"
-    },
-    {
-      "path": "../storage-mem"
-    }
-  ],
-  "compilerOptions": {
-    "outDir": "build",
-    "rootDir": "src",
-    "lib": ["ESNext", "DOM", "DOM.Iterable"]
-  },
-  "include": [
-    "src"
-  ]
+	"extends": "../tsconfig.settings.json",
+	"references": [
+		{
+			"path": "../core"
+		},
+		{
+			"path": "../domain-storage"
+		},
+		{
+			"path": "../storage-mem"
+		}
+	],
+	"compilerOptions": {
+		"outDir": "build",
+		"rootDir": "src",
+		"lib": ["ESNext", "DOM", "DOM.Iterable"]
+	},
+	"include": ["src"]
 }

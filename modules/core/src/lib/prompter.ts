@@ -1,7 +1,7 @@
 import { TAnyFixme } from "./fixme.js";
-import { ReadlinePrompter } from './readline-prompter.js';
+import { ReadlinePrompter } from "./readline-prompter.js";
 
-export type TPrompt = { id: string; message: string; context?: TAnyFixme, options?: string[] };
+export type TPrompt = { id: string; message: string; context?: TAnyFixme; options?: string[] };
 export interface IPrompter {
 	prompt(prompt: TPrompt): Promise<TPromptResponse>;
 	cancel(id: string, reason?: string): void;
@@ -14,7 +14,7 @@ export class Prompter {
 	/**
 	 * Map of outstanding prompts by ID. Each prompt is managed independently and can be resolved or cancelled by ID.
 	 */
-	private outstandingPrompts = new Map<string, { resolve: (value: TPromptResponse) => void, reject: (reason?: unknown) => void }>();
+	private outstandingPrompts = new Map<string, { resolve: (value: TPromptResponse) => void; reject: (reason?: unknown) => void }>();
 	private subscribers: IPrompter[];
 	private readonly defaultPrompter: IPrompter;
 
@@ -28,7 +28,7 @@ export class Prompter {
 	}
 	unsubscribe(p: IPrompter) {
 		const typeName = p.constructor.name;
-		this.subscribers = this.subscribers.filter(s => s.constructor.name !== typeName);
+		this.subscribers = this.subscribers.filter((s) => s.constructor.name !== typeName);
 	}
 
 	async prompt(prompt: TPrompt): Promise<TPromptResponse> {
@@ -41,20 +41,23 @@ export class Prompter {
 		let responded = 1;
 		return await new Promise<TPromptResponse>((resolve) => {
 			for (const subscriber of this.subscribers) {
-				void subscriber.prompt(prompt).then(result => {
-					if (result !== undefined) {
-						this.subscribers.forEach(s => s.cancel && s.cancel(prompt.id));
-						resolve(result);
-					} else {
-						if (++responded === this.subscribers.length) {
-							resolve(undefined);
+				void subscriber
+					.prompt(prompt)
+					.then((result) => {
+						if (result !== undefined) {
+							this.subscribers.forEach((s) => s.cancel && s.cancel(prompt.id));
+							resolve(result);
+						} else {
+							if (++responded === this.subscribers.length) {
+								resolve(undefined);
+							}
 						}
-					}
-				}).catch(() => {
-					console.log('ABC another prompter cancelled')
-					// Ignore rejections from cancelled prompts - this is expected when another
-					// subscriber responds first and we cancel all other subscribers
-				});
+					})
+					.catch(() => {
+						console.log("ABC another prompter cancelled");
+						// Ignore rejections from cancelled prompts - this is expected when another
+						// subscriber responds first and we cancel all other subscribers
+					});
 			}
 		});
 	}
@@ -75,5 +78,5 @@ export class Prompter {
 }
 
 export function makePrompt(message: string, context?: TAnyFixme, options?: string[]): TPrompt {
-	return { id: 'prompt-' + Math.random().toString(36).slice(2), message, context, options };
+	return { id: "prompt-" + Math.random().toString(36).slice(2), message, context, options };
 }

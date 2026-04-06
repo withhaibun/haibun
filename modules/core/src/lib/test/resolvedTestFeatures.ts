@@ -1,7 +1,7 @@
 import { Resolver } from "../../phases/Resolver.js";
 import Haibun from "../../steps/haibun.js";
 import { AStepper } from "../astepper.js";
-import { OK } from '../../schema/protocol.js';
+import { OK } from "../../schema/protocol.js";
 import { expand } from "../features.js";
 import { TProtoFeature, asFeatures } from "../resolver-features.js";
 import { createSteppers } from "../util/index.js";
@@ -9,7 +9,7 @@ import { createSteppers } from "../util/index.js";
 class TestStepper extends AStepper {
 	steps = {
 		exact: {
-			exact: 'exact1',
+			exact: "exact1",
 			action: async () => Promise.resolve(OK),
 		},
 		match: {
@@ -17,15 +17,15 @@ class TestStepper extends AStepper {
 			action: async () => Promise.resolve(OK),
 		},
 		gwta: {
-			gwta: 'gwta(?<num>.)',
+			gwta: "gwta(?<num>.)",
 			action: async () => Promise.resolve(OK),
 		},
 		gwtaInterpolated: {
-			gwta: 'is {what}',
+			gwta: "is {what}",
 			action: async () => Promise.resolve(OK),
 		},
 		backgroundStep: {
-			exact: 'Background step 1',
+			exact: "Background step 1",
 			action: async () => Promise.resolve(OK),
 		},
 	};

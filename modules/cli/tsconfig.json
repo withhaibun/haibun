@@ -1,16 +1,14 @@
 {
-  "extends": "../tsconfig.settings.json",
-  "references": [
-    {
-      "path": "../core"
-    }
-  ],
-  "inlineSources": true,
-  "compilerOptions": {
-    "outDir": "build",
-    "rootDir": "src"
-  },
-  "include": [
-    "src"
-  ]
+	"extends": "../tsconfig.settings.json",
+	"references": [
+		{
+			"path": "../core"
+		}
+	],
+	"inlineSources": true,
+	"compilerOptions": {
+		"outDir": "build",
+		"rootDir": "src"
+	},
+	"include": ["src"]
 }

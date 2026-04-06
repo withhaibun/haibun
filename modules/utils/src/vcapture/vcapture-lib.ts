@@ -1,10 +1,10 @@
-import { execSync } from 'child_process';
-import { resolve } from 'path';
-import { writeFileSync, unlinkSync, readFileSync, mkdirSync, existsSync } from 'fs';
-import { tmpdir } from 'os';
+import { execSync } from "child_process";
+import { resolve } from "path";
+import { writeFileSync, unlinkSync, readFileSync, mkdirSync, existsSync } from "fs";
+import { tmpdir } from "os";
 
-import { getPackageLocation, workspaceRoot } from '@haibun/core/lib/util/workspace-lib.js';
-import { HOST_PROJECT_DIR } from '@haibun/core/lib/util/actualURI.js';
+import { getPackageLocation, workspaceRoot } from "@haibun/core/lib/util/workspace-lib.js";
+import { HOST_PROJECT_DIR } from "@haibun/core/lib/util/actualURI.js";
 
 export type TCaptureOptions = {
 	recreate: boolean;
@@ -14,14 +14,18 @@ export type TCaptureOptions = {
 	passEnv: string[] | undefined;
 	cliEnv: string[] | undefined;
 	featureFilter: string | undefined;
-}
+};
 
 export const runContainer = (testToRun: string, includeDirs: string[] = [], thisCaptureOptions: TCaptureOptions) => {
 	try {
-		const { tmpFile, composeEnvironment, utilDir, composeVolumes, projectDir, buildContextDir } = getContainerSetup(thisCaptureOptions, includeDirs, testToRun);
-		const captureDir = resolve(projectDir, 'capture');
+		const { tmpFile, composeEnvironment, utilDir, composeVolumes, projectDir, buildContextDir } = getContainerSetup(
+			thisCaptureOptions,
+			includeDirs,
+			testToRun,
+		);
+		const captureDir = resolve(projectDir, "capture");
 		if (!existsSync(captureDir)) {
-			console.info('Creating capture directory');
+			console.info("Creating capture directory");
 			mkdirSync(captureDir, { recursive: true });
 		}
 		mkdirSync(buildContextDir, { recursive: true });
@@ -36,68 +40,68 @@ services:
     volumes:
 ${asYamlOptions(composeVolumes)}
     environment:
-${(asYamlOptions(composeEnvironment))}
+${asYamlOptions(composeEnvironment)}
 `;
 		writeFileSync(tmpFile, composeFile);
 		console.info(`Building then starting vcapture container using ${utilDir}`);
-		console.info(`Mounting directories:\n${composeVolumes.join('\n')}`);
+		console.info(`Mounting directories:\n${composeVolumes.join("\n")}`);
 		try {
-			const cmd = `docker compose -f docker-compose.yml -f ${tmpFile} up ${thisCaptureOptions.recreate ? '--force-recreate --build' : ''}`
-			console.info('building with:', cmd);
+			const cmd = `docker compose -f docker-compose.yml -f ${tmpFile} up ${thisCaptureOptions.recreate ? "--force-recreate --build" : ""}`;
+			console.info("building with:", cmd);
 			execSync(cmd, {
 				cwd: utilDir,
-				stdio: 'inherit',
+				stdio: "inherit",
 				env: {
 					...process.env,
 					CURRENT_DIR: projectDir,
-				}
+				},
 			});
-		}
-		finally {
+		} finally {
 			unlinkSync(tmpFile);
 			execSync(`rm -rf ${buildContextDir}`);
 		}
 	} catch (error) {
-		console.error('Error:', error.stderr?.toString() || error.message);
+		console.error("Error:", error.stderr?.toString() || error.message);
 		process.exit(1);
 	}
 };
 
 export function getContainerSetup(thisRunOptions: TCaptureOptions, includeDirs: string[], testToRun: string) {
-	const utilDir = resolve(getPackageLocation(import.meta), '..', '..', 'vcapture');
+	const utilDir = resolve(getPackageLocation(import.meta), "..", "..", "vcapture");
 	const projectDir = workspaceRoot;
 	const tmpFile = resolve(tmpdir(), `docker-compose.override-${Date.now()}.yml`);
 
-	const envs = existsSync(`${projectDir}/.env`) ? readFileSync(`${projectDir}/.env`, 'utf8').split('\n').filter(l => l.length > 0) : [];
+	const envs = existsSync(`${projectDir}/.env`)
+		? readFileSync(`${projectDir}/.env`, "utf8")
+				.split("\n")
+				.filter((l) => l.length > 0)
+		: [];
 	if (thisRunOptions.cliEnv) {
 		envs.push(...thisRunOptions.cliEnv);
 	}
 
-	const haibunCliEnvc = (envs.length > 0) ? `HAIBUN_ENV=${envs.join(',').replace(/,$/, '')} ` : '';
+	const haibunCliEnvc = envs.length > 0 ? `HAIBUN_ENV=${envs.join(",").replace(/,$/, "")} ` : "";
 	const buildContextDir = resolve(tmpdir(), `build-context-${Date.now()}`);
-	const dirsToMount = [...includeDirs, 'capture'];
+	const dirsToMount = [...includeDirs, "capture"];
 	const composeVolumes = [
 		`${projectDir}/capture:/app/capture`,
 		`${projectDir}:/app/output`,
-		...dirsToMount.map(dir => `${resolve(projectDir, dir)}:/app/${dir}`)
+		...dirsToMount.map((dir) => `${resolve(projectDir, dir)}:/app/${dir}`),
 	];
-	const flags = thisRunOptions.featureFilter ? ` -- ${thisRunOptions.featureFilter}` : '';
+	const flags = thisRunOptions.featureFilter ? ` -- ${thisRunOptions.featureFilter}` : "";
 	const composeEnvironment = [
-		'DISPLAY=:99',
+		"DISPLAY=:99",
 		`RES=${thisRunOptions.res}`,
 		`${HOST_PROJECT_DIR}=${projectDir}`,
-		`COMMAND_TO_RECORD=${HOST_PROJECT_DIR}="${projectDir}" HAIBUN_LOG_LEVEL=log ${haibunCliEnvc} ${thisRunOptions.passEnv?.join(' ') || ""} npm run ${testToRun}${flags}`
+		`COMMAND_TO_RECORD=${HOST_PROJECT_DIR}="${projectDir}" HAIBUN_LOG_LEVEL=log ${haibunCliEnvc} ${thisRunOptions.passEnv?.join(" ") || ""} npm run ${testToRun}${flags}`,
 	];
 	if (thisRunOptions.tts) {
-		composeEnvironment.push(
-			'HAIBUN_O_NARRATOR_TTS_CMD=/app/speak-to-wav.sh @WHAT@',
-			'HAIBUN_O_NARRATOR_TTS_PLAY=aplay @WHAT@'
-		);
+		composeEnvironment.push("HAIBUN_O_NARRATOR_TTS_CMD=/app/speak-to-wav.sh @WHAT@", "HAIBUN_O_NARRATOR_TTS_PLAY=aplay @WHAT@");
 	}
 	if (thisRunOptions.capture) {
 		composeEnvironment.push(
-			'HAIBUN_O_NARRATOR_CAPTURE_START=/app/capture-start.sh',
-			'HAIBUN_O_NARRATOR_CAPTURE_STOP=/app/capture-stop.sh'
+			"HAIBUN_O_NARRATOR_CAPTURE_START=/app/capture-start.sh",
+			"HAIBUN_O_NARRATOR_CAPTURE_STOP=/app/capture-stop.sh",
 		);
 	}
 
@@ -105,7 +109,7 @@ export function getContainerSetup(thisRunOptions: TCaptureOptions, includeDirs: 
 }
 
 function asYamlOptions(options: string[]) {
-	return options.map(o => `      - ${o}`).join('\n');
+	return options.map((o) => `      - ${o}`).join("\n");
 }
 
 export function parseVCaptureArgs(args: string[], printHelp: (exitCode?: number) => void) {
@@ -114,48 +118,48 @@ export function parseVCaptureArgs(args: string[], printHelp: (exitCode?: number)
 		tts: false,
 		cliEnv: undefined,
 		capture: true,
-		res: '1280x1024',
+		res: "1280x1024",
 		passEnv: undefined,
-		featureFilter: undefined
+		featureFilter: undefined,
 	};
 
 	// Collect all non-flag arguments in order
 	const positional: string[] = [];
 	for (let i = 0; i < args.length; i++) {
 		const arg = args[i];
-		if (arg.startsWith('--')) {
-			const [what, ...v] = arg.split('=');
-			const value = v.join('=');
+		if (arg.startsWith("--")) {
+			const [what, ...v] = arg.split("=");
+			const value = v.join("=");
 
 			switch (what) {
-				case '--recreate': {
+				case "--recreate": {
 					const recreateValue = value;
-					captureOptions.recreate = recreateValue !== 'false';
+					captureOptions.recreate = recreateValue !== "false";
 					break;
 				}
-				case '--tts': {
+				case "--tts": {
 					const ttsValue = value;
-					captureOptions.tts = ttsValue !== 'false';
+					captureOptions.tts = ttsValue !== "false";
 					break;
 				}
-				case '--no-capture': {
+				case "--no-capture": {
 					const captureValue = value;
-					captureOptions.capture = !(captureValue !== 'false');
+					captureOptions.capture = !(captureValue !== "false");
 					break;
 				}
-				case '--feature-filter': {
+				case "--feature-filter": {
 					captureOptions.featureFilter = value;
 					break;
 				}
-				case '--cli-env': {
+				case "--cli-env": {
 					captureOptions.cliEnv = captureOptions.cliEnv ? [...captureOptions.cliEnv, value] : [value];
 					break;
 				}
-				case '--pass-env': {
+				case "--pass-env": {
 					captureOptions.passEnv = captureOptions.passEnv ? [...captureOptions.passEnv, value] : [value];
 					break;
 				}
-				case '--res': {
+				case "--res": {
 					if (value && value.match(/^\d+x\d+$/)) {
 						captureOptions.res = value;
 					} else {
@@ -164,7 +168,7 @@ export function parseVCaptureArgs(args: string[], printHelp: (exitCode?: number)
 					}
 					break;
 				}
-				case '--help':
+				case "--help":
 					printHelp(0);
 					break;
 				default:

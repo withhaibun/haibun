@@ -1,11 +1,11 @@
-import { TModuleOptions, TBaseOptions } from '@haibun/core/lib/defs.js';
-import { stringOrError } from '@haibun/core/lib/util/index.js';
-import { TMediaType, MEDIA_TYPES, MAPPED_MEDIA_TYPES } from './media-types.js';
-import { AStepper, IHasOptions } from '@haibun/core/lib/astepper.js';
-import { TTag } from '@haibun/core/lib/ttag.js';
+import { TModuleOptions, TBaseOptions } from "@haibun/core/lib/defs.js";
+import { stringOrError } from "@haibun/core/lib/util/index.js";
+import { TMediaType, MEDIA_TYPES, MAPPED_MEDIA_TYPES } from "./media-types.js";
+import { AStepper, IHasOptions } from "@haibun/core/lib/astepper.js";
+import { TTag } from "@haibun/core/lib/ttag.js";
 
-export const STORAGE_LOCATION = 'STORAGE_LOCATION';
-export const STORAGE_ITEM = 'STORAGE_ITEM';
+export const STORAGE_LOCATION = "STORAGE_LOCATION";
+export const STORAGE_ITEM = "STORAGE_ITEM";
 
 export interface IFile {
 	name: string;
@@ -16,12 +16,12 @@ export interface IFile {
 }
 
 const DomainStorage = class DomainStorage extends AStepper implements IHasOptions {
-	description = 'Storage domain types and file operations base';
+	description = "Storage domain types and file operations base";
 
 	locator = (location: string) => `./${location}`;
 	options = {
 		BASE_DIRECTORY: {
-			desc: 'base for file operations',
+			desc: "base for file operations",
 			parse: (input: string) => stringOrError(input),
 		},
 	};
@@ -51,10 +51,10 @@ export function guessMediaExt(file: string) {
  */
 export function guessMediaType(file: string) {
 	const ext = getExtension(file);
-	const mediaType = MAPPED_MEDIA_TYPES[ext] || 'application/octet-stream';
+	const mediaType = MAPPED_MEDIA_TYPES[ext] || "application/octet-stream";
 	return <TMediaType>mediaType;
 }
 
 function getExtension(file: string) {
-	return file.replace(/.*\./, '').toLowerCase();
+	return file.replace(/.*\./, "").toLowerCase();
 }

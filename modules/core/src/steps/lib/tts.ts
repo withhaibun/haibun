@@ -1,20 +1,20 @@
 import { execSync, spawn } from "child_process";
-import { createHash } from 'crypto';
-import { existsSync, mkdirSync, readdirSync, cpSync, unlinkSync } from 'fs';
-import * as nodePath from 'path';
-import { createRequire } from 'module';
+import { createHash } from "crypto";
+import { existsSync, mkdirSync, readdirSync, cpSync, unlinkSync } from "fs";
+import * as nodePath from "path";
+import { createRequire } from "module";
 
-import { TResolvedFeature } from '../../lib/defs.js';
-import { FEATURE_START } from '../../schema/protocol.js';
-import { SCENARIO_START } from '../../schema/protocol.js';
+import { TResolvedFeature } from "../../lib/defs.js";
+import { FEATURE_START } from "../../schema/protocol.js";
+import { SCENARIO_START } from "../../schema/protocol.js";
 import { TAnyFixme } from "../../lib/fixme.js";
 
-export type TCachedAudio = { transcript: string, durationS: number, cachedPath: string };
+export type TCachedAudio = { transcript: string; durationS: number; cachedPath: string };
 export type TRenderedAudioMap = { [hash: string]: TCachedAudio };
 
-const CACHE_DIR = nodePath.resolve('capture/.said');
+const CACHE_DIR = nodePath.resolve("capture/.said");
 
-const SPOKEN_STEPS = ['prose', SCENARIO_START, FEATURE_START];
+const SPOKEN_STEPS = ["prose", SCENARIO_START, FEATURE_START];
 
 export async function preRenderFeatureProse(feature: TResolvedFeature): Promise<TRenderedAudioMap> {
 	const proseTexts = new Set<string>();
@@ -34,10 +34,10 @@ export async function preRenderFeatureProse(feature: TResolvedFeature): Promise<
 
 	const existingAudioRenders = readdirSync(CACHE_DIR);
 	for (const transcript of proseTexts) {
-		const hash = createHash('sha1').update(transcript).digest('hex');
+		const hash = createHash("sha1").update(transcript).digest("hex");
 		const existing = existingAudioRenders.find((f) => f.startsWith(`${hash}-`));
 		if (existing) {
-			const parts = existing.replace('.wav', '').split('-');
+			const parts = existing.replace(".wav", "").split("-");
 			const durationS = parseFloat(parts[1]);
 			const cachedPath = nodePath.join(CACHE_DIR, existing);
 			renderedAudio[hash] = { transcript, durationS, cachedPath };
@@ -71,12 +71,12 @@ export function getMediafileDuration(filePath: string): Promise<number> {
  */
 export async function renderSpeech(transcript: string): Promise<string> {
 	// Ensure kokoro-js is available in the local node_modules
-	const localKokoroPath = nodePath.join(process.cwd(), 'node_modules/kokoro-js');
+	const localKokoroPath = nodePath.join(process.cwd(), "node_modules/kokoro-js");
 
 	if (!existsSync(localKokoroPath)) {
-		console.log('kokoro-js not found locally, installing in current directory...');
+		console.log("kokoro-js not found locally, installing in current directory...");
 		try {
-			doExec('npm install --no-save kokoro-js', true);
+			doExec("npm install --no-save kokoro-js", true);
 		} catch (e) {
 			console.error(`Failed to install kokoro-js: ${(e as Error).message}`);
 			throw e;
@@ -87,8 +87,8 @@ export async function renderSpeech(transcript: string): Promise<string> {
 	let KokoroTTS: TAnyFixme;
 	try {
 		// biome-disable-next-line @typescript-eslint/no-explicit-any
-		const require = createRequire(localKokoroPath + '/package.json');
-		const kokoroModule = require('kokoro-js') as { KokoroTTS: TAnyFixme };
+		const require = createRequire(localKokoroPath + "/package.json");
+		const kokoroModule = require("kokoro-js") as { KokoroTTS: TAnyFixme };
 		KokoroTTS = kokoroModule.KokoroTTS;
 	} catch (e) {
 		throw new Error(`Failed to import kokoro-js: ${(e as Error).message}`);
@@ -114,7 +114,7 @@ export async function renderSpeech(transcript: string): Promise<string> {
 
 		return tmpFile;
 	} catch (e) {
-		console.error('Error in TTS generation:', (e as Error).message);
+		console.error("Error in TTS generation:", (e as Error).message);
 		throw e;
 	}
 }
@@ -142,11 +142,13 @@ export async function renderAudio(hash: string, transcript: string, cacheDir: st
 }
 
 export function copyPreRenderedAudio(dir: string, renderedAudio: TRenderedAudioMap, transcript: string) {
-	const hash = createHash('sha1').update(transcript).digest('hex');
+	const hash = createHash("sha1").update(transcript).digest("hex");
 	const audioInfo = renderedAudio[hash];
 
 	if (!audioInfo) {
-		throw new Error(`No pre-rendered audio found for: "${transcript}" (hash: ${hash}). Available hashes: ${Object.keys(renderedAudio).join(', ')}`);
+		throw new Error(
+			`No pre-rendered audio found for: "${transcript}" (hash: ${hash}). Available hashes: ${Object.keys(renderedAudio).join(", ")}`,
+		);
 	}
 
 	const { cachedPath, durationS } = audioInfo;
@@ -165,12 +167,12 @@ export function playAudioFile(audioPath: string): Promise<void> {
 	return new Promise((resolve, reject) => {
 		try {
 			// Use ffplay to play audio through system speakers
-			const proc = spawn('ffplay', ['-nodisp', '-autoexit', audioPath], {
-				stdio: ['ignore', 'pipe', 'pipe'],
+			const proc = spawn("ffplay", ["-nodisp", "-autoexit", audioPath], {
+				stdio: ["ignore", "pipe", "pipe"],
 				detached: false,
 			});
 
-			proc.on('close', (code) => {
+			proc.on("close", (code) => {
 				if (code === 0) {
 					resolve();
 				} else {
@@ -178,7 +180,7 @@ export function playAudioFile(audioPath: string): Promise<void> {
 				}
 			});
 
-			proc.on('error', (err) => {
+			proc.on("error", (err) => {
 				reject(new Error(`Error running ffplay: ${err.message}`));
 			});
 		} catch (error) {
@@ -189,20 +191,20 @@ export function playAudioFile(audioPath: string): Promise<void> {
 
 export function doExec(command: string, throwOnError = true): string {
 	try {
-		const stdout = execSync(command, { encoding: 'utf8', stdio: 'pipe' }).toString();
+		const stdout = execSync(command, { encoding: "utf8", stdio: "pipe" }).toString();
 		return stdout.trim();
 	} catch (error) {
-		let stderr = '';
-		if (error && typeof error === 'object' && 'stderr' in error && error.stderr) {
+		let stderr = "";
+		if (error && typeof error === "object" && "stderr" in error && error.stderr) {
 			stderr = String(error.stderr);
 		}
 		console.error(stderr);
-		if (throwOnError) throw (error);
-		return '';
+		if (throwOnError) throw error;
+		return "";
 	}
 }
 
 export function doSpawn(command: string) {
-	const captureProc = spawn(command, { shell: true, detached: true, stdio: 'ignore' });
+	const captureProc = spawn(command, { shell: true, detached: true, stdio: "ignore" });
 	captureProc.unref();
 }

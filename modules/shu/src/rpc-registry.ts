@@ -1,9 +1,6 @@
 import { SseClient } from "./sse-client.js";
 import { getConcernCatalog, setConcernCatalog } from "./rels-cache.js";
-import {
-	ConcernCatalogSchema,
-	type TConcernCatalog,
-} from "@haibun/core/lib/hypermedia.js";
+import { ConcernCatalogSchema, type TConcernCatalog } from "@haibun/core/lib/hypermedia.js";
 import { z } from "zod";
 
 export type StepDescriptor = {
@@ -45,10 +42,7 @@ const StepDescriptorSchema = z
 		stepperName: z.string().min(1),
 		stepName: z.string().min(1),
 		pattern: z.string().min(1),
-		params: z.record(
-			z.string(),
-			z.union([z.literal("string"), z.literal("number")]),
-		),
+		params: z.record(z.string(), z.union([z.literal("string"), z.literal("number")])),
 		paramDomains: z.record(z.string(), z.string()).optional(),
 		capability: z.string().optional(),
 		inputSchema: z.record(z.string(), z.unknown()).optional(),
@@ -84,35 +78,23 @@ export async function getAvailableSteps(): Promise<StepDescriptor[]> {
 	return steps;
 }
 
-export async function getAvailableDomains(): Promise<
-	Record<string, DomainInfo>
-> {
+export async function getAvailableDomains(): Promise<Record<string, DomainInfo>> {
 	if (cachedDomains) return cachedDomains;
 	const { domains } = await getStepList();
 	return domains;
 }
 
 /** Build selectable domain options. Vertex domains (those with vertexLabel) are selectable. */
-export function buildDomainOptions(
-	domains: Record<string, DomainInfo>,
-): DomainOption[] {
+export function buildDomainOptions(domains: Record<string, DomainInfo>): DomainOption[] {
 	const concerns = getConcernCatalog();
 
 	return Object.values(concerns.vertices).map((vertex) => {
 		const v = vertex as { label: unknown; domainKey: string };
-		if (typeof v.label !== "string")
-			throw new Error(
-				`Concern label for domain ${v.domainKey} must be a string`,
-			);
+		if (typeof v.label !== "string") throw new Error(`Concern label for domain ${v.domainKey} must be a string`);
 		if (/^\s*\[.*\]\s*$/.test(v.label))
-			throw new Error(
-				`Concern label for domain ${v.domainKey} looks like a stringified array: ${v.label}`,
-			);
+			throw new Error(`Concern label for domain ${v.domainKey} looks like a stringified array: ${v.label}`);
 		const info = domains[v.domainKey];
-		if (!info)
-			throw new Error(
-				`step.list domain missing for concern domainKey: ${v.domainKey}`,
-			);
+		if (!info) throw new Error(`step.list domain missing for concern domainKey: ${v.domainKey}`);
 		return {
 			key: v.domainKey,
 			queryLabel: v.label,
@@ -166,9 +148,7 @@ async function discover(): Promise<StepListResponse> {
 	setConcernCatalog(concerns);
 	for (const [label, vertex] of Object.entries(concerns.vertices)) {
 		if (/^\s*\[.*\]\s*$/.test(vertex.label))
-			throw new Error(
-				`step.list concern ${label} has stringified-array label: ${vertex.label}`,
-			);
+			throw new Error(`step.list concern ${label} has stringified-array label: ${vertex.label}`);
 	}
 	cachedSteps = steps;
 	cachedDomains = domains;
@@ -181,10 +161,7 @@ export function findStep(name: string): StepDescriptor | undefined {
 
 export function requireStep(name: string): string {
 	const step = findStep(name);
-	if (!step)
-		throw new Error(
-			`Step "${name}" not found in registry. Call getAvailableSteps() first.`,
-		);
+	if (!step) throw new Error(`Step "${name}" not found in registry. Call getAvailableSteps() first.`);
 	return step.method;
 }
 
@@ -204,13 +181,7 @@ export function stepsForContext(label: string): StepDescriptor[] {
 	}
 	return cachedSteps.filter((step) => {
 		// Match by param domain
-		if (
-			step.paramDomains &&
-			Object.values(step.paramDomains).some((domain) =>
-				contextDomains.has(domain),
-			)
-		)
-			return true;
+		if (step.paramDomains && Object.values(step.paramDomains).some((domain) => contextDomains.has(domain))) return true;
 		// Match by step pattern containing the label (e.g., "list contacts", "get contact")
 		if (step.pattern.toLowerCase().includes(lc)) return true;
 		return false;

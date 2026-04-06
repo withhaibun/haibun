@@ -1,8 +1,8 @@
-import { Volume, IFs, DirectoryJSON } from 'memfs';
+import { Volume, IFs, DirectoryJSON } from "memfs";
 
-import { AStorage } from '@haibun/domain-storage/AStorage.js';
-import { IFile } from '@haibun/domain-storage/domain-storage.js';
-import { TAnyFixme } from '@haibun/core/lib/fixme.js';
+import { AStorage } from "@haibun/domain-storage/AStorage.js";
+import { IFile } from "@haibun/domain-storage/domain-storage.js";
+import { TAnyFixme } from "@haibun/core/lib/fixme.js";
 
 export default class StorageMem extends AStorage {
 	static BASE_FS: DirectoryJSON = {};
@@ -30,14 +30,14 @@ export default class StorageMem extends AStorage {
 		return Promise.resolve(<IFile>ifile);
 	}
 	debug(where: string) {
-		console.debug('StorageMem debug:', where || process.cwd(), JSON.stringify(this.volume.toJSON(), null, 2));
+		console.debug("StorageMem debug:", where || process.cwd(), JSON.stringify(this.volume.toJSON(), null, 2));
 	}
 	readdir = (dir: string) => {
 		try {
 			const ret = this.volume.readdirSync(dir).map((i) => i.toString());
 			return Promise.resolve(ret);
 		} catch (e) {
-			console.error('StorageMem readdir failed', dir, JSON.stringify(this.volume, null, 2), e);
+			console.error("StorageMem readdir failed", dir, JSON.stringify(this.volume, null, 2), e);
 			throw e;
 		}
 	};
@@ -48,5 +48,5 @@ export default class StorageMem extends AStorage {
 
 	rm = (file: string) => {
 		this.volume.unlinkSync(file);
-	}
+	};
 }

@@ -1,27 +1,25 @@
-import { z } from 'zod';
-import type { IStepperCycles, TDomainDefinition, TEndFeature, TFeatureStep } from '../lib/defs.js';
-import { OK } from '../schema/protocol.js';
-import { AStepper, type IHasCycles } from '../lib/astepper.js';
-import { actionNotOK, actionOKWithProducts } from '../lib/util/index.js';
-import {
-	ZCAP_LIKE_AUTHORITY,
-	ZcapLikeAuthority,
-	type IZcapLikeAuthority,
-} from '../lib/zcap-like-authority.js';
+import { z } from "zod";
+import type { IStepperCycles, TDomainDefinition, TEndFeature, TFeatureStep } from "../lib/defs.js";
+import { OK } from "../schema/protocol.js";
+import { AStepper, type IHasCycles } from "../lib/astepper.js";
+import { actionNotOK, actionOKWithProducts } from "../lib/util/index.js";
+import { ZCAP_LIKE_AUTHORITY, ZcapLikeAuthority, type IZcapLikeAuthority } from "../lib/zcap-like-authority.js";
 
-const ZCAP_LIKE_TOKEN_DOMAIN = 'zcap-like-token';
-const ZCAP_LIKE_CAPABILITY_DOMAIN = 'zcap-like-capability';
+const ZCAP_LIKE_TOKEN_DOMAIN = "zcap-like-token";
+const ZCAP_LIKE_CAPABILITY_DOMAIN = "zcap-like-capability";
 
-const zcapLikeTokenSchema = z.string()
-	.min(1, 'token is required')
-	.regex(/^\S+$/, 'token must not contain whitespace')
-	.describe('Opaque bearer token used to look up delegated zcap-like capabilities.');
+const zcapLikeTokenSchema = z
+	.string()
+	.min(1, "token is required")
+	.regex(/^\S+$/, "token must not contain whitespace")
+	.describe("Opaque bearer token used to look up delegated zcap-like capabilities.");
 
-const zcapLikeCapabilitySchema = z.string()
-	.min(1, 'capability is required')
-	.refine((value) => value === '*' || value.includes(':'), 'capability must be * or namespaced like Stepper:scope')
-	.regex(/^\S+$/, 'capability must not contain whitespace')
-	.describe('Delegated capability label such as GraphStepper:read or Namespace:*.');
+const zcapLikeCapabilitySchema = z
+	.string()
+	.min(1, "capability is required")
+	.refine((value) => value === "*" || value.includes(":"), "capability must be * or namespaced like Stepper:scope")
+	.regex(/^\S+$/, "capability must not contain whitespace")
+	.describe("Delegated capability label such as GraphStepper:read or Namespace:*.");
 
 const zcapLikeGrantSchema = z.object({
 	token: zcapLikeTokenSchema,
@@ -37,17 +35,17 @@ const zcapLikeDomains: TDomainDefinition[] = [
 	{
 		selectors: [ZCAP_LIKE_TOKEN_DOMAIN],
 		schema: zcapLikeTokenSchema,
-		description: 'Opaque bearer token used by the zcap-like authority.',
+		description: "Opaque bearer token used by the zcap-like authority.",
 	},
 	{
 		selectors: [ZCAP_LIKE_CAPABILITY_DOMAIN],
 		schema: zcapLikeCapabilitySchema,
-		description: 'Namespaced capability label delegated by the zcap-like authority.',
+		description: "Namespaced capability label delegated by the zcap-like authority.",
 	},
 ];
 
 class ZcapLikeStepper extends AStepper implements IHasCycles {
-	description = 'Manage zcap-like bearer grants for protected step dispatch';
+	description = "Manage zcap-like bearer grants for protected step dispatch";
 
 	private authority?: IZcapLikeAuthority;
 
@@ -76,10 +74,7 @@ class ZcapLikeStepper extends AStepper implements IHasCycles {
 				capability: zcapLikeCapabilitySchema,
 				revoked: z.boolean(),
 			}),
-			action: (
-				{ token, capability }: { token: string; capability: string },
-				featureStep: TFeatureStep,
-			) => {
+			action: ({ token, capability }: { token: string; capability: string }, featureStep: TFeatureStep) => {
 				const grant = this.getAuthority().issueBearerGrant({
 					token,
 					capability,
@@ -108,13 +103,11 @@ class ZcapLikeStepper extends AStepper implements IHasCycles {
 			},
 		},
 		showZcapLikeBearerGrants: {
-			exact: 'show zcap-like bearer grants',
+			exact: "show zcap-like bearer grants",
 			outputSchema: z.object({ grants: z.array(zcapLikeGrantSchema) }),
 			action: () => {
 				const grants = this.getAuthority().listBearerGrants();
-				this.getWorld().eventLogger.info(
-					JSON.stringify(grants, null, 2),
-				);
+				this.getWorld().eventLogger.info(JSON.stringify(grants, null, 2));
 				return actionOKWithProducts({ grants });
 			},
 		},
@@ -122,7 +115,7 @@ class ZcapLikeStepper extends AStepper implements IHasCycles {
 
 	private getAuthority(): IZcapLikeAuthority {
 		if (!this.authority) {
-			throw new Error('ZcapLikeStepper authority not initialized');
+			throw new Error("ZcapLikeStepper authority not initialized");
 		}
 		return this.authority;
 	}

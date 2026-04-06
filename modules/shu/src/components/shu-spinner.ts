@@ -31,9 +31,7 @@ export class ShuSpinner extends HTMLElement {
 
 	/** Flash the dot to signal activity. */
 	pulse(): void {
-		const dot =
-			this._dot ??
-			(this.shadowRoot?.querySelector(".spinner-dot") as HTMLElement | null);
+		const dot = this._dot ?? (this.shadowRoot?.querySelector(".spinner-dot") as HTMLElement | null);
 		if (!dot) return;
 		this._dot = dot;
 		dot.classList.remove("pulse");
@@ -45,9 +43,7 @@ export class ShuSpinner extends HTMLElement {
 	set visible(show: boolean) {
 		this._visible = show;
 		if (this.shadowRoot) {
-			const container = this.shadowRoot.querySelector(
-				".spinner-container",
-			) as HTMLElement | null;
+			const container = this.shadowRoot.querySelector(".spinner-container") as HTMLElement | null;
 			if (container) container.style.display = show ? "flex" : "none";
 		}
 	}
@@ -58,9 +54,7 @@ export class ShuSpinner extends HTMLElement {
 
 	set spinning(spin: boolean) {
 		this._spinning = spin;
-		const dot =
-			this._dot ??
-			(this.shadowRoot?.querySelector(".spinner-dot") as HTMLElement | null);
+		const dot = this._dot ?? (this.shadowRoot?.querySelector(".spinner-dot") as HTMLElement | null);
 		if (dot) {
 			this._dot = dot;
 			dot.style.animation = spin ? "" : "none";
@@ -73,8 +67,7 @@ export class ShuSpinner extends HTMLElement {
 
 	connectedCallback(): void {
 		if (this.hasAttribute("visible")) this._visible = true;
-		if (this.hasAttribute("status"))
-			this._status = this.getAttribute("status") || "";
+		if (this.hasAttribute("status")) this._status = this.getAttribute("status") || "";
 		this.render();
 	}
 

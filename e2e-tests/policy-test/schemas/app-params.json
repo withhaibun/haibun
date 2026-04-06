@@ -1,50 +1,47 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "allOf": [
-    {
-      "$ref": "../../../modules/core/haibun-core-specl.schema.json"
-    }
-  ],
-  "properties": {
-    "appParameters": {
-      "type": "object",
-      "properties": {
-        "prod": {
-          "type": "object",
-          "properties": {
-            "BASE_URL": {
-              "type": "string",
-              "format": "uri"
-            },
-            "MAX_TIMEOUT": {
-              "type": "number",
-              "minimum": 5000
-            },
-            "TIMEOUT": {
-              "type": "number",
-              "const": 5000
-            },
-            "THIS_PLACE": {
-              "const": "prod"
-            }
-          },
-          "required": [
-            "BASE_URL",
-            "THIS_PLACE"
-          ]
-        },
-        "local": {
-          "type": "object",
-          "properties": {
-            "BASE_URL": {
-              "const": "http://localhost:8123"
-            },
-            "THIS_PLACE": {
-              "const": "local"
-            }
-          }
-        }
-      }
-    }
-  }
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"allOf": [
+		{
+			"$ref": "../../../modules/core/haibun-core-specl.schema.json"
+		}
+	],
+	"properties": {
+		"appParameters": {
+			"type": "object",
+			"properties": {
+				"prod": {
+					"type": "object",
+					"properties": {
+						"BASE_URL": {
+							"type": "string",
+							"format": "uri"
+						},
+						"MAX_TIMEOUT": {
+							"type": "number",
+							"minimum": 5000
+						},
+						"TIMEOUT": {
+							"type": "number",
+							"const": 5000
+						},
+						"THIS_PLACE": {
+							"const": "prod"
+						}
+					},
+					"required": ["BASE_URL", "THIS_PLACE"]
+				},
+				"local": {
+					"type": "object",
+					"properties": {
+						"BASE_URL": {
+							"const": "http://localhost:8123"
+						},
+						"THIS_PLACE": {
+							"const": "local"
+						}
+					}
+				}
+			}
+		}
+	}
 }

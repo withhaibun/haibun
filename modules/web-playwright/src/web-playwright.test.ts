@@ -1,16 +1,16 @@
-import { describe, it, expect } from 'vitest';
-import path from 'path';
+import { describe, it, expect } from "vitest";
+import path from "path";
 
-import StorageMem from '@haibun/storage-mem';
-import WebPlaywright from './web-playwright.js';
-import { getPackageLocation } from '@haibun/core/lib/util/workspace-lib.js';
+import StorageMem from "@haibun/storage-mem";
+import WebPlaywright from "./web-playwright.js";
+import { getPackageLocation } from "@haibun/core/lib/util/workspace-lib.js";
 
-import { getCreateSteppers, getDefaultWorld } from '@haibun/core/lib/test/lib.js';
+import { getCreateSteppers, getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 
-const me = path.join(getPackageLocation(import.meta).replace(/\/src$/, '/build'), 'web-playwright');
+const me = path.join(getPackageLocation(import.meta).replace(/\/src$/, "/build"), "web-playwright");
 
-describe('playwrightWeb', () => {
-	it('sets up steps', async () => {
+describe("playwrightWeb", () => {
+	it("sets up steps", async () => {
 		const steppers = await getCreateSteppers([me]);
 		expect(Object.keys(steppers[0].steps).length > 0).toBe(true);
 		expect(Object.values(steppers[0].steps).every((s) => !!s.action)).toBe(true);
@@ -33,20 +33,26 @@ describe('playwrightWeb', () => {
 	*/
 });
 
-describe.skip('handles cycles', () => {
-	it('closes browser', async () => {
+describe.skip("handles cycles", () => {
+	it("closes browser", async () => {
 		const wp = new WebPlaywright();
 		wp.storage = new StorageMem();
 		await wp.setWorld(getDefaultWorld(), [wp]);
 		// await wp.steps.takeScreenshot.action();
 		expect(async () => {
 			if (wp.cycles && wp.cycles.endFeature) {
-
-				await wp.cycles.endFeature({ shouldClose: true, isLast: true, okSoFar: true, continueAfterError: false, stayOnFailure: false, thisFeatureOK: true });
+				await wp.cycles.endFeature({
+					shouldClose: true,
+					isLast: true,
+					okSoFar: true,
+					continueAfterError: false,
+					stayOnFailure: false,
+					thisFeatureOK: true,
+				});
 				// await wp.steps.takeScreenshot.action();
 			} else {
-				throw new Error('no cycles');
+				throw new Error("no cycles");
 			}
 		}).not.toThrow();
 	});
-})
+});

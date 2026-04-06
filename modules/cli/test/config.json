@@ -1,8 +1,4 @@
 {
 	"$schema": "../../core/haibun-core-specl.schema.json",
-	"steppers": [
-		"variables-stepper",
-		"debugger-stepper",
-		"haibun"
-	]
+	"steppers": ["variables-stepper", "debugger-stepper", "haibun"]
 }
