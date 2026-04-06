@@ -4,8 +4,21 @@ import { TTag } from "./ttag.js";
 import { FeatureVariables } from "./feature-variables.js";
 import { Prompter } from "./prompter.js";
 import { IEventLogger } from "./EventLogger.js";
-import { z, type ZodTypeAny } from "zod";
-import { ExecutionIntent, TSeqPath, TStepResult, TFeatureResult, TExecutorResult, TStepArgs, TStepValueValue, TStepValue, Timer, THaibunEvent, TActionResult, CONTINUE_AFTER_ERROR, } from "../schema/protocol.js";
+import { z } from "zod";
+import {
+	ExecutionIntent,
+	TSeqPath,
+	TStepResult,
+	TFeatureResult,
+	TExecutorResult,
+	TStepArgs,
+	TStepValueValue,
+	TStepValue,
+	Timer,
+	THaibunEvent,
+	TActionResult,
+	CONTINUE_AFTER_ERROR,
+} from "../schema/protocol.js";
 
 // ============================================================================
 // Core Execution World
@@ -76,15 +89,13 @@ export type TRemoteStepper = z.infer<typeof RemoteStepperSchema>;
 export const StepperEntrySchema = z.union([z.string(), RemoteStepperSchema]);
 export type TStepperEntry = z.infer<typeof StepperEntrySchema>;
 
-export const SpeclSchema = z
-	.object({
-		$schema: z.string().optional(),
-		steppers: z.array(StepperEntrySchema),
-		runPolicy: z.string().optional(),
-		appParameters: z.record(z.string(), z.record(z.string(), z.unknown())).optional(),
-		options: z.record(z.string(), z.unknown()).optional(),
-	})
-	.passthrough();
+export const SpeclSchema = z.looseObject({
+	$schema: z.string().optional(),
+	steppers: z.array(StepperEntrySchema),
+	runPolicy: z.string().optional(),
+	appParameters: z.record(z.string(), z.record(z.string(), z.unknown())).optional(),
+	options: z.record(z.string(), z.unknown()).optional(),
+});
 
 export type TSpecl = z.infer<typeof SpeclSchema>;
 
@@ -181,7 +192,15 @@ type TStepperStepBase = {
 	match?: RegExp;
 	gwta?: string;
 	exact?: string;
-	resolveFeatureLine?(line: string, path: string, stepper: AStepper, backgrounds: TFeatures, allLines?: string[], lineIndex?: number, actualSourcePath?: string): boolean | void;
+	resolveFeatureLine?(
+		line: string,
+		path: string,
+		stepper: AStepper,
+		backgrounds: TFeatures,
+		allLines?: string[],
+		lineIndex?: number,
+		actualSourcePath?: string,
+	): boolean | void;
 };
 
 /** Step that declares an output schema — action MUST return products on success. */
@@ -199,7 +218,7 @@ type TStepperStepPlain = TStepperStepBase & {
 export type TStepperStep = TStepperStepWithProducts | TStepperStepPlain;
 
 export interface CStepper {
-	new(): AStepper;
+	new (): AStepper;
 }
 
 export interface IStepperWhen {
@@ -291,9 +310,27 @@ export const LinkRelations = {
 /** Domain name for vertex type labels — auto-populated from registered vertex domains. */
 export const DOMAIN_VERTEX_LABEL = "vertex-label";
 
-/** Check if a rel or edge type is a relation (conversational/threading link). */
-export function isRelationRel(relOrEdgeType: string): boolean {
-	return Object.values(LinkRelations).some((lr) => lr.rel === relOrEdgeType && lr.relation);
+/** Rel values that are reply-type (derived from LinkRelations entries with relation: true). */
+const relationRels: Set<string> = new Set(
+	Object.values(LinkRelations)
+		.filter((lr) => lr.relation)
+		.map((lr) => lr.rel),
+);
+
+/** Check if a rel value is a reply-type (conversational/threading link). */
+function isRelationRel(rel: string): boolean {
+	return relationRels.has(rel);
+}
+
+/**
+ * Check if an edge type (name or rel) is a reply-type link.
+ * Uses the concern catalog's edge→rel mapping to resolve edge names to their rels.
+ * Falls back to direct rel check if no catalog provided.
+ */
+export function isReplyEdge(edgeType: string, edgeRelMap?: Record<string, string>): boolean {
+	if (isRelationRel(edgeType)) return true;
+	if (edgeRelMap && edgeRelMap[edgeType]) return isRelationRel(edgeRelMap[edgeType]);
+	return false;
 }
 
 export type TRel = (typeof LinkRelations)[keyof typeof LinkRelations]["rel"];
@@ -301,11 +338,13 @@ export type TRel = (typeof LinkRelations)[keyof typeof LinkRelations]["rel"];
 /** Property definition: either a rel string or a rel with mediaType for content fields. */
 export type TPropertyDef = TRel | { rel: TRel; mediaType?: string };
 
-/** Edge definition: semantic rel + target vertex type. */
-export type TEdgeDef = { rel: TRel; target: string };
+/** Edge definition: semantic rel + range (the vertex type the edge points to). */
+export type TEdgeDef = { rel: TRel; range: string };
 
 /** JSON-LD context mapping: rel → standard URI. Derived from LinkRelations. */
-export const REL_CONTEXT: Record<TRel, string> = Object.fromEntries(Object.values(LinkRelations).map(({ rel, uri }) => [rel, uri])) as Record<TRel, string>;
+export const REL_CONTEXT: Record<TRel, string> = Object.fromEntries(
+	Object.values(LinkRelations).map(({ rel, uri }) => [rel, uri]),
+) as Record<TRel, string>;
 
 /** Hypermedia metadata for a vertex domain. One properties map drives everything. */
 export type TVertexMeta = {
@@ -318,6 +357,14 @@ export type TVertexMeta = {
 	propertyIndexes?: string[];
 	/** DB-specific: default sort columns per property. */
 	sortColumns?: Record<string, string>;
+};
+
+/** A vertex returned from graph operations, with routing metadata. */
+export type TVertexResult = Record<string, unknown> & {
+	_id: string;
+	_label?: string;
+	_inReplyTo?: string;
+	_edges?: Array<{ type: string; targetId: string }>;
 };
 
 // --- Derived helpers for consumers ---
@@ -334,7 +381,7 @@ export function getMediaType(def: TPropertyDef): string | undefined {
 
 export type TDomainDefinition = {
 	selectors: string[];
-	schema: ZodTypeAny;
+	schema: z.ZodType;
 	coerce?: TDomainCoercer;
 	comparator?: TDomainComparator;
 	values?: string[];
@@ -347,7 +394,7 @@ export type TDomainDefinition = {
 
 export type TRegisteredDomain = {
 	selectors: string[];
-	schema: ZodTypeAny;
+	schema: z.ZodType;
 	coerce: TDomainCoercer;
 	comparator?: TDomainComparator;
 	values?: string[];
