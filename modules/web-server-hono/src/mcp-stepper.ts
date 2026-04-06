@@ -16,14 +16,7 @@ import type { TWorld } from "@haibun/core/lib/defs.js";
 import { OK } from "@haibun/core/schema/protocol.js";
 import { getFromRuntime, getStepperOption, constructorName, stringOrError } from "@haibun/core/lib/util/index.js";
 import { currentVersion as version } from "@haibun/core/currentVersion.js";
-import {
-	buildStepRegistry,
-	dispatchStep,
-	validateToolInput,
-	buildSyntheticFeatureStep,
-	StepRegistry,
-	type StepTool,
-} from "@haibun/core/lib/step-dispatch.js";
+import { buildStepRegistry, dispatchStep, validateToolInput, buildSyntheticFeatureStep, StepRegistry, type StepTool } from "@haibun/core/lib/step-dispatch.js";
 import type { IWebServer, Context } from "./defs.js";
 import { WEBSERVER } from "./defs.js";
 import type { IStepTransport } from "./step-transport.js";
@@ -139,11 +132,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 		return await this.callTool(toolDef, args);
 	}
 
-	private async callTool(
-		toolDef: StoredTool,
-		args: Record<string, unknown>,
-		grantedCapability?: string | string[],
-	): Promise<CallToolResult> {
+	private async callTool(toolDef: StoredTool, args: Record<string, unknown>, grantedCapability?: string | string[]): Promise<CallToolResult> {
 		try {
 			return await toolDef.handler(args, grantedCapability);
 		} catch (err: unknown) {
@@ -210,9 +199,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 				const stepperTools = this.stepperToolRegistry.get(targetStepper);
 				if (stepperTools) {
 					await this.updateSessionFocus(sessionId, targetStepper);
-					const toolList = stepperTools
-						.map((t) => `- **${t.name}**: ${t.description}\n  Schema: ${JSON.stringify(t.inputSchema)}`)
-						.join("\n");
+					const toolList = stepperTools.map((t) => `- **${t.name}**: ${t.description}\n  Schema: ${JSON.stringify(t.inputSchema)}`).join("\n");
 					return {
 						content: [
 							{
@@ -228,17 +215,11 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 				const stepName = args["tool"] as string;
 				const stepArgs = (args["arguments"] as Record<string, unknown>) || {};
 				if (!stepName) {
-					throw new McpError(
-						ErrorCode.InvalidParams,
-						'Missing required "tool" parameter. Use access_stepper_* to list available tools.',
-					);
+					throw new McpError(ErrorCode.InvalidParams, 'Missing required "tool" parameter. Use access_stepper_* to list available tools.');
 				}
 				const toolDef = this.globalToolRegistry.get(stepName);
 				if (!toolDef) {
-					throw new McpError(
-						ErrorCode.MethodNotFound,
-						`Tool "${stepName}" not found. Use access_stepper_* to list available tools.`,
-					);
+					throw new McpError(ErrorCode.MethodNotFound, `Tool "${stepName}" not found. Use access_stepper_* to list available tools.`);
 				}
 				return await this.callTool(toolDef, stepArgs, grantedCapability);
 			}
@@ -305,9 +286,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 		// 1. Check McpStepper options (highest priority)
 		const myPortOpt = getStepperOption(this, "PORT", this.getWorld().moduleOptions);
 		// 2. Check WebServerStepper options
-		const wsPortOpt = (this.getWorld().moduleOptions as unknown as Record<string, Record<string, unknown> | undefined>)?.[
-			"WebServerStepper"
-		]?.["PORT"];
+		const wsPortOpt = (this.getWorld().moduleOptions as unknown as Record<string, Record<string, unknown> | undefined>)?.["WebServerStepper"]?.["PORT"];
 		// 3. Check Environment variable
 		const envPort = process.env["HAIBUN_O_WEBSERVERSTEPPER_PORT"];
 
@@ -359,12 +338,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 
 	private async notifyToolListChanged(sessionId: string | ConnectionId) {
 		// Basic check if we can notify
-		if (
-			sessionId &&
-			typeof sessionId !== "string" &&
-			"send" in sessionId &&
-			typeof (sessionId as { send?: unknown }).send === "function"
-		) {
+		if (sessionId && typeof sessionId !== "string" && "send" in sessionId && typeof (sessionId as { send?: unknown }).send === "function") {
 			if (this.mcpServer) {
 				await this.mcpServer.server.notification({
 					method: "notifications/tools/list_changed",
@@ -408,9 +382,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 	private populateToolRegistries(registry?: StepRegistry) {
 		if (registry) this.currentRegistry = registry;
 		// Build schema map — use provided registry if available (live refresh), otherwise build fresh
-		const schemaMap = this.currentRegistry
-			? new Map(this.currentRegistry.list().map((t) => [t.name, t]))
-			: buildStepRegistry(this.steppers, this.world);
+		const schemaMap = this.currentRegistry ? new Map(this.currentRegistry.list().map((t) => [t.name, t])) : buildStepRegistry(this.steppers, this.world);
 
 		this.globalToolRegistry.clear();
 		this.stepperToolRegistry.clear();
@@ -444,10 +416,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 						const seqPath: number[] = [0, (world.runtime.adHocSeq = (world.runtime.adHocSeq ?? 0) + 1)];
 						const validatedParams = validateToolInput(stepTool, input, world);
 						const featureStep = buildSyntheticFeatureStep(stepTool, validatedParams, seqPath);
-						const hr = await dispatchStep(
-							{ registry: this.getOrCreateRegistry(), world, steppers: this.steppers, grantedCapability },
-							featureStep,
-						);
+						const hr = await dispatchStep({ registry: this.getOrCreateRegistry(), world, steppers: this.steppers, grantedCapability }, featureStep);
 						if (!hr.ok) {
 							return { isError: true, content: [{ type: "text", text: hr.errorMessage ?? "Step failed" }] };
 						}
@@ -461,14 +430,10 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 		}
 	}
 
-	private getGrantedCapability(extra: {
-		requestInfo?: { headers?: Record<string, string | string[] | undefined> };
-	}): string[] | undefined {
+	private getGrantedCapability(extra: { requestInfo?: { headers?: Record<string, string | string[] | undefined> } }): string[] | undefined {
 		const headers = extra.requestInfo?.headers;
 		if (!headers) return undefined;
-		const normalizedHeaders = Object.fromEntries(
-			Object.entries(headers).map(([key, value]) => [key, Array.isArray(value) ? value[0] : value]),
-		);
+		const normalizedHeaders = Object.fromEntries(Object.entries(headers).map(([key, value]) => [key, Array.isArray(value) ? value[0] : value]));
 		return getGrantedCapabilityFromHeaders(normalizedHeaders, this.getWorld().runtime, {
 			accessToken: this.accessToken || undefined,
 			accessCapability: this.accessCapability || undefined,

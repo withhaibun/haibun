@@ -87,12 +87,7 @@ export abstract class AStorage extends AStepper {
 	 * @param mediaType - Media type for proper handling
 	 * @param subpath - Optional subdirectory (e.g., 'image', 'video')
 	 */
-	async saveArtifact(
-		filename: string,
-		contents: string | Buffer,
-		mediaType: TMediaType,
-		subpath?: string,
-	): Promise<TSavedArtifact> {
+	async saveArtifact(filename: string, contents: string | Buffer, mediaType: TMediaType, subpath?: string): Promise<TSavedArtifact> {
 		const loc = { ...this.world, mediaType };
 		const dir = await this.ensureCaptureLocation(loc, subpath);
 		const absolutePath = resolve(dir, filename);
@@ -165,9 +160,7 @@ export abstract class AStorage extends AStepper {
 			gwta: `text at {where} contains {what}`,
 			action: async ({ where, what }: TStepArgs) => {
 				const text = await this.readFile(String(where), "utf-8");
-				return text.toString().indexOf(String(what)) > -1
-					? OK
-					: actionNotOK(`text at ${where} does not contain ${what}; it's ${text}`);
+				return text.toString().indexOf(String(what)) > -1 ? OK : actionNotOK(`text at ${where} does not contain ${what}; it's ${text}`);
 			},
 		},
 		testNotContains: {
@@ -197,9 +190,7 @@ export abstract class AStorage extends AStepper {
 			action: ({ what, where }: TStepArgs) => {
 				const c1 = this.readFile(String(what), "binary");
 				const c2 = this.readFile(String(where), "binary");
-				return Buffer.from(c1 as string)?.equals(Buffer.from(c2 as string))
-					? OK
-					: actionNotOK(`contents are not the same ${what} ${where}`);
+				return Buffer.from(c1 as string)?.equals(Buffer.from(c2 as string)) ? OK : actionNotOK(`contents are not the same ${what} ${where}`);
 			},
 		},
 		readFileInto: {

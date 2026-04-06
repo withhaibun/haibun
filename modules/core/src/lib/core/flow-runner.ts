@@ -86,10 +86,7 @@ export class FlowRunner {
 		};
 
 		try {
-			const result: TStepResult = await dispatchStep(
-				{ registry: this.registry, world: this.world, steppers: this.steppers },
-				featureStep,
-			);
+			const result: TStepResult = await dispatchStep({ registry: this.registry, world: this.world, steppers: this.steppers }, featureStep);
 			return result;
 		} catch (e: unknown) {
 			if (intent.mode === "speculative") {
@@ -111,10 +108,7 @@ export class FlowRunner {
 		return lastResult;
 	}
 
-	async runSteps(
-		steps: TFeatureStep[],
-		options: { intent?: ExecutionIntent; parentStep?: TFeatureStep } = {},
-	): Promise<TActionResult> {
+	async runSteps(steps: TFeatureStep[], options: { intent?: ExecutionIntent; parentStep?: TFeatureStep } = {}): Promise<TActionResult> {
 		const { intent = { mode: "authoritative" }, parentStep } = options;
 		let lastResult: TActionResult = { ok: true };
 

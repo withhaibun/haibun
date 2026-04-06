@@ -64,9 +64,7 @@ describe("validate map steps", () => {
 	});
 	describe("gwta regex", () => {
 		test("gwta", async () => {
-			const features = asExpandedFeatures([
-				{ path: "l1", content: `gwta2\nGiven I'm gwta3\nWhen I am gwta4\ngwta5\nThen the gwta6` },
-			]);
+			const features = asExpandedFeatures([{ path: "l1", content: `gwta2\nGiven I'm gwta3\nWhen I am gwta4\ngwta5\nThen the gwta6` }]);
 			const res = await getResolvedSteps(features);
 			const { featureSteps } = res[0] as TResolvedFeature;
 			// gwta pattern using regex groups directly uses empty stepValuesMap

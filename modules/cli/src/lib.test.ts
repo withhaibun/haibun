@@ -23,9 +23,7 @@ describe("usageThenExit", () => {
 	});
 	it("exits with error code 1", async () => {
 		vitest.spyOn(process, "exit").mockImplementationOnce(expectExitAndThrow(1));
-		await expect(lib.usageThenExit({ ...getDefaultOptions(), steppers: [] }, "Test Error Message")).rejects.toThrow(
-			"exit with code 1",
-		);
+		await expect(lib.usageThenExit({ ...getDefaultOptions(), steppers: [] }, "Test Error Message")).rejects.toThrow("exit with code 1");
 	});
 });
 
@@ -138,9 +136,7 @@ describe("runCli", () => {
 
 	it("runs a kireji test with outcomes", async () => {
 		vitest.spyOn(process, "exit").mockImplementationOnce(expectExitAndThrow(0));
-		await expect(lib.runCli(s("--config modules/cli/test/kireji-outcomes modules/cli/test/kireji-outcomes"), {})).rejects.toThrow(
-			"exit with code 0",
-		);
+		await expect(lib.runCli(s("--config modules/cli/test/kireji-outcomes modules/cli/test/kireji-outcomes"), {})).rejects.toThrow("exit with code 0");
 	});
 });
 

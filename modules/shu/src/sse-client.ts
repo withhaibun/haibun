@@ -109,12 +109,7 @@ export class SseClient {
 	}
 
 	/** Streaming RPC call — reads NDJSON chunks from the HTTP response stream. */
-	async rpcStream(
-		method: string,
-		params: Record<string, unknown>,
-		onChunk: (data: unknown) => void,
-		signal?: AbortSignal,
-	): Promise<void> {
+	async rpcStream(method: string, params: Record<string, unknown>, onChunk: (data: unknown) => void, signal?: AbortSignal): Promise<void> {
 		const id = nextId();
 		const res = await fetch(`${this.basePath}/rpc/${method}`, {
 			method: "POST",

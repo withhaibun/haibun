@@ -35,11 +35,7 @@ describe("feature finding", () => {
 		);
 	});
 	test("finds fileType", () => {
-		const res = steps.findFeatures(
-			"l1",
-			asFeatures([...features, { path: "/l1/l1.mytype.feature", content: "l1_l1_mytype.feature" }]),
-			"mytype",
-		);
+		const res = steps.findFeatures("l1", asFeatures([...features, { path: "/l1/l1.mytype.feature", content: "l1_l1_mytype.feature" }]), "mytype");
 		expect(res).toEqual(asFeatures([{ path: "/l1/l1.mytype.feature", content: "l1_l1_mytype.feature" }]));
 	});
 });
@@ -96,17 +92,17 @@ describe("env vars", () => {
 			options: { DEST: DEFAULT_DEST, envVariables },
 			moduleOptions: {},
 		});
-		expect(world.shared.get("x")).toBe("env");
+		expect(await world.shared.get("x")).toBe("env");
 	});
 	it("env or var or literal finds var", async () => {
 		const feature = { path: "/features/test.feature", content: `set what to "var"\nset x to what` };
 		const { world } = await passWithDefaults([feature], varsStepper);
-		expect(world.shared.get("x")).toBe("var");
+		expect(await world.shared.get("x")).toBe("var");
 	});
 	it("env or var or literal does not fallthrough to literal", async () => {
 		const feature = { path: "/features/test.feature", content: `set x to what` };
 		const { world } = await failWithDefaults([feature], varsStepper);
-		expect(world.shared.get("x")).toBeUndefined();
+		expect(await world.shared.get("x")).toBeUndefined();
 	});
 });
 

@@ -40,13 +40,7 @@ class A11yStepper extends AStepper implements IHasOptions {
 				if (!page) {
 					return actionNotOK(`no page in runtime`);
 				}
-				return await this.checkA11y(
-					page,
-					parseInt(serious, 10),
-					parseInt(moderate, 10),
-					`a11y-check-${featureStep.seqPath.join(".")}`,
-					featureStep,
-				);
+				return await this.checkA11y(page, parseInt(serious, 10), parseInt(moderate, 10), `a11y-check-${featureStep.seqPath.join(".")}`, featureStep);
 			},
 		},
 	} satisfies TStepperSteps;

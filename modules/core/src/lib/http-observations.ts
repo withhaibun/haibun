@@ -43,9 +43,7 @@ export function trackHttpRequest(world: TWorld, observation: THttpRequestObserva
 	if (!world.runtime.observations) {
 		world.runtime.observations = new Map();
 	}
-	const requests =
-		(world.runtime.observations.get("httpRequests") as Map<string, THttpRequestObservation>) ||
-		new Map<string, THttpRequestObservation>();
+	const requests = (world.runtime.observations.get("httpRequests") as Map<string, THttpRequestObservation>) || new Map<string, THttpRequestObservation>();
 	const count = requests.size;
 	const id = `req-${count + 1}`;
 	requests.set(id, observation);

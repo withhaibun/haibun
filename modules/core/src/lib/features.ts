@@ -2,13 +2,7 @@ import { TExpandedFeature, TExpandedLine, TFeature, TFeatures } from "./defs.js"
 import { getActionable } from "./util/index.js";
 import { TEST_BASE } from "../schema/protocol.js";
 
-export async function expand({
-	features,
-	backgrounds,
-}: {
-	features: TFeatures;
-	backgrounds: TFeatures;
-}): Promise<TExpandedFeature[]> {
+export async function expand({ features, backgrounds }: { features: TFeatures; backgrounds: TFeatures }): Promise<TExpandedFeature[]> {
 	const expandedFeatures = await expandFeatures(features, backgrounds);
 	return expandedFeatures;
 }
