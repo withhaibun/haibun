@@ -2,9 +2,8 @@ import { vitest, describe, it, expect, vi } from "vitest";
 import { afterEach } from "node:test";
 
 vitest.useFakeTimers();
-import { Timer, CAPTURE, DEFAULT_DEST, OK, Origin, TStepArgs } from "@haibun/core/schema/protocol.js";
+import { Timer, CAPTURE, DEFAULT_DEST, OK, TStepArgs } from "@haibun/core/schema/protocol.js";
 import { getDefaultWorld, getTestWorldWithOptions } from "@haibun/core/lib/test/lib.js";
-import { TFeatureStep } from "@haibun/core/lib/defs.js";
 import StorageMem from "./storage-mem.js";
 import { EMediaTypes } from "@haibun/domain-storage/media-types.js";
 import { TAnyFixme } from "@haibun/core/lib/fixme.js";
@@ -108,19 +107,14 @@ describe("mem getCaptureLocation", () => {
 });
 
 describe("AStorage steppers", () => {
-	it("readFileInto sets a variable", async () => {
+	it("readFile returns contents as products", async () => {
 		const storageMem = new StorageMem();
 		const world = getDefaultWorld();
 		storageMem.setWorld(world, []);
 		storageMem.volume.writeFileSync("/test.txt", "hello world");
-		const featureStep = {
-			in: 'read file "/test.txt" into testVar',
-			seqPath: [1, 1, 1],
-			action: { stepperName: "StorageMem", actionName: "readFileInto" },
-		} as TFeatureStep;
-		const res = await storageMem.steps.readFileInto?.action({ where: "/test.txt", what: "testVar" }, featureStep);
-		expect(res).toEqual(OK);
-		expect((await world.shared.resolveVariable({ term: "testVar", origin: Origin.var })).value).toEqual("hello world");
+		const res = await storageMem.steps.readFile?.action({ where: "/test.txt" } as TStepArgs);
+		expect(res.ok).toBe(true);
+		expect(res.products?.contents).toEqual("hello world");
 	});
 
 	it("fileIsRecent verifies file age", async () => {
