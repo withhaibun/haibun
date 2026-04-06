@@ -2,27 +2,17 @@ import { AStepper } from "./astepper.js";
 import { TFeatureStep, TWorld } from "./defs.js";
 import { TStepArgs } from "../schema/protocol.js";
 
-export function populateActionArgs(featureStep: TFeatureStep, world: TWorld, steppers: AStepper[]): TStepArgs {
+export async function populateActionArgs(featureStep: TFeatureStep, world: TWorld, steppers: AStepper[]): Promise<TStepArgs> {
 	const stepArgs: TStepArgs = {};
 	if (!featureStep?.action?.stepValuesMap) return stepArgs;
 
 	for (const [name, actionVal] of Object.entries(featureStep.action.stepValuesMap)) {
-		const resolved = world.shared.resolveVariable(actionVal, featureStep, steppers, { secure: true });
-		// FIXME all steps except set steps should fail if a variable is undefined and it's authoritative
+		const resolved = await world.shared.resolveVariable(actionVal, featureStep, steppers, { secure: true });
 		if (resolved.value === undefined) {
 			const handlesUndefined = featureStep.action.step.handlesUndefined;
-			if (handlesUndefined === true || handlesUndefined?.includes(name)) {
-				continue;
-			}
-			console.error(
-				`undefined ${name} in "${featureStep.in}" for ${featureStep.action.stepperName}.${featureStep.action.actionName}`,
-				name,
-				resolved,
-				featureStep.action.step,
-			);
-			throw Error(
-				`undefined ${name} in "${featureStep.in}" for ${featureStep.action.stepperName}.${featureStep.action.actionName}`,
-			);
+			if (handlesUndefined === true || handlesUndefined?.includes(name)) continue;
+			console.error(`undefined ${name} in "${featureStep.in}" for ${featureStep.action.stepperName}.${featureStep.action.actionName}`, name, resolved, featureStep.action.step);
+			throw Error(`undefined ${name} in "${featureStep.in}" for ${featureStep.action.stepperName}.${featureStep.action.actionName}`);
 		}
 		stepArgs[name] = resolved.value;
 	}

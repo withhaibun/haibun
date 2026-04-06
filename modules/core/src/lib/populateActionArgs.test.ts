@@ -26,33 +26,33 @@ function makeStep(name: string, label: string, domain: string, origin: Origin): 
 }
 
 describe("populateActionArgs integration", () => {
-	it("resolves statement origin and coerces string", () => {
+	it("resolves statement origin and coerces string", async () => {
 		const step = makeStep("foo", "bar", "string", Origin.statement);
 		const world = getTestWorldWithOptions();
 		const steppers: AStepper[] = [];
-		const args = populateActionArgs(step, world, steppers);
+		const args = await populateActionArgs(step, world, steppers);
 		expect(args.foo).toBe("bar");
 	});
 
-	it("resolves env origin", () => {
+	it("resolves env origin", async () => {
 		const step = makeStep("foo", "ENV_VAR", "string", Origin.env);
 		const world = getTestWorldWithOptions({ options: { DEST: "test", envVariables: { ENV_VAR: "envval" } }, moduleOptions: {} });
 		const steppers: AStepper[] = [];
-		const args = populateActionArgs(step, world, steppers);
+		const args = await populateActionArgs(step, world, steppers);
 		expect(args.foo).toBe("envval");
 	});
 
-	it("throws on missing env variable", () => {
+	it("throws on missing env variable", async () => {
 		const step = makeStep("foo", "NOPE", "string", Origin.env);
 		const world = getTestWorldWithOptions();
 		const steppers: AStepper[] = [];
-		expect(() => populateActionArgs(step, world, steppers)).toThrow();
+		await expect(async () => await populateActionArgs(step, world, steppers)).rejects.toThrow();
 	});
 
-	it("throws on missing domain coercer", () => {
+	it("throws on missing domain coercer", async () => {
 		const step = makeStep("foo", "bar", "notadomain", Origin.statement);
 		const world = getTestWorldWithOptions();
 		const steppers: AStepper[] = [];
-		expect(() => populateActionArgs(step, world, steppers)).toThrow();
+		await expect(async () => await populateActionArgs(step, world, steppers)).rejects.toThrow();
 	});
 });
