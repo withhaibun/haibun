@@ -6,11 +6,10 @@
 import { z } from "zod";
 import { AStepper, type IHasCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import type { THaibunEvent } from "@haibun/core/schema/protocol.js";
-import { actionOKWithProducts, getFromRuntime } from "@haibun/core/lib/util/index.js";
+import { actionOKWithProducts } from "@haibun/core/lib/util/index.js";
 import type { IStepperCycles } from "@haibun/core/lib/defs.js";
 
 const MAX_EVENTS = 10000;
-const TRANSPORT = "transport";
 
 export default class MonitorStepper extends AStepper implements IHasCycles {
 	description = "Buffers execution events for the shu monitor view";
@@ -20,13 +19,6 @@ export default class MonitorStepper extends AStepper implements IHasCycles {
 		onEvent: (event: THaibunEvent) => {
 			this.events.push(event);
 			if (this.events.length > MAX_EVENTS) this.events.shift();
-			// Forward to SSE transport so the SPA receives live events
-			try {
-				const transport = this.getWorld().runtime[TRANSPORT] as { send?: (data: unknown) => void } | undefined;
-				transport?.send?.({ type: "event", event });
-			} catch {
-				/* transport may not be initialized yet */
-			}
 		},
 	};
 
@@ -75,7 +67,10 @@ export default class MonitorStepper extends AStepper implements IHasCycles {
 			action: async () => {
 				const traces = this.events
 					.filter((e) => e.kind === "artifact" && (e as Record<string, unknown>).artifactType === "dispatch-trace")
-					.map((e) => { const t = (e as Record<string, unknown>).trace; return typeof t === "object" && t ? { ...t as Record<string, unknown> } : t; });
+					.map((e) => {
+						const t = (e as Record<string, unknown>).trace;
+						return typeof t === "object" && t ? { ...(t as Record<string, unknown>) } : t;
+					});
 				return actionOKWithProducts({ traces });
 			},
 		},
