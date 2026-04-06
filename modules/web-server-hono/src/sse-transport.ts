@@ -111,7 +111,6 @@ export class SSETransport implements ITransport, IStepTransport {
 	}
 
 	// biome-ignore lint/suspicious/noExplicitAny: event payload
-	// biome-ignore lint/suspicious/noExplicitAny: event payload
 	public send(data: any) {
 		if (data?.type === "init") {
 			this.history = [];

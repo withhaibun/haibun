@@ -38,7 +38,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles {
 		getEvents: {
 			gwta: "get monitor events",
 			outputSchema: z.object({ events: z.array(z.unknown()) }),
-			action: async ({ level, kind, since }: { level?: string; kind?: string; since?: number }) => {
+			action: ({ level, kind, since }: { level?: string; kind?: string; since?: number }) => {
 				let filtered: THaibunEvent[] = this.events;
 				if (level) filtered = filtered.filter((e) => e.level === level);
 				if (kind) filtered = filtered.filter((e) => e.kind === kind);
@@ -64,7 +64,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles {
 		getDispatchTraces: {
 			gwta: "get dispatch traces",
 			outputSchema: z.object({ traces: z.array(z.unknown()) }),
-			action: async () => {
+			action: () => {
 				const traces = this.events
 					.filter((e) => e.kind === "artifact" && (e as Record<string, unknown>).artifactType === "dispatch-trace")
 					.map((e) => {

@@ -119,9 +119,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			const detailRows = Object.entries(fields)
 				.filter(([k]) => !getEdgeTargetLabel(k, vertexLabel) && !summaryFields.has(k))
 				.map(([k, v]) => {
-					const valueHtml = Array.isArray(v)
-						? v.map((item) => this.clickableValue(item, "filter", k)).join(", ")
-						: this.clickableValue(v, "filter", k);
+					const valueHtml = Array.isArray(v) ? v.map((item) => this.clickableValue(item, "filter", k)).join(", ") : this.clickableValue(v, "filter", k);
 					return `<tr>
 					<td class="field-name">${this.clickableValue(k, "describedby")}</td>
 					<td data-testid="entity-field-${escAttr(k)}">${valueHtml}</td>
@@ -142,9 +140,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 						.filter((k) => fields[k] && (Array.isArray(fields[k]) ? (fields[k] as string[]).length > 0 : true))
 						.map((k) => {
 							const v = fields[k];
-							const valueHtml = Array.isArray(v)
-								? v.map((item) => this.clickableValue(item, "filter", k)).join(", ")
-								: this.clickableValue(v, "filter", k);
+							const valueHtml = Array.isArray(v) ? v.map((item) => this.clickableValue(item, "filter", k)).join(", ") : this.clickableValue(v, "filter", k);
 							return `<span class="summary-field" data-testid="entity-field-${escAttr(k)}">${this.clickableValue(k, "describedby")} ${valueHtml}</span>`;
 						})
 						.join(" ")}
@@ -209,10 +205,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			)
 			.join("");
 
-		const inHtml =
-			this.incomingCount > 0
-				? `<a class="section-label links-here-link" href="#">What links here <span class="ref-count">(${this.incomingCount})</span></a>`
-				: "";
+		const inHtml = this.incomingCount > 0 ? `<a class="section-label links-here-link" href="#">What links here <span class="ref-count">(${this.incomingCount})</span></a>` : "";
 		const relMap = getEdgeRelMap();
 		const hasReplies = this.edges.some((e) => isReplyEdge(e.type, relMap)) || this.incomingCount > 0;
 		const replyHtml = hasReplies ? `<a class="section-label thread-link" href="#">View replies</a>` : "";
@@ -231,10 +224,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const switcherHtml =
 			available.length > 1
 				? `<div class="content-switcher">${available
-						.map(
-							([f], i) =>
-								`<button class="content-switch-btn${i === 0 ? " active" : ""}" data-field="${escAttr(f)}">${esc(f)}</button>`,
-						)
+						.map(([f], i) => `<button class="content-switch-btn${i === 0 ? " active" : ""}" data-field="${escAttr(f)}">${esc(f)}</button>`)
 						.join("")}</div>`
 				: "";
 

@@ -6,13 +6,7 @@ import { AStepper, IHasCycles, IHasOptions, StepperKinds } from "@haibun/core/li
 import { IStepperCycles, TWorld } from "@haibun/core/lib/defs.js";
 import { OK } from "@haibun/core/schema/protocol.js";
 import type { THaibunEvent } from "@haibun/core/schema/protocol.js";
-import {
-	stringOrError,
-	actualURI,
-	findStepperFromOptionOrKind,
-	intOrError,
-	getStepperOption,
-} from "@haibun/core/lib/util/index.js";
+import { stringOrError, actualURI, findStepperFromOptionOrKind, intOrError, getStepperOption } from "@haibun/core/lib/util/index.js";
 import { SSEPrompter } from "./prompter.js";
 import { AStorage } from "@haibun/domain-storage/AStorage.js";
 import { JITSerializer } from "@haibun/core/monitor/index.js";
@@ -146,9 +140,7 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
 		const secrets = this.world.shared.getSecrets();
 		for (const [secretName, secretValue] of Object.entries(secrets)) {
 			if (html.includes(secretValue)) {
-				throw new Error(
-					`[MonitorBrowser] World (env) secret "${secretName}" is in the html for ${featureFile}, cannot write monitor.`,
-				);
+				throw new Error(`[MonitorBrowser] World (env) secret "${secretName}" is in the html for ${featureFile}, cannot write monitor.`);
 			}
 		}
 
