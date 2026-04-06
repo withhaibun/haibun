@@ -11,12 +11,7 @@ export type TFeaturesBackgrounds = {
 	backgrounds: TFeature[];
 };
 
-export async function getFeaturesAndBackgrounds(
-	bases: TBase,
-	featureFilter: string[],
-	policyConfig?: TRunPolicyConfig,
-	fs: TFileSystem = nodeFS,
-): Promise<TFeaturesBackgrounds> {
+export async function getFeaturesAndBackgrounds(bases: TBase, featureFilter: string[], policyConfig?: TRunPolicyConfig, fs: TFileSystem = nodeFS): Promise<TFeaturesBackgrounds> {
 	const ret: TFeaturesBackgrounds = { features: [], backgrounds: [] };
 	for (const abase of bases) {
 		// Only filter features, not backgrounds - backgrounds should always be loaded
@@ -90,13 +85,7 @@ async function recurse(
 	return all;
 }
 
-export function shouldProcess(
-	file: string,
-	type: undefined | string,
-	featureFilter: string[] | undefined,
-	dir?: string,
-	dirFilters?: TDirFilter[],
-) {
+export function shouldProcess(file: string, type: undefined | string, featureFilter: string[] | undefined, dir?: string, dirFilters?: TDirFilter[]) {
 	const iskireji = file.endsWith(".feature.ts");
 	// For kireji files, always process regardless of type
 	// For .feature files, check if type matches or is undefined

@@ -19,13 +19,7 @@ export interface IEventLogger {
 	debug(message: string, attributes?: Record<string, unknown>): void;
 	warn(message: string, attributes?: Record<string, unknown>): void;
 	error(message: string, attributes?: Record<string, unknown>): void;
-	stepStart(
-		featureStep: TFeatureStep,
-		stepperName: string,
-		actionName: string,
-		stepArgs: Record<string, unknown>,
-		stepValuesMap: Record<string, unknown> | undefined,
-	): void;
+	stepStart(featureStep: TFeatureStep, stepperName: string, actionName: string, stepArgs: Record<string, unknown>, stepValuesMap: Record<string, unknown> | undefined): void;
 	stepEnd(
 		featureStep: TFeatureStep,
 		stepperName: string,
@@ -146,13 +140,7 @@ export class EventLogger implements IEventLogger {
 		);
 	}
 
-	stepStart(
-		featureStep: TFeatureStep,
-		stepperName: string,
-		actionName: string,
-		stepArgs: Record<string, unknown>,
-		stepValuesMap: Record<string, unknown> | undefined,
-	): void {
+	stepStart(featureStep: TFeatureStep, stepperName: string, actionName: string, stepArgs: Record<string, unknown>, stepValuesMap: Record<string, unknown> | undefined): void {
 		const safeStepValuesMap = stepValuesMap ? sanitizeObjectSecrets(stepValuesMap, this.isSecretFn) : undefined;
 		const safeStepArgs = sanitizeObjectSecrets(stepArgs, () => false);
 		this.emit(
