@@ -1,14 +1,6 @@
 import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
-import {
-	actionNotOK,
-	actionOKWithProducts,
-} from "@haibun/core/lib/util/index.js";
-import {
-	LinkRelations,
-	DOMAIN_VERTEX_LABEL,
-	type IStepperCycles,
-	type IStepperConcerns,
-} from "@haibun/core/lib/defs.js";
+import { actionNotOK, actionOKWithProducts } from "@haibun/core/lib/util/index.js";
+import { LinkRelations, DOMAIN_VERTEX_LABEL, type IStepperCycles, type IStepperConcerns } from "@haibun/core/lib/defs.js";
 import { objectCoercer } from "@haibun/core/lib/domain-types.js";
 import { z } from "zod";
 
@@ -99,14 +91,8 @@ class TutorialGraphStore {
 	private edges: InMemoryEdge[] = [];
 	private idCounter = 0;
 
-	createVertex(
-		label: string,
-		id: string,
-		properties: Record<string, unknown>,
-	): InMemoryVertex {
-		const existing = this.vertices.find(
-			(v) => v.vertexLabel === label && v.id === id,
-		);
+	createVertex(label: string, id: string, properties: Record<string, unknown>): InMemoryVertex {
+		const existing = this.vertices.find((v) => v.vertexLabel === label && v.id === id);
 		if (existing) {
 			existing.properties = { ...existing.properties, ...properties };
 			return existing;
@@ -125,11 +111,7 @@ class TutorialGraphStore {
 		if (label) results = results.filter((v) => v.vertexLabel === label);
 		if (textFilter) {
 			const lower = textFilter.toLowerCase();
-			results = results.filter((v) =>
-				Object.values(v.properties).some((p) =>
-					String(p).toLowerCase().includes(lower),
-				),
-			);
+			results = results.filter((v) => Object.values(v.properties).some((p) => String(p).toLowerCase().includes(lower)));
 		}
 		return results;
 	}
@@ -138,45 +120,28 @@ class TutorialGraphStore {
 		return this.vertices.find((v) => v.vertexLabel === label && v.id === id);
 	}
 
-	resolveEdgeTarget(
-		targetLabel: string,
-		targetId: string,
-	): Record<string, unknown> {
+	resolveEdgeTarget(targetLabel: string, targetId: string): Record<string, unknown> {
 		const v = this.getVertex(targetLabel, targetId);
-		return v
-			? { ...v.properties, _label: targetLabel }
-			: { id: targetId, _label: targetLabel };
+		return v ? { ...v.properties, _label: targetLabel } : { id: targetId, _label: targetLabel };
 	}
 
 	getVertexWithEdges(label: string, id: string) {
 		const vertex = this.getVertex(label, id);
 		if (!vertex) return null;
-		const outgoing = this.edges.filter(
-			(e) => e.fromId === id && e.fromLabel === label,
-		);
-		const incomingCount = this.edges.filter(
-			(e) => e.toId === id && e.toLabel === label,
-		).length;
+		const outgoing = this.edges.filter((e) => e.fromId === id && e.fromLabel === label);
+		const incomingCount = this.edges.filter((e) => e.toId === id && e.toLabel === label).length;
 		return { vertex, edges: outgoing, incomingCount };
 	}
 
 	getIncomingEdges(label: string, id: string, limit = 100, offset = 0) {
-		const incoming = this.edges.filter(
-			(e) => e.toId === id && e.toLabel === label,
-		);
+		const incoming = this.edges.filter((e) => e.toId === id && e.toLabel === label);
 		return {
 			edges: incoming.slice(offset, offset + limit),
 			total: incoming.length,
 		};
 	}
 
-	createEdge(
-		fromLabel: string,
-		fromId: string,
-		rel: string,
-		toLabel: string,
-		toId: string,
-	) {
+	createEdge(fromLabel: string, fromId: string, rel: string, toLabel: string, toId: string) {
 		const edge: InMemoryEdge = {
 			id: `edge-${++this.idCounter}`,
 			fromLabel,
@@ -242,7 +207,7 @@ export default class TutorialGraphStepper extends AStepper {
 						edges: {
 							[TutorialEdges.authored]: {
 								rel: LinkRelations.ATTRIBUTED_TO.rel,
-								target: TutorialLabels.Paper,
+								range: TutorialLabels.Paper,
 							},
 						},
 					},
@@ -263,11 +228,11 @@ export default class TutorialGraphStepper extends AStepper {
 						edges: {
 							[TutorialEdges.references]: {
 								rel: LinkRelations.IN_REPLY_TO.rel,
-								target: TutorialLabels.Paper,
+								range: TutorialLabels.Paper,
 							},
 							[TutorialEdges.author]: {
 								rel: LinkRelations.ATTRIBUTED_TO.rel,
-								target: TutorialLabels.Researcher,
+								range: TutorialLabels.Researcher,
 							},
 						},
 					},
@@ -329,17 +294,7 @@ export default class TutorialGraphStepper extends AStepper {
 		getIncomingEdges: {
 			gwta: `get incoming edges for {label: ${DOMAIN_VERTEX_LABEL}} vertex {id: string} with limit {limit} and offset {offset}`,
 			outputSchema: IncomingEdgesResultSchema,
-			action: ({
-				label,
-				id,
-				limit = 100,
-				offset = 0,
-			}: {
-				label: string;
-				id: string;
-				limit?: number;
-				offset?: number;
-			}) => {
+			action: ({ label, id, limit = 100, offset = 0 }: { label: string; id: string; limit?: number; offset?: number }) => {
 				try {
 					const raw = this.store.getIncomingEdges(label, id, limit, offset);
 					const edges = raw.edges.map((e) => {
@@ -358,15 +313,7 @@ export default class TutorialGraphStepper extends AStepper {
 		createVertex: {
 			gwta: `create vertex {label: ${DOMAIN_VERTEX_LABEL}} with id {id: string} and properties {data: ${DOMAIN_VERTEX_DATA}}`,
 			outputSchema: VertexSchema,
-			action: ({
-				label,
-				id,
-				data,
-			}: {
-				label: string;
-				id: string;
-				data: Record<string, unknown>;
-			}) => {
+			action: ({ label, id, data }: { label: string; id: string; data: Record<string, unknown> }) => {
 				try {
 					const vertex = this.store.createVertex(label, id, data);
 					return actionOKWithProducts({

@@ -23,11 +23,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		return ["label", "active", "closable", "pinned", "column-type"];
 	}
 
-	attributeChangedCallback(
-		name: string,
-		_old: string | null,
-		val: string | null,
-	): void {
+	attributeChangedCallback(name: string, _old: string | null, val: string | null): void {
 		if (name === "label") {
 			this.state = { ...this.state, label: val || "" };
 			const header = this.shadowRoot?.querySelector(".pane-header");
@@ -39,14 +35,12 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 			}
 		}
 		if (name === "active") this.state = { ...this.state, active: val !== null };
-		if (name === "closable")
-			this.state = { ...this.state, closable: val !== "false" };
+		if (name === "closable") this.state = { ...this.state, closable: val !== "false" };
 		if (name === "pinned") this.state = { ...this.state, pinned: val !== null && val !== "false" };
 		if (name === "column-type")
 			this.state = {
 				...this.state,
-				columnType:
-					(val as "query" | "entity" | "filter" | "property" | "monitor" | "sequence") || "query",
+				columnType: (val as "query" | "entity" | "filter" | "property" | "monitor" | "sequence") || "query",
 			};
 		this.updateActiveStyle();
 	}
@@ -69,9 +63,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 	}
 
 	private updateActiveStyle(): void {
-		const header = this.shadowRoot?.querySelector(
-			".pane-header",
-		) as HTMLElement | null;
+		const header = this.shadowRoot?.querySelector(".pane-header") as HTMLElement | null;
 		if (!header) return;
 		if (this.state.active) {
 			this.style.borderTop = "2px solid #1a6b3c";
@@ -130,7 +122,11 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 			e.stopPropagation();
 			const minimize = !this.isCollapsed;
 			this.setCollapsed(minimize);
-			if (minimize) { this.setAttribute(SHU_ATTR.DATA_MINIMIZED, ""); } else { this.removeAttribute(SHU_ATTR.DATA_MINIMIZED); }
+			if (minimize) {
+				this.setAttribute(SHU_ATTR.DATA_MINIMIZED, "");
+			} else {
+				this.removeAttribute(SHU_ATTR.DATA_MINIMIZED);
+			}
 			this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_MINIMIZE, { bubbles: true, composed: true }));
 		});
 
@@ -139,26 +135,24 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 			e.stopPropagation();
 			const pinned = !this.state.pinned;
 			this.state = { ...this.state, pinned };
-			if (pinned) { this.setAttribute(SHU_ATTR.PINNED, "true"); } else { this.removeAttribute(SHU_ATTR.PINNED); }
+			if (pinned) {
+				this.setAttribute(SHU_ATTR.PINNED, "true");
+			} else {
+				this.removeAttribute(SHU_ATTR.PINNED);
+			}
 			const btn = e.target as HTMLElement;
 			btn.classList.toggle("pinned", pinned);
 			btn.title = pinned ? "Unpin column" : "Pin column";
 		});
 
 		// Close button
-		this.shadowRoot
-			.querySelector(".pane-close")
-			?.addEventListener("click", (e) => {
-				e.stopPropagation();
-				this.dispatchEvent(
-					new CustomEvent(SHU_EVENT.COLUMN_CLOSE, { bubbles: true, composed: true }),
-				);
-			});
+		this.shadowRoot.querySelector(".pane-close")?.addEventListener("click", (e) => {
+			e.stopPropagation();
+			this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_CLOSE, { bubbles: true, composed: true }));
+		});
 
 		// Resize handle
-		const handle = this.shadowRoot.querySelector(
-			".resize-handle",
-		) as HTMLElement | null;
+		const handle = this.shadowRoot.querySelector(".resize-handle") as HTMLElement | null;
 		if (handle) {
 			let startX = 0;
 			let startWidth = 0;
@@ -211,29 +205,23 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		}
 
 		// Click pane body to activate
-		this.shadowRoot
-			.querySelector(".pane-content")
-			?.addEventListener("click", () => {
-				if (!this.state.active) {
-					this.dispatchEvent(
-						new CustomEvent(SHU_EVENT.COLUMN_ACTIVATE, {
-							bubbles: true,
-							composed: true,
-						}),
-					);
-				}
-			});
+		this.shadowRoot.querySelector(".pane-content")?.addEventListener("click", () => {
+			if (!this.state.active) {
+				this.dispatchEvent(
+					new CustomEvent(SHU_EVENT.COLUMN_ACTIVATE, {
+						bubbles: true,
+						composed: true,
+					}),
+				);
+			}
+		});
 
 		// Click collapsed header to expand
-		this.shadowRoot
-			.querySelector(".pane-header")
-			?.addEventListener("click", () => {
-				if (this.isCollapsed) {
-					this.dispatchEvent(
-						new CustomEvent(SHU_EVENT.COLUMN_EXPAND, { bubbles: true, composed: true }),
-					);
-				}
-			});
+		this.shadowRoot.querySelector(".pane-header")?.addEventListener("click", () => {
+			if (this.isCollapsed) {
+				this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_EXPAND, { bubbles: true, composed: true }));
+			}
+		});
 
 		this.updateActiveStyle();
 	}

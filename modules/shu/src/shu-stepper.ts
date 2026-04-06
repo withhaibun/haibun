@@ -6,11 +6,7 @@ import { readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
-import {
-	actionOK,
-	actionNotOK,
-	getFromRuntime,
-} from "@haibun/core/lib/util/index.js";
+import { actionOK, actionNotOK, getFromRuntime } from "@haibun/core/lib/util/index.js";
 import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
 import type { IWebServer } from "@haibun/web-server-hono/defs.js";
 import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
@@ -62,8 +58,7 @@ function createSpaHandler(basePath: string, bundle: string, hydration: string) {
 function validateMountPath(path: string): string | undefined {
 	if (!path) return "path is required";
 	if (!path.startsWith("/")) return 'path must start with "/"';
-	if (path.length > 1 && path.endsWith("/"))
-		return 'path must not end with "/"';
+	if (path.length > 1 && path.endsWith("/")) return 'path must not end with "/"';
 	return undefined;
 }
 
@@ -75,30 +70,18 @@ export default class ShuStepper extends AStepper {
 		serveShuApp: {
 			gwta: "serve shu app at {path: string}",
 			action: ({ path }: { path: string }) => {
-				const webserver = getFromRuntime(
-					this.getWorld().runtime,
-					WEBSERVER,
-				) as IWebServer;
-				if (!webserver)
-					return actionNotOK(
-						"webserver not available — load web-server-stepper before shu",
-					);
+				const webserver = getFromRuntime(this.getWorld().runtime, WEBSERVER) as IWebServer;
+				if (!webserver) return actionNotOK("webserver not available — load web-server-stepper before shu");
 				const pathError = validateMountPath(path);
 				if (pathError) return actionNotOK(pathError);
 				if (this.mountedPath === path) return actionOK();
 				if (this.mountedPath)
-					return actionNotOK(
-						`shu app already mounted at "${this.mountedPath}"; cannot mount at different path "${path}"`,
-					);
+					return actionNotOK(`shu app already mounted at "${this.mountedPath}"; cannot mount at different path "${path}"`);
 				const bundle = loadBundle();
 				const hydrationJson = JSON.stringify({
 					concerns: buildConcernCatalog(this.getWorld().domains),
 				});
-				webserver.addRoute(
-					"get",
-					path,
-					createSpaHandler(path, bundle, hydrationJson),
-				);
+				webserver.addRoute("get", path, createSpaHandler(path, bundle, hydrationJson));
 				this.mountedPath = path;
 				return actionOK();
 			},

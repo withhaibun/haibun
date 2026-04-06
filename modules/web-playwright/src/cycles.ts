@@ -1,20 +1,29 @@
-import { rmSync } from 'fs';
-import { relative, resolve } from 'path';
+import { rmSync } from "fs";
+import { relative, resolve } from "path";
 
-import { IObservationSource, IStepperCycles, TFailureArgs, TEndFeature, TStartExecution, TResolvedFeature, TStartFeature, TStepAction } from '@haibun/core/lib/defs.js';
-import { THttpRequestObservation } from '@haibun/core/lib/http-observations.js';
+import {
+	IObservationSource,
+	IStepperCycles,
+	TFailureArgs,
+	TEndFeature,
+	TStartExecution,
+	TResolvedFeature,
+	TStartFeature,
+	TStepAction,
+} from "@haibun/core/lib/defs.js";
+import { THttpRequestObservation } from "@haibun/core/lib/http-observations.js";
 
-import { VideoArtifact } from '@haibun/core/schema/protocol.js';
-import { EMediaTypes } from '@haibun/domain-storage/media-types.js';
-import { WebPlaywright } from './web-playwright.js';
-import { WebPlaywrightDomains } from './domains.js';
+import { VideoArtifact } from "@haibun/core/schema/protocol.js";
+import { EMediaTypes } from "@haibun/domain-storage/media-types.js";
+import { WebPlaywright } from "./web-playwright.js";
+import { WebPlaywrightDomains } from "./domains.js";
 
 // HTTP trace observation sources
 const httpTraceSources: IObservationSource[] = [
 	{
-		name: 'http-trace hosts',
+		name: "http-trace hosts",
 		observe: (world) => {
-			const httpHosts = (world.runtime.observations?.get('httpHosts') as Map<string, number> | undefined);
+			const httpHosts = world.runtime.observations?.get("httpHosts") as Map<string, number> | undefined;
 			if (!httpHosts) return { items: [], metrics: {} };
 			const items = [...httpHosts.keys()];
 			const metrics: Record<string, Record<string, unknown>> = {};
@@ -22,12 +31,12 @@ const httpTraceSources: IObservationSource[] = [
 				metrics[host] = { count };
 			}
 			return { items, metrics };
-		}
+		},
 	},
 	{
-		name: 'http-trace',
+		name: "http-trace",
 		observe: (world) => {
-			const requests = (world.runtime.observations?.get('httpRequests') as Map<string, THttpRequestObservation> | undefined);
+			const requests = world.runtime.observations?.get("httpRequests") as Map<string, THttpRequestObservation> | undefined;
 			if (!requests) return { items: [], metrics: {} };
 			const items = [...requests.keys()];
 			const metrics: Record<string, Record<string, unknown>> = {};
@@ -35,27 +44,27 @@ const httpTraceSources: IObservationSource[] = [
 				metrics[id] = data;
 			}
 			return { items, metrics };
-		}
+		},
 	},
 	{
-		name: 'visited pages',
+		name: "visited pages",
 		observe: (world) => {
-			const visitedPages = (world.runtime.observations?.get('visitedPages') as string[] | undefined);
+			const visitedPages = world.runtime.observations?.get("visitedPages") as string[] | undefined;
 			if (!visitedPages) return { items: [], metrics: {} };
 			const metrics: Record<string, Record<string, unknown>> = {};
 			for (let i = 0; i < visitedPages.length; i++) {
 				metrics[visitedPages[i]] = { index: i };
 			}
 			return { items: visitedPages, metrics };
-		}
-	}
+		},
+	},
 ];
 
 export const cycles = (wp: WebPlaywright): IStepperCycles => ({
 	getConcerns: () => ({ domains: WebPlaywrightDomains, sources: httpTraceSources }),
 	async onFailure({ failedStep }: TFailureArgs): Promise<void> {
 		if (wp.bf?.hasPage(wp.getWorld().tag, wp.tab)) {
-			await wp.captureFailureScreenshot('failure', failedStep);
+			await wp.captureFailureScreenshot("failure", failedStep);
 		}
 	},
 	async startExecution(resolvedFeatures: TStartExecution): Promise<void> {
@@ -93,7 +102,7 @@ export const cycles = (wp: WebPlaywright): IStepperCycles => ({
 async function writeFeaturesArtifact(wp: WebPlaywright, type: string, resolvedFeatures: TResolvedFeature[]) {
 	const filename = `${type}.json`;
 	const contents = JSON.stringify(resolvedFeatures, null, 2);
-	await wp.storage.saveArtifact(filename, contents, EMediaTypes.json, 'json');
+	await wp.storage.saveArtifact(filename, contents, EMediaTypes.json, "json");
 }
 
 async function closeAfterFeature(wp: WebPlaywright) {
@@ -118,18 +127,18 @@ async function closeAfterFeature(wp: WebPlaywright) {
 			// VideoStartArtifact is emitted in getPage() when recording starts
 			const featureStep = {
 				seqPath: [world.tag.featureNum, 0, 0],
-				source: { path: world.runtime.feature || 'feature' },
-				in: 'feature video',
+				source: { path: world.runtime.feature || "feature" },
+				in: "feature video",
 				action: {} as TStepAction,
 			};
 
 			const videoEvent = VideoArtifact.parse({
 				id: `feat-${world.tag.featureNum}.video`,
 				timestamp: Date.now(),
-				kind: 'artifact',
-				artifactType: 'video',
+				kind: "artifact",
+				artifactType: "video",
 				path: featureRelPath, // Use base-relative for live, transformed for serialized
-				mimetype: 'video/webm',
+				mimetype: "video/webm",
 				isTimeLined: true,
 			});
 			world.eventLogger.artifact(featureStep, videoEvent);
@@ -143,4 +152,3 @@ async function closeAfterFeature(wp: WebPlaywright) {
 		wp.hasFactory = false;
 	}
 }
-

@@ -35,14 +35,14 @@ export const SEARCH_OPERATORS: ReadonlyArray<{
 	value: TSearchOperator;
 	label: string;
 }> = [
-		{ value: "eq", label: "equals" },
-		{ value: "contains", label: "contains" },
-		{ value: "gt", label: "greater than" },
-		{ value: "lt", label: "less than" },
-		{ value: "gte", label: "at least" },
-		{ value: "lte", label: "at most" },
-		{ value: "between", label: "between" },
-	];
+	{ value: "eq", label: "equals" },
+	{ value: "contains", label: "contains" },
+	{ value: "gt", label: "greater than" },
+	{ value: "lt", label: "less than" },
+	{ value: "gte", label: "at least" },
+	{ value: "lte", label: "at most" },
+	{ value: "between", label: "between" },
+];
 
 export const SearchConditionSchema = z.object({
 	predicate: z.string(),

@@ -1,14 +1,14 @@
-import { resolve, relative } from 'path';
+import { resolve, relative } from "path";
 
-import { CAPTURE, OK, TStepArgs, Origin } from '@haibun/core/schema/protocol.js';
-import { DOMAIN_STRING } from '@haibun/core/lib/domain-types.js';
-import { captureLocator } from '@haibun/core/lib/capture-locator.js';
-import { IFile, TLocationOptions } from './domain-storage.js';
-import { EMediaTypes, TMediaType } from './media-types.js';
-import { AStepper, StepperKinds, } from "@haibun/core/lib/astepper.js";
-import { TAnyFixme } from '@haibun/core/lib/fixme.js';
-import { actionNotOK } from '@haibun/core/lib/util/index.js';
-import { TFeatureStep } from '@haibun/core/lib/defs.js';
+import { CAPTURE, OK, TStepArgs, Origin } from "@haibun/core/schema/protocol.js";
+import { DOMAIN_STRING } from "@haibun/core/lib/domain-types.js";
+import { captureLocator } from "@haibun/core/lib/capture-locator.js";
+import { IFile, TLocationOptions } from "./domain-storage.js";
+import { EMediaTypes, TMediaType } from "./media-types.js";
+import { AStepper, StepperKinds } from "@haibun/core/lib/astepper.js";
+import { TAnyFixme } from "@haibun/core/lib/fixme.js";
+import { actionNotOK } from "@haibun/core/lib/util/index.js";
+import { TFeatureStep } from "@haibun/core/lib/defs.js";
 
 /**
  * Result from saveArtifact with paths for different consumption contexts.
@@ -23,7 +23,7 @@ export interface TSavedArtifact {
 }
 
 export abstract class AStorage extends AStepper {
-	description = 'Create files, directories, and manage test artifacts';
+	description = "Create files, directories, and manage test artifacts";
 
 	kind = StepperKinds.STORAGE;
 	abstract readFile(path: string, coding?: string): TAnyFixme;
@@ -42,7 +42,7 @@ export abstract class AStorage extends AStepper {
 		return mapped;
 	}
 	async writeFile(file: string, contents: string | Buffer, mediaType: TMediaType) {
-		if (typeof contents === 'string') {
+		if (typeof contents === "string") {
 			await this.writeFileBuffer(file, Buffer.from(contents), mediaType);
 		} else {
 			await this.writeFileBuffer(file, contents as Buffer, mediaType);
@@ -58,7 +58,7 @@ export abstract class AStorage extends AStepper {
 	 * Overload this where slash directory conventions aren't used.
 	 */
 	fromLocation(mediaType: TMediaType, ...where: string[]) {
-		return where.map((w) => w.replace(/\/$/, '')).join('/');
+		return where.map((w) => w.replace(/\/$/, "")).join("/");
 	}
 
 	locator = captureLocator;
@@ -76,7 +76,7 @@ export abstract class AStorage extends AStepper {
 	 */
 	getArtifactBasePath(): string {
 		const { tag, options } = this.world;
-		return `./capture/${options.DEST || 'default'}/${tag.key}`;
+		return `./capture/${options.DEST || "default"}/${tag.key}`;
 	}
 
 	/**
@@ -87,7 +87,12 @@ export abstract class AStorage extends AStepper {
 	 * @param mediaType - Media type for proper handling
 	 * @param subpath - Optional subdirectory (e.g., 'image', 'video')
 	 */
-	async saveArtifact(filename: string, contents: string | Buffer, mediaType: TMediaType, subpath?: string): Promise<TSavedArtifact> {
+	async saveArtifact(
+		filename: string,
+		contents: string | Buffer,
+		mediaType: TMediaType,
+		subpath?: string,
+	): Promise<TSavedArtifact> {
 		const loc = { ...this.world, mediaType };
 		const dir = await this.ensureCaptureLocation(loc, subpath);
 		const absolutePath = resolve(dir, filename);
@@ -103,7 +108,7 @@ export abstract class AStorage extends AStepper {
 		return { absolutePath, featureRelativePath, baseRelativePath };
 	}
 
-	async ensureCaptureLocation(loc: TLocationOptions, app?: string | undefined, fn = '') {
+	async ensureCaptureLocation(loc: TLocationOptions, app?: string | undefined, fn = "") {
 		const dir = await this.getCaptureLocation(loc, app);
 		await this.ensureDirExists(dir);
 		return fn ? `${dir}/${fn}` : dir;
@@ -152,21 +157,23 @@ export abstract class AStorage extends AStepper {
 		testIs: {
 			gwta: `text at {where} is {what}`,
 			action: async ({ where, what }: TStepArgs) => {
-				const text = await this.readFile(String(where), 'utf-8');
+				const text = await this.readFile(String(where), "utf-8");
 				return text === String(what) ? OK : actionNotOK(`text at ${where} is not ${what}; it's ${text}`);
 			},
 		},
 		testContains: {
 			gwta: `text at {where} contains {what}`,
 			action: async ({ where, what }: TStepArgs) => {
-				const text = await this.readFile(String(where), 'utf-8');
-				return text.toString().indexOf(String(what)) > -1 ? OK : actionNotOK(`text at ${where} does not contain ${what}; it's ${text}`);
+				const text = await this.readFile(String(where), "utf-8");
+				return text.toString().indexOf(String(what)) > -1
+					? OK
+					: actionNotOK(`text at ${where} does not contain ${what}; it's ${text}`);
 			},
 		},
 		testNotContains: {
 			gwta: `text at {where} does not contain {what}`,
 			action: async ({ where, what }: TStepArgs) => {
-				const text = await this.readFile(String(where), 'utf-8');
+				const text = await this.readFile(String(where), "utf-8");
 				return text.toString().indexOf(String(what)) === -1 ? OK : actionNotOK(`text at ${where} contains ${what}`);
 			},
 		},
@@ -174,7 +181,7 @@ export abstract class AStorage extends AStepper {
 			gwta: `list files from {where}`,
 			action: async ({ where }: TStepArgs) => {
 				const files = await this.readdir(String(where));
-				this.getWorld().eventLogger.info(`files from ${where}: ${files.join(', ')}`);
+				this.getWorld().eventLogger.info(`files from ${where}: ${files.join(", ")}`);
 				return OK;
 			},
 		},
@@ -188,15 +195,17 @@ export abstract class AStorage extends AStepper {
 		isTheSame: {
 			gwta: `{what} is the same as {where}`,
 			action: ({ what, where }: TStepArgs) => {
-				const c1 = this.readFile(String(what), 'binary');
-				const c2 = this.readFile(String(where), 'binary');
-				return Buffer.from(c1 as string)?.equals(Buffer.from(c2 as string)) ? OK : actionNotOK(`contents are not the same ${what} ${where}`);
+				const c1 = this.readFile(String(what), "binary");
+				const c2 = this.readFile(String(where), "binary");
+				return Buffer.from(c1 as string)?.equals(Buffer.from(c2 as string))
+					? OK
+					: actionNotOK(`contents are not the same ${what} ${where}`);
 			},
 		},
 		readFileInto: {
 			gwta: `read file {where} into {what}`,
 			action: async ({ where, what }: TStepArgs, featureStep: TFeatureStep) => {
-				const contents = await this.readFile(String(where), 'utf-8');
+				const contents = await this.readFile(String(where), "utf-8");
 				const sv = {
 					term: String(what),
 					value: contents,
@@ -206,7 +215,7 @@ export abstract class AStorage extends AStepper {
 				const provenance = {
 					in: featureStep.in,
 					seq: featureStep.seqPath || [0],
-					when: 'step',
+					when: "step",
 				};
 				this.getWorld().shared._set(sv, provenance);
 				return OK;

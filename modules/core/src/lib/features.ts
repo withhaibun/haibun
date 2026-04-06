@@ -1,8 +1,14 @@
-import { TExpandedFeature, TExpandedLine, TFeature, TFeatures } from './defs.js';
-import { getActionable } from './util/index.js';
-import { TEST_BASE } from '../schema/protocol.js';
+import { TExpandedFeature, TExpandedLine, TFeature, TFeatures } from "./defs.js";
+import { getActionable } from "./util/index.js";
+import { TEST_BASE } from "../schema/protocol.js";
 
-export async function expand({ features, backgrounds }: { features: TFeatures, backgrounds: TFeatures }): Promise<TExpandedFeature[]> {
+export async function expand({
+	features,
+	backgrounds,
+}: {
+	features: TFeatures;
+	backgrounds: TFeatures;
+}): Promise<TExpandedFeature[]> {
 	const expandedFeatures = await expandFeatures(features, backgrounds);
 	return expandedFeatures;
 }
@@ -36,8 +42,8 @@ export function asFeatureLine(line: string, lineNumber: number | undefined, feat
 
 export function expandLine(l: string, lineNumber: number | undefined, backgrounds: TFeatures, feature: TFeature): TExpandedLine[] {
 	const lines: TExpandedLine[] = [];
-	if (l.startsWith('Backgrounds:')) {
-		const includes = doIncludes(l.replace('Backgrounds:', '').trim(), backgrounds);
+	if (l.startsWith("Backgrounds:")) {
+		const includes = doIncludes(l.replace("Backgrounds:", "").trim(), backgrounds);
 		lines.push(...includes);
 	} else {
 		const nl = asFeatureLine(l, lineNumber, feature);
@@ -47,12 +53,12 @@ export function expandLine(l: string, lineNumber: number | undefined, background
 }
 
 function doIncludes(input: string, backgrounds: TFeatures) {
-	const includes = input.split(',').map((a) => a.trim());
+	const includes = input.split(",").map((a) => a.trim());
 	const ret: TExpandedLine[] = [];
 	for (const l of includes) {
 		const bg = findFeatures(l, backgrounds);
 		if (bg.length !== 1) {
-			throw Error(`can't find single "${l}.feature" from ${backgrounds?.map((b) => b.path).join(', ')}`);
+			throw Error(`can't find single "${l}.feature" from ${backgrounds?.map((b) => b.path).join(", ")}`);
 		}
 		const origin = bg[0];
 		const bgLines = featureSplit(origin.content);
@@ -74,33 +80,24 @@ function doIncludes(input: string, backgrounds: TFeatures) {
 	return ret;
 }
 
-export function findFeatures(name: string, backgrounds: TFeatures, type = 'feature'): TFeatures {
+export function findFeatures(name: string, backgrounds: TFeatures, type = "feature"): TFeatures {
 	const ftype = findFeaturesOfType(backgrounds, type);
 	// Match both .feature and .feature.ts extensions
-	return ftype.filter((f) =>
-		f.path.endsWith(`/${name}.${fileTypeToExt(type)}`) ||
-		f.path.endsWith(`/${name}.feature.ts`)
-	);
+	return ftype.filter((f) => f.path.endsWith(`/${name}.${fileTypeToExt(type)}`) || f.path.endsWith(`/${name}.feature.ts`));
 }
 
-export function findFeaturesOfType(backgrounds: TFeatures, type = 'feature'): TFeatures {
+export function findFeaturesOfType(backgrounds: TFeatures, type = "feature"): TFeatures {
 	// Match both .feature and .feature.ts files
-	return backgrounds.filter((f) =>
-		f.path.endsWith(`.${fileTypeToExt(type)}`) ||
-		f.path.endsWith('.feature.ts')
-	);
+	return backgrounds.filter((f) => f.path.endsWith(`.${fileTypeToExt(type)}`) || f.path.endsWith(".feature.ts"));
 }
 
-const fileTypeToExt = (type: string) => (type === 'feature' ? 'feature' : `${type}.feature`);
+const fileTypeToExt = (type: string) => (type === "feature" ? "feature" : `${type}.feature`);
 
-export const featureSplit = (content: string) =>
-	content
-		.split('\n')
-		.map((a) => a.trim());
+export const featureSplit = (content: string) => content.split("\n").map((a) => a.trim());
 
 export function withNameType(base: string, path: string, content: string, kirejiLineMap?: Map<number, number>) {
-	const s = path.split('.');
+	const s = path.split(".");
 	const name = s[0];
-	const type = s.length === 3 ? s[1] : 'feature';
+	const type = s.length === 3 ? s[1] : "feature";
 	return { path, base, name, type, content, kirejiLineMap };
 }

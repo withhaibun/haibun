@@ -1,5 +1,5 @@
-import type { Context } from '@haibun/web-server-hono/defs.js';
-import type TestServer from './test-server.js';
+import type { Context } from "@haibun/web-server-hono/defs.js";
+import type TestServer from "./test-server.js";
 type TRouteHandler = (c: Context) => Response | Promise<Response>;
 /**
  * REST route handlers for test server.

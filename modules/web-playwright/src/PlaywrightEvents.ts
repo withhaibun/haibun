@@ -1,11 +1,11 @@
-import { Page, Request, Route, Response } from 'playwright';
+import { Page, Request, Route, Response } from "playwright";
 
-import { HttpTraceArtifact } from '@haibun/core/schema/protocol.js';
-import { TTag } from '@haibun/core/lib/ttag.js';
-import { TWorld } from '@haibun/core/lib/defs.js';
-import { Origin } from '@haibun/core/schema/protocol.js';
-import { DOMAIN_LINK, DOMAIN_NUMBER, DOMAIN_STRING } from '@haibun/core/lib/domain-types.js';
-import { trackHttpHost, trackHttpRequest } from '@haibun/core/lib/http-observations.js';
+import { HttpTraceArtifact } from "@haibun/core/schema/protocol.js";
+import { TTag } from "@haibun/core/lib/ttag.js";
+import { TWorld } from "@haibun/core/lib/defs.js";
+import { Origin } from "@haibun/core/schema/protocol.js";
+import { DOMAIN_LINK, DOMAIN_NUMBER, DOMAIN_STRING } from "@haibun/core/lib/domain-types.js";
+import { trackHttpHost, trackHttpRequest } from "@haibun/core/lib/http-observations.js";
 
 type TEtc = {
 	headers: Record<string, string>;
@@ -13,40 +13,42 @@ type TEtc = {
 	postData?: string;
 	status?: number;
 	statusText?: string;
-}
-
+};
 
 export class PlaywrightEvents {
 	navigateCount = 0;
 	private pendingRequests = new Map<Request, number>();
 
-	constructor(private world: TWorld, private page: Page, private tag: TTag) {
-	}
+	constructor(
+		private world: TWorld,
+		private page: Page,
+		private tag: TTag,
+	) {}
 
 	async init() {
 		this.world.eventLogger.debug(`setPage ${JSON.stringify(this.tag)}`);
-		this.page.on('request', this.logRequest.bind(this));
+		this.page.on("request", this.logRequest.bind(this));
 		// biome-disable-next-line @typescript-eslint/no-floating-promises
-		await this.page.route('**/*', this.routeRequest.bind(this));
-		this.page.on('response', this.logResponse.bind(this));
-		this.page.on('framenavigated', this.framenavigated.bind(this));
+		await this.page.route("**/*", this.routeRequest.bind(this));
+		this.page.on("response", this.logResponse.bind(this));
+		this.page.on("framenavigated", this.framenavigated.bind(this));
 		return this;
 	}
-	private logRequest(request: Request, type = 'request') {
+	private logRequest(request: Request, type = "request") {
 		this.pendingRequests.set(request, Date.now());
 		const frameURL = request.frame().url();
 		const etc = {
 			method: request.method(),
 			headers: request.headers(),
 			postData: request.postData(),
-		}
+		};
 
-		void this.log(`${type} ${etc.method}`, <'request' | 'route'>type, frameURL, request.url(), etc);
+		void this.log(`${type} ${etc.method}`, <"request" | "route">type, frameURL, request.url(), etc);
 		return;
 	}
 
 	private async routeRequest(route: Route, request: Request) {
-		this.logRequest(request, 'route');
+		this.logRequest(request, "route");
 		// biome-disable-next-line @typescript-eslint/no-floating-promises
 		await route.continue();
 	}
@@ -63,46 +65,56 @@ export class PlaywrightEvents {
 		const etc = {
 			status: response.status(),
 			statusText: response.statusText(),
-			headers: response.headers()
-		}
+			headers: response.headers(),
+		};
 
-		void this.log(`response ${etc.status}`, 'response', frameURL, response.url(), etc);
+		void this.log(`response ${etc.status}`, "response", frameURL, response.url(), etc);
 
 		// Track request using shared helper
 		trackHttpRequest(this.world, {
 			url: response.url(),
 			status: response.status(),
 			time: duration,
-			method: request.method()
+			method: request.method(),
 		});
 
 		return;
 	}
-	private framenavigated(frame: import('playwright').Frame) {
+	private framenavigated(frame: import("playwright").Frame) {
 		if (frame === this.page.mainFrame()) {
 			const url = frame.url();
-			const provenance = { in: 'PlaywrightEvents.framenavigated', seq: [] as number[], when: 'framenavigated' };
+			const provenance = { in: "PlaywrightEvents.framenavigated", seq: [] as number[], when: "framenavigated" };
 
-			this.world.shared.setForStepper('WebPlaywright', { term: 'currentURI', value: url, domain: DOMAIN_LINK, origin: Origin.var }, provenance, 'observation/playwright');
-			this.world.shared.setForStepper('WebPlaywright', { term: 'navigateCount', value: this.navigateCount, domain: DOMAIN_NUMBER, origin: Origin.var }, provenance, 'observation/playwright');
+			this.world.shared.setForStepper(
+				"WebPlaywright",
+				{ term: "currentURI", value: url, domain: DOMAIN_LINK, origin: Origin.var },
+				provenance,
+				"observation/playwright",
+			);
+			this.world.shared.setForStepper(
+				"WebPlaywright",
+				{ term: "navigateCount", value: this.navigateCount, domain: DOMAIN_NUMBER, origin: Origin.var },
+				provenance,
+				"observation/playwright",
+			);
 
 			// Store visited pages in observations for 'every url observed in visited pages is ...'
 			if (!this.world.runtime.observations) {
 				this.world.runtime.observations = new Map();
 			}
-			const visitedPages = (this.world.runtime.observations.get('visitedPages') as string[]) || [];
+			const visitedPages = (this.world.runtime.observations.get("visitedPages") as string[]) || [];
 			visitedPages.push(url);
-			this.world.runtime.observations.set('visitedPages', visitedPages);
+			this.world.runtime.observations.set("visitedPages", visitedPages);
 
 			this.navigateCount++;
 		}
 	}
 	public close(): void {
-		this.page.off('request', this.logRequest.bind(this));
+		this.page.off("request", this.logRequest.bind(this));
 		// Note: Playwright doesn't provide a direct way to remove a specific route handler
-		this.page.off('response', this.logResponse.bind(this));
+		this.page.off("response", this.logResponse.bind(this));
 	}
-	log(label: string, httpEvent: 'request' | 'response' | 'route', maybeFrameURL: string, targetURL: string, etc: TEtc) {
+	log(label: string, httpEvent: "request" | "response" | "route", maybeFrameURL: string, targetURL: string, etc: TEtc) {
 		const requestingPage = this.page.url();
 		const frameURL = maybeFrameURL === requestingPage ? undefined : maybeFrameURL;
 		const requestingURL = frameURL ? `frame ${frameURL} on ${requestingPage}` : requestingPage;
@@ -110,7 +122,7 @@ export class PlaywrightEvents {
 			frameURL,
 			requestingPage,
 			requestingURL,
-			...etc
+			...etc,
 		};
 
 		// Track HTTP hosts using shared helper
@@ -120,11 +132,11 @@ export class PlaywrightEvents {
 		const artifact = HttpTraceArtifact.parse({
 			id: `http-trace-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
 			timestamp: Date.now(),
-			kind: 'artifact',
-			artifactType: 'http-trace',
-			level: 'debug',
+			kind: "artifact",
+			artifactType: "http-trace",
+			level: "debug",
 			httpEvent,
-			trace: logData
+			trace: logData,
 		});
 		this.world.eventLogger.emit(artifact);
 	}

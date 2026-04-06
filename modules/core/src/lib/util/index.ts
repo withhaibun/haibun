@@ -1,10 +1,10 @@
-import { TSpecl, TWorld, TRuntime, TModuleOptions, CStepper, TFeatureStep } from '../defs.js';
-import { TActionResult, OK, TSeqPath, TDebugSignal } from '../../schema/protocol.js';
-import { TAnyFixme } from '../fixme.js';
-import { IHasOptions, AStepper } from '../astepper.js';
-import { TArtifactEvent, type TJsonArtifact, Timer } from '../../schema/protocol.js';
-export * from './actualURI.js';
-export * from './secret-utils.js';
+import { TSpecl, TWorld, TRuntime, TModuleOptions, CStepper, TFeatureStep } from "../defs.js";
+import { TActionResult, OK, TSeqPath, TDebugSignal } from "../../schema/protocol.js";
+import { TAnyFixme } from "../fixme.js";
+import { IHasOptions, AStepper } from "../astepper.js";
+import { TArtifactEvent, type TJsonArtifact, Timer } from "../../schema/protocol.js";
+export * from "./actualURI.js";
+export * from "./secret-utils.js";
 
 // Helper to get term from stepValuesMap with null safety
 export function getStepTerm(featureStep: TFeatureStep, key: string): string | undefined {
@@ -22,10 +22,10 @@ export function isLiteralValue(term: string): boolean {
 
 type TClass = { new <T>(...args: unknown[]): T };
 
-export const basesFrom = (s: string | undefined): string[] => s?.split(',').map((b: string) => b.trim());
+export const basesFrom = (s: string | undefined): string[] => s?.split(",").map((b: string) => b.trim());
 
-import nodeFS from 'fs';
-import path from 'path';
+import nodeFS from "fs";
+import path from "path";
 
 /**
  * Resolve and import a stepper module.
@@ -41,7 +41,7 @@ export async function use(module: string): Promise<TClass> {
 		checkModuleIsClass(re, module);
 		return <TClass>re;
 	} catch (e) {
-		console.error('failed including', module);
+		console.error("failed including", module);
 		throw e;
 	}
 }
@@ -49,10 +49,10 @@ export async function use(module: string): Promise<TClass> {
 function resolveModulePath(module: string): string {
 	// Check if this is a directory with package.json (package reference)
 	if (nodeFS.existsSync(module)) {
-		const pkgPath = path.join(module, 'package.json');
+		const pkgPath = path.join(module, "package.json");
 		if (nodeFS.existsSync(pkgPath)) {
-			const pkg = JSON.parse(nodeFS.readFileSync(pkgPath, 'utf-8'));
-			const main = pkg.main || 'index.js';
+			const pkg = JSON.parse(nodeFS.readFileSync(pkgPath, "utf-8"));
+			const main = pkg.main || "index.js";
 			return path.join(module, main);
 		}
 		// Directory exists but no package.json, try as file
@@ -60,7 +60,7 @@ function resolveModulePath(module: string): string {
 			return `${module}.js`;
 		}
 		// Maybe it's a directory with index.js
-		const indexPath = path.join(module, 'index.js');
+		const indexPath = path.join(module, "index.js");
 		if (nodeFS.existsSync(indexPath)) {
 			return indexPath;
 		}
@@ -70,43 +70,48 @@ function resolveModulePath(module: string): string {
 }
 
 export function checkModuleIsClass(re: object, module: string) {
-	const type = re?.toString().replace(/^ /g, '').split('\n')[0].replace(/\s.*/, '');
+	const type = re?.toString().replace(/^ /g, "").split("\n")[0].replace(/\s.*/, "");
 
-	if (type !== 'class') {
+	if (type !== "class") {
 		throw Error(`"${module}" is ${type}, not a class`);
 	}
 }
 
-export function actionNotOK(errorMessage: string, w?: { artifact?: TArtifactEvent, controlSignal?: TDebugSignal }): TActionResult {
+export function actionNotOK(errorMessage: string, w?: { artifact?: TArtifactEvent; controlSignal?: TDebugSignal }): TActionResult {
 	const { artifact, controlSignal } = w || {};
 	return { ok: false, errorMessage, artifact, controlSignal };
 }
 export function randomString() {
-	return ['rnd', Math.floor(Date.now() / 1000).toString(36), Math.floor(Math.random() * 1e8).toString(36)].join('_');
+	return ["rnd", Math.floor(Date.now() / 1000).toString(36), Math.floor(Math.random() * 1e8).toString(36)].join("_");
 }
 
-export function actionOK(w?: { artifact?: TArtifactEvent, controlSignal?: TDebugSignal }): TActionResult {
+export function actionOK(w?: { artifact?: TArtifactEvent; controlSignal?: TDebugSignal }): TActionResult {
 	const { artifact, controlSignal } = w || {};
 	return { ...OK, artifact, controlSignal };
 }
 
-export function actionOKWithProducts(products: Record<string, unknown>, w?: { artifact?: TArtifactEvent, controlSignal?: TDebugSignal }): TActionResult {
+export function actionOKWithProducts(
+	products: Record<string, unknown>,
+	w?: { artifact?: TArtifactEvent; controlSignal?: TDebugSignal },
+): TActionResult {
 	const { artifact, controlSignal } = w || {};
 	return { ok: true, products, artifact, controlSignal };
 }
 
 let artifactCounter = 0;
-export function resetArtifactCounter(): void { artifactCounter = 0; }
+export function resetArtifactCounter(): void {
+	artifactCounter = 0;
+}
 export function jsonArtifact(json: Record<string, unknown>): TJsonArtifact {
 	return {
-		kind: 'artifact',
-		artifactType: 'json',
+		kind: "artifact",
+		artifactType: "json",
 		id: `json-${++artifactCounter}`,
 		timestamp: Date.now(),
-		source: 'haibun',
-		level: 'info',
+		source: "haibun",
+		level: "info",
 		json,
-		mimetype: 'application/json',
+		mimetype: "application/json",
 	};
 }
 
@@ -126,26 +131,26 @@ export function createSteppers(steppers: CStepper[]): AStepper[] {
 
 export function getDefaultOptions(): TSpecl {
 	return {
-		steppers: ['variables-stepper'],
+		steppers: ["variables-stepper"],
 	};
 }
 
 export function getActionable(value: string) {
-	return value.replace(/;;.*/, '').trim();
+	return value.replace(/;;.*/, "").trim();
 }
 
 export function constructorName(stepper: AStepper) {
 	// FIXME deal with vitest / esbuild keepNames nonsense
-	return stepper.constructor.name.replace(/2$/, '');
+	return stepper.constructor.name.replace(/2$/, "");
 }
 
 export function describeSteppers(steppers: AStepper[]) {
 	return steppers
 		?.map((stepper) => {
-			return `${constructorName(stepper)}: ${Object.keys(stepper?.steps).sort().join('|')}`;
+			return `${constructorName(stepper)}: ${Object.keys(stepper?.steps).sort().join("|")}`;
 		})
 		.sort()
-		.join('  \n');
+		.join("  \n");
 }
 
 // from https://stackoverflow.com/questions/1027224/how-can-i-test-if-a-letter-in-a-string-is-uppercase-or-lowercase-using-javascrip
@@ -186,7 +191,7 @@ export async function setStepperWorldsAndDomains(steppers: AStepper[], world: TW
 }
 
 export function getPre(stepper: AStepper) {
-	return ['HAIBUN', 'O', constructorName(stepper).toUpperCase()].join('_') + '_';
+	return ["HAIBUN", "O", constructorName(stepper).toUpperCase()].join("_") + "_";
 }
 
 /**
@@ -195,7 +200,7 @@ export function getPre(stepper: AStepper) {
 export function getStepperOptionValue(key: string, value: string, csteppers: CStepper[]) {
 	for (const cstepper of csteppers) {
 		const pre = getPre(cstepper.prototype);
-		const name = key.replace(pre, '');
+		const name = key.replace(pre, "");
 		const ao = new cstepper() as IHasOptions;
 
 		if (key.startsWith(pre)) {
@@ -287,8 +292,8 @@ function doFindStepperFromOption<Type>(
 }
 
 function stepperOptionNotFoundError(stepper: AStepper, optionNames: string[], moduleOptions: TModuleOptions): string {
-	return `Cannot find single ${optionNames.map((o) => getStepperOptionName(stepper, o)).join(' or ')} in your ${constructorName(
-		stepper
+	return `Cannot find single ${optionNames.map((o) => getStepperOptionName(stepper, o)).join(" or ")} in your ${constructorName(
+		stepper,
 	)} options ${JSON.stringify(Object.keys(moduleOptions).filter((k) => k.startsWith(getPre(stepper))))}`;
 }
 
@@ -297,7 +302,12 @@ function stepperOptionNotFoundError(stepper: AStepper, optionNames: string[], mo
  * If no stepper-level option is defined, returns any single stepper matching the first optionName as kind.
  * Throws if multiple steppers match the kind and no option is specified.
  */
-export function findStepperFromOptionOrKind<Type>(steppers: AStepper[], stepper: AStepper, moduleOptions: TModuleOptions, ...optionNames: string[]): Type {
+export function findStepperFromOptionOrKind<Type>(
+	steppers: AStepper[],
+	stepper: AStepper,
+	moduleOptions: TModuleOptions,
+	...optionNames: string[]
+): Type {
 	// First, try to find via option
 	const val = optionNames.reduce<string | undefined>((v, n) => {
 		const r = getStepperOption(stepper, n, moduleOptions);
@@ -313,16 +323,13 @@ export function findStepperFromOptionOrKind<Type>(steppers: AStepper[], stepper:
 	const matchingSteppers = steppers.filter((s) => s.kind === kind);
 
 	if (matchingSteppers.length === 0) {
-		throw Error(
-			stepperOptionNotFoundError(stepper, optionNames, moduleOptions) +
-			` and no stepper of kind ${kind} found`
-		);
+		throw Error(stepperOptionNotFoundError(stepper, optionNames, moduleOptions) + ` and no stepper of kind ${kind} found`);
 	}
 
 	if (matchingSteppers.length > 1) {
 		throw Error(
-			`Multiple steppers of kind ${kind} found: ${matchingSteppers.map((s) => constructorName(s)).join(', ')}. ` +
-			`Please specify which one to use via ${getStepperOptionName(stepper, optionNames[0])}`
+			`Multiple steppers of kind ${kind} found: ${matchingSteppers.map((s) => constructorName(s)).join(", ")}. ` +
+				`Please specify which one to use via ${getStepperOptionName(stepper, optionNames[0])}`,
 		);
 	}
 
@@ -337,8 +344,8 @@ export function findStepper<Type>(steppers: AStepper[], name: string): Type {
 			`Cannot find stepper ${name} from ${JSON.stringify(
 				steppers.map((s) => constructorName(s)),
 				null,
-				2
-			)} `
+				2,
+			)} `,
 		);
 	}
 	return stepper;
@@ -349,17 +356,18 @@ export function getFromRuntime<Type>(runtime: TRuntime, name: string): Type {
 }
 
 export const shortenURI = (uri: string) => {
-	const shortURI = uri.startsWith('https://') ? uri.replace('https://', '') : uri;
-	return shortURI.length < 32 ? shortURI : shortURI.substring(0, 26) + '...' + shortURI.substring(uri.length - 6);
-}
+	const shortURI = uri.startsWith("https://") ? uri.replace("https://", "") : uri;
+	return shortURI.length < 32 ? shortURI : shortURI.substring(0, 26) + "..." + shortURI.substring(uri.length - 6);
+};
 
 export function slugify(s: string) {
-	return s.replace(/[^a-zA-Z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+	return s
+		.replace(/[^a-zA-Z0-9]/g, "-")
+		.replace(/-+/g, "-")
+		.replace(/^-|-$/g, "");
 }
-import { namedInterpolation } from '../namedVars.js';
-import { Origin } from '../../schema/protocol.js';
-
-
+import { namedInterpolation } from "../namedVars.js";
+import { Origin } from "../../schema/protocol.js";
 
 export const intOrError = (val: string) => {
 	if (val.match(/[^\d+]/)) {
@@ -369,10 +377,10 @@ export const intOrError = (val: string) => {
 };
 
 export const boolOrError = (val: string) => {
-	if (val !== 'false' && val !== 'true') {
+	if (val !== "false" && val !== "true") {
 		return { parseError: `${val} is not true or false` };
 	}
-	return { result: val === 'true' };
+	return { result: val === "true" };
 };
 
 export const stringOrError = (val: string) => {
@@ -402,36 +410,38 @@ export function trying<TResult>(fun: () => void): Promise<Error | TResult> {
 }
 
 export function asError(e: unknown): Error {
-	return typeof e === 'object' && e !== null && 'message' in e && typeof (e as Record<string, unknown>).message === 'string'
+	return typeof e === "object" && e !== null && "message" in e && typeof (e as Record<string, unknown>).message === "string"
 		? (e as Error)
 		: new Error(String(e));
 }
 
 export function dePolite(s: string) {
-	return s.replace(/^((given|when|then|and|should|the|it|I'm|I|am|an|a) )*/i, '');
+	return s.replace(/^((given|when|then|and|should|the|it|I'm|I|am|an|a) )*/i, "");
 }
 
-
 export function formattedSteppers(steppers: AStepper[]) {
-	const a = steppers.reduce((acc, o) => {
-		const name = constructorName(o);
-		const description = o.description || name;
-		return {
-			...acc,
-			[name]: {
-				description,
-				steps: Object.entries(o.steps).map(
-					([stepperName, stepperMatch]) => stepperName + ': ' + (stepperMatch.gwta || stepperMatch.exact || stepperMatch.match)
-				),
-			},
-		};
-	}, {} as { [name: string]: { description: string; steps: string[] } });
+	const a = steppers.reduce(
+		(acc, o) => {
+			const name = constructorName(o);
+			const description = o.description || name;
+			return {
+				...acc,
+				[name]: {
+					description,
+					steps: Object.entries(o.steps).map(
+						([stepperName, stepperMatch]) => stepperName + ": " + (stepperMatch.gwta || stepperMatch.exact || stepperMatch.match),
+					),
+				},
+			};
+		},
+		{} as { [name: string]: { description: string; steps: string[] } },
+	);
 	return a;
 }
 
-export const formatCurrentSection = (runtime: TRuntime) => [runtime.feature, runtime.scenario].filter(s => !!s).join('>');
+export const formatCurrentSection = (runtime: TRuntime) => [runtime.feature, runtime.scenario].filter((s) => !!s).join(">");
 
-export const formatCurrentSeqPath = (seqPath: TSeqPath) => '[' + seqPath.join('.') + ']';
+export const formatCurrentSeqPath = (seqPath: TSeqPath) => "[" + seqPath.join(".") + "]";
 
 const TRUNCATE_AT = 78;
 const MAX_TRUNCATE_DEPTH = 10;
@@ -444,10 +454,10 @@ export function truncateForDisplay(s: string): string {
 
 /** Deep-truncate an object for logging: truncates any string values that exceed the limit. */
 export function truncateForLog(obj: unknown, depth = 0): unknown {
-	if (depth > MAX_TRUNCATE_DEPTH) return '[truncated at depth]';
-	if (typeof obj === 'string') return truncateForDisplay(obj);
-	if (obj === null || obj === undefined || typeof obj !== 'object') return obj;
-	if (Array.isArray(obj)) return obj.map(item => truncateForLog(item, depth + 1));
+	if (depth > MAX_TRUNCATE_DEPTH) return "[truncated at depth]";
+	if (typeof obj === "string") return truncateForDisplay(obj);
+	if (obj === null || obj === undefined || typeof obj !== "object") return obj;
+	if (Array.isArray(obj)) return obj.map((item) => truncateForLog(item, depth + 1));
 	const result: Record<string, unknown> = {};
 	for (const [k, v] of Object.entries(obj)) {
 		result[k] = truncateForLog(v, depth + 1);

@@ -25,11 +25,7 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 		super(FilterColumnSchema, { loading: true });
 	}
 
-	async openFiltered(
-		property: string,
-		value: string,
-		label: string = defaultLabel(),
-	): Promise<void> {
+	async openFiltered(property: string, value: string, label: string = defaultLabel()): Promise<void> {
 		this.state = {
 			...this.state,
 			property,
@@ -50,10 +46,7 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 		});
 	}
 
-	async openProperty(
-		property: string,
-		label: string = defaultLabel(),
-	): Promise<void> {
+	async openProperty(property: string, label: string = defaultLabel()): Promise<void> {
 		this.state = {
 			...this.state,
 			property,
@@ -86,12 +79,7 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 		await this.fetchIncoming(targetLabel, targetId, 50, 0);
 	}
 
-	private async fetchIncoming(
-		label: string,
-		id: string,
-		limit: number,
-		offset: number,
-	): Promise<void> {
+	private async fetchIncoming(label: string, id: string, limit: number, offset: number): Promise<void> {
 		try {
 			await getAvailableSteps();
 			const client = SseClient.for("");
@@ -102,8 +90,7 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 			this.results = data.edges.map((e) => e.target);
 			this.state = { ...this.state, loading: false };
 			this.showResults();
-			if (this.resultTable)
-				this.resultTable.setPagination(data.total, limit, offset);
+			if (this.resultTable) this.resultTable.setPagination(data.total, limit, offset);
 		} catch (err) {
 			console.error("[filter-column] incoming fetch failed:", err);
 			this.state = { ...this.state, loading: false, error: errMsg(err) };
@@ -115,10 +102,7 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 		try {
 			await getAvailableSteps();
 			const client = SseClient.for("");
-			const data = await client.rpc<{ vertices: VertexData[]; total: number }>(
-				requireStep("graphQuery"),
-				{ query },
-			);
+			const data = await client.rpc<{ vertices: VertexData[]; total: number }>(requireStep("graphQuery"), { query });
 			this.results = data.vertices ?? [];
 			this.state = { ...this.state, loading: false };
 			this.showResults();
@@ -179,12 +163,7 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 		table.addEventListener(SHU_EVENT.PAGE_CHANGE, ((e: CustomEvent) => {
 			const { offset } = e.detail;
 			if (this.state.property === "linksTo" && this.state.value) {
-				void this.fetchIncoming(
-					this.state.vertexLabel || defaultLabel(),
-					this.state.value,
-					50,
-					offset,
-				);
+				void this.fetchIncoming(this.state.vertexLabel || defaultLabel(), this.state.value, 50, offset);
 			}
 		}) as EventListener);
 	}

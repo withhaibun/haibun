@@ -1,18 +1,14 @@
 {
-  "extends": "../tsconfig.settings.json",
-  "references": [
-    {
-      "path": "../core"
-    }
-  ],
-  "lib": [
-    "nodenext"
-  ],
-  "compilerOptions": {
-    "outDir": "./build",
-    "rootDir": "./src"
-  },
-  "include": [
-    "./src/**/*"
-  ]
+	"extends": "../tsconfig.settings.json",
+	"references": [
+		{
+			"path": "../core"
+		}
+	],
+	"lib": ["nodenext"],
+	"compilerOptions": {
+		"outDir": "./build",
+		"rootDir": "./src"
+	},
+	"include": ["./src/**/*"]
 }

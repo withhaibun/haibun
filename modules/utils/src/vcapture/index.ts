@@ -3,8 +3,8 @@
 import { TAnyFixme } from "@haibun/core/lib/fixme.js";
 import { parseVCaptureArgs, runContainer } from "./vcapture-lib.js";
 
-process.on('unhandledRejection', (err: unknown) => {
-	console.error('cli Unhandled Rejection:', err);
+process.on("unhandledRejection", (err: unknown) => {
+	console.error("cli Unhandled Rejection:", err);
 	if (err instanceof Error && err.stack) {
 		console.error(err.stack);
 	} else {
@@ -18,6 +18,8 @@ const { testToRun, includeDirs, captureOptions } = parseVCaptureArgs(args, print
 runContainer(testToRun, includeDirs, captureOptions);
 
 function printHelp(exitCode = 1) {
-	console[exitCode === 1 ? 'error' : 'info'](`Usage: ${process.argv[1]} [--feature-filter] [--cli-env=<name=value,...>] [--pass-env=<VAR=FOO>] [--pass-env ...] [--recreate[=boolean]] [--tts[=boolean]] [--no-capture] [--help] [--res=WxH] script features files ...`);
+	console[exitCode === 1 ? "error" : "info"](
+		`Usage: ${process.argv[1]} [--feature-filter] [--cli-env=<name=value,...>] [--pass-env=<VAR=FOO>] [--pass-env ...] [--recreate[=boolean]] [--tts[=boolean]] [--no-capture] [--help] [--res=WxH] script features files ...`,
+	);
 	process.exit(exitCode);
 }

@@ -15,8 +15,7 @@ class EchoStepper extends AStepper {
 	steps = {
 		echo: {
 			gwta: "echo {message}",
-			action: ({ message }: { message: string }) =>
-				actionOKWithProducts({ echoed: message }),
+			action: ({ message }: { message: string }) => actionOKWithProducts({ echoed: message }),
 		},
 		pong: {
 			gwta: "pong",

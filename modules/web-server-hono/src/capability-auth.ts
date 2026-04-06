@@ -1,5 +1,5 @@
-import type { TRuntime } from '@haibun/core/lib/defs.js';
-import { getZcapLikeAuthority } from '@haibun/core/lib/zcap-like-authority.js';
+import type { TRuntime } from "@haibun/core/lib/defs.js";
+import { getZcapLikeAuthority } from "@haibun/core/lib/zcap-like-authority.js";
 
 export type TCapabilityAuthConfig = {
 	accessToken?: string;
@@ -8,14 +8,9 @@ export type TCapabilityAuthConfig = {
 
 export type TRequestHeaders = Record<string, string | undefined>;
 
-export function validateCapabilityAuthConfig(
-	scope: string,
-	{ accessToken, accessCapability }: TCapabilityAuthConfig,
-): void {
+export function validateCapabilityAuthConfig(scope: string, { accessToken, accessCapability }: TCapabilityAuthConfig): void {
 	if (!accessCapability || accessToken) return;
-	throw new Error(
-		`${scope}: ACCESS_CAPABILITY requires ACCESS_TOKEN`,
-	);
+	throw new Error(`${scope}: ACCESS_CAPABILITY requires ACCESS_TOKEN`);
 }
 
 export function getGrantedCapabilityFromHeaders(
@@ -36,10 +31,7 @@ export function getGrantedCapabilityFromHeaders(
 	return granted.size > 0 ? Array.from(granted) : undefined;
 }
 
-function getHeader(
-	headers: TRequestHeaders | undefined,
-	name: string,
-): string | undefined {
+function getHeader(headers: TRequestHeaders | undefined, name: string): string | undefined {
 	if (!headers) return undefined;
 	const wanted = name.toLowerCase();
 	for (const [key, value] of Object.entries(headers)) {

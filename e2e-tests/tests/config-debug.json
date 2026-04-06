@@ -1,16 +1,16 @@
 {
-  "$schema": "../../modules/core/haibun-core-specl.schema.json",
-  "steppers": [
-    "@haibun/web-playwright/web-playwright",
-    "@haibun/out-junit/out-junit",
-    "@haibun/web-server-hono/web-server-stepper",
-    "@haibun/storage-fs/storage-fs",
-    "@haibun/web-accessibility-axe/a11y-axe-stepper",
-    "variables-stepper",
-    "logic-stepper",
-    "debugger-stepper",
-    "activities-stepper",
-    "haibun",
-    "./build-local/test-server"
-  ]
+	"$schema": "../../modules/core/haibun-core-specl.schema.json",
+	"steppers": [
+		"@haibun/web-playwright/web-playwright",
+		"@haibun/out-junit/out-junit",
+		"@haibun/web-server-hono/web-server-stepper",
+		"@haibun/storage-fs/storage-fs",
+		"@haibun/web-accessibility-axe/a11y-axe-stepper",
+		"variables-stepper",
+		"logic-stepper",
+		"debugger-stepper",
+		"activities-stepper",
+		"haibun",
+		"./build-local/test-server"
+	]
 }

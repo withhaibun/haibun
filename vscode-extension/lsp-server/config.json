@@ -1,7 +1,4 @@
 {
-  "$schema": "../../modules/core/haibun-core-specl.schema.json",
-  "steppers": [
-    "@haibun/lsp",
-    "haibun"
-  ]
+	"$schema": "../../modules/core/haibun-core-specl.schema.json",
+	"steppers": ["@haibun/lsp", "haibun"]
 }

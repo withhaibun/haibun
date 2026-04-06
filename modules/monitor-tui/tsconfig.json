@@ -1,16 +1,14 @@
 {
-  "extends": "../tsconfig.settings.json",
-  "references": [
-    {
-      "path": "../core"
-    }
-  ],
-  "compilerOptions": {
-    "outDir": "./build",
-    "rootDir": "./src",
-    "jsx": "react-jsx"
-  },
-  "include": [
-    "src/**/*"
-  ]
+	"extends": "../tsconfig.settings.json",
+	"references": [
+		{
+			"path": "../core"
+		}
+	],
+	"compilerOptions": {
+		"outDir": "./build",
+		"rootDir": "./src",
+		"jsx": "react-jsx"
+	},
+	"include": ["src/**/*"]
 }

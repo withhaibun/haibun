@@ -9,13 +9,29 @@ function createTestStore(): IQuadStore & { vertices: Map<string, Record<string, 
 	const vertices = new Map<string, Record<string, unknown>>();
 	return {
 		vertices,
-		add: (quad) => { quads.push({ ...quad, timestamp: Date.now() }); },
-		query: (pattern: TQuadPattern) => quads.filter((q) => (!pattern.subject || q.subject === pattern.subject) && (!pattern.predicate || q.predicate === pattern.predicate) && (!pattern.object || q.object === pattern.object) && (!pattern.namedGraph || q.namedGraph === pattern.namedGraph)),
+		add: (quad) => {
+			quads.push({ ...quad, timestamp: Date.now() });
+		},
+		query: (pattern: TQuadPattern) =>
+			quads.filter(
+				(q) =>
+					(!pattern.subject || q.subject === pattern.subject) &&
+					(!pattern.predicate || q.predicate === pattern.predicate) &&
+					(!pattern.object || q.object === pattern.object) &&
+					(!pattern.namedGraph || q.namedGraph === pattern.namedGraph),
+			),
 		select: () => undefined,
-		clear: () => { quads.length = 0; },
+		clear: () => {
+			quads.length = 0;
+		},
 		remove: () => {},
 		all: () => quads,
-		upsertVertex: async (label, data) => { const d = data as Record<string, unknown>; const id = String(d.id); vertices.set(`${label}:${id}`, { ...d, _label: label }); return id; },
+		upsertVertex: async (label, data) => {
+			const d = data as Record<string, unknown>;
+			const id = String(d.id);
+			vertices.set(`${label}:${id}`, { ...d, _label: label });
+			return id;
+		},
 		getVertex: async (label, id) => vertices.get(`${label}:${id}`) as Record<string, unknown> | undefined,
 		deleteVertex: async () => {},
 		queryVertices: async () => [],

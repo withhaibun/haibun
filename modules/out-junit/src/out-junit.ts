@@ -1,32 +1,31 @@
-import { create } from 'xmlbuilder2';
-import { EOL } from 'os';
+import { create } from "xmlbuilder2";
+import { EOL } from "os";
 
-import { AStorage } from '@haibun/domain-storage/AStorage.js';
-import { findStepperFromOptionOrKind, getStepperOption, stringOrError } from '@haibun/core/lib/util/index.js';
-import { TWorld, IStepperCycles } from '@haibun/core/lib/defs.js';
-import { TExecutorResult, TStepResult } from '@haibun/core/schema/protocol.js';
-import { AStepper, IHasCycles, IHasOptions, StepperKinds } from '@haibun/core/lib/astepper.js';
-import { TAnyFixme } from '@haibun/core/lib/fixme.js';
-import { MEDIA_TYPES, TMediaType } from '@haibun/domain-storage/media-types.js';
-
+import { AStorage } from "@haibun/domain-storage/AStorage.js";
+import { findStepperFromOptionOrKind, getStepperOption, stringOrError } from "@haibun/core/lib/util/index.js";
+import { TWorld, IStepperCycles } from "@haibun/core/lib/defs.js";
+import { TExecutorResult, TStepResult } from "@haibun/core/schema/protocol.js";
+import { AStepper, IHasCycles, IHasOptions, StepperKinds } from "@haibun/core/lib/astepper.js";
+import { TAnyFixme } from "@haibun/core/lib/fixme.js";
+import { MEDIA_TYPES, TMediaType } from "@haibun/domain-storage/media-types.js";
 
 type TTestCase = {
-	'@name': string;
-	'@id': string;
+	"@name": string;
+	"@id": string;
 	skipped?: object;
 	ok?: boolean;
-	'system-out'?: string;
+	"system-out"?: string;
 	failure?: TFailResult;
 };
 
 type TFailResult = {
-	'@message': string;
-	'@type': string;
+	"@message": string;
+	"@type": string;
 	type?: string;
 };
 
 export default class OutJUnit extends AStepper implements IHasOptions, IHasCycles {
-	description = 'Generate JUnit XML reports from test results';
+	description = "Generate JUnit XML reports from test results";
 
 	cycles: IStepperCycles = {
 		endExecution: async (results: TExecutorResult) => {
@@ -44,20 +43,20 @@ export default class OutJUnit extends AStepper implements IHasOptions, IHasCycle
 			parse: (port: string) => stringOrError(port),
 		},
 		[StepperKinds.STORAGE]: {
-			desc: 'Storage for output (default stdout)',
+			desc: "Storage for output (default stdout)",
 			parse: (input: string) => stringOrError(input),
 		},
 	};
 
 	storage?: AStorage;
-	name = 'Haibun-Junit';
+	name = "Haibun-Junit";
 	prettyPrint = true;
-	classname = 'Haibun-Junit-Suite';
+	classname = "Haibun-Junit-Suite";
 	outputFile: string;
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
-		this.outputFile = getStepperOption(this, 'OUTPUT_FILE', world.moduleOptions) || 'junit.xml';
+		this.outputFile = getStepperOption(this, "OUTPUT_FILE", world.moduleOptions) || "junit.xml";
 		this.storage = findStepperFromOptionOrKind(steppers, this, world.moduleOptions, StepperKinds.STORAGE);
 		await Promise.resolve();
 	}
@@ -69,22 +68,22 @@ export default class OutJUnit extends AStepper implements IHasOptions, IHasCycle
 		// biome-ignore lint/suspicious/noExplicitAny: xml builder
 		const forXML: any = {
 			testsuites: {
-				'@tests': count,
-				'@name': this.name,
-				'@failures': failures,
+				"@tests": count,
+				"@name": this.name,
+				"@failures": failures,
 				testsuite: {
-					'@name': this.classname,
-					'@tests': count,
-					'@skipped': skipped,
-					'@failures': failures,
+					"@name": this.classname,
+					"@tests": count,
+					"@skipped": skipped,
+					"@failures": failures,
 					testcase: [],
 				},
 			},
 		};
 		for (const t of result.featureResults || []) {
 			const testCase: TTestCase = {
-				'@name': t.path,
-				'@id': t.path,
+				"@name": t.path,
+				"@id": t.path,
 			};
 
 			if (!t.ok) {
@@ -99,8 +98,8 @@ export default class OutJUnit extends AStepper implements IHasOptions, IHasCycle
 
 	getFailResult(failure: TStepResult | undefined) {
 		const failResult: TFailResult = {
-			'@message': `${failure?.name || 'nofeaturename'}: ${failure?.errorMessage || failure?.toString()}`,
-			'@type': 'fail',
+			"@message": `${failure?.name || "nofeaturename"}: ${failure?.errorMessage || failure?.toString()}`,
+			"@type": "fail",
 		};
 
 		return failResult;

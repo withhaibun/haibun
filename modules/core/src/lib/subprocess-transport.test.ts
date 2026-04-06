@@ -27,10 +27,7 @@ describe("SubprocessTransport", () => {
 		const methods = transport.descriptors.map((d) => d.method);
 		expect(methods).toContain("EchoStepper-echo");
 		expect(methods).toContain("EchoStepper-pong");
-		expect(
-			transport.descriptors.find((d) => d.method === "EchoStepper-pong")
-				?.capability,
-		).toBe("EchoStepper:protected");
+		expect(transport.descriptors.find((d) => d.method === "EchoStepper-pong")?.capability).toBe("EchoStepper:protected");
 	});
 
 	it("injects proxy tools into StepRegistry", async () => {
@@ -43,9 +40,7 @@ describe("SubprocessTransport", () => {
 
 		expect(registry.has("EchoStepper-echo")).toBe(true);
 		expect(registry.has("EchoStepper-pong")).toBe(true);
-		expect(registry.get("EchoStepper-pong")?.capability).toBe(
-			"EchoStepper:protected",
-		);
+		expect(registry.get("EchoStepper-pong")?.capability).toBe("EchoStepper:protected");
 	});
 
 	it("dispatches a call and gets products back", async () => {
