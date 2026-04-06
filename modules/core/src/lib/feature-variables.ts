@@ -22,7 +22,7 @@ export class FeatureVariables {
 		this.store = new QuadStore();
 		if (initial) {
 			for (const [name, sv] of Object.entries(initial)) {
-				this.storeAsQuad(name, sv);
+				void this.writeQuads(name, sv);
 			}
 		}
 	}
@@ -77,7 +77,7 @@ export class FeatureVariables {
 		if (domain === undefined) throw Error(`Cannot set variable "${sv.term}": unknown domain "${sv.domain}"`);
 		const normalized = { ...sv, domain: domainKey };
 		domain.coerce(normalized);
-		await this.storeAsQuadAsync(sv.term, normalized, namedGraph);
+		await this.writeQuads(sv.term, normalized, namedGraph);
 
 		const timestamp = Date.now();
 		this.world.eventLogger.emit({
@@ -276,7 +276,7 @@ export class FeatureVariables {
 	}
 
 	isSecret(name: string): boolean {
-		return /(password|secret|token|key)/i.test(name);
+		return /(password|secret)/i.test(name);
 	}
 
 	async getSecrets(): Promise<{ [name: string]: string }> {
@@ -291,16 +291,7 @@ export class FeatureVariables {
 		return secrets;
 	}
 
-	/** Fire-and-forget quad write (used in constructor where we can't await) */
-	private storeAsQuad(name: string, sv: TStepValue, namedGraph: string = SHARED_GRAPH): void {
-		const domainKey = normalizeDomainKey(sv.domain);
-		void this.store.set(name, domainKey, sv.value, namedGraph);
-		if (sv.origin) void this.store.set(name, "origin", sv.origin, META_GRAPH);
-		if (sv.readonly) void this.store.set(name, "readonly", true, META_GRAPH);
-		if (sv.secret) void this.store.set(name, "secret", true, META_GRAPH);
-	}
-
-	private async storeAsQuadAsync(name: string, sv: TStepValue, namedGraph: string = SHARED_GRAPH): Promise<void> {
+	private async writeQuads(name: string, sv: TStepValue, namedGraph: string = SHARED_GRAPH): Promise<void> {
 		const domainKey = normalizeDomainKey(sv.domain);
 		await this.store.set(name, domainKey, sv.value, namedGraph);
 		if (sv.origin) await this.store.set(name, "origin", sv.origin, META_GRAPH);
