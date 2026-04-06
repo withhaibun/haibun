@@ -1,14 +1,24 @@
-import { TFeatureStep, TWorld, IStepperCycles, TFeatures, TResolvedFeature, TStartExecution, TStartFeature, CycleWhen } from '../lib/defs.js';
-import { OK, STEP_DELAY } from '../schema/protocol.js';
-import { AStepper, IHasCycles, TStepperSteps } from '../lib/astepper.js';
-import { actionNotOK, actionOK, constructorName, formattedSteppers, sleep } from '../lib/util/index.js';
-import { findFeatureStepsFromStatement } from '../phases/Resolver.js';
-import { DOMAIN_STATEMENT } from '../lib/domain-types.js';
-import { findFeatures } from '../lib/features.js';
-import { FlowRunner } from '../lib/core/flow-runner.js';
+import { z } from "zod";
+import {
+	TFeatureStep,
+	TWorld,
+	IStepperCycles,
+	TFeatures,
+	TResolvedFeature,
+	TStartExecution,
+	TStartFeature,
+	CycleWhen,
+} from "../lib/defs.js";
+import { OK, STEP_DELAY } from "../schema/protocol.js";
+import { AStepper, IHasCycles, TStepperSteps } from "../lib/astepper.js";
+import { actionNotOK, actionOK, actionOKWithProducts, constructorName, formattedSteppers, sleep } from "../lib/util/index.js";
+import { findFeatureStepsFromStatement } from "../phases/Resolver.js";
+import { DOMAIN_STATEMENT } from "../lib/domain-types.js";
+import { findFeatures } from "../lib/features.js";
+import { FlowRunner } from "../lib/core/flow-runner.js";
 
 class Haibun extends AStepper implements IHasCycles {
-	description = 'Core steps for features, scenarios, backgrounds, and prose';
+	description = "Core steps for features, scenarios, backgrounds, and prose";
 
 	afterEverySteps: { [stepperName: string]: TFeatureStep[] } = {};
 	steppers: AStepper[] = [];
@@ -32,12 +42,12 @@ class Haibun extends AStepper implements IHasCycles {
 			const afterEvery = this.afterEverySteps[featureStep.action.stepperName];
 			let failed = false;
 			if (afterEvery) {
-				const stepsToRun = afterEvery.filter(aeStep => aeStep.action.actionName !== featureStep.action.actionName);
+				const stepsToRun = afterEvery.filter((aeStep) => aeStep.action.actionName !== featureStep.action.actionName);
 
 				if (stepsToRun.length > 0) {
-					const mode = featureStep.intent?.mode === 'speculative' ? 'speculative' : 'authoritative';
+					const mode = featureStep.intent?.mode === "speculative" ? "speculative" : "authoritative";
 					// Mark these steps as afterEvery steps to prevent recursion
-					const markedSteps = stepsToRun.map(s => ({ ...s, isAfterEveryStep: true }));
+					const markedSteps = stepsToRun.map((s) => ({ ...s, isAfterEveryStep: true }));
 					const res = await this.runner.runSteps(markedSteps, { intent: { mode }, parentStep: featureStep });
 					if (!res.ok) {
 						failed = true;
@@ -45,23 +55,22 @@ class Haibun extends AStepper implements IHasCycles {
 				}
 			}
 			return Promise.resolve({ failed });
-		}
+		},
 	};
 
 	cyclesWhen = {
 		startExecution: CycleWhen.LAST,
 		startFeature: CycleWhen.LAST,
-	}
-
+	};
 
 	steps = {
 		until: {
 			gwta: `until {statements:${DOMAIN_STATEMENT}}`,
 			action: async ({ statements }: { statements: TFeatureStep[] }, featureStep: TFeatureStep) => {
 				let signal;
-				const mode = featureStep.intent?.mode === 'speculative' ? 'speculative' : 'authoritative';
+				const mode = featureStep.intent?.mode === "speculative" ? "speculative" : "authoritative";
 				do {
-					signal = await this.runner.runSteps(statements, { intent: { mode, usage: 'polling' }, parentStep: featureStep });
+					signal = await this.runner.runSteps(statements, { intent: { mode, usage: "polling" }, parentStep: featureStep });
 					if (!signal.ok) {
 						await sleep(200);
 					}
@@ -71,19 +80,19 @@ class Haibun extends AStepper implements IHasCycles {
 		},
 
 		backgrounds: {
-			gwta: 'Backgrounds: {names}',
+			gwta: "Backgrounds: {names}",
 			resolveFeatureLine: (line: string, _path: string, _stepper: AStepper, backgrounds: TFeatures) => {
 				if (!line.match(/^Backgrounds:\s*/i)) {
 					return false;
 				}
 
-				const names = line.replace(/^Backgrounds:\s*/i, '').trim();
-				const bgNames = names.split(',').map((a) => a.trim());
+				const names = line.replace(/^Backgrounds:\s*/i, "").trim();
+				const bgNames = names.split(",").map((a) => a.trim());
 
 				for (const bgName of bgNames) {
 					const bg = findFeatures(bgName, backgrounds);
 					if (bg.length !== 1) {
-						throw new Error(`can't find single "${bgName}.feature" from ${backgrounds.map((b) => b.path).join(', ')}`);
+						throw new Error(`can't find single "${bgName}.feature" from ${backgrounds.map((b) => b.path).join(", ")}`);
 					}
 				}
 				return false;
@@ -91,14 +100,21 @@ class Haibun extends AStepper implements IHasCycles {
 			action: async ({ names }: { names: string }, featureStep: TFeatureStep) => {
 				const world = this.getWorld();
 				// Prepend 'Backgrounds: ' so expandLine correctly recognizes this as a background directive
-				const expanded = findFeatureStepsFromStatement(`Backgrounds: ${names}`, this.steppers, world, featureStep.source.path, featureStep.seqPath, 1);
-				const mode = featureStep.intent?.mode === 'speculative' ? 'speculative' : 'authoritative';
+				const expanded = findFeatureStepsFromStatement(
+					`Backgrounds: ${names}`,
+					this.steppers,
+					world,
+					featureStep.source.path,
+					featureStep.seqPath,
+					1,
+				);
+				const mode = featureStep.intent?.mode === "speculative" ? "speculative" : "authoritative";
 				const result = await this.runner.runSteps(expanded, { intent: { mode }, parentStep: featureStep });
 				return result.ok ? OK : actionNotOK(`backgrounds failed: ${result.errorMessage}`);
 			},
 		},
 		nothing: {
-			exact: '',
+			exact: "",
 			action: () => OK,
 		},
 		prose: {
@@ -108,35 +124,34 @@ class Haibun extends AStepper implements IHasCycles {
 		},
 
 		feature: {
-			gwta: 'Feature: {feature}',
-			handlesUndefined: ['feature'],
+			gwta: "Feature: {feature}",
+			handlesUndefined: ["feature"],
 			action: ({ feature }: { feature: string }) => {
 				this.getWorld().runtime.feature = feature;
 				return OK;
-			}
+			},
 		},
 		scenario: {
-			gwta: 'Scenario: {scenario}',
-			handlesUndefined: ['scenario'],
+			gwta: "Scenario: {scenario}",
+			handlesUndefined: ["scenario"],
 			action: ({ scenario }: { scenario: string }) => {
 				this.getWorld().runtime.scenario = scenario;
 				return OK;
-			}
-
+			},
 		},
 		startStepDelay: {
-			gwta: 'step delay of {ms:number}ms',
-			action: (({ ms }: { ms: number }) => {
+			gwta: "step delay of {ms:number}ms",
+			action: ({ ms }: { ms: number }) => {
 				this.getWorld().options[STEP_DELAY] = ms;
 				return OK;
-			}),
+			},
 		},
 		endsWith: {
-			gwta: 'ends with {result}',
-			action: (({ result }: { result: string }) => (result.toUpperCase() === 'OK' ? actionOK() : actionNotOK('ends with not ok'))),
+			gwta: "ends with {result}",
+			action: ({ result }: { result: string }) => (result.toUpperCase() === "OK" ? actionOK() : actionNotOK("ends with not ok")),
 		},
 		showSteppers: {
-			exact: 'show steppers',
+			exact: "show steppers",
 			action: () => {
 				const allSteppers = formattedSteppers(this.steppers);
 				this.getWorld().eventLogger.info(JSON.stringify(allSteppers, null, 2));
@@ -144,38 +159,40 @@ class Haibun extends AStepper implements IHasCycles {
 			},
 		},
 		showSteps: {
-			gwta: 'show step results',
+			gwta: "show step results",
 			action: () => {
 				const steps = this.getWorld().runtime.stepResults;
 				this.getWorld().eventLogger.info(JSON.stringify(steps));
 				return actionOK();
-			}
+			},
 		},
 		showFeatures: {
-			gwta: 'show features',
+			gwta: "show features",
 			action: () => {
 				return actionOK();
-			}
+			},
 		},
 		showBackgrounds: {
-			gwta: 'show backgrounds',
+			gwta: "show backgrounds",
 			action: () => {
 				return actionOK();
-			}
+			},
 		},
 		showQuadStore: {
-			exact: 'show quadstore',
+			exact: "show quadstore",
 			action: () => {
 				const quads = this.getWorld().shared.allQuads();
-				const output = quads.map(q =>
-					`(${q.subject}, ${q.predicate}, ${JSON.stringify(q.object)}, ${q.namedGraph || 'default'})`
-				).join('\n');
-				this.getWorld().eventLogger.info(`\n=== QuadStore Dump (${quads.length} quads) ===\n${output}\n==========================\n`);
+				const output = quads
+					.map((q) => `(${q.subject}, ${q.predicate}, ${JSON.stringify(q.object)}, ${q.namedGraph || "default"})`)
+					.join("\n");
+				this.getWorld().eventLogger.info(
+					`\n=== QuadStore Dump (${quads.length} quads) ===\n${output}\n==========================\n`,
+				);
 				return OK;
 			},
 		},
 		showObservations: {
-			gwta: 'show observations',
+			gwta: "show observations",
 			action: () => {
 				const observations = this.getWorld().runtime.observations;
 				if (!observations) {
@@ -186,7 +203,7 @@ class Haibun extends AStepper implements IHasCycles {
 				// Correlate observations with their providers
 				const providers: Record<string, string> = {};
 				for (const stepper of this.steppers) {
-					if ('cycles' in stepper) {
+					if ("cycles" in stepper) {
 						const concerns = (stepper as unknown as IHasCycles).cycles.getConcerns?.();
 						if (concerns?.sources) {
 							for (const source of concerns.sources) {
@@ -197,10 +214,10 @@ class Haibun extends AStepper implements IHasCycles {
 				}
 
 				const systemProviders: Record<string, string> = {
-					stepUsage: 'Executor'
+					stepUsage: "Executor",
 				};
 
-				const summary: Record<string, { provider: string, items: unknown }> = {};
+				const summary: Record<string, { provider: string; items: unknown }> = {};
 				for (const [name, items] of observations.entries()) {
 					// Handle Maps (like httpRequests/httpHosts) by converting to object/array
 					let displayItems = items;
@@ -209,48 +226,53 @@ class Haibun extends AStepper implements IHasCycles {
 					}
 
 					summary[name] = {
-						provider: providers[name] || systemProviders[name] || 'unknown',
-						items: displayItems
+						provider: providers[name] || systemProviders[name] || "unknown",
+						items: displayItems,
 					};
 				}
 
 				this.getWorld().eventLogger.info(JSON.stringify(summary, null, 2));
 				return actionOK();
-			}
+			},
 		},
 		showShows: {
-			gwta: 'show shows',
+			gwta: "show shows",
 			action: () => {
 				const shows: string[] = [];
 				for (const stepper of this.steppers) {
 					for (const step of Object.values(stepper.steps)) {
-						if (step.gwta?.startsWith('show ') || step.exact?.startsWith('show ')) {
-							shows.push(step.gwta || step.exact || '');
+						if (step.gwta?.startsWith("show ") || step.exact?.startsWith("show ")) {
+							shows.push(step.gwta || step.exact || "");
 						}
 					}
 				}
 				this.getWorld().eventLogger.info(JSON.stringify(shows.sort(), null, 2));
 				return actionOK();
-			}
+			},
 		},
 		pauseSeconds: {
-			gwta: 'pause for {ms:number}s',
-			action: (async ({ ms }: { ms: number }) => { await sleep(ms * 1000); return OK; }),
+			gwta: "pause for {ms:number}s",
+			action: async ({ ms }: { ms: number }) => {
+				await sleep(ms * 1000);
+				return OK;
+			},
 		},
 		comment: {
-			gwta: ';;{comment}',
-			handlesUndefined: ['comment'],
+			gwta: ";;{comment}",
+			handlesUndefined: ["comment"],
 			action: () => OK,
 		},
 		afterEveryStepper: {
 			precludes: [`Haibun.prose`],
 			gwta: `after every {stepperName: string}, {statement: ${DOMAIN_STATEMENT}}`,
-			handlesUndefined: ['stepperName'],
+			handlesUndefined: ["stepperName"],
 			action: ({ statement }: { stepperName: string; statement: TFeatureStep[] }, featureStep: TFeatureStep) => {
 				const { term: stepperName } = featureStep.action.stepValuesMap.stepperName;
-				const matchedStepper = this.steppers.find(s => constructorName(s) === stepperName);
+				const matchedStepper = this.steppers.find((s) => constructorName(s) === stepperName);
 				if (!matchedStepper) {
-					return actionNotOK(`Didn't find stepper "${stepperName}" from [${this.steppers.map(s => constructorName(s)).join(', ')}]`);
+					return actionNotOK(
+						`Didn't find stepper "${stepperName}" from [${this.steppers.map((s) => constructorName(s)).join(", ")}]`,
+					);
 				}
 				// Use constructorName for consistent key (handles vitest naming)
 				this.afterEverySteps[constructorName(matchedStepper)] = statement;
@@ -258,6 +280,5 @@ class Haibun extends AStepper implements IHasCycles {
 			},
 		},
 	} satisfies TStepperSteps;
-
 }
 export default Haibun;
