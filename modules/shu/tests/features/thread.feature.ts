@@ -8,7 +8,7 @@ import { createStepUI, stepTestIds, flattenTestIds } from "../../build/index.js"
 
 const wp = new WebPlaywright();
 const { serveShuApp } = withAction(new ShuStepper());
-const { waitFor, gotoPage } = withAction(wp);
+const { gotoPage } = withAction(wp);
 const { setAs } = withAction(new VariablesStepper());
 const { feature, scenario } = withAction(new Haibun());
 const { enterStepMode, passesStepExecution } = createStepUI(wp);

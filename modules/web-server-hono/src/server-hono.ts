@@ -6,14 +6,7 @@ import { existsSync, statSync, readdirSync } from "fs";
 import { join } from "path";
 import type { MiddlewareHandler } from "hono";
 import type { IEventLogger } from "@haibun/core/lib/EventLogger.js";
-import {
-	type IWebServer,
-	type TRouteMap,
-	type TRouteTypes,
-	type TRequestHandler,
-	type TStaticFolderOptions,
-	ROUTE_TYPES,
-} from "./defs.js";
+import { type IWebServer, type TRouteMap, type TRouteTypes, type TRequestHandler, type TStaticFolderOptions, ROUTE_TYPES } from "./defs.js";
 
 const DEFAULT_MOUNTED = (): TRouteMap => ROUTE_TYPES.reduce((acc, type) => ({ ...acc, [type]: {} }), {} as TRouteMap);
 
@@ -59,9 +52,7 @@ export class ServerHono implements IWebServer {
 		}
 		const host = hostname || "127.0.0.1";
 		if (ServerHono.listeningPorts.has(port)) {
-			return Promise.reject(
-				`ServerHono.listen for ${why}: port ${port} (${host}) already in use for ${ServerHono.listeningPorts.get(port)}`,
-			);
+			return Promise.reject(`ServerHono.listen for ${why}: port ${port} (${host}) already in use for ${ServerHono.listeningPorts.get(port)}`);
 		}
 		return new Promise((resolve, reject) => {
 			try {
@@ -171,8 +162,7 @@ export class ServerHono implements IWebServer {
 	}
 
 	private ensureNotMounted(type: TRouteTypes, path: string): void {
-		const alreadyMounted =
-			this._mounted[type][path] || Object.keys(this._mounted[type]).find((m: string) => m.startsWith(`${path}/`));
+		const alreadyMounted = this._mounted[type][path] || Object.keys(this._mounted[type]).find((m: string) => m.startsWith(`${path}/`));
 		if (alreadyMounted) throw new Error(`ServerHono: cannot mount ${type} at "${path}" - already mounted`);
 	}
 
