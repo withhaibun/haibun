@@ -1,6 +1,6 @@
-import type { TRuntime } from './defs.js';
+import type { TRuntime } from "./defs.js";
 
-export const ZCAP_LIKE_AUTHORITY = 'zcapLikeAuthority';
+export const ZCAP_LIKE_AUTHORITY = "zcapLikeAuthority";
 
 export type TZcapLikeGrant = {
 	token: string;
@@ -13,12 +13,7 @@ export type TZcapLikeGrant = {
 };
 
 export interface IZcapLikeAuthority {
-	issueBearerGrant(grant: {
-		token: string;
-		capability: string;
-		note?: string;
-		issuer?: string;
-	}): TZcapLikeGrant;
+	issueBearerGrant(grant: { token: string; capability: string; note?: string; issuer?: string }): TZcapLikeGrant;
 	revokeBearerGrant(token: string, capability?: string): number;
 	resolveBearerToken(token: string): string[];
 	listBearerGrants(): TZcapLikeGrant[];
@@ -28,12 +23,7 @@ export interface IZcapLikeAuthority {
 export class ZcapLikeAuthority implements IZcapLikeAuthority {
 	private grants = new Map<string, TZcapLikeGrant[]>();
 
-	issueBearerGrant(grant: {
-		token: string;
-		capability: string;
-		note?: string;
-		issuer?: string;
-	}): TZcapLikeGrant {
+	issueBearerGrant(grant: { token: string; capability: string; note?: string; issuer?: string }): TZcapLikeGrant {
 		const now = Date.now();
 		const current = this.grants.get(grant.token) ?? [];
 		const existing = current.find((entry) => entry.capability === grant.capability);
@@ -73,15 +63,11 @@ export class ZcapLikeAuthority implements IZcapLikeAuthority {
 	}
 
 	resolveBearerToken(token: string): string[] {
-		return (this.grants.get(token) ?? [])
-			.filter((entry) => !entry.revoked)
-			.map((entry) => entry.capability);
+		return (this.grants.get(token) ?? []).filter((entry) => !entry.revoked).map((entry) => entry.capability);
 	}
 
 	listBearerGrants(): TZcapLikeGrant[] {
-		return Array.from(this.grants.values()).flatMap((entries) =>
-			entries.map((entry) => ({ ...entry })),
-		);
+		return Array.from(this.grants.values()).flatMap((entries) => entries.map((entry) => ({ ...entry })));
 	}
 
 	clear(): void {
@@ -89,8 +75,6 @@ export class ZcapLikeAuthority implements IZcapLikeAuthority {
 	}
 }
 
-export function getZcapLikeAuthority(
-	runtime: TRuntime,
-): IZcapLikeAuthority | undefined {
+export function getZcapLikeAuthority(runtime: TRuntime): IZcapLikeAuthority | undefined {
 	return runtime[ZCAP_LIKE_AUTHORITY] as IZcapLikeAuthority | undefined;
 }

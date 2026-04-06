@@ -1,23 +1,26 @@
 import { AStepper } from "./astepper.js";
 import { isLiteralValue } from "./util/index.js";
 import { parseDotPath, navigateValue } from "./util/dot-path.js";
-import { TFeatureStep, TWorld } from './defs.js';
-import { Origin, TOrigin, TProvenanceIdentifier, TStepValue, THaibunEvent } from '../schema/protocol.js';
+import { TFeatureStep, TWorld } from "./defs.js";
+import { Origin, TOrigin, TProvenanceIdentifier, TStepValue, THaibunEvent } from "../schema/protocol.js";
 import { DOMAIN_JSON, DOMAIN_STRING, normalizeDomainKey } from "./domain-types.js";
 import { QuadStore } from "./quad-store.js";
 import { IQuadStore, TQuad } from "./quad-types.js";
 
-export const SHARED_GRAPH = 'variables';
-export const META_GRAPH = 'meta';
-export const OBSERVATION_GRAPH = 'observation';
-export const OBSCURED_VALUE = '[o̴b̵s̵c̷u̶r̸e̵d̵]';
+export const SHARED_GRAPH = "variables";
+export const META_GRAPH = "meta";
+export const OBSERVATION_GRAPH = "observation";
+export const OBSCURED_VALUE = "[o̴b̵s̵c̷u̶r̸e̵d̵]";
 
 export class FeatureVariables {
 	private store: IQuadStore;
 	// Keep the in-memory values map for backward compatibility
-	private values: { [name: string]: TStepValue; };
+	private values: { [name: string]: TStepValue };
 
-	constructor(private world: TWorld, initial?: { [name: string]: TStepValue; }) {
+	constructor(
+		private world: TWorld,
+		initial?: { [name: string]: TStepValue },
+	) {
 		this.store = new QuadStore();
 		this.values = initial ? { ...initial } : {};
 
@@ -47,7 +50,10 @@ export class FeatureVariables {
 	}
 
 	setJSON(label: string, value: object, origin: TOrigin, source: TFeatureStep) {
-		this.set({ term: label, value: JSON.stringify(value), domain: DOMAIN_JSON, origin }, { in: source.in, seq: source.seqPath, when: `${source.action.stepperName}.${source.action.actionName}` });
+		this.set(
+			{ term: label, value: JSON.stringify(value), domain: DOMAIN_JSON, origin },
+			{ in: source.in, seq: source.seqPath, when: `${source.action.stepperName}.${source.action.actionName}` },
+		);
 	}
 
 	setForStepper(stepper: string, sv: TStepValue, provenance: TProvenanceIdentifier, namedGraph?: string) {
@@ -60,7 +66,7 @@ export class FeatureVariables {
 
 	set(sv: TStepValue, provenance: TProvenanceIdentifier, namedGraph?: string) {
 		if (sv.term.match(/.*\..*/)) {
-			throw Error('non-stepper variables cannot use dots');
+			throw Error("non-stepper variables cannot use dots");
 		}
 
 		if (this.world.options.envVariables[sv.term]) {
@@ -76,7 +82,7 @@ export class FeatureVariables {
 
 	_set(sv: TStepValue, provenance: TProvenanceIdentifier, namedGraph: string = SHARED_GRAPH) {
 		const domainKey = normalizeDomainKey(sv.domain);
-		const domain = this.world.domains[domainKey]
+		const domain = this.world.domains[domainKey];
 		if (domain === undefined) {
 			throw Error(`Cannot set variable "${sv.term}": unknown domain "${sv.domain}"`);
 		}
@@ -87,7 +93,7 @@ export class FeatureVariables {
 
 		this.values[sv.term] = {
 			...normalized,
-			provenance: provenances
+			provenance: provenances,
 		};
 
 		this.storeAsQuad(sv.term, { ...normalized, provenance: provenances }, namedGraph);
@@ -96,18 +102,18 @@ export class FeatureVariables {
 		this.world.eventLogger?.emit({
 			id: `quad-${timestamp}`,
 			timestamp,
-			source: 'haibun',
-			level: 'debug' as const,
-			kind: 'artifact' as const,
-			artifactType: 'json' as const,
-			mimetype: 'application/json',
+			source: "haibun",
+			level: "debug" as const,
+			kind: "artifact" as const,
+			artifactType: "json" as const,
+			mimetype: "application/json",
 			json: {
 				quadObservation: {
 					subject: sv.term,
 					predicate: domainKey,
 					object: this.isSecret(sv.term) ? OBSCURED_VALUE : normalized.value,
 					namedGraph,
-				}
+				},
 			},
 		});
 
@@ -115,18 +121,18 @@ export class FeatureVariables {
 			this.world.eventLogger?.emit({
 				id: `quad-meta-origin-${timestamp}`,
 				timestamp,
-				source: 'haibun',
-				level: 'debug' as const,
-				kind: 'artifact' as const,
-				artifactType: 'json' as const,
-				mimetype: 'application/json',
+				source: "haibun",
+				level: "debug" as const,
+				kind: "artifact" as const,
+				artifactType: "json" as const,
+				mimetype: "application/json",
 				json: {
 					quadObservation: {
 						subject: sv.term,
-						predicate: 'origin',
+						predicate: "origin",
 						object: sv.origin,
 						namedGraph: META_GRAPH,
-					}
+					},
 				},
 			});
 		}
@@ -136,14 +142,19 @@ export class FeatureVariables {
 	 * Resolves a variable and its domain based on its actual origin.
 	 * Requires explicit options.secure to return the real value of a secret.
 	 */
-	resolveVariable(input: { term: string; origin: TOrigin; domain?: string }, featureStep?: TFeatureStep, steppers?: AStepper[], options: { secure: boolean } = { secure: false }): TStepValue {
+	resolveVariable(
+		input: { term: string; origin: TOrigin; domain?: string },
+		featureStep?: TFeatureStep,
+		steppers?: AStepper[],
+		options: { secure: boolean } = { secure: false },
+	): TStepValue {
 		const resolved: Partial<TStepValue> = {
 			term: input.term,
 			value: undefined,
 		};
 
 		let lookupTerm = input.term;
-		if (lookupTerm.startsWith('{') && lookupTerm.endsWith('}')) {
+		if (lookupTerm.startsWith("{") && lookupTerm.endsWith("}")) {
 			lookupTerm = lookupTerm.slice(1, -1);
 		}
 
@@ -168,7 +179,7 @@ export class FeatureVariables {
 				if (resolved.secret === undefined) {
 					resolved.secret = this.isSecret(lookupTerm);
 				}
-			} else if (lookupTerm.includes('.')) {
+			} else if (lookupTerm.includes(".")) {
 				const dotResult = this.resolveDotPath(lookupTerm);
 				if (dotResult.found) {
 					resolved.value = dotResult.value;
@@ -196,7 +207,7 @@ export class FeatureVariables {
 				if (resolved.secret === undefined) {
 					resolved.secret = this.isSecret(lookupTerm);
 				}
-			} else if (lookupTerm.includes('.')) {
+			} else if (lookupTerm.includes(".")) {
 				const dotResult = this.resolveDotPath(lookupTerm);
 				if (dotResult.found) {
 					resolved.value = dotResult.value;
@@ -216,7 +227,7 @@ export class FeatureVariables {
 			// so this naturally resolves quantifier-bound variables
 		} else if (input.origin === Origin.quoted) {
 			// Check if this is {varName} syntax - if so, resolve as variable
-			if (input.term.startsWith('{') && input.term.endsWith('}') && !input.term.includes(':')) {
+			if (input.term.startsWith("{") && input.term.endsWith("}") && !input.term.includes(":")) {
 				if (featureStep?.runtimeArgs?.[lookupTerm] !== undefined) {
 					resolved.value = featureStep.runtimeArgs[lookupTerm];
 					resolved.domain = DOMAIN_STRING;
@@ -233,7 +244,7 @@ export class FeatureVariables {
 					}
 				}
 			} else {
-				resolved.value = input.term.replace(/^"|"$/g, '');
+				resolved.value = input.term.replace(/^"|"$/g, "");
 				resolved.domain = input.domain ?? DOMAIN_STRING;
 			}
 		} else {
@@ -243,16 +254,20 @@ export class FeatureVariables {
 		if (resolved.value !== undefined) {
 			const rawDomainKey = resolved.domain ?? DOMAIN_STRING;
 			// Normalize union domains (e.g. "string | other" → sorted "other | string") and look up
-			const parts = rawDomainKey.split(' | ').map(s => s.trim()).filter(Boolean).sort();
-			const sortedKey = parts.join(' | ');
+			const parts = rawDomainKey
+				.split(" | ")
+				.map((s) => s.trim())
+				.filter(Boolean)
+				.sort();
+			const sortedKey = parts.join(" | ");
 			// For union domains with unregistered parts, fall back to string; for single domains, require registration
 			const isUnion = parts.length > 1;
-			const domainKey = this.world.domains[sortedKey] ? sortedKey : (isUnion ? DOMAIN_STRING : sortedKey);
+			const domainKey = this.world.domains[sortedKey] ? sortedKey : isUnion ? DOMAIN_STRING : sortedKey;
 			const domain = this.world.domains[domainKey];
 			if (!domain) {
 				throw new Error(`Cannot resolve variable "${input.term}": unknown domain "${domainKey}"`);
 			}
-			resolved.value = domain.coerce({ ...resolved as TStepValue, domain: domainKey }, featureStep, steppers);
+			resolved.value = domain.coerce({ ...(resolved as TStepValue), domain: domainKey }, featureStep, steppers);
 			resolved.domain = domainKey;
 
 			const isSecretValue = resolved.secret === true || this.isSecret(lookupTerm);
@@ -274,14 +289,18 @@ export class FeatureVariables {
 		if (!baseEntry) return { value: undefined, domain: DOMAIN_STRING, found: false };
 		let baseValue = baseEntry.value;
 		// Parse JSON strings into objects for navigation
-		if (typeof baseValue === 'string') {
-			try { baseValue = JSON.parse(baseValue); } catch { return { value: undefined, domain: DOMAIN_STRING, found: false }; }
+		if (typeof baseValue === "string") {
+			try {
+				baseValue = JSON.parse(baseValue);
+			} catch {
+				return { value: undefined, domain: DOMAIN_STRING, found: false };
+			}
 		}
 		const result = navigateValue(baseValue, pathSegments);
 		return { ...result, domain: baseEntry.domain ?? DOMAIN_STRING };
 	}
 
-	getDomainValues(domainName: string): { values: unknown[], error?: string } {
+	getDomainValues(domainName: string): { values: unknown[]; error?: string } {
 		const domainKey = normalizeDomainKey(domainName);
 		const domainDef = this.world.domains[domainKey];
 
@@ -295,8 +314,8 @@ export class FeatureVariables {
 
 		const allVars = this.all();
 		const memberValues = Object.values(allVars)
-			.filter(v => v.domain && normalizeDomainKey(v.domain) === domainKey)
-			.map(v => v.value);
+			.filter((v) => v.domain && normalizeDomainKey(v.domain) === domainKey)
+			.map((v) => v.value);
 
 		return { values: memberValues };
 	}
@@ -318,7 +337,7 @@ export class FeatureVariables {
 		return this.queryQuads(pattern).length;
 	}
 
-	addQuad(quad: Omit<TQuad, 'timestamp'>): void {
+	addQuad(quad: Omit<TQuad, "timestamp">): void {
 		this.store.add(quad);
 
 		// Emit event for graph visualization
@@ -326,15 +345,14 @@ export class FeatureVariables {
 		this.world.eventLogger?.emit({
 			id: `quad-${timestamp}-${quad.subject}-${quad.predicate}`,
 			timestamp,
-			source: 'haibun',
-			level: 'debug' as const,
-			kind: 'artifact' as const,
-			artifactType: 'json' as const,
-			mimetype: 'application/json',
+			source: "haibun",
+			level: "debug" as const,
+			kind: "artifact" as const,
+			artifactType: "json" as const,
+			mimetype: "application/json",
 			json: {
-				quadObservation: quad
+				quadObservation: quad,
 			},
-
 		} as THaibunEvent);
 	}
 
@@ -382,13 +400,13 @@ export class FeatureVariables {
 		this.store.add({ subject: name, predicate: domainKey, object: sv.value, namedGraph });
 
 		if (sv.origin) {
-			this.store.add({ subject: name, predicate: 'origin', object: sv.origin, namedGraph: META_GRAPH });
+			this.store.add({ subject: name, predicate: "origin", object: sv.origin, namedGraph: META_GRAPH });
 		}
 		if (sv.provenance) {
-			this.store.add({ subject: name, predicate: 'provenance', object: sv.provenance, namedGraph: META_GRAPH });
+			this.store.add({ subject: name, predicate: "provenance", object: sv.provenance, namedGraph: META_GRAPH });
 		}
 		if (sv.readonly) {
-			this.store.add({ subject: name, predicate: 'readonly', object: true, namedGraph: META_GRAPH });
+			this.store.add({ subject: name, predicate: "readonly", object: true, namedGraph: META_GRAPH });
 		}
 	}
 }

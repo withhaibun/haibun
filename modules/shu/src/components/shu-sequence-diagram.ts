@@ -26,7 +26,11 @@ const DispatchTrace = z.object({
 });
 type TDispatchTrace = z.infer<typeof DispatchTrace>;
 
-const StateSchema = z.object({ traces: z.array(DispatchTrace).default([]), zoom: z.number().default(100), currentIndex: z.number().default(-1) });
+const StateSchema = z.object({
+	traces: z.array(DispatchTrace).default([]),
+	zoom: z.number().default(100),
+	currentIndex: z.number().default(-1),
+});
 
 function escapeLabel(label: string): string {
 	return label
@@ -181,7 +185,12 @@ export class ShuSequenceDiagram extends ShuElement<typeof StateSchema> {
 
 	private async renderMermaid(traces: TDispatchTrace[]): Promise<void> {
 		if (!mermaidInitialized) {
-			mermaid.initialize({ startOnLoad: false, theme: "default", securityLevel: "loose", fontFamily: "ui-sans-serif, system-ui, sans-serif" });
+			mermaid.initialize({
+				startOnLoad: false,
+				theme: "default",
+				securityLevel: "loose",
+				fontFamily: "ui-sans-serif, system-ui, sans-serif",
+			});
 			mermaidInitialized = true;
 		}
 		const source = buildMermaidSource(traces);

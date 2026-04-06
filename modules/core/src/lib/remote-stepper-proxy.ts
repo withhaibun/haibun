@@ -65,7 +65,9 @@ export class RemoteStepperProxy extends AStepper {
 				handler: (_featureStep, _world) =>
 					this.call(
 						descriptor.method,
-						_featureStep.action?.stepValuesMap ? Object.fromEntries(Object.entries(_featureStep.action.stepValuesMap).map(([k, v]) => [k, v.term])) : {},
+						_featureStep.action?.stepValuesMap
+							? Object.fromEntries(Object.entries(_featureStep.action.stepValuesMap).map(([k, v]) => [k, v.term]))
+							: {},
 						_featureStep.seqPath,
 					),
 			};

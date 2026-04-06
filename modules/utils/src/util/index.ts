@@ -1,21 +1,25 @@
-import { spawn } from 'child_process';
+import { spawn } from "child_process";
 
-export function spawnCommand(command: string[], module = '.', opts?: { show?: boolean; env?: { [key: string]: string } }): Promise<string> {
+export function spawnCommand(
+	command: string[],
+	module = ".",
+	opts?: { show?: boolean; env?: { [key: string]: string } },
+): Promise<string> {
 	return new Promise((resolve, reject) => {
-		const place = module === '.' ? '<root>' : module;
-		console.group(`${place}$ ${command.join(' ')}`);
+		const place = module === "." ? "<root>" : module;
+		console.group(`${place}$ ${command.join(" ")}`);
 		const [cmd, ...args] = command;
 
 		const child = spawn(cmd, args, {
 			cwd: module,
 			env: opts?.env || process.env,
-			stdio: ['inherit', 'pipe', 'pipe'] // inherit stdin, pipe stdout/stderr
+			stdio: ["inherit", "pipe", "pipe"], // inherit stdin, pipe stdout/stderr
 		});
 
-		let stdoutData = '';
-		let stderrData = '';
+		let stdoutData = "";
+		let stderrData = "";
 
-		child.stdout.on('data', (data) => {
+		child.stdout.on("data", (data) => {
 			const str = data.toString();
 			stdoutData += str;
 			if (opts?.show) {
@@ -23,19 +27,19 @@ export function spawnCommand(command: string[], module = '.', opts?: { show?: bo
 			}
 		});
 
-		child.stderr.on('data', (data) => {
+		child.stderr.on("data", (data) => {
 			const str = data.toString();
 			stderrData += str;
 			process.stderr.write(str); // Always show stderr
 		});
 
-		child.on('error', (error) => {
+		child.on("error", (error) => {
 			console.error(`${place}> Error spawning command: ${error.message}`);
 			console.groupEnd();
 			reject(error);
 		});
 
-		child.on('close', (code) => {
+		child.on("close", (code) => {
 			console.log(`${place}> exited with code ${code}`);
 			console.groupEnd();
 			if (code === 0) {

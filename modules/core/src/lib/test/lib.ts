@@ -1,52 +1,82 @@
-import { TWorld, TProtoOptions, CStepper } from '../defs.js';
-import { DEFAULT_DEST, TExecutorResult, TEST_BASE } from '../../schema/protocol.js';
-import { createSteppers } from './../util/index.js';
-import { getRunTag } from '../ttag.js';
-import { getSteppers } from '../util/workspace-lib.js';
-import { Timer } from '../../schema/protocol.js';
-import { asFeatures } from '../resolver-features.js';
-import { Runner } from '../../runner.js';
-import { FeatureVariables } from '../feature-variables.js';
-import { Prompter } from '../prompter.js';
-import { getCoreDomains } from '../core-domains.js';
-import assert from 'assert';
-import { EventLogger } from '../EventLogger.js';
+import { TWorld, TProtoOptions, CStepper } from "../defs.js";
+import { DEFAULT_DEST, TExecutorResult, TEST_BASE } from "../../schema/protocol.js";
+import { createSteppers } from "./../util/index.js";
+import { getRunTag } from "../ttag.js";
+import { getSteppers } from "../util/workspace-lib.js";
+import { Timer } from "../../schema/protocol.js";
+import { asFeatures } from "../resolver-features.js";
+import { Runner } from "../../runner.js";
+import { FeatureVariables } from "../feature-variables.js";
+import { Prompter } from "../prompter.js";
+import { getCoreDomains } from "../core-domains.js";
+import assert from "assert";
+import { EventLogger } from "../EventLogger.js";
 
 const DEF_PROTO_DEFAULT_OPTIONS = { DEST: DEFAULT_DEST };
 export const DEF_PROTO_OPTIONS = { options: DEF_PROTO_DEFAULT_OPTIONS, moduleOptions: {} };
 
-export const HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS = 'HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS';
+export const HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS = "HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS";
 
-export async function getCreateSteppers(steppers: string[], addSteppers?: CStepper[]) {
+export async function getCreateSteppers(steppers: import("../defs.js").TStepperEntry[], addSteppers?: CStepper[]) {
 	const csteppers = await getSteppers(steppers);
 	return createSteppers(csteppers.concat(addSteppers || []));
 }
 
-
 type TTestFeatures = { path: string; content: string; base?: string }[];
 
-export async function passWithDefaults(featuresIn: TTestFeatures | string, useSteppers: CStepper[], protoOptions: TProtoOptions = DEF_PROTO_OPTIONS, backgroundsIn: TTestFeatures = []) {
+export async function passWithDefaults(
+	featuresIn: TTestFeatures | string,
+	useSteppers: CStepper[],
+	protoOptions: TProtoOptions = DEF_PROTO_OPTIONS,
+	backgroundsIn: TTestFeatures = [],
+) {
 	const res = await testWithDefaults(featuresIn, useSteppers, protoOptions, backgroundsIn);
 	if (!res.ok) {
-		console.error('🥺passWithDefaults', JSON.stringify({ failure: res.failure?.error.message || res.failure, featureResults: res.featureResults && res.featureResults.map(sr => sr.stepResults.map(ar => ([ar.in, ar.ok].join(': ')))) }, null, 2));
+		console.error(
+			"🥺passWithDefaults",
+			JSON.stringify(
+				{
+					failure: res.failure?.error.message || res.failure,
+					featureResults:
+						res.featureResults && res.featureResults.map((sr) => sr.stepResults.map((ar) => [ar.in, ar.ok].join(": "))),
+				},
+				null,
+				2,
+			),
+		);
 	}
 	return res;
 }
-export async function failWithDefaults(featuresIn: TTestFeatures | string, useSteppers: CStepper[], protoOptions: TProtoOptions = DEF_PROTO_OPTIONS, backgroundsIn: TTestFeatures = []) {
+export async function failWithDefaults(
+	featuresIn: TTestFeatures | string,
+	useSteppers: CStepper[],
+	protoOptions: TProtoOptions = DEF_PROTO_OPTIONS,
+	backgroundsIn: TTestFeatures = [],
+) {
 	const res = await testWithDefaults(featuresIn, useSteppers, protoOptions, backgroundsIn);
 	if (res.ok) {
-		console.error('🥺failWithDefaults', JSON.stringify({ featureResults: res.featureResults }, null, 2));
+		console.error("🥺failWithDefaults", JSON.stringify({ featureResults: res.featureResults }, null, 2));
 	}
 	return res;
 }
-async function testWithDefaults(featuresIn: TTestFeatures | string, useSteppers: CStepper[], protoOptions: TProtoOptions = DEF_PROTO_OPTIONS, backgroundsIn: TTestFeatures = []) {
+async function testWithDefaults(
+	featuresIn: TTestFeatures | string,
+	useSteppers: CStepper[],
+	protoOptions: TProtoOptions = DEF_PROTO_OPTIONS,
+	backgroundsIn: TTestFeatures = [],
+) {
 	const world = getTestWorldWithOptions(protoOptions);
 	return await testWithWorld(world, featuresIn, useSteppers, backgroundsIn);
 }
 
-export async function testWithWorld(world: TWorld, featuresIn: TTestFeatures | string, useSteppers: CStepper[], backgroundsIn: TTestFeatures = []): Promise<TExecutorResult & { world: TWorld }> {
-	assert(useSteppers.length > 0, 'useSteppers must have at least one stepper')
-	const inFeatures = typeof featuresIn === 'string' ? [{ path: '/features/test', content: featuresIn }] : featuresIn;
+export async function testWithWorld(
+	world: TWorld,
+	featuresIn: TTestFeatures | string,
+	useSteppers: CStepper[],
+	backgroundsIn: TTestFeatures = [],
+): Promise<TExecutorResult & { world: TWorld }> {
+	assert(useSteppers.length > 0, "useSteppers must have at least one stepper");
+	const inFeatures = typeof featuresIn === "string" ? [{ path: "/features/test", content: featuresIn }] : featuresIn;
 
 	const withBases = (i: { path: string; content: string; base?: string }) => (i.base ? i : { ...i, base: TEST_BASE });
 	const features = asFeatures(inFeatures.map(withBases));
@@ -56,7 +86,7 @@ export async function testWithWorld(world: TWorld, featuresIn: TTestFeatures | s
 	return { ...ran, world };
 }
 
-export function getTestWorldWithOptions(protoOptions: TProtoOptions = DEF_PROTO_OPTIONS, env = { HAIBUN_LOG_LEVEL: 'none' }) {
+export function getTestWorldWithOptions(protoOptions: TProtoOptions = DEF_PROTO_OPTIONS, env = { HAIBUN_LOG_LEVEL: "none" }) {
 	const world = getDefaultWorld(env);
 	if (protoOptions) {
 		world.options = { ...protoOptions.options, envVariables: protoOptions.options.envVariables || {} };
@@ -71,10 +101,10 @@ export function getDefaultWorld(env = process.env): TWorld {
 		timer: new Timer(),
 		tag: getRunTag(0),
 		prompter: new Prompter(),
-		runtime: { stepResults: [], steppers: [], feature: 'test-feature', stepUsage: new Map(), observations: new Map() },
+		runtime: { stepResults: [], steppers: [], feature: "test-feature", stepUsage: new Map(), observations: new Map() },
 		options: { DEST: DEFAULT_DEST, envVariables: env },
 		moduleOptions: {},
-		bases: ['/features/'],
+		bases: ["/features/"],
 	};
 	const eventLogger = new EventLogger((name: string) => world.shared?.isSecret(name) ?? false);
 	eventLogger.suppressConsole = true; // Suppress NDJSON in tests

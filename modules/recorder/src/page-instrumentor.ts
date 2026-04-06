@@ -2,8 +2,8 @@
  * Injects event capture scripts into browser pages
  */
 
-import { Page, BrowserContext } from 'playwright';
-import { TInteraction } from './types.js';
+import { Page, BrowserContext } from "playwright";
+import { TInteraction } from "./types.js";
 
 export type TInteractionCallback = (interaction: TInteraction) => void;
 
@@ -72,38 +72,32 @@ const CAPTURE_SCRIPT = `
 /**
  * Instruments a page to capture interactions
  */
-export const instrumentPage = async (
-  page: Page,
-  onInteraction: TInteractionCallback
-): Promise<void> => {
-  // Expose the capture function to the page
-  await page.exposeFunction('__haibunRecorderCapture', (interaction: TInteraction) => {
-    onInteraction(interaction);
-  });
+export const instrumentPage = async (page: Page, onInteraction: TInteractionCallback): Promise<void> => {
+	// Expose the capture function to the page
+	await page.exposeFunction("__haibunRecorderCapture", (interaction: TInteraction) => {
+		onInteraction(interaction);
+	});
 
-  // Inject the capture script (runs on every navigation)
-  await page.addInitScript(CAPTURE_SCRIPT);
+	// Inject the capture script (runs on every navigation)
+	await page.addInitScript(CAPTURE_SCRIPT);
 };
 
 /**
  * Instruments a browser context to capture interactions on all pages
  */
-export const instrumentContext = (
-  context: BrowserContext,
-  onInteraction: TInteractionCallback
-): Promise<void> => {
-  // Track navigation events at context level
-  context.on('page', async (page) => {
-    await instrumentPage(page, onInteraction);
+export const instrumentContext = (context: BrowserContext, onInteraction: TInteractionCallback): Promise<void> => {
+	// Track navigation events at context level
+	context.on("page", async (page) => {
+		await instrumentPage(page, onInteraction);
 
-    page.on('framenavigated', (frame) => {
-      if (frame === page.mainFrame()) {
-        onInteraction({
-          type: 'navigation',
-          url: frame.url(),
-        });
-      }
-    });
-  });
-  return Promise.resolve();
+		page.on("framenavigated", (frame) => {
+			if (frame === page.mainFrame()) {
+				onInteraction({
+					type: "navigation",
+					url: frame.url(),
+				});
+			}
+		});
+	});
+	return Promise.resolve();
 };

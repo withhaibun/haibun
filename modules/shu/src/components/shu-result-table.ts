@@ -13,7 +13,7 @@ import { ShuElement } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
 import { z } from "zod";
 import { ResultTableSchema } from "../schemas.js";
-import { esc, escAttr, truncate, formatDate, isDateValue, vertexId, vertexLabel, HIDDEN_PROPS, } from "../util.js";
+import { esc, escAttr, truncate, formatDate, isDateValue, vertexId, vertexLabel, HIDDEN_PROPS } from "../util.js";
 import { getRelSync, getPropertyOrder } from "../rels-cache.js";
 
 type VertexRow = Record<string, unknown>;
@@ -54,7 +54,9 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 		}
 		// Order by rel priority from concern metadata, then remaining alphabetically
 		const relOrder = getPropertyOrder(this.vertexLabel).filter((p) => propSet.has(p));
-		const rest = Array.from(propSet).filter((p) => !relOrder.includes(p)).sort();
+		const rest = Array.from(propSet)
+			.filter((p) => !relOrder.includes(p))
+			.sort();
 		this.allProperties = [...relOrder, ...rest];
 		this.render();
 	}
@@ -78,9 +80,7 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 	deselectAll(): void {
 		if (this.selectedIds.size === 0) return;
 		this.selectedIds.clear();
-		this.shadowRoot
-			?.querySelectorAll(".clickable-row")
-			.forEach((r) => r.classList.remove("selected"));
+		this.shadowRoot?.querySelectorAll(".clickable-row").forEach((r) => r.classList.remove("selected"));
 	}
 
 	connectedCallback(): void {
@@ -113,51 +113,41 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 					<table data-testid="query-table">
 						<thead><tr>
 							${props
-				.map((p) => {
-					const isSorted = sortBy === p;
-					const indicator = isSorted
-						? sortOrder === "asc"
-							? " &#9650;"
-							: " &#9660;"
-						: "";
-					const cls = isSorted ? ' class="sorted"' : "";
-					return `<th${cls} data-field="${escAttr(p)}">${esc(p)}${indicator}</th>`;
-				})
-				.join("")}
+								.map((p) => {
+									const isSorted = sortBy === p;
+									const indicator = isSorted ? (sortOrder === "asc" ? " &#9650;" : " &#9660;") : "";
+									const cls = isSorted ? ' class="sorted"' : "";
+									return `<th${cls} data-field="${escAttr(p)}">${esc(p)}${indicator}</th>`;
+								})
+								.join("")}
 						</tr></thead>
 						<tbody>
 						${(() => {
-				const firstLabel = this.results[0]?._label;
-				const isMultiType = this.results.some(
-					(v) => v._label && v._label !== firstLabel,
-				);
-				let lastLabel: string | undefined;
-				return this.results
-					.map((v, i) => {
-						const vid = vertexId(v);
-						const vlabel = vertexLabel(v);
-						const labelAttr = vlabel
-							? ` data-vertex-label="${escAttr(vlabel)}"`
-							: "";
-						const header =
-							isMultiType && v._label !== lastLabel
-								? `<tr class="group-header"><th colspan="${props.length}">${esc(String(v._label ?? ""))}</th></tr>`
-								: "";
-						lastLabel = v._label as string | undefined;
-						return `${header}<tr class="clickable-row" data-vertex-id="${escAttr(vid)}"${labelAttr} data-testid="${i === 0 ? "query-row-first" : "query-row"}">
+							const firstLabel = this.results[0]?._label;
+							const isMultiType = this.results.some((v) => v._label && v._label !== firstLabel);
+							let lastLabel: string | undefined;
+							return this.results
+								.map((v, i) => {
+									const vid = vertexId(v);
+									const vlabel = vertexLabel(v);
+									const labelAttr = vlabel ? ` data-vertex-label="${escAttr(vlabel)}"` : "";
+									const header =
+										isMultiType && v._label !== lastLabel
+											? `<tr class="group-header"><th colspan="${props.length}">${esc(String(v._label ?? ""))}</th></tr>`
+											: "";
+									lastLabel = v._label as string | undefined;
+									return `${header}<tr class="clickable-row" data-vertex-id="${escAttr(vid)}"${labelAttr} data-testid="${i === 0 ? "query-row-first" : "query-row"}">
 								${props
-								.map((p) => {
-									const raw = String(v[p] ?? "");
-									const display = isDateValue(raw)
-										? formatDate(raw)
-										: truncate(raw);
-									return `<td title="${esc(raw)}">${esc(display)}</td>`;
-								})
-								.join("")}
+									.map((p) => {
+										const raw = String(v[p] ?? "");
+										const display = isDateValue(raw) ? formatDate(raw) : truncate(raw);
+										return `<td title="${esc(raw)}">${esc(display)}</td>`;
+									})
+									.join("")}
 								</tr>`;
-					})
-					.join("");
-			})()}
+								})
+								.join("");
+						})()}
 						</tbody>
 					</table>
 				</div>
@@ -169,43 +159,27 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 		requestAnimationFrame(() => this.updateScrollbar());
 	}
 
-	private getVisibleProperties(
-		displayMode: string,
-		fixedProperty?: string,
-	): string[] {
+	private getVisibleProperties(displayMode: string, fixedProperty?: string): string[] {
 		if (displayMode === "objects") {
 			// Show only the vertex identity — all rows share the fixed property value
 			return this.allProperties.filter((p) => p !== fixedProperty).slice(0, 1);
 		}
 		if (displayMode === "pairs") {
 			const label = vertexLabel(this.results[0]);
-			const idProp = label
-				? this.allProperties.find((p) => getRelSync(label, p) === "item")
-				: undefined;
-			if (!idProp)
-				return fixedProperty ? [fixedProperty] : this.allProperties.slice(0, 2);
-			return fixedProperty
-				? [idProp, fixedProperty]
-				: this.allProperties.slice(0, 2);
+			const idProp = label ? this.allProperties.find((p) => getRelSync(label, p) === "item") : undefined;
+			if (!idProp) return fixedProperty ? [fixedProperty] : this.allProperties.slice(0, 2);
+			return fixedProperty ? [idProp, fixedProperty] : this.allProperties.slice(0, 2);
 		}
 		// Full mode — show all properties, hide the fixed one (redundant in filtered results)
-		return fixedProperty
-			? this.allProperties.filter((p) => p !== fixedProperty)
-			: this.allProperties;
+		return fixedProperty ? this.allProperties.filter((p) => p !== fixedProperty) : this.allProperties;
 	}
 
 	private updateScrollbar(): void {
-		const wrapper = this.shadowRoot?.querySelector(
-			".results-wrapper",
-		) as HTMLElement | null;
-		const area = this.shadowRoot?.querySelector(
-			".results-area",
-		) as HTMLElement | null;
+		const wrapper = this.shadowRoot?.querySelector(".results-wrapper") as HTMLElement | null;
+		const area = this.shadowRoot?.querySelector(".results-area") as HTMLElement | null;
 		if (!wrapper || !area) return;
 
-		const existing = wrapper.querySelector(
-			".scroll-track",
-		) as HTMLElement | null;
+		const existing = wrapper.querySelector(".scroll-track") as HTMLElement | null;
 		if (existing) existing.style.display = "none";
 		const overflows = area.scrollHeight > area.clientHeight;
 		if (existing) existing.style.display = "";
@@ -216,9 +190,7 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 		if (!needsScrollbar) {
 			if (existing) {
 				existing.remove();
-				const paneTotal = this.shadowRoot?.querySelector(
-					".result-total",
-				) as HTMLElement | null;
+				const paneTotal = this.shadowRoot?.querySelector(".result-total") as HTMLElement | null;
 				if (paneTotal) paneTotal.style.display = "";
 			}
 			return;
@@ -242,9 +214,7 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 		track.innerHTML = `<span class="scroll-pos scroll-pos-top">${offset + 1}</span><div class="scroll-rail"><div class="scroll-thumb"></div></div><span class="scroll-pos scroll-pos-bottom">${total}</span>`;
 		wrapper.appendChild(track);
 
-		const paneTotal = this.shadowRoot?.querySelector(
-			".result-total",
-		) as HTMLElement | null;
+		const paneTotal = this.shadowRoot?.querySelector(".result-total") as HTMLElement | null;
 		if (paneTotal) paneTotal.style.display = "none";
 
 		this.positionScrollThumb(track, visibleRows);
@@ -300,14 +270,7 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 			const scrollRange = railH - thumbH;
 			const dy = clientY - startY;
 			const newOffset =
-				scrollRange > 0
-					? Math.round(
-						Math.min(
-							maxOff(),
-							Math.max(0, startOffset + (dy / scrollRange) * maxOff()),
-						),
-					)
-					: 0;
+				scrollRange > 0 ? Math.round(Math.min(maxOff(), Math.max(0, startOffset + (dy / scrollRange) * maxOff()))) : 0;
 			track.dataset.offset = String(newOffset);
 			this.positionScrollThumb(track, visibleRows);
 		};
@@ -373,15 +336,11 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 	private bindEvents(): void {
 		// Wheel scrolling through dataset
 		let wheelTimer: ReturnType<typeof setTimeout> | null = null;
-		const wrapper = this.shadowRoot?.querySelector(
-			".results-wrapper",
-		) as HTMLElement | null;
+		const wrapper = this.shadowRoot?.querySelector(".results-wrapper") as HTMLElement | null;
 		wrapper?.addEventListener(
 			"wheel",
 			(e) => {
-				const track = wrapper.querySelector(
-					".scroll-track",
-				) as HTMLElement | null;
+				const track = wrapper.querySelector(".scroll-track") as HTMLElement | null;
 				if (!track) return;
 				if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
 				e.preventDefault();
@@ -410,8 +369,7 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 				const field = (th as HTMLElement).dataset.field;
 				if (!field) return;
 				const { sortBy, sortOrder } = this.state;
-				const newOrder =
-					sortBy === field ? (sortOrder === "asc" ? "desc" : "asc") : "asc";
+				const newOrder = sortBy === field ? (sortOrder === "asc" ? "desc" : "asc") : "asc";
 				this.dispatchEvent(
 					new CustomEvent(SHU_EVENT.SORT_CHANGE, {
 						detail: { field, order: newOrder },
@@ -425,19 +383,17 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 		// Row clicks
 		if (this.state.selectable) {
 			// Background click deselects
-			this.shadowRoot
-				?.querySelector(".results-wrapper")
-				?.addEventListener("click", (e) => {
-					if ((e.target as HTMLElement).closest(".clickable-row")) return;
-					this.deselectAll();
-					this.dispatchEvent(
-						new CustomEvent(SHU_EVENT.ROW_CLICK, {
-							detail: { vertexId: null, deselect: true },
-							bubbles: true,
-							composed: true,
-						}),
-					);
-				});
+			this.shadowRoot?.querySelector(".results-wrapper")?.addEventListener("click", (e) => {
+				if ((e.target as HTMLElement).closest(".clickable-row")) return;
+				this.deselectAll();
+				this.dispatchEvent(
+					new CustomEvent(SHU_EVENT.ROW_CLICK, {
+						detail: { vertexId: null, deselect: true },
+						bubbles: true,
+						composed: true,
+					}),
+				);
+			});
 
 			this.shadowRoot?.querySelectorAll(".clickable-row").forEach((row) => {
 				row.addEventListener("click", (e) => {
@@ -460,9 +416,7 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 						row.classList.remove("selected");
 					} else {
 						this.selectedIds.clear();
-						this.shadowRoot
-							?.querySelectorAll(".clickable-row")
-							.forEach((r) => r.classList.remove("selected"));
+						this.shadowRoot?.querySelectorAll(".clickable-row").forEach((r) => r.classList.remove("selected"));
 						this.selectedIds.add(vid);
 						row.classList.add("selected");
 					}

@@ -1,22 +1,22 @@
-import { TEnvVariables } from '@haibun/core/lib/defs.js';
-import { CONTINUE_AFTER_ERROR, STAY_ALWAYS, STAY_FAILURE, STEP_DELAY } from '@haibun/core/schema/protocol.js';
-import { IHasOptions } from '@haibun/core/lib/astepper.js';
-import { boolOrError, intOrError, optionOrError, stringOrError } from '@haibun/core/lib/util/index.js';
+import { TEnvVariables } from "@haibun/core/lib/defs.js";
+import { CONTINUE_AFTER_ERROR, STAY_ALWAYS, STAY_FAILURE, STEP_DELAY } from "@haibun/core/schema/protocol.js";
+import { IHasOptions } from "@haibun/core/lib/astepper.js";
+import { boolOrError, intOrError, optionOrError, stringOrError } from "@haibun/core/lib/util/index.js";
 
 const LOGGER_LEVELS = { debug: 0, trace: 1, log: 2, info: 3, warn: 4, error: 5, none: 6 };
 
 export class BaseOptions implements IHasOptions {
 	static options = {
 		KEY: {
-			desc: 'execution key (defaults to serialtime)',
+			desc: "execution key (defaults to serialtime)",
 			parse: (input: string) => stringOrError(input),
 		},
 		DESCRIPTION: {
-			desc: 'description for reports',
+			desc: "description for reports",
 			parse: (result: string) => ({ result }),
 		},
 		SETTING: {
-			desc: 'execution setting (eg dev, prod)',
+			desc: "execution setting (eg dev, prod)",
 			parse: (result: string) => ({ result }),
 		},
 		STAY: {
@@ -28,23 +28,23 @@ export class BaseOptions implements IHasOptions {
 			parse: (input: string) => boolOrError(input),
 		},
 		LOG_FOLLOW: {
-			desc: 'filter for output',
+			desc: "filter for output",
 			parse: (result: string) => ({ result }),
 		},
 		LOG_LEVEL: {
-			desc: Object.keys(LOGGER_LEVELS).join(', '),
+			desc: Object.keys(LOGGER_LEVELS).join(", "),
 			parse: (result: string) =>
 				Object.keys(LOGGER_LEVELS).includes(result)
 					? { result }
-					: { error: `${result} not in ${Object.keys(LOGGER_LEVELS).join(', ')}` },
+					: { error: `${result} not in ${Object.keys(LOGGER_LEVELS).join(", ")}` },
 		},
 		ENV: {
-			desc: 'pass variables: var=value[,var2=value]',
+			desc: "pass variables: var=value[,var2=value]",
 			parse: (input: string, cur: TEnvVariables) => {
-				const pairs = input?.split(',');
+				const pairs = input?.split(",");
 				const env: TEnvVariables = { ...cur };
 				for (const pair of pairs) {
-					const [k, v] = pair.split('=').map((i) => i.trim());
+					const [k, v] = pair.split("=").map((i) => i.trim());
 					if (!k && !v) continue;
 					if (!k) throw Error(`No key provided for ENV ${v}`);
 					if (cur[k] || env[k]) {
@@ -56,14 +56,14 @@ export class BaseOptions implements IHasOptions {
 			},
 		},
 		[STEP_DELAY]: {
-			desc: 'delay between steps',
+			desc: "delay between steps",
 			parse: (input: string) => intOrError(input),
 		},
 		PWDEBUG: {
-			desc: '(web) Enable Playwright debugging (0 or 1)',
+			desc: "(web) Enable Playwright debugging (0 or 1)",
 			parse: (input: string) => {
-				if (['true', '1'].includes(input)) {
-					process.env['PWDEBUG'] = 'true';
+				if (["true", "1"].includes(input)) {
+					process.env["PWDEBUG"] = "true";
 				}
 				return { result: input };
 			},

@@ -1,7 +1,7 @@
-import { Interface, createInterface } from 'readline/promises';
-import { stdin as input, stdout as output } from 'process';
+import { Interface, createInterface } from "readline/promises";
+import { stdin as input, stdout as output } from "process";
 
-import { IPrompter, TPrompt, TPromptResponse } from './prompter.js';
+import { IPrompter, TPrompt, TPromptResponse } from "./prompter.js";
 
 export class ReadlinePrompter implements IPrompter {
 	private rl?: Interface;
@@ -18,10 +18,10 @@ export class ReadlinePrompter implements IPrompter {
 			output,
 			history: this.history,
 			historySize: 100,
-			removeHistoryDuplicates: true
+			removeHistoryDuplicates: true,
 		});
 		try {
-			const answer = await this.rl.question(`${prompt.message} ${prompt.options?.join(', ') ?? ''}: `);
+			const answer = await this.rl.question(`${prompt.message} ${prompt.options?.join(", ") ?? ""}: `);
 			if (answer && answer.trim() && !this.history.includes(answer.trim())) {
 				this.history.unshift(answer.trim());
 				if (this.history.length > 100) {

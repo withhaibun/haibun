@@ -1,16 +1,16 @@
 /**
  * QuadStore - In-memory quad store for observations
- * 
+ *
  * Stores observations as Subject-Predicate-Object-namedGraph quads with timestamps.
  * This is the unified data model for all shared state in Haibun.
  */
 
-import { IQuadStore, TQuad, TQuadPattern } from './quad-types.js';
+import { IQuadStore, TQuad, TQuadPattern } from "./quad-types.js";
 
 export class QuadStore implements IQuadStore {
 	private quads: TQuad[] = [];
 
-	add(quad: Omit<TQuad, 'timestamp'>): void {
+	add(quad: Omit<TQuad, "timestamp">): void {
 		this.quads.push({
 			...quad,
 			timestamp: Date.now(),
@@ -18,7 +18,7 @@ export class QuadStore implements IQuadStore {
 	}
 
 	query(pattern: TQuadPattern): TQuad[] {
-		return this.quads.filter(q => {
+		return this.quads.filter((q) => {
 			if (pattern.subject !== undefined && q.subject !== pattern.subject) return false;
 			if (pattern.predicate !== undefined && q.predicate !== pattern.predicate) return false;
 			if (pattern.object !== undefined && q.object !== pattern.object) return false;
@@ -36,14 +36,14 @@ export class QuadStore implements IQuadStore {
 
 	clear(namedGraph?: string): void {
 		if (namedGraph) {
-			this.quads = this.quads.filter(q => q.namedGraph !== namedGraph);
+			this.quads = this.quads.filter((q) => q.namedGraph !== namedGraph);
 		} else {
 			this.quads = [];
 		}
 	}
 
 	remove(pattern: TQuadPattern): void {
-		this.quads = this.quads.filter(q => {
+		this.quads = this.quads.filter((q) => {
 			if (pattern.subject !== undefined && q.subject !== pattern.subject) return true;
 			if (pattern.predicate !== undefined && q.predicate !== pattern.predicate) return true;
 			if (pattern.object !== undefined && q.object !== pattern.object) return true;
@@ -60,10 +60,10 @@ export class QuadStore implements IQuadStore {
 	// namedGraph = vertex label, subject = vertex id
 
 	private idFields: Record<string, string> = {};
-	private schemas: Record<string, import('zod').ZodType> = {};
+	private schemas: Record<string, import("zod").ZodType> = {};
 
 	/** Register a vertex type for schema validation and identity resolution. */
-	registerVertexType(label: string, schema: import('zod').ZodType, idField: string): void {
+	registerVertexType(label: string, schema: import("zod").ZodType, idField: string): void {
 		this.schemas[label] = schema;
 		this.idFields[label] = idField;
 	}
@@ -71,7 +71,7 @@ export class QuadStore implements IQuadStore {
 	upsertVertex(label: string, data: unknown): Promise<string> {
 		const schema = this.schemas[label];
 		const validated = (schema ? schema.parse(data) : data) as Record<string, unknown>;
-		const idField = this.idFields[label] ?? 'id';
+		const idField = this.idFields[label] ?? "id";
 		const id = String(validated[idField]);
 		if (!id) throw new Error(`Missing identity field "${idField}" for ${label}`);
 		this.remove({ subject: id, namedGraph: label });
@@ -96,9 +96,13 @@ export class QuadStore implements IQuadStore {
 		return Promise.resolve();
 	}
 
-	async queryVertices<T = Record<string, unknown>>(label: string, filters?: Record<string, unknown>, options?: { limit?: number; offset?: number }): Promise<T[]> {
+	async queryVertices<T = Record<string, unknown>>(
+		label: string,
+		filters?: Record<string, unknown>,
+		options?: { limit?: number; offset?: number },
+	): Promise<T[]> {
 		const allQuads = this.query({ namedGraph: label });
-		const subjects = [...new Set(allQuads.map(q => q.subject))];
+		const subjects = [...new Set(allQuads.map((q) => q.subject))];
 		let vertices: Record<string, unknown>[] = [];
 		for (const subject of subjects) {
 			const vertex = await this.getVertex(label, subject);
@@ -106,7 +110,7 @@ export class QuadStore implements IQuadStore {
 		}
 		if (filters) {
 			for (const [key, value] of Object.entries(filters)) {
-				vertices = vertices.filter(v => v[key] === value);
+				vertices = vertices.filter((v) => v[key] === value);
 			}
 		}
 		const offset = options?.offset ?? 0;
@@ -116,7 +120,6 @@ export class QuadStore implements IQuadStore {
 
 	distinctPropertyValues(label: string, property: string): Promise<string[]> {
 		const quads = this.query({ predicate: property, namedGraph: label });
-		return Promise.resolve([...new Set(quads.map(q => String(q.object)))].sort());
+		return Promise.resolve([...new Set(quads.map((q) => String(q.object)))].sort());
 	}
-
 }

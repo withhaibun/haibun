@@ -1,10 +1,10 @@
 {
-  "$schema": "../modules/core/haibun-core-specl.schema.json",
-  "steppers": [
-    "@haibun/web-server-hono/web-server-stepper",
-    "@haibun/web-playwright/web-playwright",
-    "@haibun/storage-fs/storage-fs",
-    "haibun",
-    "@haibun/web-server-hono/mcp-stepper"
-  ]
+	"$schema": "../modules/core/haibun-core-specl.schema.json",
+	"steppers": [
+		"@haibun/web-server-hono/web-server-stepper",
+		"@haibun/web-playwright/web-playwright",
+		"@haibun/storage-fs/storage-fs",
+		"haibun",
+		"@haibun/web-server-hono/mcp-stepper"
+	]
 }

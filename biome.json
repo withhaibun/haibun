@@ -93,11 +93,7 @@
 				"useGetterReturn": "error"
 			}
 		},
-		"includes": [
-			"**",
-			"**/build/**",
-			"**/.eslintrc.cjs"
-		]
+		"includes": ["**", "**/build/**", "**/.eslintrc.cjs"]
 	},
 	"javascript": {
 		"formatter": {
@@ -106,9 +102,7 @@
 	},
 	"overrides": [
 		{
-			"includes": [
-				"modules/**/*.ts"
-			],
+			"includes": ["modules/**/*.ts"],
 			"linter": {
 				"rules": {
 					"correctness": {
@@ -121,12 +115,7 @@
 			}
 		},
 		{
-			"includes": [
-				"*.js",
-				"*.ts",
-				"*.cjs",
-				"!modules/**/*"
-			],
+			"includes": ["*.js", "*.ts", "*.cjs", "!modules/**/*"],
 			"linter": {
 				"rules": {}
 			}

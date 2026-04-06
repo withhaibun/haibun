@@ -1,35 +1,28 @@
 {
-  "compilerOptions": {
-    "target": "esnext",
-    "module": "NodeNext",
-    "moduleResolution": "nodenext",
-    "isolatedModules": true,
-    "types": [
-      "node"
-    ],
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "noFallthroughCasesInSwitch": true,
-    "noUncheckedIndexedAccess": true,
-    "strict": false,
-    "noImplicitAny": true,
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-    "experimentalDecorators": true,
-    "sourceMap": true,
-    "composite": true,
-    "importHelpers": true,
-    "incremental": true,
-    "declaration": true,
-    "declarationMap": true,
-    "paths": {
-      "@haibun/*": [
-        "./*"
-      ]
-    }
-  },
-  "exclude": [
-    "**/*.test.ts",
-    "**/build/*"
-  ]
+	"compilerOptions": {
+		"target": "esnext",
+		"module": "NodeNext",
+		"moduleResolution": "nodenext",
+		"isolatedModules": true,
+		"types": ["node"],
+		"skipLibCheck": true,
+		"forceConsistentCasingInFileNames": true,
+		"noFallthroughCasesInSwitch": true,
+		"noUncheckedIndexedAccess": true,
+		"strict": false,
+		"noImplicitAny": true,
+		"esModuleInterop": true,
+		"allowSyntheticDefaultImports": true,
+		"experimentalDecorators": true,
+		"sourceMap": true,
+		"composite": true,
+		"importHelpers": true,
+		"incremental": true,
+		"declaration": true,
+		"declarationMap": true,
+		"paths": {
+			"@haibun/*": ["./*"]
+		}
+	},
+	"exclude": ["**/*.test.ts", "**/build/*"]
 }

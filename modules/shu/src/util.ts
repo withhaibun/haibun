@@ -1,17 +1,9 @@
 export function esc(s: string): string {
-	return s
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/"/g, "&quot;");
+	return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
 export function escAttr(s: string): string {
-	return s
-		.replace(/&/g, "&amp;")
-		.replace(/"/g, "&quot;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;");
+	return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 export function truncate(s: string, max = 50): string {
@@ -44,8 +36,7 @@ export function renderContentHtml(raw: string, mimeType: string): string {
 export function utf8ToBase64(str: string): string {
 	const bytes = new TextEncoder().encode(str);
 	let binary = "";
-	for (let i = 0; i < bytes.length; i++)
-		binary += String.fromCharCode(bytes[i]);
+	for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
 	return btoa(binary);
 }
 
@@ -61,9 +52,7 @@ export function setIdFields(fields: Record<string, string>): void {
 export function vertexId(v: Record<string, unknown>): string {
 	const label = v._label as string | undefined;
 	if (label && idFields[label]) return String(v[idFields[label]] ?? "");
-	return String(
-		v.messageId ?? v.email ?? v.id ?? v.path ?? v.name ?? v.account ?? "",
-	);
+	return String(v.messageId ?? v.email ?? v.id ?? v.path ?? v.name ?? v.account ?? "");
 }
 
 /** Get the vertex type label from a vertex record (_label set by server). */
@@ -72,38 +61,10 @@ export function vertexLabel(v: Record<string, unknown>): string {
 }
 
 /** Properties hidden from query/column display (large or internal). */
-export const HIDDEN_PROPS = new Set([
-	"accessLevel",
-	"body",
-	"bodyHtml",
-	"bodyMarkdown",
-	"markdown",
-	"uid",
-]);
+export const HIDDEN_PROPS = new Set(["accessLevel", "body", "bodyHtml", "bodyMarkdown", "markdown", "uid"]);
 
-const DAYS = [
-	"Sunday",
-	"Monday",
-	"Tuesday",
-	"Wednesday",
-	"Thursday",
-	"Friday",
-	"Saturday",
-];
-const MONTHS = [
-	"Jan",
-	"Feb",
-	"Mar",
-	"Apr",
-	"May",
-	"Jun",
-	"Jul",
-	"Aug",
-	"Sep",
-	"Oct",
-	"Nov",
-	"Dec",
-];
+const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 function pad2(n: number): string {
 	return n < 10 ? `0${n}` : String(n);

@@ -30,18 +30,13 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 		return ["placeholder", "value", "testid"];
 	}
 
-	attributeChangedCallback(
-		name: string,
-		_old: string | null,
-		val: string | null,
-	): void {
+	attributeChangedCallback(name: string, _old: string | null, val: string | null): void {
 		if (name === "placeholder" && val !== null) {
 			this.state = { ...this.state, placeholder: val };
 			if (this._input) this._input.placeholder = val;
 		}
 		if (name === "value" && val !== null) this.setValue(val);
-		if (name === "testid" && this._input)
-			this._input.setAttribute("data-testid", val || "");
+		if (name === "testid" && this._input) this._input.setAttribute("data-testid", val || "");
 	}
 
 	/** Set the list of options. Safe to call before or after connectedCallback. */
@@ -70,10 +65,7 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 	private get filtered(): TComboboxOption[] {
 		const q = this.state.filterText.toLowerCase();
 		if (!q) return this.state.options;
-		return this.state.options.filter(
-			(o) =>
-				o.label.toLowerCase().includes(q) || o.value.toLowerCase().includes(q),
-		);
+		return this.state.options.filter((o) => o.label.toLowerCase().includes(q) || o.value.toLowerCase().includes(q));
 	}
 
 	protected render(): void {
@@ -132,9 +124,7 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 
 		ul.addEventListener("mousedown", (e) => {
 			e.preventDefault();
-			const li = (e.target as HTMLElement).closest(
-				"li[data-value]",
-			) as HTMLLIElement | null;
+			const li = (e.target as HTMLElement).closest("li[data-value]") as HTMLLIElement | null;
 			if (!li) return;
 			const opt = this.state.options.find((o) => o.value === li.dataset.value);
 			if (opt) this.pick(opt);
@@ -218,9 +208,7 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 			this._blurTimeout = setTimeout(() => {
 				this._blurTimeout = null;
 				this.close();
-				const match = this.state.options.find(
-					(o) => o.value === this.state.value,
-				);
+				const match = this.state.options.find((o) => o.value === this.state.value);
 				input.value = match?.label ?? this.state.value;
 				this.state = { ...this.state, filterText: input.value };
 			}, 150);

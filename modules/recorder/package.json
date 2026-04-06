@@ -1,24 +1,24 @@
 {
-  "name": "@haibun/recorder",
-  "version": "3.3.0",
-  "publish": false,
-  "description": "Record browser interactions and generate Haibun .feature files",
-  "main": "build/index.js",
-  "type": "module",
-  "files": [
-    "build"
-  ],
-  "scripts": {
-    "build": "tsc -b",
-    "test": "vitest"
-  },
-  "dependencies": {
-    "@haibun/core": "*",
-    "@haibun/web-playwright": "*"
-  },
-  "devDependencies": {
-    "@types/node": "^25.3.0",
-    "typescript": "^5.9.3",
-    "vitest": "^4.0.18"
-  }
+	"name": "@haibun/recorder",
+	"version": "3.3.0",
+	"publish": false,
+	"description": "Record browser interactions and generate Haibun .feature files",
+	"main": "build/index.js",
+	"type": "module",
+	"files": [
+		"build"
+	],
+	"scripts": {
+		"build": "tsc -b",
+		"test": "vitest"
+	},
+	"dependencies": {
+		"@haibun/core": "*",
+		"@haibun/web-playwright": "*"
+	},
+	"devDependencies": {
+		"@types/node": "^25.3.0",
+		"typescript": "^5.9.3",
+		"vitest": "^4.0.18"
+	}
 }

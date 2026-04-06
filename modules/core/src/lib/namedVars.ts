@@ -1,27 +1,27 @@
-import { TStepperStep, TStepAction } from './defs.js';
-import { TStepValue, TOrigin, Origin } from '../schema/protocol.js';
-import { DOMAIN_STATEMENT, DOMAIN_STRING } from './domain-types.js';
+import { TStepperStep, TStepAction } from "./defs.js";
+import { TStepValue, TOrigin, Origin } from "../schema/protocol.js";
+import { DOMAIN_STATEMENT, DOMAIN_STRING } from "./domain-types.js";
 
-export const TYPE_QUOTED = 'q_';
-export const TYPE_ENV = 'e_';
-export const TYPE_VAR = 'b_';
-export const TYPE_ENV_OR_VAR_OR_LITERAL = 't_';
+export const TYPE_QUOTED = "q_";
+export const TYPE_ENV = "e_";
+export const TYPE_VAR = "b_";
+export const TYPE_ENV_OR_VAR_OR_LITERAL = "t_";
 
 export const namedInterpolation = (inp: string): { regexPattern: string; stepValuesMap?: Record<string, TStepValue> } => {
-	if (!inp.includes('{')) {
+	if (!inp.includes("{")) {
 		return { regexPattern: inp };
 	}
 	const stepValuesMap: Record<string, TStepValue> = {};
 	let last = 0;
-	let regexPattern = '';
-	let bs = inp.indexOf('{');
+	let regexPattern = "";
+	let bs = inp.indexOf("{");
 	let be = -1;
 	let bail = 0;
 	let matchIndex = 0;
 
 	while (bs > -1 && bail++ < 400) {
 		regexPattern += inp.substring(last, bs);
-		be = inp.indexOf('}', bs);
+		be = inp.indexOf("}", bs);
 		if (be < 0) {
 			throw Error(`missing end bracket in ${inp}`);
 		}
@@ -34,7 +34,7 @@ export const namedInterpolation = (inp: string): { regexPattern: string; stepVal
 		// Strip any already-appended preceding delimiter from the
 		// regexPattern so the group pattern can insert the correct single
 		// delimiter.
-		if (precedingChar && ['$', '`', '<', '"'].includes(precedingChar)) {
+		if (precedingChar && ["$", "`", "<", '"'].includes(precedingChar)) {
 			// remove the last character we just added (the delimiter)
 			regexPattern = regexPattern.slice(0, -1);
 		}
@@ -46,13 +46,13 @@ export const namedInterpolation = (inp: string): { regexPattern: string; stepVal
 		const nextChunk = inp.substring(be + 1);
 
 		// Only use negative lookahead for specific separators that won't appear in values
-		let placeholderRegex = '.+';
+		let placeholderRegex = ".+";
 
-		if (nextChunk.startsWith(' is ')) {
-			placeholderRegex = '.+?(?= is )';
-		} else if (nextCharAfterBrace === ',' || nextCharAfterBrace === ':') {
+		if (nextChunk.startsWith(" is ")) {
+			placeholderRegex = ".+?(?= is )";
+		} else if (nextCharAfterBrace === "," || nextCharAfterBrace === ":") {
 			// Use negative lookahead to prevent matching these separators
-			placeholderRegex = `.+?(?=${nextCharAfterBrace.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`;
+			placeholderRegex = `.+?(?=${nextCharAfterBrace.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`;
 		}
 
 		let matchGroupPattern;
@@ -71,13 +71,13 @@ export const namedInterpolation = (inp: string): { regexPattern: string; stepVal
 
 		regexPattern += matchGroupPattern;
 		matchIndex++;
-		bs = inp.indexOf('{', be);
+		bs = inp.indexOf("{", be);
 		// If the placeholder was wrapped with a delimiter on the left, the
 		// corresponding closing delimiter appears immediately after the '}' and
 		// must be skipped from the trailing substring to avoid duplicating it
 		// in the final regex. Otherwise include the character after '}' as
 		// normal.
-		if (precedingChar && ['$', '`', '<', '"'].includes(precedingChar)) {
+		if (precedingChar && ["$", "`", "<", '"'].includes(precedingChar)) {
 			last = be + 2;
 		} else {
 			last = be + 1;
@@ -88,11 +88,17 @@ export const namedInterpolation = (inp: string): { regexPattern: string; stepVal
 	return { stepValuesMap, regexPattern };
 };
 
-export const matchGwtaToAction = (gwta: string, actionable: string, actionName: string, stepperName: string, step: TStepperStep) => {
+export const matchGwtaToAction = (
+	gwta: string,
+	actionable: string,
+	actionName: string,
+	stepperName: string,
+	step: TStepperStep,
+) => {
 	const { regexPattern, stepValuesMap } = namedInterpolation(gwta);
 	// anchor the pattern so the whole actionable matches
 	// use case-insensitive matching to be consistent with dePolite handling
-	const r = new RegExp(`^${regexPattern}$`, 'i');
+	const r = new RegExp(`^${regexPattern}$`, "i");
 	const match = getMatch(actionable, r, actionName, stepperName, step, stepValuesMap);
 	return match;
 };
@@ -100,7 +106,7 @@ export const matchGwtaToAction = (gwta: string, actionable: string, actionName: 
 // no-op
 
 function pairToVar(pair: string): { name: string; domain?: string } {
-	const [name, domainRaw] = pair.split(':').map((i) => i.trim());
+	const [name, domainRaw] = pair.split(":").map((i) => i.trim());
 	const domain = domainRaw;
 	return { name, domain };
 }
@@ -110,12 +116,21 @@ export function getNamedMatches(regexp: RegExp, what: string) {
 	return named?.groups;
 }
 
-export const getMatch = (actionable: string, r: RegExp, actionName: string, stepperName: string, step: TStepperStep, stepValuesMap?: Record<string, TStepValue>) => {
+export const getMatch = (
+	actionable: string,
+	r: RegExp,
+	actionName: string,
+	stepperName: string,
+	step: TStepperStep,
+	stepValuesMap?: Record<string, TStepValue>,
+) => {
 	if (!r.test(actionable)) {
 		return;
 	}
 	const groups = getNamedMatches(r, actionable);
-	interface TInternalStepValue extends TStepValue { captureKey?: string }
+	interface TInternalStepValue extends TStepValue {
+		captureKey?: string;
+	}
 
 	if (groups && stepValuesMap) {
 		const entries = Object.values(stepValuesMap) as TInternalStepValue[];
@@ -147,7 +162,7 @@ export const getMatch = (actionable: string, r: RegExp, actionName: string, step
 						ph.origin = Origin.env;
 					} else {
 						const tTrim = String(t).trim();
-						if (tTrim.startsWith('{') || tTrim.startsWith('[') || /^-?\d+(\.\d+)?$/.test(tTrim)) {
+						if (tTrim.startsWith("{") || tTrim.startsWith("[") || /^-?\d+(\.\d+)?$/.test(tTrim)) {
 							ph.term = tTrim;
 							ph.origin = Origin.quoted;
 						} else {
@@ -166,9 +181,9 @@ export const getMatch = (actionable: string, r: RegExp, actionName: string, step
 
 const inferOrigin = (char: string): TOrigin => {
 	switch (char) {
-		case '$':
+		case "$":
 			return Origin.env;
-		case '`':
+		case "`":
 			return Origin.var;
 		case '"':
 			return Origin.quoted;
@@ -178,11 +193,11 @@ const inferOrigin = (char: string): TOrigin => {
 };
 
 export function mapInputToStepValues(input: Record<string, unknown>, gwta: string) {
-	const { stepValuesMap } = namedInterpolation(gwta || '');
+	const { stepValuesMap } = namedInterpolation(gwta || "");
 	const updatedMap = { ...stepValuesMap };
 	for (const [key, val] of Object.entries(input)) {
 		if (key in updatedMap) {
-			const term = typeof val === 'object' && val !== null ? JSON.stringify(val) : String(val);
+			const term = typeof val === "object" && val !== null ? JSON.stringify(val) : String(val);
 			updatedMap[key] = { ...updatedMap[key], term, origin: Origin.quoted };
 		}
 	}

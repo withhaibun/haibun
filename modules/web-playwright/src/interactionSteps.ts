@@ -128,28 +128,32 @@ export const interactionSteps = (wp: WebPlaywright) =>
 					}
 
 					// Regular wait — use page.waitForFunction to traverse shadow DOMs for dynamic elements
-					const { value: resolvedValue, domain: resolvedDomain } = wp.getWorld().shared.resolveVariable(featureStep.action.stepValuesMap.target, featureStep);
-					const domainParts = resolvedDomain?.split(' | ').map((d: string) => d.trim()) ?? [];
+					const { value: resolvedValue, domain: resolvedDomain } = wp
+						.getWorld()
+						.shared.resolveVariable(featureStep.action.stepValuesMap.target, featureStep);
+					const domainParts = resolvedDomain?.split(" | ").map((d: string) => d.trim()) ?? [];
 					const effectiveDomain = domainParts.length === 1 ? domainParts[0] : pickLocatorDomain(domainParts);
 					if (effectiveDomain === DOMAIN_PAGE_TEST_ID) {
-						await wp.withPage(async (page: Page) => page.waitForFunction(
-							(testId) => {
-								function walk(root: Document | ShadowRoot): Element | null {
-									const el = root.querySelector(`[data-testid="${testId}"]`);
-									if (el) return el;
-									for (const child of root.querySelectorAll('*')) {
-										if (child.shadowRoot) {
-											const found = walk(child.shadowRoot);
-											if (found) return found;
+						await wp.withPage(async (page: Page) =>
+							page.waitForFunction(
+								(testId) => {
+									function walk(root: Document | ShadowRoot): Element | null {
+										const el = root.querySelector(`[data-testid="${testId}"]`);
+										if (el) return el;
+										for (const child of root.querySelectorAll("*")) {
+											if (child.shadowRoot) {
+												const found = walk(child.shadowRoot);
+												if (found) return found;
+											}
 										}
+										return null;
 									}
-									return null;
-								}
-								return walk(document);
-							},
-							String(resolvedValue),
-							{ timeout: 30000 },
-						));
+									return walk(document);
+								},
+								String(resolvedValue),
+								{ timeout: 30000 },
+							),
+						);
 					} else {
 						await wp.withPage(async (page: Page) => await wp.locateByDomain(page, featureStep, "target").waitFor());
 					}

@@ -1,10 +1,6 @@
 import { SHARED_STYLES } from "./styles.js";
 import { SseClient } from "../sse-client.js";
-import {
-	getAvailableSteps,
-	findStep,
-	type StepDescriptor,
-} from "../rpc-registry.js";
+import { getAvailableSteps, findStep, type StepDescriptor } from "../rpc-registry.js";
 import { renderValue } from "./value-renderers.js";
 import { esc, escAttr } from "../util.js";
 
@@ -84,9 +80,7 @@ export class StepCaller extends HTMLElement {
 		}
 	}
 
-	private async callStep(
-		formValues: Record<string, string> = {},
-	): Promise<void> {
+	private async callStep(formValues: Record<string, string> = {}): Promise<void> {
 		if (!this.descriptor) return;
 		this.lastFormValues = { ...formValues };
 		this.loading = true;
@@ -95,9 +89,7 @@ export class StepCaller extends HTMLElement {
 		this.renderComponent();
 
 		const params: Record<string, unknown> = { ...this.fixedParams };
-		const schema = this.descriptor.inputSchema as
-			| { properties?: Record<string, { type?: string }> }
-			| undefined;
+		const schema = this.descriptor.inputSchema as { properties?: Record<string, { type?: string }> } | undefined;
 		for (const [key, value] of Object.entries(formValues)) {
 			const propType = schema?.properties?.[key]?.type;
 			if ((propType === "object" || propType === "array") && value) {
@@ -150,9 +142,7 @@ export class StepCaller extends HTMLElement {
 		const desc = this.descriptor;
 		const stepName = this.getAttribute("step") || "";
 
-		const dismissBtn = this.executed
-			? '<button class="dismiss-btn" title="Remove">x</button>'
-			: "";
+		const dismissBtn = this.executed ? '<button class="dismiss-btn" title="Remove">x</button>' : "";
 
 		this.shadowRoot.innerHTML = `
 			${this.css()}
@@ -169,9 +159,7 @@ export class StepCaller extends HTMLElement {
 	}
 
 	private renderForm(desc: StepDescriptor): string {
-		const schema = desc.inputSchema as
-			| { properties?: Record<string, InputProperty>; required?: string[] }
-			| undefined;
+		const schema = desc.inputSchema as { properties?: Record<string, InputProperty>; required?: string[] } | undefined;
 		const properties = schema?.properties || {};
 		const currentStepName = this.getAttribute("step") || "";
 		const tid = (suffix: string) => {
@@ -188,24 +176,17 @@ export class StepCaller extends HTMLElement {
 
 		while ((match = paramRegex.exec(pattern)) !== null) {
 			if (match.index > last) {
-				parts.push(
-					`<span class="step-text">${esc(pattern.slice(last, match.index))}</span>`,
-				);
+				parts.push(`<span class="step-text">${esc(pattern.slice(last, match.index))}</span>`);
 			}
 			const paramName = match[1];
 			if (paramName in this.fixedParams) {
-				parts.push(
-					`<span class="step-fixed">${esc(String(this.fixedParams[paramName]))}</span>`,
-				);
+				parts.push(`<span class="step-fixed">${esc(String(this.fixedParams[paramName]))}</span>`);
 			} else {
 				const prop = properties[paramName];
 				if (prop?.enum) {
 					const savedVal = this.lastFormValues[paramName] || "";
 					const options = prop.enum
-						.map(
-							(v: string) =>
-								`<option value="${escAttr(v)}"${v === savedVal ? " selected" : ""}>${esc(v)}</option>`,
-						)
+						.map((v: string) => `<option value="${escAttr(v)}"${v === savedVal ? " selected" : ""}>${esc(v)}</option>`)
 						.join("");
 					parts.push(
 						`<select name="${escAttr(paramName)}" class="inline-select"${tid(`step-select-${paramName}`)}><option value=""${!savedVal ? " selected" : ""}>${esc(paramName)}</option>${options}</select>`,
@@ -230,21 +211,14 @@ export class StepCaller extends HTMLElement {
 
 	private renderOutput(): string {
 		const data = this.result as Record<string, unknown>;
-		const schema = this.descriptor?.outputSchema as
-			| Record<string, unknown>
-			| undefined;
+		const schema = this.descriptor?.outputSchema as Record<string, unknown> | undefined;
 		if (!schema) {
-			return data != null
-				? `<pre>${esc(JSON.stringify(data, null, 2))}</pre>`
-				: "";
+			return data != null ? `<pre>${esc(JSON.stringify(data, null, 2))}</pre>` : "";
 		}
 		return this.renderBySchema(data, schema);
 	}
 
-	private renderBySchema(
-		data: unknown,
-		schema: Record<string, unknown>,
-	): string {
+	private renderBySchema(data: unknown, schema: Record<string, unknown>): string {
 		if (!data) return "";
 		const jsonSchema = schema as {
 			type?: string;
@@ -267,11 +241,7 @@ export class StepCaller extends HTMLElement {
 
 		if (jsonSchema.type === "array" && Array.isArray(data)) {
 			const items = jsonSchema.items;
-			if (
-				items &&
-				typeof items === "object" &&
-				(items as Record<string, unknown>).type === "object"
-			) {
+			if (items && typeof items === "object" && (items as Record<string, unknown>).type === "object") {
 				return this.renderTable(data as Record<string, unknown>[]);
 			}
 			return `<ul>${(data as unknown[]).map((v) => `<li>${this.renderCell(v)}</li>`).join("")}</ul>`;
@@ -288,21 +258,13 @@ export class StepCaller extends HTMLElement {
 		if (rows.length === 0) return "<p>No results.</p>";
 		const cols = Object.keys(rows[0]);
 		const header = cols.map((c) => `<th>${esc(c)}</th>`).join("");
-		const body = rows
-			.map(
-				(r) =>
-					`<tr>${cols.map((c) => `<td>${this.renderCell(r[c])}</td>`).join("")}</tr>`,
-			)
-			.join("");
+		const body = rows.map((r) => `<tr>${cols.map((c) => `<td>${this.renderCell(r[c])}</td>`).join("")}</tr>`).join("");
 		return `<table><thead><tr>${header}</tr></thead><tbody>${body}</tbody></table>`;
 	}
 
 	private renderDl(obj: Record<string, unknown>): string {
 		const entries = Object.entries(obj)
-			.map(
-				([k, v]) =>
-					`<dt>${esc(k)}</dt><dd data-testid="step-result-${escAttr(k)}">${this.renderCell(v)}</dd>`,
-			)
+			.map(([k, v]) => `<dt>${esc(k)}</dt><dd data-testid="step-result-${escAttr(k)}">${this.renderCell(v)}</dd>`)
 			.join("");
 		return `<dl>${entries}</dl>`;
 	}
@@ -315,20 +277,16 @@ export class StepCaller extends HTMLElement {
 	}
 
 	private bindEvents(): void {
-		this.shadowRoot
-			?.querySelector(".dismiss-btn")
-			?.addEventListener("click", () => {
-				this.remove();
-			});
+		this.shadowRoot?.querySelector(".dismiss-btn")?.addEventListener("click", () => {
+			this.remove();
+		});
 
 		const form = this.shadowRoot?.querySelector(".step-form");
 		if (form) {
 			form.addEventListener("submit", (e) => {
 				e.preventDefault();
 				const inputs = Array.from(
-					(form as HTMLFormElement).querySelectorAll<
-						HTMLInputElement | HTMLSelectElement
-					>("input[name], select[name]"),
+					(form as HTMLFormElement).querySelectorAll<HTMLInputElement | HTMLSelectElement>("input[name], select[name]"),
 				);
 				const values: Record<string, string> = {};
 				for (const input of inputs) {
@@ -338,19 +296,13 @@ export class StepCaller extends HTMLElement {
 			});
 
 			// Auto-expand inline inputs as user types
-			form
-				.querySelectorAll<HTMLInputElement>(".inline-input")
-				.forEach((input) => {
-					const resize = () => {
-						const len = Math.max(
-							input.value.length,
-							input.placeholder.length,
-							4,
-						);
-						input.size = len + 1;
-					};
-					input.addEventListener("input", resize);
-				});
+			form.querySelectorAll<HTMLInputElement>(".inline-input").forEach((input) => {
+				const resize = () => {
+					const len = Math.max(input.value.length, input.placeholder.length, 4);
+					input.size = len + 1;
+				};
+				input.addEventListener("input", resize);
+			});
 		}
 	}
 

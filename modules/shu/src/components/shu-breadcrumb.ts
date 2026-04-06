@@ -64,15 +64,11 @@ export class ShuBreadcrumb extends ShuElement<typeof BreadcrumbSchema> {
 		if (syncBtn) {
 			e.stopPropagation();
 			this.setState({ hasSync: false });
-			this.dispatchEvent(
-				new CustomEvent("sync-request", { bubbles: true, composed: true }),
-			);
+			this.dispatchEvent(new CustomEvent("sync-request", { bubbles: true, composed: true }));
 			return;
 		}
 
-		const crumb = (e.target as HTMLElement).closest(
-			".crumb",
-		) as HTMLElement | null;
+		const crumb = (e.target as HTMLElement).closest(".crumb") as HTMLElement | null;
 		if (!crumb) return;
 		e.stopPropagation();
 		const idx = parseInt(crumb.dataset.index || "0", 10);
@@ -90,13 +86,8 @@ export class ShuBreadcrumb extends ShuElement<typeof BreadcrumbSchema> {
 	protected render(): void {
 		if (!this.shadowRoot) return;
 		const { queryLabel, columns, activeIndex, hasSync } = this.state;
-		const crumbs = [
-			queryLabel,
-			...columns.map((c) => c.replace(/^Email:/, "")),
-		];
-		const syncBtn = hasSync
-			? '<button class="sync-btn" title="New data available — click to refresh">\u27F3</button>'
-			: "";
+		const crumbs = [queryLabel, ...columns.map((c) => c.replace(/^Email:/, ""))];
+		const syncBtn = hasSync ? '<button class="sync-btn" title="New data available — click to refresh">\u27F3</button>' : "";
 		this.shadowRoot.innerHTML = `
 			<style>${STYLES}</style>
 			${crumbs

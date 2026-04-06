@@ -11,8 +11,15 @@ import type { Server } from "http";
 
 class EchoStepper extends AStepper {
 	steps = {
-		echo: { gwta: "echo {message: string}", action: async ({ message }: { message: string }) => actionOKWithProducts({ echoed: message }) },
-		protectedPing: { gwta: "protected ping", capability: "EchoStepper:admin", action: async () => actionOKWithProducts({ pong: true }) },
+		echo: {
+			gwta: "echo {message: string}",
+			action: async ({ message }: { message: string }) => actionOKWithProducts({ echoed: message }),
+		},
+		protectedPing: {
+			gwta: "protected ping",
+			capability: "EchoStepper:admin",
+			action: async () => actionOKWithProducts({ pong: true }),
+		},
 	};
 }
 

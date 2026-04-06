@@ -5,12 +5,12 @@
  */
 import { SHARED_STYLES } from "./styles.js";
 import { SHU_EVENT } from "../consts.js";
-import { esc, escAttr, truncate, errMsg, vertexId, vertexLabel, HIDDEN_PROPS, renderContentHtml, utf8ToBase64, } from "../util.js";
+import { esc, escAttr, truncate, errMsg, vertexId, vertexLabel, HIDDEN_PROPS, renderContentHtml, utf8ToBase64 } from "../util.js";
 import { renderValue } from "./value-renderers.js";
 import { queryUriToPayload } from "../query-uri.js";
 import { SseClient } from "../sse-client.js";
 import { getAvailableSteps, requireStep, findStep } from "../rpc-registry.js";
-import { getRels, getRelSync, getContentFields, getSummaryFields, } from "../rels-cache.js";
+import { getRels, getRelSync, getContentFields, getSummaryFields } from "../rels-cache.js";
 import { defaultLabel } from "../util.js";
 
 type VertexData = Record<string, unknown>;
@@ -55,11 +55,7 @@ export class ShuColumnBrowser extends HTMLElement {
 
 	/** Open a vertex entity column by ID. Fetches vertex + edges. */
 	/** Open a vertex entity column by ID. The caller must ensure id is a valid vertex identity. */
-	async openColumn(
-		id: string,
-		afterIndex?: number,
-		label?: string,
-	): Promise<void> {
+	async openColumn(id: string, afterIndex?: number, label?: string): Promise<void> {
 		const vertexLabel = label || defaultLabel();
 		const query: ColumnQuery = { vertexId: id, label: vertexLabel };
 		this.pushColumn(id, afterIndex, query, true);
@@ -80,10 +76,7 @@ export class ShuColumnBrowser extends HTMLElement {
 				this.render();
 				return;
 			}
-			const data = await client.rpc<{ vertex: VertexData; edges: EdgeData[] }>(
-				stepDesc.method,
-				{ id },
-			);
+			const data = await client.rpc<{ vertex: VertexData; edges: EdgeData[] }>(stepDesc.method, { id });
 			this.columns[colIndex] = {
 				label: id,
 				vertexLabel,
@@ -109,12 +102,7 @@ export class ShuColumnBrowser extends HTMLElement {
 		const payload = queryUriToPayload(uri);
 
 		// Vertex-only URI → open as entity
-		if (
-			payload.vertexId &&
-			!payload.label &&
-			!payload.textQuery &&
-			!(payload.conditions as unknown[])?.length
-		) {
+		if (payload.vertexId && !payload.label && !payload.textQuery && !(payload.conditions as unknown[])?.length) {
 			void this.openColumn(payload.vertexId as string, afterIndex);
 			return;
 		}
@@ -128,10 +116,7 @@ export class ShuColumnBrowser extends HTMLElement {
 		const colIndex = this.columns.length - 1;
 		try {
 			const client = SseClient.for("");
-			const data = await client.rpc<{ vertices: VertexData[]; total: number }>(
-				requireStep("graphQuery"),
-				{ query: payload },
-			);
+			const data = await client.rpc<{ vertices: VertexData[]; total: number }>(requireStep("graphQuery"), { query: payload });
 			this.columns[colIndex] = { label, results: data.vertices, query };
 			this.render();
 		} catch (err) {
@@ -141,12 +126,7 @@ export class ShuColumnBrowser extends HTMLElement {
 	}
 
 	/** Open a column showing vertices filtered by a specific property value. */
-	async openFilteredColumn(
-		property: string,
-		value: string,
-		label: string,
-		afterIndex?: number,
-	): Promise<void> {
+	async openFilteredColumn(property: string, value: string, label: string, afterIndex?: number): Promise<void> {
 		const colLabel = `${property}=${truncate(value, 30)}`;
 		const query: ColumnQuery = { property, value, label };
 		this.pushColumn(colLabel, afterIndex, query, true);
@@ -154,20 +134,17 @@ export class ShuColumnBrowser extends HTMLElement {
 		try {
 			await getAvailableSteps();
 			const client = SseClient.for("");
-			const data = await client.rpc<{ vertices: VertexData[]; total: number }>(
-				requireStep("graphQuery"),
-				{
-					query: {
-						label,
-						filters: [{ property, operator: "eq", value }],
-						sortBy: "",
-						sortOrder: "desc",
-						limit: 50,
-						offset: 0,
-						accessLevel: "private",
-					},
+			const data = await client.rpc<{ vertices: VertexData[]; total: number }>(requireStep("graphQuery"), {
+				query: {
+					label,
+					filters: [{ property, operator: "eq", value }],
+					sortBy: "",
+					sortOrder: "desc",
+					limit: 50,
+					offset: 0,
+					accessLevel: "private",
 				},
-			);
+			});
 			this.columns[colIndex] = {
 				label: colLabel,
 				vertexLabel: label,
@@ -182,11 +159,7 @@ export class ShuColumnBrowser extends HTMLElement {
 	}
 
 	/** Open a column showing all vertices that have a given property, sorted by it. */
-	async openPropertyColumn(
-		property: string,
-		label: string,
-		afterIndex?: number,
-	): Promise<void> {
+	async openPropertyColumn(property: string, label: string, afterIndex?: number): Promise<void> {
 		const colLabel = property;
 		const query: ColumnQuery = { property, label };
 		this.pushColumn(colLabel, afterIndex, query, true);
@@ -194,20 +167,17 @@ export class ShuColumnBrowser extends HTMLElement {
 		try {
 			await getAvailableSteps();
 			const client = SseClient.for("");
-			const data = await client.rpc<{ vertices: VertexData[]; total: number }>(
-				requireStep("graphQuery"),
-				{
-					query: {
-						label,
-						filters: [],
-						sortBy: property,
-						sortOrder: "asc",
-						limit: 50,
-						offset: 0,
-						accessLevel: "private",
-					},
+			const data = await client.rpc<{ vertices: VertexData[]; total: number }>(requireStep("graphQuery"), {
+				query: {
+					label,
+					filters: [],
+					sortBy: property,
+					sortOrder: "asc",
+					limit: 50,
+					offset: 0,
+					accessLevel: "private",
 				},
-			);
+			});
 			this.columns[colIndex] = {
 				label: colLabel,
 				vertexLabel: label,
@@ -230,8 +200,7 @@ export class ShuColumnBrowser extends HTMLElement {
 		return this.columns.map((col) => {
 			const q = col.query;
 			if (!q) return col.label;
-			if (q.property && q.value)
-				return `f:${q.label || defaultLabel()}:${q.property}=${q.value}`;
+			if (q.property && q.value) return `f:${q.label || defaultLabel()}:${q.property}=${q.value}`;
 			if (q.property) return `p:${q.label || defaultLabel()}:${q.property}`;
 			return q.vertexId || col.label;
 		});
@@ -301,16 +270,8 @@ export class ShuColumnBrowser extends HTMLElement {
 		);
 	}
 
-	private pushColumn(
-		label: string,
-		afterIndex?: number,
-		query?: ColumnQuery,
-		loading?: boolean,
-	): void {
-		const insertAt =
-			afterIndex !== undefined && afterIndex >= 0
-				? afterIndex + 1
-				: this.columns.length;
+	private pushColumn(label: string, afterIndex?: number, query?: ColumnQuery, loading?: boolean): void {
+		const insertAt = afterIndex !== undefined && afterIndex >= 0 ? afterIndex + 1 : this.columns.length;
 		this.columns = this.columns.slice(0, insertAt);
 		this.columns.push({ label, query, loading });
 		this.currentIndex = this.columns.length - 1;
@@ -322,11 +283,7 @@ export class ShuColumnBrowser extends HTMLElement {
 		});
 	}
 
-	private moveToFolder(
-		_vid: string,
-		destFolder: string,
-		colIndex: number,
-	): void {
+	private moveToFolder(_vid: string, destFolder: string, colIndex: number): void {
 		try {
 			// TODO: implement folder move via moveEmail step
 			const col = this.columns[colIndex];
@@ -492,12 +449,7 @@ export class ShuColumnBrowser extends HTMLElement {
 				const contentFieldSet = new Set(Object.keys(getContentFields(lbl) ?? {}));
 				const idField = id;
 				const summary = Object.entries(v)
-					.filter(
-						([k, val]) =>
-							!HIDDEN_PROPS.has(k) &&
-							!contentFieldSet.has(k) &&
-							String(val ?? "") !== idField,
-					)
+					.filter(([k, val]) => !HIDDEN_PROPS.has(k) && !contentFieldSet.has(k) && String(val ?? "") !== idField)
 					.slice(0, 3)
 					.map(
 						([k, val]) =>
@@ -518,19 +470,11 @@ export class ShuColumnBrowser extends HTMLElement {
 	 *   "filter"  — property value (opens filtered query)
 	 *   "describedby" — property name (opens filtered column)
 	 */
-	private clickableValue(
-		value: string,
-		colIndex: number,
-		rel = "filter",
-		propertyName?: string,
-	): string {
+	private clickableValue(value: string, colIndex: number, rel = "filter", propertyName?: string): string {
 		// For value links, check server rels to determine correct rel
 		if (rel === "filter" && propertyName) {
 			const col = this.columns[colIndex];
-			const serverRel = getRelSync(
-				col?.vertexLabel || defaultLabel(),
-				propertyName,
-			);
+			const serverRel = getRelSync(col?.vertexLabel || defaultLabel(), propertyName);
 			if (serverRel === "item") rel = "item";
 		}
 		if (rel === "filter" || rel === "item") {
@@ -540,15 +484,10 @@ export class ShuColumnBrowser extends HTMLElement {
 		const isPredicate = rel === "describedby";
 		let testId = "";
 		if (isPredicate) {
-			testId =
-				this.predicateLinkCount === 0
-					? ' data-testid="predicate-link-first"'
-					: ' data-testid="predicate-link"';
+			testId = this.predicateLinkCount === 0 ? ' data-testid="predicate-link-first"' : ' data-testid="predicate-link"';
 			this.predicateLinkCount++;
 		}
-		const propAttr = propertyName
-			? ` data-property="${escAttr(propertyName)}"`
-			: "";
+		const propAttr = propertyName ? ` data-property="${escAttr(propertyName)}"` : "";
 		const linkClass = isPredicate ? "pred-link" : "col-link";
 		return `<a class="${linkClass}" rel="${rel}" href="#" data-value="${escAttr(value)}" data-col-index="${colIndex}"${propAttr}${testId}>${esc(truncate(value, 80))}</a>`;
 	}
@@ -560,9 +499,7 @@ export class ShuColumnBrowser extends HTMLElement {
 				const field = (btn as HTMLElement).dataset.field;
 				if (!field) return;
 				const container = (btn as HTMLElement).closest(".body-container");
-				container
-					?.querySelectorAll(".content-switch-btn")
-					.forEach((b) => b.classList.remove("active"));
+				container?.querySelectorAll(".content-switch-btn").forEach((b) => b.classList.remove("active"));
 				btn.classList.add("active");
 				container?.querySelectorAll(".body-iframe").forEach((iframe) => {
 					const el = iframe as HTMLElement;
@@ -575,10 +512,7 @@ export class ShuColumnBrowser extends HTMLElement {
 		this.shadowRoot?.querySelectorAll(".column").forEach((col) => {
 			col.addEventListener("click", (e) => {
 				if ((e.target as HTMLElement).closest("details")) return;
-				const index = parseInt(
-					(col as HTMLElement).dataset.colIndex || "0",
-					10,
-				);
+				const index = parseInt((col as HTMLElement).dataset.colIndex || "0", 10);
 				if (this.currentIndex !== index) {
 					this.currentIndex = index;
 					this.render();
@@ -594,73 +528,55 @@ export class ShuColumnBrowser extends HTMLElement {
 				e.stopPropagation();
 				const uri = (el as HTMLElement).dataset.queryUri;
 				if (!uri) return;
-				const colIndex = parseInt(
-					(el.closest(".column") as HTMLElement | null)?.dataset.colIndex ||
-					"0",
-					10,
-				);
+				const colIndex = parseInt((el.closest(".column") as HTMLElement | null)?.dataset.colIndex || "0", 10);
 				void this.openQueryColumn(uri, colIndex);
 			});
 		});
 
 		// Click a value link → typed navigation via rel attribute (HATEOAS)
-		this.shadowRoot
-			?.querySelectorAll(".col-link:not(.query-link), .pred-link")
-			.forEach((el) => {
-				el.addEventListener("click", (e) => {
-					e.preventDefault();
-					e.stopPropagation();
-					const target = el as HTMLElement;
-					const value = target.dataset.value;
-					const rel = target.getAttribute("rel");
-					const propertyName = target.dataset.property;
-					const colIndex = parseInt(target.dataset.colIndex || "0", 10);
-					if (!value) return;
+		this.shadowRoot?.querySelectorAll(".col-link:not(.query-link), .pred-link").forEach((el) => {
+			el.addEventListener("click", (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				const target = el as HTMLElement;
+				const value = target.dataset.value;
+				const rel = target.getAttribute("rel");
+				const propertyName = target.dataset.property;
+				const colIndex = parseInt(target.dataset.colIndex || "0", 10);
+				if (!value) return;
 
-					const col = this.columns[colIndex];
-					const currentLabel = col?.vertexLabel || defaultLabel();
+				const col = this.columns[colIndex];
+				const currentLabel = col?.vertexLabel || defaultLabel();
 
-					switch (rel) {
-						case "item":
-							// Entity reference — open as vertex
+				switch (rel) {
+					case "item":
+						// Entity reference — open as vertex
+						void this.openColumn(value, colIndex, currentLabel);
+						break;
+					case "describedby":
+						// Property name — show all vertices sorted by this property
+						void this.openPropertyColumn(value, currentLabel, colIndex);
+						break;
+					case "filter":
+					default:
+						// Property value — open filtered query using the property context
+						if (propertyName) {
+							void this.openFilteredColumn(propertyName, value, currentLabel, colIndex);
+						} else {
+							console.warn(`[column-browser] filter click without property context: ${value}`);
 							void this.openColumn(value, colIndex, currentLabel);
-							break;
-						case "describedby":
-							// Property name — show all vertices sorted by this property
-							void this.openPropertyColumn(value, currentLabel, colIndex);
-							break;
-						case "filter":
-						default:
-							// Property value — open filtered query using the property context
-							if (propertyName) {
-								void this.openFilteredColumn(
-									propertyName,
-									value,
-									currentLabel,
-									colIndex,
-								);
-							} else {
-								console.warn(
-									`[column-browser] filter click without property context: ${value}`,
-								);
-								void this.openColumn(value, colIndex, currentLabel);
-							}
-							break;
-					}
-				});
+						}
+						break;
+				}
 			});
+		});
 
 		// Move to folder
 		this.shadowRoot?.querySelectorAll(".move-btn").forEach((el) => {
 			el.addEventListener("click", (e) => {
 				e.stopPropagation();
-				const colIndex = parseInt(
-					(el as HTMLElement).dataset.colIndex || "0",
-					10,
-				);
-				const input = this.shadowRoot?.querySelector(
-					`.move-input[data-col-index="${colIndex}"]`,
-				) as HTMLInputElement | null;
+				const colIndex = parseInt((el as HTMLElement).dataset.colIndex || "0", 10);
+				const input = this.shadowRoot?.querySelector(`.move-input[data-col-index="${colIndex}"]`) as HTMLInputElement | null;
 				if (!input?.value) return;
 				const vid = input.dataset.vertexId;
 				if (!vid) return;

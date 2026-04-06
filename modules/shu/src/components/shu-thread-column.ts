@@ -12,7 +12,13 @@ import mermaid from "mermaid";
 
 let mermaidInitialized = false;
 
-const ThreadColumnSchema = z.object({ label: z.string().default(""), vertexId: z.string().default(""), mode: z.enum(["flat", "tree", "graph"]).default("flat"), loading: z.boolean().default(false), error: z.string().optional() });
+const ThreadColumnSchema = z.object({
+	label: z.string().default(""),
+	vertexId: z.string().default(""),
+	mode: z.enum(["flat", "tree", "graph"]).default("flat"),
+	loading: z.boolean().default(false),
+	error: z.string().optional(),
+});
 
 type ThreadEdge = { type: string; targetId: string };
 type ThreadVertex = Record<string, unknown> & { _id: string; _inReplyTo?: string; _edges?: ThreadEdge[] };
@@ -74,13 +80,16 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 			return;
 		}
 
-		const contentHtml = mode === "graph" ? '<div class="graph-container"></div>' : `<div class="thread-list">${mode === "flat" ? this.renderFlat() : this.renderTree()}</div>`;
+		const contentHtml =
+			mode === "graph"
+				? '<div class="graph-container"></div>'
+				: `<div class="thread-list">${mode === "flat" ? this.renderFlat() : this.renderTree()}</div>`;
 		this.shadowRoot.innerHTML = `${this.css(STYLES)}
 			<div class="toolbar">
 				<button class="mode-btn${mode === "flat" ? " active" : ""}" data-mode="flat">Flat</button>
 				<button class="mode-btn${mode === "tree" ? " active" : ""}" data-mode="tree">Tree</button>
 				<button class="mode-btn${mode === "graph" ? " active" : ""}" data-mode="graph">Graph</button>
-				<span class="count">${this.thread.length} relations</span>
+				<span class="count">${this.thread.length} replies</span>
 			</div>
 			${contentHtml}`;
 		if (mode === "graph") void this.renderGraph();
@@ -92,7 +101,10 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 			card.addEventListener("click", () => {
 				const id = (card as HTMLElement).dataset.id;
 				const cardLabel = (card as HTMLElement).dataset.label || this.state.label;
-				if (id) this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN, { detail: { subject: id, label: cardLabel }, bubbles: true, composed: true }));
+				if (id)
+					this.dispatchEvent(
+						new CustomEvent(SHU_EVENT.COLUMN_OPEN, { detail: { subject: id, label: cardLabel }, bubbles: true, composed: true }),
+					);
 			});
 		});
 
@@ -119,11 +131,13 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 			}
 		}
 		const renderBranch = (vertices: ThreadVertex[], depth: number): string => {
-			return vertices.map((v) => {
-				const children = childMap.get(v._id) ?? [];
-				const childHtml = children.length > 0 ? `<div class="indent">${renderBranch(children, depth + 1)}</div>` : "";
-				return this.renderCard(v, depth) + childHtml;
-			}).join("");
+			return vertices
+				.map((v) => {
+					const children = childMap.get(v._id) ?? [];
+					const childHtml = children.length > 0 ? `<div class="indent">${renderBranch(children, depth + 1)}</div>` : "";
+					return this.renderCard(v, depth) + childHtml;
+				})
+				.join("");
 		};
 		return renderBranch(roots, 0);
 	}
@@ -149,11 +163,21 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 
 	private async renderGraph(): Promise<void> {
 		if (!mermaidInitialized) {
-			mermaid.initialize({ startOnLoad: false, theme: "default", securityLevel: "loose", fontFamily: "ui-sans-serif, system-ui, sans-serif" });
+			mermaid.initialize({
+				startOnLoad: false,
+				theme: "default",
+				securityLevel: "loose",
+				fontFamily: "ui-sans-serif, system-ui, sans-serif",
+			});
 			mermaidInitialized = true;
 		}
 		const sanitize = (s: string) => s.replace(/[^a-zA-Z0-9_]/g, "_").substring(0, 20) || "node";
-		const escLabel = (s: string) => s.replace(/"/g, "").replace(/'/g, "").replace(/[[\]{}()<>|#;&]/g, "").replace(/\n/g, " ");
+		const escLabel = (s: string) =>
+			s
+				.replace(/"/g, "")
+				.replace(/'/g, "")
+				.replace(/[[\]{}()<>|#;&]/g, "")
+				.replace(/\n/g, " ");
 		const threadIds = new Set(this.thread.map((v) => v._id));
 		let src = "graph TD\n";
 		for (const v of this.thread) {
@@ -164,7 +188,7 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 			const isCurrent = v._id === this.state.vertexId;
 			src += `  ${id}["${nodeLabel}"]\n`;
 			if (isCurrent) src += `  style ${id} fill:#e8f5e9,stroke:#1a6b3c\n`;
-			for (const edge of (v._edges ?? [])) {
+			for (const edge of v._edges ?? []) {
 				if (threadIds.has(edge.targetId)) {
 					src += `  ${id} -->|${escLabel(edge.type)}| ${sanitize(edge.targetId)}\n`;
 				}

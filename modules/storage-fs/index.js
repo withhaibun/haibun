@@ -1,1 +1,1 @@
-export * from './build/storage-fs';
+export * from "./build/storage-fs";

@@ -1,6 +1,6 @@
-import { AStepper } from './astepper.js';
-import { constructorName } from './util/index.js';
-import { namedInterpolation } from './namedVars.js';
+import { AStepper } from "./astepper.js";
+import { constructorName } from "./util/index.js";
+import { namedInterpolation } from "./namedVars.js";
 
 /**
  * Metadata for a single step, extracted from a stepper definition.
@@ -11,7 +11,7 @@ export interface StepDescriptor {
 	stepName: string;
 	method: string;
 	pattern: string;
-	params: Record<string, 'string' | 'number'>;
+	params: Record<string, "string" | "number">;
 	/** Domain key for each parameter (e.g., { data: 'muskeg-email', id: 'string' }) */
 	paramDomains?: Record<string, string>;
 	capability?: string;
@@ -29,12 +29,12 @@ export class StepperRegistry {
 	 * Filters out steps marked with `exposeMCP: false`.
 	 */
 	static getMetadata(steppers: AStepper[]): StepDescriptor[] {
-		return steppers.flatMap(stepper => {
+		return steppers.flatMap((stepper) => {
 			const stepperName = constructorName(stepper);
 			return Object.entries(stepper.steps)
 				.filter(([, def]) => def.exposeMCP !== false)
 				.map(([stepName, stepDef]) => {
-					const params: Record<string, 'string' | 'number'> = {};
+					const params: Record<string, "string" | "number"> = {};
 					const pattern = stepDef.gwta || stepDef.exact || stepDef.match?.toString() || stepName;
 
 					const paramDomains: Record<string, string> = {};
@@ -42,8 +42,8 @@ export class StepperRegistry {
 						const { stepValuesMap } = namedInterpolation(stepDef.gwta);
 						if (stepValuesMap) {
 							for (const v of Object.values(stepValuesMap)) {
-								params[v.term] = v.domain === 'number' ? 'number' : 'string';
-								paramDomains[v.term] = v.domain || 'string';
+								params[v.term] = v.domain === "number" ? "number" : "string";
+								paramDomains[v.term] = v.domain || "string";
 							}
 						}
 					}

@@ -5,13 +5,13 @@ import { SHU_EVENT } from "../consts.js";
  * Renders in light DOM .results-target, hash state, custom scrollbar, sort, multi-select.
  */
 import { ShuElement } from "./shu-element.js";
-import { QueryViewSchema, type TSearchCondition, parseFilterParam, serializeFilterParam, } from "../schemas.js";
+import { QueryViewSchema, type TSearchCondition, parseFilterParam, serializeFilterParam } from "../schemas.js";
 import { SHARED_STYLES } from "./styles.js";
 import { esc, errMsg, setIdFields } from "../util.js";
 import { setSiteMetadata, getConcernDerivedMetadata } from "../rels-cache.js";
 import type { ShuResultTable } from "./shu-result-table.js";
 import { SseClient } from "../sse-client.js";
-import { getAvailableSteps, getAvailableDomains, findStep, requireStep, } from "../rpc-registry.js";
+import { getAvailableSteps, getAvailableDomains, findStep, requireStep } from "../rpc-registry.js";
 
 type ConditionRow = TSearchCondition;
 
@@ -71,18 +71,10 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 	}
 
 	/** Apply filters from the actions bar and re-execute the query. */
-	setFilters(filters: {
-		accessLevel?: string;
-		label?: string;
-		textQuery?: string;
-		conditions?: TSearchCondition[];
-	}): void {
-		if (filters.accessLevel !== undefined)
-			this.accessLevel = filters.accessLevel;
-		if (filters.label !== undefined)
-			this.state = { ...this.state, label: filters.label || undefined };
-		if (filters.textQuery !== undefined)
-			this.state = { ...this.state, textQuery: filters.textQuery || undefined };
+	setFilters(filters: { accessLevel?: string; label?: string; textQuery?: string; conditions?: TSearchCondition[] }): void {
+		if (filters.accessLevel !== undefined) this.accessLevel = filters.accessLevel;
+		if (filters.label !== undefined) this.state = { ...this.state, label: filters.label || undefined };
+		if (filters.textQuery !== undefined) this.state = { ...this.state, textQuery: filters.textQuery || undefined };
 		if (filters.conditions) this.conditions = filters.conditions;
 		this.offset = 0;
 		void this.executeQuery();
@@ -94,18 +86,13 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		this.selectedIds.clear();
 		const target = this.resultsTarget;
 		if (target) {
-			target
-				.querySelectorAll(".clickable-row")
-				.forEach((r) => r.classList.remove("selected"));
+			target.querySelectorAll(".clickable-row").forEach((r) => r.classList.remove("selected"));
 		}
 		this.dispatchContextChange();
 	}
 
 	private dispatchContextChange(): void {
-		const patterns =
-			this.selectedIds.size > 0
-				? [...this.selectedIds].map((s) => ({ s }))
-				: this.buildQueryContextPatterns();
+		const patterns = this.selectedIds.size > 0 ? [...this.selectedIds].map((s) => ({ s })) : this.buildQueryContextPatterns();
 
 		this.dispatchEvent(
 			new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, {
@@ -124,7 +111,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		);
 	}
 
-	private buildQueryContextPatterns(): Array<{ s?: string; p?: string; o?: string; }> {
+	private buildQueryContextPatterns(): Array<{ s?: string; p?: string; o?: string }> {
 		const patterns: Array<{ s?: string; p?: string; o?: string }> = [];
 		const { label } = this.state;
 		if (label) patterns.push({ p: "label", o: label });
@@ -166,9 +153,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		const { label, textQuery, sortBy, sortOrder } = this.state;
 
 		// Preserve existing col params (managed by app.ts via columns-changed events)
-		const existing = location.hash.startsWith("#?")
-			? new URLSearchParams(location.hash.slice(2))
-			: new URLSearchParams();
+		const existing = location.hash.startsWith("#?") ? new URLSearchParams(location.hash.slice(2)) : new URLSearchParams();
 		const colValues = existing.getAll("col");
 
 		const params = new URLSearchParams();
@@ -197,9 +182,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		const label = this.getAttribute("label") || undefined;
 		const textQuery = this.getAttribute("text-query") || undefined;
 		const sortBy = this.getAttribute("sort-by") || undefined;
-		const sortOrder = (this.getAttribute("sort-order") || "desc") as
-			| "asc"
-			| "desc";
+		const sortOrder = (this.getAttribute("sort-order") || "desc") as "asc" | "desc";
 		const result = this.safeValidate({ label, textQuery, sortBy, sortOrder });
 		if (result.success && result.data) {
 			this.state = result.data;
@@ -213,9 +196,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		const step = findStep("getSiteMetadata");
 		if (step) {
 			const client = SseClient.for("");
-			const serverMeta = await client.rpc<
-				import("../rels-cache.js").SiteMetadata
-			>(step.method);
+			const serverMeta = await client.rpc<import("../rels-cache.js").SiteMetadata>(step.method);
 			Object.assign(derivedMeta, serverMeta);
 		}
 		setSiteMetadata(derivedMeta);
@@ -286,9 +267,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		this.renderResults();
 		if (resultsChanged) {
 			this.selectedIds.clear();
-			this.dispatchEvent(
-				new CustomEvent(SHU_EVENT.RESULTS_CHANGED, { bubbles: true, composed: true }),
-			);
+			this.dispatchEvent(new CustomEvent(SHU_EVENT.RESULTS_CHANGED, { bubbles: true, composed: true }));
 		}
 		this.dispatchContextChange();
 	}
@@ -321,9 +300,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 
 		if (!this.resultTable || !pane.contains(this.resultTable)) {
 			// Create result table element
-			const table = document.createElement(
-				"shu-result-table",
-			) as ShuResultTable;
+			const table = document.createElement("shu-result-table") as ShuResultTable;
 			pane.innerHTML = "";
 			pane.appendChild(table);
 			this.resultTable = table;

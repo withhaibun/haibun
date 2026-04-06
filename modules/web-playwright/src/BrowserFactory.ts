@@ -1,16 +1,27 @@
-import { Browser, BrowserContext, Page, chromium, firefox, webkit, BrowserType, devices, BrowserContextOptions, LaunchOptions } from 'playwright';
+import {
+	Browser,
+	BrowserContext,
+	Page,
+	chromium,
+	firefox,
+	webkit,
+	BrowserType,
+	devices,
+	BrowserContextOptions,
+	LaunchOptions,
+} from "playwright";
 
-import { PlaywrightEvents } from './PlaywrightEvents.js';
-import { TWorld } from '@haibun/core/lib/defs.js';
-import { Timer } from '@haibun/core/schema/protocol.js';
-import { TTag } from '@haibun/core/lib/ttag.js';
+import { PlaywrightEvents } from "./PlaywrightEvents.js";
+import { TWorld } from "@haibun/core/lib/defs.js";
+import { Timer } from "@haibun/core/schema/protocol.js";
+import { TTag } from "@haibun/core/lib/ttag.js";
 
 export const BROWSERS: { [name: string]: BrowserType } = {
 	firefox,
 	chromium,
 	webkit,
 };
-export type TBrowserTypes = 'firefox' | 'chromium' | 'webkit';
+export type TBrowserTypes = "firefox" | "chromium" | "webkit";
 
 export type TTaggedBrowserFactoryOptions = {
 	options: BrowserContextOptions;
@@ -26,7 +37,7 @@ export type TTaggedBrowserFactoryOptions = {
 	device?: string;
 };
 
-export const DEFAULT_CONFIG_TAG = '_default';
+export const DEFAULT_CONFIG_TAG = "_default";
 
 export type PageInstance = Page & { _guid: string };
 
@@ -35,11 +46,11 @@ export class BrowserFactory {
 	tracers: { [name: string]: PlaywrightEvents } = {};
 	browserContexts: { [name: string]: BrowserContext } = {};
 	pages: { [name: string]: Page | undefined } = {};
-	contextStats: { [featureNum: string]: { start: number, end?: number, duration?: number } } = {};
+	contextStats: { [featureNum: string]: { start: number; end?: number; duration?: number } } = {};
 	static tracer?: PlaywrightEvents = undefined;
 	static configs: { [name: string]: TTaggedBrowserFactoryOptions } = {};
 
-	private constructor(private world: TWorld) { }
+	private constructor(private world: TWorld) {}
 
 	static getBrowserFactory(world: TWorld, tagConfig: TTaggedBrowserFactoryOptions, tag = DEFAULT_CONFIG_TAG) {
 		BrowserFactory.configs[tag] = tagConfig;
@@ -49,7 +60,7 @@ export class BrowserFactory {
 	public async getBrowser(type: string, tag = DEFAULT_CONFIG_TAG): Promise<Browser> {
 		const config = BrowserFactory.configs[tag];
 
-		const browserOptions: LaunchOptions = { ...config.options, ...config.launchOptions }
+		const browserOptions: LaunchOptions = { ...config.options, ...config.launchOptions };
 		if (!BrowserFactory.browsers[type]) {
 			BrowserFactory.browsers[type] = await config.browserType.launch(browserOptions);
 		}
@@ -122,7 +133,7 @@ export class BrowserFactory {
 		const context = await this.getBrowserContextWithFeatureNum(featureNum);
 		page = await context.newPage();
 
-		const tracer = await (new PlaywrightEvents(this.world, page, tag)).init();
+		const tracer = await new PlaywrightEvents(this.world, page, tag).init();
 
 		this.pages[pageKey] = page;
 		this.tracers[featureNum] = tracer;
@@ -140,20 +151,21 @@ export class BrowserFactory {
 			const deviceContext = config.device
 				? { ...devices[config.device] }
 				: {
-					viewport: {
-						width: 1280,
-						height: 1024
-					},
-				};
-			const launchConfig = { ...deviceContext, ...config.options, ...config.launchOptions }
+						viewport: {
+							width: 1280,
+							height: 1024,
+						},
+					};
+			const launchConfig = { ...deviceContext, ...config.options, ...config.launchOptions };
 			if (config.persistentDirectory) {
 				this.world.eventLogger.debug(
-					`creating new persistent context ${featureNum} ${config.type}, ${config.persistentDirectory
-					} with ${JSON.stringify(BrowserFactory.configs)}`
+					`creating new persistent context ${featureNum} ${config.type}, ${
+						config.persistentDirectory
+					} with ${JSON.stringify(BrowserFactory.configs)}`,
 				);
 				browserContext = await BrowserFactory.configs[tag].browserType.launchPersistentContext(
 					config.persistentDirectory,
-					launchConfig
+					launchConfig,
 				);
 			} else {
 				this.world.eventLogger.debug(`creating new context ${featureNum} ${config.type}`);

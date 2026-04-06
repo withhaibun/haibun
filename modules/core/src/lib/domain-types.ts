@@ -1,12 +1,12 @@
-import { z } from 'zod';
+import { z } from "zod";
 import { TDomainDefinition, TRegisteredDomain, TWorld } from "./defs.js";
 
-export const DOMAIN_STATEMENT = 'statement';
-export const DOMAIN_STRING = 'string';
-export const DOMAIN_LINK = 'link';
-export const DOMAIN_NUMBER = 'number';
-export const DOMAIN_JSON = 'json';
-export const DOMAIN_DATE = 'date';
+export const DOMAIN_STATEMENT = "statement";
+export const DOMAIN_STRING = "string";
+export const DOMAIN_LINK = "link";
+export const DOMAIN_NUMBER = "number";
+export const DOMAIN_JSON = "json";
+export const DOMAIN_DATE = "date";
 export const BASE_TYPES = [DOMAIN_STRING, DOMAIN_LINK, DOMAIN_NUMBER, DOMAIN_DATE, DOMAIN_STATEMENT, DOMAIN_JSON];
 
 export type TEnumDomainInput = {
@@ -28,13 +28,16 @@ export const registerDomains = (world: TWorld, results: TDomainDefinition[][]) =
 			world.domains[domainKey] = toRegisteredDomain(definition);
 		}
 	}
-}
+};
 
-export const asDomainKey = (domains: string[]) => domains?.sort().join(' | ');
+export const asDomainKey = (domains: string[]) => domains?.sort().join(" | ");
 
 export const normalizeDomainKey = (domain: string) => {
 	// Split on ' | ' (union separator), not on '/' which is used in variable names
-	const parts = domain?.split(' | ').map((selector) => selector.trim()).filter(Boolean);
+	const parts = domain
+		?.split(" | ")
+		.map((selector) => selector.trim())
+		.filter(Boolean);
 	const normalized = asDomainKey(parts);
 	if (domain !== normalized) {
 		throw Error(`domain key "${domain}", expected "${normalized}"`);
@@ -65,15 +68,17 @@ const normalizeEnumValues = (domainName: string, values: string[], requireMultip
 export const createEnumDomainDefinition = ({ name, values, description, ordered = false }: TEnumDomainInput): TDomainDefinition => {
 	const domainName = sanitizeToken(name);
 	if (!domainName) {
-		throw new Error('Domain name must be provided');
+		throw new Error("Domain name must be provided");
 	}
 	const uniqueValues = normalizeEnumValues(domainName, values, ordered);
-	const descriptor = description ?? `${domainName} values: ${uniqueValues.join(', ')}`;
+	const descriptor = description ?? `${domainName} values: ${uniqueValues.join(", ")}`;
 	const schema = z.enum(uniqueValues as [string, ...string[]]).describe(descriptor);
 	return {
 		selectors: [domainName],
 		schema,
-		comparator: ordered ? (value, baseline) => uniqueValues.indexOf(value as string) - uniqueValues.indexOf(baseline as string) : undefined,
+		comparator: ordered
+			? (value, baseline) => uniqueValues.indexOf(value as string) - uniqueValues.indexOf(baseline as string)
+			: undefined,
 		values: uniqueValues,
 		description: descriptor,
 	};
@@ -117,5 +122,7 @@ export function vertexDomainMap(domains: Record<string, TRegisteredDomain>): Map
 
 /** Get all vertex domains (domains with meta.vertexLabel) as an array. */
 export function getVertexDomains(domains: Record<string, TRegisteredDomain>): TRegisteredDomain[] {
-	return Object.values(domains).filter((d): d is TRegisteredDomain & { meta: NonNullable<TRegisteredDomain['meta']> } => !!d.meta?.vertexLabel);
+	return Object.values(domains).filter(
+		(d): d is TRegisteredDomain & { meta: NonNullable<TRegisteredDomain["meta"]> } => !!d.meta?.vertexLabel,
+	);
 }

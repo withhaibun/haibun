@@ -44,7 +44,10 @@ export class SubprocessTransport {
 		});
 
 		const stepDescriptors = await new Promise<StepDescriptor[]>((resolve, reject) => {
-			const timeout = setTimeout(() => reject(new Error(`subprocess at ${entryPath} did not send ready message within 10s`)), 10_000);
+			const timeout = setTimeout(
+				() => reject(new Error(`subprocess at ${entryPath} did not send ready message within 10s`)),
+				10_000,
+			);
 
 			child.once("message", (msg: SubprocessMessage) => {
 				clearTimeout(timeout);
@@ -79,7 +82,9 @@ export class SubprocessTransport {
 				handler: (featureStep, _world) =>
 					this.call(
 						descriptor.method,
-						featureStep.action?.stepValuesMap ? Object.fromEntries(Object.entries(featureStep.action.stepValuesMap).map(([k, v]) => [k, v.term])) : {},
+						featureStep.action?.stepValuesMap
+							? Object.fromEntries(Object.entries(featureStep.action.stepValuesMap).map(([k, v]) => [k, v.term]))
+							: {},
 						featureStep.seqPath,
 					),
 			};

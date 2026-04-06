@@ -1,207 +1,232 @@
-
-import React, { useState, useEffect, useMemo } from 'react';
-import { THaibunEvent, ICON_FEATURE, ICON_SCENARIO, ICON_STEP_RUNNING, ICON_STEP_FAILED, ICON_STEP_COMPLETED, ICON_LOG_INFO, ICON_LOG_WARN, ICON_LOG_ERROR, ICON_DEFAULT, ICON_ARTIFACT } from '@haibun/core/schema/protocol.js';
-import { TEST_IDS } from '../test-ids';
+import React, { useState, useEffect, useMemo } from "react";
+import {
+	THaibunEvent,
+	ICON_FEATURE,
+	ICON_SCENARIO,
+	ICON_STEP_RUNNING,
+	ICON_STEP_FAILED,
+	ICON_STEP_COMPLETED,
+	ICON_LOG_INFO,
+	ICON_LOG_WARN,
+	ICON_LOG_ERROR,
+	ICON_DEFAULT,
+	ICON_ARTIFACT,
+} from "@haibun/core/schema/protocol.js";
+import { TEST_IDS } from "../test-ids";
 
 interface TimelineProps {
-    min: number;
-    max: number;
-    current: number;
-    onChange: (val: number) => void;
-    isPlaying: boolean;
-    onPlayPause: () => void;
-    events?: THaibunEvent[];
-    startTime?: number;
-    playbackSpeed: number;
-    onSpeedChange: (speed: number) => void;
+	min: number;
+	max: number;
+	current: number;
+	onChange: (val: number) => void;
+	isPlaying: boolean;
+	onPlayPause: () => void;
+	events?: THaibunEvent[];
+	startTime?: number;
+	playbackSpeed: number;
+	onSpeedChange: (speed: number) => void;
 }
 
 // Helper to get symbol and color for event
-const getNotchStyle = (event: THaibunEvent): { color: string, icon: string } => {
-    if (event.kind === 'lifecycle') {
-        if (event.type === 'feature') return { color: '#c084fc', icon: ICON_FEATURE }; // Purple
-        if (event.type === 'scenario') return { color: '#60a5fa', icon: ICON_SCENARIO }; // Blue
-        if (event.type === 'step') {
-            if (event.status === 'running') return { color: '#eab308', icon: ICON_STEP_RUNNING }; // Yellow
-            if (event.status === 'failed') return { color: '#ef4444', icon: ICON_STEP_FAILED }; // Red
-            if (event.status === 'completed') return { color: '#22c55e', icon: ICON_STEP_COMPLETED }; // Green
-            return { color: '#94a3b8', icon: ICON_DEFAULT }; // Slate dot
-        }
-    }
-    if (event.kind === 'log') {
-        if (event.level === 'error') return { color: '#ef4444', icon: ICON_LOG_ERROR };
-        if (event.level === 'warn') return { color: '#eab308', icon: ICON_LOG_WARN };
-        if (event.level === 'info') return { color: '#3b82f6', icon: ICON_LOG_INFO };
-        return { color: '#94a3b8', icon: ICON_DEFAULT };
-    }
-    if (event.kind === 'artifact') return { color: '#10b981', icon: ICON_ARTIFACT }; // Emerald
+const getNotchStyle = (event: THaibunEvent): { color: string; icon: string } => {
+	if (event.kind === "lifecycle") {
+		if (event.type === "feature") return { color: "#c084fc", icon: ICON_FEATURE }; // Purple
+		if (event.type === "scenario") return { color: "#60a5fa", icon: ICON_SCENARIO }; // Blue
+		if (event.type === "step") {
+			if (event.status === "running") return { color: "#eab308", icon: ICON_STEP_RUNNING }; // Yellow
+			if (event.status === "failed") return { color: "#ef4444", icon: ICON_STEP_FAILED }; // Red
+			if (event.status === "completed") return { color: "#22c55e", icon: ICON_STEP_COMPLETED }; // Green
+			return { color: "#94a3b8", icon: ICON_DEFAULT }; // Slate dot
+		}
+	}
+	if (event.kind === "log") {
+		if (event.level === "error") return { color: "#ef4444", icon: ICON_LOG_ERROR };
+		if (event.level === "warn") return { color: "#eab308", icon: ICON_LOG_WARN };
+		if (event.level === "info") return { color: "#3b82f6", icon: ICON_LOG_INFO };
+		return { color: "#94a3b8", icon: ICON_DEFAULT };
+	}
+	if (event.kind === "artifact") return { color: "#10b981", icon: ICON_ARTIFACT }; // Emerald
 
-    return { color: '#94a3b8', icon: ICON_DEFAULT };
+	return { color: "#94a3b8", icon: ICON_DEFAULT };
 };
 
 // Speed options: 0.02 (labeled -50x), 0.05 (labeled -20x), 1, 2
 const SPEED_OPTIONS = [0.02, 0.05, 1, 2];
 
 export function Timeline({
-    min, max, current, onChange, isPlaying, onPlayPause,
-    events = [], startTime = 0, playbackSpeed, onSpeedChange
+	min,
+	max,
+	current,
+	onChange,
+	isPlaying,
+	onPlayPause,
+	events = [],
+	startTime = 0,
+	playbackSpeed,
+	onSpeedChange,
 }: TimelineProps) {
-    const [localValue, setLocalValue] = useState(current);
-    const [isDragging, setIsDragging] = useState(false);
+	const [localValue, setLocalValue] = useState(current);
+	const [isDragging, setIsDragging] = useState(false);
 
-    useEffect(() => {
-        if (!isDragging) {
-            setLocalValue(current);
-        }
-    }, [current, isDragging]);
+	useEffect(() => {
+		if (!isDragging) {
+			setLocalValue(current);
+		}
+	}, [current, isDragging]);
 
-    // Calculate notch positions for all step events
-    const notches = useMemo(() => {
-        if (max === 0 || events.length === 0) return [];
+	// Calculate notch positions for all step events
+	const notches = useMemo(() => {
+		if (max === 0 || events.length === 0) return [];
 
-        return events
-            .filter(e => {
-                // Always show High Priority items
-                const isError = e.kind === 'log' && e.level === 'error' || (e.kind === 'lifecycle' && e.status === 'failed');
-                const isWarn = e.kind === 'log' && e.level === 'warn';
-                const isArtifact = e.kind === 'artifact';
-                const isStructure = e.kind === 'lifecycle' && (e.type === 'feature' || e.type === 'scenario');
+		return events
+			.filter((e) => {
+				// Always show High Priority items
+				const isError = (e.kind === "log" && e.level === "error") || (e.kind === "lifecycle" && e.status === "failed");
+				const isWarn = e.kind === "log" && e.level === "warn";
+				const isArtifact = e.kind === "artifact";
+				const isStructure = e.kind === "lifecycle" && (e.type === "feature" || e.type === "scenario");
 
-                if (isError || isWarn || isArtifact || isStructure) return true;
+				if (isError || isWarn || isArtifact || isStructure) return true;
 
-                // For normal steps, show COMPLETED (end) events instead of start events to show ✅ instead of ⏳
-                if (e.kind === 'lifecycle' && e.type === 'step' && e.stage === 'end') {
-                    // Filter out technical steps if needed, though 'end' events might not always have labels populated identically? 
-                    // Usually they do.
-                    const isTechnical = /^[a-z]/.test(e.in || '');
-                    return !isTechnical;
-                }
+				// For normal steps, show COMPLETED (end) events instead of start events to show ✅ instead of ⏳
+				if (e.kind === "lifecycle" && e.type === "step" && e.stage === "end") {
+					// Filter out technical steps if needed, though 'end' events might not always have labels populated identically?
+					// Usually they do.
+					const isTechnical = /^[a-z]/.test(e.in || "");
+					return !isTechnical;
+				}
 
-                return false;
-            })
-            .map(e => {
-                const relativeTime = e.timestamp - startTime;
-                const percentage = max > 0 ? (relativeTime / max) * 100 : 0;
-                const style = getNotchStyle(e);
+				return false;
+			})
+			.map((e) => {
+				const relativeTime = e.timestamp - startTime;
+				const percentage = max > 0 ? (relativeTime / max) * 100 : 0;
+				const style = getNotchStyle(e);
 
-                return {
-                    id: e.id,
-                    time: relativeTime,
-                    percentage: Math.max(0, Math.min(100, percentage)),
-                    color: style.color,
-                    icon: style.icon,
-                    label: e.kind === 'lifecycle' ? (e as { in: string }).in : e.kind
-                };
-            });
-    }, [events, startTime, max]);
+				return {
+					id: e.id,
+					time: relativeTime,
+					percentage: Math.max(0, Math.min(100, percentage)),
+					color: style.color,
+					icon: style.icon,
+					label: e.kind === "lifecycle" ? (e as { in: string }).in : e.kind,
+				};
+			});
+	}, [events, startTime, max]);
 
-    const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const val = parseInt(e.target.value, 10);
-        setLocalValue(val);
-        onChange(val);
-    };
+	const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const val = parseInt(e.target.value, 10);
+		setLocalValue(val);
+		onChange(val);
+	};
 
-    const handleMouseDown = () => setIsDragging(true);
-    const handleMouseUp = () => setIsDragging(false);
+	const handleMouseDown = () => setIsDragging(true);
+	const handleMouseUp = () => setIsDragging(false);
 
-    const handleRestart = () => onChange(min);
+	const handleRestart = () => onChange(min);
 
-    const formatTime = (ms: number) => (ms / 1000).toFixed(2) + 's';
+	const formatTime = (ms: number) => (ms / 1000).toFixed(2) + "s";
 
-    const formatSpeed = (speed: number) => {
-        if (speed === 0.02) return '-50×';
-        if (speed === 0.05) return '-20×';
-        return `${speed}×`;
-    };
+	const formatSpeed = (speed: number) => {
+		if (speed === 0.02) return "-50×";
+		if (speed === 0.05) return "-20×";
+		return `${speed}×`;
+	};
 
-    return (
-        <div className="fixed bottom-0 left-0 right-0 border-t border-border px-4 py-2 flex items-center gap-3 z-50 bg-background" data-testid={TEST_IDS.APP.TIMELINE}>
-            {/* Restart button */}
-            <button
-                onClick={handleRestart}
-                title="Restart"
-                className="bg-transparent border-none cursor-pointer text-lg px-1.5 py-0.5 text-muted-foreground hover:text-foreground"
-                data-testid={TEST_IDS.TIMELINE.RESTART}
-            >
-                ⏮
-            </button>
+	return (
+		<div
+			className="fixed bottom-0 left-0 right-0 border-t border-border px-4 py-2 flex items-center gap-3 z-50 bg-background"
+			data-testid={TEST_IDS.APP.TIMELINE}
+		>
+			{/* Restart button */}
+			<button
+				onClick={handleRestart}
+				title="Restart"
+				className="bg-transparent border-none cursor-pointer text-lg px-1.5 py-0.5 text-muted-foreground hover:text-foreground"
+				data-testid={TEST_IDS.TIMELINE.RESTART}
+			>
+				⏮
+			</button>
 
-            {/* Play/Pause button */}
-            <button
-                onClick={onPlayPause}
-                title={isPlaying ? 'Pause' : 'Play'}
-                className="bg-transparent border-none cursor-pointer text-lg px-1.5 py-0.5 text-muted-foreground hover:text-foreground"
-                data-testid={TEST_IDS.TIMELINE.PLAY_PAUSE}
-            >
-                {isPlaying ? '⏸️' : '▶️'}
-            </button>
+			{/* Play/Pause button */}
+			<button
+				onClick={onPlayPause}
+				title={isPlaying ? "Pause" : "Play"}
+				className="bg-transparent border-none cursor-pointer text-lg px-1.5 py-0.5 text-muted-foreground hover:text-foreground"
+				data-testid={TEST_IDS.TIMELINE.PLAY_PAUSE}
+			>
+				{isPlaying ? "⏸️" : "▶️"}
+			</button>
 
-            {/* Speed selector */}
-            <select
-                value={playbackSpeed}
-                onChange={(e) => onSpeedChange(parseFloat(e.target.value))}
-                title="Playback Speed"
-                className="bg-background text-foreground text-xs border border-border rounded px-1"
-                data-testid={TEST_IDS.TIMELINE.SPEED}
-            >
-                {SPEED_OPTIONS.map(speed => (
-                    <option key={speed} value={speed}>
-                        {formatSpeed(speed)}
-                    </option>
-                ))}
-            </select>
+			{/* Speed selector */}
+			<select
+				value={playbackSpeed}
+				onChange={(e) => onSpeedChange(parseFloat(e.target.value))}
+				title="Playback Speed"
+				className="bg-background text-foreground text-xs border border-border rounded px-1"
+				data-testid={TEST_IDS.TIMELINE.SPEED}
+			>
+				{SPEED_OPTIONS.map((speed) => (
+					<option key={speed} value={speed}>
+						{formatSpeed(speed)}
+					</option>
+				))}
+			</select>
 
-            {/* Slider container */}
-            <div className="flex-1 relative h-6 flex items-center">
-                {/* Notches layer */}
-                <div className="absolute inset-0 pointer-events-none z-0">
-                    {notches.map((notch, idx) => (
-                        <div
-                            key={`${notch.id}-${idx}`}
-                            title={`${notch.label} (${formatTime(notch.time)})`}
-                            className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 text-sm leading-none select-none opacity-50"
-                            style={{
-                                left: `${notch.percentage}%`,
-                                color: notch.color,
-                                zIndex: notch.icon === '•' ? 0 : 1
-                            }}
-                        >
-                            {notch.icon}
-                        </div>
-                    ))}
-                </div>
+			{/* Slider container */}
+			<div className="flex-1 relative h-6 flex items-center">
+				{/* Notches layer */}
+				<div className="absolute inset-0 pointer-events-none z-0">
+					{notches.map((notch, idx) => (
+						<div
+							key={`${notch.id}-${idx}`}
+							title={`${notch.label} (${formatTime(notch.time)})`}
+							className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 text-sm leading-none select-none opacity-50"
+							style={{
+								left: `${notch.percentage}%`,
+								color: notch.color,
+								zIndex: notch.icon === "•" ? 0 : 1,
+							}}
+						>
+							{notch.icon}
+						</div>
+					))}
+				</div>
 
-                {/* Native range slider */}
-                <input
-                    type="range"
-                    id="haibun-time-slider"
-                    min={min}
-                    max={max || 1}
-                    value={localValue}
-                    onChange={handleSliderChange}
-                    onMouseDown={handleMouseDown}
-                    onMouseUp={handleMouseUp}
-                    onTouchStart={handleMouseDown}
-                    onTouchEnd={handleMouseUp}
-                    className="w-full cursor-pointer relative z-[2] m-0 h-full bg-transparent opacity-80"
-                    data-testid={TEST_IDS.TIMELINE.SLIDER}
-                />
-            </div>
+				{/* Native range slider */}
+				<input
+					type="range"
+					id="haibun-time-slider"
+					min={min}
+					max={max || 1}
+					value={localValue}
+					onChange={handleSliderChange}
+					onMouseDown={handleMouseDown}
+					onMouseUp={handleMouseUp}
+					onTouchStart={handleMouseDown}
+					onTouchEnd={handleMouseUp}
+					className="w-full cursor-pointer relative z-[2] m-0 h-full bg-transparent opacity-80"
+					data-testid={TEST_IDS.TIMELINE.SLIDER}
+				/>
+			</div>
 
-            {/* Time display */}
-            <span className="font-mono text-sm font-semibold text-muted-foreground min-w-[130px] text-right" data-testid={TEST_IDS.TIMELINE.TIME_DISPLAY}>
-                {formatTime(localValue)} / {formatTime(max)}
-            </span>
+			{/* Time display */}
+			<span
+				className="font-mono text-sm font-semibold text-muted-foreground min-w-[130px] text-right"
+				data-testid={TEST_IDS.TIMELINE.TIME_DISPLAY}
+			>
+				{formatTime(localValue)} / {formatTime(max)}
+			</span>
 
-            {/* End button */}
-            <button
-                onClick={() => onChange(max)}
-                title="Go to end"
-                className="bg-transparent border-none cursor-pointer text-lg px-1.5 py-0.5 text-muted-foreground hover:text-foreground"
-                data-testid={TEST_IDS.TIMELINE.END}
-            >
-                ⏭
-            </button>
-        </div>
-    );
+			{/* End button */}
+			<button
+				onClick={() => onChange(max)}
+				title="Go to end"
+				className="bg-transparent border-none cursor-pointer text-lg px-1.5 py-0.5 text-muted-foreground hover:text-foreground"
+				data-testid={TEST_IDS.TIMELINE.END}
+			>
+				⏭
+			</button>
+		</div>
+	);
 }

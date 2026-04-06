@@ -1,13 +1,13 @@
-import { describe, it, expect } from 'vitest';
-import { passWithDefaults } from '../lib/test/lib.js';
-import ActivitiesStepper from './activities-stepper.js';
-import VariablesStepper from './variables-stepper.js';
-import Haibun from './haibun.js';
+import { describe, it, expect } from "vitest";
+import { passWithDefaults } from "../lib/test/lib.js";
+import ActivitiesStepper from "./activities-stepper.js";
+import VariablesStepper from "./variables-stepper.js";
+import Haibun from "./haibun.js";
 
-describe('ActivitiesStepper with after every hook', () => {
-	it('after every hook triggers during waypoint proof verification (substeps)', async () => {
+describe("ActivitiesStepper with after every hook", () => {
+	it("after every hook triggers during waypoint proof verification (substeps)", async () => {
 		const feature = {
-			path: '/features/test.feature',
+			path: "/features/test.feature",
 			content: `
 set counter as number to 0
 Activity: Setup test
@@ -18,7 +18,7 @@ after every VariablesStepper, increment counter
 
 ensure Test is ready
 variable verifyCount is 1
-			`
+			`,
 		};
 
 		const result = await passWithDefaults([feature], [Haibun, ActivitiesStepper, VariablesStepper]);
@@ -27,9 +27,9 @@ variable verifyCount is 1
 		// But NOT for the increment itself (same actionName filter)
 	});
 
-	it('after every hook triggers during ensure outcome execution (substeps)', async () => {
+	it("after every hook triggers during ensure outcome execution (substeps)", async () => {
 		const feature = {
-			path: '/features/test.feature',
+			path: "/features/test.feature",
 			content: `Activity: Setup
 set counter as number to 0
 waypoint Is ready with variable counter exists
@@ -37,7 +37,7 @@ waypoint Is ready with variable counter exists
 set hookCount as number to 0
 after every VariablesStepper, increment hookCount
 
-ensure Is ready`
+ensure Is ready`,
 		};
 
 		const result = await passWithDefaults([feature], [Haibun, ActivitiesStepper, VariablesStepper]);
@@ -45,9 +45,9 @@ ensure Is ready`
 		// hookCount now increments for substeps too (new behavior)
 	});
 
-	it('after every hook should trigger for top-level steps AND substeps, but not its own actions', async () => {
+	it("after every hook should trigger for top-level steps AND substeps, but not its own actions", async () => {
 		const feature = {
-			path: '/features/test.feature',
+			path: "/features/test.feature",
 			content: `Activity: Setup
 set counter as number to "0"
 waypoint Ready with set counter as number to "1"
@@ -56,7 +56,7 @@ set hookCount as number to "0"
 after every VariablesStepper, set hookCount as number to "1"
 
 set someValue to "test"
-ensure Ready`
+ensure Ready`,
 		};
 
 		const result = await passWithDefaults([feature], [Haibun, ActivitiesStepper, VariablesStepper]);

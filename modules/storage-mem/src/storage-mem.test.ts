@@ -1,104 +1,104 @@
-import { vitest, describe, it, expect, vi } from 'vitest';
-import { afterEach } from 'node:test';
+import { vitest, describe, it, expect, vi } from "vitest";
+import { afterEach } from "node:test";
 
 vitest.useFakeTimers();
-import { Timer, CAPTURE, DEFAULT_DEST, OK, Origin, TStepArgs } from '@haibun/core/schema/protocol.js';
-import { getDefaultWorld, getTestWorldWithOptions } from '@haibun/core/lib/test/lib.js';
-import { TFeatureStep } from '@haibun/core/lib/defs.js';
-import StorageMem from './storage-mem.js';
-import { EMediaTypes } from '@haibun/domain-storage/media-types.js';
-import { TAnyFixme } from '@haibun/core/lib/fixme.js';
+import { Timer, CAPTURE, DEFAULT_DEST, OK, Origin, TStepArgs } from "@haibun/core/schema/protocol.js";
+import { getDefaultWorld, getTestWorldWithOptions } from "@haibun/core/lib/test/lib.js";
+import { TFeatureStep } from "@haibun/core/lib/defs.js";
+import StorageMem from "./storage-mem.js";
+import { EMediaTypes } from "@haibun/domain-storage/media-types.js";
+import { TAnyFixme } from "@haibun/core/lib/fixme.js";
 
 const { key } = Timer;
 
-vi.spyOn(process, 'cwd').mockReturnValue('/');
+vi.spyOn(process, "cwd").mockReturnValue("/");
 
-describe('BASE_FS', () => {
+describe("BASE_FS", () => {
 	afterEach(() => {
 		(StorageMem.BASE_FS as TAnyFixme) = undefined;
 	});
-	it('finds BASE_FS file', () => {
-		StorageMem.BASE_FS = { hello: 'world' };
+	it("finds BASE_FS file", () => {
+		StorageMem.BASE_FS = { hello: "world" };
 		const storageMem = new StorageMem();
-		expect(storageMem.readFile('hello', 'utf-8')).toEqual('world');
+		expect(storageMem.readFile("hello", "utf-8")).toEqual("world");
 	});
-	it('finds BASE_FS subdir', () => {
-		StorageMem.BASE_FS = { '/hello/world': 'eh' };
+	it("finds BASE_FS subdir", () => {
+		StorageMem.BASE_FS = { "/hello/world": "eh" };
 		const storageMem = new StorageMem();
-		expect(storageMem.readFile('/hello/world', 'utf-8')).toEqual('eh');
+		expect(storageMem.readFile("/hello/world", "utf-8")).toEqual("eh");
 	});
 });
 
-describe('mem getCaptureLocation', () => {
-	it('gets capture location', async () => {
+describe("mem getCaptureLocation", () => {
+	it("gets capture location", async () => {
 		const storageMem = new StorageMem();
 		const world = getDefaultWorld();
-		const dir = await storageMem.getCaptureLocation({ ...world, mediaType: EMediaTypes.json }, 'test');
+		const dir = await storageMem.getCaptureLocation({ ...world, mediaType: EMediaTypes.json }, "test");
 		expect(dir).toEqual(`./${CAPTURE}/default/${key}/featn-0/test`);
 	});
-	it('gets options capture location', async () => {
+	it("gets options capture location", async () => {
 		const storageMem = new StorageMem();
 		const world = getTestWorldWithOptions();
-		const dir = await storageMem.getCaptureLocation({ ...world, mediaType: EMediaTypes.json }, 'test');
+		const dir = await storageMem.getCaptureLocation({ ...world, mediaType: EMediaTypes.json }, "test");
 		expect(dir).toEqual(`./${CAPTURE}/${DEFAULT_DEST}/${key}/featn-0/test`);
 	});
-	it('gets relative capture location', async () => {
+	it("gets relative capture location", async () => {
 		const storageMem = new StorageMem();
 		const world = getTestWorldWithOptions();
-		const dir = await storageMem.getCaptureLocation({ ...world, mediaType: EMediaTypes.json }, 'test');
+		const dir = await storageMem.getCaptureLocation({ ...world, mediaType: EMediaTypes.json }, "test");
 		expect(dir).toEqual(`./${CAPTURE}/${DEFAULT_DEST}/${key}/featn-0/test`);
 	});
-	it('ensures capture location', async () => {
+	it("ensures capture location", async () => {
 		const storageMem = new StorageMem();
 		const world = getDefaultWorld();
-		const loc = await storageMem.getCaptureLocation({ ...world, mediaType: EMediaTypes.json }, 'test');
-		await storageMem.ensureCaptureLocation({ ...world, mediaType: EMediaTypes.json }, 'test');
+		const loc = await storageMem.getCaptureLocation({ ...world, mediaType: EMediaTypes.json }, "test");
+		await storageMem.ensureCaptureLocation({ ...world, mediaType: EMediaTypes.json }, "test");
 		expect(storageMem.exists(loc)).toBe(true);
 	});
-	it('creates a directory', () => {
+	it("creates a directory", () => {
 		const storageMem = new StorageMem();
 		storageMem.mkdir(`/${CAPTURE}`);
 		expect(storageMem.exists(`/${CAPTURE}`)).toBe(true);
 	});
-	it('creates a directory with parents', () => {
+	it("creates a directory with parents", () => {
 		const storageMem = new StorageMem();
 		storageMem.mkdirp(`/${CAPTURE}/wtw`);
 		expect(storageMem.exists(`/${CAPTURE}/wtw`)).toBe(true);
 	});
 
-	it('exists', () => {
+	it("exists", () => {
 		const storageMem = new StorageMem();
 		storageMem.mkdirp(`/${CAPTURE}/wtw`);
 		expect(storageMem.exists(`/${CAPTURE}/wtw`)).toBe(true);
 	});
-	it('does not exist', () => {
+	it("does not exist", () => {
 		const storageMem = new StorageMem();
 		expect(storageMem.exists(`/${CAPTURE}/wtw`)).toBe(false);
 	});
-	it('readdir', async () => {
+	it("readdir", async () => {
 		const storageMem = new StorageMem();
 		storageMem.mkdirp(`/${CAPTURE}/wtw`);
 		const files = await storageMem.readdir(`/${CAPTURE}`);
-		expect(files).toEqual(['wtw']);
+		expect(files).toEqual(["wtw"]);
 	});
 
-	it('writes and reads a file', () => {
+	it("writes and reads a file", () => {
 		const storageMem = new StorageMem();
-		storageMem.writeFileBuffer(`/test.txt`, Buffer.from('test'));
+		storageMem.writeFileBuffer(`/test.txt`, Buffer.from("test"));
 		const text = storageMem.readFile(`/test.txt`);
-		expect(text).toEqual(Buffer.from('test'));
+		expect(text).toEqual(Buffer.from("test"));
 	});
-	it('lstat', async () => {
+	it("lstat", async () => {
 		const storageMem = new StorageMem();
 		storageMem.mkdirp(`/${CAPTURE}/wtw`);
 		const lstat = await storageMem.lstatToIFile(`/${CAPTURE}/wtw`);
 		expect(lstat.name).toEqual(`/${CAPTURE}/wtw`);
 		expect(lstat.isDirectory).toBe(true);
 	});
-	it('readdirStat', async () => {
+	it("readdirStat", async () => {
 		const storageMem = new StorageMem();
 		storageMem.mkdirp(`/${CAPTURE}/wtw`);
-		storageMem.writeFileBuffer(`/${CAPTURE}/wtw/test.txt`, Buffer.from('test'));
+		storageMem.writeFileBuffer(`/${CAPTURE}/wtw/test.txt`, Buffer.from("test"));
 		const files = await storageMem.readdirStat(`/${CAPTURE}`);
 		expect(files).toHaveLength(1);
 		expect(files[0].name).toEqual(`/${CAPTURE}/wtw`);
@@ -107,31 +107,31 @@ describe('mem getCaptureLocation', () => {
 	});
 });
 
-describe('AStorage steppers', () => {
-	it('readFileInto sets a variable', async () => {
+describe("AStorage steppers", () => {
+	it("readFileInto sets a variable", async () => {
 		const storageMem = new StorageMem();
 		const world = getDefaultWorld();
 		storageMem.setWorld(world, []);
-		storageMem.volume.writeFileSync('/test.txt', 'hello world');
+		storageMem.volume.writeFileSync("/test.txt", "hello world");
 		const featureStep = {
 			in: 'read file "/test.txt" into testVar',
 			seqPath: [1, 1, 1],
-			action: { stepperName: 'StorageMem', actionName: 'readFileInto' }
+			action: { stepperName: "StorageMem", actionName: "readFileInto" },
 		} as TFeatureStep;
-		const res = await storageMem.steps.readFileInto?.action({ where: '/test.txt', what: 'testVar' }, featureStep);
+		const res = await storageMem.steps.readFileInto?.action({ where: "/test.txt", what: "testVar" }, featureStep);
 		expect(res).toEqual(OK);
-		expect(world.shared.resolveVariable({ term: 'testVar', origin: Origin.var }).value).toEqual('hello world');
+		expect(world.shared.resolveVariable({ term: "testVar", origin: Origin.var }).value).toEqual("hello world");
 	});
 
-	it('fileIsRecent verifies file age', async () => {
+	it("fileIsRecent verifies file age", async () => {
 		const storageMem = new StorageMem();
 		const world = getDefaultWorld();
 		storageMem.setWorld(world, []);
 
-		storageMem.volume.writeFileSync('/recent.txt', 'new');
+		storageMem.volume.writeFileSync("/recent.txt", "new");
 
 		// Should pass for 1 minute
-		let res = await storageMem.steps.fileIsRecent?.action({ where: '/recent.txt', minutes: '1' } as TStepArgs);
+		let res = await storageMem.steps.fileIsRecent?.action({ where: "/recent.txt", minutes: "1" } as TStepArgs);
 		expect(res).toEqual(OK);
 
 		// Advance time by 5 minutes
@@ -139,31 +139,31 @@ describe('AStorage steppers', () => {
 		vi.setSystemTime(now + 5 * 60 * 1000);
 
 		// Should fail for 2 minutes
-		res = await storageMem.steps.fileIsRecent?.action({ where: '/recent.txt', minutes: '2' } as TStepArgs);
+		res = await storageMem.steps.fileIsRecent?.action({ where: "/recent.txt", minutes: "2" } as TStepArgs);
 		expect(res.ok).toBe(false);
 
 		// Should pass for 10 minutes
-		res = await storageMem.steps.fileIsRecent?.action({ where: '/recent.txt', minutes: '10' } as TStepArgs);
+		res = await storageMem.steps.fileIsRecent?.action({ where: "/recent.txt", minutes: "10" } as TStepArgs);
 		expect(res).toEqual(OK);
 	});
 
-	it('testContains and testNotContains verify file content', async () => {
+	it("testContains and testNotContains verify file content", async () => {
 		const storageMem = new StorageMem();
 		const world = getDefaultWorld();
 		storageMem.setWorld(world, []);
 
-		storageMem.volume.writeFileSync('/test.txt', 'hello world');
+		storageMem.volume.writeFileSync("/test.txt", "hello world");
 
-		let res = await storageMem.steps.testContains?.action({ where: '/test.txt', what: 'hello' } as TStepArgs);
+		let res = await storageMem.steps.testContains?.action({ where: "/test.txt", what: "hello" } as TStepArgs);
 		expect(res).toEqual(OK);
 
-		res = await storageMem.steps.testContains?.action({ where: '/test.txt', what: 'missing' } as TStepArgs);
+		res = await storageMem.steps.testContains?.action({ where: "/test.txt", what: "missing" } as TStepArgs);
 		expect(res.ok).toBe(false);
 
-		res = await storageMem.steps.testNotContains?.action({ where: '/test.txt', what: 'missing' } as TStepArgs);
+		res = await storageMem.steps.testNotContains?.action({ where: "/test.txt", what: "missing" } as TStepArgs);
 		expect(res).toEqual(OK);
 
-		res = await storageMem.steps.testNotContains?.action({ where: '/test.txt', what: 'hello' } as TStepArgs);
+		res = await storageMem.steps.testNotContains?.action({ where: "/test.txt", what: "hello" } as TStepArgs);
 		expect(res.ok).toBe(false);
 	});
 });

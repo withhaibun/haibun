@@ -1,6 +1,6 @@
 import { chromium, Page } from "playwright";
 
-import { AStorage } from '@haibun/domain-storage/AStorage.js';
+import { AStorage } from "@haibun/domain-storage/AStorage.js";
 import { WebPlaywright } from "./web-playwright.js";
 import { TWorld } from "@haibun/core/lib/defs.js";
 import { EMediaTypes } from "@haibun/domain-storage/media-types.js";
@@ -20,7 +20,11 @@ export class TwinPage {
 	world: TWorld;
 	wroteElement = false;
 
-	constructor(private wp: WebPlaywright, private storage: AStorage, private headless: boolean = true) { }
+	constructor(
+		private wp: WebPlaywright,
+		private storage: AStorage,
+		private headless: boolean = true,
+	) {}
 	updateWorld(world: TWorld) {
 		this.world = world;
 	}
@@ -29,11 +33,11 @@ export class TwinPage {
 		const browser = await chromium.launch({ headless: this.headless });
 		const context = await browser.newContext();
 		this.twinPage = await context.newPage();
-		await this.setupNewTwinPage('about:blank');
+		await this.setupNewTwinPage("about:blank");
 	}
 	async setupNewTwinPage(currentURL: string) {
 		this.wroteElement = false;
-		await this.twinPage.evaluate((url) => document.body.innerHTML = `<h1>${url}</h1>\n`, currentURL);
+		await this.twinPage.evaluate((url) => (document.body.innerHTML = `<h1>${url}</h1>\n`), currentURL);
 	}
 
 	async patchPage(page: Page & { __instrumented?: boolean }) {
@@ -49,19 +53,28 @@ export class TwinPage {
 		if (page.__instrumented) {
 			return;
 		}
-		const methodsToInstrument: (keyof Page)[] = ['locator', 'getByRole', 'getByText', 'getByLabel', 'getByPlaceholder', 'getByAltText', 'getByTitle', 'getByTestId'];
+		const methodsToInstrument: (keyof Page)[] = [
+			"locator",
+			"getByRole",
+			"getByText",
+			"getByLabel",
+			"getByPlaceholder",
+			"getByAltText",
+			"getByTitle",
+			"getByTestId",
+		];
 
 		const instrument = <T extends keyof Page>(method: T) => {
 			const originalMethod = page[method] as (...args: unknown[]) => unknown;
 			(page[method] as (...args: unknown[]) => unknown) = (...args: unknown[]) => {
 				const patched = originalMethod.apply(page, args);
-				this.duplicateTwinElement(patched).catch(error => {
+				this.duplicateTwinElement(patched).catch((error) => {
 					this.world.eventLogger.error(`Error duplicating element for ${String(method)} with args: ${JSON.stringify(args)}`);
 					// Could emit error artifact if needed
 				});
 				return patched;
 			};
-		}
+		};
 
 		for (const method of methodsToInstrument) {
 			instrument(method);
@@ -77,9 +90,9 @@ export class TwinPage {
 
 		this.world.eventLogger.info(`Writing twin HTML to ${actualURI(outHtmlFile)}`);
 		await this.storage.writeFile(outHtmlFile, content, EMediaTypes.html);
-		void this.twinPage.evaluate(() => document.body.innerHTML = '');
+		void this.twinPage.evaluate(() => (document.body.innerHTML = ""));
 	}
-	duplicateTwinElement = async (locator: import('playwright').Locator) => {
+	duplicateTwinElement = async (locator: import("playwright").Locator) => {
 		const elementData = await locator.evaluate((element: Element) => {
 			if (!element) {
 				return null;
@@ -89,24 +102,24 @@ export class TwinPage {
 				tagName: el.tagName,
 				attributes: Array.from(el.attributes).map((attr: Attr) => ({
 					name: attr.name,
-					value: attr.value
-				}))
+					value: attr.value,
+				})),
 			});
 
 			const parents: TElementData[] = [];
 			let parent = element.parentElement;
-			while (parent && parent.tagName !== 'BODY') {
-				console.log('getting parent', parent.tagName);
+			while (parent && parent.tagName !== "BODY") {
+				console.log("getting parent", parent.tagName);
 				parents.unshift(getElementData(parent));
 				parent = parent.parentElement;
 			}
 
-			const data: { parents: TElementData[], outerHTML: string, dataURL?: string } = {
+			const data: { parents: TElementData[]; outerHTML: string; dataURL?: string } = {
 				parents,
-				outerHTML: element.outerHTML
+				outerHTML: element.outerHTML,
 			};
 
-			if (element.tagName === 'CANVAS') {
+			if (element.tagName === "CANVAS") {
 				data.dataURL = (element as HTMLCanvasElement).toDataURL();
 			}
 
@@ -117,11 +130,11 @@ export class TwinPage {
 			throw Error(`Element ${locator} not found with locator`);
 		}
 
-		await this.twinPage.evaluate(data => {
+		await this.twinPage.evaluate((data) => {
 			let currentParent: Element = document.body;
 
 			const buildSelector = (elementData: TElementData) => {
-				return elementData.tagName.toLowerCase() + elementData.attributes.map(a => `[${a.name}="${a.value}"]`).join('');
+				return elementData.tagName.toLowerCase() + elementData.attributes.map((a) => `[${a.name}="${a.value}"]`).join("");
 			};
 
 			data.parents.forEach((p: TElementData) => {
@@ -130,7 +143,7 @@ export class TwinPage {
 
 				if (!existingElement) {
 					const newElement = document.createElement(p.tagName);
-					p.attributes.forEach(attr => {
+					p.attributes.forEach((attr) => {
 						newElement.setAttribute(attr.name, attr.value);
 					});
 					currentParent.appendChild(newElement);
@@ -140,23 +153,27 @@ export class TwinPage {
 				}
 			});
 
-			const temp = document.createElement('div');
+			const temp = document.createElement("div");
 			temp.innerHTML = data.outerHTML;
 			const newElementNode = temp.firstChild as Element;
 			if (newElementNode) {
-				const finalSelector = newElementNode.tagName.toLowerCase() + Array.from(newElementNode.attributes).map((a: Attr) => `[${a.name}="${a.value}"]`).join('');
+				const finalSelector =
+					newElementNode.tagName.toLowerCase() +
+					Array.from(newElementNode.attributes)
+						.map((a: Attr) => `[${a.name}="${a.value}"]`)
+						.join("");
 				let elementToDrawOn: Element;
 				const existingElement = currentParent.querySelector(`:scope > ${finalSelector}`);
 				if (!existingElement) {
-					currentParent.insertAdjacentHTML('beforeend', data.outerHTML);
+					currentParent.insertAdjacentHTML("beforeend", data.outerHTML);
 					elementToDrawOn = currentParent.lastElementChild;
 				} else {
 					elementToDrawOn = existingElement;
 				}
 
-				if (data.dataURL && elementToDrawOn && elementToDrawOn.tagName === 'CANVAS') {
+				if (data.dataURL && elementToDrawOn && elementToDrawOn.tagName === "CANVAS") {
 					const canvas = elementToDrawOn as HTMLCanvasElement;
-					const ctx = canvas.getContext('2d');
+					const ctx = canvas.getContext("2d");
 					if (ctx) {
 						const img = new Image();
 						img.onload = () => {

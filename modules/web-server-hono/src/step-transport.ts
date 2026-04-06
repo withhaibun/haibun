@@ -15,9 +15,7 @@ export type StepRpcRequest = {
 	capability?: string;
 };
 
-export type StepRpcResponse =
-	| { ok: true; products: Record<string, unknown> }
-	| { ok: false; error: string };
+export type StepRpcResponse = { ok: true; products: Record<string, unknown> } | { ok: false; error: string };
 
 /**
  * Pluggable transport abstraction.

@@ -16,7 +16,13 @@ const MonitorColumnSchema = z.object({
 
 type TLogRow = { time: string; level: string; step: string; message: string };
 
-const LEVEL_ICONS: Record<string, string> = { error: "\u274c", warn: "\u26a0\ufe0f", info: "\u2139\ufe0f", debug: "\ud83d\udcac", trace: "\ud83d\udd0d" };
+const LEVEL_ICONS: Record<string, string> = {
+	error: "\u274c",
+	warn: "\u26a0\ufe0f",
+	info: "\u2139\ufe0f",
+	debug: "\ud83d\udcac",
+	trace: "\ud83d\udd0d",
+};
 const LEVEL_ORDER = ["debug", "trace", "log", "info", "warn", "error"];
 
 const STYLES = `

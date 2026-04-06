@@ -5,11 +5,7 @@
  */
 import { registerValueRenderer } from "./components/value-renderers.js";
 import { esc, escAttr } from "./util.js";
-import {
-	parseFilterParam,
-	serializeFilterParam,
-	type TSearchCondition,
-} from "./schemas.js";
+import { parseFilterParam, serializeFilterParam, type TSearchCondition } from "./schemas.js";
 
 interface QueryContext {
 	conditions: TSearchCondition[];
@@ -29,8 +25,7 @@ export function queryContextToUri(ctx: QueryContext): string {
 	const params = new URLSearchParams();
 	if (ctx.vertexId) params.set("id", ctx.vertexId);
 	if (ctx.label) params.set("label", ctx.label);
-	if (ctx.accessLevel && ctx.accessLevel !== "private")
-		params.set("access", ctx.accessLevel);
+	if (ctx.accessLevel && ctx.accessLevel !== "private") params.set("access", ctx.accessLevel);
 	if (ctx.textQuery) params.set("q", ctx.textQuery);
 	for (const c of ctx.conditions) {
 		if (c.predicate && c.value) params.append("f", serializeFilterParam(c));
@@ -79,8 +74,7 @@ export function queryUriToPayload(uri: string): Record<string, unknown> {
 	const q = params.get("q");
 	if (q) payload.textQuery = q;
 	const filterParams = params.getAll("f");
-	if (filterParams.length > 0)
-		payload.conditions = filterParams.map(parseFilterParam);
+	if (filterParams.length > 0) payload.conditions = filterParams.map(parseFilterParam);
 	return payload;
 }
 

@@ -44,9 +44,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 		this.updateQueryAlone();
 		this.updateAccordion();
 		this.emitColumnsChanged();
-		requestAnimationFrame(() =>
-			pane.scrollIntoView({ behavior: "smooth", inline: "end" }),
-		);
+		requestAnimationFrame(() => pane.scrollIntoView({ behavior: "smooth", inline: "end" }));
 	}
 
 	/** Remove a pane by index. */
@@ -84,9 +82,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 
 	/** Get column labels for breadcrumb. */
 	getColumnLabels(): string[] {
-		return this.panes
-			.filter((p) => p.getAttribute(SHU_ATTR.COLUMN_TYPE) !== "query")
-			.map((p) => p.getAttribute("label") || "");
+		return this.panes.filter((p) => p.getAttribute(SHU_ATTR.COLUMN_TYPE) !== "query").map((p) => p.getAttribute("label") || "");
 	}
 
 	/** Serialize column state for URL hash. Appends ~min suffix for minimized panes. */
@@ -104,11 +100,8 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 	/** Toggle query-alone class on the query pane for CSS-safe :only-child equivalent. */
 	private updateQueryAlone(): void {
 		const panes = this.panes;
-		const queryPane = panes.find(
-			(p) => p.getAttribute(SHU_ATTR.COLUMN_TYPE) === "query",
-		);
-		if (queryPane)
-			queryPane.classList.toggle("query-alone", panes.length === 1);
+		const queryPane = panes.find((p) => p.getAttribute(SHU_ATTR.COLUMN_TYPE) === "query");
+		if (queryPane) queryPane.classList.toggle("query-alone", panes.length === 1);
 	}
 
 	/** Collapse panes that don't fit, keeping active + query panes expanded. Collapses leftmost first. */
@@ -118,16 +111,9 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 		const panes = this.panes;
 		const stripWidth = this.clientWidth;
 		// In portrait/wrap mode the flex-wrap CSS handles layout; accordion math assumes a single row.
-		if (
-			stripWidth <= 0 ||
-			panes.length <= 1 ||
-			window.matchMedia("(max-width: 600px), (orientation: portrait)").matches
-		)
-			return;
+		if (stripWidth <= 0 || panes.length <= 1 || window.matchMedia("(max-width: 600px), (orientation: portrait)").matches) return;
 
-		const queryPane = panes.find(
-			(p) => p.getAttribute(SHU_ATTR.COLUMN_TYPE) === "query",
-		);
+		const queryPane = panes.find((p) => p.getAttribute(SHU_ATTR.COLUMN_TYPE) === "query");
 		const activeIdx = this.state.activeIndex;
 
 		// Expand auto-collapsed panes (skip user-minimized), then collapse from left until they fit
@@ -158,9 +144,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 			pane.removeAttribute(SHU_ATTR.DATA_MINIMIZED);
 			this.activatePane(index);
 			this.updateAccordion();
-			requestAnimationFrame(() =>
-				pane.scrollIntoView({ behavior: "smooth", inline: "center" }),
-			);
+			requestAnimationFrame(() => pane.scrollIntoView({ behavior: "smooth", inline: "center" }));
 		}
 	};
 

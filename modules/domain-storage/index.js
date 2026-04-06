@@ -1,1 +1,1 @@
-export * from './build/domain-storage.js';
+export * from "./build/domain-storage.js";
