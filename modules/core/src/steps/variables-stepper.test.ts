@@ -21,8 +21,9 @@ describe("vars", () => {
 		const content = 'set x to "1"\nset x to "2"';
 		const res = await passWithDefaults(content, steppers);
 		expect(res.ok).toBe(true);
-		expect(res.world.shared.all()["x"]?.provenance?.length).toBe(2);
-		expect(res.world.shared.all()["x"]?.provenance?.map((p) => p.in)).toEqual(['set x to "1"', 'set x to "2"']);
+		const originQuads = await res.world.shared.queryQuads({ subject: "x", predicate: "origin", namedGraph: "meta" });
+		expect(originQuads.length).toBe(1);
+		expect(originQuads[0].object).toBe("defined");
 	});
 	it("empty does not overwrite", async () => {
 		const content = 'set empty x to "y"\nset empty x to "z"\nvariable x is "y"';
@@ -43,9 +44,7 @@ describe("vars", () => {
 			moduleOptions: {},
 		});
 		expect(res.ok).toBe(true);
-		const collector = res.steppers?.find((stepper) => stepper instanceof EventCollectorStepper) as
-			| EventCollectorStepper
-			| undefined;
+		const collector = res.steppers?.find((stepper) => stepper instanceof EventCollectorStepper) as EventCollectorStepper | undefined;
 		expect(collector).toBeDefined();
 		const logEvents = collector?.findEvents((event) => event.kind === "log") ?? [];
 		const logMessage = logEvents
@@ -64,14 +63,10 @@ describe("vars", () => {
 			moduleOptions: {},
 		});
 		expect(res.ok).toBe(true);
-		const collector = res.steppers?.find((stepper) => stepper instanceof EventCollectorStepper) as
-			| EventCollectorStepper
-			| undefined;
+		const collector = res.steppers?.find((stepper) => stepper instanceof EventCollectorStepper) as EventCollectorStepper | undefined;
 		expect(collector).toBeDefined();
 		const logEvents = collector?.findEvents((event) => event.kind === "log") ?? [];
-		const logMessage = logEvents
-			.map((event) => ("message" in event ? event.message : ""))
-			.find((message) => typeof message === "string" && message.includes("login hint is"));
+		const logMessage = logEvents.map((event) => ("message" in event ? event.message : "")).find((message) => typeof message === "string" && message.includes("login hint is"));
 		expect(logMessage).toBeDefined();
 		expect(logMessage).toContain("Enter password");
 		expect(logMessage).not.toContain(OBSCURED_VALUE);
@@ -105,8 +100,8 @@ describe("random vars", () => {
 		const envVariables = { API_PASSWORD: "secret-123" };
 		const res = await passWithDefaults(content, steppers, { options: { DEST: DEFAULT_DEST, envVariables }, moduleOptions: {} });
 		expect(res.ok).toBe(true);
-		expect(res.world.shared.get("apiPassword", true)).toBe("secret-123");
-		expect(res.world.shared.get("apiPassword")).toBe(OBSCURED_VALUE);
+		expect(await res.world.shared.get("apiPassword", true)).toBe("secret-123");
+		expect(await res.world.shared.get("apiPassword")).toBe(OBSCURED_VALUE);
 	});
 
 	it("propagates secret flag through compose", async () => {
@@ -117,16 +112,12 @@ describe("random vars", () => {
 			moduleOptions: {},
 		});
 		expect(res.ok).toBe(true);
-		expect(res.world.shared.get("token", true)).toBe("secret-123");
-		expect(res.world.shared.get("token")).toBe(OBSCURED_VALUE);
-		const collector = res.steppers?.find((stepper) => stepper instanceof EventCollectorStepper) as
-			| EventCollectorStepper
-			| undefined;
+		expect(await res.world.shared.get("token", true)).toBe("secret-123");
+		expect(await res.world.shared.get("token")).toBe(OBSCURED_VALUE);
+		const collector = res.steppers?.find((stepper) => stepper instanceof EventCollectorStepper) as EventCollectorStepper | undefined;
 		expect(collector).toBeDefined();
 		const logEvents = collector?.findEvents((event) => event.kind === "log") ?? [];
-		const logMessage = logEvents
-			.map((event) => ("message" in event ? event.message : ""))
-			.find((message) => typeof message === "string" && message.includes("token is"));
+		const logMessage = logEvents.map((event) => ("message" in event ? event.message : "")).find((message) => typeof message === "string" && message.includes("token is"));
 		expect(logMessage).toBeDefined();
 		expect(logMessage).toContain(OBSCURED_VALUE);
 		expect(logMessage).not.toContain("secret-123");
@@ -136,7 +127,7 @@ describe("random vars", () => {
 		const content = "set r to 70 random characters";
 		const res = await passWithDefaults(content, steppers);
 		expect(res.ok).toBe(true);
-		const v = res.world.shared.get("r");
+		const v = await res.world.shared.get("r");
 		expect(v).toBeDefined();
 		expect((v as string).length).toBe(70);
 	});
@@ -144,14 +135,14 @@ describe("random vars", () => {
 		const content = "set r to 1\nset empty r to 70 random characters";
 		const res = await passWithDefaults(content, steppers);
 		expect(res.ok).toBe(true);
-		const v = res.world.shared.get("r");
+		const v = await res.world.shared.get("r");
 		expect(v as string).toBe("1");
 	});
 	it("assigns empty random", async () => {
 		const content = "set empty r to 70 random characters";
 		const res = await passWithDefaults(content, steppers);
 		expect(res.ok).toBe(true);
-		const v = res.world.shared.get("r");
+		const v = await res.world.shared.get("r");
 		expect((v as string).length).toBe(70);
 	});
 });

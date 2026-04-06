@@ -62,8 +62,8 @@ class Narrator extends AStepper implements IHasOptions, IHasCycles {
 		this.captureStop = getStepperOption(this, "CAPTURE_STOP", world.moduleOptions) as string | undefined;
 	}
 
-	private rememberAndSay(key: string, value: string, featureStep: TFeatureStep) {
-		this.getWorld().shared.set(
+	private async rememberAndSay(key: string, value: string, featureStep: TFeatureStep) {
+		await this.getWorld().shared.set(
 			{ term: key, value, domain: "string", origin: Origin.defined },
 			{ in: featureStep.in, seq: featureStep.seqPath, when: `${featureStep.action.stepperName}.${featureStep.action.actionName}` },
 		);
@@ -79,14 +79,12 @@ class Narrator extends AStepper implements IHasOptions, IHasCycles {
 		feature: {
 			precludes: [`Haibun.feature`],
 			gwta: "Feature: {feature}",
-			action: async ({ feature }: TStepArgs, featureStep: TFeatureStep) =>
-				this.rememberAndSay("feature", feature as string, featureStep),
+			action: async ({ feature }: TStepArgs, featureStep: TFeatureStep) => this.rememberAndSay("feature", feature as string, featureStep),
 		},
 		scenario: {
 			precludes: [`Haibun.scenario`],
 			gwta: "Scenario: {scenario}",
-			action: async ({ scenario }: TStepArgs, featureStep: TFeatureStep) =>
-				this.rememberAndSay("scenario", scenario as string, featureStep),
+			action: async ({ scenario }: TStepArgs, featureStep: TFeatureStep) => this.rememberAndSay("scenario", scenario as string, featureStep),
 		},
 	};
 

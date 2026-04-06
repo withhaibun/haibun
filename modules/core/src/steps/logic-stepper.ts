@@ -88,11 +88,11 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 	 * Get values and metrics for iteration - handles both domains and observation sources.
 	 * Syntax: "in {domain}" or "observed in {source}"
 	 */
-	private getIterationValues(phrase: string): {
+	private async getIterationValues(phrase: string): Promise<{
 		values: string[];
 		metrics?: Record<string, Record<string, unknown>>;
 		error?: string;
-	} {
+	}> {
 		// Check for "observed in {source}" pattern
 		const observedMatch = phrase.match(/^observed in (.+)$/i);
 		if (observedMatch) {
@@ -105,7 +105,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 
 		// Otherwise treat as domain name
 		const domainName = this.stripQuotes(phrase);
-		const result = this.getWorld().shared.getDomainValues(domainName);
+		const result = await this.getWorld().shared.getDomainValues(domainName);
 		return { values: (result.values as string[]) || [], error: result.error };
 	}
 
@@ -118,10 +118,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 		whenever: {
 			gwta: "whenever {condition:statement}, {action:statement}",
 			description: "Executes the statements repeatedtly as long as the condition holds true.",
-			action: async (
-				{ condition, action }: { condition: TFeatureStep[]; action: TFeatureStep[] },
-				featureStep: TFeatureStep,
-			): Promise<TActionResult> => {
+			action: async ({ condition, action }: { condition: TFeatureStep[]; action: TFeatureStep[] }, featureStep: TFeatureStep): Promise<TActionResult> => {
 				let loopCount = 0;
 				const MAX_LOOPS = 1000;
 				const mode = featureStep.intent?.mode === "speculative" ? "speculative" : "authoritative";
@@ -150,10 +147,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 		where: {
 			gwta: "where {condition:statement}, {action:statement}",
 			description: "Executes the statements only if the condition is met.",
-			action: async (
-				{ condition, action }: { condition: TFeatureStep[]; action: TFeatureStep[] },
-				featureStep: TFeatureStep,
-			): Promise<TActionResult> => {
+			action: async ({ condition, action }: { condition: TFeatureStep[]; action: TFeatureStep[] }, featureStep: TFeatureStep): Promise<TActionResult> => {
 				const usage = featureStep.intent?.usage;
 				const check = await this.runner.runSteps(condition, { intent: { mode: "speculative", usage }, parentStep: featureStep });
 
@@ -228,7 +222,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 				const [, what, connector, sourceOrDomain, statementStr] = match;
 
 				const phrase = connector === "observed in" ? `observed in ${sourceOrDomain}` : sourceOrDomain;
-				const { values, metrics, error } = this.getIterationValues(phrase);
+				const { values, metrics, error } = await this.getIterationValues(phrase);
 				if (error) return actionNotOK(error);
 
 				if (values.length === 0) return actionNotOK(`No members in "${sourceOrDomain}" to check`);
@@ -237,19 +231,18 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 				let found = false;
 
 				for (const val of values) {
-					this.getWorld().shared.set(
+					await this.getWorld().shared.set(
 						{ term: what, value: String(val), domain: "string", origin: Origin.var },
 						{ in: featureStep.in, seq: featureStep.seqPath, when: "quantifier" },
 					);
 
-					// Set metric variables if from observation source
+					// Set metric variables if from observation source (stored in SHARED_GRAPH so they resolve as variables)
 					if (metrics?.[val]) {
 						for (const [metricKey, metricValue] of Object.entries(metrics[val])) {
 							const domain = typeof metricValue === "number" ? "number" : "string";
-							this.getWorld().shared.set(
+							await this.getWorld().shared.set(
 								{ term: `${sanitizeKey(val)}/${metricKey}`, value: String(metricValue), domain, origin: Origin.var },
 								{ in: featureStep.in, seq: featureStep.seqPath, when: "observation" },
-								"observation",
 							);
 						}
 					}
@@ -276,7 +269,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 				const [, what, connector, sourceOrDomain, statementStr] = match;
 
 				const phrase = connector === "observed in" ? `observed in ${sourceOrDomain}` : sourceOrDomain;
-				const { values, metrics, error } = this.getIterationValues(phrase);
+				const { values, metrics, error } = await this.getIterationValues(phrase);
 				if (error) return actionNotOK(error);
 
 				if (values.length === 0) return OK;
@@ -284,19 +277,18 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 				const mode = featureStep.intent?.mode === "speculative" ? "speculative" : "authoritative";
 
 				for (const val of values) {
-					this.getWorld().shared.set(
+					await this.getWorld().shared.set(
 						{ term: what, value: String(val), domain: "string", origin: Origin.var },
 						{ in: featureStep.in, seq: featureStep.seqPath, when: "quantifier" },
 					);
 
-					// Set metric variables if from observation source
+					// Set metric variables if from observation source (stored in SHARED_GRAPH so they resolve as variables)
 					if (metrics?.[val]) {
 						for (const [metricKey, metricValue] of Object.entries(metrics[val])) {
 							const domain = typeof metricValue === "number" ? "number" : "string";
-							this.getWorld().shared.set(
+							await this.getWorld().shared.set(
 								{ term: `${sanitizeKey(val)}/${metricKey}`, value: String(metricValue), domain, origin: Origin.var },
 								{ in: featureStep.in, seq: featureStep.seqPath, when: "observation" },
-								"observation",
 							);
 						}
 					}
