@@ -11,8 +11,7 @@ describe("finalizer-stepper", () => {
 			[
 				{
 					path: "/features/main.feature",
-					content:
-						"set counterA as number to 0\nset counterB as number to 0\nfinalizer increment counterA\nfinalizer increment counterB",
+					content: "set counterA as number to 0\nset counterB as number to 0\nfinalizer increment counterA\nfinalizer increment counterB",
 				},
 			],
 			[VariablesStepper, LogicStepper, Haibun, FinalizerStepper],
@@ -20,19 +19,18 @@ describe("finalizer-stepper", () => {
 		);
 
 		expect(result.ok).toBe(true);
-		expect(result.world.shared.all().counterA?.value).toBe("1");
-		expect(result.world.shared.all().counterB?.value).toBe("1");
+		expect((await result.world.shared.all()).counterA?.value).toBe("1");
+		expect((await result.world.shared.all()).counterB?.value).toBe("1");
 	});
 
 	it("does nothing when no finalizer steps are provided", async () => {
-		const result = await passWithDefaults(
-			[{ path: "/features/main.feature", content: 'set baseline to "ok"' }],
-			[VariablesStepper, Haibun, FinalizerStepper],
-			{ options: { DEST: "default" }, moduleOptions: {} },
-		);
+		const result = await passWithDefaults([{ path: "/features/main.feature", content: 'set baseline to "ok"' }], [VariablesStepper, Haibun, FinalizerStepper], {
+			options: { DEST: "default" },
+			moduleOptions: {},
+		});
 
 		expect(result.ok).toBe(true);
-		expect(result.world.shared.all().baseline?.value).toBe("ok");
+		expect((await result.world.shared.all()).baseline?.value).toBe("ok");
 	});
 
 	it("runs finalizers at end of each feature", async () => {
@@ -52,7 +50,7 @@ describe("finalizer-stepper", () => {
 		);
 
 		expect(result.ok).toBe(true);
-		expect(result.world.shared.all().marker?.value).toBe("second");
+		expect((await result.world.shared.all()).marker?.value).toBe("second");
 	});
 
 	it("cleans registered statements by feature after execution", async () => {

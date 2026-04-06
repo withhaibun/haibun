@@ -95,7 +95,7 @@ describe("variable composition", () => {
 		};
 		const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers]);
 		expect(result.ok).toBe(true);
-		expect(result.world.shared.get("fresh")).toBe("1");
+		expect(await result.world.shared.get("fresh")).toBe("1");
 	});
 
 	it("whenever not variable set skips body", async () => {
@@ -105,7 +105,7 @@ describe("variable composition", () => {
 		};
 		const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers]);
 		expect(result.ok).toBe(true);
-		expect(result.world.shared.get("existing")).toBe("2");
+		expect(await result.world.shared.get("existing")).toBe("2");
 	});
 
 	it("whenever not variable set skips failing body", async () => {
@@ -211,12 +211,10 @@ describe("backgrounds", () => {
 	it("where condition with backgrounds", async () => {
 		const feature = { path: "/features/test.feature", content: "where passes, Backgrounds: bg" };
 		const background = { path: "/backgrounds/bg.feature", content: 'set ran to "true"\nends with "ok"' };
-		const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers], DEF_PROTO_OPTIONS, [
-			background,
-		]);
+		const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 		expect(result.ok).toBe(true);
 
-		expect(result.world.shared.get("ran")).toBe("true");
+		expect(await result.world.shared.get("ran")).toBe("true");
 
 		const steps = result.featureResults?.[0].stepResults || [];
 		// All steps recorded: condition, background steps, then parent where
