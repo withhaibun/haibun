@@ -11,6 +11,16 @@ import type { IStepperCycles } from "@haibun/core/lib/defs.js";
 
 const MAX_EVENTS = 10000;
 
+/** Parse seqPath number array from event ID like "[1.2.3]" or "1.2.3" */
+function parseSeqPathFromId(id: string): number[] | undefined {
+	const cleaned = id.replace(/^\[|\]$/g, "");
+	if (!cleaned || cleaned.includes(" ")) return undefined;
+	const parts = cleaned.split(".");
+	const nums = parts.map(Number);
+	if (nums.length > 0 && nums.every((n) => Number.isFinite(n) && !Number.isNaN(n))) return nums;
+	return undefined;
+}
+
 export default class MonitorStepper extends AStepper implements IHasCycles {
 	description = "Buffers execution events for the shu monitor view";
 	private events: THaibunEvent[] = [];
@@ -57,6 +67,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles {
 						status: (rest as Record<string, unknown>).status,
 						actionName: (rest as Record<string, unknown>).actionName,
 						artifactType: (rest as Record<string, unknown>).artifactType,
+						seqPath: parseSeqPathFromId(id),
 					})),
 				});
 			},
@@ -72,6 +83,21 @@ export default class MonitorStepper extends AStepper implements IHasCycles {
 						return typeof t === "object" && t ? { ...(t as Record<string, unknown>) } : t;
 					});
 				return actionOKWithProducts({ traces });
+			},
+		},
+		showGraphView: {
+			gwta: "show graph view",
+			action: () => actionOKWithProducts({ view: "graph" }),
+		},
+		getQuads: {
+			gwta: "get quads",
+			outputSchema: z.object({ quads: z.array(z.unknown()) }),
+			action: async () => {
+				const store = this.getWorld().shared.getStore();
+				const quads = await store.all();
+				return actionOKWithProducts({
+					quads: quads.map(({ subject, predicate, object, namedGraph, timestamp, properties }) => ({ subject, predicate, object, namedGraph, timestamp, properties })),
+				});
 			},
 		},
 	} satisfies TStepperSteps;
