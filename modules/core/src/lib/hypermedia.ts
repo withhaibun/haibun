@@ -116,3 +116,49 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 
 	return { vertices };
 }
+
+// ============================================================================
+// JSON-LD context — derived from domain metadata
+// ============================================================================
+
+function linkRelFromSemantic(rel: string): "item" | "filter" | "select" {
+	if (
+		rel === LinkRelations.IDENTIFIER.rel ||
+		rel === LinkRelations.ATTRIBUTED_TO.rel ||
+		rel === LinkRelations.AUDIENCE.rel ||
+		rel === LinkRelations.IN_REPLY_TO.rel ||
+		rel === LinkRelations.ATTACHMENT.rel
+	)
+		return "item";
+	if (rel === LinkRelations.CONTEXT.rel) return "select";
+	return "filter";
+}
+
+/** Build JSON-LD context from concern metadata. Derives URI mappings from domain property rels. */
+export function getJsonLdContext(domains: Record<string, TRegisteredDomain>): Record<string, unknown> {
+	const context: Record<string, unknown> = {
+		"@version": 1.1,
+		as: "https://www.w3.org/ns/activitystreams#",
+		foaf: "http://xmlns.com/foaf/0.1/",
+		dcterms: "http://purl.org/dc/terms/",
+		muskeg: "/ns/",
+	};
+	for (const domain of Object.values(domains)) {
+		const meta = domain.meta;
+		if (!meta?.vertexLabel) continue;
+		for (const [prop, def] of Object.entries(meta.properties)) {
+			const rel = getRel(def);
+			const uri = REL_CONTEXT[rel] ?? `muskeg:${prop}`;
+			const mediaType = getMediaType(def);
+			const linkRel = linkRelFromSemantic(rel);
+			const node: Record<string, string> = { "@id": uri, "muskeg:rel": linkRel };
+			if (linkRel === "item") node["@type"] = "@id";
+			if (mediaType) node["as:mediaType"] = mediaType;
+			context[prop] = node;
+		}
+		for (const [edge, edgeDef] of Object.entries(meta.edges ?? {})) {
+			context[edge] = { "@id": REL_CONTEXT[edgeDef.rel] ?? `muskeg:${edge}`, "@type": "@id", "muskeg:rel": "item" };
+		}
+	}
+	return { "@context": context };
+}
