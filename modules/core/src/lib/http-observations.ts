@@ -7,7 +7,6 @@
  */
 
 import type { TWorld } from "./defs.js";
-import type { TAnyFixme } from "./fixme.js";
 
 /** Observation data for a single HTTP request */
 export type THttpRequestObservation = {

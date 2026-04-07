@@ -182,12 +182,7 @@ class TestServer extends AStepper {
 	};
 
 	tally: TRequestHandler = async (c: Context): Promise<Response> => {
-		const cur =
-			(parseInt(
-				this.getWorld().shared.resolveVariable({ term: TALLY, origin: Origin.var }, undefined, undefined, { secure: true })
-					.value as string,
-				10,
-			) || 0) + 1;
+		const cur = (parseInt((await this.getWorld().shared.resolveVariable({ term: TALLY, origin: Origin.var }, undefined, undefined, { secure: true })).value as string, 10) || 0) + 1;
 		this.getWorld().shared.set(setTally(cur), { when: "tally", seq: [cur] });
 		this.getWorld().eventLogger.info(`tally ${cur}`);
 		const username = c.req.query("username");
