@@ -233,6 +233,7 @@ export interface IObservationSource {
 export interface IStepperConcerns {
 	domains?: TDomainDefinition[];
 	sources?: IObservationSource[];
+	quadStore?: { store: import("./quad-types.js").IQuadStore; namedGraphs: string[] };
 }
 
 export interface IStepperCycles {

@@ -21,9 +21,8 @@ describe("vars", () => {
 		const content = 'set x to "1"\nset x to "2"';
 		const res = await passWithDefaults(content, steppers);
 		expect(res.ok).toBe(true);
-		const originQuads = await res.world.shared.queryQuads({ subject: "x", predicate: "origin", namedGraph: "meta" });
-		expect(originQuads.length).toBe(1);
-		expect(originQuads[0].object).toBe("defined");
+		const all = await res.world.shared.all();
+		expect(all.x.origin).toBe("defined");
 	});
 	it("empty does not overwrite", async () => {
 		const content = 'set empty x to "y"\nset empty x to "z"\nvariable x is "y"';

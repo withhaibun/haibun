@@ -47,7 +47,7 @@ describe("FeatureVariables", () => {
 			await variables.set({ term: "foo", value: "bar", domain: DOMAIN_STRING, origin: Origin.var }, { in: "test", seq: [1], when: "test.action" });
 			expect(await variables.get("foo")).toBe("bar");
 
-			await variables.clear();
+			await variables.getStore().clear();
 			expect(await variables.all()).toEqual({});
 			expect(await variables.get("foo")).toBeUndefined();
 		});
@@ -110,9 +110,8 @@ describe("FeatureVariables", () => {
 			const provenance = { in: "set foo to bar", seq: [1, 2], when: "Variables.set" };
 			await variables.set({ term: "foo", value: "bar", domain: DOMAIN_STRING, origin: Origin.var }, provenance);
 
-			const originQuads = await variables.queryQuads({ subject: "foo", predicate: "origin", namedGraph: "meta" });
-			expect(originQuads.length).toBe(1);
-			expect(originQuads[0].object).toBe(Origin.var);
+			const all = await variables.all();
+			expect(all.foo.origin).toBe(Origin.var);
 		});
 
 		it("should append to provenance on multiple sets", async () => {
@@ -124,9 +123,7 @@ describe("FeatureVariables", () => {
 
 			const all = await variables.all();
 			expect(all.foo.value).toBe("baz"); // Last value wins
-			const originQuads = await variables.queryQuads({ subject: "foo", predicate: "origin", namedGraph: "meta" });
-			expect(originQuads.length).toBe(1);
-			expect(originQuads[0].object).toBe(Origin.var);
+			expect(all.foo.origin).toBe(Origin.var);
 		});
 
 		it("should coerce values through domain", async () => {
@@ -200,9 +197,8 @@ describe("FeatureVariables", () => {
 			const obj = { test: true };
 			await variables.setJSON("myJson", obj, Origin.var, mockFeatureStep);
 
-			const originQuads = await variables.queryQuads({ subject: "myJson", predicate: "origin", namedGraph: "meta" });
-			expect(originQuads.length).toBe(1);
-			expect(originQuads[0].object).toBe(Origin.var);
+			const all = await variables.all();
+			expect(all.myJson.origin).toBe(Origin.var);
 		});
 	});
 
@@ -230,14 +226,13 @@ describe("FeatureVariables", () => {
 	});
 
 	describe("origin tracking", () => {
-		it("should track different origins in meta graph", async () => {
+		it("should track different origins", async () => {
 			await variables.set({ term: "envVar", value: "fromEnv", domain: DOMAIN_STRING, origin: Origin.env }, { in: "test", seq: [1], when: "test.action" });
 			await variables.set({ term: "quotedVar", value: "fromQuote", domain: DOMAIN_STRING, origin: Origin.quoted }, { in: "test", seq: [1], when: "test.action" });
 
-			const envOrigin = await variables.queryQuads({ subject: "envVar", predicate: "origin", namedGraph: "meta" });
-			expect(envOrigin[0].object).toBe(Origin.env);
-			const quotedOrigin = await variables.queryQuads({ subject: "quotedVar", predicate: "origin", namedGraph: "meta" });
-			expect(quotedOrigin[0].object).toBe(Origin.quoted);
+			const all = await variables.all();
+			expect(all.envVar.origin).toBe(Origin.env);
+			expect(all.quotedVar.origin).toBe(Origin.quoted);
 		});
 	});
 
@@ -253,8 +248,8 @@ describe("FeatureVariables", () => {
 			await variables.set({ term: "foo", value: "second", domain: DOMAIN_STRING, origin: Origin.var }, { in: "test2", seq: [2], when: "test.action" });
 
 			expect(await variables.get("foo")).toBe("second");
-			const originQuads = await variables.queryQuads({ subject: "foo", predicate: "origin", namedGraph: "meta" });
-			expect(originQuads.length).toBe(1); // origin is overwritten, not appended
+			const all = await variables.all();
+			expect(all.foo.origin).toBe(Origin.var); // origin is overwritten, not appended
 		});
 
 		it("should handle JSON with empty objects", async () => {
