@@ -2,13 +2,12 @@ import { AStepper } from "./astepper.js";
 import { isLiteralValue } from "./util/index.js";
 import { parseDotPath, navigateValue } from "./util/dot-path.js";
 import { TFeatureStep, TWorld } from "./defs.js";
-import { Origin, TOrigin, TProvenanceIdentifier, TStepValue, THaibunEvent } from "../schema/protocol.js";
+import { Origin, TOrigin, TProvenanceIdentifier, TStepValue } from "../schema/protocol.js";
 import { DOMAIN_JSON, DOMAIN_STRING, normalizeDomainKey } from "./domain-types.js";
 import { QuadStore } from "./quad-store.js";
 import { IQuadStore, TQuad } from "./quad-types.js";
 
 export const SHARED_GRAPH = "variables";
-export const META_GRAPH = "meta";
 export const OBSERVATION_GRAPH = "observation";
 export const OBSCURED_VALUE = "[o̴b̵s̵c̷u̶r̸e̵d̵]";
 
@@ -31,15 +30,12 @@ export class FeatureVariables {
 		return this.store;
 	}
 
-	async clear() {
-		await this.store.clear(SHARED_GRAPH);
-	}
-
 	async all(): Promise<{ [name: string]: TStepValue }> {
 		const quads = await this.store.query({ namedGraph: SHARED_GRAPH });
 		const result: { [name: string]: TStepValue } = {};
 		for (const q of quads) {
-			result[q.subject] = { term: q.subject, domain: q.predicate, value: q.object, origin: Origin.var };
+			const isSecretVar = q.properties?.secret === true || this.isSecret(q.subject);
+			result[q.subject] = { term: q.subject, domain: q.predicate, value: isSecretVar ? OBSCURED_VALUE : q.object, origin: (q.properties?.origin as TOrigin) ?? Origin.var };
 		}
 		return result;
 	}
@@ -66,8 +62,8 @@ export class FeatureVariables {
 	async set(sv: TStepValue, provenance: TProvenanceIdentifier, namedGraph?: string) {
 		if (sv.term.match(/.*\..*/)) throw Error("non-stepper variables cannot use dots");
 		if (this.world.options.envVariables[sv.term]) throw Error(`Cannot overwrite environment variable "${sv.term}"`);
-		const readonly = await this.store.get(sv.term, "readonly", META_GRAPH);
-		if (readonly) throw Error(`Cannot overwrite read-only variable "${sv.term}"`);
+		const existing = await this.getStoredEntry(sv.term);
+		if (existing?.readonly) throw Error(`Cannot overwrite read-only variable "${sv.term}"`);
 		return this._set(sv, provenance, namedGraph);
 	}
 
@@ -77,7 +73,7 @@ export class FeatureVariables {
 		if (domain === undefined) throw Error(`Cannot set variable "${sv.term}": unknown domain "${sv.domain}"`);
 		const normalized = { ...sv, domain: domainKey };
 		domain.coerce(normalized);
-		await this.writeQuads(sv.term, normalized, namedGraph);
+		await this.writeQuads(sv.term, normalized, namedGraph, provenance);
 
 		const timestamp = Date.now();
 		this.world.eventLogger.emit({
@@ -92,6 +88,17 @@ export class FeatureVariables {
 		});
 	}
 
+	/** Look up a variable from store or dot-path. Shared by Origin.var, Origin.defined, Origin.quoted. */
+	private async lookupVariable(term: string): Promise<Partial<TStepValue> | undefined> {
+		const entry = await this.getStoredEntry(term);
+		if (entry) return { value: entry.value, domain: entry.domain, origin: Origin.var, secret: entry.secret ?? this.isSecret(term) };
+		if (term.includes(".")) {
+			const dot = await this.resolveDotPath(term);
+			if (dot.found) return { value: dot.value, domain: DOMAIN_STRING, origin: Origin.var };
+		}
+		return undefined;
+	}
+
 	async resolveVariable(
 		input: { term: string; origin: TOrigin; domain?: string },
 		featureStep?: TFeatureStep,
@@ -102,8 +109,6 @@ export class FeatureVariables {
 		let lookupTerm = input.term;
 		if (lookupTerm.startsWith("{") && lookupTerm.endsWith("}")) lookupTerm = lookupTerm.slice(1, -1);
 
-		const storedEntry = await this.getStoredEntry(lookupTerm);
-
 		if (!input.origin || input.origin === Origin.statement) {
 			resolved.value = input.term;
 			resolved.domain = input.domain;
@@ -113,19 +118,7 @@ export class FeatureVariables {
 			resolved.origin = Origin.env;
 			resolved.secret = this.isSecret(lookupTerm);
 		} else if (input.origin === Origin.var) {
-			if (storedEntry) {
-				resolved.domain = storedEntry.domain;
-				resolved.value = storedEntry.value;
-				resolved.origin = Origin.var;
-				resolved.secret = storedEntry.secret ?? this.isSecret(lookupTerm);
-			} else if (lookupTerm.includes(".")) {
-				const dotResult = await this.resolveDotPath(lookupTerm);
-				if (dotResult.found) {
-					resolved.value = dotResult.value;
-					resolved.domain = DOMAIN_STRING;
-					resolved.origin = Origin.var;
-				}
-			}
+			Object.assign(resolved, await this.lookupVariable(lookupTerm));
 		} else if (input.origin === Origin.defined) {
 			if (featureStep?.runtimeArgs?.[lookupTerm] !== undefined) {
 				resolved.value = featureStep.runtimeArgs[lookupTerm];
@@ -136,24 +129,14 @@ export class FeatureVariables {
 				resolved.domain = DOMAIN_STRING;
 				resolved.origin = Origin.env;
 				resolved.secret = this.isSecret(lookupTerm);
-			} else if (storedEntry) {
-				resolved.value = storedEntry.value;
-				resolved.domain = storedEntry.domain;
-				resolved.origin = Origin.var;
-				resolved.secret = storedEntry.secret ?? this.isSecret(lookupTerm);
-			} else if (lookupTerm.includes(".")) {
-				const dotResult = await this.resolveDotPath(lookupTerm);
-				if (dotResult.found) {
-					resolved.value = dotResult.value;
-					resolved.domain = DOMAIN_STRING;
-					resolved.origin = Origin.var;
+			} else {
+				const found = await this.lookupVariable(lookupTerm);
+				if (found) {
+					Object.assign(resolved, found);
 				} else if (isLiteralValue(input.term)) {
 					resolved.value = input.term;
 					resolved.domain = DOMAIN_STRING;
 				}
-			} else if (isLiteralValue(input.term)) {
-				resolved.value = input.term;
-				resolved.domain = DOMAIN_STRING;
 			}
 		} else if (input.origin === Origin.quoted) {
 			if (input.term.startsWith("{") && input.term.endsWith("}") && !input.term.includes(":")) {
@@ -161,11 +144,8 @@ export class FeatureVariables {
 					resolved.value = featureStep.runtimeArgs[lookupTerm];
 					resolved.domain = DOMAIN_STRING;
 					resolved.origin = Origin.var;
-				} else if (storedEntry) {
-					resolved.value = storedEntry.value;
-					resolved.domain = storedEntry.domain;
-					resolved.origin = Origin.var;
-					resolved.secret = storedEntry.secret ?? this.isSecret(lookupTerm);
+				} else {
+					Object.assign(resolved, await this.lookupVariable(lookupTerm));
 				}
 			} else {
 				resolved.value = input.term.replace(/^"|"$/g, "");
@@ -190,21 +170,18 @@ export class FeatureVariables {
 			resolved.value = domain.coerce({ ...(resolved as TStepValue), domain: domainKey }, featureStep, steppers);
 			resolved.domain = domainKey;
 			const isSecretValue = resolved.secret === true || this.isSecret(lookupTerm);
-			const fromVariableOrEnv = resolved.origin === Origin.env || resolved.origin === Origin.var;
-			if (!options.secure && fromVariableOrEnv && isSecretValue) resolved.value = OBSCURED_VALUE;
+			if (!options.secure && (resolved.origin === Origin.env || resolved.origin === Origin.var) && isSecretValue) resolved.value = OBSCURED_VALUE;
 		}
 
 		return resolved as TStepValue;
 	}
 
-	/** Reconstruct a stored variable entry from quads. */
-	private async getStoredEntry(name: string): Promise<{ value: unknown; domain: string; readonly?: boolean; secret?: boolean } | undefined> {
-		const quads = await this.store.query({ subject: name, namedGraph: SHARED_GRAPH });
-		if (quads.length === 0) return undefined;
-		const q = quads[quads.length - 1];
-		const readonly = await this.store.get(name, "readonly", META_GRAPH);
-		const secret = await this.store.get(name, "secret", META_GRAPH);
-		return { value: q.object, domain: q.predicate, readonly: readonly === true ? true : undefined, secret: secret === true ? true : undefined };
+	/** Reconstruct a stored variable entry from the quad's properties. */
+	private async getStoredEntry(name: string): Promise<{ value: unknown; domain: string; readonly?: boolean; secret?: boolean; origin?: TOrigin } | undefined> {
+		const q = (await this.store.query({ subject: name, namedGraph: SHARED_GRAPH })).pop();
+		if (!q) return undefined;
+		const p = q.properties;
+		return { value: q.object, domain: q.predicate, readonly: p?.readonly === true, secret: p?.secret === true, origin: p?.origin as TOrigin | undefined };
 	}
 
 	private async resolveDotPath(lookupTerm: string): Promise<{ value: unknown; domain: string; found: boolean }> {
@@ -240,37 +217,6 @@ export class FeatureVariables {
 		return (await this.resolveVariable({ term, origin: Origin.defined }, undefined, undefined, { secure })).value;
 	}
 
-	async queryQuads(pattern: { subject?: string; predicate?: string; object?: unknown; namedGraph?: string }): Promise<TQuad[]> {
-		return await this.store.query(pattern);
-	}
-
-	async existsQuad(pattern: { subject?: string; predicate?: string; object?: unknown; namedGraph?: string }): Promise<boolean> {
-		return (await this.queryQuads(pattern)).length > 0;
-	}
-
-	async countQuads(pattern: { subject?: string; predicate?: string; object?: unknown; namedGraph?: string }): Promise<number> {
-		return (await this.queryQuads(pattern)).length;
-	}
-
-	async addQuad(quad: Omit<TQuad, "timestamp">): Promise<void> {
-		await this.store.add(quad);
-		const timestamp = Date.now();
-		this.world.eventLogger.emit({
-			id: `quad-${timestamp}-${quad.subject}-${quad.predicate}`,
-			timestamp,
-			source: "haibun",
-			level: "debug" as const,
-			kind: "artifact" as const,
-			artifactType: "json" as const,
-			mimetype: "application/json",
-			json: { quadObservation: quad },
-		} as THaibunEvent);
-	}
-
-	async removeQuad(pattern: { subject?: string; predicate?: string; object?: unknown; namedGraph?: string }): Promise<void> {
-		await this.store.remove(pattern);
-	}
-
 	async allQuads(): Promise<TQuad[]> {
 		return await this.store.all();
 	}
@@ -284,18 +230,25 @@ export class FeatureVariables {
 		for (const [key, value] of Object.entries(this.world.options.envVariables)) {
 			if (this.isSecret(key)) secrets[key] = String(value);
 		}
-		const allVars = await this.all();
-		for (const [key, variable] of Object.entries(allVars)) {
-			if (this.isSecret(key)) secrets[key] = String(variable.value);
+		// Query raw quads to get unmasked values for secret detection
+		const quads = await this.store.query({ namedGraph: SHARED_GRAPH });
+		for (const q of quads) {
+			if (q.properties?.secret === true || this.isSecret(q.subject)) secrets[q.subject] = String(q.object);
 		}
 		return secrets;
 	}
 
-	private async writeQuads(name: string, sv: TStepValue, namedGraph: string = SHARED_GRAPH): Promise<void> {
+	private async writeQuads(name: string, sv: TStepValue, namedGraph: string = SHARED_GRAPH, provenance?: TProvenanceIdentifier): Promise<void> {
 		const domainKey = normalizeDomainKey(sv.domain);
-		await this.store.set(name, domainKey, sv.value, namedGraph);
-		if (sv.origin) await this.store.set(name, "origin", sv.origin, META_GRAPH);
-		if (sv.readonly) await this.store.set(name, "readonly", true, META_GRAPH);
-		if (sv.secret) await this.store.set(name, "secret", true, META_GRAPH);
+		const properties: Record<string, unknown> = {};
+		if (sv.origin) properties.origin = sv.origin;
+		if (sv.readonly) properties.readonly = true;
+		if (sv.secret || this.isSecret(name)) properties.secret = true;
+		if (provenance) {
+			const existing = await this.store.query({ subject: name, namedGraph });
+			const prev = existing.pop()?.properties?.provenance;
+			properties.provenance = Array.isArray(prev) ? [...prev, provenance.seq] : [provenance.seq];
+		}
+		await this.store.set(name, domainKey, sv.value, namedGraph, Object.keys(properties).length > 0 ? properties : undefined);
 	}
 }

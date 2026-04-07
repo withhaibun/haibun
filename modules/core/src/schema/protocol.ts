@@ -349,7 +349,6 @@ export type TStepValue = {
 	domain: string;
 	value?: TStepValueValue;
 	origin: TOrigin;
-	provenance?: TProvenanceIdentifier[];
 	readonly?: boolean;
 	secret?: boolean;
 };
