@@ -6,6 +6,7 @@
  */
 import { z } from "zod";
 import { ShuElement } from "./shu-element.js";
+import { SHU_EVENT } from "../consts.js";
 import { SseClient } from "../sse-client.js";
 import { esc } from "../util.js";
 
@@ -14,7 +15,7 @@ const MonitorColumnSchema = z.object({
 	tail: z.boolean().default(true),
 });
 
-type TLogRow = { time: string; level: string; step: string; message: string };
+type TLogRow = { time: string; level: string; step: string; message: string; seqPath?: number[] };
 
 const LEVEL_ICONS: Record<string, string> = {
 	error: "\u274c",
@@ -95,7 +96,14 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		} else if (e.kind === "lifecycle" && e.stage === "start") {
 			message = `\u23f3 ${String(e.type || "")}`;
 		}
-		this.rows.push({ time: `${relTime}s`, level, step, message });
+		let seqPath = Array.isArray(e.seqPath) ? (e.seqPath as number[]) : undefined;
+		if (!seqPath && typeof e.id === "string") {
+			const cleaned = (e.id as string).replace(/^\[|\]$/g, "");
+			const parts = cleaned.split(".");
+			const nums = parts.map(Number);
+			if (nums.length > 0 && nums.every((n) => Number.isFinite(n) && !Number.isNaN(n))) seqPath = nums;
+		}
+		this.rows.push({ time: `${relTime}s`, level, step, message, seqPath });
 	}
 
 	protected render(): void {
@@ -130,9 +138,17 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		container.innerHTML = filtered
 			.map((r) => {
 				const cls = r.level === "error" ? " error" : r.level === "warn" ? " warn" : "";
-				return `<div class="log-row${cls}"><span class="time">${esc(r.time)}</span> <span class="icon">${LEVEL_ICONS[r.level] ?? "\u2753"}</span> <span class="step">${esc(r.step)}</span> <span class="msg">${esc(r.message)}</span></div>`;
+				const clickAttr = r.seqPath ? ` data-seqpath="${r.seqPath.join(",")}" style="cursor:pointer"` : "";
+				return `<div class="log-row${cls}"${clickAttr}><span class="time">${esc(r.time)}</span> <span class="icon">${LEVEL_ICONS[r.level] ?? "\u2753"}</span> <span class="step">${esc(r.step)}</span> <span class="msg">${esc(r.message)}</span></div>`;
 			})
 			.join("");
+
+		container.querySelectorAll("[data-seqpath]").forEach((row) => {
+			row.addEventListener("click", () => {
+				const seqPath = (row as HTMLElement).dataset.seqpath?.split(",").map(Number);
+				if (seqPath) this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN_STEP, { detail: { seqPath }, bubbles: true, composed: true }));
+			});
+		});
 
 		if (this.state.tail) container.scrollTop = container.scrollHeight;
 	}
