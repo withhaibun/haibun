@@ -23,8 +23,7 @@ function findStore(runtime: Record<string, unknown>): IQuadStore | undefined {
 }
 
 const clearVars = (vars: VariablesStepper) => async () => {
-	await vars.getWorld().shared.clear();
-	return;
+	await vars.getWorld().shared.getStore().clear();
 };
 
 const cycles = (variablesStepper: VariablesStepper): IStepperCycles => ({
@@ -395,10 +394,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 					return actionOKWithProducts({ term, value: undefined, domain: stepValue.domain });
 				}
 				const displayValue = isSecret ? { ...stepValue, value: OBSCURED_VALUE } : stepValue;
-				const provenance = featureStep.action.stepValuesMap.what.provenance?.map((p, i) => ({
-					[i]: { in: p.in, seq: p.seq.join(","), when: p.when },
-				}));
-				this.getWorld().eventLogger.info(`${term} is ${JSON.stringify({ ...displayValue, provenance }, null, 2)}`, {
+				this.getWorld().eventLogger.info(`${term} is ${JSON.stringify(displayValue, null, 2)}`, {
 					variable: term,
 					value: displayValue,
 				});
