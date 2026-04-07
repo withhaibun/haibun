@@ -57,6 +57,7 @@ function truncate(s: string, max = 30): string {
 }
 
 type TPropKind = "name" | "identifier" | "edge" | "content" | "internal" | "scalar";
+const EDGE_RELS: Set<string> = new Set([LinkRelations.ATTRIBUTED_TO.rel, LinkRelations.AUDIENCE.rel, LinkRelations.IN_REPLY_TO.rel, LinkRelations.ATTACHMENT.rel]);
 
 /** Classify properties by their AS2 rel */
 function classifyProperty(graph: string, predicate: string): TPropKind {
@@ -69,7 +70,7 @@ function classifyProperty(graph: string, predicate: string): TPropKind {
 	if (rel === LinkRelations.NAME.rel) return "name";
 	if (rel === LinkRelations.IDENTIFIER.rel) return "identifier";
 	if (rel === LinkRelations.CONTENT.rel) return "content";
-	if (rel === LinkRelations.ATTRIBUTED_TO.rel || rel === LinkRelations.AUDIENCE.rel || rel === LinkRelations.IN_REPLY_TO.rel || rel === LinkRelations.ATTACHMENT.rel) return "edge";
+	if (EDGE_RELS.has(rel)) return "edge";
 	return "scalar";
 }
 
@@ -360,6 +361,11 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 	}
 
 	private showQuadDetail(graph: string, subject: string): void {
-		openQuadDetailPane(graph, subject, this.state.quads.filter((q) => q.subject === subject && q.namedGraph === graph), this);
+		openQuadDetailPane(
+			graph,
+			subject,
+			this.state.quads.filter((q) => q.subject === subject && q.namedGraph === graph),
+			this,
+		);
 	}
 }

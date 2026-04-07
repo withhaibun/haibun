@@ -7,6 +7,7 @@
 import { z } from "zod";
 import { ShuElement } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
+import { parseSeqPath } from "../quad-detail-pane.js";
 import { SseClient } from "../sse-client.js";
 import { esc } from "../util.js";
 
@@ -97,12 +98,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 			message = `\u23f3 ${String(e.type || "")}`;
 		}
 		let seqPath = Array.isArray(e.seqPath) ? (e.seqPath as number[]) : undefined;
-		if (!seqPath && typeof e.id === "string") {
-			const cleaned = (e.id as string).replace(/^\[|\]$/g, "");
-			const parts = cleaned.split(".");
-			const nums = parts.map(Number);
-			if (nums.length > 0 && nums.every((n) => Number.isFinite(n) && !Number.isNaN(n))) seqPath = nums;
-		}
+		if (!seqPath && typeof e.id === "string") seqPath = parseSeqPath(e.id as string);
 		this.rows.push({ time: `${relTime}s`, level, step, message, seqPath });
 	}
 

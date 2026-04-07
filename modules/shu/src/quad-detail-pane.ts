@@ -6,8 +6,17 @@
 import { SHU_EVENT } from "./consts.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 
-function escHtml(s: string): string {
+export function escHtml(s: string): string {
 	return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/** Parse seqPath number array from event ID like "[1.2.3]" or "1.2.3". Returns undefined for non-numeric IDs. */
+export function parseSeqPath(id: string): number[] | undefined {
+	const cleaned = id.replace(/^\[|\]$/g, "");
+	if (!cleaned || cleaned.includes(" ")) return undefined;
+	const parts = cleaned.split(".");
+	const nums = parts.map(Number);
+	return nums.length > 0 && nums.every((n) => Number.isFinite(n) && !Number.isNaN(n)) ? nums : undefined;
 }
 
 /** Create and add a quad detail column pane. Provenance seqPaths are clickable. */
@@ -17,7 +26,11 @@ export function openQuadDetailPane(graph: string, subject: string, quads: TQuad[
 	for (const q of quads) {
 		let val = q.object;
 		if (typeof val === "string") {
-			try { val = JSON.parse(val); } catch { /* keep as string */ }
+			try {
+				val = JSON.parse(val);
+			} catch {
+				/* keep as string */
+			}
 		}
 		data[q.predicate] = val;
 		if (q.properties?.provenance) provenance = q.properties.provenance as number[][];
