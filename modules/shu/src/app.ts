@@ -243,6 +243,25 @@ const main = async (): Promise<void> => {
 	appRoot.addEventListener(SHU_EVENT.COLUMN_OPEN_SEQUENCE, () => openPinnedColumn("sequence", "Sequence", "shu-sequence-diagram"), {
 		signal,
 	});
+	appRoot.addEventListener(SHU_EVENT.COLUMN_OPEN_GRAPH, () => openPinnedColumn("graph", "Graph", "shu-graph-view"), {
+		signal,
+	});
+	appRoot.addEventListener(
+		SHU_EVENT.COLUMN_OPEN_STEP,
+		((e: CustomEvent) => {
+			const seqPath = e.detail?.seqPath as number[] | undefined;
+			if (!seqPath?.length) return;
+			const strip = getStrip();
+			if (!strip) return;
+			const pane = document.createElement("shu-column-pane") as ShuColumnPane;
+			pane.setAttribute("label", `Step [${seqPath.join(".")}]`);
+			const detail = document.createElement("shu-step-detail");
+			pane.appendChild(detail);
+			strip.addPane(pane);
+			void (detail as HTMLElement & { open(s: number[]): Promise<void> }).open(seqPath);
+		}) as EventListener,
+		{ signal },
+	);
 
 	appRoot.addEventListener(
 		SHU_EVENT.COLUMN_OPEN_RELATED,
@@ -270,6 +289,7 @@ const main = async (): Promise<void> => {
 		if (e.kind !== "lifecycle" || e.type !== "step" || e.stage !== "end" || e.status !== "completed") return;
 		if (e.actionName === "showMonitor") appRoot.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN_MONITOR, { bubbles: true }));
 		else if (e.actionName === "showSequenceDiagram") appRoot.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN_SEQUENCE, { bubbles: true }));
+		else if (e.actionName === "showGraphView") appRoot.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN_GRAPH, { bubbles: true }));
 	});
 
 	// Results changed → remove all non-query panes

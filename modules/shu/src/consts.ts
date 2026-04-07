@@ -6,6 +6,8 @@ export const SHU_EVENT = {
 	COLUMN_OPEN_MONITOR: "column-open-monitor",
 	COLUMN_OPEN_SEQUENCE: "column-open-sequence",
 	COLUMN_OPEN_RELATED: "column-open-related",
+	COLUMN_OPEN_GRAPH: "column-open-graph",
+	COLUMN_OPEN_STEP: "column-open-step",
 	COLUMN_CLOSE: "column-close",
 	COLUMN_ACTIVATE: "column-activate",
 	COLUMN_ACTIVATED: "column-activated",

@@ -182,8 +182,8 @@ export function siteMetadataFromConcerns(catalog: TConcernCatalog): SiteMetadata
 		if (labelSummary.length > 0) summary[label] = labelSummary;
 		if (Object.keys(labelContent).length > 0) contentFields[label] = labelContent;
 		const labelEdges: Record<string, string> = {};
-		for (const [, edge] of Object.entries(vertex.edges)) {
-			labelEdges[edge.rel] = edge.target;
+		for (const [edgeName, edge] of Object.entries(vertex.edges)) {
+			labelEdges[edgeName] = edge.target;
 		}
 		if (Object.keys(labelEdges).length > 0) edgeRanges[label] = labelEdges;
 	}
