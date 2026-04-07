@@ -59,4 +59,11 @@ describe("QuadStore Contexts", () => {
 		expect(await store.get("x", "string")).toBe("second");
 		expect(await store.query({ subject: "x", namedGraph: "variables" })).toHaveLength(1);
 	});
+
+	it("should store properties on set", async () => {
+		await store.set("x", "string", "hello", "variables", { origin: "var", readonly: true });
+		const quads = await store.query({ subject: "x", namedGraph: "variables" });
+		expect(quads[0].properties?.origin).toBe("var");
+		expect(quads[0].properties?.readonly).toBe(true);
+	});
 });
