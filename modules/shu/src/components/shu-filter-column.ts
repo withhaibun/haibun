@@ -37,7 +37,7 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 		this.showSpinner("Fetching...");
 		await this.fetchResults({
 			label,
-			filters: [{ property, operator: "eq", value }],
+			filters: [{ predicate: property, operator: "eq", value }],
 			sortBy: "",
 			sortOrder: "desc",
 			limit: 50,
