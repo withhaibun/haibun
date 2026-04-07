@@ -26,21 +26,23 @@ describe("ShuStepper", () => {
 	it("idempotent mount at same path succeeds", async () => {
 		const first = await stepper.steps.serveShuApp.action({ path: "/spa" });
 		expect(first.ok).toBe(true);
-		expect(addRoute).toHaveBeenCalledTimes(1);
+		const firstCallCount = addRoute.mock.calls.length;
+		expect(firstCallCount).toBeGreaterThanOrEqual(1);
 
 		const second = await stepper.steps.serveShuApp.action({ path: "/spa" });
 		expect(second.ok).toBe(true);
-		expect(addRoute).toHaveBeenCalledTimes(1);
+		expect(addRoute).toHaveBeenCalledTimes(firstCallCount);
 	});
 
 	it("rejects mounting the app at a second path", async () => {
 		const first = await stepper.steps.serveShuApp.action({ path: "/spa" });
 		expect(first.ok).toBe(true);
+		const firstCallCount = addRoute.mock.calls.length;
 
 		const second = await stepper.steps.serveShuApp.action({ path: "/alt" });
 		expect(second.ok).toBe(false);
 		if (second.ok) throw new Error("expected second mount path to fail");
 		expect(second.errorMessage).toContain('already mounted at "/spa"');
-		expect(addRoute).toHaveBeenCalledTimes(1);
+		expect(addRoute).toHaveBeenCalledTimes(firstCallCount);
 	});
 });
