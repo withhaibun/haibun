@@ -7,7 +7,7 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { actionOK, actionNotOK, getFromRuntime } from "@haibun/core/lib/util/index.js";
-import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
+import { buildConcernCatalog, getJsonLdContext } from "@haibun/core/lib/hypermedia.js";
 import type { IWebServer } from "@haibun/web-server-hono/defs.js";
 import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
 import type { Context } from "@haibun/web-server-hono/defs.js";
@@ -81,6 +81,10 @@ export default class ShuStepper extends AStepper {
 					concerns: buildConcernCatalog(this.getWorld().domains),
 				});
 				webserver.addRoute("get", path, createSpaHandler(path, bundle, hydrationJson));
+				const jsonLdContext = getJsonLdContext(this.getWorld().domains);
+				const jsonLdHandler = (c: Context) => c.json(jsonLdContext);
+				webserver.addRoute("get", "/.well-known/muskeg-context.jsonld", jsonLdHandler);
+				webserver.addRoute("get", "/ns/context.jsonld", jsonLdHandler);
 				this.mountedPath = path;
 				return actionOK();
 			},
