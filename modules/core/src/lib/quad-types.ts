@@ -1,7 +1,8 @@
 /**
  * QuadStore Types for Core
  *
- * Minimal quad types for the unified observation model.
+ * Property graph quad model — each quad can carry optional properties,
+ * aligning with AGE's vertex properties for seamless PG persistence.
  * All methods are async to support both in-memory and database-backed stores.
  */
 
@@ -11,6 +12,7 @@ export interface TQuad {
 	object: unknown;
 	namedGraph: string;
 	timestamp: number;
+	properties?: Record<string, unknown>;
 }
 
 export interface TQuadPattern {
@@ -22,7 +24,7 @@ export interface TQuadPattern {
 
 export interface IQuadStore {
 	/** Set a value (upserts: replaces existing quad with same subject+predicate+namedGraph) */
-	set(subject: string, predicate: string, object: unknown, namedGraph: string): Promise<void>;
+	set(subject: string, predicate: string, object: unknown, namedGraph: string, properties?: Record<string, unknown>): Promise<void>;
 
 	/** Get the most recent value for a subject-predicate pair */
 	get(subject: string, predicate: string, namedGraph?: string): Promise<unknown | undefined>;
