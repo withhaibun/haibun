@@ -10,20 +10,27 @@ import { ShuElement } from "./shu-element.js";
 import { SseClient } from "../sse-client.js";
 import { SHU_EVENT } from "../consts.js";
 import { getRels } from "../rels-cache.js";
-import { openQuadDetailPane } from "../quad-detail-pane.js";
+import { openQuadDetailPane, escHtml } from "../quad-detail-pane.js";
 
 const StateSchema = z.object({
 	seqPath: z.array(z.number()).default([]),
 	stepEvent: z.record(z.string(), z.unknown()).optional(),
 	trace: z.record(z.string(), z.unknown()).optional(),
 	variablesSet: z.array(z.object({ name: z.string(), value: z.unknown(), graph: z.string() })).default([]),
-	allQuads: z.array(z.object({ subject: z.string(), predicate: z.string(), object: z.unknown(), namedGraph: z.string(), timestamp: z.number(), properties: z.record(z.string(), z.unknown()).optional() })).default([]),
+	allQuads: z
+		.array(
+			z.object({
+				subject: z.string(),
+				predicate: z.string(),
+				object: z.unknown(),
+				namedGraph: z.string(),
+				timestamp: z.number(),
+				properties: z.record(z.string(), z.unknown()).optional(),
+			}),
+		)
+		.default([]),
 	loading: z.boolean().default(true),
 });
-
-function escHtml(s: string): string {
-	return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
 
 const STYLES = `
 :host { display: block; overflow: auto; font-size: 13px; }
@@ -63,9 +70,9 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 			const trace = tracesData.traces?.find((t) => Array.isArray(t.seqPath) && (t.seqPath as number[]).join(".") === seqKey);
 
 			// Fetch quads whose provenance includes this seqPath
-			const quadsData = await client.rpc<{ quads: Array<{ subject: string; predicate: string; object: unknown; namedGraph: string; timestamp: number; properties?: Record<string, unknown> }> }>(
-				"MonitorStepper-getQuads",
-			);
+			const quadsData = await client.rpc<{
+				quads: Array<{ subject: string; predicate: string; object: unknown; namedGraph: string; timestamp: number; properties?: Record<string, unknown> }>;
+			}>("MonitorStepper-getQuads");
 			const variablesSet = (quadsData.quads ?? [])
 				.filter((q) => {
 					const prov = q.properties?.provenance;

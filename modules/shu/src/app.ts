@@ -355,7 +355,11 @@ const main = async (): Promise<void> => {
 		{ signal },
 	);
 
-	// Sync notifications
+	// Sync notifications — buffer rapid events into one consolidated message
+	let syncDebounce: ReturnType<typeof setTimeout> | null = null;
+	const syncBuffer: Map<string, number> = new Map(); // source → total indexed
+	const SYNC_DEBOUNCE_MS = 2000;
+
 	appRoot.addEventListener(
 		SHU_EVENT.SYNC_AVAILABLE,
 		((e: CustomEvent) => {
@@ -363,7 +367,19 @@ const main = async (): Promise<void> => {
 			if (total) total.classList.add("has-sync");
 			const detail = e.detail || {};
 			const desc = detail.folder ? `${detail.account}/${detail.folder}` : "mail";
-			showNotification(`${detail.indexed || "New"} message${detail.indexed === 1 ? "" : "s"} synced from ${desc}`);
+			const count = typeof detail.indexed === "number" ? detail.indexed : 1;
+			syncBuffer.set(desc, (syncBuffer.get(desc) || 0) + count);
+
+			if (syncDebounce) clearTimeout(syncDebounce);
+			syncDebounce = setTimeout(() => {
+				const parts: string[] = [];
+				for (const [source, n] of syncBuffer) {
+					parts.push(`${n} message${n === 1 ? "" : "s"} from ${source}`);
+				}
+				syncBuffer.clear();
+				syncDebounce = null;
+				showNotification(`Synced ${parts.join(", ")}`);
+			}, SYNC_DEBOUNCE_MS);
 		}) as EventListener,
 		{ signal },
 	);
