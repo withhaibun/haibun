@@ -298,6 +298,7 @@ export const LinkRelations = {
 	ATTACHMENT: { rel: "attachment", uri: "as:attachment", relation: false },
 	TAG: { rel: "tag", uri: "as:tag", relation: false },
 	IDENTIFIER: { rel: "identifier", uri: "dcterms:identifier", relation: false },
+	URL: { rel: "url", uri: "as:url", relation: false },
 } as const;
 
 /** Domain name for vertex type labels — auto-populated from registered vertex domains. */
