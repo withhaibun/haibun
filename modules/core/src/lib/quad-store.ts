@@ -22,6 +22,14 @@ export class QuadStore implements IQuadStore {
 		}
 	}
 
+	/** Copy backing store registrations to another QuadStore (for scenario boundary inheritance). */
+	inheritBackingStores(target: QuadStore): void {
+		for (const [ng, store] of this.backingStores) {
+			target.backingStores.set(ng, store);
+			target.registeredGraphs.add(ng);
+		}
+	}
+
 	private storeFor(namedGraph: string): IQuadStore | undefined {
 		return this.backingStores.get(namedGraph);
 	}
