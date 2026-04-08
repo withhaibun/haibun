@@ -190,7 +190,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 						return { error: `${method}: RPC step registry is not initialized` };
 					}
 					const tool = registry.get(method);
-					if (!tool) return;
+					if (!tool) return { error: `${method}: unknown step method` };
 
 					try {
 						const grantedCapability = getGrantedCapabilityFromHeaders(requestInfo?.headers, this.getWorld().runtime, {
@@ -200,7 +200,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 						const validatedParams = validateToolInput(tool, params as Record<string, unknown>, this.getWorld());
 						const featureStep = buildSyntheticFeatureStep(tool, validatedParams, seqPath);
 						const hr = await dispatchStep({ registry, world: this.getWorld(), steppers: this.steppers, grantedCapability }, featureStep);
-						if (hr.ok) return hr.products;
+						if (hr.ok) return hr.products ?? { ok: true };
 						return { error: `${method}: ${hr.errorMessage}` };
 					} catch (err) {
 						const detail = err instanceof Error ? err.message : String(err);
