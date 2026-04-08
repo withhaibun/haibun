@@ -1,6 +1,13 @@
 import { SHARED_STYLES } from "./styles.js";
 import { SseClient } from "../sse-client.js";
 import { getAvailableSteps, findStep, type StepDescriptor } from "../rpc-registry.js";
+import { SHU_EVENT } from "../consts.js";
+
+const VIEW_EVENTS: Record<string, string> = {
+	monitor: SHU_EVENT.COLUMN_OPEN_MONITOR,
+	sequence: SHU_EVENT.COLUMN_OPEN_SEQUENCE,
+	graph: SHU_EVENT.COLUMN_OPEN_GRAPH,
+};
 import { renderValue } from "./value-renderers.js";
 import { esc, escAttr } from "../util.js";
 
@@ -82,6 +89,10 @@ export class StepCaller extends HTMLElement {
 
 	private async callStep(formValues: Record<string, string> = {}): Promise<void> {
 		if (!this.descriptor) return;
+		// Retire current-* testids on all sibling step callers so waitFor finds only this result
+		for (const sibling of Array.from(this.parentElement?.querySelectorAll("shu-step-caller") ?? [])) {
+			if (sibling !== this) (sibling as StepCaller).retireCurrentTestIds();
+		}
 		this.lastFormValues = { ...formValues };
 		this.loading = true;
 		this.error = "";
@@ -104,6 +115,11 @@ export class StepCaller extends HTMLElement {
 
 		try {
 			this.result = await client.rpc(this.descriptor.method, params);
+			// If products contain a view, open the corresponding column
+			const view = (this.result as Record<string, unknown>)?.view;
+			if (typeof view === "string" && VIEW_EVENTS[view]) {
+				this.dispatchEvent(new CustomEvent(VIEW_EVENTS[view], { bubbles: true, composed: true }));
+			}
 			this.dispatchEvent(
 				new CustomEvent("step-success", {
 					bubbles: true,
@@ -128,8 +144,11 @@ export class StepCaller extends HTMLElement {
 		this.scrollIntoView({ behavior: "smooth", block: "nearest" });
 	}
 
-	private retireCurrentTestIds(): void {
+	retireCurrentTestIds(): void {
 		const stepName = this.getAttribute("step") || "";
+		if (this.dataset.testid?.startsWith("current-")) {
+			this.dataset.testid = this.dataset.testid.replace("current-", `${stepName}-`);
+		}
 		this.shadowRoot?.querySelectorAll('[data-testid^="current-"]').forEach((el) => {
 			const id = (el as HTMLElement).dataset.testid;
 			if (!id) return;

@@ -100,7 +100,11 @@ export class SSETransport implements ITransport, IStepTransport {
 
 				this.eventLogger.debug(`RPC: ${JSON.stringify(truncateForLog(data))}`);
 				const result = await this.handleMessage(data, requestInfo);
-				const response = (result ?? { ok: true }) as Record<string, unknown>;
+				if (result === undefined) {
+					const method = (data as Record<string, unknown>).method ?? "unknown";
+					return c.json({ ok: false, error: `No handler for RPC method: ${method}` }, 404);
+				}
+				const response = result as Record<string, unknown>;
 				const status = response.error ? 422 : 200;
 				return c.json(response, status);
 			} catch (e) {
