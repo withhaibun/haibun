@@ -13,6 +13,7 @@ import { SseClient } from "../sse-client.js";
 import { SHU_EVENT } from "../consts.js";
 import { openQuadDetailPane } from "../quad-detail-pane.js";
 import { getEdgeRanges, getRels } from "../rels-cache.js";
+import { getAvailableSteps } from "../rpc-registry.js";
 import { LinkRelations } from "@haibun/core/lib/defs.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 
@@ -59,9 +60,12 @@ function truncate(s: string, max = 30): string {
 type TPropKind = "name" | "identifier" | "edge" | "content" | "internal" | "scalar";
 const EDGE_RELS: Set<string> = new Set([LinkRelations.ATTRIBUTED_TO.rel, LinkRelations.AUDIENCE.rel, LinkRelations.IN_REPLY_TO.rel, LinkRelations.ATTACHMENT.rel]);
 
+/** Properties that are opaque blobs — excluded from graph rendering. */
+const INTERNAL_PREDICATES = new Set(["signedDocument", "encodedList", "proofValue", "accessLevel"]);
+
 /** Classify properties by their AS2 rel */
 function classifyProperty(graph: string, predicate: string): TPropKind {
-	if (predicate.startsWith("_")) return "internal";
+	if (predicate.startsWith("_") || INTERNAL_PREDICATES.has(predicate)) return "internal";
 	const edges = getEdgeRanges(graph);
 	if (edges?.[predicate]) return "edge";
 	const rels = getRels(graph);
@@ -77,10 +81,23 @@ function classifyProperty(graph: string, predicate: string): TPropKind {
 type TGraphViewOpts = { layout: "TD" | "LR"; hiddenGraphs: Set<string>; expandedGraphs: Set<string>; maxPerSubgraph: number };
 type TBuildResult = { source: string; nodeMap: Map<string, { graph: string; subject: string }> };
 
+/** Check if a string looks like a URI or resolvable path. */
+function isUri(s: string): boolean {
+	return /^(did:|urn:|https?:\/\/|\/)/.test(s);
+}
+
 function buildMermaidSource(quads: TQuad[], opts: TGraphViewOpts): TBuildResult {
 	const { layout, hiddenGraphs, expandedGraphs, maxPerSubgraph } = opts;
 	const visible = quads.filter((q) => !hiddenGraphs.has(q.namedGraph));
 	const entityIds = new Set(visible.map((q) => q.subject));
+
+	// Collect external URI references (edge targets not in our entity set)
+	const externalIds = new Set<string>();
+	for (const q of visible) {
+		if (typeof q.object === "string" && classifyProperty(q.namedGraph, q.predicate) === "edge" && !entityIds.has(q.object) && q.object !== q.subject && isUri(q.object)) {
+			externalIds.add(q.object);
+		}
+	}
 
 	// Group quads by named graph, then by subject
 	const byGraph = new Map<string, Map<string, TQuad[]>>();
@@ -121,14 +138,19 @@ function buildMermaidSource(quads: TQuad[], opts: TGraphViewOpts): TBuildResult 
 			for (const [subject, subjectQuads] of subjects) {
 				for (const q of subjectQuads) {
 					if (typeof q.object !== "string" || classifyProperty(graph, q.predicate) !== "edge") continue;
-					if (!entityIds.has(q.object) || q.object === subject) continue;
-					const targetGraph = visible.find((v) => v.subject === q.object)?.namedGraph ?? graph;
-					if (hiddenGraphs.has(targetGraph)) continue;
-					const targetSubjects = byGraph.get(targetGraph);
-					const targetCollapsed = targetSubjects && !expandedGraphs.has(targetGraph) && targetSubjects.size > maxPerSubgraph;
-					const targetId = targetCollapsed ? sanitizeId(`${targetGraph}__summary`) : sanitizeId(`${targetGraph}_${q.object}`);
+					if (q.object === subject) continue;
+					const isExternal = externalIds.has(q.object);
+					if (!entityIds.has(q.object) && !isExternal) continue;
+					const targetId = isExternal ? sanitizeId(`ref_${q.object}`) : (() => {
+						const targetGraph = visible.find((v) => v.subject === q.object)?.namedGraph ?? graph;
+						if (hiddenGraphs.has(targetGraph)) return null;
+						const targetSubjects = byGraph.get(targetGraph);
+						const targetCollapsed = targetSubjects && !expandedGraphs.has(targetGraph) && targetSubjects.size > maxPerSubgraph;
+						return targetCollapsed ? sanitizeId(`${targetGraph}__summary`) : sanitizeId(`${targetGraph}_${q.object}`);
+					})();
+					if (!targetId) continue;
 					if (!edges.some((e) => e.includes(`${summaryId} -->`) && e.includes(targetId))) {
-						edges.push(`  ${summaryId} -->|${truncate(q.predicate, 15)}| ${targetId}`);
+						edges.push(`  ${summaryId} -->|${truncate(q.predicate, 20)}| ${targetId}`);
 					}
 				}
 			}
@@ -160,15 +182,19 @@ function buildMermaidSource(quads: TQuad[], opts: TGraphViewOpts): TBuildResult 
 
 			for (const q of subjectQuads) {
 				if (typeof q.object !== "string" || classifyProperty(graph, q.predicate) !== "edge") continue;
-				if (!entityIds.has(q.object) || q.object === subject) continue;
-				const targetGraph = visible.find((v) => v.subject === q.object)?.namedGraph ?? graph;
-				if (hiddenGraphs.has(targetGraph)) continue;
-				const targetSubjects = byGraph.get(targetGraph);
-				const targetCollapsed = targetSubjects && !expandedGraphs.has(targetGraph) && targetSubjects.size > maxPerSubgraph;
-				const targetId = targetCollapsed ? sanitizeId(`${targetGraph}__summary`) : sanitizeId(`${targetGraph}_${q.object}`);
-				const edgeLine = `  ${nodeId} -->|${truncate(q.predicate, 15)}| ${targetId}`;
-				// Deduplicate edges to collapsed targets (one per predicate type)
-				if (targetCollapsed) {
+				if (q.object === subject) continue;
+				const isExternal = externalIds.has(q.object);
+				if (!entityIds.has(q.object) && !isExternal) continue;
+				const targetId = isExternal ? sanitizeId(`ref_${q.object}`) : (() => {
+					const tg = visible.find((v) => v.subject === q.object)?.namedGraph ?? graph;
+					if (hiddenGraphs.has(tg)) return null;
+					const ts = byGraph.get(tg);
+					const tc = ts && !expandedGraphs.has(tg) && ts.size > maxPerSubgraph;
+					return tc ? sanitizeId(`${tg}__summary`) : sanitizeId(`${tg}_${q.object}`);
+				})();
+				if (!targetId) continue;
+				const edgeLine = `  ${nodeId} -->|${truncate(q.predicate, 20)}| ${targetId}`;
+				if (!entityIds.has(q.object)) {
 					if (!edges.some((e) => e.includes(`${nodeId} -->`) && e.includes(targetId) && e.includes(q.predicate))) edges.push(edgeLine);
 				} else {
 					edges.push(edgeLine);
@@ -177,6 +203,16 @@ function buildMermaidSource(quads: TQuad[], opts: TGraphViewOpts): TBuildResult 
 		}
 
 		lines.push("  end");
+	}
+
+	// Add referenced resource nodes (URIs referenced by edges but without full vertex data)
+	if (externalIds.size > 0) {
+		for (const uri of externalIds) {
+			const refId = sanitizeId(`ref_${uri}`);
+			nodeIds.add(refId);
+			nodeMap.set(refId, { graph: "resource", subject: uri });
+			lines.push(`  ${refId}(["${truncate(uri, 40)}"])`);
+		}
 	}
 
 	lines.push(...edges);
@@ -197,18 +233,33 @@ const STYLES = `
 .graph-filters { display: flex; gap: 6px; flex-wrap: wrap; margin-left: 8px; }
 `;
 
+const HIDDEN_GRAPHS_COOKIE = "shu-graph-hidden";
+
+function readHiddenGraphsCookie(): string[] {
+	const match = document.cookie.match(new RegExp(`(?:^|; )${HIDDEN_GRAPHS_COOKIE}=([^;]*)`));
+	if (!match) return [];
+	try { return JSON.parse(decodeURIComponent(match[1])); } catch { return []; }
+}
+
+function writeHiddenGraphsCookie(hidden: string[]): void {
+	document.cookie = `${HIDDEN_GRAPHS_COOKIE}=${encodeURIComponent(JSON.stringify(hidden))}; path=/; max-age=${60 * 60 * 24 * 365}`;
+}
+
 export class ShuGraphView extends ShuElement<typeof StateSchema> {
 	private diagramId = `shu-graph-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 	private unsubscribe?: () => void;
 	private currentNodeMap = new Map<string, { graph: string; subject: string }>();
 
 	constructor() {
-		super(StateSchema, { quads: [], zoom: 100, layout: "TD", hiddenGraphs: [], expandedGraphs: [], maxPerSubgraph: DEFAULT_MAX_PER_SUBGRAPH });
+		super(StateSchema, { quads: [], zoom: 100, layout: "TD", hiddenGraphs: readHiddenGraphsCookie(), expandedGraphs: [], maxPerSubgraph: DEFAULT_MAX_PER_SUBGRAPH });
 	}
 
 	async connectedCallback(): Promise<void> {
 		super.connectedCallback();
 		const client = SseClient.for("");
+
+		// Ensure rels-cache is populated so classifyProperty can identify edges
+		await getAvailableSteps();
 
 		try {
 			const data = await client.rpc<{ quads: TQuad[] }>("MonitorStepper-getQuads");
@@ -282,7 +333,9 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 				const hidden = new Set(this.state.hiddenGraphs);
 				if (checked) hidden.delete(graph);
 				else hidden.add(graph);
-				this.setState({ hiddenGraphs: [...hidden] });
+				const hiddenArray = [...hidden];
+				writeHiddenGraphsCookie(hiddenArray);
+				this.setState({ hiddenGraphs: hiddenArray });
 			});
 		});
 		const maxInput = this.shadowRoot?.querySelector("input[data-action='max']") as HTMLInputElement | null;

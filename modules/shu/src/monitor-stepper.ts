@@ -1,13 +1,14 @@
 /**
- * MonitorStepper — Buffers execution events in memory and serves them via RPC.
- * Lightweight replacement for monitor-browser-stepper within the shu SPA.
- * The shu frontend fetches historical events on connect, then subscribes to SSE for live updates.
+ * MonitorStepper — Buffers execution events and forwards them via SSE transport.
+ * Works with any config that has @haibun/web-server-hono (shared transport).
+ * The shu frontend receives events via SSE for live updates and fetches history via RPC.
  */
 import { z } from "zod";
 import { AStepper, type IHasCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import type { THaibunEvent } from "@haibun/core/schema/protocol.js";
 import { actionOKWithProducts } from "@haibun/core/lib/util/index.js";
 import type { IStepperCycles } from "@haibun/core/lib/defs.js";
+import { TRANSPORT, type ITransport } from "@haibun/web-server-hono/sse-transport.js";
 import { parseSeqPath } from "./quad-detail-pane.js";
 
 const MAX_EVENTS = 10000;
@@ -16,25 +17,26 @@ export default class MonitorStepper extends AStepper implements IHasCycles {
 	description = "Buffers execution events for the shu monitor view";
 	private events: THaibunEvent[] = [];
 
+	private get transport(): ITransport | undefined {
+		return this.getWorld().runtime[TRANSPORT] as ITransport | undefined;
+	}
+
 	cycles: IStepperCycles = {
 		onEvent: (event: THaibunEvent) => {
 			this.events.push(event);
 			if (this.events.length > MAX_EVENTS) this.events.shift();
+			this.transport?.send({ type: "event", event });
 		},
 	};
 
 	steps = {
 		showMonitor: {
 			gwta: "show monitor",
-			action: () => {
-				return actionOKWithProducts({ view: "monitor" });
-			},
+			action: () => actionOKWithProducts({ view: "monitor" }),
 		},
 		showSequenceDiagram: {
 			gwta: "show sequence diagram",
-			action: () => {
-				return actionOKWithProducts({ view: "sequence" });
-			},
+			action: () => actionOKWithProducts({ view: "sequence" }),
 		},
 		getEvents: {
 			gwta: "get monitor events",
@@ -44,13 +46,9 @@ export default class MonitorStepper extends AStepper implements IHasCycles {
 				if (level) filtered = filtered.filter((e) => e.level === level);
 				if (kind) filtered = filtered.filter((e) => e.kind === kind);
 				if (since) filtered = filtered.filter((e) => e.timestamp >= since);
-				// Shallow-copy events to break circular references (products → events → products)
 				return actionOKWithProducts({
 					events: filtered.map(({ kind, level, timestamp, id, ...rest }) => ({
-						kind,
-						level,
-						timestamp,
-						id,
+						kind, level, timestamp, id,
 						in: (rest as Record<string, unknown>).in,
 						message: (rest as Record<string, unknown>).message,
 						type: (rest as Record<string, unknown>).type,

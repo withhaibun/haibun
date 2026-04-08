@@ -282,7 +282,7 @@ const main = async (): Promise<void> => {
 		{ signal },
 	);
 
-	// SSE listener: open monitor/sequence columns when steps trigger them
+	// SSE listener: open monitor/sequence/graph columns when steps trigger them
 	const sseClient = SseClient.for("");
 	sseClient.onEvent((event) => {
 		const e = event as { kind?: string; type?: string; stage?: string; actionName?: string; status?: string };
