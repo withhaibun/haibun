@@ -19,6 +19,10 @@ export class FeatureVariables {
 		initial?: { [name: string]: TStepValue },
 	) {
 		this.store = new QuadStore();
+		if (world.shared) {
+			const prev = world.shared.getStore();
+			if (prev instanceof QuadStore) prev.inheritBackingStores(this.store as QuadStore);
+		}
 		if (initial) {
 			for (const [name, sv] of Object.entries(initial)) {
 				void this.writeQuads(name, sv);
