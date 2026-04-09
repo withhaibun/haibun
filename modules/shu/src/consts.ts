@@ -25,6 +25,7 @@ export const SHU_EVENT = {
 	SYNC_AVAILABLE: "sync-available",
 	RESIZE_DRAG: "resize-drag",
 	RESIZE_END: "resize-end",
+	TIME_SYNC: "time-sync",
 } as const;
 
 export const SHU_ATTR = {

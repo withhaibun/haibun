@@ -90,8 +90,18 @@ const main = async (): Promise<void> => {
 	const appRoot = document.getElementById("shu-main");
 	if (!appRoot) return;
 
+	// Validate required steps are available before rendering
+	try {
+		const { getAvailableSteps } = await import("./rpc-registry.js");
+		await getAvailableSteps();
+	} catch (err) {
+		appRoot.innerHTML = `<div style="padding:20px;color:#c00;font-family:monospace"><strong>SPA initialization failed:</strong> ${err instanceof Error ? err.message : err}</div>`;
+		return;
+	}
+
 	const apiBase = appRoot.getAttribute("data-api-base") || "/shu";
 	const SPLITTER_COOKIE = "shu-actions-height";
+	const QUERY_WIDTH_COOKIE = "shu-query-width";
 
 	if (!document.getElementById("graph-style")) {
 		const style = document.createElement("style");
@@ -288,8 +298,10 @@ const main = async (): Promise<void> => {
 		const e = event as { kind?: string; type?: string; stage?: string; actionName?: string; status?: string };
 		if (e.kind !== "lifecycle" || e.type !== "step" || e.stage !== "end" || e.status !== "completed") return;
 		if (e.actionName === "showMonitor") appRoot.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN_MONITOR, { bubbles: true }));
-		else if (e.actionName === "showSequenceDiagram") appRoot.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN_SEQUENCE, { bubbles: true }));
-		else if (e.actionName === "showGraphView") appRoot.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN_GRAPH, { bubbles: true }));
+		else if (e.actionName === "showSequenceDiagram")
+			appRoot.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN_SEQUENCE, { bubbles: true }));
+		else if (e.actionName === "showGraphView")
+			appRoot.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN_GRAPH, { bubbles: true }));
 	});
 
 	// Results changed → remove all non-query panes
@@ -301,6 +313,35 @@ const main = async (): Promise<void> => {
 			const strip = getStrip();
 			if (!strip) return;
 			removeTransientPanes(strip);
+		}) as EventListener,
+		{ signal },
+	);
+
+	// Time sync → fan out to all panes and light-DOM components
+	appRoot.addEventListener(
+		SHU_EVENT.TIME_SYNC,
+		((e: CustomEvent) => {
+			const strip = getStrip();
+			if (!strip) return;
+			for (const pane of strip.panes) {
+				const child = pane.firstElementChild;
+				if (child && child !== e.target) child.dispatchEvent(new CustomEvent(SHU_EVENT.TIME_SYNC, { detail: e.detail }));
+			}
+			appRoot.querySelectorAll("shu-result-table").forEach((el) => {
+				el.dispatchEvent(new CustomEvent(SHU_EVENT.TIME_SYNC, { detail: e.detail }));
+			});
+		}) as EventListener,
+		{ signal },
+	);
+
+	// Column resize → persist query pane width to cookie
+	appRoot.addEventListener(
+		SHU_EVENT.COLUMN_RESIZE,
+		((e: CustomEvent) => {
+			const pane = (e.target as HTMLElement)?.closest("shu-column-pane");
+			if (pane?.getAttribute(SHU_ATTR.COLUMN_TYPE) === "query" && e.detail?.width) {
+				document.cookie = `${QUERY_WIDTH_COOKIE}=${e.detail.width}; path=/; max-age=${60 * 60 * 24 * 365}`;
+			}
 		}) as EventListener,
 		{ signal },
 	);
@@ -463,8 +504,14 @@ const main = async (): Promise<void> => {
 		{ signal },
 	);
 
-	// Activate query pane on start
-	getStrip()?.activatePane(0);
+	// Activate query pane on start, restore saved width
+	const strip0 = getStrip();
+	strip0?.activatePane(0);
+	const savedQueryWidth = document.cookie.match(new RegExp(`(?:^|; )${QUERY_WIDTH_COOKIE}=([^;]*)`))?.[1];
+	if (savedQueryWidth && strip0) {
+		const queryPane = strip0.panes.find((p) => p.getAttribute(SHU_ATTR.COLUMN_TYPE) === "query");
+		if (queryPane) queryPane.setWidth(parseInt(savedQueryWidth, 10));
+	}
 
 	// Restore columns from URL hash
 	const hash = location.hash.replace(/^#\??/, "");
@@ -524,7 +571,9 @@ const main = async (): Promise<void> => {
 						const colonIdx = rest.indexOf(":");
 						const lbl = rest.slice(0, colonIdx);
 						const vid = rest.slice(colonIdx + 1);
-						appRoot.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN_RELATED, { detail: { subject: vid, label: lbl }, bubbles: true }));
+						appRoot.dispatchEvent(
+							new CustomEvent(SHU_EVENT.COLUMN_OPEN_RELATED, { detail: { subject: vid, label: lbl }, bubbles: true }),
+						);
 						pane = strip.panes.find((p) => p.getAttribute(SHU_ATTR.COLUMN_TYPE) === "thread");
 					} else if (col.startsWith("monitor:") || col === "monitor") {
 						appRoot.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN_MONITOR, { bubbles: true }));
@@ -532,6 +581,9 @@ const main = async (): Promise<void> => {
 					} else if (col.startsWith("sequence:") || col === "sequence") {
 						appRoot.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN_SEQUENCE, { bubbles: true }));
 						pane = strip.panes.find((p) => p.getAttribute(SHU_ATTR.COLUMN_TYPE) === "sequence");
+					} else if (col.startsWith("graph:") || col === "graph") {
+						appRoot.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN_GRAPH, { bubbles: true }));
+						pane = strip.panes.find((p) => p.getAttribute(SHU_ATTR.COLUMN_TYPE) === "graph");
 					}
 					if (minimized && pane) {
 						pane.setCollapsed(true);

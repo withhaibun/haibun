@@ -9,6 +9,8 @@ import { defaultLabel } from "../util.js";
 import { SHARED_STYLES } from "./styles.js";
 import { ShuElement } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
+import { TIME_SYNC_CLASS } from "./shu-element.js";
+import { bindCopyButtons, copyButtonHtml } from "../copy-util.js";
 import { isReplyEdge } from "@haibun/core/lib/defs.js";
 import { getEdgeRelMap } from "../rels-cache.js";
 import { EntityColumnSchema } from "../schemas.js";
@@ -34,6 +36,17 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			vertexLabel: "",
 			loading: false,
 		});
+	}
+
+	protected override onTimeSync(): void {
+		const container = this.shadowRoot?.querySelector(".container");
+		if (!container) return;
+		const ts = this.extractTimestamp(this.vertex ?? {}, this.state.vertexLabel);
+		if (ts !== null && this.isFuture(ts)) {
+			container.classList.add(TIME_SYNC_CLASS.FUTURE);
+		} else {
+			container.classList.remove(TIME_SYNC_CLASS.FUTURE);
+		}
 	}
 
 	/** Open a vertex by ID. Fetches data and renders. */
@@ -119,15 +132,21 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			const detailRows = Object.entries(fields)
 				.filter(([k]) => !getEdgeTargetLabel(k, vertexLabel) && !summaryFields.has(k))
 				.map(([k, v]) => {
-					const valueHtml = Array.isArray(v) ? v.map((item) => this.clickableValue(item, "filter", k)).join(", ") : this.clickableValue(v, "filter", k);
+					const valueHtml = Array.isArray(v)
+						? v.map((item) => this.clickableValue(item, "filter", k)).join(", ")
+						: this.clickableValue(v, "filter", k);
 					return `<tr>
 					<td class="field-name">${this.clickableValue(k, "describedby")}</td>
 					<td data-testid="entity-field-${escAttr(k)}">${valueHtml}</td>
 				</tr>`;
 				})
 				.join("");
+			const contentIframe = this.renderContentIframe(vertexLabel);
+			const hasBody = contentIframe.length > 0;
+			const openAttr = hasBody ? "" : " open";
+
 			const detailsHtml = detailRows
-				? `<details class="entity-detail" data-testid="entity-details">
+				? `<details class="entity-detail"${openAttr} data-testid="entity-details">
 					<summary class="detail-toggle">Details</summary>
 					<table class="detail-table">${detailRows}</table>
 				</details>`
@@ -140,14 +159,14 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 						.filter((k) => fields[k] && (Array.isArray(fields[k]) ? (fields[k] as string[]).length > 0 : true))
 						.map((k) => {
 							const v = fields[k];
-							const valueHtml = Array.isArray(v) ? v.map((item) => this.clickableValue(item, "filter", k)).join(", ") : this.clickableValue(v, "filter", k);
+							const valueHtml = Array.isArray(v)
+								? v.map((item) => this.clickableValue(item, "filter", k)).join(", ")
+								: this.clickableValue(v, "filter", k);
 							return `<span class="summary-field" data-testid="entity-field-${escAttr(k)}">${this.clickableValue(k, "describedby")} ${valueHtml}</span>`;
 						})
 						.join(" ")}
 				</div>`
 					: "";
-
-			const contentIframe = this.renderContentIframe(vertexLabel);
 
 			contentHtml = `
 				${detailsHtml}
@@ -205,7 +224,10 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			)
 			.join("");
 
-		const inHtml = this.incomingCount > 0 ? `<a class="section-label links-here-link" href="#">What links here <span class="ref-count">(${this.incomingCount})</span></a>` : "";
+		const inHtml =
+			this.incomingCount > 0
+				? `<a class="section-label links-here-link" href="#">What links here <span class="ref-count">(${this.incomingCount})</span></a>`
+				: "";
 		const relMap = getEdgeRelMap();
 		const hasReplies = this.edges.some((e) => isReplyEdge(e.type, relMap)) || this.incomingCount > 0;
 		const replyHtml = hasReplies ? `<a class="section-label thread-link" href="#">View replies</a>` : "";
@@ -224,7 +246,10 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const switcherHtml =
 			available.length > 1
 				? `<div class="content-switcher">${available
-						.map(([f], i) => `<button class="content-switch-btn${i === 0 ? " active" : ""}" data-field="${escAttr(f)}">${esc(f)}</button>`)
+						.map(
+							([f], i) =>
+								`<button class="content-switch-btn${i === 0 ? " active" : ""}" data-field="${escAttr(f)}">${esc(f)}</button>`,
+						)
 						.join("")}</div>`
 				: "";
 
@@ -235,7 +260,9 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const encoded = utf8ToBase64(doc);
 		const iframeHtml = `<iframe class="body-iframe" data-field="${escAttr(activeField)}" sandbox="allow-same-origin" src="data:text/html;base64,${encoded}" data-testid="email-body-iframe"></iframe>`;
 
-		return `<div class="body-container">${switcherHtml}${iframeHtml}</div>`;
+		const copyBtn = copyButtonHtml(raw);
+		const toolbar = `<div class="content-toolbar">${switcherHtml}${copyBtn}</div>`;
+		return `<div class="body-container">${toolbar}${iframeHtml}</div>`;
 	}
 
 	private clickableValue(value: string, rel: string, propertyName?: string): string {
@@ -371,6 +398,8 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 				}),
 			);
 		});
+
+		bindCopyButtons(this.shadowRoot as ShadowRoot);
 	}
 }
 
@@ -391,7 +420,8 @@ const STYLES =
 	.entity-detail { margin: 2px 0; font-size: 0.9em; }
 	.detail-toggle { cursor: pointer; color: #aaa; font-size: 0.8em; padding: 2px 0; }
 	.detail-toggle:hover { color: #555; }
-	.content-switcher { display: flex; gap: 4px; padding: 2px 0; }
+	.content-toolbar { display: flex; gap: 4px; padding: 2px 0; align-items: center; }
+	.content-switcher { display: flex; gap: 4px; }
 	.content-switch-btn { font-size: 0.75em; padding: 1px 6px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer; background: #f5f5f5; color: #555; }
 	.content-switch-btn.active { background: #e8f5e9; border-color: #1a6b3c; color: #1a6b3c; }
 	.hidden { display: none; }

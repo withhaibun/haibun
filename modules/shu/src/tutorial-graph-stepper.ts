@@ -329,7 +329,19 @@ export default class TutorialGraphStepper extends AStepper {
 		createEdge: {
 			gwta: "create edge from {fromLabel: string} {fromId: string} with rel {rel: string} to {toLabel: string} {toId: string}",
 			outputSchema: z.object({ edge: EdgeSchema }),
-			action: ({ fromLabel, fromId, rel, toLabel, toId }: { fromLabel: string; fromId: string; rel: string; toLabel: string; toId: string }) => {
+			action: ({
+				fromLabel,
+				fromId,
+				rel,
+				toLabel,
+				toId,
+			}: {
+				fromLabel: string;
+				fromId: string;
+				rel: string;
+				toLabel: string;
+				toId: string;
+			}) => {
 				try {
 					return actionOKWithProducts({
 						edge: this.store.createEdge(fromLabel, fromId, rel, toLabel, toId),
