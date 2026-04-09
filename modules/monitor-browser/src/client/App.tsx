@@ -4,7 +4,15 @@ import { DetailsPanel } from "./DetailsPanel";
 import { EventFormatter } from "@haibun/core/monitor/index.js";
 import { Timeline } from "./Timeline";
 import { getInitialState } from "./serialize";
-import { THaibunEvent, TArtifactEvent, TVideoArtifact, TResolvedFeaturesArtifact, THttpTraceArtifact, HAIBUN_LOG_LEVELS, THaibunLogLevel } from "@haibun/core/schema/protocol.js";
+import {
+	THaibunEvent,
+	TArtifactEvent,
+	TVideoArtifact,
+	TResolvedFeaturesArtifact,
+	THttpTraceArtifact,
+	HAIBUN_LOG_LEVELS,
+	THaibunLogLevel,
+} from "@haibun/core/schema/protocol.js";
 import { DocumentView } from "./DocumentView";
 import { ArtifactRow } from "./components/ArtifactRow";
 import { ArtifactRenderer } from "./artifacts";
@@ -276,7 +284,9 @@ function App() {
 	// This allows us to show the video at the correct timeline position
 	const videoInfo = useMemo(() => {
 		const videoStartEvent = events.find((e) => e.kind === "artifact" && e.artifactType === "video-start");
-		const videoArtifactEvent = events.find((e) => e.kind === "artifact" && e.artifactType === "video") as TVideoArtifact | undefined;
+		const videoArtifactEvent = events.find((e) => e.kind === "artifact" && e.artifactType === "video") as
+			| TVideoArtifact
+			| undefined;
 
 		if (!videoStartEvent) return null;
 
@@ -371,7 +381,9 @@ function App() {
 		}
 	>;
 	const _stepIndex = useMemo((): TStepIndex => {
-		const artifact = events.find((e): e is TResolvedFeaturesArtifact => e.kind === "artifact" && e.artifactType === "resolvedFeatures");
+		const artifact = events.find(
+			(e): e is TResolvedFeaturesArtifact => e.kind === "artifact" && e.artifactType === "resolvedFeatures",
+		);
 		if (!artifact) return {};
 		const index: TStepIndex = {};
 
@@ -549,7 +561,9 @@ function App() {
 			// Auto-scroll logic for playback
 			// Find event closest to current time (from bottom up)
 			const relativeTime = currentTime;
-			const currentEvent = [...visibleEvents].reverse().find((e) => e.timestamp !== undefined && e.timestamp - startTime <= relativeTime);
+			const currentEvent = [...visibleEvents]
+				.reverse()
+				.find((e) => e.timestamp !== undefined && e.timestamp - startTime <= relativeTime);
 
 			if (currentEvent) {
 				const el = document.getElementById(`event-${currentEvent.id}`);
@@ -694,7 +708,13 @@ function App() {
 					<React.Fragment key={i}>
 						<div
 							id={`event-${e.id}`}
-							data-testid={isLast ? TEST_IDS.VIEWS.LATEST_EVENT : i === 0 ? TEST_IDS.VIEWS.FIRST_ROW : `${TEST_IDS.TIMELINE_SELECTION.LOG_ROW_PREFIX}${e.id}`}
+							data-testid={
+								isLast
+									? TEST_IDS.VIEWS.LATEST_EVENT
+									: i === 0
+										? TEST_IDS.VIEWS.FIRST_ROW
+										: `${TEST_IDS.TIMELINE_SELECTION.LOG_ROW_PREFIX}${e.id}`
+							}
 							className={`flex whitespace-pre items-start leading-tight transition-colors ${bgClass} cursor-pointer hover:bg-slate-800 ${selectedEvent === e ? "bg-cyan-900/30 border-l-4 border-l-cyan-500 -ml-1 pl-1 border-r-4 border-r-cyan-500" : ""} ${futureClass}`}
 							onClick={() => {
 								manualSelectRef.current = true;
@@ -708,7 +728,9 @@ function App() {
 						>
 							<div className="w-16 flex flex-col items-end shrink-0 text-[10px] text-slate-700 dark:text-slate-400 font-medium leading-tight mr-2 self-stretch py-1">
 								<span>{time}s</span>
-								<span className={`text-[9px] opacity-70 ${formatted.level === "error" ? "text-red-500" : formatted.level === "warn" ? "text-yellow-500" : "text-slate-500"}`}>
+								<span
+									className={`text-[9px] opacity-70 ${formatted.level === "error" ? "text-red-500" : formatted.level === "warn" ? "text-yellow-500" : "text-slate-500"}`}
+								>
 									{formatted.level}
 								</span>
 							</div>
@@ -725,7 +747,9 @@ function App() {
 										{isNested && <div className="absolute top-0 -bottom-[1px] right-[3px] w-px bg-indigo-500" />}
 
 										{/* Start Marker Line for Top-Level Instigators (starts from top marker down) */}
-										{isInstigator && !isNested && <div className="absolute top-[6px] -bottom-[1px] right-[3px] w-px bg-indigo-500" />}
+										{isInstigator && !isNested && (
+											<div className="absolute top-[6px] -bottom-[1px] right-[3px] w-px bg-indigo-500" />
+										)}
 
 										{/* Horizontal Bar Symbol (Only to the Left, Top Aligned) */}
 										{isNested && showSymbol && <div className="absolute top-0 right-[3px] w-2.5 h-px bg-indigo-500" />}
@@ -759,7 +783,14 @@ function App() {
 													!isSerializedMode &&
 													e.kind === "lifecycle" &&
 													e.type === "step" &&
-													!!(e.kind === "lifecycle" && "featurePath" in e && e.featurePath && "lineNumber" in e && e.lineNumber && cwd)
+													!!(
+														e.kind === "lifecycle" &&
+														"featurePath" in e &&
+														e.featurePath &&
+														"lineNumber" in e &&
+														e.lineNumber &&
+														cwd
+													)
 												}
 												absolutePath={
 													e.kind === "lifecycle" && "featurePath" in e && e.featurePath && cwd
@@ -778,7 +809,9 @@ function App() {
 													emitter={e.emitter}
 													cwd={cwd}
 													isSerializedMode={isSerializedMode}
-													isBackground={!!(e.kind === "lifecycle" && "featurePath" in e && e.featurePath?.includes("/backgrounds/"))}
+													isBackground={
+														!!(e.kind === "lifecycle" && "featurePath" in e && e.featurePath?.includes("/backgrounds/"))
+													}
 													isWaypoint={e.kind === "lifecycle" && (e.type === "ensure" || e.type === "activity")}
 												/>
 											)}
@@ -868,7 +901,9 @@ function App() {
 		// Attach Quad Data if needed
 		if (showQuadGraph) {
 			// biome-ignore lint/suspicious/noExplicitAny: quad check
-			const quadObservations = events.filter((e) => e.kind === "artifact" && e.artifactType === "json" && (e as any).json?.quadObservation);
+			const quadObservations = events.filter(
+				(e) => e.kind === "artifact" && e.artifactType === "json" && (e as any).json?.quadObservation,
+			);
 			if (quadObservations.length > 0) {
 				// biome-ignore lint/suspicious/noExplicitAny: quad map
 				const quads = quadObservations.map((e: any) => ({
@@ -918,13 +953,18 @@ function App() {
             background: transparent;
         }
       `}</style>
-			<header className="fixed top-0 left-0 right-0 h-14 border-b bg-background/95 backdrop-blur z-40 flex items-center justify-between px-4" data-testid={TEST_IDS.APP.HEADER}>
+			<header
+				className="fixed top-0 left-0 right-0 h-14 border-b bg-background/95 backdrop-blur z-40 flex items-center justify-between px-4"
+				data-testid={TEST_IDS.APP.HEADER}
+			>
 				<div className="flex items-center gap-2">
 					<div className="flex flex-col">
 						<h1 className="font-bold hidden md:block" data-testid={TEST_IDS.HEADER.TITLE}>
 							Haibun Monitor
 						</h1>
-						{startTime && <span className="text-[10px] text-muted-foreground hidden md:block">{new Date(startTime).toISOString()}</span>}
+						{startTime && (
+							<span className="text-[10px] text-muted-foreground hidden md:block">{new Date(startTime).toISOString()}</span>
+						)}
 					</div>
 					<Badge variant={connected ? "default" : "destructive"} data-testid={TEST_IDS.HEADER.STATUS_BADGE}>
 						{connected ? "Live" : "Offline"}
@@ -950,7 +990,9 @@ function App() {
 						{videoInfo?.path && (
 							<button
 								onClick={() => {
-									const videoArtifact = events.find((e) => e.kind === "artifact" && e.artifactType === "video") as TVideoArtifact | undefined;
+									const videoArtifact = events.find((e) => e.kind === "artifact" && e.artifactType === "video") as
+										| TVideoArtifact
+										| undefined;
 									if (videoArtifact) setSelectedEvent(videoArtifact);
 								}}
 								// biome-ignore lint/suspicious/noExplicitAny: loose event type
@@ -962,7 +1004,9 @@ function App() {
 						)}
 						{events.some((e) => e.kind === "artifact" && e.artifactType === "http-trace") && (
 							<button
-								onClick={() => setViewOrder((prev) => (prev.includes("sequence") ? prev.filter((v) => v !== "sequence") : [...prev, "sequence"]))}
+								onClick={() =>
+									setViewOrder((prev) => (prev.includes("sequence") ? prev.filter((v) => v !== "sequence") : [...prev, "sequence"]))
+								}
 								className={`p-1.5 hover:bg-slate-700 rounded transition-colors ${showSequence ? "bg-slate-800" : "grayscale opacity-60 hover:opacity-80"}`}
 								title={`Toggle HTTP Sequence Diagram (${events.filter((e) => e.kind === "artifact" && e.artifactType === "http-trace").length})`}
 								data-testid={TEST_IDS.HEADER.TOGGLE_SEQUENCE}
@@ -970,9 +1014,17 @@ function App() {
 								⇄
 							</button>
 						)}
-						{events.some((e) => e.kind === "artifact" && e.artifactType === "json" && "json" in e && (e.json as Record<string, unknown>)?.quadObservation) && (
+						{events.some(
+							(e) =>
+								e.kind === "artifact" &&
+								e.artifactType === "json" &&
+								"json" in e &&
+								(e.json as Record<string, unknown>)?.quadObservation,
+						) && (
 							<button
-								onClick={() => setViewOrder((prev) => (prev.includes("quad") ? prev.filter((v) => v !== "quad") : [...prev, "quad"]))}
+								onClick={() =>
+									setViewOrder((prev) => (prev.includes("quad") ? prev.filter((v) => v !== "quad") : [...prev, "quad"]))
+								}
 								className={`p-1.5 hover:bg-slate-700 rounded transition-colors ${showQuadGraph ? "bg-slate-800" : "grayscale opacity-60 hover:opacity-80"}`}
 								title={`Toggle QuadStore Graph (${events.filter((e) => e.kind === "artifact" && e.artifactType === "json" && "json" in e && (e.json as Record<string, unknown>)?.quadObservation).length} observations)`}
 								data-testid={TEST_IDS.HEADER.TOGGLE_QUAD}
@@ -1001,7 +1053,11 @@ function App() {
 				<div className="flex gap-4 items-center">
 					<div className="hidden md:flex items-center gap-2" data-testid={TEST_IDS.HEADER.LOG_LEVEL}>
 						<span className="text-xs text-muted-foreground">Log Level:</span>
-						<select className="bg-background text-foreground text-xs border rounded px-1" value={minLogLevel} onChange={(e) => setMinLogLevel(e.target.value as THaibunLogLevel)}>
+						<select
+							className="bg-background text-foreground text-xs border rounded px-1"
+							value={minLogLevel}
+							onChange={(e) => setMinLogLevel(e.target.value as THaibunLogLevel)}
+						>
 							{HAIBUN_LOG_LEVELS.map((level) => (
 								<option key={level} value={level}>
 									{level.charAt(0).toUpperCase() + level.slice(1)}
@@ -1099,7 +1155,9 @@ const Badge = ({ children, variant, ...props }: any) => {
 	return (
 		<span
 			className={`px-2 py-0.5 rounded text-xs font-semibold ${
-				variant === "default" ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100" : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
+				variant === "default"
+					? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"
+					: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
 			}`}
 			{...props}
 		>

@@ -149,7 +149,8 @@ export default class TuiMonitorStepper extends AStepper implements IHasCycles, I
 
 			const { rerender } = render(<MonitorApp lines={[]} running={new Map()} finished={false} />);
 
-			this.rerender = (lines, running, finished, prompt) => rerender(<MonitorApp lines={lines} running={running} finished={finished} prompt={prompt} onResolve={onResolve} />);
+			this.rerender = (lines, running, finished, prompt) =>
+				rerender(<MonitorApp lines={lines} running={running} finished={finished} prompt={prompt} onResolve={onResolve} />);
 		},
 
 		onEvent: (event: THaibunEvent): void => {

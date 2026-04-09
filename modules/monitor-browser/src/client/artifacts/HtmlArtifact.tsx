@@ -19,7 +19,12 @@ export function HtmlArtifact({ artifact }: HtmlArtifactProps) {
 					Open {artifact.path.split("/").pop()} ↗
 				</a>
 			</div>
-			<iframe src={url} className="w-full h-[80vh] border-none rounded shadow-md bg-white" title="HTML Artifact" sandbox="allow-scripts allow-same-origin" />
+			<iframe
+				src={url}
+				className="w-full h-[80vh] border-none rounded shadow-md bg-white"
+				title="HTML Artifact"
+				sandbox="allow-scripts allow-same-origin"
+			/>
 		</div>
 	);
 }
