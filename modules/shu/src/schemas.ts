@@ -164,6 +164,22 @@ export const ContextPatternSchema = z.object({
 });
 export type TContextPattern = z.infer<typeof ContextPatternSchema>;
 
+// --- Dispatch trace (shared by sequence diagram, monitor column, step detail) ---
+
+export const DispatchTraceSchema = z.object({
+	stepName: z.string(),
+	transport: z.enum(["local", "remote", "subprocess"]),
+	remoteHost: z.string().optional(),
+	capabilityRequired: z.string().optional(),
+	capabilityGranted: z.array(z.string()).optional(),
+	authorized: z.boolean(),
+	seqPath: z.array(z.number()),
+	durationMs: z.number().optional(),
+	productKeys: z.array(z.string()).optional(),
+	timestamp: z.number().optional(),
+});
+export type TDispatchTrace = z.infer<typeof DispatchTraceSchema>;
+
 // --- Actions bar ---
 
 export const ActionsBarSchema = z.object({

@@ -82,7 +82,11 @@ function startOfWeek(d: Date): Date {
 	return copy;
 }
 
-const DATE_RE = [/^\d{4}-\d{2}-\d{2}(T|\s)\d{2}:\d{2}/, /^\d{4}-\d{2}-\d{2}$/, /^[A-Z][a-z]{2},?\s+\d{1,2}\s+[A-Z][a-z]{2}\s+\d{4}/];
+const DATE_RE = [
+	/^\d{4}-\d{2}-\d{2}(T|\s)\d{2}:\d{2}/,
+	/^\d{4}-\d{2}-\d{2}$/,
+	/^[A-Z][a-z]{2},?\s+\d{1,2}\s+[A-Z][a-z]{2}\s+\d{4}/,
+];
 
 export function isDateValue(value: string): boolean {
 	return DATE_RE.some((re) => re.test(value));

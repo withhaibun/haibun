@@ -56,4 +56,7 @@ export const SHARED_STYLES = `
   .col-link:hover { text-decoration: underline; }
   .pred-link { color: #7b5ea7; text-decoration: none; cursor: pointer; font-style: italic; }
   .pred-link:hover { text-decoration: underline; }
+  .copy-btn { background: none; border: none; padding: 0 2px; font-size: 14px; cursor: pointer; opacity: 0.6; }
+  .copy-btn:hover { opacity: 1; }
+  .copy-btn.copied { opacity: 1; }
 `;
