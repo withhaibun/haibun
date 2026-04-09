@@ -39,7 +39,12 @@ export class FeatureVariables {
 		const result: { [name: string]: TStepValue } = {};
 		for (const q of quads) {
 			const isSecretVar = q.properties?.secret === true || this.isSecret(q.subject);
-			result[q.subject] = { term: q.subject, domain: q.predicate, value: isSecretVar ? OBSCURED_VALUE : q.object, origin: (q.properties?.origin as TOrigin) ?? Origin.var };
+			result[q.subject] = {
+				term: q.subject,
+				domain: q.predicate,
+				value: isSecretVar ? OBSCURED_VALUE : q.object,
+				origin: (q.properties?.origin as TOrigin) ?? Origin.var,
+			};
 		}
 		return result;
 	}
@@ -88,7 +93,14 @@ export class FeatureVariables {
 			kind: "artifact" as const,
 			artifactType: "json" as const,
 			mimetype: "application/json",
-			json: { quadObservation: { subject: sv.term, predicate: domainKey, object: this.isSecret(sv.term) ? OBSCURED_VALUE : normalized.value, namedGraph } },
+			json: {
+				quadObservation: {
+					subject: sv.term,
+					predicate: domainKey,
+					object: this.isSecret(sv.term) ? OBSCURED_VALUE : normalized.value,
+					namedGraph,
+				},
+			},
 		});
 	}
 
@@ -174,18 +186,27 @@ export class FeatureVariables {
 			resolved.value = domain.coerce({ ...(resolved as TStepValue), domain: domainKey }, featureStep, steppers);
 			resolved.domain = domainKey;
 			const isSecretValue = resolved.secret === true || this.isSecret(lookupTerm);
-			if (!options.secure && (resolved.origin === Origin.env || resolved.origin === Origin.var) && isSecretValue) resolved.value = OBSCURED_VALUE;
+			if (!options.secure && (resolved.origin === Origin.env || resolved.origin === Origin.var) && isSecretValue)
+				resolved.value = OBSCURED_VALUE;
 		}
 
 		return resolved as TStepValue;
 	}
 
 	/** Reconstruct a stored variable entry from the quad's properties. */
-	private async getStoredEntry(name: string): Promise<{ value: unknown; domain: string; readonly?: boolean; secret?: boolean; origin?: TOrigin } | undefined> {
+	private async getStoredEntry(
+		name: string,
+	): Promise<{ value: unknown; domain: string; readonly?: boolean; secret?: boolean; origin?: TOrigin } | undefined> {
 		const q = (await this.store.query({ subject: name, namedGraph: SHARED_GRAPH })).pop();
 		if (!q) return undefined;
 		const p = q.properties;
-		return { value: q.object, domain: q.predicate, readonly: p?.readonly === true, secret: p?.secret === true, origin: p?.origin as TOrigin | undefined };
+		return {
+			value: q.object,
+			domain: q.predicate,
+			readonly: p?.readonly === true,
+			secret: p?.secret === true,
+			origin: p?.origin as TOrigin | undefined,
+		};
 	}
 
 	private async resolveDotPath(lookupTerm: string): Promise<{ value: unknown; domain: string; found: boolean }> {
@@ -242,7 +263,12 @@ export class FeatureVariables {
 		return secrets;
 	}
 
-	private async writeQuads(name: string, sv: TStepValue, namedGraph: string = SHARED_GRAPH, provenance?: TProvenanceIdentifier): Promise<void> {
+	private async writeQuads(
+		name: string,
+		sv: TStepValue,
+		namedGraph: string = SHARED_GRAPH,
+		provenance?: TProvenanceIdentifier,
+	): Promise<void> {
 		const domainKey = normalizeDomainKey(sv.domain);
 		const properties: Record<string, unknown> = {};
 		if (sv.origin) properties.origin = sv.origin;

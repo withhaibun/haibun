@@ -36,8 +36,10 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 	private lastResolutionPath: string = "";
 	private ensuredInstances: Map<string, { proof: string[]; valid: boolean }> = new Map();
 	private ensureAttempts: Map<string, number> = new Map();
-	private registeredOutcomeMetadata: Map<string, { proofStatements: string[]; proofPath: string; isBackground: boolean; activityBlockSteps?: TStepInput[]; lineNumber?: number }> =
-		new Map();
+	private registeredOutcomeMetadata: Map<
+		string,
+		{ proofStatements: string[]; proofPath: string; isBackground: boolean; activityBlockSteps?: TStepInput[]; lineNumber?: number }
+	> = new Map();
 	private backgroundSteps: Record<string, TStepperStep> = {};
 	private inActivityBlock = false;
 
@@ -124,7 +126,15 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		activity: {
 			gwta: "Activity: {activity}",
 			action: () => OK,
-			resolveFeatureLine: (line: string, path: string, _stepper: AStepper, _backgrounds: TFeatures, allLines?: string[], lineIndex?: number, actualSourcePath?: string) => {
+			resolveFeatureLine: (
+				line: string,
+				path: string,
+				_stepper: AStepper,
+				_backgrounds: TFeatures,
+				allLines?: string[],
+				lineIndex?: number,
+				actualSourcePath?: string,
+			) => {
 				this.lastResolutionPath = path;
 
 				if (line.match(/^Activity:/i)) {
@@ -237,7 +247,9 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				const metadata = this.registeredOutcomeMetadata.get(pattern);
 				if (!metadata || metadata.proofStatements.length === 0) {
 					this.emitEnsureEnd(featureStep, outcomeKey, false, "no proof defined");
-					return actionNotOK(`ensure: waypoint "${outcomeKey}" has no proof. ensure can only be used with waypoints that have a proof.`);
+					return actionNotOK(
+						`ensure: waypoint "${outcomeKey}" has no proof. ensure can only be used with waypoints that have a proof.`,
+					);
 				}
 
 				const activityArgs: Record<string, string> = {};
@@ -467,7 +479,9 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 							parentStep: featureStep,
 						});
 						if (!verify.ok) {
-							return actionNotOK(`ActivitiesStepper: proof verification failed after activity body for outcome "${outcome}": ${verify.errorMessage}`);
+							return actionNotOK(
+								`ActivitiesStepper: proof verification failed after activity body for outcome "${outcome}": ${verify.errorMessage}`,
+							);
 						}
 					}
 					return actionOKWithProducts({ proofStatements });
@@ -602,7 +616,15 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				activityBlockSteps = blockLines;
 			}
 		}
-		this.registerOutcome(outcome, proofStatements, path, isBackground, activityBlockSteps, lineIndex !== undefined ? lineIndex + 1 : undefined, actualSourcePath);
+		this.registerOutcome(
+			outcome,
+			proofStatements,
+			path,
+			isBackground,
+			activityBlockSteps,
+			lineIndex !== undefined ? lineIndex + 1 : undefined,
+			actualSourcePath,
+		);
 		return true;
 	}
 }

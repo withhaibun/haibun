@@ -5,6 +5,34 @@
  * aligning with AGE's vertex properties for seamless PG persistence.
  * All methods are async to support both in-memory and database-backed stores.
  */
+import { z } from "zod";
+
+// --- Graph query schema (core domain, used by any graph/quad query UI) ---
+
+export const DOMAIN_GRAPH_QUERY = "graph-query";
+
+export const SearchConditionSchema = z.object({
+	predicate: z.string().min(1),
+	operator: z.enum(["eq", "contains", "gt", "lt", "gte", "lte", "between"]),
+	value: z.string(),
+	value2: z.string().optional(),
+});
+
+export const GraphQuerySchema = z.object({
+	label: z.string().optional(),
+	filters: z.array(SearchConditionSchema).default([]),
+	textQuery: z.string().optional(),
+	sortBy: z.string().optional(),
+	sortOrder: z.enum(["asc", "desc"]).default("desc"),
+	limit: z.number().int().positive().default(50),
+	offset: z.number().int().nonnegative().default(0),
+	accessLevel: z.enum(["private", "public", "opened", "all"]).default("private"),
+	fields: z.array(z.string()).optional(),
+	explain: z.boolean().default(false),
+});
+export type TGraphQuery = z.infer<typeof GraphQuerySchema>;
+
+export { type ResourceRels, buildResourceRels, parseTimestampValue } from "./resource-rels.js";
 
 export interface TQuad {
 	subject: string;
@@ -48,6 +76,10 @@ export interface IQuadStore {
 	upsertVertex(label: string, data: unknown): Promise<string>;
 	getVertex<T = Record<string, unknown>>(label: string, id: string): Promise<T | undefined>;
 	deleteVertex(label: string, id: string): Promise<void>;
-	queryVertices<T = Record<string, unknown>>(label: string, filters?: Record<string, unknown>, options?: { limit?: number; offset?: number }): Promise<T[]>;
+	queryVertices<T = Record<string, unknown>>(
+		label: string,
+		filters?: Record<string, unknown>,
+		options?: { limit?: number; offset?: number },
+	): Promise<T[]>;
 	distinctPropertyValues(label: string, property: string): Promise<string[]>;
 }

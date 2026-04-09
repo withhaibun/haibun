@@ -30,10 +30,14 @@ describe("getFeaturesAndBackgrounds", () => {
 		await expect(getFeaturesAndBackgrounds(["/"], [], undefined, { existsSync: () => false })).rejects.toThrow();
 	});
 	it("no features or backgrounds", async () => {
-		await expect(getFeaturesAndBackgrounds(["/"], [], undefined, { existsSync: () => true, readdirSync: () => [] })).rejects.toThrow();
+		await expect(
+			getFeaturesAndBackgrounds(["/"], [], undefined, { existsSync: () => true, readdirSync: () => [] }),
+		).rejects.toThrow();
 	});
 	it("no features", async () => {
-		await expect(getFeaturesAndBackgrounds(["/0"], [], undefined, nfs({ "/0/backgrounds": { "a.feature": "#" } }))).rejects.toThrow();
+		await expect(
+			getFeaturesAndBackgrounds(["/0"], [], undefined, nfs({ "/0/backgrounds": { "a.feature": "#" } })),
+		).rejects.toThrow();
 	});
 	it("gets features", async () => {
 		expect(await getFeaturesAndBackgrounds(["/0"], [], undefined, nfs({ "/0/features": { "a.feature": "#" } }))).toEqual({
@@ -42,7 +46,12 @@ describe("getFeaturesAndBackgrounds", () => {
 		});
 	});
 	it("gets features and backgrounds", async () => {
-		const res = await getFeaturesAndBackgrounds(["/0"], [], undefined, nfs({ "/0/features": { "a.feature": "#" }, "/0/backgrounds": { "b.feature": "#" } }));
+		const res = await getFeaturesAndBackgrounds(
+			["/0"],
+			[],
+			undefined,
+			nfs({ "/0/features": { "a.feature": "#" }, "/0/backgrounds": { "b.feature": "#" } }),
+		);
 		expect(res).toEqual({
 			features: [{ base: "/0", path: "/features/a.feature", name: "/0/features/a", type: "feature", content: "#" }],
 			backgrounds: [{ base: "/0", path: "/backgrounds/b.feature", name: "/0/backgrounds/b", type: "feature", content: "#" }],
@@ -50,10 +59,19 @@ describe("getFeaturesAndBackgrounds", () => {
 	});
 
 	it("multi-base no features or backgrounds", async () => {
-		await expect(getFeaturesAndBackgrounds(["/,x"], [], undefined, { existsSync: () => true, readdirSync: () => [] })).rejects.toThrow();
+		await expect(
+			getFeaturesAndBackgrounds(["/,x"], [], undefined, { existsSync: () => true, readdirSync: () => [] }),
+		).rejects.toThrow();
 	});
 	it("multi-base gets features", async () => {
-		expect(await getFeaturesAndBackgrounds(basesFrom("/0,/1"), [], undefined, nfs({ "/0/features": { "a.feature": "#" }, "/1/features": { "b.feature": "#" } }))).toEqual({
+		expect(
+			await getFeaturesAndBackgrounds(
+				basesFrom("/0,/1"),
+				[],
+				undefined,
+				nfs({ "/0/features": { "a.feature": "#" }, "/1/features": { "b.feature": "#" } }),
+			),
+		).toEqual({
 			features: [
 				{ base: "/0", path: "/features/a.feature", name: "/0/features/a", type: "feature", content: "#" },
 				{ base: "/1", path: "/features/b.feature", name: "/1/features/b", type: "feature", content: "#" },
@@ -63,17 +81,33 @@ describe("getFeaturesAndBackgrounds", () => {
 	});
 	it("multi-base no features", async () => {
 		await expect(
-			getFeaturesAndBackgrounds("/0,/1".split(","), [], undefined, nfs({ "/0/backgrounds": { "a.feature": "#" }, "/1/backgrounds": { "a.feature": "#" } })),
+			getFeaturesAndBackgrounds(
+				"/0,/1".split(","),
+				[],
+				undefined,
+				nfs({ "/0/backgrounds": { "a.feature": "#" }, "/1/backgrounds": { "a.feature": "#" } }),
+			),
 		).rejects.toThrow();
 	});
 	it("multi-base no features or backgrounds from first dir", async () => {
-		await expect(getFeaturesAndBackgrounds(basesFrom("/0,/1"), [], undefined, nfs({ "/1/backgrounds": { "a.feature": "#" } }))).rejects.toThrow();
+		await expect(
+			getFeaturesAndBackgrounds(basesFrom("/0,/1"), [], undefined, nfs({ "/1/backgrounds": { "a.feature": "#" } })),
+		).rejects.toThrow();
 	});
 	it("multi-base no features or backgrounds from second dir", async () => {
-		await expect(getFeaturesAndBackgrounds(basesFrom("/0,/1"), [], undefined, nfs({ "/0/backgrounds": { "a.feature": "#" } }))).rejects.toThrow();
+		await expect(
+			getFeaturesAndBackgrounds(basesFrom("/0,/1"), [], undefined, nfs({ "/0/backgrounds": { "a.feature": "#" } })),
+		).rejects.toThrow();
 	});
 	it("multi-base get features and backgrounds", async () => {
-		expect(await getFeaturesAndBackgrounds(basesFrom("/0,/1"), [], undefined, nfs({ "/0/backgrounds": { "a.feature": "#" }, "/1/features": { "b.feature": "#" } }))).toEqual({
+		expect(
+			await getFeaturesAndBackgrounds(
+				basesFrom("/0,/1"),
+				[],
+				undefined,
+				nfs({ "/0/backgrounds": { "a.feature": "#" }, "/1/features": { "b.feature": "#" } }),
+			),
+		).toEqual({
 			features: [{ base: "/1", path: "/features/b.feature", name: "/1/features/b", type: "feature", content: "#" }],
 			backgrounds: [{ base: "/0", path: "/backgrounds/a.feature", name: "/0/backgrounds/a", type: "feature", content: "#" }],
 		});

@@ -43,7 +43,9 @@ describe("vars", () => {
 			moduleOptions: {},
 		});
 		expect(res.ok).toBe(true);
-		const collector = res.steppers?.find((stepper) => stepper instanceof EventCollectorStepper) as EventCollectorStepper | undefined;
+		const collector = res.steppers?.find((stepper) => stepper instanceof EventCollectorStepper) as
+			| EventCollectorStepper
+			| undefined;
 		expect(collector).toBeDefined();
 		const logEvents = collector?.findEvents((event) => event.kind === "log") ?? [];
 		const logMessage = logEvents
@@ -62,10 +64,14 @@ describe("vars", () => {
 			moduleOptions: {},
 		});
 		expect(res.ok).toBe(true);
-		const collector = res.steppers?.find((stepper) => stepper instanceof EventCollectorStepper) as EventCollectorStepper | undefined;
+		const collector = res.steppers?.find((stepper) => stepper instanceof EventCollectorStepper) as
+			| EventCollectorStepper
+			| undefined;
 		expect(collector).toBeDefined();
 		const logEvents = collector?.findEvents((event) => event.kind === "log") ?? [];
-		const logMessage = logEvents.map((event) => ("message" in event ? event.message : "")).find((message) => typeof message === "string" && message.includes("login hint is"));
+		const logMessage = logEvents
+			.map((event) => ("message" in event ? event.message : ""))
+			.find((message) => typeof message === "string" && message.includes("login hint is"));
 		expect(logMessage).toBeDefined();
 		expect(logMessage).toContain("Enter password");
 		expect(logMessage).not.toContain(OBSCURED_VALUE);
@@ -113,10 +119,14 @@ describe("random vars", () => {
 		expect(res.ok).toBe(true);
 		expect(await res.world.shared.get("token", true)).toBe("secret-123");
 		expect(await res.world.shared.get("token")).toBe(OBSCURED_VALUE);
-		const collector = res.steppers?.find((stepper) => stepper instanceof EventCollectorStepper) as EventCollectorStepper | undefined;
+		const collector = res.steppers?.find((stepper) => stepper instanceof EventCollectorStepper) as
+			| EventCollectorStepper
+			| undefined;
 		expect(collector).toBeDefined();
 		const logEvents = collector?.findEvents((event) => event.kind === "log") ?? [];
-		const logMessage = logEvents.map((event) => ("message" in event ? event.message : "")).find((message) => typeof message === "string" && message.includes("token is"));
+		const logMessage = logEvents
+			.map((event) => ("message" in event ? event.message : ""))
+			.find((message) => typeof message === "string" && message.includes("token is"));
 		expect(logMessage).toBeDefined();
 		expect(logMessage).toContain(OBSCURED_VALUE);
 		expect(logMessage).not.toContain("secret-123");
