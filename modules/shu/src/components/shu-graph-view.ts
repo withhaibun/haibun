@@ -12,14 +12,15 @@ import { ShuElement } from "./shu-element.js";
 import { SseClient } from "../sse-client.js";
 import { SHU_EVENT } from "../consts.js";
 import { openQuadDetailPane } from "../quad-detail-pane.js";
-import { getEdgeRanges, getRels } from "../rels-cache.js";
-import { getAvailableSteps } from "../rpc-registry.js";
-import { LinkRelations } from "@haibun/core/lib/defs.js";
+import { getEdgeRanges, getEdgeRelMap, getRels } from "../rels-cache.js";
+import { getAvailableSteps, getStepperForType } from "../rpc-registry.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
+import { buildMermaidSource, buildClassifier, DEFAULT_MAX_PER_SUBGRAPH, type TGraphViewOpts } from "../mermaid-source.js";
 
 let mermaidInitialized = false;
 
-const DEFAULT_MAX_PER_SUBGRAPH = 20;
+const browserClassifier = buildClassifier(getRels, getEdgeRanges, getStepperForType, undefined);
+browserClassifier.relForEdge = (_graph: string, predicate: string) => getEdgeRelMap()[predicate];
 
 const StateSchema = z.object({
 	quads: z
@@ -41,184 +42,6 @@ const StateSchema = z.object({
 	maxPerSubgraph: z.number().default(DEFAULT_MAX_PER_SUBGRAPH),
 });
 
-/** Escape mermaid special chars in labels */
-function esc(s: string): string {
-	return String(s)
-		.replace(/"/g, "#quot;")
-		.replace(/[[\](){}|<>]/g, " ");
-}
-
-function sanitizeId(s: string): string {
-	return s.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 60);
-}
-
-function truncate(s: string, max = 30): string {
-	const str = esc(String(s));
-	return str.length > max ? `${str.slice(0, max)}...` : str;
-}
-
-type TPropKind = "name" | "identifier" | "edge" | "content" | "internal" | "scalar";
-const EDGE_RELS: Set<string> = new Set([LinkRelations.ATTRIBUTED_TO.rel, LinkRelations.AUDIENCE.rel, LinkRelations.IN_REPLY_TO.rel, LinkRelations.ATTACHMENT.rel]);
-
-/** Properties that are opaque blobs — excluded from graph rendering. */
-const INTERNAL_PREDICATES = new Set(["signedDocument", "encodedList", "proofValue", "accessLevel"]);
-
-/** Classify properties by their AS2 rel */
-function classifyProperty(graph: string, predicate: string): TPropKind {
-	if (predicate.startsWith("_") || INTERNAL_PREDICATES.has(predicate)) return "internal";
-	const edges = getEdgeRanges(graph);
-	if (edges?.[predicate]) return "edge";
-	const rels = getRels(graph);
-	const rel = rels?.[predicate];
-	if (!rel) return "scalar";
-	if (rel === LinkRelations.NAME.rel) return "name";
-	if (rel === LinkRelations.IDENTIFIER.rel) return "identifier";
-	if (rel === LinkRelations.CONTENT.rel) return "content";
-	if (EDGE_RELS.has(rel)) return "edge";
-	return "scalar";
-}
-
-type TGraphViewOpts = { layout: "TD" | "LR"; hiddenGraphs: Set<string>; expandedGraphs: Set<string>; maxPerSubgraph: number };
-type TBuildResult = { source: string; nodeMap: Map<string, { graph: string; subject: string }> };
-
-/** Check if a string looks like a URI or resolvable path. */
-function isUri(s: string): boolean {
-	return /^(did:|urn:|https?:\/\/|\/)/.test(s);
-}
-
-function buildMermaidSource(quads: TQuad[], opts: TGraphViewOpts): TBuildResult {
-	const { layout, hiddenGraphs, expandedGraphs, maxPerSubgraph } = opts;
-	const visible = quads.filter((q) => !hiddenGraphs.has(q.namedGraph));
-	const entityIds = new Set(visible.map((q) => q.subject));
-
-	// Collect external URI references (edge targets not in our entity set)
-	const externalIds = new Set<string>();
-	for (const q of visible) {
-		if (typeof q.object === "string" && classifyProperty(q.namedGraph, q.predicate) === "edge" && !entityIds.has(q.object) && q.object !== q.subject && isUri(q.object)) {
-			externalIds.add(q.object);
-		}
-	}
-
-	// Group quads by named graph, then by subject
-	const byGraph = new Map<string, Map<string, TQuad[]>>();
-	for (const q of visible) {
-		let graphMap = byGraph.get(q.namedGraph);
-		if (!graphMap) {
-			graphMap = new Map();
-			byGraph.set(q.namedGraph, graphMap);
-		}
-		let subjectQuads = graphMap.get(q.subject);
-		if (!subjectQuads) {
-			subjectQuads = [];
-			graphMap.set(q.subject, subjectQuads);
-		}
-		subjectQuads.push(q);
-	}
-
-	const lines: string[] = [`graph ${layout}`];
-	const nodeIds = new Set<string>();
-	const nodeMap = new Map<string, { graph: string; subject: string }>();
-	const edges: string[] = [];
-
-	for (const [graph, subjects] of byGraph) {
-		const graphId = sanitizeId(graph);
-		const total = subjects.size;
-		const expanded = expandedGraphs.has(graph);
-		const collapsed = !expanded && total > maxPerSubgraph;
-
-		if (collapsed) {
-			// Render as a single summary node — clickable to expand
-			const summaryId = sanitizeId(`${graph}__summary`);
-			nodeIds.add(summaryId);
-			lines.push(`  subgraph ${graphId}["${esc(graph)}"]`);
-			lines.push(`    ${summaryId}[["${esc(graph)}\n${total} items"]]`);
-			lines.push("  end");
-
-			// Still emit edges FROM collapsed nodes to visible nodes using the summary as source
-			for (const [subject, subjectQuads] of subjects) {
-				for (const q of subjectQuads) {
-					if (typeof q.object !== "string" || classifyProperty(graph, q.predicate) !== "edge") continue;
-					if (q.object === subject) continue;
-					const isExternal = externalIds.has(q.object);
-					if (!entityIds.has(q.object) && !isExternal) continue;
-					const targetId = isExternal ? sanitizeId(`ref_${q.object}`) : (() => {
-						const targetGraph = visible.find((v) => v.subject === q.object)?.namedGraph ?? graph;
-						if (hiddenGraphs.has(targetGraph)) return null;
-						const targetSubjects = byGraph.get(targetGraph);
-						const targetCollapsed = targetSubjects && !expandedGraphs.has(targetGraph) && targetSubjects.size > maxPerSubgraph;
-						return targetCollapsed ? sanitizeId(`${targetGraph}__summary`) : sanitizeId(`${targetGraph}_${q.object}`);
-					})();
-					if (!targetId) continue;
-					if (!edges.some((e) => e.includes(`${summaryId} -->`) && e.includes(targetId))) {
-						edges.push(`  ${summaryId} -->|${truncate(q.predicate, 20)}| ${targetId}`);
-					}
-				}
-			}
-			continue;
-		}
-
-		lines.push(`  subgraph ${graphId}["${esc(graph)} (${total})"]`);
-
-		for (const [subject, subjectQuads] of subjects) {
-			const nodeId = sanitizeId(`${graph}_${subject}`);
-			nodeIds.add(nodeId);
-			nodeMap.set(nodeId, { graph, subject });
-
-			const nameQuad = subjectQuads.find((q) => classifyProperty(graph, q.predicate) === "name");
-			const displayName = nameQuad ? truncate(String(nameQuad.object), 30) : truncate(subject, 25);
-
-			const contentQuad = subjectQuads.find((q) => classifyProperty(graph, q.predicate) === "content");
-			const contentStr = contentQuad ? `\n${truncate(String(contentQuad.object), 40)}` : "";
-
-			const props: string[] = [];
-			for (const q of subjectQuads) {
-				if (classifyProperty(graph, q.predicate) !== "scalar") continue;
-				props.push(`${esc(q.predicate)}: ${truncate(String(q.object), 25)}`);
-				if (props.length >= 3) break;
-			}
-
-			const propsStr = props.length > 0 ? `\n${props.join("\n")}` : "";
-			lines.push(`    ${nodeId}["${displayName}${contentStr}${propsStr}"]`);
-
-			for (const q of subjectQuads) {
-				if (typeof q.object !== "string" || classifyProperty(graph, q.predicate) !== "edge") continue;
-				if (q.object === subject) continue;
-				const isExternal = externalIds.has(q.object);
-				if (!entityIds.has(q.object) && !isExternal) continue;
-				const targetId = isExternal ? sanitizeId(`ref_${q.object}`) : (() => {
-					const tg = visible.find((v) => v.subject === q.object)?.namedGraph ?? graph;
-					if (hiddenGraphs.has(tg)) return null;
-					const ts = byGraph.get(tg);
-					const tc = ts && !expandedGraphs.has(tg) && ts.size > maxPerSubgraph;
-					return tc ? sanitizeId(`${tg}__summary`) : sanitizeId(`${tg}_${q.object}`);
-				})();
-				if (!targetId) continue;
-				const edgeLine = `  ${nodeId} -->|${truncate(q.predicate, 20)}| ${targetId}`;
-				if (!entityIds.has(q.object)) {
-					if (!edges.some((e) => e.includes(`${nodeId} -->`) && e.includes(targetId) && e.includes(q.predicate))) edges.push(edgeLine);
-				} else {
-					edges.push(edgeLine);
-				}
-			}
-		}
-
-		lines.push("  end");
-	}
-
-	// Add referenced resource nodes (URIs referenced by edges but without full vertex data)
-	if (externalIds.size > 0) {
-		for (const uri of externalIds) {
-			const refId = sanitizeId(`ref_${uri}`);
-			nodeIds.add(refId);
-			nodeMap.set(refId, { graph: "resource", subject: uri });
-			lines.push(`  ${refId}(["${truncate(uri, 40)}"])`);
-		}
-	}
-
-	lines.push(...edges);
-	return { source: lines.join("\n"), nodeMap };
-}
-
 const STYLES = `
 :host { display: block; overflow: auto; }
 .toolbar { display: flex; gap: 4px; align-items: center; padding: 4px 8px; border-bottom: 1px solid #ddd; flex-wrap: wrap; }
@@ -227,6 +50,10 @@ const STYLES = `
 .diagram-container { overflow: auto; padding: 8px; }
 .diagram-container .node rect, .diagram-container .node polygon { cursor: pointer; }
 .diagram-container .nodeLabel { text-align: left !important; }
+.diagram-container.hovering .node { opacity: 0.15; transition: opacity 0.15s; }
+.diagram-container.hovering .node.neighbor { opacity: 1; transition: opacity 0.15s; }
+.diagram-container .node { transition: opacity 0.15s; }
+.diagram-container path.edge-pattern-dotted { stroke-dasharray: 8 4 !important; stroke-width: 1.5px !important; opacity: 0.7; }
 .zoom-label { color: #666; }
 .quad-count { color: #888; margin-left: auto; }
 .empty { padding: 16px; color: #888; text-align: center; }
@@ -238,7 +65,11 @@ const HIDDEN_GRAPHS_COOKIE = "shu-graph-hidden";
 function readHiddenGraphsCookie(): string[] {
 	const match = document.cookie.match(new RegExp(`(?:^|; )${HIDDEN_GRAPHS_COOKIE}=([^;]*)`));
 	if (!match) return [];
-	try { return JSON.parse(decodeURIComponent(match[1])); } catch { return []; }
+	try {
+		return JSON.parse(decodeURIComponent(match[1]));
+	} catch {
+		return [];
+	}
 }
 
 function writeHiddenGraphsCookie(hidden: string[]): void {
@@ -249,9 +80,18 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 	private diagramId = `shu-graph-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 	private unsubscribe?: () => void;
 	private currentNodeMap = new Map<string, { graph: string; subject: string }>();
+	private visibleQuads: TQuad[] = [];
+	private lastMermaidSource = "";
 
 	constructor() {
-		super(StateSchema, { quads: [], zoom: 100, layout: "TD", hiddenGraphs: readHiddenGraphsCookie(), expandedGraphs: [], maxPerSubgraph: DEFAULT_MAX_PER_SUBGRAPH });
+		super(StateSchema, {
+			quads: [],
+			zoom: 100,
+			layout: "TD",
+			hiddenGraphs: readHiddenGraphsCookie(),
+			expandedGraphs: [],
+			maxPerSubgraph: DEFAULT_MAX_PER_SUBGRAPH,
+		});
 	}
 
 	async connectedCallback(): Promise<void> {
@@ -279,6 +119,26 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 		});
 	}
 
+	private lastTimeSyncRender = 0;
+	private timeSyncTimer = 0;
+
+	protected override onTimeSync(): void {
+		// Throttle: render at most every 500ms during continuous play
+		const now = Date.now();
+		if (now - this.lastTimeSyncRender >= 500) {
+			this.lastTimeSyncRender = now;
+			this.visibleQuads = this.filterByTime(this.state.quads);
+			void this.renderMermaid();
+		} else if (!this.timeSyncTimer) {
+			this.timeSyncTimer = window.setTimeout(() => {
+				this.timeSyncTimer = 0;
+				this.lastTimeSyncRender = Date.now();
+				this.visibleQuads = this.filterByTime(this.state.quads);
+				void this.renderMermaid();
+			}, 500);
+		}
+	}
+
 	disconnectedCallback(): void {
 		this.unsubscribe?.();
 	}
@@ -292,11 +152,15 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 			return;
 		}
 
-		const graphs = [...new Set(quads.map((q) => q.namedGraph))].sort();
+		// Filter quads by time cursor — show graph state at that moment
+		this.visibleQuads = this.filterByTime(quads);
+		const visibleQuads = this.visibleQuads;
+		const graphs = [...new Set(visibleQuads.map((q) => q.namedGraph))].sort();
 		const hiddenSet = new Set(hiddenGraphs);
 
 		const filterHtml = graphs.map((g) => `<label><input type="checkbox" data-graph="${g}" ${hiddenSet.has(g) ? "" : "checked"}> ${g}</label>`).join("");
 
+		this.lastMermaidSource = "";
 		this.shadowRoot.innerHTML = `${this.css(STYLES)}
 			<div class="toolbar" data-testid="graph-view-toolbar">
 				<button data-action="layout">${layout}</button>
@@ -323,7 +187,7 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 				if (action === "zoom-in") this.setState({ zoom: Math.min(200, this.state.zoom + 10) });
 				else if (action === "zoom-out") this.setState({ zoom: Math.max(10, this.state.zoom - 10) });
 				else if (action === "layout") this.setState({ layout: this.state.layout === "TD" ? "LR" : "TD" });
-				else if (action === "copy") navigator.clipboard.writeText(buildMermaidSource(this.state.quads, this.buildOpts()).source);
+				else if (action === "copy") navigator.clipboard.writeText(buildMermaidSource(this.visibleQuads, this.buildOpts(), browserClassifier).source);
 			});
 		});
 		this.shadowRoot?.querySelectorAll("input[data-graph]").forEach((cb) => {
@@ -356,24 +220,28 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 
 	private async renderMermaid(): Promise<void> {
 		if (!mermaidInitialized) {
-			mermaid.initialize({ startOnLoad: false, theme: "default", securityLevel: "loose", fontFamily: "ui-sans-serif, system-ui, sans-serif", maxTextSize: 200000 });
+			mermaid.initialize({
+				startOnLoad: false,
+				theme: "default",
+				securityLevel: "loose",
+				fontFamily: "ui-sans-serif, system-ui, sans-serif",
+				maxTextSize: 200000,
+			});
 			mermaidInitialized = true;
 		}
-		const { source, nodeMap } = buildMermaidSource(this.state.quads, this.buildOpts());
+		const { source, nodeMap } = buildMermaidSource(this.visibleQuads, this.buildOpts(), browserClassifier);
+		if (source === this.lastMermaidSource) return;
+		this.lastMermaidSource = source;
 		this.currentNodeMap = nodeMap;
 		try {
 			const { svg } = await mermaid.render(this.diagramId, source);
 			const container = this.shadowRoot?.querySelector(".diagram-container");
 			if (container) {
+				const scrollTop = container.scrollTop;
+				const scrollLeft = container.scrollLeft;
 				container.innerHTML = `<div>${svg}</div>`;
-				// Debug: log all elements with IDs in the SVG
-				const allIds = container.querySelectorAll("[id]");
-				console.debug(
-					"[graph-view] SVG ids:",
-					Array.from(allIds)
-						.slice(0, 10)
-						.map((el) => `${el.tagName}#${el.id}`),
-				);
+				container.scrollTop = scrollTop;
+				container.scrollLeft = scrollLeft;
 				this.bindNodeClicks(container);
 			}
 		} catch (err) {
@@ -382,18 +250,62 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 		}
 	}
 
-	/** Make nodes clickable by querying the rendered SVG for g elements with flowchart node IDs */
+	/** Make nodes clickable; highlight node + its neighbors + connecting edges on hover. */
 	private bindNodeClicks(container: Element): void {
 		const svg = container.querySelector("svg");
 		if (!svg) return;
-		let bound = 0;
+
+		// Pass 1: collect node rawIds
+		const nodeElements = new Map<string, Element>();
+		const allNodeIds = new Set<string>();
 		svg.querySelectorAll("g[id]").forEach((g) => {
 			const id = g.getAttribute("id") ?? "";
-			const flowchartIdx = id.indexOf("flowchart-");
-			if (flowchartIdx < 0) return;
-			const rawId = id.slice(flowchartIdx + "flowchart-".length).replace(/-\d+$/, "");
-			if (!rawId || (!this.currentNodeMap.has(rawId) && !rawId.endsWith("__summary"))) return;
+			const idx = id.indexOf("flowchart-");
+			if (idx < 0) return;
+			const rawId = id.slice(idx + "flowchart-".length).replace(/-\d+$/, "");
+			if (rawId && (this.currentNodeMap.has(rawId) || rawId.endsWith("__summary"))) {
+				nodeElements.set(rawId, g);
+				allNodeIds.add(rawId);
+			}
+		});
+
+		// Pass 2: build adjacency from edge path IDs (format: prefix-L_FROM_TO_IDX)
+		const neighbors = new Map<string, Set<string>>();
+		svg.querySelectorAll("path.flowchart-link").forEach((path) => {
+			const pid = path.getAttribute("id") ?? "";
+			const lIdx = pid.indexOf("-L_");
+			if (lIdx < 0) return;
+			const body = pid.slice(lIdx + 3, pid.lastIndexOf("_"));
+			for (let i = 1; i < body.length; i++) {
+				if (body[i] !== "_") continue;
+				const from = body.slice(0, i);
+				const to = body.slice(i + 1);
+				if (allNodeIds.has(from) && allNodeIds.has(to)) {
+					if (!neighbors.has(from)) neighbors.set(from, new Set());
+					if (!neighbors.has(to)) neighbors.set(to, new Set());
+					neighbors.get(from)?.add(to);
+					neighbors.get(to)?.add(from);
+					break;
+				}
+			}
+		});
+
+		// Pass 3: bind hover and click events
+		let bound = 0;
+		for (const [rawId, g] of nodeElements) {
 			(g as SVGGElement).style.cursor = "pointer";
+
+			g.addEventListener("mouseenter", () => {
+				container.classList.add("hovering");
+				g.classList.add("neighbor");
+				const nb = neighbors.get(rawId);
+				if (nb) nb.forEach((nid) => nodeElements.get(nid)?.classList.add("neighbor"));
+			});
+			g.addEventListener("mouseleave", () => {
+				container.classList.remove("hovering");
+				svg.querySelectorAll(".neighbor").forEach((el) => el.classList.remove("neighbor"));
+			});
+
 			g.addEventListener("click", (e) => {
 				e.stopPropagation();
 				if (rawId.endsWith("__summary")) {
@@ -403,13 +315,19 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 				const entry = this.currentNodeMap.get(rawId);
 				if (!entry) return;
 				if (getRels(entry.graph)) {
-					this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN, { detail: { label: entry.graph, subject: entry.subject }, bubbles: true, composed: true }));
+					this.dispatchEvent(
+						new CustomEvent(SHU_EVENT.COLUMN_OPEN, {
+							detail: { label: entry.graph, subject: entry.subject },
+							bubbles: true,
+							composed: true,
+						}),
+					);
 				} else {
 					this.showQuadDetail(entry.graph, entry.subject);
 				}
 			});
 			bound++;
-		});
+		}
 		console.debug("[graph-view] bound", bound, "clickable nodes");
 	}
 
