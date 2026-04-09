@@ -25,7 +25,9 @@ export const ArtifactRow = ({ e, onSelect, isSerializedMode, isSelected }: Artif
 				<span className="font-mono">📎 {e.artifactType}</span>
 				{"path" in e && <span className="text-slate-500 truncate">- {e.path}</span>}
 				{display && (
-					<span className="ml-auto text-[9px] text-slate-400 px-2 shrink-0 italic">{!isSerializedMode && full ? <VSCodeLink path={full}>{display}</VSCodeLink> : display}</span>
+					<span className="ml-auto text-[9px] text-slate-400 px-2 shrink-0 italic">
+						{!isSerializedMode && full ? <VSCodeLink path={full}>{display}</VSCodeLink> : display}
+					</span>
 				)}
 			</button>
 		</div>

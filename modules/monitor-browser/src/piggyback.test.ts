@@ -76,7 +76,11 @@ describe("MonitorBrowserStepper Piggybacking", () => {
 		fs.mkdirSync(projectPath, { recursive: true });
 
 		const config = {
-			steppers: [MONITOR_STEPPER_PATH.replace(/\.js$/, ""), STORAGE_STEPPER_PATH.replace(/\.js$/, ""), HAIBUN_STEPPER_PATH.replace(/\.js$/, "")],
+			steppers: [
+				MONITOR_STEPPER_PATH.replace(/\.js$/, ""),
+				STORAGE_STEPPER_PATH.replace(/\.js$/, ""),
+				HAIBUN_STEPPER_PATH.replace(/\.js$/, ""),
+			],
 			options: {},
 		};
 		fs.writeFileSync(path.join(projectPath, "config.json"), JSON.stringify(config, null, 2));
@@ -100,10 +104,14 @@ describe("MonitorBrowserStepper Piggybacking", () => {
 	it("piggybacks on existing monitor and sends events", { timeout: 15000 }, async () => {
 		const portOption = getStepperOptionName(MonitorBrowserStepper, "PORT");
 
-		const result = await passWithDefaults([{ path: "/f.feature", content: "Piggy." }], [MonitorBrowserStepper, MockStorageStepper, Haibun], {
-			...DEF_PROTO_OPTIONS,
-			moduleOptions: { [portOption]: String(PORT) },
-		});
+		const result = await passWithDefaults(
+			[{ path: "/f.feature", content: "Piggy." }],
+			[MonitorBrowserStepper, MockStorageStepper, Haibun],
+			{
+				...DEF_PROTO_OPTIONS,
+				moduleOptions: { [portOption]: String(PORT) },
+			},
+		);
 
 		expect(result.ok).toBe(true);
 		expect(MonitorBrowserStepper.transport).toBeInstanceOf(RemoteTransport);

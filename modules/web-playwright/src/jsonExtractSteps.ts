@@ -42,7 +42,10 @@ const valueToString = (value: unknown): string => {
 export const jsonExtractSteps = (webPlaywright: WebPlaywright): TStepperSteps => ({
 	extractPropertyFromResponseJson: {
 		gwta: `extract property {property} from {ordinal} item in JSON response into {variable}`,
-		action: async ({ property, ordinal = "1st", variable }: { property: string; ordinal?: string; variable: string }, featureStep: TFeatureStep) => {
+		action: async (
+			{ property, ordinal = "1st", variable }: { property: string; ordinal?: string; variable: string },
+			featureStep: TFeatureStep,
+		) => {
 			const lastResponse = await webPlaywright.getLastResponse();
 
 			if (!lastResponse?.json) {
@@ -66,7 +69,9 @@ export const jsonExtractSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 					{ in: featureStep.in, seq: featureStep.seqPath, when: `jsonExtractSteps.extractPropertyFromResponseJson` },
 				);
 
-			webPlaywright.getWorld().eventLogger.info(`Extracted ${property}='${valueStr}' from ${ordinal} item into variable '${variable}'`);
+			webPlaywright
+				.getWorld()
+				.eventLogger.info(`Extracted ${property}='${valueStr}' from ${ordinal} item into variable '${variable}'`);
 
 			return OK;
 		},

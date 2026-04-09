@@ -40,7 +40,9 @@ function JsonNode({ keyName, value, depth, isArrayIndex, collapsed }: JsonNodePr
 	if (!isComplex) {
 		return (
 			<div className="json-line py-0.5 font-mono text-[10px]" style={{ marginLeft }}>
-				<span className={`px-1 rounded ${isArrayIndex ? "bg-blue-600 text-white" : "bg-amber-700 text-white"}`}>{isArrayIndex ? `[${keyName}]` : `"${keyName}"`}</span>
+				<span className={`px-1 rounded ${isArrayIndex ? "bg-blue-600 text-white" : "bg-amber-700 text-white"}`}>
+					{isArrayIndex ? `[${keyName}]` : `"${keyName}"`}
+				</span>
 				<span className="mx-1">:</span>
 				<span className={getPrimitiveClassName(value)}>{formatPrimitive(value)}</span>
 			</div>
@@ -55,7 +57,9 @@ function JsonNode({ keyName, value, depth, isArrayIndex, collapsed }: JsonNodePr
 		<details open={isOpen} onToggle={onToggle} className="json-expandable" style={{ marginLeft }}>
 			<summary className="cursor-pointer py-0.5 font-mono text-[10px] hover:bg-gray-100 list-none">
 				<span className="inline-block w-4 text-gray-500">{isOpen ? "▼" : "▶"}</span>
-				<span className={`px-1 rounded ${isArrayIndex ? "bg-blue-600 text-white" : "bg-purple-800 text-white"}`}>{isArrayIndex ? `[${keyName}]` : `"${keyName}"`}</span>
+				<span className={`px-1 rounded ${isArrayIndex ? "bg-blue-600 text-white" : "bg-purple-800 text-white"}`}>
+					{isArrayIndex ? `[${keyName}]` : `"${keyName}"`}
+				</span>
 				{!isOpen && <span className="ml-2 text-gray-400">{preview}</span>}
 			</summary>
 			{isOpen && (

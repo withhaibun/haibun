@@ -18,7 +18,11 @@ export type TCaptureOptions = {
 
 export const runContainer = (testToRun: string, includeDirs: string[] = [], thisCaptureOptions: TCaptureOptions) => {
 	try {
-		const { tmpFile, composeEnvironment, utilDir, composeVolumes, projectDir, buildContextDir } = getContainerSetup(thisCaptureOptions, includeDirs, testToRun);
+		const { tmpFile, composeEnvironment, utilDir, composeVolumes, projectDir, buildContextDir } = getContainerSetup(
+			thisCaptureOptions,
+			includeDirs,
+			testToRun,
+		);
 		const captureDir = resolve(projectDir, "capture");
 		if (!existsSync(captureDir)) {
 			console.info("Creating capture directory");
@@ -79,7 +83,11 @@ export function getContainerSetup(thisRunOptions: TCaptureOptions, includeDirs: 
 	const haibunCliEnvc = envs.length > 0 ? `HAIBUN_ENV=${envs.join(",").replace(/,$/, "")} ` : "";
 	const buildContextDir = resolve(tmpdir(), `build-context-${Date.now()}`);
 	const dirsToMount = [...includeDirs, "capture"];
-	const composeVolumes = [`${projectDir}/capture:/app/capture`, `${projectDir}:/app/output`, ...dirsToMount.map((dir) => `${resolve(projectDir, dir)}:/app/${dir}`)];
+	const composeVolumes = [
+		`${projectDir}/capture:/app/capture`,
+		`${projectDir}:/app/output`,
+		...dirsToMount.map((dir) => `${resolve(projectDir, dir)}:/app/${dir}`),
+	];
 	const flags = thisRunOptions.featureFilter ? ` -- ${thisRunOptions.featureFilter}` : "";
 	const composeEnvironment = [
 		"DISPLAY=:99",
@@ -91,7 +99,10 @@ export function getContainerSetup(thisRunOptions: TCaptureOptions, includeDirs: 
 		composeEnvironment.push("HAIBUN_O_NARRATOR_TTS_CMD=/app/speak-to-wav.sh @WHAT@", "HAIBUN_O_NARRATOR_TTS_PLAY=aplay @WHAT@");
 	}
 	if (thisRunOptions.capture) {
-		composeEnvironment.push("HAIBUN_O_NARRATOR_CAPTURE_START=/app/capture-start.sh", "HAIBUN_O_NARRATOR_CAPTURE_STOP=/app/capture-stop.sh");
+		composeEnvironment.push(
+			"HAIBUN_O_NARRATOR_CAPTURE_START=/app/capture-start.sh",
+			"HAIBUN_O_NARRATOR_CAPTURE_STOP=/app/capture-stop.sh",
+		);
 	}
 
 	return { tmpFile, composeEnvironment, utilDir, composeVolumes, projectDir, buildContextDir };

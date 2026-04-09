@@ -21,7 +21,13 @@ interface FloatingVideoPlayerProps {
  * - Syncs video playback to timeline position
  * - Extracts and reports metadata (dimensions, duration)
  */
-export function FloatingVideoPlayer({ path, startTimestamp, appStartTime, currentTime, onMetadataLoaded }: FloatingVideoPlayerProps) {
+export function FloatingVideoPlayer({
+	path,
+	startTimestamp,
+	appStartTime,
+	currentTime,
+	onMetadataLoaded,
+}: FloatingVideoPlayerProps) {
 	const videoRef = useRef<HTMLVideoElement>(null);
 	const [, setMetadata] = useState<VideoMetadata | null>(null);
 

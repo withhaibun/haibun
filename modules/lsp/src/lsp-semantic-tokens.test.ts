@@ -325,7 +325,9 @@ waypoint Ensured foobar with variable x exists
 		expect(callArgs.diagnostics.length).toBeGreaterThan(0);
 
 		// Find the warning about background not found
-		const bgWarning = callArgs.diagnostics.find((d: { message: string; severity: number }) => d.message.includes("Background not found") || d.message.includes("can't find"));
+		const bgWarning = callArgs.diagnostics.find(
+			(d: { message: string; severity: number }) => d.message.includes("Background not found") || d.message.includes("can't find"),
+		);
 		expect(bgWarning).toBeDefined();
 		// Should be either warning (2) or error (1) depending on the failure path
 		expect([1, 2]).toContain(bgWarning.severity);

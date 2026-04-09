@@ -32,7 +32,10 @@ const CLASS_DEFS = [
  * Shows: features → scenarios → steps (linear flow),
  * plus activity/outcome nodes with ensure dependencies.
  */
-export function getMermaidFromResolvedFeatures(features: unknown[], registeredOutcomes?: Record<string, TRegisteredOutcomeEntry>): string {
+export function getMermaidFromResolvedFeatures(
+	features: unknown[],
+	registeredOutcomes?: Record<string, TRegisteredOutcomeEntry>,
+): string {
 	const lines: string[] = ["graph TD"];
 	lines.push(`    ${CLASS_DEFS}`);
 	lines.push("");

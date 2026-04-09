@@ -220,7 +220,8 @@ async function rpc(url: string, id: number, method: string, params: Record<strin
 			body: JSON.stringify({ jsonrpc: "2.0", id, method, params }),
 		});
 	} catch (error) {
-		const detail = error instanceof Error ? `${error.message}${error.cause ? ` | cause: ${String(error.cause)}` : ""}` : String(error);
+		const detail =
+			error instanceof Error ? `${error.message}${error.cause ? ` | cause: ${String(error.cause)}` : ""}` : String(error);
 		throw new Error(`MCP ${method} fetch failed: ${detail}`);
 	}
 	if (!response.ok) {

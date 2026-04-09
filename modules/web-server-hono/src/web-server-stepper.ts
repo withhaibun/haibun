@@ -4,7 +4,14 @@ import type { TWorld, TEndFeature, IStepperCycles } from "@haibun/core/lib/defs.
 import { OK, type TStepArgs } from "@haibun/core/schema/protocol.js";
 import { actionNotOK, getFromRuntime, getStepperOption, intOrError, stringOrError } from "@haibun/core/lib/util/index.js";
 import { AStepper, type IHasCycles, type IHasOptions } from "@haibun/core/lib/astepper.js";
-import { discoverSteps, dispatchStep, validateToolInput, buildSyntheticFeatureStep, parseRpcRequest, StepRegistry } from "@haibun/core/lib/step-dispatch.js";
+import {
+	discoverSteps,
+	dispatchStep,
+	validateToolInput,
+	buildSyntheticFeatureStep,
+	parseRpcRequest,
+	StepRegistry,
+} from "@haibun/core/lib/step-dispatch.js";
 import { validateStep } from "@haibun/core/lib/step-validation.js";
 
 import { type IWebServer, WEBSERVER } from "./defs.js";
@@ -199,7 +206,10 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 						});
 						const validatedParams = validateToolInput(tool, params as Record<string, unknown>, this.getWorld());
 						const featureStep = buildSyntheticFeatureStep(tool, validatedParams, seqPath);
-						const hr = await dispatchStep({ registry, world: this.getWorld(), steppers: this.steppers, grantedCapability }, featureStep);
+						const hr = await dispatchStep(
+							{ registry, world: this.getWorld(), steppers: this.steppers, grantedCapability },
+							featureStep,
+						);
 						if (hr.ok) return hr.products ?? { ok: true };
 						return { error: `${method}: ${hr.errorMessage}` };
 					} catch (err) {
@@ -218,7 +228,9 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 				if (!this.stepRegistry) return OK;
 				this.stepRegistry.refresh(this.steppers, this.getWorld());
 				this.attachTransports();
-				this.getWorld().eventLogger.info(`[RPC] steppers refreshed: ${this.steppers.length} steppers, ${this.stepRegistry.list().length} tools`);
+				this.getWorld().eventLogger.info(
+					`[RPC] steppers refreshed: ${this.steppers.length} steppers, ${this.stepRegistry.list().length} tools`,
+				);
 				return OK;
 			},
 		},
