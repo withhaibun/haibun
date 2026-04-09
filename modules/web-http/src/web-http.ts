@@ -36,7 +36,9 @@ const WebHttp = class WebHttp extends AStepper {
 			gwta: "http {method} from {url} webpage returns status {status}",
 			action: async ({ url, method, status }: { url: string; method: string; status: string }) => {
 				const response = await fetch(url, { method: method.toUpperCase() });
-				return response.status === parseInt(status) ? OK : actionNotOK(`$${method} {url} does not have status ${status}, it has ${response.status}`);
+				return response.status === parseInt(status)
+					? OK
+					: actionNotOK(`$${method} {url} does not have status ${status}, it has ${response.status}`);
 			},
 		},
 		hasContentType: {
@@ -44,12 +46,26 @@ const WebHttp = class WebHttp extends AStepper {
 			action: async ({ url, method, contentType }: { url: string; method: string; contentType: string }) => {
 				const response = await fetch(url, { method: method.toUpperCase() });
 				const requestContentType = response.headers.get("content-type");
-				return requestContentType === contentType ? OK : actionNotOK(`${method} ${url} does not have content type ${contentType}, it has ${requestContentType}`);
+				return requestContentType === contentType
+					? OK
+					: actionNotOK(`${method} ${url} does not have content type ${contentType}, it has ${requestContentType}`);
 			},
 		},
 		requestWithBody: {
 			gwta: "http {method} to {url} webpage with {contentType} body {body} returns status {status}",
-			action: async ({ method, url, contentType, body, status }: { method: string; url: string; contentType: string; body: string; status: string }) => {
+			action: async ({
+				method,
+				url,
+				contentType,
+				body,
+				status,
+			}: {
+				method: string;
+				url: string;
+				contentType: string;
+				body: string;
+				status: string;
+			}) => {
 				const response = await fetch(url, { method: "POST", body: JSON.stringify(JSON.parse(body)), headers: { contentType } });
 				if (response.status === parseInt(status, 10)) {
 					return OK;
@@ -60,7 +76,17 @@ const WebHttp = class WebHttp extends AStepper {
 		},
 		requestWithNoBody: {
 			gwta: "http {method} to {url} webpage returns status {status}",
-			action: async ({ method, url, contentType, status }: { method: string; url: string; contentType: string; status: string }) => {
+			action: async ({
+				method,
+				url,
+				contentType,
+				status,
+			}: {
+				method: string;
+				url: string;
+				contentType: string;
+				status: string;
+			}) => {
 				const response = await fetch(url, { method: method.toUpperCase(), headers: { contentType } });
 				if (response.status === parseInt(status, 10)) {
 					return OK;
@@ -102,7 +128,9 @@ const WebHttp = class WebHttp extends AStepper {
 				console.log("headers", headers);
 				return headers.get(header.toLowerCase()) === contents
 					? OK
-					: actionNotOK(`${method} ${url} does not contain ${header} with ${contents}, it contains ${JSON.stringify(Object.fromEntries(headers.entries()))}`);
+					: actionNotOK(
+							`${method} ${url} does not contain ${header} with ${contents}, it contains ${JSON.stringify(Object.fromEntries(headers.entries()))}`,
+						);
 			},
 		},
 	} satisfies TStepperSteps;

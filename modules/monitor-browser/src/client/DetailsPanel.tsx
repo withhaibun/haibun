@@ -121,7 +121,11 @@ export function DetailsPanel({
 	const headerText = formattedDateTime;
 
 	// Prepare JSON View Data
-	const jsonViewData = allTraces ? { traceCount: allTraces.length, traces: allTraces } : quadJson ? { quadCount: quadJson.length, quads: quadJson } : event;
+	const jsonViewData = allTraces
+		? { traceCount: allTraces.length, traces: allTraces }
+		: quadJson
+			? { quadCount: quadJson.length, quads: quadJson }
+			: event;
 
 	// biome-ignore lint/suspicious/noExplicitAny: complex object construction
 	const jsonArtifact = { artifactType: "json", json: jsonViewData } as any;
@@ -150,7 +154,10 @@ export function DetailsPanel({
 			</div>
 
 			{/* Header */}
-			<div className="flex items-center justify-between px-4 py-2 border-b border-cyan-700 bg-cyan-900/30 shrink-0" data-testid={TEST_IDS.DETAILS.HEADER}>
+			<div
+				className="flex items-center justify-between px-4 py-2 border-b border-cyan-700 bg-cyan-900/30 shrink-0"
+				data-testid={TEST_IDS.DETAILS.HEADER}
+			>
 				<button
 					onClick={() => {
 						const el = document.getElementById(`event-${event.id}`);
@@ -185,19 +192,29 @@ export function DetailsPanel({
 			<div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-slate-900">
 				{/* 0. Debugger - Has Priority if active */}
 				{activePrompt && onDebugSubmit && (
-					<div className="shrink-0 border-b border-slate-700 p-4 bg-slate-800/30 min-h-[200px]" data-testid={TEST_IDS.DEBUGGER.ROOT}>
+					<div
+						className="shrink-0 border-b border-slate-700 p-4 bg-slate-800/30 min-h-[200px]"
+						data-testid={TEST_IDS.DEBUGGER.ROOT}
+					>
 						<div className="text-xs font-bold text-cyan-400 mb-2 flex items-center gap-2">
 							<span className="animate-pulse">●</span> Debugger Active
 						</div>
 						<div className="relative h-full">
-							<Debugger prompt={activePrompt} onSubmit={onDebugSubmit} className="border-0 shadow-none bg-transparent p-0 w-full static" />
+							<Debugger
+								prompt={activePrompt}
+								onSubmit={onDebugSubmit}
+								className="border-0 shadow-none bg-transparent p-0 w-full static"
+							/>
 						</div>
 					</div>
 				)}
 
 				{/* 1. Raw Source (JSON) - Always First */}
 				{!hasViews && (
-					<div className="shrink-0 p-4 border-b border-slate-700 max-h-[40%] overflow-auto" data-testid={TEST_IDS.DETAILS.RAW_SOURCE}>
+					<div
+						className="shrink-0 p-4 border-b border-slate-700 max-h-[40%] overflow-auto"
+						data-testid={TEST_IDS.DETAILS.RAW_SOURCE}
+					>
 						<div className="text-xs font-bold text-slate-500 mb-1 opacity-50">Event Source</div>
 						<JsonArtifact artifact={jsonArtifact} collapsed={true} />
 					</div>
@@ -208,7 +225,11 @@ export function DetailsPanel({
 					!allTraces &&
 					!isQuadGraphEvent &&
 					((event as TArtifactEvent).artifactType === "video" ? (
-						<ArtifactFrame title="Video" className="flex-1 min-h-0 border-b border-slate-700" contentClassName="bg-black flex items-center justify-center p-0">
+						<ArtifactFrame
+							title="Video"
+							className="flex-1 min-h-0 border-b border-slate-700"
+							contentClassName="bg-black flex items-center justify-center p-0"
+						>
 							<ArtifactRenderer
 								artifact={event as TArtifactEvent}
 								currentTime={currentTime}
@@ -219,7 +240,10 @@ export function DetailsPanel({
 							/>
 						</ArtifactFrame>
 					) : (
-						<div className="shrink-0 border-b border-slate-700 p-4 max-h-[30%] overflow-auto" data-testid={TEST_IDS.DETAILS.ARTIFACT_RENDERER}>
+						<div
+							className="shrink-0 border-b border-slate-700 p-4 max-h-[30%] overflow-auto"
+							data-testid={TEST_IDS.DETAILS.ARTIFACT_RENDERER}
+						>
 							<ArtifactRenderer
 								artifact={event as TArtifactEvent}
 								currentTime={currentTime}
@@ -232,7 +256,10 @@ export function DetailsPanel({
 
 				{/* 3. Graph Views - Take Remaining Height */}
 				{hasViews && (
-					<div className={`flex-1 min-h-0 flex ${width > 900 ? "flex-row" : "flex-col"} gap-0`} data-testid={TEST_IDS.DETAILS.GRAPH_VIEWS}>
+					<div
+						className={`flex-1 min-h-0 flex ${width > 900 ? "flex-row" : "flex-col"} gap-0`}
+						data-testid={TEST_IDS.DETAILS.GRAPH_VIEWS}
+					>
 						{viewOrder.map((view) => {
 							const isSideBySide = width > 900 && viewOrder.includes("sequence") && viewOrder.includes("quad");
 
@@ -257,7 +284,11 @@ export function DetailsPanel({
 							}
 							if (view === "quad" && quadsData) {
 								return (
-									<div key="quad" className={`flex flex-col ${width > 900 ? "flex-1 min-w-0" : "h-1/2"}`} data-testid={TEST_IDS.DETAILS.QUAD_VIEW}>
+									<div
+										key="quad"
+										className={`flex flex-col ${width > 900 ? "flex-1 min-w-0" : "h-1/2"}`}
+										data-testid={TEST_IDS.DETAILS.QUAD_VIEW}
+									>
 										<div className="flex-1 overflow-hidden relative">
 											<QuadGraphDiagram quads={quadsData} currentTime={currentTime} startTime={startTime || 0} />
 										</div>

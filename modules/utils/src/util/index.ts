@@ -1,6 +1,10 @@
 import { spawn } from "child_process";
 
-export function spawnCommand(command: string[], module = ".", opts?: { show?: boolean; env?: { [key: string]: string } }): Promise<string> {
+export function spawnCommand(
+	command: string[],
+	module = ".",
+	opts?: { show?: boolean; env?: { [key: string]: string } },
+): Promise<string> {
 	return new Promise((resolve, reject) => {
 		const place = module === "." ? "<root>" : module;
 		console.group(`${place}$ ${command.join(" ")}`);

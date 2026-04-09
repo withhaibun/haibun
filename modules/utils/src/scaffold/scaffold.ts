@@ -12,7 +12,10 @@ type Tkv = { [name: string]: string };
 
 const refDir = path.join(getPackageLocation(import.meta), "..", "..");
 
-export async function scaffoldHaibun(dest: string, opts?: { out?: typeof console.info; addDeps?: Tkv; addDevDeps?: Tkv; addDirs?: string[]; noPrompt?: boolean }): Promise<void> {
+export async function scaffoldHaibun(
+	dest: string,
+	opts?: { out?: typeof console.info; addDeps?: Tkv; addDevDeps?: Tkv; addDirs?: string[]; noPrompt?: boolean },
+): Promise<void> {
 	const { noPrompt, out: outIn } = opts || {};
 	const out = outIn || console.info;
 
@@ -22,7 +25,10 @@ export async function scaffoldHaibun(dest: string, opts?: { out?: typeof console
 			"@haibun/core": currentVersion,
 			"@haibun/cli": currentVersion,
 		},
-		devDependencies: ["@types/node", "vitest", "typescript"].reduce((a, i) => ({ ...a, [i]: refPackage.devDependencies[i] }), {} as Tkv),
+		devDependencies: ["@types/node", "vitest", "typescript"].reduce(
+			(a, i) => ({ ...a, [i]: refPackage.devDependencies[i] }),
+			{} as Tkv,
+		),
 		scripts: {
 			test: "vitest run",
 			"test-watch": "vitest",
@@ -122,7 +128,9 @@ export async function scaffoldHaibun(dest: string, opts?: { out?: typeof console
 		const rl = readline.createInterface({ input, output });
 		const def = process.cwd().replace(/.*\//, "");
 		out(`\nA package.json file is not found.`);
-		out(`Please hit enter for a default package name ${def},\nenter a package name (e.g. my-great-package)\nor press control-C to exit`);
+		out(
+			`Please hit enter for a default package name ${def},\nenter a package name (e.g. my-great-package)\nor press control-C to exit`,
+		);
 		const answer = await rl.question("> ");
 		rl.close();
 		return answer || def;

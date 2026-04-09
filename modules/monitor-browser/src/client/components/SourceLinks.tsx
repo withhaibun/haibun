@@ -11,7 +11,15 @@ type SourceLinksProps = {
 	isWaypoint: boolean;
 };
 
-export const SourceLinks = ({ featurePath, lineNumber, emitter, cwd, isSerializedMode, isBackground, isWaypoint }: SourceLinksProps) => {
+export const SourceLinks = ({
+	featurePath,
+	lineNumber,
+	emitter,
+	cwd,
+	isSerializedMode,
+	isBackground,
+	isWaypoint,
+}: SourceLinksProps) => {
 	const [short, full] = (emitter || "").split("|");
 	const emitterDisplay = short || emitter;
 
@@ -22,7 +30,8 @@ export const SourceLinks = ({ featurePath, lineNumber, emitter, cwd, isSerialize
 
 	if (!hasFeatureLink && !hasEmitter) return null;
 
-	const absolutePath = featurePath && cwd ? (featurePath?.startsWith("/") ? `${cwd}${featurePath}` : `${cwd}/${featurePath}`) : undefined;
+	const absolutePath =
+		featurePath && cwd ? (featurePath?.startsWith("/") ? `${cwd}${featurePath}` : `${cwd}/${featurePath}`) : undefined;
 
 	return (
 		<span className="ml-auto text-[9px] text-slate-400 px-2 shrink-0 italic flex flex-col items-end">
@@ -32,7 +41,8 @@ export const SourceLinks = ({ featurePath, lineNumber, emitter, cwd, isSerialize
 					{featureFile}:{lineNumber}
 				</VSCodeLink>
 			)}
-			{hasEmitter && (!isSerializedMode && full ? <VSCodeLink path={full}>{emitterDisplay}</VSCodeLink> : <span>{emitterDisplay}</span>)}
+			{hasEmitter &&
+				(!isSerializedMode && full ? <VSCodeLink path={full}>{emitterDisplay}</VSCodeLink> : <span>{emitterDisplay}</span>)}
 		</span>
 	);
 };

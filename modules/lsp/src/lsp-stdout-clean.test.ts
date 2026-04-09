@@ -88,7 +88,12 @@ describe("LSP stdout cleanliness", () => {
 		// biome-ignore lint/suspicious/noExplicitAny: mock
 		const lsp = new LspStepper(mockConnection as any, steppers, []);
 
-		const doc = TextDocument.create("file:///test/feature.feature", "haibun", 1, 'test step with "hello"\ninvalid step that will error');
+		const doc = TextDocument.create(
+			"file:///test/feature.feature",
+			"haibun",
+			1,
+			'test step with "hello"\ninvalid step that will error',
+		);
 
 		// biome-ignore lint/suspicious/noExplicitAny: private
 		await (lsp as any).processDocument(doc);
@@ -145,7 +150,12 @@ describe("LSP stdout cleanliness", () => {
 		// biome-ignore lint/suspicious/noExplicitAny: mock
 		const lsp = new LspStepper(mockConnection as any, steppers, []);
 
-		const bgDoc = TextDocument.create("file:///test/backgrounds/test.bg.feature", "haibun", 1, "Activity: TestActivity\nwaypoint TestWaypoint");
+		const bgDoc = TextDocument.create(
+			"file:///test/backgrounds/test.bg.feature",
+			"haibun",
+			1,
+			"Activity: TestActivity\nwaypoint TestWaypoint",
+		);
 
 		await (lsp as unknown as { processDocument: (d: TextDocument) => Promise<void> }).processDocument(bgDoc);
 

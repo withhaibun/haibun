@@ -346,7 +346,9 @@ export default class LspStepper extends AStepper {
 
 		// Check if we have any matching existing entry
 		// match normalized paths
-		const existingIndex = this.backgrounds.findIndex((b) => this.normalizePath(b.path) === normUri || b.path.endsWith(normUri) || normUri.endsWith(b.path));
+		const existingIndex = this.backgrounds.findIndex(
+			(b) => this.normalizePath(b.path) === normUri || b.path.endsWith(normUri) || normUri.endsWith(b.path),
+		);
 
 		if (isBgFile || existingIndex !== -1) {
 			// Remove ALL matching entries to avoid duplicates/stale versions

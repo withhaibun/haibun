@@ -46,7 +46,9 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		selectionOption: {
 			gwta: `select {option} for {field: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}`,
 			action: async ({ option, field }: { option: string; field: string }, featureStep: TFeatureStep) => {
-				await wp.withPage(async (page: Page) => await (await wp.locateByDomain(page, featureStep, "field")).selectOption({ label: option }));
+				await wp.withPage(
+					async (page: Page) => await (await wp.locateByDomain(page, featureStep, "field")).selectOption({ label: option }),
+				);
 				return OK;
 			},
 		},
@@ -126,7 +128,9 @@ export const interactionSteps = (wp: WebPlaywright) =>
 					}
 
 					// Regular wait — use page.waitForFunction to traverse shadow DOMs for dynamic elements
-					const { value: resolvedValue, domain: resolvedDomain } = await wp.getWorld().shared.resolveVariable(featureStep.action.stepValuesMap.target, featureStep);
+					const { value: resolvedValue, domain: resolvedDomain } = await wp
+						.getWorld()
+						.shared.resolveVariable(featureStep.action.stepValuesMap.target, featureStep);
 					const domainParts = resolvedDomain?.split(" | ").map((d: string) => d.trim()) ?? [];
 					const effectiveDomain = domainParts.length === 1 ? domainParts[0] : pickLocatorDomain(domainParts);
 					if (effectiveDomain === DOMAIN_PAGE_TEST_ID) {
@@ -224,7 +228,12 @@ export const interactionSteps = (wp: WebPlaywright) =>
 				console.debug("background", background, browserContext.serviceWorkers());
 
 				const extensionId = background.url().split("/")[2];
-				await wp.getWorld().shared.set({ term: "extensionContext", value: extensionId, domain: "string", origin: Origin.var }, provenanceFromFeatureStep(featureStep));
+				await wp
+					.getWorld()
+					.shared.set(
+						{ term: "extensionContext", value: extensionId, domain: "string", origin: Origin.var },
+						provenanceFromFeatureStep(featureStep),
+					);
 				await wp.withPage(async (page: Page) => {
 					const popupURI = `chrome-extension://${extensionId}/popup.html?${tab}`;
 					return await page.goto(popupURI);
@@ -363,7 +372,9 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		blur: {
 			gwta: `blur {what: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}`,
 			action: async ({ what }: { what: string }, featureStep: TFeatureStep) => {
-				await wp.withPage(async (page: Page) => await (await wp.locateByDomain(page, featureStep, "what")).evaluate((e) => e.blur()));
+				await wp.withPage(
+					async (page: Page) => await (await wp.locateByDomain(page, featureStep, "what")).evaluate((e) => e.blur()),
+				);
 				return OK;
 			},
 		},
@@ -394,7 +405,10 @@ export const interactionSteps = (wp: WebPlaywright) =>
 				void selector;
 				try {
 					await wp.withPage(async (page: Page) => {
-						const [fileChooser] = await Promise.all([page.waitForEvent("filechooser"), (await wp.locateByDomain(page, featureStep, "selector")).click()]);
+						const [fileChooser] = await Promise.all([
+							page.waitForEvent("filechooser"),
+							(await wp.locateByDomain(page, featureStep, "selector")).click(),
+						]);
 						await fileChooser.setFiles(file);
 					});
 					return OK;
@@ -515,7 +529,9 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			gwta: "take a screenshot",
 			action: async (_args, featureStep: TFeatureStep) => {
 				// Create a minimal step result for artifact tracking
-				const stepResult = featureStep ? { seqPath: featureStep.seqPath, path: featureStep.source.path, in: featureStep.in } : undefined;
+				const stepResult = featureStep
+					? { seqPath: featureStep.seqPath, path: featureStep.source.path, in: featureStep.in }
+					: undefined;
 				await wp.captureScreenshotAndLog("action", { step: stepResult as unknown as TStepResult | undefined });
 				return OK;
 			},
@@ -562,7 +578,9 @@ export const interactionSteps = (wp: WebPlaywright) =>
 				const where = getStepTerm(featureStep, "where") ?? "";
 				const uri = await wp.withPage<string>(async (page: Page) => await page.url());
 				const found = new URL(uri).searchParams.get(what);
-				await wp.getWorld().shared.set({ term: where, value: found, domain: "string", origin: Origin.var }, provenanceFromFeatureStep(featureStep));
+				await wp
+					.getWorld()
+					.shared.set({ term: where, value: found, domain: "string", origin: Origin.var }, provenanceFromFeatureStep(featureStep));
 				return OK;
 			},
 		},
@@ -579,7 +597,9 @@ export const interactionSteps = (wp: WebPlaywright) =>
 					}
 					return await locator.inputValue();
 				});
-				await wp.getWorld().shared.set({ term: where, value: text, domain: "string", origin: Origin.var }, provenanceFromFeatureStep(featureStep));
+				await wp
+					.getWorld()
+					.shared.set({ term: where, value: text, domain: "string", origin: Origin.var }, provenanceFromFeatureStep(featureStep));
 				return OK;
 			},
 		},

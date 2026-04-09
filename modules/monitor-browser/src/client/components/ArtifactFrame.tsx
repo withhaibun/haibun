@@ -9,7 +9,14 @@ interface ArtifactFrameProps {
 	onCopy?: () => void;
 }
 
-export function ArtifactFrame({ title, children, toolbar, className = "", contentClassName = "bg-white", onCopy }: ArtifactFrameProps) {
+export function ArtifactFrame({
+	title,
+	children,
+	toolbar,
+	className = "",
+	contentClassName = "bg-white",
+	onCopy,
+}: ArtifactFrameProps) {
 	const [isFullscreen, setIsFullscreen] = useState(false);
 	const containerRef = useRef<HTMLDivElement>(null);
 
@@ -25,7 +32,10 @@ export function ArtifactFrame({ title, children, toolbar, className = "", conten
 	}, [isFullscreen]);
 
 	return (
-		<div ref={containerRef} className={`artifact-frame flex flex-col h-full bg-slate-900 ${isFullscreen ? "fixed inset-0 z-50 p-4" : ""} ${className}`}>
+		<div
+			ref={containerRef}
+			className={`artifact-frame flex flex-col h-full bg-slate-900 ${isFullscreen ? "fixed inset-0 z-50 p-4" : ""} ${className}`}
+		>
 			<div className="flex justify-between items-center p-2 bg-white border-b border-slate-300 shrink-0 gap-4 h-10">
 				<div className="font-bold text-sm text-slate-700 shrink-0 truncate" title={title}>
 					{title}
