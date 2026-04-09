@@ -84,6 +84,15 @@ export async function getAvailableDomains(): Promise<Record<string, DomainInfo>>
 	return domains;
 }
 
+/** Get the stepper name for a vertex type label. */
+export function getStepperForType(vertexLabel: string): string | undefined {
+	if (!cachedDomains) return undefined;
+	for (const info of Object.values(cachedDomains)) {
+		if (info.vertexLabel === vertexLabel) return info.stepperName;
+	}
+	return undefined;
+}
+
 /** Build selectable domain options. Vertex domains (those with vertexLabel) are selectable. */
 export function buildDomainOptions(domains: Record<string, DomainInfo>): DomainOption[] {
 	const concerns = getConcernCatalog();
@@ -91,7 +100,8 @@ export function buildDomainOptions(domains: Record<string, DomainInfo>): DomainO
 	return Object.values(concerns.vertices).map((vertex) => {
 		const v = vertex as { label: unknown; domainKey: string };
 		if (typeof v.label !== "string") throw new Error(`Concern label for domain ${v.domainKey} must be a string`);
-		if (/^\s*\[.*\]\s*$/.test(v.label)) throw new Error(`Concern label for domain ${v.domainKey} looks like a stringified array: ${v.label}`);
+		if (/^\s*\[.*\]\s*$/.test(v.label))
+			throw new Error(`Concern label for domain ${v.domainKey} looks like a stringified array: ${v.label}`);
 		const info = domains[v.domainKey];
 		if (!info) throw new Error(`step.list domain missing for concern domainKey: ${v.domainKey}`);
 		return {
@@ -146,7 +156,8 @@ async function discover(): Promise<StepListResponse> {
 	const { steps, domains, concerns } = parsed;
 	setConcernCatalog(concerns);
 	for (const [label, vertex] of Object.entries(concerns.vertices)) {
-		if (/^\s*\[.*\]\s*$/.test(vertex.label)) throw new Error(`step.list concern ${label} has stringified-array label: ${vertex.label}`);
+		if (/^\s*\[.*\]\s*$/.test(vertex.label))
+			throw new Error(`step.list concern ${label} has stringified-array label: ${vertex.label}`);
 	}
 	cachedSteps = steps;
 	cachedDomains = domains;

@@ -54,4 +54,15 @@ export const SHU_TEST_IDS = {
 		LOG_ROW: "monitor-log-row",
 		SEQUENCE_DIAGRAM: "monitor-sequence-diagram",
 	},
+	TIMELINE: {
+		ROOT: "shu-timeline",
+		SLIDER: "timeline-slider",
+		PLAY_PAUSE: "timeline-play",
+		SPEED: "timeline-speed",
+		RESTART: "timeline-restart",
+		TIME_DISPLAY: "timeline-time",
+	},
+	GRAPH_VIEW: {
+		ROOT: "graph-view-toolbar",
+	},
 } as const;

@@ -242,11 +242,12 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 				offset: this.offset,
 			};
 			const client = SseClient.for("");
+			const method = requireStep("graphQuery");
 			const data = await client.rpc<{
 				vertices: VertexRow[];
 				total: number;
 				cypher: string;
-			}>(requireStep("graphQuery"), {
+			}>(method, {
 				query: payload,
 			});
 

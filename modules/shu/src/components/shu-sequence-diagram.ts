@@ -10,21 +10,12 @@ import { z } from "zod";
 import mermaid from "mermaid";
 import { ShuElement } from "./shu-element.js";
 import { SseClient } from "../sse-client.js";
+import { TIME_SYNC_STYLE } from "../time-sync.js";
 
 let mermaidInitialized = false;
 
-const DispatchTrace = z.object({
-	stepName: z.string(),
-	transport: z.enum(["local", "remote", "subprocess"]),
-	remoteHost: z.string().optional(),
-	capabilityRequired: z.string().optional(),
-	capabilityGranted: z.array(z.string()).optional(),
-	authorized: z.boolean(),
-	seqPath: z.array(z.number()),
-	durationMs: z.number().optional(),
-	productKeys: z.array(z.string()).optional(),
-});
-type TDispatchTrace = z.infer<typeof DispatchTrace>;
+import { DispatchTraceSchema, type TDispatchTrace } from "../schemas.js";
+const DispatchTrace = DispatchTraceSchema;
 
 const StateSchema = z.object({
 	traces: z.array(DispatchTrace).default([]),
@@ -129,14 +120,18 @@ export class ShuSequenceDiagram extends ShuElement<typeof StateSchema> {
 			/* stepper may not be loaded */
 		}
 
-		// Live updates via SSE — no further RPC calls
+		// Live updates via SSE — capture event timestamp onto the trace
 		this.unsubscribe = client.onEvent((event) => {
-			const e = event as { kind?: string; artifactType?: string; trace?: TDispatchTrace };
+			const e = event as { kind?: string; artifactType?: string; trace?: TDispatchTrace; timestamp?: number };
 			if (e.kind === "artifact" && e.artifactType === "dispatch-trace" && e.trace) {
-				const parsed = DispatchTrace.safeParse(e.trace);
+				const parsed = DispatchTrace.safeParse({ ...e.trace, timestamp: e.timestamp ?? Date.now() });
 				if (parsed.success) this.setState({ traces: [...this.state.traces, parsed.data] });
 			}
 		});
+	}
+
+	protected override onTimeSync(): void {
+		this.applyTimeDimming();
 	}
 
 	disconnectedCallback(): void {
@@ -198,9 +193,43 @@ export class ShuSequenceDiagram extends ShuElement<typeof StateSchema> {
 			const { svg } = await mermaid.render(this.diagramId, source);
 			const container = this.shadowRoot?.querySelector(".diagram-container");
 			if (container) container.innerHTML = `<div>${svg}</div>`;
+			this.applyTimeDimming();
 		} catch (err) {
 			const container = this.shadowRoot?.querySelector(".diagram-container");
 			if (container) container.innerHTML = `<pre style="color:red">${err instanceof Error ? err.message : err}</pre>`;
+		}
+	}
+
+	private applyTimeDimming(): void {
+		const container = this.shadowRoot?.querySelector(".diagram-container");
+		if (!container) return;
+		const cursor = this.timeCursor;
+		const messages = container.querySelectorAll(".messageText");
+		const lines = container.querySelectorAll(".messageLine0, .messageLine1");
+		if (cursor === null) {
+			messages.forEach((el) => {
+				(el as SVGElement).style.opacity = "";
+			});
+			lines.forEach((el) => {
+				(el as SVGElement).style.opacity = "";
+			});
+			return;
+		}
+		const traces = this.state.traces;
+		const futureIdx = traces.findIndex((t) => (t.timestamp ?? Infinity) > cursor);
+		const dimmed = String(TIME_SYNC_STYLE.DIMMED_OPACITY);
+		let lastVisibleIdx = -1;
+		for (let i = 0; i < messages.length; i++) {
+			const isFuture = futureIdx >= 0 && i >= futureIdx;
+			(messages[i] as SVGElement).style.opacity = isFuture ? dimmed : "";
+			if (!isFuture) lastVisibleIdx = i;
+		}
+		for (let i = 0; i < lines.length; i++) {
+			(lines[i] as SVGElement).style.opacity = futureIdx >= 0 && i >= futureIdx ? dimmed : "";
+		}
+		// Scroll the current (last visible) trace into view
+		if (lastVisibleIdx >= 0 && messages[lastVisibleIdx]) {
+			(messages[lastVisibleIdx] as SVGElement).scrollIntoView({ block: "center", behavior: "smooth" });
 		}
 	}
 }

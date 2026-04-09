@@ -6,10 +6,13 @@
 import { z } from "zod";
 import { AStepper, type IHasCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import type { THaibunEvent } from "@haibun/core/schema/protocol.js";
-import { actionOKWithProducts } from "@haibun/core/lib/util/index.js";
-import type { IStepperCycles } from "@haibun/core/lib/defs.js";
+import { actionNotOK, actionOKWithProducts } from "@haibun/core/lib/util/index.js";
+import { LinkRelations, type IStepperCycles } from "@haibun/core/lib/defs.js";
+import { objectCoercer } from "@haibun/core/lib/domain-types.js";
 import { TRANSPORT, type ITransport } from "@haibun/web-server-hono/sse-transport.js";
 import { parseSeqPath } from "./quad-detail-pane.js";
+
+import { DOMAIN_GRAPH_QUERY, GraphQuerySchema } from "@haibun/core/lib/quad-types.js";
 
 const MAX_EVENTS = 10000;
 
@@ -22,6 +25,16 @@ export default class MonitorStepper extends AStepper implements IHasCycles {
 	}
 
 	cycles: IStepperCycles = {
+		getConcerns: () => ({
+			domains: [
+				{
+					selectors: [DOMAIN_GRAPH_QUERY],
+					schema: GraphQuerySchema,
+					coerce: objectCoercer(GraphQuerySchema),
+					description: "Graph query parameters",
+				},
+			],
+		}),
 		onEvent: (event: THaibunEvent) => {
 			this.events.push(event);
 			if (this.events.length > MAX_EVENTS) this.events.shift();
@@ -48,7 +61,10 @@ export default class MonitorStepper extends AStepper implements IHasCycles {
 				if (since) filtered = filtered.filter((e) => e.timestamp >= since);
 				return actionOKWithProducts({
 					events: filtered.map(({ kind, level, timestamp, id, ...rest }) => ({
-						kind, level, timestamp, id,
+						kind,
+						level,
+						timestamp,
+						id,
 						in: (rest as Record<string, unknown>).in,
 						message: (rest as Record<string, unknown>).message,
 						type: (rest as Record<string, unknown>).type,
@@ -69,7 +85,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles {
 					.filter((e) => e.kind === "artifact" && (e as Record<string, unknown>).artifactType === "dispatch-trace")
 					.map((e) => {
 						const t = (e as Record<string, unknown>).trace;
-						return typeof t === "object" && t ? { ...(t as Record<string, unknown>) } : t;
+						return typeof t === "object" && t ? { ...(t as Record<string, unknown>), timestamp: e.timestamp } : t;
 					});
 				return actionOKWithProducts({ traces });
 			},
@@ -78,6 +94,23 @@ export default class MonitorStepper extends AStepper implements IHasCycles {
 			gwta: "show graph view",
 			action: () => actionOKWithProducts({ view: "graph" }),
 		},
+		graphQuery: {
+			gwta: `graph query {query: ${DOMAIN_GRAPH_QUERY}}`,
+			precludes: ["GraphStepper.graphQuery"],
+			outputSchema: z.object({ vertices: z.array(z.unknown()), total: z.number(), cypher: z.string() }),
+			action: async ({ query }: { query: z.infer<typeof GraphQuerySchema> }) => {
+				const store = this.getWorld().shared.getStore();
+				const label = query.label;
+				if (!label) return actionNotOK("graphQuery requires a label");
+				const limit = query.limit || 50;
+				const offset = query.offset || 0;
+				const filters = query.filters?.length ? Object.fromEntries(query.filters.map((f) => [f.predicate, f.value])) : undefined;
+				const vertices = await store.queryVertices(label, filters, { limit, offset });
+				const allQuads = await store.query({ namedGraph: label });
+				const total = new Set(allQuads.map((q) => q.subject)).size;
+				return actionOKWithProducts({ vertices, total, cypher: `QuadStore query: ${label}` });
+			},
+		},
 		getQuads: {
 			gwta: "get quads",
 			outputSchema: z.object({ quads: z.array(z.unknown()) }),
@@ -85,7 +118,14 @@ export default class MonitorStepper extends AStepper implements IHasCycles {
 				const store = this.getWorld().shared.getStore();
 				const quads = await store.all();
 				return actionOKWithProducts({
-					quads: quads.map(({ subject, predicate, object, namedGraph, timestamp, properties }) => ({ subject, predicate, object, namedGraph, timestamp, properties })),
+					quads: quads.map(({ subject, predicate, object, namedGraph, timestamp, properties }) => ({
+						subject,
+						predicate,
+						object,
+						namedGraph,
+						timestamp,
+						properties,
+					})),
 				});
 			},
 		},

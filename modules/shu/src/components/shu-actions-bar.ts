@@ -12,7 +12,15 @@ import { ActionsBarSchema, SEARCH_OPERATORS, type TSearchCondition, parseFilterP
 import { SHARED_STYLES } from "./styles.js";
 import { errMsg } from "../util.js";
 import { SseClient } from "../sse-client.js";
-import { buildDomainOptions, findStep, getAvailableDomains, getAvailableSteps, requireStep, stepsForContext, type DomainOption } from "../rpc-registry.js";
+import {
+	buildDomainOptions,
+	findStep,
+	getAvailableDomains,
+	getAvailableSteps,
+	requireStep,
+	stepsForContext,
+	type DomainOption,
+} from "../rpc-registry.js";
 import { getProperties, getSelectValues, hasSelectValues, setSelectValues } from "../rels-cache.js";
 import type { ShuSpinner } from "./shu-spinner.js";
 import type { ShuCombobox } from "./shu-combobox.js";
@@ -369,7 +377,9 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		if (savedOutput) savedOutput.remove();
 
 		const modelSelect =
-			this._mode === "ask" && this._models.length > 0 ? `<shu-combobox class="model-select" testid="${this.testIdPrefix}model-select" placeholder="model..."></shu-combobox>` : "";
+			this._mode === "ask" && this._models.length > 0
+				? `<shu-combobox class="model-select" testid="${this.testIdPrefix}model-select" placeholder="model..."></shu-combobox>`
+				: "";
 
 		const modeToggle = `<select class="mode-select" ${this.tid("mode-select")}>
 			<option value="ask"${this._mode === "ask" ? " selected" : ""}>Ask</option>
@@ -571,7 +581,9 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			const output = this.shadowRoot?.querySelector(".chat-output") as HTMLElement | null;
 			if (!output) return;
 
-			const lastCaller = output.querySelector("shu-step-caller:last-of-type") as (HTMLElement & { executed?: boolean; reset?: (name: string) => void }) | null;
+			const lastCaller = output.querySelector("shu-step-caller:last-of-type") as
+				| (HTMLElement & { executed?: boolean; reset?: (name: string) => void })
+				| null;
 			if (lastCaller && !lastCaller.executed && lastCaller.reset) {
 				lastCaller.reset(stepName);
 			} else {

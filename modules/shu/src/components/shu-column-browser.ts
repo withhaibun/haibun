@@ -6,6 +6,7 @@
 import { SHARED_STYLES } from "./styles.js";
 import { SHU_EVENT } from "../consts.js";
 import { esc, escAttr, truncate, errMsg, vertexId, vertexLabel, HIDDEN_PROPS, renderContentHtml, utf8ToBase64 } from "../util.js";
+import { bindCopyButtons, copyButtonHtml } from "../copy-util.js";
 import { renderValue } from "./value-renderers.js";
 import { queryUriToPayload } from "../query-uri.js";
 import { SseClient } from "../sse-client.js";
@@ -336,7 +337,11 @@ export class ShuColumnBrowser extends HTMLElement {
 
 	private renderColumn(col: Column, index: number): string {
 		const isCurrent = index === this.currentIndex;
-		const bodyHtml = col.error ? `<div class="error-banner">${esc(col.error)}</div>` : col.vertex ? this.renderEntityColumn(col, index) : this.renderResultsColumn(col, index);
+		const bodyHtml = col.error
+			? `<div class="error-banner">${esc(col.error)}</div>`
+			: col.vertex
+				? this.renderEntityColumn(col, index)
+				: this.renderResultsColumn(col, index);
 
 		return `
 			<div class="column${isCurrent ? " current" : ""}" data-col-index="${index}" data-testid="browser-column">
@@ -374,8 +379,12 @@ export class ShuColumnBrowser extends HTMLElement {
 			)
 			.join("");
 
+		const contentIframe = this.renderContentIframe(vertex, lbl);
+		const hasBody = contentIframe.length > 0;
+		const openAttr = hasBody ? "" : " open";
+
 		const detailsHtml = detailRows
-			? `<details class="entity-details" data-testid="entity-details">
+			? `<details class="entity-details"${openAttr} data-testid="entity-details">
 				<summary class="detail-toggle">Details</summary>
 				<table class="detail-table">${detailRows}</table>
 			</details>`
@@ -383,10 +392,11 @@ export class ShuColumnBrowser extends HTMLElement {
 
 		const summaryHtml = Array.from(summaryFieldSet)
 			.filter((k) => fields[k])
-			.map((k) => `<span class="summary-field">${this.clickableValue(k, index, "describedby")} ${this.clickableValue(fields[k], index, "filter", k)}</span>`)
+			.map(
+				(k) =>
+					`<span class="summary-field">${this.clickableValue(k, index, "describedby")} ${this.clickableValue(fields[k], index, "filter", k)}</span>`,
+			)
 			.join(" ");
-
-		const contentIframe = this.renderContentIframe(vertex, lbl);
 
 		const currentFolder = String(vertex.folder ?? "");
 		const moveBar = currentFolder
@@ -415,22 +425,24 @@ export class ShuColumnBrowser extends HTMLElement {
 				? `<div class="content-switcher">${available.map(([f], i) => `<button class="content-switch-btn${i === 0 ? " active" : ""}" data-field="${escAttr(f)}">${esc(f)}</button>`).join("")}</div>`
 				: "";
 
-		const iframesHtml = available
-			.map(([f, format], i) => {
-				const raw = String(vertex[f] ?? "");
-				const content = renderContentHtml(raw, format);
-				const doc = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:sans-serif;font-size:14px;margin:8px;color:#111;}</style></head><body>${content}</body></html>`;
-				const encoded = utf8ToBase64(doc);
-				return `<iframe class="body-iframe${i === 0 ? "" : " hidden"}" data-field="${escAttr(f)}" sandbox="allow-same-origin" src="data:text/html;base64,${encoded}" data-testid="email-body-iframe"></iframe>`;
-			})
-			.join("");
+		// Only render the first (active) content field — no hidden iframes making requests
+		const [activeField, activeFormat] = available[0];
+		const raw = String(vertex[activeField] ?? "");
+		const content = renderContentHtml(raw, activeFormat);
+		const doc = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:sans-serif;font-size:14px;margin:8px;color:#111;}</style></head><body>${content}</body></html>`;
+		const encoded = utf8ToBase64(doc);
+		const iframeHtml = `<iframe class="body-iframe" data-field="${escAttr(activeField)}" sandbox="allow-same-origin" src="data:text/html;base64,${encoded}" data-testid="email-body-iframe"></iframe>`;
 
-		return `<div class="body-container">${switcherHtml}${iframesHtml}</div>`;
+		const copyBtn = copyButtonHtml(raw);
+		const toolbar = `<div class="content-toolbar">${switcherHtml}${copyBtn}</div>`;
+		return `<div class="body-container">${toolbar}${iframeHtml}</div>`;
 	}
 
 	private renderResultsColumn(col: Column, index: number): string {
 		if (!col.results || col.results.length === 0) {
-			return col.loading ? '<shu-spinner status="Loading..." visible></shu-spinner>' : '<div class="no-results">No results found.</div>';
+			return col.loading
+				? '<shu-spinner status="Loading..." visible></shu-spinner>'
+				: '<div class="no-results">No results found.</div>';
 		}
 
 		return col.results
@@ -442,7 +454,10 @@ export class ShuColumnBrowser extends HTMLElement {
 				const summary = Object.entries(v)
 					.filter(([k, val]) => !HIDDEN_PROPS.has(k) && !contentFieldSet.has(k) && String(val ?? "") !== idField)
 					.slice(0, 3)
-					.map(([k, val]) => `${this.clickableValue(k, index, "describedby")}: ${this.clickableValue(String(val ?? ""), index, "filter", k)}`)
+					.map(
+						([k, val]) =>
+							`${this.clickableValue(k, index, "describedby")}: ${this.clickableValue(String(val ?? ""), index, "filter", k)}`,
+					)
 					.join(", ");
 				return `<div class="result-row">
 				${this.clickableValue(id, index, "item")} <span class="result-summary">${summary}</span>
@@ -481,18 +496,30 @@ export class ShuColumnBrowser extends HTMLElement {
 	}
 
 	private bindEvents(): void {
-		// Content field switcher
+		// Content field switcher — re-renders the single iframe with the selected field
 		this.shadowRoot?.querySelectorAll(".content-switch-btn").forEach((btn) => {
 			btn.addEventListener("click", () => {
 				const field = (btn as HTMLElement).dataset.field;
 				if (!field) return;
 				const container = (btn as HTMLElement).closest(".body-container");
-				container?.querySelectorAll(".content-switch-btn").forEach((b) => b.classList.remove("active"));
+				if (!container) return;
+				container.querySelectorAll(".content-switch-btn").forEach((b) => b.classList.remove("active"));
 				btn.classList.add("active");
-				container?.querySelectorAll(".body-iframe").forEach((iframe) => {
-					const el = iframe as HTMLElement;
-					el.classList.toggle("hidden", el.dataset.field !== field);
-				});
+				const colIdx = parseInt((btn.closest(".column") as HTMLElement)?.dataset.colIndex ?? "0", 10);
+				const col = this.columns[colIdx];
+				if (!col?.vertex) return;
+				const lbl = col.label;
+				const formats = getContentFields(lbl) ?? {};
+				const format = formats[field];
+				if (!format) return;
+				const raw = String(col.vertex[field] ?? "");
+				const content = renderContentHtml(raw, format);
+				const doc = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:sans-serif;font-size:14px;margin:8px;color:#111;}</style></head><body>${content}</body></html>`;
+				const iframe = container.querySelector("iframe");
+				if (iframe) {
+					iframe.dataset.field = field;
+					iframe.src = `data:text/html;base64,${utf8ToBase64(doc)}`;
+				}
 			});
 		});
 
@@ -603,6 +630,8 @@ export class ShuColumnBrowser extends HTMLElement {
 				}
 			});
 		});
+
+		bindCopyButtons(this.shadowRoot as ShadowRoot);
 	}
 }
 
@@ -640,7 +669,8 @@ const COLUMN_STYLES = `
 	.detail-toggle:hover { color: #555; }
 	.entity-summary { display: flex; flex-wrap: wrap; gap: 2px 10px; padding: 2px 0 4px; color: #555; font-size: 0.9em; flex-shrink: 0; }
 	.summary-field:first-child { font-weight: 500; }
-	.content-switcher { display: flex; gap: 4px; padding: 2px 0; flex-shrink: 0; }
+	.content-toolbar { display: flex; gap: 4px; padding: 2px 4px; flex-shrink: 0; align-items: center; }
+	.content-switcher { display: flex; gap: 4px; flex-shrink: 0; }
 	.content-switch-btn { font-size: 0.75em; padding: 1px 6px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer; background: #f5f5f5; color: #555; }
 	.content-switch-btn.active { background: #e8f5e9; border-color: #1a6b3c; color: #1a6b3c; }
 	.hidden { display: none; }
