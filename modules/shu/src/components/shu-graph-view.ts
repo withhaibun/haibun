@@ -184,9 +184,16 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 		this.shadowRoot?.querySelectorAll("[data-action]").forEach((btn) => {
 			btn.addEventListener("click", () => {
 				const action = (btn as HTMLElement).dataset.action;
-				if (action === "zoom-in") this.setState({ zoom: Math.min(200, this.state.zoom + 10) });
-				else if (action === "zoom-out") this.setState({ zoom: Math.max(10, this.state.zoom - 10) });
-				else if (action === "layout") this.setState({ layout: this.state.layout === "TD" ? "LR" : "TD" });
+				if (action === "zoom-in" || action === "zoom-out") {
+					const zoom = action === "zoom-in" ? Math.min(200, this.state.zoom + 10) : Math.max(10, this.state.zoom - 10);
+					this.state.zoom = zoom;
+					const container = this.shadowRoot?.querySelector(".diagram-container") as HTMLElement | null;
+					if (container) container.style.transform = `scale(${zoom / 100})`;
+					const label = this.shadowRoot?.querySelector(".zoom-label");
+					if (label) label.textContent = `${zoom}%`;
+					return;
+				}
+				if (action === "layout") this.setState({ layout: this.state.layout === "TD" ? "LR" : "TD" });
 				else if (action === "copy") navigator.clipboard.writeText(buildMermaidSource(this.visibleQuads, this.buildOpts(), browserClassifier).source);
 			});
 		});
