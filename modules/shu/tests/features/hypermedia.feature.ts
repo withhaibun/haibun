@@ -1,11 +1,9 @@
 import { withAction, type TKirejiExport } from "@haibun/core/kireji/withAction.js";
 import WebPlaywright from "@haibun/web-playwright";
-import TutorialGraphStepper from "../../src/tutorial-graph-stepper.js";
-import ShuStepper from "../../src/shu-stepper.js";
-import { SHU_TEST_IDS } from "../../src/test-ids.js";
+import TutorialGraphStepper from "@haibun/shu/tutorial-graph-stepper.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import Haibun from "@haibun/core/steps/haibun.js";
-import { createStepUI, stepTestIds, flattenTestIds } from "../../src/index.js";
+import { ShuStepper, SHU_TEST_IDS, createStepUI, stepTestIds, flattenTestIds } from "@haibun/shu";
 
 const wp = new WebPlaywright();
 const { getIncomingEdges, exportGraphAsJsonLd } = withAction(new TutorialGraphStepper());
