@@ -5,12 +5,15 @@
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { z } from "zod";
 import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
-import { actionOK, actionNotOK, getFromRuntime } from "@haibun/core/lib/util/index.js";
+import { actionOK, actionNotOK, actionOKWithProducts, getFromRuntime } from "@haibun/core/lib/util/index.js";
+import { getRel, type TPropertyDef, type TRegisteredDomain } from "@haibun/core/lib/defs.js";
 import { buildConcernCatalog, getJsonLdContext } from "@haibun/core/lib/hypermedia.js";
 import type { IWebServer } from "@haibun/web-server-hono/defs.js";
 import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
 import type { Context } from "@haibun/web-server-hono/defs.js";
+import { buildMermaidSource, buildClassifier, DEFAULT_MAX_PER_SUBGRAPH } from "./mermaid-source.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -83,11 +86,59 @@ export default class ShuStepper extends AStepper {
 				webserver.addRoute("get", path, createSpaHandler(path, bundle, hydrationJson));
 				const jsonLdContext = getJsonLdContext(this.getWorld().domains);
 				const jsonLdHandler = (c: Context) => c.json(jsonLdContext);
-				webserver.addRoute("get", "/.well-known/muskeg-context.jsonld", jsonLdHandler);
+				webserver.addRoute("get", "/.well-known/shu-context.jsonld", jsonLdHandler);
 				webserver.addRoute("get", "/ns/context.jsonld", jsonLdHandler);
 				this.mountedPath = path;
 				return actionOK();
 			},
 		},
+		exportMermaid: {
+			gwta: "export mermaid",
+			outputSchema: z.object({ mermaid: z.string() }),
+			action: async () => {
+				const store = this.getWorld().shared?.getStore();
+				if (!store) return actionNotOK("No quad store available");
+				const quads = await store.query({});
+				const classifier = buildServerClassifier(this.getWorld().domains);
+				const opts = { layout: "TD" as const, hiddenGraphs: new Set<string>(), expandedGraphs: new Set<string>(), maxPerSubgraph: DEFAULT_MAX_PER_SUBGRAPH };
+				const { source } = buildMermaidSource(quads, opts, classifier);
+				return actionOKWithProducts({ mermaid: source });
+			},
+		},
 	} satisfies TStepperSteps;
+}
+
+/** Build a PropertyClassifier from world.domains metadata (server-side equivalent of browser rels-cache). */
+function buildServerClassifier(domains: Record<string, TRegisteredDomain>) {
+	const relsMap = new Map<string, Record<string, string>>();
+	const edgeRangesMap = new Map<string, Record<string, string>>();
+	const stepperMap = new Map<string, string>();
+	const allEdgeRels: Record<string, string> = {};
+
+	for (const domain of Object.values(domains)) {
+		const meta = domain.meta;
+		if (!meta?.vertexLabel) continue;
+		const label = meta.vertexLabel;
+		if (domain.stepperName) stepperMap.set(label, domain.stepperName);
+		const rels: Record<string, string> = {};
+		for (const [field, def] of Object.entries(meta.properties ?? {})) {
+			rels[field] = getRel(def as TPropertyDef);
+		}
+		relsMap.set(label, rels);
+		const ranges: Record<string, string> = {};
+		const edgeRelRecord: Record<string, string> = {};
+		for (const [field, edgeDef] of Object.entries(meta.edges ?? {})) {
+			ranges[field] = edgeDef.range;
+			edgeRelRecord[field] = edgeDef.rel;
+		}
+		edgeRangesMap.set(label, ranges);
+		Object.assign(allEdgeRels, edgeRelRecord);
+	}
+
+	return buildClassifier(
+		(graph) => relsMap.get(graph),
+		(graph) => edgeRangesMap.get(graph),
+		(label) => stepperMap.get(label),
+		allEdgeRels,
+	);
 }
