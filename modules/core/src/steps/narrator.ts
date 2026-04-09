@@ -79,12 +79,14 @@ class Narrator extends AStepper implements IHasOptions, IHasCycles {
 		feature: {
 			precludes: [`Haibun.feature`],
 			gwta: "Feature: {feature}",
-			action: async ({ feature }: TStepArgs, featureStep: TFeatureStep) => this.rememberAndSay("feature", feature as string, featureStep),
+			action: async ({ feature }: TStepArgs, featureStep: TFeatureStep) =>
+				this.rememberAndSay("feature", feature as string, featureStep),
 		},
 		scenario: {
 			precludes: [`Haibun.scenario`],
 			gwta: "Scenario: {scenario}",
-			action: async ({ scenario }: TStepArgs, featureStep: TFeatureStep) => this.rememberAndSay("scenario", scenario as string, featureStep),
+			action: async ({ scenario }: TStepArgs, featureStep: TFeatureStep) =>
+				this.rememberAndSay("scenario", scenario as string, featureStep),
 		},
 	};
 

@@ -83,7 +83,12 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 		return Promise.resolve(actionOK({ controlSignal: "continue" }));
 	}
 
-	async debugLoop(prompt: string, prompts: string[], featureStep: TFeatureStep, inc: number): Promise<TAfterStepResult | undefined> {
+	async debugLoop(
+		prompt: string,
+		prompts: string[],
+		featureStep: TFeatureStep,
+		inc: number,
+	): Promise<TAfterStepResult | undefined> {
 		const prefix = featureStep.seqPath;
 		const dir = syntheticSeqPathDirection(inc < 0);
 		let seqStart = syntheticBranchSeqPath(prefix, dir);
@@ -92,7 +97,9 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 		let controlSignal: TDebugSignal | undefined;
 
 		while (continueLoop) {
-			const response = await this.getWorld().prompter.prompt(makePrompt(`${formatCurrentSeqPath(featureStep.seqPath)}-${prompt}`, undefined, prompts));
+			const response = await this.getWorld().prompter.prompt(
+				makePrompt(`${formatCurrentSeqPath(featureStep.seqPath)}-${prompt}`, undefined, prompts),
+			);
 
 			// If response is undefined (no prompter available), default to 'continue'
 			const responseStr = response === undefined ? "continue" : response.toString();

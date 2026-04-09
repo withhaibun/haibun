@@ -60,12 +60,15 @@ export class RemoteStepperProxy extends AStepper {
 				stepperName: descriptor.stepperName,
 				stepName: descriptor.stepName,
 				capability: descriptor.capability,
+				isAsync: true,
 				transport: "remote",
 				remoteHost: new URL(this.remoteUrl).host,
 				handler: (_featureStep, _world) =>
 					this.call(
 						descriptor.method,
-						_featureStep.action?.stepValuesMap ? Object.fromEntries(Object.entries(_featureStep.action.stepValuesMap).map(([k, v]) => [k, v.term])) : {},
+						_featureStep.action?.stepValuesMap
+							? Object.fromEntries(Object.entries(_featureStep.action.stepValuesMap).map(([k, v]) => [k, v.term]))
+							: {},
 						_featureStep.seqPath,
 					),
 			};

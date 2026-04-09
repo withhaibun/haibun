@@ -23,7 +23,9 @@ export default class FinalizerStepper extends AStepper implements IHasCycles {
 				});
 
 				if (!result.ok) {
-					this.getWorld().eventLogger.warn(`finalizer-stepper: statement failed: ${statement} :: ${result.errorMessage || "unknown error"}`);
+					this.getWorld().eventLogger.warn(
+						`finalizer-stepper: statement failed: ${statement} :: ${result.errorMessage || "unknown error"}`,
+					);
 				}
 			}
 		}

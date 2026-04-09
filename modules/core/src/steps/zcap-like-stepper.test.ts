@@ -14,14 +14,18 @@ class VerifyZcapLikeStepper extends AStepper {
 			gwta: "verify zcap-like bearer grant for token {token: zcap-like-token} is active for capability {capability: zcap-like-capability}",
 			action: ({ token, capability }: { token: string; capability: string }) => {
 				const granted = getZcapLikeAuthority(this.getWorld().runtime)?.resolveBearerToken(token) ?? [];
-				return granted.includes(capability) ? OK : actionNotOK(`Expected ${token} to grant ${capability}, got ${JSON.stringify(granted)}`);
+				return granted.includes(capability)
+					? OK
+					: actionNotOK(`Expected ${token} to grant ${capability}, got ${JSON.stringify(granted)}`);
 			},
 		},
 		verifyRevokedZcapLikeGrant: {
 			gwta: "verify zcap-like bearer grant for token {token: zcap-like-token} is revoked for capability {capability: zcap-like-capability}",
 			action: ({ token, capability }: { token: string; capability: string }) => {
 				const granted = getZcapLikeAuthority(this.getWorld().runtime)?.resolveBearerToken(token) ?? [];
-				return !granted.includes(capability) ? OK : actionNotOK(`Expected ${token} to stop granting ${capability}, got ${JSON.stringify(granted)}`);
+				return !granted.includes(capability)
+					? OK
+					: actionNotOK(`Expected ${token} to stop granting ${capability}, got ${JSON.stringify(granted)}`);
 			},
 		},
 	};

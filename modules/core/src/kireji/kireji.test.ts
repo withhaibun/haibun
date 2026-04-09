@@ -215,7 +215,9 @@ describe("fromBdd", () => {
   prose: this is a test
 `;
 		const feature = await fromBdd(bdd, [...steppers]);
-		const results = feature["my feature"].filter((step): step is TActionExecutor<string> => typeof step !== "string").map((executor) => executor());
+		const results = feature["my feature"]
+			.filter((step): step is TActionExecutor<string> => typeof step !== "string")
+			.map((executor) => executor());
 		expect(results).toEqual([
 			{ actionName: "set", args: { what: "sound", value: "moo" }, gwta: "set sound to moo" },
 			{ actionName: "doSomething", args: {}, gwta: "do something" },
@@ -267,7 +269,9 @@ describe("fromBdd", () => {
 		`),
 		);
 		const featureFromBdd = await fromBdd(bdd.content, [...steppers]);
-		const results = featureFromBdd["Complex activities and outcomes"].filter((step): step is TActionExecutor<string> => typeof step !== "string").map((executor) => executor());
+		const results = featureFromBdd["Complex activities and outcomes"]
+			.filter((step): step is TActionExecutor<string> => typeof step !== "string")
+			.map((executor) => executor());
 		expect(results).toEqual([
 			{
 				actionName: "activity",

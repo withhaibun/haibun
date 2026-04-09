@@ -11,8 +11,15 @@ export async function populateActionArgs(featureStep: TFeatureStep, world: TWorl
 		if (resolved.value === undefined) {
 			const handlesUndefined = featureStep.action.step.handlesUndefined;
 			if (handlesUndefined === true || handlesUndefined?.includes(name)) continue;
-			console.error(`undefined ${name} in "${featureStep.in}" for ${featureStep.action.stepperName}.${featureStep.action.actionName}`, name, resolved, featureStep.action.step);
-			throw Error(`undefined ${name} in "${featureStep.in}" for ${featureStep.action.stepperName}.${featureStep.action.actionName}`);
+			console.error(
+				`undefined ${name} in "${featureStep.in}" for ${featureStep.action.stepperName}.${featureStep.action.actionName}`,
+				name,
+				resolved,
+				featureStep.action.step,
+			);
+			throw Error(
+				`undefined ${name} in "${featureStep.in}" for ${featureStep.action.stepperName}.${featureStep.action.actionName}`,
+			);
 		}
 		stepArgs[name] = resolved.value;
 	}
