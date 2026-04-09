@@ -77,10 +77,12 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 		const label = meta.vertexLabel;
 
 		if (!meta.id) throw new Error(`Vertex domain "${label}" (${domainKey}) is missing required "id" field`);
-		if (!meta.properties || Object.keys(meta.properties).length === 0) throw new Error(`Vertex domain "${label}" (${domainKey}) has no properties`);
+		if (!meta.properties || Object.keys(meta.properties).length === 0)
+			throw new Error(`Vertex domain "${label}" (${domainKey}) has no properties`);
 
 		const hasIdentifier = Object.values(meta.properties).some((p) => getRel(p) === LinkRelations.IDENTIFIER.rel);
-		if (!hasIdentifier) throw new Error(`Vertex domain "${label}" (${domainKey}) has no property with rel "${LinkRelations.IDENTIFIER.rel}"`);
+		if (!hasIdentifier)
+			throw new Error(`Vertex domain "${label}" (${domainKey}) has no property with rel "${LinkRelations.IDENTIFIER.rel}"`);
 
 		const properties: Record<string, TPropertyConcern> = {};
 		for (const [field, propDef] of Object.entries(meta.properties)) {
@@ -92,7 +94,8 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 
 		const edges: Record<string, TEdgeConcern> = {};
 		for (const [edgeField, edgeDef] of Object.entries(meta.edges ?? {})) {
-			if (!REL_CONTEXT[edgeDef.rel]) throw new Error(`Vertex domain "${label}" edge "${edgeField}" has unknown rel "${edgeDef.rel}"`);
+			if (!REL_CONTEXT[edgeDef.rel])
+				throw new Error(`Vertex domain "${label}" edge "${edgeField}" has unknown rel "${edgeDef.rel}"`);
 			edges[edgeField] = { term: REL_CONTEXT[edgeDef.rel], rel: edgeDef.rel, target: edgeDef.range };
 		}
 
@@ -141,23 +144,23 @@ export function getJsonLdContext(domains: Record<string, TRegisteredDomain>): Re
 		as: "https://www.w3.org/ns/activitystreams#",
 		foaf: "http://xmlns.com/foaf/0.1/",
 		dcterms: "http://purl.org/dc/terms/",
-		muskeg: "/ns/",
+		haibun: "/ns/",
 	};
 	for (const domain of Object.values(domains)) {
 		const meta = domain.meta;
 		if (!meta?.vertexLabel) continue;
 		for (const [prop, def] of Object.entries(meta.properties)) {
 			const rel = getRel(def);
-			const uri = REL_CONTEXT[rel] ?? `muskeg:${prop}`;
+			const uri = REL_CONTEXT[rel] ?? `haibun:${prop}`;
 			const mediaType = getMediaType(def);
 			const linkRel = linkRelFromSemantic(rel);
-			const node: Record<string, string> = { "@id": uri, "muskeg:rel": linkRel };
+			const node: Record<string, string> = { "@id": uri, "haibun:rel": linkRel };
 			if (linkRel === "item") node["@type"] = "@id";
 			if (mediaType) node["as:mediaType"] = mediaType;
 			context[prop] = node;
 		}
 		for (const [edge, edgeDef] of Object.entries(meta.edges ?? {})) {
-			context[edge] = { "@id": REL_CONTEXT[edgeDef.rel] ?? `muskeg:${edge}`, "@type": "@id", "muskeg:rel": "item" };
+			context[edge] = { "@id": REL_CONTEXT[edgeDef.rel] ?? `haibun:${edge}`, "@type": "@id", "haibun:rel": "item" };
 		}
 	}
 	return { "@context": context };

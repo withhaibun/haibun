@@ -1,7 +1,15 @@
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
 import { getDefaultWorld } from "./test/lib.js";
-import { DOMAIN_STRING, DOMAIN_NUMBER, DOMAIN_JSON, DOMAIN_DATE, registerDomains, asDomainKey, createEnumDomainDefinition } from "./domain-types.js";
+import {
+	DOMAIN_STRING,
+	DOMAIN_NUMBER,
+	DOMAIN_JSON,
+	DOMAIN_DATE,
+	registerDomains,
+	asDomainKey,
+	createEnumDomainDefinition,
+} from "./domain-types.js";
 import { TDomainDefinition } from "./defs.js";
 import { Origin, TStepValue } from "../schema/protocol.js";
 import { FeatureVariables } from "./feature-variables.js";

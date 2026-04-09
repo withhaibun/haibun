@@ -1,4 +1,14 @@
-import { TStepAction, TResolvedFeature, TExpandedFeature, TStepperStep, TFeatureStep, TExpandedLine, TFeatures, TWorld, TFeature } from "../lib/defs.js";
+import {
+	TStepAction,
+	TResolvedFeature,
+	TExpandedFeature,
+	TStepperStep,
+	TFeatureStep,
+	TExpandedLine,
+	TFeatures,
+	TWorld,
+	TFeature,
+} from "../lib/defs.js";
 import { TStepValue, FEATURE_START, SCENARIO_START } from "../schema/protocol.js";
 import { AStepper } from "../lib/astepper.js";
 import { matchGwtaToAction, getMatch } from "../lib/namedVars.js";
@@ -37,7 +47,13 @@ export class Resolver {
 		}
 	}
 
-	private callResolveFeatureLine(line: string, path: string, allLines?: string[], lineIndex?: number, actualSourcePath?: string): boolean {
+	private callResolveFeatureLine(
+		line: string,
+		path: string,
+		allLines?: string[],
+		lineIndex?: number,
+		actualSourcePath?: string,
+	): boolean {
 		for (const stepper of this.steppers) {
 			for (const step of Object.values(stepper.steps)) {
 				if (step.resolveFeatureLine) {
@@ -80,12 +96,16 @@ export class Resolver {
 		const { steps, errors } = await this.findFeatureStepsTolerant(feature);
 		if (errors.length > 0) {
 			const firstError = errors[0];
-			throw Error(`findFeatureStep for "${firstError.featureLine.line}": ${firstError.error.message} in ${feature.path}\nUse --show-steppers for more details`);
+			throw Error(
+				`findFeatureStep for "${firstError.featureLine.line}": ${firstError.error.message} in ${feature.path}\nUse --show-steppers for more details`,
+			);
 		}
 		return steps.filter((s) => s.action.stepperName !== "Directive");
 	}
 
-	public findFeatureStepsTolerant(feature: TExpandedFeature): Promise<{ steps: TFeatureStep[]; errors: { featureLine: TExpandedLine; error: Error }[] }> {
+	public findFeatureStepsTolerant(
+		feature: TExpandedFeature,
+	): Promise<{ steps: TFeatureStep[]; errors: { featureLine: TExpandedLine; error: Error }[] }> {
 		return Promise.resolve(this.findFeatureStepsTolerantSync(feature));
 	}
 
@@ -110,7 +130,8 @@ export class Resolver {
 			}
 
 			const actionable = getActionable(featureLine.line);
-			const actualSourcePath = featureLine.feature?.base && featureLine.feature?.path ? featureLine.feature.base + featureLine.feature.path : undefined;
+			const actualSourcePath =
+				featureLine.feature?.base && featureLine.feature?.path ? featureLine.feature.base + featureLine.feature.path : undefined;
 
 			if (this.callResolveFeatureLine(actionable, feature.path, allLines, i, actualSourcePath)) {
 				steps.push({
@@ -143,7 +164,9 @@ export class Resolver {
 				}
 
 				if (stepAction.stepValuesMap) {
-					const statements = Object.values(stepAction.stepValuesMap).filter((v: TStepValue & { label?: string }) => v.domain === "statement" && v.term);
+					const statements = Object.values(stepAction.stepValuesMap).filter(
+						(v: TStepValue & { label?: string }) => v.domain === "statement" && v.term,
+					);
 					for (const ph of statements) {
 						const rawVal = ph.term as string;
 						try {
@@ -249,7 +272,13 @@ export class Resolver {
 	}
 }
 
-export function getActionableStatement(steppers: AStepper[], statement: string, path: string, seqPath: number[], lineNumber?: number) {
+export function getActionableStatement(
+	steppers: AStepper[],
+	statement: string,
+	path: string,
+	seqPath: number[],
+	lineNumber?: number,
+) {
 	const resolver = new Resolver(steppers);
 	const action = resolver.findSingleStepAction(statement);
 	const step = action.step;
@@ -267,7 +296,14 @@ export function getActionableStatement(steppers: AStepper[], statement: string, 
 	return { featureStep, steppers };
 }
 
-export function findFeatureStepsFromStatement(statement: string, steppers: AStepper[], world: TWorld, base: string, seqStart: number[], inc = 1): TFeatureStep[] {
+export function findFeatureStepsFromStatement(
+	statement: string,
+	steppers: AStepper[],
+	world: TWorld,
+	base: string,
+	seqStart: number[],
+	inc = 1,
+): TFeatureStep[] {
 	const featureSteps: TFeatureStep[] = [];
 	if (!world.runtime.backgrounds) {
 		throw new Error("runtime.backgrounds is undefined; cannot expand inline Backgrounds");

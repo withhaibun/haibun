@@ -118,7 +118,10 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 		whenever: {
 			gwta: "whenever {condition:statement}, {action:statement}",
 			description: "Executes the statements repeatedtly as long as the condition holds true.",
-			action: async ({ condition, action }: { condition: TFeatureStep[]; action: TFeatureStep[] }, featureStep: TFeatureStep): Promise<TActionResult> => {
+			action: async (
+				{ condition, action }: { condition: TFeatureStep[]; action: TFeatureStep[] },
+				featureStep: TFeatureStep,
+			): Promise<TActionResult> => {
 				let loopCount = 0;
 				const MAX_LOOPS = 1000;
 				const mode = featureStep.intent?.mode === "speculative" ? "speculative" : "authoritative";
@@ -147,7 +150,10 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 		where: {
 			gwta: "where {condition:statement}, {action:statement}",
 			description: "Executes the statements only if the condition is met.",
-			action: async ({ condition, action }: { condition: TFeatureStep[]; action: TFeatureStep[] }, featureStep: TFeatureStep): Promise<TActionResult> => {
+			action: async (
+				{ condition, action }: { condition: TFeatureStep[]; action: TFeatureStep[] },
+				featureStep: TFeatureStep,
+			): Promise<TActionResult> => {
 				const usage = featureStep.intent?.usage;
 				const check = await this.runner.runSteps(condition, { intent: { mode: "speculative", usage }, parentStep: featureStep });
 

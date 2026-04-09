@@ -1,19 +1,6 @@
 import { z } from "zod";
 import { TResolvedFeature, TWorld, TEndFeature, DOMAIN_VERTEX_LABEL } from "../lib/defs.js";
-import {
-	TExecutorResult,
-	TFeatureResult,
-	THaibunEvent,
-	STAY,
-	STAY_FAILURE,
-	STEP_DELAY,
-	CONTINUE_AFTER_ERROR,
-	TSeqPath,
-	FEATURE_START,
-	Timer,
-	STAY_ALWAYS,
-} from "../schema/protocol.js";
-import { LifecycleEvent } from "../schema/protocol.js";
+import { TExecutorResult, TFeatureResult, THaibunEvent, STAY, STAY_FAILURE, STEP_DELAY, CONTINUE_AFTER_ERROR, TSeqPath, FEATURE_START, Timer, STAY_ALWAYS, } from "../schema/protocol.js"; import { LifecycleEvent } from "../schema/protocol.js";
 import { AStepper } from "../lib/astepper.js";
 import { sleep, setStepperWorldsAndDomains, constructorName } from "../lib/util/index.js";
 import { StepRegistry, dispatchStep } from "../lib/step-dispatch.js";
@@ -23,19 +10,7 @@ import { registerDomains } from "../lib/domain-types.js";
 import { doStepperCycle, doStepperCycleSync } from "../lib/stepper-cycles.js";
 import { basename } from "path";
 
-export function calculateShouldClose({
-	thisFeatureOK,
-	isLast,
-	stayOnFailure,
-	continueAfterError,
-	stayAlways,
-}: {
-	thisFeatureOK: boolean;
-	isLast: boolean;
-	stayOnFailure: boolean;
-	continueAfterError: boolean;
-	stayAlways: boolean;
-}) {
+export function calculateShouldClose({ thisFeatureOK, isLast, stayOnFailure, continueAfterError, stayAlways, }: { thisFeatureOK: boolean; isLast: boolean; stayOnFailure: boolean; continueAfterError: boolean; stayAlways: boolean; }) {
 	const effectivelyLast = isLast || (!thisFeatureOK && !continueAfterError);
 	if (!effectivelyLast) return true;
 	if (stayAlways) return false;
@@ -202,7 +177,7 @@ export class FeatureExecutor {
 		private registry: StepRegistry,
 		private world: TWorld,
 		private startOffset = Timer.since(),
-	) {}
+	) { }
 
 	async doFeature(feature: TResolvedFeature): Promise<TFeatureResult> {
 		const world = this.world;
@@ -300,7 +275,9 @@ export const addStepperConcerns = (world: TWorld, steppers: AStepper[]) => {
 		.filter((d) => d.meta?.vertexLabel)
 		.map((d) => d.meta?.vertexLabel as string);
 	if (vertexLabels.length > 0) {
-		registerDomains(world, [[{ selectors: [DOMAIN_VERTEX_LABEL], schema: z.enum(vertexLabels as [string, ...string[]]), description: "Vertex type" }]]);
+		registerDomains(world, [
+			[{ selectors: [DOMAIN_VERTEX_LABEL], schema: z.enum(vertexLabels as [string, ...string[]]), description: "Vertex type" }],
+		]);
 	}
 };
 

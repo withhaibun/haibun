@@ -93,7 +93,10 @@ export async function countFeatures(base: string, fs: TFileSystem = nodeFS): Pro
 /**
  * Load all background files from a backgrounds directory
  */
-export async function loadBackgroundsFromPath(backgroundsPath: string, fs: TFileSystem = nodeFS): Promise<Array<{ path: string; content: string; name: string; base: string }>> {
+export async function loadBackgroundsFromPath(
+	backgroundsPath: string,
+	fs: TFileSystem = nodeFS,
+): Promise<Array<{ path: string; content: string; name: string; base: string }>> {
 	const backgrounds: Array<{ path: string; content: string; name: string; base: string }> = [];
 
 	if (!fs.existsSync(backgroundsPath)) {

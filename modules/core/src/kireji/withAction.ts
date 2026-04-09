@@ -26,7 +26,9 @@ const interpolateGwta = (gwta: string, args: { [key: string]: string }): string 
 // --- Start of TypeScript Magic ---
 
 // Strip optional regex patterns from gwta strings for type extraction
-type TStripOptionalPatterns<S extends string> = S extends `${infer Before}(${string})?${infer After}` ? TStripOptionalPatterns<`${Before}${After}`> : S;
+type TStripOptionalPatterns<S extends string> = S extends `${infer Before}(${string})?${infer After}`
+	? TStripOptionalPatterns<`${Before}${After}`>
+	: S;
 
 type TPlaceholderEntries<S extends string> = TPlaceholderEntriesImpl<TStripOptionalPatterns<S>>;
 
@@ -36,7 +38,14 @@ type TPlaceholderEntriesImpl<S extends string> = S extends `${string}{${infer Pl
 
 type TPlaceholderEntry<P extends string> = P extends `${infer Name}:${infer Domain}` ? [[Name, Domain]] : [[P, undefined]];
 
-type TNestedArgValue = string | number | boolean | null | TActionExecutor<string> | TNestedArgValue[] | { [key: string]: TNestedArgValue };
+type TNestedArgValue =
+	| string
+	| number
+	| boolean
+	| null
+	| TActionExecutor<string>
+	| TNestedArgValue[]
+	| { [key: string]: TNestedArgValue };
 
 type TPlaceholderValueType<Name extends string, Domain extends string | undefined> = Domain extends "statement"
 	? string | TActionExecutor<string>
@@ -45,7 +54,11 @@ type TPlaceholderValueType<Name extends string, Domain extends string | undefine
 		: string;
 
 type TPlaceholderDomain<Entries extends ReadonlyArray<[string, string | undefined]>, Name extends string> =
-	Extract<Entries[number], [Name, string | undefined]> extends [Name, infer Domain] ? (Domain extends string | undefined ? Domain : undefined) : undefined;
+	Extract<Entries[number], [Name, string | undefined]> extends [Name, infer Domain]
+		? Domain extends string | undefined
+			? Domain
+			: undefined
+		: undefined;
 
 type TArgsInputFromEntries<Entries extends ReadonlyArray<[string, string | undefined]>> = {
 	[K in Entries[number][0]]: TPlaceholderValueType<K, TPlaceholderDomain<Entries, K>>;

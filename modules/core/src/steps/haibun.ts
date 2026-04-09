@@ -1,5 +1,14 @@
 import { z } from "zod";
-import { TFeatureStep, TWorld, IStepperCycles, TFeatures, TResolvedFeature, TStartExecution, TStartFeature, CycleWhen } from "../lib/defs.js";
+import {
+	TFeatureStep,
+	TWorld,
+	IStepperCycles,
+	TFeatures,
+	TResolvedFeature,
+	TStartExecution,
+	TStartFeature,
+	CycleWhen,
+} from "../lib/defs.js";
 import { OK, STEP_DELAY } from "../schema/protocol.js";
 import { AStepper, IHasCycles, TStepperSteps } from "../lib/astepper.js";
 import { actionNotOK, actionOK, actionOKWithProducts, constructorName, formattedSteppers, sleep } from "../lib/util/index.js";
@@ -91,7 +100,14 @@ class Haibun extends AStepper implements IHasCycles {
 			action: async ({ names }: { names: string }, featureStep: TFeatureStep) => {
 				const world = this.getWorld();
 				// Prepend 'Backgrounds: ' so expandLine correctly recognizes this as a background directive
-				const expanded = findFeatureStepsFromStatement(`Backgrounds: ${names}`, this.steppers, world, featureStep.source.path, featureStep.seqPath, 1);
+				const expanded = findFeatureStepsFromStatement(
+					`Backgrounds: ${names}`,
+					this.steppers,
+					world,
+					featureStep.source.path,
+					featureStep.seqPath,
+					1,
+				);
 				const mode = featureStep.intent?.mode === "speculative" ? "speculative" : "authoritative";
 				const result = await this.runner.runSteps(expanded, { intent: { mode }, parentStep: featureStep });
 				return result.ok ? OK : actionNotOK(`backgrounds failed: ${result.errorMessage}`);
@@ -166,8 +182,12 @@ class Haibun extends AStepper implements IHasCycles {
 			exact: "show quadstore",
 			action: async () => {
 				const quads = await this.getWorld().shared.allQuads();
-				const output = quads.map((q) => `(${q.subject}, ${q.predicate}, ${JSON.stringify(q.object)}, ${q.namedGraph || "default"})`).join("\n");
-				this.getWorld().eventLogger.info(`\n=== QuadStore Dump (${quads.length} quads) ===\n${output}\n==========================\n`);
+				const output = quads
+					.map((q) => `(${q.subject}, ${q.predicate}, ${JSON.stringify(q.object)}, ${q.namedGraph || "default"})`)
+					.join("\n");
+				this.getWorld().eventLogger.info(
+					`\n=== QuadStore Dump (${quads.length} quads) ===\n${output}\n==========================\n`,
+				);
 				return OK;
 			},
 		},
@@ -250,7 +270,9 @@ class Haibun extends AStepper implements IHasCycles {
 				const { term: stepperName } = featureStep.action.stepValuesMap.stepperName;
 				const matchedStepper = this.steppers.find((s) => constructorName(s) === stepperName);
 				if (!matchedStepper) {
-					return actionNotOK(`Didn't find stepper "${stepperName}" from [${this.steppers.map((s) => constructorName(s)).join(", ")}]`);
+					return actionNotOK(
+						`Didn't find stepper "${stepperName}" from [${this.steppers.map((s) => constructorName(s)).join(", ")}]`,
+					);
 				}
 				// Use constructorName for consistent key (handles vitest naming)
 				this.afterEverySteps[constructorName(matchedStepper)] = statement;

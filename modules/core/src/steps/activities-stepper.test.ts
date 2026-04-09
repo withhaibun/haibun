@@ -62,7 +62,12 @@ describe("ActivitiesStepper", () => {
 			const stepper = new ActivitiesStepper();
 			await stepper.setWorld(getDefaultWorld(), []);
 
-			const multiLineProof = ['set url to "https://example.com"', 'set page to "home"', "compose fullUrl with {url}{page}", "go to the fullUrl webpage"];
+			const multiLineProof = [
+				'set url to "https://example.com"',
+				'set page to "home"',
+				"compose fullUrl with {url}{page}",
+				"go to the fullUrl webpage",
+			];
 
 			stepper.registerOutcome("Navigate to home", multiLineProof, "/test.feature");
 

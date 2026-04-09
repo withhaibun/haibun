@@ -476,6 +476,7 @@ export const StepEvent = LifecycleEventCommon.extend({
 	stepArgs: z.union([z.record(z.string(), z.unknown()), z.array(z.unknown())]).optional(),
 	stepValuesMap: z.record(z.string(), z.unknown()).optional(),
 	products: z.record(z.string(), z.unknown()).optional(),
+	isAsync: z.boolean().optional(),
 	featurePath: z.string().optional(),
 });
 

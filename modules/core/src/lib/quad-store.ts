@@ -38,7 +38,13 @@ export class QuadStore implements IQuadStore {
 		return [...new Set(this.backingStores.values())];
 	}
 
-	set(subject: string, predicate: string, object: unknown, namedGraph: string, properties?: Record<string, unknown>): Promise<void> {
+	set(
+		subject: string,
+		predicate: string,
+		object: unknown,
+		namedGraph: string,
+		properties?: Record<string, unknown>,
+	): Promise<void> {
 		const backing = this.storeFor(namedGraph);
 		if (backing) return backing.set(subject, predicate, object, namedGraph, properties);
 		this.quads = this.quads.filter((q) => !(q.subject === subject && q.predicate === predicate && q.namedGraph === namedGraph));
@@ -54,7 +60,8 @@ export class QuadStore implements IQuadStore {
 		// Search local first
 		for (let i = this.quads.length - 1; i >= 0; i--) {
 			const q = this.quads[i];
-			if (q.subject === subject && q.predicate === predicate && (namedGraph === undefined || q.namedGraph === namedGraph)) return Promise.resolve(q.object);
+			if (q.subject === subject && q.predicate === predicate && (namedGraph === undefined || q.namedGraph === namedGraph))
+				return Promise.resolve(q.object);
 		}
 		// Then search backing stores if no namedGraph filter
 		if (namedGraph === undefined) {
@@ -176,7 +183,11 @@ export class QuadStore implements IQuadStore {
 		await this.remove({ subject: id, namedGraph: label });
 	}
 
-	async queryVertices<T = Record<string, unknown>>(label: string, filters?: Record<string, unknown>, options?: { limit?: number; offset?: number }): Promise<T[]> {
+	async queryVertices<T = Record<string, unknown>>(
+		label: string,
+		filters?: Record<string, unknown>,
+		options?: { limit?: number; offset?: number },
+	): Promise<T[]> {
 		const backing = this.storeFor(label);
 		if (backing) return backing.queryVertices<T>(label, filters, options);
 		const allQuads = await this.query({ namedGraph: label });

@@ -21,9 +21,7 @@ export const registerDomains = (world: TWorld, results: TDomainDefinition[][]) =
 		for (const definition of stepperWithDomains) {
 			const domainKey = asDomainKey(definition.selectors);
 
-			if (world.domains[domainKey]) {
-				throw Error(`Domain "${domainKey}" is already registered}`);
-			}
+			if (world.domains[domainKey]) continue;
 
 			world.domains[domainKey] = toRegisteredDomain(definition);
 		}
@@ -76,7 +74,9 @@ export const createEnumDomainDefinition = ({ name, values, description, ordered 
 	return {
 		selectors: [domainName],
 		schema,
-		comparator: ordered ? (value, baseline) => uniqueValues.indexOf(value as string) - uniqueValues.indexOf(baseline as string) : undefined,
+		comparator: ordered
+			? (value, baseline) => uniqueValues.indexOf(value as string) - uniqueValues.indexOf(baseline as string)
+			: undefined,
 		values: uniqueValues,
 		description: descriptor,
 	};
@@ -120,5 +120,7 @@ export function vertexDomainMap(domains: Record<string, TRegisteredDomain>): Map
 
 /** Get all vertex domains (domains with meta.vertexLabel) as an array. */
 export function getVertexDomains(domains: Record<string, TRegisteredDomain>): TRegisteredDomain[] {
-	return Object.values(domains).filter((d): d is TRegisteredDomain & { meta: NonNullable<TRegisteredDomain["meta"]> } => !!d.meta?.vertexLabel);
+	return Object.values(domains).filter(
+		(d): d is TRegisteredDomain & { meta: NonNullable<TRegisteredDomain["meta"]> } => !!d.meta?.vertexLabel,
+	);
 }

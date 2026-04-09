@@ -90,7 +90,10 @@ export function actionOK(w?: { artifact?: TArtifactEvent; controlSignal?: TDebug
 	return { ...OK, artifact, controlSignal };
 }
 
-export function actionOKWithProducts(products: Record<string, unknown>, w?: { artifact?: TArtifactEvent; controlSignal?: TDebugSignal }): TActionResult {
+export function actionOKWithProducts(
+	products: Record<string, unknown>,
+	w?: { artifact?: TArtifactEvent; controlSignal?: TDebugSignal },
+): TActionResult {
 	const { artifact, controlSignal } = w || {};
 	return { ok: true, products, artifact, controlSignal };
 }
@@ -253,13 +256,29 @@ export function getStepperOption(stepper: AStepper, name: string, moduleOptions:
 /**
  * Find a stepper by option value from a list of steppers
  */
-export function maybeFindStepperFromOption<Type>(steppers: AStepper[], stepper: AStepper, moduleOptions: TModuleOptions, ...optionNames: string[]): Type {
+export function maybeFindStepperFromOption<Type>(
+	steppers: AStepper[],
+	stepper: AStepper,
+	moduleOptions: TModuleOptions,
+	...optionNames: string[]
+): Type {
 	return doFindStepperFromOption(steppers, stepper, moduleOptions, true, ...optionNames);
 }
-export function findStepperFromOption<Type>(steppers: AStepper[], stepper: AStepper, moduleOptions: TModuleOptions, ...optionNames: string[]): Type {
+export function findStepperFromOption<Type>(
+	steppers: AStepper[],
+	stepper: AStepper,
+	moduleOptions: TModuleOptions,
+	...optionNames: string[]
+): Type {
 	return doFindStepperFromOption(steppers, stepper, moduleOptions, false, ...optionNames);
 }
-function doFindStepperFromOption<Type>(steppers: AStepper[], stepper: AStepper, moduleOptions: TModuleOptions, optional: boolean, ...optionNames: string[]): Type {
+function doFindStepperFromOption<Type>(
+	steppers: AStepper[],
+	stepper: AStepper,
+	moduleOptions: TModuleOptions,
+	optional: boolean,
+	...optionNames: string[]
+): Type {
 	const val = optionNames.reduce<string | undefined>((v, n) => {
 		const r = getStepperOption(stepper, n, moduleOptions);
 		return v || r;
@@ -285,7 +304,12 @@ function stepperOptionNotFoundError(stepper: AStepper, optionNames: string[], mo
  * If no stepper-level option is defined, returns any single stepper matching the first optionName as kind.
  * Throws if multiple steppers match the kind and no option is specified.
  */
-export function findStepperFromOptionOrKind<Type>(steppers: AStepper[], stepper: AStepper, moduleOptions: TModuleOptions, ...optionNames: string[]): Type {
+export function findStepperFromOptionOrKind<Type>(
+	steppers: AStepper[],
+	stepper: AStepper,
+	moduleOptions: TModuleOptions,
+	...optionNames: string[]
+): Type {
 	// First, try to find via option
 	const val = optionNames.reduce<string | undefined>((v, n) => {
 		const r = getStepperOption(stepper, n, moduleOptions);
@@ -388,7 +412,9 @@ export function trying<TResult>(fun: () => void): Promise<Error | TResult> {
 }
 
 export function asError(e: unknown): Error {
-	return typeof e === "object" && e !== null && "message" in e && typeof (e as Record<string, unknown>).message === "string" ? (e as Error) : new Error(String(e));
+	return typeof e === "object" && e !== null && "message" in e && typeof (e as Record<string, unknown>).message === "string"
+		? (e as Error)
+		: new Error(String(e));
 }
 
 export function dePolite(s: string) {
@@ -404,7 +430,9 @@ export function formattedSteppers(steppers: AStepper[]) {
 				...acc,
 				[name]: {
 					description,
-					steps: Object.entries(o.steps).map(([stepperName, stepperMatch]) => stepperName + ": " + (stepperMatch.gwta || stepperMatch.exact || stepperMatch.match)),
+					steps: Object.entries(o.steps).map(
+						([stepperName, stepperMatch]) => stepperName + ": " + (stepperMatch.gwta || stepperMatch.exact || stepperMatch.match),
+					),
 				},
 			};
 		},

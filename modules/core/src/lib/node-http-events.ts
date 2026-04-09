@@ -109,7 +109,10 @@ export class NodeHttpEvents {
 
 		const { world, stepperName } = stepTrace;
 
-		const rawBody = event === "request" ? Buffer.concat(request._haibun_chunks || []).toString("utf8") : Buffer.concat(response?._haibun_chunks || []).toString("utf8");
+		const rawBody =
+			event === "request"
+				? Buffer.concat(request._haibun_chunks || []).toString("utf8")
+				: Buffer.concat(response?._haibun_chunks || []).toString("utf8");
 
 		const url = `${request.origin || ""}${request.path || ""}`;
 

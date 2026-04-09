@@ -12,7 +12,7 @@ export interface StepDescriptor {
 	method: string;
 	pattern: string;
 	params: Record<string, "string" | "number">;
-	/** Domain key for each parameter (e.g., { data: 'muskeg-email', id: 'string' }) */
+	/** Domain key for each parameter (e.g., { data: 'haibun-email', id: 'string' }) */
 	paramDomains?: Record<string, string>;
 	capability?: string;
 	inputSchema?: Record<string, unknown>;
