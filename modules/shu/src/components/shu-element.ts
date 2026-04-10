@@ -12,6 +12,26 @@ import { getRels } from "../rels-cache.js";
  * Subclasses override `onTimeSync()` for custom behavior; default triggers re-render.
  */
 export abstract class ShuElement<T extends z.ZodType> extends HTMLElement {
+	/** True when running offline from an exported HTML file. No server, no RPC, no SSE. Set once at startup. */
+	static offline = false;
+
+	/** Stored hash for offline mode — set during hydration, updated by pushHash. */
+	static storedHash = "";
+
+	/** Get the current view hash — from URL when online, from stored state when offline. */
+	static getHash(): string {
+		return ShuElement.offline ? ShuElement.storedHash : location.hash;
+	}
+
+	/** Update view hash. Online: writes to URL. Offline: updates stored state only. */
+	static pushHash(newHash: string): void {
+		ShuElement.storedHash = newHash;
+		if (ShuElement.offline) return;
+		try {
+			if (location.hash !== newHash) history.replaceState(null, "", newHash);
+		} catch { /* file:// security restriction */ }
+	}
+
 	protected state: z.infer<T>;
 	private _schema: T;
 

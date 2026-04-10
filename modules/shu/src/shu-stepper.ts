@@ -7,14 +7,14 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { actionOK, actionNotOK, getFromRuntime } from "@haibun/core/lib/util/index.js";
-import { buildConcernCatalog, getJsonLdContext } from "@haibun/core/lib/hypermedia.js";
+import { getJsonLdContext } from "@haibun/core/lib/hypermedia.js";
 import type { IWebServer } from "@haibun/web-server-hono/defs.js";
 import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
 import type { Context } from "@haibun/web-server-hono/defs.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-function loadBundle(): string {
+export function loadBundle(): string {
 	const bundlePath = join(__dirname, "..", "build", "shu-bundle.js");
 	try {
 		return readFileSync(bundlePath, "utf-8");
@@ -23,9 +23,8 @@ function loadBundle(): string {
 	}
 }
 
-function createSpaHandler(basePath: string, bundle: string, hydration: string) {
-	return (c: Context) => {
-		const html = `<!DOCTYPE html>
+export function buildSpaHtml(basePath: string, bundle: string, hydration: string): string {
+	return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -47,12 +46,14 @@ function createSpaHandler(basePath: string, bundle: string, hydration: string) {
     <main id="shu-main" data-testid="shu-main" data-api-base="${basePath}" style="height:100%;">
     </main>
   </div>
-  <script type="application/json" id="shu-hydration">${hydration}</script>
+  <script type="application/json" id="shu-hydration">${hydration.replaceAll("</", "<\\/")}</script>
   <script>${bundle}</script>
 </body>
 </html>`;
-		return c.html(html);
-	};
+}
+
+function createSpaHandler(basePath: string, bundle: string, hydration: string) {
+	return (c: Context) => c.html(buildSpaHtml(basePath, bundle, hydration));
 }
 
 function validateMountPath(path: string): string | undefined {
@@ -77,10 +78,7 @@ export default class ShuStepper extends AStepper {
 				if (this.mountedPath === path) return actionOK();
 				if (this.mountedPath) return actionNotOK(`shu app already mounted at "${this.mountedPath}"; cannot mount at different path "${path}"`);
 				const bundle = loadBundle();
-				const hydrationJson = JSON.stringify({
-					concerns: buildConcernCatalog(this.getWorld().domains),
-				});
-				webserver.addRoute("get", path, createSpaHandler(path, bundle, hydrationJson));
+				webserver.addRoute("get", path, createSpaHandler(path, bundle, "{}"));
 				const jsonLdContext = getJsonLdContext(this.getWorld().domains);
 				const jsonLdHandler = (c: Context) => c.json(jsonLdContext);
 				webserver.addRoute("get", "/.well-known/muskeg-context.jsonld", jsonLdHandler);

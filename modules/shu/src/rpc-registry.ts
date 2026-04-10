@@ -1,4 +1,5 @@
 import { SseClient } from "./sse-client.js";
+import { setRpcCache, findCachedMethod } from "./rpc-cache.js";
 import { getConcernCatalog, setConcernCatalog } from "./rels-cache.js";
 import { ConcernCatalogSchema, type TConcernCatalog } from "@haibun/core/lib/hypermedia.js";
 import { z } from "zod";
@@ -100,15 +101,13 @@ export function buildDomainOptions(domains: Record<string, DomainInfo>): DomainO
 	return Object.values(concerns.vertices).map((vertex) => {
 		const v = vertex as { label: unknown; domainKey: string };
 		if (typeof v.label !== "string") throw new Error(`Concern label for domain ${v.domainKey} must be a string`);
-		if (/^\s*\[.*\]\s*$/.test(v.label))
-			throw new Error(`Concern label for domain ${v.domainKey} looks like a stringified array: ${v.label}`);
+		if (/^\s*\[.*\]\s*$/.test(v.label)) throw new Error(`Concern label for domain ${v.domainKey} looks like a stringified array: ${v.label}`);
 		const info = domains[v.domainKey];
-		if (!info) throw new Error(`step.list domain missing for concern domainKey: ${v.domainKey}`);
 		return {
 			key: v.domainKey,
 			queryLabel: v.label,
-			description: info.description,
-			stepperName: info.stepperName,
+			description: info?.description ?? "",
+			stepperName: info?.stepperName ?? "",
 			selectable: true,
 		};
 	});
@@ -130,24 +129,42 @@ async function getStepList(): Promise<StepListResponse> {
 	}
 }
 
-/** Read hydrated concerns from the HTML embedded by shu-stepper. */
-function readHydratedConcerns(): TConcernCatalog | null {
+/** Hydration data embedded in the HTML by monitor-stepper at endFeature. */
+export interface ShuHydration {
+	events?: Array<Record<string, unknown>>;
+	rpcCache?: Record<string, unknown>;
+	viewHash?: string;
+}
+
+let hydrationData: ShuHydration | null = null;
+
+function readHydration(): ShuHydration | null {
 	const el = document.getElementById("shu-hydration");
 	if (!el?.textContent) return null;
 	try {
-		const data = JSON.parse(el.textContent);
-		return ConcernCatalogSchema.parse(data.concerns);
+		return JSON.parse(el.textContent) as ShuHydration;
 	} catch (err) {
 		console.warn("[shu] Failed to parse hydration data:", err);
 		return null;
 	}
 }
 
-/** Apply hydrated concerns immediately (before any RPC). */
+/** Apply hydrated data immediately (before any RPC). */
 export function hydrateFromDom(): void {
-	const concerns = readHydratedConcerns();
-	if (concerns) setConcernCatalog(concerns);
+	hydrationData = readHydration();
+	if (hydrationData?.rpcCache) setRpcCache(hydrationData.rpcCache);
 }
+
+/** True if the page was loaded from an offline HTML file with embedded RPC cache. */
+export function isStandaloneMode(): boolean {
+	return hydrationData !== null && hydrationData.rpcCache !== undefined;
+}
+
+/** Get the view hash embedded at export time (offline mode). */
+export function getHydratedViewHash(): string {
+	return hydrationData?.viewHash ?? "";
+}
+
 
 async function discover(): Promise<StepListResponse> {
 	const client = SseClient.for("");
@@ -170,8 +187,9 @@ export function findStep(name: string): StepDescriptor | undefined {
 
 export function requireStep(name: string): string {
 	const step = findStep(name);
-	if (!step) throw new Error(`Step "${name}" not found in registry. Call getAvailableSteps() first.`);
-	return step.method;
+	if (step) return step.method;
+	if (isStandaloneMode()) return findCachedMethod(name) ?? name;
+	throw new Error(`Step "${name}" not found in registry. Call getAvailableSteps() first.`);
 }
 
 /**

@@ -69,7 +69,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	private _selectedStep = "";
 	private _lastPrompt = "";
 	private _fullText = "";
-	private _mode: TMode = "ask";
+	private _mode: TMode = "step";
 	private _unsubscribeEvents: (() => void) | null = null;
 	private _abortController: AbortController | null = null;
 	private _renderPending = false;
@@ -89,7 +89,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 
 	constructor() {
 		super(ActionsBarSchema, { askExpanded: false });
-		this._mode = (getCookie(MODE_COOKIE) as TMode) || "ask";
+		this._mode = (getCookie(MODE_COOKIE) as TMode) || "step";
 	}
 
 	setContext(
@@ -270,8 +270,8 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		this._domainOptions = buildDomainOptions(domains);
 		if (this._domainOptions.length === 0) throw new Error("No domain options were produced from concern catalog");
 		// Restore state from URL hash before defaulting to first domain
-		if (location.hash.startsWith("#?")) {
-			const hashParams = new URLSearchParams(location.hash.slice(2));
+		if (ShuElement.getHash().startsWith("#?")) {
+			const hashParams = new URLSearchParams(ShuElement.getHash().slice(2));
 			if (!this._selectedLabel) {
 				const hashLabel = hashParams.get("label");
 				if (hashLabel) this._selectedLabel = hashLabel;

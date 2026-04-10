@@ -2,26 +2,51 @@
  * MonitorStepper — Buffers execution events and forwards them via SSE transport.
  * Works with any config that has @haibun/web-server-hono (shared transport).
  * The shu frontend receives events via SSE for live updates and fetches history via RPC.
+ * At endFeature, writes a standalone HTML file with embedded events, quads, and concerns.
  */
 import { z } from "zod";
-import { AStepper, type IHasCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
+import { AStepper, type IHasCycles, type IHasOptions, type TStepperSteps, StepperKinds } from "@haibun/core/lib/astepper.js";
+import type { TWorld } from "@haibun/core/lib/defs.js";
 import type { THaibunEvent } from "@haibun/core/schema/protocol.js";
-import { actionNotOK, actionOKWithProducts } from "@haibun/core/lib/util/index.js";
-import { LinkRelations, type IStepperCycles } from "@haibun/core/lib/defs.js";
+import type { TEndFeature } from "@haibun/core/lib/defs.js";
+import { writeFileSync } from "fs";
+import { OBSCURED_VALUE } from "@haibun/core/lib/feature-variables.js";
+import { actionNotOK, actionOKWithProducts, stringOrError, findStepperFromOptionOrKind, actualURI } from "@haibun/core/lib/util/index.js";
+import { type IStepperCycles } from "@haibun/core/lib/defs.js";
 import { objectCoercer } from "@haibun/core/lib/domain-types.js";
 import { TRANSPORT, type ITransport } from "@haibun/web-server-hono/sse-transport.js";
+import { AStorage } from "@haibun/domain-storage/AStorage.js";
+import { EMediaTypes } from "@haibun/domain-storage/media-types.js";
+import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
 import { parseSeqPath } from "./quad-detail-pane.js";
+import { loadBundle, buildSpaHtml } from "./shu-stepper.js";
+import { RPC_CACHE } from "@haibun/web-server-hono/web-server-stepper.js";
 
 import { DOMAIN_GRAPH_QUERY, GraphQuerySchema } from "@haibun/core/lib/quad-types.js";
 
 const MAX_EVENTS = 10000;
 
-export default class MonitorStepper extends AStepper implements IHasCycles {
+export default class MonitorStepper extends AStepper implements IHasCycles, IHasOptions {
 	description = "Buffers execution events for the shu monitor view";
 	private events: THaibunEvent[] = [];
+	private storage?: AStorage;
+	private outputPath?: string;
+
+	options = {
+		[StepperKinds.STORAGE]: { desc: "Storage for standalone HTML output", parse: stringOrError },
+	};
 
 	private get transport(): ITransport | undefined {
 		return this.getWorld().runtime[TRANSPORT] as ITransport | undefined;
+	}
+
+	async setWorld(world: TWorld, steppers: AStepper[]): Promise<void> {
+		await super.setWorld(world, steppers);
+		try {
+			this.storage = findStepperFromOptionOrKind(steppers, this, world.moduleOptions, StepperKinds.STORAGE);
+		} catch {
+			/* storage is optional — standalone HTML won't be written */
+		}
 	}
 
 	cycles: IStepperCycles = {
@@ -40,9 +65,69 @@ export default class MonitorStepper extends AStepper implements IHasCycles {
 			if (this.events.length > MAX_EVENTS) this.events.shift();
 			this.transport?.send({ type: "event", event });
 		},
+		endFeature: async ({ shouldClose = true }: TEndFeature) => {
+			if (!shouldClose || !this.storage) return;
+			const rpcCache = (this.getWorld().runtime[RPC_CACHE] ?? {}) as Record<string, unknown>;
+			// Ensure essential data is always available offline:
+			// 1. Events (the test execution log — core of the monitor view)
+			if (!rpcCache["MonitorStepper-getEvents"]) {
+				rpcCache["MonitorStepper-getEvents"] = (this.steps.getEvents.action({} as { level?: string; kind?: string; since?: number }) as { products: unknown }).products;
+			}
+			// 2. Parameterless steps with view products (deterministic view toggles)
+			for (const [name, step] of Object.entries(this.steps)) {
+				const key = `MonitorStepper-${name}`;
+				if (rpcCache[key] || step.gwta.includes("{")) continue;
+				try {
+					const r = (step.action as () => unknown)() as { products?: Record<string, unknown> };
+					if (r?.products?.view) rpcCache[key] = r.products;
+				} catch { /* skip */ }
+			}
+			if (!rpcCache["step.list"]) {
+				rpcCache["step.list"] = { steps: [], domains: {}, concerns: buildConcernCatalog(this.getWorld().domains) };
+			}
+			// Reconstruct view hash from events (view products) and cache (last query label)
+			const cols: string[] = [];
+			let label = "";
+			for (const e of this.events) {
+				const ev = e as Record<string, unknown>;
+				if (ev.kind !== "lifecycle" || ev.stage !== "end") continue;
+				const view = (ev.products as Record<string, unknown>)?.view;
+				if (typeof view === "string" && !cols.includes(`${view}:`)) cols.push(`${view}:`);
+			}
+			for (const key of Object.keys(rpcCache)) {
+				if (!key.includes("graphQuery:")) continue;
+				try {
+					const params = JSON.parse(key.slice(key.indexOf(":") + 1));
+					if (params?.query?.label) label = params.query.label;
+				} catch { /* */ }
+			}
+			const hashParts = new URLSearchParams();
+			if (label) hashParts.set("label", label);
+			for (const col of cols) hashParts.append("col", col);
+			const viewHash = hashParts.toString() ? `#?${hashParts.toString()}` : "";
+			const hydration = JSON.stringify({ events: this.events, rpcCache, viewHash });
+			const bundle = loadBundle();
+			let html = buildSpaHtml(".", bundle, hydration);
+			const secrets = await this.getWorld().shared.getSecrets();
+			for (const [, value] of Object.entries(secrets)) {
+				if (value && html.includes(value)) html = html.replaceAll(value, OBSCURED_VALUE);
+			}
+			const fixedPath = this.outputPath;
+			if (fixedPath) {
+				writeFileSync(fixedPath, html);
+				this.getWorld().eventLogger.info(`shu standalone report: ${actualURI(fixedPath)}`);
+			} else {
+				const saved = await this.storage.saveArtifact("shu.html", html, EMediaTypes.html);
+				this.getWorld().eventLogger.info(`shu standalone report: ${actualURI(saved.absolutePath)}`);
+			}
+		},
 	};
 
 	steps = {
+		savesShuTo: {
+			gwta: "saves shu to {where: string}",
+			action: ({ where }: { where: string }) => { this.outputPath = where; return actionOKWithProducts({}); },
+		},
 		showMonitor: {
 			gwta: "show monitor",
 			action: () => actionOKWithProducts({ view: "monitor" }),
@@ -118,14 +203,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles {
 				const store = this.getWorld().shared.getStore();
 				const quads = await store.all();
 				return actionOKWithProducts({
-					quads: quads.map(({ subject, predicate, object, namedGraph, timestamp, properties }) => ({
-						subject,
-						predicate,
-						object,
-						namedGraph,
-						timestamp,
-						properties,
-					})),
+					quads: quads.map(({ subject, predicate, object, namedGraph, timestamp, properties }) => ({ subject, predicate, object, namedGraph, timestamp, properties })),
 				});
 			},
 		},

@@ -8,8 +8,19 @@
  * basePath only affects RPC call routing.
  */
 
+import { ShuElement } from "./components/shu-element.js";
+import { cacheKey, cacheGet, cacheSet, cacheHas } from "./rpc-cache.js";
+
 export type TEventFilter = (event: Record<string, unknown>) => boolean;
 type TEventHandler = (event: Record<string, unknown>) => void;
+
+/** Error thrown when an RPC method has no cached response in offline mode. */
+export class OfflineError extends Error {
+	constructor(method: string) {
+		super(`This query was not captured during the test session (${method})`);
+		this.name = "OfflineError";
+	}
+}
 
 let counter = 0;
 function nextId(): string {
@@ -84,8 +95,14 @@ const instances = new Map<string, SseClient>();
 export class SseClient {
 	private constructor(private basePath: string) {}
 
-	/** Get or create a singleton SseClient for the given basePath. */
+	/** Get or create a singleton SseClient for the given basePath.
+	 * In standalone mode (file:// with embedded data), returns a no-op client. */
 	static for(basePath: string): SseClient {
+		if (ShuElement.offline) {
+			let client = instances.get(basePath);
+			if (!client) { client = new SseClient(basePath); instances.set(basePath, client); }
+			return client;
+		}
 		ensureSSE();
 		let client = instances.get(basePath);
 		if (!client) {
@@ -95,8 +112,15 @@ export class SseClient {
 		return client;
 	}
 
-	/** Single request/response RPC call — result comes directly in HTTP response. */
+	/** Single request/response RPC call. In offline mode, returns cached response or throws OfflineError. */
 	async rpc<T = unknown>(method: string, params: Record<string, unknown> = {}): Promise<T> {
+		const key = cacheKey(method, params);
+		if (ShuElement.offline) {
+			// Exact match first, then method-only match (server caches without params)
+			if (cacheHas(key)) return cacheGet(key) as T;
+			if (cacheHas(method)) return cacheGet(method) as T;
+			throw new OfflineError(method);
+		}
 		const id = nextId();
 		const res = await fetch(`${this.basePath}/rpc/${method}`, {
 			method: "POST",
@@ -105,10 +129,11 @@ export class SseClient {
 		});
 		const data = await res.json();
 		if (!res.ok || data.error) throw new Error(data.error || `RPC failed: ${res.status}`);
+		cacheSet(key, data);
 		return data as T;
 	}
 
-	/** Streaming RPC call — reads NDJSON chunks from the HTTP response stream. */
+	/** Streaming RPC call. Throws in standalone mode (no server). */
 	async rpcStream(
 		method: string,
 		params: Record<string, unknown>,
