@@ -11,7 +11,7 @@
 		"./bundle": "./build/shu-bundle.js"
 	},
 	"scripts": {
-		"build": "tsc -b . && esbuild src/app.ts --bundle --outfile=build/shu-bundle.js --format=iife --platform=browser",
+		"build": "tsc -b . && esbuild src/app.ts --bundle --outfile=build/shu-bundle.js --format=iife --platform=browser --minify",
 		"test:e2e": "HAIBUN_O_WEBSERVERSTEPPER_PORT=8237 HAIBUN_O_WEBPLAYWRIGHT_STORAGE=StorageFS HAIBUN_O_WEBSERVERSTEPPER_RPC_ACCESS_TOKEN=rpc-protected-token HAIBUN_O_WEBSERVERSTEPPER_RPC_ACCESS_CAPABILITY=TestServer:protected haibun-cli -c ./tests/config.json ./tests",
 		"test": "vitest run",
 		"lint": "biome lint .",
