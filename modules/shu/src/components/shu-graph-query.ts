@@ -125,12 +125,12 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 	}
 
 	private hasHash(): boolean {
-		const h = location.hash;
+		const h = ShuElement.getHash();
 		return h.length > 1 && h.startsWith("#?");
 	}
 
 	private syncHashState(): void {
-		const h = location.hash;
+		const h = ShuElement.getHash();
 		if (!h || h.length <= 2) return;
 		const params = new URLSearchParams(h.slice(2));
 
@@ -153,7 +153,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		const { label, textQuery, sortBy, sortOrder } = this.state;
 
 		// Preserve existing col params (managed by app.ts via columns-changed events)
-		const existing = location.hash.startsWith("#?") ? new URLSearchParams(location.hash.slice(2)) : new URLSearchParams();
+		const existing = ShuElement.getHash().startsWith("#?") ? new URLSearchParams(ShuElement.getHash().slice(2)) : new URLSearchParams();
 		const colValues = existing.getAll("col");
 
 		const params = new URLSearchParams();
@@ -173,9 +173,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		}
 
 		const newHash = `#?${params.toString()}`;
-		if (location.hash !== newHash) {
-			history.replaceState(null, "", newHash);
-		}
+		ShuElement.pushHash(newHash);
 	}
 
 	private syncFromAttributes(): void {
@@ -260,9 +258,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 				if (pane) pane.setAttribute("label", data.cypher);
 			}
 		} catch (err) {
-			const msg = errMsg(err);
-			console.error("[shu] query failed:", msg);
-			this.error = msg;
+			this.error = errMsg(err);
 		}
 		this.pushHash();
 		this.renderResults();

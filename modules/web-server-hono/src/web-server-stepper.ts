@@ -188,7 +188,9 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 					const seqPath = msg.seqPath ?? [0, runtime.adHocSeq];
 
 					if (method === "step.list") {
-						return discoverSteps(this.steppers, this.getWorld(), this.stepRegistry);
+						const result = discoverSteps(this.steppers, this.getWorld(), this.stepRegistry);
+						this.cacheRpcResponse(method, params, result);
+						return result;
 					}
 					if (method === "step.validate") return validateStep(String(params.text || ""), this.steppers);
 
@@ -210,7 +212,11 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 							{ registry, world: this.getWorld(), steppers: this.steppers, grantedCapability },
 							featureStep,
 						);
-						if (hr.ok) return hr.products ?? { ok: true };
+						if (hr.ok) {
+							const result = hr.products ?? { ok: true };
+							this.cacheRpcResponse(method, params, result);
+							return result;
+						}
 						return { error: `${method}: ${hr.errorMessage}` };
 					} catch (err) {
 						const detail = err instanceof Error ? err.message : String(err);
@@ -265,7 +271,15 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 		}
 		await this.webserver.listen(why, this.port, this.hostname);
 	}
+
+	private cacheRpcResponse(method: string, params: Record<string, unknown>, result: unknown): void {
+		const cache = (this.getWorld().runtime[RPC_CACHE] ??= {}) as Record<string, unknown>;
+		const key = Object.keys(params).length === 0 ? method : `${method}:${JSON.stringify(params)}`;
+		cache[key] = result;
+	}
 }
+
+export const RPC_CACHE = "rpc-cache";
 
 export default WebServerStepper;
 

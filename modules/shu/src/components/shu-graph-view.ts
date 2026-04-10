@@ -97,8 +97,6 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 	async connectedCallback(): Promise<void> {
 		super.connectedCallback();
 		const client = SseClient.for("");
-
-		// Ensure rels-cache is populated so classifyProperty can identify edges
 		await getAvailableSteps();
 
 		try {
