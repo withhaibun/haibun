@@ -81,8 +81,6 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 	async connectedCallback(): Promise<void> {
 		super.connectedCallback();
 		const client = SseClient.for("");
-
-		// Backfill first, then subscribe to SSE to avoid duplicates
 		try {
 			const data = await client.rpc<{ events: Array<Record<string, unknown>> }>("MonitorStepper-getEvents");
 			if (data.events) {
@@ -90,8 +88,8 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 				this.updateTimeline();
 				this.renderRows();
 			}
-		} catch {
-			/* stepper may not be loaded */
+		} catch (err) {
+			if (!ShuElement.offline) console.warn("[shu-monitor] failed to load events:", err instanceof Error ? err.message : err);
 		}
 
 		this.unsubscribe = client.onEvent((event) => {

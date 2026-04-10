@@ -5,7 +5,8 @@ import { SHU_EVENT, SHU_ATTR } from "./consts.js";
  * Query pane is sticky on the left, additional columns scroll right.
  * Each pane is resizable and independently rendered.
  */
-import { hydrateFromDom } from "./rpc-registry.js";
+import { hydrateFromDom, isStandaloneMode, getHydratedViewHash } from "./rpc-registry.js";
+import { ShuElement } from "./components/shu-element.js";
 import { registerComponents } from "./component-registry.js";
 import { SseClient } from "./sse-client.js";
 import type { ShuColumnStrip } from "./components/shu-column-strip.js";
@@ -74,29 +75,32 @@ function cleanParams(params: URLSearchParams): void {
 
 /** Seed hash state from URL query string on initial load (e.g. ?label=Researcher → #?label=Researcher). */
 function seedHashFromQueryString(): void {
-	if (location.hash && location.hash.length > 2) return;
+	if (ShuElement.getHash() && ShuElement.getHash().length > 2) return;
 	const search = new URLSearchParams(location.search);
 	if (search.size === 0) return;
 	const hashParams = new URLSearchParams();
 	for (const [key, value] of search) hashParams.set(key, value);
-	history.replaceState(null, "", `${location.pathname}#?${hashParams.toString()}`);
+	ShuElement.pushHash(`#?${hashParams.toString()}`);
 }
 
 const main = async (): Promise<void> => {
-	seedHashFromQueryString();
 	hydrateFromDom();
+	ShuElement.offline = isStandaloneMode();
+	if (ShuElement.offline) ShuElement.storedHash = getHydratedViewHash();
+	seedHashFromQueryString();
 	await registerComponents();
 
 	const appRoot = document.getElementById("shu-main");
 	if (!appRoot) return;
 
-	// Validate required steps are available before rendering
 	try {
 		const { getAvailableSteps } = await import("./rpc-registry.js");
 		await getAvailableSteps();
 	} catch (err) {
-		appRoot.innerHTML = `<div style="padding:20px;color:#c00;font-family:monospace"><strong>SPA initialization failed:</strong> ${err instanceof Error ? err.message : err}</div>`;
-		return;
+		if (!ShuElement.offline) {
+			appRoot.innerHTML = `<div style="padding:20px;color:#c00;font-family:monospace"><strong>SPA initialization failed:</strong> ${err instanceof Error ? err.message : err}</div>`;
+			return;
+		}
 	}
 
 	const apiBase = appRoot.getAttribute("data-api-base") || "/shu";
@@ -137,7 +141,7 @@ const main = async (): Promise<void> => {
 	};
 
 	const updateHashActiveView = (index: number) => {
-		const h = location.hash.startsWith("#?") ? location.hash : "#?";
+		const h = ShuElement.getHash().startsWith("#?") ? ShuElement.getHash() : "#?";
 		const params = new URLSearchParams(h.slice(2));
 		if (index > 0) {
 			params.set("active", String(index));
@@ -146,7 +150,7 @@ const main = async (): Promise<void> => {
 		}
 		cleanParams(params);
 		const newHash = `#?${params.toString()}`;
-		if (location.hash !== newHash) history.replaceState(null, "", newHash);
+		ShuElement.pushHash(newHash);
 	};
 
 	/** Create an entity column pane with label encoded in key for hash persistence. */
@@ -292,23 +296,21 @@ const main = async (): Promise<void> => {
 		{ signal },
 	);
 
-	// SSE listener: open monitor/sequence/graph columns when steps trigger them
+	// SSE listener: open view columns when any step returns a `view` product
+	const VIEW_EVENTS: Record<string, string> = { monitor: SHU_EVENT.COLUMN_OPEN_MONITOR, sequence: SHU_EVENT.COLUMN_OPEN_SEQUENCE, graph: SHU_EVENT.COLUMN_OPEN_GRAPH };
 	const sseClient = SseClient.for("");
 	sseClient.onEvent((event) => {
-		const e = event as { kind?: string; type?: string; stage?: string; actionName?: string; status?: string };
-		if (e.kind !== "lifecycle" || e.type !== "step" || e.stage !== "end" || e.status !== "completed") return;
-		if (e.actionName === "showMonitor") appRoot.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN_MONITOR, { bubbles: true }));
-		else if (e.actionName === "showSequenceDiagram")
-			appRoot.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN_SEQUENCE, { bubbles: true }));
-		else if (e.actionName === "showGraphView")
-			appRoot.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN_GRAPH, { bubbles: true }));
+		const e = event as { kind?: string; type?: string; stage?: string; status?: string; products?: Record<string, unknown> };
+		if (e.kind !== "lifecycle" || e.type !== "step" || e.stage !== "end" || e.status !== "completed" || !e.products) return;
+		const view = e.products.view;
+		if (typeof view === "string" && VIEW_EVENTS[view]) appRoot.dispatchEvent(new CustomEvent(VIEW_EVENTS[view], { bubbles: true }));
 	});
 
 	// Results changed → remove all non-query panes
 	appRoot.addEventListener(
 		SHU_EVENT.RESULTS_CHANGED,
 		(() => {
-			const h = location.hash;
+			const h = ShuElement.getHash();
 			if (h.startsWith("#?") && new URLSearchParams(h.slice(2)).has("col")) return;
 			const strip = getStrip();
 			if (!strip) return;
@@ -488,7 +490,7 @@ const main = async (): Promise<void> => {
 			const columns: string[] = e.detail?.columns || [];
 			const keys: string[] = e.detail?.keys || columns;
 			getActionsBar()?.setColumns?.(columns);
-			const h = location.hash;
+			const h = ShuElement.getHash();
 			const base = h.startsWith("#?") ? h : "#?";
 			const params = new URLSearchParams(base.slice(2));
 			params.delete("col");
@@ -497,9 +499,7 @@ const main = async (): Promise<void> => {
 			}
 			cleanParams(params);
 			const newHash = `#?${params.toString()}`;
-			if (location.hash !== newHash) {
-				history.replaceState(null, "", newHash);
-			}
+			ShuElement.pushHash(newHash);
 		}) as EventListener,
 		{ signal },
 	);
@@ -514,7 +514,7 @@ const main = async (): Promise<void> => {
 	}
 
 	// Restore columns from URL hash
-	const hash = location.hash.replace(/^#\??/, "");
+	const hash = ShuElement.getHash().replace(/^#\??/, "");
 	const hashParams = new URLSearchParams(hash);
 	const colParams = hashParams.getAll("col");
 	const activeParam = hashParams.get("active");
