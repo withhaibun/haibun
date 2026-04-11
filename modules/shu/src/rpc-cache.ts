@@ -12,7 +12,10 @@ export function cacheGet(key: string): unknown | undefined {
 }
 
 export function cacheSet(key: string, value: unknown): void {
-	if (cache.size >= MAX_CACHE) cache.delete(cache.keys().next().value!);
+	if (cache.size >= MAX_CACHE) {
+		const oldest = cache.keys().next().value;
+		if (oldest !== undefined) cache.delete(oldest);
+	}
 	cache.set(key, value);
 }
 

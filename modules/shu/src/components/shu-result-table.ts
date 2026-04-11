@@ -150,10 +150,7 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 									const vid = vertexId(v);
 									const vlabel = vertexLabel(v);
 									const labelAttr = vlabel ? ` data-vertex-label="${escAttr(vlabel)}"` : "";
-									const header =
-										isMultiType && v._label !== lastLabel
-											? `<tr class="group-header"><th colspan="${props.length}">${esc(String(v._label ?? ""))}</th></tr>`
-											: "";
+									const header = isMultiType && v._label !== lastLabel ? `<tr class="group-header"><th colspan="${props.length}">${esc(String(v._label ?? ""))}</th></tr>` : "";
 									lastLabel = v._label as string | undefined;
 									return `${header}<tr class="clickable-row" data-vertex-id="${escAttr(vid)}"${labelAttr} data-testid="${i === 0 ? "query-row-first" : "query-row"}">
 								${props
@@ -288,8 +285,7 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 			const thumbH = Math.max(16, Math.round(railH * ratio));
 			const scrollRange = railH - thumbH;
 			const dy = clientY - startY;
-			const newOffset =
-				scrollRange > 0 ? Math.round(Math.min(maxOff(), Math.max(0, startOffset + (dy / scrollRange) * maxOff()))) : 0;
+			const newOffset = scrollRange > 0 ? Math.round(Math.min(maxOff(), Math.max(0, startOffset + (dy / scrollRange) * maxOff()))) : 0;
 			track.dataset.offset = String(newOffset);
 			this.positionScrollThumb(track, visibleRows);
 		};
