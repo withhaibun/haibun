@@ -28,7 +28,9 @@ export abstract class ShuElement<T extends z.ZodType> extends HTMLElement {
 		if (ShuElement.offline) return;
 		try {
 			if (location.hash !== newHash) history.replaceState(null, "", newHash);
-		} catch { /* file:// security restriction */ }
+		} catch {
+			/* file:// security restriction */
+		}
 	}
 
 	protected state: z.infer<T>;

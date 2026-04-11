@@ -198,9 +198,7 @@ export class StepCaller extends HTMLElement {
 				const prop = properties[paramName];
 				if (prop?.enum) {
 					const savedVal = this.lastFormValues[paramName] || "";
-					const options = prop.enum
-						.map((v: string) => `<option value="${escAttr(v)}"${v === savedVal ? " selected" : ""}>${esc(v)}</option>`)
-						.join("");
+					const options = prop.enum.map((v: string) => `<option value="${escAttr(v)}"${v === savedVal ? " selected" : ""}>${esc(v)}</option>`).join("");
 					parts.push(
 						`<select name="${escAttr(paramName)}" class="inline-select"${tid(`step-select-${paramName}`)}><option value=""${!savedVal ? " selected" : ""}>${esc(paramName)}</option>${options}</select>`,
 					);
@@ -298,9 +296,7 @@ export class StepCaller extends HTMLElement {
 		if (form) {
 			form.addEventListener("submit", (e) => {
 				e.preventDefault();
-				const inputs = Array.from(
-					(form as HTMLFormElement).querySelectorAll<HTMLInputElement | HTMLSelectElement>("input[name], select[name]"),
-				);
+				const inputs = Array.from((form as HTMLFormElement).querySelectorAll<HTMLInputElement | HTMLSelectElement>("input[name], select[name]"));
 				const values: Record<string, string> = {};
 				for (const input of inputs) {
 					if (input.value) values[input.name] = input.value;

@@ -165,7 +165,6 @@ export function getHydratedViewHash(): string {
 	return hydrationData?.viewHash ?? "";
 }
 
-
 async function discover(): Promise<StepListResponse> {
 	const client = SseClient.for("");
 	const result = await client.rpc<unknown>("step.list");
@@ -173,8 +172,7 @@ async function discover(): Promise<StepListResponse> {
 	const { steps, domains, concerns } = parsed;
 	setConcernCatalog(concerns);
 	for (const [label, vertex] of Object.entries(concerns.vertices)) {
-		if (/^\s*\[.*\]\s*$/.test(vertex.label))
-			throw new Error(`step.list concern ${label} has stringified-array label: ${vertex.label}`);
+		if (/^\s*\[.*\]\s*$/.test(vertex.label)) throw new Error(`step.list concern ${label} has stringified-array label: ${vertex.label}`);
 	}
 	cachedSteps = steps;
 	cachedDomains = domains;

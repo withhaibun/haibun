@@ -64,16 +64,8 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 				kind: "lifecycle",
 			});
 			const stepEvent =
-				eventsData.events?.find(
-					(e) =>
-						e.stage === "end" &&
-						e.status === "completed" &&
-						Array.isArray(e.seqPath) &&
-						(e.seqPath as number[]).join(".") === seqKey,
-				) ??
-				eventsData.events?.find(
-					(e) => e.stage === "end" && Array.isArray(e.seqPath) && (e.seqPath as number[]).join(".") === seqKey,
-				);
+				eventsData.events?.find((e) => e.stage === "end" && e.status === "completed" && Array.isArray(e.seqPath) && (e.seqPath as number[]).join(".") === seqKey) ??
+				eventsData.events?.find((e) => e.stage === "end" && Array.isArray(e.seqPath) && (e.seqPath as number[]).join(".") === seqKey);
 
 			// Fetch dispatch trace
 			const tracesData = await client.rpc<{ traces: Array<Record<string, unknown>> }>("MonitorStepper-getDispatchTraces");
@@ -128,13 +120,9 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 			const stepperName = String(stepEvent.stepperName ?? "");
 			const status = stepEvent.status === "completed" ? "\u2705" : stepEvent.status === "failed" ? "\u274c" : "";
 			sections.push(`<div class="field"><span class="label">Step:</span> <span class="value">${escHtml(stepIn)}</span></div>`);
-			sections.push(
-				`<div class="field"><span class="label">Action:</span> <span class="value">${status} ${escHtml(stepperName)}.${escHtml(actionName)}</span></div>`,
-			);
+			sections.push(`<div class="field"><span class="label">Action:</span> <span class="value">${status} ${escHtml(stepperName)}.${escHtml(actionName)}</span></div>`);
 			if (stepEvent.error)
-				sections.push(
-					`<div class="field"><span class="label">Error:</span> <span class="value" style="color:red">${escHtml(String(stepEvent.error))}</span></div>`,
-				);
+				sections.push(`<div class="field"><span class="label">Error:</span> <span class="value" style="color:red">${escHtml(String(stepEvent.error))}</span></div>`);
 		}
 
 		// Dispatch trace
@@ -143,17 +131,9 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 			const duration = trace.durationMs ? `${trace.durationMs}ms` : "";
 			const products = Array.isArray(trace.productKeys) ? (trace.productKeys as string[]).join(", ") : "";
 			const capability = trace.capabilityRequired ? `cap: ${trace.capabilityRequired}` : "";
-			sections.push(
-				`<div class="section"><span class="label">Transport:</span> <span class="value">${escHtml(transport)} ${escHtml(duration)}</span></div>`,
-			);
-			if (capability)
-				sections.push(
-					`<div class="field"><span class="label">Capability:</span> <span class="value">${escHtml(capability)}</span></div>`,
-				);
-			if (products)
-				sections.push(
-					`<div class="field"><span class="label">Products:</span> <span class="value">${escHtml(products)}</span></div>`,
-				);
+			sections.push(`<div class="section"><span class="label">Transport:</span> <span class="value">${escHtml(transport)} ${escHtml(duration)}</span></div>`);
+			if (capability) sections.push(`<div class="field"><span class="label">Capability:</span> <span class="value">${escHtml(capability)}</span></div>`);
+			if (products) sections.push(`<div class="field"><span class="label">Products:</span> <span class="value">${escHtml(products)}</span></div>`);
 		}
 
 		// Variables set — name is clickable link, graph shown as context

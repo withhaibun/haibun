@@ -42,10 +42,7 @@ export function createStepUI(wp: WebPlaywright) {
 			inputVariable({ what: `"${stepName}"`, field: IDS.APP.STEP_SELECT }),
 			press({ key: '"Enter"' }),
 			...(paramEntries.length > 0
-				? [
-						waitFor({ target: CURRENT_INPUT(paramEntries[0][0]) }),
-						...paramEntries.map(([name, value]) => inputVariable({ what: value, field: CURRENT_INPUT(name) })),
-					]
+				? [waitFor({ target: CURRENT_INPUT(paramEntries[0][0]) }), ...paramEntries.map(([name, value]) => inputVariable({ what: value, field: CURRENT_INPUT(name) }))]
 				: []),
 			click({ target: CURRENT_RUN }),
 			"page has settled",

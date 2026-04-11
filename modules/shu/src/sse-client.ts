@@ -100,7 +100,10 @@ export class SseClient {
 	static for(basePath: string): SseClient {
 		if (!ShuElement.offline) ensureSSE();
 		let client = instances.get(basePath);
-		if (!client) { client = new SseClient(basePath); instances.set(basePath, client); }
+		if (!client) {
+			client = new SseClient(basePath);
+			instances.set(basePath, client);
+		}
 		return client;
 	}
 
@@ -126,12 +129,7 @@ export class SseClient {
 	}
 
 	/** Streaming RPC call. Throws in standalone mode (no server). */
-	async rpcStream(
-		method: string,
-		params: Record<string, unknown>,
-		onChunk: (data: unknown) => void,
-		signal?: AbortSignal,
-	): Promise<void> {
+	async rpcStream(method: string, params: Record<string, unknown>, onChunk: (data: unknown) => void, signal?: AbortSignal): Promise<void> {
 		const id = nextId();
 		const res = await fetch(`${this.basePath}/rpc/${method}`, {
 			method: "POST",
