@@ -98,17 +98,9 @@ export class SseClient {
 	/** Get or create a singleton SseClient for the given basePath.
 	 * In standalone mode (file:// with embedded data), returns a no-op client. */
 	static for(basePath: string): SseClient {
-		if (ShuElement.offline) {
-			let client = instances.get(basePath);
-			if (!client) { client = new SseClient(basePath); instances.set(basePath, client); }
-			return client;
-		}
-		ensureSSE();
+		if (!ShuElement.offline) ensureSSE();
 		let client = instances.get(basePath);
-		if (!client) {
-			client = new SseClient(basePath);
-			instances.set(basePath, client);
-		}
+		if (!client) { client = new SseClient(basePath); instances.set(basePath, client); }
 		return client;
 	}
 

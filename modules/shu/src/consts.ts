@@ -28,6 +28,13 @@ export const SHU_EVENT = {
 	TIME_SYNC: "time-sync",
 } as const;
 
+/** Maps `view` product values to the column-open events they trigger. */
+export const VIEW_EVENTS: Record<string, string> = {
+	monitor: SHU_EVENT.COLUMN_OPEN_MONITOR,
+	sequence: SHU_EVENT.COLUMN_OPEN_SEQUENCE,
+	graph: SHU_EVENT.COLUMN_OPEN_GRAPH,
+};
+
 export const SHU_ATTR = {
 	DATA_MINIMIZED: "data-minimized",
 	PINNED: "pinned",

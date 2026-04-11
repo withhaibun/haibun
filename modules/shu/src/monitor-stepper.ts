@@ -45,7 +45,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		try {
 			this.storage = findStepperFromOptionOrKind(steppers, this, world.moduleOptions, StepperKinds.STORAGE);
 		} catch {
-			/* storage is optional — standalone HTML won't be written */
+			this.getWorld().eventLogger.info("MonitorStepper: no storage configured, standalone HTML will not be written");
 		}
 	}
 
@@ -110,7 +110,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			let html = buildSpaHtml(".", bundle, hydration);
 			const secrets = await this.getWorld().shared.getSecrets();
 			for (const [, value] of Object.entries(secrets)) {
-				if (value && html.includes(value)) html = html.replaceAll(value, OBSCURED_VALUE);
+				if (value) html = html.replaceAll(value, OBSCURED_VALUE);
 			}
 			const fixedPath = this.outputPath;
 			if (fixedPath) {
