@@ -1,13 +1,7 @@
 import { SHARED_STYLES } from "./styles.js";
 import { SseClient } from "../sse-client.js";
 import { getAvailableSteps, findStep, type StepDescriptor } from "../rpc-registry.js";
-import { SHU_EVENT } from "../consts.js";
-
-const VIEW_EVENTS: Record<string, string> = {
-	monitor: SHU_EVENT.COLUMN_OPEN_MONITOR,
-	sequence: SHU_EVENT.COLUMN_OPEN_SEQUENCE,
-	graph: SHU_EVENT.COLUMN_OPEN_GRAPH,
-};
+import { VIEW_EVENTS } from "../consts.js";
 import { renderValue } from "./value-renderers.js";
 import { esc, escAttr } from "../util.js";
 

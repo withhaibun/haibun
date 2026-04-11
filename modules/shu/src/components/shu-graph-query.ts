@@ -153,7 +153,8 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		const { label, textQuery, sortBy, sortOrder } = this.state;
 
 		// Preserve existing col params (managed by app.ts via columns-changed events)
-		const existing = ShuElement.getHash().startsWith("#?") ? new URLSearchParams(ShuElement.getHash().slice(2)) : new URLSearchParams();
+		const currentHash = ShuElement.getHash();
+		const existing = currentHash.startsWith("#?") ? new URLSearchParams(currentHash.slice(2)) : new URLSearchParams();
 		const colValues = existing.getAll("col");
 
 		const params = new URLSearchParams();
