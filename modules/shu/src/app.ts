@@ -1,5 +1,5 @@
 import { defaultLabel } from "./util.js";
-import { SHU_EVENT, SHU_ATTR } from "./consts.js";
+import { SHU_EVENT, SHU_ATTR, VIEW_EVENTS } from "./consts.js";
 /**
  * Main SPA entry point — uses shu-column-strip + shu-column-pane layout.
  * Query pane is sticky on the left, additional columns scroll right.
@@ -75,7 +75,8 @@ function cleanParams(params: URLSearchParams): void {
 
 /** Seed hash state from URL query string on initial load (e.g. ?label=Researcher → #?label=Researcher). */
 function seedHashFromQueryString(): void {
-	if (ShuElement.getHash() && ShuElement.getHash().length > 2) return;
+	const h = ShuElement.getHash();
+	if (h && h.length > 2) return;
 	const search = new URLSearchParams(location.search);
 	if (search.size === 0) return;
 	const hashParams = new URLSearchParams();
@@ -86,7 +87,7 @@ function seedHashFromQueryString(): void {
 const main = async (): Promise<void> => {
 	hydrateFromDom();
 	ShuElement.offline = isStandaloneMode();
-	if (ShuElement.offline) ShuElement.storedHash = getHydratedViewHash();
+	if (ShuElement.offline) ShuElement.pushHash(getHydratedViewHash());
 	seedHashFromQueryString();
 	await registerComponents();
 
@@ -141,7 +142,8 @@ const main = async (): Promise<void> => {
 	};
 
 	const updateHashActiveView = (index: number) => {
-		const h = ShuElement.getHash().startsWith("#?") ? ShuElement.getHash() : "#?";
+		const currentHash = ShuElement.getHash();
+		const h = currentHash.startsWith("#?") ? currentHash : "#?";
 		const params = new URLSearchParams(h.slice(2));
 		if (index > 0) {
 			params.set("active", String(index));
@@ -296,8 +298,6 @@ const main = async (): Promise<void> => {
 		{ signal },
 	);
 
-	// SSE listener: open view columns when any step returns a `view` product
-	const VIEW_EVENTS: Record<string, string> = { monitor: SHU_EVENT.COLUMN_OPEN_MONITOR, sequence: SHU_EVENT.COLUMN_OPEN_SEQUENCE, graph: SHU_EVENT.COLUMN_OPEN_GRAPH };
 	const sseClient = SseClient.for("");
 	sseClient.onEvent((event) => {
 		const e = event as { kind?: string; type?: string; stage?: string; status?: string; products?: Record<string, unknown> };
