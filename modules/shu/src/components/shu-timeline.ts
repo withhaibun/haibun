@@ -115,9 +115,7 @@ export class ShuTimeline extends HTMLElement {
 
 	private render(): void {
 		if (!this.shadowRoot) return;
-		const speedOptions = SPEED_OPTIONS.map(
-			(s) => `<option value="${s}"${s === this.speed ? " selected" : ""}>${formatSpeed(s)}</option>`,
-		).join("");
+		const speedOptions = SPEED_OPTIONS.map((s) => `<option value="${s}"${s === this.speed ? " selected" : ""}>${formatSpeed(s)}</option>`).join("");
 		this.shadowRoot.innerHTML = `<style>${STYLES}</style>
 			<button data-action="restart" data-testid="timeline-restart" title="Restart">\u23ee</button>
 			<button data-action="play" data-testid="timeline-play" title="${this.playing ? "Pause" : "Play"}">${this.playing ? "\u23f8\ufe0f" : "\u25b6\ufe0f"}</button>

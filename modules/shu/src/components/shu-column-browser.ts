@@ -337,11 +337,7 @@ export class ShuColumnBrowser extends HTMLElement {
 
 	private renderColumn(col: Column, index: number): string {
 		const isCurrent = index === this.currentIndex;
-		const bodyHtml = col.error
-			? `<div class="error-banner">${esc(col.error)}</div>`
-			: col.vertex
-				? this.renderEntityColumn(col, index)
-				: this.renderResultsColumn(col, index);
+		const bodyHtml = col.error ? `<div class="error-banner">${esc(col.error)}</div>` : col.vertex ? this.renderEntityColumn(col, index) : this.renderResultsColumn(col, index);
 
 		return `
 			<div class="column${isCurrent ? " current" : ""}" data-col-index="${index}" data-testid="browser-column">
@@ -392,10 +388,7 @@ export class ShuColumnBrowser extends HTMLElement {
 
 		const summaryHtml = Array.from(summaryFieldSet)
 			.filter((k) => fields[k])
-			.map(
-				(k) =>
-					`<span class="summary-field">${this.clickableValue(k, index, "describedby")} ${this.clickableValue(fields[k], index, "filter", k)}</span>`,
-			)
+			.map((k) => `<span class="summary-field">${this.clickableValue(k, index, "describedby")} ${this.clickableValue(fields[k], index, "filter", k)}</span>`)
 			.join(" ");
 
 		const currentFolder = String(vertex.folder ?? "");
@@ -440,9 +433,7 @@ export class ShuColumnBrowser extends HTMLElement {
 
 	private renderResultsColumn(col: Column, index: number): string {
 		if (!col.results || col.results.length === 0) {
-			return col.loading
-				? '<shu-spinner status="Loading..." visible></shu-spinner>'
-				: '<div class="no-results">No results found.</div>';
+			return col.loading ? '<shu-spinner status="Loading..." visible></shu-spinner>' : '<div class="no-results">No results found.</div>';
 		}
 
 		return col.results
@@ -454,10 +445,7 @@ export class ShuColumnBrowser extends HTMLElement {
 				const summary = Object.entries(v)
 					.filter(([k, val]) => !HIDDEN_PROPS.has(k) && !contentFieldSet.has(k) && String(val ?? "") !== idField)
 					.slice(0, 3)
-					.map(
-						([k, val]) =>
-							`${this.clickableValue(k, index, "describedby")}: ${this.clickableValue(String(val ?? ""), index, "filter", k)}`,
-					)
+					.map(([k, val]) => `${this.clickableValue(k, index, "describedby")}: ${this.clickableValue(String(val ?? ""), index, "filter", k)}`)
 					.join(", ");
 				return `<div class="result-row">
 				${this.clickableValue(id, index, "item")} <span class="result-summary">${summary}</span>

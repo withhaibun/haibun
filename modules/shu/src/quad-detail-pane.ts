@@ -50,10 +50,7 @@ export function openQuadDetailPane(graph: string, subject: string, quads: TQuad[
 		link.addEventListener("click", (e) => {
 			e.preventDefault();
 			const seqPath = (link as HTMLElement).dataset.seqpath?.split(",").map(Number);
-			if (seqPath)
-				dispatcher.dispatchEvent(
-					new CustomEvent(SHU_EVENT.COLUMN_OPEN_STEP, { detail: { seqPath }, bubbles: true, composed: true }),
-				);
+			if (seqPath) dispatcher.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN_STEP, { detail: { seqPath }, bubbles: true, composed: true }));
 		});
 	});
 	const strip = document.querySelector("shu-column-strip");

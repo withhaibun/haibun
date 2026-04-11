@@ -80,10 +80,7 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 			return;
 		}
 
-		const contentHtml =
-			mode === "graph"
-				? '<div class="graph-container"></div>'
-				: `<div class="thread-list">${mode === "flat" ? this.renderFlat() : this.renderTree()}</div>`;
+		const contentHtml = mode === "graph" ? '<div class="graph-container"></div>' : `<div class="thread-list">${mode === "flat" ? this.renderFlat() : this.renderTree()}</div>`;
 		this.shadowRoot.innerHTML = `${this.css(STYLES)}
 			<div class="toolbar">
 				<button class="mode-btn${mode === "flat" ? " active" : ""}" data-mode="flat">Flat</button>
@@ -101,10 +98,7 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 			card.addEventListener("click", () => {
 				const id = (card as HTMLElement).dataset.id;
 				const cardLabel = (card as HTMLElement).dataset.label || this.state.label;
-				if (id)
-					this.dispatchEvent(
-						new CustomEvent(SHU_EVENT.COLUMN_OPEN, { detail: { subject: id, label: cardLabel }, bubbles: true, composed: true }),
-					);
+				if (id) this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN, { detail: { subject: id, label: cardLabel }, bubbles: true, composed: true }));
 			});
 		});
 

@@ -80,7 +80,9 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				try {
 					const r = (step.action as () => unknown)() as { products?: Record<string, unknown> };
 					if (r?.products?.view) rpcCache[key] = r.products;
-				} catch { /* skip */ }
+				} catch {
+					/* skip */
+				}
 			}
 			if (!rpcCache["step.list"]) {
 				rpcCache["step.list"] = { steps: [], domains: {}, concerns: buildConcernCatalog(this.getWorld().domains) };
@@ -99,7 +101,9 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				try {
 					const params = JSON.parse(key.slice(key.indexOf(":") + 1));
 					if (params?.query?.label) label = params.query.label;
-				} catch { /* */ }
+				} catch {
+					/* */
+				}
 			}
 			const hashParts = new URLSearchParams();
 			if (label) hashParts.set("label", label);
@@ -126,7 +130,10 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 	steps = {
 		savesShuTo: {
 			gwta: "saves shu to {where: string}",
-			action: ({ where }: { where: string }) => { this.outputPath = where; return actionOKWithProducts({}); },
+			action: ({ where }: { where: string }) => {
+				this.outputPath = where;
+				return actionOKWithProducts({});
+			},
 		},
 		showMonitor: {
 			gwta: "show monitor",
