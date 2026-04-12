@@ -900,13 +900,12 @@ function App() {
 
 		// Attach Quad Data if needed
 		if (showQuadGraph) {
-			// biome-ignore lint/suspicious/noExplicitAny: quad check
-			const quadObservations = events.filter(
-				(e) => e.kind === "artifact" && e.artifactType === "json" && (e as any).json?.quadObservation,
-			);
+			type TQuadArtifact = THaibunEvent & { json: { quadObservation: Record<string, unknown> } };
+			const isQuadArtifact = (e: THaibunEvent): e is TQuadArtifact =>
+				e.kind === "artifact" && e.artifactType === "json" && !!(e as Record<string, unknown>).json;
+			const quadObservations = events.filter(isQuadArtifact).filter((e) => e.json.quadObservation);
 			if (quadObservations.length > 0) {
-				// biome-ignore lint/suspicious/noExplicitAny: quad map
-				const quads = quadObservations.map((e: any) => ({
+				const quads = quadObservations.map((e) => ({
 					...e.json.quadObservation,
 					timestamp: e.json.quadObservation.timestamp ?? e.timestamp,
 				}));
