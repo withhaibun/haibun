@@ -45,12 +45,9 @@ export const configureAxe = async (page: Page, configurationOptions: ConfigOptio
 	);
 };
 
-export const getAxeResults = async (page: Page, context?: ElementContext, options?: RunOptions): Promise<AxeResults> => {
-	// biome-ignore lint/suspicious/noExplicitAny: window property
-	const result = await page.evaluate(
-		([context, options]) => (window as any).axe.run(context || window.document, options),
+export const getAxeResults = (page: Page, context?: ElementContext, options?: RunOptions): Promise<AxeResults> => {
+	return page.evaluate(
+		([context, options]) => (window as unknown as { axe: { run: (ctx: unknown, opts: unknown) => Promise<AxeResults> } }).axe.run(context || window.document, options),
 		[/*context,*/ options],
-	);
-
-	return result;
+	) as Promise<AxeResults>;
 };
