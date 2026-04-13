@@ -80,6 +80,10 @@ export class ServerHono implements IWebServer {
 		});
 	}
 
+	clearMounted(): void {
+		this._mounted = DEFAULT_MOUNTED();
+	}
+
 	close(): Promise<void> {
 		if (this.server) {
 			this.eventLogger.debug(`ServerHono closing on port ${this._port}`);
@@ -88,7 +92,7 @@ export class ServerHono implements IWebServer {
 				ServerHono.listeningPorts.delete(this._port);
 			}
 			this.server = undefined;
-			this._mounted = DEFAULT_MOUNTED();
+			this.clearMounted();
 		}
 		return Promise.resolve();
 	}
