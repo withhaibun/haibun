@@ -76,7 +76,7 @@ export class StepRegistry {
 
 export type StepToolInputSchema = {
 	type: "object";
-	properties?: Record<string, { type?: string; description?: string; [key: string]: unknown }>;
+	properties?: Record<string, { type?: string; description?: string;[key: string]: unknown }>;
 	required?: string[];
 	[key: string]: unknown;
 };
@@ -198,11 +198,7 @@ export function stepMethodName(stepperOrName: string | AStepper | { name: string
  * All callers (feature loop, FlowRunner, RPC, MCP, subprocess) use the same signature.
  * External transports build a synthetic featureStep before calling.
  */
-export function createStepHandler(
-	stepperName: string,
-	stepName: string,
-	stepDef: TStepperStep,
-): (featureStep: TFeatureStep, world: TWorld) => Promise<TActionResult> {
+export function createStepHandler(stepperName: string, stepName: string, stepDef: TStepperStep,): (featureStep: TFeatureStep, world: TWorld) => Promise<TActionResult> {
 	return async (featureStep: TFeatureStep, world: TWorld): Promise<TActionResult> => {
 		try {
 			const args = await populateActionArgs(featureStep, world, world.runtime.steppers);
@@ -311,14 +307,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	}
 	stepUsage.set(usageKey, (stepUsage.get(usageKey) ?? 0) + 1);
 
-	world.eventLogger.stepStart(
-		featureStep,
-		action.stepperName,
-		action.actionName,
-		{},
-		featureStep.action.stepValuesMap,
-		tool.isAsync,
-	);
+	world.eventLogger.stepStart(featureStep, action.stepperName, action.actionName, {}, featureStep.action.stepValuesMap, tool.isAsync,);
 	let actionResult: TActionResult;
 	let ok = true;
 	let lastStepResult: TStepResult;
@@ -437,7 +426,7 @@ function buildInputSchema(
 	stepDef: TStepperStep,
 	world: TWorld,
 ): { inputSchema: StepToolInputSchema; paramSchemas: Map<string, z.ZodType>; paramDomainKeys: Map<string, string> } {
-	const properties: Record<string, { type?: string; description?: string; [key: string]: unknown }> = {};
+	const properties: Record<string, { type?: string; description?: string;[key: string]: unknown }> = {};
 	const required: string[] = [];
 	const paramSchemas = new Map<string, z.ZodType>();
 	const paramDomainKeys = new Map<string, string>();
