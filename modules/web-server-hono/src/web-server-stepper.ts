@@ -19,8 +19,12 @@ function isStepTransport(s: unknown): s is IStepTransport {
 
 const cycles = (wss: WebServerStepper): IStepperCycles => ({
 	async startFeature() {
-		const filesBase = path.join(process.cwd(), "files");
-		wss.webserver = new ServerHono(wss.world.eventLogger, filesBase);
+		if (wss.webserver) {
+			wss.webserver.clearMounted();
+		} else {
+			const filesBase = path.join(process.cwd(), "files");
+			wss.webserver = new ServerHono(wss.world.eventLogger, filesBase);
+		}
 		wss.getWorld().runtime[WEBSERVER] = wss.webserver;
 		wss.getWorld().runtime[TRANSPORT] = new SSETransport(wss.webserver, wss.world.eventLogger);
 		await Promise.resolve();
