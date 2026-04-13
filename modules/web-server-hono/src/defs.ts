@@ -26,6 +26,7 @@ export interface IWebServer {
 	readonly mounted: TRouteMap;
 	addRoute(type: TRouteTypes, path: string, ...handlers: TRequestHandler[]): void;
 	addKnownRoute(type: TRouteTypes, path: string, ...handlers: TRequestHandler[]): void;
+	clearMounted(): void;
 	use(middleware: MiddlewareHandler): void;
 	readonly app: Hono;
 	readonly port: number | undefined;

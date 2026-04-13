@@ -94,6 +94,17 @@ describe("ServerHono", () => {
 		});
 	});
 
+	describe("clearMounted", () => {
+		it("resets mounted map and allows re-registration", () => {
+			server.addRoute("get", "/test", (c) => c.text("ok"));
+			expect(server.mounted.get["/test"]).toBeDefined();
+			server.clearMounted();
+			expect(server.mounted.get["/test"]).toBeUndefined();
+			server.addRoute("get", "/test", (c) => c.text("ok2"));
+			expect(server.mounted.get["/test"]).toBeDefined();
+		});
+	});
+
 	describe("listen/close", () => {
 		it("throws on invalid port", () => {
 			expect(() => server.listen("test", -1)).toThrow("invalid port");

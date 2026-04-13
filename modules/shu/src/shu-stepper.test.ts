@@ -9,9 +9,13 @@ describe("ShuStepper", () => {
 
 	beforeEach(async () => {
 		stepper = new ShuStepper();
-		addRoute = vi.fn();
+		const mounted = new Set<string>();
+		addRoute = vi.fn((_type: string, path: string) => {
+			if (mounted.has(path)) throw new Error(`already mounted at "${path}"`);
+			mounted.add(path);
+		});
 		const world = getDefaultWorld();
-		world.runtime[WEBSERVER] = { addRoute };
+		world.runtime[WEBSERVER] = { addRoute, mounted: { get: {} } };
 		await stepper.setWorld(world, []);
 	});
 
@@ -23,26 +27,9 @@ describe("ShuStepper", () => {
 		expect(addRoute).not.toHaveBeenCalled();
 	});
 
-	it("idempotent mount at same path succeeds", async () => {
+	it("throws on duplicate mount at same path", async () => {
 		const first = await stepper.steps.serveShuApp.action({ path: "/spa" });
 		expect(first.ok).toBe(true);
-		const firstCallCount = addRoute.mock.calls.length;
-		expect(firstCallCount).toBeGreaterThanOrEqual(1);
-
-		const second = await stepper.steps.serveShuApp.action({ path: "/spa" });
-		expect(second.ok).toBe(true);
-		expect(addRoute).toHaveBeenCalledTimes(firstCallCount);
-	});
-
-	it("rejects mounting the app at a second path", async () => {
-		const first = await stepper.steps.serveShuApp.action({ path: "/spa" });
-		expect(first.ok).toBe(true);
-		const firstCallCount = addRoute.mock.calls.length;
-
-		const second = await stepper.steps.serveShuApp.action({ path: "/alt" });
-		expect(second.ok).toBe(false);
-		if (second.ok) throw new Error("expected second mount path to fail");
-		expect(second.errorMessage).toContain('already mounted at "/spa"');
-		expect(addRoute).toHaveBeenCalledTimes(firstCallCount);
+		expect(() => stepper.steps.serveShuApp.action({ path: "/spa" })).toThrow("already mounted");
 	});
 });

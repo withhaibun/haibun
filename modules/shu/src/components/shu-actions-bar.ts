@@ -6,6 +6,7 @@
  * Step mode: executes a haibun step via RPC and collects log events.
  */
 import MarkdownIt from "markdown-it";
+import { z } from "zod";
 import { ShuElement } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
 import { ActionsBarSchema, SEARCH_OPERATORS, type TSearchCondition, parseFilterParam } from "../schemas.js";
@@ -33,7 +34,7 @@ function setCookie(name: string, value: string): void {
 	document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${60 * 60 * 24 * 365}`;
 }
 
-type TMode = "ask" | "step";
+type TMode = z.infer<typeof ActionsBarSchema>["mode"];
 
 export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	static schema = ActionsBarSchema;
@@ -61,7 +62,6 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	private _selectedStep = "";
 	private _lastPrompt = "";
 	private _fullText = "";
-	private _mode: TMode = "step";
 	private _unsubscribeEvents: (() => void) | null = null;
 	private _abortController: AbortController | null = null;
 	private _renderPending = false;
@@ -80,8 +80,8 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	}
 
 	constructor() {
-		super(ActionsBarSchema, { askExpanded: false });
-		this._mode = (getCookie(MODE_COOKIE) as TMode) || "step";
+		const mode = (getCookie(MODE_COOKIE) as TMode) || "step";
+		super(ActionsBarSchema, { askExpanded: false, mode });
 	}
 
 	setContext(
@@ -369,18 +369,18 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		if (savedOutput) savedOutput.remove();
 
 		const modelSelect =
-			this._mode === "ask" && this._models.length > 0 ? `<shu-combobox class="model-select" testid="${this.testIdPrefix}model-select" placeholder="model..."></shu-combobox>` : "";
+			this.state.mode === "ask" && this._models.length > 0 ? `<shu-combobox class="model-select" testid="${this.testIdPrefix}model-select" placeholder="model..."></shu-combobox>` : "";
 
 		const modeToggle = `<select class="mode-select" ${this.tid("mode-select")}>
-			<option value="ask"${this._mode === "ask" ? " selected" : ""}>Ask</option>
-			<option value="step"${this._mode === "step" ? " selected" : ""}>Step</option>
+			<option value="ask"${this.state.mode === "ask" ? " selected" : ""}>Ask</option>
+			<option value="step"${this.state.mode === "step" ? " selected" : ""}>Step</option>
 		</select>`;
 
-		const placeholder = this._mode === "ask" ? "Ask about this..." : "Enter step (e.g. get types)";
-		const submitLabel = this._mode === "ask" ? "Send" : "Run";
+		const placeholder = this.state.mode === "ask" ? "Ask about this..." : "Enter step (e.g. get types)";
+		const submitLabel = this.state.mode === "ask" ? "Send" : "Run";
 
 		const stepCombobox =
-			this._mode === "step" && this._steps.length > 0
+			this.state.mode === "step" && this._steps.length > 0
 				? `<shu-combobox class="step-combo" testid="${this.testIdPrefix}step-select" placeholder="type to filter steps..."></shu-combobox>`
 				: "";
 
@@ -444,7 +444,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 				<div class="actions-bar">
 					${filterControls}
 					<div class="chat-output" ${this.tid("chat-output")}></div>
-					${this._mode === "step" ? stepInput : askInput}
+					${this.state.mode === "step" ? stepInput : askInput}
 					${summaryBar}
 				</div>
 			`;
@@ -544,9 +544,9 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		}
 
 		this.shadowRoot?.querySelector(".mode-select")?.addEventListener("change", (e) => {
-			this._mode = (e.target as HTMLSelectElement).value as TMode;
-			setCookie(MODE_COOKIE, this._mode);
-			this.render();
+			const mode = (e.target as HTMLSelectElement).value as TMode;
+			setCookie(MODE_COOKIE, mode);
+			this.setState({ mode });
 		});
 
 		const stepCombo = this.shadowRoot?.querySelector(".step-combo") as ShuCombobox | null;
