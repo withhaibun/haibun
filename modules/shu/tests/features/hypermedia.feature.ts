@@ -68,8 +68,7 @@ export const features: TKirejiExport = {
 			id: '"paper-ldp"',
 			data: json({
 				name: "Linked Data Platform",
-				content:
-					"Defines read-write linked data using HTTP and RDF. LDP containers enable CRUD operations over web resources with standard media types and link relations.",
+				content: "Defines read-write linked data using HTTP and RDF. LDP containers enable CRUD operations over web resources with standard media types and link relations.",
 				published: "2015-02-26T00:00:00.000Z",
 			}),
 		}),
@@ -80,8 +79,7 @@ export const features: TKirejiExport = {
 			id: '"paper-jsonld"',
 			data: json({
 				name: "JSON-LD 1.1",
-				content:
-					"A JSON-based serialization for linked data. By embedding @context, existing JSON APIs become interoperable with RDF processors and semantic web tooling.",
+				content: "A JSON-based serialization for linked data. By embedding @context, existing JSON APIs become interoperable with RDF processors and semantic web tooling.",
 				published: "2020-07-16T00:00:00.000Z",
 			}),
 		}),
