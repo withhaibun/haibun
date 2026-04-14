@@ -40,7 +40,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		if (name === "column-type")
 			this.state = {
 				...this.state,
-				columnType: (val as "query" | "entity" | "filter" | "property" | "monitor" | "sequence") || "query",
+				columnType: (val as "query" | "entity" | "filter" | "property" | "monitor" | "sequence" | "document") || "query",
 			};
 		this.updateActiveStyle();
 	}
@@ -108,6 +108,8 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 			<div class="pane-header${label || closable ? "" : " empty"}">
 				<span class="pane-label" title="${esc(label)}">${esc(label)}</span>
 				<button class="pane-minimize" title="Minimize">\u2015</button>
+				<button class="pane-maximize" data-testid="pane-maximize" title="Maximize">\u2922</button>
+				<button class="pane-controls${this.children[0]?.hasAttribute?.("data-show-controls") ? " active" : ""}" title="Toggle controls">\u2699</button>
 				<button class="pane-pin${this.state.pinned ? " pinned" : ""}" title="${this.state.pinned ? "Unpin" : "Pin"}">\ud83d\udccc</button>
 				${closable ? '<button class="pane-close" title="Close">\u00d7</button>' : ""}
 			</div>
@@ -128,6 +130,31 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 				this.removeAttribute(SHU_ATTR.DATA_MINIMIZED);
 			}
 			this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_MINIMIZE, { bubbles: true, composed: true }));
+		});
+
+		// Maximize toggle
+		this.shadowRoot.querySelector(".pane-maximize")?.addEventListener("click", (e) => {
+			e.stopPropagation();
+			const maximize = !this.hasAttribute(SHU_ATTR.DATA_MAXIMIZED);
+			if (maximize) {
+				this.setAttribute(SHU_ATTR.DATA_MAXIMIZED, "");
+			} else {
+				this.removeAttribute(SHU_ATTR.DATA_MAXIMIZED);
+			}
+			this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_MAXIMIZE, { bubbles: true, composed: true }));
+		});
+
+		// Controls toggle — toggles data-show-controls on the slotted child view component
+		this.shadowRoot.querySelector(".pane-controls")?.addEventListener("click", (e) => {
+			e.stopPropagation();
+			const child = this.children[0] as HTMLElement & { refresh?: () => void } | null;
+			if (child) {
+				const show = !child.hasAttribute(SHU_ATTR.SHOW_CONTROLS);
+				if (show) child.setAttribute(SHU_ATTR.SHOW_CONTROLS, "");
+				else child.removeAttribute(SHU_ATTR.SHOW_CONTROLS);
+				child.refresh?.();
+				(e.target as HTMLElement).classList.toggle("active", show);
+			}
 		});
 
 		// Pin toggle
@@ -298,6 +325,14 @@ const STYLES = `
 	}
 	.pane-minimize:hover { color: #444; }
 	:host([collapsed]) .pane-minimize { display: none; }
+	.pane-maximize { background: none; border: none; cursor: pointer; font-size: 0.85em; padding: 0 4px; color: #bbb; flex-shrink: 0; }
+	.pane-maximize:hover { color: #444; }
+	:host([collapsed]) .pane-maximize { display: none; }
+	:host([data-maximized]) .pane-maximize { color: #1a6b3c; }
+	.pane-controls { background: none; border: none; cursor: pointer; font-size: 0.85em; padding: 0 4px; color: #bbb; flex-shrink: 0; }
+	.pane-controls:hover { color: #444; }
+	.pane-controls.active { color: #1a6b3c; }
+	:host([collapsed]) .pane-controls { display: none; }
 	.pane-pin {
 		background: none;
 		border: none;
@@ -309,7 +344,7 @@ const STYLES = `
 		flex-shrink: 0;
 	}
 	.pane-pin:hover { opacity: 0.7; }
-	.pane-pin.pinned { opacity: 1; transform: rotate(45deg); }
+	.pane-pin.pinned { opacity: 1; color: #1a6b3c; transform: rotate(45deg); }
 	.pane-close {
 		background: none;
 		border: none;

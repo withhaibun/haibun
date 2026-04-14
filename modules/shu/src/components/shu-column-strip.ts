@@ -10,8 +10,11 @@ import { ColumnStripSchema } from "../schemas.js";
 import type { ShuColumnPane } from "./shu-column-pane.js";
 
 type PaneEl = ShuColumnPane & HTMLElement;
+type SavedPaneState = { collapsed: boolean; minimized: boolean };
 
 export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
+	private savedLayout: Map<PaneEl, SavedPaneState> | null = null;
+
 	constructor() {
 		super(ColumnStripSchema, { activeIndex: -1 });
 	}
@@ -21,6 +24,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 		this.addEventListener(SHU_EVENT.COLUMN_CLOSE, this.handlePaneClose as EventListener);
 		this.addEventListener(SHU_EVENT.COLUMN_ACTIVATE, this.handlePaneActivate as EventListener);
 		this.addEventListener(SHU_EVENT.COLUMN_EXPAND, this.handlePaneExpand as EventListener);
+		this.addEventListener(SHU_EVENT.COLUMN_MAXIMIZE, this.handlePaneMaximize as EventListener);
 		this.addEventListener(SHU_EVENT.COLUMN_MINIMIZE, this.handlePaneMinimize as EventListener);
 		this.updateQueryAlone();
 	}
@@ -29,6 +33,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 		this.removeEventListener(SHU_EVENT.COLUMN_CLOSE, this.handlePaneClose as EventListener);
 		this.removeEventListener(SHU_EVENT.COLUMN_ACTIVATE, this.handlePaneActivate as EventListener);
 		this.removeEventListener(SHU_EVENT.COLUMN_EXPAND, this.handlePaneExpand as EventListener);
+		this.removeEventListener(SHU_EVENT.COLUMN_MAXIMIZE, this.handlePaneMaximize as EventListener);
 		this.removeEventListener(SHU_EVENT.COLUMN_MINIMIZE, this.handlePaneMinimize as EventListener);
 	}
 
@@ -93,6 +98,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 				const type = p.getAttribute(SHU_ATTR.COLUMN_TYPE) || "";
 				const label = p.getAttribute("label") || "";
 				const key = p.dataset.columnKey || `${type}:${label}`;
+				if (p.hasAttribute(SHU_ATTR.DATA_MAXIMIZED)) return `${key}~max`;
 				return p.hasAttribute(SHU_ATTR.DATA_MINIMIZED) ? `${key}~min` : key;
 			});
 	}
@@ -106,6 +112,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 
 	/** Collapse panes that don't fit, keeping active + query panes expanded. Collapses leftmost first. */
 	updateAccordion(): void {
+		if (this.isMaximized) return;
 		const COLLAPSED_WIDTH = 32;
 		const MIN_PANE_WIDTH = 200;
 		const panes = this.panes;
@@ -136,6 +143,36 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 			usedWidth -= Math.max(expandedWidth, MIN_PANE_WIDTH) - COLLAPSED_WIDTH;
 		}
 	}
+
+	private get isMaximized(): boolean {
+		return this.panes.some((p) => p.hasAttribute(SHU_ATTR.DATA_MAXIMIZED));
+	}
+
+	private handlePaneMaximize = (e: Event): void => {
+		const pane = (e as CustomEvent).target as PaneEl;
+		const isMaximizing = pane.hasAttribute(SHU_ATTR.DATA_MAXIMIZED);
+		if (isMaximizing) {
+			this.savedLayout = new Map();
+			for (const p of this.panes) this.savedLayout.set(p, { collapsed: p.isCollapsed, minimized: p.hasAttribute(SHU_ATTR.DATA_MINIMIZED) });
+			for (const p of this.panes) {
+				if (p !== pane) p.setCollapsed(true);
+				else p.setCollapsed(false);
+			}
+			const index = this.panes.indexOf(pane);
+			if (index >= 0) this.activatePane(index);
+		} else {
+			if (this.savedLayout) {
+				for (const [p, s] of this.savedLayout) {
+					if (!this.contains(p)) continue;
+					p.setCollapsed(s.collapsed);
+					if (s.minimized) p.setAttribute(SHU_ATTR.DATA_MINIMIZED, "");
+				}
+				this.savedLayout = null;
+			}
+			this.updateAccordion();
+		}
+		this.emitColumnsChanged();
+	};
 
 	private handlePaneExpand = (e: Event): void => {
 		const pane = (e as CustomEvent).target as PaneEl;

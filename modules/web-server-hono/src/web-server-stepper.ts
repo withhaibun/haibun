@@ -2,7 +2,7 @@ import path from "path";
 
 import type { TWorld, TEndFeature, IStepperCycles } from "@haibun/core/lib/defs.js";
 import { OK, type TStepArgs } from "@haibun/core/schema/protocol.js";
-import { actionNotOK, getFromRuntime, getStepperOption, intOrError, stringOrError } from "@haibun/core/lib/util/index.js";
+import { actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOption, intOrError, stringOrError } from "@haibun/core/lib/util/index.js";
 import { AStepper, type IHasCycles, type IHasOptions } from "@haibun/core/lib/astepper.js";
 import { discoverSteps, dispatchStep, validateToolInput, buildSyntheticFeatureStep, parseRpcRequest, StepRegistry } from "@haibun/core/lib/step-dispatch.js";
 import { validateStep } from "@haibun/core/lib/step-validation.js";
@@ -102,8 +102,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 			gwta: "show ports",
 			action: () => {
 				const ports = Object.fromEntries(ServerHono.listeningPorts);
-				this.getWorld().eventLogger.info(`ports: ${JSON.stringify(ports, null, 2)}`, { ports });
-				return OK;
+				return actionOKWithProducts({ _type: "ServerConfig", _summary: `listening: ${Object.entries(ports).map(([p, w]) => `${p} (${w})`).join(", ")}`, ports });
 			},
 		},
 		isListening: {
@@ -118,8 +117,8 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 			action: () => {
 				const webserver = getFromRuntime(this.getWorld().runtime, WEBSERVER) as IWebServer;
 				const mounts = webserver.mounted;
-				this.getWorld().eventLogger.info(`mounts: ${JSON.stringify(mounts, null, 2)}`, { mounts });
-				return Promise.resolve(OK);
+				const paths = Object.entries(mounts).flatMap(([method, routes]) => Object.keys(routes).map((p) => `${method.toUpperCase()} ${p}`));
+				return actionOKWithProducts({ _type: "ServerConfig", _summary: `${paths.length} mounted routes`, mounts });
 			},
 		},
 		serveFiles: {
@@ -162,8 +161,8 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 			gwta: "show routes",
 			action: () => {
 				const routes = this.webserver?.mounted;
-				this.getWorld().eventLogger.info(`routes: ${JSON.stringify(routes, null, 2)}`, { routes });
-				return Promise.resolve(OK);
+				const paths = Object.entries(routes ?? {}).flatMap(([method, r]) => Object.keys(r).map((p) => `${method.toUpperCase()} ${p}`));
+				return actionOKWithProducts({ _type: "ServerConfig", _summary: `${paths.length} routes`, routes });
 			},
 		},
 		enableRpc: {
