@@ -8,14 +8,12 @@ import { SHU_EVENT } from "../consts.js";
 import { SseClient } from "../sse-client.js";
 import { esc, truncate } from "../util.js";
 import { getAvailableSteps, requireStep } from "../rpc-registry.js";
-import mermaid from "mermaid";
-
-let mermaidInitialized = false;
+import type { ShuGraphView } from "./shu-graph-view.js";
 
 const ThreadColumnSchema = z.object({
 	label: z.string().default(""),
 	vertexId: z.string().default(""),
-	mode: z.enum(["flat", "tree", "graph"]).default("flat"),
+	mode: z.enum(["tree", "graph"]).default("tree"),
 	loading: z.boolean().default(false),
 	error: z.string().optional(),
 });
@@ -27,6 +25,7 @@ const STYLES = `
 :host { display: flex; flex-direction: column; height: 100%; overflow: hidden; font-family: ui-sans-serif, system-ui, sans-serif; font-size: 13px; }
 .toolbar { display: flex; gap: 6px; align-items: center; padding: 4px 8px; background: #f5f5f5; border-bottom: 1px solid #ddd; flex: 0 0 auto; font-size: 12px; }
 .toolbar button { padding: 1px 6px; border: 1px solid #ccc; border-radius: 3px; background: #fff; cursor: pointer; font-size: 11px; }
+:host(:not([data-show-controls])) .toolbar { display: none; }
 .toolbar button.active { background: #e8f5e9; border-color: #1a6b3c; color: #1a6b3c; }
 .toolbar .count { margin-left: auto; color: #888; }
 .thread-list { flex: 1; overflow: auto; padding: 4px; }
@@ -38,16 +37,35 @@ const STYLES = `
 .thread-card .subject { color: #555; margin-top: 2px; }
 .thread-card .preview { color: #777; margin-top: 2px; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .indent { margin-left: 20px; border-left: 2px solid #ddd; padding-left: 4px; }
+.extra-fields { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 3px; font-size: 11px; }
+.extra-field { color: #555; }
+.field-label { color: #999; }
+.field-label::after { content: ":"; }
 .empty { padding: 16px; color: #888; text-align: center; }
-.graph-container { flex: 1; overflow: auto; padding: 8px; }
+.content-area { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+.graph-container { flex: 1; overflow: auto; padding: 8px; min-height: 0; }
 .error { padding: 8px; color: #c62828; background: #ffebee; border-radius: 4px; margin: 8px; }
 `;
 
 export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 	private thread: ThreadVertex[] = [];
+	private graphViewEl: ShuGraphView | null = null;
 
 	constructor() {
-		super(ThreadColumnSchema, { label: "", vertexId: "", mode: "flat", loading: false });
+		super(ThreadColumnSchema, { label: "", vertexId: "", mode: "tree", loading: false });
+	}
+
+	override refresh(): void {
+		if (this.graphViewEl) {
+			if (this.showControls) this.graphViewEl.setAttribute("data-show-controls", "");
+			else this.graphViewEl.removeAttribute("data-show-controls");
+		}
+	}
+
+	/** Render items directly without RPC fetch. Items should have _id and optionally _inReplyTo, _edges. */
+	openItems(items: ThreadVertex[], label = "Result"): void {
+		this.thread = items;
+		this.setState({ label, vertexId: "", loading: false });
 	}
 
 	async open(label: string, id: string): Promise<void> {
@@ -80,34 +98,43 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 			return;
 		}
 
-		const contentHtml = mode === "graph" ? '<div class="graph-container"></div>' : `<div class="thread-list">${mode === "flat" ? this.renderFlat() : this.renderTree()}</div>`;
-		this.shadowRoot.innerHTML = `${this.css(STYLES)}
-			<div class="toolbar">
-				<button class="mode-btn${mode === "flat" ? " active" : ""}" data-mode="flat">Flat</button>
-				<button class="mode-btn${mode === "tree" ? " active" : ""}" data-mode="tree">Tree</button>
-				<button class="mode-btn${mode === "graph" ? " active" : ""}" data-mode="graph">Graph</button>
-				<span class="count">${this.thread.length} replies</span>
-			</div>
-			${contentHtml}`;
-		if (mode === "graph") void this.renderGraph();
+		const toolbar = `<div class="toolbar">
+			<button class="mode-btn${mode === "tree" ? " active" : ""}" data-mode="tree">Tree</button>
+			<button class="mode-btn${mode === "graph" ? " active" : ""}" data-mode="graph">Graph</button>
+			<span class="count">${this.thread.length} items</span>
+		</div>`;
+		this.shadowRoot.innerHTML = `${this.css(STYLES)}${toolbar}<div class="content-area"></div>`;
+		const contentArea = this.shadowRoot.querySelector(".content-area") as HTMLElement;
+
+		if (mode === "graph") {
+			contentArea.innerHTML = '<div class="graph-container"></div>';
+			const gv = document.createElement("shu-graph-view") as ShuGraphView;
+			gv.setAttribute("data-classifier", "thread");
+			gv.setAttribute("data-source", "external");
+			if (this.showControls) gv.setAttribute("data-show-controls", "");
+			gv.style.height = "100%";
+			(contentArea.querySelector(".graph-container") as HTMLElement).appendChild(gv);
+			const quads = this.threadToQuads();
+			requestAnimationFrame(() => gv.setQuads(quads));
+			this.graphViewEl = gv;
+		} else {
+			this.graphViewEl = null;
+			this.graphViewEl = null;
+			contentArea.innerHTML = `<div class="thread-list">${this.renderTree()}</div>`;
+			contentArea.querySelectorAll(".thread-card").forEach((card) => {
+				card.addEventListener("click", () => {
+					const id = (card as HTMLElement).dataset.id;
+					const cardLabel = (card as HTMLElement).dataset.label || this.state.label;
+					if (id) this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN, { detail: { subject: id, label: cardLabel }, bubbles: true, composed: true }));
+				});
+			});
+			const current = contentArea.querySelector(".thread-card.current");
+			if (current) current.scrollIntoView({ block: "center" });
+		}
 
 		this.shadowRoot.querySelectorAll(".mode-btn").forEach((btn) => {
-			btn.addEventListener("click", () => this.setState({ mode: (btn as HTMLElement).dataset.mode as "flat" | "tree" | "graph" }));
+			btn.addEventListener("click", () => this.setState({ mode: (btn as HTMLElement).dataset.mode as "tree" | "graph" }));
 		});
-		this.shadowRoot.querySelectorAll(".thread-card").forEach((card) => {
-			card.addEventListener("click", () => {
-				const id = (card as HTMLElement).dataset.id;
-				const cardLabel = (card as HTMLElement).dataset.label || this.state.label;
-				if (id) this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN, { detail: { subject: id, label: cardLabel }, bubbles: true, composed: true }));
-			});
-		});
-
-		const current = this.shadowRoot.querySelector(".thread-card.current");
-		if (current) current.scrollIntoView({ block: "center" });
-	}
-
-	private renderFlat(): string {
-		return this.thread.map((v) => this.renderCard(v, 0)).join("");
 	}
 
 	private renderTree(): string {
@@ -139,62 +166,49 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 	private renderCard(v: ThreadVertex, _depth: number): string {
 		const id = v._id;
 		const isCurrent = id === this.state.vertexId;
+		const label = String((v as Record<string, unknown>)._label ?? this.state.label);
+
+		// Known semantic fields for messaging/annotation card layout
 		const sender = String(v.from ?? v.author ?? v.attributedTo ?? "");
 		const subject = String(v.subject ?? v.name ?? v.topic ?? "");
 		const date = String(v.dateSent ?? v.timestamp ?? v.published ?? "");
 		const preview = String(v.body ?? v.text ?? v.content ?? "");
-		const label = String((v as Record<string, unknown>)._label ?? this.state.label);
+		const knownFields = new Set(["_id", "_inReplyTo", "_edges", "_label", "_type", "_links", "from", "author", "attributedTo", "subject", "name", "topic", "dateSent", "timestamp", "published", "body", "text", "content"]);
+		const hasKnownContent = sender || subject || date || preview;
+
+		// Extra fields not covered by the semantic slots
+		const extraFields = Object.entries(v)
+			.filter(([k, val]) => !k.startsWith("_") && !knownFields.has(k) && val !== undefined && val !== null && val !== "")
+			.map(([k, val]) => `<span class="extra-field"><span class="field-label">${esc(k)}</span> ${esc(truncate(String(val), 80))}</span>`);
+
 		const isAnnotation = label === "Annotation";
+		const metaHtml = hasKnownContent ? `<div class="meta"><span class="sender">${esc(sender || (isAnnotation ? "Annotation" : ""))}</span><span>${esc(date)}</span></div>` : "";
+
 		return `<div class="thread-card${isCurrent ? " current" : ""}" data-id="${esc(id)}" data-label="${esc(label)}">
-			<div class="meta">
-				<span class="sender">${esc(sender || (isAnnotation ? "Annotation" : ""))}</span>
-				<span>${esc(date)}</span>
-			</div>
+			${metaHtml}
 			${subject ? `<div class="subject">${esc(subject)}</div>` : ""}
 			${preview ? `<div class="preview">${esc(truncate(preview, 120))}</div>` : ""}
+			${extraFields.length > 0 ? `<div class="extra-fields">${extraFields.join("")}</div>` : ""}
 		</div>`;
 	}
 
-	private async renderGraph(): Promise<void> {
-		if (!mermaidInitialized) {
-			mermaid.initialize({
-				startOnLoad: false,
-				theme: "default",
-				securityLevel: "loose",
-				fontFamily: "ui-sans-serif, system-ui, sans-serif",
-			});
-			mermaidInitialized = true;
-		}
-		const sanitize = (s: string) => s.replace(/[^a-zA-Z0-9_]/g, "_").substring(0, 20) || "node";
-		const escLabel = (s: string) =>
-			s
-				.replace(/"/g, "")
-				.replace(/'/g, "")
-				.replace(/[[\]{}()<>|#;&]/g, "")
-				.replace(/\n/g, " ");
-		const threadIds = new Set(this.thread.map((v) => v._id));
-		let src = "graph TD\n";
+	/** Build quads from thread items. */
+	private threadToQuads(): { subject: string; predicate: string; object: string; namedGraph: string; timestamp: number }[] {
+		const quads: { subject: string; predicate: string; object: string; namedGraph: string; timestamp: number }[] = [];
+		const now = Date.now();
+		const itemIds = new Set(this.thread.map((v) => v._id));
 		for (const v of this.thread) {
-			const id = sanitize(v._id);
-			const vlabel = String((v as Record<string, unknown>)._label ?? this.state.label);
+			const vlabel = String((v as Record<string, unknown>).vertexLabel ?? (v as Record<string, unknown>)._label ?? this.state.label);
 			const name = String(v.subject ?? v.name ?? v.text ?? v._id);
-			const nodeLabel = escLabel(`${vlabel}: ${truncate(name, 30)}`);
-			const isCurrent = v._id === this.state.vertexId;
-			src += `  ${id}["${nodeLabel}"]\n`;
-			if (isCurrent) src += `  style ${id} fill:#e8f5e9,stroke:#1a6b3c\n`;
+			quads.push({ subject: v._id, predicate: "name", object: name, namedGraph: vlabel, timestamp: now });
 			for (const edge of v._edges ?? []) {
-				if (threadIds.has(edge.targetId)) {
-					src += `  ${id} -->|${escLabel(edge.type)}| ${sanitize(edge.targetId)}\n`;
+				// Only emit edges where both endpoints exist in the thread
+				if (itemIds.has(edge.targetId)) {
+					quads.push({ subject: v._id, predicate: edge.type, object: edge.targetId, namedGraph: vlabel, timestamp: now });
 				}
 			}
 		}
-		const container = this.shadowRoot?.querySelector(".graph-container");
-		if (!container) return;
-		try {
-			const { svg } = await mermaid.render(`thread-graph-${Date.now()}`, src);
-			container.innerHTML = svg;
-		} catch (err) {
-			container.innerHTML = `<pre style="color:red">${err instanceof Error ? err.message : err}</pre>`;
-		}
+		return quads;
 	}
+
 }

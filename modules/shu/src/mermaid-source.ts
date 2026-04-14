@@ -10,6 +10,15 @@ import type { TQuad } from "@haibun/core/lib/quad-types.js";
 
 export type TPropKind = "name" | "identifier" | "edge" | "content" | "internal" | "scalar";
 
+/** Permissive classifier for thread/product views — treats all non-internal predicates as edges except "name". */
+export const THREAD_CLASSIFIER: PropertyClassifier = {
+	classify: (_graph, predicate) => {
+		if (predicate.startsWith("_")) return "internal";
+		if (predicate === "name") return "name";
+		return "edge";
+	},
+};
+
 /** Dependency-injected property classification — browser uses rels-cache, server uses world.domains. */
 export interface PropertyClassifier {
 	classify(graph: string, predicate: string): TPropKind;

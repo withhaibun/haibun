@@ -96,7 +96,7 @@ export const ColumnPaneSchema = z.object({
 	width: z.number().optional(),
 	closable: z.boolean().default(true),
 	pinned: z.boolean().default(false),
-	columnType: z.enum(["query", "entity", "filter", "property", "monitor", "sequence", "thread"]).default("query"),
+	columnType: z.enum(["query", "entity", "filter", "property", "monitor", "sequence", "thread", "document"]).default("query"),
 });
 
 // --- Entity column ---
