@@ -85,6 +85,7 @@ function buildMermaidSource(traces: TDispatchTrace[]): string {
 
 const STYLES = `
 :host { display: block; font-family: ui-sans-serif, system-ui, sans-serif; }
+:host(:not([data-show-controls])) .toolbar { display: none; }
 .toolbar { display: flex; gap: 8px; align-items: center; padding: 4px 8px; background: #f5f5f5; border-bottom: 1px solid #ddd; font-size: 12px; }
 .toolbar button { padding: 2px 8px; cursor: pointer; border: 1px solid #ccc; border-radius: 3px; background: #fff; }
 .toolbar button:hover { background: #e8e8e8; }
@@ -151,14 +152,14 @@ export class ShuSequenceDiagram extends ShuElement<typeof StateSchema> {
 			return;
 		}
 
-		this.shadowRoot.innerHTML = `${this.css(STYLES)}
-			<div class="toolbar" data-testid="monitor-sequence-diagram">
-				<button data-action="zoom-out">−</button>
-				<span class="zoom-label">${zoom}%</span>
-				<button data-action="zoom-in">+</button>
-				<button data-action="copy">Copy</button>
-				<span class="trace-count">${traces.length} steps</span>
-			</div>
+		const toolbar = `<div class="toolbar" data-testid="monitor-sequence-diagram">
+			<button data-action="zoom-out">−</button>
+			<span class="zoom-label">${zoom}%</span>
+			<button data-action="zoom-in">+</button>
+			<button data-action="copy">Copy</button>
+			<span class="trace-count">${traces.length} steps</span>
+		</div>`;
+		this.shadowRoot.innerHTML = `${this.css(STYLES)}${toolbar}
 			<div class="diagram-container" style="transform: scale(${zoom / 100}); transform-origin: top left;">
 				<div id="${this.diagramId}"></div>
 			</div>`;
