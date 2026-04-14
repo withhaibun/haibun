@@ -86,5 +86,9 @@ export default class ShuStepper extends AStepper {
 				return actionOK();
 			},
 		},
+		maximizeView: {
+			gwta: "maximize view",
+			action: () => actionOK(),
+		},
 	} satisfies TStepperSteps;
 }

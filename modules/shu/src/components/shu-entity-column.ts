@@ -49,6 +49,16 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		}
 	}
 
+	/** Render arbitrary products as a vertex view without RPC fetch. */
+	openProducts(products: Record<string, unknown>): void {
+		const label = String(products._type || "Result");
+		const { _type, _summary, _component, _links, _undo, _seqPath, ...data } = products;
+		this.vertex = data;
+		this.edges = [];
+		this.incomingCount = 0;
+		this.setState({ vertexId: String(_summary || ""), vertexLabel: label, loading: false });
+	}
+
 	/** Open a vertex by ID. Fetches data and renders. */
 	async open(id: string, label: string = defaultLabel()): Promise<void> {
 		this.setState({
@@ -111,7 +121,8 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const fields: Record<string, string | string[]> = {};
 		for (const [k, v] of Object.entries(this.vertex)) {
 			if (k.startsWith("_") || contentFieldSet.has(k) || HIDDEN_PROPS.has(k)) continue;
-			fields[k] = Array.isArray(v) ? (v as string[]).map(String) : String(v ?? "");
+			if (Array.isArray(v) && v.length > 0 && typeof v[0] === "object") continue; // handled separately as items table
+			fields[k] = Array.isArray(v) ? (v as string[]).map(String) : typeof v === "object" && v !== null ? JSON.stringify(v) : String(v ?? "");
 		}
 
 		// Stub detection: vertex has ≤1 meaningful properties (just the ID field)
@@ -167,6 +178,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			contentHtml = `
 				${detailsHtml}
 				${summaryHtml}
+				${this.renderItemsTable()}
 				${this.renderReferences()}
 				${contentIframe}
 			`;
@@ -179,6 +191,25 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			</div>
 		`;
 		this.bindEvents();
+	}
+
+	/** Render arrays of objects as tables (e.g. show domains items). */
+	private renderItemsTable(): string {
+		if (!this.vertex) return "";
+		const tables: string[] = [];
+		for (const [k, v] of Object.entries(this.vertex)) {
+			if (k.startsWith("_")) continue;
+			if (!Array.isArray(v) || v.length === 0 || typeof v[0] !== "object") continue;
+			const items = v as Record<string, unknown>[];
+			const keys = Object.keys(items[0]).filter((key) => !key.startsWith("_"));
+			const header = keys.map((key) => `<th>${esc(key)}</th>`).join("");
+			const rows = items.map((item) => `<tr>${keys.map((key) => {
+				const val = item[key];
+				return `<td>${esc(typeof val === "object" && val !== null ? JSON.stringify(val) : String(val ?? ""))}</td>`;
+			}).join("")}</tr>`).join("");
+			tables.push(`<table class="detail-table items-table"><thead><tr>${header}</tr></thead><tbody>${rows}</tbody></table>`);
+		}
+		return tables.join("");
 	}
 
 	/** Render a clickable edge target with label from HATEOAS edge range. */
