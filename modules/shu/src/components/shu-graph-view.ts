@@ -106,7 +106,8 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 			this.state = { ...this.state, classifierMode: val as "browser" | "thread" };
 		}
 		if (name === "data-source" && (val === "rpc" || val === "external")) {
-			this.state = { ...this.state, dataSource: val };
+			// External data: start with all graphs visible (don't inherit main view's hidden cookie)
+			this.state = { ...this.state, dataSource: val, ...(val === "external" ? { hiddenGraphs: [] } : {}) };
 		}
 	}
 
