@@ -206,12 +206,11 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			gwta: "show env",
 			exposeMCP: false,
 			action: () => {
-				// Obscure secret environment variables (matching /password/i)
 				const envVars = this.world.options.envVariables || {};
 				const shared = this.getWorld().shared;
 				const safeEnv = sanitizeObjectSecrets(envVars, (key) => shared.isSecret(key));
-				this.getWorld().eventLogger.info(`env: ${JSON.stringify(safeEnv, null, 2)}`, { env: safeEnv });
-				return Promise.resolve(OK);
+				const count = Object.keys(safeEnv).length;
+				return actionOKWithProducts({ _type: "Environment", _summary: `${count} environment variables`, env: safeEnv });
 			},
 		},
 		showVars: {
@@ -220,15 +219,15 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				const shared = this.getWorld().shared;
 				const displayVars = Object.fromEntries(Object.entries(await shared.all()).map(([key, variable]) => [key, variable.value]));
 				const safeVars = sanitizeObjectSecrets(displayVars, (key) => shared.isSecret(key));
-				this.getWorld().eventLogger.info(`vars: ${JSON.stringify(safeVars, null, 2)}`, { vars: safeVars });
-				return actionOK();
+				const count = Object.keys(safeVars).length;
+				return actionOKWithProducts({ _type: "Variables", _summary: `${count} variables`, vars: safeVars });
 			},
 		},
 		set: {
 			gwta: "set( empty)? {what: string} to {value: string}",
 			handlesUndefined: ["what", "value"],
 			precludes: ["Haibun.prose"],
-			action: async (args: TStepArgs, featureStep: TFeatureStep) => {
+			action: async (_: TStepArgs, featureStep: TFeatureStep) => {
 				const { term: rawTerm, domain, origin } = featureStep.action.stepValuesMap.what;
 				const parsedValue = await this.getWorld().shared.resolveVariable(
 					featureStep.action.stepValuesMap.value,
@@ -265,7 +264,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			gwta: "set( empty)? {what} as {domain} to {value}",
 			handlesUndefined: ["what", "domain", "value"],
 			precludes: [`${VariablesStepper.name}.set`],
-			action: async ({ value, domain }: { value: string; domain: string }, featureStep: TFeatureStep) => {
+			action: async ({ domain }: { value: string; domain: string }, featureStep: TFeatureStep) => {
 				const readonly = !!featureStep.in.match(/ as read-only /);
 				const { term: rawTerm, origin } = featureStep.action.stepValuesMap.what;
 				const parsedValue = await this.getWorld().shared.resolveVariable(
@@ -311,7 +310,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		},
 		unset: {
 			gwta: "unset {what: string}",
-			action: async ({ what }: TStepArgs, featureStep: TFeatureStep) => {
+			action: async (_: TStepArgs, featureStep: TFeatureStep) => {
 				const { term } = featureStep.action.stepValuesMap.what;
 				await this.getWorld().shared.unset(term);
 				return OK;
@@ -434,12 +433,9 @@ class VariablesStepper extends AStepper implements IHasCycles {
 					this.getWorld().eventLogger.info(`${term} is undefined`);
 					return actionOKWithProducts({ term, value: undefined, domain: stepValue.domain });
 				}
-				const displayValue = isSecret ? { ...stepValue, value: OBSCURED_VALUE } : stepValue;
-				this.getWorld().eventLogger.info(`${term} is ${JSON.stringify(displayValue, null, 2)}`, {
-					variable: term,
-					value: displayValue,
-				});
-				return actionOKWithProducts({ term, value: stepValue.value, domain: stepValue.domain });
+				const displayValue = isSecret ? OBSCURED_VALUE : stepValue.value;
+				const summary = `${term} = ${typeof displayValue === "object" ? JSON.stringify(displayValue) : String(displayValue)}`;
+				return actionOKWithProducts({ _type: "Variable", _summary: summary, term, value: stepValue.value, domain: stepValue.domain });
 			},
 		},
 		showDomains: {
@@ -447,31 +443,43 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			action: async () => {
 				const domains = this.getWorld().domains;
 				const allVars = await this.getWorld().shared.all();
-				const summary: Record<string, TAnyFixme> = {};
-
+				type DomainItem = { name: string; description: string | string[]; members: number; vertexLabel?: string; _edges?: { type: string; targetId: string }[] };
+				const items: DomainItem[] = [];
+				// Collect vertexLabel→name mapping for base type edge targets
+				const labelToDomain = new Map<string, string>();
+				for (const [dname, ddef] of Object.entries(domains)) {
+					const vl = (ddef.meta as Record<string, unknown> | undefined)?.vertexLabel as string | undefined;
+					labelToDomain.set(vl || dname, vl || dname);
+				}
 				for (const [name, def] of Object.entries(domains)) {
 					let members = 0;
 					for (const variable of Object.values(allVars)) {
-						if (variable.domain && normalizeDomainKey(variable.domain) === name) {
-							members++;
+						if (variable.domain && normalizeDomainKey(variable.domain) === name) members++;
+					}
+					const description = def.values || def.description || "schema";
+					const meta = def.meta as Record<string, unknown> | undefined;
+					const vertexLabel = meta?.vertexLabel as string | undefined;
+					const _edges: { type: string; targetId: string }[] = [];
+					// Edges from meta (vertex→vertex relationships like Email→Contact)
+					const metaEdges = meta?.edges as Record<string, { rel: string; range: string }> | undefined;
+					if (metaEdges) {
+						for (const [edgeName, edge] of Object.entries(metaEdges)) {
+							if (edge.range && edge.range !== vertexLabel) _edges.push({ type: edgeName, targetId: edge.range });
 						}
 					}
-
-					let type: string | string[] = "schema";
-					if (def.values) {
-						type = def.values;
-					} else if (def.description) {
-						type = def.description;
+					// Property type edges from Zod schema (Email →subject→ string, Email →dateSent→ date)
+					const shape = (def.schema as { shape?: Record<string, unknown> }).shape;
+					if (shape) {
+						for (const [fieldName, fieldSchema] of Object.entries(shape)) {
+							let inner = fieldSchema as { _def?: { innerType?: unknown; type?: string } };
+							while (inner?._def?.innerType) inner = inner._def.innerType as typeof inner;
+							const baseType = inner?._def?.type;
+							if (baseType) _edges.push({ type: fieldName, targetId: baseType });
+						}
 					}
-
-					summary[name] = {
-						type,
-						members,
-						ordered: !!def.comparator,
-					};
+					items.push({ name, description, members, ...(vertexLabel ? { vertexLabel } : {}), ...(_edges.length ? { _edges } : {}) });
 				}
-				this.getWorld().eventLogger.info(`Domains: ${JSON.stringify(summary, null, 2)}`, { domains: summary });
-				return OK;
+				return actionOKWithProducts({ _type: "Domain", _summary: `${items.length} domains`, items });
 			},
 		},
 		showDomain: {
@@ -491,12 +499,8 @@ class VariablesStepper extends AStepper implements IHasCycles {
 						members[key] = shared.isSecret(key) ? OBSCURED_VALUE : variable.value;
 					}
 				}
-				this.getWorld().eventLogger.info(`Domain "${name}": ${JSON.stringify({ ...domain, members }, null, 2)}`, {
-					domain: name,
-					...domain,
-					members,
-				});
-				return OK;
+				const memberCount = Object.keys(members).length;
+				return actionOKWithProducts({ _type: "Domain", _summary: `${name}: ${memberCount} members`, domain: name, ...domain, members });
 			},
 		},
 		// Membership check: value is in domain (enum or member values)

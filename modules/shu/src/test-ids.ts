@@ -62,6 +62,12 @@ export const SHU_TEST_IDS = {
 		RESTART: "timeline-restart",
 		TIME_DISPLAY: "timeline-time",
 	},
+	COLUMN_PANE: {
+		MAXIMIZE: "pane-maximize",
+	},
+	DOCUMENT: {
+		ROOT: "document-view",
+	},
 	GRAPH_VIEW: {
 		ROOT: "graph-view-toolbar",
 	},

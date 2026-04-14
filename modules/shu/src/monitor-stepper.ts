@@ -137,11 +137,15 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		},
 		showMonitor: {
 			gwta: "show monitor",
-			action: () => actionOKWithProducts({ view: "monitor" }),
+			action: () => actionOKWithProducts({ _type: "view", _summary: "Monitor log stream", _component: "shu-monitor-column", view: "monitor" }),
 		},
 		showSequenceDiagram: {
 			gwta: "show sequence diagram",
-			action: () => actionOKWithProducts({ view: "sequence" }),
+			action: () => actionOKWithProducts({ _type: "view", _summary: "Sequence diagram", _component: "shu-sequence-diagram", view: "sequence" }),
+		},
+		showDocument: {
+			gwta: "show document",
+			action: () => actionOKWithProducts({ _type: "view", _summary: "Document view", _component: "shu-document-column", view: "document" }),
 		},
 		getEvents: {
 			gwta: "get monitor events",
@@ -152,20 +156,17 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				if (kind) filtered = filtered.filter((e) => e.kind === kind);
 				if (since) filtered = filtered.filter((e) => e.timestamp >= since);
 				return actionOKWithProducts({
-					events: filtered.map(({ kind, level, timestamp, id, ...rest }) => ({
-						kind,
-						level,
-						timestamp,
-						id,
-						in: (rest as Record<string, unknown>).in,
-						message: (rest as Record<string, unknown>).message,
-						type: (rest as Record<string, unknown>).type,
-						stage: (rest as Record<string, unknown>).stage,
-						status: (rest as Record<string, unknown>).status,
-						actionName: (rest as Record<string, unknown>).actionName,
-						artifactType: (rest as Record<string, unknown>).artifactType,
-						seqPath: parseSeqPath(id),
-					})),
+					events: filtered.map(({ kind, level, timestamp, id, ...rest }) => {
+						const r = rest as Record<string, unknown>;
+						const products = r.products as Record<string, unknown> | undefined;
+						return {
+							kind, level, timestamp, id,
+							in: r.in, message: r.message, type: r.type, stage: r.stage, status: r.status,
+							actionName: r.actionName, artifactType: r.artifactType,
+							...(products && (products._type || products._component) ? { products } : {}),
+							seqPath: parseSeqPath(id),
+						};
+					}),
 				});
 			},
 		},
@@ -184,7 +185,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		},
 		showGraphView: {
 			gwta: "show graph view",
-			action: () => actionOKWithProducts({ view: "graph" }),
+			action: () => actionOKWithProducts({ _type: "view", _summary: "Graph view", _component: "shu-graph-view", view: "graph" }),
 		},
 		graphQuery: {
 			gwta: `graph query {query: ${DOMAIN_GRAPH_QUERY}}`,

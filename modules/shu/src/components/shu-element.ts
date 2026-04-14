@@ -47,6 +47,7 @@ export abstract class ShuElement<T extends z.ZodType> extends HTMLElement {
 		this.addEventListener(
 			SHU_EVENT.TIME_SYNC as string,
 			((e: CustomEvent) => {
+				if (this.hasAttribute("data-snapshot-time")) return;
 				this.timeCursor = e.detail?.currentTime ?? null;
 				this.onTimeSync(this.timeCursor);
 			}) as EventListener,
@@ -75,6 +76,8 @@ export abstract class ShuElement<T extends z.ZodType> extends HTMLElement {
 	}
 
 	connectedCallback(): void {
+		const snapshot = this.getAttribute("data-snapshot-time");
+		if (snapshot) this.timeCursor = parseFloat(snapshot);
 		this.render();
 	}
 
@@ -82,6 +85,16 @@ export abstract class ShuElement<T extends z.ZodType> extends HTMLElement {
 
 	/** Called when TIME_SYNC is received. Override for custom behavior. Default: re-render. */
 	protected onTimeSync(_cursor: number | null): void {
+		this.render();
+	}
+
+	/** Whether this component should show its toolbar/controls. Set via data-show-controls attribute. */
+	protected get showControls(): boolean {
+		return this.hasAttribute("data-show-controls");
+	}
+
+	/** Force a re-render. Used by parent components (e.g., column pane controls toggle). */
+	refresh(): void {
 		this.render();
 	}
 

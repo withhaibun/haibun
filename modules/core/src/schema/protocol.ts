@@ -312,6 +312,10 @@ export const TRACE_SEQ_PATH = "_seqPath";
 export const HYPERMEDIA = {
 	/** Domain label for this result (e.g. "Email", "Contact") */
 	TYPE: "_type",
+	/** Human-readable one-liner for CLI output and document view captions */
+	SUMMARY: "_summary",
+	/** Web component tag that renders this product (e.g. "shu-graph-view") */
+	COMPONENT: "_component",
 	/** HATEOAS affordances — what can be done next, keyed by rel */
 	LINKS: "_links",
 	/** For destructive operations: condition to check reversibility, apply to execute undo */
@@ -321,6 +325,8 @@ export const HYPERMEDIA = {
 export type THypermediaProducts = {
 	[TRACE_SEQ_PATH]?: TSeqPath;
 	[HYPERMEDIA.TYPE]?: string;
+	[HYPERMEDIA.SUMMARY]?: string;
+	[HYPERMEDIA.COMPONENT]?: string;
 	[HYPERMEDIA.LINKS]?: Record<string, { method: string; params?: Record<string, unknown>; schema?: Record<string, unknown> }>;
 	[HYPERMEDIA.UNDO]?: { condition: string; apply: string };
 	[key: string]: unknown;

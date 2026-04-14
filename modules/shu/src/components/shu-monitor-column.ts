@@ -44,6 +44,7 @@ const LEVEL_ORDER = ["debug", "trace", "log", "info", "warn", "error"];
 
 const STYLES = `
 :host { display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: auto; font-family: ui-monospace, monospace; font-size: 12px; }
+:host(:not([data-show-controls])) .toolbar { display: none; }
 .toolbar { display: flex; gap: 6px; align-items: center; padding: 4px 8px; background: #f5f5f5; border-bottom: 1px solid #ddd; flex: 0 0 auto; }
 .toolbar select { font-size: 11px; padding: 1px 4px; }
 .toolbar .count { margin-left: auto; color: #888; font-size: 11px; }
@@ -179,8 +180,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 				<label class="hide-start"><input type="checkbox" data-action="hide-start" ${hideStart ? "checked" : ""}> hide start</label>
 				<span class="count">${this.rows.length} events</span>
 			</div>
-			<shu-timeline></shu-timeline>
-			<div class="log-rows"></div>`;
+			<shu-timeline></shu-timeline><div class="log-rows"></div>`;
 
 		this.shadowRoot.querySelector("[data-action=level]")?.addEventListener("change", (e) => {
 			this.setState({ level: (e.target as HTMLSelectElement).value as typeof level });

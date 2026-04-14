@@ -15,12 +15,17 @@ import { openQuadDetailPane } from "../quad-detail-pane.js";
 import { getEdgeRanges, getEdgeRelMap, getRels } from "../rels-cache.js";
 import { getAvailableSteps, getStepperForType } from "../rpc-registry.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
-import { buildMermaidSource, buildClassifier, DEFAULT_MAX_PER_SUBGRAPH, type TGraphViewOpts } from "../mermaid-source.js";
+import { buildMermaidSource, buildClassifier, THREAD_CLASSIFIER, DEFAULT_MAX_PER_SUBGRAPH, type TGraphViewOpts, type PropertyClassifier } from "../mermaid-source.js";
 
 let mermaidInitialized = false;
 
 const browserClassifier = buildClassifier(getRels, getEdgeRanges, getStepperForType, undefined);
 browserClassifier.relForEdge = (_graph: string, predicate: string) => getEdgeRelMap()[predicate];
+
+const CLASSIFIERS: Record<string, PropertyClassifier> = {
+	browser: browserClassifier,
+	thread: THREAD_CLASSIFIER,
+};
 
 const StateSchema = z.object({
 	quads: z
@@ -35,6 +40,8 @@ const StateSchema = z.object({
 			}),
 		)
 		.default([]),
+	dataSource: z.enum(["rpc", "external"]).default("rpc"),
+	classifierMode: z.enum(["browser", "thread"]).default("browser"),
 	zoom: z.number().default(100),
 	layout: z.enum(["TD", "LR"]).default("TD"),
 	hiddenGraphs: z.array(z.string()).default([]),
@@ -44,6 +51,7 @@ const StateSchema = z.object({
 
 const STYLES = `
 :host { display: block; overflow: auto; }
+:host(:not([data-show-controls])) .toolbar { display: none; }
 .toolbar { display: flex; gap: 4px; align-items: center; padding: 4px 8px; border-bottom: 1px solid #ddd; flex-wrap: wrap; }
 .toolbar button { padding: 2px 8px; cursor: pointer; }
 .toolbar label { font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 2px; }
@@ -82,10 +90,35 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 	private currentNodeMap = new Map<string, { graph: string; subject: string }>();
 	private visibleQuads: TQuad[] = [];
 	private lastMermaidSource = "";
+	private initialized = false;
+
+	/** Provide quads externally — sets dataSource to external, skipping RPC. */
+	setQuads(quads: TQuad[]): void {
+		this.setState({ quads, dataSource: "external" });
+	}
+
+	static get observedAttributes(): string[] {
+		return ["data-classifier", "data-source"];
+	}
+
+	attributeChangedCallback(name: string, _old: string | null, val: string | null): void {
+		if (name === "data-classifier" && val && val in CLASSIFIERS) {
+			this.state = { ...this.state, classifierMode: val as "browser" | "thread" };
+		}
+		if (name === "data-source" && (val === "rpc" || val === "external")) {
+			this.state = { ...this.state, dataSource: val };
+		}
+	}
+
+	private get activeClassifier(): PropertyClassifier {
+		return CLASSIFIERS[this.state.classifierMode] ?? browserClassifier;
+	}
 
 	constructor() {
 		super(StateSchema, {
 			quads: [],
+			dataSource: "rpc",
+			classifierMode: "browser",
 			zoom: 100,
 			layout: "TD",
 			hiddenGraphs: readHiddenGraphsCookie(),
@@ -96,6 +129,12 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 
 	async connectedCallback(): Promise<void> {
 		super.connectedCallback();
+		if (this.initialized) return;
+		this.initialized = true;
+
+		// External or snapshot mode: skip RPC and SSE.
+		if (this.state.dataSource === "external" || this.hasAttribute("data-snapshot-time")) return;
+
 		const client = SseClient.for("");
 		await getAvailableSteps();
 
@@ -143,6 +182,7 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 
 	protected render(): void {
 		if (!this.shadowRoot) return;
+		this.lastMermaidSource = "";
 		const { quads, zoom, layout, hiddenGraphs, maxPerSubgraph } = this.state;
 
 		if (quads.length === 0) {
@@ -159,17 +199,17 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 		const filterHtml = graphs.map((g) => `<label><input type="checkbox" data-graph="${g}" ${hiddenSet.has(g) ? "" : "checked"}> ${g}</label>`).join("");
 
 		this.lastMermaidSource = "";
-		this.shadowRoot.innerHTML = `${this.css(STYLES)}
-			<div class="toolbar" data-testid="graph-view-toolbar">
-				<button data-action="layout">${layout}</button>
-				<button data-action="zoom-out">\u2212</button>
-				<span class="zoom-label">${zoom}%</span>
-				<button data-action="zoom-in">+</button>
-				<button data-action="copy">Copy</button>
-				<label>limit <input type="number" data-action="max" value="${maxPerSubgraph}" min="1" max="999" style="width:40px"></label>
-				<div class="graph-filters">${filterHtml}</div>
-				<span class="quad-count">${quads.length} quads</span>
-			</div>
+		const toolbar = `<div class="toolbar" data-testid="graph-view-toolbar">
+			<button data-action="layout">${layout}</button>
+			<button data-action="zoom-out">\u2212</button>
+			<span class="zoom-label">${zoom}%</span>
+			<button data-action="zoom-in">+</button>
+			<button data-action="copy">Copy</button>
+			<label>limit <input type="number" data-action="max" value="${maxPerSubgraph}" min="1" max="999" style="width:40px"></label>
+			<div class="graph-filters">${filterHtml}</div>
+			<span class="quad-count">${quads.length} quads</span>
+		</div>`;
+		this.shadowRoot.innerHTML = `${this.css(STYLES)}${toolbar}
 			<div class="diagram-container" style="transform: scale(${zoom / 100}); transform-origin: top left;">
 				<div id="${this.diagramId}"></div>
 			</div>`;
@@ -192,7 +232,7 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 					return;
 				}
 				if (action === "layout") this.setState({ layout: this.state.layout === "TD" ? "LR" : "TD" });
-				else if (action === "copy") navigator.clipboard.writeText(buildMermaidSource(this.visibleQuads, this.buildOpts(), browserClassifier).source);
+				else if (action === "copy") navigator.clipboard.writeText(buildMermaidSource(this.visibleQuads, this.buildOpts(), this.activeClassifier).source);
 			});
 		});
 		this.shadowRoot?.querySelectorAll("input[data-graph]").forEach((cb) => {
@@ -234,7 +274,7 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 			});
 			mermaidInitialized = true;
 		}
-		const { source, nodeMap } = buildMermaidSource(this.visibleQuads, this.buildOpts(), browserClassifier);
+		const { source, nodeMap } = buildMermaidSource(this.visibleQuads, this.buildOpts(), this.activeClassifier);
 		if (source === this.lastMermaidSource) return;
 		this.lastMermaidSource = source;
 		this.currentNodeMap = nodeMap;

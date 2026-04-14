@@ -249,7 +249,9 @@ const main = async (): Promise<void> => {
 		pane.setAttribute("label", label);
 		pane.setAttribute(SHU_ATTR.COLUMN_TYPE, columnType);
 		pane.setAttribute(SHU_ATTR.PINNED, "true");
-		pane.appendChild(document.createElement(childTag));
+		const child = document.createElement(childTag);
+		child.setAttribute(SHU_ATTR.SHOW_CONTROLS, "");
+		pane.appendChild(child);
 		strip.addPane(pane);
 	};
 
@@ -259,6 +261,7 @@ const main = async (): Promise<void> => {
 	appRoot.addEventListener(SHU_EVENT.COLUMN_OPEN_SEQUENCE, () => openPinnedColumn("sequence", "Sequence", "shu-sequence-diagram"), {
 		signal,
 	});
+	appRoot.addEventListener(SHU_EVENT.COLUMN_OPEN_DOCUMENT, () => openPinnedColumn("document", "Document", "shu-document-column"), { signal });
 	appRoot.addEventListener(SHU_EVENT.COLUMN_OPEN_GRAPH, () => openPinnedColumn("graph", "Graph", "shu-graph-view"), {
 		signal,
 	});
@@ -533,8 +536,9 @@ const main = async (): Promise<void> => {
 		if (strip) {
 			void (async () => {
 				for (const rawCol of colParams) {
-					const minimized = rawCol.endsWith("~min");
-					const col = minimized ? rawCol.slice(0, -4) : rawCol;
+					const maximized = rawCol.endsWith("~max");
+					const minimized = !maximized && rawCol.endsWith("~min");
+					const col = maximized ? rawCol.slice(0, -4) : minimized ? rawCol.slice(0, -4) : rawCol;
 					let pane: ShuColumnPane | undefined;
 					if (col.startsWith("f:")) {
 						const rest = col.slice(2);
@@ -582,10 +586,17 @@ const main = async (): Promise<void> => {
 					} else if (col.startsWith("graph:") || col === "graph") {
 						appRoot.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN_GRAPH, { bubbles: true }));
 						pane = strip.panes.find((p) => p.getAttribute(SHU_ATTR.COLUMN_TYPE) === "graph");
+					} else if (col.startsWith("document:") || col === "document") {
+						appRoot.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN_DOCUMENT, { bubbles: true }));
+						pane = strip.panes.find((p) => p.getAttribute(SHU_ATTR.COLUMN_TYPE) === "document");
 					}
 					if (minimized && pane) {
 						pane.setCollapsed(true);
 						pane.setAttribute(SHU_ATTR.DATA_MINIMIZED, "");
+					}
+					if (maximized && pane) {
+						pane.setAttribute(SHU_ATTR.DATA_MAXIMIZED, "");
+						pane.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_MAXIMIZE, { bubbles: true, composed: true }));
 					}
 				}
 				const activeIdx = activeParam !== null ? parseInt(activeParam, 10) : 0;
