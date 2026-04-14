@@ -43,17 +43,9 @@ describe("vars", () => {
 			moduleOptions: {},
 		});
 		expect(res.ok).toBe(true);
-		const collector = res.steppers?.find((stepper) => stepper instanceof EventCollectorStepper) as
-			| EventCollectorStepper
-			| undefined;
-		expect(collector).toBeDefined();
-		const logEvents = collector?.findEvents((event) => event.kind === "log") ?? [];
-		const logMessage = logEvents
-			.map((event) => ("message" in event ? event.message : ""))
-			.find((message) => typeof message === "string" && message.includes("snake value/path is"));
-		expect(logMessage).toBeDefined();
-		expect(logMessage).toContain("ISECRET_snake");
-		expect(logMessage).not.toContain(OBSCURED_VALUE);
+		const showStep = res.featureResults?.[0]?.stepResults?.find((s) => s.in?.includes("show var"));
+		expect(showStep?.products?._summary).toContain("ISECRET_snake");
+		expect(showStep?.products?._summary).not.toContain(OBSCURED_VALUE);
 	});
 
 	it('does not obscure variable when only its value contains "password"', async () => {
@@ -64,17 +56,9 @@ describe("vars", () => {
 			moduleOptions: {},
 		});
 		expect(res.ok).toBe(true);
-		const collector = res.steppers?.find((stepper) => stepper instanceof EventCollectorStepper) as
-			| EventCollectorStepper
-			| undefined;
-		expect(collector).toBeDefined();
-		const logEvents = collector?.findEvents((event) => event.kind === "log") ?? [];
-		const logMessage = logEvents
-			.map((event) => ("message" in event ? event.message : ""))
-			.find((message) => typeof message === "string" && message.includes("login hint is"));
-		expect(logMessage).toBeDefined();
-		expect(logMessage).toContain("Enter password");
-		expect(logMessage).not.toContain(OBSCURED_VALUE);
+		const showStep = res.featureResults?.[0]?.stepResults?.find((s) => s.in?.includes("show var"));
+		expect(showStep?.products?._summary).toContain("Enter password");
+		expect(showStep?.products?._summary).not.toContain(OBSCURED_VALUE);
 	});
 
 	it("does not treat complex names as literals for exists", async () => {
@@ -119,17 +103,9 @@ describe("random vars", () => {
 		expect(res.ok).toBe(true);
 		expect(await res.world.shared.get("token", true)).toBe("secret-123");
 		expect(await res.world.shared.get("token")).toBe(OBSCURED_VALUE);
-		const collector = res.steppers?.find((stepper) => stepper instanceof EventCollectorStepper) as
-			| EventCollectorStepper
-			| undefined;
-		expect(collector).toBeDefined();
-		const logEvents = collector?.findEvents((event) => event.kind === "log") ?? [];
-		const logMessage = logEvents
-			.map((event) => ("message" in event ? event.message : ""))
-			.find((message) => typeof message === "string" && message.includes("token is"));
-		expect(logMessage).toBeDefined();
-		expect(logMessage).toContain(OBSCURED_VALUE);
-		expect(logMessage).not.toContain("secret-123");
+		const showStep = res.featureResults?.[0]?.stepResults?.find((s) => s.in?.includes("show var"));
+		expect(showStep?.products?._summary).toContain(OBSCURED_VALUE);
+		expect(showStep?.products?._summary).not.toContain("secret-123");
 	});
 
 	it("assigns random", async () => {
