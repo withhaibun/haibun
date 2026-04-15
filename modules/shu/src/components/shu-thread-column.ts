@@ -50,7 +50,6 @@ const STYLES = `
 
 export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 	private thread: ThreadVertex[] = [];
-	private relatedQuads: Record<string, unknown>[] = [];
 	private graphViewEl: ShuGraphView | null = null;
 
 	constructor() {
@@ -76,11 +75,10 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 		try {
 			await getAvailableSteps();
 			const client = SseClient.for("");
-			const data = await client.rpc<{ items: ThreadVertex[]; quads?: Record<string, unknown>[]; contextRoot: string }>(
+			const data = await client.rpc<{ items: ThreadVertex[]; contextRoot: string }>(
 				requireStep("getRelated"), { label, id, depth: this.state.depth },
 			);
 			this.thread = data.items ?? [];
-			this.relatedQuads = data.quads ?? [];
 			this.setState({ loading: false });
 		} catch (err) {
 			this.setState({ loading: false, error: err instanceof Error ? err.message : String(err) });
@@ -105,11 +103,10 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 		}
 
 		const { depth } = this.state;
-		const depthOptions = [1, 2, 3, 5].map((d) => `<option value="${d}"${d === depth ? " selected" : ""}>${d}</option>`).join("");
 		const toolbar = `<div class="toolbar">
 			<button class="mode-btn${mode === "tree" ? " active" : ""}" data-mode="tree">Tree</button>
 			<button class="mode-btn${mode === "graph" ? " active" : ""}" data-mode="graph">Graph</button>
-			<label>depth <select data-action="depth">${depthOptions}</select></label>
+			<label>depth <input type="number" data-action="depth" value="${depth}" min="1" max="99" style="width:40px"></label>
 			<span class="count">${this.thread.length} items</span>
 		</div>`;
 		this.shadowRoot.innerHTML = `${this.css(STYLES)}${toolbar}<div class="content-area"></div>`;
@@ -118,21 +115,14 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 		if (mode === "graph") {
 			contentArea.innerHTML = '<div class="graph-container"></div>';
 			const gv = document.createElement("shu-graph-view") as ShuGraphView;
+			gv.setAttribute("data-classifier", "thread");
 			gv.setAttribute("data-source", "external");
-			// Use real quads from getRelated (browser classifier), or synthesized quads from openItems (thread classifier)
-			if (this.relatedQuads.length > 0) {
-				// Real quads from the quad store — use browser classifier
-			} else {
-				gv.setAttribute("data-classifier", "thread");
-			}
 			if (this.showControls) gv.setAttribute("data-show-controls", "");
 			gv.style.height = "100%";
 			(contentArea.querySelector(".graph-container") as HTMLElement).appendChild(gv);
-			const quads = this.relatedQuads.length > 0 ? this.relatedQuads : this.threadToQuads();
-			requestAnimationFrame(() => gv.setQuads(quads as Parameters<ShuGraphView["setQuads"]>[0]));
+			requestAnimationFrame(() => gv.setQuads(this.threadToQuads()));
 			this.graphViewEl = gv;
 		} else {
-			this.graphViewEl = null;
 			this.graphViewEl = null;
 			contentArea.innerHTML = `<div class="thread-list">${this.renderTree()}</div>`;
 			contentArea.querySelectorAll(".thread-card").forEach((card) => {
@@ -150,8 +140,8 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 			btn.addEventListener("click", () => this.setState({ mode: (btn as HTMLElement).dataset.mode as "tree" | "graph" }));
 		});
 		this.shadowRoot.querySelector("[data-action=depth]")?.addEventListener("change", (e) => {
-			const newDepth = parseInt((e.target as HTMLSelectElement).value, 10);
-			if (this.state.vertexId) void this.open(this.state.label, this.state.vertexId, newDepth);
+			const newDepth = parseInt((e.target as HTMLInputElement).value, 10);
+			if (newDepth > 0 && this.state.vertexId) void this.open(this.state.label, this.state.vertexId, newDepth);
 		});
 	}
 
