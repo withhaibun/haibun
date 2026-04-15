@@ -309,6 +309,22 @@ export const LinkRelations = {
 	URL: { rel: "url", uri: "as:url", relation: false },
 } as const;
 
+/**
+ * Standard edge predicate names for graph vertices.
+ * Each maps to a LinkRelation rel — multiple predicates can share the same rel.
+ * Steppers use these as edge keys in getConcerns().edges and in createEdge() calls.
+ */
+export const EdgePredicates = {
+	from: "from",
+	to: "to",
+	cc: "cc",
+	author: "author",
+	attachment: "attachment",
+	inReplyTo: "inReplyTo",
+	references: "references",
+	annotates: "annotates",
+} as const;
+
 /** Domain name for vertex type labels — auto-populated from registered vertex domains. */
 export const DOMAIN_VERTEX_LABEL = "vertex-label";
 
