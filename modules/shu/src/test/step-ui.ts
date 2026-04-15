@@ -58,5 +58,15 @@ export function createStepUI(wp: WebPlaywright) {
 		return runStep(stepName, false, params);
 	}
 
-	return { enterStepMode, runStep, passesStepExecution, failsStepExecution };
+	/** Open actions bar and select a vertex type from the type dropdown. */
+	function chooseGraphLabel(label: string): TKirejiStep[] {
+		return [
+			waitFor({ target: IDS.APP.TWISTY }),
+			click({ target: IDS.APP.TWISTY }),
+			waitFor({ target: IDS.APP.TYPE_SELECT }),
+			selectionOption({ option: `"${label}"`, field: IDS.APP.TYPE_SELECT }),
+		];
+	}
+
+	return { enterStepMode, runStep, passesStepExecution, failsStepExecution, chooseGraphLabel };
 }
