@@ -93,6 +93,8 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 			if (!ShuElement.offline) console.warn("[shu-monitor] failed to load events:", err instanceof Error ? err.message : err);
 		}
 
+		if (this.hasAttribute("data-snapshot-time")) return;
+
 		this.unsubscribe = client.onEvent((event) => {
 			const e = event as Record<string, unknown>;
 			this.addEvent(e);
