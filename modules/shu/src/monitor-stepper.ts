@@ -4,17 +4,20 @@
  * The shu frontend receives events via SSE for live updates and fetches history via RPC.
  * At endFeature, writes a standalone HTML file with embedded events, quads, and concerns.
  */
+import { resolve } from "path";
 import { z } from "zod";
+import { writeFileSync } from "fs";
+
 import { AStepper, type IHasCycles, type IHasOptions, type TStepperSteps, StepperKinds } from "@haibun/core/lib/astepper.js";
 import type { TWorld } from "@haibun/core/lib/defs.js";
 import type { THaibunEvent } from "@haibun/core/schema/protocol.js";
-import type { TEndFeature } from "@haibun/core/lib/defs.js";
-import { writeFileSync } from "fs";
+import { CycleWhen, type TEndFeature } from "@haibun/core/lib/defs.js";
 import { OBSCURED_VALUE } from "@haibun/core/lib/feature-variables.js";
 import { actionNotOK, actionOKWithProducts, stringOrError, findStepperFromOptionOrKind, actualURI } from "@haibun/core/lib/util/index.js";
 import { type IStepperCycles } from "@haibun/core/lib/defs.js";
 import { objectCoercer } from "@haibun/core/lib/domain-types.js";
 import { TRANSPORT, type ITransport } from "@haibun/web-server-hono/sse-transport.js";
+import { WEBSERVER, type IWebServer } from "@haibun/web-server-hono/defs.js";
 import { AStorage } from "@haibun/domain-storage/AStorage.js";
 import { EMediaTypes } from "@haibun/domain-storage/media-types.js";
 import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
@@ -29,8 +32,10 @@ const MAX_EVENTS = 10000;
 export default class MonitorStepper extends AStepper implements IHasCycles, IHasOptions {
 	description = "Buffers execution events for the shu monitor view";
 	private events: THaibunEvent[] = [];
-	private storage?: AStorage;
+	private observationQuads: import("@haibun/core/lib/quad-types.js").TQuad[] = [];
+	private storage!: AStorage;
 	private outputPath?: string;
+	cyclesWhen = { startFeature: CycleWhen.LAST };
 
 	options = {
 		[StepperKinds.STORAGE]: { desc: "Storage for standalone HTML output", parse: stringOrError },
@@ -42,11 +47,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 
 	async setWorld(world: TWorld, steppers: AStepper[]): Promise<void> {
 		await super.setWorld(world, steppers);
-		try {
-			this.storage = findStepperFromOptionOrKind(steppers, this, world.moduleOptions, StepperKinds.STORAGE);
-		} catch {
-			this.getWorld().eventLogger.info("MonitorStepper: no storage configured, standalone HTML will not be written");
-		}
+		this.storage = findStepperFromOptionOrKind(steppers, this, world.moduleOptions, StepperKinds.STORAGE);
 	}
 
 	cycles: IStepperCycles = {
@@ -60,9 +61,23 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				},
 			],
 		}),
+		startFeature: async () => {
+			const webserver = this.getWorld().runtime[WEBSERVER] as IWebServer;
+			const artifactDir = resolve(this.storage.getArtifactBasePath());
+			await this.storage.ensureDirExists(artifactDir);
+			webserver.addKnownStaticFolder(artifactDir, "/artifacts");
+		},
 		onEvent: (event: THaibunEvent) => {
 			this.events.push(event);
 			if (this.events.length > MAX_EVENTS) this.events.shift();
+			const e = event as Record<string, unknown>;
+			if (e.kind === "artifact" && e.artifactType === "json") {
+				const q = (e.json as { quadObservation?: import("@haibun/core/lib/quad-types.js").TQuad })?.quadObservation;
+				if (q?.subject && q.predicate && q.namedGraph) {
+					this.observationQuads.push({ subject: q.subject, predicate: q.predicate, object: q.object, namedGraph: q.namedGraph, timestamp: q.timestamp ?? (e.timestamp as number) ?? Date.now(), properties: q.properties });
+					if (this.observationQuads.length > MAX_EVENTS) this.observationQuads.shift();
+				}
+			}
 			this.transport?.send({ type: "event", event });
 		},
 		endFeature: async ({ shouldClose = true }: TEndFeature) => {
@@ -71,7 +86,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			// Ensure essential data is always available offline:
 			// 1. Events (the test execution log — core of the monitor view)
 			if (!rpcCache["MonitorStepper-getEvents"]) {
-				rpcCache["MonitorStepper-getEvents"] = (this.steps.getEvents.action({} as { level?: string; kind?: string; since?: number }) as { products: unknown }).products;
+				rpcCache["MonitorStepper-getEvents"] = { events: this.events };
 			}
 			// 2. Parameterless steps with view products (deterministic view toggles)
 			for (const [name, step] of Object.entries(this.steps)) {
@@ -156,16 +171,11 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				if (kind) filtered = filtered.filter((e) => e.kind === kind);
 				if (since) filtered = filtered.filter((e) => e.timestamp >= since);
 				return actionOKWithProducts({
-					events: filtered.map(({ kind, level, timestamp, id, ...rest }) => {
-						const r = rest as Record<string, unknown>;
-						const products = r.products as Record<string, unknown> | undefined;
-						return {
-							kind, level, timestamp, id,
-							in: r.in, message: r.message, type: r.type, stage: r.stage, status: r.status,
-							actionName: r.actionName, artifactType: r.artifactType,
-							...(products && (products._type || products._component) ? { products } : {}),
-							seqPath: parseSeqPath(id),
-						};
+					events: filtered.map(({ source: _s, emitter: _e, ...e }) => {
+						const event = { ...e, seqPath: parseSeqPath(e.id) } as Record<string, unknown>;
+						// Strip inline file content — SPA fetches via /artifacts/ path reference
+						if (e.kind === "artifact") delete event.content;
+						return event;
 					}),
 				});
 			},
@@ -209,10 +219,9 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			outputSchema: z.object({ quads: z.array(z.unknown()) }),
 			action: async () => {
 				const store = this.getWorld().shared.getStore();
-				const quads = await store.all();
-				return actionOKWithProducts({
-					quads: quads.map(({ subject, predicate, object, namedGraph, timestamp, properties }) => ({ subject, predicate, object, namedGraph, timestamp, properties })),
-				});
+				const storeQuads = await store.all();
+				const quads = [...storeQuads, ...this.observationQuads].map(({ subject, predicate, object, namedGraph, timestamp, properties }) => ({ subject, predicate, object, namedGraph, timestamp, properties }));
+				return actionOKWithProducts({ quads });
 			},
 		},
 	} satisfies TStepperSteps;

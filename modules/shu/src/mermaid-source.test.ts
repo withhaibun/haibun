@@ -157,3 +157,18 @@ describe("end-to-end: show domains → thread → graph", () => {
 		expect(result.source).toContain("-->|← from|");
 	});
 });
+
+describe("hiddenRels filtering", () => {
+	it("hides edges matching hiddenRels", () => {
+		const quads = [
+			{ subject: "Email", predicate: "name", object: "Email", namedGraph: "Email", timestamp: 1 },
+			{ subject: "Email", predicate: "from", object: "Contact", namedGraph: "Email", timestamp: 1 },
+			{ subject: "Email", predicate: "to", object: "Contact", namedGraph: "Email", timestamp: 1 },
+			{ subject: "Contact", predicate: "name", object: "Contact", namedGraph: "Contact", timestamp: 1 },
+		];
+		// Thread classifier has no relForEdge, so predicate name IS the rel
+		const result = buildMermaidSource(quads, { ...opts, hiddenRels: new Set(["from"]) }, THREAD_CLASSIFIER);
+		expect(result.source).not.toContain("-->|from|");
+		expect(result.source).toContain("-->|to|");
+	});
+});
