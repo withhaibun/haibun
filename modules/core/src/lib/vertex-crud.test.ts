@@ -68,8 +68,8 @@ describe("generateVertexCrudFromDomains", () => {
 	it("generates CRUD for all vertex domains, skips non-vertex domains", () => {
 		const store = new QuadStore();
 		const domains = {
-			"my-widget": { schema: WidgetSchema, meta: { vertexLabel: "Widget", idField: "name" } },
-			"my-gadget": { schema: z.object({ id: z.string() }), meta: { vertexLabel: "Gadget", idField: "id" } },
+			"my-widget": { schema: WidgetSchema, topology: { vertexLabel: "Widget", idField: "name" } },
+			"my-gadget": { schema: z.object({ id: z.string() }), topology: { vertexLabel: "Gadget", idField: "id" } },
 			"query-schema": { schema: z.string() },
 		};
 		const steps = generateVertexCrudFromDomains(domains, () => store);
