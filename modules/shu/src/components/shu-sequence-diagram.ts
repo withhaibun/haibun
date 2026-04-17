@@ -121,6 +121,8 @@ export class ShuSequenceDiagram extends ShuElement<typeof StateSchema> {
 			/* stepper may not be loaded */
 		}
 
+		if (this.hasAttribute("data-snapshot-time")) return;
+
 		// Live updates via SSE — capture event timestamp onto the trace
 		this.unsubscribe = client.onEvent((event) => {
 			const e = event as { kind?: string; artifactType?: string; trace?: TDispatchTrace; timestamp?: number };

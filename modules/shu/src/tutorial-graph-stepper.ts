@@ -195,7 +195,7 @@ export default class TutorialGraphStepper extends AStepper {
 				{
 					selectors: ["tutorial-researcher"],
 					schema: VertexSchema,
-					meta: {
+					topology: {
 						vertexLabel: TutorialLabels.Researcher,
 						id: "id",
 						properties: {
@@ -215,7 +215,7 @@ export default class TutorialGraphStepper extends AStepper {
 				{
 					selectors: ["tutorial-paper"],
 					schema: VertexSchema,
-					meta: {
+					topology: {
 						vertexLabel: TutorialLabels.Paper,
 						id: "id",
 						properties: {

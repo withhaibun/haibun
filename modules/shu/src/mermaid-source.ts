@@ -5,7 +5,7 @@
  * exportMermaid stepper step. Environment-specific property classification is
  * injected via the PropertyClassifier interface.
  */
-import { LinkRelations } from "@haibun/core/lib/defs.js";
+import { LinkRelations, edgeRel as coreEdgeRel } from "@haibun/core/lib/defs.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 
 export type TPropKind = "name" | "identifier" | "edge" | "content" | "internal" | "scalar";
@@ -36,7 +36,7 @@ export const DEFAULT_MAX_PER_SUBGRAPH = 20;
 export const INTERNAL_PREDICATES = new Set(["signedDocument", "encodedList", "proofValue", "accessLevel"]);
 
 /** Edge-typed link relations. */
-export const EDGE_RELS: Set<string> = new Set([LinkRelations.ATTRIBUTED_TO.rel, LinkRelations.AUDIENCE.rel, LinkRelations.IN_REPLY_TO.rel, LinkRelations.ATTACHMENT.rel]);
+export const EDGE_RELS: Set<string> = new Set([LinkRelations.ATTRIBUTED_TO.rel, LinkRelations.AUDIENCE.rel, LinkRelations.IN_REPLY_TO.rel, LinkRelations.ATTACHMENT.rel, LinkRelations.URL.rel]);
 
 /** Mermaid arrow style per link relation — encodes visual hierarchy from rel semantics.
  * ===> thick: narrative chain (IN_REPLY_TO — parentCapability, annotates)
@@ -148,7 +148,7 @@ export function buildMermaidSource(quads: TQuad[], opts: TGraphViewOpts, classif
 							})();
 					if (!targetId) continue;
 					const rel = classifier.relForEdge?.(graph, q.predicate);
-					if (opts.hiddenRels?.has(rel ?? "")) continue;
+					if (opts.hiddenRels?.has(rel ?? q.predicate)) continue;
 					const arrow = arrowForRel(rel);
 					if (!edges.some((e) => e.includes(`${summaryId} ${arrow}`) && e.includes(targetId))) {
 						edges.push(`  ${summaryId} ${arrow}|${truncate(q.predicate, 20)}| ${targetId}`);
@@ -197,7 +197,7 @@ export function buildMermaidSource(quads: TQuad[], opts: TGraphViewOpts, classif
 						})();
 				if (!targetId) continue;
 				const edgeRel = classifier.relForEdge?.(graph, q.predicate);
-				if (opts.hiddenRels?.has(edgeRel ?? "")) continue;
+				if (opts.hiddenRels?.has(edgeRel ?? q.predicate)) continue;
 				const edgeArrow = arrowForRel(edgeRel);
 				const edgeLine = `  ${nodeId} ${edgeArrow}|${truncate(q.predicate, 20)}| ${targetId}`;
 				if (!entityIds.has(q.object)) {
@@ -246,6 +246,8 @@ export function buildClassifier(
 			if (predicate.startsWith("_") || INTERNAL_PREDICATES.has(predicate)) return "internal";
 			const edges = getEdgeRangesForGraph(graph);
 			if (edges?.[predicate]) return "edge";
+			// Canonical EdgePredicates are always edges regardless of graph
+			if (coreEdgeRel(predicate)) return "edge";
 			const rels = getRelsForGraph(graph);
 			const rel = rels?.[predicate];
 			if (!rel) return "scalar";
