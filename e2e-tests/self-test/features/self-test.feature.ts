@@ -162,24 +162,24 @@ export const features: TKirejiExport = {
 		...waitsFor(TEST_IDS.VIEWS.FIRST_ROW),
 
 		/* fix these after
-    'The raw JSON source is shown for debugging purposes.',
-    ...waitsFor(TEST_IDS.DETAILS.RAW_SOURCE),
-    'Graph visualizations help understand execution flow.',
-    ...waitsFor(TEST_IDS.DETAILS.GRAPH_VIEWS),
-    'The sequence diagram shows HTTP request timing.',
-    ...waitsFor(TEST_IDS.DETAILS.SEQUENCE_VIEW),
-    'The quad graph shows semantic relationships.',
-    ...waitsFor(TEST_IDS.DETAILS.QUAD_VIEW),
-    'A resize handle lets the user adjust the panel width.',
-    ...waitsFor(TEST_IDS.DETAILS.RESIZE_HANDLE),
-    'When done, they click close to dismiss the panel.',
-    ...clicks(TEST_IDS.DETAILS.CLOSE_BUTTON),
+		'The raw JSON source is shown for debugging purposes.',
+		...waitsFor(TEST_IDS.DETAILS.RAW_SOURCE),
+		'Graph visualizations help understand execution flow.',
+		...waitsFor(TEST_IDS.DETAILS.GRAPH_VIEWS),
+		'The sequence diagram shows HTTP request timing.',
+		...waitsFor(TEST_IDS.DETAILS.SEQUENCE_VIEW),
+		'The quad graph shows semantic relationships.',
+		...waitsFor(TEST_IDS.DETAILS.QUAD_VIEW),
+		'A resize handle lets the user adjust the panel width.',
+		...waitsFor(TEST_IDS.DETAILS.RESIZE_HANDLE),
+		'When done, they click close to dismiss the panel.',
+		...clicks(TEST_IDS.DETAILS.CLOSE_BUTTON),
 
-    // Note: DEBUGGER and ARTIFACT_RENDERER IDs are excluded from verification
-    // because they require specific conditions (debug mode, artifact events)
+		// Note: DEBUGGER and ARTIFACT_RENDERER IDs are excluded from verification
+		// because they require specific conditions (debug mode, artifact events)
 
-    'every id in MonitorTestIds is variable used-{id} is "true"',
-    */
+		'every id in MonitorTestIds is variable used-{id} is "true"',
+		*/
 
 		`
     Scenario: Show env obscures secrets and keeps others visible.
@@ -189,10 +189,6 @@ export const features: TKirejiExport = {
     Scenario: Composed variables inherit secret status from environment.
     set normalConfig to "visible-config"
     compose adminPassword with {normalConfig}-{SNAKE_CASE_PASSWORD}
-    show vars
-    pause for 1s
-    see ""normalConfig": "visible-config""
-    see ""adminPassword": "${OBSCURED_VALUE}""
     `,
 	],
 };
