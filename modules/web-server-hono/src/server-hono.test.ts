@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { ServerHono } from "./server-hono.js";
 import type { IEventLogger } from "@haibun/core/lib/EventLogger.js";
+import { OBSERVATION_GRAPH } from "@haibun/core/lib/http-observations.js";
 
 const mockLogger: IEventLogger = {
 	info: () => {
@@ -84,6 +85,31 @@ describe("ServerHono", () => {
 
 		it("throws on multiple dots in filename", () => {
 			expect(() => server.addRoute("get", "/path/file..ext", (c) => c.text("ok"))).toThrow("multiple dots");
+		});
+
+		it("emits shu-service quad for internal routes", async () => {
+			const emitted: unknown[] = [];
+			const capturingLogger = { ...mockLogger, emit: (e: unknown) => emitted.push(e) };
+			const s = new ServerHono(capturingLogger, "/tmp");
+			s.addRoute("get", "/sse", (c) => c.text("ok"));
+			const event = emitted.find((e) => (e as Record<string, unknown>).id?.toString().startsWith("quad-endpoint-"));
+			const json = (event as Record<string, Record<string, Record<string, unknown>>>).json;
+			expect(json.quadObservation.namedGraph).toBe(OBSERVATION_GRAPH.SERVICE);
+			await s.close();
+		});
+
+		it("emits endpoint quad on addRoute", async () => {
+			const emitted: unknown[] = [];
+			const capturingLogger = { ...mockLogger, emit: (e: unknown) => emitted.push(e) };
+			const s = new ServerHono(capturingLogger, "/tmp");
+			s.addRoute("get", "/.well-known/did.json", (c) => c.text("ok"));
+			const endpointEvent = emitted.find((e) => (e as Record<string, unknown>).id?.toString().startsWith("quad-endpoint-"));
+			expect(endpointEvent).toBeDefined();
+			const json = (endpointEvent as Record<string, Record<string, Record<string, unknown>>>).json;
+			expect(json.quadObservation.subject).toBe("/.well-known/did.json");
+			expect(json.quadObservation.namedGraph).toBe("Endpoint");
+			expect(json.quadObservation.object).toBe("GET /.well-known/did.json");
+			await s.close();
 		});
 	});
 

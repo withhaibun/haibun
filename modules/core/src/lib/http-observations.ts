@@ -7,6 +7,33 @@
  */
 
 import type { TWorld } from "./defs.js";
+import { emitQuadObservation } from "./quad-types.js";
+
+export const SERVICE_PATH_PREFIXES = ["/sse", "/rpc/"] as const;
+
+export const OBSERVATION_GRAPH = { ROUTE: "observation/route", SERVICE: "observation/shu-service", EXTERNAL: "observation/external", ENDPOINT: "Endpoint" } as const;
+
+/** Classify an HTTP path against registered route paths. Returns the observation namedGraph and resolved endpoint path. */
+export function classifyHttpPath(path: string, registeredPaths: Set<string>): { namedGraph: string; endpointPath: string } {
+	const isService = SERVICE_PATH_PREFIXES.some((p) => path === p || path.startsWith(p));
+	if (isService) {
+		if (registeredPaths.has(path)) return { namedGraph: OBSERVATION_GRAPH.SERVICE, endpointPath: path };
+		const match = [...registeredPaths].find((rp) => pathMatchesParameterized(rp, path));
+		return { namedGraph: OBSERVATION_GRAPH.SERVICE, endpointPath: match ?? path };
+	}
+	if (registeredPaths.has(path)) return { namedGraph: OBSERVATION_GRAPH.ROUTE, endpointPath: path };
+	const paramMatch = [...registeredPaths].find((rp) => pathMatchesParameterized(rp, path));
+	if (paramMatch) return { namedGraph: OBSERVATION_GRAPH.ROUTE, endpointPath: paramMatch };
+	return { namedGraph: OBSERVATION_GRAPH.EXTERNAL, endpointPath: path };
+}
+
+/** Check if a concrete path matches a parameterized route (e.g., /status/revocation matches /status/:purpose). */
+function pathMatchesParameterized(route: string, path: string): boolean {
+	const routeParts = route.split("/");
+	const pathParts = path.split("/");
+	if (routeParts.length !== pathParts.length) return false;
+	return routeParts.every((rp, i) => rp.startsWith(":") || rp === pathParts[i]);
+}
 
 /** Observation data for a single HTTP request */
 export type THttpRequestObservation = {
@@ -37,8 +64,9 @@ export function trackHttpHost(world: TWorld, url: string): void {
 
 /**
  * Track an HTTP request in observations for the 'http-trace' observation source.
+ * Pass registeredPaths (from IWebServer.mounted) to classify observations into namedGraphs.
  */
-export function trackHttpRequest(world: TWorld, observation: THttpRequestObservation): void {
+export function trackHttpRequest(world: TWorld, observation: THttpRequestObservation, registeredPaths: Set<string>): void {
 	if (!world.runtime.observations) {
 		world.runtime.observations = new Map();
 	}
@@ -50,23 +78,10 @@ export function trackHttpRequest(world: TWorld, observation: THttpRequestObserva
 	requests.set(id, observation);
 	world.runtime.observations.set("httpRequests", requests);
 
-	// Emit quadObservation with hierarchical context for graph visualization
 	const timestamp = Date.now();
-	world.eventLogger.emit({
-		id: `quad-http-${timestamp}-${id}`,
-		timestamp,
-		source: "haibun",
-		level: "debug" as const,
-		kind: "artifact" as const,
-		artifactType: "json" as const,
-		mimetype: "application/json",
-		json: {
-			quadObservation: {
-				subject: id,
-				predicate: "time",
-				object: observation.time,
-				namedGraph: "observation/http",
-			},
-		},
-	});
+	const path = observation.url.startsWith("/") ? observation.url : new URL(observation.url).pathname;
+	const { namedGraph, endpointPath } = classifyHttpPath(path, registeredPaths);
+	const subject = `${observation.method} ${path}`;
+	emitQuadObservation(world.eventLogger, `quad-http-${timestamp}-${id}-name`, { subject, predicate: "name", object: `${observation.method} ${observation.status} ${observation.time}ms`, namedGraph, timestamp });
+	if (namedGraph !== OBSERVATION_GRAPH.EXTERNAL) emitQuadObservation(world.eventLogger, `quad-http-${timestamp}-${id}-endpoint`, { subject, predicate: "endpoint", object: endpointPath, namedGraph, timestamp });
 }
