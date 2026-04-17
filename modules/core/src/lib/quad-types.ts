@@ -50,6 +50,28 @@ export interface TQuadPattern {
 	namedGraph?: string;
 }
 
+/** Emit a quadObservation event via an event logger. Canonical envelope for all quad emissions. */
+export function emitQuadObservation(logger: { emit: (e: Record<string, unknown>) => void }, id: string, quad: Omit<TQuad, "properties">): void {
+	logger.emit({
+		id, timestamp: quad.timestamp, source: "haibun", level: "debug", kind: "artifact", artifactType: "json", mimetype: "application/json",
+		json: { quadObservation: quad },
+	});
+}
+
+/** Extract quadObservation quads from haibun event log entries. */
+export function extractQuadsFromEvents(events: Record<string, unknown>[]): TQuad[] {
+	const quads: TQuad[] = [];
+	for (const e of events) {
+		if (e.kind !== "artifact" || e.artifactType !== "json") continue;
+		const json = e.json as { quadObservation?: TQuad } | undefined;
+		const q = json?.quadObservation;
+		if (q?.subject && q.predicate && q.namedGraph) {
+			quads.push({ subject: q.subject, predicate: q.predicate, object: q.object, namedGraph: q.namedGraph, timestamp: q.timestamp ?? (e.timestamp as number) ?? Date.now(), properties: q.properties });
+		}
+	}
+	return quads;
+}
+
 export interface IQuadStore {
 	/** Set a value (upserts: replaces existing quad with same subject+predicate+namedGraph) */
 	set(subject: string, predicate: string, object: unknown, namedGraph: string, properties?: Record<string, unknown>): Promise<void>;
