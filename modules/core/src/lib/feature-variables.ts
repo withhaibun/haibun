@@ -5,7 +5,7 @@ import { TFeatureStep, TWorld } from "./defs.js";
 import { Origin, TOrigin, TProvenanceIdentifier, TStepValue } from "../schema/protocol.js";
 import { DOMAIN_JSON, DOMAIN_STRING, normalizeDomainKey } from "./domain-types.js";
 import { QuadStore } from "./quad-store.js";
-import { IQuadStore, TQuad } from "./quad-types.js";
+import { IQuadStore, TQuad, emitQuadObservation } from "./quad-types.js";
 
 export const SHARED_GRAPH = "variables";
 export const OBSERVATION_GRAPH = "observation";
@@ -85,23 +85,7 @@ export class FeatureVariables {
 		await this.writeQuads(sv.term, normalized, namedGraph, provenance);
 
 		const timestamp = Date.now();
-		this.world.eventLogger.emit({
-			id: `quad-${timestamp}`,
-			timestamp,
-			source: "haibun",
-			level: "debug" as const,
-			kind: "artifact" as const,
-			artifactType: "json" as const,
-			mimetype: "application/json",
-			json: {
-				quadObservation: {
-					subject: sv.term,
-					predicate: domainKey,
-					object: this.isSecret(sv.term) ? OBSCURED_VALUE : normalized.value,
-					namedGraph,
-				},
-			},
-		});
+		emitQuadObservation(this.world.eventLogger, `quad-${timestamp}`, { subject: sv.term, predicate: domainKey, object: this.isSecret(sv.term) ? OBSCURED_VALUE : normalized.value, namedGraph, timestamp });
 	}
 
 	/** Look up a variable from store or dot-path. Shared by Origin.var, Origin.defined, Origin.quoted. */
