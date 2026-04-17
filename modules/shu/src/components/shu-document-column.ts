@@ -12,6 +12,7 @@ import { SHU_EVENT } from "../consts.js";
 import { SseClient } from "../sse-client.js";
 import type { ShuTimeline } from "./shu-timeline.js";
 import { buildArtifactIndex, generateDocumentMarkdown } from "@haibun/core/lib/document-content.js";
+import "./shu-artifact-frame.js";
 import type { THaibunEvent, TArtifactEvent, THaibunLogLevel } from "@haibun/core/schema/protocol.js";
 import { esc } from "../util.js";
 
@@ -51,6 +52,8 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		} catch (err) {
 			if (!ShuElement.offline) console.warn("[shu-document] failed to load events:", err instanceof Error ? err.message : err);
 		}
+
+		if (this.hasAttribute("data-snapshot-time")) return;
 
 		this.unsubscribe = client.onEvent((event) => {
 			this.addEvent(event as Record<string, unknown>);
@@ -111,6 +114,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		while (fragment.firstChild) body.appendChild(fragment.firstChild);
 		this.renderedEventCount = this.events.length;
 		this.updateTimeline();
+		if (this.timeCursor === null) this.scrollTop = this.scrollHeight;
 	}
 
 	/** Generate sanitized HTML from a set of events. */
@@ -147,7 +151,8 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		}
 		if (currentRow && this.timeCursor !== null) {
 			currentRow.classList.add(TIME_SYNC_CLASS.CURRENT);
-			currentRow.scrollIntoView({ block: "center", behavior: "smooth" });
+			const rowTop = (currentRow as HTMLElement).offsetTop;
+			this.scrollTo({ top: rowTop - this.clientHeight / 2, behavior: "smooth" });
 		}
 	}
 
@@ -177,21 +182,15 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	private embedProductView(row: HTMLElement, products: Record<string, unknown>): void {
 		const rawTime = parseFloat(row.getAttribute("data-raw-time") || "0");
 		const snapshotTime = this.startTime + rawTime;
-		const container = document.createElement("div");
-		container.className = "embedded-view";
-		if (products._summary) {
-			const caption = document.createElement("div");
-			caption.className = "embedded-caption";
-			caption.textContent = String(products._summary);
-			container.appendChild(caption);
-		}
+		const frame = document.createElement("shu-artifact-frame") as HTMLElement;
+		frame.setAttribute("caption", String(products._summary ?? products._type ?? ""));
 		const productView = document.createElement("shu-product-view") as HTMLElement & { openProducts: (p: Record<string, unknown>, t?: number) => void };
 		if (this.showControls) productView.setAttribute("data-show-controls", "");
 		productView.style.maxHeight = "400px";
 		productView.style.overflow = "auto";
-		container.appendChild(productView);
+		frame.appendChild(productView);
 		requestAnimationFrame(() => productView.openProducts(products, snapshotTime));
-		row.after(container);
+		row.after(frame);
 	}
 
 	/** Post-process a container's elements: add classes, click handlers, embed products. */
@@ -241,18 +240,22 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 
 	private renderArtifact(artifact: TArtifactEvent): string {
 		const type = artifact.artifactType;
-		if (type === "image" && "url" in artifact) return `<div class="artifact"><img src="${esc(String(artifact.url))}" loading="lazy" style="max-width:100%;border-radius:4px;" /></div>`;
-		if (type === "html" && "content" in artifact) return `<div class="artifact"><iframe srcdoc="${esc(String(artifact.content))}" sandbox style="width:100%;min-height:200px;border:1px solid #ddd;border-radius:4px;"></iframe></div>`;
-		if (type === "json" && "json" in artifact) return `<div class="artifact"><pre class="json-block">${esc(JSON.stringify(artifact.json, null, 2))}</pre></div>`;
-		if (type === "file" && "path" in artifact) return `<div class="artifact"><a href="${esc(String(artifact.path))}">${esc(String(artifact.path))}</a></div>`;
+		const a = artifact as Record<string, unknown>;
+		const artifactPath = a.url ?? (a.path ? `/artifacts/${String(a.path).replace(/^\.?\//, "")}` : undefined);
+		if (type === "image" && artifactPath) {
+			return `<shu-artifact-frame caption="${esc(String(a.path ?? a.url ?? "Screenshot"))}"><img src="${esc(String(artifactPath))}" loading="lazy" /></shu-artifact-frame>`;
+		}
+		if (type === "html" && artifactPath) return `<shu-artifact-frame caption="${esc(String(a.path ?? "HTML"))}"><iframe src="${esc(String(artifactPath))}" sandbox="allow-scripts allow-same-origin" style="width:100%;min-height:80vh;border:none;"></iframe></shu-artifact-frame>`;
+		if (type === "json" && a.json) return `<shu-artifact-frame caption="JSON"><pre class="json-block">${esc(JSON.stringify(a.json, null, 2))}</pre></shu-artifact-frame>`;
+		if (type === "file" && a.path) return `<shu-artifact-frame caption="${esc(String(a.path))}"><a href="${esc(String(a.path))}">${esc(String(a.path))}</a></shu-artifact-frame>`;
 		return "";
 	}
 
 	override refresh(): void {
-		// Propagate controls state through: document → product-view → child component
 		const body = this.shadowRoot?.querySelector(".document-body");
 		if (!body) return;
-		for (const v of Array.from(body.querySelectorAll("shu-product-view")) as (HTMLElement & { refresh?: () => void })[]) {
+		// Product views are slotted inside shu-artifact-frame — querySelectorAll reaches light DOM children
+		for (const v of Array.from(body.querySelectorAll("shu-artifact-frame shu-product-view")) as (HTMLElement & { refresh?: () => void })[]) {
 			if (this.showControls) v.setAttribute("data-show-controls", "");
 			else v.removeAttribute("data-show-controls");
 			v.refresh?.();
@@ -278,16 +281,15 @@ a { color: #2563eb; text-decoration: none; }
 a:hover { text-decoration: underline; }
 .doc-row { padding: 3px 8px; border-radius: 3px; cursor: pointer; transition: background 0.15s; }
 .doc-row:hover { background: #f1f5f9; }
-.log-row { font-family: "Source Code Pro", ui-monospace, monospace; font-size: 11px; color: #64748b; line-height: 1.4; border-left: 2px solid transparent; }
-.log-row.nested { border-left-color: #e2e8f0; }
+.log-row { font-family: "Source Code Pro", ui-monospace, monospace; font-size: 11px; color: #64748b; line-height: 1.5; border-left: 2px solid transparent; padding: 4px 0; margin-left: 32px; }
+.log-row.nested { border-left-color: #e2e8f0; margin-left: 48px; }
 .log-row.show-connector { position: relative; }
 .log-row.show-connector::before { content: ""; position: absolute; left: -1px; top: 0; width: 8px; height: 1px; background: #e2e8f0; }
-.h-1 { height: 8px; }
+.h-1 { height: 12px; }
 .prose-block { font-size: 15px; }
 .header-block { margin-top: 0.5rem; }
-.artifact { margin: 8px 0 8px 24px; }
+.artifact { margin: 8px 0 8px 32px; }
 .json-block { font-family: "Source Code Pro", monospace; font-size: 11px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; padding: 8px 12px; overflow-x: auto; white-space: pre-wrap; max-height: 300px; overflow-y: auto; }
 img { display: block; }
-.embedded-view { margin: 12px 0; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; }
-.embedded-caption { font-size: 12px; font-weight: 500; color: #64748b; padding: 6px 12px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
+shu-artifact-frame { margin: 12px 0; }
 `;

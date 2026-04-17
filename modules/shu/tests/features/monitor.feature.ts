@@ -34,20 +34,16 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "Open SPA and enter step mode" }),
 		gotoPage({ name: `"${host}/spa"` }),
-		"page has settled",
 		...enterStepMode,
-		"debug step by step",
 
 		scenario({ scenario: "Open monitor column via step" }),
 		"The show monitor step triggers the SPA to open a monitor log stream column.",
 		...passesStepExecution("show monitor", {}),
-		"page has settled",
 		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
 
 		scenario({ scenario: "Open sequence diagram via step" }),
 		"The show sequence diagram step triggers the SPA to open a sequence diagram column.",
 		...passesStepExecution("show sequence diagram", {}),
-		"page has settled",
 		waitFor({ target: IDS.MONITOR.SEQUENCE_DIAGRAM }),
 	],
 };
