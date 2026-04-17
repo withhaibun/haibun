@@ -54,13 +54,14 @@ export class ShuProductView extends ShuElement<typeof ProductViewSchema> {
 			const view = document.createElement(String(products._component));
 			if (snapshotTime !== undefined) view.setAttribute("data-snapshot-time", String(snapshotTime));
 			propagateControls(view);
-			view.style.height = "300px";
+			view.style.minHeight = "300px";
+			view.style.height = "100%";
 			view.style.display = "block";
 			container.appendChild(view);
 		} else if (products.items && Array.isArray(products.items) && products.items.length > 0) {
 			const thread = document.createElement("shu-thread-column") as ShuThreadColumn;
 			propagateControls(thread);
-			container.style.height = "350px";
+			container.style.minHeight = "350px";
 			container.appendChild(thread);
 			const items = (products.items as Record<string, unknown>[]).map(normalizeItem);
 			requestAnimationFrame(() => thread.openItems(items, String(products._type || "Result")));
@@ -91,6 +92,6 @@ export class ShuProductView extends ShuElement<typeof ProductViewSchema> {
 }
 
 const STYLES = `
-:host { display: block; min-height: 0; }
+:host { display: block; min-height: 0; height: 100%; }
 .product-container { height: 100%; }
 `;

@@ -12,7 +12,6 @@ import { SHU_EVENT } from "../consts.js";
 import { TIME_SYNC_CLASS } from "./shu-element.js";
 import { bindCopyButtons, copyButtonHtml } from "../copy-util.js";
 import { isReplyEdge } from "@haibun/core/lib/defs.js";
-import { getEdgeRelMap } from "../rels-cache.js";
 import { EntityColumnSchema } from "../schemas.js";
 import { esc, escAttr, truncate, errMsg, vertexId, HIDDEN_PROPS, renderContentHtml, utf8ToBase64 } from "../util.js";
 import { renderValue } from "./value-renderers.js";
@@ -252,8 +251,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			.join("");
 
 		const inHtml = this.incomingCount > 0 ? `<a class="section-label links-here-link" href="#">What links here <span class="ref-count">(${this.incomingCount})</span></a>` : "";
-		const relMap = getEdgeRelMap();
-		const hasReplies = this.edges.some((e) => isReplyEdge(e.type, relMap)) || this.incomingCount > 0;
+		const hasReplies = this.edges.some((e) => isReplyEdge(e.type)) || this.incomingCount > 0;
 		const replyHtml = hasReplies ? `<a class="section-label thread-link" href="#">View replies</a>` : "";
 
 		return `<div class="references" data-testid="ref-section">${outHtml}${inHtml}${replyHtml}</div>`;
