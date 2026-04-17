@@ -465,6 +465,7 @@ export const LifecycleEventCommon = BaseEvent.extend({
 export const FeatureEvent = LifecycleEventCommon.extend({
 	type: z.literal("feature"),
 	featurePath: z.string().describe("Feature file path"),
+	featureName: z.string().describe("Feature display name"),
 });
 
 export const ScenarioEvent = LifecycleEventCommon.extend({
