@@ -6,6 +6,8 @@ import { TWorld } from "@haibun/core/lib/defs.js";
 import { Origin } from "@haibun/core/schema/protocol.js";
 import { DOMAIN_LINK, DOMAIN_NUMBER, DOMAIN_STRING } from "@haibun/core/lib/domain-types.js";
 import { trackHttpHost, trackHttpRequest } from "@haibun/core/lib/http-observations.js";
+import { registeredPaths, type IRouteRegistry } from "@haibun/core/lib/defs.js";
+import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
 
 type TEtc = {
 	headers: Record<string, string>;
@@ -18,12 +20,16 @@ type TEtc = {
 export class PlaywrightEvents {
 	navigateCount = 0;
 	private pendingRequests = new Map<Request, number>();
+	private readonly routes: Set<string>;
 
 	constructor(
 		private world: TWorld,
 		private page: Page,
 		private tag: TTag,
-	) {}
+	) {
+		const registry = world.runtime[WEBSERVER] as IRouteRegistry | undefined;
+		this.routes = registry ? registeredPaths(registry) : new Set();
+	}
 
 	async init() {
 		this.world.eventLogger.debug(`setPage ${JSON.stringify(this.tag)}`);
@@ -76,7 +82,7 @@ export class PlaywrightEvents {
 			status: response.status(),
 			time: duration,
 			method: request.method(),
-		});
+		}, this.routes);
 
 		return;
 	}

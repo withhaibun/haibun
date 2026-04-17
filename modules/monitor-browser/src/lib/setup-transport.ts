@@ -69,14 +69,12 @@ async function setupNew(monitorBrowser: MonitorBrowserStepper, configuredPort: n
 	// Must be registered before wildcard static routes
 	const captureRoot = monitorBrowser.storage.getArtifactBasePath();
 	if (captureRoot) {
+		await monitorBrowser.storage.ensureDirExists(captureRoot);
 		server.app.use(
 			"/featn-*",
 			serveStatic({
-				root: captureRoot, // Files are at captureRoot/featn-N/..., requests come as /featn-N/...
-				rewriteRequestPath: (reqPath) => {
-					// Keep the /featn-N/... path as-is relative to captureRoot
-					return reqPath;
-				},
+				root: captureRoot,
+				rewriteRequestPath: (reqPath) => reqPath,
 			}),
 		);
 	}
