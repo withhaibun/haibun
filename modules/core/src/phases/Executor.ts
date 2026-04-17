@@ -205,6 +205,7 @@ export class FeatureExecutor {
 						type: "feature",
 						stage: "start",
 						featurePath: feature.path,
+						featureName: feature.name,
 						status: "running",
 					}),
 				);
@@ -223,7 +224,7 @@ export class FeatureExecutor {
 						kind: "lifecycle",
 						type: "scenario",
 						stage: "start",
-						scenarioName: step.in,
+						scenarioName: step.in.replace(/^Scenario:\s*/i, ""),
 						status: "running",
 					}),
 				);
@@ -272,8 +273,8 @@ export const addStepperConcerns = (world: TWorld, steppers: AStepper[]) => {
 	registerDomains(world, [allDomains]);
 	// Register vertex-label domain from all registered vertex types
 	const vertexLabels = Object.values(world.domains)
-		.filter((d) => d.meta?.vertexLabel)
-		.map((d) => d.meta?.vertexLabel as string);
+		.filter((d) => d.topology?.vertexLabel)
+		.map((d) => d.topology?.vertexLabel as string);
 	if (vertexLabels.length > 0) {
 		registerDomains(world, [
 			[{ selectors: [DOMAIN_VERTEX_LABEL], schema: z.enum(vertexLabels as [string, ...string[]]), description: "Vertex type" }],

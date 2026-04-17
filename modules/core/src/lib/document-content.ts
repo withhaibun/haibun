@@ -21,23 +21,20 @@ export function buildArtifactIndex(events: THaibunEvent[]): TArtifactIndex {
 			let parentId = e.id.includes(".artifact.") ? e.id.split(".artifact.")[0] : (e.id.split(".").length > 1 ? e.id.split(".").slice(0, -1).join(".") : e.id);
 			parentId = normalizeId(parentId);
 			if (!map.has(parentId)) map.set(parentId, []);
-			map.get(parentId)!.push(e as TArtifactEvent);
+			map.get(parentId)?.push(e as TArtifactEvent);
 		}
 
-		// biome-ignore lint/suspicious/noExplicitAny: loose artifact type
-		let embeddedArtifacts: any[] | undefined;
-		if (e.kind === "log") embeddedArtifacts = e.attributes?.artifacts as any[];
-		// biome-ignore lint/suspicious/noExplicitAny: loose artifact type
-		else if (e.kind === "lifecycle") embeddedArtifacts = (e as any).products?.artifacts as any[];
+		let embeddedArtifacts: Record<string, unknown>[] | undefined;
+		if (e.kind === "log") embeddedArtifacts = e.attributes?.artifacts as Record<string, unknown>[];
+		else if (e.kind === "lifecycle") embeddedArtifacts = (e as unknown as Record<string, Record<string, unknown>>).products?.artifacts as Record<string, unknown>[];
 
 		if (embeddedArtifacts && Array.isArray(embeddedArtifacts)) {
 			const parentId = normalizeId(e.id);
 			if (!map.has(parentId)) map.set(parentId, []);
-			// biome-ignore lint/suspicious/noExplicitAny: loose artifact type
-			embeddedArtifacts.forEach((artifact: any, idx: number) => {
+			embeddedArtifacts.forEach((artifact: Record<string, unknown>, idx: number) => {
 				const id = `${parentId}.artifact.${idx}`;
 				allIds.add(id);
-				map.get(parentId)!.push({ id, timestamp: e.timestamp, source: "haibun", kind: "artifact", artifactType: artifact.artifactType, mimetype: artifact.mimetype || "application/octet-stream", ...artifact } as TArtifactEvent);
+				map.get(parentId)?.push({ id, timestamp: e.timestamp, source: "haibun", kind: "artifact", artifactType: artifact.artifactType, mimetype: artifact.mimetype || "application/octet-stream", ...artifact } as TArtifactEvent);
 			});
 		}
 	}
@@ -91,15 +88,16 @@ export function generateDocumentMarkdown(events: THaibunEvent[], artifactsByStep
 
 		if (e.kind === "lifecycle" && e.stage === "start") {
 			const le = e as TLifecycleEvent;
+			const ev = e as Record<string, unknown>;
 			if (le.type === "feature" || le.type === "scenario" || (le.type as string) === "background") {
-				const headerKey = `${le.type}:${("featurePath" in le ? le.featurePath : "") || ("scenarioName" in le ? le.scenarioName : "") || le.id}`;
+				const headerKey = `${le.type}:${ev.featurePath ?? ev.scenarioName ?? le.id}`;
 				if (renderedHeaders.has(headerKey)) continue;
 				renderedHeaders.add(headerKey);
 
 				if (lastType === "technical") md += '\n<div class="h-1"></div>\n';
 				const rawTime = le.timestamp - baseTime;
 				const headingLevel = le.type === "feature" ? 1 : le.type === "scenario" ? 2 : 3;
-				const title = le.type === "feature" ? (le.featurePath || "Feature") : le.type === "scenario" ? (le.scenarioName || "Scenario") : "Background";
+				const title = le.type === "feature" ? `Feature: ${ev.featureName ?? ev.featurePath}` : le.type === "scenario" ? `Scenario: ${ev.scenarioName}` : "Background";
 				const nid = normalizeId(le.id);
 				visibleIds.add(nid);
 				md += `\n<div class="header-block" data-raw-time="${rawTime}" data-id="${nid}">\n\n${"#".repeat(headingLevel)} ${title}\n\n</div>\n`;
