@@ -565,7 +565,7 @@ export function discoverSteps(steppers: AStepper[], world: TWorld, stepRegistry?
 			description: domain.description,
 			values,
 			stepperName: domain.stepperName,
-			vertexLabel: domain.meta?.vertexLabel,
+			vertexLabel: domain.topology?.vertexLabel,
 		};
 	}
 	const concerns = buildConcernCatalog(world.domains);
