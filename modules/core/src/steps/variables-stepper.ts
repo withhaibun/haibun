@@ -40,7 +40,7 @@ const cycles = (variablesStepper: VariablesStepper): IStepperCycles => ({
 				selectors: [ANNOTATION_DOMAIN],
 				schema: AnnotationSchema,
 				description: "Annotation",
-				meta: {
+				topology: {
 					vertexLabel: ANNOTATION_LABEL,
 					id: "id",
 					properties: {
@@ -448,7 +448,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				// Collect vertexLabel→name mapping for base type edge targets
 				const labelToDomain = new Map<string, string>();
 				for (const [dname, ddef] of Object.entries(domains)) {
-					const vl = (ddef.meta as Record<string, unknown> | undefined)?.vertexLabel as string | undefined;
+					const vl = (ddef.topology as Record<string, unknown> | undefined)?.vertexLabel as string | undefined;
 					labelToDomain.set(vl || dname, vl || dname);
 				}
 				for (const [name, def] of Object.entries(domains)) {
@@ -457,24 +457,14 @@ class VariablesStepper extends AStepper implements IHasCycles {
 						if (variable.domain && normalizeDomainKey(variable.domain) === name) members++;
 					}
 					const description = def.values || def.description || "schema";
-					const meta = def.meta as Record<string, unknown> | undefined;
-					const vertexLabel = meta?.vertexLabel as string | undefined;
+					const topology = def.topology as Record<string, unknown> | undefined;
+					const vertexLabel = topology?.vertexLabel as string | undefined;
 					const _edges: { type: string; targetId: string }[] = [];
-					// Edges from meta (vertex→vertex relationships like Email→Contact)
-					const metaEdges = meta?.edges as Record<string, { rel: string; range: string }> | undefined;
-					if (metaEdges) {
-						for (const [edgeName, edge] of Object.entries(metaEdges)) {
+					// Edges from topology (vertex→vertex relationships like Email→Contact)
+					const topologyEdges = topology?.edges as Record<string, { rel: string; range: string }> | undefined;
+					if (topologyEdges) {
+						for (const [edgeName, edge] of Object.entries(topologyEdges)) {
 							if (edge.range && edge.range !== vertexLabel) _edges.push({ type: edgeName, targetId: edge.range });
-						}
-					}
-					// Property type edges from Zod schema (Email →subject→ string, Email →dateSent→ date)
-					const shape = (def.schema as { shape?: Record<string, unknown> }).shape;
-					if (shape) {
-						for (const [fieldName, fieldSchema] of Object.entries(shape)) {
-							let inner = fieldSchema as { _def?: { innerType?: unknown; type?: string } };
-							while (inner?._def?.innerType) inner = inner._def.innerType as typeof inner;
-							const baseType = inner?._def?.type;
-							if (baseType) _edges.push({ type: fieldName, targetId: baseType });
 						}
 					}
 					items.push({ name, description, members, ...(vertexLabel ? { vertexLabel } : {}), ...(_edges.length ? { _edges } : {}) });

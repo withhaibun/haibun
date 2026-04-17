@@ -90,7 +90,7 @@ export const toRegisteredDomain = (definition: TDomainDefinition): TRegisteredDo
 	values: definition.values,
 	description: definition.description,
 	stepperName: definition.stepperName,
-	meta: definition.meta,
+	topology: definition.topology,
 });
 
 export const mapDefinitionsToDomains = (definitions: TDomainDefinition[]) => {
@@ -113,14 +113,14 @@ export function objectCoercer<T extends z.ZodType>(schema: T) {
 export function vertexDomainMap(domains: Record<string, TRegisteredDomain>): Map<string, TRegisteredDomain> {
 	const map = new Map<string, TRegisteredDomain>();
 	for (const domain of Object.values(domains)) {
-		if (domain.meta?.vertexLabel) map.set(domain.meta.vertexLabel, domain);
+		if (domain.topology?.vertexLabel) map.set(domain.topology.vertexLabel, domain);
 	}
 	return map;
 }
 
-/** Get all vertex domains (domains with meta.vertexLabel) as an array. */
+/** Get all vertex domains (domains with topology.vertexLabel) as an array. */
 export function getVertexDomains(domains: Record<string, TRegisteredDomain>): TRegisteredDomain[] {
 	return Object.values(domains).filter(
-		(d): d is TRegisteredDomain & { meta: NonNullable<TRegisteredDomain["meta"]> } => !!d.meta?.vertexLabel,
+		(d): d is TRegisteredDomain & { topology: NonNullable<TRegisteredDomain["topology"]> } => !!d.topology?.vertexLabel,
 	);
 }
