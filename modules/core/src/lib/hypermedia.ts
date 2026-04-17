@@ -2,14 +2,14 @@
  * Hypermedia concern catalog — canonical contract between server and SPA.
  *
  * Grounded in ActivityStreams / JSON-LD.  Derived entirely from getConcerns domains
- * with TVertexMeta: one declaration drives CRUD, JSON-LD context, and UI behaviour.
+ * with TDomainTopology: one declaration drives CRUD, JSON-LD context, and UI behaviour.
  *
  * StepDiscovery (step.list) embeds a ConcernCatalog so any client (shu, MCP, ...)
  * receives machine-readable hypermedia metadata without a separate RPC call.
  */
 
 import { z } from "zod";
-import { getRel, getMediaType, REL_CONTEXT, LinkRelations, type TRel } from "./defs.js";
+import { getRel, getMediaType, edgeRel, REL_CONTEXT, LinkRelations, type TRel } from "./defs.js";
 import type { TRegisteredDomain } from "./defs.js";
 
 // ============================================================================
@@ -65,27 +65,27 @@ export type TConcernCatalog = z.infer<typeof ConcernCatalogSchema>;
 
 /**
  * Build a ConcernCatalog from world.domains after getConcerns has run.
- * Non-vertex domains (no meta.vertexLabel) are skipped.
+ * Non-vertex domains (no topology.vertexLabel) are skipped.
  * Vertex domains are validated: id, properties, and valid rels are required.
  */
 export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>): TConcernCatalog {
 	const vertices: Record<string, TVertexConcern> = {};
 
 	for (const [domainKey, domain] of Object.entries(domains)) {
-		const meta = domain.meta;
-		if (!meta?.vertexLabel) continue;
-		const label = meta.vertexLabel;
+		const topology = domain.topology;
+		if (!topology?.vertexLabel) continue;
+		const label = topology.vertexLabel;
 
-		if (!meta.id) throw new Error(`Vertex domain "${label}" (${domainKey}) is missing required "id" field`);
-		if (!meta.properties || Object.keys(meta.properties).length === 0)
+		if (!topology.id) throw new Error(`Vertex domain "${label}" (${domainKey}) is missing required "id" field`);
+		if (!topology.properties || Object.keys(topology.properties).length === 0)
 			throw new Error(`Vertex domain "${label}" (${domainKey}) has no properties`);
 
-		const hasIdentifier = Object.values(meta.properties).some((p) => getRel(p) === LinkRelations.IDENTIFIER.rel);
+		const hasIdentifier = Object.values(topology.properties).some((p) => getRel(p) === LinkRelations.IDENTIFIER.rel);
 		if (!hasIdentifier)
 			throw new Error(`Vertex domain "${label}" (${domainKey}) has no property with rel "${LinkRelations.IDENTIFIER.rel}"`);
 
 		const properties: Record<string, TPropertyConcern> = {};
-		for (const [field, propDef] of Object.entries(meta.properties)) {
+		for (const [field, propDef] of Object.entries(topology.properties)) {
 			const rel = getRel(propDef);
 			if (!REL_CONTEXT[rel]) throw new Error(`Vertex domain "${label}" property "${field}" has unknown rel "${rel}"`);
 			const mediaType = getMediaType(propDef);
@@ -93,10 +93,11 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 		}
 
 		const edges: Record<string, TEdgeConcern> = {};
-		for (const [edgeField, edgeDef] of Object.entries(meta.edges ?? {})) {
-			if (!REL_CONTEXT[edgeDef.rel])
-				throw new Error(`Vertex domain "${label}" edge "${edgeField}" has unknown rel "${edgeDef.rel}"`);
-			edges[edgeField] = { term: REL_CONTEXT[edgeDef.rel], rel: edgeDef.rel, target: edgeDef.range };
+		for (const [edgeField, edgeDef] of Object.entries(topology.edges ?? {})) {
+			const rel = edgeDef.rel ?? edgeRel(edgeField);
+			if (!rel) throw new Error(`Vertex domain "${label}" edge "${edgeField}" has no rel — add to EdgePredicates or provide explicit rel`);
+			if (!REL_CONTEXT[rel]) throw new Error(`Vertex domain "${label}" edge "${edgeField}" has unknown rel "${rel}"`);
+			edges[edgeField] = { term: REL_CONTEXT[rel], rel, target: edgeDef.range };
 		}
 
 		let jsonSchema: Record<string, unknown> = {};
@@ -109,8 +110,8 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 		vertices[label] = VertexConcernSchema.parse({
 			domainKey,
 			label,
-			idField: meta.id,
-			...(meta.type ? { asType: meta.type } : {}),
+			idField: topology.id,
+			...(topology.type ? { asType: topology.type } : {}),
 			jsonSchema,
 			properties,
 			edges,
@@ -121,7 +122,7 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 }
 
 // ============================================================================
-// JSON-LD context — derived from domain metadata
+// JSON-LD context — derived from domain topology
 // ============================================================================
 
 function linkRelFromSemantic(rel: string): "item" | "filter" | "select" {
@@ -137,7 +138,7 @@ function linkRelFromSemantic(rel: string): "item" | "filter" | "select" {
 	return "filter";
 }
 
-/** Build JSON-LD context from concern metadata. Derives URI mappings from domain property rels. */
+/** Build JSON-LD context from domain topology. Derives URI mappings from domain property rels. */
 export function getJsonLdContext(domains: Record<string, TRegisteredDomain>): Record<string, unknown> {
 	const context: Record<string, unknown> = {
 		"@version": 1.1,
@@ -147,9 +148,9 @@ export function getJsonLdContext(domains: Record<string, TRegisteredDomain>): Re
 		haibun: "/ns/",
 	};
 	for (const domain of Object.values(domains)) {
-		const meta = domain.meta;
-		if (!meta?.vertexLabel) continue;
-		for (const [prop, def] of Object.entries(meta.properties)) {
+		const topology = domain.topology;
+		if (!topology?.vertexLabel) continue;
+		for (const [prop, def] of Object.entries(topology.properties)) {
 			const rel = getRel(def);
 			const uri = REL_CONTEXT[rel] ?? `haibun:${prop}`;
 			const mediaType = getMediaType(def);
@@ -159,8 +160,9 @@ export function getJsonLdContext(domains: Record<string, TRegisteredDomain>): Re
 			if (mediaType) node["as:mediaType"] = mediaType;
 			context[prop] = node;
 		}
-		for (const [edge, edgeDef] of Object.entries(meta.edges ?? {})) {
-			context[edge] = { "@id": REL_CONTEXT[edgeDef.rel] ?? `haibun:${edge}`, "@type": "@id", "haibun:rel": "item" };
+		for (const [edge, edgeDef] of Object.entries(topology.edges ?? {})) {
+			const rel = edgeDef.rel ?? edgeRel(edge);
+			context[edge] = { "@id": (rel && REL_CONTEXT[rel]) ?? `haibun:${edge}`, "@type": "@id", "haibun:rel": "item" };
 		}
 	}
 	return { "@context": context };

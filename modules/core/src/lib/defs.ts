@@ -310,22 +310,33 @@ export const LinkRelations = {
 } as const;
 
 /**
- * Standard edge predicate names for graph vertices.
- * Each maps to a LinkRelation rel — multiple predicates can share the same rel.
+ * Standard edge predicates for graph vertices.
+ * Each carries its LinkRelation rel — the single source of truth for predicate→rel resolution.
  * Steppers use these as edge keys in getConcerns().edges and in createEdge() calls.
  */
 export const EdgePredicates = {
-	from: "from",
-	to: "to",
-	cc: "cc",
-	author: "author",
-	attachment: "attachment",
-	inReplyTo: "inReplyTo",
-	references: "references",
-	annotates: "annotates",
+	from: { rel: LinkRelations.ATTRIBUTED_TO.rel },
+	to: { rel: LinkRelations.AUDIENCE.rel },
+	cc: { rel: LinkRelations.AUDIENCE.rel },
+	author: { rel: LinkRelations.ATTRIBUTED_TO.rel },
+	attachment: { rel: LinkRelations.ATTACHMENT.rel },
+	inReplyTo: { rel: LinkRelations.IN_REPLY_TO.rel },
+	references: { rel: LinkRelations.CONTEXT.rel },
+	annotates: { rel: LinkRelations.IN_REPLY_TO.rel },
+	endpoint: { rel: LinkRelations.URL.rel },
 } as const;
 
-/** Domain name for vertex type labels — auto-populated from registered vertex domains. */
+export type TEdgePredicate = keyof typeof EdgePredicates;
+
+/** Edge predicate name strings — use `EDGE.from` instead of `"from"`. */
+export const EDGE: { [K in TEdgePredicate]: K } = Object.fromEntries(Object.keys(EdgePredicates).map((k) => [k, k])) as { [K in TEdgePredicate]: K };
+
+/** Resolve a predicate name to its rel. */
+export function edgeRel(predicate: string): TRel | undefined {
+	return (EdgePredicates as Record<string, { rel: TRel }>)[predicate]?.rel;
+}
+
+/** Domain name for type labels — auto-populated from registered domains with topology. */
 export const DOMAIN_VERTEX_LABEL = "vertex-label";
 
 /** Rel values that are reply-type (derived from LinkRelations entries with relation: true). */
@@ -341,14 +352,13 @@ function isRelationRel(rel: string): boolean {
 }
 
 /**
- * Check if an edge type (name or rel) is a reply-type link.
- * Uses the concern catalog's edge→rel mapping to resolve edge names to their rels.
- * Falls back to direct rel check if no catalog provided.
+ * Check if an edge type (predicate name or rel) is a reply-type link.
+ * Resolves predicate names via EdgePredicates, then checks the rel.
  */
-export function isReplyEdge(edgeType: string, edgeRelMap?: Record<string, string>): boolean {
+export function isReplyEdge(edgeType: string): boolean {
 	if (isRelationRel(edgeType)) return true;
-	if (edgeRelMap && edgeRelMap[edgeType]) return isRelationRel(edgeRelMap[edgeType]);
-	return false;
+	const rel = edgeRel(edgeType);
+	return rel ? isRelationRel(rel) : false;
 }
 
 export type TRel = (typeof LinkRelations)[keyof typeof LinkRelations]["rel"];
@@ -356,16 +366,16 @@ export type TRel = (typeof LinkRelations)[keyof typeof LinkRelations]["rel"];
 /** Property definition: either a rel string or a rel with mediaType for content fields. */
 export type TPropertyDef = TRel | { rel: TRel; mediaType?: string };
 
-/** Edge definition: semantic rel + range (the vertex type the edge points to). */
-export type TEdgeDef = { rel: TRel; range: string };
+/** Edge definition: target vertex type. The rel is resolved from EdgePredicates[key]; override with explicit rel for domain-specific edges not in the canonical set. */
+export type TEdgeDef = { range: string; rel?: TRel };
 
 /** JSON-LD context mapping: rel → standard URI. Derived from LinkRelations. */
 export const REL_CONTEXT: Record<TRel, string> = Object.fromEntries(
 	Object.values(LinkRelations).map(({ rel, uri }) => [rel, uri]),
 ) as Record<TRel, string>;
 
-/** Hypermedia metadata for a vertex domain. One properties map drives everything. */
-export type TVertexMeta = {
+/** Domain topology — vertex label, id field, property rels, edges, indexes. Drives CRUD, JSON-LD, and UI. */
+export type TDomainTopology = {
 	vertexLabel: string;
 	type?: string;
 	id: string;
@@ -406,8 +416,8 @@ export type TDomainDefinition = {
 	description?: string;
 	/** Stepper that registered this domain (set automatically by registerDomains) */
 	stepperName?: string;
-	/** Hypermedia metadata for vertex domains. Undefined for non-vertex domains. */
-	meta?: TVertexMeta;
+	/** Vertex topology — label, id, property rels, edges, indexes. Undefined for non-vertex domains. */
+	topology?: TDomainTopology;
 };
 
 export type TRegisteredDomain = {
@@ -418,12 +428,22 @@ export type TRegisteredDomain = {
 	values?: string[];
 	description?: string;
 	stepperName?: string;
-	meta?: TVertexMeta;
+	topology?: TDomainTopology;
 };
 
 // ============================================================================
 // Misc
 // ============================================================================
+
+/** Minimal route registry interface — implemented by IWebServer, consumed by http-observations. */
+export interface IRouteRegistry {
+	readonly mounted: Record<string, Record<string, string>>;
+}
+
+/** Extract all registered route paths from a route registry. */
+export function registeredPaths(registry: IRouteRegistry): Set<string> {
+	return new Set(Object.values(registry.mounted).flatMap((m) => Object.keys(m)));
+}
 
 export type TOptionValue = TAnyFixme;
 export type StepperMethodArgs = {

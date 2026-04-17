@@ -22,13 +22,13 @@ export function buildResourceRels(domains: Record<string, TRegisteredDomain>): R
 	const relMaps = new Map<string, Record<string, string>>();
 
 	for (const domain of Object.values(domains)) {
-		const meta = domain.meta;
-		if (!meta?.vertexLabel) continue;
-		const type = meta.vertexLabel;
+		const topology = domain.topology;
+		if (!topology?.vertexLabel) continue;
+		const type = topology.vertexLabel;
 		types.push(type);
-		idFields.set(type, meta.id);
+		idFields.set(type, topology.id);
 		const rels: Record<string, string> = {};
-		for (const [field, def] of Object.entries(meta.properties ?? {})) {
+		for (const [field, def] of Object.entries(topology.properties ?? {})) {
 			rels[field] = getRel(def as TPropertyDef);
 		}
 		relMaps.set(type, rels);

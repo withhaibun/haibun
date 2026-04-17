@@ -65,14 +65,14 @@ export function vertexCrudSteps(label: string, domainKey: string, getStore: () =
  * Call after getConcerns has populated world.domains.
  */
 export function generateVertexCrudFromDomains(
-	domains: Record<string, { schema: z.ZodType; meta?: Record<string, unknown> }>,
+	domains: Record<string, { schema: z.ZodType; topology?: Record<string, unknown> }>,
 	getStore: () => IQuadStore,
 ): Record<string, TStepperStep> {
 	const steps: Record<string, TStepperStep> = {};
 	for (const [key, domain] of Object.entries(domains)) {
-		const meta = domain.meta as { vertexLabel?: string } | undefined;
-		if (!meta?.vertexLabel) continue;
-		Object.assign(steps, vertexCrudSteps(meta.vertexLabel, key, getStore));
+		const topology = domain.topology as { vertexLabel?: string } | undefined;
+		if (!topology?.vertexLabel) continue;
+		Object.assign(steps, vertexCrudSteps(topology.vertexLabel, key, getStore));
 	}
 	return steps;
 }
