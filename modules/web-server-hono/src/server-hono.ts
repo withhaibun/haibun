@@ -6,6 +6,8 @@ import { existsSync, statSync, readdirSync } from "fs";
 import { join } from "path";
 import type { MiddlewareHandler } from "hono";
 import type { IEventLogger } from "@haibun/core/lib/EventLogger.js";
+import { OBSERVATION_GRAPH, SERVICE_PATH_PREFIXES } from "@haibun/core/lib/http-observations.js";
+import { emitQuadObservation } from "@haibun/core/lib/quad-types.js";
 import {
 	type IWebServer,
 	type TRouteMap,
@@ -104,6 +106,7 @@ export class ServerHono implements IWebServer {
 		this.eventLogger.debug(`ServerHono: adding ${type} route at ${path}`);
 		this.registerRoute(type, path, handlers);
 		this.markMounted(type, path, handlers.toString());
+		this.emitEndpointQuad(type, path);
 	}
 
 	addKnownRoute(type: TRouteTypes, path: string, ...handlers: TRequestHandler[]): void {
@@ -191,6 +194,13 @@ export class ServerHono implements IWebServer {
 
 	private markMounted(type: TRouteTypes, path: string, what: string): void {
 		this._mounted[type][path] = what;
+	}
+
+	private emitEndpointQuad(type: TRouteTypes, path: string): void {
+		const isService = SERVICE_PATH_PREFIXES.some((p) => path === p || path.startsWith(p));
+		const namedGraph = isService ? OBSERVATION_GRAPH.SERVICE : OBSERVATION_GRAPH.ENDPOINT;
+		const timestamp = Date.now();
+		emitQuadObservation(this.eventLogger, `quad-endpoint-${timestamp}-${type}-${path}`, { subject: path, predicate: "name", object: `${type.toUpperCase()} ${path}`, namedGraph, timestamp });
 	}
 
 	private generateDirectoryListing(dirPath: string, files: string[], mountAt: string): string {
