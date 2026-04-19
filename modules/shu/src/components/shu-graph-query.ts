@@ -6,6 +6,7 @@ import { SHU_EVENT } from "../consts.js";
  */
 import { ShuElement } from "./shu-element.js";
 import { QueryViewSchema, type TSearchCondition, parseFilterParam, serializeFilterParam } from "../schemas.js";
+import { Access } from "@haibun/core/lib/access.js";
 import { SHARED_STYLES } from "./styles.js";
 import { esc, errMsg, setIdFields } from "../util.js";
 import { setSiteMetadata, getConcernDerivedMetadata } from "../rels-cache.js";
@@ -25,7 +26,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 	private conditions: ConditionRow[] = [];
 	private results: VertexRow[] = [];
 	private labels: string[] = [];
-	private accessLevel = "private";
+	private accessLevel: string = Access.private;
 	private total = 0;
 	private limit = 100;
 	private offset = 0;
@@ -139,7 +140,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		const sortBy = params.get("sort") || undefined;
 		const sortOrder = (params.get("order") || "desc") as "asc" | "desc";
 		const offsetStr = params.get("offset");
-		this.accessLevel = params.get("access") || "private";
+		this.accessLevel = params.get("access") || Access.private;
 
 		if (offsetStr) this.offset = parseInt(offsetStr, 10) || 0;
 
@@ -159,7 +160,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 
 		const params = new URLSearchParams();
 		if (label) params.set("label", label);
-		if (this.accessLevel !== "private") params.set("access", this.accessLevel);
+		if (this.accessLevel !== Access.private) params.set("access", this.accessLevel);
 		if (textQuery) params.set("q", textQuery);
 		if (sortBy) params.set("sort", sortBy);
 		if (sortOrder) params.set("order", sortOrder);

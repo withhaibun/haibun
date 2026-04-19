@@ -89,16 +89,19 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				rpcCache["MonitorStepper-getEvents"] = { events: this.events };
 			}
 			// 2. Parameterless steps with view products (deterministic view toggles)
-			for (const [name, step] of Object.entries(this.steps)) {
-				const key = `MonitorStepper-${name}`;
-				if (rpcCache[key] || step.gwta.includes("{")) continue;
-				try {
-					const r = (step.action as () => unknown)() as { products?: Record<string, unknown> };
-					if (r?.products?.view) rpcCache[key] = r.products;
-				} catch {
-					/* skip */
-				}
-			}
+			const candidates = Object.entries(this.steps).filter(([name, step]) => !rpcCache[`MonitorStepper-${name}`] && !step.gwta.includes("{"));
+			const logger = this.getWorld().eventLogger;
+			await Promise.all(
+				candidates.map(async ([name, step]) => {
+					try {
+						const r = (await (step.action as () => unknown)()) as { products?: Record<string, unknown> } | undefined;
+						const products = r?.products;
+						if (products?.view) rpcCache[`MonitorStepper-${name}`] = products;
+					} catch (err) {
+						logger.warn(`[shu endFeature] step ${name} failed: ${err instanceof Error ? err.message : err}`);
+					}
+				}),
+			);
 			if (!rpcCache["step.list"]) {
 				rpcCache["step.list"] = { steps: [], domains: {}, concerns: buildConcernCatalog(this.getWorld().domains) };
 			}

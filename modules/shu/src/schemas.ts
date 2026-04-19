@@ -1,13 +1,7 @@
 /**
  * SPA-side schemas for graph query results and shared UI components.
- * Faithful translation of the old web/schemas.ts for graph fundamentals.
  */
 import { z } from "zod";
-
-// --- Access levels ---
-
-export const AccessLevelSchema = z.enum(["private", "public", "opened"]);
-export type TAccessLevel = z.infer<typeof AccessLevelSchema>;
 
 // --- Combobox ---
 
@@ -35,14 +29,14 @@ export const SEARCH_OPERATORS: ReadonlyArray<{
 	value: TSearchOperator;
 	label: string;
 }> = [
-	{ value: "eq", label: "equals" },
-	{ value: "contains", label: "contains" },
-	{ value: "gt", label: "greater than" },
-	{ value: "lt", label: "less than" },
-	{ value: "gte", label: "at least" },
-	{ value: "lte", label: "at most" },
-	{ value: "between", label: "between" },
-];
+		{ value: "eq", label: "equals" },
+		{ value: "contains", label: "contains" },
+		{ value: "gt", label: "greater than" },
+		{ value: "lt", label: "less than" },
+		{ value: "gte", label: "at least" },
+		{ value: "lte", label: "at most" },
+		{ value: "between", label: "between" },
+	];
 
 export const SearchConditionSchema = z.object({
 	predicate: z.string(),
