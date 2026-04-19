@@ -9,6 +9,7 @@ import { SseClient } from "../sse-client.js";
 import { esc, truncate } from "../util.js";
 import { getAvailableSteps, requireStep } from "../rpc-registry.js";
 import type { ShuGraphView } from "./shu-graph-view.js";
+import { COMMENT_LABEL } from "@haibun/core/steps/variables-stepper.js";
 
 const ThreadColumnSchema = z.object({
 	label: z.string().default(""),
@@ -189,8 +190,8 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 			.filter(([k, val]) => !k.startsWith("_") && !knownFields.has(k) && val !== undefined && val !== null && val !== "")
 			.map(([k, val]) => `<span class="extra-field"><span class="field-label">${esc(k)}</span> ${esc(truncate(String(val), 80))}</span>`);
 
-		const isAnnotation = label === "Annotation";
-		const metaHtml = hasKnownContent ? `<div class="meta"><span class="sender">${esc(sender || (isAnnotation ? "Annotation" : ""))}</span><span>${esc(date)}</span></div>` : "";
+		const isComment = label === COMMENT_LABEL;
+		const metaHtml = hasKnownContent ? `<div class="meta"><span class="sender">${esc(sender || (isComment ? COMMENT_LABEL : ""))}</span><span>${esc(date)}</span></div>` : "";
 
 		return `<div class="thread-card${isCurrent ? " current" : ""}" data-id="${esc(id)}" data-label="${esc(label)}">
 			${metaHtml}

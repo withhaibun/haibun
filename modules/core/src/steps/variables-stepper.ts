@@ -10,6 +10,7 @@ import {
 	DOMAIN_VERTEX_LABEL,
 	type TVertexResult,
 } from "../lib/defs.js";
+import { RESOURCE_LABEL } from "../lib/resource.js";
 import { OK, TStepArgs, Origin, TProvenanceIdentifier, TOrigin, TActionResult } from "../schema/protocol.js";
 import { TAnyFixme } from "../lib/fixme.js";
 import { AStepper, IHasCycles, TStepperSteps } from "../lib/astepper.js";
@@ -25,9 +26,10 @@ import {
 	registerDomains,
 } from "../lib/domain-types.js";
 
-const AnnotationSchema = z.object({ id: z.string(), text: z.string(), author: z.string().optional(), timestamp: z.string() });
-export const ANNOTATION_LABEL = "Annotation";
-const ANNOTATION_DOMAIN = "annotation";
+const CommentSchema = z.object({ id: z.string(), text: z.string(), author: z.string().optional(), timestamp: z.string() });
+export const COMMENT_LABEL = "Comment";
+const COMMENT_DOMAIN = "comment";
+export const COMMENT_EDGE = "commentsOn";
 
 const clearVars = (vars: VariablesStepper) => async () => {
 	await vars.getWorld().shared.getStore().clear();
@@ -37,11 +39,11 @@ const cycles = (variablesStepper: VariablesStepper): IStepperCycles => ({
 	getConcerns: () => ({
 		domains: [
 			{
-				selectors: [ANNOTATION_DOMAIN],
-				schema: AnnotationSchema,
-				description: "Annotation",
+				selectors: [COMMENT_DOMAIN],
+				schema: CommentSchema,
+				description: "Comment",
 				topology: {
-					vertexLabel: ANNOTATION_LABEL,
+					vertexLabel: COMMENT_LABEL,
 					id: "id",
 					properties: {
 						id: LinkRelations.IDENTIFIER.rel,
@@ -49,7 +51,7 @@ const cycles = (variablesStepper: VariablesStepper): IStepperCycles => ({
 						author: LinkRelations.ATTRIBUTED_TO.rel,
 						timestamp: LinkRelations.PUBLISHED.rel,
 					},
-					edges: { annotates: { rel: LinkRelations.IN_REPLY_TO.rel, range: "*" } },
+					edges: { [COMMENT_EDGE]: { rel: LinkRelations.IN_REPLY_TO.rel, range: RESOURCE_LABEL } },
 				},
 			} satisfies TDomainDefinition,
 		],
@@ -574,27 +576,27 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				return isMatch ? OK : actionNotOK(`"${actualValue}" does not match pattern "${actualPattern}"`);
 			},
 		},
-		// --- Annotations & Related ---
-		annotate: {
-			gwta: `annotate {label: ${DOMAIN_VERTEX_LABEL}} {id: string} with {text: string}`,
-			outputSchema: z.object({ annotationId: z.string() }),
+		// --- Comments & Related ---
+		comment: {
+			gwta: `comment on {label: ${DOMAIN_VERTEX_LABEL}} {id: string} with {text: string}`,
+			outputSchema: z.object({ commentId: z.string() }),
 			action: async ({ label, id, text }: { label: string; id: string; text: string }) => {
 				const store = this.getWorld().shared.getStore();
-				const annotationId = crypto.randomUUID();
-				await store.upsertVertex(ANNOTATION_LABEL, { id: annotationId, text, timestamp: new Date().toISOString() });
+				const commentId = crypto.randomUUID();
+				await store.upsertVertex(COMMENT_LABEL, { id: commentId, text, timestamp: new Date().toISOString() });
 				const targetContext = await store.query({ subject: id, predicate: LinkRelations.CONTEXT.rel });
 				const contextRoot = targetContext.length > 0 ? String(targetContext[0].object) : id;
-				await store.add({ subject: annotationId, predicate: LinkRelations.IN_REPLY_TO.rel, object: id, namedGraph: label });
+				await store.add({ subject: commentId, predicate: LinkRelations.IN_REPLY_TO.rel, object: id, namedGraph: label });
 				await store.add({
-					subject: annotationId,
+					subject: commentId,
 					predicate: LinkRelations.CONTEXT.rel,
 					object: contextRoot,
-					namedGraph: ANNOTATION_LABEL,
+					namedGraph: COMMENT_LABEL,
 				});
 				if (targetContext.length === 0) {
 					await store.add({ subject: id, predicate: LinkRelations.CONTEXT.rel, object: id, namedGraph: label });
 				}
-				return actionOKWithProducts({ annotationId, contextRoot });
+				return actionOKWithProducts({ commentId, contextRoot });
 			},
 		},
 		getRelated: {
@@ -613,7 +615,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				for (const [vid, vlabel] of idLabelMap) {
 					const vertex =
 						(await store.getVertex(vlabel, vid)) ??
-						(await store.getVertex(ANNOTATION_LABEL, vid)) ??
+						(await store.getVertex(COMMENT_LABEL, vid)) ??
 						(await store.getVertex(label, vid));
 					if (vertex) {
 						const outgoing = await store.query({ subject: vid });

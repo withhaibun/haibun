@@ -3,7 +3,7 @@ import VariablesStepper from "./variables-stepper.js";
 import { getDefaultWorld } from "../lib/test/lib.js";
 import { LinkRelations, type TWorld } from "../lib/defs.js";
 
-describe("VariablesStepper annotate + getRelated", () => {
+describe("VariablesStepper comment + getRelated", () => {
 	let stepper: VariablesStepper;
 	let world: TWorld;
 	const fakeStep = { source: { path: "test" }, in: "test", seqPath: [0, 1], action: {} } as never;
@@ -14,43 +14,43 @@ describe("VariablesStepper annotate + getRelated", () => {
 		await stepper.setWorld(world, [stepper]);
 	});
 
-	it("annotate creates vertex, inReplyTo edge, and context quads", async () => {
+	it("comment creates vertex, inReplyTo edge, and context quads", async () => {
 		const store = world.shared.getStore();
 		await store.upsertVertex("Email", { id: "email-1", subject: "Test" });
 
-		const result = await stepper.steps.annotate.action({ label: "Email", id: "email-1", text: "A note" }, fakeStep);
+		const result = await stepper.steps.comment.action({ label: "Email", id: "email-1", text: "A note" }, fakeStep);
 		expect(result.ok).toBe(true);
-		const annotationId = result.products?.annotationId as string;
-		expect(annotationId).toBeTruthy();
+		const commentId = result.products?.commentId as string;
+		expect(commentId).toBeTruthy();
 
-		const replyQuads = await store.query({ subject: annotationId, predicate: LinkRelations.IN_REPLY_TO.rel });
+		const replyQuads = await store.query({ subject: commentId, predicate: LinkRelations.IN_REPLY_TO.rel });
 		expect(replyQuads.length).toBe(1);
 		expect(replyQuads[0].object).toBe("email-1");
 
-		const contextQuads = await store.query({ subject: annotationId, predicate: LinkRelations.CONTEXT.rel });
+		const contextQuads = await store.query({ subject: commentId, predicate: LinkRelations.CONTEXT.rel });
 		expect(contextQuads.length).toBe(1);
 		expect(contextQuads[0].object).toBe("email-1");
 	});
 
-	it("annotate inherits context from target", async () => {
+	it("comment inherits context from target", async () => {
 		const store = world.shared.getStore();
 		await store.upsertVertex("Email", { id: "email-1", subject: "Test" });
 		await store.add({ subject: "email-1", predicate: LinkRelations.CONTEXT.rel, object: "thread-root", namedGraph: "Email" });
 
-		const result = await stepper.steps.annotate.action({ label: "Email", id: "email-1", text: "Inherits context" }, fakeStep);
+		const result = await stepper.steps.comment.action({ label: "Email", id: "email-1", text: "Inherits context" }, fakeStep);
 		expect(result.ok).toBe(true);
-		const annotationId = result.products?.annotationId as string;
+		const commentId = result.products?.commentId as string;
 
-		const contextQuads = await store.query({ subject: annotationId, predicate: LinkRelations.CONTEXT.rel });
+		const contextQuads = await store.query({ subject: commentId, predicate: LinkRelations.CONTEXT.rel });
 		expect(contextQuads.length).toBe(1);
 		expect(contextQuads[0].object).toBe("thread-root");
 	});
 
-	it("annotate sets context on target when missing", async () => {
+	it("comment sets context on target when missing", async () => {
 		const store = world.shared.getStore();
 		await store.upsertVertex("Email", { id: "email-2", subject: "No context yet" });
 
-		await stepper.steps.annotate.action({ label: "Email", id: "email-2", text: "Sets context" }, fakeStep);
+		await stepper.steps.comment.action({ label: "Email", id: "email-2", text: "Sets context" }, fakeStep);
 
 		const targetCtx = await store.query({ subject: "email-2", predicate: LinkRelations.CONTEXT.rel });
 		expect(targetCtx.length).toBe(1);
@@ -61,8 +61,8 @@ describe("VariablesStepper annotate + getRelated", () => {
 		const store = world.shared.getStore();
 		await store.upsertVertex("Email", { id: "email-3", subject: "Root" });
 
-		await stepper.steps.annotate.action({ label: "Email", id: "email-3", text: "First note" }, fakeStep);
-		await stepper.steps.annotate.action({ label: "Email", id: "email-3", text: "Second note" }, fakeStep);
+		await stepper.steps.comment.action({ label: "Email", id: "email-3", text: "First note" }, fakeStep);
+		await stepper.steps.comment.action({ label: "Email", id: "email-3", text: "Second note" }, fakeStep);
 
 		const result = await stepper.steps.getRelated.action({ label: "Email", id: "email-3" }, fakeStep);
 		expect(result.ok).toBe(true);
@@ -76,16 +76,16 @@ describe("VariablesStepper annotate + getRelated", () => {
 		await store.upsertVertex("Email", { id: "root-email", subject: "Root" });
 		await store.add({ subject: "root-email", predicate: LinkRelations.CONTEXT.rel, object: "root-email", namedGraph: "Email" });
 
-		const r1 = await stepper.steps.annotate.action({ label: "Email", id: "root-email", text: "Note on root" }, fakeStep);
+		const r1 = await stepper.steps.comment.action({ label: "Email", id: "root-email", text: "Note on root" }, fakeStep);
 		expect(r1.products?.contextRoot).toBe("root-email");
 	});
 
-	it("annotate returns contextRoot in products", async () => {
+	it("comment returns contextRoot in products", async () => {
 		const store = world.shared.getStore();
 		await store.upsertVertex("Email", { id: "email-ctx", subject: "Has context" });
 		await store.add({ subject: "email-ctx", predicate: LinkRelations.CONTEXT.rel, object: "ctx-root", namedGraph: "Email" });
 
-		const result = await stepper.steps.annotate.action({ label: "Email", id: "email-ctx", text: "Note" }, fakeStep);
+		const result = await stepper.steps.comment.action({ label: "Email", id: "email-ctx", text: "Note" }, fakeStep);
 		expect(result.ok).toBe(true);
 		expect(result.products?.contextRoot).toBe("ctx-root");
 	});
