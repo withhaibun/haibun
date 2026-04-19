@@ -6,6 +6,7 @@ import { SHU_EVENT, SHU_ATTR, VIEW_EVENTS } from "./consts.js";
  * Each pane is resizable and independently rendered.
  */
 import { hydrateFromDom, isStandaloneMode, getHydratedViewHash } from "./rpc-registry.js";
+import { Access } from "@haibun/core/lib/access.js";
 import { ShuElement } from "./components/shu-element.js";
 import { registerComponents } from "./component-registry.js";
 import { SseClient } from "./sse-client.js";
@@ -64,7 +65,7 @@ const LAYOUT_STYLE = `
 
 /** Remove blank/default params from URLSearchParams to keep hash clean. */
 function cleanParams(params: URLSearchParams): void {
-	const defaults = new Set(["0", "", "desc", "private"]);
+	const defaults = new Set(["0", "", "desc", Access.private]);
 	for (const key of [...params.keys()]) {
 		const val = params.get(key);
 		if (val !== null && defaults.has(val) && key !== "col" && key !== "label") {
@@ -358,7 +359,7 @@ const main = async (): Promise<void> => {
 			const detail = e.detail || {};
 			const actionsBar = getActionsBar();
 			if (actionsBar?.setContext && detail.patterns) {
-				actionsBar.setContext(detail.patterns, detail.accessLevel || "private", detail);
+				actionsBar.setContext(detail.patterns, detail.accessLevel || Access.private, detail);
 			}
 		}) as EventListener,
 		{ signal },

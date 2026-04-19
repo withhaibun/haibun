@@ -7,6 +7,7 @@ import { defaultLabel } from "../util.js";
 import { ShuElement } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
 import { FilterColumnSchema } from "../schemas.js";
+import { Access } from "@haibun/core/lib/access.js";
 import { errMsg } from "../util.js";
 import { SseClient } from "../sse-client.js";
 import { getAvailableSteps, requireStep } from "../rpc-registry.js";
@@ -42,7 +43,7 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 			sortOrder: "desc",
 			limit: 50,
 			offset: 0,
-			accessLevel: "private",
+			accessLevel: Access.private,
 		});
 	}
 
@@ -62,7 +63,7 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 			sortOrder: "asc",
 			limit: 50,
 			offset: 0,
-			accessLevel: "private",
+			accessLevel: Access.private,
 		});
 	}
 

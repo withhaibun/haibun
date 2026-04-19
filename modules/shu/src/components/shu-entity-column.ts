@@ -13,6 +13,7 @@ import { TIME_SYNC_CLASS } from "./shu-element.js";
 import { bindCopyButtons, copyButtonHtml } from "../copy-util.js";
 import { isReplyEdge } from "@haibun/core/lib/defs.js";
 import { EntityColumnSchema } from "../schemas.js";
+import { Access } from "@haibun/core/lib/access.js";
 import { esc, escAttr, truncate, errMsg, vertexId, HIDDEN_PROPS, renderContentHtml, utf8ToBase64 } from "../util.js";
 import { renderValue } from "./value-renderers.js";
 import { SseClient } from "../sse-client.js";
@@ -80,7 +81,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			this.setState({ loading: false });
 			this.dispatchEvent(
 				new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, {
-					detail: { patterns: [{ s: id }], accessLevel: "private", label },
+					detail: { patterns: [{ s: id }], accessLevel: Access.private, label },
 					bubbles: true,
 					composed: true,
 				}),
