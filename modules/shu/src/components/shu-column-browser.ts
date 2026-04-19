@@ -13,6 +13,7 @@ import { SseClient } from "../sse-client.js";
 import { getAvailableSteps, requireStep, findStep } from "../rpc-registry.js";
 import { getRels, getRelSync, getContentFields, getSummaryFields } from "../rels-cache.js";
 import { defaultLabel } from "../util.js";
+import { Access } from "@haibun/core/lib/access.js";
 
 type VertexData = Record<string, unknown>;
 type EdgeData = { type: string; target: VertexData };
@@ -143,7 +144,7 @@ export class ShuColumnBrowser extends HTMLElement {
 					sortOrder: "desc",
 					limit: 50,
 					offset: 0,
-					accessLevel: "private",
+					accessLevel: Access.private,
 				},
 			});
 			this.columns[colIndex] = {
@@ -176,7 +177,7 @@ export class ShuColumnBrowser extends HTMLElement {
 					sortOrder: "asc",
 					limit: 50,
 					offset: 0,
-					accessLevel: "private",
+					accessLevel: Access.private,
 				},
 			});
 			this.columns[colIndex] = {
@@ -326,7 +327,7 @@ export class ShuColumnBrowser extends HTMLElement {
 				new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, {
 					detail: {
 						patterns: [{ s: currentCol.label }],
-						accessLevel: "private",
+						accessLevel: Access.private,
 					},
 					bubbles: true,
 					composed: true,
