@@ -39,7 +39,7 @@ export const INTERNAL_PREDICATES = new Set(["signedDocument", "encodedList", "pr
 export const EDGE_RELS: Set<string> = new Set([LinkRelations.ATTRIBUTED_TO.rel, LinkRelations.AUDIENCE.rel, LinkRelations.IN_REPLY_TO.rel, LinkRelations.ATTACHMENT.rel, LinkRelations.URL.rel]);
 
 /** Mermaid arrow style per link relation — encodes visual hierarchy from rel semantics.
- * ===> thick: narrative chain (IN_REPLY_TO — parentCapability, annotates)
+ * ===> thick: narrative chain (IN_REPLY_TO — parentCapability, commentsOn)
  * ---> normal: actors (ATTRIBUTED_TO — controller, delegator, issuer)
  * -.-> dotted: supporting detail (CONTEXT, ATTACHMENT — proof, status, assertionMethod) */
 function arrowForRel(rel: string | undefined): string {
