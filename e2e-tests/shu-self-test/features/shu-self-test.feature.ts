@@ -3,12 +3,13 @@ import WebPlaywright from "@haibun/web-playwright";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import Haibun from "@haibun/core/steps/haibun.js";
 import { ShuStepper, SHU_TEST_IDS, flattenTestIds } from "@haibun/shu";
+import { COMMENT_LABEL } from "@haibun/core/steps/variables-stepper.js";
 
 const wp = new WebPlaywright();
 const { waitFor, click, selectionOption, gotoPage, reloadPage } = withAction(wp);
 const { serveShuApp } = withAction(new ShuStepper());
 const vs = new VariablesStepper();
-const { set, setAs, annotate } = withAction(vs);
+const { set, setAs, comment } = withAction(vs);
 const { feature } = withAction(new Haibun());
 
 const host = "http://localhost:8239";
@@ -31,16 +32,16 @@ export const features: TKirejiExport = {
 		serveShuApp({ path: '"/haibun"' }),
 		`webserver is listening for "shu-self-test"`,
 
-		"Create representative data: variables and annotations spread over 2 seconds.",
+		"Create representative data: variables and comments spread over 2 seconds.",
 		set({ what: "secret-password", value: `"${SECRETS.TEST_PASSWORD}"` }),
 		set({ what: "test-subject-1", value: '"Haibun test subject"' }),
 		set({ what: "test-subject-2", value: '"Second test subject"' }),
-		annotate({ label: '"Annotation"', id: '"test-subject-1"', text: '"First annotation at t=0"' }),
+		comment({ label: `"${COMMENT_LABEL}"`, id: '"test-subject-1"', text: '"First comment at t=0"' }),
 		"pause for 1s",
-		annotate({ label: '"Annotation"', id: '"test-subject-1"', text: '"Second annotation at t=1s"' }),
-		annotate({ label: '"Annotation"', id: '"test-subject-2"', text: '"Annotation on second subject at t=1s"' }),
+		comment({ label: `"${COMMENT_LABEL}"`, id: '"test-subject-1"', text: '"Second comment at t=1s"' }),
+		comment({ label: `"${COMMENT_LABEL}"`, id: '"test-subject-2"', text: '"Comment on second subject at t=1s"' }),
 		"pause for 1s",
-		annotate({ label: '"Annotation"', id: '"test-subject-2"', text: '"Final annotation at t=2s"' }),
+		comment({ label: `"${COMMENT_LABEL}"`, id: '"test-subject-2"', text: '"Final comment at t=2s"' }),
 
 		// ── SPA ─────────────────────────────────────────────────────────
 		"Open the SPA and verify it loads.",
@@ -76,18 +77,18 @@ export const features: TKirejiExport = {
 		waitFor({ target: IDS.MONITOR.SEQUENCE_DIAGRAM }),
 
 		// ── Graph view ──────────────────────────────────────────────────
-		"Open the graph view — annotations should render.",
+		"Open the graph view — comments should render.",
 		"show graph view",
 		"page has settled",
 		waitFor({ target: IDS.GRAPH_VIEW.ROOT }),
 
 		// ── Column browser ──────────────────────────────────────────────
-		"Browse annotation data so RPC cache captures query results for offline export.",
+		"Browse comment data so RPC cache captures query results for offline export.",
 		waitFor({ target: IDS.APP.TWISTY }),
 		click({ target: IDS.APP.TWISTY }),
 		"page has settled",
 		waitFor({ target: IDS.APP.TYPE_SELECT }),
-		selectionOption({ option: '"Annotation"', field: IDS.APP.TYPE_SELECT }),
+		selectionOption({ option: `"${COMMENT_LABEL}"`, field: IDS.APP.TYPE_SELECT }),
 		"page has settled",
 		waitFor({ target: IDS.QUERY.TABLE }),
 

@@ -23,8 +23,8 @@ const stepIdSetup = stepTestIds(["label", "id", "data", "text", "fromLabel", "fr
 const json = (obj: Record<string, unknown>) => `"${JSON.stringify(obj)}"`;
 
 export const features: TKirejiExport = {
-	"Thread view with annotations and replies": [
-		feature({ feature: "Annotations and getRelated for conversation threading" }),
+	"Thread view with comments and replies": [
+		feature({ feature: "Comments and getRelated for conversation threading" }),
 
 		...testIdSetup,
 		...stepIdSetup,
@@ -64,12 +64,12 @@ export const features: TKirejiExport = {
 			toId: '"alice"',
 		}),
 
-		scenario({ scenario: "Annotate a vertex" }),
-		"Create an annotation on Alice. The annotation becomes part of the conversation.",
-		...passesStepExecution("annotate", { label: '"Researcher"', id: '"alice"', text: '"This researcher is interesting"' }),
+		scenario({ scenario: "Comment on a vertex" }),
+		"Create a comment on Alice. The comment becomes part of the conversation.",
+		...passesStepExecution("comment on", { label: '"Researcher"', id: '"alice"', text: '"This researcher is interesting"' }),
 
 		scenario({ scenario: "Get related items" }),
-		"The getRelated step returns all items in the conversation: the root, the reply, and the annotation.",
+		"The getRelated step returns all items in the conversation: the root, the reply, and the comment.",
 		...passesStepExecution("get related", { label: '"Researcher"', id: '"alice"' }),
 	],
 };
