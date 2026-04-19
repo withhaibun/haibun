@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AStepper } from "@haibun/core/lib/astepper.js";
-import { TFeature } from "@haibun/core/lib/defs.js";
+import { TFeature } from "@haibun/core/lib/execution.js";
 import LspStepper from "./lsp-stepper.js";
 import { TextDocument } from "vscode-languageserver-textdocument";
 

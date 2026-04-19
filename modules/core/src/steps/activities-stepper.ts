@@ -1,10 +1,10 @@
 import { z } from "zod";
 
 import { AStepper, IHasCycles, TStepperSteps } from "../lib/astepper.js";
-import { TFeatureStep, TWorld, IStepperCycles, TStepperStep, TFeatures, CycleWhen, TStepInput } from "../lib/defs.js";
+import { TFeatureStep, TWorld, IStepperCycles, TStepperStep, TFeatures, CycleWhen, TStepInput } from "../lib/execution.js";
 import { TStepArgs, TRegisteredOutcomeEntry, OK } from "../schema/protocol.js";
 import { actionOK, actionNotOK, actionOKWithProducts, getActionable, formatCurrentSeqPath } from "../lib/util/index.js";
-import { DOMAIN_STATEMENT } from "../lib/domain-types.js";
+import { DOMAIN_STATEMENT } from "../lib/domains.js";
 import { FlowRunner } from "../lib/core/flow-runner.js";
 import { ControlEvent, LifecycleEvent } from "../schema/protocol.js";
 

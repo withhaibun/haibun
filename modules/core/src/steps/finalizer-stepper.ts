@@ -1,9 +1,9 @@
 import { AStepper, IHasCycles, TStepperSteps } from "../lib/astepper.js";
-import { IStepperCycles, TEndFeature, TFeatureStep, TWorld } from "../lib/defs.js";
+import { IStepperCycles, TEndFeature, TFeatureStep, TWorld } from "../lib/execution.js";
 import { FlowRunner } from "../lib/core/flow-runner.js";
 import { featureSyntheticSeqPath } from "../phases/Executor.js";
 import { OK } from "../schema/protocol.js";
-import { DOMAIN_STATEMENT } from "../lib/domain-types.js";
+import { DOMAIN_STATEMENT } from "../lib/domains.js";
 import { actionNotOK } from "../lib/util/index.js";
 
 export default class FinalizerStepper extends AStepper implements IHasCycles {

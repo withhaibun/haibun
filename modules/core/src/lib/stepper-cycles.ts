@@ -1,4 +1,4 @@
-import { StepperMethodArgs, IStepperCycles } from "./defs.js";
+import { StepperMethodArgs, IStepperCycles } from "./execution.js";
 import { AStepper, IHasCycles } from "./astepper.js";
 
 export const doStepperCycle = async <K extends keyof IStepperCycles>(

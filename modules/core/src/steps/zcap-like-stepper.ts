@@ -1,5 +1,6 @@
 import { z } from "zod";
-import type { IStepperCycles, TDomainDefinition, TEndFeature, TFeatureStep } from "../lib/defs.js";
+import type { TDomainDefinition } from "../lib/resources.js";
+import type { IStepperCycles, TEndFeature, TFeatureStep } from "../lib/execution.js";
 import { OK } from "../schema/protocol.js";
 import { AStepper, type IHasCycles } from "../lib/astepper.js";
 import { actionNotOK, actionOKWithProducts } from "../lib/util/index.js";

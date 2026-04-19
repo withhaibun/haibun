@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { TDomainDefinition } from "@haibun/core/lib/defs.js";
-import { DOMAIN_STRING } from "@haibun/core/lib/domain-types.js";
+import { TDomainDefinition } from "@haibun/core/lib/resources.js";
+import { DOMAIN_STRING } from "@haibun/core/lib/domains.js";
 
 export const DOMAIN_PAGE_LOCATOR = "page-locator";
 export const DOMAIN_PAGE_TEST_ID = "page-test-id";

@@ -1,4 +1,4 @@
-import { TExpandedFeature, TExpandedLine, TFeature, TFeatures } from "./defs.js";
+import { TExpandedFeature, TExpandedLine, TFeature, TFeatures } from "./execution.js";
 import { getActionable } from "./util/index.js";
 import { TEST_BASE } from "../schema/protocol.js";
 

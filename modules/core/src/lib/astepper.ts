@@ -1,4 +1,4 @@
-import { TWorld, IStepperCycles, TStepperStep, TOptionValue, TEnvVariables, IStepperWhen } from "./defs.js";
+import { TWorld, IStepperCycles, TStepperStep, TOptionValue, TEnvVariables, IStepperWhen } from "./execution.js";
 import { TAnyFixme } from "./fixme.js";
 import { constructorName } from "./util/index.js";
 

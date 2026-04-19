@@ -6,7 +6,7 @@
  * - PlaywrightEvents (browser requests via Playwright)
  */
 
-import type { TWorld } from "./defs.js";
+import type { TWorld } from "./execution.js";
 import { emitQuadObservation } from "./quad-types.js";
 
 export const SERVICE_PATH_PREFIXES = ["/sse", "/rpc/"] as const;

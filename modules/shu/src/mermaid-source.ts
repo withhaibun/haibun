@@ -5,7 +5,7 @@
  * exportMermaid stepper step. Environment-specific property classification is
  * injected via the PropertyClassifier interface.
  */
-import { LinkRelations, edgeRel as coreEdgeRel } from "@haibun/core/lib/defs.js";
+import { LinkRelations, edgeRel as coreEdgeRel } from "@haibun/core/lib/resources.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 
 export type TPropKind = "name" | "identifier" | "edge" | "content" | "internal" | "scalar";

@@ -1,6 +1,6 @@
-import { TStepperStep, TStepAction } from "./defs.js";
+import { TStepperStep, TStepAction } from "./execution.js";
 import { TStepValue, TOrigin, Origin } from "../schema/protocol.js";
-import { DOMAIN_STATEMENT, DOMAIN_STRING } from "./domain-types.js";
+import { DOMAIN_STATEMENT, DOMAIN_STRING } from "./domains.js";
 
 export const TYPE_QUOTED = "q_";
 export const TYPE_ENV = "e_";

@@ -1,19 +1,10 @@
 import { z } from "zod";
-import {
-	TFeatureStep,
-	TWorld,
-	IStepperCycles,
-	TFeatures,
-	TResolvedFeature,
-	TStartExecution,
-	TStartFeature,
-	CycleWhen,
-} from "../lib/defs.js";
+import { TFeatureStep, TWorld, IStepperCycles, TFeatures, TResolvedFeature, TStartExecution, TStartFeature, CycleWhen } from "../lib/execution.js";
 import { OK, STEP_DELAY } from "../schema/protocol.js";
 import { AStepper, IHasCycles, TStepperSteps } from "../lib/astepper.js";
 import { actionNotOK, actionOK, actionOKWithProducts, constructorName, formattedSteppers, sleep } from "../lib/util/index.js";
 import { findFeatureStepsFromStatement } from "../phases/Resolver.js";
-import { DOMAIN_STATEMENT } from "../lib/domain-types.js";
+import { DOMAIN_STATEMENT } from "../lib/domains.js";
 import { findFeatures } from "../lib/features.js";
 import { FlowRunner } from "../lib/core/flow-runner.js";
 

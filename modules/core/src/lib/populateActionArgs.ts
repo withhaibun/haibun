@@ -1,5 +1,5 @@
 import { AStepper } from "./astepper.js";
-import { TFeatureStep, TWorld } from "./defs.js";
+import { TFeatureStep, TWorld } from "./execution.js";
 import { TStepArgs } from "../schema/protocol.js";
 
 export async function populateActionArgs(featureStep: TFeatureStep, world: TWorld, steppers: AStepper[]): Promise<TStepArgs> {

@@ -10,7 +10,7 @@ import { z } from "zod";
 import { ShuElement } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
 import { ActionsBarSchema, SEARCH_OPERATORS, type TSearchCondition, parseFilterParam } from "../schemas.js";
-import { Access, AccessQueryLevelSchema } from "@haibun/core/lib/access.js";
+import { Access, AccessQueryLevelSchema } from "@haibun/core/lib/resources.js";
 import { SHARED_STYLES } from "./styles.js";
 import { errMsg } from "../util.js";
 import { SseClient } from "../sse-client.js";

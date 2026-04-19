@@ -1,9 +1,9 @@
 import { AStepper } from "./astepper.js";
 import { isLiteralValue } from "./util/index.js";
 import { parseDotPath, navigateValue } from "./util/dot-path.js";
-import { TFeatureStep, TWorld } from "./defs.js";
+import { TFeatureStep, TWorld } from "./execution.js";
 import { Origin, TOrigin, TProvenanceIdentifier, TStepValue } from "../schema/protocol.js";
-import { DOMAIN_JSON, DOMAIN_STRING, normalizeDomainKey } from "./domain-types.js";
+import { DOMAIN_JSON, DOMAIN_STRING, normalizeDomainKey } from "./domains.js";
 import { QuadStore } from "./quad-store.js";
 import { IQuadStore, TQuad, emitQuadObservation } from "./quad-types.js";
 

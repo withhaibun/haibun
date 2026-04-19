@@ -6,7 +6,7 @@ import { SHU_EVENT, SHU_ATTR, VIEW_EVENTS } from "./consts.js";
  * Each pane is resizable and independently rendered.
  */
 import { hydrateFromDom, isStandaloneMode, getHydratedViewHash } from "./rpc-registry.js";
-import { Access } from "@haibun/core/lib/access.js";
+import { Access } from "@haibun/core/lib/resources.js";
 import { ShuElement } from "./components/shu-element.js";
 import { registerComponents } from "./component-registry.js";
 import { SseClient } from "./sse-client.js";

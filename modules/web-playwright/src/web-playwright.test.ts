@@ -3,7 +3,7 @@ import path from "path";
 
 import StorageMem from "@haibun/storage-mem";
 import WebPlaywright from "./web-playwright.js";
-import { getPackageLocation } from "@haibun/core/lib/util/workspace-lib.js";
+import { getPackageLocation } from "@haibun/core/lib/util/node/workspace-lib.js";
 
 import { getCreateSteppers, getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 

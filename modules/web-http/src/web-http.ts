@@ -2,7 +2,7 @@ import { AStepper, TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { OK } from "@haibun/core/schema/protocol.js";
 import { actionNotOK, jsonArtifact } from "@haibun/core/lib/util/index.js";
 import { NodeHttpEvents } from "@haibun/core/lib/node-http-events.js";
-import { TWorld } from "@haibun/core/lib/defs.js";
+import { TWorld } from "@haibun/core/lib/execution.js";
 
 const WebHttp = class WebHttp extends AStepper {
 	description = "HTTP requests with status, content-type, and body validation";

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { buildMermaidSource, THREAD_CLASSIFIER, DEFAULT_MAX_PER_SUBGRAPH } from "./mermaid-source.js";
-import { COMMENT_LABEL, COMMENT_EDGE } from "@haibun/core/steps/variables-stepper.js";
+import { COMMENT_LABEL, COMMENT_EDGE } from "@haibun/core/lib/resources.js";
 
 const PERSON_LABEL = "Person";
 

@@ -1,4 +1,4 @@
-import { TWorld } from "./defs.js";
+import { TWorld } from "./execution.js";
 import { TExecutorResult } from "../schema/protocol.js";
 import { AStepper } from "./astepper.js";
 

@@ -9,8 +9,8 @@ import {
 	registerDomains,
 	asDomainKey,
 	createEnumDomainDefinition,
-} from "./domain-types.js";
-import { TDomainDefinition } from "./defs.js";
+} from "./domains.js";
+import { TDomainDefinition } from "./resources.js";
 import { Origin, TStepValue } from "../schema/protocol.js";
 import { FeatureVariables } from "./feature-variables.js";
 

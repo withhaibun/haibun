@@ -13,7 +13,7 @@
  */
 
 import { fork, type ChildProcess } from "child_process";
-import type { TWorld } from "./defs.js";
+import type { TWorld } from "./execution.js";
 import type { TActionResult } from "../schema/protocol.js";
 import { actionNotOK } from "./util/index.js";
 import { type StepTool, type StepRegistry } from "./step-dispatch.js";

@@ -1,12 +1,13 @@
 import { z } from "zod";
-import { TResolvedFeature, TWorld, TEndFeature, DOMAIN_VERTEX_LABEL } from "../lib/defs.js";
+import { DOMAIN_VERTEX_LABEL } from "../lib/resources.js";
+import { TResolvedFeature, TWorld, TEndFeature } from "../lib/execution.js";
 import { TExecutorResult, TFeatureResult, THaibunEvent, STAY, STAY_FAILURE, STEP_DELAY, CONTINUE_AFTER_ERROR, TSeqPath, FEATURE_START, Timer, STAY_ALWAYS, } from "../schema/protocol.js"; import { LifecycleEvent } from "../schema/protocol.js";
 import { AStepper } from "../lib/astepper.js";
 import { sleep, setStepperWorldsAndDomains, constructorName } from "../lib/util/index.js";
 import { StepRegistry, dispatchStep } from "../lib/step-dispatch.js";
 import { SCENARIO_START } from "../schema/protocol.js";
 import { FeatureVariables } from "../lib/feature-variables.js";
-import { registerDomains } from "../lib/domain-types.js";
+import { registerDomains } from "../lib/domains.js";
 import { doStepperCycle, doStepperCycleSync } from "../lib/stepper-cycles.js";
 import { basename } from "path";
 
@@ -258,9 +259,9 @@ export class FeatureExecutor {
 }
 
 export const addStepperConcerns = (world: TWorld, steppers: AStepper[]) => {
-	const allDomains: import("../lib/defs.js").TDomainDefinition[] = [];
+	const allDomains: import("../lib/resources.js").TDomainDefinition[] = [];
 	for (const stepper of steppers) {
-		const hasCycles = stepper as unknown as { cycles?: { getConcerns?: () => import("../lib/defs.js").IStepperConcerns } };
+		const hasCycles = stepper as unknown as { cycles?: { getConcerns?: () => import("../lib/execution.js").IStepperConcerns } };
 		if (!hasCycles.cycles?.getConcerns) continue;
 		const concerns = hasCycles.cycles.getConcerns();
 		if (concerns?.domains) {

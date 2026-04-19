@@ -1,5 +1,5 @@
 import { AStepper, IHasCycles, IHasOptions, TStepperSteps } from "../lib/astepper.js";
-import { IStepperCycles, TWorld, TBeforeStep, TAfterStep, TAfterStepResult, TFeatureStep } from "../lib/defs.js";
+import { IStepperCycles, TWorld, TBeforeStep, TAfterStep, TAfterStepResult, TFeatureStep } from "../lib/execution.js";
 import { TActionResult, OK, TDebugSignal } from "../schema/protocol.js";
 import { makePrompt } from "../lib/prompter.js";
 import { actionNotOK, actionOK, formatCurrentSeqPath, getStepperOption, stringOrError } from "../lib/util/index.js";

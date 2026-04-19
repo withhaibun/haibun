@@ -1,11 +1,11 @@
 import { resolve } from "path";
 
-import { TWorld, TFeatureStep, IStepperCycles, TStartFeature } from "../lib/defs.js";
+import { TWorld, TFeatureStep, IStepperCycles, TStartFeature } from "../lib/execution.js";
 import { TStepArgs, Origin } from "../schema/protocol.js";
 import { IHasCycles, IHasOptions } from "../lib/astepper.js";
 import { AStepper } from "../lib/astepper.js";
 import { actionNotOK, actionOK, getStepperOption, sleep, stringOrError } from "../lib/util/index.js";
-import { actualURI } from "../lib/util/actualURI.js";
+import { actualURI } from "../lib/util/node/actualURI.js";
 import { copyPreRenderedAudio, doExec, doSpawn, playAudioFile, preRenderFeatureProse, TRenderedAudioMap } from "./lib/tts.js";
 import { captureLocator } from "../lib/capture-locator.js";
 import { SpeechArtifact, VideoArtifact } from "../schema/protocol.js";

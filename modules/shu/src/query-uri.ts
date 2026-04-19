@@ -5,7 +5,7 @@
  */
 import { registerValueRenderer } from "./components/value-renderers.js";
 import { esc, escAttr } from "./util.js";
-import { Access } from "@haibun/core/lib/access.js";
+import { Access } from "@haibun/core/lib/resources.js";
 import { parseFilterParam, serializeFilterParam, type TSearchCondition } from "./schemas.js";
 
 interface QueryContext {

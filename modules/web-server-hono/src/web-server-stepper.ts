@@ -1,6 +1,6 @@
 import path from "path";
 
-import type { TWorld, TEndFeature, IStepperCycles } from "@haibun/core/lib/defs.js";
+import type { TWorld, TEndFeature, IStepperCycles } from "@haibun/core/lib/execution.js";
 import { OK, type TStepArgs } from "@haibun/core/schema/protocol.js";
 import { actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOption, intOrError, stringOrError } from "@haibun/core/lib/util/index.js";
 import { AStepper, type IHasCycles, type IHasOptions } from "@haibun/core/lib/astepper.js";

@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import VariablesStepper from "./variables-stepper.js";
 import { getDefaultWorld } from "../lib/test/lib.js";
-import { LinkRelations, type TWorld } from "../lib/defs.js";
+import { LinkRelations } from "../lib/resources.js";
+import { type TWorld } from "../lib/execution.js";
 
 describe("VariablesStepper comment + getRelated", () => {
 	let stepper: VariablesStepper;

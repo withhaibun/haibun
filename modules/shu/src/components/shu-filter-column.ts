@@ -7,7 +7,7 @@ import { defaultLabel } from "../util.js";
 import { ShuElement } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
 import { FilterColumnSchema } from "../schemas.js";
-import { Access } from "@haibun/core/lib/access.js";
+import { Access } from "@haibun/core/lib/resources.js";
 import { errMsg } from "../util.js";
 import { SseClient } from "../sse-client.js";
 import { getAvailableSteps, requireStep } from "../rpc-registry.js";

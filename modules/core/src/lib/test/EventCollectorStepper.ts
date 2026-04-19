@@ -1,5 +1,5 @@
 import { AStepper } from "../astepper.js";
-import { TWorld } from "../defs.js";
+import { TWorld } from "../execution.js";
 import { THaibunEvent } from "../../schema/protocol.js";
 
 /**

@@ -1,5 +1,5 @@
 import { AStepper } from "@haibun/core/lib/astepper.js";
-import { TWorld } from "@haibun/core/lib/defs.js";
+import { TWorld } from "@haibun/core/lib/execution.js";
 
 export default class MonitorJsonRpc extends AStepper {
 	description = "Forwards Haibun events to LSP client via JSON-RPC window/logMessage";

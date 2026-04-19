@@ -12,7 +12,7 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 
 import { AStepper, type IHasCycles, type IHasOptions } from "@haibun/core/lib/astepper.js";
-import type { TWorld } from "@haibun/core/lib/defs.js";
+import type { TWorld } from "@haibun/core/lib/execution.js";
 import { OK } from "@haibun/core/schema/protocol.js";
 import { getFromRuntime, getStepperOption, constructorName, stringOrError } from "@haibun/core/lib/util/index.js";
 import { currentVersion as version } from "@haibun/core/currentVersion.js";

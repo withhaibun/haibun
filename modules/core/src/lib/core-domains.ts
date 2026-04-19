@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { AStepper } from "./astepper.js";
-import { TDomainDefinition, TFeatureStep, TWorld } from "./defs.js";
+import { TDomainDefinition } from "./resources.js";
+import { TFeatureStep, TWorld } from "./execution.js";
 import { TStepValue } from "../schema/protocol.js";
 import {
 	DOMAIN_DATE,
@@ -10,7 +11,7 @@ import {
 	DOMAIN_STATEMENT,
 	DOMAIN_STRING,
 	mapDefinitionsToDomains,
-} from "./domain-types.js";
+} from "./domains.js";
 import { findFeatureStepsFromStatement } from "../phases/Resolver.js";
 
 const numberSchema = z.coerce.number({ error: "invalid number" }).refine((value) => Number.isFinite(value), "invalid number");
