@@ -1,10 +1,10 @@
 import path, { dirname } from "path";
 import nodeFS from "fs";
 
-import { CStepper, type TStepperEntry } from "../defs.js";
-import { use } from "./index.js";
+import { CStepper, type TStepperEntry } from "../../execution.js";
+import { use } from "./module-loader.js";
 import { fileURLToPath } from "url";
-import { RemoteStepperProxy } from "../remote-stepper-proxy.js";
+import { RemoteStepperProxy } from "../../remote-stepper-proxy.js";
 
 export type TFileSystem = Partial<typeof nodeFS>;
 export async function getSteppers(stepperEntries: TStepperEntry[]) {
@@ -76,6 +76,10 @@ function getWorkspaceRoot() {
 
 const pkgJsonCache = new Map<string, Record<string, unknown>>();
 
+/** Resolved at module init to avoid repeated fileURLToPath + path.resolve on every stepper load.
+ *  From build/lib/util/node/workspace-lib.js, "../../../steps" points at build/steps/. */
+const CORE_STEPS_DIR = path.resolve(dirname(fileURLToPath(import.meta.url)), "../../../steps");
+
 export function getModuleLocation(name: string) {
 	if (name.startsWith(".")) {
 		return path.resolve(process.cwd(), name);
@@ -116,8 +120,7 @@ export function getModuleLocation(name: string) {
 		}
 		return rawPath;
 	} else if (name.match(/^[a-zA-Z].*/)) {
-		// Core stepper name (e.g., "variables-stepper")
-		return `../../steps/${name}`;
+		return path.join(CORE_STEPS_DIR, name);
 	}
 	return path.resolve(workspaceRoot, name);
 }
