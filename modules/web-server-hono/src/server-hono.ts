@@ -22,7 +22,7 @@ const DEFAULT_MOUNTED = (): TRouteMap => ROUTE_TYPES.reduce((acc, type) => ({ ..
 export class ServerHono implements IWebServer {
 	static listeningPorts: Map<number, string> = new Map();
 	private server?: ServerType;
-	private readonly _app: Hono;
+	private _app!: Hono;
 	private _mounted: TRouteMap = DEFAULT_MOUNTED();
 	private _port?: number;
 
@@ -30,6 +30,10 @@ export class ServerHono implements IWebServer {
 		private readonly eventLogger: IEventLogger,
 		private readonly base: string,
 	) {
+		this.createApp();
+	}
+
+	private createApp(): void {
 		this._app = new Hono({ router: new LinearRouter() });
 		this._app.post("/stop", (c) => {
 			this.eventLogger.info("Received /stop — shutting down");
@@ -83,7 +87,11 @@ export class ServerHono implements IWebServer {
 	}
 
 	clearMounted(): void {
+		if (this.server) {
+			throw new Error("ServerHono.clearMounted: cannot clear while server is listening — close() first");
+		}
 		this._mounted = DEFAULT_MOUNTED();
+		this.createApp();
 	}
 
 	close(): Promise<void> {
@@ -107,6 +115,13 @@ export class ServerHono implements IWebServer {
 		this.registerRoute(type, path, handlers);
 		this.markMounted(type, path, handlers.toString());
 		this.emitEndpointQuad(type, path);
+	}
+
+	/** Idempotent mount: no-op if the exact path is already mounted for the method. Use for
+	 *  routes that may legitimately be registered by repeated step invocations within a feature. */
+	addRouteIfAbsent(type: TRouteTypes, path: string, ...handlers: TRequestHandler[]): void {
+		if (this._mounted[type]?.[path]) return;
+		this.addRoute(type, path, ...handlers);
 	}
 
 	addKnownRoute(type: TRouteTypes, path: string, ...handlers: TRequestHandler[]): void {
