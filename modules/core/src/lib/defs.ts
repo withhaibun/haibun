@@ -224,6 +224,7 @@ export interface CStepper {
 export interface IStepperWhen {
 	startExecution?: number;
 	startFeature?: number;
+	endFeature?: number;
 }
 
 /**
@@ -322,7 +323,7 @@ export const EdgePredicates = {
 	attachment: { rel: LinkRelations.ATTACHMENT.rel },
 	inReplyTo: { rel: LinkRelations.IN_REPLY_TO.rel },
 	references: { rel: LinkRelations.CONTEXT.rel },
-	annotates: { rel: LinkRelations.IN_REPLY_TO.rel },
+	commentsOn: { rel: LinkRelations.IN_REPLY_TO.rel },
 	endpoint: { rel: LinkRelations.URL.rel },
 } as const;
 

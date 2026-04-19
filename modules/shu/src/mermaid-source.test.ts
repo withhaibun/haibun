@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { buildMermaidSource, THREAD_CLASSIFIER, DEFAULT_MAX_PER_SUBGRAPH } from "./mermaid-source.js";
+import { COMMENT_LABEL, COMMENT_EDGE } from "@haibun/core/steps/variables-stepper.js";
+
+const PERSON_LABEL = "Person";
 
 type TestItem = Record<string, unknown> & { _id: string; _edges: { type: string; targetId: string }[] };
 
@@ -42,13 +45,13 @@ describe("buildMermaidSource with THREAD_CLASSIFIER", () => {
 	it("renders edges between nodes", () => {
 		const quads = [
 			{ subject: "Email", predicate: "name", object: "Email", namedGraph: "Email", timestamp: 1 },
-			{ subject: "Email", predicate: "from", object: "Contact", namedGraph: "Email", timestamp: 1 },
-			{ subject: "Contact", predicate: "name", object: "Contact", namedGraph: "Contact", timestamp: 1 },
+			{ subject: "Email", predicate: "from", object: PERSON_LABEL, namedGraph: "Email", timestamp: 1 },
+			{ subject: PERSON_LABEL, predicate: "name", object: PERSON_LABEL, namedGraph: PERSON_LABEL, timestamp: 1 },
 		];
 		const result = buildMermaidSource(quads, opts, THREAD_CLASSIFIER);
 		expect(result.source).toContain("-->|from|");
 		expect(result.source).toContain("Email");
-		expect(result.source).toContain("Contact");
+		expect(result.source).toContain(PERSON_LABEL);
 	});
 
 	it("renders property-type edges between vertex and base type", () => {
@@ -83,22 +86,22 @@ describe("end-to-end: show domains → thread → graph", () => {
 	it("renders edges between domain types from show domains products", () => {
 		// Simulate show domains product items
 		const rawItems = [
-			{ name: "muskeg-email", description: "Email message", members: 0, vertexLabel: "Email", _edges: [{ type: "from", targetId: "Contact" }, { type: "subject", targetId: "string" }] },
-			{ name: "muskeg-contact", description: "Contact", members: 0, vertexLabel: "Contact", _edges: [] },
+			{ name: "muskeg-email", description: "Email message", members: 0, vertexLabel: "Email", _edges: [{ type: "from", targetId: PERSON_LABEL }, { type: "subject", targetId: "string" }] },
+			{ name: "muskeg-contact", description: PERSON_LABEL, members: 0, vertexLabel: PERSON_LABEL, _edges: [] },
 			{ name: "string", description: "Plain string literal", members: 0, _edges: [] },
 		];
 
 		// normalizeItem sets _id from vertexLabel or name
 		const items = rawItems.map(normalizeItem);
 		expect(items[0]._id).toBe("Email");
-		expect(items[1]._id).toBe("Contact");
+		expect(items[1]._id).toBe(PERSON_LABEL);
 		expect(items[2]._id).toBe("string");
 
 		// threadToQuads converts items to quads
 		const quads = threadToQuads(items, "Domain");
 		const edgeQuads = quads.filter((q) => q.predicate !== "name");
 		expect(edgeQuads.length).toBe(2);
-		expect(edgeQuads[0]).toMatchObject({ subject: "Email", predicate: "from", object: "Contact" });
+		expect(edgeQuads[0]).toMatchObject({ subject: "Email", predicate: "from", object: PERSON_LABEL });
 		expect(edgeQuads[1]).toMatchObject({ subject: "Email", predicate: "subject", object: "string" });
 
 		// buildMermaidSource renders edges
@@ -107,17 +110,17 @@ describe("end-to-end: show domains → thread → graph", () => {
 		expect(result.source).toContain("-->|subject|");
 	});
 
-	it("renders edges for annotation thread", () => {
+	it("renders edges for comment thread", () => {
 		const rawItems = [
-			{ name: "keith.jansa", _label: "Contact", _id: "keith.jansa", _edges: [] },
-			{ name: "a1", _label: "Annotation", _id: "a1-uuid", _inReplyTo: "keith.jansa", _edges: [{ type: "annotates", targetId: "keith.jansa" }] },
-			{ name: "a11", _label: "Annotation", _id: "a11-uuid", _inReplyTo: "a1-uuid", _edges: [{ type: "annotates", targetId: "a1-uuid" }] },
+			{ name: "person-1", _label: PERSON_LABEL, _id: "person-1", _edges: [] },
+			{ name: "a1", _label: COMMENT_LABEL, _id: "a1-uuid", _inReplyTo: "person-1", _edges: [{ type: COMMENT_EDGE, targetId: "person-1" }] },
+			{ name: "a11", _label: COMMENT_LABEL, _id: "a11-uuid", _inReplyTo: "a1-uuid", _edges: [{ type: COMMENT_EDGE, targetId: "a1-uuid" }] },
 		];
 
 		const items = rawItems.map(normalizeItem);
 		const quads = threadToQuads(items, "Thread");
 		const result = buildMermaidSource(quads, opts, THREAD_CLASSIFIER);
-		expect(result.source).toContain("-->|annotates|");
+		expect(result.source).toContain(`-->|${COMMENT_EDGE}|`);
 	});
 
 	it("renders edges for contact with related emails (bidirectional)", () => {
@@ -125,16 +128,16 @@ describe("end-to-end: show domains → thread → graph", () => {
 		// and attachments. Incoming edges are stored as "← from" on the contact item.
 		const rawItems = [
 			{
-				name: "vid_deque@zooid.org", _label: "Contact", _id: "vid_deque@zooid.org",
+				name: "person-1@example.org", _label: PERSON_LABEL, _id: "person-1@example.org",
 				_edges: [{ type: "← from", targetId: "msg-1" }, { type: "← to", targetId: "msg-2" }],
 			},
 			{
 				name: "Meeting invite", _label: "Email", _id: "msg-1", subject: "Meeting invite",
-				_edges: [{ type: "from", targetId: "vid_deque@zooid.org" }, { type: "attachment", targetId: "invite.ics" }],
+				_edges: [{ type: "from", targetId: "person-1@example.org" }, { type: "attachment", targetId: "invite.ics" }],
 			},
 			{
 				name: "Newsletter", _label: "Email", _id: "msg-2", subject: "Newsletter",
-				_edges: [{ type: "to", targetId: "vid_deque@zooid.org" }],
+				_edges: [{ type: "to", targetId: "person-1@example.org" }],
 			},
 			{
 				name: "invite.ics", _label: "File", _id: "invite.ics",
@@ -162,9 +165,9 @@ describe("hiddenRels filtering", () => {
 	it("hides edges matching hiddenRels", () => {
 		const quads = [
 			{ subject: "Email", predicate: "name", object: "Email", namedGraph: "Email", timestamp: 1 },
-			{ subject: "Email", predicate: "from", object: "Contact", namedGraph: "Email", timestamp: 1 },
-			{ subject: "Email", predicate: "to", object: "Contact", namedGraph: "Email", timestamp: 1 },
-			{ subject: "Contact", predicate: "name", object: "Contact", namedGraph: "Contact", timestamp: 1 },
+			{ subject: "Email", predicate: "from", object: PERSON_LABEL, namedGraph: "Email", timestamp: 1 },
+			{ subject: "Email", predicate: "to", object: PERSON_LABEL, namedGraph: "Email", timestamp: 1 },
+			{ subject: PERSON_LABEL, predicate: "name", object: PERSON_LABEL, namedGraph: PERSON_LABEL, timestamp: 1 },
 		];
 		// Thread classifier has no relForEdge, so predicate name IS the rel
 		const result = buildMermaidSource(quads, { ...opts, hiddenRels: new Set(["from"]) }, THREAD_CLASSIFIER);
