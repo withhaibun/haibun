@@ -5,7 +5,7 @@
  */
 
 import { z } from "zod";
-import type { TStepperStep } from "./defs.js";
+import type { TStepperStep } from "./execution.js";
 import type { IQuadStore } from "./quad-types.js";
 import { actionOK, actionNotOK, actionOKWithProducts } from "./util/index.js";
 

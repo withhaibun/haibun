@@ -5,7 +5,7 @@ import { OK } from "../schema/protocol.js";
 import { asExpandedFeatures } from "../lib/resolver-features.js";
 import { Resolver } from "./Resolver.js";
 import { createSteppers } from "../lib/util/index.js";
-import { DOMAIN_STATEMENT } from "../lib/domain-types.js";
+import { DOMAIN_STATEMENT } from "../lib/domains.js";
 
 // A test stepper that uses a statement typed placeholder
 class StatementStepper extends AStepper {

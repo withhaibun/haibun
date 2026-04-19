@@ -4,7 +4,7 @@ import { StepRegistry } from "./step-dispatch.js";
 import { AStepper } from "./astepper.js";
 import { actionOKWithProducts } from "./util/index.js";
 import { getDefaultWorld } from "./test/lib.js";
-import type { TWorld } from "./defs.js";
+import type { TWorld } from "./execution.js";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import type { Server } from "http";

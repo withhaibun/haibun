@@ -1,4 +1,4 @@
-import type { TRuntime } from "./defs.js";
+import type { TRuntime } from "./execution.js";
 
 export const ZCAP_LIKE_AUTHORITY = "zcapLikeAuthority";
 

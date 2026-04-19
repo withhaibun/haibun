@@ -1,7 +1,7 @@
 import { Page, Download, Locator } from "playwright";
 import { pathToFileURL } from "url";
 
-import { TWorld, TFeatureStep, CycleWhen, TStepAction } from "@haibun/core/lib/defs.js";
+import { TWorld, TFeatureStep, CycleWhen, TStepAction } from "@haibun/core/lib/execution.js";
 import { OK, TStepResult, Origin } from "@haibun/core/schema/protocol.js";
 import { BrowserFactory, TTaggedBrowserFactoryOptions, TBrowserTypes, BROWSERS } from "./BrowserFactory.js";
 import {
@@ -15,7 +15,7 @@ import {
 import { AStorage } from "@haibun/domain-storage/AStorage.js";
 import { ImageArtifact, VideoStartArtifact } from "@haibun/core/schema/protocol.js";
 import { EMediaTypes } from "@haibun/domain-storage/media-types.js";
-import { DOMAIN_STRING } from "@haibun/core/lib/domain-types.js";
+import { DOMAIN_STRING } from "@haibun/core/lib/domains.js";
 import {
 	DOMAIN_PAGE_LOCATOR,
 	DOMAIN_PAGE_TEST_ID,

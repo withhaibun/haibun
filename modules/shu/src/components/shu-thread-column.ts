@@ -9,7 +9,7 @@ import { SseClient } from "../sse-client.js";
 import { esc, truncate } from "../util.js";
 import { getAvailableSteps, requireStep } from "../rpc-registry.js";
 import type { ShuGraphView } from "./shu-graph-view.js";
-import { COMMENT_LABEL } from "@haibun/core/steps/variables-stepper.js";
+import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
 
 const ThreadColumnSchema = z.object({
 	label: z.string().default(""),

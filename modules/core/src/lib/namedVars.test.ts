@@ -1,6 +1,6 @@
 import { describe, it, test, expect } from "vitest";
 
-import { TResolvedFeature, TStepperStep } from "./defs.js";
+import { TResolvedFeature, TStepperStep } from "./execution.js";
 import { OK, TStepArgs, Origin, TEST_BASE } from "../schema/protocol.js";
 import { AStepper } from "./astepper.js";
 import { getNamedMatches, namedInterpolation } from "./namedVars.js";
@@ -10,7 +10,7 @@ import { getDefaultWorld } from "./test/lib.js";
 import { asExpandedFeatures } from "./resolver-features.js";
 import { withNameType } from "./features.js";
 import { populateActionArgs } from "./populateActionArgs.js";
-import { DOMAIN_STRING } from "./domain-types.js";
+import { DOMAIN_STRING } from "./domains.js";
 
 describe("namedMatches", () => {
 	const step: TStepperStep = {

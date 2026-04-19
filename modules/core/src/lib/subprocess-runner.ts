@@ -10,7 +10,7 @@
  *   Response: child  → { type: "result", ok: true, products } | { type: "result", ok: false, error }
  */
 
-import type { CStepper, TWorld } from "./defs.js";
+import type { CStepper, TWorld } from "./execution.js";
 import { StepRegistry, validateToolInput, buildSyntheticFeatureStep } from "./step-dispatch.js";
 import { createSteppers, setStepperWorldsAndDomains } from "./util/index.js";
 import { addStepperConcerns } from "../phases/Executor.js";

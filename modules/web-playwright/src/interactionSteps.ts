@@ -1,9 +1,9 @@
 import { Download, Page, Response } from "playwright";
 type ClickResult = import("playwright").Locator;
 
-import { TFeatureStep } from "@haibun/core/lib/defs.js";
+import { TFeatureStep } from "@haibun/core/lib/execution.js";
 import { OK, Origin, TActionResult, TStepResult } from "@haibun/core/schema/protocol.js";
-import { DOMAIN_STATEMENT, DOMAIN_STRING } from "@haibun/core/lib/domain-types.js";
+import { DOMAIN_STATEMENT, DOMAIN_STRING } from "@haibun/core/lib/domains.js";
 import { actionNotOK, actionOKWithProducts, sleep, getStepTerm, jsonArtifact } from "@haibun/core/lib/util/index.js";
 import { z } from "zod";
 import { DOMAIN_PAGE_LOCATOR, DOMAIN_PAGE_TEST_ID } from "./domains.js";

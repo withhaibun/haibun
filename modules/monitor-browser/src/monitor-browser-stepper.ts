@@ -3,16 +3,11 @@ import { fileURLToPath } from "url";
 import path from "path";
 
 import { AStepper, IHasCycles, IHasOptions, StepperKinds } from "@haibun/core/lib/astepper.js";
-import { IStepperCycles, TWorld } from "@haibun/core/lib/defs.js";
+import { IStepperCycles, TWorld } from "@haibun/core/lib/execution.js";
 import { OK } from "@haibun/core/schema/protocol.js";
 import type { THaibunEvent } from "@haibun/core/schema/protocol.js";
-import {
-	stringOrError,
-	actualURI,
-	findStepperFromOptionOrKind,
-	intOrError,
-	getStepperOption,
-} from "@haibun/core/lib/util/index.js";
+import { stringOrError, findStepperFromOptionOrKind, intOrError, getStepperOption } from "@haibun/core/lib/util/index.js";
+import { actualURI } from "@haibun/core/lib/util/node/actualURI.js";
 import { SSEPrompter } from "./prompter.js";
 import { AStorage } from "@haibun/domain-storage/AStorage.js";
 import { JITSerializer } from "@haibun/core/monitor/index.js";

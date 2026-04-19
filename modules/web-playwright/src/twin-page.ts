@@ -2,10 +2,10 @@ import { chromium, Page } from "playwright";
 
 import { AStorage } from "@haibun/domain-storage/AStorage.js";
 import { WebPlaywright } from "./web-playwright.js";
-import { TWorld } from "@haibun/core/lib/defs.js";
+import { TWorld } from "@haibun/core/lib/execution.js";
 import { EMediaTypes } from "@haibun/domain-storage/media-types.js";
 import { join } from "path";
-import { actualURI } from "@haibun/core/lib/util/actualURI.js";
+import { actualURI } from "@haibun/core/lib/util/node/actualURI.js";
 
 type TElementData = {
 	tagName: string;

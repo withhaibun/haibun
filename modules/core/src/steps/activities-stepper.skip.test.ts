@@ -3,7 +3,7 @@ import { passWithDefaults } from "../lib/test/lib.js";
 import { ActivitiesStepper } from "./activities-stepper.js";
 import VariablesStepper from "./variables-stepper.js";
 import Haibun from "./haibun.js";
-import { TWorld } from "../lib/defs.js";
+import { TWorld } from "../lib/execution.js";
 import { AStepper } from "../lib/astepper.js";
 
 describe("ActivitiesStepper - Skipped Steps Reproduction", () => {
