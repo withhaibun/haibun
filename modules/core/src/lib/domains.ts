@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { TDomainDefinition, TRegisteredDomain, TWorld } from "./defs.js";
+import type { TDomainDefinition, TRegisteredDomain } from "./resources.js";
+import type { TWorld } from "./execution.js";
 
 export const DOMAIN_STATEMENT = "statement";
 export const DOMAIN_STRING = "string";

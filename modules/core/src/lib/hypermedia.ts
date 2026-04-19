@@ -9,8 +9,25 @@
  */
 
 import { z } from "zod";
-import { getRel, getMediaType, edgeRel, REL_CONTEXT, LinkRelations, type TRel } from "./defs.js";
-import type { TRegisteredDomain } from "./defs.js";
+import { getRel, getMediaType, edgeRel, REL_CONTEXT, LinkRelations, type TPropertyDef } from "./resources.js";
+import type { TRegisteredDomain } from "./resources.js";
+
+/** Per-schema JSON-Schema memoization. `step.list` RPC calls buildConcernCatalog repeatedly; each
+ *  domain's `z.toJSONSchema` traversal is stable per schema instance, so cache by identity. */
+const jsonSchemaCache = new WeakMap<z.ZodType, Record<string, unknown>>();
+function toJsonSchemaCached(schema: z.ZodType): Record<string, unknown> {
+	const hit = jsonSchemaCache.get(schema);
+	if (hit) return hit;
+	try {
+		const js = z.toJSONSchema(schema) as Record<string, unknown>;
+		jsonSchemaCache.set(schema, js);
+		return js;
+	} catch {
+		const empty: Record<string, unknown> = {};
+		jsonSchemaCache.set(schema, empty);
+		return empty;
+	}
+}
 
 // ============================================================================
 // Schemas  (Zod → TypeScript, Zod → JSON Schema — single source of truth)
@@ -18,7 +35,6 @@ import type { TRegisteredDomain } from "./defs.js";
 
 const relValues = Object.values(LinkRelations).map((lr) => lr.rel) as [string, ...string[]];
 export const RelSchema = z.enum(relValues);
-export type { TRel };
 
 /**
  * A single vertex property mapped to its ActivityStreams predicate.
@@ -100,12 +116,7 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 			edges[edgeField] = { term: REL_CONTEXT[rel], rel, target: edgeDef.range };
 		}
 
-		let jsonSchema: Record<string, unknown> = {};
-		try {
-			jsonSchema = z.toJSONSchema(domain.schema) as Record<string, unknown>;
-		} catch {
-			/* skip non-representable schemas */
-		}
+		const jsonSchema = toJsonSchemaCached(domain.schema);
 
 		vertices[label] = VertexConcernSchema.parse({
 			domainKey,
@@ -119,6 +130,74 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 	}
 
 	return { vertices };
+}
+
+// ============================================================================
+// Resource rels — rel-to-field lookups per vertex type
+// ============================================================================
+
+/** Rel-to-field lookup for resource types. Derived from topology at runtime. */
+export type ResourceRels = {
+	types: string[];
+	field(type: string, rel: string): string | undefined;
+	idField(type: string): string;
+	publishedField(type: string): string | undefined;
+	nameField(type: string): string | undefined;
+	contentField(type: string): string | undefined;
+	fields(type: string): Record<string, string>;
+};
+
+/** Build ResourceRels from world.domains concern metadata. */
+export function buildResourceRels(domains: Record<string, TRegisteredDomain>): ResourceRels {
+	const types: string[] = [];
+	const idFields = new Map<string, string>();
+	const relMaps = new Map<string, Record<string, string>>();
+
+	for (const domain of Object.values(domains)) {
+		const topology = domain.topology;
+		if (!topology?.vertexLabel) continue;
+		const type = topology.vertexLabel;
+		types.push(type);
+		idFields.set(type, topology.id);
+		const rels: Record<string, string> = {};
+		for (const [field, def] of Object.entries(topology.properties ?? {})) {
+			rels[field] = getRel(def as TPropertyDef);
+		}
+		relMaps.set(type, rels);
+	}
+
+	const fieldByRel = (type: string, rel: string): string | undefined => {
+		const rels = relMaps.get(type);
+		if (!rels) return undefined;
+		for (const [field, r] of Object.entries(rels)) {
+			if (r === rel) return field;
+		}
+		return undefined;
+	};
+
+	return {
+		types,
+		field: fieldByRel,
+		idField: (type) => {
+			const id = idFields.get(type);
+			if (!id) throw new Error(`Unknown resource type: ${type}`);
+			return id;
+		},
+		publishedField: (type) => fieldByRel(type, LinkRelations.PUBLISHED.rel),
+		nameField: (type) => fieldByRel(type, LinkRelations.NAME.rel),
+		contentField: (type) => fieldByRel(type, LinkRelations.CONTENT.rel),
+		fields: (type) => relMaps.get(type) ?? {},
+	};
+}
+
+/** Parse a value as epoch ms (ISO date string or number). */
+export function parseTimestampValue(val: unknown): number | null {
+	if (typeof val === "number") return val;
+	if (typeof val === "string") {
+		const d = new Date(val);
+		if (!Number.isNaN(d.getTime())) return d.getTime();
+	}
+	return null;
 }
 
 // ============================================================================
