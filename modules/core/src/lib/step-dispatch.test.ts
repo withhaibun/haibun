@@ -18,8 +18,8 @@ import { AStepper } from "./astepper.js";
 import { OK } from "../schema/protocol.js";
 import { actionOKWithProducts, actionNotOK } from "./util/index.js";
 import { getDefaultWorld } from "./test/lib.js";
-import { registerDomains } from "./domain-types.js";
-import type { TWorld, TStepperStep } from "./defs.js";
+import { registerDomains } from "./domains.js";
+import type { TWorld, TStepperStep } from "./execution.js";
 
 // --- Test Steppers ---
 

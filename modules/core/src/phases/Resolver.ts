@@ -1,14 +1,4 @@
-import {
-	TStepAction,
-	TResolvedFeature,
-	TExpandedFeature,
-	TStepperStep,
-	TFeatureStep,
-	TExpandedLine,
-	TFeatures,
-	TWorld,
-	TFeature,
-} from "../lib/defs.js";
+import { TStepAction, TResolvedFeature, TExpandedFeature, TStepperStep, TFeatureStep, TExpandedLine, TFeatures, TWorld, TFeature } from "../lib/execution.js";
 import { TStepValue, FEATURE_START, SCENARIO_START } from "../schema/protocol.js";
 import { AStepper } from "../lib/astepper.js";
 import { matchGwtaToAction, getMatch } from "../lib/namedVars.js";

@@ -1,12 +1,10 @@
 import { Page, Request, Route, Response } from "playwright";
 
-import { HttpTraceArtifact } from "@haibun/core/schema/protocol.js";
+import { HttpTraceArtifact, Origin } from "@haibun/core/schema/protocol.js";
 import { TTag } from "@haibun/core/lib/ttag.js";
-import { TWorld } from "@haibun/core/lib/defs.js";
-import { Origin } from "@haibun/core/schema/protocol.js";
-import { DOMAIN_LINK, DOMAIN_NUMBER, DOMAIN_STRING } from "@haibun/core/lib/domain-types.js";
+import { TWorld, registeredPaths, type IRouteRegistry } from "@haibun/core/lib/execution.js";
+import { DOMAIN_LINK, DOMAIN_NUMBER, DOMAIN_STRING } from "@haibun/core/lib/domains.js";
 import { trackHttpHost, trackHttpRequest } from "@haibun/core/lib/http-observations.js";
-import { registeredPaths, type IRouteRegistry } from "@haibun/core/lib/defs.js";
 import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
 
 type TEtc = {

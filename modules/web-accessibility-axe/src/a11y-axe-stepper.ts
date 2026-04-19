@@ -1,6 +1,6 @@
 import { Page } from "playwright";
 
-import { TWorld, TFeatureStep } from "@haibun/core/lib/defs.js";
+import { TWorld, TFeatureStep } from "@haibun/core/lib/execution.js";
 import { AStepper, IHasOptions, StepperKinds, TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { TAnyFixme } from "@haibun/core/lib/fixme.js";
 // import { TArtifactHTML } from "@haibun/core/lib/interfaces/logger.js";

@@ -1,4 +1,4 @@
-import { TEnvVariables } from "@haibun/core/lib/defs.js";
+import { TEnvVariables } from "@haibun/core/lib/execution.js";
 import { CONTINUE_AFTER_ERROR, STAY_ALWAYS, STAY_FAILURE, STEP_DELAY } from "@haibun/core/schema/protocol.js";
 import { IHasOptions } from "@haibun/core/lib/astepper.js";
 import { boolOrError, intOrError, optionOrError, stringOrError } from "@haibun/core/lib/util/index.js";

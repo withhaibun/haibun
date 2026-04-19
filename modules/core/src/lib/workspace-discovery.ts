@@ -1,6 +1,6 @@
 import nodeFS from "fs";
 import path from "path";
-import { TFileSystem } from "./util/workspace-lib.js";
+import { TFileSystem } from "./util/node/workspace-lib.js";
 
 export interface HaibunWorkspace {
 	/** Base path - parent of features/ folder */

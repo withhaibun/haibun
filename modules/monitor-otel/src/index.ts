@@ -6,7 +6,7 @@
  */
 
 import { AStepper, IHasCycles, IHasOptions, StepperKinds } from "@haibun/core/lib/astepper.js";
-import { IStepperCycles, TWorld } from "@haibun/core/lib/defs.js";
+import { IStepperCycles, TWorld } from "@haibun/core/lib/execution.js";
 import { OK } from "@haibun/core/schema/protocol.js";
 import { THaibunEvent, EventFormatter } from "@haibun/core/monitor/index.js";
 import { stringOrError, getStepperOption } from "@haibun/core/lib/util/index.js";

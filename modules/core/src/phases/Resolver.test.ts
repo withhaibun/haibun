@@ -1,6 +1,6 @@
 import { describe, it, test, expect } from "vitest";
 
-import { TExpandedFeature, TResolvedFeature } from "../lib/defs.js";
+import { TExpandedFeature, TResolvedFeature } from "../lib/execution.js";
 import { OK } from "../schema/protocol.js";
 import { AStepper } from "../lib/astepper.js";
 import { asExpandedFeatures } from "../lib/resolver-features.js";

@@ -1,10 +1,10 @@
 import { AStepper, TStepperSteps, IHasCycles } from "../lib/astepper.js";
-import { TFeatureStep, TWorld, IObservationSource, IStepperCycles } from "../lib/defs.js";
+import { TFeatureStep, TWorld, IObservationSource, IStepperCycles } from "../lib/execution.js";
 import { OK, TActionResult, Origin } from "../schema/protocol.js";
 import { actionNotOK, actionOKWithProducts, sleep } from "../lib/util/index.js";
 import { z } from "zod";
 import { FlowRunner } from "../lib/core/flow-runner.js";
-import { DOMAIN_STATEMENT } from "../lib/domain-types.js";
+import { DOMAIN_STATEMENT } from "../lib/domains.js";
 
 // Built-in observation sources
 // Note: Step names are sanitized (dots → underscores) to avoid variable name conflicts
