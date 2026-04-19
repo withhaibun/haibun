@@ -1,27 +1,47 @@
-import { AStepper } from "./astepper.js";
-import { TAnyFixme } from "./fixme.js";
-import { TTag } from "./ttag.js";
-import { FeatureVariables } from "./feature-variables.js";
-import { Prompter } from "./prompter.js";
-import { IEventLogger } from "./EventLogger.js";
-import { z } from "zod";
-import {
+/**
+ * Execution — how the haibun runtime drives features, scenarios, and steps.
+ *
+ * Answers "what is the world at runtime, how are features structured, and what is a stepper's lifecycle?"
+ * Pure type declarations — browser-safe. All runtime behavior lives in the phases/* and lib/core/*
+ * implementations; this file only holds the shapes those implementations use.
+ *
+ * Contents:
+ *   - World/runtime: TWorld, TRuntime, options
+ *   - Features: TFeature, TFeatureStep, TResolvedFeature, source locations
+ *   - Steppers: CStepper, IStepperCycles, IStepperWhen, IStepperConcerns, TStepperStep
+ *   - Lifecycle args: TStartFeature, TEndFeature, TBeforeStep, TAfterStep, …
+ *   - CycleWhen: ordering hints for cycle execution
+ *   - IObservationSource, IRouteRegistry: runtime-plug interfaces
+ *
+ * Resource vocabulary (topology, rels, access, etc.) lives in resources.ts — import from there.
+ */
+import type { z } from "zod";
+import { z as zr } from "zod";
+
+import type { AStepper } from "./astepper.js";
+import type { TAnyFixme } from "./fixme.js";
+import type { TTag } from "./ttag.js";
+import type { FeatureVariables } from "./feature-variables.js";
+import type { Prompter } from "./prompter.js";
+import type { IEventLogger } from "./EventLogger.js";
+import type {
 	ExecutionIntent,
 	TSeqPath,
 	TStepResult,
 	TFeatureResult,
 	TExecutorResult,
 	TStepArgs,
-	TStepValueValue,
 	TStepValue,
 	Timer,
 	THaibunEvent,
 	TActionResult,
-	CONTINUE_AFTER_ERROR,
 } from "../schema/protocol.js";
+import { CONTINUE_AFTER_ERROR } from "../schema/protocol.js";
+
+import type { TDomainDefinition, TRegisteredDomain } from "./resources.js";
 
 // ============================================================================
-// Core Execution World
+// World / runtime
 // ============================================================================
 
 export type TWorld = {
@@ -47,7 +67,7 @@ export type TRuntime = {
 	/** Active steppers for this execution. Set by Executor, used by populateActionArgs / domain coercion. */
 	steppers?: AStepper[];
 	/** Shared step registry. Set by Executor, used for dynamic step registration. */
-	stepRegistry?: import("../lib/step-dispatch.js").StepRegistry;
+	stepRegistry?: import("./step-dispatch.js").StepRegistry;
 	/** Generic storage for observation data, cleared between features */
 	observations: Map<string, TAnyFixme>;
 	/** If non-empty, execution was aborted due to exhaustion (description explains why). */
@@ -83,24 +103,28 @@ export type TProtoOptions = {
 
 export type TBase = string[];
 
-export const RemoteStepperSchema = z.object({ remote: z.string(), token: z.string().optional() });
+// ============================================================================
+// Specl (runtime config file)
+// ============================================================================
+
+export const RemoteStepperSchema = zr.object({ remote: zr.string(), token: zr.string().optional() });
 export type TRemoteStepper = z.infer<typeof RemoteStepperSchema>;
 
-export const StepperEntrySchema = z.union([z.string(), RemoteStepperSchema]);
+export const StepperEntrySchema = zr.union([zr.string(), RemoteStepperSchema]);
 export type TStepperEntry = z.infer<typeof StepperEntrySchema>;
 
-export const SpeclSchema = z.looseObject({
-	$schema: z.string().optional(),
-	steppers: z.array(StepperEntrySchema),
-	runPolicy: z.string().optional(),
-	appParameters: z.record(z.string(), z.record(z.string(), z.unknown())).optional(),
-	options: z.record(z.string(), z.unknown()).optional(),
+export const SpeclSchema = zr.looseObject({
+	$schema: zr.string().optional(),
+	steppers: zr.array(StepperEntrySchema),
+	runPolicy: zr.string().optional(),
+	appParameters: zr.record(zr.string(), zr.record(zr.string(), zr.unknown())).optional(),
+	options: zr.record(zr.string(), zr.unknown()).optional(),
 });
 
 export type TSpecl = z.infer<typeof SpeclSchema>;
 
 // ============================================================================
-// Feature & Step Structures
+// Feature & Step structures
 // ============================================================================
 
 export type TFeatureMeta = {
@@ -171,7 +195,7 @@ export type TStepAction = {
 export type TStepValuesMap = Record<string, TStepValue>;
 
 // ============================================================================
-// Stepper & Lifecycle
+// Stepper step shape
 // ============================================================================
 
 type TStepperStepBase = {
@@ -221,11 +245,24 @@ export interface CStepper {
 	new (): AStepper;
 }
 
+// ============================================================================
+// Cycle ordering
+// ============================================================================
+
 export interface IStepperWhen {
 	startExecution?: number;
 	startFeature?: number;
 	endFeature?: number;
 }
+
+export const CycleWhen = {
+	FIRST: -999,
+	LAST: 999,
+};
+
+// ============================================================================
+// Observation, concerns, cycles
+// ============================================================================
 
 /**
  * Observation source for the 'observed in' quantifier pattern.
@@ -278,115 +315,13 @@ export type TAfterStep = { featureStep: TFeatureStep; actionResult: TActionResul
 export type TFailureArgs = { featureResult: TFeatureResult; failedStep: TStepResult };
 export type TAfterStepResult = { rerunStep?: boolean; nextStep?: boolean; failed: boolean };
 
-export const CycleWhen = {
-	FIRST: -999,
-	LAST: 999,
+export type StepperMethodArgs = {
+	[K in keyof IStepperCycles]: Parameters<NonNullable<IStepperCycles[K]>>[0];
 };
 
 // ============================================================================
-// Domains
+// Vertex query result (runtime read shape with routing metadata)
 // ============================================================================
-
-export type TDomainCoercer = (proto: TStepValue, featureStep?: TFeatureStep, steppers?: AStepper[]) => TStepValueValue;
-export type TDomainComparator = (value: TStepValueValue, baseline: TStepValueValue) => number;
-
-/**
- * Link relation types — the canonical set of semantic rels for vertex properties and edges.
- * Declaration order determines column display priority in result tables.
- * `relation: true` marks rels that form conversational/threading links (used by getRelated, View relations).
- */
-export const LinkRelations = {
-	NAME: { rel: "name", uri: "as:name", relation: false },
-	PUBLISHED: { rel: "published", uri: "as:published", relation: false },
-	ATTRIBUTED_TO: { rel: "attributedTo", uri: "as:attributedTo", relation: false },
-	AUDIENCE: { rel: "audience", uri: "as:to", relation: false },
-	CONTEXT: { rel: "context", uri: "as:context", relation: false },
-	UPDATED: { rel: "updated", uri: "as:updated", relation: false },
-	CONTENT: { rel: "content", uri: "as:content", relation: false },
-	IN_REPLY_TO: { rel: "inReplyTo", uri: "as:inReplyTo", relation: true },
-	ATTACHMENT: { rel: "attachment", uri: "as:attachment", relation: false },
-	TAG: { rel: "tag", uri: "as:tag", relation: false },
-	IDENTIFIER: { rel: "identifier", uri: "dcterms:identifier", relation: false },
-	URL: { rel: "url", uri: "as:url", relation: false },
-} as const;
-
-/**
- * Standard edge predicates for graph vertices.
- * Each carries its LinkRelation rel — the single source of truth for predicate→rel resolution.
- * Steppers use these as edge keys in getConcerns().edges and in createEdge() calls.
- */
-export const EdgePredicates = {
-	from: { rel: LinkRelations.ATTRIBUTED_TO.rel },
-	to: { rel: LinkRelations.AUDIENCE.rel },
-	cc: { rel: LinkRelations.AUDIENCE.rel },
-	author: { rel: LinkRelations.ATTRIBUTED_TO.rel },
-	attachment: { rel: LinkRelations.ATTACHMENT.rel },
-	inReplyTo: { rel: LinkRelations.IN_REPLY_TO.rel },
-	references: { rel: LinkRelations.CONTEXT.rel },
-	commentsOn: { rel: LinkRelations.IN_REPLY_TO.rel },
-	endpoint: { rel: LinkRelations.URL.rel },
-} as const;
-
-export type TEdgePredicate = keyof typeof EdgePredicates;
-
-/** Edge predicate name strings — use `EDGE.from` instead of `"from"`. */
-export const EDGE: { [K in TEdgePredicate]: K } = Object.fromEntries(Object.keys(EdgePredicates).map((k) => [k, k])) as { [K in TEdgePredicate]: K };
-
-/** Resolve a predicate name to its rel. */
-export function edgeRel(predicate: string): TRel | undefined {
-	return (EdgePredicates as Record<string, { rel: TRel }>)[predicate]?.rel;
-}
-
-/** Domain name for type labels — auto-populated from registered domains with topology. */
-export const DOMAIN_VERTEX_LABEL = "vertex-label";
-
-/** Rel values that are reply-type (derived from LinkRelations entries with relation: true). */
-const relationRels: Set<string> = new Set(
-	Object.values(LinkRelations)
-		.filter((lr) => lr.relation)
-		.map((lr) => lr.rel),
-);
-
-/** Check if a rel value is a reply-type (conversational/threading link). */
-function isRelationRel(rel: string): boolean {
-	return relationRels.has(rel);
-}
-
-/**
- * Check if an edge type (predicate name or rel) is a reply-type link.
- * Resolves predicate names via EdgePredicates, then checks the rel.
- */
-export function isReplyEdge(edgeType: string): boolean {
-	if (isRelationRel(edgeType)) return true;
-	const rel = edgeRel(edgeType);
-	return rel ? isRelationRel(rel) : false;
-}
-
-export type TRel = (typeof LinkRelations)[keyof typeof LinkRelations]["rel"];
-
-/** Property definition: either a rel string or a rel with mediaType for content fields. */
-export type TPropertyDef = TRel | { rel: TRel; mediaType?: string };
-
-/** Edge definition: target vertex type. The rel is resolved from EdgePredicates[key]; override with explicit rel for domain-specific edges not in the canonical set. */
-export type TEdgeDef = { range: string; rel?: TRel };
-
-/** JSON-LD context mapping: rel → standard URI. Derived from LinkRelations. */
-export const REL_CONTEXT: Record<TRel, string> = Object.fromEntries(
-	Object.values(LinkRelations).map(({ rel, uri }) => [rel, uri]),
-) as Record<TRel, string>;
-
-/** Domain topology — vertex label, id field, property rels, edges, indexes. Drives CRUD, JSON-LD, and UI. */
-export type TDomainTopology = {
-	vertexLabel: string;
-	type?: string;
-	id: string;
-	properties: Record<string, TPropertyDef>;
-	edges?: Record<string, TEdgeDef>;
-	/** DB-specific: which properties to index for fast lookup. */
-	propertyIndexes?: string[];
-	/** DB-specific: default sort columns per property. */
-	sortColumns?: Record<string, string>;
-};
 
 /** A vertex returned from graph operations, with routing metadata. */
 export type TVertexResult = Record<string, unknown> & {
@@ -396,44 +331,8 @@ export type TVertexResult = Record<string, unknown> & {
 	_edges?: Array<{ type: string; targetId: string }>;
 };
 
-// --- Derived helpers for consumers ---
-
-/** Get the rel for a property definition. */
-export function getRel(def: TPropertyDef): TRel {
-	return typeof def === "string" ? def : def.rel;
-}
-
-/** Get the mediaType for a content property, if any. */
-export function getMediaType(def: TPropertyDef): string | undefined {
-	return typeof def === "string" ? undefined : def.mediaType;
-}
-
-export type TDomainDefinition = {
-	selectors: string[];
-	schema: z.ZodType;
-	coerce?: TDomainCoercer;
-	comparator?: TDomainComparator;
-	values?: string[];
-	description?: string;
-	/** Stepper that registered this domain (set automatically by registerDomains) */
-	stepperName?: string;
-	/** Vertex topology — label, id, property rels, edges, indexes. Undefined for non-vertex domains. */
-	topology?: TDomainTopology;
-};
-
-export type TRegisteredDomain = {
-	selectors: string[];
-	schema: z.ZodType;
-	coerce: TDomainCoercer;
-	comparator?: TDomainComparator;
-	values?: string[];
-	description?: string;
-	stepperName?: string;
-	topology?: TDomainTopology;
-};
-
 // ============================================================================
-// Misc
+// Route registry (tiny cross-concern contract)
 // ============================================================================
 
 /** Minimal route registry interface — implemented by IWebServer, consumed by http-observations. */
@@ -446,7 +345,8 @@ export function registeredPaths(registry: IRouteRegistry): Set<string> {
 	return new Set(Object.values(registry.mounted).flatMap((m) => Object.keys(m)));
 }
 
+// ============================================================================
+// Misc
+// ============================================================================
+
 export type TOptionValue = TAnyFixme;
-export type StepperMethodArgs = {
-	[K in keyof IStepperCycles]: Parameters<NonNullable<IStepperCycles[K]>>[0];
-};
