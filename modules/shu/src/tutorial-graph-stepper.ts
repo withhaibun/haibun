@@ -1,7 +1,8 @@
 import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { actionNotOK, actionOKWithProducts } from "@haibun/core/lib/util/index.js";
-import { LinkRelations, DOMAIN_VERTEX_LABEL, type IStepperCycles, type IStepperConcerns } from "@haibun/core/lib/defs.js";
-import { objectCoercer } from "@haibun/core/lib/domain-types.js";
+import { LinkRelations, DOMAIN_VERTEX_LABEL } from "@haibun/core/lib/resources.js";
+import { type IStepperCycles, type IStepperConcerns } from "@haibun/core/lib/execution.js";
+import { objectCoercer } from "@haibun/core/lib/domains.js";
 import { z } from "zod";
 
 const DOMAIN_TUTORIAL_QUERY = "tutorial-graph-query";
@@ -19,7 +20,7 @@ export const TutorialEdges = {
 
 const VertexDataSchema = z.record(z.string(), z.unknown());
 
-const VertexSchema = z.object({
+const VertexResultSchema = z.object({
 	id: z.string(),
 	label: z.string(),
 	vertexLabel: z.string(),
@@ -36,13 +37,13 @@ const EdgeSchema = z.object({
 });
 
 const QueryResultSchema = z.object({
-	vertices: z.array(VertexSchema),
+	vertices: z.array(VertexResultSchema),
 	total: z.number(),
 	cypher: z.string().optional(),
 });
 
 const VertexWithEdgesSchema = z.object({
-	vertex: VertexSchema,
+	vertex: VertexResultSchema,
 	edges: z.array(EdgeSchema),
 	incomingCount: z.number(),
 });
@@ -194,7 +195,7 @@ export default class TutorialGraphStepper extends AStepper {
 				},
 				{
 					selectors: ["tutorial-researcher"],
-					schema: VertexSchema,
+					schema: VertexResultSchema,
 					topology: {
 						vertexLabel: TutorialLabels.Researcher,
 						id: "id",
@@ -214,7 +215,7 @@ export default class TutorialGraphStepper extends AStepper {
 				},
 				{
 					selectors: ["tutorial-paper"],
-					schema: VertexSchema,
+					schema: VertexResultSchema,
 					topology: {
 						vertexLabel: TutorialLabels.Paper,
 						id: "id",
@@ -312,7 +313,7 @@ export default class TutorialGraphStepper extends AStepper {
 
 		createVertex: {
 			gwta: `create vertex {label: ${DOMAIN_VERTEX_LABEL}} with id {id: string} and properties {data: ${DOMAIN_VERTEX_DATA}}`,
-			outputSchema: VertexSchema,
+			outputSchema: VertexResultSchema,
 			action: ({ label, id, data }: { label: string; id: string; data: Record<string, unknown> }) => {
 				try {
 					const vertex = this.store.createVertex(label, id, data);
