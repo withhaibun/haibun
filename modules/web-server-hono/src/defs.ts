@@ -28,6 +28,7 @@ export interface IWebServer extends IRouteRegistry {
 	close(): Promise<void>;
 	readonly mounted: TRouteMap;
 	addRoute(type: TRouteTypes, path: string, ...handlers: TRequestHandler[]): void;
+	addRouteIfAbsent(type: TRouteTypes, path: string, ...handlers: TRequestHandler[]): void;
 	addKnownRoute(type: TRouteTypes, path: string, ...handlers: TRequestHandler[]): void;
 	clearMounted(): void;
 	use(middleware: MiddlewareHandler): void;
