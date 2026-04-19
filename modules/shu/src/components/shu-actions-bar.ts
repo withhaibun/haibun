@@ -10,6 +10,7 @@ import { z } from "zod";
 import { ShuElement } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
 import { ActionsBarSchema, SEARCH_OPERATORS, type TSearchCondition, parseFilterParam } from "../schemas.js";
+import { Access, AccessQueryLevelSchema } from "@haibun/core/lib/access.js";
 import { SHARED_STYLES } from "./styles.js";
 import { errMsg } from "../util.js";
 import { SseClient } from "../sse-client.js";
@@ -41,7 +42,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	static domainSelector = "shu-actions-bar";
 
 	private _contextPatterns: TContextPattern[] = [];
-	private _contextAccessLevel = "private";
+	private _contextAccessLevel: string = Access.private;
 	private _statusMessage = "";
 	private _columns: string[] = [];
 	private _queryLabel = "All";
@@ -406,7 +407,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 
 		const filterControls = this.state.askExpanded
 			? `<div class="filter-bar">
-					<select class="access-select">${["private", "public", "opened", "all"].map((a) => `<option value="${a}"${a === this._contextAccessLevel ? " selected" : ""}>${a}</option>`).join("")}</select>
+					<select class="access-select">${AccessQueryLevelSchema.options.map((a) => `<option value="${a}"${a === this._contextAccessLevel ? " selected" : ""}>${a}</option>`).join("")}</select>
 					${labelSelect}
 					${selectDropdowns}
 					<input type="text" class="text-search" ${this.tid("text-search")} placeholder="search..." value="${this._textSearch}" />
@@ -840,7 +841,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 					label: this._selectedLabel,
 					textQuery: this._textSearch,
 				},
-				accessLevel: this._contextAccessLevel || "private",
+				accessLevel: this._contextAccessLevel || Access.private,
 			});
 
 			if (saveBtn) {
