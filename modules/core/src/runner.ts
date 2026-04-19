@@ -1,4 +1,4 @@
-import { TWorld, CStepper } from "./lib/defs.js";
+import { TWorld, CStepper } from "./lib/execution.js";
 import { TExecutorResult } from "./schema/protocol.js";
 import { AStepper, StepperKinds } from "./lib/astepper.js";
 import { expand } from "./lib/features.js";

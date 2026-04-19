@@ -5,7 +5,7 @@ import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, passWithDefaults } from "@haibun/
 import TestStepsWithOptions from "@haibun/core/lib/test/TestStepsWithOptions.js";
 import { getDefaultOptions } from "@haibun/core/lib/util/index.js";
 
-import { TProtoOptions, TSpecl } from "@haibun/core/lib/defs.js";
+import { TProtoOptions, TSpecl } from "@haibun/core/lib/execution.js";
 import { OPTION_RUN_POLICY, OPTION_DRY_RUN, type TRunPolicyConfig } from "@haibun/core/run-policy/run-policy-types.js";
 import * as lib from "./lib.js";
 

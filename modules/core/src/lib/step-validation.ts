@@ -1,5 +1,5 @@
 import { AStepper } from "./astepper.js";
-import type { TStepAction, TFeatures } from "./defs.js";
+import type { TStepAction, TFeatures } from "./execution.js";
 import { Resolver } from "../phases/Resolver.js";
 import { StepperRegistry, type StepDescriptor } from "./stepper-registry.js";
 

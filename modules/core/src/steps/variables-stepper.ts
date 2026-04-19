@@ -1,16 +1,6 @@
 import { z } from "zod";
-import {
-	TFeatureStep,
-	TWorld,
-	IStepperCycles,
-	TStartScenario,
-	TRegisteredDomain,
-	TDomainDefinition,
-	LinkRelations,
-	DOMAIN_VERTEX_LABEL,
-	type TVertexResult,
-} from "../lib/defs.js";
-import { RESOURCE_LABEL } from "../lib/resource.js";
+import { TRegisteredDomain, TDomainDefinition, LinkRelations, DOMAIN_VERTEX_LABEL, RESOURCE_LABEL, COMMENT_LABEL, COMMENT_DOMAIN, COMMENT_EDGE } from "../lib/resources.js";
+import { TFeatureStep, TWorld, IStepperCycles, TStartScenario, type TVertexResult } from "../lib/execution.js";
 import { OK, TStepArgs, Origin, TProvenanceIdentifier, TOrigin, TActionResult } from "../schema/protocol.js";
 import { TAnyFixme } from "../lib/fixme.js";
 import { AStepper, IHasCycles, TStepperSteps } from "../lib/astepper.js";
@@ -24,12 +14,9 @@ import {
 	normalizeDomainKey,
 	createEnumDomainDefinition,
 	registerDomains,
-} from "../lib/domain-types.js";
+} from "../lib/domains.js";
 
 const CommentSchema = z.object({ id: z.string(), text: z.string(), author: z.string().optional(), timestamp: z.string() });
-export const COMMENT_LABEL = "Comment";
-const COMMENT_DOMAIN = "comment";
-export const COMMENT_EDGE = "commentsOn";
 
 const clearVars = (vars: VariablesStepper) => async () => {
 	await vars.getWorld().shared.getStore().clear();

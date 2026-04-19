@@ -12,7 +12,7 @@ import {
 } from "playwright";
 
 import { PlaywrightEvents } from "./PlaywrightEvents.js";
-import { TWorld } from "@haibun/core/lib/defs.js";
+import { TWorld } from "@haibun/core/lib/execution.js";
 import { Timer } from "@haibun/core/schema/protocol.js";
 import { TTag } from "@haibun/core/lib/ttag.js";
 

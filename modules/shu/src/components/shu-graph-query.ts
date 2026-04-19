@@ -6,7 +6,7 @@ import { SHU_EVENT } from "../consts.js";
  */
 import { ShuElement } from "./shu-element.js";
 import { QueryViewSchema, type TSearchCondition, parseFilterParam, serializeFilterParam } from "../schemas.js";
-import { Access } from "@haibun/core/lib/access.js";
+import { Access } from "@haibun/core/lib/resources.js";
 import { SHARED_STYLES } from "./styles.js";
 import { esc, errMsg, setIdFields } from "../util.js";
 import { setSiteMetadata, getConcernDerivedMetadata } from "../rels-cache.js";

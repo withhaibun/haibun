@@ -1,8 +1,8 @@
-import { TWorld, TProtoOptions, CStepper } from "../defs.js";
+import { TWorld, TProtoOptions, CStepper } from "../execution.js";
 import { DEFAULT_DEST, TExecutorResult, TEST_BASE } from "../../schema/protocol.js";
 import { createSteppers } from "./../util/index.js";
 import { getRunTag } from "../ttag.js";
-import { getSteppers } from "../util/workspace-lib.js";
+import { getSteppers } from "../util/node/workspace-lib.js";
 import { Timer } from "../../schema/protocol.js";
 import { asFeatures } from "../resolver-features.js";
 import { Runner } from "../../runner.js";
@@ -17,7 +17,7 @@ export const DEF_PROTO_OPTIONS = { options: DEF_PROTO_DEFAULT_OPTIONS, moduleOpt
 
 export const HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS = "HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS";
 
-export async function getCreateSteppers(steppers: import("../defs.js").TStepperEntry[], addSteppers?: CStepper[]) {
+export async function getCreateSteppers(steppers: import("../execution.js").TStepperEntry[], addSteppers?: CStepper[]) {
 	const csteppers = await getSteppers(steppers);
 	return createSteppers(csteppers.concat(addSteppers || []));
 }
