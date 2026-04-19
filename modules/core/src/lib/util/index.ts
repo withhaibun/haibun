@@ -1,10 +1,8 @@
-import { TSpecl, TWorld, TRuntime, TModuleOptions, CStepper, TFeatureStep } from "../defs.js";
+import { TSpecl, TWorld, TRuntime, TModuleOptions, CStepper, TFeatureStep } from "../execution.js";
 import { TActionResult, OK, TSeqPath, TDebugSignal } from "../../schema/protocol.js";
 import { TAnyFixme } from "../fixme.js";
 import { IHasOptions, AStepper } from "../astepper.js";
 import { TArtifactEvent, type TJsonArtifact, Timer } from "../../schema/protocol.js";
-export * from "./actualURI.js";
-export * from "./secret-utils.js";
 
 // Helper to get term from stepValuesMap with null safety
 export function getStepTerm(featureStep: TFeatureStep, key: string): string | undefined {
@@ -20,62 +18,7 @@ export function isLiteralValue(term: string): boolean {
 	return !/^[a-zA-Z_]/.test(term) || /[^a-zA-Z0-9_ ]/.test(term);
 }
 
-type TClass = { new <T>(...args: unknown[]): T };
-
 export const basesFrom = (s: string | undefined): string[] => s?.split(",").map((b: string) => b.trim());
-
-import nodeFS from "fs";
-import path from "path";
-
-/**
- * Resolve and import a stepper module.
- * Supports:
- * - Package names: @haibun/monitor-tui → resolves main from package.json
- * - Explicit paths: @haibun/monitor-tui/build/index → imports directly
- * - Relative paths: ./build-local/test-server → imports from cwd
- */
-export async function use(module: string): Promise<TClass> {
-	try {
-		const resolvedPath = resolveModulePath(module);
-		const re: object = (await import(resolvedPath)).default;
-		checkModuleIsClass(re, module);
-		return <TClass>re;
-	} catch (e) {
-		console.error("failed including", module);
-		throw e;
-	}
-}
-
-function resolveModulePath(module: string): string {
-	// Check if this is a directory with package.json (package reference)
-	if (nodeFS.existsSync(module)) {
-		const pkgPath = path.join(module, "package.json");
-		if (nodeFS.existsSync(pkgPath)) {
-			const pkg = JSON.parse(nodeFS.readFileSync(pkgPath, "utf-8"));
-			const main = pkg.main || "index.js";
-			return path.join(module, main);
-		}
-		// Directory exists but no package.json, try as file
-		if (nodeFS.existsSync(`${module}.js`)) {
-			return `${module}.js`;
-		}
-		// Maybe it's a directory with index.js
-		const indexPath = path.join(module, "index.js");
-		if (nodeFS.existsSync(indexPath)) {
-			return indexPath;
-		}
-	}
-	// Default: append .js extension
-	return `${module}.js`;
-}
-
-export function checkModuleIsClass(re: object, module: string) {
-	const type = re?.toString().replace(/^ /g, "").split("\n")[0].replace(/\s.*/, "");
-
-	if (type !== "class") {
-		throw Error(`"${module}" is ${type}, not a class`);
-	}
-}
 
 export function actionNotOK(errorMessage: string, w?: { artifact?: TArtifactEvent; controlSignal?: TDebugSignal }): TActionResult {
 	const { artifact, controlSignal } = w || {};
