@@ -4,8 +4,9 @@
  */
 import { z } from "zod";
 import { AStepper, type IHasCycles } from "@haibun/core/lib/astepper.js";
-import { LinkRelations, type IStepperCycles } from "@haibun/core/lib/defs.js";
-import { objectCoercer } from "@haibun/core/lib/domain-types.js";
+import { LinkRelations } from "@haibun/core/lib/resources.js";
+import { type IStepperCycles } from "@haibun/core/lib/execution.js";
+import { objectCoercer } from "@haibun/core/lib/domains.js";
 
 export const EndpointSchema = z.object({
 	url: z.string(),

@@ -2,7 +2,7 @@ import diagnostics_channel from "node:diagnostics_channel";
 import { AsyncLocalStorage } from "node:async_hooks";
 
 import { HttpTraceArtifact } from "../schema/protocol.js";
-import type { TWorld } from "./defs.js";
+import type { TWorld } from "./execution.js";
 import type { TTag } from "./ttag.js";
 import { trackHttpHost } from "./http-observations.js";
 

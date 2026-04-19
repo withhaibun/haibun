@@ -32,7 +32,7 @@ export const GraphQuerySchema = z.object({
 });
 export type TGraphQuery = z.infer<typeof GraphQuerySchema>;
 
-export { type ResourceRels, buildResourceRels, parseTimestampValue } from "./resource-rels.js";
+export { type ResourceRels, buildResourceRels, parseTimestampValue } from "./hypermedia.js";
 
 export interface TQuad {
 	subject: string;

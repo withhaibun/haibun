@@ -1,7 +1,7 @@
 import { actionNotOK } from "@haibun/core/lib/util/index.js";
-import { TFeatureStep } from "@haibun/core/lib/defs.js";
+import { TFeatureStep } from "@haibun/core/lib/execution.js";
 import { OK, Origin } from "@haibun/core/schema/protocol.js";
-import { DOMAIN_STRING } from "@haibun/core/lib/domain-types.js";
+import { DOMAIN_STRING } from "@haibun/core/lib/domains.js";
 import WebPlaywright from "./web-playwright.js";
 import { TStepperSteps } from "@haibun/core/lib/astepper.js";
 import type { TJsonResponse } from "./rest-playwright.js";

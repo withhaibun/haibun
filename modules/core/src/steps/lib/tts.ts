@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, readdirSync, cpSync, unlinkSync } from "fs";
 import * as nodePath from "path";
 import { createRequire } from "module";
 
-import { TResolvedFeature } from "../../lib/defs.js";
+import { TResolvedFeature } from "../../lib/execution.js";
 import { FEATURE_START } from "../../schema/protocol.js";
 import { SCENARIO_START } from "../../schema/protocol.js";
 import { TAnyFixme } from "../../lib/fixme.js";

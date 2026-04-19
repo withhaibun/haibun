@@ -1,5 +1,5 @@
 import { BasePromptManager } from "@haibun/core/lib/base-prompt-manager.js";
-import type { TWorld } from "@haibun/core/lib/defs.js";
+import type { TWorld } from "@haibun/core/lib/execution.js";
 
 interface PendingPrompt {
 	id: string;

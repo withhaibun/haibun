@@ -3,7 +3,7 @@ import { EOL } from "os";
 
 import { AStorage } from "@haibun/domain-storage/AStorage.js";
 import { findStepperFromOptionOrKind, getStepperOption, stringOrError } from "@haibun/core/lib/util/index.js";
-import { TWorld, IStepperCycles } from "@haibun/core/lib/defs.js";
+import { TWorld, IStepperCycles } from "@haibun/core/lib/execution.js";
 import { TExecutorResult, TStepResult } from "@haibun/core/schema/protocol.js";
 import { AStepper, IHasCycles, IHasOptions, StepperKinds } from "@haibun/core/lib/astepper.js";
 import { TAnyFixme } from "@haibun/core/lib/fixme.js";

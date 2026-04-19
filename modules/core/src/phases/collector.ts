@@ -1,8 +1,8 @@
 import nodeFS from "fs";
 import path from "path";
-import { TBase, TFeature } from "../lib/defs.js";
+import { TBase, TFeature } from "../lib/execution.js";
 import { withNameType } from "../lib/features.js";
-import { TFileSystem } from "../lib/util/workspace-lib.js";
+import { TFileSystem } from "../lib/util/node/workspace-lib.js";
 import { toBdd } from "../kireji/converter.js";
 import { type TRunPolicyConfig, type TDirFilter, featureMatchesFilter } from "../run-policy/run-policy-types.js";
 

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { pickLocatorDomain } from "./web-playwright.js";
-import { DOMAIN_STRING } from "@haibun/core/lib/domain-types.js";
+import { DOMAIN_STRING } from "@haibun/core/lib/domains.js";
 import { DOMAIN_PAGE_LOCATOR, DOMAIN_PAGE_TEST_ID, DOMAIN_PAGE_LABEL, DOMAIN_PAGE_PLACEHOLDER } from "./domains.js";
 
 describe("pickLocatorDomain", () => {

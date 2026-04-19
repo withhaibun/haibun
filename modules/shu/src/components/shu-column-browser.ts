@@ -13,7 +13,7 @@ import { SseClient } from "../sse-client.js";
 import { getAvailableSteps, requireStep, findStep } from "../rpc-registry.js";
 import { getRels, getRelSync, getContentFields, getSummaryFields } from "../rels-cache.js";
 import { defaultLabel } from "../util.js";
-import { Access } from "@haibun/core/lib/access.js";
+import { Access } from "@haibun/core/lib/resources.js";
 
 type VertexData = Record<string, unknown>;
 type EdgeData = { type: string; target: VertexData };

@@ -17,8 +17,8 @@ export type TStaticFolderOptions = z.infer<typeof StaticFolderOptionsSchema>;
 export type TRouteMap = { [K in TRouteTypes]: { [path: string]: string } };
 export type TRequestHandler = (c: Context) => Response | Promise<Response>;
 
-export { registeredPaths } from "@haibun/core/lib/defs.js";
-import type { IRouteRegistry } from "@haibun/core/lib/defs.js";
+export { registeredPaths } from "@haibun/core/lib/execution.js";
+import type { IRouteRegistry } from "@haibun/core/lib/execution.js";
 
 export interface IWebServer extends IRouteRegistry {
 	checkAddStaticFolder(relativeFolder: string, mountAt: string, options?: TStaticFolderOptions): void;

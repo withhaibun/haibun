@@ -120,7 +120,7 @@ export function hasSelectValues(label: string): boolean {
 // --- Concern catalog (for haibun domain discovery) ---
 
 import type { TConcernCatalog } from "@haibun/core/lib/hypermedia.js";
-import { LinkRelations } from "@haibun/core/lib/defs.js";
+import { LinkRelations } from "@haibun/core/lib/resources.js";
 
 let concernCatalog: TConcernCatalog | null = null;
 let cachedConcernMeta: SiteMetadata | null = null;
