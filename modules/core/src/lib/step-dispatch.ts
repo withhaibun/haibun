@@ -1,13 +1,13 @@
 import { z } from "zod";
 import { AStepper } from "./astepper.js";
-import type { TWorld, TStepperStep, TFeatureStep, TStepAction, TBeforeStep, TAfterStep, TAfterStepResult } from "./defs.js";
+import type { TWorld, TStepperStep, TFeatureStep, TStepAction, TBeforeStep, TAfterStep, TAfterStepResult } from "./execution.js";
 import { buildConcernCatalog, type TConcernCatalog } from "./hypermedia.js";
 import type { TActionResult, TStepResult, TSeqPath } from "../schema/protocol.js";
 import { TRACE_SEQ_PATH, Timer, FEATURE_START, SCENARIO_START, DispatchTraceArtifact } from "../schema/protocol.js";
 import { namedInterpolation, mapInputToStepValues } from "./namedVars.js";
 import { constructorName, actionNotOK } from "./util/index.js";
 import { populateActionArgs } from "./populateActionArgs.js";
-import { DOMAIN_STRING, normalizeDomainKey } from "./domain-types.js";
+import { DOMAIN_STRING, normalizeDomainKey } from "./domains.js";
 import { StepperRegistry, type StepDescriptor } from "./stepper-registry.js";
 import { doStepperCycle } from "./stepper-cycles.js";
 

@@ -1,8 +1,8 @@
 import { join } from "path";
-import { TBaseOptions } from "./defs.js";
+import { TBaseOptions } from "./execution.js";
 import { CAPTURE, DEFAULT_DEST } from "../schema/protocol.js";
 import { TTag } from "./ttag.js";
-import { containerHostPath } from "./util/actualURI.js";
+import { containerHostPath } from "./util/node/actualURI.js";
 import { slugify } from "./util/index.js";
 
 export const captureLocator = (options: TBaseOptions, tag: TTag, ...where: (string | undefined)[]) => {

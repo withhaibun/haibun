@@ -5,7 +5,7 @@ import { stdin as input, stdout as output } from "node:process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import path from "path";
 
-import { getPackageLocation } from "@haibun/core/lib/util/workspace-lib.js";
+import { getPackageLocation } from "@haibun/core/lib/util/node/workspace-lib.js";
 import { currentVersion } from "@haibun/core/currentVersion.js";
 
 type Tkv = { [name: string]: string };

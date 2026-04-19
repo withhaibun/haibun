@@ -1,4 +1,4 @@
-import { TWorld, TFeatureStep, TStepInput } from "../defs.js";
+import { TWorld, TFeatureStep, TStepInput } from "../execution.js";
 import { TSeqPath, TActionResult, TStepResult, ExecutionIntent } from "../../schema/protocol.js";
 import { AStepper } from "../astepper.js";
 import { actionNotOK } from "../util/index.js";

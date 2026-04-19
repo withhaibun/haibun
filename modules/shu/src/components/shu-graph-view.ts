@@ -15,7 +15,7 @@ import { openQuadDetailPane } from "../quad-detail-pane.js";
 import { getEdgeRanges, getEdgeRelMap, getRels } from "../rels-cache.js";
 import { getAvailableSteps, getStepperForType } from "../rpc-registry.js";
 import { extractQuadsFromEvents, type TQuad } from "@haibun/core/lib/quad-types.js";
-import { edgeRel as coreEdgeRel } from "@haibun/core/lib/defs.js";
+import { edgeRel as coreEdgeRel } from "@haibun/core/lib/resources.js";
 import { buildMermaidSource, buildClassifier, sanitizeId, THREAD_CLASSIFIER, DEFAULT_MAX_PER_SUBGRAPH, type TGraphViewOpts, type PropertyClassifier } from "../mermaid-source.js";
 
 let mermaidInitialized = false;

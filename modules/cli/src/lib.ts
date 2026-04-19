@@ -1,6 +1,6 @@
 import nodeFS from "fs";
 
-import { TBase, TProtoOptions, TSpecl, TWorld, SpeclSchema } from "@haibun/core/lib/defs.js";
+import { TBase, TProtoOptions, TSpecl, TWorld, SpeclSchema } from "@haibun/core/lib/execution.js";
 import {
 	BASE_PREFIX,
 	CHECK_NO,
@@ -22,7 +22,7 @@ import {
 	verifyExtraOptions,
 } from "@haibun/core/lib/util/index.js";
 import { BaseOptions } from "./BaseOptions.js";
-import { TFileSystem, getSteppers } from "@haibun/core/lib/util/workspace-lib.js";
+import { TFileSystem, getSteppers } from "@haibun/core/lib/util/node/workspace-lib.js";
 import { Runner } from "@haibun/core/runner.js";
 import { FeatureVariables } from "@haibun/core/lib/feature-variables.js";
 import { Prompter } from "@haibun/core/lib/prompter.js";
