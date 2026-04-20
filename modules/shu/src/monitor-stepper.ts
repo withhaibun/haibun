@@ -8,11 +8,12 @@ import { resolve } from "path";
 import { z } from "zod";
 import { writeFileSync } from "fs";
 
-import { AStepper, type IHasCycles, type IHasOptions, type TStepperSteps, StepperKinds } from "@haibun/core/lib/astepper.js";
+import { AStepper, type IHasCycles, type IHasOptions, type IHasTunables, type TStepperSteps, StepperKinds } from "@haibun/core/lib/astepper.js";
 import { type TWorld, CycleWhen, type TEndFeature, type IStepperCycles } from "@haibun/core/lib/execution.js";
 import type { THaibunEvent } from "@haibun/core/schema/protocol.js";
+import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { OBSCURED_VALUE } from "@haibun/core/lib/feature-variables.js";
-import { actionNotOK, actionOKWithProducts, stringOrError, findStepperFromOptionOrKind } from "@haibun/core/lib/util/index.js";
+import { actionNotOK, actionOKWithProducts, getStepperOption, intOrError, stringOrError, findStepperFromOptionOrKind } from "@haibun/core/lib/util/index.js";
 import { actualURI } from "@haibun/core/lib/util/node/actualURI.js";
 import { objectCoercer } from "@haibun/core/lib/domains.js";
 import { TRANSPORT, type ITransport } from "@haibun/web-server-hono/sse-transport.js";
@@ -26,18 +27,34 @@ import { RPC_CACHE } from "@haibun/web-server-hono/web-server-stepper.js";
 
 import { DOMAIN_GRAPH_QUERY, GraphQuerySchema } from "@haibun/core/lib/quad-types.js";
 
-const MAX_EVENTS = 10000;
+const MAX_EVENTS_DEFAULT = 10000;
 
-export default class MonitorStepper extends AStepper implements IHasCycles, IHasOptions {
+export default class MonitorStepper extends AStepper implements IHasCycles, IHasOptions, IHasTunables {
 	description = "Buffers execution events for the shu monitor view";
 	private events: THaibunEvent[] = [];
-	private observationQuads: import("@haibun/core/lib/quad-types.js").TQuad[] = [];
+	private observationQuads: TQuad[] = [];
 	private storage!: AStorage;
 	private outputPath?: string;
+	private maxEvents: number = MAX_EVENTS_DEFAULT;
 	cyclesWhen = { startFeature: CycleWhen.LAST };
 
 	options = {
 		[StepperKinds.STORAGE]: { desc: "Storage for standalone HTML output", parse: stringOrError },
+	};
+
+	/**
+	 * Tunable bounds on the event-buffer cap. An autonomic loop under memory
+	 * pressure may shrink MAX_EVENTS; under slack, grow it. Rate-limited to
+	 * at most 48 changes per day so the loop cannot oscillate wildly.
+	 */
+	tunables = {
+		MAX_EVENTS: {
+			desc: "Cap on the monitor's in-memory event buffer (and observation-quads buffer). Default: 10000.",
+			parse: intOrError,
+			range: { kind: "number" as const, min: 100, max: 1_000_000 },
+			rateLimit: { maxChangesPerDay: 48 },
+			requiresCapability: "Autonomic:apply:MAX_EVENTS",
+		},
 	};
 
 	private get transport(): ITransport | undefined {
@@ -47,6 +64,16 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 	async setWorld(world: TWorld, steppers: AStepper[]): Promise<void> {
 		await super.setWorld(world, steppers);
 		this.storage = findStepperFromOptionOrKind(steppers, this, world.moduleOptions, StepperKinds.STORAGE);
+		// Initial tunable read via the shared option-reading path plus this
+		// tunable's own declared `parse`. The autonomic loop may revise the
+		// value live by writing a Development targeting MAX_EVENTS; when
+		// that path ships, this stepper will listen for tunable-change
+		// events and update this.maxEvents accordingly.
+		const raw = getStepperOption(this, "MAX_EVENTS", world.moduleOptions);
+		if (raw !== undefined) {
+			const parsed = this.tunables.MAX_EVENTS.parse(String(raw));
+			if (parsed.result !== undefined) this.maxEvents = parsed.result;
+		}
 	}
 
 	cycles: IStepperCycles = {
@@ -68,13 +95,13 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		},
 		onEvent: (event: THaibunEvent) => {
 			this.events.push(event);
-			if (this.events.length > MAX_EVENTS) this.events.shift();
+			if (this.events.length > this.maxEvents) this.events.shift();
 			const e = event as Record<string, unknown>;
 			if (e.kind === "artifact" && e.artifactType === "json") {
-				const q = (e.json as { quadObservation?: import("@haibun/core/lib/quad-types.js").TQuad })?.quadObservation;
+				const q = (e.json as { quadObservation?: TQuad })?.quadObservation;
 				if (q?.subject && q.predicate && q.namedGraph) {
 					this.observationQuads.push({ subject: q.subject, predicate: q.predicate, object: q.object, namedGraph: q.namedGraph, timestamp: q.timestamp ?? (e.timestamp as number) ?? Date.now(), properties: q.properties });
-					if (this.observationQuads.length > MAX_EVENTS) this.observationQuads.shift();
+					if (this.observationQuads.length > this.maxEvents) this.observationQuads.shift();
 				}
 			}
 			this.transport?.send({ type: "event", event });

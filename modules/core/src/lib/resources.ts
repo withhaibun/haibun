@@ -1,5 +1,5 @@
 /**
- * Resources — the vocabulary and topology of things stored in the graph.
+ * Resources — the vocabulary and topology of things stored in a graph.
  *
  * Answers "what is a graph resource, how is it typed, how does it link, and how is it governed?"
  * Pure declarative data: zod schemas, type aliases, vocabulary consts, and tiny pure derivations.
