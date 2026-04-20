@@ -149,7 +149,7 @@ class TestServer extends AStepper {
 			const webserver: IWebServer = getFromRuntime(this.getWorld().runtime, WEBSERVER);
 
 			try {
-				webserver.addRoute(method, loc, route);
+				webserver.addRoute(method, loc, { description: `e2e test server route ${method.toUpperCase()} ${loc}` }, route);
 			} catch (error) {
 				const err = error instanceof Error ? error : new Error(String(error));
 				this.getWorld().eventLogger.error(`addRoute failed: ${err.message}`);
@@ -171,7 +171,7 @@ class TestServer extends AStepper {
 			try {
 				// Apply dynamic auth middleware that checks scheme at request time
 				webserver.app.use(loc, this.getDynamicAuthMiddleware());
-				webserver.addKnownRoute(method, loc, route);
+				webserver.addKnownRoute(method, loc, { description: `e2e test server auth-protected route ${method.toUpperCase()} ${loc}` }, route);
 			} catch (error) {
 				const err = error instanceof Error ? error : new Error(String(error));
 				this.getWorld().eventLogger.error(`addAuthRoute failed: ${err.message}`);
@@ -403,7 +403,7 @@ class TestServer extends AStepper {
 				const { loc } = args as { loc: string };
 				try {
 					const webserver: IWebServer = getFromRuntime(this.getWorld().runtime, WEBSERVER);
-					webserver.addRoute("post", loc, this.upload);
+					webserver.addRoute("post", loc, { description: `e2e test server upload endpoint at ${loc}` }, this.upload);
 					return actionOK();
 				} catch (error) {
 					const err = error instanceof Error ? error : new Error(String(error));

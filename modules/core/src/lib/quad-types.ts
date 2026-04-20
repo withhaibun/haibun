@@ -51,7 +51,7 @@ export interface TQuadPattern {
 }
 
 /** Emit a quadObservation event via an event logger. Canonical envelope for all quad emissions. */
-export function emitQuadObservation(logger: { emit: (e: Record<string, unknown>) => void }, id: string, quad: Omit<TQuad, "properties">): void {
+export function emitQuadObservation(logger: { emit: (e: Record<string, unknown>) => void }, id: string, quad: TQuad): void {
 	logger.emit({
 		id, timestamp: quad.timestamp, source: "haibun", level: "debug", kind: "artifact", artifactType: "json", mimetype: "application/json",
 		json: { quadObservation: quad },
