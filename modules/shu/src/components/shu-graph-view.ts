@@ -9,7 +9,7 @@
 import { z } from "zod";
 import mermaid from "mermaid";
 import { ShuElement } from "./shu-element.js";
-import { SseClient } from "../sse-client.js";
+import { SseClient, inAction } from "../sse-client.js";
 import { SHU_EVENT } from "../consts.js";
 import { openQuadDetailPane } from "../quad-detail-pane.js";
 import { getEdgeRanges, getEdgeRelMap, getRels } from "../rels-cache.js";
@@ -146,7 +146,7 @@ export class ShuGraphView extends ShuElement<typeof StateSchema> {
 		await getAvailableSteps();
 
 		try {
-			const data = await client.rpc<{ quads: TQuad[] }>("MonitorStepper-getQuads");
+			const data = await inAction((scope) => client.rpc<{ quads: TQuad[] }>(scope, "MonitorStepper-getQuads"));
 			if (data.quads?.length) this.setState({ quads: data.quads });
 		} catch {
 			/* stepper may not be loaded */

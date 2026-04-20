@@ -5,7 +5,7 @@
 import { z } from "zod";
 import { ShuElement } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
-import { SseClient } from "../sse-client.js";
+import { SseClient, inAction } from "../sse-client.js";
 import { esc, truncate } from "../util.js";
 import { getAvailableSteps, requireStep } from "../rpc-registry.js";
 import type { ShuGraphView } from "./shu-graph-view.js";
@@ -76,9 +76,9 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 		try {
 			await getAvailableSteps();
 			const client = SseClient.for("");
-			const data = await client.rpc<{ items: ThreadVertex[]; contextRoot: string }>(
-				requireStep("getRelated"), { label, id, depth: this.state.depth },
-			);
+			const data = await inAction((scope) => client.rpc<{ items: ThreadVertex[]; contextRoot: string }>(
+				scope, requireStep("getRelated"), { label, id, depth: this.state.depth },
+			));
 			this.thread = data.items ?? [];
 			this.setState({ loading: false });
 		} catch (err) {

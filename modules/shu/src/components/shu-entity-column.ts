@@ -13,7 +13,7 @@ import { bindCopyButtons, copyButtonHtml } from "../copy-util.js";
 import { isReplyEdge, Access } from "@haibun/core/lib/resources.js";
 import { EntityColumnSchema } from "../schemas.js";
 import { renderValue } from "./value-renderers.js";
-import { SseClient } from "../sse-client.js";
+import { SseClient, inAction } from "../sse-client.js";
 import { getAvailableSteps, requireStep } from "../rpc-registry.js";
 import { getRelSync, getRels, getEdgeRanges, getEdgeTargetLabel, getSummaryFields, getContentFields } from "../rels-cache.js";
 
@@ -67,11 +67,11 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		try {
 			await getAvailableSteps();
 			const client = SseClient.for("");
-			const data = await client.rpc<{
+			const data = await inAction((scope) => client.rpc<{
 				vertex: VertexData;
 				edges: EdgeData[];
 				incomingCount: number;
-			}>(requireStep("getVertexWithEdges"), { label, id });
+			}>(scope, requireStep("getVertexWithEdges"), { label, id }));
 			this.vertex = data.vertex;
 			this.edges = data.edges ?? [];
 			this.incomingCount = data.incomingCount ?? 0;

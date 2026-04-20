@@ -28,56 +28,57 @@ function nextId(): string {
 }
 
 /**
- * SPA callers have no haibun feature-step seqPath to thread. Commit-5
- * seqPath integrity requires every state-changing RPC to carry one, so
- * the SPA emits synthetic paths rooted on
- * `[SPA_HOST_ID, SPA_SYNTHETIC_FEATURE_NUM, actionSeq, ...]` — same
- * shape as the MCP stepper's synthetic, distinct from any feature-step
- * path (featureNum ≥ 1 for real features; -1 marks non-feature origins).
+ * SPA callers have no haibun feature-step seqPath to thread. The server
+ * allocates one on demand via `session.beginAction`, returning a
+ * globally-unique root that the client extends with monotonic sub-seqs
+ * for every RPC within the action scope. The SPA never invents its own
+ * seqPath, so collisions across page reloads or multiple tabs are
+ * impossible by construction.
  *
- * SPA_HOST_ID is 0 for the browser: a browser session isn't a haibun
- * instance and doesn't participate in multi-host join semantics.
- *
- * Action grouping: a top-level SPA action (e.g. "show graph view") can
- * trigger N sub-RPCs. `inAction` wraps a callback so every RPC inside
- * it shares an action root — observers can group by prefix. RPCs
- * outside any `inAction` wrapper get a fresh root each call.
+ * Type guardrail: `ActionScope` is a branded opaque token constructed
+ * only by `inAction`. `rpc` / `rpcStream` require it as their first
+ * argument, so a caller cannot issue an RPC without entering an action.
+ * Introspection-only methods (`step.list`, `step.validate`,
+ * `session.beginAction` itself) bypass this via `rpcOpen`.
  */
-const SPA_HOST_ID = 0;
-const SPA_SYNTHETIC_FEATURE_NUM = -1;
-let actionSeqCounter = 0;
 
-type ActionCtx = { root: [number, number, number]; subSeq: number };
-let currentAction: ActionCtx | undefined;
+/** Branded opaque token — only `inAction` constructs this. */
+export type ActionScope = {
+	readonly __brand: "ActionScope";
+	readonly root: readonly number[];
+	/** Mutable sub-sequence counter; each RPC within the scope increments and appends. */
+	subSeq: number;
+};
 
-function nextActionRoot(): [number, number, number] {
-	actionSeqCounter += 1;
-	return [SPA_HOST_ID, SPA_SYNTHETIC_FEATURE_NUM, actionSeqCounter];
+function makeScope(root: readonly number[]): ActionScope {
+	return { __brand: "ActionScope", root, subSeq: 0 } as ActionScope;
 }
 
-/** Allocate the next seqPath for an RPC, extending the current action if any. */
-function nextSpaSeqPath(): number[] {
-	if (currentAction) {
-		currentAction.subSeq += 1;
-		return [...currentAction.root, currentAction.subSeq];
-	}
-	return [...nextActionRoot()];
+function nextScopeSeqPath(scope: ActionScope): number[] {
+	scope.subSeq += 1;
+	return [...scope.root, scope.subSeq];
 }
 
 /**
- * Group RPCs fired inside `fn` under a single action root, so downstream
- * observers can associate them. Nested calls share the outermost root
- * (nesting just adds further sub-sequence depth isn't useful here and
- * breaks async-nested code).
+ * Enter an action scope: asks the server to allocate a seqPath root,
+ * then runs `fn` with a scope that extends that root for every RPC.
+ * Nested `inAction` calls reuse the outer scope (flattened) so
+ * programmatic composition doesn't deepen the path unnecessarily.
  */
-export async function inAction<T>(fn: () => Promise<T>): Promise<T> {
-	if (currentAction) return fn();
-	const root = nextActionRoot();
-	currentAction = { root, subSeq: 0 };
+let currentScope: ActionScope | undefined;
+
+export async function inAction<T>(fn: (scope: ActionScope) => Promise<T>): Promise<T> {
+	if (currentScope) return fn(currentScope);
+	const { seqPath } = await SseClient.for("").rpcOpen<{ seqPath: number[] }>("session.beginAction", {});
+	if (!Array.isArray(seqPath) || seqPath.length === 0) {
+		throw new Error("session.beginAction returned no seqPath");
+	}
+	const scope = makeScope(seqPath);
+	currentScope = scope;
 	try {
-		return await fn();
+		return await fn(scope);
 	} finally {
-		currentAction = undefined;
+		currentScope = undefined;
 	}
 }
 
@@ -162,10 +163,9 @@ export class SseClient {
 	}
 
 	/** Single request/response RPC call. In offline mode, returns cached response or throws OfflineError. */
-	async rpc<T = unknown>(method: string, params: Record<string, unknown> = {}): Promise<T> {
+	async rpc<T = unknown>(scope: ActionScope, method: string, params: Record<string, unknown> = {}): Promise<T> {
 		const key = cacheKey(method, params);
 		if (ShuElement.offline) {
-			// Exact match first, then method-only match (server caches without params)
 			if (cacheHas(key)) return cacheGet(key) as T;
 			if (cacheHas(method)) return cacheGet(method) as T;
 			throw new OfflineError(method);
@@ -174,7 +174,31 @@ export class SseClient {
 		const res = await fetch(`${this.basePath}/rpc/${method}`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ jsonrpc: "2.0", id, method, params, seqPath: nextSpaSeqPath() }),
+			body: JSON.stringify({ jsonrpc: "2.0", id, method, params, seqPath: nextScopeSeqPath(scope) }),
+		});
+		const data = await res.json();
+		if (!res.ok || data.error) throw new Error(data.error || `RPC failed: ${res.status}`);
+		cacheSet(key, data);
+		return data as T;
+	}
+
+	/**
+	 * Open RPC: for introspection / session-bootstrap methods that produce
+	 * no observations and cannot require a seqPath (including
+	 * `session.beginAction` itself). Server enforces the allowlist.
+	 */
+	async rpcOpen<T = unknown>(method: string, params: Record<string, unknown> = {}): Promise<T> {
+		const key = cacheKey(method, params);
+		if (ShuElement.offline) {
+			if (cacheHas(key)) return cacheGet(key) as T;
+			if (cacheHas(method)) return cacheGet(method) as T;
+			throw new OfflineError(method);
+		}
+		const id = nextId();
+		const res = await fetch(`${this.basePath}/rpc/${method}`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ jsonrpc: "2.0", id, method, params }),
 		});
 		const data = await res.json();
 		if (!res.ok || data.error) throw new Error(data.error || `RPC failed: ${res.status}`);
@@ -183,12 +207,12 @@ export class SseClient {
 	}
 
 	/** Streaming RPC call. Throws in standalone mode (no server). */
-	async rpcStream(method: string, params: Record<string, unknown>, onChunk: (data: unknown) => void, signal?: AbortSignal): Promise<void> {
+	async rpcStream(scope: ActionScope, method: string, params: Record<string, unknown>, onChunk: (data: unknown) => void, signal?: AbortSignal): Promise<void> {
 		const id = nextId();
 		const res = await fetch(`${this.basePath}/rpc/${method}`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ jsonrpc: "2.0", id, method, params, seqPath: nextSpaSeqPath(), stream: true }),
+			body: JSON.stringify({ jsonrpc: "2.0", id, method, params, seqPath: nextScopeSeqPath(scope), stream: true }),
 			signal,
 		});
 		if (!res.ok) throw new Error(`RPC stream failed: ${res.status}`);

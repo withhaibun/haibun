@@ -243,6 +243,44 @@ capture step list at "http://localhost:${port + 10}/rpc/step.list"
 		expect(Array.isArray((capturedStepList as { steps: unknown }).steps)).toBe(true);
 	});
 
+	it("session.beginAction allocates a unique seqPath root per call", async () => {
+		const port = 8240;
+		let first: number[] | undefined;
+		let second: number[] | undefined;
+
+		class BeginActionStepper extends AStepper {
+			steps = {
+				callBeginActionTwice: {
+					gwta: "begin action twice at {url}",
+					action: async ({ url }: { url: string }) => {
+						const u = String(url);
+						const body = JSON.stringify({ jsonrpc: "2.0", id: "1", method: "session.beginAction", params: {} });
+						const headers = { "Content-Type": "application/json" };
+						const r1 = (await (await fetch(u, { method: "POST", headers, body })).json()) as Record<string, unknown>;
+						const r2 = (await (await fetch(u, { method: "POST", headers, body })).json()) as Record<string, unknown>;
+						first = Array.isArray(r1.seqPath) ? (r1.seqPath as number[]) : undefined;
+						second = Array.isArray(r2.seqPath) ? (r2.seqPath as number[]) : undefined;
+						return OK;
+					},
+				},
+			};
+		}
+
+		const feature = {
+			path: "/features/begin-action.feature",
+			content: `
+enable rpc
+webserver is listening for "rpc-begin-action"
+begin action twice at "http://localhost:${port}/rpc/session.beginAction"
+`,
+		};
+		const r = await passWithDefaults([feature], [WebServerStepper, PingStepper, BeginActionStepper], makeOptions(port));
+		expect(r.ok).toBe(true);
+		if (!first || !second) throw new Error("begin action did not return seqPaths");
+		expect(first.length).toBeGreaterThan(0);
+		expect(first.join(".")).not.toBe(second.join("."));
+	});
+
 	it("refuses state-changing RPC calls that omit seqPath", async () => {
 		const port = 8238;
 		let errorFromMissingSeqPath: string | undefined;

@@ -9,7 +9,7 @@ import MarkdownIt from "markdown-it";
 import DOMPurify from "dompurify";
 import { ShuElement, TIME_SYNC_CLASS } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
-import { SseClient } from "../sse-client.js";
+import { SseClient, inAction } from "../sse-client.js";
 import type { ShuTimeline } from "./shu-timeline.js";
 import { buildArtifactIndex, generateDocumentMarkdown } from "@haibun/core/lib/document-content.js";
 import "./shu-artifact-frame.js";
@@ -44,7 +44,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		super.connectedCallback();
 		const client = SseClient.for("");
 		try {
-			const data = await client.rpc<{ events: Array<Record<string, unknown>> }>("MonitorStepper-getEvents");
+			const data = await inAction((scope) => client.rpc<{ events: Array<Record<string, unknown>> }>(scope, "MonitorStepper-getEvents"));
 			if (data.events) {
 				for (const e of data.events) this.addEvent(e);
 				this.renderFull();

@@ -10,6 +10,7 @@ import { LinkRelations } from "@haibun/core/lib/resources.js";
 import { objectCoercer } from "@haibun/core/lib/domains.js";
 
 import { type IWebServer, WEBSERVER, DOMAIN_ENDPOINT, EndpointLabels, EndpointSchema } from "./defs.js";
+import { resolveHostId, syntheticSeqPath } from "@haibun/core/lib/host-id.js";
 import { getGrantedCapabilityFromHeaders, validateCapabilityAuthConfig } from "./capability-auth.js";
 import { ServerHono, DEFAULT_PORT } from "./server-hono.js";
 import { SSETransport, TRANSPORT, type ITransport } from "./sse-transport.js";
@@ -94,6 +95,20 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 	hostname?: string;
 	rpcAccessToken?: string;
 	rpcAccessCapability?: string;
+
+	/** Monotonic counter for session-allocated seqPath roots. Never resets while process runs. */
+	private sessionActionSeq = 0;
+
+	/**
+	 * Allocate a new seqPath root for a client session action. Uses this
+	 * host's hostId + SYNTHETIC_FEATURE_NUM so session paths sort
+	 * distinctly from feature paths and remain globally unique across
+	 * client reloads (counter is process-lifetime).
+	 */
+	private allocateSessionSeqPath(): number[] {
+		this.sessionActionSeq += 1;
+		return syntheticSeqPath(resolveHostId(), this.sessionActionSeq);
+	}
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
@@ -213,6 +228,14 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 						return result;
 					}
 					if (method === "step.validate") return validateStep(String(params.text || ""), this.steppers);
+
+					// Session bootstrap: client asks for a globally-unique seqPath
+					// root before issuing any state-changing RPC. Returns the
+					// root; client appends monotonic sub-seqs for each call
+					// within the action scope.
+					if (method === "session.beginAction") {
+						return { seqPath: this.allocateSessionSeqPath() };
+					}
 
 					if (!msg.seqPath || msg.seqPath.length === 0) {
 						return { error: `${method}: missing seqPath — RPC dispatches must thread the caller's seqPath` };

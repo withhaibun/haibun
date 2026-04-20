@@ -9,7 +9,7 @@ import { SHU_EVENT } from "../consts.js";
 import { FilterColumnSchema } from "../schemas.js";
 import { Access } from "@haibun/core/lib/resources.js";
 import { errMsg } from "../util.js";
-import { SseClient } from "../sse-client.js";
+import { SseClient, inAction } from "../sse-client.js";
 import { getAvailableSteps, requireStep } from "../rpc-registry.js";
 import type { ShuResultTable } from "./shu-result-table.js";
 import type { ShuSpinner } from "./shu-spinner.js";
@@ -84,10 +84,10 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 		try {
 			await getAvailableSteps();
 			const client = SseClient.for("");
-			const data = await client.rpc<{
+			const data = await inAction((scope) => client.rpc<{
 				edges: Array<{ type: string; target: VertexData }>;
 				total: number;
-			}>(requireStep("getIncomingEdges"), { label, id, limit, offset });
+			}>(scope, requireStep("getIncomingEdges"), { label, id, limit, offset }));
 			this.results = data.edges.map((e) => e.target);
 			this.state = { ...this.state, loading: false };
 			this.showResults();
@@ -103,7 +103,7 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 		try {
 			await getAvailableSteps();
 			const client = SseClient.for("");
-			const data = await client.rpc<{ vertices: VertexData[]; total: number }>(requireStep("graphQuery"), { query });
+			const data = await inAction((scope) => client.rpc<{ vertices: VertexData[]; total: number }>(scope, requireStep("graphQuery"), { query }));
 			this.results = data.vertices ?? [];
 			this.state = { ...this.state, loading: false };
 			this.showResults();

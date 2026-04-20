@@ -13,7 +13,7 @@ import { ActionsBarSchema, SEARCH_OPERATORS, type TSearchCondition, parseFilterP
 import { Access, AccessQueryLevelSchema } from "@haibun/core/lib/resources.js";
 import { SHARED_STYLES } from "./styles.js";
 import { errMsg } from "../util.js";
-import { SseClient } from "../sse-client.js";
+import { SseClient, inAction } from "../sse-client.js";
 import { buildDomainOptions, findStep, getAvailableDomains, getAvailableSteps, requireStep, stepsForContext, type DomainOption } from "../rpc-registry.js";
 import { getProperties, getSelectValues, hasSelectValues, setSelectValues } from "../rels-cache.js";
 import type { ShuSpinner } from "./shu-spinner.js";
@@ -228,9 +228,9 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		try {
 			await getAvailableSteps();
 			const client = SseClient.for("");
-			const data = await client.rpc<{
+			const data = await inAction((scope) => client.rpc<{
 				models: Array<{ filename: string; contextSize: number }>;
-			}>(requireStep("showModels"));
+			}>(scope, requireStep("showModels")));
 			if (data.models) {
 				this._models = data.models;
 				if (this._models.length > 0 && !this._selectedModel) {
@@ -310,7 +310,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		const step = findStep("getSelectValues");
 		if (!step) return;
 		const client = SseClient.for("");
-		const data = await client.rpc<{ values: Record<string, string[]> }>(step.method, { label: target });
+		const data = await inAction((scope) => client.rpc<{ values: Record<string, string[]> }>(scope, step.method, { label: target }));
 		if (data.values) setSelectValues(target, data.values);
 		this.render();
 	}
@@ -752,9 +752,11 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 
 		let textDiv: HTMLDivElement | null = null;
 
+		const abortSignal = this._abortController.signal;
 		try {
 			const client = SseClient.for("");
-			await client.rpcStream(
+			await inAction((scope) => client.rpcStream(
+				scope,
 				requireStep("chatWithContext"),
 				{
 					prompt,
@@ -792,8 +794,8 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 						aiContent.appendChild(errEl);
 					}
 				},
-				this._abortController.signal,
-			);
+				abortSignal,
+			));
 			if (this._fullText) {
 				const sb = this.shadowRoot?.querySelector(".save-btn") as HTMLElement | null;
 				if (sb) sb.style.display = "";
@@ -832,7 +834,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 
 		try {
 			const client = SseClient.for("");
-			await client.rpc(requireStep("saveSummary"), {
+			await inAction((scope) => client.rpc(scope, requireStep("saveSummary"), {
 				topic: this._lastPrompt.slice(0, 80),
 				content: this._fullText,
 				prompt: this._lastPrompt,
@@ -842,7 +844,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 					textQuery: this._textSearch,
 				},
 				accessLevel: this._contextAccessLevel || Access.private,
-			});
+			}));
 
 			if (saveBtn) {
 				saveBtn.textContent = "Saved";

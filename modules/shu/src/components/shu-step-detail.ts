@@ -7,7 +7,7 @@
  */
 import { z } from "zod";
 import { ShuElement } from "./shu-element.js";
-import { SseClient } from "../sse-client.js";
+import { SseClient, inAction } from "../sse-client.js";
 import { SHU_EVENT } from "../consts.js";
 import { getRels } from "../rels-cache.js";
 import { openQuadDetailPane, escHtml } from "../quad-detail-pane.js";
@@ -59,29 +59,27 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 		const seqKey = seqPath.join(".");
 
 		try {
-			// Fetch step lifecycle event
-			const eventsData = await client.rpc<{ events: Array<Record<string, unknown>> }>("MonitorStepper-getEvents", {
-				kind: "lifecycle",
+			const { eventsData, tracesData, quadsData } = await inAction(async (scope) => {
+				const eventsData = await client.rpc<{ events: Array<Record<string, unknown>> }>(scope, "MonitorStepper-getEvents", {
+					kind: "lifecycle",
+				});
+				const tracesData = await client.rpc<{ traces: Array<Record<string, unknown>> }>(scope, "MonitorStepper-getDispatchTraces");
+				const quadsData = await client.rpc<{
+					quads: Array<{
+						subject: string;
+						predicate: string;
+						object: unknown;
+						namedGraph: string;
+						timestamp: number;
+						properties?: Record<string, unknown>;
+					}>;
+				}>(scope, "MonitorStepper-getQuads");
+				return { eventsData, tracesData, quadsData };
 			});
 			const stepEvent =
 				eventsData.events?.find((e) => e.stage === "end" && e.status === "completed" && Array.isArray(e.seqPath) && (e.seqPath as number[]).join(".") === seqKey) ??
 				eventsData.events?.find((e) => e.stage === "end" && Array.isArray(e.seqPath) && (e.seqPath as number[]).join(".") === seqKey);
-
-			// Fetch dispatch trace
-			const tracesData = await client.rpc<{ traces: Array<Record<string, unknown>> }>("MonitorStepper-getDispatchTraces");
 			const trace = tracesData.traces?.find((t) => Array.isArray(t.seqPath) && (t.seqPath as number[]).join(".") === seqKey);
-
-			// Fetch quads whose provenance includes this seqPath
-			const quadsData = await client.rpc<{
-				quads: Array<{
-					subject: string;
-					predicate: string;
-					object: unknown;
-					namedGraph: string;
-					timestamp: number;
-					properties?: Record<string, unknown>;
-				}>;
-			}>("MonitorStepper-getQuads");
 			const variablesSet = (quadsData.quads ?? [])
 				.filter((q) => {
 					const prov = q.properties?.provenance;
