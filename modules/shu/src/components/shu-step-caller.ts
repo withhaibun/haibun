@@ -1,5 +1,5 @@
 import { SHARED_STYLES } from "./styles.js";
-import { SseClient } from "../sse-client.js";
+import { SseClient, inAction } from "../sse-client.js";
 import { getAvailableSteps, findStep, type StepDescriptor } from "../rpc-registry.js";
 import { VIEW_EVENTS } from "../consts.js";
 import { renderValue } from "./value-renderers.js";
@@ -108,7 +108,8 @@ export class StepCaller extends HTMLElement {
 		const client = SseClient.for("");
 
 		try {
-			this.result = await client.rpc(this.descriptor.method, params);
+			const method = this.descriptor.method;
+			this.result = await inAction((scope) => client.rpc(scope, method, params));
 			// If products contain a view, open the corresponding column
 			const view = (this.result as Record<string, unknown>)?.view;
 			if (typeof view === "string" && VIEW_EVENTS[view]) {

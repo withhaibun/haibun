@@ -9,7 +9,7 @@ import { esc, escAttr, truncate, errMsg, vertexId, vertexLabel, HIDDEN_PROPS, re
 import { bindCopyButtons, copyButtonHtml } from "../copy-util.js";
 import { renderValue } from "./value-renderers.js";
 import { queryUriToPayload } from "../query-uri.js";
-import { SseClient } from "../sse-client.js";
+import { SseClient, inAction } from "../sse-client.js";
 import { getAvailableSteps, requireStep, findStep } from "../rpc-registry.js";
 import { getRels, getRelSync, getContentFields, getSummaryFields } from "../rels-cache.js";
 import { defaultLabel } from "../util.js";
@@ -78,7 +78,7 @@ export class ShuColumnBrowser extends HTMLElement {
 				this.render();
 				return;
 			}
-			const data = await client.rpc<{ vertex: VertexData; edges: EdgeData[] }>(stepDesc.method, { id });
+			const data = await inAction((scope) => client.rpc<{ vertex: VertexData; edges: EdgeData[] }>(scope, stepDesc.method, { id }));
 			this.columns[colIndex] = {
 				label: id,
 				vertexLabel,
@@ -118,7 +118,7 @@ export class ShuColumnBrowser extends HTMLElement {
 		const colIndex = this.columns.length - 1;
 		try {
 			const client = SseClient.for("");
-			const data = await client.rpc<{ vertices: VertexData[]; total: number }>(requireStep("graphQuery"), { query: payload });
+			const data = await inAction((scope) => client.rpc<{ vertices: VertexData[]; total: number }>(scope, requireStep("graphQuery"), { query: payload }));
 			this.columns[colIndex] = { label, results: data.vertices, query };
 			this.render();
 		} catch (err) {
@@ -136,7 +136,7 @@ export class ShuColumnBrowser extends HTMLElement {
 		try {
 			await getAvailableSteps();
 			const client = SseClient.for("");
-			const data = await client.rpc<{ vertices: VertexData[]; total: number }>(requireStep("graphQuery"), {
+			const data = await inAction((scope) => client.rpc<{ vertices: VertexData[]; total: number }>(scope, requireStep("graphQuery"), {
 				query: {
 					label,
 					filters: [{ property, operator: "eq", value }],
@@ -146,7 +146,7 @@ export class ShuColumnBrowser extends HTMLElement {
 					offset: 0,
 					accessLevel: Access.private,
 				},
-			});
+			}));
 			this.columns[colIndex] = {
 				label: colLabel,
 				vertexLabel: label,
@@ -169,7 +169,7 @@ export class ShuColumnBrowser extends HTMLElement {
 		try {
 			await getAvailableSteps();
 			const client = SseClient.for("");
-			const data = await client.rpc<{ vertices: VertexData[]; total: number }>(requireStep("graphQuery"), {
+			const data = await inAction((scope) => client.rpc<{ vertices: VertexData[]; total: number }>(scope, requireStep("graphQuery"), {
 				query: {
 					label,
 					filters: [],
@@ -179,7 +179,7 @@ export class ShuColumnBrowser extends HTMLElement {
 					offset: 0,
 					accessLevel: Access.private,
 				},
-			});
+			}));
 			this.columns[colIndex] = {
 				label: colLabel,
 				vertexLabel: label,

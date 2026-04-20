@@ -167,7 +167,7 @@ export function getHydratedViewHash(): string {
 
 async function discover(): Promise<StepListResponse> {
 	const client = SseClient.for("");
-	const result = await client.rpc<unknown>("step.list");
+	const result = await client.rpcOpen<unknown>("step.list");
 	const parsed: StepListResponse = StepListResponseSchema.parse(result);
 	const { steps, domains, concerns } = parsed;
 	setConcernCatalog(concerns);

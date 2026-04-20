@@ -11,7 +11,7 @@ import { SHARED_STYLES } from "./styles.js";
 import { esc, errMsg, setIdFields } from "../util.js";
 import { setSiteMetadata, getConcernDerivedMetadata } from "../rels-cache.js";
 import type { ShuResultTable } from "./shu-result-table.js";
-import { SseClient } from "../sse-client.js";
+import { SseClient, inAction } from "../sse-client.js";
 import { getAvailableSteps, getAvailableDomains, findStep, requireStep } from "../rpc-registry.js";
 
 type ConditionRow = TSearchCondition;
@@ -196,7 +196,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		const step = findStep("getSiteMetadata");
 		if (step) {
 			const client = SseClient.for("");
-			const serverMeta = await client.rpc<import("../rels-cache.js").SiteMetadata>(step.method);
+			const serverMeta = await inAction((scope) => client.rpc<import("../rels-cache.js").SiteMetadata>(scope, step.method));
 			Object.assign(derivedMeta, serverMeta);
 		}
 		setSiteMetadata(derivedMeta);
@@ -243,13 +243,13 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 			};
 			const client = SseClient.for("");
 			const method = requireStep("graphQuery");
-			const data = await client.rpc<{
+			const data = await inAction((scope) => client.rpc<{
 				vertices: VertexRow[];
 				total: number;
 				cypher: string;
-			}>(method, {
+			}>(scope, method, {
 				query: payload,
-			});
+			}));
 
 			this.results = data.vertices ?? [];
 			this.total = data.total ?? this.results.length;

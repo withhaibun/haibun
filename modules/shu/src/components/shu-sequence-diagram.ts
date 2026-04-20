@@ -9,7 +9,7 @@
 import { z } from "zod";
 import mermaid from "mermaid";
 import { ShuElement } from "./shu-element.js";
-import { SseClient } from "../sse-client.js";
+import { SseClient, inAction } from "../sse-client.js";
 import { TIME_SYNC_STYLE } from "../time-sync.js";
 
 let mermaidInitialized = false;
@@ -109,7 +109,7 @@ export class ShuSequenceDiagram extends ShuElement<typeof StateSchema> {
 
 		// One-time backfill from stepper
 		try {
-			const data = await client.rpc<{ traces: TDispatchTrace[] }>("MonitorStepper-getDispatchTraces");
+			const data = await inAction((scope) => client.rpc<{ traces: TDispatchTrace[] }>(scope, "MonitorStepper-getDispatchTraces"));
 			if (data.traces?.length) {
 				const parsed = data.traces
 					.map((t) => DispatchTrace.safeParse(t))
