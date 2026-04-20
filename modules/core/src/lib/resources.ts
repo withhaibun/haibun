@@ -85,22 +85,70 @@ export const COMMENT_EDGE = "commentsOn";
 /**
  * Link relation types — the canonical set of semantic rels for vertex properties and edges.
  * Declaration order determines column display priority in result tables.
- * `relation: true` marks rels that form conversational/threading links (used by getRelated, View relations).
+ *
+ * `range` is the RDF range of the predicate — what it points at:
+ *   - "iri":       points at another resource (an IRI / vertex id). Renders as a navigable item.
+ *   - "literal":   points at a literal value (string, number, date). Renders as a filter.
+ *   - "container": points at a multi-valued structure (bag, list, or nested context).
+ *                  Renders as a select/select-like control.
+ *
+ * This is a deliberately small subset of RDFS — no reasoner, no subPropertyOf, just enough
+ * to let `linkRelFromSemantic` be a one-line lookup instead of a growing if/else chain.
+ *
+ * `relation` (legacy, retained for back-compat) is true iff `range === "iri"` AND the link
+ * participates in conversational/threading semantics (used by getRelated and View relations).
+ * Not every IRI-range rel is a "relation" in this sense — e.g. `attributedTo` is IRI-ranged
+ * but not a conversational link.
  */
+export type TRelRange = "iri" | "literal" | "container";
+
 export const LinkRelations = {
-	NAME: { rel: "name", uri: "as:name", relation: false },
-	PUBLISHED: { rel: "published", uri: "as:published", relation: false },
-	ATTRIBUTED_TO: { rel: "attributedTo", uri: "as:attributedTo", relation: false },
-	AUDIENCE: { rel: "audience", uri: "as:to", relation: false },
-	CONTEXT: { rel: "context", uri: "as:context", relation: false },
-	UPDATED: { rel: "updated", uri: "as:updated", relation: false },
-	CONTENT: { rel: "content", uri: "as:content", relation: false },
-	IN_REPLY_TO: { rel: "inReplyTo", uri: "as:inReplyTo", relation: true },
-	ATTACHMENT: { rel: "attachment", uri: "as:attachment", relation: false },
-	TAG: { rel: "tag", uri: "as:tag", relation: false },
-	IDENTIFIER: { rel: "identifier", uri: "dcterms:identifier", relation: false },
-	URL: { rel: "url", uri: "as:url", relation: false },
+	NAME: { rel: "name", uri: "as:name", range: "literal", relation: false },
+	PUBLISHED: { rel: "published", uri: "as:published", range: "literal", relation: false },
+	ATTRIBUTED_TO: { rel: "attributedTo", uri: "as:attributedTo", range: "iri", relation: false },
+	AUDIENCE: { rel: "audience", uri: "as:to", range: "iri", relation: false },
+	CONTEXT: { rel: "context", uri: "as:context", range: "container", relation: false },
+	UPDATED: { rel: "updated", uri: "as:updated", range: "literal", relation: false },
+	CONTENT: { rel: "content", uri: "as:content", range: "literal", relation: false },
+	IN_REPLY_TO: { rel: "inReplyTo", uri: "as:inReplyTo", range: "iri", relation: true },
+	ATTACHMENT: { rel: "attachment", uri: "as:attachment", range: "iri", relation: false },
+	TAG: { rel: "tag", uri: "as:tag", range: "literal", relation: false },
+	IDENTIFIER: { rel: "identifier", uri: "dcterms:identifier", range: "iri", relation: false },
+	URL: { rel: "url", uri: "as:url", range: "literal", relation: false },
+	// PROV-O — provenance and lineage
+	WAS_INFORMED_BY: { rel: "wasInformedBy", uri: "prov:wasInformedBy", range: "iri", relation: true },
+	INVALIDATED: { rel: "invalidated", uri: "prov:invalidated", range: "iri", relation: true },
+	WAS_ASSOCIATED_WITH: { rel: "wasAssociatedWith", uri: "prov:wasAssociatedWith", range: "iri", relation: false },
+	WAS_STARTED_BY: { rel: "wasStartedBy", uri: "prov:wasStartedBy", range: "iri", relation: true },
+	STARTED_AT_TIME: { rel: "startedAtTime", uri: "prov:startedAtTime", range: "literal", relation: false },
+	// SOSA / W3C SSN — observation and sensing
+	PHENOMENON_TIME: { rel: "phenomenonTime", uri: "sosa:phenomenonTime", range: "literal", relation: false },
+	RESULT_TIME: { rel: "resultTime", uri: "sosa:resultTime", range: "literal", relation: false },
+	HAS_RESULT: { rel: "hasResult", uri: "sosa:hasResult", range: "container", relation: false },
+	MADE_BY_SENSOR: { rel: "madeBySensor", uri: "sosa:madeBySensor", range: "iri", relation: true },
+	OBSERVED_PROPERTY: { rel: "observedProperty", uri: "sosa:observedProperty", range: "literal", relation: false },
+	// schema.org — action outcomes
+	SCHEMA_OBJECT: { rel: "schemaObject", uri: "schema:object", range: "literal", relation: false },
+	SCHEMA_RESULT: { rel: "schemaResult", uri: "schema:result", range: "literal", relation: false },
+	REPLACEE: { rel: "replacee", uri: "schema:replacee", range: "literal", relation: false },
+	REPLACEMENT: { rel: "replacement", uri: "schema:replacement", range: "literal", relation: false },
+	// Haibun native — no existing vocabulary mapping
+	DISCOURSE: { rel: "discourse", uri: "hbn:discourse", range: "literal", relation: false },
+	SEQ_PATH: { rel: "seqPath", uri: "hbn:seqPath", range: "literal", relation: false },
+	HOST_ID: { rel: "hostId", uri: "hbn:hostId", range: "literal", relation: false },
+	ACCESS_LEVEL: { rel: "accessLevel", uri: "hbn:accessLevel", range: "literal", relation: false },
+	MEASUREMENT_KIND: { rel: "measurementKind", uri: "hbn:measurementKind", range: "literal", relation: false },
+	SHAPE_DIGEST: { rel: "shapeDigest", uri: "hbn:shapeDigest", range: "container", relation: false },
+	OUTCOME_REASON: { rel: "outcomeReason", uri: "hbn:outcomeReason", range: "literal", relation: false },
 } as const;
+
+/** Lookup a rel's RDF range. Returns undefined for unknown rels. */
+export function getRelRange(rel: string): TRelRange | undefined {
+	for (const entry of Object.values(LinkRelations)) {
+		if (entry.rel === rel) return entry.range;
+	}
+	return undefined;
+}
 
 export type TRel = (typeof LinkRelations)[keyof typeof LinkRelations]["rel"];
 
@@ -124,6 +172,9 @@ export const EdgePredicates = {
 	references: { rel: LinkRelations.CONTEXT.rel },
 	commentsOn: { rel: LinkRelations.IN_REPLY_TO.rel },
 	endpoint: { rel: LinkRelations.URL.rel },
+	wasInformedBy: { rel: LinkRelations.WAS_INFORMED_BY.rel },
+	invalidated: { rel: LinkRelations.INVALIDATED.rel },
+	madeBySensor: { rel: LinkRelations.MADE_BY_SENSOR.rel },
 } as const;
 
 export type TEdgePredicate = keyof typeof EdgePredicates;
