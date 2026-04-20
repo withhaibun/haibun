@@ -16,8 +16,9 @@ describe("workspace", () => {
 const rel = (pat: string) => pat.replace(`${TFileSystemJs.workspaceRoot}/`, "");
 
 describe("getModuleLocation", () => {
-	it("finds step module location", () => {
-		expect(rel(TFileSystemJs.getModuleLocation("test"))).toBe("../../steps/test");
+	it("resolves a bare core stepper name to modules/core/(build|src)/steps", () => {
+		const resolved = rel(TFileSystemJs.getModuleLocation("test"));
+		expect(resolved === "modules/core/build/steps/test" || resolved === "modules/core/src/steps/test").toBe(true);
 	});
 	it("finds module location for relative path", () => {
 		expect(rel(TFileSystemJs.getModuleLocation("./src/test.js"))).toBe("src/test.js");

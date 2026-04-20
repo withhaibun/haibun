@@ -1,6 +1,7 @@
 import { describe, it, test, expect, vi } from "vitest";
 
 import * as util from "./index.js";
+import { checkModuleIsClass } from "./node/module-loader.js";
 import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, getCreateSteppers } from "../test/lib.js";
 import TestSteps from "../test/TestSteps.js";
 import TestStepsWithOptions from "../test/TestStepsWithOptions.js";
@@ -214,12 +215,12 @@ describe("getType", () => {
 
 describe("check module is class", () => {
 	it("should pass a class", () => {
-		expect(util.checkModuleIsClass(class a {}, "a")).toEqual(undefined);
+		expect(checkModuleIsClass(class a {}, "a")).toEqual(undefined);
 	});
 	it("should fail a function", () => {
 		// biome-disable-next-line @typescript-eslint/no-empty-function
 		expect(() =>
-			util.checkModuleIsClass(function a() {
+			checkModuleIsClass(function a() {
 				/* */
 			}, "a"),
 		).toThrow(undefined);
