@@ -8,6 +8,8 @@ export const StepperKinds = {
 	BROWSER: "BROWSER",
 	SERVER: "SERVER",
 	TEST: "TEST",
+	/** LLM provider — exposes `ask(prompt, opts?): Promise<string>`. */
+	LLM: "LLM",
 } as const;
 
 export type TStepperKind = keyof typeof StepperKinds;
