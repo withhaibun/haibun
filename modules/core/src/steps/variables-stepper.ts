@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { TRegisteredDomain, TDomainDefinition, LinkRelations, DOMAIN_VERTEX_LABEL, RESOURCE_LABEL, COMMENT_LABEL, COMMENT_DOMAIN, COMMENT_EDGE } from "../lib/resources.js";
-import { TFeatureStep, TWorld, IStepperCycles, TStartScenario, type TVertexResult } from "../lib/execution.js";
+import { TRegisteredDomain, TDomainDefinition } from "../lib/resources.js";
+import { TFeatureStep, TWorld, IStepperCycles, TStartScenario } from "../lib/execution.js";
 import { OK, TStepArgs, Origin, TProvenanceIdentifier, TOrigin, TActionResult } from "../schema/protocol.js";
 import { TAnyFixme } from "../lib/fixme.js";
 import { AStepper, IHasCycles, TStepperSteps } from "../lib/astepper.js";
@@ -16,33 +16,11 @@ import {
 	registerDomains,
 } from "../lib/domains.js";
 
-const CommentSchema = z.object({ id: z.string(), text: z.string(), author: z.string().optional(), timestamp: z.string() });
-
 const clearVars = (vars: VariablesStepper) => async () => {
 	await vars.getWorld().shared.getStore().clear();
 };
 
 const cycles = (variablesStepper: VariablesStepper): IStepperCycles => ({
-	getConcerns: () => ({
-		domains: [
-			{
-				selectors: [COMMENT_DOMAIN],
-				schema: CommentSchema,
-				description: "Comment",
-				topology: {
-					vertexLabel: COMMENT_LABEL,
-					id: "id",
-					properties: {
-						id: LinkRelations.IDENTIFIER.rel,
-						text: { rel: LinkRelations.CONTENT.rel, mediaType: "text/markdown" },
-						author: LinkRelations.ATTRIBUTED_TO.rel,
-						timestamp: LinkRelations.PUBLISHED.rel,
-					},
-					edges: { [COMMENT_EDGE]: { rel: LinkRelations.IN_REPLY_TO.rel, range: RESOURCE_LABEL } },
-				},
-			} satisfies TDomainDefinition,
-		],
-	}),
 	startFeature: clearVars(variablesStepper),
 	startScenario: async ({ scopedVars }: TStartScenario) => {
 		variablesStepper.getWorld().shared = new FeatureVariables(variablesStepper.getWorld(), { ...(await scopedVars.all()) });
@@ -561,64 +539,6 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				const isMatch = regex.test(actualValue);
 
 				return isMatch ? OK : actionNotOK(`"${actualValue}" does not match pattern "${actualPattern}"`);
-			},
-		},
-		// --- Comments & Related ---
-		comment: {
-			gwta: `comment on {label: ${DOMAIN_VERTEX_LABEL}} {id: string} with {text: string}`,
-			outputSchema: z.object({ commentId: z.string() }),
-			action: async ({ label, id, text }: { label: string; id: string; text: string }) => {
-				const store = this.getWorld().shared.getStore();
-				const commentId = crypto.randomUUID();
-				await store.upsertVertex(COMMENT_LABEL, { id: commentId, text, timestamp: new Date().toISOString() });
-				const targetContext = await store.query({ subject: id, predicate: LinkRelations.CONTEXT.rel });
-				const contextRoot = targetContext.length > 0 ? String(targetContext[0].object) : id;
-				await store.add({ subject: commentId, predicate: LinkRelations.IN_REPLY_TO.rel, object: id, namedGraph: label });
-				await store.add({
-					subject: commentId,
-					predicate: LinkRelations.CONTEXT.rel,
-					object: contextRoot,
-					namedGraph: COMMENT_LABEL,
-				});
-				if (targetContext.length === 0) {
-					await store.add({ subject: id, predicate: LinkRelations.CONTEXT.rel, object: id, namedGraph: label });
-				}
-				return actionOKWithProducts({ commentId, contextRoot });
-			},
-		},
-		getRelated: {
-			gwta: `get related for {label: ${DOMAIN_VERTEX_LABEL}} {id: string}`,
-			outputSchema: z.object({ items: z.array(z.unknown()), contextRoot: z.string() }),
-			action: async ({ label, id }: { label: string; id: string }) => {
-				const store = this.getWorld().shared.getStore();
-				// Find context root for this vertex
-				const contextQuads = await store.query({ subject: id, predicate: LinkRelations.CONTEXT.rel });
-				const contextRoot = contextQuads.length > 0 ? String(contextQuads[0].object) : id;
-				const contextMembers = await store.query({ predicate: LinkRelations.CONTEXT.rel, object: contextRoot });
-				const idLabelMap = new Map<string, string>();
-				for (const q of contextMembers) idLabelMap.set(String(q.subject), q.namedGraph);
-				if (!idLabelMap.has(contextRoot)) idLabelMap.set(contextRoot, label);
-				const items: TVertexResult[] = [];
-				for (const [vid, vlabel] of idLabelMap) {
-					const vertex =
-						(await store.getVertex(vlabel, vid)) ??
-						(await store.getVertex(COMMENT_LABEL, vid)) ??
-						(await store.getVertex(label, vid));
-					if (vertex) {
-						const outgoing = await store.query({ subject: vid });
-						const edges = outgoing
-							.filter((q) => q.predicate !== LinkRelations.CONTEXT.rel)
-							.map((q) => ({ type: q.predicate, targetId: String(q.object) }));
-						const replyTo = edges.find((e) => e.type === LinkRelations.IN_REPLY_TO.rel);
-						items.push({ ...(vertex as Record<string, unknown>), _id: vid, _inReplyTo: replyTo?.targetId, _edges: edges });
-					}
-				}
-				items.sort((a, b) => {
-					const dateA = String(a.timestamp ?? a.dateSent ?? a.published ?? "");
-					const dateB = String(b.timestamp ?? b.dateSent ?? b.published ?? "");
-					return dateA.localeCompare(dateB);
-				});
-				return actionOKWithProducts({ items, contextRoot });
 			},
 		},
 	} satisfies TStepperSteps;

@@ -2,6 +2,7 @@
 	"steppers": [
 		"haibun",
 		"variables-stepper",
+		"resources-stepper",
 		"logic-stepper",
 		"activities-stepper",
 		"@haibun/web-server-hono/web-server-stepper",

@@ -9,6 +9,7 @@
 		"haibun",
 		"debugger-stepper",
 		"logic-stepper",
-		"variables-stepper"
+		"variables-stepper",
+		"resources-stepper"
 	]
 }
