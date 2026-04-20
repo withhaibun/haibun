@@ -9,6 +9,7 @@
 		"@haibun/monitor-browser",
 		"@haibun/monitor-tui",
 		"variables-stepper",
+		"resources-stepper",
 		"logic-stepper",
 		"activities-stepper",
 		"@haibun/core/steps/zcap-like-stepper",

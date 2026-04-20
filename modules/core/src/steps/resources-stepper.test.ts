@@ -1,16 +1,16 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import VariablesStepper from "./variables-stepper.js";
+import ResourcesStepper from "./resources-stepper.js";
 import { getDefaultWorld } from "../lib/test/lib.js";
 import { LinkRelations } from "../lib/resources.js";
 import { type TWorld } from "../lib/execution.js";
 
-describe("VariablesStepper comment + getRelated", () => {
-	let stepper: VariablesStepper;
+describe("ResourcesStepper comment + getRelated", () => {
+	let stepper: ResourcesStepper;
 	let world: TWorld;
 	const fakeStep = { source: { path: "test" }, in: "test", seqPath: [0, 1], action: {} } as never;
 
 	beforeEach(async () => {
-		stepper = new VariablesStepper();
+		stepper = new ResourcesStepper();
 		world = getDefaultWorld() as TWorld;
 		await stepper.setWorld(world, [stepper]);
 	});

@@ -73,10 +73,49 @@ export const AccessQuery = AccessQueryLevelSchema.enum;
 /**
  * Free-text annotation attached to any Resource. Threads via IN_REPLY_TO.
  * The commentsOn edge carries rel IN_REPLY_TO and range Resource.
+ *
+ * Full Zod schema and domain definition live at the bottom of this file,
+ * after TDomainDefinition is declared — see `CommentSchema` and
+ * `commentDomainDefinition`.
  */
 export const COMMENT_LABEL = "Comment";
 export const COMMENT_DOMAIN = "comment";
 export const COMMENT_EDGE = "commentsOn";
+
+/**
+ * Discourse — closed set of speech acts a Comment can perform.
+ *
+ * Every Comment carries a required discourse tag. The set is deliberately
+ * small and closed; adding a value is a PR and requires a linked-data
+ * mapping note.
+ *
+ *   suggest  — schema:SuggestAction; proposing a change
+ *   measure  — narration of a sosa:Observation
+ *   report   — schema:Report / as:Announce
+ *   narrate  — prose narration (no standard mapping)
+ *   question — schema:Question; asking for clarification
+ *   apply    — narration of a schema:UpdateAction (the Development is the act)
+ *   revert   — narration of a schema:UpdateAction undoing a prior apply
+ *   play     — rehearsal or try-out; prov:Activity with no side effects
+ */
+export const DISCOURSE = {
+	suggest: "suggest",
+	measure: "measure",
+	report: "report",
+	narrate: "narrate",
+	question: "question",
+	apply: "apply",
+	revert: "revert",
+	play: "play",
+} as const;
+
+const DISCOURSE_VALUES = Object.values(DISCOURSE) as [string, ...string[]];
+
+export const DiscourseSchema = z.enum(DISCOURSE_VALUES, {
+	message: `discourse must be one of ${DISCOURSE_VALUES.map((v) => `"${v}"`).join(", ")}`,
+});
+
+export type Discourse = z.infer<typeof DiscourseSchema>;
 
 // ============================================================================
 // Link relations & edge predicates (ActivityStreams / JSON-LD vocabulary)
@@ -286,5 +325,55 @@ export type TRegisteredDomain = {
 	description?: string;
 	stepperName?: string;
 	topology?: TDomainTopology;
+};
+
+// ============================================================================
+// Comment schema + domain definition
+// ============================================================================
+
+/**
+ * Comment — free-text annotation attached to any Resource. See COMMENT_LABEL /
+ * COMMENT_DOMAIN / COMMENT_EDGE near the top of this file for the vocabulary
+ * consts.
+ *
+ * `discourse` tags the speech act (suggest, measure, report, narrate,
+ * question, apply, revert, play). Closed enum in ./discourse.ts.
+ *
+ * `author` stays an optional URI string at the storage layer (e.g.
+ * "user:alice", "stepper:llm", "llm:gpt-x"). Legacy data may lack it.
+ * Structured-Actor hydration is a query-time projection, not storage.
+ */
+export const CommentSchema = z.object({
+	id: z.string(),
+	text: z.string(),
+	author: z.string().optional(),
+	discourse: DiscourseSchema,
+	timestamp: z.string(),
+});
+
+export type TComment = z.infer<typeof CommentSchema>;
+
+/**
+ * Comment domain definition — register this in a stepper's
+ * `getConcerns().domains` to expose Comment as a first-class graph vertex.
+ * Topology uses existing LinkRelations for every property; no new rels
+ * introduced here.
+ */
+export const commentDomainDefinition: TDomainDefinition = {
+	selectors: [COMMENT_DOMAIN],
+	schema: CommentSchema,
+	description: "Comment",
+	topology: {
+		vertexLabel: COMMENT_LABEL,
+		id: "id",
+		properties: {
+			id: LinkRelations.IDENTIFIER.rel,
+			text: { rel: LinkRelations.CONTENT.rel, mediaType: "text/markdown" },
+			author: LinkRelations.ATTRIBUTED_TO.rel,
+			discourse: LinkRelations.DISCOURSE.rel,
+			timestamp: LinkRelations.PUBLISHED.rel,
+		},
+		edges: { [COMMENT_EDGE]: { rel: LinkRelations.IN_REPLY_TO.rel, range: RESOURCE_LABEL } },
+	},
 };
 

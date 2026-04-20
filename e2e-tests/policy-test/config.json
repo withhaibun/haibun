@@ -1,6 +1,6 @@
 {
 	"$schema": "schemas/app-params.json",
-	"steppers": ["variables-stepper", "logic-stepper"],
+	"steppers": ["variables-stepper", "resources-stepper", "logic-stepper"],
 	"runPolicy": "policy-test/schemas/permissive.json",
 	"appParameters": {
 		"local": {

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { LinkRelations, REL_CONTEXT, EdgePredicates, edgeRel, getRelRange } from "./resources.js";
-import { RelSchema, getJsonLdContext } from "./hypermedia.js";
+import { LinkRelations, REL_CONTEXT, EdgePredicates, edgeRel, getRelRange, DISCOURSE, DiscourseSchema, CommentSchema, commentDomainDefinition, COMMENT_LABEL } from "./resources.js";
+import { RelSchema, getJsonLdContext, buildConcernCatalog } from "./hypermedia.js";
 
 describe("LinkRelations extensions", () => {
 	const newRels = [
@@ -135,5 +135,101 @@ describe("getJsonLdContext prefix declarations", () => {
 		expect(ctx.foaf).toBe("http://xmlns.com/foaf/0.1/");
 		expect(ctx.dcterms).toBe("http://purl.org/dc/terms/");
 		expect(ctx.haibun).toBe("/ns/");
+	});
+});
+
+describe("Discourse", () => {
+	it("accepts every value in the closed enum", () => {
+		for (const v of Object.values(DISCOURSE)) {
+			expect(() => DiscourseSchema.parse(v)).not.toThrow();
+		}
+	});
+
+	it("rejects values outside the enum", () => {
+		expect(() => DiscourseSchema.parse("unknown")).toThrow();
+		expect(() => DiscourseSchema.parse("")).toThrow();
+		expect(() => DiscourseSchema.parse(null)).toThrow();
+	});
+
+	it("includes autonomic-emitted speech acts", () => {
+		expect(DISCOURSE.suggest).toBe("suggest");
+		expect(DISCOURSE.measure).toBe("measure");
+		expect(DISCOURSE.apply).toBe("apply");
+		expect(DISCOURSE.revert).toBe("revert");
+	});
+
+	it("includes human-response speech acts", () => {
+		expect(DISCOURSE.question).toBe("question");
+		expect(DISCOURSE.narrate).toBe("narrate");
+		expect(DISCOURSE.report).toBe("report");
+	});
+
+	it("includes play (rehearsal / try-out)", () => {
+		expect(DISCOURSE.play).toBe("play");
+	});
+
+	it("DISCOURSE keys match their values (canonical shape)", () => {
+		for (const [key, value] of Object.entries(DISCOURSE)) {
+			expect(key).toBe(value);
+		}
+	});
+});
+
+describe("CommentSchema", () => {
+	const baseComment = {
+		id: "c1",
+		text: "hello",
+		timestamp: new Date().toISOString(),
+	};
+
+	it("accepts a minimal valid Comment with discourse", () => {
+		const c = { ...baseComment, discourse: DISCOURSE.narrate };
+		expect(() => CommentSchema.parse(c)).not.toThrow();
+	});
+
+	it("rejects a Comment missing discourse", () => {
+		expect(() => CommentSchema.parse(baseComment)).toThrow();
+	});
+
+	it("rejects a Comment with a discourse outside the enum", () => {
+		expect(() => CommentSchema.parse({ ...baseComment, discourse: "unknown" })).toThrow();
+	});
+
+	it("accepts each discourse enum value", () => {
+		for (const d of Object.values(DISCOURSE)) {
+			expect(() => CommentSchema.parse({ ...baseComment, discourse: d })).not.toThrow();
+		}
+	});
+
+	it("accepts an optional author", () => {
+		const withAuthor = { ...baseComment, discourse: DISCOURSE.suggest, author: "stepper:llm" };
+		const parsed = CommentSchema.parse(withAuthor);
+		expect(parsed.author).toBe("stepper:llm");
+	});
+
+	it("accepts absence of author (legacy-compatible)", () => {
+		const parsed = CommentSchema.parse({ ...baseComment, discourse: DISCOURSE.narrate });
+		expect(parsed.author).toBeUndefined();
+	});
+});
+
+describe("commentDomainDefinition", () => {
+	it("has the expected topology shape", () => {
+		const t = commentDomainDefinition.topology;
+		if (!t) throw new Error("commentDomainDefinition must declare topology");
+		expect(t.vertexLabel).toBe(COMMENT_LABEL);
+		expect(t.id).toBe("id");
+		// discourse is wired through LinkRelations, not a bare string
+		expect(t.properties.discourse).toBe(LinkRelations.DISCOURSE.rel);
+		expect(t.properties.author).toBe(LinkRelations.ATTRIBUTED_TO.rel);
+	});
+
+	it("passes buildConcernCatalog validation", () => {
+		// Simulate a registered-domains map as if registerDomains ran.
+		const registered = { comment: { ...commentDomainDefinition, coerce: (x: unknown) => x as unknown as import("./resources.js").TDomainDefinition["schema"] } };
+		const cat = buildConcernCatalog(registered as Parameters<typeof buildConcernCatalog>[0]);
+		expect(cat.vertices[COMMENT_LABEL]).toBeDefined();
+		expect(cat.vertices[COMMENT_LABEL].properties.discourse).toBeDefined();
+		expect(cat.vertices[COMMENT_LABEL].properties.discourse.rel).toBe(LinkRelations.DISCOURSE.rel);
 	});
 });
