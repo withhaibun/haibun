@@ -77,8 +77,9 @@ function getWorkspaceRoot() {
 const pkgJsonCache = new Map<string, Record<string, unknown>>();
 
 /** Resolved at module init to avoid repeated fileURLToPath + path.resolve on every stepper load.
- *  From build/lib/util/node/workspace-lib.js, "../../../steps" points at build/steps/. */
-const CORE_STEPS_DIR = path.resolve(dirname(fileURLToPath(import.meta.url)), "../../../steps");
+ *  Uses getPackageLocation so the path is correct whether core is a linked/installed dependency
+ *  (build/steps) or the current workspace in src mode (src/steps). */
+const CORE_STEPS_DIR = path.resolve(getPackageLocation(import.meta), "../../../steps");
 
 export function getModuleLocation(name: string) {
 	if (name.startsWith(".")) {
