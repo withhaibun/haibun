@@ -6,8 +6,10 @@ import { actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOption, in
 import { AStepper, type IHasCycles, type IHasOptions } from "@haibun/core/lib/astepper.js";
 import { discoverSteps, dispatchStep, validateToolInput, buildSyntheticFeatureStep, parseRpcRequest, StepRegistry } from "@haibun/core/lib/step-dispatch.js";
 import { validateStep } from "@haibun/core/lib/step-validation.js";
+import { LinkRelations } from "@haibun/core/lib/resources.js";
+import { objectCoercer } from "@haibun/core/lib/domains.js";
 
-import { type IWebServer, WEBSERVER } from "./defs.js";
+import { type IWebServer, WEBSERVER, DOMAIN_ENDPOINT, EndpointLabels, EndpointSchema } from "./defs.js";
 import { getGrantedCapabilityFromHeaders, validateCapabilityAuthConfig } from "./capability-auth.js";
 import { ServerHono, DEFAULT_PORT } from "./server-hono.js";
 import { SSETransport, TRANSPORT, type ITransport } from "./sse-transport.js";
@@ -18,6 +20,27 @@ function isStepTransport(s: unknown): s is IStepTransport {
 }
 
 const cycles = (wss: WebServerStepper): IStepperCycles => ({
+	getConcerns: () => ({
+		domains: [
+			{
+				selectors: [DOMAIN_ENDPOINT],
+				schema: EndpointSchema,
+				coerce: objectCoercer(EndpointSchema),
+				description: "HTTP endpoint — route registered on the web server",
+				topology: {
+					vertexLabel: EndpointLabels.Endpoint,
+					type: "as:Service",
+					id: "url",
+					properties: {
+						url: LinkRelations.IDENTIFIER.rel,
+						method: LinkRelations.TAG.rel,
+						description: LinkRelations.NAME.rel,
+						registeredAt: LinkRelations.PUBLISHED.rel,
+					},
+				},
+			},
+		],
+	}),
 	async startFeature() {
 		if (wss.webserver) {
 			wss.webserver.clearMounted();

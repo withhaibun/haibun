@@ -43,7 +43,7 @@ export class SSETransport implements ITransport, IStepTransport {
 	}
 
 	private setupRoutes(): void {
-		this.webserver.addRoute("get", "/sse", async (c) => {
+		this.webserver.addRoute("get", "/sse", { description: "Server-Sent Events stream for live framework events" }, async (c) => {
 			this.eventLogger.debug("SSE Client connected");
 			return await streamSSE(c, async (sseStream) => {
 				// Replay history
@@ -73,7 +73,7 @@ export class SSETransport implements ITransport, IStepTransport {
 			});
 		});
 
-		this.webserver.addRoute("post", "/rpc/:_method", async (c) => {
+		this.webserver.addRoute("post", "/rpc/:_method", { description: "JSON-RPC dispatch for stepper methods" }, async (c) => {
 			try {
 				const data = await c.req.json();
 				const requestInfo: TTransportRequestInfo = { headers: c.req.header() };
