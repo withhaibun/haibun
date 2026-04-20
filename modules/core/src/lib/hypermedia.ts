@@ -9,7 +9,7 @@
  */
 
 import { z } from "zod";
-import { getRel, getMediaType, edgeRel, REL_CONTEXT, LinkRelations, type TPropertyDef } from "./resources.js";
+import { getRel, getMediaType, edgeRel, REL_CONTEXT, LinkRelations, getRelRange, type TPropertyDef } from "./resources.js";
 import type { TRegisteredDomain } from "./resources.js";
 
 /** Per-schema JSON-Schema memoization. `step.list` RPC calls buildConcernCatalog repeatedly; each
@@ -204,16 +204,18 @@ export function parseTimestampValue(val: unknown): number | null {
 // JSON-LD context — derived from domain topology
 // ============================================================================
 
+/**
+ * Map a rel's RDF range to its UI rendering category.
+ *   iri       → "item"    (navigable link to another vertex)
+ *   container → "select"  (multi-valued structure; select-like control)
+ *   literal   → "filter"  (scalar value; filter/text control)
+ *
+ * Unknown rels default to "filter" — the safest neutral rendering.
+ */
 function linkRelFromSemantic(rel: string): "item" | "filter" | "select" {
-	if (
-		rel === LinkRelations.IDENTIFIER.rel ||
-		rel === LinkRelations.ATTRIBUTED_TO.rel ||
-		rel === LinkRelations.AUDIENCE.rel ||
-		rel === LinkRelations.IN_REPLY_TO.rel ||
-		rel === LinkRelations.ATTACHMENT.rel
-	)
-		return "item";
-	if (rel === LinkRelations.CONTEXT.rel) return "select";
+	const range = getRelRange(rel);
+	if (range === "iri") return "item";
+	if (range === "container") return "select";
 	return "filter";
 }
 
@@ -224,6 +226,11 @@ export function getJsonLdContext(domains: Record<string, TRegisteredDomain>): Re
 		as: "https://www.w3.org/ns/activitystreams#",
 		foaf: "http://xmlns.com/foaf/0.1/",
 		dcterms: "http://purl.org/dc/terms/",
+		prov: "https://www.w3.org/ns/prov#",
+		sosa: "http://www.w3.org/ns/sosa/",
+		schema: "https://schema.org/",
+		otel: "https://opentelemetry.io/schemas/",
+		hbn: "https://haibun.dev/ns/",
 		haibun: "/ns/",
 	};
 	for (const domain of Object.values(domains)) {
