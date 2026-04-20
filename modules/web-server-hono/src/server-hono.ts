@@ -8,13 +8,17 @@ import type { MiddlewareHandler } from "hono";
 import type { IEventLogger } from "@haibun/core/lib/EventLogger.js";
 import { OBSERVATION_GRAPH, SERVICE_PATH_PREFIXES } from "@haibun/core/lib/http-observations.js";
 import { emitQuadObservation } from "@haibun/core/lib/quad-types.js";
+import { LinkRelations } from "@haibun/core/lib/resources.js";
 import {
 	type IWebServer,
 	type TRouteMap,
 	type TRouteTypes,
+	type TRoutePurpose,
 	type TRequestHandler,
 	type TStaticFolderOptions,
 	ROUTE_TYPES,
+	DOMAIN_ENDPOINT,
+	EndpointLabels,
 } from "./defs.js";
 
 const DEFAULT_MOUNTED = (): TRouteMap => ROUTE_TYPES.reduce((acc, type) => ({ ...acc, [type]: {} }), {} as TRouteMap);
@@ -107,26 +111,28 @@ export class ServerHono implements IWebServer {
 		return Promise.resolve();
 	}
 
-	addRoute(type: TRouteTypes, path: string, ...handlers: TRequestHandler[]): void {
+	addRoute(type: TRouteTypes, path: string, purpose: TRoutePurpose, ...handlers: TRequestHandler[]): void {
+		this.validatePurpose(purpose);
 		this.validateRouteType(type);
 		this.validatePath(path);
 		this.ensureNotMounted(type, path);
-		this.eventLogger.debug(`ServerHono: adding ${type} route at ${path}`);
+		this.eventLogger.debug(`ServerHono: adding ${type} route at ${path} (${purpose.description})`);
 		this.registerRoute(type, path, handlers);
 		this.markMounted(type, path, handlers.toString());
-		this.emitEndpointQuad(type, path);
+		this.emitEndpointQuad(type, path, purpose);
 	}
 
 	/** Idempotent mount: no-op if the exact path is already mounted for the method. Use for
 	 *  routes that may legitimately be registered by repeated step invocations within a feature. */
-	addRouteIfAbsent(type: TRouteTypes, path: string, ...handlers: TRequestHandler[]): void {
+	addRouteIfAbsent(type: TRouteTypes, path: string, purpose: TRoutePurpose, ...handlers: TRequestHandler[]): void {
 		if (this._mounted[type]?.[path]) return;
-		this.addRoute(type, path, ...handlers);
+		this.addRoute(type, path, purpose, ...handlers);
 	}
 
-	addKnownRoute(type: TRouteTypes, path: string, ...handlers: TRequestHandler[]): void {
+	addKnownRoute(type: TRouteTypes, path: string, purpose: TRoutePurpose, ...handlers: TRequestHandler[]): void {
+		this.validatePurpose(purpose);
 		this.validateRouteType(type);
-		this.eventLogger.debug(`ServerHono: adding known ${type} route at ${path}`);
+		this.eventLogger.debug(`ServerHono: adding known ${type} route at ${path} (${purpose.description})`);
 		this.registerRoute(type, path, handlers);
 		this.markMounted(type, path, handlers.toString());
 	}
@@ -182,6 +188,12 @@ export class ServerHono implements IWebServer {
 		this.markMounted("get", mountAt, folder);
 	}
 
+	private validatePurpose(purpose: TRoutePurpose): void {
+		if (!purpose || typeof purpose.description !== "string" || purpose.description.trim() === "") {
+			throw new Error("ServerHono: route purpose.description is required (cannot mount an endpoint without a purpose)");
+		}
+	}
+
 	private validateRouteType(type: TRouteTypes): void {
 		if (!ROUTE_TYPES.includes(type)) throw new Error(`ServerHono: invalid route type "${type}"`);
 	}
@@ -211,11 +223,27 @@ export class ServerHono implements IWebServer {
 		this._mounted[type][path] = what;
 	}
 
-	private emitEndpointQuad(type: TRouteTypes, path: string): void {
+	private emitEndpointQuad(type: TRouteTypes, path: string, purpose: TRoutePurpose): void {
 		const isService = SERVICE_PATH_PREFIXES.some((p) => path === p || path.startsWith(p));
 		const namedGraph = isService ? OBSERVATION_GRAPH.SERVICE : OBSERVATION_GRAPH.ENDPOINT;
 		const timestamp = Date.now();
-		emitQuadObservation(this.eventLogger, `quad-endpoint-${timestamp}-${type}-${path}`, { subject: path, predicate: "name", object: `${type.toUpperCase()} ${path}`, namedGraph, timestamp });
+		const method = type.toUpperCase();
+		// Single quad bundles the full endpoint descriptor in `properties`, aligning with
+		// WebServerStepper's haibun-endpoint topology (url→identifier, method→tag, description→name, registeredAt→published).
+		emitQuadObservation(this.eventLogger, `quad-endpoint-${timestamp}-${type}-${path}`, {
+			subject: path,
+			predicate: "type",
+			object: EndpointLabels.Endpoint,
+			namedGraph,
+			timestamp,
+			properties: {
+				domain: DOMAIN_ENDPOINT,
+				[LinkRelations.IDENTIFIER.rel]: path,
+				[LinkRelations.TAG.rel]: method,
+				[LinkRelations.NAME.rel]: purpose.description,
+				[LinkRelations.PUBLISHED.rel]: new Date(timestamp).toISOString(),
+			},
+		});
 	}
 
 	private generateDirectoryListing(dirPath: string, files: string[], mountAt: string): string {

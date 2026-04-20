@@ -78,11 +78,11 @@ export default class ShuStepper extends AStepper {
 				const pathError = validateMountPath(path);
 				if (pathError) return actionNotOK(pathError);
 				const bundle = loadBundle();
-				webserver.addRoute("get", path, createSpaHandler(path, bundle, "{}"));
+				webserver.addRoute("get", path, { description: `Shu SPA mounted at ${path}` }, createSpaHandler(path, bundle, "{}"));
 				const jsonLdContext = getJsonLdContext(this.getWorld().domains);
 				const jsonLdHandler = (c: Context) => c.json(jsonLdContext);
-				webserver.addRoute("get", "/.well-known/muskeg-context.jsonld", jsonLdHandler);
-				webserver.addRoute("get", "/ns/context.jsonld", jsonLdHandler);
+				webserver.addRoute("get", "/.well-known/muskeg-context.jsonld", { description: "JSON-LD @context for muskeg domain vocabulary" }, jsonLdHandler);
+				webserver.addRoute("get", "/ns/context.jsonld", { description: "JSON-LD @context (namespace alias of muskeg-context.jsonld)" }, jsonLdHandler);
 				return actionOK();
 			},
 		},
