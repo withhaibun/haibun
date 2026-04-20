@@ -2,6 +2,7 @@ import { TWorld, TProtoOptions, CStepper } from "../execution.js";
 import { DEFAULT_DEST, TExecutorResult, TEST_BASE } from "../../schema/protocol.js";
 import { createSteppers } from "./../util/index.js";
 import { getRunTag } from "../ttag.js";
+import { resolveHostId } from "../host-id.js";
 import { getSteppers } from "../util/node/workspace-lib.js";
 import { Timer } from "../../schema/protocol.js";
 import { asFeatures } from "../resolver-features.js";
@@ -115,5 +116,7 @@ export function getDefaultWorld(env = process.env): TWorld {
 }
 
 export function getDefaultTag(desc: string | undefined = undefined) {
-	return getRunTag(0, undefined, desc ? { desc } : undefined, false);
+	// hostId defaults to resolving from HAIBUN_HOST_ID env at production startup.
+	// In tests, callers (via resolveHostId's default) get DEFAULT_HOST_ID = 0.
+	return getRunTag(0, undefined, desc ? { desc } : undefined, false, resolveHostId());
 }

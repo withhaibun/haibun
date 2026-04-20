@@ -201,17 +201,23 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 					const msg = parseRpcRequest(raw);
 					if (!msg) return;
 					const { method, params } = msg;
-					// Ad-hoc RPC calls get seqPath [0, N] so they're traceable but distinct from feature steps
-					const runtime = this.getWorld().runtime;
-					runtime.adHocSeq = (runtime.adHocSeq ?? 0) + 1;
-					const seqPath = msg.seqPath ?? [0, runtime.adHocSeq];
 
+					// Introspection methods produce no observations and may be invoked
+					// by clients that have no caller seqPath (e.g. a fresh SPA session
+					// asking for the stepper catalog). State-changing dispatches MUST
+					// carry the caller's seqPath so observations link back to the
+					// invoking context — no synthetic [0, N] roots.
 					if (method === "step.list") {
 						const result = discoverSteps(this.steppers, this.getWorld(), this.stepRegistry);
 						this.cacheRpcResponse(method, params, result);
 						return result;
 					}
 					if (method === "step.validate") return validateStep(String(params.text || ""), this.steppers);
+
+					if (!msg.seqPath || msg.seqPath.length === 0) {
+						return { error: `${method}: missing seqPath — RPC dispatches must thread the caller's seqPath` };
+					}
+					const seqPath = msg.seqPath;
 
 					const registry = this.stepRegistry;
 					if (!registry) {

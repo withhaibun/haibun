@@ -86,16 +86,17 @@ describe("DebuggerStepper sequence integration", () => {
 		const feature = { path: "/features/test.feature", content: "debug step by step\nThis should be prompted.\nAnother step." };
 		const res = await testWithWorld(world, [feature], [DebuggerStepper, Haibun]);
 		expect(res.ok).toBe(true);
-		// [1,1,1] debug step by step, [1,1,2,-1] comment 1, [1,1,2,-2] comment 2, [1,1,2,-3] step (exits loop), [1,1,2] step 2, [1,1,3,-1] step (exits loop), [1,1,3] step 3
+		// seqPath format: [hostId, featureNum, scenarioNum, stepSeq, ...]
+		// [0,1,1,1] debug step by step, [0,1,1,2,-1] comment 1, [0,1,1,2,-2] comment 2, [0,1,1,2,-3] step (exits loop), [0,1,1,2] step 2, [0,1,1,3,-1] step (exits loop), [0,1,1,3] step 3
 		const seqs = res.featureResults?.[0].stepResults.map((r) => r.seqPath);
 		expect(seqs).toEqual([
-			[1, 1, 1],
-			[1, 1, 2, -1],
-			[1, 1, 2, -2],
-			[1, 1, 2, -3],
-			[1, 1, 2],
-			[1, 1, 3, -1],
-			[1, 1, 3],
+			[0, 1, 1, 1],
+			[0, 1, 1, 2, -1],
+			[0, 1, 1, 2, -2],
+			[0, 1, 1, 2, -3],
+			[0, 1, 1, 2],
+			[0, 1, 1, 3, -1],
+			[0, 1, 1, 3],
 		]);
 	});
 
@@ -120,13 +121,13 @@ describe("DebuggerStepper sequence integration", () => {
 		const feature = { path: "/features/test.feature", content: "fails" };
 		const res = await testWithWorld(world, [feature], [DebuggerStepper, TestSteps, Haibun]);
 		expect(res.ok).toBe(true); // 'next' allows continuation
-		// [1,1,1] failed step, [1,1,1,1] comment 1, [1,1,1,2] comment 2, [1,1,1,3] next (exits loop)
+		// [0,1,1,1] failed step, [0,1,1,1,1] comment 1, [0,1,1,1,2] comment 2, [0,1,1,1,3] next (exits loop)
 		const seqs = res.featureResults?.[0].stepResults.map((r) => r.seqPath);
 		expect(seqs).toEqual([
-			[1, 1, 1],
-			[1, 1, 1, 1],
-			[1, 1, 1, 2],
-			[1, 1, 1, 3],
+			[0, 1, 1, 1],
+			[0, 1, 1, 1, 1],
+			[0, 1, 1, 1, 2],
+			[0, 1, 1, 1, 3],
 		]);
 	});
 

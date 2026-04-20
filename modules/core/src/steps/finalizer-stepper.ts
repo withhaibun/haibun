@@ -15,10 +15,10 @@ export default class FinalizerStepper extends AStepper implements IHasCycles {
 	private async runFinalizersForFeature(featurePath: string) {
 		const statements = this.registeredStatementsByFeature.get(featurePath);
 		if (statements && statements.length > 0) {
-			const featureNum = this.getWorld().tag.featureNum;
+			const { featureNum, hostId } = this.getWorld().tag;
 			for (const [index, statement] of statements.entries()) {
 				const result = await this.flowRunner.runStatement(statement, {
-					seqPath: featureSyntheticSeqPath(featureNum, index + 1),
+					seqPath: featureSyntheticSeqPath(featureNum, index + 1, 0, hostId),
 					intent: { mode: "authoritative" },
 				});
 

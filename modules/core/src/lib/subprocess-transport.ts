@@ -93,7 +93,14 @@ export class SubprocessTransport {
 		}
 	}
 
-	call(method: string, params: Record<string, unknown>, seqPath?: number[]): Promise<TActionResult> {
+	/**
+	 * seqPath is required. Every call must thread the caller's seqPath so
+	 * observations produced in the subprocess link back to the caller's
+	 * execution context. Synthetic [0, N] roots are no longer produced —
+	 * a caller with no meaningful seqPath should not be invoking a
+	 * subprocess transport.
+	 */
+	call(method: string, params: Record<string, unknown>, seqPath: number[]): Promise<TActionResult> {
 		return new Promise((resolve, reject) => {
 			if (this.pending) {
 				reject(new Error("SubprocessTransport: concurrent calls not supported"));
@@ -108,7 +115,7 @@ export class SubprocessTransport {
 				}
 			};
 			this.child.on("message", this.handleMessage);
-			this.child.send({ type: "call", method, params, seqPath: seqPath ?? [0] });
+			this.child.send({ type: "call", method, params, seqPath });
 		});
 	}
 

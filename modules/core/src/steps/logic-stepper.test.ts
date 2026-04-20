@@ -142,8 +142,8 @@ describe("variable composition", () => {
 		const seqs = result.featureResults?.[0].stepResults.map((r) => r.seqPath) || [];
 		// nested variable check then parent not then ends with
 		expect(seqs).toEqual([
-			[1, 1, 1, -1],
-			[1, 1, 1],
+			[0, 1, 1, 1, -1],
+			[0, 1, 1, 1],
 		]);
 	});
 
@@ -159,19 +159,19 @@ describe("variable composition", () => {
 
 		const seqs = result.featureResults?.[0].stepResults.map((r) => r.seqPath) || [];
 		// Verifies seqPath structure through recursive descent and ascent:
-		// [1,1,1] - variable assignment
-		// [1,1,2,-1,-1,-1,-1] - innermost condition evaluation
-		// [1,1,2,-1,-1,-1] - third negation layer
-		// [1,1,2,-1,-1] - second negation layer
-		// [1,1,2,-1] - first negation layer
-		// [1,1,2] - final statement resolution
+		// [0,1,1,1] - variable assignment
+		// [0,1,1,2,-1,-1,-1,-1] - innermost condition evaluation
+		// [0,1,1,2,-1,-1,-1] - third negation layer
+		// [0,1,1,2,-1,-1] - second negation layer
+		// [0,1,1,2,-1] - first negation layer
+		// [0,1,1,2] - final statement resolution
 		expect(seqs).toEqual([
-			[1, 1, 1],
-			[1, 1, 2, -1, -1, -1, -1],
-			[1, 1, 2, -1, -1, -1],
-			[1, 1, 2, -1, -1],
-			[1, 1, 2, -1],
-			[1, 1, 2],
+			[0, 1, 1, 1],
+			[0, 1, 1, 2, -1, -1, -1, -1],
+			[0, 1, 1, 2, -1, -1, -1],
+			[0, 1, 1, 2, -1, -1],
+			[0, 1, 1, 2, -1],
+			[0, 1, 1, 2],
 		]);
 		expect(seqs.length).toBe(6);
 	});
@@ -189,19 +189,19 @@ describe("variable composition", () => {
 
 		const seqs = result.featureResults?.[0].stepResults.map((r) => r.seqPath) || [];
 		// Validates complete execution trace with nested conditions:
-		// [1,1,1] - variable assignment
-		// [1,1,2,-1] - outer where condition evaluation (succeeds)
-		// [1,1,2,1,-1,-1] - inner not's deepest evaluation
-		// [1,1,2,1,-1] - inner not resolution (evaluates to false)
-		// [1,1,2,1] - inner where resolution (condition false, succeeds without executing body)
-		// [1,1,2] - outer where resolution (consequence executed successfully)
+		// [0,1,1,1] - variable assignment
+		// [0,1,1,2,-1] - outer where condition evaluation (succeeds)
+		// [0,1,1,2,1,-1,-1] - inner not's deepest evaluation
+		// [0,1,1,2,1,-1] - inner not resolution (evaluates to false)
+		// [0,1,1,2,1] - inner where resolution (condition false, succeeds without executing body)
+		// [0,1,1,2] - outer where resolution (consequence executed successfully)
 		expect(seqs).toEqual([
-			[1, 1, 1],
-			[1, 1, 2, -1],
-			[1, 1, 2, 1, -1, -1],
-			[1, 1, 2, 1, -1],
-			[1, 1, 2, 1],
-			[1, 1, 2],
+			[0, 1, 1, 1],
+			[0, 1, 1, 2, -1],
+			[0, 1, 1, 2, 1, -1, -1],
+			[0, 1, 1, 2, 1, -1],
+			[0, 1, 1, 2, 1],
+			[0, 1, 1, 2],
 		]);
 		expect(seqs.length).toBe(6);
 	});
@@ -223,10 +223,10 @@ describe("backgrounds", () => {
 		expect(steps.length).toBe(4);
 		const seqs = steps.map((s) => s.seqPath);
 		expect(seqs).toEqual([
-			[1, 1, 1, -1],
-			[1, 1, 1, 1],
-			[1, 1, 1, 2],
-			[1, 1, 1],
+			[0, 1, 1, 1, -1],
+			[0, 1, 1, 1, 1],
+			[0, 1, 1, 1, 2],
+			[0, 1, 1, 1],
 		]);
 	});
 

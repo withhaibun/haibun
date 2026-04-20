@@ -72,7 +72,14 @@ export type TRuntime = {
 	observations: Map<string, TAnyFixme>;
 	/** If non-empty, execution was aborted due to exhaustion (description explains why). */
 	exhaustionError?: string;
-	/** Monotonic counter for ad-hoc RPC calls (not part of feature execution). Gives seqPath [0, N]. */
+	/**
+	 * Monotonic counter for synthetic seqPaths produced by external-protocol
+	 * entry points (MCP) that have no caller seqPath to thread. See
+	 * `syntheticSeqPath(hostId, adHocSeq)` in host-id.ts — synthetic paths
+	 * are [hostId, SYNTHETIC_FEATURE_NUM, adHocSeq] so they sort distinctly
+	 * from any feature path. Internal dispatches (RPC, subprocess) now
+	 * require the caller's seqPath instead of producing a synthetic.
+	 */
 	adHocSeq?: number;
 	[name: string]: TAnyFixme;
 };

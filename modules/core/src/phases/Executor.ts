@@ -234,7 +234,10 @@ export class FeatureExecutor {
 
 			const augmentedStep = {
 				...step,
-				seqPath: [world.tag.featureNum, currentScenario + 1, ...step.seqPath],
+				// Root on [hostId, featureNum, scenarioNum, ...resolverStepSeq] so
+				// observations from different haibun instances can never collide
+				// and a multi-host cross-host join can union by seqPath safely.
+				seqPath: [world.tag.hostId, world.tag.featureNum, currentScenario + 1, ...step.seqPath],
 			};
 
 			const result = await dispatchStep({ registry: this.registry, world, steppers: this.steppers }, augmentedStep);
@@ -292,8 +295,8 @@ export function syntheticSeqPathDirection(speculative = false): 1 | -1 {
 	return speculative ? -1 : 1;
 }
 
-export function featureSyntheticSeqPath(featureNum: number, ordinal: number, branch = 0): TSeqPath {
-	return [featureNum, branch, ordinal];
+export function featureSyntheticSeqPath(featureNum: number, ordinal: number, branch = 0, hostId = 0): TSeqPath {
+	return [hostId, featureNum, branch, ordinal];
 }
 
 export function syntheticBranchSeqPath(parentSeqPath: TSeqPath, dir: 1 | -1 = 1): TSeqPath {
