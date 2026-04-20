@@ -27,6 +27,60 @@ function nextId(): string {
 	return `rpc-${++counter}-${Date.now().toString(36)}`;
 }
 
+/**
+ * SPA callers have no haibun feature-step seqPath to thread. Commit-5
+ * seqPath integrity requires every state-changing RPC to carry one, so
+ * the SPA emits synthetic paths rooted on
+ * `[SPA_HOST_ID, SPA_SYNTHETIC_FEATURE_NUM, actionSeq, ...]` — same
+ * shape as the MCP stepper's synthetic, distinct from any feature-step
+ * path (featureNum ≥ 1 for real features; -1 marks non-feature origins).
+ *
+ * SPA_HOST_ID is 0 for the browser: a browser session isn't a haibun
+ * instance and doesn't participate in multi-host join semantics.
+ *
+ * Action grouping: a top-level SPA action (e.g. "show graph view") can
+ * trigger N sub-RPCs. `inAction` wraps a callback so every RPC inside
+ * it shares an action root — observers can group by prefix. RPCs
+ * outside any `inAction` wrapper get a fresh root each call.
+ */
+const SPA_HOST_ID = 0;
+const SPA_SYNTHETIC_FEATURE_NUM = -1;
+let actionSeqCounter = 0;
+
+type ActionCtx = { root: [number, number, number]; subSeq: number };
+let currentAction: ActionCtx | undefined;
+
+function nextActionRoot(): [number, number, number] {
+	actionSeqCounter += 1;
+	return [SPA_HOST_ID, SPA_SYNTHETIC_FEATURE_NUM, actionSeqCounter];
+}
+
+/** Allocate the next seqPath for an RPC, extending the current action if any. */
+function nextSpaSeqPath(): number[] {
+	if (currentAction) {
+		currentAction.subSeq += 1;
+		return [...currentAction.root, currentAction.subSeq];
+	}
+	return [...nextActionRoot()];
+}
+
+/**
+ * Group RPCs fired inside `fn` under a single action root, so downstream
+ * observers can associate them. Nested calls share the outermost root
+ * (nesting just adds further sub-sequence depth isn't useful here and
+ * breaks async-nested code).
+ */
+export async function inAction<T>(fn: () => Promise<T>): Promise<T> {
+	if (currentAction) return fn();
+	const root = nextActionRoot();
+	currentAction = { root, subSeq: 0 };
+	try {
+		return await fn();
+	} finally {
+		currentAction = undefined;
+	}
+}
+
 // --- Shared SSE connection (one per page) ---
 
 let sseSource: EventSource | null = null;
@@ -120,7 +174,7 @@ export class SseClient {
 		const res = await fetch(`${this.basePath}/rpc/${method}`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ jsonrpc: "2.0", id, method, params }),
+			body: JSON.stringify({ jsonrpc: "2.0", id, method, params, seqPath: nextSpaSeqPath() }),
 		});
 		const data = await res.json();
 		if (!res.ok || data.error) throw new Error(data.error || `RPC failed: ${res.status}`);
@@ -134,13 +188,7 @@ export class SseClient {
 		const res = await fetch(`${this.basePath}/rpc/${method}`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({
-				jsonrpc: "2.0",
-				id,
-				method,
-				params,
-				stream: true,
-			}),
+			body: JSON.stringify({ jsonrpc: "2.0", id, method, params, seqPath: nextSpaSeqPath(), stream: true }),
 			signal,
 		});
 		if (!res.ok) throw new Error(`RPC stream failed: ${res.status}`);
