@@ -3,8 +3,8 @@ import { resolve } from "path";
 import { writeFileSync, unlinkSync, readFileSync, mkdirSync, existsSync } from "fs";
 import { tmpdir } from "os";
 
-import { getPackageLocation, workspaceRoot } from "@haibun/core/lib/util/workspace-lib.js";
-import { HOST_PROJECT_DIR } from "@haibun/core/lib/util/actualURI.js";
+import { getPackageLocation, workspaceRoot } from "@haibun/core/lib/util/node/workspace-lib.js";
+import { HOST_PROJECT_DIR } from "@haibun/core/lib/util/node/actualURI.js";
 
 export type TCaptureOptions = {
 	recreate: boolean;
