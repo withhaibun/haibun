@@ -116,9 +116,9 @@ async function setupNew(monitorBrowser: MonitorBrowserStepper, configuredPort: n
 
 	// Add health/ingest endpoints for piggybackers
 	let ingestCount = 0;
-	server.addRoute("get", "/api/health", (c) => c.text(`OK ${process.pid}`));
-	server.addRoute("get", "/api/ingest-count", (c) => c.json({ count: ingestCount }));
-	server.addRoute("post", "/api/ingest", async (c) => {
+	server.addRoute("get", "/api/health", { description: "monitor-browser health probe" }, (c) => c.text(`OK ${process.pid}`));
+	server.addRoute("get", "/api/ingest-count", { description: "monitor-browser ingested event counter" }, (c) => c.json({ count: ingestCount }));
+	server.addRoute("post", "/api/ingest", { description: "monitor-browser event ingest endpoint for piggyback workers" }, async (c) => {
 		const payload = await c.req.json();
 
 		// Handle control messages (init)
