@@ -1,4 +1,5 @@
 import { z } from "zod";
+
 import { TRegisteredDomain, TDomainDefinition } from "../lib/resources.js";
 import { TFeatureStep, TWorld, IStepperCycles, TStartScenario } from "../lib/execution.js";
 import { OK, TStepArgs, Origin, TProvenanceIdentifier, TOrigin, TActionResult } from "../schema/protocol.js";
@@ -8,13 +9,7 @@ import { actionOK, actionNotOK, actionOKWithProducts, getStepTerm } from "../lib
 import { FlowRunner } from "../lib/core/flow-runner.js";
 import { FeatureVariables, OBSCURED_VALUE } from "../lib/feature-variables.js";
 import { sanitizeObjectSecrets } from "../lib/util/secret-utils.js";
-import {
-	DOMAIN_STATEMENT,
-	DOMAIN_STRING,
-	normalizeDomainKey,
-	createEnumDomainDefinition,
-	registerDomains,
-} from "../lib/domains.js";
+import { DOMAIN_STATEMENT, DOMAIN_STRING, normalizeDomainKey, createEnumDomainDefinition, registerDomains, } from "../lib/domains.js";
 
 const clearVars = (vars: VariablesStepper) => async () => {
 	await vars.getWorld().shared.getStore().clear();

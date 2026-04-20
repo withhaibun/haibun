@@ -41,17 +41,31 @@ export abstract class AStepper {
 export type TStepperSteps = {
 	[key: string]: TStepperStep;
 };
+/** One stepper option declaration — the small, non-tunable shape every stepper has used. */
+export type TStepperOption = {
+	required?: boolean;
+	altSource?: string;
+	default?: string;
+	desc: string;
+	parse: (input: string, existing?: TOptionValue) => { parseError?: string; env?: TEnvVariables; result?: TAnyFixme };
+};
+
+export interface IHasOptions {
+	options?: {
+		[name: string]: TStepperOption;
+	};
+}
+
+export interface IHasCycles {
+	cycles: IStepperCycles;
+	cyclesWhen?: IStepperWhen;
+}
+
 /**
- * Declarative bound on a stepper option. When present, the option is
- * "tunable" — a reasoning loop (e.g. the autonomic MAPE-K loop) may
- * propose changes within these bounds. Absence means the option is not
- * tunable and the reasoning loop must leave it alone.
- *
- * Keep the four kinds narrow and obvious. If a tunable needs richer
- * validation than these cover, it belongs in its own option-specific
- * validator via `parse`, not in this declarative surface.
+ * Declarative bound on a tunable option. The four kinds are deliberately
+ * narrow — richer validation belongs in the option's own `parse`, not here.
  */
-export type TStepperOptionRange =
+export type TTunableRange =
 	| { kind: "number"; min?: number; max?: number }
 	| { kind: "duration"; minMs?: number; maxMs?: number }
 	| { kind: "boolean" }
@@ -61,61 +75,55 @@ export type TStepperOptionRange =
  * How often a tunable may be changed. Enforced server-side at the
  * Development-write RPC boundary; a misbehaving client cannot bypass it.
  */
-export type TStepperOptionRateLimit = {
+export type TTunableRateLimit = {
 	maxChangesPerDay: number;
 	/** Optional minimum relative step size — e.g. 0.1 for "at least 10% change". */
 	minStepPct?: number;
 };
 
 /**
- * One stepper option's declaration. The core shape (required, altSource,
- * default, desc, parse) is legacy. The three new fields — range,
- * rateLimit, requiresCapability — declare the tunable envelope for
- * reasoning loops. Absence of `range` means the option is not tunable.
+ * One tunable option declaration. A superset of TStepperOption — same
+ * desc / parse / etc. plus the autonomic envelope (range, rateLimit,
+ * requiresCapability).
  */
-export type TStepperOption = {
-	required?: boolean;
-	altSource?: string;
-	default?: string;
-	desc: string;
-	parse: (input: string, existing?: TOptionValue) => { parseError?: string; env?: TEnvVariables; result?: TAnyFixme };
-	/** Declarative bound. Present iff the option is tunable. */
-	range?: TStepperOptionRange;
-	/** Rate limit on changes. Meaningful only when `range` is present. */
-	rateLimit?: TStepperOptionRateLimit;
-	/** Capability required to change this option via the autonomic path (e.g. "Autonomic:apply:cycleMs"). */
+export type TTunableOption = TStepperOption & {
+	range: TTunableRange;
+	rateLimit?: TTunableRateLimit;
 	requiresCapability?: string;
 };
 
-export interface IHasOptions {
-	options?: {
-		[name: string]: TStepperOption;
+/**
+ * Discovery contract: steppers that expose tunable options — options a
+ * reasoning loop (the autonomic MAPE-K loop) may propose changes to within
+ * their declared bounds — declare them in a `tunables` map parallel to
+ * `options`. Non-tunable steppers simply omit the property.
+ *
+ * Discovered the same way IHasOptions / IHasCycles are — by introspection
+ * for the property, no instanceof check required. The CLI `--help`
+ * surface, the autonomic discovery path, and any other consumer all use
+ * the same duck-typed lookup.
+ */
+export interface IHasTunables {
+	tunables?: {
+		[name: string]: TTunableOption;
 	};
 }
 
 /**
- * Enumerate every tunable option declared by any stepper in the list.
- * An option is tunable iff it declares `range`. The autonomic loop
- * reads this to discover what it may propose changes to.
+ * Enumerate every tunable declared by any stepper in the list. Steppers
+ * with no `tunables` property are skipped silently.
  */
 export function getTunableOptions(
 	steppers: AStepper[],
-): Array<{ stepperName: string; key: string; meta: TStepperOption }> {
-	const out: Array<{ stepperName: string; key: string; meta: TStepperOption }> = [];
+): Array<{ stepperName: string; key: string; meta: TTunableOption }> {
+	const out: Array<{ stepperName: string; key: string; meta: TTunableOption }> = [];
 	for (const stepper of steppers) {
-		const withOpts = stepper as unknown as IHasOptions;
-		const opts = withOpts.options;
-		if (!opts) continue;
-		for (const [key, meta] of Object.entries(opts)) {
-			if (meta.range) {
-				out.push({ stepperName: constructorName(stepper), key, meta });
-			}
+		const withTunables = stepper as unknown as IHasTunables;
+		const tunables = withTunables.tunables;
+		if (!tunables) continue;
+		for (const [key, meta] of Object.entries(tunables)) {
+			out.push({ stepperName: constructorName(stepper), key, meta });
 		}
 	}
 	return out;
-}
-
-export interface IHasCycles {
-	cycles: IStepperCycles;
-	cyclesWhen?: IStepperWhen;
 }
