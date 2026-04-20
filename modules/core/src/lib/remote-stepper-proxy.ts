@@ -16,10 +16,12 @@ import type { TActionResult } from "../schema/protocol.js";
 import { actionNotOK } from "./util/index.js";
 import { type StepTool, type StepRegistry } from "./step-dispatch.js";
 import type { StepDescriptor } from "./stepper-registry.js";
+import { RpcClient, type RpcError } from "./rpc-client.js";
 
 export class RemoteStepperProxy extends AStepper {
 	readonly name: string;
 	private stepDescriptors: StepDescriptor[] = [];
+	private rpc: RpcClient;
 
 	constructor(
 		private remoteUrl: string,
@@ -29,6 +31,7 @@ export class RemoteStepperProxy extends AStepper {
 		const host = new URL(remoteUrl).host;
 		this.name = `RemoteProxy_${host.replace(/[^a-zA-Z0-9]/g, "_")}`;
 		this.description = `Proxy for remote stepper host at ${remoteUrl}`;
+		this.rpc = new RpcClient({ baseUrl: remoteUrl, capabilityToken: token });
 	}
 
 	async setWorld(world: TWorld, steppers: AStepper[]): Promise<void> {
@@ -36,16 +39,18 @@ export class RemoteStepperProxy extends AStepper {
 		await this.fetchStepDescriptors();
 	}
 
-	/** Fetch step.list from the remote host to discover available steps. */
+	/**
+	 * Fetch step.list from the remote host. step.list is introspection,
+	 * explicitly exempt from the seqPath-required rule (per commit 5), so
+	 * we pass an empty seqPath — the remote's step.list handler doesn't
+	 * look at it.
+	 */
 	private async fetchStepDescriptors(): Promise<void> {
-		const res = await fetch(`${this.remoteUrl}/rpc/step.list`, {
-			method: "POST",
-			headers: this.buildHeaders(),
-			body: JSON.stringify({ jsonrpc: "2.0", id: "discover", method: "step.list", params: {} }),
-		});
-		if (!res.ok) throw new Error(`RemoteStepperProxy: step.list failed at ${this.remoteUrl}: ${res.status} ${res.statusText}`);
-		const data = (await res.json()) as { steps?: StepDescriptor[] };
-		this.stepDescriptors = data.steps ?? [];
+		const result = await this.rpc.call<{ steps?: StepDescriptor[] }>("step.list", {}, []);
+		if ("error" in result) {
+			throw new Error(`RemoteStepperProxy: step.list failed at ${this.remoteUrl}: ${result.error}`);
+		}
+		this.stepDescriptors = result.steps ?? [];
 	}
 
 	/** Inject proxy StepTools into the parent registry. Same pattern as SubprocessTransport.injectInto(). */
@@ -76,26 +81,13 @@ export class RemoteStepperProxy extends AStepper {
 		}
 	}
 
-	/** Call a step on the remote host via HTTP/JSON-RPC. */
-	private async call(method: string, params: Record<string, unknown>, seqPath?: number[]): Promise<TActionResult> {
-		try {
-			const res = await fetch(`${this.remoteUrl}/rpc/${method}`, {
-				method: "POST",
-				headers: this.buildHeaders(),
-				body: JSON.stringify({ jsonrpc: "2.0", id: `rpc-${Date.now()}`, method, params, seqPath }),
-			});
-			const data = (await res.json()) as Record<string, unknown>;
-			if (!res.ok || data.error) return actionNotOK(`${method}: ${data.error || `HTTP ${res.status}`}`);
-			return { ok: true, products: data as Record<string, unknown> };
-		} catch (err) {
-			return actionNotOK(`${method}: ${err instanceof Error ? err.message : String(err)}`);
+	/** Call a step on the remote host via shared RpcClient. */
+	private async call(method: string, params: Record<string, unknown>, seqPath: number[] = []): Promise<TActionResult> {
+		const result = await this.rpc.call<Record<string, unknown>>(method, params, seqPath);
+		if ("error" in result && typeof (result as RpcError).error === "string") {
+			return actionNotOK(`${method}: ${(result as RpcError).error}`);
 		}
-	}
-
-	private buildHeaders(): Record<string, string> {
-		const headers: Record<string, string> = { "Content-Type": "application/json" };
-		if (this.token) headers["Authorization"] = `Bearer ${this.token}`;
-		return headers;
+		return { ok: true, products: result as Record<string, unknown> };
 	}
 
 	/** IStepTransport.attach — duck-typed, no import needed from web-server-hono. */
