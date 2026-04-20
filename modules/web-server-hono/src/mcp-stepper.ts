@@ -12,6 +12,7 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 
 import { AStepper, type IHasCycles, type IHasOptions } from "@haibun/core/lib/astepper.js";
+import { syntheticSeqPath } from "@haibun/core/lib/host-id.js";
 import type { TWorld } from "@haibun/core/lib/execution.js";
 import { OK } from "@haibun/core/schema/protocol.js";
 import { getFromRuntime, getStepperOption, constructorName, stringOrError } from "@haibun/core/lib/util/index.js";
@@ -441,7 +442,13 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 					handler: async (input: Record<string, unknown>, grantedCapability?: string | string[]): Promise<CallToolResult> => {
 						this.getWorld().eventLogger.info(`[MCP] Tool Execution: ${fullToolName}`);
 						const world = this.getWorld();
-						const seqPath: number[] = [0, (world.runtime.adHocSeq = (world.runtime.adHocSeq ?? 0) + 1)];
+						// MCP is an external tool-invocation protocol — its callers cannot thread
+						// a haibun seqPath because they don't have one. Synthetic seqPath is
+						// rooted on the host's hostId and uses SYNTHETIC_FEATURE_NUM in the
+						// featureNum slot so these paths sort distinctly from any feature step.
+						const { hostId } = world.tag;
+						world.runtime.adHocSeq = (world.runtime.adHocSeq ?? 0) + 1;
+						const seqPath = syntheticSeqPath(hostId, world.runtime.adHocSeq);
 						const validatedParams = validateToolInput(stepTool, input, world);
 						const featureStep = buildSyntheticFeatureStep(stepTool, validatedParams, seqPath);
 						const hr = await dispatchStep(

@@ -21,12 +21,16 @@ describe("syntheticSeqPathDirection", () => {
 });
 
 describe("featureSyntheticSeqPath", () => {
-	it("creates a feature-scoped synthetic branch", () => {
-		expect(featureSyntheticSeqPath(3, 2)).toEqual([3, 0, 2]);
+	it("creates a feature-scoped synthetic branch rooted on hostId 0 by default", () => {
+		expect(featureSyntheticSeqPath(3, 2)).toEqual([0, 3, 0, 2]);
 	});
 
 	it("allows a non-default synthetic branch when needed", () => {
-		expect(featureSyntheticSeqPath(3, 2, -1)).toEqual([3, -1, 2]);
+		expect(featureSyntheticSeqPath(3, 2, -1)).toEqual([0, 3, -1, 2]);
+	});
+
+	it("accepts an explicit hostId so multi-host synthetics cannot collide", () => {
+		expect(featureSyntheticSeqPath(3, 2, 0, 7)).toEqual([7, 3, 0, 2]);
 	});
 });
 

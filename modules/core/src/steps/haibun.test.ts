@@ -16,7 +16,8 @@ describe("until", () => {
 });
 
 describe("seqPath ordering", () => {
-	// seqPath format: [featureNum, scenarioNum, ...stepPath]
+	// seqPath format: [hostId, featureNum, scenarioNum, ...stepPath]
+	// hostId: 0 by default; distinct per haibun instance for multi-host uniqueness
 	// featureNum: 1-based feature number
 	// scenarioNum: 1-based scenario number (1 when no scenario declared)
 	// stepPath: hierarchical step numbering with negative numbers for conditions
@@ -27,9 +28,9 @@ describe("seqPath ordering", () => {
 		expect(result.ok).toBe(true);
 		const seqs = result.featureResults?.[0].stepResults.map((r) => r.seqPath);
 		expect(seqs).toEqual([
-			[1, 1, 1],
-			[1, 1, 2],
-			[1, 1, 3],
+			[0, 1, 1, 1],
+			[0, 1, 1, 2],
+			[0, 1, 1, 3],
 		]);
 	});
 
@@ -39,10 +40,10 @@ describe("seqPath ordering", () => {
 		expect(result.ok).toBe(true);
 		const seqs = result.featureResults?.[0].stepResults.map((r) => r.seqPath);
 		expect(seqs).toEqual([
-			[1, 1, 1],
-			[1, 1, 2, -1],
-			[1, 1, 2],
-			[1, 1, 3],
+			[0, 1, 1, 1],
+			[0, 1, 1, 2, -1],
+			[0, 1, 1, 2],
+			[0, 1, 1, 3],
 		]);
 	});
 
@@ -52,11 +53,11 @@ describe("seqPath ordering", () => {
 		expect(result.ok).toBe(true);
 		const seqs = result.featureResults?.[0].stepResults.map((r) => r.seqPath);
 		expect(seqs).toEqual([
-			[1, 1, 1],
-			[1, 1, 2, -1, -1],
-			[1, 1, 2, -1],
-			[1, 1, 2],
-			[1, 1, 3],
+			[0, 1, 1, 1],
+			[0, 1, 1, 2, -1, -1],
+			[0, 1, 1, 2, -1],
+			[0, 1, 1, 2],
+			[0, 1, 1, 3],
 		]);
 	});
 });
@@ -91,11 +92,11 @@ describe("afterEvery", () => {
 		// afterEvery substep gets negative index (side-effect, not primary flow)
 		// Step [1,1,4] "passes" does not trigger afterEvery because it's the same action (prevents infinite recursion)
 		expect(seqs).toEqual([
-			[1, 1, 1],
-			[1, 1, 2],
-			[1, 1, 3],
-			[1, 1, 3, -1],
-			[1, 1, 4],
+			[0, 1, 1, 1],
+			[0, 1, 1, 2],
+			[0, 1, 1, 3],
+			[0, 1, 1, 3, -1],
+			[0, 1, 1, 4],
 		]);
 	});
 });
@@ -172,12 +173,12 @@ describe("backgrounds", () => {
 		]);
 		expect(result.ok).toBe(true);
 		const seqs = result.featureResults?.[0].stepResults.map((r) => r.seqPath);
-		// Condition uses dir=-1, body uses dir=1: condition [1,1,1,-1], background steps [1,1,1,1] and [1,1,1,2], parent [1,1,1]
+		// Condition uses dir=-1, body uses dir=1: condition [0,1,1,1,-1], background steps [0,1,1,1,1] and [0,1,1,1,2], parent [0,1,1,1]
 		expect(seqs).toEqual([
-			[1, 1, 1, -1],
-			[1, 1, 1, 1],
-			[1, 1, 1, 2],
-			[1, 1, 1],
+			[0, 1, 1, 1, -1],
+			[0, 1, 1, 1, 1],
+			[0, 1, 1, 1, 2],
+			[0, 1, 1, 1],
 		]);
 	});
 

@@ -82,24 +82,25 @@ describe("statement type", () => {
 		const firstFeature = result.featureResults?.[0];
 		if (!firstFeature) throw new Error("Missing feature result");
 		const steps = firstFeature.stepResults;
-		// Scenario 1: "do alpha" is the first real step, seq starts at 1
+		// seqPath layout: [hostId, featureNum, scenarioNum, stepSeq, ...substep]
+		// Scenario 1: "do alpha" is the first real step, stepSeq starts at 1
 		const doAlpha = steps.find((s) => s.in === "do alpha");
 		if (!doAlpha) throw new Error("Missing do alpha step");
-		expect(doAlpha.seqPath[2]).toBe(1);
+		expect(doAlpha.seqPath[3]).toBe(1);
 		// "alpha" substep from domain statement extends with additional seqPath element
-		const alphaSubstep = steps.find((s) => s.in === "alpha" && s.seqPath.length > 3);
+		const alphaSubstep = steps.find((s) => s.in === "alpha" && s.seqPath.length > 4);
 		expect(alphaSubstep).toBeDefined();
 		if (!alphaSubstep) throw new Error("Missing alpha substep");
 		expect(alphaSubstep.seqPath.length).toBeGreaterThan(doAlpha.seqPath.length);
 		// "alpha" as direct step (step 2 in scenario 1)
-		const alphaDirect = steps.find((s) => s.in === "alpha" && s.seqPath.length === 3);
+		const alphaDirect = steps.find((s) => s.in === "alpha" && s.seqPath.length === 4);
 		if (!alphaDirect) throw new Error("Missing alpha direct step");
-		expect(alphaDirect.seqPath[2]).toBe(2);
-		// Scenario 2: "beta" resets — first real step is seq 1
+		expect(alphaDirect.seqPath[3]).toBe(2);
+		// Scenario 2: "beta" resets — first real step is stepSeq 1
 		const beta = steps.find((s) => s.in === "beta");
 		if (!beta) throw new Error("Missing beta step");
-		expect(beta.seqPath[2]).toBe(1);
+		expect(beta.seqPath[3]).toBe(1);
 		// Scenario numbers should differ
-		expect(doAlpha.seqPath[1]).not.toBe(beta.seqPath[1]);
+		expect(doAlpha.seqPath[2]).not.toBe(beta.seqPath[2]);
 	});
 });

@@ -44,9 +44,18 @@ export async function runSubprocess(csteppers: CStepper[], world: TWorld): Promi
 			return;
 		}
 
+		if (!msg.seqPath || msg.seqPath.length === 0) {
+			process.send?.({
+				type: "result",
+				ok: false,
+				error: `Method ${msg.method}: missing seqPath — subprocess dispatches must thread the caller's seqPath`,
+			} satisfies SubprocessResultMessage);
+			return;
+		}
+
 		try {
 			const validated = validateToolInput(tool, msg.params ?? {}, world);
-			const featureStep = buildSyntheticFeatureStep(tool, validated, msg.seqPath ?? [0]);
+			const featureStep = buildSyntheticFeatureStep(tool, validated, msg.seqPath);
 			const hr = await tool.handler(featureStep, world);
 			if (hr.ok) {
 				process.send?.({ type: "result", ok: true, products: hr.products ?? {} } satisfies SubprocessResultMessage);

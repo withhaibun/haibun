@@ -48,7 +48,7 @@ class RpcVerifyStepper extends AStepper {
 				const res = await fetch(String(url), {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ jsonrpc: "2.0", id: "1", method: String(method), params: {} }),
+					body: JSON.stringify({ jsonrpc: "2.0", id: "1", method: String(method), params: {}, seqPath: [0, 1, 1, 1] }),
 				});
 				if (!res.ok) return actionNotOK(`HTTP ${res.status}`);
 				const data = await res.json();
@@ -62,7 +62,7 @@ class RpcVerifyStepper extends AStepper {
 				const res = await fetch(String(url), {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ jsonrpc: "2.0", id: "1", method: String(method), params: {} }),
+					body: JSON.stringify({ jsonrpc: "2.0", id: "1", method: String(method), params: {}, seqPath: [0, 1, 1, 1] }),
 				});
 				const data = await res.json();
 				if (res.status !== 422) return actionNotOK(`Expected HTTP 422, got ${res.status}`);
@@ -86,6 +86,7 @@ class RpcVerifyStepper extends AStepper {
 						id: "1",
 						method: String(method),
 						params: {},
+						seqPath: [0, 1, 1, 1],
 					}),
 				});
 				if (!res.ok) return actionNotOK(`HTTP ${res.status}`);
@@ -106,7 +107,7 @@ class RpcVerifyStepper extends AStepper {
 						"Content-Type": "application/json",
 						Authorization: `Bearer ${String(token)}`,
 					},
-					body: JSON.stringify({ jsonrpc: "2.0", id: "1", method: String(method), params: {} }),
+					body: JSON.stringify({ jsonrpc: "2.0", id: "1", method: String(method), params: {}, seqPath: [0, 1, 1, 1] }),
 				});
 				const data = await res.json();
 				if (res.status !== 422) return actionNotOK(`Expected HTTP 422, got ${res.status}`);
@@ -125,7 +126,7 @@ class RpcVerifyStepper extends AStepper {
 						"Content-Type": "application/json",
 						Authorization: `Bearer ${String(token)}`,
 					},
-					body: JSON.stringify({ jsonrpc: "2.0", id: "1", method: String(method), params: {} }),
+					body: JSON.stringify({ jsonrpc: "2.0", id: "1", method: String(method), params: {}, seqPath: [0, 1, 1, 1] }),
 				});
 				const data = await res.json();
 				if (res.status !== 422) return actionNotOK(`Expected HTTP 422, got ${res.status}`);
@@ -242,24 +243,22 @@ capture step list at "http://localhost:${port + 10}/rpc/step.list"
 		expect(Array.isArray((capturedStepList as { steps: unknown }).steps)).toBe(true);
 	});
 
-	it("ad-hoc RPC calls get distinct seqPath [0, N]", async () => {
+	it("refuses state-changing RPC calls that omit seqPath", async () => {
 		const port = 8238;
-		const seqPaths: number[][] = [];
+		let errorFromMissingSeqPath: string | undefined;
 
-		class SeqCaptureStepper extends AStepper {
+		class MissingSeqPathStepper extends AStepper {
 			steps = {
-				captureSeq: {
-					gwta: "capture rpc seq at {url}",
+				callWithoutSeqPath: {
+					gwta: "rpc call to {url} without seqPath is refused",
 					action: async ({ url }: { url: string }) => {
-						for (let i = 0; i < 2; i++) {
-							const res = await fetch(String(url), {
-								method: "POST",
-								headers: { "Content-Type": "application/json" },
-								body: JSON.stringify({ jsonrpc: "2.0", id: `seq-${i}`, method: "PingStepper-ping", params: {} }),
-							});
-							const data = (await res.json()) as Record<string, unknown>;
-							if (Array.isArray(data._seqPath)) seqPaths.push(data._seqPath as number[]);
-						}
+						const res = await fetch(String(url), {
+							method: "POST",
+							headers: { "Content-Type": "application/json" },
+							body: JSON.stringify({ jsonrpc: "2.0", id: "1", method: "PingStepper-ping", params: {} }),
+						});
+						const data = (await res.json()) as Record<string, unknown>;
+						errorFromMissingSeqPath = typeof data.error === "string" ? data.error : undefined;
 						return OK;
 					},
 				},
@@ -267,20 +266,17 @@ capture step list at "http://localhost:${port + 10}/rpc/step.list"
 		}
 
 		const feature = {
-			path: "/features/seq-test.feature",
+			path: "/features/missing-seqpath.feature",
 			content: `
 enable rpc
-webserver is listening for "rpc-seq-test"
-capture rpc seq at "http://localhost:${port}/rpc/PingStepper-ping"
+webserver is listening for "rpc-missing-seqpath"
+rpc call to "http://localhost:${port}/rpc/PingStepper-ping" without seqPath is refused
 `,
 		};
-		const r = await passWithDefaults([feature], [WebServerStepper, PingStepper, SeqCaptureStepper], makeOptions(port));
+		const r = await passWithDefaults([feature], [WebServerStepper, PingStepper, MissingSeqPathStepper], makeOptions(port));
 		expect(r.ok).toBe(true);
-		// Both calls should have seqPath starting with 0 and distinct N values
-		expect(seqPaths.length).toBe(2);
-		expect(seqPaths[0][0]).toBe(0);
-		expect(seqPaths[1][0]).toBe(0);
-		expect(seqPaths[0][1]).not.toBe(seqPaths[1][1]);
+		// State-changing RPC without seqPath must be refused with a clear error.
+		expect(errorFromMissingSeqPath).toMatch(/missing seqPath/);
 	});
 
 	it("denies protected RPC steps without capability and allows them with capability", async () => {
