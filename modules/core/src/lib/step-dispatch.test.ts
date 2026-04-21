@@ -277,6 +277,37 @@ describe("step-dispatch", () => {
 				"CapabilityStepper:protected",
 			);
 		});
+
+		it("omits capability-gated steps when the caller lacks the grant", () => {
+			const steppers = [new PlainStepper(), new CapabilityStepper()];
+			const discovery = discoverSteps(steppers, world, undefined, { grantedCapability: [] });
+			const methods = discovery.steps.map((s) => s.method);
+			expect(methods).toContain("PlainStepper-greet");
+			expect(methods).not.toContain("CapabilityStepper-protectedPing");
+		});
+
+		it("includes capability-gated steps when the caller holds the matching grant", () => {
+			const steppers = [new PlainStepper(), new CapabilityStepper()];
+			const discovery = discoverSteps(steppers, world, undefined, {
+				grantedCapability: ["CapabilityStepper:protected"],
+			});
+			const methods = discovery.steps.map((s) => s.method);
+			expect(methods).toContain("PlainStepper-greet");
+			expect(methods).toContain("CapabilityStepper-protectedPing");
+		});
+
+		it("wildcard grants admit every matching capability", () => {
+			const steppers = [new CapabilityStepper()];
+			const discovery = discoverSteps(steppers, world, undefined, { grantedCapability: "*" });
+			const methods = discovery.steps.map((s) => s.method);
+			expect(methods).toContain("CapabilityStepper-protectedPing");
+		});
+
+		it("passes through the full manifest when no grant context is supplied", () => {
+			const steppers = [new CapabilityStepper()];
+			const discovery = discoverSteps(steppers, world);
+			expect(discovery.steps.find((m) => m.method === "CapabilityStepper-protectedPing")).toBeDefined();
+		});
 	});
 
 	describe("createStepHandler", () => {
