@@ -38,6 +38,9 @@ describe("RemoteStepperProxy", () => {
 		const app = new Hono();
 		app.post("/rpc/:_method", async (c) => {
 			const data = (await c.req.json()) as { method: string; params?: Record<string, unknown> };
+			if (data.method === "session.beginAction") {
+				return c.json({ seqPath: [7, -1, 1], hostId: 7 });
+			}
 			if (data.method === "step.list") {
 				const steps = localRegistry.list().map((t) => ({
 					stepperName: t.stepperName,
@@ -78,15 +81,20 @@ describe("RemoteStepperProxy", () => {
 		expect(proxy.descriptors.map((d) => d.method)).toContain("EchoStepper-echo");
 	});
 
-	it("injects proxy tools into registry and executes remotely", async () => {
+	it("injects proxy tools into registry under hostId-prefixed keys", async () => {
 		const proxy = new RemoteStepperProxy(`http://localhost:${port}`);
 		await proxy.setWorld(world, []);
+		expect(proxy.remoteHostId).toBe(7);
 
 		const registry = new StepRegistry([], world);
 		proxy.injectInto(registry);
 
-		const tool = registry.get("EchoStepper-echo");
-		if (!tool) throw new Error("Expected tool to be registered");
+		// Prefixed key reflects the remote's hostId so it can't collide with
+		// local tools or other hosts' tools of the same method name.
+		const tool = registry.get("7:EchoStepper-echo");
+		if (!tool) throw new Error("Expected prefixed tool to be registered");
+		// Bare name (local form) must NOT be registered — prefixing is total.
+		expect(registry.get("EchoStepper-echo")).toBeUndefined();
 
 		const { buildSyntheticFeatureStep } = await import("./step-dispatch.js");
 		const featureStep = buildSyntheticFeatureStep(tool, { message: "hello" }, [0, 1]);
@@ -102,8 +110,8 @@ describe("RemoteStepperProxy", () => {
 		const registry = new StepRegistry([], world);
 		proxy.injectInto(registry);
 
-		const tool = registry.get("EchoStepper-protectedPing");
-		if (!tool) throw new Error("Expected tool to be registered");
+		const tool = registry.get("7:EchoStepper-protectedPing");
+		if (!tool) throw new Error("Expected prefixed tool to be registered");
 		expect(tool.capability).toBe("EchoStepper:admin");
 	});
 });

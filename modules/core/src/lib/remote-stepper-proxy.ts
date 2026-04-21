@@ -22,6 +22,12 @@ export class RemoteStepperProxy extends AStepper {
 	readonly name: string;
 	private stepDescriptors: StepDescriptor[] = [];
 	private rpc: RpcClient;
+	/**
+	 * Remote host's hostId, discovered at setWorld via session.beginAction.
+	 * Used to prefix registry keys so multiple remotes (and local) don't
+	 * collide on identical method names.
+	 */
+	private hostId: number | undefined;
 
 	constructor(
 		private remoteUrl: string,
@@ -36,7 +42,26 @@ export class RemoteStepperProxy extends AStepper {
 
 	async setWorld(world: TWorld, steppers: AStepper[]): Promise<void> {
 		await super.setWorld(world, steppers);
+		await this.discoverHostId();
 		await this.fetchStepDescriptors();
+	}
+
+	/** Read hostId from session.beginAction so injected tools carry a correct prefix. */
+	private async discoverHostId(): Promise<void> {
+		const result = await this.rpc.call<{ hostId?: number; seqPath?: number[] }>("session.beginAction", {}, []);
+		if ("error" in result) {
+			throw new Error(`RemoteStepperProxy: session.beginAction failed at ${this.remoteUrl}: ${(result as { error: string }).error}`);
+		}
+		const id = (result as { hostId?: number; seqPath?: number[] }).hostId ?? (result as { seqPath?: number[] }).seqPath?.[0];
+		if (typeof id !== "number") {
+			throw new Error(`RemoteStepperProxy: session.beginAction at ${this.remoteUrl} did not surface a hostId`);
+		}
+		this.hostId = id;
+	}
+
+	/** The remote host's hostId. Undefined before setWorld completes. */
+	get remoteHostId(): number | undefined {
+		return this.hostId;
 	}
 
 	/**
@@ -53,11 +78,18 @@ export class RemoteStepperProxy extends AStepper {
 		this.stepDescriptors = result.steps ?? [];
 	}
 
-	/** Inject proxy StepTools into the parent registry. Same pattern as SubprocessTransport.injectInto(). */
+	/**
+	 * Inject proxy StepTools into the parent registry. Remote tools are
+	 * keyed `${hostId}:${method}` so they never collide with local tools
+	 * (bare method names) or with other remote hosts.
+	 */
 	injectInto(registry: StepRegistry): void {
+		if (this.hostId === undefined) throw new Error("RemoteStepperProxy.injectInto called before setWorld discovered the host id");
+		const prefix = `${this.hostId}:`;
 		for (const descriptor of this.stepDescriptors) {
+			const prefixedMethod = `${prefix}${descriptor.method}`;
 			const tool: StepTool = {
-				name: descriptor.method,
+				name: prefixedMethod,
 				description: descriptor.pattern,
 				inputSchema: (descriptor.inputSchema as StepTool["inputSchema"]) ?? { type: "object" },
 				paramSchemas: new Map(),
@@ -68,6 +100,8 @@ export class RemoteStepperProxy extends AStepper {
 				isAsync: true,
 				transport: "remote",
 				remoteHost: new URL(this.remoteUrl).host,
+				// Dispatch over RPC using the un-prefixed method name — the prefix is
+				// a local registry-naming concern, not part of the wire call.
 				handler: (_featureStep, _world) =>
 					this.call(
 						descriptor.method,
