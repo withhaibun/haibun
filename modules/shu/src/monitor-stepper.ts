@@ -53,7 +53,6 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			parse: intOrError,
 			range: { kind: "number" as const, min: 100, max: 1_000_000 },
 			rateLimit: { maxChangesPerDay: 48 },
-			requiresCapability: "Autonomic:apply:MAX_EVENTS",
 		},
 	};
 

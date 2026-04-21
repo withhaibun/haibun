@@ -85,14 +85,29 @@ export type TTunableRateLimit = {
 
 /**
  * One tunable option declaration. A superset of TStepperOption — same
- * desc / parse / etc. plus the autonomic envelope (range, rateLimit,
- * requiresCapability).
+ * desc / parse / etc. plus declarative bounds (range, rateLimit) for
+ * tooling that may propose changes.
+ *
+ * The capability required to change a tunable is derived from the
+ * owning stepper's name plus the tunable key via
+ * `requiredCapabilityFor(stepperName, key)` — never hardcoded. That
+ * keeps consumer namespaces (e.g. autonomic's `Autonomic:apply:*`)
+ * out of the declaring stepper's surface.
  */
 export type TTunableOption = TStepperOption & {
 	range: TTunableRange;
 	rateLimit?: TTunableRateLimit;
-	requiresCapability?: string;
 };
+
+/**
+ * Derive the capability string a caller must hold to change the
+ * tunable `<stepperName>.<key>`. Single source of truth for the
+ * shape; any consumer checks against this derived string, any
+ * grantor constructs via this function.
+ */
+export function requiredCapabilityFor(stepperName: string, key: string): string {
+	return `${stepperName}:tune:${key}`;
+}
 
 /**
  * Discovery contract: steppers that expose tunable options — options a
