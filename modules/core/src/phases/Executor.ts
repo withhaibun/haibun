@@ -31,6 +31,34 @@ function initFeatureRuntime(world: TWorld): void {
 	}
 }
 
+/**
+ * Duck-typed attach() on every stepper that implements a transport
+ * (has `attach` and `detach` methods). Called from two places:
+ *
+ *   - Executor, right after it creates world.runtime.stepRegistry,
+ *     so any stepper transport is live before the first feature runs.
+ *     This covers pure-client configs (e.g. agent with `{remote}`
+ *     entry, no webserver).
+ *
+ *   - WebServerStepper's `enable rpc` / `refresh steppers` steps,
+ *     which create their own registry and must re-attach transports
+ *     into it. Delegating here keeps both call sites consistent.
+ *
+ * The webserver argument is whatever the caller has. Core's Executor
+ * invocation passes undefined; transports that truly need a webserver
+ * (e.g. SSE adding routes) check and no-op when absent. Remote-proxy
+ * transports don't use it.
+ */
+// biome-ignore lint/suspicious/noExplicitAny: duck-typed webserver shape varies by caller.
+export function attachTransportsToRegistry(steppers: AStepper[], registry: StepRegistry, webserver?: any): void {
+	for (const s of steppers) {
+		// biome-ignore lint/suspicious/noExplicitAny: duck-typed IStepTransport check
+		const candidate = s as unknown as { attach?: (registry: StepRegistry, webserver: any) => void; detach?: () => void };
+		if (typeof candidate.attach !== "function" || typeof candidate.detach !== "function") continue;
+		candidate.attach(registry, webserver);
+	}
+}
+
 export class Executor {
 	private static createExecutionFailure(featureResults: TFeatureResult[]): TExecutorResult["failure"] | undefined {
 		const firstFailedFeature = featureResults.find((fr) => !fr.ok);
@@ -59,6 +87,14 @@ export class Executor {
 		world.runtime.steppers = steppers;
 		const stepRegistry = new StepRegistry(steppers, world);
 		world.runtime.stepRegistry = stepRegistry;
+		// Any stepper that implements IStepTransport (duck-typed: has `attach`
+		// and `detach` methods) injects its tools into the registry now. This
+		// covers RemoteStepperProxy entries from `{remote}` config lines,
+		// subprocess transports, and any future transport. WebServerStepper's
+		// enable-rpc step re-attaches into a fresh registry when it builds
+		// one; the registry.set is keyed by method name so duplicate
+		// injections are idempotent.
+		attachTransportsToRegistry(steppers, stepRegistry);
 
 		const onEventHandler = (event: THaibunEvent) => {
 			doStepperCycleSync(steppers, "onEvent", event);

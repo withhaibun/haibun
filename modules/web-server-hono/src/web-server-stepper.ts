@@ -14,11 +14,7 @@ import { resolveHostId, syntheticSeqPath } from "@haibun/core/lib/host-id.js";
 import { getGrantedCapabilityFromHeaders, validateCapabilityAuthConfig } from "./capability-auth.js";
 import { ServerHono, DEFAULT_PORT } from "./server-hono.js";
 import { SSETransport, TRANSPORT, type ITransport } from "./sse-transport.js";
-import type { IStepTransport } from "./step-transport.js";
-
-function isStepTransport(s: unknown): s is IStepTransport {
-	return typeof s === "object" && s !== null && typeof (s as IStepTransport).attach === "function";
-}
+import { attachTransportsToRegistry } from "@haibun/core/phases/Executor.js";
 
 const cycles = (wss: WebServerStepper): IStepperCycles => ({
 	getConcerns: () => ({
@@ -56,7 +52,8 @@ const cycles = (wss: WebServerStepper): IStepperCycles => ({
 	async endFeature(wtw: TEndFeature) {
 		if (wtw.shouldClose) {
 			for (const s of wss.steppers) {
-				if (isStepTransport(s)) s.detach();
+				const candidate = s as unknown as { detach?: () => void };
+				if (typeof candidate.detach === "function") candidate.detach();
 			}
 			wss.stepRegistry = undefined;
 			await wss.webserver?.close();
@@ -207,7 +204,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 			gwta: "enable rpc",
 			action: () => {
 				this.stepRegistry = new StepRegistry(this.steppers, this.getWorld());
-				this.attachTransports();
+				attachTransportsToRegistry(this.steppers, this.stepRegistry, this.getWorld().runtime[WEBSERVER]);
 
 				const transport = getFromRuntime(this.getWorld().runtime, TRANSPORT) as ITransport;
 				const logger = this.getWorld().eventLogger;
@@ -242,7 +239,11 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 					// root; client appends monotonic sub-seqs for each call
 					// within the action scope.
 					if (method === "session.beginAction") {
-						return { seqPath: this.allocateSessionSeqPath() };
+						const seqPath = this.allocateSessionSeqPath();
+						// seqPath[0] is the hostId; returning it explicitly saves remote
+						// callers from having to reach into the seqPath to learn which
+						// host they're talking to.
+						return { seqPath, hostId: seqPath[0] };
 					}
 
 					if (!msg.seqPath || msg.seqPath.length === 0) {
@@ -286,23 +287,12 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 			action: () => {
 				if (!this.stepRegistry) return OK;
 				this.stepRegistry.refresh(this.steppers, this.getWorld());
-				this.attachTransports();
+				attachTransportsToRegistry(this.steppers, this.stepRegistry, this.getWorld().runtime[WEBSERVER]);
 				this.getWorld().eventLogger.info(`[RPC] steppers refreshed: ${this.steppers.length} steppers, ${this.stepRegistry.list().length} tools`);
 				return OK;
 			},
 		},
 	};
-
-	/** Call attach() on every IStepTransport in the stepper list. */
-	private attachTransports(): void {
-		const webserver = this.getWorld().runtime[WEBSERVER] as IWebServer | undefined;
-		if (!this.stepRegistry || !webserver) return;
-		for (const s of this.steppers) {
-			if (isStepTransport(s)) {
-				s.attach(this.stepRegistry, webserver);
-			}
-		}
-	}
 
 	async listen(why: string) {
 		if (!this.webserver) {
