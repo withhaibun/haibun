@@ -84,63 +84,16 @@ export async function inAction<T>(fn: (scope: ActionScope) => Promise<T>): Promi
 
 // --- Shared SSE connection (one per page) ---
 
-let sseSource: EventSource | null = null;
-let sseReconnectTimer: ReturnType<typeof setTimeout> | null = null;
-const sseListeners: { handler: TEventHandler; filter?: TEventFilter }[] = [];
-const clientId = `sse-${Math.random().toString(36).slice(2, 8)}`;
+import { SseSubscriber } from "@haibun/core/lib/sse-subscriber.js";
 
-function dispatchSseEvent(event: Record<string, unknown>): void {
-	for (const listener of sseListeners) {
-		try {
-			if (!listener.filter || listener.filter(event)) {
-				listener.handler(event);
-			}
-		} catch (e) {
-			console.error(`[sse:${clientId}] listener error:`, e);
-		}
+let sharedSubscriber: SseSubscriber | null = null;
+
+function ensureSSE(): SseSubscriber {
+	if (!sharedSubscriber) {
+		sharedSubscriber = new SseSubscriber({ url: "/sse" });
+		sharedSubscriber.connect();
 	}
-}
-
-function connectSSE(): void {
-	if (sseSource) {
-		console.warn(`[sse:${clientId}] duplicate connectSSE() call — already connected (readyState=${sseSource.readyState})`);
-		return;
-	}
-
-	sseSource = new EventSource("/sse");
-
-	sseSource.onmessage = (sseEvent) => {
-		let msg: Record<string, unknown>;
-		try {
-			msg = JSON.parse(sseEvent.data);
-		} catch (e) {
-			console.warn(`[sse:${clientId}] malformed message:`, sseEvent.data, e);
-			return;
-		}
-		if (msg.type === "event" && msg.event) {
-			dispatchSseEvent(msg.event as Record<string, unknown>);
-		}
-	};
-
-	sseSource.onerror = (e) => {
-		const state = sseSource?.readyState;
-		console.warn(`[sse:${clientId}] connection error (readyState=${state})`, e);
-		sseSource?.close();
-		sseSource = null;
-
-		if (!sseReconnectTimer) {
-			sseReconnectTimer = setTimeout(() => {
-				sseReconnectTimer = null;
-				connectSSE();
-			}, 2000);
-		}
-	};
-}
-
-function ensureSSE(): void {
-	if (!sseSource && !sseReconnectTimer) {
-		connectSSE();
-	}
+	return sharedSubscriber;
 }
 
 // --- RPC client instances (keyed by basePath for routing) ---
@@ -247,22 +200,13 @@ export class SseClient {
 	 * Returns an unsubscribe function.
 	 */
 	onEvent(handler: TEventHandler, filter?: TEventFilter): () => void {
-		const entry = { handler, filter };
-		sseListeners.push(entry);
-		return () => {
-			const idx = sseListeners.indexOf(entry);
-			if (idx >= 0) sseListeners.splice(idx, 1);
-		};
+		return ensureSSE().subscribe(handler, filter);
 	}
 
 	/** Close the shared SSE connection. */
 	close(): void {
-		if (sseReconnectTimer) {
-			clearTimeout(sseReconnectTimer);
-			sseReconnectTimer = null;
-		}
-		sseSource?.close();
-		sseSource = null;
+		sharedSubscriber?.close();
+		sharedSubscriber = null;
 		instances.delete(this.basePath);
 	}
 }
