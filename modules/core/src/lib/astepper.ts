@@ -85,25 +85,28 @@ export type TTunableRateLimit = {
 
 /**
  * One tunable option declaration. A superset of TStepperOption — same
- * desc / parse / etc. plus declarative bounds (range, rateLimit) for
- * tooling that may propose changes.
+ * desc / parse / etc. plus the autonomic envelope (range, rateLimit,
+ * requiresCapability).
  *
- * The capability required to change a tunable is derived from the
- * owning stepper's name plus the tunable key via
- * `requiredCapabilityFor(stepperName, key)` — never hardcoded. That
- * keeps consumer namespaces (e.g. autonomic's `Autonomic:apply:*`)
- * out of the declaring stepper's surface.
+ * When `requiresCapability` is omitted, a default can be derived from
+ * the owning stepper + key via `requiredCapabilityFor(stepperName,
+ * key)`. Declaring a consumer-namespaced literal (e.g. `Autonomic:
+ * apply:FOO`) in a non-autonomic stepper couples it to that consumer;
+ * omitting the field and relying on the derived default avoids the
+ * leak.
  */
 export type TTunableOption = TStepperOption & {
 	range: TTunableRange;
 	rateLimit?: TTunableRateLimit;
+	requiresCapability?: string;
 };
 
 /**
- * Derive the capability string a caller must hold to change the
- * tunable `<stepperName>.<key>`. Single source of truth for the
- * shape; any consumer checks against this derived string, any
- * grantor constructs via this function.
+ * Derive the default capability a caller must hold to change the
+ * tunable `<stepperName>.<key>`. Consumers that haven't declared
+ * `requiresCapability` explicitly fall back to this structural name.
+ * Consumers that grant capabilities should construct matches against
+ * this function, never via string literals.
  */
 export function requiredCapabilityFor(stepperName: string, key: string): string {
 	return `${stepperName}:tune:${key}`;
