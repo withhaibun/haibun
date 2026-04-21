@@ -534,12 +534,24 @@ export type StepDiscovery = {
  * Single entry point for both SSE and MCP transports.
  * Accepts an existing StepRegistry instance to update in-place (for live refresh).
  */
-export function discoverSteps(steppers: AStepper[], world: TWorld, stepRegistry?: StepRegistry): StepDiscovery {
+export function discoverSteps(
+	steppers: AStepper[],
+	world: TWorld,
+	stepRegistry?: StepRegistry,
+	options?: { grantedCapability?: string | string[] },
+): StepDiscovery {
 	if (stepRegistry) {
 		stepRegistry.refresh(steppers, world);
 	}
 	const registry = stepRegistry ?? new StepRegistry(steppers, world);
-	const steps = StepperRegistry.getMetadata(steppers);
+	const all = StepperRegistry.getMetadata(steppers);
+	// When a capability context is supplied, drop steps that require a
+	// capability the caller wasn't granted. Steps with no capability stay
+	// visible to everyone. When no context is supplied, return everything
+	// (unchanged behaviour — existing callers keep the full manifest).
+	const steps = options?.grantedCapability !== undefined
+		? all.filter((s) => !s.capability || capabilityAllows(options.grantedCapability, s.capability))
+		: all;
 	for (const step of steps) {
 		const tool = registry.get(step.method);
 		if (tool) {

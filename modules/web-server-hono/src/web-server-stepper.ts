@@ -223,7 +223,15 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 					// carry the caller's seqPath so observations link back to the
 					// invoking context — no synthetic [0, N] roots.
 					if (method === "step.list") {
-						const result = discoverSteps(this.steppers, this.getWorld(), this.stepRegistry);
+						// Capability-filter the manifest: an LLM or other scoped
+						// caller should see only the tools it can actually
+						// invoke. Absent header = unscoped (full manifest),
+						// preserving legacy behaviour.
+						const grantedCapability = getGrantedCapabilityFromHeaders(requestInfo?.headers, this.getWorld().runtime, {
+							accessToken: this.rpcAccessToken,
+							accessCapability: this.rpcAccessCapability,
+						});
+						const result = discoverSteps(this.steppers, this.getWorld(), this.stepRegistry, { grantedCapability });
 						this.cacheRpcResponse(method, params, result);
 						return result;
 					}
