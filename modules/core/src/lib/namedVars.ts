@@ -41,18 +41,14 @@ export const namedInterpolation = (inp: string): { regexPattern: string; stepVal
 
 		stepValuesMap[name] = { term: name, domain, origin };
 
-		// Look ahead to see what comes after this placeholder
 		const nextCharAfterBrace = inp.substring(be + 1, be + 2);
-		const nextChunk = inp.substring(be + 1);
 
-		// Only use negative lookahead for specific separators that won't appear in values
-		let placeholderRegex = ".+";
+		// Bare literals may contain whitespace but a quoted span inside is atomic —
+		// `"foo with bar"` does not contribute its internal ` ` or `"` as a split point.
+		let placeholderRegex = `(?:[^"]|"[^"]*")+?`;
 
-		if (nextChunk.startsWith(" is ")) {
-			placeholderRegex = ".+?(?= is )";
-		} else if (nextCharAfterBrace === "," || nextCharAfterBrace === ":") {
-			// Use negative lookahead to prevent matching these separators
-			placeholderRegex = `.+?(?=${nextCharAfterBrace.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`;
+		if (nextCharAfterBrace === "," || nextCharAfterBrace === ":") {
+			placeholderRegex = `(?:[^"]|"[^"]*")+?(?=${nextCharAfterBrace.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`;
 		}
 
 		let matchGroupPattern;
