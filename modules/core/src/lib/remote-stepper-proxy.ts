@@ -14,7 +14,7 @@ import { AStepper } from "./astepper.js";
 import type { TWorld } from "./execution.js";
 import type { TActionResult } from "../schema/protocol.js";
 import { actionNotOK } from "./util/index.js";
-import { type StepTool, type StepRegistry } from "./step-dispatch.js";
+import { type StepTool, type StepRegistry, hostScopedMethodName } from "./step-dispatch.js";
 import type { StepDescriptor } from "./stepper-registry.js";
 import { RpcClient, type RpcError } from "./rpc-client.js";
 
@@ -85,9 +85,8 @@ export class RemoteStepperProxy extends AStepper {
 	 */
 	injectInto(registry: StepRegistry): void {
 		if (this.hostId === undefined) throw new Error("RemoteStepperProxy.injectInto called before setWorld discovered the host id");
-		const prefix = `${this.hostId}:`;
 		for (const descriptor of this.stepDescriptors) {
-			const prefixedMethod = `${prefix}${descriptor.method}`;
+			const prefixedMethod = hostScopedMethodName(this.hostId, descriptor.method);
 			const tool: StepTool = {
 				name: prefixedMethod,
 				description: descriptor.pattern,

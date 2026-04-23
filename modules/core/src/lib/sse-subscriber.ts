@@ -2,11 +2,10 @@
  * sse-subscriber — EventSource client shared by every consumer of a
  * haibun host's /sse event stream.
  *
- * Browser SPAs (shu) connect to their own origin's /sse; Node-side
- * orchestrators (autonomic's remote-observer) connect to another
- * host's /sse. Both need the same primitives: open, dispatch parsed
- * events to listeners, reconnect on error with backoff, filter
- * subscriptions, close cleanly. This class centralises that.
+ * Browser SPAs connect to their own origin's /sse; Node-side peers
+ * connect to another host's /sse. Both need the same primitives: open,
+ * dispatch parsed events to listeners, reconnect on error with backoff,
+ * filter subscriptions, close cleanly. This class centralises that.
  *
  * Transport-agnostic within the EventSource contract: the caller
  * supplies the URL; whether it resolves to the same origin or a

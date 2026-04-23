@@ -59,6 +59,10 @@ export class BaseOptions implements IHasOptions {
 			desc: "delay between steps",
 			parse: (input: string) => intOrError(input),
 		},
+		HOST_ID: {
+			desc: "integer identifier for this haibun instance (used as seqPath prefix for cross-host uniqueness)",
+			parse: (input: string) => intOrError(input),
+		},
 		PWDEBUG: {
 			desc: "(web) Enable Playwright debugging (0 or 1)",
 			parse: (input: string) => {

@@ -24,18 +24,7 @@ import type { TTag } from "./ttag.js";
 import type { FeatureVariables } from "./feature-variables.js";
 import type { Prompter } from "./prompter.js";
 import type { IEventLogger } from "./EventLogger.js";
-import type {
-	ExecutionIntent,
-	TSeqPath,
-	TStepResult,
-	TFeatureResult,
-	TExecutorResult,
-	TStepArgs,
-	TStepValue,
-	Timer,
-	THaibunEvent,
-	TActionResult,
-} from "../schema/protocol.js";
+import type { ExecutionIntent, TSeqPath, TStepResult, TFeatureResult, TExecutorResult, TStepArgs, TStepValue, Timer, THaibunEvent, TActionResult, } from "../schema/protocol.js";
 import { CONTINUE_AFTER_ERROR } from "../schema/protocol.js";
 
 import type { TDomainDefinition, TRegisteredDomain } from "./resources.js";
@@ -190,6 +179,13 @@ export type TFeatureStep = TSourceLocation & {
 	intent?: ExecutionIntent;
 	/** Runtime args for variable binding in nested quantifier calls */
 	runtimeArgs?: Record<string, string>;
+	/**
+	 * Routing hint: when set, dispatch resolves the tool via the
+	 * hostId-prefixed registry key (`${targetHostId}:${method}`) — the
+	 * step runs against that remote host. Set by composition verbs like
+	 * `on host {hostId} {statement}` in haibun.ts.
+	 */
+	targetHostId?: number;
 };
 
 export type TStepAction = {
@@ -249,7 +245,7 @@ type TStepperStepPlain = TStepperStepBase & {
 export type TStepperStep = TStepperStepWithProducts | TStepperStepPlain;
 
 export interface CStepper {
-	new (): AStepper;
+	new(): AStepper;
 }
 
 // ============================================================================

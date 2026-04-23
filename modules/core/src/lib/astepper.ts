@@ -85,15 +85,13 @@ export type TTunableRateLimit = {
 
 /**
  * One tunable option declaration. A superset of TStepperOption — same
- * desc / parse / etc. plus the autonomic envelope (range, rateLimit,
- * requiresCapability).
+ * desc / parse / etc. plus range bounds, an optional rate limit, and an
+ * optional capability gate.
  *
- * When `requiresCapability` is omitted, a default can be derived from
- * the owning stepper + key via `requiredCapabilityFor(stepperName,
- * key)`. Declaring a consumer-namespaced literal (e.g. `Autonomic:
- * apply:FOO`) in a non-autonomic stepper couples it to that consumer;
- * omitting the field and relying on the derived default avoids the
- * leak.
+ * When `requiresCapability` is omitted, the default capability name is
+ * derived from the owning stepper + key via `requiredCapabilityFor`.
+ * Prefer the derived name over a hard-coded literal so the gate is not
+ * coupled to any particular consumer.
  */
 export type TTunableOption = TStepperOption & {
 	range: TTunableRange;
@@ -114,14 +112,12 @@ export function requiredCapabilityFor(stepperName: string, key: string): string 
 
 /**
  * Discovery contract: steppers that expose tunable options — options a
- * reasoning loop (the autonomic MAPE-K loop) may propose changes to within
- * their declared bounds — declare them in a `tunables` map parallel to
- * `options`. Non-tunable steppers simply omit the property.
+ * caller may propose changes to within their declared bounds — declare
+ * them in a `tunables` map parallel to `options`. Non-tunable steppers
+ * simply omit the property.
  *
  * Discovered the same way IHasOptions / IHasCycles are — by introspection
- * for the property, no instanceof check required. The CLI `--help`
- * surface, the autonomic discovery path, and any other consumer all use
- * the same duck-typed lookup.
+ * for the property, no instanceof check required.
  */
 export interface IHasTunables {
 	tunables?: {

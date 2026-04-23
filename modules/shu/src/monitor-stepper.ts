@@ -43,9 +43,9 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 	};
 
 	/**
-	 * Tunable bounds on the event-buffer cap. An autonomic loop under memory
+	 * Tunable bounds on the event-buffer cap. A consumer under memory
 	 * pressure may shrink MAX_EVENTS; under slack, grow it. Rate-limited to
-	 * at most 48 changes per day so the loop cannot oscillate wildly.
+	 * at most 48 changes per day to prevent oscillation.
 	 */
 	tunables = {
 		MAX_EVENTS: {
@@ -64,10 +64,9 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		await super.setWorld(world, steppers);
 		this.storage = findStepperFromOptionOrKind(steppers, this, world.moduleOptions, StepperKinds.STORAGE);
 		// Initial tunable read via the shared option-reading path plus this
-		// tunable's own declared `parse`. The autonomic loop may revise the
-		// value live by writing a Development targeting MAX_EVENTS; when
-		// that path ships, this stepper will listen for tunable-change
-		// events and update this.maxEvents accordingly.
+		// tunable's own declared `parse`. Live updates (when a consumer
+		// writes a change targeting MAX_EVENTS) will arrive as
+		// tunable-change events once that path exists.
 		const raw = getStepperOption(this, "MAX_EVENTS", world.moduleOptions);
 		if (raw !== undefined) {
 			const parsed = this.tunables.MAX_EVENTS.parse(String(raw));

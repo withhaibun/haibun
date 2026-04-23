@@ -15,6 +15,48 @@ describe("until", () => {
 	});
 });
 
+describe("on host", () => {
+	it("routes a step to a hostId-prefixed registry entry", async () => {
+		const { AStepper } = await import("../lib/astepper.js");
+		const { actionOK } = await import("../lib/util/index.js");
+
+		class RemoteMarker extends AStepper {
+			attach(registry: Parameters<typeof Object>[0]) {
+				const reg = registry as { get: (n: string) => unknown; set: (t: unknown) => void };
+				const local = reg.get("TestSteps-passes") as { name: string } | undefined;
+				if (!local) return;
+				reg.set({
+					...local,
+					name: "2:TestSteps-passes",
+					handler: async () => {
+						this.getWorld().runtime.observations.set("remoteCalled", true);
+						return actionOK();
+					},
+				});
+			}
+			detach() {}
+			steps = {};
+		}
+
+		const feature = { path: "/features/test.feature", content: "passes\non host 2, passes" };
+		const result = await passWithDefaults([feature], [Haibun, TestSteps, RemoteMarker]);
+		expect(result.ok).toBe(true);
+		const ins = result.featureResults?.[0].stepResults.map((r) => r.in);
+		// Sub-step records before its wrapping `on host` step's own result is pushed.
+		expect(ins).toEqual(["passes", "passes", "on host 2, passes"]);
+		const remoteCalled = result.world?.runtime.observations.get("remoteCalled");
+		expect(remoteCalled).toBe(true);
+	});
+
+	it("fails cleanly when no registry entry exists for the target hostId", async () => {
+		const feature = { path: "/features/test.feature", content: "on host 9, passes" };
+		const result = await failWithDefaults([feature], [Haibun, TestSteps]);
+		expect(result.ok).toBe(false);
+		const errors = result.featureResults?.[0].stepResults.flatMap((r) => (r.ok ? [] : [r.errorMessage])) || [];
+		expect(errors.some((e) => typeof e === "string" && e.includes("9:TestSteps-passes"))).toBe(true);
+	});
+});
+
 describe("seqPath ordering", () => {
 	// seqPath format: [hostId, featureNum, scenarioNum, ...stepPath]
 	// hostId: 0 by default; distinct per haibun instance for multi-host uniqueness

@@ -287,8 +287,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 			action: () => {
 				if (!this.stepRegistry) return OK;
 				this.stepRegistry.refresh(this.steppers, this.getWorld());
-				attachTransportsToRegistry(this.steppers, this.stepRegistry, this.getWorld().runtime[WEBSERVER]);
-				this.getWorld().eventLogger.info(`[RPC] steppers refreshed: ${this.steppers.length} steppers, ${this.stepRegistry.list().length} tools`);
+				this.getWorld().eventLogger.info(`[RPC] steppers refreshed: ${this.steppers.length} steppers, ${this.stepRegistry.size} tools`);
 				return OK;
 			},
 		},

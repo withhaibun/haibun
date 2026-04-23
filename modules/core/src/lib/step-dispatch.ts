@@ -46,14 +46,21 @@ export type StepTool = {
  */
 export class StepRegistry {
 	private tools = new Map<string, StepTool>();
+	/** Names injected via set() — survive refresh() so transports (RemoteStepperProxy, subprocess) register once and stay live across per-feature rebuilds. */
+	private injectedNames = new Set<string>();
 
 	constructor(steppers: AStepper[], world: TWorld) {
 		this.refresh(steppers, world);
 	}
 
-	/** Rebuild the registry in-place. Safe to call at runtime (live stepper swap). */
+	/** Rebuild stepper-owned entries in-place. Externally-injected tools (via set()) are preserved. */
 	refresh(steppers: AStepper[], world: TWorld): void {
-		this.tools = buildStepRegistry(steppers, world);
+		const next = buildStepRegistry(steppers, world);
+		for (const name of this.injectedNames) {
+			const existing = this.tools.get(name);
+			if (existing) next.set(name, existing);
+		}
+		this.tools = next;
 	}
 
 	get(name: string): StepTool | undefined {
@@ -64,14 +71,30 @@ export class StepRegistry {
 		return Array.from(this.tools.values());
 	}
 
+	get size(): number {
+		return this.tools.size;
+	}
+
 	has(name: string): boolean {
 		return this.tools.has(name);
 	}
 
-	/** Inject or overwrite a single tool (used by subprocess transport to register child steps). */
+	/** Inject or overwrite a single tool (used by transports to register remote/child steps). Survives refresh(). */
 	set(tool: StepTool): void {
 		this.tools.set(tool.name, tool);
+		this.injectedNames.add(tool.name);
 	}
+
+	/** Remove an injected tool. Used by transport detach(). */
+	unset(name: string): void {
+		this.tools.delete(name);
+		this.injectedNames.delete(name);
+	}
+}
+
+/** Registry key for a step routed at a specific hostId: `${hostId}:${method}`. */
+export function hostScopedMethodName(hostId: number, bareMethod: string): string {
+	return `${hostId}:${bareMethod}`;
 }
 
 export type StepToolInputSchema = {
@@ -282,7 +305,8 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 		return stepResultFromActionResult({ ok: true }, action, start, Timer.since(), featureStep, true);
 	}
 
-	const method = stepMethodName(action.stepperName, action.actionName);
+	const bareMethod = stepMethodName(action.stepperName, action.actionName);
+	const method = featureStep.targetHostId !== undefined ? hostScopedMethodName(featureStep.targetHostId, bareMethod) : bareMethod;
 	const tool = registry.get(method);
 	if (!tool) {
 		return pushAndReturn(
