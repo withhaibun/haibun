@@ -3,8 +3,8 @@ import type { Context } from "@haibun/web-server-hono/defs.js";
 import { setCookie } from "@haibun/web-server-hono/cookie.js";
 
 import { actionNotOK, actionOK, actionOKWithProducts, getFromRuntime, sleep } from "@haibun/core/lib/util/index.js";
-import { DOMAIN_STRING } from "@haibun/core/lib/domain-types.js";
-import type { TFeatureStep, IStepperCycles } from "@haibun/core/lib/defs.js";
+import { DOMAIN_STRING } from "@haibun/core/lib/domains.js";
+import type { TFeatureStep, IStepperCycles } from "@haibun/core/lib/execution.js";
 import { OK, Origin, type TStepArgs, type TProvenanceIdentifier } from "@haibun/core/schema/protocol.js";
 import { type TRequestHandler, type IWebServer, WEBSERVER } from "@haibun/web-server-hono/defs.js";
 import { restRoutes } from "./rest.js";
@@ -20,13 +20,7 @@ const setTally = (value: number) => ({
 	origin: Origin.var,
 });
 
-async function mcpRpc(
-	url: string,
-	id: number,
-	method: string,
-	params: Record<string, unknown>,
-	token: string,
-): Promise<Record<string, unknown>> {
+async function mcpRpc(url: string, id: number, method: string, params: Record<string, unknown>, token: string,): Promise<Record<string, unknown>> {
 	const response = await fetch(url, {
 		method: "POST",
 		headers: {

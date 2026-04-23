@@ -1,7 +1,7 @@
 import { rmSync, writeFileSync, readFileSync } from "fs";
 import { setCookie } from "@haibun/web-server-hono/cookie.js";
 import { actionNotOK, actionOK, actionOKWithProducts, getFromRuntime, sleep } from "@haibun/core/lib/util/index.js";
-import { DOMAIN_STRING } from "@haibun/core/lib/domain-types.js";
+import { DOMAIN_STRING } from "@haibun/core/lib/domains.js";
 import { OK, Origin } from "@haibun/core/schema/protocol.js";
 import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
 import { restRoutes } from "./rest.js";
@@ -106,7 +106,7 @@ class TestServer extends AStepper {
             const { loc } = args;
             const webserver = getFromRuntime(this.getWorld().runtime, WEBSERVER);
             try {
-                webserver.addRoute(method, loc, route);
+                webserver.addRoute(method, loc, { description: `e2e test server route ${method.toUpperCase()} ${loc}` }, route);
             }
             catch (error) {
                 const err = error instanceof Error ? error : new Error(String(error));
@@ -127,7 +127,7 @@ class TestServer extends AStepper {
             try {
                 // Apply dynamic auth middleware that checks scheme at request time
                 webserver.app.use(loc, this.getDynamicAuthMiddleware());
-                webserver.addKnownRoute(method, loc, route);
+                webserver.addKnownRoute(method, loc, { description: `e2e test server auth-protected route ${method.toUpperCase()} ${loc}` }, route);
             }
             catch (error) {
                 const err = error instanceof Error ? error : new Error(String(error));
@@ -355,7 +355,7 @@ class TestServer extends AStepper {
                 const { loc } = args;
                 try {
                     const webserver = getFromRuntime(this.getWorld().runtime, WEBSERVER);
-                    webserver.addRoute("post", loc, this.upload);
+                    webserver.addRoute("post", loc, { description: `e2e test server upload endpoint at ${loc}` }, this.upload);
                     return actionOK();
                 }
                 catch (error) {

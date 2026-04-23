@@ -1,4 +1,4 @@
-import type { TFeatureStep, IStepperCycles } from "@haibun/core/lib/defs.js";
+import type { TFeatureStep, IStepperCycles } from "@haibun/core/lib/execution.js";
 import { type TStepArgs } from "@haibun/core/schema/protocol.js";
 import { type TRequestHandler } from "@haibun/web-server-hono/defs.js";
 import { type TSchemeType, type AuthSchemeLogout } from "./authSchemes.js";

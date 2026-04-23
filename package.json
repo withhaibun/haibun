@@ -3,7 +3,8 @@
 	"type": "module",
 	"private": false,
 	"workspaces": [
-		"modules/*"
+		"modules/*",
+		"e2e-tests"
 	],
 	"engines": {
 		"node": ">=24.0.0",
@@ -31,7 +32,8 @@
 		"build-watch:tsc": "tsc -b modules/ --watch --preserveWatchOutput",
 		"build:monitor-browser": "npm run build:client -w @haibun/monitor-browser",
 		"build-watch:monitor-browser": "npm run dev -w @haibun/monitor-browser",
-		"build": "npm run build --workspaces --if-present",
+		"build": "npm run build --workspaces --if-present && npm run postbuild",
+		"postbuild": "node scripts/chmod-shebangs.mjs",
 		"build-watch": "concurrently \"npm:build-watch:tsc\" \"npm:build-watch:monitor-browser\"",
 		"format": "biome format --write .",
 		"lint": "biome lint .",

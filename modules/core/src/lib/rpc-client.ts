@@ -2,17 +2,11 @@
  * rpc-client — capability-scoped client for a haibun host's RPC
  * transport (modules/web-server-hono/sse-transport.ts).
  *
- * Centralises the concerns shared by any caller of a remote host:
- * Bearer-token auth, seqPath threading, timeout, retry with backoff,
- * and streaming-NDJSON parsing for large responses.
- *
- * Two methods:
- *   call(method, params, seqPath)    — blocking JSON-RPC
- *   stream(method, params, seqPath)  — async iterable of NDJSON chunks
- *
- * Each caller owns its own scoped capability token. Every request
- * carries the token as a Bearer header; the target host's
- * authorizeToolCapability guards dispatch-time.
+ * Centralises Bearer-token auth, seqPath threading, timeout, retry
+ * with backoff, and streaming-NDJSON parsing. Callers that already
+ * have a seqPath (feature-step context) pass it; external callers
+ * may pass `[]` and the server synthesises a seqPath rooted on its
+ * own hostId, matching the MCP dispatch path.
  */
 
 export type RpcClientConfig = {
