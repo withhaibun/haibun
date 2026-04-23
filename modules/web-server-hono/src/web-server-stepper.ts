@@ -5,13 +5,12 @@ import { OK, type TStepArgs } from "@haibun/core/schema/protocol.js";
 import { actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOption, intOrError, stringOrError } from "@haibun/core/lib/util/index.js";
 import { AStepper, type IHasCycles, type IHasOptions } from "@haibun/core/lib/astepper.js";
 import { discoverSteps, dispatchStep, validateToolInput, buildSyntheticFeatureStep, parseRpcRequest, StepRegistry } from "@haibun/core/lib/step-dispatch.js";
-import { syntheticSeqPath } from "@haibun/core/lib/host-id.js";
+import { allocateSyntheticSeqPath, resolveHostId, syntheticSeqPath } from "@haibun/core/lib/host-id.js";
 import { validateStep } from "@haibun/core/lib/step-validation.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import { objectCoercer } from "@haibun/core/lib/domains.js";
 
 import { type IWebServer, WEBSERVER, DOMAIN_ENDPOINT, EndpointLabels, EndpointSchema } from "./defs.js";
-import { resolveHostId, syntheticSeqPath } from "@haibun/core/lib/host-id.js";
 import { getGrantedCapabilityFromHeaders, validateCapabilityAuthConfig } from "./capability-auth.js";
 import { ServerHono, DEFAULT_PORT } from "./server-hono.js";
 import { SSETransport, TRANSPORT, type ITransport } from "./sse-transport.js";
@@ -247,18 +246,9 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 						return { seqPath, hostId: seqPath[0] };
 					}
 
-					// External callers (no feature-step context) receive a
-					// server-synthesised seqPath rooted on this host's hostId,
-					// matching the MCP dispatch path. Internal callers thread
-					// their own seqPath and it is used as-is.
+					// External callers (no feature-step context) get a server-synthesised seqPath, matching MCP.
 					const world = this.getWorld();
-					let seqPath: number[];
-					if (msg.seqPath && msg.seqPath.length > 0) {
-						seqPath = msg.seqPath;
-					} else {
-						world.runtime.adHocSeq = (world.runtime.adHocSeq ?? 0) + 1;
-						seqPath = syntheticSeqPath(world.tag.hostId, world.runtime.adHocSeq);
-					}
+					const seqPath = msg.seqPath && msg.seqPath.length > 0 ? msg.seqPath : allocateSyntheticSeqPath(world);
 
 					const registry = this.stepRegistry;
 					if (!registry) {

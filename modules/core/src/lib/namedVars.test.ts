@@ -33,7 +33,7 @@ describe("namedInterpolation regexes", () => {
 	});
 
 	test("regexes two", () => {
-		const r2 = new RegExp(namedInterpolation("{ v1 } is { v2 }").regexPattern);
+		const r2 = new RegExp(`^${namedInterpolation("{ v1 } is { v2 }").regexPattern}$`);
 		const x = r2.exec("this is that");
 		expect(x?.groups?.t_0).toBe("this");
 		expect(x?.groups?.t_1).toBe("that");
