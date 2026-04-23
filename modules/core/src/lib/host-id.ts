@@ -40,3 +40,14 @@ export function resolveHostId(env: Record<string, string | undefined> = process.
 export function syntheticSeqPath(hostId: number, adHocSeq: number): number[] {
 	return [hostId, SYNTHETIC_FEATURE_NUM, adHocSeq];
 }
+
+/**
+ * Allocate the next synthetic seqPath for the given world. Bumps the
+ * world's `adHocSeq` counter and returns a path rooted on the world's
+ * hostId. Used by every external-protocol entry point (RPC, MCP,
+ * subprocess) so the bump-then-build invariant lives in one place.
+ */
+export function allocateSyntheticSeqPath(world: { tag: { hostId: number }; runtime: { adHocSeq?: number } }): number[] {
+	world.runtime.adHocSeq = (world.runtime.adHocSeq ?? 0) + 1;
+	return syntheticSeqPath(world.tag.hostId, world.runtime.adHocSeq);
+}

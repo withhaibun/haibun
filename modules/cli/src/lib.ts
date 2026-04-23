@@ -49,6 +49,7 @@ const OPTION_WITH_STEPPERS = "--with-steppers";
 type TEnv = { [name: string]: string | undefined };
 
 export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
+	if (nodeFS.existsSync(".env")) process.loadEnvFile();
 	const parsed = processArgs(args);
 	const bases = basesFrom(parsed.params[0]?.replace(/\/$/, ""));
 	const specl = await getSpeclOrExit(parsed.configLoc ? [parsed.configLoc] : bases);
