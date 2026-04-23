@@ -86,6 +86,13 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 	} catch (error) {
 		// Final Error "Nothing" Branch
 		if (error instanceof PhaseBailError) {
+			if (!world || !protoOptions) {
+				const failure = error.result.failure;
+				const stage = failure?.stage ?? "?";
+				console.error(`\n${CHECK_NO} ${stage} Error: ${failure?.error?.message ?? "unknown"}`);
+				if (failure?.error?.details) console.error("Additional details:", failure.error.details);
+				process.exit(1);
+			}
 			return await reportAndExit(error.result, world, protoOptions);
 		}
 

@@ -8,14 +8,19 @@ import { StepRegistry, dispatchStep } from "../step-dispatch.js";
 
 export class FlowRunner {
 	private resolver: Resolver;
-	private registry: StepRegistry;
 
 	constructor(
 		private world: TWorld,
 		private steppers: AStepper[],
 	) {
 		this.resolver = new Resolver(steppers);
-		this.registry = (world.runtime?.stepRegistry as StepRegistry) ?? new StepRegistry(steppers, world);
+	}
+
+	private get registry(): StepRegistry {
+		// Read at dispatch time — Executor assigns this after steppers' setWorld.
+		const reg = this.world.runtime?.stepRegistry as StepRegistry | undefined;
+		if (!reg) throw new Error("FlowRunner: world.runtime.stepRegistry not set; run inside Executor");
+		return reg;
 	}
 
 	async runStatement(
@@ -111,11 +116,8 @@ export class FlowRunner {
 		return lastResult;
 	}
 
-	async runSteps(
-		steps: TFeatureStep[],
-		options: { intent?: ExecutionIntent; parentStep?: TFeatureStep } = {},
-	): Promise<TActionResult> {
-		const { intent = { mode: "authoritative" }, parentStep } = options;
+	async runSteps(steps: TFeatureStep[], options: { intent?: ExecutionIntent; parentStep?: TFeatureStep; targetHostId?: number } = {}): Promise<TActionResult> {
+		const { intent = { mode: "authoritative" }, parentStep, targetHostId } = options;
 		let lastResult: TActionResult = { ok: true };
 
 		for (const step of steps) {
@@ -123,6 +125,7 @@ export class FlowRunner {
 				...step,
 				intent,
 				runtimeArgs: { ...parentStep?.runtimeArgs, ...step.runtimeArgs },
+				targetHostId: targetHostId ?? step.targetHostId,
 			};
 			if (parentStep) {
 				const baseSeqPath = [...parentStep.seqPath, 1];

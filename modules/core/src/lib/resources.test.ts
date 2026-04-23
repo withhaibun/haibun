@@ -151,7 +151,7 @@ describe("Discourse", () => {
 		expect(() => DiscourseSchema.parse(null)).toThrow();
 	});
 
-	it("includes autonomic-emitted speech acts", () => {
+	it("includes observation and change-cycle speech acts", () => {
 		expect(DISCOURSE.suggest).toBe("suggest");
 		expect(DISCOURSE.measure).toBe("measure");
 		expect(DISCOURSE.apply).toBe("apply");

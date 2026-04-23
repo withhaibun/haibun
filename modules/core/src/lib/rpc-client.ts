@@ -1,29 +1,24 @@
 /**
- * rpc-client — capability-scoped client for the main haibun host's
- * RPC transport (modules/web-server-hono/sse-transport.ts).
+ * rpc-client — capability-scoped client for a haibun host's RPC
+ * transport (modules/web-server-hono/sse-transport.ts).
  *
- * Why a client: the autonomic module has 3–4 RPC call sites with
- * overlapping needs — Bearer-token auth on every request, seqPath
- * threading (per commit 5's integrity rule), timeout, retry with
- * backoff, and streaming-NDJSON parsing for large responses. Having
- * each caller reimplement that grows subtle bugs; a single client
- * centralises the transport concerns.
+ * Centralises the concerns shared by any caller of a remote host:
+ * Bearer-token auth, seqPath threading, timeout, retry with backoff,
+ * and streaming-NDJSON parsing for large responses.
  *
  * Two methods:
  *   call(method, params, seqPath)    — blocking JSON-RPC
  *   stream(method, params, seqPath)  — async iterable of NDJSON chunks
  *
- * The autonomic module owns a scoped capability token — typically
- * `Autonomic:read` initially, growing to `Autonomic:comment`,
- * `Autonomic:suggest`, and eventually `Autonomic:apply:<tunable>` as
- * operators opt in. Every request carries the token as a Bearer header;
- * the main host's authorizeToolCapability guards dispatch-time.
+ * Each caller owns its own scoped capability token. Every request
+ * carries the token as a Bearer header; the target host's
+ * authorizeToolCapability guards dispatch-time.
  */
 
 export type RpcClientConfig = {
 	/** Base URL of the main host (e.g. "http://localhost:8223"). */
 	baseUrl: string;
-	/** Bearer token granting the autonomic process its scoped capabilities. */
+	/** Bearer token granting the caller's scoped capabilities on the target host. */
 	capabilityToken?: string;
 	/** Per-call timeout in ms before abort. Default 30_000. */
 	timeoutMs?: number;
@@ -44,10 +39,10 @@ export type RpcCallOptions = {
 export type RpcError = { error: string; [k: string]: unknown };
 
 /**
- * Every RPC call must thread the caller's seqPath (per commit 5's
- * seqPath-integrity rule). The autonomic module always has a seqPath
- * context — either its own cycle's seqPath, or the seqPath of the
- * observation it's acting on.
+ * Every RPC call must thread the caller's seqPath so observations on
+ * the target host link back to the invoking context (no synthetic
+ * `[0, N]` roots). Callers supply either their current feature-step's
+ * seqPath or the seqPath of the observation they are acting on.
  */
 export class RpcClient {
 	private readonly baseUrl: string;

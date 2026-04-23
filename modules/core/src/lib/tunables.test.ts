@@ -16,7 +16,7 @@ class TunableA extends AStepper implements IHasTunables {
 			parse: intOrError,
 			range: { kind: "duration" as const, minMs: 1000, maxMs: 3_600_000 },
 			rateLimit: { maxChangesPerDay: 12 },
-			requiresCapability: "Autonomic:apply:cycleMs",
+			requiresCapability: "TunableA:tune:CYCLE_MS",
 		},
 	};
 }
@@ -66,7 +66,7 @@ describe("getTunableOptions", () => {
 		expect(t.key).toBe("CYCLE_MS");
 		expect(t.meta.range.kind).toBe("duration");
 		expect(t.meta.rateLimit?.maxChangesPerDay).toBe(12);
-		expect(t.meta.requiresCapability).toBe("Autonomic:apply:cycleMs");
+		expect(t.meta.requiresCapability).toBe("TunableA:tune:CYCLE_MS");
 	});
 
 	it("handles multiple range kinds in one stepper", () => {
