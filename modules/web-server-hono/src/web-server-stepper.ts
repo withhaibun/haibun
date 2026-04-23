@@ -5,6 +5,7 @@ import { OK, type TStepArgs } from "@haibun/core/schema/protocol.js";
 import { actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOption, intOrError, stringOrError } from "@haibun/core/lib/util/index.js";
 import { AStepper, type IHasCycles, type IHasOptions } from "@haibun/core/lib/astepper.js";
 import { discoverSteps, dispatchStep, validateToolInput, buildSyntheticFeatureStep, parseRpcRequest, StepRegistry } from "@haibun/core/lib/step-dispatch.js";
+import { syntheticSeqPath } from "@haibun/core/lib/host-id.js";
 import { validateStep } from "@haibun/core/lib/step-validation.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import { objectCoercer } from "@haibun/core/lib/domains.js";
@@ -246,10 +247,18 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 						return { seqPath, hostId: seqPath[0] };
 					}
 
-					if (!msg.seqPath || msg.seqPath.length === 0) {
-						return { error: `${method}: missing seqPath — RPC dispatches must thread the caller's seqPath` };
+					// External callers (no feature-step context) receive a
+					// server-synthesised seqPath rooted on this host's hostId,
+					// matching the MCP dispatch path. Internal callers thread
+					// their own seqPath and it is used as-is.
+					const world = this.getWorld();
+					let seqPath: number[];
+					if (msg.seqPath && msg.seqPath.length > 0) {
+						seqPath = msg.seqPath;
+					} else {
+						world.runtime.adHocSeq = (world.runtime.adHocSeq ?? 0) + 1;
+						seqPath = syntheticSeqPath(world.tag.hostId, world.runtime.adHocSeq);
 					}
-					const seqPath = msg.seqPath;
 
 					const registry = this.stepRegistry;
 					if (!registry) {
@@ -259,13 +268,13 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 					if (!tool) return { error: `${method}: unknown step method` };
 
 					try {
-						const grantedCapability = getGrantedCapabilityFromHeaders(requestInfo?.headers, this.getWorld().runtime, {
+						const grantedCapability = getGrantedCapabilityFromHeaders(requestInfo?.headers, world.runtime, {
 							accessToken: this.rpcAccessToken,
 							accessCapability: this.rpcAccessCapability,
 						});
-						const validatedParams = validateToolInput(tool, params as Record<string, unknown>, this.getWorld());
+						const validatedParams = validateToolInput(tool, params as Record<string, unknown>, world);
 						const featureStep = buildSyntheticFeatureStep(tool, validatedParams, seqPath);
-						const hr = await dispatchStep({ registry, world: this.getWorld(), steppers: this.steppers, grantedCapability }, featureStep);
+						const hr = await dispatchStep({ registry, world, steppers: this.steppers, grantedCapability }, featureStep);
 						if (hr.ok) {
 							const result = hr.products ?? { ok: true };
 							this.cacheRpcResponse(method, params, result);

@@ -281,22 +281,21 @@ begin action twice at "http://localhost:${port}/rpc/session.beginAction"
 		expect(first.join(".")).not.toBe(second.join("."));
 	});
 
-	it("refuses state-changing RPC calls that omit seqPath", async () => {
+	it("synthesises a seqPath when the caller omits one", async () => {
 		const port = 8238;
-		let errorFromMissingSeqPath: string | undefined;
+		let rpcResponse: Record<string, unknown> | undefined;
 
 		class MissingSeqPathStepper extends AStepper {
 			steps = {
 				callWithoutSeqPath: {
-					gwta: "rpc call to {url} without seqPath is refused",
+					gwta: "rpc call to {url} without seqPath succeeds",
 					action: async ({ url }: { url: string }) => {
 						const res = await fetch(String(url), {
 							method: "POST",
 							headers: { "Content-Type": "application/json" },
 							body: JSON.stringify({ jsonrpc: "2.0", id: "1", method: "PingStepper-ping", params: {} }),
 						});
-						const data = (await res.json()) as Record<string, unknown>;
-						errorFromMissingSeqPath = typeof data.error === "string" ? data.error : undefined;
+						rpcResponse = (await res.json()) as Record<string, unknown>;
 						return OK;
 					},
 				},
@@ -308,13 +307,14 @@ begin action twice at "http://localhost:${port}/rpc/session.beginAction"
 			content: `
 enable rpc
 webserver is listening for "rpc-missing-seqpath"
-rpc call to "http://localhost:${port}/rpc/PingStepper-ping" without seqPath is refused
+rpc call to "http://localhost:${port}/rpc/PingStepper-ping" without seqPath succeeds
 `,
 		};
 		const r = await passWithDefaults([feature], [WebServerStepper, PingStepper, MissingSeqPathStepper], makeOptions(port));
 		expect(r.ok).toBe(true);
-		// State-changing RPC without seqPath must be refused with a clear error.
-		expect(errorFromMissingSeqPath).toMatch(/missing seqPath/);
+		// External callers without a feature-step context get a server-synthesised seqPath; the call succeeds.
+		expect(rpcResponse?.error).toBeUndefined();
+		expect(rpcResponse?.pong).toBe(true);
 	});
 
 	it("denies protected RPC steps without capability and allows them with capability", async () => {
