@@ -44,6 +44,8 @@
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0"
+    "@types/react-dom": "^19.0.0",
+    "protobufjs@8.0.0": "^8.0.1",
+    "uuid@<14.0.0": "^14.0.0"
   }
 }
