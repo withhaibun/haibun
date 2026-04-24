@@ -1,36 +1,36 @@
 {
-	"name": "@haibun/lsp",
-	"type": "module",
-	"version": "4.0.0-alpha.2",
-	"description": "Language Server Protocol stepper for Haibun IDE integration",
-	"main": "build/lsp-stepper.js",
-	"files": [
-		"build/"
-	],
-	"exports": {
-		".": "./build/lsp-stepper.js",
-		"./*": "./build/*"
-	},
-	"scripts": {
-		"build": "tsc -b .",
-		"build-watch": "tsc -b . --watch",
-		"prepublishOnly": "tsc -b .",
-		"lint": "eslint -c .eslintrc.json --ext .ts,.js src",
-		"preversion": "npm run lint",
-		"test": "vitest run",
-		"test-watch": "vitest"
-	},
-	"keywords": [
-		"haibun",
-		"lsp",
-		"language-server"
-	],
-	"author": "",
-	"license": "ISC",
-	"dependencies": {
-		"@haibun/core": "*",
-		"typescript": "^5.9.3",
-		"vscode-languageserver": "^9.0.1",
-		"vscode-languageserver-textdocument": "^1.0.12"
-	}
+  "name": "@haibun/lsp",
+  "type": "module",
+  "version": "4.0.0-alpha.3",
+  "description": "Language Server Protocol stepper for Haibun IDE integration",
+  "main": "build/lsp-stepper.js",
+  "files": [
+    "build/"
+  ],
+  "exports": {
+    ".": "./build/lsp-stepper.js",
+    "./*": "./build/*"
+  },
+  "scripts": {
+    "build": "tsc -b .",
+    "build-watch": "tsc -b . --watch",
+    "prepublishOnly": "tsc -b .",
+    "lint": "eslint -c .eslintrc.json --ext .ts,.js src",
+    "preversion": "npm run lint",
+    "test": "vitest run",
+    "test-watch": "vitest"
+  },
+  "keywords": [
+    "haibun",
+    "lsp",
+    "language-server"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@haibun/core": "*",
+    "typescript": "^5.9.3",
+    "vscode-languageserver": "^9.0.1",
+    "vscode-languageserver-textdocument": "^1.0.12"
+  }
 }

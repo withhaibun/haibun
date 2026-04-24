@@ -1,29 +1,29 @@
 {
-	"name": "@haibun/monitor-tui",
-	"version": "4.0.0-alpha.2",
-	"description": "Ink-based TUI monitor stepper for Haibun",
-	"main": "build/index.js",
-	"type": "module",
-	"files": [
-		"build/"
-	],
-	"exports": {
-		".": "./build/index.js",
-		"./*": "./build/*"
-	},
-	"scripts": {
-		"build": "tsc -b .",
-		"start": "node build/index.js",
-		"test": "vitest"
-	},
-	"dependencies": {
-		"@haibun/core": "*",
-		"ink": "^6.8.0",
-		"react": "^19.2.4"
-	},
-	"devDependencies": {
-		"@types/react": "^19.2.14",
-		"typescript": "^5.9.3",
-		"vitest": "^4.0.18"
-	}
+  "name": "@haibun/monitor-tui",
+  "version": "4.0.0-alpha.3",
+  "description": "Ink-based TUI monitor stepper for Haibun",
+  "main": "build/index.js",
+  "type": "module",
+  "files": [
+    "build/"
+  ],
+  "exports": {
+    ".": "./build/index.js",
+    "./*": "./build/*"
+  },
+  "scripts": {
+    "build": "tsc -b .",
+    "start": "node build/index.js",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "@haibun/core": "*",
+    "ink": "^6.8.0",
+    "react": "^19.2.4"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
+  }
 }
