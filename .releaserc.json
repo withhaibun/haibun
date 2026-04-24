@@ -1,6 +1,6 @@
 {
 	"branches": [
-		{ "name": "main", "range": "3.x", "channel": "latest" },
+		{ "name": "3.x", "range": "3.x", "channel": "latest" },
 		{ "name": "alpha", "prerelease": true },
 		{ "name": "beta", "prerelease": true },
 		{ "name": "rc", "prerelease": true }
