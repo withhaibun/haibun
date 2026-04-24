@@ -1,58 +1,64 @@
 # Versioning
 
-One version number is shared across all modules. Bumping it runs tests, updates every module, commits, tags, and pushes.
+Releases are automated by [semantic-release](https://semantic-release.gitbook.io/). Version numbers come from commit messages; CI publishes. You never type a version number.
 
-## Quick reference
+## How to ship a change
 
-Starting from `3.8.4`:
+1. Work on a feature branch. Commit messages on the branch can say anything — they're squashed at merge.
+2. Open a PR targeting the right release branch:
+   - `main` for stable 3.x (patches + minor features)
+   - `alpha` for 4.x previews
+3. Write the **PR title** in conventional-commits format. Examples:
+   - `feat: add retry logic to http stepper` — triggers a minor bump
+   - `fix: monitor crashes on empty trace` — triggers a patch bump
+   - `chore: clean up imports` — no release
+4. Put bullets in the PR **body** for granular changelog entries.
+5. For a breaking change, add a footer to the body:
+   ```
+   BREAKING CHANGE: kireji withAction signature changed
+   ```
+6. Squash-merge. CI runs semantic-release, which bumps all modules, publishes to npm, updates `CHANGELOG.md`, tags, and creates a GitHub release.
 
-```sh
-# Preview releases (alpha → beta → rc)
-npm run version-alpha            # → 3.8.5-alpha.0
-npm run version-alpha            # → 3.8.5-alpha.1   (repeat to iterate)
-npm run version-alpha:minor      # → 3.9.0-alpha.0
-npm run version-alpha:major      # → 4.0.0-alpha.0
+## Branches and npm dist-tags
 
-npm run version-beta             # → same version, -beta.0
-npm run version-rc               # → same version, -rc.0
-npm run version-graduate         # drops the suffix: 4.0.0-rc.0 → 4.0.0
+| Branch | npm tag | Version shape |
+|---|---|---|
+| `main` | `@latest` | `3.8.5`, `3.9.0`, ... (stable 3.x) |
+| `alpha` | `@alpha` | `4.0.0-alpha.N` |
+| `beta` | `@beta` | `4.0.0-beta.N` |
+| `rc` | `@rc` | `4.0.0-rc.N` |
 
-# Final releases (skip previews)
-npm run version-patch            # 3.8.4 → 3.8.5
-npm run version-minor            # 3.8.4 → 3.9.0
-npm run version-major            # 3.8.4 → 4.0.0
-```
+`npm install @haibun/core` gets stable 3.x. 4.x previews require an explicit tag: `npm install @haibun/core@alpha`.
 
-Then publish:
+`main` is pinned to the `3.x` range in [.releaserc.json](.releaserc.json) — it will not accidentally jump to 4.x. When 4.x is ready to ship as stable, change the `main` range (e.g. to `4.x`) and demote the old line to a maintenance branch.
 
-```sh
-npm run publish-all              # final releases
-npm run publish-all:alpha        # alpha previews
-npm run publish-all:beta         # beta previews
-npm run publish-all:rc           # rc previews
-```
+## One version for all modules
 
-## Multiple release lines
+Every module under `modules/tsconfig.json` ships at the same version. When the root bumps, `scripts/sync-versions.mjs` propagates the new version to every module's `package.json` and to `modules/core/src/currentVersion.ts`. Internal `@haibun/*` deps use `*`, so they always resolve to the matching workspace version.
 
-`main` currently ships `4.x` alphas. The `3.x` branch still gets patch releases.
+To add a new module to the release: add it to `modules/tsconfig.json` references. It's then built, versioned, and published automatically.
 
-Each branch bumps its own version independently — run `version-patch` on `3.x` to ship `3.8.6`, run `version-alpha` on `main` to ship the next `4.0.0-alpha.N`. Publish `3.x` finals with `publish-all` (they become `@latest` on npm); publish `4.x` previews with `publish-all:alpha` (they go under the `@alpha` tag and don't displace `@latest`).
+Modules that should never publish (e.g. `recorder`, `e2e-tests`) are marked `"private": true` in their own `package.json` and left out of `modules/tsconfig.json`.
 
-## What a bump does
+## Local escape hatches
 
-1. Runs `npm run test`. If tests fail, nothing is bumped.
-2. Writes the new version into every `modules/*/package.json` and into `modules/core/src/currentVersion.ts`.
-3. Creates a git commit and tag.
-4. Pushes the commit and tag.
+The `version-*` and `publish-all*` npm scripts still exist for emergencies (CI down, hotfix, etc.). They do exactly what they say — read [scripts/sync-versions.mjs](scripts/sync-versions.mjs) and [scripts/publish-all.mjs](scripts/publish-all.mjs). Prefer the CI flow.
 
-Internal `@haibun/*` dependencies use `*`, so modules always resolve to the matching workspace version.
-
-## Skipping tests (hotfix)
+## Checking the current version
 
 ```sh
-npm version patch --ignore-scripts
-node scripts/sync-versions.mjs
-git add -A && git commit -m "v$(node -p 'require(\"./package.json\").version')"
-git tag "v$(node -p 'require(\"./package.json\").version')"
-git push && git push --tags
+node -p "require('./package.json').version"   # root (source of truth)
+npm pkg get version
+git describe --tags --abbrev=0                 # latest tag
 ```
+
+At runtime, `currentVersion` is exported from `@haibun/core`.
+
+## Required one-time setup in GitHub
+
+Before the first automated release works:
+
+1. Repo secret: `NPM_TOKEN` with publish rights on the `@haibun` scope.
+2. Settings → General → Pull Requests: allow **squash merging only**, set "Default to pull request title and description" for squash commits.
+3. Create the `alpha` branch from the current 4.x working branch (`centralize-rpc-shu-monitor`).
+4. Branch protection on `main` and `alpha`: require PRs, require the "PR Title" check to pass.
