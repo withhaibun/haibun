@@ -8,26 +8,7 @@
     "steppers": {
       "type": "array",
       "items": {
-        "anyOf": [
-          {
-            "type": "string"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "remote": {
-                "type": "string"
-              },
-              "token": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "remote"
-            ],
-            "additionalProperties": false
-          }
-        ]
+        "type": "string"
       }
     },
     "runPolicy": {
