@@ -1,99 +1,53 @@
 # Versioning
 
-Haibun uses npm's built-in `version` lifecycle to manage releases across all workspace modules.
+One version number is shared across all modules. Bumping it runs tests, updates every module, commits, tags, and pushes.
 
-## TL;DR
+## Quick reference
 
 Starting from `3.8.4`:
 
 ```sh
-# start a patch-level alpha (next patch: 3.8.5)
+# Preview releases (alpha → beta → rc)
 npm run version-alpha            # → 3.8.5-alpha.0
-npm run version-alpha            # → 3.8.5-alpha.1
-
-# start a minor-level alpha (next minor: 3.9.0)
+npm run version-alpha            # → 3.8.5-alpha.1   (repeat to iterate)
 npm run version-alpha:minor      # → 3.9.0-alpha.0
-
-# start a major-level alpha (next major: 4.0.0)
 npm run version-alpha:major      # → 4.0.0-alpha.0
-npm run version-alpha            # → 4.0.0-alpha.1  (keeps incrementing within the preid)
 
-# promote through the lifecycle
-npm run version-beta             # → 4.0.0-beta.0
-npm run version-rc               # → 4.0.0-rc.0
-npm run version-graduate         # → 4.0.0          (strips prerelease)
+npm run version-beta             # → same version, -beta.0
+npm run version-rc               # → same version, -rc.0
+npm run version-graduate         # drops the suffix: 4.0.0-rc.0 → 4.0.0
 
-# or skip prerelease entirely:
+# Final releases (skip previews)
 npm run version-patch            # 3.8.4 → 3.8.5
 npm run version-minor            # 3.8.4 → 3.9.0
 npm run version-major            # 3.8.4 → 4.0.0
 ```
 
-Each command runs tests, syncs all workspace versions, commits, tags, and pushes.
-Publish separately with `npm run publish-all` (or `publish-all:alpha` for prereleases).
-
-## How it works
-
-Running any `npm run version-*` script triggers this lifecycle:
-
-1. **preversion** — runs `npm run test`
-2. **version** — `scripts/sync-versions.mjs` propagates the new version to all workspace `package.json` files and updates `modules/core/src/currentVersion.ts`
-3. npm creates a git commit and tag
-4. **postversion** — pushes the commit and tag to the remote
-
-## Scripts
-
-| Script | Description |
-|---|---|
-| `npm run version-alpha` | Next patch alpha (`3.8.4` → `3.8.5-alpha.0`, then `→ alpha.1`, `→ alpha.2`) |
-| `npm run version-alpha:minor` | Next minor alpha (`3.8.4` → `3.9.0-alpha.0`) |
-| `npm run version-alpha:major` | Next major alpha (`3.8.4` → `4.0.0-alpha.0`) |
-| `npm run version-beta` | Promote to beta (`3.9.0-alpha.3` → `3.9.0-beta.0`) |
-| `npm run version-rc` | Bump to next release candidate (`3.8.5-beta.2` → `3.8.5-rc.0`) |
-| `npm run version-graduate` | Graduate from prerelease to release (`3.8.5-rc.1` → `3.8.5`) |
-| `npm run version-patch` | Bump patch version (`3.8.4` → `3.8.5`) |
-| `npm run version-minor` | Bump minor version (`3.8.4` → `3.9.0`) |
-| `npm run version-major` | Bump major version (`3.8.4` → `4.0.0`) |
-| `npm run publish-all` | Publish all workspace packages to npm |
-| `npm run publish-all:alpha` | Publish with `@alpha` dist-tag |
-| `npm run publish-all:beta` | Publish with `@beta` dist-tag |
-| `npm run publish-all:rc` | Publish with `@rc` dist-tag |
-
-## Typical release flow
-
-### Prerelease cycle
+Then publish:
 
 ```sh
-npm run version-alpha          # 3.8.4 → 3.8.5-alpha.0
-npm run publish-all:alpha
-
-# iterate on alpha...
-npm run version-alpha          # 3.8.5-alpha.0 → 3.8.5-alpha.1
-npm run publish-all:alpha
-
-# promote to beta
-npm run version-beta           # 3.8.5-alpha.1 → 3.8.5-beta.0
-npm run publish-all:beta
-
-# promote to release candidate
-npm run version-rc             # 3.8.5-beta.0 → 3.8.5-rc.0
-npm run publish-all:rc
-
-# graduate to stable release
-npm run version-graduate       # 3.8.5-rc.0 → 3.8.5
-npm run publish-all
+npm run publish-all              # final releases
+npm run publish-all:alpha        # alpha previews
+npm run publish-all:beta         # beta previews
+npm run publish-all:rc           # rc previews
 ```
 
-### Direct release (no prerelease)
+## Multiple release lines
 
-```sh
-npm run version-patch          # 3.8.4 → 3.8.5
-npm run publish-all
-```
+`main` currently ships `4.x` alphas. The `3.x` branch still gets patch releases.
 
-## Skipping tests
+Each branch bumps its own version independently — run `version-patch` on `3.x` to ship `3.8.6`, run `version-alpha` on `main` to ship the next `4.0.0-alpha.N`. Publish `3.x` finals with `publish-all` (they become `@latest` on npm); publish `4.x` previews with `publish-all:alpha` (they go under the `@alpha` tag and don't displace `@latest`).
 
-If you need to skip the preversion test (e.g. during a hotfix), use npm directly:
+## What a bump does
+
+1. Runs `npm run test`. If tests fail, nothing is bumped.
+2. Writes the new version into every `modules/*/package.json` and into `modules/core/src/currentVersion.ts`.
+3. Creates a git commit and tag.
+4. Pushes the commit and tag.
+
+Internal `@haibun/*` dependencies use `*`, so modules always resolve to the matching workspace version.
+
+## Skipping tests (hotfix)
 
 ```sh
 npm version patch --ignore-scripts
@@ -102,10 +56,3 @@ git add -A && git commit -m "v$(node -p 'require(\"./package.json\").version')"
 git tag "v$(node -p 'require(\"./package.json\").version')"
 git push && git push --tags
 ```
-
-## What gets updated
-
-- Root `package.json` version (by npm)
-- All workspace module `package.json` versions (by `sync-versions.mjs`)
-- `modules/core/src/currentVersion.ts` (by `sync-versions.mjs`)
-- Workspace `@haibun/*` dependencies use `*` wildcards, so they resolve automatically
