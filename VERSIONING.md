@@ -40,9 +40,9 @@ To add a new module to the release: add it to `modules/tsconfig.json` references
 
 Modules that should never publish (e.g. `recorder`, `e2e-tests`) are marked `"private": true` in their own `package.json` and left out of `modules/tsconfig.json`.
 
-## Local escape hatches
+## Manual publish (CI down)
 
-The `version-*` and `publish-all*` npm scripts still exist for emergencies (CI down, hotfix, etc.). They do exactly what they say — read [scripts/sync-versions.mjs](scripts/sync-versions.mjs) and [scripts/publish-all.mjs](scripts/publish-all.mjs). Prefer the CI flow.
+If CI is unavailable, `npm run publish-all[:alpha|:beta|:rc]` publishes whatever is at the current root version. See [scripts/publish-all.mjs](scripts/publish-all.mjs). It refuses to run if module versions have drifted from the root.
 
 ## Checking the current version
 
