@@ -5,7 +5,7 @@
  * exportMermaid stepper step. Environment-specific property classification is
  * injected via the PropertyClassifier interface.
  */
-import { LinkRelations, edgeRel as coreEdgeRel } from "@haibun/core/lib/resources.js";
+import { LinkRelations, edgeRel as coreEdgeRel, getRelRange } from "@haibun/core/lib/resources.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 
 export type TPropKind = "name" | "identifier" | "edge" | "content" | "internal" | "scalar";
@@ -32,11 +32,11 @@ export type TBuildResult = { source: string; nodeMap: Map<string, { graph: strin
 
 export const DEFAULT_MAX_PER_SUBGRAPH = 20;
 
-/** Properties that are opaque blobs — excluded from graph rendering. */
-export const INTERNAL_PREDICATES = new Set(["signedDocument", "encodedList", "proofValue", "accessLevel"]);
+/** Properties that are opaque blobs or graph-store internals — excluded from graph rendering. */
+export const INTERNAL_PREDICATES = new Set(["signedDocument", "encodedList", "proofValue", "accessLevel", "vertexLabel"]);
 
-/** Edge-typed link relations. */
-export const EDGE_RELS: Set<string> = new Set([LinkRelations.ATTRIBUTED_TO.rel, LinkRelations.AUDIENCE.rel, LinkRelations.IN_REPLY_TO.rel, LinkRelations.ATTACHMENT.rel, LinkRelations.URL.rel]);
+/** URL is the only literal-ranged rel rendered as an edge (URI-string targets are conventionally navigable). */
+const isLiteralEdgeRel = (rel: string): boolean => rel === LinkRelations.URL.rel;
 
 /** Mermaid arrow style per link relation — encodes visual hierarchy from rel semantics.
  * ===> thick: narrative chain (IN_REPLY_TO — parentCapability, commentsOn)
@@ -254,7 +254,8 @@ export function buildClassifier(
 			if (rel === LinkRelations.NAME.rel) return "name";
 			if (rel === LinkRelations.IDENTIFIER.rel) return "identifier";
 			if (rel === LinkRelations.CONTENT.rel) return "content";
-			if (EDGE_RELS.has(rel)) return "edge";
+			// Any iri-ranged rel is an edge; URL is a literal-ranged exception (URI strings are navigable).
+			if (getRelRange(rel) === "iri" || isLiteralEdgeRel(rel)) return "edge";
 			return "scalar";
 		},
 		relForEdge(_graph: string, predicate: string): string | undefined {
