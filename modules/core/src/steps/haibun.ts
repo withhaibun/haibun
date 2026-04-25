@@ -81,6 +81,19 @@ class Haibun extends AStepper implements IHasCycles {
 			},
 		},
 
+		keepRunning: {
+			exact: "this feature runs as a service until stopped",
+			action: () => {
+				// Service-style features (agent, daemon) end with this step so the
+				// process keeps doing whatever it was doing — receiving SSE events,
+				// holding open server sockets, polling. The action's promise never
+				// resolves; the process exits via signal.
+				return new Promise(() => {
+					// intentionally never resolves
+				});
+			},
+		},
+
 		backgrounds: {
 			gwta: "Backgrounds: {names}",
 			resolveFeatureLine: (line: string, _path: string, _stepper: AStepper, backgrounds: TFeatures) => {
