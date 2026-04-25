@@ -6,6 +6,7 @@ import { Origin, TOrigin, TProvenanceIdentifier, TStepValue } from "../schema/pr
 import { DOMAIN_JSON, DOMAIN_STRING, normalizeDomainKey } from "./domains.js";
 import { QuadStore } from "./quad-store.js";
 import { IQuadStore, TQuad, emitQuadObservation } from "./quad-types.js";
+import { LinkRelations } from "./resources.js";
 
 export const SHARED_GRAPH = "variables";
 export const OBSERVATION_GRAPH = "observation";
@@ -86,6 +87,8 @@ export class FeatureVariables {
 
 		const timestamp = Date.now();
 		emitQuadObservation(this.world.eventLogger, `quad-${timestamp}`, { subject: sv.term, predicate: domainKey, object: this.isSecret(sv.term) ? OBSCURED_VALUE : normalized.value, namedGraph, timestamp });
+		const seqPath = this.world.runtime.currentSeqPath;
+		if (seqPath) emitQuadObservation(this.world.eventLogger, `quad-${timestamp}-seqPath`, { subject: sv.term, predicate: LinkRelations.SEQ_PATH.rel, object: seqPath, namedGraph, timestamp });
 	}
 
 	/** Look up a variable from store or dot-path. Shared by Origin.var, Origin.defined, Origin.quoted. */
