@@ -1,5 +1,5 @@
 import type { TRuntime } from "@haibun/core/lib/execution.js";
-import { getZcapLikeAuthority } from "@haibun/core/lib/zcap-like-authority.js";
+import { getZcapAuthority } from "@haibun/core/lib/zcap-authority.js";
 
 export type TCapabilityAuthConfig = {
 	accessToken?: string;
@@ -25,8 +25,8 @@ export function getGrantedCapabilityFromHeaders(
 	if (accessToken && accessCapability && token === accessToken) {
 		granted.add(accessCapability);
 	}
-	for (const capability of getZcapLikeAuthority(runtime)?.resolveBearerToken(token) ?? []) {
-		granted.add(capability);
+	for (const action of getZcapAuthority(runtime)?.resolveBearer(token) ?? []) {
+		granted.add(action);
 	}
 	return granted.size > 0 ? Array.from(granted) : undefined;
 }

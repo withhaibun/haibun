@@ -4,7 +4,7 @@ import { passWithDefaults, DEF_PROTO_OPTIONS } from "@haibun/core/lib/test/lib.j
 import { AStepper } from "@haibun/core/lib/astepper.js";
 import { actionOKWithProducts, getStepperOptionName } from "@haibun/core/lib/util/index.js";
 import { OK } from "@haibun/core/schema/protocol.js";
-import ZcapLikeStepper from "@haibun/core/steps/zcap-like-stepper.js";
+import ZcapStepper from "@haibun/core/steps/zcap-stepper.js";
 
 import McpStepper from "./mcp-stepper.js";
 import WebServerStepper from "./web-server-stepper.js";
@@ -126,16 +126,16 @@ verify protected mcp tool on port ${port} succeeds
 		expect(result.ok).toBe(true);
 	});
 
-	it("allows and then revokes protected MCP tools through a zcap-like bearer grant", async () => {
+	it("allows and then revokes protected MCP tools through a ZCAP bearer grant", async () => {
 		const port = 8136;
 		const feature = {
-			path: "/features/mcp-zcap-like-capability.feature",
+			path: "/features/mcp-zcap-capability.feature",
 			content: `
 serve mcp tools at /mcp
-webserver is listening for "mcp zcap-like capability"
-issue zcap-like bearer grant for token "test-token" with capability "ProtectedStepper:invoke"
+webserver is listening for "mcp zcap capability"
+issue zcap bearer grant for token "test-token" with action "ProtectedStepper:invoke"
 verify protected mcp tool on port ${port} succeeds
-revoke zcap-like bearer grant for token "test-token"
+revoke zcap bearer grant for token "test-token"
 verify protected mcp tool on port ${port} is denied
 `,
 		};
@@ -146,7 +146,7 @@ verify protected mcp tool on port ${port} is denied
 			[getStepperOptionName(McpStepper, "ACCESS_TOKEN")]: "test-token",
 		};
 
-		const result = await passWithDefaults([feature], [WebServerStepper, McpStepper, ZcapLikeStepper, ProtectedStepper], {
+		const result = await passWithDefaults([feature], [WebServerStepper, McpStepper, ZcapStepper, ProtectedStepper], {
 			...DEF_PROTO_OPTIONS,
 			moduleOptions,
 		});

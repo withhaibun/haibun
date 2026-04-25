@@ -1,0 +1,126 @@
+import { z } from "zod";
+import type { TDomainDefinition } from "../lib/resources.js";
+import type { IStepperCycles, TEndFeature, TFeatureStep } from "../lib/execution.js";
+import { AStepper, type IHasCycles } from "../lib/astepper.js";
+import { actionNotOK, actionOKWithProducts } from "../lib/util/index.js";
+import { ZCAP_AUTHORITY, ZcapAuthority } from "../lib/zcap-authority.js";
+import type { IZcapAuthority } from "../lib/zcap-types.js";
+
+const ZCAP_TOKEN_DOMAIN = "zcap-token";
+const ZCAP_ACTION_DOMAIN = "zcap-action";
+
+const zcapTokenSchema = z
+	.string()
+	.min(1, "token is required")
+	.regex(/^\S+$/, "token must not contain whitespace")
+	.describe("Opaque bearer token used to look up delegated ZCAP capabilities.");
+
+const zcapActionSchema = z
+	.string()
+	.min(1, "action is required")
+	.refine((value) => value === "*" || value.includes(":"), "action must be * or namespaced like Stepper:scope")
+	.regex(/^\S+$/, "action must not contain whitespace")
+	.describe("Allowed action label such as GraphStepper:read or Namespace:*.");
+
+const zcapGrantSchema = z.object({
+	id: z.string(),
+	token: z.string().optional(),
+	allowedAction: z.array(zcapActionSchema),
+	revoked: z.boolean(),
+	created: z.number().optional(),
+	expires: z.number().optional(),
+	note: z.string().optional(),
+	controller: z.string().optional(),
+});
+
+const zcapDomains: TDomainDefinition[] = [
+	{
+		selectors: [ZCAP_TOKEN_DOMAIN],
+		schema: zcapTokenSchema,
+		description: "Opaque bearer token used by the ZCAP authority.",
+	},
+	{
+		selectors: [ZCAP_ACTION_DOMAIN],
+		schema: zcapActionSchema,
+		description: "Namespaced action label authorized by a capability.",
+	},
+];
+
+class ZcapStepper extends AStepper implements IHasCycles {
+	description = "Manage ZCAP bearer grants for protected step dispatch";
+
+	private authority?: IZcapAuthority;
+
+	cycles: IStepperCycles = {
+		getConcerns: () => ({
+			domains: zcapDomains,
+		}),
+		startFeature: () => {
+			this.authority = new ZcapAuthority();
+			this.getWorld().runtime[ZCAP_AUTHORITY] = this.authority;
+		},
+		endFeature: (endFeature?: TEndFeature) => {
+			if (!endFeature?.shouldClose) return Promise.resolve();
+			this.authority?.clear();
+			delete this.getWorld().runtime[ZCAP_AUTHORITY];
+			this.authority = undefined;
+			return Promise.resolve();
+		},
+	};
+
+	steps = {
+		issueZcapBearerGrant: {
+			gwta: `issue zcap bearer grant for token {token: ${ZCAP_TOKEN_DOMAIN}} with action {action: ${ZCAP_ACTION_DOMAIN}}`,
+			outputSchema: z.object({
+				token: zcapTokenSchema,
+				allowedAction: z.array(zcapActionSchema),
+				revoked: z.boolean(),
+			}),
+			action: ({ token, action }: { token: string; action: string }, featureStep: TFeatureStep) => {
+				const grant = this.getAuthority().issueBearerGrant({
+					token,
+					allowedAction: [action],
+					controller: `${featureStep.action.stepperName}.${featureStep.action.actionName}`,
+					note: featureStep.in,
+				});
+				return actionOKWithProducts({
+					token: grant.token ?? token,
+					allowedAction: grant.allowedAction,
+					revoked: grant.revoked,
+				});
+			},
+		},
+		revokeZcapBearerGrant: {
+			gwta: `revoke zcap bearer grant for token {token: ${ZCAP_TOKEN_DOMAIN}}`,
+			outputSchema: z.object({
+				token: zcapTokenSchema,
+				revoked: z.number().int().nonnegative(),
+			}),
+			action: ({ token }: { token: string }) => {
+				const revoked = this.getAuthority().revokeBearerGrant(token);
+				if (revoked === 0) {
+					return actionNotOK(`No ZCAP bearer grant found for token ${token}`);
+				}
+				return actionOKWithProducts({ token, revoked });
+			},
+		},
+		showZcapBearerGrants: {
+			exact: "show zcap bearer grants",
+			outputSchema: z.object({ grants: z.array(zcapGrantSchema) }),
+			action: () => {
+				const grants = this.getAuthority().listBearerGrants();
+				this.getWorld().eventLogger.info(JSON.stringify(grants, null, 2));
+				return actionOKWithProducts({ grants });
+			},
+		},
+	};
+
+	private getAuthority(): IZcapAuthority {
+		if (!this.authority) {
+			throw new Error("ZcapStepper authority not initialized");
+		}
+		return this.authority;
+	}
+}
+
+export default ZcapStepper;
