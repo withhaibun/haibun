@@ -3,7 +3,7 @@ import { passWithDefaults, DEF_PROTO_OPTIONS } from "@haibun/core/lib/test/lib.j
 import { AStepper } from "@haibun/core/lib/astepper.js";
 import { OK, type TStepArgs } from "@haibun/core/schema/protocol.js";
 import { actionNotOK, actionOKWithProducts, getStepperOptionName } from "@haibun/core/lib/util/index.js";
-import ZcapLikeStepper from "@haibun/core/steps/zcap-like-stepper.js";
+import ZcapStepper from "@haibun/core/steps/zcap-stepper.js";
 import WebServerStepper from "./web-server-stepper.js";
 
 class PingStepper extends AStepper {
@@ -339,20 +339,20 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-protectedPing" with method
 		expect(result.ok).toBe(true);
 	});
 
-	it("authorizes protected RPC steps through zcap-like bearer grants and revokes them cleanly", async () => {
+	it("authorizes protected RPC steps through ZCAP bearer grants and revokes them cleanly", async () => {
 		const port = 8240;
 		const feature = {
-			path: "/features/zcap-like-protected-rpc.feature",
+			path: "/features/zcap-protected-rpc.feature",
 			content: `
 enable rpc
-webserver is listening for "rpc-zcap-like-step"
-issue zcap-like bearer grant for token "zcap-like-token" with capability "PingStepper:protected"
-rpc call to "http://localhost:${port}/rpc/PingStepper-protectedPing" with method "PingStepper-protectedPing" succeeds when bearer token is "zcap-like-token"
-revoke zcap-like bearer grant for token "zcap-like-token"
-rpc call to "http://localhost:${port}/rpc/PingStepper-protectedPing" with method "PingStepper-protectedPing" is denied when bearer token is "zcap-like-token"
+webserver is listening for "rpc-zcap-step"
+issue zcap bearer grant for token "zcap-token" with action "PingStepper:protected"
+rpc call to "http://localhost:${port}/rpc/PingStepper-protectedPing" with method "PingStepper-protectedPing" succeeds when bearer token is "zcap-token"
+revoke zcap bearer grant for token "zcap-token"
+rpc call to "http://localhost:${port}/rpc/PingStepper-protectedPing" with method "PingStepper-protectedPing" is denied when bearer token is "zcap-token"
 `,
 		};
-		const result = await passWithDefaults([feature], [ZcapLikeStepper, ...steppers], makeOptions(port));
+		const result = await passWithDefaults([feature], [ZcapStepper, ...steppers], makeOptions(port));
 		expect(result.ok).toBe(true);
 	});
 

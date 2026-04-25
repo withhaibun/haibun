@@ -12,7 +12,7 @@
 		"resources-stepper",
 		"logic-stepper",
 		"activities-stepper",
-		"@haibun/core/steps/zcap-like-stepper",
+		"@haibun/core/steps/zcap-stepper",
 		"haibun",
 		"./build-local/test-server"
 	],
