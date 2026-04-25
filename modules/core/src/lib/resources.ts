@@ -83,6 +83,20 @@ export const COMMENT_DOMAIN = "comment";
 export const COMMENT_EDGE = "commentsOn";
 
 /**
+ * SeqPath — the hierarchical step identifier reified as a graph vertex.
+ *
+ * `featureStep.seqPath: number[]` is the per-execution hierarchical id
+ * (e.g. [0,1,2,10] → "0.1.2.10"). Step dispatch emits SeqPath quads on
+ * step entry/exit so any structured emission within a step's context can
+ * link back to it via LinkRelations.SEQ_PATH.
+ */
+export const SEQ_PATH_LABEL = "SeqPath";
+
+/** Status values for a SeqPath vertex's lifecycle. */
+export const SEQ_PATH_STATUS = { running: "running", passed: "passed", failed: "failed" } as const;
+export type SeqPathStatus = (typeof SEQ_PATH_STATUS)[keyof typeof SEQ_PATH_STATUS];
+
+/**
  * Discourse — closed set of speech acts a Comment can perform.
  *
  * Every Comment carries a required discourse tag. The set is deliberately
@@ -146,7 +160,7 @@ export const LinkRelations = {
 	PUBLISHED: { rel: "published", uri: "as:published", range: "literal", relation: false },
 	ATTRIBUTED_TO: { rel: "attributedTo", uri: "as:attributedTo", range: "iri", relation: false },
 	AUDIENCE: { rel: "audience", uri: "as:to", range: "iri", relation: false },
-	CONTEXT: { rel: "context", uri: "as:context", range: "container", relation: false },
+	CONTEXT: { rel: "groupedAs", uri: "as:context", range: "container", relation: false },
 	UPDATED: { rel: "updated", uri: "as:updated", range: "literal", relation: false },
 	CONTENT: { rel: "content", uri: "as:content", range: "literal", relation: false },
 	IN_REPLY_TO: { rel: "inReplyTo", uri: "as:inReplyTo", range: "iri", relation: true },
@@ -160,6 +174,7 @@ export const LinkRelations = {
 	WAS_ASSOCIATED_WITH: { rel: "wasAssociatedWith", uri: "prov:wasAssociatedWith", range: "iri", relation: false },
 	WAS_STARTED_BY: { rel: "wasStartedBy", uri: "prov:wasStartedBy", range: "iri", relation: true },
 	STARTED_AT_TIME: { rel: "startedAtTime", uri: "prov:startedAtTime", range: "literal", relation: false },
+	ENDED_AT_TIME: { rel: "endedAtTime", uri: "prov:endedAtTime", range: "literal", relation: false },
 	// SOSA / W3C SSN — observation and sensing
 	PHENOMENON_TIME: { rel: "phenomenonTime", uri: "sosa:phenomenonTime", range: "literal", relation: false },
 	RESULT_TIME: { rel: "resultTime", uri: "sosa:resultTime", range: "literal", relation: false },
@@ -171,9 +186,12 @@ export const LinkRelations = {
 	SCHEMA_RESULT: { rel: "schemaResult", uri: "schema:result", range: "literal", relation: false },
 	REPLACEE: { rel: "replacee", uri: "schema:replacee", range: "literal", relation: false },
 	REPLACEMENT: { rel: "replacement", uri: "schema:replacement", range: "literal", relation: false },
+	ACTION_STATUS: { rel: "actionStatus", uri: "schema:actionStatus", range: "literal", relation: false },
+	PART_OF: { rel: "isPartOf", uri: "schema:isPartOf", range: "iri", relation: false },
+	PRECEDED_BY: { rel: "precededBy", uri: "hbn:precededBy", range: "iri", relation: false },
 	// Haibun native — no existing vocabulary mapping
 	DISCOURSE: { rel: "discourse", uri: "hbn:discourse", range: "literal", relation: false },
-	SEQ_PATH: { rel: "seqPath", uri: "hbn:seqPath", range: "literal", relation: false },
+	SEQ_PATH: { rel: "seqPath", uri: "hbn:seqPath", range: "iri", relation: false },
 	HOST_ID: { rel: "hostId", uri: "hbn:hostId", range: "literal", relation: false },
 	ACCESS_LEVEL: { rel: "accessLevel", uri: "hbn:accessLevel", range: "literal", relation: false },
 	MEASUREMENT_KIND: { rel: "measurementKind", uri: "hbn:measurementKind", range: "literal", relation: false },
@@ -214,6 +232,9 @@ export const EdgePredicates = {
 	wasInformedBy: { rel: LinkRelations.WAS_INFORMED_BY.rel },
 	invalidated: { rel: LinkRelations.INVALIDATED.rel },
 	madeBySensor: { rel: LinkRelations.MADE_BY_SENSOR.rel },
+	seqPath: { rel: LinkRelations.SEQ_PATH.rel },
+	isPartOf: { rel: LinkRelations.PART_OF.rel },
+	precededBy: { rel: LinkRelations.PRECEDED_BY.rel },
 } as const;
 
 export type TEdgePredicate = keyof typeof EdgePredicates;

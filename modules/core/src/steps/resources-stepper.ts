@@ -22,10 +22,11 @@ import {
 	LinkRelations,
 	commentDomainDefinition,
 } from "../lib/resources.js";
+import { seqPathDomainDefinition } from "../lib/seq-path.js";
 
 const cycles = (): IStepperCycles => ({
 	getConcerns: () => ({
-		domains: [commentDomainDefinition],
+		domains: [commentDomainDefinition, seqPathDomainDefinition],
 	}),
 });
 

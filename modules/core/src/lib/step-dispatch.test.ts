@@ -20,6 +20,8 @@ import { actionOKWithProducts, actionNotOK } from "./util/index.js";
 import { getDefaultWorld } from "./test/lib.js";
 import { registerDomains } from "./domains.js";
 import type { TWorld, TStepperStep } from "./execution.js";
+import { LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS } from "./resources.js";
+import { SEQ_PATH_FIELD, formatSeqPath } from "./seq-path.js";
 
 // --- Test Steppers ---
 
@@ -418,6 +420,44 @@ describe("step-dispatch", () => {
 			await expect(dispatchStep({ registry, world, steppers }, featureStep)).rejects.toThrow(
 				/capability CapabilityStepper:protected required/,
 			);
+		});
+
+		it("emits SeqPath quads for a passing step", async () => {
+			const stepper = new ProductStepper();
+			const steppers = [stepper];
+			const registry = new StepRegistry(steppers, world);
+			const tool = registry.get("ProductStepper-getCount");
+			if (!tool) throw new Error("Expected ProductStepper-getCount to be registered");
+
+			const featureStep = buildSyntheticFeatureStep(tool, {}, [0, 3, 5]);
+			const result = await dispatchStep({ registry, world, steppers }, featureStep);
+			expect(result.ok).toBe(true);
+
+			const store = world.shared.getStore();
+			const id = formatSeqPath([0, 3, 5]);
+			const quads = await store.query({ subject: id, namedGraph: SEQ_PATH_LABEL });
+			const byPredicate = Object.fromEntries(quads.map((q) => [q.predicate, q.object]));
+			expect(byPredicate[SEQ_PATH_FIELD.actionStatus]).toBe(SEQ_PATH_STATUS.passed);
+			expect(byPredicate[SEQ_PATH_FIELD.startedAtTime]).toEqual(expect.any(String));
+			expect(byPredicate[SEQ_PATH_FIELD.endedAtTime]).toEqual(expect.any(String));
+			expect(byPredicate[LinkRelations.PART_OF.rel]).toBe(formatSeqPath([0, 3]));
+			expect(byPredicate[SEQ_PATH_FIELD.stepText]).toEqual(expect.any(String));
+		});
+
+		it("emits SeqPath quads with status=failed for a failing step", async () => {
+			const stepper = new ProductStepper();
+			const steppers = [stepper];
+			const registry = new StepRegistry(steppers, world);
+			const tool = registry.get("ProductStepper-failStep");
+			if (!tool) throw new Error("Expected ProductStepper-failStep to be registered");
+
+			const featureStep = buildSyntheticFeatureStep(tool, {}, [0, 9]);
+			const result = await dispatchStep({ registry, world, steppers }, featureStep);
+			expect(result.ok).toBe(false);
+
+			const store = world.shared.getStore();
+			const status = await store.get(formatSeqPath([0, 9]), SEQ_PATH_FIELD.actionStatus, SEQ_PATH_LABEL);
+			expect(status).toBe(SEQ_PATH_STATUS.failed);
 		});
 	});
 });
